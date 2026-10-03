@@ -175,7 +175,7 @@ section('§3 the wire laws: thinking always on, no forced tool choice, the four 
   check('the main stream sends no thinking parameter when the config is disabled (the parameter stays undefined; never the disabled shape)', stream.includes("let thinking: BetaMessageStreamParams['thinking'] | undefined = undefined") && stream.includes('if (hasThinking && modelSupportsThinking(options.model))') && !/thinking\s*=\s*\{\s*type:\s*'disabled'/.test(stream))
   check('the main stream folds the tool choice through the one owner', stream.includes('foldToolChoiceForModel(options.model, options.toolChoice)') && stream.includes('tool_choice: toolChoice,'))
   const roads: Array<[string, RegExp]> = [
-    ['src/QueryEngine.ts', /\(\{ type: 'disabled' \} as ThinkingConfig\)/],
+    ['src/rows/turn.ts', /\(\{ type: 'disabled' \} as ThinkingConfig\)/],
     ['src/tools/AgentTool/runAgent.ts', /\{ thinkingConfig: \{ type: 'disabled' as const \} \}/],
     ['src/tools/AgentTool/agentToolUtils.ts', /thinkingConfig: \{ type: 'disabled' \},/],
   ]

@@ -7,7 +7,7 @@ import {
   bootRunner,
   bound,
   childEnv,
-  isInit,
+  isSession,
   isResult,
   j,
   makeTally,
@@ -175,7 +175,7 @@ async function runWorld(label: string, extraEnv: Record<string, string>): Promis
   const fixture = await startTaskFixture()
   const runner = bootRunner({ cwd, env: { ...childEnv(home, fixture.port), MERCURY_TASKS: '1', ...extraEnv }, extraArgv: ['--allowed-tools', 'TaskCreate,TaskUpdate'] })
   runner.send(user(FILE_ASK, '00000000-0000-4000-8000-000000000000'))
-  const init = await runner.waitFor('the init frame', isInit, bound(90_000))
+  const init = await runner.waitFor('the session row', isSession, bound(90_000))
   const result = init === null ? null : await runner.waitFor('the turn result', isResult, bound(180_000))
   await runner.stop(bound(8_000))
   await fixture.close()

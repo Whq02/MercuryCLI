@@ -1,18 +1,5 @@
 #!/usr/bin/env bun
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs'
-import { entryToRecord } from '../../src/fabric/entryCodec.js'
-import { ordinalOf } from '../../src/fabric/ordinal.js'
-let __ord = 0
-const __encRecordLine = (e: unknown): string =>
-  JSON.stringify(
-    entryToRecord(e as never, {
-      sessionId: 'parity2-proof',
-      nextOrdinal: () => ordinalOf(++__ord),
-      observedAt: '2026-08-01T10:00:00.000Z',
-      source: { channel: 'interactive' },
-    } as never),
-  )
-
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -182,9 +169,9 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
   }
   t('the obligation row settles withdrawn with the expiry named', row?.status === 'withdrawn' && /expired unanswered/.test(row?.settlement?.by ?? ''), row === undefined ? 'no obligation row appeared' : JSON.stringify(row))
   const asksSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'permissionAsks.ts'), 'utf8')
-  t('every mint keeps its promise on the ask (obligationLanded) and every settle site awaits it through settleAskObligation; the unattended denial is minted settled',
+  t('every mint keeps its promise on the ask (obligationLanded) and every settle site (the five: expiry, cancel, the two answers, the respawn/exit retirement) awaits it through settleAskObligation; the unattended denial is minted settled',
     (asksSource.match(/ask\.obligationLanded = upsertObligation\(/g) ?? []).length === 2 &&
-      (asksSource.match(/settleAskObligation\(ask, /g) ?? []).length === 4 &&
+      (asksSource.match(/settleAskObligation\(ask, /g) ?? []).length === 5 &&
       (asksSource.match(/void recordSettledObligation\(\{/g) ?? []).length === 1 &&
       (asksSource.match(/o\.resolveObligation\(/g) ?? []).length === 1 &&
       /const landed = ask\.obligationLanded \?\? Promise\.resolve\(ask\.obligationId\)/.test(asksSource),
@@ -285,31 +272,6 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
   const allowed = await drive({ behavior: 'allow', tool_use_id: 'toolu_lateanswer', updated_input: { command: 'echo hi' } })
   t('the allow arm still runs exactly once (the control)', allowed.runs === 1)
 
-  const { handleOrphanedPermissionResponse } = await import('../../src/cli/headless/controlHandlers.ts')
-  const { getTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
-  const { dequeueAllMatching } = await import('../../src/input-core/command-queue.ts')
-  const transcriptPath = getTranscriptPath()
-  mkdirSync(join(transcriptPath, '..'), { recursive: true })
-  writeFileSync(transcriptPath, `${__encRecordLine({ ...assistantMessage, sessionId: 'x', parentUuid: null })}\n`)
-  const handled = new Set<string>()
-  const response = {
-    subtype: 'success',
-    request_id: 'req-late-deny',
-    response: { behavior: 'deny', tool_use_id: 'toolu_lateanswer', message: 'not on this machine' },
-  }
-  const admitted = await handleOrphanedPermissionResponse({
-    message: { type: 'control_response', response } as never,
-    setAppState: () => {},
-    handledToolUseIds: handled,
-  })
-  const queued = dequeueAllMatching(cmd => cmd.mode === 'orphaned-permission')
-  t('the real admission enqueues the late deny for settlement', admitted === true && queued.length === 1 && (queued[0] as { orphanedPermission?: { permissionResult?: { behavior?: string } } }).orphanedPermission?.permissionResult?.behavior === 'deny')
-  const replayAdmission = await handleOrphanedPermissionResponse({
-    message: { type: 'control_response', response } as never,
-    setAppState: () => {},
-    handledToolUseIds: handled,
-  })
-  t('a transport replay of the same answer is deduplicated', replayAdmission === false && dequeueAllMatching(cmd => cmd.mode === 'orphaned-permission').length === 0)
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

@@ -154,19 +154,22 @@ async function main(): Promise<void> {
     rmSync(cwd, { recursive: true, force: true })
   }
 
-  section('BM-14 — subtype/is_error/exit derive from one typed outcome')
+  section('BM-14 — status/error/exit derive from one typed outcome')
   {
-    const engine = src('src/QueryEngine.ts')
-    const guardAt = engine.indexOf('if (isApiError) {')
-    const errorMintAt = engine.indexOf("subtype: 'error_during_execution',\n        is_error: true", guardAt)
-    const errorsCarryText = engine.indexOf('errors: [textResult],', guardAt)
+    const engine = src('src/rows/turn.ts')
+    const settledAt = engine.indexOf("const settled = endedOnApiError ? { status: 'failed' as const, errorClass: 'model' as const } : statusOfTerminal(terminal, cut)")
+    const gateAt = engine.indexOf("if (settled.status === 'completed') {", settledAt)
+    const completedAt = engine.indexOf("closeTurn('completed'", gateAt)
+    const { exitCodeOf, OUTCOME_STATUSES } = await import('../../src/rows/vocabulary.ts')
     check(
-      'BM-14: the print result derives from ONE typed terminal outcome (no unguarded success yield)',
-      guardAt > 0 &&
-        errorMintAt > guardAt &&
-        errorsCarryText > guardAt &&
-        !engine.includes('is_error: isApiError'),
-      `guard=${guardAt} mint=${errorMintAt} errors=${errorsCarryText}`,
+      'BM-14: the outcome derives from ONE typed settlement (no unguarded completed yield) and the exit code from the status alone',
+      settledAt > 0 &&
+        gateAt > settledAt &&
+        completedAt > gateAt &&
+        engine.lastIndexOf("closeTurn('completed'") === completedAt &&
+        exitCodeOf('completed') === 0 &&
+        OUTCOME_STATUSES.filter(status => status !== 'completed').every(status => exitCodeOf(status) === 1),
+      `settled=${settledAt} gate=${gateAt} completed=${completedAt}`,
     )
   }
 

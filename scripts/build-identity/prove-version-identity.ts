@@ -45,10 +45,10 @@ if (/process\.env\.MERCURY_DEMO_VERSION \?\? MERCURY_VERSION/.test(logo))
   ok('home logo (getLogoDisplayData) displays MERCURY_VERSION')
 else bad('logoV2Utils.ts getLogoDisplayData must fall back to MERCURY_VERSION')
 
-const sysInit = readFileSync(join(root, 'src/utils/messages/systemInit.ts'), 'utf8')
-if (sysInit.includes('mercury_version: MACRO.VERSION'))
-  ok('SDK init mercury_version stays MACRO.VERSION (machine seam)')
-else bad('systemInit.ts mercury_version must stay MACRO.VERSION')
+const turn = readFileSync(join(root, 'src/rows/turn.ts'), 'utf8')
+if (turn.includes('version: MACRO.VERSION'))
+  ok("the session row's version stays MACRO.VERSION (machine seam)")
+else bad('rows/turn.ts session facts version must stay MACRO.VERSION')
 
 const dist = join(root, 'dist/mercury.mjs')
 if (existsSync(dist)) {

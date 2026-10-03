@@ -116,9 +116,9 @@ if (ONLY === undefined || ONLY === 'R') {
     const at = frames.slice(after).findIndex(test)
     return at === -1 ? -1 : at + after
   }
-  const isResultFrame = (f: Frame): boolean => f.type === 'result'
-  const isTurnStarted = (f: Frame): boolean => f.type === 'system' && f.subtype === 'turn_started'
-  const isToolCall = (name: string) => (f: Frame): boolean => f.type === 'assistant' && JSON.stringify(f).includes(`"name":"${name}"`)
+  const isResultFrame = (f: Frame): boolean => f.type === 'outcome'
+  const isTurnStarted = (f: Frame): boolean => f.type === 'turn' && f.state === 'started'
+  const isToolCall = (name: string) => (f: Frame): boolean => f.type === 'tool_call' && f.tool === name && f.parent_call_id === undefined
   const isSleepCall = isToolCall('Sleep')
   const isBashCall = isToolCall('Bash')
   const answerTo = (id: string) => (f: Frame): boolean => f.type === 'control_response' && (f.response as { request_id?: string } | undefined)?.request_id === id
@@ -130,8 +130,8 @@ if (ONLY === undefined || ONLY === 'R') {
   const timeline = (from: number): string =>
     frames
       .slice(from)
-      .map((f, i) => [i + from, f.type === 'system' ? `system/${String(f.subtype)}${f.subtype === 'seat_verb_applied' ? `(${String(f.request_id)})` : ''}` : f.type === 'control_response' ? `answer(${String((f.response as { request_id?: string }).request_id)})` : String(f.type)] as const)
-      .filter(([, word]) => word !== 'stream_event' && word !== 'user' && word !== 'tool_progress')
+      .map((f, i) => [i + from, f.type === 'system' ? `system/${String(f.subtype)}${f.subtype === 'seat_verb_applied' ? `(${String(f.request_id)})` : ''}` : f.type === 'control_response' ? `answer(${String((f.response as { request_id?: string }).request_id)})` : f.type === 'turn' ? `turn/${String(f.state)}` : String(f.type)] as const)
+      .filter(([, word]) => !['text_delta', 'reasoning_delta', 'tool_input_delta', 'block_start', 'tool_result', 'tool_update', 'wait', 'heartbeat', 'step'].includes(word))
       .map(([i, word]) => `${i}:${word}`)
       .join(' ')
   const keepFrames = (): void => {

@@ -6,7 +6,7 @@ import { getTaskByType } from '../tasks.js'
 import { readAgentTranscript } from '../tools/WorkflowTool/agentTranscriptReader.js'
 import { asAgentId } from '../types/ids.js'
 import { getAgentTranscriptPath } from '../utils/sessionStorage/paths.js'
-import { emitTaskTerminatedSdk } from '../utils/sdkEventQueue.js'
+import { emitTaskEnded } from '../utils/sdkEventQueue.js'
 import { updateTaskState } from '../utils/task/framework.js'
 import { isInProcessCrewmateTask } from './InProcessCrewmateTask/types.js'
 import { isLocalShellTask, type LocalShellTaskState } from './LocalShellTask/guards.js'
@@ -170,7 +170,7 @@ export async function stopTask(
       return { ...current, notified: true }
     })
     if (flippedHere) {
-      emitTaskTerminatedSdk(taskId, 'stopped', {
+      emitTaskEnded(taskId, 'stopped', {
         toolUseId: task.toolUseId,
         summary: task.description,
       })

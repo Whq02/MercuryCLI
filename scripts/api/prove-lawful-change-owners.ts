@@ -84,7 +84,6 @@ console.log(failures === 0 ? '\nprove-lawful-change-owners: all green' : `\nprov
 }
 const adapter = readFileSync(join(ROOT, 'src/services/mcp/useManageMCPConnections.ts'), 'utf8')
 check('the interactive adapter requests refreshed definitions only after a successful manual reconnect', /event\.cause === 'reconnect-manual' && event\.connection\.type === 'connected' && event\.tools !== undefined\) \{\s*requestDeliberateToolChange/.test(adapter))
-check('the SDK manual reconnect refreshes definitions after discovery', /case 'mcp_reconnect':[\s\S]*?applyReconnectedClient\(serverName, client, true\)/.test(print) && /if \(refreshDefinitions && client\.type === 'connected'\) \{\s*requestDeliberateToolChange/.test(print))
 
 console.log(failures === 0 ? 'deliberate tool changes: all green' : `deliberate tool changes: ${failures} failures`)
 process.exit(failures === 0 ? 0 : 1)

@@ -12,8 +12,9 @@ function section(t: string): void {
 }
 const root = join(import.meta.dir, '..', '..')
 const machine = readFileSync(join(root, 'src', 'run-core', 'turn-machine.ts'), 'utf-8')
-const engine = readFileSync(join(root, 'src', 'QueryEngine.ts'), 'utf-8')
-const helpers = readFileSync(join(root, 'src', 'utils', 'queryHelpers.ts'), 'utf-8')
+const engine = readFileSync(join(root, 'src', 'rows', 'turn.ts'), 'utf-8')
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+const { statusOfTerminal, OUTCOME_STATUSES } = await import('../../src/rows/vocabulary.ts')
 const factories = readFileSync(join(root, 'src', 'utils', 'messages', 'factories.ts'), 'utf-8')
 const driver = readFileSync(join(root, 'src', 'cli', 'headless', 'turnDriver.ts'), 'utf-8')
 
@@ -49,25 +50,26 @@ check(
   /signal\.aborted\) \{[\s\S]{0,600}?const cutReason = toolUseContext\.abortController\.signal\.reason\s*\n\s*yield\* emitSyntheticSettlements\([\s\S]{0,200}?turnCutResultText\(turnCutOf\(cutReason\)\)/.test(machine),
 )
 check(
-  'the interruption line is TEXT content (never a tool_result the success arm could accept)',
+  'the interruption line is TEXT content (the transcript says the turn was cut)',
   /createUserInterruptionMessage\(\{[\s\S]{0,240}?content: \[\s*\{\s*type: 'text',\s*text: turnCutLine\(turnCutOf\(reason\), toolUse\),/.test(factories),
 )
+const cuts = [null, 'operator', 'idle-timeout', 'parent-stop', 'cut'] as const
 check(
-  "isResultSuccessful's user arm demands ALL-tool_result content and its fallback demands the end_turn stop — a text interruption line satisfies neither",
-  /content\.every\(block => \(block as \{ type\?: string \}\)\.type === 'tool_result'\)/.test(helpers) &&
-    /return stopReason === 'end_turn'/.test(helpers),
+  'statusOfTerminal never reads an aborted terminal as completed, whatever the cut',
+  (['aborted_streaming', 'aborted_tools'] as const).every(reason => cuts.every(cut => { const s = statusOfTerminal({ reason } as never, cut as never).status; return (OUTCOME_STATUSES as readonly string[]).includes(s) && s !== 'completed' })),
 )
 check(
-  'the settlement gates the outcome on isResultSuccessful + the end-turn carve-out before any success yield',
-  /const endTurnCarveOut = !terminalMessage && capturedStopReason === 'end_turn'\s*if \(\(!terminalMessage \|\| !isResultSuccessful\(terminalMessage\)\) && !endTurnCarveOut\) \{[\s\S]{0,400}?subtype: 'error_during_execution',[\s\S]{0,400}?return/.test(engine),
+  'the settlement reads the status off the terminal and the cut, then gates the completed yield on it',
+  /const aborted = terminal\.reason === 'aborted_streaming' \|\| terminal\.reason === 'aborted_tools'\s*const cut = aborted \? turnCutOf\(this\.abortController\.signal\.reason\)\.kind : null/.test(engine) &&
+    /const settled = endedOnApiError \? \{ status: 'failed' as const, errorClass: 'model' as const \} : statusOfTerminal\(terminal, cut\)\s*if \(settled\.status === 'completed'\) \{[\s\S]{0,200}?closeTurn\('completed'/.test(engine),
 )
 check(
-  'the success envelopes are the closed two (local command · the gated settlement)',
-  (engine.match(/subtype: 'success',/g) ?? []).length === 2,
+  'the completed outcomes are the closed two (local command · the gated settlement)',
+  (engine.match(/closeTurn\((?:refused \? 'refused' : )?'completed'/g) ?? []).length === 2,
 )
 check(
-  'the turn settlement’s success yield is the LAST envelope, past the gate',
-  engine.lastIndexOf("subtype: 'success',") > engine.indexOf('const endTurnCarveOut'),
+  'the turn settlement’s completed yield is the LAST outcome of its kind, past the gate',
+  engine.lastIndexOf("closeTurn('completed'") > engine.indexOf('const settled ='),
 )
 
 section('C. the settle tail: exactly once per turn, after the turn, one call site')
@@ -80,8 +82,8 @@ check(
   (driver.match(/ports\.onTurnSettled\(/g) ?? []).length === 1,
 )
 check(
-  'the error band (envelope + shutdown) is reserved for a THROWN cycle — the clean abort return never reaches it',
-  /catch \(error\) \{[\s\S]{0,400}?await ports\.writeDirect\(ports\.onCycleError\(error\)\)[\s\S]{0,200}?ports\.shutdown\(1\)/.test(driver),
+  'the error band (a failed outcome + shutdown) is reserved for a THROWN cycle — the clean abort return never reaches it',
+  /catch \(error\) \{[\s\S]{0,400}?await ports\.writeDirect\(ports\.onCycleError\(error, ports\.turnIdOf\(\)\)\)[\s\S]{0,200}?ports\.shutdown\(1\)/.test(driver),
 )
 
 console.log('\n' + '='.repeat(60))

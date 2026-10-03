@@ -86,12 +86,12 @@ console.log('\nW3 an answer showing nothing live disarms the poll')
   check('no re-ask after the roster settled', factsRequests() === at, `${factsRequests() - at} request(s) after the settle`)
 }
 
-console.log("\nW4 the settle's own frame re-asks at once (the frame road)")
+console.log("\nW4 the settle's own task row re-asks at once (the row road)")
 {
   const at = factsRequests()
-  feed(JSON.stringify({ type: 'system', subtype: 'task_notification', task_id: 'agent-live', status: 'completed', summary: 'scout', output_file: '' }))
+  feed(JSON.stringify({ type: 'task', seq: 1, timestamp: 't', session_id: 'work-poll', state: 'ended', task_id: 'agent-live', status: 'completed', summary: 'scout', output_file: '' }))
   await settle(400)
-  check('a task_notification frame re-asked the facts', factsRequests() > at, `${factsRequests() - at} request(s)`)
+  check('an ended task row re-asked the facts', factsRequests() > at, `${factsRequests() - at} request(s)`)
 }
 
 console.log(failures === 0 ? '\n✅ the seat work poll holds' : `\n❌ ${failures} failure(s)`)

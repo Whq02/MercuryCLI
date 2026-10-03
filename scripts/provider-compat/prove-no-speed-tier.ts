@@ -297,7 +297,7 @@ section('static pins — the owners carry no speed-tier vocabulary')
   check('the Anthropic transport neither latches a fast-mode header nor sets a speed param', offenders.length === 0, offenders.join(','))
   check('the settings schema carries no fast-mode key', !/fastMode/.test(read('src/utils/settings/types.ts')))
   check('the global config schema carries no fast-mode key', !/fastMode/i.test(read('src/utils/config/schema.ts')))
-  check('the query engine seeds no fast-mode state', !/fastMode|fast_mode/.test(read('src/QueryEngine.ts')) && !/fastMode/.test(read('src/run-core/turn-machine.ts')))
+  check('the turn seeds no fast-mode state', !/fastMode|fast_mode/.test(read('src/rows/turn.ts')) && !/fastMode/.test(read('src/run-core/turn-machine.ts')))
 }
 
 server.close()

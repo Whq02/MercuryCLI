@@ -2,7 +2,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { bootRunner, bound, carriersOf, childEnv, DIST, exportWorld, isInit, j, makeTally, removeWorld, SCRATCH_ROOT, seedHome, sleep, user } from './dupline-world.ts'
+import { bootRunner, bound, carriersOf, childEnv, DIST, exportWorld, isSession, j, makeTally, removeWorld, SCRATCH_ROOT, seedHome, sleep, user } from './dupline-world.ts'
 
 const { check, section, finish } = makeTally('prove-wake-hold-drive')
 section('a background shell, a background agent and a self-paced wake through a closed usage window: their notices wait and reach the model together, once, when the window reopens; the wake fires after it')
@@ -177,7 +177,7 @@ if (!existsSync(DIST)) {
 } else {
   const runner = bootRunner({ cwd: CWD, env })
   runner.send(user(ARM_ASK, 'u-arm'))
-  const init = await runner.waitFor('the session init frame', isInit, bound(90_000))
+  const init = await runner.waitFor('the session row', isSession, bound(90_000))
   check('the headless session booted on the fixture', init !== null, runner.stderr().slice(-400))
   const armed = await waitWire('the three tools answered', w => w.ask.trim() === ARM_ASK && w.step >= 1, bound(60_000))
   const armedResults = armed?.results ?? []
@@ -189,8 +189,8 @@ if (!existsSync(DIST)) {
   runner.send(user(HELLO_ASK, 'u-hello'))
   const refused = await waitWire('the usage window refusal', w => w.kind === 'walled' && w.ask.trim() === HELLO_ASK, bound(30_000))
   check('the provider refused a turn for the usage window and the session observed it', refused !== null, brief())
-  const refusalRow = await runner.waitFor('the refusal result', f => f.type === 'result' && /limit is reached/.test(JSON.stringify(f)), bound(20_000))
-  check("the session's own row says the limit is reached, with the reset", refusalRow !== null, j(runner.frames.filter(f => f.type === 'result').slice(-1)))
+  const refusalRow = await runner.waitFor('the refusal result', f => f.type === 'outcome' && /limit is reached/.test(JSON.stringify(f)), bound(20_000))
+  check("the session's own row says the limit is reached, with the reset", refusalRow !== null, j(runner.frames.filter(f => f.type === 'outcome').slice(-1)))
   check('the shell, the agent and the wake all land inside the window by construction', wallUntilMs > t0 + Math.max(SHELL_SECONDS, AGENT_SHELL_SECONDS, WAKE_SECONDS) * 1000 + 5_000)
 
   const together = await waitWire(

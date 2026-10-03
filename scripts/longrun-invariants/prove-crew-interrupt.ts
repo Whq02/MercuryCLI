@@ -73,7 +73,7 @@ section('§K1a the controller law — an agent task owns a fresh controller')
   check('the foreground run\'s owner is the task\'s controller (never the turn\'s)', fgSrc.includes('abortController: foregroundTask.abortController'))
   check('the turn\'s abort races the foreground loop and hands the run over (the same iterator, no re-run)', fgSrc.includes('TURN_ABORTED') && fgSrc.includes('continueDetached(backgroundedTaskId, nextPromise)') && !fgSrc.includes('agentIterator.return('))
   const runner = src('src/cli/print.ts')
-  const interruptArm = runner.slice(runner.indexOf("case 'interrupt': {"), runner.indexOf("case 'end_session': {"))
+  const interruptArm = runner.slice(runner.indexOf("'turn/interrupt': params => {"), runner.indexOf("'queue/add': async params => {"))
   check('the runner\'s interrupt releases the driver\'s hold and stops no task', interruptArm.includes('driver.releaseHold()') && !interruptArm.includes('stopRunningAgentTasks') && !runner.includes('stopRunningAgentTasks('))
   check('the crew census counts running agents and workflows, never the session\'s own row', crewStillRunning({
     a: { type: 'local_agent', status: 'running', agentType: 'mercury-crew' },
@@ -107,20 +107,21 @@ async function driverScenario(opts: { releaseBeforeResult: boolean; tasksRunning
     notifyLifecycle: () => {},
     enqueueOutput: m => out.push((m as { type: string }).type),
     writeDirect: async () => {},
-    drainSdkEvents: () => [],
+    drainRows: () => [],
     executeTurn: async (_c, _batchUuids, onMessage) => {
-      onMessage({ type: 'assistant' } as never)
+      onMessage({ type: 'text' } as never)
       if (opts.releaseBeforeResult) driver.releaseHold()
-      onMessage({ type: 'result' } as never)
+      onMessage({ type: 'outcome' } as never)
     },
     beforeCycle: async () => {},
     onTurnStart: () => {},
+    turnIdOf: () => 't-rig',
+    openTurnRow: () => ({ type: 'turn', state: 'started', turn_id: 't-rig' }) as never,
     onTurnSettled: () => {},
     hasWaitableBackgroundTasks: opts.tasksRunning,
     hasHoldableBackgroundAgents: opts.tasksRunning,
     waitableBackgroundTaskCount: () => 2,
     onAgentWait: n => waits.push(n),
-    takePendingSuggestion: () => null,
     settleIdle: async () => {
       resolveSettled()
       return 'stay'
@@ -134,7 +135,7 @@ async function driverScenario(opts: { releaseBeforeResult: boolean; tasksRunning
       console.log(`  [FAIL] the driver cycle threw — ${String(error)}`)
       failures++
       resolveSettled()
-      return { type: 'result' } as never
+      return { type: 'outcome' } as never
     },
     shutdown: () => {},
     clock: { sleep: ms => new Promise(r => setTimeout(r, Math.min(ms, 20))) },
@@ -147,21 +148,21 @@ async function driverScenario(opts: { releaseBeforeResult: boolean; tasksRunning
 {
   const s = await driverScenario({ releaseBeforeResult: false, tasksRunning: () => true })
   await new Promise(r => setTimeout(r, 120))
-  check('while agents run the result is HELD and the wait is announced', !s.out.includes('result') && s.waits.includes(2) && s.driver.phase() === 'waiting_for_agents', `out=${s.out.join(',')} waits=${s.waits.join(',')} phase=${s.driver.phase()}`)
+  check('while agents run the result is HELD and the wait is announced', !s.out.includes('outcome') && s.waits.includes(2) && s.driver.phase() === 'waiting_for_agents', `out=${s.out.join(',')} waits=${s.waits.join(',')} phase=${s.driver.phase()}`)
   s.driver.releaseHold()
   await s.settled
-  check('releaseHold: the held result lands, the wait ends (0 announced), the cycle settles idle — the agents were never asked to stop', s.out.includes('result') && s.waits[s.waits.length - 1] === 0 && s.driver.phase() === 'idle', `out=${s.out.join(',')} waits=${s.waits.join(',')} phase=${s.driver.phase()}`)
+  check('releaseHold: the held result lands, the wait ends (0 announced), the cycle settles idle — the agents were never asked to stop', s.out.includes('outcome') && s.waits[s.waits.length - 1] === 0 && s.driver.phase() === 'idle', `out=${s.out.join(',')} waits=${s.waits.join(',')} phase=${s.driver.phase()}`)
   check('the release is not a stop: the tasks census still reads running after it', true)
 }
 {
   const s = await driverScenario({ releaseBeforeResult: true, tasksRunning: () => true })
   await s.settled
-  check('a release before the result lands enqueues the result at once and skips the wait', s.out.includes('result') && !s.waits.includes(2) && s.driver.phase() === 'idle', `out=${s.out.join(',')} waits=${s.waits.join(',')}`)
+  check('a release before the result lands enqueues the result at once and skips the wait', s.out.includes('outcome') && !s.waits.includes(2) && s.driver.phase() === 'idle', `out=${s.out.join(',')} waits=${s.waits.join(',')}`)
 }
 {
   const s = await driverScenario({ releaseBeforeResult: false, tasksRunning: () => false })
   await s.settled
-  check('with nothing running the result lands without a release (the ordinary turn)', s.out.includes('result') && s.driver.phase() === 'idle')
+  check('with nothing running the result lands without a release (the ordinary turn)', s.out.includes('outcome') && s.driver.phase() === 'idle')
   s.driver.releaseHold()
   check('releaseHold between cycles is a no-op (the next cycle holds and waits as before)', s.driver.phase() === 'idle')
 }
@@ -250,9 +251,9 @@ async function lifecycleWith(name: string, drive: (controller: AbortController) 
   const wfNotes = taskNotifications().map(n => (n as { value?: string }).value ?? '')
   check('its killed notice lands exactly once', wfNotes.length === 1 && wfNotes[0]!.includes('<status>killed</status>'))
   const runner = src('src/cli/print.ts')
-  const stopArmAt = runner.indexOf("case 'stop_task': {")
-  const stopArm = runner.slice(stopArmAt, runner.indexOf("case 'resume_task': {"))
-  check('the runner\'s stop_task rides the one operator-stop owner and answers applied or refused with its reason', stopArmAt !== -1 && stopArm.includes('stopAgentByOperator(request.task_id, { getAppState, setAppState }, request.note === AGENT_INTERRUPT_BY_OPERATOR ? { reason: AGENT_INTERRUPT_BY_OPERATOR } : {})') && stopArm.includes("respondError(requestId, receipt.reason)") && !stopArm.includes('respondSuccess(requestId, {})'))
+  const stopArmAt = runner.indexOf("'agent/stop': async params => {")
+  const stopArm = runner.slice(stopArmAt, runner.indexOf("'session/quiesce': async params => {"))
+  check('the runner\'s stop_task rides the one operator-stop owner and answers applied or refused with its reason', stopArmAt !== -1 && stopArm.includes('stopAgentByOperator(params.agent_id, { getAppState, setAppState }, params.note === AGENT_INTERRUPT_BY_OPERATOR ? { reason: AGENT_INTERRUPT_BY_OPERATOR } : {})') && stopArm.includes("throw refused(receipt.reason, 'agent')") && !stopArm.includes('return {}'))
   const owner = src('src/services/agents/operatorStop.ts')
   check('the owner routes a workflow row to killWorkflowTask, a named crewmate to killInProcessCrewmate and an agent to the reasoned abort', owner.includes('killWorkflowTask(taskId, context.setAppState)') && owner.includes('killInProcessCrewmate(taskId, context.setAppState)') && owner.includes('stopOrDismissAgent(taskId, context.setAppState, options.reason ?? AGENT_STOP_BY_OPERATOR)'))
   resetCommandQueue()
@@ -261,7 +262,7 @@ async function lifecycleWith(name: string, drive: (controller: AbortController) 
 section('§K4 the resume road — one owner behind every door')
 {
   const runner = src('src/cli/print.ts')
-  const resumeArm = runner.slice(runner.indexOf("case 'resume_task': {"), runner.indexOf("case 'generate_session_title': {"))
+  const resumeArm = runner.slice(runner.indexOf("'agent/resume': async params => {"), runner.indexOf("const legacyAt = (at: 'now' | 'turn_end')"))
   check('the runner\'s resume_task rides the one resume owner with the resume note and the runner\'s own permission road', resumeArm.includes('resumeAgentBackground({') && resumeArm.includes('AGENT_RESUME_NOTE') && resumeArm.includes('canUseTool,') && !resumeArm.includes("behavior: 'allow'"))
   check('the resume note tells the agent the work before the stop stands', AGENT_RESUME_NOTE.includes('resumed you from the crew view') && AGENT_RESUME_NOTE.includes('do not redo it'))
   const seat = src('src/daemon/sessionSeat.ts')
@@ -272,8 +273,8 @@ section('§K4 the resume road — one owner behind every door')
   check('the connector\'s doors ride the seat\'s verb chain', connector.includes("this.agentVerb('stop-agent', agentId, note)") && connector.includes("this.agentVerb('resume-agent', agentId, note)") && connector.includes("action,\n        sessionId: this.record.sessionId,\n        by: 'operator',\n        agentId,"))
   const contract = src('src/services/engine-connector/types.ts')
   check('the contract names both doors', contract.includes('stopAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1>') && contract.includes('resumeAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1>'))
-  const schemas = src('src/entrypoints/sdk/controlSchemas.ts')
-  check('the SDK control schema admits resume_task', schemas.includes("z.literal('resume_task')"))
+  const methods = src('src/runner/wire/methods.ts')
+  check("the door's method table carries agent/resume", methods.includes("'agent/resume': method({"))
   const run = src('src/tools/AgentTool/runAgent.ts')
   check('the run loop seeds its chain parent from the seed messages\' leaf — a resume replays the prompt', run.includes('let lastRecordedUuid: string | undefined = messages[messages.length - 1]?.uuid'))
 }
@@ -360,7 +361,7 @@ section('§K10b a GPT seat pays no per-runner catalogue fetch — the daemon\'s 
   })
   check('K10b the runner\'s refresh within the TTL serves the primed snapshot and fetches nothing', fetched === 0 && refreshed?.models.length === 1 && refreshed.lastError === undefined)
   cat.__resetOpenaiCatalogueForTest()
-  check('K10b the claim carries the snapshot in the feed\'s spelling and the runner decodes and primes it at the claim', src('src/daemon/warmRunner.ts').includes('openai_catalogue: openaiCatalogueToWire(openaiCatalogue)') && src('src/cli/print.ts').includes('primeOpenaiCatalogue(openaiCatalogueFromWire(request.openai_catalogue)'))
+  check('K10b the claim carries the snapshot in the feed\'s spelling and the runner decodes and primes it at the claim', src('src/daemon/warmRunner.ts').includes('openai_catalogue: openaiCatalogueToWire(openaiCatalogue)') && src('src/cli/print.ts').includes('primeOpenaiCatalogue(openaiCatalogueFromWire(params.openai_catalogue)'))
   check('K10b the daemon\'s sign-in view fetches no catalogue; the claim road reads the daemon\'s snapshot', !src('src/daemon/signInView.ts').includes('refreshOpenaiCatalogue') && src('src/daemon/warmRunner.ts').includes('getCachedOpenaiCatalogue(openaiAccount.kind)'))
 }
 

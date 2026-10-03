@@ -143,9 +143,9 @@ section('§H the write re-point')
 {
   const src = read('src/cli/print.ts')
   t('H1 print.ts carries no setMcpServerEnabled CALL (the disease is gone from the child)', !src.includes('setMcpServerEnabled(') && !/import[^\n]*setMcpServerEnabled/.test(src))
-  t('H1b the kit_edit arm exists and rides the serialized MCP mutation lane', /case 'kit_edit':/.test(src) && /kit_edit[\s\S]{0,2400}serializeMcpChange/.test(src))
+  t('H1b the kit_edit arm exists and rides the serialized MCP mutation lane', /'session\/set_kit': params =>/.test(src) && /'session\/set_kit': params =>[\s\S]{0,2400}serializeMcpChange/.test(src))
   t('H1c the toggle arm dials the PROCESS KIT through the one edit road', /case 'mcp_toggle':[\s\S]{0,1800}applyProcessSessionKitEdit/.test(src))
-  t('H1d the reconcile clears the command memos (the per-cwd model-list memo included)', /case 'kit_edit':[\s\S]{0,6200}clearCommandMemoizationCaches\(\)/.test(src))
+  t('H1d the reconcile clears the command memos (the per-cwd model-list memo included)', /'session\/set_kit': params =>[\s\S]{0,6200}clearCommandMemoizationCaches\(\)/.test(src))
   t('H1e the completion replay is guarded to the unresolved arm only', /sessionKitOf\(\)\?\.resolved === false/.test(src))
 }
 {

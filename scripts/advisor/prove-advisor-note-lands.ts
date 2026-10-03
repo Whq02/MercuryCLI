@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpath
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { Readable, Writable } from 'node:stream'
+import { outcomeCount } from '../lib/rows.ts'
 
 delete process.env.NODE_ENV
 for (const ambient of ['MERCURY_MODEL', 'MERCURY_OAUTH_TOKEN', 'MERCURY_SCRIPTED_STREAM', 'MERCURY_BARE', 'MERCURY_ADVISOR_MODEL', 'MERCURY_CONSOLE_MODEL', 'CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_HOME']) {
@@ -60,7 +61,7 @@ const QUIET_WORDS = 'had nothing to say this round — answered with no text, tw
 const PLATE = '[advisor]'
 const CADENCE = `every ${MINUTES} minutes`
 const ADVISE_ON = '/advise on'
-const adviseLineOf = (run: { frames: Raw[] }): string => String(run.frames.find(f => f.type === 'result' && typeof f.result === 'string' && String(f.result).startsWith('advisor '))?.result ?? '')
+const adviseLineOf = (run: { frames: Raw[] }): string => String(run.frames.find(f => f.type === 'outcome' && typeof f.answer === 'string' && String(f.answer).startsWith('advisor '))?.answer ?? '')
 const HANDLE = '[sam]'
 const DOT = '●'
 
@@ -304,7 +305,7 @@ function runSession(arena: Arena, sid: string, prompts: string[], closeWhen: { r
       if (sent >= prompts.length) return
       const prompt = prompts[sent]!
       sent++
-      child.stdin.write(`${j({ type: 'user', message: { role: 'user', content: prompt } })}\n`)
+      child.stdin.write(`${j({ type: 'prompt', content: prompt })}\n`)
     }
     const release = (): void => {
       while (owed > 0 && sent < prompts.length) {
@@ -315,7 +316,7 @@ function runSession(arena: Arena, sid: string, prompts: string[], closeWhen: { r
     }
     child.stdout.on('data', d => {
       stdout += d
-      const seen = stdout.split('\n').filter(l => l.includes('"type":"result"')).length
+      const seen = outcomeCount(stdout)
       while (results < seen) {
         results++
         owed++
@@ -403,8 +404,8 @@ section(`§1 A NOTE COMPOSED AT A TURN'S END LANDS INSIDE THE NEXT TURN: the rea
   check('no quiet row was written for a round that landed a note', chat.every(r => !(r.type === 'system' && r.subtype === 'advisor_quiet')))
   const kinds = memoryKindsOf(file, SID)
   check("the advisor's own record beside the transcript holds the seeded note, then the digest and the new note (the record a live run is read by)", kinds.join(',') === 'head,note,digest,note' && rawRecordsOf(memory).some(r => r.kind === 'note' && r.text === NOTE && r.model === ADVISOR_MODEL), j(kinds))
-  const stdoutNote = run.frames.find(f => f.type === 'user' && rows.isAdvisorOrigin((f as Raw).origin ?? ((f.message as Raw | undefined) ?? {}).origin))
-  console.log(`  the stream-json host saw ${run.frames.filter(f => f.type === 'result').length} result frames; an advisor-origin user frame on stdout: ${stdoutNote !== undefined ? 'yes' : 'no'}`)
+  const stdoutNote = run.frames.find(f => rows.isAdvisorOrigin((f as Raw).origin))
+  console.log(`  the rows host saw ${run.frames.filter(f => f.type === 'outcome').length} outcome rows; an advisor-origin row on stdout: ${stdoutNote !== undefined ? 'yes' : 'no'}`)
   await paintsTheNote(chat, "the operator's second prompt", 'operator line 2')
   frameScenes.push(['advisor-note-lands', "the real runner's transcript: the note composed at turn 1's end lands beside the operator's second prompt as the muted row, then the reply that reads it", chat])
   wire.length = 0

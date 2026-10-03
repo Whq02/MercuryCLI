@@ -5,6 +5,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSyn
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { hostRunner } from '../lib/runnerHost.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -342,16 +343,57 @@ function dumpsOf(world: World): string[] {
 
 interface HeadlessRun {
   frames: Array<Record<string, unknown>>
-  controlRequests: Array<Record<string, unknown>>
+  asks: Array<Record<string, unknown>>
   stderr: string
   exit: number | null
 }
 
-function runStreamJson(world: World, fixture: Fixture, args: string[], turns: Array<{ prompt: string; waitFor?: () => boolean }>): Promise<HeadlessRun> {
+type LegTurn = { prompt: string; waitFor?: () => boolean }
+
+function runSeat(world: World, fixture: Fixture, args: string[], turns: LegTurn[]): Promise<HeadlessRun> {
+  return new Promise(resolvePromise => {
+    const host = hostRunner({ dist: DIST, node: nodeBin!, cwd: world.cwd, home: world.home, env: worldEnv(world, fixture.base) as Record<string, string>, argv: args })
+    const asks: Array<Record<string, unknown>> = []
+    let sent = 0
+    let outcomes = 0
+    let ended = false
+    let exit: number | null = null
+    const finish = (): void => {
+      if (ended) return
+      ended = true
+      clearTimeout(killer)
+      clearInterval(pump)
+      resolvePromise({ frames: host.rows as Array<Record<string, unknown>>, asks, stderr: host.stderr(), exit })
+    }
+    const killer = setTimeout(() => host.child.kill('SIGKILL'), 120_000)
+    host.onAsk(params => {
+      asks.push(params as Record<string, unknown>)
+      return params.kind === 'tool' ? { outcome: 'allow', input: params.input } : { outcome: 'deny' }
+    })
+    const sendNext = (): void => {
+      if (sent >= turns.length) {
+        outcomes = host.rows.filter(row => row.type === 'outcome').length
+        if (outcomes >= turns.length) host.end()
+        return
+      }
+      const turn = turns[sent]!
+      if (turn.waitFor && !turn.waitFor()) return
+      sent++
+      void host.prompt(turn.prompt)
+    }
+    const pump = setInterval(sendNext, 200)
+    void host.exited.then(code => {
+      exit = code
+      finish()
+    })
+    void host.initialize({ holds_asks: true }).then(() => sendNext(), () => finish())
+  })
+}
+
+function runPlain(world: World, fixture: Fixture, args: string[], turns: LegTurn[]): Promise<HeadlessRun> {
   return new Promise(resolvePromise => {
     const child = spawn(nodeBin!, [DIST, ...args], { cwd: world.cwd, env: worldEnv(world, fixture.base) })
     const frames: Array<Record<string, unknown>> = []
-    const controlRequests: Array<Record<string, unknown>> = []
     let stdout = ''
     let stderr = ''
     let consumed = 0
@@ -362,7 +404,7 @@ function runStreamJson(world: World, fixture: Fixture, args: string[], turns: Ar
       ended = true
       clearTimeout(killer)
       clearInterval(pump)
-      resolvePromise({ frames, controlRequests, stderr, exit })
+      resolvePromise({ frames, asks: [], stderr, exit })
     }
     const killer = setTimeout(() => child.kill('SIGKILL'), 120_000)
     const sendNext = (): void => {
@@ -370,7 +412,7 @@ function runStreamJson(world: World, fixture: Fixture, args: string[], turns: Ar
       const turn = turns[sent]!
       if (turn.waitFor && !turn.waitFor()) return
       sent++
-      child.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content: turn.prompt } }) + '\n')
+      child.stdin.write(JSON.stringify({ type: 'prompt', content: turn.prompt }) + '\n')
     }
     const pump = setInterval(sendNext, 200)
     child.stdout.on('data', d => {
@@ -386,19 +428,7 @@ function runStreamJson(world: World, fixture: Fixture, args: string[], turns: Ar
           continue
         }
         frames.push(frame)
-        if (frame.type === 'control_request') {
-          const request = (frame.request ?? {}) as Record<string, unknown>
-          if (request.subtype === 'can_use_tool') {
-            controlRequests.push(frame)
-            child.stdin.write(
-              JSON.stringify({
-                type: 'control_response',
-                response: { subtype: 'success', request_id: frame.request_id, response: { behavior: 'allow', updated_input: request.input } },
-              }) + '\n',
-            )
-          }
-        }
-        if (frame.type === 'result' && sent >= turns.length) child.stdin.end()
+        if (frame.type === 'outcome' && sent >= turns.length) child.stdin.end()
       }
     })
     child.stderr.on('data', d => (stderr += String(d)))
@@ -408,7 +438,7 @@ function runStreamJson(world: World, fixture: Fixture, args: string[], turns: Ar
   })
 }
 
-const resultTexts = (run: HeadlessRun): string[] => run.frames.filter(f => f.type === 'result').map(f => String((f as { result?: unknown }).result ?? ''))
+const resultTexts = (run: HeadlessRun): string[] => run.frames.filter(f => f.type === 'outcome').map(f => String((f as { answer?: unknown }).answer ?? ''))
 
 function evidence(fixture: Fixture, run: HeadlessRun): void {
   console.log(`  evidence · hits: ${fixture.hits.map(h => `${h.n}:${h.route}${h.streaming ? '' : '/json'}/${h.model}`).join(' ')}`)
@@ -416,8 +446,8 @@ function evidence(fixture: Fixture, run: HeadlessRun): void {
     if (hit.results.length === 0) continue
     console.log(`  evidence · request ${hit.n} (${hit.route}) results: ${hit.results.map(r => j(r.replace(/\s+/g, ' ').slice(0, 260))).join(' · ')}`)
   }
-  const asks = run.controlRequests.map(f => (f.request ?? {}) as Record<string, unknown>)
-  console.log(`  evidence · control requests: ${asks.map(a => `${String(a.tool_name)}${a.agent_id ? ' agent_id=' + String(a.agent_id).slice(0, 18) + '…' : ' (no agent_id)'} reason=${j(String(a.decision_reason ?? '')).slice(0, 200)}`).join(' · ') || 'none'}`)
+  const asks = run.asks
+  console.log(`  evidence · asks: ${asks.map(a => `${String(a.tool_name)}${a.agent_id ? ' agent_id=' + String(a.agent_id).slice(0, 18) + '…' : ' (no agent_id)'} reason=${j(String(a.reason ?? '')).slice(0, 200)}`).join(' · ') || 'none'}`)
   console.log(`  evidence · results: ${resultTexts(run).map(t => j(t.slice(0, 200))).join(' · ')}`)
 }
 
@@ -441,30 +471,20 @@ async function runLeg(leg: Leg): Promise<void> {
   const before = failures
   const fixture = await startFixture({ agent: leg.agent, verdict: leg.verdict })
   const world = seedWorld()
-  const argv = [
-    'run',
-    '--mode',
-    'flow',
-    '--input=rows',
-    '--format=rows',
-    ...(leg.channel ? ['--permission-channel', 'stdio'] : []),
-    '--model',
-    MODEL,
-    '--log-file',
-    join(world.home, 'debug.txt'),
-  ]
+  const session = ['--mode', 'flow', '--model', MODEL, '--log-file', join(world.home, 'debug.txt')]
+  const argv = leg.channel ? session : ['run', '--input=rows', '--format=rows', ...session]
   const turns = leg.agent
     ? [{ prompt: AGENT_ASK }, { prompt: FOLLOW_UP, waitFor: () => fixture.hits.some(h => h.route === 'seat-done') }]
     : [{ prompt: ASK }]
   let run: HeadlessRun
   try {
-    run = await runStreamJson(world, fixture, argv, turns)
+    run = leg.channel ? await runSeat(world, fixture, argv, turns) : await runPlain(world, fixture, argv, turns)
   } finally {
     await fixture.close()
   }
   evidence(fixture, run)
   const classifierHits = fixture.hits.filter(h => h.route === 'classifier')
-  const asks = run.controlRequests.map(f => (f.request ?? {}) as Record<string, unknown>)
+  const asks = run.asks
   const askJson = j(asks)
   const wireJson = j(fixture.hits.map(h => h.results))
   const texts = resultTexts(run)
@@ -480,7 +500,7 @@ async function runLeg(leg: Leg): Promise<void> {
 
   if (leg.channel) {
     const expectedReason = leg.verdict === 'block' ? BLOCK_REASON : UNREADABLE_ASK_WORDS
-    check(`${leg.name}: ONE can_use_tool request left the seat for the shell — the ask parked with the host`, asks.length === 1 && asks[0]?.tool_name === 'Bash' && String((asks[0]?.input as { command?: string })?.command).includes(PROBE_COMMIT), `${asks.length} request(s)`)
+    check(`${leg.name}: ONE permission/request left the seat for the shell — the ask parked with the host`, asks.length === 1 && asks[0]?.tool_name === 'Bash' && String((asks[0]?.input as { command?: string })?.command).includes(PROBE_COMMIT), `${asks.length} request(s)`)
     check(`${leg.name}: the request carries the reason (${j(expectedReason)})`, askJson.includes(expectedReason), askJson.slice(0, 400))
     if (leg.verdict === 'malformed') {
       check(`${leg.name}: the reason names the classifier model`, askJson.includes(MODEL), askJson.slice(0, 400))
@@ -491,7 +511,7 @@ async function runLeg(leg: Leg): Promise<void> {
     check(`${leg.name}: the host's allow ran the shell — the probe commit landed and its sha came back`, isSha(firstLine(shellResult)) && firstLine(shellResult) === after && commits === '2' && after !== world.sha, `${j(quoted(shellResult))} · head ${after} · commits ${commits}`)
     check(`${leg.name}: no denial anywhere on the wire`, !wireJson.includes('has been denied') && !wireJson.includes(NO_CARD_WORDS) && !wireJson.includes('auto-denied'), wireJson.slice(0, 400))
   } else {
-    check(`${leg.name}: no control request left the run (no channel)`, asks.length === 0, `${asks.length} request(s)`)
+    check(`${leg.name}: no ask left the run (no host)`, asks.length === 0, `${asks.length} ask(s)`)
     check(`${leg.name}: the shell did not run (one commit, the sha unchanged)`, commits === '1' && after === world.sha, `head ${after} · commits ${commits}`)
     if (leg.verdict === 'block') {
       check(`${leg.name}: the block denies with the policy-denial words and the no-card note`, (shellResult ?? '').includes(POLICY_DENIAL_LEAD + BLOCK_REASON) && (shellResult ?? '').includes(NO_CARD_WORDS), j(quoted(shellResult)))

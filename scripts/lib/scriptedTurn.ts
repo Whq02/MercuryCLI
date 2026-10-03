@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { join } from 'node:path'
-import { PROBE_KEY, bootRunner, bound, childEnv, configKeyOf, isResult, user } from '../daemon/dupline-world.ts'
+import { PROBE_KEY, bootRunner, bound, childEnv, configKeyOf, isOutcome, user } from '../daemon/dupline-world.ts'
 
 export type WireBlock = { type: 'text'; text: string } | { type: 'tool_use'; name: string; input: Record<string, unknown> }
 export type SeenResult = { toolUseId: string; text: string; isError: boolean }
@@ -214,7 +214,7 @@ export async function runScriptedTurn(args: { runHome: string; cwd: string; base
   const port = Number(new URL(args.base).port)
   const runner = bootRunner({ cwd: args.cwd, env: { ...childEnv(args.runHome, port), ...(args.extraEnv ?? {}) }, ...(args.extraArgv ? { extraArgv: args.extraArgv } : {}) })
   runner.send(user(args.ask, randomUUID()))
-  const result = await runner.waitFor('result', isResult, bound(args.timeoutMs ?? 90_000))
+  const result = await runner.waitFor('outcome', isOutcome, bound(args.timeoutMs ?? 90_000))
   await runner.stop(bound(5_000))
   return { result, stderr: runner.stderr(), exitCode: await runner.exited }
 }

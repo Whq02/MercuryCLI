@@ -27,7 +27,7 @@ export interface Score {
   wallMs: number
   exitCode: number | null
   timedOut: boolean
-  resultSubtype: string
+  resultStatus: string
   usage: Record<string, unknown> | null
   costUsd: number | null
 }
@@ -40,7 +40,7 @@ const FIX_RE = /\b(old_string|new_string|pattern|url|file_path|filePath|operatio
 
 export function scoreRun(run: RunRecord, verdict: { pass: boolean | null; detail: string }, probeSteps: Array<{ tool: string; probe: boolean }>): Score {
   const result = run.result ?? null
-  const numTurns = typeof result?.num_turns === 'number' ? (result.num_turns as number) : run.assistantMessages.length
+  const numTurns = typeof result?.steps === 'number' ? (result.steps as number) : run.assistantMessages.length
   const errors: ErrorRow[] = []
   const usesById = new Map(run.toolUses.map(u => [u.id, u]))
   let probesSeen = 0
@@ -54,21 +54,12 @@ export function scoreRun(run: RunRecord, verdict: { pass: boolean | null; detail
   const ordered: Array<{ at: number; tool: string; text: string }> = []
   const resultIndex = new Map<string, number>()
   run.envelopes.forEach((e, i) => {
-    if (e.type === 'user' && !e.parent_tool_use_id) {
-      const content = (e.message as { content?: unknown } | undefined)?.content
-      if (Array.isArray(content)) for (const b of content as Array<Record<string, unknown>>) if (b.type === 'tool_result') resultIndex.set(String(b.tool_use_id ?? ''), i)
-    }
-    if (e.type === 'assistant' && !e.parent_tool_use_id) {
-      const content = (e.message as { content?: unknown } | undefined)?.content
-      if (Array.isArray(content)) {
-        for (const b of content as Array<Record<string, unknown>>) {
-          if (b.type === 'text' && typeof b.text === 'string' && REFUSAL_NOTE_RE.test(b.text)) {
-            const tool = /malformed tool call \(([^)]+)\)|unknown tool \(([^)]+)\)|catalog \(([^)]+)\)|tool call \(([^)]+)\)/i.exec(b.text)
-            const name = tool?.[1] ?? tool?.[2] ?? tool?.[3] ?? tool?.[4] ?? '?'
-            if (!ordered.some(o => o.text === b.text)) ordered.push({ at: i, tool: name, text: b.text })
-          }
-        }
-      }
+    if (e.parent_call_id) return
+    if (e.type === 'tool_result') resultIndex.set(String(e.call_id ?? ''), i)
+    if (e.type === 'text' && typeof e.text === 'string' && REFUSAL_NOTE_RE.test(e.text)) {
+      const tool = /malformed tool call \(([^)]+)\)|unknown tool \(([^)]+)\)|catalog \(([^)]+)\)|tool call \(([^)]+)\)/i.exec(e.text)
+      const name = tool?.[1] ?? tool?.[2] ?? tool?.[3] ?? tool?.[4] ?? '?'
+      if (!ordered.some(o => o.text === e.text)) ordered.push({ at: i, tool: name, text: e.text })
     }
   })
   for (const r of run.toolResults) {
@@ -91,7 +82,7 @@ export function scoreRun(run: RunRecord, verdict: { pass: boolean | null; detail
     toolResultChars += r.text.length
     imageChars += r.imageChars
   }
-  const denials = Array.isArray(result?.permission_denials) ? (result!.permission_denials as unknown[]).length : 0
+  const denials = Array.isArray(result?.denials) ? (result!.denials as unknown[]).length : 0
   let askResults = 0
   for (const r of run.toolResults) if (ASK_RE.test(r.text)) askResults++
   const probes = probeSteps.filter(p => p.probe).length
@@ -116,8 +107,8 @@ export function scoreRun(run: RunRecord, verdict: { pass: boolean | null; detail
     wallMs: run.wallMs,
     exitCode: run.exitCode,
     timedOut: run.timedOut,
-    resultSubtype: String(result?.subtype ?? (run.timedOut ? 'timeout' : 'no-result')),
+    resultStatus: String(result?.status ?? (run.timedOut ? 'timeout' : 'no-result')),
     usage: (result?.usage as Record<string, unknown>) ?? null,
-    costUsd: typeof result?.total_cost_usd === 'number' ? (result.total_cost_usd as number) : null,
+    costUsd: typeof result?.cost_usd === 'number' ? (result.cost_usd as number) : null,
   }
 }

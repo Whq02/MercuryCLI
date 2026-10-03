@@ -7,7 +7,11 @@ import type { ContentBlockParam } from './wire.js'
 import type { PastedContent } from '../utils/config.js'
 import type { ImageDimensions } from '../utils/imageResizer.js'
 import type { TextHighlight } from '../utils/textHighlighting.js'
-import type { PermissionResult as SdkPermissionResult } from '../entrypoints/agentSdkTypes.js'
+import type { PermissionUpdate } from './permissions.js'
+
+export type PermissionResult =
+  | { behavior: 'allow'; updated_input?: Record<string, unknown>; updated_permissions?: PermissionUpdate[]; tool_use_id?: string }
+  | { behavior: 'deny'; message?: string; interrupt?: boolean; tool_use_id?: string }
 
 export type InlineGhostText = {
   text: string
@@ -104,7 +108,7 @@ export type EditablePromptInputMode = Exclude<
 export type QueuePriority = 'now' | 'next' | 'later'
 
 export type OrphanedPermission = {
-  permissionResult: SdkPermissionResult
+  permissionResult: PermissionResult
   assistantMessage: AssistantMessage
 }
 

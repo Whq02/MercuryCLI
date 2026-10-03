@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { QueuedCommand } from '../../src/types/textInputTypes.js'
-import type { StdoutMessage } from '../../src/entrypoints/sdk/controlTypes.js'
+import type { RowDraft } from '../../src/rows/project.js'
 
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
@@ -37,7 +37,7 @@ const setState = (update: (prev: typeof state) => typeof state): void => { state
 const task = registerAsyncAgent({ agentId: 'crew-worker', description: 'the worker', prompt: 'keep working', setAppState: setState, selectedAgent: { agentType: 'mercury-crew' } as never })
 const beforeCrew = JSON.stringify(projectWorkRoster(state.tasks))
 const queue: QueuedCommand[] = [{ mode: 'prompt', value: 'start work' }]
-const outputs: StdoutMessage[] = []
+const outputs: RowDraft[] = []
 const deliveries: string[] = []
 const turns: string[] = []
 const waits: number[] = []
@@ -56,24 +56,25 @@ const driver = createTurnDriver({
   notifyLifecycle: () => {},
   enqueueOutput: message => outputs.push(message),
   writeDirect: async message => { outputs.push(message) },
-  drainSdkEvents: () => [],
+  drainRows: () => [],
   executeTurn: async (...args: unknown[]) => {
-    const [command, , deliver, notices = []] = args as [QueuedCommand, QueuedCommand[], (message: StdoutMessage) => void, QueuedCommand[]?]
+    const [command, , deliver, notices = []] = args as [QueuedCommand, QueuedCommand[], (message: RowDraft) => void, QueuedCommand[]?]
     for (const attachment of await getQueuedCommandAttachments(notices)) {
       if (attachment.type === 'queued_command') deliveries.push(String(attachment.prompt))
     }
     turns.push(String(command.value))
     deliveries.push(String(command.value))
-    deliver({ type: 'result', subtype: 'success' } as StdoutMessage)
+    deliver({ type: 'outcome', status: 'completed' } as unknown as RowDraft)
   },
   beforeCycle: async () => {},
   onTurnStart: () => undefined,
+  turnIdOf: () => 't-esc',
+  openTurnRow: () => ({ type: 'turn', state: 'started', turn_id: 't-esc' }) as unknown as RowDraft,
   onTurnSettled: () => {},
   hasWaitableBackgroundTasks: () => getRunningTasks(state).length > 0,
   hasHoldableBackgroundAgents: () => getRunningTasks(state).length > 0,
   waitableBackgroundTaskCount: () => getRunningTasks(state).length,
   onAgentWait: count => waits.push(count),
-  takePendingSuggestion: () => null,
   settleIdle: async () => 'stay',
   closeOutput: async () => {},
   notifySessionState: value => { loading = value === 'running' },
@@ -133,7 +134,7 @@ driver.releaseHold()
 await tick()
 resetCommandQueue()
 
-const { ask } = await import('../../src/QueryEngine.js')
+const { ask } = await import('../../src/rows/turn.js')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.js')
 const { setIsInteractive } = await import('../../src/bootstrap/state.js')
@@ -174,7 +175,7 @@ const delivered = (rows: unknown[]): string[] => rows.flatMap(row => {
   return value.type === 'attachment' && value.attachment?.commandMode === 'task-notification' && !value.queued ? [value.attachment.prompt ?? ''] : []
 })
 check('the real engine supplies both notices before the session command executes', commandCalls === 1 && JSON.stringify(delivered(commandReads)) === JSON.stringify(initialNotices.map(command => command.value)), JSON.stringify(delivered(commandReads)))
-check('the same delivered rows survive the one-shot engine writeback once', JSON.stringify(delivered(messages)) === JSON.stringify(initialNotices.map(command => command.value)) && engineOutputs.some(message => (message as { type?: string }).type === 'result'))
+check('the same delivered rows survive the one-shot engine writeback once', JSON.stringify(delivered(messages)) === JSON.stringify(initialNotices.map(command => command.value)) && engineOutputs.some(message => (message as { type?: string }).type === 'outcome'))
 const deliveredRow = messages.find(message => message.type === 'attachment')
 if (deliveredRow) {
   const taken = (await renderToString(createElement(MessageMetaProvider, { message: deliveredRow }, createElement(Text, null, createElement(NameplateClock), 'Agent "first-worker" completed')), 178)).replace(/\s+/g, ' ').trim()

@@ -77,35 +77,36 @@ section('§1 — dialect readers · step clock · scorer arithmetic')
   check('step clock: a half-delivered parallel round (2) is a loud mismatch', 'final' in pickTurn(script, 2) && (pickTurn(script, 2) as { final: string }).final.startsWith('ax-mismatch'))
 
   const envelopes = [
-    { type: 'system', subtype: 'init', session_id: 's1', tools: ['Read', 'Edit'] },
-    { type: 'assistant', message: { id: 'm1', content: [{ type: 'tool_use', id: 't1', name: 'Edit', input: { a: 1 } }] } },
-    { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't1', is_error: true, content: 'old_string not found in file — read the file first' }] } },
-    { type: 'assistant', message: { id: 'm2', content: [{ type: 'tool_use', id: 't2', name: 'Read', input: { a: 1 } }] } },
-    { type: 'assistant', message: { id: 'm2', content: [{ type: 'tool_use', id: 't2', name: 'Read', input: { a: 1 } }, { type: 'tool_use', id: 't2b', name: 'Glob', input: { b: 2 } }] } },
-    { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't2', content: [{ type: 'text', text: 'x'.repeat(400) }, { type: 'image', source: { data: 'AAAA' } }] }, { type: 'tool_result', tool_use_id: 't2b', content: '' }] } },
-    { type: 'assistant', parent_tool_use_id: 't2b', message: { id: 'sub1', content: [{ type: 'tool_use', id: 's1', name: 'Read', input: {} }] } },
-    { type: 'user', parent_tool_use_id: 't2b', message: { content: [{ type: 'tool_result', tool_use_id: 's1', content: 'y'.repeat(900) }] } },
-    { type: 'assistant', message: { id: 'm3', content: [{ type: 'tool_use', id: 't3', name: 'Read', input: { a: 1 } }] } },
-    { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't3', content: 'Permission for this action has been denied.' }] } },
-    { type: 'user', message: { role: 'user', content: 'z'.repeat(800) } },
-    { type: 'user', is_replay: true, message: { role: 'user', content: 'the operator prompt' } },
-    { type: 'assistant', message: { content: [{ type: 'text', text: 'done.' }] } },
-    { type: 'result', subtype: 'success', num_turns: 4, result: 'done.', permission_denials: [{ tool_name: 'Read' }], usage: { input_tokens: 1 } },
+    { type: 'session', session_id: 's1', tools: ['Read', 'Edit'] },
+    { type: 'tool_call', message_id: 'm1', block: 0, call_id: 't1', tool: 'Edit', input: { a: 1 } },
+    { type: 'step', message_id: 'm1', model: 'm', usage: { input_tokens: 1, output_tokens: 1 } },
+    { type: 'tool_result', call_id: 't1', status: 'error', output: 'old_string not found in file — read the file first' },
+    { type: 'tool_call', message_id: 'm2', block: 0, call_id: 't2', tool: 'Read', input: { a: 1 } },
+    { type: 'tool_call', message_id: 'm2', block: 0, call_id: 't2', tool: 'Read', input: { a: 1 } },
+    { type: 'tool_call', message_id: 'm2', block: 1, call_id: 't2b', tool: 'Glob', input: { b: 2 } },
+    { type: 'tool_result', call_id: 't2', status: 'ok', output: 'x'.repeat(400) + '\n[image]' },
+    { type: 'tool_result', call_id: 't2b', status: 'ok', output: '' },
+    { type: 'tool_call', parent_call_id: 't2b', message_id: 'sub1', block: 0, call_id: 's1', tool: 'Read', input: {} },
+    { type: 'tool_result', parent_call_id: 't2b', call_id: 's1', status: 'ok', output: 'y'.repeat(900) },
+    { type: 'tool_call', message_id: 'm3', block: 0, call_id: 't3', tool: 'Read', input: { a: 1 } },
+    { type: 'tool_result', call_id: 't3', status: 'ok', output: 'Permission for this action has been denied.' },
+    { type: 'text', message_id: 'm4', block: 0, text: 'done.' },
+    { type: 'outcome', status: 'completed', steps: 4, answer: 'done.', denials: [{ tool: 'Read', call_id: 't3', input: {} }], usage: { input_tokens: 1 } },
   ]
   const parsed = parseEnvelopes(envelopes)
   const run: RunRecord = { spec: {} as never, envelopes, ...parsed, exitCode: 0, stderr: '', unparseable: 0, wallMs: 10, timedOut: false, sessionId: 's1' }
-  check('parser: one assistant message per provider id (two envelopes of one round merge); an id-less envelope stands alone', parsed.assistantMessages.length === 4, String(parsed.assistantMessages.length))
-  check('parser: a round\'s blocks are deduped by tool-use id (t2 once, t2b once)', parsed.toolUses.filter(u => u.messageId === 'm2').length === 2 && parsed.toolUses.length === 4)
+  check('parser: one assistant message per message id (two rows of one round merge)', parsed.assistantMessages.length === 4, String(parsed.assistantMessages.length))
+  check('parser: a round\'s blocks are deduped by call id (t2 once, t2b once)', parsed.toolUses.filter(u => u.messageId === 'm2').length === 2 && parsed.toolUses.length === 4)
   check('parser: subagent traffic stays off the main thread (its Read and its 900-char result)', parsed.subagentAssistantMessages === 1 && parsed.subagentToolUses.length === 1 && parsed.subagentToolResults.length === 1 && parsed.toolResults.length === 4)
   const score = scoreRun(run, { pass: true, detail: 'canned' }, [{ tool: 'Edit', probe: true }])
-  check('scorer: turns from the result envelope', score.turns === 4)
+  check('scorer: turns from the outcome row (steps)', score.turns === 4)
   check('scorer: four main-thread tool calls (the subagent\'s Read is not the model\'s)', score.toolCalls === 4)
   check('scorer: the error result is wasted and matched to its probe', score.wasted === 2 && score.errors.length === 1 && score.errors[0]!.probe === true, JSON.stringify({ wasted: score.wasted, errors: score.errors }))
   check('scorer: the repeated identical Read is a duplicate (unexpected)', score.duplicates === 1 && score.unexpectedErrors === 1)
   check('scorer: the error text names a fix', score.errors[0]!.namesFix === true)
-  check('scorer: result chars count main-thread text only (the subagent\'s 900 chars excluded); image payload counted apart', score.toolResultChars === 400 + 'old_string not found in file — read the file first'.length + 'Permission for this action has been denied.'.length && score.imageChars === 4, String(score.toolResultChars))
+  check('scorer: result chars count main-thread text only (the subagent\'s 900 chars excluded); an image rides as its placeholder word', score.toolResultChars === 400 + '\n[image]'.length + 'old_string not found in file — read the file first'.length + 'Permission for this action has been denied.'.length && score.imageChars === 0, String(score.toolResultChars))
   check('scorer: asks = denials + ask-class results', score.asks === 2 && score.denials === 1)
-  check('scorer: injected text counted apart (800 chars ≈ 200 tokens; the replayed prompt excluded); the subagent\'s reads counted apart (900 chars ≈ 225)', score.injectedTokensEst === 200 && score.subagentResultTokensEst === 225, JSON.stringify({ inj: score.injectedTokensEst, sub: score.subagentResultTokensEst }))
+  check('scorer: the rows echo no input, so injected text reads 0; the subagent\'s reads counted apart (900 chars ≈ 225)', score.injectedTokensEst === 0 && score.subagentResultTokensEst === 225, JSON.stringify({ inj: score.injectedTokensEst, sub: score.subagentResultTokensEst }))
   const poison = scoreRun(run, { pass: false, detail: 'poison' }, [])
   check('poison control: with no probe declared the error is UNEXPECTED', poison.unexpectedErrors === 2 && poison.errors[0]!.probe === false)
 }
@@ -127,7 +128,7 @@ const skips = new Map<string, string[]>()
 for (const table of tables) {
   const f = table.header.family
   const rows = table.rows.filter(r => !r.skipped)
-  check(`${f}: no run timed out or died without a result envelope`, rows.every(r => !r.timedOut && r.resultSubtype !== 'no-result' && r.resultSubtype !== 'timeout'), rows.filter(r => r.timedOut || r.resultSubtype === 'no-result').map(r => `${r.task}:${r.resultSubtype}`).join(', '))
+  check(`${f}: no run timed out or died without an outcome row`, rows.every(r => !r.timedOut && r.resultStatus !== 'no-result' && r.resultStatus !== 'timeout'), rows.filter(r => r.timedOut || r.resultStatus === 'no-result').map(r => `${r.task}:${r.resultStatus}`).join(', '))
   const daily = ['Agent', 'Bash', 'Read', 'Edit', 'Write', 'Glob', 'Grep', 'Skill', 'Workshop', 'Eval', 'ToolSearch']
   const rosterPresent = f === 'openai'
     ? (table.header.toolCount ?? 0) >= daily.length && daily.every(name => table.header.toolNames.includes(name))

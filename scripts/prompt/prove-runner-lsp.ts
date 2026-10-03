@@ -95,7 +95,7 @@ try {
       child.stderr.on('data', d => { err += d })
       const timeout = setTimeout(() => child.kill('SIGKILL'), 90000)
       child.on('close', code => { clearTimeout(timeout); done({ code, out, err }) })
-      child.stdin.end(mode === 'rows' ? `${JSON.stringify({ type: 'user', message: { role: 'user', content: 'Reply with ready.' }, session_id: '', parent_tool_use_id: null })}\n` : '')
+      child.stdin.end(mode === 'rows' ? `${JSON.stringify({ type: 'prompt', content: 'Reply with ready.' })}\n` : '')
     })
     check(`${mode}: the real runner completes its fixture turn`, result.code === 0 && result.out.includes('RUNNER-LSP-DONE'), result.err.slice(0, 300))
     const requests = captured.slice(before)

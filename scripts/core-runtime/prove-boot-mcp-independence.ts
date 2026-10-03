@@ -144,7 +144,7 @@ async function headlessFirstLine(
   return { line, ms, stderr: err }
 }
 
-type InitLine = { type?: string; subtype?: string; mcp_servers?: Array<{ name: string; status: string }> }
+type InitLine = { type?: string; mcp_servers?: Array<{ name: string; status: string }> }
 function parseInit(line: string | null): InitLine | null {
   if (line === null) return null
   try {
@@ -212,7 +212,7 @@ section('H1 — headless · --only-mcp · a server that never answers initialize
   )
   const init = parseInit(r.line)
   check('first output arrived within the budget', r.line !== null, `${r.ms}ms; stderr tail: ${r.stderr.slice(-200)}`)
-  check('first output is the system/init line', init?.type === 'system' && init?.subtype === 'init', r.line?.slice(0, 160) ?? '(none)')
+  check('first output is the session row', init?.type === 'session', r.line?.slice(0, 160) ?? '(none)')
   check(
     `first output is bounded by MERCURY_MCP_TIMEOUT_MS (${H1_MCP_TIMEOUT_MS}ms ≤ t < ${HEADLESS_BUDGET_MS}ms)`,
     r.line !== null && r.ms >= H1_MCP_TIMEOUT_MS - 250 && r.ms < HEADLESS_BUDGET_MS,
@@ -235,7 +235,7 @@ section('H2 — headless · no --only-mcp · a user-scope server connects; no ph
   )
   const init = parseInit(r.line)
   const names = (init?.mcp_servers ?? []).map(s => s.name)
-  check('first output is the system/init line', init?.type === 'system' && init?.subtype === 'init', r.line?.slice(0, 160) ?? `(none) stderr: ${r.stderr.slice(-200)}`)
+  check('first output is the session row', init?.type === 'session', r.line?.slice(0, 160) ?? `(none) stderr: ${r.stderr.slice(-200)}`)
   check("the configured server 'disc' is listed", names.includes('disc'), JSON.stringify(init?.mcp_servers))
   check("'disc' is connected", init?.mcp_servers?.find(s => s.name === 'disc')?.status === 'connected', JSON.stringify(init?.mcp_servers))
   check(

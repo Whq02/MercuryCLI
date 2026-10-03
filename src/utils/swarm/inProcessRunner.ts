@@ -55,7 +55,7 @@ import { extractTextContent } from '../messages/text.js'
 import { getAgentModel } from '../model/agent.js'
 import { hasPermissionsToUseTool } from '../permissions/permissions.js'
 import { applyPermissionUpdates, persistPermissionUpdates } from '../permissions/PermissionUpdate.js'
-import { emitTaskTerminatedSdk } from '../sdkEventQueue.js'
+import { emitTaskEnded } from '../sdkEventQueue.js'
 import { asSystemPrompt } from '../systemPromptType.js'
 import { evictTaskOutput } from '../task/diskOutput.js'
 import { evictTerminalTask, STOPPED_DISPLAY_MS } from '../task/framework.js'
@@ -999,7 +999,7 @@ function terminalizeCrewmateRun(
   setTimeout(() => evictTerminalTask(taskId, setAppState), evictionDelay)
 
   if (wasRunning) {
-    emitTaskTerminatedSdk(taskId, status, {
+    emitTaskEnded(taskId, status, {
       ...(capturedToolUseId !== undefined ? { toolUseId: capturedToolUseId } : {}),
       summary: identity.agentId,
     })
@@ -1049,7 +1049,7 @@ function pauseCrewmateRun(
   })
   void evictTaskOutput(taskId)
   if (wasRunning) {
-    emitTaskTerminatedSdk(taskId, 'failed', {
+    emitTaskEnded(taskId, 'failed', {
       ...(capturedToolUseId !== undefined ? { toolUseId: capturedToolUseId } : {}),
       summary: `${config.identity.agentId} ${pauseLineWords(pause, Date.now())}`,
     })

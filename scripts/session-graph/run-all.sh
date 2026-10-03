@@ -9,7 +9,7 @@
 # gate-watch: src/components/concourse/ConcourseRoute.tsx src/components/prompts-panel/PromptsPanel.tsx
 # gate-watch: src/components/prompts-panel/rows.ts src/ink/stringWidth.ts
 # gate-watch: src/keybindings/defaultBindings.ts src/services/concourse/concourseSnapshot.ts
-# gate-watch: src/services/crew/** src/services/notificationPolicy.ts src/services/resources/adapters/crew.ts
+# gate-watch: src/services/crew/** src/services/resources/adapters/crew.ts
 # gate-watch: src/daemon/permissionAsks.ts src/daemon/controlServer.ts src/daemon/dispatchDrain.ts
 # gate-watch: src/services/resources/registry.ts src/utils/cockpit/helmConsole.ts
 # gate-watch: src/components/messages/AttachmentMessage.tsx
@@ -19,6 +19,7 @@
 # gate-watch: src/utils/attachments/crewmates.ts src/utils/crew/crewClient.ts src/utils/tasks.ts
 # gate-watch: src/utils/swarm/crewmateInit.ts src/utils/swarm/inProcessRunner.ts
 # gate-watch: src/utils/swarm/permissionSync.ts src/utils/swarm/leaseGuard.ts
+# gate-watch: src/rows/* src/runner/wire/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

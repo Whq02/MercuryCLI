@@ -17,7 +17,7 @@ import { errorMessage } from '../errors.js'
 import { logError } from '../log.js'
 import { evictTaskOutput } from '../task/diskOutput.js'
 import { evictTerminalTask, registerTask, STOPPED_DISPLAY_MS } from '../task/framework.js'
-import { emitTaskTerminatedSdk } from '../sdkEventQueue.js'
+import { emitTaskEnded } from '../sdkEventQueue.js'
 import { writeAgentMetadata } from '../sessionStorage/paths.js'
 import { asAgentId } from '../../types/ids.js'
 import { createCrewmateContext, type CrewmateContext } from '../crewmateContext.js'
@@ -168,7 +168,7 @@ export function unwindCrewmateSpawn(taskId: string, setAppState: SpawnContext['s
   })
   if (unwound) {
     void evictTaskOutput(taskId)
-    emitTaskTerminatedSdk(taskId, 'failed', {
+    emitTaskEnded(taskId, 'failed', {
       ...(capturedToolUseId !== undefined ? { toolUseId: capturedToolUseId } : {}),
       summary: cause,
     })
@@ -253,7 +253,7 @@ export function killInProcessCrewmate(
   }
   if (killed) {
     void evictTaskOutput(taskId)
-    emitTaskTerminatedSdk(taskId, 'stopped', {
+    emitTaskEnded(taskId, 'stopped', {
       ...(capturedToolUseId !== undefined ? { toolUseId: capturedToolUseId } : {}),
       summary: capturedWorktree !== undefined ? `${capturedDescription} · ${crewWorktreeLeftWords(capturedWorktree)}` : capturedDescription,
     })

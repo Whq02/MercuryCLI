@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { isOutcome, parseFrame } from '../lib/rows.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'mercury-command-table-')))
 const HOME = join(SCRATCH, 'home')
@@ -66,8 +67,6 @@ function spawnRunner(role: boolean): Runner {
       'a session runner under proof',
       '--session-id',
       sessionId,
-      '--permission-channel',
-      'stdio',
     ],
     {
       cwd: CWD,
@@ -95,7 +94,7 @@ function spawnRunner(role: boolean): Runner {
       const line = buf.slice(0, at)
       buf = buf.slice(at + 1)
       lines.push(line)
-      if (line.includes('"type":"result"')) {
+      if (isOutcome(parseFrame(line))) {
         const batch = lines.slice(since)
         since = lines.length
         for (const w of waiters) w(batch)
@@ -107,7 +106,7 @@ function spawnRunner(role: boolean): Runner {
   child.stderr!.on('data', () => {})
   const waitResult = (): Promise<string[]> =>
     new Promise(resolve => {
-      const t = setTimeout(() => resolve(['(timeout: no result frame within 40 s)']), 40_000)
+      const t = setTimeout(() => resolve(['(timeout: no outcome row within 40 s)']), 40_000)
       waiters.push(l => {
         clearTimeout(t)
         resolve(l)
@@ -118,16 +117,16 @@ function spawnRunner(role: boolean): Runner {
 
 function send(r: Runner, text: string): Promise<string[]> {
   const p = r.waitResult()
-  r.child.stdin!.write(JSON.stringify({ type: 'user', message: { role: 'user', content: text }, uuid: randomUUID() }) + '\n')
+  r.child.stdin!.write(JSON.stringify({ type: 'prompt', content: text, id: randomUUID() }) + '\n')
   return p
 }
 
 function receiptOf(batch: string[]): string {
-  const result = batch.find(l => l.includes('"type":"result"'))
+  const result = batch.find(l => isOutcome(parseFrame(l)))
   if (result === undefined) return batch[batch.length - 1] ?? ''
   try {
-    const frame = JSON.parse(result) as { result?: string; subtype?: string }
-    return (frame.result ?? frame.subtype ?? '').split('\n')[0] ?? ''
+    const frame = JSON.parse(result) as { answer?: string; error?: { message?: string }; status?: string }
+    return (frame.answer ?? frame.error?.message ?? frame.status ?? '').split('\n')[0] ?? ''
   } catch {
     return result.slice(0, 200)
   }
@@ -136,13 +135,13 @@ function receiptOf(batch: string[]): string {
 {
   const runner = spawnRunner(true)
   const first = await send(runner, 'hello runner')
-  check('C3 the session runner answered the arming turn', first.some(l => l.includes('"type":"result"')), receiptOf(first).slice(0, 120))
+  check('C3 the session runner answered the arming turn', first.some(l => isOutcome(parseFrame(l))), receiptOf(first).slice(0, 120))
   for (const c of sessionSeatDropped) {
     const args = c.name === 'counsel' ? '' : c.name === 'kill' ? '' : ''
     const batch = await send(runner, `/${c.name}${args ? ` ${args}` : ''}`)
     const text = batch.join('\n')
     const receipt = receiptOf(batch)
-    check(`C3 /${c.name} runs in the session runner (its own receipt, never "Unknown skill")`, !text.includes('Unknown skill') && batch.some(l => l.includes('"type":"result"')), receipt.slice(0, 140))
+    check(`C3 /${c.name} runs in the session runner (its own receipt, never "Unknown skill")`, !text.includes('Unknown skill') && batch.some(l => isOutcome(parseFrame(l))), receipt.slice(0, 140))
   }
   runner.child.stdin!.end()
   runner.child.kill('SIGTERM')
@@ -151,7 +150,7 @@ function receiptOf(batch: string[]): string {
 {
   const control = spawnRunner(false)
   const first = await send(control, 'hello control')
-  check('C4 the plain print runner answered the arming turn', first.some(l => l.includes('"type":"result"')), receiptOf(first).slice(0, 120))
+  check('C4 the plain print runner answered the arming turn', first.some(l => isOutcome(parseFrame(l))), receiptOf(first).slice(0, 120))
   let refused = 0
   for (const c of sessionSeatDropped) {
     const batch = await send(control, `/${c.name}`)

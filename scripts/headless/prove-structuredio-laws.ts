@@ -7,8 +7,6 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'sio-laws-'))
 
-import { z } from 'zod/v4'
-
 const { StructuredIO } = await import('../../src/cli/structuredIO.ts')
 
 let failures = 0
@@ -66,13 +64,15 @@ type Harness = {
   pushRaw: (raw: string) => void
   end: () => void
   received: Array<Record<string, unknown>>
+  refused: string[]
   outbound: Array<Record<string, unknown>>
   settle: () => Promise<void>
 }
 
-function makeHarness(replayUserMessages?: boolean): Harness {
+function makeHarness(): Harness {
   const input = makeInput()
-  const io = new StructuredIO(input.iterable, replayUserMessages)
+  const refused: string[] = []
+  const io = new StructuredIO(input.iterable, text => refused.push(text))
   const received: Array<Record<string, unknown>> = []
   const outbound: Array<Record<string, unknown>> = []
   void (async () => {
@@ -91,32 +91,32 @@ function makeHarness(replayUserMessages?: boolean): Harness {
     pushRaw: raw => input.push(raw),
     end: () => input.end(),
     received,
+    refused,
     outbound,
     settle: () => new Promise(r => setTimeout(r, 40)),
   }
 }
 
 console.log('============================================================')
-console.log(' StructuredIO — the protocol-layer laws')
+console.log(' StructuredIO — the row stream\'s framing laws')
 console.log('============================================================')
 
 section('S1/S2 — line framing across blocks · prepend ordering · trailing line')
 {
   const h = makeHarness()
   h.io.prependUserMessage('prepended first')
-  const userMsg = (text: string) =>
-    JSON.stringify({ type: 'user', message: { role: 'user', content: text }, parent_tool_use_id: null, session_id: '' })
+  const userMsg = (text: string) => JSON.stringify({ type: 'prompt', content: text })
   const whole = userMsg('split across blocks')
   h.pushRaw(whole.slice(0, 25))
   await h.settle()
-  check('a partial line does NOT yield early', h.received.filter(m => m.type === 'user').length <= 1)
+  check('a partial line does NOT yield early', h.received.filter(m => m.type === 'prompt').length <= 1)
   h.pushRaw(whole.slice(25) + '\n\n')
   await h.settle()
-  const users = () => h.received.filter(m => m.type === 'user').map(m => j(m))
+  const users = () => h.received.filter(m => m.type === 'prompt').map(m => j(m))
   check('the PREPENDED message yielded FIRST', users()[0]?.includes('prepended first') === true, j(users()))
   check('the split message reassembled exactly once', users().filter(u => u.includes('split across blocks')).length === 1, j(users()))
   h.io.prependUserMessage('prepended mid-stream')
-  h.push({ type: 'user', message: { role: 'user', content: 'after mid-prepend' }, parent_tool_use_id: null, session_id: '' })
+  h.push({ type: 'prompt', content: 'after mid-prepend' })
   await h.settle()
   const u = users()
   check('a mid-stream prepend lands before the next input message', u.indexOf(u.find(x => x.includes('prepended mid-stream'))!) < u.indexOf(u.find(x => x.includes('after mid-prepend'))!), j(u))
@@ -126,129 +126,42 @@ section('S1/S2 — line framing across blocks · prepend ordering · trailing li
   check('the final unterminated line still processes', users().some(x => x.includes('trailing no newline')), j(users()))
 }
 
-section('S3 — an undeclared stdin type is dropped; a frame carrying environment variables changes nothing')
+section('S3 — an undeclared type, an empty prompt and an empty shell row are each refused with one notice and skipped; the stream flows on')
 {
   const h = makeHarness()
   delete process.env.SIO_LAW_PROBE
   h.push({ type: 'undeclared_probe' })
   h.push({ type: 'environment_probe', variables: { SIO_LAW_PROBE: 'applied' } })
-  h.push({ type: 'user', message: { role: 'user', content: 'after the undeclared frames' }, parent_tool_use_id: null, session_id: '' })
+  h.push({ type: 'user', message: { role: 'user', content: 'the old shape' } })
+  h.push({ type: 'control_request', request_id: 'r1', request: { subtype: 'interrupt' } })
+  h.push({ type: 'prompt', content: '' })
+  h.push({ type: 'shell', command: '   ' })
+  h.push({ type: 'prompt', content: 'after the refused lines' })
+  h.push({ type: 'shell', command: 'echo ok' })
+  h.push({ type: 'note', to: 'a1', content: 'for the agent' })
   await h.settle()
-  check('an undeclared type never reaches the consumer', !h.received.some(m => m.type === 'undeclared_probe' || m.type === 'environment_probe'))
+  check('no undeclared type reaches the consumer', !h.received.some(m => !['prompt', 'shell', 'note'].includes(String(m.type))), j(h.received.map(m => m.type)))
   check('a frame carrying environment variables leaves process.env untouched', process.env.SIO_LAW_PROBE === undefined)
-  check('the stream keeps flowing past the dropped frames', h.received.some(m => m.type === 'user'))
+  check('each refused line is refused once, in order, naming its type or its emptiness', h.refused.length === 6 && h.refused[0]!.includes("unknown row type 'undeclared_probe'") && h.refused[2]!.includes("unknown row type 'user'") && h.refused[3]!.includes("unknown row type 'control_request'") && h.refused[4]!.includes('no content') && h.refused[5]!.includes('no command'), j(h.refused))
+  check('the stream keeps flowing past the refused lines: the prompt, the shell and the note rows arrive in order', j(h.received.map(m => m.type)) === j(['prompt', 'shell', 'note']), j(h.received))
   delete process.env.SIO_LAW_PROBE
   h.end()
 }
 
-section('S4 — sendRequest rides the outbound FIFO; a response resolves through the schema')
+section('S4 — a line longer than the reader\'s bound is refused and the reader resyncs at the next newline')
 {
+  const { MAX_LINE_BYTES } = await import('../../src/runner/wire/errors.ts')
   const h = makeHarness()
-  const sendRequest = (
-    h.io as unknown as {
-      sendRequest: (r: Record<string, unknown>, s: z.Schema, sig?: AbortSignal, id?: string) => Promise<unknown>
-    }
-  ).sendRequest.bind(h.io)
-  const p = sendRequest({ subtype: 'can_use_tool', tool_name: 'X', input: {}, tool_use_id: 'tu_s4' }, z.object({ ok: z.boolean() }), undefined, 'req_s4')
+  const half = 'x'.repeat(Math.ceil(MAX_LINE_BYTES / 2) + 16)
+  h.pushRaw(`{"type":"prompt","content":"${half}`)
+  h.pushRaw(half)
   await h.settle()
-  check('the request was ENQUEUED to outbound (one-writer FIFO), not written directly', h.outbound.some(m => m.type === 'control_request' && j(m).includes('req_s4')), j(h.outbound))
-  h.push({ type: 'control_response', response: { subtype: 'success', request_id: 'req_s4', response: { ok: true } } })
-  const result = await p
-  check('the matching response resolves through the zod schema', j(result) === '{"ok":true}', j(result))
-
-  const pErr = sendRequest({ subtype: 'can_use_tool', tool_name: 'X', input: {}, tool_use_id: 'tu_s4e' }, z.object({}), undefined, 'req_s4e')
-  h.push({ type: 'control_response', response: { subtype: 'error', request_id: 'req_s4e', error: 'host said no' } })
-  const err = await pErr.then(
-    () => undefined,
-    (e: Error) => e.message,
-  )
-  check('an error response REJECTS with the host message', err === 'host said no', String(err))
+  check('the over-long line is refused before its newline arrives', h.refused.length === 1 && h.refused[0]!.includes('longer than'), j(h.refused))
+  h.pushRaw('"}\n')
+  h.push({ type: 'prompt', content: 'after the long line' })
+  await h.settle()
+  check('the rest of the long line is skipped and the next row is read', h.received.length === 1 && h.received[0]!.content === 'after the long line', j(h.received))
   h.end()
-}
-
-section('S5 — unknown ids route to the orphan callback; already-resolved tool_uses are ignored')
-{
-  const h = makeHarness()
-  const orphans: Array<Record<string, unknown>> = []
-  h.io.setUnexpectedResponseCallback(async r => {
-    orphans.push(r as unknown as Record<string, unknown>)
-  })
-  h.push({ type: 'control_response', response: { subtype: 'success', request_id: 'req_never_sent', response: {} } })
-  await h.settle()
-  check('an unknown request_id routes to the orphan callback', orphans.length === 1, `${orphans.length}`)
-
-  const sendRequest = (
-    h.io as unknown as {
-      sendRequest: (r: Record<string, unknown>, s: z.Schema, sig?: AbortSignal, id?: string) => Promise<unknown>
-    }
-  ).sendRequest.bind(h.io)
-  const p = sendRequest({ subtype: 'can_use_tool', tool_name: 'X', input: {}, tool_use_id: 'tu_dup' }, z.object({}).passthrough(), undefined, 'req_dup1')
-  h.push({ type: 'control_response', response: { subtype: 'success', request_id: 'req_dup1', response: { tool_use_id:'tu_dup' } } })
-  await p
-  orphans.length = 0
-  h.push({ type: 'control_response', response: { subtype: 'success', request_id: 'req_dup2_unknown', response: { tool_use_id:'tu_dup' } } })
-  await h.settle()
-  check('a duplicate response for an ALREADY-RESOLVED tool_use is ignored (no orphan handling)', orphans.length === 0, `${orphans.length}`)
-  h.end()
-}
-
-section('S6 — aborting a pending request cancels, rejects, and immunizes the tool_use')
-{
-  const h = makeHarness()
-  const orphans: Array<Record<string, unknown>> = []
-  h.io.setUnexpectedResponseCallback(async r => {
-    orphans.push(r as unknown as Record<string, unknown>)
-  })
-  const sendRequest = (
-    h.io as unknown as {
-      sendRequest: (r: Record<string, unknown>, s: z.Schema, sig?: AbortSignal, id?: string) => Promise<unknown>
-    }
-  ).sendRequest.bind(h.io)
-  const ac = new AbortController()
-  const p = sendRequest({ subtype: 'can_use_tool', tool_name: 'X', input: {}, tool_use_id: 'tu_abort' }, z.object({}), ac.signal, 'req_abort')
-  await h.settle()
-  ac.abort()
-  const rejected = await p.then(
-    () => false,
-    (e: Error) => e.constructor.name,
-  )
-  check('the pending request rejects with AbortError', rejected === 'AbortError', String(rejected))
-  await h.settle()
-  check('a control_cancel_request is enqueued for the host', h.outbound.some(m => m.type === 'control_cancel_request' && j(m).includes('req_abort')), j(h.outbound.map(m => m.type)))
-  h.push({ type: 'control_response', response: { subtype: 'success', request_id: 'req_late', response: { tool_use_id:'tu_abort' } } })
-  await h.settle()
-  check('a LATE response for the aborted tool_use is ignored', orphans.length === 0, `${orphans.length}`)
-  h.end()
-}
-
-section('S7 — input close denies a pending ask with the nobody-there reason, rejects other pending requests; later sends refuse')
-{
-  const h = makeHarness()
-  const sendRequest = (
-    h.io as unknown as {
-      sendRequest: (r: Record<string, unknown>, s: z.Schema, sig?: AbortSignal, id?: string) => Promise<unknown>
-    }
-  ).sendRequest.bind(h.io)
-  const p = sendRequest({ subtype: 'can_use_tool', tool_name: 'X', input: {}, tool_use_id: 'tu_close' }, z.object({}), undefined, 'req_close')
-  const hook = sendRequest({ subtype: 'hook_callback', callback_id: 'cb_close', input: {} }, z.object({}), undefined, 'req_hook_close')
-  await h.settle()
-  h.end()
-  const ask = (await p.then(
-    v => v,
-    (e: Error) => ({ rejected: e.message }),
-  )) as { behavior?: string; message?: string; rejected?: string }
-  check('a pending permission ask settles as a typed deny when the input stream closes (the client went away)', ask.behavior === 'deny' && /^Permission to use X has been denied: the operator's client was not there to answer \(the permission channel closed while the ask was pending\)/.test(ask.message ?? ''), j(ask))
-  check('…and is cancelled on the wire', h.outbound.some(m => m.type === 'control_cancel_request' && m.request_id === 'req_close'), j(h.outbound.map(m => m.type)))
-  const msg = await hook.then(
-    () => undefined,
-    (e: Error) => e.message,
-  )
-  check('other pending requests reject when the input stream closes', (msg ?? '').includes('stream closed before response'), String(msg))
-  const late = await sendRequest({ subtype: 'can_use_tool', tool_name: 'X', input: {}, tool_use_id: 'tu_after' }, z.object({}), undefined, 'req_after').then(
-    () => undefined,
-    (e: Error) => e.message,
-  )
-  check("post-close sendRequest throws 'Stream closed'", late === 'Stream closed', String(late))
 }
 
 console.log('\n============================================================')

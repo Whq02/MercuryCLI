@@ -33,11 +33,15 @@
    ],
    "src/cli/structuredIO.ts": [
     "BROKEN_STDOUT_LINE",
-    "PERMISSION_CHANNEL_CLOSED_CAUSE",
-    "SANDBOX_NETWORK_ACCESS_TOOL_NAME",
+    "INPUT_REFUSED_CODE",
     "StructuredIO",
+    "emptyInputRow",
+    "inputRefusal",
     "isBrokenPipeError",
-    "unansweredAskCause"
+    "isRowLine",
+    "type:OutboundLine",
+    "type:TransitionalLine",
+    "type:WireLine"
    ]
   },
   "settings": {
@@ -440,7 +444,6 @@
     "prefetchAllMcpResources",
     "processMCPResult",
     "reconnectMcpServerImpl",
-    "setupSdkMcpClients",
     "transformMCPResult",
     "transformResultContent",
     "type:MCPResultType",
@@ -455,7 +458,6 @@
     "McpHTTPServerConfigSchema",
     "McpJsonConfigSchema",
     "McpSSEServerConfigSchema",
-    "McpSdkServerConfigSchema",
     "McpServerConfigSchema",
     "McpStdioServerConfigSchema",
     "McpWebSocketServerConfigSchema",
@@ -470,7 +472,6 @@
     "type:McpHTTPServerConfig",
     "type:McpJsonConfig",
     "type:McpSSEServerConfig",
-    "type:McpSdkServerConfig",
     "type:McpServerConfig",
     "type:McpStdioServerConfig",
     "type:McpWebSocketServerConfig",
@@ -693,10 +694,13 @@
     "queryEvents",
     "type:QueryParams"
    ],
-   "src/QueryEngine.ts": [
-    "QueryEngine",
+   "src/rows/turn.ts": [
+    "Conversation",
     "ask",
-    "type:QueryEngineConfig"
+    "sessionFactsOf",
+    "type:AskOptions",
+    "type:ConversationConfig",
+    "type:TurnOptions"
    ],
    "src/run-core/turn-machine.ts": [
     "decideEmptyReplyRecovery",
@@ -739,17 +743,9 @@
   "headless": {
    "src/cli/print.ts": [
     "canBatchWith",
-    "createCanUseToolWithPermissionPrompt",
-    "getCanUseToolFn",
-    "handleMcpSetServers",
-    "handleOrphanedPermissionResponse",
     "joinPromptValues",
-    "reconcileMcpServers",
     "removeInterruptedMessage",
-    "runHeadless",
-    "type:DynamicMcpState",
-    "type:McpSetServersResult",
-    "type:SdkMcpState"
+    "runHeadless"
    ]
   },
   "bootUi": {

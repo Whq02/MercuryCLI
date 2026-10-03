@@ -7,7 +7,7 @@ surface only. The exact supported profile is the capability matrix below.
 ## Entry point
 
 ```
-mercury acp --stdio
+mercury acp
 ```
 
 stdout is the protocol channel (NDJSON JSON-RPC); diagnostics ride stderr.
@@ -25,7 +25,7 @@ Closing an ACP session reaps only its own work.
   "agent_servers": {
     "Mercury": {
       "command": "mercury",
-      "args": ["acp", "--stdio"]
+      "args": ["acp"]
     }
   }
 }

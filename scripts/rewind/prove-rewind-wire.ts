@@ -221,15 +221,14 @@ section('§4 — the projection laws: the operator window is inclusive in every 
   check('both kinds of window fold into one provider view', !bothView.includes(explore) && !bothView.includes(turn2) && !bothView.includes(reply2) && !bothView.includes(record) && bothView.includes(turn3) && bothView.includes(agentRecord))
 }
 
-section('§5 — the child-side control: rewind_session parses; a foreign mode refuses at the schema')
+section('§5 — the runner door: session/rewind parses; a foreign mode refuses at the schema')
 {
-  const { SDKControlRequestSchema } = await import('../../src/entrypoints/sdk/controlSchemas.ts')
-  const ok = SDKControlRequestSchema().safeParse({ type: 'control_request', request_id: 'r1', request: { subtype: 'rewind_session', user_message_id: 'u1', mode: 'both', dry_run: true } })
-  check('a well-formed rewind_session control parses', ok.success, ok.success ? '' : j(ok.error.issues).slice(0, 200))
-  const bad = SDKControlRequestSchema().safeParse({ type: 'control_request', request_id: 'r2', request: { subtype: 'rewind_session', user_message_id: 'u1', mode: 'files' } })
+  const { METHODS } = await import('../../src/runner/wire/methods.ts')
+  const params = METHODS['session/rewind'].params()
+  const ok = params.safeParse({ user_message_id: 'u1', mode: 'both', dry_run: true })
+  check('a well-formed session/rewind request parses', ok.success, ok.success ? '' : j(ok.error.issues).slice(0, 200))
+  const bad = params.safeParse({ user_message_id: 'u1', mode: 'files' })
   check("a foreign mode ('files') refuses at the schema", !bad.success)
-  const types = read('src/entrypoints/sdk/controlTypes.ts')
-  check('the control union names SDKControlRewindSessionRequest', types.includes('| SDKControlRewindSessionRequest'))
 }
 
 section('§6 — the runner handler: every typed refusal arm, and the conversation record persisted')

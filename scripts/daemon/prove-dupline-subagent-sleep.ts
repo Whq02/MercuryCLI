@@ -18,8 +18,8 @@ import {
   describeRequests,
   DIST,
   exportWorld,
-  isInit,
-  isResult,
+  isSession,
+  isOutcome,
   j,
   makeTally,
   removeWorld,
@@ -48,8 +48,8 @@ async function openWorld(name: string): Promise<World> {
   const fx = await startFixture(join(home, 'wire.jsonl'), 10, 6, 0)
   const runner = bootRunner({ cwd, env: childEnv(home, fx.port) })
   runner.send(user('hello there', U0))
-  const init = await runner.waitFor('the init frame', isInit, bound(90_000))
-  const first = await runner.waitFor('the first turn', isResult, bound(90_000))
+  const init = await runner.waitFor('the session row', isSession, bound(90_000))
+  const first = await runner.waitFor('the first turn', isOutcome, bound(90_000))
   check(`${name}: the runner is up and the first turn answered`, init !== null && first !== null, runner.stderr().split('\n').slice(-5).join(' | '))
   return { name, home, fx, runner, failedAtOpen }
 }
@@ -76,8 +76,8 @@ if (!existsSync(DIST)) {
     check('the background sub-agent opened its own conversation', opened !== null, j(opened))
     check('its pool carries the Sleep tool', opened !== null && opened.hasSleepTool === true, j(opened?.toolNames ?? opened))
     check('its pool carries neither the Agent tool nor the Workflow tool', opened !== null && opened.hasAgentTool === false && opened.hasWorkflowTool === false, j(opened))
-    const result = await w.runner.waitFor("the turn's result", isResult, bound(150_000), before)
-    check("the turn ended with the session's own final text", result !== null && String(result.result ?? '').startsWith(doneText(BG_SLEEP_TURN_ASK)), j(result?.result))
+    const result = await w.runner.waitFor("the turn's result", isOutcome, bound(150_000), before)
+    check("the turn ended with the session's own final text", result !== null && String(result.answer ?? '').startsWith(doneText(BG_SLEEP_TURN_ASK)), j(result?.answer))
     const requests = requestsOf(w.fx.wire)
     const afterShell = requests.find(wireOf('subbgsleep', 1))
     const afterSleep = requests.find(wireOf('subbgsleep', 2))

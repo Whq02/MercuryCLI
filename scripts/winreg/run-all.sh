@@ -8,6 +8,7 @@
 # gate-watch: src/services/privateChannel/installLayout.ts src/services/privateChannel/updateService.ts
 # gate-watch: src/utils/* src/utils/config/globalConfig.ts src/utils/permissions/filesystem.ts
 # gate-watch: src/utils/secureStorage/plainTextStorage.ts
+# gate-watch: src/rows/* src/runner/wire/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"

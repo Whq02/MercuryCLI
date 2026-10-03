@@ -129,14 +129,14 @@ import type { AppState } from './state/AppStateStore.js'
 import type { Props as REPLProps } from './screens/REPL.js'
 import type { UUID } from 'node:crypto'
 import { update as updateCli } from './cli/update.js'
-import type { McpSdkServerConfig, ScopedMcpServerConfig } from './services/mcp/types.js'
+import type { ScopedMcpServerConfig } from './services/mcp/types.js'
 import { writeShimSet, resolveLayoutRoots } from './services/privateChannel/installLayout.js'
 import { migrateAutoUpdatesToSettings } from './migrations/migrateAutoUpdatesToSettings.js'
 import { migrateReplBridgeEnabledToRemoteControlAtStartup } from './migrations/migrateReplBridgeEnabledToRemoteControlAtStartup.js'
 import { migrateVerboseToToolOutput } from './migrations/migrateVerboseToToolOutput.js'
 import type { Root } from './ink.js'
 import chalk from 'chalk'
-import { refusalEnvelope } from './cli/headless/refusalEnvelope.js'
+import { refusedOutcome } from './cli/headless/refusalEnvelope.js'
 import { inspectSessionArgs as inspectRunArgs, isSessionRunArgv as isRunArgv, readSessionOption } from './cli/sessionArgs.js'
 
 profileCheckpoint('main_tsx_entry')
@@ -238,16 +238,10 @@ function exitForCommanderError(error: { code?: string; exitCode?: number }): voi
   if (error.code !== undefined && USAGE_ERROR_CODES.has(error.code)) process.exit(2)
 }
 
-function permissionChannelOf(opts: { permissionChannel?: unknown; permissionPromptTool?: unknown }): 'stdio' | 'prompt-tool' | undefined {
-  const channel = typedString(opts.permissionChannel)
-  if (channel === 'stdio' || channel === 'prompt-tool') return channel
-  return typedString(opts.permissionPromptTool) !== undefined ? 'prompt-tool' : undefined
-}
-
 function failCli(message: string, code: 1 | 2 = 2): never {
   if (wantsStreamJsonEnvelope()) {
     try {
-      const envelope = refusalEnvelope([message])
+      const envelope = refusedOutcome([message])
       writeSync(1, `${JSON.stringify(envelope)}\n`)
       process.exit(code)
     } catch {
@@ -463,7 +457,7 @@ async function run(): Promise<void> {
     .option('--debug [filter]', 'Enable debug output (with an optional category filter)')
     .addOption(new Option('--log-stderr', 'Mirror debug output to stderr').hideHelp())
     .option('--log-file <path>', 'Write debug output to a file')
-    .option('--lean', 'Minimal session: skips hooks, LSP, extensions, attribution, auto-memory, background discovery, keychain reads and automatic project instructions. Supply context with --brief, --brief-add, --mcp and --allowed-tools; supply API-key settings with --config.')
+    .option('--lean', 'Minimal session: skips hooks, LSP, extensions, attribution, memory, background discovery, keychain reads and automatic project instructions. Supply context with --brief, --brief-add, --mcp and --allowed-tools; supply API-key settings with --config.')
     .addOption(new Option('--prepare', 'Run setup hooks before the session').hideHelp())
     .addOption(new Option('--prepare-only', 'Run setup hooks and exit').hideHelp())
     .addOption(new Option('--upkeep', 'Run maintenance hooks').hideHelp())
@@ -488,18 +482,11 @@ async function run(): Promise<void> {
       }
       return parsed
     })
-    .option('--replay-user-messages', 'Replay user messages on the stream-json output')
     .option('--allowed-tools <tools...>', 'Allowed tool rules')
     .option('--toolset <tools...>', 'Base tool set')
     .option('--block-tools <tools...>', 'Denied tool rules')
     .option('--mcp <configs...>', 'MCP server configs (JSON or file paths)')
     .option('--only-mcp', 'Only use MCP servers from --mcp')
-    .addOption(new Option('--permission-prompt-tool <tool>', 'MCP tool for permission prompts').hideHelp())
-    .addOption(
-      new Option('--permission-channel <channel>', 'The road a permission ask takes: stdio (the control protocol on stdin) or prompt-tool (the MCP tool named by --permission-prompt-tool)')
-        .choices(['stdio', 'prompt-tool'])
-        .hideHelp(),
-    )
     .option('--brief <prompt>', 'Set the session system brief')
     .addOption(new Option('--brief-file <file>', 'Read the session system brief from a file').hideHelp())
     .option('--brief-add <prompt>', 'Append to the system prompt')
@@ -623,6 +610,15 @@ async function run(): Promise<void> {
       await defaultAction(prompt, { ...sessionOptions(runCommand), print: true })
     })
   for (const option of program.options) runCommand.addOption(option)
+  const runnerCommand = program.command('runner')
+    .description('Serve a session to a host over stdio (JSON-RPC 2.0, one message per line): the host sends the prompts and answers the permission asks')
+    .configureHelp({ sortOptions: true })
+    .action(async () => {
+      await defaultAction(undefined, { ...sessionOptions(runnerCommand), print: true, runner: true })
+    })
+  for (const option of program.options) {
+    if (!RUN_OUTPUT_OPTIONS.has(option.long ?? '')) runnerCommand.addOption(option)
+  }
 
   const parseProgram = () => program.parseAsync(process.argv)
 
@@ -645,7 +641,7 @@ async function run(): Promise<void> {
           exitForCommanderError(commanderError)
         }
         const { emitLoadError } = await import('./cli/headless/resume.js')
-        emitLoadError(String(commanderError.message ?? error), 'stream-json')
+        emitLoadError(String(commanderError.message ?? error), 'rows')
         process.exit(
           commanderError.code !== undefined && USAGE_ERROR_CODES.has(commanderError.code)
             ? 2
@@ -907,7 +903,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
       process.exit(0)
     })
 
-  program.command('health [topic]').alias('doctor')
+  program.command('health [topic]')
     .description('Check the installation health: configured MCP servers are validated WITHOUT starting them; `doctor processes` lists Mercury\'s own processes as JSON')
     .option('--json', 'JSON certificate output')
     .option('--deep', 'Deep inventory')
@@ -947,7 +943,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
 
   for (const [name, usage] of [
     ['daemon [subcommand]', `Usage: ${cliName} daemon <run|status|stop>`],
-    ['acp', `Usage: ${cliName} acp [--stdio]`],
+    ['acp', `Usage: ${cliName} acp`],
   ] as const) {
     program
       .command(name)
@@ -1119,6 +1115,8 @@ async function showAction(
 
 type RootOptions = Record<string, unknown>
 
+const RUN_OUTPUT_OPTIONS: ReadonlySet<string> = new Set(['--format', '--input', '--partial'])
+
 async function defaultAction(inputPromptArg: string | undefined, opts: RootOptions): Promise<void> {
   if ((opts as { version?: boolean }).version) {
     console.log(`Mercury ${MACRO.VERSION}`)
@@ -1131,6 +1129,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   const cliName = binaryName()
   const isNonInteractiveSession = !getIsInteractive()
   const printMode = Boolean(opts.print)
+  const runnerDoor = opts.runner === true
 
   const worktreeOpt = opts.worktree as string | boolean | undefined
   const tmuxEnabled = Boolean(opts.multiplex)
@@ -1174,8 +1173,8 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     if (!UUID_SHAPE.test(sessionIdOpt)) failCli(`--session-id must be a valid UUID: ${sessionIdOpt}`)
     if (await sessionIdExists(sessionIdOpt)) failCli(`Session id already exists: ${sessionIdOpt}`, 1)
   }
-  if (printMode && opts.mode === 'apollo' && permissionChannelOf(opts) === undefined) {
-    failCli('mercury run: apollo needs a permission channel')
+  if (printMode && opts.mode === 'apollo' && !runnerDoor) {
+    failCli('mercury run: apollo needs a host that answers its asks (mercury runner)')
   }
   if (opts.backupModel && opts.backupModel === opts.model) {
     failCli('--backup-model cannot equal --model')
@@ -1203,23 +1202,14 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     }
   }
 
-  const inputFormat = opts.input === 'rows' ? 'stream-json' : 'text'
-  const outputFormat = opts.format === 'rows' ? 'stream-json' : typedString(opts.format) ?? 'text'
+  const inputFormat = runnerDoor || opts.input === 'rows' ? 'rows' : 'text'
+  const outputFormat = runnerDoor || opts.format === 'rows' ? 'rows' : typedString(opts.format) ?? 'text'
   if (!printMode && (opts.input || opts.format || opts.partial)) failCli('Use mercury run for --input, --format and --partial')
-  if (inputFormat === 'stream-json' && outputFormat !== 'stream-json') {
+  if (inputFormat === 'rows' && outputFormat !== 'rows') {
     failCli('--input rows requires run --format rows')
   }
-  if (opts.replayUserMessages && outputFormat !== 'stream-json') {
-    failCli('--replay-user-messages requires run --format rows')
-  }
-  if (typedString(opts.permissionPromptTool) === 'stdio') {
-    failCli('stdio is not an MCP tool name: ask over the control protocol with --permission-channel stdio')
-  }
-  if (typedString(opts.permissionChannel) === 'prompt-tool' && typedString(opts.permissionPromptTool) === undefined) {
-    failCli('--permission-channel prompt-tool needs --permission-prompt-tool <tool>')
-  }
   const includePartialMessages = Boolean(opts.partial)
-  if (opts.partial && (!printMode || outputFormat !== 'stream-json')) {
+  if (opts.partial && (!printMode || outputFormat !== 'rows')) {
     failCli('--partial requires run --format rows')
   }
   if (opts.ephemeral === true && !printMode) {
@@ -1368,8 +1358,10 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
 
   let prompt: string | AsyncIterable<string> | undefined = inputPrompt
   let syntaxInput: string | undefined
-  if (!process.stdin.isTTY) {
-    if (inputFormat === 'stream-json') {
+  if (runnerDoor) {
+    prompt = noStdinChunks()
+  } else if (!process.stdin.isTTY) {
+    if (inputFormat === 'rows') {
       prompt = readStdinChunks()
     } else {
       const collected = await readStdinWithPeek(printMode ? (inputPrompt === undefined ? -1 : 1_000) : 3000)
@@ -1395,7 +1387,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     !opts.resume &&
     !opts.continue &&
     !opts.pr &&
-    inputFormat !== 'stream-json' &&
+    inputFormat !== 'rows' &&
     mainThreadAgentDefinition?.initialPrompt == null
   ) {
     const variadicCandidates: Array<[string, unknown]> = [
@@ -1455,7 +1447,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
 
   if (isCoordinationServerEnabled()) {
     const reserved = Object.entries(dynamicMcpConfig).find(
-      ([name, config]) => name === COORDINATION_SERVER_NAME && (config as { type?: string }).type !== 'host',
+      ([name]) => name === COORDINATION_SERVER_NAME,
     )
     if (reserved) {
       writeErr(
@@ -1506,19 +1498,11 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     ? Promise.resolve({})
     : getMercuryMcpConfigs(dynamicMcpConfig).then(resolved => resolved.servers)
   const mcpConfigPromise = discoveredMcpPromise.then(discovered => {
-    const merged = { ...discovered, ...dynamicMcpConfig }
-    const sdk: Record<string, McpSdkServerConfig> = Object.create(null) as Record<string, McpSdkServerConfig>
-    const regular: Record<string, ScopedMcpServerConfig> = Object.create(null) as Record<string, ScopedMcpServerConfig>
-    for (const [name, config] of Object.entries(merged)) {
-      if (config.type === 'host') sdk[name] = config
-      else regular[name] = config
-    }
+    const regular: Record<string, ScopedMcpServerConfig> = Object.assign(Object.create(null), discovered, dynamicMcpConfig) as Record<string, ScopedMcpServerConfig>
     logForDebugging(`MCP config resolution took ${Date.now() - mcpResolutionStartedAt}ms`)
-    return { sdk, regular }
+    return regular
   })
-  const regularDynamicMcpConfig: Record<string, ScopedMcpServerConfig> = Object.fromEntries(
-    Object.entries(dynamicMcpConfig).filter(([, config]) => config.type !== 'host'),
-  )
+  const regularDynamicMcpConfig: Record<string, ScopedMcpServerConfig> = dynamicMcpConfig
 
   if (process.env.MERCURY_ENTRYPOINT !== 'local-agent') {
     initBundledSkills()
@@ -1622,6 +1606,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     outputFormat,
     includePartialMessages,
     setupTrigger,
+    door: runnerDoor ? 'wire' : 'rows',
   })
 }
 
@@ -1629,6 +1614,8 @@ async function* readStdinChunks(): AsyncIterable<string> {
   process.stdin.setEncoding('utf8')
   for await (const chunk of process.stdin) yield chunk as string
 }
+
+async function* noStdinChunks(): AsyncIterable<string> {}
 
 function readStdinWithPeek(timeoutMs: number): Promise<string | null> {
   return new Promise(resolvePeek => {
@@ -2090,7 +2077,7 @@ async function printLaunch(args: {
   permissionMode: PermissionMode
   toolPermissionContext: AppState['toolPermissionContext']
   allowDangerousSkip: boolean
-  mcpConfigPromise: Promise<{ sdk: Record<string, McpSdkServerConfig>; regular: Record<string, ScopedMcpServerConfig> }>
+  mcpConfigPromise: Promise<Record<string, ScopedMcpServerConfig>>
   thinkingConfig: import('./utils/thinking.js').ThinkingConfig
   userSpecifiedModel: string | undefined
   fallbackModel: string | undefined
@@ -2103,10 +2090,11 @@ async function printLaunch(args: {
   outputFormat: string
   includePartialMessages: boolean
   setupTrigger: 'init' | 'maintenance' | undefined
+  door: 'rows' | 'wire'
 }): Promise<void> {
   const { opts } = args
 
-  setHeadlessOneShot(args.inputFormat !== 'stream-json')
+  setHeadlessOneShot(args.inputFormat !== 'rows')
 
   if (mercuryLspEnabled() && qualifiedIdSpaceOf(getMainLoopModel())?.route !== 'local') {
     initializeLspServerManager()
@@ -2131,7 +2119,7 @@ async function printLaunch(args: {
   }
   profileCheckpoint('action_tools_loaded')
 
-  const formatted = args.outputFormat === 'stream-json' || args.outputFormat === 'json'
+  const formatted = args.outputFormat === 'rows' || args.outputFormat === 'json'
   void formatted
 
   applyMergedConfigEnv()
@@ -2202,7 +2190,7 @@ async function printLaunch(args: {
   }
 
   profileCheckpoint('action_before_mcp_configs_await')
-  const { sdk: sdkMcpConfigs, regular: regularMcpConfigs } = await args.mcpConfigPromise
+  const regularMcpConfigs = await args.mcpConfigPromise
   profileCheckpoint('action_mcp_configs_loaded')
   {
     if (consumeSessionKitPin().outcome === 'refused') {
@@ -2215,7 +2203,7 @@ async function printLaunch(args: {
       const { getActiveSet } = await import('./extensions/active.js')
       completeProcessSessionKit(
         completeSessionKitFromRoster(unresolved, {
-          mcpNames: [...Object.keys(regularMcpConfigs), ...Object.keys(sdkMcpConfigs)],
+          mcpNames: Object.keys(regularMcpConfigs),
           commands: args.commands,
           extensions: getActiveSet().active.map(ext => ext.manifest.name),
         }),
@@ -2243,7 +2231,6 @@ async function printLaunch(args: {
       store.setState,
       headlessCommands,
       tools,
-      sdkMcpConfigs,
       args.activeAgents,
       {
         continue: Boolean(opts.continue),
@@ -2251,8 +2238,6 @@ async function printLaunch(args: {
         outputFormat: args.outputFormat,
         syntaxInput: args.syntaxInput,
         jsonSchema: parsedJsonSchema,
-        permissionPromptToolName: typedString(opts.permissionPromptTool),
-        permissionChannel: permissionChannelOf(opts),
         allowedTools: (opts.allowedTools as string[] | undefined) ?? [],
         thinkingConfig: args.thinkingConfig,
         maxTurns: opts.maxTurns as number | undefined,
@@ -2261,7 +2246,6 @@ async function printLaunch(args: {
         appendSystemPrompt: args.appendSystemPrompt,
         userSpecifiedModel: args.userSpecifiedModel ?? args.mainThreadAgentDefinition?.model ?? undefined,
         fallbackModel: args.fallbackModel,
-        replayUserMessages: Boolean(opts.replayUserMessages),
         includePartialMessages: args.includePartialMessages,
         forkSession: Boolean(opts.fork),
         resumeSessionAt: typedString(opts.replayTo),
@@ -2271,6 +2255,7 @@ async function printLaunch(args: {
         advise: opts.advise === true,
         setupTrigger: args.setupTrigger,
         bootSessionIdPinned: Boolean(typedString(opts.sessionId)),
+        door: args.door,
         subscribeAppState: store.subscribe,
         sessionStartHooksPromise,
       },

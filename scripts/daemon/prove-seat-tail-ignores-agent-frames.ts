@@ -41,12 +41,14 @@ const published = (): Promise<void> => new Promise(resolve => setTimeout(resolve
 const tail = () => readSessionTail(sid, dir)
 const activity = (): string => JSON.stringify(readSessionWorkers(dir)[SHORT]?.activity ?? null)
 let n = 0
+const row = (o: Record<string, unknown>): string => JSON.stringify({ seq: 1, timestamp: 't', session_id: sid, turn: 1, ...o })
 const settle = (text: string, parent?: string): string =>
-  JSON.stringify({ type: 'assistant', ...(parent !== undefined ? { parent_tool_use_id: parent } : { parent_tool_use_id: null }), message: { id: `msg_${++n}`, content: [{ type: 'text', text }] }, uuid: `u${n}`, session_id: sid })
-const result = JSON.stringify({ type: 'result', subtype: 'success' })
-const delta = (text: string): string => JSON.stringify({ type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text } } })
+  row({ type: 'text', ...(parent !== undefined ? { parent_call_id: parent } : {}), message_id: `msg_${++n}`, block: 0, text })
+const USAGE = { input_tokens: 1, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 1 }
+const result = row({ type: 'outcome', schema: 1, turn_id: 't-af', status: 'completed', steps: 1, wall_ms: 1, usage: USAGE, models: [], denials: [] })
+const delta = (text: string): string => row({ type: 'text_delta', message_id: 'msg_stream', block: 0, text })
 
-section("§1 a background agent's tagged frame on an idle seat paints nothing in the tail and stamps no activity")
+section("§1 a background agent's tagged row on an idle seat paints nothing in the tail and stamps no activity")
 const idleActivity = activity()
 onSeatLine(SHORT, settle('the child finished after the handover', 'toolu_agent_1'), roster as never, dir)
 await published()
@@ -59,9 +61,10 @@ await published()
 check('the tail carries the reply', tail()?.text === 'Settled whole.' && tail()?.turnChars === 'Settled whole.'.length, JSON.stringify(tail()))
 check('the activity record moved', activity() !== idleActivity, activity())
 onSeatLine(SHORT, result, roster as never, dir)
-check('the result clears the tail', (tail()?.text ?? null) === null, JSON.stringify(tail()))
+check('the outcome clears the tail', (tail()?.text ?? null) === null, JSON.stringify(tail()))
 
-section("§3 a foreground helper's tagged frame during a streaming turn leaves the tail and the activity as they were")
+section("§3 a foreground helper's tagged row during a streaming turn leaves the tail and the activity as they were")
+onSeatLine(SHORT, row({ type: 'block_start', message_id: 'msg_stream', block: 0, of: 'text' }), roster as never, dir)
 onSeatLine(SHORT, delta('Hello, '), roster as never, dir)
 await published()
 const streamedTail = JSON.stringify(tail())

@@ -15,7 +15,7 @@ const { updateConcourseWorkers } = await import('../../src/daemon/concourseSuper
 const { statusLine } = await import('../../src/components/SwitchboardTagBar.tsx')
 const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
 const { stopRunningAgentTasks } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-const { drainSdkEvents } = await import('../../src/utils/sdkEventQueue.ts')
+const { drainRows } = await import('../../src/utils/sdkEventQueue.ts')
 const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
 
 let failures = 0
@@ -53,12 +53,14 @@ console.log('\nA1 the driver announces the agent wait and its end')
     notifyLifecycle: () => {},
     enqueueOutput: () => {},
     writeDirect: async () => {},
-    drainSdkEvents: () => [],
+    drainRows: () => [],
     executeTurn: async () => {
       await tick()
     },
     beforeCycle: async () => {},
     onTurnStart: () => {},
+    turnIdOf: () => 't-aw',
+    openTurnRow: () => ({ type: 'turn', state: 'started', turn_id: 't-aw' }) as never,
     onTurnSettled: () => {},
     hasWaitableBackgroundTasks: () => {
       polls++
@@ -69,14 +71,13 @@ console.log('\nA1 the driver announces the agent wait and its end')
     hasHoldableBackgroundAgents: () => false,
     waitableBackgroundTaskCount: () => running,
     onAgentWait: count => announced.push(count),
-    takePendingSuggestion: () => null,
     settleIdle: async () => 'stay',
     closeOutput: async () => {},
     notifySessionState: () => {},
     isShuttingDown: () => false,
     idleTimerStop: () => {},
     idleTimerStart: () => {},
-    onCycleError: () => ({ type: 'result' }) as never,
+    onCycleError: () => ({ type: 'outcome', status: 'failed' }) as never,
     shutdown: () => {},
     clock: { sleep: async () => tick() },
   }
@@ -110,25 +111,28 @@ updateConcourseWorkers(workers => {
   } as never
 }, dir)
 const roster = { control: () => true, list: () => [], patchSeatModel: () => true }
-const statusFrame = (status: unknown): string =>
-  JSON.stringify({ type: 'system', subtype: 'status', status, uuid: '00000000-0000-4000-a000-000000000002', session_id: sid })
+const row = (o: Record<string, unknown>): string => JSON.stringify({ seq: 1, timestamp: 't', session_id: sid, turn: 1, ...o })
+const waitingRow = (agents: number): string => row({ type: 'turn', state: 'waiting', turn_id: 't-aw', agents })
+const USAGE = { input_tokens: 1, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 1 }
+const outcome = (): string => row({ type: 'outcome', schema: 1, turn_id: 't-aw', status: 'completed', steps: 1, wall_ms: 1, usage: USAGE, models: [], denials: [] })
 const tail = () => readSessionTail(sid, dir) as { stateWord?: string; waitingOnAgents?: number } | null
 {
-  onSeatLine(SHORT, statusFrame({ waiting_on_agents: 3 }), roster as never, dir)
-  check("{ waiting_on_agents: 3 } ⇒ stateWord 'waiting-on-agents' with the count", tail()?.stateWord === 'waiting-on-agents' && tail()?.waitingOnAgents === 3, JSON.stringify(tail()))
-  onSeatLine(SHORT, statusFrame({ waiting_on_agents: 1 }), roster as never, dir)
+  onSeatLine(SHORT, waitingRow(3), roster as never, dir)
+  check("a turn row waiting on 3 ⇒ stateWord 'waiting-on-agents' with the count", tail()?.stateWord === 'waiting-on-agents' && tail()?.waitingOnAgents === 3, JSON.stringify(tail()))
+  onSeatLine(SHORT, waitingRow(1), roster as never, dir)
   check('the count moves with the runner (1)', tail()?.stateWord === 'waiting-on-agents' && tail()?.waitingOnAgents === 1, JSON.stringify(tail()))
-  onSeatLine(SHORT, statusFrame(null), roster as never, dir)
-  check('status null clears the wait', tail()?.stateWord === undefined && tail()?.waitingOnAgents === undefined, JSON.stringify(tail()))
-  onSeatLine(SHORT, statusFrame({ waiting_on_agents: 2 }), roster as never, dir)
-  onSeatLine(SHORT, JSON.stringify({ type: 'result', subtype: 'success' }), roster as never, dir)
-  check("the turn's result frame clears it (the settle belt)", tail()?.stateWord === undefined, JSON.stringify(tail()))
-  onSeatLine(SHORT, statusFrame({ waiting_on_agents: 2 }), roster as never, dir)
+  onSeatLine(SHORT, waitingRow(0), roster as never, dir)
+  check('a wait of zero clears the wait', tail()?.stateWord === undefined && tail()?.waitingOnAgents === undefined, JSON.stringify(tail()))
+  onSeatLine(SHORT, waitingRow(2), roster as never, dir)
+  onSeatLine(SHORT, outcome(), roster as never, dir)
+  check("the turn's outcome row clears it (the settle belt)", tail()?.stateWord === undefined, JSON.stringify(tail()))
+  onSeatLine(SHORT, waitingRow(2), roster as never, dir)
   onSeatSpawned(SHORT, roster as never, dir)
   check('a respawn clears it (a child dead mid-wait never leaks the word)', tail()?.stateWord === undefined, JSON.stringify(tail()))
-  onSeatLine(SHORT, statusFrame('compacting'), roster as never, dir)
-  check("the fold's own word still rides the same frame ('compacting', no count)", tail()?.stateWord === 'compacting' && tail()?.waitingOnAgents === undefined, JSON.stringify(tail()))
-  onSeatLine(SHORT, statusFrame({ waiting_on_agents: 0 }), roster as never, dir)
+  onSeatLine(SHORT, row({ type: 'compaction', state: 'started', trigger: 'manual' }), roster as never, dir)
+  check("the fold's own word rides its own row ('compacting', no count)", tail()?.stateWord === 'compacting' && tail()?.waitingOnAgents === undefined, JSON.stringify(tail()))
+  onSeatLine(SHORT, row({ type: 'compaction', state: 'ended', trigger: 'manual' }), roster as never, dir)
+  onSeatLine(SHORT, waitingRow(0), roster as never, dir)
   check('a zero count is no wait at all', tail()?.stateWord === undefined, JSON.stringify(tail()))
 }
 
@@ -150,7 +154,7 @@ console.log('\nA3 the words the status row speaks')
 console.log('\nA4 the stop road reaches every running agent')
 {
   setIsInteractive(false)
-  drainSdkEvents()
+  drainRows()
   const aborted: string[] = []
   const controller = (id: string): AbortController => {
     const c = new AbortController()
@@ -184,19 +188,19 @@ console.log('\nA4 the stop road reaches every running agent')
   check("both controllers aborted (the agents' own queries tear down)", aborted.sort().join(',') === 'a1,a2', aborted.join(','))
   const after = state.tasks as Record<string, { status: string; notified: boolean }>
   check('both settled killed and notified; the completed agent is untouched', after.a1!.status === 'killed' && after.a2!.status === 'killed' && after.a1!.notified && after.a2!.notified && after.a3!.status === 'completed' && !after.a3!.notified, JSON.stringify(after))
-  const events = drainSdkEvents() as Array<{ subtype?: string; task_id?: string; status?: string; summary?: string }>
-  const stops = events.filter(e => e.subtype === 'task_notification' && e.status === 'stopped')
-  check("a 'stopped' termination rides the SDK stream per agent, naming it", stops.length === 2 && stops.map(e => e.task_id).join(',') === 'a1,a2' && stops[0]!.summary === 'Build the parser', JSON.stringify(events))
-  check('a store with nothing running stops nothing and emits nothing', stopRunningAgentTasks(state.tasks, setAppState as never).length === 0 && drainSdkEvents().length === 0)
+  const events = drainRows() as Array<{ type?: string; state?: string; task_id?: string; status?: string; summary?: string }>
+  const stops = events.filter(e => e.type === 'task' && e.state === 'ended' && e.status === 'stopped')
+  check("a 'stopped' task row rides the stream per agent, naming it", stops.length === 2 && stops.map(e => e.task_id).join(',') === 'a1,a2' && stops[0]!.summary === 'Build the parser', JSON.stringify(events))
+  check('a store with nothing running stops nothing and emits nothing', stopRunningAgentTasks(state.tasks, setAppState as never).length === 0 && drainRows().length === 0)
   setIsInteractive(true)
 }
 
 console.log('\nA5 the wiring — runner to glass (structural)')
 {
   const print = read('src/cli/print.ts')
-  check("the runner's interrupt aborts the in-flight request and releases the driver's hold — and leaves the running agents alone (the controller law: they run on under their own controllers)", /case 'interrupt': \{[\s\S]{0,2400}inFlightAbort\?\.abort\(\)\s*\n\s*driver\.releaseHold\(\)/.test(print) && !/case 'interrupt': \{[\s\S]{0,2400}stopRunningAgentTasks\(/.test(print))
+  check("the runner's interrupt aborts the in-flight request and releases the driver's hold — and leaves the running agents alone (the controller law: they run on under their own controllers)", /'turn\/interrupt': params => \{[\s\S]{0,2400}inFlightAbort\?\.abort\(\)\s*\n\s*driver\.releaseHold\(\)/.test(print) && !/case 'interrupt': \{[\s\S]{0,2400}stopRunningAgentTasks\(/.test(print))
   check("a HARD interrupt is the one that kills the shells the turn left running (the shell task owner's kill road)", /hard === true\) \{[\s\S]{0,600}isLocalShellTask\(task\) && task\.status === 'running'\) void killTask\(task\.id, setAppState\)/.test(print))
-  check('the runner relays the agent wait on the status frame ({ waiting_on_agents: n } / null)', /onAgentWait: count => \{[\s\S]{0,400}subtype: 'status',\s*\n\s*status: count > 0 \? \{ waiting_on_agents: count \} : null/.test(print))
+  check('the runner relays the agent wait as a turn row ({ state: waiting, agents: n })', /onAgentWait: \(count, turnId\) => \{[\s\S]{0,400}turnWaitingRow\([\s\S]{0,120}\{ turnId, agents: count \}\)/.test(print))
   const driver = read('src/cli/headless/turnDriver.ts')
   check("the driver announces the wait where it parks ('waiting_for_agents') and 0 on every exit of the cycle", /phase = 'waiting_for_agents'[\s\S]{0,500}announceWait\(holding \? running : Math\.max\(1, running\)\)/.test(driver) && /finally \{\s*\n[\s\S]{0,300}announceWait\(0\)/.test(driver))
   const connector = read('src/services/engine-connector/daemonConnector.ts')

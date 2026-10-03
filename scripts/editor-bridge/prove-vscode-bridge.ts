@@ -119,8 +119,8 @@ section('(2b) client robustness + the follow-along wire (structural)')
   check('the chat webview renders incrementally with a CSP (no whole re-render per chunk)', ext.includes('Content-Security-Policy') && ext.includes("postToChat({ type: 'append'") && !ext.includes('chatPanel.webview.html = chatHtml()'))
   check('thoughts cross to the chat', ext.includes("'agent_thought_chunk'"))
   const child = readFileSync('src/services/acp/childSession.ts', 'utf8')
-  check('the ACP child pipe is crash-isolated', child.includes("this.child.on('error'") && child.includes('private writeFrame'))
-  check('the ACP child spawn line carries no --verbose (the stream-json feed is complete on its own)', !child.includes("'--verbose'"))
+  check('the ACP child pipe is crash-isolated', child.includes("this.child.on('error'") && child.includes("this.child.stdin?.on('error'"))
+  check('the ACP child spawn line carries no --verbose (the rows feed is complete on its own)', !child.includes("'--verbose'"))
 }
 
 section('(2c) activation is ACP-only — nothing stamped, written or served')
@@ -131,7 +131,7 @@ section('(2c) activation is ACP-only — nothing stamped, written or served')
   check('activation wrote nothing under the config home', written.length === 0, written.join(','))
   check('the extension opens no listener of its own (no node:http, no node:net)', !ext.includes("require('node:http')") && !ext.includes("require('node:net')"))
   check('the extension never spells an environment name into a terminal', !ext.includes('environmentVariableCollection') && !/MERCURY_[A-Z_]+_PORT/.test(ext))
-  check('the one process the extension spawns is the ACP server', (ext.match(/spawn\(/g) ?? []).length === 1 && ext.includes("'acp', '--stdio'"))
+  check('the one process the extension spawns is the ACP server', (ext.match(/spawn\(/g) ?? []).length === 1 && ext.includes("'acp']"))
 }
 
 section('(3) deterministic .vsix build')

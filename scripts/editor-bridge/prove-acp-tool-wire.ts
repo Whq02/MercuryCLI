@@ -98,16 +98,16 @@ t.section('§4 tool output — bounded, cut named')
 
 t.section('§5 stopReasonOf — settlement')
 {
-  const r = (o: 'success' | 'error' | 'cancelled', d?: { subtype: string; stopReason?: string; errors: string[] }) =>
+  const r = (o: 'success' | 'error' | 'cancelled', d?: { status: string; stopReason?: string; errors: string[] }) =>
     JSON.stringify(stopReasonOf(o, d))
   t.check('cancelled → cancelled', r('cancelled') === '{"stopReason":"cancelled"}', r('cancelled'))
-  t.check('success → end_turn', r('success', { subtype: 'success', stopReason: 'end_turn', errors: [] }) === '{"stopReason":"end_turn"}')
-  t.check('success + max_tokens → max_tokens', r('success', { subtype: 'success', stopReason: 'max_tokens', errors: [] }) === '{"stopReason":"max_tokens"}')
-  t.check('success + refusal → refusal (the model\'s own)', r('success', { subtype: 'success', stopReason: 'refusal', errors: [] }) === '{"stopReason":"refusal"}')
-  t.check('error_max_turns → max_turn_requests', r('error', { subtype: 'error_max_turns', errors: [] }) === '{"stopReason":"max_turn_requests"}')
-  const crash = stopReasonOf('error', { subtype: 'error_during_execution', errors: ['boom', 'later'] })
-  t.check('an execution error is an ERROR, never a refusal', 'error' in crash, JSON.stringify(crash))
-  t.check('the error names subtype and cause', 'error' in crash && crash.error.includes('error_during_execution') && crash.error.includes('boom; later'), JSON.stringify(crash))
+  t.check('completed → end_turn', r('success', { status: 'completed', stopReason: 'end_turn', errors: [] }) === '{"stopReason":"end_turn"}')
+  t.check('completed + max_tokens → max_tokens', r('success', { status: 'completed', stopReason: 'max_tokens', errors: [] }) === '{"stopReason":"max_tokens"}')
+  t.check('completed + refusal → refusal (the model\'s own)', r('success', { status: 'completed', stopReason: 'refusal', errors: [] }) === '{"stopReason":"refusal"}')
+  t.check('turn_limit → max_turn_requests', r('error', { status: 'turn_limit', errors: [] }) === '{"stopReason":"max_turn_requests"}')
+  const crash = stopReasonOf('error', { status: 'failed', errors: ['boom', 'later'] })
+  t.check('a failed turn is an ERROR, never a refusal', 'error' in crash, JSON.stringify(crash))
+  t.check('the error names the status and the cause', 'error' in crash && crash.error.includes('failed') && crash.error.includes('boom; later'), JSON.stringify(crash))
   const dead = stopReasonOf('error', undefined)
   t.check('an error with no detail is still an error', 'error' in dead && dead.error.includes('failed'))
 }

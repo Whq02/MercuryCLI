@@ -35,7 +35,7 @@ for (const rel of [
   const cli = read('src/entrypoints/cli.tsx')
   check(
     'cli.tsx: the acp usage exit is a lazy writeSync, not the stream',
-    cli.includes("const { writeSync } = await import('node:fs')") && !cli.includes("process.stderr.write('Usage: mercury acp --stdio"),
+    cli.includes("const { writeSync } = await import('node:fs')") && !cli.includes("process.stderr.write('Usage: mercury acp"),
   )
 }
 

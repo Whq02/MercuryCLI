@@ -23,7 +23,7 @@ const { stopAgentByOperator } = await import('../../src/services/agents/operator
 const { operatorResumeWords, respawnCrewmateByOperator, crewmateRespawnConfig, crewmateRespawnWords } = await import('../../src/services/agents/operatorResume.js')
 const { spawnInProcessCrewmate, unwindCrewmateSpawn } = await import('../../src/utils/swarm/spawnInProcess.js')
 const { getCommandQueueSnapshot, resetCommandQueue } = await import('../../src/input-core/command-queue.js')
-const { drainSdkEvents } = await import('../../src/utils/sdkEventQueue.js')
+const { drainRows } = await import('../../src/utils/sdkEventQueue.js')
 const { spawnCrewmate } = await import('../../src/tools/shared/spawnMultiAgent.js')
 const { createUserMessage } = await import('../../src/utils/messages.js')
 const savedMessages = [createUserMessage({ content: 'Retained crewmate history' })]
@@ -134,7 +134,7 @@ section('the refusals: a running crewmate, a row that is not a crewmate, and a s
 section('the spawn road: a crew word that names nothing names the session\'s crew, and a row whose first dispatch fails is bookended failed, never left running')
 {
   const store = makeStore()
-  drainSdkEvents()
+  drainRows()
   const { sessionCrewName } = await import('../../src/utils/crew/crewBirth.js')
   const { getSessionId } = await import('../../src/bootstrap/state.js')
   const { readCrewFile } = await import('../../src/utils/swarm/crewHelpers.js')
@@ -148,10 +148,10 @@ section('the spawn road: a crew word that names nothing names the session\'s cre
   check('the spawn is not refused for a missing crew: the row is registered against the session\'s crew and fails only at its first dispatch (this harness carries no tools)', thrown instanceof Error && !/does not exist/.test(thrown.message) && /first dispatch/.test(thrown.message), String(thrown))
   const rows = crewmateRows(store)
   check('no running crewmate row stands after the failed dispatch', rows.every(r => r.status !== 'running'), JSON.stringify(rows.map(r => ({ id: r.id, status: r.status }))))
-  const events = drainSdkEvents() as Array<{ subtype?: string; task_id?: string; status?: string; summary?: string }>
-  const started = events.find(e => e.subtype === 'task_started')
-  const ended = events.find(e => e.subtype === 'task_notification' && e.task_id === started?.task_id)
-  check('the row that was registered is bookended failed under the crew\'s agent id, so a reader of the frames sees no running crewmate', started !== undefined && ended !== undefined && ended.status === 'failed' && String(ended.summary) === `ghost@${crew}`, JSON.stringify(events))
+  const events = drainRows() as Array<{ type?: string; state?: string; task_id?: string; status?: string; summary?: string }>
+  const started = events.find(e => e.type === 'task' && e.state === 'started')
+  const ended = events.find(e => e.type === 'task' && e.state === 'ended' && e.task_id === started?.task_id)
+  check('the row that was registered is bookended failed under the crew\'s agent id, so a reader of the rows sees no running crewmate', started !== undefined && ended !== undefined && ended.status === 'failed' && String(ended.summary) === `ghost@${crew}`, JSON.stringify(events))
   const roster = readCrewFile(crew)
   check('the crew roster on disk no longer lists the ghost after its failed dispatch', roster !== null && roster.members.every(m => m.name !== 'ghost'), JSON.stringify(roster?.members.map(m => m.name)))
 }
@@ -159,25 +159,25 @@ section('the spawn road: a crew word that names nothing names the session\'s cre
 section('the unwind itself: a running crewmate row is removed and bookended failed; a settled or missing row is left alone')
 {
   const store = makeStore()
-  drainSdkEvents()
+  drainRows()
   const spawned = await spawnInProcessCrewmate({ name: 'undone', crewName: 'ping-crew', prompt: 'p' }, { setAppState: store.set as never, toolUseId: 'toolu_spawn' })
-  drainSdkEvents()
+  drainRows()
   const unwound = unwindCrewmateSpawn(spawned.taskId!, store.set as never, 'the crew is gone')
   check('the running row is unwound: removed from the store, its controller aborted', unwound && store.state.tasks[spawned.taskId!] === undefined && spawned.abortController?.signal.aborted === true)
-  const events = drainSdkEvents() as Array<{ subtype?: string; task_id?: string; status?: string; summary?: string; tool_use_id?: string }>
-  check('the bookend names the row, its tool use and the cause', events.length === 1 && events[0]!.subtype === 'task_notification' && events[0]!.task_id === spawned.taskId && events[0]!.status === 'failed' && events[0]!.summary === 'the crew is gone' && events[0]!.tool_use_id === 'toolu_spawn', JSON.stringify(events))
-  check('a second unwind of the same id answers false and emits nothing', unwindCrewmateSpawn(spawned.taskId!, store.set as never, 'again') === false && drainSdkEvents().length === 0)
+  const events = drainRows() as Array<{ type?: string; state?: string; task_id?: string; status?: string; summary?: string; call_id?: string }>
+  check('the bookend names the row, its tool use and the cause', events.length === 1 && events[0]!.type === 'task' && events[0]!.state === 'ended' && events[0]!.task_id === spawned.taskId && events[0]!.status === 'failed' && events[0]!.summary === 'the crew is gone' && events[0]!.call_id === 'toolu_spawn', JSON.stringify(events))
+  check('a second unwind of the same id answers false and emits nothing', unwindCrewmateSpawn(spawned.taskId!, store.set as never, 'again') === false && drainRows().length === 0)
   const settled = await spawnInProcessCrewmate({ name: 'done', crewName: 'ping-crew', prompt: 'p' }, { setAppState: store.set as never })
   await stopAgentByOperator(settled.taskId!, { getAppState: store.get, setAppState: store.set as never }, quick)
-  drainSdkEvents()
+  drainRows()
   check('a settled row is left alone', unwindCrewmateSpawn(settled.taskId!, store.set as never, 'late') === false && store.state.tasks[settled.taskId!]?.status === 'killed')
 }
 
 section('the doors in source: the runner\'s resume routes a crewmate row, or an evicted row whose record is a crewmate\'s, to the transcript continuation before the agent resume and tells the main agent of an agent resume; the spawn road unwinds in the membership\'s catch')
 {
   const runner = readFileSync(join(import.meta.dir, '../../src/cli/print.ts'), 'utf8')
-  const arm = runner.slice(runner.indexOf("case 'resume_task': {"), runner.indexOf("case 'generate_session_title': {"))
-  check('the resume arm continues a crewmate row through the operator resume owner with the operator\'s note and answers its receipt', arm.includes('isInProcessCrewmateTask(target)') && arm.includes('readAgentMetadata(asAgentId(request.task_id)))?.crewmate !== undefined') && arm.includes('respawnCrewmateByOperator(request.task_id, { getAppState, toolUseContext: params.toolUseContext, prompt: request.note })') && arm.includes('respawnCrewmateByOperator(') && arm.includes('resumeAgentBackground({') && arm.indexOf('respawnCrewmateByOperator(') < arm.indexOf('resumeAgentBackground({'))
+  const arm = runner.slice(runner.indexOf("'agent/resume': async params => {"), runner.indexOf("const legacyAt = (at: 'now' | 'turn_end')"))
+  check('the resume arm continues a crewmate row through the operator resume owner with the operator\'s note and answers its receipt', arm.includes('isInProcessCrewmateTask(target)') && arm.includes('readAgentMetadata(asAgentId(params.agent_id)))?.crewmate !== undefined') && arm.includes('respawnCrewmateByOperator(params.agent_id, { getAppState, toolUseContext: lastParams.toolUseContext, prompt: params.note })') && arm.includes('respawnCrewmateByOperator(') && arm.includes('resumeAgentBackground({') && arm.indexOf('respawnCrewmateByOperator(') < arm.indexOf('resumeAgentBackground({'))
   check('the resume arm tells the main agent of an agent resumed from the board with its continuation note', arm.includes("enqueueAgentReceiptRow({ taskId: resumed.agentId, description: resumed.description, summary: operatorResumeWords(resumed.description) + (resumed.note ?? '') })"))
   const view = readFileSync(join(import.meta.dir, '../../src/components/mercury-ui/screens/CrewView.tsx'), 'utf8')
   check('the crew view paints the continuation line for a crewmate row and the shipped resume line for an agent', view.includes("target.kind === 'named' ? `${target.name} resumed from its transcript — it continues under a new row` : `${target.name} resumed from its transcript — it runs on under the same id`"))

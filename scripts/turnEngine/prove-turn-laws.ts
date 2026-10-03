@@ -20,7 +20,7 @@ const projDir = mkdtempSync(join(tmpdir(), 'qe-laws-proj-'))
 bootstrap.setOriginalCwd(projDir)
 bootstrap.setProjectRoot(projDir)
 
-const { ask } = await import('../../src/QueryEngine.ts')
+const { ask } = await import('../../src/rows/turn.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await import(
   '../../src/utils/fileStateCache.ts'
@@ -37,7 +37,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — QueryEngine laws proof exceeded 180s')
+  console.log('\n❌ TIMEOUT — the turn laws proof exceeded 180s')
   process.exit(1)
 }, 180_000)
 guard.unref?.()
@@ -85,7 +85,7 @@ function makeFakeTool(over: { name?: string } = {}): Record<string, unknown> {
   }
 }
 
-type SdkMsg = Record<string, unknown> & { type: string; subtype?: string }
+type SdkMsg = Record<string, unknown> & { type: string; status?: string }
 
 async function runAsk(opts: {
   turns: ScriptedTurn[]
@@ -138,29 +138,30 @@ async function runAsk(opts: {
 }
 
 console.log('============================================================')
-console.log(' QueryEngine / ask() — the SDK session laws')
+console.log(' the turn / ask() — the row-stream session laws')
 console.log('============================================================')
 
-section('Q1 — envelope order · stop_reason capture · usage accumulation · last-TEXT result')
+section('Q1 — row order · stop word capture · usage accumulation · last-TEXT answer')
 {
   const { api, out, cacheWrittenBack } = await runAsk({
     turns: [{ kind: 'text', text: 'Q1 SCRIPTED ANSWER.' }],
   })
-  check('the FIRST envelope is system:init', out[0]?.type === 'system' && out[0]?.subtype === 'init', j(out[0]?.type))
-  const assistant = out.find(m => m.type === 'assistant')
-  check('an assistant envelope carries the scripted text', !!assistant && j(assistant).includes('Q1 SCRIPTED ANSWER.'))
+  check('the FIRST row opens the turn (turn · started)', out[0]?.type === 'turn' && out[0]?.state === 'started', j(out[0]?.type))
+  const text = out.find(m => m.type === 'text')
+  check('a text row carries the scripted text', !!text && text.text === 'Q1 SCRIPTED ANSWER.')
+  const step = out.find(m => m.type === 'step') as (SdkMsg & { usage?: { output_tokens?: number }; stop?: string }) | undefined
+  check('one step row names the model call with its usage and stop word', step !== undefined && step.usage?.output_tokens === 12 && step.stop === 'end_turn', j(step))
   const result = out.at(-1) as SdkMsg & {
-    result?: string
-    stop_reason?: string
+    answer?: string
+    stop?: string
     usage?: { output_tokens?: number }
-    num_turns?: number
-    is_error?: boolean
+    steps?: number
   }
-  check('the LAST envelope is result:success', result?.type === 'result' && result?.subtype === 'success', j({ t: result?.type, s: result?.subtype }))
-  check('result.result is the scripted text (last TEXT block)', result?.result === 'Q1 SCRIPTED ANSWER.', result?.result)
-  check("stop_reason is the message_delta-captured 'end_turn'", result?.stop_reason === 'end_turn', String(result?.stop_reason))
+  check('the LAST row is the completed outcome', result?.type === 'outcome' && result?.status === 'completed', j({ t: result?.type, s: result?.status }))
+  check('outcome.answer is the scripted text (last TEXT block)', result?.answer === 'Q1 SCRIPTED ANSWER.', result?.answer)
+  check("the stop word is the message_delta-captured 'end_turn'", result?.stop === 'end_turn', String(result?.stop))
   check('usage accumulated from the stream (fixture output_tokens=12)', result?.usage?.output_tokens === 12, j(result?.usage))
-  check('is_error false on the clean path', result?.is_error === false)
+  check('one step counted on the clean path', result?.steps === 1, String(result?.steps))
   check('exactly one model call', api.messageRequests().length === 1, `${api.messageRequests().length}`)
   check('Q6: ask() writes the read cache back in finally', cacheWrittenBack !== undefined && typeof (cacheWrittenBack as { dump?: unknown }).dump === 'function')
 }
@@ -174,8 +175,8 @@ section('Q7 — the seat’s memory: ONE shared array across ask() calls carries
     prompt: 'my name is Ozymandias',
     mutableMessages: shared,
   })
-  const firstResult = first.out.at(-1) as SdkMsg & { is_error?: boolean }
-  check('turn 1 settles clean', firstResult?.type === 'result' && firstResult?.is_error === false, j({ t: firstResult?.type, e: firstResult?.is_error }))
+  const firstResult = first.out.at(-1) as SdkMsg
+  check('turn 1 settles clean', firstResult?.type === 'outcome' && firstResult?.status === 'completed', j({ t: firstResult?.type, s: firstResult?.status }))
   check(
     'the write-back landed: after turn 1 the shared array holds the prompt AND the reply',
     shared.length >= 2 && j(shared).includes('my name is Ozymandias') && j(shared).includes('THE FIRST ANSWER.'),
@@ -206,7 +207,7 @@ section('Q7 — the seat’s memory: ONE shared array across ask() calls carries
   const firstWireCount = ((first.api.messageRequests().at(-1)?.body as { messages?: unknown[] })?.messages ?? []).length
   const secondWireCount = ((secondWire?.body as { messages?: unknown[] })?.messages ?? []).length
   check(
-    'POISON (the amnesia shape): the second request is strictly LONGER than the first — a re-seeded engine sends the boot state plus the newest prompt alone',
+    'POISON (the amnesia shape): the second request is strictly LONGER than the first — a re-seeded turn sends the boot state plus the newest prompt alone',
     firstWireCount > 0 && secondWireCount > firstWireCount,
     `first=${firstWireCount} second=${secondWireCount}`,
   )
@@ -227,10 +228,10 @@ section('Q2 — a customSystemPrompt replaces the default but NEVER the identity
   const systemText = typeof body?.system === 'string' ? body.system : (body?.system ?? []).map(b => b.text ?? '').join('\n---\n')
   check('the wire system prompt is the CUSTOM one (default replaced)', systemText.includes('bare replacement bot for the floor test'))
   check('the Mercury identity floor is PREPENDED ahead of it', systemText.indexOf('Mercury') !== -1 && systemText.indexOf('Mercury') < systemText.indexOf('bare replacement bot'), systemText.slice(0, 120))
-  check('the run still completes', (out.at(-1) as SdkMsg)?.type === 'result')
+  check('the run still completes', (out.at(-1) as SdkMsg)?.type === 'outcome' && (out.at(-1) as SdkMsg)?.status === 'completed')
 }
 
-section('Q3 — a non-allow canUseTool lands in permission_denials')
+section('Q3 — a non-allow canUseTool lands in the outcome\'s denials')
 {
   const tool = makeFakeTool()
   let canUseCalls = 0
@@ -248,14 +249,14 @@ section('Q3 — a non-allow canUseTool lands in permission_denials')
   check('the wrapped canUseTool was consulted exactly once', canUseCalls === 1, `${canUseCalls}`)
   check('two model calls (the tool turn + the follow-up)', api.messageRequests().length === 2, `${api.messageRequests().length}`)
   const result = out.at(-1) as SdkMsg & {
-    permission_denials?: Array<{ tool_name?: string; tool_use_id?: string }>
+    denials?: Array<{ tool?: string; call_id?: string }>
   }
-  check('the run completes despite the denial', result?.type === 'result', j({ t: result?.type, s: result?.subtype }))
-  const denials = result?.permission_denials ?? []
-  check('permission_denials carries the denied call', denials.length === 1 && denials[0]?.tool_name === 'QeProbeTool' && denials[0]?.tool_use_id === 'toolu_qe_deny', j(denials))
+  check('the run completes despite the denial', result?.type === 'outcome' && result?.status === 'completed', j({ t: result?.type, s: result?.status }))
+  const denials = result?.denials ?? []
+  check('denials carries the denied call', denials.length === 1 && denials[0]?.tool === 'QeProbeTool' && denials[0]?.call_id === 'toolu_qe_deny', j(denials))
 }
 
-section('Q4 — the maxTurns attachment terminalizes as error_max_turns')
+section('Q4 — the maxTurns attachment settles the turn as turn_limit')
 {
   const tool = makeFakeTool()
   const { out } = await runAsk({
@@ -266,26 +267,26 @@ section('Q4 — the maxTurns attachment terminalizes as error_max_turns')
     tools: [tool],
     maxTurns: 1,
   })
-  const result = out.at(-1) as SdkMsg & { is_error?: boolean; errors?: string[] }
-  check('the terminal result is error_max_turns', result?.type === 'result' && result?.subtype === 'error_max_turns', j({ t: result?.type, s: result?.subtype }))
-  check('is_error with the named errors[] row', result?.is_error === true && (result?.errors ?? []).some(e => e.includes('maximum number of turns')), j(result?.errors))
+  const result = out.at(-1) as SdkMsg & { error?: { message?: string; class?: string } }
+  check('the outcome is turn_limit', result?.type === 'outcome' && result?.status === 'turn_limit', j({ t: result?.type, s: result?.status }))
+  check('the error names the limit in its own class', result?.error?.class === 'turn_limit' && String(result?.error?.message).includes('maximum number of turns'), j(result?.error))
 }
 
-section('Q5 — a met budget ceiling terminalizes as error_max_budget_usd')
+section('Q5 — a met budget ceiling settles the turn as budget_limit')
 {
   const { out } = await runAsk({
     turns: [{ kind: 'text', text: 'Q5 reply.' }],
     maxBudgetUsd: 0,
   })
-  const result = out.at(-1) as SdkMsg & { is_error?: boolean; errors?: string[] }
-  check('the terminal result is error_max_budget_usd', result?.type === 'result' && result?.subtype === 'error_max_budget_usd', j({ t: result?.type, s: result?.subtype }))
-  check('is_error with the named errors[] row', result?.is_error === true && (result?.errors ?? []).some(e => e.includes('maximum budget')), j(result?.errors))
+  const result = out.at(-1) as SdkMsg & { error?: { message?: string; class?: string } }
+  check('the outcome is budget_limit', result?.type === 'outcome' && result?.status === 'budget_limit', j({ t: result?.type, s: result?.status }))
+  check('the error names the budget in its own class', result?.error?.class === 'budget_limit' && String(result?.error?.message).includes('maximum budget'), j(result?.error))
 }
 
 console.log('\n============================================================')
 if (failures === 0) {
-  console.log(' ✅ QUERYENGINE LAWS GREEN')
+  console.log(' ✅ TURN LAWS GREEN')
   process.exit(0)
 }
-console.log(` ❌ ${failures} QUERYENGINE LAW FAILURE(S)`)
+console.log(` ❌ ${failures} TURN LAW FAILURE(S)`)
 process.exit(1)

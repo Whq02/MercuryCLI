@@ -1,6 +1,6 @@
 # Mercury for VS Code
 
-A thin bridge to Mercury. It launches `mercury acp --stdio` (the
+A thin bridge to Mercury. It launches `mercury acp` (the
 `mercury.path` setting) and never runs an agent loop of its own; every fact
 it shows comes from Mercury.
 

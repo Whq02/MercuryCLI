@@ -5,6 +5,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { runTurns } from '../lib/rows.ts'
 
 process.env.NODE_ENV = 'test'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'sent-prefix-pure-'))
@@ -487,41 +488,7 @@ if (!existsSync(DIST)) {
       })
     }
     function runStreaming(arena: Arena, args: string[], turns: Array<{ prompt: string; before?: () => void; controls?: Record<string, unknown>[] }>): Promise<RunResult> {
-      return new Promise(resolvePromise => {
-        const child = spawn(nodeBin!, [DIST, ...args], { cwd: arena.cwd, env: arena.env })
-        let stdout = ''
-        let stderr = ''
-        let sent = 0
-        let resultsSeen = 0
-        const sendNext = (): void => {
-          if (sent >= turns.length) {
-            child.stdin.end()
-            return
-          }
-          const turn = turns[sent]!
-          sent++
-          turn.before?.()
-          for (const [index, request] of (turn.controls ?? []).entries()) {
-            child.stdin.write(j({ type: 'control_request', request_id: `ctl-${sent}-${index}`, request }) + '\n')
-          }
-          child.stdin.write(j({ type: 'user', message: { role: 'user', content: turn.prompt } }) + '\n')
-        }
-        child.stdout.on('data', d => {
-          stdout += d
-          const results = stdout.split('\n').filter(l => l.includes('"type":"result"')).length
-          while (resultsSeen < results) {
-            resultsSeen++
-            sendNext()
-          }
-        })
-        child.stderr.on('data', d => (stderr += d))
-        const killer = setTimeout(() => child.kill('SIGKILL'), 90_000)
-        child.on('close', exit => {
-          clearTimeout(killer)
-          resolvePromise({ exit, stdout, stderr })
-        })
-        child.on('spawn', () => sendNext())
-      })
+      return runTurns({ node: nodeBin!, dist: DIST, args, cwd: arena.cwd, env: arena.env, timeoutMs: 90_000, turns: turns.map(t => ({ prompt: t.prompt, ...(t.before ? { before: t.before } : {}), controls: (t.controls ?? []).map(request => ({ request })) })) })
     }
     type Body = { system?: unknown; tools?: unknown; messages?: unknown[]; model?: string; thinking?: { block_binding?: { prefix_mismatch_behavior?: string } } }
 
@@ -603,93 +570,6 @@ if (!existsSync(DIST)) {
     }
     const common = ['--model', 'claude-opus-4-8', '--allowed-tools', 'Read', '--format', 'rows']
 
-    section('manual MCP reconnects apply only the selected schema change')
-    {
-      const model = 'claude-fable-5-1'
-      const toolName = 'mcp__fixture__read_record'
-      const fixture = await startFixtureApi([
-        { kind: 'tool_use', name: 'ToolSearch', input: { query: `select:${toolName}` }, thinking: 'Load the tool definition.', model },
-        { kind: 'text', text: 'MCP-READY', thinking: 'The original tool is available.', model },
-        { kind: 'text', text: 'MCP-CHANGED', thinking: 'The requested schema has changed.', model },
-        { kind: 'text', text: 'MCP-STABLE', thinking: 'The unchanged reconnect keeps this definition.', model },
-      ], { bindingCheck: true })
-      try {
-        const arena = makeArena(fixture, { MERCURY_TOOL_SEARCH: 'on' })
-        const marker = join(arena.cwd, 'schema.txt')
-        const server = join(arena.cwd, 'mcp-server.mjs')
-        const config = join(arena.cwd, 'mcp.json')
-        writeFileSync(marker, 'before')
-        writeFileSync(server, `
-import { createInterface } from 'node:readline'
-import { readFileSync } from 'node:fs'
-const send = value => process.stdout.write(JSON.stringify(value) + String.fromCharCode(10))
-createInterface({ input: process.stdin }).on('line', line => {
-  const message = JSON.parse(line)
-  if (message.id === undefined) return
-  let result = {}
-  if (message.method === 'initialize') result = { protocolVersion: message.params.protocolVersion, capabilities: { tools: {} }, serverInfo: { name: 'fixture', version: '1.0.0' } }
-  if (message.method === 'tools/list') {
-    const field = readFileSync(process.argv[2], 'utf8')
-    result = { tools: [{ name: 'read_record', description: 'Read using ' + field, annotations: { readOnlyHint: true }, inputSchema: { type: 'object', properties: { [field]: { type: 'string' } }, required: [field] } }] }
-  }
-  if (message.method === 'tools/call') result = { content: [{ type: 'text', text: 'record' }] }
-  send({ jsonrpc: '2.0', id: message.id, result })
-})
-process.stdin.on('end', () => process.exit(0))
-`)
-        writeFileSync(config, j({ mcpServers: { fixture: { type: 'stdio', command: nodeBin, args: [server, marker] } } }))
-        const sid = 'c0ffee00-0000-4000-8000-00000000c113'
-        const result = await new Promise<RunResult>(resolveRun => {
-          const child = spawn(nodeBin!, [DIST, 'run', '--input', 'rows', '--format', 'rows', '--model', model, '--session-id', sid, '--mcp', config, '--only-mcp', '--allowed-tools', 'ToolSearch', toolName], { cwd: arena.cwd, env: arena.env })
-          let stdout = ''
-          let stderr = ''
-          let buffer = ''
-          let results = 0
-          const send = (value: unknown) => child.stdin.write(j(value) + String.fromCharCode(10))
-          const prompt = (content: string) => send({ type: 'user', message: { role: 'user', content } })
-          child.stdout.on('data', data => {
-            stdout += data
-            buffer += data
-            let newline: number
-            while ((newline = buffer.indexOf(String.fromCharCode(10))) >= 0) {
-              const line = buffer.slice(0, newline)
-              buffer = buffer.slice(newline + 1)
-              let row: Record<string, any>
-              try { row = JSON.parse(line) } catch { continue }
-              if (row.type === 'result') {
-                results++
-                if (results === 3) { child.stdin.end(); continue }
-                if (results === 1) writeFileSync(marker, 'after')
-                send({ type: 'control_request', request_id: `reconnect-${results}`, request: { subtype: 'mcp_reconnect', server_name: 'fixture' } })
-              }
-              if (row.type === 'control_response' && String(row.response?.request_id ?? '').startsWith('reconnect-')) {
-                if (row.response?.subtype !== 'success') { child.stdin.end(); continue }
-                prompt(results === 1 ? 'Continue with the changed tool.' : 'Continue with the unchanged tool.')
-              }
-            }
-          })
-          child.stderr.on('data', data => { stderr += data })
-          const deadline = setTimeout(() => child.kill('SIGKILL'), 90_000)
-          child.on('close', exit => { clearTimeout(deadline); resolveRun({ exit, stdout, stderr }) })
-          child.on('spawn', () => prompt(`Find ${toolName}, then finish this turn.`))
-        })
-        check('the real SDK reconnect control settles the changed and unchanged cases', result.exit === 0 && ['MCP-READY', 'MCP-CHANGED', 'MCP-STABLE'].every(text => result.stdout.includes(text)), result.stderr.slice(-600))
-        const requests = fixture.messageRequests()
-        check('the reconnect sequence makes four requests', requests.length === 4, String(requests.length))
-        const definition = (request: typeof requests[number] | undefined) => ((request?.body as { tools?: Array<{ name?: string; input_schema?: unknown }> } | undefined)?.tools ?? []).find(t => t.name === toolName)
-        check('the requested reconnect sends the new input schema', j(definition(requests[1]) ?? null).includes('before') && j(definition(requests[2]) ?? null).includes('after'))
-        check('the unchanged reconnect keeps exactly the new definition', j(definition(requests[2])) === j(definition(requests[3])))
-        check('only the actual schema change drops a bound reasoning block', requests.length === 4 && bindingDropsFor(requests[2]!.body).length > 0 && bindingDropsFor(requests[3]!.body).length === 0)
-        const notices = transcriptNotices(arena, sid)
-        check('the product attributes that drop to the manual reconnect once', notices.filter(text => text.includes('manually reconnected')).length === 1, j(notices))
-        check('no rewrite notice follows the deliberate reconnect', !notices.some(text => text.includes('rewrote already-sent history')), j(notices))
-        const doctorRow = existsSync(join(arena.home, '.mercury', 'preserved-thinking.json')) ? (JSON.parse(readFileSync(join(arena.home, '.mercury', 'preserved-thinking.json'), 'utf8')) as { last?: { kind?: string } }) : null
-        check("the doctor row keeps the reconnect's own kind", typeof doctorRow?.last?.kind === 'string' && doctorRow.last.kind !== 'rewrite', j(doctorRow))
-      } finally {
-        await fixture.close()
-      }
-    }
-
     section('mixed streaming and one-shot entry modes keep saved tool definitions')
     {
       const model = 'claude-fable-5-1'
@@ -751,7 +631,7 @@ process.stdin.on('end', () => process.exit(0))
         const envelopes = forked.stdout.split('\n').filter(line => line.startsWith('{')).flatMap(line => {
           try { return [JSON.parse(line)] } catch { return [] }
         })
-        const forkId = envelopes.find(row => row.type === 'result')?.session_id
+        const forkId = envelopes.find(row => row.type === 'outcome')?.session_id
         check('§11 the fork keeps its own persistent identity', forked.exit === 0 && typeof forkId === 'string' && forkId !== sid && forked.stdout.includes('PRUNE-FORKED'), forked.stderr.slice(-300))
         if (typeof forkId === 'string' && forkId !== sid) {
           const again = await runStreaming(arena, ['run', '--input', 'rows', ...args, '--resume', forkId], [{ prompt: 'Resume the fork without tools.' }])
@@ -1113,7 +993,7 @@ process.stdin.on('end', () => process.exit(0))
       }))
       const r = await runStreaming(
         arena,
-        ['run', '--input', 'rows', '--model', 'claude-fable-5-1', '--allowed-tools', 'ToolSearch,Read', '--mode', 'apollo', '--permission-channel', 'stdio', '--format', 'rows', '--session-id', SID, '--log-file', debugFile],
+        ['run', '--input', 'rows', '--model', 'claude-fable-5-1', '--allowed-tools', 'ToolSearch,Read', '--mode', 'apollo', '--format', 'rows', '--session-id', SID, '--log-file', debugFile],
         [
           { prompt: 'start the interview' },
           { prompt: 'find the fetch tool' },

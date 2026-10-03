@@ -4,6 +4,7 @@
 # gate-watch: scripts/lib/fixtureApi.ts scripts/streaming/artifactArena.ts scripts/streaming/ptydrive.py
 # gate-watch: src/components/** src/ink/session/querier.ts src/screens/**
 # gate-watch: src/utils/gracefulShutdown.ts src/utils/sessionStoragePortable.ts src/utils/sessionStorage/clearedSessions.ts scripts/lib/firstRunSeed.ts scripts/lib/seedTranscript.ts
+# gate-watch: src/rows/* src/runner/wire/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

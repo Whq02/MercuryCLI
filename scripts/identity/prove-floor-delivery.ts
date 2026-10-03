@@ -129,7 +129,7 @@ section('§2 buildEffectiveSystemPrompt — floor FIRST on every replacing path'
   })
   check('an EMPTY override falls through to the floored custom path', emptyOverride[0] === FLOOR && emptyOverride[1] === 'CUSTOM')
 
-  const callers = ['src/QueryEngine.ts', 'src/cli/print.ts', 'src/commands/compact/compact.ts', 'src/utils/analyzeContext.ts', 'src/tools/AgentTool/AgentTool.tsx']
+  const callers = ['src/rows/turn.ts', 'src/cli/print.ts', 'src/commands/compact/compact.ts', 'src/utils/analyzeContext.ts', 'src/tools/AgentTool/AgentTool.tsx']
   check(
     'no production caller supplies overrideSystemPrompt today',
     callers.every(f => !SRC(f).includes('overrideSystemPrompt')),
@@ -224,7 +224,7 @@ section('§5 subagent doctrine — floor LEADS every spawned child')
 section('§6 source pins — the bun-unloadable seats, one line each')
 {
   const pins: Array<[string, string, string]> = [
-    ['every session turn — interactive (the concourse runner) and SDK alike (custom prompt)', 'src/QueryEngine.ts', '? [MERCURY_IDENTITY_FLOOR, config.customSystemPrompt]'],
+    ['every session turn — interactive (the concourse runner) and headless alike (custom prompt)', 'src/rows/turn.ts', '? [MERCURY_IDENTITY_FLOOR, config.customSystemPrompt]'],
     ['bare MERCURY_BARE prompt', 'src/constants/prompts.ts', '${simpleHead}\\n\\n${MERCURY_IDENTITY_FLOOR}'],
     ['default prompt contract splice (frozen per conversation through the section cache)', 'src/constants/prompts.ts', "systemPromptSection('mercury-contract', () => JSON.stringify(getMercuryContractSections()))"],
     ['switchboard coordinator seat (its own floor, then its engine line)', 'src/services/concourse/coordinatorCall.ts', 'asSystemPrompt([\n          MERCURY_COORDINATOR_FLOOR,\n          engineLine,\n          input.contract,'],

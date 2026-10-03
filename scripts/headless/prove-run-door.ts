@@ -63,7 +63,7 @@ try {
   const policy = await run(['run', 'hello', '--sovereign', '--config', JSON.stringify({ guardrails: { disableSovereignMode: true } })])
   check('the permissions policy refuses sovereign rather than changing its posture', policy.code === 2 && policy.out === '' && /policy/i.test(policy.err) && policy.err.trim().split('\n').length === 1, JSON.stringify(policy))
   const apollo = await run(['run', 'hello', '--mode', 'apollo'])
-  check('apollo without a channel refuses with its reason', apollo.code === 2 && apollo.out === '' && /apollo.*channel/.test(apollo.err), JSON.stringify(apollo))
+  check('apollo on a hostless run refuses with its reason (apollo needs a host that answers its asks)', apollo.code === 2 && apollo.out === '' && /apollo needs a host/.test(apollo.err), JSON.stringify(apollo))
   check('permission refusals make no model requests', api.messageRequests().length === beforeRefusals)
   const help = await run(['run', '--help'])
   check('run help names its prompt and formats', help.code === 0 && /run.*\[prompt\]/.test(help.out) && help.out.includes('--format') && help.out.includes('rows') && !flags.some(flag => flag.startsWith('--') && help.out.includes(flag)), JSON.stringify(help))
@@ -76,9 +76,9 @@ try {
     else {
       let rows: Array<Record<string, unknown>> = []
       try { rows = format === 'json' ? [JSON.parse(result.out)] : result.out.trim().split('\n').map(line => JSON.parse(line)) } catch {}
-      const outcome = rows.find(row => row.type === 'result')
-      check(`${format} carries the result fields`, outcome?.is_error === false && outcome.result === 'The run answered.' && typeof outcome.session_id === 'string' && typeof outcome.total_cost_usd === 'number', result.out)
-      if (format === 'rows') check('rows carries init and assistant events', rows.some(row => row.type === 'system' && row.subtype === 'init') && rows.some(row => row.type === 'assistant'), result.out)
+      const outcome = rows.find(row => row.type === 'outcome')
+      check(`${format} carries the outcome fields`, outcome?.status === 'completed' && outcome.answer === 'The run answered.' && typeof outcome.session_id === 'string' && typeof outcome.cost_usd === 'number', result.out)
+      if (format === 'rows') check('rows carries the session and text rows', rows.some(row => row.type === 'session') && rows.some(row => row.type === 'text'), result.out)
     }
   }
   for (const argv of [['run'], ['run', '-'], ['run', 'instruction']]) {
@@ -110,12 +110,15 @@ try {
   check('ordinary object-property words stay prompt text', named.code === 0, JSON.stringify(named))
   const mcpText = await run(['run', 'mcp'], 'piped marker')
   check('a command-shaped prompt still carries its piped context', mcpText.code === 0 && JSON.stringify(api.messageRequests().at(-1)?.body).includes('piped marker'), JSON.stringify(mcpText))
-  const input = JSON.stringify({ type: 'user', message: { role: 'user', content: 'hello rows' } }) + '\n'
+  const input = JSON.stringify({ type: 'prompt', content: 'hello rows' }) + '\n' + JSON.stringify({ type: 'user', message: { role: 'user', content: 'not a row' } }) + '\n' + JSON.stringify({ type: 'prompt', content: '' }) + '\n'
   const rowsResult = await run(['run', '--input', 'rows', '--format', 'rows', '--partial'], input)
   let rows: Array<Record<string, unknown>> = []
   try { rows = rowsResult.out.trim().split('\n').map(line => JSON.parse(line)) } catch {}
-  check('input rows completes through the event feed', rowsResult.code === 0 && rows.some(row => row.type === 'result' && row.is_error === false), JSON.stringify(rowsResult))
-  check('partial includes stream events', rows.some(row => row.type === 'stream_event'), rowsResult.out)
+  check('a prompt row drives a turn through the row stream', rowsResult.code === 0 && rows.some(row => row.type === 'outcome' && row.status === 'completed'), JSON.stringify(rowsResult))
+  check('partial includes delta rows', rows.some(row => row.type === 'text_delta' || row.type === 'block_start'), rowsResult.out)
+  const refusals = rows.filter(row => row.type === 'notice' && row.code === 'input_refused')
+  check('a line with an unknown type and a prompt with no content are each refused with one notice row, and the run goes on', refusals.length === 2 && refusals.some(row => String(row.text).includes("unknown row type 'user'")) && refusals.some(row => String(row.text).includes('no content')), JSON.stringify(refusals))
+  check('exactly one turn ran (the refused lines opened none)', rows.filter(row => row.type === 'outcome').length === 1, String(rows.filter(row => row.type === 'outcome').length))
   const mode = await run(['run', 'hello', '--mode', 'flow', '--allow-sovereign', '--format', 'json'])
   check('run accepts the mode and availability switches', mode.code === 0, JSON.stringify(mode))
   const sovereign = await run(['run', 'hello', '--sovereign'])

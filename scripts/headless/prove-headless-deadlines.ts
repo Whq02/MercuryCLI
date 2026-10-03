@@ -1,13 +1,13 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { createServer as createNetServer, type Server as NetServer, type Socket } from 'node:net'
 import { createServer as createHttpServer, type Server as HttpServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { startFixtureApi, type FixtureApi } from '../lib/fixtureApi.ts'
+import { parseFrame, spawnRunnerDoor } from '../lib/rows.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -128,52 +128,42 @@ async function runDistTurns(
 ): Promise<DistRun> {
   const cwd = mkdtempSync(join(tmpdir(), 'hd-cwd-'))
   const startedAt = Date.now()
-  const child = spawn(
-    nodeBin!,
-    [DIST, 'run', '--format', 'rows', '--input', 'rows', '--model', 'claude-opus-4-8'],
-    { cwd, env },
-  )
-  const killer = setTimeout(() => child.kill('SIGKILL'), opts?.killAfterMs ?? 120_000)
-
   const lines: string[] = []
   const envelopes: Envelope[] = []
   let unparseable = 0
-  let buf = ''
   let resultsSeen = 0
   let promptIndex = 0
+  const door = spawnRunnerDoor({
+    node: nodeBin!,
+    argv: [DIST, 'runner', '--model', 'claude-opus-4-8'],
+    cwd,
+    env,
+    onLine: line => {
+      lines.push(line)
+      const e = parseFrame(line) as Envelope | null
+      if (e === null) {
+        unparseable++
+        return
+      }
+      envelopes.push(e)
+      if (e.type === 'outcome') {
+        resultsSeen++
+        if (resultsSeen === promptIndex) sendNextPrompt()
+      }
+    },
+  })
+  const child = door.child
+  const killer = setTimeout(() => child.kill('SIGKILL'), opts?.killAfterMs ?? 120_000)
   const sendNextPrompt = (): void => {
     if (promptIndex >= prompts.length) {
-      child.stdin.end()
+      child.stdin!.end()
       return
     }
     const value = prompts[promptIndex++]!
-    child.stdin.write(
-      JSON.stringify({ type: 'user', message: { role: 'user', content: value }, parent_tool_use_id: null }) + '\n',
-    )
+    door.send({ type: 'user', message: { role: 'user', content: value } })
   }
-  child.stdout.on('data', d => {
-    buf += String(d)
-    for (;;) {
-      const nl = buf.indexOf('\n')
-      if (nl === -1) break
-      const line = buf.slice(0, nl)
-      buf = buf.slice(nl + 1)
-      if (!line.trim()) continue
-      lines.push(line)
-      try {
-        const e = JSON.parse(line) as Envelope
-        envelopes.push(e)
-        if (e.type === 'result') {
-          resultsSeen++
-          if (resultsSeen === promptIndex) sendNextPrompt()
-        }
-      } catch {
-        unparseable++
-      }
-    }
-  })
   let stderr = ''
-  child.stderr.on('data', d => (stderr += d))
+  child.stderr!.on('data', d => (stderr += d))
   sendNextPrompt()
   const exit = await new Promise<number | null>(res =>
     child.on('close', code => {
@@ -184,8 +174,9 @@ async function runDistTurns(
   return { envelopes, lines, unparseable, exit, stderr, wallMs: Date.now() - startedAt }
 }
 
-const resultsOf = (run: DistRun): (Envelope & { result?: string; is_error?: boolean })[] =>
-  run.envelopes.filter(e => e.type === 'result') as never
+const resultsOf = (run: DistRun): (Envelope & { answer?: string; status?: string; error?: { message?: string; detail?: string[] } })[] =>
+  run.envelopes.filter(e => e.type === 'outcome') as never
+const failedOf = (results: ReturnType<typeof resultsOf>) => results.find(r => r.status !== 'completed')
 
 section('§2 — black-holed socket: the belt ends the run typed (real dist)')
 {
@@ -206,12 +197,12 @@ section('§2 — black-holed socket: the belt ends the run typed (real dist)')
     { killAfterMs: 90_000 },
   )
   const results = resultsOf(run)
-  const errorResult = results.find(r => r.is_error === true)
+  const errorResult = failedOf(results)
   const text = j(results)
   check('the run ENDS (no eternal hang) with a non-zero exit', run.exit !== null && run.exit !== 0, `exit=${run.exit}`)
-  check('a typed error envelope lands', errorResult !== undefined, j(run.envelopes.map(e => `${e.type}:${e.subtype ?? ''}`)))
-  check('a result envelope names the unattended-turn deadline', /unattended turn: no progress/.test(text), text.slice(0, 300))
-  check('a result envelope names the tuning knob', /MERCURY_HEADLESS_IDLE_MINUTES/.test(text), text.slice(0, 300))
+  check('a typed error outcome lands', errorResult !== undefined, j(run.envelopes.map(e => `${e.type}:${e.subtype ?? e.status ?? ''}`)))
+  check('an outcome names the unattended-turn deadline', /unattended turn: no progress/.test(text), text.slice(0, 300))
+  check('an outcome names the tuning knob', /MERCURY_HEADLESS_IDLE_MINUTES/.test(text), text.slice(0, 300))
   check('the end is prompt (belt + teardown, not a transport bleed-out)', run.wallMs < 60_000, `${run.wallMs}ms`)
   check('every stdout line is individually JSON-parseable', run.unparseable === 0, `${run.unparseable} bad of ${run.lines.length}`)
   for (const s of sockets) s.destroy()
@@ -239,10 +230,10 @@ section('§3 — black-holed socket, belt disabled: transport budgets alone end 
     { killAfterMs: 90_000 },
   )
   const results = resultsOf(run)
-  const errorResult = results.find(r => r.is_error === true)
+  const errorResult = failedOf(results)
   const text = j(errorResult ?? {})
   check('the run ENDS non-zero on transport budgets alone', run.exit !== null && run.exit !== 0, `exit=${run.exit} stderr=${run.stderr.slice(0, 200)}`)
-  check('a typed error envelope lands (no silent abort)', errorResult !== undefined, j(run.envelopes.map(e => `${e.type}:${e.subtype ?? ''}`)))
+  check('a typed error outcome lands (no silent abort)', errorResult !== undefined, j(run.envelopes.map(e => `${e.type}:${e.subtype ?? e.status ?? ''}`)))
   check('the fault names the timeout', /timed out|timeout|no first byte from .+ after (?:\d+ s|\d+m(?: \d+s)?)/i.test(text), text.slice(0, 300))
   check('the retry ladder ran dry inside the wall bound', run.wallMs < 90_000, `${run.wallMs}ms`)
   for (const s of sockets) s.destroy()
@@ -260,10 +251,10 @@ section('§4 — mid-stream stall (hang turn): the belt fires; the abort reaches
     { killAfterMs: 90_000 },
   )
   const results = resultsOf(run)
-  const errorResult = results.find(r => r.is_error === true)
+  const errorResult = failedOf(results)
   const text = j(results)
   check('the stalled turn ends typed, non-zero', run.exit !== null && run.exit !== 0 && errorResult !== undefined, `exit=${run.exit}`)
-  check('a result envelope names the unattended-turn deadline + knob', /unattended turn: no progress/.test(text) && /MERCURY_HEADLESS_IDLE_MINUTES/.test(text), text.slice(0, 300))
+  check('an outcome names the unattended-turn deadline + knob', /unattended turn: no progress/.test(text) && /MERCURY_HEADLESS_IDLE_MINUTES/.test(text), text.slice(0, 300))
   check('prompt end (the belt, not a 10-minute body timeout)', run.wallMs < 60_000, `${run.wallMs}ms`)
   check('exactly one model call — the aborted turn is not retried', fixture.messageRequests().length === 1, `${fixture.messageRequests().length}`)
   await fixture.close()
@@ -307,8 +298,8 @@ section('§5 — mid-stream stall, belt disabled: undici bodyTimeout ends the ru
     { killAfterMs: 90_000 },
   )
   const results = resultsOf(run)
-  const errorResult = results.find(r => r.is_error === true)
-  check('the stalled-stream run ENDS non-zero with a typed envelope', run.exit !== null && run.exit !== 0 && errorResult !== undefined, `exit=${run.exit} env=${j(run.envelopes.map(e => `${e.type}:${e.subtype ?? ''}`))}`)
+  const errorResult = failedOf(results)
+  check('the stalled-stream run ENDS non-zero with a typed outcome', run.exit !== null && run.exit !== 0 && errorResult !== undefined, `exit=${run.exit} env=${j(run.envelopes.map(e => `${e.type}:${e.subtype ?? e.status ?? ''}`))}`)
   check('the stall was retried then given up (≥2 attempts observed)', messagePosts >= 2, `${messagePosts} message POSTs`)
   check('the end is bounded by the small budget, not the 10-minute default', run.wallMs < 90_000, `${run.wallMs}ms`)
   stallServer.closeAllConnections?.()
@@ -330,8 +321,8 @@ section('§6 — server-closed keep-alive replay: the run recovers on a fresh co
     { killAfterMs: 90_000 },
   )
   const results = resultsOf(run)
-  check('turn 1 succeeded', results.some(r => r.subtype === 'success' && r.result === 'KA-ONE.'), j(results.map(r => r.result)))
-  check('turn 2 succeeded THROUGH the replay (recovery, not luck)', results.some(r => r.result === 'KA-TWO.'), j(results.map(r => r.result)))
+  check('turn 1 succeeded', results.some(r => r.status === 'completed' && r.answer === 'KA-ONE.'), j(results.map(r => r.answer)))
+  check('turn 2 succeeded THROUGH the replay (recovery, not luck)', results.some(r => r.answer === 'KA-TWO.'), j(results.map(r => r.answer)))
   check('the fixture really destroyed a replayed request', fixture.destroyedReplays() >= 1, `${fixture.destroyedReplays()} replays destroyed`)
   check('recovery was immediate (no headers-timeout bleed-out)', run.wallMs < 45_000, `${run.wallMs}ms`)
   check('the run exits clean after recovery', run.exit === 0, `exit=${run.exit} stderr=${run.stderr.slice(0, 200)}`)

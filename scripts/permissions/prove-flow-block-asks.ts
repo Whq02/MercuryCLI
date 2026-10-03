@@ -81,7 +81,7 @@ function makeContext(opts: {
     agentType: undefined,
     options: {
       ...(opts.nonInteractive ? { isNonInteractiveSession: true } : {}),
-      ...(opts.channel !== undefined ? { permissionChannel: opts.channel } : {}),
+      ...(opts.channel !== undefined ? { hostHoldsAsks: true } : {}),
     },
     localDenialTracking: { ...(opts.denial ?? { consecutiveDenials: 0, totalDenials: 0 }) },
   }

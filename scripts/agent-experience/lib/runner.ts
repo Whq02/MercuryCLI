@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { isSession, isOutcome, parseFrame } from '../../lib/rows.ts'
 
 export interface RunSpec {
   dist: string
@@ -53,19 +54,6 @@ export interface RunRecord {
   sessionId: string
 }
 
-function textOfResult(content: unknown): { text: string; imageChars: number } {
-  if (typeof content === 'string') return { text: content, imageChars: 0 }
-  if (!Array.isArray(content)) return { text: content == null ? '' : JSON.stringify(content), imageChars: 0 }
-  let text = ''
-  let imageChars = 0
-  for (const block of content as Array<Record<string, any>>) {
-    if (!block) continue
-    if (block.type === 'text' && typeof block.text === 'string') text += (text ? '\n' : '') + block.text
-    else if (block.type === 'image') imageChars += String(block.source?.data ?? '').length
-    else text += (text ? '\n' : '') + JSON.stringify(block)
-  }
-  return { text, imageChars }
-}
 
 export function parseEnvelopes(envelopes: Array<Record<string, unknown>>): Pick<RunRecord, 'assistantMessages' | 'subagentAssistantMessages' | 'toolUses' | 'toolResults' | 'subagentToolUses' | 'subagentToolResults' | 'assistantTexts' | 'injectedChars' | 'result' | 'init' | 'finalText'> {
   const assistantMessages: RunRecord['assistantMessages'] = []
@@ -74,72 +62,67 @@ export function parseEnvelopes(envelopes: Array<Record<string, unknown>>): Pick<
   const subagentToolUses: ToolUse[] = []
   const subagentToolResults: ToolResult[] = []
   const assistantTexts: string[] = []
-  let injectedChars = 0
   const seenUses = new Set<string>()
   const seenResults = new Set<string>()
-  let subagentAssistantMessages = 0
+  const subagentMessages = new Set<string>()
   let result: Record<string, unknown> | null = null
   let init: Record<string, unknown> | null = null
   let lastAssistantText = ''
+  const messageOf = (messageId: string): RunRecord['assistantMessages'][number] => {
+    const existing = assistantMessages.find(m => m.messageId === messageId)
+    if (existing) return existing
+    const fresh = { messageId, blocks: [] as Array<Record<string, unknown>>, usage: null as Record<string, unknown> | null }
+    assistantMessages.push(fresh)
+    return fresh
+  }
   envelopes.forEach((e, envelopeIndex) => {
     const type = e.type
-    if (type === 'system' && e.subtype === 'init') init = e
-    const parent = typeof e.parent_tool_use_id === 'string' && e.parent_tool_use_id ? e.parent_tool_use_id : null
-    if (type === 'assistant') {
-      const message = e.message as { id?: unknown; content?: unknown; usage?: Record<string, unknown> } | undefined
-      const messageId = String(message?.id ?? e.uuid ?? `envelope-${envelopeIndex}`)
-      const blocks = Array.isArray(message?.content) ? (message!.content as Array<Record<string, unknown>>) : []
+    if (isSession(e)) init = e
+    const parent = typeof e.parent_call_id === 'string' && e.parent_call_id ? e.parent_call_id : null
+    const messageId = String(e.message_id ?? `row-${envelopeIndex}`)
+    if (type === 'text' || type === 'reasoning' || type === 'tool_call') {
       if (parent) {
-        subagentAssistantMessages++
+        subagentMessages.add(messageId)
       } else {
-        const existing = assistantMessages.find(m => m.messageId === messageId)
-        if (existing) {
-          for (const block of blocks) if (!existing.blocks.includes(block)) existing.blocks.push(block)
-        } else {
-          assistantMessages.push({ messageId, blocks: [...blocks], usage: message?.usage ?? null })
-        }
+        const message = messageOf(messageId)
+        const block = type === 'tool_call'
+          ? { type: 'tool_use', id: e.call_id, name: e.tool, input: e.input }
+          : type === 'text'
+            ? { type: 'text', text: e.text }
+            : { type: 'thinking', thinking: e.text }
+        if (!message.blocks.some(b => JSON.stringify(b) === JSON.stringify(block))) message.blocks.push(block as Record<string, unknown>)
       }
-      for (const block of blocks) {
-        if (block.type === 'tool_use') {
-          const id = String(block.id ?? '')
-          if (seenUses.has(id)) continue
+      if (type === 'tool_call') {
+        const id = String(e.call_id ?? '')
+        if (!seenUses.has(id)) {
           seenUses.add(id)
-          const use: ToolUse = { id, name: String(block.name ?? ''), input: (block.input as Record<string, unknown>) ?? {}, messageId, parentToolUseId: parent }
+          const use: ToolUse = { id, name: String(e.tool ?? ''), input: (e.input as Record<string, unknown>) ?? {}, messageId, parentToolUseId: parent }
           if (parent) subagentToolUses.push(use)
           else toolUses.push(use)
-        } else if (block.type === 'text' && typeof block.text === 'string' && block.text.trim()) {
-          if (!parent) {
-            assistantTexts.push(block.text)
-            lastAssistantText = block.text
-          }
         }
+      } else if (type === 'text' && typeof e.text === 'string' && e.text.trim() && !parent) {
+        assistantTexts.push(e.text)
+        lastAssistantText = e.text
       }
     }
-    if (type === 'user') {
-      const message = e.message as { content?: unknown } | undefined
-      const content = message?.content
-      if (!parent && e.is_replay !== true) {
-        if (typeof content === 'string') injectedChars += content.length
-        else if (Array.isArray(content)) for (const block of content as Array<Record<string, unknown>>) if (block.type === 'text' && typeof block.text === 'string') injectedChars += block.text.length
-      }
-      if (Array.isArray(content)) {
-        for (const block of content as Array<Record<string, unknown>>) {
-          if (block.type === 'tool_result') {
-            const id = String(block.tool_use_id ?? '')
-            if (seenResults.has(`${parent ?? ''}:${id}`)) continue
-            seenResults.add(`${parent ?? ''}:${id}`)
-            const { text, imageChars } = textOfResult(block.content)
-            const row: ToolResult = { id, text, isError: block.is_error === true, imageChars, parentToolUseId: parent }
-            if (parent) subagentToolResults.push(row)
-            else toolResults.push(row)
-          }
-        }
+    if (type === 'step' && !parent) {
+      const message = messageOf(messageId)
+      message.usage = (e.usage as Record<string, unknown>) ?? null
+    }
+    if (type === 'tool_result') {
+      const id = String(e.call_id ?? '')
+      if (!seenResults.has(`${parent ?? ''}:${id}`)) {
+        seenResults.add(`${parent ?? ''}:${id}`)
+        const text = typeof e.output === 'string' ? e.output : ''
+        const row: ToolResult = { id, text, isError: e.status === 'error', imageChars: 0, parentToolUseId: parent }
+        if (parent) subagentToolResults.push(row)
+        else toolResults.push(row)
       }
     }
-    if (type === 'result') result = e
+    if (isOutcome(e)) result = e
   })
-  const resultText = result && typeof (result as Record<string, unknown>).result === 'string' ? String((result as Record<string, unknown>).result) : ''
-  return { assistantMessages, subagentAssistantMessages, toolUses, toolResults, subagentToolUses, subagentToolResults, assistantTexts, injectedChars, result, init, finalText: resultText || lastAssistantText }
+  const resultText = result && typeof (result as Record<string, unknown>).answer === 'string' ? String((result as Record<string, unknown>).answer) : ''
+  return { assistantMessages, subagentAssistantMessages: subagentMessages.size, toolUses, toolResults, subagentToolUses, subagentToolResults, assistantTexts, injectedChars: 0, result, init, finalText: resultText || lastAssistantText }
 }
 
 function killTree(pid: number, signal: NodeJS.Signals): void {
@@ -178,11 +161,9 @@ export async function runHeadless(spec: RunSpec): Promise<RunRecord> {
       const line = buf.slice(0, nl)
       buf = buf.slice(nl + 1)
       if (!line.trim()) continue
-      try {
-        envelopes.push(JSON.parse(line) as Record<string, unknown>)
-      } catch {
-        unparseable++
-      }
+      const frame = parseFrame(line)
+      if (frame !== null) envelopes.push(frame)
+      else unparseable++
     }
   })
   child.stderr.on('data', d => {
@@ -196,11 +177,9 @@ export async function runHeadless(spec: RunSpec): Promise<RunRecord> {
   const exitCode = await new Promise<number | null>(resolve => child.on('close', code => resolve(code)))
   clearTimeout(deadline)
   if (buf.trim()) {
-    try {
-      envelopes.push(JSON.parse(buf) as Record<string, unknown>)
-    } catch {
-      unparseable++
-    }
+    const frame = parseFrame(buf)
+    if (frame !== null) envelopes.push(frame)
+    else unparseable++
   }
   const parsed = parseEnvelopes(envelopes)
   const sessionId = String((parsed.init as Record<string, unknown> | null)?.session_id ?? (parsed.result as Record<string, unknown> | null)?.session_id ?? spec.sessionId ?? '')

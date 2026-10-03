@@ -36,10 +36,10 @@ const KNOB_NAMES = new Set(['vshotBudgetMs', 'vshotBudgetScale'])
 const CAPTURE_MODULE = /(?:^|\/)captureDriver(?:\.ts)?$/
 const CAPTURE_PLAIN_EXPORTS = new Set(['vshotBudgetMs', 'vshotBudgetScale', 'findOnPath'])
 const FIXTURE_MAKERS = new Set(['startScriptedFixture', 'startFixture', 'startFixtureApi', 'startCrewStopFixture', 'createServer', 'serve'])
-const KIND_FIELDS = new Set(['type', 'subtype', 'kind', 'is_error'])
+const KIND_FIELDS = new Set(['type', 'state', 'status', 'kind'])
 const KIND_HELPERS = new Map([
-  ['isResult', 'result'],
-  ['isInit', 'system:init'],
+  ['isOutcome', 'outcome'],
+  ['isSession', 'session'],
 ])
 const EQUALITY = new Set([ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken, ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsToken])
 const POSITIVE = new Set([ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.EqualsEqualsToken])
@@ -588,7 +588,7 @@ class DriveFile {
     this.waits = waitsOf(src.sf, estate)
     this.firstTurn = this.starts.reduce((min, s) => Math.min(min, s.call.getStart()), Number.POSITIVE_INFINITY)
     for (const w of this.waits) {
-      if (w.budget && (w.pred.params === 0 || w.pred.kinds.some(k => overlap(k, 'result')))) this.collect(w.budget, 0)
+      if (w.budget && (w.pred.params === 0 || w.pred.kinds.some(k => overlap(k, 'outcome')))) this.collect(w.budget, 0)
     }
     for (const s of this.starts) {
       if (s.user) continue
@@ -629,7 +629,7 @@ class DriveFile {
     for (const w of this.waits) {
       known.add(w.call)
       if (!inside(w.call)) continue
-      const settles = w.pred.kinds.some(k => overlap(k, 'result'))
+      const settles = w.pred.kinds.some(k => overlap(k, 'outcome'))
       if (settles && (!stream || sameStream(w.stream, stream))) out.push({ pos: w.call.pos, effect: 'settle' })
       else if (!settles && w.pred.kinds.length > 0 && !w.pred.kinds.every(k => k === 'control_response')) out.push({ pos: w.call.pos, effect: 'active' })
     }
@@ -766,7 +766,7 @@ class DriveFile {
       const why = reused
         ? 'its window opens once, before the loop, and every later pass reads it again'
         : held
-          ? 'its window already holds the result of an earlier turn the drive waited for'
+          ? 'its window already holds the outcome of an earlier turn the drive waited for'
           : st.open
             ? 'an earlier turn on the same stream had not settled when the window opened'
             : 'the drive paused or waited on the product after the earlier turn settled, before the window opened'
@@ -998,7 +998,7 @@ const WORLD = [
   "export const DIST = 'dist/product.mjs'",
   'export const bound = (ms: number): number => vshotBudgetMs(ms)',
   'export const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))',
-  "export const isResult = (f: Record<string, unknown>): boolean => f.type === 'result'",
+  "export const isOutcome = (f: Record<string, unknown>): boolean => f.type === 'outcome'",
   "export const user = (text: string, uuid: string): Record<string, unknown> => ({ type: 'user', message: { role: 'user', content: text }, uuid })",
   'export type Frame = Record<string, unknown>',
   'export type Runner = { frames: Frame[]; send: (frame: Frame) => void; waitFor: (label: string, test: (f: Frame) => boolean, ms: number, after?: number) => Promise<Frame | null> }',
@@ -1015,24 +1015,24 @@ const WORLD = [
 ]
 
 const HITS: Array<[string, '' | 'a' | 'b']> = [
-  ["import { bootRunner, bound, isResult, sleep, user } from './world.ts'", ''],
+  ["import { bootRunner, bound, isOutcome, sleep, user } from './world.ts'", ''],
   ['const runner = bootRunner()', ''],
   ["runner.send(user('the first ask', 'u-1'))", ''],
-  ["const tool = await runner.waitFor('the first tool call', f => f.type === 'assistant', bound(60_000))", ''],
+  ["const tool = await runner.waitFor('the first tool call', f => f.type === 'tool_call', bound(60_000))", ''],
   ['const before = runner.frames.length', ''],
   ["runner.send(user('the follow-up', 'u-2'))", ''],
-  ["const follow = await runner.waitFor('the follow-up result', isResult, bound(60_000), before)", 'a'],
-  ["const named = await runner.waitFor('the named follow-up', f => isResult(f) && f.result === 'follow-up done', bound(60_000), before)", ''],
+  ["const follow = await runner.waitFor('the follow-up outcome', isOutcome, bound(60_000), before)", 'a'],
+  ["const named = await runner.waitFor('the named follow-up', f => isOutcome(f) && f.answer === 'follow-up done', bound(60_000), before)", ''],
   ['await sleep(3_000)', ''],
   ['const later = runner.frames.length', ''],
   ["runner.send(user('the late ask', 'u-3'))", ''],
-  ["const late = await runner.waitFor('a success of the late ask', f => f.type === 'result' && f.subtype === 'success', bound(60_000), later)", 'a'],
+  ["const late = await runner.waitFor('a success of the late ask', f => f.type === 'outcome' && f.status === 'completed', bound(60_000), later)", 'a'],
   ['const once = runner.frames.length', ''],
   ["for (const ask of ['x', 'y']) {", ''],
   ['  runner.send(user(ask, ask))', ''],
-  ["  await runner.waitFor('each ask', isResult, bound(60_000), once)", 'a'],
+  ["  await runner.waitFor('each ask', isOutcome, bound(60_000), once)", 'a'],
   ['}', ''],
-  ["const again = await runner.waitFor('the whole stream again', isResult, bound(60_000), 0)", 'a'],
+  ["const again = await runner.waitFor('the whole stream again', isOutcome, bound(60_000), 0)", 'a'],
   ['const until = Date.now() + 30_000', 'b'],
   ['while (Date.now() < until && runner.frames.length < 9) await sleep(100)', ''],
   ['const scaled = Date.now() + bound(30_000)', ''],
@@ -1052,12 +1052,12 @@ const HITS: Array<[string, '' | 'a' | 'b']> = [
 ]
 
 const HELPER: Array<[string, '' | 'a' | 'b']> = [
-  ["import { bootRunner, bound, isResult, sleep, user } from './world.ts'", ''],
+  ["import { bootRunner, bound, isOutcome, sleep, user } from './world.ts'", ''],
   ['const runner = bootRunner()', ''],
   ['const turn = async (ask: string): Promise<Record<string, unknown> | null> => {', ''],
   ['  const from = runner.frames.length', ''],
   ['  runner.send(user(ask, ask))', ''],
-  ["  return runner.waitFor('the helper turn', isResult, bound(60_000), from)", 'a'],
+  ["  return runner.waitFor('the helper turn', isOutcome, bound(60_000), from)", 'a'],
   ['}', ''],
   ["await turn('one')", ''],
   ["await turn('two')", ''],
@@ -1066,17 +1066,17 @@ const HELPER: Array<[string, '' | 'a' | 'b']> = [
   ['async function openWorld(): Promise<{ runner: ReturnType<typeof bootRunner> }> {', ''],
   ['  const opened = bootRunner()', ''],
   ["  opened.send(user('hello', 'u-0'))", ''],
-  ["  await opened.waitFor('the opening tool call', f => f.type === 'assistant', bound(60_000))", ''],
+  ["  await opened.waitFor('the opening tool call', f => f.type === 'tool_call', bound(60_000))", ''],
   ['  return { runner: opened }', ''],
   ['}', ''],
   ['const w = await openWorld()', ''],
   ['const mark = w.runner.frames.length', ''],
   ["w.runner.send(user('the arm', 'u-1'))", ''],
-  ['const armed = await w.runner.waitFor("the arm\'s turn", isResult, bound(60_000), mark)', 'a'],
+  ['const armed = await w.runner.waitFor("the arm\'s turn", isOutcome, bound(60_000), mark)', 'a'],
   ['const turnOf = async (world: { runner: ReturnType<typeof bootRunner> }, ask: string): Promise<unknown> => {', ''],
   ['  const at = world.runner.frames.length', ''],
   ['  world.runner.send(user(ask, ask))', ''],
-  ["  return world.runner.waitFor('a turn of the world passed in', isResult, bound(60_000), at)", 'a'],
+  ["  return world.runner.waitFor('a turn of the world passed in', isOutcome, bound(60_000), at)", 'a'],
   ['}', ''],
   ['await sleep(500)', ''],
   ["await turnOf(w, 'after a pause')", ''],
@@ -1084,49 +1084,49 @@ const HELPER: Array<[string, '' | 'a' | 'b']> = [
 ]
 
 const CLEAN = [
-  "import { bootRunner, bound, isResult, run, sleep, user } from './world.ts'",
+  "import { bootRunner, bound, isOutcome, run, sleep, user } from './world.ts'",
   "import { startScriptedFixture } from './fixture.ts'",
   'const TURN_MS = 60_000',
   'const runner = bootRunner()',
   "runner.send(user('the first ask', 'u-1'))",
-  "const first = await runner.waitFor('the first turn', isResult, bound(TURN_MS))",
+  "const first = await runner.waitFor('the first turn', isOutcome, bound(TURN_MS))",
   'const before = runner.frames.length',
   "runner.send(user('the second ask', 'u-2'))",
-  "const second = await runner.waitFor('the second turn, after a settled first', isResult, bound(TURN_MS), before)",
+  "const second = await runner.waitFor('the second turn, after a settled first', isOutcome, bound(TURN_MS), before)",
   'const turn = async (ask: string): Promise<unknown> => {',
   '  const from = runner.frames.length',
   '  runner.send(user(ask, ask))',
-  "  return runner.waitFor('a helper turn, each call settled', isResult, bound(TURN_MS), from)",
+  "  return runner.waitFor('a helper turn, each call settled', isOutcome, bound(TURN_MS), from)",
   '}',
   "await turn('three')",
   "await turn('four')",
   'async function openWorld(): Promise<{ runner: ReturnType<typeof bootRunner> }> {',
   '  const opened = bootRunner()',
   "  opened.send(user('hello', 'u-0'))",
-  "  await opened.waitFor('the opening turn', isResult, bound(TURN_MS))",
+  "  await opened.waitFor('the opening turn', isOutcome, bound(TURN_MS))",
   '  return { runner: opened }',
   '}',
   'const w = await openWorld()',
   'const mark = w.runner.frames.length',
   "w.runner.send(user('the arm', 'u-1'))",
-  'const armed = await w.runner.waitFor("the arm\'s turn, after a settled world", isResult, bound(TURN_MS), mark)',
+  'const armed = await w.runner.waitFor("the arm\'s turn, after a settled world", isOutcome, bound(TURN_MS), mark)',
   "runner.send(user('the interrupted ask', 'u-5'))",
   "await runner.waitFor('its tool call', f => f.type === 'assistant', bound(TURN_MS))",
   'const pressed = runner.frames.length',
   "runner.send({ type: 'control_request', request: { subtype: 'interrupt' } })",
-  "const interrupted = await runner.waitFor('the interrupted turn itself', isResult, bound(TURN_MS), pressed)",
+  "const interrupted = await runner.waitFor('the interrupted turn itself', isOutcome, bound(TURN_MS), pressed)",
   'const fold = runner.frames.length',
   "runner.send(user('/compact', 'u-6'))",
   "runner.send(user('held while the fold runs', 'u-7'))",
-  "const folded = await runner.waitFor('the fold, first in its window', isResult, bound(TURN_MS), fold)",
+  "const folded = await runner.waitFor('the fold, first in its window', isOutcome, bound(TURN_MS), fold)",
   'for (let extra = 0; extra < 3; extra++) {',
-  "  const next = await runner.waitFor('a following turn', isResult, bound(TURN_MS), runner.frames.length)",
+  "  const next = await runner.waitFor('a following turn', isOutcome, bound(TURN_MS), runner.frames.length)",
   '  if (next === null) break',
   '}',
   'const fresh = async (ask: string): Promise<void> => {',
   '  const own = bootRunner()',
   '  own.send(user(ask, ask))',
-  "  await own.waitFor('its only turn', isResult, bound(TURN_MS), 0)",
+  "  await own.waitFor('its only turn', isOutcome, bound(TURN_MS), 0)",
   '}',
   "await fresh('a')",
   "await fresh('b')",
@@ -1197,7 +1197,7 @@ const NOT_A_DRIVE = [
   'const waitFor = async (label: string, test: (f: Record<string, unknown>) => boolean, ms: number, after = 0): Promise<unknown> => frames.slice(after).find(test) ?? null',
   "send({ type: 'user', text: 'a' })",
   "send({ type: 'user', text: 'b' })",
-  "await waitFor('not a drive', f => f.type === 'result', 1_000, 0)",
+  "await waitFor('not a drive', f => f.type === 'outcome', 1_000, 0)",
   'const n0 = frames.length',
   "await waitFor('a moved count in a proof that serves nothing', () => frames.length > n0, 1_000)",
   'const until = Date.now() + 30_000',

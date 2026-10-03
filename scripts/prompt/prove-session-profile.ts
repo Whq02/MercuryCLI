@@ -45,9 +45,9 @@ section('§5 — composition order: identity → operator/dynamic → mode → t
   check('operator context precedes the mode pack', composed.indexOf('OPERATOR-CONTEXT') !== -1 && composed.indexOf('OPERATOR-CONTEXT') < composed.indexOf('MODE-PACK'))
   check('reconcile tail is the LAST word', composed.at(-1) === 'RECONCILE-TAIL')
 
-  const engine = readFileSync(join(ROOT, 'src/QueryEngine.ts'), 'utf8')
+  const engine = readFileSync(join(ROOT, 'src/rows/turn.ts'), 'utf8')
   const captures = engine.match(/fetchSystemPromptParts\(/g) ?? []
-  check('QueryEngine captures the system prompt exactly once per query', captures.length === 1, `${captures.length} call sites`)
+  check('the turn captures the system prompt exactly once per query', captures.length === 1, `${captures.length} call sites`)
 }
 
 section('§6 — the composed session profile')

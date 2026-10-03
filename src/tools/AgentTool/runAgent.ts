@@ -34,7 +34,7 @@ import { processOwnerForLane } from '../../services/run/resolveOwner.js'
 import type { Message } from '../../types/message.js'
 import type { AgentId } from '../../types/ids.js'
 import type { Tool, Tools, ToolUseContext } from '../../Tool.js'
-import type { MCPServerConnection } from '../../services/mcp/types.js'
+import { McpServerConfigSchema, type MCPServerConnection } from '../../services/mcp/types.js'
 import { generateTaskId } from '../../Task.js'
 import { getUserContext, getSystemContext, isInstructionDiscoveryDisabled } from '../../context.js'
 import { forgetAgentEffortWord, noteAgentEffortWord, parseEffortValue, type EffortValue } from '../../utils/effort.js'
@@ -250,12 +250,6 @@ export async function connectAgentMcpServers(
           )
           continue
         }
-        if (row.config.type === 'host') {
-          logForDebugging(
-            `runAgent: MCP server '${spec}' refused — sdk-typed servers connect only over the SDK control transport, which agent dispatch does not hold`,
-          )
-          continue
-        }
         const client = await connectToServer(spec, row.config)
         connected.push(client)
         tools.push(...(await fetchToolsForClient(client)))
@@ -270,9 +264,9 @@ export async function connectAgentMcpServers(
       }
       const name = keys[0]!
       const inlineConfig = spec[name] as Record<string, unknown>
-      if ((inlineConfig as { type?: string }).type === 'host') {
+      if (!McpServerConfigSchema().safeParse(inlineConfig).success) {
         logForDebugging(
-          `runAgent: inline MCP server '${name}' refused — sdk-typed servers connect only over the SDK control transport, which agent dispatch does not hold`,
+          `runAgent: inline MCP server '${name}' refused — not a server configuration the one validator accepts`,
         )
         continue
       }
@@ -804,7 +798,7 @@ export async function* runAgent(
         parentGetAppState?.()?.toolPermissionContext
           .shouldAvoidPermissionPrompts === true,
       parentNonInteractive: toolUseContext.options.isNonInteractiveSession,
-      parentChannel: toolUseContext.options.permissionChannel,
+      parentHostHoldsAsks: toolUseContext.options.hostHoldsAsks,
     })
     const avoidPrompts = posture.avoidPrompts
     const agentGetAppState: typeof parentGetAppState = () => {
@@ -939,7 +933,7 @@ export async function* runAgent(
       shareSetResponseLength: true,
       options: {
         isNonInteractiveSession,
-        ...(posture.permissionChannel !== undefined ? { permissionChannel: posture.permissionChannel } : {}),
+        ...(posture.hostHoldsAsks === true ? { hostHoldsAsks: true } : {}),
         appendSystemPrompt: parentOptions.appendSystemPrompt,
         tools,
         commands: [],

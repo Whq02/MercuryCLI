@@ -8,8 +8,8 @@ import {
   childEnv,
   DIST,
   exportWorld,
-  isInit,
-  isResult,
+  isOutcome,
+  isSession,
   j,
   makeTally,
   removeWorld,
@@ -56,8 +56,8 @@ async function openWorld(name: string): Promise<World> {
   delete env.MERCURY_SKIP_PERMISSIONS
   const runner = bootRunner({ cwd, env })
   runner.send(user('hello there', U0))
-  const init = await runner.waitFor('the init frame', isInit, bound(90_000))
-  const first = await runner.waitFor('the first turn', isResult, bound(90_000))
+  const init = await runner.waitFor('the session row', isSession, bound(90_000))
+  const first = await runner.waitFor('the first turn', isOutcome, bound(90_000))
   check(`${name}: the runner is up and the first turn answered`, init !== null && first !== null, runner.stderr().split('\n').slice(-5).join(' | '))
   return { name, home, fx, runner, failedAtOpen, seq: 0 }
 }
@@ -119,7 +119,7 @@ async function waitSleepChild(present: boolean, timeoutMs: number): Promise<stri
   }
 }
 
-const notificationFor = (taskId: string) => (f: Frame): boolean => f.type === 'system' && f.subtype === 'task_notification' && f.task_id === taskId
+const notificationFor = (taskId: string) => (f: Frame): boolean => f.type === 'task' && f.state === 'ended' && f.task_id === taskId
 const hitsOf = (fx: Fixture, ...routes: string[]): number => fx.hits.filter(h => routes.includes(h.route)).length
 
 if (!existsSync(DIST)) {
@@ -211,9 +211,9 @@ if (!existsSync(DIST)) {
       check('S4 the shell child is gone after the stop', gone.length === 0, j(gone))
       const settled = await waitRow(w, 'the settled held row', x => x.id === row.id && x.status !== 'running', bound(8_000))
       check('S4 the held seat\'s record settles killed', settled !== null && settled.status === 'killed', j(settled))
-      const result = await w.runner.waitFor('the turn\'s result', isResult, bound(60_000), before)
+      const result = await w.runner.waitFor('the turn\'s outcome', isOutcome, bound(60_000), before)
       check('S4 the chat\'s own turn settles after the seat was stopped (never left hanging)', result !== null, j(w.fx.hits.map(h => h.route)))
-      console.log(`  [record] S4 the turn's result: ${j({ subtype: result?.subtype, is_error: result?.is_error, result: String(result?.result ?? '').slice(0, 160) })}`)
+      console.log(`  [record] S4 the turn's outcome: ${j({ status: result?.status, answer: String(result?.answer ?? '').slice(0, 160) })}`)
       console.log(`  [record] S4 the fixture's routes: ${j(w.fx.hits.map(h => h.route))}`)
     }
     await closeWorld(w)
@@ -241,10 +241,10 @@ if (!existsSync(DIST)) {
       const resumeAsk = (): boolean => w.fx.hits.some(h => h.ask.includes('The operator resumed you from the crew view'))
       while (!resumeAsk() && Date.now() < untilAsk) await sleep(200)
       check('S5 the resumed crewmate asks the model again with the resume note as its next turn, never its prompt over again', resumeAsk() && hitsOf(w.fx, 'mate', 'mate-ack') === asksAtStop, j(w.fx.hits.map(h => `${h.route}:${h.ask.slice(0, 40)}`)))
-      const told = await w.runner.waitFor('the resume notice frame', f => f.type === 'system' && f.subtype === 'task_notification' && String(f.summary ?? '').includes('resumed from the crew view'), bound(15_000), before)
+      const told = await w.runner.waitFor('the resume notice frame', f => f.type === 'task' && f.state === 'ended' && String(f.summary ?? '').includes('resumed from the crew view'), bound(15_000), before)
       check('S5 the main agent is told the crewmate was resumed from the crew view', told !== null, j(told))
-      const stopTold = w.runner.frames.slice(before).find(f => f.type === 'system' && f.subtype === 'task_notification' && String(f.summary ?? '').includes('stopped from the crew view'))
-      check('S5 the main agent was told of the stop too, with the door that stopped it', stopTold !== undefined, j(w.runner.frames.slice(before).filter(f => f.type === 'system' && f.subtype === 'task_notification').map(f => f.summary)))
+      const stopTold = w.runner.frames.slice(before).find(f => f.type === 'task' && f.state === 'ended' && String(f.summary ?? '').includes('stopped from the crew view'))
+      check('S5 the main agent was told of the stop too, with the door that stopped it', stopTold !== undefined, j(w.runner.frames.slice(before).filter(f => f.type === 'task' && f.state === 'ended').map(f => f.summary)))
       const later = await facts(w)
       check('S5 the stopped row never returns to running', !later.some(x => x.id === row.id && x.status === 'running'), j(later.map(x => `${x.kind}:${x.name}:${x.status}`)))
     }

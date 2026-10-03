@@ -13,8 +13,8 @@ import {
   exportWorld,
   inMainFile,
   isDrainedMainRow,
-  isInit,
-  isResult,
+  isSession,
+  isOutcome,
   j,
   LINE,
   makeTally,
@@ -55,8 +55,8 @@ if (!existsSync(DIST)) {
   const U1 = '11111111-1111-4111-8111-111111111111'
 
   runner.send(user('hello there', U0))
-  const init = await runner.waitFor('the init frame', isInit, bound(40_000))
-  const first = await runner.waitFor('the first turn', isResult, bound(40_000))
+  const init = await runner.waitFor('the session row', isSession, bound(40_000))
+  const first = await runner.waitFor('the first turn', isOutcome, bound(40_000))
   check('the runner is up and the first turn answered', init !== null && first !== null, runner.stderr().split('\n').slice(-5).join(' | '))
   const sessionId = String(init?.session_id ?? '')
   const beforeAgent = runner.frames.length
@@ -67,8 +67,8 @@ if (!existsSync(DIST)) {
   check('the sub-agent opened its own conversation (its tool runs for ten seconds)', subOpen !== null)
   const T1 = new Date().toISOString()
   runner.send(user(LINE, U1, T1))
-  const agentResult = await runner.waitFor("the agent turn's result", isResult, bound(90_000), beforeAgent)
-  check("the turn ended with the session's own final text", agentResult !== null && String(agentResult.result ?? '').startsWith(`done: ${AGENT_TURN_ASK}`), j(agentResult?.result))
+  const agentResult = await runner.waitFor("the agent turn's result", isOutcome, bound(90_000), beforeAgent)
+  check("the turn ended with the session's own final text", agentResult !== null && String(agentResult.answer ?? '').startsWith(`done: ${AGENT_TURN_ASK}`), j(agentResult?.answer))
   const requests = requestsOf(fx.wire)
   const subCarrying = carrying(requests.filter(w => w.arm === 'subwork'), LINE)
   const mainCarrying = carrying(requests.filter(w => w.arm === 'agent'), LINE)

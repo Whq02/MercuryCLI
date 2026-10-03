@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/QueryEngine* src/Tool* src/bootstrap/state* src/query/**
+# gate-watch: src/rows/turn.ts src/Tool* src/bootstrap/state* src/query/**
 # gate-watch: src/services/api/errors* src/utils/**
 # gate-watch: scripts/lib/fixtureApi.ts src/cli/print.ts src/query.ts src/run-core/budget-guard.ts
 # gate-watch: src/run-core/events.ts
@@ -12,13 +12,13 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fail=0
 echo "── turn-engine proofs ──"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-turn-engine-contracts.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-turn-engine-contracts.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-queryengine-laws.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-queryengine-laws.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-turn-laws.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-turn-laws.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-query-laws.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-query-laws.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-ptl-recovery.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-ptl-recovery.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-turn-cap-vocabulary.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-turn-cap-vocabulary.ts" "$__t" "$__rc"
 "${BUN:-$HOME/.bun/bin/bun}" -e "
 await import('$here/../../src/query.ts')
-await import('$here/../../src/QueryEngine.ts')
+await import('$here/../../src/rows/turn.ts')
 console.log('  [PASS] both turn-engine modules bun-load')
 " || { echo "  [FAIL] loadability probe"; fail=1; }
 if [[ "$fail" == "0" ]]; then echo "✅ TURNENGINE SUITE GREEN"; exit 0; else

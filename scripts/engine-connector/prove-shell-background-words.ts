@@ -75,7 +75,7 @@ const seat = read('src/daemon/sessionSeat.ts')
 check('the seat delivers the runner\'s background_shell control request and awaits its word', seat.includes("request: { subtype: 'background_shell' }") && seat.includes('export function backgroundSessionShell('))
 check('a runner older than the verb is refused in one sentence naming the key and the way out', seat.includes(`"this session's runner predates shift+B · /daemon restart, then reopen the session"`))
 const runner = read('src/cli/print.ts')
-check('the runner answers the subtype from the registry: applied with the count, or the typed refusal', runner.includes("case 'background_shell': {") && runner.includes("respondError(requestId, 'no shell command is running in the main conversation')"))
+check('the runner answers the subtype from the registry: applied with the count, or the typed refusal', runner.includes("case 'background_shell': {") && runner.includes("'shell/background': () => {") && runner.includes("throw refused('no shell command is running in the main conversation', 'no-shell')"))
 
 section('§5 the tool\'s road and its words')
 const tool = read('src/tools/BashTool/BashTool.tsx')

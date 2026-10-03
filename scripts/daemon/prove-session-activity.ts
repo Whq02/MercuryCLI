@@ -61,16 +61,16 @@ try {
   facts([agent('first'), agent('nested')])
   check('a working parent with two children is still working', disk().activity?.state === 'working' && disk().activity?.subagents === 2)
   now = 2000
-  feed({ type: 'assistant', message: { id: 'response-one', content: [{ type: 'text', text: 'The work continues.' }] } })
-  check('the assistant response records the actual last-turn time', disk().activity?.lastTurnAt === 2000)
+  feed({ type: 'text', seq: 1, timestamp: 't', session_id: 'activity-fixture', turn: 1, message_id: 'response-one', block: 0, text: 'The work continues.' })
+  check('the landed text row records the actual last-turn time', disk().activity?.lastTurnAt === 2000)
   now = 3000
   facts([agent('first'), agent('nested')])
-  feed({ type: 'system', subtype: 'status', status: { waiting_on_agents: 2 } })
+  feed({ type: 'turn', seq: 2, timestamp: 't', session_id: 'activity-fixture', turn: 1, state: 'waiting', turn_id: 't-act', agents: 2 })
   check('an explicit child wait records its count and readable wording', disk().activity?.state === 'waiting' && disk().activity?.description === 'waiting on 2 sub-agents')
   check('facts and wait messages do not advance the model-turn clock', disk().activity?.lastTurnAt === 2000)
   now = 4000
   active = false
-  feed({ type: 'result', result: 'waiting for children' })
+  feed({ type: 'outcome', seq: 3, timestamp: 't', session_id: 'activity-fixture', turn: 1, schema: 1, turn_id: 't-act', status: 'completed', answer: 'waiting for children', steps: 1, wall_ms: 1, usage: { input_tokens: 1, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 1 }, models: [], denials: [] })
   supervisor.markConcourseWorkerTurnSettled(short, dir)
   seat.onSeatIdle(short, roster, dir)
   check('a completed parent turn cannot hide running children as idle', disk().activity?.state === 'waiting' && disk().activity?.subagents === 2)

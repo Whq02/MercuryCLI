@@ -51,7 +51,7 @@ function makeRig(withWall: boolean): Rig {
     notifyLifecycle: () => {},
     enqueueOutput: () => {},
     writeDirect: async () => {},
-    drainSdkEvents: () => [],
+    drainRows: () => [],
     executeTurn: async command => {
       const blocks = typeof command.value === 'string' ? [command.value] : command.value.map(b => (b.type === 'text' ? b.text : '?'))
       rig.turns.push({ at: rig.now, blocks, mode: command.mode })
@@ -59,18 +59,19 @@ function makeRig(withWall: boolean): Rig {
     },
     beforeCycle: async () => {},
     onTurnStart: () => {},
+    turnIdOf: () => 't-rig',
+    openTurnRow: () => ({ type: 'turn', state: 'started', turn_id: 't-rig' }) as never,
     onTurnSettled: () => {},
     hasWaitableBackgroundTasks: () => rig.running > 0,
     hasHoldableBackgroundAgents: () => false,
     waitableBackgroundTaskCount: () => rig.running,
-    takePendingSuggestion: () => null,
     settleIdle: async () => 'stay',
     closeOutput: async () => {},
     notifySessionState: () => {},
     isShuttingDown: () => false,
     idleTimerStop: () => {},
     idleTimerStart: () => {},
-    onCycleError: () => ({ type: 'result' }) as never,
+    onCycleError: () => ({ type: 'outcome', status: 'failed' }) as never,
     shutdown: () => {},
     clock: {
       sleep: ms =>

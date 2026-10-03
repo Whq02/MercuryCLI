@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { parseFrame, spawnRunnerDoor } from '../lib/rows.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SRC = join(REPO, 'src')
@@ -80,7 +81,7 @@ section("D the daemon road's clock — the frame and the wiring")
   const dispatchSrc = read('daemon/concourseDispatch.ts')
   check('the prompt extras carry sentAt on both delivery legs (the admit leg and the redirect leg read promptExtrasOf)', dispatchSrc.includes("...(req.sentAt !== undefined ? { sentAt: req.sentAt } : {}),") && dispatchSrc.includes("...(extras?.sentAt !== undefined ? { timestamp: extras.sentAt } : {}),"))
   const printSrc = read('cli/print.ts')
-  check("the runner stamps the queued command from the frame's timestamp, or the arrival", printSrc.includes("const sentAt = typeof typed.timestamp === 'string' && Number.isFinite(Date.parse(typed.timestamp)) ? typed.timestamp : new Date().toISOString()"))
+  check("the runner stamps the queued command from the frame's timestamp, or the arrival", printSrc.includes("const sentAt = typeof input.sentAt === 'string' && Number.isFinite(Date.parse(input.sentAt)) ? input.sentAt : new Date().toISOString()") && printSrc.includes("...(row.sent_at !== undefined ? { sentAt: row.sent_at } : {})"))
   const attachments = read('utils/attachments/queuedCommands.ts')
   check('the queued_command attachment carries the clock', attachments.includes("...(_.sentAt !== undefined ? { sentAt: _.sentAt } : {}),"))
   const orchestrator = read('utils/attachments/orchestrator.ts')
@@ -145,29 +146,25 @@ if (!existsSync(DIST)) {
   }
   delete env.NODE_ENV
   delete env.ANTHROPIC_AUTH_TOKEN
-  const runner = spawn('node', [DIST, 'run', '--input=rows', '--format=rows', '--replay-user-messages', '--model', 'claude-opus-4-8', '--mode', 'sovereign'], { cwd: CWD, env, stdio: ['pipe', 'pipe', 'pipe'] })
   const lines: Array<Record<string, unknown>> = []
   const waiters: Array<{ test: (f: Record<string, unknown>) => boolean; resolve: (f: Record<string, unknown>) => void }> = []
-  let stdoutBuffer = ''
   let stderrText = ''
-  runner.stdout.on('data', (chunk: Buffer) => {
-    stdoutBuffer += chunk.toString('utf8')
-    let nl: number
-    while ((nl = stdoutBuffer.indexOf('\n')) >= 0) {
-      const line = stdoutBuffer.slice(0, nl)
-      stdoutBuffer = stdoutBuffer.slice(nl + 1)
-      if (line.trim() === '') continue
-      try {
-        const frame = JSON.parse(line) as Record<string, unknown>
-        lines.push(frame)
-        for (let i = waiters.length - 1; i >= 0; i--) {
-          if (waiters[i]!.test(frame)) waiters.splice(i, 1)[0]!.resolve(frame)
-        }
-      } catch {
+  const door = spawnRunnerDoor({
+    node: 'node',
+    argv: [DIST, 'runner', '--model', 'claude-opus-4-8', '--mode', 'sovereign'],
+    cwd: CWD,
+    env,
+    onLine: line => {
+      const frame = parseFrame(line)
+      if (frame === null) return
+      lines.push(frame)
+      for (let i = waiters.length - 1; i >= 0; i--) {
+        if (waiters[i]!.test(frame)) waiters.splice(i, 1)[0]!.resolve(frame)
       }
-    }
+    },
   })
-  runner.stderr.on('data', (chunk: Buffer) => {
+  const runner = door.child
+  runner.stderr!.on('data', (chunk: Buffer) => {
     stderrText += chunk.toString('utf8')
   })
   const exited = new Promise<number | null>(resolve => runner.on('exit', code => resolve(code)))
@@ -204,9 +201,7 @@ if (!existsSync(DIST)) {
     console.log(`  [wait] ${label}: nothing on the wire within ${timeoutMs} ms`)
     return null
   }
-  const send = (frame: Record<string, unknown>): void => {
-    runner.stdin.write(`${JSON.stringify(frame)}\n`)
-  }
+  const send = (frame: Record<string, unknown>): Promise<boolean> => door.send(frame)
   const user = (text: string, uuid: string, timestamp?: string): Record<string, unknown> => ({ type: 'user', message: { role: 'user', content: text }, uuid, session_id: '', ...(timestamp !== undefined ? { timestamp } : {}) })
   const control = (requestId: string, request: Record<string, unknown>): Record<string, unknown> => ({ type: 'control_request', request_id: requestId, request })
   const responseOf = (f: Record<string, unknown> | null): Record<string, unknown> => {
@@ -214,12 +209,10 @@ if (!existsSync(DIST)) {
     return r?.response ?? (r?.error !== undefined ? { error: r.error } : {})
   }
   const isControlResponse = (id: string) => (f: Record<string, unknown>): boolean => f.type === 'control_response' && (f.response as { request_id?: string } | undefined)?.request_id === id
-  const isResult = (f: Record<string, unknown>): boolean => f.type === 'result'
-  const isInit = (f: Record<string, unknown>): boolean => f.type === 'system' && f.subtype === 'init'
-  const isCompactingStatus = (f: Record<string, unknown>): boolean =>
-    f.type === 'system' && f.subtype === 'status' && (f.status === 'compacting' || (f.status !== null && typeof f.status === 'object' && 'compacting' in (f.status as object)))
-  const isTurnStarted = (f: Record<string, unknown>): boolean => f.type === 'system' && f.subtype === 'turn_started'
-  const isReplayOf = (uuid: string) => (f: Record<string, unknown>): boolean => f.type === 'user' && f.is_replay === true && f.uuid === uuid
+  const isResult = (f: Record<string, unknown>): boolean => f.type === 'outcome'
+  const isInit = (f: Record<string, unknown>): boolean => f.type === 'session'
+  const isCompactingStatus = (f: Record<string, unknown>): boolean => f.type === 'compaction' && f.state !== 'ended'
+  const isTurnStarted = (f: Record<string, unknown>): boolean => f.type === 'turn' && f.state === 'started'
   const queueOf = async (id: string): Promise<Array<{ uuid?: string; value?: string }>> => {
     send(control(id, { subtype: 'session_facts' }))
     const f = responseOf(await waitFor(id, isControlResponse(id), 5_000))
@@ -227,7 +220,7 @@ if (!existsSync(DIST)) {
   }
   const reap = async (): Promise<void> => {
     try {
-      runner.stdin.end()
+      runner.stdin!.end()
     } catch {
     }
     await Promise.race([exited, sleep(8_000)])
@@ -289,7 +282,7 @@ if (!existsSync(DIST)) {
   const r2 = await waitWire('round two', w => w.kind === 'request' && w.arm === 'three' && w.step === 1 && w.n > (r1?.n ?? 0), TURN_MS * 3 / 4)
   check("round two's request went out after the boundary", r2 !== null)
   const sentAt3 = Date.now()
-  send(user(LINE3, U3))
+  await send(user(LINE3, U3))
   const afterBoundaryOne = await queueOf('facts-after-boundary-one')
   check('past the boundary the queue holds the slash command (waiting for the turn to end) and the third line, and the two lines are gone', j(afterBoundaryOne.map(q => q.uuid)) === j([UC, U3]), j(afterBoundaryOne))
   const r3 = await waitWire('round three', w => w.kind === 'request' && w.arm === 'three' && w.step === 2 && w.n > (r2?.n ?? 0), TURN_MS * 3 / 4)
@@ -297,7 +290,7 @@ if (!existsSync(DIST)) {
   const r4 = await waitWire('the final request', w => w.kind === 'request' && w.arm === 'three' && w.step === 3 && w.n > (r3?.n ?? 0), TURN_MS * 3 / 4)
   check('the final request went out', r4 !== null)
   const threeResult = await waitFor('the tool turn', isResult, TURN_MS, beforeThree)
-  check("the tool turn answered with the fixture's final text", threeResult !== null && String(threeResult.result ?? '').startsWith('done: three tool rounds'), j(threeResult?.result))
+  check("the tool turn answered with the fixture's final text", threeResult !== null && String(threeResult.answer ?? '').startsWith('done: three tool rounds'), j(threeResult?.answer))
   const afterThree = threeResult === null ? lines.length : lines.indexOf(threeResult) + 1
   const slashResult = await waitFor("the slash command's own turn after the tool turn", isResult, 25_000, afterThree)
   check("the slash command ran after the turn's end (its own result frame)", slashResult !== null)
@@ -354,8 +347,6 @@ if (!existsSync(DIST)) {
   check("the second line's row carries its own send clock", row2?.timestamp === T2, j({ row: row2?.timestamp, sent: T2 }))
   const row3At = Date.parse(row3?.timestamp ?? '')
   check("a frame with no timestamp lands with its arrival clock — after the send, well before the boundary that delivered it", Number.isFinite(row3At) && row3At >= sentAt3 - 100 && row3At <= sentAt3 + 1_500 && row3At < (r3?.at ?? 0) - 1_000, j({ row: row3?.timestamp, sentAtMs: sentAt3, boundaryAt: r3?.at }))
-  const replay1 = lines.find(isReplayOf(U1))
-  check('the stream-json replay of the first line carries the same clock for the headless reader', replay1 !== undefined && replay1.timestamp === T1, j(replay1 === undefined ? null : { uuid: replay1.uuid, timestamp: replay1.timestamp }))
 
   section('R3 escape with a line queued: the interrupt ends the turn and the line runs as the next turn')
   const beforeLong = lines.length
@@ -369,12 +360,12 @@ if (!existsSync(DIST)) {
   const pressedAt = Date.now()
   send(control('esc-1', { subtype: 'interrupt' }))
   const interrupted = await waitFor('the interrupted turn', isResult, 20_000, beforeLong)
-  check('the interrupt ended the turn well before the tool would have', interrupted !== null && Date.now() - pressedAt < 15_000, j(interrupted?.result))
+  check('the interrupt ended the turn well before the tool would have', interrupted !== null && Date.now() - pressedAt < 15_000, j(interrupted?.status))
   const afterInterrupt = interrupted === null ? lines.length : lines.indexOf(interrupted) + 1
-  const lineTurn = lines.slice(beforeLong).filter(isTurnStarted).find(f => j(f.uuids).includes(U4)) ?? (await waitFor("the queued line's own turn", f => isTurnStarted(f) && j(f.uuids).includes(U4), 20_000, afterInterrupt))
-  check('the queued line opens the next turn under its own identity', lineTurn !== null && j(lineTurn.uuids) === j([U4]), j(lineTurn?.uuids))
+  const lineTurn = lines.slice(beforeLong).filter(isTurnStarted).find(f => j(f.message_ids).includes(U4)) ?? (await waitFor("the queued line's own turn", f => isTurnStarted(f) && j(f.message_ids).includes(U4), 20_000, afterInterrupt))
+  check('the queued line opens the next turn under its own identity', lineTurn !== null && j(lineTurn.message_ids) === j([U4]), j(lineTurn?.message_ids))
   const lineResult = await waitFor("the queued line's answer", f => isResult(f) && f !== interrupted, 30_000, afterInterrupt)
-  check('the line was answered', lineResult !== null && String(lineResult.result ?? '').startsWith(`heard: ${LINE4}`), j(lineResult?.result))
+  check('the line was answered', lineResult !== null && String(lineResult.answer ?? '').startsWith(`heard: ${LINE4}`), j(lineResult?.answer))
   const carrying4 = wire().filter(w => w.kind === 'request' && (w.counts?.[LINE4] ?? 0) > 0)
   check("the first request carrying the line opens on it, after the interrupt, as the turn's own prompt (the between-turns road), once", carrying4.length >= 1 && carrying4[0]!.n > (rl?.n ?? 0) && carrying4[0]!.ask === LINE4 && carrying4[0]!.counts?.[LINE4] === 1, j(carrying4.map(w => [w.n, w.ask, w.counts?.[LINE4]])))
 
@@ -387,12 +378,12 @@ if (!existsSync(DIST)) {
   await sleep(400)
   check('the line waits in the queue while the fold runs, and no boundary takes it (no result yet)', j((await queueOf('facts-during-fold')).map(q => q.uuid)) === j([U5]) && lines.slice(beforeFold).find(isResult) === undefined)
   const foldResult = await waitFor("the fold's own turn", isResult, TURN_MS, beforeFold)
-  check('the fold landed', foldResult !== null && String(foldResult.result ?? '').startsWith('Compacted'), j(foldResult?.result))
+  check('the fold landed', foldResult !== null && String(foldResult.answer ?? '').startsWith('Compacted'), j(foldResult?.answer))
   const afterFold = foldResult === null ? lines.length : lines.indexOf(foldResult) + 1
-  const heldTurn = lines.slice(beforeFold).filter(isTurnStarted).find(f => j(f.uuids).includes(U5)) ?? (await waitFor('the held line opens the next turn', f => isTurnStarted(f) && j(f.uuids).includes(U5), 20_000, afterFold))
-  check('the held line opens the turn after the fold', heldTurn !== null && j(heldTurn.uuids) === j([U5]), j(heldTurn?.uuids))
+  const heldTurn = lines.slice(beforeFold).filter(isTurnStarted).find(f => j(f.message_ids).includes(U5)) ?? (await waitFor('the held line opens the next turn', f => isTurnStarted(f) && j(f.message_ids).includes(U5), 20_000, afterFold))
+  check('the held line opens the turn after the fold', heldTurn !== null && j(heldTurn.message_ids) === j([U5]), j(heldTurn?.message_ids))
   const heldResult = await waitFor('the held line answered', f => isResult(f) && f !== foldResult, 30_000, afterFold)
-  check('the held line was answered once the fold landed', heldResult !== null && String(heldResult.result ?? '').startsWith(`heard: ${LINE5}`), j(heldResult?.result))
+  check('the held line was answered once the fold landed', heldResult !== null && String(heldResult.answer ?? '').startsWith(`heard: ${LINE5}`), j(heldResult?.answer))
   const foldLanded = wire().find(w => w.kind === 'fold-landed')
   const carrying5 = wire().filter(w => w.kind === 'request' && (w.counts?.[LINE5] ?? 0) > 0)
   check('the wire carries the held line only after the fold landed, opening on it once', foldLanded !== undefined && carrying5.length >= 1 && carrying5[0]!.at > foldLanded.at && carrying5[0]!.ask === LINE5 && carrying5[0]!.counts?.[LINE5] === 1, j(carrying5.map(w => [w.n, w.ask, w.at - (foldLanded?.at ?? 0)])))

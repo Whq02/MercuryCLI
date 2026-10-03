@@ -6,8 +6,8 @@ import {
   bootRunner,
   bound,
   childEnv,
-  isInit,
-  isResult,
+  isSession,
+  isOutcome,
   j,
   makeTally,
   removeWorld,
@@ -203,17 +203,17 @@ if (import.meta.main) {
   const failedAtOpen = failed()
   const runner = bootRunner({ cwd, env: childEnv(home, fixture.port), extraArgv: ['--allowed-tools', 'Write,Read'] })
   runner.send(user(REREAD_ASK, '00000000-0000-4000-8000-000000000000'))
-  const init = await runner.waitFor('the init frame', isInit, bound(90_000))
-  const result = await runner.waitFor('the turn result', isResult, bound(240_000))
+  const init = await runner.waitFor('the init frame', isSession, bound(90_000))
+  const result = await runner.waitFor('the turn result', isOutcome, bound(240_000))
   await runner.stop(bound(8_000))
   await fixture.close()
   const hits = fixture.hits
   const arms = (arm: string): Hit[] => hits.filter(h => h.arm === arm)
-  const resultText = String(result?.result ?? '')
+  const resultText = String(result?.answer ?? '')
   check('the runner booted and the turn settled', init !== null && result !== null, runner.stderr().split('\n').slice(-6).join(' | '))
   check(`the model read the file ${REREAD_ROUNDS} times and was answered every time`, arms('read').length === REREAD_ROUNDS && arms('write').length === 1, j(hits.map(h => [h.n, h.arm, h.step])))
   check('every read saw a file the second writer had grown since the last read', existsSync(notes) && readFileSync(notes, 'utf8').split('\n').filter(l => l !== '').length === REREAD_ROUNDS + 1)
-  check('the turn ended only when the model ended it: the result is the model’s own last words', result?.subtype === 'success' && resultText === REREAD_END, `${String(result?.subtype)}: ${resultText.slice(0, 160)}`)
+  check('the turn ended only when the model ended it: the result is the model’s own last words', result?.status === 'completed' && resultText === REREAD_END, `${String(result?.status)}: ${resultText.slice(0, 160)}`)
   check('no request on the wire carried the hidden re-plan directive', hits.every(h => !h.directive), j(hits.filter(h => h.directive).map(h => h.n)))
   check('no loop reminder rode the wire: every read answered with a file that had grown, so no call repeated an earlier one with an identical result', hits.every(h => !h.nudged), j(hits.filter(h => h.nudged).map(h => [h.n, h.step])))
   const records = runRecords(join(home, 'projects'))

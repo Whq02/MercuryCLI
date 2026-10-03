@@ -141,7 +141,7 @@ section('L4 — plain failure (API 400): stderr + newline; stdout ZERO bytes; ex
   assertClean('L4', cap)
 }
 
-section('L5 — plain failure subtype (max turns): stderr + newline; stdout empty; exit 1')
+section('L5 — plain failure status (max turns): stderr + newline; stdout empty; exit 1')
 {
   const fx = await fixture([
     { kind: 'tool_use', name: 'Glob', input: { pattern: '*.md' } },
@@ -183,21 +183,21 @@ function parseLines(cap: Capture): { parsed: Record<string, unknown>[]; bad: str
   return { parsed, bad }
 }
 
-section('L7 — rows success: every stdout line parses; typed result envelope')
+section('L7 — rows success: every stdout line parses; the typed outcome row')
 {
   const fx = await fixture([{ kind: 'text', text: 'PROOF-SJ-OK.' }])
   const cap = await runDist(['run', 'hello', '--format', 'rows'], { baseUrl: fx.url })
   const { parsed, bad } = parseLines(cap)
   check('every stdout line individually JSON-parses', bad.length === 0, bad[0]?.slice(0, 120) ?? '')
-  check('the feed opens with the init event, with no option asked for', parsed[0]?.type === 'system' && parsed[0]?.subtype === 'init', JSON.stringify(parsed[0] ?? {}).slice(0, 120))
-  const result = parsed.find(e => e.type === 'result') as { is_error?: boolean } | undefined
-  check('a typed result envelope is present', !!result)
-  check('the result is not an error', result?.is_error === false, JSON.stringify(result ?? {}).slice(0, 200))
+  check('the feed opens with the session row, with no option asked for', parsed[0]?.type === 'session', JSON.stringify(parsed[0] ?? {}).slice(0, 120))
+  const result = parsed.find(e => e.type === 'outcome') as { status?: string } | undefined
+  check('a typed outcome row is present', !!result)
+  check('the outcome is completed', result?.status === 'completed', JSON.stringify(result ?? {}).slice(0, 200))
   check('exit 0', cap.exit === 0, String(cap.exit))
   assertClean('L7', cap)
 }
 
-section('L8 — rows failure: framing holds; the typed error record rides the schema')
+section('L8 — rows failure: framing holds; the typed error rides the outcome')
 {
   const fx = await fixture([
     { kind: 'error', status: 400, errorType: 'invalid_request_error', message: 'lucid-sj-bad-request' },
@@ -205,13 +205,11 @@ section('L8 — rows failure: framing holds; the typed error record rides the sc
   const cap = await runDist(['run', 'hello', '--format', 'rows'], { baseUrl: fx.url })
   const { parsed, bad } = parseLines(cap)
   check('every stdout line individually JSON-parses', bad.length === 0, bad[0]?.slice(0, 120) ?? '')
-  const result = parsed.find(e => e.type === 'result') as { is_error?: boolean; subtype?: string; errors?: string[] } | undefined
-  check('the result envelope carries is_error', result?.is_error === true, JSON.stringify(result ?? {}).slice(0, 200))
+  const result = parsed.find(e => e.type === 'outcome') as { status?: string; error?: { message?: string; class?: string } } | undefined
+  check('the outcome reads failed', result?.status === 'failed', JSON.stringify(result ?? {}).slice(0, 200))
   check(
     'the error text rides the typed record, not a free-form line',
-    result?.subtype === 'error_during_execution' &&
-      Array.isArray(result?.errors) &&
-      result.errors.some(e => typeof e === 'string' && e.includes('lucid-sj-bad-request')),
+    typeof result?.error?.class === 'string' && String(result?.error?.message).includes('lucid-sj-bad-request'),
     JSON.stringify(result ?? {}).slice(0, 200),
   )
   check('exit 1', cap.exit === 1, String(cap.exit))
@@ -276,7 +274,7 @@ async function driveDist(
           send({ type: 'control_response', response: { subtype: 'success', request_id: frame.request_id, response: { behavior: 'allow', updated_input: request.input } } })
         }
       }
-      if (frame.type === 'result' || frame.type === 'control_response') waiters.shift()?.()
+      if (frame.type === 'outcome' || frame.type === 'control_response') waiters.shift()?.()
     }
   })
   child.stderr.on('data', chunk => (stderr += chunk))
@@ -293,8 +291,8 @@ async function driveDist(
 }
 
 const SNAKE = /^[a-z0-9]+(_[a-z0-9]+)*$/
-const RIDING_PATHS = new Set(['message', 'event', 'usage', 'input', 'tool_use_result', 'permission_suggestions', 'updated_permissions', 'config', 'effective', 'sources', 'provenance', 'models'])
-const NAME_KEYED = new Set(['model_usage', 'extensions', 'skill_states', 'errors', 'headers', 'env'])
+const RIDING_PATHS = new Set(['input', 'structured', 'tool_use_result', 'permission_suggestions', 'updated_permissions', 'config', 'effective', 'sources', 'provenance'])
+const NAME_KEYED = new Set(['models', 'extensions', 'skill_states', 'errors', 'headers', 'env'])
 function oddKeys(value: unknown, path: string, out: string[], namesAreData = false): void {
   if (Array.isArray(value)) {
     for (const item of value) oddKeys(item, `${path}[]`, out)
@@ -309,7 +307,7 @@ function oddKeys(value: unknown, path: string, out: string[], namesAreData = fal
   }
 }
 
-section('L10 — the one spelling: every driven frame is a declared type with snake_case keys')
+section('L10 — the one spelling: every driven row is a declared type with snake_case keys')
 {
   const fx = await fixture([
     { kind: 'tool_use', name: 'Glob', input: { pattern: '*.zzz-none' } },
@@ -339,19 +337,20 @@ section('L10 — the one spelling: every driven frame is a declared type with sn
     await control({ subtype: 'claude_authenticate' })
     await control({ subtype: 'no_such_subtype_probe' })
   })
-  const declaredTypes = new Set(['assistant', 'user', 'result', 'system', 'stream_event', 'tool_progress', 'tool_use_summary', 'rate_limit_event', 'prompt_suggestion', 'control_response', 'control_request', 'control_cancel_request'])
-  const declaredSystem = new Set(['init', 'compact_boundary', 'model_transition', 'status', 'turn_started', 'mission_updated', 'samples_updated', 'api_retry', 'hook_started', 'hook_progress', 'hook_response', 'task_notification', 'task_started', 'session_state_changed', 'task_progress', 'elicitation_complete'])
+  const { ROW_TYPES, PARTIAL_ROW_TYPES } = await import('../../src/rows/vocabulary.ts')
+  const declaredTypes = new Set<string>([...ROW_TYPES, ...PARTIAL_ROW_TYPES, 'system', 'control_response', 'control_request', 'control_cancel_request'])
+  const declaredSystem = new Set(['seat_verb_applied', 'elicitation_complete'])
   const unparsed = run.frames.filter(f => 'unparsed' in f)
   check('every stdout line parses', unparsed.length === 0, JSON.stringify(unparsed[0] ?? '').slice(0, 120))
   const undeclared = run.frames.filter(f => !declaredTypes.has(String(f.type)) || (f.type === 'system' && !declaredSystem.has(String(f.subtype))))
-  check('every frame is a declared type', undeclared.length === 0, JSON.stringify(undeclared.map(f => `${String(f.type)}/${String(f.subtype ?? '')}`)))
+  check('every row is a declared type', undeclared.length === 0, JSON.stringify(undeclared.map(f => `${String(f.type)}/${String(f.subtype ?? '')}`)))
   const odd: string[] = []
   for (const frame of run.frames) oddKeys(frame, `${String(frame.type)}${frame.subtype ? `/${String(frame.subtype)}` : ''}`, odd)
   check('every key the feed defines is snake_case at every depth', odd.length === 0, JSON.stringify([...new Set(odd)].slice(0, 30)))
-  const init = run.frames.find(f => f.type === 'system' && f.subtype === 'init') as Record<string, unknown> | undefined
-  check('the init frame carries permission_mode, skills and extensions and no credential-source word', init !== undefined && typeof init.permission_mode === 'string' && Array.isArray(init.skills) && Array.isArray(init.extensions) && !('apiKeySource' in init) && !('permissionMode' in init), JSON.stringify(Object.keys(init ?? {})))
-  const result = run.frames.find(f => f.type === 'result') as Record<string, unknown> | undefined
-  check('the result frame carries model_usage keyed by model id with snake_case rows', result !== undefined && typeof result.model_usage === 'object' && !('modelUsage' in result), JSON.stringify(result?.model_usage ?? null).slice(0, 200))
+  const init = run.frames.find(f => f.type === 'session') as Record<string, unknown> | undefined
+  check('the session row carries mode, skills and extensions and no credential-source word', init !== undefined && typeof init.mode === 'string' && Array.isArray(init.skills) && Array.isArray(init.extensions) && !('apiKeySource' in init) && !('permissionMode' in init), JSON.stringify(Object.keys(init ?? {})))
+  const result = run.frames.find(f => f.type === 'outcome') as Record<string, unknown> | undefined
+  check('the outcome row carries models keyed by model id with snake_case rows', result !== undefined && typeof result.models === 'object' && !('modelUsage' in result), JSON.stringify(result?.models ?? null).slice(0, 200))
   const answers = new Map<string, Record<string, unknown>>()
   for (const frame of run.frames) {
     if (frame.type !== 'control_response') continue
@@ -389,8 +388,8 @@ section('L12 — every refusal of the feed is one envelope: one field set, one u
   const keys = (f: unknown): string => (f && typeof f === 'object' ? Object.keys(f as object).sort().join(',') : '')
   const fa = frame(a)
   const fb = frame(b)
-  check('an option refusal rides one parseable result envelope', fa !== null && fa.type === 'result' && fa.subtype === 'error_during_execution' && fa.is_error === true, a.stdout.slice(0, 120))
-  check('a load refusal rides the same envelope', fb !== null && fb.type === 'result' && fb.subtype === 'error_during_execution' && fb.is_error === true, b.stdout.slice(0, 120))
+  check('an option refusal rides one parseable outcome row', fa !== null && fa.type === 'outcome' && fa.status === 'refused' && typeof (fa.error as { class?: unknown } | undefined)?.class === 'string', a.stdout.slice(0, 120))
+  check('a load refusal rides the same row', fb !== null && fb.type === 'outcome' && fb.status === 'refused' && typeof (fb.error as { class?: unknown } | undefined)?.class === 'string', b.stdout.slice(0, 120))
   check('the two refusals carry one field set', fa !== null && fb !== null && keys(fa) === keys(fb), `${keys(fa)} vs ${keys(fb)}`)
   check('an option refusal (a usage error) exits 2 and a load refusal exits 1', a.exit === 2 && b.exit === 1, `option=${a.exit} load=${b.exit}`)
   check('the two refusals carry one usage shape', fa !== null && fb !== null && keys(fa.usage) === keys(fb.usage) && keys(fa.usage).length > 0, `${keys(fa?.usage)} vs ${keys(fb?.usage)}`)
@@ -404,19 +403,19 @@ section('L13 — no credentials: an operational error, exit 1, the refusal where
   check('text: the refusal rides stderr and names the sign-in', /Not logged in/.test(text.stderr), text.stderr.slice(0, 120))
   check('text: stdout carries zero bytes', text.stdout.length === 0, text.stdout.slice(0, 80))
   const json = await runDist(['run', 'hello', '--max-turns', '1', '--format', 'json'], noKey)
-  let parsed: { type?: string; is_error?: boolean; errors?: string[] } | null = null
+  let parsed: { type?: string; status?: string; error?: { message?: string } } | null = null
   try {
     parsed = JSON.parse(json.stdout.trim()) as typeof parsed
   } catch {
     parsed = null
   }
   check('json: exit 1', json.exit === 1, String(json.exit))
-  check('json: stdout is one error object naming the sign-in', parsed !== null && parsed.type === 'result' && parsed.is_error === true && (parsed.errors ?? []).some(e => /Not logged in/.test(e)), json.stdout.slice(0, 160))
+  check('json: stdout is one outcome object naming the sign-in', parsed !== null && parsed.type === 'outcome' && parsed.status !== 'completed' && /Not logged in/.test(String(parsed.error?.message)), json.stdout.slice(0, 160))
   const sj = await runDist(['run', 'hello', '--max-turns', '1', '--format', 'rows'], noKey)
   const { parsed: frames, bad } = parseLines(sj)
-  const result = frames.find(f => f.type === 'result') as { is_error?: boolean } | undefined
+  const result = frames.find(f => f.type === 'outcome') as { status?: string } | undefined
   check('rows: exit 1', sj.exit === 1, String(sj.exit))
-  check('rows: every line parses and the result envelope carries is_error', bad.length === 0 && result?.is_error === true, bad[0]?.slice(0, 80) ?? '')
+  check('rows: every line parses and the outcome is not completed', bad.length === 0 && result !== undefined && result.status !== 'completed', bad[0]?.slice(0, 80) ?? '')
   assertClean('L13 text', text)
   assertClean('L13 json', json)
 }

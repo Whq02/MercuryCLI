@@ -4,21 +4,20 @@ import { existsSync, mkdtempSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
 import type { QueuedCommand } from '../../src/types/textInputTypes.ts'
 import { createTurnDriver, type TurnDriverPorts } from '../../src/cli/headless/turnDriver.ts'
-import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, isResult, makeTally, removeWorld, user } from '../daemon/dupline-world.ts'
+import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, isOutcome, makeTally, removeWorld, user, sleep } from '../daemon/dupline-world.ts'
 import { seedScratchHome, startScriptedFixture, type Script } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-turn-error-keeps-seat')
 type Frame = Record<string, unknown>
 const THROWN = 'the turn threw before its first request'
-const labelOf = (f: Frame | undefined): string => (f === undefined ? 'none' : `${String(f.type)}${typeof f.subtype === 'string' ? `:${f.subtype}` : ''}`)
-const errorsOf = (f: Frame | null): string[] => (f !== null && Array.isArray(f.errors) ? (f.errors as unknown[]).map(String) : [])
+const labelOf = (f: Frame | undefined): string => (f === undefined ? 'none' : `${String(f.type)}${typeof f.state === 'string' ? `:${f.state}` : typeof f.status === 'string' ? `:${f.status}` : ''}`)
 const tick = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0))
 const settleTicks = async (n: number): Promise<void> => {
   for (let i = 0; i < n; i++) await tick()
 }
 const queued = (value: string, mode: 'prompt' | 'bash'): QueuedCommand => ({ value, mode, uuid: randomUUID() }) as QueuedCommand
 
-console.log(' red on the base: §1 (the cycle catch wrote the envelope directly and shut the seat down with 1) and §5 (the seat exited on the failed turn)')
+console.log(' red on the base: §1 (the cycle catch wrote the envelope directly and shut the seat down with 1) and §5 (the seat ran an empty shell row as a turn that threw)')
 
 type Rig = {
   queue: QueuedCommand[]
@@ -50,14 +49,15 @@ function makeRig(): Rig {
     writeDirect: async message => {
       rig.direct.push(message as unknown as Frame)
     },
-    drainSdkEvents: () => [],
+    drainRows: () => [],
     executeTurn: async () => {},
     beforeCycle: async () => {},
-    onTurnStart: () => ({ type: 'system', subtype: 'turn_started' }) as never,
+    onTurnStart: () => {},
+    turnIdOf: () => 'turn-rig',
+    openTurnRow: messageIds => ({ type: 'turn', state: 'started', turn_id: 'turn-rig', message_ids: messageIds, model: 'rig', session_id: 'rig' }) as never,
     onTurnSettled: () => {},
     hasWaitableBackgroundTasks: () => false,
     hasHoldableBackgroundAgents: () => false,
-    takePendingSuggestion: () => null,
     settleIdle: async () => {
       rig.settles++
       return 'stay'
@@ -67,7 +67,7 @@ function makeRig(): Rig {
     isShuttingDown: () => shuttingDown,
     idleTimerStop: () => {},
     idleTimerStart: () => {},
-    onCycleError: error => ({ type: 'result', subtype: 'error_during_execution', is_error: true, errors: [error instanceof Error ? error.message : String(error)] }) as never,
+    onCycleError: error => ({ type: 'outcome', status: 'failed', error: { message: error instanceof Error ? error.message : String(error), class: 'internal' } }) as never,
     shutdown: code => {
       shuttingDown = true
       rig.shutdowns.push(code)
@@ -84,7 +84,7 @@ tally.section("§1 the driver: a throw inside a turn becomes that turn's result,
   rig.ports.executeTurn = async (command, _batch, onMessage) => {
     rig.executed.push(String(command.value))
     if (command.mode === 'bash') throw new Error(THROWN)
-    onMessage({ type: 'result', subtype: 'success', is_error: false, result: 'answered' } as never)
+    onMessage({ type: 'outcome', status: 'completed', answer: 'answered' } as never)
   }
   const failing = queued('a turn that throws', 'bash')
   const next = queued('the next message', 'prompt')
@@ -92,12 +92,12 @@ tally.section("§1 the driver: a throw inside a turn becomes that turn's result,
   driver.kick()
   await settleTicks(60)
   const labels = rig.out.map(labelOf).join(',')
-  const refusalAt = rig.out.findIndex(f => f.type === 'result' && f.is_error === true && f.subtype === 'error_during_execution')
-  const successAt = rig.out.findIndex(f => f.type === 'result' && f.subtype === 'success')
+  const refusalAt = rig.out.findIndex(f => f.type === 'outcome' && f.status === 'failed')
+  const successAt = rig.out.findIndex(f => f.type === 'outcome' && f.status === 'completed')
   tally.check('the seat is not shut down', rig.shutdowns.length === 0, `shutdown(${rig.shutdowns.join(',')})`)
   tally.check("the refusal is the failed turn's result on the output road, never a direct write", refusalAt >= 0 && rig.direct.length === 0, `out=${labels} direct=${rig.direct.map(labelOf).join(',')}`)
   tally.check('the refusal carries the thrown words', refusalAt >= 0 && JSON.stringify(rig.out[refusalAt]).includes(THROWN), JSON.stringify(rig.out[refusalAt] ?? null))
-  tally.check('the failed turn is framed like any turn: its open edge comes just before its result', refusalAt > 0 && labelOf(rig.out[refusalAt - 1]) === 'system:turn_started', labels)
+  tally.check('the failed turn is framed like any turn: its turn row comes just before its outcome', refusalAt > 0 && labelOf(rig.out[refusalAt - 1]) === 'turn:started', labels)
   tally.check('the next command runs after the failed one', rig.executed.join(' | ') === 'a turn that throws | the next message', rig.executed.join(' | '))
   tally.check("the next command's result follows the refusal", refusalAt >= 0 && successAt > refusalAt, labels)
   tally.check("the failed turn's message completes like any turn's", rig.lifecycle.includes(`${String(failing.uuid)}:completed`) && rig.lifecycle.includes(`${String(next.uuid)}:completed`), rig.lifecycle.join(','))
@@ -110,14 +110,14 @@ tally.section('§2 the driver: a throw after the turn already answered still end
   const driver = createTurnDriver(rig.ports)
   rig.ports.executeTurn = async (command, _batch, onMessage) => {
     rig.executed.push(String(command.value))
-    onMessage({ type: 'result', subtype: 'success', is_error: false, result: 'answered' } as never)
+    onMessage({ type: 'outcome', status: 'completed', answer: 'answered' } as never)
     throw new Error(THROWN)
   }
   rig.queue.push(queued('answers, then throws', 'prompt'), queued('never reached', 'bash'))
   driver.kick()
   await settleTicks(60)
   tally.check('shutdown(1), once', rig.shutdowns.join(',') === '1', `shutdown(${rig.shutdowns.join(',')})`)
-  tally.check('the refusal goes out on the direct write', rig.direct.length === 1 && rig.direct[0]?.is_error === true, rig.direct.map(labelOf).join(','))
+  tally.check('the refusal goes out on the direct write', rig.direct.length === 1 && rig.direct[0]?.status === 'failed', rig.direct.map(labelOf).join(','))
   tally.check('no later command runs', rig.executed.join(' | ') === 'answers, then throws', rig.executed.join(' | '))
 }
 
@@ -126,7 +126,7 @@ tally.section('§3 the driver: when the refusal itself cannot be written, the se
   const rig = makeRig()
   const driver = createTurnDriver(rig.ports)
   rig.ports.enqueueOutput = message => {
-    if ((message as { is_error?: unknown }).is_error === true) throw new Error('the output is gone')
+    if ((message as { status?: unknown }).status === 'failed') throw new Error('the output is gone')
     rig.out.push(message as unknown as Frame)
   }
   rig.ports.executeTurn = async command => {
@@ -146,19 +146,20 @@ tally.section('§4 the driver: an ordinary turn keeps its frames, their order an
   const driver = createTurnDriver(rig.ports)
   rig.ports.executeTurn = async (command, _batch, onMessage) => {
     rig.executed.push(String(command.value))
-    onMessage({ type: 'assistant' } as never)
-    onMessage({ type: 'result', subtype: 'success', is_error: false } as never)
+    onMessage({ type: 'turn', state: 'started' } as never)
+    onMessage({ type: 'text' } as never)
+    onMessage({ type: 'outcome', status: 'completed' } as never)
   }
   const ordinary = queued('an ordinary turn', 'prompt')
   rig.queue.push(ordinary)
   driver.kick()
   await settleTicks(60)
-  tally.check('assistant, open edge, result: in that order', rig.out.map(labelOf).join(',') === 'assistant,system:turn_started,result:success', rig.out.map(labelOf).join(','))
+  tally.check('turn row, text, outcome: in that order, nothing minted', rig.out.map(labelOf).join(',') === 'turn:started,text,outcome:completed', rig.out.map(labelOf).join(','))
   tally.check('no direct write and no shutdown', rig.direct.length === 0 && rig.shutdowns.length === 0, `direct=${rig.direct.length} shutdown(${rig.shutdowns.join(',')})`)
   tally.check('its message starts and completes', rig.lifecycle.join(',') === `${String(ordinary.uuid)}:started,${String(ordinary.uuid)}:completed`, rig.lifecycle.join(','))
 }
 
-tally.section('§5 the seat, on the built product: a turn that throws answers with an error result, the seat answers the next message, and stdin close still ends it with 0')
+tally.section('§5 the seat, on the built product: a row with nothing in it is refused at the door, the seat answers the next message, and stdin close still ends it with 0')
 if (!existsSync(DIST)) {
   console.log(`  [SKIP] ${DIST} absent — build first or pass --dist; §1-§4 above still ran`)
 } else {
@@ -174,21 +175,18 @@ if (!existsSync(DIST)) {
   const runner = bootRunner({ cwd, env: childEnv(runHome, Number(new URL(fixture.base).port)) })
   runner.proc.stdin?.on('error', () => {})
 
-  runner.send({ type: 'user', mode: 'bash', message: { role: 'user', content: [] }, uuid: randomUUID(), session_id: '' })
-  const failed = await runner.waitFor("the failed turn's result", isResult, bound(60_000))
-  const errors = errorsOf(failed)
-  tally.check('a bash-mode frame with no text throws inside its turn, and the seat writes a result frame', failed !== null, runner.frames.map(labelOf).join(' · '))
-  tally.check('that result is is_error true with subtype error_during_execution', failed?.is_error === true && failed?.subtype === 'error_during_execution', JSON.stringify(failed).slice(0, 240))
-  tally.check('it names the thrown words', errors.some(e => e.includes('requires string input')), errors.join(' | ').slice(0, 240))
+  const refused = await runner.door.send({ type: 'user', mode: 'bash', message: { role: 'user', content: [] }, uuid: randomUUID(), session_id: '' })
+  await sleep(300)
+  tally.check('a shell row with no command is refused at the door (queue/add answers invalid params), and no turn opens', refused === false && !runner.frames.some(isOutcome), runner.frames.map(labelOf).join(' · '))
 
   const before = runner.frames.length
   runner.send(user(NEXT_ASK, randomUUID()))
   const next = await Promise.race([
-    runner.waitFor("the next message's result", f => isResult(f) && f.subtype === 'success', bound(60_000), before),
+    runner.waitFor("the next message's outcome", f => isOutcome(f) && f.status === 'completed', bound(60_000), before),
     runner.exited.then(() => null),
   ])
   tally.check('the seat is still alive after the failed turn', runner.proc.exitCode === null, `exit code ${String(runner.proc.exitCode)}`)
-  tally.check('the next user message is answered', next !== null && String(next.result ?? '').includes(NEXT_ANSWER) && fixture.requests.some(r => r.ask.includes(NEXT_ASK)), JSON.stringify(next).slice(0, 240))
+  tally.check('the next user message is answered', next !== null && String(next.answer ?? '').includes(NEXT_ANSWER) && fixture.requests.some(r => r.ask.includes(NEXT_ASK)), JSON.stringify(next).slice(0, 240))
 
   await runner.stop(bound(15_000))
   const code = await runner.exited

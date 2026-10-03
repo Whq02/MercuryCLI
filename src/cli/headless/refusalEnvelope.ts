@@ -1,39 +1,24 @@
 import { randomUUID } from 'node:crypto'
 import { getSessionId } from '../../bootstrap/state.js'
 import { EMPTY_USAGE } from '../../services/api/emptyUsage.js'
+import { createRowStamper, outcomeRow } from '../../rows/project.js'
+import type { ErrorClass, OutcomeRow, OutcomeStatus } from '../../rows/vocabulary.js'
 
-export type RefusalEnvelope = {
-  type: 'result'
-  subtype: 'error_during_execution'
-  duration_ms: 0
-  duration_api_ms: 0
-  is_error: true
-  num_turns: 0
-  stop_reason: null
-  session_id: string
-  total_cost_usd: 0
-  usage: typeof EMPTY_USAGE
-  model_usage: Record<string, never>
-  permission_denials: never[]
-  uuid: string
-  errors: string[]
-}
-
-export function refusalEnvelope(errors: string[]): RefusalEnvelope {
-  return {
-    type: 'result',
-    subtype: 'error_during_execution',
-    duration_ms: 0,
-    duration_api_ms: 0,
-    is_error: true,
-    num_turns: 0,
-    stop_reason: null,
-    session_id: getSessionId(),
-    total_cost_usd: 0,
-    usage: EMPTY_USAGE,
-    model_usage: {},
-    permission_denials: [],
-    uuid: randomUUID(),
-    errors,
-  }
+export function refusedOutcome(messages: string[], errorClass: ErrorClass = 'option', status: OutcomeStatus = 'refused'): OutcomeRow {
+  const [message = 'The request was refused', ...detail] = messages
+  return createRowStamper().stamp(
+    outcomeRow(
+      { session_id: getSessionId(), turn: 1 },
+      {
+        turnId: randomUUID(),
+        status,
+        steps: 0,
+        wallMs: 0,
+        usage: EMPTY_USAGE,
+        models: {},
+        denials: [],
+        error: { message, class: errorClass, ...(detail.length > 0 ? { detail } : {}) },
+      },
+    ),
+  )
 }

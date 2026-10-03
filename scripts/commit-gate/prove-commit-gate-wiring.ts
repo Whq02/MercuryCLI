@@ -11,8 +11,8 @@ const src = (...p: string[]) =>
   readFileSync(join(import.meta.dir, '..', '..', 'src', ...p), 'utf-8')
 
 console.log('=== PROOF — commit-gate wiring (the one chokepoint) ===')
-const engine = src('QueryEngine.ts')
-check('QueryEngine engages the gate', /engageCommitGate\(config\.setAppState, getSessionId\(\)\)/.test(engine))
+const engine = src('rows', 'turn.ts')
+check('the turn engages the gate', /engageCommitGate\(config\.setAppState, getSessionId\(\)\)/.test(engine))
 check(
   'the engagement rides the per-run hook block that serves EVERY session kind (beside the wards registration)',
   engine.indexOf('registerWardsHook(config.setAppState, sessionId)') !== -1 &&

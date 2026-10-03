@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-watch: src/QueryEngine* src/boot/launchGraph* src/bootstrap/state* src/cli/headless/**
+# gate-watch: src/rows/turn.ts src/boot/launchGraph* src/bootstrap/state* src/cli/headless/**
 # gate-watch: src/cli/print* src/components/App* src/constants/betas* src/constants/oauth*
-# gate-watch: src/entrypoints/agentSdkTypes* src/ink/** src/input-core/command-queue*
+# gate-watch: src/ink/** src/input-core/command-queue*
 # gate-watch: src/input-core/pending-input* src/query/** src/replLauncher* src/screens/REPL*
 # gate-watch: src/services/providers/anthropic/** src/services/api/errors* src/services/api/withRetry*
 # gate-watch: src/services/compact/autoCompact* src/services/tokenEstimation*
@@ -11,7 +11,7 @@
 # gate-watch: src/types/ids* src/types/textInputTypes* src/utils/**
 # gate-watch: src/commands/caching/**
 # gate-watch: scripts/computer/computerDriveKit.ts scripts/core-runtime/* scripts/lib/captureDriver.ts
-# gate-watch: scripts/lib/firstRunSeed.ts scripts/ui/vshot.py
+# gate-watch: scripts/lib/firstRunSeed.ts scripts/lib/rows.ts scripts/ui/vshot.py
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

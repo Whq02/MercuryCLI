@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpath
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { Readable, Writable } from 'node:stream'
+import { outcomeCount } from '../lib/rows.ts'
 
 delete process.env.NODE_ENV
 for (const ambient of ['MERCURY_MODEL', 'MERCURY_OAUTH_TOKEN', 'MERCURY_SCRIPTED_STREAM', 'MERCURY_BARE', 'MERCURY_ADVISOR_MODEL', 'MERCURY_CONSOLE_MODEL', 'CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_HOME']) {
@@ -308,7 +309,7 @@ function runSession(s: Session): Promise<Run> {
     }
     child.stdout.on('data', d => {
       stdout += d
-      const seen = stdout.split('\n').filter(l => l.includes('"type":"result"')).length
+      const seen = outcomeCount(stdout)
       while (results < seen) {
         results++
         owed++
@@ -326,7 +327,7 @@ function runSession(s: Session): Promise<Run> {
       clearTimeout(killer)
       clearInterval(poll)
       const frames = stdout.split('\n').filter(l => l.trim() !== '').map(l => { try { return JSON.parse(l) as Raw } catch { return {} as Raw } })
-      const resultLines = frames.filter(f => f.type === 'result' && typeof f.result === 'string').map(f => String(f.result))
+      const resultLines = frames.filter(f => f.type === 'outcome' && typeof f.answer === 'string').map(f => String(f.answer))
       resolvePromise({ exit, stdout, stderr, results, closedOn, frames, resultLines })
     })
     child.on('spawn', () => sendNext())

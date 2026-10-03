@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/QueryEngine* src/boot/launchGraph* src/bootstrap/state* src/cli/headless/**
+# gate-watch: src/rows/turn.ts src/boot/launchGraph* src/bootstrap/state* src/cli/headless/**
 # gate-watch: src/cli/print* src/components/App* src/constants/betas* src/constants/oauth*
-# gate-watch: src/entrypoints/agentSdkTypes* src/ink/** src/input-core/command-queue*
+# gate-watch: src/ink/** src/input-core/command-queue*
 # gate-watch: src/input-core/pending-input* src/query/** src/replLauncher* src/screens/REPL*
 # gate-watch: src/services/providers/anthropic/** src/services/api/errors* src/services/api/withRetry*
 # gate-watch: src/services/compact/autoCompact* src/services/tokenEstimation*
@@ -13,6 +13,7 @@
 # gate-watch: scripts/ink-runtime/ansiEmulator.ts scripts/ink-runtime/frameHarness.ts
 # gate-watch: src/services/tools/loopGuard* src/services/tools/toolExecution*
 # gate-watch: src/run-core/pauseGate* src/run-core/turn-machine* src/services/tools/toolOrchestration*
+# gate-watch: src/rows/* src/runner/wire/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 cd "$(dirname "$0")/../.." || exit 1

@@ -207,10 +207,10 @@ section('§3 the wire: both rows cross in snake_case and decode back; absent sta
 section("§4 the roads on the code: the runner answers both rows, the seat publishes the answer whole, the connector folds both")
 {
   const printSrc = readFileSync(join(ROOT, 'src/cli/print.ts'), 'utf8')
-  const armAt = printSrc.indexOf("case 'session_facts'")
+  const armAt = printSrc.indexOf("'session/facts': async () => {")
   check('the session_facts arm is found', armAt >= 0)
   const factsArm = printSrc.slice(Math.max(0, armAt))
-  const answerEnd = factsArm.indexOf('respondSuccess(requestId, sessionFactsToWire(answer))')
+  const answerEnd = factsArm.indexOf('return sessionFactsToWire(answer)')
   check('the answer is sent through the wire codec', answerEnd >= 0)
   const answerBlock = factsArm.slice(0, Math.max(0, answerEnd))
   check('the runner reads its latch fact and its catalogue fact once per answer', answerBlock.includes('const anthropicWindow = anthropicWindowFact()') && answerBlock.includes('const openaiCatalogue = openaiCatalogueFact()'))

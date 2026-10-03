@@ -31,7 +31,7 @@ const child = new MercuryChildSession({ cwd: home, permissionMode: 'flow', entry
   onAssistantText: text => { answer += text },
   onToolUse: () => {},
   onToolResult: () => {},
-  onPermissionAsk: () => { finish('unexpected permission ask') },
+  onPermissionAsk: async () => { finish('unexpected permission ask'); return { outcome: 'deny' as const, message: 'unexpected' } },
   onTurnEnd: outcome => { finish(outcome) },
   onExit: code => { finish(`exit ${code}`) },
 })
@@ -39,8 +39,8 @@ const check = (label: string, ok: boolean, detail = ''): void => { console.log(`
 const timer = setTimeout(() => finish('deadline'), 60_000)
 try {
   const argv = child.child.spawnargs.slice(1)
-  check('the ACP child starts through run with rows and its mode', argv[0] === dist && argv[1] === 'run' && argv.includes('--input=rows') && argv.includes('--format=rows') && argv[argv.indexOf('--mode') + 1] === 'flow', JSON.stringify(argv))
-  child.writeUserPrompt([{ type: 'text', text: 'answer the editor' }])
+  check('the ACP child starts through the runner door with its mode and no output words', argv[0] === dist && argv[1] === 'runner' && !argv.some(a => a.startsWith('--input') || a.startsWith('--format') || a === '--permission-channel') && argv[argv.indexOf('--mode') + 1] === 'flow', JSON.stringify(argv))
+  await child.writeUserPrompt([{ type: 'text', text: 'answer the editor' }])
   const outcome = await ended
   check('the ACP run child completes a loopback turn', outcome === 'success' && answer === 'The editor turn answered.' && session.length > 0, JSON.stringify({ outcome, answer, session }))
 } finally {

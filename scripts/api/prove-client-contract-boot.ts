@@ -4,6 +4,7 @@ import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { outcomeCount } from '../lib/rows.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -145,9 +146,9 @@ function boot(a: Arena, sid: string): Run {
     }),
   )
   return {
-    send: prompt => child.stdin.write(`${JSON.stringify({ type: 'user', message: { role: 'user', content: prompt } })}\n`),
+    send: prompt => child.stdin.write(`${JSON.stringify({ type: 'prompt', content: prompt })}\n`),
     end: () => child.stdin.end(),
-    results: () => stdout.split('\n').filter(l => l.includes('"type":"result"')).length,
+    results: () => outcomeCount(stdout),
     stdout: () => stdout,
     stderr: () => stderr,
     exit,

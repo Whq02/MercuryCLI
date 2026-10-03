@@ -2,7 +2,7 @@ import type { AppState } from '../../state/AppState.js'
 import type { TaskStatus, TaskType } from '../../Task.js'
 import { isTerminalTaskStatus } from '../../Task.js'
 import { isBackgroundTask, type TaskState } from '../../tasks/types.js'
-import { enqueueSdkEvent } from '../sdkEventQueue.js'
+import { emitTaskStarted } from '../sdkEventQueue.js'
 import { getTaskOutputDelta } from './diskOutput.js'
 import { projectTaskExecution } from './executionProjection.js'
 
@@ -62,14 +62,12 @@ export function registerTask(task: TaskState, setAppState: TaskAppStateSetter): 
   })
   projectTaskExecution(task)
   if (!isReplacement) {
-    enqueueSdkEvent({
-      type: 'system',
-      subtype: 'task_started',
-      task_id: task.id,
-      ...(task.toolUseId !== undefined ? { tool_use_id: task.toolUseId } : {}),
+    emitTaskStarted({
+      taskId: task.id,
+      ...(task.toolUseId !== undefined ? { callId: task.toolUseId } : {}),
       description: task.description,
-      task_type: task.type,
-      ...('workflowName' in task && task.workflowName !== undefined ? { workflow_name: task.workflowName } : {}),
+      taskType: task.type,
+      ...('workflowName' in task && task.workflowName !== undefined ? { workflow: task.workflowName } : {}),
       ...('prompt' in task && typeof task.prompt === 'string' ? { prompt: task.prompt } : {}),
     })
   }

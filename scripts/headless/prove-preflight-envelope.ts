@@ -23,29 +23,25 @@ if (!existsSync(DIST)) {
     })
     return { status: result.status, out: result.stdout ?? '', err: result.stderr ?? '' }
   }
-  const envelopeOf = (
-    out: string,
-  ): { type?: string; subtype?: string; is_error?: boolean; errors?: string[] } | null => {
+  type Outcome = { type?: string; status?: string; seq?: number; error?: { message?: string; class?: string } }
+  const envelopeOf = (out: string): Outcome | null => {
     const lines = out.split('\n').filter(l => l.trim() !== '')
     if (lines.length !== 1) return null
     try {
-      return JSON.parse(lines[0]!) as { type?: string; subtype?: string; is_error?: boolean; errors?: string[] }
+      return JSON.parse(lines[0]!) as Outcome
     } catch {
       return null
     }
   }
+  const refusedWith = (row: Outcome | null, words: string): boolean =>
+    row !== null && row.type === 'outcome' && row.status === 'refused' && row.seq === 1 && (row.error?.message ?? '').includes(words)
   const SJ = ['run', '--format', 'rows']
 
   const settingsRefusal = run([...SJ, '--config', '/no/such/settings-file.json', 'hi'])
   const settingsEnvelope = envelopeOf(settingsRefusal.out)
   check(
-    'a product-composed refusal (missing --config) rides ONE result envelope',
-    settingsRefusal.status !== 0 &&
-      settingsEnvelope !== null &&
-      settingsEnvelope.type === 'result' &&
-      settingsEnvelope.subtype === 'error_during_execution' &&
-      settingsEnvelope.is_error === true &&
-      (settingsEnvelope.errors ?? []).some(e => e.includes('Settings file not found')),
+    'a product-composed refusal (missing --config) rides ONE refused outcome row (seq 1)',
+    settingsRefusal.status !== 0 && refusedWith(settingsEnvelope, 'Settings file not found'),
     `rc=${settingsRefusal.status} out=${settingsRefusal.out.slice(0, 100).replace(/\s+/g, ' ')} err=${settingsRefusal.err.slice(0, 60).replace(/\s+/g, ' ')}`,
   )
 
@@ -60,17 +56,14 @@ if (!existsSync(DIST)) {
   const argParserRefusal = run([...SJ, '--max-turns', '0', 'hi'])
   const argParserEnvelope = envelopeOf(argParserRefusal.out)
   check(
-    'an argParser refusal (--max-turns 0) rides the envelope',
-    argParserRefusal.status !== 0 &&
-      argParserEnvelope !== null &&
-      argParserEnvelope.is_error === true &&
-      (argParserEnvelope.errors ?? []).some(e => e.includes('positive integer')),
+    'an argParser refusal (--max-turns 0) rides the refused outcome',
+    argParserRefusal.status !== 0 && refusedWith(argParserEnvelope, 'positive integer'),
     `rc=${argParserRefusal.status} out=${argParserRefusal.out.slice(0, 100).replace(/\s+/g, ' ')}`,
   )
 
   const textControl = run(['run', '--config', '/no/such/settings-file.json', 'hi'])
   check(
-    'the text format keeps its prose refusal (control: stderr, no stdout envelope)',
+    'the text format keeps its prose refusal (control: stderr, no stdout row)',
     textControl.status !== 0 &&
       textControl.err.includes('Settings file not found') &&
       envelopeOf(textControl.out) === null,

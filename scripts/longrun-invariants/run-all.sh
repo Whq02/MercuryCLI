@@ -4,7 +4,6 @@
 # gate-watch: src/components/MessageRow.tsx src/components/mercury-ui/screens/CrewView.tsx
 # gate-watch: src/components/mercury-ui/screens/crewStopChord.ts src/components/mercury-ui/theme.ts
 # gate-watch: src/components/messages/* src/components/tasks/* src/daemon/*
-# gate-watch: src/entrypoints/sdk/controlSchemas.ts src/entrypoints/sdk/coreSchemas.ts
 # gate-watch: src/fabric/entryCodec.ts src/fabric/ordinal.ts src/hooks/* src/main.tsx src/screens/REPL.tsx
 # gate-watch: src/services/agentResults/normalize.ts src/services/agents/operatorStop.ts
 # gate-watch: src/services/compact/autoCompact.ts src/services/engine-connector/*
@@ -21,6 +20,7 @@
 # gate-watch: src/utils/messages/factories.ts src/utils/messages/systemMessages.ts src/utils/model/agent.ts
 # gate-watch: src/utils/sessionStorage/* src/utils/swarm/inProcessRunner.ts src/utils/task/workRoster.ts
 # gate-watch: src/utils/verification/verificationState.ts
+# gate-watch: src/rows/* src/runner/wire/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 

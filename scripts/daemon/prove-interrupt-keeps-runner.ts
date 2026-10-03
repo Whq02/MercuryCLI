@@ -213,8 +213,8 @@ tally.section("§3 the source: the daemon's interrupt verb delivers and never si
   tally.check("the ledger's killed row is written once, under the intentional-stop arm, and that arm arms no respawn", killedAt !== -1 && intentionalAt !== -1 && intentionalAt < killedAt && life.indexOf("ledgerExit('killed')", killedAt + 1) === -1 && /if \(ll\.intentionalStop\) \{[\s\S]*?return\s*\}/.test(life) && !/if \(ll\.intentionalStop\) \{[\s\S]*?respawnTimer = setTimeout[\s\S]*?return\s*\}/.test(life.slice(intentionalAt, killedAt + 400)))
   tally.check("a death from outside rides the ladder's own delay: the crash arm arms the respawn with the decision's delayMs", life.includes("ledgerExit('crash-respawn')") && life.includes('setTimeout(() => this.spawnLongLived(short), decision.delayMs)'))
   const print = read('src', 'cli', 'print.ts')
-  const caseAt = print.indexOf("case 'interrupt': {")
-  const caseEnd = print.indexOf("case 'withdraw_send': {", caseAt)
+  const caseAt = print.indexOf("'turn/interrupt': params => {")
+  const caseEnd = print.indexOf("'queue/add': params => acceptInputRow(params),", caseAt)
   const handler = caseAt !== -1 && caseEnd !== -1 ? print.slice(caseAt, caseEnd) : ''
   tally.check("the runner's interrupt handler aborts the in-flight request and releases the driver's hold", handler.includes('inFlightAbort?.abort()') && handler.includes('driver.releaseHold()'), handler === '' ? 'the case block was not found' : '')
   tally.check('…and never ends the process: no shutdown, no exit, no end-session signal in the handler', handler !== '' && !handler.includes('gracefulShutdown(') && !handler.includes('process.exit(') && !handler.includes('EndSessionSignal'))

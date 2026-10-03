@@ -125,11 +125,6 @@ export function graphEntries(): string[] {
     ...readdirSync(join(SRC, 'entrypoints'))
       .filter(f => f.endsWith('.ts') || f.endsWith('.tsx'))
       .map(f => `src/entrypoints/${f}`),
-    ...(existsSync(join(SRC, 'entrypoints', 'sdk'))
-      ? readdirSync(join(SRC, 'entrypoints', 'sdk'))
-          .filter(f => f.endsWith('.ts'))
-          .map(f => `src/entrypoints/sdk/${f}`)
-      : []),
   ]
   return [...new Set(entries)].map(e => join(GRAPH_ROOT, e)).filter(p => existsSync(p))
 }

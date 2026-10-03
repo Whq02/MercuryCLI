@@ -32,7 +32,7 @@ const { SettingsSchema } = await import('../../src/utils/settings/types.ts')
 const { parseSettingsFile } = await import('../../src/utils/settings/settings.ts')
 const { updateHooksConfigSnapshot } = await import('../../src/utils/hooks/hooksConfigSnapshot.ts')
 const { query } = await import('../../src/query.ts')
-const { ask } = await import('../../src/QueryEngine.ts')
+const { ask } = await import('../../src/rows/turn.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { createUserMessage, INTERRUPT_MESSAGE } = await import('../../src/utils/messages.ts')
 const { abortWithCut, turnCutWhy, turnCutOf } = await import('../../src/utils/messages/turnCut.ts')
@@ -324,6 +324,7 @@ section('§3 THE SDK INTERRUPT MID-STREAM: once, with no tools ended')
     abortController.abort()
   })
   const out: Array<Record<string, unknown>> = []
+  const conversation: Array<Record<string, unknown>> = []
   try {
     for await (const msg of ask({
       commands: [],
@@ -339,14 +340,15 @@ section('§3 THE SDK INTERRUPT MID-STREAM: once, with no tools ended')
       getReadFileCache: () => createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE),
       setReadFileCache: () => {},
       abortController,
+      mutableMessages: conversation as never,
     })) {
       out.push(msg as Record<string, unknown>)
     }
   } finally {
     await api.close()
   }
-  const result = out.at(-1) as { type?: string; subtype?: string } | undefined
-  check('the SDK stream ends on a result frame after the interruption row', result?.type === 'result' && out.some(m => j(m).includes(INTERRUPT_MESSAGE)), j({ result, rows: out.map(m => m.type) }))
+  const result = out.at(-1) as { type?: string; status?: string } | undefined
+  check('the rows stream ends on an interrupted outcome and the interruption line lands in the conversation', result?.type === 'outcome' && result.status === 'interrupted' && conversation.some(m => j(m).includes(INTERRUPT_MESSAGE)), j({ result, rows: out.map(m => m.type) }))
   check('exactly one model call (no post-abort continuation)', api.messageRequests().length === 1, `${api.messageRequests().length}`)
   const records = await waitForRecords(MARK, 1)
   check('the Interrupt hook ran exactly once', records.length === 1, records.length === 0 ? `the hook never ran: no record at ${MARK}` : `${records.length} records`)

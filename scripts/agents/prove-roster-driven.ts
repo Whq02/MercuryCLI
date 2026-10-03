@@ -81,7 +81,7 @@ function runHeadless(world: World, fixture: FixtureApi, prompt: string): Promise
         try {
           const frame = JSON.parse(line) as Record<string, unknown>
           frames.push(frame)
-          if (frame.type === 'result') child.stdin.end()
+          if (frame.type === 'outcome') child.stdin.end()
         } catch {
           continue
         }
@@ -94,7 +94,7 @@ function runHeadless(world: World, fixture: FixtureApi, prompt: string): Promise
   })
 }
 
-const resultText = (run: Run): string => run.frames.filter(f => f.type === 'result').map(f => String((f as { result?: unknown }).result ?? '')).join('\n')
+const resultText = (run: Run): string => run.frames.filter(f => f.type === 'outcome').map(f => String((f as { answer?: unknown }).answer ?? '')).join('\n')
 const bodies = (fixture: FixtureApi): Array<Record<string, unknown>> => fixture.messageRequests().map(r => r.body as Record<string, unknown>)
 const toolNamesOf = (body: Record<string, unknown>): string[] => (Array.isArray(body.tools) ? (body.tools as Array<{ name: string }>).map(t => t.name) : [])
 const systemTextOf = (body: Record<string, unknown>): string => (Array.isArray(body.system) ? (body.system as Array<{ text?: string }>).map(s => s.text ?? '').join('\n') : String(body.system ?? ''))

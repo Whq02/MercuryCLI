@@ -477,7 +477,7 @@ export async function decideToolPermissionWithModes(
       const operatorReachable =
         !headless &&
         (context.options.isNonInteractiveSession !== true ||
-          context.options.permissionChannel !== undefined)
+          context.options.hostHoldsAsks === true)
 
       if (
         engineDecision.decisionReason?.type === 'safetyCheck' &&

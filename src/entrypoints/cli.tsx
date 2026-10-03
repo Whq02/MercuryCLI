@@ -33,8 +33,8 @@ async function main(): Promise<void> {
       const message = `Project root: ${error instanceof Error ? error.message : String(error)}`
       console.error(message)
       if (runArgs.command === 'run' && runArgs.format === 'rows') {
-        const [{ refusalEnvelope }, { writeSync }] = await Promise.all([import('../cli/headless/refusalEnvelope.js'), import('node:fs')])
-        writeSync(1, `${JSON.stringify(refusalEnvelope([message]))}\n`)
+        const [{ refusedOutcome }, { writeSync }] = await Promise.all([import('../cli/headless/refusalEnvelope.js'), import('node:fs')])
+        writeSync(1, `${JSON.stringify(refusedOutcome([message], 'load'))}\n`)
       }
       process.exitCode = 1
       return
@@ -108,7 +108,7 @@ async function main(): Promise<void> {
       runArgs.command === 'run' ||
       args.includes('-h') ||
       args.includes('--help') ||
-      ['daemon', 'acp'].includes(args[0] ?? '')
+      ['daemon', 'acp', 'runner'].includes(args[0] ?? '')
     if (nonTakeover) {
       const { releaseLauncherAltHoldNow } = await import('../ink/launcherAltHold.js')
       releaseLauncherAltHoldNow()
@@ -127,10 +127,10 @@ async function main(): Promise<void> {
     const { setupGracefulShutdown, setRunPreflightSignalWriter } = await import('../utils/gracefulShutdown.js')
     setupGracefulShutdown()
     if (runArgs.command === 'run' && runArgs.format === 'rows' && runArgs.input !== 'rows' && !runArgs.outputRequest) {
-      const [{ refusalEnvelope }, { writeSync }] = await Promise.all([import('../cli/headless/refusalEnvelope.js'), import('node:fs')])
+      const [{ refusedOutcome }, { writeSync }] = await Promise.all([import('../cli/headless/refusalEnvelope.js'), import('node:fs')])
       setRunPreflightSignalWriter(code => {
         const signal = code === 130 ? 'SIGINT' : 'SIGTERM'
-        writeSync(1, `${JSON.stringify(refusalEnvelope([`mercury run stopped before the turn (${signal})`]))}\n`)
+        writeSync(1, `${JSON.stringify(refusedOutcome([`mercury run stopped before the turn (${signal})`], 'interrupt', 'interrupted'))}\n`)
       })
     }
   }
@@ -164,13 +164,15 @@ async function main(): Promise<void> {
   }
   if (args[0] === 'acp') {
     profileCheckpoint('route_acp')
-    if (!args.includes('--stdio')) {
+    const extra = args.slice(1)
+    if (extra.length > 0) {
       const { writeSync } = await import('node:fs')
+      const help = extra[0] === '-h' || extra[0] === '--help'
       try {
-        writeSync(2, 'Usage: mercury acp --stdio\n')
+        writeSync(help ? 1 : 2, help ? 'Usage: mercury acp\n\nServe an editor over the Agent Client Protocol on stdio.\n' : `error: unknown option '${extra[0]}'\n`)
       } catch {
       }
-      process.exit(2)
+      process.exit(help ? 0 : 2)
     }
     const { enableConfigs } = await import('../utils/config.js')
     enableConfigs()
@@ -223,8 +225,8 @@ main().catch(async (error: unknown) => {
     const { inspectRunArgs } = await import('../cli/runArgs.js')
     const run = inspectRunArgs(process.argv.slice(2))
     if (run.command === 'run' && run.format === 'rows' && run.input !== 'rows' && !run.outputRequest) {
-      const [{ refusalEnvelope }, { writeSync }] = await Promise.all([import('../cli/headless/refusalEnvelope.js'), import('node:fs')])
-      writeSync(1, `${JSON.stringify(refusalEnvelope([error instanceof Error ? error.message : String(error)]))}\n`)
+      const [{ refusedOutcome }, { writeSync }] = await Promise.all([import('../cli/headless/refusalEnvelope.js'), import('node:fs')])
+      writeSync(1, `${JSON.stringify(refusedOutcome([error instanceof Error ? error.message : String(error)], 'internal', 'failed'))}\n`)
     }
   } catch {}
   try {

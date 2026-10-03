@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
-// gate-watch: src/Tool.ts src/bootstrap/state.ts src/cli/structuredIO.ts src/utils/cwd.ts
+// gate-watch: src/Tool.ts src/bootstrap/state.ts src/cli/headless/runnerAsks.ts src/runner/wire/* src/utils/cwd.ts
 // gate-watch: src/utils/permissions/** src/tools/BashTool/** src/tools/FileWriteTool/FileWriteTool.ts src/tools/FileEditTool/FileEditTool.ts
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { PassThrough } from 'node:stream'
 import type { Tool, ToolUseContext } from '../../src/Tool.js'
 import type { PermissionMode } from '../../src/types/permissions.js'
 
@@ -23,7 +24,8 @@ const { checkPathConstraints } = await import('../../src/tools/BashTool/pathVali
 const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.js')
 const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.js')
 const { BashTool } = await import('../../src/tools/BashTool/BashTool.js')
-const { StructuredIO } = await import('../../src/cli/structuredIO.js')
+const { createRunnerAsks } = await import('../../src/cli/headless/runnerAsks.js')
+const { createPeer } = await import('../../src/runner/wire/peer.js')
 const bootstrap = await import('../../src/bootstrap/state.js')
 const { getCwd, runWithCwdOverride } = await import('../../src/utils/cwd.js')
 const shellUtils = await import('../../src/tools/BashTool/utils.js')
@@ -40,31 +42,19 @@ async function permissionContext(mode: PermissionMode, addDirs: string[] = []) {
   return (await initializeToolPermissionContext(args)).toolPermissionContext
 }
 async function channel(tool: Tool, input: Record<string, unknown>, mode: PermissionMode, addDirs: string[] = []) {
-  const queue: string[] = []
-  let ended = false
-  let wake: (() => void) | undefined
-  const feed = (value: unknown): void => { queue.push(JSON.stringify(value) + '\n'); wake?.() }
-  const stream = {
-    async *[Symbol.asyncIterator]() {
-      while (!ended) {
-        while (queue.length) yield queue.shift()!
-        if (!ended) await new Promise<void>(resolve => { wake = resolve })
-      }
-    },
-  }
-  const io = new StructuredIO(stream)
+  const toHost = new PassThrough()
+  const toRunner = new PassThrough()
+  const runner = createPeer({ input: toRunner, output: toHost, side: 'runner', log: () => {} })
+  const host = createPeer({ input: toHost, output: toRunner, side: 'host', log: () => {} })
+  const capabilities = { holds_asks: true, elicitation: false, partial_rows: false }
+  const runnerAsks = createRunnerAsks(runner, () => capabilities)
   let asks = 0
-  const outward = (async () => {
-    for await (const raw of io.outbound) {
-      const frame = raw as { type?: string; request_id?: string; request?: { subtype?: string } }
-      if (frame.type === 'control_request' && frame.request?.subtype === 'can_use_tool') {
-        asks++
-        feed({ type: 'control_response', response: { subtype: 'success', request_id: frame.request_id, response: { behavior: 'allow', updated_input: input } } })
-      }
-    }
-  })()
-  void outward
-  void (async () => { for await (const item of io.structuredInput) void item })()
+  host.onRequest('permission/request', () => {
+    asks++
+    return { outcome: 'allow' as const, input }
+  })
+  runner.onRequest('initialize', () => ({ protocol: 1, runner: { version: '1.0.0', pid: process.pid }, session_id: 'sid' }))
+  void host.request('initialize', { protocol: 1, host: { name: 'proof', version: '0' }, capabilities })
   let state = { toolPermissionContext: await permissionContext(mode, addDirs), sessionHooks: new Map(), tasks: {}, mcp: { clients: [], tools: [], commands: [], resources: {} } }
   const context = {
     abortController: new AbortController(),
@@ -75,12 +65,13 @@ async function channel(tool: Tool, input: Record<string, unknown>, mode: Permiss
   } as unknown as ToolUseContext
   const timer = setTimeout(() => context.abortController.abort(), 30_000)
   try {
-    const decision = await io.createCanUseTool()(tool, input, context, { message: { id: 'permission-probe' } } as never, 'toolu_permission_probe')
+    const decision = await runnerAsks.createCanUseTool()(tool, input, context, { message: { id: 'permission-probe' } } as never, 'toolu_permission_probe')
     return { asks, decision }
   } finally {
     clearTimeout(timer)
-    ended = true
-    wake?.()
+    host.end('the host left')
+    toHost.end()
+    toRunner.end()
   }
 }
 
@@ -105,7 +96,7 @@ try {
       ] as Array<[Tool, Record<string, unknown>]>) {
         const result = await channel(tool, input, mode)
         const expected = mode === 'default' || (mode === 'implement' && place === 'outside') ? 1 : 0
-        check(`${mode} ${tool.name} ${place}: ${expected} permission-channel asks`, result.asks === expected, `asks=${result.asks}`)
+        check(`${mode} ${tool.name} ${place}: ${expected} ask(s) on the runner door`, result.asks === expected, `asks=${result.asks}`)
         check(`${mode} ${tool.name} ${place}: approved action proceeds`, result.decision.behavior === 'allow', result.decision.behavior)
       }
     }

@@ -62,7 +62,6 @@ import { elicitationPausedClock, runElicitationHooks, runElicitationResultHooks 
 import { getMcpServerHeaders } from './headersHelper.js'
 import { buildMcpToolName, wireSafeMcpToolName } from './mcpStringUtils.js'
 import { normalizeNameForMCP } from './normalization.js'
-import { SdkControlClientTransport, type SendMcpMessageCallback } from './SdkControlTransport.js'
 import { isCoordinationServerEnabled, isCoordinationServer, withCoordinationLeaseHolder } from './coordinationServer.js'
 import { withMcpToolCardHeader } from './toolCard.js'
 import { mcpPolicyDenyReason, mcpToolAllowed, type McpToolAnnotations } from './toolPolicy.js'
@@ -594,8 +593,6 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
         fetch: wrapped as never,
         requestInit: requestInit as never,
       })
-    } else if (type === 'host') {
-      throw new Error('SDK servers are connected through setupSdkMcpClients')
     } else if (type === 'claudeai-proxy') {
       const token = getClaudeAIOAuthTokens()?.accessToken
       if (!token) throw new Error(`claude.ai proxy server ${name} requires a claude.ai OAuth token`)
@@ -843,7 +840,6 @@ export async function clearServerCache(name: string, serverRef: ScopedMcpServerC
 }
 
 export async function ensureConnectedClient(client: MCPServerConnection): Promise<ConnectedMCPServer> {
-  if (client.config.type === 'host') return client as ConnectedMCPServer
   const connection = await connectToServer(client.name, client.config)
   if (connection.type !== 'connected') {
     throw new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
@@ -878,9 +874,8 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
   const rawHint = meta['anthropic/searchHint']
   const searchHint = typeof rawHint === 'string' ? rawHint.replace(/\s+/g, ' ').trim() || undefined : undefined
   const alwaysLoad = meta['anthropic/alwaysLoad'] === true
-  const skipPrefix = client.config.type === 'host' && isEnvTruthy(process.env.MERCURY_HOST_MCP_NO_PREFIX)
   const qualifiedName = buildMcpToolName(serverName, toolName)
-  const modelFacingName = skipPrefix ? toolName : wireSafeMcpToolName(serverName, toolName)
+  const modelFacingName = wireSafeMcpToolName(serverName, toolName)
   const rawDescription = sdkTool.description ?? ''
   const description = withMcpToolCardHeader(serverName, rawDescription, annotations)
   const inputJSONSchema = sdkTool.inputSchema
@@ -1626,7 +1621,7 @@ export async function getMcpToolsCommandsAndResources(
       continue
     }
     const type = config.type ?? 'stdio'
-    if (type === 'stdio' || type === 'host') local.push([name, config])
+    if (type === 'stdio') local.push([name, config])
     else remote.push([name, config])
   }
   let resourceToolsAdded = false
@@ -1704,60 +1699,4 @@ export async function reconnectMcpServerImpl(
     logMCPError(name, err)
     return { client: { name, type: 'failed', config, error: errorMessage(err) }, tools: [], commands: [] }
   }
-}
-
-export async function setupSdkMcpClients(
-  sdkMcpConfigs: Record<string, McpServerConfig>,
-  sendMcpMessage: SendMcpMessageCallback,
-): Promise<{ clients: MCPServerConnection[]; tools: Tool[] }> {
-  const settled = await Promise.allSettled(
-    Object.entries(sdkMcpConfigs).map(async ([name, config]): Promise<{ client: MCPServerConnection; tools: Tool[] }> => {
-      try {
-        const client = buildSdkClient()
-        const transport = new SdkControlClientTransport(name, sendMcpMessage)
-        let timer: NodeJS.Timeout | null = null
-        try {
-          await Promise.race([
-            client.connect(transport),
-            new Promise<never>((_, reject) => {
-              timer = setTimeout(() => {
-                reject(
-                  new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
-                    `MCP server "${name}" (sdk) did not answer in ${deadlineSecondsLabel(connectTimeoutMs())} — retry from /mcp`,
-                    'MCP connection timeout',
-                  ),
-                )
-                void transport.close().catch(() => {})
-              }, connectTimeoutMs())
-            }),
-          ])
-        } finally {
-          if (timer !== null) clearTimeout(timer)
-        }
-        const connection: ConnectedMCPServer = {
-          type: 'connected',
-          name,
-          client,
-          capabilities: client.getServerCapabilities() ?? {},
-          config: { ...config, scope: 'dynamic' } as ScopedMcpServerConfig,
-          cleanup: async () => {
-            await client.close()
-          },
-        }
-        const tools = connection.capabilities.tools ? await fetchToolsForClient(connection) : []
-        return { client: connection, tools }
-      } catch (err) {
-        logMCPError(name, err)
-        return { client: { name, type: 'failed', config: { ...config, scope: 'user' } as ScopedMcpServerConfig, error: errorMessage(err) }, tools: [] }
-      }
-    }),
-  )
-  const clients: MCPServerConnection[] = []
-  const tools: Tool[] = []
-  for (const result of settled) {
-    if (result.status !== 'fulfilled') continue
-    clients.push(result.value.client)
-    tools.push(...result.value.tools)
-  }
-  return { clients, tools }
 }

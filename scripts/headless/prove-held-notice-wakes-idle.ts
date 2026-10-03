@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
 import { basename, join } from 'node:path'
-import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, isResult, makeTally, queueJournal, removeWorld, sleep, transcriptFiles, user, type Frame } from '../daemon/dupline-world.ts'
+import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, isOutcome, makeTally, queueJournal, removeWorld, sleep, transcriptFiles, user, type Frame } from '../daemon/dupline-world.ts'
 import { seedScratchHome, startScriptedFixture, type Script, type ScriptedRequest } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-held-notice-wakes-idle')
@@ -35,12 +35,6 @@ const HANG_MS = 600_000
 const TAKE_BOUND_MS = 2_500
 const HELD_STATUS = /<status>(?:killed|stopped|failed|completed)<\/status>/
 
-type Block = { type?: string; text?: string }
-const blocksOf = (f: Frame): Block[] => {
-  const content = (f.message as { content?: unknown } | undefined)?.content
-  return Array.isArray(content) ? (content as Block[]) : []
-}
-const textOf = (f: Frame): string => blocksOf(f).map(b => (b.type === 'text' ? (b.text ?? '') : '')).join('')
 const isChild = (req: ScriptedRequest): boolean => req.opening.trim() === CHILD_PROMPT
 const script: Script = req => {
   if (isChild(req)) return [{ type: 'text', text: CHILD_DONE }]
@@ -89,7 +83,7 @@ async function crashWithTheChildRunning(w: World, label: string): Promise<Crash>
   hangNextChild = true
   const runner = bootRunner({ cwd: w.cwd, env: w.env, extraArgv: ['--session-id', sessionId] })
   runner.send(user(`${LAUNCH_ASK} (${label})`, randomUUID()))
-  const closing = await runner.waitFor("the parent's closing words", f => f.type === 'assistant' && textOf(f).includes(LAUNCHED), bound(90_000))
+  const closing = await runner.waitFor("the parent's closing words", f => f.type === 'text' && f.parent_call_id === undefined && String(f.text ?? '').includes(LAUNCHED), bound(90_000))
   const hungBy = Date.now() + bound(30_000)
   while (Date.now() < hungBy && !fixture.requests.slice(before).some(isChild)) await sleep(100)
   const receipt = fixture.requests.slice(before).flatMap(r => r.results).find(x => x.text.startsWith(LAUNCH_LINE))
@@ -125,9 +119,9 @@ async function proveRoad(name: 'cold' | 'warm'): Promise<void> {
     tally.check('warm P3 the warm runner took the crashed session through the claim', response?.subtype === 'success' && response.response?.session_id === crash.sessionId, JSON.stringify(answer ?? null).slice(0, 240))
   }
 
-  const started = await runner.waitFor('a turn on the restarted runner', f => f.type === 'system' && f.subtype === 'turn_started', bound(20_000))
+  const started = await runner.waitFor('a turn on the restarted runner', f => f.type === 'turn' && f.state === 'started', bound(20_000))
   const turnAt = started === null ? Number.NaN : Date.now()
-  const result = started === null ? null : await runner.waitFor("that turn's result", isResult, bound(60_000))
+  const result = started === null ? null : await runner.waitFor("that turn's outcome", isOutcome, bound(60_000))
   await sleep(300)
   const alive = runner.proc.exitCode === null && runner.proc.signalCode === null
   const heldFor = (text: string): boolean => (crash.childId !== '' && text.includes(`<task-id>${crash.childId}</task-id>`) && HELD_STATUS.test(text)) || text.includes('runner restarted after')
@@ -139,13 +133,13 @@ async function proveRoad(name: 'cold' | 'warm'): Promise<void> {
   const takenAt = takenRow === undefined ? Number.NaN : Date.parse(takenRow.at)
   const gap = takenAt - queuedAt
   const since = (at: number): string => (Number.isFinite(at) ? `+${((at - bootAt) / 1000).toFixed(2)}s` : 'never')
-  console.log(`  clock: restart ${since(bootAt)} · notice queued ${since(queuedAt)} · taken ${since(takenAt)} · turn_started ${since(turnAt)} · queued→taken ${Number.isFinite(gap) ? `${Math.round(gap)} ms` : 'never'}`)
+  console.log(`  clock: restart ${since(bootAt)} · notice queued ${since(queuedAt)} · taken ${since(takenAt)} · turn started ${since(turnAt)} · queued→taken ${Number.isFinite(gap) ? `${Math.round(gap)} ms` : 'never'}`)
   console.log(`  requests after the restart: ${fixture.requests.slice(before).map(r => `${r.n}:${isChild(r) ? 'child' : 'main'}${r.step} ${JSON.stringify(r.ask.slice(0, 48))}`).join(' · ') || 'none'}`)
 
   tally.check(`${name} L1 the restarted runner queued a held notice for the child (its stop, or its landing where the restart relaunched it, or the restart row)`, queuedRow >= 0, JSON.stringify(rows.map(r => `${r.operation}:${r.content.slice(0, 40)}`)).slice(0, 400))
-  tally.check(`${name} L2 with no user message sent, a turn started on the restarted runner and its model request carried that notice as its own ask`, started !== null && carrying !== undefined, `turn_started ${started !== null} · carrying request ${carrying?.n ?? 'none'}`)
+  tally.check(`${name} L2 with no user message sent, a turn started on the restarted runner and its model request carried that notice as its own ask`, started !== null && carrying !== undefined, `turn started ${started !== null} · carrying request ${carrying?.n ?? 'none'}`)
   tally.check(`${name} L3 the runner took the notice for its turn within ${TAKE_BOUND_MS} ms of queueing it`, Number.isFinite(gap) && gap <= TAKE_BOUND_MS, Number.isFinite(gap) ? `${Math.round(gap)} ms` : 'the notice was never taken')
-  tally.check(`${name} L4 the turn settled with a result and the seat stayed up for the next message`, result !== null && alive, `result ${result === null ? 'none' : String(result.subtype)} · alive ${alive}`)
+  tally.check(`${name} L4 the turn settled with an outcome and the seat stayed up for the next message`, result !== null && alive, `outcome ${result === null ? 'none' : String(result.status)} · alive ${alive}`)
   if (tally.failed() > 0) console.log(`  stderr tail: ${runner.stderr().trim().split('\n').slice(-3).join(' | ').slice(0, 400)}`)
   await runner.stop(bound(5_000))
 }

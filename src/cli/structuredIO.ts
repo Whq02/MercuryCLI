@@ -1,95 +1,13 @@
-import { randomUUID } from 'node:crypto'
+
 import { writeSync } from 'node:fs'
-import type { z } from 'zod/v4'
-import type { ElicitResult } from '../services/mcp/sdk.js'
 import { ndjsonSafeStringify } from './ndjsonSafeStringify.js'
-import { PermissionResultSchema } from '../entrypoints/sdk/coreSchemas.js'
-import { HookJSONOutputSchema } from '../utils/hooks/contract.js'
-import { SDKControlElicitationResponseSchema } from '../entrypoints/sdk/controlSchemas.js'
-import type { JSONRPCMessage } from '../services/mcp/sdk.js'
-import type {
-  ControlErrorResponse,
-  ControlResponse,
-  SDKControlRequest,
-  SDKControlResponse,
-  SDKUserMessage,
-  StdinMessage,
-  StdoutMessage,
-} from '../entrypoints/sdk/controlTypes.js'
-import type { CanUseToolFn } from '../hooks/useCanUseTool.js'
-import type { Tool, ToolUseContext } from '../Tool.js'
-import type { HookCallback, PermissionRequestResult } from '../types/hooks.js'
-import type { HookInput, HookJSONOutput } from '../utils/hooks/contract.js'
-import type {
-  PermissionDecision,
-  PermissionDecisionReason,
-  PermissionUpdate,
-} from '../types/permissions.js'
-import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
-import { formatLimit, isDeadlineExceeded } from '../utils/deadline.js'
+import { createRowStamper, type RowDraft } from '../rows/project.js'
+import { InputRowSchema, type InputRow, type Row } from '../rows/vocabulary.js'
+import { MAX_LINE_BYTES } from '../runner/wire/errors.js'
 import { logForDebugging } from '../utils/debug.js'
 import { logForDiagnosticsNoPII } from '../utils/diagLogs.js'
-import { UNANSWERED_ASK_REJECT_MESSAGE, turnCutOf } from '../utils/messages/rejectionText.js'
 import { stripBOM } from '../utils/jsonRead.js'
-import { executePermissionRequestHooks } from '../utils/hooks.js'
-import { logError } from '../utils/log.js'
-import { hasPermissionsToUseTool } from '../utils/permissions/permissions.js'
-import { encodeDecisionReasonForWire } from '../utils/permissions/decisionReasonWire.js'
-import {
-  applyPermissionUpdates,
-  persistPermissionUpdates,
-} from '../utils/permissions/PermissionUpdate.js'
-import {
-  notifySessionStateChanged,
-  type RequiresActionDetails,
-} from '../utils/sessionState.js'
 import { Stream } from '../utils/stream.js'
-
-export const SANDBOX_NETWORK_ACCESS_TOOL_NAME = 'SandboxNetworkAccess'
-
-const RESOLVED_TOOL_USE_CAP = 1000
-
-export const PERMISSION_CHANNEL_CLOSED_CAUSE = 'the permission channel closed while the ask was pending'
-
-export function unansweredAskCause(reason: unknown): string | undefined {
-  if (reason === 'workflow-permission-timeout') return 'the permission ask timed out'
-  if (turnCutOf(reason).kind !== 'idle-timeout') return undefined
-  const limitMs = isDeadlineExceeded(reason) ? (reason as { limitMs?: unknown }).limitMs : undefined
-  return typeof limitMs === 'number' && Number.isFinite(limitMs) && limitMs > 0
-    ? `nobody answered within ${formatLimit(limitMs)}, the turn's no-progress limit`
-    : "nobody answered before the turn's no-progress timeout"
-}
-
-class AbortError extends Error {
-  constructor(message = 'Request was aborted') {
-    super(message)
-    this.name = 'AbortError'
-  }
-}
-
-class BoundedSet {
-  readonly #set = new Set<string>()
-  constructor(private readonly cap: number) {}
-  add(value: string): void {
-    if (this.#set.has(value)) return
-    this.#set.add(value)
-    if (this.#set.size > this.cap) {
-      const oldest = this.#set.values().next().value
-      if (oldest !== undefined) this.#set.delete(oldest)
-    }
-  }
-  has(value: string): boolean {
-    return this.#set.has(value)
-  }
-}
-
-type PendingRequest = {
-  resolve: (value: unknown) => void
-  reject: (error: Error) => void
-  schema: z.ZodType | undefined
-  toolUseID: string | undefined
-  cleanup: () => void
-}
 
 function fatalProtocolError(reason: string): never {
   try {
@@ -97,24 +15,6 @@ function fatalProtocolError(reason: string): never {
   } catch {
   }
   process.exit(1)
-}
-
-function serializeDecisionReason(reason: unknown): string | undefined {
-  if (!reason || typeof reason !== 'object') return undefined
-  const typed = reason as { type?: string; reason?: string; hookName?: string }
-  switch (typed.type) {
-    case 'rule':
-    case 'mode':
-    case 'subcommandResult':
-    case 'permissionPromptTool':
-      return undefined
-    default: {
-      if (typeof typed.reason === 'string' && typed.reason.length > 0) {
-        return typed.reason
-      }
-      return undefined
-    }
-  }
 }
 
 export const BROKEN_STDOUT_LINE =
@@ -125,27 +25,45 @@ export function isBrokenPipeError(error: unknown): boolean {
   return code === 'EPIPE' || code === 'ERR_STREAM_DESTROYED' || code === 'ERR_STREAM_WRITE_AFTER_END'
 }
 
+export const INPUT_REFUSED_CODE = 'input_refused'
+
+export type TransitionalLine = { type: 'system'; subtype: 'seat_verb_applied' | 'elicitation_complete'; [key: string]: unknown }
+export type OutboundLine = RowDraft | TransitionalLine
+export type WireLine = Row | TransitionalLine
+
+export function isRowLine(line: OutboundLine): line is RowDraft {
+  return (line as { type: string }).type !== 'system'
+}
+
+export function emptyInputRow(row: InputRow): string | null {
+  if (row.type === 'prompt' && (row.content === '' || (Array.isArray(row.content) && row.content.length === 0))) return 'a prompt row with no content'
+  if (row.type === 'shell' && row.command.trim() === '') return 'a shell row with no command'
+  if (row.type === 'note' && (row.to === '' || row.content === '')) return 'a note row with no agent or no content'
+  return null
+}
+
+export function inputRefusal(parsed: unknown): string | null {
+  const check = InputRowSchema().safeParse(parsed)
+  const type = parsed !== null && typeof parsed === 'object' ? (parsed as { type?: unknown }).type : undefined
+  if (check.success) {
+    const empty = emptyInputRow(check.data)
+    return empty === null ? null : `input refused: ${empty}`
+  }
+  if (typeof type !== 'string') return 'input refused: a row needs a type (prompt, shell or note)'
+  if (type !== 'prompt' && type !== 'shell' && type !== 'note') return `input refused: unknown row type '${type}' (prompt, shell or note)`
+  return `input refused: the ${type} row is malformed — ${check.error.issues.map(issue => `${issue.path.join('.') || 'row'}: ${issue.message}`).join('; ')}`
+}
+
 export class StructuredIO {
-  readonly structuredInput: AsyncGenerator<StdinMessage, void, unknown>
-  readonly outbound: Stream<StdoutMessage> = new Stream<StdoutMessage>()
+  readonly structuredInput: AsyncGenerator<InputRow, void, unknown>
+  readonly outbound: Stream<OutboundLine> = new Stream<OutboundLine>()
+  readonly rows = createRowStamper()
 
-  readonly #replayUserMessages: boolean
-  #inputClosed = false
   readonly #prepended: string[] = []
-  readonly #pending = new Map<string, PendingRequest>()
-  readonly #pendingCanUseTool = new Map<string, SDKControlRequest>()
-  readonly #resolvedToolUses = new BoundedSet(RESOLVED_TOOL_USE_CAP)
-  #onUnexpectedResponse:
-    | ((response: SDKControlResponse['response']) => Promise<void>)
-    | undefined
-  #onControlRequestSent: ((request: SDKControlRequest) => void) | undefined
-  #onControlRequestResolved: ((requestId: string) => void) | undefined
+  readonly #refuse: (text: string) => void
 
-  constructor(
-    input: AsyncIterable<string>,
-    replayUserMessages?: boolean,
-  ) {
-    this.#replayUserMessages = replayUserMessages ?? false
+  constructor(input: AsyncIterable<string>, refuse: (text: string) => void = text => logForDebugging(text)) {
+    this.#refuse = refuse
     this.structuredInput = this.#createInputStream(input)
   }
 
@@ -154,298 +72,64 @@ export class StructuredIO {
     this.#prepended.push(content)
   }
 
-  #takePrepended(): SDKUserMessage[] {
+  #takePrepended(): InputRow[] {
     const taken = this.#prepended.splice(0, this.#prepended.length)
-    return taken.map(content => ({
-      type: 'user' as const,
-      message: { role: 'user', content },
-      parent_tool_use_id: null,
-      session_id: '',
-    })) as SDKUserMessage[]
+    return taken.map(content => ({ type: 'prompt' as const, content }))
   }
 
-  async *#createInputStream(
-    input: AsyncIterable<string>,
-  ): AsyncGenerator<StdinMessage, void, unknown> {
+  async *#createInputStream(input: AsyncIterable<string>): AsyncGenerator<InputRow, void, unknown> {
     let buffer = ''
+    let skipping = false
     yield* this.#takePrepended()
-    try {
-      for await (const chunk of input) {
-        buffer += chunk
-        let newlineIndex = buffer.indexOf('\n')
-        while (newlineIndex >= 0) {
-          const line = stripBOM(buffer.slice(0, newlineIndex))
-          buffer = buffer.slice(newlineIndex + 1)
-          if (line.trim().length > 0) {
-            const message = await this.#classifyLine(line, true)
-            yield* this.#takePrepended()
-            if (message !== undefined) yield message
-          }
-          newlineIndex = buffer.indexOf('\n')
+    for await (const chunk of input) {
+      buffer += chunk
+      let newlineIndex = buffer.indexOf('\n')
+      while (newlineIndex >= 0) {
+        const line = stripBOM(buffer.slice(0, newlineIndex))
+        buffer = buffer.slice(newlineIndex + 1)
+        if (skipping) {
+          skipping = false
+        } else if (line.trim().length > 0) {
+          const row = this.#classifyLine(line, true)
+          yield* this.#takePrepended()
+          if (row !== undefined) yield row
         }
-        yield* this.#takePrepended()
+        newlineIndex = buffer.indexOf('\n')
       }
-      if (buffer.trim().length > 0) {
-        const message = await this.#classifyLine(stripBOM(buffer), false)
-        yield* this.#takePrepended()
-        if (message !== undefined) yield message
+      if (!skipping && buffer.length > MAX_LINE_BYTES) {
+        this.#refuse(`input refused: a line longer than ${MAX_LINE_BYTES} bytes was skipped`)
+        buffer = ''
+        skipping = true
       }
       yield* this.#takePrepended()
-    } finally {
-      this.#closeInput()
     }
+    if (!skipping && buffer.trim().length > 0) {
+      const row = this.#classifyLine(stripBOM(buffer), false)
+      yield* this.#takePrepended()
+      if (row !== undefined) yield row
+    }
+    yield* this.#takePrepended()
   }
 
 
-  async #classifyLine(
-    line: string,
-    emitDiagnostic: boolean,
-  ): Promise<StdinMessage | undefined> {
+  #classifyLine(line: string, emitDiagnostic: boolean): InputRow | undefined {
+    let parsed: unknown
     try {
-      const parsed = JSON.parse(line) as {
-        type?: string
-        [key: string]: unknown
-      }
-      if (emitDiagnostic) {
-        logForDiagnosticsNoPII('debug', 'headless_stdin_message', {
-          type: parsed.type ?? 'unknown',
-        })
-      }
-      switch (parsed.type) {
-        case 'control_response': {
-          const known = await this.#handleControlResponse(
-            parsed as unknown as SDKControlResponse & { uuid?: string },
-          )
-          if (this.#replayUserMessages && known) {
-            return parsed as unknown as StdinMessage
-          }
-          return undefined
-        }
-        case 'control_request': {
-          if (!(parsed as { request?: unknown }).request) {
-            fatalProtocolError('Error: control_request is missing its request body')
-          }
-          return parsed as unknown as StdinMessage
-        }
-        case 'assistant':
-        case 'system':
-          return parsed as unknown as StdinMessage
-        case 'user': {
-          const role = (parsed as { message?: { role?: string } }).message?.role
-          if (role !== 'user') {
-            fatalProtocolError(
-              `Error: expected message role 'user', got '${String(role)}'`,
-            )
-          }
-          return parsed as unknown as StdinMessage
-        }
-        default:
-          logForDebugging(`unknown stdin message type dropped: ${String(parsed.type)}`)
-          return undefined
-      }
+      parsed = JSON.parse(line)
     } catch (error) {
-      if (error instanceof Error && error.name === 'FatalExit') throw error
-      fatalProtocolError(
-        `Error parsing stdin line: ${line}\n${error instanceof Error ? error.message : String(error)}`,
-      )
+      fatalProtocolError(`Error parsing stdin line: ${line}\n${error instanceof Error ? error.message : String(error)}`)
     }
-  }
-
-
-  setUnexpectedResponseCallback(
-    cb: (response: SDKControlResponse['response']) => Promise<void>,
-  ): void {
-    this.#onUnexpectedResponse = cb
-  }
-
-  setOnControlRequestSent(
-    cb: ((request: SDKControlRequest) => void) | undefined,
-  ): void {
-    this.#onControlRequestSent = cb
-  }
-
-  setOnControlRequestResolved(
-    cb: ((requestId: string) => void) | undefined,
-  ): void {
-    this.#onControlRequestResolved = cb
-  }
-
-  getPendingPermissionRequests(): SDKControlRequest[] {
-    return [...this.#pendingCanUseTool.values()]
-  }
-
-  pendingControlRequestCount(): number {
-    return this.#pending.size
-  }
-
-  async #handleControlResponse(
-    message: SDKControlResponse & { uuid?: string },
-  ): Promise<boolean> {
-    const response = message.response as ControlResponse | ControlErrorResponse
-    if (typeof message.uuid === 'string' && message.uuid.length > 0) {
-      notifyCommandLifecycle(message.uuid, 'completed')
-    }
-    const requestId = response?.request_id
-    const pending = requestId !== undefined ? this.#pending.get(requestId) : undefined
-    if (!pending) {
-      if (response?.subtype === 'success') {
-        const toolUseID = (response.response as { tool_use_id?: string } | undefined)
-          ?.tool_use_id
-        if (typeof toolUseID === 'string' && this.#resolvedToolUses.has(toolUseID)) {
-          logForDebugging(
-            `dropping duplicate control_response for already-resolved tool_use ${toolUseID}`,
-          )
-          return false
-        }
-      }
-      await this.#onUnexpectedResponse?.(response)
-      return false
-    }
-    try {
-      if (pending.toolUseID !== undefined) {
-        this.#resolvedToolUses.add(pending.toolUseID)
-      }
-      if (response.subtype === 'error') {
-        pending.reject(new Error(response.error))
-      } else if (pending.schema) {
-        try {
-          pending.resolve(pending.schema.parse(response.response ?? {}))
-        } catch (schemaError) {
-          pending.reject(
-            schemaError instanceof Error
-              ? schemaError
-              : new Error(String(schemaError)),
-          )
-        }
-      } else {
-        pending.resolve({})
-      }
-      if (this.#pendingCanUseTool.has(response.request_id)) {
-        this.#onControlRequestResolved?.(response.request_id)
-      }
-    } finally {
-      pending.cleanup()
-    }
-    return true
-  }
-
-  sendRequest(
-    request: Record<string, unknown>,
-    schema?: z.ZodType,
-    signal?: AbortSignal,
-    requestId: string = randomUUID(),
-  ): Promise<unknown> {
-    if (this.#inputClosed) {
-      return Promise.reject(new Error('Stream closed'))
-    }
-    if (signal?.aborted) {
-      return Promise.reject(new AbortError('Request aborted before send'))
-    }
-    const envelope: SDKControlRequest = {
-      type: 'control_request',
-      request_id: requestId,
-      request: request as SDKControlRequest['request'],
-    }
-    return new Promise((resolve, reject) => {
-      const toolUseID =
-        (request as { tool_use_id?: string }).tool_use_id ?? undefined
-      const onAbort = (): void => {
-        this.outbound.enqueue({
-          type: 'control_cancel_request',
-          request_id: requestId,
-        })
-        if (toolUseID !== undefined) this.#resolvedToolUses.add(toolUseID)
-        const pending = this.#pending.get(requestId)
-        pending?.cleanup()
-        reject(new AbortError('Tool permission request was aborted'))
-      }
-      const cleanup = (): void => {
-        this.#pending.delete(requestId)
-        this.#pendingCanUseTool.delete(requestId)
-        signal?.removeEventListener('abort', onAbort)
-      }
-      this.#pending.set(requestId, {
-        resolve: resolve as (value: unknown) => void,
-        reject,
-        schema,
-        toolUseID,
-        cleanup,
+    if (emitDiagnostic) {
+      logForDiagnosticsNoPII('debug', 'headless_stdin_message', {
+        type: String((parsed as { type?: unknown } | null)?.type ?? 'unknown'),
       })
-      if ((request as { subtype?: string }).subtype === 'can_use_tool') {
-        this.#pendingCanUseTool.set(requestId, envelope)
-        this.#onControlRequestSent?.(envelope)
-      }
-      signal?.addEventListener('abort', onAbort, { once: true })
-      this.outbound.enqueue(envelope)
-    })
-  }
-
-  denyPendingPermissionRequests(cause: string): number {
-    let settled = 0
-    for (const [requestId, envelope] of [...this.#pendingCanUseTool]) {
-      const pending = this.#pending.get(requestId)
-      if (pending === undefined) continue
-      const toolName = (envelope.request as { tool_name?: unknown }).tool_name
-      this.outbound.enqueue({ type: 'control_cancel_request', request_id: requestId })
-      if (pending.toolUseID !== undefined) this.#resolvedToolUses.add(pending.toolUseID)
-      pending.resolve({
-        behavior: 'deny',
-        message: UNANSWERED_ASK_REJECT_MESSAGE(typeof toolName === 'string' && toolName !== '' ? toolName : 'the tool', cause),
-      })
-      this.#onControlRequestResolved?.(requestId)
-      pending.cleanup()
-      settled++
     }
-    return settled
-  }
-
-  #closeInput(): void {
-    if (this.#inputClosed) return
-    this.#inputClosed = true
-    this.denyPendingPermissionRequests(PERMISSION_CHANNEL_CLOSED_CAUSE)
-    for (const [requestId, pending] of [...this.#pending]) {
-      pending.reject(
-        new Error(
-          `Permission stream closed before response was received for request ${requestId}`,
-        ),
-      )
-      pending.cleanup()
+    const refusal = inputRefusal(parsed)
+    if (refusal !== null) {
+      this.#refuse(refusal)
+      return undefined
     }
-  }
-
-
-  injectControlResponse(response: SDKControlResponse): void {
-    const inner = response.response as ControlResponse | ControlErrorResponse
-    const requestId = inner?.request_id
-    if (!requestId) return
-    const pending = this.#pending.get(requestId)
-    if (!pending) return
-    try {
-      if (pending.toolUseID !== undefined) {
-        this.#resolvedToolUses.add(pending.toolUseID)
-      }
-      if (inner.subtype === 'error') {
-        pending.reject(new Error(inner.error))
-      } else if (pending.schema) {
-        try {
-          pending.resolve(pending.schema.parse(inner.response ?? {}))
-        } catch (schemaError) {
-          pending.reject(
-            schemaError instanceof Error
-              ? schemaError
-              : new Error(String(schemaError)),
-          )
-        }
-      } else {
-        pending.resolve({})
-      }
-    } finally {
-      pending.cleanup()
-    }
-    void this.write({
-      type: 'control_cancel_request',
-      request_id: requestId,
-    })
+    return InputRowSchema().parse(parsed)
   }
 
 
@@ -461,374 +145,20 @@ export class StructuredIO {
     }
   }
 
-  write(message: StdoutMessage): Promise<void> {
+  write(message: OutboundLine): Promise<WireLine | null> {
     return new Promise((resolve, reject) => {
-      if (this.stdoutPipeBroken) return resolve()
-      process.stdout.write(`${ndjsonSafeStringify(message)}\n`, error => {
+      if (this.stdoutPipeBroken) return resolve(null)
+      const line: WireLine = isRowLine(message) ? this.rows.stamp(message as never) : (message as TransitionalLine)
+      process.stdout.write(`${ndjsonSafeStringify(line)}\n`, error => {
         if (error) {
           if (isBrokenPipeError(error)) {
             this.markStdoutPipeBroken()
-            return resolve()
+            return resolve(null)
           }
           return reject(error)
         }
-        resolve()
+        resolve(line)
       })
     })
-  }
-
-
-  createCanUseTool(
-    onPermissionPrompt?: (details: RequiresActionDetails) => void,
-  ): CanUseToolFn {
-    const canUseTool: CanUseToolFn = async (
-      tool,
-      input,
-      toolUseContext,
-      assistantMessage,
-      toolUseID,
-      forceDecision,
-    ) => {
-      const requestId = randomUUID()
-      const parentSignal = toolUseContext.abortController.signal
-      const requestController = new AbortController()
-      const forwardParentAbort = (): void => requestController.abort(parentSignal.reason)
-      parentSignal.addEventListener('abort', forwardParentAbort, { once: true })
-      try {
-        const engineResult = (forceDecision ??
-          (await hasPermissionsToUseTool(
-            tool,
-            input,
-            toolUseContext,
-            assistantMessage,
-            toolUseID,
-          ))) as PermissionDecision
-        if (
-          engineResult.behavior === 'allow' ||
-          engineResult.behavior === 'deny'
-        ) {
-          return engineResult
-        }
-
-        const permissionMode = (
-          toolUseContext.getAppState() as {
-            toolPermissionContext: { mode: string }
-          }
-        ).toolPermissionContext.mode
-        const askResult = engineResult as {
-          suggestions?: PermissionUpdate[]
-          blockedPath?: string
-          decisionReason?: PermissionDecisionReason
-        }
-
-        onPermissionPrompt?.({
-          tool_name: tool.name,
-          action_description: this.#describeToolAction(tool as Tool, input),
-          tool_use_id: toolUseID,
-          request_id: requestId,
-          input,
-        })
-
-        const hookDecisionPromise = (async (): Promise<PermissionRequestResult | null> => {
-          for await (const result of executePermissionRequestHooks(
-            tool.name,
-            toolUseID,
-            input,
-            toolUseContext,
-            permissionMode,
-            askResult.suggestions,
-            parentSignal,
-          )) {
-            const decision = result.permissionRequestResult
-            if (decision) {
-              return decision
-            }
-          }
-          return null
-        })()
-
-        const reasonOnWire = encodeDecisionReasonForWire(askResult.decisionReason)
-        const requestPromise = this.sendRequest(
-          {
-            subtype: 'can_use_tool',
-            tool_name: tool.name,
-            input,
-            ...(askResult.suggestions && askResult.suggestions.length > 0
-              ? { permission_suggestions: askResult.suggestions }
-              : {}),
-            ...(askResult.blockedPath !== undefined
-              ? { blocked_path: askResult.blockedPath }
-              : {}),
-            ...(serializeDecisionReason(askResult.decisionReason) !== undefined
-              ? { decision_reason: serializeDecisionReason(askResult.decisionReason) }
-              : {}),
-            ...(reasonOnWire !== undefined ? { decision_reason_detail: reasonOnWire } : {}),
-            tool_use_id: toolUseID,
-            ...(toolUseContext.agentId !== undefined
-              ? { agent_id: toolUseContext.agentId }
-              : {}),
-          },
-          PermissionResultSchema(),
-          requestController.signal,
-          requestId,
-        )
-
-        const raceOutcome = await Promise.race([
-          hookDecisionPromise.then(decision => ({ source: 'hook' as const, decision })),
-          requestPromise.then(result => ({ source: 'host' as const, result })),
-        ])
-
-        if (raceOutcome.source === 'hook' && raceOutcome.decision) {
-          const hookDecision = raceOutcome.decision
-          requestController.abort()
-          requestPromise.catch(() => {})
-          if (hookDecision.behavior === 'allow') {
-            if (hookDecision.updatedPermissions?.length) {
-              persistPermissionUpdates(hookDecision.updatedPermissions)
-              toolUseContext.setAppState(previous => {
-                const updated = applyPermissionUpdates(
-                  previous.toolPermissionContext,
-                  hookDecision.updatedPermissions ?? [],
-                )
-                return updated === previous.toolPermissionContext
-                  ? previous
-                  : { ...previous, toolPermissionContext: updated }
-              })
-            }
-            return {
-              behavior: 'allow',
-              updatedInput: hookDecision.updatedInput ?? input,
-              userModified: false,
-              decisionReason: {
-                type: 'hook',
-                hookName: 'PermissionRequest',
-              },
-            }
-          }
-          return {
-            behavior: 'deny',
-            message:
-              hookDecision.message ??
-              'The PermissionRequest hook denied this permission request',
-            decisionReason: {
-              type: 'hook',
-              hookName: 'PermissionRequest',
-            },
-          }
-        }
-
-        const hostResult = (raceOutcome.source === 'host'
-          ? raceOutcome.result
-          : await requestPromise) as {
-          behavior?: string
-          message?: string
-          updated_input?: Record<string, unknown>
-          updated_permissions?: PermissionUpdate[]
-          interrupt?: boolean
-        }
-        return this.#convertHostPermissionResult(
-          hostResult,
-          tool as Tool,
-          input,
-          toolUseContext,
-        )
-      } catch (error) {
-        const unanswered = parentSignal.aborted ? unansweredAskCause(parentSignal.reason) : undefined
-        if (unanswered !== undefined) {
-          return this.#convertHostPermissionResult(
-            { behavior: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(tool.name, unanswered) },
-            tool as Tool,
-            input,
-            toolUseContext,
-          )
-        }
-        return {
-          behavior: 'deny',
-          message: `Tool permission request failed: ${error instanceof Error ? error.message : String(error)}`,
-          decisionReason: {
-            type: 'other',
-            reason: 'permission request failed',
-          },
-        }
-      } finally {
-        parentSignal.removeEventListener('abort', forwardParentAbort)
-        if (this.#pendingCanUseTool.size === 0) {
-          notifySessionStateChanged('running')
-        }
-      }
-    }
-    return canUseTool
-  }
-
-  #convertHostPermissionResult(
-    result: {
-      behavior?: string
-      message?: string
-      updated_input?: Record<string, unknown>
-      updated_permissions?: PermissionUpdate[]
-      interrupt?: boolean
-    },
-    tool: Tool,
-    originalInput: Record<string, unknown>,
-    toolUseContext: Pick<ToolUseContext, 'abortController' | 'setAppState'>,
-  ): PermissionDecision {
-    if (result.behavior === 'allow') {
-      const updatedInput =
-        result.updated_input && Object.keys(result.updated_input).length > 0
-          ? result.updated_input
-          : originalInput
-      if (result.updated_permissions?.length) {
-        const updates = result.updated_permissions
-        persistPermissionUpdates(updates)
-        toolUseContext.setAppState(previous => {
-          const updated = applyPermissionUpdates(previous.toolPermissionContext, updates)
-          return updated === previous.toolPermissionContext
-            ? previous
-            : { ...previous, toolPermissionContext: updated }
-        })
-      }
-      return {
-        behavior: 'allow',
-        updatedInput,
-        userModified: false,
-        decisionReason: {
-          type: 'permissionPromptTool',
-          permissionPromptToolName: tool.name,
-          toolResult: result,
-        },
-      }
-    }
-    if (result.interrupt) {
-      toolUseContext.abortController.abort()
-    }
-    return {
-      behavior: 'deny',
-      message: result.message ?? 'Permission denied by the SDK host',
-      decisionReason: {
-        type: 'permissionPromptTool',
-        permissionPromptToolName: tool.name,
-        toolResult: result,
-      },
-    }
-  }
-
-  #describeToolAction(tool: Tool, input: Record<string, unknown>): string {
-    try {
-      const described =
-        (tool as { getActivityDescription?: (i: unknown) => string | null })
-          .getActivityDescription?.(input) ??
-        (tool as { getToolUseSummary?: (i: unknown) => string | null })
-          .getToolUseSummary?.(input) ??
-        (tool as { userFacingName?: (i: unknown) => string }).userFacingName?.(
-          input,
-        )
-      return described || tool.name
-    } catch {
-      return tool.name
-    }
-  }
-
-
-  createHookCallback(callbackId: string, timeout?: number): HookCallback {
-    return {
-      type: 'callback',
-      timeout,
-      callback: async (
-        hookInput: HookInput,
-        toolUseID: string | null,
-        abortSignal: AbortSignal | undefined,
-      ): Promise<HookJSONOutput> => {
-        try {
-          const raw = await this.sendRequest(
-            {
-              subtype: 'hook_callback',
-              callback_id: callbackId,
-              input: hookInput,
-              tool_use_id: toolUseID || undefined,
-            },
-            HookJSONOutputSchema(),
-            abortSignal,
-          )
-          return raw as HookJSONOutput
-        } catch (error) {
-          process.stderr.write(
-            `Hook callback ${callbackId} failed: ${error instanceof Error ? error.message : String(error)}\n`,
-          )
-          return {}
-        }
-      },
-    }
-  }
-
-
-  async handleElicitation(
-    serverName: string,
-    message: string,
-    requestedSchema?: Record<string, unknown>,
-    signal?: AbortSignal,
-    mode?: 'form' | 'url',
-    url?: string,
-    elicitationId?: string,
-  ): Promise<ElicitResult> {
-    try {
-      const reply = await this.sendRequest(
-        {
-          subtype: 'elicitation',
-          mcp_server_name: serverName,
-          message,
-          ...(mode !== undefined ? { mode } : {}),
-          ...(url !== undefined ? { url } : {}),
-          ...(elicitationId !== undefined ? { elicitation_id: elicitationId } : {}),
-          ...(requestedSchema !== undefined
-            ? { requested_schema: requestedSchema }
-            : {}),
-        },
-        SDKControlElicitationResponseSchema(),
-        signal,
-      )
-      return reply as ElicitResult
-    } catch (error) {
-      logForDebugging(
-        `elicitation for ${serverName} failed; resolving as cancel: ${error instanceof Error ? error.message : String(error)}`,
-      )
-      return { action: 'cancel' } as ElicitResult
-    }
-  }
-
-
-  createSandboxAskCallback(): (ask: {
-    host: string
-    port?: number
-  }) => Promise<boolean> {
-    return async ask => {
-      try {
-        const result = (await this.sendRequest(
-          {
-            subtype: 'can_use_tool',
-            tool_name: SANDBOX_NETWORK_ACCESS_TOOL_NAME,
-            input: { host: ask.host },
-            tool_use_id: randomUUID(),
-            description: `Allow network access to ${ask.host}?`,
-          },
-          PermissionResultSchema(),
-        )) as { behavior?: string }
-        return result.behavior === 'allow'
-      } catch {
-        return false
-      }
-    }
-  }
-
-
-  async sendMcpMessage(
-    serverName: string,
-    message: JSONRPCMessage,
-  ): Promise<JSONRPCMessage> {
-    const reply = (await this.sendRequest({
-      subtype: 'mcp_message',
-      server_name: serverName,
-      message,
-    })) as { mcp_response?: JSONRPCMessage }
-    return reply.mcp_response as JSONRPCMessage
   }
 }

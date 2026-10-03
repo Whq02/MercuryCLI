@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { seedFirstRun, FIXTURE_API_KEY } from '../lib/firstRunSeed.ts'
+import { LineReader, type Frame } from '../lib/rows.ts'
 
 export const ROOT = resolve(import.meta.dir, '../..')
 
@@ -57,7 +58,7 @@ export async function makeWorld(label: string, script: ScriptedTurn[]): Promise<
   return { dir, config, project, crews, fixture, env }
 }
 
-export type Frame = Record<string, unknown>
+export type { Frame } from '../lib/rows.ts'
 
 export type Session = {
   child: ChildProcess
@@ -89,21 +90,11 @@ export function bootLead(world: World, extraArgv: string[], allowedTools: string
   const frames: Frame[] = []
   let out = ''
   let err = ''
-  let buffer = ''
+  const reader = new LineReader()
   child.stdout!.on('data', (chunk: Buffer) => {
     const text = chunk.toString('utf8')
     out += text
-    buffer += text
-    let nl: number
-    while ((nl = buffer.indexOf('\n')) >= 0) {
-      const line = buffer.slice(0, nl)
-      buffer = buffer.slice(nl + 1)
-      if (line.trim() === '') continue
-      try {
-        frames.push(JSON.parse(line) as Frame)
-      } catch {
-      }
-    }
+    frames.push(...reader.feed(text))
   })
   child.stderr!.on('data', (chunk: Buffer) => {
     err += chunk.toString('utf8')
@@ -131,7 +122,7 @@ export function bootLead(world: World, extraArgv: string[], allowedTools: string
     stderr: () => err,
     exited,
     submit: text => {
-      child.stdin!.write(JSON.stringify({ type: 'user', message: { role: 'user', content: text } }) + '\n')
+      child.stdin!.write(JSON.stringify({ type: 'prompt', content: text }) + '\n')
     },
     waitFor,
     end: async () => {

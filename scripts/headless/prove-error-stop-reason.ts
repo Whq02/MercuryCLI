@@ -44,13 +44,13 @@ console.log('§1 --format json')
   }
   check('the run fails with a parseable result envelope', r.status !== 0 && frame !== null, `status=${r.status}`)
   check(
-    'the error envelope carries stop_reason null — never a fabricated stop_sequence',
-    frame !== null && 'stop_reason' in frame && frame.stop_reason === null,
-    JSON.stringify({ subtype: frame?.subtype, stop_reason: frame?.stop_reason }),
+    'the failed outcome carries no stop word — never a fabricated stop_sequence',
+    frame !== null && frame.type === 'outcome' && frame.status === 'failed' && !('stop' in frame),
+    JSON.stringify({ status: frame?.status, stop: frame?.stop }),
   )
 }
 
-console.log('\n§2 --format stream-json')
+console.log('\n§2 --format rows')
 {
   const r = run(['run', 'hi', '--model', 'compat/w17-mock', '--format', 'rows'])
   const frames = r.out
@@ -64,12 +64,12 @@ console.log('\n§2 --format stream-json')
       }
     })
     .filter((f): f is Record<string, unknown> => f !== null)
-  const result = frames.find(f => f.type === 'result')
-  check('a result frame arrives', result !== undefined, `${frames.length} frames`)
+  const result = frames.find(f => f.type === 'outcome')
+  check('an outcome row arrives', result !== undefined, `${frames.length} frames`)
   check(
-    'the stream result frame carries stop_reason null too',
-    result !== undefined && 'stop_reason' in result && result.stop_reason === null,
-    JSON.stringify({ subtype: result?.subtype, stop_reason: result?.stop_reason }),
+    'the stream outcome carries no stop word either',
+    result !== undefined && result.status === 'failed' && !('stop' in result),
+    JSON.stringify({ status: result?.status, stop: result?.stop }),
   )
 }
 

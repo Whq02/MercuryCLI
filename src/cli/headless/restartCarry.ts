@@ -24,7 +24,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
 import { saturnQueueStamp } from '../../utils/messages/noticeRows.js'
 import { enqueue, enqueuePendingNotification } from '../../input-core/command-queue.js'
-import { emitTaskTerminatedSdk } from '../../utils/sdkEventQueue.js'
+import { emitTaskEnded } from '../../utils/sdkEventQueue.js'
 import { MAX_TRANSCRIPT_READ_BYTES, getTranscriptPath, readAgentMetadata } from '../../utils/sessionStorage/paths.js'
 import { readTranscriptBytesAfter } from '../../utils/sessionStorage/transcriptReader.js'
 import { notifyTasksUpdated } from '../../utils/tasks.js'
@@ -146,7 +146,7 @@ export async function carryRunnerAcrossRestart(ports: RestartCarryPorts): Promis
   const row = restartCarryRow(ports.reason, counts)
   enqueuePendingNotification({ value: row, mode: 'task-notification', priority: 'next' })
   for (const { receipt, notice } of deliveries) {
-    if (notice.status !== 'killed') emitTaskTerminatedSdk(receipt.agentId, notice.status, { toolUseId: receipt.toolUseId, summary: receipt.description })
+    if (notice.status !== 'killed') emitTaskEnded(receipt.agentId, notice.status, { toolUseId: receipt.toolUseId, summary: receipt.description })
     enqueuePendingNotification({ value: notice.value, mode: 'task-notification', priority: 'next', ...(notice.at !== undefined ? { sentAt: notice.at } : {}) })
   }
   return { ...counts, requeued, recoveredCommandIds, row }

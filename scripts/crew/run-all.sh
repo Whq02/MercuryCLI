@@ -15,7 +15,7 @@
 # gate-watch: src/components/PromptInput/Notifications.tsx src/components/mercury-ui/screens/CrewView.tsx
 # gate-watch: src/components/mercury-ui/screens/crewPauseDoor.ts src/run-core/pauseGate.ts
 # gate-watch: src/state/crewLedger.ts
-# gate-watch: src/query.ts src/QueryEngine.ts src/cli/headless/turnDriver.ts src/entrypoints/sdk/controlSchemas.ts src/entrypoints/sdk/controlTypes.ts
+# gate-watch: src/query.ts src/rows/turn.ts src/cli/headless/turnDriver.ts
 # gate-watch: src/screens/REPL.tsx src/components/messages/TranscriptNameplate.tsx src/utils/staticRender.tsx
 # gate-watch: src/tools/WorkflowTool/runControl.ts src/tools/WorkflowTool/WorkflowTool.tsx
 # gate-watch: src/components/messages/UserAgentNotificationMessage.tsx src/fabric/entryCodec.ts
@@ -49,6 +49,8 @@
 # gate-watch: scripts/lib/scriptedTurn.ts src/utils/crew/crewStart.ts src/utils/crew/crewWorktreeReminder.ts
 # gate-watch: src/daemon/crewSeatPause.ts src/utils/crew/crewAccountChange.ts src/utils/crew/crewmateColors.ts
 # gate-watch: docs/CREW.md docs/ENGINES.md README.md src/main.tsx src/setup.ts src/components/Settings/Config.tsx src/utils/config/schema.ts
+# gate-watch: scripts/lib/rows.ts
+# gate-watch: src/rows/* src/runner/wire/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

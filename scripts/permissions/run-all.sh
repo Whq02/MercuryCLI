@@ -7,16 +7,16 @@
 # gate-watch: src/utils/permissions/flowBlockReview* src/utils/permissions/decision/wrapper*
 # gate-watch: src/utils/messages/rejectionText* src/components/permissions/PermissionRuleExplanation* src/constants/prompts*
 # gate-watch: src/tools/BashTool/pathValidation* src/tools/BashTool/readOnlyValidation*
-# gate-watch: scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/lib/seedTranscript.ts
+# gate-watch: scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/lib/seedTranscript.ts scripts/lib/runnerHost.ts
 # gate-watch: scripts/api/read-instruction-heading.ts
 # gate-watch: docs/TRUST.md
 # gate-watch: src/memdir/mnemeGates.ts src/memdir/paths.ts src/tools/MemoryTools/prompt.ts src/utils/collapseReadSearch.ts src/utils/memoryFileDetection.ts
-# gate-watch: src/QueryEngine.ts src/bootstrap/state.ts src/cli/headless/controlHandlers.ts src/cli/print.ts
+# gate-watch: src/rows/turn.ts src/bootstrap/state.ts src/cli/headless/controlHandlers.ts src/cli/headless/runnerAsks.ts src/cli/print.ts
 # gate-watch: src/cli/structuredIO.ts src/commands.ts src/components/FileEditToolDiff.tsx
 # gate-watch: src/components/MercuryFrame.tsx src/components/mercury-ui/compactModeChip.ts
 # gate-watch: src/components/permissions/** src/context.ts src/daemon/concourseSupervisor.ts src/daemon/headlessRun.ts
 # gate-watch: src/daemon/permissionAsks.ts src/daemon/sessionKit.ts src/daemon/warmRunner.ts
-# gate-watch: src/entrypoints/sdk/coreSchemas.ts src/hooks/useCancelRequest.ts src/ink.ts
+# gate-watch: src/hooks/useCancelRequest.ts src/ink.ts
 # gate-watch: src/ink/components/StdinContext.ts src/ink/components/TerminalSizeContext.tsx src/ink/stringWidth.ts
 # gate-watch: src/interactiveHelpers.tsx src/main.tsx src/screens/REPL.tsx src/services/agents/codec.ts
 # gate-watch: src/services/desktop/toolName.ts src/services/engine-connector/daemonConnector.ts
@@ -37,6 +37,7 @@
 # gate-watch: src/utils/processUserInput/processSlashCommand.tsx src/services/crew/liveMessages.ts src/utils/conversationRecovery.ts
 # gate-watch: src/daemon/controlSocket.ts src/daemon/protocol.ts src/services/engine-connector/seatProjections.ts
 # gate-watch: src/components/agents/studio/StudioEditor.tsx src/components/agents/studio/AgentStudio.tsx src/components/BootAgentsScreen.tsx
+# gate-watch: src/rows/* src/runner/wire/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

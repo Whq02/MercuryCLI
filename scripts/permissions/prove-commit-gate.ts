@@ -149,10 +149,10 @@ section("pure evaluateCommitGate — the gate's deny rules (loadable, exported)"
   check('`npm --prefix` with no verb stays DENIED', cg.evaluateCommitGate('npm --prefix tools/x && git commit -m "x"').allow === false)
 }
 
-section('source: engageCommitGate is WIRED into QueryEngine (not severed)')
+section('source: engageCommitGate is WIRED into the turn (not severed)')
 {
-  const qe = readFileSync(join(import.meta.dir, '..', '..', 'src', 'QueryEngine.ts'), 'utf-8')
-  check('QueryEngine imports engageCommitGate', /import \{[^}]*engageCommitGate[^}]*\} from '.\/utils\/hooks\/commitGate.js'/.test(qe))
+  const qe = readFileSync(join(import.meta.dir, '..', '..', 'src', 'rows', 'turn.ts'), 'utf-8')
+  check('the turn imports engageCommitGate', /import \{[^}]*engageCommitGate[^}]*\} from '..\/utils\/hooks\/commitGate.js'/.test(qe))
   check('engageCommitGate is CALLED in the engage block (unconditional)', qe.includes('engageCommitGate(config.setAppState, getSessionId())'))
 }
 

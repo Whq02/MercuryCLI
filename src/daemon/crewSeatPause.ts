@@ -1,22 +1,21 @@
 import { AGENT_WINDOW_RESUME_NOTE, CREW_ACCOUNT_RESUME_NOTE, pauseClockWords, pauseLineWords, type AgentPauseV1 } from '../tasks/LocalAgentTask/agentPause.js'
-import { errorTextOfParsedResultFrame, isTurnResultParsedFrame } from './longLivedSupervisor.js'
+import { errorTextOfOutcome, isOutcomeRow } from './longLivedSupervisor.js'
+import type { LooseRow } from '../rows/read.js'
 
 export type CrewSeatWindow = { rejected: boolean; resetsAtMs?: number; claim?: string }
 
-export function crewSeatWindowOf(frame: Record<string, unknown> | null): CrewSeatWindow | null {
-  if (frame === null || frame.type !== 'rate_limit_event') return null
-  const info = frame.rate_limit_info
-  if (typeof info !== 'object' || info === null) return null
-  const { status, resets_at: resetsAt, rate_limit_type: claim } = info as { status?: unknown; resets_at?: unknown; rate_limit_type?: unknown }
+export function crewSeatWindowOf(row: LooseRow | null): CrewSeatWindow | null {
+  if (row === null || row.type !== 'rate_limit') return null
+  const { status, resets_at: resetsAt, window: claim } = row as { status?: unknown; resets_at?: unknown; window?: unknown }
   const resetsAtMs = typeof resetsAt === 'number' && Number.isFinite(resetsAt) && resetsAt > 0 ? resetsAt * 1000 : undefined
   return { rejected: status === 'rejected', ...(resetsAtMs !== undefined ? { resetsAtMs } : {}), ...(typeof claim === 'string' ? { claim } : {}) }
 }
 
 const LIMIT_WORDS = /rate limit|usage limit|usage window|limit is (reached|spent)|\b429\b/i
 
-export function crewSeatPauseOf(frame: Record<string, unknown> | null, window: CrewSeatWindow | undefined, model: string, nowMs: number = Date.now()): AgentPauseV1 | null {
-  if (!isTurnResultParsedFrame(frame)) return null
-  const error = errorTextOfParsedResultFrame(frame)
+export function crewSeatPauseOf(row: LooseRow | null, window: CrewSeatWindow | undefined, model: string, nowMs: number = Date.now()): AgentPauseV1 | null {
+  if (!isOutcomeRow(row)) return null
+  const error = errorTextOfOutcome(row)
   if (error === undefined) return null
   const spent = window?.rejected === true || LIMIT_WORDS.test(error)
   if (!spent) return null

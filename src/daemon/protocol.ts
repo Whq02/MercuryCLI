@@ -1,6 +1,5 @@
 
 import type { ProcessSweepDaemonAnswer, ProcessSweepEntry } from './processSweep.js'
-import type { SDKControlSetEffortRequest } from '../entrypoints/sdk/controlTypes.js'
 import type { SessionKitEditV1, SessionKitV1 } from './sessionKit.js'
 
 export const MERCURY_DAEMON_PROTO = 12
@@ -252,7 +251,7 @@ export type DaemonRequest =
         interrupt?: boolean
       }
       model?: string
-      effort?: SDKControlSetEffortRequest['effort']
+      effort?: string
       mode?: string
       title?: string
       titleSource?: 'operator' | 'minted'

@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpath
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { parseFrame, spawnRunnerDoor } from '../lib/rows.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const distAt = process.argv.indexOf('--dist')
@@ -114,43 +115,33 @@ async function runSeat(tag: string, extraArgs: string[], channel: boolean, scrip
   const fixture = await startFixtureApi(script())
   const world = makeWorld(tag, fixture.url)
   Object.assign(world.env, extraEnv)
-  const args = channel
-    ? [DIST, 'run', '--format', 'rows', '--input', 'rows', '--permission-channel', 'stdio', '--model', MODEL, ...extraArgs]
-    : [DIST, 'run', `probe refuse-list ${tag}`, '--model', MODEL, ...extraArgs]
   const started = Date.now()
-  const child = spawn(NODE, args, { cwd: world.cwd, env: world.env })
-  const killer = setTimeout(() => child.kill('SIGKILL'), 90_000)
   let stdout = ''
   let stderr = ''
-  let buffer = ''
   const asks: string[] = []
   let sawResult = false
-  child.stdout.on('data', chunk => {
-    stdout += chunk
-    if (!channel) return
-    buffer += chunk
-    let at: number
-    while ((at = buffer.indexOf('\n')) >= 0) {
-      const line = buffer.slice(0, at)
-      buffer = buffer.slice(at + 1)
-      if (!line.trim()) continue
-      let frame: Record<string, unknown>
-      try { frame = JSON.parse(line) as Record<string, unknown> } catch { continue }
-      if (frame.type === 'control_request') {
-        const request = frame.request as Record<string, unknown>
-        if (request.subtype === 'can_use_tool') {
-          asks.push(String(request.tool_name))
-          child.stdin.write(JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: frame.request_id, response: { behavior: 'allow', updated_input: request.input } } }) + '\n')
-        }
-      }
-      if (frame.type === 'result' && !sawResult) {
-        sawResult = true
-        child.stdin.end()
+  const onLine = (line: string): void => {
+    stdout += `${line}\n`
+    const frame = parseFrame(line)
+    if (frame === null) return
+    if (frame.type === 'control_request') {
+      const request = frame.request as Record<string, unknown>
+      if (request.subtype === 'can_use_tool') {
+        asks.push(String(request.tool_name))
+        door?.send({ type: 'control_response', response: { subtype: 'success', request_id: frame.request_id, response: { behavior: 'allow', updated_input: request.input } } })
       }
     }
-  })
-  child.stderr.on('data', chunk => (stderr += chunk))
-  if (channel) child.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content: `probe refuse-list ${tag}` } }) + '\n')
+    if (frame.type === 'outcome' && !sawResult) {
+      sawResult = true
+      child.stdin!.end()
+    }
+  }
+  const door = channel ? spawnRunnerDoor({ node: NODE, argv: [DIST, 'runner', '--model', MODEL, ...extraArgs], cwd: world.cwd, env: world.env, onLine }) : null
+  const child = door?.child ?? spawn(NODE, [DIST, 'run', `probe refuse-list ${tag}`, '--model', MODEL, ...extraArgs], { cwd: world.cwd, env: world.env })
+  const killer = setTimeout(() => child.kill('SIGKILL'), 90_000)
+  if (door === null) child.stdout!.on('data', chunk => (stdout += chunk))
+  child.stderr!.on('data', chunk => (stderr += chunk))
+  door?.send({ type: 'user', message: { role: 'user', content: `probe refuse-list ${tag}` } })
   const code = await new Promise<number | null>(resolveRun => child.on('close', value => { clearTimeout(killer); resolveRun(value) }))
   const ms = Date.now() - started
   const results = toolResults(fixture.messageRequests())

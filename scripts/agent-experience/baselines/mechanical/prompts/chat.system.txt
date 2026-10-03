@@ -122,7 +122,7 @@ Model currency: your training-era knowledge of model ids, capabilities, and pric
 Write down important information from tool results in your response — the original tool result may be cleared from context later.
 
 # Runtime posture (this process, at boot)
-- Session: NON-INTERACTIVE (mercury run / rows). There is no human at a prompt and no permission channel: any tool call that would need an interactive permission approval is DENIED automatically, and no question can reach the operator — choose the most reasonable option, state the assumption, and continue. Do not retry a denied call unchanged and do not invent tool failure as the cause — prefer tools your rules allow, or state the policy blocker plainly in your output. Permission mode for this run: default.
+- Session: NON-INTERACTIVE (mercury run). There is no human at a prompt and no host to answer an ask: any tool call that would need an interactive permission approval is DENIED automatically, and no question can reach the operator — choose the most reasonable option, state the assumption, and continue. Do not retry a denied call unchanged and do not invent tool failure as the cause — prefer tools your rules allow, or state the policy blocker plainly in your output. Permission mode for this run: default.
 - Capability kills armed at boot: none.
 - MCP tool-risk policy: permissive (no max-risk cap set).
 - Crew tooling available: file leases guard concurrent edits (a lease denial is coordination, not an error); LiveComms carries the crew's live state.
@@ -180,6 +180,6 @@ Status:
 (clean)
 
 Recent commits:
-dad54a0 add the node:test suite (the even-length median case fails)
-f94dee2 add the stats, records and format helpers
-20254d1 init: package manifest, readme
+24d121b add the node:test suite (the even-length median case fails)
+9e6111a add the stats, records and format helpers
+dede591 init: package manifest, readme

@@ -122,6 +122,39 @@ interface PendingAsk {
 }
 
 const pending = new Map<string, PendingAsk>()
+const retired = new Map<string, string>()
+const MAX_RETIRED = 200
+
+export const RUNNER_RESTARTED_ASK_CAUSE = "the session's runner restarted before this ask was answered — nothing was run"
+export const RUNNER_ENDED_ASK_CAUSE = "the session's runner ended before this ask was answered — nothing was run"
+
+function rememberRetired(requestId: string, cause: string): void {
+  retired.delete(requestId)
+  retired.set(requestId, cause)
+  while (retired.size > MAX_RETIRED) {
+    const oldest = retired.keys().next().value
+    if (oldest === undefined) break
+    retired.delete(oldest)
+  }
+}
+
+export function retireWorkerAsks(short: string, cause: string, dir?: string): string[] {
+  const retiredIds: string[] = []
+  const sessions = new Set<string>()
+  for (const [requestId, ask] of pending) {
+    if (ask.local !== undefined || ask.workerId !== short) continue
+    pending.delete(requestId)
+    ask.deadline?.cancel()
+    rememberRetired(requestId, cause)
+    retiredIds.push(requestId)
+    sessions.add(ask.sessionId)
+    // eslint-disable-next-line no-console
+    console.error(`[daemon] permission ask ${requestId} (${ask.toolName} for ${short}) withdrawn — ${cause}`)
+    settleAskObligation(ask, { kind: 'withdrawn', by: `daemon: ${cause}` })
+  }
+  for (const sessionId of sessions) publishAsksFor(sessionId, dir)
+  return retiredIds
+}
 
 function settleAskObligation(ask: PendingAsk, outcome: { kind: 'withdrawn' | 'answered'; by: string }): void {
   const landed = ask.obligationLanded ?? Promise.resolve(ask.obligationId)
@@ -399,7 +432,7 @@ export function answerPermissionAsk(
       pending.set(requestId, ask)
     }
   }
-  if (!ask) return { outcome: 'refused', detail: 'unknown or already-answered permission request' }
+  if (!ask) return { outcome: 'refused', detail: retired.get(requestId) ?? 'unknown or already-answered permission request' }
   if (ask.local === 'git-init') {
     const settleObligation = (): void => settleAskObligation(ask, { kind: 'answered', by })
     const dropSidecar = (): void => {

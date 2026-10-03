@@ -294,35 +294,6 @@ export const LIFECYCLE_MANIFEST: readonly LifecycleClassDecl[] = [
     prover: 'scripts/notifications/prove-concourse-surface-live.ts',
   },
   {
-    id: 'notification-dedup',
-    lane: 'semantic-state',
-    owner: 'src/services/notificationPolicy.ts',
-    root: '<config-home>/notification-dedup.json',
-    kind: 'semantic',
-    liveReference:
-      'a row whose (kind, target, destination) may still replay — emission/ack revisions gate re-emission (edge-triggered; an acknowledged revision never re-emits)',
-    terminal:
-      'superseded by a later revision for the same key, or aged out by the bound',
-    retention:
-      'ONE bounded map (500 rows, oldest-emission evicted at write — compaction is in-line, no sweeper); obligation-backed signals dedup on the obligation rows instead',
-    action: 'retain',
-    prover: 'scripts/notifications/prove-notification-policy.ts',
-  },
-  {
-    id: 'concourse-notification-journal',
-    lane: 'semantic-state',
-    owner: 'src/services/notificationPolicy.ts',
-    root: '<config-home>/notification-journal.json',
-    kind: 'semantic',
-    liveReference:
-      'a decided-but-not-yet-replayed lifecycle signal (seq > consumedSeq) — the daemon decides, the visible process replays to the host exactly once ()',
-    terminal: 'consumed (seq ≤ consumedSeq) or aged past the row bound',
-    retention:
-      'ONE bounded FIFO (100 rows, oldest evicted at append; the consumed cursor rides the same file — no sweeper)',
-    action: 'retain',
-    prover: 'scripts/notifications/prove-notification-policy.ts',
-  },
-  {
     id: 'concourse-worker-records',
     lane: 'semantic-state',
     owner: 'src/daemon/concourseSupervisor.ts',

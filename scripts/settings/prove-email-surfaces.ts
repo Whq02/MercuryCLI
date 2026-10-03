@@ -518,8 +518,8 @@ section('§10 the seat facts a hosted session answers carry the credential\'s ow
 {
   const read = (relative: string): string => readFileSync(join(ROOT, relative), 'utf8')
   const runner = read('src/cli/print.ts')
-  const armStart = runner.indexOf("case 'session_facts':")
-  const armEnd = runner.indexOf('respondSuccess(requestId, sessionFactsToWire(answer))', armStart)
+  const armStart = runner.indexOf("'session/facts': async () => {")
+  const armEnd = runner.indexOf('return sessionFactsToWire(answer)', armStart)
   const arm = armStart < 0 || armEnd < 0 ? '' : runner.slice(armStart, armEnd)
   const identityLiteral = ((): string => {
     const at = arm.indexOf('identity: {')
@@ -632,9 +632,9 @@ section('§10 the seat facts a hosted session answers carry the credential\'s ow
   check('the seat\'s skeleton and the resting slot name nobody', read('src/daemon/sessionSeat.ts').includes('identity: { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null }') && read('src/services/engine-connector/noSessionConnector.ts').includes('accountEmail: null,'))
   const readers = ['src/screens/REPL.tsx', 'src/components/MercuryFrame.tsx', 'src/components/tasks/BackgroundTasksDialog.tsx', 'src/components/mercury-ui/screens/CrewView.tsx']
   check('the cockpit\'s readers of the connector identity read its billing word and compose no address of their own', readers.every(relative => read(relative).includes('identity().consoleBilling') && !read(relative).includes('oauthAccount') && !read(relative).includes('accountEmail')), readers.filter(relative => !read(relative).includes('identity().consoleBilling')).join(', '))
-  const initialize = read('src/cli/headless/controlHandlers.ts')
-  check('the SDK initialize response names the account through getAccountInformation, the same one reader (never the config record, never the facts)', initialize.includes('const accountInfo = getAccountInformation()') && initialize.includes('email: accountInfo?.email') && !initialize.includes('oauthAccount') && !initialize.includes('accountEmail'))
-  check('getAccountInformation().email in this home is the credential\'s own (the initialize response\'s source)', auth.getAccountInformation()?.email === PROFILE_EMAIL, JSON.stringify(auth.getAccountInformation()))
+  const runnerSource = read('src/cli/print.ts')
+  check("the runner's facts answer names the account through anthropicSignInEmail, the one reader of the sign-in (never the config record); the door's handlers compose no address", runnerSource.includes('accountEmail: anthropicSignInEmail() ?? null') && !runnerSource.includes('oauthAccount') && !read('src/cli/headless/controlHandlers.ts').includes('oauthAccount'))
+  check('getAccountInformation().email in this home is the credential\'s own (the same sign-in the facts answer reads)', auth.getAccountInformation()?.email === PROFILE_EMAIL, JSON.stringify(auth.getAccountInformation()))
   delete process.env.MERCURY_DAEMON_DIR
 }
 

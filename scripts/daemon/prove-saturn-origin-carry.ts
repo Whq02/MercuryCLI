@@ -25,7 +25,7 @@ const { readSessionFacts, sessionFactsDir, sessionFactsPath } = await import('..
 const receipts = await import('../../src/services/switchboard/sessionReceipts.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
 const { buildConcoursePromptFrame } = await import('../../src/daemon/concourseDispatch.ts')
-const { SDKUserMessageSchema } = await import('../../src/entrypoints/sdk/coreSchemas.ts')
+const { inputRowOfFrame } = await import('../../src/daemon/runnerConnection.ts')
 const { processTextPrompt } = await import('../../src/utils/processUserInput/processTextPrompt.ts')
 const { createUserMessage } = await import('../../src/utils/messages/factories.ts')
 const bridge = await import('../../src/services/saturn/sessionScheduleBridge.ts')
@@ -238,8 +238,8 @@ console.log('§4 the frame and the turn road carry the origin whole; the words n
   check('a frame without an origin is the shape it was', !('origin' in plain) && plain.priority === 'later' && (plain.message as Raw).content === WAKE_PROMPT, j(plain))
   const framed = JSON.parse(buildConcoursePromptFrame(WAKE_PROMPT, { priority: 'later', identity: 'saturn-s-ab12cd34-1', origin: origin as never })) as Raw
   check('a frame with an origin carries it beside the words, the words untouched', j(framed.origin) === j(origin) && (framed.message as Raw).content === WAKE_PROMPT && framed.priority === 'later', j(framed))
-  const parsed = SDKUserMessageSchema().safeParse(framed)
-  check('the public user-frame schema keeps the origin (red on the base: an undeclared key is stripped)', parsed.success && j((parsed.data as Raw).origin) === j(origin), parsed.success ? j(parsed.data) : j(parsed.error.issues))
+  const row = inputRowOfFrame(framed) as Raw | null
+  check("the daemon's door carries the origin on the prompt row it queues (red on the base: an undeclared key is stripped)", row !== null && j(row.origin) === j(origin) && row.priority === 'later', j(row))
   const text = `[self-paced wake — why you woke: ${REASON}]\n\n${WAKE_PROMPT}`
   const out = processTextPrompt(text, [], [], [], undefined, undefined, true, undefined, origin as never)
   const message = out.messages[0] as Raw

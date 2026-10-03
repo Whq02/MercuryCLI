@@ -1,3 +1,4 @@
+import { isOutcome, mainThreadStep, outcomeErrorText, outcomeFailed, parseRow, turnOpened, type LooseRow } from '../rows/read.js'
 
 export interface LongLivedSupervisorConfig {
   maxRespawns: number
@@ -78,40 +79,35 @@ export type StreamJsonUsage = {
   output_tokens: number
 }
 
-export function parseStreamJsonFrame(line: string): Record<string, unknown> | null {
+export function parseRunnerLine(line: string): LooseRow | null {
   const t = line.trim()
   if (!t || t[0] !== '{') return null
+  let parsed: unknown
   try {
-    const parsed = JSON.parse(t) as unknown
-    return typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : null
+    parsed = JSON.parse(t)
   } catch {
     return null
   }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null
+  const record = parsed as Record<string, unknown>
+  if (record.jsonrpc === '2.0') return parseRow(t)
+  return typeof record.type === 'string' ? (record as LooseRow) : null
 }
 
-export function parseUsageFromStreamJsonLine(line: string): StreamJsonUsage | null {
-  return usageOfStreamJsonFrame(parseStreamJsonFrame(line))
-}
+export const parseStreamJsonFrame = parseRunnerLine
 
-export function usageOfStreamJsonFrame(frame: Record<string, unknown> | null): StreamJsonUsage | null {
-  if (frame === null) return null
-  if (frame.type === 'result') return null
-  const msg = frame.message as Record<string, unknown> | undefined
-  const u = (frame.usage ?? msg?.usage) as Record<string, unknown> | undefined
-  if (!u || typeof u !== 'object') return null
-  if (
-    u.input_tokens === undefined &&
-    u.cache_read_input_tokens === undefined &&
-    u.cache_creation_input_tokens === undefined
-  ) {
-    return null
-  }
-  const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
+export function occupancyOfRow(row: LooseRow | null): StreamJsonUsage | null {
+  if (!mainThreadStep(row)) return null
+  const usage = (row as { usage?: Record<string, unknown> }).usage
+  if (!usage || typeof usage !== 'object') return null
+  const n = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
+  const cached = n(usage.cached_input_tokens)
+  const written = n(usage.cache_write_input_tokens)
   return {
-    input_tokens: n(u.input_tokens),
-    cache_creation_input_tokens: n(u.cache_creation_input_tokens),
-    cache_read_input_tokens: n(u.cache_read_input_tokens),
-    output_tokens: n(u.output_tokens),
+    input_tokens: Math.max(0, n(usage.input_tokens) - cached - written),
+    cache_creation_input_tokens: written,
+    cache_read_input_tokens: cached,
+    output_tokens: n(usage.output_tokens),
   }
 }
 
@@ -159,45 +155,26 @@ export function getMaxTurnMs(env: string | undefined): number {
   return Number.isFinite(n) && n > 0 ? n : DEFAULT_MAX_TURN_MS
 }
 
-export function isTurnResultFrame(line: string): boolean {
-  return isTurnResultParsedFrame(parseStreamJsonFrame(line))
+export function isOutcomeRow(row: LooseRow | null): boolean {
+  return isOutcome(row)
 }
 
-export function isTurnResultParsedFrame(frame: Record<string, unknown> | null): boolean {
-  return frame !== null && frame.type === 'result'
-}
+export const isTurnResultParsedFrame = isOutcomeRow
 
-export {
-  TURN_STARTED_SUBTYPE,
-  turnStartedFrame,
-  isTurnStartedParsedFrame,
-  MISSION_UPDATED_SUBTYPE,
-  missionUpdatedFrame,
-  isMissionUpdatedParsedFrame,
-  SAMPLES_UPDATED_SUBTYPE,
-  samplesUpdatedFrame,
-  isSamplesUpdatedParsedFrame,
-} from './runnerFrames.js'
-export type { TurnStartedFrame, MissionUpdatedFrame, SamplesUpdatedFrame } from './runnerFrames.js'
-
-export function errorTextOfResultFrame(line: string): string | undefined {
-  return errorTextOfParsedResultFrame(parseStreamJsonFrame(line))
+export function isTurnOpenRow(row: LooseRow | null): boolean {
+  return turnOpened(row)
 }
 
 export const ERROR_TEXT_CAP = 240
 
-export function errorTextOfParsedResultFrame(frame: Record<string, unknown> | null): string | undefined {
-  if (frame === null || frame.type !== 'result' || frame.is_error !== true) return undefined
-  const errors = frame.errors
-  if (frame.result === undefined && Array.isArray(errors)) {
-    const listed = errors
-      .filter((entry): entry is string => typeof entry === 'string')
-      .map(entry => entry.replace(/\s+/g, ' ').trim())
-      .filter(entry => entry !== '')
-    if (listed.length > 0) return listed.join('; ').slice(0, ERROR_TEXT_CAP)
-  }
-  const text = typeof frame.result === 'string' ? frame.result : JSON.stringify(frame.result)
-  return (text ?? 'unknown error').slice(0, ERROR_TEXT_CAP)
+export function errorTextOfOutcome(row: LooseRow | null): string | undefined {
+  if (!isOutcome(row) || !outcomeFailed(row)) return undefined
+  const message = outcomeErrorText(row)
+  const detail = (row as { error?: { detail?: unknown } }).error?.detail
+  const listed = [message ?? '', ...(Array.isArray(detail) ? detail.filter((entry): entry is string => typeof entry === 'string') : [])]
+    .map(entry => entry.replace(/\s+/g, ' ').trim())
+    .filter(entry => entry !== '')
+  return (listed.length > 0 ? listed.join('; ') : `the turn ended ${String((row as { status?: unknown }).status ?? 'without an answer')}`).slice(0, ERROR_TEXT_CAP)
 }
 
 export const STDERR_TAIL_BYTES = 4096

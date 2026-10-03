@@ -481,7 +481,8 @@ section('§5 driven: a real run paints the notice and writes its mark once; a re
           clearTimeout(killer)
           resolvePromise({ exit, stdout, stderr })
         })
-        child.stdin.end(`${j({ type: 'user', message: { role: 'user', content }, uuid: randomUUID(), session_id: sid })}\n`)
+        const blocks = Array.isArray(content) ? (content as Array<Record<string, unknown>>).map(block => (block.type === 'image' ? { type: 'image', media_type: (block.source as { media_type: string }).media_type, data: (block.source as { data: string }).data } : block)) : content
+        child.stdin.end(`${j({ type: 'prompt', content: blocks, id: randomUUID() })}\n`)
       })
     const mainRequests = (): Array<Record<string, unknown>> => fixture.captured.filter(entry => entry.dialect === 'anthropic' && entry.body.model === MODEL_B && j(entry.body).includes(`drive-${road}`)).map(entry => entry.body)
     const first = await drive(['--session-id', sid], [...driveImages, { type: 'text', text: `drive-${road}: twenty-one images, say what you see` }])

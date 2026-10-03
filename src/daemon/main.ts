@@ -1531,7 +1531,7 @@ async function daemonRun(args: string[]): Promise<void> {
         for (const j of roster.list()) {
           if (!j.outcome) {
             recordSpawnExit({
-              kind: j.via === 'stream-json' ? 'long-lived' : 'headless',
+              kind: j.via === 'rows' ? 'long-lived' : 'headless',
               event: 'reap',
               id: j.short,
               pid: j.pid,

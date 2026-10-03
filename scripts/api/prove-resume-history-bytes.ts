@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { runTurns } from '../lib/rows.ts'
 
 if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'resume-history-bytes-'))
@@ -351,41 +352,11 @@ if (!existsSync(DIST)) {
       }
     }
     function runStreaming(arena: Arena, args: string[], prompts: string[]): Promise<RunResult> {
-      return new Promise(resolvePromise => {
-        const child = spawn(nodeBin!, [DIST, ...args], { cwd: arena.cwd, env: arena.env })
-        let stdout = ''
-        let stderr = ''
-        let sent = 0
-        let resultsSeen = 0
-        const sendNext = (): void => {
-          if (sent >= prompts.length) {
-            child.stdin.end()
-            return
-          }
-          const prompt = prompts[sent]!
-          sent++
-          child.stdin.write(j({ type: 'user', message: { role: 'user', content: prompt } }) + '\n')
-        }
-        child.stdout.on('data', d => {
-          stdout += d
-          const results = stdout.split('\n').filter(l => l.includes('"type":"result"')).length
-          while (resultsSeen < results) {
-            resultsSeen++
-            sendNext()
-          }
-        })
-        child.stderr.on('data', d => (stderr += d))
-        const killer = setTimeout(() => child.kill('SIGKILL'), 60_000)
-        child.on('close', exit => {
-          clearTimeout(killer)
-          resolvePromise({ exit, stdout, stderr })
-        })
-        child.on('spawn', () => sendNext())
-      })
+      return runTurns({ node: nodeBin!, dist: DIST, args, cwd: arena.cwd, env: arena.env, timeoutMs: 60_000, turns: prompts })
     }
     type Body = { system?: unknown; tools?: unknown; messages?: unknown[]; model?: string }
     const systemTextOf = (body: Body): string => (Array.isArray(body.system) ? (body.system as Array<{ text?: string }>).map(b => b.text ?? '').join('\n') : String(body.system ?? ''))
-    function transcriptNotices(arena: Arena, sid: string): string[] {
+    function transcriptLines(arena: Arena, sid: string): string[] {
       const walk = (dir: string): string[] => {
         const out: string[] = []
         for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -396,16 +367,17 @@ if (!existsSync(DIST)) {
         return out
       }
       const files = existsSync(join(arena.home, '.mercury', 'projects')) ? walk(join(arena.home, '.mercury', 'projects')) : []
+      return files.flatMap(file => readFileSync(file, 'utf8').split('\n'))
+    }
+    function transcriptNotices(arena: Arena, sid: string): string[] {
       const notices: string[] = []
-      for (const file of files) {
-        for (const line of readFileSync(file, 'utf8').split('\n')) {
-          if (!line.includes('Preserved thinking')) continue
-          try {
-            const row = JSON.parse(line) as { payload?: { kind?: string; content?: string } }
-            if (row.payload?.kind === 'notice' && typeof row.payload.content === 'string') notices.push(row.payload.content)
-          } catch {
-            continue
-          }
+      for (const line of transcriptLines(arena, sid)) {
+        if (!line.includes('Preserved thinking')) continue
+        try {
+          const row = JSON.parse(line) as { payload?: { kind?: string; content?: string } }
+          if (row.payload?.kind === 'notice' && typeof row.payload.content === 'string') notices.push(row.payload.content)
+        } catch {
+          continue
         }
       }
       return notices
@@ -437,8 +409,8 @@ if (!existsSync(DIST)) {
     check('[wire] the revived process runs its turn and exits 0', second.exit === 0, `exit=${second.exit} stderr=${second.stderr.slice(0, 300)}`)
     const reqs = fixture.messageRequests().map(q => q.body as Body)
     check('[wire] three requests; only the revived one carries the system edit', reqs.length === 3 && !systemTextOf(reqs[1]!).includes('[induced edit]') && systemTextOf(reqs[2]!).endsWith('[induced edit]'), `${reqs.length} requests`)
-    const dropped = second.stdout.split('\n').filter(l => l.includes('"type":"thinking_dropped"')).length > 0
-    check("[wire] the fixture's binding check dropped the first process's blocks on the revived request", dropped)
+    const dropped = transcriptLines(arena, SID).some(l => l.includes('"attachmentType":"dead_thinking"'))
+    check("[wire] the fixture's binding check dropped the first process's blocks on the revived request (the dead-block record beside the session)", dropped)
     const notices = transcriptNotices(arena, SID)
     check("[wire] the receipt after the revive names the part instead of the bare 'client-side edit' sentence", notices.length >= 1 && notices.some(n => n.includes("Mercury's prefix ledger names the part that moved: the system prompt")), j(notices))
     const debug = debugText(revivedDebug)

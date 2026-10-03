@@ -281,7 +281,7 @@ section('§0 the wiring: one road per seat into one drain, the framing, the tool
   check("a quiet round on the main chat lands a display-only row, never a queued prompt: landed now when no turn is open, else held to the turn's end, and dropped once the host is gone", road.includes('onQuiet: quiet => {') && road.includes('if (inputClosed) return') && road.includes('if (inFlightAbort !== null) deferredAdvisorQuiet.push(quiet)') && road.includes('else landAdvisorQuiet(quiet)'), road)
   const askOptions = between(runner, 'for await (const message of ask({', 'handleElicitation: (')
   check("the main chat's tool-round boundary: the engine's onToolRoundSettled takes the same main road with the engine's own rows (red on the base: no boundary inside a running turn)", askOptions.includes('onToolRoundSettled: rows => {') && askOptions.includes('void advisorMainRound(String(getSessionId()), rows, advisorRoad)'), askOptions.slice(-300))
-  const engine = src('src/QueryEngine.ts')
+  const engine = src('src/rows/turn.ts')
   const userArm = between(engine, "} else if (kind === 'user') {", '} else if (isBoundary) {')
   check("the engine reports the boundary after every tool round's user row, before the drain and the next request", userArm.includes('config.onToolRoundSettled?.(messages)') && engine.includes('onToolRoundSettled?: (messages: readonly Message[]) => void'), userArm)
   const lander = between(runner, 'const landAdvisorQuiet = (quiet: AdvisorQuiet): void => {', '\n  }')

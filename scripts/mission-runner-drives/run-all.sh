@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-watch: scripts/mission-runner/**
-# gate-watch: scripts/mission-runner/**
+# gate-watch: scripts/mission-runner/** scripts/lib/rows.ts
 # gate-watch: src/services/mission/** src/services/resources/adapters/mission.ts
 # gate-watch: src/substrate/routerOutcomeStore.ts src/substrate/routerRunStore.ts
 # gate-watch: src/services/providers/openai/openaiCatalogue.ts

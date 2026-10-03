@@ -372,35 +372,14 @@ export function markConcourseWorkerCrash(
   crash: { reason: string; respawning: boolean },
   dir?: string,
 ): void {
-  let journal = false
-  let sessionId: string | undefined
   try {
     updateConcourseWorkers(workers => {
       const rec = workers[runnerId]
       if (rec && rec.endedAt === undefined) {
-        journal = rec.crash === undefined
-        sessionId = rec.sessionId
         rec.crash = { at: Date.now(), reason: crash.reason, respawning: crash.respawning }
       }
     }, dir)
   } catch {
-  }
-  if (journal) {
-    void import('../services/notificationPolicy.js')
-      .then(policy =>
-        policy.journalConcourseSignal({
-          kind: 'failed',
-          targetId: runnerId,
-          revision: Date.now(),
-          title: 'session crashed',
-          detail: `worker ${runnerId}: ${crash.reason}`,
-          ...(sessionId !== undefined ? { deepLink: { sessionId } } : {}),
-          obligationBacked: false,
-        }),
-      )
-      .catch(err => {
-        logForDebugging(`[concourse] failed-signal journal failed for ${runnerId}: ${err}`)
-      })
   }
 }
 
@@ -537,7 +516,7 @@ export function buildConcourseWorkerSpec(args: {
   restartReason?: string
 }): StreamJsonChildSpec {
   const runnerArgv = splitAppendSystemPrompt(args.runnerArgv ?? [])
-  const wireArgv = ['--permission-channel', 'stdio', '--partial'] as const
+  const wireArgv = ['--partial'] as const
   return {
     model: foldLegacyWorkerModelKey(args.modelKey),
     ...(args.keyless ? { keyless: true } : {}),
@@ -1296,24 +1275,6 @@ export function settleConcourseWorker(runnerId: string, dir?: string): boolean {
     }
   }
   if (settled && endedSessionId !== undefined) {
-    const sid2 = endedSessionId
-    void import('../services/notificationPolicy.js')
-      .then(policy =>
-        policy.journalConcourseSignal({
-          kind: 'completed',
-          targetId: runnerId,
-          revision: Date.now(),
-          title: 'session settled',
-          detail: `worker ${runnerId} released`,
-          deepLink: { sessionId: sid2 },
-          obligationBacked: false,
-        }),
-      )
-      .catch(err => {
-        logForDebugging(`[concourse] completed-signal journal failed for ${runnerId}: ${err}`)
-      })
-  }
-  if (settled && endedSessionId !== undefined) {
     const sid = endedSessionId
     const rec2 = settledRec
     let retained:
@@ -1479,25 +1440,6 @@ export function reconcileConcourseWorkers(
   }
   if (receipt.settled.length > 0) {
     logForDebugging(`[concourse] reconciled ${receipt.settled.length} dead worker record(s) as CRASHED (rows kept): ${receipt.settled.join(', ')}`)
-    const at = Date.now()
-    for (const runnerId of receipt.settled) {
-      const sid = readSessionWorkers(dir)[runnerId]?.sessionId
-      void import('../services/notificationPolicy.js')
-        .then(policy =>
-          policy.journalConcourseSignal({
-            kind: 'failed',
-            targetId: runnerId,
-            revision: at,
-            title: 'session died',
-            detail: `worker ${runnerId} found dead at reconcile`,
-            ...(sid !== undefined ? { deepLink: { sessionId: sid } } : {}),
-            obligationBacked: false,
-          }),
-        )
-        .catch(err => {
-          logForDebugging(`[concourse] failed-signal journal failed for ${runnerId}: ${err}`)
-        })
-    }
   }
   return receipt
 }

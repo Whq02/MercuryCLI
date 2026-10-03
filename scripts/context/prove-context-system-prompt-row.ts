@@ -73,7 +73,7 @@ section('§3 the shape: the options ride through uncoerced; the composer is unto
   check("…and appendSystemPrompt through (no `?? ''`)", /appendSystemPrompt: options\?\.appendSystemPrompt as string \| undefined,/.test(call) && !/appendSystemPrompt:[^\n]*\?\? ''/.test(call))
   check('no other call site in src coerces an absent prompt to the empty string', !/(customSystemPrompt|appendSystemPrompt)[^\n]*\?\? ''/.test(analyzer))
   const composer = readFileSync(join(ROOT, 'src/utils/systemPrompt.ts'), 'utf8')
-  check('the composer\'s custom slot keeps the request path\'s reading (!== undefined — the SDK contract, shared with QueryEngine)', /else if \(customSystemPrompt !== undefined\) \{/.test(composer))
+  check('the composer\'s custom slot keeps the request path\'s reading (!== undefined — the headless contract, shared with the turn)', /else if \(customSystemPrompt !== undefined\) \{/.test(composer))
 }
 
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-context-system-prompt-row${failures ? ` (${failures} failure(s))` : ''}`)

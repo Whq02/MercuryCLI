@@ -182,6 +182,32 @@ export interface StreamJsonChildSpec {
   plainIdentity?: boolean
   stripEnv?: readonly string[]
   sessionPin?: { sessionId: string; cwd: string }
+  door?: 'wire' | 'rows'
+}
+
+export type RunnerDoorCapabilities = { holds_asks: boolean; elicitation: boolean; partial_rows: boolean }
+
+export function runnerDoorArgv(argv: readonly string[]): { argv: string[]; capabilities: RunnerDoorCapabilities } {
+  const out: string[] = []
+  let partial = false
+  for (let i = 0; i < argv.length; i++) {
+    const token = argv[i]!
+    if (i === 1 && token === 'run') {
+      out.push('runner')
+      continue
+    }
+    if (token === '--input=rows' || token === '--format=rows') continue
+    if (token === '--input' || token === '--format') {
+      i++
+      continue
+    }
+    if (token === '--partial') {
+      partial = true
+      continue
+    }
+    out.push(token)
+  }
+  return { argv: out, capabilities: { holds_asks: true, elicitation: false, partial_rows: partial } }
 }
 
 export function crewSeatTranscriptPath(pin: { sessionId: string; cwd: string }): string {
@@ -201,6 +227,8 @@ export function buildStreamJsonInvocation(
   script: string
   argv: string[]
   env: NodeJS.ProcessEnv
+  door: 'wire' | 'rows'
+  capabilities: RunnerDoorCapabilities
 } {
   const { node, script } = getSelfInvocation()
   const model = spec.model
@@ -255,7 +283,9 @@ export function buildStreamJsonInvocation(
     ...flagSpellings('MERCURY_CREWMATES'),
     ...flagSpellings(spec.role),
   ])
-  return { node, script, argv, env }
+  const door = spec.door ?? 'wire'
+  const translated = door === 'wire' ? runnerDoorArgv(argv) : { argv, capabilities: { holds_asks: true, elicitation: false, partial_rows: argv.includes('--partial') } }
+  return { node, script, argv: translated.argv, env, door, capabilities: translated.capabilities }
 }
 
 export function spawnStreamJsonChild(
@@ -265,10 +295,12 @@ export function spawnStreamJsonChild(
   child: ChildProcess
   argv: string[]
   env: NodeJS.ProcessEnv
+  door: 'wire' | 'rows'
+  capabilities: RunnerDoorCapabilities
 } {
-  const { node, script, argv, env } = buildStreamJsonInvocation(spec, opts)
+  const { node, script, argv, env, door, capabilities } = buildStreamJsonInvocation(spec, opts)
   if (!script) {
-    logForDebugging('[daemon] cannot resolve self executable; stream-json child not spawned')
+    logForDebugging('[daemon] cannot resolve self executable; long-lived child not spawned')
   }
   stampFlagOnEnv(env, WORKER_PARENT_PID_ENV, String(process.pid))
   stampFlagOnEnv(env, SPAWNED_BY_ENV, spawnedByStamp(`daemon-${spec.role.toLowerCase()}`, spec.agentId))
@@ -280,7 +312,7 @@ export function spawnStreamJsonChild(
     role: spec.role,
   })
   logForDebugging(
-    `[daemon] spawning long-lived stream-json child role=${spec.role} model=${spec.model} effort=${spec.effort}`,
+    `[daemon] spawning long-lived child role=${spec.role} model=${spec.model} effort=${spec.effort}`,
   )
   const child = spawn(node, argv, {
     cwd: spec.cwd ?? process.cwd(),
@@ -288,7 +320,7 @@ export function spawnStreamJsonChild(
     windowsHide: true,
     env,
   })
-  return { child, argv, env }
+  return { child, argv, env, door, capabilities }
 }
 
 export function runTaskHeadless(

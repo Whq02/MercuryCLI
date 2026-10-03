@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { parseFrame, spawnRunnerDoor } from '../lib/rows.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -109,34 +110,32 @@ async function runStdioChannel(tag: string, turns: ScriptedTurn[], answer: (requ
   const fixture = await startFixtureApi(turns)
   const world = makeWorld(tag, fixture.url)
   const asks: Array<Record<string, unknown>> = []
-  const child = spawn(NODE, [DIST, 'run', '--format', 'rows', '--input', 'rows', '--permission-channel', 'stdio', '--model', MODEL], { cwd: world.cwd, env: world.env })
-  const killer = setTimeout(() => child.kill('SIGKILL'), 90_000)
-  let buffer = ''
   let sawResult = false
-  child.stdout.on('data', chunk => {
-    buffer += chunk
-    let at: number
-    while ((at = buffer.indexOf('\n')) >= 0) {
-      const line = buffer.slice(0, at)
-      buffer = buffer.slice(at + 1)
-      if (!line.trim()) continue
-      let frame: Record<string, unknown>
-      try { frame = JSON.parse(line) as Record<string, unknown> } catch { continue }
+  const door = spawnRunnerDoor({
+    node: NODE,
+    argv: [DIST, 'runner', '--model', MODEL],
+    cwd: world.cwd,
+    env: world.env,
+    onLine: line => {
+      const frame = parseFrame(line)
+      if (frame === null) return
       if (frame.type === 'control_request') {
         const request = frame.request as Record<string, unknown>
         if (request.subtype === 'can_use_tool') {
           asks.push(request)
-          child.stdin.write(JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: frame.request_id, response: answer(request) } }) + '\n')
+          door.send({ type: 'control_response', response: { subtype: 'success', request_id: frame.request_id, response: answer(request) } })
         }
       }
-      if (frame.type === 'result' && !sawResult) {
+      if (frame.type === 'outcome' && !sawResult) {
         sawResult = true
-        child.stdin.end()
+        child.stdin!.end()
       }
-    }
+    },
   })
-  child.stderr.on('data', () => {})
-  child.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content: `probe ${tag}` } }) + '\n')
+  const child = door.child
+  const killer = setTimeout(() => child.kill('SIGKILL'), 90_000)
+  child.stderr!.on('data', () => {})
+  door.send({ type: 'user', message: { role: 'user', content: `probe ${tag}` } })
   const code = await new Promise<number | null>(resolveRun => child.on('close', value => { clearTimeout(killer); resolveRun(value) }))
   const captured = capture(fixture.messageRequests())
   await fixture.close()
@@ -144,7 +143,7 @@ async function runStdioChannel(tag: string, turns: ScriptedTurn[], answer: (requ
   return { ...captured, code, asks }
 }
 
-const OPERATOR_LINE = /no operator can answer AskUserQuestion — the request was auto-denied and nothing was asked\. Choose the most reasonable option yourself, state the assumption in your reply, and continue; a client that connects a permission channel/
+const OPERATOR_LINE = /no operator can answer AskUserQuestion — the request was auto-denied and nothing was asked\. Choose the most reasonable option yourself, state the assumption in your reply, and continue; a host on the runner door/
 const RECIPE_LINE = /pre-approve the tool at launch with --allowed-tools/
 
 section('§1 a headless run with no permission channel: the question tool is refused with the way out, never the pre-approve recipe')
@@ -154,7 +153,7 @@ section('§1 a headless run with no permission channel: the question tool is ref
   check('the question call came back as an error result', row !== undefined && row.is_error === true, JSON.stringify(row?.text.slice(0, 200)))
   check('…naming that no operator can answer and what to do instead', row !== undefined && OPERATOR_LINE.test(row.text), row?.text.slice(0, 400))
   check('…and never the --allowed-tools recipe (it cannot give the tool an operator)', row !== undefined && !RECIPE_LINE.test(row.text), row?.text.slice(0, 400))
-  check('the system prompt posture says no question can reach the operator', /no permission channel/.test(run.system) && /no question can reach the operator/.test(run.system), run.system.match(/- Session:[^\n]{0,200}/)?.[0] ?? 'no posture line')
+  check('the system prompt posture says no question can reach the operator', /no host to answer an ask/.test(run.system) && /no question can reach the operator/.test(run.system), run.system.match(/- Session:[^\n]{0,200}/)?.[0] ?? 'no posture line')
   check('the guidance section carries no "use AskUserQuestion to ask" hint', !/use AskUserQuestion to ask rather than guessing/.test(run.system))
   check('the tool stays offered (a connected client could answer it)', run.tools.includes('AskUserQuestion'), run.tools.join(','))
 }
@@ -179,7 +178,7 @@ section('§4 the SDK permission channel: the same asks reach the client and its 
   check('the question tool asked over the channel', run.asks.some(ask => ask.tool_name === 'AskUserQuestion'), run.asks.map(ask => String(ask.tool_name)).join(','))
   const row = run.results[0]
   check('the client answer is what the model reads (no headless auto-deny note)', row !== undefined && row.is_error === true && !OPERATOR_LINE.test(row.text) && !RECIPE_LINE.test(row.text), row?.text.slice(0, 300))
-  check('the posture line names the channel', /with a permission channel/.test(run.system) && !/no permission channel/.test(run.system), run.system.match(/- Session:[^\n]{0,200}/)?.[0] ?? 'no posture line')
+  check('the posture line names the host', /with a host that holds the asks/.test(run.system) && !/no host to answer/.test(run.system), run.system.match(/- Session:[^\n]{0,200}/)?.[0] ?? 'no posture line')
   check('the guidance keeps the AskUserQuestion hint (a client can answer)', /use AskUserQuestion to ask rather than guessing/.test(run.system))
 }
 

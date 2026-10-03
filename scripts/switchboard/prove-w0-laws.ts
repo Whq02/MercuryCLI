@@ -169,10 +169,10 @@ check('refusal names the wait-until-visited law', refusal.allowed === false && r
 
 console.log('LAW 7 — the ask-wire (Q2):')
 check(
-  'spawn argv carries --permission-channel stdio',
-  inv.argv.includes('--permission-channel') && inv.argv.includes('stdio'),
+  'the spawn serves the runner door and the daemon holds its asks',
+  inv.argv[1] === 'runner' && !inv.argv.includes('--permission-channel') && inv.capabilities.holds_asks === true,
 )
-check('respawn argv keeps the wire', respawn.argv.includes('--permission-channel'))
+check('the respawn keeps the door', respawn.argv[1] === 'runner' && respawn.capabilities.holds_asks === true)
 const { onWorkerControlRequest, answerPermissionAsk, listPendingPermissionAsks } = await import(
   '../../src/daemon/permissionAsks.js'
 )

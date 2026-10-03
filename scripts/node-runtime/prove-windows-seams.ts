@@ -202,7 +202,7 @@ section('(11) the swallowed-prompt guard fires on the inferred print shape and k
   const candidatesAt = main.indexOf('const variadicCandidates')
   const guard = main.slice(main.lastIndexOf('\n  if (', candidatesAt), candidatesAt + 900)
   check('the guard fires for run OR a non-TTY stdout (the inferred print shape)', guard.includes('(printMode || !process.stdout.isTTY) &&'))
-  check('the guard still spares resume/continue/pr and the rows input road', guard.includes('!opts.resume &&') && guard.includes('!opts.continue &&') && guard.includes('!opts.pr &&') && guard.includes("inputFormat !== 'stream-json' &&"))
+  check('the guard still spares resume/continue/pr and the rows input road', guard.includes('!opts.resume &&') && guard.includes('!opts.continue &&') && guard.includes('!opts.pr &&') && guard.includes("inputFormat !== 'rows' &&"))
   check('a retired option is no candidate', !guard.includes("['--file',") && !guard.includes("['--allowedTools',") && !guard.includes("['--add-dir',"))
   const list = /const variadicCandidates[^=]*= \[([\s\S]*?)\n\s*\]/.exec(guard)?.[1] ?? ''
   const candidates = [...list.matchAll(/\['([^']+)',/g)].map(match => match[1])

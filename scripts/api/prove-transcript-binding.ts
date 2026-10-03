@@ -415,10 +415,9 @@ if (!existsSync(DIST)) {
     }
 
     const envelopes = r3.stdout.split('\n').filter(l => l.trim() !== '').map(l => { try { return JSON.parse(l) as Record<string, unknown> } catch { return null } }).filter((e): e is Record<string, unknown> => e !== null)
-    const carried = envelopes.filter(e => e.type === 'assistant' && Array.isArray((e.message as { input_transformations?: unknown } | undefined)?.input_transformations))
-    check('the scripted drop list rides the assistant envelope on the rows stdout', carried.length > 0 && j((carried[0]!.message as { input_transformations: unknown }).input_transformations) === j([DROP]), j(carried[0]?.message ?? envelopes.map(e => e.type)).slice(0, 300))
     const noticeText = 'Preserved thinking: the API dropped 1 thinking block'
     const stdoutNotices = envelopes.filter(e => j(e).includes(noticeText)).length
+    check('the drop list is a record matter: no row on the rows stdout carries a provider envelope or paints the receipt (the session file below holds it)', envelopes.every(e => !('message' in e) && !j(e).includes('input_transformations')) && stdoutNotices === 0, j(envelopes.map(e => e.type)).slice(0, 300))
     const debugLogOf = (n: number): string => { try { return readFileSync(debugFile(n), 'utf8') } catch { return '' } }
     const dropLine = 'preserved thinking: [{"type":"thinking_dropped"'
     const debugNotices = debugLogOf(3).split('\n').filter(l => l.includes(dropLine)).length

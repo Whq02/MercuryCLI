@@ -33,9 +33,9 @@ console.log('recovered stream-fault presentation ──')
   check('the calm line is the stream_cut row, in the collapsed tool row\u2019s tokens', /case 'stream_cut':[\s\S]{0,600}<Text color="subtle">[\s\S]{0,200}Continued after <Text bold>\{message\.count\}<\/Text> \{plural\(message\.count, 'stream cut'\)\} · context sent again/.test(stm))
   check('the calm line carries no glyph and no warning colour', !/case 'stream_cut':[\s\S]{0,900}GLYPH\./.test(stm.slice(stm.indexOf("case 'stream_cut':"), stm.indexOf("case 'thinking_note':"))) && !stm.slice(stm.indexOf("case 'stream_cut':"), stm.indexOf("case 'thinking_note':")).includes('warning'))
   const tm2 = src('src/run-core/turn-machine.ts')
-  const qe = src('src/QueryEngine.ts')
-  check('the headless engine records the stream_cut row (the daemon-hosted cockpit paints from the transcript file)', /systemMessage\.subtype === 'thinking_note' \|\|\s*systemMessage\.subtype === 'stream_cut'/.test(qe))
-  const recordRule = /if \(\s*\(systemMessage as \{ level\?: string \}\)\.level === 'warning' \|\|\s*\(systemMessage as \{ level\?: string \}\)\.level === 'error' \|\|\s*systemMessage\.subtype === 'thinking_note' \|\|\s*systemMessage\.subtype === 'stream_cut' \|\|\s*systemMessage\.subtype === 'busy_recovery'\s*\) \{\s*turnMessages\.push\(systemMessage\)\s*await recordDelta\(\)\s*\}/
+  const qe = src('src/rows/turn.ts')
+  check('the headless turn records the stream_cut row (the daemon-hosted cockpit paints from the transcript file)', /systemMessage\.subtype === 'thinking_note' \|\|\s*systemMessage\.subtype === 'stream_cut'/.test(qe))
+  const recordRule = /if \(level === 'warning' \|\| level === 'error' \|\| systemMessage\.subtype === 'thinking_note' \|\| systemMessage\.subtype === 'stream_cut' \|\| systemMessage\.subtype === 'busy_recovery'\) \{\s*turnMessages\.push\(systemMessage\)\s*await recordDelta\(\)\s*\}/
   check('the record rule is bounded: a warning or error level, the thinking receipt, the stream_cut row, the busy_recovery row — an info row of any other kind still never leaves the runner', recordRule.test(qe))
   check('the continue branch mints the typed row, the exhausted branch keeps the warning', tm2.includes('message: createStreamCutMessage({') && tm2.includes("`stopped after ${streamFaultRecoveryCount} continuation"))
   const msg = src('src/components/Message.tsx')

@@ -93,7 +93,7 @@ const MODULES: Record<string, string[]> = {
   ],
   turnEngine: [
     'src/query.ts',
-    'src/QueryEngine.ts',
+    'src/rows/turn.ts',
     'src/run-core/turn-machine.ts',
     'src/run-core/events.ts',
     'src/run-core/project-legacy.ts',
@@ -122,15 +122,14 @@ const NEEDLES: Array<{ label: string; files: string[]; patterns: string[] }> = [
     ],
   },
   {
-    label: 'headless output modes + stream-JSON envelope kinds',
+    label: 'headless output modes + the row stream',
     files: ['src/cli/print.ts', 'src/cli/structuredIO.ts', 'src/cli/headless'],
     patterns: [
-      "'stream-json'",
       'outputFormat',
-      "type:\\s*['\"]system['\"]",
-      "===\\s*['\"]assistant['\"]",
-      "type:\\s*['\"]user['\"]",
-      "type:\\s*['\"]result['\"]",
+      'outcomeRow\\(',
+      'isOutcome\\(',
+      'exitCodeOf\\(',
+      "type:\\s*['\"]prompt['\"]",
     ],
   },
   {

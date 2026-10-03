@@ -1,7 +1,8 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import type { ContentBlockParam } from '../../types/wire.js'
 import type { QueuedCommand } from '../../types/textInputTypes.js'
-import type { StdoutMessage } from '../../entrypoints/sdk/controlTypes.js'
+import { turnOpened, isOutcome, type LooseRow } from '../../rows/read.js'
+import type { RowDraft } from '../../rows/project.js'
 import { wallRecheckDelayMs, type WatchWall } from '../../tools/MonitorTool/watchMailbox.js'
 import { joinBatchedContent } from '../../utils/messages/batchedContent.js'
 
@@ -50,26 +51,26 @@ export type TurnDriverPorts = {
   peek(): QueuedCommand | undefined
   notifyLifecycle(uuid: string, event: 'started' | 'completed'): void
 
-  enqueueOutput(message: StdoutMessage): void
-  writeDirect(message: StdoutMessage): Promise<void>
-  drainSdkEvents(): StdoutMessage[]
+  enqueueOutput(message: RowDraft): void
+  writeDirect(message: RowDraft): Promise<void>
+  drainRows(): RowDraft[]
 
   executeTurn(
     command: QueuedCommand,
     batch: QueuedCommand[],
-    onMessage: (message: StdoutMessage) => void,
+    onMessage: (message: RowDraft) => void,
     initialNotices?: QueuedCommand[],
   ): Promise<void>
   beforeCycle(): Promise<void>
-  onTurnStart(command: QueuedCommand, batch: QueuedCommand[]): StdoutMessage | undefined
+  onTurnStart(command: QueuedCommand, batch: QueuedCommand[]): void
+  turnIdOf(): string
+  openTurnRow(messageIds: string[]): RowDraft
   onTurnSettled(command: QueuedCommand): void
 
   hasWaitableBackgroundTasks(): boolean
   hasHoldableBackgroundAgents(): boolean
   waitableBackgroundTaskCount?(): number
-  onAgentWait?(count: number): void
-
-  takePendingSuggestion(): StdoutMessage | null
+  onAgentWait?(count: number, turnId: string): void
 
   settleIdle(): Promise<'reenter' | 'close' | 'stay'>
   wakeSettle?(): void
@@ -79,7 +80,7 @@ export type TurnDriverPorts = {
   isShuttingDown(): boolean
   idleTimerStop(): void
   idleTimerStart(): void
-  onCycleError(error: unknown): StdoutMessage
+  onCycleError(error: unknown, turnId: string): RowDraft
   shutdown(code: number): void
   clock: { sleep(ms: number): Promise<void>; now?(): number }
   queuedMainThread?(): readonly QueuedCommand[]
@@ -100,7 +101,7 @@ export type TurnDriver = {
 export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
   const seatContext = AsyncLocalStorage.snapshot()
   let phase: DriverPhase = 'idle'
-  let heldBackResult: StdoutMessage | null = null
+  let heldBackResult: RowDraft | null = null
   let outputClosed = false
   let holdReleased = false
   let noticesAwaitOperator = false
@@ -238,8 +239,8 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
   }
 
   const flushSdkEvents = (): void => {
-    for (const event of ports.drainSdkEvents()) {
-      ports.enqueueOutput(event)
+    for (const row of ports.drainRows()) {
+      ports.enqueueOutput(row)
     }
   }
 
@@ -281,11 +282,12 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       .map(c => c.uuid)
       .filter((u): u is NonNullable<typeof u> => u !== undefined)
 
-    let openEdge: StdoutMessage | null = ports.onTurnStart(command, batch) ?? null
-    const writeOpenEdge = (): void => {
-      if (openEdge === null) return
-      ports.enqueueOutput(openEdge)
-      openEdge = null
+    ports.onTurnStart(command, batch)
+    let turnOpen = false
+    const openIfUnopened = (): void => {
+      if (turnOpen) return
+      turnOpen = true
+      ports.enqueueOutput(ports.openTurnRow(batchUuids))
     }
 
     for (const uuid of batchUuids) {
@@ -293,11 +295,13 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
     }
 
     let answered = false
-    const deliver = (message: StdoutMessage): void => {
-      if (message.type === 'result') {
+    const deliver = (message: RowDraft): void => {
+      const row = message as LooseRow
+      if (turnOpened(row)) turnOpen = true
+      if (isOutcome(row)) {
         answered = true
         flushSdkEvents()
-        writeOpenEdge()
+        openIfUnopened()
         if (!holdReleased && ports.hasHoldableBackgroundAgents()) {
           heldBackResult = message
         } else {
@@ -307,7 +311,6 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       } else {
         flushSdkEvents()
         ports.enqueueOutput(message)
-        if (message.type === 'system' && (message as { subtype?: unknown }).subtype === 'init') writeOpenEdge()
       }
     }
 
@@ -315,7 +318,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       deliver(message)
     }, initialNotices).catch((error: unknown) => {
       if (answered) throw error
-      deliver(ports.onCycleError(error))
+      deliver(ports.onCycleError(error, ports.turnIdOf()))
     })
 
     for (const uuid of batchUuids) {
@@ -337,7 +340,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
     const announceWait = (count: number): void => {
       if (count === announcedWait) return
       announcedWait = count
-      ports.onAgentWait?.(count)
+      ports.onAgentWait?.(count, ports.turnIdOf())
     }
 
     try {
@@ -383,14 +386,10 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       if (heldBackResult) {
         ports.enqueueOutput(heldBackResult)
         heldBackResult = null
-        const deferred = ports.takePendingSuggestion()
-        if (deferred) {
-          ports.enqueueOutput(deferred)
-        }
       }
     } catch (error) {
       try {
-        await ports.writeDirect(ports.onCycleError(error))
+        await ports.writeDirect(ports.onCycleError(error, ports.turnIdOf()))
       } catch {
       }
       ports.shutdown(1)

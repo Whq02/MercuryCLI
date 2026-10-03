@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { parseFrame, spawnRunnerDoor } from '../lib/rows.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -34,7 +35,7 @@ if (!python) {
   process.exit(1)
 }
 
-type Envelope = Record<string, unknown> & { type: string; subtype?: string; request_id?: string; request?: Record<string, unknown> }
+type Envelope = Record<string, unknown> & { type: string; subtype?: string; status?: string; request_id?: string; request?: Record<string, unknown> }
 type Runner = {
   pid: number
   send(o: unknown): void
@@ -69,30 +70,26 @@ async function startRunner(fixture: FixtureApi, home: string, cwd: string, extra
     MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_DAP_ADAPTERS_FILE: join(home, 'dap-adapters.json'),
   }
-  const child = spawn(nodeBin!, [DIST, 'run', '--format', 'rows', '--input', 'rows', '--model', MODEL, ...extraArgs], { cwd, env })
-  const killer = setTimeout(() => child.kill('SIGKILL'), 150_000)
   const envelopes: Envelope[] = []
   const waiters: Array<{ pred: (e: Envelope) => boolean; res: (e: Envelope) => void }> = []
-  let buf = ''
   let stderr = ''
-  child.stdout.on('data', d => {
-    buf += String(d)
-    for (;;) {
-      const nl = buf.indexOf('\n')
-      if (nl === -1) break
-      const line = buf.slice(0, nl)
-      buf = buf.slice(nl + 1)
-      if (!line.trim()) continue
-      try {
-        const e = JSON.parse(line) as Envelope
-        envelopes.push(e)
-        for (let i = waiters.length - 1; i >= 0; i--) {
-          if (waiters[i]!.pred(e)) waiters.splice(i, 1)[0]!.res(e)
-        }
-      } catch {}
-    }
+  const door = spawnRunnerDoor({
+    node: nodeBin!,
+    argv: [DIST, 'runner', '--model', MODEL, ...extraArgs],
+    cwd,
+    env,
+    onLine: line => {
+      const e = parseFrame(line) as Envelope | null
+      if (e === null) return
+      envelopes.push(e)
+      for (let i = waiters.length - 1; i >= 0; i--) {
+        if (waiters[i]!.pred(e)) waiters.splice(i, 1)[0]!.res(e)
+      }
+    },
   })
-  child.stderr.on('data', d => (stderr += String(d)))
+  const child = door.child
+  const killer = setTimeout(() => child.kill('SIGKILL'), 150_000)
+  child.stderr!.on('data', d => (stderr += String(d)))
   const exited = new Promise<number | null>(res => child.on('close', code => { clearTimeout(killer); res(code) }))
   let done = false
   void exited.then(() => { done = true })
@@ -107,7 +104,7 @@ async function startRunner(fixture: FixtureApi, home: string, cwd: string, extra
       waiters.push({ pred, res: e => { clearTimeout(t); res(e) } })
     })
   const send = (o: unknown): void => {
-    if (!done) child.stdin.write(JSON.stringify(o) + '\n')
+    if (!done) door.send(o as Record<string, unknown>)
   }
   let seq = 0
   const quiesce = async (action: 'prepare' | 'commit' | 'cancel', token: string): Promise<{ ok: boolean; phase?: string; reason?: string }> => {
@@ -120,7 +117,7 @@ async function startRunner(fixture: FixtureApi, home: string, cwd: string, extra
     const inner = reply.response
     return inner?.subtype === 'success' ? { ok: true, phase: inner.response?.phase } : { ok: false, reason: inner?.error }
   }
-  return { pid: child.pid!, send, waitFor, quiesce, exited, alive: () => !done && alivePid(child.pid!), envelopes, stderr: () => stderr }
+  return { pid: child.pid!, door, send, waitFor, quiesce, exited, alive: () => !done && alivePid(child.pid!), envelopes, stderr: () => stderr }
 }
 
 const TOKEN = 'retire-drive-token-0001'
@@ -156,13 +153,12 @@ const turns: ScriptedTurn[] = [
   { kind: 'text', text: 'FRESH-TURN-DONE.' },
 ]
 const fixture = await startFixtureApi(turns)
-const runner = await startRunner(fixture, home, cwd, ['--permission-channel', 'stdio'])
+const runner = await startRunner(fixture, home, cwd, [])
 
 try {
   section('§1 the runner is up and idle: a quiesce prepare with a bad token is refused before any state is read')
-  runner.send({ type: 'control_request', request_id: 'req_init', request: { subtype: 'initialize' } })
-  const init = await runner.waitFor(e => e.type === 'control_response' && j(e).includes('req_init'), 'initialize ack')
-  check('initialize is acknowledged', init !== undefined && j(init).includes('"success"'), j(init ?? {}).slice(0, 200))
+  const init = await runner.door.connection.initialized
+  check('initialize is answered with the session id', init !== null && typeof init.session_id === 'string', j(init ?? {}).slice(0, 200))
   const badToken = await runner.quiesce('prepare', 'short')
   check('a malformed token is refused as invalid', !badToken.ok && /invalid preparation token/.test(badToken.reason ?? ''), j(badToken))
 
@@ -175,31 +171,31 @@ try {
   check('a commit with no standing preparation is refused (the refusal invalidated it)', !commitMidTurn.ok && /preparation is absent or invalidated/.test(commitMidTurn.reason ?? ''), j(commitMidTurn))
   check('the runner is still alive after the refusals', runner.alive())
   runner.send({ type: 'control_request', request_id: 'req_int', request: { subtype: 'interrupt' } })
-  const interrupted = await runner.waitFor(e => e.type === 'result', 'interrupted result')
-  check('the hanging turn ends only when interrupted, not by the refused park', interrupted !== undefined && interrupted.subtype === 'error_during_execution', j({ s: interrupted?.subtype }))
+  const interrupted = await runner.waitFor(e => e.type === 'outcome', 'interrupted outcome')
+  check('the hanging turn ends only when interrupted, not by the refused park', interrupted !== undefined && interrupted.status === 'interrupted', j({ s: interrupted?.status }))
 
 
   const allowNext = async (label: string, seen: Set<string>, marker: string): Promise<Envelope | undefined> => {
-    const ask = await runner.waitFor(e => (e.type === 'control_request' && e.request?.subtype === 'can_use_tool' && !seen.has(e.request_id ?? '')) || (e.type === 'result' && j(e).includes(marker)), label)
+    const ask = await runner.waitFor(e => (e.type === 'control_request' && e.request?.subtype === 'can_use_tool' && !seen.has(e.request_id ?? '')) || (e.type === 'outcome' && j(e).includes(marker)), label)
     if (ask?.type !== 'control_request') return undefined
     if (ask.request_id !== undefined) seen.add(ask.request_id)
     runner.send({ type: 'control_response', response: { subtype: 'success', request_id: ask.request_id, response: { behavior: 'allow', updated_input: (ask.request as { input?: unknown } | undefined)?.input ?? {} } } })
     return ask
   }
   const seenAsks = new Set<string>()
-  const resultAfter = async (marker: string, label: string): Promise<Envelope | undefined> => runner.waitFor(e => e.type === 'result' && j(e).includes(marker), label)
+  const resultAfter = async (marker: string, label: string): Promise<Envelope | undefined> => runner.waitFor(e => e.type === 'outcome' && j(e).includes(marker), label)
 
   section('§2b a live session service is a hold on the real runner; stopping it lifts the hold')
   runner.send({ type: 'user', message: { role: 'user', content: 'refusal probe service up' }, parent_tool_use_id: null })
   await allowNext('service-start ask', seenAsks, 'SERVICE-UP-DONE.')
-  const serviceUp = await resultAfter('SERVICE-UP-DONE.', 'service-up result')
-  check('the service started through the Service tool', serviceUp?.subtype === 'success' && runner.envelopes.some(e => j(e).includes('refusal-sleeper')), j({ s: serviceUp?.subtype }))
+  const serviceUp = await resultAfter('SERVICE-UP-DONE.', 'service-up outcome')
+  check('the service started through the Service tool', serviceUp?.status === 'completed' && runner.envelopes.some(e => j(e).includes('refusal-sleeper')), j({ s: serviceUp?.status }))
   const withService = await runner.quiesce('prepare', 'retire-drive-token-0007')
   check("prepare is refused with '1 service (a live process) would not survive a park'", !withService.ok && /1 service \(a live process\) would not survive a park/.test(withService.reason ?? ''), j(withService))
   runner.send({ type: 'user', message: { role: 'user', content: 'refusal probe service down' }, parent_tool_use_id: null })
   await allowNext('service-stop ask', seenAsks, 'SERVICE-DOWN-DONE.')
-  const serviceDown = await resultAfter('SERVICE-DOWN-DONE.', 'service-down result')
-  check('the service stopped through the Service tool', serviceDown?.subtype === 'success', j({ s: serviceDown?.subtype }))
+  const serviceDown = await resultAfter('SERVICE-DOWN-DONE.', 'service-down outcome')
+  check('the service stopped through the Service tool', serviceDown?.status === 'completed', j({ s: serviceDown?.status }))
   const afterService = await runner.quiesce('prepare', 'retire-drive-token-0008')
   check('with the service stopped, prepare is answered prepared (the hold was the service, not the runner)', afterService.ok && afterService.phase === 'prepared', j(afterService))
   const cancelService = await runner.quiesce('cancel', 'retire-drive-token-0008')
@@ -208,14 +204,14 @@ try {
   section('§2c a live debug session is a hold on the real runner; disconnecting lifts it')
   runner.send({ type: 'user', message: { role: 'user', content: 'refusal probe debug up' }, parent_tool_use_id: null })
   await allowNext('debug-launch ask', seenAsks, 'DEBUG-UP-DONE.')
-  const debugUp = await resultAfter('DEBUG-UP-DONE.', 'debug-up result')
-  check('the debug session launched through the Debug tool against the stdio adapter', debugUp?.subtype === 'success' && runner.envelopes.some(e => j(e).includes('toolu_debug_launch') && j(e).includes('mockrefusal')), j({ s: debugUp?.subtype }))
+  const debugUp = await resultAfter('DEBUG-UP-DONE.', 'debug-up outcome')
+  check('the debug session launched through the Debug tool against the stdio adapter', debugUp?.status === 'completed' && runner.envelopes.some(e => j(e).includes('toolu_debug_launch') && j(e).includes('mockrefusal')), j({ s: debugUp?.status }))
   const withDebug = await runner.quiesce('prepare', 'retire-drive-token-0009')
   check("prepare is refused with '1 debug session (a live process) would not survive a park'", !withDebug.ok && /1 debug session \(a live process\) would not survive a park/.test(withDebug.reason ?? ''), j(withDebug))
   runner.send({ type: 'user', message: { role: 'user', content: 'refusal probe debug down' }, parent_tool_use_id: null })
   await allowNext('debug-disconnect ask', seenAsks, 'DEBUG-DOWN-DONE.')
-  const debugDown = await resultAfter('DEBUG-DOWN-DONE.', 'debug-down result')
-  check('the debug session disconnected through the Debug tool', debugDown?.subtype === 'success', j({ s: debugDown?.subtype }))
+  const debugDown = await resultAfter('DEBUG-DOWN-DONE.', 'debug-down outcome')
+  check('the debug session disconnected through the Debug tool', debugDown?.status === 'completed', j({ s: debugDown?.status }))
   const afterDebug = await runner.quiesce('prepare', 'retire-drive-token-0010')
   check('with the debug session gone, prepare is answered prepared', afterDebug.ok && afterDebug.phase === 'prepared', j(afterDebug))
   await runner.quiesce('cancel', 'retire-drive-token-0010')
@@ -228,8 +224,8 @@ try {
   const withAsk = await runner.quiesce('prepare', TOKEN_2)
   check('prepare is refused while the ask stands (the turn still runs, the ask holds it)', !withAsk.ok && /a turn is running|pending control request/.test(withAsk.reason ?? ''), j(withAsk))
   runner.send({ type: 'control_response', response: { subtype: 'success', request_id: ask?.request_id, response: { behavior: 'allow', updated_input: (ask?.request as { input?: unknown } | undefined)?.input ?? {} } } })
-  const kernelResult = (await runner.waitFor(e => e.type === 'result' && j(e).includes('KERNEL-TURN-DONE.'), 'kernel turn result')) as (Envelope & { result?: string }) | undefined
-  check('the Eval turn completes after the ask is allowed', kernelResult?.subtype === 'success' && kernelResult.result === 'KERNEL-TURN-DONE.', j({ s: kernelResult?.subtype, r: kernelResult?.result }))
+  const kernelResult = (await runner.waitFor(e => e.type === 'outcome' && j(e).includes('KERNEL-TURN-DONE.'), 'kernel turn outcome')) as (Envelope & { answer?: string }) | undefined
+  check('the Eval turn completes after the ask is allowed', kernelResult?.status === 'completed' && kernelResult.answer === 'KERNEL-TURN-DONE.', j({ s: kernelResult?.status, r: kernelResult?.answer }))
   check('the cell ran on a real kernel', runner.envelopes.some(e => j(e).includes('kernel-up')), j(runner.envelopes.filter(e => e.type === 'user').map(e => j(e).slice(0, 160))))
 
   section('§4 the turn is over but a live eval kernel remains: prepare is refused naming the kernel as a live process')
@@ -242,21 +238,17 @@ try {
   const ask2 = await runner.waitFor(e => e.type === 'control_request' && e.request?.subtype === 'can_use_tool' && !seenAsks.has(e.request_id ?? ''), 'second can_use_tool ask')
   if (ask2?.request_id !== undefined) seenAsks.add(ask2.request_id)
   runner.send({ type: 'control_response', response: { subtype: 'success', request_id: ask2?.request_id, response: { behavior: 'allow', updated_input: (ask2?.request as { input?: unknown } | undefined)?.input ?? {} } } })
-  const retained = (await runner.waitFor(e => e.type === 'result' && j(e).includes('RETAINED-TURN-DONE.'), 'retained turn result')) as (Envelope & { result?: string }) | undefined
-  const toolResultOf = (toolUseId: string): string => {
+  const retained = (await runner.waitFor(e => e.type === 'outcome' && j(e).includes('RETAINED-TURN-DONE.'), 'retained turn outcome')) as (Envelope & { answer?: string }) | undefined
+  const toolResultOf = (callId: string): string => {
     for (const e of runner.envelopes) {
-      if (e.type !== 'user') continue
-      const content = (e as { message?: { content?: unknown } }).message?.content
-      if (!Array.isArray(content)) continue
-      for (const block of content as Array<{ type?: string; tool_use_id?: string; content?: unknown }>) {
-        if (block.type !== 'tool_result' || block.tool_use_id !== toolUseId) continue
-        return typeof block.content === 'string' ? block.content : j(block.content)
-      }
+      if (e.type !== 'tool_result' || e.call_id !== callId) continue
+      const output = (e as { output?: unknown }).output
+      return typeof output === 'string' ? output : j(output)
     }
     return ''
   }
   const retainedResult = toolResultOf('toolu_eval_retained')
-  check("the second cell READ `held` without assigning it, and its own correlated tool_result carries 42: the kernel that ran the first cell is the one that ran the second", retained?.subtype === 'success' && /\b42\b/.test(retainedResult) && !/NameError|not defined/.test(retainedResult), retainedResult.slice(0, 300))
+  check("the second cell READ `held` without assigning it, and its own correlated tool_result carries 42: the kernel that ran the first cell is the one that ran the second", retained?.status === 'completed' && /\b42\b/.test(retainedResult) && !/NameError|not defined/.test(retainedResult), retainedResult.slice(0, 300))
   const stillHeld = await runner.quiesce('prepare', TOKEN_4)
   check('prepare is still refused on the kernel after the second cell', !stillHeld.ok && /eval kernel/.test(stillHeld.reason ?? ''), j(stillHeld))
 
@@ -271,9 +263,9 @@ try {
   section('§6b the controlled negative: a cell that RESETS the kernel reads `held` on a fresh one and gets NameError')
   runner.send({ type: 'user', message: { role: 'user', content: 'refusal probe fresh' }, parent_tool_use_id: null })
   await allowNext('fresh-kernel ask', seenAsks, 'FRESH-TURN-DONE.')
-  const fresh = (await runner.waitFor(e => e.type === 'result' && j(e).includes('FRESH-TURN-DONE.'), 'fresh turn result')) as (Envelope & { result?: string }) | undefined
+  const fresh = (await runner.waitFor(e => e.type === 'outcome' && j(e).includes('FRESH-TURN-DONE.'), 'fresh turn outcome')) as (Envelope & { answer?: string }) | undefined
   const freshResult = toolResultOf('toolu_eval_fresh')
-  check("after reset the same read fails with NameError in ITS correlated tool_result: state lives in the kernel, not in the runner, so the earlier 42 was the retained kernel's", fresh?.subtype === 'success' && /NameError|not defined/.test(freshResult) && !/\b42\b/.test(freshResult), freshResult.slice(0, 300))
+  check("after reset the same read fails with NameError in ITS correlated tool_result: state lives in the kernel, not in the runner, so the earlier 42 was the retained kernel's", fresh?.status === 'completed' && /NameError|not defined/.test(freshResult) && !/\b42\b/.test(freshResult), freshResult.slice(0, 300))
   check('the replacement kernel is itself a hold (the census counts kernels, not history)', (await runner.quiesce('prepare', 'retire-drive-token-0012')).ok === false)
 } finally {
   runner.send({ type: 'control_request', request_id: 'req_end', request: { subtype: 'interrupt' } })

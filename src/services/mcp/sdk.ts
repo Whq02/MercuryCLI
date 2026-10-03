@@ -33,7 +33,6 @@ export type {
   Resource,
   ServerCapabilities,
   Tool,
-  ToolAnnotations,
   Transport,
 } from '@modelcontextprotocol/client'
 export { StdioClientTransport } from '@modelcontextprotocol/client/stdio'

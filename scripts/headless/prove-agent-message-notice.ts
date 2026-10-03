@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
-import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DIST, MODEL, NODE, childEnv, makeTally, sleep } from '../daemon/dupline-world.ts'
+import { parseFrame, spawnRunnerDoor } from '../lib/rows.ts'
 import { seedScratchHome, startScriptedFixture, type ScriptedFixture, type ScriptedRequest, type WireBlock } from '../lib/scriptedTurn.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { POLL_INTERVAL_MS } from '../../src/utils/task/framework.ts'
@@ -30,24 +30,19 @@ type Runner = { frames: Frame[]; send: (frame: Record<string, unknown>) => void;
 type World = 'sub-to-main-midturn' | 'sub-to-main-idle' | 'main-to-sub-midturn' | 'main-to-sub-ended'
 
 function boot(cwd: string, env: NodeJS.ProcessEnv): Runner {
-  const argv = [DIST, 'run', '--input=rows', '--format=rows', '--model', MODEL, '--mode', 'sovereign', '--sovereign']
-  const proc = spawn(NODE, argv, { cwd, env, stdio: ['pipe', 'pipe', 'pipe'] })
   const frames: Frame[] = []
-  let buffer = ''
   let stderr = ''
-  proc.stdout!.on('data', (chunk: Buffer) => {
-    buffer += chunk.toString('utf8')
-    let nl: number
-    while ((nl = buffer.indexOf('\n')) >= 0) {
-      const line = buffer.slice(0, nl)
-      buffer = buffer.slice(nl + 1)
-      if (line.trim() === '') continue
-      try {
-        frames.push({ ...(JSON.parse(line) as Record<string, unknown>), atMs: Date.now() })
-      } catch {
-      }
-    }
+  const door = spawnRunnerDoor({
+    node: NODE,
+    argv: [DIST, 'runner', '--model', MODEL, '--mode', 'sovereign', '--sovereign'],
+    cwd,
+    env,
+    onLine: line => {
+      const frame = parseFrame(line)
+      if (frame !== null) frames.push({ ...frame, atMs: Date.now() })
+    },
   })
+  const proc = door.child
   proc.stderr!.on('data', (chunk: Buffer) => {
     stderr += chunk.toString('utf8')
   })
@@ -55,7 +50,9 @@ function boot(cwd: string, env: NodeJS.ProcessEnv): Runner {
   return {
     frames,
     stderr: () => stderr,
-    send: frame => proc.stdin!.write(`${JSON.stringify(frame)}\n`),
+    send: frame => {
+      door.send(frame)
+    },
     stop: async graceMs => {
       try {
         proc.stdin!.end()
@@ -71,17 +68,17 @@ function boot(cwd: string, env: NodeJS.ProcessEnv): Runner {
 }
 
 const idOf = (text: string | undefined): string | null => /\b(a[0-9a-z]{8})\b/.exec(text ?? '')?.[1] ?? null
-const subtypeOf = (f: Frame): string => (f.type === 'system' ? String(f.subtype ?? '') : String(f.type))
+const subtypeOf = (f: Frame): string => (f.type === 'task' || f.type === 'turn' ? `${String(f.type)}:${String(f.state ?? '')}` : String(f.type))
 const timeline = (frames: Frame[], t0: number): string =>
   frames
-    .filter(f => f.type === 'result' || (f.type === 'system' && ['turn_started', 'task_notification'].includes(String(f.subtype))))
-    .map(f => `${((f.atMs - t0) / 1000).toFixed(2)}s ${subtypeOf(f)}${f.type === 'system' && f.subtype === 'task_notification' ? `(${String((f as { task_id?: unknown }).task_id)} ${'status' in f ? String(f.status) : 'no status'})` : ''}`)
+    .filter(f => f.type === 'outcome' || f.type === 'turn' || f.type === 'task')
+    .map(f => `${((f.atMs - t0) / 1000).toFixed(2)}s ${subtypeOf(f)}${f.type === 'task' ? `(${String((f as { task_id?: unknown }).task_id)} ${'status' in f ? String(f.status) : 'no status'})` : ''}`)
     .join(' · ')
 
 async function untilQuiet(runner: Runner, wantResults: number, quietMs: number, budgetMs: number): Promise<void> {
   const until = Date.now() + budgetMs
   while (Date.now() < until) {
-    const results = runner.frames.filter(f => f.type === 'result').length
+    const results = runner.frames.filter(f => f.type === 'outcome').length
     const last = runner.frames.at(-1)?.atMs ?? 0
     if (results >= wantResults && Date.now() - last > quietMs) return
     await sleep(100)
@@ -160,10 +157,10 @@ async function world(name: World): Promise<void> {
   const carrying = seen.filter(r => r.who === receiver && r.allTexts.some(t => t.includes(messageText)))
   const carriedTexts = (r: Seen): string[] => r.allTexts.filter(t => t.includes(messageText))
   const first = carrying[0]
-  const messageFrames = runner.frames.filter(f => f.type === 'system' && f.subtype === 'task_notification' && String((f as { task_id?: unknown }).task_id) === agentId && !('status' in f))
-  const completionFrames = runner.frames.filter(f => f.type === 'system' && f.subtype === 'task_notification' && String((f as { task_id?: unknown }).task_id) === agentId && 'status' in f)
-  const turnsStarted = runner.frames.filter(f => f.type === 'system' && f.subtype === 'turn_started').length
-  const results = runner.frames.filter(f => f.type === 'result').length
+  const messageFrames = runner.frames.filter(f => f.type === 'task' && f.state === 'progress' && String((f as { task_id?: unknown }).task_id) === agentId && typeof f.summary === 'string' && !('status' in f))
+  const completionFrames = runner.frames.filter(f => f.type === 'task' && f.state === 'ended' && String((f as { task_id?: unknown }).task_id) === agentId)
+  const turnsStarted = runner.frames.filter(f => f.type === 'turn' && f.state === 'started').length
+  const results = runner.frames.filter(f => f.type === 'outcome').length
   const sentAt = ((): number => {
     const sender = receiver === 'main' ? 'sub' : 'main'
     const after = seen.find(r => r.who === sender && r.results.some(x => x.includes('"success":true') && (x.includes('Message delivered') || x.includes('resumed in the background') || x.includes('Message queued'))))
@@ -183,8 +180,8 @@ async function world(name: World): Promise<void> {
       tally.check(`${name} L4 one turn: the message rode the live turn, no turn of its own`, turnsStarted === 1 && results === 1, `turn_started ${turnsStarted} · results ${results}`)
       break
     case 'sub-to-main-idle': {
-      const foldStart = runner.frames.filter(f => f.type === 'system' && f.subtype === 'turn_started')[1]?.atMs ?? Number.NaN
-      tally.check(`${name} L3 the idle main agent started a turn for the message, and that turn carried the message alone — the completion came in a turn of its own (three turn edges: the launch, the message, the completion; the results collapse while the agent runs)`, first !== undefined && first.ask.includes(MESSAGE_STATUS) && !first.ask.includes('<status>completed</status>') && turnsStarted === 3 && results >= 1, `carrying ask ${JSON.stringify(first?.ask.slice(0, 60))} · turn_started ${turnsStarted} · results ${results}`)
+      const foldStart = runner.frames.filter(f => f.type === 'turn' && f.state === 'started')[1]?.atMs ?? Number.NaN
+      tally.check(`${name} L3 the idle main agent started a turn for the message, and that turn carried the message alone — the completion came in a turn of its own (three turn edges: the launch, the message, the completion; the results collapse while the agent runs)`, first !== undefined && first.ask.includes(MESSAGE_STATUS) && !first.ask.includes('<status>completed</status>') && turnsStarted === 3 && results >= 1, `carrying ask ${JSON.stringify(first?.ask.slice(0, 60))} · turns started ${turnsStarted} · outcomes ${results}`)
       tally.check(`${name} L4 the message's turn began within the settle window of the send, not at the sub-agent's end`, Number.isFinite(foldStart) && Number.isFinite(sentAt) && foldStart - sentAt < POLL_INTERVAL_MS + 2_000, `turn − send ${Math.round(foldStart - sentAt)} ms · window ${POLL_INTERVAL_MS} ms`)
       break
     }
@@ -197,9 +194,9 @@ async function world(name: World): Promise<void> {
       break
   }
   const messageFrameAt = messageFrames[0]?.atMs ?? Number.NaN
-  const closingAt = runner.frames.find(f => f.type === 'assistant' && JSON.stringify(f).includes(MAIN_DONE))?.atMs ?? Number.NaN
+  const closingAt = runner.frames.find(f => f.type === 'text' && f.parent_call_id === undefined && JSON.stringify(f).includes(MAIN_DONE))?.atMs ?? Number.NaN
   const beforeClose = name === 'sub-to-main-midturn' || name === 'main-to-sub-midturn' ? Number.isFinite(closingAt) && messageFrameAt < closingAt : true
-  tally.check(`${name} L5 the runner spoke exactly one task_notification frame for the message: the agent's id, no status word, the sender in its summary${name.endsWith('midturn') ? ', on the wire before the turn\'s closing words' : ''}`, messageFrames.length === 1 && /sent a message/.test(String((messageFrames[0] as { summary?: unknown } | undefined)?.summary ?? '')) && beforeClose, `message frames ${messageFrames.length}: ${JSON.stringify(messageFrames.map(f => [f.task_id, f.status ?? 'no status', String(f.summary).slice(0, 50)]))} · completion frames ${completionFrames.length}`)
+  tally.check(`${name} L5 the runner spoke exactly one task row for the message: the agent's id, no status word, the sender in its summary${name.endsWith('midturn') ? ', on the wire before the turn\'s closing words' : ''}`, messageFrames.length === 1 && /sent a message/.test(String((messageFrames[0] as { summary?: unknown } | undefined)?.summary ?? '')) && beforeClose, `message frames ${messageFrames.length}: ${JSON.stringify(messageFrames.map(f => [f.task_id, f.status ?? 'no status', String(f.summary).slice(0, 50)]))} · completion frames ${completionFrames.length}`)
   if (tally.failed() === 0) rmSync(runHome, { recursive: true, force: true })
   else console.log(`  world kept: ${runHome}\n  stderr tail: ${runner.stderr().slice(-500)}`)
 }

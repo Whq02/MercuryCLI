@@ -95,7 +95,7 @@ try {
   check('the attachment lifecycle owner emits the apollo pack as a mode_pack row from getApolloModeSections', /getApolloModeSections\('apollo'\)/.test(lifecycles) && /type: 'mode_pack'/.test(lifecycles))
   check(
     'the prompt-build callers thread the LIVE toolPermissionContext.mode (the next-turn law)',
-    /permissionMode: appStateSnapshot\.toolPermissionContext\.mode/.test(src('QueryEngine.ts')) &&
+    /permissionMode: appStateSnapshot\.toolPermissionContext\.mode/.test(src('rows', 'turn.ts')) &&
       /permissionMode: appState\.toolPermissionContext\.mode/.test(src('utils', 'queryContext.ts')) &&
       src('utils', 'queryContext.ts').includes('getSystemPrompt(tools, mainLoopModel, mcpClients, permissionMode)'),
   )
@@ -278,7 +278,7 @@ section('the seat runner accepts apollo; the SDK embedder still refuses')
 {
   const priorMarker = process.env.MERCURY_CONCOURSE_WORKER
   try {
-    const { resolvePermissionModeTransition, handleSetPermissionMode } = (await import(
+    const { resolvePermissionModeTransition } = (await import(
       '../../src/cli/headless/controlHandlers.js'
     )) as typeof import('../../src/cli/headless/controlHandlers.js')
     const baseContext = {
@@ -305,23 +305,19 @@ section('the seat runner accepts apollo; the SDK embedder still refuses')
       JSON.stringify(seat),
     )
 
-    const responses: unknown[] = []
-    const outputStub = { enqueue: (m: unknown) => responses.push(m) } as never
-    const landed = handleSetPermissionMode({ mode: 'apollo' as never }, 'req-apollo-1', baseContext, outputStub)
-    const first = responses[0] as { type?: string; response?: { subtype?: string; response?: { mode?: string } } }
+    const printSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'print.ts'), 'utf8')
     check(
-      'the wire door answers success and returns the apollo context',
-      (landed as { mode?: string }).mode === 'apollo' && first?.response?.subtype === 'success' && first?.response?.response?.mode === 'apollo',
-      JSON.stringify({ landed: (landed as { mode?: string }).mode, first }),
+      "the door's set_mode arm resolves through the one transition rule and answers the mode",
+      /'session\/set_mode': params => \{\s*const resolved = resolvePermissionModeTransition\(params\.mode as WirePermissionMode, getAppState\(\)\.toolPermissionContext\)[\s\S]{0,400}?return \{ mode: params\.mode \}/.test(printSource),
     )
   } finally {
     if (priorMarker === undefined) delete process.env.MERCURY_CONCOURSE_WORKER
     else process.env.MERCURY_CONCOURSE_WORKER = priorMarker
   }
 
-  const engine = src('QueryEngine.ts')
+  const engine = src('rows', 'turn.ts')
   check(
-    'QueryEngine threads the live toolPermissionContext.mode into fetchSystemPromptParts',
+    'the turn threads the live toolPermissionContext.mode into fetchSystemPromptParts',
     /permissionMode: appStateSnapshot\.toolPermissionContext\.mode/.test(engine),
   )
   const agentTool = src('tools', 'AgentTool', 'AgentTool.tsx')

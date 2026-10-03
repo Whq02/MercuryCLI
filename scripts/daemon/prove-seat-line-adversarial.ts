@@ -36,26 +36,22 @@ updateConcourseWorkers(workers => {
 const roster = { control: () => true, list: () => [], patchSeatModel: () => true }
 
 const published = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 60))
-const delta = (text: string): string =>
-  JSON.stringify({ type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text } } })
+const row = (fields: Record<string, unknown>): string => JSON.stringify({ seq: 1, timestamp: 't', session_id: sid, turn: 1, ...fields })
+const delta = (text: string): string => row({ type: 'text_delta', message_id: 'msg_adv', block: 0, text })
 const tail = () => readSessionTail(sid, dir)
 const feed = (line: string): void => onSeatLine(SHORT, line, roster as never, dir)
+const outcome = (extra: Record<string, unknown> = {}): string =>
+  row({ type: 'outcome', schema: 1, turn_id: 't-adv', status: 'completed', steps: 1, wall_ms: 1, usage: { input_tokens: 1, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 1 }, models: {}, denials: [], ...extra })
 
-console.log('seat line dispatch — content-shaped frames against the substring arms')
+console.log('seat line dispatch — content-shaped rows against the typed arms')
 
-console.log('\nE1 a result frame that MENTIONS "assistant" still settles the turn')
+console.log('\nE1 an outcome that MENTIONS "text" and "text_delta" still settles the turn')
 {
+  feed(row({ type: 'block_start', message_id: 'msg_adv', block: 0, of: 'text' }))
   feed(delta('The turn that must settle.'))
   await published()
   check('the deltas counted (arming the leg)', (tail()?.turnChars ?? 0) > 0, JSON.stringify(tail()))
-  feed(
-    JSON.stringify({
-      type: 'result',
-      subtype: 'success',
-      structuredOutput: { assistant: 'the reply lives here' },
-      permission_denials: [{ tool_name: 'X', tool_input: { role: 'assistant' } }],
-    }),
-  )
+  feed(outcome({ structured: { text: 'the reply lives here', type: 'text_delta' }, denials: [{ tool: 'X', call_id: 'c', input: { kind: 'text' } }] }))
   await published()
   check(
     'the settle ZEROED the count (the zero-at-settle law is type-keyed, never content-dependent)',
@@ -65,81 +61,61 @@ console.log('\nE1 a result frame that MENTIONS "assistant" still settles the tur
   check('the settle cleared the tail', (tail()?.text ?? null) === null, JSON.stringify(tail()?.text))
 }
 
-console.log('\nE2 an assistant frame that MENTIONS "stream_event" still counts')
+console.log('\nE2 a text row that MENTIONS "block_start" still counts')
 {
-  feed(
-    JSON.stringify({
-      type: 'assistant',
-      message: {
-        content: [
-          { type: 'tool_use', id: 'tu_x', name: 'Observe', input: { watch: 'stream_event' } },
-          { type: 'text', text: 'Settled beside a tool.' },
-        ],
-      },
-    }),
-  )
+  feed(row({ type: 'text', message_id: 'msg_adv2', block: 0, text: 'Settled beside a "block_start" word.' }))
   await published()
   check(
-    'the settle-class text counted (the stream arm falls through on a type mismatch)',
-    tail()?.turnChars === 'Settled beside a tool.'.length,
+    'the settle-class text counted (the type decides, not the words)',
+    tail()?.turnChars === 'Settled beside a "block_start" word.'.length,
     JSON.stringify(tail()),
   )
-  feed(JSON.stringify({ type: 'result', subtype: 'success' }))
-  check('…and a plain result still zeroes', (tail()?.turnChars ?? 0) === 0)
+  feed(outcome())
+  check('…and a plain outcome still zeroes', (tail()?.turnChars ?? 0) === 0)
 }
 
-console.log('\nE3 an assistant frame that MENTIONS "init" and "system" still counts')
+console.log('\nE3 a tool_call row carrying "session" and "mode" shaped values moves only liveness; the text beside it counts')
 {
-  feed(
-    JSON.stringify({
-      type: 'assistant',
-      message: {
-        content: [
-          { type: 'tool_use', id: 'tu_y', name: 'Boot', input: { phase: 'init', kind: 'system' } },
-          { type: 'text', text: 'Counted despite the mentions.' },
-        ],
-      },
-    }),
-  )
+  feed(row({ type: 'tool_call', message_id: 'msg_adv3', block: 0, call_id: 'tu_y', tool: 'Boot', input: { phase: 'session', kind: 'mode' } }))
+  feed(row({ type: 'text', message_id: 'msg_adv3', block: 1, text: 'Counted despite the mentions.' }))
   await published()
   check(
-    'the settle-class text counted (the init arm falls through)',
+    'the settle-class text counted (the tool_call arm never ate the line)',
     tail()?.turnChars === 'Counted despite the mentions.'.length,
     JSON.stringify(tail()),
   )
-  feed(JSON.stringify({ type: 'result', subtype: 'success' }))
+  feed(outcome())
 }
 
-console.log('\nE4 deltas then the same turn settle-class frame: never double-counted')
+console.log('\nE4 deltas then the same turn settled text row: never double-counted')
 {
+  feed(row({ type: 'block_start', message_id: 'msg_adv4', block: 0, of: 'text' }))
   feed(delta('Streamed once. '))
   await published()
   const afterDelta = tail()?.turnChars ?? 0
   check('the delta counted', afterDelta === 'Streamed once. '.length, String(afterDelta))
-  feed(
-    JSON.stringify({ type: 'assistant', message: { content: [{ type: 'text', text: 'Streamed once. ' }] } }),
-  )
+  feed(row({ type: 'text', message_id: 'msg_adv4', block: 0, text: 'Streamed once. ' }))
   await published()
   check(
-    'the frame did NOT re-count the streamed text (streamedThisTurn guards the settle arm)',
+    'the row did NOT re-count the streamed text (streamedThisTurn guards the settle arm)',
     tail()?.turnChars === 'Streamed once. '.length,
     JSON.stringify(tail()),
   )
-  feed(JSON.stringify({ type: 'result', subtype: 'success' }))
+  feed(outcome())
 }
 
 console.log('\nE5 a torn line moves nothing and crashes nothing')
 {
   const before = tail()?.turnChars ?? 0
-  feed('{"type":"result","assistant" TORN MID-WRITE')
-  feed('{"type":"assistant","stream_event" ALSO TORN')
+  feed('{"type":"outcome","text" TORN MID-WRITE')
+  feed('{"type":"text","text_delta" ALSO TORN')
   await published()
   check('torn lines moved nothing', (tail()?.turnChars ?? 0) === before, JSON.stringify(tail()))
 }
 
 console.log(
   failures === 0
-    ? '\n ✅ SEAT-LINE ADVERSARIAL — the settle beat is type-keyed; mention-shaped frames fall through'
+    ? '\n ✅ SEAT-LINE ADVERSARIAL — the settle beat is type-keyed; mention-shaped rows fall through'
     : `\n ❌ ${failures} FAILED`,
 )
 process.exit(failures === 0 ? 0 : 1)

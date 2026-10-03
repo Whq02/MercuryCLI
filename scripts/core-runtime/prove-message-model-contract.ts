@@ -16,7 +16,6 @@ mock.module('../../src/utils/log.ts', () => ({
 const M = await import('../../src/utils/messages.ts')
 const mergeMod = await import('../../src/utils/messages/merge.ts')
 const rejection = await import('../../src/utils/messages/rejectionText.ts')
-const mappers = await import('../../src/utils/messages/mappers.ts')
 const bootstrap = await import('../../src/bootstrap/state.ts')
 
 type AnyMsg = Record<string, any>
@@ -1120,173 +1119,47 @@ section('SYSMSG — boundary slice reference law + scan predicates')
   check('hasSuccessfulToolCall: call without result → false', M.hasSuccessfulToolCall([seqMsgs[2]] as never, 'Bash') === false)
 }
 
-section('MAPPERS — the SDK↔internal mapping table (unpinned before T18)')
+
+section('ROWS — the projection table (the value laws the row stream carries)')
 {
-  const asstInternal = mkAssistant([txt('sdk hello')])
-  const sdkIn: AnyMsg[] = [
-    { type: 'assistant', message: asstInternal.message, uuid: 'aaaaaaaa-0000-4000-8000-000000000001' },
-    {
-      type: 'user',
-      message: { role: 'user', content: 'from sdk' },
-      uuid: 'aaaaaaaa-0000-4000-8000-000000000002',
-      timestamp: '2026-01-02T00:00:00.000Z',
-      is_synthetic: true,
-    },
-    { type: 'user', message: { role: 'user', content: 'no uuid' } },
-    {
-      type: 'system',
-      subtype: 'compact_boundary',
-      uuid: 'aaaaaaaa-0000-4000-8000-000000000003',
-      compact_metadata: { trigger: 'auto', pre_tokens: 42 },
-    },
-    { type: 'system', subtype: 'init' },
-    { type: 'result', subtype: 'success' },
-  ]
-  const internal = mappers.toInternalMessages(sdkIn as never) as AnyMsg[]
-  check('toInternalMessages: assistant/user/compact rows map; init/result drop', internal.length === 4)
-  check('toInternalMessages: assistant message object by REFERENCE', internal[0]!.message === asstInternal.message)
-  check('toInternalMessages: user isMeta ← is_synthetic; uuid/timestamp preserved',
-    internal[1]!.isMeta === true &&
-      internal[1]!.uuid === 'aaaaaaaa-0000-4000-8000-000000000002' &&
-      internal[1]!.timestamp === '2026-01-02T00:00:00.000Z')
-  check('toInternalMessages: absent user uuid minted uuid-shaped',
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(internal[2]!.uuid)))
-  check('toInternalMessages: compact boundary carries converted metadata',
-    internal[3]!.type === 'system' &&
-      internal[3]!.subtype === 'compact_boundary' &&
-      internal[3]!.compactMetadata.trigger === 'auto' &&
-      internal[3]!.compactMetadata.preTokens === 42)
-
-  const metaNoSeg = { trigger: 'manual', preTokens: 9 }
-  const seg = {
-    headUuid: 'bbbbbbbb-0000-4000-8000-000000000001',
-    anchorUuid: 'bbbbbbbb-0000-4000-8000-000000000002',
-    tailUuid: 'bbbbbbbb-0000-4000-8000-000000000003',
-  }
-  const metaSeg = { trigger: 'auto', preTokens: 10, preservedSegment: seg }
-  check('compact metadata: internal→SDK→internal identity (no segment)',
-    deepEq(mappers.fromSDKCompactMetadata(mappers.toSDKCompactMetadata(metaNoSeg as never)), metaNoSeg))
-  check('compact metadata: internal→SDK→internal identity (with segment)',
-    deepEq(mappers.fromSDKCompactMetadata(mappers.toSDKCompactMetadata(metaSeg as never)), metaSeg))
-  const sdkMeta = { trigger: 'auto', pre_tokens: 7, preserved_segment: { head_uuid: seg.headUuid, anchor_uuid: seg.anchorUuid, tail_uuid: seg.tailUuid } }
-  check('compact metadata: SDK→internal→SDK identity',
-    deepEq(mappers.toSDKCompactMetadata(mappers.fromSDKCompactMetadata(sdkMeta as never)), sdkMeta))
-
-  const transitionInternal = {
-    type: 'system',
-    subtype: 'model_transition',
-    previous: 'claude-opus-5',
-    requested: 'gpt-5.2',
-    applied: 'gpt-5.2',
-    resolution: 'applied',
-    boundary: 'turn-boundary',
-    crossProvider: true,
-    cacheDisposition: 'keyed-sections-recompute-once',
-    uuid: 'cccccccc-0000-4000-8000-000000000001',
-    timestamp: '2026-08-05T00:00:00.000Z',
-    isMeta: false,
-  }
-  const sdkTransitionRows = mappers.toSDKMessages([transitionInternal] as never) as AnyMsg[]
-  check('model transition: internal→SDK maps exactly one row', sdkTransitionRows.length === 1)
-  const sdkT = sdkTransitionRows[0]!
-  check('model transition: SDK row shape (subtype + grouped snake_case transition)',
-    sdkT.type === 'system' &&
-      sdkT.subtype === 'model_transition' &&
-      sdkT.uuid === transitionInternal.uuid &&
-      deepEq(sdkT.transition, {
-        previous: 'claude-opus-5',
-        requested: 'gpt-5.2',
-        applied: 'gpt-5.2',
-        resolution: 'applied',
-        boundary: 'turn-boundary',
-        cross_provider: true,
-        cache_disposition: 'keyed-sections-recompute-once',
-      }))
-  const backRows = mappers.toInternalMessages(sdkTransitionRows as never) as AnyMsg[]
-  check('model transition: SDK→internal round-trips the receipt fields',
-    backRows.length === 1 &&
-      backRows[0]!.subtype === 'model_transition' &&
-      backRows[0]!.previous === 'claude-opus-5' &&
-      backRows[0]!.requested === 'gpt-5.2' &&
-      backRows[0]!.applied === 'gpt-5.2' &&
-      backRows[0]!.resolution === 'applied' &&
-      backRows[0]!.boundary === 'turn-boundary' &&
-      backRows[0]!.crossProvider === true &&
-      backRows[0]!.cacheDisposition === 'keyed-sections-recompute-once' &&
-      backRows[0]!.uuid === transitionInternal.uuid)
-
-  const isSynthTable: Array<[AnyMsg, boolean]> = [
-    [mkUser('plain'), false],
-    [mkUser('meta', { isMeta: true }), true],
-    [mkUser('transcript-only', { isVisibleInTranscriptOnly: true }), true],
-    [mkUser('both', { isMeta: true, isVisibleInTranscriptOnly: true }), true],
-  ]
-  for (const [msg, want] of isSynthTable) {
-    const rows = mappers.toSDKMessages([msg] as never) as AnyMsg[]
-    check(
-      `toSDKMessages: is_synthetic table (meta=${!!msg.isMeta}, transcriptOnly=${!!msg.isVisibleInTranscriptOnly})`,
-      rows.length === 1 && Boolean(rows[0]!.is_synthetic) === want && !('isSynthetic' in rows[0]!),
-    )
-  }
-  const withResult = mkUser([tr('toolu_map1')], { toolUseResult: { stdout: 'x' } })
-  const withNullResult = mkUser([tr('toolu_map2')], { toolUseResult: null })
-  const withoutResult = mkUser('none')
-  const sdkRows = mappers.toSDKMessages([withResult, withNullResult, withoutResult] as never) as AnyMsg[]
-  check('toSDKMessages: tool_use_result rides iff toolUseResult !== undefined (null INCLUDED — pinned)',
-    'tool_use_result' in sdkRows[0]! && 'tool_use_result' in sdkRows[1]! && !('tool_use_result' in sdkRows[2]!))
-  check('toSDKMessages: user message object by REFERENCE', sdkRows[0]!.message === withResult.message)
-
-  const cmdInput = M.createCommandInputMessage('<command-name>/cost</command-name>') as AnyMsg
-  const cmdOutput = M.createCommandInputMessage('<local-command-stdout>$0.42 spent</local-command-stdout>') as AnyMsg
-  const otherSys = M.createSystemMessage('plain note', 'info') as AnyMsg
-  const sysRows = mappers.toSDKMessages([cmdInput, cmdOutput, otherSys] as never) as AnyMsg[]
-  check('toSDKMessages: command INPUT metadata never leaks; informational drops', sysRows.length === 1)
-  check(
-    'toSDKMessages: local_command stdout → synthetic SDK assistant, unwrapped',
-    sysRows[0]!.type === 'assistant' &&
-      sysRows[0]!.message.model === M.SYNTHETIC_MODEL &&
-      (sysRows[0]!.message.content as Block[])[0]!.text === '$0.42 spent' &&
-      sysRows[0]!.uuid === cmdOutput.uuid,
-  )
-
+  const rows = await import('../../src/rows/project.ts')
+  const scope = { session_id: 'proj-session', turn: 1 }
+  const asstMap = mkAssistant([txt('hello'), tu('toolu_map1'), txt('')])
+  const items = rows.itemRowsOf(scope, 'msg_map1', asstMap.message.content) as AnyMsg[]
+  check('itemRowsOf: one text row and one tool_call row, keyed by message_id and block; the empty text yields none',
+    items.length === 2 && items[0]!.type === 'text' && items[0]!.block === 0 && items[0]!.text === 'hello' && items[1]!.type === 'tool_call' && items[1]!.block === 1 && items[1]!.call_id === 'toolu_map1' && items[0]!.message_id === 'msg_map1')
+  check('itemRowsOf: the tool_call input is the block\'s own object (by reference)', items[1]!.input === (asstMap.message.content as Block[])[1]!.input)
+  check('itemRowsOf: a string content is one text row; an empty string none', (rows.itemRowsOf(scope, 'm', 'plain') as AnyMsg[]).length === 1 && rows.itemRowsOf(scope, 'm', '').length === 0)
   const ansi = '\u001b[2m<local-command-stdout>dim text</local-command-stdout>\u001b[22m'
-  const sdkAsst = mappers.localCommandOutputToSDKAssistantMessage(ansi, 'cccccccc-0000-4000-8000-000000000001' as never) as AnyMsg
-  check('localCommandOutput: ANSI stripped, tags unwrapped, uuid passthrough',
-    (sdkAsst.message.content as Block[])[0]!.text === 'dim text' && sdkAsst.uuid === 'cccccccc-0000-4000-8000-000000000001')
-
-  check('toSDKRateLimitInfo: undefined → undefined', mappers.toSDKRateLimitInfo(undefined) === undefined)
-  const minimal = mappers.toSDKRateLimitInfo({ status: 'allowed' } as never) as AnyMsg
-  check('toSDKRateLimitInfo: minimal carries status only', deepEq(minimal, { status: 'allowed' }))
-  const full = mappers.toSDKRateLimitInfo({
+  check('commandOutputTextOf: ANSI stripped, tags unwrapped, trimmed', rows.commandOutputTextOf(ansi) === 'dim text' && rows.commandOutputTextOf(' <local-command-stderr>oops</local-command-stderr>\n') === 'oops')
+  const cmdRow = rows.commandOutputRow(scope, rows.commandOutputTextOf(ansi), '/cost') as AnyMsg
+  check('commandOutputRow: type, text and command, scoped to the session and the turn', cmdRow.type === 'command_output' && cmdRow.text === 'dim text' && cmdRow.command === '/cost' && cmdRow.session_id === 'proj-session' && cmdRow.turn === 1)
+  const minimal = rows.rateLimitRow(scope, { status: 'allowed', isUsingOverage: false } as never) as AnyMsg
+  check('rateLimitRow: minimal carries the status and the overage flag only (beside the scope)', minimal.status === 'allowed' && minimal.using_overage === false && !('window' in minimal) && !('resets_at' in minimal) && !('threshold_crossed' in minimal))
+  const full = rows.rateLimitRow(scope, {
     status: 'allowed_warning',
     resetsAt: 123,
     rateLimitType: 'unified',
     utilization: 0.5,
-    overageStatus: 'x',
+    overageStatus: 'rejected',
     overageResetsAt: 456,
     overageDisabledReason: 'r',
     isUsingOverage: true,
-    surpassedThreshold: true,
+    surpassedThreshold: 1,
     unifiedRateLimitFallbackAvailable: true,
   } as never) as AnyMsg
-  check('toSDKRateLimitInfo: full field table maps to the feed\'s spelling; internal-only field STRIPPED',
-    full.status === 'allowed_warning' &&
+  check('rateLimitRow: the full field table maps to the row\'s spelling (warning, window, resets_at, overage_*, using_overage, threshold_crossed); the internal-only field is STRIPPED',
+    full.status === 'warning' &&
+      full.window === 'unified' &&
       full.resets_at === 123 &&
-      full.rate_limit_type === 'unified' &&
       full.utilization === 0.5 &&
-      full.overage_status === 'x' &&
+      full.overage_status === 'rejected' &&
       full.overage_resets_at === 456 &&
       full.overage_disabled_reason === 'r' &&
-      full.is_using_overage === true &&
-      full.surpassed_threshold === true &&
+      full.using_overage === true &&
+      full.threshold_crossed === true &&
       !('unifiedRateLimitFallbackAvailable' in full) &&
       Object.keys(full).every(key => /^[a-z0-9_]+$/.test(key)))
-
-  const asst2 = mkAssistant([txt('a'), tu('toolu_map3')])
-  const asstRows = mappers.toSDKMessages([asst2] as never) as AnyMsg[]
-  check('toSDKMessages: assistant content blocks by reference',
-    (asstRows[0]!.message.content as Block[])[0] === (asst2.message.content as Block[])[0] &&
-      (asstRows[0]!.message.content as Block[])[1] === (asst2.message.content as Block[])[1])
 }
 
 if (failures > 0) {

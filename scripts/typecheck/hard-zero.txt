@@ -22,13 +22,11 @@ src/utils/messages/attachmentText.ts
 src/utils/messages/factories.ts
 src/utils/messages/identity.ts
 src/utils/messages/lookups.ts
-src/utils/messages/mappers.ts
 src/utils/messages/merge.ts
 src/utils/messages/normalize.ts
 src/utils/messages/pairing.ts
 src/utils/messages/rejectionText.ts
 src/utils/messages/streaming.ts
-src/utils/messages/systemInit.ts
 src/utils/messages/systemMessages.ts
 src/utils/messages/text.ts
 src/utils/messages/uiOrder.ts
@@ -77,7 +75,7 @@ src/services/providers/anthropic/requestParams.ts
 src/services/providers/anthropic/streamCore.ts
 # The turn engine — the off-dist core, strict-clean, zero tolerance:
 src/query.ts
-src/QueryEngine.ts
+src/rows/turn.ts
 # The run-core owners:
 src/run-core/turn-machine.ts
 src/run-core/events.ts
@@ -96,3 +94,12 @@ src/utils/config/derived.ts
 src/utils/settings/snapshot.ts
 src/cli/transports/Transport.ts
 src/cli/transports/connectionLifecycle.ts
+src/rows/vocabulary.ts
+src/rows/read.ts
+src/rows/project.ts
+src/runner/wire/errors.ts
+src/runner/wire/methods.ts
+src/runner/wire/peer.ts
+src/cli/headless/runnerAsks.ts
+src/cli/headless/runnerMethods.ts
+src/daemon/runnerConnection.ts

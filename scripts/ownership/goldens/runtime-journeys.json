@@ -14,18 +14,19 @@
  "J2": {
   "exit": 0,
   "kinds": [
-   "system:init",
-   "system:turn_started",
-   "system:status",
-   "system:status",
-   "assistant",
-   "result:success"
+   "session",
+   "turn:started",
+   "wait:first_byte",
+   "wait:done",
+   "text",
+   "step",
+   "outcome:completed"
   ],
   "resultMeta": {
-   "hasResultText": true,
+   "hasAnswer": true,
    "hasSessionId": true,
    "hasUsage": true,
-   "is_error": false
+   "status": "completed"
   }
  },
  "J3": {

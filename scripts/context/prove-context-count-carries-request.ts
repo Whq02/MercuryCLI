@@ -46,7 +46,7 @@ const projDir = mkdtempSync(join(tmpdir(), 'ctx-count-request-proj-'))
 bootstrap.setOriginalCwd(projDir)
 bootstrap.setProjectRoot(projDir)
 
-const { ask } = await import('../../src/QueryEngine.ts')
+const { ask } = await import('../../src/rows/turn.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
 const { collectContextData } = await import('../../src/commands/context/context-noninteractive.ts')
@@ -113,7 +113,7 @@ try {
     mutableMessages: shared,
   })) out.push(msg as Record<string, unknown>)
   const turn = (api.messageRequests() as Captured[]).find(r => !r.path.includes('count_tokens'))
-  check('the turn settled with a result and one model request on the wire', out.at(-1)?.type === 'result' && turn !== undefined, j({ last: out.at(-1)?.type, requests: api.messageRequests().length }))
+  check('the turn settled with an outcome and one model request on the wire', out.at(-1)?.type === 'outcome' && turn !== undefined, j({ last: out.at(-1)?.type, requests: api.messageRequests().length }))
   check('the turn carried a system block list and the tool', Array.isArray(turn?.body.system) && (turn?.body.system as unknown[]).length >= 2 && (turn?.body.tools ?? []).some(t => (t as { name?: string }).name === 'CountProbeTool'), j({ system: (turn?.body.system as unknown[] | undefined)?.length, tools: turn?.body.tools?.length }))
   check('the session array holds the turn (the write-back landed)', shared.length >= 2 && j(shared).includes('THE TURN ANSWERED.'), `${shared.length} rows`)
 

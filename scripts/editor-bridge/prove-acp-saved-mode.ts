@@ -37,11 +37,15 @@ const mode = arg('--mode')
 const bootPath = join(process.cwd(), sessionId + '.boot.json')
 writeFileSync(bootPath + '.tmp', JSON.stringify({ mode, pid: process.pid }))
 renameSync(bootPath + '.tmp', bootPath)
+const answer = message => process.stdout.write(JSON.stringify({ jsonrpc: '2.0', ...message }) + '\\n')
 for await (const line of createInterface({ input: process.stdin })) {
   const frame = JSON.parse(line)
-  if (frame.type !== 'control_request' || frame.request.subtype !== 'set_permission_mode') process.exit(23)
+  if (frame.id === undefined) continue
+  if (frame.method === 'initialize') { answer({ id: frame.id, result: { protocol: 1, runner: { version: '0', pid: process.pid }, session_id: sessionId } }); continue }
+  if (frame.method !== 'session/set_mode') process.exit(23)
   const refused = existsSync(join(process.cwd(), 'refuse-mode'))
-  process.stdout.write(JSON.stringify({ type: 'control_response', response: { subtype: refused ? 'error' : 'success', request_id: frame.request_id } }) + '\\n')
+  if (refused) answer({ id: frame.id, error: { code: -32010, message: 'the stand-in refuses this mode', data: { kind: 'mode' } } })
+  else answer({ id: frame.id, result: { mode: frame.params.mode } })
 }
 `)
 

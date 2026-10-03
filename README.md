@@ -433,7 +433,7 @@ Available commands include:
   and `scaffold`.
 - **`mercury roster`**: list the agent inventory.
 - **`mercury daemon`**: run the background daemon that hosts sessions.
-- **`mercury acp --stdio`**: connect an editor through the Agent Client
+- **`mercury acp`**: connect an editor through the Agent Client
   Protocol. `mercury bridge <action>` installs the VS Code extension.
 - **`mercury godot run|check|capture|frames|profile|tour|jobs|cancel|result`**:
   manage engine jobs for the Godot project in the current directory. Mercury

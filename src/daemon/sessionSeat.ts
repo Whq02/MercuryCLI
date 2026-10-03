@@ -13,12 +13,14 @@ import {
   sessionFactsFromWire,
   sessionKitToWire,
 } from '../services/engine-connector/seatWire.js'
-import { decodeRequestWait, requestWaitFromWire, type RequestWaitV1 } from '../services/providers/streamIdleBudget.js'
-import { decodeFoldStatus, foldStatusFromWire, type FoldStatusV1 } from '../services/compact/foldStatus.js'
+import { decodeRequestWait, type RequestWaitV1 } from '../services/providers/streamIdleBudget.js'
+import { decodeFoldStatus, type FoldStatusV1 } from '../services/compact/foldStatus.js'
 import { workRowRuns } from '../services/engine-connector/workCounts.js'
 import { EFFORT_LEVELS, normalizeEffortLevelString } from '../utils/effort.js'
 import { markConcourseWorkerActivity, readSessionWorkers, reviveConcourseWorker, updateConcourseWorkers, workerPidAlive, type ConcourseWorkerRecordV1 } from './concourseSupervisor.js'
-import { isSeatVerbAppliedParsedFrame, SEAT_VERB_APPLIED_SUBTYPE, type SeatVerbAppliedFrame } from './runnerFrames.js'
+import { isSeatVerbAppliedParsedFrame, type SeatVerbAppliedFrame } from './runnerFrames.js'
+import { parseRunnerLine } from './longLivedSupervisor.js'
+import type { LooseRow } from '../rows/read.js'
 import type { StreamJsonChildSpec } from './headlessRun.js'
 import type { PermissionMode } from '../types/permissions.js'
 import type { TextPhase } from '../types/wire.js'
@@ -36,7 +38,7 @@ import {
 import { applyConcourseScheduleOp, saturnFactsOf, SATURN_EDIT_BURST_CAP } from './saturn.js'
 import { deriveScheduleAccountForModel, readLiveAccountFacts, scheduleAccountVerdict } from './saturnAccount.js'
 import { applyConcourseKitOp } from './sessionKitOp.js'
-import { onWorkerControlCancel } from './permissionAsks.js'
+import { onWorkerControlCancel, retireWorkerAsks, RUNNER_ENDED_ASK_CAUSE, RUNNER_RESTARTED_ASK_CAUSE } from './permissionAsks.js'
 import type { QuiescenceAnswer, QuiescenceRequest } from './runnerQuiescence.js'
 import type { SessionRewindMode, SessionRewindOutcomeV1 } from './protocol.js'
 
@@ -207,11 +209,70 @@ function noteSeatEvent(seat: SeatState, dir: string | undefined, opts?: { now?: 
   seat.livenessTimer = t
 }
 
-function streamBlockOf(type: string | undefined): SeatState['streamBlock'] {
-  if (type === 'thinking' || type === 'redacted_thinking') return 'thinking'
-  if (type === 'text') return 'text'
-  if (type === 'tool_use' || type === 'server_tool_use' || type === 'mcp_tool_use') return 'tool_use'
+type SeatRow = LooseRow
+
+function seatBlockOf(of: unknown): SeatState['streamBlock'] {
+  if (of === 'reasoning') return 'thinking'
+  if (of === 'text') return 'text'
+  if (of === 'tool_call') return 'tool_use'
   return null
+}
+
+function onSeatPartialRow(seat: SeatState, row: SeatRow, dir?: string): void {
+  noteSeatEvent(seat, dir)
+  const messageId = typeof row.message_id === 'string' && row.message_id !== '' ? row.message_id : null
+  if (row.type === 'retracted') {
+    seat.tailMessageId = null
+    seat.streamBlock = null
+    seat.blockSinceMs = null
+    if (seat.tail !== null) setSeatTail(seat, null, dir)
+    else publishTailNow(seat, dir)
+    return
+  }
+  if (row.type === 'block_start') {
+    if (messageId !== seat.tailMessageId) {
+      if (seat.tail !== null) setSeatTail(seat, null, dir)
+      seat.tailMessageId = messageId
+      if (seat.firstByteAtMs === null) seat.firstByteAtMs = Date.now()
+      foldMessageOutputTokens(seat)
+      seat.tailPhase = null
+    }
+    seat.streamBlock = seatBlockOf(row.of)
+    seat.blockSinceMs = seat.streamBlock === null ? null : Date.now()
+    if (row.of === 'text') seat.tailPhase = textPhaseOf(row.phase)
+    publishTailNow(seat, dir)
+    return
+  }
+  if (row.type === 'text_delta' && typeof row.text === 'string') {
+    seat.streamedThisTurn = true
+    seat.turnChars += row.text.length
+    setSeatTail(seat, (seat.tail ?? '') + row.text, dir)
+    return
+  }
+  if (row.type === 'reasoning_delta' && typeof row.text === 'string') {
+    seat.turnChars += row.text.length
+    seat.turnThinkingChars += row.text.length
+    scheduleTailPublish(seat, dir)
+    return
+  }
+  if (row.type === 'tool_input_delta' && typeof row.json === 'string') {
+    seat.turnChars += row.json.length
+    scheduleTailPublish(seat, dir)
+  }
+}
+
+function onSeatStepRow(seat: SeatState, row: SeatRow, dir?: string): void {
+  noteSeatEvent(seat, dir)
+  const outputTokens = (row.usage as { output_tokens?: unknown } | undefined)?.output_tokens
+  if (typeof outputTokens === 'number' && Number.isFinite(outputTokens) && outputTokens > 0) {
+    seat.messageOutputTokens = Math.floor(outputTokens)
+    if (seat.turnOutputTokens === null) seat.turnOutputTokens = 0
+  }
+  seat.streamBlock = null
+  seat.blockSinceMs = null
+  foldMessageOutputTokens(seat)
+  if (seat.tail !== null) setSeatTail(seat, null, dir)
+  else publishTailNow(seat, dir)
 }
 
 function textPhaseOf(raw: unknown): TextPhase | null {
@@ -228,68 +289,6 @@ function stampFirstByte(seat: SeatState, next: RequestWaitV1 | null): boolean {
   if (next !== null && next.kind === 'first-byte') seat.firstByteAtMs = null
   else if (next === null && seat.wait !== null && seat.wait.kind === 'first-byte' && seat.firstByteAtMs === null) seat.firstByteAtMs = Date.now()
   return seat.firstByteAtMs !== before
-}
-
-function onSeatStreamEvent(seat: SeatState, line: string, dir?: string): boolean {
-  let frame: { type?: string; event?: { type?: string; content_block?: { type?: string; phase?: unknown; input?: unknown }; delta?: { type?: string; text?: string; thinking?: string; partial_json?: string }; message?: { id?: string }; usage?: { output_tokens?: unknown } } }
-  try {
-    frame = JSON.parse(line) as typeof frame
-  } catch {
-    return false
-  }
-  if (frame.type !== 'stream_event' || !frame.event) return false
-  const ev = frame.event
-  noteSeatEvent(seat, dir)
-  if (ev.type === 'content_block_start') {
-    seat.streamBlock = streamBlockOf(ev.content_block?.type)
-    seat.blockSinceMs = seat.streamBlock === null ? null : Date.now()
-    if (seat.streamBlock === 'tool_use') {
-      const input = ev.content_block?.input
-      if (typeof input === 'string') seat.turnChars += input.length
-      else if (input && typeof input === 'object' && Object.keys(input).length > 0) seat.turnChars += JSON.stringify(input).length
-    }
-    if (ev.content_block?.type === 'text') seat.tailPhase = textPhaseOf(ev.content_block.phase)
-    publishTailNow(seat, dir)
-    return true
-  }
-  if (ev.type === 'message_start') {
-    if (seat.tail !== null) setSeatTail(seat, null, dir)
-    const id = ev.message?.id
-    seat.tailMessageId = typeof id === 'string' && id !== '' ? id : null
-    if (seat.firstByteAtMs === null) seat.firstByteAtMs = Date.now()
-    foldMessageOutputTokens(seat)
-    seat.tailPhase = null
-    seat.streamBlock = null
-    seat.blockSinceMs = null
-    publishTailNow(seat, dir)
-  } else if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta' && typeof ev.delta.text === 'string') {
-    seat.streamedThisTurn = true
-    seat.turnChars += ev.delta.text.length
-    setSeatTail(seat, (seat.tail ?? '') + ev.delta.text, dir)
-  } else if (ev.type === 'content_block_delta' && ev.delta?.type === 'thinking_delta' && typeof ev.delta.thinking === 'string') {
-    seat.turnChars += ev.delta.thinking.length
-    seat.turnThinkingChars += ev.delta.thinking.length
-    scheduleTailPublish(seat, dir)
-  } else if (ev.type === 'content_block_delta' && ev.delta?.type === 'input_json_delta' && typeof ev.delta.partial_json === 'string') {
-    seat.turnChars += ev.delta.partial_json.length
-    scheduleTailPublish(seat, dir)
-  } else if (ev.type === 'message_delta') {
-    const outputTokens = ev.usage?.output_tokens
-    if (typeof outputTokens === 'number' && Number.isFinite(outputTokens) && outputTokens > 0) {
-      seat.messageOutputTokens = Math.floor(outputTokens)
-      if (seat.turnOutputTokens === null) seat.turnOutputTokens = 0
-      publishTailNow(seat, dir)
-    }
-  } else if (ev.type === 'content_block_stop' || ev.type === 'message_stop') {
-    if (ev.type === 'message_stop') {
-      seat.streamBlock = null
-      seat.blockSinceMs = null
-      foldMessageOutputTokens(seat)
-    }
-    if (seat.tail !== null) setSeatTail(seat, null, dir)
-    else publishTailNow(seat, dir)
-  }
-  return true
 }
 
 const PROGRESS_PUBLISH_MS = 100
@@ -329,78 +328,41 @@ function clearSeatProgress(seat: SeatState, dir?: string): void {
   publishProgressNow(seat, dir)
 }
 
-function onSeatEphemeralProgress(seat: SeatState, line: string, dir?: string): boolean {
-  let frame: {
-    type?: string
-    tool_use_id?: string
-    parent_tool_use_id?: string | null
-    progress?: {
-      kind?: string
-      data_type?: string
-      seq?: number
-      latest_line?: string
-      elapsed_time_seconds?: number
-      total_lines?: number
-      total_bytes?: number
-      mcp_progress?: number
-      mcp_total?: number
-      budget_ms?: number
-    }
-  }
-  try {
-    frame = JSON.parse(line) as typeof frame
-  } catch {
-    return false
-  }
-  if (frame.type !== 'tool_progress') return false
+function onSeatToolUpdate(seat: SeatState, row: SeatRow, dir?: string): void {
   noteSeatEvent(seat, dir)
-  const payload = frame.progress
-  if (
-    payload?.kind !== 'ephemeral_tail' ||
-    typeof frame.parent_tool_use_id !== 'string' ||
-    typeof frame.tool_use_id !== 'string' ||
-    typeof payload.data_type !== 'string' ||
-    typeof payload.seq !== 'number'
-  ) {
-    return true
-  }
-  const prior = seat.progress.get(frame.parent_tool_use_id)
-  if (prior !== undefined && payload.seq <= prior.seq) return true
-  seat.progress.set(frame.parent_tool_use_id, {
-    toolUseID: frame.tool_use_id,
-    dataType: payload.data_type,
-    seq: payload.seq,
-    ...(typeof payload.latest_line === 'string' ? { latestLine: payload.latest_line } : {}),
-    ...(typeof payload.elapsed_time_seconds === 'number' ? { elapsedTimeSeconds: payload.elapsed_time_seconds } : {}),
-    ...(typeof payload.total_lines === 'number' ? { totalLines: payload.total_lines } : {}),
-    ...(typeof payload.total_bytes === 'number' ? { totalBytes: payload.total_bytes } : {}),
-    ...(typeof payload.mcp_progress === 'number' ? { mcpProgress: payload.mcp_progress } : {}),
-    ...(typeof payload.mcp_total === 'number' ? { mcpTotal: payload.mcp_total } : {}),
-    ...(typeof payload.budget_ms === 'number' ? { budgetMs: payload.budget_ms } : {}),
+  if (typeof row.call_id !== 'string' || typeof row.tick !== 'number' || typeof row.source !== 'string') return
+  const key = typeof row.parent_call_id === 'string' ? row.parent_call_id : row.call_id
+  const prior = seat.progress.get(key)
+  if (prior !== undefined && row.tick <= prior.seq) return
+  const dataType = row.source === 'mcp' ? 'mcp_progress' : row.source === 'powershell' ? 'powershell_progress' : 'bash_progress'
+  seat.progress.set(key, {
+    toolUseID: row.call_id,
+    dataType,
+    seq: row.tick,
+    ...(typeof row.line === 'string' ? { latestLine: row.line } : {}),
+    ...(typeof row.elapsed_s === 'number' ? { elapsedTimeSeconds: row.elapsed_s } : {}),
+    ...(typeof row.lines === 'number' ? { totalLines: row.lines } : {}),
+    ...(typeof row.bytes === 'number' ? { totalBytes: row.bytes } : {}),
+    ...(typeof row.progress === 'number' ? { mcpProgress: row.progress } : {}),
+    ...(typeof row.total === 'number' ? { mcpTotal: row.total } : {}),
+    ...(typeof row.budget_ms === 'number' ? { budgetMs: row.budget_ms } : {}),
   })
   scheduleProgressPublish(seat, dir)
-  return true
 }
 
-function onSeatAssistantFrame(seat: SeatState, line: string, dir?: string): void {
-  if (seat.streamedThisTurn) return
-  let frame: { type?: string; parent_tool_use_id?: unknown; message?: { id?: string; content?: Array<{ type?: string; text?: string; phase?: unknown }> } }
-  try {
-    frame = JSON.parse(line) as typeof frame
-  } catch {
+function onSeatTextRow(seat: SeatState, row: SeatRow, dir?: string): void {
+  if (seat.streamedThisTurn) {
+    if (seat.tail !== null) setSeatTail(seat, null, dir)
+    else publishTailNow(seat, dir)
     return
   }
-  if (frame.type !== 'assistant' || !Array.isArray(frame.message?.content)) return
-  if (typeof frame.parent_tool_use_id === 'string') return
-  const textBlocks = frame.message.content.filter(block => block.type === 'text' && typeof block.text === 'string')
-  const text = textBlocks.map(block => block.text).join('')
-  if (text !== '') {
-    const id = frame.message.id
-    seat.tailMessageId = typeof id === 'string' && id !== '' ? id : null
-    seat.tailPhase = textPhaseOf(textBlocks[0]?.phase)
-    seat.turnChars += text.length
-    setSeatTail(seat, text, dir)
-  }
+  const text = typeof row.text === 'string' ? row.text : ''
+  if (text === '') return
+  const id = row.message_id
+  seat.tailMessageId = typeof id === 'string' && id !== '' ? id : null
+  seat.tailPhase = textPhaseOf(row.phase)
+  seat.turnChars += text.length
+  setSeatTail(seat, text, dir)
 }
 
 function liveRecordByShort(short: string, dir?: string): ConcourseWorkerRecordV1 | undefined {
@@ -639,211 +601,195 @@ function maybeResolveSessionKit(short: string, answer: SessionFactsAnswerV1, dir
 }
 
 export function onSeatLine(short: string, line: string, roster: SeatRosterPort, dir?: string): void {
-  if (line.includes('"stream_event"')) {
+  const row = parseRunnerLine(line)
+  if (row === null) return
+  onSeatRow(short, row, roster, dir)
+}
+
+function seatWaitOf(row: SeatRow): RequestWaitV1 | null {
+  const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null)
+  if (row.state === 'done') return null
+  if (row.state === 'first_byte' || row.state === 'loading') {
+    return decodeRequestWait({
+      kind: 'first-byte',
+      cold: row.cold === true,
+      promptTokens: num(row.prompt_tokens) ?? 0,
+      model: typeof row.model === 'string' ? row.model : '',
+      budgetMs: num(row.budget_ms) ?? 0,
+      sinceMs: num(row.since_ms) ?? 0,
+      attempt: num(row.attempt) ?? 1,
+      ...(row.promise === true ? { promise: true } : {}),
+      ...(row.state === 'loading' ? { phase: 'loading' } : {}),
+      ...(num(row.size_gb) !== null ? { sizeGb: num(row.size_gb) } : {}),
+      ...(num(row.checked_ms) !== null ? { checkedMs: num(row.checked_ms) } : {}),
+    })
+  }
+  if (row.state === 'retry') {
+    return decodeRequestWait({ kind: 'retry', attempt: num(row.attempt) ?? 1, of: num(row.of) ?? 1, reason: typeof row.reason === 'string' ? row.reason : '', delayMs: num(row.delay_ms) ?? 0, sinceMs: num(row.since_ms) ?? 0 })
+  }
+  if (row.state === 'silence') {
+    return decodeRequestWait({ kind: 'silence', model: typeof row.model === 'string' ? row.model : '', silentMs: num(row.silent_ms) ?? 0, sinceMs: num(row.since_ms) ?? 0, answered: row.answered === true, ...(num(row.ask_at_ms) !== null ? { askAtMs: num(row.ask_at_ms) } : {}) })
+  }
+  return null
+}
+
+function seatFoldOf(row: SeatRow, startedAtMs: number): FoldStatusV1 | null {
+  const stages = Array.isArray(row.stages) ? row.stages : []
+  if (stages.length === 0) return null
+  return decodeFoldStatus({
+    schema: 1,
+    trigger: row.trigger === 'manual' ? 'manual' : 'auto',
+    startedAtMs,
+    stages,
+    stage: typeof row.stage === 'string' ? row.stage : null,
+    fill: typeof row.fill === 'number' ? row.fill : null,
+    summaryTokens: typeof row.summary_tokens === 'number' ? row.summary_tokens : 0,
+    summaryCapTokens: typeof row.summary_cap_tokens === 'number' ? row.summary_cap_tokens : 0,
+    attempt: typeof row.attempt === 'number' ? row.attempt : 1,
+    ...(typeof row.exit === 'string' ? { exit: row.exit, endedAtMs: Date.now() } : {}),
+  })
+}
+
+const foldStartedAt = new Map<string, number>()
+
+export function onSeatRow(short: string, row: SeatRow, roster: SeatRosterPort, dir?: string): void {
+  const seatFor = (): SeatState => {
     const seat = seatOf(short)
     if (seat.sessionId === null) seat.sessionId = liveRecordByShort(short, dir)?.sessionId ?? null
-    if (onSeatStreamEvent(seat, line, dir)) return
+    return seat
   }
-  if (line.includes('"ephemeral_tail"')) {
-    const seat = seatOf(short)
-    if (seat.sessionId === null) seat.sessionId = liveRecordByShort(short, dir)?.sessionId ?? null
-    if (onSeatEphemeralProgress(seat, line, dir)) return
-  }
-  if (line.includes('"tool_progress"')) {
-    try {
-      if ((JSON.parse(line) as { type?: string }).type === 'tool_progress') {
-        const seat = seatOf(short)
-        if (seat.sessionId === null) seat.sessionId = liveRecordByShort(short, dir)?.sessionId ?? null
-        noteSeatEvent(seat, dir)
-        return
-      }
-    } catch {
-    }
-  }
-  if (line.includes('"control_response"') && line.includes(SESSION_FACTS_REQUEST_PREFIX)) {
-    try {
-      const frame = JSON.parse(line) as {
-        type?: string
-        response?: { subtype?: string; request_id?: string; response?: unknown }
-      }
-      const response = frame.response
-      const answer =
-        frame.type === 'control_response' &&
-        response?.subtype === 'success' &&
-        typeof response.request_id === 'string' &&
-        response.request_id.startsWith(SESSION_FACTS_REQUEST_PREFIX)
-          ? sessionFactsFromWire(response.response)
-          : null
-      if (answer !== null) {
-        seatOf(short).lastAnswer = answer
-        maybeResolveSessionKit(short, answer, dir)
-        applySessionScheduleAnswer(short, answer, roster, dir)
-        publishSeatFacts(short, dir, roster)
-        armWorkPoll(short, roster)
-      }
-    } catch {
-    }
-    return
-  }
-  if (
-    line.includes('"task_started"') ||
-    line.includes('"task_progress"') ||
-    line.includes('"task_notification"') ||
-    line.includes('"mission_updated"') ||
-    line.includes('"samples_updated"')
-  ) {
-    requestSessionFacts(short, roster)
-    return
-  }
-  if (line.includes('"control_response"') && line.includes(SEAT_VERB_REQUEST_PREFIX)) {
-    if (line.includes(SEAT_REWIND_REQUEST_PREFIX)) {
-      try {
-        settleRewindAnswer(JSON.parse(line) as Parameters<typeof settleRewindAnswer>[0])
-      } catch {
-      }
-    }
-    if (line.includes(SEAT_AGENT_REQUEST_PREFIX)) {
-      try {
-        settleAgentVerbAnswer(JSON.parse(line) as Parameters<typeof settleAgentVerbAnswer>[0])
-      } catch {
-      }
-    }
-    if (line.includes(SEAT_WITHDRAW_REQUEST_PREFIX)) {
-      try {
-        settleWithdrawAnswer(JSON.parse(line) as Parameters<typeof settleWithdrawAnswer>[0])
-      } catch {
-      }
-    }
-    if (line.includes(SEAT_MODE_REQUEST_PREFIX)) {
-      try {
-        settleModeAnswer(JSON.parse(line) as Parameters<typeof settleModeAnswer>[0])
-      } catch {
-      }
-    }
-    if (line.includes(SEAT_MODEL_REQUEST_PREFIX) || line.includes(SEAT_EFFORT_REQUEST_PREFIX) || line.includes(SEAT_SPAWN_SWITCH_REQUEST_PREFIX)) {
-      try {
-        settleSeatVerbAnswer(JSON.parse(line) as Parameters<typeof settleSeatVerbAnswer>[0])
-      } catch {
-      }
-    }
-    requestSessionFacts(short, roster, { immediate: true })
-    return
-  }
-  if (line.includes('"control_cancel_request"')) {
-    try {
-      const frame = JSON.parse(line) as { type?: string; request_id?: string }
-      if (frame.type === 'control_cancel_request') {
-        if (typeof frame.request_id === 'string') {
-          onWorkerControlCancel(frame.request_id, dir)
+  const tagged = typeof row.parent_call_id === 'string'
+  switch (row.type) {
+    case 'block_start':
+    case 'text_delta':
+    case 'reasoning_delta':
+    case 'tool_input_delta':
+    case 'retracted':
+      onSeatPartialRow(seatFor(), row, dir)
+      return
+    case 'tool_update':
+      onSeatToolUpdate(seatFor(), row, dir)
+      return
+    case 'control_response': {
+      const response = row.response as { subtype?: string; request_id?: string; response?: unknown } | undefined
+      const requestId = typeof response?.request_id === 'string' ? response.request_id : ''
+      if (requestId.startsWith(SESSION_FACTS_REQUEST_PREFIX)) {
+        const answer = response?.subtype === 'success' ? sessionFactsFromWire(response.response) : null
+        if (answer !== null) {
+          seatOf(short).lastAnswer = answer
+          maybeResolveSessionKit(short, answer, dir)
+          applySessionScheduleAnswer(short, answer, roster, dir)
+          publishSeatFacts(short, dir, roster)
+          armWorkPoll(short, roster)
         }
         return
       }
-    } catch {
-    }
-  }
-  if (line.includes(SEAT_VERB_APPLIED_SUBTYPE)) {
-    try {
-      const frame = JSON.parse(line) as Record<string, unknown>
-      if (isSeatVerbAppliedParsedFrame(frame)) {
-        onSeatVerbApplied(short, frame as unknown as SeatVerbAppliedFrame, roster, dir)
+      if (requestId.startsWith(SEAT_VERB_REQUEST_PREFIX)) {
+        const frame = row as unknown as Parameters<typeof settleRewindAnswer>[0]
+        if (requestId.startsWith(SEAT_REWIND_REQUEST_PREFIX)) settleRewindAnswer(frame)
+        if (requestId.startsWith(SEAT_AGENT_REQUEST_PREFIX)) settleAgentVerbAnswer(frame as Parameters<typeof settleAgentVerbAnswer>[0])
+        if (requestId.startsWith(SEAT_WITHDRAW_REQUEST_PREFIX)) settleWithdrawAnswer(frame as Parameters<typeof settleWithdrawAnswer>[0])
+        if (requestId.startsWith(SEAT_MODE_REQUEST_PREFIX)) settleModeAnswer(frame as Parameters<typeof settleModeAnswer>[0])
+        if (requestId.startsWith(SEAT_MODEL_REQUEST_PREFIX) || requestId.startsWith(SEAT_EFFORT_REQUEST_PREFIX) || requestId.startsWith(SEAT_SPAWN_SWITCH_REQUEST_PREFIX)) {
+          settleSeatVerbAnswer(frame as Parameters<typeof settleSeatVerbAnswer>[0])
+        }
         requestSessionFacts(short, roster, { immediate: true })
-        return
       }
-    } catch {
-    }
-  }
-  if (line.includes('"init"') && line.includes('"system"')) {
-    try {
-      const frame = JSON.parse(line) as { type?: string; subtype?: string }
-      if (frame.type === 'system') {
-        if (frame.subtype === 'init') requestSessionFacts(short, roster, { immediate: true })
-        return
-      }
-    } catch {
-    }
-  }
-  if (line.includes('"subtype":"status"')) {
-    try {
-      const frame = JSON.parse(line) as { type?: string; subtype?: string; status?: unknown }
-      if (frame.type === 'system' && frame.subtype === 'status') {
-        const seat = seatOf(short)
-        if (seat.sessionId === null) seat.sessionId = liveRecordByShort(short, dir)?.sessionId ?? null
-        if (frame.status !== null && typeof frame.status === 'object' && 'wait' in (frame.status as object)) {
-          const raw = (frame.status as { wait?: unknown }).wait
-          const next = decodeRequestWait(requestWaitFromWire(raw))
-          noteSeatEvent(seat, dir)
-          const stampMoved = stampFirstByte(seat, next)
-          if (stampMoved || JSON.stringify(seat.wait) !== JSON.stringify(next)) {
-            seat.wait = next
-            publishTailNow(seat, dir)
-          }
-          return
-        }
-        if (frame.status !== null && typeof frame.status === 'object' && 'stream_activity' in (frame.status as object)) {
-          noteSeatEvent(seat, dir)
-          return
-        }
-        const statusObject = frame.status !== null && typeof frame.status === 'object' ? (frame.status as { waiting_on_agents?: unknown; compacting?: unknown }) : null
-        const waiting = statusObject?.waiting_on_agents
-        const foldStamped = statusObject !== null && 'compacting' in statusObject
-        const fold = foldStamped ? decodeFoldStatus(foldStatusFromWire(statusObject.compacting)) : null
-        const foldLive = foldStamped && (fold === null || fold.exit === undefined)
-        const next =
-          frame.status === 'compacting' || foldLive
-            ? ('compacting' as const)
-            : typeof waiting === 'number' && Number.isFinite(waiting) && waiting > 0
-              ? ('waiting-on-agents' as const)
-              : null
-        const count = next === 'waiting-on-agents' ? Math.floor(waiting as number) : 0
-        noteSeatEvent(seat, dir)
-        const foldMoved = JSON.stringify(seat.fold) !== JSON.stringify(fold)
-        if (seat.stateWord !== next || seat.waitingOnAgents !== count || foldMoved) {
-          seat.stateWord = next
-          seat.waitingOnAgents = count
-          seat.fold = fold
-          publishTailNow(seat, dir)
-          publishActivity(short, roster, dir)
-        }
-        return
-      }
-    } catch {
-    }
-  }
-  if (line.includes('"user"')) {
-    try {
-      if ((JSON.parse(line) as { type?: string }).type === 'user') {
-        const seat = seatOf(short)
-        if (seat.sessionId === null) seat.sessionId = liveRecordByShort(short, dir)?.sessionId ?? null
-        noteSeatEvent(seat, dir)
-        return
-      }
-    } catch {
-    }
-  }
-  if (line.includes('"assistant"') || line.includes('"result"')) {
-    let kind: string | undefined
-    let tagged = false
-    try {
-      const parsed = JSON.parse(line) as { type?: string; parent_tool_use_id?: unknown }
-      kind = parsed.type
-      tagged = typeof parsed.parent_tool_use_id === 'string'
-    } catch {
       return
     }
-    if (kind === 'assistant') {
-      const seat = seatOf(short)
-      if (seat.sessionId === null) seat.sessionId = liveRecordByShort(short, dir)?.sessionId ?? null
+    case 'control_cancel_request':
+      if (typeof row.request_id === 'string') onWorkerControlCancel(row.request_id, dir)
+      return
+    case 'system':
+      if (isSeatVerbAppliedParsedFrame(row)) {
+        onSeatVerbApplied(short, row as unknown as SeatVerbAppliedFrame, roster, dir)
+        requestSessionFacts(short, roster, { immediate: true })
+      }
+      return
+    case 'task':
+    case 'mission_updated':
+    case 'samples_updated':
+      requestSessionFacts(short, roster)
+      return
+    case 'session':
+    case 'mode':
+      requestSessionFacts(short, roster, { immediate: true })
+      return
+    case 'wait': {
+      const seat = seatFor()
+      const next = seatWaitOf(row)
+      noteSeatEvent(seat, dir)
+      const stampMoved = stampFirstByte(seat, next)
+      if (stampMoved || JSON.stringify(seat.wait) !== JSON.stringify(next)) {
+        seat.wait = next
+        publishTailNow(seat, dir)
+      }
+      return
+    }
+    case 'heartbeat':
+    case 'notice':
+    case 'command_output':
+    case 'rate_limit':
+    case 'tool_result':
+      noteSeatEvent(seatFor(), dir)
+      return
+    case 'turn':
+    case 'compaction': {
+      const seat = seatFor()
+      if (row.type === 'turn' && row.state !== 'waiting') {
+        noteSeatEvent(seat, dir)
+        return
+      }
+      let fold: FoldStatusV1 | null = seat.fold
+      let foldLive = seat.stateWord === 'compacting'
+      let waiting = seat.waitingOnAgents
+      if (row.type === 'compaction') {
+        if (row.state === 'started' || !foldStartedAt.has(short)) foldStartedAt.set(short, Date.now())
+        fold = seatFoldOf(row, foldStartedAt.get(short) ?? Date.now())
+        foldLive = row.state !== 'ended' && (fold === null || fold.exit === undefined)
+        if (row.state === 'ended') foldStartedAt.delete(short)
+      } else {
+        waiting = typeof row.agents === 'number' && Number.isFinite(row.agents) ? Math.floor(row.agents) : 0
+      }
+      const next = foldLive ? ('compacting' as const) : waiting > 0 ? ('waiting-on-agents' as const) : null
+      const count = next === 'waiting-on-agents' ? waiting : 0
+      noteSeatEvent(seat, dir)
+      const foldMoved = JSON.stringify(seat.fold) !== JSON.stringify(fold)
+      if (seat.stateWord !== next || seat.waitingOnAgents !== count || foldMoved) {
+        seat.stateWord = next
+        seat.waitingOnAgents = count
+        seat.fold = fold
+        publishTailNow(seat, dir)
+        publishActivity(short, roster, dir)
+      }
+      return
+    }
+    case 'step': {
+      const seat = seatFor()
+      if (tagged) {
+        noteSeatEvent(seat, dir)
+        requestSessionFacts(short, roster)
+        return
+      }
+      onSeatStepRow(seat, row, dir)
+      requestSessionFacts(short, roster)
+      return
+    }
+    case 'text':
+    case 'reasoning':
+    case 'tool_call': {
+      const seat = seatFor()
       noteSeatEvent(seat, dir)
       if (tagged) {
         requestSessionFacts(short, roster)
         return
       }
-      onSeatAssistantFrame(seat, line, dir)
+      if (row.type === 'text') onSeatTextRow(seat, row, dir)
       publishActivity(short, roster, dir, Date.now())
       requestSessionFacts(short, roster)
       return
     }
-    if (kind === 'result') {
+    case 'outcome': {
       const seat = seatOf(short)
       seat.streamedThisTurn = false
       seat.turnChars = 0
@@ -857,13 +803,17 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
       seat.waitingOnAgents = 0
       seat.fold = null
       seat.wait = null
+      foldStartedAt.delete(short)
       noteSeatEvent(seat, dir)
       seat.streamBlock = null
       seat.blockSinceMs = null
       setSeatTail(seat, null, dir)
       clearSeatProgress(seat, dir)
       markConcourseWorkerActivity(short, { turnActive: false, work: seat.lastAnswer?.work, lastTurnAt: Date.now() }, dir)
+      return
     }
+    default:
+      return
   }
 }
 
@@ -888,6 +838,7 @@ export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: strin
   rejectAgentVerbWaiters(short, "the session's runner restarted before it answered — nothing is assumed stopped or resumed")
   rejectWithdrawWaiters(short, "the session's runner restarted before it answered the withdraw — nothing is assumed taken back")
   rejectModeWaiters(short, "the session's runner restarted before it answered the mode change — the band follows its facts")
+  retireWorkerAsks(short, RUNNER_RESTARTED_ASK_CAUSE, dir)
   const seat = seatOf(short)
   seat.lastAnswer = null
   seat.generation += 1
@@ -934,6 +885,7 @@ export function onSeatSettled(short: string): void {
   rejectWithdrawWaiters(short, "the session's runner ended before it answered the withdraw — nothing is assumed taken back")
   rejectModeWaiters(short, "the session's runner ended before it answered the mode change")
   rejectSeatVerbWaiters(short)
+  retireWorkerAsks(short, RUNNER_ENDED_ASK_CAUSE)
   const seat = seats.get(short)
   if (seat?.debounce !== null && seat?.debounce !== undefined) clearTimeout(seat.debounce)
   if (seat?.workPoll !== null && seat?.workPoll !== undefined) clearTimeout(seat.workPoll)
@@ -963,7 +915,6 @@ let rewindSeq = 0
 function refusedRewind(mode: SessionRewindMode, refusal: NonNullable<SessionRewindOutcomeV1['refusal']>, detail: string): SessionRewindOutcomeV1 {
   return { outcome: 'refused', mode, refusal, detail }
 }
-
 
 export function rewindSession(
   sessionId: string,

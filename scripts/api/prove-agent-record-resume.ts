@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
+import { runTurns } from '../lib/rows.ts'
 
 process.env.NODE_ENV = 'test'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'agent-record-pure-'))
@@ -69,37 +70,7 @@ function makeArena(): Arena {
   }
 }
 function runStreaming(arena: Arena, fixture: FixtureApi, extraEnv: Record<string, string>, args: string[], prompts: string[], settleMs: number): Promise<RunResult> {
-  return new Promise(resolvePromise => {
-    const child = spawn(nodeBin!, [DIST, ...args], { cwd: arena.cwd, env: { ...arena.env, ...extraEnv, ANTHROPIC_BASE_URL: fixture.url } })
-    let stdout = ''
-    let stderr = ''
-    let sent = 0
-    let resultsSeen = 0
-    const sendNext = (): void => {
-      if (sent >= prompts.length) {
-        child.stdin.end()
-        return
-      }
-      const prompt = prompts[sent]!
-      sent++
-      child.stdin.write(j({ type: 'user', message: { role: 'user', content: prompt } }) + '\n')
-    }
-    child.stdout.on('data', d => {
-      stdout += d
-      const results = stdout.split('\n').filter(l => l.includes('"type":"result"')).length
-      while (resultsSeen < results) {
-        resultsSeen++
-        setTimeout(sendNext, settleMs)
-      }
-    })
-    child.stderr.on('data', d => (stderr += d))
-    const killer = setTimeout(() => child.kill('SIGKILL'), 120_000)
-    child.on('close', exit => {
-      clearTimeout(killer)
-      resolvePromise({ exit, stdout, stderr })
-    })
-    child.on('spawn', () => sendNext())
-  })
+  return runTurns({ node: nodeBin!, dist: DIST, args, cwd: arena.cwd, env: { ...arena.env, ...extraEnv, ANTHROPIC_BASE_URL: fixture.url }, timeoutMs: 120_000, settleMs, turns: prompts })
 }
 function transcriptFiles(arena: Arena): string[] {
   const out: string[] = []
@@ -133,10 +104,10 @@ const toolNamesOf = (q: { body: unknown }): string => ((q.body as Body).tools ??
 const systemOf = (q: { body: unknown }): string => j(withoutCacheControl((q.body as Body).system ?? null))
 function initToolsOf(stdout: string): string[] {
   for (const line of stdout.split('\n')) {
-    if (!line.includes('"subtype":"init"')) continue
+    if (!line.includes('"type":"session"')) continue
     try {
-      const row = JSON.parse(line) as { type?: unknown; subtype?: unknown; tools?: unknown }
-      if (row.type === 'system' && row.subtype === 'init' && Array.isArray(row.tools)) return row.tools.map(String)
+      const row = JSON.parse(line) as { type?: unknown; tools?: unknown }
+      if (row.type === 'session' && Array.isArray(row.tools)) return row.tools.map(String)
     } catch {
       continue
     }

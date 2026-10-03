@@ -47,9 +47,8 @@ guard.unref?.()
 
 const { createTurnDriver } = await import('../../src/cli/headless/turnDriver.ts')
 const { withFoldStatus } = await import('../../src/services/compact/compact.ts')
-const { toSDKStatusPayload } = await import('../../src/utils/messages/mappers.ts')
-const { turnStartedFrame, isTurnStartedParsedFrame } = await import('../../src/daemon/runnerFrames.ts')
-const { parseStreamJsonFrame, isTurnResultParsedFrame } = await import('../../src/daemon/longLivedSupervisor.ts')
+const { parseRunnerLine, isTurnOpenRow, isOutcomeRow } = await import('../../src/daemon/longLivedSupervisor.ts')
+const { compactionClearedRow, compactionRow, heartbeatRow, waitRow, partialRowsOf, itemRowsOf, stepRow, turnStartedRow, turnWaitingRow, outcomeRow, sessionRow } = await import('../../src/rows/project.ts')
 const { onSeatLine } = await import('../../src/daemon/sessionSeat.ts')
 const { updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
 const { publishSessionFacts, publishSessionTail, readSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
@@ -149,23 +148,50 @@ let turnOpen = false
 const wire = (frame: Frame): void => {
   const line = JSON.stringify(frame)
   wireLog.push(frame)
-  const parsed = parseStreamJsonFrame(line)
-  if (isTurnStartedParsedFrame(parsed) && !turnOpen) {
+  const parsed = parseRunnerLine(line)
+  if (isTurnOpenRow(parsed) && !turnOpen) {
     turnOpen = true
     publishSessionFacts(facts(true) as never, DAEMON_DIR)
   }
-  if (isTurnResultParsedFrame(parsed)) {
+  if (isOutcomeRow(parsed)) {
     turnOpen = false
     publishSessionFacts(facts(false) as never, DAEMON_DIR)
   }
   onSeatLine(SHORT, line, roster as never, DAEMON_DIR)
 }
-const statusFrame = (status: unknown): Frame => ({ type: 'system', subtype: 'status', status: toSDKStatusPayload(status), uuid: randomUUID(), session_id: SID })
-const resultFrame = (): Frame => ({ type: 'result', subtype: 'success', is_error: false, duration_ms: 1, duration_api_ms: 1, num_turns: 1, result: '', session_id: SID, total_cost_usd: 0, uuid: randomUUID() })
-const initFrame = (): Frame => ({ type: 'system', subtype: 'init', cwd: PROJECT, session_id: SID, tools: [], mcp_servers: [], model: 'claude-opus-5', permissionMode: 'default', uuid: randomUUID() })
-const streamEvent = (event: Frame): Frame => ({ type: 'stream_event', event, parent_tool_use_id: null, session_id: SID, uuid: randomUUID() })
-const assistantFrame = (id: string, content: Frame[]): Frame => ({ type: 'assistant', message: { id, type: 'message', role: 'assistant', model: 'claude-opus-5', content, stop_reason: null, stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } }, parent_tool_use_id: null, session_id: SID, uuid: randomUUID() })
-const foldContext = () => ({ setSDKStatus: (status: unknown) => wire(statusFrame(status)), abortController: new AbortController(), setStreamMode: () => {}, setResponseLength: () => {}, onCompactProgress: () => {} })
+const scope = { session_id: SID, turn: 1 }
+const USAGE = { input_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, output_tokens: 1 }
+let openFold: 'manual' | 'auto' | 'overflow' | null = null
+const foldRow = (fold: unknown): Frame => {
+  const row = compactionRow(scope, (fold !== null && typeof fold === 'object' ? fold : null) as never)
+  openFold = row.state === 'ended' ? null : row.trigger
+  return row as Frame
+}
+const statusRowOf = (status: unknown): Frame | null => {
+  if (status === 'compacting') return foldRow(null)
+  if (status === null) {
+    if (openFold === null) return null
+    const row = compactionClearedRow(scope, openFold) as Frame
+    openFold = null
+    return row
+  }
+  if (typeof status !== 'object') return null
+  const record = status as { wait?: unknown; streamActivity?: number; compacting?: unknown }
+  if ('wait' in record) return waitRow(scope, (record.wait ?? null) as never) as Frame
+  if ('streamActivity' in record) return heartbeatRow(scope) as Frame
+  if ('compacting' in record) return foldRow(record.compacting)
+  return null
+}
+const wireStatus = (status: unknown): void => {
+  const row = statusRowOf(status)
+  if (row !== null) wire(row)
+}
+const resultFrame = (): Frame => outcomeRow(scope, { turnId: randomUUID(), status: 'completed', stopReason: 'end_turn', answer: '', steps: 1, wallMs: 1, usage: USAGE, models: [], denials: [] }) as Frame
+const turnRow = (): Frame => turnStartedRow(scope, { turnId: randomUUID(), messageIds: [randomUUID()], model: 'claude-opus-5' }) as Frame
+const initFrame = (): Frame => sessionRow(scope, { version: '0', cwd: PROJECT, model: 'claude-opus-5', mode: 'default', tools: [], mcpServers: [], commands: [], agents: [], skills: [], extensions: [] }) as Frame
+const streamEvents = (messageId: string, event: Frame): Frame[] => partialRowsOf(scope, messageId, event as never) as Frame[]
+const assistantRows = (id: string, content: Frame[]): Frame[] => [...(itemRowsOf(scope, id, content) as Frame[]), stepRow(scope, { messageId: id, model: 'claude-opus-5', stopReason: 'end_turn', usage: USAGE }) as Frame]
+const foldContext = () => ({ setSDKStatus: wireStatus, abortController: new AbortController(), setStreamMode: () => {}, setResponseLength: () => {}, onCompactProgress: () => {} })
 
 type Turn = (onMessage: (m: Frame) => void) => Promise<void>
 const turns = new Map<string, Turn>()
@@ -183,27 +209,28 @@ const driver = createTurnDriver({
   writeDirect: async message => {
     wire(message as unknown as Frame)
   },
-  drainSdkEvents: () => [],
+  drainRows: () => [],
   executeTurn: async (command, _batch, onMessage) => {
     const turn = turns.get(String(command.value))
     if (turn === undefined) throw new Error(`no scripted turn for ${String(command.value)}`)
     await turn(m => onMessage(m as never))
   },
   beforeCycle: async () => {},
-  onTurnStart: () => turnStartedFrame(SID, [], randomUUID()) as never,
+  onTurnStart: () => {},
+  turnIdOf: () => 't-fold',
+  openTurnRow: messageIds => turnStartedRow(scope, { turnId: 't-fold', messageIds, model: 'claude-opus-5' }) as never,
   onTurnSettled: () => {},
   hasWaitableBackgroundTasks: () => agentsRunning,
   hasHoldableBackgroundAgents: () => agentsRunning,
   waitableBackgroundTaskCount: () => (agentsRunning ? 1 : 0),
-  onAgentWait: count => wire({ type: 'system', subtype: 'status', status: count > 0 ? { waiting_on_agents: count } : null, uuid: randomUUID(), session_id: SID }),
-  takePendingSuggestion: () => null,
+  onAgentWait: (count, turnId) => wire(turnWaitingRow(scope, { turnId, agents: count }) as Frame),
   settleIdle: async () => 'stay',
   closeOutput: async () => {},
   notifySessionState: () => {},
   isShuttingDown: () => false,
   idleTimerStop: () => {},
   idleTimerStart: () => {},
-  onCycleError: error => ({ type: 'result', subtype: 'error_during_execution', is_error: true, result: String(error), session_id: SID, uuid: randomUUID() }) as never,
+  onCycleError: (error, turnId) => outcomeRow(scope, { turnId, status: 'failed', stopReason: null, error: { message: String(error), class: 'internal' }, steps: 0, wallMs: 0, usage: USAGE, models: [], denials: [] }) as never,
   shutdown: () => {},
   clock: { sleep },
 })
@@ -219,8 +246,9 @@ const live = (): Live => cockpit.live() as Live
 const fold = (): Fold => (typeof cockpit.fold === 'function' ? (cockpit.fold() as Fold) : null)
 const tail = (): { stateWord?: string; fold?: { exit?: string } } | null => readSessionTail(SID, DAEMON_DIR) as never
 const rowVisible = (): boolean => foldRowVisible(fold() as never, { landingPainted: false, nowMs: Date.now() })
-const statusFramesOnWire = (): Frame[] => wireLog.filter(f => f.type === 'system' && f.subtype === 'status')
-const resultFramesOnWire = (): number => wireLog.filter(f => f.type === 'result').length
+const compactionRowsOnWire = (): Frame[] => wireLog.filter(f => f.type === 'compaction')
+const resultFramesOnWire = (): number => wireLog.filter(f => f.type === 'outcome').length
+const emit = (onMessage: (m: Frame) => void, rows: Frame[]): void => rows.forEach(onMessage)
 
 section('P0 the seat opens idle (the control)')
 check('the cockpit reads the seat idle before any turn', live().inFlight === false && live().phase === 'idle', j(live()))
@@ -229,18 +257,16 @@ section("P1 the lead's turn ends while its agents run: the driver holds the resu
 {
   turns.set('lead turn', async onMessage => {
     onMessage(initFrame())
-    onMessage(streamEvent({ type: 'message_start', message: { id: 'msg_lead_1' } }))
-    onMessage(streamEvent({ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }))
-    onMessage(streamEvent({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'the agents are running; I will wait for them.' } }))
-    onMessage(streamEvent({ type: 'content_block_stop', index: 0 }))
-    onMessage(streamEvent({ type: 'message_stop' }))
-    onMessage(assistantFrame('msg_lead_1', [{ type: 'text', text: 'the agents are running; I will wait for them.' }]))
+    onMessage(turnRow())
+    emit(onMessage, streamEvents('msg_lead_1', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }))
+    emit(onMessage, streamEvents('msg_lead_1', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'the agents are running; I will wait for them.' } }))
+    emit(onMessage, assistantRows('msg_lead_1', [{ type: 'text', text: 'the agents are running; I will wait for them.' }]))
     onMessage(resultFrame())
   })
   enqueue('lead turn')
   const waiting = await until(() => live().inFlight === true && live().phase === 'waiting')
   check("the phase reads the agent wait (the word road works: the driver's announce reached the seat and the cockpit)", waiting, j(live()))
-  check('the result frame never crossed the wire (the hold-back rule: holdable agents run)', resultFramesOnWire() === 0, `results on the wire: ${resultFramesOnWire()}`)
+  check('the outcome row never crossed the wire (the hold-back rule: holdable agents run)', resultFramesOnWire() === 0, `outcomes on the wire: ${resultFramesOnWire()}`)
 }
 
 section("P2 the operator's manual /compact drains into the held turn; the fold begins and speaks its own word")
@@ -251,7 +277,7 @@ let beginFold: Fold = null
 let beginTail: ReturnType<typeof tail> = null
 {
   turns.set('/compact', async onMessage => {
-    onMessage(initFrame())
+    onMessage(turnRow())
     await withFoldStatus(
       foldContext() as never,
       async scoped => {
@@ -281,13 +307,10 @@ let beginTail: ReturnType<typeof tail> = null
     nextTurnDone = resolve
   })
   turns.set('read the landings', async onMessage => {
-    onMessage(initFrame())
-    onMessage(streamEvent({ type: 'message_start', message: { id: 'msg_lead_2' } }))
-    onMessage(streamEvent({ type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id: TOOL_USE_ID, name: 'Read', input: {} } }))
-    onMessage(streamEvent({ type: 'content_block_stop', index: 0 }))
-    onMessage(streamEvent({ type: 'message_stop' }))
+    onMessage(turnRow())
+    emit(onMessage, streamEvents('msg_lead_2', { type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id: TOOL_USE_ID, name: 'Read', input: {} } }))
     appendRows(seedRows.length, seedRows.length + nextTurnRows.length)
-    onMessage(assistantFrame('msg_lead_2', nextTurnRows[1]!.message.content as Frame[]))
+    emit(onMessage, assistantRows('msg_lead_2', nextTurnRows[1]!.message.content as Frame[]))
     await nextTurnHeld
     appendRows(seedRows.length + nextTurnRows.length, allLines.length - 1)
     onMessage(resultFrame())
@@ -299,12 +322,12 @@ let beginTail: ReturnType<typeof tail> = null
   fence('the tail projection at the fold begin', j(beginTail))
 
   section('P3 the fold exits landed; the next queued turn drains at once and calls a tool')
-  const exitStamp = statusFramesOnWire().findLast(f => f.status !== null && typeof f.status === 'object' && 'compacting' in (f.status as object)) as { status: { compacting: { exit?: string; ended_at_ms?: number } } } | undefined
-  check('the exit stamp reached the wire with exit=landed (the record is right; the throttle dropped nothing)', exitStamp?.status.compacting.exit === 'landed' && typeof exitStamp.status.compacting.ended_at_ms === 'number', j(exitStamp))
+  const exitStamp = compactionRowsOnWire().findLast(f => f.state === 'ended') as { state: string; exit?: string; stage?: unknown } | undefined
+  check('the exit stamp reached the wire with exit=landed (the record is right; the throttle dropped nothing)', exitStamp?.exit === 'landed' && Array.isArray((exitStamp as { stages?: unknown }).stages), j(exitStamp))
   const framesAfterExit = wireLog.slice(wireLog.indexOf(exitStamp as never) + 1)
-  fence('the frames the runner wrote after the exit stamp', j(framesAfterExit.map(f => `${String(f.type)}${f.subtype !== undefined ? `/${String(f.subtype)}` : ''}${f.type === 'system' && f.subtype === 'status' ? `:${j(f.status)}` : ''}${f.type === 'stream_event' ? `:${String((f.event as Frame).type)}` : ''}`)))
-  check("the /compact turn's result never crossed the wire either (held back for the agents), so no frame after the exit clears the word", resultFramesOnWire() === 0 && !framesAfterExit.some(f => f.type === 'system' && f.subtype === 'status' && f.status === null), `results: ${resultFramesOnWire()}`)
-  const toolCalled = await until(() => wireLog.some(f => f.type === 'assistant' && String((f.message as { id: string }).id) === 'msg_lead_2'))
+  fence('the rows the runner wrote after the exit stamp', j(framesAfterExit.map(f => `${String(f.type)}${typeof f.state === 'string' ? `/${f.state}` : ''}${f.type === 'compaction' ? `:${j({ stage: f.stage, exit: f.exit })}` : ''}`)))
+  check("the /compact turn's outcome never crossed the wire either (held back for the agents), and no compaction row after the exit re-opens the word", resultFramesOnWire() === 0 && !framesAfterExit.some(f => f.type === 'compaction'), `outcomes: ${resultFramesOnWire()}`)
+  const toolCalled = await until(() => wireLog.some(f => f.type === 'tool_call' && f.message_id === 'msg_lead_2'))
   check("the next turn's first tool call landed on the wire (the transcript carries the unresolved tool_use)", toolCalled)
   await sleep(600)
   const tailAfterExit = tail()
@@ -326,16 +349,16 @@ let beginTail: ReturnType<typeof tail> = null
 
   section("P5 the next turn settles and the agents end: the held results flush and the seat rests")
   nextTurnDone()
-  await until(() => wireLog.some(f => f.type === 'assistant' && String((f.message as { id: string }).id) === 'msg_lead_2') && turns.has('read the landings'))
+  await until(() => wireLog.some(f => f.type === 'tool_call' && f.message_id === 'msg_lead_2') && turns.has('read the landings'))
   await sleep(200)
   agentsRunning = false
   const idle = await until(() => live().inFlight === false && live().phase === 'idle', 5000)
   check('the held result flushes once the agents end and the seat reads idle', idle, j(live()))
-  check("one result crossed the wire in the end (the driver's one held slot keeps the last envelope)", resultFramesOnWire() === 1, `results: ${resultFramesOnWire()}`)
+  check("one outcome crossed the wire in the end (the driver's one held slot keeps the last envelope)", resultFramesOnWire() === 1, `outcomes: ${resultFramesOnWire()}`)
   check('the settle hands the row no record past the linger (the latch is bounded by the exit clock too)', fold() === null, j(fold()))
 }
 
-section('P6 the automatic road: a gauge-triggered fold inside a turn clears its word with its null stamp')
+section('P6 the automatic road: a gauge-triggered fold inside a turn clears its word with its ended row')
 {
   agentsRunning = true
   let during: Live | null = null
@@ -345,7 +368,7 @@ section('P6 the automatic road: a gauge-triggered fold inside a turn clears its 
     autoDone = resolve
   })
   turns.set('auto fold turn', async onMessage => {
-    onMessage(initFrame())
+    onMessage(turnRow())
     await withFoldStatus(
       foldContext() as never,
       async scoped => {
@@ -359,16 +382,15 @@ section('P6 the automatic road: a gauge-triggered fold inside a turn clears its 
     )
     await until(() => live().phase !== 'compacting', 2000)
     after = live()
-    onMessage(streamEvent({ type: 'message_start', message: { id: 'msg_lead_3' } }))
-    onMessage(streamEvent({ type: 'content_block_start', index: 0, content_block: { type: 'thinking', thinking: '' } }))
+    emit(onMessage, streamEvents('msg_lead_3', { type: 'content_block_start', index: 0, content_block: { type: 'thinking', thinking: '' } }))
     await autoHeld
-    onMessage(streamEvent({ type: 'message_stop' }))
+    emit(onMessage, assistantRows('msg_lead_3', [{ type: 'thinking', thinking: 'hm' }]))
     onMessage(resultFrame())
   })
   enqueue('auto fold turn')
   await until(() => after !== null, 10_000)
   check("during the automatic fold the phase is 'compacting'", during !== null && (during as Live).phase === 'compacting', j(during))
-  check("after the automatic fold's null stamp the phase leaves 'compacting' while the turn runs on", after !== null && (after as Live).phase !== 'compacting' && (after as Live).inFlight === true, j(after))
+  check("after the automatic fold's ended row the phase leaves 'compacting' while the turn runs on", after !== null && (after as Live).phase !== 'compacting' && (after as Live).inFlight === true, j(after))
   const thinking = await until(() => live().phase === 'thinking', 2000)
   check("the turn's next activity word wins (a thinking block)", thinking, j(live()))
   autoDone()

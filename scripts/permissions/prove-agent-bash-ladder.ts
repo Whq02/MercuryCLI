@@ -49,11 +49,11 @@ guard.unref?.()
 section('§1 the prompt-posture owner — an agent inherits its parent\'s ask road')
 {
   const base = { isAsync: false, canShowPermissionPrompts: undefined, definitionMode: undefined, parentAvoidsPrompts: false, parentNonInteractive: false as boolean | undefined }
-  const rows: Array<{ label: string; facts: Parameters<typeof resolveAgentPromptPosture>[0]; want: { avoidPrompts: boolean; isNonInteractiveSession: boolean; permissionChannel?: 'stdio' | 'prompt-tool' } }> = [
-    { label: "a background agent of a daemon seat asks through the seat's stdio channel", facts: { ...base, isAsync: true, parentNonInteractive: true, parentChannel: 'stdio' }, want: { avoidPrompts: false, isNonInteractiveSession: true, permissionChannel: 'stdio' } },
-    { label: 'a foreground agent of a print run with a prompt tool inherits that road', facts: { ...base, parentNonInteractive: true, parentChannel: 'prompt-tool' }, want: { avoidPrompts: false, isNonInteractiveSession: true, permissionChannel: 'prompt-tool' } },
-    { label: 'a prompt-less child of a seat has no road (it avoids prompts by law)', facts: { ...base, isAsync: true, parentNonInteractive: true, parentChannel: 'stdio', parentAvoidsPrompts: true }, want: { avoidPrompts: true, isNonInteractiveSession: true } },
-    { label: 'an explicit "cannot show prompts" drops the road too', facts: { ...base, parentNonInteractive: true, parentChannel: 'stdio', canShowPermissionPrompts: false }, want: { avoidPrompts: true, isNonInteractiveSession: true } },
+  const rows: Array<{ label: string; facts: Parameters<typeof resolveAgentPromptPosture>[0]; want: { avoidPrompts: boolean; isNonInteractiveSession: boolean; hostHoldsAsks?: boolean } }> = [
+    { label: "a background agent of a hosted seat asks through the seat's own door", facts: { ...base, isAsync: true, parentNonInteractive: true, parentHostHoldsAsks: true }, want: { avoidPrompts: false, isNonInteractiveSession: true, hostHoldsAsks: true } },
+    { label: 'a foreground agent of a hosted run inherits that road', facts: { ...base, parentNonInteractive: true, parentHostHoldsAsks: true }, want: { avoidPrompts: false, isNonInteractiveSession: true, hostHoldsAsks: true } },
+    { label: 'a prompt-less child of a seat has no road (it avoids prompts by law)', facts: { ...base, isAsync: true, parentNonInteractive: true, parentHostHoldsAsks: true, parentAvoidsPrompts: true }, want: { avoidPrompts: true, isNonInteractiveSession: true } },
+    { label: 'an explicit "cannot show prompts" drops the road too', facts: { ...base, parentNonInteractive: true, parentHostHoldsAsks: true, canShowPermissionPrompts: false }, want: { avoidPrompts: true, isNonInteractiveSession: true } },
     { label: 'a print run with no channel gives its child none', facts: { ...base, isAsync: true, parentNonInteractive: true }, want: { avoidPrompts: false, isNonInteractiveSession: true } },
     { label: 'a foreground agent of an interactive parent prompts', facts: base, want: { avoidPrompts: false, isNonInteractiveSession: false } },
     { label: 'a BACKGROUND agent of an interactive parent prompts too — the parent\'s ask road is its own', facts: { ...base, isAsync: true }, want: { avoidPrompts: false, isNonInteractiveSession: false } },
@@ -68,7 +68,7 @@ section('§1 the prompt-posture owner — an agent inherits its parent\'s ask ro
   ]
   for (const row of rows) {
     const got = resolveAgentPromptPosture(row.facts)
-    check(row.label, got.avoidPrompts === row.want.avoidPrompts && got.isNonInteractiveSession === row.want.isNonInteractiveSession && got.permissionChannel === row.want.permissionChannel, `got ${j(got)} want ${j(row.want)}`)
+    check(row.label, got.avoidPrompts === row.want.avoidPrompts && got.isNonInteractiveSession === row.want.isNonInteractiveSession && got.hostHoldsAsks === row.want.hostHoldsAsks, `got ${j(got)} want ${j(row.want)}`)
   }
 }
 
@@ -132,7 +132,7 @@ function contextFor(subject: Subject, mode: Mode, rules: Rules): unknown {
   const isAsync = subject.startsWith('bg-')
   let getAppState = (): unknown => parent
   let isNonInteractiveSession: boolean | undefined = parentPrint || parentSeat
-  let permissionChannel: 'stdio' | 'prompt-tool' | undefined = parentSeat ? 'stdio' : undefined
+  let hostHoldsAsks: boolean | undefined = parentSeat ? true : undefined
   if (isAgent) {
     const posture = resolveAgentPromptPosture({
       isAsync,
@@ -140,10 +140,10 @@ function contextFor(subject: Subject, mode: Mode, rules: Rules): unknown {
       definitionMode: undefined,
       parentAvoidsPrompts: parentHeadless,
       parentNonInteractive: parentPrint || parentSeat,
-      parentChannel: permissionChannel,
+      parentHostHoldsAsks: hostHoldsAsks,
     })
     isNonInteractiveSession = posture.isNonInteractiveSession
-    permissionChannel = posture.permissionChannel
+    hostHoldsAsks = posture.hostHoldsAsks
     getAppState = () => composeAgentAppState(parent as never, { definitionMode: undefined, avoidPrompts: posture.avoidPrompts, isAsync, allowedTools: undefined, effortValue: undefined })
   }
   return {
@@ -153,7 +153,7 @@ function contextFor(subject: Subject, mode: Mode, rules: Rules): unknown {
     messages: [],
     agentId: isAgent ? `agent-${subject}` : undefined,
     agentType: isAgent ? 'mercury-crew' : undefined,
-    options: { isNonInteractiveSession, tools: [], ...(permissionChannel !== undefined ? { permissionChannel } : {}) },
+    options: { isNonInteractiveSession, tools: [], ...(hostHoldsAsks === true ? { hostHoldsAsks: true } : {}) },
     ...(isAsync ? { localDenialTracking: createDenialTrackingState() } : {}),
   }
 }

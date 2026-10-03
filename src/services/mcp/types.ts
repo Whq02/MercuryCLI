@@ -17,7 +17,7 @@ export const ConfigScopeSchema = lazy(() =>
 export type ConfigScope = z.infer<ReturnType<typeof ConfigScopeSchema>>
 
 export const TransportSchema = lazy(() =>
-  z.enum(['stdio', 'sse', 'http', 'ws', 'host']),
+  z.enum(['stdio', 'sse', 'http', 'ws']),
 )
 export type Transport = z.infer<ReturnType<typeof TransportSchema>>
 
@@ -90,14 +90,6 @@ export const McpWebSocketServerConfigSchema = lazy(() =>
 )
 export type McpWebSocketServerConfig = z.infer<ReturnType<typeof McpWebSocketServerConfigSchema>>
 
-export const McpSdkServerConfigSchema = lazy(() =>
-  z.object({
-    type: z.literal('host'),
-    name: z.string(),
-  }),
-)
-export type McpSdkServerConfig = z.infer<ReturnType<typeof McpSdkServerConfigSchema>>
-
 export const McpClaudeAIProxyServerConfigSchema = lazy(() =>
   z.object({
     type: z.literal('claudeai-proxy'),
@@ -116,7 +108,6 @@ export const McpServerConfigSchema = lazy(() =>
     McpSSEServerConfigSchema(),
     McpHTTPServerConfigSchema(),
     McpWebSocketServerConfigSchema(),
-    McpSdkServerConfigSchema(),
     McpClaudeAIProxyServerConfigSchema(),
   ]),
 )

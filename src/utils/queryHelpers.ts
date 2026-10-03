@@ -1,27 +1,18 @@
 import { readFileSync } from 'node:fs'
 
-import { getSessionId, isSessionPersistenceDisabled } from '../bootstrap/state.js'
+import { isSessionPersistenceDisabled } from '../bootstrap/state.js'
 import type { Tool as ToolType, Tools, ToolUseContext } from '../Tool.js'
-import type {
-  AssistantMessage,
-  Message,
-  NormalizedUserMessage,
-  ProgressMessage,
-  UserMessage,
-} from '../types/message.js'
-import type { SDKMessage } from '../entrypoints/agentSdkTypes.js'
+import type { Message } from '../types/message.js'
 import type { OrphanedPermission } from '../types/textInputTypes.js'
 import { FILE_EDIT_TOOL_NAME } from '../tools/FileEditTool/constants.js'
 import { FILE_READ_TOOL_NAME, FILE_UNCHANGED_STUB } from '../tools/FileReadTool/prompt.js'
 import { FILE_WRITE_TOOL_NAME } from '../tools/FileWriteTool/prompt.js'
 import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
-import type { MCPProgress, ShellProgress } from '../types/tools.js'
-import { isEphemeralToolProgress } from './sessionStorage/paths.js'
 import { createFileStateCacheWithSizeLimit, type FileStateCache } from './fileStateCache.js'
 import { getFileModificationTime, stripLineNumberPrefix } from './file.js'
 import { logForDebugging } from './debug.js'
 import { isENOENT } from './errors.js'
-import { createUserMessage, isNotEmptyMessage, normalizeMessages } from './messages.js'
+import { createUserMessage } from './messages.js'
 import { toolUseError } from '../services/tools/toolExecution.js'
 import { isToolKilled, toolKillReason } from './permissions/capabilityGate.js'
 import { expandPath } from './path.js'
@@ -32,173 +23,12 @@ import type { ProcessUserInputContext } from './processUserInput/processUserInpu
 export type PermissionPromptTool = ToolType
 
 
-export function isResultSuccessful(
-  message: Message | undefined,
-  stopReason?: string | null,
-): message is AssistantMessage | UserMessage {
-  if (message?.type === 'assistant') {
-    const content = message.message.content
-    if (Array.isArray(content) && content.length > 0) {
-      const last = content[content.length - 1] as { type?: string }
-      if (last.type === 'text' || last.type === 'thinking' || last.type === 'redacted_thinking') return true
-    }
-  }
-  if (message?.type === 'user') {
-    const content = message.message.content
-    if (Array.isArray(content) && content.length > 0 && content.every(block => (block as { type?: string }).type === 'tool_result')) {
-      return true
-    }
-  }
-  return stopReason === 'end_turn'
-}
-
-
-type SdkProjection = SDKMessage
-type LooseProjection = Record<string, unknown>
-
-const asProjection = (value: LooseProjection): SdkProjection => value as unknown as SdkProjection
-
-const EPHEMERAL_TAIL_BEAT_MS = 250
-const EPHEMERAL_TAIL_MAP_CAP = 100
-const EPHEMERAL_TAIL_LINE_MAX = 300
-
-const ephemeralTailState = new Map<string, { lastEmitMs: number; seq: number }>()
-
-function latestLineOf(text: string | undefined): string | undefined {
-  if (typeof text !== 'string' || text === '') return undefined
-  const lines = text.split('\n')
-  for (let i = lines.length - 1; i >= 0; i--) {
-    const line = lines[i]!.trim()
-    if (line === '') continue
-    return line.length > EPHEMERAL_TAIL_LINE_MAX
-      ? `${line.slice(0, EPHEMERAL_TAIL_LINE_MAX)}…`
-      : line
-  }
-  return undefined
-}
-
-function userProjection(message: NormalizedUserMessage, parentToolUseId: string | null): LooseProjection {
-  const mcpMeta = (message as { mcpMeta?: { _meta?: Record<string, unknown>; structuredContent?: unknown } }).mcpMeta
-  const toolUseResult = (message as { toolUseResult?: unknown }).toolUseResult
-  return {
-    type: 'user',
-    message: message.message,
-    parent_tool_use_id: parentToolUseId,
-    session_id: getSessionId(),
-    uuid: message.uuid,
-    timestamp: (message as { timestamp?: string }).timestamp,
-    is_synthetic:
-      (message as { isMeta?: boolean }).isMeta === true ||
-      (message as { isVisibleInTranscriptOnly?: boolean }).isVisibleInTranscriptOnly === true,
-    tool_use_result: mcpMeta ? { ...mcpMeta, content: toolUseResult } : toolUseResult,
-  }
-}
-
-export function* normalizeMessage(message: Message): Generator<SdkProjection> {
-  if (message.type === 'assistant') {
-    for (const normalized of normalizeMessages([message])) {
-      if (!isNotEmptyMessage(normalized as Message)) continue
-      yield asProjection({
-        type: 'assistant',
-        message: normalized.message,
-        parent_tool_use_id: null,
-        session_id: getSessionId(),
-        uuid: normalized.uuid,
-        error: (normalized as { error?: unknown }).error,
-      })
-    }
-    return
-  }
-  if (message.type === 'progress') {
-    const progress = message as ProgressMessage
-    const data = progress.data as { type?: string; message?: Message; taskId?: string; elapsedTimeSeconds?: number }
-    if (data.type === 'agent_progress' || data.type === 'skill_progress') {
-      const inner = data.message as Message
-      for (const normalized of normalizeMessages([inner])) {
-        if (normalized.type === 'assistant') {
-          if (!isNotEmptyMessage(normalized as Message)) continue
-          yield asProjection({
-            type: 'assistant',
-            message: normalized.message,
-            parent_tool_use_id: progress.parentToolUseID,
-            session_id: getSessionId(),
-            uuid: normalized.uuid,
-            error: (normalized as { error?: unknown }).error,
-          })
-        } else if (normalized.type === 'user') {
-          yield asProjection(userProjection(normalized as NormalizedUserMessage, progress.parentToolUseID))
-        }
-      }
-      return
-    }
-    if (isEphemeralToolProgress(data.type)) {
-      const key = progress.parentToolUseID
-      const now = Date.now()
-      const state = ephemeralTailState.get(key)
-      if (state !== undefined && now - state.lastEmitMs < EPHEMERAL_TAIL_BEAT_MS) return
-      while (ephemeralTailState.size >= EPHEMERAL_TAIL_MAP_CAP) {
-        const oldest = ephemeralTailState.keys().next()
-        if (oldest.done) break
-        ephemeralTailState.delete(oldest.value)
-      }
-      const seq = (state?.seq ?? 0) + 1
-      ephemeralTailState.set(key, { lastEmitMs: now, seq })
-      const shell = data as Partial<ShellProgress>
-      const mcp = data as Partial<MCPProgress>
-      const latestLine =
-        data.type === 'mcp_progress'
-          ? latestLineOf(mcp.progressMessage)
-          : latestLineOf(shell.output)
-      yield asProjection({
-        type: 'tool_progress',
-        tool_use_id: progress.toolUseID,
-        parent_tool_use_id: progress.parentToolUseID,
-        session_id: getSessionId(),
-        uuid: progress.uuid,
-        progress: {
-          kind: 'ephemeral_tail',
-          data_type: data.type,
-          seq,
-          ...(typeof data.elapsedTimeSeconds === 'number'
-            ? { elapsed_time_seconds: data.elapsedTimeSeconds }
-            : {}),
-          ...(latestLine !== undefined ? { latest_line: latestLine } : {}),
-          ...(typeof shell.totalLines === 'number' && data.type !== 'mcp_progress'
-            ? { total_lines: shell.totalLines }
-            : {}),
-          ...(typeof shell.totalBytes === 'number' && data.type !== 'mcp_progress'
-            ? { total_bytes: shell.totalBytes }
-            : {}),
-          ...(data.type === 'mcp_progress' && typeof mcp.progress === 'number'
-            ? { mcp_progress: mcp.progress }
-            : {}),
-          ...(data.type === 'mcp_progress' && typeof mcp.total === 'number'
-            ? { mcp_total: mcp.total }
-            : {}),
-          ...(typeof shell.budgetMs === 'number' && data.type !== 'mcp_progress'
-            ? { budget_ms: shell.budgetMs }
-            : {}),
-        },
-      })
-      return
-    }
-    return
-  }
-  if (message.type === 'user') {
-    for (const normalized of normalizeMessages([message])) {
-      if (normalized.type !== 'user') continue
-      yield asProjection(userProjection(normalized as NormalizedUserMessage, null))
-    }
-  }
-}
-
-
 export async function* handleOrphanedPermission(
   orphanedPermission: OrphanedPermission,
   tools: Tools,
   mutableMessages: Message[],
   processUserInputContext: ProcessUserInputContext,
-): AsyncGenerator<SdkProjection> {
+): AsyncGenerator<Message> {
   const decision = orphanedPermission.permissionResult as {
     behavior?: string
     tool_use_id?: string
@@ -243,13 +73,7 @@ export async function* handleOrphanedPermission(
       void flushSessionStorage()
     }
   }
-  yield asProjection({
-    type: 'assistant',
-    message: assistantMessage.message,
-    parent_tool_use_id: null,
-    session_id: getSessionId(),
-    uuid: assistantMessage.uuid,
-  })
+  yield assistantMessage
 
   const settleAsError = (text: string): Message => {
     const errorMessage = createUserMessage({
@@ -281,7 +105,7 @@ export async function* handleOrphanedPermission(
     logForDebugging(
       `handleOrphanedPermission: non-allow verdict for ${toolUseBlock.name} (${String(decision.behavior)}) — settled as a refusal, tool not invoked`,
     )
-    yield* normalizeMessage(settleAsError(text))
+    yield settleAsError(text)
     return
   }
 
@@ -290,13 +114,13 @@ export async function* handleOrphanedPermission(
     const kill = toolKillReason(tool, replayAgentType)
     const text = `${toolUseBlock.name} is disabled by the operator's kill switch${kill ? ` (${kill.killPattern})` : ''} — the approved call was not run.`
     logForDebugging(`handleOrphanedPermission: ${toolUseBlock.name} killed at replay time — settled as a refusal`)
-    yield* normalizeMessage(settleAsError(text))
+    yield settleAsError(text)
     return
   }
 
   const parsedReplayInput = tool.inputSchema.safeParse(input)
   if (!parsedReplayInput.success) {
-    yield* normalizeMessage(settleAsError(`InputValidationError: ${parsedReplayInput.error.message}`))
+    yield settleAsError(`InputValidationError: ${parsedReplayInput.error.message}`)
     return
   }
 
@@ -313,7 +137,7 @@ export async function* handleOrphanedPermission(
       void recordTranscript([updateMessage])
       void flushSessionStorage()
     }
-    yield* normalizeMessage(updateMessage)
+    yield updateMessage
   }
 }
 

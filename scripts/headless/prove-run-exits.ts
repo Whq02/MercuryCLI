@@ -30,7 +30,7 @@ for (const road of ['success', 'failure', 'startup', 'usage', 'SIGINT', 'SIGTERM
     while ((end = buffer.indexOf('\n')) >= 0) {
       const line = buffer.slice(0, end)
       buffer = buffer.slice(end + 1)
-      try { if (JSON.parse(line).type === 'result') finalAt = performance.now() } catch {}
+      try { if (JSON.parse(line).type === 'outcome') finalAt = performance.now() } catch {}
     }
   })
   child.stderr.on('data', data => { err += String(data) })
@@ -42,11 +42,11 @@ for (const road of ['success', 'failure', 'startup', 'usage', 'SIGINT', 'SIGTERM
     const expected = road === 'success' ? 0 : road === 'usage' ? 2 : road.endsWith('SIGINT') ? 130 : road.endsWith('SIGTERM') ? 143 : 1
     let rows: Array<Record<string, unknown>> = []
     try { rows = out.trim().split('\n').map(line => JSON.parse(line)) } catch {}
-    const results = rows.filter(row => row.type === 'result')
+    const results = rows.filter(row => row.type === 'outcome')
     check(`${road} exits ${expected}`, code === expected, JSON.stringify({ code, out, err }))
-    check(`${road} ends with one final result row`, results.length === 1 && rows.at(-1)?.type === 'result', out)
-    check(`${road} flushes its result before a bounded cleanup`, finalAt > 0 && endedAt - finalAt < 8_000, JSON.stringify({ finalAt, endedAt }))
-    if (road !== 'success') check(`${road} carries an error outcome`, results[0]?.is_error === true, JSON.stringify(results[0]))
+    check(`${road} ends with one final outcome row`, results.length === 1 && rows.at(-1)?.type === 'outcome', out)
+    check(`${road} flushes its outcome before a bounded cleanup`, finalAt > 0 && endedAt - finalAt < 8_000, JSON.stringify({ finalAt, endedAt }))
+    if (road !== 'success') check(`${road} carries an error outcome`, typeof results[0]?.status === 'string' && results[0].status !== 'completed', JSON.stringify(results[0]))
   } finally {
     clearTimeout(timeout)
     await api.close()

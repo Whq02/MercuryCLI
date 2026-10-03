@@ -1,6 +1,8 @@
 
 import type { ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
+import type { LooseRow } from '../rows/read.js'
+import { RunnerConnection } from './runnerConnection.js'
 import { killProcessGroup } from '../utils/processGroup.js'
 import { logForDebugging } from '../utils/debug.js'
 import { assertSpawnCwd, recordSpawn, recordSpawnExit } from '../utils/spawnLedger.js'
@@ -17,12 +19,12 @@ import {
 import { resolveWorkerReconAllow } from './workerRecon.js'
 import {
   decideRespawn,
-  parseStreamJsonFrame,
-  usageOfStreamJsonFrame,
+  parseRunnerLine,
+  occupancyOfRow,
   normalizeStreamJsonFrame,
-  isTurnResultParsedFrame,
-  isTurnStartedParsedFrame,
-  errorTextOfParsedResultFrame,
+  isOutcomeRow,
+  isTurnOpenRow,
+  errorTextOfOutcome,
   keepStderrTail,
   lastStderrLine,
   decideWorkerBusy,
@@ -89,6 +91,7 @@ interface LongLivedSeat {
   spawnGeneration: number
   lastErrorText?: string
   stderrTail?: Buffer
+  connection?: RunnerConnection
   stormNotified?: boolean
   running?: { model: string; effort: string }
   paused?: SeatPause
@@ -223,7 +226,7 @@ export class TaskRoster {
     if (!h || h.entry.outcome || h.entry.state === 'retiring') return false
     if (h.longLived && h.child?.stdin?.writable) {
       try {
-        h.child.stdin.write(normalizeStreamJsonFrame(text))
+        if (!(await this.writeFrame(h.longLived, h.child, text))) return false
         h.longLived.turnActive = true
         h.longLived.turnStartedAt = Date.now()
         if (short.startsWith('concourse-w')) {
@@ -245,14 +248,24 @@ export class TaskRoster {
     if (!h || h.entry.outcome || h.entry.state === 'retiring') return false
     if (h.longLived && h.child?.stdin?.writable) {
       try {
-        h.child.stdin.write(normalizeStreamJsonFrame(frame))
-        return true
+        const written = this.writeFrame(h.longLived, h.child, frame)
+        return typeof written === 'boolean' ? written : true
       } catch (e) {
         logForDebugging(`[daemon] control(${short}) stdin write failed: ${e}`)
         return false
       }
     }
     return false
+  }
+
+  private writeFrame(ll: LongLivedSeat, child: ChildProcess, frame: string): boolean | Promise<boolean> {
+    const line = normalizeStreamJsonFrame(frame)
+    if (ll.connection === undefined) {
+      child.stdin!.write(line)
+      return true
+    }
+    const parsed = JSON.parse(line) as Record<string, unknown>
+    return parsed.type === 'user' ? ll.connection.deliver(parsed) : ll.connection.control(parsed)
   }
 
   kill(short: string, signal: NodeJS.Signals = 'SIGTERM'): boolean {
@@ -317,7 +330,7 @@ export class TaskRoster {
       state: 'spawning',
       startedAt: Date.now(),
       cliVersion: currentVersion(),
-      via: 'stream-json',
+      via: 'rows',
       ...(start !== undefined ? { cwd: start.cwd } : spec.cwd !== undefined ? { cwd: spec.cwd } : {}),
       ...(start?.worktree !== undefined ? { worktree: start.worktree } : {}),
     }
@@ -552,7 +565,7 @@ export class TaskRoster {
       })
       return undefined
     }
-    let spawned: { child: ChildProcess }
+    let spawned: ReturnType<typeof spawnStreamJsonChild>
     try {
       spawned = spawnStreamJsonChild(ll.spec, { respawn: ll.spawnGeneration > 0 })
     } catch (e) {
@@ -583,7 +596,18 @@ export class TaskRoster {
     ll.clearInFlight = false
     ll.lastErrorText = undefined
 
-    this.drainChildStdout(short, child, ll)
+    ll.connection?.close('the seat was relaunched')
+    ll.connection = undefined
+    if (spawned.door === 'wire') {
+      ll.connection = new RunnerConnection(child, spawned.capabilities, {
+        onRow: row => this.classifyRow(short, ll, row),
+        onAsk: frame => this.forwardControlRequest(short, frame),
+        onLine: line => this.forwardChildLine(short, line),
+        log: line => logForDebugging(`[daemon] ${short}: ${line}`),
+      })
+    } else {
+      this.drainChildStdout(short, child, ll)
+    }
     this.keepChildStderr(short, child, ll)
     this.superviseChildLife(short, h, ll, child)
     if (ll.spawnGeneration > 1 && this.opts.onChildRelaunched && typeof child.pid === 'number') {
@@ -612,48 +636,58 @@ export class TaskRoster {
       while ((nl = tail.indexOf('\n')) >= 0) {
         const line = tail.slice(0, nl)
         tail = tail.slice(nl + 1)
-        const frame = parseStreamJsonFrame(line)
-        const usage = usageOfStreamJsonFrame(frame)
-        if (usage) {
-          const pct = calculateContextPercentages(
-            usage,
-            getContextWindowForModel(ll.spec.model),
-          ).used
-          if (pct !== null) ll.contextPct = pct
-        }
-        if (this.opts.onControlRequest && frame !== null && frame.type === 'control_request') {
-          try {
-            this.opts.onControlRequest(short, frame)
-          } catch {
-          }
-        }
-        if (this.opts.onChildLine) {
-          try {
-            this.opts.onChildLine(short, line)
-          } catch (e) {
-            logForDebugging(`[daemon] onChildLine(${short}) hook threw (ignored): ${e}`)
-          }
-        }
-        if (isTurnStartedParsedFrame(frame)) {
-          if (!ll.turnActive) {
-            ll.turnActive = true
-            ll.turnStartedAt = Date.now()
-          }
-        }
-        if (isTurnResultParsedFrame(frame)) {
-          ll.lastErrorText = errorTextOfParsedResultFrame(frame)
-          ll.turnActive = false
-          ll.turnStartedAt = undefined
-          if (short.startsWith('concourse-w')) {
-            void import('./concourseSupervisor.js')
-              .then(sup => sup.markConcourseWorkerTurnSettled(short))
-              .catch(() => {})
-          }
-          this.noteWorkerIdle(short)
-        }
+        const frame = parseRunnerLine(line)
+        if (frame !== null && frame.type === 'control_request') this.forwardControlRequest(short, frame)
+        this.forwardChildLine(short, line)
+        this.classifyRow(short, ll, frame)
       }
       if (tail.length > 1_000_000) tail = tail.slice(-100_000)
     })
+  }
+
+  private forwardControlRequest(short: string, frame: Record<string, unknown>): void {
+    if (!this.opts.onControlRequest) return
+    try {
+      this.opts.onControlRequest(short, frame)
+    } catch {
+    }
+  }
+
+  private forwardChildLine(short: string, line: string): void {
+    if (!this.opts.onChildLine) return
+    try {
+      this.opts.onChildLine(short, line)
+    } catch (e) {
+      logForDebugging(`[daemon] onChildLine(${short}) hook threw (ignored): ${e}`)
+    }
+  }
+
+  private classifyRow(short: string, ll: LongLivedSeat, frame: LooseRow | null): void {
+    const usage = occupancyOfRow(frame)
+    if (usage) {
+      const pct = calculateContextPercentages(
+        usage,
+        getContextWindowForModel(ll.spec.model),
+      ).used
+      if (pct !== null) ll.contextPct = pct
+    }
+    if (isTurnOpenRow(frame)) {
+      if (!ll.turnActive) {
+        ll.turnActive = true
+        ll.turnStartedAt = Date.now()
+      }
+    }
+    if (isOutcomeRow(frame)) {
+      ll.lastErrorText = errorTextOfOutcome(frame)
+      ll.turnActive = false
+      ll.turnStartedAt = undefined
+      if (short.startsWith('concourse-w')) {
+        void import('./concourseSupervisor.js')
+          .then(sup => sup.markConcourseWorkerTurnSettled(short))
+          .catch(() => {})
+      }
+      this.noteWorkerIdle(short)
+    }
   }
 
   private keepChildStderr(short: string, child: ChildProcess, ll: LongLivedSeat): void {
@@ -679,9 +713,14 @@ export class TaskRoster {
     child: ChildProcess,
   ): void {
     let lifeSettled = false
+    const generation = ll.spawnGeneration
     const handleCrash = (code: number | null, signal: NodeJS.Signals | null) => {
       if (lifeSettled) return
       lifeSettled = true
+      if (ll.spawnGeneration === generation) {
+        ll.connection?.close('the runner exited')
+        ll.connection = undefined
+      }
       if (ll.turnActive && short.startsWith('concourse-w')) {
         void import('./concourseSupervisor.js')
           .then(sup => sup.markConcourseWorkerTurnSettled(short))
