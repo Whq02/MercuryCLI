@@ -146,7 +146,7 @@ try {
     check('launcher mode on unsigned: exit 0 + ONE stderr line with the plain fact', lUnsigned.status === 0 && lUnsigned.stderr.trim().split('\n').length === 1 && lUnsigned.stderr.includes('unsigned'))
     const lTampered = run(['--dir', tamperedDir, '--launcher'])
     check('launcher mode on tampered: exit 0 (warn-dont-block) + TAMPERED on stderr', lTampered.status === 0 && lTampered.stderr.includes('TAMPERED'))
-    check('launcher mode points at the full record (mercury doctor)', lTampered.stderr.includes('mercury doctor'))
+    check('launcher mode points at the full record (mercury health)', lTampered.stderr.includes('mercury health'))
 
     check('launcher mode writes NOTHING to stdout', lSigned.stdout === '' && lUnsigned.stdout === '' && lTampered.stdout === '')
 

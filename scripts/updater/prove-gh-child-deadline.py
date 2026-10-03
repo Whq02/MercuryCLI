@@ -100,7 +100,7 @@ def make_home(tag):
     env.update({
         "MERCURY_CONFIG_DIR": home,
         "MERCURY_DAEMON_DIR": os.path.join(home, "daemon"),
-        "MERCURY_HEALTH_STATE_DIR": os.path.join(home, "doctor"),
+        "MERCURY_HEALTH_STATE_DIR": os.path.join(home, "health"),
         "MERCURY_CREDENTIAL_STORE": "file",
         "MERCURY_DAEMON_NO_SELF_WARM": "1",
         "MERCURY_UPDATE_NOTICE": "1",

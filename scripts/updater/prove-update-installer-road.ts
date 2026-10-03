@@ -200,8 +200,8 @@ copyFileSync(DIST, join(pkg, 'mercury.mjs'))
 }
 
 section('§3 A MANAGED INSTALL — the channel road is unchanged; an npm wrapper on PATH is named truthfully')
-const doctorRow = (bundle: string, id: string, environment: Record<string, string>): { status?: string; evidence?: string; fix?: string } | null => {
-  const r = spawnSync('node', [bundle, 'doctor', '--only', id, '--json'], { encoding: 'utf8', timeout: 180_000, env: environment })
+const healthRow = (bundle: string, id: string, environment: Record<string, string>): { status?: string; evidence?: string; fix?: string } | null => {
+  const r = spawnSync('node', [bundle, 'health', '--only', id, '--json'], { encoding: 'utf8', timeout: 180_000, env: environment })
   const cert = parse(r.stdout ?? '') as { sections?: Array<{ checks: Array<{ id: string; status: string; evidence: string; fix?: string }> }> } | null
   return cert?.sections?.flatMap(s => s.checks).find(c => c.id === id) ?? null
 }
@@ -218,11 +218,11 @@ const doctorRow = (bundle: string, id: string, environment: Record<string, strin
   check('--check with npm\'s wrapper as the shell\'s `mercury`: the same road plus the truth of the install', cw.code === 0 && cw.stdout.trim().endsWith(`run \`mercury update\` to install it (${WRAPPER_WORDS})`), cw.stdout.slice(-240))
   const sw = run(bundle, ['update', '--status'], env(pathOf(npmBin)))
   check('--status says it too', sw.code === 0 && sw.stdout.includes(`\`mercury update\` manages it (${WRAPPER_WORDS})`), sw.stdout.slice(0, 500))
-  const prov = doctorRow(bundle, 'install-provenance', env(pathOf(npmBin)))
-  check('the doctor\'s provenance row carries the same words', prov?.status === 'ok' && (prov?.evidence ?? '').includes(WRAPPER_WORDS), JSON.stringify(prov))
-  const onPath = doctorRow(bundle, 'command-on-path', env(pathOf(npmBin)))
-  check('the doctor\'s command-on-path row is ok and names the wrapper handing over to the stable command', onPath?.status === 'ok' && (onPath?.evidence ?? '').includes(`npm's wrapper at ${join(npmBin, 'mercury')}`) && (onPath?.evidence ?? '').includes('hands over to the stable command'), JSON.stringify(onPath))
-  const plain = doctorRow(bundle, 'install-provenance', env(pathOf()))
+  const prov = healthRow(bundle, 'install-provenance', env(pathOf(npmBin)))
+  check('/health\'s provenance row carries the same words', prov?.status === 'ok' && (prov?.evidence ?? '').includes(WRAPPER_WORDS), JSON.stringify(prov))
+  const onPath = healthRow(bundle, 'command-on-path', env(pathOf(npmBin)))
+  check('/health\'s command-on-path row is ok and names the wrapper handing over to the stable command', onPath?.status === 'ok' && (onPath?.evidence ?? '').includes(`npm's wrapper at ${join(npmBin, 'mercury')}`) && (onPath?.evidence ?? '').includes('hands over to the stable command'), JSON.stringify(onPath))
+  const plain = healthRow(bundle, 'install-provenance', env(pathOf()))
   check('without the wrapper on PATH the provenance row says nothing of npm', plain?.status === 'ok' && !(plain?.evidence ?? '').includes('npm'), JSON.stringify(plain))
 
   const before = pointer()
