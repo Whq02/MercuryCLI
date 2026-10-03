@@ -389,6 +389,18 @@ if (!existsSync(DIST)) {
   check("the automatic fold's exit is the runner's own compaction row with state ended — written while the turn still runs, before its outcome (the word clears on the real emission)", autoEnded !== undefined && autoEnded.trigger === 'auto' && toolResultAt !== -1 && autoEndedAt < toolResultAt, j({ autoEnded, autoEndedAt, toolResultAt }))
   const autoHeldResult = await waitFor('the turn after the automatic fold', f => isResult(f) && f !== toolResult, 30_000, beforeAuto)
   check('the held lines ran as the turn after it', autoHeldResult !== null)
+
+  section('R5 one lifecycle per fold: one started row, one ended row carrying the exit and the size before, for the manual fold and the automatic one alike')
+  const lifecycleOf = (from: number, to: number): { started: number; progress: number; ended: Array<Record<string, unknown>> } => {
+    const rows = lines.slice(from, to === -1 ? undefined : to + 1).filter(f => f.type === 'compaction')
+    return { started: rows.filter(f => f.state === 'started').length, progress: rows.filter(f => f.state === 'progress').length, ended: rows.filter(f => f.state === 'ended') }
+  }
+  const manual = lifecycleOf(beforeFold, foldResult === null ? -1 : lines.indexOf(foldResult))
+  check('the manual fold began once (one started row)', manual.started === 1, j(manual))
+  check('the manual fold ended once — exit landed, trigger manual, the size before the fold on the row', manual.ended.length === 1 && manual.ended[0]!.exit === 'landed' && manual.ended[0]!.trigger === 'manual' && typeof manual.ended[0]!.tokens_before === 'number', j(manual.ended))
+  const auto = lifecycleOf(beforeAuto, toolResultAt)
+  check('the automatic fold began once (one started row, the fold\'s repeated stamps write no second)', auto.started === 1, j(auto))
+  check('the automatic fold ended once — exit landed, trigger auto, the size before the fold on the row; no second ended row cleared the word', auto.ended.length === 1 && auto.ended[0]!.exit === 'landed' && auto.ended[0]!.trigger === 'auto' && typeof auto.ended[0]!.tokens_before === 'number', j(auto.ended))
   await reap()
 
   type Wire = { kind: string; n?: number; ask?: string; order?: string[]; last?: string[]; block?: string[]; parts?: string[]; twice?: string[]; tools?: number; at: number }

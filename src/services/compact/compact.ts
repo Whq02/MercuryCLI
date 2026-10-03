@@ -1170,7 +1170,8 @@ export async function withFoldStatus<T, C extends ToolUseContext>(
   } finally {
     if (pending !== null) clearTimeout(pending)
     status = foldStatusExit(status, exit, Date.now())
-    restoreAfterCompaction(context, facts.trigger === 'manual' ? { compacting: status } : null)
+    restoreAfterCompaction(context, { compacting: status })
+    if (facts.trigger !== 'manual') context.setSDKStatus?.(null)
   }
 }
 

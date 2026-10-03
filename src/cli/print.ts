@@ -68,7 +68,7 @@ import { jevStatus } from '../services/jev/jevStatus.js'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { asAgentId } from '../types/ids.js'
 import { ask, sessionFactsOf } from '../rows/turn.js'
-import { commandOutputRow, compactionClearedRow, compactionRow, heartbeatRow, missionUpdatedRow, modeRow, noticeRow, outcomeRow, rateLimitRow, samplesUpdatedRow, sessionRow, taskRow, turnStartedRow, turnWaitingRow, waitRow, type RowDraft, type RowScope } from '../rows/project.js'
+import { commandOutputRow, compactionClearedRow, compactionRow, heartbeatRow, missionUpdatedRow, modeRow, noticeRow, outcomeRow, rateLimitRow, samplesUpdatedRow, sessionRow, taskRow, turnStartedRow, turnWaitingRow, waitRow, type RowDraft, type RowScope, type Unstamped } from '../rows/project.js'
 import { exitCodeOf, OUTCOME_SENTENCES, type CompactionRow, type InputRow, type OutcomeRow, type Row } from '../rows/vocabulary.js'
 import { isOutcome, turnOpened } from '../rows/read.js'
 import type { FoldStatusV1 } from '../services/compact/foldStatus.js'
@@ -466,17 +466,29 @@ export async function runHeadless(
   let sessionRowFor: string | null = null
   const liveScope = (): RowScope => ({ session_id: getSessionId(), ...(currentTurn !== null ? { turn: currentTurn } : {}) })
   const enqueueRow = (row: RowDraft): void => io.outbound.enqueue(row)
-  let openFold: CompactionRow['trigger'] | null = null
-  const foldRow = (fold: FoldStatusV1 | null): RowDraft => {
+  let openFold: { trigger: CompactionRow['trigger']; landing: boolean } | null = null
+  const foldRow = (fold: FoldStatusV1 | null): RowDraft | null => {
+    if (fold !== null && fold.exit !== undefined) {
+      if (fold.exit === 'landed') {
+        openFold = { trigger: fold.trigger, landing: true }
+        return null
+      }
+      openFold = null
+      return compactionRow(liveScope(), fold)
+    }
+    if (openFold !== null) return fold === null || fold.stage === null ? null : compactionRow(liveScope(), fold)
     const row = compactionRow(liveScope(), fold)
-    openFold = row.state === 'ended' ? null : row.trigger
+    openFold = { trigger: row.trigger, landing: false }
     return row
+  }
+  const foldLanded = (row: OutboundLine): void => {
+    if (isRowLine(row) && row.type === 'compaction' && (row as Unstamped<CompactionRow>).state === 'ended') openFold = null
   }
   const statusRowOf = (status: unknown): RowDraft | null => {
     if (status === 'compacting') return foldRow(null)
     if (status === null) {
-      if (openFold === null) return null
-      const row = compactionClearedRow(liveScope(), openFold)
+      if (openFold === null || openFold.landing) return null
+      const row = compactionClearedRow(liveScope(), openFold.trigger)
       openFold = null
       return row
     }
@@ -1450,6 +1462,7 @@ export async function runHeadless(
     return peer.flush().then(() => null)
   }
   const routeOutbound = (message: OutboundLine): void => {
+    foldLanded(message)
     if (options.outputFormat === 'rows') {
       const written = writeLine(message)
       if (isOutcome(message as never)) {
