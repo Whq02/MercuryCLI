@@ -279,7 +279,6 @@
     "permissionModeSchema",
     "permissionModeSymbol",
     "permissionModeTitle",
-    "toExternalPermissionMode",
     "type:ExternalPermissionMode",
     "type:PermissionMode"
    ],
