@@ -38,7 +38,7 @@ export const WHOLE_TREE: Record<string, string> = {
   'provider-compat': 'prove-route-law and prove-transport-reached-via-router walk src (provider routes)',
   'stop-policy': 'prove-surface-sweep walks src (the Stop-hook family census)',
   substrate: 'prove-live-e2e-hermetic walks scripts (hermetic-fixture hygiene)',
-  swarm: 'prove-livecomms-verbs walks src (no mailbox-named verb, no file poller)',
+  'crew-governance': 'prove-livecomms-verbs walks src (no mailbox-named verb, no file poller)',
   switchboard: 'prove-seat-lifecycle walks src (seat ghosts)',
   'switchboard-5': 'prove-concourse-resume walks src (concourse resume seams)',
   'switchboard-5-drives': 'prove-exit-everywhere walks src (ctrl-c handlers)',
