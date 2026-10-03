@@ -10,7 +10,7 @@ here="$(cd "$(dirname "$0")" && pwd)"
 bun="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
 echo "############################################################"
-echo "# swarm governance — proof harness"
+echo "# crew governance — proof harness"
 echo "############################################################"
 shopt -s nullglob
 for proof in "$here"/prove-*.ts; do
@@ -19,6 +19,6 @@ for proof in "$here"/prove-*.ts; do
   __t=$SECONDS; __rc=0; "$bun" run "$proof" || { __rc=$?; fail=1; }; prover_mark "$proof" "$__t" "$__rc"
 done
 echo "############################################################"
-if [ "$fail" = "0" ]; then echo "# ✅ ALL SWARM PROOFS PASS"; else echo "# ❌ SOME SWARM PROOFS FAILED"; fi
+if [ "$fail" = "0" ]; then echo "# ✅ ALL CREW PROOFS PASS"; else echo "# ❌ SOME CREW PROOFS FAILED"; fi
 echo "############################################################"
 exit "$fail"

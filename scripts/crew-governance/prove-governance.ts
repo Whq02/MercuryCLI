@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const TMP = mkdtempSync(join(tmpdir(), 'mercury-swarm-governance-'))
+const TMP = mkdtempSync(join(tmpdir(), 'mercury-crew-governance-'))
 process.env.MERCURY_CONFIG_DIR = TMP
 
 const {
@@ -32,7 +32,7 @@ function section(t: string): void {
 }
 
 console.log('============================================================')
-console.log(' swarm governance — proof')
+console.log(' crew governance — proof')
 console.log('============================================================')
 
 section('canAnswerCloseQuestion — addressee-only, case-insensitive, total')

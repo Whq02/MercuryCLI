@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const TMP = mkdtempSync(join(tmpdir(), 'mercury-swarm-handoff-'))
+const TMP = mkdtempSync(join(tmpdir(), 'mercury-crew-handoff-'))
 process.env.MERCURY_CONFIG_DIR = TMP
 
 const {
@@ -26,7 +26,7 @@ function section(t: string): void {
 }
 
 console.log('============================================================')
-console.log(' swarm handoff honesty gate — proof')
+console.log(' crew handoff honesty gate — proof')
 console.log('============================================================')
 
 section('validateHandoff — success claims need evidence, non-claims never do')

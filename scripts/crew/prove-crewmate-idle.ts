@@ -144,7 +144,7 @@ check('the seat ran one turn and went idle (the task says isIdle)', wentIdle && 
 
 section('§2 a shutdown request to an idle crewmate ends it at once: the approval reaches the lead, no model turn, the task settles completed')
 {
-  const request = createShutdownRequestMessage({ requestId: REQUEST_ID, from: LEAD, reason: 'the swarm is complete' })
+  const request = createShutdownRequestMessage({ requestId: REQUEST_ID, from: LEAD, reason: 'the crew is done' })
   const delivered = await sendLiveMessage(CREW, { to: SEAT, from: LEAD, text: JSON.stringify(request), timestamp: new Date().toISOString() })
   check('rig: the shutdown request landed in the seat\'s inbox', delivered)
   const outcome = await Promise.race([seat.done, sleep(8000).then(() => null)])

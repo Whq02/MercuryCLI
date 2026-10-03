@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const TMP = mkdtempSync(join(tmpdir(), 'mercury-swarm-selfaddr-'))
+const TMP = mkdtempSync(join(tmpdir(), 'mercury-crew-selfaddr-'))
 process.env.MERCURY_CONFIG_DIR = TMP
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
