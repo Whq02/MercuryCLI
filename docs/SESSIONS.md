@@ -131,8 +131,10 @@ Every ↵ on New Session opens another session; whatever the chat held keeps
 running and shows on the board. If the daemon that hosts sessions is not up,
 the row says so, and ↵ again starts it and retries.
 
-One background daemon hosts every session on the machine, and it outlives
-whichever window started it. Close that window and the daemon passes to
+The active background daemon hosts the terminal's session seats, warm
+runners and named crewmates as `mercury runner` children from its own build.
+It sends their prompts, reads their rows and holds their permission asks,
+and it outlives whichever window started it. Close that window and the daemon passes to
 another that is still open, so the sessions your other windows hold keep
 their runners and lose nothing; it shuts down only when the last window
 closes, and parks every session on its way out so the next boot brings them
@@ -143,10 +145,13 @@ again by that same ↵, so the session lands without a second one. Each ↵
 names its birth with one key that both the first admission and the retry
 carry, and a daemon that admitted the session but whose answer was lost on
 the wire answers the retry with the session it already holds — the ↵ lands
-in that one session, never a second; two
-daemons never share one config home. A daemon whose own directory under the config home is removed while it runs treats that as the end of its world: it writes nothing more there and exits. A deploy that arrives while sessions are live waits for every one of
-them — the ones open when it landed and any opened since — before it
-restarts, and never cuts a live runner short.
+in that one session, never a second. One active daemon owns the config home's
+control socket. During an update, a draining helper can keep the sessions
+it already hosts while the installed build takes new sessions; it leaves
+when its own last session finishes. A daemon whose directory is removed
+while it runs writes nothing more there and exits. Moving the installed
+build never cuts a live runner short; [TERMINAL-RUNTIME.md](TERMINAL-RUNTIME.md)
+describes the update's handover and open-window notices.
 
 A chat you just opened is never reaped before your first message. An empty
 background session retires after `MERCURY_SESSION_IDLE_RETIRE_MINUTES`
@@ -290,10 +295,10 @@ runner that cannot answer stays busy until you stop it by hand — x on its row
 stops the session, the crew view stops one sub-agent. A stop you ask for is
 recorded on the session as your stop, never as a crash, and a resume after it
 brings the runner back saying so. A turn that fails inside the runner's
-own machinery before it has answered ends as that turn's own error result
-— the words of the failure in the result's errors — and the session lives
-on to read the next line; only a failure after the turn has already
-answered still ends the runner. While a shell
+own machinery before it has answered ends in a failed `outcome`:
+`error.message` names the failure and `error.detail` carries any further
+diagnostics. The session lives on to read the next line; only a failure
+after the turn has already answered still ends the runner. While a shell
 command runs for the main agent, ⇧b moves it to the runner's background
 tasks and the turn goes on without waiting: the hint row under the composer
 reads `esc interrupt · ⇧b background the command` and the row's tail
@@ -729,9 +734,10 @@ operator changes it, and the turn may not end without accounting for the
 message. Several lines sent before one boundary arrive together, each its
 own message, in the order sent. The row then lands in the transcript where
 the delivery happened, between the tool rows, and carries the clock the line
-was sent at, not the boundary's; a headless run (`run
---input rows --format rows`) reads that clock from the user frame's
-`timestamp` and stamps the arrival when the frame carries none. A line sent
+was sent at, not the boundary's. A headless run (`mercury run --input rows
+--format rows`) reads that clock from the prompt row's `sent_at` and stamps
+the arrival when it is absent or invalid. A host sends the same prompt row
+through the runner's `queue/add` method. A line sent
 after the turn's last tool round waits for the turn's end, as does a slash
 command sent at any point of the turn, and so does a line sent after a
 `/model`, `/effort`, `/subagents` or `/workflows` made while the turn runs
@@ -783,9 +789,10 @@ Every notice delivered to an agent of a session — a sub-agent's completion,
 a workflow's or a shell's, a monitor's tick, a message queued for a
 sub-agent, a schedule's wake — is a row of the session's unread-notice
 ledger from the moment it is delivered until a turn of that agent takes it.
-The session facts carry the ledger (`notices`: each row names its agent, its
-kind, the notice in a line, the clock it arrived at and what became of it),
-and every sub-agent's work row carries the count of its own unread notices;
+The runner's `session/facts` answer carries the ledger (`notices`: each
+entry names its agent, its kind, the notice in a line, the clock it arrived
+at and what became of it), and every sub-agent's work row carries the count
+of its own unread notices;
 the Crew view (`/crewmates`) paints that count on the agent's row — "2
 unread" — and nothing when there is none.
 
@@ -869,9 +876,9 @@ a sub-agent by the id its launch receipt names or by its name. The message
 reaches the receiver at its next tool boundary while its turn runs, else at
 the end of its turn; a receiver between turns starts a turn for it, and a
 sub-agent whose run has ended is resumed with it. It arrives as a task
-notification whose status is `message`, naming the sender, and the runner
-speaks one `task_notification` frame for it on the wire, without a status
-word: a message ends nothing.
+notification whose status is `message`, naming the sender. On the wire the
+runner emits a `task` row with `state: "progress"` and no `status`:
+a message ends nothing.
 
 ## Where the pieces live
 
@@ -883,7 +890,7 @@ word: a message ends nothing.
 - Workspace trust and the user-private commands are [TRUST.md](TRUST.md)'s.
 - The idle-retirement, birth-grace, unread-notice deadline and prefix-record
   retention knobs are rows of the flag registry.
-- The box's state rides the session facts as the `box` row, for the agents
+- The box's state rides the session facts in the `box` field, for the agents
   as much as the screen: the load per core and the memory available (the
   last sample the process took, with the clock it was taken at), the
   box lock's slots with who holds each and who waits (the coordination
@@ -893,14 +900,13 @@ word: a message ends nothing.
   command waited on the lock carries one line saying how long, who held the
   slots, and the load at that moment.
   This is visibility only: nothing here schedules or throttles.
-- Two more rows ride the session facts from the runner: the first-party
-  usage-window verdict its own replies stated (`usage.anthropicWindow`: the
-  state, when it was seen, the account slot, the reset and the window the
-  wire named) and the OpenAI model list it fetched for its requests
-  (`openaiCatalogue`). The screen folds both into its own record and
-  catalogue, so the offer card and the rail's context figure follow the
-  session's own wire; an older runner carries neither, and the screen's own
-  reads stand.
+- The `session/facts` answer also carries the first-party usage-window
+  verdict its own replies stated (`usage.anthropic_window`: the state,
+  when it was seen, the account slot, the reset and the window the provider
+  named) and the OpenAI model list it fetched for its requests
+  (`openai_catalogue`). The screen folds available facts into its own record
+  and catalogue, so the offer card and the rail's context figure follow the
+  session's requests.
 - A session's scratchpad — `<temp root>/mercury-<uid>/<project>/<session id>/scratchpad`
   (`MERCURY_TMPDIR` moves the root) — is the place the model is told to put
   temporary files: helper scripts, intermediate results, captures. It lies
