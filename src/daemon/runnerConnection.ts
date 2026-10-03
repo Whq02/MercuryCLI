@@ -2,8 +2,8 @@ import type { Readable, Writable } from 'node:stream'
 import type { LooseRow } from '../rows/read.js'
 import type { InputRow } from '../rows/vocabulary.js'
 import type { Capabilities, HostNotificationName, HostRequestName, InitializeResult, ParamsOf, PermissionAnswer, PermissionRequestParams, ResultOf, SessionAppliedParams } from '../runner/wire/methods.js'
-import { createPeer, type Peer, type RequestOptions } from '../runner/wire/peer.js'
-import type { RpcError } from '../runner/wire/errors.js'
+import { createPeer, PeerDeadline, type Peer, type RequestOptions } from '../runner/wire/peer.js'
+import { refused, type RpcError } from '../runner/wire/errors.js'
 import { MERCURY_VERSION } from '../constants/product.js'
 
 export type Verb = Exclude<HostRequestName, 'initialize'>
@@ -50,9 +50,10 @@ export class RunnerConnection implements RunnerDoor {
       return held.answer
     })
     this.initialized = this.peer
-      .request('initialize', { protocol: 1, host: { name: 'mercury-daemon', version: MERCURY_VERSION }, capabilities }, { deadlineMs: null })
+      .request('initialize', { protocol: 1, host: { name: 'mercury-daemon', version: MERCURY_VERSION }, capabilities })
       .catch((error: unknown) => {
         hooks.log(`the runner did not answer initialize: ${error instanceof Error ? error.message : String(error)}`)
+        if (error instanceof PeerDeadline) hooks.onProtocolError(refused(`the runner did not answer initialize within ${error.deadlineMs} ms`, 'protocol', { deadline_ms: error.deadlineMs }))
         return null
       })
   }
@@ -73,15 +74,17 @@ export class RunnerConnection implements RunnerDoor {
     this.peer.notify(method, params)
   }
 
-  deliver(row: InputRow): Promise<boolean> {
-    if (this.peer.closed) return Promise.resolve(false)
-    return this.peer.request('queue/add', row, { deadlineMs: null }).then(
-      () => true,
-      (error: unknown) => {
-        this.hooks.log(`queue/add was not accepted: ${error instanceof Error ? error.message : String(error)}`)
-        return false
-      },
-    )
+  async deliver(row: InputRow): Promise<boolean> {
+    if (this.peer.closed) return false
+    if ((await this.initialized) === null) return false
+    try {
+      const answer = await this.peer.request('queue/add', row)
+      if (!answer.accepted) this.hooks.log(`queue/add was not accepted: ${answer.reason}`)
+      return answer.accepted
+    } catch (error) {
+      this.hooks.log(`queue/add was not accepted: ${error instanceof Error ? error.message : String(error)}`)
+      return false
+    }
   }
 
   close(reason: string): void {

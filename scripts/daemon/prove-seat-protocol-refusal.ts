@@ -149,6 +149,45 @@ section('§3 the refusal is the peer’s typed -32010, kind protocol — the dae
   runner.close('done')
 }
 
+section('§4 the handshake and the delivery carry the table’s deadlines; a delivery the runner does not accept is not reported accepted')
+{
+  const { RunnerConnection } = await import('../../src/daemon/runnerConnection.ts')
+  const { deadlineOf } = await import('../../src/runner/wire/methods.ts')
+  const { standInRunner, LEAVE_PENDING } = await import('../lib/seatDoor.ts')
+  const capabilities = { holds_asks: true, elicitation: false, partial_rows: false }
+  const silentIn = new PassThrough()
+  const silentOut = new PassThrough()
+  const refusals: Array<{ code: number; kind: unknown; message: string }> = []
+  const startedAt = Date.now()
+  const silent = new RunnerConnection({ input: silentOut, output: silentIn }, capabilities, {
+    onRow: () => {},
+    onAsk: () => ({ answer: Promise.resolve({ outcome: 'deny' as const }), withdraw: () => {} }),
+    onApplied: () => {},
+    onProtocolError: error => refusals.push({ code: error.code, kind: (error.data as { kind?: unknown } | undefined)?.kind, message: error.message }),
+    log: () => {},
+  })
+  const mute = createPeer({ input: silentIn, output: silentOut, side: 'runner', log: () => {} })
+  mute.onRequest('initialize', () => new Promise(() => {}))
+  const held = standInRunner({ autoAnswer: { 'queue/add': LEAVE_PENDING } })
+  const deliveryStarted = Date.now()
+  const delivery = held.connection.deliver({ type: 'prompt', content: 'work', id: '0b5c2d0a-6e9e-4c4b-8a2c-3f1d2e5b7a03' })
+  const dup = standInRunner({ autoAnswer: { 'queue/add': { accepted: false, reason: 'duplicate' } } })
+  check('a delivery the runner answers duplicate is reported refused, never accepted', (await dup.connection.deliver({ type: 'prompt', content: 'again', id: '0b5c2d0a-6e9e-4c4b-8a2c-3f1d2e5b7a04' })) === false)
+  dup.close()
+  const delivered = await delivery
+  const deliveryMs = Date.now() - deliveryStarted
+  const queued = held.requests.find(r => r.method === 'queue/add')
+  check(`a delivery the runner never answers settles refused at queue/add’s table deadline (${deadlineOf('queue/add')} ms; took ${deliveryMs} ms) and the runner sees it withdrawn`, delivered === false && queued !== undefined && queued.cancelled && deliveryMs >= deadlineOf('queue/add')! - 100 && deliveryMs < deadlineOf('queue/add')! + 2_000, j({ delivered, cancelled: queued?.cancelled, deliveryMs }))
+  held.close()
+  const initialized = await silent.initialized
+  const initializeMs = Date.now() - startedAt
+  check(`a runner that never answers initialize is given up at the table’s ${deadlineOf('initialize')} ms (took ${initializeMs} ms)`, initialized === null && initializeMs >= deadlineOf('initialize')! - 100 && initializeMs < deadlineOf('initialize')! + 2_000, j({ initialized, initializeMs }))
+  check('…and the seat hears it as a typed protocol refusal naming the deadline', refusals.length === 1 && refusals[0]!.code === RPC_REFUSED && refusals[0]!.kind === 'protocol' && /did not answer initialize within/.test(refusals[0]!.message), j(refusals))
+  check('a delivery on a door whose handshake failed is refused at once', (await silent.deliver({ type: 'prompt', content: 'late', id: '0b5c2d0a-6e9e-4c4b-8a2c-3f1d2e5b7a05' })) === false)
+  mute.close('done')
+  silent.close('done')
+}
+
 rmSync(home, { recursive: true, force: true })
 console.log(`\n${checks} checks, ${failures} failures`)
 console.log(failures === 0 ? 'prove-seat-protocol-refusal: ALL LAWS HOLD' : `prove-seat-protocol-refusal: ${failures} FAILURE(S)`)
