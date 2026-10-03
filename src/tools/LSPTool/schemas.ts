@@ -137,7 +137,7 @@ const codeActionsSchema = z.object({
     .int()
     .min(0)
     .optional()
-    .describe('Positional selector from a prior listing (legacy)'),
+    .describe('The positional selector from a prior listing (actionId is preferred)'),
 })
 
 const workspaceDiagnosticsSchema = z.object({
