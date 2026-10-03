@@ -82,7 +82,7 @@ console.log('[3] the truths driven on this box')
   check('Glob names the search binary', glob !== undefined && glob.reason.includes('search binary'), glob?.reason)
 }
 
-console.log('[4] the doctor prints the lines (source pin)')
+console.log('[4] /health prints the lines (source pin)')
 {
   const health = readFileSync(join(repoRoot, 'src/utils/healthReport.ts'), 'utf8')
   const at = health.indexOf("id: 'capability-census'")

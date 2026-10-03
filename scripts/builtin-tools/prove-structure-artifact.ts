@@ -30,8 +30,8 @@ interface Cert {
   sections: { id: string; title: string; checks: Check[] }[]
 }
 
-function runDoctor(extraEnv: Record<string, string> = {}): Cert {
-  const raw = execFileSync((process.execPath.includes('bun') ? 'node' : process.execPath), [dist, 'doctor', '--json', '--deep'], {
+function runHealth(extraEnv: Record<string, string> = {}): Cert {
+  const raw = execFileSync((process.execPath.includes('bun') ? 'node' : process.execPath), [dist, 'health', '--json', '--deep'], {
     cwd: outsideCwd,
     encoding: 'utf8',
     timeout: 300_000,
@@ -71,7 +71,7 @@ try {
   )
 
   console.log('── the structural loop INSIDE the artifact, outside the repo ──')
-  const cert = runDoctor()
+  const cert = runHealth()
   const probe = findCheck(cert, 'structure-loop')
   check('TOOL CAPABILITY → Structural loop probe present', probe !== undefined)
   check('probe status ok', probe?.status === 'ok', `${probe?.status}: ${probe?.evidence}`)
@@ -82,7 +82,7 @@ try {
   )
 
   console.log('── authority-toggle honesty inside the artifact ──')
-  const certOff = runDoctor({ MERCURY_STRUCTURE: '0' })
+  const certOff = runHealth({ MERCURY_STRUCTURE: '0' })
   const probeOff = findCheck(certOff, 'structure-loop')
   check("MERCURY_STRUCTURE=0 reads 'off' (never a fake pass)", probeOff?.status === 'off', `${probeOff?.status}`)
 } finally {
