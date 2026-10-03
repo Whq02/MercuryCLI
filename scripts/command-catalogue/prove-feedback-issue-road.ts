@@ -181,7 +181,7 @@ section('B5 no gh = the honest fallback (three exact arms)')
   const longLink = forms.issueFormUrl(forms.ISSUE_FORMS.bug, { slug: PUBLIC_HOME, title: '[bug] long', values: { ...roadValues, steps: 'S'.repeat(3000), actual: 'A'.repeat(9000) } })
   const parsedLong = new URL(longLink)
   check('B5 a long report stays under the link cap and keeps the steps whole; the cut section says so', longLink.length <= forms.ISSUE_FORM_URL_CAP && parsedLong.searchParams.get('steps') === 'S'.repeat(3000) && (parsedLong.searchParams.get('actual') ?? '').endsWith(forms.URL_CUT_NOTE), String(longLink.length))
-  check('B5 the health field points at the local draft (the block is pasted by hand)', forms.healthPointer('~/.mercury/feedback/bug-1.md').includes('paste /health --json block') && forms.healthPointer('~/.mercury/feedback/bug-1.md').includes('~/.mercury/feedback/bug-1.md') && forms.healthPointer(null).includes('health --json'))
+  check('B5 the health field points at the local draft (the block is pasted by hand)', forms.healthPointer('~/.mercury/feedback/bug-1.md').includes('paste the health --json block') && forms.healthPointer('~/.mercury/feedback/bug-1.md').includes('~/.mercury/feedback/bug-1.md') && forms.healthPointer(null).includes('health --json'))
   delete process.env.MERCURY_GH_CMD
   delete process.env.GH_SHIM_LOG
 }
@@ -503,7 +503,7 @@ if (!existsSync(BIN)) {
   const handedText = existsSync(browserLog) ? readFileSync(browserLog, 'utf8').trim() : ''
   const handed = handedText.startsWith('https://') ? new URL(handedText.split('\n')[0]!) : null
   check('B5 ↵ handed the link to the BROWSER handler once, nothing else opened', handedText.split('\n').filter(Boolean).length === 1 && handed !== null && handed.pathname === `/${PUBLIC_HOME}/issues/new` && handed.searchParams.get('template') === 'bug_report.yml', handedText.slice(0, 160))
-  check('B5 the link carries the words under steps, the answer under actual, the gathered version, and the health pointer', handed !== null && handed.searchParams.get('steps') === 'the jump pill never paints after PgUp' && handed.searchParams.get('actual') === 'it stayed hidden' && handed.searchParams.get('version') === `Mercury ${pkg.version}` && (handed.searchParams.get('health') ?? '').startsWith('paste /health --json block'), handed?.search.slice(0, 200))
+  check('B5 the link carries the words under steps, the answer under actual, the gathered version, and the health pointer', handed !== null && handed.searchParams.get('steps') === 'the jump pill never paints after PgUp' && handed.searchParams.get('actual') === 'it stayed hidden' && handed.searchParams.get('version') === `Mercury ${pkg.version}` && (handed.searchParams.get('health') ?? '').startsWith('paste the health --json block'), handed?.search.slice(0, 200))
   check('B5 the link never spells the home directory', !handedText.includes(homedir()))
   const roadGh = existsSync(roadGhLog) ? readFileSync(roadGhLog, 'utf8') : ''
   check('B5 no gh issue create rode the browser road', !roadGh.includes('gh issue create'))

@@ -13,7 +13,7 @@ delete process.env.MERCURY_GODOT_TOOLS_LITE
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 const census = await import(join(ROOT, 'src/services/vulcan/godotProcessCensus.ts'))
-const health = await import(join(ROOT, 'src/services/vulcan/portabilityHealth.ts'))
+const portability = await import(join(ROOT, 'src/services/vulcan/portabilityHealth.ts'))
 const presence = await import(join(ROOT, 'src/services/vulcan/editorPresence.ts'))
 const classCache = await import(join(ROOT, 'src/services/vulcan/classCache.ts'))
 const installer = await import(join(ROOT, 'src/services/vulcan/addonInstaller.ts'))
@@ -80,11 +80,11 @@ try {
 
   section('2. the executable receipt — a running editor is never NOT FOUND')
   const winEnv = { LOCALAPPDATA: 'C:\\Users\\sam\\AppData\\Local', ProgramFiles: 'C:\\Program Files', 'ProgramFiles(x86)': 'C:\\Program Files (x86)', USERPROFILE: 'C:\\Users\\sam', ProgramData: 'C:\\ProgramData', PATH: 'C:\\Windows\\System32' }
-  const winRoots: string[] = health.godotWellKnownRoots('win32', winEnv)
+  const winRoots: string[] = portability.godotWellKnownRoots('win32', winEnv)
   check('win32 roots: %LOCALAPPDATA%\\Programs\\Godot, Program Files, the Steam library, the winget and scoop shims', ['C:\\Users\\sam\\AppData\\Local\\Programs\\Godot', 'C:\\Program Files\\Godot', 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine', 'C:\\Users\\sam\\AppData\\Local\\Microsoft\\WinGet\\Links', 'C:\\Users\\sam\\scoop\\shims'].every(r => winRoots.includes(r)), winRoots.join(' | '))
-  const macRoots: string[] = health.godotWellKnownRoots('darwin', { HOME: '/Users/sam' })
+  const macRoots: string[] = portability.godotWellKnownRoots('darwin', { HOME: '/Users/sam' })
   check('darwin roots: /Applications, ~/Applications, the Steam library', ['/Applications', '/Users/sam/Applications', '/Users/sam/Library/Application Support/Steam/steamapps/common/Godot Engine'].every(r => macRoots.includes(r)))
-  const linuxRoots: string[] = health.godotWellKnownRoots('linux', { HOME: '/home/sam' })
+  const linuxRoots: string[] = portability.godotWellKnownRoots('linux', { HOME: '/home/sam' })
   check('linux roots: the PATH bins, flatpak exports, the Steam library', ['/usr/bin', '/var/lib/flatpak/exports/bin', '/home/sam/.local/share/Steam/steamapps/common/Godot Engine'].every(r => linuxRoots.includes(r)))
 
   const tree: Record<string, string[]> = {
@@ -98,17 +98,17 @@ try {
     isDir: (p: string) => dirs.has(p),
     executable: (p: string) => !dirs.has(p) && Object.entries(tree).some(([d, names]) => names.some(n => join(d, n) === p || `${d}\\${n}` === p)),
   }
-  const field = await health.resolveGodotExecutable({ platform: 'win32', env: winEnv, census: [], fs: fakeFs })
+  const field = await portability.resolveGodotExecutable({ platform: 'win32', env: winEnv, census: [], fs: fakeFs })
   check('the field root resolves: %LOCALAPPDATA%\\Programs\\Godot, the console wrapper ranked last', field.source === 'well-known-location' && /Godot_v4\.7\.2-stable_mono_win64\.exe$/.test(field.resolved ?? '') && !/console/.test(field.resolved ?? ''), `${field.source}: ${field.resolved}`)
-  const wingetOnly = await health.resolveGodotExecutable({ platform: 'win32', env: winEnv, census: [], fs: { ...fakeFs, list: (d: string) => (d.includes('Programs\\Godot') ? [] : tree[d] ?? []) } })
+  const wingetOnly = await portability.resolveGodotExecutable({ platform: 'win32', env: winEnv, census: [], fs: { ...fakeFs, list: (d: string) => (d.includes('Programs\\Godot') ? [] : tree[d] ?? []) } })
   check('the winget package dir is walked one level down', /WinGet\\Packages\\GodotEngine\.GodotEngine[^\\]*\\godot\.exe$/.test(wingetOnly.resolved ?? ''), `${wingetOnly.resolved}`)
-  const running = await health.resolveGodotExecutable({ platform: 'win32', env: { ...winEnv, LOCALAPPDATA: 'C:\\nowhere' }, census: win, projectRoot: 'C:\\Users\\sam\\Projects\\My Game', fs: { list: () => [], isDir: () => false, executable: () => false } })
+  const running = await portability.resolveGodotExecutable({ platform: 'win32', env: { ...winEnv, LOCALAPPDATA: 'C:\\nowhere' }, census: win, projectRoot: 'C:\\Users\\sam\\Projects\\My Game', fs: { list: () => [], isDir: () => false, executable: () => false } })
   check('a RUNNING editor is never NOT FOUND: its own executable path, source running-editor', running.source === 'running-editor' && running.resolved === WIN_EXE && /pid 18344/.test(running.note), `${running.source}: ${running.note}`)
-  const other = await health.resolveGodotExecutable({ platform: 'win32', env: { ...winEnv, LOCALAPPDATA: 'C:\\nowhere' }, census: win, projectRoot: 'C:\\Users\\sam\\Other', fs: { list: () => [], isDir: () => false, executable: () => false } })
+  const other = await portability.resolveGodotExecutable({ platform: 'win32', env: { ...winEnv, LOCALAPPDATA: 'C:\\nowhere' }, census: win, projectRoot: 'C:\\Users\\sam\\Other', fs: { list: () => [], isDir: () => false, executable: () => false } })
   check('an editor on ANOTHER project still resolves (after PATH and the roots)', other.source === 'running-editor' && other.resolved === WIN_EXE)
-  const none = await health.resolveGodotExecutable({ platform: 'win32', env: winEnv, census: [], fs: { list: () => [], isDir: () => false, executable: () => false } })
+  const none = await portability.resolveGodotExecutable({ platform: 'win32', env: winEnv, census: [], fs: { list: () => [], isDir: () => false, executable: () => false } })
   check('not-found names how many roots were walked (never a bare NOT FOUND)', none.source === 'not-found' && none.probed.length >= 8 && /well-known root/.test(none.note), none.note)
-  const mac = await health.resolveGodotExecutable({ platform: 'darwin', env: { HOME: '/Users/sam', PATH: '/usr/bin' }, census: [], fs: { list: (d: string) => (d === '/Applications' ? ['Godot.app', 'Godot 2.app', 'Safari.app'] : []), isDir: () => false, executable: (p: string) => p.endsWith('/Contents/MacOS/Godot') } })
+  const mac = await portability.resolveGodotExecutable({ platform: 'darwin', env: { HOME: '/Users/sam', PATH: '/usr/bin' }, census: [], fs: { list: (d: string) => (d === '/Applications' ? ['Godot.app', 'Godot 2.app', 'Safari.app'] : []), isDir: () => false, executable: (p: string) => p.endsWith('/Contents/MacOS/Godot') } })
   check('darwin: Godot*.app bundles resolve to Contents/MacOS/Godot (no godot on PATH)', mac.source === 'well-known-location' && /\/Applications\/Godot[^/]*\.app\/Contents\/MacOS\/Godot$/.test(mac.resolved ?? ''), `${mac.resolved}`)
 
   section('3. three named states — never "closed" for a running editor')
