@@ -1,5 +1,6 @@
 
 import { spawn, type ChildProcess } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { selfScriptPath } from '../../daemon/daemonBuild.js'
 import { MERCURY_VERSION } from '../../constants/product.js'
 import type { LooseRow } from '../../rows/read.js'
@@ -90,6 +91,9 @@ export class MercuryChildSession {
   private closedByUs = false
   private dead = false
   private protocolFailure: RpcError | null = null
+  private queuedPromptId: string | null = null
+  private turnOpen = false
+  private interruptWhenTurnOpens = false
   private lastRoundTripUsage: Record<string, unknown> | null = null
   private lastRoundTripModel = ''
 
@@ -238,7 +242,20 @@ export class MercuryChildSession {
         if (typeof row.mode === 'string') this.handlers.onMode?.(row.mode)
         return
       }
+      case 'turn': {
+        if (tagged !== null || row.state !== 'started') return
+        this.turnOpen = true
+        this.queuedPromptId = null
+        if (this.interruptWhenTurnOpens) {
+          this.interruptWhenTurnOpens = false
+          this.requestInterrupt()
+        }
+        return
+      }
       case 'outcome': {
+        this.turnOpen = false
+        this.queuedPromptId = null
+        this.interruptWhenTurnOpens = false
         if (this.lastRoundTripUsage !== null) {
           this.handlers.onUsage?.(this.lastRoundTripUsage, this.lastRoundTripModel, typeof row.cost_usd === 'number' ? row.cost_usd : undefined)
           this.lastRoundTripUsage = null
@@ -283,16 +300,47 @@ export class MercuryChildSession {
     })
     signal?.throwIfAborted()
     if (this.protocolFailure) throw this.protocolFailure
+    const id = randomUUID()
+    this.queuedPromptId = id
     try {
-      const answer = await this.peer.request('queue/add', { type: 'prompt', content: inputBlocksOf(content) }, { deadlineMs: 30_000 })
+      const answer = await this.peer.request('queue/add', { type: 'prompt', content: inputBlocksOf(content), id }, { deadlineMs: 30_000 })
       if (answer.accepted === false) throw new Error(`the session refused the prompt (${answer.reason})`)
     } catch (error) {
+      if (this.queuedPromptId === id) this.queuedPromptId = null
       if (error instanceof PeerClosed) throw new Error('the session child is unwritable — prompt not delivered')
       throw error
     }
   }
 
   interrupt(): void {
+    const queued = this.queuedPromptId
+    if (this.turnOpen || queued === null) {
+      this.requestInterrupt()
+      return
+    }
+    this.interruptWhenTurnOpens = true
+    void this.peer
+      .request('queue/withdraw', { id: queued })
+      .then(answer => {
+        if (answer.withdrawn) {
+          this.interruptWhenTurnOpens = false
+          if (this.queuedPromptId === queued) this.queuedPromptId = null
+          this.handlers.onTurnEnd('cancelled', { status: 'interrupted', errors: [] })
+          return
+        }
+        if (this.turnOpen && this.interruptWhenTurnOpens) {
+          this.interruptWhenTurnOpens = false
+          this.requestInterrupt()
+        }
+      })
+      .catch((error: unknown) => {
+        logForDebugging(`[acp] withdraw not answered: ${error instanceof Error ? error.message : String(error)}`)
+        this.interruptWhenTurnOpens = false
+        this.requestInterrupt()
+      })
+  }
+
+  private requestInterrupt(): void {
     void this.peer.request('turn/interrupt', {}).catch((error: unknown) => {
       logForDebugging(`[acp] interrupt not answered: ${error instanceof Error ? error.message : String(error)}`)
     })
