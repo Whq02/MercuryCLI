@@ -75,7 +75,7 @@ spawnSync('node', [DIST, 'run', 'continue the work', '--resume', sid], {
   env: journeyChildEnv(),
 })
 const afterPrint = readRunSidecar(sid)
-check('B4: a print-mode resume preserves the durable runId (finding A)', afterPrint.snapshot.runId === beforePrint.snapshot.runId)
+check('B4: a run-mode resume preserves the durable runId (finding A)', afterPrint.snapshot.runId === beforePrint.snapshot.runId)
 check('B4: the print resume ADVANCES the sidecar (the reconcile engaged)', afterPrint.writeSeq > beforePrint.writeSeq)
 
 check('every walker capture painted (C3)', walker.failedCaptures.length === 0, walker.failedCaptures.join(' · '))

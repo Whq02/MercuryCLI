@@ -81,7 +81,7 @@ section('§4 THE HEADLESS BATCH READS THE SAME VERDICT (rank 35)')
   const batchStart = main.indexOf('async function connectMcpBatch(')
   const batchEnd = main.indexOf('function dedupeByName', batchStart)
   const batch = batchStart >= 0 && batchEnd > batchStart ? main.slice(batchStart, batchEnd) : ''
-  check('the print-mode batch exists', batch.length > 0)
+  check('the run-mode batch exists', batch.length > 0)
   const fenceAt = batch.indexOf('fenceMcpPrefixCollisions(configs)')
   const partitionAt = batch.indexOf('partitionMcpConfigsByMembership(survivors)')
   check('the batch fences BEFORE the membership partition, on the survivors', fenceAt >= 0 && partitionAt > fenceAt, `fence@${fenceAt} partition@${partitionAt}`)

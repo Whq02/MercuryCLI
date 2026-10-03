@@ -154,7 +154,7 @@ section('§1 the boot posture of a seat with a permission channel says which cal
   setAskChannel('operator')
 }
 
-section('§2 the push road itself — the REAL Bash verdict through the real decision path, on a seat (a print run with the stdio channel) in flow')
+section('§2 the push road itself — the REAL Bash verdict through the real decision path, on a seat (a run with the stdio channel) in flow')
 const bashTool = {
   name: 'Bash',
   inputSchema: z.object({ command: z.string(), description: z.string().optional() }).passthrough(),
@@ -271,7 +271,7 @@ section('§4 the words on disk — the flow policy names a push; the docs say ho
   check('…names the rule shape `Bash(git push *)` and guardrails.allow', /Bash\(git push \*\)/.test(sectionText) && /guardrails\.allow/.test(sectionText), sectionText.slice(0, 400))
   check('…says no push is ever allowed by default', /no push is ever allowed by default/i.test(sectionText), sectionText.slice(0, 400))
   const print = readFileSync(join(ROOT, 'src', 'cli', 'run.ts'), 'utf8')
-  check('the headless entry stamps the boot rules beside the interactivity mark (the seat\'s own context, never a guess)', /markSessionNonInteractive\(getAppState\(\)\.toolPermissionContext\?\.mode\)\n\s*markSessionBootRules\(getAppState\(\)\.toolPermissionContext\)/.test(print), 'print.ts carries no markSessionBootRules(getAppState().toolPermissionContext) after the interactivity mark')
+  check('the headless entry stamps the boot rules beside the interactivity mark (the seat\'s own context, never a guess)', /markSessionNonInteractive\(getAppState\(\)\.toolPermissionContext\?\.mode\)\n\s*markSessionBootRules\(getAppState\(\)\.toolPermissionContext\)/.test(print), 'run.ts carries no markSessionBootRules(getAppState().toolPermissionContext) after the interactivity mark')
 }
 
 rmSync(HOME, { recursive: true, force: true })

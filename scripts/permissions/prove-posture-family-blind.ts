@@ -50,7 +50,7 @@ async function main(): Promise<void> {
     check('the arming read exists', armIdx !== -1)
     const armLine = mainSrc.slice(mainSrc.lastIndexOf('\n', armIdx) + 1, mainSrc.indexOf('\n', armIdx))
     check(
-      'the arming expression couples ONLY to the print-mode check',
+      'the arming expression couples ONLY to the run-mode check',
       /isEnvTruthy\(flagEnv\('MERCURY_SKIP_PERMISSIONS'\)\)\s*&&\s*!isRunArgv\(\)/.test(armLine),
       armLine.trim(),
     )

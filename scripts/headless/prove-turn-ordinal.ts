@@ -8,7 +8,7 @@ import { outcomeRow, turnStartedRow } from '../../src/rows/project.ts'
 import { EMPTY_USAGE } from '../../src/services/api/emptyUsage.ts'
 
 const source = readFileSync(join(import.meta.dir, '../../src/cli/run.ts'), 'utf8')
-const ast = ts.createSourceFile('print.ts', source, ts.ScriptTarget.Latest, true)
+const ast = ts.createSourceFile('run.ts', source, ts.ScriptTarget.Latest, true)
 let callback: ts.Expression | undefined
 function visit(node: ts.Node): void {
   if (ts.isPropertyAssignment(node) && node.name.getText(ast) === 'onCycleError') callback = node.initializer

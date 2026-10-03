@@ -150,7 +150,7 @@ function receiptOf(batch: string[]): string {
 {
   const control = spawnRunner(false)
   const first = await send(control, 'hello control')
-  check('C4 the plain print runner answered the arming turn', first.some(l => isOutcome(parseFrame(l))), receiptOf(first).slice(0, 120))
+  check('C4 the plain runner answered the arming turn', first.some(l => isOutcome(parseFrame(l))), receiptOf(first).slice(0, 120))
   let refused = 0
   for (const c of sessionSeatDropped) {
     const batch = await send(control, `/${c.name}`)

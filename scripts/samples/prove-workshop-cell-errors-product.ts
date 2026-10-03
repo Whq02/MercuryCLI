@@ -115,7 +115,7 @@ const WORKER_FRAME = /\[worker eval\]|node:internal|MessagePort/
 for (const row of results) console.log(`  result as the model read it (${row.text.length} chars): ${show(row)}`)
 
 section('§0 the run: the model made five Workshop calls; the first three came back as failed cells')
-check('the print run exited 0', run.code === 0, `exit=${run.code} ${run.stderr.slice(-400)}`)
+check('the run exited 0', run.code === 0, `exit=${run.code} ${run.stderr.slice(-400)}`)
 check('five Workshop results reached the model', results.length === 5, results.map(show).join(' | '))
 check('the first three are error results with a failed cell head', results.slice(0, 3).length === 3 && results.slice(0, 3).every(row => row.is_error === true && /^\[cell-js-g\d+-\d+\] failed/m.test(row.text)), results.slice(0, 3).map(show).join(' | '))
 

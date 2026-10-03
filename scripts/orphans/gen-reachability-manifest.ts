@@ -233,7 +233,7 @@ const manifest = {
   generator: 'scripts/orphans/gen-reachability-manifest.ts',
   rootClasses: {
     'interactive-runtime': ['src/entrypoints/cli.tsx'],
-    'headless-cli': ['src/entrypoints/cli.tsx (print mode)', 'src/entrypoints/init.ts'],
+    'headless-cli': ['src/entrypoints/cli.tsx (run mode)', 'src/entrypoints/init.ts'],
     'daemon-scheduler': ['src/entrypoints/cli.tsx (mercury daemon)'],
     'spawned-workers-agents': ['src/entrypoints/cli.tsx (subagent/workflow re-entry)'],
     'acp-vscode-mcp': ['src/entrypoints/mcp.ts', 'src/entrypoints/cli.tsx (external seat attach)'],

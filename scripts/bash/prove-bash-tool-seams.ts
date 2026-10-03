@@ -105,7 +105,7 @@ if (!ready) {
   const health = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
   check('the health row warns with the reason', /getSandboxUnavailableReason\(\)[\s\S]{0,300}status: 'warn'/.test(health))
   const runMode = readFileSync(join(ROOT, 'src', 'cli', 'run.ts'), 'utf8')
-  check('print mode says the sandbox is OFF for the session, or refuses under failIfUnavailable', /sandboxing is OFF for this session/.test(runMode) && /isSandboxRequired\(\)/.test(runMode))
+  check('run mode says the sandbox is OFF for the session, or refuses under failIfUnavailable', /sandboxing is OFF for this session/.test(runMode) && /isSandboxRequired\(\)/.test(runMode))
   const degraded = await run('echo degraded-ok', shouldUseSandbox({ command: 'echo degraded-ok' }))
   check('a command runs unconfined with its own status (never a missing-binary failure graded as a sandbox)', degraded.code === 0 && /degraded-ok/.test(degraded.out), `code ${degraded.code} ${JSON.stringify(degraded.out.slice(0, 120))}`)
 } else {
@@ -431,7 +431,7 @@ if (!existsSync(DIST) || !nodeBin) {
       }
     }
   }
-  note(`print mode exit ${outcome.exit} after ${outcome.ms}ms; ${fixture.messageRequests().length} model requests; stdout ${JSON.stringify(outcome.stdout.trim().slice(0, 80))}`)
+  note(`run exit ${outcome.exit} after ${outcome.ms}ms; ${fixture.messageRequests().length} model requests; stdout ${JSON.stringify(outcome.stdout.trim().slice(0, 80))}`)
   for (const [index, request] of fixture.messageRequests().entries()) {
     const messages = (request.body as { messages?: Array<{ role?: string; content?: unknown }> })?.messages ?? []
     const last = messages[messages.length - 1]
@@ -456,7 +456,7 @@ if (!existsSync(DIST) || !nodeBin) {
     check('artifact: a write outside the allow-write set is refused by the sandbox; under the bypass posture the rerun ask is auto-answered, the command runs outside and the result says so', third !== undefined && /^\[ran outside the sandbox after the ask: the sandboxed run exited [1-9]\d* on .*file-write/.test(third.text) && existsSync(join(away, 'out.txt')), JSON.stringify(third?.text.slice(0, 160)))
     check("artifact: the tool's description tells the model commands run in a sandbox", descriptions.length > 0 && descriptions.every(d => d.includes('# Command sandbox')))
   } else {
-    check('artifact (unavailable sandbox): print mode says the sandbox is OFF for the session, with the reason', /sandboxing is OFF for this session/.test(outcome.stderr), JSON.stringify(outcome.stderr.slice(0, 300)))
+    check('artifact (unavailable sandbox): run mode says the sandbox is OFF for the session, with the reason', /sandboxing is OFF for this session/.test(outcome.stderr), JSON.stringify(outcome.stderr.slice(0, 300)))
     check("artifact (unavailable sandbox): the tool's description never claims a sandbox", descriptions.length > 0 && descriptions.every(d => !d.includes('# Command sandbox')))
     check('artifact (unavailable sandbox): the outside write lands — unconfined, and said so above', third !== undefined && !third.isError && existsSync(join(away, 'out.txt')), JSON.stringify(third?.text.slice(0, 160)))
     check('artifact (unavailable sandbox): a bare mktemp succeeds unconfined', fifth !== undefined && !fifth.isError && fifthPath.startsWith('/'), JSON.stringify(fifth?.text.slice(0, 160)))

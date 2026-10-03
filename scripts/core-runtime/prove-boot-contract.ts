@@ -604,7 +604,7 @@ function staticImports(src: string): {
   const ei = await import('../../src/utils/earlyInput.js')
   ei.startCapturingEarlyInput()
   check(
-    'early-input: non-TTY start is a no-op (print-mode safety gate)',
+    'early-input: non-TTY start is a no-op (run-mode safety gate)',
     ei.isCapturingEarlyInput() === false,
   )
   ei.seedEarlyInput('  draft text \n')

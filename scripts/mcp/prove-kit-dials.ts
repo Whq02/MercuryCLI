@@ -142,7 +142,7 @@ section('§E the delta (a dial is a delta, never a heal)')
 section('§H the write re-point')
 {
   const src = read('src/cli/run.ts')
-  t('H1 print.ts carries no setMcpServerEnabled CALL (the disease is gone from the child)', !src.includes('setMcpServerEnabled(') && !/import[^\n]*setMcpServerEnabled/.test(src))
+  t('H1 run.ts carries no setMcpServerEnabled CALL (the disease is gone from the child)', !src.includes('setMcpServerEnabled(') && !/import[^\n]*setMcpServerEnabled/.test(src))
   t('H1b the kit_edit arm exists and rides the serialized MCP mutation lane', /'session\/set_kit': params =>/.test(src) && /'session\/set_kit': params =>[\s\S]{0,2400}serializeMcpChange/.test(src))
   t('H1c the toggle road dials the PROCESS KIT through the one edit road (the registry port, no child arm of its own)', /setEnabledOnDisk: \(name, enabled\) => \{\s*applyProcessSessionKitEdit\(/.test(read('src/services/mcp/registry/livePorts.ts')) && !src.includes('mcp_toggle'))
   t('H1d the reconcile clears the command memos (the per-cwd model-list memo included)', /'session\/set_kit': params =>[\s\S]{0,6200}clearCommandMemoizationCaches\(\)/.test(src))

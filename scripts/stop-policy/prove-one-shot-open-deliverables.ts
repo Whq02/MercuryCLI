@@ -185,7 +185,7 @@ async function runWorld(label: string, extraEnv: Record<string, string>): Promis
 }
 
 if (import.meta.main) {
-  section('§1 a print run that files a task and stops: the record never reads complete while the task is open')
+  section('§1 a run that files a task and stops: the record never reads complete while the task is open')
   {
     const failedAtOpen = failed()
     const world = await runWorld('record', { MERCURY_SUPERVISOR: '0' })
@@ -201,7 +201,7 @@ if (import.meta.main) {
     else console.log(`  [forensics] the world stays at ${world.home}`)
   }
 
-  section('§2 with the supervisor on, the print run is asked to work the open deliverable, closes it, and only then completes')
+  section('§2 with the supervisor on, the run is asked to work the open deliverable, closes it, and only then completes')
   {
     const failedAtOpen = failed()
     const world = await runWorld('supervised', { MERCURY_SUPERVISOR: '1' })

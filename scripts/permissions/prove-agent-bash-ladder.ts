@@ -54,7 +54,7 @@ section('§1 the prompt-posture owner — an agent inherits its parent\'s ask ro
     { label: 'a foreground agent of a hosted run inherits that road', facts: { ...base, parentNonInteractive: true, parentHostHoldsAsks: true }, want: { avoidPrompts: false, isNonInteractiveSession: true, hostHoldsAsks: true } },
     { label: 'a prompt-less child of a seat has no road (it avoids prompts by law)', facts: { ...base, isAsync: true, parentNonInteractive: true, parentHostHoldsAsks: true, parentAvoidsPrompts: true }, want: { avoidPrompts: true, isNonInteractiveSession: true } },
     { label: 'an explicit "cannot show prompts" drops the road too', facts: { ...base, parentNonInteractive: true, parentHostHoldsAsks: true, canShowPermissionPrompts: false }, want: { avoidPrompts: true, isNonInteractiveSession: true } },
-    { label: 'a print run with no channel gives its child none', facts: { ...base, isAsync: true, parentNonInteractive: true }, want: { avoidPrompts: false, isNonInteractiveSession: true } },
+    { label: 'a run with no channel gives its child none', facts: { ...base, isAsync: true, parentNonInteractive: true }, want: { avoidPrompts: false, isNonInteractiveSession: true } },
     { label: 'a foreground agent of an interactive parent prompts', facts: base, want: { avoidPrompts: false, isNonInteractiveSession: false } },
     { label: 'a BACKGROUND agent of an interactive parent prompts too — the parent\'s ask road is its own', facts: { ...base, isAsync: true }, want: { avoidPrompts: false, isNonInteractiveSession: false } },
     { label: 'a background agent of a prompt-less parent stays prompt-less', facts: { ...base, isAsync: true, parentAvoidsPrompts: true }, want: { avoidPrompts: true, isNonInteractiveSession: false } },
@@ -62,7 +62,7 @@ section('§1 the prompt-posture owner — an agent inherits its parent\'s ask ro
     { label: 'an explicit "can show prompts" wins over a prompt-less parent (the crewmate road)', facts: { ...base, isAsync: true, parentAvoidsPrompts: true, canShowPermissionPrompts: true }, want: { avoidPrompts: false, isNonInteractiveSession: false } },
     { label: 'an explicit "cannot show prompts" wins over an interactive parent', facts: { ...base, canShowPermissionPrompts: false }, want: { avoidPrompts: true, isNonInteractiveSession: false } },
     { label: 'a bubble definition prompts whatever the parent does', facts: { ...base, isAsync: true, definitionMode: 'bubble', parentAvoidsPrompts: true }, want: { avoidPrompts: false, isNonInteractiveSession: false } },
-    { label: 'an agent of a non-interactive parent (a print run, a seat child) is non-interactive — foreground', facts: { ...base, parentNonInteractive: true }, want: { avoidPrompts: false, isNonInteractiveSession: true } },
+    { label: 'an agent of a non-interactive parent (a run, a seat child) is non-interactive — foreground', facts: { ...base, parentNonInteractive: true }, want: { avoidPrompts: false, isNonInteractiveSession: true } },
     { label: 'an agent of a non-interactive parent is non-interactive — background', facts: { ...base, isAsync: true, parentNonInteractive: true }, want: { avoidPrompts: false, isNonInteractiveSession: true } },
     { label: 'an unstated parent interactivity reads interactive for a child', facts: { ...base, isAsync: true, parentNonInteractive: undefined }, want: { avoidPrompts: false, isNonInteractiveSession: false } },
   ]
@@ -214,7 +214,7 @@ const ROWS: Row[] = [
   { label: 'flow · deny rule · writing command → the rule denies; no classifier call', mode: 'flow', rules: 'deny', command: WRITING, main: { behavior: 'deny', wrapper: 'engine', engine: 'toolVerdictDeny', classifier: 0 } },
   { label: 'sovereign · deny rule → bypass-immune deny', mode: 'sovereign', rules: 'deny', command: WRITING, main: { behavior: 'deny', engine: 'toolVerdictDeny', classifier: 0 } },
   {
-    label: 'default · no rule · writing command → an ASK for the operator; a prompt-less parent denies; a print run hands the ask to its executor',
+    label: 'default · no rule · writing command → an ASK for the operator; a prompt-less parent denies; a run hands the ask to its executor',
     mode: 'default',
     rules: 'none',
     command: WRITING,
@@ -272,7 +272,7 @@ for (const row of ROWS) {
   for (const subject of SUBJECTS) cells[subject] = await decide(subject, row.mode, row.rules, row.command, row.classifierBlocks === true)
   check(`${row.label} — main`, matches(cells.main, row.main), j(cells.main))
   if (row.headless) check(`${row.label} — a prompt-less parent`, matches(cells['main-headless'], row.headless), j(cells['main-headless']))
-  if (row.print) check(`${row.label} — a print run`, matches(cells['main-print'], row.print), j(cells['main-print']))
+  if (row.print) check(`${row.label} — a run`, matches(cells['main-print'], row.print), j(cells['main-print']))
   if (row.seat) check(`${row.label} — a daemon seat`, matches(cells['main-seat'], row.seat), j(cells['main-seat']))
   for (const subject of SUBJECTS) {
     const peer = PEER[subject]

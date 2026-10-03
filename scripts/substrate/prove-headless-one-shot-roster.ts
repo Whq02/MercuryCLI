@@ -99,7 +99,7 @@ section('§5 source pins — the stamp precedes the pool; the scheduler start is
   const sinkBlock = sinkBlockStart >= 0 && sinkBlockEnd > sinkBlockStart ? print.slice(sinkBlockStart, sinkBlockEnd) : ''
   const sinkCalls = (print.match(/registerLocalWakeSink\(/g) ?? []).length
   check(
-    'print.ts arms the local-wake sink only for streaming input (the OFF-surface evidence)',
+    'run.ts arms the local-wake sink only for streaming input (the OFF-surface evidence)',
     sinkBlock.includes('registerLocalWakeSink(') && sinkCalls === 1,
     `block@${sinkBlockStart}..${sinkBlockEnd} calls=${sinkCalls}`,
   )
