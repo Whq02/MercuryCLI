@@ -151,7 +151,13 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     }
     if (req.method === 'POST' && url.endsWith('/v1/messages')) {
       const capped = url.startsWith('/capped/')
-      record({ kind: capped ? 'anthropic-capped' : 'anthropic', url, body, at: Date.now() })
+      const refused = url.startsWith('/refused/')
+      record({ kind: refused ? 'anthropic-refused' : capped ? 'anthropic-capped' : 'anthropic', url, body, at: Date.now() })
+      if (refused) {
+        res.writeHead(429, { 'content-type': 'application/json', ...cappedHeaders() })
+        res.end(JSON.stringify({ type: 'error', error: { type: 'rate_limit_error', message: 'The weekly usage limit has been reached' } }))
+        return
+      }
       res.writeHead(200, { 'content-type': 'text/event-stream', ...(capped ? cappedHeaders() : {}) })
       res.end(anthropicSse())
       return

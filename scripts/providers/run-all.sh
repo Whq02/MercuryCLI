@@ -11,7 +11,7 @@
 # gate-watch: src/services/providers/sseDecoder*
 # gate-watch: docs/ENGINES.md scripts/lib/fixtureApi.ts scripts/staleness/prove-stale-registry.ts src/*
 # gate-watch: src/bootstrap/state.ts src/cli/run.ts src/commands/feedback/index.ts
-# gate-watch: src/commands/login/login.tsx src/commands/mock-limits/index.ts
+# gate-watch: src/commands/login/login.tsx
 # gate-watch: src/commands/model/mercuryModel.tsx src/commands/model/model.tsx src/commands/router/router.tsx
 # gate-watch: src/components/* src/components/PromptInput/PromptInput.tsx src/components/Settings/Usage.tsx
 # gate-watch: src/components/mercury-ui/RailPanel.tsx src/components/mercury-ui/components.tsx
@@ -31,7 +31,6 @@
 # gate-watch: src/utils/config/globalConfig.ts src/utils/model/* src/utils/router/providerSecrets.ts
 # gate-watch: src/utils/settings/mdm/settings.ts src/utils/settings/settings.ts
 # gate-watch: src/utils/settings/settingsCache.ts
-# gate-watch: src/commands/mock-limits/mock-limits.ts
 # gate-watch: src/commands/usage/usage.tsx
 # gate-watch: src/ink/events/input-event.ts
 # gate-watch: src/utils/cockpit/settingsPopup.ts

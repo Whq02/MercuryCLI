@@ -9,7 +9,7 @@
 # gate-watch: scripts/helm-console/run-all.sh scripts/lib/codeText.ts scripts/release/launcherTemplates.mjs
 # gate-watch: scripts/session-graph/prove-resize-continuity.ts scripts/ui/* src/bootstrap/state.ts
 # gate-watch: src/commands/branch/branch.ts src/commands/crew/index.ts src/commands/login/login.tsx
-# gate-watch: src/commands/mock-limits/index.ts src/commands/model/mercuryModel.tsx
+# gate-watch: src/services/mockRateLimits.ts src/commands/model/mercuryModel.tsx
 # gate-watch: src/commands/model/model.tsx src/commands/rewind/index.ts src/components/*
 # gate-watch: src/components/CustomSelect/SelectMulti.tsx
 # gate-watch: src/components/CustomSelect/use-multi-select-state.ts src/components/PromptInput/PromptInput.tsx

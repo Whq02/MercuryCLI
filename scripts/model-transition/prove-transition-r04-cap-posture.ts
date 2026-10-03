@@ -189,7 +189,7 @@ section('§E the full journey, both postures — warning → offer/auto → cont
   delete process.env.MERCURY_MOCK_LIMITS
 }
 
-section('§F the arm surfaces — boot-menu posture row + the command opening')
+section('§F the arm surface — the boot-menu posture row')
 {
   const { STARTUP_MENU, menuRowChoices } = await import('../../src/substrate/startupMenu.ts')
   const row = STARTUP_MENU.find(r => r.env === 'MERCURY_CAP_FAILOVER')
@@ -199,12 +199,6 @@ section('§F the arm surfaces — boot-menu posture row + the command opening')
     'the row cycles default(offer) → off → auto',
     JSON.stringify(menuRowChoices(row!).map(c => c.value)) === JSON.stringify([null, 'off', 'auto']),
   )
-  const cmd = (await import('../../src/commands/mock-limits/index.ts')).default
-  check('the /mock-limits opening exists behind the registered arm', cmd.name === 'mock-limits')
-  delete process.env.MERCURY_MOCK_LIMITS
-  check('unarmed builds carry no /mock-limits command', cmd.isEnabled() === false)
-  process.env.MERCURY_MOCK_LIMITS = '1'
-  check('the registered arm exposes it', cmd.isEnabled() === true)
   delete process.env.MERCURY_MOCK_LIMITS
 }
 

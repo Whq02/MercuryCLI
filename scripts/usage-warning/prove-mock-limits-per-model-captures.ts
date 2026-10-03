@@ -1,10 +1,32 @@
 #!/usr/bin/env bun
 import { execFile } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { FIRST_WARNING_PCT } from '../../src/services/providers/usageTiers.ts'
+
+delete process.env.MERCURY_MOCK_LIMITS
+delete process.env.MERCURY_MOCK_USAGE_PAYLOAD
+const POOLS_RESET = new Date(Date.now() + 22 * 3600e3 + 51 * 60e3).toISOString()
+const usageReads: string[] = []
+const usageWire = createServer((req, res) => {
+  const url = req.url ?? ''
+  if (url.startsWith('/api/oauth/usage')) {
+    usageReads.push(url)
+    res.writeHead(200, { 'content-type': 'application/json' })
+    res.end(JSON.stringify({
+      seven_day_opus: { utilization: FIRST_WARNING_PCT, resets_at: POOLS_RESET },
+      seven_day_sonnet: { utilization: FIRST_WARNING_PCT, resets_at: POOLS_RESET },
+    }))
+    return
+  }
+  res.writeHead(404, { 'content-type': 'application/json' })
+  res.end('{}')
+})
+await new Promise<void>(resolveListen => usageWire.listen(0, '127.0.0.1', () => resolveListen()))
+const USAGE_BASE = `http://127.0.0.1:${(usageWire.address() as { port: number }).port}`
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -123,14 +145,12 @@ function baseEnv(home: string): Record<string, string> {
     MERCURY_CRITTER_IDLE: '0',
     MERCURY_CRITTER_SLEEP: '0',
     MERCURY_OPERATOR: 'sam',
-    ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
+    ANTHROPIC_BASE_URL: USAGE_BASE,
     MERCURY_CUSTOM_OAUTH_URL: 'http://127.0.0.1:9',
     BROWSER: 'true',
     ANTHROPIC_API_KEY: '',
     OPENAI_API_KEY: '',
     OPENROUTER_API_KEY: '',
-    MERCURY_MOCK_LIMITS: '1',
-    MERCURY_MOCK_USAGE_PAYLOAD: '',
   }
 }
 
@@ -139,15 +159,15 @@ const FACE_THEN_COMPOSER: Send[] = [
 ]
 
 const LEGS = [
-  { tag: 'opus', model: 'claude-opus-5-5', scenario: 'opus-warning', words: 'of the Opus limit used', foreign: ['of the Sonnet limit used', 'of the weekly limit used'] },
-  { tag: 'sonnet', model: 'claude-sonnet-5', scenario: 'sonnet-warning', words: 'of the Sonnet limit used', foreign: ['of the Opus limit used', 'of the weekly limit used'] },
+  { tag: 'opus', model: 'claude-opus-5-5', words: 'of the Opus limit used', foreign: ['of the Sonnet limit used', 'of the weekly limit used'] },
+  { tag: 'sonnet', model: 'claude-sonnet-5', words: 'of the Sonnet limit used', foreign: ['of the Opus limit used', 'of the weekly limit used'] },
 ] as const
 
 console.log('============================================================')
-console.log(' per-model warning scenarios — each seat renders its own pool\'s words on the built TUI')
+console.log(' per-model warning pools — the usage wire states both; each seat renders its own pool\'s words on the built TUI')
 console.log('============================================================')
 
-const RED = 'RED WHERE THE PER-MODEL SCENARIO PAINTS NO STRIP'
+const RED = 'RED WHERE THE SEAT PAINTS NO STRIP FOR ITS OWN POOL'
 
 for (const leg of LEGS) {
   const { home, workspace } = seedHome(leg.model)
@@ -164,7 +184,6 @@ for (const leg of LEGS) {
         cwd: workspace,
         sends: [
           ...FACE_THEN_COMPOSER,
-          { data: `/mock-limits ${leg.scenario}\r`, atTick: 999, awaitText: 'ready · ', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
           { data: '', atTick: 999, awaitText: leg.words, requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'warning' },
         ],
         readyText: ['? for shortcuts'],
@@ -176,13 +195,15 @@ for (const leg of LEGS) {
     const lines = String(error).split('\n')
     refusal = lines.find(l => l.includes('UNDELIVERED-SENDS')) ?? lines[0] ?? ''
   }
-  console.log(`\nthe ${leg.tag} seat (${leg.model}) · /mock-limits ${leg.scenario}`)
-  check(`${RED}: every send became due — the strip painted "${leg.words}" after the scenario armed`, result !== null && result.sends > 0 && result.receipts === result.sends, refusal.slice(0, 240) || `${result?.receipts ?? 0}/${result?.sends ?? 0}`)
+  console.log(`\nthe ${leg.tag} seat (${leg.model}) · both pools at the first tier on the usage wire`)
+  check(`${RED}: every send became due — the strip painted "${leg.words}" after the usage read`, result !== null && result.sends > 0 && result.receipts === result.sends, refusal.slice(0, 240) || `${result?.receipts ?? 0}/${result?.sends ?? 0}`)
   const warning = result?.marks.warning ?? ''
   const rows = warning.split('\n').filter(l => /limit used/.test(l))
   check(`the strip names the seat's OWN pool at the first tier — "${FIRST_WARNING_PCT}% ${leg.words}"`, new RegExp(`${FIRST_WARNING_PCT}% ${leg.words}`).test(warning), rows.join(' | ') || '(no warning frame)')
   check('…and no other pool\'s words nor the shared weekly words', leg.foreign.every(f => !warning.includes(f)), rows.join(' | '))
 }
+check('the pools came over the usage wire: the product read /api/oauth/usage itself, no seam armed', usageReads.length >= LEGS.length, `${usageReads.length} reads`)
+usageWire.close()
 
 console.log(failures === 0 ? '\n✅ prove-mock-limits-per-model-captures — all checks pass' : '\n❌ prove-mock-limits-per-model-captures — check(s) failed')
 process.exit(failures === 0 ? 0 : 1)

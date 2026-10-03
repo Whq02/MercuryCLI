@@ -64,7 +64,6 @@ import review from './commands/review.js'
 import rewind from './commands/rewind/index.js'
 import audit from './commands/audit/index.js'
 import keysetup from './commands/keysetup/index.js'
-import mockLimits from './commands/mock-limits/index.js'
 import usage from './commands/usage/index.js'
 import jev from './commands/jev/index.js'
 import jevor from './commands/jevor/index.js'
@@ -225,7 +224,6 @@ const COMMANDS = memoize((): Command[] => [
   rewind,
   audit,
   keysetup,
-  mockLimits,
   usage,
   jev,
   jevor,

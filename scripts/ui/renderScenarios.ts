@@ -2214,22 +2214,6 @@ function scenarioInner(name: string, cols: number, rows: number) {
       rows,
     }
   }
-  if (name === 'cap-warning-strip' || name === 'cap-offer-rejected') {
-    return {
-      argv: ['node', BIN],
-      sends: name === 'cap-offer-rejected'
-        ? [{ atTick: 30, data: '/mock-limits weekly-limit-reached\r' }]
-        : [
-            { atTick: 30, awaitText: '· ready', requireAwait: true, awaitSettleTicks: 2, data: '/mock-limits warning-7d 80\r' },
-            { atTick: 999, awaitText: '80% of the weekly limit used', requireAwait: true, minTick: 2, mark: 'warning-80', data: '' },
-            { atTick: 999, awaitText: '· ready', requireAwait: true, minTick: 2, awaitSettleTicks: 2, data: '/mock-limits warning-7d 90\r' },
-            { atTick: 999, awaitText: '90% of the weekly limit used', requireAwait: true, minTick: 2, mark: 'warning-90', data: '' },
-          ],
-      total: name === 'cap-offer-rejected' ? 60 : 180,
-      cols,
-      rows,
-    }
-  }
   if (name === 'workflow-inline' || name === 'workflow-inline-detail') {
     writeSyntheticSession('workflow')
     const sends =

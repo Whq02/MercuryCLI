@@ -31,8 +31,11 @@ const ROOT = join(import.meta.dir, '..', '..')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const mock = await import('../../src/services/mockRateLimits.ts')
-const mockCommand = await import('../../src/commands/mock-limits/mock-limits.ts')
 const limits = await import('../../src/services/claudeAiLimits.ts')
+const armScenario = (scenario: Parameters<typeof mock.setMockRateLimitScenario>[0]): void => {
+  mock.setMockRateLimitScenario(scenario)
+  limits.extractQuotaStatusFromHeaders(new globalThis.Headers())
+}
 const tiers = await import('../../src/services/providers/usageTiers.ts')
 const usage = await import('../../src/services/providers/providerUsage.ts')
 const { rateLimitWindowName } = await import('../../src/services/rateLimitMessages.ts')
@@ -66,10 +69,9 @@ const speaks = (model: string, name: string): boolean => {
   return facts !== null && grammar(FIRST, name).test(facts.view.text) && facts.tier === FIRST && facts.pct === FIRST
 }
 
-section('§1 the Opus scenario through the command road: /mock-limits opus-warning speaks the Opus pool, and only to an Opus seat')
+section('§1 the Opus scenario through the seam road: opus-warning speaks the Opus pool, and only to an Opus seat')
 const versionBefore = limits.getUsageRecordVersion()
-const opusResult = await mockCommand.call('opus-warning')
-check('the command accepts the scenario and describes it', opusResult.type === 'text' && opusResult.value.includes('Mock rate-limit scenario: opus-warning') && opusResult.value.includes(mock.getScenarioDescription('opus-warning')), opusResult.type === 'text' ? opusResult.value.split('\n')[0] : opusResult.type)
+armScenario('opus-warning')
 check('the E9 read still names the scenario from its headers', mock.getCurrentMockScenario() === 'opus-warning', j(mock.getCurrentMockScenario()))
 const opus = warns(OPUS)
 check(`${RED}: an Opus seat reads the Opus pool at the first tier — "… of the Opus limit used"`, opus !== null && grammar(FIRST, 'Opus limit').test(opus.view.text) && opus.windowKey === 'seven_day_opus' && opus.tier === FIRST && opus.pct === FIRST, j(opus))
@@ -81,8 +83,8 @@ const payloadOpus = mock.mockUtilizationPayload()
 check("the mock's usage payload states the armed pool and nothing else in a home with no env payload", payloadOpus !== null && j(Object.keys(payloadOpus)) === j(['seven_day_opus']) && payloadOpus.seven_day_opus?.utilization === FIRST && Date.parse(payloadOpus.seven_day_opus?.resets_at ?? '') / 1000 > nowS, j(payloadOpus))
 check('the status names the pool beside the headers', mock.getMockStatus().includes('seven_day_opus') && mock.getMockStatus().includes(`${FIRST}%`), mock.getMockStatus())
 
-section('§2 the Sonnet scenario: /mock-limits sonnet-warning speaks the Sonnet pool, and the Opus pool leaves with its scenario')
-await mockCommand.call('sonnet-warning')
+section('§2 the Sonnet scenario: sonnet-warning speaks the Sonnet pool, and the Opus pool leaves with its scenario')
+armScenario('sonnet-warning')
 check('the Sonnet word in this home: no plan word, so the pool is the "Sonnet limit" (a pro or enterprise plan would say "weekly limit")', rateLimitWindowName('seven_day_sonnet') === 'Sonnet limit', rateLimitWindowName('seven_day_sonnet'))
 check(`${RED}: a Sonnet seat reads the Sonnet pool at the first tier — "… of the Sonnet limit used"`, speaks(SONNET, 'Sonnet limit'), j(warns(SONNET)))
 check('the Opus pool is gone with its scenario: the Opus seat reads nothing and the live pool view holds only the Sonnet week', warns(OPUS) === null && j(pools()) === j([`seven_day_sonnet=${FIRST}`]), j({ opus: warns(OPUS)?.view.text ?? null, pools: pools() }))
@@ -91,15 +93,15 @@ check('a Fable and a Haiku seat read nothing', OTHERS.every(m => warns(m) === nu
 
 section('§3 the runner road and the leaving: a direct scenario set speaks too; normal and clear drop the pool')
 mock.setMockRateLimitScenario('opus-warning')
-check('a direct set on the runner (no command, no header ingestion) lands the pool the same way', speaks(OPUS, 'Opus limit') && j(pools()) === j([`seven_day_opus=${FIRST}`]), j({ opus: warns(OPUS)?.view.text ?? null, pools: pools() }))
-await mockCommand.call('normal')
+check('a direct set on the runner (no header ingestion) lands the pool the same way', speaks(OPUS, 'Opus limit') && j(pools()) === j([`seven_day_opus=${FIRST}`]), j({ opus: warns(OPUS)?.view.text ?? null, pools: pools() }))
+armScenario('normal')
 check("'normal' leaves the per-model scenario: no pool remains and both seats read nothing", pools().length === 0 && warns(OPUS) === null && warns(SONNET) === null, j({ pools: pools(), opus: warns(OPUS)?.view.text ?? null, sonnet: warns(SONNET)?.view.text ?? null }))
-await mockCommand.call('opus-warning')
+armScenario('opus-warning')
 mock.setMockRateLimitScenario('clear')
 check("'clear' drops the pool with the headers: nothing remains in the record or the payload", pools().length === 0 && warns(OPUS) === null && mock.mockUtilizationPayload() === null, j({ pools: pools(), payload: mock.mockUtilizationPayload() }))
 
 section('§4 the control: the shared weekly warning still speaks on every seat from the header latch, and states no pool')
-await mockCommand.call('approaching-weekly-limit')
+armScenario('approaching-weekly-limit')
 check('approaching-weekly-limit warns every seat in the weekly words', [OPUS, SONNET, ...OTHERS].every(m => grammar(FIRST, 'weekly limit').test(warns(m)?.view.text ?? '')), j([OPUS, SONNET, ...OTHERS].map(m => warns(m)?.view.text ?? null)))
 check('…and states no pool', pools().length === 0, j(pools()))
 
@@ -111,15 +113,15 @@ const payload = {
   seven_day_fable: { utilization: 61, resets_at: iso },
 }
 process.env.MERCURY_MOCK_USAGE_PAYLOAD = j(payload)
-await mockCommand.call('normal')
+armScenario('normal')
 check('with no per-model scenario armed the mock payload is the env payload, byte for byte', j(mock.mockUtilizationPayload()) === j(payload), j(mock.mockUtilizationPayload()))
-await mockCommand.call('opus-warning')
+armScenario('opus-warning')
 const overlaid = mock.mockUtilizationPayload()
 check("a per-model scenario lays its pool over the env payload and keeps every window the payload states", overlaid?.five_hour?.utilization === 36 && overlaid?.seven_day?.utilization === 44 && overlaid?.seven_day_fable?.utilization === 61 && overlaid?.seven_day_opus?.utilization === FIRST, j(overlaid))
 const raw = limits.getRawUtilization()
 check("the record carries the payload's windows and pools beside the scenario's pool: 7d 44 · Fable 61 · Opus at the first tier", Math.round((raw.seven_day?.utilization ?? 0) * 100) === 44 && j(pools()) === j(['seven_day_fable=61', `seven_day_opus=${FIRST}`]), j({ sevenDay: raw.seven_day, pools: pools() }))
 check('the Fable seat reads nothing on the Opus scenario (its own pool sits under the tier; the Opus pool is not its own)', warns('claude-fable-5-1') === null && speaks(OPUS, 'Opus limit'), j({ fable: warns('claude-fable-5-1')?.view.text ?? null, opus: warns(OPUS)?.view.text ?? null }))
-await mockCommand.call('normal')
+armScenario('normal')
 const rawAfter = limits.getRawUtilization()
 check("leaving the per-model scenario re-folds the env payload: the Opus pool is gone, the payload's windows and Fable pool stand, the payload is the env's again", j(pools()) === j(['seven_day_fable=61']) && Math.round((rawAfter.seven_day?.utilization ?? 0) * 100) === 44 && j(mock.mockUtilizationPayload()) === j(payload), j({ pools: pools(), sevenDay: rawAfter.seven_day }))
 delete process.env.MERCURY_MOCK_USAGE_PAYLOAD
@@ -134,9 +136,6 @@ check(`${RED}: the opus-warning arm states the Opus pool at FIRST_WARNING_PCT, n
 check(`${RED}: the sonnet-warning arm states the Sonnet pool at FIRST_WARNING_PCT, never a literal`, /seven_day_sonnet/.test(sonnetArm) && /FIRST_WARNING_PCT/.test(sonnetArm) && !/0\.8|\b80\b/.test(sonnetArm), flat(sonnetArm))
 check('both arms keep their headers, so the E9 read and the header latch stand', /representative-claim`\] = 'seven_day_opus'/.test(opusArm) && /representative-claim`\] = 'seven_day_sonnet'/.test(sonnetArm) && /allowed_warning/.test(opusArm) && /allowed_warning/.test(sonnetArm))
 check('the fold rides a lazy require of claudeAiLimits: no value import closes the cycle claudeAiLimits → rateLimitMocking → mockRateLimits', !/^import \{[^}]*\} from '\.\/claudeAiLimits\.js'/m.test(src) && /require\('\.\/claudeAiLimits\.js'\)/.test(src) && /^import type \{ RateLimitType \} from '\.\/claudeAiLimits\.js'/m.test(src))
-const list = await mockCommand.call('')
-const listed = list.type === 'text' ? list.value.split('\n').filter(l => /^  [a-z-]+ — /.test(l)) : []
-check('the list names every scenario with its description', listed.length === 18 && listed.every(l => !l.includes('Unknown scenario')), j(listed))
 check('the two per-model descriptions say whose seat warns', /only an Opus model warns/.test(mock.getScenarioDescription('opus-warning')) && /only a Sonnet model warns/.test(mock.getScenarioDescription('sonnet-warning')), j([mock.getScenarioDescription('opus-warning'), mock.getScenarioDescription('sonnet-warning')]))
 
 rmSync(HOME, { recursive: true, force: true })
