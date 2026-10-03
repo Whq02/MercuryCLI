@@ -1,7 +1,5 @@
 import type { SetAppState, Task } from '../../Task.js'
 import { isTerminalTaskStatus } from '../../Task.js'
-import type { AppState } from '../../state/AppState.js'
-import type { Message } from '../../types/message.js'
 import { createUserMessage } from '../../utils/messages.js'
 import { killInProcessCrewmate } from '../../utils/swarm/spawnInProcess.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -16,25 +14,6 @@ export const InProcessCrewmateTask: Task = {
   async kill(taskId, setAppState) {
     return killInProcessCrewmate(taskId, setAppState)
   },
-}
-
-export function requestCrewmateShutdown(taskId: string, setAppState: SetAppState): void {
-  updateTaskState<InProcessCrewmateTaskState>(taskId, setAppState, task => {
-    if (task.status !== 'running') return task
-    if (task.shutdownRequested) return task
-    return { ...task, shutdownRequested: true }
-  })
-}
-
-export function appendCrewmateMessage(
-  taskId: string,
-  message: Message,
-  setAppState: SetAppState,
-): void {
-  updateTaskState<InProcessCrewmateTaskState>(taskId, setAppState, task => {
-    if (task.status !== 'running') return task
-    return { ...task, messages: appendCappedMessage(task.messages, message) }
-  })
 }
 
 export function injectUserMessageToCrewmate(

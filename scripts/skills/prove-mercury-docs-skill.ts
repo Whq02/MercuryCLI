@@ -66,7 +66,7 @@ const coveredKeys = Object.entries(settingsShape).flatMap(([group, schema]) => {
   const object = 'unwrap' in schema ? schema.unwrap() : schema
   if ('shape' in object) return Object.keys(object.shape).map(key => `${group}.${key}`)
   return [group]
-}).filter(key => key !== 'credentials.proxyCommand')
+})
 check('the settings guide covers each usable grouped key', coveredKeys.every(key => settingsText.includes(key)), coveredKeys.filter(key => !settingsText.includes(key)).join(', '))
 const settingsExamples = [...settingsText.matchAll(/```json\n([\s\S]*?)\n```/g)].map(match => JSON.parse(match[1]!))
 check('the settings guide carries a valid complete JSON example', settingsExamples.length > 0 && settingsExamples.every(example => SettingsSchema().safeParse(example).success))

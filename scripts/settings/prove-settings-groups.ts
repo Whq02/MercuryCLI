@@ -27,7 +27,6 @@ state.setFlagSettingsPath(files[3])
 type Row = [string, unknown[], unknown[]]
 const rows: Row[] = [
   ['credentials.keyCommand', ['printf fixture-key', ''], [false, 0]],
-  ['credentials.proxyCommand', ['printf fixture-token', ''], [false, 0]],
   ['credentials.signInRoute', ['console', 'claudeai'], ['', false, 0]],
   ['credentials.organisation', ['fixture-org', ''], [false, 0]],
   ['files.suggester', [{ type: 'command', command: 'printf fixture' }], [false, 0, '']],

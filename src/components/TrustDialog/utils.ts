@@ -46,10 +46,6 @@ export function getBashPermissionSources(): string[] {
   })
 }
 
-export function getProxyAuthHelperSources(): string[] {
-  return sourcesWhere(settings => Boolean(settings.credentials?.proxyCommand))
-}
-
 export function getAutoMemoryDirectorySources(): string[] {
   return sourcesWhere(settings => Boolean(settings.memory?.directory))
 }

@@ -112,7 +112,6 @@ export const SettingsSchema = lazySchema(() => {
     $schema: z.string().optional(),
     credentials: z.object({
       keyCommand: z.string().optional(),
-      proxyCommand: z.string().optional(),
       signInRoute: z.enum(['claudeai', 'console']).optional(),
       organisation: z.string().optional(),
     }).passthrough().optional(),

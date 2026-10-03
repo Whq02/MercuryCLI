@@ -105,19 +105,3 @@ export function isEnvDefinedFalsy(v: string | boolean | undefined): boolean {
 export function isBareMode(): boolean {
   return isEnvTruthy(process.env.MERCURY_BARE) || readSessionOption(process.argv.slice(2), '--lean').present
 }
-
-export function parseEnvVars(raw: string[] | undefined): Record<string, string> {
-  const result: Record<string, string> = {}
-  if (!raw) return result
-  for (const entry of raw) {
-    const separatorIndex = entry.indexOf('=')
-    if (separatorIndex <= 0) {
-      throw new Error(
-        `Invalid environment variable "${entry}": expected the form KEY=value, e.g. -e KEY1=value1 -e KEY2=value2`,
-      )
-    }
-    const key = entry.slice(0, separatorIndex)
-    result[key] = entry.slice(separatorIndex + 1)
-  }
-  return result
-}

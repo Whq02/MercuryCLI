@@ -9,10 +9,6 @@ import { NOTEBOOK_EDIT_TOOL_NAME } from '../NotebookEditTool/constants.js'
 
 export const REPL_TOOL_NAME = 'REPL'
 
-export function isReplModeEnabled(): boolean {
-  return false
-}
-
 export const REPL_ONLY_TOOLS: ReadonlySet<string> = new Set([
   FILE_READ_TOOL_NAME,
   FILE_WRITE_TOOL_NAME,

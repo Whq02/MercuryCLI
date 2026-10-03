@@ -90,14 +90,6 @@ export function createFileStateCacheWithSizeLimit(
   return new FileStateCache(maxEntries, maxSizeBytes)
 }
 
-export function cacheToObject(cache: FileStateCache): Record<string, FileState> {
-  const result: Record<string, FileState> = {}
-  for (const [key, value] of cache.entries()) {
-    result[key] = value
-  }
-  return result
-}
-
 export function cacheKeys(cache: FileStateCache): string[] {
   return [...cache.keys()]
 }
@@ -106,15 +98,4 @@ export function cloneFileStateCache(cache: FileStateCache): FileStateCache {
   const clone = new FileStateCache(cache.max, cache.maxSize)
   clone.load(cache.dump())
   return clone
-}
-
-export function mergeFileStateCaches(first: FileStateCache, second: FileStateCache): FileStateCache {
-  const merged = cloneFileStateCache(first)
-  for (const [key, state] of second.entries()) {
-    const existing = merged.get(key)
-    if (!existing || state.timestamp > existing.timestamp) {
-      merged.set(key, state)
-    }
-  }
-  return merged
 }
