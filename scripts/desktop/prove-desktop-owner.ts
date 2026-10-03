@@ -181,8 +181,8 @@ console.log('\n[7] the driver refuses a capture before the addon can fail silent
     const move = await resolved.driver.mouseMove({ x: 1, y: 1 }, new AbortController().signal)
     check('an act rides the input grant, which this stub answers granted', move.ok && move.value.act === 'move' && (calls().mouseMove ?? 0) === 1, JSON.stringify(move))
     const facts = await native.describeDesktopDriver()
-    check('the doctor facts are not ready and carry the grant words as the fix', !facts.ready && facts.fix === native.desktopGrantWords() && facts.line.includes('screen: denied') && facts.detail.includes('driving now: none'), JSON.stringify(facts))
-    check('the doctor and the permission reads never ask the platform', (calls().requestPermissions ?? 0) === 1, JSON.stringify(calls()))
+    check('/health facts are not ready and carry the grant words as the fix', !facts.ready && facts.fix === native.desktopGrantWords() && facts.line.includes('screen: denied') && facts.detail.includes('driving now: none'), JSON.stringify(facts))
+    check('/health and the permission reads never ask the platform', (calls().requestPermissions ?? 0) === 1, JSON.stringify(calls()))
   }
 }
 
@@ -265,7 +265,7 @@ console.log('\n[10] the pure arithmetic of the contract')
   check('a screenshot pixel maps to its global point through the scale and the origin', point.x === -1870 && point.y === 25, JSON.stringify(point))
 }
 
-console.log('\n[11] the doctor row')
+console.log('\n[11] the health row')
 {
   const report = await import('../../src/utils/healthReport.js')
   const rowOf = async (): Promise<{ status: string; fix?: string; evidence: string; section: string } | null> => {
@@ -279,7 +279,7 @@ console.log('\n[11] the doctor row')
   usePack(fixturePack({ answers: { permissions: { session: 'desktop', screenCapture: 'denied', input: 'denied', reason: 'fixture: both grants missing' } } }))
   const denied = await rowOf()
   check('a denied grant is info with the fix beside it, in the INTERFACE section; the switch unset reads on', denied !== null && denied.section === 'INTERFACE' && denied.status === 'info' && denied.fix === native.desktopGrantWords() && denied.evidence.includes('computer use on'), JSON.stringify(denied))
-  check('the doctor row opens no dialog: the grant request is never made for it', (calls().requestPermissions ?? 0) === 0, JSON.stringify(calls()))
+  check('the health row opens no dialog: the grant request is never made for it', (calls().requestPermissions ?? 0) === 0, JSON.stringify(calls()))
   usePack(fixturePack())
   const registered = FLAG_REGISTRY.some(row => row.env === 'MERCURY_COMPUTER_USE')
   process.env.MERCURY_COMPUTER_USE = '1'

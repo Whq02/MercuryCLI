@@ -37,7 +37,7 @@ console.log('\n[1] the vendor build')
 const build = spawnSync(BUN, ['run', 'scripts/vendor/build-voice.ts'], { cwd: ROOT, encoding: 'utf8', env: process.env, timeout: 540_000, maxBuffer: 64 * 1024 * 1024 })
 const buildOut = `${build.stdout ?? ''}\n${build.stderr ?? ''}`
 
-async function doctorRowSaysNone(): Promise<boolean> {
+async function healthRowSaysNone(): Promise<boolean> {
   const report = await import('../../src/utils/healthReport.js')
   const cert = await report.runHealthReport({ depth: 'fast' })
   const row = cert.sections.flatMap(s => s.checks).find(c => c.id === 'iface-voice')
@@ -48,7 +48,7 @@ if (!hasCargo) {
   check('no cargo ⇒ the build skips LOUDLY: exit 0 and the remedy named', build.status === 0 && /SKIPPED/.test(buildOut) && /rustup/.test(buildOut), buildOut.slice(-400))
   check('no pack ⇒ the pack owner answers unavailable, naming the platform', pack.resolveVoicePackDir().state === 'unavailable' && (pack.resolveVoicePackDir() as { note: string }).note.includes(PLATFORM))
   process.env.PATH = join(SCRATCH, 'empty-bin')
-  check('…and the doctor row says none', await doctorRowSaysNone())
+  check('…and the health row says none', await healthRowSaysNone())
   rmSync(SCRATCH, { recursive: true, force: true })
   console.log(failures > 0 ? `\nprove-capture-pack: RED (${failures})` : '\nprove-capture-pack: green (no cargo — the loud skip)')
   process.exit(failures > 0 ? 1 : 0)
@@ -60,7 +60,7 @@ if (build.status !== 0) {
     warn('cargo could not build the addon on this Linux host (no ALSA headers) — the honest absence leg')
     check('the failure names the remedy (libasound2-dev) and the degraded arm', /libasound2-dev/.test(buildOut) && /degraded: voice-input/.test(buildOut), buildOut.slice(-400))
     check('no pack is installed after a failed build', !existsSync(join(PACK_DIR, pack.VOICE_PACK_MANIFEST_FILE)) || pack.checkVoicePackDir(PACK_DIR).state !== 'ok')
-    check('…and the doctor row says none', await doctorRowSaysNone())
+    check('…and the health row says none', await healthRowSaysNone())
     rmSync(SCRATCH, { recursive: true, force: true })
     console.log(failures > 0 ? `\nprove-capture-pack: RED (${failures})` : '\nprove-capture-pack: green (cargo present, the audio headers absent — named)')
     process.exit(failures > 0 ? 1 : 0)
@@ -102,7 +102,7 @@ if (load.state === 'ok') {
   const fallback = load.addon.defaultInputDevice()
   check('listInputDevices() answers a list; defaultInputDevice() a name or null', Array.isArray(devices) && (fallback === null || typeof fallback === 'string'), `${devices.length} devices, default ${String(fallback)}`)
   const described = capture.describeVendoredPack()
-  check('the capture owner describes the pack for the doctor', described.state === 'ok' && described.platform === PLATFORM, described.state === 'ok' ? described.dir : described.note)
+  check('the capture owner describes the pack for /health', described.state === 'ok' && described.platform === PLATFORM, described.state === 'ok' ? described.dir : described.note)
   const resolved = capture.resolveCaptureBackend()
   check('the ladder resolves the vendored pack first', resolved.state === 'ok' && resolved.kind === 'vendored', resolved.state === 'ok' ? resolved.detail : resolved.note)
 

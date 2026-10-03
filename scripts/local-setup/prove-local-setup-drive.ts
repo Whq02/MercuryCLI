@@ -189,7 +189,7 @@ function childEnv(world: World): NodeJS.ProcessEnv {
     MERCURY_LIVE_CLOCK: '0',
     MERCURY_BOOT_PREFLIGHT: '0',
     MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: '1',
-    MERCURY_HEALTH_STATE_DIR: join(world.home, 'doctor-state'),
+    MERCURY_HEALTH_STATE_DIR: join(world.home, 'health-state'),
     MERCURY_DAEMON_DIR: join(world.home, 'daemon'),
     MERCURY_CREWS_DIR: join(world.home, 'crews'),
     MERCURY_HOME: join(world.home, 'proof-home'),

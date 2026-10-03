@@ -322,7 +322,7 @@ section('SS. serverStatus — the typed roster')
     ss.result.includes('claims this file') &&
     ss.result.includes('pathRename'))
   const details = ss.effect.details as { servers?: { name: string; capabilities: { pathRename: boolean } }[] }
-  check('SS2 typed rows ride effect.details (doctor-consumable)',
+  check('SS2 typed rows ride effect.details (health-consumable)',
     Array.isArray(details.servers) && details.servers[0]?.capabilities.pathRename === true)
 }
 

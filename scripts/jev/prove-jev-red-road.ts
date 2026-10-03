@@ -108,7 +108,7 @@ const LOGS: Record<string, string> = {
     '1/2 checks passed',
   ].join('\n'),
   killed: ['[PASS] the crew table lists the seat', 'capture 178x51 seat-3 frame 12 settled in 410ms', 'Killed: 9', 'fixture-id:red-road-killed'].join('\n'),
-  product: ['[PASS] the seat boots', '[FAIL] the doctor row names the key — expected a row, got none', 'fixture-id:red-road-product', '1 of 2 checks failed'].join('\n'),
+  product: ['[PASS] the seat boots', '[FAIL] the health row names the key — expected a row, got none', 'fixture-id:red-road-product', '1 of 2 checks failed'].join('\n'),
   unsure: ['[FAIL] the picker stays inside the view — no frame captured', 'fixture-id:red-road-unsure'].join('\n'),
   none: ['[FAIL] the footer reads the model — expected Fable, got nothing', 'fixture-id:red-road-none'].join('\n'),
   split: ['[FAIL] the retired ids are named beneath the OpenAI line — row 20 is the footer', 'fixture-id:red-road-split'].join('\n'),

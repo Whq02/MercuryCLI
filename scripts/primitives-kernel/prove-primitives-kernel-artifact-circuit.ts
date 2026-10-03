@@ -31,8 +31,8 @@ interface Cert {
   sections: { id: string; title: string; checks: Check[] }[]
 }
 
-function runDoctor(args: string[]): Cert {
-  const result = spawnSync((process.execPath.includes('bun') ? 'node' : process.execPath), [dist, 'doctor', '--json', ...args], {
+function runHealth(args: string[]): Cert {
+  const result = spawnSync((process.execPath.includes('bun') ? 'node' : process.execPath), [dist, 'health', '--json', ...args], {
     cwd: outsideCwd,
     encoding: 'utf8',
     timeout: 240_000,
@@ -40,7 +40,7 @@ function runDoctor(args: string[]): Cert {
   })
   if (result.error) throw result.error
   const cert = JSON.parse(result.stdout) as Cert
-  check('doctor exit agrees with its certificate verdict', result.signal === null && result.status === (cert.verdict === 'fault' ? 3 : 0), `exit=${result.status}, verdict=${cert.verdict}, ${result.stderr}`)
+  check('health exit agrees with its certificate verdict', result.signal === null && result.status === (cert.verdict === 'fault' ? 3 : 0), `exit=${result.status}, verdict=${cert.verdict}, ${result.stderr}`)
   return cert
 }
 
@@ -54,7 +54,7 @@ function findCheck(cert: Cert, id: string): Check | undefined {
 
 try {
   console.log('── fast: ARCHITECTURE PRIMITIVES inside the artifact ──')
-  const fast = runDoctor([])
+  const fast = runHealth([])
   const archSection = fast.sections.find(s => s.title === 'ARCHITECTURE PRIMITIVES')
   check('the ARCHITECTURE PRIMITIVES section exists in the artifact', archSection !== undefined)
   for (const id of [
@@ -74,7 +74,7 @@ try {
     census?.evidence.includes('all census-classified') === true, census?.evidence)
 
   console.log('\n── deep: the primitive journey INSIDE the bundle ──')
-  const deep = runDoctor(['--deep'])
+  const deep = runHealth(['--deep'])
   const journey = findCheck(deep, 'axiom-primitives')
   check('the primitive journey probe ran and passed', journey?.status === 'ok',
     journey ? `${journey.status}: ${journey.evidence.slice(0, 160)}` : 'row missing')
@@ -132,7 +132,7 @@ try {
   }
   writeFileSync(join(servicesDir, 'stale-svc.json'), JSON.stringify(staleRecord, null, 2))
 
-  const after = runDoctor([])
+  const after = runHealth([])
   const servicesRow = findCheck(after, 'services-fast')
   check('the fresh artifact process sees the record but claims NO life',
     servicesRow !== undefined &&

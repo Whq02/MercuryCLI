@@ -134,7 +134,7 @@ function runResume(name: string, extraEnv: Record<string, string>): { status: nu
       ANTHROPIC_API_KEY: FIXTURE_KEY,
       MERCURY_BOOT_PREFLIGHT: '0',
       MERCURY_LIVE_GLYPHS: '0',
-      MERCURY_HEALTH_STATE_DIR: join(scratch, `doctor-${name}`),
+      MERCURY_HEALTH_STATE_DIR: join(scratch, `health-${name}`),
       MERCURY_DAEMON_DIR: join(scratch, `daemon-${name}`),
       VSHOT_TEE: tee,
       ...extraEnv,

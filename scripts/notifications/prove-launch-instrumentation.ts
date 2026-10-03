@@ -55,7 +55,7 @@ console.log('§2 TI-01 — the typed invocation record')
   check('the ring is bounded at 10', inv.readInvocationRecords().length === 10, String(inv.readInvocationRecords().length))
 }
 
-console.log('§3 the wire sites + doctor consumers (source pins)')
+console.log('§3 the wire sites + health consumers (source pins)')
 {
   const main = src('src/main.tsx')
   check('runtime-entry stamps at the action entry, carrying the boot kind (interactive or headless)', /recordLaunchMilestone\('runtime-entry', \{ boot: opts\.print \? 'headless' : 'interactive' \}\)/.test(main))
@@ -69,9 +69,9 @@ console.log('§3 the wire sites + doctor consumers (source pins)')
   check('the App root mount no longer stamps first-frame', !/recordLaunchMilestone\('first-frame'\)/.test(app))
   const graph = src('src/boot/launchGraph.ts')
   check('input-live records at signalInputLive', /signalInputLive\(\): void \{[\s\S]{0,500}recordLaunchMilestone\('input-live'\)/.test(graph))
-  const doctor = src('src/utils/healthReport.ts')
-  check('the doctor reads the spine (launch-spine row)', doctor.includes("id: 'launch-spine'") && doctor.includes('lastBootReachedInputLive'))
-  check('the doctor reads the TI-01 record (invocation-record row)', doctor.includes("id: 'invocation-record'") && doctor.includes('readInvocationRecords'))
+  const health = src('src/utils/healthReport.ts')
+  check('the health reads the spine (launch-spine row)', health.includes("id: 'launch-spine'") && health.includes('lastBootReachedInputLive'))
+  check('the health reads the TI-01 record (invocation-record row)', health.includes("id: 'invocation-record'") && health.includes('readInvocationRecords'))
 }
 
 console.log('§4 C1/C2 win32 fixes (source pins)')

@@ -124,7 +124,7 @@ function pct(sorted: number[], p: number): number {
 const PAD = 'lorem ipsum dolor sit amet consectetur adipiscing elit sed do '
 function seedMessage(seq: number, msgBytes: number, read: boolean): Record<string, unknown> {
   const base = {
-    from: 'keel-doctor-A',
+    from: 'keel-health-A',
     text: '',
     timestamp: new Date().toISOString(),
     read,

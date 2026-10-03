@@ -246,7 +246,7 @@ function main(): void {
   if (cargo === null) {
     console.log(
       `build-brush: SKIPPED — no cargo on PATH, so the shell engine pack is not built for ${PLATFORM}. ` +
-        `The build ships without the vendored shell engine (degraded: shell-engine; the Bash tool keeps the system shell) and the doctor says so; install a Rust toolchain (https://rustup.rs) and re-run ${RERUN}.`,
+        `The build ships without the vendored shell engine (degraded: shell-engine; the Bash tool keeps the system shell) and /health says so; install a Rust toolchain (https://rustup.rs) and re-run ${RERUN}.`,
     )
     process.exit(0)
   }
@@ -256,7 +256,7 @@ function main(): void {
     if (!present) {
       console.log(
         `build-brush: SKIPPED — the rustup target ${entry.target} is not installed on this machine, so the shell engine pack is not cross-compiled for ${PLATFORM}. ` +
-          `The build ships without the vendored shell engine (degraded: shell-engine) and the doctor says so; install it (rustup target add ${entry.target}) and re-run ${RERUN}.`,
+          `The build ships without the vendored shell engine (degraded: shell-engine) and /health says so; install it (rustup target add ${entry.target}) and re-run ${RERUN}.`,
       )
       process.exit(0)
     }

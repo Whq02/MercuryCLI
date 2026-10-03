@@ -52,7 +52,7 @@ function stockNode(): string | null {
   return first && existsSync(first) ? first : null
 }
 
-function doctorRow(node: string, bundle: string, home: string): { status?: string; evidence?: string; detail?: string } | null {
+function healthRow(node: string, bundle: string, home: string): { status?: string; evidence?: string; detail?: string } | null {
   const env: Record<string, string> = {
     HOME: home,
     MERCURY_CONFIG_DIR: join(home, '.mercury'),
@@ -60,18 +60,18 @@ function doctorRow(node: string, bundle: string, home: string): { status?: strin
     PATH: dirname(node),
     TERM: 'dumb',
   }
-  const run = spawnSync(node, [bundle, 'doctor', '--json'], { encoding: 'utf8', env, cwd: home, timeout: 180_000, maxBuffer: 64 * 1024 * 1024 })
+  const run = spawnSync(node, [bundle, 'health', '--json'], { encoding: 'utf8', env, cwd: home, timeout: 180_000, maxBuffer: 64 * 1024 * 1024 })
   const text = run.stdout ?? ''
   const start = text.indexOf('{')
   if (start < 0) {
-    console.log(`    doctor produced no JSON (exit ${run.status}): ${(run.stderr ?? '').slice(-300)}`)
+    console.log(`    health produced no JSON (exit ${run.status}): ${(run.stderr ?? '').slice(-300)}`)
     return null
   }
   let parsed: unknown
   try {
     parsed = JSON.parse(text.slice(start))
   } catch (e) {
-    console.log(`    doctor JSON unparseable: ${String(e)}`)
+    console.log(`    health JSON unparseable: ${String(e)}`)
     return null
   }
   const stack: unknown[] = [parsed]
@@ -103,8 +103,8 @@ if (node === null) {
   mkdirSync(join(iso, 'home2'), { recursive: true })
 
   section('(2) the isolated artifact without the pack takes the JavaScript road')
-  const without = doctorRow(node, join(payload, 'mercury.mjs'), home)
-  check('the doctor carries the Image processor row', without !== null, 'row missing')
+  const without = healthRow(node, join(payload, 'mercury.mjs'), home)
+  check('/health carries the Image processor row', without !== null, 'row missing')
   check('the row names the JavaScript image road, as warn (an image that road cannot size is left out of the request)', without?.status === 'warn' && /JavaScript image road/.test(without.evidence ?? ''), `${without?.status}: ${without?.evidence}`)
   check('…and says what the road still shrinks, what happens to an image it cannot size, and where the pack would sit', /PNG and BMP/.test(without?.detail ?? '') && /left out of the request/.test(without?.detail ?? '') && (without?.detail ?? '').includes(IMAGE_PACK_PATH), without?.detail ?? '')
 
@@ -112,7 +112,7 @@ if (node === null) {
     section('(3) the isolated artifact with the pack beside it takes the native road')
     cpSync(join(DIST, IMAGE_PACK_PATH), join(payload, IMAGE_PACK_PATH), { recursive: true })
     check('the pack copied beside the bundle', statSync(join(payload, IMAGE_PACK_PATH, platform, 'node_modules', '@img')).isDirectory())
-    const withPack = doctorRow(node, join(payload, 'mercury.mjs'), join(iso, 'home2'))
+    const withPack = healthRow(node, join(payload, 'mercury.mjs'), join(iso, 'home2'))
     check('the row names the native processor from the vendored pack, ok', withPack?.status === 'ok' && /native image processor — sharp \d/.test(withPack.evidence ?? '') && /vendored pack/.test(withPack.evidence ?? ''), `${withPack?.status}: ${withPack?.evidence}`)
   } else {
     console.log('  (3) skipped — no vendored pack in this dist (the manifest says so honestly)')

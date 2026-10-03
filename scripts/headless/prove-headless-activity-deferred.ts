@@ -51,14 +51,14 @@ section('§1 the note is a deferred merge: zero durable writes, the cache now, o
   check('nothing stays pending after the flush', !config.hasPendingDeferredGlobalConfigSaves())
   const writes1 = config.getGlobalConfigWriteCount()
   ledger.noteHeadlessActivity('sdk')
-  ledger.noteHeadlessActivity('verb:doctor')
+  ledger.noteHeadlessActivity('verb:health')
   check('two more notes: still no durable write', config.getGlobalConfigWriteCount() === writes1, `writes=${config.getGlobalConfigWriteCount() - writes1}`)
   config.saveGlobalConfig(current => ({ ...current, theme: 'light' }))
   check('a foreign save folds the pending notes into its own ONE write', config.getGlobalConfigWriteCount() === writes1 + 1, `writes=${config.getGlobalConfigWriteCount() - writes1}`)
   const disk = activityOnDisk()
   check(
     '…both facts on disk: the notes and the foreign field',
-    disk?.print === 1 && disk?.sdk === 1 && disk?.verbs?.['doctor'] === 1 && disk?.lastKind === 'verb:doctor' && onDisk().theme === 'light',
+    disk?.print === 1 && disk?.sdk === 1 && disk?.verbs?.['health'] === 1 && disk?.lastKind === 'verb:health' && onDisk().theme === 'light',
     j({ disk, theme: onDisk().theme }),
   )
   check('nothing pending after the fold', !config.hasPendingDeferredGlobalConfigSaves())

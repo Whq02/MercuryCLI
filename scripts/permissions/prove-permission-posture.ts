@@ -79,16 +79,16 @@ section('§3 WIRING')
     'the env arming is read from the REGISTERED row at the decision',
     helpers.includes("flagEnv('MERCURY_SKIP_PERMISSIONS')"),
   )
-  const doctor = src('src/utils/healthReport.ts')
+  const health = src('src/utils/healthReport.ts')
   check(
-    '/doctor carries the permission-posture row naming the composition',
-    doctor.includes("id: 'permission-posture'") &&
-      doctor.includes('standing consent') &&
-      doctor.includes('consent dialog suppressed by settings'),
+    '/health carries the permission-posture row naming the composition',
+    health.includes("id: 'permission-posture'") &&
+      health.includes('standing consent') &&
+      health.includes('consent dialog suppressed by settings'),
   )
   check(
     'the missing-record-while-env-armed case self-detects (warn + remedy)',
-    doctor.includes('NO posture record exists yet'),
+    health.includes('NO posture record exists yet'),
   )
   check(
     'the record is declared in the project-config schema',

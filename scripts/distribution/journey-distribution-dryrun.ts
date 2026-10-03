@@ -52,16 +52,16 @@ if (stageMatch) {
   const stage = stageMatch[1].trim()
   const home = mkdtempSync(join(tmpdir(), 'sig-dryrun-home-'))
   try {
-    const doctorOut = execFileSync('node', [join(stage, 'mercury.mjs'), 'doctor', '--json'], {
+    const healthOut = execFileSync('node', [join(stage, 'mercury.mjs'), 'health', '--json'], {
       encoding: 'utf8',
       timeout: 120_000,
       env: { ...process.env, MERCURY_CONFIG_DIR: home, HOME: home, CI: '1' },
       cwd: home,
     })
-    const cert = JSON.parse(doctorOut) as { sections?: unknown[] }
-    check('doctor --json from the artifact parses', Array.isArray(cert.sections) && cert.sections.length > 0)
+    const cert = JSON.parse(healthOut) as { sections?: unknown[] }
+    check('health --json from the artifact parses', Array.isArray(cert.sections) && cert.sections.length > 0)
   } catch (e) {
-    check('doctor --json from the artifact parses', false, e instanceof Error ? e.message.slice(0, 200) : String(e))
+    check('health --json from the artifact parses', false, e instanceof Error ? e.message.slice(0, 200) : String(e))
   } finally {
     rmSync(home, { recursive: true, force: true })
     rmSync(join(stage, '..'), { recursive: true, force: true })

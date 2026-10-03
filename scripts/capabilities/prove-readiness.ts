@@ -131,14 +131,14 @@ try {
     }
   }
   if (!distFresh) {
-    console.log('· doctor --json leg SKIPPED (dist not built from this tree — the gate prebuilds)')
+    console.log('· health --json leg SKIPPED (dist not built from this tree — the gate prebuilds)')
   } else {
-    const d = spawnSync('node', [dist, 'doctor', '--json'], {
+    const d = spawnSync('node', [dist, 'health', '--json'], {
       encoding: 'utf8',
       timeout: 90_000,
       env: { ...process.env, MERCURY_CONFIG_DIR: home, ANTHROPIC_API_KEY: 'fixture-anthropic-key' },
     })
-    check(d.status === 0, `doctor --json exits 0 with a credential present (${d.status})`)
+    check(d.status === 0, `health --json exits 0 with a credential present (${d.status})`)
     try {
       const cert = JSON.parse(d.stdout) as { verdict?: string; readiness?: Rec[] }
       check(Array.isArray(cert.readiness), 'certificate embeds readiness records')
@@ -146,7 +146,7 @@ try {
       check(dProbe?.state === 'configured', `headless run never connected ⇒ configured (got ${dProbe?.state})`)
       check((cert.readiness ?? []).every(r => VOCAB.has(r.state)), 'headless records share the vocabulary')
     } catch (e) {
-      check(false, `doctor --json parse: ${String(e).slice(0, 120)}`)
+      check(false, `health --json parse: ${String(e).slice(0, 120)}`)
     }
   }
 } finally {

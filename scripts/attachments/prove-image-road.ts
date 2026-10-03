@@ -158,7 +158,7 @@ section('§3 shrink, never refuse')
   const blockOut = await resizer.maybeResizeAndDownsampleImageBlock(block, { limits: A })
   check('the block road shrinks the same way', (await dims(Buffer.from((blockOut.block as { source: { data: string } }).source.data, 'base64'))).width <= 8000)
 
-  section('§9 the doctor names the road')
+  section('§9 /health names the road')
   const line = await processor.describeImageProcessor()
   const state = await processor.imageProcessorState()
   check(JS_ROAD ? 'the JavaScript road is named, with its reason' : 'the native processor is named with its versions', JS_ROAD ? state.road === 'javascript' && /JavaScript image road/.test(line.line) && !line.ready : state.road === 'native' && /native image processor — sharp \d/.test(line.line) && line.ready, line.line)

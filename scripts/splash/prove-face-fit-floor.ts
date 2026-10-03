@@ -95,7 +95,7 @@ function compose(cols: number, rows: number): { lines: string[]; cardShown: bool
     menu: 'Boot Menu',
     kit: 'MCPs & Skills',
     agents: 'Agents',
-    doctor: 'Doctor / Health Check',
+    health: 'Health Check',
     saturn: 'Saturn Scheduler',
     logins: 'Logins',
     concourse: 'Session Concourse',

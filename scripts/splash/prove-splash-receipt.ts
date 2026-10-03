@@ -46,8 +46,8 @@ section('(1) decideSplashReceipt — the validation matrix (no shape may cost a 
   check('continue + vanished dir ⇒ --continue alone (dir dropped)', contBadDir.apply?.spliceArg === '--continue' && contBadDir.apply?.chdir === undefined)
   const res = d(fresh({ action: 'resume', dir: '/proof/project' }))
   check("resume + dir ⇒ chdir alone, NO splice, the 'resume' face door armed once", res.apply?.chdir === '/proof/project' && res.apply?.spliceArg === undefined && consumeFaceDoorDeepLink() === 'resume' && consumeFaceDoorDeepLink() === null)
-  const doc = d(fresh({ action: 'doctor' }))
-  check("doctor ⇒ nothing to chdir or splice, the 'health' face door armed once", doc.apply === null && consumeFaceDoorDeepLink() === 'health' && consumeFaceDoorDeepLink() === null)
+  const doc = d(fresh({ action: 'health' }))
+  check("health ⇒ nothing to chdir or splice, the 'health' face door armed once", doc.apply === null && consumeFaceDoorDeepLink() === 'health' && consumeFaceDoorDeepLink() === null)
   const conc = d(fresh({ action: 'concourse' }))
   check(
     'concourse ⇒ the typed boot-surface intent, never an argv splice or chdir (RFI-3)',
@@ -58,8 +58,8 @@ section('(1) decideSplashReceipt — the validation matrix (no shape may cost a 
   check("continue ⇒ 'repl' boot-surface intent (the chosen journey outranks policy)", consumeBootSurfaceIntent() === 'repl')
   void d(fresh({ action: 'resume' }))
   check("resume ⇒ NO boot-surface intent (the face door rides instead)", consumeBootSurfaceIntent() === null && consumeFaceDoorDeepLink() === 'resume')
-  void d(fresh({ action: 'doctor' }))
-  check("doctor ⇒ NO boot-surface intent (the face door rides instead)", consumeBootSurfaceIntent() === null && consumeFaceDoorDeepLink() === 'health')
+  void d(fresh({ action: 'health' }))
+  check("health ⇒ NO boot-surface intent (the face door rides instead)", consumeBootSurfaceIntent() === null && consumeFaceDoorDeepLink() === 'health')
   const kit = d(fresh({ action: 'kit' }))
   check('kit ⇒ applied with nothing to chdir or splice (the face is the landing)', kit.apply === null && kit.reason === 'applied')
   check('kit arms NO boot-surface intent (the resolver\'s one landing rule stands)', consumeBootSurfaceIntent() === null)

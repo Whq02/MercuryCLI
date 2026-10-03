@@ -241,7 +241,7 @@ try:
         state, _ = d.wait_for("takeover", lambda: "stuck? type: reset" not in d.text(), ceiling_s=240, settle_ticks=2)
         leg("boot: the held frame was TAKEN OVER (the stuck-hint hold frame is gone)", state == "ok", state, polls=d.polls)
 
-        MENU_NEEDLE = "Doctor / Health Check"
+        MENU_NEEDLE = "Health Check"
         COMPOSER_NEEDLE = "? for shortcuts"
         state, _ = d.wait_for(
             "landing",

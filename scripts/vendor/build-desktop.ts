@@ -201,14 +201,14 @@ function main(): void {
     dropStale()
     console.log(
       `build-desktop: SKIPPED — no cargo on PATH, so the desktop driver pack is not built for ${PLATFORM}. ` +
-        `The build ships without computer use (${DEGRADED}) and the doctor says so; install a Rust toolchain (https://rustup.rs) and re-run ${DESKTOP_BUILD_COMMAND}`,
+        `The build ships without computer use (${DEGRADED}) and /health says so; install a Rust toolchain (https://rustup.rs) and re-run ${DESKTOP_BUILD_COMMAND}`,
     )
     process.exit(0)
   }
   if (CROSS) {
     if (TRIPLE === null) {
       dropStale()
-      console.log(`build-desktop: SKIPPED — no cargo target triple is known for ${PLATFORM}; the build ships without computer use (${DEGRADED}) and the doctor says so.`)
+      console.log(`build-desktop: SKIPPED — no cargo target triple is known for ${PLATFORM}; the build ships without computer use (${DEGRADED}) and /health says so.`)
       process.exit(0)
     }
     const installed = run('rustup', ['target', 'list', '--installed'], { capture: true })
@@ -217,7 +217,7 @@ function main(): void {
       dropStale()
       console.log(
         `build-desktop: SKIPPED — the rustup target ${TRIPLE} is not installed on this machine, so the desktop driver pack is not cross-compiled for ${PLATFORM}. ` +
-          `The build ships without computer use (${DEGRADED}) and the doctor says so; install it (rustup target add ${TRIPLE}) and re-run ${DESKTOP_BUILD_COMMAND} --target ${TARGET_ARG}.`,
+          `The build ships without computer use (${DEGRADED}) and /health says so; install it (rustup target add ${TRIPLE}) and re-run ${DESKTOP_BUILD_COMMAND} --target ${TARGET_ARG}.`,
       )
       process.exit(0)
     }

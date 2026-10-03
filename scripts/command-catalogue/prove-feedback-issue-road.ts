@@ -9,7 +9,7 @@ process.chdir(REPO)
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'feedback-road-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
-process.env.MERCURY_HEALTH_STATE_DIR = join(SCRATCH, 'doctor-state')
+process.env.MERCURY_HEALTH_STATE_DIR = join(SCRATCH, 'health-state')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 mkdirSync(process.env.MERCURY_HEALTH_STATE_DIR, { recursive: true })
 delete process.env.MERCURY_HOME
@@ -42,7 +42,7 @@ function section(title: string): void {
 
 const forms = await import('../../src/commands/feedback/issueForms.ts')
 const ghIssue = await import('../../src/services/repoHost/ghIssue.ts')
-const doctor = await import('../../src/commands/feedback/healthSection.ts')
+const health = await import('../../src/commands/feedback/healthSection.ts')
 const feedback = await import('../../src/components/Feedback.tsx')
 const { lastCertPath } = await import('../../src/utils/healthReport.ts')
 const { repoSlugFromUrl } = await import('../../src/services/privateChannel/channelCore.ts')
@@ -99,8 +99,8 @@ for (const kind of forms.ISSUE_KINDS) {
   const many = Array.from({ length: forms.RECENT_ERRORS_MAX + 5 }, (_, i) => ({ error: `e${i} ${'x'.repeat(forms.RECENT_ERROR_CHARS + 50)}`, timestamp: 't' }))
   const body = forms.composeIssueBody(bug, { values: {}, recentErrors: many })
   check('the recent-errors block is bounded (count and length)', body.includes('(5 earlier errors omitted)') && !body.includes('x'.repeat(forms.RECENT_ERROR_CHARS + 1)))
-  const doctorBody = forms.composeIssueBody(bug, { values: { doctor: 'verdict ok\n- row' }, recentErrors: [] })
-  check('the doctor section is fenced', doctorBody.includes('```text\nverdict ok\n- row\n```'))
+  const healthBody = forms.composeIssueBody(bug, { values: { health: 'verdict ok\n- row' }, recentErrors: [] })
+  check('the health section is fenced', healthBody.includes('```text\nverdict ok\n- row\n```'))
   check('the prompted fields: the words field first, then every ask, in form order', forms.promptedFields(bug).map(f => f.id).join(',') === 'steps,expected,actual' && forms.promptedFields(forms.ISSUE_FORMS.feature).map(f => f.id).join(',') === 'task,today,proposal,steps')
   check('the title carries the form prefix and drops a model marker', forms.fullIssueTitle(bug, '[Bug] Scroll resets') === '[bug] Scroll resets')
   check('an empty title falls to the form name', forms.fullIssueTitle(forms.ISSUE_FORMS.feature, '  ') === '[feature] Feature request from Mercury')
@@ -181,12 +181,12 @@ section('B5 no gh = the honest fallback (three exact arms)')
   const longLink = forms.issueFormUrl(forms.ISSUE_FORMS.bug, { slug: PUBLIC_HOME, title: '[bug] long', values: { ...roadValues, steps: 'S'.repeat(3000), actual: 'A'.repeat(9000) } })
   const parsedLong = new URL(longLink)
   check('B5 a long report stays under the link cap and keeps the steps whole; the cut section says so', longLink.length <= forms.ISSUE_FORM_URL_CAP && parsedLong.searchParams.get('steps') === 'S'.repeat(3000) && (parsedLong.searchParams.get('actual') ?? '').endsWith(forms.URL_CUT_NOTE), String(longLink.length))
-  check('B5 the doctor field points at the local draft (the block is pasted by hand)', forms.healthPointer('~/.mercury/feedback/bug-1.md').includes('paste the doctor --json block') && forms.healthPointer('~/.mercury/feedback/bug-1.md').includes('~/.mercury/feedback/bug-1.md') && forms.healthPointer(null).includes('doctor --json'))
+  check('B5 the health field points at the local draft (the block is pasted by hand)', forms.healthPointer('~/.mercury/feedback/bug-1.md').includes('paste /health --json block') && forms.healthPointer('~/.mercury/feedback/bug-1.md').includes('~/.mercury/feedback/bug-1.md') && forms.healthPointer(null).includes('health --json'))
   delete process.env.MERCURY_GH_CMD
   delete process.env.GH_SHIM_LOG
 }
 
-section('B6 privacy: the `~` spelling, the bounded doctor, the gates')
+section('B6 privacy: the `~` spelling, the bounded health, the gates')
 {
   const home = homedir()
   const spelled = feedback.redactSensitiveInfo(`at ${home}/.mercury/feedback/bug-1.json and ${home}`)
@@ -212,12 +212,12 @@ section('B6 privacy: the `~` spelling, the bounded doctor, the gates')
   check('a family without a distinctive prefix declares none (the assignment pass stays its owner)', spellings.PROVIDER_CREDENTIAL_VALUE_SHAPES.zai === null && spellings.PROVIDER_CREDENTIAL_VALUE_SHAPES.moonshot === null && spellings.PROVIDER_CREDENTIAL_VALUE_SHAPES.deepseek === null && spellings.PROVIDER_CREDENTIAL_VALUE_SHAPES.local === null && spellings.PROVIDER_CREDENTIAL_VALUE_SHAPES['openai-compat'] === null)
   check('the assignment pass still redacts a prefix-less family\'s value', feedback.redactSensitiveInfo('ZAI_API_KEY=abcdef0123456789.secret').includes('[REDACTED_TOKEN]'))
 
-  const notRun = await doctor.runHealthBounded(1)
-  check('a passed deadline reads "doctor: not run — …deadline"', notRun.startsWith('doctor: not run — ') && notRun.includes('deadline'), notRun)
+  const notRun = await health.runHealthBounded(1)
+  check('a passed deadline reads "health: not run — …deadline"', notRun.startsWith('health: not run — ') && notRun.includes('deadline'), notRun)
   const aborted = new AbortController()
   aborted.abort(new Error('the report was cancelled'))
-  const cancelled = await doctor.runHealthBounded(60_000, aborted.signal)
-  check('an aborted report never starts a run', cancelled === 'doctor: not run — the report was cancelled', cancelled)
+  const cancelled = await health.runHealthBounded(60_000, aborted.signal)
+  check('an aborted report never starts a run', cancelled === 'health: not run — the report was cancelled', cancelled)
 
   const certPath = lastCertPath()
   mkdirSync(join(certPath, '..'), { recursive: true })
@@ -234,10 +234,10 @@ section('B6 privacy: the `~` spelling, the bounded doctor, the gates')
       _v: 1,
     }),
   )
-  const fresh = await doctor.gatherHealthSection({ deadlineMs: 1 })
+  const fresh = await health.gatherHealthSection({ deadlineMs: 1 })
   check('a fresh certificate summary is read as-is: the summary line + the warning row', fresh.startsWith('verdict caution · ok 40 · warn 1 · fail 0') && fresh.includes('certificate recorded') && fresh.includes('- Bundle freshness: warn — dist older than src'), fresh)
-  const stale = await doctor.gatherHealthSection({ deadlineMs: 1, nowMs: Date.now() + doctor.FRESH_CERT_MS + 60_000 })
-  check('a stale summary is not read: the bounded run (here past its deadline) answers', stale.startsWith('doctor: not run — '), stale)
+  const stale = await health.gatherHealthSection({ deadlineMs: 1, nowMs: Date.now() + health.FRESH_CERT_MS + 60_000 })
+  check('a stale summary is not read: the bounded run (here past its deadline) answers', stale.startsWith('health: not run — '), stale)
   rmSync(certPath, { force: true })
 
   const { enableConfigs } = await import('../../src/utils/config.ts')
@@ -303,7 +303,7 @@ if (!existsSync(BIN)) {
     const env: Record<string, string | undefined> = {
       ...process.env,
       MERCURY_CONFIG_DIR: home,
-      MERCURY_HEALTH_STATE_DIR: join(SCRATCH, `doctor-${id}`),
+      MERCURY_HEALTH_STATE_DIR: join(SCRATCH, `health-${id}`),
       MERCURY_CRITTER_IDLE: '0',
       MERCURY_CRITTER_GAZE: '0',
       MERCURY_CRITTER_SLEEP: '0',
@@ -408,7 +408,7 @@ if (!existsSync(BIN)) {
   check('B2 the body gh received carries the bug form headings in order', forms.issueSectionLabels(received).join(' · ') === bugLabels, forms.issueSectionLabels(received).join(' · '))
   check('B2 the words sit under Steps to reproduce; the skipped prompt reads (not stated); the answered one carries its words', received.includes('### Steps to reproduce\nthe composer ate my second /model') && received.includes(`### What you expected\n${forms.NOT_STATED}`) && received.includes('### What happened instead\nit opened the model picker twice'))
   check('B2 the version and install sections are gathered', received.includes(`### Version\nMercury ${pkg.version}`) && /### How Mercury was installed\n\S/.test(received))
-  check('B2 the doctor section is the rows and the summary line, or its honest absence', /### doctor --json\n```text\n(verdict (certified|caution|fault) · ok \d+|doctor: not run — )/.test(received))
+  check('B2 the health section is the rows and the summary line, or its honest absence', /### health --json\n```text\n(verdict (certified|caution|fault) · ok \d+|health: not run — )/.test(received))
   check('B6 the body never spells the home directory', !received.includes(homedir()))
   check('B2 no transcript rides the body', !received.includes('raw_transcript') && !received.includes('"transcript"'))
 
@@ -498,12 +498,12 @@ if (!existsSync(BIN)) {
   const unavailableWords = stripped.join(' ').replace(/\s+/g, ' ')
   const unavailableFlat = stripped.join('')
   check('B5 the no-gh screen names the road: not signed in, the remedy, the issues page', unavailableWords.includes('not signed in') && unavailableWords.includes('gh auth login') && unavailableWords.includes('File it by hand'))
-  check('B5 the screen offers the prefilled form and says the doctor block and the transcript stay local', unavailableWords.includes('issue form prefilled') && unavailableWords.includes('stay in the local draft') && unavailableWords.includes('enter to open the prefilled form in your browser'), unavailableWords.slice(0, 400))
+  check('B5 the screen offers the prefilled form and says the health block and the transcript stay local', unavailableWords.includes('issue form prefilled') && unavailableWords.includes('stay in the local draft') && unavailableWords.includes('enter to open the prefilled form in your browser'), unavailableWords.slice(0, 400))
   check('B5 the link is on screen in full: the template, the title and every field id', unavailableFlat.includes(`https://github.com/${PUBLIC_HOME}/issues/new?template=bug_report.yml&title=`) && roadYml.fields.every(f => unavailableFlat.includes(`&${f.id}=`)), unavailableFlat.slice(Math.max(0, unavailableFlat.indexOf('https://')), Math.max(0, unavailableFlat.indexOf('https://')) + 160))
   const handedText = existsSync(browserLog) ? readFileSync(browserLog, 'utf8').trim() : ''
   const handed = handedText.startsWith('https://') ? new URL(handedText.split('\n')[0]!) : null
   check('B5 ↵ handed the link to the BROWSER handler once, nothing else opened', handedText.split('\n').filter(Boolean).length === 1 && handed !== null && handed.pathname === `/${PUBLIC_HOME}/issues/new` && handed.searchParams.get('template') === 'bug_report.yml', handedText.slice(0, 160))
-  check('B5 the link carries the words under steps, the answer under actual, the gathered version, and the doctor pointer', handed !== null && handed.searchParams.get('steps') === 'the jump pill never paints after PgUp' && handed.searchParams.get('actual') === 'it stayed hidden' && handed.searchParams.get('version') === `Mercury ${pkg.version}` && (handed.searchParams.get('doctor') ?? '').startsWith('paste the doctor --json block'), handed?.search.slice(0, 200))
+  check('B5 the link carries the words under steps, the answer under actual, the gathered version, and the health pointer', handed !== null && handed.searchParams.get('steps') === 'the jump pill never paints after PgUp' && handed.searchParams.get('actual') === 'it stayed hidden' && handed.searchParams.get('version') === `Mercury ${pkg.version}` && (handed.searchParams.get('health') ?? '').startsWith('paste /health --json block'), handed?.search.slice(0, 200))
   check('B5 the link never spells the home directory', !handedText.includes(homedir()))
   const roadGh = existsSync(roadGhLog) ? readFileSync(roadGhLog, 'utf8') : ''
   check('B5 no gh issue create rode the browser road', !roadGh.includes('gh issue create'))

@@ -106,15 +106,15 @@ const isoBundle = join(iso, 'mercury.mjs')
     h.stdout.slice(0, 120),
   )
 
-  const d = runIso([isoBundle, 'doctor', '--json'], iso, 60_000)
-  check('doctor --json produces the record in isolation (0/3 by verdict — FC-044; a signed-out scratch home is honestly fault)', d.status === 0 || d.status === 3, d.stderr.slice(0, 300))
-  check('doctor --json in isolation reports no module-load failure', !/Cannot find module|MERCURY COULD NOT START/.test(d.stderr), d.stderr.slice(0, 200))
+  const d = runIso([isoBundle, 'health', '--json'], iso, 60_000)
+  check('health --json produces the record in isolation (0/3 by verdict — FC-044; a signed-out scratch home is honestly fault)', d.status === 0 || d.status === 3, d.stderr.slice(0, 300))
+  check('health --json in isolation reports no module-load failure', !/Cannot find module|MERCURY COULD NOT START/.test(d.stderr), d.stderr.slice(0, 200))
   let verdict = ''
   try {
     verdict = String(JSON.parse(d.stdout).verdict ?? '')
   } catch {
   }
-  check('doctor --json emits a parseable certificate with a verdict', verdict.length > 0, d.stdout.slice(0, 120))
+  check('health --json emits a parseable certificate with a verdict', verdict.length > 0, d.stdout.slice(0, 120))
 }
 
 section('(2) no bare STATIC package import survives in the bundle (AST scan)')

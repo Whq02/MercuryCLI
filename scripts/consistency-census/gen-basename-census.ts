@@ -110,7 +110,7 @@ const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boole
   {
     test: (_f, _n, excerpt) => /homedir\(\)/.test(excerpt),
     cls: 'peer-boundary',
-    why: "identity checks against another tool's home directory (doctor · keychain scoping) — a deliberate recognition, never a store join",
+    why: "identity checks against another tool's home directory (health · keychain scoping) — a deliberate recognition, never a store join",
   },
   {
     test: (_f, _n, excerpt) => excerpt.includes("'.mercury'") && excerpt.includes(`'${OTHER_HOME}'`),

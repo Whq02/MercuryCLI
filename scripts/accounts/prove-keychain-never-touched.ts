@@ -94,7 +94,7 @@ const DIST = join(ROOT, 'dist', 'mercury.mjs')
 const nodeBin = Bun.which('node')
 if (existsSync(DIST) && nodeBin) {
   const bootHome = mkdtempSync(join(SCRATCH, 'boot-home-'))
-  const r = spawnSync(nodeBin, [DIST, 'doctor', '--json'], {
+  const r = spawnSync(nodeBin, [DIST, 'health', '--json'], {
     cwd: SCRATCH,
     encoding: 'utf8',
     timeout: 120_000,
@@ -107,7 +107,7 @@ if (existsSync(DIST) && nodeBin) {
       MERCURY_CREWS_DIR: join(bootHome, 'crews'),
     },
   })
-  check('the artifact booted to a certificate (doctor --json emitted JSON)', (r.stdout ?? '').trimStart().startsWith('{'), (r.stderr ?? '').slice(0, 200))
+  check('the artifact booted to a certificate (health --json emitted JSON)', (r.stdout ?? '').trimStart().startsWith('{'), (r.stderr ?? '').slice(0, 200))
   untouched('the artifact boot (module-evaluation prefetch included)')
 } else {
   console.log('  – [SKIP] dist/mercury.mjs or node absent — the artifact leg needs the prebuilt dist (the pooled gate prebuilds it)')

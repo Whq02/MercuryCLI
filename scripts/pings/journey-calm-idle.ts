@@ -219,7 +219,7 @@ function drive(cols: number, rows: number): void {
     MERCURY_LIVE_CLOCK: '0',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
     MERCURY_UPDATE_NOTICE: '0',
-    MERCURY_HEALTH_STATE_DIR: join(aux, 'doctor'),
+    MERCURY_HEALTH_STATE_DIR: join(aux, 'health'),
     MERCURY_DAEMON_DIR: join(aux, 'daemon'),
     MERCURY_CREWS_DIR: join(aux, 'crews'),
     VSHOT_TEE: teePath,

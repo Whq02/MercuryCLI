@@ -62,7 +62,7 @@ const inventory = {
     transcripts: 'src/utils/sessionStorage.ts (project JSONL transcripts)',
     workflowRuns: 'src/tools/WorkflowTool (run manifests + journal.jsonl)',
     verifyEvidence: 'src/utils/verification/verificationState.ts (.mercury/verify/)',
-    doctorCert: '.mercury/doctor/last-cert.json (utils/healthReport.ts)',
+    healthCert: '<config home>/projects/<slug>/health/last-cert.json (utils/healthReport.ts; the project folder keeps only a leftover .mercury/health/)',
     gateVerdict: '.mercury/gate/verdict.json (scripts/run-all-suites.sh)',
   },
   sessionBranching: {
@@ -74,7 +74,7 @@ const inventory = {
     shape: 'prose text + agentId hint + <usage> trailer (AgentTool.tsx mapToolResultToToolResultBlockParam)',
     fields: ['totalTokens', 'tool_uses', 'duration_ms'],
   },
-  doctor: {
+  health: {
     depths: ['fast', 'deep'],
     certSchema: 2,
     deepProbes: 'src/utils/healthDeepProbes.ts (run kernel · context parity · IDE loop · DAP loop · effect observer)',

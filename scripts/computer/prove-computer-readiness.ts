@@ -66,16 +66,16 @@ section('§5 ready while a session is driving')
   check("after the release the snapshot reads 'idle' and the row is configured again", desktopSnapshot().phase === 'idle' && row()?.state === 'configured', JSON.stringify(row()))
 }
 
-section('§6 the health seam and the doctor row')
+section('§6 the health seam and the health row')
 {
   const record = row({ includeEnv: false })
   check('collectReadiness({ includeEnv: false }) carries the same row', record !== undefined && record.id === 'tool:computer' && record.state === 'configured', JSON.stringify(record))
   const health = sourceText('src/utils/healthReport.ts')
-  check("healthReport.ts carries the doctor row id 'iface-computer-use'", health.includes("'iface-computer-use'"))
+  check("healthReport.ts carries the health row id 'iface-computer-use'", health.includes("'iface-computer-use'"))
   check("healthReport.ts labels it 'Computer use'", health.includes("'Computer use'"))
 }
 
-section('§7 the access words beside the switch: the setting in words, the posture read where the doctor reads it')
+section('§7 the access words beside the switch: the setting in words, the posture read where the health reads it')
 {
   const { computerAccessWords } = await import('../../src/services/desktop/computerAccess.ts')
   delete process.env.MERCURY_COMPUTER_ACCESS
@@ -93,7 +93,7 @@ section('§7 the access words beside the switch: the setting in words, the postu
   delete process.env.MERCURY_COMPUTER_ACCESS
   delete process.env.MERCURY_SKIP_PERMISSIONS
   const driver = sourceText('src/services/desktop/nativeDriver.ts')
-  check("the doctor's Computer use line carries the same words after the switch", driver.includes('`on · ${computerAccessWords()}`'))
+  check("/health's Computer use line carries the same words after the switch", driver.includes('`on · ${computerAccessWords()}`'))
 }
 
 finish('prove-computer-readiness')

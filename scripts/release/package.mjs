@@ -250,7 +250,7 @@ const signingLib = await import(pathToFileURL(join(pkgDir, 'verify-artifact.mjs'
     if (!UNSIGNED_BY_DECISION) {
       fail('no MERCURY_SIGNING_KEY_FILE and no --unsigned — an unsigned archive is a decision, never an accident: set MERCURY_SIGNING_KEY_FILE=<the release key PEM> to sign, or pass --unsigned deliberately (the archive name then says -unsigned)')
     }
-    ok('UNSIGNED — by decision (--unsigned): the archive ships without a provenance signature and its name says so; the launcher states it once per install, `mercury doctor` every time')
+    ok('UNSIGNED — by decision (--unsigned): the archive ships without a provenance signature and its name says so; the launcher states it once per install, `mercury health` every time')
   }
 }
 const SIGNED_ARCHIVE_NAME = signingLib.archiveNameFor(VERSION, TARGET)
