@@ -23,7 +23,7 @@ const tally = makeTally('prove-headless-ask-unanswered')
 const j = (v: unknown): string => JSON.stringify(v)
 const ABORTED_TEXT = 'Tool permission request failed: Tool permission request was aborted'
 const STREAM_CLOSED_LEAD = 'Tool permission request failed: Permission stream closed before response was received for request '
-const CHANNEL_CLOSED_CAUSE = 'the permission channel closed while the ask was pending'
+const DOOR_CLOSED_CAUSE = 'the host closed the runner door while the ask was pending'
 const NO_ANSWER_LIMIT = /nobody answered within \S+, the turn's no-progress limit/
 const typedLead = (toolName: string): RegExp => new RegExp(`^Permission to use ${toolName} has been denied: the operator's client was not there to answer \\((.+?)\\), so the action was not run\\. Work that does not depend on this action can continue; the operator can re-issue it from the switchboard once they are back\\. `)
 const isTypedDenial = (text: string, toolName: string): boolean => isDenialResultText(text) && typedLead(toolName).test(unwrapToolUseError(text))
@@ -116,7 +116,7 @@ tally.section('S1 the seat on the source, the field road: nobody answers, the un
   try {
     const run = await runSeat('watchdog', root)
     const text = run.resultText
-    tally.check('the seat asked over the channel and a tool_result for the ask came back', run.askAt !== 0 && run.resultAt !== 0, `frames: ${run.frames.map(f => String(f.type)).join(' ')} · stderr: ${run.stderrTail}`)
+    tally.check('the seat asked through the runner door and a tool_result for the ask came back', run.askAt !== 0 && run.resultAt !== 0, `frames: ${run.frames.map(f => String(f.type)).join(' ')} · stderr: ${run.stderrTail}`)
     tally.check('red on the base: the tool_result is the typed denial, not "Tool permission request failed: Tool permission request was aborted"', isTypedDenial(text, 'AskUserQuestion'), `base text: ${j(text)}`)
     tally.check('...naming the wait and the 3s limit read off the cut', /nobody answered within 3s, the turn's no-progress limit/.test(causeOf(text, 'AskUserQuestion')), j(causeOf(text, 'AskUserQuestion')))
     tally.check('...arriving at the cut (within the 3s limit plus a second of the ask, never later)', run.resultAt - run.askAt < 3_000 + bound(1_000), `${run.resultAt - run.askAt}ms after the ask`)
@@ -132,9 +132,9 @@ tally.section('S2 the seat on the source, the disconnect road: the client closes
   try {
     const run = await runSeat('disconnect', root)
     const text = run.resultText
-    tally.check('the seat asked over the channel, the client went away, and a tool_result for the ask came back', run.askAt !== 0 && run.goneAt !== 0 && run.resultAt !== 0, `frames: ${run.frames.map(f => String(f.type)).join(' ')} · stderr: ${run.stderrTail}`)
+    tally.check('the seat asked through the runner door, the host went away, and a tool_result for the ask came back', run.askAt !== 0 && run.goneAt !== 0 && run.resultAt !== 0, `frames: ${run.frames.map(f => String(f.type)).join(' ')} · stderr: ${run.stderrTail}`)
     tally.check('red on the base: the tool_result is the typed denial, not the untyped "Permission stream closed before response was received" line', isTypedDenial(text, 'AskUserQuestion'), `base text: ${j(text)}`)
-    tally.check(`...with the channel's closing as the cause`, causeOf(text, 'AskUserQuestion') === CHANNEL_CLOSED_CAUSE, j(causeOf(text, 'AskUserQuestion')))
+    tally.check(`...with the host's closing of the door as the cause`, causeOf(text, 'AskUserQuestion') === DOOR_CLOSED_CAUSE, j(causeOf(text, 'AskUserQuestion')))
     tally.check('...arriving under a second after the disconnect', run.resultAt >= run.goneAt && run.resultAt - run.goneAt < bound(1_000), `${run.resultAt - run.goneAt}ms after the close`)
     tally.check("...the model's next request was issued (the turn went on; two provider requests)", run.requests >= 2, `${run.requests} provider request(s)`)
   } finally {

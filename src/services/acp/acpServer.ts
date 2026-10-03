@@ -900,7 +900,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
             )
             return permissionAnswerOf(result, ask)
           } catch (e) {
-            return { outcome: 'deny', message: `permission channel failed: ${e}` }
+            return { outcome: 'deny', message: `the editor did not answer the permission request: ${e}` }
           }
         },
         onNetworkAsk: async (host, withdrawn) => {

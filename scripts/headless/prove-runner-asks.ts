@@ -12,7 +12,7 @@ delete process.env.MERCURY_BARE
 
 import { z } from 'zod/v4'
 
-const { createRunnerAsks, unansweredAskCause, PERMISSION_CHANNEL_CLOSED_CAUSE, SANDBOX_NETWORK_ACCESS_TOOL_NAME } = await import('../../src/cli/headless/runnerAsks.ts')
+const { createRunnerAsks, unansweredAskCause, DOOR_CLOSED_CAUSE, SANDBOX_NETWORK_ACCESS_TOOL_NAME } = await import('../../src/cli/headless/runnerAsks.ts')
 const { DeadlineExceededError } = await import('../../src/utils/deadline.ts')
 const { UNANSWERED_ASK_REJECT_MESSAGE, isDenialResultText, turnCutOf } = await import('../../src/utils/messages/rejectionText.ts')
 const { createPeer } = await import('../../src/runner/wire/peer.ts')
@@ -300,7 +300,7 @@ section('R8 — settling held asks preserves the parent controller and is idempo
   h.closeHost()
 }
 
-section('R9 — the host closes while an ask is parked: the ask settles as a deny with the channel-closed cause')
+section('R9 — the host closes the door while an ask is parked: the ask settles as a deny naming the closed door')
 {
   const h = makeHarness()
   h.addHook(`sleep 2; echo '{}'`)
@@ -308,8 +308,8 @@ section('R9 — the host closes while an ask is parked: the ask settles as a den
   await h.waitAsk()
   h.closeHost()
   const d = await p
-  check('the parked ask is denied with the exact channel-closed cause', d.behavior === 'deny' && d.message === UNANSWERED_ASK_REJECT_MESSAGE(TOOL.name, PERMISSION_CHANNEL_CLOSED_CAUSE), j(d))
-  check('channel closure is a classified denial with the host-answer reason', isDenialResultText(d.message ?? '') && d.decisionReason?.type === 'permissionPromptTool' && d.decisionReason.permissionPromptToolName === TOOL.name)
+  check('the parked ask is denied with the exact door-closed cause, in the words of the host and the runner door', d.behavior === 'deny' && d.message === UNANSWERED_ASK_REJECT_MESSAGE(TOOL.name, DOOR_CLOSED_CAUSE) && DOOR_CLOSED_CAUSE === 'the host closed the runner door while the ask was pending', j(d))
+  check('the closed door is a classified denial with the host-answer reason', isDenialResultText(d.message ?? '') && d.decisionReason?.type === 'permissionPromptTool' && d.decisionReason.permissionPromptToolName === TOOL.name)
   check('the runner peer is closed and nothing stays pending', h.runnerClosed() && h.asks.parkedAsks() === 0 && h.asks.pendingControlRequestCount() === 0)
 }
 

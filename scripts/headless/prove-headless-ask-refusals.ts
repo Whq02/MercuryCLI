@@ -146,7 +146,7 @@ async function runStdioChannel(tag: string, turns: ScriptedTurn[], answer: (requ
 const OPERATOR_LINE = /no operator can answer AskUserQuestion — the request was auto-denied and nothing was asked\. Choose the most reasonable option yourself, state the assumption in your reply, and continue; a host on the runner door/
 const RECIPE_LINE = /pre-approve the tool at launch with --allowed-tools/
 
-section('§1 a headless run with no permission channel: the question tool is refused with the way out, never the pre-approve recipe')
+section('§1 a run with no host: the question tool is refused with the way out, never the pre-approve recipe')
 {
   const run = await runOneShot('ask', [askQuestion, done])
   const row = run.results[0]
@@ -172,10 +172,10 @@ section('§3 pre-approved, the same headless run reaches the browser itself and 
   check('the tool ran and refused for want of a browser, naming the way out', row !== undefined && row.is_error === true && /browser unavailable/.test(row.text) && /install/.test(row.text), row?.text.slice(0, 400))
 }
 
-section('§4 the SDK permission channel: the same asks reach the client and its answer stands')
+section('§4 the runner door: the same asks reach the host and its answer stands')
 {
   const run = await runStdioChannel('stdio-ask', [askQuestion, done], () => ({ behavior: 'deny', message: 'the client declined the question' }))
-  check('the question tool asked over the channel', run.asks.some(ask => ask.tool_name === 'AskUserQuestion'), run.asks.map(ask => String(ask.tool_name)).join(','))
+  check('the question tool asked through the door', run.asks.some(ask => ask.tool_name === 'AskUserQuestion'), run.asks.map(ask => String(ask.tool_name)).join(','))
   const row = run.results[0]
   check('the client answer is what the model reads (no headless auto-deny note)', row !== undefined && row.is_error === true && !OPERATOR_LINE.test(row.text) && !RECIPE_LINE.test(row.text), row?.text.slice(0, 300))
   check('the posture line names the host', /with a host that holds the asks/.test(run.system) && !/no host to answer/.test(run.system), run.system.match(/- Session:[^\n]{0,200}/)?.[0] ?? 'no posture line')

@@ -19,7 +19,7 @@ import { SANDBOX_NETWORK_ACCESS_TOOL_NAME } from '../../daemon/runnerFrames.js'
 
 export { SANDBOX_NETWORK_ACCESS_TOOL_NAME }
 
-export const PERMISSION_CHANNEL_CLOSED_CAUSE = 'the permission channel closed while the ask was pending'
+export const DOOR_CLOSED_CAUSE = 'the host closed the runner door while the ask was pending'
 
 export function unansweredAskCause(reason: unknown): string | undefined {
   if (reason === 'workflow-permission-timeout') return 'the permission ask timed out'
@@ -269,7 +269,7 @@ export function createRunnerAsks(peer: Peer, capabilities: () => Capabilities): 
           if (settled) return
           finish()
           if (error instanceof PeerClosed) {
-            resolve({ outcome: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(entry.toolName, PERMISSION_CHANNEL_CLOSED_CAUSE) })
+            resolve({ outcome: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(entry.toolName, DOOR_CLOSED_CAUSE) })
             return
           }
           reject(error instanceof Error ? error : new Error(String(error)))
