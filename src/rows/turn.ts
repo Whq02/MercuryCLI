@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto'
-import stripAnsi from 'strip-ansi'
 import { getSessionId, isSessionPersistenceDisabled } from '../bootstrap/state.js'
 import type { Command } from '../commands.js'
 import { LOCAL_COMMAND_STDERR_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../constants/xml.js'
@@ -60,6 +59,7 @@ import { hasAutoMemPathOverride } from '../memdir/paths.js'
 import { getCwd } from '../utils/cwd.js'
 import {
   commandOutputRow,
+  commandOutputTextOf,
   compactionEndedRow,
   itemRowsOf,
   modelUsageRows,
@@ -140,12 +140,6 @@ function isLocalCommandOutputText(text: string): boolean {
   return text.includes(LOCAL_COMMAND_STDOUT_TAG) || text.includes(LOCAL_COMMAND_STDERR_TAG)
 }
 
-function commandOutputTextOf(text: string): string {
-  return stripAnsi(text)
-    .replace(new RegExp(`<${LOCAL_COMMAND_STDOUT_TAG}>([\\s\\S]*?)</${LOCAL_COMMAND_STDOUT_TAG}>`), '$1')
-    .replace(new RegExp(`<${LOCAL_COMMAND_STDERR_TAG}>([\\s\\S]*?)</${LOCAL_COMMAND_STDERR_TAG}>`), '$1')
-    .trim()
-}
 
 const LEDGER_COUNTERS = ['inputTokens', 'outputTokens', 'cacheReadInputTokens', 'cacheCreationInputTokens', 'webSearchRequests', 'costUSD'] as const
 

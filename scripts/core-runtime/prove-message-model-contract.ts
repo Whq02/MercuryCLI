@@ -1120,6 +1120,48 @@ section('SYSMSG — boundary slice reference law + scan predicates')
 }
 
 
+section('ROWS — the projection table (the value laws the row stream carries)')
+{
+  const rows = await import('../../src/rows/project.ts')
+  const scope = { session_id: 'proj-session', turn: 1 }
+  const asstMap = mkAssistant([txt('hello'), tu('toolu_map1'), txt('')])
+  const items = rows.itemRowsOf(scope, 'msg_map1', asstMap.message.content) as AnyMsg[]
+  check('itemRowsOf: one text row and one tool_call row, keyed by message_id and block; the empty text yields none',
+    items.length === 2 && items[0]!.type === 'text' && items[0]!.block === 0 && items[0]!.text === 'hello' && items[1]!.type === 'tool_call' && items[1]!.block === 1 && items[1]!.call_id === 'toolu_map1' && items[0]!.message_id === 'msg_map1')
+  check('itemRowsOf: the tool_call input is the block\'s own object (by reference)', items[1]!.input === (asstMap.message.content as Block[])[1]!.input)
+  check('itemRowsOf: a string content is one text row; an empty string none', (rows.itemRowsOf(scope, 'm', 'plain') as AnyMsg[]).length === 1 && rows.itemRowsOf(scope, 'm', '').length === 0)
+  const ansi = '\u001b[2m<local-command-stdout>dim text</local-command-stdout>\u001b[22m'
+  check('commandOutputTextOf: ANSI stripped, tags unwrapped, trimmed', rows.commandOutputTextOf(ansi) === 'dim text' && rows.commandOutputTextOf(' <local-command-stderr>oops</local-command-stderr>\n') === 'oops')
+  const cmdRow = rows.commandOutputRow(scope, rows.commandOutputTextOf(ansi), '/cost') as AnyMsg
+  check('commandOutputRow: type, text and command, scoped to the session and the turn', cmdRow.type === 'command_output' && cmdRow.text === 'dim text' && cmdRow.command === '/cost' && cmdRow.session_id === 'proj-session' && cmdRow.turn === 1)
+  const minimal = rows.rateLimitRow(scope, { status: 'allowed', isUsingOverage: false } as never) as AnyMsg
+  check('rateLimitRow: minimal carries the status and the overage flag only (beside the scope)', minimal.status === 'allowed' && minimal.using_overage === false && !('window' in minimal) && !('resets_at' in minimal) && !('threshold_crossed' in minimal))
+  const full = rows.rateLimitRow(scope, {
+    status: 'allowed_warning',
+    resetsAt: 123,
+    rateLimitType: 'unified',
+    utilization: 0.5,
+    overageStatus: 'rejected',
+    overageResetsAt: 456,
+    overageDisabledReason: 'r',
+    isUsingOverage: true,
+    surpassedThreshold: 1,
+    unifiedRateLimitFallbackAvailable: true,
+  } as never) as AnyMsg
+  check('rateLimitRow: the full field table maps to the row\'s spelling (warning, window, resets_at, overage_*, using_overage, threshold_crossed); the internal-only field is STRIPPED',
+    full.status === 'warning' &&
+      full.window === 'unified' &&
+      full.resets_at === 123 &&
+      full.utilization === 0.5 &&
+      full.overage_status === 'rejected' &&
+      full.overage_resets_at === 456 &&
+      full.overage_disabled_reason === 'r' &&
+      full.using_overage === true &&
+      full.threshold_crossed === true &&
+      !('unifiedRateLimitFallbackAvailable' in full) &&
+      Object.keys(full).every(key => /^[a-z0-9_]+$/.test(key)))
+}
+
 if (failures > 0) {
   console.log(`\nnative-core message-model contract: RED (${failures}/${checks} checks failed)`)
   process.exit(1)

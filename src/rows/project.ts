@@ -1,3 +1,5 @@
+import stripAnsi from 'strip-ansi'
+import { LOCAL_COMMAND_STDERR_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../constants/xml.js'
 import type { FoldStatusV1 } from '../services/compact/foldStatus.js'
 import type { RequestWaitV1 } from '../services/providers/streamIdleBudget.js'
 import type { NonNullableUsage } from '../services/api/emptyUsage.js'
@@ -415,6 +417,13 @@ export function taskRow(
 
 export function noticeRow(scope: RowScope, level: NoticeRow['level'], text: string, code?: string): Unstamped<NoticeRow> {
   return scoped(scope, { type: 'notice' as const, level, text, ...(code !== undefined ? { code } : {}) })
+}
+
+export function commandOutputTextOf(text: string): string {
+  return stripAnsi(text)
+    .replace(new RegExp(`<${LOCAL_COMMAND_STDOUT_TAG}>([\\s\\S]*?)</${LOCAL_COMMAND_STDOUT_TAG}>`), '$1')
+    .replace(new RegExp(`<${LOCAL_COMMAND_STDERR_TAG}>([\\s\\S]*?)</${LOCAL_COMMAND_STDERR_TAG}>`), '$1')
+    .trim()
 }
 
 export function commandOutputRow(scope: RowScope, text: string, command?: string): Unstamped<CommandOutputRow> {
