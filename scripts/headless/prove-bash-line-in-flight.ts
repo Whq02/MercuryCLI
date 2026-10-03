@@ -287,7 +287,7 @@ async function drive(): Promise<void> {
   const result2 = (await nextResult('the interrupted shell outcome', 15_000)) as (Envelope & { status?: string }) | undefined
   const elapsedMs = Date.now() - t0
   check('the interrupt ENDS the shell turn promptly — an outcome within 10s, far under the 30s sleep', !!result2 && elapsedMs < 10_000, `${elapsedMs}ms`)
-  check('the interrupted shell turn settles as an outcome (the runner keeps its session; no error)', result2?.status === 'completed' || result2?.status === 'interrupted', j({ status: result2?.status }))
+  check('the interrupted shell turn settles as interrupted', result2?.status === 'interrupted', j({ status: result2?.status }))
   check(
     `the interrupted receipt landed: the transcript carries the interrupt row (${INTERRUPT_MESSAGE})`,
     await transcriptCarries(configDir, sessionId, INTERRUPT_MESSAGE, TURN_MS / 6),

@@ -48,12 +48,15 @@ check(
 
 section('§3 every outcome folds first')
 check(
-  "the outcome's facts fold the settled usage before reading the accumulated total",
-  /const outcomeFactsOf = [\s\S]{0,400}?for \(const \[messageId, usage\] of this\.settledUsageById\)[\s\S]{0,1200}?usage: this\.accumulatedUsage/.test(src),
+  "the outcome's facts fold settled reasoning usage before reading its total",
+  /const outcomeFactsOf = [\s\S]*?for \(const \[messageId, usage\] of this\.settledUsageById\)[\s\S]*?output_tokens_details: this\.accumulatedUsage\.output_tokens_details/.test(src),
 )
 check(
-  'the outcome serves usage from the ONE accumulated total (single source)',
-  src.includes('usage: this.accumulatedUsage,') && !src.includes('usage: this.totalUsage'),
+  'the outcome bills input, output and cache from the same turn delta as its models',
+  src.includes('const billed = usageSince(getModelUsage(), modelUsageAtStart)') &&
+    src.includes('const usage = Object.values(billed).reduce(') &&
+    ['inputTokens', 'outputTokens', 'cacheReadInputTokens', 'cacheCreationInputTokens'].every(key => src.includes(`+ row.${key}`)) &&
+    /usage,\s*models: modelUsageRows\(billed,/.test(src),
 )
 
 console.log('')

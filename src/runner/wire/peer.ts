@@ -569,7 +569,7 @@ export class Peer {
       return
     }
     if (method === 'initialize' && isRecord(params) && typeof params.protocol === 'number' && params.protocol !== RUNNER_PROTOCOL) {
-      this.answer(id, method, { error: refused(`runner protocol ${String(params.protocol)} is not supported; expected ${RUNNER_PROTOCOL}`, 'protocol').toJSON() })
+      this.answer(id, method, { error: refused(`runner protocol ${String(params.protocol)} is not supported; expected ${RUNNER_PROTOCOL}`, 'protocol', { protocol: RUNNER_PROTOCOL }).toJSON() })
       return
     }
     const check = checkParams(method as MethodName, params)
@@ -640,7 +640,7 @@ export class Peer {
     }
     if (entry.method === 'initialize' && !isRecord(value.error) && (!isRecord(value.result) || value.result.protocol !== RUNNER_PROTOCOL)) {
       const received = isRecord(value.result) ? value.result.protocol : undefined
-      this.failProtocol(refused(`runner protocol ${String(received)} is not supported; expected ${RUNNER_PROTOCOL}`, 'protocol'))
+      this.failProtocol(refused(`runner protocol ${String(received)} is not supported; expected ${RUNNER_PROTOCOL}`, 'protocol', { protocol: RUNNER_PROTOCOL }))
       return
     }
     this.pending.delete(id)
