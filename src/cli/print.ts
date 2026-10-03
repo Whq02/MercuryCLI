@@ -1623,7 +1623,7 @@ export async function runHeadless(
     idleTimerStart: () => idleTimeout.start?.(),
     onCycleError: (error, turnId) =>
       outcomeRow(
-        { session_id: getSessionId(), turn: currentTurn ?? 1 },
+        { session_id: getSessionId(), turn: currentTurn ?? Math.max(1, turnsRun) },
         {
           turnId,
           status: 'failed',
