@@ -206,11 +206,11 @@ exits.
 ## Not in this release
 
 Sub-agents, crewmates and clients of the MCP serve surface never carry the
-Computer tool. A bare headless run without an approval channel cannot
-drive. The interactive cockpit runs its turn in a background worker whose
-approval channel sends the consent card back to the cockpit. A non-interactive
-caller needs that approval channel, and keystrokes still refuse when the
-terminal running the session cannot be identified.
+Computer tool. A bare `mercury run` cannot drive. A hosted session runs in a
+`mercury runner` child whose host answers permission asks; the interactive
+cockpit presents those asks as consent cards. A non-interactive caller needs
+a host that can answer them, and keystrokes still refuse when the terminal
+running the session cannot be identified.
 
 ## The driver
 
