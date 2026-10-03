@@ -5,6 +5,7 @@ import { MERCURY_VERSION } from '../../constants/product.js'
 import type { LooseRow } from '../../rows/read.js'
 import type { ElicitationAnswer, ElicitationRequestParams, PermissionAnswer, PermissionRequestParams } from '../../runner/wire/methods.js'
 import { createPeer, PeerClosed, type Peer } from '../../runner/wire/peer.js'
+import type { RpcError } from '../../runner/wire/errors.js'
 import { flagSpellings } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
 
@@ -88,6 +89,7 @@ export class MercuryChildSession {
   private readonly handlers: ChildEventHandlers
   private closedByUs = false
   private dead = false
+  private protocolFailure: RpcError | null = null
   private lastRoundTripUsage: Record<string, unknown> | null = null
   private lastRoundTripModel = ''
 
@@ -132,12 +134,18 @@ export class MercuryChildSession {
     this.child.stdin?.on('error', err => {
       logForDebugging(`[acp] child stdin error (write after death?): ${err}`)
     })
-    this.peer = createPeer({
+    const peerOptions = {
       input: this.child.stdout!,
       output: this.child.stdin!,
-      side: 'host',
-      log: line => logForDebugging(`[acp] ${line}`),
-    })
+      side: 'host' as const,
+      log: (line: string) => logForDebugging(`[acp] ${line}`),
+      onProtocolError: (error: RpcError): void => {
+        this.protocolFailure = error
+        this.handlers.onTurnEnd('error', { status: 'protocol_error', errors: [error.message] })
+        void this.close()
+      },
+    }
+    this.peer = createPeer(peerOptions)
     this.peer.onNotification('row', row => this.onRow(row as LooseRow))
     this.peer.onNotification('elicitation/complete', params => this.handlers.onElicitationComplete?.(params.server, params.elicitation_id))
     this.peer.onRequest('permission/request', (params, ctx) => {
@@ -254,10 +262,12 @@ export class MercuryChildSession {
   }
 
   async writeUserPrompt(content: Array<Record<string, unknown>>): Promise<void> {
+    if (this.protocolFailure) throw this.protocolFailure
     if (this.dead || this.closedByUs) {
       throw new Error(`the session child is ${this.dead ? 'dead' : 'closed'} — prompt not delivered`)
     }
     await this.initialized
+    if (this.protocolFailure) throw this.protocolFailure
     try {
       const answer = await this.peer.request('queue/add', { type: 'prompt', content: inputBlocksOf(content) }, { deadlineMs: 30_000 })
       if (answer.accepted === false) throw new Error(`the session refused the prompt (${answer.reason})`)
@@ -274,8 +284,10 @@ export class MercuryChildSession {
   }
 
   async setPermissionMode(mode: string): Promise<void> {
+    if (this.protocolFailure) throw this.protocolFailure
     if (this.dead || this.closedByUs) throw new Error('the session child is gone — the mode was not changed')
     await this.initialized
+    if (this.protocolFailure) throw this.protocolFailure
     await this.peer.request('session/set_mode', { mode })
   }
 
