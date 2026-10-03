@@ -13,7 +13,7 @@ On Windows, each frame reads the window size from the console so the cockpit fol
 
 A bare interactive `mercury` lands on the Boot face — the card of New
 Session · Continue Last Session · Boot Menu · MCPs & Skills · Agents ·
-Doctor / Health Check · Saturn Scheduler · Logins · Session Concourse, and
+Health Check · Saturn Scheduler · Logins · Session Concourse, and
 the merged Sessions · Projects door — and there is no chat behind it. The
 boot menu, the kit menu ([KIT.md](KIT.md)), the agent studio, the health
 certificate, the scheduler board ([SATURN.md](SATURN.md)), the sign-in
@@ -442,10 +442,10 @@ deletes `.mercury/`. The project folder holds shared configuration — the
 settings, the gates and wards, the Apollo specs, the agents, the saved
 workflow scripts — the way a crew commits its shared config; everything a
 machine or a session writes for itself (run manifests, ledgers, evidence,
-test-run records, local memory, the doctor's certificate)
+test-run records, local memory, the health check's certificate)
 lives in the config home beside that folder's transcripts. A local store
 found in the project folder from before is read once and migrated on its
-first touch; the folder keeps its copy, and the doctor's Project estate row
+first touch; the folder keeps its copy, and the health check's Project estate row
 names it with the one `git rm --cached` line that untracks it.
 
 The cockpit's left rail carries a FILES box named for the focused session's
@@ -715,7 +715,7 @@ provider's own refusal never becomes the reply. Turning Auto-compact off in
 `/config`, or setting `MERCURY_AUTO_COMPACT=0`, stops early folds, not
 emergency recovery: an overflow still folds and retries. `MERCURY_COMPACT=0` disables compaction
 altogether. The failure and rapid-refill breakers still stop repeated doomed
-folds. `/doctor` names the setting or environment switch that turned folding
+folds. `/health` names the setting or environment switch that turned folding
 off, and whether emergency folding remains available.
 
 ## A line sent while the model works

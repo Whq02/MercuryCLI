@@ -20,7 +20,7 @@ bun run setup                      # once; bun install + the vendored packs
 bun run build.ts                   # writes dist/mercury.mjs + dist/manifest.json
 node dist/mercury.mjs --version
 node dist/mercury.mjs
-node dist/mercury.mjs doctor --json
+node dist/mercury.mjs health --json
 ```
 
 The cockpit needs a real TTY, with no minimum terminal size. The full layout
@@ -30,12 +30,12 @@ starts at 100 columns and 26 rows; smaller windows use the compact layout.
 this machine's Node runtime · brush, the optional shell engine) and, with cargo
 present, builds the voice capture addon and, with cmake beside it, the
 on-device transcriber; with cargo it also builds the desktop driver addon
-that computer use runs through, and a skipped pack is named by the doctor.
+that computer use runs through, and a skipped pack is named by the health check.
 
 The first run walks theme and sign-in. Every interactive boot with no explicit
 journey lands on the Boot face — the ten-row card: New Session,
 Continue Last Session (once history exists), Boot Menu, MCPs & Skills, Agents,
-Doctor / Health Check, Saturn Scheduler, Logins, Session Concourse,
+Health Check, Saturn Scheduler, Logins, Session Concourse,
 Sessions · Projects. How the screens connect and the flags that shape a boot are
 [docs/SESSIONS.md](docs/SESSIONS.md); `node dist/mercury.mjs --help` lists the
 headless verbs. Windows runs `node dist\mercury.mjs` directly; the guide is

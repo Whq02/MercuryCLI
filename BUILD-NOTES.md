@@ -42,7 +42,7 @@ A successful build writes, under `dist/`:
 - `.build-tree` — the git tree hash of the tracked content the bundle was
   built from. Computed at bundle start (a mid-build edit can only cause a
   cache miss, never a false hit), written only on success. Consumers: the
-  doctor's build-fresh check and the gate's dist cache. Best-effort: a
+  health check's build-fresh row and the gate's dist cache. Best-effort: a
   non-git checkout gets no stamp.
 - `vendor/…` — the vendored payloads (below).
 
@@ -117,7 +117,7 @@ call time instead of killing boot.
 
 Behavioral coverage: `bun run artifact:smoke` copies the bundle to a fresh
 temp dir with a fresh HOME and minimal PATH and drives `--version`,
-`--help`, and `doctor --json` on plain node.
+`--help`, and `health --json` on plain node.
 
 ### undici
 

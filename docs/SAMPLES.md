@@ -94,5 +94,5 @@ bridge, no listener and no `/samples`; the Workshop tool's prompt has no
 line about samples, and nothing else changes. Typed while off, `/samples`
 answers one line — `/samples is off — MERCURY_SAMPLES=1 turns it on (the
 Boot Menu's Samples row saves it for new sessions)` — and starts nothing.
-`mercury doctor` and `/health` carry a `Samples` row that says which way
+`mercury health` and `/health` carry a `Samples` row that says which way
 the switch stands.

@@ -46,7 +46,7 @@ map and `/keybindings` opens your keybindings file.
 
 ## Health and the runtime
 
-- [HEALTH-CERTIFICATE.md](HEALTH-CERTIFICATE.md): `/health` and the doctor, evidence-backed checks, fixes and the JSON certificate.
+- [HEALTH-CERTIFICATE.md](HEALTH-CERTIFICATE.md): `/health` and `mercury health`, evidence-backed checks, fixes and the JSON certificate.
 - [DURABILITY.md](DURABILITY.md): atomic publication, operation journals, recovery, watchdogs and loop-stop outcomes.
 - [TERMINAL-RUNTIME.md](TERMINAL-RUNTIME.md): launchers, session hosts, runtime locations, installs, updates and the shell engine.
 - [TERMINAL-PROFILE.md](TERMINAL-PROFILE.md): terminal requirements, capability detection, input decoding, ping and motion controls.

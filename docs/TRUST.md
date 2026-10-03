@@ -166,7 +166,7 @@ Sovereign mode — the one bypass — is armed, what armed it (the Boot Menu's
 Sovereign mode row as standing consent, the CLI flag, or the session's own
 choice), whether the consent dialog was shown or suppressed, and whether
 workspace trust was accepted. A fresh config read alone answers "what permission
-posture does this project run under"; `mercury doctor` and `/health` show it
+posture does this project run under"; `mercury health` and `/health` show it
 as the `Sovereign mode` row. Computer use keeps one setting under the
 posture, the Boot Menu's `Access type` row: unset, it follows Sovereign mode
 (`full` with it on, `asks` with it off); a saved value wins either way
@@ -183,7 +183,7 @@ half is compiled into every build as its trust roster. The private key is held b
 operator alone: it never enters the repository, and it reaches the hosted
 release workflow only as a repository secret for the packaging step.
 
-Signing is advisory at boot and in `/health` and the doctor: those checks
+Signing is advisory at boot and in `/health` and the health check: those checks
 report the verdict without blocking a boot. It is a gate on an update or
 install: `mercury update` and `mercury install` require a `signed` payload
 under the Mercury release key in the compiled-in trust roster before staging
@@ -205,7 +205,7 @@ The verdicts are:
   the launcher says it on a bare interactive boot (a plain `mercury`, no verb
   or flag) once per install — a marker beside the version pointer of the
   managed layout records that it was said; an archive run in place says it
-  at every bare boot — and `mercury doctor` says it every time. Update and
+  at every bare boot — and `mercury health` says it every time. Update and
   install refuse it unless `--allow-unsigned` is explicitly passed.
 - **unrecognized-key** — a valid signature under a key that is not in this
   build's roster; update and install refuse it, including with `--allow-unsigned`.
@@ -218,7 +218,7 @@ The verdicts are:
 
 How to check:
 
-- `mercury doctor` — the rows **Artifact signature** (the bundle's bytes) and
+- `mercury health` — the rows **Artifact signature** (the bundle's bytes) and
   **Payload signature** (`--deep`: the whole payload tree).
 - From an extracted archive, the shipped verifier:
   `node mercury/verify-artifact.mjs --deep` prints the verdict and exits

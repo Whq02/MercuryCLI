@@ -35,7 +35,7 @@ Each row names the screen, how to reach it, and what it must look like.
 
 1. **The Boot face.** Start `mercury` with no arguments. Every row of the
    card leads with a text glyph: New Session `✶`, Continue Last Session
-   `↳`, Boot Menu `⊞`, MCPs & Skills `⊛`, Agents `◈`, Doctor / Health
+   `↳`, Boot Menu `⊞`, MCPs & Skills `⊛`, Agents `◈`, Health
    Check `✓`, Saturn Scheduler `◷`, Logins `⚿`, Sessions · Projects `↺`.
    The Continue row's arrow is a plain hooked arrow, not a blue arrow tile.
 2. **The thinking row.** Open a session and ask something that makes the
@@ -60,11 +60,11 @@ Each row names the screen, how to reach it, and what it must look like.
    and opens with `⌄`; task rows use `○` (pending), `◐` (in progress) and
    `✓` (done); the effort slider (`/effort`) reads
    `Faster ← effort → Smarter`.
-7. **The doctor.** Run both forms and read every status mark as text
+7. **The health check.** Run both forms and read every status mark as text
    (`✓ ✕ ▲ ○`):
 
    ```powershell
-   mercury doctor
+   mercury health
    ```
 
    and `/health` inside a session.
@@ -87,7 +87,7 @@ Open an issue through the bug template with:
 - whether the mark drew as a colour picture, as a blank box, or as a
   question mark (a blank box or question mark means the font lacks the
   glyph, which is a different problem from the colour picture);
-- the output of `mercury doctor --json`.
+- the output of `mercury health --json`.
 
 A row that reads as plain text everywhere in this list is the expected
 result; there is nothing to report for it.

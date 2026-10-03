@@ -33,7 +33,7 @@ On macOS, a native adapter (lldb, gdb) that starts and then never answers
 is usually the operating system, not the adapter: without Developer Mode,
 `task_for_pid` waits for an interactive authorisation a debug adapter
 cannot give, and the grant lasts one boot. The debugger's timeout message
-and the doctor's IDE plane row read the setting live
+and the health check's IDE plane row read the setting live
 (`DevToolsSecurity -status`) and name the durable fix:
 `sudo DevToolsSecurity -enable`.
 
@@ -59,14 +59,14 @@ runners, and asking `debug` of one answers with exactly that.
 `MERCURY_DAP` (default-on) carries the tool; `=0` removes it from the
 catalog. So does a machine on which no debug adapter is reachable: the
 Debug tool is withheld from the catalog rather than offered to refuse,
-the `Tools withheld` row of `mercury doctor` and `/health` names it with
+the `Tools withheld` row of `mercury health` and `/health` names it with
 the adapters to arm, and a session already running picks the tool up at
 its next `/clear` or compaction. The census that decides it reads the
 filesystem only (the vendored packs, PATH, the adapter tables) and a memo
 for the two toolchain probes, `xcrun -f lldb-dap` on macOS and
 `gdb --version`, which run once per process in the background; a catalog
 built before they answer withholds the tool with words saying the probe
-has not answered yet, and the next build reads the answer. The doctor
+has not answered yet, and the next build reads the answer. The health check
 waits for the probes before it writes its row, so a boot never stalls on
 a spawn and the certificate never names a probe still in flight.
 `MERCURY_DAP_ADAPTERS`, `MERCURY_DAP_ADAPTERS_FILE`,

@@ -61,7 +61,7 @@ workspace package for source runs), never the registry alone:
   network step; `--check` validates the cache offline) and rebuild. Release
   archives carry all 23. A local build without the cache says so at build
   time (`vendored WITHOUT them`), the manifest records
-  `degraded: structure-polyglot-extended` and `mercury doctor` names it; the
+  `degraded: structure-polyglot-extended` and `mercury health` names it; the
   artifact's own `dist/vendor/treesitter/vendor.json` lists the grammars it
   carries.
 

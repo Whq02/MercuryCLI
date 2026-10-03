@@ -1,9 +1,9 @@
 # The health certificate
 
-`/health` (alias `/doctor`) certifies the install: runtime, settings, and
-channel checked live, rolled into one verdict. The same certificate runs
-headless as `mercury health` / `mercury doctor`. Configured MCP servers are
-validated without being started.
+`/health` certifies the install: runtime, settings, and channel checked
+live, rolled into one verdict. The same certificate runs headless as
+`mercury health`. Configured MCP servers are validated without being
+started.
 
 The certificate holds three properties:
 
@@ -60,8 +60,8 @@ it shows the sentence and remedy. A successful request for that model on
 that door clears the refusal, and changing the presented client version
 clears a minimum-version refusal. With no recorded refusal the row reads
 `info`: `no model refused on any door in this session`. The observations are
-shared by the runner, picker and doctor through the current credential home's
-`model-refusals` directory, so a separate doctor can read a recorded refusal
+shared by the runner, picker and the health check through the current credential home's
+`model-refusals` directory, so a separate health check can read a recorded refusal
 too; it never makes a provider request to discover one.
 
 INTERFACE's `Browser` row names the executable the Browser tool resolves:
@@ -138,7 +138,7 @@ the ids it lacks. The row reads `ok` when every typed id a read list can
 judge is served, `warn` when a read list lacks one, `info` when no list has
 been read in this process or no signed-in family has a live list, and
 `unknown` only when a cached list could not be read. A headless
-`mercury doctor` is a fresh process, so its row reads what that process has
+`mercury health` is a fresh process, so its row reads what that process has
 read, which is nothing, and never rolls the certificate to caution for a list
 nobody asked for; the release-day check
 (`bun scripts/ops/check-typed-model-ids.ts`) fetches every list live and
@@ -170,8 +170,8 @@ four counts; its trail lists each stale and cannot-end process as
 `pid <pid> · <terminal or no terminal> · <age> · <reason>`. The sweep runs
 read-only at every daemon boot and window boot, and those two boots are the
 only reads that record a census (under `<config home>/processes/census.json`)
-and prune the registrations of windows that are provably gone; the doctor's
-row and `mercury doctor processes` read the processes live and write nothing
+and prune the registrations of windows that are provably gone; the health check's
+row and `mercury health processes` read the processes live and write nothing
 under the config home, and an ending records what it did in that census.
 Nothing is ever ended on its own. The row's destructive remedy shows exactly that list and asks `End these <N>
 stale processes?`; it ends them through Mercury's own roads first (the daemon
@@ -182,7 +182,7 @@ the park drain, `MERCURY_SESSION_PARK_DRAIN_MINUTES`),
 then a kill signal, re-reading identity and staleness before each step (a daemon that does not answer the end request for its own plane refuses it: nothing is sent), and
 reports `Ended <N> stale processes; <N> could not be ended; <N> left running`;
 a survivor of the kill signal reads `cannot end — needs a reboot`. Headless,
-`mercury doctor processes` prints the same listing as JSON and `--end-stale`
+`mercury health processes` prints the same listing as JSON and `--end-stale`
 ends the stale ones it lists; `mercury health --fix --yes` applies this
 destructive remedy like any other. A process table that cannot be read whole
 is an incomplete census: nothing is listed, nothing is pruned, nothing is
@@ -205,9 +205,9 @@ destructive remedies render the warning register. Headless, `mercury health
 `--only <id>` limits any headless form — the plain report, `--json`, `--fix`
 — to one check.
 
-## The doctor JSON
+## The health JSON
 
-`mercury doctor --json` prints the certificate as one JSON document
+`mercury health --json` prints the certificate as one JSON document
 (`certSchema` 2). A piped or redirected run is not this host's interactive
 terminal: the terminal-profile row reads as environmental and never raises
 the verdict. The document carries:
@@ -228,15 +228,15 @@ the verdict. The document carries:
 ## Artifacts
 
 Certificate files live beside the project's transcripts under
-`<config home>/projects/<project>/`, in the `doctor` store.
-`MERCURY_DOCTOR_STATE_DIR` selects the project root used to resolve the
+`<config home>/projects/<project>/`, in the `health` store.
+`MERCURY_HEALTH_STATE_DIR` selects the project root used to resolve the
 store; it is not a direct certificate-directory override:
 
-- `doctor/last-cert.json` — an atomic, best-effort summary written after each
+- `health/last-cert.json` — an atomic, best-effort summary written after each
   certificate; the certificate chip in the session chrome folds it in (a
   summary older than a day reads stale), and resume honesty reads it too.
   Skipped entirely when the certificate surface is gated off.
-- `doctor/last-preflight.json` — the boot preflight's summary. The preflight
+- `health/last-preflight.json` — the boot preflight's summary. The preflight
   (`MERCURY_BOOT_PREFLIGHT`) runs a cheap subset of `/health` after the UI
   mounts and notifies only on a fault; it is not a certificate and never
   writes `last-cert.json`.
@@ -247,9 +247,9 @@ store; it is not a direct certificate-directory override:
 ## Gates
 
 The certificate surface, the fix engine, and the boot preflight are default-on
-and individually killable: `MERCURY_DOCTOR_CERT=0` restores a plain
+and individually killable: `MERCURY_HEALTH_CERT=0` restores a plain
 install-diagnostics screen with no certificate and no artifact writes,
-`MERCURY_DOCTOR_FIX=0` makes `/health` diagnose-only (no remedy offered
+`MERCURY_HEALTH_FIX=0` makes `/health` diagnose-only (no remedy offered
 anywhere), and `MERCURY_BOOT_PREFLIGHT=0` skips the boot preflight entirely.
 All three rows live in the in-code registry (`src/substrate/flagRegistry.ts`;
 rendered on demand to an untracked path).
