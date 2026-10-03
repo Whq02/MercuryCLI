@@ -95,6 +95,19 @@ const RETIRED: Array<[string, RegExp, string[]]> = [
   ['control-frames', asName(J('(?:control_', 'request|control_', 'response|control_cancel', '_request|can_use', '_tool|set_permission', '_mode)')), [J('control_', 'req'), J('control_', 'resp'), J('control_', 'cancel'), J('can_use', '_tool'), J('set_permission', '_mode')]],
   ['activity-stream-arms', new RegExp(J('stream-(?:file-', 'change|command|check|question|work-', 'item|generic-', 'tool|tool-', 'result|message|session-', 'lifecycle)(?![\\w-])|explodeActivity', 'Inputs')), [J('stream-', ''), J('explodeActivity', '')]],
   ['rule-sentences', new RegExp(J('is blocked by a ', 'deny rule|', 'deny rule matched|requires ', 'confirmation for this (?:command|tool|edit|read)|Permission ', "rule '|by a permission ", 'rule|blocked by permission ', 'rules|denied by permission ', 'settings|blocked by a permission ', 'deny rule|Permission rules can be ', 'changed in /permissions|has been denied by ', 'permission rule|Permission to (?:read|edit) .* (?:has been ', 'denied|requires confirmation)')), [J('deny ', 'rule'), J('requires ', 'confirmation'), J('ermission ', 'rule'), J('permission ', 'settings'), J('Permission to ', 'read'), J('Permission to ', 'edit')]],
+  ['screen-chat-path', new RegExp(J('screens/', 'RE', 'PL')), [J('screens/', 'RE', 'PL')]],
+  ['screen-chat-launcher', new RegExp(J('repl', 'Launcher|launch', 'Repl')), [J('repl', 'Launcher'), J('launch', 'Repl')]],
+  ['screen-chat-word', new RegExp(J('\\b', 'RE', 'PL', '\\b')), [J('RE', 'PL')]],
+  ['flow-classifier-names', new RegExp(J('yolo', 'Classifier|[Yy]olo', '[A-Z]|yolo', '_classifier')), [J('Yo', 'lo'), J('yo', 'lo')]],
+  ['mneme-home-name', new RegExp(J('mem', 'dir'), 'i'), [J('mem', 'dir'), J('mem', 'Dir'), J('Mem', 'dir'), J('Mem', 'Dir'), J('MEM', 'DIR')]],
+  ['turn-engine-names', new RegExp(J('Query', 'Engine|submit', 'Message')), [J('Query', 'Engine'), J('submit', 'Message')]],
+  ['crew-names', new RegExp(J('utils/', 'swarm|isAgent', 'SwarmsEnabled|Swarm', '[A-Z]')), [J('utils/', 'swarm'), J('isAgent', 'Swarms'), J('Swa', 'rm')]],
+  ['engine-model-name', new RegExp(J('[mM]ain', 'LoopModel')), [J('ain', 'LoopModel')]],
+  ['respond-to-model-name', new RegExp(J('RespondTo', 'Claude')), [J('RespondTo', 'Claude')]],
+  ['shell-snapshot-name', new RegExp(J('ClaudeCode', 'Snapshot')), [J('ClaudeCode', 'Snapshot')]],
+  ['skill-scope-name', new RegExp(J('ClaudeSkill', 'Scope')), [J('ClaudeSkill', 'Scope')]],
+  ['command-words', new RegExp("(?<=['\"`\\s(])/" + J('(?:pr-', 'comments|co', 'st|co', 'lor|release-', 'notes|heap', 'dump|mock-', 'limits|fi', 'les|security-', 'review|terminal-', 'setup)') + "(?![\\w=\\\\(/-])(?![^\\n/]*\\/[dgimsuy]*\\.(?:test|exec|match|replace|source|split)\\b)"), [J('/pr-', 'comments'), J('/co', 'st'), J('/co', 'lor'), J('/release-', 'notes'), J('/heap', 'dump'), J('/mock-', 'limits'), J('/fi', 'les'), J('/security-', 'review'), J('/terminal-', 'setup')]],
+  ['health-word', new RegExp(J('doc', 'tor'), 'i'), [J('doc', 'tor'), J('Doc', 'tor'), J('DOC', 'TOR')]],
 ]
 const SETTINGS_SCOPE = /^(?:src\/|docs\/|README\.md$|scripts\/)/
 const RETIRED_SETTINGS_ROOTS = [
@@ -213,6 +226,9 @@ const ALLOW: Array<[string, string, string]> = [
   ['scripts/headless/prove-runner-wire-laws.ts', 'control-frames', 'feeds the retired frame it proves refused'],
   ['scripts/headless/prove-structuredio-laws.ts', 'control-frames', 'feeds the retired frame it proves refused'],
   ['scripts/daemon/prove-seat-door-direct.ts', 'control-frames', 'names the words it proves absent from the daemon'],
+  ['scripts/identity/prove-unknown-command-answer.ts', 'health-word', 'names the word it proves unknown'],
+  ['scripts/command-catalogue/prove-beta-journey-matrix.ts', 'health-word', 'names the word it proves is no surface'],
+  ['scripts/ui/prove-old-transcript-rows.ts', 'screen-chat-word', "an older transcript's absent tool name — the row it proves paints by name"],
 ]
 function allowed(path: string, rule: string): boolean {
   for (const [prefix, rules] of ALLOW) {
@@ -337,12 +353,14 @@ console.log('============================================================')
   check('release records and foreign commands do not exempt new run spellings', scan([{ path: 'docs/releases/fixture.md', content: 'mercury -p' }, { path: 'src/constants/changelog.ts', content: 'mercury -p' }, { path: '.github/fixture.yml', content: 'mkdir -p out && mercury -p hello' }]).length === 3)
 
   const crumb = 'esc ' + J('main', ' ', 'RE', 'PL')
+  const crumbRule = (hits: Violation[]): Violation[] => hits.filter(v => v.rule === 'focused-chat')
   const crumbHits = scan([{ path: 'src/components/x.tsx', content: "const label = '" + crumb + "'" }])
-  check('§3 self-test: the crumb phrase trips as screen text', crumbHits.length === 1 && crumbHits[0]!.rule === 'focused-chat', JSON.stringify(crumbHits))
+  check('§3 self-test: the crumb phrase trips as screen text', crumbRule(crumbHits).length === 1, JSON.stringify(crumbHits))
   const crumbComment = scan([{ path: 'src/components/x.tsx', content: '// the ' + crumb + ' route' }])
-  check('§3 self-test: a comment outside the concourse stays silent', crumbComment.length === 0, JSON.stringify(crumbComment))
+  check('§3 self-test: a comment outside the concourse stays silent under the crumb rule', crumbRule(crumbComment).length === 0, JSON.stringify(crumbComment))
   const crumbConcourse = scan([{ path: 'src/components/concourse/x.tsx', content: '// the ' + crumb + ' route' }])
-  check('§3 self-test: the concourse holds the rule on every line', crumbConcourse.length === 1, JSON.stringify(crumbConcourse))
+  check('§3 self-test: the concourse holds the rule on every line', crumbRule(crumbConcourse).length === 1, JSON.stringify(crumbConcourse))
+  check('§3 self-test: the screen word itself trips on every line, comments included', [crumbHits, crumbComment, crumbConcourse].every(hits => hits.some(v => v.rule === 'retired:screen-chat-word')))
   const routeId = scan([{ path: 'src/components/x.tsx', content: "const id = '" + J('main-re', 'pl') + "'" }])
   check('§3 self-test: the route id stays legal', routeId.length === 0, JSON.stringify(routeId))
 }
@@ -467,6 +485,21 @@ console.log('============================================================')
     ['control-frames', "{ subtype: '" + J('can_use', '_tool') + "' }"],
     ['activity-stream-arms', "name: '" + J('stream-', 'file-change') + "',"],
     ['activity-stream-arms', 'for (const sub of ' + J('explodeActivity', 'Inputs') + '(input))'],
+    ['screen-chat-path', "import { Chat } from '../" + J('screens/', 'RE', 'PL') + ".js'"],
+    ['screen-chat-launcher', J('launch', 'Repl') + '(root)'],
+    ['screen-chat-word', 'the ' + J('RE', 'PL') + ' screen'],
+    ['flow-classifier-names', "import { classify } from './" + J('yolo', 'Classifier') + ".js'"],
+    ['mneme-home-name', "join(home, '" + J('mem', 'dir') + "')"],
+    ['mneme-home-name', 'const ' + J('mem', 'Dir') + ' = home'],
+    ['turn-engine-names', 'new ' + J('Query', 'Engine') + '(opts)'],
+    ['crew-names', J('isAgent', 'SwarmsEnabled') + '()'],
+    ['engine-model-name', 'const m = ' + J('main', 'LoopModel')],
+    ['respond-to-model-name', J('handleRespondTo', 'Claude') + '()'],
+    ['shell-snapshot-name', J('getClaudeCode', 'SnapshotContent') + '()'],
+    ['skill-scope-name', J('getClaudeSkill', 'Scope') + '()'],
+    ['command-words', 'type ' + J('/co', 'st') + ' to see the spend'],
+    ['command-words', "'" + J('/fi', 'les') + "'"],
+    ['health-word', 'mercury doc' + 'tor --json'],
   ]
   check('§5 self-test: every retired-word row has a spelling here and trips on it in src', RETIRED.every(([label]) => trips.some(([l]) => l === label)) && trips.every(([label, content]) => retiredHits('src/x.ts', content).includes(label)), trips.filter(([label, content]) => !retiredHits('src/x.ts', content).includes(label)).map(([label]) => label).join(','))
   check('§5 self-test: the rows reach docs, the README and the script estate', retiredHits('docs/x.md', trips[0]![1]).length === 1 && retiredHits('README.md', trips[0]![1]).length === 1 && retiredHits('scripts/x/prove-x.ts', trips[0]![1]).length === 1)
@@ -486,6 +519,7 @@ console.log('============================================================')
     'Both an auth token and an API key are configured; the extensions check their manifests; git init --quiet; i--; mercury image > file',
     'mercury roster; mercury bridge install; --log-file out.log; --crew alpha --seat bravo; MERCURY_MEMORY_OBSERVE=1',
     "type: 'hook_error_during_execution'; api_ms: 12; steps: 3; session/set_mode; permission/request; the stream-fault row; { type: 'callback' }; the SDK of the provider; sdkErrors.ts; the MCP SDK",
+    't(a, /' + J('co', 'lor') + "=\\{tokens\\.success\\}/.test(src)); t(b, /" + J('fi', 'les') + " stay on disk/.test(msg)); t(c, /" + J('co', 'lor') + " = 'warning'/.test(dialog)); t(d, /" + J('co', 'lor') + '/.test(grid)); src/commands/' + J('co', 'st') + '/; the replay; replace(); mercury health --json; the Mneme home; crew; flowClassifier; getEngineModel()',
   ]
   check('§5 self-test: kept identifiers, ordinary English and other programs stay quiet', quiet.every(content => retiredHits('src/x.ts', content).length === 0), quiet.filter(content => retiredHits('src/x.ts', content).length > 0).join(' | '))
   check('§5 self-test: a published record and a forbidden-words list keep their lines', retiredHits('src/constants/changelog.ts', trips[1]![1]).length === 0 && retiredHits('docs/releases/1.0.0-beta.9.md', trips[1]![1]).length === 0 && retiredHits('scripts/identity/prove-release-notes-words.ts', trips[1]![1]).length === 0)
