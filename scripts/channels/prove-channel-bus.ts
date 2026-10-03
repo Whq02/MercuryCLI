@@ -29,7 +29,7 @@ function withEnv<T>(key: string, v: string | undefined, fn: () => T): T {
 }
 
 console.log('============================================================')
-console.log(' Local channel bus — the agent wire (the /say door retired typed)')
+console.log(' Local channel bus — the agent wire (the /say door is unknown)')
 console.log('============================================================')
 
 section('(a) isLocalChannelBusEnabled gate matrix (OFF ⇒ byte-identical)')
@@ -138,7 +138,7 @@ check(
 )
 check('the hashed room is still ONE safe segment (no path separator)', !rA.includes('/') && /^[a-zA-Z0-9._-]+$/.test(rA))
 
-section('(c) postLocalChannelMessage → JSONL append (the wire; the retired door answers typed)')
+section('(c) postLocalChannelMessage → JSONL append (the wire; the door is unknown)')
 const rec = { server: 'op', content: 'line1\nline2\twith\ttabs "and quotes"' }
 const wireLine = JSON.stringify(rec) + '\n'
 const partsAfterSplit = wireLine.split('\n')
@@ -157,7 +157,7 @@ check(
 )
 const distPath = join(ROOT, 'dist', 'mercury.mjs')
 if (!existsSync(distPath)) {
-  console.log('  [SKIP] dist/mercury.mjs absent — run `bun run build.ts` for the retired-door leg')
+  console.log('  [SKIP] dist/mercury.mjs absent — run `bun run build.ts` for the unknown-door leg')
 } else {
   const home = mkdtempSync(join(tmpdir(), 'mercury-chan-'))
   try {
@@ -185,20 +185,20 @@ if (!existsSync(distPath)) {
     )
     const out = `${r.stdout ?? ''}${r.stderr ?? ''}`
     check(
-      'the run turn refuses with the honest rc (typed sentence + exit 1, no error envelope)',
-      r.status === 1 && !/error_during_execution/.test(out),
+      'a /say turn answers as any unknown command does: the one unknown-skill sentence, no error envelope',
+      /^Unknown skill: say\b/m.test(out) && !/error_during_execution/.test(out),
       `status=${r.status} ${out.slice(0, 160)}`,
     )
     check(
-      'the retired /say door answers its typed reason (never unknown-command)',
-      /The \/say command is retired — a new multiplayer is being built on the channel/.test(out),
+      'no retired-door sentence anywhere in the answer',
+      !/retired|multiplayer/.test(out),
       out.slice(0, 200),
     )
     const inbox = join(home, '.mercury', 'channels', 'proofroom', 'inbox.jsonl')
     const lines = existsSync(inbox)
       ? readFileSync(inbox, 'utf-8').split('\n').filter(Boolean)
       : []
-    check('the retired door writes NOTHING to the room inbox', lines.length === 0, `${lines.length} line(s)`)
+    check('an unknown /say writes NOTHING to the room inbox', lines.length === 0, `${lines.length} line(s)`)
   } finally {
     rmSync(home, { recursive: true, force: true })
   }
@@ -230,20 +230,15 @@ check(
   /subscribeUiClock\(1000, drainFrom\)/.test(bus),
 )
 
-section('/say — the retired door: one stub owner, no direct registration, no body')
-const retiredCmds = src('commands', 'retired.ts')
+section('/say — an unknown door: no registration, no stub, no body')
 check(
-  "the stub module owns the 'say' name (typed answer, hidden, run capable)",
-  /\{ name: 'say',/.test(retiredCmds),
+  'no module in the tree owns a say command',
+  !existsSync(join(ROOT, 'src', 'commands', 'retired.ts')) && !existsSync(join(ROOT, 'src', 'commands', 'say')),
 )
 const cmds = src('commands.ts')
 check(
-  'no direct /say registration remains in commands.ts',
+  'no /say registration in commands.ts',
   !/import say from '\.\/commands\/say\/index\.js'/.test(cmds) && !/^\s*say,\s*$/m.test(cmds),
-)
-check(
-  'the old command body is gone from the tree',
-  !existsSync(join(ROOT, 'src', 'commands', 'say', 'index.ts')),
 )
 
 section('(e) render leg — UserTextMessage → UserChannelMessage')
