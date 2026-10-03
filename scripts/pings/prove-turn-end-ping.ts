@@ -44,15 +44,20 @@ const awaits = (needle: string, data: string, extra: Send = {}): Send => ({
   data,
   ...extra,
 })
-const then = (data: string, extra: Send = {}): Send => ({ afterPrevTicks: 2, data, ...extra })
-const pause = (ticks: number, mark: string): Send => ({ afterPrevTicks: ticks, data: '', mark })
+const IDLE = '? for shortcuts'
+const BUSY = 'esc interrupt'
+const past = (needle: string, ticks: number, data: string, extra: Send = {}): Send => awaits(needle, data, { awaitSettleTicks: ticks, ...extra })
+const pause = (needle: string, ticks: number, mark: string): Send => past(needle, ticks, '', { mark })
 const opening = (): Send[] => [awaits('↑↓ choose', '\r', { awaitSettleTicks: 4 }), awaits('ype a prompt', '', { minTick: 8, awaitSettleTicks: 5, mark: 'composer' })]
+const submit = (prompt: string, focus: string | null): Send[] => [
+  past(IDLE, 1, prompt),
+  past(prompt, 2, '\r'),
+  ...(focus === null ? [] : [past(BUSY, 1, focus)]),
+]
 const turn = (prompt: string, focus: string | null, finalText: string, mark: string, settleTicks: number): Send[] => [
-  then(prompt, { afterPrevTicks: 3 }),
-  then('\r', { afterPrevTicks: 3 }),
-  ...(focus === null ? [] : [then(focus, { afterPrevTicks: 1 })]),
+  ...submit(prompt, focus),
   awaits(finalText, '', { awaitSettleTicks: 1, mark: `end-${mark}`, minTick: 5 }),
-  pause(settleTicks, `after-${mark}`),
+  pause(finalText, settleTicks, `after-${mark}`),
 ]
 
 type Frame = { tick: number; data: Buffer }
@@ -252,7 +257,7 @@ if (wants('A')) {
       ...opening(),
       ...turn(P1, FOCUS_OUT, F1, '1', 15),
       ...turn(P2, FOCUS_OUT, F2, '2', 15),
-      pause(40, 'settings-written'),
+      pause(F2, 40, 'settings-written'),
       ...turn(P3, FOCUS_OUT, F3, '3', 25),
     ],
     F3,
@@ -318,12 +323,11 @@ if (wants('D')) {
     [
       ...opening(),
       ...turn(P1, null, F1, '1', 20),
-      pause(30, 'later-1'),
-      then(P2, { afterPrevTicks: 3 }),
-      then('\r', { afterPrevTicks: 3 }),
+      pause(F1, 30, 'later-1'),
+      ...submit(P2, null),
       awaits(F2, '', { awaitSettleTicks: 1, mark: 'end-2', minTick: 5 }),
-      then('x', { afterPrevTicks: 8 }),
-      pause(55, 'after-2'),
+      past(F2, 8, 'x'),
+      pause(F2, 55, 'after-2'),
     ],
     F2,
     'iTerm.app',
@@ -347,6 +351,8 @@ if (wants('E')) {
   const PQ = 'question turn: ask me the colour'
   const FC = 'The marker was written, as asked.'
   const FQ = 'Colour noted, as asked.'
+  const CARD_1 = 'ping-consent-marker'
+  const CARD_2 = 'colour should the badge'
   const cardTurns: ScriptedTurn[] = [
     { kind: 'tool_use', name: 'Write', id: 'write_ping_consent', input: { file_path: 'ping-consent-marker.txt', content: 'ping\n' }, whenSaid: PC },
     { kind: 'paced', deltas: [FC], gapMs: 10, startDelayMs: HOLD_MS, whenBody: 'write_ping_consent' },
@@ -364,24 +370,20 @@ if (wants('E')) {
     cardTurns,
     [
       ...opening(),
-      then(PC, { afterPrevTicks: 3 }),
-      then('\r', { afterPrevTicks: 3 }),
-      then(FOCUS_OUT, { afterPrevTicks: 1 }),
-      awaits('ping-consent-marker', '', { awaitSettleTicks: 2, mark: 'card-1', minTick: 5 }),
-      pause(35, 'card-1-held'),
-      then('\r', { afterPrevTicks: 2 }),
-      then(FOCUS_OUT, { afterPrevTicks: 1 }),
+      ...submit(PC, FOCUS_OUT),
+      awaits(CARD_1, '', { awaitSettleTicks: 2, mark: 'card-1', minTick: 5 }),
+      pause(CARD_1, 35, 'card-1-held'),
+      past(CARD_1, 2, '\r'),
+      past(BUSY, 1, FOCUS_OUT),
       awaits(FC, '', { awaitSettleTicks: 1, mark: 'end-1', minTick: 5 }),
-      pause(15, 'after-1'),
-      then(PQ, { afterPrevTicks: 3 }),
-      then('\r', { afterPrevTicks: 3 }),
-      then(FOCUS_OUT, { afterPrevTicks: 1 }),
-      awaits('colour should the badge', '', { awaitSettleTicks: 2, mark: 'card-2', minTick: 5 }),
-      pause(35, 'card-2-held'),
-      then(ESC, { afterPrevTicks: 2 }),
-      then(FOCUS_OUT, { afterPrevTicks: 1 }),
+      pause(FC, 15, 'after-1'),
+      ...submit(PQ, FOCUS_OUT),
+      awaits(CARD_2, '', { awaitSettleTicks: 2, mark: 'card-2', minTick: 5 }),
+      pause(CARD_2, 35, 'card-2-held'),
+      past(CARD_2, 2, ESC),
+      past(BUSY, 1, FOCUS_OUT),
       awaits(FQ, '', { awaitSettleTicks: 1, mark: 'end-2', minTick: 5 }),
-      pause(15, 'after-2'),
+      pause(FQ, 15, 'after-2'),
     ],
     FQ,
     'iTerm.app',
