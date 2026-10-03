@@ -42,7 +42,7 @@ writeFileSync(
   '[application]\n\nconfig/name="fixture"\n',
 )
 const hasGodot = () => getAllBaseTools().some(t => t.name === 'Godot')
-const { _resetGodotExecutablePresenceForTesting: resetGodotPresence } = await import('../../src/services/vulcan/portabilityDoctor.js')
+const { _resetGodotExecutablePresenceForTesting: resetGodotPresence } = await import('../../src/services/vulcan/portabilityHealth.js')
 const godotBin = path.join(scratch, 'godot')
 writeFileSync(godotBin, '#!/bin/sh\nexit 0\n')
 chmodSync(godotBin, 0o755)

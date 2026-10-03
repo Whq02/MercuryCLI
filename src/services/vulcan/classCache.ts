@@ -4,7 +4,7 @@ import * as path from 'node:path'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
 import { presenceNudge, derivePresence, takeCensus, type AddonPresenceFacts } from './editorPresence.js'
 import { selectVulcanInstance } from './instances.js'
-import { resolveGodotExecutable } from './portabilityDoctor.js'
+import { resolveGodotExecutable } from './portabilityHealth.js'
 import { getVulcanClient } from './vulcanClient.js'
 
 export interface GlobalClassEntry {

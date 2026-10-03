@@ -14,7 +14,7 @@ const { parseEngineMediaRequest } = await import('../../src/services/vulcan/engi
 const { liveEngines } = await import('../../src/services/vulcan/engine/spawn.js')
 const { listVulcanInstances } = await import('../../src/services/vulcan/instances.js')
 const { resolveVulcanClientForTest } = { resolveVulcanClientForTest: (await import('../../src/services/vulcan/vulcanClient.js')).resetVulcanClientForTest }
-const { resolveGodotExecutable } = await import('../../src/services/vulcan/portabilityDoctor.js')
+const { resolveGodotExecutable } = await import('../../src/services/vulcan/portabilityHealth.js')
 
 let checks = 0
 const evidence: Array<{ label: string; value: unknown }> = []

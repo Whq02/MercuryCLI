@@ -6,7 +6,7 @@ import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const { godotPortabilityReport, semanticLaunchOf, liveInputActions, declaredControls } = await import(
-  join(ROOT, 'src/services/vulcan/portabilityDoctor.ts')
+  join(ROOT, 'src/services/vulcan/portabilityHealth.ts')
 )
 
 let failures = 0

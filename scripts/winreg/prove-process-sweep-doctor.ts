@@ -6,7 +6,7 @@ import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { collectWindowsProcesses } from '../../src/daemon/processSweepWindows.js'
-import type { DoctorProcessesReport } from '../../src/cli/doctorProcesses.js'
+import type { HealthProcessesReport } from '../../src/cli/healthProcesses.js'
 
 if (process.platform !== 'win32') {
   console.log('SKIP: the integrated Windows process sweep requires Windows')
@@ -41,7 +41,7 @@ try {
   const registration = join(home, 'processes', `cockpit-${stale.process.pid}-${id}.json`)
   writeFileSync(registration, JSON.stringify({ schema: 1, id, pid: stale.process.pid, startToken: stale.startToken, configHome: home, daemonDir: join(home, 'daemon'), terminal: stale.process.terminal, bornAt: old, heartbeatAt: old }))
   utimesSync(registration, new Date(old), new Date(old))
-  const before: DoctorProcessesReport = JSON.parse(doctor('processes'))
+  const before: HealthProcessesReport = JSON.parse(doctor('processes'))
   assert.equal(before.complete, true, before.error)
   const reviewed = before.entries.filter(entry => entry.classification === 'stale')
   assert.deepEqual(reviewed.map(entry => entry.process.pid), [stale.process.pid], 'only the owned expired registration may be eligible for ending')
@@ -51,14 +51,14 @@ try {
   const row = health.sections.flatMap(section => section.checks).find(check => JSON.stringify(check).includes('Mercury processes'))
   assert.ok(row, 'doctor --json carries the Mercury processes row')
   console.log('HEALTH ' + JSON.stringify(row))
-  const after: DoctorProcessesReport = JSON.parse(doctor('processes', '--end-stale'))
+  const after: HealthProcessesReport = JSON.parse(doctor('processes', '--end-stale'))
   assert.equal(after.complete, true, after.error)
   assert.match(after.result ?? '', /^Ended 1 stale processes; 0 could not be ended;/)
   assert.deepEqual(after.endings.map(ending => ending.entry.process.pid), [stale.process.pid])
   assert.equal(alive(stale.process.pid), false)
   assert.equal(alive(live.process.pid), true, 'the console-backed fixture remains running')
   console.log('AFTER ' + JSON.stringify({ result: after.result, endings: after.endings.map(ending => ({ pid: ending.entry.process.pid, outcome: ending.outcome, reason: ending.reason })) }))
-  const again: DoctorProcessesReport = JSON.parse(doctor('processes', '--end-stale'))
+  const again: HealthProcessesReport = JSON.parse(doctor('processes', '--end-stale'))
   assert.equal(again.endings.length, 0)
   assert.equal(alive(live.process.pid), true)
   console.log('PASS: the built doctor ends only its reviewed stale process, preserves the live process and repeats safely')

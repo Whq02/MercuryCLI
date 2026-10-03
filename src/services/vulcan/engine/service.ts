@@ -8,7 +8,7 @@ import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { availableCores } from '../../../utils/availableCores.js'
 import type { ProcessTreeKillReceipt } from '../../../utils/processGroup.js'
 import { describeGodotProcess, runningGodotProcesses, strictGodotCensus, type GodotProcess } from '../godotProcessCensus.js'
-import { resolveGodotExecutable } from '../portabilityDoctor.js'
+import { resolveGodotExecutable } from '../portabilityHealth.js'
 import { engineConsoleSibling, engineImportArgv, engineSuiteArgv } from './argv.js'
 import {
   describeAttribution,

@@ -918,8 +918,8 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
           await gracefulShutdown(2)
           return
         }
-        const { runDoctorProcessesCli } = await import('./cli/doctorProcesses.js')
-        await gracefulShutdown(await runDoctorProcessesCli({ endStale: options.endStale === true }))
+        const { runHealthProcessesCli } = await import('./cli/healthProcesses.js')
+        await gracefulShutdown(await runHealthProcessesCli({ endStale: options.endStale === true }))
         return
       }
       await healthAction({

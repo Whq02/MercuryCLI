@@ -29,7 +29,7 @@ export const NOT_STATED = '(not stated)'
 
 const VERSION_FIELD: IssueField = { id: 'version', label: 'Version', source: 'auto' }
 const PLATFORM_FIELD: IssueField = { id: 'platform', label: 'OS and terminal', source: 'auto' }
-const DOCTOR_FIELD: IssueField = { id: 'health', label: 'health --json', source: 'health' }
+const HEALTH_FIELD: IssueField = { id: 'health', label: 'health --json', source: 'health' }
 
 export const ISSUE_FORMS: Readonly<Record<IssueKind, IssueForm>> = {
   bug: {
@@ -55,7 +55,7 @@ export const ISSUE_FORMS: Readonly<Record<IssueKind, IssueForm>> = {
         source: 'ask',
         prompt: 'A pasted transcript of the failing screen helps; paste text rather than an image where you can.',
       },
-      DOCTOR_FIELD,
+      HEALTH_FIELD,
     ],
   },
   provider: {
@@ -87,7 +87,7 @@ export const ISSUE_FORMS: Readonly<Record<IssueKind, IssueForm>> = {
         source: 'words',
         prompt: 'From boot to the refusal or warning, one step per line.',
       },
-      DOCTOR_FIELD,
+      HEALTH_FIELD,
     ],
   },
   feature: {
@@ -230,7 +230,7 @@ export function percentSafeCut(encoded: string, budget: number): string {
   return cut
 }
 
-export function doctorPointer(bodyPath: string | null): string {
+export function healthPointer(bodyPath: string | null): string {
   return bodyPath !== null
     ? `paste the health --json block here from the local draft: ${bodyPath}`
     : 'paste the output of `mercury health --json` here'

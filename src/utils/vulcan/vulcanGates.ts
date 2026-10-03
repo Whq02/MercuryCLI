@@ -1,7 +1,7 @@
 
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { findGodotProjectRoot } from '../../services/lsp/godotLane.js'
-import { godotExecutablePresence } from '../../services/vulcan/portabilityDoctor.js'
+import { godotExecutablePresence } from '../../services/vulcan/portabilityHealth.js'
 
 export function vulcanEnabled(): boolean {
   return flagEnabled('MERCURY_GODOT_TOOLS')

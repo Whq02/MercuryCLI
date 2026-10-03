@@ -423,7 +423,7 @@ export async function describeVulcanStatus(projectRoot: string, selector?: unkno
   if (presence.state !== 'bridge-up') lines.push(`next: ${presenceNudge(presence, s)}`)
   lines.push(`client: ${client ? client.status() : 'unavailable'}`)
   lines.push(`autoload row [autoload] ${RUNTIME_AUTOLOAD}: ${explainRuntimeAutoloadRow(readRuntimeAutoloadEntry(projectRoot), s.installed)}`)
-  const { godotPortabilityReport } = await import('./portabilityDoctor.js')
+  const { godotPortabilityReport } = await import('./portabilityHealth.js')
   const port2 = await godotPortabilityReport(projectRoot, { census: census.processes })
   lines.push(
     `godot executable: ${port2.executable.resolved ?? 'NOT FOUND'} (${port2.executable.source}: ${port2.executable.note}; ${port2.executable.probed.length} well-known roots walked)`,

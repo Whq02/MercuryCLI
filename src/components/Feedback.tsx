@@ -41,7 +41,7 @@ import {
   ISSUE_FORMS,
   ISSUE_KINDS,
   composeIssueBody,
-  doctorPointer,
+  healthPointer,
   fullIssueTitle,
   issueFormUrl,
   noGhParagraph,
@@ -49,7 +49,7 @@ import {
   type IssueForm,
   type IssueKind,
 } from '../commands/feedback/issueForms.js'
-import { gatherDoctorSection } from '../commands/feedback/doctorSection.js'
+import { gatherHealthSection } from '../commands/feedback/healthSection.js'
 import {
   checkIssueAccess,
   fileIssue,
@@ -462,7 +462,7 @@ export function Feedback({
       const [gathered, generated, health, reach] = await Promise.all([
         gatherReport(description, messages, backgroundTasks),
         generateTitle(form, description, abortSignal),
-        gatherDoctorSection({ signal: abortSignal }),
+        gatherHealthSection({ signal: abortSignal }),
         checkIssueAccess(slug),
       ])
       const facts = modelFacts()
@@ -508,7 +508,7 @@ export function Feedback({
           slug,
           title: fullTitle,
           values: Object.fromEntries(
-            Object.entries({ ...values, health: doctorPointer(bodyWritten ? redactSensitiveInfo(p!.body) : null) }).map(([id, text]) => [id, redactSensitiveInfo(text)]),
+            Object.entries({ ...values, health: healthPointer(bodyWritten ? redactSensitiveInfo(p!.body) : null) }).map(([id, text]) => [id, redactSensitiveInfo(text)]),
           ),
         })
         setFormUrl(url)

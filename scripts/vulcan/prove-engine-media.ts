@@ -10,7 +10,7 @@ import { parseEngineTreeSpec } from '../../src/services/vulcan/engine/frozenTree
 import { liveEngines } from '../../src/services/vulcan/engine/spawn.js'
 import { engineRunPath, engineTreePath } from '../../src/services/vulcan/engine/paths.js'
 import { decodePng, encodePng } from '../../src/tools/FileReadTool/imageProcessorJs.js'
-import { resolveGodotExecutable } from '../../src/services/vulcan/portabilityDoctor.js'
+import { resolveGodotExecutable } from '../../src/services/vulcan/portabilityHealth.js'
 import { godotEngineCli, parseGodotCliArgs } from '../../src/cli/godotEngineCli.js'
 import { vulcanOp } from '../../src/utils/vulcan/optable.generated.js'
 

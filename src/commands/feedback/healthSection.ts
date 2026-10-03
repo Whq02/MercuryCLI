@@ -10,12 +10,12 @@ import {
 } from '../../utils/healthCertCore.js'
 import { lastCertPath, runHealthReport } from '../../utils/healthReport.js'
 
-export const DOCTOR_DEADLINE_MS = 20_000
+export const HEALTH_DEADLINE_MS = 20_000
 export const FRESH_CERT_MS = 10 * 60_000
 
 const ATTENTION: readonly HealthStatus[] = ['fail', 'stale', 'warn']
 
-export interface DoctorSectionOptions {
+export interface HealthSectionOptions {
   deadlineMs?: number
   nowMs?: number
   signal?: AbortSignal
@@ -62,7 +62,7 @@ function reasonText(reason: unknown): string {
   return reason instanceof Error && reason.message ? reason.message : String(reason ?? 'aborted')
 }
 
-export async function runDoctorBounded(deadlineMs: number, signal?: AbortSignal): Promise<string> {
+export async function runHealthBounded(deadlineMs: number, signal?: AbortSignal): Promise<string> {
   if (signal?.aborted) return `health: not run — ${reasonText(signal.reason)}`
   const controller = new AbortController()
   const onOuter = (): void => controller.abort(signal?.reason ?? new Error('the report was cancelled'))
@@ -88,8 +88,8 @@ export async function runDoctorBounded(deadlineMs: number, signal?: AbortSignal)
   }
 }
 
-export async function gatherDoctorSection(opts: DoctorSectionOptions = {}): Promise<string> {
+export async function gatherHealthSection(opts: HealthSectionOptions = {}): Promise<string> {
   const fresh = readFreshLastCert(opts.nowMs ?? Date.now())
   if (fresh !== null) return renderLastCertSection(fresh)
-  return runDoctorBounded(opts.deadlineMs ?? DOCTOR_DEADLINE_MS, opts.signal)
+  return runHealthBounded(opts.deadlineMs ?? HEALTH_DEADLINE_MS, opts.signal)
 }

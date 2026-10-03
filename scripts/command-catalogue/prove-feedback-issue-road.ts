@@ -42,7 +42,7 @@ function section(title: string): void {
 
 const forms = await import('../../src/commands/feedback/issueForms.ts')
 const ghIssue = await import('../../src/services/repoHost/ghIssue.ts')
-const doctor = await import('../../src/commands/feedback/doctorSection.ts')
+const doctor = await import('../../src/commands/feedback/healthSection.ts')
 const feedback = await import('../../src/components/Feedback.tsx')
 const { lastCertPath } = await import('../../src/utils/healthReport.ts')
 const { repoSlugFromUrl } = await import('../../src/services/privateChannel/channelCore.ts')
@@ -181,7 +181,7 @@ section('B5 no gh = the honest fallback (three exact arms)')
   const longLink = forms.issueFormUrl(forms.ISSUE_FORMS.bug, { slug: PUBLIC_HOME, title: '[bug] long', values: { ...roadValues, steps: 'S'.repeat(3000), actual: 'A'.repeat(9000) } })
   const parsedLong = new URL(longLink)
   check('B5 a long report stays under the link cap and keeps the steps whole; the cut section says so', longLink.length <= forms.ISSUE_FORM_URL_CAP && parsedLong.searchParams.get('steps') === 'S'.repeat(3000) && (parsedLong.searchParams.get('actual') ?? '').endsWith(forms.URL_CUT_NOTE), String(longLink.length))
-  check('B5 the doctor field points at the local draft (the block is pasted by hand)', forms.doctorPointer('~/.mercury/feedback/bug-1.md').includes('paste the doctor --json block') && forms.doctorPointer('~/.mercury/feedback/bug-1.md').includes('~/.mercury/feedback/bug-1.md') && forms.doctorPointer(null).includes('doctor --json'))
+  check('B5 the doctor field points at the local draft (the block is pasted by hand)', forms.healthPointer('~/.mercury/feedback/bug-1.md').includes('paste the doctor --json block') && forms.healthPointer('~/.mercury/feedback/bug-1.md').includes('~/.mercury/feedback/bug-1.md') && forms.healthPointer(null).includes('doctor --json'))
   delete process.env.MERCURY_GH_CMD
   delete process.env.GH_SHIM_LOG
 }
@@ -212,11 +212,11 @@ section('B6 privacy: the `~` spelling, the bounded doctor, the gates')
   check('a family without a distinctive prefix declares none (the assignment pass stays its owner)', spellings.PROVIDER_CREDENTIAL_VALUE_SHAPES.zai === null && spellings.PROVIDER_CREDENTIAL_VALUE_SHAPES.moonshot === null && spellings.PROVIDER_CREDENTIAL_VALUE_SHAPES.deepseek === null && spellings.PROVIDER_CREDENTIAL_VALUE_SHAPES.local === null && spellings.PROVIDER_CREDENTIAL_VALUE_SHAPES['openai-compat'] === null)
   check('the assignment pass still redacts a prefix-less family\'s value', feedback.redactSensitiveInfo('ZAI_API_KEY=abcdef0123456789.secret').includes('[REDACTED_TOKEN]'))
 
-  const notRun = await doctor.runDoctorBounded(1)
+  const notRun = await doctor.runHealthBounded(1)
   check('a passed deadline reads "doctor: not run — …deadline"', notRun.startsWith('doctor: not run — ') && notRun.includes('deadline'), notRun)
   const aborted = new AbortController()
   aborted.abort(new Error('the report was cancelled'))
-  const cancelled = await doctor.runDoctorBounded(60_000, aborted.signal)
+  const cancelled = await doctor.runHealthBounded(60_000, aborted.signal)
   check('an aborted report never starts a run', cancelled === 'doctor: not run — the report was cancelled', cancelled)
 
   const certPath = lastCertPath()
@@ -234,9 +234,9 @@ section('B6 privacy: the `~` spelling, the bounded doctor, the gates')
       _v: 1,
     }),
   )
-  const fresh = await doctor.gatherDoctorSection({ deadlineMs: 1 })
+  const fresh = await doctor.gatherHealthSection({ deadlineMs: 1 })
   check('a fresh certificate summary is read as-is: the summary line + the warning row', fresh.startsWith('verdict caution · ok 40 · warn 1 · fail 0') && fresh.includes('certificate recorded') && fresh.includes('- Bundle freshness: warn — dist older than src'), fresh)
-  const stale = await doctor.gatherDoctorSection({ deadlineMs: 1, nowMs: Date.now() + doctor.FRESH_CERT_MS + 60_000 })
+  const stale = await doctor.gatherHealthSection({ deadlineMs: 1, nowMs: Date.now() + doctor.FRESH_CERT_MS + 60_000 })
   check('a stale summary is not read: the bounded run (here past its deadline) answers', stale.startsWith('doctor: not run — '), stale)
   rmSync(certPath, { force: true })
 

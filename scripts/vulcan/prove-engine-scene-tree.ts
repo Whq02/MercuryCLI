@@ -14,7 +14,7 @@ const { runEngineOp } = await import('../../src/services/vulcan/engine/ops.js')
 const { parseEngineTreeSpec } = await import('../../src/services/vulcan/engine/frozenTree.js')
 const { parseEngineMediaRequest } = await import('../../src/services/vulcan/engine/media.js')
 const { liveEngines } = await import('../../src/services/vulcan/engine/spawn.js')
-const { resolveGodotExecutable } = await import('../../src/services/vulcan/portabilityDoctor.js')
+const { resolveGodotExecutable } = await import('../../src/services/vulcan/portabilityHealth.js')
 const { GodotTool } = await import('../../src/tools/GodotTool/GodotTool.js')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
 

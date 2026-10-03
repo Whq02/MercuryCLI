@@ -13,7 +13,7 @@ delete process.env.MERCURY_GODOT_TOOLS_LITE
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 const census = await import(join(ROOT, 'src/services/vulcan/godotProcessCensus.ts'))
-const doctor = await import(join(ROOT, 'src/services/vulcan/portabilityDoctor.ts'))
+const doctor = await import(join(ROOT, 'src/services/vulcan/portabilityHealth.ts'))
 const presence = await import(join(ROOT, 'src/services/vulcan/editorPresence.ts'))
 const classCache = await import(join(ROOT, 'src/services/vulcan/classCache.ts'))
 const installer = await import(join(ROOT, 'src/services/vulcan/addonInstaller.ts'))

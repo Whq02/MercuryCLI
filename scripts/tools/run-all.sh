@@ -32,7 +32,7 @@
 # gate-watch: src/services/privateChannel/quietUpdateNotice.ts src/services/providers/*
 # gate-watch: src/services/providers/anthropic/** src/services/providers/openai/*
 # gate-watch: src/services/providers/zai/zaiCodec.ts src/services/resources/registry.ts
-# gate-watch: src/services/tools/toolOrchestration.ts src/services/vulcan/portabilityDoctor.ts
+# gate-watch: src/services/tools/toolOrchestration.ts src/services/vulcan/portabilityHealth.ts
 # gate-watch: src/state/AppState.tsx src/state/AppStateStore.ts src/substrate/flagRegistry.ts
 # gate-watch: src/tasks/LocalAgentTask/LocalAgentTask.tsx src/tools/** src/types/logs.ts src/vim/types.ts
 # gate-watch: src/components/messages/AttachmentMessage.tsx src/components/messages/TranscriptNameplate.tsx

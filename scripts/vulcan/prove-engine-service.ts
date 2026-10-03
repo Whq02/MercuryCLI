@@ -22,7 +22,7 @@ const serviceMod = await import(join(ROOT, 'src/services/vulcan/engine/service.t
 const opsMod = await import(join(ROOT, 'src/services/vulcan/engine/ops.ts'))
 const pathsMod = await import(join(ROOT, 'src/services/vulcan/engine/paths.ts'))
 const censusMod = await import(join(ROOT, 'src/services/vulcan/godotProcessCensus.ts'))
-const doctorMod = await import(join(ROOT, 'src/services/vulcan/portabilityDoctor.ts'))
+const doctorMod = await import(join(ROOT, 'src/services/vulcan/portabilityHealth.ts'))
 const groupMod = await import(join(ROOT, 'src/utils/processGroup.ts'))
 const coresMod = await import(join(ROOT, 'src/utils/availableCores.ts'))
 

@@ -47,7 +47,7 @@ export type DesktopDriverLoad =
   | { state: 'ok'; driver: DesktopDriver }
   | { state: 'unavailable'; note: string; remedy: string | null }
 
-export interface DesktopDoctorFacts {
+export interface DesktopHealthFacts {
   ready: boolean
   line: string
   detail: string
@@ -528,7 +528,7 @@ async function drivingWords(): Promise<string> {
   }
 }
 
-export async function describeDesktopDriver(): Promise<DesktopDoctorFacts> {
+export async function describeDesktopDriver(): Promise<DesktopHealthFacts> {
   const onWords = `computer use ${computerUseSwitchOn() ? `on · ${computerAccessWords()}` : 'off'}`
   const buildFix = voiceCheckoutRoot() !== null ? `Build the desktop driver pack: ${DESKTOP_BUILD_COMMAND}, then rebuild.` : undefined
   const driving = await drivingWords()
