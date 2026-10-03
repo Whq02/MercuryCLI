@@ -34,7 +34,7 @@ const SRC = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 
 console.log('============================================================')
 console.log(' MCP hardening — phishing gate · structured output ·')
-console.log(' coordination verbs · doctor currency · consent surfaces')
+console.log(' coordination verbs · health currency · consent surfaces')
 console.log('============================================================')
 
 section('(1) urlElicitationVerdict — the SEP-1036 policy matrix')
@@ -181,21 +181,21 @@ await (async () => {
   await close()
 })()
 
-section('(5) doctor `mcp` currency — auth summary + protocol-rev seam')
+section('(5) health `mcp` currency — auth summary + protocol-rev seam')
 {
   const auth = summarizeMcpAuthCurrency()
   check(
     'empty store ⇒ zero tokens, honest zeros',
     auth !== null && auth.tokens === 0 && auth.expired === 0 && auth.expiringSoon === 0,
   )
-  const doctor = SRC('src/utils/healthReport.ts')
-  check('doctor mcp check reads the protocol-revision line from its owner', doctor.includes('describeMcpProtocolCurrency()') && doctor.includes('currency.behind'))
+  const health = SRC('src/utils/healthReport.ts')
+  check('health mcp check reads the protocol-revision line from its owner', health.includes('describeMcpProtocolCurrency()') && health.includes('currency.behind'))
   const revision = SRC('src/services/mcp/protocolRevision.ts')
   check(
     'the revision owner carries the negotiated and the published revision and the behind text',
     revision.includes("MCP_PROTOCOL_REVISION = '2026-07-28'") && revision.includes('MCP_PUBLISHED_REVISION') && revision.includes('SDK behind'),
   )
-  check('doctor mcp check carries the auth-currency line', doctor.includes('summarizeMcpAuthCurrency'))
+  check('health mcp check carries the auth-currency line', health.includes('summarizeMcpAuthCurrency'))
 }
 
 section('(6) consent surfaces — explicit-open only + posture + attribution')

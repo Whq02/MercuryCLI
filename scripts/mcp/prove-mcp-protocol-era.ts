@@ -182,7 +182,7 @@ await (async () => {
   check('…while the digest keys stay', (await readEraVerdict('srv-d', t0 + 1))?.kind === 'legacy')
 })()
 
-section('(5) the doctor row reading')
+section('(5) the health row reading')
 {
   const currency = describeMcpProtocolCurrency()
   check('the published revision is the one the SDK speaks', MCP_PUBLISHED_REVISION === MCP_PROTOCOL_REVISION)
@@ -205,8 +205,8 @@ section('(5) the doctor row reading')
     'the behind wording is kept for the next published revision',
     owner.includes('is published — SDK behind') && owner.includes('update Mercury when a build ships the migration'),
   )
-  const doctor = SRC('src/utils/healthReport.ts')
-  check('the doctor row reads its line from the owner', doctor.includes('describeMcpProtocolCurrency()') && !doctor.includes('KNOWN_NEXT_MCP_REV'))
+  const health = SRC('src/utils/healthReport.ts')
+  check('the health row reads its line from the owner', health.includes('describeMcpProtocolCurrency()') && !health.includes('KNOWN_NEXT_MCP_REV'))
 }
 
 section('(6) the coordination server negotiates the current era the way production serves it')
