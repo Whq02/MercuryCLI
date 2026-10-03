@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
-import { runTurns } from '../lib/rows.ts'
+import { frameLines, runTurns } from '../lib/rows.ts'
 
 process.env.NODE_ENV = 'test'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'agent-record-pure-'))
@@ -103,14 +103,8 @@ const toolsOf = (q: { body: unknown }): string => j(withoutCacheControl((q.body 
 const toolNamesOf = (q: { body: unknown }): string => ((q.body as Body).tools ?? []).map(t => t.name).join(',')
 const systemOf = (q: { body: unknown }): string => j(withoutCacheControl((q.body as Body).system ?? null))
 function initToolsOf(stdout: string): string[] {
-  for (const line of stdout.split('\n')) {
-    if (!line.includes('"type":"session"')) continue
-    try {
-      const row = JSON.parse(line) as { type?: unknown; tools?: unknown }
-      if (row.type === 'session' && Array.isArray(row.tools)) return row.tools.map(String)
-    } catch {
-      continue
-    }
+  for (const row of frameLines(stdout)) {
+    if (row.type === 'session' && Array.isArray(row.tools)) return (row.tools as unknown[]).map(String)
   }
   return []
 }

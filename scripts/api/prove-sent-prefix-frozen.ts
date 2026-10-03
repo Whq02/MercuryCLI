@@ -628,10 +628,7 @@ if (!existsSync(DIST)) {
         const resumed = await runStreaming(arena, [...args, '--resume', sid], [{ prompt: 'Continue without tools.' }])
         check('§11 a new process resumes the cleared conversation', resumed.exit === 0 && resumed.stdout.includes('PRUNE-RESUMED'), resumed.stderr.slice(-300))
         const forked = await runStreaming(arena, [...args, '--resume', sid, '--fork'], [{ prompt: 'Fork and continue without tools.' }])
-        const envelopes = forked.stdout.split('\n').filter(line => line.startsWith('{')).flatMap(line => {
-          try { return [JSON.parse(line)] } catch { return [] }
-        })
-        const forkId = envelopes.find(row => row.type === 'outcome')?.session_id
+        const forkId = forked.frames.find(row => row.type === 'outcome')?.session_id
         check('§11 the fork keeps its own persistent identity', forked.exit === 0 && typeof forkId === 'string' && forkId !== sid && forked.stdout.includes('PRUNE-FORKED'), forked.stderr.slice(-300))
         if (typeof forkId === 'string' && forkId !== sid) {
           const again = await runStreaming(arena, [...args, '--resume', forkId], [{ prompt: 'Resume the fork without tools.' }])

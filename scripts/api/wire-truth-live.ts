@@ -1,13 +1,12 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { printReport, readCapture, startTap } from './wire-prefix-replay.ts'
-import { hasOutcome, runTurns } from '../lib/rows.ts'
+import { frameLines, hasOutcome, runTurns } from '../lib/rows.ts'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const REPO = path.resolve(HERE, '..', '..')
@@ -60,40 +59,33 @@ if (TAP) {
 }
 
 interface Usage { input: number; cacheRead: number; cacheCreation: number; output: number }
-interface RequestRow { id: string; turn: string; model: string; usage: Usage; drops: number; stopReason: string | null }
+interface RequestRow { id: string; turn: string; model: string; usage: Usage; stopReason: string | null }
 interface RunResult { exit: number | null; stdout: string; stderr: string; rows: RequestRow[] }
 
-const j = (v: unknown): string => JSON.stringify(v)
 const SID = `00000000-0000-4000-8000-${String(Date.now()).slice(-12).padStart(12, '0')}`
 const seenMessageIds = new Set<string>()
 
 function rowsOf(stdout: string, turnLabel: (index: number) => string): RequestRow[] {
   const rows: RequestRow[] = []
-  for (const line of stdout.split('\n')) {
-    if (!line.includes('"type":"assistant"')) continue
-    try {
-      const envelope = JSON.parse(line) as { type?: string; message?: { id?: string; model?: string; usage?: Record<string, number>; stop_reason?: string | null; input_transformations?: unknown[] } }
-      if (envelope.type !== 'assistant' || !envelope.message?.id) continue
-      const id = envelope.message.id
-      if (seenMessageIds.has(id)) continue
-      seenMessageIds.add(id)
-      const u = envelope.message.usage ?? {}
-      rows.push({
-        id,
-        turn: turnLabel(rows.length),
-        model: String(envelope.message.model ?? ''),
-        usage: { input: u.input_tokens ?? 0, cacheRead: u.cache_read_input_tokens ?? 0, cacheCreation: u.cache_creation_input_tokens ?? 0, output: u.output_tokens ?? 0 },
-        drops: Array.isArray(envelope.message.input_transformations) ? envelope.message.input_transformations.length : 0,
-        stopReason: envelope.message.stop_reason ?? null,
-      })
-    } catch {
-    }
+  for (const row of frameLines(stdout)) {
+    if (row.type !== 'step' || typeof row.message_id !== 'string') continue
+    const id = row.message_id
+    if (seenMessageIds.has(id)) continue
+    seenMessageIds.add(id)
+    const u = (row.usage ?? {}) as Record<string, number>
+    rows.push({
+      id,
+      turn: turnLabel(rows.length),
+      model: String(row.model ?? ''),
+      usage: { input: u.input_tokens ?? 0, cacheRead: u.cached_input_tokens ?? 0, cacheCreation: u.cache_write_input_tokens ?? 0, output: u.output_tokens ?? 0 },
+      stopReason: typeof row.stop === 'string' ? row.stop : null,
+    })
   }
   return rows
 }
 
 async function runStreaming(args: string[], prompts: string[], debugFile: string): Promise<RunResult> {
-  const run = await runTurns({ node: 'node', dist: DIST, args: [...args, '--log-file', debugFile], cwd: REPO, env, timeoutMs: 240_000, turns: prompts })
+  const run = await runTurns({ node: 'node', dist: DIST, args: [...args, '--log-file', debugFile], cwd: REPO, env, timeoutMs: 240_000, turns: prompts.map(prompt => ({ prompt })) })
   return { exit: run.exit, stdout: run.stdout, stderr: run.stderr, rows: [] }
 }
 
@@ -107,7 +99,7 @@ const a = await runStreaming(['--session-id', SID, '--mode', 'apollo', ...common
   'wire truth live. Reply with exactly the word ALPHA and nothing else.',
   'Use the ToolSearch tool once with the query select:WebFetch to load the WebFetch tool, then reply with exactly LOOKUP-DONE and nothing else. Do not call any other tool.',
   'Reply with exactly the word GAMMA and nothing else.',
-])
+], debugA)
 const rowsA = rowsOf(a.stdout, i => ['t1', 't2 (lookup call)', 't2 (after the lookup)', 't3'][i] ?? `a${i + 1}`)
 console.log(`process A exit ${a.exit}; ${rowsA.length} request(s)${a.exit !== 0 ? ` stderr: ${a.stderr.slice(0, 300)}` : ''}`)
 
@@ -115,20 +107,20 @@ let switchedTo = 'flow'
 let b = await runStreaming(['--resume', SID, '--mode', 'flow', ...common], [
   'Reply with exactly the word DELTA and nothing else.',
   'Reply with exactly the word EPSILON and nothing else.',
-])
+], debugB)
 if (b.exit !== 0 || !hasOutcome(b.stdout)) {
   console.log(`flow was refused headless (exit ${b.exit}: ${b.stderr.slice(0, 200)}); switching to implement instead`)
   switchedTo = 'implement'
   b = await runStreaming(['--resume', SID, '--mode', 'implement', ...common], [
     'Reply with exactly the word DELTA and nothing else.',
     'Reply with exactly the word EPSILON and nothing else.',
-  ])
+  ], debugB)
 }
 const rowsB = rowsOf(b.stdout, i => [`t4 (mode → ${switchedTo})`, 't5'][i] ?? `b${i + 1}`)
 console.log(`process B exit ${b.exit}; ${rowsB.length} request(s)${b.exit !== 0 ? ` stderr: ${b.stderr.slice(0, 300)}` : ''}`)
 
 const rows = [...rowsA, ...rowsB]
-console.log('\nrequest  turn                     input  cache_read  cache_creation  drops  verdict')
+console.log('\nrequest  turn                     input  cache_read  cache_creation  verdict')
 let previousSize = 0
 let heldPairs = 0
 let brokePairs = 0
@@ -141,7 +133,7 @@ rows.forEach((row, index) => {
     else brokePairs++
     verdict = held ? 'HELD (cache_read ≥ previous input)' : `BROKE (cache_read ${row.usage.cacheRead} < previous input ${previousSize})`
   }
-  console.log(`#${String(index + 1).padEnd(7)} ${row.turn.padEnd(24)} ${String(row.usage.input).padStart(6)}  ${String(row.usage.cacheRead).padStart(10)}  ${String(row.usage.cacheCreation).padStart(14)}  ${String(row.drops).padStart(5)}  ${verdict}`)
+  console.log(`#${String(index + 1).padEnd(7)} ${row.turn.padEnd(24)} ${String(row.usage.input).padStart(6)}  ${String(row.usage.cacheRead).padStart(10)}  ${String(row.usage.cacheCreation).padStart(14)}  ${verdict}`)
   previousSize = size
 })
 const word = (file: string): string[] => {
