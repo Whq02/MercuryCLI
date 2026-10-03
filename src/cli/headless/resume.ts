@@ -38,7 +38,7 @@ export function emitLoadError(
   message: string,
   outputFormat: string | undefined,
 ): void {
-  if (outputFormat === 'stream-json') {
+  if (outputFormat === 'rows') {
     process.stdout.write(jsonStringify(refusedOutcome([message], 'load')) + '\n')
   } else {
     process.stderr.write(message + '\n')

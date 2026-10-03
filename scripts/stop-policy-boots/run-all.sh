@@ -3,7 +3,7 @@
 # gate-watch: src/services/run/** src/run-core/turn-machine* src/utils/hooks/runStopAdapter*
 # gate-watch: src/services/providers/openai/openaiCallModel* src/services/providers/zai/zaiCallModel*
 # gate-watch: src/services/providers/emptyReply* docs/DURABILITY.md
-# gate-watch: scripts/daemon/dupline-world.ts scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts scripts/lib/rows.ts
+# gate-watch: scripts/daemon/dupline-world.ts scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts scripts/lib/rows.ts src/rows/vocabulary.ts
 # gate-watch: scripts/stop-policy/* src/constants/changelog.ts
 # gate-watch: src/services/api/errors.ts src/services/tools/toolOrchestration.ts
 # gate-watch: src/tools/AgentTool/agentToolUtils.ts

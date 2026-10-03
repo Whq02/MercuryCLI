@@ -993,7 +993,7 @@ if (!existsSync(DIST)) {
       }))
       const r = await runStreaming(
         arena,
-        ['run', '--input', 'rows', '--model', 'claude-fable-5-1', '--allowed-tools', 'ToolSearch,Read', '--mode', 'apollo', '--permission-channel', 'stdio', '--format', 'rows', '--session-id', SID, '--log-file', debugFile],
+        ['run', '--input', 'rows', '--model', 'claude-fable-5-1', '--allowed-tools', 'ToolSearch,Read', '--mode', 'apollo', '--format', 'rows', '--session-id', SID, '--log-file', debugFile],
         [
           { prompt: 'start the interview' },
           { prompt: 'find the fetch tool' },

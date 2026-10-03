@@ -153,7 +153,7 @@ const turns: ScriptedTurn[] = [
   { kind: 'text', text: 'FRESH-TURN-DONE.' },
 ]
 const fixture = await startFixtureApi(turns)
-const runner = await startRunner(fixture, home, cwd, ['--permission-channel', 'stdio'])
+const runner = await startRunner(fixture, home, cwd, [])
 
 try {
   section('§1 the runner is up and idle: a quiesce prepare with a bad token is refused before any state is read')

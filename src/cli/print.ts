@@ -396,7 +396,7 @@ export async function runHeadless(
   if (shellRoadNotice !== null) process.stderr.write(`${shellRoadNotice}\n`)
   const streamingInput = typeof inputPrompt !== 'string'
   noteHeadlessActivity(
-    options.outputFormat === 'stream-json' && streamingInput ? 'sdk' : 'print',
+    options.outputFormat === 'rows' && streamingInput ? 'sdk' : 'print',
   )
   settingsChangeDetector.subscribe(source => {
     applySettingsChange(source, setAppState)
@@ -519,7 +519,7 @@ export async function runHeadless(
       samplesTimer.unref?.()
     })
   }
-  if (options.outputFormat === 'stream-json') {
+  if (options.outputFormat === 'rows') {
     installStreamJsonStdoutGuard()
   }
   notePrintPhase('invocation_resolution')
@@ -1480,7 +1480,7 @@ export async function runHeadless(
     return Promise.resolve(null)
   }
   const routeOutbound = (message: OutboundLine): void => {
-    if (options.outputFormat === 'stream-json') {
+    if (options.outputFormat === 'rows') {
       const written = writeLine(message)
       if (isOutcome(message as never)) {
         lastOutcomeWritten = written.then(line => {
@@ -2380,7 +2380,7 @@ export async function runHeadless(
     ) as OutcomeRow)
   if (options.outputFormat === 'json') {
     await flushWrite(process.stdout, `${jsonStringify(last)}\n`)
-  } else if (options.outputFormat !== 'stream-json') {
+  } else if (options.outputFormat !== 'rows') {
     if (last.status === 'completed') {
       const text = last.answer ?? ''
       await flushWrite(process.stdout, text.endsWith('\n') ? text : `${text}\n`)

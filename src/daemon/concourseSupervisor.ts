@@ -516,7 +516,7 @@ export function buildConcourseWorkerSpec(args: {
   restartReason?: string
 }): StreamJsonChildSpec {
   const runnerArgv = splitAppendSystemPrompt(args.runnerArgv ?? [])
-  const wireArgv = ['--permission-channel', 'stdio', '--partial'] as const
+  const wireArgv = ['--partial'] as const
   return {
     model: foldLegacyWorkerModelKey(args.modelKey),
     ...(args.keyless ? { keyless: true } : {}),

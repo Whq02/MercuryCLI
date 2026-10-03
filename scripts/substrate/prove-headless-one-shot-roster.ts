@@ -89,7 +89,7 @@ section('§4 the master kill switch still rules in every posture')
 section('§5 source pins — the stamp precedes the pool; the scheduler start is streaming-gated')
 {
   const main = readFileSync(join(ROOT, 'src', 'main.tsx'), 'utf8')
-  const stampAt = main.indexOf("setHeadlessOneShot(args.inputFormat !== 'stream-json')")
+  const stampAt = main.indexOf("setHeadlessOneShot(args.inputFormat !== 'rows')")
   const poolAt = main.indexOf('let tools = [...getTools(args.toolPermissionContext)]')
   check('main.tsx stamps the one-shot posture from the input format', stampAt >= 0)
   check('…BEFORE the headless tool pool is assembled', stampAt >= 0 && poolAt > stampAt, `stamp@${stampAt} pool@${poolAt}`)

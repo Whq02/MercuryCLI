@@ -197,7 +197,7 @@ export function runnerDoorArgv(argv: readonly string[]): { argv: string[]; capab
       continue
     }
     if (token === '--input=rows' || token === '--format=rows') continue
-    if (token === '--input' || token === '--format' || token === '--permission-channel') {
+    if (token === '--input' || token === '--format') {
       i++
       continue
     }

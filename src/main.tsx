@@ -641,7 +641,7 @@ async function run(): Promise<void> {
           exitForCommanderError(commanderError)
         }
         const { emitLoadError } = await import('./cli/headless/resume.js')
-        emitLoadError(String(commanderError.message ?? error), 'stream-json')
+        emitLoadError(String(commanderError.message ?? error), 'rows')
         process.exit(
           commanderError.code !== undefined && USAGE_ERROR_CODES.has(commanderError.code)
             ? 2
@@ -1202,14 +1202,14 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     }
   }
 
-  const inputFormat = runnerDoor || opts.input === 'rows' ? 'stream-json' : 'text'
-  const outputFormat = runnerDoor || opts.format === 'rows' ? 'stream-json' : typedString(opts.format) ?? 'text'
+  const inputFormat = runnerDoor || opts.input === 'rows' ? 'rows' : 'text'
+  const outputFormat = runnerDoor || opts.format === 'rows' ? 'rows' : typedString(opts.format) ?? 'text'
   if (!printMode && (opts.input || opts.format || opts.partial)) failCli('Use mercury run for --input, --format and --partial')
-  if (inputFormat === 'stream-json' && outputFormat !== 'stream-json') {
+  if (inputFormat === 'rows' && outputFormat !== 'rows') {
     failCli('--input rows requires run --format rows')
   }
   const includePartialMessages = Boolean(opts.partial)
-  if (opts.partial && (!printMode || outputFormat !== 'stream-json')) {
+  if (opts.partial && (!printMode || outputFormat !== 'rows')) {
     failCli('--partial requires run --format rows')
   }
   if (opts.ephemeral === true && !printMode) {
@@ -1361,7 +1361,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   if (runnerDoor) {
     prompt = noStdinChunks()
   } else if (!process.stdin.isTTY) {
-    if (inputFormat === 'stream-json') {
+    if (inputFormat === 'rows') {
       prompt = readStdinChunks()
     } else {
       const collected = await readStdinWithPeek(printMode ? (inputPrompt === undefined ? -1 : 1_000) : 3000)
@@ -1387,7 +1387,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     !opts.resume &&
     !opts.continue &&
     !opts.pr &&
-    inputFormat !== 'stream-json' &&
+    inputFormat !== 'rows' &&
     mainThreadAgentDefinition?.initialPrompt == null
   ) {
     const variadicCandidates: Array<[string, unknown]> = [
@@ -2094,7 +2094,7 @@ async function printLaunch(args: {
 }): Promise<void> {
   const { opts } = args
 
-  setHeadlessOneShot(args.inputFormat !== 'stream-json')
+  setHeadlessOneShot(args.inputFormat !== 'rows')
 
   if (mercuryLspEnabled() && qualifiedIdSpaceOf(getMainLoopModel())?.route !== 'local') {
     initializeLspServerManager()
@@ -2119,7 +2119,7 @@ async function printLaunch(args: {
   }
   profileCheckpoint('action_tools_loaded')
 
-  const formatted = args.outputFormat === 'stream-json' || args.outputFormat === 'json'
+  const formatted = args.outputFormat === 'rows' || args.outputFormat === 'json'
   void formatted
 
   applyMergedConfigEnv()

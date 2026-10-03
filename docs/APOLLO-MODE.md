@@ -22,8 +22,8 @@ available on the context, else on default.
 Presentation: title "Apollo Mode", seal `◇`, its own tint. Externally the mode
 projects as `default`: Apollo is never a bypass posture.
 
-Apollo is interactive-only. The headless control surface refuses
-`set_permission_mode` to `apollo` in SDK/print mode — the interview needs a terminal UI.
+Apollo is interactive-only. A hosted session refuses a switch to `apollo`
+— the interview needs a terminal UI.
 
 ## The appendix
 
@@ -104,7 +104,7 @@ this one call, so it must not depend on a discovery round-trip.
 On a clean, approved review the tool moves the session per the chosen tier: the
 build posture (flow when the live classifier gate allows it, implement otherwise) on a
 plain yes, default on ask-first. The transition runs through the same
-guarded door the carousel and the SDK's `set_permission_mode` use, so
+guarded door the carousel and a host's mode switch use, so
 entering flow arms the classifier and strips dangerous
 rules exactly like a Shift+Tab entry would. If flow raced unavailable between the check
 and the set, the tool falls through to implement, which is always available; neither

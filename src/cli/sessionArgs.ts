@@ -1,6 +1,6 @@
 const required = new Set([
   '--log-file', '--format', '--input', '--schema', '--reasoning-mode', '--max-turns', '--budget',
-  '--permission-prompt-tool', '--permission-channel', '--brief', '--brief-file', '--brief-add', '--brief-add-file',
+  '--brief', '--brief-file', '--brief-add', '--brief-add-file',
   '--mode', '--draft', '--replay-to', '--restore-files', '--model', '--effort', '--agent', '--backup-model',
   '--meter-tag', '--project', '--config', '--session-id', '--title', '--agent-defs', '--config-layers', '--extension',
   '--seat-id', '--seat', '--crew', '--seat-color', '--parent', '--role',

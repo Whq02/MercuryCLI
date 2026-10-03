@@ -165,7 +165,7 @@ section('§4 source pins')
   check("the exit listener publishes pending changes synchronously", cfgSrc.includes("process.once('exit', () => {") && cfgSrc.includes('if (hasPendingDeferredGlobalConfigSaves()) saveGlobalConfig(current => current)'))
   check('…armed exactly once per process', /if \(deferredExitFlushArmed\) return\s*\n\s*deferredExitFlushArmed = true/.test(cfgSrc))
   const printSrc = readFileSync(join(ROOT, 'src/cli/print.ts'), 'utf8')
-  check('the headless entry still stamps its activity at entry', /noteHeadlessActivity\(\s*\n?\s*options\.outputFormat === 'stream-json' && streamingInput \? 'sdk' : 'print',?\s*\n?\s*\)/.test(printSrc))
+  check('the headless entry still stamps its activity at entry', /noteHeadlessActivity\(\s*\n?\s*options\.outputFormat === 'rows' && streamingInput \? 'sdk' : 'print',?\s*\n?\s*\)/.test(printSrc))
 }
 
 rmSync(HOME, { recursive: true, force: true })
