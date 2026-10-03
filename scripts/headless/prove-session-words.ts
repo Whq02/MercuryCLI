@@ -71,9 +71,10 @@ try {
     check(`${word} serves its command help`, help.code === 0 && (help.out.includes(`Usage: mercury ${word}`) || (word === 'daemon' && help.out.includes('usage: mercury daemon'))), JSON.stringify(help))
   }
   const help = await run(['run', '--help'])
-  for (const word of ['--log-file', '--lean', '--schema', '--budget', '--toolset', '--block-tools', '--mcp', '--only-mcp', '--brief', '--brief-add', '--fork', '--pr', '--ephemeral', '--provider-preview', '--backup-model', '--project', '--config', '--title', '--agent-defs', '--config-layers', '--no-commands', '--multiplex']) {
+  for (const word of ['--log-file', '--lean', '--schema', '--budget', '--toolset', '--block-tools', '--mcp', '--only-mcp', '--brief', '--brief-add', '--fork', '--ephemeral', '--provider-preview', '--backup-model', '--project', '--config', '--title', '--agent-defs', '--config-layers', '--no-commands']) {
     check(`${word} appears in the run grammar`, help.code === 0 && help.out.includes(word))
   }
+  for (const word of ['--pr', '--multiplex', '--chat', '--concourse-off', '--concourse-on']) check(`${word} is not in the run grammar — an interactive boot's switch`, !new RegExp(`^\\s*${word}(\\s|$)`, 'm').test(help.out))
   check('advisor help describes a run', help.out.includes('for this run at birth') && !help.out.includes('print run'))
   for (const [flag, value] of [['--reasoning-mode', 'disabled'], ['--budget', '2'], ['--schema', '{}'], ['--draft', 'x'], ['--replay-to', 'id'], ['--restore-files', 'id'], ['--backup-model', 'fixture'], ['--meter-tag', 'job'], ['--title', 'name'], ['--agent-defs', '{}'], ['--seat-id', 'id'], ['--seat', 'name'], ['--crew', 'name'], ['--seat-color', 'blue'], ['--parent', 'id'], ['--role', 'worker']]) {
     const parsed = await run(['run', flag!, value!, '--help'])
