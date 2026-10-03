@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { isOutcome, parseRow } from '../../src/rows/read.ts'
 import { RUNNER_PROTOCOL } from '../../src/runner/wire/methods.ts'
 import { createPeer } from '../../src/runner/wire/peer.ts'
 import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
@@ -159,11 +160,10 @@ function runOnce(argvExtra: string[], prompt: string): { models: string[]; statu
   const models: string[] = []
   let status = ''
   for (const line of out.split('\n')) {
-    try {
-      const e = JSON.parse(line)
-      if (e.type === 'step' && e.model && !models.includes(e.model)) models.push(e.model)
-      if (e.type === 'outcome') status = String(e.status ?? '')
-    } catch {  }
+    const row = parseRow(line)
+    if (row === null) continue
+    if (row.type === 'step' && typeof row.model === 'string' && !models.includes(row.model)) models.push(row.model)
+    if (isOutcome(row)) status = String(row.status ?? '')
   }
   return { models, status }
 }
@@ -188,11 +188,12 @@ check('stream session exited cleanly', exit === 0, `exit=${exit}`)
 check('5 turns observed', turns.length === 5)
 const [t1, t2, t3, t4, t5] = turns
 check(`T1 fresh default resolves the frontier policy (${DEFAULT_FABLE} init)`, bareId(t1?.initModel) === DEFAULT_FABLE, t1?.initModel)
-check(`T1 served by ${DEFAULT_FABLE} (API truth)`, t1?.assistantModels.every(m => bareId(m) === DEFAULT_FABLE) === true, t1?.assistantModels.join(','))
-check('T2 still fable, same session', t2?.assistantModels.every(m => bareId(m) === DEFAULT_FABLE) === true, t2?.assistantModels.join(','))
-check('T3 explicit opus wins for the turn', t3?.assistantModels.every(m => m === DEFAULT_OPUS) === true, t3?.assistantModels.join(','))
-check('T4 default returns through the frontier decision', t4?.assistantModels.every(m => bareId(m) === DEFAULT_FABLE) === true, t4?.assistantModels.join(','))
-check('T5 stays on the default', t5?.assistantModels.every(m => bareId(m) === DEFAULT_FABLE) === true, t5?.assistantModels.join(','))
+const servedBy = (t: TurnObs | undefined, want: (m: string) => boolean): boolean => t !== undefined && t.assistantModels.length > 0 && t.assistantModels.every(want)
+check(`T1 served by ${DEFAULT_FABLE} (API truth)`, servedBy(t1, m => bareId(m) === DEFAULT_FABLE), t1?.assistantModels.join(','))
+check('T2 still fable, same session', servedBy(t2, m => bareId(m) === DEFAULT_FABLE), t2?.assistantModels.join(','))
+check('T3 explicit opus wins for the turn', servedBy(t3, m => m === DEFAULT_OPUS), t3?.assistantModels.join(','))
+check('T4 default returns through the frontier decision', servedBy(t4, m => bareId(m) === DEFAULT_FABLE), t4?.assistantModels.join(','))
+check('T5 stays on the default', servedBy(t5, m => bareId(m) === DEFAULT_FABLE), t5?.assistantModels.join(','))
 check('every turn completed', turns.every(t => t.status === 'completed'), turns.map(t => t.status).join(','))
 
 const jsonl = readFileSync(sessionJsonlPath(sid), 'utf8')
