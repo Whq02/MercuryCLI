@@ -234,10 +234,10 @@ section('§6 WIRING (DR-08)')
     ),
   )
   check('no call site discards a release receipt (bare await)', !bare)
-  const doctor = src('src/utils/healthReport.ts')
+  const health = src('src/utils/healthReport.ts')
   check(
-    '/doctor carries the pid-lock-release row reading the health accessor',
-    doctor.includes("id: 'pid-lock-release'") && doctor.includes('pidLockReleaseHealth'),
+    '/health carries the pid-lock-release row reading the health accessor',
+    health.includes("id: 'pid-lock-release'") && health.includes('pidLockReleaseHealth'),
   )
 }
 

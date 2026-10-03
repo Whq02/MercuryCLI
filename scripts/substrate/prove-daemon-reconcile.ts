@@ -252,7 +252,7 @@ check(
 const headlessTs = src('src/daemon/headlessRun.ts')
 check('headless settle ledgers an exit row', headlessTs.includes('recordSpawnExit'))
 check(
-  'doctor daemon row runs the reconcile (verb-path cleanup)',
+  'health daemon row runs the reconcile (verb-path cleanup)',
   src('src/utils/healthReport.ts').includes('reconcileDaemonRecords'),
 )
 check(

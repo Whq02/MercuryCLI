@@ -157,16 +157,16 @@ section('§5 wiring anchors')
   check('trace teardown registers one final attempt + notice', traceTs.includes('registerCleanup(') && traceTs.includes('unflushed'))
   const clockTs = src('src/utils/cache/cacheClock.ts')
   check('cache-clock teardown registers one final attempt + notice', clockTs.includes('registerCleanup(') && clockTs.includes('unflushed'))
-  const doctorTs = src('src/utils/healthReport.ts')
+  const healthTs = src('src/utils/healthReport.ts')
   check(
-    '/doctor carries freshness probes for all three ledgers',
-    doctorTs.includes("id: 'history'") &&
-      doctorTs.includes("id: 'invocation-trace'") &&
-      doctorTs.includes("id: 'cache-clock'"),
+    '/health carries freshness probes for all three ledgers',
+    healthTs.includes("id: 'history'") &&
+      healthTs.includes("id: 'invocation-trace'") &&
+      healthTs.includes("id: 'cache-clock'"),
   )
   check(
-    'the doctor probes read the owners’ health accessors',
-    doctorTs.includes('getTraceFlushHealth') && doctorTs.includes('getCacheClockFlushHealth'),
+    'the health probes read the owners’ health accessors',
+    healthTs.includes('getTraceFlushHealth') && healthTs.includes('getCacheClockFlushHealth'),
   )
 }
 
