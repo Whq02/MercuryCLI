@@ -90,7 +90,7 @@ function runHeadless(world: World, fixture: FixtureApi, prompt: string): Promise
     child.stderr.on('data', d => (stderr += String(d)))
     child.on('close', exit => finish(exit))
     child.on('error', () => finish(null))
-    child.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content: prompt } }) + '\n')
+    child.stdin.write(JSON.stringify({ type: 'prompt', content: prompt }) + '\n')
   })
 }
 
