@@ -19,7 +19,7 @@ const BOOT_RECOVERY_BUDGET_MS = 3_000;
 
 export async function launchChat(root: Root, appProps: AppWrapperProps, chatProps: ChatProps, renderAndRun: (root: Root, element: React.ReactNode) => Promise<void>, mcpSeed?: McpSeed): Promise<void> {
   const { profileCheckpoint } = await import('./utils/startupProfiler.js');
-  profileCheckpoint('launch_repl_start');
+  profileCheckpoint('launch_chat_start');
   try {
     const { getProjectRoot, getSessionId } = await import('./bootstrap/state.js');
     const { runBootRecovery } = await import('./substrate/recoveryOrchestrator.js');
@@ -71,7 +71,7 @@ export async function launchChat(root: Root, appProps: AppWrapperProps, chatProp
     if (foldBudgetTimer !== undefined) clearTimeout(foldBudgetTimer);
   } catch {
   }
-  profileCheckpoint('launch_repl_after_recovery');
+  profileCheckpoint('launch_chat_after_recovery');
   const surfaceRoute = await import('./context/surfaceRoute.js');
   const {
     App
@@ -80,7 +80,7 @@ export async function launchChat(root: Root, appProps: AppWrapperProps, chatProp
     SurfaceRouter
   } = await import('./components/SurfaceRouter.js');
   const initialSurface = await surfaceRoute.resolveInitialSurface();
-  profileCheckpoint('launch_repl_after_surface_resolution');
+  profileCheckpoint('launch_chat_after_surface_resolution');
   const {
     Chat
   } = await import('./screens/Chat.js');
@@ -92,7 +92,7 @@ export async function launchChat(root: Root, appProps: AppWrapperProps, chatProp
   } = await import('./services/mcp/dynamicMcpSeed.js');
   seedDynamicMcpConfig(mcpSeed?.dynamicMcpConfig, mcpSeed?.isStrictMcpConfig ?? false);
   surfaceRoute.initializeSurfaceRoute(initialSurface.effective);
-  profileCheckpoint('launch_repl_after_paint_imports');
+  profileCheckpoint('launch_chat_after_paint_imports');
   await renderAndRun(root, <App {...appProps}>
       <SeededMCPConnectionManager>
         <SurfaceRouter>
