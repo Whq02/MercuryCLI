@@ -1,13 +1,10 @@
 import { z } from 'zod/v4'
 import { lazySchema } from '../utils/lazySchema.js'
-import { HOOK_EVENTS, type AsyncHookJSONOutput, type HookEvent, type HookInput, type HookJSONOutput, type SyncHookJSONOutput } from '../utils/hooks/contract.js'
+import { type AsyncHookJSONOutput, type HookEvent, type HookInput, type HookJSONOutput, type SyncHookJSONOutput } from '../utils/hooks/contract.js'
 import { permissionUpdateSchema } from '../utils/permissions/PermissionUpdateSchema.js'
 import type { PermissionUpdate } from './permissions.js'
 import type { AppState } from '../state/AppState.js'
 
-export function isHookEvent(value: string): value is HookEvent {
-  return (HOOK_EVENTS as readonly string[]).includes(value)
-}
 
 export const promptRequestSchema = lazySchema(() =>
   z.object({

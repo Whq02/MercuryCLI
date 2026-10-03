@@ -1,5 +1,4 @@
 import { flagEnv } from '../substrate/flagRegistry.js'
-import { setMockBillingAccessOverride } from '../utils/billing.js'
 import type { RateLimitType } from './claudeAiLimits.js'
 import { FIRST_WARNING_PCT } from './providers/usageTiers.js'
 
@@ -420,16 +419,6 @@ export function getMockHeaderless429Message(): string | null {
   return headerless429Message
 }
 
-export function clearMockHeaders(): void {
-  const hadPools = Object.keys(scenarioPools).length > 0
-  mockHeaders = {}
-  exceededLimits = []
-  headerless429Message = null
-  enabled = false
-  scenarioPools = {}
-  setMockBillingAccessOverride(null)
-  if (hadPools) foldScenarioPools()
-}
 
 export function shouldProcessMockLimits(): boolean {
   if (!isArmed()) return false
@@ -466,14 +455,6 @@ export function setMockSubscriptionType(type: string | null): void {
   void type
 }
 
-export function getMockSubscriptionType(): null {
-  return null
-}
-
 export function shouldUseMockSubscription(): boolean {
   return false
-}
-
-export function setMockBillingAccess(value: boolean | null): void {
-  void value
 }

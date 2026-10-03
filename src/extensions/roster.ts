@@ -24,10 +24,6 @@ export function setActiveSnapshot(snapshot: ActiveSnapshot | null): void {
   activeSnapshot = snapshot
 }
 
-export function getActiveSnapshot(): ActiveSnapshot | null {
-  return activeSnapshot
-}
-
 
 export type RosterInput = {
   cwd?: string

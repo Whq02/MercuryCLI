@@ -306,9 +306,6 @@ export function armDesktopClaimPoll(active: boolean): void {
   publishFileView(IDLE_DESKTOP_SNAPSHOT)
 }
 
-export function desktopClaimPollArmed(): boolean {
-  return poll !== null
-}
 
 subscribeFocusedSessionConnector(() => {
   pollGeneration++
@@ -330,11 +327,6 @@ export function desktopClaimBusyNote(holder: PidLockHolder | null): string {
   return `another session is driving the desktop (pid ${holder.pid}, for ${claimAgeWords(Date.now() - holder.acquiredAt)}) — one driver at a time; wait for its turn to end`
 }
 
-export async function resetDesktopClaimForTest(): Promise<void> {
-  await releaseDesktopClaim()
-  armDesktopClaimPoll(false)
-  owner = null
-}
 
 subscribeDesktop(() => {
   if (!held) return

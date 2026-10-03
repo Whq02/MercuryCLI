@@ -24,23 +24,3 @@ export const SHELL_KEYWORDS: Set<string> = new Set([
   'function',
   'select',
 ])
-
-type ParserModule = {
-  parse(source: string, timeoutMs?: number): TsNode | null
-}
-
-const parserModule: ParserModule = {
-  parse(): TsNode | null {
-    return null
-  },
-}
-
-const parserReady: Promise<void> = Promise.resolve()
-
-export function ensureParserInitialized(): Promise<void> {
-  return parserReady
-}
-
-export function getParserModule(): ParserModule {
-  return parserModule
-}

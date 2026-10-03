@@ -5,13 +5,12 @@ import { logForDebugging } from '../utils/debug.js'
 import { settingsChangeDetector } from '../utils/settings/changeDetector.js'
 import { getSettingsForSource } from '../utils/settings/settings.js'
 import { computeActiveSet, getActiveSet, hasActiveSet, publishActiveSet } from './active.js'
-import { healthLine, summariseHealth, type HealthSummary } from './health.js'
+import { summariseHealth, type HealthSummary } from './health.js'
 import { setExtensionKeybindingLayer } from '../keybindings/loadUserBindings.js'
 import { getExtensionKeybindingBlocks } from './load/keybindings.js'
 import { logAct } from './records.js'
 import { bootExtensions, reloadExtensions, type ReloadResult } from './reload.js'
-import { activeEntries, trustStateOf } from './roster.js'
-import type { RosterEntry } from './types.js'
+import { activeEntries } from './roster.js'
 
 
 let bootPromise: Promise<ReloadResult> | null = null
@@ -129,13 +128,4 @@ export function extensionReadinessRows(): ReadinessRow[] {
     rows.push({ id: `extension:${broken.id}:broken`, kind: 'extension', label: broken.id, state: 'failed', detail: broken.reason, remedy: '/extensions shows the reason; x uninstalls a copy whose folder is gone', source })
   }
   return rows
-}
-
-export function rosterStateLines(entries: RosterEntry[]): Array<{ id: string; state: string }> {
-  const set = hasActiveSet() ? getActiveSet() : null
-  return entries.map(entry => {
-    const health = set?.healthById.get(entry.id) ?? null
-    const trust = trustStateOf(entry)
-    return { id: entry.id, state: trust === 'on' && health ? healthLine(health) : trust }
-  })
 }

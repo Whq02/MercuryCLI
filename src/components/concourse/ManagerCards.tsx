@@ -13,9 +13,6 @@ import { planCardLayout } from './planCardLayout.js'
 
 const CUSTOM_VALUE = '__custom__'
 
-export interface ManagerAskCardAnswer {
-  text: string
-}
 
 export function ManagerAskCard({
   ask,

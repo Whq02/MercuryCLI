@@ -22,9 +22,6 @@ export function registerPostSamplingHook(hook: PostSamplingHook): void {
   hooks.push(hook)
 }
 
-export function clearPostSamplingHooks(): void {
-  hooks.length = 0
-}
 
 export async function executePostSamplingHooks(
   messages: Message[],

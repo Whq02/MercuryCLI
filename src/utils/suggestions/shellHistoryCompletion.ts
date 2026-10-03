@@ -44,12 +44,3 @@ export async function getShellHistoryCompletion(input: string): Promise<ShellHis
   }
   return null
 }
-
-export function clearShellHistoryCache(): void {
-  corpusCache = null
-}
-
-export function prependToShellHistoryCache(command: string): void {
-  if (corpusCache === null) return
-  corpusCache.commands = [command, ...corpusCache.commands.filter(existing => existing !== command)]
-}

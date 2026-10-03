@@ -131,11 +131,6 @@ export function noteSlowLayout(
   )
 }
 
-export function noteSlowPaint(ms: number): void {
-  if (!COMMIT_LOG_PATH || ms <= 10) return
-  commitLog(`slow-paint ${ms.toFixed(1)}ms`)
-}
-
 
 type Props = Record<string, unknown>
 type HostContext = { isInsideText: boolean }

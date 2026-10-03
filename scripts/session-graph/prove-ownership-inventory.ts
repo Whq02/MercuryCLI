@@ -67,7 +67,7 @@ const INVENTORY: Record<string, string[]> = {
   'createShutdownRequestMessage': ['src/tools/SendMessageTool/SendMessageTool.ts'],
   'isShutdownRequest': ['src/components/messages/ShutdownMessage.tsx', 'src/utils/swarm/inProcessRunner.ts'],
   'createShutdownApprovedMessage': ['src/tools/SendMessageTool/SendMessageTool.ts', 'src/utils/swarm/inProcessRunner.ts'],
-  'isShutdownApproved': ['src/cli/print.ts', 'src/components/messages/ShutdownMessage.tsx', 'src/utils/attachments/crewmates.ts'],
+  'isShutdownApproved': ['src/cli/print.ts', 'src/components/messages/AttachmentMessage.tsx', 'src/components/messages/UserCrewmateMessage.tsx', 'src/utils/attachments/crewmates.ts'],
   'createShutdownRejectedMessage': ['src/tools/SendMessageTool/SendMessageTool.ts'],
   'isShutdownRejected': ['src/components/messages/ShutdownMessage.tsx'],
   'isTaskAssignment': ['src/components/messages/TaskAssignmentMessage.tsx'],

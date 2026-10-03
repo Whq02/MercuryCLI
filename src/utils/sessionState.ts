@@ -14,9 +14,6 @@ export type RequiresActionDetails = {
 let currentState: SessionState = 'idle'
 let permissionModeListener: ((mode: PermissionMode) => void) | null = null
 
-export function getSessionState(): SessionState {
-  return currentState
-}
 
 export function setPermissionModeChangedListener(listener: ((mode: PermissionMode) => void) | null): void {
   permissionModeListener = listener

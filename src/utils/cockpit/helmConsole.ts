@@ -156,9 +156,6 @@ export function getConsoleCursor(): number {
   return cursor
 }
 
-export function isConsoleRecalling(): boolean {
-  return histIdx !== null
-}
 
 export function getConsolePending(): { question: string; startedAt: number } | null {
   return pendingPublic

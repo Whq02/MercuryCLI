@@ -284,7 +284,3 @@ registerCleanup(async () => {
 })
 
 export const subscribeToKeybindingChanges = changes.subscribe
-
-export function getCachedKeybindingWarnings(): KeybindingWarning[] {
-  return cached?.warnings ?? []
-}

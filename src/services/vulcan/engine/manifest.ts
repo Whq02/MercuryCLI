@@ -98,9 +98,6 @@ export function parseEngineMarker(raw: unknown): EngineMarker | null {
   return null
 }
 
-export function describeMarker(marker: EngineMarker): string {
-  return marker.kind === 'line' ? marker.text : `/${marker.source}/${marker.flags}`
-}
 
 export function markerLineOf(marker: EngineMarker, output: string): string | null {
   const re = marker.kind === 'pattern' ? new RegExp(marker.source, marker.flags) : null

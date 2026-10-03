@@ -79,9 +79,6 @@ export function turnSignals(): TurnSignals {
   return signals
 }
 
-export function getTurnSignalsVersion(): number {
-  return version
-}
 
 export function subscribeTurnSignals(cb: () => void): () => void {
   listeners.add(cb)

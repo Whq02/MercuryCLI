@@ -14,9 +14,6 @@ function emitChange(): void {
   }
 }
 
-export function setClassifierApproval(toolUseID: string, matchedRule: string): void {
-  return
-}
 
 export function getClassifierApproval(toolUseID: string): string | undefined {
   return undefined
@@ -38,16 +35,6 @@ export function clearClassifierChecking(toolUseID: string): void {
   return
 }
 
-export const subscribeClassifierChecking = (onChange: () => void): (() => void) => {
-  listeners.add(onChange)
-  return () => {
-    listeners.delete(onChange)
-  }
-}
-
-export function isClassifierChecking(toolUseID: string): boolean {
-  return checking.has(toolUseID)
-}
 
 export function deleteClassifierApproval(toolUseID: string): void {
   approvals.delete(toolUseID)

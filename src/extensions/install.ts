@@ -539,9 +539,3 @@ export function recordBundledApproval(name: string, root: string, mercuryVersion
   updateInstalled(current => ({ ...current, [id]: record }))
   return record
 }
-
-export function clearBundledNote(id: string): void {
-  const record = installedOrEmpty()[id]
-  if (!record || !record.bundledNote) return
-  updateInstalled(current => ({ ...current, [id]: { ...record, bundledNote: null } }))
-}

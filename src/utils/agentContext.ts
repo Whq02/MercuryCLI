@@ -48,12 +48,6 @@ export function isCrewmateAgentContext(context: AgentContext | undefined): conte
   return context !== undefined && context.agentType === 'crewmate'
 }
 
-export function getSubagentLogName(): string | undefined {
-  const context = getAgentContext()
-  if (!context || !isSubagentContext(context)) return undefined
-  if (!context.subagentName) return undefined
-  return context.isBuiltIn ? context.subagentName : 'user-defined'
-}
 
 export function consumeInvokingRequestId():
   | { invokingRequestId: string; invocationKind?: 'spawn' | 'resume' }

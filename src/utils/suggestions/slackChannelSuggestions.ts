@@ -39,13 +39,6 @@ const knownChannels = new Set<string>()
 let knownChannelsVersion = 0
 const knownChannelsSignal = createSignal<[]>()
 
-export function getKnownChannelsVersion(): number {
-  return knownChannelsVersion
-}
-
-export function subscribeKnownChannels(listener: () => void): () => void {
-  return knownChannelsSignal.subscribe(listener)
-}
 
 function recordKnownChannels(channels: string[]): void {
   let grew = false
@@ -166,11 +159,4 @@ export function findSlackChannelPositions(text: string): Array<{ start: number; 
     positions.push({ start, end: start + (match[2] as string).length })
   }
   return positions
-}
-
-export function clearSlackChannelCache(): void {
-  responseCache.clear()
-  inFlight.clear()
-  knownChannels.clear()
-  knownChannelsVersion = 0
 }

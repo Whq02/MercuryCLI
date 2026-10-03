@@ -9,11 +9,3 @@ export type ConnectorTextDelta = {
   connector_text: string;
   [key: string]: unknown;
 };
-
-export function isConnectorTextBlock(block: unknown): block is ConnectorTextBlock {
-  return (
-    typeof block === 'object' &&
-    block !== null &&
-    (block as { type?: unknown }).type === 'connector_text'
-  );
-}

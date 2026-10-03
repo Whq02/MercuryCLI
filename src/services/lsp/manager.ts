@@ -135,10 +135,3 @@ export async function releaseLspDocumentsForContext(reason: string): Promise<num
   }
   return closed
 }
-
-export function _resetLspManagerForTesting(): void {
-  initState = 'not-started'
-  initError = undefined
-  initPromise = undefined
-  initGeneration++
-}

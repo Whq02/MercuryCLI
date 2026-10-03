@@ -267,11 +267,6 @@ export function getTokenRevokedErrorMessage(): string {
   return 'Your OAuth token has been revoked — run /logins.'
 }
 
-export function getOauthOrgNotAllowedErrorMessage(): string {
-  if (getIsNonInteractiveSession()) return OAUTH_ORG_NOT_ALLOWED_ERROR_MESSAGE
-  return 'Your account does not have access to Mercury — run /logins.'
-}
-
 
 export function streamFaultAfterPartialText(provider: string, code: string, message: string): string {
   return `${API_ERROR_MESSAGE_PREFIX}: ${provider} ${STREAM_FAULT_AFTER_PARTIAL_MARKER} (${code}) — ${message}`

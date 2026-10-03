@@ -63,9 +63,6 @@ ${idePara}`
   return section
 }
 
-export function _resetRunProtocolForTesting(): void {
-  memo.clear()
-}
 
 export function getRunProtocolDelta(tools: Tools, messages: readonly Message[]): { tools: string[]; body: string } | null {
   const initial = getSystemPromptSectionCache().get('run_protocol')?.value

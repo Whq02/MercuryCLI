@@ -77,7 +77,3 @@ export function listPatchRegisters(owner: OwnerKey): Array<{ name: string } & Pa
   if (!state) return []
   return [...state.registers.entries()].map(([name, r]) => ({ name, ...r }))
 }
-
-export function _resetPatchRegistersForTesting(): void {
-  store.clearAllForShutdown()
-}

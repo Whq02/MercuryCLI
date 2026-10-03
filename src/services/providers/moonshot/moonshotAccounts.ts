@@ -578,7 +578,3 @@ export async function resolveMoonshotDispatchCredential(
   const stored = readStoredMoonshotApiKey()
   return stored ? { apiKey: stored, requestUrl: moonshotChatCompletionsUrl(env), source: 'stored', accountIdentity: credentialFingerprint(stored) } : undefined
 }
-
-export function __resetMoonshotAccountsForTest(): void {
-  refreshInFlight = null
-}

@@ -113,7 +113,6 @@ function parseMetaOutput(output: string): Win32ProcMeta {
 
 const DEFAULT_META_MAX_AGE_MS = 10_000
 const metaCache = new Map<number, { at: number; meta: Win32ProcMeta }>()
-const inFlightMeta = new Map<number, Promise<Win32ProcMeta | null>>()
 
 function cachedMeta(pid: number, maxAgeMs: number): Win32ProcMeta | null {
   const entry = metaCache.get(pid)
@@ -137,28 +136,4 @@ export function getWin32ProcessMeta(pid: number, opts?: { maxAgeMs?: number }): 
   const meta = parseMetaOutput(result.stdout ?? '')
   rememberMeta(pid, meta)
   return meta
-}
-
-export function getWin32ProcessMetaAsync(pid: number, opts?: { maxAgeMs?: number }): Promise<Win32ProcMeta | null> {
-  const cached = cachedMeta(pid, opts?.maxAgeMs ?? DEFAULT_META_MAX_AGE_MS)
-  if (cached) return Promise.resolve(cached)
-  const existing = inFlightMeta.get(pid)
-  if (existing) return existing
-  const pending = (async (): Promise<Win32ProcMeta | null> => {
-    try {
-      const result = await execFileNoThrow(
-        win32PowerShellExe(),
-        ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-Command', metaScript(pid)],
-        { timeout: 3000 },
-      )
-      if (result.code !== 0 && result.stdout === '') return null
-      const meta = parseMetaOutput(result.stdout)
-      rememberMeta(pid, meta)
-      return meta
-    } finally {
-      inFlightMeta.delete(pid)
-    }
-  })()
-  inFlightMeta.set(pid, pending)
-  return pending
 }

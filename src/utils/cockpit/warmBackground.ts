@@ -2,7 +2,7 @@
 import { NIGHT } from '../../components/mercuryPalette.js'
 import { osc } from '../../ink/termio/osc.js'
 import { isEnvTruthy } from '../envUtils.js'
-import { _resetGroundForTest, exitOasisBg, noteOriginalGroundReply } from './oasisBg.js'
+import { exitOasisBg, noteOriginalGroundReply } from './oasisBg.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
 const OSC_BG = 11
@@ -20,8 +20,4 @@ export function applyWarmBackground(
 
 export function restoreOriginalBackground(): void {
   exitOasisBg()
-}
-
-export function _resetWarmBackgroundForTest(): void {
-  _resetGroundForTest()
 }

@@ -155,9 +155,6 @@ export function screenshotPathForToolUse(toolUseId: string): string | null {
   return screenshotRegistry.get(toolUseId)?.path ?? null
 }
 
-export function registeredScreenshotCount(): number {
-  return screenshotRegistry.size
-}
 
 export function forgetDesktopOwner(owner: OwnerKey): void {
   ownerStates.dispose(owner)

@@ -280,7 +280,3 @@ export function getHooksForMatcher(
 ): IndividualHookConfig[] {
   return hooksByEventAndMatcher[event]?.[matcher ?? ''] ?? []
 }
-
-export function getMatcherMetadata(event: HookEvent, toolNames: string[]): MatcherMetadata | undefined {
-  return getHookEventMetadata(toolNames)[event]?.matcherMetadata
-}

@@ -459,7 +459,3 @@ function isDirFsyncUnsupported(e: unknown): boolean {
     code === 'EBADF'
   )
 }
-
-export function _resetSweepMemoForTests(): void {
-  sweptDirs.clear()
-}
