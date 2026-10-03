@@ -253,7 +253,7 @@ section('fast-path ports')
     r.decision.behavior === 'allow' && r.wrapper.decidedBy === 'implementFastPath',
     j({ decision: r.decision, decidedBy: r.wrapper.decidedBy }),
   )
-  checkSubsequenceLaw('acceptEdits fast-path', r.wrapper)
+  checkSubsequenceLaw('implement fast-path', r.wrapper)
 
   r = await run(makeTool(), makeContext({ mode: 'flow' }), makePorts({ isAllowlistedTool: () => true }))
   check(

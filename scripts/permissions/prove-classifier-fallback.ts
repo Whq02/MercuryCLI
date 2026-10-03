@@ -14,16 +14,16 @@ const j = (v: unknown): string => JSON.stringify(v)
 
 console.log('— §1 the wrapper + chain (source pins) —')
 
-const yolo = readFileSync('src/utils/permissions/flowClassifier.ts', 'utf8')
+const flow = readFileSync('src/utils/permissions/flowClassifier.ts', 'utf8')
 
-t('classifyFlowActionWithFallback exported', yolo.includes('export async function classifyFlowActionWithFallback('))
-t('fallback chain declared', /CLASSIFIER_FALLBACK_MODELS = \[\s*'claude-sonnet-5',\s*'claude-opus-5',\s*\] as const/.test(yolo))
-t('chain is Haiku-free (the model rule)', !/haiku/i.test(yolo.slice(yolo.indexOf('CLASSIFIER_FALLBACK_MODELS'), yolo.indexOf('CLASSIFIER_FALLBACK_MODELS') + 400)))
+t('classifyFlowActionWithFallback exported', flow.includes('export async function classifyFlowActionWithFallback('))
+t('fallback chain declared', /CLASSIFIER_FALLBACK_MODELS = \[\s*'claude-sonnet-5',\s*'claude-opus-5',\s*\] as const/.test(flow))
+t('chain is Haiku-free (the model rule)', !/haiku/i.test(flow.slice(flow.indexOf('CLASSIFIER_FALLBACK_MODELS'), flow.indexOf('CLASSIFIER_FALLBACK_MODELS') + 400)))
 
 console.log('— retry conditions (fail-closed contract intact) —')
-const wrapper = yolo.slice(
-  yolo.indexOf('export async function classifyFlowActionWithFallback'),
-  yolo.indexOf('function getClassifierModelChain'),
+const wrapper = flow.slice(
+  flow.indexOf('export async function classifyFlowActionWithFallback'),
+  flow.indexOf('function getClassifierModelChain'),
 )
 t('no retry unless unavailable', wrapper.includes('if (!primary.unavailable || primary.transcriptTooLong || signal.aborted)'))
 t('a fallback that is ALSO unavailable keeps falling through', wrapper.includes('if (!next.unavailable) return next'))
@@ -31,18 +31,18 @@ t('abort/too-long during fallback returns immediately', wrapper.includes('if (ne
 t('exhausted chain returns the PRIMARY verdict (original fail-closed message)', /return primary\s*\}\s*$/m.test(wrapper))
 const routedSource = readFileSync('src/utils/permissions/classifierRouted.ts', 'utf8')
 t('same-model skip ignores the [1m]-style tag', routedSource.includes("m.replace(/\\[[^\\]]*\\]\\s*$/, '')"))
-t('flowClassifier walks with the shared base-model law', yolo.includes('const baseModel = classifierBaseModel'))
+t('flowClassifier walks with the shared base-model law', flow.includes('const baseModel = classifierBaseModel'))
 
 console.log('— the unreadable verdict: one same-model re-ask, then its own outcome —')
-const unreadableAt = yolo.indexOf('function unreadableVerdict(')
-const unreadableOwner = yolo.slice(unreadableAt, yolo.indexOf('\n}\n', unreadableAt))
+const unreadableAt = flow.indexOf('function unreadableVerdict(')
+const unreadableOwner = flow.slice(unreadableAt, flow.indexOf('\n}\n', unreadableAt))
 t('the unreadable-verdict owner marks retryable AND unreadable', /retryable: true,\s*\n\s*unreadable: true,/.test(unreadableOwner))
 t('…and carries the issues for the words', unreadableOwner.includes('verdictIssues: args.issues'))
 t('…and dumps the evidence on the error-dump road', unreadableOwner.includes('writeErrorDump(args.evidence.dumpText'))
 t('…logging the redacted line', unreadableOwner.includes('logForDebugging(args.evidence.logLine'))
-t('the no-tool-block branch routes through the owner', /if \(!toolUse\) \{[\s\S]{0,700}return unreadableVerdict\(\{[\s\S]{0,120}reason: 'The classifier answered without a tool-use block — blocking for safety\.'/.test(yolo))
-t('the schema-miss branch routes through the owner', /if \(!read\.ok\) \{[\s\S]{0,200}return unreadableVerdict\(\{[\s\S]{0,120}reason: 'The classifier response did not parse — blocking for safety\.'/.test(yolo))
-t('exactly the owner sets retryable (the unavailable catch is NOT retryable)', (yolo.match(/retryable: true/g) ?? []).length === 1)
+t('the no-tool-block branch routes through the owner', /if \(!toolUse\) \{[\s\S]{0,700}return unreadableVerdict\(\{[\s\S]{0,120}reason: 'The classifier answered without a tool-use block — blocking for safety\.'/.test(flow))
+t('the schema-miss branch routes through the owner', /if \(!read\.ok\) \{[\s\S]{0,200}return unreadableVerdict\(\{[\s\S]{0,120}reason: 'The classifier response did not parse — blocking for safety\.'/.test(flow))
+t('exactly the owner sets retryable (the unavailable catch is NOT retryable)', (flow.match(/retryable: true/g) ?? []).length === 1)
 t('wrapper gates the retry on retryable + not-aborted', wrapper.includes('if (primary.retryable && !signal.aborted)'))
 t('wrapper re-asks the SAME model', /const retry = await classifyFlowAction\([^)]*primary\.model,\s*\)/s.test(wrapper))
 t('a second failure keeps the unreadable outcome (the retry stays one)', /if \(retry\.retryable\) \{[\s\S]{0,400}return retry\s*\}/.test(wrapper))
@@ -53,7 +53,7 @@ t('result type carries retryable, unreadable and the issues', resultType.include
 t('the routed transport marks its unparseable answer unreadable too', /unreadable: true,\s*\n\s*reason: 'Invalid classifier response - blocking for safety'/.test(routedSource))
 
 console.log('— gate honesty —')
-t('default-on gate', wrapper.includes('if (!classifierFallbackEnabled()) return primary') && yolo.includes("flagEnv('MERCURY_CLASSIFIER_FALLBACK') === '0'"))
+t('default-on gate', wrapper.includes('if (!classifierFallbackEnabled()) return primary') && flow.includes("flagEnv('MERCURY_CLASSIFIER_FALLBACK') === '0'"))
 const reg = readFileSync('src/substrate/flagRegistry.ts', 'utf8')
 t('flag registered', reg.includes("env: 'MERCURY_CLASSIFIER_FALLBACK'"))
 
@@ -66,8 +66,8 @@ const agent = readFileSync('src/tools/AgentTool/agentToolUtils.ts', 'utf8')
 t('agentToolUtils.ts carries NO classifier call (handback review removed)', !agent.includes('classifyFlowAction'))
 
 console.log('— the model override plumbs to the API attempt —')
-t('classifyFlowAction takes modelOverride', yolo.includes('modelOverride?: string,'))
-t('override wins over getClassifierModel()', yolo.includes('const model = modelOverride ?? getClassifierModel()'))
+t('classifyFlowAction takes modelOverride', flow.includes('modelOverride?: string,'))
+t('override wins over getClassifierModel()', flow.includes('const model = modelOverride ?? getClassifierModel()'))
 
 console.log('— §2 the verdict reader at runtime —')
 

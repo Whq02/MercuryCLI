@@ -26,7 +26,7 @@ function section(t: string): void {
 console.log("the auto-mode check wraps the project instructions in Mercury's element")
 
 await import('../../src/utils/permissions/decision/wrapper.ts')
-const yolo = await import('../../src/utils/permissions/flowClassifier.ts')
+const flow = await import('../../src/utils/permissions/flowClassifier.ts')
 const state = await import('../../src/bootstrap/state.ts')
 const reader = await import('../api/read-instruction-heading.ts')
 
@@ -34,9 +34,9 @@ const MARKER = 'ELEMENT-MARKER-51c2: never push without asking.'
 
 section('§1 the prefix: the cached project instructions ride inside <project_instructions>')
 {
-  check("the element is Mercury's word", yolo.CLASSIFIER_INSTRUCTIONS_ELEMENT === 'project_instructions')
-  const build = (yolo as { buildInstructionPrefix?: () => string | undefined }).buildInstructionPrefix ?? (() => undefined)
-  check('the prefix builder is a seam the proof can drive', typeof (yolo as { buildInstructionPrefix?: unknown }).buildInstructionPrefix === 'function')
+  check("the element is Mercury's word", flow.CLASSIFIER_INSTRUCTIONS_ELEMENT === 'project_instructions')
+  const build = (flow as { buildInstructionPrefix?: () => string | undefined }).buildInstructionPrefix ?? (() => undefined)
+  check('the prefix builder is a seam the proof can drive', typeof (flow as { buildInstructionPrefix?: unknown }).buildInstructionPrefix === 'function')
   state.setCachedInstructionPrompt(null)
   check('no project instructions ⇒ no prefix', build() === undefined)
   state.setCachedInstructionPrompt(MARKER)
@@ -50,7 +50,7 @@ section('§1 the prefix: the cached project instructions ride inside <project_in
 
 section('§2 both request roads carry the prefix as written')
 {
-  const requestOptions = (yolo as { classifierRequestOptions?: (args: unknown) => { messages: Array<{ role: string; content: unknown }> } }).classifierRequestOptions
+  const requestOptions = (flow as { classifierRequestOptions?: (args: unknown) => { messages: Array<{ role: string; content: unknown }> } }).classifierRequestOptions
   const options = requestOptions
     ? requestOptions({
         model: 'claude-opus-4-8',
