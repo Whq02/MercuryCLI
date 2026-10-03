@@ -1,4 +1,4 @@
-import { METHODS, RUNNER_PROTOCOL, methodsFrom, type Capabilities, type HostNotificationName, type HostRequestName, type InitializeParams, type InitializeResult, type ParamsOf, type ResultOf } from '../../runner/wire/methods.js'
+import { RUNNER_PROTOCOL, methodsFrom, type Capabilities, type HostNotificationName, type HostRequestName, type InitializeParams, type InitializeResult, type ParamsOf, type ResultOf } from '../../runner/wire/methods.js'
 import { refused } from '../../runner/wire/errors.js'
 import type { Peer } from '../../runner/wire/peer.js'
 
@@ -35,8 +35,4 @@ export function checkProtocol(params: InitializeParams): void {
   if (params.protocol !== RUNNER_PROTOCOL) {
     throw refused(`this runner speaks protocol ${RUNNER_PROTOCOL}; the host asked for ${params.protocol}`, 'protocol', { protocol: RUNNER_PROTOCOL })
   }
-}
-
-export function runnerMethodNames(): string[] {
-  return Object.keys(METHODS)
 }
