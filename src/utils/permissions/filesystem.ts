@@ -435,7 +435,7 @@ function readableInternalCategory(path: string): string | null {
   } catch {
   }
   if (isAgentMemory(path)) return 'agent-memory directory'
-  if (isAutoMemory(path)) return 'auto-memory directory'
+  if (isAutoMemory(path)) return 'memory directory'
   return null
 }
 

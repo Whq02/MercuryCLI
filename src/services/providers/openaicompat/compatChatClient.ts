@@ -1,4 +1,5 @@
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
+import { wrapFetchWithWireDump } from '../../api/dumpPrompts.js'
 import type { ZaiContentPart } from '../zai/zaiClient.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { SseDecoder } from '../sseDecoder.js'
@@ -480,7 +481,7 @@ export async function* streamCompatChat(
       void watchLoading().catch(() => undefined)
     }
     try {
-      const fetchImpl = options.fetchImpl ?? getApiFetch()
+      const fetchImpl = options.fetchImpl ?? wrapFetchWithWireDump(getApiFetch(), 'compat')
       const proxyOptions = options.fetchImpl ? {} : getProxyFetchOptions()
       const { extra, ...core } = request
       response = await fetchImpl(options.url, {

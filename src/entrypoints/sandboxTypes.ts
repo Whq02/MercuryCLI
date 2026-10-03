@@ -79,6 +79,10 @@ export const SandboxSettingsSchema = lazySchema(() =>
         .array(z.string())
         .optional()
         .describe('Commands excluded from sandboxing'),
+      enabledPlatforms: z
+        .array(z.string())
+        .optional()
+        .describe('The platforms the sandbox runs on (macos, linux, wsl); absent means every supported platform'),
       ripgrep: z
         .object({ command: z.string(), args: z.array(z.string()).optional() })
         .optional()

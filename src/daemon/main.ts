@@ -629,6 +629,7 @@ async function daemonRun(args: string[]): Promise<void> {
         )
         await persistSupervisorRecord(currentOwnerPid)
         const moved = renameSocketForPredecessor(handoverPredecessor)
+        handover.notePlaneMoved()
         const held = handover.heldRunners(handoverPredecessor).size
         // eslint-disable-next-line no-console
         console.error(`[daemon] handover from pid ${handoverPredecessor}: took the plane (v${currentVersion()} proto ${MERCURY_DAEMON_PROTO}); its socket ${moved ? `serves on at ${handover.sockPath}` : 'was not on the path'}; ${held > 0 ? `it keeps ${held} live session(s) until they finish` : 'it holds no live session — it leaves on its own, or is asked to once it reads idle'}`)

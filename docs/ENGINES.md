@@ -637,7 +637,7 @@ plist, the Ollama app, a systemd override, Windows, or unknown. Each knob row
 is a Mercury setting (`local.server` in the user settings) with the memory
 arithmetic beside it, read from the model geometry `/api/show` states: a
 slot costs a full window of cache, so one loaded copy with several slots
-serves a swarm where several copies would not fit. The ceiling the
+serves a crew where several copies would not fit. The ceiling the
 arithmetic measures against is the usable memory the server itself states —
 the `gpu memory … available` line in its log when Mercury can read it, else
 `iogpu.wired_limit_mb` when set, else about three quarters of unified memory

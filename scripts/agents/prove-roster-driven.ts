@@ -36,7 +36,6 @@ function seedWorld(): World {
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'roster-drive-cwd-')))
   writeFileSync(join(cwd, 'harbours.txt'), 'Dover\nHull\nLeith\n')
   seedFirstRun(home, [cwd])
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ permissions: { defaultMode: 'sovereign' } }, null, 2) + '\n')
   mkdirSync(join(home, 'agents'), { recursive: true })
   writeFileSync(join(home, 'agents', `${CUSTOM_AGENT}.md`), `---\nname: ${CUSTOM_AGENT}\ndescription: "Counts the harbours a file names; the owner's own agent kind."\ntools: Read, Glob\n---\n\n${CUSTOM_PROMPT}\n`)
   return { home, cwd }

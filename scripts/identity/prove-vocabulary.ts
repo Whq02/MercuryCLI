@@ -85,8 +85,10 @@ const RETIRED: Array<[string, RegExp, string[]]> = [
   ['push-notif-keys', asName(J('(?:taskComplete', 'NotifEnabled|inputNeeded', 'NotifEnabled|agentPush', 'NotifEnabled)')), ['NotifEnabled']],
   ['push-os-notification', asName(J('sendOS', 'Notification')), [J('sendOS', 'Notification')]],
   ['push-proof-name', new RegExp(J('prove-push-', 'notification-honest')), [J('prove-push-', 'notification')]],
+  ['rule-prefix-form', new RegExp('\\b(?:Bash|PowerShell|Skill)\\([^()\\n]*' + J(':', '\\*\\)') + "|(?<=['\"])" + J(':', '\\*') + "(?=['\"])"), [J(':', '*)'), J("':", "*'"), J('":', '*"')]],
+  ['rule-sentences', new RegExp(J('is blocked by a ', 'deny rule|', 'deny rule matched|requires ', 'confirmation for this (?:command|tool|edit|read)|Permission ', "rule '|by a permission ", 'rule|blocked by permission ', 'rules|denied by permission ', 'settings|blocked by a permission ', 'deny rule|Permission rules can be ', 'changed in /permissions|has been denied by ', 'permission rule|Permission to (?:read|edit) .* (?:has been ', 'denied|requires confirmation)')), [J('deny ', 'rule'), J('requires ', 'confirmation'), J('ermission ', 'rule'), J('permission ', 'settings'), J('Permission to ', 'read'), J('Permission to ', 'edit')]],
 ]
-const SETTINGS_SCOPE = /^(?:src\/|docs\/|README\.md$|scripts\/settings\/)/
+const SETTINGS_SCOPE = /^(?:src\/|docs\/|README\.md$|scripts\/)/
 const RETIRED_SETTINGS_ROOTS = [
   'apiKeyHelper', 'proxyAuthHelper', 'forceLoginMethod', 'forceLoginOrgUUID', 'fileSuggestion', 'respectGitignore', 'cleanupPeriodDays',
   'instructionExcludes', 'includeGitInstructions', 'instructionProfile', 'plansDirectory', 'showClearContextOnStrategyAccept', 'autoMemoryEnabled',
@@ -172,13 +174,15 @@ const ALLOW: Array<[string, string, string]> = [
   ['src/constants/changelog.ts', 'retired', 'a published record keeps its lines'],
   ['docs/releases/', 'retired', 'published release pages keep their lines'],
   ['scripts/identity/prove-release-notes-words.ts', 'retired', 'the release-notes word list — a forbidden-words list under scripts/identity'],
-  ['scripts/identity/prove-retired-keys-unknown.ts', 'retired', 'the retired settings keys it proves unknown — a forbidden-words list under scripts/identity'],
+  ['scripts/identity/prove-retired-keys-unknown.ts', 'retired,settings', 'the retired settings keys it proves unknown — a forbidden-words list under scripts/identity'],
+  ['scripts/computer/prove-computer-readiness.ts', 'settings', "the desktop scene file's own permissions record, not a settings key"],
   ['scripts/sessionStorage/prove-old-transcript-kinds-parse.ts', 'agent-type-general-purpose,option-crew-words', "an older build's sidecar fixture — one of the 16 on-disk proofs, unedited; and the retired crew spelling it proves absent from the launcher"],
   ['scripts/mission-runner/corpus/', 'mode-autopilot', "a fixture game's own autopilot — a scenario word, not the mode"],
   ['scripts/api/prove-typed-word-is-a-word.ts', 'mode-deepthink,mode-supercode,mode-ultrathink,mode-ultracode,mode-ultraplan', 'names the words it types to prove them plain'],
   ['scripts/prompt-input/prove-typed-word-plain-ink.ts', 'mode-deepthink,mode-supercode,mode-ultrathink', 'names the words it types to prove them plain ink'],
   ['scripts/effort/prove-effort-slider-ends-at-max.ts', 'mode-supercode,mode-ultracode,mode-effort-keys', 'names the needles it refuses: the slash word, the stored keys'],
   ['scripts/effort/prove-effort-persistence.ts', 'mode-supercode', 'names the needle it refuses in the stored keys'],
+  ['scripts/permissions/prove-rule-words.ts', 'rule-prefix-form', 'spells the retired prefix form as the nonsense control beside the current one'],
   ['scripts/permissions/prove-mode-cycle-ends-at-sovereign.ts', 'mode-autopilot,mode-tier-tool,mode-tier-readout,mode-autopilot-env', 'names the needles it refuses: the mode word, the tier tool, the opt-in flag'],
   ['scripts/permissions/prove-retired-mode-words-unknown.ts', 'mode-spelling-accept-bypass,mode-spelling-table', 'names the spellings it proves unknown'],
   ['scripts/permissions/prove-apollo-plans.ts', 'strategy-slash,strategy-mode-value,strategy-plan-names', 'names the needles it refuses: the slash word, the mode value, the protocol kinds'],
@@ -359,7 +363,7 @@ console.log('============================================================')
     ['src/x.ts', "process.env.MERCURY_SHELL_ENGINE ?? process.env.MERCURY_REDUCED_MOTION"],
   ]
   check('§4 self-test: the current nested forms, the ordinary identifiers and the API bodies stay quiet', quiet.every(([path, content]) => settingsHits(path, content).length === 0), quiet.filter(([path, content]) => settingsHits(path, content).length > 0).map(([, content]) => content).join(' | '))
-  check('§4 self-test: the settings rows do not reach the rest of the script estate', settingsHits('scripts/ui/prove-x.ts', "writeFileSync(join(home, 'settings.json'), JSON.stringify({ prefersReducedMotion: true }))").length === 0 && settingsHits('scripts/settings/prove-x.ts', "writeFileSync(join(home, 'settings.json'), JSON.stringify({ prefersReducedMotion: true }))").length === 1)
+  check('§4 self-test: the settings rows reach the whole script estate', settingsHits('scripts/ui/prove-x.ts', "writeFileSync(join(home, 'settings.json'), JSON.stringify({ prefersReducedMotion: true }))").length === 1 && settingsHits('scripts/settings/prove-x.ts', "writeFileSync(join(home, 'settings.json'), JSON.stringify({ prefersReducedMotion: true }))").length === 1 && settingsHits('scripts/ui/prove-x.ts', "writeFileSync(join(home, 'settings.json'), JSON.stringify({ view: { reducedMotion: true } }))").length === 0)
   check('§4 self-test: the two published release lines keep their recorded bytes, and a changed line trips', Object.entries(RELEASE_SETTINGS_LINES).every(([path, content]) => settingsHits(path, content).length === 0 && settingsHits(path, content + ' more').length === 1))
 }
 
@@ -428,11 +432,20 @@ console.log('============================================================')
     ['verb-extensions', "'" + J('extensions ', 'approve') + "'"],
     ['verb-root', 'mercury ' + J('join', '-kit')],
     ['verb-root', 'run `mercury ' + J('agen', 'ts') + '`'],
+    ['rule-prefix-form', "allow: ['Bash(npm run" + J(':', '*)') + "']"],
+    ['rule-prefix-form', 'Skill(deploy' + J(':', '*)')],
+    ['rule-prefix-form', "rule.endsWith('" + J(':', '*') + "')"],
+    ['rule-sentences', 'this command is blocked by a ' + J('deny ', 'rule')],
+    ['rule-sentences', J('Permission ', "rule 'Bash(rm *)' requires approval for this command")],
+    ['rule-sentences', 'Permission to edit src/x.ts ' + J('requires ', 'confirmation')],
+    ['rule-sentences', J('Permission rules can be ', 'changed in /permissions')],
   ]
   check('§5 self-test: every retired-word row has a spelling here and trips on it in src', RETIRED.every(([label]) => trips.some(([l]) => l === label)) && trips.every(([label, content]) => retiredHits('src/x.ts', content).includes(label)), trips.filter(([label, content]) => !retiredHits('src/x.ts', content).includes(label)).map(([label]) => label).join(','))
   check('§5 self-test: the rows reach docs, the README and the script estate', retiredHits('docs/x.md', trips[0]![1]).length === 1 && retiredHits('README.md', trips[0]![1]).length === 1 && retiredHits('scripts/x/prove-x.ts', trips[0]![1]).length === 1)
   check('§5 self-test: the rows stop at the owned surfaces', retiredHits('bench/x.py', trips[0]![1]).length === 0 && retiredHits('assets/x.gd', trips[0]![1]).length === 0 && retiredHits('.github/x.yml', trips[0]![1]).length === 0)
   const quiet: string[] = [
+    "allow: ['Bash(npm run *)', 'Skill(deploy*)']; const ids = ['node:*', 'command:*', 'scroll:*', 'lane:lsp:*', 'ansi:*', 'surface:*', '**']",
+    'Permission to use X has been denied: the mode denies it; Permission to read from /x has not been granted.; A subcommand was denied.; the hook requires approval for this command; denied by a rule',
     'const ' + J('accept', 'EditsFastPath') + ' = true; ' + J('isBypass', 'PermissionsModeAvailable') + '()',
     'const diffToolInputs = []; ' + J('bypass', 'PermissionsKillswitch') + '.js',
     "versionNegotiation: { mode: 'auto' }",

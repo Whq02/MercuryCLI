@@ -84,6 +84,7 @@ const rows: Row[] = [
   ['briefs.profile', ['auto', 'native'], [false, 0, '']],
   ['channels.enabled', [true, false], [0, '']],
   ['guardrails.sandbox', [{ enabled: true }, { enabled: false }], [false, 0, '']],
+  ['guardrails.sandbox.enabledPlatforms', [['macos'], []], [false, 0, '']],
   ['workspace.worktree', [{ symlinkDirectories: [] }, { sparsePaths: ['src'] }], [false, 0, '']],
   ['local.server', [{ parallelSlots: 1 }, { parallelSlots: 2 }], [false, 0, '']],
 ]

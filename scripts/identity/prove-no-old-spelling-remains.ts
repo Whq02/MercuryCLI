@@ -18,15 +18,12 @@ const EXCLUDED_AREAS: Array<[string, string]> = [
   ['scripts/interview/baselines/', 'frozen journey capture records'],
   ['scripts/visual-contract/baselines/', 'frozen capture records of earlier screens'],
   ['scripts/agent-experience/baselines/', 'frozen mechanical baselines of earlier prompts'],
-  ['scripts/dev/rename-team-to-crew.ts', 'the rename script carries both spellings'],
 ]
 
-const ALIAS_TABLES: Array<[string, string]> = [
-  ['src/substrate/flagRegistry.ts', 'the former env spellings on their flag rows (the `formerly:` field only)'],
-]
+const ALIAS_TABLES: Array<[string, string]> = []
 
 const ALIAS_PINS: Array<[string, string]> = [
-  ['scripts/substrate/prove-old-env-spellings-read.ts', 'sets the old env spellings by design'],
+  ['scripts/substrate/prove-old-env-spellings-unread.ts', 'sets the old env spellings to prove them unread'],
   ['scripts/sessionStorage/prove-old-transcript-kinds-parse.ts', 'holds old transcript rows, records and files by design'],
   ['scripts/switchboard/prove-crewmates-command.ts', 'pins that the old command name is no command and no alias: the palette answers it unknown'],
   ['scripts/crew/prove-saved-crews-convert.ts', 'converts saved rosters an older build wrote, in their old shape'],
@@ -138,7 +135,6 @@ for (const rel of scoped) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!
     if (!OLD.test(line)) continue
-    if (rel === 'src/substrate/flagRegistry.ts' && /formerly: '[A-Z_]+'/.test(line) && !OLD.test(line.replace(/formerly: '[A-Z_]+'/g, ''))) continue
     const rest = crewRemainder(rel, line)
     if (!OLD.test(rest)) continue
     hits.push({ file: rel, line: i + 1, text: line.trim().slice(0, 140) })

@@ -17,7 +17,7 @@ import React, {
   useSyncExternalStore,
 } from 'react';
 import { getOriginalCwd, getProjectRoot, getSessionId } from '../bootstrap/state.js';
-import { commandOffInPlainWorld, commandRetired, commandSeat, getCommandName, isCommandEnabled, type Command, type ResumeEntrypoint } from '../commands.js';
+import { commandOffInPlainWorld, commandSeat, getCommandName, isCommandEnabled, type Command, type ResumeEntrypoint } from '../commands.js';
 import { CostThresholdDialog } from '../components/CostThresholdDialog.js';
 import { ExitFlow } from '../components/ExitFlow.js';
 import { computeUnseenDivider, countUnseenAssistantTurns, FullscreenLayout, useUnseenDivider } from '../components/FullscreenLayout.js';
@@ -414,7 +414,7 @@ function resolveGatedPlainWorldCommand(input: string, commands: Command[]): Comm
   const real = commands.find(
     command => command.name === name || command.aliases?.includes(name) === true || getCommandName(command) === name,
   );
-  return real !== undefined && (commandOffInPlainWorld(real) || commandRetired(real) !== undefined) ? real : undefined;
+  return real !== undefined && commandOffInPlainWorld(real) ? real : undefined;
 }
 
 function TranscriptSearchBar({

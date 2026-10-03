@@ -89,7 +89,7 @@ export function LedgerView({ onClose }: { onClose: () => void }): React.ReactNod
     let alive = true
     void scanEvolutionLedgers([
       { label: 'repo', dir: defaultEvolutionLedgerDir(getCwd()) },
-      { label: 'memdir', dir: join(getAutoMemPath(), 'evolution') },
+      { label: 'mneme', dir: join(getAutoMemPath(), 'evolution') },
     ]).then(l => {
       if (alive) {
         setLedgers(l)
@@ -108,7 +108,7 @@ export function LedgerView({ onClose }: { onClose: () => void }): React.ReactNod
 
   const all = ledgers ?? []
   const repo = all.filter(l => l.source === 'repo')
-  const memdir = all.filter(l => l.source === 'memdir')
+  const mneme = all.filter(l => l.source === 'mneme')
 
   const sections: SectionDef<LedgerRow>[] = [
     {
@@ -118,9 +118,9 @@ export function LedgerView({ onClose }: { onClose: () => void }): React.ReactNod
       emptyHint: 'no program ledgers in .mercury/evolution',
     },
     {
-      id: 'memdir',
-      label: 'memdir',
-      rows: memdir.map(ledger => ({ ledger })),
+      id: 'mneme',
+      label: 'mneme',
+      rows: mneme.map(ledger => ({ ledger })),
       emptyHint: 'no card-outcome rows yet (distill/promote decisions land here)',
     },
   ]

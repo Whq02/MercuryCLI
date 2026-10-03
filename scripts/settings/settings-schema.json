@@ -94,7 +94,7 @@
           "type": "boolean"
         },
         "directory": {
-          "description": "Where auto memory is written (default under the Mercury config home); ignored when set by checked-in project settings",
+          "description": "Where memory is written (default under the Mercury config home); ignored when set by checked-in project settings",
           "type": "string"
         },
         "pinnedLimit": {
@@ -327,6 +327,13 @@
             },
             "excludedCommands": {
               "description": "Commands excluded from sandboxing",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "enabledPlatforms": {
+              "description": "The platforms the sandbox runs on (macos, linux, wsl); absent means every supported platform",
               "type": "array",
               "items": {
                 "type": "string"

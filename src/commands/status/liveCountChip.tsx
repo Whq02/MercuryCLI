@@ -149,10 +149,10 @@ export function LiveCountView({ onClose }: { onClose: () => void }): React.React
         : 'an agent is working (a turn is in flight)'
 
   const wfDetail = !counts.bridgeConnected
-    ? 'swarm bridge idle — not in a crew (no fan-out possible)'
+    ? 'not in a crew — no fan-out possible'
     : wfCount === 0
       ? 'in a crew — no fan-out is running'
-      : 'swarm fan-out running'
+      : 'crew fan-out running'
 
   return (
     <CommandCenter view="live" subtitle={idle ? 'idle' : `${liveSessions} working · ${wfCount} wf`} onClose={onClose}>
@@ -180,7 +180,7 @@ export function LiveCountView({ onClose }: { onClose: () => void }): React.React
         count={wfCount}
         unit="workflow"
         detail={wfDetail}
-        jump="/fleet — swarm tasks, agent health & leases"
+        jump="/fleet — crew tasks, agent health & leases"
       />
     </CommandCenter>
   )

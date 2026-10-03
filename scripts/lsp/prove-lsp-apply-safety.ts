@@ -354,7 +354,7 @@ for (const mode of ['implement', 'default', 'sovereign']) {
   check(
     'production apply: DENY rule ⇒ REFUSED even in implement mode, nothing written',
     out.applied === false &&
-      out.result.includes('deny rule') &&
+      out.result.includes('denied by a rule') &&
       readFileSync(env.target, 'utf8') === 'const abc = 1\n',
     `applied=${out.applied} result=${out.result.slice(0, 100)}`,
   )

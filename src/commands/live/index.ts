@@ -5,7 +5,7 @@ const live = {
   name: 'live',
   needsConcourse: true,
   description:
-    'Live token-burn awareness — agents working now + running swarm fan-outs (the Live view & Workflow monitor)',
+    'Live token-burn awareness — agents working now + running crew fan-outs (the Live view & Workflow monitor)',
   isEnabled: () => true,
   load: () => import('./live.js'),
 } satisfies Command

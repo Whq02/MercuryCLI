@@ -474,8 +474,8 @@ async function drive(size: string): Promise<void> {
   check(`${world.tag}: the window the ready row names is the window every request carries`, shownWindow !== undefined && typeof numCtx === 'number' && numCtx === Number(shownWindow.replace('k', '')) * 1024, `${shownWindow ?? '?'} vs ${String(numCtx)}`)
   const config = existsSync(join(world.home, '.mercury.json')) ? (JSON.parse(readFileSync(join(world.home, '.mercury.json'), 'utf8')) as { localModelWindows?: Record<string, unknown> }) : {}
   check(`${world.tag}: the per-model window setting landed in the scratch home (localModelWindows["${MODEL_ID}"])`, config.localModelWindows?.[MODEL_ID] !== undefined && (shownWindow === undefined || config.localModelWindows[MODEL_ID] === Number(shownWindow.replace('k', '')) * 1024), JSON.stringify(config.localModelWindows))
-  const settings = existsSync(join(world.home, 'settings.json')) ? (JSON.parse(readFileSync(join(world.home, 'settings.json'), 'utf8')) as { model?: string }) : {}
-  check(`${world.tag}: the session model was set through the /model road (settings.json carries model ${MODEL_ID})`, settings.model === MODEL_ID, JSON.stringify(settings))
+  const settings = existsSync(join(world.home, 'settings.json')) ? (JSON.parse(readFileSync(join(world.home, 'settings.json'), 'utf8')) as { engine?: { model?: string } }) : {}
+  check(`${world.tag}: the session model was set through the /model road (settings.json carries engine.model ${MODEL_ID})`, settings.engine?.model === MODEL_ID, JSON.stringify(settings))
   check(`${world.tag}: no request ever left for the real network or the live server (every logged request hit the fixture port)`, log.every(r => typeof r.path === 'string' && r.path.startsWith('/')) && !existsSync(join(world.userHome, 'Downloads', 'Ollama.dmg')))
   check(`${world.tag}: the fixture binary was installed into the scratch PATH directory, nowhere else`, existsSync(join(world.bin, 'ollama')))
   if (failures === 0 && !KEEP) rmSync(world.root, { recursive: true, force: true })

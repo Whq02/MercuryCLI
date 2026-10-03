@@ -49,7 +49,7 @@ if (resolution.state === 'unavailable') {
   console.log('\n  [SKIP — LOUD] no healthy Python interpreter for the debug lane on this machine:')
   console.log(`    ${resolution.reason}`)
   console.log(`    remedy: ${resolution.remedy}`)
-  console.log('  The journey cannot run here; readiness/doctor report the same truth (verified below).')
+  console.log('  The journey cannot run here; readiness and /health report the same truth (verified below).')
   const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
   const owner = makeOwnerKey({ workspace: '/tmp/w', sessionId: 'debugpy-skip-proof', lane: 'main' })
   let refused = ''
@@ -153,7 +153,7 @@ section('(4) ISOLATED artifact — the bundled adapter through the artifact\'s o
     const nodeBin = Bun.which('node')
     check('node binary available for the arena', nodeBin !== null)
     if (nodeBin) {
-      const r = spawnSync(nodeBin, [join(arena, 'mercury.mjs'), 'doctor', '--json', '--deep'], {
+      const r = spawnSync(nodeBin, [join(arena, 'mercury.mjs'), 'health', '--json', '--deep'], {
         cwd: arena,
         encoding: 'utf8',
         timeout: 300_000,

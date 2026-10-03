@@ -60,7 +60,7 @@ export async function moveDaemonAfterInstallerUpgrade(to: string): Promise<{ sta
   try {
     const { deployedRuntime } = await import('../daemon/handover.js')
     if (deployedRuntime() !== null) return await moveDaemonAfterUpdate()
-    const { handshakeDaemon, liveNoun } = await import('../daemon/handshake.js')
+    const { handshakeDaemon, liveNoun, finishVerb } = await import('../daemon/handshake.js')
     const first = await handshakeDaemon()
     if (first.state === 'absent') return { state: 'absent', line: `background daemon: none running — the next session starts one on v${to}` }
     const d = first.daemon
@@ -73,8 +73,9 @@ export async function moveDaemonAfterInstallerUpgrade(to: string): Promise<{ sta
       state: 'stop',
       line: `background daemon: ${old} could not be moved — ${why}; \`mercury daemon stop\` ends it and the next session starts one on v${to}`,
     })
-    const { hostedCallerOf } = await import('../daemon/hostedCaller.js')
-    if ((await hostedCallerOf(d.pid)).hosted && (first.heal === 'operator' || first.live === 0)) {
+    const { hostedCallerOf, restartEndsHostedCaller } = await import('../daemon/hostedCaller.js')
+    const { helperPidsOfHome } = await import('../daemon/status.js')
+    if ((await hostedCallerOf(await helperPidsOfHome())).hosted && restartEndsHostedCaller(first)) {
       return stopLine('this command runs inside a session it hosts, so its restart would end your own turn — run `mercury update` or `mercury daemon restart` from a plain shell')
     }
     if (first.heal === 'operator') return stopLine('it predates the version handshake and cannot restart itself')
@@ -84,7 +85,12 @@ export async function moveDaemonAfterInstallerUpgrade(to: string): Promise<{ sta
     if (!reply.ok || reply.op !== 'restart-when-idle') return stopLine(`it refused the restart (${reply.ok ? 'unexpected reply' : reply.error})`)
     if (reply.state === 'refused') return stopLine(reply.detail ?? 'the restart was refused')
     if (reply.state === 'armed') {
-      return { state: 'when-idle', line: `background daemon: ${old} moves to v${to} when its ${liveNoun({ live: reply.live, liveSessions: Math.min(first.liveSessions, reply.live) })} finish` }
+      return {
+        state: 'when-idle',
+        line: reply.detail !== undefined
+          ? `background daemon: ${old} moves to v${to} when idle — ${reply.detail}`
+          : `background daemon: ${old} moves to v${to} when its ${liveNoun({ live: reply.live, liveSessions: Math.min(first.liveSessions, reply.live) })} ${finishVerb(reply.live)}`,
+      }
     }
     return { state: 'moving', line: `background daemon: ${old} is restarting on the updated install — the next session runs on v${to}` }
   } catch (error) {

@@ -16,7 +16,7 @@ export function validateInputForSettingsFileEdit(
     message:
       `The settings file would fail validation after this edit.\n${after.error}\n\n` +
       `Settings schema:\n${after.fullSchema}\n\n` +
-      'Do not modify the env block of a settings file unless the user explicitly asked for it.',
+      'Do not modify the environment.values block of a settings file unless the user explicitly asked for it.',
     errorCode: 10,
   }
 }

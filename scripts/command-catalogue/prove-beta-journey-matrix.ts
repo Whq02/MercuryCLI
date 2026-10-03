@@ -88,7 +88,6 @@ const byName = new Map(surfaces.map(s => [s.name, s]))
   const PURGED = ['mode', 'rooms', 'chronicle', 'tree', 'roster', 'queue', 'degraded', 'states', 'tiers', 'hud', 'parity', 'map', 'control', 'orch']
   const revenants = PURGED.filter(n => byName.has(n))
   check('the purged routes are ABSENT as command names', revenants.length === 0, revenants.join(', '))
-  check("'rooms' is a /multiplayer alias in the artifact", byName.get('multiplayer')?.aliases.includes('rooms') === true)
   check("'chronicle' is a /memory alias in the artifact", byName.get('memory')?.aliases.includes('chronicle') === true)
   check("'tasks' is a /runs alias in the artifact", byName.get('runs')?.aliases.includes('tasks') === true)
 
@@ -98,12 +97,8 @@ const byName = new Map(surfaces.map(s => [s.name, s]))
     return !s || !s.enabled || s.visibility !== 'normal'
   })
   check('the live estate is present + normal + enabled', missing.length === 0, missing.join(', '))
-  const mpDoor = byName.get('multiplayer')
-  check(
-    "the /multiplayer door stays registered and RETIRED (present, not enabled — the retirement's honest answer)",
-    mpDoor !== undefined && mpDoor.enabled === false,
-    mpDoor === undefined ? 'absent' : `enabled=${mpDoor.enabled}`,
-  )
+  const noSurface = ['party', 'multiplayer', 'rooms', 'share', 'invite', 'handoff', 'delegate', 'prompt', 'request', 'tickets', 'say', 'doctor'].filter(n => byName.has(n) || surfaces.some(s => s.aliases.includes(n)))
+  check('the old multiplayer names and the old health alias are no surface, by name or alias', noSurface.length === 0, noSurface.join(', '))
 
   const showcase = byName.get('showcase')
   check('/showcase is dev-visibility + DISABLED unarmed', showcase?.visibility === 'dev' && showcase.enabled === false)

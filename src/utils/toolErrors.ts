@@ -123,7 +123,34 @@ function boundUnit(origin: string | undefined, bound: number | bigint): string {
   return ` ${String(bound) === '1' ? noun : `${noun}s`}`
 }
 
-function formatIssue(issue: IssueLike, inputSchema: unknown): string[] {
+const PARAMETER_STAND_INS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  Grep: {
+    '-o': 'output_mode "content" prints the matching lines',
+    '-l': 'output_mode "files_with_matches" lists the files that match',
+    '-c': 'output_mode "count" counts the matches',
+    '-e': 'pattern carries the expression',
+    '-E': 'pattern is a regex already',
+    '-P': 'pattern falls back to PCRE2 for lookaround and backreferences',
+    '-F': 'escape the regex metacharacters in pattern',
+    '-w': 'a \\b boundary in pattern',
+    '-r': 'the search is recursive already; path narrows it',
+    '-R': 'the search is recursive already; path narrows it',
+    '-m': 'head_limit caps the lines',
+    '-t': 'type narrows by language',
+    '--type': 'type narrows by language',
+    '--include': 'glob narrows the files',
+    '--glob': 'glob narrows the files',
+    '-g': 'glob narrows the files',
+    '--context': 'context (or -C) sets the lines around each hit',
+    '-U': 'multiline lets the pattern span lines',
+  },
+}
+
+export function parameterStandIn(toolName: string, key: string): string | undefined {
+  return PARAMETER_STAND_INS[toolName]?.[key]
+}
+
+function formatIssue(issue: IssueLike, inputSchema: unknown, toolName?: string): string[] {
   const name = formatIssuePath(issue.path)
   switch (issue.code) {
     case 'invalid_type': {
@@ -137,7 +164,10 @@ function formatIssue(issue: IssueLike, inputSchema: unknown): string[] {
     case 'unrecognized_keys': {
       const validKeys = extractSchemaKeys(inputSchema)
       const suffix = validKeys ? `; valid parameters are: ${validKeys.map(key => `"${key}"`).join(', ')}` : ''
-      return (issue.keys ?? []).map(key => `The parameter \`${key}\` was not expected${suffix}`)
+      return (issue.keys ?? []).map(key => {
+        const standIn = toolName === undefined ? undefined : parameterStandIn(toolName, key)
+        return `The parameter \`${key}\` was not expected${standIn === undefined ? '' : ` — ${standIn}`}${suffix}`
+      })
     }
     case 'invalid_value': {
       const values = issue.values ?? []
@@ -173,7 +203,7 @@ export function formatZodValidationError(
   error: z.ZodError,
   inputSchema?: unknown,
 ): string {
-  const lines = error.issues.flatMap(issue => formatIssue(issue as IssueLike, inputSchema))
+  const lines = error.issues.flatMap(issue => formatIssue(issue as IssueLike, inputSchema, toolName))
   if (lines.length === 0) {
     return error.message
   }
