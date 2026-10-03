@@ -47,7 +47,7 @@ type Props = {
   onSubmit: () => void
   onTabPrev?: () => void
   onTabNext?: () => void
-  onRespondToClaude: () => void
+  onRespondToModel: () => void
   onImagePaste?: (
     base64Image: string,
     mediaType?: string,
@@ -76,7 +76,7 @@ export function QuestionView(props: Props): React.ReactNode {
     onSubmit,
     onTabPrev,
     onTabNext,
-    onRespondToClaude,
+    onRespondToModel,
     onImagePaste,
     pastedContents,
     onRemoveImage,
@@ -137,7 +137,7 @@ export function QuestionView(props: Props): React.ReactNode {
       }
       if (action === 'activate') {
         e.preventDefault()
-        onRespondToClaude()
+        onRespondToModel()
         return
       }
       if (action === 'cancel') {
@@ -145,7 +145,7 @@ export function QuestionView(props: Props): React.ReactNode {
         onCancel()
       }
     },
-    [isFooterFocused, onRespondToClaude, onCancel],
+    [isFooterFocused, onRespondToModel, onCancel],
   )
 
   const routesToPreview = !question.multiSelect && question.options.some(o => o.preview)
@@ -155,7 +155,7 @@ export function QuestionView(props: Props): React.ReactNode {
       if (routesToPreview || isOtherFocused) return
       if (input === chatOrdinal) {
         event.stopImmediatePropagation()
-        onRespondToClaude()
+        onRespondToModel()
       }
     },
     { isActive: true },
@@ -188,7 +188,7 @@ export function QuestionView(props: Props): React.ReactNode {
         onCancel={onCancel}
         onTabPrev={onTabPrev}
         onTabNext={onTabNext}
-        onRespondToClaude={onRespondToClaude}
+        onRespondToModel={onRespondToModel}
         onNotesPasteLarge={onNotesPasteLarge}
       />
     )

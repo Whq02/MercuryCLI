@@ -46,7 +46,7 @@ type Props = {
   onCancel: () => void
   onTabPrev?: () => void
   onTabNext?: () => void
-  onRespondToClaude: () => void
+  onRespondToModel: () => void
   onNotesPasteLarge?: (questionText: string, text: string) => void
 }
 
@@ -65,7 +65,7 @@ export function PreviewQuestionView({
   onCancel,
   onTabPrev,
   onTabNext,
-  onRespondToClaude,
+  onRespondToModel,
   onNotesPasteLarge,
 }: Props): React.ReactNode {
   const previewPermissionMode = useAppState((s: AppState) => s.toolPermissionContext.mode)
@@ -180,7 +180,7 @@ export function PreviewQuestionView({
         }
         if (action === 'activate') {
           e.preventDefault()
-          onRespondToClaude()
+          onRespondToModel()
           return
         }
         if (action === 'cancel') {
@@ -236,7 +236,7 @@ export function PreviewQuestionView({
       allOptions.length,
       handleSelectOption,
       handleNotesExit,
-      onRespondToClaude,
+      onRespondToModel,
       onCancel,
       onTextInputFocus,
     ],
@@ -328,7 +328,7 @@ export function PreviewQuestionView({
 
           <Box flexDirection="column" marginTop={1}>
             <Divider color="inactive" />
-            <Box flexDirection="row" gap={1} onClick={onRespondToClaude}>
+            <Box flexDirection="row" gap={1} onClick={onRespondToModel}>
               {isFooterFocused ? (
                 <Text color="suggestion">{figures.pointer}</Text>
               ) : (

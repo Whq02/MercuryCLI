@@ -149,7 +149,7 @@ const snapshotTs = src('src/utils/bash/ShellSnapshot.ts')
 check('no {shell:true} PATH probe remains in ShellSnapshot',
   !/echo \$PATH',\s*\{\s*shell: true/.test(snapshotTs) && !snapshotTs.includes('shell: true'))
 check('the snapshot content generator receives the resolved shell',
-  snapshotTs.includes('getClaudeCodeSnapshotContent(shellPath)') &&
+  snapshotTs.includes('getMercurySnapshotContent(shellPath)') &&
     snapshotTs.includes('resolveSnapshotPathValue(binShell)'))
 const appTsx = src('src/ink/components/App.tsx')
 check('UI-074: SUPPORTS_SUSPEND is the platform gate',

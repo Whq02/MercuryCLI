@@ -100,13 +100,13 @@ section("§2 the screen folds a relayed verdict into its own latch: the active s
     emits++
   }
   limits.statusListeners.add(listener)
-  check('unobserved going in', limits.claudeWindowObserved() === false)
+  check('unobserved going in', limits.anthropicWindowObserved() === false)
   check('a malformed fact is refused', !limits.adoptAnthropicWindowFact(undefined) && !limits.adoptAnthropicWindowFact(null) && !limits.adoptAnthropicWindowFact([]) && !limits.adoptAnthropicWindowFact({ status: 'rejected' }) && !limits.adoptAnthropicWindowFact({ status: 'walled', observedAtMs: T0, owner: OWNER_A }) && !limits.adoptAnthropicWindowFact({ status: 'rejected', observedAtMs: 'now', owner: OWNER_A }))
-  check('a verdict stamped for another slot never enters', !limits.adoptAnthropicWindowFact({ ...relayed, owner: OWNER_B }) && limits.claudeWindowObserved() === false)
+  check('a verdict stamped for another slot never enters', !limits.adoptAnthropicWindowFact({ ...relayed, owner: OWNER_B }) && limits.anthropicWindowObserved() === false)
   check('a verdict for no slot never enters', !limits.adoptAnthropicWindowFact({ ...relayed, owner: 'none' }) && !limits.adoptAnthropicWindowFact({ ...relayed, owner: '' }))
   check('a refusal emits nothing', emits === 0)
   check("the active slot's verdict is adopted", limits.adoptAnthropicWindowFact(relayed) === true)
-  check('the latch now reads observed', limits.claudeWindowObserved() === true)
+  check('the latch now reads observed', limits.anthropicWindowObserved() === true)
   check('the record holds the relayed status, reset and claim, with overage and fallback off', limits.currentLimits.status === 'rejected' && limits.currentLimits.resetsAt === RESET / 1000 && limits.currentLimits.rateLimitType === 'seven_day' && limits.currentLimits.isUsingOverage === false && limits.currentLimits.unifiedRateLimitFallbackAvailable === false, j(limits.currentLimits))
   check('one status change emitted', emits === 1, String(emits))
   const verdict = limits.anthropicLimitVerdict()
@@ -124,7 +124,7 @@ section("§2 the screen folds a relayed verdict into its own latch: the active s
   check('a relayed fact older than it is refused', limits.adoptAnthropicWindowFact({ status: 'allowed', observedAtMs: ownAt - 1, owner: OWNER_A }) === false && limits.currentLimits.status === 'rejected')
   mock.setMockRateLimitScenario('clear')
   limits.resetLimitsForCredentialSwitch()
-  check('a credential switch drops the adopted verdict', limits.claudeWindowObserved() === false && limits.anthropicWindowFact() === undefined)
+  check('a credential switch drops the adopted verdict', limits.anthropicWindowObserved() === false && limits.anthropicWindowFact() === undefined)
   limits.statusListeners.delete(listener)
 }
 

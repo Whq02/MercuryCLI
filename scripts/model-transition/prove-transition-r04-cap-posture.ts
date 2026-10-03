@@ -175,7 +175,7 @@ section('§E the full journey, both postures — warning → offer/auto → cont
   noteCapHandoff('claude-fable-5', 'anthropic')
   limits.resetLimitsForCredentialSwitch()
   check('after a credential switch the latch settles to its allowed default', limits.currentLimits.status === 'allowed')
-  check('…but nothing has been OBSERVED (claudeWindowObserved false)', limits.claudeWindowObserved() === false)
+  check('…but nothing has been OBSERVED (anthropicWindowObserved false)', limits.anthropicWindowObserved() === false)
   const afterSignOut = observedFamilyWindow('anthropic')
   check("…so the resolver reads 'unknown' (basis none) — never a reset", afterSignOut.state === 'unknown' && afterSignOut.basis === 'none', JSON.stringify(afterSignOut))
   check('…and no return card fires on it', decideCapReturn('offer', { window: afterSignOut.state, credentialUsable: true }, true).kind === 'none')
@@ -184,7 +184,7 @@ section('§E the full journey, both postures — warning → offer/auto → cont
   clearCapHandoffForFamily('anthropic')
   check('a sign-out of the HOME family clears the handoff note', capHandoffState() === null)
   ingest('normal')
-  check('the next wire observation re-arms the record', limits.claudeWindowObserved() === true && observedFamilyWindow('anthropic').basis === 'observed')
+  check('the next wire observation re-arms the record', limits.anthropicWindowObserved() === true && observedFamilyWindow('anthropic').basis === 'observed')
   ingest('clear')
   delete process.env.MERCURY_MOCK_LIMITS
 }

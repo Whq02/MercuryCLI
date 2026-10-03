@@ -204,7 +204,7 @@ function AskUserQuestionPermissionRequestBody(
     submitInterview(boundaryWith(blocks), toolUseConfirm.input as Record<string, unknown>)
   }, [session, onDone, boundaryWith, toolUseConfirm])
 
-  const handleRespondToClaude = useCallback(async () => {
+  const handleRespondToModel = useCallback(async () => {
     const target = currentQuestion ?? questions[0]
     if (!target) {
       handleCancel()
@@ -412,7 +412,7 @@ function AskUserQuestionPermissionRequestBody(
         onSubmit={handleTabNext}
         onTabPrev={handleTabPrev}
         onTabNext={handleTabNext}
-        onRespondToClaude={() => void handleRespondToClaude().catch(logError)}
+        onRespondToModel={() => void handleRespondToModel().catch(logError)}
         onImagePaste={(base64, mediaType, filename, dims, path) =>
           onImagePaste(currentQuestion.text, base64, mediaType, filename, dims, path)
         }

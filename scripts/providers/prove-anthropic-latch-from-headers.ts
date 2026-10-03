@@ -63,7 +63,7 @@ section('§0 the world: a signed-in subscriber, the fixture seam unarmed, nothin
   check('the seeded sign-in reads as a subscriber', auth.isClaudeAISubscriber() === true)
   check('the fixture seam is not armed, so the headers a response carries are the ones read', mocking.shouldProcessMockLimits() === false)
   limits.resetLimitsForCredentialSwitch()
-  check('before any response has spoken the window is unobserved', limits.claudeWindowObserved() === false)
+  check('before any response has spoken the window is unobserved', limits.anthropicWindowObserved() === false)
   const v = limits.anthropicLimitVerdict()
   check("…and the verdict reads the default 'allowed' with no moment", v.status === 'allowed' && v.observedAtMs === undefined, JSON.stringify(v))
 }
@@ -80,7 +80,7 @@ const reset5h = epoch(2 * 3600_000)
       'anthropic-ratelimit-unified-7d-reset': epoch(5 * 24 * 3600_000),
     }),
   )
-  check('the window is observed once a response has spoken', limits.claudeWindowObserved() === true)
+  check('the window is observed once a response has spoken', limits.anthropicWindowObserved() === true)
   check("the record reads the header's status (allowed)", limits.currentLimits.status === 'allowed', limits.currentLimits.status)
   const v = limits.anthropicLimitVerdict()
   check('the verdict carries the moment of the observation', v.status === 'allowed' && typeof v.observedAtMs === 'number' && Date.now() - v.observedAtMs < 5_000, JSON.stringify(v))
@@ -106,7 +106,7 @@ section('§2 a warning response moves the record and keeps it observed')
   check('the surpassed-threshold header reads as allowed_warning on the five-hour window', limits.currentLimits.status === 'allowed_warning' && limits.currentLimits.rateLimitType === 'five_hour', JSON.stringify(limits.currentLimits))
   const v = limits.anthropicLimitVerdict()
   check("the verdict names the header's reset", v.resetsAtMs === Number(reset5h) * 1000, JSON.stringify(v))
-  check('the window stays observed', limits.claudeWindowObserved() === true)
+  check('the window stays observed', limits.anthropicWindowObserved() === true)
 }
 
 section('§3 a refused response (429) latches rejected through the error road')
@@ -122,16 +122,16 @@ section('§3 a refused response (429) latches rejected through the error road')
   check('the record reads rejected', limits.currentLimits.status === 'rejected', limits.currentLimits.status)
   const v = limits.anthropicLimitVerdict()
   check("the verdict names the 429's reset and the account", v.status === 'rejected' && v.resetsAtMs === Number(resetRejected) * 1000 && typeof v.account === 'string', JSON.stringify(v))
-  check('the window stays observed', limits.claudeWindowObserved() === true)
+  check('the window stays observed', limits.anthropicWindowObserved() === true)
 }
 
 section('§4 a credential move forgets the observation; the next response arms it again')
 {
   limits.resetLimitsForCredentialSwitch()
   const v = limits.anthropicLimitVerdict()
-  check('after the switch nothing is observed', limits.claudeWindowObserved() === false && v.observedAtMs === undefined, JSON.stringify(v))
+  check('after the switch nothing is observed', limits.anthropicWindowObserved() === false && v.observedAtMs === undefined, JSON.stringify(v))
   limits.extractQuotaStatusFromHeaders(H({ 'anthropic-ratelimit-unified-status': 'allowed' }))
-  check('the next response arms the latch again', limits.claudeWindowObserved() === true && limits.currentLimits.status === 'allowed')
+  check('the next response arms the latch again', limits.anthropicWindowObserved() === true && limits.currentLimits.status === 'allowed')
 }
 
 section('§5 the subscriber gate: a response for a session with no sign-in clears the record instead of arming it')
@@ -139,7 +139,7 @@ section('§5 the subscriber gate: a response for a session with no sign-in clear
   seed(null)
   check('no sign-in reads as no subscriber', auth.isClaudeAISubscriber() === false)
   limits.extractQuotaStatusFromHeaders(H({ 'anthropic-ratelimit-unified-status': 'allowed_warning' }))
-  check('the gate closed: the window is unobserved and the record is the default', limits.claudeWindowObserved() === false && limits.currentLimits.status === 'allowed', limits.currentLimits.status)
+  check('the gate closed: the window is unobserved and the record is the default', limits.anthropicWindowObserved() === false && limits.currentLimits.status === 'allowed', limits.currentLimits.status)
   seed(SUBSCRIBER)
 }
 

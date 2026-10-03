@@ -296,7 +296,7 @@ function liveFamilyWindowReads(): Required<FamilyWindowReads> {
       const current = limits.currentLimits
       return {
         status: current.status,
-        observed: limits.claudeWindowObserved(),
+        observed: limits.anthropicWindowObserved(),
         ...(current.rateLimitType !== 'overage' && current.utilization !== undefined ? { usedPct: current.utilization * 100 } : {}),
         ...(current.resetsAt !== undefined ? { resetsAtMs: current.resetsAt * 1000 } : {}),
         ...(current.rateLimitType !== undefined

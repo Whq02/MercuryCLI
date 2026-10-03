@@ -222,7 +222,7 @@ ${findFunction}
 ${grepFunction}`
 }
 
-async function getClaudeCodeSnapshotContent(binShell: string): Promise<string> {
+async function getMercurySnapshotContent(binShell: string): Promise<string> {
   const pathValue = await resolveSnapshotPathValue(binShell)
   const rgIntegration = createRipgrepShellIntegration()
   const findGrep = createFindGrepShellIntegration()
@@ -376,7 +376,7 @@ export async function createAndSaveSnapshot(shellPath: string): Promise<string |
     )
 
     const configExists = await pathExists(configFilePath)
-    const mercuryContent = await getClaudeCodeSnapshotContent(shellPath)
+    const mercuryContent = await getMercurySnapshotContent(shellPath)
     const script = buildCaptureScript({
       snapshotFilePath,
       configFilePath,
