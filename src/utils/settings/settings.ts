@@ -157,22 +157,6 @@ export function parseSettingsFile(filePath: string): { settings: SettingsJson | 
   return cloneParsed(result)
 }
 
-
-export function getSettingsRootPathForSource(source: SettingSource): string {
-  switch (source) {
-    case 'userSettings':
-      return getMercuryHome()
-    case 'projectSettings':
-    case 'localSettings':
-    case 'policySettings':
-      return getOriginalCwd()
-    case 'flagSettings': {
-      const flagPath = getFlagSettingsPath()
-      return flagPath !== undefined ? dirname(flagPath) : getOriginalCwd()
-    }
-  }
-}
-
 export function getSettingsFilePathForSource(source: SettingSource): string | undefined {
   switch (source) {
     case 'userSettings':
@@ -502,10 +486,6 @@ export function hasAutoModeOptIn(): boolean {
   return false
 }
 
-export function getUseAutoModeDuringPlan(): boolean {
-  return true
-}
-
 export function getAutoModeConfig(): { allow?: string[]; soft_deny?: string[]; environment?: string } | undefined {
   return undefined
 }
@@ -668,26 +648,4 @@ export function removeSettingsFileIfEmpty(source: EditableSettingSource): void {
   } catch (error) {
     logForDebugging(`settings husk prune skipped for ${writePath}: ${errorMessage(error)}`)
   }
-}
-
-
-export function getManagedSettingsKeysForLogging(settings: SettingsJson): string[] {
-  const schema = SettingsSchema()
-  const parsed = schema.parse(settings)
-  const keys: string[] = []
-  const collect = (value: unknown, field: z.ZodType, path: string): void => {
-    while (field instanceof z.ZodOptional || field instanceof z.ZodNullable) field = field.unwrap() as z.ZodType
-    if (field instanceof z.ZodObject && typeof value === 'object' && value !== null) {
-      const before = keys.length
-      for (const [key, child] of Object.entries(field.shape)) {
-        const entry = (value as Record<string, unknown>)[key]
-        if (entry !== undefined) collect(entry, child as z.ZodType, path ? `${path}.${key}` : key)
-      }
-      if (keys.length === before && path) keys.push(path)
-    } else if (path) {
-      keys.push(path)
-    }
-  }
-  collect(parsed, schema, '')
-  return keys.sort()
 }

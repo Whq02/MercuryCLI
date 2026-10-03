@@ -395,21 +395,3 @@ export function logSuggestionSuppressed(
   void generationRequestId
   logForDebugging(`prompt suggestion suppressed: ${reason}`)
 }
-
-export function logSuggestionOutcome(
-  input: string,
-  suggestion: string,
-  shownAt: number,
-  promptId?: string | null,
-  requestId?: string | null,
-): void {
-  const accepted = input === suggestion
-  const similarity =
-    suggestion.length === 0 ? 0 : Math.round((input.length / suggestion.length) * 100) / 100
-  const elapsedMs = Math.max(0, Date.now() - shownAt)
-  void accepted
-  void similarity
-  void elapsedMs
-  void (promptId ?? ACTIVE_VARIANT)
-  void requestId
-}

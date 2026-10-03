@@ -29,8 +29,6 @@ export const PERMISSION_MODES = [
   'apollo',
 ] as const
 
-export const VALID_PERMISSION_MODES = PERMISSION_MODES
-
 export type PermissionBehavior = 'allow' | 'deny' | 'ask'
 
 export type PermissionRuleSource =

@@ -352,12 +352,6 @@ export const pinCacheEdits: (
   state.pinnedEdits.push({ userMessageIndex, block })
 }
 
-export const markToolsSentToAPIState: (owner?: OwnerKey) => void = function (owner) {
-  const state = cacheEditStore.peek(ownerOrMain(owner))
-  if (state === undefined) return
-  state.registeredToolIds = []
-}
-
 export const resetMicrocompactState: (owner?: OwnerKey) => void = function (owner) {
   const key = ownerOrMain(owner)
   const state = cacheEditStore.peek(key)

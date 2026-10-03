@@ -36,16 +36,6 @@ export const DeniedMcpServerEntrySchema = lazySchema(() => z.object(mcpEntryShap
 export type AllowedMcpServerEntry = z.infer<ReturnType<typeof AllowedMcpServerEntrySchema>>
 export type DeniedMcpServerEntry = z.infer<ReturnType<typeof DeniedMcpServerEntrySchema>>
 
-export function isMcpServerNameEntry(entry: AllowedMcpServerEntry | DeniedMcpServerEntry): entry is AllowedMcpServerEntry & { serverName: string } {
-  return typeof (entry as { serverName?: unknown }).serverName === 'string'
-}
-export function isMcpServerCommandEntry(entry: AllowedMcpServerEntry | DeniedMcpServerEntry): entry is AllowedMcpServerEntry & { serverCommand: string[] } {
-  return Array.isArray((entry as { serverCommand?: unknown }).serverCommand)
-}
-export function isMcpServerUrlEntry(entry: AllowedMcpServerEntry | DeniedMcpServerEntry): entry is AllowedMcpServerEntry & { serverUrl: string } {
-  return typeof (entry as { serverUrl?: unknown }).serverUrl === 'string'
-}
-
 const modeLockSchema = () => z.preprocess(
   value => value === undefined || typeof value === 'boolean' ? value : true,
   z.boolean(),

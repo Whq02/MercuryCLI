@@ -850,13 +850,6 @@ export async function ensureConnectedClient(client: MCPServerConnection): Promis
   return connection
 }
 
-export function areMcpConfigsEqual(a: ScopedMcpServerConfig, b: ScopedMcpServerConfig): boolean {
-  if (a.type !== b.type) return false
-  const { scope: _scopeA, ...restA } = a
-  const { scope: _scopeB, ...restB } = b
-  return JSON.stringify(restA) === JSON.stringify(restB)
-}
-
 
 export function mcpToolInputToAutoClassifierInput(input: Record<string, unknown>, toolName: string): string {
   const keys = Object.keys(input)

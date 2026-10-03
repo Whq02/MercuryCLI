@@ -183,21 +183,6 @@ export function persistPermissionUpdates(updates: PermissionUpdate[]): PersistVe
   return { error: first }
 }
 
-export function extractRules(updates?: PermissionUpdate[]): PermissionRuleValue[] {
-  if (!updates) return []
-  const rules: PermissionRuleValue[] = []
-  for (const update of updates) {
-    if (update.type === 'addRules') {
-      for (const rule of update.rules) rules.push(rule as PermissionRuleValue)
-    }
-  }
-  return rules
-}
-
-export function hasRules(updates?: PermissionUpdate[]): boolean {
-  return extractRules(updates).length > 0
-}
-
 export function createReadRuleSuggestion(
   dirPath: string,
   destination: PermissionUpdateDestination = 'session',

@@ -101,8 +101,6 @@ function shellRunOfError(tool: Tool, error: unknown): ShellRunFact | null {
 
 const SLOW_PHASE_THRESHOLD_MS = 2000
 
-export const HOOK_TIMING_DISPLAY_THRESHOLD_MS = 500
-
 const PRE_TOOL_HOOK_DURATION_METRIC = 'pre_tool_hook_duration_ms'
 
 const TOOL_EXEC_ACTIVITY = 'tool_exec'

@@ -138,9 +138,6 @@ const FOLD_WIRE_KEYS: Readonly<Record<string, string>> = {
   summaryCapTokens: 'summary_cap_tokens',
   endedAtMs: 'ended_at_ms',
 }
-const FOLD_RECORD_KEYS: Readonly<Record<string, string>> = Object.fromEntries(
-  Object.entries(FOLD_WIRE_KEYS).map(([record, wire]) => [wire, record]),
-)
 function renamedKeys(value: unknown, table: Readonly<Record<string, string>>): unknown {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return value
   const out: Record<string, unknown> = {}
@@ -150,10 +147,6 @@ function renamedKeys(value: unknown, table: Readonly<Record<string, string>>): u
 
 export function foldStatusToWire(status: FoldStatusV1): Record<string, unknown> {
   return renamedKeys(status, FOLD_WIRE_KEYS) as Record<string, unknown>
-}
-
-export function foldStatusFromWire(raw: unknown): unknown {
-  return renamedKeys(raw, FOLD_RECORD_KEYS)
 }
 
 export type FoldBarCell = 'done' | 'fill' | 'pulse' | 'empty'
