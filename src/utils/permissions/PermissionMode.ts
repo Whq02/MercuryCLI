@@ -50,10 +50,6 @@ export function externalPermissionModeSchema() {
   return z.enum(EXTERNAL_PERMISSION_MODES as unknown as [string, ...string[]])
 }
 
-export function isExternalPermissionMode(_mode: PermissionMode): _mode is ExternalPermissionMode {
-  return true
-}
-
 export function modeBypassesPermissions(mode: PermissionMode): boolean {
   return mode === 'sovereign'
 }

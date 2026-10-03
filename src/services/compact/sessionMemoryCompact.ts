@@ -45,18 +45,6 @@ export const DEFAULT_SM_COMPACT_CONFIG: SessionMemoryCompactConfig = {
 
 let config: SessionMemoryCompactConfig = { ...DEFAULT_SM_COMPACT_CONFIG }
 
-export function setSessionMemoryCompactConfig(partial: Partial<SessionMemoryCompactConfig>): void {
-  config = { ...config, ...partial }
-}
-
-export function getSessionMemoryCompactConfig(): SessionMemoryCompactConfig {
-  return { ...config }
-}
-
-export function resetSessionMemoryCompactConfig(): void {
-  config = { ...DEFAULT_SM_COMPACT_CONFIG }
-}
-
 export function shouldUseSessionMemoryCompaction(): boolean {
   return isEnvTruthy(flagEnv('MERCURY_SM_COMPACT'))
 }

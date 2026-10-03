@@ -151,29 +151,6 @@ export function findDangerousClassifierPermissions(
   return found
 }
 
-export function isOverlyBroadBashAllowRule(ruleValue: PermissionRuleValue): boolean {
-  return ruleValue.toolName === BASH_TOOL_NAME && !ruleValue.ruleContent
-}
-
-export function isOverlyBroadPowerShellAllowRule(ruleValue: PermissionRuleValue): boolean {
-  return ruleValue.toolName === POWERSHELL_TOOL_NAME && !ruleValue.ruleContent
-}
-
-export function findOverlyBroadBashPermissions(
-  rules: PermissionRule[],
-  _cliAllowedTools: string[],
-): DangerousPermissionInfo[] {
-  void rules
-  return []
-}
-
-export function findOverlyBroadPowerShellPermissions(
-  _rules: PermissionRule[],
-  _cliAllowedTools: string[],
-): DangerousPermissionInfo[] {
-  return []
-}
-
 
 type MutableRuleMaps = {
   alwaysAllowRules: Record<string, string[]>
@@ -181,23 +158,6 @@ type MutableRuleMaps = {
 }
 
 const VALID_DESTINATIONS = new Set(['userSettings', 'projectSettings', 'localSettings', 'cliArg', 'session'])
-
-export function removeDangerousPermissions(
-  context: ToolPermissionContext,
-  dangerousPermissions: DangerousPermissionInfo[],
-): ToolPermissionContext {
-  const next = cloneContext(context)
-  const maps = next as unknown as MutableRuleMaps
-  for (const perm of dangerousPermissions) {
-    if (!VALID_DESTINATIONS.has(perm.source)) continue
-    const serialized = permissionRuleValueToString(perm.ruleValue)
-    const arr = maps.alwaysAllowRules[perm.source] ?? []
-    maps.alwaysAllowRules[perm.source] = arr.filter(
-      entry => permissionRuleValueToString(permissionRuleValueFromString(entry)) !== serialized,
-    )
-  }
-  return next
-}
 
 export function stripDangerousPermissionsForAutoMode(
   context: ToolPermissionContext,
@@ -274,12 +234,6 @@ export function transitionPermissionMode(
   return next
 }
 
-export function isDefaultPermissionModeAuto(): boolean {
-  return false
-}
-export function shouldPlanUseAutoMode(): boolean {
-  return false
-}
 export function transitionPlanAutoMode(context: ToolPermissionContext): ToolPermissionContext {
   return context
 }
@@ -473,10 +427,6 @@ export function parseToolListFromCLI(tools: string[]): string[] {
   }
   if (current.trim() !== '') result.push(current.trim())
   return result
-}
-
-export function parseBaseToolsFromCLI(baseTools: string[]): string[] {
-  return parseToolListFromCLI(baseTools)
 }
 
 export function initialPermissionModeFromCLI({
