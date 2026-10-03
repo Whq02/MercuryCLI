@@ -343,7 +343,7 @@ export async function applyVulcanInstall(
   const presence = await vulcanEditorPresence(projectRoot, opts.instance, opts.census)
   const lines = [
     `installed ${VULCAN_ADDON_FILES.length} addon files under ${ADDON_DIR}/ (bundle ${VULCAN_ADDON_DIGEST.slice(0, 12)}…; ${written} written, ${VULCAN_ADDON_FILES.length - written} already current)${
-      before.installed ? (before.digestMatch ? ' — already this version' : ' — refreshed an older copy') : ''
+      before.installed ? (before.digestMatch ? ' — already up to date' : ' — refreshed an out-of-date copy') : ''
     }`,
     ...(mutated.receipts.length > 0
       ? mutated.receipts
@@ -353,7 +353,7 @@ export async function applyVulcanInstall(
   ]
   if (presence.state === 'bridge-up') {
     if (!before.digestMatch) lines.push(await reloadPluginOverBridge(projectRoot, opts.instance))
-    else lines.push('the running editor already serves this addon version — nothing to reload')
+    else lines.push('the running editor already serves the up-to-date addon — nothing to reload')
   } else {
     lines.push(`next: ${presenceNudge(presence, { installed: true, enabled: true })}`)
   }
@@ -415,7 +415,7 @@ export async function describeVulcanStatus(projectRoot: string, selector?: unkno
   const instances = listVulcanInstances(projectRoot)
   const lines = [
     `flag: ${vulcanEnabled() ? 'armed' : 'OFF'}${vulcanLiteMode() ? ' (lite subset)' : ''} · project: ${projectRoot}`,
-    `addon: ${s.installed ? `installed${s.digestMatch ? ', matches the bundled version' : s.bundledFiles === 0 ? ' (bundle empty — dev build)' : ', DRIFTED from the bundle (vulcan_install refreshes)'}` : 'NOT installed (op:"vulcan_install")'} · plugin ${s.enabled ? 'enabled' : 'NOT enabled'}`,
+    `addon: ${s.installed ? `installed${s.digestMatch ? ', up to date' : s.bundledFiles === 0 ? ' (bundle empty — dev build)' : ', out of date — op:"vulcan_install" refreshes it'}` : 'NOT installed (op:"vulcan_install")'} · plugin ${s.enabled ? 'enabled' : 'NOT enabled'}`,
     `instances: ${instances.length} discovered; default editor role: agent-editor; operator-editor requires an explicit selector`,
     ...instances.map(row => `instance ${row.id}: ${row.role} pid ${row.pid} port ${row.port} project ${row.projectRoot}`),
     `editor: ${presence.words}${presence.state === 'bridge-up' ? ` — answering on 127.0.0.1:${port}` : ` — 127.0.0.1:${port} dark`}`,

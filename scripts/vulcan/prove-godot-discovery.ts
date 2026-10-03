@@ -129,6 +129,9 @@ try {
   check('the nudge says whether Mercury can trigger it: not unbridged, yes over an up bridge', /cannot reach an unbridged editor/.test(nudgeGui) && /vulcan_install reloads the plugin over it/.test(nudgeGui))
   check('not installed ⇒ vulcan_install leads the nudge', presence.presenceNudge(noEditor, { installed: false, enabled: false }).startsWith('op:"vulcan_install"'))
   check('installed but not enabled ⇒ the enabled row is named', /not enabled in project.godot/.test(presence.presenceNudge(unbridged, { installed: true, enabled: false })))
+  const refresh = 'the installed addon is out of date — op:"vulcan_install" refreshes it; then '
+  check('installed and enabled but out of date ⇒ the refresh leads the nudge, then the editor step', presence.presenceNudge(noEditor, { installed: true, enabled: true, digestMatch: false }).startsWith(refresh + 'open the project in the Godot editor') && presence.presenceNudge(guiUnbridged, { installed: true, enabled: true, digestMatch: false }).startsWith(refresh + 'click into the editor window'), presence.presenceNudge(noEditor, { installed: true, enabled: true, digestMatch: false }).slice(0, 120))
+  check('up to date ⇒ no refresh in the nudge', presence.presenceNudge(noEditor, { installed: true, enabled: true, digestMatch: true }).startsWith('open the project in the Godot editor') && !/out of date/.test(nudgeGui))
   check('bridge up ⇒ no nudge', presence.presenceNudge(bridged, { installed: true, enabled: true }) === '')
   check('capsule source words carry the state, never closed', presence.staticCapsuleSource(unbridged).startsWith('static (editor running (pid 41230') && !/closed/.test(presence.staticCapsuleSource(noEditor)) && presence.editorOnlySliceWords(unbridged) === '(editor open but unbridged)' && presence.editorOnlySliceWords(noEditor) === '(no editor running)')
 

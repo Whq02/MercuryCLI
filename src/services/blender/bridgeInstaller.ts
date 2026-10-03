@@ -126,10 +126,10 @@ export async function describeBlenderBridgeStatus(): Promise<string> {
       s.installed
         ? `installed${
             s.digestMatch
-              ? ', matches the bundled version'
+              ? ', up to date'
               : s.bundledFiles === 0
                 ? ' (bundle empty — dev build)'
-                : ', DRIFTED from the bundle (blender_bridge_install refreshes)'
+                : ', out of date — op:"blender_bridge_install" refreshes it'
           }`
         : 'NOT installed (op:"blender_bridge_install")'
     }`,

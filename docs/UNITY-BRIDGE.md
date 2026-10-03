@@ -36,8 +36,8 @@ artifacts:
    returns.
 
 `op:"unity_bridge_uninstall"` removes all three. `op:"unity_status"` probes
-everything: flag, package presence and drift, token, reachability, client
-state, and any port mismatch between the halves.
+everything: flag, package presence and whether it is up to date, token,
+reachability, client state, and any port mismatch between the halves.
 
 ## The verbs
 

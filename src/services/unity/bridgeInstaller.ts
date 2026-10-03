@@ -104,10 +104,10 @@ export async function describeUnityBridgeStatus(projectRoot: string): Promise<st
       s.installed
         ? `installed${
             s.digestMatch
-              ? ', matches the bundled version'
+              ? ', up to date'
               : s.bundledFiles === 0
                 ? ' (bundle empty — dev build)'
-                : ', DRIFTED from the bundle (unity_bridge_install refreshes)'
+                : ', out of date — op:"unity_bridge_install" refreshes it'
           }`
         : 'NOT installed (op:"unity_bridge_install")'
     }`,
