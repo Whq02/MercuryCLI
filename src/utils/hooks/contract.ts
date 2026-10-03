@@ -296,8 +296,7 @@ export const WorktreeCreateHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('WorktreeCreate'),
-    worktree_path: z.string().optional().describe('Where the worktree was created'),
-    branch: z.string().optional().describe('The branch checked out into it'),
+    name: z.string().describe('The worktree Mercury asks the hook to provision'),
   }),
 )
 export const WorktreeRemoveHookInputSchema = lazySchema(() =>
