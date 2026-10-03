@@ -95,8 +95,9 @@ worktrees and folders stay where they are and the lead gets a reminder
 naming each leftover worktree by its path; what to remove is the lead's
 decision.
 
-Named crewmates spawn on demand over the daemon's authed control socket. The
-RPC carries only intent — a name and a model choice — and the daemon
+Named crewmates spawn on demand over the daemon's authenticated control
+socket. Each seat runs in a `mercury runner` child, with the daemon as its
+host. The spawn request carries a name and a model choice; the daemon
 enforces the policy server-side, where a client bug cannot bypass it:
 
 - a validated model table: every row a session may run on this account, no
