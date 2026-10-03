@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
 import { BUN, REPO, SCRATCH_ROOT, bound, childEnv, makeTally, sleep } from '../daemon/dupline-world.ts'
-import { parseFrame, spawnRunnerDoor } from '../lib/rows.ts'
+import { hostRunner } from '../lib/runnerHost.ts'
 import { seedScratchHome, startScriptedFixture } from '../lib/scriptedTurn.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -56,56 +56,63 @@ async function runSeat(road: 'watchdog' | 'disconnect', root: string): Promise<S
   })
   const env = { ...childEnv(runHome, Number(new URL(fixture.base).port)), ...(road === 'watchdog' ? { MERCURY_HEADLESS_IDLE_MINUTES: '0.05' } : {}) }
   const run: SeatRun = { frames: [], askAt: 0, goneAt: 0, resultAt: 0, resultText: '', cancelSeen: false, requests: 0, exitCode: null, stderrTail: '' }
-  let stderr = ''
   let askUseId = ''
-  const door = spawnRunnerDoor({
+  let askId = 0
+  const host = hostRunner({
     node: BUN,
-    argv: ['run', launcher, 'runner', '--model', 'claude-opus-4-8'],
+    dist: launcher,
+    argv: ['--model', 'claude-opus-4-8'],
     cwd,
-    env,
-    capabilities: { holds_asks: false },
-    onLine: line => {
-      const frame = parseFrame(line)
-      if (frame === null) return
+    env: env as Record<string, string | undefined>,
+    home: runHome,
+    onRow: frame => {
       run.frames.push(frame)
       if (frame.type === 'tool_call' && frame.tool === 'AskUserQuestion' && typeof frame.call_id === 'string') askUseId = frame.call_id
-      if (frame.type === 'control_request' && (frame.request as { subtype?: string } | undefined)?.subtype === 'can_use_tool' && run.askAt === 0) {
-        run.askAt = Date.now()
-        if (road === 'disconnect') {
-          setTimeout(() => {
-            run.goneAt = Date.now()
-            proc.stdin!.end()
-          }, 200)
-        }
-      }
-      if (frame.type === 'control_cancel_request') run.cancelSeen = true
       if (frame.type === 'tool_result' && run.resultAt === 0 && (askUseId === '' || frame.call_id === askUseId)) {
         run.resultAt = Date.now()
         run.resultText = String(frame.output ?? '')
       }
     },
   })
-  const proc = door.child
-  proc.stderr!.on('data', (c: Buffer) => (stderr += c.toString('utf8')))
-  door.send({ type: 'user', message: { role: 'user', content: 'probe: ask the operator a question' }, uuid: randomUUID(), session_id: '' })
-  const exited = new Promise<number | null>(resolve => proc.on('exit', code => resolve(code)))
+  const proc = host.child
+  void host.waitForAsk('the ask', bound(60_000)).then(
+    ask => {
+      if (run.askAt !== 0) return
+      run.askAt = Date.now()
+      askId = ask.id
+      run.frames.push({ type: 'permission/request', ...ask.params })
+      if (road === 'disconnect') {
+        setTimeout(() => {
+          run.goneAt = Date.now()
+          host.end()
+        }, 200)
+      }
+    },
+    () => undefined,
+  )
+  const exited = host.exited
+  try {
+    await host.initialize({ holds_asks: false }, bound(60_000))
+    await host.prompt('probe: ask the operator a question', { id: randomUUID() })
+  } catch (error) {
+    console.log(`  [door] ${error instanceof Error ? error.message : String(error)}`)
+  }
   const until = Date.now() + bound(60_000)
   while (Date.now() < until) {
     if (run.resultAt !== 0 && (road === 'watchdog' || fixture.requests.length >= 2 || proc.exitCode !== null)) break
     await sleep(50)
   }
   await Promise.race([exited, sleep(bound(8_000))])
-  try {
-    proc.stdin!.end()
-  } catch {
-  }
+  host.end()
   try {
     proc.kill('SIGKILL')
   } catch {
   }
   run.exitCode = await Promise.race([exited, sleep(bound(3_000)).then(() => null)])
+  host.peer.close('the seat run ended')
+  run.cancelSeen = askId !== 0 && host.withdrawn.has(askId)
   run.requests = fixture.requests.length
-  run.stderrTail = stderr.split('\n').filter(l => l.trim() !== '').slice(-3).join(' | ').slice(0, 300)
+  run.stderrTail = host.stderr().split('\n').filter(l => l.trim() !== '').slice(-3).join(' | ').slice(0, 300)
   await fixture.close()
   return run
 }
@@ -120,7 +127,7 @@ tally.section('S1 the seat on the source, the field road: nobody answers, the un
     tally.check('red on the base: the tool_result is the typed denial, not "Tool permission request failed: Tool permission request was aborted"', isTypedDenial(text, 'AskUserQuestion'), `base text: ${j(text)}`)
     tally.check('...naming the wait and the 3s limit read off the cut', /nobody answered within 3s, the turn's no-progress limit/.test(causeOf(text, 'AskUserQuestion')), j(causeOf(text, 'AskUserQuestion')))
     tally.check('...arriving at the cut (within the 3s limit plus a second of the ask, never later)', run.resultAt - run.askAt < 3_000 + bound(1_000), `${run.resultAt - run.askAt}ms after the ask`)
-    tally.check('...the ask withdrawn on the wire (control_cancel_request on stdout)', run.cancelSeen, run.frames.map(f => String(f.type)).join(' '))
+    tally.check('...the ask withdrawn on the wire ($/cancel_request to the host)', run.cancelSeen, run.frames.map(f => String(f.type)).join(' '))
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
