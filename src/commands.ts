@@ -511,23 +511,6 @@ export const getSlashCommandToolSkills = memoize(
   },
 )
 
-export const BRIDGE_SAFE_COMMANDS: Set<Command> = new Set(
-  [compact, clear, cost, updateNotes, releaseNotes].filter(Boolean),
-)
-
-export function isBridgeSafeCommand(cmd: Command): boolean {
-  if (cmd.type === 'local-jsx') {
-    return false
-  }
-  if (cmd.type === 'prompt') {
-    return true
-  }
-  if (cmd.type === 'local') {
-    return BRIDGE_SAFE_COMMANDS.has(cmd)
-  }
-  return false
-}
-
 export function findCommand(
   name: string,
   commands: Command[],
@@ -538,28 +521,6 @@ export function findCommand(
       getCommandName(command) === name ||
       (command.aliases?.includes(name) ?? false),
   )
-}
-
-export function hasCommand(name: string, commands: Command[]): boolean {
-  return findCommand(name, commands) !== undefined
-}
-
-export function getCommand(name: string, commands: Command[]): Command {
-  const command = findCommand(name, commands)
-  if (!command) {
-    const available = commands
-      .map(candidate =>
-        candidate.aliases?.length
-          ? `${getCommandName(candidate)} (aliases: ${candidate.aliases.join(', ')})`
-          : getCommandName(candidate),
-      )
-      .sort((a, b) => a.localeCompare(b))
-      .join(', ')
-    throw new ReferenceError(
-      `Command ${name} not found. Available commands: ${available}`,
-    )
-  }
-  return command
 }
 
 export function formatDescriptionWithSource(cmd: Command): string {

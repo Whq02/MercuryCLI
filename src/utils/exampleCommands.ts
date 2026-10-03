@@ -90,16 +90,6 @@ async function gatherFrequentFiles(): Promise<string[]> {
   }
 }
 
-export function countAndSortItems(items: string[], topN: number = 20): string {
-  const counts = new Map<string, number>()
-  for (const item of items) counts.set(item, (counts.get(item) ?? 0) + 1)
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, topN)
-    .map(([item, count]) => `${String(count).padStart(6, ' ')} ${item}`)
-    .join('\n')
-}
-
 export const getExampleCommandFromCache = memoize((): string => {
   const cached = getCurrentProjectConfig().exampleFiles ?? []
   const file = cached.length > 0 ? (sample(cached) as string) : '<filepath>'

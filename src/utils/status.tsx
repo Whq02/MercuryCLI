@@ -1,26 +1,11 @@
-import chalk from 'chalk'
 import React from 'react'
 
 import { Text } from '../ink.js'
-import {
-  getInstructionFiles,
-  getLargeMemoryFiles,
-  MAX_MEMORY_CHARACTER_COUNT,
-} from '../services/instructions/engine.js'
-import type { MCPServerConnection } from '../services/mcp/types.js'
-import { getAllowedSettingSources } from '../bootstrap/state.js'
 import { getAccountInformation } from './auth.js'
 import { getHealthDiagnostic } from './healthDiagnostic.js'
-import { formatNumber } from './format.js'
-import {
-  getDefaultModelDescription,
-  getMainLoopModel,
-  modelDisplayString,
-} from './model/model.js'
+import { getSettingsWithErrors } from './settings/settings.js'
 import { getMTLSConfig } from './mtls.js'
 import { extraCaCertsStatusLine } from './caCerts.js'
-import { checkInstall } from './nativeInstaller/index.js'
-import { toTildePath } from './path.js'
 import { getProxyUrl } from './proxy.js'
 import { familyDisplayName } from '../services/providers/accountSlots.js'
 import {
@@ -30,15 +15,6 @@ import {
 } from '../services/providers/providerUsage.js'
 import { activeWalletEntry, walletEntries, type WalletEntry } from '../services/wallet/wallet.js'
 import { resolveProviderUsability } from '../services/providers/providerUsability.js'
-import type { SettingSource } from './settings/constants.js'
-import { SETTING_SOURCES } from './settings/constants.js'
-import {
-  getManagedFileSettingsPresence,
-  getPolicySettingsOrigin,
-  getSettingsForSource,
-  getSettingsWithErrors,
-} from './settings/settings.js'
-import type { ThemeName } from './theme.js'
 
 
 export type Property = {
@@ -65,118 +41,6 @@ function nodeText(value: React.ReactNode): string {
   return ''
 }
 
-export function buildMcpProperties(servers: MCPServerConnection[] = [], theme: ThemeName): Property[] {
-  void theme
-  if (servers.length === 0) return []
-  let connected = 0
-  let needsAuth = 0
-  let pending = 0
-  let failed = 0
-  for (const server of servers) {
-    if (server.type === 'connected') connected++
-    else if (server.type === 'needs-auth') needsAuth++
-    else if (server.type === 'pending') pending++
-    else failed++
-  }
-  const parts: React.ReactNode[] = []
-  if (connected > 0) {
-    parts.push(
-      <Text key="connected" color="success">
-        {connected} connected
-      </Text>,
-    )
-  }
-  if (needsAuth > 0) {
-    parts.push(
-      <Text key="needs-auth" color="warning">
-        {needsAuth} needs auth
-      </Text>,
-    )
-  }
-  if (pending > 0) {
-    parts.push(
-      <Text key="pending" color="inactive">
-        {pending} pending
-      </Text>,
-    )
-  }
-  if (failed > 0) {
-    parts.push(
-      <Text key="failed" color="error">
-        {failed} failed
-      </Text>,
-    )
-  }
-  return [
-    {
-      label: 'MCP servers',
-      value: (
-        <Text>
-          {parts.map((part, index) => (
-            <React.Fragment key={index}>
-              {index > 0 ? ', ' : ''}
-              {part}
-            </React.Fragment>
-          ))}{' '}
-          <Text color="inactive">Run /mcp for details</Text>
-        </Text>
-      ),
-    },
-  ]
-}
-
-export async function buildMemoryDiagnostics(): Promise<Diagnostic[]> {
-  const files = await getInstructionFiles()
-  return getLargeMemoryFiles(files).map(file => (
-    <Text key={file.path}>
-      Memory file {toTildePath(file.path)} is large ({formatNumber(file.content.length)} chars {'>'}{' '}
-      {formatNumber(MAX_MEMORY_CHARACTER_COUNT)}) and will impact performance
-    </Text>
-  ))
-}
-
-const SOURCE_DISPLAY_NAMES: Record<SettingSource, string> = {
-  userSettings: 'User',
-  projectSettings: 'Project',
-  localSettings: 'Local',
-  flagSettings: 'Flag',
-  policySettings: 'Managed',
-}
-
-export function buildSettingSourcesProperties(): Property[] {
-  const allowed = new Set(getAllowedSettingSources())
-  const names: string[] = []
-  for (const source of SETTING_SOURCES) {
-    if (!allowed.has(source)) continue
-    const settings = getSettingsForSource(source)
-    if (!settings || Object.keys(settings).length === 0) continue
-    if (source !== 'policySettings') {
-      names.push(SOURCE_DISPLAY_NAMES[source])
-      continue
-    }
-    const origin = getPolicySettingsOrigin()
-    if (origin === null) continue
-    if (origin === 'file') {
-      const presence = getManagedFileSettingsPresence()
-      if (presence.hasBase && presence.hasDropIns) names.push('Managed (file + drop-ins)')
-      else if (presence.hasDropIns) names.push('Managed (drop-ins)')
-      else names.push('Managed (file)')
-    } else if (origin === 'plist') {
-      names.push('Managed (plist)')
-    } else if (origin === 'hklm') {
-      names.push('Managed (HKLM)')
-    } else {
-      names.push('Managed (HKCU)')
-    }
-  }
-  return [{ label: 'Setting sources', value: names }]
-}
-
-export async function buildInstallationDiagnostics(): Promise<Diagnostic[]> {
-  const messages = await checkInstall()
-  return messages.map((message, index) => <Text key={index}>{message.message}</Text>)
-}
-
 export async function buildInstallationHealthDiagnostics(): Promise<Diagnostic[]> {
   const diagnostics: Diagnostic[] = []
   const { errors } = getSettingsWithErrors()
@@ -194,7 +58,6 @@ export async function buildInstallationHealthDiagnostics(): Promise<Diagnostic[]
   }
   return diagnostics
 }
-
 
 export function buildProviderAccountBlocks(
   presences: ProviderFamilyPresence[] = providerFamilyPresences(),
@@ -311,11 +174,4 @@ export function buildAPIProviderProperties(): Property[] {
     }
   }
   return properties
-}
-
-export function getModelDisplayLabel(mainLoopModel: string | null): string {
-  if (mainLoopModel === null) {
-    return `${chalk.bold('Default')} ${getDefaultModelDescription()}`
-  }
-  return modelDisplayString(mainLoopModel as never)
 }

@@ -25,19 +25,6 @@ export function isInstructionDiscoveryDisabled(): boolean {
 }
 
 
-let systemPromptInjection: string | null = null
-
-export function getSystemPromptInjection(): string | null {
-  return systemPromptInjection
-}
-
-export function setSystemPromptInjection(value: string | null): void {
-  systemPromptInjection = value
-  getSystemContext.cache.clear?.()
-  getUserContext.cache.clear?.()
-}
-
-
 async function rawGit(args: string[]): Promise<string> {
   const outcome = await execFileNoThrow(gitExe(), args, {
     preserveOutputOnError: false,

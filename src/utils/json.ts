@@ -1,5 +1,3 @@
-import { open, readFile, stat } from 'node:fs/promises'
-
 import { applyEdits, modify, parse as parseJsonc } from 'jsonc-parser'
 
 import { stripBOM } from './jsonRead.js'
@@ -145,28 +143,4 @@ export function parseJSONL<T>(data: string | Buffer): T[] {
     }
   }
   return results
-}
-
-const JSONL_TAIL_WINDOW = 100 * 1024 * 1024
-
-export async function readJSONLFile<T>(filePath: string): Promise<T[]> {
-  const stats = await stat(filePath)
-  if (stats.size <= JSONL_TAIL_WINDOW) return parseJSONL<T>(await readFile(filePath))
-  const handle = await open(filePath, 'r')
-  try {
-    const buffer = Buffer.allocUnsafe(JSONL_TAIL_WINDOW)
-    const start = stats.size - JSONL_TAIL_WINDOW
-    let filled = 0
-    while (filled < JSONL_TAIL_WINDOW) {
-      const { bytesRead } = await handle.read(buffer, filled, JSONL_TAIL_WINDOW - filled, start + filled)
-      if (bytesRead === 0) break
-      filled += bytesRead
-    }
-    const window = buffer.subarray(0, filled)
-    const newline = window.indexOf(0x0a)
-    if (newline === -1 || newline === window.length - 1) return parseJSONL<T>(window)
-    return parseJSONL<T>(window.subarray(newline + 1))
-  } finally {
-    await handle.close()
-  }
 }

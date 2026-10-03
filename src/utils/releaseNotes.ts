@@ -117,29 +117,3 @@ export function earlierReleasesCount(line: string): number | null {
   const match = EARLIER_RELEASES_LINE.exec(line.trim())
   return match ? Number(match[1]) : null
 }
-
-function currentVersionDefault(): string {
-  return typeof MACRO !== 'undefined' && MACRO.VERSION ? MACRO.VERSION : '0.0.0'
-}
-
-function checkForReleaseNotesImpl(
-  lastSeenVersion: string | null | undefined,
-  currentVersion: string,
-): { hasReleaseNotes: boolean; releaseNotes: string[] } {
-  const releaseNotes = getRecentReleaseNotes(currentVersion, lastSeenVersion)
-  return { hasReleaseNotes: releaseNotes.length > 0, releaseNotes }
-}
-
-export async function checkForReleaseNotes(
-  lastSeenVersion: string | null | undefined,
-  currentVersion: string = currentVersionDefault(),
-): Promise<{ hasReleaseNotes: boolean; releaseNotes: string[] }> {
-  return checkForReleaseNotesImpl(lastSeenVersion, currentVersion)
-}
-
-export function checkForReleaseNotesSync(
-  lastSeenVersion: string | null | undefined,
-  currentVersion: string = currentVersionDefault(),
-): { hasReleaseNotes: boolean; releaseNotes: string[] } {
-  return checkForReleaseNotesImpl(lastSeenVersion, currentVersion)
-}
