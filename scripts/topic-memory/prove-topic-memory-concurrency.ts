@@ -5,8 +5,8 @@ import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { appendObservation, readBuffer } = await import('../../src/memdir/mnemeBuffer.ts')
-const { listTopicDocs, maybeConsolidate } = await import('../../src/memdir/mnemeConsolidate.ts')
+const { appendObservation, readBuffer } = await import('../../src/mneme/mnemeBuffer.ts')
+const { listTopicDocs, maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {

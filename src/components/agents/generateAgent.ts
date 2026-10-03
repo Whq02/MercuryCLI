@@ -3,7 +3,7 @@ import { routedCallModelSettled } from '../../services/providers/callModelRouter
 import { getEmptyToolPermissionContext } from '../../Tool.js'
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
 import { getUserContext } from '../../context.js'
-import { isAutoMemoryEnabled } from '../../memdir/paths.js'
+import { isMnemeEnabled } from '../../mneme/paths.js'
 import { prependUserContext } from '../../utils/api.js'
 import {
   createUserMessage,
@@ -74,7 +74,7 @@ purpose: name the concrete inputs the agent will see, state how it should
 handle work outside its charter, and prefer short imperative instructions
 over abstract qualities.`,
   ]
-  if (isAutoMemoryEnabled()) {
+  if (isMnemeEnabled()) {
     sections.push(`When the description mentions memory, or the agent would naturally
 accumulate knowledge across uses, include a short domain-specific section in
 the system prompt on maintaining its memory: what is worth recording (stable

@@ -6,10 +6,10 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, utimesSy
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const { appendObservation, readBuffer } = await import('../../src/memdir/mnemeBuffer.ts')
-const { listTopicDocs, maybeConsolidate } = await import('../../src/memdir/mnemeConsolidate.ts')
+const { appendObservation, readBuffer } = await import('../../src/mneme/mnemeBuffer.ts')
+const { listTopicDocs, maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.ts')
 const { dueForMaintenance, mnemeStatus, readMaintenanceReceipts, runDueMaintenance } = await import(
-  '../../src/memdir/mnemeMaintenance.ts'
+  '../../src/mneme/mnemeMaintenance.ts'
 )
 
 let failures = 0

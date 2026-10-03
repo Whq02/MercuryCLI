@@ -32,9 +32,9 @@ import {
   getInitialSettings,
 } from '../../utils/settings/settings.js'
 import type { SettingsJson } from '../../utils/settings/types.js'
-import { readPinnedStatus } from '../../memdir/mnemeFrontPage.js'
-import { runDueMaintenance } from '../../memdir/mnemeMaintenance.js'
-import { formatTextSize, PINNED_TEXT_LIMIT_MIN, PINNED_TEXT_LIMIT_STEP, pinnedTextLimit } from '../../memdir/mnemeUsage.js'
+import { readPinnedStatus } from '../../mneme/mnemeFrontPage.js'
+import { runDueMaintenance } from '../../mneme/mnemeMaintenance.js'
+import { formatTextSize, PINNED_TEXT_LIMIT_MIN, PINNED_TEXT_LIMIT_STEP, pinnedTextLimit } from '../../mneme/mnemeUsage.js'
 import {
   clearInstructionFileCaches,
 } from '../../services/instructions/engine.js'

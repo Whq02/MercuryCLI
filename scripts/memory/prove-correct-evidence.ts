@@ -17,9 +17,9 @@ function section(t: string): void {
 }
 
 const { retainItems, recallQuery, readMemoryRecord, correctMemory, _resetMemoryVerbSessionStateForTesting } =
-  await import('../../src/memdir/memoryVerbs.js')
-const { maybeConsolidate } = await import('../../src/memdir/mnemeConsolidate.js')
-const { mnemeLibraryDir } = await import('../../src/memdir/mnemeGates.js')
+  await import('../../src/mneme/memoryVerbs.js')
+const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.js')
+const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.js')
 
 retainItems(
   [

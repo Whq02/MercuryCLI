@@ -14,8 +14,8 @@ import {
   type MemoryReadResult,
   type RecallResult,
   type RetainItemOutcome,
-} from '../../memdir/memoryVerbs.js'
-import { runDueMaintenance } from '../../memdir/mnemeMaintenance.js'
+} from '../../mneme/memoryVerbs.js'
+import { runDueMaintenance } from '../../mneme/mnemeMaintenance.js'
 import {
   CORRECT_DESCRIPTION,
   CORRECT_PROMPT,

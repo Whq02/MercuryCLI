@@ -5,21 +5,21 @@ import { CommandCenter, EmptyState, SectionHeader, StateBadge } from '../mercury
 import { GLYPH, truncateToWidth } from '../mercury-ui/glyphs.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
 import { useFlatList } from '../mercury-ui/useFlatList.js'
-import { collectMemoryRefs, type MemoryRef } from '../../memdir/memoryRefs.js'
-import { correctFact, retireFact } from '../../memdir/mnemeCorrect.js'
-import { mnemeEnabled } from '../../memdir/mnemeGates.js'
+import { collectMemoryRefs, type MemoryRef } from '../../mneme/memoryRefs.js'
+import { correctFact, retireFact } from '../../mneme/mnemeCorrect.js'
+import { mnemeEnabled } from '../../mneme/mnemeGates.js'
 import {
   mnemeStatus,
   readMaintenanceReceipts,
   runDueMaintenance,
-} from '../../memdir/mnemeMaintenance.js'
-import { readDocLines } from '../../memdir/mnemeRetrieval.js'
-import { indexLines, liveEntryIndex, pinnedLine, pinnedView, readPinnedStatus, type IndexLine } from '../../memdir/mnemeFrontPage.js'
-import { handoverDue, handoverIfDue, readHandoverReceipt, renderHandoverReceipt } from '../../memdir/mnemeHandover.js'
-import { listTopicDocs } from '../../memdir/mnemeLibrary.js'
-import type { MnemeEntry } from '../../memdir/mnemeTopicDocs.js'
-import { formatTextSize, pinFact, pinnedTextLimit, readPins, unpinFact, type PinRecord } from '../../memdir/mnemeUsage.js'
-import { getAutoMemPath } from '../../memdir/paths.js'
+} from '../../mneme/mnemeMaintenance.js'
+import { readDocLines } from '../../mneme/mnemeRetrieval.js'
+import { indexLines, liveEntryIndex, pinnedLine, pinnedView, readPinnedStatus, type IndexLine } from '../../mneme/mnemeFrontPage.js'
+import { handoverDue, handoverIfDue, readHandoverReceipt, renderHandoverReceipt } from '../../mneme/mnemeHandover.js'
+import { listTopicDocs } from '../../mneme/mnemeLibrary.js'
+import type { MnemeEntry } from '../../mneme/mnemeTopicDocs.js'
+import { formatTextSize, pinFact, pinnedTextLimit, readPins, unpinFact, type PinRecord } from '../../mneme/mnemeUsage.js'
+import { getMnemeHome } from '../../mneme/paths.js'
 
 
 const MAX_ROWS = 10
@@ -176,7 +176,7 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
       if (intake) {
         const [first, pages] = renderHandoverReceipt(intake)
         rows.push({ id: 'intake', kind: 'info', label: `notes taken in: ${first} · ${pages}` })
-      } else if (handoverDue(getAutoMemPath())) {
+      } else if (handoverDue(getMnemeHome())) {
         rows.push({ id: 'intake', kind: 'action', label: 'notes to take in: the existing notes are not in memory yet — ↵ take them in now', run: () => {} })
       }
       const due = st.due ? `DUE — ${st.dueReason}` : st.running ? 'running' : 'idle'
@@ -253,7 +253,7 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
     fl.busyRef.current = true
     fl.setNote({ text: 'taking the existing notes into memory …', kind: 'pending' })
     try {
-      const receipt = handoverIfDue(getAutoMemPath())
+      const receipt = handoverIfDue(getMnemeHome())
       fl.setNote(receipt ? { text: `${GLYPH.check} ${renderHandoverReceipt(receipt)[0]}`, kind: 'ok' } : { text: 'nothing to take in', kind: 'warn' })
     } catch (e) {
       fl.setNote({ text: `${GLYPH.fail} intake failed: ${String(e)}`, kind: 'fail' })

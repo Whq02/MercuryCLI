@@ -54,9 +54,9 @@ Object.assign(process.env, {
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
-const { retainItems } = await import('../../src/memdir/memoryVerbs.js')
-const { maybeConsolidate } = await import('../../src/memdir/mnemeConsolidate.js')
-const { mnemeLibraryDir } = await import('../../src/memdir/mnemeGates.js')
+const { retainItems } = await import('../../src/mneme/memoryVerbs.js')
+const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.js')
+const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.js')
 const { ReflectTool } = await import('../../src/tools/MemoryTools/MemoryTools.js')
 
 const context = {
@@ -73,7 +73,7 @@ retainItems(
   { session: 'reflect' },
 )
 maybeConsolidate({ dir: mnemeLibraryDir(), force: true })
-const { recallQuery } = await import('../../src/memdir/memoryVerbs.js')
+const { recallQuery } = await import('../../src/mneme/memoryVerbs.js')
 const citableSeqs = recallQuery('release', { limit: 12 })
   .hits.map(h => /^seq:(\d+)$/.exec(h.id)?.[1])
   .filter((v): v is string => Boolean(v))

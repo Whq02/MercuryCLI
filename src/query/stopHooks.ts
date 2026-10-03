@@ -187,7 +187,7 @@ export async function* handleStopHooks(
     }
     if (!agentId) {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const mneme = require('../memdir/mnemeMaintenance.js') as {
+      const mneme = require('../mneme/mnemeMaintenance.js') as {
         scheduleMnemeMaintenance: (trigger: 'turn-end') => void
       }
       mneme.scheduleMnemeMaintenance('turn-end')

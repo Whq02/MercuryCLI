@@ -19,9 +19,9 @@ import { binaryName } from './config/derived.js'
 import { getCwd } from './cwd.js'
 import { formatNumber } from './format.js'
 import { AGENT_DESCRIPTIONS_THRESHOLD, getAgentDescriptionsTotalTokens } from './statusNoticeHelpers.js'
-import { readPinnedStatus } from '../memdir/mnemeFrontPage.js'
-import { mnemeEnabled } from '../memdir/mnemeGates.js'
-import { formatTextSize } from '../memdir/mnemeUsage.js'
+import { readPinnedStatus } from '../mneme/mnemeFrontPage.js'
+import { mnemeEnabled } from '../mneme/mnemeGates.js'
+import { formatTextSize } from '../mneme/mnemeUsage.js'
 
 
 export type StatusNoticeType = 'warning' | 'info'

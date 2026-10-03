@@ -14,7 +14,7 @@ type CompactionSource =
   | 'session_memory'
   | 'marble_origami'
   | 'extract_memories'
-  | 'memdir_relevance'
+  | 'mneme_relevance'
   | 'away_summary'
   | 'concourse_coordinator_compact'
 

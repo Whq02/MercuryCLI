@@ -5,10 +5,10 @@ import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const { appendObservation, pendingRows, recentObservations } = await import('../../src/memdir/mnemeBuffer.ts')
-const { maybeConsolidate } = await import('../../src/memdir/mnemeConsolidate.ts')
+const { appendObservation, pendingRows, recentObservations } = await import('../../src/mneme/mnemeBuffer.ts')
+const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.ts')
 const { catalogDocs, grepAll, grepLibrary, grepPending, pendingSummary, PENDING_SLUG, readDocLines } = await import(
-  '../../src/memdir/mnemeRetrieval.ts'
+  '../../src/mneme/mnemeRetrieval.ts'
 )
 
 let failures = 0

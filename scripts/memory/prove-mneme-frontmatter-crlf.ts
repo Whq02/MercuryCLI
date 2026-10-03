@@ -2,14 +2,14 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { MnemeTopicDoc } from '../../src/memdir/mnemeTopicDocs.ts'
+import type { MnemeTopicDoc } from '../../src/mneme/mnemeTopicDocs.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const HOME = mkdtempSync(join(tmpdir(), 'memdir-crlf-home-'))
-const WORK = mkdtempSync(join(tmpdir(), 'memdir-crlf-work-'))
+const HOME = mkdtempSync(join(tmpdir(), 'mneme-crlf-home-'))
+const WORK = mkdtempSync(join(tmpdir(), 'mneme-crlf-work-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 
-const { parseTopicDoc, serializeTopicDoc } = await import('../../src/memdir/mnemeTopicDocs.ts')
+const { parseTopicDoc, serializeTopicDoc } = await import('../../src/mneme/mnemeTopicDocs.ts')
 
 let failures = 0
 let checks = 0

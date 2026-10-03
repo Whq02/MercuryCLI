@@ -6,7 +6,7 @@ import { retainItems } from './memoryVerbs.js'
 import { deterministicRewriter, maybeConsolidate, type MnemeRewriter } from './mnemeConsolidate.js'
 import { publishLibraryFile } from './mnemeLibrary.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
-import { getAutoMemPath } from './paths.js'
+import { getMnemeHome } from './paths.js'
 
 export const HANDOVER_FILE = 'handover.json'
 const CHUNK_CHARS = 1900
@@ -131,7 +131,7 @@ export function readHandoverReceipt(dir: string = mnemeLibraryDir()): HandoverRe
   }
 }
 
-export function handoverDue(memoryDir: string = getAutoMemPath()): boolean {
+export function handoverDue(memoryDir: string = getMnemeHome()): boolean {
   if (!mnemeEnabled()) return false
   if (readHandoverReceipt(join(memoryDir, 'library')) !== null) return false
   return listOldNotes(memoryDir).length > 0
@@ -203,7 +203,7 @@ export function handoverMemoryDir(memoryDir: string, now: Date = new Date()): Ha
   return receipt
 }
 
-export function handoverIfDue(memoryDir: string = getAutoMemPath(), now: Date = new Date()): HandoverReceipt | null {
+export function handoverIfDue(memoryDir: string = getMnemeHome(), now: Date = new Date()): HandoverReceipt | null {
   try {
     if (!handoverDue(memoryDir)) return null
     return handoverMemoryDir(memoryDir, now)

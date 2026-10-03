@@ -16,9 +16,9 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { retainItems, _resetMemoryVerbSessionStateForTesting } = await import('../../src/memdir/memoryVerbs.js')
+const { retainItems, _resetMemoryVerbSessionStateForTesting } = await import('../../src/mneme/memoryVerbs.js')
 const { RetainTool } = await import('../../src/tools/MemoryTools/MemoryTools.js')
-const { mnemeLibraryDir } = await import('../../src/memdir/mnemeGates.js')
+const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.js')
 
 section('a read-only library dir: the failure surfaces PER ITEM')
 const lockedDir = join(scratch, 'locked-lib')

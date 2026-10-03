@@ -1,6 +1,6 @@
 import type { Message } from 'src/types/message.js'
-import { lookupFacts, type LookupHit } from '../../memdir/mnemeLookup.js'
-import { isAutoMemoryEnabled } from '../../memdir/paths.js'
+import { lookupFacts, type LookupHit } from '../../mneme/mnemeLookup.js'
+import { isMnemeEnabled } from '../../mneme/paths.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { logForDebugging } from '../debug.js'
 import type { Attachment } from './types.js'
@@ -58,7 +58,7 @@ export function getRelevantMemoryAttachments(
   toolUseContext: ToolUseContext,
 ): Attachment[] {
   if (toolUseContext.agentId) return []
-  if (!isAutoMemoryEnabled()) return []
+  if (!isMnemeEnabled()) return []
   if (!input || !/\s/.test(input.trim())) return []
   try {
     const surfaced = collectSurfacedMemories(messages ?? [])

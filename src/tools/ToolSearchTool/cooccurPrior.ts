@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { getMemoryBaseDir } from '../../memdir/paths.js'
+import { getMemoryBaseDir } from '../../mneme/paths.js'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 

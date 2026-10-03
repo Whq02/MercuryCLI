@@ -26,7 +26,7 @@ import { PERMISSION_MODES, type PermissionMode } from '../../utils/permissions/P
 import { clearExtensionAgentCache, getExtensionAgents } from '../../extensions/load/agents.js'
 import { HooksSchema } from '../../utils/settings/types.js'
 import type { HooksSettings } from '../../utils/settings/types.js'
-import { isAutoMemoryEnabled } from '../../memdir/paths.js'
+import { isMnemeEnabled } from '../../mneme/paths.js'
 import { getBuiltInAgents } from './builtInAgents.js'
 import { setAgentColor, type AgentColorName } from './agentColorManager.js'
 import {
@@ -204,7 +204,7 @@ function makeSystemPromptClosure(
   memory: AgentMemoryScope | undefined,
 ): () => string {
   return () => {
-    if (memory && isAutoMemoryEnabled()) {
+    if (memory && isMnemeEnabled()) {
       return `${prompt}\n\n${loadAgentMemoryPrompt(agentType, memory)}`
     }
     return prompt

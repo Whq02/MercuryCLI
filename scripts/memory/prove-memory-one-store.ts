@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/memdir/** src/constants/prompts.ts src/constants/subagentDoctrine.ts src/commands.ts
+// gate-watch: src/mneme/** src/constants/prompts.ts src/constants/subagentDoctrine.ts src/commands.ts
 // gate-watch: src/services/instructions/engine.ts src/services/instructions/sourceText.ts src/utils/memory/types.ts
 // gate-watch: src/substrate/flagRegistry.ts src/tools/AgentTool/agentMemory.ts src/utils/attachments/orchestrator.ts
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
@@ -32,8 +32,8 @@ const rel = (p: string): string => p.slice(ROOT.length + 1)
 const read = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 
 section('memory has one store: no second set of modules')
-for (const name of ['memdir', 'memoryTypes', 'memoryScan', 'findRelevantMemories', 'experienceCards', 'curationLoop', 'tasteLoop', 'promoteRungate', 'memoryAge', 'memoryReferents']) {
-  check(`src/memdir/${name}.ts is absent`, !existsSync(join(ROOT, 'src/memdir', `${name}.ts`)))
+for (const name of ['mneme', 'memoryTypes', 'memoryScan', 'findRelevantMemories', 'experienceCards', 'curationLoop', 'tasteLoop', 'promoteRungate', 'memoryAge', 'memoryReferents']) {
+  check(`src/mneme/${name}.ts is absent`, !existsSync(join(ROOT, 'src/mneme', `${name}.ts`)))
 }
 for (const dir of ['src/commands/remember', 'src/commands/cards', 'src/commands/meh', 'src/commands/good', 'src/commands/taste', 'src/services/memoryUpkeep', 'src/tasks/DreamTask']) {
   check(`${dir} is absent`, !existsSync(join(ROOT, dir)))
@@ -41,7 +41,7 @@ for (const dir of ['src/commands/remember', 'src/commands/cards', 'src/commands/
 check('the cards view is absent', !existsSync(join(ROOT, 'src/components/CardsView.tsx')))
 
 section('the product speaks of memory in one vocabulary')
-const INTAKE = 'src/memdir/mnemeHandover.ts'
+const INTAKE = 'src/mneme/mnemeHandover.ts'
 const carriers = (re: RegExp, except: string[] = []): string[] =>
   files.filter(p => !except.includes(rel(p))).filter(p => re.test(readFileSync(p, 'utf8'))).map(rel)
 check('no source names the index file (the intake, which skips it, is the one reader of the name)', carriers(/MEMORY\.md/, [INTAKE]).length === 0, carriers(/MEMORY\.md/, [INTAKE]).join(', '))
@@ -62,7 +62,7 @@ check('the instruction-file type union is the four instruction kinds only', /\['
 section('the model is told about one memory only')
 const prompts = read('src/constants/prompts.ts')
 check('the system prompt has no memory-file pointer line', !prompts.includes('pointer line') && !prompts.includes('memory file'))
-check("the system prompt's memory section is the front page", prompts.includes("from '../memdir/mnemeFrontPage.js'") && !prompts.includes('memdir/memdir.js'))
+check("the system prompt's memory section is the front page", prompts.includes("from '../mneme/mnemeFrontPage.js'") && !prompts.includes('mneme/mneme.js'))
 const doctrine = read('src/constants/subagentDoctrine.ts')
 check('the sub-agent doctrine carries no card doctrine', !/cardDoctrine|experienceCardDoctrineLines/.test(doctrine))
 const agentMemory = read('src/tools/AgentTool/agentMemory.ts')
@@ -72,9 +72,9 @@ check('the lookup rides the input lane of the attachment orchestrator', orchestr
 check('no taste attachment is produced', !orchestrator.includes('taste_recall'))
 
 section('an old index on disk is an ordinary file nobody opens')
-const { loadMemoryPrompt } = await import('../../src/memdir/mnemeFrontPage.js')
-const { getAutoMemPath } = await import('../../src/memdir/paths.js')
-const memDir = getAutoMemPath()
+const { loadMemoryPrompt } = await import('../../src/mneme/mnemeFrontPage.js')
+const { getMnemeHome } = await import('../../src/mneme/paths.js')
+const memDir = getMnemeHome()
 mkdirSync(memDir, { recursive: true })
 writeFileSync(join(memDir, 'MEMORY.md'), '# index\n- [ZEBRAFROST](zebrafrost.md) — a pointer the prompt must never carry\n')
 writeFileSync(join(memDir, 'zebrafrost.md'), '---\nname: zebrafrost\ndescription: a one-fact file\ntype: project\n---\n\nZEBRAFROST_BODY\n')

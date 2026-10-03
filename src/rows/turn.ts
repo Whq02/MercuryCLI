@@ -53,8 +53,8 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 import type { ThinkingConfig } from '../utils/thinking.js'
 import { shouldEnableThinkingByDefault } from '../utils/thinking.js'
 import { asSystemPrompt } from '../utils/systemPromptType.js'
-import { loadMemoryPrompt } from '../memdir/mnemeFrontPage.js'
-import { hasAutoMemPathOverride } from '../memdir/paths.js'
+import { loadMemoryPrompt } from '../mneme/mnemeFrontPage.js'
+import { hasMnemeHomeOverride } from '../mneme/paths.js'
 import { getCwd } from '../utils/cwd.js'
 import {
   commandOutputRow,
@@ -368,7 +368,7 @@ export class Conversation {
     headlessProfilerCheckpoint('after_getSystemPrompt')
 
     let memoryMechanicsPrompt: string | null = null
-    if (config.customSystemPrompt !== undefined && hasAutoMemPathOverride()) memoryMechanicsPrompt = await loadMemoryPrompt()
+    if (config.customSystemPrompt !== undefined && hasMnemeHomeOverride()) memoryMechanicsPrompt = await loadMemoryPrompt()
 
     const systemPromptSections: string[] = config.customSystemPrompt !== undefined ? [MERCURY_IDENTITY_FLOOR, config.customSystemPrompt] : [...promptParts.defaultSystemPrompt]
     if (memoryMechanicsPrompt) systemPromptSections.push(memoryMechanicsPrompt)

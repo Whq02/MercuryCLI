@@ -5,11 +5,11 @@ import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { appendObservation } = await import('../../src/memdir/mnemeBuffer.ts')
-const { listTopicDocs, maybeConsolidate } = await import('../../src/memdir/mnemeConsolidate.ts')
+const { appendObservation } = await import('../../src/mneme/mnemeBuffer.ts')
+const { listTopicDocs, maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.ts')
 const { MAX_DOC_TOKENS, MIN_DOC_TOKENS, computeDocTokens, docFileName, emptyDoc, mergeDocs, pickMergePartner, splitDoc } =
-  await import('../../src/memdir/mnemeTopicDocs.ts')
-import type { MnemeRewriter } from '../../src/memdir/mnemeConsolidate.ts'
+  await import('../../src/mneme/mnemeTopicDocs.ts')
+import type { MnemeRewriter } from '../../src/mneme/mnemeConsolidate.ts'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {

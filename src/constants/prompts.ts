@@ -19,7 +19,7 @@ import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { getCurrentWorktreeSession } from '../utils/worktree.js'
 import { ensureScratchpadDir, scratchpadPromptLine } from '../utils/scratchpad.js'
-import { loadMemoryPrompt, memoryPromptKey } from '../memdir/mnemeFrontPage.js'
+import { loadMemoryPrompt, memoryPromptKey } from '../mneme/mnemeFrontPage.js'
 import { getSessionStartDate } from './common.js'
 import { CYBER_RISK_INSTRUCTION } from './cyberRiskInstruction.js'
 import {

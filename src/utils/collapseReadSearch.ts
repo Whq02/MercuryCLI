@@ -35,7 +35,7 @@ import { isFullscreenEnvEnabled } from './fullscreen.js'
 import {
   isAutoManagedMemoryFile,
   isAutoManagedMemoryPattern,
-  isAutoMemFile,
+  isMnemeFile,
   isMemoryDirectory,
   isShellCommandTargetingMemory,
 } from './memoryFileDetection.js'
@@ -88,7 +88,7 @@ export function getToolSearchOrReadInfo(
   }
   if (toolName === FILE_WRITE_TOOL_NAME || toolName === FILE_EDIT_TOOL_NAME) {
     const targetPath = inputPath(toolInput)
-    if (targetPath !== undefined && isAutoManagedMemoryFile(targetPath) && !isAutoMemFile(targetPath)) {
+    if (targetPath !== undefined && isAutoManagedMemoryFile(targetPath) && !isMnemeFile(targetPath)) {
       return { ...NOT_COLLAPSIBLE, isCollapsible: true, isMemoryWrite: true }
     }
   }

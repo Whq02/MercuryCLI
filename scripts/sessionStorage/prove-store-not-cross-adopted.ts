@@ -36,8 +36,8 @@ section('§1 A MEMDIR ESTATE IS NOT A STORE')
 
   const dotStore = getProjectDir(dotProj)
   const underscoreStore = getProjectDir(underscoreProj)
-  check('app.1 does NOT adopt the memdir estate (FC-007)', dotStore !== hashless, dotStore)
-  check('app_1 does NOT adopt the memdir estate (FC-007)', underscoreStore !== hashless, underscoreStore)
+  check('app.1 does NOT adopt the mneme estate (FC-007)', dotStore !== hashless, dotStore)
+  check('app_1 does NOT adopt the mneme estate (FC-007)', underscoreStore !== hashless, underscoreStore)
 
   section('§2 DISTINCT STORES')
   check(

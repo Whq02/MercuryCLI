@@ -18,10 +18,10 @@ function section(t: string): void {
 }
 
 const { retainItems, recallQuery, readMemoryRecord, correctMemory, memoryVerbsEnabled, memoryVerbsWhyNot } =
-  await import('../../src/memdir/memoryVerbs.js')
-const { maybeConsolidate } = await import('../../src/memdir/mnemeConsolidate.js')
-const { getAutoMemPath } = await import('../../src/memdir/paths.js')
-const { mnemeLibraryDir } = await import('../../src/memdir/mnemeGates.js')
+  await import('../../src/mneme/memoryVerbs.js')
+const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.js')
+const { getMnemeHome } = await import('../../src/mneme/paths.js')
+const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.js')
 const { RetainTool, RecallTool, ReflectTool, CorrectTool } = await import(
   '../../src/tools/MemoryTools/MemoryTools.js'
 )
@@ -41,7 +41,7 @@ check(
 check('tools report enabled', RetainTool.isEnabled() && RecallTool.isEnabled() && ReflectTool.isEnabled() && CorrectTool.isEnabled())
 
 section('an ordinary file in the memory dir is untouched by the verbs')
-const memPath = getAutoMemPath()
+const memPath = getMnemeHome()
 mkdirSync(memPath, { recursive: true })
 const indexPath = join(memPath, 'notes.md')
 writeFileSync(indexPath, '# notes\n\n- untouched sentinel\n', 'utf8')

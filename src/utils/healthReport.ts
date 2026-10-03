@@ -26,7 +26,7 @@ import { crashReportDir } from './crashReport.js'
 import { getAuthConfigHomeDir, getMercuryHome } from './envUtils.js'
 import { classifyHarnessHome, harnessArtifactPath, type HarnessHomeReport } from './knownAgentClis.js'
 import { pidAlive } from './pidAlive.js'
-import { getAutoMemPath } from '../memdir/paths.js'
+import { getMnemeHome } from '../mneme/paths.js'
 import { isAwaySummaryEnabled } from './cockpit/awaySummary.js'
 import { isMercuryCompactKeepTailEnabled } from '../services/compact/verbatimTail.js'
 import { publishAtomic } from '../substrate/fileStore.js'
@@ -2121,17 +2121,17 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'memory',
           label: 'Memory front page',
           run: async () => {
-            const { mnemeEnabled, mnemeLibraryDir } = await import('../memdir/mnemeGates.js')
+            const { mnemeEnabled, mnemeLibraryDir } = await import('../mneme/mnemeGates.js')
             if (!mnemeEnabled()) {
               return { status: 'off', evidence: 'memory is off (memory.enabled is false in settings) — nothing is loaded or saved' }
             }
-            const { readFrontPage, readPinnedStatus } = await import('../memdir/mnemeFrontPage.js')
-            const { formatTextSize } = await import('../memdir/mnemeUsage.js')
-            const { readHandoverReceipt } = await import('../memdir/mnemeHandover.js')
+            const { readFrontPage, readPinnedStatus } = await import('../mneme/mnemeFrontPage.js')
+            const { formatTextSize } = await import('../mneme/mnemeUsage.js')
+            const { readHandoverReceipt } = await import('../mneme/mnemeHandover.js')
             const dir = mnemeLibraryDir()
             const page = readFrontPage(dir)
             if (page === null) {
-              return { status: 'info', evidence: `no front page yet under ${getAutoMemPath()} — it is written at the first consolidation` }
+              return { status: 'info', evidence: `no front page yet under ${getMnemeHome()} — it is written at the first consolidation` }
             }
             const pinned = readPinnedStatus(dir)
             const topics = page.split('\n').filter(l => /^- /.test(l) && !/ <seq=/.test(l)).length
@@ -2152,8 +2152,8 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'memory-verbs',
           label: 'Memory verbs',
           run: async () => {
-            const { memoryVerbsEnabled, memoryVerbsWhyNot } = await import('../memdir/memoryVerbs.js')
-            const { mnemeStatus } = await import('../memdir/mnemeMaintenance.js')
+            const { memoryVerbsEnabled, memoryVerbsWhyNot } = await import('../mneme/memoryVerbs.js')
+            const { mnemeStatus } = await import('../mneme/mnemeMaintenance.js')
             if (!memoryVerbsEnabled()) {
               return {
                 status: 'off',
@@ -2578,14 +2578,14 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'memory-lifecycle',
           label: 'Memory lifecycle',
           run: async () => {
-            const { mnemeEnabled } = await import('../memdir/mnemeGates.js')
+            const { mnemeEnabled } = await import('../mneme/mnemeGates.js')
             if (!mnemeEnabled()) {
               return {
                 status: 'off' as const,
                 evidence: 'memory is off (memory.enabled is false in settings) — nothing saved or recalled this session',
               }
             }
-            const { mnemeStatus } = await import('../memdir/mnemeMaintenance.js')
+            const { mnemeStatus } = await import('../mneme/mnemeMaintenance.js')
             const st = mnemeStatus()
             const evidence = [
               `memory: ${st.entryCount} current · ${st.buffered + st.pendingConsuming} recent · ${st.historyCount} history · ${st.topicCount} topics`,

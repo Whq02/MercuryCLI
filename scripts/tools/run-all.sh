@@ -22,7 +22,7 @@
 # gate-watch: src/fabric/ordinal.ts src/hooks/* src/hooks/toolPermission/handlers/interactiveHandler.ts
 # gate-watch: src/ink/components/App.tsx src/ink/ink.tsx src/ink/session/capabilities.ts
 # gate-watch: src/ink/stringWidth.ts src/input-core/command-queue.ts
-# gate-watch: src/keybindings/KeybindingProviderSetup.tsx src/memdir/mnemeConsolidate.ts
+# gate-watch: src/keybindings/KeybindingProviderSetup.tsx src/mneme/mnemeConsolidate.ts
 # gate-watch: src/query/stopHooks.ts src/run-core/model-lane.ts src/run-core/turn-machine.ts
 # gate-watch: src/screens/REPL.tsx src/screens/toolJsxArbitration.ts src/services/agents/watch.ts
 # gate-watch: src/services/concourse/concourseSnapshot.ts src/services/concourse/workerTranscript.ts

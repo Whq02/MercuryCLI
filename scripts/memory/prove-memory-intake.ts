@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// gate-watch: src/memdir/mnemeHandover.ts src/memdir/mnemeMaintenance.ts src/memdir/mnemeBuffer.ts
-// gate-watch: src/memdir/memoryVerbs.ts src/memdir/mnemeConsolidate.ts src/utils/statusNoticeDefinitions.tsx
+// gate-watch: src/mneme/mnemeHandover.ts src/mneme/mnemeMaintenance.ts src/mneme/mnemeBuffer.ts
+// gate-watch: src/mneme/memoryVerbs.ts src/mneme/mnemeConsolidate.ts src/utils/statusNoticeDefinitions.tsx
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -20,9 +20,9 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-let intake: typeof import('../../src/memdir/mnemeHandover.js') | null = null
+let intake: typeof import('../../src/mneme/mnemeHandover.js') | null = null
 try {
-  intake = await import('../../src/memdir/mnemeHandover.js')
+  intake = await import('../../src/mneme/mnemeHandover.js')
 } catch {
   intake = null
 }
@@ -32,11 +32,11 @@ if (!intake) {
   process.exit(1)
 }
 const { handoverIfDue, handoverMemoryDir, handoverDue, readHandoverReceipt, listOldNotes, chunkNote, renderHandoverReceipt } = intake
-const { listTopicDocs, listArchiveDocs } = await import('../../src/memdir/mnemeConsolidate.js')
-const { readPins, pinFact } = await import('../../src/memdir/mnemeUsage.js')
-const { readFrontPage, readPinnedStatus } = await import('../../src/memdir/mnemeFrontPage.js')
-const { readBuffer } = await import('../../src/memdir/mnemeBuffer.js')
-const { seqCensus } = await import('../../src/memdir/mnemeArchive.js')
+const { listTopicDocs, listArchiveDocs } = await import('../../src/mneme/mnemeConsolidate.js')
+const { readPins, pinFact } = await import('../../src/mneme/mnemeUsage.js')
+const { readFrontPage, readPinnedStatus } = await import('../../src/mneme/mnemeFrontPage.js')
+const { readBuffer } = await import('../../src/mneme/mnemeBuffer.js')
+const { seqCensus } = await import('../../src/mneme/mnemeArchive.js')
 
 function note(name: string, type: string | null, body: string, extraHead = ''): [string, string] {
   const head = type ? `---\nname: ${name}\ndescription: ${name.replace(/-/g, ' ')}\ntype: ${type}\n${extraHead}---\n\n` : ''
@@ -138,7 +138,7 @@ check('the line is a start-of-session notice row, not a composer line', notices.
 check('the line never shows in a headless run', notices.includes("process.env.MERCURY_ENTRYPOINT !== 'headless'"))
 
 section('the boot wiring')
-const maintenance = readFileSync(join(ROOT, 'src/memdir/mnemeMaintenance.ts'), 'utf8')
+const maintenance = readFileSync(join(ROOT, 'src/mneme/mnemeMaintenance.ts'), 'utf8')
 check('the boot maintenance pass runs the intake first', /trigger === 'boot'[\s\S]*mnemeHandover\.js[\s\S]*handoverIfDue\(\)/.test(maintenance))
 
 console.log('\n' + '═'.repeat(76))

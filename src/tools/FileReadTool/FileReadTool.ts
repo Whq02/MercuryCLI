@@ -51,7 +51,7 @@ import {
 import { getCwd } from '../../utils/cwd.js'
 import { logError } from '../../utils/log.js'
 import { getCanonicalName } from '../../utils/model/model.js'
-import { isAutoMemFile } from '../../utils/memoryFileDetection.js'
+import { isMnemeFile } from '../../utils/memoryFileDetection.js'
 import { createUserMessage } from '../../utils/messages/factories.js'
 import { mapNotebookCellsToToolResult, readNotebook } from '../../utils/notebook.js'
 import { NUL_PATH_MESSAGE, expandPath, hasNulByte } from '../../utils/path.js'
@@ -717,7 +717,7 @@ async function readTextLane(
   context.nestedMemoryAttachmentTriggers?.add(keyPath)
   notifyFileReadListeners(resolvedPath, range.content)
 
-  const memoryUpdatedAt = isAutoMemFile(resolvedPath) ? Math.floor(range.mtimeMs) : undefined
+  const memoryUpdatedAt = isMnemeFile(resolvedPath) ? Math.floor(range.mtimeMs) : undefined
   let anchor: string | undefined
   if (changeTransactionEnabled() && range.content.length > 0) {
     const wholeFile =

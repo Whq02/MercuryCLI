@@ -1,4 +1,4 @@
-import { isAutoMemoryEnabled } from '../../memdir/paths.js'
+import { isMnemeEnabled } from '../../mneme/paths.js'
 import type { AgentColorName } from '../../tools/AgentTool/agentColorManager.js'
 import { loadAgentMemoryPrompt, withMemoryVerbs, type AgentMemoryScope } from '../../tools/AgentTool/agentMemory.js'
 import type { AgentDefinition, ExtensionAgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
@@ -76,7 +76,7 @@ function buildAgent(ext: ActiveExtension, agent: ResolvedAgent): ExtensionAgentD
     ...(effort !== undefined ? { effort } : {}),
     ...(maxTurns !== undefined ? { maxTurns } : {}),
     getSystemPrompt: () => {
-      if (isAutoMemoryEnabled() && memoryScope !== undefined) return `${promptBase}\n\n${loadAgentMemoryPrompt(agentType, memoryScope)}`
+      if (isMnemeEnabled() && memoryScope !== undefined) return `${promptBase}\n\n${loadAgentMemoryPrompt(agentType, memoryScope)}`
       return promptBase
     },
   }

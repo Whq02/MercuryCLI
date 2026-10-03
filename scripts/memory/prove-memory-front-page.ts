@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
-// gate-watch: src/memdir/mnemeFrontPage.ts src/memdir/mnemeUsage.ts src/memdir/mnemeArchive.ts
-// gate-watch: src/memdir/mnemeLookup.ts src/memdir/mnemeConsolidate.ts src/memdir/mnemeCorrect.ts
-// gate-watch: src/memdir/mnemeLibrary.ts src/memdir/mnemeTopicDocs.ts src/constants/prompts.ts
-// gate-watch: src/memdir/memoryVerbs.ts src/memdir/mnemeBuffer.ts src/utils/statusNoticeDefinitions.tsx src/constants/subagentDoctrine.ts
+// gate-watch: src/mneme/mnemeFrontPage.ts src/mneme/mnemeUsage.ts src/mneme/mnemeArchive.ts
+// gate-watch: src/mneme/mnemeLookup.ts src/mneme/mnemeConsolidate.ts src/mneme/mnemeCorrect.ts
+// gate-watch: src/mneme/mnemeLibrary.ts src/mneme/mnemeTopicDocs.ts src/constants/prompts.ts
+// gate-watch: src/mneme/memoryVerbs.ts src/mneme/mnemeBuffer.ts src/utils/statusNoticeDefinitions.tsx src/constants/subagentDoctrine.ts
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -21,9 +21,9 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-let front: typeof import('../../src/memdir/mnemeFrontPage.js') | null = null
+let front: typeof import('../../src/mneme/mnemeFrontPage.js') | null = null
 try {
-  front = await import('../../src/memdir/mnemeFrontPage.js')
+  front = await import('../../src/mneme/mnemeFrontPage.js')
 } catch {
   front = null
 }
@@ -33,14 +33,14 @@ if (!front) {
   process.exit(1)
 }
 const { renderFrontPage, publishFrontPage, readFrontPage, readPinnedStatus, frontPageKey } = front
-const { retainItems, recallQuery, _resetMemoryVerbSessionStateForTesting } = await import('../../src/memdir/memoryVerbs.js')
-const { maybeConsolidate, listTopicDocs, listArchiveDocs } = await import('../../src/memdir/mnemeConsolidate.js')
-const { correctFact } = await import('../../src/memdir/mnemeCorrect.js')
-const { pinFact, unpinFact, readPins, bumpUsage } = await import('../../src/memdir/mnemeUsage.js')
-const { lookupFacts, rankCandidates } = await import('../../src/memdir/mnemeLookup.js')
-const { seqCensus, INDEX_LIMIT, ARCHIVE_AFTER_DAYS } = await import('../../src/memdir/mnemeArchive.js')
-const { appendObservation } = await import('../../src/memdir/mnemeBuffer.js')
-const { MAX_DOC_TOKENS } = await import('../../src/memdir/mnemeTopicDocs.js')
+const { retainItems, recallQuery, _resetMemoryVerbSessionStateForTesting } = await import('../../src/mneme/memoryVerbs.js')
+const { maybeConsolidate, listTopicDocs, listArchiveDocs } = await import('../../src/mneme/mnemeConsolidate.js')
+const { correctFact } = await import('../../src/mneme/mnemeCorrect.js')
+const { pinFact, unpinFact, readPins, bumpUsage } = await import('../../src/mneme/mnemeUsage.js')
+const { lookupFacts, rankCandidates } = await import('../../src/mneme/mnemeLookup.js')
+const { seqCensus, INDEX_LIMIT, ARCHIVE_AFTER_DAYS } = await import('../../src/mneme/mnemeArchive.js')
+const { appendObservation } = await import('../../src/mneme/mnemeBuffer.js')
+const { MAX_DOC_TOKENS } = await import('../../src/mneme/mnemeTopicDocs.js')
 
 const dir = join(scratch, 'library')
 const T0 = new Date('2026-10-01T12:00:00.000Z')
@@ -109,15 +109,15 @@ check('under the limit the same rules load without the over line', roomy.status.
 const { pinnedOverLimitLine } = await import('../../src/utils/statusNoticeDefinitions.js')
 check('the start-of-session line is one calm sentence with the fill, the limit and both ways out',
   pinnedOverLimitLine({ pinned: 23, used: 9600, limit: 8000 }) === 'Pinned memory: 23 rules, 9.6k of the 8k limit — all still loaded. Trim in /memory or raise the limit in /config.')
-const { pinnedTextLimit, PINNED_TEXT_LIMIT_DEFAULT } = await import('../../src/memdir/mnemeUsage.js')
+const { pinnedTextLimit, PINNED_TEXT_LIMIT_DEFAULT } = await import('../../src/mneme/mnemeUsage.js')
 check(`the default limit is ${PINNED_TEXT_LIMIT_DEFAULT} characters of pinned text`, pinnedTextLimit() === PINNED_TEXT_LIMIT_DEFAULT)
 maybeConsolidate({ force: true, dir, now: new Date(T0.getTime() + 60_000) })
 const status = readPinnedStatus(dir)
 check('the published status carries the fill and the limit', status !== null && status.used > 0 && status.limit === PINNED_TEXT_LIMIT_DEFAULT && status.pinned === RULES, JSON.stringify(status))
 
 section("a rule the user asked for is the user's: the model's Correct is refused, consolidation leaves it alone, only the user changes it")
-const { correctMemory } = await import('../../src/memdir/memoryVerbs.js')
-const { readBuffer } = await import('../../src/memdir/mnemeBuffer.js')
+const { correctMemory } = await import('../../src/mneme/memoryVerbs.js')
+const { readBuffer } = await import('../../src/mneme/mnemeBuffer.js')
 const liveIn = (slug: string, seq: number): boolean => listTopicDocs(dir).find(d => d.slug === slug)?.sections.some(s => s.entries.some(e => e.seq === seq)) === true
 const askedSeq = ruleSeqs[0]!
 const modelSupersede = correctMemory({ op: 'supersede', id: `seq:${askedSeq}`, content: 'handle deploys however is fastest', reason: 'the model judged the rule outdated', session: 'model-session' }, dir)
@@ -169,7 +169,7 @@ check('a replacement naming a plain fact is refused — Correct supersedes facts
 check('the refused retains stored nothing', readBuffer(dir).length === 0)
 
 section('consolidation merges duplicates: the same fact retained again becomes one live copy with its history kept, nothing lost')
-const { normaliseFact } = await import('../../src/memdir/mnemeArchive.js')
+const { normaliseFact } = await import('../../src/mneme/mnemeArchive.js')
 const dupDir = join(scratch, 'library-dupes')
 const COPIES = ['The gate runs before every deploy.', 'the gate runs before every deploy', 'The gate runs before every deploy!']
 check('the three copies share one shape (case, spacing and punctuation aside)', typeof normaliseFact === 'function' && new Set(COPIES.map(normaliseFact)).size === 1)
@@ -201,7 +201,7 @@ maybeConsolidate({ force: true, dir: dupDir, now: new Date(T0.getTime() + 8000) 
 check('two copies the user asked for both stay — Mercury never merges an asked rule away', listTopicDocs(dupDir).flatMap(d => d.sections.flatMap(s => s.entries)).filter(e => e.text === 'Never push to main.').length === 2 && readPins(dupDir).filter(p => p.asked).length === 2)
 
 section('a crash between the pages and the pins loses no pin: the batch manifest carries the pin intent')
-const { unpinFact: unpinCrash } = await import('../../src/memdir/mnemeUsage.js')
+const { unpinFact: unpinCrash } = await import('../../src/mneme/mnemeUsage.js')
 const { writeFileSync: writeCrash } = await import('node:fs')
 const crashDir = join(scratch, 'library-crash')
 appendObservation({ text: 'always say what happened first', source: 'tool:Retain s:crash', topicHint: 'rules', pin: true, asked: true }, crashDir)
@@ -228,8 +228,8 @@ check('no duplicate landed', listTopicDocs(crashDir).reduce((n, d) => n + d.sect
 
 section('a rule the user asks to remember is on the shelf at once — the next fresh chat carries it without waiting for a maintenance pass')
 const { RetainTool } = await import('../../src/tools/MemoryTools/MemoryTools.js')
-const { dueForMaintenance, readMaintenanceReceipts } = await import('../../src/memdir/mnemeMaintenance.js')
-const { mnemeLibraryDir } = await import('../../src/memdir/mnemeGates.js')
+const { dueForMaintenance, readMaintenanceReceipts } = await import('../../src/mneme/mnemeMaintenance.js')
+const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.js')
 const { loadMemoryPrompt } = front
 const onceDir = mnemeLibraryDir()
 const ASKED_RULE = 'end every reply with the word Fairwinds'
@@ -347,8 +347,8 @@ const split = maybeConsolidate({
 check('a page over the size limit split into two', split.consolidated && existsSync(join(dir3, 'topic-big-2.md')), JSON.stringify(split.docsTouched))
 const bigLines = (readFrontPage(dir3) ?? '').split('\n').filter(l => /^- big\b/.test(l))
 check('the index shows the split pages under ONE topic line', bigLines.length === 1 && bigLines[0]!.includes('2 pages: big, big-2'), bigLines.join(' | '))
-const { splitDoc, emptyDoc } = await import('../../src/memdir/mnemeTopicDocs.js')
-const { indexTopics } = await import('../../src/memdir/mnemeArchive.js')
+const { splitDoc, emptyDoc } = await import('../../src/mneme/mnemeTopicDocs.js')
+const { indexTopics } = await import('../../src/mneme/mnemeArchive.js')
 const grown = emptyDoc('big-2', 'big (split)', T0.toISOString())
 grown.sections.push({ heading: 'notes', entries: Array.from({ length: 60 }, (_, i) => ({ text: `${long} more ${i}`, seq: 1000 + i, time: T0.toISOString(), source: 'proof' })) })
 const second = splitDoc(grown, T0.toISOString(), new Set(['big', 'big-2']))
@@ -359,9 +359,9 @@ check('the index keeps the three pages under the one topic line', grouped.size =
 section('the system prompt wiring')
 const prompts = readFileSync(join(ROOT, 'src/constants/prompts.ts'), 'utf8')
 check("the memory section is keyed on the front page so it moves only at consolidation", /keyedSystemPromptSection\(\s*'memory',\s*\(\) => memoryPromptKey\(\),\s*\(\) => loadMemoryPrompt\(\),?\s*\)/.test(prompts))
-check('the memory prompt comes from the front page module', prompts.includes("from '../memdir/mnemeFrontPage.js'"))
+check('the memory prompt comes from the front page module', prompts.includes("from '../mneme/mnemeFrontPage.js'"))
 const doctrine = readFileSync(join(ROOT, 'src/constants/subagentDoctrine.ts'), 'utf8')
-check('crewmates and sub-agents get the front page with the pinned rules', doctrine.includes("from '../memdir/mnemeFrontPage.js'") && /\.\.\.\(memory \? \[memory\] : \[\]\)/.test(doctrine))
+check('crewmates and sub-agents get the front page with the pinned rules', doctrine.includes("from '../mneme/mnemeFrontPage.js'") && /\.\.\.\(memory \? \[memory\] : \[\]\)/.test(doctrine))
 
 console.log('\n' + '═'.repeat(76))
 console.log(failures === 0 ? '✅ FRONT PAGE, PINNED TIER, LOOKUP AND ARCHIVE PROVEN' : `❌ ${failures} FRONT-PAGE CHECK(S) FAILED`)

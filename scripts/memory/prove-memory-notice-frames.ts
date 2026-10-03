@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/statusNoticeDefinitions.tsx src/components/Settings/Config.tsx src/memdir/mnemeFrontPage.ts src/memdir/mnemeUsage.ts
+// gate-watch: src/utils/statusNoticeDefinitions.tsx src/components/Settings/Config.tsx src/mneme/mnemeFrontPage.ts src/mneme/mnemeUsage.ts
 // gate-watch: src/components/Messages.tsx src/components/CrewmateTranscript.tsx src/components/memory/MemoryCentreView.tsx
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -26,11 +26,11 @@ function save(name: string, lines: string[]): void {
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
-const { appendObservation } = await import('../../src/memdir/mnemeBuffer.js')
-const { maybeConsolidate, listTopicDocs } = await import('../../src/memdir/mnemeConsolidate.js')
-const { mnemeLibraryDir } = await import('../../src/memdir/mnemeGates.js')
-const { pinFact, formatTextSize } = await import('../../src/memdir/mnemeUsage.js')
-const { readPinnedStatus } = await import('../../src/memdir/mnemeFrontPage.js')
+const { appendObservation } = await import('../../src/mneme/mnemeBuffer.js')
+const { maybeConsolidate, listTopicDocs } = await import('../../src/mneme/mnemeConsolidate.js')
+const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.js')
+const { pinFact, formatTextSize } = await import('../../src/mneme/mnemeUsage.js')
+const { readPinnedStatus } = await import('../../src/mneme/mnemeFrontPage.js')
 const { getActiveNotices, pinnedOverLimitLine } = await import('../../src/utils/statusNoticeDefinitions.js')
 const { getGlobalConfig } = await import('../../src/utils/config.js')
 
@@ -171,7 +171,7 @@ section('§5 /memory lists the pinned rules — size, the asked mark, u unpins o
   const { AppStateProvider } = await import('../../src/state/AppState.js')
   const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
   const { MemoryCentreView } = await import('../../src/components/memory/MemoryCentreView.js')
-  const { readPins } = await import('../../src/memdir/mnemeUsage.js')
+  const { readPins } = await import('../../src/mneme/mnemeUsage.js')
   const pinsBefore = readPins(dir).length
   const element = React.createElement(
     AppStateProvider as never,
@@ -230,7 +230,7 @@ section('§5b /memory lists the topics — one row per index line, as the model 
   const { AppStateProvider } = await import('../../src/state/AppState.js')
   const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
   const { MemoryCentreView } = await import('../../src/components/memory/MemoryCentreView.js')
-  const { readFrontPage } = await import('../../src/memdir/mnemeFrontPage.js')
+  const { readFrontPage } = await import('../../src/mneme/mnemeFrontPage.js')
   const page = readFrontPage(dir) ?? ''
   const indexText = page.slice(page.indexOf('## Index'), page.indexOf('## Pinned'))
   const index = indexText.split('\n').filter(l => l.startsWith('- '))
@@ -279,7 +279,7 @@ section('§5b /memory lists the topics — one row per index line, as the model 
 
 section('§6 the line is a start-of-session reading: what changes mid-session paints nothing new')
 {
-  const { pinnedStatusPath } = await import('../../src/memdir/mnemeFrontPage.js')
+  const { pinnedStatusPath } = await import('../../src/mneme/mnemeFrontPage.js')
   const under = { ...status!, over: false, used: 100, pinned: 1 }
   writeFileSync(pinnedStatusPath(dir), JSON.stringify(under))
   check('the status on disk now reads under the limit', readPinnedStatus(dir)?.over === false)

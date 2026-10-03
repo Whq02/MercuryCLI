@@ -7,7 +7,7 @@ import { findCanonicalGitRoot } from '../utils/git.js'
 import { getProjectRoot } from '../bootstrap/state.js'
 import { sanitizePathComponent } from '../utils/tasks.js'
 
-export function isAutoMemoryEnabled(): boolean {
+export function isMnemeEnabled(): boolean {
   if (isEnvTruthy(process.env.MERCURY_BARE)) return false
   const setting = getInitialSettings().memory?.enabled
   if (setting !== undefined) return setting
@@ -18,7 +18,7 @@ export function getMemoryBaseDir(): string {
   return getMercuryHome()
 }
 
-function readAutoMemoryDirectoryOverride(): string | undefined {
+function readMnemeDirectoryOverride(): string | undefined {
   for (const source of ['policySettings', 'flagSettings', 'localSettings', 'userSettings'] as const) {
     const value = getSettingsForSource(source)?.memory?.directory
     if (value !== undefined) return value
@@ -47,12 +47,12 @@ function validateMemoryPathOverride(raw: string | undefined): string | undefined
   return `${normalized}${sep}`.normalize('NFC')
 }
 
-export function hasAutoMemPathOverride(): boolean {
+export function hasMnemeHomeOverride(): boolean {
   return false
 }
 
-export const getAutoMemPath = memoize((): string => {
-  const override = validateMemoryPathOverride(readAutoMemoryDirectoryOverride())
+export const getMnemeHome = memoize((): string => {
+  const override = validateMemoryPathOverride(readMnemeDirectoryOverride())
   if (override !== undefined) return override
   const projectRoot = getProjectRoot()
   const canonical = findCanonicalGitRoot(projectRoot) ?? projectRoot
@@ -60,6 +60,6 @@ export const getAutoMemPath = memoize((): string => {
   return `${join(getMemoryBaseDir(), 'projects', key, 'memory')}${sep}`.normalize('NFC')
 }, () => getProjectRoot())
 
-export function isAutoMemPath(absolutePath: string): boolean {
-  return normalize(absolutePath).startsWith(getAutoMemPath())
+export function isMnemePath(absolutePath: string): boolean {
+  return normalize(absolutePath).startsWith(getMnemeHome())
 }

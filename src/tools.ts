@@ -72,7 +72,7 @@ import {
   ReflectTool,
   RetainTool,
 } from './tools/MemoryTools/MemoryTools.js'
-import { memoryVerbsEnabled } from './memdir/memoryVerbs.js'
+import { memoryVerbsEnabled } from './mneme/memoryVerbs.js'
 import { PowerShellTool } from './tools/PowerShellTool/PowerShellTool.js'
 import { ReadMcpResourceTool } from './tools/ReadMcpResourceTool/ReadMcpResourceTool.js'
 import { RecordConventionTool } from './tools/RecordConventionTool/RecordConventionTool.js'

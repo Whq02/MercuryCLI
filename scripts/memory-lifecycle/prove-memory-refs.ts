@@ -7,9 +7,9 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'refs-home-'))
 
-const { appendObservation } = await import('../../src/memdir/mnemeBuffer.ts')
-const { maybeConsolidate } = await import('../../src/memdir/mnemeConsolidate.ts')
-const { collectMemoryRefs, queryTokens, renderMemoryRefLine } = await import('../../src/memdir/memoryRefs.ts')
+const { appendObservation } = await import('../../src/mneme/mnemeBuffer.ts')
+const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.ts')
+const { collectMemoryRefs, queryTokens, renderMemoryRefLine } = await import('../../src/mneme/memoryRefs.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -77,8 +77,8 @@ section('§4 capsule integration: refs ride the working set, digest-joined')
   git('init', '-q', '-b', 'main')
   git('add', '-A')
   git('commit', '-q', '-m', 'baseline')
-  const { getAutoMemPath } = await import('../../src/memdir/paths.ts')
-  const capMemDir = getAutoMemPath()
+  const { getMnemeHome } = await import('../../src/mneme/paths.ts')
+  const capMemDir = getMnemeHome()
   mkdirSync(capMemDir, { recursive: true })
   const capLib = join(capMemDir, 'library')
   appendObservation({ text: 'release gate opens after the smoke suite', source: 'operator', topicHint: 'releases' }, capLib)
@@ -99,8 +99,8 @@ section('§4 capsule integration: refs ride the working set, digest-joined')
 }
 
 function correctFactLocal(lib: string): boolean {
-  const { listTopicDocs } = require('../../src/memdir/mnemeConsolidate.ts') as typeof import('../../src/memdir/mnemeConsolidate.ts')
-  const { correctFact } = require('../../src/memdir/mnemeCorrect.ts') as typeof import('../../src/memdir/mnemeCorrect.ts')
+  const { listTopicDocs } = require('../../src/mneme/mnemeConsolidate.ts') as typeof import('../../src/mneme/mnemeConsolidate.ts')
+  const { correctFact } = require('../../src/mneme/mnemeCorrect.ts') as typeof import('../../src/mneme/mnemeCorrect.ts')
   const doc = listTopicDocs(lib).find(d => d.slug === 'releases')
   const seq = doc?.sections[0]?.entries[0]?.seq
   if (!seq) return false

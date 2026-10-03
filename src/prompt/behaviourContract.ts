@@ -42,7 +42,7 @@ function scopeFor(group: BehaviourGroup, name: string): BehaviourScope {
 }
 
 const SECTION_OWNERS: ReadonlyMap<string, string> = new Map([
-  ['dynamic:memory', 'src/memdir/mnemeFrontPage.ts'],
+  ['dynamic:memory', 'src/mneme/mnemeFrontPage.ts'],
   ['dynamic:harness_map', 'src/utils/cockpit/harnessMap.ts'],
   ['dynamic:run_protocol', 'src/utils/cockpit/runProtocol.ts'],
   ['dynamic:runtime_posture', 'src/utils/cockpit/runtimePosture.ts'],

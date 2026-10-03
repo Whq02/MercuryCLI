@@ -10,7 +10,7 @@
 # gate-watch: scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/lib/seedTranscript.ts scripts/lib/runnerHost.ts
 # gate-watch: scripts/api/read-instruction-heading.ts
 # gate-watch: docs/TRUST.md
-# gate-watch: src/memdir/mnemeGates.ts src/memdir/paths.ts src/tools/MemoryTools/prompt.ts src/utils/collapseReadSearch.ts src/utils/memoryFileDetection.ts
+# gate-watch: src/mneme/mnemeGates.ts src/mneme/paths.ts src/tools/MemoryTools/prompt.ts src/utils/collapseReadSearch.ts src/utils/memoryFileDetection.ts
 # gate-watch: src/rows/turn.ts src/bootstrap/state.ts src/cli/headless/controlHandlers.ts src/cli/headless/runnerAsks.ts src/cli/print.ts
 # gate-watch: src/cli/structuredIO.ts src/commands.ts src/components/FileEditToolDiff.tsx
 # gate-watch: src/components/MercuryFrame.tsx src/components/mercury-ui/compactModeChip.ts
