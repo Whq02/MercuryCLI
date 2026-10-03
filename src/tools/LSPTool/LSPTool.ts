@@ -504,6 +504,7 @@ async function runLspToolCall(input: Input, context: ToolUseContext, messageId: 
   }
 
   const settled = await runLspOperation(input, context, messageId, requestWritePermission)
+  if (context.abortController.signal.aborted) return settled
   if (settled.effect.outcome !== 'failed') {
     clearLspCall(callKey)
     return settled

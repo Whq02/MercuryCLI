@@ -102,6 +102,21 @@ section('§3 a server that later answers clears the count')
   await door.close()
 }
 
+section('§5 an interrupted call is not a failed try')
+{
+  ledger.resetLspFailureLedger()
+  process.env.MERCURY_LSP_SERVERS = JSON.stringify(fixtureServer('fixture-ts', FAILING_SERVER, { FAILING_LSP_MODE: 'never-answer-diagnostics', FAILING_LSP_PID_FILE: pidFile }, '.ts', 'typescript', { requestTimeout: 60_000 }))
+  const door = await openToolDoor(project)
+  const t0 = Date.now()
+  door.abortAfter(400)
+  const interrupted = await door.drive({ operation: 'diagnostics', filePath: lib })
+  const elapsed = Date.now() - t0
+  check(`the Esc settled the call (${elapsed} ms, not the 60 s budget)`, elapsed < 10_000, interrupted.text)
+  const held = ledger._lspFailureLedgerForTesting()
+  check('nothing was counted against the call or the server', held.calls.length === 0 && held.servers.length === 0, JSON.stringify(held) + ' ' + interrupted.text.slice(0, 160))
+  await door.close()
+}
+
 section('§4 the reload road starts over: a re-initialised manager forgets the session’s refusals')
 {
   ledger.recordLspServerFailure('env:fixture-ts', 'proof')

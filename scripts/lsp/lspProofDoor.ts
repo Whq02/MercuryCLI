@@ -71,7 +71,7 @@ export function fixtureServer(name: string, script: string, env: Record<string, 
 
 export type Driven = { text: string; isError: boolean; data: Record<string, unknown> | null }
 
-export async function openToolDoor(root: string): Promise<{ drive: (input: Record<string, unknown>) => Promise<Driven>; close: () => Promise<void>; manager: () => unknown; tool: { name: string; validateInput?: (input: never, context: never) => Promise<{ result: boolean; message?: string }>; inputSchema: { safeParse: (v: unknown) => { success: boolean; error?: { issues: Array<Record<string, unknown>> } } } } }> {
+export async function openToolDoor(root: string): Promise<{ drive: (input: Record<string, unknown>) => Promise<Driven>; abortAfter: (ms: number) => void; close: () => Promise<void>; manager: () => unknown; tool: { name: string; validateInput?: (input: never, context: never) => Promise<{ result: boolean; message?: string }>; inputSchema: { safeParse: (v: unknown) => { success: boolean; error?: { issues: Array<Record<string, unknown>> } } } } }> {
   const harness = await import(path.join(REPO, 'scripts/ast-tools/lib/harness.ts'))
   await harness.enterRoot(root)
   const { LSPTool } = await import(path.join(REPO, 'src/tools/LSPTool/LSPTool.ts'))
@@ -79,12 +79,24 @@ export async function openToolDoor(root: string): Promise<{ drive: (input: Recor
   lspManager.initializeLspServerManager()
   await lspManager.waitForInitialization()
   const prover = await harness.makeContext([LSPTool], { mode: 'default' })
+  let armed: AbortController | null = null
   return {
     tool: LSPTool as never,
     manager: () => lspManager.getLspServerManager(),
     drive: async (input: Record<string, unknown>): Promise<Driven> => {
+      const ctx = prover.ctx as { abortController: AbortController }
+      if (armed !== null) ctx.abortController = armed
       const out = await harness.drive(LSPTool, input, prover)
+      if (armed !== null) {
+        armed = null
+        ctx.abortController = new AbortController()
+      }
       return { text: out.text, isError: out.isError, data: out.data }
+    },
+    abortAfter: (ms: number): void => {
+      const controller = new AbortController()
+      armed = controller
+      setTimeout(() => controller.abort(), ms)
     },
     close: async () => {
       await lspManager.shutdownLspServerManager()
