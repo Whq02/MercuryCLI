@@ -593,7 +593,7 @@ section('§10 the seat facts a hosted session answers carry the credential\'s ow
       workspaceKind: 'plain-folder',
     } as never
   }, DAEMON_DIR)
-  const roster = { control: () => true, list: () => [{ short: SHORT, turnActive: false }], patchSeatModel: () => true, patchSeatEffort: () => true }
+  const roster = { door: () => undefined, list: () => [{ short: SHORT, turnActive: false }], patchSeatModel: () => true, patchSeatEffort: () => true }
   const published = (): SeatIdentity | undefined => projections.readSessionFacts(SESSION, DAEMON_DIR)?.identity
   const settled = async (expect: (who: SeatIdentity | undefined) => boolean): Promise<boolean> => {
     for (let attempt = 0; attempt < 120; attempt++) {
@@ -604,10 +604,8 @@ section('§10 the seat facts a hosted session answers carry the credential\'s ow
   }
   seat.publishSeatFacts(SHORT, DAEMON_DIR, roster as never)
   check('before the runner\'s first answer the seat publishes no account email (the skeleton), never the record', await settled(who => who !== undefined && who.accountEmail === null), JSON.stringify(published()))
-  let factsSeq = 0
   const runnerAnswers = (who: SeatIdentity | string): void => {
-    factsSeq += 1
-    seat.onSeatLine(SHORT, JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: `${seat.SESSION_FACTS_REQUEST_PREFIX}${SHORT}-${factsSeq}`, response: seatWire.sessionFactsToWire(answerWith(who) as never) } }), roster as never, DAEMON_DIR)
+    seat.onFactsAnswer(SHORT, seatWire.sessionFactsToWire(answerWith(who) as never), roster as never, DAEMON_DIR)
   }
   runnerAnswers(identity)
   check('the daemon\'s seat publishes the runner\'s identity verbatim: the credential\'s own email on the facts file', await settled(who => who?.accountEmail === PROFILE_EMAIL), JSON.stringify(published()))

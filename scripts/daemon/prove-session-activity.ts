@@ -24,18 +24,15 @@ const short = 'concourse-w1'
 let active = false
 const roster = {
   list: () => [{ short, turnActive: active, busy: active }],
-  control: () => true,
+  door: () => undefined,
   patchSeatModel: () => true,
   patchSeatEffort: () => true,
 }
-const feed = (frame: object): void => seat.onSeatLine(short, JSON.stringify(frame), roster, dir)
-let sequence = 0
-const facts = (work: WorkRowV1[]): void => feed({
-  type: 'control_response',
-  response: {
-    subtype: 'success',
-    request_id: `${seat.SESSION_FACTS_REQUEST_PREFIX}${short}-${++sequence}`,
-    response: sessionFactsToWire({
+const feed = (frame: object): void => seat.onSeatRow(short, frame as never, roster, dir)
+const facts = (work: WorkRowV1[]): void =>
+  seat.onFactsAnswer(
+    short,
+    sessionFactsToWire({
       model: { effective: 'claude-sonnet-5', setting: null },
       usage: { totalCostUSD: 0 },
       identity: { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null },
@@ -43,8 +40,9 @@ const facts = (work: WorkRowV1[]): void => feed({
       workspace: { cwd: home, originalCwd: home, projectRoot: home, instructionRoots: [] },
       queue: [], work, mission: [],
     } as never),
-  },
-})
+    roster,
+    dir,
+  )
 const agent = (id: string, status = 'running'): WorkRowV1 => ({ id, kind: 'agent', name: id, status, startTime: 100 })
 const disk = () => JSON.parse(readFileSync(supervisor.concourseWorkersPath(dir), 'utf8')).workers[short] as ConcourseWorkerRecordV1
 const realNow = Date.now
@@ -87,9 +85,9 @@ try {
   facts([agent('paused', 'paused')])
   check('paused and finished agents do not count as running', disk().activity?.state === 'idle')
   const previous = disk().activity
-  feed({ type: 'control_response', response: { subtype: 'success', request_id: 'unrelated', response: { text: 'assistant' } } })
+  feed({ type: 'heartbeat', seq: 4, timestamp: 't', session_id: 'activity-fixture', turn: 1 })
   assert.deepEqual(disk().activity, previous)
-  check('unrelated control traffic does not invent another turn', disk().activity?.lastTurnAt === 4000)
+  check('a row with nothing for the activity (a heartbeat) does not invent another turn', disk().activity?.lastTurnAt === 4000)
   check('an older runner can report an explicit count without a work roster', supervisor.sessionActivityOf(true, undefined, 4, 700).description === 'waiting on 4 sub-agents')
   facts([agent('remaining')])
   supervisor.updateConcourseWorkers(workers => { workers[short]!.crash = { at: now, reason: 'process ended', respawning: false } }, dir)

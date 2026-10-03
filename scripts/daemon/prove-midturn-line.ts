@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { parseFrame, spawnRunnerDoor } from '../lib/rows.ts'
+import { hostRunner } from '../lib/runnerHost.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SRC = join(REPO, 'src')
@@ -69,17 +69,17 @@ section("D the daemon road's clock — the frame and the wiring")
   const dispatch = await import(join(SRC, 'daemon/concourseDispatch.ts'))
   const identity = 'aaaabbbb-cccc-4ddd-8eee-ffff00001111'
   const sentAt = '2026-09-12T08:00:05.123Z'
-  const stamped = JSON.parse(dispatch.buildConcoursePromptFrame('the words', { identity, sentAt })) as Record<string, unknown>
-  check("a dispatch's sentAt rides the runner frame as its timestamp, under the same identity", stamped.timestamp === sentAt && stamped.uuid === identity, j(stamped))
-  const bare = JSON.parse(dispatch.buildConcoursePromptFrame('the words', { identity })) as Record<string, unknown>
-  check('a frame without a send clock carries no timestamp key', !('timestamp' in bare), j(bare))
+  const stamped = (await dispatch.buildConcoursePromptRow('the words', { identity, sentAt })) as Record<string, unknown>
+  check("a dispatch's sentAt rides the input row as its sent_at, under the same identity", stamped.sent_at === sentAt && stamped.id === identity, j(stamped))
+  const bare = (await dispatch.buildConcoursePromptRow('the words', { identity })) as Record<string, unknown>
+  check('a row without a send clock carries no sent_at key', !('sent_at' in bare), j(bare))
   const read = (rel: string): string => readFileSync(join(SRC, rel), 'utf8')
   const connector = read('services/engine-connector/daemonConnector.ts')
   check("the connector's send carries its own send time on the sessionDispatch request", /op: 'sessionDispatch',[\s\S]{0,400}sentAt: new Date\(send\.sentAtMs\)\.toISOString\(\),/.test(connector))
   const control = read('daemon/controlServer.ts')
   check('the daemon forwards a parseable sentAt into the dispatch request', control.includes("...(typeof raw.sentAt === 'string' && Number.isFinite(Date.parse(raw.sentAt)) ? { sentAt: raw.sentAt } : {}),"))
   const dispatchSrc = read('daemon/concourseDispatch.ts')
-  check('the prompt extras carry sentAt on both delivery legs (the admit leg and the redirect leg read promptExtrasOf)', dispatchSrc.includes("...(req.sentAt !== undefined ? { sentAt: req.sentAt } : {}),") && dispatchSrc.includes("...(extras?.sentAt !== undefined ? { timestamp: extras.sentAt } : {}),"))
+  check('the prompt extras carry sentAt on both delivery legs (the admit leg and the redirect leg read promptExtrasOf)', dispatchSrc.includes("...(req.sentAt !== undefined ? { sentAt: req.sentAt } : {}),") && dispatchSrc.includes("...(extras?.sentAt !== undefined ? { sent_at: extras.sentAt } : {}),"))
   const printSrc = read('cli/print.ts')
   check("the runner stamps the queued command from the frame's timestamp, or the arrival", printSrc.includes("const sentAt = typeof input.sentAt === 'string' && Number.isFinite(Date.parse(input.sentAt)) ? input.sentAt : new Date().toISOString()") && printSrc.includes("...(row.sent_at !== undefined ? { sentAt: row.sent_at } : {})"))
   const attachments = read('utils/attachments/queuedCommands.ts')
@@ -149,25 +149,25 @@ if (!existsSync(DIST)) {
   const lines: Array<Record<string, unknown>> = []
   const waiters: Array<{ test: (f: Record<string, unknown>) => boolean; resolve: (f: Record<string, unknown>) => void }> = []
   let stderrText = ''
-  const door = spawnRunnerDoor({
+  const host = hostRunner({
     node: 'node',
-    argv: [DIST, 'runner', '--model', 'claude-opus-4-8', '--mode', 'sovereign'],
+    dist: DIST,
+    argv: ['--model', 'claude-opus-4-8', '--mode', 'sovereign'],
     cwd: CWD,
-    env,
-    onLine: line => {
-      const frame = parseFrame(line)
-      if (frame === null) return
+    env: env as Record<string, string | undefined>,
+    home: RUN_HOME,
+    onRow: frame => {
       lines.push(frame)
       for (let i = waiters.length - 1; i >= 0; i--) {
         if (waiters[i]!.test(frame)) waiters.splice(i, 1)[0]!.resolve(frame)
       }
     },
   })
-  const runner = door.child
+  const runner = host.child
   runner.stderr!.on('data', (chunk: Buffer) => {
     stderrText += chunk.toString('utf8')
   })
-  const exited = new Promise<number | null>(resolve => runner.on('exit', code => resolve(code)))
+  const exited = host.exited
   function waitFor(label: string, test: (f: Record<string, unknown>) => boolean, timeoutMs: number, after = 0): Promise<Record<string, unknown> | null> {
     const seen = lines.slice(after).find(test)
     if (seen !== undefined) return Promise.resolve(seen)
@@ -201,28 +201,20 @@ if (!existsSync(DIST)) {
     console.log(`  [wait] ${label}: nothing on the wire within ${timeoutMs} ms`)
     return null
   }
-  const send = (frame: Record<string, unknown>): Promise<boolean> => door.send(frame)
-  const user = (text: string, uuid: string, timestamp?: string): Record<string, unknown> => ({ type: 'user', message: { role: 'user', content: text }, uuid, session_id: '', ...(timestamp !== undefined ? { timestamp } : {}) })
-  const control = (requestId: string, request: Record<string, unknown>): Record<string, unknown> => ({ type: 'control_request', request_id: requestId, request })
-  const responseOf = (f: Record<string, unknown> | null): Record<string, unknown> => {
-    const r = f?.response as { subtype?: string; response?: Record<string, unknown>; error?: string } | undefined
-    return r?.response ?? (r?.error !== undefined ? { error: r.error } : {})
-  }
-  const isControlResponse = (id: string) => (f: Record<string, unknown>): boolean => f.type === 'control_response' && (f.response as { request_id?: string } | undefined)?.request_id === id
+  const send = (text: string, id: string, sentAt?: string): Promise<boolean> => host.prompt(text, { id, ...(sentAt !== undefined ? { sent_at: sentAt } : {}) }).then(() => true, () => false)
   const isResult = (f: Record<string, unknown>): boolean => f.type === 'outcome'
   const isInit = (f: Record<string, unknown>): boolean => f.type === 'session'
   const isCompactingStatus = (f: Record<string, unknown>): boolean => f.type === 'compaction' && f.state !== 'ended'
   const isTurnStarted = (f: Record<string, unknown>): boolean => f.type === 'turn' && f.state === 'started'
-  const queueOf = async (id: string): Promise<Array<{ uuid?: string; value?: string }>> => {
-    send(control(id, { subtype: 'session_facts' }))
-    const f = responseOf(await waitFor(id, isControlResponse(id), 5_000))
-    return ((f as { queue?: Array<{ uuid?: string; value?: string }> }).queue ?? [])
+  const queueOf = async (label: string): Promise<Array<{ uuid?: string; value?: string }>> => {
+    const facts = await host.request('session/facts', {}, 5_000).catch((error: unknown) => {
+      console.log(`  [wait] ${label}: ${error instanceof Error ? error.message : String(error)}`)
+      return {} as Record<string, unknown>
+    })
+    return ((facts as { queue?: Array<{ uuid?: string; value?: string }> }).queue ?? [])
   }
   const reap = async (): Promise<void> => {
-    try {
-      runner.stdin!.end()
-    } catch {
-    }
+    host.end()
     await Promise.race([exited, sleep(8_000)])
     try {
       runner.kill('SIGKILL')
@@ -259,8 +251,9 @@ if (!existsSync(DIST)) {
   const wordsFor = (line: string): string => `${OPENING}\n${line}\n\nIMPORTANT: Read this message before taking your next action and respond according to its intent.\n\n${BULLETS.join('\n')}\n\n${OBJECTIVE}\n\n${ACCOUNTING}`
 
   section('R1 the runner is up')
-  send(user('hello there', U0))
-  const init = await waitFor('the init frame', isInit, TURN_MS)
+  await host.initialize().catch(() => undefined)
+  void send('hello there', U0)
+  const init = await waitFor('the session row', isInit, TURN_MS)
   const first = await waitFor('the first turn', isResult, TURN_MS)
   check('the first turn answered', first !== null && init !== null, stderrText.split('\n').slice(-5).join(' | '))
   const sessionId = String(init?.session_id ?? '')
@@ -268,21 +261,21 @@ if (!existsSync(DIST)) {
   section('R2 three tool rounds: lines sent between rounds land at the next boundary, once, in order, under the new words, with their send clocks')
   const beforeThree = lines.length
   const wireBefore = wire().length
-  send(user(THREE_ROUNDS_ASK, UT))
+  void send(THREE_ROUNDS_ASK, UT)
   const r1 = await waitWire('round one', w => w.kind === 'request' && w.arm === 'three' && w.step === 0 && w.n > wireBefore, TURN_MS * 3 / 4)
   check("round one's request went out", r1 !== null, stderrText.split('\n').slice(-5).join(' | '))
   const T1 = new Date(Date.now() - 90_000).toISOString()
   const T2 = new Date(Date.parse(T1) + 1_000).toISOString()
-  send(user(LINE1, U1, T1))
-  send(user(LINE2, U2, T2))
-  send(user(SLASH, UC))
+  void send(LINE1, U1, T1)
+  void send(LINE2, U2, T2)
+  void send(SLASH, UC)
   await sleep(300)
   const duringRoundOne = await queueOf('facts-round-one')
   check("the runner's queue holds the two lines and the slash command, in the order sent, while round one's tool runs", j(duringRoundOne.map(q => q.uuid)) === j([U1, U2, UC]), j(duringRoundOne))
   const r2 = await waitWire('round two', w => w.kind === 'request' && w.arm === 'three' && w.step === 1 && w.n > (r1?.n ?? 0), TURN_MS * 3 / 4)
   check("round two's request went out after the boundary", r2 !== null)
   const sentAt3 = Date.now()
-  await send(user(LINE3, U3))
+  await send(LINE3, U3)
   const afterBoundaryOne = await queueOf('facts-after-boundary-one')
   check('past the boundary the queue holds the slash command (waiting for the turn to end) and the third line, and the two lines are gone', j(afterBoundaryOne.map(q => q.uuid)) === j([UC, U3]), j(afterBoundaryOne))
   const r3 = await waitWire('round three', w => w.kind === 'request' && w.arm === 'three' && w.step === 2 && w.n > (r2?.n ?? 0), TURN_MS * 3 / 4)
@@ -350,15 +343,15 @@ if (!existsSync(DIST)) {
 
   section('R3 escape with a line queued: the interrupt ends the turn and the line runs as the next turn')
   const beforeLong = lines.length
-  send(user(LONG_ROUND_ASK, UL))
+  void send(LONG_ROUND_ASK, UL)
   const rl = await waitWire('the long round', w => w.kind === 'request' && w.arm === 'long' && w.step === 0, TURN_MS * 3 / 4)
   check("the long round's request went out (a 30 s tool runs)", rl !== null)
   const T4 = new Date(Date.now() - 30_000).toISOString()
-  send(user(LINE4, U4, T4))
+  void send(LINE4, U4, T4)
   await sleep(400)
   check('the line waits in the queue while the tool runs', j((await queueOf('facts-before-escape')).map(q => q.uuid)) === j([U4]))
   const pressedAt = Date.now()
-  send(control('esc-1', { subtype: 'interrupt' }))
+  void host.request('turn/interrupt', {}).catch(() => undefined)
   const interrupted = await waitFor('the interrupted turn', isResult, 20_000, beforeLong)
   check('the interrupt ended the turn well before the tool would have', interrupted !== null && Date.now() - pressedAt < 15_000, j(interrupted?.status))
   const afterInterrupt = interrupted === null ? lines.length : lines.indexOf(interrupted) + 1
@@ -371,10 +364,10 @@ if (!existsSync(DIST)) {
 
   section('R4 a line sent during a compaction is held until the fold lands')
   const beforeFold = lines.length
-  send(user('/compact', UF))
+  void send('/compact', UF)
   const compacting = await waitFor("the runner's compacting word", isCompactingStatus, 20_000, beforeFold)
   check("the runner stamps 'compacting' as the fold begins", compacting !== null)
-  send(user(LINE5, U5, new Date().toISOString()))
+  void send(LINE5, U5, new Date().toISOString())
   await sleep(400)
   check('the line waits in the queue while the fold runs, and no boundary takes it (no result yet)', j((await queueOf('facts-during-fold')).map(q => q.uuid)) === j([U5]) && lines.slice(beforeFold).find(isResult) === undefined)
   const foldResult = await waitFor("the fold's own turn", isResult, TURN_MS, beforeFold)

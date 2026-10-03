@@ -4,8 +4,10 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
-import { DIST, MODEL, NODE, argAfter, bootRunner, bound, childEnv, makeTally, seedHome, sleep, user, type Frame } from './dupline-world.ts'
+import { DIST, MODEL, NODE, argAfter, bootRunner, bound, childEnv, makeTally, seedHome, sleep, type Frame } from './dupline-world.ts'
 import { startFixtureApi, type CapturedRequest, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import type { HostVerb } from '../lib/runnerHost.ts'
+import type { ParamsOf } from '../../src/runner/wire/methods.ts'
 
 const tally = makeTally('prove-switch-boundary')
 if (!existsSync(DIST)) {
@@ -121,16 +123,24 @@ if (ONLY === undefined || ONLY === 'R') {
   const isToolCall = (name: string) => (f: Frame): boolean => f.type === 'tool_call' && f.tool === name && f.parent_call_id === undefined
   const isSleepCall = isToolCall('Sleep')
   const isBashCall = isToolCall('Bash')
-  const answerTo = (id: string) => (f: Frame): boolean => f.type === 'control_response' && (f.response as { request_id?: string } | undefined)?.request_id === id
-  const appliedFrameFor = (id: string) => (f: Frame): boolean => f.type === 'system' && f.subtype === 'seat_verb_applied' && f.request_id === id
-  const payloadOf = (f: Frame | null): Record<string, unknown> => ((f?.response as { response?: Record<string, unknown> } | undefined)?.response ?? {})
-  const control = (id: string, request: Record<string, unknown>): void => runner.send({ type: 'control_request', request_id: id, request })
+  const sent = new Map<string, number>()
+  const answerTo = (label: string) => (f: Frame): boolean => f.type === 'answer' && f.label === label
+  const appliedFrameFor = (label: string) => (f: Frame): boolean => f.type === 'session/applied' && f.request_id === sent.get(label)
+  const payloadOf = (f: Frame | null): Record<string, unknown> => f ?? {}
+  const control = <M extends HostVerb>(label: string, method: M, params: ParamsOf<M>): void => {
+    const { id, answer } = runner.send(method, params)
+    sent.set(label, id)
+    void answer.then(
+      result => runner.note({ type: 'answer', label, request_id: id, ...(result as Record<string, unknown>) }),
+      (error: unknown) => runner.note({ type: 'answer', label, request_id: id, error: error instanceof Error ? error.message : String(error) }),
+    )
+  }
   const resultsSoFar = (): number => frames.filter(isResultFrame).length
   const waitResults = (n: number, ms: number): Promise<boolean> => untilAsync(() => resultsSoFar() >= n, ms, 50)
   const timeline = (from: number): string =>
     frames
       .slice(from)
-      .map((f, i) => [i + from, f.type === 'system' ? `system/${String(f.subtype)}${f.subtype === 'seat_verb_applied' ? `(${String(f.request_id)})` : ''}` : f.type === 'control_response' ? `answer(${String((f.response as { request_id?: string }).request_id)})` : f.type === 'turn' ? `turn/${String(f.state)}` : String(f.type)] as const)
+      .map((f, i) => [i + from, f.type === 'session/applied' ? `applied(${String(f.request_id)})` : f.type === 'answer' ? `answer(${String(f.label)})` : f.type === 'turn' ? `turn/${String(f.state)}` : String(f.type)] as const)
       .filter(([, word]) => !['text_delta', 'reasoning_delta', 'tool_input_delta', 'block_start', 'tool_result', 'tool_update', 'wait', 'heartbeat', 'step'].includes(word))
       .map(([i, word]) => `${i}:${word}`)
       .join(' ')
@@ -143,18 +153,18 @@ if (ONLY === undefined || ONLY === 'R') {
 
   try {
     const before1 = frames.length
-    runner.send(user('hold the line', randomUUID()))
+    void runner.prompt('hold the line', randomUUID())
     const sleeping = await runner.waitFor('the Sleep call streams', isSleepCall, bound(60_000), before1)
     tally.check('R0 the first ask calls Sleep and the stream stays open on it', sleeping !== null, runner.stderr().slice(-400))
     await sleep(300)
-    control('sb-model-1', { subtype: 'set_model', model: NEW_MODEL })
+    control('sb-model-1', 'session/set_model', { model: NEW_MODEL })
     const ack1 = await runner.waitFor('the set_model answer', answerTo('sb-model-1'), bound(10_000), before1)
     const resultsAtAck = resultsSoFar()
-    tally.check('R1a the runner answers the mid-turn set_model at once and says where it lands: the turn boundary', ack1 !== null && payloadOf(ack1).at === 'turn-boundary' && payloadOf(ack1).model === NEW_MODEL, JSON.stringify(ack1))
+    tally.check('R1a the runner answers the mid-turn set_model at once and says where it lands: the turn boundary', ack1 !== null && payloadOf(ack1).at === 'turn_end' && payloadOf(ack1).model === NEW_MODEL, JSON.stringify(ack1))
     tally.check('R1b the answer came while the stream was still open (no result yet)', ack1 !== null && resultsAtAck === 0, `results at the answer: ${resultsAtAck}`)
     tally.check("R1c the running turn's continuation goes out after the Sleep", await untilAsync(() => firstRequestWith(api, resultOf('tu-hold-1')) !== undefined, bound(30_000), 50), describeRequests(api))
     await sleep(300)
-    runner.send(user('now say more', randomUUID()))
+    void runner.prompt('now say more', randomUUID())
     tally.check('R1d both turns settle', await waitResults(2, bound(60_000)), describeRequests(api))
     const continuation = firstRequestWith(api, resultOf('tu-hold-1'))
     const words = firstRequestWith(api, 'now say more')
@@ -168,10 +178,10 @@ if (ONLY === undefined || ONLY === 'R') {
 
     const before2 = frames.length
     const results2 = resultsSoFar()
-    runner.send(user('launch a background command', randomUUID()))
+    void runner.prompt('launch a background command', randomUUID())
     tally.check('R2a the launch turn settles while its command runs on', await waitResults(results2 + 1, bound(60_000)), describeRequests(api))
     tally.check('R2b the background command lands its stamp', await untilAsync(() => existsSync(stamp), bound(15_000), 25), runner.stderr().slice(-300))
-    control('sb-model-2', { subtype: 'set_model', model: MODEL })
+    control('sb-model-2', 'session/set_model', { model: MODEL })
     const ack2 = await runner.waitFor('the set_model answer during the hold', answerTo('sb-model-2'), bound(10_000), before2)
     tally.check('R2c a verb landing while no stream is open (the completion hold or the agent wait) applies now — the answer says so', ack2 !== null && payloadOf(ack2).at === 'now' && payloadOf(ack2).model === MODEL, JSON.stringify(ack2))
     tally.check('R2d the completion turn settles', await waitResults(results2 + 2, bound(30_000)), describeRequests(api))
@@ -184,20 +194,20 @@ if (ONLY === undefined || ONLY === 'R') {
 
     const before3 = frames.length
     const results3 = resultsSoFar()
-    runner.send(user('hold again', randomUUID()))
+    void runner.prompt('hold again', randomUUID())
     const sleeping2 = await runner.waitFor('the second Sleep call streams', isSleepCall, bound(60_000), before3)
     tally.check('R3a the third ask calls Sleep', sleeping2 !== null, describeRequests(api))
     await sleep(300)
-    control('sb-effort-1', { subtype: 'set_effort', effort: 'low' })
-    control('sb-mode-1', { subtype: 'set_permission_mode', mode: 'implement' })
+    control('sb-effort-1', 'session/set_effort', { effort: 'low' })
+    control('sb-mode-1', 'session/set_mode', { mode: 'implement' })
     const ack3 = await runner.waitFor('the set_effort answer', answerTo('sb-effort-1'), bound(10_000), before3)
-    const modeAnswer = await runner.waitFor('the set_permission_mode answer', answerTo('sb-mode-1'), bound(10_000), before3)
+    const modeAnswer = await runner.waitFor('the set_mode answer', answerTo('sb-mode-1'), bound(10_000), before3)
     const resultsAtMode = resultsSoFar()
-    tally.check('R3b set_effort mid-turn is held for the boundary — the answer says so at once', ack3 !== null && payloadOf(ack3).at === 'turn-boundary' && payloadOf(ack3).effort === 'low', JSON.stringify(ack3))
-    tally.check("R3c set_permission_mode mid-turn applies at once (the mode verb never parks) — answered before the turn's result", modeAnswer !== null && (modeAnswer.response as { subtype?: string }).subtype === 'success' && payloadOf(modeAnswer).mode === 'implement' && resultsAtMode === results3, JSON.stringify(modeAnswer))
+    tally.check('R3b set_effort mid-turn is held for the boundary — the answer says so at once', ack3 !== null && payloadOf(ack3).at === 'turn_end' && payloadOf(ack3).effort === 'low', JSON.stringify(ack3))
+    tally.check("R3c set_mode mid-turn applies at once (the mode verb never parks) — answered before the turn's result", modeAnswer !== null && modeAnswer.error === undefined && payloadOf(modeAnswer).mode === 'implement' && resultsAtMode === results3, JSON.stringify(modeAnswer))
     tally.check("R3d the running turn's continuation goes out after the Sleep", await untilAsync(() => firstRequestWith(api, resultOf('tu-hold-2')) !== undefined, bound(30_000), 50), describeRequests(api))
     await sleep(300)
-    runner.send(user('say again', randomUUID()))
+    void runner.prompt('say again', randomUUID())
     tally.check('R3e both turns settle', await waitResults(results3 + 2, bound(60_000)), describeRequests(api))
     const continuation2 = firstRequestWith(api, resultOf('tu-hold-2'))
     const words2 = firstRequestWith(api, 'say again')
@@ -210,14 +220,14 @@ if (ONLY === undefined || ONLY === 'R') {
 
     const before4 = frames.length
     const results4 = resultsSoFar()
-    runner.send(user('hold and drain', randomUUID()))
+    void runner.prompt('hold and drain', randomUUID())
     const sleeping3 = await runner.waitFor('the fourth Sleep call streams', isSleepCall, bound(60_000), before4)
     tally.check('R4a the fourth ask calls Sleep', sleeping3 !== null, describeRequests(api))
     await sleep(300)
-    control('sb-model-3', { subtype: 'set_model', model: NEW_MODEL })
+    control('sb-model-3', 'session/set_model', { model: NEW_MODEL })
     const ack4 = await runner.waitFor('the set_model answer', answerTo('sb-model-3'), bound(10_000), before4)
-    runner.send(user('the drained words', randomUUID()))
-    tally.check('R4b the switch is held for the boundary', ack4 !== null && payloadOf(ack4).at === 'turn-boundary', JSON.stringify(ack4))
+    void runner.prompt('the drained words', randomUUID())
+    tally.check('R4b the switch is held for the boundary', ack4 !== null && payloadOf(ack4).at === 'turn_end', JSON.stringify(ack4))
     tally.check('R4c the held turn settles', await waitResults(results4 + 1, bound(60_000)), describeRequests(api))
     const wordsTurnOpened = await waitResults(results4 + 2, bound(30_000))
     const continuation3 = firstRequestWith(api, resultOf('tu-hold-3'))
@@ -229,23 +239,23 @@ if (ONLY === undefined || ONLY === 'R') {
     const applied4 = indexOf(appliedFrameFor('sb-model-3'), before4)
     const turn8 = indexOf(isTurnStarted, indexOf(isTurnStarted, before4) + 1)
     tally.check("R4g on the wire: the held turn's result, then the applied frame, then the words' own open edge", result7 !== -1 && applied4 !== -1 && turn8 !== -1 && result7 < applied4 && applied4 < turn8, `result ${result7} · applied ${applied4} · turn_started ${turn8} · ${timeline(before4)}`)
-    runner.send(user('afterwards say yes', randomUUID()))
+    void runner.prompt('afterwards say yes', randomUUID())
     tally.check('R4h the next ask settles', await waitResults(results4 + 3, bound(60_000)), describeRequests(api))
     const afterwards = firstRequestWith(api, 'afterwards say yes')
     tally.check(`R4i the next ask runs on ${NEW_MODEL} as well`, afterwards !== undefined && bodyOf(afterwards).model === NEW_MODEL, describeRequests(api))
 
     const before5 = frames.length
     const results5 = resultsSoFar()
-    runner.send(user('hold for the mixed pair', randomUUID()))
+    void runner.prompt('hold for the mixed pair', randomUUID())
     const holding4 = await runner.waitFor('the fifth ask runs its foreground command', isBashCall, bound(60_000), before5)
     tally.check('R5a the fifth ask runs a foreground command — a boundary that words landing mid-call do not bring forward (a Sleep ends the moment they land)', holding4 !== null, describeRequests(api))
     await sleep(300)
-    runner.send(user('the early pair words', randomUUID()))
+    void runner.prompt('the early pair words', randomUUID())
     await sleep(200)
-    control('sb-model-4', { subtype: 'set_model', model: MODEL })
+    control('sb-model-4', 'session/set_model', { model: MODEL })
     const ack5 = await runner.waitFor('the set_model answer', answerTo('sb-model-4'), bound(10_000), before5)
-    runner.send(user('the late pair words', randomUUID()))
-    tally.check('R5b the switch is held for the boundary', ack5 !== null && payloadOf(ack5).at === 'turn-boundary', JSON.stringify(ack5))
+    void runner.prompt('the late pair words', randomUUID())
+    tally.check('R5b the switch is held for the boundary', ack5 !== null && payloadOf(ack5).at === 'turn_end', JSON.stringify(ack5))
     tally.check('R5c the held turn settles and the late words open a turn of their own', await waitResults(results5 + 2, bound(60_000)), describeRequests(api))
     const continuation4 = firstRequestWith(api, resultOf('tu-hold-4'))
     const early = firstRequestWith(api, 'the early pair words')
@@ -256,14 +266,14 @@ if (ONLY === undefined || ONLY === 'R') {
 
     const before6 = frames.length
     const results6 = resultsSoFar()
-    runner.send(user('hold for effort', randomUUID()))
+    void runner.prompt('hold for effort', randomUUID())
     const sleeping5 = await runner.waitFor('the sixth Sleep call streams', isSleepCall, bound(60_000), before6)
     tally.check('R6a the sixth ask calls Sleep', sleeping5 !== null, describeRequests(api))
     await sleep(300)
-    control('sb-effort-2', { subtype: 'set_effort', effort: 'high' })
+    control('sb-effort-2', 'session/set_effort', { effort: 'high' })
     const ack6 = await runner.waitFor('the set_effort answer', answerTo('sb-effort-2'), bound(10_000), before6)
-    runner.send(user('the effort words', randomUUID()))
-    tally.check('R6b the effort verb is held for the boundary', ack6 !== null && payloadOf(ack6).at === 'turn-boundary', JSON.stringify(ack6))
+    void runner.prompt('the effort words', randomUUID())
+    tally.check('R6b the effort verb is held for the boundary', ack6 !== null && payloadOf(ack6).at === 'turn_end', JSON.stringify(ack6))
     tally.check('R6c the held turn settles and the words open a turn of their own', await waitResults(results6 + 2, bound(60_000)), describeRequests(api))
     const continuation5 = firstRequestWith(api, resultOf('tu-hold-5'))
     const effortWords = firstRequestWith(api, 'the effort words')
@@ -272,11 +282,11 @@ if (ONLY === undefined || ONLY === 'R') {
 
     const before7 = frames.length
     const results7 = resultsSoFar()
-    runner.send(user('hold with nothing held', randomUUID()))
+    void runner.prompt('hold with nothing held', randomUUID())
     const sleeping6 = await runner.waitFor('the seventh Sleep call streams', isSleepCall, bound(60_000), before7)
     tally.check('R7a the seventh ask calls Sleep', sleeping6 !== null, describeRequests(api))
     await sleep(300)
-    runner.send(user('the plain words', randomUUID()))
+    void runner.prompt('the plain words', randomUUID())
     tally.check('R7b the turn settles', await waitResults(results7 + 1, bound(60_000)), describeRequests(api))
     await sleep(500)
     const continuation6 = firstRequestWith(api, resultOf('tu-hold-6'))
@@ -286,32 +296,32 @@ if (ONLY === undefined || ONLY === 'R') {
 
     const before8 = frames.length
     const results8 = resultsSoFar()
-    runner.send(user('hold for the flip', randomUUID()))
+    void runner.prompt('hold for the flip', randomUUID())
     const sleeping7 = await runner.waitFor('the eighth Sleep call streams', isSleepCall, bound(60_000), before8)
     tally.check('R8a the eighth ask calls Sleep', sleeping7 !== null, describeRequests(api))
     await sleep(300)
-    control('sb-spawn-1', { subtype: 'spawn_switch', switch: 'subagents', on: false })
+    control('sb-spawn-1', 'session/set_spawn_switch', { switch: 'subagents', on: false })
     const ack8 = await runner.waitFor('the spawn_switch answer', answerTo('sb-spawn-1'), bound(10_000), before8)
     const resultsAtAck8 = resultsSoFar()
-    runner.send(user('the flip words', randomUUID()))
-    tally.check('R8b a spawn switch sent mid-turn is answered at once with where it lands — the turn boundary — naming the switch', ack8 !== null && payloadOf(ack8).at === 'turn-boundary' && payloadOf(ack8).switch === 'subagents' && payloadOf(ack8).on === false && resultsAtAck8 === results8, JSON.stringify(ack8))
+    void runner.prompt('the flip words', randomUUID())
+    tally.check('R8b a spawn switch sent mid-turn is answered at once with where it lands — the turn boundary — naming the switch', ack8 !== null && payloadOf(ack8).at === 'turn_end' && payloadOf(ack8).switch === 'subagents' && payloadOf(ack8).on === false && resultsAtAck8 === results8, JSON.stringify(ack8))
     tally.check('R8c the held turn settles', await waitResults(results8 + 1, bound(60_000)), describeRequests(api))
     const applied8 = await runner.waitFor('the spawn switch applied frame', appliedFrameFor('sb-spawn-1'), bound(10_000), before8)
     const result9 = indexOf(isResultFrame, before8)
     const appliedAt8 = indexOf(appliedFrameFor('sb-spawn-1'), before8)
-    tally.check("R8d the applied frame follows the held turn's result and names the switch it landed", applied8 !== null && result9 !== -1 && appliedAt8 > result9 && applied8.verb === 'spawn_switch' && applied8.switch === 'subagents' && applied8.on === false, `result ${result9} · applied ${appliedAt8} · ${JSON.stringify(applied8)} · ${timeline(before8)}`)
+    tally.check("R8d the applied frame follows the held turn's result and names the switch it landed", applied8 !== null && result9 !== -1 && appliedAt8 > result9 && applied8.verb === 'set_spawn_switch' && applied8.switch === 'subagents' && applied8.on === false, `result ${result9} · applied ${appliedAt8} · ${JSON.stringify(applied8)} · ${timeline(before8)}`)
     const flipWordsTurn = await waitResults(results8 + 2, bound(30_000))
     const continuation7 = firstRequestWith(api, resultOf('tu-hold-7'))
     const flipWords = firstRequestWith(api, 'the flip words')
     tally.check('R8g words sent after the held spawn switch, during the same tool call, do not join the running turn — they wait for its end and run as the next turn', flipWordsTurn && continuation7 !== undefined && flipWords !== undefined && flipWords !== continuation7 && !JSON.stringify(continuation7.body).includes('the flip words'), describeRequests(api))
     const flipTurn = indexOf(isTurnStarted, indexOf(isTurnStarted, before8) + 1)
     tally.check("R8h on the wire: the held turn's result, then the switch's applied frame, then the words' own open edge", result9 !== -1 && appliedAt8 !== -1 && flipTurn !== -1 && result9 < appliedAt8 && appliedAt8 < flipTurn, `result ${result9} · applied ${appliedAt8} · turn_started ${flipTurn} · ${timeline(before8)}`)
-    control('sb-facts-1', { subtype: 'session_facts' })
+    control('sb-facts-1', 'session/facts', {})
     const facts8 = await runner.waitFor('the facts answer', answerTo('sb-facts-1'), bound(10_000), before8)
     const factsPayload8 = payloadOf(facts8) as { spawn_switches?: { subagents?: { on?: boolean; source?: string } }; spawnSwitches?: { subagents?: { on?: boolean; source?: string } } }
     const switches8 = factsPayload8.spawn_switches ?? factsPayload8.spawnSwitches
     tally.check("R8e the runner's own facts read the switch off, in-session, before any next turn opens", switches8?.subagents?.on === false && switches8?.subagents?.source === 'in-session', JSON.stringify(switches8))
-    control('sb-spawn-2', { subtype: 'spawn_switch', switch: 'subagents', on: true })
+    control('sb-spawn-2', 'session/set_spawn_switch', { switch: 'subagents', on: true })
     const ack9 = await runner.waitFor('the idle spawn_switch answer', answerTo('sb-spawn-2'), bound(10_000), before8)
     await sleep(300)
     tally.check('R8f a spawn switch while no turn runs applies now — the answer says so and no applied frame follows', ack9 !== null && payloadOf(ack9).at === 'now' && payloadOf(ack9).switch === 'subagents' && payloadOf(ack9).on === true && indexOf(appliedFrameFor('sb-spawn-2'), before8) === -1, JSON.stringify(ack9))

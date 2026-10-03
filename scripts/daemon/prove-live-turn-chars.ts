@@ -5,7 +5,7 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'turnchars-home-'))
 
-const { onSeatLine, onSeatSpawned } = await import('../../src/daemon/sessionSeat.ts')
+const { onSeatRow, onSeatSpawned } = await import('../../src/daemon/sessionSeat.ts')
 const { readSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
 const { updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
 
@@ -33,38 +33,38 @@ updateConcourseWorkers(workers => {
     workspaceKind: 'plain-folder',
   } as never
 }, dir)
-const roster = { control: () => true, list: () => [], patchSeatModel: () => true }
+const roster = { door: () => undefined, list: () => [], patchSeatModel: () => true, patchSeatEffort: () => true }
 
 const published = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 60))
 
-const row = (o: Record<string, unknown>): string => JSON.stringify({ seq: 1, timestamp: 't', session_id: sid, turn: 1, ...o })
+const row = (o: Record<string, unknown>): Record<string, unknown> => ({ seq: 1, timestamp: 't', session_id: sid, turn: 1, ...o })
 const USAGE = { input_tokens: 1, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 1 }
-const outcome = (): string => row({ type: 'outcome', schema: 1, turn_id: 't-tc', status: 'completed', steps: 1, wall_ms: 1, usage: USAGE, models: [], denials: [] })
-const blockStart = (messageId: string, block: number): string => row({ type: 'block_start', message_id: messageId, block, of: 'text' })
-const deltaOf = (messageId: string, block: number, text: string): string => row({ type: 'text_delta', message_id: messageId, block, text })
-const settled = (messageId: string, block: number, text: string): string => row({ type: 'text', message_id: messageId, block, text })
-const step = (messageId: string, outputTokens: number | undefined): string =>
+const outcome = (): Record<string, unknown> => row({ type: 'outcome', schema: 1, turn_id: 't-tc', status: 'completed', steps: 1, wall_ms: 1, usage: USAGE, models: [], denials: [] })
+const blockStart = (messageId: string, block: number): Record<string, unknown> => row({ type: 'block_start', message_id: messageId, block, of: 'text' })
+const deltaOf = (messageId: string, block: number, text: string): Record<string, unknown> => row({ type: 'text_delta', message_id: messageId, block, text })
+const settled = (messageId: string, block: number, text: string): Record<string, unknown> => row({ type: 'text', message_id: messageId, block, text })
+const step = (messageId: string, outputTokens: number | undefined): Record<string, unknown> =>
   row({ type: 'step', message_id: messageId, model: 'claude-opus-5', usage: outputTokens === undefined ? {} : { ...USAGE, output_tokens: outputTokens } })
 const tail = () => readSessionTail(sid, dir)
 
 console.log('live turn chars — the counter that moves while the agent writes')
 
 console.log('\nT1 streamed deltas accumulate')
-onSeatLine(SHORT, blockStart('msg_t1', 0), roster as never, dir)
-onSeatLine(SHORT, deltaOf('msg_t1', 0, 'Hello, '), roster as never, dir)
-onSeatLine(SHORT, deltaOf('msg_t1', 0, 'operator.'), roster as never, dir)
+onSeatRow(SHORT, blockStart('msg_t1', 0), roster as never, dir)
+onSeatRow(SHORT, deltaOf('msg_t1', 0, 'Hello, '), roster as never, dir)
+onSeatRow(SHORT, deltaOf('msg_t1', 0, 'operator.'), roster as never, dir)
 await published()
 check('two deltas ⇒ turnChars = their total length', tail()?.turnChars === 'Hello, operator.'.length, JSON.stringify(tail()))
 check('…and the tail text still carries the block', tail()?.text === 'Hello, operator.')
 
 console.log('\nT2 the settled row keeps the cumulative count')
-onSeatLine(SHORT, settled('msg_t1', 0, 'Hello, operator.'), roster as never, dir)
+onSeatRow(SHORT, settled('msg_t1', 0, 'Hello, operator.'), roster as never, dir)
 check('the tail text clears at the settled row', tail()?.text === null)
 check('the turn count STANDS across the boundary', tail()?.turnChars === 'Hello, operator.'.length, JSON.stringify(tail()))
 
 console.log('\nT3 a second block keeps accumulating (per TURN, not per block)')
-onSeatLine(SHORT, blockStart('msg_t1', 1), roster as never, dir)
-onSeatLine(SHORT, deltaOf('msg_t1', 1, 'Second block.'), roster as never, dir)
+onSeatRow(SHORT, blockStart('msg_t1', 1), roster as never, dir)
+onSeatRow(SHORT, deltaOf('msg_t1', 1, 'Second block.'), roster as never, dir)
 await published()
 check(
   'the second block adds to the same turn count',
@@ -73,17 +73,17 @@ check(
 )
 
 console.log('\nT4 the outcome row zeroes the count')
-onSeatLine(SHORT, outcome(), roster as never, dir)
+onSeatRow(SHORT, outcome(), roster as never, dir)
 check('the turn settled ⇒ the count is 0 (absent or zero, never stale)', (tail()?.turnChars ?? 0) === 0, JSON.stringify(tail()))
 
 console.log('\nT5 a settle-class reply (no deltas) counts whole')
-onSeatLine(SHORT, settled('msg_t5', 0, 'Settled whole.'), roster as never, dir)
+onSeatRow(SHORT, settled('msg_t5', 0, 'Settled whole.'), roster as never, dir)
 check('the settle text counts at once', tail()?.turnChars === 'Settled whole.'.length, JSON.stringify(tail()))
-onSeatLine(SHORT, outcome(), roster as never, dir)
+onSeatRow(SHORT, outcome(), roster as never, dir)
 
 console.log('\nT6 a respawn zeroes the count')
-onSeatLine(SHORT, blockStart('msg_t6', 0), roster as never, dir)
-onSeatLine(SHORT, deltaOf('msg_t6', 0, 'half a turn the child died inside'), roster as never, dir)
+onSeatRow(SHORT, blockStart('msg_t6', 0), roster as never, dir)
+onSeatRow(SHORT, deltaOf('msg_t6', 0, 'half a turn the child died inside'), roster as never, dir)
 onSeatSpawned(SHORT, roster as never, dir)
 check('the respawn clears the half-count', (tail()?.turnChars ?? 0) === 0, JSON.stringify(tail()))
 
@@ -121,31 +121,31 @@ console.log('\nT7 the wiring — connector to ref to spinner (structural)')
 
 console.log('\nT8 the wire figure — the turn\'s cumulative output tokens once a step has landed')
 {
-  onSeatLine(SHORT, outcome(), roster as never, dir)
-  onSeatLine(SHORT, blockStart('msg_w1', 0), roster as never, dir)
-  onSeatLine(SHORT, deltaOf('msg_w1', 0, 'Thinking it over.'), roster as never, dir)
+  onSeatRow(SHORT, outcome(), roster as never, dir)
+  onSeatRow(SHORT, blockStart('msg_w1', 0), roster as never, dir)
+  onSeatRow(SHORT, deltaOf('msg_w1', 0, 'Thinking it over.'), roster as never, dir)
   await published()
   check('a block start carries no usage: the figure stays absent while the characters count', tail()?.turnOutputTokens === undefined && tail()?.turnChars === 'Thinking it over.'.length, JSON.stringify(tail()))
-  onSeatLine(SHORT, step('msg_w1', 777), roster as never, dir)
+  onSeatRow(SHORT, step('msg_w1', 777), roster as never, dir)
   check('the first step row publishes the wire figure at once', tail()?.turnOutputTokens === 777, JSON.stringify(tail()))
   check('…and the character count stands beside it', tail()?.turnChars === 'Thinking it over.'.length, JSON.stringify(tail()))
-  onSeatLine(SHORT, blockStart('msg_w2', 0), roster as never, dir)
-  onSeatLine(SHORT, deltaOf('msg_w2', 0, 'Second message.'), roster as never, dir)
+  onSeatRow(SHORT, blockStart('msg_w2', 0), roster as never, dir)
+  onSeatRow(SHORT, deltaOf('msg_w2', 0, 'Second message.'), roster as never, dir)
   await published()
   check('a second message streaming adds no estimate to the figure: it stays the wire total so far', tail()?.turnOutputTokens === 777, JSON.stringify(tail()))
-  onSeatLine(SHORT, step('msg_w2', 555), roster as never, dir)
+  onSeatRow(SHORT, step('msg_w2', 555), roster as never, dir)
   check("the second message's step adds its figure to the turn total", tail()?.turnOutputTokens === 1332, JSON.stringify(tail()))
-  onSeatLine(SHORT, step('msg_w3', 0), roster as never, dir)
-  onSeatLine(SHORT, step('msg_w4', undefined), roster as never, dir)
+  onSeatRow(SHORT, step('msg_w3', 0), roster as never, dir)
+  onSeatRow(SHORT, step('msg_w4', undefined), roster as never, dir)
   check('a zero or absent usage states nothing: the figure stands', tail()?.turnOutputTokens === 1332, JSON.stringify(tail()))
-  onSeatLine(SHORT, outcome(), roster as never, dir)
+  onSeatRow(SHORT, outcome(), roster as never, dir)
   check('the outcome row retires the figure with the count (absent, never stale)', tail()?.turnOutputTokens === undefined && (tail()?.turnChars ?? 0) === 0, JSON.stringify(tail()))
-  onSeatLine(SHORT, blockStart('msg_w5', 0), roster as never, dir)
-  onSeatLine(SHORT, deltaOf('msg_w5', 0, 'A wire that states no usage.'), roster as never, dir)
-  onSeatLine(SHORT, step('msg_w5', 0), roster as never, dir)
+  onSeatRow(SHORT, blockStart('msg_w5', 0), roster as never, dir)
+  onSeatRow(SHORT, deltaOf('msg_w5', 0, 'A wire that states no usage.'), roster as never, dir)
+  onSeatRow(SHORT, step('msg_w5', 0), roster as never, dir)
   await published()
   check('a wire that states no usage keeps the figure absent for the whole turn (the reader keeps its ~ estimate)', tail()?.turnOutputTokens === undefined && tail()?.turnChars === 'A wire that states no usage.'.length, JSON.stringify(tail()))
-  onSeatLine(SHORT, step('msg_w6', 42), roster as never, dir)
+  onSeatRow(SHORT, step('msg_w6', 42), roster as never, dir)
   onSeatSpawned(SHORT, roster as never, dir)
   check('a respawn retires the figure with the half-count', tail()?.turnOutputTokens === undefined && (tail()?.turnChars ?? 0) === 0, JSON.stringify(tail()))
 }

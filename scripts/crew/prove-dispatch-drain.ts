@@ -27,23 +27,23 @@ const WORKER = 'scout'
 const LEAD = 'crew-lead'
 const drainOpts = { short: WORKER, agentName: WORKER, crewName: CREW, durableDedup: false as const }
 
-section('buildBackAgentUserFrame: total over every kind')
+section('buildBackAgentUserRow: total over every kind')
 const disp = bus.buildDispatch(LEAD, 'refactor the tokenizer with TDD', { title: 'Tokenizer' })
-const frame = JSON.parse(drainMod.buildBackAgentUserFrame(disp))
-check("frame.type === 'user'", frame.type === 'user')
-check("frame.message.role === 'user'", frame.message?.role === 'user')
-check('frame carries the dispatched task text', typeof frame.message?.content === 'string' && frame.message.content.includes('refactor the tokenizer with TDD'))
-check('frame carries the title', frame.message.content.includes('Tokenizer'))
-check('frame carries the report-back framing', frame.message.content.includes(drainMod.DISPATCH_REPORT_BACK_FRAMING))
-check('frame ends with the literal request_id trailer', frame.message.content.trimEnd().endsWith(`[request_id: ${disp.request_id}]`))
-const replayed = JSON.parse(drainMod.buildBackAgentUserFrame(disp, { replay: true }))
-check('a replayed dispatch carries the replay marker', replayed.message.content.includes(drainMod.DISPATCH_REPLAY_NOTE.trim()))
-check('escalate renders a [escalate …] frame', JSON.parse(drainMod.buildBackAgentUserFrame(bus.buildEscalate(WORKER, 'blocked on X'))).message.content.startsWith('[escalate]'))
-check('progress renders a [progress …] frame', JSON.parse(drainMod.buildBackAgentUserFrame(bus.buildProgress(WORKER, 'working'))).message.content.startsWith('[progress working]'))
-check('control renders a [control …] frame', JSON.parse(drainMod.buildBackAgentUserFrame(bus.buildControl(LEAD, 'pause', { detail: 'hold' }))).message.content === '[control pause] hold')
-check('note renders the operator-note label', JSON.parse(drainMod.buildBackAgentUserFrame(bus.buildNote(LEAD, 'context'))).message.content === `${bus.OPERATOR_NOTE_LABEL} context`)
-check('broadcast note renders the broadcast label', JSON.parse(drainMod.buildBackAgentUserFrame(bus.buildNote(LEAD, 'all hands', { broadcast: true }))).message.content === `${bus.OPERATOR_BROADCAST_LABEL} all hands`)
-check('plain text renders an attributed [bus] frame', JSON.parse(drainMod.buildPlainBusFrame(LEAD, 'hello')).message.content.startsWith(`[bus] plain message from ${LEAD}`))
+const textOf = (row: { content: unknown }): string => (typeof row.content === 'string' ? row.content : JSON.stringify(row.content))
+const row = drainMod.buildBackAgentUserRow(disp)
+check("the row is a prompt row", row.type === 'prompt')
+check('the row carries the dispatched task text', textOf(row).includes('refactor the tokenizer with TDD'))
+check('the row carries the title', textOf(row).includes('Tokenizer'))
+check('the row carries the report-back framing', textOf(row).includes(drainMod.DISPATCH_REPORT_BACK_FRAMING))
+check('the row ends with the literal request_id trailer', textOf(row).trimEnd().endsWith(`[request_id: ${disp.request_id}]`))
+const replayed = drainMod.buildBackAgentUserRow(disp, { replay: true })
+check('a replayed dispatch carries the replay marker', textOf(replayed).includes(drainMod.DISPATCH_REPLAY_NOTE.trim()))
+check('escalate renders a [escalate …] frame', textOf(drainMod.buildBackAgentUserRow(bus.buildEscalate(WORKER, 'blocked on X'))).startsWith('[escalate]'))
+check('progress renders a [progress …] frame', textOf(drainMod.buildBackAgentUserRow(bus.buildProgress(WORKER, 'working'))).startsWith('[progress working]'))
+check('control renders a [control …] frame', textOf(drainMod.buildBackAgentUserRow(bus.buildControl(LEAD, 'pause', { detail: 'hold' }))) === '[control pause] hold')
+check('note renders the operator-note label', textOf(drainMod.buildBackAgentUserRow(bus.buildNote(LEAD, 'context'))) === `${bus.OPERATOR_NOTE_LABEL} context`)
+check('broadcast note renders the broadcast label', textOf(drainMod.buildBackAgentUserRow(bus.buildNote(LEAD, 'all hands', { broadcast: true }))) === `${bus.OPERATOR_BROADCAST_LABEL} all hands`)
+check('plain text renders an attributed [bus] frame', textOf(drainMod.buildPlainBusRow(LEAD, 'hello')).startsWith(`[bus] plain message from ${LEAD}`))
 
 section('drainDispatches: inbox → roster.reply')
 const homes: string[] = []
@@ -58,7 +58,7 @@ try {
     sendLiveMessage(CREW, { to: WORKER, from, text: bus.serializeBusEnvelope(env), timestamp: new Date().toISOString() })
   const recorder = () => {
     const replies: Array<{ short: string; text: string }> = []
-    return { replies, roster: { reply: async (short: string, text: string) => { replies.push({ short, text }); return true } } }
+    return { replies, roster: { reply: async (short: string, row: { content: unknown }) => { replies.push({ short, text: textOf(row) }); return true } } }
   }
 
   freshHome()
@@ -69,7 +69,7 @@ try {
     const delivered = await drainMod.drainDispatches(roster, drainOpts)
     check('delivered exactly 1 (the dispatch; the escalate is outbound, skipped)', delivered === 1)
     check('reply targeted the worker short', replies.length === 1 && replies[0]!.short === WORKER)
-    check('reply payload is a user frame carrying the task', replies.length === 1 && JSON.parse(replies[0]!.text).message.content.includes('refactor the tokenizer'))
+    check('reply payload is a prompt row carrying the task', replies.length === 1 && replies[0]!.text.includes('refactor the tokenizer'))
     const again = await drainMod.drainDispatches(roster, drainOpts)
     check('second drain delivers 0 (delivered dispatch marked read — no double-delivery)', again === 0)
   }

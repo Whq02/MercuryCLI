@@ -5,7 +5,7 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'seatline-adv-home-'))
 
-const { onSeatLine } = await import('../../src/daemon/sessionSeat.ts')
+const { onSeatRow } = await import('../../src/daemon/sessionSeat.ts')
 const { readSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
 const { updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
 
@@ -33,14 +33,14 @@ updateConcourseWorkers(workers => {
     workspaceKind: 'plain-folder',
   } as never
 }, dir)
-const roster = { control: () => true, list: () => [], patchSeatModel: () => true }
+const roster = { door: () => undefined, list: () => [], patchSeatModel: () => true, patchSeatEffort: () => true }
 
 const published = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 60))
-const row = (fields: Record<string, unknown>): string => JSON.stringify({ seq: 1, timestamp: 't', session_id: sid, turn: 1, ...fields })
-const delta = (text: string): string => row({ type: 'text_delta', message_id: 'msg_adv', block: 0, text })
+const row = (fields: Record<string, unknown>): Record<string, unknown> => ({ seq: 1, timestamp: 't', session_id: sid, turn: 1, ...fields })
+const delta = (text: string): Record<string, unknown> => row({ type: 'text_delta', message_id: 'msg_adv', block: 0, text })
 const tail = () => readSessionTail(sid, dir)
-const feed = (line: string): void => onSeatLine(SHORT, line, roster as never, dir)
-const outcome = (extra: Record<string, unknown> = {}): string =>
+const feed = (line: Record<string, unknown>): void => onSeatRow(SHORT, line, roster as never, dir)
+const outcome = (extra: Record<string, unknown> = {}): Record<string, unknown> =>
   row({ type: 'outcome', schema: 1, turn_id: 't-adv', status: 'completed', steps: 1, wall_ms: 1, usage: { input_tokens: 1, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 1 }, models: {}, denials: [], ...extra })
 
 console.log('seat line dispatch — content-shaped rows against the typed arms')
@@ -104,13 +104,19 @@ console.log('\nE4 deltas then the same turn settled text row: never double-count
   feed(outcome())
 }
 
-console.log('\nE5 a torn line moves nothing and crashes nothing')
+console.log('\nE5 a torn line never reaches the seat: the door drops it and the hook sees no row')
 {
+  const { standInRunner } = await import('../lib/seatDoor.ts')
+  const seen: unknown[] = []
+  const stand = standInRunner({ hooks: { onRow: r => { seen.push(r); feed(r as Record<string, unknown>) } } })
   const before = tail()?.turnChars ?? 0
-  feed('{"type":"outcome","text" TORN MID-WRITE')
-  feed('{"type":"text","text_delta" ALSO TORN')
+  stand.rawToHost('{"type":"outcome","text" TORN MID-WRITE\n')
+  stand.rawToHost('{"type":"text","text_delta" ALSO TORN\n')
+  stand.rawToHost('{"jsonrpc":"2.0","method":"row","params":{"type":"text","text" TORN INSIDE THE ENVELOPE\n')
+  await new Promise(resolve => setTimeout(resolve, 30))
   await published()
-  check('torn lines moved nothing', (tail()?.turnChars ?? 0) === before, JSON.stringify(tail()))
+  check('torn lines reached no hook and moved nothing', seen.length === 0 && (tail()?.turnChars ?? 0) === before, JSON.stringify({ seen, tail: tail() }))
+  stand.close()
 }
 
 console.log(

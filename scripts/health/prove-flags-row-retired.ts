@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, realpathSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -17,7 +17,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 
-const { FLAG_REGISTRY, RETIRED_FLAGS, retiredFlagsSet } = await import('../../src/substrate/flagRegistry.ts')
+const { FLAG_REGISTRY, getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 const report = await import('../../src/utils/healthReport.js')
 type Row = { status: string; evidence: string; fix?: string; detail?: string }
 const flagsRow = async (): Promise<Row> => {
@@ -25,43 +25,35 @@ const flagsRow = async (): Promise<Row> => {
   const row = cert.sections.flatMap(s => s.checks).find(c => c.id === 'flags')
   return { status: String(row?.status), evidence: String(row?.evidence), fix: row?.fix, detail: row?.detail }
 }
-const PORT = RETIRED_FLAGS.find(r => r.env.endsWith('_GODOT_TOOLS_PORT'))?.env ?? ''
-const TOKEN = RETIRED_FLAGS.find(r => r.env.endsWith('_GODOT_TOOLS_TOKEN'))?.env ?? ''
-for (const name of RETIRED_FLAGS) delete process.env[name.env]
+const UNKNOWN = ['MERCURY_GODOT_TOOLS_PORT', 'MERCURY_GODOT_TOOLS_TOKEN']
+for (const name of UNKNOWN) delete process.env[name]
 
-console.log('§1 the registry agrees with what is retired')
+console.log('§1 the registry knows registered flags and nothing else')
 {
-  check('the retired table names the fixed port and the shared token, and nothing else', RETIRED_FLAGS.map(r => r.env).sort().join(',') === `${PORT},${TOKEN}` && PORT.length > 0 && TOKEN.length > 0)
-  check('nothing replaced either setting, and each says what stands in its place', RETIRED_FLAGS.every(r => r.replacedBy === null && r.now.length > 20 && r.was.length > 5))
-  check('a retired name is never a registered flag', RETIRED_FLAGS.every(r => !FLAG_REGISTRY.some(f => f.env === r.env)))
-  check('the reader answers the retired settings that are set, with their values', retiredFlagsSet({}).length === 0 && retiredFlagsSet({ [PORT]: '6010' }).map(r => `${r.spec.env}=${r.value}`).join() === `${PORT}=6010`)
+  const registry = readFileSync(join(REPO, 'src/substrate/flagRegistry.ts'), 'utf8')
+  check('a name that left the registry is unknown to it', UNKNOWN.every(name => getFlagSpec(name) === undefined))
+  check('the registry keeps no table of retired names and no reader of one', !registry.includes('RETIRED_FLAGS') && !registry.includes('retiredFlagsSet') && !registry.includes('replacedBy'))
+  check('the health report reads no such table', !readFileSync(join(REPO, 'src/utils/healthReport.ts'), 'utf8').includes('retired'))
 }
 
-console.log('\n§2 the Env overrides row with nothing retired set is unchanged')
+console.log('\n§2 the Env overrides row names the registered overrides only')
 {
   const row = await flagsRow()
-  check('the row does not speak of retired settings', !/retired/.test(row.evidence) && row.fix === undefined && (row.status === 'ok' || row.status === 'info'), row.evidence.slice(0, 120))
+  check('the row names the registered overrides only — ok at the defaults, info over an override, never a fix line', (row.status === 'ok' || row.status === 'info') && (row.evidence.includes(`all ${FLAG_REGISTRY.length} registered flags at their defaults`) || /flag\(s\) overridden in env/.test(row.evidence)) && row.fix === undefined && !/retired/.test(row.evidence), row.evidence.slice(0, 160))
 }
 
-console.log('\n§3 the row names a retired setting still set, what replaced it, and the fix')
+console.log('\n§3 an unknown name in the environment is nobody\'s business')
 {
-  process.env[PORT] = '6010'
-  process.env[TOKEN] = 'deadbeef'
+  for (const name of UNKNOWN) process.env[name] = 'set-by-the-proof'
   const row = await flagsRow()
-  check('the row warns', row.status === 'warn', row.status)
-  check('the evidence names both settings as retired and still set, with nothing replacing them', row.evidence.includes(`retired, still set: ${PORT} (nothing replaces it), ${TOKEN} (nothing replaces it)`), row.evidence.slice(-200))
-  check('the detail says what each was and what stands in its place', (row.detail ?? '').includes(`${PORT}=6010 — retired: it was the fixed loopback port of the Godot bridge; nothing replaces it: every Godot instance publishes its own port`) && (row.detail ?? '').includes(`${TOKEN}=deadbeef — retired`), (row.detail ?? '').slice(0, 200))
-  check('the fix says to unset both and why', (row.fix ?? '').startsWith(`Unset ${PORT} and ${TOKEN}: they are retired and nothing reads them.`) && (row.fix ?? '').includes('own token file'), row.fix ?? '')
-  delete process.env[TOKEN]
-  const one = await flagsRow()
-  check('one retired setting alone reads in the singular', one.status === 'warn' && one.evidence.includes(`retired, still set: ${PORT} (nothing replaces it)`) && !one.evidence.includes(TOKEN) && (one.fix ?? '').startsWith(`Unset ${PORT}: it is retired and nothing reads it.`), one.fix ?? '')
-  delete process.env[PORT]
+  check('the row does not warn, name the setting or offer a fix for an unregistered name', (row.status === 'ok' || row.status === 'info') && UNKNOWN.every(name => !row.evidence.includes(name) && !(row.detail ?? '').includes(name)) && row.fix === undefined, `${row.status} ${row.evidence.slice(-160)}`)
+  for (const name of UNKNOWN) delete process.env[name]
 }
 
 console.log('\n§4 the built bundle')
 {
   const doctorJson = (bin: string, extra: Record<string, string>): { text: string; status: number | null } => {
-    const res = spawnSync('node', [bin, 'doctor', '--json'], {
+    const res = spawnSync('node', [bin, 'health', '--json'], {
       encoding: 'utf8',
       timeout: 180_000,
       env: { ...process.env, ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', ANTHROPIC_BASE_URL: 'http://127.0.0.1:1', BROWSER: '/usr/bin/true', MERCURY_HOME: '', ...extra },
@@ -78,23 +70,14 @@ console.log('\n§4 the built bundle')
     }
   }
   if (!existsSync(BIN)) {
-    console.log('  [SKIP] dist/mercury.mjs absent — the built legs need a build')
+    check('the built bundle is present (bun run build.ts)', false, BIN)
   } else {
-    const set = doctorJson(BIN, { [PORT]: '6010', [TOKEN]: 'deadbeef' })
+    const set = doctorJson(BIN, Object.fromEntries(UNKNOWN.map(name => [name, 'set-by-the-proof'])))
     const row = rowOf(set.text)
-    check('doctor --json produces the record and its Env overrides row warns about both retired settings', (set.status === 0 || set.status === 3) && row?.status === 'warn' && row.evidence.includes(`retired, still set: ${PORT} (nothing replaces it), ${TOKEN} (nothing replaces it)`), `status=${String(set.status)} ${row?.evidence.slice(-160) ?? ''}`)
-    const clear = doctorJson(BIN, {})
-    const clearRow = rowOf(clear.text)
-    check('with nothing retired set the built row is silent about retirement', clearRow !== undefined && !/retired/.test(clearRow.evidence) && clearRow.fix === undefined, clearRow?.evidence.slice(0, 120) ?? '')
-  }
-  const baseDist = process.env.MERCURY_BASE_DIST
-  if (baseDist && existsSync(join(baseDist, 'mercury.mjs'))) {
-    const old = rowOf(doctorJson(join(baseDist, 'mercury.mjs'), { [PORT]: '6010', [TOKEN]: 'deadbeef' }).text)
-    check('the pre-fix bundle names neither retired setting on the same row', old !== undefined && !/retired/.test(old.evidence) && old.status !== 'warn', old?.evidence.slice(0, 120) ?? '')
-  } else {
-    console.log('  [SKIP] MERCURY_BASE_DIST unset — no pre-fix bundle to compare')
+    check('health --json produces the certificate and its Env overrides row', (set.status === 0 || set.status === 3) && row !== undefined, `status=${String(set.status)}`)
+    check('the built row says nothing of an unregistered name set in the environment', row !== undefined && UNKNOWN.every(name => !row.evidence.includes(name) && !(row.detail ?? '').includes(name)) && row.fix === undefined, row?.evidence.slice(-160) ?? '')
   }
 }
 
-console.log(failures === 0 ? '\nprove-flags-row-retired: all green' : `\nprove-flags-row-retired: ${failures} FAILURE(S)`)
+console.log(failures === 0 ? '\nprove-flags-row-retired: ALL LAWS HOLD' : `\nprove-flags-row-retired: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

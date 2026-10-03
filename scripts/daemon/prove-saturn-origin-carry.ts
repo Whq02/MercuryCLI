@@ -24,8 +24,7 @@ const { liveFactsForSessionFire } = await import('../../src/daemon/saturnAccount
 const { readSessionFacts, sessionFactsDir, sessionFactsPath } = await import('../../src/services/engine-connector/seatProjections.ts')
 const receipts = await import('../../src/services/switchboard/sessionReceipts.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
-const { buildConcoursePromptFrame } = await import('../../src/daemon/concourseDispatch.ts')
-const { inputRowOfFrame } = await import('../../src/daemon/runnerConnection.ts')
+const { buildConcoursePromptRow } = await import('../../src/daemon/concourseDispatch.ts')
 const { processTextPrompt } = await import('../../src/utils/processUserInput/processTextPrompt.ts')
 const { createUserMessage } = await import('../../src/utils/messages/factories.ts')
 const bridge = await import('../../src/services/saturn/sessionScheduleBridge.ts')
@@ -231,15 +230,16 @@ console.log('§3 a wake held by a closed usage window replays at the reopen with
   check('at the reopen it replays once and its origin names the closed window', r2.replayed === 1 && delivered.length === 1 && o !== undefined && o.heldSince === FIRED_AT && o.heldWhy === 'window' && o.fire === 'wake' && !('reason' in o), j({ r2, o }))
 }
 
-console.log('§4 the frame and the turn road carry the origin whole; the words never change')
+console.log('§4 the prompt row and the turn road carry the origin whole; the words never change')
 {
   const origin = { kind: 'saturn', fire: 'wake', firedAt: FIRED_AT, scheduleId: 'ab12cd34', spelling: 'in ~900s', reason: REASON }
-  const plain = JSON.parse(buildConcoursePromptFrame(WAKE_PROMPT, { priority: 'later', identity: 'saturn-s-ab12cd34-1' })) as Raw
-  check('a frame without an origin is the shape it was', !('origin' in plain) && plain.priority === 'later' && (plain.message as Raw).content === WAKE_PROMPT, j(plain))
-  const framed = JSON.parse(buildConcoursePromptFrame(WAKE_PROMPT, { priority: 'later', identity: 'saturn-s-ab12cd34-1', origin: origin as never })) as Raw
-  check('a frame with an origin carries it beside the words, the words untouched', j(framed.origin) === j(origin) && (framed.message as Raw).content === WAKE_PROMPT && framed.priority === 'later', j(framed))
-  const row = inputRowOfFrame(framed) as Raw | null
-  check("the daemon's door carries the origin on the prompt row it queues (red on the base: an undeclared key is stripped)", row !== null && j(row.origin) === j(origin) && row.priority === 'later', j(row))
+  const plain = (await buildConcoursePromptRow(WAKE_PROMPT, { priority: 'later', identity: 'saturn-s-ab12cd34-1' })) as Raw
+  check('a row without an origin is the shape it was', !('origin' in plain) && plain.priority === 'later' && plain.content === WAKE_PROMPT, j(plain))
+  const row = (await buildConcoursePromptRow(WAKE_PROMPT, { priority: 'later', identity: 'saturn-s-ab12cd34-1', origin: origin as never })) as Raw
+  check('a row with an origin carries it beside the words, the words untouched — the row the door queues as-is', j(row.origin) === j(origin) && row.content === WAKE_PROMPT && row.priority === 'later', j(row))
+  const { InputRowSchema } = await import('../../src/rows/vocabulary.ts')
+  const parsed = InputRowSchema().safeParse(row)
+  check("the row vocabulary admits the origin on a prompt row (red on the base: an undeclared key is stripped)", parsed.success && j((parsed.data as Raw).origin) === j(origin), j(parsed.success ? parsed.data : parsed.error.issues))
   const text = `[self-paced wake — why you woke: ${REASON}]\n\n${WAKE_PROMPT}`
   const out = processTextPrompt(text, [], [], [], undefined, undefined, true, undefined, origin as never)
   const message = out.messages[0] as Raw

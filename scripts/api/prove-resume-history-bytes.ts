@@ -389,7 +389,7 @@ if (!existsSync(DIST)) {
         return ''
       }
     }
-    const common = ['run', '--input', 'rows', '--model', MODEL, '--allowed-tools', 'Read', '--format', 'rows']
+    const common = ['--model', MODEL, '--allowed-tools', 'Read']
     const scripted = (n: number): ScriptedTurn[] => Array.from({ length: n }, (_, i) => ({ kind: 'text' as const, text: `revive-T${i + 1}`, thinking: `revive thinking ${i + 1}`, model: MODEL }))
     const SID = 'c0ffee00-0000-4000-8000-00000000e001'
     const fixture = await startFixtureApi(scripted(3), { bindingCheck: true })

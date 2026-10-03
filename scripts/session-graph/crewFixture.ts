@@ -93,41 +93,37 @@ export async function buildCrewFixture(args: {
     const failed = rand() < 0.1
     activityStream.push({
       event: {
-        sourceEventId: `fx-msg-${i}-start`,
-        kind: 'assistant',
+        sourceEventId: `session/update-${i}-start`,
+        kind: 'session/update',
         payload: {
-          type: 'assistant',
-          message: {
-            id: `fxm-${i}`,
-            content: [
-              {
-                type: 'tool_use',
-                id: toolId,
-                name: tool,
-                input: tool === 'Bash' ? { command: `run step ${i}` } : { file_path: `src/fx-${i % 97}.ts` },
-              },
-            ],
+          sessionId,
+          update: {
+            sessionUpdate: 'tool_call',
+            toolCallId: toolId,
+            title: tool === 'Bash' ? `run step ${i}` : `edit src/fx-${i % 97}.ts`,
+            kind: tool === 'Bash' ? 'execute' : 'edit',
+            status: 'in_progress',
           },
         },
         atMs: 1_000_000 + i * 2,
       },
       agentId,
       sessionId,
-      adapterKind: 'claude-code',
+      adapterKind: 'opencode',
     })
     activityStream.push({
       event: {
-        sourceEventId: `fx-msg-${i}-end`,
-        kind: 'user',
+        sourceEventId: `session/update-${i}-end`,
+        kind: 'session/update',
         payload: {
-          type: 'user',
-          message: { content: [{ type: 'tool_result', tool_use_id: toolId, is_error: failed }] },
+          sessionId,
+          update: { sessionUpdate: 'tool_call_update', toolCallId: toolId, status: failed ? 'failed' : 'completed' },
         },
         atMs: 1_000_000 + i * 2 + 1,
       },
       agentId,
       sessionId,
-      adapterKind: 'claude-code',
+      adapterKind: 'opencode',
     })
   }
 

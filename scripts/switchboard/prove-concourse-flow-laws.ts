@@ -76,7 +76,7 @@ const folderB = mkdtempSync(join(tmpdir(), 'concflow-folder-b-'))
 console.log('G4 the deny leg')
 {
   const minted = mintGitInitAsk(folderA)
-  const r = answerPermissionAsk(minted.requestId, false, undefined, 'prover')
+  const r = answerPermissionAsk(minted.requestId, false, 'prover')
   check('deny applies with the kept-without-git receipt', r.outcome === 'applied' && (r.detail ?? '').includes('kept without git'), r.detail ?? '')
   check('the folder still has no .git', !existsSync(join(folderA, '.git')))
   check('the pending ask settled', listPendingPermissionAsks().every(a => a.requestId !== minted.requestId))

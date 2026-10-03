@@ -99,17 +99,15 @@ t.section('§5 — the pen census')
   t.check('actions.ts never speaks drainUnderUI (the marker died with its reader)', !src.includes('drainUnderUI'))
 }
 
-t.section('§6 — the addressed frame rides the ONE wire whole (cpu-pure)')
+t.section('§6 — the addressed row rides the ONE door whole (cpu-pure)')
 {
-  const { buildConcoursePromptFrame } = await import('../../src/daemon/concourseDispatch.ts')
+  const { buildConcoursePromptRow } = await import('../../src/daemon/concourseDispatch.ts')
   const identity = 'aaaabbbb-cccc-4ddd-8eee-ffff00001111'
-  const frame = JSON.parse(
-    buildConcoursePromptFrame('revise the folio', { mode: 'task-notification', agentId: 'ag-7', identity }),
-  ) as Record<string, unknown>
-  t.check('the frame uuid IS the clientMessageId (one identity, composer to queue entry)', frame.uuid === identity)
-  t.check('the addressed form rides mode + agent_id on the frame', frame.mode === 'task-notification' && frame.agent_id === 'ag-7')
-  const plain = JSON.parse(buildConcoursePromptFrame('plain words', { identity })) as Record<string, unknown>
-  t.check('a plain frame carries NO agent addressing', plain.mode === undefined && plain.agent_id === undefined)
+  const row = (await buildConcoursePromptRow('revise the folio', { mode: 'task-notification', agentId: 'ag-7', identity })) as Record<string, unknown>
+  t.check('the row id IS the clientMessageId (one identity, composer to queue entry)', row.id === identity)
+  t.check('the addressed form is a note row addressed to the agent', row.type === 'note' && row.to === 'ag-7' && row.content === 'revise the folio')
+  const plain = (await buildConcoursePromptRow('plain words', { identity })) as Record<string, unknown>
+  t.check('a plain row is a prompt row with NO agent addressing', plain.type === 'prompt' && plain.to === undefined)
 }
 
 t.finish('prove-dispatch-actions')

@@ -22,6 +22,8 @@ import {
 } from './concourseSupervisor.js'
 import type { StreamJsonChildSpec } from './headlessRun.js'
 import { isProcessAlive } from './ownerWatch.js'
+import { PeerClosed, PeerDeadline } from '../runner/wire/peer.js'
+import type { RunnerDoor } from './runnerConnection.js'
 
 export const DEFAULT_WARM_RUNNER_IDLE_RETIRE_MINUTES = 5
 
@@ -41,8 +43,6 @@ export function claimAnswerDeadlineMs(spawnedAt: number, now: number): number {
   return Math.max(CLAIM_ANSWER_DEADLINE_MS, WARM_BOOT_ALLOWANCE_MS - (now - spawnedAt))
 }
 
-export const WARM_CLAIM_REQUEST_PREFIX = 'mercury-warm-claim-'
-
 interface WarmRunnerEntry {
   short: string
   workspaceId: string
@@ -56,8 +56,6 @@ interface WarmRunnerEntry {
 }
 
 const pool = new Map<string, WarmRunnerEntry>()
-
-const claimWaiters = new Map<string, (outcome: { ok: boolean; error?: string }) => void>()
 
 interface TrailingEnsure {
   requestedKit: SessionKitV1 | undefined
@@ -77,7 +75,6 @@ const ensureFlights = new Map<string, EnsureFlight>()
 
 export function resetWarmRunnersForTesting(): void {
   pool.clear()
-  claimWaiters.clear()
   ensureFlights.clear()
 }
 
@@ -85,7 +82,7 @@ export interface WarmRosterPort {
   has(short: string): { alive: boolean; present: boolean; ready: boolean }
   list(): ReadonlyArray<{ short: string; outcome?: unknown }>
   registerLongLived(short: string, spec: StreamJsonChildSpec): { ok: boolean; pid?: number; error?: string }
-  control(short: string, frame: string): boolean
+  door(short: string): RunnerDoor | undefined
   kill(short: string): boolean
   patchSeatClaim(
     short: string,
@@ -365,7 +362,6 @@ export async function claimWarmRunner(
     retireWarmRunner(args.workspaceId, 'consent drift — the warm runner booted a different launch consent than this admission carries', deps)
     return { claimed: false, reason: 'the launch consent differs from the warm boot' }
   }
-  const requestId = `${WARM_CLAIM_REQUEST_PREFIX}${entry.short}-${Date.now().toString(36)}`
   const openaiAccount = resolveOpenaiAccount()
   const openaiSnapshot = openaiAccount ? getCachedOpenaiCatalogue(openaiAccount.kind) : null
   const openaiCatalogue =
@@ -378,55 +374,46 @@ export async function claimWarmRunner(
       ? `[daemon] warm claim carries the OpenAI catalogue: ${openaiCatalogue.models.length} model(s), fetched ${Math.round((Date.now() - openaiCatalogue.fetchedAtMs) / 1000)}s ago`
       : `[daemon] warm claim carries no OpenAI catalogue (${openaiAccount ? `${openaiAccount.kind}: nothing cached yet${openaiSnapshot?.lastError ? ` — ${openaiSnapshot.lastError}` : ''}` : 'no OpenAI account on this daemon'})`,
   )
-  const frame = JSON.stringify({
-    type: 'control_request',
-    request_id: requestId,
-    request: {
-      subtype: 'claim_session',
-      session_id: args.sessionId,
-      model: args.modelKey,
-      permission_mode: args.permissionMode,
-      effort: args.effort,
-      ...(args.resume === true ? { resume: true } : {}),
-      ...(args.restartReason !== undefined ? { restart_reason: args.restartReason } : {}),
-      ...(openaiCatalogue !== null ? { openai_catalogue: openaiCatalogueToWire(openaiCatalogue) } : {}),
-    },
-  })
-  const deadlineMs = args.answerDeadlineMs ?? claimAnswerDeadlineMs(entry.spawnedAt, Date.now())
-  let settleClaim: (outcome: { ok: boolean; error?: string }) => void = () => {}
-  const answered = new Promise<{ ok: boolean; error?: string }>(resolve => {
-    const timer = setTimeout(() => settleClaim({ ok: false, error: `no claim answer in ${deadlineMs / 1000}s` }), deadlineMs)
-    timer.unref?.()
-    const pulse = setInterval(() => {
-      const live = roster.has(entry.short)
-      if (!live.present || !live.alive || (entry.pid !== undefined && !isProcessAlive(entry.pid))) {
-        settleClaim({ ok: false, error: 'the warm runner died before it answered the claim' })
-      }
-    }, CLAIM_LIVENESS_POLL_MS)
-    pulse.unref?.()
-    settleClaim = outcome => {
-      clearTimeout(timer)
-      clearInterval(pulse)
-      claimWaiters.delete(requestId)
-      resolve(outcome)
-    }
-    claimWaiters.set(requestId, settleClaim)
-  })
-  if (!roster.control(entry.short, frame)) {
-    settleClaim({ ok: false, error: 'no control channel' })
-    retireWarmRunner(args.workspaceId, 'no control channel', deps)
-    return { claimed: false, reason: 'the warm runner has no live control channel' }
+  const door = roster.door(entry.short)
+  if (door === undefined) {
+    retireWarmRunner(args.workspaceId, 'no runner door', deps)
+    return { claimed: false, reason: 'the warm runner has no live runner door' }
   }
-  const outcome = await answered
+  const deadlineMs = args.answerDeadlineMs ?? claimAnswerDeadlineMs(entry.spawnedAt, Date.now())
+  const pulse = new AbortController()
+  const liveness = setInterval(() => {
+    const live = roster.has(entry.short)
+    if (!live.present || !live.alive || (entry.pid !== undefined && !isProcessAlive(entry.pid))) pulse.abort()
+  }, CLAIM_LIVENESS_POLL_MS)
+  liveness.unref?.()
+  const outcome = await door
+    .request(
+      'session/claim',
+      {
+        session_id: args.sessionId,
+        model: args.modelKey,
+        mode: args.permissionMode,
+        effort: args.effort,
+        ...(args.resume === true ? { resume: true } : {}),
+        ...(args.restartReason !== undefined ? { restart_reason: args.restartReason } : {}),
+        ...(openaiCatalogue !== null ? { openai_catalogue: openaiCatalogueToWire(openaiCatalogue) } : {}),
+      },
+      { deadlineMs, signal: pulse.signal },
+    )
+    .then(
+      () => ({ ok: true as const }),
+      (error: unknown) => ({ ok: false as const, error: claimFailureWords(error, deadlineMs, pulse.signal.aborted) }),
+    )
+  clearInterval(liveness)
   if (!outcome.ok) {
-    retireWarmRunner(args.workspaceId, `claim failed (${outcome.error ?? 'error'})`, deps)
-    return { claimed: false, reason: outcome.error ?? 'the claim was refused' }
+    retireWarmRunner(args.workspaceId, `claim failed (${outcome.error})`, deps)
+    return { claimed: false, reason: outcome.error }
   }
   pool.delete(args.workspaceId)
   const spec = roster.patchSeatClaim(entry.short, {
     model: args.modelKey,
     effort: args.effort,
-    respawnExtraArgv: ['--resume', args.sessionId, '--partial'],
+    respawnExtraArgv: ['--resume', args.sessionId],
   })
   if (spec === null) {
     roster.kill(entry.short)
@@ -435,19 +422,11 @@ export async function claimWarmRunner(
   return { claimed: true, short: entry.short, ...(entry.pid !== undefined ? { pid: entry.pid } : {}), spec }
 }
 
-export function onWarmRunnerLine(line: string): void {
-  if (claimWaiters.size === 0 || !line.includes(WARM_CLAIM_REQUEST_PREFIX) || !line.includes('"control_response"')) return
-  try {
-    const frame = JSON.parse(line) as {
-      type?: string
-      response?: { subtype?: string; request_id?: string; error?: string }
-    }
-    if (frame.type !== 'control_response' || typeof frame.response?.request_id !== 'string') return
-    const waiter = claimWaiters.get(frame.response.request_id)
-    if (waiter === undefined) return
-    waiter(frame.response.subtype === 'success' ? { ok: true } : { ok: false, error: frame.response.error ?? 'claim refused' })
-  } catch {
-  }
+function claimFailureWords(error: unknown, deadlineMs: number, died: boolean): string {
+  if (died) return 'the warm runner died before it answered the claim'
+  if (error instanceof PeerDeadline) return `no claim answer in ${deadlineMs / 1000}s`
+  if (error instanceof PeerClosed) return 'the warm runner left before it answered the claim'
+  return error instanceof Error && error.message !== '' ? error.message : 'claim refused'
 }
 
 export function retireWarmRunner(workspaceId: string, reason: string, deps: WarmRunnerDeps): boolean {
@@ -483,9 +462,4 @@ export function warmRunnerCount(): number {
 
 export function warmRunnerShorts(): string[] {
   return Array.from(pool.values(), e => e.short)
-}
-
-export function warmRunnerFor(workspaceId: string): { short: string; workspaceId: string } | undefined {
-  const entry = pool.get(workspaceId)
-  return entry === undefined ? undefined : { short: entry.short, workspaceId: entry.workspaceId }
 }

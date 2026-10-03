@@ -15,7 +15,9 @@ process.env.MERCURY_DAEMON_DIR = daemonDir
 
 const seat = await import('../../src/daemon/sessionSeat.ts')
 const protocol = await import('../../src/daemon/protocol.ts')
-const { withdrawSessionSend, onSeatLine, _pendingWithdrawWaitersForTesting } = seat
+const { standInRunner } = await import('../lib/seatDoor.ts')
+const { RPC_METHOD_NOT_FOUND, RPC_REFUSED } = await import('../../src/runner/wire/errors.ts')
+const { withdrawSessionSend } = seat
 
 let failures = 0
 let checks = 0
@@ -36,90 +38,75 @@ writeFileSync(
   JSON.stringify({ version: 1, workers: { [RUNNER]: { schema: 1, runnerId: RUNNER, sessionId: SESSION, workspaceId: '/ws', isolation: 'exclusive', modelKey: 'm', spawnedAt: 1, lastLiveAt: 1 } } }),
 )
 
-type Frame = { type: string; request_id: string; request: { subtype: string; client_message_id?: string } }
-const frames: Array<{ short: string; frame: Frame }> = []
-let channelOpen = true
-const roster: Parameters<typeof withdrawSessionSend>[2] = {
-  control: (short, frame) => {
-    if (!channelOpen) return false
-    frames.push({ short, frame: JSON.parse(frame) as Frame })
-    return true
-  },
-  list: () => [],
-  patchSeatModel: () => true,
-  patchSeatEffort: () => true,
-}
-const lastFrame = (): Frame => frames[frames.length - 1]!.frame
-const answer = (requestId: string, response: Record<string, unknown>): void =>
-  onSeatLine(RUNNER, JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: requestId, response } }), roster, daemonDir)
-const refuse = (requestId: string, error: string): void =>
-  onSeatLine(RUNNER, JSON.stringify({ type: 'control_response', response: { subtype: 'error', request_id: requestId, error } }), roster, daemonDir)
+let stand = standInRunner({ autoAnswer: { 'session/facts': {} } })
+let roster = stand.roster()
+const pendingCount = (): number => stand.connection.peer.pendingCount
 
 section('§1 the relay: the runner\'s withdraw_send control, its answer returned whole')
 {
   const pending = withdrawSessionSend(SESSION, 'msg-1', roster, daemonDir)
-  check('the seat wrote ONE control frame to the session\'s runner', frames.length === 1 && frames[0]!.short === RUNNER, j(frames))
-  const f = lastFrame()
-  check('the frame is a control_request of subtype withdraw_send carrying the identity', f.type === 'control_request' && f.request.subtype === 'withdraw_send' && f.request.client_message_id === 'msg-1', j(f))
-  check('the request id wears the seat\'s withdraw family', f.request_id.startsWith('mercury-seat-withdraw-'), f.request_id)
-  check('the waiter stands until the runner answers', _pendingWithdrawWaitersForTesting() === 1)
-  answer(f.request_id, { withdrawn: true, text: 'the words that came back' })
+  const f = await stand.nextRequest('queue/withdraw')
+  check('the seat sent ONE request to the session\'s runner', stand.requests.length === 1, j(stand.requests.map(r => r.method)))
+  check('the request is queue/withdraw carrying the identity', f.method === 'queue/withdraw' && j(f.params) === j({ id: 'msg-1' }), j(f.params))
+  check('the request stands pending until the runner answers', pendingCount() === 1)
+  f.answer({ withdrawn: true, text: 'the words that came back' })
   const out = await pending
-  check('the runner\'s success answer settles applied, withdrawn, with the words', out.outcome === 'applied' && out.withdrawn === true && out.text === 'the words that came back', j(out))
-  check('the waiter is gone', _pendingWithdrawWaitersForTesting() === 0)
+  check('the runner\'s answer settles applied, withdrawn, with the words', out.outcome === 'applied' && out.withdrawn === true && out.text === 'the words that came back', j(out))
+  check('nothing stays pending', pendingCount() === 0)
 }
 
 section('§2 the runner\'s typed refusals relay whole')
 {
   const taken = withdrawSessionSend(SESSION, 'msg-2', roster, daemonDir)
-  answer(lastFrame().request_id, { withdrawn: false, reason: 'taken' })
+  ;(await stand.nextRequest('queue/withdraw')).answer({ withdrawn: false, reason: 'taken' })
   const t = await taken
   check("taken: refused, withdrawn false, reason taken, a detail in words", t.outcome === 'refused' && t.withdrawn === false && t.reason === 'taken' && typeof t.detail === 'string' && t.detail.includes('already took'), j(t))
   const unknown = withdrawSessionSend(SESSION, 'msg-3', roster, daemonDir)
-  answer(lastFrame().request_id, { withdrawn: false, reason: 'unknown' })
+  ;(await stand.nextRequest('queue/withdraw')).answer({ withdrawn: false, reason: 'unknown' })
   const u = await unknown
   check("unknown: refused, withdrawn false, reason unknown", u.outcome === 'refused' && u.withdrawn === false && u.reason === 'unknown', j(u))
   const odd = withdrawSessionSend(SESSION, 'msg-4', roster, daemonDir)
-  answer(lastFrame().request_id, { withdrawn: false, reason: 'something-else' })
+  ;(await stand.nextRequest('queue/withdraw')).answer({ withdrawn: false, reason: 'something-else' })
   const o = await odd
-  check('a reason outside the vocabulary reads unknown (never a cast-through)', o.outcome === 'refused' && o.reason === 'unknown', j(o))
+  check('a reason outside the table\'s vocabulary is refused by the peer (the answer is not the shape the table declares), typed', o.outcome === 'refused' && o.withdrawn === undefined && (o.detail ?? '').includes('not the shape the table declares'), j(o))
 }
 
-section('§3 error frames: typed refusals; an older runner names the restart; a runner\'s end answers every waiter')
+section('§3 refusals are typed; an older runner names the restart; a runner that leaves answers every request')
 {
   const older = withdrawSessionSend(SESSION, 'msg-5', roster, daemonDir)
-  refuse(lastFrame().request_id, 'unsupported control request subtype: withdraw_send')
+  ;(await stand.nextRequest('queue/withdraw')).refuse(RPC_METHOD_NOT_FOUND, 'unknown method queue/withdraw', { method: 'queue/withdraw' })
   const o = await older
-  check('an older runner\'s unsupported-subtype refusal names the daemon restart', o.outcome === 'refused' && o.withdrawn === undefined && (o.detail ?? '').includes('/daemon restart'), j(o))
+  check('an older runner\'s unknown method (-32601) names the daemon restart', o.outcome === 'refused' && o.withdrawn === undefined && (o.detail ?? '').includes('/daemon restart'), j(o))
   const plain = withdrawSessionSend(SESSION, 'msg-6', roster, daemonDir)
-  refuse(lastFrame().request_id, 'the runner is busy elsewhere')
+  ;(await stand.nextRequest('queue/withdraw')).refuse(RPC_REFUSED, 'the runner is busy elsewhere', { kind: 'queue' })
   const p = await plain
-  check("any other error is the runner's own words, refused", p.outcome === 'refused' && p.detail === 'the runner is busy elsewhere', j(p))
+  check("any other refusal is the runner's own words, refused", p.outcome === 'refused' && p.detail === 'the runner is busy elsewhere', j(p))
   const a = withdrawSessionSend(SESSION, 'msg-7', roster, daemonDir)
   const b = withdrawSessionSend(SESSION, 'msg-8', roster, daemonDir)
-  check('two waiters stand', _pendingWithdrawWaitersForTesting() === 2)
-  seat.onSeatSpawned(RUNNER, roster, daemonDir)
+  await stand.nextRequest('queue/withdraw')
+  check('two requests stand pending (the queue scope serializes them inside the runner; the host holds both)', pendingCount() === 2, String(pendingCount()))
+  stand.connection.close('the seat was relaunched')
   const [ra, rb] = await Promise.all([a, b])
-  check('a runner that restarts mid-wait answers every withdraw refused, naming the restart', ra.outcome === 'refused' && rb.outcome === 'refused' && (ra.detail ?? '').includes('restarted before it answered the withdraw') && ra.withdrawn === undefined, j([ra, rb]))
-  check('no waiter is left behind', _pendingWithdrawWaitersForTesting() === 0)
-  const source = readFileSync(join(ROOT, 'src', 'daemon', 'sessionSeat.ts'), 'utf8')
-  check("the runner's end answers the waiters the same way (both reject sites call the withdraw reaper)", (source.match(/rejectWithdrawWaiters\(short,/g) ?? []).length === 2, `${(source.match(/rejectWithdrawWaiters\(short,/g) ?? []).length} reject sites`)
+  check('a runner that leaves mid-wait answers every withdraw refused, naming the departure', ra.outcome === 'refused' && rb.outcome === 'refused' && (ra.detail ?? '').includes('left before it answered the withdraw') && ra.withdrawn === undefined, j([ra, rb]))
+  check('nothing stays pending', pendingCount() === 0)
+  stand.close()
+  stand = standInRunner({ autoAnswer: { 'session/facts': {} } })
+  roster = stand.roster()
 }
 
 section('§4 the doors that never reach the runner')
 {
-  const before = frames.length
+  const before = stand.requests.length
   const stranger = await withdrawSessionSend('no-such-session', 'msg-9', roster, daemonDir)
-  check('an unknown session refuses typed, no frame written', stranger.outcome === 'refused' && (stranger.detail ?? '').includes('unknown-session') && frames.length === before, j(stranger))
+  check('an unknown session refuses typed, no request sent', stranger.outcome === 'refused' && (stranger.detail ?? '').includes('unknown-session') && stand.requests.length === before, j(stranger))
   const empty = await withdrawSessionSend(SESSION, '', roster, daemonDir)
-  check('an empty identity refuses typed, no frame written', empty.outcome === 'refused' && (empty.detail ?? '').includes('requires clientMessageId') && frames.length === before, j(empty))
-  channelOpen = false
-  const closed = await withdrawSessionSend(SESSION, 'msg-10', roster, daemonDir)
-  check('a runner with no control channel refuses typed', closed.outcome === 'refused' && (closed.detail ?? '').includes('no live control channel'), j(closed))
-  channelOpen = true
+  check('an empty identity refuses typed, no request sent', empty.outcome === 'refused' && (empty.detail ?? '').includes('requires clientMessageId') && stand.requests.length === before, j(empty))
+  const closed = await withdrawSessionSend(SESSION, 'msg-10', stand.roster({ door: () => undefined }), daemonDir)
+  check('a seat with no door refuses typed', closed.outcome === 'refused' && (closed.detail ?? '').includes('no live runner door'), j(closed))
   const late = await withdrawSessionSend(SESSION, 'msg-11', roster, daemonDir, { deadlineMs: 60 })
   check('a runner silent past the deadline refuses typed, naming the wait', late.outcome === 'refused' && (late.detail ?? '').includes('did not answer the withdraw'), j(late))
-  check('no waiter is left behind', _pendingWithdrawWaitersForTesting() === 0)
+  await new Promise(resolve => setTimeout(resolve, 20))
+  check('…and the runner saw the request cancelled; nothing stays pending', stand.requests.at(-1)!.cancelled && pendingCount() === 0, j({ cancels: stand.cancels, pending: pendingCount() }))
 }
 
 section('§5 the wire: the reply keys, the router, the age, the runner\'s switch')
@@ -134,11 +121,12 @@ section('§5 the wire: the reply keys, the router, the age, the runner\'s switch
   check("the daemon's action arm relays through the seat's one relay and requires the identity", main.includes("if (action === 'withdraw-send')") && main.includes('withdrawSessionSend(sessionId, clientMessageId, roster)') && main.includes("'withdraw-send requires clientMessageId'"))
   const runner = readFileSync(join(ROOT, 'src', 'cli', 'print.ts'), 'utf8')
   const arm = runner.slice(runner.indexOf("'queue/withdraw': params => {"), runner.indexOf("'session/set_mode': params => {"))
-  check("the runner's switch owns the subtype: the queue's one pop by identity, a typed answer either way", arm.includes('popById(params.id)') && readFileSync(join(ROOT, 'src', 'daemon', 'runnerConnection.ts'), 'utf8').includes("return { method, params: { id: String(request.client_message_id ?? '') } }") && arm.includes('{ withdrawn: true, text: popped.text }') && arm.includes('{ withdrawn: false, reason: popped.reason }'))
+  check("the runner's arm owns the method: the queue's one pop by identity, a typed answer either way", arm.includes('popById(params.id)') && arm.includes('{ withdrawn: true, text: popped.text }') && arm.includes('{ withdrawn: false, reason: popped.reason }'))
   const methods = readFileSync(join(ROOT, 'src', 'runner', 'wire', 'methods.ts'), 'utf8')
   check("the door's method table carries queue/withdraw with the row's identity", methods.includes("'queue/withdraw': method({") && methods.includes("name: 'queue/withdraw'"))
 }
 
+stand.close()
 rmSync(home, { recursive: true, force: true })
 console.log(`\n${checks} checks, ${failures} failures`)
 console.log(failures === 0 ? 'prove-recall-relay: ALL LAWS HOLD' : `prove-recall-relay: ${failures} FAILURE(S)`)

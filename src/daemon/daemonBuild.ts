@@ -52,21 +52,3 @@ export function holdBuild(buildDir: string = selfBuildDir()): 'held' | 'no-manif
     return 'no-manifest'
   }
 }
-
-export function releaseBuildHold(): void {
-  if (buildHoldFd === null) return
-  try {
-    closeSync(buildHoldFd)
-  } catch {
-    buildHoldFd = null
-  }
-  buildHoldFd = null
-}
-
-export function buildHoldFdForTesting(): number | null {
-  return buildHoldFd
-}
-
-export function resetSelfScriptForTesting(): void {
-  selfScriptMemo = null
-}

@@ -65,7 +65,7 @@ section('§2 the built product: after a fold the next request carries the curren
     const runner = bootRunner({ cwd, env: childEnv(runHome, port) })
     const turn = async (label: string, ask: string): Promise<Record<string, unknown> | null> => {
       const from = runner.frames.length
-      await runner.door.connection.peer.request('queue/add', { type: 'prompt', content: ask, id: randomUUID() }, { deadlineMs: bound(90_000) })
+      await runner.host.request('queue/add', { type: 'prompt', content: ask, id: randomUUID() }, bound(90_000))
       return runner.waitFor(label, isOutcome, bound(90_000), from)
     }
     const first = await turn('turn 1', 'first turn of the fold probe')

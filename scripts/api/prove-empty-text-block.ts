@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { bootRunner } from '../daemon/dupline-world.ts'
-import { bound, childEnv, findTranscripts, isOutcome, makeTally, requireDist, runTurn, scratchWorld, seedScratchHome, startScriptedFixture, user, type Script } from '../lib/scratchSeat.ts'
+import { bound, childEnv, findTranscripts, isOutcome, makeTally, requireDist, runTurn, scratchWorld, seedScratchHome, startScriptedFixture, type Script } from '../lib/scratchSeat.ts'
 
 requireDist()
 const tally = makeTally('prove-empty-text-block')
@@ -71,7 +71,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
 const port = (server.address() as { port: number }).port
 const runner = bootRunner({ cwd, env: childEnv(runHome, port), extraArgv: ['--resume', sid] })
-runner.send(user('empty block probe second', randomUUID()))
+void runner.prompt('empty block probe second', randomUUID())
 const second = await runner.waitFor('outcome', isOutcome, bound(90_000))
 await runner.stop(bound(5_000))
 server.close()

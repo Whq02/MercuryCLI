@@ -30,6 +30,9 @@ enableConfigs()
 saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 8 } }))
 
 const sup = await import('../../src/daemon/concourseSupervisor.ts')
+const { standInRunner } = await import('../lib/seatDoor.ts')
+type StandInRunner = ReturnType<typeof standInRunner>
+type RunnerDoor = import('../../src/daemon/runnerConnection.ts').RunnerDoor
 const idle = await import('../../src/daemon/idleRetirement.ts')
 const snapshot = await import('../../src/services/concourse/concourseSnapshot.ts')
 const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
@@ -151,7 +154,6 @@ console.log('L2 the park verb')
 
 console.log('L2c the retirement handshake — prepare, commit, observed exit, then parked')
 {
-  const seat = await import('../../src/daemon/sessionSeat.ts')
   seed([
     { runnerId: 'concourse-w8', sessionId: sid('8'), pid: process.pid, lastDeliveryAt: now - T, lastTurnSettledAt: now - T + 5 },
     { runnerId: 'concourse-w9', sessionId: sid('9'), pid: process.pid, lastDeliveryAt: now - T, lastTurnSettledAt: now - T + 5 },
@@ -160,25 +162,34 @@ console.log('L2c the retirement handshake — prepare, commit, observed exit, th
   let alive = true
   let intentSeenAtCommit: unknown
   let fencedAtCommit = false
-  const answer = (requestId: string, token: string, phase: string): void => {
-    setTimeout(() => seat.settleSeatControlAnswer(JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: requestId, response: { token, phase } } })), 5)
-  }
+  type Quiesce = { action: 'prepare' | 'commit' | 'cancel'; token: string }
+  const standFor = (short: string, onRequest: (request: Quiesce) => string): StandInRunner =>
+    standInRunner({
+      autoAnswer: {
+        'session/quiesce': (params: unknown) => {
+          const request = params as Quiesce
+          frames.push({ short, request })
+          return { token: request.token, phase: onRequest(request) }
+        },
+      },
+    })
+  const stands = new Map<string, StandInRunner>()
+  const doorOf = (short: string): RunnerDoor | undefined => stands.get(short)?.connection
+  const w8Stand = standFor('concourse-w8', request => {
+    if (request.action === 'prepare') return 'prepared'
+    if (request.action === 'commit') {
+      intentSeenAtCommit = rec('concourse-w8')?.parkIntent
+      fencedAtCommit = sup.retirementFenced('concourse-w8')
+      setTimeout(() => { alive = false; sup.updateConcourseWorkers(workers => { const w = workers['concourse-w8']; if (w) w.pid = DEAD_PID }, dir) }, 20)
+      return 'committed'
+    }
+    return 'cancelled'
+  })
+  stands.set('concourse-w8', w8Stand)
   const runnerRoster = {
     kill: (short: string): boolean => (killed.push(short), true),
     has: (short: string) => ({ alive: short === 'concourse-w8' ? alive : true, present: true }),
-    control: (short: string, frame: string): boolean => {
-      const parsed = JSON.parse(frame) as { request_id: string; request: { action: string; token: string } }
-      frames.push({ short, request: parsed.request })
-      if (parsed.request.action === 'prepare') answer(parsed.request_id, parsed.request.token, 'prepared')
-      if (parsed.request.action === 'commit') {
-        intentSeenAtCommit = rec(short)?.parkIntent
-        fencedAtCommit = sup.retirementFenced(short)
-        answer(parsed.request_id, parsed.request.token, 'committed')
-        setTimeout(() => { alive = false; sup.updateConcourseWorkers(workers => { const w = workers[short]; if (w) w.pid = DEAD_PID }, dir) }, 20)
-      }
-      if (parsed.request.action === 'cancel') answer(parsed.request_id, parsed.request.token, 'cancelled')
-      return true
-    },
+    door: doorOf,
   }
   killed.length = 0
   const retired = await sup.retireConcourseSession(sid('8'), 'operator:test', runnerRoster, dir, { exitWaitMs: 2_000 })
@@ -191,51 +202,47 @@ console.log('L2c the retirement handshake — prepare, commit, observed exit, th
   check('a second retire on the parked record is refused by state', again.outcome === 'refused' && /already parked/.test(again.reason), JSON.stringify(again))
 
   frames.length = 0
+  stands.set('concourse-w9', standFor('concourse-w9', request => {
+    if (request.action === 'prepare') {
+      sup.updateConcourseWorkers(workers => { const w = workers['concourse-w9']; if (w) w.lastDeliveryAt = Date.now() }, dir)
+      return 'prepared'
+    }
+    return request.action === 'commit' ? 'committed' : 'cancelled'
+  }))
   const busyRoster = {
     ...runnerRoster,
     has: () => ({ alive: true, present: true }),
-    control: (short: string, frame: string): boolean => {
-      const parsed = JSON.parse(frame) as { request_id: string; request: { action: string; token: string } }
-      frames.push({ short, request: parsed.request })
-      if (parsed.request.action === 'prepare') {
-        sup.updateConcourseWorkers(workers => { const w = workers[short]; if (w) w.lastDeliveryAt = Date.now() }, dir)
-        answer(parsed.request_id, parsed.request.token, 'prepared')
-      }
-      if (parsed.request.action === 'cancel') answer(parsed.request_id, parsed.request.token, 'cancelled')
-      if (parsed.request.action === 'commit') answer(parsed.request_id, parsed.request.token, 'committed')
-      return true
-    },
   }
   const refusedBusy = await sup.retireConcourseSession(sid('9'), 'operator:test', busyRoster, dir, { exitWaitMs: 200 })
   const w9 = rec('concourse-w9')
   check('a delivery landing between prepare and commit cancels the retirement: no commit, no kill, no parkedAt', refusedBusy.outcome === 'refused' && /turn is in flight/.test(refusedBusy.reason) && frames.map(f => f.request.action).join(',') === 'prepare,cancel' && killed.length === 0 && w9?.parkedAt === undefined && w9?.parkIntent === undefined, JSON.stringify({ refusedBusy, frames }))
   check('the refusal is on the record for the board (parkRefused), and the fence is down', w9?.parkRefused?.reason !== undefined && /turn is in flight/.test(w9.parkRefused.reason) && !sup.retirementFenced('concourse-w9'), JSON.stringify(w9?.parkRefused))
   sup.updateConcourseWorkers(workers => { const w = workers['concourse-w9']; if (w) { w.lastDeliveryAt = now - T; w.lastTurnSettledAt = now - T + 5 } }, dir)
-  const silentRoster = { ...runnerRoster, has: () => ({ alive: true, present: true }), control: (): boolean => false }
+  const silentRoster = { ...runnerRoster, has: () => ({ alive: true, present: true }), door: (): RunnerDoor | undefined => undefined }
   const noChannel = await sup.retireConcourseSession(sid('9'), 'operator:test', silentRoster, dir, { exitWaitMs: 200 })
-  check('a runner with no control channel is refused, never killed', noChannel.outcome === 'refused' && /no live control channel/.test(noChannel.reason) && killed.length === 0 && rec('concourse-w9')?.parkedAt === undefined, JSON.stringify(noChannel))
+  check('a runner with no door is refused, never killed', noChannel.outcome === 'refused' && /no live runner door/.test(noChannel.reason) && killed.length === 0 && rec('concourse-w9')?.parkedAt === undefined, JSON.stringify(noChannel))
   const w9Refused = rec('concourse-w9')
-  check("the board's NOW cell paints the refusal on the live row: 'park refused — <reason>'", w9Refused !== undefined && /park refused — the session has no live control channel/.test(snapshot.concourseNowLabel(w9Refused, { alive: true, needsYou: false }, Date.now()) ?? ''), snapshot.concourseNowLabel(w9Refused!, { alive: true, needsYou: false }, Date.now()) ?? 'null')
+  check("the board's NOW cell paints the refusal on the live row: 'park refused — <reason>'", w9Refused !== undefined && /park refused — the session has no live runner door/.test(snapshot.concourseNowLabel(w9Refused, { alive: true, needsYou: false }, Date.now()) ?? ''), snapshot.concourseNowLabel(w9Refused!, { alive: true, needsYou: false }, Date.now()) ?? 'null')
   sup.markConcourseWorkerDelivery('concourse-w9', dir)
   check('the next delivery clears the refusal (the row goes back to its activity)', rec('concourse-w9')?.parkRefused === undefined)
 }
 
 console.log('L2c2 a commit whose exit arrives late — the roster exit hook completes the fenced retirement')
 {
-  const seat = await import('../../src/daemon/sessionSeat.ts')
   seed([{ runnerId: 'concourse-w10', sessionId: sid('10'), pid: process.pid, lastDeliveryAt: now - T, lastTurnSettledAt: now - T + 5 }])
   let alive = true
-  const answer = (requestId: string, token: string, phase: string): void => {
-    setTimeout(() => seat.settleSeatControlAnswer(JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: requestId, response: { token, phase } } })), 5)
-  }
+  const lateStand = standInRunner({
+    autoAnswer: {
+      'session/quiesce': (params: unknown) => {
+        const request = params as { action: string; token: string }
+        return { token: request.token, phase: request.action === 'prepare' ? 'prepared' : request.action === 'commit' ? 'committed' : 'cancelled' }
+      },
+    },
+  })
   const lateRoster = {
     kill: (short: string): boolean => (killed.push(short), true),
     has: () => ({ alive, present: true }),
-    control: (_short: string, frame: string): boolean => {
-      const parsed = JSON.parse(frame) as { request_id: string; request: { action: string; token: string } }
-      answer(parsed.request_id, parsed.request.token, parsed.request.action === 'prepare' ? 'prepared' : parsed.request.action === 'commit' ? 'committed' : 'cancelled')
-      return true
-    },
+    door: (): RunnerDoor | undefined => lateStand.connection,
   }
   killed.length = 0
   const late = await sup.retireConcourseSession(sid('10'), 'operator:test', lateRoster, dir, { exitWaitMs: 150 })

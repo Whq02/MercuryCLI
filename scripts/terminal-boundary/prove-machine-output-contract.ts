@@ -2,6 +2,8 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
+import { hostRunner, type HostedRunner } from '../lib/runnerHost.ts'
+import { answeredWith } from '../lib/rows.ts'
 import { existsSync, mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -193,6 +195,8 @@ section('L7 — rows success: every stdout line parses; the typed outcome row')
   const result = parsed.find(e => e.type === 'outcome') as { status?: string } | undefined
   check('a typed outcome row is present', !!result)
   check('the outcome is completed', result?.status === 'completed', JSON.stringify(result ?? {}).slice(0, 200))
+  check('the shared reader reads the answer off the completed outcome row', answeredWith(cap.stdout, 'PROOF-SJ-OK.'))
+  check('the shared reader refuses a line that merely carries the words: no outcome row, a failed outcome, an unknown row shape', !answeredWith('{"type":"result","is_error":true,"result":"PROOF-SJ-OK."}\n', 'PROOF-SJ-OK.') && !answeredWith('{"type":"outcome","status":"failed","error":{"message":"PROOF-SJ-OK."}}\n', 'PROOF-SJ-OK.') && !answeredWith('PROOF-SJ-OK.\n', 'PROOF-SJ-OK.'))
   check('exit 0', cap.exit === 0, String(cap.exit))
   assertClean('L7', cap)
 }
@@ -229,8 +233,8 @@ section('L9 — --verbose is not an option: the plain format answers the unknown
 
 async function driveDist(
   baseUrl: string,
-  script: (send: (frame: unknown) => void, settled: () => Promise<void>) => Promise<void>,
-): Promise<{ frames: Record<string, unknown>[]; exit: number | null; stderr: string }> {
+  script: (host: HostedRunner, settled: () => Promise<void>) => Promise<void>,
+): Promise<{ frames: Record<string, unknown>[]; lines: string[]; exit: number | null; stderr: string }> {
   const home = mkdtempSync(join(tmpdir(), 'lucid-mo-home-'))
   const cwd = mkdtempSync(join(tmpdir(), 'lucid-mo-cwd-'))
   mkdirSync(join(home, '.claude'), { recursive: true })
@@ -244,50 +248,39 @@ async function driveDist(
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
     MERCURY_CREWS_DIR: join(home, 'crews'),
   }
-  const child = spawn(nodeBin!, [DIST, 'run', '--format', 'rows', '--input', 'rows', '--permission-channel', 'stdio'], { cwd, env })
-  const killer = setTimeout(() => child.kill('SIGKILL'), 120_000)
   const frames: Record<string, unknown>[] = []
+  const lines: string[] = []
   const waiters: Array<() => void> = []
-  let buffer = ''
-  let stderr = ''
-  const send = (frame: unknown): void => {
-    child.stdin.write(JSON.stringify(frame) + '\n')
-  }
-  child.stdout.on('data', chunk => {
-    buffer += chunk
-    let at: number
-    while ((at = buffer.indexOf('\n')) >= 0) {
-      const line = buffer.slice(0, at)
-      buffer = buffer.slice(at + 1)
-      if (!line.trim()) continue
-      let frame: Record<string, unknown>
-      try {
-        frame = JSON.parse(line) as Record<string, unknown>
-      } catch {
-        frames.push({ unparsed: line })
-        continue
+  let pending = ''
+  const host = hostRunner({
+    node: nodeBin!,
+    dist: DIST,
+    argv: [],
+    cwd,
+    env,
+    home,
+    raw: text => {
+      pending += text
+      let at: number
+      while ((at = pending.indexOf('\n')) >= 0) {
+        const line = pending.slice(0, at)
+        pending = pending.slice(at + 1)
+        if (line.trim() !== '') lines.push(line)
       }
-      frames.push(frame)
-      if (frame.type === 'control_request') {
-        const request = frame.request as Record<string, unknown>
-        if (request.subtype === 'can_use_tool') {
-          send({ type: 'control_response', response: { subtype: 'success', request_id: frame.request_id, response: { behavior: 'allow', updated_input: request.input } } })
-        }
-      }
-      if (frame.type === 'outcome' || frame.type === 'control_response') waiters.shift()?.()
-    }
+    },
+    onRow: row => {
+      frames.push(row)
+      if (row.type === 'outcome') waiters.shift()?.()
+    },
   })
-  child.stderr.on('data', chunk => (stderr += chunk))
+  host.onAsk(params => (params.kind === 'tool' ? { outcome: 'allow', input: params.input } : { outcome: 'allow' }))
+  const killer = setTimeout(() => host.child.kill('SIGKILL'), 120_000)
   const settled = (): Promise<void> => Promise.race([new Promise<void>(resolve => waiters.push(resolve)), new Promise<void>(resolve => setTimeout(resolve, 45_000))])
-  await script(send, settled)
-  child.stdin.end()
-  const exit = await new Promise<number | null>(resolve =>
-    child.on('close', code => {
-      clearTimeout(killer)
-      resolve(code)
-    }),
-  )
-  return { frames, exit, stderr }
+  await script(host, settled)
+  host.end()
+  const exit = await host.exited
+  clearTimeout(killer)
+  return { frames, lines, exit, stderr: host.stderr() }
 }
 
 const SNAKE = /^[a-z0-9]+(_[a-z0-9]+)*$/
@@ -313,64 +306,59 @@ section('L10 — the one spelling: every driven row is a declared type with snak
     { kind: 'tool_use', name: 'Glob', input: { pattern: '*.zzz-none' } },
     { kind: 'text', text: 'PROOF-SPELLING-DONE.' },
   ])
-  let seq = 0
-  const controlIds: string[] = []
-  const run = await driveDist(fx.url, async (send, settled) => {
-    const control = async (request: Record<string, unknown>): Promise<void> => {
-      const id = `spelling-${++seq}`
-      controlIds.push(id)
-      const done = settled()
-      send({ type: 'control_request', request_id: id, request })
-      await done
-    }
-    await control({ subtype: 'initialize', hooks: {}, host_mcp_servers: [] })
+  const answers = new Map<string, { ok: boolean; result?: Record<string, unknown>; error?: { code: number; message: string } }>()
+  const retiredIds = new Map<string, number>()
+  let rawId = 9000
+  const run = await driveDist(fx.url, async (host, settled) => {
+    await host.initialize()
     const turn = settled()
-    send({ type: 'user', message: { role: 'user', content: 'glob then answer' } })
+    void host.prompt('glob then answer').catch(() => undefined)
     await turn
-    await control({ subtype: 'session_facts' })
-    await control({ subtype: 'mcp_status' })
-    await control({ subtype: 'get_settings' })
-    await control({ subtype: 'get_context_usage' })
-    await control({ subtype: 'set_effort', effort: 'high' })
-    await control({ subtype: 'channel_enable', server_name: 'x' })
-    await control({ subtype: 'remote_control', enabled: true })
-    await control({ subtype: 'claude_authenticate' })
-    await control({ subtype: 'no_such_subtype_probe' })
+    const ask = async (label: string, method: 'session/facts' | 'session/set_effort', params: Record<string, unknown>): Promise<void> => {
+      answers.set(label, await host.request(method, params as never).then(result => ({ ok: true, result: result as Record<string, unknown> }), (error: unknown) => ({ ok: false, error: { code: (error as { code?: number }).code ?? 0, message: error instanceof Error ? error.message : String(error) } })))
+    }
+    await ask('facts', 'session/facts', {})
+    await ask('effort', 'session/set_effort', { effort: 'high' })
+    for (const word of ['channel_enable', 'remote_control', 'claude_authenticate', 'no_such_subtype_probe', 'mcp_status', 'get_settings', 'get_context_usage']) {
+      const id = ++rawId
+      retiredIds.set(word, id)
+      host.child.stdin!.write(`${JSON.stringify({ jsonrpc: '2.0', id, method: word, params: {} })}\n`)
+    }
+    await new Promise(resolve => setTimeout(resolve, 500))
   })
   const { ROW_TYPES, PARTIAL_ROW_TYPES } = await import('../../src/rows/vocabulary.ts')
-  const declaredTypes = new Set<string>([...ROW_TYPES, ...PARTIAL_ROW_TYPES, 'system', 'control_response', 'control_request', 'control_cancel_request'])
-  const declaredSystem = new Set(['seat_verb_applied', 'elicitation_complete'])
-  const unparsed = run.frames.filter(f => 'unparsed' in f)
+  const declaredTypes = new Set<string>([...ROW_TYPES, ...PARTIAL_ROW_TYPES])
+  const unparsed = run.lines.filter(line => {
+    try {
+      JSON.parse(line)
+      return false
+    } catch {
+      return true
+    }
+  })
   check('every stdout line parses', unparsed.length === 0, JSON.stringify(unparsed[0] ?? '').slice(0, 120))
-  const undeclared = run.frames.filter(f => !declaredTypes.has(String(f.type)) || (f.type === 'system' && !declaredSystem.has(String(f.subtype))))
-  check('every row is a declared type', undeclared.length === 0, JSON.stringify(undeclared.map(f => `${String(f.type)}/${String(f.subtype ?? '')}`)))
+  const messages = run.lines.map(line => JSON.parse(line) as Record<string, unknown>)
+  check('every stdout line is a JSON-RPC 2.0 message (a row notification or an answer)', messages.every(m => m.jsonrpc === '2.0' && (m.method === 'row' || ('id' in m && ('result' in m || 'error' in m)) || typeof m.method === 'string')), JSON.stringify(messages.find(m => m.jsonrpc !== '2.0') ?? '').slice(0, 120))
+  const undeclared = run.frames.filter(f => !declaredTypes.has(String(f.type)))
+  check('every row is a declared type', undeclared.length === 0, JSON.stringify(undeclared.map(f => String(f.type))))
   const odd: string[] = []
-  for (const frame of run.frames) oddKeys(frame, `${String(frame.type)}${frame.subtype ? `/${String(frame.subtype)}` : ''}`, odd)
+  for (const frame of run.frames) oddKeys(frame, String(frame.type), odd)
   check('every key the feed defines is snake_case at every depth', odd.length === 0, JSON.stringify([...new Set(odd)].slice(0, 30)))
   const init = run.frames.find(f => f.type === 'session') as Record<string, unknown> | undefined
   check('the session row carries mode, skills and extensions and no credential-source word', init !== undefined && typeof init.mode === 'string' && Array.isArray(init.skills) && Array.isArray(init.extensions) && !('apiKeySource' in init) && !('permissionMode' in init), JSON.stringify(Object.keys(init ?? {})))
   const result = run.frames.find(f => f.type === 'outcome') as Record<string, unknown> | undefined
   check('the outcome row carries models keyed by model id with snake_case rows', result !== undefined && typeof result.models === 'object' && !('modelUsage' in result), JSON.stringify(result?.models ?? null).slice(0, 200))
-  const answers = new Map<string, Record<string, unknown>>()
-  for (const frame of run.frames) {
-    if (frame.type !== 'control_response') continue
-    const response = frame.response as { request_id?: string; subtype?: string; response?: Record<string, unknown>; error?: string }
-    if (response?.request_id) answers.set(response.request_id, response as Record<string, unknown>)
-  }
-  const facts = answers.get('spelling-2')?.response as Record<string, unknown> | undefined
+  const facts = answers.get('facts')?.result
   check('the facts answer spells its sections snake_case', facts !== undefined && 'permission_mode' in facts && typeof (facts.usage as Record<string, unknown> | undefined)?.total_cost_usd === 'number' && 'first_party_api' in ((facts.identity as Record<string, unknown> | undefined) ?? {}), JSON.stringify(Object.keys(facts ?? {})))
-  const status = answers.get('spelling-3')?.response as Record<string, unknown> | undefined
-  check('the MCP status answer lists mcp_servers rows with server_info', status !== undefined && Array.isArray(status.mcp_servers) && (status.mcp_servers as Record<string, unknown>[]).every(row => !('serverInfo' in row) && !('capabilities' in row)), JSON.stringify(status ?? null).slice(0, 200))
-  const settings = answers.get('spelling-4')?.response as Record<string, unknown> | undefined
-  check('the settings answer spells applied.effort_requested', settings !== undefined && 'effort_requested' in ((settings.applied as Record<string, unknown> | undefined) ?? {}), JSON.stringify(settings?.applied ?? null))
-  const contextUsage = answers.get('spelling-5')?.response as Record<string, unknown> | undefined
-  check('the context usage answer spells total_tokens and grid_rows', contextUsage !== undefined && 'total_tokens' in contextUsage && 'grid_rows' in contextUsage, JSON.stringify(Object.keys(contextUsage ?? {})))
+  const effort = answers.get('effort')
+  check('the effort verb answers the typed result (effort, at)', effort?.ok === true && effort.result?.effort === 'high' && typeof effort.result.at === 'string', JSON.stringify(effort ?? null))
   check('exit 0', run.exit === 0, `${String(run.exit)} ${run.stderr.slice(0, 200)}`)
 
-  section('L11 — a retired control subtype gets the generic unsupported-subtype answer')
-  for (const [id, word] of [['spelling-7', 'channel_enable'], ['spelling-8', 'remote_control'], ['spelling-9', 'claude_authenticate'], ['spelling-10', 'no_such_subtype_probe']] as const) {
-    const answer = answers.get(id)
-    check(`${word} → unsupported control request subtype`, answer?.subtype === 'error' && String(answer.error) === `unsupported control request subtype: ${word}`, JSON.stringify(answer ?? null))
+  section('L11 — a retired control word is an unknown method: -32601, nothing else')
+  const { RPC_METHOD_NOT_FOUND } = await import('../../src/runner/wire/errors.ts')
+  for (const [word, id] of retiredIds) {
+    const answer = messages.find(m => m.id === id) as { error?: { code?: number; message?: string } } | undefined
+    check(`${word} → method not found`, answer?.error?.code === RPC_METHOD_NOT_FOUND && String(answer.error.message).includes(word), JSON.stringify(answer ?? null))
   }
 }
 
@@ -424,9 +412,9 @@ section('L14 — --help carries none of the retired option spellings and every k
 {
   const cap = await runDist(['--help'])
   check('--help exits 0', cap.exit === 0, String(cap.exit))
-  const retired = ['--include-hook-events', '--mcp-debug', '--file ', '--allowedTools', '--disallowedTools', '--dangerously-skip-permissions', '--allow-dangerously-skip-permissions', '--enable-auth-status', '--max-thinking-tokens', '--deep-link', '--verbose', 'setup-token']
+  const retired = ['--include-hook-events', '--mcp-debug', '--file ', '--allowedTools', '--disallowedTools', '--dangerously-skip-permissions', '--allow-dangerously-skip-permissions', '--enable-auth-status', '--max-thinking-tokens', '--deep-link', '--verbose', 'setup-token', '--replay-user-messages', '--permission-channel']
   for (const spelling of retired) check(`--help does not carry ${spelling.trim()}`, !cap.stdout.includes(spelling))
-  const kept = ['--allowed-tools', '--block-tools', '--sovereign', '--allow-sovereign', '--mode', '--format', '--input', '--partial', '--provider-preview', '--lean', '--replay-user-messages', '--ephemeral']
+  const kept = ['--allowed-tools', '--block-tools', '--sovereign', '--allow-sovereign', '--mode', '--format', '--input', '--partial', '--provider-preview', '--lean', '--ephemeral']
   for (const spelling of kept) check(`--help carries ${spelling}`, cap.stdout.includes(spelling))
 }
 

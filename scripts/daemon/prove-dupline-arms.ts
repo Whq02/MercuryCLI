@@ -25,42 +25,7 @@ import {
   WORKFLOW_SCRIPT,
   WORKFLOW_TURN_ASK,
 } from './dupline-fixture-words.ts'
-import {
-  argAfter,
-  bootRunner,
-  bound,
-  briefly,
-  carriersOf,
-  carrying,
-  childEnv,
-  CLOCK_TOLERANCE_MS,
-  deliveryClockOf,
-  describeRequests,
-  DIST,
-  exportWorld,
-  inMainFile,
-  isDrainedMainRow,
-  isSession,
-  isOutcome,
-  j,
-  makeTally,
-  NODE,
-  queueJournal,
-  removeWorld,
-  REPO,
-  requestsOf,
-  SCRATCH_ROOT,
-  seedHome,
-  settledCarriers,
-  sleep,
-  startFixture,
-  user,
-  waitWire,
-  type Carrier,
-  type Fixture,
-  type Runner,
-  type Wire,
-} from './dupline-world.ts'
+import { argAfter, bootRunner, bound, briefly, carriersOf, carrying, childEnv, CLOCK_TOLERANCE_MS, deliveryClockOf, describeRequests, DIST, exportWorld, inMainFile, isDrainedMainRow, isSession, isOutcome, j, makeTally, NODE, queueJournal, removeWorld, REPO, requestsOf, SCRATCH_ROOT, seedHome, settledCarriers, sleep, startFixture, waitWire, type Carrier, type Fixture, type Runner, type Wire } from './dupline-world.ts'
 
 const { check, section, finish, failed } = makeTally('prove-dupline-arms')
 const src = (rel: string): string => readFileSync(join(REPO, 'src', ...rel.split('/')), 'utf8')
@@ -95,7 +60,7 @@ async function openWorld(name: string, agentSleepSeconds: number, foldPaceMs = 0
   const holdFile = extra.hold === true ? join(home, 'release-final-answer') : undefined
   const fx = await startFixture(join(home, 'wire.jsonl'), agentSleepSeconds, 6, foldPaceMs, holdFile)
   const runner = bootRunner({ cwd, env: childEnv(home, fx.port), extraArgv: extra.argv })
-  runner.send(user('hello there', U0))
+  void runner.prompt('hello there', U0)
   const init = await runner.waitFor('the session row', isSession, bound(90_000))
   const first = await runner.waitFor('the first turn', isOutcome, bound(90_000))
   check(`${name}: the runner is up and the first turn answered`, init !== null && first !== null, runner.stderr().split('\n').slice(-5).join(' | '))
@@ -110,7 +75,7 @@ async function closeWorld(w: World): Promise<void> {
 }
 function send(w: World, word: string, n: number): Sent {
   const sent = { word, uuid: uuidOf(n), sentAt: new Date().toISOString() }
-  w.runner.send(user(word, sent.uuid, sent.sentAt))
+  void w.runner.prompt(word, sent.uuid, sent.sentAt)
   return sent
 }
 const projectsOf = (w: World): string => join(w.home, 'projects')
@@ -157,7 +122,7 @@ if (!existsSync(DIST)) {
   section("A1 two lines sent during one sub-agent's run reach the session's own model once each, in order")
     const w = await openWorld('two-lines', 10)
     const before = w.runner.frames.length
-    w.runner.send(user(AGENT_TURN_ASK, UT))
+    void w.runner.prompt(AGENT_TURN_ASK, UT)
     check('the sub-agent opened its own conversation', (await waitWire(w.fx.wire, "the sub-agent's first request", wireOf(w, 'subwork', 0), bound(60_000))) !== null)
     await sleep(1000)
     const first = send(w, FIRST_LINE, 1)
@@ -179,7 +144,7 @@ if (!existsSync(DIST)) {
   section("A2 a line sent while the sub-agent runs the Sleep tool waits past the sub-agent's Sleep boundary")
     const w = await openWorld('sleep-tool', 10)
     const before = w.runner.frames.length
-    w.runner.send(user(SLEEP_TOOL_TURN_ASK, UT))
+    void w.runner.prompt(SLEEP_TOOL_TURN_ASK, UT)
     const opened = await waitWire(w.fx.wire, "the sub-agent's first request", wireOf(w, 'subsleep', 0), bound(60_000))
     check('the sub-agent opened with the Sleep tool in its pool', opened !== null && opened.hasSleepTool === true, j(opened))
     await sleep(1500)
@@ -197,7 +162,7 @@ if (!existsSync(DIST)) {
   section("A3 a crew notice raised while a sub-agent runs reaches the session's own model once, at the Agent tool's return")
     const w = await openWorld('crew-notice', 10)
     const before = w.runner.frames.length
-    w.runner.send(user(CREW_TURN_ASK, UT))
+    void w.runner.prompt(CREW_TURN_ASK, UT)
     const quick = await waitWire(w.fx.wire, 'the background agent', wireOf(w, 'quick', 0), bound(60_000))
     const fore = await waitWire(w.fx.wire, 'the foreground sub-agent', wireOf(w, 'subwork', 0), bound(60_000))
     check('both agents launched from the one block: the quick one in the background, the sleeping one in front', quick !== null && fore !== null)
@@ -224,7 +189,7 @@ if (!existsSync(DIST)) {
   section("A4 a line sent during a sub-agent's compaction fold waits past the fold and the sub-agent's next boundary")
     const w = await openWorld('fold', 3, 800)
     const before = w.runner.frames.length
-    w.runner.send(user(FOLD_TURN_ASK, UT))
+    void w.runner.prompt(FOLD_TURN_ASK, UT)
     const fold = await waitWire(w.fx.wire, "the sub-agent's fold request", x => x.kind === 'fold' && x.arm === 'subfold', bound(60_000))
     check('the sub-agent folded its own conversation (the fold request carries its opening)', fold !== null, j(w.fx.wire().map(x => [x.kind, x.arm, x.step])))
     const line = send(w, FOLD_LINE, 1)
@@ -244,7 +209,7 @@ if (!existsSync(DIST)) {
   section('A5 a sub-agent cannot nest: its Agent call is refused, and the line sent during its run still waits')
     const w = await openWorld('nested', 5)
     const before = w.runner.frames.length
-    w.runner.send(user(NESTED_TURN_ASK, UT))
+    void w.runner.prompt(NESTED_TURN_ASK, UT)
     const opened = await waitWire(w.fx.wire, "the sub-agent's first request", wireOf(w, 'subnested', 0), bound(60_000))
     check("the sub-agent's pool carries neither the Agent tool nor the Workflow tool", opened !== null && opened.hasAgentTool === false && opened.hasWorkflowTool === false, j(opened))
     await sleep(1000)
@@ -264,7 +229,7 @@ if (!existsSync(DIST)) {
   section('A6 a fork is refused at the Agent tool, and the line sent during the sub-agent that follows still waits')
     const w = await openWorld('fork', 5)
     const before = w.runner.frames.length
-    w.runner.send(user(FORK_TURN_ASK, UT))
+    void w.runner.prompt(FORK_TURN_ASK, UT)
     const afterFork = await waitWire(w.fx.wire, "the session's request after the fork call", wireOf(w, 'agentfork', 1), bound(60_000))
     check('the fork call came back as an error, not a launch', afterFork !== null && afterFork.lastToolResult?.isError === true, j(afterFork?.lastToolResult))
     check('the sub-agent that followed opened its own conversation', (await waitWire(w.fx.wire, "the sub-agent's first request", wireOf(w, 'subwork', 0), bound(60_000))) !== null)
@@ -289,7 +254,7 @@ if (!existsSync(DIST)) {
       },
     })
     const before = w.runner.frames.length
-    w.runner.send(user(WORKFLOW_TURN_ASK, UT))
+    void w.runner.prompt(WORKFLOW_TURN_ASK, UT)
     const launched = await waitWire(w.fx.wire, "the session's request after the Workflow call", wireOf(w, 'agentworkflow', 1), bound(60_000))
     check('the named workflow launched in the background (the tool answered with a task id)', launched !== null && launched.lastToolResult?.isError === false && /launched in background/i.test(launched.lastToolResult?.text ?? ''), j(launched?.lastToolResult))
     const agent = await waitWire(w.fx.wire, "the workflow agent's first request", wireOf(w, 'wfwork', 0), bound(60_000))
@@ -310,7 +275,7 @@ if (!existsSync(DIST)) {
   section("A8 two lines sent after the Agent tool's return, while the session's final request is held on the wire, each keep their own row and identity")
     const w = await openWorld('return', 4, 0, { hold: true })
     const before = w.runner.frames.length
-    w.runner.send(user(AGENT_TURN_ASK, UT))
+    void w.runner.prompt(AGENT_TURN_ASK, UT)
     const mainNext = await waitWire(w.fx.wire, "the session's request after the Agent tool", wireOf(w, 'agent', 1), bound(60_000))
     const held = await waitWire(w.fx.wire, 'the fixture holding the final answer', x => x.kind === 'held', bound(10_000))
     check("the Agent tool had returned and the session's own final request was on the wire, held by the fixture, before either line was sent", mainNext !== null && held !== null, j(w.fx.wire().map(x => [x.kind, x.arm, x.step])))
@@ -357,10 +322,13 @@ if (!existsSync(DIST)) {
     check(`the request body's user item is byte for byte what the runner sent when it joined the lines itself (sha ${BATCH_ITEM_SHA})`, carrier?.askSha === BATCH_ITEM_SHA, j([carrier?.askSha, carrier?.askItem]))
     const withdrawn = await Promise.all(
       [atReturn, afterReturn].map(async (sent, i) => {
-        const id = `withdraw-${i}`
-        w.runner.send({ type: 'control_request', request_id: id, request: { subtype: 'withdraw_send', client_message_id: sent.uuid } })
-        const f = await w.runner.waitFor(`the withdraw answer for "${sent.word}"`, x => x.type === 'control_response' && (x.response as { request_id?: string } | undefined)?.request_id === id, bound(10_000))
-        return (f?.response as { response?: { withdrawn?: boolean; reason?: string } } | undefined)?.response
+        return w.runner.request('queue/withdraw', { id: sent.uuid }, bound(10_000)).then(
+          answer => answer as { withdrawn?: boolean; reason?: string },
+          (error: unknown) => {
+            console.log(`  [wait] the withdraw answer for "${sent.word}" (${i}): ${error instanceof Error ? error.message : String(error)}`)
+            return undefined
+          },
+        )
       }),
     )
     check('the recall by identity knows each line: the runner answers taken for both uuids, never unknown', withdrawn.every(r => r?.withdrawn === false && r?.reason === 'taken'), j(withdrawn))
@@ -391,7 +359,7 @@ if (!existsSync(DIST)) {
     })
     try {
       const before = w.runner.frames.length
-      w.runner.send(user(AGENT_TURN_ASK, UT))
+      void w.runner.prompt(AGENT_TURN_ASK, UT)
       const held = await waitWire(w.fx.wire, 'the final answer held before the batch', x => x.kind === 'held', bound(60_000))
       const first = send(w, RETURN_LINE, 1)
       const second = send(w, mention, 2)
@@ -422,7 +390,7 @@ if (!existsSync(DIST)) {
     const w = await openWorld('compact-batch', 1, 0, { hold: true })
     try {
       const before = w.runner.frames.length
-      w.runner.send(user(AGENT_TURN_ASK, UT))
+      void w.runner.prompt(AGENT_TURN_ASK, UT)
       const held = await waitWire(w.fx.wire, 'the final answer held before compact', x => x.kind === 'held', bound(60_000))
       send(w, '/compact', 1)
       const sent = send(w, followUp, 2)

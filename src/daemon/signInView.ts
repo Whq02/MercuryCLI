@@ -17,10 +17,6 @@ export function refreshSignInReads(force = false): boolean {
   return true
 }
 
-export function __resetSignInReadThrottleForTest(): void {
-  lastLiveReadAt = 0
-}
-
 export function composeSignInView(opts?: { refresh?: boolean }): DaemonSignInViewV1 {
   const refreshed = refreshSignInReads(opts?.refresh === true)
   const decision = computedDefault()

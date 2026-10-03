@@ -155,10 +155,6 @@ export function adoptOwnedDaemonPid(pid: number): void {
 
 let ownedSpawnLabelThisProcess: string | null = null
 
-export function ownedDaemonLabelThisProcess(): string | null {
-  return ownedSpawnLabelThisProcess
-}
-
 let envKeptAuthAtSpawn = false
 let freshSigninRestartAsked = false
 
@@ -219,10 +215,6 @@ export function armDaemonSignInPoke(opts?: Parameters<typeof pokeDaemonSignIns>[
   subscribeSignInEpoch(() => {
     void pokeDaemonSignIns(opts)
   })
-}
-
-export function __resetDaemonSignInPokeForTest(): void {
-  signInPokeArmed = false
 }
 
 

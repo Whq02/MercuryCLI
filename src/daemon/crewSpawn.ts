@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { logForDebugging } from '../utils/debug.js'
+import type { InputRow } from '../rows/vocabulary.js'
 import { flagEnv, flagPair, flagSpellings } from '../substrate/flagRegistry.js'
 import {
   appendCrewMember,
@@ -221,7 +222,7 @@ export function makeCrewSpawnHandler(
 }
 
 export type CrewWakeRoster = {
-  reply: (short: string, text: string) => Promise<boolean>
+  reply: (short: string, row: InputRow) => Promise<boolean>
 }
 
 export function stoppedCrewSeat(roster: CrewRosterPort, short: string): boolean {
@@ -240,8 +241,8 @@ export function makeCrewWakeRoster(
 ): CrewWakeRoster {
   const waking = new Set<string>()
   return {
-    async reply(short, text) {
-      const delivered = await roster.reply(short, text)
+    async reply(short, row) {
+      const delivered = await roster.reply(short, row)
       if (delivered) return true
       const port = deps.port()
       if (port === undefined || waking.has(short) || !stoppedCrewSeat(port, short)) return false

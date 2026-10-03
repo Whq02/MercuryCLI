@@ -5,7 +5,7 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'stateword-home-'))
 
-const { onSeatLine, onSeatSpawned } = await import('../../src/daemon/sessionSeat.ts')
+const { onSeatRow, onSeatSpawned } = await import('../../src/daemon/sessionSeat.ts')
 const { readSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
 const { updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
 
@@ -33,43 +33,43 @@ updateConcourseWorkers(workers => {
     workspaceKind: 'plain-folder',
   } as never
 }, dir)
-const roster = { control: () => true, list: () => [], patchSeatModel: () => true }
+const roster = { door: () => undefined, list: () => [], patchSeatModel: () => true, patchSeatEffort: () => true }
 
 const { compactionClearedRow, compactionRow } = await import('../../src/rows/project.ts')
 const scope = { session_id: sid, turn: 1 }
-const row = (o: Record<string, unknown>): string => JSON.stringify({ seq: 1, timestamp: 't', ...o })
-const foldRow = (fold: unknown): string => row(compactionRow(scope, fold as never))
-const clearedRow = (): string => row(compactionClearedRow(scope, 'auto'))
+const row = (o: Record<string, unknown>): Record<string, unknown> => ({ seq: 1, timestamp: 't', ...o })
+const foldRow = (fold: unknown): Record<string, unknown> => row(compactionRow(scope, fold as never))
+const clearedRow = (): Record<string, unknown> => row(compactionClearedRow(scope, 'auto'))
 const USAGE = { input_tokens: 1, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 1 }
-const outcome = (): string => row({ type: 'outcome', session_id: sid, turn: 1, schema: 1, turn_id: 't-cw', status: 'completed', steps: 1, wall_ms: 1, usage: USAGE, models: [], denials: [] })
+const outcome = (): Record<string, unknown> => row({ type: 'outcome', session_id: sid, turn: 1, schema: 1, turn_id: 't-cw', status: 'completed', steps: 1, wall_ms: 1, usage: USAGE, models: [], denials: [] })
 const tail = () => readSessionTail(sid, dir)
 const word = () => (tail() as { stateWord?: string } | null)?.stateWord
 
 console.log('compact state word — the fold speaks its own word on the glass road')
 
 console.log('\nC1 the compaction row sets the word')
-onSeatLine(SHORT, foldRow(null), roster as never, dir)
+onSeatRow(SHORT, foldRow(null), roster as never, dir)
 check("a started compaction row ⇒ the tail projection carries the word", word() === 'compacting', JSON.stringify(tail()))
 
 console.log('\nC2 the ended row clears it (the restore)')
-onSeatLine(SHORT, clearedRow(), roster as never, dir)
+onSeatRow(SHORT, clearedRow(), roster as never, dir)
 check('the ended row ⇒ the word is gone', word() === undefined, JSON.stringify(tail()))
 
 console.log('\nC3 the outcome row clears it (the settle belt)')
-onSeatLine(SHORT, foldRow(null), roster as never, dir)
+onSeatRow(SHORT, foldRow(null), roster as never, dir)
 check('the word stands before the settle', word() === 'compacting')
-onSeatLine(SHORT, outcome(), roster as never, dir)
+onSeatRow(SHORT, outcome(), roster as never, dir)
 check('the outcome row retires the word with the turn', word() === undefined, JSON.stringify(tail()))
 
 console.log('\nC4 a respawn clears it (a child dead mid-fold)')
-onSeatLine(SHORT, foldRow(null), roster as never, dir)
+onSeatRow(SHORT, foldRow(null), roster as never, dir)
 onSeatSpawned(SHORT, roster as never, dir)
 check('the respawn retires the word', word() === undefined, JSON.stringify(tail()))
 
 console.log('\nC5 a mention-shaped line never sets it')
-onSeatLine(SHORT, row({ type: 'text', session_id: sid, turn: 1, message_id: 'msg_c5', block: 0, text: 'the row spelling is {"type":"compaction","state":"started"} verbatim' }), roster as never, dir)
+onSeatRow(SHORT, row({ type: 'text', session_id: sid, turn: 1, message_id: 'msg_c5', block: 0, text: 'the row spelling is {"type":"compaction","state":"started"} verbatim' }), roster as never, dir)
 check('a text row CONTAINING the token leaves no word', word() === undefined, JSON.stringify(tail()))
-onSeatLine(SHORT, outcome(), roster as never, dir)
+onSeatRow(SHORT, outcome(), roster as never, dir)
 
 console.log('\nC6 the wiring — service stamp to glass word (structural)')
 {
@@ -155,26 +155,26 @@ console.log('\nC8 the fold\'s record rides the word — the seat relays the stag
     attempt: 1,
   }
   const facts = (fold: unknown): string => JSON.stringify(Object.fromEntries(Object.entries((fold ?? {}) as Record<string, unknown>).filter(([key]) => key !== 'startedAtMs' && key !== 'endedAtMs' && key !== 'schema')))
-  onSeatLine(SHORT, foldRow(record), roster as never, dir)
+  onSeatRow(SHORT, foldRow(record), roster as never, dir)
   const stamped = tail() as { stateWord?: string; fold?: { startedAtMs?: unknown } } | null
   check("a compaction row carrying the record sets the word", stamped?.stateWord === 'compacting', JSON.stringify(stamped))
   check('…and the tail projection carries the record (the stages, the stage, the fill, the tokens, the attempt), its start on the seat\'s own clock', facts(stamped?.fold) === facts(record) && typeof stamped?.fold?.startedAtMs === 'number', JSON.stringify(stamped?.fold))
   const moved = { ...record, stage: 'restoring', fill: null }
-  onSeatLine(SHORT, foldRow(moved), roster as never, dir)
+  onSeatRow(SHORT, foldRow(moved), roster as never, dir)
   check('a moved record republishes (the stage flipped)', facts((tail() as { fold?: unknown } | null)?.fold) === facts(moved))
-  onSeatLine(SHORT, foldRow({ ...moved, exit: 'landed', endedAtMs: 1_700_000_009_000 }), roster as never, dir)
+  onSeatRow(SHORT, foldRow({ ...moved, exit: 'landed', endedAtMs: 1_700_000_009_000 }), roster as never, dir)
   check('the exit rides the record and rests the word (the fold is over; only the row reads the exit)', (tail() as { fold?: { exit?: string } } | null)?.fold?.exit === 'landed' && word() === undefined)
-  onSeatLine(SHORT, outcome(), roster as never, dir)
+  onSeatRow(SHORT, outcome(), roster as never, dir)
   check('the outcome row retires the record with the word', word() === undefined && (tail() as { fold?: unknown } | null)?.fold === undefined)
-  onSeatLine(SHORT, row({ type: 'compaction', session_id: sid, turn: 1, state: 'progress', trigger: 'manual', stage: 'warming' }), roster as never, dir)
+  onSeatRow(SHORT, row({ type: 'compaction', session_id: sid, turn: 1, state: 'progress', trigger: 'manual', stage: 'warming' }), roster as never, dir)
   const malformed = tail() as { stateWord?: string; fold?: unknown } | null
   check('a row whose record this build cannot read still sets the word — with no detail (the mixed-version law)', malformed?.stateWord === 'compacting' && malformed?.fold === undefined, JSON.stringify(malformed))
-  onSeatLine(SHORT, foldRow(null), roster as never, dir)
+  onSeatRow(SHORT, foldRow(null), roster as never, dir)
   const bareWord = tail() as { stateWord?: string; fold?: unknown } | null
   check('the bare started row sets the word with no detail', bareWord?.stateWord === 'compacting' && bareWord?.fold === undefined)
-  onSeatLine(SHORT, clearedRow(), roster as never, dir)
+  onSeatRow(SHORT, clearedRow(), roster as never, dir)
   check('the ended row clears both', word() === undefined && (tail() as { fold?: unknown } | null)?.fold === undefined)
-  onSeatLine(SHORT, foldRow(record), roster as never, dir)
+  onSeatRow(SHORT, foldRow(record), roster as never, dir)
   onSeatSpawned(SHORT, roster as never, dir)
   check('a respawn retires the record with the word', word() === undefined && (tail() as { fold?: unknown } | null)?.fold === undefined)
 }

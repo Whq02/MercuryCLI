@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { daemonHomeStands, publishInDaemonHome } from './daemonHome.js'
 import { join } from 'node:path'
@@ -11,6 +11,9 @@ import {
   type SessionAskProjectionV1,
 } from '../services/engine-connector/seatProjections.js'
 import type { PermissionUpdate } from '../types/permissions.js'
+import type { PermissionAnswer, PermissionRequestParams } from '../runner/wire/methods.js'
+import { SANDBOX_NETWORK_ACCESS_TOOL_NAME } from './runnerFrames.js'
+import type { HeldAsk } from './runnerConnection.js'
 import {
   DENIAL_WORKAROUND_GUIDANCE,
   REJECT_MESSAGE,
@@ -65,10 +68,6 @@ export function permissionAskExpiryMs(): number {
   return minutesKnobToMs(flagEnv('MERCURY_PERMISSION_ASK_EXPIRY_MINUTES'), DEFAULT_PERMISSION_ASK_EXPIRY_MINUTES)
 }
 
-export interface AskControlChannel {
-  control(short: string, frame: string): boolean
-}
-
 export function expiredAskDenialMessage(toolName: string, limitMs: number, cause: 'expired' | 'evicted'): string {
   const what =
     cause === 'expired'
@@ -117,7 +116,7 @@ interface PendingAsk {
   obligationLanded?: Promise<string | undefined>
   askedAt?: number
   deadline?: InactivityDeadline
-  channel?: AskControlChannel
+  settle?: (answer: PermissionAnswer) => void
   local?: 'git-init'
 }
 
@@ -204,27 +203,15 @@ function settleUnanswered(
   requestId: string,
   ask: PendingAsk,
   cause: 'expired' | 'evicted',
-  channel: AskControlChannel | undefined,
   limitMs: number,
 ): void {
   pending.delete(requestId)
   ask.deadline?.cancel()
   publishAsksFor(ask.sessionId)
-  const frame = JSON.stringify({
-    type: 'control_response',
-    response: {
-      subtype: 'success',
-      request_id: requestId,
-      response: { behavior: 'deny', message: expiredAskDenialMessage(ask.toolName, limitMs, cause) },
-    },
-  })
-  const routed = channel ?? ask.channel
-  const delivered = routed !== undefined && routed.control(ask.workerId, frame)
+  ask.settle?.({ outcome: 'deny', message: expiredAskDenialMessage(ask.toolName, limitMs, cause) })
   const waited = ask.askedAt !== undefined ? formatLimit(Date.now() - ask.askedAt) : 'an unknown time'
   // eslint-disable-next-line no-console
-  console.error(
-    `[daemon] permission ask ${requestId} (${ask.toolName} for ${ask.workerId}) ${cause} after ${waited}${delivered ? ' — the child was told' : ' — no live control channel to tell'}`,
-  )
+  console.error(`[daemon] permission ask ${requestId} (${ask.toolName} for ${ask.workerId}) ${cause} after ${waited} — the runner was told`)
   settleAskObligation(ask, {
     kind: 'withdrawn',
     by: cause === 'expired' ? `daemon: expired unanswered after ${formatLimit(limitMs)}` : 'daemon: dropped unanswered (parked-ask table full)',
@@ -236,21 +223,9 @@ function denyUnattended(
   short: string,
   rec: { sessionId: string; workspaceId: string; title?: string },
   toolName: string,
-  channel: AskControlChannel | undefined,
-): void {
-  const frame = JSON.stringify({
-    type: 'control_response',
-    response: {
-      subtype: 'success',
-      request_id: requestId,
-      response: { behavior: 'deny', message: unattendedAskDenialMessage(toolName) },
-    },
-  })
-  const delivered = channel !== undefined && channel.control(short, frame)
+): PermissionAnswer {
   // eslint-disable-next-line no-console
-  console.error(
-    `[daemon] permission ask ${requestId} (${toolName} for ${short}) denied at once — ${NO_CLIENT_ATTACHED_CAUSE}${delivered ? ' — the child was told' : ' — no live control channel to tell'}`,
-  )
+  console.error(`[daemon] permission ask ${requestId} (${toolName} for ${short}) denied at once — ${NO_CLIENT_ATTACHED_CAUSE}`)
   void recordSettledObligation({
     ref: `permission:${requestId}`,
     sessionId: rec.sessionId,
@@ -261,57 +236,62 @@ function denyUnattended(
   }).catch(err => {
     logForDebugging(`[daemon] unattended-ask receipt write failed: ${err}`)
   })
+  return { outcome: 'deny', message: unattendedAskDenialMessage(toolName) }
 }
 
-export function onWorkerControlRequest(
+const NO_SEAT_OWNER_CAUSE = 'no operator holds this seat'
+
+const answered = (answer: PermissionAnswer): HeldAsk => ({ answer: Promise.resolve(answer), withdraw: () => {} })
+
+export function holdWorkerAsk(
   short: string,
-  frame: Record<string, unknown>,
+  params: PermissionRequestParams,
   dir?: string,
-  channel?: AskControlChannel,
   expiryMs: number = permissionAskExpiryMs(),
   presence: (dir?: string) => OperatorClientPresence = operatorClientPresence,
-): void {
-  if (!short.startsWith('concourse-w')) return
-  const request = frame.request as Record<string, unknown> | undefined
-  if (!request || request.subtype !== 'can_use_tool') return
-  const requestId = String(frame.request_id ?? '')
-  if (!requestId || pending.has(requestId)) return
-  const rec = readSessionWorkers(dir)[short]
-  if (!rec || rec.endedAt !== undefined) return
-  const toolName = String(request.tool_name ?? 'a tool')
-  const input = (request.input ?? {}) as Record<string, unknown>
-  if (presence(dir) === 'absent') {
-    denyUnattended(requestId, short, rec, toolName, channel)
-    return
+): HeldAsk {
+  const toolName = params.kind === 'tool' ? params.tool_name : SANDBOX_NETWORK_ACCESS_TOOL_NAME
+  if (!short.startsWith('concourse-w')) {
+    // eslint-disable-next-line no-console
+    console.error(`[daemon] permission ask (${toolName} for ${short}) denied at once — ${NO_SEAT_OWNER_CAUSE}`)
+    return answered({ outcome: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(toolName, NO_SEAT_OWNER_CAUSE) })
   }
+  const rec = readSessionWorkers(dir)[short]
+  if (!rec || rec.endedAt !== undefined) {
+    return answered({ outcome: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(toolName, 'the session this seat served has ended') })
+  }
+  const requestId = randomUUID()
+  if (presence(dir) === 'absent') return answered(denyUnattended(requestId, short, rec, toolName))
   if (pending.size >= MAX_PENDING) {
     for (const [oldestId, oldest] of pending) {
       if (oldest.local !== undefined) continue
-      settleUnanswered(oldestId, oldest, 'evicted', channel, expiryMs)
+      settleUnanswered(oldestId, oldest, 'evicted', expiryMs)
       break
     }
   }
-  const suggestions = Array.isArray(request.permission_suggestions)
-    ? (request.permission_suggestions as PermissionUpdate[])
-    : undefined
+  const input = params.kind === 'tool' ? params.input : { host: params.host }
+  const suggestions = params.kind === 'tool' ? (params.suggestions as PermissionUpdate[] | undefined) : undefined
   const ask: PendingAsk = {
     workerId: short,
     sessionId: rec.sessionId,
     workspaceId: rec.workspaceId,
     toolName,
     input,
-    ...(typeof request.tool_use_id === 'string' ? { toolUseId: request.tool_use_id } : {}),
-    ...(typeof request.agent_id === 'string' && request.agent_id !== '' ? { agentId: request.agent_id } : {}),
+    ...(params.kind === 'tool' ? { toolUseId: params.tool_use_id } : {}),
+    ...(params.kind === 'tool' && params.agent_id !== undefined && params.agent_id !== '' ? { agentId: params.agent_id } : {}),
     ...(suggestions !== undefined && suggestions.length > 0 ? { suggestions } : {}),
-    ...(typeof request.blocked_path === 'string' ? { blockedPath: request.blocked_path } : {}),
-    ...(typeof request.decision_reason === 'string' ? { decisionReason: request.decision_reason } : {}),
-    ...(decodeDecisionReasonFromWire(request.decision_reason_detail) !== undefined
-      ? { decisionReasonDetail: request.decision_reason_detail as DecisionReasonWireV1 }
+    ...(params.kind === 'tool' && params.blocked_path !== undefined ? { blockedPath: params.blocked_path } : {}),
+    ...(params.kind === 'tool' && params.reason !== undefined ? { decisionReason: params.reason } : {}),
+    ...(params.kind === 'tool' && decodeDecisionReasonFromWire(params.reason_detail) !== undefined
+      ? { decisionReasonDetail: params.reason_detail as DecisionReasonWireV1 }
       : {}),
-    ...(typeof request.description === 'string' ? { description: request.description } : {}),
+    ...(params.kind === 'tool' && params.description !== undefined ? { description: params.description } : {}),
+    ...(params.kind === 'network' ? { description: `Allow network access to ${params.host}?` } : {}),
     askedAt: Date.now(),
-    ...(channel !== undefined ? { channel } : {}),
   }
+  const answer = new Promise<PermissionAnswer>(resolve => {
+    ask.settle = resolve
+  })
   pending.set(requestId, ask)
   publishAsksFor(rec.sessionId, dir)
   if (ask.agentId !== undefined) {
@@ -320,7 +300,7 @@ export function onWorkerControlRequest(
       limitMs: expiryMs,
       onExpire: () => {
         if (pending.get(requestId) !== ask) return
-        settleUnanswered(requestId, ask, 'expired', channel, expiryMs)
+        settleUnanswered(requestId, ask, 'expired', expiryMs)
       },
     })
   }
@@ -339,6 +319,7 @@ export function onWorkerControlRequest(
       logForDebugging(`[daemon] permission-ask obligation write failed: ${err}`)
       return undefined
     })
+  return { answer, withdraw: () => onWorkerAskWithdrawn(requestId, dir) }
 }
 
 export function mintGitInitAsk(folder: string): { requestId: string } | { refused: GitInitRefusal } {
@@ -355,7 +336,7 @@ export function mintGitInitAsk(folder: string): { requestId: string } | { refuse
   if (pending.size >= MAX_PENDING) {
     for (const [oldestId, oldest] of pending) {
       if (oldest.local !== undefined) continue
-      settleUnanswered(oldestId, oldest, 'evicted', undefined, permissionAskExpiryMs())
+      settleUnanswered(oldestId, oldest, 'evicted', permissionAskExpiryMs())
       break
     }
   }
@@ -397,7 +378,7 @@ export function mintGitRefusedReceipt(clientMessageId: string, folder: string, r
   }).catch(err => logForDebugging(`[daemon] git-refused receipt write failed: ${err}`))
 }
 
-export function onWorkerControlCancel(requestId: string, dir?: string): void {
+export function onWorkerAskWithdrawn(requestId: string, dir?: string): void {
   const ask = pending.get(requestId)
   if (!ask || ask.local !== undefined) return
   pending.delete(requestId)
@@ -409,7 +390,6 @@ export function onWorkerControlCancel(requestId: string, dir?: string): void {
 export function answerPermissionAsk(
   requestId: string,
   allow: boolean,
-  roster: { control(short: string, frame: string): boolean } | undefined,
   by: string,
   hooks?: {
     onGitReady?: (folder: string) => ReadonlyArray<{ clientMessageId: string; title?: string }>
@@ -477,25 +457,18 @@ export function answerPermissionAsk(
           : `git ready in ${ask.workspaceId} — the queued launch starts on its own`,
     }
   }
-  const updatedInput =
-    answer?.updatedInput !== undefined && Object.keys(answer.updatedInput).length > 0 ? answer.updatedInput : ask.input
+  const updatedInput = answer?.updatedInput
   const updatedPermissions = answer?.permissionUpdates !== undefined && answer.permissionUpdates.length > 0 ? answer.permissionUpdates : undefined
   const feedback = answer?.feedback?.trim()
   const denial = feedback ? REJECT_MESSAGE_WITH_REASON_PREFIX + feedback : REJECT_MESSAGE
-  const frame = JSON.stringify({
-    type: 'control_response',
-    response: {
-      subtype: 'success',
-      request_id: requestId,
-      response: allow
-        ? { behavior: 'allow', updated_input: updatedInput, ...(updatedPermissions !== undefined ? { updated_permissions: updatedPermissions } : {}) }
-        : { behavior: 'deny', message: denial, ...(answer?.interrupt === true ? { interrupt: true } : {}) },
-    },
-  })
-  const delivered = roster !== undefined && roster.control(ask.workerId, frame)
-  if (!delivered) return { outcome: 'refused', detail: 'worker has no live control channel' }
+  if (ask.settle === undefined) return { outcome: 'refused', detail: 'the ask has no runner to answer' }
   pending.delete(requestId)
   ask.deadline?.cancel()
+  ask.settle(
+    allow
+      ? { outcome: 'allow', ...(updatedInput !== undefined ? { input: updatedInput } : {}), ...(updatedPermissions !== undefined ? { rules: updatedPermissions as never } : {}) }
+      : { outcome: 'deny', message: denial, ...(answer?.interrupt === true ? { stop: true } : {}) },
+  )
   publishAsksFor(ask.sessionId)
   settleAskObligation(ask, { kind: 'answered', by })
   return {

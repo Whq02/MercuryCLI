@@ -78,16 +78,41 @@ if (configPath && fs.existsSync(configPath)) {
     })
     if (pickup) flush('facts-read-and-pickup')
   }
+  const methods = new Map()
+  let partial = ''
+  const learn = chunk => {
+    partial += String(chunk)
+    const lines = partial.split('\n')
+    partial = lines.pop() ?? ''
+    for (const line of lines) {
+      if (!line.startsWith('{')) continue
+      try {
+        const message = JSON.parse(line)
+        if (message?.jsonrpc === '2.0' && typeof message.method === 'string' && message.id !== undefined) methods.set(String(message.id), message.method)
+      } catch {}
+    }
+  }
+  const stdinOn = process.stdin.on.bind(process.stdin)
+  let learning = false
+  process.stdin.on = function (event, listener) {
+    const out = stdinOn(event, listener)
+    if (event === 'data' && !learning) {
+      learning = true
+      stdinOn('data', learn)
+    }
+    return out
+  }
   process.stdout.write = function (...args) {
     const raw = String(args[0])
-    if (raw.startsWith('{') && raw.includes('"control_response"')) {
+    if (raw.startsWith('{') && raw.includes('"result"')) {
       let frame
       try { frame = JSON.parse(raw) } catch {}
-      const response = frame?.response
-      if (!armed && response?.subtype === 'success' && response.request_id?.startsWith('mercury-seat-set-model-') && response.response?.at === 'now') {
+      const method = frame?.jsonrpc === '2.0' && frame.id !== undefined ? methods.get(String(frame.id)) : undefined
+      const result = frame?.result
+      if (!armed && method === 'session/set_model' && result?.at === 'now') {
         armed = true
-        record('model-ack', { response: response.response, requestId: response.request_id })
-        write(acknowledged, JSON.stringify({ at: Date.now(), response: response.response }))
+        record('model-ack', { response: result, requestId: frame.id })
+        write(acknowledged, JSON.stringify({ at: Date.now(), response: result }))
         if (config.enabled) {
           watcher = fs.watch(home, (_event, name) => {
             if (String(name) === 'facts-observed.json' || String(name) === 'wire.jsonl') maybeRelease()
@@ -96,12 +121,12 @@ if (configPath && fs.existsSync(configPath)) {
           timer.unref()
         }
       }
-      if (response?.subtype === 'success' && response.request_id?.startsWith('mercury-session-facts-')) {
+      if (method === 'session/facts' && result !== undefined) {
         const hash = createHash('sha256').update(raw).digest('hex')
         const delaying = armed && config.enabled && !spent
-        record('facts-answer', { requestId: response.request_id, model: response.response?.model, held: delaying, hash })
+        record('facts-answer', { requestId: frame.id, model: result?.model, held: delaying, hash })
         if (delaying) {
-          held.push({ args, requestId: response.request_id, hash })
+          held.push({ args, requestId: frame.id, hash })
           maybeRelease()
           return true
         }

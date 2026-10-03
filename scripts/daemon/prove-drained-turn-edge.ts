@@ -9,7 +9,8 @@ process.chdir(ROOT)
 const supervisor = await import('../../src/daemon/longLivedSupervisor.ts')
 const { RowSchema } = await import('../../src/rows/vocabulary.ts')
 const { turnStartedRow, outcomeRow, createRowStamper } = await import('../../src/rows/project.ts')
-const { isTurnOpenRow, isOutcomeRow, parseRunnerLine, decideWorkerBusy } = supervisor
+const { isTurnOpenRow, isOutcomeRow, decideWorkerBusy } = supervisor
+const { parseRow: parseRunnerLine } = await import('../../src/rows/read.ts')
 
 let failures = 0
 let checks = 0
@@ -29,7 +30,7 @@ section('§1 one owner of the row: the projector\'s shape is the reader\'s predi
   const row = stamper.stamp(turnStartedRow({ session_id: 'sess-1', turn: 1 }, { turnId: 'turn-1', messageIds: ['u1', 'u2'], model: 'm' }))
   check('the row is a turn row in the started state with the joined message ids', row.type === 'turn' && row.state === 'started' && j(row.message_ids) === j(['u1', 'u2']) && row.session_id === 'sess-1' && row.turn_id === 'turn-1', j(row))
   const line = JSON.stringify(row)
-  check('the reader recognises the projector\'s line through the same parser the drain uses', isTurnOpenRow(parseRunnerLine(line)))
+  check('the reader recognises the projector\'s line through the one row reader', isTurnOpenRow(parseRunnerLine(line)))
   const USAGE = { input_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, output_tokens: 1 }
   const outcome = JSON.stringify(stamper.stamp(outcomeRow({ session_id: 'sess-1', turn: 1 }, { turnId: 'turn-1', status: 'completed', stopReason: 'end_turn', answer: '', steps: 1, wallMs: 1, usage: USAGE, models: [], denials: [] })))
   check('…and an outcome row, a text row, a torn line and a waiting turn row read false', !isTurnOpenRow(parseRunnerLine(outcome)) && !isTurnOpenRow(parseRunnerLine('{"type":"text","text":"hi"}')) && !isTurnOpenRow(parseRunnerLine(line.slice(0, 30))) && !isTurnOpenRow(parseRunnerLine('{"type":"turn","state":"waiting","turn_id":"t","agents":2}')))
@@ -52,9 +53,9 @@ section('§2 the busy fact reads the edge')
 section('§3 the roster and the runner ride the one owner')
 {
   const roster = readFileSync(join(ROOT, 'src/daemon/roster.ts'), 'utf8')
-  const drain = roster.slice(roster.indexOf('private drainChildStdout('))
-  check('the drain opens the edge on the turn row BEFORE it reads the outcome row (one line, both edges)', /isTurnOpenRow\(frame\)[\s\S]{0,1200}ll\.turnActive = true[\s\S]{0,80}ll\.turnStartedAt = Date\.now\(\)/.test(drain) && drain.indexOf('isTurnOpenRow(frame)') !== -1 && drain.indexOf('isOutcomeRow(frame)') !== -1 && drain.indexOf('isTurnOpenRow(frame)') < drain.indexOf('isOutcomeRow(frame)'))
-  check('reply() still opens the edge for a delivery (the same fact, two roads into one field)', /h\.longLived\.turnActive = true\n\s*h\.longLived\.turnStartedAt = Date\.now\(\)/.test(roster))
+  const classify = roster.slice(roster.indexOf('classifyRow('))
+  check('the row hook opens the edge on the turn row BEFORE it reads the outcome row (one row, both edges)', /isTurnOpenRow\(frame\)[\s\S]{0,1200}ll\.turnActive = true[\s\S]{0,80}ll\.turnStartedAt = Date\.now\(\)[\s\S]{0,400}isOutcomeRow\(frame\)/.test(classify))
+  check('reply() opens the edge for a delivery before the answer is read (the same fact, two roads into one field)', /ll\.turnActive = true\n\s*ll\.turnStartedAt = Date\.now\(\)[\s\S]{0,600}await door\.deliver\(row\)/.test(roster))
   const print = readFileSync(join(ROOT, 'src/cli/print.ts'), 'utf8')
   check('the runner mints the open row through the owner when the driver asks for one', /openTurnRow: messageIds => \{[\s\S]{0,300}return turnStartedRow\(/.test(print))
   const turn = readFileSync(join(ROOT, 'src/rows/turn.ts'), 'utf8')

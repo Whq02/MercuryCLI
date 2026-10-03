@@ -163,8 +163,7 @@ const OBSERVABLES: Array<{
   { key: 'mainThreadAgentType', family: 'boot', scope: 'process', read: () => state.getMainThreadAgentType() },
   { key: 'directConnectServerUrl', family: 'boot', scope: 'process', read: () => state.getDirectConnectServerUrl() },
   { key: 'needsAutoModeExitAttachment', family: 'oneShot', scope: 'conversation', read: () => state.needsAutoModeExitAttachment() },
-  { key: 'initJsonSchema', family: 'sdkInit', scope: 'session', read: () => state.getInitJsonSchema() },
-  { key: 'registeredHooks', family: 'sdkInit', scope: 'session', read: () => state.getRegisteredHooks() },
+  { key: 'registeredHooks', family: 'hookRegistry', scope: 'session', read: () => state.getRegisteredHooks() },
   { key: 'agentColorMap', family: 'collections', scope: 'session', read: () => state.getAgentColorMap() },
   { key: 'sessionCreatedCrews', family: 'collections', scope: 'session', read: () => state.getSessionCreatedCrews() },
   { key: 'invokedSkills', family: 'collections', scope: 'session', read: () => state.getInvokedSkills() },
@@ -269,7 +268,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'getAllowedSettingSources', 'getApiKeyFromFd', 'getBudgetContinuationCount',
     'getCacheEditingHeaderLatched', 'getCachedInstructionPrompt',
     'getClientType', 'getCurrentTurnTokenBudget', 'getCwdState', 'getDirectConnectServerUrl', 'getFlagSettingsInline', 'getFlagSettingsPath',
-    'getHasDevChannels', 'getInitJsonSchema', 'getInitialMainLoopModel', 'getSessionExtensions',
+    'getHasDevChannels', 'getInitialMainLoopModel', 'getSessionExtensions',
     'getInvokedSkills', 'getInvokedSkillsForAgent', 'getIsInteractive',
     'getIsNonInteractiveSession', 'getIsRemoteMode', 'getIsScrollDraining', 'getIsSessionOneShotHeadless', 'isAssistantFamilyAvailable',
     'isAssistantSessionActive', 'getLastAPIRequest', 'getLastAPIRequestMessages',
@@ -298,7 +297,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'needsAutoModeExitAttachment', 'onSessionSwitch',
     'preferThirdPartyAuthentication', 'recordUnpricedTurn', 'regenerateSessionId', 'registerHookCallbacks',
     'resetCostState', 'resetModelStringsForTestingOnly',
-    'resetSdkInitState', 'resetStateForTests',
+    'resetStateForTests',
     'resetTotalDurationStateAndCost_FOR_TESTS_ONLY', 'resetTurnClassifierDuration',
     'resetTurnHookDuration', 'resetTurnToolDuration',
     'setAllowedChannels', 'setAllowedSettingSources',
@@ -306,7 +305,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'setClientType', 'setCostStateForRestore', 'setCwdState',
     'setDirectConnectServerUrl',
     'setFlagSettingsInline', 'setFlagSettingsPath', 'setHasDevChannels',
-    'setHasUnknownModelCost', 'setHeadlessOneShot', 'setInitJsonSchema',
+    'setHasUnknownModelCost', 'setHeadlessOneShot',
     'setInitialMainLoopModel', 'setSessionExtensions', 'setIsInteractive', 'setIsRemoteMode',
     'setAssistantSessionActive', 'setLastAPIRequest', 'setLastAPIRequestMessages',
     'setLastApiCompletionTimestamp', 'setLastClassifierRequests', 'setLastEmittedDate',
@@ -970,12 +969,9 @@ section('LAW 9 HOOK-REGISTRY — merge order · extensionRoot clear · empty ⇒
   state.clearRegisteredExtensionHooks()
   check('extension clear: idempotent on null', state.getRegisteredHooks() === null)
 
-  const schema = { type: 'object' }
-  state.setInitJsonSchema(schema)
-  check('init schema: stored by reference', state.getInitJsonSchema() === schema)
   state.registerHookCallbacks({ PreToolUse: [cb1] } as never)
-  state.resetSdkInitState()
-  check('resetSdkInitState: nulls schema AND hooks', state.getInitJsonSchema() === null && state.getRegisteredHooks() === null)
+  state.clearRegisteredHooks()
+  check('clearRegisteredHooks: nulls the registry', state.getRegisteredHooks() === null)
 }
 
 section('LAW 10 SKILL-TRACKING — composite keys · filters · preservation')
@@ -1123,7 +1119,6 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
     state.setMainThreadAgentType('main-agent')
     state.setDirectConnectServerUrl('http://localhost:1')
     state.setNeedsAutoModeExitAttachment(true)
-    state.setInitJsonSchema({ scope: 'delta' })
     state.clearRegisteredHooks()
     state.registerHookCallbacks({ PreToolUse: [cbHook], Stop: [extHook] } as never)
     state.getAgentColorMap().set('agent-a', 'blue' as never)
@@ -1164,9 +1159,9 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
     ['cacheEditingHeaderLatched'],
   )
   scopeLeg(
-    'resetSdkInitState touches ONLY schema + hooks',
-    () => state.resetSdkInitState(),
-    ['initJsonSchema', 'registeredHooks'],
+    'clearRegisteredHooks touches ONLY the registry',
+    () => state.clearRegisteredHooks(),
+    ['registeredHooks'],
   )
   scopeLeg(
     'switchSession touches ONLY the identity pair + slug eviction (cost/latches/boot SURVIVE)',
@@ -1222,7 +1217,7 @@ section('LAW PURITY — zero-arg getters do not mutate')
   ]
     .map(m => m[1]!)
     .sort()
-  check(`purity: source sweep found a plausible getter population (${getterNames.length})`, getterNames.length >= 85, String(getterNames.length))
+  check(`purity: source sweep found a plausible getter population (${getterNames.length})`, getterNames.length >= 84, String(getterNames.length))
   const missingFromModule = getterNames.filter(n => typeof (state as never as Record<string, unknown>)[n] !== 'function')
   check('purity: every swept getter exists on the module', missingFromModule.length === 0, missingFromModule.join(','))
   withClock(() => 2_000_000_000_000, () => {

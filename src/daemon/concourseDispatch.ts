@@ -24,6 +24,8 @@ type ConcourseReviveRefusal = Extract<ConcourseReviveOutcome, { outcome: 'refuse
 import { workspaceKindOf } from './concourseWorktrees.js'
 import { isolationAwarenessNote } from './isolationNote.js'
 import type { SaturnOrigin } from '../utils/messages/noticeRows.js'
+import type { InputBlock, InputRow } from '../rows/vocabulary.js'
+import { isStoredImageRef, readStoredImageRef } from '../utils/imageStore.js'
 
 export interface ConcourseDispatchRecordV1 {
   schema: 1
@@ -358,31 +360,37 @@ export function envelopeDigestOf(req: ConcourseDispatchRequest): string {
     .digest('hex')
 }
 
-export function buildConcoursePromptFrame(prompt: string, extras?: ConcoursePromptExtras, groundNote?: string): string {
+export async function buildConcoursePromptRow(prompt: string, extras?: ConcoursePromptExtras, groundNote?: string): Promise<InputRow> {
   const note = groundNote !== undefined && groundNote.length > 0 && extras?.mode !== 'bash' ? groundNote : undefined
-  const content =
-    extras?.content !== undefined
-      ? note !== undefined
-        ? [{ type: 'text', text: note }, ...extras.content]
-        : extras.content
-      : note !== undefined
-        ? `${note}\n\n${prompt}`
-        : prompt
-  return JSON.stringify({
-    type: 'user',
-    message: { role: 'user', content },
-    uuid:
-      extras?.identity !== undefined && UUID_SHAPE.test(extras.identity)
-        ? extras.identity
-        : randomUUID(),
+  const id = extras?.identity !== undefined && UUID_SHAPE.test(extras.identity) ? extras.identity : randomUUID()
+  if (extras?.mode === 'task-notification' && extras.agentId !== undefined) {
+    return { type: 'note', to: extras.agentId, content: prompt, id }
+  }
+  const stamp = {
+    id,
     ...(extras?.priority !== undefined ? { priority: extras.priority } : {}),
-    ...(extras?.mode === 'bash' ? { mode: 'bash' } : {}),
-    ...(extras?.mode === 'task-notification' && extras.agentId !== undefined
-      ? { mode: 'task-notification', agent_id: extras.agentId }
-      : {}),
-    ...(extras?.sentAt !== undefined ? { timestamp: extras.sentAt } : {}),
+    ...(extras?.sentAt !== undefined ? { sent_at: extras.sentAt } : {}),
     ...(extras?.origin !== undefined ? { origin: extras.origin } : {}),
-  })
+  }
+  if (extras?.mode === 'bash') return { type: 'shell', command: prompt, ...stamp }
+  if (extras?.content === undefined) return { type: 'prompt', content: note !== undefined ? `${note}\n\n${prompt}` : prompt, ...stamp }
+  const blocks: InputBlock[] = note !== undefined ? [{ type: 'text', text: note }] : []
+  for (const raw of extras.content) blocks.push(...(await inputBlocksOf(raw)))
+  return { type: 'prompt', content: blocks, ...stamp }
+}
+
+async function inputBlocksOf(raw: unknown): Promise<InputBlock[]> {
+  if (raw === null || typeof raw !== 'object') return []
+  const block = raw as { type?: unknown; text?: unknown; source?: { media_type?: unknown; data?: unknown } }
+  if (block.type === 'text' && typeof block.text === 'string') return [{ type: 'text', text: block.text }]
+  if (block.type !== 'image') return []
+  if (isStoredImageRef(block)) {
+    const read = await readStoredImageRef(block)
+    return read.kind === 'image' ? [{ type: 'image', media_type: read.block.source.media_type, data: read.block.source.data }] : [{ type: 'text', text: read.words }]
+  }
+  const source = block.source
+  if (source !== undefined && typeof source.media_type === 'string' && typeof source.data === 'string') return [{ type: 'image', media_type: source.media_type, data: source.data }]
+  return []
 }
 
 const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -539,7 +547,7 @@ export type ConcourseDispatchResult = {
 
 export interface ConcourseDispatchDeps {
   admit: (req: ConcourseAdmitRequest) => Promise<ConcourseAdmitResult>
-  deliver: (runnerId: string, prompt: string) => Promise<boolean>
+  deliver: (runnerId: string, row: InputRow) => Promise<boolean>
   revive?: (sessionId: string) => Promise<{ ok: boolean; error?: string; reason?: ConcourseReviveRefusal }>
   dir?: string
 }
@@ -673,7 +681,7 @@ export function makeConcourseDispatchHandler(
     publishDispatches(dispatches, deps.dir)
     const delivered = await deps.deliver(
       targetRec.runnerId,
-      buildConcoursePromptFrame(prompt, { ...extras, identity: rec.clientMessageId }),
+      await buildConcoursePromptRow(prompt, { ...extras, identity: rec.clientMessageId }),
     )
     if (delivered) {
       advance(rec, 'working', { deliveredAt: Date.now() })
@@ -887,7 +895,7 @@ export function makeConcourseDispatchHandler(
         : undefined
     const delivered = await deps.deliver(
       admitted.runnerId,
-      buildConcoursePromptFrame(prompt, { ...promptExtrasOf(req), identity: req.clientMessageId }, groundNote),
+      await buildConcoursePromptRow(prompt, { ...promptExtrasOf(req), identity: req.clientMessageId }, groundNote),
     )
     if (delivered) {
       advance(rec, 'working', { deliveredAt: Date.now() })

@@ -54,7 +54,7 @@ section('default posture (env unset) — the fix itself')
   check('no bypass flag by default', !argv.includes('--sovereign'))
   check('argv serves the runner door', argv[1] === 'runner' && !argv.includes('--input=rows'))
   check('argv still carries the floored --model', argv.includes('--model'))
-  check('the stream-json feed is complete on its own: argv carries no --verbose', !argv.includes('--verbose'))
+  check('the row feed is complete on its own: argv carries no --verbose', !argv.includes('--verbose'))
 }
 
 section('operator overrides — live-read per spawn, no re-import')

@@ -31,6 +31,7 @@ import { scanTranscriptLinesBackward } from '../utils/sessionStorage/transcriptR
 import { splitAppendSystemPrompt } from '../services/switchboard/runnerArgv.js'
 import { writeSessionCloseReceipts } from '../services/switchboard/sessionReceipts.js'
 import { RetirementFence } from './runnerQuiescence.js'
+import type { RunnerDoor } from './runnerConnection.js'
 import { deriveSessionKitForPreset, deriveSessionKitForWorkspace, kitStampOf, noteRecordlessResumeKit, restampSessionKit, type KitStampSource, type SessionKitV1 } from './sessionKit.js'
 
 
@@ -516,7 +517,6 @@ export function buildConcourseWorkerSpec(args: {
   restartReason?: string
 }): StreamJsonChildSpec {
   const runnerArgv = splitAppendSystemPrompt(args.runnerArgv ?? [])
-  const wireArgv = ['--partial'] as const
   return {
     model: foldLegacyWorkerModelKey(args.modelKey),
     ...(args.keyless ? { keyless: true } : {}),
@@ -541,18 +541,18 @@ export function buildConcourseWorkerSpec(args: {
     permissionMode: seatInitialPermissionMode(args.permissionMode),
     ...(args.bypassConsent === true ? { allowBypass: true as const } : {}),
     stripEnv: concourseWorkerStripEnv(),
+    partialRows: true,
     extraArgv: args.warm
-      ? [...wireArgv]
+      ? []
       : args.resume
-        ? ['--resume', args.sessionId!, ...wireArgv, ...runnerArgv.rest]
+        ? ['--resume', args.sessionId!, ...runnerArgv.rest]
         : [
             '--session-id',
             args.sessionId!,
             ...(args.title !== undefined ? ['--title', args.title] : []),
-            ...wireArgv,
             ...runnerArgv.rest,
           ],
-    respawnExtraArgv: args.warm ? [...wireArgv] : ['--resume', args.sessionId!, ...wireArgv, ...runnerArgv.rest],
+    respawnExtraArgv: args.warm ? [] : ['--resume', args.sessionId!, ...runnerArgv.rest],
   }
 }
 
@@ -2186,7 +2186,7 @@ export function retirementRefusal(rec: Pick<ConcourseWorkerRecordV1, 'lastDelive
 export async function retireConcourseSession(
   sessionId: string,
   by: string,
-  roster: { kill(short: string): boolean; control(short: string, frame: string): boolean; has(short: string): { alive: boolean; present: boolean }; expectExit?(short: string, expected: boolean): boolean },
+  roster: { kill(short: string): boolean; door(short: string): RunnerDoor | undefined; has(short: string): { alive: boolean; present: boolean }; expectExit?(short: string, expected: boolean): boolean },
   dir?: string,
   opts?: { reason?: string; exitWaitMs?: number },
 ): Promise<ConcourseRetireOutcome> {

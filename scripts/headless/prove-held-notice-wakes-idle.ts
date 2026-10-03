@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
 import { basename, join } from 'node:path'
-import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, isOutcome, makeTally, queueJournal, removeWorld, sleep, transcriptFiles, user, type Frame } from '../daemon/dupline-world.ts'
+import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, isOutcome, makeTally, queueJournal, removeWorld, sleep, transcriptFiles, type Frame } from '../daemon/dupline-world.ts'
 import { seedScratchHome, startScriptedFixture, type Script, type ScriptedRequest } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-held-notice-wakes-idle')
@@ -82,7 +82,7 @@ async function crashWithTheChildRunning(w: World, label: string): Promise<Crash>
   const before = fixture.requests.length
   hangNextChild = true
   const runner = bootRunner({ cwd: w.cwd, env: w.env, extraArgv: ['--session-id', sessionId] })
-  runner.send(user(`${LAUNCH_ASK} (${label})`, randomUUID()))
+  void runner.prompt(`${LAUNCH_ASK} (${label})`, randomUUID())
   const closing = await runner.waitFor("the parent's closing words", f => f.type === 'text' && f.parent_call_id === undefined && String(f.text ?? '').includes(LAUNCHED), bound(90_000))
   const hungBy = Date.now() + bound(30_000)
   while (Date.now() < hungBy && !fixture.requests.slice(before).some(isChild)) await sleep(100)
@@ -112,11 +112,11 @@ async function proveRoad(name: 'cold' | 'warm'): Promise<void> {
   const env: NodeJS.ProcessEnv = { ...w.env, MERCURY_CONCOURSE_WORKER: '1', ...(name === 'cold' ? { MERCURY_RUNNER_RESTART_REASON: 'crash' } : {}) }
   const runner = bootRunner({ cwd: w.cwd, env, ...(name === 'cold' ? { extraArgv: ['--resume', crash.sessionId] } : {}) })
   if (name === 'warm') {
-    const claimId = `req_claim_${randomUUID().slice(0, 8)}`
-    runner.send({ type: 'control_request', request_id: claimId, request: { subtype: 'claim_session', session_id: crash.sessionId, resume: true, restart_reason: 'crash' } })
-    const answer = await runner.waitFor('the claim answer', f => f.type === 'control_response' && (f.response as { request_id?: unknown } | undefined)?.request_id === claimId, bound(60_000))
-    const response = answer?.response as { subtype?: unknown; response?: { session_id?: unknown } } | undefined
-    tally.check('warm P3 the warm runner took the crashed session through the claim', response?.subtype === 'success' && response.response?.session_id === crash.sessionId, JSON.stringify(answer ?? null).slice(0, 240))
+    const answer = await runner.request('session/claim', { session_id: crash.sessionId, resume: true, restart_reason: 'crash' }, bound(60_000)).then(
+      result => ({ ok: true as const, result }),
+      (error: unknown) => ({ ok: false as const, error: error instanceof Error ? error.message : String(error) }),
+    )
+    tally.check('warm P3 the warm runner took the crashed session through the claim', answer.ok && (answer.result as { session_id?: unknown }).session_id === crash.sessionId, JSON.stringify(answer).slice(0, 240))
   }
 
   const started = await runner.waitFor('a turn on the restarted runner', f => f.type === 'turn' && f.state === 'started', bound(20_000))

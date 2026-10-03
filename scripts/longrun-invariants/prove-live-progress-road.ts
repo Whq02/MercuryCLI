@@ -11,7 +11,6 @@ process.env.MERCURY_CONFIG_DIR = HOME
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
 
-const { normalizeMessage } = await import('../../src/utils/queryHelpers.js')
 const { updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.js')
 const seatMod = await import('../../src/daemon/sessionSeat.js')
 const {
@@ -43,63 +42,22 @@ const until = async (cond: () => boolean, boundMs: number): Promise<number> => {
   return Date.now() - t0
 }
 
-section('§A the runner tap — one bounded latest-line frame per beat per tool')
-type TapFrame = {
-  type?: string
-  tool_use_id?: string
-  parent_tool_use_id?: string
-  progress?: {
-    kind?: string
-    data_type?: string
-    seq?: number
-    latest_line?: string
-    elapsed_time_seconds?: number
-    total_lines?: number
-    mcp_progress?: number
-    mcp_total?: number
-  }
-}
-const bashTick = (parent: string, n: number, output: string): unknown => ({
-  type: 'progress',
-  uuid: `uuid-${parent}-${n}`,
-  timestamp: new Date().toISOString(),
-  toolUseID: `progress_${parent}_${n}`,
-  parentToolUseID: parent,
-  data: { type: 'bash_progress', output, fullOutput: output, elapsedTimeSeconds: n, totalLines: n * 2 },
-})
+section('§A the runner tap — one bounded latest-line row per beat per tool (the turn runner, read at its source)')
 {
-  const first = [...normalizeMessage(bashTick('toolu_tap', 1, 'one\ntwo trailing  ') as never)] as TapFrame[]
-  check('a bash tick yields ONE ephemeral_tail tool_progress frame', first.length === 1 && first[0]!.type === 'tool_progress' && first[0]!.progress?.kind === 'ephemeral_tail')
-  check('…keyed by the PARENT tool-use id (the store key)', first[0]!.parent_tool_use_id === 'toolu_tap')
-  check('…carrying the LAST non-blank line, trimmed', first[0]!.progress?.latest_line === 'two trailing')
-  check('…with data_type + seq + elapsed + totals', first[0]!.progress?.data_type === 'bash_progress' && first[0]!.progress?.seq === 1 && first[0]!.progress?.elapsed_time_seconds === 1 && first[0]!.progress?.total_lines === 2)
-
-  const inBeat = [...normalizeMessage(bashTick('toolu_tap', 2, 'three') as never)]
-  check('a tick inside the beat is DROPPED at the source (never a backlog)', inBeat.length === 0)
-  await sleep(300)
-  const nextBeat = [...normalizeMessage(bashTick('toolu_tap', 3, 'four') as never)] as TapFrame[]
-  check('the next beat carries the then-latest line at the NEXT seq', nextBeat.length === 1 && nextBeat[0]!.progress?.seq === 2 && nextBeat[0]!.progress?.latest_line === 'four')
-
-  const long = 'x'.repeat(400)
-  const bounded = [...normalizeMessage(bashTick('toolu_bound', 1, long) as never)] as TapFrame[]
-  check('a 400-char line lands wire-bounded at 300 + the honest cut mark', bounded[0]!.progress?.latest_line?.length === 301 && bounded[0]!.progress!.latest_line!.endsWith('…') === true)
-
-  const mcp = [...normalizeMessage({
-    type: 'progress', uuid: 'uuid-mcp', timestamp: new Date().toISOString(),
-    toolUseID: 'progress_mcp_1', parentToolUseID: 'toolu_mcp',
-    data: { type: 'mcp_progress', status: 'progress', serverName: 's', toolName: 't', progress: 3, total: 10, progressMessage: 'stage a\nstage b' },
-  } as never)] as TapFrame[]
-  check('an mcp tick carries the message tail + the bar numbers', mcp[0]!.progress?.data_type === 'mcp_progress' && mcp[0]!.progress?.latest_line === 'stage b' && mcp[0]!.progress?.mcp_progress === 3 && mcp[0]!.progress?.mcp_total === 10)
-
-  const agent = [...normalizeMessage({
-    type: 'progress', uuid: 'uuid-agent', timestamp: new Date().toISOString(),
-    toolUseID: 'progress_agent_1', parentToolUseID: 'toolu_agent',
-    data: { type: 'agent_progress', message: { type: 'assistant', uuid: 'am', message: { role: 'assistant', content: [{ type: 'text', text: 'sub reply', citations: [] }] } } },
-  } as never)] as Array<{ type?: string }>
-  check('agent_progress still rides the TRAIL arm (never ephemeral_tail)', agent.length === 1 && agent[0]!.type === 'assistant')
+  const turn = readFileSync(join(import.meta.dir, '../../src/rows/turn.ts'), 'utf8')
+  const tapAt = turn.indexOf('if (isEphemeralToolProgress(data.type)) {')
+  const tap = turn.slice(tapAt, turn.indexOf('return rows\n      }', tapAt))
+  check('a shell or mcp progress tick yields ONE tool_update row through toolUpdateRow', tap.includes('toolUpdateRow(scopeFor(parent), {') && tap.includes('callId: progress.toolUseID,'))
+  check('…keyed by the PARENT tool-use id (the store key rides parent_call_id)', tap.includes('const parent = progress.parentToolUseID !== progress.toolUseID ? progress.parentToolUseID : undefined'))
+  check('…carrying the LAST non-blank line, trimmed', turn.includes("const lines = text.split('\\n')") && turn.includes('const line = lines[i]!.trim()') && turn.includes("if (line === '') continue"))
+  check('…with the source word, the tick, elapsed and totals', tap.includes("source: isMcp ? 'mcp' : data.type === 'powershell_progress' ? 'powershell' : 'shell',") && tap.includes('const tick = (state?.tick ?? 0) + 1') && tap.includes("elapsedS: typeof data.elapsedTimeSeconds === 'number' ? data.elapsedTimeSeconds : undefined,") && tap.includes("lines: !isMcp && typeof shell.totalLines === 'number' ? shell.totalLines : undefined,"))
+  check('a tick inside the beat is DROPPED at the source (never a backlog)', turn.includes('const TOOL_UPDATE_BEAT_MS = 250') && tap.includes('if (state !== undefined && now - state.lastEmitMs < TOOL_UPDATE_BEAT_MS) return rows'))
+  check('a long line lands wire-bounded at 300 + the honest cut mark', turn.includes('const TOOL_UPDATE_LINE_MAX = 300') && turn.includes('return line.length > TOOL_UPDATE_LINE_MAX ? `${line.slice(0, TOOL_UPDATE_LINE_MAX)}…` : line'))
+  check('an mcp tick carries the message tail + the bar numbers', tap.includes('line: isMcp ? latestLineOf(mcp.progressMessage) : latestLineOf(shell.output),') && tap.includes("progress: isMcp && typeof mcp.progress === 'number' ? mcp.progress : undefined,") && tap.includes("total: isMcp && typeof mcp.total === 'number' ? mcp.total : undefined,"))
+  check('agent_progress still rides the TRAIL arm (the inner message\'s own rows, never a tool_update)', turn.includes("if (data.type === 'agent_progress' || data.type === 'skill_progress') {") && turn.includes('return rowsOfMessage(inner, progress.parentToolUseID)'))
 }
 
-section('§B the seat fold — frames → the session-progress projection')
+section('§B the seat fold — tool_update rows → the session-progress projection')
 const DAEMON_DIR = mkdtempSync(join(tmpdir(), 'live-progress-daemon-'))
 const SHORT = 'concourse-w7'
 const SESSION = 'sess-live-road'
@@ -109,36 +67,37 @@ updateConcourseWorkers(workers => {
     isolation: 'shared', modelKey: 'claude-opus-5', spawnedAt: Date.now(), lastLiveAt: Date.now(),
   } as never
 }, DAEMON_DIR)
-const roster = { control: () => true, list: () => [], patchSeatModel: () => true, patchSeatEffort: () => true }
-const wireFrame = (parent: string, seq: number, line: string): string =>
-  JSON.stringify({
-    type: 'tool_progress', tool_use_id: `progress_${parent}_${seq}`, parent_tool_use_id: parent,
-    session_id: SESSION, uuid: `u-${parent}-${seq}`,
-    progress: { kind: 'ephemeral_tail', data_type: 'bash_progress', seq, latest_line: line, elapsed_time_seconds: seq, total_lines: seq },
-  })
+const roster = { door: () => undefined, list: () => [], patchSeatModel: () => true, patchSeatEffort: () => true }
+let seq = 0
+const envelope = (o: Record<string, unknown>): Record<string, unknown> => ({ seq: ++seq, timestamp: 't', session_id: SESSION, turn: 1, ...o })
+const updateRow = (parent: string, tick: number, line: string): Record<string, unknown> =>
+  envelope({ type: 'tool_update', call_id: `progress_${parent}_${tick}`, parent_call_id: parent, tick, source: 'shell', line, elapsed_s: tick, lines: tick })
+const USAGE = { input_tokens: 1, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 1 }
+const outcomeRow = (): Record<string, unknown> => envelope({ type: 'outcome', schema: 1, turn_id: 't-road', status: 'completed', steps: 1, wall_ms: 1, usage: USAGE, models: [], denials: [] })
+const feed = (row: Record<string, unknown>): void => seatMod.onSeatRow(SHORT, row as never, roster as never, DAEMON_DIR)
 {
-  seatMod.onSeatLine(SHORT, wireFrame('toolu_A', 1, 'first'), roster as never, DAEMON_DIR)
-  seatMod.onSeatLine(SHORT, wireFrame('toolu_B', 1, 'beside it'), roster as never, DAEMON_DIR)
-  seatMod.onSeatLine(SHORT, wireFrame('toolu_A', 2, 'second'), roster as never, DAEMON_DIR)
-  seatMod.onSeatLine(SHORT, wireFrame('toolu_A', 2, 'stale-duplicate'), roster as never, DAEMON_DIR)
+  feed(updateRow('toolu_A', 1, 'first'))
+  feed(updateRow('toolu_B', 1, 'beside it'))
+  feed(updateRow('toolu_A', 2, 'second'))
+  feed(updateRow('toolu_A', 2, 'stale-duplicate'))
   await sleep(200)
   const p = readSessionProgress(SESSION, DAEMON_DIR)
   check('two tools fold side by side, keyed by parent id', p?.tools['toolu_A'] !== undefined && p?.tools['toolu_B'] !== undefined)
   check('a moved seq REPLACES the entry (latest line only)', p?.tools['toolu_A']?.latestLine === 'second' && p?.tools['toolu_A']?.seq === 2)
   check('a stale duplicate seq never regresses the entry', p?.tools['toolu_A']?.latestLine !== 'stale-duplicate')
 
-  seatMod.onSeatLine(SHORT, '{"type":"tool_progress","progress":{"kind":"ephemeral_tail"}}', roster as never, DAEMON_DIR)
-  seatMod.onSeatLine(SHORT, 'torn line mentioning "ephemeral_tail" mid-write', roster as never, DAEMON_DIR)
+  feed(envelope({ type: 'tool_update', source: 'shell', line: 'no call id, no tick' }))
+  feed(envelope({ type: 'tool_update', call_id: 'progress_x', tick: 'one', source: 'shell' }))
   await sleep(150)
   const p2 = readSessionProgress(SESSION, DAEMON_DIR)
-  check('malformed/torn frames fold to NOTHING (fail-soft)', Object.keys(p2?.tools ?? {}).length === 2)
+  check('malformed rows fold to NOTHING (fail-soft)', Object.keys(p2?.tools ?? {}).length === 2)
 
-  seatMod.onSeatLine(SHORT, JSON.stringify({ type: 'result', subtype: 'success' }), roster as never, DAEMON_DIR)
+  feed(outcomeRow())
   await sleep(150)
   const p3 = readSessionProgress(SESSION, DAEMON_DIR)
-  check('CLEAR-ON-SETTLE: the result frame publishes the EMPTY map', p3 !== null && Object.keys(p3.tools).length === 0)
+  check('CLEAR-ON-SETTLE: the outcome row publishes the EMPTY map', p3 !== null && Object.keys(p3.tools).length === 0)
 
-  seatMod.onSeatLine(SHORT, wireFrame('toolu_C', 1, 'mid-turn line'), roster as never, DAEMON_DIR)
+  feed(updateRow('toolu_C', 1, 'mid-turn line'))
   await sleep(150)
   seatMod.onSeatSpawned(SHORT, roster as never, DAEMON_DIR)
   await sleep(150)
@@ -252,15 +211,14 @@ section('§E mixed-version — absence is lawful both directions')
   ] as never)
   check('…and Layer 1 still pulses (the records fold needs no wire)', fold.inProgressToolUseIDs.has('toolu_old'))
 
-  const { SDKToolProgressMessageSchema } = await import('../../src/entrypoints/sdk/coreSchemas.js')
-  const sample = JSON.parse(wireFrame('toolu_S', 1, 'schema-legal')) as Record<string, unknown>
-  const schema = (SDKToolProgressMessageSchema as unknown as () => { safeParse: (v: unknown) => { success: boolean } })()
-  check('the frame is WIRE-LEGAL to the declared SDK schema (an old screen parses and ignores)', schema.safeParse(sample).success === true)
+  const { ToolUpdateRowSchema } = await import('../../src/rows/vocabulary.js')
+  const sample = updateRow('toolu_S', 1, 'schema-legal')
+  check('the row is the DECLARED tool_update row (every row reader parses it; an old screen ignores an unknown type)', ToolUpdateRowSchema().safeParse(sample).success === true)
 
   const seat = readFileSync(join(import.meta.dir, '../../src/daemon/sessionSeat.ts'), 'utf8')
-  check('the seat arm is substring-dispatched (an OLD daemon simply has no arm — no throw road)',
-    seat.includes(`line.includes('"ephemeral_tail"')`))
-  check('the seat republishes its whole progress map and clears it at the result frame (transient by design, no last-line guarantee)',
+  check("the seat's fold is the row's own arm (a tool_update case — no substring sniff of a line)",
+    seat.includes("case 'tool_update':") && !/includes\('"ephemeral_tail"'\)/.test(seat))
+  check('the seat republishes its whole progress map and clears it at the outcome row (transient by design, no last-line guarantee)',
     seat.includes('tools: Object.fromEntries(seat.progress)') && seat.includes('seat.progress.clear()'))
 }
 

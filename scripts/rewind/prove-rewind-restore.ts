@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { spawn } from 'node:child_process'
+import { hostRunner } from '../lib/runnerHost.ts'
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -108,44 +108,34 @@ const env: Record<string, string> = {
   MERCURY_CREWS_DIR: join(home, 'crews'),
   MERCURY_CONCOURSE_WORKER: '1',
 }
-const child = spawn(
-  nodeBin,
-  [DIST, 'run', '--format', 'rows', '--input', 'rows', '--model', 'claude-opus-4-8', '--session-id', sessionId, '--allowed-tools', 'Read', 'Write'],
-  { cwd, env },
-)
-const killer = setTimeout(() => child.kill('SIGKILL'), 200_000)
 const envelopes: Envelope[] = []
 const waiters: Array<{ pred: (e: Envelope) => boolean; res: (e: Envelope) => void }> = []
-let buf = ''
-child.stdout.on('data', d => {
-  buf += String(d)
-  for (;;) {
-    const nl = buf.indexOf('\n')
-    if (nl === -1) break
-    const line = buf.slice(0, nl)
-    buf = buf.slice(nl + 1)
-    if (!line.trim()) continue
-    try {
-      const e = JSON.parse(line) as Envelope
-      envelopes.push(e)
-      for (let i = waiters.length - 1; i >= 0; i--) {
-        if (waiters[i]!.pred(e)) {
-          const w = waiters.splice(i, 1)[0]!
-          w.res(e)
-        }
+const host = hostRunner({
+  node: nodeBin,
+  dist: DIST,
+  argv: ['--model', 'claude-opus-4-8', '--session-id', sessionId, '--allowed-tools', 'Read', 'Write'],
+  cwd,
+  env,
+  home,
+  onRow: row => {
+    const e = row as Envelope
+    envelopes.push(e)
+    for (let i = waiters.length - 1; i >= 0; i--) {
+      if (waiters[i]!.pred(e)) {
+        const w = waiters.splice(i, 1)[0]!
+        w.res(e)
       }
-    } catch {
     }
-  }
+  },
 })
+const child = host.child
+const killer = setTimeout(() => child.kill('SIGKILL'), 200_000)
 let stderr = ''
-child.stderr.on('data', d => (stderr += d))
-const exited = new Promise<number | null>(res =>
-  child.on('close', code => {
-    clearTimeout(killer)
-    res(code)
-  }),
-)
+child.stderr!.on('data', d => (stderr += d))
+const exited = host.exited.then(code => {
+  clearTimeout(killer)
+  return code
+})
 const waitFor = (pred: (e: Envelope) => boolean, label: string, timeoutMs = 60_000): Promise<Envelope | undefined> =>
   new Promise(res => {
     const hit = envelopes.find(pred)
@@ -162,62 +152,61 @@ const waitFor = (pred: (e: Envelope) => boolean, label: string, timeoutMs = 60_0
       },
     })
   })
-const send = (o: unknown): void => {
-  child.stdin.write(JSON.stringify(o) + '\n')
-}
-let seq = 0
-async function control(request: Record<string, unknown>): Promise<Record<string, unknown> | undefined> {
-  const requestId = `mercury-seat-rewind-prover-${++seq}`
-  send({ type: 'control_request', request_id: requestId, request })
-  const resp = await waitFor(e => e.type === 'control_response' && j(e).includes(requestId), `control ${String(request.subtype)}`)
-  return (resp as { response?: { response?: Record<string, unknown> } } | undefined)?.response?.response
+async function rewind(params: { user_message_id: string; mode: 'code' | 'conversation' | 'both'; dry_run?: boolean }): Promise<Record<string, unknown> | undefined> {
+  return host.request('session/rewind', params).then(
+    result => result as Record<string, unknown>,
+    (error: unknown) => {
+      console.log(`  [dbg] session/rewind ${params.mode}: ${error instanceof Error ? error.message : String(error)}`)
+      return undefined
+    },
+  )
 }
 async function turn(text: string, uuid: string): Promise<Envelope | undefined> {
-  const before = envelopes.filter(e => e.type === 'result').length
-  send({ type: 'user', uuid, message: { role: 'user', content: text }, parent_tool_use_id: null })
-  return waitFor(e => e.type === 'result' && envelopes.filter(x => x.type === 'result').length > before, `result for ${text}`)
+  const before = envelopes.filter(e => e.type === 'outcome').length
+  void host.prompt(text, { id: uuid }).catch(() => undefined)
+  return waitFor(e => e.type === 'outcome' && envelopes.filter(x => x.type === 'outcome').length > before, `outcome for ${text}`)
 }
 const readTranscriptRows = (): string[] => {
   const path = findTranscript(configDir, sessionId)
   return path ? readFileSync(path, 'utf8').split('\n').filter(l => l.trim() !== '') : []
 }
 
-send({ type: 'control_request', request_id: 'req_init', request: { subtype: 'initialize' } })
-await waitFor(e => e.type === 'control_response' && j(e).includes('req_init'), 'initialize')
+const init = await host.initialize().catch(() => null)
+check('initialize is answered with the session id', init?.session_id === sessionId, j(init))
 
 const turn1 = randomUUID()
 const turn2 = randomUUID()
 const r1 = await turn('turn one: set alpha and beta', turn1)
 const r2 = await turn('turn two: set alpha again', turn2)
-check('the two tool turns settled', r1?.subtype === 'success' && r2?.subtype === 'success', j({ r1: r1?.subtype, r2: r2?.subtype, stderr: stderr.slice(-300) }))
+check('the two tool turns settled', r1?.status === 'completed' && r2?.status === 'completed', j({ r1: r1?.status, r2: r2?.status, stderr: stderr.slice(-300) }))
 check('alpha holds the turn-2 bytes and beta the turn-1 bytes before any rewind', readFileSync(alpha, 'utf8') === 'alpha-2\n' && readFileSync(beta, 'utf8') === 'beta-1\n', `${readFileSync(alpha, 'utf8')}|${readFileSync(beta, 'utf8')}`)
 
 section('§1 — the facts: capture on, both turns restorable')
 {
-  const facts = (await control({ subtype: 'session_facts' })) as { file_checkpoints?: { capture?: boolean; restorable?: string[] } } | undefined
+  const facts = (await host.request('session/facts', {}).catch(() => undefined)) as { file_checkpoints?: { capture?: boolean; restorable?: string[] } } | undefined
   const fc = facts?.file_checkpoints
-  check('session_facts carries file_checkpoints with capture ON', fc?.capture === true, j(fc))
+  check('session/facts carries file_checkpoints with capture ON', fc?.capture === true, j(fc))
   check('…and both turns are restorable (the cockpit offers a code restore there)', Array.isArray(fc?.restorable) && fc.restorable.includes(turn1) && fc.restorable.includes(turn2), j(fc?.restorable))
 }
 
 section('§2 — code: a dry run names the file and writes nothing; the restore puts the bytes back')
 {
-  const dry = (await control({ subtype: 'rewind_session', user_message_id: turn2, mode: 'code', dry_run: true })) as Receipt | undefined
+  const dry = (await rewind({ user_message_id: turn2, mode: 'code', dry_run: true })) as Receipt | undefined
   check('the dry run answers applied + dry_run naming alpha with its counts', dry?.outcome === 'applied' && dry.dry_run === true && dry.code?.files_changed.length === 1 && dry.code.files_changed[0]!.endsWith('alpha.txt') && dry.code.insertions === 1 && dry.code.deletions === 1, j(dry))
   check('…and wrote nothing', readFileSync(alpha, 'utf8') === 'alpha-2\n')
-  const applied = (await control({ subtype: 'rewind_session', user_message_id: turn2, mode: 'code' })) as Receipt | undefined
+  const applied = (await rewind({ user_message_id: turn2, mode: 'code' })) as Receipt | undefined
   check('the restore to turn 2 answers applied naming alpha', applied?.outcome === 'applied' && applied.code?.files_changed.length === 1 && applied.code.files_changed[0]!.endsWith('alpha.txt'), j(applied))
   check('alpha is back to its turn-1 bytes (the state when turn 2 began)', readFileSync(alpha, 'utf8') === 'alpha-1\n', readFileSync(alpha, 'utf8'))
   check('beta, untouched since turn 1, is unchanged', readFileSync(beta, 'utf8') === 'beta-1\n')
-  const again = (await control({ subtype: 'rewind_session', user_message_id: turn2, mode: 'code' })) as Receipt | undefined
+  const again = (await rewind({ user_message_id: turn2, mode: 'code' })) as Receipt | undefined
   check('a second restore to the same point is a typed noop (the files already match)', again?.outcome === 'noop', j(again))
-  const toOne = (await control({ subtype: 'rewind_session', user_message_id: turn1, mode: 'code' })) as Receipt | undefined
+  const toOne = (await rewind({ user_message_id: turn1, mode: 'code' })) as Receipt | undefined
   check('the restore to turn 1 puts BOTH files back to their pre-session bytes', toOne?.outcome === 'applied' && readFileSync(alpha, 'utf8') === 'alpha-0\n' && readFileSync(beta, 'utf8') === 'beta-0\n', j({ toOne, alpha: readFileSync(alpha, 'utf8'), beta: readFileSync(beta, 'utf8') }))
 }
 
 section('§3 — no checkpoint: a point the store never saw answers typed')
 {
-  const none = (await control({ subtype: 'rewind_session', user_message_id: randomUUID(), mode: 'code' })) as Receipt | undefined
+  const none = (await rewind({ user_message_id: randomUUID(), mode: 'code' })) as Receipt | undefined
   check("an unknown point answers refused 'not-found' (typed, never an error frame)", none?.outcome === 'refused' && none.refusal === 'not-found', j(none))
 }
 
@@ -231,7 +220,7 @@ section('§4 — drift: a hand edit after the session\'s last touch refuses by n
   writeFileSync(alpha, 'alpha-HAND\n')
   const future = new Date(Date.now() + 5_000)
   utimesSync(alpha, future, future)
-  const drift = (await control({ subtype: 'rewind_session', user_message_id: turn1, mode: 'code' })) as Receipt | undefined
+  const drift = (await rewind({ user_message_id: turn1, mode: 'code' })) as Receipt | undefined
   check("the restore refuses 'drift' NAMING alpha", drift?.outcome === 'refused' && drift.refusal === 'drift' && (drift.detail ?? '').includes('alpha.txt'), j(drift))
   check('…the hand edit survives (nothing was restored)', readFileSync(alpha, 'utf8') === 'alpha-HAND\n', readFileSync(alpha, 'utf8'))
   check('…and the sibling beta was NOT restored either (all or nothing)', readFileSync(beta, 'utf8') === 'beta-1\n', readFileSync(beta, 'utf8'))
@@ -241,9 +230,9 @@ section('§4 — drift: a hand edit after the session\'s last touch refuses by n
 section('§5 — conversation: the record lands in THIS transcript and the next model call is the classic truncation')
 {
   const rowsBefore = readTranscriptRows().length
-  const dry = (await control({ subtype: 'rewind_session', user_message_id: turn2, mode: 'conversation', dry_run: true })) as Receipt | undefined
+  const dry = (await rewind({ user_message_id: turn2, mode: 'conversation', dry_run: true })) as Receipt | undefined
   check('a conversation dry run names the boundary and appends nothing', dry?.outcome === 'applied' && dry.conversation?.turn_uuid === turn2 && readTranscriptRows().length === rowsBefore, j(dry))
-  const applied = (await control({ subtype: 'rewind_session', user_message_id: turn2, mode: 'conversation' })) as Receipt | undefined
+  const applied = (await rewind({ user_message_id: turn2, mode: 'conversation' })) as Receipt | undefined
   check('the conversation rewind answers applied with the turn boundary', applied?.outcome === 'applied' && applied.conversation?.turn_uuid === turn2 && (applied.conversation.removed ?? 0) >= 2, j(applied))
   const rows = readTranscriptRows()
   check('the record persisted to THIS session\'s transcript (same id, same file — append-only)', rows.length > rowsBefore && rows.some(l => l.includes('mercury-rewind-record') && l.includes(turn2)), `rows ${rowsBefore} → ${rows.length}`)
@@ -251,7 +240,7 @@ section('§5 — conversation: the record lands in THIS transcript and the next 
   const callsBefore = fixture.messageRequests().length
   const turn3 = randomUUID()
   const r3 = await turn('turn three: after the rewind', turn3)
-  check('the next turn ran', r3?.subtype === 'success', j({ s: r3?.subtype }))
+  check('the next turn ran', r3?.status === 'completed', j({ s: r3?.status }))
   const request = fixture.messageRequests()[callsBefore]
   const body = j(request?.body ?? {})
   check('the model saw the first turn', body.includes('turn one: set alpha and beta'))
@@ -264,8 +253,8 @@ section('§6 — both: the files and the boundary in one receipt')
 {
   const turn4 = randomUUID()
   const r4 = await turn('turn four: set alpha to four', turn4)
-  check('turn four settled with alpha at four', r4?.subtype === 'success' && readFileSync(alpha, 'utf8') === 'alpha-4\n', `${r4?.subtype} ${readFileSync(alpha, 'utf8')}`)
-  const both = (await control({ subtype: 'rewind_session', user_message_id: turn4, mode: 'both' })) as Receipt | undefined
+  check('turn four settled with alpha at four', r4?.status === 'completed' && readFileSync(alpha, 'utf8') === 'alpha-4\n', `${r4?.status} ${readFileSync(alpha, 'utf8')}`)
+  const both = (await rewind({ user_message_id: turn4, mode: 'both' })) as Receipt | undefined
   check('one receipt carries the files AND the boundary', both?.outcome === 'applied' && both.mode === 'both' && both.code?.files_changed.length === 1 && both.conversation?.turn_uuid === turn4, j(both))
   check('alpha is back to its state when turn four began', readFileSync(alpha, 'utf8') === 'alpha-2\n', readFileSync(alpha, 'utf8'))
   const rows = readTranscriptRows()
@@ -273,10 +262,10 @@ section('§6 — both: the files and the boundary in one receipt')
   const callsBefore = fixture.messageRequests().length
   const r5 = await turn('turn five: after both', randomUUID())
   const body = j(fixture.messageRequests()[callsBefore]?.body ?? {})
-  check('the model\'s next call excludes turn four and keeps turn three', r5?.subtype === 'success' && !body.includes('turn four: set alpha to four') && body.includes('turn three: after the rewind'), body.slice(0, 300))
+  check('the model\'s next call excludes turn four and keeps turn three', r5?.status === 'completed' && !body.includes('turn four: set alpha to four') && body.includes('turn three: after the rewind'), body.slice(0, 300))
 }
 
-child.stdin.end()
+host.end()
 const exit = await exited
 check('the runner exited clean', exit === 0, `exit=${exit} stderr=${stderr.slice(-300)}`)
 await fixture.close()

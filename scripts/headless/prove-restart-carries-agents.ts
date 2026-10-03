@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto'
 import { appendFileSync, cpSync, existsSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
 import { basename, join } from 'node:path'
-import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, makeTally, queueJournal, removeWorld, sleep, transcriptFiles, user, type Frame, type QueueJournalRow } from '../daemon/dupline-world.ts'
+import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, makeTally, queueJournal, removeWorld, sleep, transcriptFiles, type Frame, type QueueJournalRow } from '../daemon/dupline-world.ts'
 import { seedScratchHome, startScriptedFixture, type Script, type ScriptedRequest } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-restart-carries-agents')
@@ -102,7 +102,7 @@ const envFor = (home: string, reason?: string): NodeJS.ProcessEnv => {
 
 tally.section('the first runner launches two background agents, then dies with both still running')
 const first = bootRunner({ cwd, env: envFor(crashHome) })
-first.send(user(FIRST_ASK, randomUUID()))
+void first.prompt(FIRST_ASK, randomUUID())
 const bothOnWire = await waitUntil(() => fixture.requests.some(isDone) && fixture.requests.some(isLive), bound(90_000))
 tally.check("both children's first requests reached the wire", bothOnWire, `${fixture.requests.length} requests`)
 const sessionFileOf = (): string | undefined => mainTranscripts(crashHome).find(p => readText(p).includes(FIRST_ASK))
@@ -212,7 +212,7 @@ async function carriedLeg(home: string, reason: 'crash' | 'stop', row: string): 
   const lineRows = inputRowsWith(homeSession, LINE)
   tally.check('…under its original identity (the input record carries the line\'s uuid)', lineRows.some(r => (r.annotations as { uuid?: string } | undefined)?.uuid === LINE_UUID || r.recordId === LINE_UUID), JSON.stringify(lineRows.map(r => ({ recordId: r.recordId, annotations: r.annotations }))).slice(0, 300))
   const asked = Date.now()
-  runner.send(user(QUESTION, randomUUID()))
+  void runner.prompt(QUESTION, randomUUID())
   const readBack = await waitUntil(() => fixture.requests.some(r => r.atMs >= asked && !isLive(r) && !isDone(r) && textsOf(r).includes(DONE_REPLY)), bound(60_000))
   tally.check("the main agent reads the finished agent's result, not a stop", readBack)
   const started = await runner.waitFor("the relaunched agent's start row", f => f.type === 'task' && f.state === 'started' && f.task_id === live!.agentId, bound(20_000))
@@ -229,7 +229,7 @@ tally.section('a plain resume keeps its words: both agents get the stop notice, 
   const from = queueJournal(join(plainHome, 'projects')).length
   const startedAt = Date.now()
   const third = bootRunner({ cwd, env: envFor(plainHome), extraArgv: ['--resume', sessionId] })
-  third.send(user(QUESTION, randomUUID()))
+  void third.prompt(QUESTION, randomUUID())
   await waitUntil(() => fixture.requests.some(r => r.atMs >= startedAt && !isLive(r) && !isDone(r) && textsOf(r).includes(QUESTION)), bound(60_000))
   await waitUntil(() => enqueuedAfter(plainHome, from).length >= 2, bound(20_000))
   await sleep(bound(1_000))

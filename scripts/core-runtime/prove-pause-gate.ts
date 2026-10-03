@@ -561,8 +561,7 @@ section('R4 THE FRAME PER PARK — the row\'s words reach the daemon\'s facts wi
       workspaceKind: 'plain-folder',
     } as never
   }, daemonDir)
-  type Frame = { type: string; request_id: string; request: { subtype: string } }
-  const requests: Array<Frame & { at: number }> = []
+  const { standInRunner } = await import('../lib/seatDoor.ts')
   let rowsNow: () => WorkRowV1[] = () => []
   const factsAnswer = (): Record<string, unknown> =>
     sessionFactsToWire({
@@ -578,21 +577,9 @@ section('R4 THE FRAME PER PARK — the row\'s words reach the daemon\'s facts wi
       mission: [],
       pauseGate: { paused: gate?.paused() ?? false, parked: gate?.parked().length ?? 0 },
     } as never)
-  const roster = {
-    control: (short: string, raw: string): boolean => {
-      if (short !== RUNNER) return false
-      const frame = JSON.parse(raw) as Frame
-      requests.push({ ...frame, at: Date.now() })
-      if (frame.request.subtype === 'session_facts') {
-        const line = JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: frame.request_id, response: factsAnswer() } })
-        queueMicrotask(() => seat.onSeatLine(RUNNER, line, roster as never, daemonDir))
-      }
-      return true
-    },
-    list: () => [],
-    patchSeatModel: () => true,
-    patchSeatEffort: () => true,
-  }
+  const stand = standInRunner({ autoAnswer: { 'session/facts': () => factsAnswer() } })
+  const requests = stand.requests
+  const roster = stand.roster()
   const framesOut: Array<Record<string, unknown> & { at: number }> = []
   const QUARTER_SECOND_MS = 250
   const RELAY_ALLOWANCE_MS = 50
@@ -602,7 +589,7 @@ section('R4 THE FRAME PER PARK — the row\'s words reach the daemon\'s facts wi
   const stdout = setInterval(() => {
     for (const event of drainRows()) {
       framesOut.push({ ...(event as Record<string, unknown>), at: Date.now() })
-      seat.onSeatLine(RUNNER, JSON.stringify(event), roster as never, daemonDir)
+      seat.onSeatRow(RUNNER, event as never, roster as never, daemonDir)
       if ((event as { type?: unknown; state?: unknown }).type === 'task' && (event as { state?: unknown }).state === 'progress') {
         const reference: Reference = { frameAt: Date.now(), firedAt: null }
         references.push(reference)
@@ -621,12 +608,12 @@ section('R4 THE FRAME PER PARK — the row\'s words reach the daemon\'s facts wi
     const stampAt = landed ? factsStamp() : noticedAt
     const reference = references.find(r => r.frameAt >= since) ?? null
     if (reference !== null) await until(() => reference.firedAt !== null, `${what}: the prover's own quarter-second timer fires`, 3_000)
-    const request = requests.find(r => r.at >= since && r.request.subtype === 'session_facts') ?? null
+    const request = requests.find(r => r.at >= since && r.method === 'session/facts') ?? null
     return { landed, frameAt: reference?.frameAt ?? null, requestAt: request?.at ?? null, referenceFiredAt: reference?.firedAt ?? null, stampAt, noticedAt }
   }
   const offset = (at: number | null, since: number): string => (at === null ? 'never' : `+${at - since} ms`)
   const segments = (since: number, l: Landing): string =>
-    `the frame at the seat ${offset(l.frameAt, since)} · the seat's re-ask ${offset(l.requestAt, since)} · the prover's quarter-second timer fired ${offset(l.referenceFiredAt, since)} · the daemon's stamp ${offset(l.landed ? l.stampAt : null, since)} · the file read back ${offset(l.noticedAt, since)}; facts requests since: ${requests.filter(r => r.at >= since).map(r => `${r.request.subtype}@${offset(r.at, since)}`).join(', ') || 'none'}`
+    `the frame at the seat ${offset(l.frameAt, since)} · the seat's re-ask ${offset(l.requestAt, since)} · the prover's quarter-second timer fired ${offset(l.referenceFiredAt, since)} · the daemon's stamp ${offset(l.landed ? l.stampAt : null, since)} · the file read back ${offset(l.noticedAt, since)}; facts requests since: ${requests.filter(r => r.at >= since).map(r => `${r.method}@${offset(r.at, since)}`).join(', ') || 'none'}`
 
   type Measured = { parkedAt: number; landedAt: number; clearedAt: number; clearLandedAt: number; frames: Array<Record<string, unknown> & { at: number }> }
   const measure = async (label: string, two: Rig, run: string, rowOf: () => WorkRowV1, parkedRow: (row: WorkRowV1) => boolean, doPause: () => boolean, doResume: () => boolean): Promise<Measured | null> => {
@@ -716,6 +703,7 @@ section('R4 THE FRAME PER PARK — the row\'s words reach the daemon\'s facts wi
     gate?.resume()
   }
   clearInterval(stdout)
+  stand.close()
 }
 
 clearTimeout(guard)

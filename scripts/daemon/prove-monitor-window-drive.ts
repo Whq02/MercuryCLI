@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { execSync } from 'node:child_process'
 import { appendFileSync, existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { bootRunner, bound, carriersOf, childEnv, DIST, exportWorld, isSession, j, makeTally, removeWorld, SCRATCH_ROOT, seedHome, sleep, user } from './dupline-world.ts'
+import { bootRunner, bound, carriersOf, childEnv, DIST, exportWorld, isSession, j, makeTally, removeWorld, SCRATCH_ROOT, seedHome, sleep } from './dupline-world.ts'
 
 const { check, section, finish } = makeTally('prove-monitor-window-drive')
 section('a persistent watch through a closed usage window: the lines that land meanwhile reach the model together, once, when the window reopens')
@@ -139,7 +139,7 @@ if (!existsSync(DIST)) {
   check('the built bundle is present (the drive boots the BUILT product)', false, DIST)
 } else {
   const runner = bootRunner({ cwd: CWD, env })
-  runner.send(user(ARM_ASK, 'u-arm'))
+  void runner.prompt(ARM_ASK, 'u-arm')
   const init = await runner.waitFor('the session row', isSession, bound(90_000))
   check('the headless session booted on the fixture', init !== null, runner.stderr().slice(-400))
   const armed = await waitWire('the watch armed', w => w.kind === 'request' && w.ask.trim() === ARM_ASK && w.step >= 1, bound(60_000))
@@ -147,7 +147,7 @@ if (!existsSync(DIST)) {
   await sleep(1_500)
 
   wallUntilMs = Date.now() + WALL_SECONDS * 1000
-  runner.send(user(HELLO_ASK, 'u-hello'))
+  void runner.prompt(HELLO_ASK, 'u-hello')
   const refused = await waitWire('the usage window refusal', w => w.kind === 'walled' && w.ask.trim() === HELLO_ASK, bound(30_000))
   check('the provider refused a turn for the usage window and the session observed it', refused !== null, j(wire.slice(-2)))
   const refusalRow = await runner.waitFor('the refusal result', f => f.type === 'outcome' && /limit is reached/.test(JSON.stringify(f)), bound(20_000))
@@ -169,7 +169,7 @@ if (!existsSync(DIST)) {
   )
   await sleep(2_000)
 
-  runner.send(user(DONE_ASK, 'u-done'))
+  void runner.prompt(DONE_ASK, 'u-done')
   const done = await waitWire('the closing ask', w => w.kind === 'request' && w.ask.trim() === DONE_ASK, bound(30_000))
   check('the session still answers after the window', done !== null)
   await runner.stop(bound(8_000))

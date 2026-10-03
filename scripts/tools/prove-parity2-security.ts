@@ -111,9 +111,10 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
 }
 
 {
-  const { onWorkerControlRequest, answerPermissionAsk, listPendingPermissionAsks, expiredAskDenialMessage, permissionAskExpiryMs, DEFAULT_PERMISSION_ASK_EXPIRY_MINUTES } =
+  const { holdWorkerAsk, answerPermissionAsk, listPendingPermissionAsks, expiredAskDenialMessage, permissionAskExpiryMs, DEFAULT_PERMISSION_ASK_EXPIRY_MINUTES } =
     await import('../../src/daemon/permissionAsks.ts')
   const { concourseWorkersPath } = await import('../../src/daemon/concourseSupervisor.ts')
+  type Answer = import('../../src/runner/wire/methods.ts').PermissionAnswer
   const record = (short: string) => ({
     runnerId: short,
     sessionId: `sess-${short}`,
@@ -126,41 +127,46 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
     concourseWorkersPath(daemonDir),
     JSON.stringify({ version: 1, workers: { 'concourse-w1': record('concourse-w1'), 'concourse-w2': record('concourse-w2') } }),
   )
-  const sent: Array<{ short: string; frame: Record<string, unknown> }> = []
-  const channel = { control: (short: string, frame: string) => (sent.push({ short, frame: JSON.parse(frame) }), true) }
-  const askFrame = (id: string, tool: string, agentId?: string) => ({
-    type: 'control_request',
-    request_id: id,
-    request: { subtype: 'can_use_tool', tool_name: tool, input: { command: 'ls' }, ...(agentId !== undefined ? { agent_id: agentId } : {}) },
-  })
-  const frameFor = (id: string) => sent.filter(s => (s.frame as { response?: { request_id?: string } }).response?.request_id === id)
+  const held = new Map<string, { id: string; answer: Answer | null }>()
+  const hold = (short: string, tag: string, tool: string, expiryMs: number, agentId?: string): string => {
+    const h = holdWorkerAsk(short, { kind: 'tool', tool_use_id: `tu-${tag}`, tool_name: tool, input: { command: 'ls' }, ...(agentId !== undefined ? { agent_id: agentId } : {}) }, daemonDir, expiryMs, () => 'attached')
+    const id = listPendingPermissionAsks().filter(a => a.workerId === short).at(-1)?.requestId ?? `(unparked ${tag})`
+    const entry = { id, answer: null as Answer | null }
+    void h.answer.then(a => {
+      entry.answer = a
+    })
+    held.set(tag, entry)
+    return id
+  }
+  const answerOf = (tag: string): Answer | null => held.get(tag)?.answer ?? null
+  const idOf = (tag: string): string => held.get(tag)?.id ?? ''
 
   t("default expiry is the registered ten-minute knob — the ceiling a sub-agent's ask carries", DEFAULT_PERMISSION_ASK_EXPIRY_MINUTES === 10 && permissionAskExpiryMs() === DEFAULT_PERMISSION_ASK_EXPIRY_MINUTES * 60_000)
 
-  onWorkerControlRequest('concourse-w1', askFrame('req-main-waits', 'Bash'), daemonDir, channel, 40)
-  t("the session's own ask parks", listPendingPermissionAsks().some(a => a.requestId === 'req-main-waits' && a.agentId === undefined))
+  hold('concourse-w1', 'main-waits', 'Bash', 40)
+  t("the session's own ask parks", listPendingPermissionAsks().some(a => a.requestId === idOf('main-waits') && a.agentId === undefined))
   await sleep(140)
-  t("the session's own ask is STILL parked past a 40ms limit (no clock on the main thread's ask)", listPendingPermissionAsks().some(a => a.requestId === 'req-main-waits'))
-  t('no expiry denial ever reached the child for it', frameFor('req-main-waits').length === 0)
-  const lateAnswer = answerPermissionAsk('req-main-waits', true, channel, 'operator')
-  t("the operator's answer, whenever it comes, lands where the ask waits", lateAnswer.outcome === 'applied' && frameFor('req-main-waits').length === 1 && (frameFor('req-main-waits')[0]!.frame as { response: { response: { behavior: string } } }).response.response.behavior === 'allow')
+  t("the session's own ask is STILL parked past a 40ms limit (no clock on the main thread's ask)", listPendingPermissionAsks().some(a => a.requestId === idOf('main-waits')))
+  t('no expiry denial ever reached the runner for it', answerOf('main-waits') === null)
+  const lateAnswer = answerPermissionAsk(idOf('main-waits'), true, 'operator')
+  await sleep(10)
+  t("the operator's answer, whenever it comes, lands where the ask waits", lateAnswer.outcome === 'applied' && answerOf('main-waits')?.outcome === 'allow')
 
-  onWorkerControlRequest('concourse-w1', askFrame('req-expire', 'Bash', 'agent-park-1'), daemonDir, channel, 40)
-  t("a sub-agent's ask parks with its agent id", listPendingPermissionAsks().some(a => a.requestId === 'req-expire' && a.agentId === 'agent-park-1'))
+  hold('concourse-w1', 'expire', 'Bash', 40, 'agent-park-1')
+  t("a sub-agent's ask parks with its agent id", listPendingPermissionAsks().some(a => a.requestId === idOf('expire') && a.agentId === 'agent-park-1'))
   await sleep(140)
-  const expired = sent.find(s => (s.frame as { response?: { request_id?: string } }).response?.request_id === 'req-expire')
-  const denial = (expired?.frame as { response?: { response?: { behavior?: string; message?: string } } } | undefined)?.response?.response
-  t("a sub-agent's expiry delivers a control_response DENY through the child channel", expired?.short === 'concourse-w1' && denial?.behavior === 'deny')
+  const denial = answerOf('expire')
+  t("a sub-agent's expiry resolves the runner's request with a typed DENY", denial?.outcome === 'deny')
   t('the denial names the cause, the limit, and the next step',
-    denial?.message === expiredAskDenialMessage('Bash', 40, 'expired') && /expired/.test(denial?.message ?? '') && /operator/.test(denial?.message ?? ''),
-    denial?.message)
-  t('the expired ask leaves the parked table', !listPendingPermissionAsks().some(a => a.requestId === 'req-expire'))
+    denial?.outcome === 'deny' && denial.message === expiredAskDenialMessage('Bash', 40, 'expired') && /expired/.test(denial.message ?? '') && /operator/.test(denial.message ?? ''),
+    denial?.outcome === 'deny' ? denial.message : JSON.stringify(denial))
+  t('the expired ask leaves the parked table', !listPendingPermissionAsks().some(a => a.requestId === idOf('expire')))
 
   const oblPath = join(crewDir, 'obligations-switchboard.json')
   type ObligationRow = { ref: string; status: string; settlement?: { by?: string } }
   const readObligation = (): ObligationRow | undefined => {
     const rows = existsSync(oblPath) ? (JSON.parse(readFileSync(oblPath, 'utf8')) as { obligations: Record<string, ObligationRow> }).obligations : {}
-    return Object.values(rows).find(r => r.ref === 'permission:req-expire')
+    return Object.values(rows).find(r => r.ref === `permission:${idOf('expire')}`)
   }
   let row = readObligation()
   for (let waited = 0; row?.status !== 'withdrawn' && waited < 10_000; waited += 50) {
@@ -177,35 +183,35 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
       /const landed = ask\.obligationLanded \?\? Promise\.resolve\(ask\.obligationId\)/.test(asksSource),
     `mints=${(asksSource.match(/ask\.obligationLanded = upsertObligation\(/g) ?? []).length} settles=${(asksSource.match(/settleAskObligation\(ask, /g) ?? []).length} born-settled=${(asksSource.match(/void recordSettledObligation\(\{/g) ?? []).length}`)
 
-  onWorkerControlRequest('concourse-w2', askFrame('req-answer', 'Edit', 'agent-park-2'), daemonDir, channel, 60)
-  const r = answerPermissionAsk('req-answer', true, channel, 'operator')
+  hold('concourse-w2', 'answer', 'Edit', 60, 'agent-park-2')
+  const r = answerPermissionAsk(idOf('answer'), true, 'operator')
   t('an answered ask applies', r.outcome === 'applied')
   await sleep(120)
-  const lateDenials = sent.filter(s => (s.frame as { response?: { request_id?: string } }).response?.request_id === 'req-answer')
-  t('an answered ask never receives a late expiry denial', lateDenials.length === 1 && (lateDenials[0]!.frame as { response: { response: { behavior: string } } }).response.response.behavior === 'allow')
+  t('an answered ask never receives a late expiry denial', answerOf('answer')?.outcome === 'allow')
 
-  onWorkerControlRequest('concourse-w2', askFrame('req-forever', 'Bash'), daemonDir, channel, 0)
+  hold('concourse-w2', 'forever', 'Bash', 0)
   await sleep(60)
-  t('a zero limit never expires', listPendingPermissionAsks().some(a => a.requestId === 'req-forever'))
-  answerPermissionAsk('req-forever', false, channel, 'operator')
+  t('a zero limit never expires', listPendingPermissionAsks().some(a => a.requestId === idOf('forever')))
+  answerPermissionAsk(idOf('forever'), false, 'operator')
 
   {
     const { mintGitInitAsk } = await import('../../src/daemon/permissionAsks.ts')
     const before = listPendingPermissionAsks().length
     const fillers: string[] = []
     for (let i = before; i < 200; i++) {
-      const id = `req-fill-${i}`
-      fillers.push(id)
-      onWorkerControlRequest('concourse-w1', askFrame(id, 'Bash'), daemonDir, channel, 0)
+      const tag = `fill-${i}`
+      fillers.push(tag)
+      hold('concourse-w1', tag, 'Bash', 0)
     }
     const oldestId = listPendingPermissionAsks()[0]!.requestId
+    const oldestTag = [...held.entries()].find(([, v]) => v.id === oldestId)?.[0] ?? ''
     mintGitInitAsk(join(SCRATCH, 'ws-evict'))
-    const evictedFrame = sent.find(s => (s.frame as { response?: { request_id?: string } }).response?.request_id === oldestId)
-    const evictedDenial = (evictedFrame?.frame as { response?: { response?: { behavior?: string; message?: string } } } | undefined)?.response?.response
-    t('the eviction delivers a typed DENY through the carried channel', evictedDenial?.behavior === 'deny', oldestId)
-    t('the eviction denial names the full table', /table was full/.test(evictedDenial?.message ?? ''), evictedDenial?.message)
+    await sleep(10)
+    const evictedDenial = answerOf(oldestTag)
+    t("the eviction resolves the oldest runner request with a typed DENY", evictedDenial?.outcome === 'deny', `${oldestId} (${oldestTag})`)
+    t('the eviction denial names the full table', evictedDenial?.outcome === 'deny' && /table was full/.test(evictedDenial.message ?? ''), evictedDenial?.outcome === 'deny' ? evictedDenial.message : JSON.stringify(evictedDenial))
     t('the evicted ask left the parked table', !listPendingPermissionAsks().some(a => a.requestId === oldestId))
-    for (const id of fillers) answerPermissionAsk(id, false, channel, 'operator')
+    for (const tag of fillers) answerPermissionAsk(idOf(tag), false, 'operator')
   }
 }
 

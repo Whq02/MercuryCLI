@@ -97,16 +97,16 @@ section('§D E04 — slow subscribers bounded; the terminal settlement survives'
     throw new Error('slow consumer misbehaving')
   })
   act.ingestActivity({
-    event: { kind: 'assistant', payload: { type: 'assistant', message: { id: 'm-e04', content: [{ type: 'tool_use', id: 'tu_e04', name: 'Bash', input: {} }] } }, sourceEventId: 'e1', atMs: 1 } as never,
+    event: { kind: 'session/update', payload: { sessionId: 's-e04', update: { sessionUpdate: 'tool_call', toolCallId: 'tu_e04', title: 'ls', kind: 'execute', status: 'in_progress' } }, sourceEventId: 'e1', atMs: 1 } as never,
     agentId: 'crew:e04' as never,
     sessionId: 's-e04',
-    adapterKind: 'claude-code',
+    adapterKind: 'opencode',
   })
   act.ingestActivity({
-    event: { kind: 'user', payload: { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'tu_e04', content: 'done' }] } }, sourceEventId: 'e2', atMs: 2 } as never,
+    event: { kind: 'session/update', payload: { sessionId: 's-e04', update: { sessionUpdate: 'tool_call_update', toolCallId: 'tu_e04', status: 'completed' } }, sourceEventId: 'e2', atMs: 2 } as never,
     agentId: 'crew:e04' as never,
     sessionId: 's-e04',
-    adapterKind: 'claude-code',
+    adapterKind: 'opencode',
   })
   const feed = act.cachedActivityFeed()
   check('a THROWING subscriber never blocks ingestion', calls >= 2, String(calls))

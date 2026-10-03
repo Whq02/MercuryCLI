@@ -94,28 +94,22 @@ t.section('§5 — the delivery valve + redirect')
       },
     }),
   )
-  const sent: Array<{ runnerId: string; frame: string }> = []
+  const sent: Array<{ runnerId: string; row: { type?: unknown; content?: unknown; id?: unknown } }> = []
   const rhandler = makeConcourseDispatchHandler({
     admit: async () => {
       throw new Error('redirect must NEVER admit')
     },
-    deliver: async (runnerId, frame) => {
-      sent.push({ runnerId, frame })
+    deliver: async (runnerId, row) => {
+      sent.push({ runnerId, row: row as { type?: unknown; content?: unknown; id?: unknown } })
       return true
     },
     dir,
   })
   const ok = await rhandler({ clientMessageId: 'rd-1', prompt: 'focus the failing tests first', workspaceDir: '', targetSessionId: 'sess-live' })
   t.check('redirect to a LIVE session delivers through the one door (admit skipped)', ok.ok === true && ok.state === 'working' && sent.length === 1 && sent[0]!.runnerId === 'rd-live', JSON.stringify(ok))
-  t.check('…as one framed JSON line carrying the words (never a raw string)', sent[0]!.frame.startsWith('{') && sent[0]!.frame.includes('focus the failing tests first'))
-  const deliveredRow = ((): { type?: unknown; content?: unknown; id?: unknown } => {
-    try {
-      return JSON.parse(sent[0]!.frame) as { type?: unknown; content?: unknown; id?: unknown }
-    } catch {
-      return {}
-    }
-  })()
-  t.check("…and the line is the prompt row queue/add takes: type 'prompt', the words as its content, an id of its own", deliveredRow.type === 'prompt' && deliveredRow.content === 'focus the failing tests first' && typeof deliveredRow.id === 'string' && deliveredRow.id !== '', sent[0]!.frame.slice(0, 200))
+  t.check('…as one input row carrying the words (never a raw string)', typeof sent[0]!.row === 'object' && JSON.stringify(sent[0]!.row).includes('focus the failing tests first'))
+  const deliveredRow = sent[0]!.row
+  t.check("…and the line is the prompt row queue/add takes: type 'prompt', the words as its content, an id of its own", deliveredRow.type === 'prompt' && deliveredRow.content === 'focus the failing tests first' && typeof deliveredRow.id === 'string' && deliveredRow.id !== '', JSON.stringify(sent[0]!.row).slice(0, 200))
   t.check('…and the ledger keeps the digest only', !readFileSync(concourseDispatchesPath(dir), 'utf8').includes('focus the failing tests first'))
 
   pauseConcourseWorker('rd-live', 'operator', dir)

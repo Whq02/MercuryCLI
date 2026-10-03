@@ -1,6 +1,7 @@
 import { AGENT_WINDOW_RESUME_NOTE, CREW_ACCOUNT_RESUME_NOTE, pauseClockWords, pauseLineWords, type AgentPauseV1 } from '../tasks/LocalAgentTask/agentPause.js'
 import { errorTextOfOutcome, isOutcomeRow } from './longLivedSupervisor.js'
 import type { LooseRow } from '../rows/read.js'
+import type { InputRow } from '../rows/vocabulary.js'
 
 export type CrewSeatWindow = { rejected: boolean; resetsAtMs?: number; claim?: string }
 
@@ -25,8 +26,8 @@ export function crewSeatPauseOf(row: LooseRow | null, window: CrewSeatWindow | u
   return { why: 'usage limit', words: `${model}'s ${windowName} is spent${until}`, ...(resumesAtMs !== undefined ? { resumesAtMs } : {}) }
 }
 
-export function crewSeatResumeFrame(accountChanged: boolean): string {
-  return JSON.stringify({ type: 'user', message: { role: 'user', content: accountChanged ? CREW_ACCOUNT_RESUME_NOTE : AGENT_WINDOW_RESUME_NOTE } })
+export function crewSeatResumeRow(accountChanged: boolean): InputRow {
+  return { type: 'prompt', content: accountChanged ? CREW_ACCOUNT_RESUME_NOTE : AGENT_WINDOW_RESUME_NOTE }
 }
 
 export function crewSeatPausedLine(short: string, pause: AgentPauseV1, nowMs: number = Date.now()): string {

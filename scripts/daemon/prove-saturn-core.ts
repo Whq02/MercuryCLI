@@ -794,16 +794,9 @@ console.log('§T the facts-borne road')
 
   seedRecord()
   const seatMod = await import('../../src/daemon/sessionSeat.ts')
-  const frames: string[] = []
-  const fixtureRoster = {
-    control: (_short: string, frame: string) => {
-      frames.push(frame)
-      return true
-    },
-    list: () => [{ short: 'concourse-w1', busy: false }],
-    patchSeatModel: () => true,
-    patchSeatEffort: () => true,
-  }
+  const { standInRunner } = await import('../lib/seatDoor.ts')
+  const stand = standInRunner({ autoAnswer: null })
+  const fixtureRoster = stand.roster({ list: () => [{ short: 'concourse-w1', busy: false }] })
   const answer = {
     model: { effective: 'claude-opus-5', setting: null },
     usage: { total_cost_usd: 0 },
@@ -817,21 +810,19 @@ console.log('§T the facts-borne road')
       { op: 'bogus-op' },
     ],
   }
-  const line = JSON.stringify({
-    type: 'control_response',
-    response: { subtype: 'success', request_id: 'mercury-session-facts-concourse-w1-1', response: answer },
-  })
-  seatMod.onSeatLine('concourse-w1', line, fixtureRoster as never, DAEMON_DIR)
+  seatMod.onFactsAnswer('concourse-w1', answer, fixtureRoster as never, DAEMON_DIR)
+  await new Promise(r => setTimeout(r, 50))
   const landedRows = ((rawRecord().schedules ?? []) as Array<Record<string, unknown>>).filter(s => (s.when as Record<string, unknown>).spelling === 'every day 08:00')
-  const rosterFrame = frames.find(f => f.includes('"schedule_roster"'))
-  const factsReask = frames.filter(f => f.includes('"session_facts"'))
-  check('T6 the arm ran: the roster push + the immediate facts re-ask landed', rosterFrame !== undefined && factsReask.length >= 1)
+  const rosterPush = stand.requests.find(r => r.method === 'schedule/roster')
+  const factsReask = stand.requests.filter(r => r.method === 'session/facts')
+  check('T6 the arm ran: the roster push + the immediate facts re-ask landed', rosterPush !== undefined && factsReask.length >= 1)
   check('T6 the edit reached the one writer (row landed, or the typed keyless refusal — never silence)', landedRows.length <= 1)
   if (landedRows.length === 1) {
     check("T6 the landed row's asker is the model grammar", (landedRows[0]!.createdBy as string) === `model:${SESSION}`)
-    const pushed = JSON.parse(rosterFrame!) as { request: { schedules: Array<{ when: string }> } }
-    check('T6 the pushed roster carries the applied row', pushed.request.schedules.some(s => s.when === 'every day 08:00'))
+    const pushed = rosterPush!.params as { schedules: Array<{ when: string }> }
+    check('T6 the pushed roster carries the applied row', pushed.schedules.some(s => s.when === 'every day 08:00'))
   }
+  stand.close()
   updateConcourseWorkers(workers => {
     for (const r of Object.values(workers)) delete (r as { schedules?: unknown }).schedules
   }, DAEMON_DIR)

@@ -2,12 +2,10 @@
 // gate-watch: src/cli/print.ts src/runner/wire/* src/cli/headless/runnerMethods.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { spawn } from 'node:child_process'
 import { existsSync, rmSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
 import { hostRunner, scratchHome } from '../lib/runnerHost.ts'
-import { LineReader, controlRequestFrame, isControlResponse, type Frame } from '../lib/rows.ts'
 import { RPC_INVALID_REQUEST, RPC_PARSE_ERROR } from '../../src/runner/wire/errors.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -16,7 +14,6 @@ const argAfter = (flag: string): string | undefined => {
   return at !== -1 ? process.argv[at + 1] : undefined
 }
 const DIST = argAfter('--dist') !== undefined ? resolve(argAfter('--dist')!) : join(ROOT, 'dist', 'mercury.mjs')
-const DOOR = argAfter('--door') === 'rows' ? 'rows' : 'wire'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -37,7 +34,7 @@ if (node === null) {
   console.log('❌ no node binary on PATH')
   process.exit(1)
 }
-console.log(`a bad line on stdin — ${DIST} through the ${DOOR} door`)
+console.log(`a bad line on stdin — ${DIST} through the runner door`)
 const guard = setTimeout(() => {
   console.log('\n❌ TIMEOUT — the proof exceeded 240s')
   process.exit(1)
@@ -46,7 +43,7 @@ guard.unref?.()
 
 const api = await startFixtureApi([{ kind: 'text', text: 'BAD-LINE-ONE.' }, { kind: 'text', text: 'BAD-LINE-TWO.' }])
 
-if (DOOR === 'wire') {
+{
   section('§1 one unreadable line answers -32700 with id null; a batch -32600; the runner serves the next request')
   {
     const scratch = scratchHome('runner-bad-line-')
@@ -97,39 +94,6 @@ if (DOOR === 'wire') {
       await host.stop()
     }
     host.peer.close('done')
-    rmSync(scratch.home, { recursive: true, force: true })
-    rmSync(scratch.cwd, { recursive: true, force: true })
-  }
-} else {
-  section('§1 one unreadable line, then a control request: the runner must answer it')
-  {
-    const scratch = scratchHome('runner-bad-line-')
-    const child = spawn(node, [DIST, 'run', '--format', 'rows', '--input', 'rows', '--model', 'claude-opus-4-8'], { cwd: scratch.cwd, env: { ...scratch.env, PATH: `/usr/bin:/bin:${dirname(node)}`, ANTHROPIC_BASE_URL: api.url, ANTHROPIC_API_KEY: 'fixture-key-000' }, stdio: ['pipe', 'pipe', 'pipe'] })
-    const frames: Frame[] = []
-    const reader = new LineReader()
-    child.stdout.on('data', chunk => frames.push(...reader.feed(String(chunk))))
-    let stderr = ''
-    child.stderr.on('data', chunk => (stderr += String(chunk)))
-    const exited = new Promise<number | null>(resolve => child.on('close', code => resolve(code)))
-    child.stdin.write('this is not json\n')
-    child.stdin.write(`${JSON.stringify(controlRequestFrame('facts-1', { subtype: 'session_facts' }))}\n`)
-    const answered = await Promise.race([
-      new Promise<boolean>(resolve => {
-        const poll = setInterval(() => {
-          if (frames.some(f => isControlResponse(f, 'facts-1'))) {
-            clearInterval(poll)
-            resolve(true)
-          }
-        }, 50)
-      }),
-      exited.then(() => false),
-      new Promise<boolean>(resolve => setTimeout(() => resolve(false), 60_000)),
-    ])
-    check('the runner survives the bad line and answers the request', answered, `exit=${child.exitCode} stderr=${stderr.slice(0, 200)}`)
-    child.stdin.end()
-    const killer = setTimeout(() => child.kill('SIGKILL'), 5_000)
-    await exited
-    clearTimeout(killer)
     rmSync(scratch.home, { recursive: true, force: true })
     rmSync(scratch.cwd, { recursive: true, force: true })
   }

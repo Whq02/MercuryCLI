@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { parseFrame, spawnRunnerDoor } from '../lib/rows.ts'
+import { hostRunner } from '../lib/runnerHost.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const DIST = join(REPO, 'dist', 'mercury.mjs')
@@ -92,25 +92,25 @@ delete env.ANTHROPIC_AUTH_TOKEN
 const lines: Array<Record<string, unknown>> = []
 const waiters: Array<{ test: (frame: Record<string, unknown>) => boolean; resolve: (frame: Record<string, unknown>) => void }> = []
 let stderrText = ''
-const door = spawnRunnerDoor({
+const host = hostRunner({
   node: 'node',
-  argv: [DIST, 'runner', '--model', 'claude-opus-4-8'],
+  dist: DIST,
+  argv: ['--model', 'claude-opus-4-8'],
   cwd: CWD,
-  env,
-  onLine: line => {
-    const frame = parseFrame(line)
-    if (frame === null) return
+  env: env as Record<string, string | undefined>,
+  home: RUN_HOME,
+  onRow: frame => {
     lines.push(frame)
     for (let i = waiters.length - 1; i >= 0; i--) {
       if (waiters[i]!.test(frame)) waiters.splice(i, 1)[0]!.resolve(frame)
     }
   },
 })
-const runner = door.child
+const runner = host.child
 runner.stderr!.on('data', (chunk: Buffer) => {
   stderrText += chunk.toString('utf8')
 })
-const exited = new Promise<number | null>(resolve => runner.on('exit', code => resolve(code)))
+const exited = host.exited
 function waitFor(label: string, test: (frame: Record<string, unknown>) => boolean, timeoutMs: number): Promise<Record<string, unknown> | null> {
   const seen = lines.find(test)
   if (seen !== undefined) return Promise.resolve(seen)
@@ -128,24 +128,22 @@ function waitFor(label: string, test: (frame: Record<string, unknown>) => boolea
     waiters.push({ test, resolve: done })
   })
 }
-const send = (frame: Record<string, unknown>): void => {
-  door.send(frame)
+const send = (text: string, id: string): void => {
+  void host.prompt(text, { id }).catch(() => undefined)
 }
-const user = (text: string, uuid: string): Record<string, unknown> => ({ type: 'user', message: { role: 'user', content: text }, uuid, session_id: '' })
-const control = (requestId: string, clientMessageId: string): Record<string, unknown> => ({ type: 'control_request', request_id: requestId, request: { subtype: 'withdraw_send', client_message_id: clientMessageId } })
-const responseOf = (frame: Record<string, unknown> | null): Record<string, unknown> => {
-  const r = frame?.response as { subtype?: string; response?: Record<string, unknown>; error?: string } | undefined
-  return r?.response ?? (r?.error !== undefined ? { error: r.error } : {})
-}
-const isControlResponse = (requestId: string) => (f: Record<string, unknown>): boolean => f.type === 'control_response' && (f.response as { request_id?: string } | undefined)?.request_id === requestId
+const withdraw = (label: string, id: string): Promise<Record<string, unknown>> =>
+  host.request('queue/withdraw', { id }, 5_000).then(
+    result => result as Record<string, unknown>,
+    (error: unknown) => {
+      console.log(`  [wait] ${label}: ${error instanceof Error ? error.message : String(error)}`)
+      return {}
+    },
+  )
 const isResult = (f: Record<string, unknown>): boolean => f.type === 'outcome'
 const isStreaming = (f: Record<string, unknown>): boolean => f.type === 'text_delta' || f.type === 'block_start' || f.type === 'text'
 
 const reap = async (): Promise<void> => {
-  try {
-    runner.stdin!.end()
-  } catch {
-  }
+  host.end()
   await Promise.race([exited, new Promise(r => setTimeout(r, 8_000))])
   try {
     runner.kill('SIGKILL')
@@ -157,36 +155,33 @@ const reap = async (): Promise<void> => {
   }
 }
 
-send(user(`${HOLD_ASK} please`, '00000000-0000-4000-8000-000000000000'))
+await host.initialize().catch(() => undefined)
+send(`${HOLD_ASK} please`, '00000000-0000-4000-8000-000000000000')
 const streaming = await waitFor('the hold turn streams', isStreaming, 30_000)
 section('W1 a queued identity comes back')
 check('the hold turn is in flight (the runner streams the reply the fixture then holds)', streaming !== null, stderrText.split('\n').slice(-5).join(' | '))
-send(user(WITHDRAWN_WORDS, U1))
+send(WITHDRAWN_WORDS, U1)
 await new Promise(r => setTimeout(r, 300))
-send(control('w1', U1))
-const w1 = responseOf(await waitFor('w1', isControlResponse('w1'), 5_000))
+const w1 = await withdraw('w1', U1)
 check('the withdraw answers withdrawn: true with the words', w1.withdrawn === true && w1.text === WITHDRAWN_WORDS, j(w1))
 
 section('W2 a popped identity and a stranger answer unknown')
-send(control('w2', U1))
-const w2 = responseOf(await waitFor('w2', isControlResponse('w2'), 5_000))
+const w2 = await withdraw('w2', U1)
 check("the same identity again answers withdrawn: false, reason unknown (it never ran)", w2.withdrawn === false && w2.reason === 'unknown', j(w2))
-send(control('w3', '99999999-9999-4999-8999-999999999999'))
-const w3 = responseOf(await waitFor('w3', isControlResponse('w3'), 5_000))
+const w3 = await withdraw('w3', '99999999-9999-4999-8999-999999999999')
 check("a stranger's identity answers unknown", w3.withdrawn === false && w3.reason === 'unknown', j(w3))
 
 section('W3 an identity the driver took answers taken')
-send(user(TAKEN_WORDS, U2))
+send(TAKEN_WORDS, U2)
 const firstResult = await waitFor('the hold turn ends at the budget', isResult, IDLE_MS + 30_000)
 check('the hold turn ended typed at the idle budget', firstResult !== null, stderrText.split('\n').slice(-5).join(' | '))
 const secondResult = await waitFor('the drained turn ends', f => isResult(f) && f !== firstResult, 30_000)
 check('the queued words ran as the next turn (the driver drained them at the end)', secondResult !== null, j(lines.filter(isResult).length))
-send(control('w4', U2))
-const w4 = responseOf(await waitFor('w4', isControlResponse('w4'), 5_000))
+const w4 = await withdraw('w4', U2)
 check('the withdraw of a taken identity answers withdrawn: false, reason taken', w4.withdrawn === false && w4.reason === 'taken', j(w4))
 
 section('W4 the wire, and the runner alive')
-send(user('after the withdraws', '33333333-3333-4333-8333-333333333333'))
+send('after the withdraws', '33333333-3333-4333-8333-333333333333')
 const thirdResult = await waitFor('the words after the withdraws are answered', f => isResult(f) && f !== firstResult && f !== secondResult, 30_000)
 check('the runner answered words sent after the withdraws — alive', thirdResult !== null)
 await reap()

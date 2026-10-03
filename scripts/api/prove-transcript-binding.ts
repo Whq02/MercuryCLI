@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { answeredWith } from '../lib/rows.ts'
 
 process.env.NODE_ENV = 'test'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'transcript-binding-pure-'))
@@ -348,13 +349,13 @@ if (!existsSync(DIST)) {
     const common = ['--model', 'claude-opus-4-8', '--allowed-tools', 'Read', '--format', 'rows']
     const r1 = await run(arena, ['run', 'read the note', ...common, '--session-id', SID, '--log-file', debugFile(1)])
     check('turn 1 (a tool round) exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
-    check('turn 1 answered with the post-tool text', r1.stdout.includes('B-TURN-1-DONE'), j(r1.stdout.slice(0, 200)))
+    check('turn 1 answered with the post-tool text — a completed outcome row carrying it', answeredWith(r1.stdout, 'B-TURN-1-DONE'), j(r1.stdout.slice(0, 200)))
     const r2 = await run(arena, ['run', 'second prompt', ...common, '--resume', SID, '--log-file', debugFile(2)])
     check('turn 2 (resumed) exit 0', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 300)}`)
-    check('turn 2 answered', r2.stdout.includes('B-TURN-2-DONE'), j(r2.stdout.slice(0, 200)))
+    check('turn 2 answered — a completed outcome row carrying the answer', answeredWith(r2.stdout, 'B-TURN-2-DONE'), j(r2.stdout.slice(0, 200)))
     const r3 = await run(arena, ['run', 'third prompt', ...common, '--resume', SID, '--log-file', debugFile(3)])
     check('turn 3 (resumed) exit 0', r3.exit === 0, `exit=${r3.exit} stderr=${r3.stderr.slice(0, 300)}`)
-    check('turn 3 answered', r3.stdout.includes('B-TURN-3-DONE'), j(r3.stdout.slice(0, 200)))
+    check('turn 3 answered — a completed outcome row carrying the answer', answeredWith(r3.stdout, 'B-TURN-3-DONE'), j(r3.stdout.slice(0, 200)))
 
     const reqs = fixture.messageRequests()
     check('four message requests: two for the tool round, one per resumed turn', reqs.length === 4, String(reqs.length))

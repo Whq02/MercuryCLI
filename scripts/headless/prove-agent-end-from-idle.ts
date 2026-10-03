@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, isOutcome, makeTally, sleep, user } from '../daemon/dupline-world.ts'
+import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, isOutcome, makeTally, sleep } from '../daemon/dupline-world.ts'
 import { seedScratchHome, startScriptedFixture, type Script, type ScriptedRequest } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-agent-end-from-idle')
@@ -45,7 +45,7 @@ async function leg(name: string, isolation: 'worktree' | undefined): Promise<voi
   }
   const fixture = await startScriptedFixture(script, { answerDelayMs: req => (isChild(req) && req.step === 0 ? CHILD_DELAY_MS : 0) })
   const runner = bootRunner({ cwd, env: childEnv(runHome, Number(new URL(fixture.base).port)) })
-  runner.send(user('idle probe: launch the child in the background and stop', randomUUID()))
+  void runner.prompt('idle probe: launch the child in the background and stop', randomUUID())
 
   const launch = await runner.waitFor("the parent's Agent call", f => f.type === 'tool_call' && f.tool === 'Agent' && f.parent_call_id === undefined, bound(60_000))
   tally.check('the parent launched the child in the background', launch !== null)
@@ -61,7 +61,7 @@ async function leg(name: string, isolation: 'worktree' | undefined): Promise<voi
 
   if (runner.proc.exitCode === null) {
     const before = runner.frames.length
-    runner.send(user(FOLLOW_UP, randomUUID()))
+    void runner.prompt(FOLLOW_UP, randomUUID())
     const follow = await runner.waitFor('the follow-up outcome', f => isOutcome(f) && fixture.requests.some(isFollowUp), bound(60_000), before)
     tally.check('the seat answers the next message', follow !== null && follow.status === 'completed' && fixture.requests.some(isFollowUp), String(follow?.status))
   } else {

@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
-import { runTurns } from '../lib/rows.ts'
+import { frameLines, runTurns } from '../lib/rows.ts'
 
 process.env.NODE_ENV = 'test'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'agent-record-pure-'))
@@ -103,14 +103,8 @@ const toolsOf = (q: { body: unknown }): string => j(withoutCacheControl((q.body 
 const toolNamesOf = (q: { body: unknown }): string => ((q.body as Body).tools ?? []).map(t => t.name).join(',')
 const systemOf = (q: { body: unknown }): string => j(withoutCacheControl((q.body as Body).system ?? null))
 function initToolsOf(stdout: string): string[] {
-  for (const line of stdout.split('\n')) {
-    if (!line.includes('"type":"session"')) continue
-    try {
-      const row = JSON.parse(line) as { type?: unknown; tools?: unknown }
-      if (row.type === 'session' && Array.isArray(row.tools)) return row.tools.map(String)
-    } catch {
-      continue
-    }
+  for (const row of frameLines(stdout)) {
+    if (row.type === 'session' && Array.isArray(row.tools)) return (row.tools as unknown[]).map(String)
   }
   return []
 }
@@ -132,7 +126,7 @@ const turns1: ScriptedTurn[] = [
   { kind: 'text', text: 'SEAT-DONE-2', thinking: 'seat done two', model: SEAT, whenModel: 'opus' },
 ]
 const fixture1 = await startFixtureApi(turns1, { bindingCheck: true })
-const r1 = await runStreaming(arena, fixture1, {}, ['run', '--input', 'rows', '--model', MAIN, '--sovereign', '--format', 'rows', '--session-id', SID], ['launch the seat and carry on', 'and now say noted'], 3_000)
+const r1 = await runStreaming(arena, fixture1, {}, ['--model', MAIN, '--sovereign', '--session-id', SID], ['launch the seat and carry on', 'and now say noted'], 3_000)
 check('process 1 exits 0 after the launch turn and the follow-up turn', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(-400)}`)
 const initTools1 = initToolsOf(r1.stdout)
 const reqs1 = fixture1.messageRequests()
@@ -167,7 +161,7 @@ if (agentId !== null) {
     { kind: 'text', text: 'SEAT-DONE-4', thinking: 'seat done four', model: SEAT, whenModel: 'opus' },
   ]
   const fixture2 = await startFixtureApi(turns2, { bindingCheck: true })
-  const r2 = await runStreaming(arena, fixture2, { MERCURY_TASKS: '1' }, ['run', '--input', 'rows', '--model', MAIN, '--sovereign', '--format', 'rows', '--resume', SID], ['message the seat to carry on', 'and now say noted'], 6_000)
+  const r2 = await runStreaming(arena, fixture2, { MERCURY_TASKS: '1' }, ['--model', MAIN, '--sovereign', '--resume', SID], ['message the seat to carry on', 'and now say noted'], 6_000)
   check('process 2 exits 0 after the resume turn and the follow-up turn', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(-400)}`)
   initTools2 = initToolsOf(r2.stdout)
   const reqs2 = fixture2.messageRequests()

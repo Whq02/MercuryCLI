@@ -74,7 +74,3 @@ export function armWorkerParentWatch(
   timer.unref?.()
   return true
 }
-
-export function __resetWorkerParentWatchForTests(): void {
-  armed = false
-}

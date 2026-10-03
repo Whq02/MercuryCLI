@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { answeredWith } from '../lib/rows.ts'
 
 process.env.NODE_ENV = 'test'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'wire-dump-pure-'))
@@ -363,7 +364,7 @@ if (!existsSync(DIST)) {
     const SID = 'd0d0d0d0-0000-4000-8000-00000000d0d0'
     const common = ['--model', 'claude-opus-4-8', '--format', 'rows']
     const r1 = await run(['run', 'wire dump probe; the key sk-ant-api03-QRSTUVWXYZ0123456789 must never land', ...common, '--session-id', SID], { MERCURY_WIRE_DUMP: dumpDir })
-    check('the armed turn exits 0 and answers', r1.exit === 0 && r1.stdout.includes('DUMP-WIRE-DONE'), `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
+    check('the armed turn exits 0 and answers — a completed outcome row carrying the answer', r1.exit === 0 && answeredWith(r1.stdout, 'DUMP-WIRE-DONE'), `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
     const file = join(dumpDir, `${SID}.jsonl`)
     const rows = await waitForRows(file, 1)
     check('<dir>/<session-id>.jsonl exists with the request row', rows.length >= 1, `${rows.length} at ${file}`)

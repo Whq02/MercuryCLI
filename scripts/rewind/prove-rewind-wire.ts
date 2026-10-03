@@ -77,108 +77,102 @@ section('§3 — the seat verb: applied · typed refusals · the mixed-version l
     } as never
   }, DAEMON_DIR)
 
-  type Frame = { type?: string; request_id?: string; request?: { subtype?: string; user_message_id?: string; mode?: string; dry_run?: boolean } }
-  class FakeRoster {
-    frames: Array<{ short: string; frame: Frame }> = []
-    busy = false
-    deliver = true
-    answer: 'success' | 'error-older' | 'error-other' | 'never' = 'success'
-    control(short: string, frame: string): boolean {
-      const parsed = JSON.parse(frame) as Frame
-      this.frames.push({ short, frame: parsed })
-      if (!this.deliver) return false
-      if (parsed.request?.subtype !== 'rewind_session' || this.answer === 'never') return true
-      const requestId = parsed.request_id!
-      const line =
-        this.answer === 'success'
-          ? j({ type: 'control_response', response: { subtype: 'success', request_id: requestId, response: { outcome: 'applied', mode: parsed.request.mode, code: { filesChanged: ['note.txt'], insertions: 1, deletions: 1 } } } })
-          : j({ type: 'control_response', response: { subtype: 'error', request_id: requestId, error: this.answer === 'error-older' ? 'unsupported control request subtype: rewind_session' : 'the restore threw before any file was written: EACCES' } })
-      queueMicrotask(() => seat.onSeatLine(short, line, this as never, DAEMON_DIR))
-      return true
-    }
-    list(): Array<{ short: string; outcome?: string; busy?: boolean }> {
-      return [{ short: SHORT, busy: this.busy }]
-    }
-    patchSeatModel(): boolean {
-      return true
-    }
-    patchSeatEffort(): boolean {
-      return true
-    }
+  const { standInRunner } = await import('../lib/seatDoor.ts')
+  const { RPC_METHOD_NOT_FOUND, RPC_REFUSED } = await import('../../src/runner/wire/errors.ts')
+  type Stand = ReturnType<typeof standInRunner>
+  const runnerOf = (answer: 'success' | 'error-older' | 'error-other' | 'never', busy = false): { stand: Stand; roster: ReturnType<Stand['roster']> } => {
+    const stand = standInRunner({ autoAnswer: { 'session/facts': {} } })
+    void (async () => {
+      for (;;) {
+        const request = await stand.nextRequest('session/rewind', 600_000).catch(() => null)
+        if (request === null) return
+        if (answer === 'never') continue
+        const params = request.params as { mode: string }
+        if (answer === 'success') request.answer({ outcome: 'applied', mode: params.mode, code: { filesChanged: ['note.txt'], insertions: 1, deletions: 1 } })
+        else if (answer === 'error-older') request.refuse(RPC_METHOD_NOT_FOUND, 'unknown method session/rewind', { method: 'session/rewind' })
+        else request.refuse(RPC_REFUSED, 'the restore threw before any file was written: EACCES', { kind: 'rewind' })
+      }
+    })()
+    return { stand, roster: stand.roster({ list: () => [{ short: SHORT, busy }] }) }
   }
-  const rewindFrames = (r: FakeRoster) => r.frames.filter(f => f.frame.request?.subtype === 'rewind_session')
+  const rewinds = (stand: Stand) => stand.requests.filter(r => r.method === 'session/rewind')
 
   {
-    const r = new FakeRoster()
-    const out = await seat.rewindSession('no-such-session', { mode: 'code', userMessageId: 'u1' }, r as never, DAEMON_DIR)
-    check('A unknown session refuses typed (unknown-session) and sends nothing', out.outcome === 'refused' && out.refusal === 'unknown-session' && rewindFrames(r).length === 0, j(out))
+    const { stand, roster } = runnerOf('success')
+    const out = await seat.rewindSession('no-such-session', { mode: 'code', userMessageId: 'u1' }, roster as never, DAEMON_DIR)
+    check('A unknown session refuses typed (unknown-session) and sends nothing', out.outcome === 'refused' && out.refusal === 'unknown-session' && rewinds(stand).length === 0, j(out))
+    stand.close()
   }
   {
-    const r = new FakeRoster()
-    r.busy = true
-    const out = await seat.rewindSession(SESSION, { mode: 'both', userMessageId: 'u1' }, r as never, DAEMON_DIR)
-    check('B a mid-turn seat refuses typed (turn-active) and sends nothing', out.outcome === 'refused' && out.refusal === 'turn-active' && rewindFrames(r).length === 0, j(out))
+    const { stand, roster } = runnerOf('success', true)
+    const out = await seat.rewindSession(SESSION, { mode: 'both', userMessageId: 'u1' }, roster as never, DAEMON_DIR)
+    check('B a mid-turn seat refuses typed (turn-active) and sends nothing', out.outcome === 'refused' && out.refusal === 'turn-active' && rewinds(stand).length === 0, j(out))
+    stand.close()
   }
   {
-    const r = new FakeRoster()
-    const out = await seat.rewindSession(SESSION, { mode: 'code', userMessageId: 'u-42' }, r as never, DAEMON_DIR)
-    const f = rewindFrames(r)[0]?.frame
-    check('C the control frame is a rewind_session request naming the point and the mode', f?.type === 'control_request' && f.request?.user_message_id === 'u-42' && f.request.mode === 'code' && f.request.dry_run === undefined, j(f))
-    check("C the request id rides the seat-verb prefix with the rewind marker", typeof f?.request_id === 'string' && f.request_id.startsWith('mercury-seat-rewind-'), String(f?.request_id))
+    const { stand, roster } = runnerOf('success')
+    const out = await seat.rewindSession(SESSION, { mode: 'code', userMessageId: 'u-42' }, roster as never, DAEMON_DIR)
+    const f = rewinds(stand)[0]?.params as { user_message_id?: string; mode?: string; dry_run?: boolean } | undefined
+    check('C the request is session/rewind naming the point and the mode', f?.user_message_id === 'u-42' && f.mode === 'code' && f.dry_run === undefined, j(f))
     check("C the runner's receipt is relayed verbatim (applied, the files named)", out.outcome === 'applied' && out.mode === 'code' && out.code?.filesChanged[0] === 'note.txt' && out.code.insertions === 1, j(out))
-    check('C no waiter lingers after the settle', seat._pendingRewindWaitersForTesting() === 0)
-    check('C the settle re-asks the facts (the seat-verb arm still runs)', r.frames.some(x => x.frame.request?.subtype === 'session_facts'))
+    await sleep(20)
+    check('C nothing lingers pending after the settle', stand.connection.peer.pendingCount === 0, String(stand.connection.peer.pendingCount))
+    check('C the settle re-asks the facts (the seat-verb law still runs)', stand.requests.some(x => x.method === 'session/facts'))
+    stand.close()
   }
   {
-    const r = new FakeRoster()
-    await seat.rewindSession(SESSION, { mode: 'conversation', userMessageId: 'u-43', dryRun: true }, r as never, DAEMON_DIR)
-    check('C2 a dry run stamps dry_run:true on the frame', rewindFrames(r)[0]?.frame.request?.dry_run === true)
+    const { stand, roster } = runnerOf('success')
+    await seat.rewindSession(SESSION, { mode: 'conversation', userMessageId: 'u-43', dryRun: true }, roster as never, DAEMON_DIR)
+    check('C2 a dry run stamps dry_run:true on the request', (rewinds(stand)[0]?.params as { dry_run?: boolean } | undefined)?.dry_run === true)
+    stand.close()
   }
   {
-    const r = new FakeRoster()
-    r.answer = 'error-older'
-    const out = await seat.rewindSession(SESSION, { mode: 'both', userMessageId: 'u1' }, r as never, DAEMON_DIR)
-    check("D an older runner's unsupported-subtype error answers 'runner-older', typed, naming the remedy", out.outcome === 'refused' && out.refusal === 'runner-older' && (out.detail ?? '').includes('/daemon restart') && out.mode === 'both', j(out))
+    const { stand, roster } = runnerOf('error-older')
+    const out = await seat.rewindSession(SESSION, { mode: 'both', userMessageId: 'u1' }, roster as never, DAEMON_DIR)
+    check("D an older runner's unknown method (-32601) answers 'runner-older', typed, naming the remedy", out.outcome === 'refused' && out.refusal === 'runner-older' && (out.detail ?? '').includes('/daemon restart') && out.mode === 'both', j(out))
+    stand.close()
   }
   {
-    const r = new FakeRoster()
-    r.answer = 'error-other'
-    const out = await seat.rewindSession(SESSION, { mode: 'code', userMessageId: 'u1' }, r as never, DAEMON_DIR)
+    const { stand, roster } = runnerOf('error-other')
+    const out = await seat.rewindSession(SESSION, { mode: 'code', userMessageId: 'u1' }, roster as never, DAEMON_DIR)
     check("E a thrown restore answers 'restore-failed' carrying the runner's sentence", out.outcome === 'refused' && out.refusal === 'restore-failed' && (out.detail ?? '').includes('EACCES'), j(out))
+    stand.close()
   }
   {
-    const r = new FakeRoster()
-    r.answer = 'never'
+    const { stand, roster } = runnerOf('never')
     const t0 = Date.now()
-    const out = await seat.rewindSession(SESSION, { mode: 'code', userMessageId: 'u1' }, r as never, DAEMON_DIR, { deadlineMs: 120 })
+    const out = await seat.rewindSession(SESSION, { mode: 'code', userMessageId: 'u1' }, roster as never, DAEMON_DIR, { deadlineMs: 120 })
     check("F a runner silent past the deadline answers 'no-answer' (nothing assumed restored)", out.outcome === 'refused' && out.refusal === 'no-answer' && (out.detail ?? '').includes('nothing is assumed restored') && Date.now() - t0 >= 100, j(out))
-    check('F the deadline clears its waiter', seat._pendingRewindWaitersForTesting() === 0)
+    await sleep(20)
+    check('F the deadline clears the pending request and withdraws it from the runner', stand.connection.peer.pendingCount === 0 && rewinds(stand)[0]!.cancelled)
+    stand.close()
   }
   {
-    const r = new FakeRoster()
-    r.deliver = false
-    const out = await seat.rewindSession(SESSION, { mode: 'code', userMessageId: 'u1' }, r as never, DAEMON_DIR)
-    check("G an undeliverable frame answers 'no-channel' with no waiter left", out.outcome === 'refused' && out.refusal === 'no-channel' && seat._pendingRewindWaitersForTesting() === 0, j(out))
+    const { stand, roster } = runnerOf('success')
+    const out = await seat.rewindSession(SESSION, { mode: 'code', userMessageId: 'u1' }, { ...roster, door: () => undefined } as never, DAEMON_DIR)
+    check("G a seat with no door answers 'no-channel' and sends nothing", out.outcome === 'refused' && out.refusal === 'no-channel' && rewinds(stand).length === 0, j(out))
+    stand.close()
   }
   {
-    const r = new FakeRoster()
-    r.answer = 'never'
-    const pending = seat.rewindSession(SESSION, { mode: 'conversation', userMessageId: 'u1' }, r as never, DAEMON_DIR, { deadlineMs: 5_000 })
+    const { stand, roster } = runnerOf('never')
+    const pending = seat.rewindSession(SESSION, { mode: 'conversation', userMessageId: 'u1' }, roster as never, DAEMON_DIR, { deadlineMs: 5_000 })
     await sleep(10)
-    check('H the ask is pending', seat._pendingRewindWaitersForTesting() === 1)
-    seat.onSeatSettled(SHORT)
+    check('H the ask is pending', stand.connection.peer.pendingCount === 1)
+    stand.connection.close('the runner exited')
     const out = await pending
-    check("H a runner that ends mid-wait answers 'no-answer' naming the end", out.outcome === 'refused' && out.refusal === 'no-answer' && (out.detail ?? '').includes('ended'), j(out))
+    check("H a runner that leaves mid-wait answers 'no-answer' naming the departure", out.outcome === 'refused' && out.refusal === 'no-answer' && (out.detail ?? '').includes('left before it answered'), j(out))
+    stand.close()
   }
   {
-    const r = new FakeRoster()
-    r.answer = 'never'
-    const pending = seat.rewindSession(SESSION, { mode: 'code', userMessageId: 'u1' }, r as never, DAEMON_DIR, { deadlineMs: 200 })
+    const { stand, roster } = runnerOf('never')
+    const pending = seat.rewindSession(SESSION, { mode: 'code', userMessageId: 'u1' }, roster as never, DAEMON_DIR, { deadlineMs: 200 })
     await sleep(5)
-    seat.onSeatLine(SHORT, j({ type: 'control_response', response: { subtype: 'success', request_id: 'mercury-seat-set-model-concourse-w1-zz' } }), r as never, DAEMON_DIR)
-    check('I a foreign verb settle leaves the rewind waiter pending', seat._pendingRewindWaitersForTesting() === 1)
+    stand.rawToHost(JSON.stringify({ jsonrpc: '2.0', id: 999, result: { outcome: 'applied', mode: 'code' } }) + '\n')
+    await sleep(5)
+    check('I an answer for an id that is not pending leaves the rewind pending', stand.connection.peer.pendingCount === 1)
     const out = await pending
     check('I …and the deadline still answers it typed', out.refusal === 'no-answer')
+    stand.close()
   }
 }
 

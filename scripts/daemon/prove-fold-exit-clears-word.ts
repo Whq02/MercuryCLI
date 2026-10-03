@@ -47,9 +47,9 @@ guard.unref?.()
 
 const { createTurnDriver } = await import('../../src/cli/headless/turnDriver.ts')
 const { withFoldStatus } = await import('../../src/services/compact/compact.ts')
-const { parseRunnerLine, isTurnOpenRow, isOutcomeRow } = await import('../../src/daemon/longLivedSupervisor.ts')
+const { isTurnOpenRow, isOutcomeRow } = await import('../../src/daemon/longLivedSupervisor.ts')
 const { compactionClearedRow, compactionRow, heartbeatRow, waitRow, partialRowsOf, itemRowsOf, stepRow, turnStartedRow, turnWaitingRow, outcomeRow, sessionRow } = await import('../../src/rows/project.ts')
-const { onSeatLine } = await import('../../src/daemon/sessionSeat.ts')
+const { onSeatRow } = await import('../../src/daemon/sessionSeat.ts')
 const { updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
 const { publishSessionFacts, publishSessionTail, readSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
 const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
@@ -77,7 +77,7 @@ updateConcourseWorkers(workers => {
     workspaceKind: 'plain-folder',
   } as never
 }, DAEMON_DIR)
-const roster = { control: () => true, list: () => [], patchSeatModel: () => true, patchSeatEffort: () => true }
+const roster = { door: () => undefined, list: () => [], patchSeatModel: () => true, patchSeatEffort: () => true }
 
 const base = (extra: Record<string, unknown>) => ({
   isSidechain: false,
@@ -145,19 +145,19 @@ publishSessionFacts(facts(false) as never, DAEMON_DIR)
 
 const wireLog: Frame[] = []
 let turnOpen = false
+let wireSeq = 0
 const wire = (frame: Frame): void => {
-  const line = JSON.stringify(frame)
-  wireLog.push(frame)
-  const parsed = parseRunnerLine(line)
-  if (isTurnOpenRow(parsed) && !turnOpen) {
+  const row = { seq: ++wireSeq, timestamp: new Date().toISOString(), ...frame } as Frame
+  wireLog.push(row)
+  if (isTurnOpenRow(row as never) && !turnOpen) {
     turnOpen = true
     publishSessionFacts(facts(true) as never, DAEMON_DIR)
   }
-  if (isOutcomeRow(parsed)) {
+  if (isOutcomeRow(row as never)) {
     turnOpen = false
     publishSessionFacts(facts(false) as never, DAEMON_DIR)
   }
-  onSeatLine(SHORT, line, roster as never, DAEMON_DIR)
+  onSeatRow(SHORT, row as never, roster as never, DAEMON_DIR)
 }
 const scope = { session_id: SID, turn: 1 }
 const USAGE = { input_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, output_tokens: 1 }
@@ -358,7 +358,7 @@ let beginTail: ReturnType<typeof tail> = null
   check('the settle hands the row no record past the linger (the latch is bounded by the exit clock too)', fold() === null, j(fold()))
 }
 
-section('P6 the automatic road: a gauge-triggered fold inside a turn clears its word with its ended row')
+section('P6 the automatic road (the seat and the cockpit over the fixture projection; the real mid-turn ended row is prove-compaction-hold R4): a fold inside a turn clears its word with its ended row')
 {
   agentsRunning = true
   let during: Live | null = null

@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
-import { bootLead, closeWorld, crewMessagesTo, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, readJson, record, sleep, TURN_MS, type Frame } from './crew-world.ts'
+import { bootLeadOnDoor, closeWorld, crewMessagesTo, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, readJson, record, sleep, TURN_MS } from './crew-world.ts'
 
 if (process.env.MERCURY_CONFIG_DIR) process.env.TMPDIR = process.env.MERCURY_CONFIG_DIR
 const sessionId = randomUUID()
@@ -61,16 +61,9 @@ const script: ScriptedTurn[] = [
 ]
 const tally = makeTally('prove-crewmate-usage-pause')
 const world = await makeWorld('crewmate-usage-pause', script)
-const session = bootLead(world, ['--mode', 'sovereign', '--session-id', sessionId], ['Agent', 'SendMessage'])
+const session = bootLeadOnDoor(world, ['--mode', 'sovereign', '--session-id', sessionId], ['Agent', 'SendMessage'])
 const rosterPath = join(world.crews, crew, 'config.json')
-let seq = 0
-const response = (id: string): Frame | undefined => session.frames.find(frame => frame.type === 'control_response' && (frame.response as Frame | undefined)?.request_id === id)
-const control = async (request: Frame): Promise<Frame> => {
-  const id = `req-${++seq}`
-  session.child.stdin!.write(JSON.stringify({ type: 'control_request', request_id: id, request }) + '\n')
-  await session.waitFor(`no control response for ${id}`, () => response(id) !== undefined, TURN_MS / 4)
-  return response(id)!.response as Frame
-}
+const credentialsChanged = (): void => session.host.peer.notify('credentials/changed', {})
 type Request = { body: { model?: string; messages?: Array<{ role: string; content: unknown }> } }
 type WorkRow = { id: string; kind: string; name: string; status: string; error?: string; paused?: { why?: string; words?: string; resumes_at_ms?: number }; idle?: boolean }
 type Roster = { members: Array<{ name: string }> }
@@ -82,14 +75,13 @@ const lastUser = (request: Request): string => {
 }
 const requestCarrying = (from: number, text: string): Request | undefined => requests().slice(from).find(request => lastUser(request).includes(text))
 const facts = async (): Promise<WorkRow[]> => {
-  const answer = await control({ subtype: 'session_facts' })
-  const payload = (answer.response as { work?: WorkRow[] } | undefined) ?? (answer as { work?: WorkRow[] })
-  return payload.work ?? []
+  const answer = (await session.host.request('session/facts', {}, TURN_MS / 4).catch(() => ({}) as Record<string, unknown>)) as { work?: WorkRow[] }
+  return answer.work ?? []
 }
 const rowsNamed = (rows: WorkRow[], name: string): WorkRow[] => rows.filter(row => row.name === name || row.name.startsWith(`${name}:`) || row.name.includes(name))
 const pausedRow = async (name: string): Promise<WorkRow | undefined> => rowsNamed(await facts(), name).find(row => row.paused?.why === 'usage limit' || row.paused?.why === 'provider busy')
 const rowsOf = (kind: string): Array<{ id: string; description: string }> =>
-  session.frames.filter(frame => frame.subtype === 'task_started' && frame.task_type === kind).map(frame => ({ id: String(frame.task_id), description: String(frame.description) }))
+  session.frames.filter(frame => frame.type === 'task' && frame.state === 'started' && frame.task_type === kind).map(frame => ({ id: String(frame.task_id), description: String(frame.description) }))
 const leadInboxFrom = (name: string): string[] => crewMessagesTo(world, crew, 'crew-lead').filter(row => row.from === name).map(row => row.text)
 const rosterHolds = (name: string): boolean => (readJson<Roster>(rosterPath)?.members ?? []).some(member => member.name === name)
 const until = async (test: () => boolean | Promise<boolean>, ms: number): Promise<boolean> => {
@@ -131,8 +123,7 @@ try {
   tally.section('THE PIN: the operator signs in on another account before the reset — the crewmate resumes at once, same name, same model, its history kept')
   const rowsBeforeSwitch = rowsOf('in_process_crewmate').length
   const before2 = requests().length
-  const switched = await control({ subtype: 'credential_change' })
-  tally.check('the credential change was taken by the session', switched.subtype === 'success', JSON.stringify(switched))
+  credentialsChanged()
   const resumed1 = (await until(() => requestCarrying(before2, RESUMED) !== undefined, TURN_MS / 3)) ? requestCarrying(before2, RESUMED) : undefined
   record('resumed-request-1.json', JSON.stringify(resumed1?.body ?? null, null, 2))
   tally.check('the crewmate makes a new request with the resume note as its next turn (RED on the base: none)', resumed1 !== undefined, String(requests().length - before2))
@@ -170,8 +161,7 @@ try {
   const scoutPaused = (await until(async () => (await pausedRow(scout)) !== undefined, TURN_MS / 4)) ? await pausedRow(scout) : undefined
   tally.check('the sub-agent row reads paused with the reset (the road that already existed)', scoutPaused !== undefined && near(scoutPaused.paused?.resumes_at_ms, resetC, 2_000), JSON.stringify(rowsNamed(await facts(), scout)))
   const before5 = requests().length
-  const switched2 = await control({ subtype: 'credential_change' })
-  tally.check('the second credential change was taken', switched2.subtype === 'success')
+  credentialsChanged()
   const scoutResumed = (await until(() => requestCarrying(before5, RESUMED) !== undefined, TURN_MS / 3)) ? requestCarrying(before5, RESUMED) : undefined
   record('resumed-scout-request.json', JSON.stringify(scoutResumed?.body ?? null, null, 2))
   tally.check('the paused sub-agent resumes on the credential change with its history (RED on the base: it waits for the reset)', scoutResumed !== undefined && bodyText(scoutResumed).includes('SCOUT-ASK'), String(requests().length - before5))

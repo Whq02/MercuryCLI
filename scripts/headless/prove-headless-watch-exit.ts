@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { bootRunner, bound, childEnv, DIST, isSession, isOutcome, makeTally, SCRATCH_ROOT, sleep, user } from '../daemon/dupline-world.ts'
+import { bootRunner, bound, childEnv, DIST, isSession, isOutcome, makeTally, SCRATCH_ROOT, sleep } from '../daemon/dupline-world.ts'
 import { seedScratchHome, startScriptedFixture } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-headless-watch-exit')
@@ -46,7 +46,7 @@ const fixture = await startScriptedFixture(req => {
 })
 const port = Number(new URL(fixture.base).port)
 const runner = bootRunner({ cwd, env: { ...childEnv(home, port), MERCURY_TASKS: '1' } })
-runner.send(user(ASK, 'u-arm'))
+void runner.prompt(ASK, 'u-arm')
 const init = await runner.waitFor('the session row', isSession, bound(90_000))
 const result = await runner.waitFor('the outcome row', isOutcome, bound(120_000))
 const armed = fixture.requests.find(r => r.ask.trim() === ASK && r.step === 1)

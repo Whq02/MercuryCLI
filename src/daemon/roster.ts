@@ -2,7 +2,11 @@
 import type { ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import type { LooseRow } from '../rows/read.js'
-import { RunnerConnection } from './runnerConnection.js'
+import type { InputRow } from '../rows/vocabulary.js'
+import type { PermissionRequestParams, SessionAppliedParams } from '../runner/wire/methods.js'
+import { RunnerConnection, type HeldAsk, type RunnerDoor } from './runnerConnection.js'
+import { UNANSWERED_ASK_REJECT_MESSAGE } from '../utils/messages/rejectionText.js'
+import { SANDBOX_NETWORK_ACCESS_TOOL_NAME } from './runnerFrames.js'
 import { killProcessGroup } from '../utils/processGroup.js'
 import { logForDebugging } from '../utils/debug.js'
 import { assertSpawnCwd, recordSpawn, recordSpawnExit } from '../utils/spawnLedger.js'
@@ -19,9 +23,7 @@ import {
 import { resolveWorkerReconAllow } from './workerRecon.js'
 import {
   decideRespawn,
-  parseRunnerLine,
   occupancyOfRow,
-  normalizeStreamJsonFrame,
   isOutcomeRow,
   isTurnOpenRow,
   errorTextOfOutcome,
@@ -86,6 +88,7 @@ interface LongLivedSeat {
   contextPct?: number
   turnActive?: boolean
   turnStartedAt?: number
+  turnEdges: number
   seenDispatchIds?: Set<string>
   clearInFlight?: boolean
   spawnGeneration: number
@@ -112,8 +115,9 @@ export interface RosterOptions {
   maxInflight: number
   onDegraded?: (reason: string, short?: string) => void
   onIdle?: (short: string) => void
-  onControlRequest?: (short: string, frame: Record<string, unknown>) => void
-  onChildLine?: (short: string, line: string) => void
+  onAsk?: (short: string, params: PermissionRequestParams) => HeldAsk
+  onRow?: (short: string, row: LooseRow) => void
+  onApplied?: (short: string, params: SessionAppliedParams) => void
   onChildRelaunched?: (short: string, pid: number) => void
 }
 
@@ -221,51 +225,41 @@ export class TaskRoster {
     return true
   }
 
-  async reply(short: string, text: string): Promise<boolean> {
+  async reply(short: string, row: InputRow): Promise<boolean> {
     const h = this.handles.get(short)
     if (!h || h.entry.outcome || h.entry.state === 'retiring') return false
-    if (h.longLived && h.child?.stdin?.writable) {
-      try {
-        if (!(await this.writeFrame(h.longLived, h.child, text))) return false
-        h.longLived.turnActive = true
-        h.longLived.turnStartedAt = Date.now()
-        if (short.startsWith('concourse-w')) {
+    const door = h.longLived?.connection
+    if (h.longLived === undefined || door === undefined || door.closed) return false
+    const ll = h.longLived
+    const edgesBefore = ll.turnEdges
+    ll.turnActive = true
+    ll.turnStartedAt = Date.now()
+    const worker = short.startsWith('concourse-w')
+    if (worker) {
+      void import('./concourseSupervisor.js')
+        .then(sup => sup.markConcourseWorkerDelivery(short))
+        .catch(() => {})
+    }
+    if (!(await door.deliver(row))) {
+      if (ll.turnEdges === edgesBefore) {
+        ll.turnActive = false
+        ll.turnStartedAt = undefined
+        if (worker) {
           void import('./concourseSupervisor.js')
-            .then(sup => sup.markConcourseWorkerDelivery(short))
+            .then(sup => sup.markConcourseWorkerTurnSettled(short))
             .catch(() => {})
         }
-        return true
-      } catch (e) {
-        logForDebugging(`[daemon] reply(${short}) stdin write failed: ${e}`)
-        return false
       }
+      return false
     }
-    return false
+    return true
   }
 
-  control(short: string, frame: string): boolean {
+  door(short: string): RunnerDoor | undefined {
     const h = this.handles.get(short)
-    if (!h || h.entry.outcome || h.entry.state === 'retiring') return false
-    if (h.longLived && h.child?.stdin?.writable) {
-      try {
-        const written = this.writeFrame(h.longLived, h.child, frame)
-        return typeof written === 'boolean' ? written : true
-      } catch (e) {
-        logForDebugging(`[daemon] control(${short}) stdin write failed: ${e}`)
-        return false
-      }
-    }
-    return false
-  }
-
-  private writeFrame(ll: LongLivedSeat, child: ChildProcess, frame: string): boolean | Promise<boolean> {
-    const line = normalizeStreamJsonFrame(frame)
-    if (ll.connection === undefined) {
-      child.stdin!.write(line)
-      return true
-    }
-    const parsed = JSON.parse(line) as Record<string, unknown>
-    return parsed.type === 'user' ? ll.connection.deliver(parsed) : ll.connection.control(parsed)
+    if (!h || h.entry.outcome || h.entry.state === 'retiring') return undefined
+    const door = h.longLived?.connection
+    return door === undefined || door.closed ? undefined : door
   }
 
   kill(short: string, signal: NodeJS.Signals = 'SIGTERM'): boolean {
@@ -321,6 +315,7 @@ export class TaskRoster {
       lastSpawnAt: 0,
       intentionalStop: false,
       spawnGeneration: 0,
+      turnEdges: 0,
     }
     const entry: RosterEntry = {
       short,
@@ -330,7 +325,7 @@ export class TaskRoster {
       state: 'spawning',
       startedAt: Date.now(),
       cliVersion: currentVersion(),
-      via: 'rows',
+      via: 'runner',
       ...(start !== undefined ? { cwd: start.cwd } : spec.cwd !== undefined ? { cwd: spec.cwd } : {}),
       ...(start?.worktree !== undefined ? { worktree: start.worktree } : {}),
     }
@@ -598,16 +593,15 @@ export class TaskRoster {
 
     ll.connection?.close('the seat was relaunched')
     ll.connection = undefined
-    if (spawned.door === 'wire') {
-      ll.connection = new RunnerConnection(child, spawned.capabilities, {
-        onRow: row => this.classifyRow(short, ll, row),
-        onAsk: frame => this.forwardControlRequest(short, frame),
-        onLine: line => this.forwardChildLine(short, line),
-        log: line => logForDebugging(`[daemon] ${short}: ${line}`),
-      })
-    } else {
-      this.drainChildStdout(short, child, ll)
-    }
+    ll.connection = new RunnerConnection({ input: child.stdout!, output: child.stdin! }, spawned.capabilities, {
+      onRow: row => {
+        this.classifyRow(short, ll, row)
+        this.forwardRow(short, row)
+      },
+      onAsk: params => this.holdAsk(short, params),
+      onApplied: params => this.forwardApplied(short, params),
+      log: line => logForDebugging(`[daemon] ${short}: ${line}`),
+    })
     this.keepChildStderr(short, child, ll)
     this.superviseChildLife(short, h, ll, child)
     if (ll.spawnGeneration > 1 && this.opts.onChildRelaunched && typeof child.pid === 'number') {
@@ -621,48 +615,37 @@ export class TaskRoster {
     return child.pid
   }
 
-  private drainChildStdout(short: string, child: ChildProcess, ll: LongLivedSeat): void {
-    let firstChunkSeen = false
-    let tail = ''
-    child.stdout?.on('data', (chunk: Buffer) => {
-      if (!firstChunkSeen) {
-        firstChunkSeen = true
-        logForDebugging(
-          `[daemon] long-lived ${short} stdout flowing (first chunk ${chunk.length}b) — pipe drained`,
-        )
+  private holdAsk(short: string, params: PermissionRequestParams): HeldAsk {
+    if (this.opts.onAsk) {
+      try {
+        return this.opts.onAsk(short, params)
+      } catch (e) {
+        logForDebugging(`[daemon] onAsk(${short}) hook threw: ${e}`)
       }
-      tail += chunk.toString('utf8')
-      let nl: number
-      while ((nl = tail.indexOf('\n')) >= 0) {
-        const line = tail.slice(0, nl)
-        tail = tail.slice(nl + 1)
-        const frame = parseRunnerLine(line)
-        if (frame !== null && frame.type === 'control_request') this.forwardControlRequest(short, frame)
-        this.forwardChildLine(short, line)
-        this.classifyRow(short, ll, frame)
-      }
-      if (tail.length > 1_000_000) tail = tail.slice(-100_000)
-    })
-  }
-
-  private forwardControlRequest(short: string, frame: Record<string, unknown>): void {
-    if (!this.opts.onControlRequest) return
-    try {
-      this.opts.onControlRequest(short, frame)
-    } catch {
     }
+    const toolName = params.kind === 'tool' ? params.tool_name : SANDBOX_NETWORK_ACCESS_TOOL_NAME
+    return { answer: Promise.resolve({ outcome: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(toolName, 'no ask owner stands behind this roster') }), withdraw: () => {} }
   }
 
-  private forwardChildLine(short: string, line: string): void {
-    if (!this.opts.onChildLine) return
+  private forwardRow(short: string, row: LooseRow): void {
+    if (!this.opts.onRow) return
     try {
-      this.opts.onChildLine(short, line)
+      this.opts.onRow(short, row)
     } catch (e) {
-      logForDebugging(`[daemon] onChildLine(${short}) hook threw (ignored): ${e}`)
+      logForDebugging(`[daemon] onRow(${short}) hook threw (ignored): ${e}`)
     }
   }
 
-  private classifyRow(short: string, ll: LongLivedSeat, frame: LooseRow | null): void {
+  private forwardApplied(short: string, params: SessionAppliedParams): void {
+    if (!this.opts.onApplied) return
+    try {
+      this.opts.onApplied(short, params)
+    } catch (e) {
+      logForDebugging(`[daemon] onApplied(${short}) hook threw (ignored): ${e}`)
+    }
+  }
+
+  private classifyRow(short: string, ll: LongLivedSeat, frame: LooseRow): void {
     const usage = occupancyOfRow(frame)
     if (usage) {
       const pct = calculateContextPercentages(
@@ -672,12 +655,14 @@ export class TaskRoster {
       if (pct !== null) ll.contextPct = pct
     }
     if (isTurnOpenRow(frame)) {
+      ll.turnEdges += 1
       if (!ll.turnActive) {
         ll.turnActive = true
         ll.turnStartedAt = Date.now()
       }
     }
     if (isOutcomeRow(frame)) {
+      ll.turnEdges += 1
       ll.lastErrorText = errorTextOfOutcome(frame)
       ll.turnActive = false
       ll.turnStartedAt = undefined

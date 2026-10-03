@@ -40,7 +40,7 @@ for (const arm of arms.filter(arm => !only || arm === only)) {
     check(`${arm}: only the justified requests reached the fixture`, requests.length === (twoRequests ? 2 : 1), requests)
     check(`${arm}: credential recovery is attempted at most once`, refreshes.length === expectedRefresh && (!helper || world.helperCalls() === 2), record)
     if (success) {
-      check(`${arm}: the outcome carries the accepted response`, terminal[0]?.status === 'completed' && result.stdout.includes('fixture accepted'), terminal)
+      check(`${arm}: the outcome carries the accepted response`, terminal[0]?.status === 'completed' && String(terminal[0]?.answer ?? '').includes('fixture accepted'), terminal)
       if (arm !== 'burst') check(`${arm}: the one retry carries the changed credential`, requests[1]?.bearer === 'fixture-fresh', requests)
     } else {
       check(`${arm}: one terminal authentication blocker`, terminal[0]?.status === 'failed' && errors.length === 1, { terminal, errors })

@@ -183,45 +183,39 @@ section("§5 a mode change's receipt is the runner's own word: refused with its 
       pid: process.pid,
     } as ConcourseWorkerRecordV1
   }, dir)
-  const controls: Array<{ short: string; frame: string }> = []
-  const roster = {
-    control(s: string, frame: string): boolean {
-      controls.push({ short: s, frame })
-      return true
-    },
-    list: () => [{ short }],
-    patchSeatModel: () => true,
-    patchSeatEffort: () => true,
-  }
-  const requestOf = (frame: string): { request_id: string; subtype: string; mode: string } => {
-    const parsed = JSON.parse(frame) as { request_id: string; request: { subtype: string; mode: string } }
-    return { request_id: parsed.request_id, subtype: parsed.request.subtype, mode: parsed.request.mode }
-  }
+  const { standInRunner } = await import('../lib/seatDoor.ts')
+  const { RPC_REFUSED } = await import('../../src/runner/wire/errors.ts')
+  const stand = standInRunner({ autoAnswer: { 'session/facts': {} } })
+  const roster = stand.roster({ list: () => [{ short }] })
   const REFUSAL = 'Cannot set permission mode to sovereign because the session was not launched with --sovereign'
   const pa = seat.setSessionPermissionMode(sid, 'sovereign', roster, dir, { deadlineMs: 2_000 })
-  const reqA = requestOf(controls.at(-1)!.frame)
-  check('(a) the verb rides a set_permission_mode control naming the mode', reqA.subtype === 'set_permission_mode' && reqA.mode === 'sovereign' && reqA.request_id.startsWith('mercury-seat-set-permission-mode-'), reqA.request_id)
-  seat.onSeatLine(short, JSON.stringify({ type: 'control_response', response: { subtype: 'error', request_id: reqA.request_id, error: REFUSAL } }), roster, dir)
+  const reqA = await stand.nextRequest('session/set_mode')
+  check('(a) the verb rides a session/set_mode request naming the mode', reqA.method === 'session/set_mode' && (reqA.params as { mode: string }).mode === 'sovereign', JSON.stringify(reqA.params))
+  reqA.refuse(RPC_REFUSED, REFUSAL, { kind: 'mode' })
   const a = await pa
   check("(a) the runner's refusal comes back as 'refused' with ITS sentence verbatim", a.outcome === 'refused' && a.detail === REFUSAL, JSON.stringify(a))
-  check('(a) the answer re-asks the facts at once (the band follows the runner)', controls.some(c => c.frame.includes('"session_facts"') && c.short === short))
+  check('(a) the answer re-asks the facts at once (the band follows the runner)', stand.requests.some(r => r.method === 'session/facts'))
   const pb = seat.setSessionPermissionMode(sid, 'implement', roster, dir, { deadlineMs: 2_000 })
-  const reqB = requestOf(controls.at(-1)!.frame)
-  seat.onSeatLine(short, JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: reqB.request_id, response: {} } }), roster, dir)
+  ;(await stand.nextRequest('session/set_mode')).answer({ mode: 'implement' })
   const b = await pb
   check("(b) the runner's success comes back as 'applied' naming the mode", b.outcome === 'applied' && (b.detail ?? '').includes('implement'), JSON.stringify(b))
   const t0 = Date.now()
   const c = await seat.setSessionPermissionMode(sid, 'implement', roster, dir, { deadlineMs: 300 })
   check('(c) a silent runner answers refused past the deadline, naming the silence', c.outcome === 'refused' && /did not answer/.test(c.detail ?? '') && Date.now() - t0 >= 250, JSON.stringify(c))
-  const dead = { ...roster, control: () => false }
-  const d = await seat.setSessionPermissionMode(sid, 'implement', dead, dir)
-  check('(d) no live control channel refuses at once', d.outcome === 'refused' && /control channel/.test(d.detail ?? ''), JSON.stringify(d))
-  check('(e) no waiter is left behind', seat._pendingModeWaitersForTesting() === 0)
+  await new Promise(resolve => setTimeout(resolve, 20))
+  check('(c) …and the runner saw the request withdrawn', stand.requests.filter(r => r.method === 'session/set_mode').at(-1)!.cancelled)
+  const d = await seat.setSessionPermissionMode(sid, 'implement', stand.roster({ door: () => undefined }), dir)
+  check('(d) no live runner door refuses at once', d.outcome === 'refused' && /runner door/.test(d.detail ?? ''), JSON.stringify(d))
+  check('(e) nothing is left pending', stand.connection.peer.pendingCount === 0)
   const p1 = seat.setSessionPermissionMode(sid, 'implement', roster, dir, { deadlineMs: 200 })
   const p2 = seat.setSessionPermissionMode(sid, 'implement', roster, dir, { deadlineMs: 200 })
-  const ids = controls.slice(-2).map(c => requestOf(c.frame).request_id)
-  check('(f) two presses in one tick carry two distinct request ids', ids[0] !== ids[1], ids.join(' | '))
+  const first = await stand.nextRequest('session/set_mode')
+  first.answer({ mode: 'implement' })
+  const second = await stand.nextRequest('session/set_mode')
+  second.answer({ mode: 'implement' })
+  check('(f) two presses in one tick carry two distinct request ids', first.id !== second.id, `${first.id} | ${second.id}`)
   await Promise.all([p1, p2])
+  stand.close()
 }
 
 section('§6 the carousel lists every station the seat may hold, Sovereign in a consented ring, nothing the runner refuses')

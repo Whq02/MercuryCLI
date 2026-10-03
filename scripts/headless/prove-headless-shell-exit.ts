@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { bootRunner, bound, childEnv, DIST, isSession, isOutcome, makeTally, SCRATCH_ROOT, sleep, user } from '../daemon/dupline-world.ts'
+import { bootRunner, bound, childEnv, DIST, isSession, isOutcome, makeTally, SCRATCH_ROOT, sleep } from '../daemon/dupline-world.ts'
 import { seedScratchHome, startScriptedFixture } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-headless-shell-exit')
@@ -53,7 +53,7 @@ for (const leg of legs) {
   )
   const port = Number(new URL(fixture.base).port)
   const runner = bootRunner({ cwd, env: { ...childEnv(home, port), MERCURY_TASKS: '1' }, extraArgv: ['--allowed-tools', 'Bash'] })
-  runner.send(user(ASK, `u-${leg.key}`))
+  void runner.prompt(ASK, `u-${leg.key}`)
   const closedAtOnce = leg.close === 'eof-at-once'
   if (closedAtOnce) runner.proc.stdin!.end()
   const init = await runner.waitFor('the session row', isSession, bound(90_000))

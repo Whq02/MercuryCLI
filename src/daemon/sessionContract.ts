@@ -26,10 +26,6 @@ export type ContractOpOutcome = { outcome: 'applied' | 'noop' | 'refused'; detai
 
 export const CONTRACT_TEXT_CAP = 20_000
 
-export function contractInForce(c: SessionContractV1 | undefined): boolean {
-  return c !== undefined && (c.status === 'acknowledged' || c.status === 'active')
-}
-
 export function applyConcourseContractOp(
   sessionId: string,
   req: ContractOpRequestV1,

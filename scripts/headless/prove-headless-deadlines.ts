@@ -7,7 +7,7 @@ import { createServer as createHttpServer, type Server as HttpServer } from 'nod
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { startFixtureApi, type FixtureApi } from '../lib/fixtureApi.ts'
-import { parseFrame, spawnRunnerDoor } from '../lib/rows.ts'
+import { hostRunner } from '../lib/runnerHost.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -133,18 +133,26 @@ async function runDistTurns(
   let unparseable = 0
   let resultsSeen = 0
   let promptIndex = 0
-  const door = spawnRunnerDoor({
+  const host = hostRunner({
     node: nodeBin!,
-    argv: [DIST, 'runner', '--model', 'claude-opus-4-8'],
+    dist: DIST,
+    argv: ['--model', 'claude-opus-4-8'],
     cwd,
     env,
-    onLine: line => {
-      lines.push(line)
-      const e = parseFrame(line) as Envelope | null
-      if (e === null) {
-        unparseable++
-        return
+    home: env.MERCURY_CONFIG_DIR ?? cwd,
+    raw: text => {
+      for (const line of text.split('\n')) {
+        if (line.trim() === '') continue
+        lines.push(line)
+        try {
+          JSON.parse(line)
+        } catch {
+          unparseable++
+        }
       }
+    },
+    onRow: row => {
+      const e = row as Envelope
       envelopes.push(e)
       if (e.type === 'outcome') {
         resultsSeen++
@@ -152,16 +160,17 @@ async function runDistTurns(
       }
     },
   })
-  const child = door.child
+  const child = host.child
   const killer = setTimeout(() => child.kill('SIGKILL'), opts?.killAfterMs ?? 120_000)
   const sendNextPrompt = (): void => {
     if (promptIndex >= prompts.length) {
-      child.stdin!.end()
+      host.end()
       return
     }
     const value = prompts[promptIndex++]!
-    door.send({ type: 'user', message: { role: 'user', content: value } })
+    void host.prompt(value).catch(() => undefined)
   }
+  void host.initialize().catch(() => undefined)
   let stderr = ''
   child.stderr!.on('data', d => (stderr += d))
   sendNextPrompt()

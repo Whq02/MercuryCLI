@@ -86,6 +86,13 @@ const RETIRED: Array<[string, RegExp, string[]]> = [
   ['push-os-notification', asName(J('sendOS', 'Notification')), [J('sendOS', 'Notification')]],
   ['push-proof-name', new RegExp(J('prove-push-', 'notification-honest')), [J('prove-push-', 'notification')]],
   ['rule-prefix-form', new RegExp('\\b(?:Bash|PowerShell|Skill)\\([^()\\n]*' + J(':', '\\*\\)') + "|(?<=['\"])" + J(':', '\\*') + "(?=['\"])"), [J(':', '*)'), J("':", "*'"), J('":', '*"')]],
+  ['sdk-result-fields', asName(J('(?:rate_limit', '_event|parent_tool', '_use_id|duration_api', '_ms|num_', 'turns|permission_', 'denials|is_', 'replay|error_max_', '(?:turns|budget_usd|structured_output_retries)|api_', 'retry|hook_', 'callback|mcp_', 'message)')), [J('rate_limit', '_event'), J('parent_tool', '_use_id'), J('duration_api', '_ms'), J('num_', 'turns'), J('permission_', 'denials'), J('is_', 'replay'), J('error_max', '_'), J('api_', 'retry'), J('hook_', 'callback'), J('mcp_', 'message')]],
+  ['sdk-result-error-word', new RegExp(J('(?<!hook_)error_during', '_execution')), [J('error_during', '_execution')]],
+  ['sdk-wire-words', new RegExp('(?<![\\w-])(?:--)?' + J('(?:permission-', 'channel|permission-prompt', '-tool|stream-', 'json|replay-user', '-messages)') + '(?![\\w-])'), [J('permission-', 'channel'), J('permission-prompt', '-tool'), J('stream-', 'json'), J('replay-user', '-messages')]],
+  ['sdk-home', new RegExp(J('entrypoints/', 'sdk|agentSdk', 'Types|\\bSDK[A-Z]\\w*', 'Message\\b|\\bSDKControl', '\\w*')), [J('entrypoints/', 'sdk'), J('agentSdk', 'Types'), 'SDK']],
+  ['sdk-init-names', new RegExp(J('(?<![\\w$])(?:SdkInit', 'Owner|resetSdkInit', 'State|[gs]etInitJson', 'Schema|initJson', 'Schema)(?![\\w$])|sdk-', 'init\\.')), [J('SdkInit', ''), J('InitJson', 'Schema'), J('initJson', 'Schema'), J('sdk-', 'init')]],
+  ['control-frames', asName(J('(?:control_', 'request|control_', 'response|control_cancel', '_request|can_use', '_tool|set_permission', '_mode)')), [J('control_', 'req'), J('control_', 'resp'), J('control_', 'cancel'), J('can_use', '_tool'), J('set_permission', '_mode')]],
+  ['activity-stream-arms', new RegExp(J('stream-(?:file-', 'change|command|check|question|work-', 'item|generic-', 'tool|tool-', 'result|message|session-', 'lifecycle)(?![\\w-])|explodeActivity', 'Inputs')), [J('stream-', ''), J('explodeActivity', '')]],
   ['rule-sentences', new RegExp(J('is blocked by a ', 'deny rule|', 'deny rule matched|requires ', 'confirmation for this (?:command|tool|edit|read)|Permission ', "rule '|by a permission ", 'rule|blocked by permission ', 'rules|denied by permission ', 'settings|blocked by a permission ', 'deny rule|Permission rules can be ', 'changed in /permissions|has been denied by ', 'permission rule|Permission to (?:read|edit) .* (?:has been ', 'denied|requires confirmation)')), [J('deny ', 'rule'), J('requires ', 'confirmation'), J('ermission ', 'rule'), J('permission ', 'settings'), J('Permission to ', 'read'), J('Permission to ', 'edit')]],
 ]
 const SETTINGS_SCOPE = /^(?:src\/|docs\/|README\.md$|scripts\/)/
@@ -199,6 +206,15 @@ const ALLOW: Array<[string, string, string]> = [
   ['scripts/editor-bridge/prove-editor-door.ts', 'option-editor-link', 'names the flags it proves unknown'],
   ['scripts/updater/prove-update-journey.ts', 'verb-auth-token', 'names the gh subcommand it proves never asked'],
   ['scripts/updater/prove-never-public.ts', 'verb-auth-token', 'names the gh subcommand it proves never asked'],
+  ['scripts/interview/corpus-verdict.json', 'sdk-wire-words', 'a frozen verdict record keeps its line'],
+  ['scripts/terminal-boundary/prove-machine-output-contract.ts', 'sdk-wire-words', 'names the flags it proves absent from --help'],
+  ['scripts/headless/prove-row-vocabulary.ts', 'control-frames', 'names the message kinds it proves apart from the rows and the frame it proves unread'],
+  ['scripts/headless/prove-runner-wire-laws.ts', 'control-frames', 'feeds the retired frame it proves refused'],
+  ['scripts/headless/prove-structuredio-laws.ts', 'control-frames', 'feeds the retired frame it proves refused'],
+  ['scripts/daemon/prove-seat-door-direct.ts', 'control-frames', 'names the words it proves absent from the daemon'],
+  ['scripts/headless/prove-headless-ask-refusals.ts', 'control-frames', 'FIX-T3-ASKS moves this proof onto the hosted runner (its comms, 13:24) — drop this row with that move'],
+  ['scripts/headless/prove-headless-ask-unanswered.ts', 'control-frames', 'FIX-T3-ASKS moves this proof onto the hosted runner (its comms, 13:24) — drop this row with that move'],
+  ['scripts/headless/prove-parked-ask-liveness.ts', 'control-frames', 'FIX-T3-ASKS moves this proof onto the hosted runner (its comms, 13:24) — drop this row with that move'],
 ]
 function allowed(path: string, rule: string): boolean {
   for (const [prefix, rules] of ALLOW) {
@@ -439,6 +455,18 @@ console.log('============================================================')
     ['rule-sentences', J('Permission ', "rule 'Bash(rm *)' requires approval for this command")],
     ['rule-sentences', 'Permission to edit src/x.ts ' + J('requires ', 'confirmation')],
     ['rule-sentences', J('Permission rules can be ', 'changed in /permissions')],
+    ['sdk-result-fields', 'row.' + J('duration_api', '_ms') + ' === 0'],
+    ['sdk-result-fields', '{ ' + J('num_', 'turns') + ': 3 }'],
+    ['sdk-result-error-word', "subtype === '" + J('error_during', '_execution') + "'"],
+    ['sdk-wire-words', 'mercury run --format ' + J('stream-', 'json')],
+    ['sdk-wire-words', J('--permission-', 'channel') + ' stdio'],
+    ['sdk-home', "import type { Row } from '../" + J('entrypoints/', 'sdk') + "/types.js'"],
+    ['sdk-home', 'const frame: ' + J('SDKAssistant', 'Message') + ' = x'],
+    ['sdk-init-names', 'import { ' + J('SdkInit', 'Owner') + " } from './runtime/" + J('sdk-', 'init') + ".js'"],
+    ['control-frames', "if (frame.type === '" + J('control_', 'request') + "') {"],
+    ['control-frames', "{ subtype: '" + J('can_use', '_tool') + "' }"],
+    ['activity-stream-arms', "name: '" + J('stream-', 'file-change') + "',"],
+    ['activity-stream-arms', 'for (const sub of ' + J('explodeActivity', 'Inputs') + '(input))'],
   ]
   check('§5 self-test: every retired-word row has a spelling here and trips on it in src', RETIRED.every(([label]) => trips.some(([l]) => l === label)) && trips.every(([label, content]) => retiredHits('src/x.ts', content).includes(label)), trips.filter(([label, content]) => !retiredHits('src/x.ts', content).includes(label)).map(([label]) => label).join(','))
   check('§5 self-test: the rows reach docs, the README and the script estate', retiredHits('docs/x.md', trips[0]![1]).length === 1 && retiredHits('README.md', trips[0]![1]).length === 1 && retiredHits('scripts/x/prove-x.ts', trips[0]![1]).length === 1)
@@ -457,6 +485,7 @@ console.log('============================================================')
     'the daemon is the helper; a stewardship word is not the verb',
     'Both an auth token and an API key are configured; the extensions check their manifests; git init --quiet; i--; mercury image > file',
     'mercury roster; mercury bridge install; --log-file out.log; --crew alpha --seat bravo; MERCURY_MEMORY_OBSERVE=1',
+    "type: 'hook_error_during_execution'; api_ms: 12; steps: 3; session/set_mode; permission/request; the stream-fault row; { type: 'callback' }; the SDK of the provider; sdkErrors.ts; the MCP SDK",
   ]
   check('§5 self-test: kept identifiers, ordinary English and other programs stay quiet', quiet.every(content => retiredHits('src/x.ts', content).length === 0), quiet.filter(content => retiredHits('src/x.ts', content).length > 0).join(' | '))
   check('§5 self-test: a published record and a forbidden-words list keep their lines', retiredHits('src/constants/changelog.ts', trips[1]![1]).length === 0 && retiredHits('docs/releases/1.0.0-beta.9.md', trips[1]![1]).length === 0 && retiredHits('scripts/identity/prove-release-notes-words.ts', trips[1]![1]).length === 0)

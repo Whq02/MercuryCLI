@@ -1,4 +1,4 @@
-import { isOutcome, mainThreadStep, outcomeErrorText, outcomeFailed, parseRow, turnOpened, type LooseRow } from '../rows/read.js'
+import { isOutcome, mainThreadStep, outcomeErrorText, outcomeFailed, turnOpened, type LooseRow } from '../rows/read.js'
 
 export interface LongLivedSupervisorConfig {
   maxRespawns: number
@@ -18,8 +18,6 @@ export const DEFAULT_LONG_LIVED_CONFIG: LongLivedSupervisorConfig = {
   healthyResetMs: DEFAULT_HEALTHY_RESET_MS,
   maxLifetimeCrashes: DEFAULT_MAX_LIFETIME_CRASHES,
 }
-
-export const LONG_LIVED_FEEDS_SHARED_BREAKER = false
 
 export function longLivedBackoffMs(
   respawns: number,
@@ -57,10 +55,6 @@ export function decideRespawn(
   return { action: 'respawn', delayMs: longLivedBackoffMs(respawns, cfg), respawns }
 }
 
-export function normalizeStreamJsonFrame(frame: string): string {
-  return frame.endsWith('\n') ? frame : `${frame}\n`
-}
-
 
 export const DEFAULT_RECONFIGURE_IDLE_MS = 15_000
 
@@ -78,23 +72,6 @@ export type StreamJsonUsage = {
   cache_read_input_tokens: number
   output_tokens: number
 }
-
-export function parseRunnerLine(line: string): LooseRow | null {
-  const t = line.trim()
-  if (!t || t[0] !== '{') return null
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(t)
-  } catch {
-    return null
-  }
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null
-  const record = parsed as Record<string, unknown>
-  if (record.jsonrpc === '2.0') return parseRow(t)
-  return typeof record.type === 'string' ? (record as LooseRow) : null
-}
-
-export const parseStreamJsonFrame = parseRunnerLine
 
 export function occupancyOfRow(row: LooseRow | null): StreamJsonUsage | null {
   if (!mainThreadStep(row)) return null
@@ -136,17 +113,6 @@ export function deriveWireSpec(args: {
   }
 }
 
-export type ReconfigureDecision = { respawn: boolean; pending: boolean }
-
-export function decideReconfigure(args: {
-  lastDeliveredAt: number | undefined
-  now: number
-  idleMs?: number
-}): ReconfigureDecision {
-  const idle = workerIsIdle(args.lastDeliveredAt, args.now, args.idleMs ?? DEFAULT_RECONFIGURE_IDLE_MS)
-  return idle ? { respawn: true, pending: false } : { respawn: false, pending: true }
-}
-
 
 export const DEFAULT_MAX_TURN_MS = 20 * 60 * 1000
 
@@ -158,8 +124,6 @@ export function getMaxTurnMs(env: string | undefined): number {
 export function isOutcomeRow(row: LooseRow | null): boolean {
   return isOutcome(row)
 }
-
-export const isTurnResultParsedFrame = isOutcomeRow
 
 export function isTurnOpenRow(row: LooseRow | null): boolean {
   return turnOpened(row)
@@ -213,18 +177,4 @@ export function decideWorkerBusy(args: {
   }
   if (args.turnActive === false) return { busy: false, basis: 'turn' }
   return { busy: !workerIsIdle(args.lastDeliveredAt, args.now, args.idleMs), basis: 'delivery-clock' }
-}
-
-export type DispatchBackPressure = { hold: boolean; reason: 'busy' | 'idle' | 'unknown' }
-
-export function decideDispatchBackPressure(args: {
-  lastDeliveredAt: number | undefined
-  now: number
-  idleMs?: number
-  maxInFlight?: number
-}): DispatchBackPressure {
-  if (args.lastDeliveredAt === undefined) return { hold: false, reason: 'unknown' }
-  const idle = workerIsIdle(args.lastDeliveredAt, args.now, args.idleMs ?? DEFAULT_RECONFIGURE_IDLE_MS)
-  if (idle) return { hold: false, reason: 'idle' }
-  return { hold: (args.maxInFlight ?? 1) <= 1, reason: 'busy' }
 }

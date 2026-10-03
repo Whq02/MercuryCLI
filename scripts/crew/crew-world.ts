@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { seedFirstRun, FIXTURE_API_KEY } from '../lib/firstRunSeed.ts'
 import { LineReader, type Frame } from '../lib/rows.ts'
+import { hostRunner, type HostedRunner } from '../lib/runnerHost.ts'
 
 export const ROOT = resolve(import.meta.dir, '../..')
 
@@ -142,6 +143,70 @@ export function bootLead(world: World, extraArgv: string[], allowedTools: string
       const code = await Promise.race([exited, new Promise<number | null>(r => setTimeout(() => r(null), 60_000))])
       if (!done) child.kill('SIGKILL')
       return code
+    },
+  }
+}
+
+export function bootLeadOnDoor(world: World, extraArgv: string[], allowedTools: string[]): Session & { host: HostedRunner } {
+  const frames: Frame[] = []
+  let out = ''
+  let err = ''
+  const host = hostRunner({
+    node: NODE,
+    dist: DIST,
+    argv: ['--model', LEAD_MODEL, '--allowed-tools', ...allowedTools, ...extraArgv],
+    cwd: world.project,
+    env: world.env as Record<string, string | undefined>,
+    home: world.env.MERCURY_CONFIG_DIR ?? world.project,
+    raw: text => {
+      out += text
+    },
+    onRow: frame => frames.push(frame),
+  })
+  host.child.stderr!.on('data', (chunk: Buffer) => {
+    err += chunk.toString('utf8')
+  })
+  let done = false
+  const exited = host.exited.then(code => {
+    done = true
+    return code
+  })
+  void host.initialize().catch(() => undefined)
+  const waitFor = async (label: string, test: () => boolean, timeoutMs = TURN_MS): Promise<void> => {
+    const until = Date.now() + timeoutMs
+    while (!test()) {
+      if (done || Date.now() >= until) {
+        throw new Error(`${label}\n--- rows tail ---\n${out.slice(-1500)}\n--- stderr tail ---\n${err.slice(-1500)}`)
+      }
+      await new Promise(tick => setTimeout(tick, 25))
+    }
+  }
+  const settle = async (): Promise<number | null> => {
+    const code = await Promise.race([exited, new Promise<number | null>(r => setTimeout(() => r(null), 60_000))])
+    if (!done) host.child.kill('SIGKILL')
+    return code
+  }
+  return {
+    child: host.child,
+    host,
+    frames,
+    stdout: () => out,
+    stderr: () => err,
+    exited,
+    submit: text => {
+      void host.prompt(text).catch(() => undefined)
+    },
+    waitFor,
+    end: async () => {
+      host.end()
+      return settle()
+    },
+    terminate: async () => {
+      try {
+        host.child.kill('SIGTERM')
+      } catch {
+      }
+      return settle()
     },
   }
 }

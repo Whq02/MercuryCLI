@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync, readFileSync } from 'node:fs'
 import { tmpdir, userInfo } from 'node:os'
 import { dirname, join } from 'node:path'
+import { answeredWith } from '../lib/rows.ts'
 import { fileURLToPath } from 'node:url'
 
 const accountName = (() => { try { return userInfo().username } catch { return '' } })()
@@ -649,7 +650,7 @@ section("§13 THE BUILT BUNDLE — a headless gpt session on dist/mercury.mjs: t
     fixture.reset()
     fixture.script = [{ call: ask }, { call: ask }, { final: 'J1-DONE' }]
     let r = await headless('search the web for a terminal harness')
-    check('journey 1 (the doors answer): the shipped bundle runs the gpt session to its final text', r.exit === 0 && r.stdout.includes('J1-DONE'), `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)
+    check('journey 1 (the doors answer): the shipped bundle runs the gpt session to its final text — a completed outcome row carrying it', r.exit === 0 && answeredWith(r.stdout, 'J1-DONE'), `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)
     let results = toolResults()
     check('…two WebSearch results reached the wire', results.length === 2, j(results.map(t => t.slice(0, 120))))
     check('…the first answers keyless with the plain via line and the key hint ONCE',
@@ -665,7 +666,7 @@ section("§13 THE BUILT BUNDLE — a headless gpt session on dist/mercury.mjs: t
     fixture.reset()
     fixture.script = [{ call: ask }, { call: ask }, { final: 'J2-DONE' }]
     r = await headless('search the web for a terminal harness')
-    check('journey 2 (both doors challenged): the session runs to its final text', r.exit === 0 && r.stdout.includes('J2-DONE'), `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)
+    check('journey 2 (both doors challenged): the session runs to its final text — a completed outcome row carrying it', r.exit === 0 && answeredWith(r.stdout, 'J2-DONE'), `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)
     results = toolResults()
     check('…two distinct tool results', results.length === 2, j(results))
     const firstLine = results[0] ?? ''

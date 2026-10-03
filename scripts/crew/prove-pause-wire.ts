@@ -101,14 +101,13 @@ updateConcourseWorkers(workers => {
   } as never
 }, daemonDir)
 
-type Frame = { type: string; request_id: string; request: { subtype: string; paused?: boolean } }
-const frames: Frame[] = []
-const answered: Array<{ requestId: string; subtype: string; response: unknown }> = []
+const { standInRunner } = await import('../lib/seatDoor.ts')
+const { RPC_METHOD_NOT_FOUND } = await import('../../src/runner/wire/errors.ts')
+const answered: Array<{ requestId: number; method: string; response: unknown }> = []
 let channelOpen = true
 let runnerAnswers = true
 let runnerAnswersUnsupported = false
 let rowsNow: () => WorkRowV1[] = () => []
-let factsSeq = 0
 
 function factsAnswer(): Record<string, unknown> {
   const state = gate.state()
@@ -127,42 +126,38 @@ function factsAnswer(): Record<string, unknown> {
   } as never)
 }
 
-function answerFrame(frame: Frame): void {
+const stand = standInRunner({ autoAnswer: null })
+const answerRequest = (request: { id: number; method: string; params: unknown; answer(result: unknown): void; refuse(code: number, message: string, data?: unknown): void }): void => {
   if (!runnerAnswers) return
-  const line = (response: Record<string, unknown>): string => JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: frame.request_id, response } })
-  if (frame.request.subtype === 'session_facts') {
-    factsSeq++
+  if (request.method === 'session/facts') {
     const response = factsAnswer()
-    answered.push({ requestId: frame.request_id, subtype: 'session_facts', response })
-    seat.onSeatLine(RUNNER, line(response), roster as never, daemonDir)
+    answered.push({ requestId: request.id, method: 'session/facts', response })
+    request.answer(response)
     return
   }
-  if (frame.request.subtype === 'pause_gate') {
+  if (request.method === 'session/pause_gate') {
     if (runnerAnswersUnsupported) {
-      seat.onSeatLine(RUNNER, JSON.stringify({ type: 'control_response', response: { subtype: 'error', request_id: frame.request_id, error: 'unsupported control request subtype: pause_gate' } }), roster as never, daemonDir)
+      request.refuse(RPC_METHOD_NOT_FOUND, 'unknown method session/pause_gate', { method: 'session/pause_gate' })
       return
     }
-    const changed = frame.request.paused === true ? gate.pause() : gate.resume()
+    const changed = (request.params as { paused: boolean }).paused ? gate.pause() : gate.resume()
     const response = { paused: gate.paused(), parked: gate.parked().length, changed }
-    answered.push({ requestId: frame.request_id, subtype: 'pause_gate', response })
-    seat.onSeatLine(RUNNER, line(response), roster as never, daemonDir)
+    answered.push({ requestId: request.id, method: 'session/pause_gate', response })
+    request.answer(response)
+    return
   }
+  request.answer({})
 }
-
-const roster = {
-  control: (short: string, raw: string): boolean => {
-    if (!channelOpen || short !== RUNNER) return false
-    const frame = JSON.parse(raw) as Frame
-    frames.push(frame)
-    queueMicrotask(() => answerFrame(frame))
-    return true
-  },
-  list: () => [],
-  patchSeatModel: () => true,
-  patchSeatEffort: () => true,
-}
-const pauseFrames = (): Frame[] => frames.filter(f => f.type === 'control_request' && f.request.subtype === 'pause_gate')
-const factsFrames = (): Frame[] => frames.filter(f => f.type === 'control_request' && f.request.subtype === 'session_facts')
+void (async () => {
+  for (;;) {
+    const request = await stand.nextRequest(undefined, 600_000).catch(() => null)
+    if (request === null) return
+    queueMicrotask(() => answerRequest(request))
+  }
+})()
+const roster = stand.roster({ door: () => (channelOpen ? stand.connection : undefined) })
+const pauseFrames = () => stand.requests.filter(r => r.method === 'session/pause_gate').map(r => ({ paused: (r.params as { paused: boolean }).paused }))
+const factsFrames = () => stand.requests.filter(r => r.method === 'session/facts')
 
 type Latch = { promise: Promise<void>; open: () => void; opened: boolean }
 function latch(): Latch {
@@ -333,7 +328,7 @@ section('D1 THE DOOR — a blank chat refuses; a hosted chat sends the verb thro
   check('the notes are the ones the in-process carrier already paints', note.text === door.CREW_PAUSED_NOTE && door.crewPauseDoorNote({ outcome: 'applied', paused: false }).text === door.CREW_RESUMED_NOTE)
 }
 
-section('D2 THE DAEMON SEAT — pauseSessionGate relays { subtype: pause_gate, paused } to the session\'s runner and answers its word')
+section('D2 THE DAEMON SEAT — pauseSessionGate asks session/pause_gate { paused } of the session\'s runner and answers its word')
 if (typeof seatMod.pauseSessionGate !== 'function') {
   check('sessionSeat.ts exports pauseSessionGate (the relay of the one control verb)', false, 'absent — no pause_gate request ever reaches the wire')
 } else {
@@ -342,22 +337,21 @@ if (typeof seatMod.pauseSessionGate !== 'function') {
   const pending = relay(SESSION, true, roster, daemonDir)
   await settle(10)
   const sentFrames = pauseFrames()
-  check('the seat wrote ONE control_request of subtype pause_gate carrying paused: true', sentFrames.length === before + 1 && sentFrames.at(-1)?.request.paused === true, j(sentFrames.at(-1)))
-  check("the request id wears the seat's agent-verb family (the crew doors' road)", (sentFrames.at(-1)?.request_id ?? '').startsWith('mercury-seat-agent-pause-gate-'), sentFrames.at(-1)?.request_id ?? '')
+  check('the seat sent ONE session/pause_gate request carrying paused: true', sentFrames.length === before + 1 && sentFrames.at(-1)?.paused === true, j(sentFrames.at(-1)))
   const out = await pending
   check("the runner's success answer settles applied with its word (paused, parked, changed) as the detail", out.outcome === 'applied' && typeof out.detail === 'string' && JSON.parse(out.detail).paused === true && JSON.parse(out.detail).changed === true, j(out))
   check("the runner's gate closed through the wire", gate.paused())
   await settle(20)
   check('the verb\'s answer re-asks the facts at once (the seat\'s own law for a settled verb)', factsFrames().length >= 1, `${factsFrames().length} facts request(s)`)
   const resumed = await relay(SESSION, false, roster, daemonDir)
-  check('paused: false relays the same way and reopens the gate', resumed.outcome === 'applied' && !gate.paused() && pauseFrames().at(-1)?.request.paused === false, j(resumed))
+  check('paused: false relays the same way and reopens the gate', resumed.outcome === 'applied' && !gate.paused() && pauseFrames().at(-1)?.paused === false, j(resumed))
   const twice = await relay(SESSION, false, roster, daemonDir)
   check('a resume of an open gate is applied, unchanged (the runner says so)', twice.outcome === 'applied' && typeof twice.detail === 'string' && JSON.parse(twice.detail).changed === false, j(twice))
   const stranger = await relay('no-such-session', true, roster, daemonDir)
   check('an unknown session refuses typed, no frame written', stranger.outcome === 'refused' && (stranger.detail ?? '').includes('unknown-session'), j(stranger))
   channelOpen = false
   const closed = await relay(SESSION, true, roster, daemonDir)
-  check('a runner with no control channel refuses typed', closed.outcome === 'refused' && (closed.detail ?? '').includes('no live control channel'), j(closed))
+  check('a seat with no live runner door refuses typed', closed.outcome === 'refused' && (closed.detail ?? '').includes('no live runner door'), j(closed))
   channelOpen = true
   runnerAnswers = false
   const late = await relay(SESSION, true, roster, daemonDir, { deadlineMs: 60 })
@@ -365,9 +359,10 @@ if (typeof seatMod.pauseSessionGate !== 'function') {
   runnerAnswers = true
   runnerAnswersUnsupported = true
   const older = await relay(SESSION, true, roster, daemonDir)
-  check("an older runner's unsupported-subtype refusal names the gap and the restart", older.outcome === 'refused' && (older.detail ?? '').includes('predates the pause gate') && (older.detail ?? '').includes('/daemon restart'), j(older))
+  check("an older runner's unknown method names the gap and the restart", older.outcome === 'refused' && (older.detail ?? '').includes('predates the pause gate') && (older.detail ?? '').includes('/daemon restart'), j(older))
   runnerAnswersUnsupported = false
-  check('no waiter is left behind', seat._pendingAgentVerbWaitersForTesting() === 0)
+  await settle(30)
+  check('nothing is left pending on the door once the facts re-ask is answered', stand.connection.peer.pendingCount === 0, String(stand.connection.peer.pendingCount))
   check('the gate is open before the three layers run', !gate.paused() && gate.parked().length === 0)
 }
 
@@ -423,7 +418,7 @@ section('P1 THE THREE LAYERS — p on a hosted chat parks a real loop in the run
   const receipt = await press()
   check('p: the door answers applied, paused (the runner\'s word relayed by the daemon)', receipt.outcome === 'applied' && receipt.paused === true, j(receipt))
   check('p: the RPC carried sessionControl/pause-gate with paused: true', rpcLog.some(r => r.action === 'pause-gate' && r.paused === true), j(rpcLog))
-  check('p: ONE pause_gate control request crossed the wire to the runner', pauseFrames().length === pauseCount + 1 && pauseFrames().at(-1)?.request.paused === true, `${pauseFrames().length - pauseCount} request(s)`)
+  check('p: ONE session/pause_gate request crossed the wire to the runner', pauseFrames().length === pauseCount + 1 && pauseFrames().at(-1)?.paused === true, `${pauseFrames().length - pauseCount} request(s)`)
   check("p: the runner's gate is closed", gate.paused())
   await settle(30)
   const closedRoster = rosterOf()
@@ -443,7 +438,7 @@ section('P1 THE THREE LAYERS — p on a hosted chat parks a real loop in the run
 
   const again = await press()
   check('p again: the door answers applied, resumed', again.outcome === 'applied' && again.paused === false, j(again))
-  check('p again: the request crossed with paused: false and the runner\'s gate is open', pauseFrames().at(-1)?.request.paused === false && !gate.paused(), j(pauseFrames().at(-1)))
+  check('p again: the request crossed with paused: false and the runner\'s gate is open', pauseFrames().at(-1)?.paused === false && !gate.paused(), j(pauseFrames().at(-1)))
   await until(() => loop.toolStarts === 1, 'the parked tool starts after the resume')
   check('the parked loop continues from where it stopped: its tool starts with the input the model asked for, the wait clears', loop.toolStarts === 1 && loop.wait() === null, `tools=${loop.toolStarts} wait=${loop.wait()}`)
   seat.requestSessionFacts(RUNNER, roster as never, { immediate: true })
@@ -470,13 +465,13 @@ section('W1 THE WIRE — the verb\'s ceremony at each layer, pinned in source')
   const main = read('src/daemon/main.ts')
   check("the daemon's action arm relays through the seat's relay and requires the boolean", main.includes("if (action === 'pause-gate')") && main.includes('pauseSessionGate(sessionId, paused, roster)') && main.includes("'pause-gate requires paused'"))
   const seatSource = read('src/daemon/sessionSeat.ts')
-  check("the seat delivers the runner's pause_gate control request and awaits its word under the agent-verb deadline", seatSource.includes("request: { subtype: 'pause_gate', paused }") && seatSource.includes('export function pauseSessionGate('))
+  check("the seat asks the runner's session/pause_gate and awaits its word under the agent-verb deadline", seatSource.includes("'session/pause_gate', { paused }") && seatSource.includes('export async function pauseSessionGate('))
   const parse = METHODS['session/pause_gate'].params()
   check('the runner door accepts { paused: boolean } for session/pause_gate and refuses a missing boolean', parse.safeParse({ paused: true }).success && parse.safeParse({ paused: false }).success && !parse.safeParse({}).success)
   const runner = read('src/cli/print.ts')
   const armAt = runner.indexOf("'session/pause_gate': params => {")
   const arm = armAt < 0 ? '' : runner.slice(armAt, runner.indexOf("'shell/background': () => {"))
-  check("the runner's switch owns the subtype: paused closes the one gate, false opens it, the answer is the gate's word", armAt >= 0 && arm.includes('operatorPauseGate.pause()') && arm.includes('operatorPauseGate.resume()') && arm.includes('paused: operatorPauseGate.paused()'), armAt < 0 ? 'no pause_gate arm in print.ts' : arm.slice(0, 200))
+  check("the runner's arm owns the method: paused closes the one gate, false opens it, the answer is the gate's word", armAt >= 0 && arm.includes('operatorPauseGate.pause()') && arm.includes('operatorPauseGate.resume()') && arm.includes('paused: operatorPauseGate.paused()'), armAt < 0 ? 'no pause_gate arm in print.ts' : arm.slice(0, 200))
   check("the runner's facts answer publishes the gate's state (pauseGate: paused, parked)", runner.includes('pauseGate: { paused:') && runner.includes('parked:'))
   const wire = read('src/services/engine-connector/seatWire.ts')
   check('the facts wire spells the fact pause_gate (snake_case at every depth)', wire.includes("pauseGate: 'pause_gate'"))
@@ -544,4 +539,5 @@ clearTimeout(guard)
 rmSync(scratch, { recursive: true, force: true })
 console.log('─'.repeat(76))
 console.log(failures === 0 ? `ALL PASS — ${checks} checks` : `FAILURES: ${failures} of ${checks} checks`)
+stand.close()
 process.exit(failures === 0 ? 0 : 1)

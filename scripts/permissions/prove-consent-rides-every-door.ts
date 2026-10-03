@@ -38,6 +38,9 @@ const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseSup
 const { buildStreamJsonInvocation, headlessPermissionArgv } = await import('../../src/daemon/headlessRun.ts')
 const { deriveSessionKitForWorkspace } = await import('../../src/daemon/sessionKit.ts')
 const warm = await import('../../src/daemon/warmRunner.ts')
+const { standInRunner } = await import('../lib/seatDoor.ts')
+type StandInRunner = ReturnType<typeof standInRunner>
+type RunnerDoor = import('../../src/daemon/runnerConnection.ts').RunnerDoor
 const { resolvePermissionModeTransition } = await import('../../src/cli/headless/controlHandlers.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
@@ -115,7 +118,8 @@ section("§5 the warm pool's consent gate (the kit gate's twin) on the real poli
   type Spec = ReturnType<typeof buildConcourseWorkerSpec>
   class FakeRoster {
     registered: Array<{ short: string; spec: Spec }> = []
-    controls: Array<{ short: string; frame: string }> = []
+    stands = new Map<string, StandInRunner>()
+    claims: Array<{ short: string; params: Record<string, unknown> }> = []
     killed: string[] = []
     present = new Map<string, { alive: boolean; ready: boolean }>()
     has(short: string): { alive: boolean; present: boolean; ready: boolean } {
@@ -128,20 +132,28 @@ section("§5 the warm pool's consent gate (the kit gate's twin) on the real poli
     registerLongLived(short: string, spec: Spec): { ok: boolean; pid?: number; error?: string } {
       this.registered.push({ short, spec })
       this.present.set(short, { alive: true, ready: true })
+      const stand = standInRunner({
+        sessionId: null,
+        autoAnswer: {
+          'session/claim': (params: unknown) => {
+            const claim = params as Record<string, unknown>
+            this.claims.push({ short, params: claim })
+            return { session_id: String(claim.session_id) }
+          },
+        },
+      })
+      this.stands.set(short, stand)
       return { ok: true, pid: process.pid }
     }
-    control(short: string, frame: string): boolean {
-      this.controls.push({ short, frame })
-      const parsed = JSON.parse(frame) as { request_id?: string; request?: { subtype?: string } }
-      if (parsed.request?.subtype === 'claim_session' && typeof parsed.request_id === 'string') {
-        const requestId = parsed.request_id
-        queueMicrotask(() => warm.onWarmRunnerLine(JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: requestId } })))
-      }
-      return true
+    door(short: string): RunnerDoor | undefined {
+      const stand = this.stands.get(short)
+      return stand === undefined || stand.connection.closed ? undefined : stand.connection
     }
     kill(short: string): boolean {
       this.killed.push(short)
       this.present.delete(short)
+      this.stands.get(short)?.close('killed')
+      this.stands.delete(short)
       return true
     }
     patchSeatClaim(short: string, patch: { model: string; effort: string; respawnExtraArgv: readonly string[] }): Spec | null {
@@ -179,9 +191,9 @@ section("§5 the warm pool's consent gate (the kit gate's twin) on the real poli
   const wsC = ws()
   const dEnsure = await warm.ensureWarmRunner({ workspaceDir: wsC, bypassConsent: true }, deps)
   const d = await claim(wsC, true, 'sovereign')
-  const frame = roster.controls.at(-1)?.frame ?? ''
+  const lastClaim = roster.claims.at(-1)?.params
   check('(d) an equal-consent claim LANDS on the consented runner', dEnsure.state === 'warmed' && d.claimed === true, d.claimed === false ? d.reason : '')
-  check('(d) …with the sovereign posture riding the claim control', frame.includes('"claim_session"') && frame.includes('"permission_mode":"sovereign"'))
+  check('(d) …with the sovereign posture riding session/claim', lastClaim !== undefined && lastClaim.mode === 'sovereign', JSON.stringify(lastClaim))
   const wsD = ws()
   const e1 = await warm.ensureWarmRunner({ workspaceDir: wsD }, deps)
   const killedBefore = roster.killed.length

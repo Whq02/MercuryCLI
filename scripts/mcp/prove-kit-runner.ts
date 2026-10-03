@@ -254,30 +254,22 @@ section('§C the completion (poison: a second road to resolved; a resolved recor
       kit: JSON.parse(JSON.stringify(UNRESOLVED)),
     } as never
   }, DAEMON_DIR)
-  const fakeRoster = { control: () => true, list: () => [], patchSeatModel: () => true, patchSeatEffort: () => true }
-  const answerOf = (kit: unknown): string =>
-    JSON.stringify({
-      type: 'control_response',
-      response: {
-        subtype: 'success',
-        request_id: 'mercury-session-facts-w-kit-1',
-        response: {
-          model: { effective: 'test-model', setting: null },
-          usage: { total_cost_usd: 0, total_api_duration_ms: 0, total_duration_ms: 0, total_lines_added: 0, total_lines_removed: 0, total_input_tokens: 0, total_output_tokens: 0, total_cache_read_input_tokens: 0, total_cache_creation_input_tokens: 0, has_unknown_model_cost: false },
-          identity: { first_party_api: false, console_billing: false, claude_ai_billing: false, account_email: null },
-          skills: [],
-          mcp: [],
-          permission_mode: 'flow',
-          workspace: { cwd: PROJECT, original_cwd: PROJECT, project_root: PROJECT, instruction_roots: [] },
-          queue: [],
-          ...(kit !== undefined ? { kit: sessionKitToWire(kit as never) } : {}),
-        },
-      },
-    })
-  seat.onSeatLine('w-kit', answerOf(R), fakeRoster as never, DAEMON_DIR)
+  const fakeRoster = { door: () => undefined, list: () => [], patchSeatModel: () => true, patchSeatEffort: () => true }
+  const answerOf = (kit: unknown): Record<string, unknown> => ({
+    model: { effective: 'test-model', setting: null },
+    usage: { total_cost_usd: 0, total_api_duration_ms: 0, total_duration_ms: 0, total_lines_added: 0, total_lines_removed: 0, total_input_tokens: 0, total_output_tokens: 0, total_cache_read_input_tokens: 0, total_cache_creation_input_tokens: 0, has_unknown_model_cost: false },
+    identity: { first_party_api: false, console_billing: false, claude_ai_billing: false, account_email: null },
+    skills: [],
+    mcp: [],
+    permission_mode: 'flow',
+    workspace: { cwd: PROJECT, original_cwd: PROJECT, project_root: PROJECT, instruction_roots: [] },
+    queue: [],
+    ...(kit !== undefined ? { kit: sessionKitToWire(kit as never) } : {}),
+  })
+  seat.onFactsAnswer('w-kit', answerOf(R), fakeRoster as never, DAEMON_DIR)
   const stamped = readSessionWorkers(DAEMON_DIR)['w-kit'] as { kit?: typeof R } | undefined
-  t('C12 THE REAL SEAM: the child\'s session_facts answer completes the durable record — unresolved in, RESOLVED out, through the one pen', deepEq(stamped?.kit, R))
-  seat.onSeatLine('w-kit', answerOf({ schema: 1, mcp: ['smuggled'], skills: [], invocable: [] }), fakeRoster as never, DAEMON_DIR)
+  t('C12 THE REAL SEAM: the child\'s session/facts answer completes the durable record — unresolved in, RESOLVED out, through the one pen', deepEq(stamped?.kit, R))
+  seat.onFactsAnswer('w-kit', answerOf({ schema: 1, mcp: ['smuggled'], skills: [], invocable: [] }), fakeRoster as never, DAEMON_DIR)
   const after = readSessionWorkers(DAEMON_DIR)['w-kit'] as { kit?: typeof R } | undefined
   t('C13 POISON armed at the real seam: a later answer never re-stamps a resolved record (once means once)', deepEq(after?.kit, R))
   const callers = (await import('node:child_process')).spawnSync('grep', ['-rln', 'resolveSessionKitOnRecord(', join(REPO, 'src')], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean).sort()

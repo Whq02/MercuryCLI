@@ -651,7 +651,7 @@ async function routeControlRequest(
       if (!h.present) {
         return answer(sock, { ok: false, code: 'ENOJOB', error: 'job not found — it may have already exited' })
       }
-      const accepted = await deps.roster.reply(short, text)
+      const accepted = await deps.roster.reply(short, { type: 'prompt', content: text })
       if (!accepted) {
         return answer(sock, {
           ok: false,

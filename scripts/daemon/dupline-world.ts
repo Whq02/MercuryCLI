@@ -1,10 +1,12 @@
 import { spawn, type ChildProcess } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
-import { parseFrame, spawnRunnerDoor, userRow, type Frame, type RunnerDoor } from '../lib/rows.ts'
-import type { RunnerDoorCapabilities } from '../../src/daemon/headlessRun.ts'
+import { hostRunner, type HostedRunner } from '../lib/runnerHost.ts'
+import type { Frame } from '../lib/rows.ts'
+import type { Capabilities, PermissionAnswer, PermissionRequestParams } from '../../src/runner/wire/methods.ts'
 
 export const REPO = join(import.meta.dir, '..', '..')
 export const argAfter = (flag: string): string | undefined => {
@@ -302,43 +304,53 @@ export type { Frame } from '../lib/rows.ts'
 export { isSession, isOutcome } from '../lib/rows.ts'
 export type Runner = {
   proc: ChildProcess
-  door: RunnerDoor
+  host: HostedRunner
   frames: Frame[]
   stderr: () => string
   waitFor: (label: string, test: (f: Frame) => boolean, timeoutMs: number, after?: number) => Promise<Frame | null>
-  send: (frame: Frame) => void
+  prompt: (text: string, id?: string, sentAt?: string) => Promise<boolean>
+  request: HostedRunner['request']
+  send: HostedRunner['send']
+  note: (frame: Frame) => void
   exited: Promise<number | null>
   stop: (graceMs: number) => Promise<void>
   kill: () => void
 }
-export function bootRunner(args: { cwd: string; env: NodeJS.ProcessEnv; extraArgv?: string[]; capabilities?: Partial<RunnerDoorCapabilities> }): Runner {
+export type AskHost = 'allow' | ((params: PermissionRequestParams, id: number) => PermissionAnswer | Promise<PermissionAnswer>)
+export function bootRunner(args: { cwd: string; env: NodeJS.ProcessEnv; extraArgv?: string[]; capabilities?: Partial<Capabilities>; asks?: AskHost }): Runner {
   const frames: Frame[] = []
   const waiters: Array<{ test: (f: Frame) => boolean; resolve: (f: Frame) => void; reject: (error: Error) => void }> = []
   let stderrText = ''
-  const door = spawnRunnerDoor({
+  const note = (frame: Frame): void => {
+    frames.push(frame)
+    for (let i = waiters.length - 1; i >= 0; i--) if (waiters[i]!.test(frame)) waiters.splice(i, 1)[0]!.resolve(frame)
+  }
+  const host = hostRunner({
     node: NODE,
-    argv: [DIST, 'runner', '--model', MODEL, '--mode', 'sovereign', ...(args.extraArgv ?? [])],
+    dist: DIST,
+    argv: ['--model', MODEL, '--mode', 'sovereign', ...(args.extraArgv ?? [])],
     cwd: args.cwd,
-    env: args.env,
-    ...(args.capabilities !== undefined ? { capabilities: args.capabilities } : {}),
-    onLine: line => {
-      const frame = parseFrame(line)
-      if (frame === null) return
-      frames.push(frame)
-      for (let i = waiters.length - 1; i >= 0; i--) if (waiters[i]!.test(frame)) waiters.splice(i, 1)[0]!.resolve(frame)
+    env: args.env as Record<string, string | undefined>,
+    home: args.env.MERCURY_CONFIG_DIR ?? args.cwd,
+    onRow: note,
+    onNotification: (method, params) => {
+      if (method === 'session/applied') note({ type: 'session/applied', ...(params as Record<string, unknown>) })
     },
   })
-  const proc = door.child
+  const proc = host.child
   proc.stderr!.on('data', (chunk: Buffer) => {
     stderrText += chunk.toString('utf8')
   })
   let closedError: Error | undefined
-  const exited = new Promise<number | null>(resolve => proc.on('close', (code, signal) => {
-    closedError = new Error(`runner exited ${code ?? signal ?? 'without a code'}: ${stderrText.trim()}`)
+  const exited = host.exited.then(code => {
+    closedError = new Error(`runner exited ${code ?? 'without a code'}: ${stderrText.trim()}`)
     for (const waiter of waiters.splice(0)) waiter.reject(closedError)
-    door.connection.close('the runner exited')
-    resolve(code)
-  }))
+    host.peer.close('the runner exited')
+    return code
+  })
+  if (args.asks === 'allow') host.onAsk(() => ({ outcome: 'allow' }))
+  else if (typeof args.asks === 'function') host.onAsk(args.asks)
+  void host.initialize(args.capabilities ?? {}).catch(() => undefined)
   const waitFor = (label: string, test: (f: Frame) => boolean, timeoutMs: number, after = 0): Promise<Frame | null> => {
     const seen = frames.slice(after).find(test)
     if (seen !== undefined) return Promise.resolve(seen)
@@ -365,26 +377,23 @@ export function bootRunner(args: { cwd: string; env: NodeJS.ProcessEnv; extraArg
   }
   return {
     proc,
-    door,
+    host,
     frames,
     stderr: () => stderrText,
     waitFor,
-    send: frame => {
-      void door.send(frame)
-    },
+    prompt: (text, id = randomUUID(), sentAt) => host.prompt(text, { id, ...(sentAt !== undefined ? { sent_at: sentAt } : {}) }).then(() => true, () => false),
+    request: host.request,
+    send: host.send,
+    note,
     exited,
     stop: async graceMs => {
-      try {
-        proc.stdin!.end()
-      } catch {
-      }
+      host.end()
       await Promise.race([exited, sleep(graceMs)])
       kill()
     },
     kill,
   }
 }
-export const user = (text: string, uuid: string, timestamp?: string): Frame => userRow(text, { uuid, session_id: '', ...(timestamp !== undefined ? { timestamp } : {}) })
 export const requestsOf = (wire: () => Wire[]): Wire[] => wire().filter(w => w.kind === 'request')
 export const carrying = (ws: Wire[], word: string): Wire[] => ws.filter(w => (w.counts?.[word] ?? 0) > 0)
 export const describeRequests = (ws: Wire[], words: string[]): string => j(ws.map(w => [w.n, w.arm, w.step, ...words.map(x => w.counts?.[x] ?? 0)]))

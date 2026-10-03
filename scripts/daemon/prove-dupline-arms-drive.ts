@@ -5,32 +5,7 @@ import { join } from 'node:path'
 import { captureEngineEntry, resolveCaptureArgv0, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { describeCapturePreflight, preflightCaptureDriver } from '../lib/capturePreflight.ts'
 import { AFTER_RETURN_LINE, AGENT_DESCRIPTION, AGENT_TURN_ASK, CREW_NOTICE, CREW_TURN_ASK, doneText, FIRST_LINE, QUICK_DESCRIPTION, RETURN_LINE, SECOND_LINE } from './dupline-fixture-words.ts'
-import {
-  briefly,
-  carriersOf,
-  childEnv,
-  CLOCK_TOLERANCE_MS,
-  deliveryClockOf,
-  DIST,
-  exportWorld,
-  inMainFile,
-  isDrainedMainRow,
-  j,
-  makeTally,
-  MODEL,
-  NODE,
-  QUEUED_PLATE,
-  queueJournal,
-  removeWorld,
-  REPO,
-  requestsOf,
-  SCRATCH_ROOT,
-  seedHome,
-  sleep,
-  startFixture,
-  waitWire,
-  WIN,
-} from './dupline-world.ts'
+import { briefly, carriersOf, childEnv, CLOCK_TOLERANCE_MS, deliveryClockOf, DIST, exportWorld, inMainFile, isDrainedMainRow, j, makeTally, MODEL, NODE, QUEUED_PLATE, queueJournal, removeWorld, REPO, requestsOf, SCRATCH_ROOT, seedHome, sleep, startFixture, waitWire, WIN } from './dupline-world.ts'
 
 const { check, section, finish, failed } = makeTally('prove-dupline-arms-drive')
 

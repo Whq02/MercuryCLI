@@ -43,7 +43,7 @@ const script: Script = req => {
 const fixture = await startScriptedFixture(script)
 const port = Number(new URL(fixture.base).port)
 const runner = bootRunner({ cwd, env: childEnv(runHome, port) })
-const prompt = (content: string): Promise<unknown> => runner.door.connection.peer.request('queue/add', { type: 'prompt', content, id: randomUUID() }, { deadlineMs: bound(60_000) })
+const prompt = (content: string): Promise<unknown> => runner.host.request('queue/add', { type: 'prompt', content, id: randomUUID() }, bound(60_000))
 await prompt('background exit probe')
 const first = await runner.waitFor('first outcome', isOutcome, bound(60_000))
 tally.check('the launching turn settled', first !== null && first.status === 'completed', JSON.stringify(first).slice(0, 120))

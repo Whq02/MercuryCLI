@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DIST, MODEL, NODE, childEnv, makeTally, sleep } from '../daemon/dupline-world.ts'
-import { parseFrame, spawnRunnerDoor } from '../lib/rows.ts'
+import { hostRunner } from '../lib/runnerHost.ts'
 import { seedScratchHome, startScriptedFixture, type ScriptedFixture, type ScriptedRequest, type WireBlock } from '../lib/scriptedTurn.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { POLL_INTERVAL_MS } from '../../src/utils/task/framework.ts'
@@ -26,39 +26,37 @@ const FROM_SUB = 'sent a message'
 const FROM_MAIN = 'The main agent sent a message'
 
 type Frame = Record<string, unknown> & { atMs: number }
-type Runner = { frames: Frame[]; send: (frame: Record<string, unknown>) => void; stop: (graceMs: number) => Promise<void>; stderr: () => string }
+type Runner = { frames: Frame[]; prompt: (content: string, id: string) => void; stop: (graceMs: number) => Promise<void>; stderr: () => string }
 type World = 'sub-to-main-midturn' | 'sub-to-main-idle' | 'main-to-sub-midturn' | 'main-to-sub-ended'
 
 function boot(cwd: string, env: NodeJS.ProcessEnv): Runner {
   const frames: Frame[] = []
   let stderr = ''
-  const door = spawnRunnerDoor({
+  const host = hostRunner({
     node: NODE,
-    argv: [DIST, 'runner', '--model', MODEL, '--mode', 'sovereign', '--sovereign'],
+    dist: DIST,
+    argv: ['--model', MODEL, '--mode', 'sovereign', '--sovereign'],
     cwd,
-    env,
-    onLine: line => {
-      const frame = parseFrame(line)
-      if (frame !== null) frames.push({ ...frame, atMs: Date.now() })
+    env: env as Record<string, string | undefined>,
+    home: env.MERCURY_CONFIG_DIR ?? cwd,
+    onRow: frame => {
+      frames.push({ ...frame, atMs: Date.now() })
     },
   })
-  const proc = door.child
+  const proc = host.child
   proc.stderr!.on('data', (chunk: Buffer) => {
     stderr += chunk.toString('utf8')
   })
-  const exited = new Promise<void>(resolve => proc.on('exit', () => resolve()))
+  void host.initialize().catch(() => undefined)
   return {
     frames,
     stderr: () => stderr,
-    send: frame => {
-      door.send(frame)
+    prompt: (content, id) => {
+      void host.prompt(content, { id }).catch(() => undefined)
     },
     stop: async graceMs => {
-      try {
-        proc.stdin!.end()
-      } catch {
-      }
-      await Promise.race([exited, sleep(graceMs)])
+      host.end()
+      await Promise.race([host.exited, sleep(graceMs)])
       try {
         proc.kill('SIGKILL')
       } catch {
@@ -144,7 +142,7 @@ async function world(name: World): Promise<void> {
   seedScratchHome(runHome, cwd)
   const port = Number(new URL(fixture.base).port)
   const runner = boot(cwd, childEnv(runHome, port))
-  runner.send({ type: 'user', message: { role: 'user', content: MAIN_ASK }, uuid: randomUUID(), session_id: '' })
+  runner.prompt(MAIN_ASK, randomUUID())
   const wantResults = name === 'sub-to-main-idle' ? 3 : 1
   await untilQuiet(runner, wantResults, 6_000, vshotBudgetMs(70_000))
   await runner.stop(5_000)

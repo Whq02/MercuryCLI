@@ -45,7 +45,7 @@ section('§1 — the capture gate: the seat runner captures under the interactiv
   saveGlobalConfig(c => ({ ...c, fileCheckpointingEnabled: true }))
   setIsInteractive(false)
   check('the run posture reads non-interactive (the premise)', getIsNonInteractiveSession())
-  check('a plain run process keeps the SDK contract: capture OFF (control)', fileHistoryEnabled() === false)
+  check('a plain run process without the worker stamp captures nothing: capture OFF (control)', fileHistoryEnabled() === false)
 
   process.env.MERCURY_CONCOURSE_WORKER = '1'
   check('THE FIX: the seat runner (worker stamp under run) captures — the audit red', fileHistoryEnabled() === true)
@@ -201,7 +201,7 @@ async function driveRunner(opts: { stamp: boolean; label: string }): Promise<voi
     check("§2 the snapshot is keyed by the turn's own user message (the restore point /rewind names)", keyed, `userUuid=${userUuid} rows=${snapshotRows.map(r => r.slice(0, 160)).join(' | ')}`)
     check('§2 the snapshot tracks note.txt', snapshotRows.some(l => l.includes('note.txt')), snapshotRows.map(r => r.slice(0, 200)).join(' | '))
   } else {
-    check('§3 CONTROL — the plain run captured no blob (the SDK contract keeps its truth)', blobs.length === 0, j(blobs))
+    check('§3 CONTROL — the plain run captured no blob (an unstamped run keeps its hands off)', blobs.length === 0, j(blobs))
     check('§3 CONTROL — and wrote no snapshot row', snapshotRows.length === 0, String(snapshotRows.length))
   }
 }
