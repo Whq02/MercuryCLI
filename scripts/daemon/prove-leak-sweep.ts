@@ -558,7 +558,7 @@ section('§B — every arm is paired with its release (the class-B lifecycle cen
 
   const worktrees = src(join('daemon', 'concourseWorktrees.ts'))
   check('B7 gitAsync kills the child on timeout, timer unref\'d', worktrees.includes("child.kill('SIGKILL')") && worktrees.includes('timer.unref?.()'))
-  check('B7 the doctor journey probe reaps its owner in finally', src(join('utils', 'healthDeepProbes.ts')).includes('await disposeOwner(owner)'))
+  check('B7 /health journey probe reaps its owner in finally', src(join('utils', 'healthDeepProbes.ts')).includes('await disposeOwner(owner)'))
 }
 
 section('§B4x — two overlapping re-arms leave EXACTLY ONE live watcher (the generation guard, driven through the factory seam)')

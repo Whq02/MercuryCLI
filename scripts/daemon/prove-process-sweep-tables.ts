@@ -8,7 +8,7 @@ const posix = join(import.meta.dir, '../../src/daemon/processSweepPosix.ts')
 assert.ok(existsSync(owner) && existsSync(posix), 'Mercury composes process facts from its own records and one POSIX table reader')
 const { composeProcessSweepFacts, classifyMercuryProcess, readProcessSweepCensus, processSweepCounts, PROCESS_SWEEP_WORDS, processNamesMercury, tokenBinding }: typeof import('../../src/daemon/processSweep.ts') = await import(owner)
 const { parsePosixProcessTable, parseProcessStartToken, parsePidColumn, probePosixTerminal, collectPosixProcessTable }: typeof import('../../src/daemon/processSweepPosix.ts') = await import(posix)
-const { doctorProcessesReport }: typeof import('../../src/cli/doctorProcesses.ts') = await import(join(import.meta.dir, '../../src/cli/doctorProcesses.ts'))
+const { healthProcessesReport }: typeof import('../../src/cli/healthProcesses.ts') = await import(join(import.meta.dir, '../../src/cli/healthProcesses.ts'))
 import type { ProcessSweepObservation, ProcessSweepRecords, ProcessSweepTable } from '../../src/daemon/processSweep.ts'
 
 let checks = 0
@@ -508,12 +508,12 @@ await check('a win32 table that is incomplete lists nothing and says so, never a
   assert.equal(census.complete, false)
   assert.equal(census.entries.length, 0)
   assert.match(census.error ?? '', /Windows/)
-  const report = doctorProcessesReport(census, false)
+  const report = healthProcessesReport(census, false)
   assert.equal(report.counts.stale, 0)
   assert.match(report.error ?? '', /Windows/)
 })
 
-await check('the doctor words and the JSON report carry the approved sentences', () => {
+await check('/health words and the JSON report carry the approved sentences', () => {
   const { table, records } = world()
   const census = readProcessSweepCensus(table, records)
   const counts = processSweepCounts(census.entries)
@@ -523,7 +523,7 @@ await check('the doctor words and the JSON report carry the approved sentences',
   assert.equal(PROCESS_SWEEP_WORDS.confirm(2), 'End these 2 stale processes?')
   assert.equal(PROCESS_SWEEP_WORDS.result(3, 1, 2), 'Ended 3 stale processes; 1 could not be ended; 2 left running')
   assert.equal(PROCESS_SWEEP_WORDS.unkillable, 'cannot end — needs a reboot')
-  const report = doctorProcessesReport(census, false)
+  const report = healthProcessesReport(census, false)
   assert.equal(report.row, 'Mercury processes')
   assert.equal(report.lines.length, counts.stale + counts['cannot-end'])
   assert.ok(report.lines.every(line => /^pid \d+ · .+ · .+ · .+$/.test(line)))

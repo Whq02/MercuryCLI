@@ -28,7 +28,7 @@ if (!existsSync(DIST)) {
   process.exit(1)
 }
 if (process.platform === 'win32') {
-  console.log('process sweep world: POSIX only — the Windows read and ending are proved by scripts/winreg/prove-process-sweep-doctor.ts on a Windows box')
+  console.log('process sweep world: POSIX only — the Windows read and ending are proved by scripts/winreg/prove-process-sweep-health.ts on a Windows box')
   process.exit(0)
 }
 
@@ -72,7 +72,7 @@ function baseEnv(daemonDir: string): NodeJS.ProcessEnv {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: daemonDir,
     MERCURY_CREWS_DIR: join(home, 'crews'),
-    MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor-state'),
+    MERCURY_HEALTH_STATE_DIR: join(home, 'health-state'),
     ANTHROPIC_API_KEY: 'fixture-key-000',
     ANTHROPIC_BASE_URL: api.url,
     MERCURY_CUSTOM_OAUTH_URL: 'http://127.0.0.1:1',
@@ -448,13 +448,13 @@ try {
   writeFileSync(gonePath, JSON.stringify({ schema: 1, id: goneId, pid: gonePid, startToken: null, exe: process.execPath, bundle: DIST, configHome: home, daemonDir: dirs.live, terminal: null, bornAt: Date.now() - 600_000, heartbeatAt: Date.now() - 600_000 }, null, 2))
   const censusStamp = statSync(processSweepCensusPath(home)).mtimeMs
   const registrationsBefore = readdirSync(join(home, 'processes')).filter(name => name.startsWith('cockpit-')).length
-  const doctorRead = await readMercuryProcesses()
+  const healthRead = await readMercuryProcesses()
   const ownedShapes = [ownedD, staleW, staleR, staleR3, staleS, liveA, liveB, liveR].filter((entry): entry is ProcessSweepEntry => entry !== undefined)
   const sameOwnedShapes = ownedShapes.every(before => {
-    const after = entryOf(doctorRead.entries, before.process.pid)
+    const after = entryOf(healthRead.entries, before.process.pid)
     return after !== undefined && sameSweepIdentity(before, after) && before.kind === after.kind && before.classification === after.classification
   })
-  check('a doctor-shaped read lists the same owned shapes and writes nothing under the config home: the census stamp stands and a registration of a gone pid is not pruned', sameOwnedShapes && statSync(processSweepCensusPath(home)).mtimeMs === censusStamp && existsSync(gonePath) && readdirSync(join(home, 'processes')).filter(name => name.startsWith('cockpit-')).length === registrationsBefore, JSON.stringify({ entries: [doctorRead.entries.length, census.entries.length], owned: ownedShapes.length, stamp: [statSync(processSweepCensusPath(home)).mtimeMs, censusStamp], gone: existsSync(gonePath) }))
+  check('a health-shaped read lists the same owned shapes and writes nothing under the config home: the census stamp stands and a registration of a gone pid is not pruned', sameOwnedShapes && statSync(processSweepCensusPath(home)).mtimeMs === censusStamp && existsSync(gonePath) && readdirSync(join(home, 'processes')).filter(name => name.startsWith('cockpit-')).length === registrationsBefore, JSON.stringify({ entries: [healthRead.entries.length, census.entries.length], owned: ownedShapes.length, stamp: [statSync(processSweepCensusPath(home)).mtimeMs, censusStamp], gone: existsSync(gonePath) }))
   await recordProcessCensusAtBoot()
   check('the boot road records the census anew and prunes the registration of the gone pid', statSync(processSweepCensusPath(home)).mtimeMs !== censusStamp && !existsSync(gonePath) && alive(gonePid) === false, JSON.stringify({ stamp: [statSync(processSweepCensusPath(home)).mtimeMs, censusStamp], gone: existsSync(gonePath) }))
   check('every shape still stands after two read-only censuses', [staleDaemon.pid!, windowPid, standInPid, livePid, liveHello.pid as number, runner1?.pid, runner2?.pid, runner3?.pid].every(pid => typeof pid === 'number' && alive(pid)))
@@ -503,7 +503,7 @@ try {
   console.log('§5 the headless verb lists, then ends only the reviewed stale shapes')
   const listing = cliProcesses(false)
   const listed = (listing.report?.entries as ProcessSweepEntry[] | undefined) ?? []
-  check('mercury doctor processes answers a JSON listing with the approved row words', listing.code === 0 && listing.report?.row === PROCESS_SWEEP_WORDS.row && typeof listing.report?.summary === 'string', JSON.stringify(listing.report?.summary))
+  check('mercury health processes answers a JSON listing with the approved row words', listing.code === 0 && listing.report?.row === PROCESS_SWEEP_WORDS.row && typeof listing.report?.summary === 'string', JSON.stringify(listing.report?.summary))
   const listedStale = listed.filter(entry => entry.classification === 'stale')
   check('the listing names the two stale shapes so far with pid, terminal and age lines', listedStale.length === 2 && Array.isArray(listing.report?.lines) && (listing.report!.lines as string[]).length >= 2 && (listing.report!.lines as string[]).every(line => /^pid \d+ · .+ · .+ · .+$/.test(line)), JSON.stringify(listing.report?.lines))
   check('the reviewed identities carry the birth token the ending will demand', listedStale.every(entry => typeof entry.startToken === 'string' && entry.startToken !== '' && sameSweepIdentity(entry, entry)))

@@ -102,7 +102,7 @@ const errorOf = (reply: unknown): string => ((reply as { error?: unknown }).erro
 const refusalOf = (reply: unknown): string | undefined => (reply as { refusal?: string }).refusal
 const RESTART = restartDaemonWords()
 
-section('§1 a proto-5 daemon refuses the verbs born after it: the client speaks the doctor\'s sentence')
+section('§1 a proto-5 daemon refuses the verbs born after it: the client speaks /health\'s sentence')
 {
   freshPlane()
   const daemon = await startDaemon({ proto: 5, version: '1.0.0-beta.0', knownActions: V5_ACTIONS })
@@ -111,7 +111,7 @@ section('§1 a proto-5 daemon refuses the verbs born after it: the client speaks
   const toggle = await daemonControlRpc({ op: 'sessionControl', action: 'set-spawn-switch', sessionId: 's-1', by: 'operator', spawnSwitch: { kind: 'subagents', on: false } } as never, { timeoutMs: 1000 })
   check('set-spawn-switch is refused', toggle.ok === false)
   check('the refusal is marked as the older-daemon gap', refusalOf(toggle) === 'daemon-older', JSON.stringify(toggle))
-  check('the words are the doctor\'s sentence', errorOf(toggle).endsWith(RESTART), errorOf(toggle))
+  check('the words are /health\'s sentence', errorOf(toggle).endsWith(RESTART), errorOf(toggle))
   check('the gap is named by protocol: the daemon\'s own, this build\'s, and the verb\'s age', errorOf(toggle).includes('protocol 5') && errorOf(toggle).includes(`speaks ${MERCURY_DAEMON_PROTO}`) && errorOf(toggle).includes('needs protocol 6') && errorOf(toggle).includes('sessionControl set-spawn-switch'), errorOf(toggle))
   check('POISON: the raw verb list is never relayed', !errorOf(toggle).includes('requires {') && !errorOf(toggle).includes('pause|resume'), errorOf(toggle))
   const signIns = await daemonControlRpc({ op: 'signIns' } as never, { timeoutMs: 1000 })
@@ -161,7 +161,7 @@ section('§4 a pre-handshake (v1) daemon: hello refused as unknown op still clas
   await daemon.close()
 }
 
-section('§5 one owner: the verb ages, the doctor\'s sentence, the connector\'s receipts')
+section('§5 one owner: the verb ages, /health\'s sentence, the connector\'s receipts')
 {
   const born: Record<string, number> = {
     hello: 2,
@@ -176,8 +176,8 @@ section('§5 one owner: the verb ages, the doctor\'s sentence, the connector\'s 
   for (const [verb, v] of Object.entries(born)) check(`the age table agrees with the wire's history: ${verb} → v${v}`, DAEMON_VERB_BORN_AT[verb] === v, `table says ${DAEMON_VERB_BORN_AT[verb]}`)
   check('an action born after its op reads its own age; a verb the wire has always had reads the floor', verbBornAt('sessionControl', 'set-spawn-switch') === 6 && verbBornAt('sessionControl', 'pause') === 3 && verbBornAt('ping') === MIN_PROTO)
   check("the door's default binary is the product's one launcher (binaryName)", restartDaemonWords() === restartDaemonWords(binaryName()))
-  const doctor = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
-  check("the doctor's older-daemon row reads the one sentence owner", doctor.includes('restartDaemonWords(binaryName())') && !doctor.includes('`restart the daemon: \\`${binaryName()} daemon restart\\``'))
+  const health = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
+  check("/health's older-daemon row reads the one sentence owner", health.includes('restartDaemonWords(binaryName())') && !health.includes('`restart the daemon: \\`${binaryName()} daemon restart\\``'))
   const connector = readFileSync(join(ROOT, 'src', 'services', 'engine-connector', 'daemonConnector.ts'), 'utf8')
   check("the connector's rewind receipt carries the door's sentence whole (no second spelling)", connector.includes("reply.refusal === 'daemon-older'") && !connector.includes('the daemon predates the rewind verb'))
   check("the connector's crew verbs carry the door's sentence whole (no second spelling)", !connector.includes('the daemon predates the crew stop and resume verbs'))
