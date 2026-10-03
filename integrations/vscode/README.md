@@ -1,8 +1,10 @@
 # Mercury for VS Code
 
-A thin bridge to Mercury. It launches `mercury acp` (the
-`mercury.path` setting) and never runs an agent loop of its own; every fact
-it shows comes from Mercury.
+A thin bridge to Mercury. With the default `mercury.path`, it launches
+`mercury acp`; that setting selects the command, and the extension appends
+`acp`. The server starts one runner per session from the same Mercury build.
+The extension runs no agent loop of its own; every fact it shows comes from
+Mercury.
 
 **Editor → Mercury (the Agent Client Protocol)**
 
@@ -24,8 +26,8 @@ it shows comes from Mercury.
   turn's edit tools changed.
 - **Resume Session** — the transcript replays into the chat; nothing
   re-runs.
-- **Set Session Mode** — the modes the session reports (default, implement,
-  flow).
+- **Set Session Mode** — choose from the session's advertised modes.
+  Sovereign asks for consent; a refused selection shows the runner's reason.
 - **Open Artifact / Show Review Comments** — artifact bodies as markdown;
   anchored diff-line comments decorate open editors (outdated anchors say
   so).
