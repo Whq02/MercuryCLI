@@ -16,7 +16,7 @@ import { join } from 'node:path'
 const { enableConfigs } = await import(${JSON.stringify(join(repo, 'src/utils/config/globalConfig.ts'))})
 enableConfigs()
 const { getEmptyToolPermissionContext } = await import(${JSON.stringify(join(repo, 'src/Tool.ts'))})
-const { getInstructionFiles, composeInstructionPrompt, getInstructionBundle, isInstructionFilePath } = await import(${JSON.stringify(join(repo, 'src/services/instructions/engine.ts'))})
+const { getInstructionFiles, composeInstructionPrompt, getInstructionBundle, getInstructionCompositionState, isInstructionFilePath } = await import(${JSON.stringify(join(repo, 'src/services/instructions/engine.ts'))})
 const { getUserContext } = await import(${JSON.stringify(join(repo, 'src/context.ts'))})
 const { getNestedMemoryAttachmentsForFile } = await import(${JSON.stringify(join(repo, 'src/utils/attachments/nestedMemory.ts'))})
 const { createFileStateCacheWithSizeLimit } = await import(${JSON.stringify(join(repo, 'src/utils/fileStateCache.ts'))})
@@ -33,7 +33,8 @@ writeFileSync(process.argv[2]!, JSON.stringify({
   paths: files.map(f => f.path),
   composed,
   resolution: bundle.resolution.resolved,
-  entries: bundle.entries.map(e => ({ path: e.path, family: e.family, origin: e.origin, parent: e.parent, root: e.root })),
+  entries: bundle.entries.map(e => ({ path: e.path, type: e.type, family: e.family, origin: e.origin, parent: e.parent, root: e.root })),
+  fallbackComposed: getInstructionCompositionState().fallbackComposed,
   user: (await getUserContext()).instructions ?? '',
   touched: touched.map(a => a.path),
   guideStepComplete: getSteps().find(s => s.key === 'mercurymd')?.isComplete ?? null,
@@ -46,7 +47,8 @@ type Drive = {
   paths: string[]
   composed: string
   resolution: string
-  entries: Array<{ path: string; family: string; origin: string; parent?: string; root?: string }>
+  entries: Array<{ path: string; type: string; family: string; origin: string; parent?: string; root?: string }>
+  fallbackComposed: boolean
   user: string
   touched: string[]
   guideStepComplete: boolean | null
@@ -164,6 +166,54 @@ try {
   console.log('§8 the trust gate applies headless: an untrusted root composes nothing')
   const s8 = drive(shared, { untrusted: true })
   check('no project guide composes in a folder the operator never trusted', !s8.composed.includes('shared-guide-needle') && s8.paths.every(p => !p.startsWith(shared)), s8.paths.join(', '))
+
+  console.log('§9 a MERCURY.local.md is a personal layer: it composes beside the guide and never decides it')
+  const personal = project({ 'MERCURY.local.md': 'local-layer-needle\n', 'AGENTS.md': 'shared-guide-needle\n', 'src/a.ts': '\n' })
+  const s9 = drive(personal)
+  check('the chain chose the fallback: a local file alone is not the guide', s9.fallbackComposed === true)
+  check("the team's AGENTS.md composes as the guide", count(s9.composed, 'shared-guide-needle') === 1, s9.paths.join(', '))
+  check('the local file composes beside it', count(s9.composed, 'local-layer-needle') === 1, s9.paths.join(', '))
+  const guideAt = s9.paths.indexOf(join(personal, 'AGENTS.md'))
+  check('the guide composes before the personal layer', guideAt >= 0 && guideAt < s9.paths.indexOf(join(personal, 'MERCURY.local.md')), s9.paths.join(', '))
+  const localEntry = s9.entries.find(e => e.path === join(personal, 'MERCURY.local.md'))
+  const guideEntry = s9.entries.find(e => e.path === join(personal, 'AGENTS.md'))
+  check('the local entry is Local-typed and native; the guide entry is shared, Project-typed', localEntry?.type === 'Local' && localEntry.family === 'native' && guideEntry?.type === 'Project' && guideEntry.family === 'shared', JSON.stringify([localEntry, guideEntry]))
+  check('the first-run guide step counts the AGENTS.md as the project guide', s9.guideStepComplete === true)
+  check('the surface-map gate sees the composed guide', s9.oriented === true)
+  check('that AGENTS.md classifies as an instruction file (watch, compaction restore)', s9.classified === true)
+
+  const personalGuided = project({ 'MERCURY.md': 'native-guide-needle\n', 'MERCURY.local.md': 'local-layer-needle\n', 'AGENTS.md': 'shared-guide-needle\n' })
+  const s9b = drive(personalGuided)
+  check('with MERCURY.md present, MERCURY.md and the local file compose and AGENTS.md does not', s9b.composed.includes('native-guide-needle') && s9b.composed.includes('local-layer-needle') && !s9b.composed.includes('shared-guide-needle'), s9b.paths.join(', '))
+  check('the chain did not choose the fallback', s9b.fallbackComposed === false)
+  check('that AGENTS.md is an ordinary file', s9b.classified === false)
+
+  const personalOnly = project({ 'MERCURY.local.md': 'local-layer-needle\n', 'src/a.ts': '\n' })
+  const s9c = drive(personalOnly)
+  check('a project with only a local file composes it', count(s9c.composed, 'local-layer-needle') === 1, s9c.paths.join(', '))
+  check('the chain stands open for a shared guide: a local file alone is not the guide', s9c.fallbackComposed === true)
+  check('the first-run guide step stays open: the hint to run /init stands', s9c.guideStepComplete === false)
+  check('the surface-map gate reads the repo as unguided: the map comes', s9c.oriented === false)
+
+  const personalHome = project({ '.mercury/MERCURY.local.md': 'local-layer-needle\n', 'AGENTS.md': 'shared-guide-needle\n' })
+  const s9d = drive(personalHome)
+  check("a .mercury/MERCURY.local.md composes beside the team's AGENTS.md too", count(s9d.composed, 'shared-guide-needle') === 1 && count(s9d.composed, 'local-layer-needle') === 1, s9d.paths.join(', '))
+  check('the guide step and the surface-map gate read the home local file the same way', s9d.guideStepComplete === true && s9d.oriented === true)
+
+  const personalNested = project({ 'AGENTS.md': 'root-shared-needle\n', 'sub/MERCURY.local.md': 'nested-local-needle\n', 'sub/AGENTS.md': 'nested-shared-needle\n', 'sub/file.ts': '\n' })
+  const s9e = drive(personalNested, { touch: join(personalNested, 'sub/file.ts') })
+  check('touching a file under a directory holding a local file and an AGENTS.md attaches both', s9e.touched.includes(join(personalNested, 'sub/AGENTS.md')) && s9e.touched.includes(join(personalNested, 'sub/MERCURY.local.md')), s9e.touched.join(', '))
+  const nestedGuideAt = s9e.touched.indexOf(join(personalNested, 'sub/AGENTS.md'))
+  check('the nested guide attaches before the nested personal layer', nestedGuideAt >= 0 && nestedGuideAt < s9e.touched.indexOf(join(personalNested, 'sub/MERCURY.local.md')), s9e.touched.join(', '))
+
+  const personalAbove = project({ 'MERCURY.md': 'parent-guide-needle\n', 'app/MERCURY.local.md': 'local-layer-needle\n', 'app/AGENTS.md': 'shared-guide-needle\n', 'app/src/a.ts': '\n' })
+  const s9f = drive(join(personalAbove, 'app'), { trust: personalAbove })
+  check('a MERCURY.md above the working directory still decides: it and the local file compose, AGENTS.md does not', s9f.composed.includes('parent-guide-needle') && s9f.composed.includes('local-layer-needle') && !s9f.composed.includes('shared-guide-needle'), s9f.paths.join(', '))
+  check('the chain did not choose the fallback under a parent MERCURY.md', s9f.fallbackComposed === false)
+
+  const s9g = drive(personal, { settings: { briefs: { profile: 'native' } } })
+  check('under native the local file composes and AGENTS.md does not', s9g.composed.includes('local-layer-needle') && !s9g.composed.includes('shared-guide-needle'), s9g.paths.join(', '))
+  check('the guide step stays open under native', s9g.guideStepComplete === false && s9g.oriented === false)
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

@@ -119,6 +119,17 @@ try {
   const s4 = drive(shared, ['AGENTS.md', 'sub/AGENTS.md'], { briefs: { profile: 'native' } })
   check('nothing composed from the project', s4.composed.every(p => !p.startsWith(shared)), s4.composed.join(', '))
   check('both AGENTS.md reads are restored', has(s4.restored, shared, 'AGENTS.md') && has(s4.restored, shared, 'sub/AGENTS.md'), s4.restored.join(', '))
+
+  console.log("§5 a MERCURY.local.md beside the team's AGENTS.md: both compose, and both reads are left to the prompt")
+  const personal = project({ 'MERCURY.local.md': 'local-layer\n', 'AGENTS.md': 'shared-guide\n', 'notes.md': 'notes\n', 'sub/MERCURY.local.md': 'nested-local\n', 'sub/AGENTS.md': 'nested-shared\n' })
+  const s5 = drive(personal, ['MERCURY.local.md', 'AGENTS.md', 'notes.md', 'sub/AGENTS.md', 'sub/MERCURY.local.md'])
+  check('AGENTS.md and the local file both composed', has(s5.composed, personal, 'AGENTS.md') && has(s5.composed, personal, 'MERCURY.local.md'), s5.composed.join(', '))
+  check('the composed AGENTS.md is not restored (the prompt carries it)', !has(s5.restored, personal, 'AGENTS.md'), s5.restored.join(', '))
+  check('the composed local file is not restored', !has(s5.restored, personal, 'MERCURY.local.md'), s5.restored.join(', '))
+  check('the ordinary file is restored', has(s5.restored, personal, 'notes.md'), s5.restored.join(', '))
+  check('AGENTS.md beside a local file is an instruction file', s5.classified[join(personal, 'AGENTS.md')] === true)
+  check('a nested AGENTS.md beside a nested local file attaches on touch: not restored', !has(s5.restored, personal, 'sub/AGENTS.md'), s5.restored.join(', '))
+  check('the nested local file is not restored either', !has(s5.restored, personal, 'sub/MERCURY.local.md'), s5.restored.join(', '))
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

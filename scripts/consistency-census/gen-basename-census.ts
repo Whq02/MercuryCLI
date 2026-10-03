@@ -157,11 +157,6 @@ const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boole
     cls: 'guide-probe',
     why: 'the project intel facts name the guides Mercury loads — existence only, never a content load',
   },
-  {
-    test: (f, needle) => (needle === 'MERCURY.md' || needle === 'AGENTS.md') && f === 'src/projectOnboardingState.ts',
-    cls: 'guide-probe',
-    why: 'the /init step completes on the guide the profile composes (MERCURY.md, or AGENTS.md)',
-  },
 ]
 
 const classified = hits.map(h => {

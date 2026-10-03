@@ -9,7 +9,7 @@ import {
 
 export const PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD = 400
 
-const ENTRY_BASENAMES_BY_RANK = ['MERCURY.md', 'MERCURY.local.md', SHARED_INSTRUCTION_FILE]
+const ENTRY_BASENAMES_BY_RANK = ['MERCURY.md', SHARED_INSTRUCTION_FILE, 'MERCURY.local.md']
 const ENTRY_BASENAMES = new Set(ENTRY_BASENAMES_BY_RANK)
 
 export function measuredGuideName(files: readonly InstructionSourceEntry[]): string {

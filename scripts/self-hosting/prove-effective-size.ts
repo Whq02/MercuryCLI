@@ -49,7 +49,8 @@ console.log('the guide the measure names')
 const guideOf: (files: unknown) => string = typeof measuredGuideName === 'function' ? measuredGuideName : () => 'MERCURY.md'
 check(guideOf([mk('/p/MERCURY.md', 'Project', 3), mk('/p/AGENTS.md', 'Project', 600, '/p/MERCURY.md')]) === 'MERCURY.md', 'a MERCURY.md pointer at AGENTS.md: the guide is MERCURY.md')
 check(guideOf([mk('/p/AGENTS.md', 'Project', 600)]) === 'AGENTS.md', 'an AGENTS.md-only estate: the guide is AGENTS.md')
-check(guideOf([mk('/home/.mercury/MERCURY.md', 'User', 500), mk('/p/MERCURY.local.md', 'Local', 7)]) === 'MERCURY.local.md', 'a local-only estate names the local file')
+check(guideOf([mk('/home/.mercury/MERCURY.md', 'User', 500), mk('/p/MERCURY.local.md', 'Local', 7)]) === 'MERCURY.local.md', 'a local-only estate names the local file: it is all that loads')
+check(guideOf([mk('/p/MERCURY.local.md', 'Local', 7), mk('/p/AGENTS.md', 'Project', 600)]) === 'AGENTS.md', 'a personal layer beside an AGENTS.md guide: the guide is AGENTS.md')
 
 const driverSrc = `
 import { enableConfigs } from '${repo}/src/utils/config/globalConfig.js'
@@ -122,6 +123,19 @@ check(shared.lines === 600, 'effective lines = 600 through the real walk', JSON.
 check(shared.armed === true, 'the chip arms past the bar')
 check(shared.text === 'trim agents.md to optimise performance and reduce context bloat', 'the chip names agents.md, the guide it measured', shared.text)
 
+console.log('real engine: a personal MERCURY.local.md beside a 600-line AGENTS.md guide: both load, the chip names the guide')
+const personalFix = mkdtempSync(join(tmpdir(), 'effsize-personal-'))
+execSync('git init -q', { cwd: personalFix })
+writeFileSync(join(personalFix, 'MERCURY.local.md'), 'my own notes\nline two\nline three\n')
+writeFileSync(
+  join(personalFix, 'AGENTS.md'),
+  Array.from({ length: 600 }, (_, i) => `guide line ${i}`).join('\n') + '\n',
+)
+const personal = drive(personalFix)
+check(personal.lines === 603, 'effective lines = 603: the guide and the personal layer both load', JSON.stringify(personal))
+check(personal.armed === true, 'the chip arms past the bar')
+check(personal.text === 'trim agents.md to optimise performance and reduce context bloat', 'the chip names agents.md, the guide it measured', personal.text)
+
 console.log('real engine: 399 effective lines do NOT arm')
 const calmFix = mkdtempSync(join(tmpdir(), 'effsize-calm-'))
 execSync('git init -q', { cwd: calmFix })
@@ -146,6 +160,6 @@ const rules = drive(rulesFix)
 check(rules.lines === 1, 'a 600-line rules file leaves the measure at 1', JSON.stringify(rules))
 check(rules.armed === false, 'rules weight never arms the mercury.md chip')
 
-for (const dir of [armFix, sharedFix, calmFix, rulesFix, driverDir]) rmSync(dir, { recursive: true, force: true })
+for (const dir of [armFix, sharedFix, personalFix, calmFix, rulesFix, driverDir]) rmSync(dir, { recursive: true, force: true })
 console.log(failures === 0 ? '\nALL EFFECTIVE-SIZE LAWS HOLD' : `\n${failures} FAILURES`)
 process.exit(failures === 0 ? 0 : 1)

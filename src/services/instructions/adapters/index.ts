@@ -1,4 +1,4 @@
-import { basename, dirname, parse, resolve } from 'path'
+import { dirname, parse, resolve } from 'path'
 
 import { getFsImplementation } from '../../../utils/fsOperations.js'
 import type {
@@ -23,14 +23,6 @@ export function adapterForProfile(): InstructionAdapter {
   return mercuryAdapter
 }
 
-function projectFilesOf(convention: InstructionConvention, dir: string): string[] {
-  return [
-    ...convention.projectDirFiles(dir),
-    ...(convention.localDirFiles?.(dir) ??
-      (convention.localDirFile(dir) !== null ? [convention.localDirFile(dir) as string] : [])),
-  ]
-}
-
 function isFile(path: string): boolean {
   try {
     return getFsImplementation().statSync(path).isFile()
@@ -41,7 +33,7 @@ function isFile(path: string): boolean {
 
 export function hasPrimaryProjectFile(conventions: InstructionConvention[], dirs: string[]): boolean {
   return conventions.some(
-    convention => !convention.fallback && dirs.some(dir => projectFilesOf(convention, dir).some(isFile)),
+    convention => !convention.fallback && dirs.some(dir => convention.projectDirFiles(dir).some(isFile)),
   )
 }
 
@@ -58,14 +50,10 @@ function chainOf(dir: string): string[] {
 export function composedGuideFilesAt(dir: string): string[] {
   const conventions = adapterForProfile().conventionsFor(resolveRequestedInstructionProfile().profile)
   const primary = conventions.filter(c => !c.fallback)
-  const present = primary.flatMap(c => projectFilesOf(c, dir)).filter(isFile)
+  const present = primary.flatMap(c => c.projectDirFiles(dir)).filter(isFile)
   if (present.length > 0) return present
   if (hasPrimaryProjectFile(primary, chainOf(dir))) return []
   return conventions
     .filter(c => c.fallback)
-    .flatMap(c => projectFilesOf(c, dir).filter(path => isFile(path) && !c.isExcluded(path, 'Project')))
-}
-
-export function composedGuideNamesAt(dir: string): string[] {
-  return composedGuideFilesAt(dir).map(p => basename(p))
+    .flatMap(c => c.projectDirFiles(dir).filter(path => isFile(path) && !c.isExcluded(path, 'Project')))
 }
