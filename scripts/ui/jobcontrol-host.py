@@ -206,7 +206,7 @@ def mark(label):
 
 def face_row(target):
     labels = ["New Session", "Continue Last Session", "Boot Menu", "MCPs & Skills", "Agents",
-              "Doctor / Health Check", "Saturn Scheduler", "Logins", "Session Concourse", "Sessions"]
+              "Health Check", "Saturn Scheduler", "Logins", "Session Concourse", "Sessions"]
     lines = text().split("\n")
     y_new = next(i for i, l in enumerate(lines) if "New Session" in l)
     y_t = next(i for i, l in enumerate(lines) if target in l)

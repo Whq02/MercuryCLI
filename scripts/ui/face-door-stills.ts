@@ -70,7 +70,7 @@ export const FIXED_CERT: HealthCertificate = {
           status: 'warn',
           evidence: '~/.mercury/keybindings.json holds 2 unknown actions',
           detail: 'Unknown actions are ignored at load; the file keeps working.',
-          fix: 'remove the unknown rows, or re-run the keybindings doctor',
+          fix: 'remove the unknown rows, or re-run the keybindings check',
           remedy: { class: 'safe', plan: 'rewrite keybindings.json without the 2 unknown action rows (a .bak copy is left beside it)' },
         },
       ],

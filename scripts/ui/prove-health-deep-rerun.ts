@@ -47,10 +47,10 @@ const run = runJobControlHost({
   steps: [
     { wait: 'host$', timeout: 15 },
     { launch: true },
-    { wait: 'Doctor / Health Check', timeout: 45 },
+    { wait: 'Health Check', timeout: 45 },
     { sleep: 1.5 },
     { observe: 'face' },
-    { face_row: 'Doctor / Health Check' },
+    { face_row: 'Health Check' },
     { wait: 'd deep', timeout: 30 },
     { wait: 'issued', timeout: 60 },
     { sleep: 0.5 },

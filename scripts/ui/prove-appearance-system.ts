@@ -268,7 +268,7 @@ section('§7 — the default appearance: True Black, and a saved choice wins')
   )
   const freshSnap = snapshot.getMercuryAppearanceSnapshot()
   check(
-    'the doctor row owner (the appearance snapshot) resolves the default',
+    'the health row owner (the appearance snapshot) resolves the default',
     freshSnap.requestedTheme === DEFAULT_THEME_SETTING && freshSnap.concreteTheme === DEFAULT_THEME_SETTING,
   )
 
@@ -278,7 +278,7 @@ section('§7 — the default appearance: True Black, and a saved choice wins')
     provider.currentStoredThemeSetting() === 'dark' && appearanceCmd.currentValue?.() === 'dark',
   )
   const darkSnap = snapshot.getMercuryAppearanceSnapshot()
-  check('…and the doctor row reports it', darkSnap.requestedTheme === 'dark' && darkSnap.concreteTheme === 'dark')
+  check('…and the health row reports it', darkSnap.requestedTheme === 'dark' && darkSnap.concreteTheme === 'dark')
   cfg.saveGlobalConfig(c => ({ ...c, theme: 'true-black' }))
   check('a saved True Black choice stays True Black', provider.currentStoredThemeSetting() === 'true-black')
   cfg.saveGlobalConfig(c => ({ ...c, theme: 'light' }))

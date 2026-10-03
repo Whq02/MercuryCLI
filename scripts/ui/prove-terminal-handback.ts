@@ -79,7 +79,7 @@ const cargoPresent = ((): boolean => {
   return !res.error && res.status === 0
 })()
 
-section('U · the owner: compare, reclaim once, never throw; the descriptor; the doctor line per state')
+section('U · the owner: compare, reclaim once, never throw; the descriptor; the health line per state')
 {
   const calls: string[] = []
   const standIn = (foreground: number, own: number, opts: { refuse?: boolean; throwOn?: 'own' | 'fg' | 'reclaim' } = {}): TtyAddon => ({
@@ -143,7 +143,7 @@ section('U · the owner: compare, reclaim once, never throw; the descriptor; the
   r = reclaimTerminalAfterChild('proof')
   check('pack absent: reclaimed false, reason "pack absent"', !r.reclaimed && r.reason === 'pack absent', JSON.stringify(r))
   const absent = describeTerminalHandback()
-  check('…and the doctor line says pack absent ⇒ stop + fg', !absent.native && absent.line.startsWith('Terminal hand-back:') && absent.line.includes('pack absent ⇒ stop + fg') && /fg resumes/.test(absent.line), absent.line)
+  check('…and the health line says pack absent ⇒ stop + fg', !absent.native && absent.line.startsWith('Terminal hand-back:') && absent.line.includes('pack absent ⇒ stop + fg') && /fg resumes/.test(absent.line), absent.line)
 
   process.env[TERMINAL_HANDBACK_FLAG] = '0'
   setTerminalHandbackAddonForTest(standIn(777, 500))
@@ -151,11 +151,11 @@ section('U · the owner: compare, reclaim once, never throw; the descriptor; the
   r = reclaimTerminalAfterChild('proof')
   check(`${TERMINAL_HANDBACK_FLAG}=0: reason "disabled", no native call at all`, !r.reclaimed && r.reason === 'disabled' && calls.length === 0, JSON.stringify({ r, calls }))
   const off = describeTerminalHandback()
-  check('…and the doctor line names the gate and the stop + fg road', !off.native && off.line.includes(`${TERMINAL_HANDBACK_FLAG}=0`) && off.line.includes('stop + fg'), off.line)
+  check('…and the health line names the gate and the stop + fg road', !off.native && off.line.includes(`${TERMINAL_HANDBACK_FLAG}=0`) && off.line.includes('stop + fg'), off.line)
   delete process.env[TERMINAL_HANDBACK_FLAG]
 
   const present = describeTerminalHandback()
-  check('with a pack: the doctor line says native reclaim available', present.native && present.line.includes('native reclaim available'), present.line)
+  check('with a pack: the health line says native reclaim available', present.native && present.line.includes('native reclaim available'), present.line)
 
   setTerminalHandbackAddonForTest(undefined)
   setTerminalHandbackDescriptorForTest(undefined)
@@ -180,12 +180,12 @@ if (packPresent) {
   check('reclaimTerminal(a plain file) reclaims nothing, names the reason, never throws', refused.reclaimed === false && typeof refused.reason === 'string' && (refused.before ?? null) === null, JSON.stringify(refused))
   closeSync(plain)
   const real = describeTerminalHandback()
-  check('the doctor line names the pack, its version, platform and source', real.native && real.line.includes(packLoad.manifest.version) && real.line.includes(packLoad.manifest.platform) && real.line.includes(packLoad.source), real.line)
+  check('the health line names the pack, its version, platform and source', real.native && real.line.includes(packLoad.manifest.version) && real.line.includes(packLoad.manifest.platform) && real.line.includes(packLoad.source), real.line)
 } else {
   skip('the vendored pack’s tty surface', `no pack on this build${cargoPresent ? ' (cargo is on PATH: bun run scripts/vendor/build-voice.ts builds it)' : ' and no cargo on PATH'}: ${packLoad.state === 'unavailable' ? packLoad.note : ''}`)
 }
 
-section('S · one owner · every hand-off site · the one native spelling · the doctor row · the registry · the fallback road')
+section('S · one owner · every hand-off site · the one native spelling · the health row · the registry · the fallback road')
 {
   const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
   const sites: Array<[string, string, string[]]> = [
@@ -249,7 +249,7 @@ section('S · one owner · every hand-off site · the one native spelling · the
 
   const report = read('src/utils/healthReport.ts')
   const row = report.slice(report.indexOf("id: 'iface-terminal'"), report.indexOf("id: 'iface-tokens'"))
-  check("the doctor's Terminal profile row reads describeTerminalHandback() and carries its line in the detail", row.includes("require('./terminalHandback.js')") && row.includes('describeTerminalHandback()') && row.includes('handback.line'))
+  check("/health's Terminal profile row reads describeTerminalHandback() and carries its line in the detail", row.includes("require('./terminalHandback.js')") && row.includes('describeTerminalHandback()') && row.includes('handback.line'))
 
   const spec = FLAG_REGISTRY.find(f => f.env === TERMINAL_HANDBACK_FLAG)
   check('the gate is registered: default-on, the owner as consumer, this prover as evidence', spec !== undefined && spec.kind === 'default-on' && spec.consumer === 'src/utils/terminalHandback.ts' && spec.evidence === 'scripts/ui/prove-terminal-handback.ts', JSON.stringify(spec))
@@ -259,7 +259,7 @@ section('S · one owner · every hand-off site · the one native spelling · the
   check('the stop owner still handles the background stops the fallback rides (SIGTTIN/SIGTTOU)', stop.includes("'SIGTSTP', 'SIGTTIN', 'SIGTTOU'") && stop.includes('stopIsForeground') && statSync(join(ROOT, 'scripts/ui/prove-tty-suspend.ts'), { throwIfNoEntry: false })?.isFile() === true)
 }
 
-section('D · the doctor: the Terminal profile row carries the hand-back fact')
+section('D · /health: the Terminal profile row carries the hand-back fact')
 {
   const report = await import('../../src/utils/healthReport.js')
   const row = async (): Promise<{ status: string; evidence: string; detail: string }> => {
@@ -432,7 +432,7 @@ if (!packPresent) {
     steps: [
       { wait: 'host$', timeout: 15 },
       { launch: true },
-      { wait: 'Doctor / Health Check', timeout: 45 },
+      { wait: 'Health Check', timeout: 45 },
       { sleep: 1.5 },
       { send: '\r' },
       { wait: 'Type a prompt', timeout: 30 },

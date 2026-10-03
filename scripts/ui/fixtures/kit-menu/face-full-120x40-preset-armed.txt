@@ -31,7 +31,7 @@
                   │   ⊞ Boot Menu                                               configure boot env → │
                   │   ⊛ MCPs & Skills                                       next: preset 'writing' → │
                   │   ◈ Agents                                              create and edit agents → │
-                  │   ✓ Doctor / Health Check                                   system diagnostics → │
+                  │   ✓ Health Check                                            system diagnostics → │
                   │   ◷ Saturn Scheduler                                sessions born on the clock → │
                   │   ⚿ Logins                                                sign in to providers → │
                   │   ⊞ Session Concourse                                  the live board · 2 live → │

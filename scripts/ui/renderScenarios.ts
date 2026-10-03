@@ -1340,7 +1340,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
   process.env.MERCURY_CRITTER_IDLE = process.env.MERCURY_CRITTER_IDLE ?? '0'
   process.env.MERCURY_CRITTER_SLEEP = process.env.MERCURY_CRITTER_SLEEP ?? '0'
   process.env.MERCURY_LIVE_CLOCK = process.env.MERCURY_LIVE_CLOCK ?? '0'
-  process.env.MERCURY_HEALTH_STATE_DIR = join(tmpdir(), `mercury-render-doctor-${process.pid}`)
+  process.env.MERCURY_HEALTH_STATE_DIR = join(tmpdir(), `mercury-render-health-${process.pid}`)
   process.env.MERCURY_DAEMON_DIR = join(tmpdir(), `mercury-render-daemon-${process.pid}`)
   process.env.MERCURY_LOCAL_PROBE_TARGETS = process.env.MERCURY_LOCAL_PROBE_TARGETS ?? 'none'
   process.env.MERCURY_CREWS_DIR = join(tmpdir(), `mercury-render-crews-${process.pid}`)
@@ -2172,7 +2172,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     return {
       argv: ['node', BIN],
       sends: [
-        { atTick: 40, awaitText: 'Doctor / Health Check', minTick: 20, awaitSettleTicks: 2, data: 'm', mark: 'open' },
+        { atTick: 40, awaitText: 'Health Check', minTick: 20, awaitSettleTicks: 2, data: 'm', mark: 'open' },
         { atTick: 60, awaitText: 'boot menu', minTick: 30, awaitSettleTicks: 2, data: '' },
       ],
       total: 85,
@@ -2189,7 +2189,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     return {
       argv: ['node', BIN],
       sends: [
-        { atTick: 40, awaitText: 'Doctor / Health Check', minTick: 20, awaitSettleTicks: 2, mark: 'face', data: '' },
+        { atTick: 40, awaitText: 'Health Check', minTick: 20, awaitSettleTicks: 2, mark: 'face', data: '' },
       ],
       total: 60,
       cols,
@@ -4003,7 +4003,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
            { afterPrevTicks: 3, data: '\r' },
            { atTick: 80, awaitText: 'LIVE PEEK', minTick: 42, awaitSettleTicks: 2, data: '\u001b[A' },
            { afterPrevTicks: 2, mark: 'concourse-1', data: '\u001b[6;5~' },
-           { atTick: 112, awaitText: 'Doctor / Health Check', minTick: 84, awaitSettleTicks: 2, data: '\u001b[A' },
+           { atTick: 112, awaitText: 'Health Check', minTick: 84, awaitSettleTicks: 2, data: '\u001b[A' },
            { afterPrevTicks: 2, mark: 'boot-settings', data: '\u001b[5;5~' },
            { atTick: 144, awaitText: 'LIVE PEEK', minTick: 116, awaitSettleTicks: 2, data: '\u001b[A' },
            { afterPrevTicks: 2, mark: 'concourse-2', data: '\r' },
@@ -4275,7 +4275,7 @@ export function cleanupScenario(name: string): void {
   if (name === 'cockpit-console' || name === 'tasks-mission') {
     cleanupMissionLedgerFixture()
   }
-  for (const store of ['daemon', 'crew', 'crews', 'doctor']) {
+  for (const store of ['daemon', 'crew', 'crews', 'health']) {
     try {
       rmSync(join(tmpdir(), `mercury-render-${store}-${process.pid}`), { recursive: true, force: true })
     } catch {

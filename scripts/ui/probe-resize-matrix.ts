@@ -56,15 +56,15 @@ const SCENES: Scene[] = [
   {
     name: 'boot-face', base: 'boot-face', world: 'face',
     replaceSends: true,
-    ready: { text: 'Doctor / Health Check', stable: 3 },
-    once: ['Doctor / Health Check', 'New Session'], keep: ['Doctor / Health Check'],
+    ready: { text: 'Health Check', stable: 3 },
+    once: ['Health Check', 'New Session'], keep: ['Health Check'],
     key: { data: DOWN, expect: 'changes' },
     root: /↵ start\s+·\s+↑↓ choose/,
   },
   {
     name: 'boot-settings', base: 'boot-settings', world: 'face',
     replaceSends: true,
-    sends: [{ requireAwait: true, awaitText: 'Doctor / Health Check', awaitStableTicks: 2, data: 'm' }],
+    sends: [{ requireAwait: true, awaitText: 'Health Check', awaitStableTicks: 2, data: 'm' }],
     ready: { text: 'boot menu', stable: 3 },
     once: ['boot menu'], keep: ['boot menu', 'Content-rule wards'],
     key: { data: ESC, expect: 'closes' },

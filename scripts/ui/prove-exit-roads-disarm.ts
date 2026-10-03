@@ -41,7 +41,7 @@ for (const road of roads) {
     MERCURY_FULLSCREEN: '1',
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_HEALTH_STATE_DIR: join(home, 'doctor'),
+    MERCURY_HEALTH_STATE_DIR: join(home, 'health'),
     MERCURY_CREDENTIAL_STORE: 'file',
   }
   const run = runJobControlHost({
@@ -55,7 +55,7 @@ for (const road of roads) {
     steps: [
       { wait: 'host$', timeout: 15 },
       { launch: true },
-      { wait: 'Doctor / Health Check', timeout: 45 },
+      { wait: 'Health Check', timeout: 45 },
       { sleep: 1.5 },
       ...(road.toCockpit
         ? [{ send: '\r' }, { wait: 'Type a prompt', timeout: 30 }, { sleep: 1.5 }]

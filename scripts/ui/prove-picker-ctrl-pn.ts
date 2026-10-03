@@ -41,7 +41,7 @@ writeFileSync(
   JSON.stringify({
     argv: ['node', DIST, '--chat'],
     sends: [
-      { atTick: 40, awaitText: 'Doctor / Health Check', minTick: 20, awaitSettleTicks: 2, requireAwait: true, data: ENTER },
+      { atTick: 40, awaitText: 'Health Check', minTick: 20, awaitSettleTicks: 2, requireAwait: true, data: ENTER },
       { atTick: 110, awaitText: 'Type a prompt', minTick: 50, awaitSettleTicks: 4, requireAwait: true, data: '/model' + ENTER },
       { atTick: 160, awaitText: 'Mercury · model', minTick: 100, awaitSettleTicks: 3, requireAwait: true, mark: 'open', data: CTRL_N },
       { afterPrevTicks: 4, mark: 'after-ctrl-n', data: CTRL_P },
@@ -63,7 +63,7 @@ const res = spawnSync(driver.python, [VSHOT, cfg], {
     ...process.env,
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_HEALTH_STATE_DIR: join(home, 'doctor'),
+    MERCURY_HEALTH_STATE_DIR: join(home, 'health'),
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_OPERATOR: 'sam',
     MERCURY_CRITTER_IDLE: '0',

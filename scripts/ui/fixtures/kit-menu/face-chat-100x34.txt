@@ -17,7 +17,7 @@
         │   ⊞ Boot Menu                                               configure boot env → │
         │   ⊛ MCPs & Skills                                  what the next session loads → │
         │   ◈ Agents                                              create and edit agents → │
-        │   ✓ Doctor / Health Check                                   system diagnostics → │
+        │   ✓ Health Check                                            system diagnostics → │
         │   ◷ Saturn Scheduler                                sessions born on the clock → │
         │   ⚿ Logins                                                sign in to providers → │
         │   ↺ Sessions · Projects                               pick a session or a repo → │

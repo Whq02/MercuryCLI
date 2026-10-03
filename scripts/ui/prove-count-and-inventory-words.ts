@@ -68,7 +68,7 @@ for (const [cols, rows] of geometries) {
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
       MERCURY_CREWS_DIR: join(home, 'crews'),
       MERCURY_HOME: join(home, 'product-home'),
-      MERCURY_HEALTH_STATE_DIR: join(home, 'doctor'),
+      MERCURY_HEALTH_STATE_DIR: join(home, 'health'),
       MERCURY_CREDENTIAL_STORE: 'file',
       MERCURY_LOCAL_PROBE_TARGETS: 'none',
       MERCURY_BOOT_PREFLIGHT: '0',
