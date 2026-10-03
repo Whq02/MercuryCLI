@@ -189,7 +189,7 @@ try {
   sitInWorktree()
   state.setSystemPromptSectionCacheEntry('using_tools', STALE, null)
   const claimSource = readFileSync(join(import.meta.dir, '../../src/cli/print.ts'), 'utf8')
-  const claimBody = claimSource.slice(claimSource.indexOf("case 'claim_session': {"), claimSource.indexOf("case 'set_effort': {"))
+  const claimBody = claimSource.slice(claimSource.indexOf("'session/claim': async params => {"), claimSource.indexOf("'session/set_effort': (params, ref) => {"))
   const RED_WARM = 'RED WHERE THE WARM CLAIM CLEARS NO SECTION'
   check(`${RED_WARM}: the claim clears the section cache before it loads the transcript (the claim body calls clearSystemPromptSections() ahead of loadConversationForResume)`, claimBody.indexOf('clearSystemPromptSections()') !== -1 && claimBody.indexOf('clearSystemPromptSections()') < claimBody.indexOf('await loadConversationForResume(sid,'))
   clearSystemPromptSections()

@@ -463,7 +463,7 @@ async function run(): Promise<void> {
     .option('--debug [filter]', 'Enable debug output (with an optional category filter)')
     .addOption(new Option('--log-stderr', 'Mirror debug output to stderr').hideHelp())
     .option('--log-file <path>', 'Write debug output to a file')
-    .option('--lean', 'Minimal session: skips hooks, LSP, extensions, attribution, auto-memory, background discovery, keychain reads and automatic project instructions. Supply context with --brief, --brief-add, --mcp and --allowed-tools; supply API-key settings with --config.')
+    .option('--lean', 'Minimal session: skips hooks, LSP, extensions, attribution, memory, background discovery, keychain reads and automatic project instructions. Supply context with --brief, --brief-add, --mcp and --allowed-tools; supply API-key settings with --config.')
     .addOption(new Option('--prepare', 'Run setup hooks before the session').hideHelp())
     .addOption(new Option('--prepare-only', 'Run setup hooks and exit').hideHelp())
     .addOption(new Option('--upkeep', 'Run maintenance hooks').hideHelp())
@@ -623,6 +623,15 @@ async function run(): Promise<void> {
       await defaultAction(prompt, { ...sessionOptions(runCommand), print: true })
     })
   for (const option of program.options) runCommand.addOption(option)
+  const runnerCommand = program.command('runner')
+    .description('Serve a session to a host over stdio (JSON-RPC 2.0, one message per line): the host sends the prompts and answers the permission asks')
+    .configureHelp({ sortOptions: true })
+    .action(async () => {
+      await defaultAction(undefined, { ...sessionOptions(runnerCommand), print: true, runner: true })
+    })
+  for (const option of program.options) {
+    if (!RUN_OUTPUT_OPTIONS.has(option.long ?? '')) runnerCommand.addOption(option)
+  }
 
   const parseProgram = () => program.parseAsync(process.argv)
 
@@ -1119,6 +1128,8 @@ async function showAction(
 
 type RootOptions = Record<string, unknown>
 
+const RUN_OUTPUT_OPTIONS: ReadonlySet<string> = new Set(['--format', '--input', '--partial', '--replay-user-messages', '--permission-channel', '--permission-prompt-tool'])
+
 async function defaultAction(inputPromptArg: string | undefined, opts: RootOptions): Promise<void> {
   if ((opts as { version?: boolean }).version) {
     console.log(`Mercury ${MACRO.VERSION}`)
@@ -1131,6 +1142,8 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   const cliName = binaryName()
   const isNonInteractiveSession = !getIsInteractive()
   const printMode = Boolean(opts.print)
+  const runnerDoor = opts.runner === true
+  const askChannel = runnerDoor ? 'stdio' : permissionChannelOf(opts)
 
   const worktreeOpt = opts.worktree as string | boolean | undefined
   const tmuxEnabled = Boolean(opts.multiplex)
@@ -1174,7 +1187,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     if (!UUID_SHAPE.test(sessionIdOpt)) failCli(`--session-id must be a valid UUID: ${sessionIdOpt}`)
     if (await sessionIdExists(sessionIdOpt)) failCli(`Session id already exists: ${sessionIdOpt}`, 1)
   }
-  if (printMode && opts.mode === 'apollo' && permissionChannelOf(opts) === undefined) {
+  if (printMode && opts.mode === 'apollo' && askChannel === undefined) {
     failCli('mercury run: apollo needs a permission channel')
   }
   if (opts.backupModel && opts.backupModel === opts.model) {
@@ -1203,8 +1216,8 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     }
   }
 
-  const inputFormat = opts.input === 'rows' ? 'stream-json' : 'text'
-  const outputFormat = opts.format === 'rows' ? 'stream-json' : typedString(opts.format) ?? 'text'
+  const inputFormat = runnerDoor || opts.input === 'rows' ? 'stream-json' : 'text'
+  const outputFormat = runnerDoor || opts.format === 'rows' ? 'stream-json' : typedString(opts.format) ?? 'text'
   if (!printMode && (opts.input || opts.format || opts.partial)) failCli('Use mercury run for --input, --format and --partial')
   if (inputFormat === 'stream-json' && outputFormat !== 'stream-json') {
     failCli('--input rows requires run --format rows')
@@ -1368,7 +1381,9 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
 
   let prompt: string | AsyncIterable<string> | undefined = inputPrompt
   let syntaxInput: string | undefined
-  if (!process.stdin.isTTY) {
+  if (runnerDoor) {
+    prompt = noStdinChunks()
+  } else if (!process.stdin.isTTY) {
     if (inputFormat === 'stream-json') {
       prompt = readStdinChunks()
     } else {
@@ -1622,6 +1637,8 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     outputFormat,
     includePartialMessages,
     setupTrigger,
+    door: runnerDoor ? 'wire' : 'rows',
+    askChannel,
   })
 }
 
@@ -1629,6 +1646,8 @@ async function* readStdinChunks(): AsyncIterable<string> {
   process.stdin.setEncoding('utf8')
   for await (const chunk of process.stdin) yield chunk as string
 }
+
+async function* noStdinChunks(): AsyncIterable<string> {}
 
 function readStdinWithPeek(timeoutMs: number): Promise<string | null> {
   return new Promise(resolvePeek => {
@@ -2103,6 +2122,8 @@ async function printLaunch(args: {
   outputFormat: string
   includePartialMessages: boolean
   setupTrigger: 'init' | 'maintenance' | undefined
+  door: 'rows' | 'wire'
+  askChannel: 'stdio' | 'prompt-tool' | undefined
 }): Promise<void> {
   const { opts } = args
 
@@ -2252,7 +2273,7 @@ async function printLaunch(args: {
         syntaxInput: args.syntaxInput,
         jsonSchema: parsedJsonSchema,
         permissionPromptToolName: typedString(opts.permissionPromptTool),
-        permissionChannel: permissionChannelOf(opts),
+        permissionChannel: args.askChannel,
         allowedTools: (opts.allowedTools as string[] | undefined) ?? [],
         thinkingConfig: args.thinkingConfig,
         maxTurns: opts.maxTurns as number | undefined,
@@ -2270,6 +2291,7 @@ async function printLaunch(args: {
         advise: opts.advise === true,
         setupTrigger: args.setupTrigger,
         bootSessionIdPinned: Boolean(typedString(opts.sessionId)),
+        door: args.door,
         subscribeAppState: store.subscribe,
         sessionStartHooksPromise,
       },

@@ -48,11 +48,11 @@ export function inspectSessionArgs(args: readonly string[]): { command?: string;
     command,
     format: readSessionOption(args, '--format').value,
     input: readSessionOption(args, '--input').value,
-    runner: command === 'run',
+    runner: command === 'run' || command === 'runner',
     outputRequest,
   }
 }
 
 export function isSessionRunArgv(argv: readonly string[] = process.argv): boolean {
-  return inspectSessionArgs(argv.slice(2)).command === 'run'
+  return inspectSessionArgs(argv.slice(2)).runner
 }

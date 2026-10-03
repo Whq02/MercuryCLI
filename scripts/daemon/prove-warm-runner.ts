@@ -487,7 +487,7 @@ console.log('\n── WR: the restart reason travels to the resumed runner (item
   check('WR the cold revive passes the record-derived reason', /restartReason: runnerRestartReasonOf\(rec\)/.test(supSrc))
   check('WR the reactivate warm road passes the reason to the claim', (supSrc.match(/restartReason: runnerRestartReasonOf\(rec\)/g) ?? []).length >= 2)
   const printSrc = read('src/cli/print.ts')
-  check('WR print.ts reads the reason at boot and from the claim frame, coerces it, and passes it to the reconciliation', printSrc.includes("flagEnv('MERCURY_RUNNER_RESTART_REASON')") && printSrc.includes('runnerRestartReason = request.restart_reason') && /reconcileBackgroundLaunchesOnResume\(messages, getAppState, setAppState, Date\.now\(\), coerceRestartReason\(runnerRestartReason\)\)/.test(printSrc))
+  check('WR print.ts reads the reason at boot and from the claim frame, coerces it, and passes it to the reconciliation', printSrc.includes("flagEnv('MERCURY_RUNNER_RESTART_REASON')") && printSrc.includes('runnerRestartReason = params.restart_reason') && /reconcileBackgroundLaunchesOnResume\(messages, getAppState, setAppState, Date\.now\(\), coerceRestartReason\(runnerRestartReason\)\)/.test(printSrc))
   const registry = read('src/substrate/flagRegistry.ts')
   check('WR the reason knob has its registry row', registry.includes("env: 'MERCURY_RUNNER_RESTART_REASON'"))
 }

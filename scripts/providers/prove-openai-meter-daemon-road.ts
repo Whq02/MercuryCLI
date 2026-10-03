@@ -18,7 +18,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 
 {
   const src = readFileSync(join(import.meta.dir, '../../src/cli/print.ts'), 'utf8')
-  const facts = src.slice(src.indexOf("case 'session_facts'"))
+  const facts = src.slice(src.indexOf("'session/facts': async () => {"))
   const answerBlock = facts.slice(0, facts.indexOf('identity:'))
   t('§1 the session_facts answer spreads openaiObservedUsage()', answerBlock.includes('openaiObservedUsage()'))
   t('§1 …under the openaiObserved key', answerBlock.includes('openaiObserved'))

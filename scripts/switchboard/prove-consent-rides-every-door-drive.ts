@@ -245,7 +245,7 @@ const RUNS: Run[] = [
   { id: 'r2', title: 'the skip flag → the face → o → the board → tab → n → (No) → the chat', argv: ['--sovereign'], row: false, door: 'board', consented: true, bornSovereign: true, presses: 8 },
   { id: 'r3', title: 'the saved row (MERCURY_SKIP_PERMISSIONS=1) → the face → ↵ New Session', argv: [], row: true, door: 'face', consented: true, bornSovereign: true, presses: 8 },
   { id: 'r4', title: 'CONTROL — no consent → the face → ↵ New Session', argv: [], row: false, door: 'face', consented: false, bornSovereign: false, presses: 8 },
-  { id: 'r5', title: 'the allow flag (consent on, default posture) → the face → ↵ New Session → the press onto Sovereign', argv: ['--allow-sovereign'], row: false, door: 'face', consented: true, bornSovereign: false, presses: 5 },
+  { id: 'r5', title: 'the allow flag (consent on, default posture) → the face → ↵ New Session → the press onto Sovereign', argv: ['--allow-sovereign'], row: false, door: 'face', consented: true, bornSovereign: false, presses: 4 },
 ]
 
 const counts: Record<string, { stations: string[]; distinct: number }> = {}
@@ -292,7 +292,7 @@ for (const run of RUNS) {
   }
   if (run.consented) {
     check(`${run.id} the shift+tab cycle OFFERS the Sovereign station`, stations.slice(1).includes('sovereign'), stations.slice(1).join(' → '))
-    if (run.presses === 5) check(`${run.id} the last press lands ON Sovereign (the band)`, lastBand === 'sovereign', stations.slice(1).join(' → '))
+    if (run.presses === 4) check(`${run.id} the last press lands ON Sovereign (the band)`, lastBand === 'sovereign', stations.slice(1).join(' → '))
     check(`${run.id} the press HOLDS on the runner — its own facts agree with the band`, trueMode === lastBand, `band=${lastBand} facts=${trueMode}`)
     check(`${run.id} the consented birth lands on the WARM road (the pool's runner carries the consent — no claim refusal, no cold respawn)`, warmRoad, log.filter(l => /claim|retired/i.test(l)).join(' | ').slice(0, 300))
   } else {

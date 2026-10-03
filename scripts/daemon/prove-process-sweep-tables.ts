@@ -152,6 +152,7 @@ const linuxTable = [
   ' 2004  2001  1000 pts/3    Sl+  Sun Sep 20 09:00:30 2026',
   ' 2005  2001  1000 pts/4    S+   Sun Sep 20 09:00:40 2026',
   ' 2006     1  1000 ?        Sl   Sun Sep 20 09:00:50 2026',
+  ' 2007  2002  1000 ?        Sl   Sun Sep 20 09:01:00 2026',
 ].join('\n')
 const linuxArgs = [
   ' 2001 -bash',
@@ -160,6 +161,7 @@ const linuxArgs = [
   ' 2004 node -e setInterval(() => {}, 1000000)',
   ' 2005 /usr/bin/vim /opt/mercury/dist/mercury.mjs',
   ' 2006 nodejs /opt/mercury/dist/mercury.mjs',
+  ' 2007 node /opt/mercury/dist/mercury.mjs runner --session-id 0b5c0b5c-0b5c-4b5c-8b5c-0b5c0b5c0b5c',
 ].join('\n')
 const linuxPs = (comm: Record<number, string>) => async (args: readonly string[]): Promise<string> => {
   if (args.includes('pid=,ppid=,uid=,tty=,stat=,lstart=')) return linuxTable
@@ -167,7 +169,7 @@ const linuxPs = (comm: Record<number, string>) => async (args: readonly string[]
   if (args.includes('pid=,ucomm=')) return `${Object.entries(comm).map(([pid, name]) => ` ${pid} ${name}`).join('\n')}\n`
   throw new Error('unexpected ps call')
 }
-const MAIN_THREAD_COMM = { 2002: 'MainThread', 2003: 'MainThread', 2004: 'MainThread', 2005: 'vim', 2006: 'MainThread' }
+const MAIN_THREAD_COMM = { 2002: 'MainThread', 2003: 'MainThread', 2004: 'MainThread', 2005: 'vim', 2006: 'MainThread', 2007: 'MainThread' }
 const linuxLinks = (pid: number): string | null => (pid === 2006 ? '/opt/mercury/vendor/node/bin/node (deleted)' : null)
 
 await check('on linux the executable is read from the command line, then the kernel link, never from the main thread name the process table reports as the command name', async () => {
@@ -200,7 +202,7 @@ await check('the darwin read stands: the command name column is the executable, 
     waitMs: 500,
     recordedPids: [2004],
     platform: 'darwin',
-    ps: linuxPs({ 2002: 'node', 2003: 'node', 2004: 'node', 2005: 'vim', 2006: 'MainThread' }),
+    ps: linuxPs({ 2002: 'node', 2003: 'node', 2004: 'node', 2005: 'vim', 2006: 'MainThread', 2007: 'node' }),
     probeTerminal: () => false,
     executableOf: () => {
       followed++
@@ -327,6 +329,7 @@ await check('a linux world whose process table names every Mercury process MainT
       supervisorReadable: true,
       answer: { pid: 2002, ownerPid: 2001, live: 1, liveSessions: 1, persist: false, runners: [
         { pid: 2003, procStart: tokenFor(2003), endedAt: undefined, stoppedAt: undefined, parkedAt: undefined, seatHolders: [{ stamp: 'operator:2001', terminalPid: 2001 }], schedules: 0, activity: 'idle', warm: false },
+        { pid: 2007, procStart: tokenFor(2007), endedAt: undefined, stoppedAt: undefined, parkedAt: undefined, seatHolders: [{ stamp: 'operator:2001', terminalPid: 2001 }], schedules: 0, activity: 'idle', warm: false },
       ] },
       runners: null,
     }],
@@ -340,6 +343,8 @@ await check('a linux world whose process table names every Mercury process MainT
   assert.equal(got.get(2002)!.kind, 'daemon')
   assert.equal(got.get(2003)!.classification, 'running')
   assert.equal(got.get(2003)!.kind, 'runner')
+  assert.equal(got.get(2007)!.classification, 'running')
+  assert.equal(got.get(2007)!.kind, 'runner')
   assert.equal(got.get(2004)!.classification, 'stale')
   assert.equal(got.get(2004)!.kind, 'window')
   assert.match(got.get(2004)!.reason, /heartbeat expired/)

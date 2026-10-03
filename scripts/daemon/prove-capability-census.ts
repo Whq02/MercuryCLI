@@ -72,7 +72,7 @@ try {
   const runner = src('src/cli/print.ts')
   const at = runner.indexOf('const quiescence = new RunnerQuiescence({')
   const arm = runner.slice(at, runner.indexOf('flush: () => flushSessionStorage()', at))
-  check("the quiesce refusal ends on the census (turn, queued prompt, background tasks first; the census closes it)", at > 0 && arm.includes("return 'a turn is running'") && arm.includes("return 'a prompt is queued'") && arm.includes('return capabilityHoldWords(runnerCapabilityHolds(io))'), arm.slice(0, 400))
+  check("the quiesce refusal ends on the census (turn, queued prompt, background tasks first; the census closes it)", at > 0 && arm.includes("return 'a turn is running'") && arm.includes("return 'a prompt is queued'") && arm.includes('return capabilityHoldWords(runnerCapabilityHolds(asks))'), arm.slice(0, 400))
   const io = src('src/cli/structuredIO.ts')
   check('the structured io counts EVERY pending control request (asks, hooks, elicitations), not only permission asks', io.includes('pendingControlRequestCount(): number {\n    return this.#pending.size'))
 } catch (err) {

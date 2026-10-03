@@ -37,7 +37,7 @@ console.log('T2 the roster row carries the raw fact (source pin)')
 console.log('T3 the runner defers the breadcrumbs to the turn boundary (source pins)')
 {
   const runner = readFileSync(join(SRC, 'cli/print.ts'), 'utf8')
-  check('set_model holds while a turn is in flight and answers where the verb lands', runner.includes('heldSeatModel = { requestId, model: String(resolved) }') && runner.includes("respondSuccess(requestId, { model: String(resolved), at: 'turn-boundary' })"))
+  check('set_model holds while a turn is in flight and answers where the verb lands', runner.includes('heldSeatModel = { requestId: ref.id, model: String(resolved) }') && runner.includes("return { model: String(resolved), at: SEAT_VERB_AT(true) }") && runner.includes("result => ({ model: result.model, at: legacyAt(result.at) })"))
   check('the settings road defers the same way', runner.includes('if (inFlightAbort !== null) deferredModelBreadcrumb = resolvedNow'))
   const boundaryAt = runner.indexOf('      if (heldSeatModel !== null) {')
   const boundary = boundaryAt === -1 ? '' : runner.slice(boundaryAt, boundaryAt + 1200)

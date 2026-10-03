@@ -108,7 +108,7 @@ async function main(): Promise<void> {
       runArgs.command === 'run' ||
       args.includes('-h') ||
       args.includes('--help') ||
-      ['daemon', 'acp'].includes(args[0] ?? '')
+      ['daemon', 'acp', 'runner'].includes(args[0] ?? '')
     if (nonTakeover) {
       const { releaseLauncherAltHoldNow } = await import('../ink/launcherAltHold.js')
       releaseLauncherAltHoldNow()

@@ -518,8 +518,8 @@ section('§10 the seat facts a hosted session answers carry the credential\'s ow
 {
   const read = (relative: string): string => readFileSync(join(ROOT, relative), 'utf8')
   const runner = read('src/cli/print.ts')
-  const armStart = runner.indexOf("case 'session_facts':")
-  const armEnd = runner.indexOf('respondSuccess(requestId, sessionFactsToWire(answer))', armStart)
+  const armStart = runner.indexOf("'session/facts': async () => {")
+  const armEnd = runner.indexOf('return sessionFactsToWire(answer)', armStart)
   const arm = armStart < 0 || armEnd < 0 ? '' : runner.slice(armStart, armEnd)
   const identityLiteral = ((): string => {
     const at = arm.indexOf('identity: {')

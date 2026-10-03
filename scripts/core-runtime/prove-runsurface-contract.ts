@@ -972,11 +972,9 @@ section('P3 removeInterruptedMessage — the user+sentinel splice')
   )
 }
 
-section('P4 handleSetPermissionMode — apollo refused outside the terminal, bypass gated, success transition')
+section('P4 resolvePermissionModeTransition — apollo refused outside the terminal, bypass gated, an unknown word refused, success transition')
 {
-  const { handleSetPermissionMode } = controlMod
-  const responses: AnyMsg[] = []
-  const output = { enqueue: (m: unknown) => responses.push(m as AnyMsg) }
+  const { resolvePermissionModeTransition } = controlMod
   const baseCtx = {
     mode: 'default',
     additionalWorkingDirectories: new Map(),
@@ -985,48 +983,35 @@ section('P4 handleSetPermissionMode — apollo refused outside the terminal, byp
     isBypassPermissionsModeAvailable: false,
   }
 
-  const afterApollo = handleSetPermissionMode(
-    { mode: 'apollo' } as never,
-    'req-1',
-    baseCtx as never,
-    output as never,
-  )
-  const resp1 = (responses.at(-1)?.response ?? {}) as AnyMsg
+  const apollo = resolvePermissionModeTransition('apollo' as never, baseCtx as never)
   check(
-    'apollo is refused in SDK/print mode (error response)',
-    resp1.subtype === 'error' && /apollo/i.test(String(resp1.error)),
-    JSON.stringify(resp1),
+    'apollo is refused in SDK/print mode (a refusal with its sentence)',
+    apollo.ok === false && /apollo/i.test(apollo.ok ? '' : apollo.error),
+    JSON.stringify(apollo),
   )
-  check('the refused context is returned unchanged (same reference)', afterApollo === (baseCtx as never))
 
-  handleSetPermissionMode(
-    { mode: 'sovereign' } as never,
-    'req-2',
-    baseCtx as never,
-    output as never,
-  )
-  const resp2 = (responses.at(-1)?.response ?? {}) as AnyMsg
+  const sovereign = resolvePermissionModeTransition('sovereign' as never, baseCtx as never)
   check(
     'sovereign is refused without the launch-time eligibility',
-    resp2.subtype === 'error' &&
-      String(resp2.error).includes('--sovereign'),
-    JSON.stringify(resp2),
+    sovereign.ok === false && (sovereign.ok ? '' : sovereign.error).includes('--sovereign'),
+    JSON.stringify(sovereign),
   )
 
-  const afterSwitch = handleSetPermissionMode(
-    { mode: 'implement' } as never,
-    'req-3',
-    baseCtx as never,
-    output as never,
-  ) as unknown as AnyMsg
-  const resp3 = (responses.at(-1)?.response ?? {}) as AnyMsg
+  for (const word of ['allowAll', 'strategy', 'bubble', 'frobnicate']) {
+    const unknown = resolvePermissionModeTransition(word as never, baseCtx as never)
+    check(
+      `'${word}' is not a permission mode: refused in one sentence naming the word and the list`,
+      unknown.ok === false && (unknown.ok ? '' : unknown.error).includes(`'${word}' is not a permission mode`) && (unknown.ok ? '' : unknown.error).includes('default, dontAsk, implement, sovereign, flow, apollo'),
+      JSON.stringify(unknown),
+    )
+  }
+
+  const afterSwitch = resolvePermissionModeTransition('implement' as never, baseCtx as never)
   check(
-    'a plain mode switch succeeds (success response carries the mode)',
-    resp3.subtype === 'success' &&
-      JSON.stringify(resp3.response) === JSON.stringify({ mode: 'implement' }),
-    JSON.stringify(resp3),
+    "a plain mode switch succeeds and the context carries mode 'implement'",
+    afterSwitch.ok === true && (afterSwitch.ok ? (afterSwitch.context as { mode?: string }).mode : '') === 'implement',
+    JSON.stringify(afterSwitch),
   )
-  check("the returned context carries mode 'implement'", afterSwitch.mode === 'implement')
 }
 
 section('P5 getCanUseToolFn — stdio routes to StructuredIO; forceDecision passthrough')

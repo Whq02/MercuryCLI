@@ -126,9 +126,9 @@ section('§6 the road: the sign-in reaches the runners, and the live reads ride 
 {
   const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
   const print = src('src/cli/print.ts')
-  const runnerCase = print.indexOf("case 'credential_change'")
+  const runnerCase = print.indexOf("'credentials/changed': () => {")
   const runnerArm = runnerCase === -1 ? '' : print.slice(runnerCase, runnerCase + 900)
-  check("the runner's control loop takes a credential_change request", runnerCase !== -1)
+  check("the runner's control loop takes a credentials/changed notification", runnerCase !== -1)
   check('…and resets the limit verdict and drops its credential memos there', runnerArm.includes('resetLimitsForCredentialSwitch()') && runnerArm.includes('dropCredentialMemos()'))
   const types = src('src/entrypoints/sdk/controlTypes.ts')
   check('the control wire declares the credential_change request', types.includes("subtype: 'credential_change'"))

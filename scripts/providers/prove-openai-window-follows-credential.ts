@@ -122,7 +122,7 @@ section('§D the roads: the runner reads the account again on the word, and the 
 {
   const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
   const print = src('src/cli/print.ts')
-  const runnerCase = print.indexOf("case 'credential_change'")
+  const runnerCase = print.indexOf("'credentials/changed': () => {")
   const runnerArm = runnerCase === -1 ? '' : print.slice(runnerCase, runnerCase + 900)
   check("the runner's credential_change arm reads the OpenAI account again beside the Anthropic reset", runnerArm.includes('resetLimitsForCredentialSwitch()') && runnerArm.includes('readOpenaiAccountAgain()'), runnerArm.slice(0, 300))
   const cat = src('src/services/providers/openai/openaiCatalogue.ts')

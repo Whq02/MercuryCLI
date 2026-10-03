@@ -53,6 +53,8 @@ export interface PeerOptions {
   maxLineBytes?: number
   badLineLimit?: number
   onDesync?: (badLines: number) => void
+  onWriteError?: (error: Error) => void
+  serialize?: (message: RpcMessage) => string
   log?: (line: string) => void
 }
 
@@ -158,21 +160,32 @@ export class LineSplitter {
 class OrderedWriter {
   private held: string[] | null
   private ended = false
+  private readonly onWriteError: (error: Error) => void
+  private readonly serialize: (message: RpcMessage) => string
   constructor(
     private readonly output: Writable,
     hold: boolean,
+    opts: { onWriteError?: (error: Error) => void; serialize?: (message: RpcMessage) => string } = {},
   ) {
     this.held = hold ? [] : null
+    this.onWriteError = opts.onWriteError ?? (() => {})
+    this.serialize = opts.serialize ?? (message => JSON.stringify(message))
   }
 
   write(message: RpcMessage, bypassHold = false): void {
     if (this.ended) return
-    const line = JSON.stringify(message) + '\n'
+    const line = this.serialize(message) + '\n'
     if (this.held !== null && !bypassHold) {
       this.held.push(line)
       return
     }
-    this.output.write(line)
+    this.put(line)
+  }
+
+  private put(line: string): void {
+    this.output.write(line, error => {
+      if (error) this.onWriteError(error)
+    })
   }
 
   release(): void {
@@ -180,7 +193,14 @@ class OrderedWriter {
     const lines = this.held
     this.held = null
     if (this.ended) return
-    for (const line of lines) this.output.write(line)
+    for (const line of lines) this.put(line)
+  }
+
+  flush(): Promise<void> {
+    if (this.ended) return Promise.resolve()
+    return new Promise(resolve => {
+      this.output.write('', () => resolve())
+    })
   }
 
   get holding(): boolean {
@@ -231,7 +251,7 @@ export class Peer {
   constructor(opts: PeerOptions) {
     this.side = opts.side
     this.input = opts.input
-    this.writer = new OrderedWriter(opts.output, opts.side === 'runner')
+    this.writer = new OrderedWriter(opts.output, opts.side === 'runner', { onWriteError: opts.onWriteError, serialize: opts.serialize })
     this.splitter = new LineSplitter(opts.maxLineBytes ?? MAX_LINE_BYTES)
     this.badLineLimit = opts.badLineLimit ?? BAD_LINE_LIMIT
     this.onDesync = opts.onDesync ?? (() => {})
@@ -274,6 +294,10 @@ export class Peer {
     return this.writer.holding
   }
 
+  flush(): Promise<void> {
+    return this.writer.flush()
+  }
+
   onRequest<M extends MethodName>(method: M, handler: RequestHandler<M>): this {
     this.requestHandlers.set(method, handler as (params: unknown, ctx: HandlerContext) => unknown)
     return this
@@ -285,7 +309,11 @@ export class Peer {
   }
 
   request<M extends MethodName>(method: M, params: ParamsOf<M>, opts: RequestOptions = {}): Promise<ResultOf<M>> {
-    if (this.closedReason !== null) return Promise.reject(new PeerClosed(method, this.closedReason))
+    return this.send(method, params, opts).answer
+  }
+
+  send<M extends MethodName>(method: M, params: ParamsOf<M>, opts: RequestOptions = {}): { id: RpcId; answer: Promise<ResultOf<M>> } {
+    if (this.closedReason !== null) return { id: 0, answer: Promise.reject(new PeerClosed(method, this.closedReason)) }
     const id = ++this.nextId
     const deadlineMs = opts.deadlineMs === undefined ? deadlineOf(method) : opts.deadlineMs
     const answer = new Promise<ResultOf<M>>((resolve, reject) => {
@@ -307,7 +335,7 @@ export class Peer {
       else opts.signal.addEventListener('abort', abort, { once: true })
     }
     this.writer.write({ jsonrpc: '2.0', id, method, params })
-    return answer
+    return { id, answer }
   }
 
   notify<M extends MethodName>(method: M, params: ParamsOf<M>): void {

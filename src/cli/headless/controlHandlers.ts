@@ -21,7 +21,7 @@ import { type AppState } from 'src/state/AppStateStore.js'
 import { flagEnv } from 'src/substrate/flagRegistry.js'
 import { type AgentDefinition, isBuiltInAgent, parseAgentsFromJson } from 'src/tools/AgentTool/loadAgentsDir.js'
 import { type HookCallbackMatcher } from 'src/types/hooks.js'
-import { type PermissionMode as InternalPermissionMode } from 'src/types/permissions.js'
+import { PERMISSION_MODES, type PermissionMode as InternalPermissionMode } from 'src/types/permissions.js'
 import { getAccountInformation } from 'src/utils/auth.js'
 import { logForDebugging } from 'src/utils/debug.js'
 import { fileHistoryCanRestore, fileHistoryEnabled, fileHistoryRestore, type RestoreDriftOracle } from 'src/utils/fileHistory.js'
@@ -303,6 +303,9 @@ function decidePermissionModeTransition(
   mode: InternalPermissionMode,
   toolPermissionContext: ToolPermissionContext,
 ): { ok: true; context: ToolPermissionContext } | { ok: false; error: string } {
+  if (!(PERMISSION_MODES as readonly string[]).includes(mode)) {
+    return { ok: false, error: `'${String(mode)}' is not a permission mode; the modes are ${PERMISSION_MODES.join(', ')}` }
+  }
   if (mode === 'apollo' && flagEnv('MERCURY_CONCOURSE_WORKER') !== '1') {
     return {
       ok: false,
@@ -331,39 +334,6 @@ function decidePermissionModeTransition(
       mode,
     },
   }
-}
-
-export function handleSetPermissionMode(
-  request: { mode: InternalPermissionMode },
-  requestId: string,
-  toolPermissionContext: ToolPermissionContext,
-  output: Stream<OutboundLine>,
-): ToolPermissionContext {
-  const resolved = resolvePermissionModeTransition(request.mode, toolPermissionContext)
-  if (!resolved.ok) {
-    output.enqueue({
-      type: 'control_response',
-      response: {
-        subtype: 'error',
-        request_id: requestId,
-        error: resolved.error,
-      },
-    })
-    return toolPermissionContext
-  }
-
-  output.enqueue({
-    type: 'control_response',
-    response: {
-      subtype: 'success',
-      request_id: requestId,
-      response: {
-        mode: request.mode,
-      },
-    },
-  })
-
-  return resolved.context
 }
 
 export async function handleOrphanedPermissionResponse({

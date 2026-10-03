@@ -198,7 +198,7 @@ console.log('\nA4 the stop road reaches every running agent')
 console.log('\nA5 the wiring — runner to glass (structural)')
 {
   const print = read('src/cli/print.ts')
-  check("the runner's interrupt aborts the in-flight request and releases the driver's hold — and leaves the running agents alone (the controller law: they run on under their own controllers)", /case 'interrupt': \{[\s\S]{0,2400}inFlightAbort\?\.abort\(\)\s*\n\s*driver\.releaseHold\(\)/.test(print) && !/case 'interrupt': \{[\s\S]{0,2400}stopRunningAgentTasks\(/.test(print))
+  check("the runner's interrupt aborts the in-flight request and releases the driver's hold — and leaves the running agents alone (the controller law: they run on under their own controllers)", /'turn\/interrupt': params => \{[\s\S]{0,2400}inFlightAbort\?\.abort\(\)\s*\n\s*driver\.releaseHold\(\)/.test(print) && !/case 'interrupt': \{[\s\S]{0,2400}stopRunningAgentTasks\(/.test(print))
   check("a HARD interrupt is the one that kills the shells the turn left running (the shell task owner's kill road)", /hard === true\) \{[\s\S]{0,600}isLocalShellTask\(task\) && task\.status === 'running'\) void killTask\(task\.id, setAppState\)/.test(print))
   check('the runner relays the agent wait as a turn row ({ state: waiting, agents: n })', /onAgentWait: \(count, turnId\) => \{[\s\S]{0,400}turnWaitingRow\([\s\S]{0,120}\{ turnId, agents: count \}\)/.test(print))
   const driver = read('src/cli/headless/turnDriver.ts')

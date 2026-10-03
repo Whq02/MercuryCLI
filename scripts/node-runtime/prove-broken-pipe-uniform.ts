@@ -96,7 +96,7 @@ console.log('§3 the print road rides it (call-shaped)')
   check('flushWrite folds broken pipes into the latch',
     /isBrokenPipeError\(error\)/.test(printSrc) && /markStdoutPipeBroken\(\)/.test(printSrc))
   check('the settle honors the latch over a clean turn',
-    /failed \|\| io\.stdoutPipeBroken \? 1 : 0/.test(printSrc))
+    /gracefulShutdownSync\(io\.stdoutPipeBroken \? 1 : \(signalCode \?\? exitCodeOf\(last\.status\)\)\)/.test(printSrc))
   const ioSrc = readFileSync(join(ROOT, 'src', 'cli', 'structuredIO.ts'), 'utf8')
   check('the stream-json writer is no longer fire-and-forget on failure (the latch lives in write)',
     /markStdoutPipeBroken\(\)/.test(ioSrc) && /isBrokenPipeError\(error\)/.test(ioSrc))

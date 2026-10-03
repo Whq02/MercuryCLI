@@ -1,6 +1,6 @@
 import { z } from 'zod/v4'
 import { lazySchema } from '../../utils/lazySchema.js'
-import { externalPermissionModeSchema } from '../../utils/permissions/PermissionMode.js'
+import { permissionModeSchema } from '../../utils/permissions/PermissionMode.js'
 import { permissionUpdateSchema } from '../../utils/permissions/PermissionUpdateSchema.js'
 import { InputRowSchema, RowSchema } from '../../rows/vocabulary.js'
 
@@ -26,7 +26,7 @@ export interface MethodSpec<P extends z.ZodType = z.ZodType, R extends z.ZodType
   readonly capability?: Capability
 }
 
-function method<P extends z.ZodType, R extends z.ZodType>(spec: MethodSpec<P, R>): MethodSpec<P, R> {
+function method<P extends z.ZodType, R extends z.ZodType, F extends Sender, K extends MethodKind>(spec: MethodSpec<P, R> & { from: F; kind: K }): MethodSpec<P, R> & { from: F; kind: K } {
   return spec
 }
 
@@ -196,8 +196,8 @@ export const METHODS = {
     name: 'session/set_mode',
     from: 'host',
     kind: 'request',
-    params: lazySchema(() => z.object({ mode: externalPermissionModeSchema() })),
-    result: lazySchema(() => z.object({ mode: z.string() })),
+    params: lazySchema(() => z.object({ mode: z.string() })),
+    result: lazySchema(() => z.object({ mode: permissionModeSchema() })),
     scope: 'session',
     deadlineMs: 5_000,
   }),
@@ -217,10 +217,10 @@ export const METHODS = {
     params: lazySchema(() => z.object({ kit: z.unknown() })),
     result: lazySchema(() =>
       z.object({
-        applied: z.unknown(),
+        applied: z.literal(true),
         connected: z.array(z.string()),
         disconnected: z.array(z.string()),
-        errors: z.array(z.unknown()),
+        errors: z.record(z.string(), z.string()),
       }),
     ),
     scope: 'mcp',
@@ -319,7 +319,7 @@ export const METHODS = {
     from: 'host',
     kind: 'request',
     params: empty,
-    result: lazySchema(() => z.object({ taken: z.boolean() })),
+    result: lazySchema(() => z.object({ taken: z.number().int().positive() })),
     scope: 'none',
     deadlineMs: 10_000,
   }),

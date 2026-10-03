@@ -748,8 +748,6 @@
   "headless": {
    "src/cli/print.ts": [
     "canBatchWith",
-    "createCanUseToolWithPermissionPrompt",
-    "getCanUseToolFn",
     "handleMcpSetServers",
     "handleOrphanedPermissionResponse",
     "joinPromptValues",

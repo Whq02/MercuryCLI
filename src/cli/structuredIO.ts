@@ -4,7 +4,7 @@ import type { z } from 'zod/v4'
 import type { ElicitResult } from '../services/mcp/sdk.js'
 import { ndjsonSafeStringify } from './ndjsonSafeStringify.js'
 import { PermissionResultSchema } from '../entrypoints/sdk/coreSchemas.js'
-import { HookJSONOutputSchema } from '../utils/hooks/contract.js'
+import { HookJSONOutputSchema, type HookInput, type HookJSONOutput } from '../utils/hooks/contract.js'
 import { SDKControlElicitationResponseSchema } from '../entrypoints/sdk/controlSchemas.js'
 import type { JSONRPCMessage } from '../services/mcp/sdk.js'
 import type {
@@ -19,48 +19,25 @@ import type { SDKControlCancelRequest } from '../entrypoints/sdk/controlTypes.js
 import { createRowStamper, type RowDraft } from '../rows/project.js'
 import type { Row } from '../rows/vocabulary.js'
 import type { CanUseToolFn } from '../hooks/useCanUseTool.js'
-import type { Tool, ToolUseContext } from '../Tool.js'
-import type { HookCallback, PermissionRequestResult } from '../types/hooks.js'
-import type { HookInput, HookJSONOutput } from '../utils/hooks/contract.js'
-import type {
-  PermissionDecision,
-  PermissionDecisionReason,
-  PermissionUpdate,
-} from '../types/permissions.js'
+import type { HookCallback } from '../types/hooks.js'
+import type { PermissionUpdate } from '../types/permissions.js'
 import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
-import { formatLimit, isDeadlineExceeded } from '../utils/deadline.js'
 import { logForDebugging } from '../utils/debug.js'
 import { logForDiagnosticsNoPII } from '../utils/diagLogs.js'
-import { UNANSWERED_ASK_REJECT_MESSAGE, turnCutOf } from '../utils/messages/rejectionText.js'
+import { UNANSWERED_ASK_REJECT_MESSAGE } from '../utils/messages/rejectionText.js'
 import { stripBOM } from '../utils/jsonRead.js'
-import { executePermissionRequestHooks } from '../utils/hooks.js'
-import { logError } from '../utils/log.js'
-import { hasPermissionsToUseTool } from '../utils/permissions/permissions.js'
-import { encodeDecisionReasonForWire } from '../utils/permissions/decisionReasonWire.js'
-import {
-  applyPermissionUpdates,
-  persistPermissionUpdates,
-} from '../utils/permissions/PermissionUpdate.js'
-import {
-  notifySessionStateChanged,
-  type RequiresActionDetails,
-} from '../utils/sessionState.js'
+import type { RequiresActionDetails } from '../utils/sessionState.js'
 import { Stream } from '../utils/stream.js'
-
-export const SANDBOX_NETWORK_ACCESS_TOOL_NAME = 'SandboxNetworkAccess'
+import type { PermissionAnswer, PermissionRequestParams } from '../runner/wire/methods.js'
+import {
+  PERMISSION_CHANNEL_CLOSED_CAUSE,
+  SANDBOX_NETWORK_ACCESS_TOOL_NAME,
+  createHostCanUseTool,
+  createSandboxAsk,
+  type AskChannel,
+} from './headless/runnerAsks.js'
 
 const RESOLVED_TOOL_USE_CAP = 1000
-
-export const PERMISSION_CHANNEL_CLOSED_CAUSE = 'the permission channel closed while the ask was pending'
-
-export function unansweredAskCause(reason: unknown): string | undefined {
-  if (reason === 'workflow-permission-timeout') return 'the permission ask timed out'
-  if (turnCutOf(reason).kind !== 'idle-timeout') return undefined
-  const limitMs = isDeadlineExceeded(reason) ? (reason as { limitMs?: unknown }).limitMs : undefined
-  return typeof limitMs === 'number' && Number.isFinite(limitMs) && limitMs > 0
-    ? `nobody answered within ${formatLimit(limitMs)}, the turn's no-progress limit`
-    : "nobody answered before the turn's no-progress timeout"
-}
 
 class AbortError extends Error {
   constructor(message = 'Request was aborted') {
@@ -101,24 +78,6 @@ function fatalProtocolError(reason: string): never {
   process.exit(1)
 }
 
-function serializeDecisionReason(reason: unknown): string | undefined {
-  if (!reason || typeof reason !== 'object') return undefined
-  const typed = reason as { type?: string; reason?: string; hookName?: string }
-  switch (typed.type) {
-    case 'rule':
-    case 'mode':
-    case 'subcommandResult':
-    case 'permissionPromptTool':
-      return undefined
-    default: {
-      if (typeof typed.reason === 'string' && typed.reason.length > 0) {
-        return typed.reason
-      }
-      return undefined
-    }
-  }
-}
-
 export const BROKEN_STDOUT_LINE =
   "stdout closed before the run's output was delivered (broken pipe) — the undelivered output is lost; the session transcript is intact"
 
@@ -142,7 +101,9 @@ export function isRowLine(line: OutboundLine): line is RowDraft {
   return !isControlLine(line) && (line as { type: string }).type !== 'system'
 }
 
-export class StructuredIO {
+export { PERMISSION_CHANNEL_CLOSED_CAUSE, SANDBOX_NETWORK_ACCESS_TOOL_NAME, unansweredAskCause } from './headless/runnerAsks.js'
+
+export class StructuredIO implements AskChannel {
   readonly structuredInput: AsyncGenerator<StdinMessage, void, unknown>
   readonly outbound: Stream<OutboundLine> = new Stream<OutboundLine>()
   readonly rows = createRowStamper()
@@ -497,254 +458,56 @@ export class StructuredIO {
   }
 
 
-  createCanUseTool(
-    onPermissionPrompt?: (details: RequiresActionDetails) => void,
-  ): CanUseToolFn {
-    const canUseTool: CanUseToolFn = async (
-      tool,
-      input,
-      toolUseContext,
-      assistantMessage,
-      toolUseID,
-      forceDecision,
-    ) => {
-      const requestId = randomUUID()
-      const parentSignal = toolUseContext.abortController.signal
-      const requestController = new AbortController()
-      const forwardParentAbort = (): void => requestController.abort(parentSignal.reason)
-      parentSignal.addEventListener('abort', forwardParentAbort, { once: true })
-      try {
-        const engineResult = (forceDecision ??
-          (await hasPermissionsToUseTool(
-            tool,
-            input,
-            toolUseContext,
-            assistantMessage,
-            toolUseID,
-          ))) as PermissionDecision
-        if (
-          engineResult.behavior === 'allow' ||
-          engineResult.behavior === 'deny'
-        ) {
-          return engineResult
-        }
-
-        const permissionMode = (
-          toolUseContext.getAppState() as {
-            toolPermissionContext: { mode: string }
-          }
-        ).toolPermissionContext.mode
-        const askResult = engineResult as {
-          suggestions?: PermissionUpdate[]
-          blockedPath?: string
-          decisionReason?: PermissionDecisionReason
-        }
-
-        onPermissionPrompt?.({
-          tool_name: tool.name,
-          action_description: this.#describeToolAction(tool as Tool, input),
-          tool_use_id: toolUseID,
-          request_id: requestId,
-          input,
-        })
-
-        const hookDecisionPromise = (async (): Promise<PermissionRequestResult | null> => {
-          for await (const result of executePermissionRequestHooks(
-            tool.name,
-            toolUseID,
-            input,
-            toolUseContext,
-            permissionMode,
-            askResult.suggestions,
-            parentSignal,
-          )) {
-            const decision = result.permissionRequestResult
-            if (decision) {
-              return decision
-            }
-          }
-          return null
-        })()
-
-        const reasonOnWire = encodeDecisionReasonForWire(askResult.decisionReason)
-        const requestPromise = this.sendRequest(
-          {
-            subtype: 'can_use_tool',
-            tool_name: tool.name,
-            input,
-            ...(askResult.suggestions && askResult.suggestions.length > 0
-              ? { permission_suggestions: askResult.suggestions }
-              : {}),
-            ...(askResult.blockedPath !== undefined
-              ? { blocked_path: askResult.blockedPath }
-              : {}),
-            ...(serializeDecisionReason(askResult.decisionReason) !== undefined
-              ? { decision_reason: serializeDecisionReason(askResult.decisionReason) }
-              : {}),
-            ...(reasonOnWire !== undefined ? { decision_reason_detail: reasonOnWire } : {}),
-            tool_use_id: toolUseID,
-            ...(toolUseContext.agentId !== undefined
-              ? { agent_id: toolUseContext.agentId }
-              : {}),
-          },
-          PermissionResultSchema(),
-          requestController.signal,
-          requestId,
-        )
-
-        const raceOutcome = await Promise.race([
-          hookDecisionPromise.then(decision => ({ source: 'hook' as const, decision })),
-          requestPromise.then(result => ({ source: 'host' as const, result })),
-        ])
-
-        if (raceOutcome.source === 'hook' && raceOutcome.decision) {
-          const hookDecision = raceOutcome.decision
-          requestController.abort()
-          requestPromise.catch(() => {})
-          if (hookDecision.behavior === 'allow') {
-            if (hookDecision.updatedPermissions?.length) {
-              persistPermissionUpdates(hookDecision.updatedPermissions)
-              toolUseContext.setAppState(previous => {
-                const updated = applyPermissionUpdates(
-                  previous.toolPermissionContext,
-                  hookDecision.updatedPermissions ?? [],
-                )
-                return updated === previous.toolPermissionContext
-                  ? previous
-                  : { ...previous, toolPermissionContext: updated }
-              })
-            }
-            return {
-              behavior: 'allow',
-              updatedInput: hookDecision.updatedInput ?? input,
-              userModified: false,
-              decisionReason: {
-                type: 'hook',
-                hookName: 'PermissionRequest',
-              },
-            }
-          }
-          return {
-            behavior: 'deny',
-            message:
-              hookDecision.message ??
-              'The PermissionRequest hook denied this permission request',
-            decisionReason: {
-              type: 'hook',
-              hookName: 'PermissionRequest',
-            },
-          }
-        }
-
-        const hostResult = (raceOutcome.source === 'host'
-          ? raceOutcome.result
-          : await requestPromise) as {
-          behavior?: string
-          message?: string
-          updated_input?: Record<string, unknown>
-          updated_permissions?: PermissionUpdate[]
-          interrupt?: boolean
-        }
-        return this.#convertHostPermissionResult(
-          hostResult,
-          tool as Tool,
-          input,
-          toolUseContext,
-        )
-      } catch (error) {
-        const unanswered = parentSignal.aborted ? unansweredAskCause(parentSignal.reason) : undefined
-        if (unanswered !== undefined) {
-          return this.#convertHostPermissionResult(
-            { behavior: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(tool.name, unanswered) },
-            tool as Tool,
-            input,
-            toolUseContext,
-          )
-        }
-        return {
-          behavior: 'deny',
-          message: `Tool permission request failed: ${error instanceof Error ? error.message : String(error)}`,
-          decisionReason: {
-            type: 'other',
-            reason: 'permission request failed',
-          },
-        }
-      } finally {
-        parentSignal.removeEventListener('abort', forwardParentAbort)
-        if (this.#pendingCanUseTool.size === 0) {
-          notifySessionStateChanged('running')
-        }
-      }
-    }
-    return canUseTool
+  parkedAsks(): number {
+    return this.#pendingCanUseTool.size
   }
 
-  #convertHostPermissionResult(
-    result: {
+  async askPermission(params: PermissionRequestParams, opts: { signal?: AbortSignal; key: string }): Promise<PermissionAnswer> {
+    const request =
+      params.kind === 'network'
+        ? {
+            subtype: 'can_use_tool',
+            tool_name: SANDBOX_NETWORK_ACCESS_TOOL_NAME,
+            input: { host: params.host },
+            tool_use_id: randomUUID(),
+            description: `Allow network access to ${params.host}?`,
+          }
+        : {
+            subtype: 'can_use_tool',
+            tool_name: params.tool_name,
+            input: params.input,
+            ...(params.suggestions !== undefined ? { permission_suggestions: params.suggestions } : {}),
+            ...(params.blocked_path !== undefined ? { blocked_path: params.blocked_path } : {}),
+            ...(params.reason !== undefined ? { decision_reason: params.reason } : {}),
+            ...(params.reason_detail !== undefined ? { decision_reason_detail: params.reason_detail } : {}),
+            tool_use_id: params.tool_use_id,
+            ...(params.agent_id !== undefined ? { agent_id: params.agent_id } : {}),
+          }
+    const result = (await this.sendRequest(request, PermissionResultSchema(), opts.signal, opts.key)) as {
       behavior?: string
       message?: string
       updated_input?: Record<string, unknown>
       updated_permissions?: PermissionUpdate[]
       interrupt?: boolean
-    },
-    tool: Tool,
-    originalInput: Record<string, unknown>,
-    toolUseContext: Pick<ToolUseContext, 'abortController' | 'setAppState'>,
-  ): PermissionDecision {
-    if (result.behavior === 'allow') {
-      const updatedInput =
-        result.updated_input && Object.keys(result.updated_input).length > 0
-          ? result.updated_input
-          : originalInput
-      if (result.updated_permissions?.length) {
-        const updates = result.updated_permissions
-        persistPermissionUpdates(updates)
-        toolUseContext.setAppState(previous => {
-          const updated = applyPermissionUpdates(previous.toolPermissionContext, updates)
-          return updated === previous.toolPermissionContext
-            ? previous
-            : { ...previous, toolPermissionContext: updated }
-        })
-      }
-      return {
-        behavior: 'allow',
-        updatedInput,
-        userModified: false,
-        decisionReason: {
-          type: 'permissionPromptTool',
-          permissionPromptToolName: tool.name,
-          toolResult: result,
-        },
-      }
     }
-    if (result.interrupt) {
-      toolUseContext.abortController.abort()
+    if (result.behavior === 'allow') {
+      return {
+        outcome: 'allow',
+        ...(result.updated_input !== undefined ? { input: result.updated_input } : {}),
+        ...(result.updated_permissions !== undefined ? { rules: result.updated_permissions } : {}),
+      }
     }
     return {
-      behavior: 'deny',
-      message: result.message ?? 'Permission denied by the SDK host',
-      decisionReason: {
-        type: 'permissionPromptTool',
-        permissionPromptToolName: tool.name,
-        toolResult: result,
-      },
+      outcome: 'deny',
+      ...(result.message !== undefined ? { message: result.message } : {}),
+      ...(result.interrupt === true ? { stop: true } : {}),
     }
   }
 
-  #describeToolAction(tool: Tool, input: Record<string, unknown>): string {
-    try {
-      const described =
-        (tool as { getActivityDescription?: (i: unknown) => string | null })
-          .getActivityDescription?.(input) ??
-        (tool as { getToolUseSummary?: (i: unknown) => string | null })
-          .getToolUseSummary?.(input) ??
-        (tool as { userFacingName?: (i: unknown) => string }).userFacingName?.(
-          input,
-        )
-      return described || tool.name
-    } catch {
-      return tool.name
-    }
+  createCanUseTool(
+    onPermissionPrompt?: (details: RequiresActionDetails) => void,
+  ): CanUseToolFn {
+    return createHostCanUseTool(this, onPermissionPrompt)
   }
 
 
@@ -819,23 +582,7 @@ export class StructuredIO {
     host: string
     port?: number
   }) => Promise<boolean> {
-    return async ask => {
-      try {
-        const result = (await this.sendRequest(
-          {
-            subtype: 'can_use_tool',
-            tool_name: SANDBOX_NETWORK_ACCESS_TOOL_NAME,
-            input: { host: ask.host },
-            tool_use_id: randomUUID(),
-            description: `Allow network access to ${ask.host}?`,
-          },
-          PermissionResultSchema(),
-        )) as { behavior?: string }
-        return result.behavior === 'allow'
-      } catch {
-        return false
-      }
-    }
+    return createSandboxAsk(this)
   }
 
 

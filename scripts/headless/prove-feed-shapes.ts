@@ -114,6 +114,76 @@ section('F1 — the row vocabulary declares the rows the product writes (a run o
   }
 }
 
+section('F1b — the runner door speaks the method table: every line a JSON-RPC 2.0 message, every row a declared row, the ask a permission/request')
+{
+  const dist = join(ROOT, 'dist', 'mercury.mjs')
+  const nodeBin = Bun.which('node')
+  if (!existsSync(dist) || nodeBin === null) {
+    check('dist/mercury.mjs and node exist (build first — F1b drives the artifact)', false)
+  } else {
+    const { hostRunner, scratchHome } = await import('../lib/runnerHost.ts')
+    const { METHODS } = await import('../../src/runner/wire/methods.ts')
+    const scratch = scratchHome('feed-shapes-door-')
+    const written = join(scratch.cwd, 'door.txt')
+    const api = await startFixtureApi([
+      { kind: 'tool_use', name: 'Write', input: { file_path: written, content: 'feed-shapes-door\n' }, preText: 'Writing it.' },
+      { kind: 'text', text: 'The door answered.' },
+    ])
+    const raw: string[] = []
+    const host = hostRunner({
+      dist,
+      node: nodeBin,
+      cwd: scratch.cwd,
+      home: scratch.home,
+      env: { ...scratch.env, MERCURY_LOCAL_PROBE_TARGETS: 'none', ANTHROPIC_BASE_URL: api.url, ANTHROPIC_API_KEY: 'fixture-key-feed-shapes' },
+      argv: ['--model', 'claude-opus-4-8'],
+      raw: chunk => raw.push(chunk),
+    })
+    host.onAsk(params => (params.kind === 'tool' && params.tool_name === 'Write' ? { outcome: 'allow' } : { outcome: 'deny', message: 'not this one' }))
+    let failed = ''
+    try {
+      const init = await host.initialize({ holds_asks: true, elicitation: false, partial_rows: true }, 90_000)
+      check('initialize answers protocol 1, the runner version and pid, and the session id', init.protocol === 1 && typeof init.runner.pid === 'number' && typeof init.session_id === 'string', j(init))
+      const added = await host.prompt('run the command')
+      check('queue/add accepts the prompt', added.accepted === true, j(added))
+      await host.waitFor('the outcome', row => row.type === 'outcome', 90_000)
+    } catch (error) {
+      failed = error instanceof Error ? error.message : String(error)
+    }
+    const code = await host.stop()
+    await api.close()
+    check('the door served the turn', failed === '', failed)
+    const lines = raw.join('').split('\n').filter(line => line.trim() !== '')
+    const messages: Array<Record<string, unknown>> = []
+    let torn = 0
+    for (const line of lines) {
+      try {
+        messages.push(JSON.parse(line) as Record<string, unknown>)
+      } catch {
+        torn++
+      }
+    }
+    check('every stdout line is one JSON-RPC 2.0 message', torn === 0 && messages.length > 0 && messages.every(m => m.jsonrpc === '2.0'), `${torn} torn of ${lines.length}`)
+    const methods = [...new Set(messages.filter(m => typeof m.method === 'string').map(m => String(m.method)))]
+    const runnerSends = (name: string): boolean => name in METHODS && (METHODS[name as keyof typeof METHODS].from === 'runner' || METHODS[name as keyof typeof METHODS].from === 'both')
+    check('every method the runner sends is in the table and sent from the runner side', methods.length > 0 && methods.every(runnerSends), j(methods.filter(name => !runnerSends(name))))
+    const rowParams = messages.filter(m => m.method === 'row').map(m => m.params as Record<string, unknown>)
+    const declared = new Set<string>([...rows.ROW_TYPES, ...rows.PARTIAL_ROW_TYPES])
+    const schema = rows.RowSchema()
+    const refused = rowParams.filter(row => !schema.safeParse(row).success)
+    check('every row notification carries a declared row that parses', rowParams.length > 0 && rowParams.every(row => declared.has(String(row.type))) && refused.length === 0, j(refused.slice(0, 2)))
+    check('the partial rows ride once initialize declared partial_rows', ['block_start', 'text_delta'].every(type => rowParams.some(row => row.type === type)), j([...new Set(rowParams.map(row => row.type))]))
+    check('the ask rode permission/request with kind tool, the tool name and its input', host.asks.length === 1 && host.asks[0]!.params.kind === 'tool' && (host.asks[0]!.params as { tool_name?: string; input?: { file_path?: string } }).tool_name === 'Write' && (host.asks[0]!.params as { input?: { file_path?: string } }).input?.file_path === written, j(host.asks.map(ask => ask.params)))
+    const toolResult = rowParams.find(row => row.type === 'tool_result')
+    check("the host's allow let the tool run (the tool_result is ok and the file is on disk)", toolResult?.status === 'ok' && existsSync(written) && readFileSync(written, 'utf8').includes('feed-shapes-door'), j(toolResult))
+    const seqs = rowParams.map(row => Number(row.seq))
+    check('seq is contiguous from 1 across the row notifications', seqs.every((seq, i) => seq === i + 1), j(seqs.slice(0, 12)))
+    check('the runner exits 0 when the host closes its stdin after a completed turn', code === 0, `exit=${code} stderr=${host.stderr().slice(0, 300)}`)
+    rmSync(scratch.home, { recursive: true, force: true })
+    rmSync(scratch.cwd, { recursive: true, force: true })
+  }
+}
+
 section('F2 — every declared key is snake_case')
 {
   const scan = (src: string): string[] => {

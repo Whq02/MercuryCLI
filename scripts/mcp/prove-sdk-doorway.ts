@@ -46,7 +46,6 @@ const CENSUS: Record<string, { values: string[]; types: string[] }> = {
       'Resource',
       'ServerCapabilities',
       'Tool',
-      'ToolAnnotations',
       'Transport',
     ],
   },
