@@ -41,7 +41,7 @@ section("§1 pure: the main fold clears the git-status, system-context and user-
 
 section('§2 the built product: after a fold the next request carries the current git status, not the start-of-conversation snapshot')
 {
-  const { DIST, bootRunner, bound, childEnv, isOutcome, user } = await import('../daemon/dupline-world.ts')
+  const { DIST, bootRunner, bound, childEnv, isOutcome } = await import('../daemon/dupline-world.ts')
   const { seedScratchHome, startScriptedFixture } = await import('../lib/scriptedTurn.ts')
   if (!existsSync(DIST)) {
     console.log(`  [SKIP] ${DIST} absent — build first or pass --dist`)
@@ -65,7 +65,7 @@ section('§2 the built product: after a fold the next request carries the curren
     const runner = bootRunner({ cwd, env: childEnv(runHome, port) })
     const turn = async (label: string, ask: string): Promise<Record<string, unknown> | null> => {
       const from = runner.frames.length
-      runner.send(user(ask, randomUUID()))
+      await runner.door.connection.peer.request('queue/add', { type: 'prompt', content: ask, id: randomUUID() }, { deadlineMs: bound(90_000) })
       return runner.waitFor(label, isOutcome, bound(90_000), from)
     }
     const first = await turn('turn 1', 'first turn of the fold probe')

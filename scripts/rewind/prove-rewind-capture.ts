@@ -6,6 +6,9 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { isOutcome, isSessionRow, type LooseRow } from '../../src/rows/read.ts'
+import { RUNNER_PROTOCOL } from '../../src/runner/wire/methods.ts'
+import { createPeer } from '../../src/runner/wire/peer.ts'
 import { startFixtureApi, type FixtureApi } from '../lib/fixtureApi.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -59,8 +62,6 @@ section('§1 — the capture gate: the seat runner captures under the interactiv
   saveGlobalConfig(c => ({ ...c, fileCheckpointingEnabled: true }))
 }
 
-type Envelope = Record<string, unknown> & { type: string; subtype?: string }
-
 function findTranscript(root: string, sessionId: string): string | null {
   const stack = [root]
   while (stack.length > 0) {
@@ -111,47 +112,19 @@ async function driveRunner(opts: { stamp: boolean; label: string }): Promise<voi
     MERCURY_CREWS_DIR: join(home, 'crews'),
     ...(opts.stamp ? { MERCURY_CONCOURSE_WORKER: '1' } : {}),
   }
-  const child = spawn(
-    nodeBin,
-    [
-      DIST,
-      'run',
-      '--format',
-      'rows',
-      '--input',
-      'rows',
-      '--model',
-      'claude-opus-4-8',
-      '--session-id',
-      pinnedSessionId,
-      '--allowed-tools',
-      'Read',
-      'Write',
-    ],
-    { cwd, env },
-  )
+  const child = spawn(nodeBin, [DIST, 'runner', '--model', 'claude-opus-4-8', '--session-id', pinnedSessionId, '--allowed-tools', 'Read', 'Write'], { cwd, env })
   const killer = setTimeout(() => child.kill('SIGKILL'), 90_000)
-  const envelopes: Envelope[] = []
-  const waiters: Array<{ pred: (e: Envelope) => boolean; res: (e: Envelope) => void }> = []
-  let buf = ''
-  child.stdout.on('data', d => {
-    buf += String(d)
-    for (;;) {
-      const nl = buf.indexOf('\n')
-      if (nl === -1) break
-      const line = buf.slice(0, nl)
-      buf = buf.slice(nl + 1)
-      if (!line.trim()) continue
-      try {
-        const e = JSON.parse(line) as Envelope
-        envelopes.push(e)
-        for (let i = waiters.length - 1; i >= 0; i--) {
-          if (waiters[i]!.pred(e)) {
-            const w = waiters.splice(i, 1)[0]!
-            w.res(e)
-          }
-        }
-      } catch {
+  const rows: LooseRow[] = []
+  const waiters: Array<{ pred: (row: LooseRow) => boolean; res: (row: LooseRow) => void }> = []
+  const peer = createPeer({ input: child.stdout, output: child.stdin, side: 'host' })
+  peer.onRequest('permission/request', () => ({ outcome: 'deny', message: 'the capture proof answers no asks' }))
+  peer.onNotification('row', row => {
+    const seen = row as LooseRow
+    rows.push(seen)
+    for (let i = waiters.length - 1; i >= 0; i--) {
+      if (waiters[i]!.pred(seen)) {
+        const w = waiters.splice(i, 1)[0]!
+        w.res(seen)
       }
     }
   })
@@ -160,42 +133,42 @@ async function driveRunner(opts: { stamp: boolean; label: string }): Promise<voi
   const exited = new Promise<number | null>(res =>
     child.on('close', code => {
       clearTimeout(killer)
+      peer.close('the runner exited')
       res(code)
     }),
   )
-  const waitFor = (pred: (e: Envelope) => boolean, label: string, timeoutMs = 60_000): Promise<Envelope | undefined> =>
+  const waitFor = (pred: (row: LooseRow) => boolean, label: string, timeoutMs = 60_000): Promise<LooseRow | undefined> =>
     new Promise(res => {
-      const hit = envelopes.find(pred)
+      const hit = rows.find(pred)
       if (hit) return res(hit)
       const t = setTimeout(() => {
-        console.log(`  [dbg] waitFor timeout: ${label}; envelopes=${j(envelopes.map(e => `${e.type}:${e.subtype ?? ''}`))} stderr=${stderr.slice(-400)}`)
+        console.log(`  [dbg] waitFor timeout: ${label}; rows=${j(rows.map(row => `${row.type}${typeof row.state === 'string' ? `:${row.state}` : ''}`))} stderr=${stderr.slice(-400)}`)
         res(undefined)
       }, timeoutMs)
       waiters.push({
         pred,
-        res: e => {
+        res: row => {
           clearTimeout(t)
-          res(e)
+          res(row)
         },
       })
     })
-  const send = (o: unknown): void => {
-    child.stdin.write(JSON.stringify(o) + '\n')
-  }
 
-  send({ type: 'control_request', request_id: 'req_init', request: { subtype: 'initialize' } })
-  const initResp = await waitFor(e => e.type === 'control_response' && j(e).includes('req_init'), 'initialize')
-  check(`${opts.label}: initialize acknowledged`, !!initResp && j(initResp).includes('"success"'))
+  const init = await peer
+    .request('initialize', { protocol: RUNNER_PROTOCOL, host: { name: 'prove-rewind-capture', version: '0' }, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } }, { deadlineMs: 60_000 })
+    .catch((error: unknown) => (error instanceof Error ? error.message : String(error)))
+  check(`${opts.label}: initialize answered with the pinned session id`, typeof init === 'object' && init.session_id === pinnedSessionId, j(init).slice(0, 200))
 
-  send({ type: 'user', message: { role: 'user', content: 'overwrite note.txt with ONE' }, parent_tool_use_id: null })
-  const sysInit = (await waitFor(e => e.type === 'system' && e.subtype === 'init', 'system:init')) as (Envelope & { session_id?: string }) | undefined
-  const sessionId = sysInit?.session_id ?? ''
-  check(`${opts.label}: the turn opened with system:init carrying the session id`, /^[0-9a-f-]{36}$/.test(sessionId), j(sysInit ?? {}).slice(0, 200))
-  const result = (await waitFor(e => e.type === 'result', 'result')) as (Envelope & { subtype?: string; result?: string }) | undefined
-  check(`${opts.label}: the tool turn settled (result:success)`, result?.subtype === 'success', j({ s: result?.subtype, r: result?.result, stderr: stderr.slice(-300) }))
-  const toolResultText = envelopes
-    .filter(e => e.type === 'user' && j(e).includes('tool_result'))
-    .map(e => j(e).slice(0, 400))
+  const accepted = await peer.request('queue/add', { type: 'prompt', content: 'overwrite note.txt with ONE' }, { deadlineMs: 60_000 }).catch((error: unknown) => (error instanceof Error ? error.message : String(error)))
+  check(`${opts.label}: the prompt row was accepted`, typeof accepted === 'object' && accepted.accepted === true, j(accepted))
+  const sessionRow = await waitFor(isSessionRow, 'session')
+  const sessionId = typeof sessionRow?.session_id === 'string' ? sessionRow.session_id : ''
+  check(`${opts.label}: the stream opened with the session row carrying the session id`, /^[0-9a-f-]{36}$/.test(sessionId), j(sessionRow ?? {}).slice(0, 200))
+  const outcome = await waitFor(isOutcome, 'outcome')
+  check(`${opts.label}: the tool turn settled (outcome completed)`, outcome?.status === 'completed', j({ status: outcome?.status, answer: outcome?.answer, stderr: stderr.slice(-300) }))
+  const toolResultText = rows
+    .filter(row => row.type === 'tool_result')
+    .map(row => j(row).slice(0, 400))
     .join(' | ')
   check(`${opts.label}: the Write landed on disk (the tool ran in THIS process)`, existsSync(target) && readFileSync(target, 'utf8') === 'ONE\n', `${existsSync(target) ? readFileSync(target, 'utf8') : 'absent'} tool_result=${toolResultText}`)
 
@@ -207,10 +180,10 @@ async function driveRunner(opts: { stamp: boolean; label: string }): Promise<voi
   const blobDir = join(configDir, 'file-history', sessionId)
   const blobs = existsSync(blobDir) ? readdirSync(blobDir) : []
   const transcript = sessionId ? findTranscript(configDir, sessionId) : null
-  const rows = transcript ? readFileSync(transcript, 'utf8').split('\n').filter(l => l.trim() !== '') : []
-  const snapshotRows = rows.filter(l => l.includes('"file-history-snapshot"'))
+  const records = transcript ? readFileSync(transcript, 'utf8').split('\n').filter(l => l.trim() !== '') : []
+  const snapshotRows = records.filter(l => l.includes('"file-history-snapshot"'))
   const userUuid = ((): string | null => {
-    for (const l of rows) {
+    for (const l of records) {
       try {
         const r = JSON.parse(l) as { payload?: { kind?: string; content?: unknown }; annotations?: { uuid?: string } }
         if (r.payload?.kind === 'input' && typeof r.payload.content === 'string' && typeof r.annotations?.uuid === 'string') return r.annotations.uuid

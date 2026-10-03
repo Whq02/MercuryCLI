@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { isOutcome, parseRow, type LooseRow } from '../../src/rows/read.ts'
 import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
 import type { Options } from '../../src/services/providers/anthropic/streamCore.ts'
 
@@ -367,8 +368,8 @@ type ChildOutcome = {
   exitCode: number | null
   timedOut: boolean
   spawnError: string
-  resultSubtype: string | undefined
-  resultText: string
+  status: string | undefined
+  answer: string
   frameCount: number
   stderrTail: string
 }
@@ -383,7 +384,7 @@ async function runDist(tag: string, extra: Record<string, string>): Promise<Chil
     [DIST, 'run', '--input=rows', '--format=rows', '--model', WIRE_MODEL, '--mode', 'sovereign'],
     { cwd, env: childEnv(home, cwd, extra), stdio: ['pipe', 'pipe', 'pipe'] },
   )
-  const frames: Record<string, unknown>[] = []
+  const frames: LooseRow[] = []
   let stdoutBuffer = ''
   let stderrText = ''
   let spawnError = ''
@@ -395,11 +396,9 @@ async function runDist(tag: string, extra: Record<string, string>): Promise<Chil
       const line = stdoutBuffer.slice(0, nl)
       stdoutBuffer = stdoutBuffer.slice(nl + 1)
       if (line.trim() === '') continue
-      try {
-        frames.push(JSON.parse(line) as Record<string, unknown>)
-      } catch {
-        stderrText += `[unparsed stdout] ${line}\n`
-      }
+      const row = parseRow(line)
+      if (row !== null) frames.push(row)
+      else stderrText += `[unparsed stdout] ${line}\n`
     }
   })
   proc.stderr!.on('data', (chunk: Buffer) => {
@@ -413,7 +412,7 @@ async function runDist(tag: string, extra: Record<string, string>): Promise<Chil
     })
   })
   try {
-    proc.stdin!.write(`${JSON.stringify({ type: 'user', message: { role: 'user', content: 'fixture turn' }, parent_tool_use_id: null })}\n`)
+    proc.stdin!.write(`${JSON.stringify({ type: 'prompt', content: 'fixture turn' })}\n`)
     proc.stdin!.end()
   } catch (err) {
     spawnError = spawnError === '' ? String(err) : spawnError
@@ -428,14 +427,14 @@ async function runDist(tag: string, extra: Record<string, string>): Promise<Chil
   }, CHILD_TIMEOUT_MS)
   const exitCode = await finished
   clearTimeout(timer)
-  const result = frames.find(f => f.type === 'result')
+  const outcome = frames.find(isOutcome)
   return {
     tag,
     exitCode,
     timedOut,
     spawnError,
-    resultSubtype: result?.subtype as string | undefined,
-    resultText: String(result?.result ?? ''),
+    status: outcome?.status,
+    answer: typeof outcome?.answer === 'string' ? outcome.answer : '',
     frameCount: frames.length,
     stderrTail: stderrText.slice(-600),
   }
@@ -452,8 +451,8 @@ function checkChild(tag: string, outcome: ChildOutcome, capture: Capture | undef
   check(`${tag}: exactly one chat request reached the fixture`, count === 1, `count=${count}`)
   check(
     `${tag}: the turn settled cleanly (not a vacuous capture)`,
-    outcome.resultSubtype === 'success' && outcome.resultText.includes(FIXTURE_TEXT),
-    JSON.stringify({ subtype: outcome.resultSubtype, text: outcome.resultText, stderr: outcome.stderrTail }),
+    outcome.status === 'completed' && outcome.answer.includes(FIXTURE_TEXT),
+    JSON.stringify({ status: outcome.status, answer: outcome.answer, stderr: outcome.stderrTail }),
   )
   check(
     `${tag}: POST ${CHAT_PATH} exactly, with model and stream on the wire`,

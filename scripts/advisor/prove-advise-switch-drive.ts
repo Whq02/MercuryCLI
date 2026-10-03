@@ -298,7 +298,7 @@ function runSession(s: Session): Promise<Run> {
       if (sent >= s.prompts.length) return
       const prompt = s.prompts[sent]!
       sent++
-      child.stdin.write(`${j({ type: 'user', message: { role: 'user', content: prompt } })}\n`)
+      child.stdin.write(`${j({ type: 'prompt', content: prompt })}\n`)
     }
     const release = (): void => {
       while (owed > 0 && sent < s.prompts.length) {

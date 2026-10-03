@@ -3,7 +3,7 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, isOutcome, makeTally, sleep, user } from '../daemon/dupline-world.ts'
+import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, isOutcome, makeTally, sleep } from '../daemon/dupline-world.ts'
 import { seedScratchHome, startScriptedFixture, type Script } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-background-exit-code')
@@ -43,12 +43,13 @@ const script: Script = req => {
 const fixture = await startScriptedFixture(script)
 const port = Number(new URL(fixture.base).port)
 const runner = bootRunner({ cwd, env: childEnv(runHome, port) })
-runner.send(user('background exit probe', randomUUID()))
+const prompt = (content: string): Promise<unknown> => runner.door.connection.peer.request('queue/add', { type: 'prompt', content, id: randomUUID() }, { deadlineMs: bound(60_000) })
+await prompt('background exit probe')
 const first = await runner.waitFor('first outcome', isOutcome, bound(60_000))
 tally.check('the launching turn settled', first !== null && first.status === 'completed', JSON.stringify(first).slice(0, 120))
 await sleep(3_000)
 const after = runner.frames.length
-runner.send(user(FOLLOW_UP, randomUUID()))
+await prompt(FOLLOW_UP)
 const second = await runner.waitFor('the notice-carrying turn', f => isOutcome(f) && fixture.requests.some(r => r.allTexts.some(t => t.includes(FOLLOW_UP))), bound(60_000), after)
 tally.check('the next input line settled a second turn', second !== null, JSON.stringify(second).slice(0, 120))
 await runner.stop(bound(5_000))

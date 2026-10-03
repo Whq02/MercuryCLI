@@ -59,7 +59,7 @@ type Roster = { members: Array<{ name: string; isActive?: boolean }> }
 const failedNotice = (): InboxRow | undefined =>
   leadRows().find(row => row.from === SEAT && row.text.includes('idle_notification') && row.text.includes('"failed"'))
 const seatRequests = (): number => world.fixture.messageRequests().filter(request => (request.body as { model?: string } | null)?.model === SEAT_MODEL).length
-const seatRows = (): number => session.frames.filter(frame => frame.subtype === 'task_started' && frame.task_type === 'in_process_crewmate').length
+const seatRows = (): number => session.frames.filter(frame => frame.type === 'task' && frame.state === 'started' && frame.task_type === 'in_process_crewmate').length
 
 try {
   tally.section('the lead spawns a seat whose first dispatch fails')

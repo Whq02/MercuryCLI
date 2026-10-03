@@ -2,7 +2,8 @@
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, record, sleep, treeOf, TURN_MS, type Frame } from './crew-world.ts'
+import { parseFrame, spawnRunnerDoor, type Frame } from '../lib/rows.ts'
+import { closeWorld, DIST, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, NODE, record, sleep, treeOf, TURN_MS } from './crew-world.ts'
 
 if (process.env.MERCURY_CONFIG_DIR) process.env.TMPDIR = process.env.MERCURY_CONFIG_DIR
 const peerModel = 'claude-opus-4-6'
@@ -18,13 +19,57 @@ const script: ScriptedTurn[] = [
 ]
 const tally = makeTally('prove-crewmate-transcript-resume')
 const world = await makeWorld('crewmate-transcript-resume', script)
-const session = bootLead(world, ['--mode', 'sovereign'], ['Agent', 'Bash'])
-const response = (id: string): Frame | undefined => session.frames.find(frame => frame.type === 'control_response' && (frame.response as Frame | undefined)?.request_id === id)
-const control = async (id: string, request: Frame): Promise<Frame> => {
-  session.child.stdin!.write(JSON.stringify({ type: 'control_request', request_id: id, request }) + '\n')
-  await session.waitFor(`no control response for ${id}`, () => response(id) !== undefined)
-  return response(id)!.response as Frame
+const frames: Frame[] = []
+let rowsOut = ''
+let leadErr = ''
+const refusals: string[] = []
+const door = spawnRunnerDoor({
+  node: NODE,
+  argv: [DIST, 'run', '--model', LEAD_MODEL, '--allowed-tools', 'Agent', 'Bash', '--mode', 'sovereign'],
+  cwd: world.project,
+  env: world.env,
+  onLine: line => {
+    rowsOut += `${line}\n`
+    const frame = parseFrame(line)
+    if (frame !== null) frames.push(frame)
+  },
+})
+door.child.stderr!.on('data', (chunk: Buffer) => {
+  leadErr += chunk.toString('utf8')
+})
+const wire = door.connection.peer
+let leadDone = false
+const leadExited = new Promise<number | null>(resolveExit => door.child.on('close', code => {
+  leadDone = true
+  resolveExit(code)
+}))
+const session = {
+  frames,
+  stdout: (): string => rowsOut,
+  stderr: (): string => leadErr,
+  submit: (text: string): void => {
+    wire.request('queue/add', { type: 'prompt', content: text }, { deadlineMs: TURN_MS }).catch((error: unknown) => {
+      refusals.push(`queue/add: ${error instanceof Error ? error.message : String(error)}`)
+    })
+  },
+  waitFor: async (label: string, test: () => boolean, timeoutMs = TURN_MS): Promise<void> => {
+    const deadline = Date.now() + timeoutMs
+    while (!test()) {
+      if (leadDone || Date.now() >= deadline) throw new Error(`${label}\n--- rows tail ---\n${rowsOut.slice(-1500)}\n--- stderr tail ---\n${leadErr.slice(-1500)}\n--- queue ---\n${refusals.join('\n')}`)
+      await sleep(25)
+    }
+  },
+  terminate: async (): Promise<number | null> => {
+    door.child.kill('SIGTERM')
+    const code = await Promise.race([leadExited, sleep(60_000).then(() => null)])
+    if (!leadDone) door.child.kill('SIGKILL')
+    door.connection.close('the proof ended')
+    return code
+  },
 }
+const answerOf = (request: Promise<unknown>): Promise<Frame> => request.then(receipt => receipt as Frame, (error: unknown) => ({ refused: error instanceof Error ? error.message : String(error) }))
+const stopAgent = (agentId: string): Promise<Frame> => answerOf(wire.request('agent/stop', { agent_id: agentId }, { deadlineMs: TURN_MS }))
+const resumeAgent = (agentId: string, note: string): Promise<Frame> => answerOf(wire.request('agent/resume', { agent_id: agentId, note }, { deadlineMs: TURN_MS }))
 type Request = { body: { model?: string; messages?: Array<{ role: string; content: unknown }> } }
 const requests = (): Request[] => (world.fixture.messageRequests() as Request[]).filter(request => request.body.model === peerModel)
 const projects = join(world.config, 'projects')
@@ -39,20 +84,21 @@ const continuationAfter = (from: number): Request | undefined => requests().slic
 try {
   session.submit('Spawn the worker and park.')
   await session.waitFor('the worker did not start its second request', () => requests().length >= 2 && session.stdout().includes('LEAD-PARKED'), TURN_MS)
-  const started = session.frames.find(frame => frame.subtype === 'task_started' && frame.task_type === 'in_process_crewmate')
+  const started = session.frames.find(frame => frame.type === 'task' && frame.state === 'started' && frame.task_type === 'in_process_crewmate')
   const taskId = started?.task_id
   tally.check('the fixture starts a real in-process crewmate with a history-bearing tool result', typeof taskId === 'string' && JSON.stringify(requests()[1]?.body.messages).includes('HISTORY-WITNESS'))
   if (typeof taskId !== 'string') throw new Error('the fixture has no crewmate task id')
-  const stopped = await control('stop-worker', { subtype: 'stop_task', task_id: taskId })
-  tally.check('the crew stop road stops the working crewmate', stopped.subtype === 'success', JSON.stringify(stopped))
+  const stopped = await stopAgent(taskId)
+  tally.check('the crew stop road stops the working crewmate', stopped.receipt === 'applied', JSON.stringify(stopped))
   await sleep(3500)
   const before = transcripts()
   tally.check('the stopped crewmate\'s transcript stands on disk after the stop and the eviction', before.length === 1 && readFileSync(join(projects, before[0]!), 'utf8').includes('HISTORY-WITNESS'), JSON.stringify(before))
   const beforeResume = requests().length
-  const resumed = await control('resume-worker', { subtype: 'resume_task', task_id: taskId, note: `${NOTE}: use your existing conversation.` })
+  const resumed = await resumeAgent(taskId, `${NOTE}: use your existing conversation.`)
   record('resume-response.json', JSON.stringify(resumed, null, 2))
-  tally.check('r can resume the stopped row after its ephemeral task has been evicted', resumed.subtype === 'success', JSON.stringify(resumed))
-  if (resumed.subtype === 'success') {
+  const resumedOk = resumed.refused === undefined && typeof resumed.agent_id === 'string'
+  tally.check('r can resume the stopped row after its ephemeral task has been evicted', resumedOk, JSON.stringify(resumed))
+  if (resumedOk) {
     await session.waitFor('the resumed crewmate did not make a request carrying the note', () => continuationAfter(beforeResume) !== undefined, TURN_MS)
     const continued = continuationAfter(beforeResume) ?? requests()[beforeResume]!
     const history = JSON.stringify(continued.body.messages)

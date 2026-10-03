@@ -63,7 +63,7 @@ try {
   const plainDone = Date.now() + TURN_MS / 3
   while (plainRequests() < 1 && Date.now() < plainDone) await sleep(50)
   const finished = Date.now() + TURN_MS / 3
-  while (!session.frames.some(frame => frame.subtype === 'task_completed' || frame.subtype === 'task_finished' || (frame.type === 'user' && JSON.stringify(frame).includes('task-notification'))) && Date.now() < finished) await sleep(50)
+  while (!session.frames.some(frame => frame.type === 'task' && frame.state === 'ended') && Date.now() < finished) await sleep(50)
   tally.check('the plain sub-agent ran its turn on the wire and finished', plainRequests() >= 1, `${plainRequests()} plain request(s)`)
   await sleep(500)
   session.submit(`${STEP_TWO}: start the crewmate alpha.`)

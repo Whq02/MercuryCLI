@@ -7,14 +7,13 @@ import {
   bootRunner,
   bound,
   childEnv,
+  isOutcome,
   isSession,
-  isResult,
   j,
   makeTally,
   removeWorld,
   SCRATCH_ROOT,
   seedHome,
-  user,
 } from '../daemon/dupline-world.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -168,15 +167,15 @@ const openOf = (run: RunRecord): Array<{ id?: string; title?: string; state?: st
 const brief = (run: RunRecord): string =>
   `${String(run.lifecycle)}/${String(run.phase)} deliverables=${j((run.deliverables ?? []).map(d => `${String(d.state)}:${String(d.title)}`))} stop=${String(run.lastStopDecision?.decision)}: ${String(run.lastStopDecision?.detail).slice(0, 160)}`
 
-async function runWorld(label: string, extraEnv: Record<string, string>): Promise<{ record: RunRecord | null; records: number; hits: Hit[]; resultText: string; subtype: string; stderrTail: string; home: string }> {
+async function runWorld(label: string, extraEnv: Record<string, string>): Promise<{ record: RunRecord | null; records: number; hits: Hit[]; answer: string; status: string; stderrTail: string; home: string }> {
   const home = join(SCRATCH_ROOT, `mercury-one-shot-${label}-${process.pid}`)
   const cwd = join(home, 'repo')
   seedHome(home, cwd)
   const fixture = await startTaskFixture()
   const runner = bootRunner({ cwd, env: { ...childEnv(home, fixture.port), MERCURY_TASKS: '1', ...extraEnv }, extraArgv: ['--allowed-tools', 'TaskCreate,TaskUpdate'] })
-  runner.send(user(FILE_ASK, '00000000-0000-4000-8000-000000000000'))
-  const init = await runner.waitFor('the session row', isSession, bound(90_000))
-  const result = init === null ? null : await runner.waitFor('the turn result', isResult, bound(180_000))
+  await runner.door.connection.peer.request('queue/add', { type: 'prompt', content: FILE_ASK, id: '00000000-0000-4000-8000-000000000000' }, { deadlineMs: bound(90_000) })
+  const session = await runner.waitFor('the session row', isSession, bound(90_000))
+  const outcome = session === null ? null : await runner.waitFor('the turn outcome', isOutcome, bound(180_000))
   await runner.stop(bound(8_000))
   await fixture.close()
   const records = runRecords(join(home, 'projects'))
@@ -190,8 +189,8 @@ async function runWorld(label: string, extraEnv: Record<string, string>): Promis
     record,
     records: records.length,
     hits: fixture.hits,
-    resultText: String(result?.result ?? ''),
-    subtype: String(result?.subtype ?? 'none'),
+    answer: String(outcome?.answer ?? ''),
+    status: String(outcome?.status ?? 'none'),
     stderrTail: runner.stderr().split('\n').slice(-8).join(' | '),
     home,
   }
@@ -203,7 +202,7 @@ if (import.meta.main) {
     const failedAtOpen = failed()
     const world = await runWorld('record', { MERCURY_SUPERVISOR: '0' })
     const arms = world.hits.map(h => h.arm)
-    check('the runner booted and the turn settled on the model’s own last words', world.subtype === 'success' && world.resultText === FILED_END, `${world.subtype}: ${world.resultText.slice(0, 120)} | ${world.stderrTail}`)
+    check('the runner booted and the turn settled on the model’s own last words', world.status === 'completed' && world.answer === FILED_END, `${world.status}: ${world.answer.slice(0, 120)} | ${world.stderrTail}`)
     check('the fixture answered one TaskCreate and one end of turn, nothing more, and no re-prompt reached the wire', j(arms.filter(a => a !== 'svc')) === j(['create', 'filed-end']) && world.hits.every(h => h.reprompts === 0), j(world.hits))
     const run = world.record
     check('the run record holds the filed task as an open deliverable', run !== null && openOf(run).length === 1 && openOf(run)[0]!.title === TASK_SUBJECT, run ? brief(run) : `${world.records} record(s)`)
@@ -219,7 +218,7 @@ if (import.meta.main) {
     const failedAtOpen = failed()
     const world = await runWorld('supervised', { MERCURY_SUPERVISOR: '1' })
     const arms = world.hits.filter(h => h.arm !== 'svc').map(h => h.arm)
-    check('the runner booted and the turn settled on the model’s own last words', world.subtype === 'success' && world.resultText === CLOSED_END, `${world.subtype}: ${world.resultText.slice(0, 120)} | ${world.stderrTail}`)
+    check('the runner booted and the turn settled on the model’s own last words', world.status === 'completed' && world.answer === CLOSED_END, `${world.status}: ${world.answer.slice(0, 120)} | ${world.stderrTail}`)
     check('a re-prompt on the wire named the open deliverable, once', world.hits.filter(h => h.reprompted).length === 1 && (world.hits[world.hits.length - 1]?.reprompts ?? 0) === 1, j(world.hits))
     check('the model closed the task on the re-prompt and ended', j(arms) === j(['create', 'filed-end', 'close', 'closed-end']), j(arms))
     const run = world.record

@@ -1,9 +1,11 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { createInterface } from 'node:readline'
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { isOutcome, parseRow } from '../../src/rows/read.ts'
+import { RUNNER_PROTOCOL } from '../../src/runner/wire/methods.ts'
+import { createPeer } from '../../src/runner/wire/peer.ts'
 import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
 import { resolveProofHome } from '../lib/proofHome.ts'
 
@@ -66,7 +68,7 @@ type TurnObs = {
   label: string
   initModel?: string
   assistantModels: string[]
-  resultSubtype?: string
+  status?: string
   firstInitMs?: number
   firstAssistantMs?: number
   wallMs: number
@@ -79,7 +81,7 @@ function runStreamSession(): Promise<{ turns: TurnObs[]; exit: number | null }> 
   return new Promise(resolveP => {
     const t0 = performance.now()
     const argv = [
-      DIST, 'run', '--input', 'rows', '--format', 'rows', '--session-id', sid, '--title', 'crown-journey',
+      DIST, 'runner', '--session-id', sid, '--title', 'crown-journey',
       '--budget', '6',
       '--block-tools', 'Edit', 'Write', 'NotebookEdit',
       '--allowed-tools', ...ALLOW,
@@ -93,38 +95,39 @@ function runStreamSession(): Promise<{ turns: TurnObs[]; exit: number | null }> 
     let cur: TurnObs | null = null
     let stderrTail = ''
     const guard = setTimeout(() => child.kill('SIGKILL'), 900_000)
+    const peer = createPeer({ input: child.stdout!, output: child.stdin!, side: 'host' })
+    peer.onRequest('permission/request', () => ({ outcome: 'deny', message: 'the journey answers no asks' }))
 
     const sendUser = (label: string, text: string): void => {
       cur = { label, assistantModels: [], wallMs: 0 }
       turns.push(cur)
-      child.stdin!.write(
-        JSON.stringify({ type: 'user', message: { role: 'user', content: [{ type: 'text', text }] } }) + '\n',
-      )
+      peer.request('queue/add', { type: 'prompt', content: text }, { deadlineMs: null }).catch((error: unknown) => console.error('[queue/add refused]', error instanceof Error ? error.message : String(error)))
     }
-    const sendModel = (model: string): void => {
-      child.stdin!.write(
-        JSON.stringify({ type: 'control_request', request_id: `set-${model}-${Date.now()}`, request: { subtype: 'set_model', model } }) + '\n',
-      )
+    const sendModel = async (model: string): Promise<void> => {
+      try {
+        const applied = await peer.request('session/set_model', { model }, { deadlineMs: null })
+        console.log(`  session/set_model ${model} → ${JSON.stringify(applied)}`)
+      } catch (error) {
+        console.error('[session/set_model refused]', error instanceof Error ? error.message : String(error))
+      }
     }
 
-    const script: Array<() => void> = [
+    const script: Array<() => void | Promise<void>> = [
       () => sendUser('T1-fresh-default', "What does this project's geometry module export, and where would a normalizeAngle helper belong? Answer from the project files, briefly."),
       () => sendUser('T2-post-reads', 'One line: which file owns geometry?'),
-      () => { sendModel('opus'); sendUser('T3-explicit-opus', 'One line, from what you already read — no new tool calls: name the exported functions in src/format.ts.') },
-      () => { sendModel('default'); sendUser('T4-back-to-default', 'One line, no tool calls: name the geometry file again, and confirm the earlier questions are still in this conversation.') },
+      async () => { await sendModel('opus'); sendUser('T3-explicit-opus', 'One line, from what you already read — no new tool calls: name the exported functions in src/format.ts.') },
+      async () => { await sendModel('default'); sendUser('T4-back-to-default', 'One line, no tool calls: name the geometry file again, and confirm the earlier questions are still in this conversation.') },
       () => sendUser('T5-unchanged-dedup', 'One line, no tool calls: name the geometry file again, and confirm the earlier questions are still in this conversation.'),
     ]
     let step = 0
     const advance = (): void => {
-      if (step < script.length) script[step++]!()
+      if (step < script.length) void Promise.resolve(script[step++]!()).catch((error: unknown) => console.error('[journey step refused]', error instanceof Error ? error.message : String(error)))
       else { child.stdin!.end() }
     }
 
-    const rl = createInterface({ input: child.stdout! })
-    rl.on('line', line => {
+    peer.onNotification('row', row => {
       const now = Math.round(performance.now() - t0)
-      let e: Record<string, unknown>
-      try { e = JSON.parse(line) } catch { return }
+      const e = row as Record<string, unknown>
       if (e.type === 'turn' && (e as { state?: string }).state === 'started' && cur) {
         cur.initModel = String((e as { model?: unknown }).model ?? '')
         cur.firstInitMs ??= now
@@ -135,7 +138,7 @@ function runStreamSession(): Promise<{ turns: TurnObs[]; exit: number | null }> 
         cur.firstAssistantMs ??= now
       }
       if (e.type === 'outcome' && cur) {
-        cur.resultSubtype = String((e as { status?: unknown }).status ?? '')
+        cur.status = String((e as { status?: unknown }).status ?? '')
         cur.wallMs = now
         advance()
       }
@@ -143,29 +146,31 @@ function runStreamSession(): Promise<{ turns: TurnObs[]; exit: number | null }> 
     child.stderr!.on('data', d => { stderrTail = (stderrTail + String(d)).slice(-2000) })
     child.on('close', code => {
       clearTimeout(guard)
+      peer.close('the runner exited')
       if (stderrTail.trim()) console.error('[stream stderr tail]', stderrTail.trim().slice(-600))
       resolveP({ turns, exit: code })
     })
-    advance()
+    void peer
+      .request('initialize', { protocol: RUNNER_PROTOCOL, host: { name: 'journey-model-policy', version: '0' }, capabilities: { holds_asks: false, elicitation: false, partial_rows: false } }, { deadlineMs: null })
+      .then(advance, () => child.kill('SIGKILL'))
   })
 }
 
-function runOnce(argvExtra: string[], prompt: string): { models: string[]; subtype: string } {
+function runOnce(argvExtra: string[], prompt: string): { models: string[]; status: string } {
   const out = execFileSync(
     'node',
     [DIST, 'run', prompt, '--format', 'rows', '--budget', '2', '--block-tools', 'Edit', 'Write', ...argvExtra],
     { cwd: fixture, env: childEnv(), encoding: 'utf8', timeout: 600_000, maxBuffer: 64 * 1024 * 1024 },
   )
   const models: string[] = []
-  let subtype = ''
+  let status = ''
   for (const line of out.split('\n')) {
-    try {
-      const e = JSON.parse(line)
-      if (e.type === 'step' && e.model && !models.includes(e.model)) models.push(e.model)
-      if (e.type === 'outcome') subtype = String(e.status ?? '')
-    } catch {  }
+    const row = parseRow(line)
+    if (row === null) continue
+    if (row.type === 'step' && typeof row.model === 'string' && !models.includes(row.model)) models.push(row.model)
+    if (isOutcome(row)) status = String(row.status ?? '')
   }
-  return { models, subtype }
+  return { models, status }
 }
 
 function sessionJsonlPath(id: string): string {
@@ -182,18 +187,19 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 console.log('=== frontier-policy §7 journey — stream session (T1–T5) ===')
 const { turns, exit } = await runStreamSession()
 for (const t of turns) {
-  console.log(`  ${t.label}: init=${t.initModel ?? '—'} · assistant=[${t.assistantModels.join(', ')}] · ${t.resultSubtype} · first-assistant ${t.firstAssistantMs ?? '?'}ms · turn ${t.wallMs}ms`)
+  console.log(`  ${t.label}: init=${t.initModel ?? '—'} · assistant=[${t.assistantModels.join(', ')}] · ${t.status} · first-assistant ${t.firstAssistantMs ?? '?'}ms · turn ${t.wallMs}ms`)
 }
 check('stream session exited cleanly', exit === 0, `exit=${exit}`)
 check('5 turns observed', turns.length === 5)
 const [t1, t2, t3, t4, t5] = turns
 check(`T1 fresh default resolves the frontier policy (${DEFAULT_FABLE} init)`, bareId(t1?.initModel) === DEFAULT_FABLE, t1?.initModel)
-check(`T1 served by ${DEFAULT_FABLE} (API truth)`, t1?.assistantModels.every(m => bareId(m) === DEFAULT_FABLE) === true, t1?.assistantModels.join(','))
-check('T2 still fable, same session', t2?.assistantModels.every(m => bareId(m) === DEFAULT_FABLE) === true, t2?.assistantModels.join(','))
-check('T3 explicit opus wins for the turn', t3?.assistantModels.every(m => m === DEFAULT_OPUS) === true, t3?.assistantModels.join(','))
-check('T4 default returns through the frontier decision', t4?.assistantModels.every(m => bareId(m) === DEFAULT_FABLE) === true, t4?.assistantModels.join(','))
-check('T5 stays on the default', t5?.assistantModels.every(m => bareId(m) === DEFAULT_FABLE) === true, t5?.assistantModels.join(','))
-check('every turn completed', turns.every(t => t.resultSubtype === 'completed'), turns.map(t => t.resultSubtype).join(','))
+const servedBy = (t: TurnObs | undefined, want: (m: string) => boolean): boolean => t !== undefined && t.assistantModels.length > 0 && t.assistantModels.every(want)
+check(`T1 served by ${DEFAULT_FABLE} (API truth)`, servedBy(t1, m => bareId(m) === DEFAULT_FABLE), t1?.assistantModels.join(','))
+check('T2 still fable, same session', servedBy(t2, m => bareId(m) === DEFAULT_FABLE), t2?.assistantModels.join(','))
+check('T3 explicit opus wins for the turn', servedBy(t3, m => m === DEFAULT_OPUS), t3?.assistantModels.join(','))
+check('T4 default returns through the frontier decision', servedBy(t4, m => bareId(m) === DEFAULT_FABLE), t4?.assistantModels.join(','))
+check('T5 stays on the default', servedBy(t5, m => bareId(m) === DEFAULT_FABLE), t5?.assistantModels.join(','))
+check('every turn completed', turns.every(t => t.status === 'completed'), turns.map(t => t.status).join(','))
 
 const jsonl = readFileSync(sessionJsonlPath(sid), 'utf8')
 const userCount = (jsonl.match(/"role":"user"/g) ?? []).length

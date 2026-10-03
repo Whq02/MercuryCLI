@@ -67,7 +67,7 @@ async function waitFor(predicate: () => boolean, label: string): Promise<void> {
     clearTimeout(deadline)
   }
 }
-const submit = (text: string) => child.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content: text } }) + '\n')
+const submit = (text: string) => child.stdin.write(JSON.stringify({ type: 'prompt', content: text }) + '\n')
 const inboxPath = join(config, 'crew', 'livecomms', `${crew}.json`)
 let lockHeld = false
 let lockReleased = false
