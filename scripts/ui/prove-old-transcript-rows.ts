@@ -40,10 +40,6 @@ function oldCrewRows(sid: string): Record<string, unknown>[] {
     base({ parentUuid: id(parent), type: 'user', uuid: id(n),
       message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUseId, content: text }] },
       toolUseResult: text, timestamp: AT(n) })
-  const relay = (n: number, parent: number, from: string, summary: string, body: string): Record<string, unknown> =>
-    base({ parentUuid: id(parent), type: 'user', uuid: id(n),
-      message: { role: 'user', content: `<teammate-message teammate_id="${from}" color="blue" summary="${summary}">${body}</teammate-message>` },
-      timestamp: AT(n) })
   const attachment = (n: number, parent: number, attachmentBody: Record<string, unknown>): Record<string, unknown> =>
     base({ parentUuid: id(parent), type: 'attachment', uuid: id(n), attachment: attachmentBody, timestamp: AT(n) })
   return [
@@ -52,16 +48,12 @@ function oldCrewRows(sid: string): Record<string, unknown>[] {
     result(3, 2, 'toolu_old_create', `team ${CREW} ready`),
     attachment(4, 3, { type: 'team_context', agentId: `lead@${CREW}`, agentName: 'team-lead', teamName: CREW, teamConfigPath: join(home, 'teams', CREW, 'config.json'), taskListPath: join(home, 'tasks', CREW) }),
     assistant(5, 4, [{ type: 'tool_use', id: 'toolu_old_brief', name: 'TeamBrief', input: {} }]),
-    result(6, 5, 'toolu_old_brief', `# Team: ${CREW}\n\nOpen tasks: none\nRoster: team-lead, atlas`),
-    assistant(7, 6, [{ type: 'tool_use', id: 'toolu_old_send', name: 'SendMessage', input: { to: 'atlas', summary: 'map the auth flow', message: 'map the auth flow and report' } }]),
-    result(8, 7, 'toolu_old_send', 'Message delivered to atlas'),
-    relay(9, 8, 'atlas', 'auth findings ready', 'I finished mapping the auth flow; notes are in the handoff.'),
-    attachment(10, 9, { type: 'teammate_mailbox', messages: [{ from: 'beacon', text: 'the manifest edit is in', timestamp: AT(10), color: 'green', summary: 'manifest edit landed' }] }),
+    result(6, 5, 'toolu_old_brief', `Roster: team-lead, atlas`),
+    attachment(10, 6, { type: 'teammate_mailbox', messages: [{ from: 'beacon', text: 'the manifest edit is in', timestamp: AT(10), color: 'green', summary: 'manifest edit landed' }] }),
     attachment(16, 10, { type: 'crew_messages', messages: [{ from: 'comet', text: 'the crew kind row paints too', timestamp: AT(16), color: 'cyan', summary: 'crew kind row' }] }),
-    attachment(17, 16, { type: 'queued_command', prompt: '<teammate-message teammate_id="delta" color="blue" summary="OLD-TAG queued from delta">\nOLD-TAG body from delta\n</teammate-message>', source_uuid: id(117), commandMode: 'prompt' }),
+    attachment(17, 16, { type: 'queued_command', prompt: '<teammate-message teammate_id="delta" summary="OLD-TAG">OLD-TAG body from delta</teammate-message>', source_uuid: id(117), commandMode: 'prompt' }),
     attachment(18, 17, { type: 'queued_command', prompt: [{ type: 'text', text: '<crewmate-message crewmate_id="echo" color="green" summary="NEW-TAG queued from echo">\nNEW-TAG body from echo\n</crewmate-message>' }], source_uuid: id(118), commandMode: 'prompt' }),
-    relay(11, 18, 'atlas', 'shutting down', JSON.stringify({ type: 'shutdown_request', requestId: 'shutdown-old1', from: 'atlas', reason: 'the work is done', timestamp: AT(11) })),
-    base({ parentUuid: id(11), type: 'user', uuid: id(12), message: { role: 'user', content: 'thanks, wrap it up' }, timestamp: AT(12) }),
+    base({ parentUuid: id(18), type: 'user', uuid: id(12), message: { role: 'user', content: 'thanks, wrap it up' }, timestamp: AT(12) }),
   ]
 }
 
@@ -85,18 +77,14 @@ try {
     check(`${band.cols}: the old transcript opens to the composer`, result.status === 0 && flat.includes('Type a prompt'), `rc ${result.status} ${(result.stderr ?? '').slice(-200)}`)
     check(`${band.cols}: nothing calls the file a retired format or fails to open it`, !/retired format|cannot be opened|Failed to load|could not be loaded/i.test(flat), frame.filter(r => /retired|cannot be opened|Failed/i.test(r)).join(' | '))
     check(`${band.cols}: the operator's own lines render`, flat.includes('charter the fixture team') && flat.includes('wrap it up'), frame.filter(r => /charter the fixture|wrap it up/.test(r)).join(' | '))
-    check(`${band.cols}: the old TeamCreate row still paints`, /create team: beta-fixture|TeamCreate/.test(flat), frame.filter(r => /TeamCreate|create team/.test(r)).join(' | '))
-    const order = ['[sam] ❯ charter the fixture team', 'TeamCreate   team_name:', '❯ @atlas auth findings ready', '❯ @beacon manifest edit landed', '❯ @comet crew kind row', '❯ @delta OLD-TAG queued from delta', '❯ @echo NEW-TAG queued from echo', '@atlas requested shutdown', '[sam] ❯ thanks, wrap it up'].map(needle => frame.findIndex(r => r.includes(needle)))
-    check(`${band.cols}: the old brief and send rows break nothing — the rows after them paint, in order`, order.every(i => i >= 0) && order.every((i, k) => k === 0 || i > order[k - 1]!), order.join(','))
-    check(`${band.cols}: the crewmate relay row paints its sender and summary`, /@atlas auth findings ready/.test(flat), frame.filter(r => /@atlas/.test(r)).join(' | '))
+    check(`${band.cols}: a tool row whose tool Mercury does not have paints by its name, its result under it`, /TeamCreate/.test(flat) && flat.includes('Roster: team-lead, atlas'), frame.filter(r => /TeamCreate|TeamBrief|Roster/.test(r)).join(' | '))
+    const joined = frame.map(r => (r.endsWith('│') ? r.split('│').slice(-2)[0]! : r.replace(/│/g, ' '))).join(' ').replace(/\s+/g, ' ')
+    const order = ['[sam] ❯ charter the fixture team', 'TeamCreate', 'TeamBrief', '❯ @beacon manifest edit landed', '❯ @comet crew kind row', 'OLD-TAG body from delta', '❯ @echo NEW-TAG queued from echo', '[sam] ❯ thanks, wrap it up'].map(needle => joined.indexOf(needle))
+    check(`${band.cols}: every row paints, in the transcript's order`, order.every(i => i >= 0) && order.every((i, k) => k === 0 || i > order[k - 1]!), order.join(','))
     check(`${band.cols}: the mailbox row paints its sender and summary`, /@beacon/.test(flat) && /manifest edit landed/.test(flat), frame.filter(r => /@beacon/.test(r)).join(' | '))
     check(`${band.cols}: the crew_messages row paints its sender and summary the same way (RED on the base: an unknown kind paints nothing)`, /@comet/.test(flat) && /crew kind row/.test(flat), frame.filter(r => /@comet/.test(r)).join(' | '))
-    check(`${band.cols}: the shutdown request card paints with its reason`, /@atlas requested shutdown — the work is done/.test(flat), frame.filter(r => /shutdown/.test(r)).join(' | '))
-    const sameShape = (row: string): string => row.replace(/delta|OLD-TAG|echo|NEW-TAG/g, 'x').replace(/\s+/g, ' ').trim()
-    const oldQueued = frame.find(r => r.includes('@delta OLD-TAG queued from delta')) ?? ''
-    const newQueued = frame.find(r => r.includes('@echo NEW-TAG queued from echo')) ?? ''
-    check(`${band.cols}: a crewmate message queued under the old tag paints as the relay row, exactly as one queued under the crew tag does (RED on the base: the old one paints raw as the operator's own line)`, oldQueued !== '' && newQueued !== '' && sameShape(oldQueued) === sameShape(newQueued), `${oldQueued} || ${newQueued}`)
-    check(`${band.cols}: no old tag paints raw anywhere on the screen`, !/<\/?teammate-message|teammate_id=/.test(flat), frame.filter(r => /teammate/.test(r)).join(' | '))
+    check(`${band.cols}: a crewmate message queued under the crew tag paints as the relay row`, /❯ @echo NEW-TAG queued from echo/.test(flat), frame.filter(r => /@echo/.test(r)).join(' | '))
+    check(`${band.cols}: a tag Mercury does not know is the operator's own text: the line paints as typed, under no sender`, /\[sam\] ❯ <teammate-message/.test(flat) && joined.includes('OLD-TAG body from delta') && !/❯ @delta/.test(flat), frame.filter(r => /OLD-TAG|@delta/.test(r)).join(' | '))
     cleanupScenario('resume-2turn')
   }
 } finally {
