@@ -62,7 +62,7 @@ console.log('§2 the latch, driven')
   }
   let resolvedNotRejected = false
   try {
-    await instance.write({ type: 'system' })
+    await instance.write({ type: 'heartbeat', session_id: 'proof' })
     resolvedNotRejected = true
   } catch {
     resolvedNotRejected = false
@@ -70,7 +70,7 @@ console.log('§2 the latch, driven')
   const callsAfterFirst = stdoutCalls
   let secondResolved = false
   try {
-    await instance.write({ type: 'system' })
+    await instance.write({ type: 'heartbeat', session_id: 'proof' })
     secondResolved = true
   } catch {
     secondResolved = false
@@ -98,7 +98,7 @@ console.log('§3 the print road rides it (call-shaped)')
   check('the settle honors the latch over a clean turn',
     /gracefulShutdownSync\(io\.stdoutPipeBroken \? 1 : \(signalCode \?\? exitCodeOf\(last\.status\)\)\)/.test(printSrc))
   const ioSrc = readFileSync(join(ROOT, 'src', 'cli', 'structuredIO.ts'), 'utf8')
-  check('the stream-json writer is no longer fire-and-forget on failure (the latch lives in write)',
+  check('the rows writer is no longer fire-and-forget on failure (the latch lives in write)',
     /markStdoutPipeBroken\(\)/.test(ioSrc) && /isBrokenPipeError\(error\)/.test(ioSrc))
 }
 
