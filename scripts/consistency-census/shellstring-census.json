@@ -1531,6 +1531,13 @@
     {
       "file": "scripts/self-hosting/prove-effective-size.ts",
       "mechanism": "execSync-string",
+      "excerpt": "execSync('git init -q', { cwd: personalFix })",
+      "cls": "intentional-shell",
+      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
+    },
+    {
+      "file": "scripts/self-hosting/prove-effective-size.ts",
+      "mechanism": "execSync-string",
       "excerpt": "execSync('git init -q', { cwd: calmFix })",
       "cls": "intentional-shell",
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"

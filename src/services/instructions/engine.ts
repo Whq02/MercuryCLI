@@ -329,11 +329,9 @@ async function walkConventions(
 
     const primary = conventions.filter(c => !c.fallback)
     const fallback = conventions.filter(c => c.fallback)
-    await composeChain(primary)
-    if (fallback.length > 0 && !hasPrimaryProjectFile(primary, outerFirst)) {
-      fallbackComposed = true
-      await composeChain(fallback)
-    }
+    const composeFallback = fallback.length > 0 && !hasPrimaryProjectFile(primary, outerFirst)
+    if (composeFallback) fallbackComposed = true
+    await composeChain(composeFallback ? [...fallback, ...primary] : primary)
   }
 
   await walkRootChain(getOriginalCwd(), 'project-walk', true)
@@ -558,7 +556,9 @@ export async function getInstructionFilesForNestedDirectory(
   const active = activeConventions()
   const primary = active.filter(c => !c.fallback)
   const conventions =
-    lastComposition.fallbackComposed && !hasPrimaryProjectFile(primary, [dir]) ? active : primary
+    lastComposition.fallbackComposed && !hasPrimaryProjectFile(primary, [dir])
+      ? [...active.filter(c => c.fallback), ...primary]
+      : primary
   const includeExternal = getCurrentProjectConfig().hasExternalIncludesApproved ?? false
 
   for (const convention of conventions) {
