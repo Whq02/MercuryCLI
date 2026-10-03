@@ -489,8 +489,8 @@ async function run(): Promise<void> {
     .option('--only-mcp', 'Only use MCP servers from --mcp')
     .option('--brief <prompt>', 'Set the session system brief')
     .addOption(new Option('--brief-file <file>', 'Read the session system brief from a file').hideHelp())
-    .option('--brief-add <prompt>', 'Append to the system prompt')
-    .addOption(new Option('--brief-add-file <file>', 'Append to the system prompt from a file').hideHelp())
+    .option('--brief-add <prompt>', 'Append to the session system brief')
+    .addOption(new Option('--brief-add-file <file>', 'Append to the session system brief from a file').hideHelp())
     .addOption(new Option('--mode <mode>', 'Permission mode').choices(PERMISSION_MODES))
     .option('-c, --continue', 'Continue the most recent conversation')
     .option('-r, --resume [value]', 'Resume a conversation (session id, title, or picker)')
@@ -501,7 +501,7 @@ async function run(): Promise<void> {
     .addOption(new Option('--replay-to <message-id>', 'Truncate the resumed session at a message').hideHelp())
     .addOption(new Option('--restore-files <user-message-id>', 'Rewind files to a user message').hideHelp())
     .option('--model <model>', 'The model for the session')
-    .option('--advise', 'Turn the advisor on for this run at birth — the headless form of /advise on; the settings (/config → Advisor) must be on in the run\'s config home')
+    .option('--advise', 'Turn the advisor on for this run at birth — the headless form of /advise on; the advisor master switch in the run\'s config home must be on')
     .option(`--effort <level>`, `Reasoning effort level (${EFFORT_LEVELS.join(', ')})`, value => {
       const { level } = parseCliEffort(value)
       if (level === undefined) {
@@ -609,7 +609,9 @@ async function run(): Promise<void> {
     .action(async (prompt: string | undefined) => {
       await defaultAction(prompt, { ...sessionOptions(runCommand), print: true })
     })
-  for (const option of program.options) runCommand.addOption(option)
+  for (const option of program.options) {
+    if (!INTERACTIVE_BOOT_OPTIONS.has(option.long ?? '')) runCommand.addOption(option)
+  }
   const runnerCommand = program.command('runner')
     .description('Serve a session to a host over stdio (JSON-RPC 2.0, one message per line): the host sends the prompts and answers the permission asks')
     .configureHelp({ sortOptions: true })
@@ -617,7 +619,7 @@ async function run(): Promise<void> {
       await defaultAction(undefined, { ...sessionOptions(runnerCommand), print: true, runner: true })
     })
   for (const option of program.options) {
-    if (!RUN_OUTPUT_OPTIONS.has(option.long ?? '')) runnerCommand.addOption(option)
+    if (!RUN_OUTPUT_OPTIONS.has(option.long ?? '') && !INTERACTIVE_BOOT_OPTIONS.has(option.long ?? '')) runnerCommand.addOption(option)
   }
 
   const parseProgram = () => program.parseAsync(process.argv)
@@ -1116,6 +1118,7 @@ async function showAction(
 type RootOptions = Record<string, unknown>
 
 const RUN_OUTPUT_OPTIONS: ReadonlySet<string> = new Set(['--format', '--input', '--partial'])
+const INTERACTIVE_BOOT_OPTIONS: ReadonlySet<string> = new Set(['--chat', '--concourse-off', '--concourse-on', '--multiplex', '--pr'])
 
 async function defaultAction(inputPromptArg: string | undefined, opts: RootOptions): Promise<void> {
   if ((opts as { version?: boolean }).version) {
