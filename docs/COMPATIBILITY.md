@@ -4,8 +4,7 @@ Mercury keeps configuration in its `.mercury` homes. Product switches use
 registered `MERCURY_*` environment names; providers and platforms also have
 their own variables, such as `ANTHROPIC_API_KEY` and `PATH`. The registry is
 `src/substrate/flagRegistry.ts`. [SETTINGS.md](SETTINGS.md) covers the settings
-files and their grouped keys. External services require the wire identifiers
-listed below.
+files and their grouped keys.
 
 ## Project instructions
 
@@ -19,67 +18,12 @@ are touched under the same guide choice. The `native` profile uses Mercury
 instruction files only. `briefs.exclude` skips named paths or patterns, but
 cannot exclude managed instructions.
 
-## Wire identifiers (a server or an external artifact requires them)
+## The Claude sign-in
 
-- The coding-product API beta token `claude-code-20250219`
-  (`src/constants/betas.ts`, exported as `CODING_20250219_BETA_HEADER`) — the
-  provider matches the token byte-exact.
-- The OAuth app identity: the production client id, the
-  `?app=claude-code` success URLs, the `claude_cli` API-key/roles endpoints,
-  the `user:sessions:claude_code` scope, and the client-id metadata document
-  URL (`src/constants/oauth.ts`) — all matched literally by the sign-in
-  servers.
-- The client-contract version on the claude.ai sign-in door
-  (`ANTHROPIC_CLIENT_CONTRACT_VERSION` in `src/constants/oauth.ts`): the
-  subscription endpoint classes a request carrying that app identity as the
-  vendor's own CLI and gates models on a minimum client version, read as a
-  number from the `cc_version` field of the billing attribution line in the
-  system prompt (never from the User-Agent). Mercury presents the declared
-  contract version there and nowhere else. Its companion
-  `ANTHROPIC_CLIENT_CONTRACT_AS_OF` records when the built-in version was last
-  checked against the vendor CLI; every release carries a check at least as
-  recent as its release date. The contract describer's `asOf` names that
-  built-in check for the constant and for an override, and the day it was
-  learned for a learned number. When the floor moves,
-  `MERCURY_ANTHROPIC_CLIENT_CONTRACT=<version>` raises it without a rebuild
-  and wins over every other source. Between releases Mercury also learns a
-  newer number from the npm registry's `@anthropic-ai/claude-code` latest
-  document (`src/services/api/clientContractLearned.ts`): after the gate
-  refuses the presented number as too old — one read with a 3-second
-  deadline, then one retry of the refused request carrying the learned
-  number — and once a day in the background when a session boots with an
-  Anthropic credential on the first-party host (or with
-  `MERCURY_NPM_REGISTRY_BASE` naming a registry). The learned number is kept
-  in the config home (`client-contract.json`) and presented only while it is
-  newer than the built-in version; at most one registry read goes out per
-  config home in ten minutes, and `MERCURY_DISABLE_NONESSENTIAL_TRAFFIC`
-  keeps every registry read dark. The registry read carries the product
-  User-Agent and nothing else. The health check's "Client contract" row shows what
-  is presented and where it came from (the constant, a learned number with
-  its day, or the override) and names a failed or unsaved registry read; the
-  gate's refusal is reported as what it is — the version required, what
-  Mercury presented and what the registry read did, and that override —
-  never as the vendor's updater advice.
-- The User-Agent surface (`src/utils/userAgent.ts`, `src/utils/http.ts`) is
-  uniform: every Mercury-owned connection presents the product identity,
-  `mercury/<version>` — the provider-API agent appends a parenthesised tail
-  (the entrypoint, optional `host/…` and `host-app/…`, and the
-  turn-scoped `workload/…` segment). Provider-side client identification
-  rides the auth material and the app/session headers, not this string. The
-  user-initiated web-fetch agent is `Mozilla/5.0 (compatible;
-  Mercury/<version>)` — the version alone; no URL, repository name or
-  operator identity rides an outbound header.
-- The API session header `X-Claude-Code-Session-Id` and the opt-in
-  `x-anthropic-additional-protection` header (`src/services/api/client.ts`)
-  — server-read request shape; only the opt-in env label is Mercury's
-  (`MERCURY_ADDITIONAL_PROTECTION`).
-- Foreign-artifact detection: the GitHub Actions context (`src/utils/env.ts`),
-  the harness-state classifier behind `/health`
-  (`src/utils/knownAgentClis.ts` — Mercury's own fingerprint decides what is
-  foreign; the signature table only names a recognized writer).
-- Defensive scrubs: `src/utils/subprocessEnv.ts` and
-  `src/daemon/ownedDaemon.ts` strip foreign session/credential env a nested
-  boot may inherit (another tool's token never reaches Mercury's children).
+The Claude sign-in works with your subscription and presents what the
+provider's servers require. The health check's `Client contract` row and
+the override that raises the presented version are on the
+[health page](HEALTH-CERTIFICATE.md#client-contract).
 
 ## Child-environment contract
 

@@ -52,6 +52,19 @@ A fast run certifies these sections (section id · title):
 | `router-fast` | ROUTER |
 | `architecture-fast` | ARCHITECTURE PRIMITIVES |
 
+### Client contract
+
+IDENTITY's `Client contract` row shows the client version Mercury presents on
+the Claude sign-in and where it came from: the built-in version and the day
+it was last checked, a newer number learned from the registry with the day
+it was learned, or the override. It names a failed or unsaved registry read.
+When the provider refuses the presented version as too old, Mercury learns
+the newer number once and retries the refused request; the refusal is
+reported as what it is — the version required, what Mercury presented and
+what the registry read did. `MERCURY_ANTHROPIC_CLIENT_CONTRACT=<version>`
+raises the presented version without a rebuild and wins over every other
+source; `MERCURY_DISABLE_NONESSENTIAL_TRAFFIC` keeps the registry reads dark.
+
 IDENTITY's `Refused models` row sits beside `Client contract`: a model refused
 for a minimum client version, a subscription tier or a model-specific 403/404
 stays visible with the same sentence as the chat and picker. The row warns
