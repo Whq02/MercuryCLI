@@ -104,6 +104,7 @@ export function standInRunner(opts: { capabilities?: Partial<Capabilities>; hook
     onRow: () => {},
     onAsk: params => ({ answer: Promise.resolve({ outcome: 'deny', message: `the stand-in's host holds no asks (${params.kind})` }), withdraw: () => {} }),
     onApplied: () => {},
+    onProtocolError: () => {},
     log: () => {},
     ...(opts.hooks ?? {}),
   }

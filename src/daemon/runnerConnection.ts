@@ -3,6 +3,7 @@ import type { LooseRow } from '../rows/read.js'
 import type { InputRow } from '../rows/vocabulary.js'
 import type { Capabilities, HostNotificationName, HostRequestName, InitializeResult, ParamsOf, PermissionAnswer, PermissionRequestParams, ResultOf, SessionAppliedParams } from '../runner/wire/methods.js'
 import { createPeer, type Peer, type RequestOptions } from '../runner/wire/peer.js'
+import type { RpcError } from '../runner/wire/errors.js'
 import { MERCURY_VERSION } from '../constants/product.js'
 
 export type Verb = Exclude<HostRequestName, 'initialize'>
@@ -13,6 +14,7 @@ export type RunnerConnectionHooks = {
   onRow: (row: LooseRow) => void
   onAsk: (params: PermissionRequestParams) => HeldAsk
   onApplied: (params: SessionAppliedParams) => void
+  onProtocolError: (error: RpcError) => void
   log: (line: string) => void
 }
 
@@ -33,7 +35,7 @@ export class RunnerConnection implements RunnerDoor {
 
   constructor(ends: RunnerEnds, capabilities: Capabilities, hooks: RunnerConnectionHooks) {
     this.hooks = hooks
-    this.peer = createPeer({ input: ends.input, output: ends.output, side: 'host', log: hooks.log })
+    this.peer = createPeer({ input: ends.input, output: ends.output, side: 'host', log: hooks.log, onProtocolError: error => hooks.onProtocolError(error) })
     this.peer.onNotification('row', row => hooks.onRow(row as LooseRow))
     this.peer.onNotification('session/applied', params => hooks.onApplied(params))
     this.peer.onRequest('permission/request', (params, ctx) => {

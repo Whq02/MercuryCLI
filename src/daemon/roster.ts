@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 import type { LooseRow } from '../rows/read.js'
 import type { InputRow } from '../rows/vocabulary.js'
 import type { PermissionRequestParams, SessionAppliedParams } from '../runner/wire/methods.js'
+import type { RpcError } from '../runner/wire/errors.js'
 import { RunnerConnection, type HeldAsk, type RunnerDoor } from './runnerConnection.js'
 import { UNANSWERED_ASK_REJECT_MESSAGE } from '../utils/messages/rejectionText.js'
 import { SANDBOX_NETWORK_ACCESS_TOOL_NAME } from './runnerFrames.js'
@@ -600,6 +601,7 @@ export class TaskRoster {
       },
       onAsk: params => this.holdAsk(short, params),
       onApplied: params => this.forwardApplied(short, params),
+      onProtocolError: error => this.refuseRunner(short, ll, child, error),
       log: line => logForDebugging(`[daemon] ${short}: ${line}`),
     })
     this.keepChildStderr(short, child, ll)
@@ -625,6 +627,25 @@ export class TaskRoster {
     }
     const toolName = params.kind === 'tool' ? params.tool_name : SANDBOX_NETWORK_ACCESS_TOOL_NAME
     return { answer: Promise.resolve({ outcome: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(toolName, 'no ask owner stands behind this roster') }), withdraw: () => {} }
+  }
+
+  private refuseRunner(short: string, ll: LongLivedSeat, child: ChildProcess, error: RpcError): void {
+    logForDebugging(`[daemon] ${short}: the runner's wire was refused — ${error.message}`)
+    ll.lastErrorText = error.message
+    if (ll.turnActive) {
+      ll.turnActive = false
+      ll.turnStartedAt = undefined
+      if (short.startsWith('concourse-w')) {
+        void import('./concourseSupervisor.js')
+          .then(sup => sup.markConcourseWorkerTurnSettled(short))
+          .catch(() => {})
+      }
+    }
+    try {
+      killProcessGroup(child, 'SIGTERM')
+    } catch (e) {
+      logForDebugging(`[daemon] ${short}: ending the refused runner failed: ${e}`)
+    }
   }
 
   private forwardRow(short: string, row: LooseRow): void {
