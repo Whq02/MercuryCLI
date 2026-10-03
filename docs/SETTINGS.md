@@ -120,7 +120,7 @@ relying on these boundaries.
 | `briefs.git` | Whether the model receives Mercury's git instructions. |
 | `files.honourGitignore` | Whether file suggestions respect `.gitignore`. |
 | `files.suggester` | A file-suggestion helper, shaped as `{ "type": "command", "command": "…" }`. |
-| `records.retentionDays` | Retention for recordings and tool results, in days; 30 by default. Session transcripts are not aged out by this sweep. |
+| `records.retentionDays` | Retention for recordings and tool results, in days; 30 by default. Session transcripts are not aged out by this sweep. `0` turns transcript writing off: no new transcript is written, and the ones already on disk stay. |
 | `memory.enabled` | Mneme memory is on unless this is `false`. |
 | `memory.directory` | A custom memory directory. Checked-in project settings cannot choose it. |
 | `memory.pinnedLimit` | The pinned shelf's text limit in characters, at least 1000; 8000 by default. Every pinned rule still loads above the limit. |
