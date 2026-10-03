@@ -101,7 +101,7 @@ section('F1 — the row vocabulary declares the rows the product writes (a run o
     const steps = parsed.filter(row => row.type === 'step')
     check('one step per model call, and the outcome counts them', steps.length === 2 && outcome?.steps === 2, j({ steps: steps.length, counted: outcome?.steps }))
     check('every in-turn row carries turn 1 and the session id; the session row carries no turn', parsed.slice(1).every(row => row.turn === 1 && row.session_id === parsed[0]?.session_id) && parsed[0]?.turn === undefined)
-    check('no row carries a uuid (the parent is parent_call_id, never a message uuid)', parsed.every(row => !('uuid' in row)))
+    check('no row carries a uuid, and no row of this main-thread turn carries a parent_call_id (the sub-agent scope, never a message id)', parsed.every(row => !('uuid' in row) && !('parent_call_id' in row)))
     rmSync(root, { recursive: true, force: true })
   }
 }
