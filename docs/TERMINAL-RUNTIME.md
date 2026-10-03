@@ -17,9 +17,10 @@ is refused by name and range, and no rung at all prints all three. The
 runtime spawns its own children through the Node it runs on, so the rung
 the launcher picks is the runtime the whole session runs on. The same bundle serves every route:
 `--version`; the language-service sidecars and the TCP bridge; `daemon`
-(background workers); `acp` (the editor-bridge stdio protocol); and the
-command estate — interactive boot, `run`, `update`, `install`,
-`doctor` (the CLI alias of `/health`), `editor`, and the rest. A lone
+(background workers); `runner` (a hosted session over JSON-RPC 2.0 on
+stdio); `acp` (the editor protocol, with a runner child per session); and
+the command estate — interactive boot, `run`, `update`, `install`,
+`doctor` (the CLI alias of `/health`), and the rest. A lone
 `--update`/`--upgrade` splices into `update`. On interactive boots the
 crash handlers are armed before any route does async work.
 
