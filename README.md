@@ -416,6 +416,47 @@ mercury run "Summarise this repository." --format rows
   own rows. Every row carries `seq`, `timestamp` and `session_id`; rows
   within a turn also carry its `turn` number.
 
+The output row types, by their `type` field:
+
+- `session` — the opening row: `version`, `cwd`, `model`, `mode`, and the
+  `tools`, `mcp_servers`, `commands`, `agents`, `skills` and `extensions` the
+  session has.
+- `turn` — a turn `started` or `waiting`, with its `turn_id`; `model`,
+  `message_ids` and the `agents` count when known.
+- `text` — a settled text block: `message_id`, `block`, `text`, and its
+  `phase` (`commentary` or `final_answer`).
+- `reasoning` — a settled reasoning block: `message_id`, `block`, `text`, or
+  `redacted: true`.
+- `tool_call` — a tool call: `call_id`, `tool`, `input`, with its
+  `message_id` and `block`.
+- `tool_result` — the call's result: `call_id`, `status` (`ok`, `error` or
+  `aborted`) and `output`.
+- `tool_update` — progress from a running shell, PowerShell or MCP call:
+  `call_id`, `tick`, `source`, and whichever of `line`, `elapsed_s`, `lines`,
+  `bytes`, `budget_ms`, `progress` and `total` the call reports.
+- `step` — one model call of the main thread: `message_id`, `model`, `usage`,
+  and `stop` when the model said why it stopped.
+- `outcome` — the turn's result, described below.
+- `wait` — a wait on the model: `state` (`first_byte`, `retry`, `silence`,
+  `loading` or `done`) with the figures that state carries, such as
+  `since_ms`, `attempt` and `of`, `delay_ms`, `reason` and `http_status`.
+- `heartbeat` — the run is alive; the row carries nothing else.
+- `compaction` — a compaction `started`, in `progress` or `ended`: `trigger`
+  (`manual`, `auto` or `overflow`), `stage`, `fill`, `summary_tokens` and, at
+  the end, `exit` (`landed`, `cancelled` or `failed`).
+- `mode` — the permission mode changed: `mode`.
+- `rate_limit` — the provider's limit state: `status` (`allowed`, `warning` or
+  `rejected`), `window`, `resets_at`, `utilization` and the overage fields.
+- `task` — a background task `started`, in `progress` or `ended`: `task_id`,
+  `task_type`, `description`, `usage`, `summary`, `status` (`completed`,
+  `failed` or `stopped`) and `output_file` as they become known.
+- `notice` — a `warning` or `error` for the reader: `text`, and a `code` such
+  as `input_refused`.
+- `command_output` — the output of a slash command that never reached the
+  model: `command` and `text`.
+- `mission_updated` — the session's task ledger changed; read it again.
+- `samples_updated` — the session's samples changed; read them again.
+
 `--partial` with `--format rows` adds `block_start`, `text_delta`,
 `reasoning_delta`, `tool_input_delta` and `retracted` rows. Deltas belong to
 `message_id` and `block`; a `retracted` row withdraws that message's deltas.
@@ -467,9 +508,17 @@ decide what can run, and a call that still needs approval is denied.
 ### Hosting a session
 
 `mercury runner` serves a session to a host over stdio: JSON-RPC 2.0, one
-message per line. The host sends `initialize` first, with `protocol: 1`, its
-name and version, and the `holds_asks`, `elicitation` and `partial_rows`
-capabilities. It waits for the answer before sending work.
+message per line. The host sends `initialize` first and waits for the answer
+before sending work:
+
+```json
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocol":1,"host":{"name":"my-host","version":"1.0.0"},"capabilities":{"holds_asks":true,"elicitation":false,"partial_rows":false}}}
+```
+
+The host's name and version travel under `host`; `capabilities` declares
+`holds_asks`, `elicitation` and `partial_rows`. Every request `id` is a
+positive integer: a request whose `id` is anything else is answered `-32600`
+with `id: null`, so number requests from 1.
 
 `queue/add` takes the same prompt, shell or note object as the row input
 above. Output arrives in `row` notifications. `session/facts` reads the
@@ -486,8 +535,9 @@ A withdrawn ask sends `$/cancel_request` with its `request_id`.
 uses `elicitation/request` only when the host declares `elicitation`;
 otherwise it is answered `cancel`.
 
-An unknown method answers `-32601`, invalid parameters `-32602`, and a
-request before initialization `-32002`. A rule refusal is `-32010`, with a
+An unknown method answers `-32601`, invalid parameters `-32602`, an `id` that
+is not a positive integer `-32600`, and a request before initialization
+`-32002`. A rule refusal is `-32010`, with a
 sentence in `error.message` and a reason in `error.data.kind`, such as
 `mode`, `model`, `effort` or `claim`. The runner answers a malformed line
 with `-32700` and continues; three consecutive malformed lines end it.
