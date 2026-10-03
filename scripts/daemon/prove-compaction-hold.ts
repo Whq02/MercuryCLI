@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { BLOCK_HEADER, BLOCK_MARK, SUMMARY_HEADER, SUMMARY_MARK } from './compaction-hold-fixture-words.ts'
-import { parseFrame, spawnRunnerDoor } from '../lib/rows.ts'
+import { hostRunner } from '../lib/runnerHost.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SRC = join(REPO, 'src')
@@ -246,25 +246,25 @@ if (!existsSync(DIST)) {
   const lines: Array<Record<string, unknown>> = []
   const waiters: Array<{ test: (f: Record<string, unknown>) => boolean; resolve: (f: Record<string, unknown>) => void }> = []
   let stderrText = ''
-  const door = spawnRunnerDoor({
+  const host = hostRunner({
     node: 'node',
-    argv: [DIST, 'runner', '--model', 'claude-opus-4-8', '--mode', 'sovereign'],
+    dist: DIST,
+    argv: ['--model', 'claude-opus-4-8', '--mode', 'sovereign'],
     cwd: CWD,
-    env,
-    onLine: line => {
-      const frame = parseFrame(line)
-      if (frame === null) return
+    env: env as Record<string, string | undefined>,
+    home: RUN_HOME,
+    onRow: frame => {
       lines.push(frame)
       for (let i = waiters.length - 1; i >= 0; i--) {
         if (waiters[i]!.test(frame)) waiters.splice(i, 1)[0]!.resolve(frame)
       }
     },
   })
-  const runner = door.child
+  const runner = host.child
   runner.stderr!.on('data', (chunk: Buffer) => {
     stderrText += chunk.toString('utf8')
   })
-  const exited = new Promise<number | null>(resolve => runner.on('exit', code => resolve(code)))
+  const exited = host.exited
   function waitFor(label: string, test: (f: Record<string, unknown>) => boolean, timeoutMs: number, after = 0): Promise<Record<string, unknown> | null> {
     const seen = lines.slice(after).find(test)
     if (seen !== undefined) return Promise.resolve(seen)
@@ -282,29 +282,29 @@ if (!existsSync(DIST)) {
       waiters.push({ test, resolve: done })
     })
   }
-  const send = (frame: Record<string, unknown>): void => {
-    door.send(frame)
+  const send = (text: string, id: string): void => {
+    void host.prompt(text, { id }).catch(() => undefined)
   }
-  const user = (text: string, uuid: string): Record<string, unknown> => ({ type: 'user', message: { role: 'user', content: text }, uuid, session_id: '' })
-  const control = (requestId: string, request: Record<string, unknown>): Record<string, unknown> => ({ type: 'control_request', request_id: requestId, request })
-  const responseOf = (f: Record<string, unknown> | null): Record<string, unknown> => {
-    const r = f?.response as { subtype?: string; response?: Record<string, unknown>; error?: string } | undefined
-    return r?.response ?? (r?.error !== undefined ? { error: r.error } : {})
-  }
-  const isControlResponse = (id: string) => (f: Record<string, unknown>): boolean => f.type === 'control_response' && (f.response as { request_id?: string } | undefined)?.request_id === id
+  const withdraw = (label: string, id: string): Promise<Record<string, unknown>> =>
+    host.request('queue/withdraw', { id }, 5_000).then(
+      result => result as Record<string, unknown>,
+      (error: unknown) => {
+        console.log(`  [wait] ${label}: ${error instanceof Error ? error.message : String(error)}`)
+        return {}
+      },
+    )
   const isResult = (f: Record<string, unknown>): boolean => f.type === 'outcome'
   const isCompactingStatus = (f: Record<string, unknown>): boolean => f.type === 'compaction' && f.state !== 'ended'
   const isTurnStarted = (f: Record<string, unknown>): boolean => f.type === 'turn' && f.state === 'started'
-  const queueOf = async (id: string): Promise<Array<{ uuid?: string; value?: string }>> => {
-    send(control(id, { subtype: 'session_facts' }))
-    const f = responseOf(await waitFor(id, isControlResponse(id), 5_000))
-    return ((f as { queue?: Array<{ uuid?: string; value?: string }> }).queue ?? [])
+  const queueOf = async (label: string): Promise<Array<{ uuid?: string; value?: string }>> => {
+    const facts = await host.request('session/facts', {}, 5_000).catch((error: unknown) => {
+      console.log(`  [wait] ${label}: ${error instanceof Error ? error.message : String(error)}`)
+      return {} as Record<string, unknown>
+    })
+    return ((facts as { queue?: Array<{ uuid?: string; value?: string }> }).queue ?? [])
   }
   const reap = async (): Promise<void> => {
-    try {
-      runner.stdin!.end()
-    } catch {
-    }
+    host.end()
     await Promise.race([exited, sleep(8_000)])
     try {
       runner.kill('SIGKILL')
@@ -331,24 +331,24 @@ if (!existsSync(DIST)) {
   const AUTO2 = 'the second auto-held words'
 
   section('R1 a manual fold: lines sent while the runner compacts wait in its queue and ride the next turn, in order')
-  send(user('hello there', U0))
+  await host.initialize().catch(() => undefined)
+  send('hello there', U0)
   const first = await waitFor('the first turn', isResult, 40_000)
   check('the first turn answered (the runner is up)', first !== null, stderrText.split('\n').slice(-5).join(' | '))
   const beforeFold = lines.length
-  send(user('/compact', UC))
+  send('/compact', UC)
   const compacting = await waitFor("the runner's compacting word", isCompactingStatus, 20_000, beforeFold)
   check("the runner writes a compaction row as the fold begins", compacting !== null)
-  send(user(FIRST, U1))
-  send(user(WITHDRAWN, U2))
-  send(user(SECOND, U3))
+  send(FIRST, U1)
+  send(WITHDRAWN, U2)
+  send(SECOND, U3)
   await sleep(400)
   const duringFold = await queueOf('facts-during-fold')
   check("the runner's queue holds the three lines, in the order sent, while the fold runs", j(duringFold.map(q => q.uuid)) === j([U1, U2, U3]) && duringFold[0]?.value === FIRST, j(duringFold))
   check('the fold is still running while the lines wait (no outcome yet)', lines.slice(beforeFold).find(isResult) === undefined)
 
   section('R2 a withdraw during the hold pops the line by identity')
-  send(control('w-hold', { subtype: 'withdraw_send', client_message_id: U2 }))
-  const held = responseOf(await waitFor('w-hold', isControlResponse('w-hold'), 5_000))
+  const held = await withdraw('w-hold', U2)
   check('the withdraw answers withdrawn with the words while the fold runs', held.withdrawn === true && held.text === WITHDRAWN, j(held))
   const afterWithdraw = await queueOf('facts-after-withdraw')
   check('the queue keeps the other two, in order', j(afterWithdraw.map(q => q.uuid)) === j([U1, U3]), j(afterWithdraw))
@@ -361,29 +361,32 @@ if (!existsSync(DIST)) {
   const heldResult = await waitFor('the held turn', f => isResult(f) && f !== foldResult, 30_000, afterFold)
   check('the held turn answered', heldResult !== null)
   check("the runner's queue is empty once it took them", (await queueOf('facts-after-take')).length === 0)
-  send(control('w-taken', { subtype: 'withdraw_send', client_message_id: U1 }))
-  const taken = responseOf(await waitFor('w-taken', isControlResponse('w-taken'), 5_000))
+  const taken = await withdraw('w-taken', U1)
   check('a withdraw after the take answers taken', taken.withdrawn === false && taken.reason === 'taken', j(taken))
 
   section('R3 a later line rides behind the held ones')
   const beforeLater = lines.length
-  send(user(LATER, U4))
+  send(LATER, U4)
   const laterResult = await waitFor('the later line', isResult, 30_000, beforeLater)
   check('the later line answered', laterResult !== null)
 
   section('R4 the automatic fold inside a running turn holds and delivers the same way')
   const beforeAuto = lines.length
-  send(user(TOOL_ASK_LINE(), U5))
+  send(TOOL_ASK_LINE(), U5)
   const autoFold = await waitFor('the automatic fold begins', isCompactingStatus, 60_000, beforeAuto)
   check("the tool turn's next request folds first (the runner writes a compaction row mid-turn)", autoFold !== null, stderrText.split('\n').slice(-5).join(' | '))
-  send(user(AUTO1, U6))
+  send(AUTO1, U6)
   const U7 = '77777777-7777-4777-8777-777777777777'
-  send(user(AUTO2, U7))
+  send(AUTO2, U7)
   await sleep(400)
   const duringAuto = await queueOf('facts-during-auto')
   check('the lines wait in the queue while the turn folds', j(duringAuto.map(q => q.uuid)) === j([U6, U7]), j(duringAuto))
   const toolResult = await waitFor('the tool turn', isResult, 60_000, beforeAuto)
   check('the tool turn answered after its fold', toolResult !== null)
+  const autoEnded = lines.slice(beforeAuto).find(f => f.type === 'compaction' && f.state === 'ended')
+  const autoEndedAt = autoEnded === undefined ? -1 : lines.indexOf(autoEnded)
+  const toolResultAt = toolResult === null ? -1 : lines.indexOf(toolResult)
+  check("the automatic fold's exit is the runner's own compaction row with state ended — written while the turn still runs, before its outcome (the word clears on the real emission)", autoEnded !== undefined && autoEnded.trigger === 'auto' && toolResultAt !== -1 && autoEndedAt < toolResultAt, j({ autoEnded, autoEndedAt, toolResultAt }))
   const autoHeldResult = await waitFor('the turn after the automatic fold', f => isResult(f) && f !== toolResult, 30_000, beforeAuto)
   check('the held lines ran as the turn after it', autoHeldResult !== null)
   await reap()
