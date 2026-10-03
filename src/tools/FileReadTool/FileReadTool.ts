@@ -279,19 +279,34 @@ function notebookSliceRemedy(resolvedPath: string): string {
 - all code sources: jq -r '.cells[] | select(.cell_type=="code") | .source[]' "${resolvedPath}"`
 }
 
+const MAX_DISPLAY_LINE_CHARS = 2000
+
+function numberedReadContent(content: string, startLine: number, anchored: boolean): string {
+  const numbered = anchored
+    ? addAnchoredLineNumbers({ content, startLine, compact: isCompactLinePrefixEnabled() })
+    : addLineNumbers({ content, startLine })
+  return numbered.split('\n').map(line => {
+    const match = /^(\s*\d+(?:#[0-9a-f]+)?[\t→])([\s\S]*)$/.exec(line)
+    if (!match || match[2]!.length <= MAX_DISPLAY_LINE_CHARS) return line
+    const raw = match[2]!
+    return `${match[1]}${raw.slice(0, MAX_DISPLAY_LINE_CHARS)}… [truncated ${raw.length - MAX_DISPLAY_LINE_CHARS} characters]`
+  }).join('\n')
+}
+
 function firstWindowUnderCap(
   whole: ReadFileRangeResult,
+  rendered: string,
   lineOffset: number,
   resolvedPath: string,
   ext: string,
   limits: FileReadingLimits,
   tokenCount: number,
 ): { shown: ReadFileRangeResult; note: OverCapNote } | null {
-  const estimate = roughTokenCountEstimationForFileType(whole.content, ext)
+  const estimate = roughTokenCountEstimationForFileType(rendered, ext)
   const density = estimate > 0 ? Math.max(1, tokenCount / estimate) : 1
   const first = lineOffset + 1
   const plan = planReadThrough(
-    whole.content,
+    rendered,
     [{ start: first, end: first + whole.lineCount - 1 }],
     resolvedPath,
     { maxLines: MAX_LINES_TO_READ, maxTokens: Math.floor(limits.maxTokens / density) },
@@ -302,8 +317,9 @@ function firstWindowUnderCap(
   const count = window.end - window.start + 1
   if (count >= whole.lineCount) return null
   const remaining = Math.max(1, whole.totalLines - window.end)
+  const content = whole.content.split('\n').slice(0, count).join('\n')
   return {
-    shown: { ...whole, content: window.content, lineCount: count, readBytes: Buffer.byteLength(window.content) },
+    shown: { ...whole, content, lineCount: count, readBytes: Buffer.byteLength(content) },
     note: { tokens: tokenCount, maxTokens: limits.maxTokens, next: { offset: window.end + 1, limit: Math.min(count, remaining) } },
   }
 }
@@ -673,9 +689,10 @@ async function readTextLane(
     context.abortController.signal,
   )
   let overCap: OverCapNote | undefined
-  const tokens = await tokensOverCap(range.content, ext, limits.maxTokens)
+  const rendered = numberedReadContent(range.content, lineOffset + 1, lineAnchorsEnabled() && input.line_anchors === true)
+  const tokens = await tokensOverCap(rendered, ext, limits.maxTokens)
   if (tokens !== undefined) {
-    const window = firstWindowUnderCap(range, lineOffset, resolvedPath, ext, limits, tokens)
+    const window = firstWindowUnderCap(range, rendered, lineOffset, resolvedPath, ext, limits, tokens)
     if (!ownRead || window === null) {
       const next = { offset: lineOffset + 1, limit: window?.shown.lineCount ?? 1 }
       throw new MaxFileReadTokenExceededError(
@@ -758,13 +775,7 @@ function serializeTextResult(file: Extract<Output, { type: 'text' }>['file'], da
       ? `(memory file — last updated ${new Date(file.memoryUpdatedAt).toISOString()})\n`
       : ''
   const capNote = file.overCap === undefined ? '' : `${overCapWords(file)}\n`
-  const numbered = resultLineAnchors.has(data)
-    ? addAnchoredLineNumbers({
-        content: file.content,
-        startLine: file.startLine,
-        compact: isCompactLinePrefixEnabled(),
-      })
-    : addLineNumbers({ content: file.content, startLine: file.startLine })
+  const numbered = numberedReadContent(file.content, file.startLine, resultLineAnchors.has(data))
   const anchorSuffix = file.anchor !== undefined ? `\n(anchor: ${file.anchor})` : ''
   return `${prefix}${capNote}${numbered}${anchorSuffix}`
 }
