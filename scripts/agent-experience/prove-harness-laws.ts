@@ -128,7 +128,7 @@ const skips = new Map<string, string[]>()
 for (const table of tables) {
   const f = table.header.family
   const rows = table.rows.filter(r => !r.skipped)
-  check(`${f}: no run timed out or died without a result envelope`, rows.every(r => !r.timedOut && r.resultSubtype !== 'no-result' && r.resultSubtype !== 'timeout'), rows.filter(r => r.timedOut || r.resultSubtype === 'no-result').map(r => `${r.task}:${r.resultSubtype}`).join(', '))
+  check(`${f}: no run timed out or died without an outcome row`, rows.every(r => !r.timedOut && r.resultStatus !== 'no-result' && r.resultStatus !== 'timeout'), rows.filter(r => r.timedOut || r.resultStatus === 'no-result').map(r => `${r.task}:${r.resultStatus}`).join(', '))
   const daily = ['Agent', 'Bash', 'Read', 'Edit', 'Write', 'Glob', 'Grep', 'Skill', 'Workshop', 'Eval', 'ToolSearch']
   const rosterPresent = f === 'openai'
     ? (table.header.toolCount ?? 0) >= daily.length && daily.every(name => table.header.toolNames.includes(name))

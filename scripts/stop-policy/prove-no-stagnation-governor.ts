@@ -6,8 +6,8 @@ import {
   bootRunner,
   bound,
   childEnv,
-  isInit,
-  isResult,
+  isSession,
+  isOutcome,
   j,
   makeTally,
   removeWorld,
@@ -203,8 +203,8 @@ if (import.meta.main) {
   const failedAtOpen = failed()
   const runner = bootRunner({ cwd, env: childEnv(home, fixture.port), extraArgv: ['--allowed-tools', 'Write,Read'] })
   runner.send(user(REREAD_ASK, '00000000-0000-4000-8000-000000000000'))
-  const init = await runner.waitFor('the init frame', isInit, bound(90_000))
-  const result = await runner.waitFor('the turn result', isResult, bound(240_000))
+  const init = await runner.waitFor('the init frame', isSession, bound(90_000))
+  const result = await runner.waitFor('the turn result', isOutcome, bound(240_000))
   await runner.stop(bound(8_000))
   await fixture.close()
   const hits = fixture.hits

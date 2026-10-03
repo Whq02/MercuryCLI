@@ -307,7 +307,7 @@ async function runFamily(plan: FamilyRunPlan, opts: BenchmarkOptions, fixture: B
     if (process.env.MERCURY_AX_DUMP_HITS === '1') {
       hits.forEach((h, i) => writeFileSync(join(runDir, `${task.id}.hit-${i + 1}.${h.kind}.json`), h.raw))
     }
-    log(`${task.id}: ${score.success === true ? 'PASS' : score.success === false ? 'FAIL' : 'n/a'} · turns ${score.turns} · calls ${score.toolCalls} · wasted ${score.wasted} (probes ${score.probes}) · result-tokens ≈${score.toolResultTokensEst}${score.imageChars ? ` +img ${score.imageChars}` : ''} · asks ${score.asks} · ${((Date.now() - startedAt) / 1000).toFixed(1)}s · ${score.resultSubtype}${run.timedOut ? ' TIMEOUT' : ''}`)
+    log(`${task.id}: ${score.success === true ? 'PASS' : score.success === false ? 'FAIL' : 'n/a'} · turns ${score.turns} · calls ${score.toolCalls} · wasted ${score.wasted} (probes ${score.probes}) · result-tokens ≈${score.toolResultTokensEst}${score.imageChars ? ` +img ${score.imageChars}` : ''} · asks ${score.asks} · ${((Date.now() - startedAt) / 1000).toFixed(1)}s · ${score.resultStatus}${run.timedOut ? ' TIMEOUT' : ''}`)
     if (score.success !== true && !opts.quiet) log(`   oracle: ${verdict.detail}`)
   }
   if (!browser.ok) notes.push(`browser task unmeasured: ${browser.note}`)
@@ -377,7 +377,7 @@ function placeholderRow(task: TaskDef, skipped: string): TaskRow {
     wallMs: 0,
     exitCode: null,
     timedOut: false,
-    resultSubtype: 'skipped',
+    resultStatus: 'skipped',
     usage: null,
     costUsd: null,
   }

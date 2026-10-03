@@ -45,7 +45,7 @@ process.env.HELIX_TIME_CEILING_OVERRIDE = '900'
 const resumed = runTaskWithPolicy('T01', policy, {
   root: corpusRoot,
   configHome,
-  agentCmd: 'echo p2 >> "$HELIX_WORKDIR/progress.txt"; echo \'{"result":"continued and finished"}\'',
+  agentCmd: 'echo p2 >> "$HELIX_WORKDIR/progress.txt"; echo \'{"type":"outcome","status":"completed","answer":"continued and finished"}\'',
   resumeFrom: { sessionId: 'fake-session-0001', workdir: interrupted.workdir ?? '' },
 })
 check('§3 resumed row is terminal', resumed.status !== 'interrupted' && resumed.status !== 'incomplete', resumed.status)

@@ -1874,13 +1874,9 @@ export async function runHeadless(
 
   const arms: RunnerArms = {
     'turn/interrupt': params => {
-      if (params.op_id !== undefined) {
-        if (seenInterruptIds.has(params.op_id)) {
-          return { interrupted: true }
-        }
-        seenInterruptIds.add(params.op_id)
-      }
+      if (params.op_id !== undefined && seenInterruptIds.has(params.op_id)) return { interrupted: true }
       if (params.turn_id !== undefined && currentTurnId !== null && params.turn_id !== currentTurnId) return { interrupted: false }
+      if (params.op_id !== undefined) seenInterruptIds.add(params.op_id)
       const interrupted = inFlightAbort !== null
       inFlightAbort?.abort()
       driver.releaseHold()

@@ -27,7 +27,7 @@ export interface Score {
   wallMs: number
   exitCode: number | null
   timedOut: boolean
-  resultSubtype: string
+  resultStatus: string
   usage: Record<string, unknown> | null
   costUsd: number | null
 }
@@ -107,7 +107,7 @@ export function scoreRun(run: RunRecord, verdict: { pass: boolean | null; detail
     wallMs: run.wallMs,
     exitCode: run.exitCode,
     timedOut: run.timedOut,
-    resultSubtype: String(result?.status ?? (run.timedOut ? 'timeout' : 'no-result')),
+    resultStatus: String(result?.status ?? (run.timedOut ? 'timeout' : 'no-result')),
     usage: (result?.usage as Record<string, unknown>) ?? null,
     costUsd: typeof result?.cost_usd === 'number' ? (result.cost_usd as number) : null,
   }

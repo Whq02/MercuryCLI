@@ -2,8 +2,8 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir, homedir } from 'node:os'
 import { join, resolve } from 'node:path'
-import {
 import { parseFrame } from '../../lib/rows.ts'
+import {
   evaluateMissionCompletion,
   parseReviewResult,
 } from '../../../src/services/mission/completion.js'
@@ -544,8 +544,8 @@ export function runTaskWithPolicy(
 
   const lastLine = stdout.trim().split('\n').filter(Boolean).pop() ?? ''
   const parsed: Record<string, unknown> = parseFrame(lastLine) ?? {}
-  const resultText = typeof parsed.result === 'string' ? parsed.result : ''
-  const isError = Boolean(parsed.is_error) || spawnErrored
+  const resultText = typeof parsed.answer === 'string' ? parsed.answer : ''
+  const isError = (parsed.type === 'outcome' && parsed.status !== 'completed') || spawnErrored
 
   const verdict = gradeTask(task, workdir, resultText, Date.now, { baseSha })
   const interrupted = timedOut && interruptArmed

@@ -3,6 +3,7 @@ import {
   BAD_LINE_LIMIT,
   MAX_LINE_BYTES,
   RPC_CANCELLED,
+  RPC_INVALID_PARAMS,
   RPC_INVALID_REQUEST,
   RPC_PARSE_ERROR,
   RpcError,
@@ -14,7 +15,7 @@ import {
   rpcErrorOf,
   type RpcErrorShape,
 } from './errors.js'
-import { METHODS, checkParams, deadlineOf, isMethodName, type MethodName, type MethodScope, type MethodSpec, type ParamsOf, type ResultOf } from './methods.js'
+import { METHODS, checkParams, checkResult, deadlineOf, isMethodName, type MethodName, type MethodScope, type MethodSpec, type ParamsOf, type ResultOf } from './methods.js'
 
 export type RpcId = number
 export type RpcRequest = { jsonrpc: '2.0'; id: RpcId; method: string; params?: unknown }
@@ -598,6 +599,16 @@ export class Peer {
       const code = typeof value.error.code === 'number' ? value.error.code : RPC_CANCELLED
       const message = typeof value.error.message === 'string' ? value.error.message : 'error'
       entry.reject(new RpcError(code, message, value.error.data))
+      return
+    }
+    if (isMethodName(entry.method)) {
+      const check = checkResult(entry.method, value.result)
+      if (!check.ok) {
+        this.log(`runner wire: the answer to ${entry.method} (${id}) is not the shape the table declares: ${JSON.stringify(check.issues)}`)
+        entry.reject(new RpcError(RPC_INVALID_PARAMS, `the answer to ${entry.method} is not the shape the table declares`, { method: entry.method, issues: check.issues }))
+        return
+      }
+      entry.resolve(check.value)
       return
     }
     entry.resolve(value.result)

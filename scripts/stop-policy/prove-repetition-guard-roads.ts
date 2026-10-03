@@ -9,8 +9,8 @@ import {
   NODE,
   MODEL,
   childEnv,
-  isInit,
-  isResult,
+  isSession,
+  isOutcome,
   j,
   makeTally,
   removeWorld,
@@ -145,8 +145,8 @@ if (import.meta.main) {
   check('unavailable calls are observed after their error result; known calls after the transaction settles', execution.includes('yield unavailable') && execution.includes('recordToolCall(') && execution.includes('await body') && execution.indexOf('recordToolCall(') > execution.indexOf('yield unavailable') && execution.lastIndexOf('recordToolCall(') > execution.indexOf('await body'))
   const guard = src('src/services/tools/loopGuard.ts')
   check('successful cycles remain behind the key while headless identical failures have their own stop', guard.includes('turns?.loopGuard === true') && guard.includes('cycle.length > 1 && cycle.detection >= 2 && stopEnabled') && guard.includes('getIsNonInteractiveSession() && state.failureRun >= HEADLESS_FAILED_CALL_LIMIT'))
-  const schema = src('src/entrypoints/sdk/coreSchemas.ts')
-  check('the SDK result schema carries no repetition-breaker subtype and does carry the loop-stopped one', !schema.includes('repetition') && schema.includes("'error_loop_stopped'"))
+  const schema = src('src/rows/vocabulary.ts')
+  check('the row vocabulary carries no repetition-breaker word and does carry the loop-stopped terminal', !schema.includes('repetition') && schema.includes("'loop_stopped'"))
   const agent = src('src/tools/AgentTool/agentToolUtils.ts')
   check('a sub-agent outcome has no repetition-stop reason', !agent.includes('repetition'))
   const scriptsNamed = offenders(join(REPO, 'scripts'), BREAKER_NAMES)
@@ -164,8 +164,8 @@ if (import.meta.main) {
     const failedAtOpen = failed()
     const runner = bootRunner({ cwd, env: childEnv(home, fixture.port), extraArgv: ['--allowed-tools', 'Write,Read'] })
     runner.send(user(REREAD_ASK, '00000000-0000-4000-8000-000000000000'))
-    const init = await runner.waitFor('the init frame', isInit, bound(90_000))
-    const result = await runner.waitFor('the turn result', isResult, bound(240_000))
+    const init = await runner.waitFor('the session row', isSession, bound(90_000))
+    const result = await runner.waitFor('the turn result', isOutcome, bound(240_000))
     await runner.stop(bound(8_000))
     await fixture.close()
     const hits = fixture.hits
@@ -192,8 +192,8 @@ if (import.meta.main) {
     const failedAtOpen = failed()
     const runner = bootRunner({ cwd, env: childEnv(home, fixture.port), extraArgv: ['--allowed-tools', 'Bash,Grep'] })
     runner.send(user(CYCLE_ASK, '00000000-0000-4000-8000-000000000002'))
-    const init = await runner.waitFor('the init frame', isInit, bound(90_000))
-    const result = await runner.waitFor('the turn result', isResult, bound(240_000))
+    const init = await runner.waitFor('the session row', isSession, bound(90_000))
+    const result = await runner.waitFor('the turn result', isOutcome, bound(240_000))
     await runner.stop(bound(8_000))
     await fixture.close()
     const hits = fixture.hits
@@ -222,8 +222,8 @@ if (import.meta.main) {
     const failedAtOpen = failed()
     const runner = bootRunner({ cwd, env: childEnv(home, fixture.port), extraArgv: ['--allowed-tools', 'Bash,Grep'] })
     runner.send(user(CYCLE_ASK, '00000000-0000-4000-8000-000000000001'))
-    const init = await runner.waitFor('the init frame', isInit, bound(90_000))
-    const result = await runner.waitFor('the turn result', isResult, bound(240_000))
+    const init = await runner.waitFor('the session row', isSession, bound(90_000))
+    const result = await runner.waitFor('the turn result', isOutcome, bound(240_000))
     await runner.stop(bound(8_000))
     await fixture.close()
     const hits = fixture.hits

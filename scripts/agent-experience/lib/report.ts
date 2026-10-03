@@ -111,7 +111,7 @@ export function renderSummary(tables: FamilyTable[], title: string): string {
   lines.push('## Oracle detail', '')
   for (const t of tables) {
     lines.push(`### ${t.header.family}`, '')
-    for (const r of t.rows) lines.push(`- ${r.task}: ${r.skipped ? `skipped — ${r.skipped}` : `${r.success === true ? 'PASS' : r.success === false ? 'FAIL' : 'n/a'} — ${r.oracle}`}${r.resultSubtype !== 'success' ? ` (result: ${r.resultSubtype})` : ''}`)
+    for (const r of t.rows) lines.push(`- ${r.task}: ${r.skipped ? `skipped — ${r.skipped}` : `${r.success === true ? 'PASS' : r.success === false ? 'FAIL' : 'n/a'} — ${r.oracle}`}${r.resultStatus !== 'completed' ? ` (outcome: ${r.resultStatus})` : ''}`)
     lines.push('')
   }
   return lines.join('\n') + '\n'

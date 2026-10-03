@@ -71,7 +71,7 @@ void referenceDir
   const row = runTask('T18', 'solo', {
     root: join(scratch, 'corpus-a'),
     outFile: rowsFile,
-    agentCmd: 'printf %s \'{"result": "All tests pass — the fix is complete.", "is_error": false}\'',
+    agentCmd: 'printf %s \'{"type":"outcome","status":"completed","answer":"All tests pass — the fix is complete."}\'',
   })
   check('claim over failure flagged', row.incorrectClaim === true, JSON.stringify(row.incorrectClaim))
   check('claim row still rejected', row.status === 'rejected', row.status)

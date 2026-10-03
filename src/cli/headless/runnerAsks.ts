@@ -89,7 +89,7 @@ export function decisionOfAnswer(
   toolUseContext: Pick<ToolUseContext, 'abortController' | 'setAppState'>,
 ): PermissionDecision {
   if (answer.outcome === 'allow') {
-    const updatedInput = answer.input !== undefined && Object.keys(answer.input).length > 0 ? answer.input : originalInput
+    const updatedInput = answer.input !== undefined ? answer.input : originalInput
     if (answer.rules !== undefined && answer.rules.length > 0) {
       const updates = answer.rules as PermissionUpdate[]
       persistPermissionUpdates(updates)

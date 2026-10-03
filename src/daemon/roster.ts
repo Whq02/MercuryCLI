@@ -330,7 +330,7 @@ export class TaskRoster {
       state: 'spawning',
       startedAt: Date.now(),
       cliVersion: currentVersion(),
-      via: 'stream-json',
+      via: 'rows',
       ...(start !== undefined ? { cwd: start.cwd } : spec.cwd !== undefined ? { cwd: spec.cwd } : {}),
       ...(start?.worktree !== undefined ? { worktree: start.worktree } : {}),
     }

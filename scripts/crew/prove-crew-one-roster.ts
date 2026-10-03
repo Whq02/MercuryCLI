@@ -137,7 +137,7 @@ async function main(): Promise<void> {
     pid: 4242,
     startedAt: t0 + 2_000,
     cliVersion: '1.0.0',
-    via: 'stream-json',
+    via: 'rows',
     model: SEAT_MODEL,
     effort: 'high',
     busy: true,

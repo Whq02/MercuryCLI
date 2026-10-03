@@ -6,9 +6,9 @@
     "backend": "zai-glm",
     "dialect": "chat",
     "mechanical": true,
-    "tree": "5dd13dd84",
+    "tree": "a0c6aa209",
     "fold": "unlabelled",
-    "when": "2026-10-03T05:06:42.087Z",
+    "when": "2026-10-03T05:13:15.106Z",
     "promptChars": 23048,
     "promptTokensEst": 5762,
     "toolCount": 54,
@@ -106,7 +106,7 @@
       "probes": 1,
       "unexpectedErrors": 0,
       "duplicates": 0,
-      "toolResultChars": 2889,
+      "toolResultChars": 2887,
       "toolResultTokensEst": 722,
       "imageChars": 0,
       "injectedTokensEst": 0,
@@ -116,15 +116,15 @@
       "errors": [
         {
           "tool": "Bash",
-          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.344584ms)\n✔ median of an odd-length list (0.067708ms)\n✖ median of an even-length list averages the middle pair (0.392291ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 54.054791\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.392291ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file:///private/tmp/mw/mercury-ax-bench-fZ9mIs/chat/tasks/fix-",
+          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.374667ms)\n✔ median of an odd-length list (0.07675ms)\n✖ median of an even-length list averages the middle pair (0.398084ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 63.341375\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.398084ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file:///private/tmp/mw/mercury-ax-bench-lFTTZy/chat/tasks/fix-b",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 2074,
+      "wallMs": 2328,
       "exitCode": 0,
       "timedOut": false,
-      "resultSubtype": "completed",
+      "resultStatus": "completed",
       "usage": {
         "input_tokens": 40,
         "cached_input_tokens": 0,
@@ -173,10 +173,10 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1627,
+      "wallMs": 1517,
       "exitCode": 0,
       "timedOut": false,
-      "resultSubtype": "completed",
+      "resultStatus": "completed",
       "usage": {
         "input_tokens": 32,
         "cached_input_tokens": 0,
@@ -227,15 +227,15 @@
       "errors": [
         {
           "tool": "Edit",
-          "text": "<tool_use_error>Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). Read ownership/coverage check failed: neither a recorded Read nor the current owner's ledger covers all addressed lines. No lines of /private/tmp/mw/mercury-ax-bench-fZ9mIs/chat/tasks/anchored-edit/project/README.md were read this session; the old_string was not found in the current content, so the lines the edit touches are unknown — a Read of the file shows what stands.</tool_use_error>",
+          "text": "<tool_use_error>Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). Read ownership/coverage check failed: neither a recorded Read nor the current owner's ledger covers all addressed lines. No lines of /private/tmp/mw/mercury-ax-bench-lFTTZy/chat/tasks/anchored-edit/project/README.md were read this session; the old_string was not found in the current content, so the lines the edit touches are unknown — a Read of the file shows what stands.</tool_use_error>",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 918,
+      "wallMs": 983,
       "exitCode": 0,
       "timedOut": false,
-      "resultSubtype": "completed",
+      "resultStatus": "completed",
       "usage": {
         "input_tokens": 32,
         "cached_input_tokens": 0,
@@ -280,10 +280,10 @@
           "probe": true
         }
       ],
-      "wallMs": 933,
+      "wallMs": 901,
       "exitCode": 0,
       "timedOut": false,
-      "resultSubtype": "completed",
+      "resultStatus": "completed",
       "usage": {
         "input_tokens": 24,
         "cached_input_tokens": 0,
@@ -322,10 +322,10 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1143,
+      "wallMs": 982,
       "exitCode": 0,
       "timedOut": false,
-      "resultSubtype": "completed",
+      "resultStatus": "completed",
       "usage": {
         "input_tokens": 16,
         "cached_input_tokens": 0,
@@ -369,10 +369,10 @@
           "probe": true
         }
       ],
-      "wallMs": 1010,
+      "wallMs": 935,
       "exitCode": 0,
       "timedOut": false,
-      "resultSubtype": "completed",
+      "resultStatus": "completed",
       "usage": {
         "input_tokens": 24,
         "cached_input_tokens": 0,
@@ -409,10 +409,10 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1100,
+      "wallMs": 1007,
       "exitCode": 0,
       "timedOut": false,
-      "resultSubtype": "completed",
+      "resultStatus": "completed",
       "usage": {
         "input_tokens": 16,
         "cached_input_tokens": 0,
@@ -449,10 +449,10 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1415,
+      "wallMs": 1398,
       "exitCode": 0,
       "timedOut": false,
-      "resultSubtype": "completed",
+      "resultStatus": "completed",
       "usage": {
         "input_tokens": 16,
         "cached_input_tokens": 0,
@@ -489,7 +489,7 @@
       "wallMs": 0,
       "exitCode": null,
       "timedOut": false,
-      "resultSubtype": "skipped",
+      "resultStatus": "skipped",
       "usage": null,
       "costUsd": null
     },
@@ -521,10 +521,10 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 924,
+      "wallMs": 819,
       "exitCode": 0,
       "timedOut": false,
-      "resultSubtype": "completed",
+      "resultStatus": "completed",
       "usage": {
         "input_tokens": 16,
         "cached_input_tokens": 0,
@@ -561,10 +561,10 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1059,
+      "wallMs": 889,
       "exitCode": 0,
       "timedOut": false,
-      "resultSubtype": "completed",
+      "resultStatus": "completed",
       "usage": {
         "input_tokens": 16,
         "cached_input_tokens": 0,
@@ -610,10 +610,10 @@
           "probe": true
         }
       ],
-      "wallMs": 1642,
+      "wallMs": 1600,
       "exitCode": 0,
       "timedOut": false,
-      "resultSubtype": "completed",
+      "resultStatus": "completed",
       "usage": {
         "input_tokens": 48,
         "cached_input_tokens": 0,
@@ -645,10 +645,10 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 835,
+      "wallMs": 791,
       "exitCode": 0,
       "timedOut": false,
-      "resultSubtype": "completed",
+      "resultStatus": "completed",
       "usage": {
         "input_tokens": 8,
         "cached_input_tokens": 0,
@@ -680,10 +680,10 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 810,
+      "wallMs": 791,
       "exitCode": 0,
       "timedOut": false,
-      "resultSubtype": "completed",
+      "resultStatus": "completed",
       "usage": {
         "input_tokens": 8,
         "cached_input_tokens": 0,
