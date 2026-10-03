@@ -151,14 +151,14 @@ const MAX_RECEIPTS = 50
 const BREAK_RATIO = 0.95
 const BREAK_MIN_DROP_TOKENS = 2000
 
-const TRACKED_SOURCE_PREFIXES = ['repl_main_thread', 'sdk', 'agent:custom', 'agent:default', 'agent:builtin']
+const TRACKED_SOURCE_PREFIXES = ['main_thread', 'sdk', 'agent:custom', 'agent:default', 'agent:builtin']
 
 const laneStates = new Map<string, LaneState>()
 const receipts: PromptCacheBreakReceipt[] = []
 
 
 function trackingKey(querySource: string, agentId?: string): string | null {
-  if (querySource === 'compact') return 'repl_main_thread'
+  if (querySource === 'compact') return 'main_thread'
   if (!TRACKED_SOURCE_PREFIXES.some(prefix => querySource.startsWith(prefix))) return null
   return agentId ?? querySource
 }

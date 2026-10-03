@@ -33,7 +33,7 @@ const ESTATE = ['src/components/concourse', 'src/services/concourse'].flatMap(di
 {
   const header = read('src/components/concourse/ConcourseHeader.tsx')
   check('V2 the active crumb reads FOCUSED CHAT', header.includes('<Text bold color={t.info}>FOCUSED CHAT</Text>'))
-  check("V2 the clickable crumb reads FOCUSED CHAT (the id 'main-repl' stays a contract key)", header.includes("dest('main-repl', 'FOCUSED CHAT', onMainRepl)"))
+  check("V2 the clickable crumb reads FOCUSED CHAT (the id 'focused-chat' stays a contract key)", header.includes("dest('focused-chat', 'FOCUSED CHAT', onFocusedChat)"))
   check('V2 the narrow bypass crumb reads FOCUSED CHAT ›', header.includes('FOCUSED CHAT ›'))
 }
 
@@ -50,11 +50,11 @@ const ESTATE = ['src/components/concourse', 'src/services/concourse'].flatMap(di
 }
 
 {
-  const upper = ['MAIN', 'REPL'].join(' ')
+  const upper = ['MAIN', 'Chat'].join(' ')
   const hyphenProse = ['main-RE', 'PL'].join('')
   const spacedLower = ['main', 'repl'].join(' ')
   check('V5 poison: the uppercase crumb form trips the needle', retired.test(`<Text>${upper}</Text>`) || retiredSpaced.test(upper))
-  check('V5 poison: the hyphen prose form (main-REPL) trips it', retired.test(`the managed ${hyphenProse} row`))
+  check('V5 poison: the hyphen prose form (main-Chat) trips it', retired.test(`the managed ${hyphenProse} row`))
   check('V5 poison: the spaced lowercase prose form trips it', retiredSpaced.test(`esc ${spacedLower}`))
   const id = "id: 'concourse:crumb:" + ['main-re', 'pl'].join('') + "'"
   check("V5 the contract id stays legal (no false fire on the lowercase hyphen id)", !retired.test(id) && !retiredSpaced.test(id))

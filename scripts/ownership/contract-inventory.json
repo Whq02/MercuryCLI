@@ -724,8 +724,8 @@
     "main",
     "startDeferredPrefetches"
    ],
-   "src/screens/REPL.tsx": [
-    "REPL",
+   "src/screens/Chat.tsx": [
+    "Chat",
     "type:Props",
     "type:Screen"
    ],

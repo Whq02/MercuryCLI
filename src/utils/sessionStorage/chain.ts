@@ -2,7 +2,6 @@
 import type { UUID } from 'crypto'
 import { builtInCommandNames } from '../../commands.js'
 import { COMMAND_NAME_TAG } from '../../constants/xml.js'
-import { REPL_TOOL_NAME } from '../../tools/REPLTool/constants.js'
 import { projectForTranscript } from '../../services/desktop/screenshotRetention.js'
 import type {
   AttributionSnapshotMessage,
@@ -455,12 +454,10 @@ export function buildAttributionSnapshotChain(
 export function cleanMessagesForLogging(
   messages: Message[],
   allMessages: readonly Message[] = messages,
-  replIds?: Set<string>,
 ): Transcript {
   const filtered = messages.filter(isLoggableMessage) as Transcript
   return transformMessagesForExternalTranscript(
     filtered,
-    replIds ?? collectReplIds(allMessages),
   ).map(message => projectForTranscript(message, allMessages))
 }
 
@@ -485,72 +482,9 @@ export function isLoggableMessage(m: Message): boolean {
   return true
 }
 
-export function collectReplIds(messages: readonly Message[]): Set<string> {
-  const ids = new Set<string>()
-  collectReplIdsInto(ids, messages)
-  return ids
-}
-
-export function collectReplIdsInto(
-  ids: Set<string>,
-  messages: readonly Message[],
-): void {
-  for (const m of messages) {
-    if (m.type === 'assistant' && Array.isArray(m.message.content)) {
-      for (const b of m.message.content) {
-        if (b.type === 'tool_use' && b.name === REPL_TOOL_NAME) {
-          ids.add(b.id)
-        }
-      }
-    }
-  }
-}
-
-export function transformMessagesForExternalTranscript(
-  messages: Transcript,
-  replIds: Set<string>,
-): Transcript {
+export function transformMessagesForExternalTranscript(messages: Transcript): Transcript {
   return messages.flatMap((m): Transcript[number] | Transcript => {
-    if (m.type === 'assistant' && Array.isArray(m.message.content)) {
-      const content = m.message.content
-      const hasRepl = content.some(
-        b => b.type === 'tool_use' && b.name === REPL_TOOL_NAME,
-      )
-      const filtered = hasRepl
-        ? content.filter(
-            b => !(b.type === 'tool_use' && b.name === REPL_TOOL_NAME),
-          )
-        : content
-      if (filtered.length === 0) return []
-      if (m.isVirtual) {
-        const { isVirtual: _omit, ...rest } = m
-        return [{ ...rest, message: { ...m.message, content: filtered } }]
-      }
-      if (filtered !== content) {
-        return [{ ...m, message: { ...m.message, content: filtered } }]
-      }
-      return [m]
-    }
-    if (m.type === 'user' && Array.isArray(m.message.content)) {
-      const content = m.message.content
-      const hasRepl = content.some(
-        b => b.type === 'tool_result' && replIds.has(b.tool_use_id),
-      )
-      const filtered = hasRepl
-        ? content.filter(
-            b => !(b.type === 'tool_result' && replIds.has(b.tool_use_id)),
-          )
-        : content
-      if (filtered.length === 0) return []
-      if (m.isVirtual) {
-        const { isVirtual: _omit, ...rest } = m
-        return [{ ...rest, message: { ...m.message, content: filtered } }]
-      }
-      if (filtered !== content) {
-        return [{ ...m, message: { ...m.message, content: filtered } }]
-      }
-      return [m]
-    }
+    if ((m.type === 'assistant' || m.type === 'user') && Array.isArray(m.message.content) && m.message.content.length === 0) return []
     if ('isVirtual' in m && m.isVirtual) {
       const { isVirtual: _omit, ...rest } = m
       return [rest]

@@ -16,18 +16,18 @@ const ledger = await import('../../src/ink/root/terminalModeLedger.js')
 t.section('§1 — typed refusals while nothing is registered')
 {
   route._resetSurfaceRouteForTesting()
-  t.check('the initial route is the root REPL', route.currentSurfaceRoute().kind === 'repl', route.surfaceRouteId(route.currentSurfaceRoute()))
+  t.check('the initial route is the root Chat', route.currentSurfaceRoute().kind === 'repl', route.surfaceRouteId(route.currentSurfaceRoute()))
   const boot = route.enterBootSettings()
   t.check('enterBootSettings refuses surface-unregistered', !boot.ok && boot.code === 'surface-unregistered', JSON.stringify(boot))
   const conc = route.enterConcourse()
   t.check('enterConcourse refuses surface-unregistered (typed until registration)', !conc.ok && conc.code === 'surface-unregistered', JSON.stringify(conc))
-  const sess = route.enterSessionRepl('abc')
-  t.check('enterSessionRepl refuses surface-unregistered (typed until registration)', !sess.ok && sess.code === 'surface-unregistered', JSON.stringify(sess))
+  const sess = route.enterSessionChat('abc')
+  t.check('enterSessionChat refuses surface-unregistered (typed until registration)', !sess.ok && sess.code === 'surface-unregistered', JSON.stringify(sess))
   const back = route.returnToConcourse()
   t.check('returnToConcourse refuses the same way', !back.ok && back.code === 'surface-unregistered', JSON.stringify(back))
-  const empty = route.enterSessionRepl('')
+  const empty = route.enterSessionChat('')
   t.check('an empty session id is invalid-target, not a route', !empty.ok && empty.code === 'invalid-target', JSON.stringify(empty))
-  t.check('nothing moved — still the root REPL, no return token', route.currentSurfaceRoute().kind === 'repl' && route.activeReturnToken() === null, route.surfaceRouteId(route.currentSurfaceRoute()))
+  t.check('nothing moved — still the root Chat, no return token', route.currentSurfaceRoute().kind === 'repl' && route.activeReturnToken() === null, route.surfaceRouteId(route.currentSurfaceRoute()))
 }
 
 t.section('§2 — registration, entry, and the exact-return token')
@@ -39,7 +39,7 @@ t.section('§2 — registration, entry, and the exact-return token')
   const entered = route.enterBootSettings()
   t.check('enterBootSettings answers ok + a token', entered.ok === true, JSON.stringify(entered))
   t.check('the route moved', route.currentSurfaceRoute().kind === 'boot-settings', route.surfaceRouteId(route.currentSurfaceRoute()))
-  const token = entered.ok ? entered.token : { to: route.ROOT_REPL_ROUTE, nonce: -1 }
+  const token = entered.ok ? entered.token : { to: route.ROOT_CHAT_ROUTE, nonce: -1 }
   t.check('the token captures the EXACT prior route', token.to.kind === 'repl', JSON.stringify(token))
   t.check('activeReturnToken answers the same token', route.activeReturnToken()?.nonce === token.nonce, String(route.activeReturnToken()?.nonce))
   const again = route.enterBootSettings()
@@ -74,8 +74,8 @@ t.section('§3 — stacked surfaces and the root unwind')
   const back = route.leaveCurrentSurface()
   t.check('leaving boot-settings restores the CONCOURSE exactly (ruling 12)', back.ok && route.currentSurfaceRoute().kind === 'concourse', route.surfaceRouteId(route.currentSurfaceRoute()))
   route.enterBootSettings()
-  const home = route.enterRootRepl()
-  t.check('enterRootRepl unwinds every stacked surface', home.ok && route.currentSurfaceRoute().kind === 'repl' && route.activeReturnToken() === null, route.surfaceRouteId(route.currentSurfaceRoute()))
+  const home = route.enterRootChat()
+  t.check('enterRootChat unwinds every stacked surface', home.ok && route.currentSurfaceRoute().kind === 'repl' && route.activeReturnToken() === null, route.surfaceRouteId(route.currentSurfaceRoute()))
 }
 
 t.section('§4 — transition silence (ledger untouched; no termio/process imports)')
@@ -89,7 +89,7 @@ t.section('§4 — transition silence (ledger untouched; no termio/process impor
   const e = route.enterBootSettings()
   route.leaveCurrentSurface()
   route.enterBootSettings()
-  route.enterRootRepl()
+  route.enterRootChat()
   const after = JSON.stringify(ledger.terminalModeLedgerSnapshot())
   t.check('a full transition cycle leaves the terminal-mode ledger IDENTICAL', e.ok && before === after, after)
   ledger._resetTerminalModeLedgerForTesting()
@@ -151,7 +151,7 @@ t.section('§6 — resolveInitialSurface reads flag + the bounded summary only')
   const dir = mkdtempSync(join(tmpdir(), 'signalhouse-router-'))
   try {
     const off = await route.resolveInitialSurface({ env: {}, recordsDir: dir })
-    t.check('Off: the root REPL, reason concourse-off, no summary read', off.effective.kind === 'repl' && off.reason === 'concourse-off' && off.liveWorkers === undefined, JSON.stringify(off))
+    t.check('Off: the root Chat, reason concourse-off, no summary read', off.effective.kind === 'repl' && off.reason === 'concourse-off' && off.liveWorkers === undefined, JSON.stringify(off))
 
     const alwaysUnreg = await route.resolveInitialSurface({ env: { MERCURY_CONCOURSE: 'always' }, recordsDir: dir })
     t.check(
@@ -166,11 +166,11 @@ t.section('§6 — resolveInitialSurface reads flag + the bounded summary only')
 
     const { _setBootSurfaceIntentForTesting } = await import('../../src/substrate/splashHandover.js')
     _setBootSurfaceIntentForTesting('repl')
-    const chosenRepl = await route.resolveInitialSurface({ env: { MERCURY_CONCOURSE: 'always' }, recordsDir: dir })
+    const chosenChat = await route.resolveInitialSurface({ env: { MERCURY_CONCOURSE: 'always' }, recordsDir: dir })
     t.check(
       "the 'repl' intent outranks a policy-always Concourse (reason splash-intent)",
-      chosenRepl.effective.kind === 'repl' && chosenRepl.reason === 'splash-intent',
-      JSON.stringify(chosenRepl),
+      chosenChat.effective.kind === 'repl' && chosenChat.reason === 'splash-intent',
+      JSON.stringify(chosenChat),
     )
     const afterIntent = await route.resolveInitialSurface({ env: { MERCURY_CONCOURSE: 'always' }, recordsDir: dir })
     t.check(
@@ -209,7 +209,7 @@ t.section('§6 — resolveInitialSurface reads flag + the bounded summary only')
       JSON.stringify({ version: 1, workers: { 'concourse-w1': mkRecord(1) } }),
     )
     const autoOne = await route.resolveInitialSurface({ env: { MERCURY_CONCOURSE: 'auto' }, recordsDir: dir })
-    t.check('Auto with ONE live session stays on the root REPL', autoOne.effective.kind === 'repl' && autoOne.reason === 'auto-idle' && autoOne.liveWorkers === 1, JSON.stringify(autoOne))
+    t.check('Auto with ONE live session stays on the root Chat', autoOne.effective.kind === 'repl' && autoOne.reason === 'auto-idle' && autoOne.liveWorkers === 1, JSON.stringify(autoOne))
 
     writeFileSync(join(dir, 'concourse-workers.json'), '{torn')
     const torn = await route.resolveInitialSurface({ env: { MERCURY_CONCOURSE: 'auto' }, recordsDir: dir })
@@ -223,14 +223,14 @@ t.section('§7 — mount seeding adopts only registered routes')
 {
   route._resetSurfaceRouteForTesting()
   route.initializeSurfaceRoute({ kind: 'concourse' })
-  t.check('an unregistered initial route falls to the root REPL', route.currentSurfaceRoute().kind === 'repl', route.surfaceRouteId(route.currentSurfaceRoute()))
+  t.check('an unregistered initial route falls to the root Chat', route.currentSurfaceRoute().kind === 'repl', route.surfaceRouteId(route.currentSurfaceRoute()))
   route.registerRouteSurface('concourse', { render: () => null })
   route.initializeSurfaceRoute({ kind: 'concourse' })
   t.check('a registered initial route is adopted', route.currentSurfaceRoute().kind === 'concourse', route.surfaceRouteId(route.currentSurfaceRoute()))
   route._resetSurfaceRouteForTesting()
 }
 
-t.section('§8 — every boot journey hosts the router (NEW-1: no bare REPL mount)')
+t.section('§8 — every boot journey hosts the router (NEW-1: no bare Chat mount)')
 {
   const resumeSrc = readFileSync(join(import.meta.dir, '../../src/screens/ResumeConversation.tsx'), 'utf8')
   t.check(
@@ -238,13 +238,13 @@ t.section('§8 — every boot journey hosts the router (NEW-1: no bare REPL moun
     /import \{ SurfaceRouter \} from '\.\.\/components\/SurfaceRouter\.js'/.test(resumeSrc),
   )
   t.check(
-    'the post-pick REPL swap is hosted under SurfaceRouter, never bare',
-    /<SurfaceRouter><REPL /.test(resumeSrc) && /<\/SurfaceRouter>\);/.test(resumeSrc),
+    'the post-pick Chat swap is hosted under SurfaceRouter, never bare',
+    /<SurfaceRouter><Chat /.test(resumeSrc) && /<\/SurfaceRouter>\);/.test(resumeSrc),
   )
   t.check(
-    'the route owner is seeded to the root before the resume paints and the swap (the pick is an explicit REPL journey)',
-    resumeSrc.indexOf('initializeSurfaceRoute(ROOT_REPL_ROUTE);') !== -1 &&
-      resumeSrc.indexOf('initializeSurfaceRoute(ROOT_REPL_ROUTE);') < resumeSrc.indexOf('focusResumedSession(') &&
+    'the route owner is seeded to the root before the resume paints and the swap (the pick is an explicit Chat journey)',
+    resumeSrc.indexOf('initializeSurfaceRoute(ROOT_CHAT_ROUTE);') !== -1 &&
+      resumeSrc.indexOf('initializeSurfaceRoute(ROOT_CHAT_ROUTE);') < resumeSrc.indexOf('focusResumedSession(') &&
       resumeSrc.indexOf('focusResumedSession(') < resumeSrc.indexOf('setResumeData({'),
   )
 }

@@ -483,7 +483,7 @@ async function* queryModel(
   }
 
   const isAgenticQuery =
-    options.querySource.startsWith('repl_main_thread') ||
+    options.querySource.startsWith('main_thread') ||
     options.querySource.startsWith('agent:') ||
     options.querySource === 'sdk' ||
     options.querySource === 'hook_agent' ||
@@ -740,10 +740,10 @@ async function* queryModel(
 
     const useCachedMC =
       cachedMCEnabled &&
-      options.querySource === 'repl_main_thread'
+      options.querySource === 'main_thread'
     if (
       cacheEditingHeaderLatched &&
-      options.querySource === 'repl_main_thread' &&
+      options.querySource === 'main_thread' &&
       !betasParams.includes(cacheEditingBetaHeader)
     ) {
       betasParams.push(cacheEditingBetaHeader)
@@ -1768,7 +1768,7 @@ async function* queryModel(
   if (
     streamRequestId &&
     !getAgentContext() &&
-    (options.querySource.startsWith('repl_main_thread') ||
+    (options.querySource.startsWith('main_thread') ||
       options.querySource === 'sdk')
   ) {
     setLastMainRequestId(streamRequestId)

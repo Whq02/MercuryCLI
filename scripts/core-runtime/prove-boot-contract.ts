@@ -185,7 +185,7 @@ function staticImports(src: string): {
   const heavy = [
     'tools.js',
     'commands.js',
-    'replLauncher.js',
+    'chatLauncher.js',
     'entrypoints/init.js',
     'services/mcp/client.js',
     'interactiveHelpers.js',
@@ -198,29 +198,29 @@ function staticImports(src: string): {
     )
   }
   check(
-    'paint-surface: main.tsx does NOT statically import screens/REPL.js',
-    !main.value.some(s => s.endsWith('screens/REPL.js')),
+    'paint-surface: main.tsx does NOT statically import screens/Chat.js',
+    !main.value.some(s => s.endsWith('screens/Chat.js')),
   )
   check(
     'paint-surface: main.tsx does NOT statically import components/App.js',
     !main.value.some(s => s.endsWith('components/App.js')),
   )
 
-  const launcherSrc = readFileSync(join(SRC, 'replLauncher.tsx'), 'utf8')
+  const launcherSrc = readFileSync(join(SRC, 'chatLauncher.tsx'), 'utf8')
   const launcher = staticImports(launcherSrc)
   check(
-    "paint-surface: replLauncher's only static value import is react",
+    "paint-surface: chatLauncher's only static value import is react",
     launcher.value.length === 1 && launcher.value[0] === 'react',
     JSON.stringify(launcher.value),
   )
   for (const dyn of [
     './components/App.js',
-    './screens/REPL.js',
+    './screens/Chat.js',
     './substrate/recoveryOrchestrator.js',
     './bootstrap/state.js',
   ]) {
     check(
-      `paint-surface: replLauncher reaches ${dyn} only dynamically`,
+      `paint-surface: chatLauncher reaches ${dyn} only dynamically`,
       launcherSrc.includes(`import('${dyn}')`),
     )
   }
@@ -341,11 +341,11 @@ function staticImports(src: string): {
     mdm < keychain && keychain < loaded,
   )
 
-  const launchSites = [...mainSrc.matchAll(/await launchRepl\(/g)].map(m => m.index!)
-  check('launch-graph: ONE interactive launchRepl call site (T15 collapse)', launchSites.length === 1, String(launchSites.length))
+  const launchSites = [...mainSrc.matchAll(/await launchChat\(/g)].map(m => m.index!)
+  check('launch-graph: ONE interactive launchChat call site (T15 collapse)', launchSites.length === 1, String(launchSites.length))
   at('await withMcpLaunchBudget(connectMcpBatch(regularMcpConfigs')
   check(
-    'launch-graph: interactive MCP never rides a background-node connect (the REPL registry owns it)',
+    'launch-graph: interactive MCP never rides a background-node connect (the Chat registry owns it)',
     !mainSrc.includes("registerBackgroundNode('mcp-discovery'"),
   )
   const batchCalls = [...mainSrc.matchAll(/connectMcpBatch\((regularMcpConfigs|surviving)/g)].map(m => m.index!)
@@ -617,10 +617,10 @@ function staticImports(src: string): {
 }
 
 {
-  const { launchRepl } = await import('../../src/replLauncher.js')
+  const { launchChat } = await import('../../src/chatLauncher.js')
   const { App } = await import('../../src/components/App.js')
   const { SurfaceRouter } = await import('../../src/components/SurfaceRouter.js')
-  const { REPL } = await import('../../src/screens/REPL.js')
+  const { Chat } = await import('../../src/screens/Chat.js')
   const { SeededMCPConnectionManager } = await import('../../src/services/mcp/MCPConnectionManager.js')
 
   const calls: Array<{ root: unknown; element: React.ReactElement }> = []
@@ -630,7 +630,7 @@ function staticImports(src: string): {
 
   const initialState = { crewContext: undefined, __t15: 'state-1' }
   const root = { __t15root: true }
-  const replProps = { __t15repl: true }
+  const chatProps = { __t15repl: true }
   const realSetTimeout = globalThis.setTimeout
   const realClearTimeout = globalThis.clearTimeout
   const budgetTimers = new Set<unknown>()
@@ -645,10 +645,10 @@ function staticImports(src: string): {
     return realClearTimeout(t)
   }) as never
   try {
-    await launchRepl(
+    await launchChat(
       root as never,
       { getFpsMetrics: () => undefined, initialState: initialState as never },
-      replProps as never,
+      chatProps as never,
       fakeRender as never,
     )
   } finally {
@@ -670,9 +670,9 @@ function staticImports(src: string): {
   const mcpOwned = el?.props?.children?.props as { children?: { type: unknown; props: Record<string, unknown> } }
   check('launch: the MCP owner wraps SurfaceRouter', mcpOwned?.children?.type === SurfaceRouter)
   const routed = mcpOwned?.children?.props as { children?: { type: unknown; props: Record<string, unknown> } }
-  check('launch: SurfaceRouter wraps REPL', routed?.children?.type === REPL)
+  check('launch: SurfaceRouter wraps Chat', routed?.children?.type === Chat)
   check(
-    'launch: replProps forwarded untouched',
+    'launch: chatProps forwarded untouched',
     (routed?.children?.props as { __t15repl?: boolean })?.__t15repl === true,
   )
   check('launch: root forwarded untouched', (calls[0]?.root as { __t15root?: boolean })?.__t15root === true)
@@ -685,10 +685,10 @@ function staticImports(src: string): {
   )
 
   const preset = { crewContext: { crewName: '__t15-preset' }, __t15: 'state-2' }
-  await launchRepl(
+  await launchChat(
     root as never,
     { getFpsMetrics: () => undefined, initialState: preset as never },
-    replProps as never,
+    chatProps as never,
     fakeRender as never,
   )
   const el2 = calls[1]?.element as never as { props: { initialState?: { crewContext?: { crewName?: string } } } }
@@ -699,7 +699,7 @@ function staticImports(src: string): {
 }
 
 {
-  const launcherSrc = readFileSync(join(SRC, 'replLauncher.tsx'), 'utf8')
+  const launcherSrc = readFileSync(join(SRC, 'chatLauncher.tsx'), 'utf8')
   check(
     'recovery: budget constant is 3,000ms',
     launcherSrc.includes('BOOT_RECOVERY_BUDGET_MS = 3_000'),

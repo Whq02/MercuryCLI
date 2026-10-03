@@ -165,7 +165,7 @@ function paramsFor(messages: unknown[], extra: Record<string, unknown>): Record<
     signal: new AbortController().signal,
     options: {
       model: PERSISTED,
-      querySource: 'repl_main_thread',
+      querySource: 'main_thread',
       getToolPermissionContext: async () => ({ mode: 'default' }) as never,
       ...extra,
     } as never,
@@ -280,7 +280,7 @@ section('3 · every seat of the session sends the held set: the main thread, a c
   await resetWorld(undefined)
   const from = state.hits.length
   const seats: Array<{ label: string; text: string; extra: Record<string, unknown> }> = [
-    { label: 'the main thread', text: 'x'.repeat(80_000), extra: { querySource: 'repl_main_thread' } },
+    { label: 'the main thread', text: 'x'.repeat(80_000), extra: { querySource: 'main_thread' } },
     { label: 'a crewmate (Agent tool, mercury-crew)', text: 'y'.repeat(20_000), extra: { agentId: 'agent-000001', querySource: 'agent:builtin:mercury-crew' } },
     { label: 'a workflow agent (Workflow tool agent() call)', text: 'z'.repeat(60_000), extra: { agentId: 'agent-000002', querySource: 'agent:custom' } },
   ]

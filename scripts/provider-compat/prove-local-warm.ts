@@ -270,7 +270,7 @@ async function firstTurn(text: string): Promise<{ usage: Record<string, number> 
     signal: new AbortController().signal,
     options: {
       model: PERSISTED,
-      querySource: 'repl_main_thread',
+      querySource: 'main_thread',
       getToolPermissionContext: async () => permissionContext,
       agents: [],
       ownerKey,

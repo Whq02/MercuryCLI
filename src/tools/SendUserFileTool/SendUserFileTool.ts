@@ -91,7 +91,7 @@ export const SendUserFileTool = buildTool({
     void status
     const appState = context.getAppState()
     const attachments = await resolveAttachments(files, {
-      replBridgeEnabled: appState.replBridgeEnabled,
+      remoteControlEnabled: appState.remoteControlEnabled,
       signal: context.abortController.signal,
     })
     return {

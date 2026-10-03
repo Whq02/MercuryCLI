@@ -48,7 +48,7 @@ const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
 
 const MODEL = 'claude-opus-4-8'
-const PARENT_SOURCE = 'repl_main_thread'
+const PARENT_SOURCE = 'main_thread'
 const posture = asSystemPrompt(['You are a fixture-driven session posture.'])
 
 let uuidSeq = 0

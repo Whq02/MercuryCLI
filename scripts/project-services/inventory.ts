@@ -79,10 +79,6 @@ const inventory = {
     certSchema: 2,
     deepProbes: 'src/utils/healthDeepProbes.ts (run kernel · context parity · IDE loop · DAP loop · effect observer)',
   },
-  replSeams: {
-    binding: 'src/tools.ts REPLTool = null',
-    survivors: ['src/tools/REPLTool/constants.ts', 'src/tools/REPLTool/primitiveTools.ts'],
-  },
 }
 
 const json = JSON.stringify(inventory, null, 2) + '\n'

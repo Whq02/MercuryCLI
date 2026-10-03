@@ -935,7 +935,7 @@ export async function* runEventCore(
     const persistReplacements =
       querySource === 'sdk' ||
       querySource.startsWith('agent:') ||
-      querySource.startsWith('repl_main_thread')
+      querySource.startsWith('main_thread')
     const pruneModel = toolUseContext.options.mainLoopModel
     const proactivePrune = pendingOverflow === undefined
       ? await sizePruneRequest(messages, pruneModel, querySource)
@@ -1988,7 +1988,7 @@ export async function* runEventCore(
     const currentAgentId = toolUseContext.agentId
     const isMainThread =
       currentAgentId === undefined &&
-      (querySource.startsWith('repl_main_thread') || querySource === 'sdk')
+      (querySource.startsWith('main_thread') || querySource === 'sdk')
     const queuedCommandsSnapshot = selectDrainableCommands(
       getDrainableCommands(sleepRan),
       { sleepRan, isMainThread, agentId: currentAgentId },

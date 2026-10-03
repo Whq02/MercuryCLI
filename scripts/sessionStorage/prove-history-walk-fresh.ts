@@ -80,7 +80,7 @@ section('§1 the writer: one record per taken line, the cockpit\'s project and s
 
 section('§2 the submit road: the composer is taken once, before the send, busy or idle — and the take ends the walk')
 {
-  const repl = readFileSync(join(ROOT, 'src/screens/REPL.tsx'), 'utf8')
+  const repl = readFileSync(join(ROOT, 'src/screens/Chat.tsx'), 'utf8')
   const onSubmitAt = repl.indexOf('const onSubmit = useCallback(async (input: string')
   const onSubmit = repl.slice(onSubmitAt, repl.indexOf('const onSubmitRef = useRef(onSubmit)'))
   const takeAt = onSubmit.indexOf('const takeComposer = (): void => {')

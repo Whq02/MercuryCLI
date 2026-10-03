@@ -49,7 +49,7 @@ t.section(`§1 — the modal family closes inside the view (${COMPACT_CONTROL_CO
   t.check('the title STAYS inside the compact view (the plain "Mercury · model" line and a provider heading)', all.includes('Mercury · model') && /[▾▸❯] [A-Z.]+ · /.test(all), lines.find(l => l.includes('Mercury · model')) ?? '(no title row)')
 }
 
-t.section(`§2 — the inline REPL keeps its input line at the floor (${COMPACT_CONTROL_COLS}×${COMPACT_CONTROL_ROWS}, the frame whole)`)
+t.section(`§2 — the inline Chat keeps its input line at the floor (${COMPACT_CONTROL_COLS}×${COMPACT_CONTROL_ROWS}, the frame whole)`)
 {
   const lines = renderScenario('thinking-row', COMPACT_CONTROL_COLS, COMPACT_CONTROL_ROWS)
   const inputAt = lines.findIndex(l => l.trim().startsWith('❯') || l.includes('│❯'))

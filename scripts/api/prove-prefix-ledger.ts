@@ -302,7 +302,7 @@ section('§1b complete bound fields and reasoning continuity')
   ]).flat()
   for (const persistent of [false, true]) {
     const state = persistent ? createContentReplacementState() : undefined
-    const input = { messages: history as never, owner: ('plan-' + persistent) as never, querySource: 'repl_main_thread' as const, contentReplacementState: state, skipToolNames: new Set<string>() }
+    const input = { messages: history as never, owner: ('plan-' + persistent) as never, querySource: 'main_thread' as const, contentReplacementState: state, skipToolNames: new Set<string>() }
     const pruned = await buildRequestContextPlan(input, 'apply')
     const fresh = { type: 'assistant', uuid: 'fresh', timestamp: new Date().toISOString(), message: { id: 'fresh', role: 'assistant', model: 'claude-fable-5-1', content: [THINK('fresh'), TEXT('ready')] } }
     const next = await buildRequestContextPlan({ ...input, messages: [...history, fresh] as never }, 'apply')

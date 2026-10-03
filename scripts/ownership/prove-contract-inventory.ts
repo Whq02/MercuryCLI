@@ -104,7 +104,7 @@ const MODULES: Record<string, string[]> = {
   headless: ['src/cli/run.ts'],
   bootUi: [
     'src/main.tsx',
-    'src/screens/REPL.tsx',
+    'src/screens/Chat.tsx',
     'src/components/PromptInput/PromptInput.tsx',
   ],
 }

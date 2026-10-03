@@ -180,7 +180,7 @@ section('L2/L3 — the switched turn DISPATCHES to the Anthropic wire')
       (c.body?.tools as unknown[]).length > 0 &&
       JSON.stringify(c.body ?? {}).includes('pick up from gpt pls'),
   )
-  check('the Anthropic loopback received the switched request (dispatch FIRED through the REPL)', main !== undefined, `anthropic calls=${opusCalls.length}`)
+  check('the Anthropic loopback received the switched request (dispatch FIRED through the Chat)', main !== undefined, `anthropic calls=${opusCalls.length}`)
   if (main) {
     check('the switched request targets claude-opus-5', String(main.body?.model ?? '').startsWith('claude-opus-5'), String(main.body?.model))
     const bodyText = JSON.stringify(main.body)

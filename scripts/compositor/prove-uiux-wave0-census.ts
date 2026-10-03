@@ -503,7 +503,7 @@ section('UI-124/125 — copy confirmations name the route that actually settled'
     'UI-125: the confirmation copy is honest both ways — settled routes named, or the OSC-52 offer stated with its dependency',
     osc.includes("`copied (${settled.join(' + ')})`") &&
       osc.includes('delivery depends on your terminal') &&
-      src('src/screens/REPL.tsx').includes('text: receipt.confirmation'),
+      src('src/screens/Chat.tsx').includes('text: receipt.confirmation'),
   )
   check(
     'the win32 UTF-16LE+BOM law survives the receipt refactor (the ΓÇö paste class)',

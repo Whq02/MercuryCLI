@@ -159,13 +159,13 @@ const REPL_EXPECTED: Record<NeedleName, number> = {
   mcpManager: 0,
 }
 {
-  const content = readFileSync(join(root, 'src/screens/REPL.tsx'), 'utf8')
-  const hits = scanContent(content, 'src/screens/REPL.tsx')
+  const content = readFileSync(join(root, 'src/screens/Chat.tsx'), 'utf8')
+  const hits = scanContent(content, 'src/screens/Chat.tsx')
   const counts = Object.fromEntries(Object.keys(N).map(k => [k, 0])) as Record<NeedleName, number>
   for (const hit of hits) counts[hit.needle]++
   for (const needle of Object.keys(N) as NeedleName[]) {
     check(
-      `REPL residue pinned: ${needle} = ${REPL_EXPECTED[needle]}`,
+      `Chat residue pinned: ${needle} = ${REPL_EXPECTED[needle]}`,
       counts[needle] === REPL_EXPECTED[needle],
       counts[needle] === REPL_EXPECTED[needle]
         ? ''

@@ -41,10 +41,10 @@ check('rendered only when showCtx && ctxPct != null (no NaN/null leak)',
   /showCtx\s*&&\s*ctxPct\s*!=\s*null/.test(SRC))
 
 const SPIN = readFileSync(join(root, 'src/components/Spinner.tsx'), 'utf-8')
-const REPL = readFileSync(join(root, 'src/screens/REPL.tsx'), 'utf-8')
+const Chat = readFileSync(join(root, 'src/screens/Chat.tsx'), 'utf-8')
 console.log('\n  -- work-in-flight gauge --')
-check('REPL threads activeToolCount={viewInProgressToolUseIDs.size} to the spinner',
-  /activeToolCount=\{viewInProgressToolUseIDs\.size\}/.test(REPL))
+check('Chat threads activeToolCount={viewInProgressToolUseIDs.size} to the spinner',
+  /activeToolCount=\{viewInProgressToolUseIDs\.size\}/.test(Chat))
 check('Spinner.tsx forwards activeToolCount to SpinnerAnimationRow',
   /activeToolCount=\{activeToolCount\}/.test(SPIN))
 check('wif lights up only on PARALLEL tools (activeToolCount >= 2)',

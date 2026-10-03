@@ -61,7 +61,7 @@ const { default: PromptInput } = await import('../../src/components/PromptInput/
 const { useCompactWorkControls } = await import('../../src/components/tasks/CompactWorkSummary.js')
 const { GlobalKeybindingHandlers } = await import('../../src/hooks/useGlobalKeybindings.js')
 const { CancelRequestHandler } = await import('../../src/hooks/useCancelRequest.js')
-const { initializeSurfaceRoute, ROOT_REPL_ROUTE } = await import('../../src/context/surfaceRoute.js')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.js')
 const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.js')
 const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.js')
 enableConfigs()
@@ -132,7 +132,7 @@ slot.setFocusedSessionConnector(
 )
 
 const sent: string[] = []
-initializeSurfaceRoute(ROOT_REPL_ROUTE)
+initializeSurfaceRoute(ROOT_CHAT_ROUTE)
 resetChromeModeLatchForTests()
 pending.edit('')
 pending.setMode('prompt')
@@ -336,7 +336,7 @@ section('§8 the source pins')
   check('the composer subscribes to the popup predicate and folds it into the overlay union', prompt.includes("import { popupOwnsKeys, subscribePopupOwnsKeys } from '../../utils/cockpit/popupOwnsKeys.js'") && prompt.includes('const popupUp = useSyncExternalStore(subscribePopupOwnsKeys, popupOwnsKeys, popupOwnsKeys)') && /const modalOverlayUp =[\s\S]{0,400}hasSuppressedDialogs \|\|\n\s+popupUp/.test(prompt))
   check('the raw ladder reads the predicate live at its hard skip', prompt.includes("if (modalOverlayUp || popupOwnsKeys() || compactWork?.read() === 'summary' || compactWork?.read() === 'detail') return"))
   check("the text input's byte gate carries the predicate too", /const keyboardOwnedByOverlay =[\s\S]{0,300}isLocalJSXCommandActive \|\|\n\s+popupUp/.test(prompt))
-  check('the ladder still yields whole while another route surface covers the REPL', prompt.includes("if (currentSurfaceRoute().kind !== 'repl') return") && prompt.includes('!surfaceCovered && !keyboardOwnedByOverlay'))
+  check('the ladder still yields whole while another route surface covers the Chat', prompt.includes("if (currentSurfaceRoute().kind !== 'repl') return") && prompt.includes('!surfaceCovered && !keyboardOwnedByOverlay'))
   const predicate = readFileSync(join(REPO, 'src/utils/cockpit/popupOwnsKeys.ts'), 'utf8')
   check('the predicate is the union of the settings popup store and the files menu store', predicate.includes('return isSettingsPopupOpen() || isFilesMenuOpen()') && predicate.includes('subscribeSettingsPopup(listener)') && predicate.includes('subscribeFilesMenu(listener)'))
   const hints = [readFileSync(join(REPO, 'src/components/Settings/Jev.tsx'), 'utf8'), readFileSync(join(REPO, 'src/components/Settings/Config.tsx'), 'utf8'), readFileSync(join(REPO, 'src/components/MercuryFilesMenu.tsx'), 'utf8')]

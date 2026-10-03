@@ -18,7 +18,7 @@ const ENTRIES: ConfigEntry[] = [
   { name: 'Language', detail: 'response language', via: '/config' },
   { name: 'Permissions', detail: 'tool permission rules', via: '/permissions' },
   { name: 'MCP servers', detail: 'configured MCP roster', via: '/mcp' },
-  { name: 'Keybindings', detail: 'editor + REPL shortcuts', via: '/keybindings' },
+  { name: 'Keybindings', detail: 'editor + chat shortcuts', via: '/keybindings' },
   { name: 'Memory', detail: 'project + user MERCURY.md', via: '/memory' },
 ]
 

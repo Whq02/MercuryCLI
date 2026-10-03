@@ -5,7 +5,7 @@ import { LogSelector } from '../components/LogSelector.js'
 import { SpinnerGlyph } from '../components/Spinner/SpinnerGlyph.js'
 import { useMercuryTokens } from '../components/mercury-ui/useMercuryTokens.js'
 import { SurfaceRouter } from '../components/SurfaceRouter.js'
-import { initializeSurfaceRoute, ROOT_REPL_ROUTE } from '../context/surfaceRoute.js'
+import { initializeSurfaceRoute, ROOT_CHAT_ROUTE } from '../context/surfaceRoute.js'
 import { Box, Text, useInput } from '../ink.js'
 import { AlternateScreen } from '../ink/components/AlternateScreen.js'
 import { TerminalSizeContext } from '../ink/components/TerminalSizeContext.js'
@@ -29,7 +29,7 @@ import {
   type SessionLogResult,
 } from '../utils/sessionStorage/logs.js'
 import { isCustomTitleEnabled } from '../utils/sessionStorage/paths.js'
-import { REPL, type Props as REPLProps } from './REPL.js'
+import { Chat, type Props as ChatProps } from './Chat.js'
 
 const LOAD_MORE_BATCH = 20
 
@@ -133,7 +133,7 @@ export function ResumeConversation({
   const [isResuming, setIsResuming] = useState(false)
   const [showAllProjects, setShowAllProjects] = useState(false)
   const [resumeRefusal, setResumeRefusal] = useState<string | null>(null)
-  const [resumeData, setResumeData] = useState<Omit<REPLProps, 'commands' | 'debug' | 'initialTools'> | null>(
+  const [resumeData, setResumeData] = useState<Omit<ChatProps, 'commands' | 'debug' | 'initialTools'> | null>(
     null,
   )
   const logCountRef = useRef(0)
@@ -239,7 +239,7 @@ export function ResumeConversation({
         return
       }
 
-      initializeSurfaceRoute(ROOT_REPL_ROUTE);
+      initializeSurfaceRoute(ROOT_CHAT_ROUTE);
       const { focusResumedSession } = await import('../services/switchboard/hopIntoSession.js')
       const outcome = await focusResumedSession(String(sessionId), log.fullPath, {
         title: log.customTitle ?? log.agentName,
@@ -251,7 +251,7 @@ export function ResumeConversation({
         setResumeRefusal(`could not resume — ${outcome.reason}`)
         return
       }
-      setResumeData({ disableSlashCommands } as Omit<REPLProps, 'commands' | 'debug' | 'initialTools'>)
+      setResumeData({ disableSlashCommands } as Omit<ChatProps, 'commands' | 'debug' | 'initialTools'>)
     },
     [showAllProjects, worktreePaths, forkSession, disableSlashCommands],
   )
@@ -272,7 +272,7 @@ export function ResumeConversation({
     )
 
   if (resumeData) {
-    const inner = (<SurfaceRouter><REPL commands={commands} debug={debug} initialTools={initialTools} {...resumeData} /></SurfaceRouter>);
+    const inner = (<SurfaceRouter><Chat commands={commands} debug={debug} initialTools={initialTools} {...resumeData} /></SurfaceRouter>);
     return useAltScreenHost ? (
       <AlternateScreen mouseTracking={isMouseTrackingEnabled()}>{inner}</AlternateScreen>
     ) : (

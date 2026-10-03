@@ -246,9 +246,9 @@ console.log('native-core T13/T14 — input-scheduling contract')
   check('rekey: submit ordering unchanged across the round trip (now>next>later, FIFO within bands)',
     q.dequeue()?.value === 'n1' && q.dequeue()?.value === 'n2' && q.dequeue()?.value === 'l1')
 
-  const replSrc = readFileSync('src/screens/REPL.tsx', 'utf8')
+  const replSrc = readFileSync('src/screens/Chat.tsx', 'utf8')
   const hopBlock = replSrc.slice(replSrc.indexOf('rekeyedSessionRef.current !== focusedSessionId'))
-  check('rekey: the REPL hop effect re-keys the queue beside pending-input, inside the same guard',
+  check('rekey: the Chat hop effect re-keys the queue beside pending-input, inside the same guard',
     hopBlock.slice(0, 600).includes("rekeyCommandQueueToSession(focusedSessionId === '' ? null : focusedSessionId, { landing })") &&
       hopBlock.includes("pendingInput.rekeyToSession(focusedSessionId === '' ? null : focusedSessionId, { landing })") &&
       hopBlock.indexOf('pendingInput.rekeyToSession') !== -1 &&
@@ -451,7 +451,7 @@ console.log('native-core T13/T14 — input-scheduling contract')
 
 {
   const repoRoot = resolve(import.meta.dir, '../..')
-  const repl = readFileSync(join(repoRoot, 'src/screens/REPL.tsx'), 'utf8')
+  const repl = readFileSync(join(repoRoot, 'src/screens/Chat.tsx'), 'utf8')
   const query = readFileSync(join(repoRoot, 'src/query.ts'), 'utf8')
   const promptInput = readFileSync(join(repoRoot, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
 
@@ -482,7 +482,7 @@ console.log('native-core T13/T14 — input-scheduling contract')
   check("lock: every road that speaks a notice's frame — the drain, the idle kick and the next operator turn's held deliveries — goes through one announcer that speaks each notice exactly once",
     runner.includes('const announcedNotifications = new WeakSet<QueuedCommand>()') && runner.includes('if (announcedNotifications.has(command)) continue\n      announcedNotifications.add(command)\n      emitTaskNotificationFrames(taskNotificationPayloads(command))') && runner.includes('emitCommandNotifications([...initialNotices, command])') && runner.includes('if (!driver.isRunning()) emitCommandNotifications(queued.filter(isMainThreadCommand))') && !runner.includes('emitTaskNotificationFrames(taskNotificationPayloads(drained))'))
 
-  check('lock: REPL registers the chokepoint interceptors (intercept + re-pin gate + active flip)',
+  check('lock: Chat registers the chokepoint interceptors (intercept + re-pin gate + active flip)',
     repl.includes('pendingInput.registerInterceptors({')
       && repl.includes('interceptSuggestion: () => false')
       && repl.includes('onActiveChange: setIsPromptInputActive'))
@@ -543,7 +543,7 @@ console.log('native-core T13/T14 — input-scheduling contract')
     !repl.includes('popAllEditable(') ||
       (repl.includes('popAllEditable(pendingInput.text(), 0)') && repl.includes(`setInputMode('prompt');`)))
 
-  check('lock: the REPL root holds NO composer subscription',
+  check('lock: the Chat root holds NO composer subscription',
     !repl.includes('useSyncExternalStore(pendingInput.'))
   check('lock: PromptInput is the composer subscriber (input · mode · pastes · stash)',
     promptInput.includes('useSyncExternalStore(\n    pendingInput.subscribePendingInput,')

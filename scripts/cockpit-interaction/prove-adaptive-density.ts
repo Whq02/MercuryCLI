@@ -159,8 +159,8 @@ t.section('§3 — the rail consumes the plan; no lane order is written twice')
     rail.includes('Math.min(5 + (mission ? 0 : 1), hintCap)') && rail.includes('hints.slice(0, hintCap)'),
     'formula mirrors the builder',
   )
-  const repl = readFileSync('src/screens/REPL.tsx', 'utf8')
-  t.check('the REPL publishes all four states', /publishCockpitActivity\(cockpitActivity\)/.test(repl), 'published')
+  const repl = readFileSync('src/screens/Chat.tsx', 'utf8')
+  t.check('the Chat publishes all four states', /publishCockpitActivity\(cockpitActivity\)/.test(repl), 'published')
   t.check(
     "and a pending decision outranks running work",
     /isWaitingForApproval[\s\S]{0,40}\? 'waiting'/.test(repl),

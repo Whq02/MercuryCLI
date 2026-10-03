@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/lib/seedTranscript.ts
-# gate-watch: src/services/run/** src/services/workbench/** src/services/mission/** src/commands/run/** src/commands/diff/** src/commands/tasks/** src/components/prompts-panel/** src/screens/REPL.tsx
+# gate-watch: src/services/run/** src/services/workbench/** src/services/mission/** src/commands/run/** src/commands/diff/** src/commands/tasks/** src/components/prompts-panel/** src/screens/Chat.tsx
 # gate-watch: scripts/lib/captureDriver.ts scripts/ui/vshot.py src/bootstrap/state.ts
 # gate-watch: src/substrate/sourceState.ts src/utils/artifacts/reviewStore.ts
 # gate-watch: src/utils/hooks/runStopAdapter.ts src/utils/sessionStoragePortable.ts

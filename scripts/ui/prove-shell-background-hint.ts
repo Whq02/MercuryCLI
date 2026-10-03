@@ -67,7 +67,7 @@ const { SpinnerWithVerb } = await import(src('components/Spinner.tsx'))
 const { FocusedSessionStatusRow } = await import(src('components/SwitchboardTagBar.tsx'))
 const { CancelRequestHandler, backgroundShellNotice } = await import(src('hooks/useCancelRequest.ts'))
 const { resetChromeModeLatchForTests } = await import(src('hooks/useLayoutTier.ts'))
-const { initializeSurfaceRoute, ROOT_REPL_ROUTE } = await import(src('context/surfaceRoute.ts'))
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import(src('context/surfaceRoute.ts'))
 const { enableConfigs, saveCurrentProjectConfig, saveGlobalConfig } = await import(src('utils/config.ts'))
 const pending = await import(src('input-core/pending-input.ts'))
 const { default: instances } = await import(src('ink/instances.ts'))
@@ -310,7 +310,7 @@ function sceneElement(scene: Scene): ReactNode {
 
 type World = { ink: InstanceType<typeof Ink>; stdin: Input; frame: () => string; lines: () => string[]; close: () => Promise<void> }
 async function mountTree(columns: number, rows: number, tree: ReactNode): Promise<World> {
-  initializeSurfaceRoute(ROOT_REPL_ROUTE)
+  initializeSurfaceRoute(ROOT_CHAT_ROUTE)
   resetChromeModeLatchForTests()
   helm.resetHelmFocusForTest()
   pending.edit('')

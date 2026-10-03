@@ -109,7 +109,7 @@ try {
   check('board row and peek carry the SAME title', boardRow?.title === 'Identity worker' && snapA.peek?.title === 'Identity worker', `${boardRow?.title} / ${snapA.peek?.title}`)
   const route = await import('../../src/context/surfaceRoute.ts')
   await import('../../src/components/concourse/ConcourseRoute.tsx')
-  const entered = route.enterSessionRepl(sessionId)
+  const entered = route.enterSessionChat(sessionId)
   const now = route.currentSurfaceRoute() as { kind: string; sessionId?: string }
   check(
     "the retired 'session:<id>' route refuses honestly (surface-unregistered) — the swap is the enter path",

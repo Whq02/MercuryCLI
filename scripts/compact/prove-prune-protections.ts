@@ -77,7 +77,7 @@ section('§C the clearing path honours both laws')
     }) as Message),
     stamp(createAssistantMessage({ content: [{ type: 'text', text: 'done', citations: null }] as never }) as Message),
   ]
-  const projected = projectTimeBasedMicrocompact(history, 'repl_main_thread_prompt')
+  const projected = projectTimeBasedMicrocompact(history, 'main_thread_prompt')
   if (projected === null) {
     check('the clearing pass armed for the fixture', false, 'projection returned null with MERCURY_TIME_BASED_MC=1')
   } else {

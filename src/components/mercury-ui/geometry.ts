@@ -1,6 +1,6 @@
 
 import { stringWidth } from '../../ink/stringWidth.js'
-import { COMPOSER_BORDER_SHED_ROWS } from './replFloor.js'
+import { COMPOSER_BORDER_SHED_ROWS } from './composerFloor.js'
 import { CR_COLS, SQUARE_DOCK_ART_LINES } from '../../utils/cockpit/critterData.js'
 
 export { paneWindow, scrolledWindow, fitGroupedWindow, fitMeasuredWindow, type PaneWindow } from './paneWindow.js'

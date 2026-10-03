@@ -75,7 +75,7 @@ section('§A the kernel fold — durable, merging, additive')
 
 section('§B the seam + projection anchors')
 {
-  const repl = readFileSync(join(ROOT, 'src/screens/REPL.tsx'), 'utf8')
+  const repl = readFileSync(join(ROOT, 'src/screens/Chat.tsx'), 'utf8')
   const kernel = readFileSync(join(ROOT, 'src/services/run/runKernel.ts'), 'utf8')
   check(
     "the run kernel carries the 'model-transition' event; the screen notes none of its own",

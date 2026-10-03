@@ -20,7 +20,7 @@ import {
 import { getSourceDisplayName } from '../../utils/settings/constants.js'
 import { formatTokens } from '../../utils/format.js'
 
-const DEFAULT_QUERY_SOURCE: QuerySource = 'repl_main_thread'
+const DEFAULT_QUERY_SOURCE: QuerySource = 'main_thread'
 
 const FREE_SPACE_CATEGORY = 'Free space'
 const AUTOCOMPACT_BUFFER_CATEGORY = 'Autocompact buffer'

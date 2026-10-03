@@ -20,7 +20,7 @@ import type { PromptCommand } from '../commands.js'
 import { logForDebugging } from './debug.js'
 import { cloneFileStateCache, type FileStateCache } from './fileStateCache.js'
 import { createChildAbortController } from './abortController.js'
-import type { REPLHookContext } from './hooks/postSamplingHooks.js'
+import type { ChatHookContext } from './hooks/postSamplingHooks.js'
 import { createUserMessage, extractTextContent, getLastAssistantMessage } from './messages.js'
 import { createDenialTrackingState } from './permissions/denialTracking.js'
 import { parseToolListFromCLI } from './permissions/permissionSetup.js'
@@ -96,7 +96,7 @@ export function getLastCacheSafeParams(): CacheSafeParams | null {
   return lastCacheSafeParams
 }
 
-export function createCacheSafeParams(hookContext: REPLHookContext): CacheSafeParams {
+export function createCacheSafeParams(hookContext: ChatHookContext): CacheSafeParams {
   return {
     systemPrompt: hookContext.systemPrompt,
     userContext: hookContext.userContext,

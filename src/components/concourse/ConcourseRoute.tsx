@@ -10,7 +10,7 @@ import {
   chatPresent,
   consumeEntryDecisionInput,
   enterBootSettings,
-  enterRootRepl,
+  enterRootChat,
   registerRouteSurface,
   returnToConcourse,
   surfaceGeneration,
@@ -418,7 +418,7 @@ function LiveConcourse(): React.ReactNode {
       if (!settled) {
         if (split) {
           consumeEntryDecisionInput()
-        } else if (enterRootRepl().ok) {
+        } else if (enterRootChat().ok) {
           flippedGen = surfaceGeneration()
         }
       }
@@ -440,7 +440,7 @@ function LiveConcourse(): React.ReactNode {
               noteControl(noteKey, { state: 'applied', reason: 'in the chat pane' })
             } else {
               noteControl(noteKey, 'applied')
-              enterRootRepl()
+              enterRootChat()
             }
           }
         } catch (e) {
@@ -1045,8 +1045,8 @@ function LiveConcourse(): React.ReactNode {
         if (door) armFaceDoorDeepLink(door, opener)
         return enterBootSettings().ok
       },
-      exitToRepl: () => {
-        if (!enterRootRepl().ok) enterBootSettings()
+      exitToChat: () => {
+        if (!enterRootChat().ok) enterBootSettings()
       },
       switchCoordinatorModel: async modelId => {
         const models = await import('../../services/concourse/coordinatorModels.js')
@@ -1496,7 +1496,7 @@ function LiveConcourse(): React.ReactNode {
               noteControl('board:new-session', { state: 'applied', reason: `${born.title} — in the chat pane${contractNote}` })
             } else {
               noteControl('board:new-session', { state: 'applied', reason: `entering ${born.title}${contractNote}` })
-              enterRootRepl()
+              enterRootChat()
             }
           }
         } catch (e) {
@@ -1532,7 +1532,7 @@ function ConcourseAssemblingShell({ failing, onRetry }: { failing: boolean; onRe
   useInput((input, key, event) => {
     if (key.escape) {
       event.stopImmediatePropagation()
-      if (!enterRootRepl().ok) enterBootSettings()
+      if (!enterRootChat().ok) enterBootSettings()
       return
     }
     if (key.ctrl && input === 'r') {

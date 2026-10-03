@@ -104,7 +104,6 @@ import { WebSearchTool } from './tools/WebSearchTool/WebSearchTool.js'
 import { ProviderSearchTool } from './tools/WebSearchTool/ProviderSearchTool.js'
 import { WorkflowTool } from './tools/WorkflowTool/WorkflowTool.js'
 import { WorkshopTool } from './tools/WorkshopTool/WorkshopTool.js'
-import { REPL_ONLY_TOOLS } from './tools/REPLTool/constants.js'
 import { isPowerShellToolEnabled } from './utils/shell/shellToolUtils.js'
 
 import './services/resources/adapters/git.js'
@@ -123,7 +122,6 @@ import './services/resources/adapters/workbench.js'
 
 export { ALL_AGENT_DISALLOWED_TOOLS, ASYNC_AGENT_ALLOWED_TOOLS, CUSTOM_AGENT_DISALLOWED_TOOLS }
 
-export { REPL_ONLY_TOOLS }
 
 export const TOOL_PRESETS = ['default'] as const
 export type ToolPreset = (typeof TOOL_PRESETS)[number]

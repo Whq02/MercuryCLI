@@ -62,7 +62,7 @@ section('B1 — app-root crash: product card · loud exit · retained report · 
     cols: 100,
     rows: 30,
     keep: true,
-    extraEnv: { MERCURY_RENDER_FAULT: 'repl' },
+    extraEnv: { MERCURY_RENDER_FAULT: 'chat' },
   })
   try {
     const all = flat(ptyText(run))

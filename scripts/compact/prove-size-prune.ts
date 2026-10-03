@@ -104,7 +104,7 @@ check('the size prune emits dead marks only for thinking after the edited prefix
 process.env.MERCURY_TIME_BASED_MC = '1'
 const oldTimestamp = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
 const timedHistory = history.map(message => ({ ...message, timestamp: oldTimestamp })) as Message[]
-const timedPlan = await buildRequestContextPlan({ ...planInput, messages: timedHistory, querySource: 'repl_main_thread', contentReplacementState: createContentReplacementState(), pressurePrune: { minimumTokensSaved: Number.MAX_SAFE_INTEGER } }, 'apply')
+const timedPlan = await buildRequestContextPlan({ ...planInput, messages: timedHistory, querySource: 'main_thread', contentReplacementState: createContentReplacementState(), pressurePrune: { minimumTokensSaved: Number.MAX_SAFE_INTEGER } }, 'apply')
 check('a time-gap prune keeps its wider selection and is attributed only to time', timedPlan.reductions.timeBasedCleared > 0 && timedPlan.reductions.pressurePruned === undefined && !timedPlan.reductions.reasons.some(reason => reason.includes('context size')) && isClearedOrDigested(contentOf(timedPlan.messages, 'read_unique')))
 process.env.MERCURY_TIME_BASED_MC = '0'
 const { sizePruneRequest, sizePruneNotice } = await import('../../src/services/compact/overflowRecovery.ts')

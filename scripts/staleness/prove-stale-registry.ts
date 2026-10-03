@@ -205,7 +205,6 @@ src/tasks/taskOutcomeEnvelope.ts :: cacheBySession :: invalidator=recordTaskOutc
 src/tools/AgentTool/loadAgentsDir.ts :: definitionsCache :: invalidator=clearAgentDefinitionsCache
 src/tools/BashTool/readOnlyValidation.ts :: allowlistCache :: static-for-process
 src/tools/FileReadTool/limits.ts :: getDefaultFileReadingLimits :: static-for-process
-src/tools/REPLTool/primitiveTools.ts :: cached :: static-for-process
 src/tools/SkillTool/prompt.ts :: promptForRoot :: keyed-by-truth
 src/tools/SyntheticOutputTool/SyntheticOutputTool.ts :: schemaBoundCache :: keyed-by-truth
 src/tools/ToolSearchTool/ToolSearchTool.ts :: deferredSetCacheKey :: keyed-by-truth

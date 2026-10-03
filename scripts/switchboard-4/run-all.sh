@@ -9,7 +9,7 @@
 # gate-watch: src/commands/clear/clear.ts src/commands/enablement.ts
 # gate-watch: src/components/HelmLanesRail.tsx src/components/messages/TranscriptNameplate.tsx
 # gate-watch: src/daemon/headlessRun.ts src/fabric/entryCodec.ts src/fabric/ordinal.ts
-# gate-watch: src/hooks/useLogMessages.ts src/main.tsx src/screens/REPL.tsx
+# gate-watch: src/hooks/useLogMessages.ts src/main.tsx src/screens/Chat.tsx
 # gate-watch: src/services/engine-connector/daemonConnector.ts
 # gate-watch: src/services/engine-connector/focusedConnector.ts src/services/switchboard/hopIntoSession.ts
 # gate-watch: src/services/switchboard/launchAuthority.ts src/state/telemetryBus.ts

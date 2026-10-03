@@ -215,7 +215,7 @@ reg(
 
     'src/components/TraceView.tsx',
     'src/keybindings/KeybindingProviderSetup.tsx',
-    'src/screens/REPL.tsx',
+    'src/screens/Chat.tsx',
     'src/screens/ResumeConversation.tsx',
     'src/components/Settings/Config.tsx',
     'src/components/Settings/Jev.tsx',

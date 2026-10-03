@@ -162,10 +162,10 @@ section('§4 the suppressed leaf is quiet under deltas (the probe counts the lea
 
 section('§5 structural: one gate, two halves')
 {
-  const repl = readFileSync(join(ROOT, 'src/screens/REPL.tsx'), 'utf8')
+  const repl = readFileSync(join(ROOT, 'src/screens/Chat.tsx'), 'utf8')
   check('the three transcript arms mount the focused tail on every surface', (repl.match(/streamingTail=\{focusedTail\}/g) ?? []).length === 3)
   check('the three arms hand the one gate to the text half', (repl.match(/streamingTextSuppressed=\{streamingSuppressed\}/g) ?? []).length === 3)
-  check('the REPL no longer un-mounts the tail under suppression', !repl.includes('streamingSuppressed ? null : focusedTail'))
+  check('the Chat no longer un-mounts the tail under suppression', !repl.includes('streamingSuppressed ? null : focusedTail'))
   const messages = readFileSync(join(ROOT, 'src/components/Messages.tsx'), 'utf8')
   check('Messages threads the gate to the leaf', messages.includes('textSuppressed={streamingTextSuppressed}'))
   const message = readFileSync(join(ROOT, 'src/components/Message.tsx'), 'utf8')

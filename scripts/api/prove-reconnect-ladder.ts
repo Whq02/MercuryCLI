@@ -552,7 +552,7 @@ section('S8 — the four provider roads through their real client wrappers: a re
     thinkingConfig: { type: 'disabled' },
     tools: [],
     signal: new AbortController().signal,
-    options: { model, querySource: 'repl_main_thread', isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], hasAppendSystemPrompt: false, mcpTools: [], maxOutputTokensOverride: 64, onWait },
+    options: { model, querySource: 'main_thread', isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], hasAppendSystemPrompt: false, mcpTools: [], maxOutputTokensOverride: 64, onWait },
   })
   async function driveRoad(door: RoadDoor, opts: { warm?: boolean; onNotice?: (count: number) => Promise<void> } = {}): Promise<RoadRun> {
     const seat = budget.makeRecoveryBudget()

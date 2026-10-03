@@ -29,7 +29,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   t('a structurally-stamped origin earns nothing', queuedCommandHistoryEntry({ value: 'x', mode: 'prompt', origin: 'system' }) === null)
   t('task notifications earn nothing', queuedCommandHistoryEntry({ value: '<task-notification/>', mode: 'task-notification' }) === null)
   t('block-content values earn nothing', queuedCommandHistoryEntry({ value: [{ type: 'text', text: 'x' }], mode: 'prompt' }) === null)
-  const repl = readFileSync('src/screens/REPL.tsx', 'utf8')
+  const repl = readFileSync('src/screens/Chat.tsx', 'utf8')
   t('the submit-time write happens once, when the composer is taken (structural)', /const takeComposer = \(\): void => \{[\s\S]{0,700}addToHistory\(\{ display: seatMode === 'bash' \? `!\$\{input\}` : input, pastedContents: seatPastes \}\);/.test(repl))
   t('the face holds no drain-time history write (the runner drains its own queue)', !repl.includes('queuedCommandHistoryEntry('))
 }

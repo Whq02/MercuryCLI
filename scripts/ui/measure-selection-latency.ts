@@ -92,7 +92,7 @@ function diagnoseRun(label: string, run: CompassRun): void {
 
 type FluxMark = { k: string; t: number; v?: number }
 type FluxDump = { frames: { total: number; window: number; p50: number; p95: number; p99: number; maxMs: number }; allMarks: FluxMark[]; epochMinusPerfNow: number }
-const OWNERS = ['render:repl-root', 'render:messages', 'render:composer', 'render:frame'] as const
+const OWNERS = ['render:chat-root', 'render:messages', 'render:composer', 'render:frame'] as const
 function readFlux(path: string): FluxDump | null {
   if (!existsSync(path)) return null
   try {

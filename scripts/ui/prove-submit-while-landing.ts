@@ -10,7 +10,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail && !ok ? ` — ${detail}` : ''}`)
 }
 
-const repl = read('src/screens/REPL.tsx')
+const repl = read('src/screens/Chat.tsx')
 const onSubmitAt = repl.indexOf('const onSubmit = useCallback(async (input: string')
 const onSubmit = repl.slice(onSubmitAt, repl.indexOf('const onSubmitRef = useRef(onSubmit)'))
 

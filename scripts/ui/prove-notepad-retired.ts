@@ -42,7 +42,7 @@ const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProvid
 const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
 const { enableConfigs, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
 const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_REPL_ROUTE } = await import('../../src/context/surfaceRoute.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
 const { resetHelmFocusForTest } = await import('../../src/utils/cockpit/helmFocus.ts')
 const { default: instances } = await import('../../src/ink/instances.ts')
 enableConfigs()
@@ -83,7 +83,7 @@ const deadline = setTimeout(() => { console.error('notepad-retired exceeded its 
 deadline.unref()
 try {
   for (const [cols, rows] of [[178, 51], [120, 40]] as const) {
-    initializeSurfaceRoute(ROOT_REPL_ROUTE)
+    initializeSurfaceRoute(ROOT_CHAT_ROUTE)
     resetChromeModeLatchForTests()
     resetHelmFocusForTest()
     const stdout = new Output(cols, rows)

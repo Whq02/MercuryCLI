@@ -175,7 +175,7 @@ import { anyModalOverlayActive, topOverlay } from '../../context/overlayStack.js
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 import { abortSpeculation, handleSpeculationAccept } from '../../services/PromptSuggestion/speculation.js'
 import type { PromptInputHelpers } from '../../types/promptInputHelpers.js'
-import { composerBorderRole, composerBorderStyle, COMPOSER_BORDER_SHED_ROWS } from '../mercury-ui/replFloor.js'
+import { composerBorderRole, composerBorderStyle, COMPOSER_BORDER_SHED_ROWS } from '../mercury-ui/composerFloor.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { useNowTick } from '../mercury-ui/components.js'
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
@@ -1397,7 +1397,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
               fresh.viewingAgentTaskId !== undefined
             : fresh.footerSelection === 'bagel'
                 ? fresh.bagelActive === true
-                : fresh.replBridgeEnabled
+                : fresh.remoteControlEnabled
         if (stillVisible) return
       }
       if (fresh.viewSelectionMode === 'selecting-agent') return

@@ -28,7 +28,7 @@ console.log('§1 C1 — the footer transient is one row by fold')
 
 console.log('§2 C2 — the footer right cell holds a budget and keeps its tail')
 {
-  const repl = read('src/screens/REPL.tsx')
+  const repl = read('src/screens/Chat.tsx')
   check(
     'the budget exists and floors at 16',
     repl.includes('Math.min(stringWidth(right), Math.max(16, Math.floor((columns - 3) / 2)))'),

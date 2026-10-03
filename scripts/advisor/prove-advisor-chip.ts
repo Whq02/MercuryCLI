@@ -71,7 +71,7 @@ const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProvid
 const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
 const { MercuryFrame } = await import('../../src/components/MercuryFrame.tsx')
 const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, registerRouteSurface, ROOT_REPL_ROUTE } = await import('../../src/context/surfaceRoute.ts')
+const { initializeSurfaceRoute, registerRouteSurface, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
 registerRouteSurface('concourse', { render: () => null })
 const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
 const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
@@ -159,7 +159,7 @@ section('§2 the status row, rendered from source: the chip stands after the vit
   for (const [cols, rows] of [[178, 51], [120, 40]] as const) {
     const size = `${cols}x${rows}`
     facts = null
-    initializeSurfaceRoute(ROOT_REPL_ROUTE)
+    initializeSurfaceRoute(ROOT_CHAT_ROUTE)
     resetChromeModeLatchForTests()
     resetHelmFocusForTest()
     const stdout = new Output(cols, rows)

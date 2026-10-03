@@ -4,7 +4,7 @@
 # gate-watch: src/fabric/transcriptDecode.ts src/fabric/entryCodec.ts src/fabric/ordinal.ts
 # gate-watch: src/ink/components/TerminalSizeContext.tsx
 # gate-watch: src/services/engine-connector/** src/hooks/useSessionConnector.ts
-# gate-watch: src/screens/REPL.tsx src/components/MercuryFrame.tsx src/components/PromptInput/**
+# gate-watch: src/screens/Chat.tsx src/components/MercuryFrame.tsx src/components/PromptInput/**
 # gate-watch: src/components/permissions/** src/hooks/useCancelRequest.ts src/hooks/useDisplayedSessionModel.ts
 # gate-watch: scripts/lib/* src/bootstrap/state.ts src/cli/run.ts src/commands/crew/index.ts
 # gate-watch: src/commands/crew/index.ts src/commands/crewmates/index.ts src/commands/crewmates/crewmates.tsx

@@ -1304,7 +1304,7 @@ export async function buildConcourseSnapshot(
     },
     breadcrumb: { active: 'concourse' },
     coordinator,
-    mainRepl: {
+    focusedChat: {
       kind: 'non-model-controller',
       counted: false,
       submission: 'disabled-while-parked',

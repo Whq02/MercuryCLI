@@ -363,7 +363,7 @@ t.section('§3 — THE FACE SKIN (BootAgentsScreen: the real mount · route sile
 {
   const faceSrc = readFileSync(join(repoRoot, 'src/components/BootAgentsScreen.tsx'), 'utf-8')
 
-  const routeTokens = ['surfaceRoute', 'enterRootRepl', 'settleAbsentChat', 'armRootCommand', 'leaveCurrentSurface', 'initialMessage']
+  const routeTokens = ['surfaceRoute', 'enterRootChat', 'settleAbsentChat', 'armRootCommand', 'leaveCurrentSurface', 'initialMessage']
   const routeHits = routeTokens.filter(tok => faceSrc.includes(tok))
   t.check('the face module never touches the surface-route bridge', routeHits.length === 0, routeHits.join(','))
 

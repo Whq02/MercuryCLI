@@ -23,7 +23,7 @@ export type SurfaceRoute =
   | { readonly kind: 'concourse' }
   | { readonly kind: 'session'; readonly sessionId: string }
 
-export const ROOT_REPL_ROUTE: SurfaceRoute = { kind: 'repl' }
+export const ROOT_CHAT_ROUTE: SurfaceRoute = { kind: 'repl' }
 
 export function surfaceRouteId(route: SurfaceRoute): string {
   return route.kind === 'session' ? `session:${route.sessionId}` : route.kind
@@ -66,7 +66,7 @@ export function getRouteSurface(kind: SurfaceKind): RouteSurfaceEntry | undefine
 }
 
 
-let current: SurfaceRoute = ROOT_REPL_ROUTE
+let current: SurfaceRoute = ROOT_CHAT_ROUTE
 let returnStack: SurfaceReturnToken[] = []
 let nextNonce = 1
 let version = 0
@@ -161,7 +161,7 @@ export function enterConcourse(): SurfaceTransition {
   return enter({ kind: 'concourse' })
 }
 
-export function enterSessionRepl(sessionId: string): SurfaceTransition {
+export function enterSessionChat(sessionId: string): SurfaceTransition {
   if (sessionId.length === 0) {
     return { ok: false, code: 'invalid-target', reason: 'a session route needs a session id' }
   }
@@ -175,15 +175,15 @@ export function returnToConcourse(): SurfaceTransition {
 
 export type ChatEntry = { ok: true } | { ok: false; code: 'no-chat'; reason: string }
 
-export function enterRootRepl(): ChatEntry {
+export function enterRootChat(): ChatEntry {
   if (!chatPresent()) {
     return { ok: false, code: 'no-chat', reason: NO_CHAT_HINT }
   }
   if (current.kind !== 'repl' || returnStack.length > 0) {
     const from = current
-    current = ROOT_REPL_ROUTE
+    current = ROOT_CHAT_ROUTE
     returnStack = []
-    commitTransition('HOME', from, ROOT_REPL_ROUTE)
+    commitTransition('HOME', from, ROOT_CHAT_ROUTE)
     bump()
   }
   return { ok: true }
@@ -355,7 +355,7 @@ export function cycleSurface(dir: 1 | -1): StripOutcome {
   const move = stripMove(current.kind, dir === 1 ? 'left' : 'right', presentStripStops())
   if (move.to === null) return { ok: true, moved: false, hint: move.hint }
   const from = current
-  current = move.to === 'repl' ? ROOT_REPL_ROUTE : ({ kind: move.to } as SurfaceRoute)
+  current = move.to === 'repl' ? ROOT_CHAT_ROUTE : ({ kind: move.to } as SurfaceRoute)
   returnStack = []
   commitTransition(move.to === 'repl' ? 'HOME' : 'PUSH', from, current)
   bump()
@@ -404,7 +404,7 @@ export async function resolveInitialSurface(
       void import('../substrate/launchMilestones.js')
         .then(m => m.recordLaunchMilestone('route-ready'))
         .catch(() => {})
-      return { requested: ROOT_REPL_ROUTE, effective: ROOT_REPL_ROUTE, policy, reason: 'splash-intent' }
+      return { requested: ROOT_CHAT_ROUTE, effective: ROOT_CHAT_ROUTE, policy, reason: 'splash-intent' }
     }
     if (intent === 'concourse' && isFullscreenEnvEnabled()) {
       const requested: SurfaceRoute = { kind: 'concourse' }
@@ -412,7 +412,7 @@ export async function resolveInitialSurface(
         .then(m => m.recordLaunchMilestone('route-ready'))
         .catch(() => {})
       if (!routeSurfaceRegistered('concourse')) {
-        return { requested, effective: ROOT_REPL_ROUTE, policy, reason: 'concourse-surface-unregistered' }
+        return { requested, effective: ROOT_CHAT_ROUTE, policy, reason: 'concourse-surface-unregistered' }
       }
       return { requested, effective: requested, policy, reason: 'splash-intent' }
     }
@@ -435,7 +435,7 @@ export async function resolveInitialSurface(
   }
   if (policy === 'off') {
     if (bootMenuArmed) return bootMenuLanding()
-    return { requested: ROOT_REPL_ROUTE, effective: ROOT_REPL_ROUTE, policy, reason: 'concourse-off' }
+    return { requested: ROOT_CHAT_ROUTE, effective: ROOT_CHAT_ROUTE, policy, reason: 'concourse-off' }
   }
   const concourse: SurfaceRoute = { kind: 'concourse' }
   const settle = (requested: SurfaceRoute, reason: InitialSurfaceResolution['reason'], liveWorkers?: number): InitialSurfaceResolution => {
@@ -445,7 +445,7 @@ export async function resolveInitialSurface(
     if (requested.kind !== 'repl' && !routeSurfaceRegistered(requested.kind)) {
       return {
         requested,
-        effective: ROOT_REPL_ROUTE,
+        effective: ROOT_CHAT_ROUTE,
         policy,
         reason: 'concourse-surface-unregistered',
         ...(liveWorkers !== undefined ? { liveWorkers } : {}),
@@ -469,19 +469,19 @@ export async function resolveInitialSurface(
   } catch {
   }
   if (bootMenuArmed) return bootMenuLanding()
-  return settle(ROOT_REPL_ROUTE, 'auto-idle', live)
+  return settle(ROOT_CHAT_ROUTE, 'auto-idle', live)
 }
 
 export function initializeSurfaceRoute(initial: SurfaceRoute): void {
   const from = current
-  current = routeSurfaceRegistered(initial.kind) ? initial : ROOT_REPL_ROUTE
+  current = routeSurfaceRegistered(initial.kind) ? initial : ROOT_CHAT_ROUTE
   returnStack = []
   commitTransition('INIT', from, current)
   bump()
 }
 
 export function _resetSurfaceRouteForTesting(): void {
-  current = ROOT_REPL_ROUTE
+  current = ROOT_CHAT_ROUTE
   returnStack = []
   registry.clear()
   generation = 0

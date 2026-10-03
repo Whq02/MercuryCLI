@@ -26,7 +26,7 @@ const sha = (b: Buffer | string): string => createHash('sha256').update(b).diges
 
 const ROOT = join(import.meta.dir, '../..')
 const selectorSrc = readFileSync(join(ROOT, 'src/components/MessageSelector.tsx'), 'utf8')
-const replSrc = readFileSync(join(ROOT, 'src/screens/REPL.tsx'), 'utf8')
+const replSrc = readFileSync(join(ROOT, 'src/screens/Chat.tsx'), 'utf8')
 
 function between(src: string, from: string, to: string, name: string): string {
   const a = src.indexOf(from)
@@ -73,19 +73,19 @@ section('§A B07 — three distinct actions on the confirm card')
 section('§B B04 — the View-only path is projection-only')
 {
   const viewArm = between(selectorSrc, "if (value === 'view')", "if (value === 'branch')", 'view arm')
-  check('the view arm calls the REPL callback and closes — nothing else', viewArm.includes('onViewOnly?.()') && viewArm.includes('close()'))
+  check('the view arm calls the Chat callback and closes — nothing else', viewArm.includes('onViewOnly?.()') && viewArm.includes('close()'))
   for (const forbidden of ['onPreRestore', 'onRestoreMessage', 'onRestoreCode', 'onSummarize', 'setRestoring(true)']) {
     check(`the view arm never touches ${forbidden}`, !viewArm.includes(forbidden))
   }
-  const viewCb = between(replSrc, 'onViewOnly={() =>', 'onRerun={async', 'REPL onViewOnly')
+  const viewCb = between(replSrc, 'onViewOnly={() =>', 'onRerun={async', 'Chat onViewOnly')
   check(
-    'the REPL callback enters the SAME display path ctrl+o rides',
+    'the Chat callback enters the SAME display path ctrl+o rides',
     viewCb.includes('handleEnterTranscript()') &&
       viewCb.includes("setScreen('transcript')") &&
       viewCb.includes('setShowAllInTranscript(true)'),
   )
   for (const forbidden of ['setMessages(', 'setConversationId', 'resetSessionFilePointer', 'removeTranscriptMessage', 'createBranchSession']) {
-    check(`the REPL view callback never touches ${forbidden}`, !viewCb.includes(forbidden))
+    check(`the Chat view callback never touches ${forbidden}`, !viewCb.includes(forbidden))
   }
   const enterBlock = between(replSrc, 'const handleEnterTranscript', 'const handleExitTranscript', 'enter handler')
   const exitBlock = between(replSrc, 'const handleExitTranscript', 'const globalKeybindingProps', 'exit handler')
@@ -178,12 +178,12 @@ section('§C B07 — rerun ≠ replay: rewind-branch before the anchor, fork-bra
     )
     check('the manifests carry their distinct boundary kinds', rerun.manifest.boundaryKind === 'rewind' && fork.manifest.boundaryKind === 'fork')
   }
-  const rerunCb = between(replSrc, 'onRerun={async', 'onClose={() =>', 'REPL onRerun')
-  check("REPL rerun branches at forkOrdinal: idx (before the anchor)", rerunCb.includes('forkOrdinal: idx,'))
-  check("REPL rerun uses boundaryKind: 'rewind'", rerunCb.includes("boundaryKind: 'rewind'"))
+  const rerunCb = between(replSrc, 'onRerun={async', 'onClose={() =>', 'Chat onRerun')
+  check("Chat rerun branches at forkOrdinal: idx (before the anchor)", rerunCb.includes('forkOrdinal: idx,'))
+  check("Chat rerun uses boundaryKind: 'rewind'", rerunCb.includes("boundaryKind: 'rewind'"))
   check("Create-branch covers the anchor: forkOrdinal: ordinal + 1 with boundaryKind: 'fork'", selectorSrc.includes('forkOrdinal: ordinal + 1') && selectorSrc.includes("boundaryKind: 'fork'"))
-  check('REPL rerun switches in-process through the ONE resume chokepoint', rerunCb.includes("await resume(branchId, branchLog, 'fork')"))
-  check('REPL rerun stages the resubmit under operator control (no auto-send)', rerunCb.includes('textForResubmit') && rerunCb.includes('setInputValue') && !rerunCb.includes('onSubmit('))
+  check('Chat rerun switches in-process through the ONE resume chokepoint', rerunCb.includes("await resume(branchId, branchLog, 'fork')"))
+  check('Chat rerun stages the resubmit under operator control (no auto-send)', rerunCb.includes('textForResubmit') && rerunCb.includes('setInputValue') && !rerunCb.includes('onSubmit('))
 }
 
 section('§D B07 — distinct receipts')
@@ -200,7 +200,7 @@ section('§D B07 — distinct receipts')
 
 section('§E — the rerun guard + the /rewind alias')
 {
-  const rerunCb = between(replSrc, 'onRerun={async', 'onClose={() =>', 'REPL onRerun')
+  const rerunCb = between(replSrc, 'onRerun={async', 'onClose={() =>', 'Chat onRerun')
   check('a mid-run rerun refuses honestly (no switch under a live turn)', rerunCb.includes('if (isLoadingRef.current) return { ok: false as const, reason:'))
   const rewindCmd = readFileSync(join(ROOT, 'src/commands/rewind/index.ts'), 'utf8')
   check("the /rewind alias stays", rewindCmd.includes("name: 'rewind'"))

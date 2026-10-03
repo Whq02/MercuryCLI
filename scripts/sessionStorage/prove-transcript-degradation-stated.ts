@@ -154,7 +154,7 @@ section('§4 a clean load latches nothing')
 
 section('§5 the chat wiring, structural')
 {
-  const repl = readFileSync(join(import.meta.dir, '../../src/screens/REPL.tsx'), 'utf8')
+  const repl = readFileSync(join(import.meta.dir, '../../src/screens/Chat.tsx'), 'utf8')
   check('the chat paints the latch as ONE sticky notification', repl.includes("key: 'transcript-degraded'") && repl.includes('subscribeTranscriptLoadDegradation'))
   check('the partial-degradation sentence states counts, path and the no-repair honesty', repl.includes('the valid records loaded; nothing was repaired'))
   check('the refusal sentence states the empty resume', repl.includes('resumed WITHOUT its prior records'))

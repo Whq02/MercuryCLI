@@ -12,12 +12,12 @@ import { shouldDisableAllHooksIncludingManaged } from './hooksConfigSnapshot.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { jsonStringify } from '../slowOperations.js'
 import { parseHookOutput, parseHttpHookOutput } from './outputProcessing.js'
-import type { HookOutsideReplResult } from './types.js'
+import type { HookLifecycleResult } from './types.js'
 import { randomUUID } from 'crypto'
 import { isAsyncHookJSONOutput, isSyncHookJSONOutput } from '../../types/hooks.js'
 import { createCombinedAbortSignal } from '../combinedAbortSignal.js'
 
-export async function executeHooksOutsideREPL({
+export async function executeLifecycleHooks({
   getAppState,
   hookInput,
   matchQuery,
@@ -29,7 +29,7 @@ export async function executeHooksOutsideREPL({
   matchQuery?: string
   signal?: AbortSignal
   timeoutMs: number
-}): Promise<HookOutsideReplResult[]> {
+}): Promise<HookLifecycleResult[]> {
   if (isEnvTruthy(process.env.MERCURY_BARE)) {
     return []
   }
@@ -145,7 +145,7 @@ export async function executeHooksOutsideREPL({
         return {
           command: hook.prompt,
           succeeded: false,
-          output: 'Prompt stop hooks are not yet supported outside REPL',
+          output: 'Prompt stop hooks are not yet supported outside chat',
           blocked: false,
         }
       }
@@ -154,7 +154,7 @@ export async function executeHooksOutsideREPL({
         return {
           command: hook.prompt,
           succeeded: false,
-          output: 'Agent stop hooks are not yet supported outside REPL',
+          output: 'Agent stop hooks are not yet supported outside chat',
           blocked: false,
         }
       }
@@ -162,13 +162,13 @@ export async function executeHooksOutsideREPL({
       if (hook.type === 'function') {
         logError(
           new Error(
-            `Function hook reached executeHooksOutsideREPL for ${hookEvent}. Function hooks should only be used in REPL context (Stop hooks).`,
+            `Function hook reached executeLifecycleHooks for ${hookEvent}. Function hooks should only be used in chat context (Stop hooks).`,
           ),
         )
         return {
           command: 'function',
           succeeded: false,
-          output: 'Internal error: function hook executed outside REPL context',
+          output: 'Internal error: function hook executed outside chat context',
           blocked: false,
         }
       }

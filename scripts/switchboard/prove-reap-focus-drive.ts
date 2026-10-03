@@ -169,12 +169,12 @@ try {
   const askOpen = (sid: string) => async (): Promise<boolean> =>
     (await obligations.openObligations({ scope: 'switchboard' })).some(o => o.sessionId === sid && (o.ref ?? '').startsWith('permission:'))
   const alphaAskOpen = askOpen(sidA)
-  check('alpha parked a REAL permission ask (its card lives in the parked REPL)', await untilAsync(alphaAskOpen, 40_000))
+  check('alpha parked a REAL permission ask (its card lives in the parked Chat)', await untilAsync(alphaAskOpen, 40_000))
   check('beta parked one of its own (a mid-turn session drains at the quit, never parks — it stays a live row)', await untilAsync(askOpen(sidB), 40_000))
   await untilAsync(() => api.requests.length >= 2, 40_000)
   await new Promise(r => setTimeout(r, 2500))
 
-  console.log('R4 the parked REPL card stays dead under the Concourse while the in-pane card answers')
+  console.log('R4 the parked Chat card stays dead under the Concourse while the in-pane card answers')
   const plainFolder = join(SCRATCH, 'plain-folder')
   mkdirSync(plainFolder, { recursive: true })
   await obligations.upsertObligation({
@@ -196,7 +196,7 @@ try {
   const r4Answered = markOf('leak-both-cards', 'after-first-2')
   const noteLine = [...r4Answered, ...r4].find(l => /refused|unknown|already-answered|denied/.test(l)) ?? ''
   check('R4 the pane card ANSWERED (its receipt painted on the strip)', noteLine !== '', r4Answered.filter(l => l.includes('│')).slice(-8).map(l => l.trim().slice(0, 70)).join(' | '))
-  check('R4 alpha\'s parked ask is STILL parked (the covered REPL card answered nothing)', await alphaAskOpen())
+  check('R4 alpha\'s parked ask is STILL parked (the covered Chat card answered nothing)', await alphaAskOpen())
   check('R4 neither probe\'s Bash ran (no tool result)', !existsSync(join(SCRATCH, 'nothing-here')) && !existsSync(join(SCRATCH, 'nothing-here-beta')) && !r4.some(l => l.includes('Tidied')))
   for (const o of await obligations.openObligations({ scope: 'switchboard' })) {
     if (o.ref === 'permission:git-init:deadbeef0001') await obligations.resolveObligation(o.obligationId, { kind: 'withdrawn', by: 'prover', scope: 'switchboard' } as never)

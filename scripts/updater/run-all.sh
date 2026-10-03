@@ -4,7 +4,7 @@
 # gate-watch: src/services/privateChannel/** src/cli/update.ts src/cli/installVerb.ts
 # gate-watch: scripts/release/** .github/workflows/private-release.yml package.json src/constants/changelog.ts THIRD_PARTY_NOTICES.md
 # gate-watch: assets/splash/mercury-splash.mjs src/utils/windowsPaths.ts
-# gate-watch: scripts/lib/settingsPopupHarness.ts src/components/App.tsx src/components/BootSplashScreen.tsx src/components/SurfaceRouter.tsx src/screens/REPL.tsx src/state/AppState.tsx src/state/AppStateStore.ts
+# gate-watch: scripts/lib/settingsPopupHarness.ts src/components/App.tsx src/components/BootSplashScreen.tsx src/components/SurfaceRouter.tsx src/screens/Chat.tsx src/state/AppState.tsx src/state/AppStateStore.ts
 # gate-watch: src/keybindings/KeybindingProviderSetup.tsx src/context/surfaceRoute.ts src/hooks/useLayoutTier.ts src/utils/config.ts src/input-core/pending-input.ts src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts src/utils/daemonStanddown.ts
 # gate-watch: assets/splash/splash-core.mjs docs/COMPATIBILITY.md docs/INSTALL-WINDOWS-FROM-SOURCE.md docs/TERMINAL-RUNTIME.md docs/releases/1.0.0-beta.3.md scripts/distribution/generate-third-party-notices.ts
 # gate-watch: scripts/gate/gate-ledger.jsonl scripts/lib/proofHomePreload.ts scripts/ops/launcher-mercury.sh scripts/splash/run-all.sh scripts/vendor/build-desktop.ts scripts/vendor/build-voice.ts

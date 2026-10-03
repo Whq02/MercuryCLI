@@ -9,32 +9,32 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
 
-const repl = read('src/screens/REPL.tsx')
+const repl = read('src/screens/Chat.tsx')
 
 check(
-  'G1 replSurfaceCovered subscribes the surface-route store',
+  'G1 chatSurfaceCovered subscribes the surface-route store',
   repl.includes('useSyncExternalStore(') &&
     repl.includes('subscribeSurfaceRoute') &&
-    /const replSurfaceCovered = useSyncExternalStore\(\s*subscribeSurfaceRoute/.test(repl),
+    /const chatSurfaceCovered = useSyncExternalStore\(\s*subscribeSurfaceRoute/.test(repl),
 )
 check(
-  "G1 …and reads currentSurfaceRoute().kind !== 'repl' (covered = not the REPL's frame)",
-  /const replSurfaceCovered = useSyncExternalStore\([\s\S]{0,160}currentSurfaceRoute\(\)\.kind !== 'repl'/.test(repl),
-)
-
-check(
-  'G2 the permission overlay render requires !replSurfaceCovered',
-  /focusedInputDialog === 'tool-permission' && toolUseConfirmQueue\[0\] && !replSurfaceCovered/.test(repl),
+  "G1 …and reads currentSurfaceRoute().kind !== 'repl' (covered = not the Chat's frame)",
+  /const chatSurfaceCovered = useSyncExternalStore\([\s\S]{0,160}currentSurfaceRoute\(\)\.kind !== 'repl'/.test(repl),
 )
 
 check(
-  'G3 the message selector render requires !replSurfaceCovered',
-  /focusedInputDialog === 'message-selector' && !replSurfaceCovered/.test(repl),
+  'G2 the permission overlay render requires !chatSurfaceCovered',
+  /focusedInputDialog === 'tool-permission' && toolUseConfirmQueue\[0\] && !chatSurfaceCovered/.test(repl),
+)
+
+check(
+  'G3 the message selector render requires !chatSurfaceCovered',
+  /focusedInputDialog === 'message-selector' && !chatSurfaceCovered/.test(repl),
 )
 
 check(
   'G4 the bottom dialogs are null when covered',
-  /const focusedBottomDialog: React\.ReactNode = replSurfaceCovered \? null :/.test(repl),
+  /const focusedBottomDialog: React\.ReactNode = chatSurfaceCovered \? null :/.test(repl),
 )
 
 {
@@ -53,15 +53,15 @@ check(
   check("G7 the scope context defaults to 'repl' (the parked tree's scope)", /createContext<SurfaceKind>\('repl'\)/.test(scopeMod))
   check('G7 SurfaceRouter provides route.kind around the surface render', /<RouteSurfaceScopeContext\.Provider value=\{route\.kind\}>[\s\S]{0,400}entry\.render\(route\)/.test(router))
   check('G7 the hooks read the scope', (kb.match(/useContext\(RouteSurfaceScopeContext\)/g) ?? []).length === 2)
-  check("G7 the surface gets its own KeybindingSetup (the REPL's provider mounts beneath the router)", /<KeybindingSetup>[\s\S]{0,200}entry\.render\(route\)/.test(router))
+  check("G7 the surface gets its own KeybindingSetup (the Chat's provider mounts beneath the router)", /<KeybindingSetup>[\s\S]{0,200}entry\.render\(route\)/.test(router))
   const scopeOnly = "function coveredFor(scope: SurfaceKind) {\n  const current = currentSurfaceRoute().kind\n  return current !== scope\n}"
   check("G7 poison: a scope-only gate (no kind !== 'repl') does NOT satisfy the covered needle", !/current !== 'repl' && current !== scope/.test(scopeOnly))
 }
 
 {
   const preFix = "focusedInputDialog === 'tool-permission' && toolUseConfirmQueue[0] ? ("
-  check('G6 poison: the pre-fix ungated overlay shape does NOT satisfy the gate needle', !/focusedInputDialog === 'tool-permission' && toolUseConfirmQueue\[0\] && !replSurfaceCovered/.test(preFix))
-  const wrong = "const replSurfaceCovered = useSyncExternalStore(subscribeSurfaceRoute, () => currentSurfaceRoute().kind === 'repl'"
+  check('G6 poison: the pre-fix ungated overlay shape does NOT satisfy the gate needle', !/focusedInputDialog === 'tool-permission' && toolUseConfirmQueue\[0\] && !chatSurfaceCovered/.test(preFix))
+  const wrong = "const chatSurfaceCovered = useSyncExternalStore(subscribeSurfaceRoute, () => currentSurfaceRoute().kind === 'repl'"
   check('G6 poison: an inverted predicate (kind === repl) does NOT satisfy the covered needle', !/currentSurfaceRoute\(\)\.kind !== 'repl'/.test(wrong))
 }
 

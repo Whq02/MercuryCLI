@@ -23,7 +23,7 @@
 # gate-watch: src/utils/Shell.ts src/substrate/envStamps.ts src/tools/shared/sessionEnvNotice.ts src/tools/PowerShellTool/PowerShellTool.tsx
 # gate-watch: src/utils/toolErrors.ts src/utils/waitCeiling.ts src/tools/BashTool/utils.ts src/tools/BashTool/maxOutputChars.ts src/tools/PowerShellTool/prompt.ts
 # gate-watch: src/Tool.ts src/bootstrap/state.ts src/cli/run.ts src/constants/subagentDoctrine.ts
-# gate-watch: src/daemon/main.ts src/entrypoints/init.ts src/ink/components/App.tsx src/screens/REPL.tsx
+# gate-watch: src/daemon/main.ts src/entrypoints/init.ts src/ink/components/App.tsx src/screens/Chat.tsx
 # gate-watch: src/services/ide/cppProject.ts src/state/AppStateStore.ts src/tasks/taskOutcomeEnvelope.ts
 # gate-watch: src/tools/WorkflowTool/WorkflowTool.tsx src/utils/* src/utils/bash/shellQuote.ts
 # gate-watch: src/utils/bash/specs/** src/utils/hooks/execution.ts src/utils/permissions/**

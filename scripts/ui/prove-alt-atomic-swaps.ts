@@ -60,7 +60,7 @@ check(
     /enterAlternateScreen\(\): void \{[\s\S]{0,600}enterEditorBytes\(/.test(ink),
 )
 
-console.log('── c. pre-REPL exits stay covered (regression pins) ──')
+console.log('── c. pre-Chat exits stay covered (regression pins) ──')
 const hold = readFileSync('src/ink/launcherAltHold.ts', 'utf8')
 check(
   'an unconsumed launcher hold is released on process exit',

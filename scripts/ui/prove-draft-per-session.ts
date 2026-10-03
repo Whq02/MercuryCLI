@@ -15,10 +15,10 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-console.log('§1 the owners (REPL swap · PromptInput cursor · owner-keyed persistence)')
-const repl = readFileSync('src/screens/REPL.tsx', 'utf8')
+console.log('§1 the owners (Chat swap · PromptInput cursor · owner-keyed persistence)')
+const repl = readFileSync('src/screens/Chat.tsx', 'utf8')
 check(
-  'the REPL hop effect owns the swap, mount-skip guarded',
+  'the Chat hop effect owns the swap, mount-skip guarded',
   repl.includes('rekeyedSessionRef.current !== focusedSessionId') &&
     repl.includes("pendingInput.rekeyToSession(focusedSessionId === '' ? null : focusedSessionId, { landing })"),
 )

@@ -13,7 +13,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
-const repl = readFileSync(join(root, 'src', 'screens', 'REPL.tsx'), 'utf-8')
+const repl = readFileSync(join(root, 'src', 'screens', 'Chat.tsx'), 'utf-8')
 const home = readFileSync(join(root, 'src', 'components', 'MercuryHome.tsx'), 'utf-8')
 
 console.log('============================================================')
@@ -27,9 +27,9 @@ const launchTrueCallers = execSync(`grep -rn "setLaunchRipple(true)" "${join(roo
 check('setLaunchRipple(true) is called NOWHERE in src/ (the branch only ever rendered null)', launchTrueCallers === '')
 
 section('the dead chain is gone')
-check('REPL.tsx no longer imports LaunchRipple / launchRippleEnabled', !/LaunchRipple|launchRippleEnabled/.test(repl))
-check('REPL.tsx no longer has the launchRipple / launchElapsed state or the ms-clock', !/launchRipple|launchElapsed|setLaunchRipple/.test(repl))
-check('REPL.tsx no longer has the satellite-dead submitCountRef', !/submitCountRef/.test(repl))
+check('Chat.tsx no longer imports LaunchRipple / launchRippleEnabled', !/LaunchRipple|launchRippleEnabled/.test(repl))
+check('Chat.tsx no longer has the launchRipple / launchElapsed state or the ms-clock', !/launchRipple|launchElapsed|setLaunchRipple/.test(repl))
+check('Chat.tsx no longer has the satellite-dead submitCountRef', !/submitCountRef/.test(repl))
 check('LaunchRipple.tsx is deleted', !existsSync(join(root, 'src', 'components', 'mercury-ui', 'LaunchRipple.tsx')))
 check('MercuryHome.tsx no longer exports the orphan LAUNCH_ORIGIN_*_FRAC consts', !/LAUNCH_ORIGIN_(COL|ROW)_FRAC/.test(home))
 const dangling = execSync(

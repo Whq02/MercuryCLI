@@ -19,7 +19,7 @@ export interface ConcourseControlSpec {
 
 export const CONCOURSE_CONTROLS: readonly ConcourseControlSpec[] = [
   { id: 'crumb:boot', action: 'route:boot-settings', region: 'header', modes: ['browse'], keys: [], pointer: 'activate', receipt: 'route-transition' },
-  { id: 'crumb:main-repl', action: 'route:root-repl', region: 'header', modes: ['browse'], keys: ['escape'], pointer: 'activate', receipt: 'route-transition' },
+  { id: 'crumb:focused-chat', action: 'route:root-repl', region: 'header', modes: ['browse'], keys: ['escape'], pointer: 'activate', receipt: 'route-transition' },
   { id: 'crumb:concourse', action: 'none', region: 'header', modes: ['browse'], keys: [], pointer: 'none', receipt: 'none', informational: true },
   { id: 'needs-you:row', action: 'concourse:select-obligation', region: 'needs-you', modes: ['browse'], keys: ['up', 'down'], pointer: 'select-then-activate', receipt: 'selection' },
   { id: 'needs-you:answer', action: 'concourse:answer-obligation', region: 'needs-you', modes: ['browse'], keys: ['return'], pointer: 'activate', receipt: 'obligation-settled' },

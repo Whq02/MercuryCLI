@@ -7,7 +7,7 @@ import { isProjectSession } from '../utils/sessionFilter.js';
 import type { BootProjectFact } from '../utils/bootCardFacts.js';
 import { getSessionId } from '../bootstrap/state.js';
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js';
-import { enterRootRepl } from '../context/surfaceRoute.js';
+import { enterRootChat } from '../context/surfaceRoute.js';
 import { boardHomedSessionIds } from '../daemon/concourseSupervisor.js';
 import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
@@ -391,7 +391,7 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
         } catch (e) {
           return e instanceof Error ? e.message : String(e);
         }
-        enterRootRepl();
+        enterRootChat();
         return null;
       })(),
     };
@@ -403,7 +403,7 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
       const { bornSession } = await import('../services/switchboard/bornSession.js');
       const born = await bornSession({ workspaceDir: getCwd() });
       if (!born.ok) return born.reason;
-      enterRootRepl();
+      enterRootChat();
       return null;
     })(),
   });

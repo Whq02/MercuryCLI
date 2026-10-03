@@ -16,7 +16,7 @@
 # gate-watch: src/components/mercury-ui/screens/crewPauseDoor.ts src/run-core/pauseGate.ts
 # gate-watch: src/state/crewLedger.ts
 # gate-watch: src/query.ts src/rows/turn.ts src/cli/headless/turnDriver.ts
-# gate-watch: src/screens/REPL.tsx src/components/messages/TranscriptNameplate.tsx src/utils/staticRender.tsx
+# gate-watch: src/screens/Chat.tsx src/components/messages/TranscriptNameplate.tsx src/utils/staticRender.tsx
 # gate-watch: src/tools/WorkflowTool/runControl.ts src/tools/WorkflowTool/WorkflowTool.tsx
 # gate-watch: src/components/messages/UserAgentNotificationMessage.tsx src/fabric/entryCodec.ts
 # gate-watch: src/fabric/ordinal.ts src/hooks/useCancelRequest.ts src/input-core/command-queue.ts

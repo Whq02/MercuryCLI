@@ -213,10 +213,9 @@ export async function recordTranscript(
   crewInfo?: CrewInfo,
   startingParentUuidHint?: UUID,
   allMessages?: readonly Message[],
-  replIds?: Set<string>,
 ): Promise<UUID | null> {
   transcriptMessagesVisited += messages.length
-  const cleanedMessages = cleanMessagesForLogging(messages, allMessages, replIds)
+  const cleanedMessages = cleanMessagesForLogging(messages, allMessages)
   const sessionId = getSessionId() as UUID
   const messageSet = await getSessionMessages(sessionId)
   const newMessages: typeof cleanedMessages = []

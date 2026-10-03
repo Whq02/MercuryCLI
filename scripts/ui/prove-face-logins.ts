@@ -371,7 +371,7 @@ t.section('§2 — ONE MACHINE, MANY SKINS (identity both directions; provider-o
   t.check('no sign-in record lives in the skin — the sign-in ledger records at the drivers, the machine records the anthropic arms, the first-login law is gone', !skin.includes('recordFirstLoginDefaultProvider') && !skin.includes('recordSignIn') && skin.includes('const settleLeg'))
 
   t.check('the model imports NO notification queue and NO AppState', !model.includes('context/notifications') && !model.includes('state/AppState'))
-  t.check('the model reaches no route verb', !model.includes('surfaceRoute') && !model.includes('enterRootRepl'))
+  t.check('the model reaches no route verb', !model.includes('surfaceRoute') && !model.includes('enterRootChat'))
   t.check('the in-chat skin hands its queue through the notify seam', skin.includes('notify: notice => addNotification(notice)'))
 
   const modelBody = model.slice(model.indexOf('export function createAnthropicLoginMachine'))
@@ -562,7 +562,7 @@ t.section('§5 — THE REAL MOUNT (staticRender with injected facts; the route c
   t.check('the mounted layer presents the LOGINS panel and the legend', frame.includes('LOGINS') && frame.includes('↑↓ move · ↵ sign in · esc back'))
 
   const screenSrc = read('src/components/BootLoginsScreen.tsx')
-  const routeTokens = ['surfaceRoute', 'enterRootRepl', 'settleAbsentChat', 'armRootCommand', 'initialMessage', 'enterConcourse']
+  const routeTokens = ['surfaceRoute', 'enterRootChat', 'settleAbsentChat', 'armRootCommand', 'initialMessage', 'enterConcourse']
   const routeHits = routeTokens.filter(tok => screenSrc.includes(tok))
   t.check('the logins layer module never touches the surface-route bridge', routeHits.length === 0, routeHits.join(','))
   t.check('the module imports the row owner and the two truth owners', screenSrc.includes("from './loginFamilyRows.js'") && screenSrc.includes('deriveFamilySlotGroups') && screenSrc.includes('resolveProviderUsability'))

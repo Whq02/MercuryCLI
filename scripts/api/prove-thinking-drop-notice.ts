@@ -185,7 +185,7 @@ section('§1b Mercury\'s own context edits are named, not read as a rewrite')
   const input = {
     messages: history as never,
     owner: 'notice-context' as never,
-    querySource: 'repl_main_thread' as const,
+    querySource: 'main_thread' as const,
     contentReplacementState: createContentReplacementState(),
     skipToolNames: new Set<string>(),
   }

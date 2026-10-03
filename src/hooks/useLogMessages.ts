@@ -5,8 +5,6 @@ import type { Message } from '../types/message.js'
 import { recordTranscript, flushSessionStorage } from '../utils/sessionStorage/writer.js'
 import {
   cleanMessagesForLogging,
-  collectReplIds,
-  collectReplIdsInto,
 } from '../utils/sessionStorage/chain.js'
 import { isChainParticipant } from '../utils/sessionStorage/paths.js'
 import { isCrewEnabled } from '../utils/crewEnabled.js'
@@ -38,9 +36,8 @@ export function isTurnBoundaryRow(m: Message): boolean {
 function lastLoggableUuid(
   slice: Message[],
   allMessages: readonly Message[],
-  replIds: Set<string>,
 ): UUID | undefined {
-  const transformed = cleanMessagesForLogging(slice, allMessages, replIds)
+  const transformed = cleanMessagesForLogging(slice, allMessages)
   for (let i = transformed.length - 1; i >= 0; i--) {
     const m = transformed[i]!
     if (isChainParticipant(m)) return m.uuid as UUID
@@ -52,7 +49,6 @@ export function useLogMessages(messages: Message[], ignore?: boolean): void {
   const lastRecordedLengthRef = useRef(0)
   const firstUuidRef = useRef<string | undefined>(undefined)
   const parentHintRef = useRef<UUID | undefined>(undefined)
-  const replIdsRef = useRef<Set<string>>(new Set())
   const lastFlushAtRef = useRef(Date.now())
   const seqRef = useRef(0)
 
@@ -71,15 +67,12 @@ export function useLogMessages(messages: Message[], ignore?: boolean): void {
     if (firstRender || headChanged || sameHeadShrink) {
       slice = messages
       incremental = false
-      replIdsRef.current = collectReplIds(messages)
     } else {
       slice = messages.slice(lastRecordedLengthRef.current)
       if (slice.length === 0) return
       incremental = true
-      collectReplIdsInto(replIdsRef.current, slice)
     }
 
-    const replIds = replIdsRef.current
     const crewInfo = isCrewEnabled()
       ? { crewName: getCrewName(), agentName: getAgentName() }
       : undefined
@@ -87,7 +80,7 @@ export function useLogMessages(messages: Message[], ignore?: boolean): void {
     const seq = ++seqRef.current
 
     if (incremental || firstRender || sameHeadShrink) {
-      const synced = lastLoggableUuid(slice, messages, replIds)
+      const synced = lastLoggableUuid(slice, messages)
       if (synced !== undefined) parentHintRef.current = synced
     }
 
@@ -99,7 +92,6 @@ export function useLogMessages(messages: Message[], ignore?: boolean): void {
       crewInfo,
       hint,
       messages,
-      replIds,
     ).then(async returnedParent => {
       if (headChanged && returnedParent !== null && seq === seqRef.current) {
         parentHintRef.current = returnedParent

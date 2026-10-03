@@ -34,7 +34,7 @@ import type {
 import type { AggregatedHookResult, HookBlockingError } from './types.js'
 import { checkLeaseGuard } from '../crew/leaseGuard.js'
 import { executeHooks } from './engine.js'
-import { executeHooksOutsideREPL } from './outsideRepl.js'
+import { executeLifecycleHooks } from './lifecycleHooks.js'
 import { hasHookForEvent } from './matching.js'
 import { parseElicitationHookOutput } from './outputProcessing.js'
 import type {
@@ -42,7 +42,7 @@ import type {
   ElicitationHookResult,
   ElicitationResponse,
   ElicitationResultHookResult,
-  HookOutsideReplResult,
+  HookLifecycleResult,
   InstructionsLoadReason,
   InstructionsMemoryType,
 } from './types.js'
@@ -54,7 +54,7 @@ import {
 import { execCommandHook } from './execution.js'
 import { jsonStringify } from '../slowOperations.js'
 
-export function hasBlockingResult(results: HookOutsideReplResult[]): boolean {
+export function hasBlockingResult(results: HookLifecycleResult[]): boolean {
   return results.some(r => r.blocked)
 }
 
@@ -236,7 +236,7 @@ export async function executeNotificationHooks(
     notification_type: notificationType,
   }
 
-  await executeHooksOutsideREPL({
+  await executeLifecycleHooks({
     hookInput,
     timeoutMs,
     matchQuery: notificationType,
@@ -264,7 +264,7 @@ export async function executeStopFailureHooks(
     last_assistant_message: lastAssistantText,
   }
 
-  await executeHooksOutsideREPL({
+  await executeLifecycleHooks({
     getAppState: toolUseContext?.getAppState,
     hookInput,
     timeoutMs,
@@ -567,7 +567,7 @@ export async function executePreCompactHooks(
     custom_instructions: compactData.customInstructions,
   }
 
-  const results = await executeHooksOutsideREPL({
+  const results = await executeLifecycleHooks({
     hookInput,
     matchQuery: compactData.trigger,
     signal,
@@ -630,7 +630,7 @@ export async function executePostCompactHooks(
     compact_summary: compactData.compactSummary,
   }
 
-  const results = await executeHooksOutsideREPL({
+  const results = await executeLifecycleHooks({
     hookInput,
     matchQuery: compactData.trigger,
     signal,
@@ -692,7 +692,7 @@ export async function executeSessionEndHooks(
     reason,
   }
 
-  const results = await executeHooksOutsideREPL({
+  const results = await executeLifecycleHooks({
     getAppState,
     hookInput,
     matchQuery: reason,
@@ -724,7 +724,7 @@ export async function executeInterruptHooks(
   toolUseContext?: ToolUseContext,
   permissionMode?: string,
   timeoutMs: number = TOOL_HOOK_EXECUTION_TIMEOUT_MS,
-): Promise<HookOutsideReplResult[]> {
+): Promise<HookLifecycleResult[]> {
   try {
     const appState = toolUseContext?.getAppState()
     if (!hasHookForEvent('Interrupt', appState, getSessionId())) return []
@@ -738,7 +738,7 @@ export async function executeInterruptHooks(
       tools: [...interrupt.tools],
     }
 
-    const results = await executeHooksOutsideREPL({
+    const results = await executeLifecycleHooks({
       getAppState: toolUseContext?.getAppState,
       hookInput,
       timeoutMs,
@@ -803,7 +803,7 @@ export async function executeConfigChangeHooks(
   source: ConfigChangeSource,
   filePath?: string,
   timeoutMs: number = TOOL_HOOK_EXECUTION_TIMEOUT_MS,
-): Promise<HookOutsideReplResult[]> {
+): Promise<HookLifecycleResult[]> {
   const hookInput: ConfigChangeHookInput = {
     ...createBaseHookInput(undefined),
     hook_event_name: 'ConfigChange',
@@ -811,7 +811,7 @@ export async function executeConfigChangeHooks(
     file_path: filePath,
   }
 
-  const results = await executeHooksOutsideREPL({
+  const results = await executeLifecycleHooks({
     hookInput,
     timeoutMs,
     matchQuery: source,
@@ -828,11 +828,11 @@ async function executeEnvHooks(
   hookInput: HookInput,
   timeoutMs: number,
 ): Promise<{
-  results: HookOutsideReplResult[]
+  results: HookLifecycleResult[]
   watchPaths: string[]
   systemMessages: string[]
 }> {
-  const results = await executeHooksOutsideREPL({ hookInput, timeoutMs })
+  const results = await executeLifecycleHooks({ hookInput, timeoutMs })
   if (results.length > 0) {
     invalidateSessionEnvCache()
   }
@@ -848,7 +848,7 @@ export function executeCwdChangedHooks(
   newCwd: string,
   timeoutMs: number = TOOL_HOOK_EXECUTION_TIMEOUT_MS,
 ): Promise<{
-  results: HookOutsideReplResult[]
+  results: HookLifecycleResult[]
   watchPaths: string[]
   systemMessages: string[]
 }> {
@@ -866,7 +866,7 @@ export function executeFileChangedHooks(
   event: 'change' | 'add' | 'unlink',
   timeoutMs: number = TOOL_HOOK_EXECUTION_TIMEOUT_MS,
 ): Promise<{
-  results: HookOutsideReplResult[]
+  results: HookLifecycleResult[]
   watchPaths: string[]
   systemMessages: string[]
 }> {
@@ -916,7 +916,7 @@ export async function executeInstructionsLoadedHooks(
     parent_file_path: parentFilePath,
   }
 
-  await executeHooksOutsideREPL({
+  await executeLifecycleHooks({
     hookInput,
     timeoutMs,
     matchQuery: loadReason,
@@ -956,7 +956,7 @@ export async function executeElicitationHooks({
     requested_schema: requestedSchema,
   }
 
-  const results = await executeHooksOutsideREPL({
+  const results = await executeLifecycleHooks({
     hookInput,
     matchQuery: serverName,
     signal,
@@ -1008,7 +1008,7 @@ export async function executeElicitationResultHooks({
     content,
   }
 
-  const results = await executeHooksOutsideREPL({
+  const results = await executeLifecycleHooks({
     hookInput,
     matchQuery: serverName,
     signal,
@@ -1111,7 +1111,7 @@ export async function executeWorktreeCreateHook(
     name,
   }
 
-  const results = await executeHooksOutsideREPL({
+  const results = await executeLifecycleHooks({
     hookInput,
     timeoutMs: TOOL_HOOK_EXECUTION_TIMEOUT_MS,
   })
@@ -1150,7 +1150,7 @@ export async function executeWorktreeRemoveHook(
     worktree_path: worktreePath,
   }
 
-  const results = await executeHooksOutsideREPL({
+  const results = await executeLifecycleHooks({
     hookInput,
     timeoutMs: TOOL_HOOK_EXECUTION_TIMEOUT_MS,
   })

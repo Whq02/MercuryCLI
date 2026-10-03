@@ -10,10 +10,10 @@ const check = (label: string, ok: boolean) => {
   if (!ok) failures++
 }
 
-const repl = read('src/screens/REPL.tsx')
+const repl = read('src/screens/Chat.tsx')
 
 const resumeStart = repl.indexOf('const resume = useCallback(')
-check('REPL declares the resume useCallback', resumeStart !== -1)
+check('Chat declares the resume useCallback', resumeStart !== -1)
 const resumeEnd = repl.indexOf('resumeRef.current = resume', resumeStart)
 const resumeBody = repl.slice(resumeStart, resumeEnd)
 check('resume() re-points the focused slot through the one resume path', resumeBody.includes('focusResumedSession('))

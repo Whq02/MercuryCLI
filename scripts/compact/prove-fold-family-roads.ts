@@ -412,7 +412,7 @@ section("§8 the OpenAI road: the fold's request IS the session's last request p
       model,
       isNonInteractiveSession: true,
       hasAppendSystemPrompt: false,
-      querySource: 'repl_main_thread' as never,
+      querySource: 'main_thread' as never,
       agents: [],
       mcpTools: [],
       effortValue: 'xhigh' as never,

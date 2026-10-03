@@ -207,7 +207,7 @@ t.section('§4 — THE REAL MOUNT (staticRender, injected facts) + route silence
   t.check('§4 the mounted screen paints the held truth', frame.includes('2 held'))
 
   const screenSrc = readFileSync(join(process.cwd(), 'src/components/BootSaturnScreen.tsx'), 'utf8')
-  const routeTokens = ['surfaceRoute', 'enterRootRepl', 'settleAbsentChat', 'armRootCommand', 'initialMessage']
+  const routeTokens = ['surfaceRoute', 'enterRootChat', 'settleAbsentChat', 'armRootCommand', 'initialMessage']
   const routeHits = routeTokens.filter(tok => screenSrc.includes(tok))
   t.check('§4 the screen module never touches the surface-route bridge', routeHits.length === 0, routeHits.join(','))
   t.check("§4 the screen writes through 'set-schedule' and 'sessionDispatch' only", screenSrc.includes("action: 'set-schedule'") && screenSrc.includes("op: 'sessionDispatch'") && !/op: 'saturn/.test(screenSrc))

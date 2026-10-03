@@ -76,7 +76,7 @@ const { App } = await import('../../src/components/App.js')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
 const { useAppStateStore } = await import('../../src/state/AppState.js')
 const { SurfaceRouter } = await import('../../src/components/SurfaceRouter.js')
-const { REPL } = await import('../../src/screens/REPL.js')
+const { Chat } = await import('../../src/screens/Chat.js')
 const route = await import('../../src/context/surfaceRoute.js')
 const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.js')
 const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.js')
@@ -108,7 +108,7 @@ const store = (): AppStore => {
 }
 
 slot.setFocusedSessionConnector(Object.assign(new NoSessionConnector(), { sessionId: () => SESSION }))
-route.initializeSurfaceRoute(route.ROOT_REPL_ROUTE)
+route.initializeSurfaceRoute(route.ROOT_CHAT_ROUTE)
 resetChromeModeLatchForTests()
 pending.edit('')
 pending.setMode('prompt')
@@ -147,9 +147,9 @@ async function closeWith(m: Mounted, gone: () => boolean): Promise<boolean> {
   return waitFor(gone, 4000)
 }
 
-section('§0 the real chat at 178x51: the REPL screen and its composer in one in-process tree')
+section('§0 the real chat at 178x51: the Chat screen and its composer in one in-process tree')
 const m = await mountOffscreen(
-  h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined }, h(StoreTap, null), h(SurfaceRouter, null, h(REPL, { commands, initialTools: [] }))),
+  h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined }, h(StoreTap, null), h(SurfaceRouter, null, h(Chat, { commands, initialTools: [] }))),
   COLS,
   ROWS,
 )

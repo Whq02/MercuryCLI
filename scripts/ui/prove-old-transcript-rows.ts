@@ -49,7 +49,9 @@ function oldCrewRows(sid: string): Record<string, unknown>[] {
     attachment(4, 3, { type: 'team_context', agentId: `lead@${CREW}`, agentName: 'team-lead', teamName: CREW, teamConfigPath: join(home, 'teams', CREW, 'config.json'), taskListPath: join(home, 'tasks', CREW) }),
     assistant(5, 4, [{ type: 'tool_use', id: 'toolu_old_brief', name: 'TeamBrief', input: {} }]),
     result(6, 5, 'toolu_old_brief', `Roster: team-lead, atlas`),
-    attachment(10, 6, { type: 'teammate_mailbox', messages: [{ from: 'beacon', text: 'the manifest edit is in', timestamp: AT(10), color: 'green', summary: 'manifest edit landed' }] }),
+    assistant(7, 6, [{ type: 'tool_use', id: 'toolu_unknown_eval', name: 'REPL', input: {} }]),
+    result(8, 7, 'toolu_unknown_eval', 'unknown tool result kept'),
+    attachment(10, 8, { type: 'teammate_mailbox', messages: [{ from: 'beacon', text: 'the manifest edit is in', timestamp: AT(10), color: 'green', summary: 'manifest edit landed' }] }),
     attachment(16, 10, { type: 'crew_messages', messages: [{ from: 'comet', text: 'the crew kind row paints too', timestamp: AT(16), color: 'cyan', summary: 'crew kind row' }] }),
     attachment(17, 16, { type: 'queued_command', prompt: '<teammate-message teammate_id="delta" summary="OLD-TAG">OLD-TAG body from delta</teammate-message>', source_uuid: id(117), commandMode: 'prompt' }),
     attachment(18, 17, { type: 'queued_command', prompt: [{ type: 'text', text: '<crewmate-message crewmate_id="echo" color="green" summary="NEW-TAG queued from echo">\nNEW-TAG body from echo\n</crewmate-message>' }], source_uuid: id(118), commandMode: 'prompt' }),
@@ -62,7 +64,11 @@ try {
     const cfg = scenario('resume-2turn', band.cols, band.rows)
     const path = join(getProjectDir(RUNTIME_CWD), `${SID}.jsonl`)
     writeFileSync(path, encodeFixtureTranscript(oldCrewRows(SID), SID))
-    const sends = [{ awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 4, data: '', mark: 'opened' }]
+    const sends = [
+      { awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 4, data: '', mark: 'opened' },
+      { afterPrevTicks: 2, data: '\x1b[5~' },
+      { afterPrevTicks: 8, data: '', mark: 'earlier' },
+    ]
     const out = join(home, `${band.cols}.json`)
     const config = `${out}.cfg.json`
     writeFileSync(config, JSON.stringify({ ...cfg, sends, readyText: 'Type a prompt', total: 160, ...band, out }))
@@ -71,13 +77,17 @@ try {
     })
     let payload: Capture | undefined
     try { payload = JSON.parse(readFileSync(out, 'utf8')) as Capture } catch {}
-    const frame = rowsOf(payload?.marks?.find(mark => mark.label === 'opened')?.grid ?? payload?.grid ?? [])
+    const frame = [
+      ...rowsOf(payload?.marks?.find(mark => mark.label === 'earlier')?.grid ?? []),
+      ...rowsOf(payload?.marks?.find(mark => mark.label === 'opened')?.grid ?? payload?.grid ?? []),
+    ]
     if (frameDir !== undefined) writeFileSync(join(frameDir, `${band.cols}x${band.rows}.txt`), frame.join('\n') + '\n')
     const flat = frame.join('\n')
     check(`${band.cols}: the old transcript opens to the composer`, result.status === 0 && flat.includes('Type a prompt'), `rc ${result.status} ${(result.stderr ?? '').slice(-200)}`)
     check(`${band.cols}: nothing calls the file a retired format or fails to open it`, !/retired format|cannot be opened|Failed to load|could not be loaded/i.test(flat), frame.filter(r => /retired|cannot be opened|Failed/i.test(r)).join(' | '))
     check(`${band.cols}: the operator's own lines render`, flat.includes('charter the fixture team') && flat.includes('wrap it up'), frame.filter(r => /charter the fixture|wrap it up/.test(r)).join(' | '))
     check(`${band.cols}: a tool row whose tool Mercury does not have paints by its name, its result under it`, /TeamCreate/.test(flat) && flat.includes('Roster: team-lead, atlas'), frame.filter(r => /TeamCreate|TeamBrief|Roster/.test(r)).join(' | '))
+    check(`${band.cols}: an unknown execution tool keeps its name and result`, flat.includes('REPL') && flat.includes('unknown tool result kept'), frame.filter(r => /REPL|unknown tool result/.test(r)).join(' | '))
     const joined = frame.map(r => (r.endsWith('│') ? r.split('│').slice(-2)[0]! : r.replace(/│/g, ' '))).join(' ').replace(/\s+/g, ' ')
     const order = ['[sam] ❯ charter the fixture team', 'TeamCreate', 'TeamBrief', '❯ @comet crew kind row', 'OLD-TAG body from delta', '❯ @echo NEW-TAG queued from echo', '[sam] ❯ thanks, wrap it up'].map(needle => joined.indexOf(needle))
     check(`${band.cols}: every row paints, in the transcript's order`, order.every(i => i >= 0) && order.every((i, k) => k === 0 || i > order[k - 1]!), order.join(','))

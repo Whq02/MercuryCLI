@@ -203,8 +203,8 @@ section('W5 · awaitContextWindowSource lands the source before a decision; boot
 
 section('W6 · the edges are wired (source pins)')
 {
-  const repl = src('src/screens/REPL.tsx')
-  check('REPL boot warms the local discovery only (deferred one macrotask past the mount); no provider catalogue is fetched at boot', /import\('\.\.\/utils\/model\/contextWindowWarmup\.js'\)[\s\S]{0,80}warmContextWindowSources\(\)/.test(repl) && !/refreshOpenaiCatalogue|refreshOpenrouterCatalogue|refreshGeminiCatalogue|refreshHuggingfaceCatalogue/.test(src('src/utils/model/contextWindowWarmup.ts').slice(src('src/utils/model/contextWindowWarmup.ts').indexOf('export async function warmContextWindowSources'))))
+  const repl = src('src/screens/Chat.tsx')
+  check('Chat boot warms the local discovery only (deferred one macrotask past the mount); no provider catalogue is fetched at boot', /import\('\.\.\/utils\/model\/contextWindowWarmup\.js'\)[\s\S]{0,80}warmContextWindowSources\(\)/.test(repl) && !/refreshOpenaiCatalogue|refreshOpenrouterCatalogue|refreshGeminiCatalogue|refreshHuggingfaceCatalogue/.test(src('src/utils/model/contextWindowWarmup.ts').slice(src('src/utils/model/contextWindowWarmup.ts').indexOf('export async function warmContextWindowSources'))))
   const orLane = src('src/services/providers/openrouter/openrouterCallModel.ts')
   check('the OpenRouter dispatch edge refreshes the catalogue (TTL\'d, fire-and-forget)', /refreshOpenrouterCatalogue\(account\.keySource\)\.catch/.test(orLane))
   const compact = src('src/services/compact/autoCompact.ts')

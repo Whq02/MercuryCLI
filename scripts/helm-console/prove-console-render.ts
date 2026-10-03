@@ -47,7 +47,7 @@ check('console section painted', conLine >= 0)
 check('console renders UNDER trace (the last section)', traceLine >= 0 && conLine > traceLine, `trace@${traceLine} con@${conLine}`)
 check('typed buffer landed in the console line', text.includes('what changed here'))
 const bufLine = lines.find(l => l.includes('what changed here')) ?? ''
-check('…with the ❯ REPL prompt', bufLine.includes('❯'))
+check('…with the ❯ Chat prompt', bufLine.includes('❯'))
 check('…and the ▌ block cursor', bufLine.includes('▌'))
 check('compose hint advertises armed keys', text.includes('↵ ask'))
 const occurrences = lines.filter(l => l.includes('what changed here')).length

@@ -1,5 +1,5 @@
 
-type ReplSource = 'repl_main_thread'
+type MainThreadSource = 'main_thread'
 
 type SdkSource = 'sdk'
 
@@ -53,7 +53,7 @@ type UtilitySource =
   | 'advisor'
 
 export type QuerySource =
-  | ReplSource
+  | MainThreadSource
   | SdkSource
   | AgentSource
   | CompactionSource

@@ -57,7 +57,7 @@ export type AggregatedHookResult = {
   retry?: boolean
 }
 
-export type HookOutsideReplResult = {
+export type HookLifecycleResult = {
   command: string
   succeeded: boolean
   output: string

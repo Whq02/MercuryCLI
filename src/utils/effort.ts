@@ -608,7 +608,7 @@ export function getDefaultEffortForModel(model: string): EffortValue | undefined
 
 export function isTurnOwningQuerySource(querySource: string | undefined): boolean {
   if (querySource === undefined) return false
-  return querySource.startsWith('repl_main_thread') || querySource === 'sdk' || querySource.startsWith('agent:')
+  return querySource.startsWith('main_thread') || querySource === 'sdk' || querySource.startsWith('agent:')
 }
 
 export function shouldReconfirmEffortAfterModelChange(

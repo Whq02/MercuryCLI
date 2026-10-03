@@ -60,7 +60,7 @@ try {
   replResidue = execFileSync('grep', ['-rn', '-E', 'managerMode|ManagerCards|MANAGER_MODE', 'src/screens/'], { encoding: 'utf8' });
 } catch {
 }
-check('the main REPL never sees manager mode (coordinator REPL only)', replResidue.trim() === '', replResidue.trim());
+check('the main Chat never sees manager mode (coordinator Chat only)', replResidue.trim() === '', replResidue.trim());
 let importers = '';
 try {
   importers = execFileSync('grep', ['-rln', 'ManagerCards.js', 'src/'], { encoding: 'utf8' });

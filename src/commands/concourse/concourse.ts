@@ -22,6 +22,6 @@ export const call: LocalCommandCall = async () => {
   }
   return {
     type: 'text',
-    value: 'Session Concourse opened — esc returns to the root REPL.',
+    value: 'Session Concourse opened — esc returns to the root chat.',
   }
 }

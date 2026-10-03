@@ -61,7 +61,7 @@ const build = (harnessContextPolicy: 'preserve-all' | 'bounded-optional' | null,
     {
       messages: msgs as never,
       owner: OWNER,
-      querySource: 'repl_main_thread' as never,
+      querySource: 'main_thread' as never,
       contentReplacementState: undefined,
       skipToolNames: new Set<string>(),
       harnessContextPolicy,

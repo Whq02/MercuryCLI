@@ -169,7 +169,7 @@ console.log('\nI5 THE FOCUS LAW — /compact applies to the FOCUSED session (ope
   check('F1 /compact is a session-seat command (the one dispatch rule routes it to the focused chat)', commandSeat(compactCommand as never) === 'session')
 
   const root = join(import.meta.dir, '..', '..')
-  const repl = readFileSync(join(root, 'src/screens/REPL.tsx'), 'utf8')
+  const repl = readFileSync(join(root, 'src/screens/Chat.tsx'), 'utf8')
   check(
     'F2 the submit captures the focused connector and delivers through it',
     repl.includes('const focusedNow = getFocusedSessionConnector()') && repl.includes('focusedNow\n        .sendWords(text'),
@@ -182,7 +182,7 @@ console.log('\nI5 THE FOCUS LAW — /compact applies to the FOCUSED session (ope
   const seat = readFileSync(join(root, 'src/daemon/sessionSeat.ts'), 'utf8')
   check("F4 the seat publishes the tail under the seat's own session id", seat.includes('sessionId: seat.sessionId'))
   check("F4 the connector reads its own record's tail", connector.includes('readSessionTail(this.record.sessionId)'))
-  check('F4 the REPL paints the FOCUSED live view', repl.includes('subscribeFocusedSeatLive'))
+  check('F4 the Chat paints the FOCUSED live view', repl.includes('subscribeFocusedSeatLive'))
   const blank = readFileSync(join(root, 'src/services/engine-connector/noSessionConnector.ts'), 'utf8')
   check('F5 the blank chat refuses the send (REFUSED_NO_CHAT) — no global fold exists', /sendWords\(\): Promise<SendReceiptV1> \{\s*\n\s*return REFUSED_NO_CHAT/.test(blank))
   const helmConsole = readFileSync(join(root, 'src/utils/cockpit/helmConsole.ts'), 'utf8')

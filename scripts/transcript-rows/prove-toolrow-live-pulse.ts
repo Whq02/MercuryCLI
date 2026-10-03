@@ -230,9 +230,9 @@ section('§C the daemon-hosted feed seams (source locks, call-shaped)')
     "MessageRow's animation permission derives from the in-progress set",
     messageRow.includes('inProgressToolUseIDs.has(toolUseID))'),
   )
-  const repl = readFileSync(join(root, 'screens/REPL.tsx'), 'utf8')
+  const repl = readFileSync(join(root, 'screens/Chat.tsx'), 'utf8')
   check(
-    "the REPL's view set is the CONNECTOR's live set (the daemon-hosted feed)",
+    "the Chat's view set is the CONNECTOR's live set (the daemon-hosted feed)",
     repl.includes('const viewInProgressToolUseIDs = seatLive.inProgressToolUseIDs;'),
   )
   const connector = readFileSync(join(root, 'services/engine-connector/daemonConnector.ts'), 'utf8')

@@ -11,7 +11,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 const root = join(import.meta.dir, '..', '..')
-const repl = readFileSync(join(root, 'src/screens/REPL.tsx'), 'utf8')
+const repl = readFileSync(join(root, 'src/screens/Chat.tsx'), 'utf8')
 const spinner = readFileSync(join(root, 'src/components/Spinner.tsx'), 'utf8')
 
 console.log('compact vs the running turn — the honest immediate answer')

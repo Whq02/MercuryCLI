@@ -202,7 +202,7 @@ t.section('§7 — THE REAL MOUNT (staticRender with an injected certificate)')
   t.check('the mounted screen presents the status words on the rows', frame.includes('warn') && frame.includes('stale'))
   t.check('the mounted screen presents the list legend', frame.includes('d deep · r re-run · esc back'))
 
-  const routeTokens = ['surfaceRoute', 'enterRootRepl', 'settleAbsentChat', 'armRootCommand', 'initialMessage']
+  const routeTokens = ['surfaceRoute', 'enterRootChat', 'settleAbsentChat', 'armRootCommand', 'initialMessage']
   const routeHits = routeTokens.filter(tok => screenSrc.includes(tok))
   t.check('the screen module never touches the surface-route bridge', routeHits.length === 0, routeHits.join(','))
 }
@@ -252,18 +252,18 @@ t.section('§9 — THE RESUME MOUNT (staticRender with an injected model; the la
   const armedTokens = ['armedRootCommand', 'armRootCommand', 'initialMessage', 'settleAbsentChat']
   const armedHits = armedTokens.filter(tok => resumeSrc.includes(tok))
   t.check('the resume screen never touches the armed-command road', armedHits.length === 0, armedHits.join(','))
-  t.check('the resume screen lands through the one resume door (with the boot posture) then the plain chat step', resumeSrc.includes('focusResumedSession(String(sessionId), log.fullPath, {') && resumeSrc.includes('permissionMode: permissionModeRef.current') && resumeSrc.includes('enterRootRepl()') && !resumeSrc.includes('enterRootRepl({'))
+  t.check('the resume screen lands through the one resume door (with the boot posture) then the plain chat step', resumeSrc.includes('focusResumedSession(String(sessionId), log.fullPath, {') && resumeSrc.includes('permissionMode: permissionModeRef.current') && resumeSrc.includes('enterRootChat()') && !resumeSrc.includes('enterRootChat({'))
   const coreSrcModel = read('src/components/mercury-ui/screens/sessionPickerModel.ts')
-  t.check('the picker core module reaches no route verb at all', !coreSrcModel.includes('surfaceRoute') && !coreSrcModel.includes('enterRootRepl'))
+  t.check('the picker core module reaches no route verb at all', !coreSrcModel.includes('surfaceRoute') && !coreSrcModel.includes('enterRootChat'))
 }
 
 t.section('§10 — THE WIRING + THE RETIREMENT (C4: the rows open the layers; the armed road survives for Continue alone)')
 {
   const face = read('src/components/BootSplashScreen.tsx')
   const healthCase = face.slice(face.indexOf("case 'health':"), face.indexOf("case 'concourse':"))
-  t.check("the Health row opens the face's health layer and arms NOTHING", healthCase.includes('setHealthOpen(true)') && !healthCase.includes('armRootCommand') && !healthCase.includes('enterRootRepl'), healthCase.slice(0, 120))
+  t.check("the Health row opens the face's health layer and arms NOTHING", healthCase.includes('setHealthOpen(true)') && !healthCase.includes('armRootCommand') && !healthCase.includes('enterRootChat'), healthCase.slice(0, 120))
   const resumeCase = face.slice(face.indexOf("case 'sessions':"), face.indexOf('}\n    return null;'))
-  t.check("the Sessions · Projects row opens the face's picker layer and arms NOTHING", resumeCase.includes('setResumeOpen(true)') && !resumeCase.includes('armRootCommand') && !resumeCase.includes('enterRootRepl'), resumeCase.slice(0, 120))
+  t.check("the Sessions · Projects row opens the face's picker layer and arms NOTHING", resumeCase.includes('setResumeOpen(true)') && !resumeCase.includes('armRootCommand') && !resumeCase.includes('enterRootChat'), resumeCase.slice(0, 120))
   t.check('the health layer mounts with the esc-home wiring', face.includes('<BootHealthScreen') && face.includes('onClose={() => setHealthOpen(false)}'))
   t.check('the resume layer mounts with the esc-home wiring', face.includes('<BootResumeScreen') && face.includes('onClose={() => setResumeOpen(false)}'))
   t.check('the face list parks while a layer owns the screen', face.includes('!settingsOpen && !kitOpen && !healthOpen && !resumeOpen && !saturnOpen && !agentsOpen && !loginsOpen && !modelDefaultOpen,'))
@@ -271,13 +271,13 @@ t.section('§10 — THE WIRING + THE RETIREMENT (C4: the rows open the layers; t
   t.check('the arming helper is GONE from the face', !face.includes('armRootCommand') && !face.includes('initialMessage'))
   t.check('Continue rides the one resume door directly, posture aboard, refusal on the row', face.includes('focusResumedSession(sid, target.transcriptPath ?? undefined') && face.includes('permissionMode: permissionModeRef.current') && face.includes('if (!outcome.ok) return outcome.reason;'))
   const route = read('src/context/surfaceRoute.ts')
-  t.check('the route owner carries NO armed exception (enterRootRepl refuses without a chat, full stop)', !route.includes('armedRootCommand') && route.includes('export function enterRootRepl(): ChatEntry {'))
-  const launcher = read('src/replLauncher.tsx')
+  t.check('the route owner carries NO armed exception (enterRootChat refuses without a chat, full stop)', !route.includes('armedRootCommand') && route.includes('export function enterRootChat(): ChatEntry {'))
+  const launcher = read('src/chatLauncher.tsx')
   t.check(
     'the surviving sessionless road lands through the resolver (initializeSurfaceRoute), never through the root verb',
     launcher.includes('const initialSurface = await surfaceRoute.resolveInitialSurface();') &&
       launcher.includes('surfaceRoute.initializeSurfaceRoute(initialSurface.effective);') &&
-      !launcher.includes('enterRootRepl('),
+      !launcher.includes('enterRootChat('),
   )
 }
 

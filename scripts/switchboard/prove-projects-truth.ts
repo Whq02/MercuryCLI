@@ -59,7 +59,7 @@ const read = (rel: string): string => readFileSync(rel, 'utf8')
   check('T3 the pick rides the ONE resume door with the row transcript', open.includes('focusResumedSession(p.sessionId, p.transcriptPath'))
   check('T3 a history-less row births a session there (never a chat off the board)', open.includes('bornSession({ workspaceDir: p.dir') && !open.includes('focusNascentSession'))
   check('T3 the ground move gates on the trust ledger', open.includes('isPathTrusted(p.dir)'))
-  check('T3 the pick lands in the MAIN chat (never a board detour)', open.includes('enterRootRepl()'))
+  check('T3 the pick lands in the MAIN chat (never a board detour)', open.includes('enterRootChat()'))
   const owner = read('src/utils/bootCardFacts.ts')
   check('T3 the owner threads the newest transcript path', owner.includes('transcriptPath: newest !== null ? newest.file : null'))
 }

@@ -123,9 +123,9 @@ section('§6 — consumer-QoL source invariants')
   const shortcuts = src('components', 'HelpV2', 'ShortcutsTab.tsx')
   check('shortcut help splits everyday from advanced', /head: 'everyday'/.test(shortcuts) && /head: 'advanced'/.test(shortcuts))
   const promptInput = src('components', 'PromptInput', 'PromptInput.tsx')
-  const replFloor = src('components', 'mercury-ui', 'replFloor.ts')
-  check('resting composer border is structural; composing regains the accent (shared replFloor owner)',
-    /empty \? 'promptBorderResting' : 'promptBorder'/.test(replFloor) &&
+  const composerFloor = src('components', 'mercury-ui', 'composerFloor.ts')
+  check('resting composer border is structural; composing regains the accent (shared composerFloor owner)',
+    /empty \? 'promptBorderResting' : 'promptBorder'/.test(composerFloor) &&
     /composerBorderRole\(input === ''\)/.test(promptInput))
   check('the composer text tint is the CENTRAL accentSoft (no local lerp)',
     /userTextColor: composerBloom/.test(promptInput))

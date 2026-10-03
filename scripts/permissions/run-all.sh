@@ -18,7 +18,7 @@
 # gate-watch: src/daemon/permissionAsks.ts src/daemon/sessionKit.ts src/daemon/warmRunner.ts
 # gate-watch: src/hooks/useCancelRequest.ts src/ink.ts
 # gate-watch: src/ink/components/StdinContext.ts src/ink/components/TerminalSizeContext.tsx src/ink/stringWidth.ts
-# gate-watch: src/interactiveHelpers.tsx src/main.tsx src/screens/REPL.tsx src/services/agents/codec.ts
+# gate-watch: src/interactiveHelpers.tsx src/main.tsx src/screens/Chat.tsx src/services/agents/codec.ts
 # gate-watch: src/services/desktop/toolName.ts src/services/engine-connector/daemonConnector.ts
 # gate-watch: src/services/instructions/engine.ts src/services/lsp/** src/services/mcp/** src/services/providers/**
 # gate-watch: src/services/switchboard/bootBirthFacts.ts src/services/switchboard/runnerArgv.ts

@@ -115,7 +115,7 @@ export function dateToFilename(date: Date): string {
 
 
 export function captureAPIRequest(params: ApiRequestParams, querySource?: QuerySource): void {
-  if (!querySource || !String(querySource).startsWith('repl_main_thread')) return
+  if (!querySource || !String(querySource).startsWith('main_thread')) return
   const { messages: _messages, ...rest } = params
   setLastAPIRequest(rest)
   setLastAPIRequestMessages(null)

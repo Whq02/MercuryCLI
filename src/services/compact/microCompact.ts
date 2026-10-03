@@ -120,7 +120,7 @@ export function estimateContextTokens(messages: Message[]): number {
 }
 
 
-const MAIN_THREAD_PREFIX = 'repl_main_thread'
+const MAIN_THREAD_PREFIX = 'main_thread'
 
 function isMainThreadSource(querySource: string | undefined): boolean {
   return querySource === undefined || querySource.startsWith(MAIN_THREAD_PREFIX)

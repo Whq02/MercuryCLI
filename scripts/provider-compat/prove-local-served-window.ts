@@ -290,7 +290,7 @@ section('10 · every road in ONE process: the main thread (62k) decides, a crewm
   await refreshLocalDiscovery({ force: true })
   check('the process snapshot states no window (probed with nothing loaded)', record().contextWindow === undefined)
   const roads: Array<{ label: string; chars: number; extra: Record<string, unknown> }> = [
-    { label: 'the main thread (62k tokens, repl_main_thread)', chars: 248_000, extra: { querySource: 'repl_main_thread' } },
+    { label: 'the main thread (62k tokens, main_thread)', chars: 248_000, extra: { querySource: 'main_thread' } },
     { label: 'a crewmate (17k tokens, Agent tool, mercury-crew)', chars: 68_000, extra: { agentId: 'agent-000001', querySource: 'agent:builtin:mercury-crew' } },
     { label: 'a workflow agent (57k tokens, Workflow tool agent() call)', chars: 228_000, extra: { agentId: 'agent-000002', querySource: 'agent:custom' } },
   ]

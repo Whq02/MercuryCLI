@@ -25,7 +25,7 @@ t.section('§1 — the speech feature has no module, no hook, no flag and no com
 t.check('no module under src carries companion in its name', srcFiles.every(p => !/companion/i.test(p)), srcFiles.filter(p => /companion/i.test(p)).join(', '))
 t.check('no src file names the speech seam or its hook', readersOf(/companionSignals|useCompanion|CompanionTurn|companionEngine|deckCompanion/).length === 0, readersOf(/companionSignals|useCompanion|CompanionTurn|companionEngine|deckCompanion/).join(', '))
 t.check('no command folder is named companion', !existsSync(join(REPO, 'src/commands/companion')))
-t.check('the turn-signal seam is the sleep reader\'s one source, named for what it carries', existsSync(join(REPO, 'src/utils/cockpit/turnSignals.ts')) && read('src/utils/cockpit/critterSleep.ts').includes("from './turnSignals.js'") && read('src/screens/REPL.tsx').includes("from '../utils/cockpit/turnSignals.js'"))
+t.check('the turn-signal seam is the sleep reader\'s one source, named for what it carries', existsSync(join(REPO, 'src/utils/cockpit/turnSignals.ts')) && read('src/utils/cockpit/critterSleep.ts').includes("from './turnSignals.js'") && read('src/screens/Chat.tsx').includes("from '../utils/cockpit/turnSignals.js'"))
 
 t.section('§2 — the big critter is gone: no size setting, no hero art reader, one small sprite')
 t.check('no src file reads critterSize or HERO_ART', readersOf(/critterSize|HERO_ART/).length === 0, readersOf(/critterSize|HERO_ART/).join(', '))

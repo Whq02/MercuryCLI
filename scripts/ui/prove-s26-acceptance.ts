@@ -139,11 +139,6 @@ section('structural pins — owner consumption (rule 4)')
     'the 700 ms hint floor is the shared min-display-time hook',
     collapsed.includes('useMinDisplayTime(rawHint, HINT_MIN_DISPLAY_MS)'),
   )
-  check(
-    'the REPL retry resolves through the primitive registry, keyed by the name set',
-    collapsed.includes('REPL_ONLY_TOOLS.has(entry.name)') &&
-      collapsed.includes('getReplPrimitiveTools()'),
-  )
 
   const toolDetail = src('src/components/mcp/MCPToolDetailView.tsx')
   check(

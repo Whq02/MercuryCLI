@@ -5,7 +5,7 @@ import type { QuerySource } from '../../constants/querySource.js'
 import { logError } from '../log.js'
 
 
-export type REPLHookContext = {
+export type ChatHookContext = {
   messages: Message[]
   systemPrompt: SystemPrompt
   userContext: { [k: string]: string }
@@ -14,7 +14,7 @@ export type REPLHookContext = {
   querySource?: QuerySource
 }
 
-export type PostSamplingHook = (context: REPLHookContext) => Promise<void> | void
+export type PostSamplingHook = (context: ChatHookContext) => Promise<void> | void
 
 const hooks: PostSamplingHook[] = []
 

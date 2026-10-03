@@ -44,7 +44,7 @@ const user = (content: unknown): Message => ({ type: 'user', uuid: randomUUID(),
 function params(messages: Message[], withTools = false): CompatCallModelParams {
   return {
     messages, systemPrompt: asSystemPrompt(['Only answer the request.']), thinkingConfig: { type: 'disabled' }, tools: withTools ? [tool] as never : [], signal: new AbortController().signal,
-    options: { model, querySource: 'repl_main_thread', isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], hasAppendSystemPrompt: false, mcpTools: [], maxOutputTokensOverride: 64 } as never,
+    options: { model, querySource: 'main_thread', isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], hasAppendSystemPrompt: false, mcpTools: [], maxOutputTokensOverride: 64 } as never,
   }
 }
 async function drain(input: CompatCallModelParams): Promise<AssistantMessage[]> {

@@ -268,18 +268,12 @@ function localWorkingDirectoryLine(cwd: string): string {
   return `Files you create go in the working directory: ${cwd}. The memory folder named below is not it.`
 }
 
-function usingToolsSection(toolNames: ReadonlySet<string>, replMode: boolean, localCwd?: string): string | '' {
+function usingToolsSection(toolNames: ReadonlySet<string>, localCwd?: string): string | '' {
   const taskToolName = toolNames.has(TASK_CREATE_TOOL_NAME) ? TASK_CREATE_TOOL_NAME : null
   const workBreakdown = taskToolName
     ? `Break down and manage work with the ${taskToolName} tool — useful for planning and for letting the user track progress. Mark each item complete as soon as it is done; do not batch completions.`
     : null
   const opening = localCwd === undefined ? '' : `${localWorkingDirectoryLine(localCwd)}\n\n`
-  if (replMode) {
-    if (!workBreakdown) return opening === '' ? '' : `# Using your tools\n\n${opening.trimEnd()}`
-    return `# Using your tools
-
-${opening}${prependBullets([workBreakdown]).join('\n')}`
-  }
   const embedded = hasEmbeddedSearchTools()
   const perTool: string[] = [
     `${FILE_READ_TOOL_NAME} instead of cat, head, tail, or sed for reading.`,
@@ -433,7 +427,6 @@ export async function getSystemPrompt(
   }
 
   const toolNames: ReadonlySet<string> = new Set((tools as ReadonlyArray<{ name: string }>).map(tool => tool.name))
-  const replMode = toolNames.has('REPL')
 
 
   const localLane = declaredRouteOf(model) === 'local'
@@ -442,7 +435,7 @@ export async function getSystemPrompt(
     keyedSystemPromptSection(
       'using_tools',
       () => (localLane ? model : null),
-      () => usingToolsSection(toolNames, replMode, localLane ? getOriginalCwd() : undefined) || null,
+      () => usingToolsSection(toolNames, localLane ? getOriginalCwd() : undefined) || null,
     ),
   ])
 

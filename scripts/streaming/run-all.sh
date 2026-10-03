@@ -6,7 +6,7 @@
 # gate-watch: src/components/LiveStreamingTail* src/components/Markdown* src/ink/**
 # gate-watch: src/state/AppState* src/utils/**
 # gate-watch: scripts/lib/* scripts/ui/vshot.py src/components/Message.tsx src/components/Messages.tsx
-# gate-watch: src/daemon/concourseSupervisor.ts src/daemon/sessionSeat.ts src/ink.ts src/screens/REPL.tsx
+# gate-watch: src/daemon/concourseSupervisor.ts src/daemon/sessionSeat.ts src/ink.ts src/screens/Chat.tsx
 # gate-watch: src/services/engine-connector/* src/services/providers/streamIdleBudget.ts
 # gate-watch: src/rows/* src/runner/wire/*
 set -uo pipefail

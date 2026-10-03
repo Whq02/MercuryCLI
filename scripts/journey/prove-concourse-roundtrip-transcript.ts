@@ -205,7 +205,7 @@ check(
 )
 check('R2 the ctx meter did not reset to em-dash', !/ctx — /.test(gridText), gridText.split('\n').filter(l => l.includes('ctx')).join('\n'))
 check(
-  "R3 the board's live viewer painted the main REPL transcript (no blank mirror)",
+  "R3 the board's live viewer painted the main Chat transcript (no blank mirror)",
   boardFrames > 0 && boardWithReply > 0,
   `board frames=${boardFrames} with reply=${boardWithReply} census='${(census.stdout ?? census.stderr ?? '').trim()}'`,
 )

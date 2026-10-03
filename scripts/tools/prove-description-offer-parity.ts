@@ -51,7 +51,7 @@ for (const file of sources) {
   for (const match of readFileSync(file, 'utf8').matchAll(/export const [A-Z_]+_TOOL_NAME = '([A-Za-z_]+)'/g)) universe.add(match[1]!)
 }
 for (const match of readFileSync(join(ROOT, 'src', 'tools', 'BrowserTool', 'BrowserTool.ts'), 'utf8').matchAll(/^  name: '([A-Za-z_]+)',$/gm)) universe.add(match[1]!)
-universe.delete('REPL')
+universe.delete('Chat')
 check('the wire-name universe was read from the tool constants', universe.size >= 60 && universe.has('TaskUpdate') && universe.has('Browser') && universe.has('LSP'), String(universe.size))
 const multiWord = [...universe].filter(name => /[a-z][A-Z]/.test(name))
 const singleWord = [...universe].filter(name => !/[a-z][A-Z]/.test(name))

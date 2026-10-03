@@ -88,7 +88,7 @@ async function main(): Promise<void> {
       {
         messages: messages as never,
         owner,
-        querySource: 'repl_main_thread' as never,
+        querySource: 'main_thread' as never,
         contentReplacementState: undefined,
         skipToolNames: skip,
       },
@@ -98,7 +98,7 @@ async function main(): Promise<void> {
       {
         messages: messages as never,
         owner,
-        querySource: 'repl_main_thread' as never,
+        querySource: 'main_thread' as never,
         contentReplacementState: undefined,
         skipToolNames: skip,
       },
@@ -129,7 +129,7 @@ async function main(): Promise<void> {
       {
         messages: messages as never,
         owner,
-        querySource: 'repl_main_thread' as never,
+        querySource: 'main_thread' as never,
         contentReplacementState: state as never,
         skipToolNames: skip,
       },
@@ -146,11 +146,11 @@ async function main(): Promise<void> {
       ['tool-heavy', [0, 1, 2, 3, 4].flatMap(i => toolTurn(i, 1000 + i))],
     ] as const) {
       const a = await planMod.buildRequestContextPlan(
-        { messages: msgs as never, owner, querySource: 'repl_main_thread' as never, contentReplacementState: undefined, skipToolNames: skip },
+        { messages: msgs as never, owner, querySource: 'main_thread' as never, contentReplacementState: undefined, skipToolNames: skip },
         'apply',
       )
       const b = await planMod.buildRequestContextPlan(
-        { messages: msgs as never, owner, querySource: 'repl_main_thread' as never, contentReplacementState: undefined, skipToolNames: skip },
+        { messages: msgs as never, owner, querySource: 'main_thread' as never, contentReplacementState: undefined, skipToolNames: skip },
         'inspect',
       )
       check(`${label} turn: apply/inspect digests match`, a.digest === b.digest)
@@ -170,7 +170,7 @@ async function main(): Promise<void> {
       const input = {
         messages: messages as never,
         owner,
-        querySource: 'repl_main_thread' as const,
+        querySource: 'main_thread' as const,
         contentReplacementState: state,
         persistReplacements: (rows: typeof records) => { records.push(...rows) },
         skipToolNames: skip,

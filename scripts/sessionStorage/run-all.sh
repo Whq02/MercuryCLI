@@ -4,7 +4,7 @@
 # gate-watch: scripts/engine-durability/harness.ts scripts/lib/codeText.ts scripts/lib/goldenReplay.ts
 # gate-watch: scripts/staleness/prove-stale-registry.ts src/Tool.ts src/bootstrap/state.ts
 # gate-watch: src/daemon/concourseSupervisor.ts src/fabric/transcriptDecode.ts src/hooks/useHistorySearch.ts
-# gate-watch: src/screens/REPL.tsx src/services/engine-connector/daemonConnector.ts
+# gate-watch: src/screens/Chat.tsx src/services/engine-connector/daemonConnector.ts
 # gate-watch: src/services/switchboard/hopIntoSession.ts src/services/tools/toolExecution.ts src/utils/*
 # gate-watch: src/utils/suggestions/shellHistoryCompletion.ts
 # gate-watch: src/hooks/useArrowKeyHistory.tsx src/ink.ts src/state/AppState.tsx src/utils/config/globalConfig.ts

@@ -79,7 +79,7 @@ const CAPTURE_RULES: Record<string, Rule> = {
     reason: 'q is bound; the pager owns q / g G n N raw and stands every one down while the search bar captures, and the bar replaces the hints row while open',
     gates: [
       {
-        file: 'src/screens/REPL.tsx',
+        file: 'src/screens/Chat.tsx',
         needles: ["if (input === 'q' && !searchBarOpen)", "if (input === '/' && !searchBarOpen)", "if (input === 'g' && !searchBarOpen)", /searchBarOpen \? \(\s*\n\s*<TranscriptSearchBar/],
       },
     ],

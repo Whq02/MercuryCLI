@@ -14,7 +14,7 @@ const { getProjectSnapshot, _resetProjectIntelForTesting } = await import(
   '../../src/services/projectIntel/snapshot.js'
 )
 const { isTurnBoundaryRow } = await import('../../src/hooks/useLogMessages.js')
-const { cleanMessagesForLogging, collectReplIds, collectReplIdsInto } = await import(
+const { cleanMessagesForLogging } = await import(
   '../../src/utils/sessionStorage/chain.js'
 )
 
@@ -147,7 +147,7 @@ section('C2 — a successful validation refreshes currency; scoped invalidation'
     cc.includes('semanticallyUnchanged ? Number.POSITIVE_INFINITY : 120_000'))
 }
 
-section('C3 — the flush fires on turn boundaries; REPL-id work is linear')
+section('C3 — the flush fires on turn boundaries')
 {
   const userPrompt = { type: 'user', message: { role: 'user', content: 'do it' } } as never
   const toolResult = {
@@ -168,28 +168,11 @@ section('C3 — the flush fires on turn boundaries; REPL-id work is linear')
   check('a mid-loop tool-use assistant row is NOT a boundary', isTurnBoundaryRow(midLoop) === false)
   check('the settling assistant text IS a boundary', isTurnBoundaryRow(finalText) === true)
 
-  const replUse = (id: string): unknown => ({
-    type: 'assistant',
-    message: { content: [{ type: 'tool_use', id, name: 'REPL', input: {} }] },
-  })
-  const all = [userPrompt, replUse('r1'), toolResult, replUse('r2'), finalText] as never[]
-  const full = collectReplIds(all as never)
-  const incremental = new Set<string>()
-  for (const m of all) collectReplIdsInto(incremental, [m] as never)
-  check('incremental REPL-id maintenance ≡ the full collection',
-    full.size === incremental.size && [...full].every(id => incremental.has(id)))
-  const viaSet = cleanMessagesForLogging(all as never, all as never, incremental)
-  const viaFull = cleanMessagesForLogging(all as never, all as never)
-  check('cleanMessagesForLogging with the maintained set ≡ the historical path',
-    JSON.stringify(viaSet) === JSON.stringify(viaFull))
-
   const hook = readFileSync(
     join(import.meta.dir, '..', '..', 'src', 'hooks', 'useLogMessages.ts'),
     'utf8',
   )
-  check('the hook maintains ONE append-only set (no per-append full walk)',
-    hook.includes('collectReplIdsInto(replIdsRef.current, slice)') &&
-      hook.includes('replIds,'))
+  check('the hook records only its new tail', hook.includes('messages.slice(lastRecordedLengthRef.current)'))
   check('the flush barrier is boundary-driven with a bounded max latency',
     hook.includes('slice.some(isTurnBoundaryRow)') &&
       hook.includes('FLUSH_MAX_LATENCY_MS'))

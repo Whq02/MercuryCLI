@@ -8,7 +8,7 @@ import { useTheme } from './design-system/ThemeProvider.js';
 import {
   chatOnlyBoot,
   enterConcourse,
-  enterRootRepl,
+  enterRootChat,
   leaveCurrentSurface,
   routeSurfaceRegistered,
   stripKeyMapHint,
@@ -119,7 +119,7 @@ type BornSessionFn = typeof import('../services/switchboard/bornSession.js')['bo
 async function flipFirstBirth(start: (bornSession: BornSessionFn) => ReturnType<BornSessionFn>): Promise<string | null> {
   const { bornSession } = await import('../services/switchboard/bornSession.js');
   const birth = start(bornSession);
-  const flipped = enterRootRepl().ok;
+  const flipped = enterRootChat().ok;
   if (flipped) recordLaunchMilestone('chat-flipped');
   const born = await birth;
   if (!born.ok) {
@@ -131,7 +131,7 @@ async function flipFirstBirth(start: (bornSession: BornSessionFn) => ReturnType<
     return born.reason;
   }
   recordLaunchMilestone('birth-landed');
-  if (!flipped) enterRootRepl();
+  if (!flipped) enterRootChat();
   return null;
 }
 
@@ -282,7 +282,7 @@ export function BootSplashScreen(): React.ReactNode {
   const sessionsCtx = repoCount > 0 ? `${repoCount} repo${repoCount === 1 ? '' : 's'} · pick a session` : null;
 
   const goHome = (): void => {
-    if (!leaveCurrentSurface().ok) enterRootRepl();
+    if (!leaveCurrentSurface().ok) enterRootChat();
   };
 
   const openProject = (p: BootProjectFact): AsyncListNote => {
@@ -315,7 +315,7 @@ export function BootSplashScreen(): React.ReactNode {
         } catch (e) {
           return e instanceof Error ? e.message : String(e);
         }
-        enterRootRepl();
+        enterRootChat();
         return null;
       })(),
     };
@@ -375,7 +375,7 @@ export function BootSplashScreen(): React.ReactNode {
             } catch (e) {
               return e instanceof Error ? e.message : String(e);
             }
-            enterRootRepl();
+            enterRootChat();
             return null;
           })(),
         };

@@ -2,7 +2,6 @@ import { APIUserAbortError } from '../../../services/api/sdkErrors.js'
 import type { Tool, ToolPermissionContext, ToolUseContext } from '../../../Tool.js'
 import { AGENT_TOOL_NAME } from '../../../tools/AgentTool/constants.js'
 import { POWERSHELL_TOOL_NAME } from '../../../tools/PowerShellTool/toolName.js'
-import { REPL_TOOL_NAME } from '../../../tools/REPLTool/constants.js'
 import type { AssistantMessage } from '../../../types/message.js'
 import { logForDebugging } from '../../debug.js'
 import { AbortError, toError } from '../../errors.js'
@@ -565,7 +564,7 @@ export async function decideToolPermissionWithModes(
       }
       recordPass('powershellGuard')
 
-      if (tool.name !== AGENT_TOOL_NAME && tool.name !== REPL_TOOL_NAME) {
+      if (tool.name !== AGENT_TOOL_NAME) {
         let probeContext: ToolUseContext | null = context
         try {
           const view = hideDangerousAllowsFromView(context)

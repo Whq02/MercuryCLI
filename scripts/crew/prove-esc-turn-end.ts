@@ -115,7 +115,7 @@ check('the held row quotes the arrival clock', painted.includes('held since 18:5
 arrive('second-worker')
 await flush()
 
-const repl = readFileSync(join(import.meta.dir, '../../src/screens/REPL.tsx'), 'utf8')
+const repl = readFileSync(join(import.meta.dir, '../../src/screens/Chat.tsx'), 'utf8')
 const gate = repl.match(/if \(seatCommand !== undefined && isLoadingRef\.current\) \{[\s\S]*?\n      \}/)?.[0]
 if (!gate) throw new Error('the session-command queued gate was not found')
 const receipts: string[] = []

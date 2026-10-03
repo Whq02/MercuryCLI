@@ -404,7 +404,7 @@ section('F · the pure grammar: the newer mirror, the refused line, the evidence
   check('F5 the heal status words: idle-restarted', hsMod.daemonHandshakeEvidence(restarting).includes('idle-restarted'))
 }
 
-section('G · wiring: ensureDaemon rides the handshake; main wires hello/restart + the successor; the record carries the fact; the REPL paints')
+section('G · wiring: ensureDaemon rides the handshake; main wires hello/restart + the successor; the record carries the fact; the Chat paints')
 {
   const read = (p: string): string => readFileSync(join(import.meta.dir, '..', '..', p), 'utf8')
   const ensure = read('src/services/switchboard/ensureDaemon.ts')
@@ -416,8 +416,8 @@ section('G · wiring: ensureDaemon rides the handshake; main wires hello/restart
   check('G5 the successor is spawned BEFORE the lock release and waits for the lock', dmain.indexOf('spawnSuccessorDaemon()') !== -1 && dmain.indexOf('spawnSuccessorDaemon()') < dmain.indexOf('await supervisorLock?.release()') && dmain.includes('SUCCESSOR_LOCK_WAIT_MS'))
   check('G6 the successor re-executes THIS daemon: own argv, env, cwd', dmain.includes('[...process.execArgv, ...process.argv.slice(1)]') && dmain.includes('cwd: process.cwd()'))
   check('G7 supervisor.json carries the version fact and the LIVE owner (the hand-over updates it)', dmain.includes('proto: MERCURY_DAEMON_PROTO') && dmain.includes('let currentOwnerPid = parseOwnerPid()') && dmain.includes('ownerPid: currentOwnerPid'))
-  const repl = read('src/screens/REPL.tsx')
-  check('G8 the REPL paints the one line and clears it on match', repl.includes('subscribeDaemonHandshake') && repl.includes("removeNotification(key)"))
+  const repl = read('src/screens/Chat.tsx')
+  check('G8 the Chat paints the one line and clears it on match', repl.includes('subscribeDaemonHandshake') && repl.includes("removeNotification(key)"))
   const health = read('src/utils/healthReport.ts')
   check('G9 the certificate daemon row runs the handshake and the line IS the fix', health.includes('daemonHandshakeEvidence') && health.includes('fix: hs.line'))
   const statusSrc = read('src/daemon/status.ts')

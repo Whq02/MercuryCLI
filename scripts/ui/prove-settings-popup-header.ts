@@ -58,7 +58,7 @@ const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProvid
 const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
 const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
 const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_REPL_ROUTE } = await import('../../src/context/surfaceRoute.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
 const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
 const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
 const { railPlanAt } = await import('../../src/utils/helmGeometry.ts')
@@ -136,7 +136,7 @@ const cell = (lines: string[], x: number, y: number): string => Array.from(lines
 const header = 'VIEW · cedar · viewing'
 for (const [columns, rows] of [[120, 40], [100, 30]] as const) {
   for (const surface of surfaces) {
-    initializeSurfaceRoute(ROOT_REPL_ROUTE)
+    initializeSurfaceRoute(ROOT_CHAT_ROUTE)
     resetChromeModeLatchForTests()
     const node = h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(KeybindingSetup, null, h(Harness, { columns })))
     const scene = await mountOffscreen(node, columns, rows)

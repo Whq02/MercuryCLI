@@ -163,7 +163,7 @@ console.log('============================================================')
 }
 
 {
-  const repl = readFileSync(join(ROOT, 'src', 'screens', 'REPL.tsx'), 'utf8')
+  const repl = readFileSync(join(ROOT, 'src', 'screens', 'Chat.tsx'), 'utf8')
   const from = repl.indexOf("seatCommand.type === 'local-jsx'")
   const dialogRoad = from < 0 ? '' : repl.slice(from, repl.indexOf('module.call(onDone', from))
   console.log('\nthe dialog road — where a dialog command\'s result paints')
@@ -172,7 +172,7 @@ console.log('============================================================')
     /display !== 'skip'/.test(dialogRoad) &&
       /> 1\) paintScreenCommandReceipt\(dialogName, args, result\)/.test(dialogRoad) &&
       /else addNotification\(\{ key: `command-\$\{seatCommand\.name\}`, text: result/.test(dialogRoad),
-    dialogRoad === '' ? 'the dialog road was not found in REPL.tsx' : '',
+    dialogRoad === '' ? 'the dialog road was not found in Chat.tsx' : '',
   )
 }
 

@@ -19,7 +19,7 @@
 # gate-watch: src/components/permissions/rules/RecentDenialsTab.tsx
 # gate-watch: src/components/prompts-panel/PromptsPanel.tsx src/components/samples/SamplesListView.tsx
 # gate-watch: src/components/skills/SessionSkillsDial.tsx src/components/tasks/*
-# gate-watch: src/hooks/* src/main.tsx src/screens/REPL.tsx
+# gate-watch: src/hooks/* src/main.tsx src/screens/Chat.tsx
 # gate-watch: src/screens/ResumeConversation.tsx
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

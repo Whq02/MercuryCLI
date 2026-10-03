@@ -114,13 +114,13 @@ console.log('§4 — attention comes from TYPED events only')
   check('the owner mints obligations from typed upserts only (no free-text parser)', !obligations.includes('parseMessage') && !obligations.includes('inferFrom'))
 }
 
-console.log('§5 — the main REPL is managed session #1 (ruling 26)')
+console.log('§5 — the main Chat is managed session #1 (ruling 26)')
 {
   const bridge = src('src/utils/liveCountBridge.ts')
-  check('the live-count self term counts the REPL itself as one session (managed session #1)', /const n = 1 \+ countLiveConcourseWorkers\(\)/.test(bridge) && /return \{ liveSessions: 1, sessionCount: 1 \}/.test(bridge))
+  check('the live-count self term counts the Chat itself as one session (managed session #1)', /const n = 1 \+ countLiveConcourseWorkers\(\)/.test(bridge) && /return \{ liveSessions: 1, sessionCount: 1 \}/.test(bridge))
   check('…and the worker term reads SUPERVISOR truth', bridge.includes('countLiveConcourseWorkers') || bridge.includes('concourseSupervisor'))
   const turnMachine = src('src/run-core/turn-machine.ts')
-  check("the main REPL's own turns hold counted FOREGROUND permits (the backstop)", turnMachine.includes("'foreground'") && turnMachine.includes('acquireModelPermit'))
+  check("the main Chat's own turns hold counted FOREGROUND permits (the backstop)", turnMachine.includes("'foreground'") && turnMachine.includes('acquireModelPermit'))
 }
 
 rmSync(scratch, { recursive: true, force: true })

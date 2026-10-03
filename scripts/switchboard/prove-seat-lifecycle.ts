@@ -25,7 +25,7 @@ function walk(root: string): string[] {
 }
 
 {
-  const repl = read('src/screens/REPL.tsx')
+  const repl = read('src/screens/Chat.tsx')
   const resumeAt = repl.indexOf('const resume = useCallback(')
   const resumeBody = repl.slice(resumeAt, repl.indexOf('resumeRef.current = resume', resumeAt))
   check('P1 resume() re-points the slot through the one resume path', resumeBody.includes('focusResumedSession('))
@@ -50,7 +50,7 @@ function walk(root: string): string[] {
   const newBody = boot.slice(newAt, boot.indexOf("case 'continue'", newAt))
   check('P2 New Session births a real session through the ONE birth door (the flip-first road)', newBody.includes('flipFirstBirth(bornSession => bornSession({ workspaceDir: getCwd() }))'))
   const road = boot.slice(boot.indexOf('async function flipFirstBirth('), boot.indexOf('export function BootSplashScreen('))
-  check('P2 the chat flips at once and the birth lands behind; a refusal hands the frame back with its reason (never a chat over a refused birth)', road.indexOf('const flipped = enterRootRepl().ok;') !== -1 && road.indexOf('const flipped = enterRootRepl().ok;') < road.indexOf('const born = await birth;') && road.includes('if (!settleAbsentChat().ok) enterBootSettings();') && road.includes("mintImmediateReceipt(`▲ the chat could not start — ${born.reason}`, 'warning')") && road.includes('return born.reason;'))
+  check('P2 the chat flips at once and the birth lands behind; a refusal hands the frame back with its reason (never a chat over a refused birth)', road.indexOf('const flipped = enterRootChat().ok;') !== -1 && road.indexOf('const flipped = enterRootChat().ok;') < road.indexOf('const born = await birth;') && road.includes('if (!settleAbsentChat().ok) enterBootSettings();') && road.includes("mintImmediateReceipt(`▲ the chat could not start — ${born.reason}`, 'warning')") && road.includes('return born.reason;'))
   check('P2 no ghost is handed to the slot (the ENTERED law is gone)', !newBody.includes('focusNascentSession') && !newBody.includes('isNascentConnector'))
   check('P2 nothing is handed back to an engine and no /clear is armed', !boot.includes('focusInProcessSession') && !newBody.includes("armRootCommand('/clear')"))
   const hop = read('src/services/switchboard/hopIntoSession.ts')
@@ -182,7 +182,7 @@ function walk(root: string): string[] {
   const attachAt = seatSrc.indexOf('await connector.attach()', fenceAt)
   const commitAt = seatSrc.indexOf('setFocusedSessionConnector(connector)', attachAt)
   check('P6 the hop claims its epoch BEFORE the load and commits only while current', fenceAt !== -1 && attachAt > fenceAt && commitAt > attachAt && seatSrc.slice(attachAt, commitAt).includes('if (!hopEpochIsCurrent(epoch)) return connector'))
-  const repl = read('src/screens/REPL.tsx')
+  const repl = read('src/screens/Chat.tsx')
   const onSubmitAt = repl.indexOf('const onSubmit = useCallback(')
   const onSubmitEnd = repl.indexOf('const onSubmitRef = useRef(onSubmit)', onSubmitAt)
   const submitBody = repl.slice(onSubmitAt, onSubmitEnd)
@@ -217,7 +217,7 @@ function walk(root: string): string[] {
   )
   check('P8 a declined claim falls through to the cold path (never a refusal)', claimBody.includes('spawning cold'))
   check('P8 model validation precedes the claim (a refused model never reaches the pool)', sup.indexOf('await validateWorkerModelChoice(') < claimAt)
-  const repl = read('src/screens/REPL.tsx')
+  const repl = read('src/screens/Chat.tsx')
   const mountAt = repl.indexOf('ensureOwnedDaemon()')
   check('P8 the screen arms the warm pool from the daemon pre-warm hook', mountAt !== -1 && repl.includes('warmSessionRunner(getCwd())'))
   const pool = read('src/daemon/warmRunner.ts')

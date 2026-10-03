@@ -75,7 +75,7 @@ export interface ConcourseSnapshotV1 {
   revision: number
   clock: string
   context: { projectLabel: string; operatorHandle: string; effortLabel?: string }
-  breadcrumb: { active: 'boot' | 'concourse' | 'main-repl' }
+  breadcrumb: { active: 'boot' | 'concourse' | 'focused-chat' }
   coordinator: {
     mode: 'off' | 'rules-only' | 'agent-assisted'
     assistModelLabel?: string
@@ -83,7 +83,7 @@ export interface ConcourseSnapshotV1 {
     assistModelStatus?: string
     fallbackReason?: string
   }
-  mainRepl: {
+  focusedChat: {
     kind: 'non-model-controller'
     counted: false
     submission: 'disabled-while-parked'
@@ -256,7 +256,7 @@ export interface ConcourseCallbacks {
   }) => void
   submitSessionDraft: (text: string) => void
   enterBootSettings: (door?: 'logins', opener?: { family?: string; returnToOpener?: boolean }) => boolean
-  exitToRepl: () => void
+  exitToChat: () => void
   retrySnapshot?: () => void
   sendCoordinatorMessage?: (
     text: string,

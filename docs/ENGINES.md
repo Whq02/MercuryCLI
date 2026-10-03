@@ -63,7 +63,7 @@ A new Anthropic model runs before its catalogue row lands: any id inside the
 first-party space (`claude-…`) starts from every door — the boot face's new
 session, `/clear`, `--model`, a saved setting, the crew and workflow seats,
 the advisor and console picks, the coordinator's assist model, `/model` in
-the REPL — the moment the account holds an Anthropic credential, and the
+the chat — the moment the account holds an Anthropic credential, and the
 wire decides whether it serves the id; no door judges a Claude id by whether
 the picker lists it. A catalogue row adds what only a row can: the display
 name, the price tier (until then the spend views say the figure is a family

@@ -88,9 +88,9 @@ section('W2 the connector busy-union never claims writing for a fold-idle transc
   )
 }
 
-section('W3 the REPL hands the spinner all three live phases')
+section('W3 the Chat hands the spinner all three live phases')
 {
-  const src = readFileSync(join(ROOT, 'src/screens/REPL.tsx'), 'utf8')
+  const src = readFileSync(join(ROOT, 'src/screens/Chat.tsx'), 'utf8')
   check(
     "the 'tool' phase maps to the dedicated 'tool-use' spinner mode",
     src.includes("seatLive.phase === 'tool' ? 'tool-use'"),
@@ -116,9 +116,9 @@ section('W4 the streaming hold row IS the writing indicator')
     "still-waiting derives from the count's own movement, not the process-local pulse",
     !src.includes('getPulsePhase') && !src.includes('getPulseActivity'),
   )
-  const repl = readFileSync(join(ROOT, 'src/screens/REPL.tsx'), 'utf8')
+  const repl = readFileSync(join(ROOT, 'src/screens/Chat.tsx'), 'utf8')
   check(
-    'the REPL feeds the hold row the live ref',
+    'the Chat feeds the hold row the live ref',
     /StreamingHoldRow[\s\S]{0,220}responseLengthRef=\{responseLengthRef\}/.test(repl),
   )
 }

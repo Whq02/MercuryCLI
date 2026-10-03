@@ -20,7 +20,7 @@
 # gate-watch: src/daemon/sessionSeat.ts src/hooks/*
 # gate-watch: src/hooks/notifs/useRateLimitWarningNotification.tsx src/ink/components/StdinContext.ts
 # gate-watch: src/ink/squash-text-nodes.ts src/ink/stringWidth.ts src/keybindings/useKeybinding.ts
-# gate-watch: src/run-core/turn-machine.ts src/screens/REPL.tsx src/services/* src/services/api/*
+# gate-watch: src/run-core/turn-machine.ts src/screens/Chat.tsx src/services/* src/services/api/*
 # gate-watch: src/services/concourse/workerModels.ts src/services/engine-connector/*
 # gate-watch: src/services/mcp/client.ts src/services/oauth/client.ts src/services/providers/**
 # gate-watch: src/services/switchboard/bootBirthFacts.ts src/services/switchboard/bornSession.ts

@@ -168,7 +168,7 @@ function receiptOf(batch: string[]): string {
   check('C5 commandSeat is the one dispatch rule (route alias · dialog · marked local · user-private ⇒ screen; else session)', seatBody.includes("if (command.type === 'local-jsx') return 'screen'") && seatBody.includes("command.uiRouteAlias !== undefined || command.seat === 'screen' || command.userPrivate === true") && seatBody.includes("return 'session'"))
   const main = read('src/main.tsx')
   check("C5 the session runner's table is sessionSeatCommandTable (MERCURY_CONCOURSE_WORKER decides)", main.includes("flagEnv('MERCURY_CONCOURSE_WORKER') === '1'") && main.includes('sessionSeatCommandTable(args.commands)'))
-  const repl = read('src/screens/REPL.tsx')
+  const repl = read('src/screens/Chat.tsx')
   check('C5 the screen dispatches on commandSeat and runs screen-seat locals against the focused connector', repl.includes("const seat = seatCommand === undefined ? 'session' : commandSeat(seatCommand)") && repl.includes('paintScreenCommandReceipt(getCommandName(seatCommand), args, result.value)'))
   const clear = read('src/commands/clear/clear.ts')
   check('C5 /clear acts on the screen: the old session released, a fresh session born (the one-door law)', clear.includes('clearFocusedSession()'))
@@ -228,7 +228,7 @@ console.log('C7 — the former doors are unknown commands')
   const shape = (line: string): string => line.replace(/^Unknown command: \/[a-z]+/, 'Unknown command: /<name>').replace(/ — closest: \/[a-z-]+/, '')
   const control = shape(unknownCommandLine('frobnicate', registry))
   check('C7 typed, each former name answers exactly as a never-existing name does — the unknown-command sentence, no retired word', formerNames.every(n => { const l = unknownCommandLine(n, registry); return shape(l) === control && !/retired/i.test(l) }), formerNames.map(n => unknownCommandLine(n, registry)).join(' | '))
-  check('C7 the dispatcher carries no retirement read', !read('src/utils/processUserInput/processSlashCommand.tsx').includes('commandRetired') && !read('src/commands/enablement.ts').includes('commandRetired') && !read('src/screens/REPL.tsx').includes('commandRetired'))
+  check('C7 the dispatcher carries no retirement read', !read('src/utils/processUserInput/processSlashCommand.tsx').includes('commandRetired') && !read('src/commands/enablement.ts').includes('commandRetired') && !read('src/screens/Chat.tsx').includes('commandRetired'))
 }
 
 await api.close()

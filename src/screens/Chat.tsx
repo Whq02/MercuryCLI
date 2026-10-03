@@ -579,17 +579,17 @@ function TranscriptFooter({
   );
 }
 
-export function REPL({
+export function Chat({
   commands: initialCommands,
   debug = false,
   initialTools,
   disabled = false,
   disableSlashCommands = false,
 }: Props): React.ReactNode {
-  fluxMark('render:repl-root');
+  fluxMark('render:chat-root');
   const rootWhyRef = useRef<Record<string, unknown> | null>(null);
-  if (flagEnv('MERCURY_RENDER_FAULT') === 'repl') {
-    throw new Error('deterministic REPL render fault (MERCURY_RENDER_FAULT=repl)');
+  if (flagEnv('MERCURY_RENDER_FAULT') === 'chat') {
+    throw new Error('deterministic Chat render fault (MERCURY_RENDER_FAULT=chat)');
   }
 
   const store = useAppStateStore();
@@ -779,7 +779,7 @@ export function REPL({
   const streamingSuppressed = streamingRevealSuppressed(reducedMotion, fullscreen);
 
   const sessionAsks = useSyncExternalStore(subscribeFocusedAsks, getFocusedAsks, getFocusedAsks);
-  const replSurfaceCovered = useSyncExternalStore(
+  const chatSurfaceCovered = useSyncExternalStore(
     subscribeSurfaceRoute,
     () => currentSurfaceRoute().kind !== 'repl',
     () => currentSurfaceRoute().kind !== 'repl',
@@ -939,7 +939,7 @@ export function REPL({
           mcpResources: state.mcp.resources,
           isNonInteractiveSession: false,
           agentDefinitions: state.agentDefinitions,
-          querySource: 'repl_main_thread' as const,
+          querySource: 'main_thread' as const,
           refreshTools: () => mergedTools,
           theme: themeName,
         },
@@ -1114,7 +1114,7 @@ export function REPL({
     setDialogPaints(prev => (prev === paints ? prev : paints));
   });
   const localJsx = Boolean(toolJSX?.jsx && toolJSX.isLocalJSXCommand);
-  const compactDetailUp = compactFocus === 'detail' && fullscreen && !replSurfaceCovered && focusedInputDialog === undefined && !localJsx;
+  const compactDetailUp = compactFocus === 'detail' && fullscreen && !chatSurfaceCovered && focusedInputDialog === undefined && !localJsx;
   const dialogOwnsKeys = (toolJSX?.isLocalJSXCommand === true && dialogPaints) || compactDetailUp;
   useLayoutEffect(() => {
     if (compactWork.read() === 'detail' && !compactDetailUp) compactWork.set('composer');
@@ -1990,7 +1990,7 @@ export function REPL({
   const armedMessageRef = useRef(armedMessage);
   armedMessageRef.current = armedMessage;
   useEffect(() => {
-    if (slotHasSession || landing || replSurfaceCovered || localJsx || armedMessage !== null) return;
+    if (slotHasSession || landing || chatSurfaceCovered || localJsx || armedMessage !== null) return;
     if (!isFullscreenEnvEnabled()) return;
     const settle = setTimeout(() => {
       if (hasFocusedSession() || landingInFlight() || currentSurfaceRoute().kind !== 'repl') return;
@@ -1998,7 +1998,7 @@ export function REPL({
       settleAbsentChat();
     }, NO_CHAT_SETTLE_MS);
     return () => clearTimeout(settle);
-  }, [slotHasSession, landing, replSurfaceCovered, localJsx, armedMessage]);
+  }, [slotHasSession, landing, chatSurfaceCovered, localJsx, armedMessage]);
   const unseenDivider = useMemo(
     () => (fullscreen ? computeUnseenDivider(messages, unseen.dividerIndex) : undefined),
     [fullscreen, messages, unseen.dividerIndex],
@@ -2123,7 +2123,7 @@ export function REPL({
   </Box>;
 
   const permissionOverlay =
-    focusedInputDialog === 'tool-permission' && toolUseConfirmQueue[0] && !replSurfaceCovered ? (
+    focusedInputDialog === 'tool-permission' && toolUseConfirmQueue[0] && !chatSurfaceCovered ? (
       <PermissionQueueContext.Provider value={permissionQueueStatus(resolvedConsentCount, toolUseConfirmQueue.length)}>
         <PermissionRequest
           key={toolUseConfirmQueue[0].toolUseID}
@@ -2141,7 +2141,7 @@ export function REPL({
     ) : null;
 
   const messageSelector =
-    focusedInputDialog === 'message-selector' && !replSurfaceCovered ? (
+    focusedInputDialog === 'message-selector' && !chatSurfaceCovered ? (
       <MessageSelector
         messages={messages}
         onPreRestore={onCancel}
@@ -2223,7 +2223,7 @@ export function REPL({
   const bottomImmediateJsx: React.ReactNode = localJsx && !fullscreen && toolJSX!.isImmediate ? dialogSlot : null;
   const inlineToolJsx = toolJSX?.jsx && !centredModal && !bottomImmediateJsx ? dialogSlot : null;
 
-  const focusedBottomDialog: React.ReactNode = replSurfaceCovered ? null :
+  const focusedBottomDialog: React.ReactNode = chatSurfaceCovered ? null :
     focusedInputDialog === 'elicitation' && elicitationQueue[0] ? (
       <ElicitationDialog event={elicitationQueue[0]} onResponse={respondToElicitation} onWaitingDismiss={dismissElicitationWaiting} />
     ) : focusedInputDialog === 'cost-threshold' ? (
@@ -2606,7 +2606,7 @@ export function REPL({
     spinnerTip,
     prefersReducedMotion,
     sessionAsks,
-    replSurfaceCovered,
+    chatSurfaceCovered,
     elicitationQueue,
     landing,
     armedMessage,

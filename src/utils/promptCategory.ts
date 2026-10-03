@@ -6,6 +6,6 @@ export function getQuerySourceForAgent(agentType: string | undefined, isBuiltInA
   return 'agent:custom'
 }
 
-export function getQuerySourceForREPL(): QuerySource {
-  return 'repl_main_thread'
+export function getQuerySourceForChat(): QuerySource {
+  return 'main_thread'
 }

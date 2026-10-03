@@ -212,7 +212,7 @@ section('adoption + hygiene pins (source greps)')
   )
 }
 
-section('adoption — the alive-REPL pass (ember-settle · breath · glint · nudge)')
+section('adoption — the alive-Chat pass (ember-settle · breath · glint · nudge)')
 {
   const loader = readFileSync('src/components/ToolUseLoader.tsx', 'utf8')
   check(

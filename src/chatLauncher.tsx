@@ -1,7 +1,7 @@
 import React from 'react';
 import type { StatsStore } from './context/stats.js';
 import type { Root } from './ink.js';
-import type { Props as REPLProps } from './screens/REPL.js';
+import type { Props as ChatProps } from './screens/Chat.js';
 import type { ScopedMcpServerConfig } from './services/mcp/types.js';
 import type { AppState } from './state/AppStateStore.js';
 import type { FpsMetrics } from './utils/fpsTracker.js';
@@ -17,7 +17,7 @@ type McpSeed = {
 
 const BOOT_RECOVERY_BUDGET_MS = 3_000;
 
-export async function launchRepl(root: Root, appProps: AppWrapperProps, replProps: REPLProps, renderAndRun: (root: Root, element: React.ReactNode) => Promise<void>, mcpSeed?: McpSeed): Promise<void> {
+export async function launchChat(root: Root, appProps: AppWrapperProps, chatProps: ChatProps, renderAndRun: (root: Root, element: React.ReactNode) => Promise<void>, mcpSeed?: McpSeed): Promise<void> {
   const { profileCheckpoint } = await import('./utils/startupProfiler.js');
   profileCheckpoint('launch_repl_start');
   try {
@@ -82,8 +82,8 @@ export async function launchRepl(root: Root, appProps: AppWrapperProps, replProp
   const initialSurface = await surfaceRoute.resolveInitialSurface();
   profileCheckpoint('launch_repl_after_surface_resolution');
   const {
-    REPL
-  } = await import('./screens/REPL.js');
+    Chat
+  } = await import('./screens/Chat.js');
   const {
     SeededMCPConnectionManager
   } = await import('./services/mcp/MCPConnectionManager.js');
@@ -96,7 +96,7 @@ export async function launchRepl(root: Root, appProps: AppWrapperProps, replProp
   await renderAndRun(root, <App {...appProps}>
       <SeededMCPConnectionManager>
         <SurfaceRouter>
-          <REPL {...replProps} />
+          <Chat {...chatProps} />
         </SurfaceRouter>
       </SeededMCPConnectionManager>
     </App>);

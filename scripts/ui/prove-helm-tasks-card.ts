@@ -57,7 +57,7 @@ const { default: PromptInput } = await mod<typeof import('../../src/components/P
 const { SpinnerWithVerb } = await mod<typeof import('../../src/components/Spinner.tsx')>('src/components/Spinner.tsx')
 const { GlobalKeybindingHandlers } = await mod<typeof import('../../src/hooks/useGlobalKeybindings.tsx')>('src/hooks/useGlobalKeybindings.tsx')
 const { resetChromeModeLatchForTests } = await mod<typeof import('../../src/hooks/useLayoutTier.ts')>('src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_REPL_ROUTE } = await mod<typeof import('../../src/context/surfaceRoute.ts')>('src/context/surfaceRoute.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await mod<typeof import('../../src/context/surfaceRoute.ts')>('src/context/surfaceRoute.ts')
 const { enableConfigs, saveCurrentProjectConfig } = await mod<typeof import('../../src/utils/config.ts')>('src/utils/config.ts')
 const pending = await mod<typeof import('../../src/input-core/pending-input.ts')>('src/input-core/pending-input.ts')
 const { default: instances } = await mod<typeof import('../../src/ink/instances.ts')>('src/ink/instances.ts')
@@ -143,7 +143,7 @@ type Mount = { ink: InstanceType<typeof Ink>; stdin: Input; frame: () => string;
 async function mount(name: string, work: WorkRoster): Promise<Mount> {
   roster = work
   for (const listener of workListeners) listener()
-  initializeSurfaceRoute(ROOT_REPL_ROUTE)
+  initializeSurfaceRoute(ROOT_CHAT_ROUTE)
   resetChromeModeLatchForTests()
   helm.resetHelmFocusForTest()
   pending.edit('')

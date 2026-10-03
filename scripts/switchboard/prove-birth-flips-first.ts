@@ -54,7 +54,7 @@ section('§1 the source law — flip first, birth behind, the refusal on the sea
   const face = read('src/components/BootSplashScreen.tsx')
   check('the face starts the birth through the one door with the model resolving inside it (the B3 needle stands)', face.includes('flipFirstBirth(bornSession => bornSession({ workspaceDir: getCwd() }))') && read('src/services/switchboard/bornSession.ts').includes('birthModelOf('))
   check('…both birth arms ride the one flip-first road (New Session and a project card’s fresh chat)', face.includes('flipFirstBirth(bornSession => bornSession({ workspaceDir: p.dir }))'))
-  check('…flips the chat route BEFORE awaiting the birth', ordered(face, 'const birth = start(bornSession);', 'const flipped = enterRootRepl().ok;', 'const born = await birth;'))
+  check('…flips the chat route BEFORE awaiting the birth', ordered(face, 'const birth = start(bornSession);', 'const flipped = enterRootChat().ok;', 'const born = await birth;'))
   check('…and never awaits the birth before the flip', !face.includes('await bornSession('))
   check('the milestones record the order (chat-flipped · birth-landed · birth-refused)', face.includes("recordLaunchMilestone('chat-flipped')") && face.includes("recordLaunchMilestone('birth-landed')") && face.includes("recordLaunchMilestone('birth-refused')"))
   check('a refused birth hands the frame back to the face at once — the absent-chat settle, else the face pushed back over the chat that still held the slot', ordered(face, "recordLaunchMilestone('birth-refused');", 'if (!settleAbsentChat().ok) enterBootSettings();'))

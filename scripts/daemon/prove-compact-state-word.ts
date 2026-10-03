@@ -82,13 +82,13 @@ console.log('\nC6 the wiring — service stamp to glass word (structural)')
   check("the live-phase vocabulary carries 'compacting'", seatLive.includes("'compacting'"))
   const connector = read('src/services/engine-connector/daemonConnector.ts')
   check("the connector lifts the word into phase 'compacting'", connector.includes("'compacting'"))
-  const repl = read('src/screens/REPL.tsx')
+  const repl = read('src/screens/Chat.tsx')
   check(
-    "the REPL paints the fold's own word (its own state word, never the thinking dress)",
+    "the Chat paints the fold's own word (its own state word, never the thinking dress)",
     repl.includes("compacting"),
   )
   check(
-    "the REPL never maps the compacting phase onto the thinking mode",
+    "the Chat never maps the compacting phase onto the thinking mode",
     !/compacting'\s*\?\s*'thinking'/.test(repl),
   )
 }

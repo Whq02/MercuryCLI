@@ -10,7 +10,7 @@
 # gate-watch: src/components/messages/CompactBoundaryMessage.tsx
 # gate-watch: src/components/messages/nullRenderingAttachments.ts src/constants/betas.ts
 # gate-watch: src/daemon/sessionSeat.ts src/query/deps.ts src/query/transitions.ts
-# gate-watch: src/run-core/project-legacy.ts src/screens/REPL.tsx src/services/api/*
+# gate-watch: src/run-core/project-legacy.ts src/screens/Chat.tsx src/services/api/*
 # gate-watch: src/services/capacity/seatWords.ts src/services/concourse/sessionNaming.ts
 # gate-watch: src/services/engine-connector/daemonConnector.ts
 # gate-watch: src/services/engine-connector/noSessionConnector.ts src/services/providers/*

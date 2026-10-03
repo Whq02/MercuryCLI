@@ -24,7 +24,7 @@
 # gate-watch: src/ink/stringWidth.ts src/input-core/command-queue.ts
 # gate-watch: src/keybindings/KeybindingProviderSetup.tsx src/mneme/mnemeConsolidate.ts
 # gate-watch: src/query/stopHooks.ts src/run-core/model-lane.ts src/run-core/turn-machine.ts
-# gate-watch: src/screens/REPL.tsx src/screens/toolJsxArbitration.ts src/services/agents/watch.ts
+# gate-watch: src/screens/Chat.tsx src/screens/toolJsxArbitration.ts src/services/agents/watch.ts
 # gate-watch: src/services/concourse/concourseSnapshot.ts src/services/concourse/workerTranscript.ts
 # gate-watch: src/services/coordination/coordinationService.ts src/services/dap/dapClient.ts
 # gate-watch: src/services/lsp/LSPDiagnosticRegistry.ts src/services/lsp/manager.ts src/services/mcp/client.ts

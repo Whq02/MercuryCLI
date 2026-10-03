@@ -16,7 +16,7 @@ check('attachAndEnter found', attachStart >= 0)
 
 const landingAt = attach.indexOf('const landing = withLanding(')
 const commitAt = attach.indexOf('consumeEntryDecisionInput()')
-const flipAt = attach.indexOf('enterRootRepl().ok')
+const flipAt = attach.indexOf('enterRootChat().ok')
 const asyncBodyAt = attach.indexOf('void (async () => {')
 check(
   'the landing is armed synchronously (withLanding before the async body)',
@@ -116,7 +116,7 @@ function armWorld(): Walk {
         resolveLanding = (ok: boolean) => r({ ok })
       }),
     )
-    const flipped = sr.enterRootRepl().ok ? sr.surfaceGeneration() : null
+    const flipped = sr.enterRootChat().ok ? sr.surfaceGeneration() : null
     void (async () => {
       const hop = await landing
       settled = true
@@ -280,7 +280,7 @@ console.log('\n§3 the edges (pointer entry · the ↵ neighbors · the settled 
   check('input during the settled wait lands on the board (functionality preserved)', boardSaw.includes(during.seq))
   slot.setFocusedSessionConnector({ sessionId: () => 's-settled' } as never)
   const undispatched = enterKey()
-  if (sr.surfaceGeneration() === op.gen) sr.enterRootRepl()
+  if (sr.surfaceGeneration() === op.gen) sr.enterRootChat()
   check('the settled flip landed (the operator had not navigated)', sr.currentSurfaceRoute().kind === 'repl')
   emitter.emit('input', undispatched)
   check('the queued remainder dies at the flip (aimed at a world that left)', !boardSaw.includes(undispatched.seq) && sr.isPriorGenerationInput(undispatched.seq))
@@ -289,7 +289,7 @@ console.log('\n§3 the edges (pointer entry · the ↵ neighbors · the settled 
   sr.returnToConcourse()
   const op2 = { gen: sr.surfaceGeneration() }
   sr.enterBootSettings()
-  if (sr.surfaceGeneration() === op2.gen) sr.enterRootRepl()
+  if (sr.surfaceGeneration() === op2.gen) sr.enterRootChat()
   check('the settled leg never yanks a navigated operator', sr.currentSurfaceRoute().kind === 'boot-settings')
 }
 

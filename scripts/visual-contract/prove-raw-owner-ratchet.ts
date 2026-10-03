@@ -12,7 +12,7 @@ const SANCTIONED: Record<string, string> = {
   'assets/splash/mercury-splash.mjs':
     'the pre-boot enter screen — user-facing BY DESIGN; its key contract is owned by the CN-03 activation gate + the CN-04 negative corpus in scripts/splash/prove-splash.py',
   'src/utils/earlyInput.ts':
-    'the bounded pre-boot keystroke buffer — captures typed-ahead input before Ink boots, then hands the contract to the Ink stack (it deliberately leaves raw mode for the REPL)',
+    'the bounded pre-boot keystroke buffer — captures typed-ahead input before Ink boots, then hands the contract to the Ink stack (it deliberately leaves raw mode for the Chat)',
   'src/main.tsx':
     'boot-time piped-stdin intake (non-TTY prompt read with a bounded timeout) — a pipe reader, never a raw-mode UI owner',
   'src/services/dap/probeAdapter.ts': 'protocol pipe — the DAP wire rides stdio frames',

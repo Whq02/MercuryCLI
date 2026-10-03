@@ -230,7 +230,7 @@ section('(f3) floor-round ceiling is base64-aware — an image/PDF round stays u
   check('the preserved round is the image round (the screenshot the user just added)', r !== null && (r!.keep as M[]).some(m => (m as { message?: { id?: string } }).message?.id === 'asst-77'))
 }
 
-section('(g) wiring — compact.ts populates messagesToKeep + relink; REPL dedups the tail')
+section('(g) wiring — compact.ts populates messagesToKeep + relink; Chat dedups the tail')
 {
   const root = join(import.meta.dir, '..', '..')
   const compact = readFileSync(join(root, 'src/services/compact/compact.ts'), 'utf-8')
@@ -244,7 +244,7 @@ section('(g) wiring — compact.ts populates messagesToKeep + relink; REPL dedup
     /getCompactUserSummaryMessage\(\s*summaryWithCapsule,\s*suppressFollowUpQuestions,\s*getTranscriptPath\(\),[\s\S]{0,80}?!!messagesToKeep,\s*\)/.test(compact),
   )
 
-  const repl = readFileSync(join(root, 'src/screens/REPL.tsx'), 'utf-8')
+  const repl = readFileSync(join(root, 'src/screens/Chat.tsx'), 'utf-8')
   check('the face holds no in-memory scrollback trim (the connector rebuilds the chain from the file)', !repl.includes('retainFullscreenScrollback('))
 }
 

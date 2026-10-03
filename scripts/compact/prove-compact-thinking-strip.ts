@@ -83,7 +83,7 @@ section('§1 the time-based clearing projection strips from the first cleared me
     user(ids.map(id => ({ type: 'tool_result', tool_use_id: id, content: big })), OLD),
     assistant([THINK('all seven ran'), TEXT('done')], OLD),
   ]
-  const projected = projectTimeBasedMicrocompact(history as never, 'repl_main_thread_prompt')
+  const projected = projectTimeBasedMicrocompact(history as never, 'main_thread_prompt')
   check('the clearing pass armed for the fixture', projected !== null, 'projection returned null with MERCURY_TIME_BASED_MC=1')
   if (projected !== null) {
     check('two results cleared (seven compactable, keep the recent five)', projected.cleared === 2, String(projected.cleared))

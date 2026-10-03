@@ -22,7 +22,7 @@ export function isMainChatAdvisorDrain(args: { agentId: string | undefined; quer
   if (args.agentId !== undefined && args.agentId !== '') return false
   if (args.localSubmission === true) return false
   const source = args.querySource
-  return source === 'sdk' || (source !== undefined && source.startsWith('repl_main_thread'))
+  return source === 'sdk' || (source !== undefined && source.startsWith('main_thread'))
 }
 
 export function getAdvisorNoteAttachments(

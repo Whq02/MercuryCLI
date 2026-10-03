@@ -18,7 +18,7 @@ const check = (name: string, ok: boolean, detail?: string): void => {
 
 console.log('§1 w32-02 + ctr-6 — the v opener rides utils/editor')
 {
-  const repl = read('src/screens/REPL.tsx')
+  const repl = read('src/screens/Chat.tsx')
   check('POISON: the raw shell:true spawn is gone from the v handler', !repl.includes("spawn(editor, [path], { stdio: 'ignore', detached: true, shell: true }).unref()"))
   check('the handler asks the one door and reports what it can know', repl.includes("const { openFileInExternalEditor } = await import('../utils/editor.js');") && repl.includes('if (openFileInExternalEditor(path)) {') && repl.includes('setEditorStatus(`opening ${path}`);'))
   check("POISON: the unconditional 'opened …' claim is gone", !repl.includes('setEditorStatus(`opened ${path}`);'))

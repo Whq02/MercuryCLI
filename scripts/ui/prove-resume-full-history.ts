@@ -100,15 +100,15 @@ console.log('============================================================')
   delete process.env.MERCURY_CONFIG_DIR
   fs.rmSync(dir, { recursive: true, force: true })
 
-  const repl = src('src', 'screens', 'REPL.tsx')
+  const repl = src('src', 'screens', 'Chat.tsx')
   check(
-    'REPL resume() hops through the one resume door (no cleared-mark bookkeeping on the face)',
+    'Chat resume() hops through the one resume door (no cleared-mark bookkeeping on the face)',
     repl.includes('await focusResumedSession(String(sessionId)') && !repl.includes('unmarkSessionCleared'),
   )
 }
 
 {
-  const repl = src('src', 'screens', 'REPL.tsx')
+  const repl = src('src', 'screens', 'Chat.tsx')
   check(
     'resume() deps carry the live setters it closes over (stale-closure fix held)',
     /\}, \[addNotification, removeNotification, setToolJSX\]\);/.test(repl),

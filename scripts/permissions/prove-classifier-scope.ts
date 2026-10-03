@@ -38,7 +38,7 @@ const toolResult = (id: string, text: string): unknown => ({
   message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: id, content: text }] },
 })
 
-const evalTool = { name: 'REPL', toAutoClassifierInput: (input: { code?: string }) => input.code ?? '' }
+const evalTool = { name: 'Chat', toAutoClassifierInput: (input: { code?: string }) => input.code ?? '' }
 const tools = [AgentTool, evalTool] as never
 
 const messages = [
@@ -49,7 +49,7 @@ const messages = [
 ] as never
 
 const transcript = yolo.buildTranscriptForClassifier(messages, tools)
-const action = yolo.formatActionForClassifier('REPL', { code: EVAL_CODE })
+const action = yolo.formatActionForClassifier('Chat', { code: EVAL_CODE })
 console.log(`  transcript:\n${transcript.split('\n').map(l => `    │ ${l}`).join('\n')}`)
 
 section("§1 a child's briefing is context — never this session's rules")
@@ -72,7 +72,7 @@ section("§2 the operator's latest request is the task the judge weighs")
   check('the latest request is the LAST user line, after the delegation', lines.indexOf(diagnosisLine) > lines.findIndex(l => l.startsWith('Agent ')), j(lines))
   check('exactly one line wears the latest-request mark', lines.filter(l => l.startsWith('User (latest request')).length === 1, j(lines))
   const actionInput = action.content[0]?.input as { code?: string } | undefined
-  check('the action projects as the tool name and its code', action.role === 'assistant' && action.content[0]?.name === 'REPL' && actionInput?.code === EVAL_CODE, j(action))
+  check('the action projects as the tool name and its code', action.role === 'assistant' && action.content[0]?.name === 'Chat' && actionInput?.code === EVAL_CODE, j(action))
 }
 
 section('§3 the system prompt tells the judge both laws')

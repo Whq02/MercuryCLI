@@ -421,7 +421,7 @@ section("P8 an older daemon's tail (the word standing over an exited record): th
 
 section('P7 the header paints the phase (structural): the word beside the logo is the phase and nothing else')
 {
-  const repl = readFileSync(join(import.meta.dir, '..', '..', 'src/screens/REPL.tsx'), 'utf8')
+  const repl = readFileSync(join(import.meta.dir, '..', '..', 'src/screens/Chat.tsx'), 'utf8')
   check("the header's compacting dress follows seatLive.phase === 'compacting'", repl.includes("const viewCompacting = seatLive.phase === 'compacting'"))
   check(`the header's word under that dress is the fold's head ("${FOLD_ROW_HEAD}"), still`, repl.includes('viewCompacting ? FOLD_ROW_HEAD') && repl.includes('still={viewCompacting}'))
 }

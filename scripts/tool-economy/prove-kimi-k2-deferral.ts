@@ -85,7 +85,7 @@ async function drive(messages: Message[]): Promise<any> {
   const before = bodies.length
   for await (const row of routedCallModel({
     messages, tools: pool, systemPrompt: ['Fixture assistant'], thinkingConfig: { type: 'disabled' }, signal: new AbortController().signal,
-    options: { model: KIMI, getToolPermissionContext: async () => permission, isNonInteractiveSession: true, querySource: 'repl_main_thread', agents: [], mcpTools: [], hasAppendSystemPrompt: false, hasPendingMcpServers: false },
+    options: { model: KIMI, getToolPermissionContext: async () => permission, isNonInteractiveSession: true, querySource: 'main_thread', agents: [], mcpTools: [], hasAppendSystemPrompt: false, hasPendingMcpServers: false },
   } as never)) {
     if (row.type === 'assistant' && row.isApiErrorMessage) errors.push(JSON.stringify(row.message.content))
   }

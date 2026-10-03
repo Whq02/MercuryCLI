@@ -103,7 +103,7 @@ section('§2 the honest refusals stay: a family-less stranger, and a keyless fam
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ engine: { roster: ['claude-opus-5-5'] } }, null, 2))
   resetSettingsCache()
   const forbidden = await wm.validateWorkerModelChoice(UNKNOWN_CLAUDE_ID, 'session')
-  check("an organization's engine.roster still binds the door (the REPL refuses on it before any call)", !forbidden.ok && forbidden.reason === 'not-runnable:not-allowed' && /engine\.roster/.test(forbidden.detail ?? ''), text(forbidden))
+  check("an organization's engine.roster still binds the door (the Chat refuses on it before any call)", !forbidden.ok && forbidden.reason === 'not-runnable:not-allowed' && /engine\.roster/.test(forbidden.detail ?? ''), text(forbidden))
   const forbiddenEngine = await wm.validateWorkerModelChoice('gpt-5.9-nova', 'session')
   check('…and binds an engine namespace id the same way', !forbiddenEngine.ok && forbiddenEngine.reason === 'not-runnable:not-allowed', text(forbiddenEngine))
   writeFileSync(join(home, 'settings.json'), JSON.stringify({}, null, 2))
@@ -164,7 +164,7 @@ section('§4 the guarantee — a future Claude id starts from EVERY door, the wi
     const coordinator = await validateCoordinatorModelChoice(id)
     check("door · the coordinator's assist model, selectable under its family's label", coordinator.ok && coordinator.entry.modelId === id && coordinator.entry.source === 'anthropic' && coordinator.entry.availability === 'ready', text(coordinator))
   }
-  check("door · the REPL's /model <id>: the validator's home-lane road admits the id and hands it to the wire (no catalogue read between)", typeof validateModel === 'function' && (() => {
+  check("door · the Chat's /model <id>: the validator's home-lane road admits the id and hands it to the wire (no catalogue read between)", typeof validateModel === 'function' && (() => {
     const { readFileSync } = require('node:fs') as typeof import('node:fs')
     const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'model', 'validateModel.ts'), 'utf8')
     const admission = src.indexOf('homeLaneAdmissionRefusal(trimmed)')
@@ -195,7 +195,7 @@ section('§5 the road census — every door reaches a capability owner; a new ju
     ['src/daemon/crewSpawn.ts', 'the crew seat', 'validateWorkerModelChoice('],
     ['src/daemon/controlServer.ts', 'the seat reconfigure', 'validateWorkerModelChoice('],
     ['src/daemon/sessionSeat.ts', 'the switch on a gone runner', 'validateWorkerModelChoice('],
-    ['src/commands/model/model.tsx', "the REPL's /model <id>", 'validateModel('],
+    ['src/commands/model/model.tsx', "the Chat's /model <id>", 'validateModel('],
     ['src/services/advisor/advisorSettings.ts', "the advisor's model", "resolveSubModel("],
     ['src/tools/WorkflowTool/workflowRouting.ts', 'the workflow seat', 'neutralSeatDefault'],
   ]

@@ -21,7 +21,7 @@ import { surfaceDumpDocument } from './commands/effectiveCatalogue.js'
 import { MERCURY_VERSION } from './constants/product.js'
 import { getSystemContext, getUserContext } from './context.js'
 import { initBundledSkills } from './skills/bundled/index.js'
-import { launchRepl } from './replLauncher.js'
+import { launchChat } from './chatLauncher.js'
 import { getInstructionFiles } from './services/instructions/engine.js'
 import { initializeLspServerManager, waitForInitialization } from './services/lsp/manager.js'
 import { mercuryLspEnabled } from './services/lsp/mercuryLsp.js'
@@ -126,13 +126,12 @@ import { getDefaultAppState } from './state/AppStateStore.js'
 import { createStore } from './state/store.js'
 import { onChangeAppState } from './state/onChangeAppState.js'
 import type { AppState } from './state/AppStateStore.js'
-import type { Props as REPLProps } from './screens/REPL.js'
+import type { Props as ChatProps } from './screens/Chat.js'
 import type { UUID } from 'node:crypto'
 import { update as updateCli } from './cli/update.js'
 import type { ScopedMcpServerConfig } from './services/mcp/types.js'
 import { writeShimSet, resolveLayoutRoots } from './services/privateChannel/installLayout.js'
 import { migrateAutoUpdatesToSettings } from './migrations/migrateAutoUpdatesToSettings.js'
-import { migrateReplBridgeEnabledToRemoteControlAtStartup } from './migrations/migrateReplBridgeEnabledToRemoteControlAtStartup.js'
 import { migrateVerboseToToolOutput } from './migrations/migrateVerboseToToolOutput.js'
 import type { Root } from './ink.js'
 import chalk from 'chalk'
@@ -181,7 +180,6 @@ function runMigrationsIfNeeded(): void {
     if (config.migrationVersion === MIGRATION_VERSION) return
     const landed: boolean[] = []
     landed.push(migrateAutoUpdatesToSettings())
-    migrateReplBridgeEnabledToRemoteControlAtStartup()
     migrateVerboseToToolOutput()
     const incomplete = landed.some(ok => ok === false)
     if (incomplete) {
@@ -1838,7 +1836,7 @@ async function interactiveLaunch(args: {
     agent: args.mainThreadAgentDefinition?.agentType,
     agentDefinitions: { activeAgents: args.activeAgents, allAgents: args.allAgents },
     ...(initialCrewContext ? { crewContext: initialCrewContext } : {}),
-    replBridgeEnabled: getRemoteControlAtStartup() || assistantBridgeSeed(),
+    remoteControlEnabled: getRemoteControlAtStartup() || assistantBridgeSeed(),
     promptSuggestionEnabled: false,
     ...(inputPrompt
       ? {
@@ -1885,7 +1883,7 @@ async function interactiveLaunch(args: {
     stats,
     initialState,
   }
-  const replProps: REPLProps = {
+  const chatProps: ChatProps = {
     commands,
     initialTools: [...getTools(effectiveContext)],
     debug: Boolean(opts.debug || opts.d),
@@ -1958,7 +1956,7 @@ async function interactiveLaunch(args: {
         const { getWorktreePaths } = await import('./utils/getWorktreePaths.js')
         const worktreePathsPromise = getWorktreePaths(process.cwd()).catch(() => [] as string[])
         await launchResumeChooser(root, appProps, worktreePathsPromise, {
-          ...replProps,
+          ...chatProps,
           initialSearchQuery: searchTerm,
           forkSession: Boolean(opts.fork),
           filterByPr: fromPr === true ? true : typeof fromPr === 'string' ? fromPr : undefined,
@@ -1981,7 +1979,7 @@ async function interactiveLaunch(args: {
       }
     }
 
-    await launchRepl(root, appProps, replProps, renderAndRun, {
+    await launchChat(root, appProps, chatProps, renderAndRun, {
       dynamicMcpConfig: args.dynamicMcpConfig,
       isStrictMcpConfig: Boolean(args.opts.onlyMcp),
     })

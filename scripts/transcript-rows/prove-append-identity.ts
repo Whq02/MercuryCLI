@@ -37,7 +37,7 @@ console.log('── row-identity append law ──')
 }
 
 {
-  const src = readFileSync(join(import.meta.dir, '../../src/screens/REPL.tsx'), 'utf8')
+  const src = readFileSync(join(import.meta.dir, '../../src/screens/Chat.tsx'), 'utf8')
   const connector = readFileSync(join(import.meta.dir, '../../src/services/engine-connector/daemonConnector.ts'), 'utf8')
   check(
     'the face holds no settle append (no setMessages append, no stream handler)',

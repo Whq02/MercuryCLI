@@ -9,7 +9,7 @@ import { invokeConcourseCloseChord } from '../services/concourse/closeChordSlot.
 import { useLayoutChrome } from '../context/layoutChromeContext.js'
 import type { CompactWorkControls } from '../components/tasks/CompactWorkSummary.js'
 import instances from '../ink/instances.js'
-import type { Screen } from '../screens/REPL.js'
+import type { Screen } from '../screens/Chat.js'
 
 export function GlobalKeybindingHandlers({
   screen,

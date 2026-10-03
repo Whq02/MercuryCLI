@@ -167,7 +167,7 @@ section('adoption pins — tiers wired where they belong (source greps)')
     'useShimmerAnimation is lattice-aligned (FOCAL/WORK, no raw 50/200)',
     shimmer.includes('FOCAL_TICK_MS') && shimmer.includes('WORK_TICK_MS') && !/\?\s*50\s*:\s*200/.test(shimmer),
   )
-  const repl = readFileSync('src/screens/REPL.tsx', 'utf8')
+  const repl = readFileSync('src/screens/Chat.tsx', 'utf8')
   check(
     'the composer input-change chokepoint marks typing activity (T13 S2: the owner edit path)',
     readFileSync('src/input-core/pending-input.ts', 'utf8').includes('markTypingActivity()'),
