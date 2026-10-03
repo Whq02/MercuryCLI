@@ -10,10 +10,12 @@ surface only. The exact supported profile is the capability matrix below.
 mercury acp
 ```
 
-stdout is the protocol channel (NDJSON JSON-RPC); diagnostics ride stderr.
-Each ACP session maps 1:1 onto a real Mercury session (same transcripts,
-same resume, same permission machinery). `session/load` resumes an existing
-Mercury session by reading its transcript: the conversation it already holds
+stdout carries JSON-RPC 2.0, one message per line; diagnostics ride stderr.
+The server starts one `mercury runner` child per ACP session, from its own
+build. It sends prompts through `queue/add`, reads `row` notifications and
+puts the runner's permission asks to the editor. Each child is a real
+Mercury session with its own transcript, resume and permission rules.
+`session/load` resumes an existing Mercury session by reading its transcript: the conversation it already holds
 crosses as session updates before the response (the protocol's replay rule),
 and nothing re-runs — a reconnect never replays a prompt or re-runs a tool.
 Closing an ACP session reaps only its own work.
@@ -51,8 +53,10 @@ such client.
 | session/update: usage_update (context occupancy + window + cost) | yes |
 | session/update: current_mode_update · config_option_update | yes |
 | session/update on load: user_message_chunk · agent_message_chunk · agent_thought_chunk · tool_call · tool_call_update | yes (the transcript, in order) |
-| session/request_permission (adapts Mercury's can_use_tool; the tool_call's diff content is the preview) | yes |
-| session/set_mode (default · implement · flow) | yes |
+| session/request_permission (the runner's tool or network ask; the tool_call's diff content is the preview) | yes — Allow, Deny and Always Allow when rule suggestions are present |
+| $/cancel_request | yes — a withdrawn runner ask withdraws the editor's permission request |
+| elicitation/create · elicitation/complete | MCP questions reach editors that advertise elicitation; without it the question is answered cancel |
+| session/set_mode | uses the session's advertised modes; a refused selection returns the runner's reason; Sovereign asks for consent |
 | session/set_config_option (`permission-mode` selector, category `mode`) | yes |
 | _mercury/editor_context (client → agent notification: active file, selection, open files, diagnostics, workspace roots — rides the next prompt as an attached resource) | yes (extension notification) |
 | _mercury/workbench (incl. the versioned attention + relationship wire) · _mercury/artifacts · _mercury/artifact · _mercury/crew · _mercury/run | yes (extension methods — the VS Code bridge's read surface) |

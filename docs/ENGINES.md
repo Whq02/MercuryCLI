@@ -459,10 +459,11 @@ come from its owning account resolvers:
   expansion carries Google's words and every wait; the debug log carries every
   retry either way. Escape ends a wait at once. A wait Google itself asks for
   (Retry-After) is honoured in place of the ladder's own when it fits the
-  retry budget, as on every road. On a chat without a screen (a print run, a
-  dispatched agent) the same ladder runs, and its retry frames reach the
-  caller only past the quiet window; a dispatched agent's retry budget counts
-  every wait of the ladder, the quiet ones included, so a six-second budget
+  retry budget, as on every road. On a chat without a screen (`mercury run`
+  or a dispatched agent) the same ladder runs, and its `wait` rows with
+  `state: "retry"` reach the caller only past the quiet window; a dispatched
+  agent's retry budget counts every wait of the ladder, the quiet ones
+  included, so a six-second budget
   ends the ladder six seconds in whether or not a retry line has painted.
   The API-key resolver takes `GOOGLE_API_KEY` before `GEMINI_API_KEY`, then the
   stored key; environment keys must be available to the process that uses them.
@@ -517,11 +518,10 @@ names the account (the face's account chip and its Logins roster, `/status`,
 card and the `auth status` verb) reads the email stored beside the token
 itself — the profile, else the exchange's receipt — never a recorded copy or
 a fresh probe while painting; a credential with neither names none, in each
-surface's own words, rather than the account stored before it. The facts a
-hosted session answers to its seat name that same address as the identity's
-account email (the seat wire's `account_email`), so the cockpit's connector
-and any reader of a session's facts see the credential's own account, never
-the recorded copy; the value changed, the key and its shape did not. The
+surface's own words, rather than the account stored before it. A hosted
+session's `session/facts` answer names that same address in
+`identity.account_email`, so the cockpit's connector and any reader of the
+session's facts see the credential's own account. The
 `/accounts` board's live verification still heals the stored identity
 whenever the two disagree; until it answers, the board names the recorded
 copy beside the credential's own address, labelled as a snapshot, only when

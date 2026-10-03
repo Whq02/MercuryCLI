@@ -44,12 +44,13 @@ Every hook has a `type`:
   `powershell`). `async: true` runs it in the background without blocking;
   `asyncRewake: true` also wakes the model when the hook exits with the
   blocking status.
-- `prompt` has a model answer `prompt`; `$ARGUMENTS` in the prompt receives
-  the hook input JSON. `model` picks the model (default: the small fast
-  model).
-- `agent` has an agent verify `prompt`; `$ARGUMENTS` receives the hook
-  input JSON, the timeout defaults to 60 seconds, and `model` never runs the
-  smallest model.
+- `prompt` has a model judge the condition in `prompt`; `$ARGUMENTS` receives
+  the hook input JSON. `model` picks the model; without it, the session
+  provider's small-fast model judges.
+- `agent` has a tool-using agent verify `prompt`; `$ARGUMENTS` receives the
+  hook input JSON and the timeout defaults to 60 seconds. `model` picks the
+  model; without it, the session provider's light model runs, or the session
+  model when that provider has no light tier.
 - `http` posts the hook input JSON to `url`. `headers` may reference
   environment variables as `$VAR` or `${VAR}`, but only the names listed in
   `allowedEnvVars` are interpolated; every other reference resolves to an
@@ -63,15 +64,17 @@ once, then removed).
 
 ## Events
 
-Every hook input carries `hook_event_name`, `session_id`, `transcript_path`,
-`cwd` and `permission_mode`. The event adds its own fields:
+Every hook input carries `hook_event_name`, `session_id`, `transcript_path`
+and `cwd`. `permission_mode` is present when the firing event supplies it;
+`agent_id` and `agent_type` identify the firing agent when known. The event
+adds its own fields; context-dependent fields can be absent:
 
 | Event | Fires | Fields |
 | --- | --- | --- |
 | `PreToolUse` | before a tool call runs | `tool_name`, `tool_input`, `tool_use_id` |
 | `PostToolUse` | after a tool call succeeds | `tool_name`, `tool_input`, `tool_response`, `tool_use_id` |
 | `PostToolUseFailure` | after a tool call fails | `tool_name`, `tool_input`, `tool_use_id`, `error`, `is_interrupt` |
-| `PermissionRequest` | when a tool call needs the operator's consent | `tool_name`, `tool_input`, `permission_suggestions` |
+| `PermissionRequest` | when a tool call needs the operator's consent | `tool_name`, `tool_input`, `tool_use_id`, `permission_suggestions` |
 | `PermissionDenied` | when a tool call was refused | `tool_name`, `tool_input`, `tool_use_id`, `reason` |
 | `Notification` | when Mercury notifies the operator | `message`, `title`, `notification_type` |
 | `UserPromptSubmit` | when the operator sends a prompt | `prompt` |
@@ -136,8 +139,13 @@ permission answer is the event-specific one below, never this field), and
 - `WorktreeCreate`: `worktreePath` (the path the hook provisioned).
 
 A `hookSpecificOutput` whose `hookEventName` is not the event that ran is a
-loud error, never a silent merge. Prompt, agent and HTTP hooks answer with
-the same JSON object.
+loud error, never a silent merge. An HTTP hook returns this JSON object in
+the response body; an empty body means no additional instruction.
+
+Prompt and agent hooks return a condition verdict: `{"ok": true}` when the
+condition is met, or `{"ok": false, "reason": "what failed"}` when it is not.
+A false verdict blocks with its reason. A prompt hook answers as structured
+JSON; an agent hook submits the verdict through its structured-output tool.
 
 ## Policy
 

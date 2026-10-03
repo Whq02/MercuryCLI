@@ -152,7 +152,7 @@ if (import.meta.main) {
   const scriptsNamed = offenders(join(REPO, 'scripts'), BREAKER_NAMES)
   check('no proof pins the breaker', scriptsNamed.length === 0, scriptsNamed.slice(0, 12).join(' · '))
   const durability = src('docs/DURABILITY.md').replace(/\s+/g, ' ')
-  check('the durability page says no call is refused for repeating, the guard reminds by default, and the key ends the second detection of one cycle', durability.includes('A repeated tool call is never refused. In interactive sessions the loop guard only reminds by default') && durability.includes('eight consecutive failed calls') && durability.includes('With `turns.loopGuard: true` in settings, the second detection of the same cycle of two to five calls ends the turn'))
+  check('the durability page distinguishes loop reminders from tool-specific failure guards and names the optional cycle stop', durability.includes('The loop guard does not refuse individual calls for repeating. In interactive sessions it only reminds by default') && durability.includes('the language service refuses an unchanged failing call after three attempts') && durability.includes('eight consecutive failed calls') && durability.includes('With `turns.loopGuard: true` in settings, the second detection of the same cycle of two to five calls ends the turn'))
 
   section('§2 DEFAULT ROAD on the built product: twenty identical reads of an unchanged file are reminded, never refused, and run to the model’s own end')
   {

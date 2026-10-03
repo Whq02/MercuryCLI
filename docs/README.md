@@ -5,13 +5,13 @@ the guides by task; each page describes the installed product.
 
 ## Getting started
 
-- [The README](../README.md): installation, the first run, providers, daily work and command reference.
+- [The README](../README.md): installation, daily work, providers, headless rows and the runner session protocol.
 - [AGENTS.md](../AGENTS.md): build, run and check a source checkout.
 - [INSTALL-WINDOWS-FROM-SOURCE.md](INSTALL-WINDOWS-FROM-SOURCE.md): build Mercury on Windows, with a check after each step.
 - [WINDOWS-GLYPH-FIELD-CHECK.md](WINDOWS-GLYPH-FIELD-CHECK.md): check a Windows terminal's text marks and report a rendering problem.
 - [SESSIONS.md](SESSIONS.md): the Boot face, chat, Session Concourse, saved conversations and the flags that shape a launch.
 - [SETTINGS.md](SETTINGS.md): settings files, their precedence and the grouped keys for models, permissions, memory, tools and appearance.
-- [TRUST.md](TRUST.md): trusting a workspace, permission rules, managed policy and release signatures.
+- [TRUST.md](TRUST.md): workspace trust, permission rules, hosted and hostless asks, managed policy and release signatures.
 
 Keyboard interaction lives in the product: `/keys` shows the effective key
 map and `/keybindings` opens your keybindings file.
@@ -36,8 +36,7 @@ map and `/keybindings` opens your keybindings file.
 - [EXTENSIONS.md](EXTENSIONS.md): extension manifests, sources, contributions, approval and the maker's commands.
 - [CREW.md](CREW.md): the two built-in agents, custom definitions, crewmates, messages, file claims and work boards.
 - [SATURN.md](SATURN.md): schedules that send a prompt or start a session, the scheduler board and held or late fires.
-- [HOOKS.md](HOOKS.md): hooks, where they are declared, the four kinds, the
-  events with their input fields, what a hook answers, and the policy knobs.
+- [HOOKS.md](HOOKS.md): the four hook kinds, event inputs, command and HTTP answers, model verdicts and policy controls.
 
 ## Providers and models
 
@@ -48,8 +47,8 @@ map and `/keybindings` opens your keybindings file.
 ## Health and the runtime
 
 - [HEALTH-CERTIFICATE.md](HEALTH-CERTIFICATE.md): `/health` and the doctor, evidence-backed checks, fixes and the JSON certificate.
-- [DURABILITY.md](DURABILITY.md): atomic publication, operation journals, boot recovery and connection watchdogs.
-- [TERMINAL-RUNTIME.md](TERMINAL-RUNTIME.md): launchers, runtime locations, installs, updates and the shell engine.
+- [DURABILITY.md](DURABILITY.md): atomic publication, operation journals, recovery, watchdogs and loop-stop outcomes.
+- [TERMINAL-RUNTIME.md](TERMINAL-RUNTIME.md): launchers, session hosts, runtime locations, installs, updates and the shell engine.
 - [TERMINAL-PROFILE.md](TERMINAL-PROFILE.md): terminal requirements, capability detection, input decoding, ping and motion controls.
 - [COMPATIBILITY.md](COMPATIBILITY.md): instruction files, configuration, external service identifiers, MCP and release platforms.
 
@@ -65,14 +64,12 @@ map and `/keybindings` opens your keybindings file.
 - [BUILD-NOTES.md](../BUILD-NOTES.md): building and packaging the artifact, its vendored payloads and launchers.
 - [CONTRIBUTING.md](../CONTRIBUTING.md): issues, pull-request policy, checks and generated-file conventions.
 - [templates/extension-source-README.md](templates/extension-source-README.md): the source README template written by `mercury extensions scaffold --source`.
-- Releases: [releases/README.md](releases/README.md) keeps one page per
-  tag — its state, the verdict it stands on, what shipped, its known gaps
-  and the queue for the next one ([1.0.0-beta.26](releases/1.0.0-beta.26.md)
-  is the newest tag; [1.0.0-beta.27](releases/1.0.0-beta.27.md) is the
-  queue). The
-  notes themselves ride each release: `/update-notes` shows the running
-  release's notes in the chat, with the earlier releases behind the
-  transcript key, and a headless run prints every release.
+- Releases: [releases/README.md](releases/README.md) lists the release pages,
+  each naming what was added and fixed. [1.0.0-beta.26](releases/1.0.0-beta.26.md)
+  is the newest tag; [1.0.0-beta.27](releases/1.0.0-beta.27.md) is queued.
+  `/update-notes` shows the running release's notes in the chat, with earlier
+  releases behind the transcript key. `mercury run /update-notes` prints the
+  full release history.
 
 The capability switches and their defaults live in
 `src/substrate/flagRegistry.ts`. Inventories render on demand to untracked
