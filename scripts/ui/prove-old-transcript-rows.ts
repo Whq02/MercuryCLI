@@ -66,8 +66,8 @@ try {
     writeFileSync(path, encodeFixtureTranscript(oldCrewRows(SID), SID))
     const sends = [
       { awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 4, data: '', mark: 'opened' },
-      { afterPrevTicks: 2, data: '\x1b[5~' },
-      { afterPrevTicks: 8, data: '', mark: 'earlier' },
+      { awaitText: 'Type a prompt', requireAwait: true, afterPrevTicks: 2, data: '\x1b[5~' },
+      { awaitText: 'charter the fixture team', requireAwait: true, afterPrevTicks: 8, awaitSettleTicks: 2, data: '', mark: 'earlier' },
     ]
     const out = join(home, `${band.cols}.json`)
     const config = `${out}.cfg.json`
