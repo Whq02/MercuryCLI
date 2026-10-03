@@ -49,7 +49,7 @@ spawnInput.cwd = work
 const session = bootLead(world, ['--mode', 'sovereign', '--session-id', crew], ['Agent', 'Bash', 'TaskStop', 'SendMessage', 'LiveComms', 'Inspect'])
 type Member = { name: string; agentId: string; cwd?: string; isActive?: boolean; stoppedAt?: number }
 const members = (): Member[] => readJson<{ members: Member[] }>(join(world.crews, crew, 'config.json'))?.members ?? []
-const taskIds = (): string[] => session.frames.filter(frame => frame.subtype === 'task_started' && frame.task_type === 'in_process_crewmate').map(frame => String(frame.task_id))
+const taskIds = (): string[] => session.frames.filter(frame => frame.type === 'task' && frame.state === 'started' && frame.task_type === 'in_process_crewmate').map(frame => String(frame.task_id))
 const requests = () => world.fixture.messageRequests().filter(request => (request.body as { model?: string })?.model === peerModel)
 const rows = (text: string): Array<[string, string]> => [...text.matchAll(/^- ([^\s]+)(?: <[^>]+>)? \[([^\]:]+)(?::[^\]]*)?\]/gm)].map(match => [match[1]!, match[2]!] as [string, string]).sort(([a], [b]) => a.localeCompare(b))
 const readPhase = async (phase: string, prompt: string, status: 'busy' | 'stopped'): Promise<void> => {

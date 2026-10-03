@@ -154,9 +154,9 @@ try {
   const spawned = toolResultOf(world, SPAWN_ID)
   record('first-spawn-result.txt', `${spawned?.text ?? ''}\nis_error=${String(spawned?.isError)}\n`)
   tally.check('the first spawn lands as a crewmate with no create step before it', spawned !== null && spawned.isError === false && /crewmate_spawned|Crewmate spawned/i.test(spawned.text), `${spawned?.text.slice(0, 220) ?? '(no result)'} is_error=${String(spawned?.isError)}`)
-  const started = first.frames.find(frame => frame.subtype === 'task_started' && frame.task_type === 'in_process_crewmate')
+  const started = first.frames.find(frame => frame.type === 'task' && frame.state === 'started' && frame.task_type === 'in_process_crewmate')
   const seatRequests = (): number => world.fixture.messageRequests().filter(request => (request.body as { model?: string } | null)?.model === SEAT_MODEL).length
-  tally.check('the crewmate is on the roster and ran its first turn (an in-process crewmate task started, a request on its model)', started !== undefined && seatRequests() >= 1, `${JSON.stringify(first.frames.filter(frame => frame.subtype === 'task_started').map(frame => frame.task_type))} seat requests=${seatRequests()}`)
+  tally.check('the crewmate is on the roster and ran its first turn (an in-process crewmate task started, a request on its model)', started !== undefined && seatRequests() >= 1, `${JSON.stringify(first.frames.filter(frame => frame.type === 'task' && frame.state === 'started').map(frame => frame.task_type))} seat requests=${seatRequests()}`)
   const roster = readJson<Roster>(configPath)
   tally.check('the crew roster on disk is the session\'s: led by this session, the lead and scout on it, the model as named', roster !== null && roster.name === sessionId && roster.leadSessionId === sessionId && roster.leadAgentId === `crew-lead@${sessionId}` && roster.members.map(m => m.name).join(',') === 'crew-lead,scout' && roster.members[1]!.model === SEAT_MODEL, JSON.stringify(roster?.members.map(m => [m.name, m.model]) ?? treeOf(world.crews)))
   const note = toolResultOf(world, NOTE_ID)
