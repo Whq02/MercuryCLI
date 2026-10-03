@@ -710,6 +710,7 @@ interface AcpSessionState {
   modeChanges: Promise<void>
   turnResolve: ((outcome: 'success' | 'error' | 'cancelled', detail?: TurnEndDetail) => void) | null
   cancelled: boolean
+  promptAbort: AbortController | null
   editorContext: EditorContextWire | null
   toolNames: Map<string, string>
   planChain: Promise<void>
@@ -750,6 +751,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
       modeChanges: Promise.resolve(),
       turnResolve: null,
       cancelled: false,
+      promptAbort: null,
       editorContext: null,
       toolNames: new Map(),
       planChain: Promise.resolve(),
@@ -1126,19 +1128,27 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
         ]),
       )
       state.cancelled = false
+      const promptAbort = new AbortController()
+      state.promptAbort = promptAbort
       const settled = await new Promise<{
         outcome: 'success' | 'error' | 'cancelled'
         detail: TurnEndDetail | undefined
       }>(resolve => {
-        state.turnResolve = (outcome, detail) => resolve({ outcome, detail })
-        state.child.writeUserPrompt(blocks).catch((e: unknown) => {
-          if (state.turnResolve === null) return
+        const resolveTurn: NonNullable<AcpSessionState['turnResolve']> = (outcome, detail) => resolve({ outcome, detail })
+        state.turnResolve = resolveTurn
+        state.child.writeUserPrompt(blocks, promptAbort.signal).catch((e: unknown) => {
+          if (state.turnResolve !== resolveTurn) return
+          state.turnResolve = null
+          if (promptAbort.signal.aborted) {
+            resolve({ outcome: 'cancelled', detail: undefined })
+            return
+          }
           const why = e instanceof Error ? e.message : String(e)
           process.stderr.write(`[acp] session/prompt failed to reach the child: ${why}\n`)
-          state.turnResolve = null
           resolve({ outcome: 'error', detail: { status: 'prompt_undelivered', errors: [why] } })
         })
       })
+      if (state.promptAbort === promptAbort) state.promptAbort = null
       const verdict = stopReasonOf(settled.outcome, settled.detail)
       if ('error' in verdict) throw new Error(verdict.error)
       return { stopReason: verdict.stopReason }
@@ -1169,6 +1179,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
     .onRequest('session/close', async ctx => {
       const state = sessions.get(ctx.params.sessionId)
       if (state) {
+        state.promptAbort?.abort()
         if (state.turnResolve) {
           const resolveTurn = state.turnResolve
           state.turnResolve = null
@@ -1185,6 +1196,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
       const state = sessions.get(ctx.params.sessionId)
       if (state && state.turnResolve) {
         state.cancelled = true
+        state.promptAbort?.abort()
         state.child.interrupt()
       }
     })

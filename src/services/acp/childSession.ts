@@ -261,12 +261,27 @@ export class MercuryChildSession {
     }
   }
 
-  async writeUserPrompt(content: Array<Record<string, unknown>>): Promise<void> {
+  async writeUserPrompt(content: Array<Record<string, unknown>>, signal?: AbortSignal): Promise<void> {
     if (this.protocolFailure) throw this.protocolFailure
     if (this.dead || this.closedByUs) {
       throw new Error(`the session child is ${this.dead ? 'dead' : 'closed'} — prompt not delivered`)
     }
-    await this.initialized
+    await new Promise<void>((resolve, reject) => {
+      const abort = (): void => reject(signal?.reason)
+      if (signal?.aborted) {
+        abort()
+        return
+      }
+      signal?.addEventListener('abort', abort, { once: true })
+      this.initialized.then(() => {
+        signal?.removeEventListener('abort', abort)
+        resolve()
+      }, error => {
+        signal?.removeEventListener('abort', abort)
+        reject(error)
+      })
+    })
+    signal?.throwIfAborted()
     if (this.protocolFailure) throw this.protocolFailure
     try {
       const answer = await this.peer.request('queue/add', { type: 'prompt', content: inputBlocksOf(content) }, { deadlineMs: 30_000 })
