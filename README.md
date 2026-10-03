@@ -151,7 +151,8 @@ To build from source, you need:
 - **Node 24 LTS**, in the supported range `>=24.20.0 <25`. `.node-version`
   pins the patch used for builds and included in release archives.
 - **bun 1.3.x** for the build. It is not bundled with releases.
-- **git**. On Windows, use Windows Terminal or PowerShell 7. See
+- **git**. On Windows, run PowerShell 7 inside Windows Terminal or the
+  VS Code terminal. See
   [docs/INSTALL-WINDOWS-FROM-SOURCE.md](docs/INSTALL-WINDOWS-FROM-SOURCE.md).
 
 The Node minimum includes the fix for nodejs/node#56645. Below 24.20.0,
@@ -399,11 +400,54 @@ Mercury's licence does not replace them.
 The same build runs without the interactive interface.
 `node dist/mercury.mjs --help` lists every flag.
 
-`mercury run "<prompt>"` runs one non-interactive turn. Choose its output with
-`--format text|json|rows`: `text` is the answer, `json` is one final result
-object, and `rows` is one JSON line per event. `--partial` includes partial
-rows while the turn streams. `--input rows` reads JSON-line input on stdin
-and requires `--format rows`.
+`mercury run "<prompt>"` runs a prompt without a terminal UI:
+
+```sh
+mercury run "Summarise this repository." --format text
+mercury run "Summarise this repository." --format json
+mercury run "Summarise this repository." --format rows
+```
+
+- `text` prints the answer; a failed turn's reason goes to stderr.
+- `json` prints the last `outcome` row as one JSON object.
+- `rows` writes one JSON object per line: `session`, then a `turn` and its
+  `text`, `reasoning`, `tool_call`, `tool_result` and `step` rows, ending in
+  `outcome`. Waits, tool progress, background tasks and notices have their
+  own rows. Every row carries `seq`, `timestamp` and `session_id`; rows
+  within a turn also carry its `turn` number.
+
+`--partial` with `--format rows` adds `block_start`, `text_delta`,
+`reasoning_delta`, `tool_input_delta` and `retracted` rows. Deltas belong to
+`message_id` and `block`; a `retracted` row withdraws that message's deltas.
+The settled text or tool row is the complete value.
+
+The outcome carries `schema`, `turn_id`, `status`, `steps`, `wall_ms`,
+`usage`, `models` and `denials`, with `answer` on completion and `error`
+(`message`, `class`, optional `detail`) on failure. `stop`, measured
+`api_ms`, known `cost_usd`, requested `structured` output and `notices` are
+included when available. Usage names `input_tokens` (cached tokens included),
+`cached_input_tokens`, `cache_write_input_tokens`, `output_tokens` and,
+when reported, `reasoning_output_tokens`. `models` gives the per-model
+figures; `steps` counts the main thread's model calls.
+
+The status is `completed`, `refused`, `failed`, `interrupted`, `turn_limit`,
+`budget_limit`, `schema_unmet` or `loop_stopped`. A completed run exits 0,
+other outcomes exit 1, and a usage error exits 2. SIGINT and SIGTERM exit
+130 and 143 after the interrupted turn's outcome is flushed. A refused tool
+call is listed in `denials`; it does not make a completed turn a failure.
+
+`--input rows` requires `--format rows` and reads one input object per line:
+
+```sh
+printf '%s\n' '{"type":"prompt","content":"Summarise this repository."}' | mercury run --input rows --format rows
+```
+
+The input types are `prompt` with `content` (text or text/image blocks),
+`shell` with `command`, and `note` with `to` (an agent id) and `content`.
+Each accepts an optional `id`; prompt and shell rows also accept `priority`
+(`now`, `next` or `later`), `sent_at` and `origin`. A rejected input shape
+produces a `notice` with code `input_refused`; malformed JSON ends the run.
+These are input rows, not permission answers.
 
 Use `mercury run -` or pipe text into `mercury run` to read the whole prompt
 from stdin. Beside a prompt argument, piped text is collected for up to one
@@ -417,6 +461,38 @@ entering sovereign mode gets one notice on stderr; the run continues.
 
 Use `-c` to continue the most recent conversation, `-r` to resume by ID, title
 or picker, `-w` to run in a managed worktree, and `--lean` for a minimal session.
+A `run` has no host to answer permission asks: its permission rules and mode
+decide what can run, and a call that still needs approval is denied.
+
+### Hosting a session
+
+`mercury runner` serves a session to a host over stdio: JSON-RPC 2.0, one
+message per line. The host sends `initialize` first, with `protocol: 1`, its
+name and version, and the `holds_asks`, `elicitation` and `partial_rows`
+capabilities. It waits for the answer before sending work.
+
+`queue/add` takes the same prompt, shell or note object as the row input
+above. Output arrives in `row` notifications. `session/facts` reads the
+session's state; `session/set_model`, `session/set_effort` and
+`session/set_mode` change its choices. A change held until the turn ends
+answers with `at: "turn_end"`, then `session/applied` announces it.
+`turn/interrupt` stops a turn; close stdin to end the session.
+
+Permission asks arrive as `permission/request`, with `kind: "tool"` or
+`kind: "network"`. The host answers with `outcome: "allow"` or
+`outcome: "deny"`; an allow may carry edited `input` and permission `rules`.
+A withdrawn ask sends `$/cancel_request` with its `request_id`.
+`holds_asks` gives the host ownership of the ask's clock. An MCP question
+uses `elicitation/request` only when the host declares `elicitation`;
+otherwise it is answered `cancel`.
+
+An unknown method answers `-32601`, invalid parameters `-32602`, and a
+request before initialization `-32002`. A rule refusal is `-32010`, with a
+sentence in `error.message` and a reason in `error.data.kind`, such as
+`mode`, `model`, `effort` or `claim`. The runner answers a malformed line
+with `-32700` and continues; three consecutive malformed lines end it.
+
+### Other commands
 
 Available commands include:
 
@@ -432,9 +508,12 @@ Available commands include:
   `enable`, `disable`, `update`, `uninstall`, `fence`, `unfence`, `inspect`
   and `scaffold`.
 - **`mercury roster`**: list the agent inventory.
-- **`mercury daemon`**: run the background daemon that hosts sessions.
-- **`mercury acp`**: connect an editor through the Agent Client
-  Protocol. `mercury bridge <action>` installs the VS Code extension.
+- **`mercury daemon run|status|stop`**: run, inspect or stop the background
+  daemon. Its session seats and named crewmates are `mercury runner`
+  children; the daemon sends their prompts and hosts their permission asks.
+- **`mercury acp`**: serve an editor over the Agent Client Protocol, with a
+  runner child for each session. `mercury bridge install` installs the
+  VS Code extension; `mercury bridge status` checks it.
 - **`mercury godot run|check|capture|frames|profile|tour|jobs|cancel|result`**:
   manage engine jobs for the Godot project in the current directory. Mercury
   runs suites on its own headless workers from a frozen project copy. The
@@ -461,8 +540,10 @@ Available commands include:
   [docs/KIT.md](docs/KIT.md).
 - **Agents and the crew.** Two built-in agents — `mercury-crew` for delegated
   work of every kind and `mercury-scout` for read-only reconnaissance — plus
-  the agent definitions you create in the agent studio. Chat with named
-  crewmates and follow agents and workflow runs in their status views. See
+  the agent definitions you create in the agent studio. The daemon hosts
+  named crewmates in their own runners; delegated sub-agents belong to the
+  session that launched them. Follow both, and workflow runs, in their
+  status views. See
   [docs/CREW.md](docs/CREW.md).
 - **Saturn.** Schedule a prompt for an existing session or start a new
   session at a set time. Schedules can run once or recur. See
@@ -483,8 +564,9 @@ Available commands include:
   each prompt. Separate, opt-in integrations connect to running Unity,
   Blender and Godot editors, with batch access to Aseprite. See [Unity](docs/UNITY-BRIDGE.md),
   [Blender](docs/BLENDER-BRIDGE.md) and [Aseprite](docs/ASEPRITE-BRIDGE.md).
-- **Memory.** Mneme keeps what each project's sessions learn in topic pages,
-  loads a front page and your pinned rules into every chat, and looks facts
+- **Memory.** Mneme is on by default. It keeps what each project's sessions
+  learn in topic pages, loads a front page and your pinned rules into every
+  chat, and looks facts
   up on every message; `/memory` is the front door. See
   [docs/MNEME.md](docs/MNEME.md).
 - **Voice input.** Run `/speak on`, then hold space for 1 s to dictate and
