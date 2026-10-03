@@ -18,7 +18,7 @@ import { normalizePathForConfigKey } from '../../utils/path.js';
 import { Select } from '../CustomSelect/index.js';
 import { PermissionDialog } from '../permissions/PermissionDialog.js';
 import { useFirstRunCardsCentred } from '../MercurySetupFrame.js';
-import { getApiKeyHelperSources, getAutoMemoryDirectorySources, getBashPermissionSources, getDangerousEnvVarsSources, getHooksSources, getProxyAuthHelperSources } from './utils.js';
+import { getApiKeyHelperSources, getAutoMemoryDirectorySources, getBashPermissionSources, getDangerousEnvVarsSources, getHooksSources } from './utils.js';
 type Props = {
   onDone(): void;
   commands?: Command[];
@@ -37,7 +37,6 @@ export function TrustDialog({ onDone, commands }: Props): React.ReactNode {
   const hasHooks = getHooksSources().length > 0;
   const bashSettingSources = getBashPermissionSources();
   const hasApiKeyHelper = getApiKeyHelperSources().length > 0;
-  const hasProxyAuthHelper = getProxyAuthHelperSources().length > 0;
   const hasDangerousEnvVars = getDangerousEnvVarsSources().length > 0;
   const hasAutoMemoryDirectory = getAutoMemoryDirectorySources().length > 0;
 

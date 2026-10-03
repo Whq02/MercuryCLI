@@ -11,9 +11,6 @@
         "keyCommand": {
           "type": "string"
         },
-        "proxyCommand": {
-          "type": "string"
-        },
         "signInRoute": {
           "type": "string",
           "enum": [
