@@ -12,7 +12,7 @@ import {
 } from './computedDefault.js'
 import { getContextWindowForModel, has1mContext } from './capabilities.js'
 import { gptDisplayName } from '../../services/providers/openai/gptPins.js'
-import { resolveAntModel } from './antModels.js'
+import { resolveInternalModel } from './internalModels.js'
 import {
   ALL_MODEL_CONFIGS,
   DECLARED_GENERATION_STEMS,
@@ -225,8 +225,8 @@ function canonicalMatch(id: string): string {
 
 export function getCanonicalName(name: string): string {
   const normalized = normalizeModelStringForAPI(name)
-  const antResolved = resolveAntModel(normalized) ?? normalized
-  return canonicalMatch(resolveOverriddenModel(antResolved))
+  const internalResolved = resolveInternalModel(normalized) ?? normalized
+  return canonicalMatch(resolveOverriddenModel(internalResolved))
 }
 
 export function firstPartyNameToCanonical(name: string): string {
