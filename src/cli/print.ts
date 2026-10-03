@@ -146,7 +146,6 @@ import type { AppState } from '../state/AppStateStore.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 import type { Tool, ToolUseContext } from '../Tool.js'
 import { noteHeadlessActivity } from '../utils/activityLedger.js'
-import { getAccountInformation } from '../utils/auth.js'
 import { logForDebugging } from '../utils/debug.js'
 import { fileHistoryEnabled } from '../utils/fileHistory.js'
 import { logForDiagnosticsNoPII } from '../utils/diagLogs.js'
@@ -806,7 +805,7 @@ export async function runHeadless(
   let activeCommands = commands
   let activeAgents: AgentDefinition[] = agents
   const receivedUuids = new BoundedUuidSet(RECEIVED_UUID_CAP)
-  const seenInterruptIds = new BoundedUuidSet(INTERRUPT_DEDUPE_CAP)
+  const interruptOutcomes = new Map<string, boolean>()
   let inputClosed = false
   let inFlightAbort: AbortController | null = null
   let hostAsks: HostAskLiveness | null = null
@@ -1874,10 +1873,13 @@ export async function runHeadless(
 
   const arms: RunnerArms = {
     'turn/interrupt': params => {
-      if (params.op_id !== undefined && seenInterruptIds.has(params.op_id)) return { interrupted: true }
+      if (params.op_id !== undefined && interruptOutcomes.has(params.op_id)) return { interrupted: interruptOutcomes.get(params.op_id)! }
       if (params.turn_id !== undefined && currentTurnId !== null && params.turn_id !== currentTurnId) return { interrupted: false }
-      if (params.op_id !== undefined) seenInterruptIds.add(params.op_id)
       const interrupted = inFlightAbort !== null
+      if (params.op_id !== undefined) {
+        interruptOutcomes.set(params.op_id, interrupted)
+        if (interruptOutcomes.size > INTERRUPT_DEDUPE_CAP) interruptOutcomes.delete(interruptOutcomes.keys().next().value!)
+      }
       inFlightAbort?.abort()
       driver.releaseHold()
       if (params.hard === true) {

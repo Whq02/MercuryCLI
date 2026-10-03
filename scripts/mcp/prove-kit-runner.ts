@@ -377,7 +377,7 @@ section('§I the inline agent-def door (poison: the byte-identical cache-hit tea
   memo.delete(depth1Key)
 
   const agentSrc = readFileSync(join(REPO, 'src', 'tools', 'AgentTool', 'runAgent.ts'), 'utf8')
-  t('I6 the gates stand in source, in order (host → managed policy → enterprise exclusivity → the excluded-name refusal), and the nonce is minted ONCE per dispatch and spread into every inline dial', ['sdk-typed servers connect only', 'blocked by managed policy', 'an enterprise MCP configuration exists', "the session's catalogue excludes this name"].every(n => agentSrc.includes(n)) && agentSrc.includes('const dispatchNonce = randomUUID()') && agentSrc.includes('inlineDispatchId: dispatchNonce'))
+  t('I6 the gates stand in source, in order (host → managed policy → enterprise exclusivity → the excluded-name refusal), and the nonce is minted ONCE per dispatch and spread into every inline dial', ['host-served servers connect only', 'blocked by managed policy', 'an enterprise MCP configuration exists', "the session's catalogue excludes this name"].every(n => agentSrc.includes(n)) && agentSrc.includes('const dispatchNonce = randomUUID()') && agentSrc.includes('inlineDispatchId: dispatchNonce'))
 }
 
 section('§N non-session insulation (poison: a kit env appearing on a warm/crew/utility spec)')

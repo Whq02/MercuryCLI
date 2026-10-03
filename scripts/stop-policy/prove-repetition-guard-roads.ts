@@ -170,7 +170,7 @@ if (import.meta.main) {
     await fixture.close()
     const hits = fixture.hits
     const arms = (arm: string): Hit[] => hits.filter(h => h.arm === arm)
-    const resultText = String(result?.result ?? '')
+    const resultText = String(result?.answer ?? '')
     check('the runner booted and the turn settled', init !== null && result !== null, runner.stderr().split('\n').slice(-6).join(' | '))
     check('the file never changed: one line written, nothing appended', existsSync(notes) && readFileSync(notes, 'utf8') === 'line 0\n')
     check(`the model read the unchanged file ${REREAD_ROUNDS} times and every read ran`, arms('read').length === REREAD_ROUNDS && arms('write').length === 1, j(hits.map(h => [h.n, h.arm, h.step, h.refused])))
@@ -178,7 +178,7 @@ if (import.meta.main) {
     const wire = hits.filter(h => h.arm !== 'svc')
     const firstNudged = wire.find(h => h.nudged)
     check('the first loop reminder rode the wire in the request after the third identical read (the write, then reads one to three), and not before', firstNudged !== undefined && firstNudged.step === 4 && wire.filter(h => h.step < 4).every(h => !h.nudged), j(wire.map(h => [h.n, h.step, h.nudged])))
-    check('the turn ended only when the model ended it: the result is the model’s own last words, not a stop', result?.subtype === 'success' && resultText === REREAD_END, `${String(result?.subtype)}: ${resultText.slice(0, 160)}`)
+    check('the turn ended only when the model ended it: the result is the model’s own last words, not a stop', result?.status === 'completed' && resultText === REREAD_END, `${String(result?.status)}: ${resultText.slice(0, 160)}`)
     if (failed() === failedAtOpen) await removeWorld(home)
     else console.log(`  [forensics] the world stays at ${home}\n${runner.stderr().split('\n').slice(-12).join('\n')}`)
   }
@@ -199,14 +199,14 @@ if (import.meta.main) {
     const hits = fixture.hits
     const arms = (arm: string): CycleHit[] => hits.filter(h => h.arm === arm)
     const wire = hits.filter(h => h.arm !== 'svc')
-    const resultText = String(result?.result ?? '')
+    const resultText = String(result?.answer ?? '')
     check('the runner booted and the turn settled', init !== null && result !== null, runner.stderr().split('\n').slice(-6).join(' | '))
     check(`the model was answered ${CYCLE_PAIRS} Bash and ${CYCLE_PAIRS} Grep calls and then its own end`, arms('bash').length === CYCLE_PAIRS && arms('grep').length === CYCLE_PAIRS && arms('end').length === 1, j(hits.map(h => [h.n, h.arm, h.step, h.tools, h.opening])))
     const answers = distinctAnswers(wire)
     check('every Bash result and every Grep result the model saw was the same bytes, never an error: the cycle is identical from its first pair', sameAnswers(answers), j(answers))
     const firstNudged = wire.find(h => h.nudged)
     check('the loop reminder rode the wire after the fifth repeat of the pair (ten tool results), and not before', firstNudged !== undefined && firstNudged.step === 10 && wire.filter(h => h.step < 10).every(h => !h.nudged), j(wire.map(h => [h.n, h.step, h.nudged])))
-    check('the turn ended only when the model ended it: the result is the model\u2019s own last words, not a stop', result?.subtype === 'success' && resultText === CYCLE_END, `${String(result?.subtype)}: ${resultText.slice(0, 160)}`)
+    check('the turn ended only when the model ended it: the result is the model\u2019s own last words, not a stop', result?.status === 'completed' && resultText === CYCLE_END, `${String(result?.status)}: ${resultText.slice(0, 160)}`)
     check('no request carried a stop note: the default road never ends a cycle', wire.every(h => !h.stopped), j(wire.filter(h => h.stopped).map(h => h.n)))
     if (failed() === failedAtOpen) await removeWorld(home)
     else console.log(`  [forensics] the world stays at ${home}\n${runner.stderr().split('\n').slice(-12).join('\n')}`)
@@ -228,7 +228,7 @@ if (import.meta.main) {
     await fixture.close()
     const hits = fixture.hits
     const arms = (arm: string): CycleHit[] => hits.filter(h => h.arm === arm)
-    const errors = Array.isArray(result?.errors) ? (result.errors as string[]) : []
+    const errors = result?.error !== undefined && result.error !== null ? [String((result.error as { message?: unknown }).message ?? '')] : []
     check('the runner booted and the turn settled', init !== null && result !== null, runner.stderr().split('\n').slice(-6).join(' | '))
     check('the model was answered ten Bash and ten Grep calls and never reached its own end: the fixture’s end arm was never asked', arms('bash').length === 10 && arms('grep').length === 10 && arms('end').length === 0, j(hits.map(h => [h.n, h.arm, h.step, h.tools, h.opening])))
     const wire = hits.filter(h => h.arm !== 'svc')
@@ -236,7 +236,7 @@ if (import.meta.main) {
     check('every Bash result and every Grep result the model saw was the same bytes, never an error: the cycle is identical from its first pair', sameAnswers(answers), j(answers))
     const firstNudged = wire.find(h => h.nudged)
     check('the loop reminder rode the wire after the fifth repeat of the pair (ten tool results), and not before', firstNudged !== undefined && firstNudged.step === 10 && wire.filter(h => h.step < 10).every(h => !h.nudged), j(wire.map(h => [h.n, h.step, h.nudged])))
-    check('the turn ended typed: the result is error_loop_stopped, is_error, and its error names the cycle', result?.subtype === 'error_loop_stopped' && result?.is_error === true && /the same cycle of tool calls \(Bash -> Grep\)/.test(errors[0] ?? ''), `${String(result?.subtype)}: ${j(errors)}`)
+    check('the turn ended typed: the outcome is loop_stopped and its error names the cycle', result?.status === 'loop_stopped' && /the same cycle of tool calls \(Bash -> Grep\)/.test(errors[0] ?? ''), `${String(result?.status)}: ${j(errors)}`)
     check('no request carried the stop note before the end (the note is the next turn’s context, not this one’s)', wire.every(h => !h.stopped), j(wire.filter(h => h.stopped).map(h => h.n)))
     if (failed() === failedAtOpen) await removeWorld(home)
     else console.log(`  [forensics] the world stays at ${home}\n${runner.stderr().split('\n').slice(-12).join('\n')}`)

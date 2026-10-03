@@ -67,8 +67,6 @@ function spawnRunner(role: boolean): Runner {
       'a session runner under proof',
       '--session-id',
       sessionId,
-      '--permission-channel',
-      'stdio',
     ],
     {
       cwd: CWD,
@@ -119,7 +117,7 @@ function spawnRunner(role: boolean): Runner {
 
 function send(r: Runner, text: string): Promise<string[]> {
   const p = r.waitResult()
-  r.child.stdin!.write(JSON.stringify({ type: 'user', message: { role: 'user', content: text }, uuid: randomUUID() }) + '\n')
+  r.child.stdin!.write(JSON.stringify({ type: 'prompt', content: text, id: randomUUID() }) + '\n')
   return p
 }
 

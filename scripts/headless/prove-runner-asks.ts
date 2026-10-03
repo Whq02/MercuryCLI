@@ -188,18 +188,29 @@ section('R3 — the hook allows first: updatedInput carries, the ask is withdraw
   h.closeHost()
 }
 
-section("R4 — a no-decision hook defers to the host; an allow with an empty input falls back to the original; rules land")
+section("R4 — a no-decision hook defers to the host; an allow with no input runs the original, an explicit input runs as given, a malformed answer denies")
 {
   const h = makeHarness()
   h.addHook(`echo '{}'`)
   const p = callCanUseTool(h, { probe: 'original' })
   const ask = await h.waitAsk()
   check('the ask carries the tool, the call id and the input', ask.params.tool_name === 'AskProbeTool' && ask.params.tool_use_id === 'toolu_asks' && j(ask.params.input) === '{"probe":"original"}' && ask.params.agent_id === SESSION_ID, j(ask.params))
-  h.answer(ask.id, { outcome: 'allow', input: {} })
+  h.answer(ask.id, { outcome: 'allow' })
   const d = await p
   check('the host allow lands after the hook passed through', d.behavior === 'allow', j(d))
-  check('an EMPTY input falls back to the ORIGINAL input', j(d.updatedInput) === '{"probe":"original"}', j(d.updatedInput))
+  check('an allow with NO input runs the ORIGINAL input', j(d.updatedInput) === '{"probe":"original"}', j(d.updatedInput))
   check("decisionReason is {type:'permissionPromptTool'}", d.decisionReason?.type === 'permissionPromptTool', j(d.decisionReason))
+  h.hold()
+  const p2 = callCanUseTool(h, { probe: 'second' })
+  const ask2 = await h.waitAsk()
+  h.answer(ask2.id, { outcome: 'allow', input: {} })
+  const d2 = await p2
+  check('an allow with an EXPLICIT empty input runs exactly that input (never the original)', d2.behavior === 'allow' && j(d2.updatedInput) === '{}', j(d2))
+  const p3 = callCanUseTool(h, { probe: 'third' })
+  const ask3 = await h.waitAsk()
+  h.answer(ask3.id, { outcome: 'allow', input: [] })
+  const d3 = await p3
+  check('a malformed answer (input is a list) is a DENY — the wrong shape never runs the original', d3.behavior === 'deny', j(d3))
   check('nothing stays parked and nothing was withdrawn', h.asks.parkedAsks() === 0 && h.withdrawn.size === 0, j([...h.withdrawn]))
   h.closeHost()
 }

@@ -70,7 +70,7 @@ const { sessionFactsToWire } = await import('../../src/services/engine-connector
 const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
 const crew = await import('../../src/services/engine-connector/crewFacts.ts')
 const protocol = await import('../../src/daemon/protocol.ts')
-const schemas = await import('../../src/entrypoints/sdk/controlSchemas.ts')
+const { METHODS } = await import('../../src/runner/wire/methods.ts')
 const runControl = await import('../../src/tools/WorkflowTool/runControl.ts')
 
 type SeatModule = typeof seat & {
@@ -80,10 +80,8 @@ type DoorModule = typeof door & {
   pressCrewPause: (reach: unknown, gate: unknown) => unknown
   CREW_PAUSE_HOSTED_REFUSAL?: string
 }
-type SchemaModule = typeof schemas & { SDKControlPauseGateRequestSchema?: () => { safeParse: (v: unknown) => { success: boolean } } }
 const seatMod = seat as SeatModule
 const doorMod = door as DoorModule
-const schemaMod = schemas as SchemaModule
 const gate = gateModule.operatorPauseGate
 
 const RUNNER = 'concourse-pw1'
@@ -473,10 +471,8 @@ section('W1 THE WIRE — the verb\'s ceremony at each layer, pinned in source')
   check("the daemon's action arm relays through the seat's relay and requires the boolean", main.includes("if (action === 'pause-gate')") && main.includes('pauseSessionGate(sessionId, paused, roster)') && main.includes("'pause-gate requires paused'"))
   const seatSource = read('src/daemon/sessionSeat.ts')
   check("the seat delivers the runner's pause_gate control request and awaits its word under the agent-verb deadline", seatSource.includes("request: { subtype: 'pause_gate', paused }") && seatSource.includes('export function pauseSessionGate('))
-  const parse = schemaMod.SDKControlPauseGateRequestSchema
-  check('the runner accepts { subtype: pause_gate, paused: boolean } and refuses a missing boolean', typeof parse === 'function' && parse().safeParse({ subtype: 'pause_gate', paused: true }).success && parse().safeParse({ subtype: 'pause_gate', paused: false }).success && !parse().safeParse({ subtype: 'pause_gate' }).success, typeof parse)
-  const types = read('src/entrypoints/sdk/controlTypes.ts')
-  check('the control request union carries the subtype', types.includes("subtype: 'pause_gate'") && types.includes('| SDKControlPauseGateRequest'))
+  const parse = METHODS['session/pause_gate'].params()
+  check('the runner door accepts { paused: boolean } for session/pause_gate and refuses a missing boolean', parse.safeParse({ paused: true }).success && parse.safeParse({ paused: false }).success && !parse.safeParse({}).success)
   const runner = read('src/cli/print.ts')
   const armAt = runner.indexOf("'session/pause_gate': params => {")
   const arm = armAt < 0 ? '' : runner.slice(armAt, runner.indexOf("'shell/background': () => {"))

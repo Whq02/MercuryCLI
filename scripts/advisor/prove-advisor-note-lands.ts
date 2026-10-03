@@ -305,7 +305,7 @@ function runSession(arena: Arena, sid: string, prompts: string[], closeWhen: { r
       if (sent >= prompts.length) return
       const prompt = prompts[sent]!
       sent++
-      child.stdin.write(`${j({ type: 'user', message: { role: 'user', content: prompt } })}\n`)
+      child.stdin.write(`${j({ type: 'prompt', content: prompt })}\n`)
     }
     const release = (): void => {
       while (owed > 0 && sent < prompts.length) {

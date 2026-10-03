@@ -4,7 +4,7 @@ import { dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { seedFirstRun, FIXTURE_API_KEY } from '../lib/firstRunSeed.ts'
-import { LineReader, userRow, type Frame } from '../lib/rows.ts'
+import { LineReader, type Frame } from '../lib/rows.ts'
 
 export const ROOT = resolve(import.meta.dir, '../..')
 
@@ -122,7 +122,7 @@ export function bootLead(world: World, extraArgv: string[], allowedTools: string
     stderr: () => err,
     exited,
     submit: text => {
-      child.stdin!.write(JSON.stringify(userRow(text)) + '\n')
+      child.stdin!.write(JSON.stringify({ type: 'prompt', content: text }) + '\n')
     },
     waitFor,
     end: async () => {

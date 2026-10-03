@@ -132,7 +132,7 @@ console.log('E set-effort mirrors set-model at every owner (poison: an effort wr
   const serverSrc = read('src/daemon/controlServer.ts')
   const mainSrc = read('src/daemon/main.ts')
   const seatSrc = read('src/daemon/sessionSeat.ts')
-  check('E1 the action rides the proto-3 union, typed off the CHILD union (one source of truth, no second enum)', protocolSrc.includes("| 'set-effort'") && protocolSrc.includes("effort?: SDKControlSetEffortRequest['effort']"))
+  check('E1 the action rides the proto-3 union; the effort word crosses as a string the runner validates (one validator, no second enum)', protocolSrc.includes("| 'set-effort'") && protocolSrc.includes("/** set-effort: the session's new effort word (the runner validates it). */\n      effort?: string"))
   check('E2 the router forwards the effort field (bounded), and the requires-string names the action', serverSrc.includes("raw.action === 'set-effort'") && serverSrc.includes('raw.effort.slice(0, 32)') && serverSrc.includes('park-all|set-effort'))
   check('E3 an effort write WITHOUT the field refuses at the one handler (the poison inverted)', mainSrc.includes("detail: 'set-effort requires effort'") && mainSrc.includes('setSessionEffort(sessionId, effort, roster)'))
   check('E4 the seat verb validates the value against the ONE effort owner and speaks the child set_effort control', seatSrc.includes('normalizeEffortLevelString(effort)') && seatSrc.includes("request: { subtype: 'set_effort', effort }"))
