@@ -37,7 +37,7 @@ export function decidePlaneBoot(facts: PlaneBootFactsV1): PlaneBootDecisionV1 {
     }
     return { road: 'refuse', why: `pid ${serverPid} serves this config home` }
   }
-  if (lockHolder === null) return { road: 'serve', why: 'nothing serves the plane and the supervisor lock is free' }
-  if (facts.successorOf === lockHolder) return { road: 'wait-lock', for: lockHolder, why: `the predecessor pid ${lockHolder} still holds the supervisor lock while it leaves` }
-  return { road: 'handover', from: lockHolder, why: `pid ${lockHolder} holds the supervisor lock but serves no plane — it keeps what it holds` }
+  if (lockHolder === null) return { road: 'serve', why: 'nothing serves the plane and the daemon lock is free' }
+  if (facts.successorOf === lockHolder) return { road: 'wait-lock', for: lockHolder, why: `the predecessor pid ${lockHolder} still holds the daemon lock while it leaves` }
+  return { road: 'handover', from: lockHolder, why: `pid ${lockHolder} holds the daemon lock but serves no plane — it keeps what it holds` }
 }

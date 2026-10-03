@@ -223,7 +223,7 @@ section('§6 WIRING (DR-08)')
   const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
   const control = src('src/daemon/controlSocket.ts')
   const tasks = src('src/utils/tasks.ts')
-  check('daemon supervisor release consumes the receipt', control.includes('noteLockRelease('))
+  check('the daemon lock release consumes the receipt', control.includes('noteLockRelease('))
   check('task-lock release consumes the receipt', tasks.includes('noteLockRelease('))
   const bare = [control, tasks].some(s =>
     s.split('\n').some(

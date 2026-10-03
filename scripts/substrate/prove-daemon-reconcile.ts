@@ -78,7 +78,7 @@ check('second pass ⇒ clean (idempotent)', again.state === 'clean' && again.cle
 
 seedDeadRecords(process.pid, Date.now())
 const live = await reconcileDaemonRecords({ projectDir })
-check('live supervisor pid ⇒ state live, nothing touched', live.state === 'live' && live.cleaned.length === 0)
+check('live daemon pid ⇒ state live, nothing touched', live.state === 'live' && live.cleaned.length === 0)
 check('live: supervisor.json intact', existsSync(supPath))
 check('live: control.key intact', existsSync(keyPath))
 check('live: supervisor.lock intact', existsSync(lockPath))
@@ -241,7 +241,7 @@ check(
   mainTs.includes("event: 'reap'"),
 )
 check(
-  'clean shutdown clears control.key beside the supervisor record',
+  'clean shutdown clears control.key beside the daemon record',
   mainTs.includes('clearControlKey('),
 )
 const rosterTs = src('src/daemon/roster.ts')
@@ -272,7 +272,7 @@ check(
 const controlSocketTs = src('src/daemon/controlSocket.ts')
 const oneWriterCalls = (mainTs.match(/await persistSupervisorRecord\(currentOwnerPid\)/g) || []).length
 const recordWriteSites = (mainTs.match(/writeSupervisorState\(/g) || []).length
-const rawRecordPublishes = (controlSocketTs.match(/publishInDaemonHome\('the supervisor record'/g) || []).length
+const rawRecordPublishes = (controlSocketTs.match(/publishInDaemonHome\('the daemon record'/g) || []).length
 check(
   'the daemon stamps its identity baseline on EVERY record write: the one writer at boot, at the plane heal and at the take of the plane from a predecessor (a hand-over successor writes its record first, through the same writer)',
   (mainTs.match(/startToken: bootStartToken/g) || []).length === 1 &&

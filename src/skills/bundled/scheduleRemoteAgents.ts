@@ -22,9 +22,9 @@ async function daemonStatusLine(): Promise<string> {
       const control = status.controlReachable
         ? 'control channel reachable'
         : 'control channel not answering'
-      return `Daemon: a supervisor is RUNNING — pid ${status.supervisor.pid}, up ${status.supervisor.uptimeSec}s, in ${status.supervisor.dir}; ${control}. Durable jobs will fire with this session closed as long as that daemon stays up.`
+      return `Daemon: RUNNING — pid ${status.supervisor.pid}, up ${status.supervisor.uptimeSec}s, in ${status.supervisor.dir}; ${control}. Durable jobs will fire with this session closed as long as that daemon stays up.`
     }
-    return `Daemon: NO supervisor is running. Durable jobs are still written to the durable task file, but they only fire while some scheduler is alive — this session, or a daemon the user starts. Start one in the project directory with: ${binaryName()} daemon (or ${binaryName()} daemon run to stay in the foreground).`
+    return `Daemon: NOT running. Durable jobs are still written to the durable task file, but they only fire while some scheduler is alive — this session, or a daemon the user starts. Start one in the project directory with: ${binaryName()} daemon (or ${binaryName()} daemon run to stay in the foreground).`
   } catch (error) {
     logForDebugging(`schedule: daemon probe failed: ${String(error)}`, { level: 'warn' })
     return 'Daemon: status could not be determined. Jobs are written regardless, but they only fire while a scheduler is alive.'

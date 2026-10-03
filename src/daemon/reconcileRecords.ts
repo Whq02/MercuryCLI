@@ -33,7 +33,7 @@ export async function reconcileDaemonRecords(opts?: {
   if (sup && isProcessAlive(sup.pid)) {
     const verdict = supervisorRecordIdentity(sup, await getProcessStartTokenAsync(sup.pid))
     if (verdict !== 'not-recorded-process') {
-      return { state: 'live', cleaned: [], reason: `supervisor pid ${sup.pid} alive` }
+      return { state: 'live', cleaned: [], reason: `daemon pid ${sup.pid} alive` }
     }
     recordPidRecycled = true
   }
@@ -90,9 +90,9 @@ export async function reconcileDaemonRecords(opts?: {
   const reason =
     deadPid != null
       ? recordPidRecycled
-        ? `supervisor pid ${deadPid} recycled by another process (start-token mismatch) and control socket silent`
-        : `supervisor pid ${deadPid} not running and control socket silent`
-      : 'no live supervisor and control socket silent'
+        ? `daemon pid ${deadPid} recycled by another process (start-token mismatch) and control socket silent`
+        : `daemon pid ${deadPid} not running and control socket silent`
+      : 'no live daemon and control socket silent'
   logForDebugging(
     `[daemon-records] reconciled stale daemon records (${reason}): removed ${cleaned.join(', ')}`,
   )

@@ -1575,7 +1575,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             }
             return {
               status: 'off',
-              evidence: `no supervisor record — ${d.reason}${receipt ? ` · ${receipt}` : ''}`,
+              evidence: `no daemon record — ${d.reason}${receipt ? ` · ${receipt}` : ''}`,
               link: '/daemon',
             }
           },

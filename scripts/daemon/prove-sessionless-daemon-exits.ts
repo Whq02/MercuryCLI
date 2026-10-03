@@ -185,7 +185,7 @@ try {
   check(`the daemon exited on its own within ${CEILING_MS / 1000}s of its last session exiting`, left, `pid ${dpid} still alive; log tail: ${read(logPath).slice(-500)}`)
   check('…and not before the grace (a stop followed at once by a new session must find the daemon still there)', !left || afterMs >= GRACE_MS - BEAT_MS, `${afterMs} ms`)
   check('the daemon log names the reason', /the last session this daemon hosted has exited/.test(read(logPath)), read(logPath).slice(-500))
-  check('its supervisor record is gone', !existsSync(supervisorStatePath()))
+  check('its record is gone', !existsSync(supervisorStatePath()))
   check('its control socket is gone', process.platform === 'win32' || !existsSync(controlSockPath()))
   check('the stopped record is left for the board (the daemon leaves, the session history stays)', recOf(sid)?.stoppedAt !== undefined)
 

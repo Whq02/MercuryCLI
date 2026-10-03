@@ -225,7 +225,7 @@ section('§4 the built artifact under a PTY that hangs up after the quiet spell'
       }
       await settle(200)
     }
-    check('the session shut down after the hangup (its supervisor recorded an exit)', shutDown, existsSync(ledger) ? readFileSync(ledger, 'utf8').slice(-300) : 'no spawn ledger')
+    check('the session shut down after the hangup (its daemon recorded an exit)', shutDown, existsSync(ledger) ? readFileSync(ledger, 'utf8').slice(-300) : 'no spawn ledger')
     await settle(600)
     const milestones = existsSync(join(home, 'launch-milestones.json')) ? readFileSync(join(home, 'launch-milestones.json'), 'utf8') : ''
     check('the reader was armed before the hangup (the input-live milestone)', milestones.includes('input-live'))

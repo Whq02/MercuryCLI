@@ -254,7 +254,7 @@ try {
   pointAt('current', 'Y')
   pointAt('dist', 'Y')
   const b = bootDaemon(handover, 'daemon-B', join(runtime, 'current', 'mercury.mjs'), { MERCURY_DAEMON_HANDOVER_FROM: String(a.pid) })
-  check('daemon B (build Y) took the plane from A, which keeps its session and holds the supervisor lock', await untilAsync(() => read(b.log).includes('took the plane'), 60_000), read(b.log).slice(-600))
+  check('daemon B (build Y) took the plane from A, which keeps its session and holds the daemon lock', await untilAsync(() => read(b.log).includes('took the plane'), 60_000), read(b.log).slice(-600))
   check('…and waits for the lock A holds', await untilAsync(() => /daemon lock/.test(read(b.log)), 10_000), read(b.log).slice(-400))
   const sessionRunner = ((): number => {
     try {

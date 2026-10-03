@@ -306,10 +306,10 @@ console.log('\nW1 armed, home standing: each daemon writer meets an ENOENT from 
       landed: () => !readText(join(DAEMON_DIR, 'concourse-dispatches.json')).includes('"queued"'),
     },
     { n: 'W1.7', where: 'the control-op ledger', file: 'concourse-control-ops.json', phase: 'create-temp', act: () => dispatch.recordConcourseControlOp(op, DAEMON_DIR), landed: () => existsSync(join(DAEMON_DIR, 'concourse-control-ops.json')) },
-    { n: 'W1.8', where: 'the supervisor record', file: 'supervisor.json', phase: 'create-temp', act: () => control.writeSupervisorState(supervisor()), landed: () => existsSync(join(DAEMON_DIR, 'supervisor.json')) },
+    { n: 'W1.8', where: 'the daemon record', file: 'supervisor.json', phase: 'create-temp', act: () => control.writeSupervisorState(supervisor()), landed: () => existsSync(join(DAEMON_DIR, 'supervisor.json')) },
     {
       n: 'W1.9',
-      where: 'the supervisor record',
+      where: 'the daemon record',
       file: 'supervisor.json',
       phase: 'create-temp',
       seed: () => writeFileSync(join(DAEMON_DIR, 'supervisor.json'), JSON.stringify(supervisor(), null, 2)),

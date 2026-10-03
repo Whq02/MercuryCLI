@@ -179,7 +179,7 @@ let clientModel: string | undefined
 try {
   section('§1 the sighting: OpenAI at boot, the Anthropic sign-in lands later, the admit must follow it')
   bootDaemon({})
-  check('the supervisor answers ping', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
+  check('the daemon answers ping', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
   let openaiRunner: string | null = null
   const openaiUsable = await untilAsync(async () => {
     const r = await admit('openai')
@@ -264,7 +264,7 @@ try {
   rmSync(join(home, '.credentials.json'), { force: true })
   rmSync(join(home, '.sign-ins.json'), { force: true })
   bootDaemon({ MERCURY_OPENAI_API_BASE: 'http://127.0.0.1:9/openai/v1' })
-  check('the second supervisor answers ping', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
+  check('the second daemon answers ping', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
   const dark = await admit('openai')
   const darkText = refusalOf(dark)
   check('the OpenAI family word refuses (its catalogue never landed)', !dark.ok && /no-credential:openai/.test(darkText), darkText)
