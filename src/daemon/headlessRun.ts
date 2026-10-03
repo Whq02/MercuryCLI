@@ -162,7 +162,7 @@ export function getSelfInvocation(): { node: string; script: string } {
 }
 
 
-export interface StreamJsonChildSpec {
+export interface RunnerChildSpec {
   model: string
   keyless?: true
   effort: string
@@ -186,7 +186,7 @@ export interface StreamJsonChildSpec {
   partialRows?: true
 }
 
-export function daemonCapabilities(spec: Pick<StreamJsonChildSpec, 'partialRows'>): Capabilities {
+export function daemonCapabilities(spec: Pick<RunnerChildSpec, 'partialRows'>): Capabilities {
   return { holds_asks: true, elicitation: false, partial_rows: spec.partialRows === true }
 }
 
@@ -199,8 +199,8 @@ export function sessionPinArgv(pin: { sessionId: string; cwd: string } | undefin
   return existsSync(crewSeatTranscriptPath(pin)) ? ['--resume', pin.sessionId] : ['--session-id', pin.sessionId]
 }
 
-export function buildStreamJsonInvocation(
-  spec: StreamJsonChildSpec,
+export function buildRunnerInvocation(
+  spec: RunnerChildSpec,
   opts?: { respawn?: boolean },
 ): {
   node: string
@@ -263,8 +263,8 @@ export function buildStreamJsonInvocation(
   return { node, script, argv, env, capabilities: daemonCapabilities(spec) }
 }
 
-export function spawnStreamJsonChild(
-  spec: StreamJsonChildSpec,
+export function spawnRunnerChild(
+  spec: RunnerChildSpec,
   opts?: { respawn?: boolean },
 ): {
   child: ChildProcess
@@ -272,7 +272,7 @@ export function spawnStreamJsonChild(
   env: NodeJS.ProcessEnv
   capabilities: Capabilities
 } {
-  const { node, script, argv, env, capabilities } = buildStreamJsonInvocation(spec, opts)
+  const { node, script, argv, env, capabilities } = buildRunnerInvocation(spec, opts)
   if (!script) {
     logForDebugging('[daemon] cannot resolve self executable; long-lived child not spawned')
   }

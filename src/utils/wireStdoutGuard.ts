@@ -17,7 +17,7 @@ function isParseableJson(line: string): boolean {
   }
 }
 
-export function installStreamJsonStdoutGuard(): void {
+export function installWireStdoutGuard(): void {
   if (installed) return
   installed = true
   const realWrite = process.stdout.write.bind(process.stdout)

@@ -9,7 +9,7 @@ const savedMode = process.env.MERCURY_DAEMON_PERMISSION_MODE
 delete process.env.MERCURY_DAEMON_PERMISSION_MODE
 
 const {
-  buildStreamJsonInvocation,
+  buildRunnerInvocation,
   getHeadlessPermissionMode,
   headlessPermissionArgv,
   HEADLESS_PERMISSION_MODES,
@@ -32,7 +32,7 @@ const SPEC = {
   agentName: 'scout',
   agentId: 'scout-1',
 }
-const buildArgv = (): string[] => buildStreamJsonInvocation(SPEC).argv
+const buildArgv = (): string[] => buildRunnerInvocation(SPEC).argv
 const hasPair = (argv: string[], mode: string): boolean => {
   const i = argv.indexOf('--mode')
   return i >= 0 && argv[i + 1] === mode

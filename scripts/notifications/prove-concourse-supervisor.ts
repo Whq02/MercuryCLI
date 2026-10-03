@@ -5,7 +5,7 @@
 import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { checker, scratchRoot } from '../engine-durability/harness.ts'
-import type { StreamJsonChildSpec } from '../../src/daemon/headlessRun.ts'
+import type { RunnerChildSpec } from '../../src/daemon/headlessRun.ts'
 
 const t = checker()
 const root = scratchRoot('concourse-supervisor')
@@ -101,13 +101,13 @@ t.section('§2 — RR-01: canonicalization collapses aliases at admission')
 t.section('§3 — the admission handler over a fake roster port')
 {
   const dir = join(root, 'daemon')
-  const registered: Array<{ short: string; spec: StreamJsonChildSpec }> = []
+  const registered: Array<{ short: string; spec: RunnerChildSpec }> = []
   const liveShorts = new Set<string>()
   let nextPid = 40000
   const roster = {
     has: (short: string) => ({ present: liveShorts.has(short) }),
     list: () => [...liveShorts].map(short => ({ short })),
-    registerLongLived: (short: string, spec: StreamJsonChildSpec) => {
+    registerLongLived: (short: string, spec: RunnerChildSpec) => {
       registered.push({ short, spec })
       liveShorts.add(short)
       return { ok: true, pid: nextPid++ }
@@ -320,13 +320,13 @@ t.section('§worktree admission — isolated claims carve REAL worktrees')
   process.env.XDG_CONFIG_HOME = join(root, 'xdg')
   writeFileSync(process.env.GIT_CONFIG_GLOBAL, '')
   const dir = join(root, 'wt-daemon')
-  const registered: Array<{ short: string; spec: StreamJsonChildSpec }> = []
+  const registered: Array<{ short: string; spec: RunnerChildSpec }> = []
   const liveShorts = new Set<string>()
   let nextPid = 50000
   const roster = {
     has: (short: string) => ({ present: liveShorts.has(short) }),
     list: () => [...liveShorts].map(short => ({ short })),
-    registerLongLived: (short: string, spec: StreamJsonChildSpec) => {
+    registerLongLived: (short: string, spec: RunnerChildSpec) => {
       registered.push({ short, spec })
       liveShorts.add(short)
       return { ok: true, pid: nextPid++ }

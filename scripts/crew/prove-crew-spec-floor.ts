@@ -99,8 +99,8 @@ const opusSeat = await cs.resolveCrewSeatModel('opus')
 const opusSpec = cs.buildCrewSpec('atlas', { model: opusSeat.ok ? opusSeat.model : 'opus', effort: 'high' }, '/proj')
 check('opus key resolves the current Opus through the seat (natively 1M, bare id)', opusSpec.model === 'claude-opus-5-5', opusSpec.model)
 
-section('buildStreamJsonInvocation(crew) — what the child actually boots with')
-const inv = hr.buildStreamJsonInvocation(spec)
+section('buildRunnerInvocation(crew) — what the child actually boots with')
+const inv = hr.buildRunnerInvocation(spec)
 check("child env MERCURY_CREW='1' (role stamp)", inv.env.MERCURY_CREW === '1')
 check('child env MERCURY_CREW_AGENT SURVIVES the sanitize (crew spec)', inv.env.MERCURY_CREW_AGENT === 'atlas')
 check("child env MERCURY_WORKFLOWS='0'", inv.env.MERCURY_WORKFLOWS === '0')
@@ -136,26 +136,26 @@ const nonCrewSpec = () => ({
 {
   process.env.MERCURY_CREW = '1'
   process.env.MERCURY_CREW_AGENT = 'zombie'
-  const seat = hr.buildStreamJsonInvocation(nonCrewSpec())
+  const seat = hr.buildRunnerInvocation(nonCrewSpec())
   check('a non-crew seat inherits NO crew identity (reply-hijack closed)', seat.env.MERCURY_CREW === undefined && seat.env.MERCURY_CREW_AGENT === undefined)
   delete process.env.MERCURY_CREW
   delete process.env.MERCURY_CREW_AGENT
 }
 {
   process.env.MERCURY_CREW = '0'
-  const seat = hr.buildStreamJsonInvocation(nonCrewSpec())
+  const seat = hr.buildRunnerInvocation(nonCrewSpec())
   check("non-crew child inherits MERCURY_CREW='0' (the kill propagates)", seat.env.MERCURY_CREW === '0')
   delete process.env.MERCURY_CREW
 }
 {
   const seatSpec = { ...nonCrewSpec(), extraEnv: { MERCURY_CREW: '1', MERCURY_CREW_AGENT: 'smuggled' } }
-  const seat = hr.buildStreamJsonInvocation(seatSpec)
+  const seat = hr.buildRunnerInvocation(seatSpec)
   check('extraEnv-smuggled crew identity is sanitized off a non-crew child', seat.env.MERCURY_CREW === undefined && seat.env.MERCURY_CREW_AGENT === undefined)
 }
 {
   process.env.MERCURY_CREW = '1'
   process.env.MERCURY_CREW_AGENT = 'zombie'
-  const seat = hr.buildStreamJsonInvocation(nonCrewSpec())
+  const seat = hr.buildRunnerInvocation(nonCrewSpec())
   check('sanity: a second non-crew spawn also clean under pollution', seat.env.MERCURY_CREW === undefined && seat.env.MERCURY_CREW_AGENT === undefined)
   delete process.env.MERCURY_CREW
   delete process.env.MERCURY_CREW_AGENT

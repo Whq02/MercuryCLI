@@ -16,7 +16,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseSupervisor.js')
-const { buildStreamJsonInvocation } = await import('../../src/daemon/headlessRun.js')
+const { buildRunnerInvocation } = await import('../../src/daemon/headlessRun.js')
 const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.js')
 const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.js')
 const { consumeSessionHomePin } = await import('../../src/utils/sessionStorage/sessionHomePin.js')
@@ -32,7 +32,7 @@ const spec = buildConcourseWorkerSpec({
 })
 
 console.log('LAW 1 — one transcript home:')
-const inv = buildStreamJsonInvocation(spec)
+const inv = buildRunnerInvocation(spec)
 const pin = inv.env.MERCURY_SESSION_HOME
 check('spec pins MERCURY_SESSION_HOME', typeof pin === 'string' && pin.length > 0)
 check('pin equals the workspace project dir', pin === getProjectDir(workspaceId), `pin=${String(pin)}`)
@@ -40,7 +40,7 @@ check(
   'pinned home + sessionId equals the reader derivation byte-for-byte',
   join(String(pin), `${sessionId}.jsonl`) === workerTranscriptPath({ sessionId, workspaceId }),
 )
-const respawn = buildStreamJsonInvocation(spec, { respawn: true })
+const respawn = buildRunnerInvocation(spec, { respawn: true })
 check('respawn keeps the pin (spec-carried extraEnv)', respawn.env.MERCURY_SESSION_HOME === pin)
 check(
   'respawn rides --resume of the SAME durable session',
@@ -61,7 +61,7 @@ check(
   'concourse argv still pins the session id',
   inv.argv.includes('--session-id') && inv.argv.includes(sessionId),
 )
-const crewInv = buildStreamJsonInvocation({
+const crewInv = buildRunnerInvocation({
   model: 'claude-fable-5',
   effort: 'high',
   appendSystemPrompt: '',

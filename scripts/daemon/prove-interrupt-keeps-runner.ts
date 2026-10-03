@@ -10,7 +10,7 @@ import { mock } from 'bun:test'
 import { DIST, NODE, REPO, SCRATCH_ROOT, bound, childEnv, makeTally, removeWorld, sleep } from './dupline-world.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { startScriptedFixture, type Script } from '../lib/scriptedTurn.ts'
-import type { StreamJsonChildSpec } from '../../src/daemon/headlessRun.ts'
+import type { RunnerChildSpec } from '../../src/daemon/headlessRun.ts'
 
 const tally = makeTally('prove-interrupt-keeps-runner')
 const world = mkdtempSync(join(SCRATCH_ROOT, 'interrupt-keeps-runner-'))
@@ -112,7 +112,7 @@ tally.section('§2 the roster on fixture children: a death from outside is a cra
   const children = new Map<string, FakeChild[]>()
   mock.module('../../src/daemon/headlessRun.ts', () => ({
     ...realChildren,
-    spawnStreamJsonChild: (spec: StreamJsonChildSpec) => {
+    spawnRunnerChild: (spec: RunnerChildSpec) => {
       const child = fakeChild()
       const list = children.get(spec.agentId) ?? []
       list.push(child)
@@ -126,7 +126,7 @@ tally.section('§2 the roster on fixture children: a death from outside is a cra
   }))
   const { TaskRoster } = await import('../../src/daemon/roster.ts')
   const roster = new TaskRoster({ dir: world, breaker: {} as never, maxInflight: 4 })
-  const specOf = (short: string): StreamJsonChildSpec => ({
+  const specOf = (short: string): RunnerChildSpec => ({
     cwd: world,
     model: 'fixture-model',
     effort: 'high',

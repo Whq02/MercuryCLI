@@ -21,7 +21,7 @@ import { retireSeatProjections } from '../services/engine-connector/seatProjecti
 import { scratchpadDirFor, sweepScratchpadDir } from '../utils/scratchpad.js'
 import { workRowRuns } from '../services/engine-connector/workCounts.js'
 import type { WorkRowV1 } from '../services/engine-connector/types.js'
-import type { StreamJsonChildSpec } from './headlessRun.js'
+import type { RunnerChildSpec } from './headlessRun.js'
 import { HEADLESS_PERMISSION_MODES, getHeadlessPermissionMode, type HeadlessPermissionMode, type SeatPermissionMode } from './headlessRun.js'
 import type { PermissionMode } from '../types/permissions.js'
 import { resolveSavedPermissionMode } from '../utils/permissions/permissionSetup.js'
@@ -515,7 +515,7 @@ export function buildConcourseWorkerSpec(args: {
   warm?: boolean
   kit?: SessionKitV1
   restartReason?: string
-}): StreamJsonChildSpec {
+}): RunnerChildSpec {
   const runnerArgv = splitAppendSystemPrompt(args.runnerArgv ?? [])
   return {
     model: foldLegacyWorkerModelKey(args.modelKey),
@@ -556,7 +556,7 @@ export function buildConcourseWorkerSpec(args: {
   }
 }
 
-export function spawnPostureOf(spec: Pick<StreamJsonChildSpec, 'permissionMode' | 'allowBypass'>): { permissionMode: SeatPermissionMode; bypassConsent?: true } {
+export function spawnPostureOf(spec: Pick<RunnerChildSpec, 'permissionMode' | 'allowBypass'>): { permissionMode: SeatPermissionMode; bypassConsent?: true } {
   return {
     permissionMode: getHeadlessPermissionMode(spec.permissionMode),
     ...(spec.allowBypass === true ? { bypassConsent: true as const } : {}),
@@ -573,7 +573,7 @@ export function stampSpawnPosture(rec: ConcourseWorkerRecordV1, posture: { permi
 export interface ConcourseAdmitDeps {
   roster: () => (CrewRosterPort & { kill?(short: string): boolean }) | undefined
   dir?: string
-  onSpawned?: (runnerId: string, spec: StreamJsonChildSpec, pid: number | undefined) => void
+  onSpawned?: (runnerId: string, spec: RunnerChildSpec, pid: number | undefined) => void
   claimWarm?: (args: {
     workspaceId: string
     sessionId: string
@@ -585,7 +585,7 @@ export interface ConcourseAdmitDeps {
     resume?: true
     restartReason?: string
   }) => Promise<
-    { claimed: true; short: string; pid?: number; spec: StreamJsonChildSpec } | { claimed: false; reason: string }
+    { claimed: true; short: string; pid?: number; spec: RunnerChildSpec } | { claimed: false; reason: string }
   >
   ensureWarm?: (workspaceDir: string, kit?: SessionKitV1, bypassConsent?: boolean) => void
 }
@@ -1566,7 +1566,7 @@ export function detachRespawnConcourseSession(
         has(short: string): { present: boolean }
         registerLongLived(
           short: string,
-          spec: StreamJsonChildSpec,
+          spec: RunnerChildSpec,
         ): { ok: boolean; pid?: number; error?: string }
       }
     | undefined,
@@ -1671,7 +1671,7 @@ export function reviveConcourseWorker(
         has(short: string): { present: boolean; alive?: boolean }
         registerLongLived(
           short: string,
-          spec: StreamJsonChildSpec,
+          spec: RunnerChildSpec,
         ): { ok: boolean; pid?: number; error?: string }
       }
     | undefined,
@@ -1930,7 +1930,7 @@ export async function reactivateConcourseSession(
   const reviveRoster = {
     kill: (short: string): boolean => roster.kill?.(short) ?? false,
     has: (short: string): { present: boolean } => roster.has(short),
-    registerLongLived: (short: string, spec: StreamJsonChildSpec): { ok: boolean; pid?: number; error?: string } => roster.registerLongLived(short, spec),
+    registerLongLived: (short: string, spec: RunnerChildSpec): { ok: boolean; pid?: number; error?: string } => roster.registerLongLived(short, spec),
   }
   const revived = reviveConcourseWorker(
     rec.sessionId,

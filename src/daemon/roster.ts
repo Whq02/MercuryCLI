@@ -18,8 +18,8 @@ import { flagEnv, flagPair } from '../substrate/flagRegistry.js'
 import {
   runTaskHeadless,
   buildHeadlessPrompt,
-  spawnStreamJsonChild,
-  type StreamJsonChildSpec,
+  spawnRunnerChild,
+  type RunnerChildSpec,
 } from './headlessRun.js'
 import { resolveWorkerReconAllow } from './workerRecon.js'
 import {
@@ -76,7 +76,7 @@ const DELIVERED_ID_CAP = 500
 const EXIT_DRAIN_BACKSTOP_MS = 2_000
 
 interface LongLivedSeat {
-  spec: StreamJsonChildSpec
+  spec: RunnerChildSpec
   cfg: LongLivedSupervisorConfig
   respawns: number
   lifetimeCrashes: number
@@ -300,7 +300,7 @@ export class TaskRoster {
 
   registerLongLived(
     short: string,
-    spec: StreamJsonChildSpec,
+    spec: RunnerChildSpec,
     opts?: Partial<LongLivedSupervisorConfig>,
     start?: { cwd: string; worktree?: string },
   ): { ok: boolean; pid?: number; error?: string } {
@@ -500,7 +500,7 @@ export class TaskRoster {
   patchSeatClaim(
     short: string,
     patch: { model: string; effort: string; respawnExtraArgv: readonly string[] },
-  ): StreamJsonChildSpec | null {
+  ): RunnerChildSpec | null {
     const h = this.handles.get(short)
     if (!h?.longLived) return null
     h.longLived.spec = {
@@ -561,9 +561,9 @@ export class TaskRoster {
       })
       return undefined
     }
-    let spawned: ReturnType<typeof spawnStreamJsonChild>
+    let spawned: ReturnType<typeof spawnRunnerChild>
     try {
-      spawned = spawnStreamJsonChild(ll.spec, { respawn: ll.spawnGeneration > 0 })
+      spawned = spawnRunnerChild(ll.spec, { respawn: ll.spawnGeneration > 0 })
     } catch (e) {
       logForDebugging(`[daemon] long-lived spawn failed for ${short}: ${e}`)
       return undefined

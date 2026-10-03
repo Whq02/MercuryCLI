@@ -219,7 +219,7 @@ function writeErr(text: string): void {
   process.stderr.write(text.endsWith('\n') ? text : `${text}\n`)
 }
 
-function wantsStreamJsonEnvelope(): boolean {
+function wantsRowStream(): boolean {
   const args = inspectRunArgs(process.argv.slice(2))
   return args.command === 'run' && args.format === 'rows'
 }
@@ -239,7 +239,7 @@ function exitForCommanderError(error: { code?: string; exitCode?: number }): voi
 }
 
 function failCli(message: string, code: 1 | 2 = 2): never {
-  if (wantsStreamJsonEnvelope()) {
+  if (wantsRowStream()) {
     try {
       const envelope = refusedOutcome([message])
       writeSync(1, `${JSON.stringify(envelope)}\n`)
@@ -624,7 +624,7 @@ async function run(): Promise<void> {
 
   if (isPrintModeArgv()) {
     profileCheckpoint('run_before_parse')
-    if (wantsStreamJsonEnvelope()) {
+    if (wantsRowStream()) {
       program.exitOverride()
       runCommand.exitOverride()
       try {

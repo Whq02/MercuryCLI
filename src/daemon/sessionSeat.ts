@@ -23,7 +23,7 @@ import type { ParamsOf, ResultOf, SessionAppliedParams } from '../runner/wire/me
 import { isRpcError, RPC_METHOD_NOT_FOUND } from '../runner/wire/errors.js'
 import { PeerClosed, PeerDeadline, type RequestOptions } from '../runner/wire/peer.js'
 import type { RunnerDoor, Verb } from './runnerConnection.js'
-import type { StreamJsonChildSpec } from './headlessRun.js'
+import type { RunnerChildSpec } from './headlessRun.js'
 import type { PermissionMode } from '../types/permissions.js'
 import type { TextPhase } from '../types/wire.js'
 import { describeSignInRead, refreshSignInReads } from './signInView.js'
@@ -51,7 +51,7 @@ export interface SeatRosterPort {
   patchSeatEffort(short: string, effort: string): boolean
   has?(short: string): { present: boolean }
   kill?(short: string): boolean
-  registerLongLived?(short: string, spec: StreamJsonChildSpec): { ok: boolean; pid?: number; error?: string }
+  registerLongLived?(short: string, spec: RunnerChildSpec): { ok: boolean; pid?: number; error?: string }
 }
 
 export const REWIND_ANSWER_DEADLINE_MS = 30_000
@@ -1209,7 +1209,7 @@ async function respawnOnModel(rec: ConcourseWorkerRecordV1, model: string, roste
   const reviveRoster = {
     kill: (short: string): boolean => roster.kill!(short),
     has: (short: string): { present: boolean } => roster.has!(short),
-    registerLongLived: (short: string, spec: StreamJsonChildSpec): { ok: boolean; pid?: number; error?: string } => roster.registerLongLived!(short, spec),
+    registerLongLived: (short: string, spec: RunnerChildSpec): { ok: boolean; pid?: number; error?: string } => roster.registerLongLived!(short, spec),
   }
   const revived = reviveConcourseWorker(rec.sessionId, 'operator:set-model', reviveRoster, { clearCrash: true, modelOverride: model }, dir)
   if (revived.outcome === 'noop') {

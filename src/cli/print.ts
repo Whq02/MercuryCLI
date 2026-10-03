@@ -242,7 +242,7 @@ import { applySettingsChange } from '../utils/settings/applySettingsChange.js'
 import { getSettingsSnapshot, settingsRevision } from '../utils/settings/snapshot.js'
 import { skillChangeDetector } from '../utils/skills/skillChangeDetector.js'
 import { armRunnerAgentFreshness } from './agentFreshness.js'
-import { installStreamJsonStdoutGuard } from '../utils/streamJsonStdoutGuard.js'
+import { installWireStdoutGuard } from '../utils/wireStdoutGuard.js'
 import { getRunningTasks, POLL_INTERVAL_MS } from '../utils/task/framework.js'
 import { AGENT_INTERRUPT_BY_OPERATOR, AGENT_RESUME_NOTE, enqueueAgentReceiptRow, isLocalAgentTask, queueOperatorMessage } from '../tasks/LocalAgentTask/LocalAgentTask.js'
 import { stopAgentByOperator } from '../services/agents/operatorStop.js'
@@ -517,7 +517,7 @@ export async function runHeadless(
     })
   }
   if (options.outputFormat === 'rows') {
-    installStreamJsonStdoutGuard()
+    installWireStdoutGuard()
   }
   notePrintPhase('invocation_resolution')
 

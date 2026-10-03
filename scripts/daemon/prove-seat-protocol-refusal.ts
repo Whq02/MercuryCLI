@@ -51,7 +51,7 @@ function standInChild(pid: number): StandInChild {
   return child
 }
 const childModule = await import('../../src/daemon/headlessRun.ts')
-mock.module('../../src/daemon/headlessRun.ts', () => ({ ...childModule, spawnStreamJsonChild: () => ({ child: standInChild(40_000 + children.length), capabilities: { holds_asks: true, elicitation: false, partial_rows: false } }) }))
+mock.module('../../src/daemon/headlessRun.ts', () => ({ ...childModule, spawnRunnerChild: () => ({ child: standInChild(40_000 + children.length), capabilities: { holds_asks: true, elicitation: false, partial_rows: false } }) }))
 const processGroup = await import('../../src/utils/processGroup.ts')
 mock.module('../../src/utils/processGroup.ts', () => ({ ...processGroup, killProcessGroup: (child: StandInChild, signal: NodeJS.Signals) => child.kill(signal) }))
 const { TaskRoster } = await import('../../src/daemon/roster.ts')
