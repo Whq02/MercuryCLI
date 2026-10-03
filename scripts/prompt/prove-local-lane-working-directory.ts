@@ -108,7 +108,7 @@ try {
   const firstLine = block.split('\n').map(l => l.trim()).filter(l => l !== '')[1] ?? ''
   check('its first line after the heading is the working-directory line', firstLine === LINE, j(firstLine))
   check('the line names the same cwd the environment section states', local.includes(ENV_LINE) && local.indexOf(LINE) !== -1)
-  check('the memory section (the auto-memory folder) is named BELOW the line', local.includes(MEMORY_WORDS) && local.indexOf(LINE) !== -1 && local.indexOf(MEMORY_WORDS) > local.indexOf(LINE), `memory at ${local.indexOf(MEMORY_WORDS)}, line at ${local.indexOf(LINE)}`)
+  check('the memory section (the memory home) is named BELOW the line', local.includes(MEMORY_WORDS) && local.indexOf(LINE) !== -1 && local.indexOf(MEMORY_WORDS) > local.indexOf(LINE), `memory at ${local.indexOf(MEMORY_WORDS)}, line at ${local.indexOf(LINE)}`)
   check('the section cache keys the tools section on the local model', getSystemPromptSectionCache().get('using_tools')?.key === LOCAL_MODEL, j(getSystemPromptSectionCache().get('using_tools')?.key))
 
   section('2 · a cloud model: no such line, the section bytes are the local section minus the line, the cache key stays null (the resume record\'s shape)')

@@ -28,7 +28,7 @@ const underscoreProj = join(scratch, 'app_1')
 mkdirSync(dotProj)
 mkdirSync(underscoreProj)
 
-section('§1 A MEMDIR ESTATE IS NOT A STORE')
+section('§1 A MNEME ESTATE IS NOT A STORE')
 {
   const hashless = join(projectsDir, sanitizePath(dotProj))
   mkdirSync(join(hashless, 'memory'), { recursive: true })

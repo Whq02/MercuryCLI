@@ -4,8 +4,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const memDir = mkdtempSync(join(tmpdir(), 'mneme-verbs-mem-'))
-process.env.MERCURY_CONFIG_DIR = memDir
+const memoryDir = mkdtempSync(join(tmpdir(), 'mneme-verbs-mem-'))
+process.env.MERCURY_CONFIG_DIR = memoryDir
 process.env.MERCURY_COORDINATION_MCP = '1'
 
 const { createCoordinationServer } = await import('../../src/services/mcp/coordinationServer.ts')
@@ -50,7 +50,7 @@ section('§2 the four tools, with nothing set, round-trip through the isolated h
   const stored = retainItems([{ content: 'the verbs round-trip through the real tool roster', topic: 'tool surface' }], { session: 'proof' })
   check('Retain stores', stored[0]?.status === 'stored', JSON.stringify(stored))
   const libDir = mnemeLibraryDir()
-  check('the row landed in the ISOLATED home', libDir.startsWith(memDir) && existsSync(join(libDir, 'current.jsonl')), libDir)
+  check('the row landed in the ISOLATED home', libDir.startsWith(memoryDir) && existsSync(join(libDir, 'current.jsonl')), libDir)
   const { pendingRows } = await import('../../src/mneme/mnemeBuffer.ts')
   const everyField = RetainTool.inputSchema.parse({ items: [{ content: 'a fact from a model that fills every optional field', context: '', topic: '', pin: false, replaces: '' }] })
   const filled = (await RetainTool.call(everyField as never, {} as never)) as { data: { outcomes: Array<{ status: string }>; stored: number; refused: number } }

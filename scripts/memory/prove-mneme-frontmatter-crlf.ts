@@ -78,5 +78,5 @@ for (const dir of [WORK, HOME]) {
   } catch {
   }
 }
-console.log(failures === 0 ? `\nALL ${checks} MEMDIR LINE-ENDING CHECKS PASS` : `\n${failures} OF ${checks} CHECK(S) FAILED`)
+console.log(failures === 0 ? `\nALL ${checks} MNEME LINE-ENDING CHECKS PASS` : `\n${failures} OF ${checks} CHECK(S) FAILED`)
 process.exit(failures === 0 ? 0 : 1)
