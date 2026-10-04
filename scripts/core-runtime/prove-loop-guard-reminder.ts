@@ -209,6 +209,7 @@ async function runScript(
     results?: ResultScript
     ctx?: CtxShape
     onYield?: (message: AnyMsg, yields: AnyMsg[]) => void
+    beforeModelCall?: (index: number) => void
     rounds?: Step[][]
     roundShape?: 'per-block' | 'one-envelope'
   } = {},
@@ -217,6 +218,7 @@ async function runScript(
   callIndex = 0
   const ids: string[] = []
   const { calls, callModel } = makeModel(i => {
+    opts.beforeModelCall?.(i)
     if (opts.rounds !== undefined) {
       const round = opts.rounds[i]
       if (!round) return textTurn('done')
@@ -475,17 +477,17 @@ section('R11 — the real Read tool: its unchanged-file stub is the answer "iden
   let modified = false
   const changed = await runScript(Array.from({ length: 4 }, () => ({ name: 'Read', input: READ })), {
     ...real,
-    onYield: (message, yields) => {
-      if (modified || message.type !== 'user') return
-      const results = yields.filter(m => m.type === 'user' && Array.isArray((m as { message?: { content?: unknown } }).message?.content))
-      if (results.length !== 2) return
+    beforeModelCall: index => {
+      if (modified || index !== 2) return
       modified = true
       writeFileSync(file, 'line one\nline two\nline three\n')
       const later = Math.floor(Date.now() / 1000) + 5
       utimesSync(file, later, later)
     },
   })
-  check('the file was modified after the second Read', modified)
+  check('the file was modified after the second Read and its attachment collection, before the third explicit Read', modified)
+  const third = toolResultText(changed, changed.ids[2]!)
+  check('the third explicit Read really delivers new contents rather than an unchanged-file stub', third.includes('line three') && !/unchanged since it was last read/.test(third), third.slice(0, 120))
   check('Read Read [change] Read Read fires nothing: the third Read learned something new and the fourth is only its second repeat', firstRequestWith(changed, ANY_NOTICE) === -1 && changed.calls.length === 5, `first=${firstRequestWith(changed, ANY_NOTICE)} calls=${changed.calls.length}`)
 }
 
