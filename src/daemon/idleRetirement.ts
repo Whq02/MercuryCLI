@@ -17,14 +17,14 @@ export const DEFAULT_CONCOURSE_IDLE_RETIRE_MINUTES = 10
 
 export function concourseIdleRetireMs(): number {
   return minutesKnobToMs(
-    flagEnv('MERCURY_SESSION_IDLE_RETIRE_MINUTES') ?? flagEnv('MERCURY_CONCOURSE_IDLE_RETIRE_MINUTES'),
+    flagEnv('MERCURY_SESSION_IDLE_RETIRE_MINUTES'),
     DEFAULT_CONCOURSE_IDLE_RETIRE_MINUTES,
   )
 }
 
 export function concourseNewbornGraceMs(): number {
   return minutesKnobToMs(
-    flagEnv('MERCURY_SESSION_NEWBORN_GRACE_MINUTES') ?? flagEnv('MERCURY_CONCOURSE_NEWBORN_GRACE_MINUTES'),
+    flagEnv('MERCURY_SESSION_NEWBORN_GRACE_MINUTES'),
     0,
   )
 }

@@ -14,9 +14,7 @@ process.env.MERCURY_DAEMON_DIR = join(SCRATCH, 'daemon')
 mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
 delete process.env.MERCURY_CONCOURSE_WORKER
 delete process.env.MERCURY_SESSION_IDLE_RETIRE_MINUTES
-delete process.env.MERCURY_CONCOURSE_IDLE_RETIRE_MINUTES
 delete process.env.MERCURY_SESSION_NEWBORN_GRACE_MINUTES
-delete process.env.MERCURY_CONCOURSE_NEWBORN_GRACE_MINUTES
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
