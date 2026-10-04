@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import Module, { createRequire } from 'node:module'
 import { delimiter, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { recordOwnEnvWrite } from '../../substrate/envStamps.js'
 
 export const IMAGE_PACK_PATH = 'vendor/image-processor'
 
@@ -52,6 +53,7 @@ export function armImagePack(packPlatform: string = imagePackPlatform()): ImageP
   if (!existsSync(join(modules, '@img'))) return { armed: false, packDir, reason: 'no-pack' }
   const current = process.env.NODE_PATH ?? ''
   if (!current.split(delimiter).includes(modules)) {
+    recordOwnEnvWrite('NODE_PATH', process.env.NODE_PATH)
     process.env.NODE_PATH = current === '' ? modules : `${modules}${delimiter}${current}`
   }
   const init = (Module as unknown as { _initPaths?: () => void })._initPaths
