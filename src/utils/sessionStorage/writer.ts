@@ -1,4 +1,3 @@
-
 import type { UUID } from 'crypto'
 import {
   closeSync,
@@ -40,7 +39,6 @@ import type { FileHistorySnapshot } from '../fileHistory.js'
 import { formatFileSize } from '../format.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { getBranch } from '../git.js'
-import { isShuttingDown } from '../gracefulShutdown.js'
 import { logError } from '../log.js'
 import { isCompactBoundaryMessage } from '../messages.js'
 import {
@@ -65,7 +63,6 @@ import {
   getTranscriptPath,
   getTranscriptPathForSession,
   isChainParticipant,
-  isTranscriptMessage,
 } from './paths.js'
 import {
   encodeTranscriptLine,
@@ -184,7 +181,7 @@ type InternalEventWriter = (
 ) => Promise<void>
 
 export function setInternalEventWriter(writer: InternalEventWriter): void {
-  getProject().setInternalEventWriter(writer)
+  void writer
 }
 
 type InternalEventReader = () => Promise<
@@ -195,12 +192,12 @@ export function setInternalEventReader(
   reader: InternalEventReader,
   subagentReader: InternalEventReader,
 ): void {
-  getProject().setInternalEventReader(reader)
-  getProject().setInternalSubagentEventReader(subagentReader)
+  void reader
+  void subagentReader
 }
 
 export function setRemoteIngressUrlForTesting(url: string): void {
-  getProject().setRemoteIngressUrl(url)
+  void url
 }
 
 let transcriptMessagesVisited = 0
@@ -357,8 +354,6 @@ export async function flushSessionStorage(): Promise<void> {
   await getProject().flush()
 }
 
-const REMOTE_FLUSH_INTERVAL_MS = 10
-
 const ALWAYS_APPEND_KINDS = new Set<Entry['type']>([
   'summary',
   'custom-title',
@@ -399,10 +394,6 @@ class Project {
 
   sessionFile: string | null = null
   private pendingEntries: Entry[] = []
-  private remoteIngressUrl: string | null = null
-  private internalEventWriter: InternalEventWriter | null = null
-  private internalEventReader: InternalEventReader | null = null
-  private internalSubagentEventReader: InternalEventReader | null = null
   private pendingWriteCount: number = 0
   private flushResolvers: Array<() => void> = []
   private writeQueues = new Map<
@@ -1043,10 +1034,6 @@ class Project {
     if (!messageSet.has(message.uuid)) {
       this.enqueueMessageWrite(targetFile, message)
       messageSet.add(message.uuid)
-
-      if (isTranscriptMessage(message)) {
-        await this.persistToRemote(sessionId, message)
-      }
     }
   }
 
@@ -1134,64 +1121,28 @@ class Project {
     }
   }
 
-  private async persistToRemote(sessionId: UUID, entry: TranscriptMessage) {
-    if (isShuttingDown()) {
-      return
-    }
-
-    if (this.internalEventWriter) {
-      try {
-        await this.internalEventWriter(
-          'transcript',
-          entry as unknown as Record<string, unknown>,
-          {
-            ...(isCompactBoundaryMessage(entry) && { isCompaction: true }),
-            ...(entry.agentId && { agentId: entry.agentId }),
-          },
-        )
-      } catch {
-        logForDebugging('Failed to write transcript as internal event')
-      }
-      return
-    }
-  }
-
   setRemoteIngressUrl(url: string): void {
-    this.remoteIngressUrl = url
-    logForDebugging(`Remote persistence enabled with URL: ${url}`)
-    if (url) {
-      this.FLUSH_INTERVAL_MS = REMOTE_FLUSH_INTERVAL_MS
-    }
+    void url
   }
 
   setInternalEventWriter(writer: InternalEventWriter): void {
-    this.internalEventWriter = writer
-    logForDebugging(
-      'CCR v2 internal event writer registered for transcript persistence',
-    )
-    this.FLUSH_INTERVAL_MS = REMOTE_FLUSH_INTERVAL_MS
+    void writer
   }
 
   setInternalEventReader(reader: InternalEventReader): void {
-    this.internalEventReader = reader
-    logForDebugging(
-      'CCR v2 internal event reader registered for session resume',
-    )
+    void reader
   }
 
   setInternalSubagentEventReader(reader: InternalEventReader): void {
-    this.internalSubagentEventReader = reader
-    logForDebugging(
-      'CCR v2 subagent event reader registered for session resume',
-    )
+    void reader
   }
 
   getInternalEventReader(): InternalEventReader | null {
-    return this.internalEventReader
+    return null
   }
 
   getInternalSubagentEventReader(): InternalEventReader | null {
-    return this.internalSubagentEventReader
+    return null
   }
 }
 

@@ -194,6 +194,29 @@ const presented = JSON.stringify(results)
 isolation('no private-root byte reaches the golden presentation (neutralized at the boundary only)', !presented.includes(slashed(PRIVATE_ROOT)) && !presented.includes(PARITY_CWD_SLUG), presented.slice(0, 120))
 isolation('the presentation still carries the machine-neutral shared spellings', presented.includes(SHARED_HOME) && presented.includes('«parity-cwd»'))
 
+const W = await import('../../src/utils/sessionStorage/writer.ts')
+const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+enableConfigs()
+S.resetProjectForTesting()
+let installedCalls = 0
+const inertWriter = async () => { installedCalls++ }
+const inertReader = async () => { installedCalls++; return [] }
+S.setInternalEventWriter(inertWriter)
+S.setInternalEventReader(inertReader, inertReader)
+S.setRemoteIngressUrlForTesting('https://fixture.invalid')
+isolation('retained registration signatures create no writer', W.peekProject() === null)
+const writer = W.getProject()
+writer.setInternalEventWriter(inertWriter)
+writer.setInternalEventReader(inertReader)
+writer.setInternalSubagentEventReader(inertReader)
+writer.setRemoteIngressUrl('https://fixture.invalid')
+isolation('retained reader signatures return the unset result', writer.getInternalEventReader() === null && writer.getInternalSubagentEventReader() === null)
+S.setSessionFileForTesting(join(PRIVATE_HOME, 'inert.jsonl'))
+await S.recordTranscript([user('00000000-0000-4000-8000-000000000301', null, 'local transcript')])
+await S.flushSessionStorage()
+isolation('the transcript has one local persistence road', installedCalls === 0 && existsSync(join(PRIVATE_HOME, 'inert.jsonl')))
+S.resetProjectForTesting()
+
 const failures = isolationFailures + recordOrVerify({
   goldenPath: GOLDEN_PATH,
   results,
