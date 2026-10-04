@@ -34,7 +34,9 @@ section('§1 by construction — the picker pick and /model share the one owner 
   check('the picker surface asks for the save', doors.includes('handleModelSelect(value, true)'))
   check('a usage handoff or a return home never rewrites the saved default', /applyModelSelection\(target\)\n/.test(doors) && /applyModelSelection\(home\)\n/.test(doors) && doors.includes('handleModelSelect(chosen.model)\n'))
   check('a held transition preview carries the save with it', doors.includes('applyModelSelection(held.value, held.persist)'))
-  check('a refused switch saves nothing', doors.indexOf("receipt.state === 'refused'") < doors.indexOf('const saved = persist ? persistModelChoice(value).sentence'))
+  const refusedAt = doors.indexOf("receipt.state === 'refused'")
+  const savedAt = doors.indexOf('const saved = persist ? persistModelChoice(value).sentence')
+  check('a refused switch saves nothing', refusedAt >= 0 && savedAt >= 0 && refusedAt < savedAt, `refused=${refusedAt} saved=${savedAt}`)
 }
 
 section('§2 pty — opt+p, ↓, ↵: the choice is the saved default and the receipt says so')
