@@ -59,9 +59,9 @@ section('GEMINI — the native codec over the fixture conversation (contents, pa
   check('the results pair as functionResponse with output text', wire.includes('"functionResponse"') && wire.includes('the quick brown fox jumps over the lazy dog'))
   check('the sonnet thinking never rides (cross-provider reasoning stays off)', !wire.includes('sig-fixture-sonnet-1') && !wire.includes('considering the count'))
   check('roles read user/model with no empty parts array', !wire.includes('"parts":[]'))
-  check('the response order follows the assistant\'s own call order', wire.indexOf('"toolu_A"'.replace('toolu_', '') + '"') === -1 || true)
-  const GOLDEN_CONTENTS = canonicalJson(body.contents)
-  check('contents byte-pinned', GOLDEN_CONTENTS === canonicalJson(body.contents))
+  check('the response order follows the assistant\'s own call order', body.contents.flatMap(row => row.parts).filter(part => part.functionResponse).map(part => part.functionResponse?.name).join(',') === 'Read,Bash')
+  const GOLDEN_BODY = `{"contents":[{"parts":[{"text":"Count the words in my notes file."}],"role":"user"},{"parts":[{"text":"I will read the file first."}],"role":"model"},{"parts":[{"text":"here is the screenshot of the file too"},{"inlineData":{"data":"aWF0dG9rZW4=","mimeType":"image/png"}}],"role":"user"},{"parts":[{"text":"Reading and counting now."},{"functionCall":{"args":{"file_path":"/proj/notes.txt"},"name":"Read"},"thoughtSignature":"skip_thought_signature_validator"},{"functionCall":{"args":{"command":"wc -w /proj/notes.txt"},"name":"Bash"}}],"role":"model"},{"parts":[{"functionResponse":{"name":"Read","response":{"output":"the quick brown fox jumps over the lazy dog"}}},{"functionResponse":{"name":"Bash","response":{"output":"9 words"}}}],"role":"user"},{"parts":[{"text":"The file holds nine words."}],"role":"model"},{"parts":[{"text":"Summarise what you found in one sentence."}],"role":"user"}],"systemInstruction":{"parts":[{"text":"You are the dialect fixture."}]}}`
+  check('the complete Gemini body is byte-identical to the base golden', wire === GOLDEN_BODY, firstDivergence(wire, GOLDEN_BODY))
 }
 
 section('GEMINI — the two-model shape: the other model\'s thinking stays off, its text stays')
