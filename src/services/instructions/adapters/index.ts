@@ -6,14 +6,13 @@ import type {
   InstructionConvention,
 } from '../contracts.js'
 import { resolveRequestedInstructionProfile } from '../profile.js'
-import { agentsMdConvention } from './agentsMd.js'
-import { mercuryNativeConvention } from './mercuryNative.js'
+import { conventionsForProfile as composeNativeFirst } from '../compositionOrder.js'
+import { foreignInstructionConventions } from './agentsMd.js'
 
 export const mercuryAdapter: InstructionAdapter = {
   id: 'mercury',
-  foreignConventions(): InstructionConvention[] {
-    return [agentsMdConvention]
-  },
+  conventionsFor: conventionsForProfile,
+  foreignConventions: foreignInstructionConventions,
 }
 
 export function adapterForProfile(): InstructionAdapter {
@@ -21,8 +20,7 @@ export function adapterForProfile(): InstructionAdapter {
 }
 
 export function conventionsForProfile(profile: 'auto' | 'native'): InstructionConvention[] {
-  const foreign = adapterForProfile().foreignConventions()
-  return profile === 'native' ? [mercuryNativeConvention] : [mercuryNativeConvention, ...foreign]
+  return composeNativeFirst(profile)
 }
 
 function isFile(path: string): boolean {

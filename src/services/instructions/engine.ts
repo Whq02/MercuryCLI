@@ -30,7 +30,8 @@ import type { MemoryType } from '../../utils/memory/types.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { pathInWorkingPath } from '../../utils/permissions/filesystem.js'
 import { isSettingSourceEnabled } from '../../utils/settings/constants.js'
-import { adapterForProfile, conventionsForProfile, hasPrimaryProjectFile } from './adapters/index.js'
+import { adapterForProfile, hasPrimaryProjectFile } from './adapters/index.js'
+import { conventionsForProfile } from './compositionOrder.js'
 import type {
   InstructionBundle,
   InstructionBundleEntry,
@@ -116,7 +117,7 @@ function activeConventions(): InstructionConvention[] {
   return conventionsForProfile(resolved)
 }
 
-export { conventionsForProfile } from './adapters/index.js'
+export { conventionsForProfile } from './compositionOrder.js'
 
 async function walkConventions(
   conventions: InstructionConvention[],
