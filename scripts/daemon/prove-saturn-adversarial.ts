@@ -22,7 +22,7 @@ const { applyConcourseScheduleOp } = saturn
 const ticker = await import('../../src/daemon/saturnTicker.ts')
 const { tickSaturnOnce, DEFAULT_SATURN_CATCHUP_WINDOW_MS } = ticker
 const { updateConcourseWorkers, concourseWorkersPath } = await import(
-  'workers'
+  '../../src/daemon/concourseWorkers.ts'
 )
 const receipts = await import('../../src/services/switchboard/sessionReceipts.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')

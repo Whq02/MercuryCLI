@@ -126,7 +126,7 @@ console.log('W — the menu store by EXPLICIT workspace (poison: the process-cwd
 
 console.log('A — the additive law: absent ≠ empty; the admission stamps the CARRIED kit')
 const { makeConcourseAdmitHandler, readSessionWorkers, updateConcourseWorkers, reactivateConcourseSession, buildConcourseWorkerSpec, concourseTranscriptPath } = await import(
-  'workers'
+  '../../src/daemon/concourseWorkers.ts'
 )
 const sessionKit = await import('../../src/daemon/sessionKit.ts')
 const { readSessionReceipts } = await import('../../src/services/switchboard/sessionReceipts.ts')

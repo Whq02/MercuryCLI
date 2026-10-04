@@ -20,7 +20,7 @@ function pinSeatCeiling(recommendedSeats: number): void {
 }
 pinSeatCeiling(8)
 const { makeConcourseAdmitHandler, readSessionWorkers, buildConcourseWorkerSpec, canonicalWorkspaceId, runnerRestartReasonOf } = await import(
-  'workers'
+  '../../src/daemon/concourseWorkers.ts'
 )
 const warm = await import('../../src/daemon/warmRunner.ts')
 const { LEAVE_PENDING, standInRunner } = await import('../lib/seatDoor.ts')

@@ -65,7 +65,7 @@ t.section('§4 — at the daemon seam: immutable + resume-retained')
 {
   const dir = join(root, 'daemon')
   const { makeConcourseAdmitHandler, readSessionWorkers, settleConcourseWorker } = await import(
-    'workers'
+    '../../src/daemon/concourseWorkers.js'
   )
   const liveShorts = new Set<string>()
   let nextPid = 51000

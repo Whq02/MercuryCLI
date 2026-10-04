@@ -17,7 +17,7 @@ const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'ut
 
 const { applyConcourseContractOp, CONTRACT_TEXT_CAP } = await import('../../src/daemon/sessionContract.ts')
 const { markConcourseWorkerDelivery, readSessionWorkers } = await import(
-  'workers'
+  '../../src/daemon/concourseWorkers.ts'
 )
 const { appendSessionReceipt, readSessionReceipts } = await import('../../src/services/switchboard/sessionReceipts.ts')
 import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'

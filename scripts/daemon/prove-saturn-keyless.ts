@@ -28,7 +28,7 @@ const { tickSaturnOnce } = ticker
 const box = await import('../../src/daemon/saturnBoxSchedules.ts')
 const { boxScheduleProblem, boxHeldFireProblem } = box
 const { updateConcourseWorkers, concourseWorkersPath } = await import(
-  'workers'
+  '../../src/daemon/concourseWorkers.ts'
 )
 const receipts = await import('../../src/services/switchboard/sessionReceipts.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
