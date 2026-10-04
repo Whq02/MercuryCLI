@@ -1,6 +1,83 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.27
+- Added the mercury-docs skill, answering how to use Mercury from its own docs, and /verify, an adversarial check of the session's work
+- Added review runs: an Agent launch that reads one commit and writes one report
+- Added each sub-agent's token use beside its context in the crew view
+- Added /export to a .json name for a JSON copy of the chat
+- Added an OpenRouter routing policy in /config, on from the start
+- Added a low-balance notice in /usage for an OpenRouter key
+- Added vulcan status reporting an out-of-date Godot addon
+- Overhauled Mneme, Mercury's memory system: on by default, your pinned rules in front of the model word for word, matching facts recalled as you work, and /memory showing the facts and the rules
+- Fixed a resumed session losing the model it started with when none of its turns had been answered
+- Fixed a Mercury window left open through an update losing its sends; it keeps its build, new sessions run on the new one, and mercury update says so
+- Fixed mercury update on a Homebrew or npm install saying nothing about the background helper or open windows; --json carries both
+- Fixed an update leaving the background helper on the old build in silence; a helper of another build is named on screen and in /health, and a restart moves it once its chats finish
+- Fixed a background helper that had handed over to a newer one staying up after its last chat, and an idle helper of the previous release staying up after an update
+- Fixed two Mercury windows starting the background helper at once leaving an older helper's chats unreachable
+- Fixed mercury daemon restart refusing while an older helper still hosts chats; it waits and names the helper and its chat count
+- Fixed mercury daemon stop from inside a chat on an older helper ending that chat; its count covers every helper's chats
+- Fixed mercury daemon run --help starting a helper instead of showing the page
+- Fixed the --help pages using Mercury's own names before explaining them; every page gives the plain words first and explains the permission modes, the budget's unit, the tool-rule shape and the settings sources where they appear
+- Fixed an answer that ends before it starts failing the turn; Mercury retries three times with a short wait and the spinner counts the attempts
+- Fixed a session opened while a newer background helper was taking over answering "unknown"
+- Fixed a session that ran a short slash command or /clear through the background helper staying marked busy
+- Fixed a saved default permission mode being read differently by each way of starting a session; the Boot face and the Concourse open the posture a direct launch would, and an agent's permission mode never exceeds the session's consent
+- Fixed Shift+Tab stepping through Strategy mode; Apollo Mode takes that stop and the ◇ mark
+- Fixed editor interviews not delivering answers, including in Apollo Mode, and a cancelled editor prompt needing a second cancel
+- Fixed editor sessions waiting forever after a host and runner disagree on their protocol
+- Fixed a session reopened from an editor over ACP coming back in the default permission mode instead of the one it was left in
+- Fixed sessions staying busy after a host's connection is refused, waiting forever for a host that never answers, and a refused prompt reported as accepted
+- Fixed a failed turn reporting the wrong turn number, a shell turn losing its output or reporting completion after an interruption, and tool progress attributed to the wrong call
+- Fixed duplicate start and finish updates during compaction, and missing completion updates when automatic compaction fails or is cancelled
+- Fixed a resumed session seeing only one result of a parallel tool batch
+- Fixed an image whose size cannot be read being sent in a request over the many-image limit; it is left out with a one-line note and the transcript keeps it
+- Fixed a hook whose matcher is * never running
+- Fixed a misspelt settings key doing nothing in silence; the health check, the chat's settings notice and a headless run's start name it, and /config shows only settings Mercury reads
+- Fixed an invalid guardrails.mode being accepted; the answer names the modes Mercury has
+- Fixed mercury run --help promising a title or a picker for --resume; run takes a session id or a transcript path
+- Fixed --log-file leaving a latest link beside the file it was given
+- Fixed mercury update on a source checkout downloading a release; the check and the status name the rebuild and the update refuses first
+- Fixed the first run preselecting "yes, set it up" on the Terminal keys step; it is opt-in, and a provider key in the environment skips the sign-in step
+- Fixed the trust-this-folder screen and the first-run guardrails not saying plainly what trusting a folder means
+- Fixed a WebFetch(domain:*.example.com) rule not covering every host under the domain
+- Fixed a rule's decision reading differently in each place it appears; it is one sentence everywhere, naming the rule and its settings file, with your reason on the end
+- Fixed a grep flag reaching the Grep tool being refused without naming the Mercury parameter that does the same
+- Fixed mercury-scout writing through tools other than the shell; the scout gets only the tools that read, and a review run only the tools it can use
+- Fixed a failed language-server call saying nothing useful; it says what happened and what helps, and the same failing call is answered three times, then refused for the session
+- Fixed the LSP tool refusing arguments it advertises; a documented key an operation does not use is ignored
+- Fixed memory: a rule you ask Mercury to remember is pinned at once and the next chat follows it, a fact or rule survives a model filling every optional field, and /memory lists the topics and opens each page
+- Fixed memory search answering only an exact phrase; Recall answers the words of a question, a short fact made of them first
+- Fixed a command run from a Mercury session inheriting the session's own config home and launcher variables
+- Fixed health processes counting another Mercury build's processes as this one's, and a fresh home's health check calling Mercury's own helper record a foreign tool's
+- Fixed the Boot face's health chip not showing the certificate from your last /health run
+- Fixed a workflow run vanishing from Inspect, the telemetry rail and the /workflows board after the session's shell changed folder
+- Fixed worker file leases: a worker keeps its own, and a project's handoff files can be leased beside source files
+- Fixed a stopped workflow losing its workers' tool-use counts and its receipts not naming the run state
+- Fixed Read clipping an oversized row silently; the clipped part is marked
+- Fixed the crew tools telling a session with no crew that its crew does not exist; they say it is not in a crew
+- Fixed a local crewmate's context staying blank after a reply
+- Fixed every sub-agent turn being recorded twice in its transcript
+- Fixed a sub-agent's answer to a crew-view message also landing in the lead's inbox
+- Fixed mcp get, mcp list, mcp add and the /mcp screen printing a server's secrets in full
+- Fixed an exported chat carrying API keys and tokens in full; they are masked in the text and the JSON
+- Fixed a run's rows showing zero usage on Grok, DeepSeek, Kimi, GLM and other OpenAI-compatible models
+- Fixed a resumed mercury run reporting API time and cost from earlier runs
+- Fixed the reasoning-token count missing from Grok and other OpenAI-compatible results
+- Fixed the Patience setting being ignored on Grok, Kimi, DeepSeek, Gemini, Muse, OpenRouter and Hugging Face
+- Fixed a temporary capacity or network error from OpenAI, Grok or OpenRouter ending the turn instead of retrying, and a network error ending a Kimi, DeepSeek or other compatible-provider turn
+- Fixed overloaded sessions sending their retries in lockstep
+- Fixed a slow model's turn being cut off after two minutes of silence; the wait is six minutes, twelve in patient mode
+- Fixed a settings popup hiding the session header while open
+- Fixed the Kimi 5-hour usage window reading 0% in /usage while requests were being spent
+- Fixed health reading FAULT on a home whose only sign-in is OpenRouter or another provider; its verdict follows the provider the session will use
+- Fixed health's advice to start the background helper naming the bare word mercury when the one on your PATH is another install; it names the command for this install
+- Fixed a run with its output redirected to a file being recorded as an interactive start that never reached its screen
+- Fixed health leaving gate-tree folders in the temp directory when a check runs out of time or the process exits
+- Fixed memory bringing in topics and facts on a filler word such as and, the or want, and a project document on a word inside its file name
+- Fixed the screen saying memorys and directorys
+
 ## 1.0.0-beta.26
 - Added xAI Grok models, with a Grok subscription sign-in or an API key from /logins; a subscription shows its weekly pool and purchased credits in /usage
 - Added an xAI usage meter in /usage through an optional management key
