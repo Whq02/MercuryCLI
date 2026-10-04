@@ -58,7 +58,7 @@ console.log('§2 TI-01 — the typed invocation record')
 console.log('§3 the wire sites + health consumers (source pins)')
 {
   const main = src('src/main.tsx')
-  check('runtime-entry stamps at the action entry, carrying the boot kind (interactive or headless)', /recordLaunchMilestone\('runtime-entry', \{ boot: opts\.runMode \? 'headless' : 'interactive' \}\)/.test(main))
+  check('runtime-entry stamps at the action entry, carrying the boot kind (interactive or headless)', /recordLaunchMilestone\('runtime-entry', \{ boot: getIsInteractive\(\) \? 'interactive' : 'headless' \}\)/.test(main))
   check('the invocation record lands at the interactive-startup fact (beside the beacon clear)',
     /clearBootAttempts\(\);?[\s\S]{0,700}recordInvocation\(\);?/.test(main))
   const route = src('src/context/surfaceRoute.ts')

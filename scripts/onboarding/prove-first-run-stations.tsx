@@ -41,8 +41,10 @@ if (scenario !== null) {
     await settle(300)
     mounted.push(KEY.enter)
     await shot('guardrails', 'Guardrails')
-    mounted.push(KEY.enter)
-    await shot('terminal', 'Terminal keys')
+    if (process.platform === 'darwin') {
+      mounted.push(KEY.enter)
+      await shot('terminal', 'Terminal keys')
+    }
   } else {
     await shot('after-theme', 'Guardrails')
   }
@@ -107,23 +109,29 @@ const run = (tag: string, extraEnv: Record<string, string>): Record<string, stri
 const focusedRow = (grid: string): string => grid.split('\n').find(l => /▸/.test(l))?.replace(/^.*▸\s*/, '').replace(/\s*│\s*$/, '').trim() ?? ''
 const flat = (grid: string): string => grid.split('\n').map(l => l.replace(/^\s*│\s?/, '').replace(/\s*│\s*$/, '')).join(' ').replace(/\s+/g, ' ')
 
-console.log('§1 a fresh home with no credential: the terminal station is opt-in and says what Yes writes')
+const terminalStation = process.platform === 'darwin'
+const stations = terminalStation ? 5 : 4
+console.log(`§1 a fresh home with no credential: the terminal station is opt-in and says what Yes writes (${stations} stations on ${process.platform})`)
 {
   const frames = run('bare', {})
   const terminal = frames.terminal ?? frames.error ?? ''
-  check('the walk carried a sign-in station (no credential anywhere)', (frames.catalogue ?? '').includes('sign in · 2/5'), (frames.catalogue ?? frames.error ?? '').split('\n').slice(0, 3).join(' / '))
-  check('the terminal station paints under Apple Terminal (terminal · 4/5)', terminal.includes('Terminal keys') && terminal.includes('terminal · 4/5') && terminal.includes("silence Terminal's bell"), terminal.split('\n').slice(0, 3).join(' / '))
-  check('the sentence says WHERE Yes writes and that a backup is kept', /Yes writes those two keys into Terminal's own settings for every profile, with a backup kept beside them; Terminal needs a restart afterwards\./.test(flat(terminal)), flat(terminal).slice(0, 400))
-  check('the focused row is "not now" — a bare ↵ writes nothing', /^not now;/.test(focusedRow(terminal)), focusedRow(terminal))
-  check('"yes, set it up" is offered but not focused', terminal.includes('yes, set it up') && !/▸\s*yes, set it up/.test(terminal))
-  check('the footer says esc backs a station (nothing is skipped by esc)', terminal.includes('↑↓ move · ↵ select · esc back') && !terminal.includes('esc skip'))
+  check('the walk carried a sign-in station (no credential anywhere)', (frames.catalogue ?? '').includes(`sign in · 2/${stations}`), (frames.catalogue ?? frames.error ?? '').split('\n').slice(0, 3).join(' / '))
+  if (terminalStation) {
+    check('the terminal station paints under Apple Terminal (terminal · 4/5)', terminal.includes('Terminal keys') && terminal.includes('terminal · 4/5') && terminal.includes("silence Terminal's bell"), terminal.split('\n').slice(0, 3).join(' / '))
+    check('the sentence says WHERE Yes writes and that a backup is kept', /Yes writes those two keys into Terminal's own settings for every profile, with a backup kept beside them; Terminal needs a restart afterwards\./.test(flat(terminal)), flat(terminal).slice(0, 400))
+    check('the focused row is "not now" — a bare ↵ writes nothing', /^not now;/.test(focusedRow(terminal)), focusedRow(terminal))
+    check('"yes, set it up" is offered but not focused', terminal.includes('yes, set it up') && !/▸\s*yes, set it up/.test(terminal))
+    check('the footer says esc backs a station (nothing is skipped by esc)', terminal.includes('↑↓ move · ↵ select · esc back') && !terminal.includes('esc skip'))
+  } else {
+    check('off macOS the walk offers no Terminal keys station', !(frames.guardrails ?? '').includes('terminal') && (frames.guardrails ?? '').includes(`guardrails · 3/${stations}`), (frames.guardrails ?? frames.error ?? '').split('\n').slice(0, 3).join(' / '))
+  }
 }
 
 console.log('§2 a home whose environment carries a provider key: the walk has no sign-in station')
 {
   const frames = run('env-key', { OPENROUTER_API_KEY: 'sk-or-v1-proof-key-not-real' })
   const after = frames['after-theme'] ?? frames.error ?? ''
-  check('after the theme the walk lands on Guardrails, not the sign-in station (guardrails · 2/4)', after.includes('Guardrails') && after.includes('guardrails · 2/4'), after.split('\n').slice(0, 3).join(' / '))
+  check(`after the theme the walk lands on Guardrails, not the sign-in station (guardrails · 2/${stations - 1})`, after.includes('Guardrails') && after.includes(`guardrails · 2/${stations - 1}`), after.split('\n').slice(0, 3).join(' / '))
   check('the rail has no "sign in" step', !after.includes('sign in'), after.split('\n').slice(0, 3).join(' / '))
   check('the "sign in later" row with its caveat never painted', !after.includes('Sign in later'))
 }

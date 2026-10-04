@@ -58,7 +58,7 @@ section('§1 an unknown settings key is a named warning at load — the file sti
 }
 
 const API_KEY = 'fixture-key-000'
-const SHORT = realpathSync(mkdtempSync('/private/tmp/sfn-'))
+const SHORT = realpathSync(mkdtempSync(join(existsSync('/private/tmp') ? '/private/tmp' : tmpdir(), 'sfn-')))
 type World = { home: string; configDir: string; cwd: string; env: Record<string, string> }
 const mkWorld = (tag: string, settings: Record<string, unknown>, apiUrl: string | null): World => {
   const home = join(SHORT, tag)

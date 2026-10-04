@@ -43,6 +43,7 @@ const mkHome = (tag: string): { home: string; cwd: string; env: Record<string, s
       PATH: `/usr/bin:/bin:${nodeDir}:${process.env.PATH ?? ''}`,
       TERM: 'xterm-256color',
       MERCURY_CONFIG_DIR: configDir,
+      MERCURY_LOCAL_PROBE_TARGETS: 'none',
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
       ANTHROPIC_BASE_URL: api.url,
       ANTHROPIC_API_KEY: API_KEY,

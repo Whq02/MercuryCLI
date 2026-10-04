@@ -6,7 +6,8 @@ import stringWidth from 'string-width'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
 if (existsSync('/private/tmp/mw')) process.env.TMPDIR = '/private/tmp/mw'
-const home = realpathSync(pinScratchHome('settings-remove-unknown'))
+const pinnedHome = pinScratchHome('settings-remove-unknown')
+const home = realpathSync(pinnedHome)
 const project = realpathSync(mkdtempSync(join(tmpdir(), 'settings-remove-unknown-project-')))
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
@@ -212,7 +213,7 @@ try {
 } finally {
   if (framesDir) writeFileSync(join(framesDir, 'index.txt'), ['Source renders of the settings dialog (no PTY): the warning for two unknown top-level keys with remove first, the invalid-value-only dialog that offers no removal, and the hard-error dialog beside a file that only warns.', ...frames].join('\n') + '\n')
   process.chdir(launchDir)
-  await releaseScratchHome(home)
+  await releaseScratchHome(pinnedHome)
   rmSync(project, { recursive: true, force: true })
 }
 console.log(`\nprove-settings-remove-unknown: ${frames.length} frames; ${failures ? `${failures} FAILED` : 'ALL PASS'}`)

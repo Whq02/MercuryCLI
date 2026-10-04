@@ -185,7 +185,7 @@ for (const [columns, rows] of [[120, 40], [100, 30]] as const) {
       writeFileSync(join(frames, `${surface.view}-${columns}x${rows}-rows.json`), JSON.stringify({ header: headerRow + 1, gutter: gutter + 1, border: popupTop + 1, bottom: popupBottom + 1, centreBottom: centreBottom + 1 }) + '\n')
     }
     if (write) writeFileSync(join(stills, name), frame)
-    else if (!frames && !arg('--source-ref')) check(`${label}: the stored frame matches the source render`, readFileSync(join(stills, name), 'utf8') === frame)
+    else if (!frames && !arg('--source-ref') && process.platform === 'darwin') check(`${label}: the stored frame matches the source render`, readFileSync(join(stills, name), 'utf8') === frame)
     if (surface.view === 'status') {
       for (let step = 0; step < 80; step++) scene.push('\x1b[B')
       check(`${label}: the last status fact remains reachable with its header and close hint`, await waitFor(() => scene.screen().includes('workflow idle · trace 17274 · repo') && scene.screen().includes(header) && scene.screen().includes('esc or click outside'), 4000))

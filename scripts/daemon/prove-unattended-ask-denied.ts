@@ -293,7 +293,7 @@ async function bootSeatWorld(label: string, owned: boolean, turns: Turn[]): Prom
     return null
   }
   const dispatch = async (tag: string, prompt: string, folder: string = work): Promise<Session | null> => {
-    const d = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: `${label}-${tag}`, prompt, workspaceDir: folder, title: `Ask probe ${tag}`, modelKey, effort: 'high' } as never)) as { ok?: boolean; sessionId?: string; error?: string }
+    const d = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: `${label}-${tag}`, prompt, workspaceDir: folder, title: `Ask probe ${tag}`, modelKey, effort: 'high' } as never, { timeoutMs: 30_000 })) as { ok?: boolean; sessionId?: string; error?: string }
     check(`${label}: session ${tag} dispatched`, d.ok === true && typeof d.sessionId === 'string', j(d))
     if (d.ok !== true || typeof d.sessionId !== 'string') return null
     const sessionId = d.sessionId

@@ -21,7 +21,7 @@ section('§1 crash recovery: stale consuming-* absorbed, nothing lost')
   mkdirSync(dir, { recursive: true })
   writeFileSync(
     join(dir, 'consuming-999-abc.jsonl'),
-    JSON.stringify({ ts: '2026-07-06T00:00:00Z', source: 'crashed-run', text: 'orphaned row', topicHint: 'recovery' }) + '\n',
+    JSON.stringify({ ts: new Date(Date.now() - 86_400_000).toISOString(), source: 'crashed-run', text: 'orphaned row', topicHint: 'recovery' }) + '\n',
     'utf8',
   )
   appendObservation({ text: 'fresh row', source: 'proof', topicHint: 'recovery' }, dir)

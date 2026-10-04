@@ -51,16 +51,19 @@ console.log("§2 the built product's health advice names THIS install (a source 
   const env: NodeJS.ProcessEnv = { ...process.env, HOME: join(world, 'home'), MERCURY_CONFIG_DIR: join(world, 'config'), TMPDIR: world, PATH: `/usr/bin:/bin:${dirname(NODE)}`, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none' }
   delete env.MERCURY_HOME
   mkdirSync(env.HOME!, { recursive: true })
-  const run = spawnSync(NODE, [DIST, 'health', '--json'], { cwd: work, env, encoding: 'utf8', timeout: 120_000 })
+  const nodeBin = NODE.includes('/') ? NODE : (Bun.which(NODE) ?? NODE)
+  env.PATH = `/usr/bin:/bin:${dirname(nodeBin)}`
+  const run = spawnSync(nodeBin, [DIST, 'health', '--json'], { cwd: work, env, encoding: 'utf8', timeout: 120_000 })
+  check('the built product started', run.error === undefined, String(run.error))
   let parsed: unknown = null
   try {
-    parsed = JSON.parse(run.stdout)
+    parsed = JSON.parse(run.stdout ?? '')
   } catch {
     parsed = null
   }
   const daemonRow = rows(parsed).find(row => row.id === 'daemon')
   const advice = daemonRow?.evidence ?? ''
-  check('health answered a certificate with the daemon row', daemonRow !== undefined, run.stderr.slice(-300))
+  check('health answered a certificate with the daemon row', daemonRow !== undefined, (run.stderr ?? '').slice(-300))
   check('with no daemon the row offers the opt-in start', advice.includes('opt-in: run `'), advice)
   check("the start it names is this build's own invocation (node and bundle), not the bare word", advice.includes(`${DIST} daemon\``) && !advice.includes('run `mercury daemon`'), advice)
   rmSync(world, { recursive: true, force: true })

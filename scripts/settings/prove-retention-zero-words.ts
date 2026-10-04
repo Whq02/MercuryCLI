@@ -104,6 +104,7 @@ console.log('§4 the built product: a run under retentionDays 0 writes no transc
         PATH: `/usr/bin:/bin:${nodeDir}:${process.env.PATH ?? ''}`,
         TERM: 'xterm-256color',
         MERCURY_CONFIG_DIR: configDir,
+        MERCURY_LOCAL_PROBE_TARGETS: 'none',
         MERCURY_CREDENTIAL_STORE: 'file',
         MERCURY_DAEMON_DIR: join(home, 'daemon'),
         ANTHROPIC_BASE_URL: api.url,
