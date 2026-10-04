@@ -1,11 +1,12 @@
 #!/usr/bin/env bun
 import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { Readable, Writable } from 'node:stream'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const ROOT = resolve(import.meta.dir, '..', '..')
-process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(process.env.TMPDIR ?? '/tmp', 'lanes-rows-painted-'))
+process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'lanes-rows-painted-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.NODE_ENV = 'test'
