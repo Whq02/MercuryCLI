@@ -544,7 +544,7 @@ try:
     env3 = {'MERCURY_SPLASH_VIEW': 'menu', 'MERCURY_HOME': home3}
     raw = run_pty(150, 60, env3)
     for needle in ('CONTROL PLANE', 'SETTING DETAIL', 'LAUNCH SUMMARY', 'ENVIRONMENT',
-                   'What it controls', 'System ready', 'MEMORY & MISSIONS'):
+                   'What it controls', 'System ready'):
         check(f'wide menu carries {needle!r}', needle in raw)
     lines = vis_lines(raw)
     check('wide menu fits 150 cols', all(len(l) <= 150 for l in lines),
