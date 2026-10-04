@@ -10,12 +10,10 @@ import React, {
   useSyncExternalStore,
 } from 'react'
 import { Box, Text } from '../../ink.js'
-import { Cursor } from '../../utils/Cursor.js'
 import { getFocusedSessionConnector, subscribeThroughFocused } from '../../services/engine-connector/focusedConnector.js'
 import type { Command } from '../../commands.js'
 import type { LocalJSXCommandContext } from '../../commands.js'
 import { useNotifications } from '../../context/notifications.js'
-import { useSetPromptOverlayDialog } from '../../context/promptOverlayContext.js'
 import {
   currentSurfaceRoute,
   subscribeSurfaceRoute,
@@ -24,9 +22,7 @@ import {
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useArrowKeyHistory } from '../../hooks/useArrowKeyHistory.js'
 import { useHistorySearch } from '../../hooks/useHistorySearch.js'
-import { useInputBuffer } from '../../hooks/useInputBuffer.js'
 import { usePromptSuggestion } from '../../hooks/usePromptSuggestion.js'
-import { useDoublePress } from '../../hooks/useDoublePress.js'
 import { useTypeahead, type SuggestionsState } from '../../hooks/useTypeahead.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import type { VerificationStatus } from '../../hooks/useApiKeyVerification.js'
@@ -57,7 +53,6 @@ import {
 import {
   beginConsoleCompose,
 } from '../../utils/cockpit/helmConsole.js'
-import { useMaybeTruncateInput } from './useMaybeTruncateInput.js'
 import { usePromptInputPlaceholder } from './usePromptInputPlaceholder.js'
 import { useCrewBanner } from './useCrewBanner.js'
 import { isVimModeEnabled } from './utils.js'
@@ -99,9 +94,6 @@ import { findSlackChannelPositions } from '../../utils/suggestions/slackChannelS
 import { findTokenBudgetPositions } from '../../utils/tokenBudget.js'
 import type { TextHighlight } from '../../utils/textHighlighting.js'
 import { parseReferences } from '../../history.js'
-import {
-  getNextPermissionMode,
-} from '../../utils/permissions/getNextPermissionMode.js'
 import { getEffortNotificationText } from '../EffortIndicator.js'
 import { isDefaultMode } from '../../utils/permissions/PermissionMode.js'
 import { CockpitActiveContext } from '../../context/cockpitActiveContext.js'
@@ -120,13 +112,8 @@ import { AMBER } from '../mercuryPalette.js'
 import type { Key } from '../../ink/events/input-event.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import { truncateToWidth } from '../mercury-ui/glyphs.js'
-import { submitTrace } from '../../utils/submitTrace.js'
 import { fluxMark, fluxWhy } from '../../utils/flux/fluxProbe.js'
 
-const MANAGER_COMMAND = '/manager'
-const SESSION_TAB_COMMAND = '/sessiontab'
-const KEYSETUP_COMMAND = '/keysetup'
-const DOUBLED_SLASH = '//'
 const LOST_LINE_NOTICE_MS = 8000
 
 export type PromptInputProps = {
@@ -219,7 +206,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     insertTextRef,
     onAgentSubmit,
   } = props
-  void setVimMode
 
   const tokens = useMercuryTokens()
   const composerBloom = tokens.accentSoft
@@ -815,13 +801,9 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   })
   const pushAtomic = buffer.pushAtomic
 
-  const setOverlayDialog = useSetPromptOverlayDialog
-  void setOverlayDialog
-
   const exitStateChange = useCallback((show: boolean, keyName?: string): void => {
     setExitState({ pending: show, keyName: keyName ?? null })
   }, [])
-
 
   const voiceInputFilter = useCallback((rawInput: string, key: Key): string => holdToTalkKey(rawInput, key), [])
   useEffect(() => {
