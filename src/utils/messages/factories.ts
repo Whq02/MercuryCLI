@@ -1,7 +1,8 @@
 
 import type { ApiUsage as Usage, ContentBlock, ContentBlockParam, ToolResultBlockParam } from '../../types/wire.js'
-import { randomUUID, type UUID } from 'crypto'
+import type { UUID } from 'crypto'
 import { NO_CONTENT_MESSAGE } from '../../constants/messages.js'
+import { MESSAGE_STAMPER } from '../../rows/project.js'
 import {
   COMMAND_ARGS_TAG,
   COMMAND_MESSAGE_TAG,
@@ -108,12 +109,14 @@ function fabricateAssistantMessage({
   isVirtual?: true
   usage?: Usage
 }): AssistantMessage {
+  const stamp = MESSAGE_STAMPER.mint()
+  const wireId = MESSAGE_STAMPER.id()
   return {
     type: 'assistant',
-    uuid: randomUUID(),
-    timestamp: new Date().toISOString(),
+    uuid: stamp.uuid,
+    timestamp: stamp.timestamp,
     message: {
-      id: randomUUID(),
+      id: wireId,
       container: null,
       model: SYNTHETIC_MODEL,
       role: 'assistant',
@@ -232,6 +235,7 @@ export function createUserMessage({
   origin?: MessageOrigin
   batchUuids?: string[]
 }): UserMessage {
+  const stamp = MESSAGE_STAMPER.mint({ uuid, timestamp })
   return {
     type: 'user',
     message: {
@@ -243,8 +247,8 @@ export function createUserMessage({
     isVirtual,
     isCompactSummary,
     summarizeMetadata,
-    uuid: (uuid as UUID | undefined) || randomUUID(),
-    timestamp: timestamp ?? new Date().toISOString(),
+    uuid: stamp.uuid,
+    timestamp: stamp.timestamp,
     toolUseResult,
     mcpMeta,
     imagePasteIds,
@@ -322,13 +326,14 @@ export function createProgressMessage<P extends Progress>({
   parentToolUseID: string
   data: P
 }): ProgressMessage<P> {
+  const stamp = MESSAGE_STAMPER.mint()
   return {
     type: 'progress',
     data,
     toolUseID,
     parentToolUseID,
-    uuid: randomUUID(),
-    timestamp: new Date().toISOString(),
+    uuid: stamp.uuid,
+    timestamp: stamp.timestamp,
   }
 }
 

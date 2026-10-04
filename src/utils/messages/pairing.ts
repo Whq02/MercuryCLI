@@ -1,5 +1,5 @@
 import type { ContentBlock, ContentBlockParam, ToolResultBlockParam, ToolUseBlock, ToolUseBlockParam } from '../../types/wire.js'
-import { randomUUID } from 'crypto'
+import { MESSAGE_STAMPER } from '../../rows/project.js'
 import { getStrictToolResultPairing } from '../../bootstrap/state.js'
 import { NO_CONTENT_MESSAGE } from '../../constants/messages.js'
 import type {
@@ -19,12 +19,13 @@ export function createToolUseSummaryMessage(
   summary: string,
   precedingToolUseIds: string[],
 ): ToolUseSummaryMessage {
+  const stamp = MESSAGE_STAMPER.mint()
   return {
     type: 'tool_use_summary',
     summary,
     precedingToolUseIds,
-    uuid: randomUUID(),
-    timestamp: new Date().toISOString(),
+    uuid: stamp.uuid,
+    timestamp: stamp.timestamp,
   }
 }
 

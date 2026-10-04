@@ -1,4 +1,5 @@
 import stripAnsi from 'strip-ansi'
+import { randomUUID, type UUID as CryptoUUID } from 'node:crypto'
 import { BASH_STDERR_TAG, BASH_STDOUT_TAG, LOCAL_COMMAND_STDERR_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../constants/xml.js'
 import { unescapeXml } from '../utils/xml.js'
 import type { FoldStatusV1 } from '../services/compact/foldStatus.js'
@@ -44,8 +45,15 @@ import {
 export type Unstamped<R extends Row> = Omit<R, 'seq' | 'timestamp'>
 export type RowDraft = Unstamped<Row>
 
+export interface MessageStamp {
+  timestamp: string
+  uuid: CryptoUUID
+}
+
 export interface RowStamper {
   stamp<R extends Row>(draft: Unstamped<R>): R
+  mint(overrides?: { uuid?: CryptoUUID | string; timestamp?: string }): MessageStamp
+  id(): CryptoUUID
   readonly seq: number
 }
 
@@ -56,11 +64,19 @@ export function createRowStamper(clock: () => string = () => new Date().toISOStr
       seq += 1
       return { ...(draft as object), seq, timestamp: clock() } as R
     },
+    mint(overrides = {}): MessageStamp {
+      const uuid = (overrides.uuid as CryptoUUID | undefined) || this.id()
+      const timestamp = overrides.timestamp ?? clock()
+      return { timestamp, uuid }
+    },
+    id: randomUUID,
     get seq() {
       return seq
     },
   }
 }
+
+export const MESSAGE_STAMPER: RowStamper = createRowStamper()
 
 export interface RowScope {
   session_id: string
