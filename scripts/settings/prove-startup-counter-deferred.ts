@@ -184,17 +184,17 @@ section('another process refresh preserves the pending cached view')
   check('the later flush applies it once to the external write', r.diskCount === 5 && r.diskTheme === 'light' && r.writesAfterFlush === 2, JSON.stringify(r))
 }
 
-section('deferred flush preserves project-history cleanup')
+section('deferred flush carries an undeclared project key as written')
 {
   const r = runIn(`
-    fs.writeFileSync(file, JSON.stringify({ numStartups: 4, projects: { fixture: { history: ['old result'] } } }))
+    fs.writeFileSync(file, JSON.stringify({ numStartups: 4, projects: { fixture: { history: ['as written'] } } }))
     g.saveGlobalConfigDeferred(bump)
     out.cacheHistory = g.getGlobalConfig().projects.fixture.history ?? null
     await g.flushDeferredGlobalConfigSaves()
     out.diskHistory = readDisk()?.projects.fixture.history ?? null
     out.diskCount = readDisk()?.numStartups
   `)
-  check('history remains outside both the deferred cache and the published config', r.cacheHistory === null && r.diskHistory === null && r.diskCount === 5, JSON.stringify(r))
+  check('the undeclared project key rides the deferred cache and the published config untouched', JSON.stringify(r.cacheHistory) === '["as written"]' && JSON.stringify(r.diskHistory) === '["as written"]' && r.diskCount === 5, JSON.stringify(r))
 }
 
 section('startup metadata remains usable while another process holds the config lock')
@@ -204,9 +204,7 @@ section('startup metadata remains usable while another process holds the config 
     const derived = await import(${JSON.stringify(join(SRC, 'utils/config/derived.ts'))})
     const trust = await import(${JSON.stringify(join(SRC, 'utils/config/trust.ts'))})
     const project = await import(${JSON.stringify(join(SRC, 'utils/config/projectConfig.ts'))})
-    const verbose = await import(${JSON.stringify(join(SRC, 'migrations/migrateVerboseToToolOutput.ts'))})
-    const updates = await import(${JSON.stringify(join(SRC, 'migrations/migrateAutoUpdatesToSettings.ts'))})
-    g.saveGlobalConfig(c => ({ ...c, numStartups: 4, remoteControlAtStartup: true, verbose: true, autoUpdates: false }))
+    g.saveGlobalConfig(c => ({ ...c, numStartups: 4, remoteControlAtStartup: true, notAConfigKey: true }))
     const release = lock.lockSync(file, { realpath: false })
     const wait = Atomics.wait
     let waits = 0
@@ -215,8 +213,6 @@ section('startup metadata remains usable while another process holds the config 
     Atomics.wait = () => { waits++; throw Object.assign(new Error('unexpected synchronous lock wait'), { code: 'ELOCKED' }) }
     try {
       derived.recordFirstStartTime()
-      verbose.migrateVerboseToToolOutput()
-      out.migration = updates.migrateAutoUpdatesToSettings()
       trust.recordPermissionPosture({ bypassArmed: true, envArmed: true, flagArmed: false, dialogSuppressed: true })
       out.posture = project.getCurrentProjectConfig().permissionPosture?.mode
       out.trusted = trust.checkHasTrustDialogAccepted()
@@ -224,7 +220,7 @@ section('startup metadata remains usable while another process holds the config 
         started: typeof g.getGlobalConfig().firstStartTime === 'string',
         remote: g.getGlobalConfig().remoteControlAtStartup,
         output: g.getGlobalConfig().toolOutput,
-        oldUpdates: 'autoUpdates' in g.getGlobalConfig(),
+        undeclared: g.getGlobalConfig().notAConfigKey,
       }
       out.writesBefore = g.getGlobalConfigWriteCount()
       timer = setTimeout(() => { release(); released = true }, 25)
@@ -243,12 +239,12 @@ section('startup metadata remains usable while another process holds the config 
       Atomics.wait = wait
     }
   `)
-  const cache = r.cached as { started: boolean; remote: boolean; output: string; oldUpdates: boolean }
+  const cache = r.cached as { started: boolean; remote: boolean; output: string; undeclared: unknown }
   const disk = r.disk as Record<string, unknown>
-  check('startup readers see first-start and migrated settings without a write', cache.started && cache.remote === true && cache.output === 'full' && !cache.oldUpdates && r.migration === true && r.writesBefore === 1, JSON.stringify(r))
+  check('startup readers see first-start and the saved settings without a write; an undeclared key is carried as written', cache.started && cache.remote === true && cache.output === 'compact' && cache.undeclared === true && r.writesBefore === 1, JSON.stringify(r))
   check('the diagnostic posture is cached and persisted without granting trust', r.posture === 'bypass' && r.diskPosture === 'bypass' && r.trusted === false, JSON.stringify(r))
   check('contention yields to the lock-release callback and never uses Atomics.wait', r.pendingWhileLocked === true && r.released === true && r.waits === 0, JSON.stringify(r))
-  check('one later publish carries all startup metadata and clears the queue', r.writesAfter === 2 && r.pendingAfter === false && typeof disk.firstStartTime === 'string' && disk.remoteControlAtStartup === true && disk.toolOutput === 'full' && !('verbose' in disk) && !('autoUpdates' in disk), JSON.stringify(r))
+  check('one later publish carries all startup metadata and the undeclared key, and clears the queue', r.writesAfter === 2 && r.pendingAfter === false && typeof disk.firstStartTime === 'string' && disk.remoteControlAtStartup === true && !('toolOutput' in disk) && disk.notAConfigKey === true, JSON.stringify(r))
 }
 
 section('exhausted background retries preserve pending data for a later save')

@@ -20,7 +20,6 @@ import {
   createDefaultGlobalConfig,
   DEFAULT_GLOBAL_CONFIG,
   type GlobalConfig,
-  type ProjectConfig,
 } from './schema.js'
 
 const TEST_GLOBAL_CONFIG_FOR_TESTING: GlobalConfig = {
@@ -58,7 +57,7 @@ function armDeferredExitFlush(): void {
 export function foldPendingUpdaters(current: GlobalConfig): GlobalConfig {
   let folded = current
   for (const pending of pendingDeferredUpdaters) folded = pending(folded)
-  return pendingDeferredUpdaters.length === 0 ? current : { ...folded, projects: removeProjectHistory(folded.projects) }
+  return folded
 }
 
 export function saveGlobalConfigDeferred(
@@ -74,10 +73,7 @@ export function saveGlobalConfigDeferred(
   if (next === current) return
   pendingDeferredUpdaters.push(updater)
   armDeferredExitFlush()
-  writeThroughGlobalConfigCache({
-    ...next,
-    projects: removeProjectHistory(next.projects),
-  })
+  writeThroughGlobalConfigCache(next)
 }
 
 export async function flushDeferredGlobalConfigSaves(): Promise<void> {
@@ -124,10 +120,7 @@ export function saveGlobalConfig(
         if (config === current) {
           return current
         }
-        written = {
-          ...config,
-          projects: removeProjectHistory(config.projects),
-        }
+        written = config
         return written
       },
     )
@@ -174,10 +167,7 @@ export function saveGlobalConfig(
     if (config === currentConfig) {
       return
     }
-    written = {
-      ...config,
-      projects: removeProjectHistory(config.projects),
-    }
+    written = config
     saveConfig(getGlobalMercuryFile(), written, DEFAULT_GLOBAL_CONFIG)
     writeThroughGlobalConfigCache(written)
   }
@@ -301,30 +291,6 @@ export function decodeGlobalConfigFields(parsed: unknown): unknown {
   }
   namedGlobalConfigFieldDrops = named
   return out ?? parsed
-}
-
-function removeProjectHistory(
-  projects: Record<string, ProjectConfig> | undefined,
-): Record<string, ProjectConfig> | undefined {
-  if (!projects) {
-    return projects
-  }
-
-  const cleanedProjects: Record<string, ProjectConfig> = {}
-  let needsCleaning = false
-
-  for (const [path, projectConfig] of Object.entries(projects)) {
-    const legacy = projectConfig as ProjectConfig & { history?: unknown }
-    if (legacy.history !== undefined) {
-      needsCleaning = true
-      const { history, ...cleanedConfig } = legacy
-      cleanedProjects[path] = cleanedConfig
-    } else {
-      cleanedProjects[path] = projectConfig
-    }
-  }
-
-  return needsCleaning ? cleanedProjects : projects
 }
 
 const CONFIG_FRESHNESS_POLL_MS = 1000

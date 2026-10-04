@@ -157,7 +157,6 @@ export type GlobalConfig = {
   hasCompletedOnboarding?: boolean
   lastOnboardingVersion?: string
   lastReleaseNotesSeen?: string
-  cachedChangelog?: string
   mcpServers?: Record<string, McpServerConfig>
   kitPresets?: Record<string, { mcpOff: string[]; skillStates: Record<string, 'off' | 'invocable'>; extensionsOff: string[] }>
   claudeAiMcpEverConnected?: string[]
@@ -300,8 +299,6 @@ export type GlobalConfig = {
     label?: string
     models?: string[]
   }
-
-  migrationVersion?: number
 }
 
 export function createDefaultGlobalConfig(): GlobalConfig {
