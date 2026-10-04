@@ -120,7 +120,7 @@ section('§6 the invocation contract resolves ONCE and threads to the decision')
   const adapter = src('src/utils/hooks/runStopAdapter.ts')
   check('the adapter resolves the contract at the evaluation seam', adapter.includes('resolveInvocationContract({'))
   check('…and threads surface + terminalPolicy into evaluateStop', adapter.includes('surface: contract.surface') && adapter.includes('terminalPolicy: contract.terminalPolicy'))
-  check('the adapter records the continuation reason as the evaluator gave it, with no admission receipt', adapter.includes("noteRunEvent(owner, { type: 'continuation', at, reason: decision.reason })") && !adapter.includes('admission'))
+  check("the adapter records a continue decision as the stop-decision it is, the evaluator's reason as given, no admission receipt and no continuation claim", adapter.includes("type: 'stop-decision'") && /decision\.kind === 'continue'\s*\?\s*decision\.reason/.test(adapter) && !adapter.includes("type: 'continuation'") && !adapter.includes('admission'))
 
   const evaluator = src('src/services/run/completionEvaluator.ts')
   check('the budget fuse is progress-aware (S2/C9), never progress-blind', evaluator.includes('progressSinceDecision') && evaluator.includes('freshProgress'))
