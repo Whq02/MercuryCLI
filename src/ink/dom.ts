@@ -20,7 +20,6 @@ export type ElementNames =
   | 'ink-link'
   | 'ink-progress'
   | 'ink-raw-ansi'
-export type NodeNames = ElementNames | TextName
 
 export type ScrollState = {
   scrollTop?: number

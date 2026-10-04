@@ -1,6 +1,6 @@
 
 import { existsSync, realpathSync, watch, type FSWatcher, type Stats, type WatchListener, type WatchOptionsWithStringEncoding } from 'node:fs'
-import { basename, dirname, join, resolve } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 
 export type WatchIgnoreRule = (candidatePath: string, stats?: Stats) => boolean
 
@@ -26,12 +26,6 @@ export function resolveWatchRoot(p: string): string {
   } catch {
     return p
   }
-}
-
-export function watchPathKey(p: string): string {
-  if (process.platform !== 'win32') return p
-  const resolved = resolve(p)
-  return join(resolveWatchRoot(dirname(resolved)), basename(resolved)).toLowerCase()
 }
 
 export function watchDirectory(

@@ -367,18 +367,6 @@ export function normalizePathForComparison(filePath: string): string {
   return normalized
 }
 
-export function pathsEqual(a: string, b: string): boolean {
-  return normalizePathForComparison(a) === normalizePathForComparison(b)
-}
-
-export function isDirEmpty(dirPath: string): boolean {
-  try {
-    return getFsImplementation().isDirEmptySync(dirPath)
-  } catch (err) {
-    return isENOENT(err)
-  }
-}
-
 export function findSimilarFile(filePath: string): string | undefined {
   try {
     const directory = dirname(filePath)

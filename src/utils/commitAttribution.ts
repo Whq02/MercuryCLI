@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto'
+import { createHash } from 'node:crypto'
 import { isAbsolute, join, relative, sep } from 'node:path'
 
 import { getOriginalCwd, getSessionId } from '../bootstrap/state.js'
@@ -8,7 +8,6 @@ import { logForDebugging } from './debug.js'
 import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { getFsImplementation } from './fsOperations.js'
 import { findGitRoot, gitExe } from './git.js'
-import { resolveGitDir } from './git/gitFilesystem.js'
 import { isGeneratedFile } from './generatedFiles.js'
 import { logError } from './log.js'
 
@@ -126,16 +125,6 @@ export function createEmptyAttributionState(): AttributionState {
   }
 }
 
-export async function getFileMtime(filePath: string): Promise<number> {
-  try {
-    const expanded = expandFilePath(normalizeFilePath(filePath))
-    const stats = await getFsImplementation().stat(expanded)
-    return stats.mtimeMs
-  } catch {
-    return Date.now()
-  }
-}
-
 function computeCharacterContribution(oldContent: string, newContent: string): number {
   if (oldContent.length === 0 || newContent.length === 0) {
     return Math.max(oldContent.length, newContent.length)
@@ -188,73 +177,12 @@ export function trackFileModification(
   }
 }
 
-export function trackFileCreation(
-  state: AttributionState,
-  filePath: string,
-  content: string,
-  mtime?: number,
-): AttributionState {
-  return trackFileModification(state, filePath, '', content, false, mtime)
-}
-
-export function trackFileDeletion(
-  state: AttributionState,
-  filePath: string,
-  oldContent: string,
-): AttributionState {
-  try {
-    const normalized = normalizeFilePath(filePath)
-    const fileStates = new Map(toEntries(state.fileStates))
-    const existing = fileStates.get(normalized)
-    fileStates.set(normalized, {
-      contentHash: computeContentHash(''),
-      mercuryContribution: contributedChars(existing) + oldContent.length,
-      mtime: Date.now(),
-    })
-    logForDebugging(`attribution: tracked deletion of ${normalized} (${oldContent.length} chars)`)
-    return { ...state, fileStates }
-  } catch (err) {
-    logError(err)
-    return state
-  }
-}
-
 export type BulkFileChange = {
   path: string
   type: 'modified' | 'created' | 'deleted'
   oldContent: string
   newContent: string
   mtime?: number
-}
-
-export function trackBulkFileChanges(
-  state: AttributionState,
-  changes: BulkFileChange[],
-): AttributionState {
-  const fileStates = new Map(toEntries(state.fileStates))
-  for (const change of changes) {
-    try {
-      const normalized = normalizeFilePath(change.path)
-      const existing = fileStates.get(normalized)
-      if (change.type === 'deleted') {
-        fileStates.set(normalized, {
-          contentHash: computeContentHash(''),
-          mercuryContribution: contributedChars(existing) + change.oldContent.length,
-          mtime: change.mtime ?? Date.now(),
-        })
-      } else {
-        const contribution = computeCharacterContribution(change.oldContent, change.newContent)
-        fileStates.set(normalized, {
-          contentHash: computeContentHash(change.newContent),
-          mercuryContribution: contributedChars(existing) + contribution,
-          mtime: change.mtime ?? Date.now(),
-        })
-      }
-    } catch (err) {
-      logError(err)
-    }
-  }
-  return { ...state, fileStates }
 }
 
 type MergedStates = {
@@ -418,31 +346,6 @@ export async function isFileDeleted(filePath: string): Promise<boolean> {
   }
 }
 
-export async function getStagedFiles(): Promise<string[]> {
-  try {
-    const result = await execFileNoThrowWithCwd(gitExe(), ['diff', '--cached', '--name-only'], {
-      cwd: getAttributionRepoRoot(),
-      timeout: GIT_PROBE_TIMEOUT_MS,
-    })
-    if (result.code !== 0) return []
-    return result.stdout.split('\n').filter(line => line.length > 0)
-  } catch (err) {
-    logError(err)
-    return []
-  }
-}
-
-export async function isGitTransientState(): Promise<boolean> {
-  const gitDir = await resolveGitDir()
-  if (!gitDir) return false
-  const markers = ['rebase-merge', 'rebase-apply', 'MERGE_HEAD', 'CHERRY_PICK_HEAD', 'BISECT_LOG']
-  const fs = getFsImplementation()
-  const present = await Promise.all(
-    markers.map(async marker => fs.existsSync(join(gitDir, marker))),
-  )
-  return present.some(Boolean)
-}
-
 export function stateToSnapshotMessage(
   state: AttributionState,
   messageId: string,
@@ -486,20 +389,4 @@ export function restoreAttributionStateFromSnapshots(
     escapeCount: last.escapeCount ?? 0,
     escapeCountAtLastCommit: last.escapeCountAtLastCommit ?? 0,
   }
-}
-
-export function attributionRestoreStateFromLog(
-  snapshots: AttributionSnapshotMessage[],
-  onUpdateState: (state: AttributionState) => void,
-): void {
-  onUpdateState(restoreAttributionStateFromSnapshots(snapshots))
-}
-
-export function incrementPromptCount(
-  attribution: AttributionState,
-  saveSnapshot: (snapshot: AttributionSnapshotMessage) => void,
-): AttributionState {
-  const next = { ...attribution, promptCount: attribution.promptCount + 1 }
-  saveSnapshot(stateToSnapshotMessage(next, randomUUID()))
-  return next
 }

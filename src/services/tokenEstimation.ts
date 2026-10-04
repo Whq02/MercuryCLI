@@ -1,5 +1,3 @@
-import Anthropic from '@anthropic-ai/sdk'
-
 import type { Message } from '../types/message.js'
 import type { TextBlockParam } from '../types/wire.js'
 import { logForDebugging } from '../utils/debug.js'
@@ -304,5 +302,3 @@ export function roughTokenCountEstimationForMessages(messages: Message[]): numbe
   for (const message of messages) total += roughTokenCountEstimationForMessage(message)
   return total
 }
-
-export type TokenCountingSdk = typeof Anthropic

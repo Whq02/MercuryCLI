@@ -67,10 +67,6 @@ export const STATE_STYLE: Record<
   planned: { glyph: '◇', color: SECOND, label: 'planned' },
 }
 
-export function isActiveState(s: SnapshotState): boolean {
-  return s === 'live' || s === 'ready'
-}
-
 export function gaugeColor(pct: number): string {
   return pct < 80 ? TEAL : pct < 95 ? AMBER : CRIMSON
 }

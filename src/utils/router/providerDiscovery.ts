@@ -239,12 +239,6 @@ function probeMeta(io: DiscoveryIo): MetaDiscovery {
   return { provider: 'meta', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
 }
 
-export function primeMetaDiscovery(io?: DiscoveryIo): MetaDiscovery | null {
-  const record = probeMeta(io ?? defaultIo())
-  cache.set('meta', record)
-  return record
-}
-
 function probeDeepseek(io: DiscoveryIo): DeepseekDiscovery {
   const { resolveDeepseekApiKey } =
     require('../../services/providers/deepseek/deepseekAccounts.js') as typeof import('../../services/providers/deepseek/deepseekAccounts.js')

@@ -69,7 +69,3 @@ export function availableCores(): number {
   memo = resolveAvailableCores({ hostCores, affinityCores, quotaCores })
   return memo
 }
-
-export function _resetAvailableCoresForTesting(): void {
-  memo = null
-}

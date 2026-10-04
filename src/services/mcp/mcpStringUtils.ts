@@ -54,10 +54,3 @@ export function getToolNameForPermissionCheck(tool: {
 export function getMcpDisplayName(fullName: string, serverName: string): string {
   return fullName.replace(getMcpPrefix(serverName), '')
 }
-
-export function extractMcpToolDisplayName(userFacingName: string): string {
-  const withoutMarker = userFacingName.replace(/\s*\(MCP\)\s*$/, '').trim()
-  const separatorIndex = withoutMarker.indexOf(' - ')
-  if (separatorIndex === -1) return withoutMarker
-  return withoutMarker.slice(separatorIndex + 3).trim()
-}

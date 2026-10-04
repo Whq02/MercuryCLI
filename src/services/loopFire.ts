@@ -58,10 +58,6 @@ export function isDynamicLoopEnabled(): boolean {
   return flagEnv('MERCURY_LOOP_DYNAMIC') !== '0'
 }
 
-export function isLoopKeepaliveEnabled(): boolean {
-  return flagEnv('MERCURY_LOOP_KEEPALIVE') !== '0'
-}
-
 function awayHintEnabled(): boolean {
   return flagEnv('MERCURY_LOOP_AWAY_HINT') !== '0'
 }

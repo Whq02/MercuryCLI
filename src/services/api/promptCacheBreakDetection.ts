@@ -207,10 +207,6 @@ function systemTextLength(system: NeutralSystemBlock[]): number {
   return total
 }
 
-export function sanitizeToolNameForReceipt(name: string): string {
-  return name.startsWith('mcp__') ? 'mcp' : name
-}
-
 function buildPromptRendering(snapshot: PromptStateSnapshot): () => string {
   let cached: string | null = null
   return () => {
@@ -607,10 +603,6 @@ export function notifyCompaction(querySource: string, agentId?: string): void {
   const state = laneStates.get(key)
   if (state === undefined) return
   state.previousCacheReadTokens = null
-}
-
-export function cleanupAgentTracking(agentId: string): void {
-  laneStates.delete(agentId)
 }
 
 export function resetPromptCacheBreakDetection(): void {

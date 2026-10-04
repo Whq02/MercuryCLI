@@ -61,5 +61,3 @@ export const LspServerConfigSchema = lazySchema(() =>
       ),
   }),
 )
-
-export type LspServerConfigInput = z.input<ReturnType<typeof LspServerConfigSchema>>

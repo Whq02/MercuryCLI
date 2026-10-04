@@ -4,13 +4,10 @@ import { release } from 'node:os'
 
 import { memoize } from 'lodash-es'
 
-import { getFsImplementation } from './fsOperations.js'
 import { logError } from './log.js'
 
 
 export type Platform = 'macos' | 'windows' | 'wsl' | 'linux' | 'unknown'
-
-export const SUPPORTED_PLATFORMS: Platform[] = ['macos', 'wsl']
 
 export const getPlatform = memoize((): Platform => {
   try {
@@ -66,31 +63,3 @@ export const getLinuxDistroInfo = memoize(async (): Promise<LinuxDistroInfo | un
   }
   return info
 })
-
-const VCS_MARKERS: Array<[string, string]> = [
-  ['.git', 'git'],
-  ['.hg', 'mercurial'],
-  ['.svn', 'svn'],
-  ['.p4config', 'perforce'],
-  ['$tf', 'tfs'],
-  ['.tfvc', 'tfs'],
-  ['.jj', 'jujutsu'],
-  ['.sl', 'sapling'],
-]
-
-export async function detectVcs(dir?: string): Promise<string[]> {
-  const found = new Set<string>()
-  if (process.env.P4PORT) found.add('perforce')
-  const fs = getFsImplementation()
-  const target = dir ?? process.cwd()
-  let entries: Set<string>
-  try {
-    entries = new Set(fs.readdirSync(target).map(entry => entry.name))
-  } catch {
-    return [...found]
-  }
-  for (const [marker, vcs] of VCS_MARKERS) {
-    if (entries.has(marker)) found.add(vcs)
-  }
-  return [...found]
-}

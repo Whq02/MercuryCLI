@@ -4,10 +4,6 @@ import { SETUP_EXEC_TIMEOUT_MS, SETUP_INSTALL_POLL_MS, type ExecResult, type Ins
 
 export type InstallDoc = { platform: SetupPlatform; via: InstallVia; url: string; excerpt: string; command: string }
 
-export const OLLAMA_DMG_URL = 'https://ollama.com/download/Ollama.dmg'
-export const OLLAMA_INSTALL_SH_URL = 'https://ollama.com/install.sh'
-export const OLLAMA_SETUP_EXE_URL = 'https://ollama.com/download/OllamaSetup.exe'
-
 export const INSTALL_DOCS: readonly InstallDoc[] = [
   {
     platform: 'darwin',

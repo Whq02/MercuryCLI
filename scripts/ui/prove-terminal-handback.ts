@@ -191,7 +191,6 @@ section('S · one owner · every hand-off site · the one native spelling · the
   const sites: Array<[string, string, string[]]> = [
     ['src/utils/editor.ts', "reclaimTerminalAfterChild('external editor')", ['instance.exitAlternateScreen()']],
     ['src/utils/promptEditor.ts', "reclaimTerminalAfterChild(isTerminalEditor ? 'prompt editor' : 'prompt editor (gui)')", ['instance.exitAlternateScreen()', 'instance.resumeStdin()']],
-    ['src/utils/terminalPanel.ts', "reclaimTerminalAfterChild('terminal panel')", ['ink.exitAlternateScreen()']],
   ]
   for (const [rel, call, rearms] of sites) {
     const text = read(rel)

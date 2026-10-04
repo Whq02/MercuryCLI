@@ -104,18 +104,6 @@ export function realTargetPath(path: string): string {
   return tail.length === 0 ? real : join(real, ...tail)
 }
 
-export function repositoryRootOf(path: string): string | undefined {
-  if (!isAbsolute(path) || path.length > TARGET_PATH_MAX) return undefined
-  let dir = deepestExisting(path).real
-  if (dir === realTargetPath(path)) dir = dirname(dir)
-  for (;;) {
-    if (existsSync(join(dir, '.git'))) return dir
-    const parent = dirname(dir)
-    if (parent === dir) return undefined
-    dir = parent
-  }
-}
-
 export function makeTargetResolver(fallbackRoot: string, work?: WardWork): (path: string) => ResolvedPath {
   const fallback = realTargetPath(fallbackRoot)
   return (path: string): ResolvedPath => {

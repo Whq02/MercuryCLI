@@ -62,10 +62,6 @@ function withLiveAttention(snap: WorkbenchSnapshot): WorkbenchSnapshot {
   return snap
 }
 
-export function setWorkbenchStateProvider(fn: (() => unknown) | null): void {
-  appStateProvider = fn
-}
-
 
 function pickRichTasks(state: unknown): Map<string, RichTaskFact> {
   const out = new Map<string, RichTaskFact>()

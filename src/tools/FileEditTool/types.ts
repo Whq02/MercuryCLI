@@ -85,8 +85,6 @@ export const inputSchema = lazySchema((): WidestSchema => {
 
 export type FileEditInput = z.infer<WidestSchema>
 
-export type EditInput = Omit<FileEditInput, 'file_path'>
-
 export type FileEdit = {
   old_string: string
   new_string: string

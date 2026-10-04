@@ -1,8 +1,8 @@
 {
-  "comment": "Grouped contracts \u2014 every sanctioned deep-import module carries a group justification. A module joining ungrouped fails the gate until placed deliberately (--record parks it in 'unclassified').",
+  "comment": "Grouped contracts — every sanctioned deep-import module carries a group justification. A module joining ungrouped fails the gate until placed deliberately (--record parks it in 'unclassified').",
   "groups": {
     "design-system-base": {
-      "why": "the facade's Box/Text ARE the themed wrappers \u2014 the design system + theming layer reaches the raw primitives and styling truth directly (re-routing would cycle through the facade)",
+      "why": "the facade's Box/Text ARE the themed wrappers — the design system + theming layer reaches the raw primitives and styling truth directly (re-routing would cycle through the facade)",
       "modules": [
         "colorize",
         "components/Box",
@@ -13,7 +13,7 @@
       ]
     },
     "escape-vocabulary": {
-      "why": "shared protocol constants \u2014 public escape vocabulary, no decision bodies",
+      "why": "shared protocol constants — public escape vocabulary, no decision bodies",
       "modules": [
         "termio/csi",
         "termio/dec",
@@ -21,13 +21,13 @@
       ]
     },
     "held-alt-release": {
-      "why": "the launcher-held alt-buffer one-shot \u2014 main.tsx's commander output writer must release the hold BEFORE any usage error prints and before any screen mounts; a pre-facade boot seam by design (the facade itself is not loaded yet on those paths)",
+      "why": "the launcher-held alt-buffer one-shot — main.tsx's commander output writer must release the hold BEFORE any usage error prints and before any screen mounts; a pre-facade boot seam by design (the facade itself is not loaded yet on those paths)",
       "modules": [
         "launcherAltHold"
       ]
     },
     "width-oracle": {
-      "why": "the ONE width oracle and its pinned wrap dispatcher (prove-width-oracle-sot), and the ONE tab-stop expansion (tabstops) that layout's measure, the compositor's paint and the app-side measurers (the consent body budget, the structured diff, the colour diff) all count stops through \u2014 a second expansion would land stops differently at the wrap decision than in the painted cells",
+      "why": "the ONE width oracle and its pinned wrap dispatcher (prove-width-oracle-sot), and the ONE tab-stop expansion (tabstops) that layout's measure, the compositor's paint and the app-side measurers (the consent body budget, the structured diff, the colour diff) all count stops through — a second expansion would land stops differently at the wrap decision than in the painted cells",
       "modules": [
         "stringWidth",
         "tabstops",
@@ -42,12 +42,11 @@
         "events/keyboard-event",
         "events/text-gesture",
         "frame",
-        "geometry/selection",
         "render-to-screen"
       ]
     },
     "session-truth": {
-      "why": "terminal capability + focus state \u2014 read-side truth the app consults directly",
+      "why": "terminal capability + focus state — read-side truth the app consults directly",
       "modules": [
         "session/capabilities",
         "session/focus-store",
@@ -57,7 +56,7 @@
       ]
     },
     "runtime-seams": {
-      "why": "deliberate cross-plane seams: live instance registries, the node cache, the flush-probe registry, and the instance/size contexts, the frame-trace ring (app land feeds keystroke resolutions + reads /trace), and the terminal notification ping writer (the switchboard's needs-you bell rings through the termio owner \u2014 a facade route would cycle)",
+      "why": "deliberate cross-plane seams: live instance registries, the node cache, the flush-probe registry, and the instance/size contexts, the frame-trace ring (app land feeds keystroke resolutions + reads /trace), and the terminal notification ping writer (the switchboard's needs-you bell rings through the termio owner — a facade route would cycle)",
       "modules": [
         "components/TerminalSizeContext",
         "instances",
@@ -68,7 +67,7 @@
       ]
     },
     "package-scoped-components-and-hooks": {
-      "why": "module-level component/hook API the facade deliberately keeps package-scoped (single-purpose surfaces with few, named consumers); the hooks and components the facade also re-exports count here when a consumer reaches them by module path \u2014 the same API either way",
+      "why": "module-level component/hook API the facade deliberately keeps package-scoped (single-purpose surfaces with few, named consumers); the hooks and components the facade also re-exports count here when a consumer reaches them by module path — the same API either way",
       "modules": [
         "Ansi",
         "components/AlternateScreen",
@@ -100,7 +99,7 @@
       ]
     },
     "terminal-mode-ledger": {
-      "why": "the terminal-mode obligation ledger: arm-site owners (ink App raw-mode/cursor, AlternateScreen session trio, the /mouse live toggle, launcherAltHold imports) note acquisitions beside their byte writes, and gracefulShutdown's cleanup derives its EXACT close set from the open obligations (settle-exactly-once; no broad unconditional reset). The ledger is pure per-process state living beside the root owners it records \u2014 a facade re-route would put bookkeeping on the far side of the writes it must mirror.",
+      "why": "the terminal-mode obligation ledger: arm-site owners (ink App raw-mode/cursor, AlternateScreen session trio, the /mouse live toggle, launcherAltHold imports) note acquisitions beside their byte writes, and gracefulShutdown's cleanup derives its EXACT close set from the open obligations (settle-exactly-once; no broad unconditional reset). The ledger is pure per-process state living beside the root owners it records — a facade re-route would put bookkeeping on the far side of the writes it must mirror.",
       "modules": [
         "root/terminalModeLedger"
       ]

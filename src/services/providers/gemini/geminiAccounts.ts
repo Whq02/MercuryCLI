@@ -1,6 +1,6 @@
 import { createServer, type Server } from 'node:http'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
-import { chmodSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
 import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
@@ -88,10 +88,6 @@ function writeAuthFile(mutate: (file: GeminiAuthFile) => GeminiAuthFile): void {
   } catch {
   }
   noteCredentialChange()
-}
-
-export function geminiAuthFileExists(): boolean {
-  return existsSync(authFilePath())
 }
 
 export function geminiAuthPathForDisplay(): string {

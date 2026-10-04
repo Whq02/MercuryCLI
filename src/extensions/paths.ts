@@ -73,7 +73,3 @@ export function getInstalledIdDir(id: string): string {
 export function getExtensionDataDir(id: string): string {
   return join(getDataDir(), idFolderName(id))
 }
-
-export function getBundledVersionDir(name: string, mercuryVersion: string): string {
-  return join(getBundledDir(), idFolderName(name), versionFolderName(mercuryVersion))
-}

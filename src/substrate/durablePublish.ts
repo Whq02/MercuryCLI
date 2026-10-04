@@ -163,11 +163,6 @@ function noteRetriedSuccess(path: string, attempts: number, elapsedMs: number): 
   publishHealth.retriedSuccesses.last = { path, attempts, elapsedMs, atMs: Date.now() }
 }
 
-export function _resetDurablePublishHealthForProofs(): void {
-  publishHealth.budgetExhausted = { count: 0, last: null }
-  publishHealth.retriedSuccesses = { count: 0, last: null }
-}
-
 const sleepSyncMs = (ms: number): void => {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
 }

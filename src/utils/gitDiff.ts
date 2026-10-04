@@ -1,16 +1,13 @@
-import { dirname, join, relative, sep } from 'node:path'
+import { join } from 'node:path'
 
 import { getCwd } from './cwd.js'
-import { getCachedRepository } from './detectRepository.js'
 import type { StructuredPatchHunk } from './diff.js'
 import { execFileNoThrow, execFileNoThrowWithCwd } from './execFileNoThrow.js'
-import { isFileWithinReadSizeLimit } from './file.js'
-import { findGitRoot, getDefaultBranch, getIsGit, gitExe } from './git.js'
+import { getDefaultBranch, getIsGit, gitExe } from './git.js'
 import { resolveGitDir } from './git/gitFilesystem.js'
 
 
 const GIT_TIMEOUT_MS = 5000
-const SINGLE_FILE_TIMEOUT_MS = 3000
 const MAX_FILES_DETAILED = 50
 const MAX_FILE_DIFF_BYTES = 1024 * 1024
 const MAX_LINES_PER_FILE = 400
@@ -265,61 +262,4 @@ export async function branchDiffSpec(): Promise<{ spec: GitDiffSpec; base: strin
     }
   }
   return null
-}
-
-
-async function resolveDiffReference(repoRoot: string, defaultBranch: string): Promise<string> {
-  const mergeBase = await execFileNoThrowWithCwd(gitExe(), ['merge-base', 'HEAD', defaultBranch], {
-    cwd: repoRoot,
-    timeout: SINGLE_FILE_TIMEOUT_MS,
-    preserveOutputOnError: false,
-  })
-  const sha = mergeBase.stdout.trim()
-  return mergeBase.code === 0 && sha !== '' ? sha : 'HEAD'
-}
-
-function parseRawDiff(raw: string): { additions: number; deletions: number; patch: string } {
-  let additions = 0
-  let deletions = 0
-  for (const line of raw.split('\n')) {
-    if (line.startsWith('+++ ') || line.startsWith('--- ')) continue
-    if (line.startsWith('+')) additions++
-    else if (line.startsWith('-')) deletions++
-  }
-  const firstHunk = raw.indexOf('@@')
-  return { additions, deletions, patch: firstHunk === -1 ? '' : raw.slice(firstHunk) }
-}
-
-export async function fetchSingleFileGitDiff(absoluteFilePath: string): Promise<ToolUseDiff | null> {
-  try {
-    const repoRoot = findGitRoot(dirname(absoluteFilePath))
-    if (!repoRoot) return null
-    const filename = relative(repoRoot, absoluteFilePath).split(sep).join('/')
-    const repository = getCachedRepository()
-    const tracked = await execFileNoThrowWithCwd(gitExe(), ['ls-files', '--error-unmatch', '--', filename], {
-      cwd: repoRoot,
-      timeout: SINGLE_FILE_TIMEOUT_MS,
-      preserveOutputOnError: false,
-    })
-    if (tracked.code === 0) {
-      const reference = await resolveDiffReference(repoRoot, await getDefaultBranch())
-      const diff = await execFileNoThrowWithCwd(gitExe(), ['diff', reference, '--', filename], {
-        cwd: repoRoot,
-        timeout: SINGLE_FILE_TIMEOUT_MS,
-        preserveOutputOnError: false,
-      })
-      if (diff.code !== 0 || diff.stdout.trim() === '') return null
-      const { additions, deletions, patch } = parseRawDiff(diff.stdout)
-      return { filename, status: 'modified', additions, deletions, changes: additions + deletions, patch, repository }
-    }
-    if (!isFileWithinReadSizeLimit(absoluteFilePath, MAX_FILE_DIFF_BYTES)) return null
-    const { readFile } = await import('node:fs/promises')
-    const content = await readFile(absoluteFilePath, 'utf8')
-    const lines = content.split('\n')
-    if (lines.length > 0 && lines[lines.length - 1] === '') lines.pop()
-    const patch = `@@ -0,0 +1,${lines.length} @@\n${lines.map(line => `+${line}`).join('\n')}`
-    return { filename, status: 'added', additions: lines.length, deletions: 0, changes: lines.length, patch, repository }
-  } catch {
-    return null
-  }
 }

@@ -49,16 +49,6 @@ export const getCoreUserData = memoize(
   },
 )
 
-export async function initUser(): Promise<void> {
-  if (emailResolution === null) {
-    emailResolution = (async () => {
-      resolvedEmail = getOauthAccountInfo()?.emailAddress
-      getCoreUserData.cache?.clear?.()
-    })()
-  }
-  await emailResolution
-}
-
 export function resetUserCache(): void {
   resolvedEmail = undefined
   emailResolution = null

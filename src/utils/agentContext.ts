@@ -1,7 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 
-import { isCrewEnabled } from './crewEnabled.js'
-
 
 type InvocationEdge = {
   invokingRequestId?: string
@@ -41,11 +39,6 @@ export function runWithAgentContext<T>(context: AgentContext, fn: () => T): T {
 
 export function isSubagentContext(context: AgentContext | undefined): context is SubagentContext {
   return context !== undefined && context.agentType === 'subagent'
-}
-
-export function isCrewmateAgentContext(context: AgentContext | undefined): context is CrewmateAgentContext {
-  if (!isCrewEnabled()) return false
-  return context !== undefined && context.agentType === 'crewmate'
 }
 
 

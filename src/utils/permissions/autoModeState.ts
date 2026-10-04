@@ -23,10 +23,6 @@ export function isAutoModeActive(): boolean {
   return globalAutoModeState.active
 }
 
-export function setAutoModeFlagCli(passed: boolean): void {
-  globalAutoModeState.flagCli = passed
-}
-
 export function getAutoModeFlagCli(): boolean {
   return globalAutoModeState.flagCli
 }

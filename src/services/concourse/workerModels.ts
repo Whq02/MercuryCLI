@@ -45,9 +45,6 @@ export function loginsActionFor(family: string): string {
 }
 
 const SEAT_FAMILY_WORDS = new Set([...LOGINS_FAMILY_WORDS, 'openai-compat', 'local'])
-export function isSeatFamilyWord(word: string): boolean {
-  return SEAT_FAMILY_WORDS.has(word)
-}
 
 export interface SeatFamilyChoiceV1 {
   family: string

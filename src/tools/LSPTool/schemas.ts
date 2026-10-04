@@ -34,15 +34,6 @@ export const BRIDGE_LSP_OPERATIONS = [
   'moveSymbol',
 ] as const
 
-const ALL_OPERATIONS: ReadonlySet<string> = new Set([
-  ...BASE_LSP_OPERATIONS,
-  ...BRIDGE_LSP_OPERATIONS,
-])
-
-export function isValidLSPOperation(operation: string): boolean {
-  return ALL_OPERATIONS.has(operation)
-}
-
 const FILE_PATH = z.string().describe('Absolute path to the file')
 const LINE = z
   .number()

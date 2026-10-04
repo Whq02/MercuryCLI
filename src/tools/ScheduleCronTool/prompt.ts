@@ -18,10 +18,6 @@ export function cronToolsMountable(): boolean {
   return !getIsSessionOneShotHeadless()
 }
 
-export function forkHeadlessCronEligible(streamingInput: boolean): boolean {
-  return streamingInput
-}
-
 export function buildCronCreateDescription(): string {
   return "Put a prompt on this session's clock: run it once at a future moment, or repeatedly on a 5-field cron expression (local timezone). The schedule is a session fact — it rides the session's durable record, the daemon fires it (even into a parked session), and every fire leaves a receipt."
 }

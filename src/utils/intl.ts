@@ -3,7 +3,6 @@ let graphemeSegmenter: Intl.Segmenter | null = null
 let wordSegmenter: Intl.Segmenter | null = null
 const relativeTimeFormats = new Map<string, Intl.RelativeTimeFormat>()
 let timeZone: string | null = null
-let systemLocaleLanguage: string | null | undefined
 
 export function getGraphemeSegmenter(): Intl.Segmenter {
   if (!graphemeSegmenter) graphemeSegmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
@@ -96,16 +95,4 @@ export function getRelativeTimeFormat(
 export function getTimeZone(): string {
   if (timeZone === null) timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
   return timeZone
-}
-
-export function getSystemLocaleLanguage(): string | undefined {
-  if (systemLocaleLanguage === undefined) {
-    try {
-      const locale = Intl.DateTimeFormat().resolvedOptions().locale
-      systemLocaleLanguage = new Intl.Locale(locale).language || null
-    } catch {
-      systemLocaleLanguage = null
-    }
-  }
-  return systemLocaleLanguage ?? undefined
 }

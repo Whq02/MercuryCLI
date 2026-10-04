@@ -1,4 +1,3 @@
-import { basename } from 'node:path'
 import type { Resolution } from './load/contributions.js'
 import { contributionsHash, shortHash, type ExtensionManifest } from './manifest.js'
 import { realProbes, resolveContributions } from './load/contributions.js'
@@ -142,8 +141,4 @@ export function approvalCardLines(input: CardInput): string[] {
   out.push(`version   ${manifest.version} · contributions ${shortHash(contributionsHash(manifest, input.root))}`)
   out.push('nothing above runs until you approve')
   return out
-}
-
-export function extensionRootLabel(root: string): string {
-  return basename(root)
 }

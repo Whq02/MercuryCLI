@@ -3,8 +3,6 @@ import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 
 export type EvalLanguage = 'py' | 'js'
 
-export const EVAL_LANGUAGES: readonly EvalLanguage[] = ['py', 'js']
-
 export function evalEnabled(): boolean {
   return flagEnabled('MERCURY_EVAL')
 }

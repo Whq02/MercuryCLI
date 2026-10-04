@@ -257,13 +257,6 @@ export interface ModePackSection {
   text: string
 }
 
-export function renderModePackAppend(sections: readonly ModePackSection[]): string {
-  return sections
-    .filter(section => section.text.trim().length > 0)
-    .map(section => `<${section.kind}>\n${section.text}\n</${section.kind}>`)
-    .join('\n\n')
-}
-
 const WEAKENER_PHRASES: readonly string[] = Object.freeze([
   'skip verification',
   'bypass the gate',

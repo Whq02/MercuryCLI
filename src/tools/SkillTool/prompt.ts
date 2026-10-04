@@ -5,7 +5,6 @@ import { getSkillToolCommands } from '../../commands.js'
 import { COMMAND_NAME_TAG } from '../../constants/xml.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import type { Command } from '../../types/command.js'
-import { logError } from '../../utils/log.js'
 import { truncateToWidth } from '../../utils/format.js'
 import { SKILL_TOOL_NAME } from './constants.js'
 
@@ -136,10 +135,6 @@ export async function getPrompt(cwd: string): Promise<string> {
   return promptForRoot(cwd)
 }
 
-export function clearPromptCache(): void {
-  promptForRoot.cache.clear?.()
-}
-
 export async function getLimitedSkillToolCommands(cwd: string): Promise<Command[]> {
   return getSkillToolCommands(cwd)
 }
@@ -147,14 +142,4 @@ export async function getLimitedSkillToolCommands(cwd: string): Promise<Command[
 export async function getSkillToolInfo(cwd: string): Promise<{ totalCommands: number; includedCommands: number }> {
   const commands = await getSkillToolCommands(cwd)
   return { totalCommands: commands.length, includedCommands: commands.length }
-}
-
-export async function getSkillInfo(cwd: string): Promise<{ totalSkills: number; includedSkills: number }> {
-  try {
-    const commands = await getSkillToolCommands(cwd)
-    return { totalSkills: commands.length, includedSkills: commands.length }
-  } catch (error) {
-    logError(error)
-    return { totalSkills: 0, includedSkills: 0 }
-  }
 }

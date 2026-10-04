@@ -1,7 +1,6 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
 export const WORKFLOW_TIERS = ['orchestrator', 'executor'] as const
-export type WorkflowTier = (typeof WORKFLOW_TIERS)[number]
 
 export function workflowExecutorModel(): string | undefined {
   const { neutralSeatDefault } =

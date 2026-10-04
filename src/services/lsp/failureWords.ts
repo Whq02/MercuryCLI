@@ -75,10 +75,6 @@ export function typecheckCommand(cwd: string): string {
   return 'npx tsc --noEmit'
 }
 
-export function isTypescriptPath(path: string): boolean {
-  return TS_EXTENSIONS.has(extname(path).toLowerCase())
-}
-
 export function secondsOf(ms: number): string {
   const seconds = ms / 1000
   return `${Number.isInteger(seconds) ? seconds : seconds.toFixed(1)} s`

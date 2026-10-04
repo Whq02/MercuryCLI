@@ -453,29 +453,6 @@ export function getSnippetForTwoFileDiff(a: string, b: string): string {
 }
 
 
-export function getEditsForPatch(patch: StructuredPatchHunk[]): FileEdit[] {
-  return patch.map(hunk => {
-    const oldLines: string[] = []
-    const newLines: string[] = []
-    for (const line of hunk.lines) {
-      if (line.startsWith('-')) {
-        oldLines.push(line.slice(1))
-      } else if (line.startsWith('+')) {
-        newLines.push(line.slice(1))
-      } else if (line.startsWith(' ')) {
-        oldLines.push(line.slice(1))
-        newLines.push(line.slice(1))
-      }
-    }
-    return {
-      old_string: oldLines.join('\n'),
-      new_string: newLines.join('\n'),
-      replace_all: false,
-    }
-  })
-}
-
-
 const DESANITIZATION_TABLE: Array<[sanitized: string, original: string]> = [
   ['<fnr>', '<function_results>'],
   ['<n>', '<name>'],

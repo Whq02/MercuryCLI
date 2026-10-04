@@ -248,10 +248,6 @@ function cancelInFlight(reason: string): void {
   flight.controller.abort()
 }
 
-export function cancelLocalWarm(reason = 'cancelled'): void {
-  cancelInFlight(reason)
-}
-
 export function noteLocalTurn(record: LocalModelRecord | undefined): void {
   cancelInFlight('a real turn takes the server')
   if (record === undefined || record.server !== 'ollama') return

@@ -48,7 +48,6 @@ export const isRouteReasonCode = (v: unknown): v is RouteReasonCode =>
   typeof v === 'string' && (ROUTE_REASON_CODES as readonly string[]).includes(v)
 
 export const LEGACY_ROUTE_REASON_CODES = ['workflow-posture-active', 'workflow-posture-absent'] as const
-export type LegacyRouteReasonCode = (typeof LEGACY_ROUTE_REASON_CODES)[number]
 
 export const ROUTE_PROFILES = [
   'sonnet-direct',
@@ -221,13 +220,6 @@ export interface EnvelopeRouteHeader {
   attempt: number
   model?: string
   effort?: string
-}
-
-let idCounter = 0
-export function generateRoutePlanId(now = Date.now()): string {
-  return `rp-${now.toString(36)}-${(idCounter++ % 1296).toString(36).padStart(2, '0')}${Math.floor(Math.random() * 1296)
-    .toString(36)
-    .padStart(2, '0')}`
 }
 
 export function stableDigest(value: unknown): string {
@@ -459,19 +451,5 @@ export function decodeTaskRoutePlan(raw: unknown): TaskRoutePlan | null {
     state: r.state as RoutePlanState,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
-  }
-}
-
-export function decodeEnvelopeRouteHeader(raw: unknown): EnvelopeRouteHeader | null {
-  if (raw === null || typeof raw !== 'object') return null
-  const r = raw as Record<string, unknown>
-  if (!str(r.planId) || !str(r.nodeId) || !num(r.revision) || !num(r.attempt)) return null
-  return {
-    planId: r.planId,
-    nodeId: r.nodeId,
-    revision: r.revision,
-    attempt: r.attempt,
-    ...(str(r.model) ? { model: r.model } : {}),
-    ...(str(r.effort) ? { effort: r.effort } : {}),
   }
 }

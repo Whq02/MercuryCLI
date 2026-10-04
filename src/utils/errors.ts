@@ -68,15 +68,6 @@ export function shellCallValue(fact: ShellRunFact, text: string): ShellCallValue
   return { code: fact.code, stdout: fact.output ?? text, stderr: '' }
 }
 
-export class TeleportOperationError extends MercuryError {
-  constructor(
-    message: string,
-    readonly formattedMessage: string,
-  ) {
-    super(message)
-  }
-}
-
 export class TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS extends Error {
   readonly telemetryMessage: string
 
@@ -149,14 +140,6 @@ export function isFsInaccessible(error: unknown): error is NodeJS.ErrnoException
 }
 
 
-export function shortErrorStack(error: unknown, maxFrames: number = 5): string {
-  if (!(error instanceof Error)) return String(error)
-  if (!error.stack) return error.message
-  const lines = error.stack.split('\n')
-  if (lines.length <= maxFrames + 1) return error.stack
-  return lines.slice(0, maxFrames + 1).join('\n')
-}
-
 export function describeInvalidArgTypeError(error: unknown): string | null {
   if (getErrnoCode(error) !== 'ERR_INVALID_ARG_TYPE') return null
   const err = toError(error)
@@ -176,30 +159,3 @@ export function describeInvalidArgTypeError(error: unknown): string | null {
 
 
 export type AxiosErrorKind = 'auth' | 'timeout' | 'network' | 'http' | 'other'
-
-const NETWORK_CODES = new Set(['ECONNREFUSED', 'ENOTFOUND'])
-
-export function classifyAxiosError(error: unknown): {
-  kind: AxiosErrorKind
-  status?: number
-  message: string
-} {
-  const message = errorMessage(error)
-  const marker =
-    error !== null &&
-    typeof error === 'object' &&
-    (error as { isAxiosError?: unknown }).isAxiosError === true
-  if (!marker) return { kind: 'other', message }
-  const status = (error as { response?: { status?: unknown } }).response?.status
-  const numericStatus = typeof status === 'number' ? status : undefined
-  const withStatus = numericStatus === undefined ? {} : { status: numericStatus }
-  if (numericStatus === 401 || numericStatus === 403) {
-    return { kind: 'auth', ...withStatus, message }
-  }
-  const code = getErrnoCode(error)
-  if (code === 'ECONNABORTED') return { kind: 'timeout', ...withStatus, message }
-  if (code !== undefined && NETWORK_CODES.has(code)) {
-    return { kind: 'network', ...withStatus, message }
-  }
-  return { kind: 'http', ...withStatus, message }
-}

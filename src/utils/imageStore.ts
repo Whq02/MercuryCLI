@@ -89,10 +89,6 @@ export function missingStoredImageWords(imageId: number, path: string): string {
   return `[Image #${imageId}] file missing: ${path} — paste the image again`
 }
 
-export function clearStoredImagePaths(): void {
-  storedPaths.clear()
-}
-
 
 export const STORED_IMAGE_SOURCE_TYPE = 'mercury-stored-image'
 

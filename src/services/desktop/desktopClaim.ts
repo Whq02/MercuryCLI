@@ -183,10 +183,6 @@ export function desktopClaimHeld(): boolean {
   return held
 }
 
-export function desktopClaimRecord(): DesktopClaimRecord | null {
-  return held ? recordOf(recordApp, claimedSince ?? 0) : null
-}
-
 export async function releaseDesktopClaim(): Promise<void> {
   releaseEpoch++
   clearIdleTimer()
@@ -215,14 +211,6 @@ function recordFromText(text: string): DesktopClaimRecord | null {
       ? { identity: (app as { identity: string }).identity, name: (app as { name: string }).name }
       : null
   return recordOf(named, typeof parsed.since === 'number' ? parsed.since : 0)
-}
-
-export async function readDesktopClaimRecord(): Promise<DesktopClaimRecord | null> {
-  try {
-    return recordFromText(await readFile(desktopClaimPath(), 'utf8'))
-  } catch {
-    return null
-  }
 }
 
 export async function readDesktopClaimFile(): Promise<DesktopSnapshot> {

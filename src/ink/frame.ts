@@ -51,25 +51,6 @@ export function emptyFrame(
   }
 }
 
-export function shouldClearScreen(
-  prevFrame: Frame,
-  frame: Frame,
-): FlickerReason | undefined {
-  if (
-    prevFrame.viewport.width !== frame.viewport.width ||
-    prevFrame.viewport.height !== frame.viewport.height
-  ) {
-    return 'resize'
-  }
-  if (
-    frame.screen.height >= frame.viewport.height ||
-    prevFrame.screen.height >= prevFrame.viewport.height
-  ) {
-    return 'offscreen'
-  }
-  return undefined
-}
-
 export type FlickerRecord = {
   desiredHeight: number
   availableHeight: number

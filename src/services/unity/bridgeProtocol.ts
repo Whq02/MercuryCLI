@@ -20,7 +20,6 @@ export const UNITY_BRIDGE_SERVER_ERROR_CODES = [
   'RUN_IN_FLIGHT',
   'INTERNAL',
 ] as const
-export type UnityBridgeServerErrorCode = (typeof UNITY_BRIDGE_SERVER_ERROR_CODES)[number]
 
 export const UNITY_BRIDGE_CLIENT_ERROR_CODES = [
   'AUTH_FAILED',
@@ -32,7 +31,6 @@ export const UNITY_BRIDGE_CLIENT_ERROR_CODES = [
   'BAD_FRAME',
   'BRIDGE_VERSION_SKEW',
 ] as const
-export type UnityBridgeClientErrorCode = (typeof UNITY_BRIDGE_CLIENT_ERROR_CODES)[number]
 
 export interface UnityBridgeError {
   code: string
@@ -156,21 +154,12 @@ export interface UnityBridgeBuildSceneRow {
   path: string
   enabled: boolean
 }
-export interface UnityBridgeSceneList {
-  open: UnityBridgeSceneRow[]
-  build: UnityBridgeBuildSceneRow[]
-}
 
 export interface UnityBridgeHierarchyNode {
   name: string
   active: boolean
   componentTypeNames: string[]
   children: UnityBridgeHierarchyNode[]
-}
-export interface UnityBridgeHierarchy {
-  scenes: Array<{ path: string; roots: UnityBridgeHierarchyNode[] }>
-  nodeCount: number
-  truncatedNodes: number
 }
 
 export type UnityConsoleSeverity = 'log' | 'warning' | 'assert' | 'error' | 'exception'
@@ -180,32 +169,9 @@ export interface UnityConsoleEntry {
   stackTrace: string
   at: number
 }
-export interface UnityConsoleTail {
-  entries: UnityConsoleEntry[]
-  dropped: number
-}
-
-export interface UnityBridgeTestsStarted {
-  started: true
-  mode: 'EditMode' | 'PlayMode'
-  resultsPath: string
-}
 
 
 export const UNITY_BRIDGE_EVENTS = ['play_state_changed', 'test_run_finished'] as const
-export type UnityBridgeEventName = (typeof UNITY_BRIDGE_EVENTS)[number]
-
-export interface UnityBridgePlayStateChangedEvent {
-  playState: UnityBridgePlayState
-}
-export interface UnityBridgeTestRunFinishedEvent {
-  resultsPath: string
-  passed: number
-  failed: number
-  skipped: number
-  inconclusive: number
-  durationMs: number
-}
 
 
 export function buildUnityBridgeHelloFrame(token: string): string {

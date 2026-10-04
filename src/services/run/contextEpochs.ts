@@ -87,12 +87,6 @@ export function advanceContextEpoch(
   return s.epoch
 }
 
-export function markContextDegraded(owner: OwnerKey, reason: string): void {
-  const s = epochs.get(owner)
-  s.degraded.push(reason)
-  if (s.degraded.length > 8) s.degraded.shift()
-}
-
 export function ifEpochCurrent(owner: OwnerKey, capturedEpoch: number, fn: () => void): boolean {
   if (epochs.get(owner).epoch !== capturedEpoch) return false
   fn()

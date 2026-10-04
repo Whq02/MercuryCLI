@@ -112,15 +112,9 @@ export function cursorMove(x: number, y: number): string {
   return out
 }
 
-export const CURSOR_SAVE = csi('s')
-export const CURSOR_RESTORE = csi('u')
-
 
 export function eraseToEndOfLine(): string {
   return csi('K')
-}
-export function eraseToStartOfLine(): string {
-  return csi(1, 'K')
 }
 export function eraseLine(): string {
   return csi(2, 'K')
@@ -129,9 +123,6 @@ export const ERASE_LINE = eraseLine()
 
 export function eraseToEndOfScreen(): string {
   return csi('J')
-}
-export function eraseToStartOfScreen(): string {
-  return csi(1, 'J')
 }
 export function eraseScreen(): string {
   return csi(2, 'J')

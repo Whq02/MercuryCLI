@@ -21,37 +21,6 @@ function hasShiftInsideArithmetic(command: string): boolean {
   return false
 }
 
-export function hasMultilineQuotedString(command: string): boolean {
-  let state: 'plain' | 'single' | 'double' = 'plain'
-  let regionHasNewline = false
-  for (let i = 0; i < command.length; i++) {
-    const ch = command[i]
-    if (state === 'plain') {
-      if (ch === "'") {
-        state = 'single'
-        regionHasNewline = false
-      } else if (ch === '"') {
-        state = 'double'
-        regionHasNewline = false
-      }
-      continue
-    }
-    if (ch === '\\' && i + 1 < command.length) {
-      i++
-      continue
-    }
-    if (ch === '\n') {
-      regionHasNewline = true
-      continue
-    }
-    if ((state === 'single' && ch === "'") || (state === 'double' && ch === '"')) {
-      if (regionHasNewline) return true
-      state = 'plain'
-    }
-  }
-  return false
-}
-
 function posixSingleQuote(text: string): string {
   return `'${text.split("'").join("'\\''")}'`
 }

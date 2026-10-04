@@ -13,8 +13,6 @@ export type InstallProvenanceKind =
 
 export const HOMEBREW_UPGRADE_COMMAND = 'brew upgrade Whq02/mercury/mercury'
 export const NPM_UPDATE_COMMAND = 'npm update -g mercury-tech-cli'
-export const UPDATE_VERB_SCOPE_WORDS =
-  '`mercury update` manages installs made by `mercury install` or the install script, and runs the channel\'s own upgrade inside an install made by Homebrew or npm'
 export const NPM_WRAPPER_ROAD_WORDS = "installed through npm's wrapper, updated through Mercury's own channel"
 
 export interface InstallProvenanceV1 {
@@ -324,10 +322,6 @@ export function resolveInstallProvenance(): InstallProvenanceV1 {
     }
   }
   return memoized
-}
-
-export function _resetInstallProvenanceForProofs(): void {
-  memoized = null
 }
 
 export function provenanceGuidance(p: InstallProvenanceV1): string {

@@ -38,10 +38,6 @@ import { isCurrentDirectoryBareGitRepo } from '../../utils/git.js'
 
 const TOOL_NAME = 'PowerShell'
 
-export function powershellPermissionRule(ruleString: string): ShellPermissionRule {
-  return parsePermissionRule(ruleString)
-}
-
 
 function ruleMatches(rule: ShellPermissionRule, candidate: string, mode: 'exact' | 'prefix'): boolean {
   const c = candidate.toLowerCase()

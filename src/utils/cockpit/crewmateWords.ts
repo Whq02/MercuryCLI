@@ -76,10 +76,6 @@ export function crewmateInterruptRefusedWords(name: string, detail: string): str
   return `${name} did not take the interrupt: ${detail}`
 }
 
-export function crewmateEscHint(name: string): string {
-  return `esc interrupt ${name}`
-}
-
 export function crewmateStatusRightHint(pinned: boolean, live = true): string {
   const esc = live ? ESC_INTERRUPT_HINT : ESC_BACK_HINT
   return pinned ? esc : `${esc} · ${CREW_MAIN_CHAT_KEY} in ${CREW_VIEW_DOOR} · ${BACK_HINT}`
@@ -119,8 +115,4 @@ export function crewmateRefusedWords(name: string, detail: string): string {
 
 export function crewmateInterruptedWords(name: string): string {
   return `${name} interrupted — its turn is cut, ${LEAD_ROW_NAME} is told; a queued message lands as it stops`
-}
-
-export function crewmateIdleWords(name: string): string {
-  return `${name} is between turns — nothing to interrupt; your next line resumes it`
 }

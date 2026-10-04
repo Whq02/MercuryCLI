@@ -1,6 +1,6 @@
 import type { SessionRewindOutcomeV1 } from '../../daemon/protocol.js'
 import type { SessionKitV1 } from '../../daemon/sessionKit.js'
-import type { SaturnFactsRowV1, ScheduleOpRequestV1 } from '../../daemon/saturn.js'
+import type { SaturnFactsRowV1 } from '../../daemon/saturn.js'
 import type { SessionFactsAnswerV1 } from './seatProjections.js'
 
 type KeyTable = Readonly<Record<string, string>>
@@ -370,10 +370,6 @@ export function scheduleRosterToWire(schedules: readonly SaturnFactsRowV1[]): Re
 
 export function scheduleRosterFromWire(raw: unknown): unknown {
   return rows(raw, flip(SCHEDULE_ROW))
-}
-
-export function scheduleEditToWire(edit: ScheduleOpRequestV1): Record<string, unknown> {
-  return row(edit, SCHEDULE_EDIT, scheduleEditNested(SUBMISSION, WHEN, ACTION, BIRTH)) as Record<string, unknown>
 }
 
 export function openaiCatalogueToWire(catalogue: { sourceKind: string; models: unknown[]; fetchedAtMs: number }): Record<string, unknown> {

@@ -437,12 +437,6 @@ export function resolveHuggingfaceApiKey(
   return stored ? { key: stored, source: 'stored' } : undefined
 }
 
-export function huggingfaceKeySource(
-  env: Record<string, string | undefined> = process.env,
-): HuggingfaceKeySource | undefined {
-  return resolveHuggingfaceApiKey(env)?.source
-}
-
 export function resolveHuggingfaceAccount(
   env: NodeJS.ProcessEnv = process.env,
 ): HuggingfaceAccountRef | undefined {

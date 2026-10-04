@@ -1,13 +1,10 @@
 import { execFile } from 'node:child_process'
-import { createHash } from 'node:crypto'
 import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync, statSync, accessSync, constants as fsConstants } from 'node:fs'
-import { homedir } from 'node:os'
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path'
 
 import { LRUCache } from 'lru-cache'
 import { memoize } from 'lodash-es'
 
-import { hasBinaryExtension, isBinaryContent } from '../constants/files.js'
 import type { GitUnavailable, GitWorktreeInfo } from '../services/gitGraph/contracts.js'
 import { getCwd } from './cwd.js'
 import { MERCURY_PROJECT_DIR } from './projectConfig.js'
@@ -15,19 +12,15 @@ import { projectScopePathspec } from './projectBoundary.js'
 import { logForDebugging } from './debug.js'
 import { logForDiagnosticsNoPII } from './diagLogs.js'
 import { execFileNoThrow, execFileNoThrowWithCwd } from './execFileNoThrow.js'
-import { getFsImplementation } from './fsOperations.js'
 import {
   getCachedBranch,
   getCachedDefaultBranch,
   getCachedHead,
   getCachedRemoteUrl,
   getWorktreeCountFromFs,
-  isShallowClone,
-  resolveGitDir,
   subscribeGitChanges,
   type GitChangeSignal,
 } from './git/gitFilesystem.js'
-import { logError } from './log.js'
 import { subprocessEnv } from './subprocessEnv.js'
 import { whichSync } from './which.js'
 
@@ -121,21 +114,6 @@ export async function dirIsInGitRepo(cwd: string): Promise<boolean> {
   return findGitRoot(cwd) !== null
 }
 
-export async function isAtGitRoot(): Promise<boolean> {
-  const cwd = getCwd()
-  const root = findGitRoot(cwd)
-  if (!root) return false
-  try {
-    return realpathSync(cwd) === realpathSync(root)
-  } catch {
-    return cwd === root
-  }
-}
-
-export async function getGitDir(cwd: string): Promise<string | null> {
-  return (await resolveGitDir(cwd)) ?? null
-}
-
 
 export async function getHead(): Promise<string> {
   return getCachedHead()
@@ -166,15 +144,6 @@ export async function getDefaultBranch(cwd?: string): Promise<string> {
 
 export async function getRemoteUrl(): Promise<string | null> {
   return (await getCachedRemoteUrl()) || null
-}
-
-export async function getRemoteUrlForBridge(): Promise<string | null> {
-  try {
-    const root = findGitRoot(getCwd())
-    if (root && root === homedir()) return null
-  } catch {
-  }
-  return getRemoteUrl()
 }
 
 export function redactGitRemoteCredentials<T extends string | null | undefined>(url: T): T {
@@ -209,14 +178,6 @@ export function normalizeGitRemoteUrl(url: string): string | null {
     }
   }
   return `${host}/${path}`.toLowerCase()
-}
-
-export async function getRepoRemoteHash(): Promise<string | null> {
-  const url = await getRemoteUrl()
-  if (!url) return null
-  const normalized = normalizeGitRemoteUrl(url)
-  if (!normalized) return null
-  return createHash('sha256').update(normalized).digest('hex').slice(0, 16)
 }
 
 
@@ -255,10 +216,6 @@ async function probeUpstream(): Promise<{ value: UpstreamFact | null; fault: str
   if (r.status !== 0) return { value: { hasUpstream: false, unpushed: 0 }, fault: null }
   const count = parseInt(r.stdout.trim(), 10)
   return { value: { hasUpstream: true, unpushed: Number.isFinite(count) ? count : 0 }, fault: null }
-}
-
-export async function getIsHeadOnRemote(): Promise<boolean> {
-  return (await readFact('upstream')).hasUpstream
 }
 
 export async function getUnpushedCount(): Promise<number> {
@@ -336,31 +293,6 @@ export function isLinkedWorktree(startPath: string): boolean {
   const root = findGitRoot(startPath)
   if (!root) return false
   return findCanonicalGitRoot(root) !== root
-}
-
-export async function getGitWorktreeName(cwd: string): Promise<string | null> {
-  if (isUncRoot(cwd)) return null
-  const gitDir = await resolveGitDir(cwd)
-  if (!gitDir) return null
-  if (basename(dirname(gitDir)) === 'worktrees' && basename(gitDir) !== '.git') {
-    return basename(gitDir)
-  }
-  return null
-}
-
-export async function stashToCleanState(message?: string): Promise<boolean> {
-  try {
-    const status = await getFileStatus()
-    if (status.untracked.length > 0) {
-      const add = await execFileNoThrow(gitExe(), ['add', '--', ...status.untracked], { preserveOutputOnError: false })
-      if (add.code !== 0) return false
-    }
-    const stashMessage = message ?? `Mercury stash ${new Date().toISOString()}`
-    const stash = await execFileNoThrow(gitExe(), ['stash', 'push', '-m', stashMessage], { preserveOutputOnError: false })
-    return stash.code === 0
-  } catch {
-    return false
-  }
 }
 
 
@@ -681,19 +613,6 @@ export function _gitFactsForTesting(): {
   return { entries, listeners: factListeners.size, version: snapshotVersion, notice: probeNotice, trailingArmed: trailingTimer !== null }
 }
 
-export function _resetGitFactsForTesting(): void {
-  resetEntries()
-  probeNotice = null
-  if (settleTimer !== null) {
-    clearTimeout(settleTimer)
-    settleTimer = null
-  }
-  if (trailingTimer !== null) {
-    clearTimeout(trailingTimer)
-    trailingTimer = null
-  }
-}
-
 export async function getGithubRepo(): Promise<string | null> {
   const url = await getRemoteUrl()
   if (!url) {
@@ -737,98 +656,6 @@ export async function findRemoteBase(): Promise<string | null> {
     if (probe.code === 0) return candidate
   }
   return null
-}
-
-const UNTRACKED_FILE_CAP = 20000
-const UNTRACKED_PER_FILE_MAX_BYTES = 500 * 1024 * 1024
-const UNTRACKED_TOTAL_MAX_BYTES = 5 * 1024 * 1024 * 1024
-const UNTRACKED_SNIFF_BYTES = 64 * 1024
-
-async function captureUntrackedFiles(): Promise<Array<{ path: string; content: string }>> {
-  const listing = await execFileNoThrow(gitExe(), ['ls-files', '--others', '--exclude-standard'], { preserveOutputOnError: false })
-  if (listing.code !== 0 || listing.stdout.trim() === '') return []
-  const files = listing.stdout.split('\n').filter(line => line.length > 0)
-  const collected: Array<{ path: string; content: string }> = []
-  let totalBytes = 0
-  const fsImpl = getFsImplementation()
-  for (const file of files) {
-    if (collected.length >= UNTRACKED_FILE_CAP) {
-      logForDebugging(`preserveGitState: untracked file cap (${UNTRACKED_FILE_CAP}) reached`)
-      break
-    }
-    if (hasBinaryExtension(file)) continue
-    try {
-      const stats = fsImpl.statSync(file)
-      if (stats.size > UNTRACKED_PER_FILE_MAX_BYTES) {
-        logForDebugging(`preserveGitState: skipping oversized untracked file ${file}`)
-        continue
-      }
-      if (totalBytes + stats.size > UNTRACKED_TOTAL_MAX_BYTES) {
-        logForDebugging('preserveGitState: untracked total size cap reached')
-        break
-      }
-      if (stats.size === 0) {
-        collected.push({ path: file, content: '' })
-        continue
-      }
-      const { buffer, bytesRead } = fsImpl.readSync(file, { length: Math.min(UNTRACKED_SNIFF_BYTES, stats.size) })
-      const sniff = buffer.subarray(0, bytesRead)
-      if (isBinaryContent(sniff)) continue
-      const content = stats.size <= bytesRead ? sniff.toString('utf8') : fsImpl.readFileSync(file, { encoding: 'utf8' })
-      collected.push({ path: file, content })
-      totalBytes += stats.size
-    } catch (err) {
-      logForDebugging(`preserveGitState: unreadable untracked file ${file}: ${String(err)}`)
-    }
-  }
-  return collected
-}
-
-export async function preserveGitStateForIssue(): Promise<PreservedGitState | null> {
-  try {
-    if (!(await getIsGit())) return null
-    const headOnly = async (): Promise<PreservedGitState> => {
-      const [patch, untracked] = await Promise.all([
-        execFileNoThrow(gitExe(), ['diff', 'HEAD']),
-        captureUntrackedFiles(),
-      ])
-      return {
-        remote_base_sha: null,
-        remote_base: null,
-        patch: patch.stdout,
-        untracked_files: untracked,
-        format_patch: null,
-        head_sha: null,
-        branch_name: null,
-      }
-    }
-    if (await isShallowClone()) return headOnly()
-    const remoteBase = await findRemoteBase()
-    if (!remoteBase) return headOnly()
-    const mergeBase = await execFileNoThrow(gitExe(), ['merge-base', remoteBase, 'HEAD'], { preserveOutputOnError: false })
-    const mergeBaseSha = mergeBase.code === 0 ? mergeBase.stdout.trim() : ''
-    if (mergeBaseSha === '') return headOnly()
-    const [patch, untracked, formatPatch, head, branch] = await Promise.all([
-      execFileNoThrow(gitExe(), ['diff', mergeBaseSha]),
-      captureUntrackedFiles(),
-      execFileNoThrow(gitExe(), ['format-patch', '--stdout', `${mergeBaseSha}..HEAD`]),
-      execFileNoThrow(gitExe(), ['rev-parse', 'HEAD']),
-      execFileNoThrow(gitExe(), ['rev-parse', '--abbrev-ref', 'HEAD']),
-    ])
-    const branchName = branch.stdout.trim()
-    return {
-      remote_base_sha: mergeBaseSha,
-      remote_base: remoteBase,
-      patch: patch.stdout,
-      untracked_files: untracked,
-      format_patch: formatPatch.code !== 0 || formatPatch.stdout.trim() === '' ? null : formatPatch.stdout,
-      head_sha: head.stdout.trim() || null,
-      branch_name: branchName === '' || branchName === 'HEAD' ? null : branchName,
-    }
-  } catch (err) {
-    logError(err)
-    return null
-  }
 }
 
 

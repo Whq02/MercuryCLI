@@ -2,7 +2,7 @@
 import { readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, sep, dirname, isAbsolute, relative, resolve } from 'node:path'
-import { FileIndex, yieldToEventLoop } from '../native-ts/file-index/index.js'
+import { FileIndex } from '../native-ts/file-index/index.js'
 import { execFileNoThrowWithCwd } from '../utils/execFileNoThrow.js'
 import { ripgrepCommand } from '../utils/ripgrep.js'
 import { findGitRoot } from '../utils/git.js'
@@ -250,26 +250,6 @@ function collectDirectories(files: string[], out: Set<string>): void {
   }
 }
 
-export function getDirectoryNamesAsync(files: string[]): Promise<string[]> {
-  return (async () => {
-    const out = new Set<string>()
-    let iterations = 0
-    let sliceStart = Date.now()
-    for (const file of files) {
-      let parent = dirname(file)
-      while (parent !== '.' && parent !== dirname(parent) && !out.has(parent + '/')) {
-        out.add(parent + '/')
-        parent = dirname(parent)
-      }
-      if ((++iterations & 255) === 0 && Date.now() - sliceStart > 8) {
-        await yieldToEventLoop()
-        sliceStart = Date.now()
-      }
-    }
-    return [...out]
-  })()
-}
-
 function buildIndexFrom(paths: string[], merged: boolean, keyAtStart: string): void {
   const signature = pathListSignature(paths)
   if (merged) {
@@ -467,21 +447,6 @@ export async function generateFileSuggestions(
   }
 }
 
-export function applyFileSuggestion(
-  suggestion: string | SuggestionItem,
-  input: string,
-  partialPath: string,
-  startPos: number,
-  onInputChange: (value: string) => void,
-  setCursorOffset: (offset: number) => void,
-): void {
-  const text =
-    typeof suggestion === 'string' ? suggestion : suggestion.displayText
-  const next =
-    input.slice(0, startPos) + text + input.slice(startPos + partialPath.length)
-  onInputChange(next)
-  setCursorOffset(startPos + text.length)
-}
 
 export function findLongestCommonPrefix(
   suggestions: SuggestionItem[],

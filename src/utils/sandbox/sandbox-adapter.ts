@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, lstatSync, realpathSync, rmSync, statSync } from 'node:fs'
 import { readFileSync } from 'node:fs'
-import { dirname, isAbsolute, join, resolve, sep } from 'node:path'
+import { dirname, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   SandboxManager as RuntimeSandboxManager,
@@ -26,7 +26,6 @@ import { getCwd, getStartingCwd } from '../cwd.js'
 import { logForDebugging } from '../debug.js'
 import { memoize } from 'lodash-es'
 import { getMercuryHome } from '../envUtils.js'
-import { expandPath } from '../path.js'
 import { getPlatform } from '../platform.js'
 import { ripgrepCommand, searchToolsAvailability } from '../ripgrep.js'
 import type { PermissionUpdate } from '../../types/permissions.js'
@@ -52,20 +51,6 @@ const CONFIG_HOMES = ['.mercury', '.claude']
 const BARE_REPO_ENTRIES = ['HEAD', 'objects', 'refs', 'hooks', 'config']
 const SETTINGS_FILES = ['settings.json', 'settings.local.json']
 const SANDBOX_VIOLATION_MONITOR = true
-
-
-export function resolvePathPatternForSandbox(pattern: string, sourceRoot: string): string {
-  if (pattern.startsWith('//')) return pattern.slice(1)
-  if (pattern.startsWith('/')) return join(sourceRoot, pattern)
-  return pattern
-}
-
-export function resolveSandboxFilesystemPath(pattern: string, sourceRoot: string): string {
-  if (pattern.startsWith('//')) return pattern.slice(1)
-  const expanded = expandPath(pattern)
-  if (isAbsolute(expanded)) return expanded
-  return resolve(sourceRoot, expanded)
-}
 
 
 const isSupportedPlatformMemo = memoize(async (): Promise<boolean> => {

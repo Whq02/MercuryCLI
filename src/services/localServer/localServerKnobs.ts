@@ -21,8 +21,6 @@ export const LOCAL_SERVER_KNOBS: readonly LocalServerKnob[] = [
   { id: 'contextLength', envName: 'OLLAMA_CONTEXT_LENGTH', label: 'Default context length', documentedDefault: '4096', kind: 'tokens' },
 ]
 
-export const LOCAL_SERVER_KNOB_DOCS = 'docs.ollama.com/faq'
-
 export const MAX_LOADED_MODELS_LADDER: readonly number[] = [1, 2, 3, 4, 5, 6, 8]
 export const PARALLEL_SLOTS_LADDER: readonly number[] = [1, 2, 3, 4, 6, 8]
 export const KEEP_ALIVE_LADDER: readonly string[] = ['5m', '10m', '30m', '1h', '4h', '24h', '-1']

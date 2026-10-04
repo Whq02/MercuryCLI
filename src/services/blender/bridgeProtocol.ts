@@ -28,7 +28,6 @@ export const BLENDER_BRIDGE_SERVER_ERROR_CODES = [
   'PYTHON_EXCEPTION',
   'INTERNAL',
 ] as const
-export type BlenderBridgeServerErrorCode = (typeof BLENDER_BRIDGE_SERVER_ERROR_CODES)[number]
 
 export const BLENDER_BRIDGE_CLIENT_ERROR_CODES = [
   'AUTH_FAILED',
@@ -40,7 +39,6 @@ export const BLENDER_BRIDGE_CLIENT_ERROR_CODES = [
   'BAD_FRAME',
   'BRIDGE_VERSION_SKEW',
 ] as const
-export type BlenderBridgeClientErrorCode = (typeof BLENDER_BRIDGE_CLIENT_ERROR_CODES)[number]
 
 export interface BlenderBridgeError {
   code: string
@@ -142,53 +140,12 @@ export interface BlenderBridgeSceneRow {
   name: string
   isActive: boolean
 }
-export interface BlenderBridgeSceneInfo {
-  blendFile: string
-  isSaved: boolean
-  isDirty: boolean
-  blender: string
-  scenes: BlenderBridgeSceneRow[]
-  frameCurrent: number
-  frameStart: number
-  frameEnd: number
-  engine: string
-  mode: string
-  activeObject: string | null
-}
 
 export interface BlenderBridgeObjectNode {
   name: string
   type: string
   visible: boolean
   children: BlenderBridgeObjectNode[]
-}
-export interface BlenderBridgeObjectsList {
-  scenes: Array<{ name: string; roots: BlenderBridgeObjectNode[] }>
-  nodeCount: number
-  truncatedNodes: number
-}
-
-export interface BlenderBridgeRenderState {
-  jobs: {
-    render: boolean
-    renderPreview: boolean
-    composite: boolean
-    objectBake: boolean
-  }
-  engine: string
-  resolutionX: number
-  resolutionY: number
-  resolutionPercentage: number
-  outputPath: string
-  frameCurrent: number
-  frameStart: number
-  frameEnd: number
-}
-
-export interface BlenderBridgeRenderStarted {
-  started: true
-  outputPath: string
-  frame: number
 }
 
 export type BlenderReportSeverity = 'debug' | 'info' | 'warning' | 'error'
@@ -198,33 +155,9 @@ export interface BlenderReportEntry {
   source: string
   at: number
 }
-export interface BlenderReportTail {
-  entries: BlenderReportEntry[]
-  dropped: number
-}
-
-export interface BlenderBridgePythonRunResult {
-  value: string | null
-  stdout: string
-  stderr: string
-  truncated: { stdout: number; stderr: number }
-  elapsedMs: number
-}
 
 
 export const BLENDER_BRIDGE_EVENTS = ['render_finished', 'blend_changed'] as const
-export type BlenderBridgeEventName = (typeof BLENDER_BRIDGE_EVENTS)[number]
-
-export interface BlenderBridgeRenderFinishedEvent {
-  outputPath: string
-  frame: number
-  ok: boolean
-  cancelled: boolean
-  durationMs: number
-}
-export interface BlenderBridgeBlendChangedEvent {
-  filepath: string
-}
 
 
 export function buildBlenderBridgeHelloFrame(token: string): string {

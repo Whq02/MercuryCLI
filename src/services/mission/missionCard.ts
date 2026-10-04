@@ -48,26 +48,6 @@ export function readMissionCard(sessionId: string, cwd?: string): MissionCard | 
   }
 }
 
-export function listMissionCards(cwd?: string): MissionCard[] {
-  try {
-    const dir = missionCardsDir(cwd)
-    if (!existsSync(dir)) return []
-    return readdirSync(dir)
-      .filter(name => name.endsWith('.json'))
-      .flatMap(name => {
-        try {
-          const parsed = JSON.parse(readFileSync(join(dir, name), 'utf8')) as MissionCard
-          return parsed && parsed.schema === 1 && typeof parsed.goal === 'string' ? [parsed] : []
-        } catch {
-          return []
-        }
-      })
-      .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
-  } catch {
-    return []
-  }
-}
-
 export function migrateOrphanedMissionCard(conversationId: string, cwd?: string): boolean {
   try {
     if (readMissionCard(conversationId, cwd) !== null) return false

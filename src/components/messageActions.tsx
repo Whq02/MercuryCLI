@@ -27,10 +27,6 @@ export type NavigableType =
   | 'turn_receipt'
 
 export type NavigableMessage = RenderableMessage
-export type NavigableOf<T extends NavigableType> = Extract<
-  RenderableMessage,
-  { type: T }
->
 
 const ALL_NAVIGABLE_TYPES: readonly NavigableType[] = [
   'user',

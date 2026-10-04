@@ -36,7 +36,6 @@ export const CAPABILITY_UNITS = [
   'pixel-art',
   'desktop-drive',
 ] as const
-export type CapabilityUnit = (typeof CAPABILITY_UNITS)[number]
 
 export type SupportState = 'available' | 'conditional' | 'degraded' | 'unavailable'
 

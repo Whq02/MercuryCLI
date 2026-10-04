@@ -401,19 +401,6 @@ export async function getCachedDefaultBranch(): Promise<string> {
 }
 
 
-export async function getHeadForDir(cwd: string): Promise<string | null> {
-  try {
-    const gitDir = await resolveGitDir(cwd)
-    if (gitDir === null) return null
-    const head = await readGitHead(gitDir)
-    if (head === null) return null
-    if (head.type === 'detached') return head.sha
-    return resolveRef(gitDir, `refs/heads/${head.name}`)
-  } catch {
-    return null
-  }
-}
-
 export async function readWorktreeHeadSha(worktreePath: string): Promise<string | null> {
   try {
     const content = (await readFile(join(worktreePath, '.git'), 'utf8')).trim()

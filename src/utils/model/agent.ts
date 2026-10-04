@@ -6,8 +6,6 @@ import { getCanonicalName, parseUserSpecifiedModel } from './model.js'
 
 const INHERIT = 'inherit'
 
-export type AgentModelAlias = (typeof MODEL_ALIASES)[number] | typeof INHERIT
-
 export const AGENT_MODEL_OPTIONS: readonly string[] = [...MODEL_ALIASES, INHERIT]
 
 export function getDefaultSubagentModel(): string {
@@ -60,15 +58,4 @@ export function getAgentModel(
 
   if (wordNamesParentFamily(declared, parentModel)) return parentModel
   return parseUserSpecifiedModel(declared)
-}
-
-
-function capitalizeFirst(value: string): string {
-  return value.length === 0 ? value : value[0].toUpperCase() + value.slice(1)
-}
-
-export function getAgentModelDisplay(model: string | undefined | null): string {
-  if (model === undefined || model === null) return 'Inherit from parent (default)'
-  if (model === INHERIT) return 'Inherit from parent'
-  return capitalizeFirst(model)
 }

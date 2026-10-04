@@ -4,8 +4,6 @@ export const GLM_MODEL_EFFORTS: Readonly<Record<string, ReadonlySet<string>>> = 
   'glm-5.3': new Set(['low', 'high', 'max']),
 }
 
-export const GLM_EFFORT_MODELS: ReadonlySet<string> = new Set(Object.keys(GLM_MODEL_EFFORTS))
-
 export const GLM_EFFORTS: ReadonlySet<string> = new Set(
   Object.values(GLM_MODEL_EFFORTS).flatMap(s => [...s]),
 )

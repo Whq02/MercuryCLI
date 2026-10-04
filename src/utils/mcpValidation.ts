@@ -98,8 +98,3 @@ export async function truncateMcpContent(content: MCPToolResult): Promise<MCPToo
   kept.push({ type: 'text', text: truncationNotice() })
   return kept
 }
-
-export async function truncateMcpContentIfNeeded(content: MCPToolResult): Promise<MCPToolResult> {
-  if (await mcpContentNeedsTruncation(content)) return truncateMcpContent(content)
-  return content
-}

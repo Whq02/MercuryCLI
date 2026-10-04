@@ -22,11 +22,6 @@ export function registerProcessInputErrorHandler(onGone: (code: string) => void)
   handleStreamGoneErrors(process.stdin, onGone)
 }
 
-export function writeToStdout(data: string): void {
-  if (process.stdout.destroyed) return
-  process.stdout.write(data)
-}
-
 export function writeToStderr(data: string): void {
   if (process.stderr.destroyed) return
   process.stderr.write(data)

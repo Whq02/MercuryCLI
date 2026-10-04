@@ -126,13 +126,6 @@ export { ALL_AGENT_DISALLOWED_TOOLS, ASYNC_AGENT_ALLOWED_TOOLS, CUSTOM_AGENT_DIS
 export const TOOL_PRESETS = ['default'] as const
 export type ToolPreset = (typeof TOOL_PRESETS)[number]
 
-export function parseToolPreset(preset: string): ToolPreset | null {
-  const lowered = preset.toLowerCase()
-  return (TOOL_PRESETS as readonly string[]).includes(lowered)
-    ? (lowered as ToolPreset)
-    : null
-}
-
 function cycleTolerant<T>(get: () => T): T | undefined {
   try {
     return get()
@@ -227,18 +220,6 @@ export function getAllBaseTools(): Tools {
   return tools.filter((tool): tool is Tool => Boolean(tool))
 }
 
-export function getToolsForDefaultPreset(): string[] {
-  const candidates = getAllBaseTools()
-  const enabled = candidates.map(tool => {
-    try {
-      return tool.isEnabled()
-    } catch {
-      return false
-    }
-  })
-  return candidates.filter((_, index) => enabled[index]).map(tool => tool.name)
-}
-
 export function filterToolsByDenyRules<T extends { name: string; mcpInfo?: unknown }>(
   tools: readonly T[],
   permissionContext: ToolPermissionContext,
@@ -290,11 +271,4 @@ export function assembleToolPool(
     pool.push(tool)
   }
   return pool
-}
-
-export function getMergedTools(
-  permissionContext: ToolPermissionContext,
-  mcpTools: Tools,
-): Tools {
-  return [...getTools(permissionContext), ...mcpTools]
 }

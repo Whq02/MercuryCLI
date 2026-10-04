@@ -26,10 +26,6 @@ export function kimiAcceptsEffort(model: string, effort: string): boolean {
   return KIMI_EFFORT_MODELS.has(model.trim().toLowerCase()) && KIMI_EFFORTS.has(effort)
 }
 
-export function kimiSupportsTemperature(model: string): boolean {
-  return model.trim().toLowerCase().startsWith('moonshot-v1-')
-}
-
 export interface KimiDisplayPin {
   id: string
   displayName: string

@@ -21,7 +21,6 @@ export const TOOL_RESULT_CLEARED_MESSAGE = '[stale tool result pruned — conten
 export const LEGACY_TOOL_RESULT_CLEARED_MESSAGE = '[Old tool result content cleared]'
 
 export const PREVIEW_SIZE_CHARS = 2000
-export const PREVIEW_SIZE_BYTES = PREVIEW_SIZE_CHARS
 export const PREVIEW_MAX_LINE_CHARS = 400
 
 export type PersistedToolResult = {

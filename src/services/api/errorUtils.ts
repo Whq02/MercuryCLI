@@ -51,16 +51,6 @@ export function extractConnectionErrorDetails(error: unknown): ConnectionErrorDe
   return null
 }
 
-export function getSSLErrorHint(error: unknown): string | null {
-  const details = extractConnectionErrorDetails(error)
-  if (!details?.isSSLError) return null
-  return (
-    `TLS certificate error (${details.code}). This usually means a corporate proxy or ` +
-    `TLS-intercepting firewall is rewriting the connection. Fixes: point NODE_EXTRA_CA_CERTS ` +
-    `at your organisation's CA bundle, or ask IT to allow-list the API domain. Run /health for details.`
-  )
-}
-
 export function sanitizeAPIError(apiError: string | undefined | null): string {
   if (apiError === undefined || apiError === null) return ''
   const lower = apiError.toLowerCase()

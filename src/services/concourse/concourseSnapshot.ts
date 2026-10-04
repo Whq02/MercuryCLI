@@ -538,13 +538,6 @@ export async function writeConcourseHeldDelivery(
   })
 }
 
-export async function readConcourseHeldDelivery(
-  sessionId: string,
-  dir?: string,
-): Promise<{ clientMessageId: string; text: string } | null> {
-  return (await draftStore(dir).read()).heldDeliveries?.[sessionId] ?? null
-}
-
 export async function readConcourseHeldDeliveries(
   dir?: string,
 ): Promise<Record<string, { clientMessageId: string; text: string }>> {

@@ -137,8 +137,6 @@ export async function resolveWorkflowName(
   return all.find(w => w.name === name)
 }
 
-export const resolveWorkflowByName = resolveWorkflowName
-
 export type SaveWorkflowResult =
   | { ok: true; savedPath: string; already?: boolean }
   | { ok: false; error: string }

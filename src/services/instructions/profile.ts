@@ -24,12 +24,6 @@ export function setSessionInstructionProfile(
   sessionProfile = profile
 }
 
-export function setAgentInstructionProfile(
-  profile: InstructionProfile | null,
-): void {
-  agentProfile = profile
-}
-
 export function resolveRequestedInstructionProfile(): {
   profile: InstructionProfile
   origin: InstructionProfileOrigin

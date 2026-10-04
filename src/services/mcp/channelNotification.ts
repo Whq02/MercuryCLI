@@ -1,9 +1,6 @@
-import { z } from 'zod'
-
 import { type ChannelEntry, getAllowedChannels } from '../../bootstrap/state.js'
 import { CHANNEL_TAG } from '../../constants/xml.js'
 import { getClaudeAIOAuthTokens, getSubscriptionType } from '../../utils/auth.js'
-import { lazySchema } from '../../utils/lazySchema.js'
 import { approvedChannelFor } from '../../extensions/load/channels.js'
 import { parseServerRuntimeName } from '../../extensions/manifest.js'
 import { getSettingsForSource } from '../../utils/settings/settings.js'
@@ -13,37 +10,8 @@ import { isChannelsEnabled } from './channelAllowlist.js'
 
 export const CHANNEL_MESSAGE_METHOD = 'notifications/claude/channel'
 export const CHANNEL_PERMISSION_METHOD = 'notifications/claude/channel/permission'
-export const CHANNEL_PERMISSION_REQUEST_METHOD = 'notifications/claude/channel/permission_request'
 
 export const CHANNEL_CAPABILITY_KEY = 'claude/channel'
-export const CHANNEL_PERMISSION_CAPABILITY_KEY = 'claude/channel/permission'
-
-export const ChannelMessageNotificationSchema = lazySchema(() =>
-  z.object({
-    method: z.literal(CHANNEL_MESSAGE_METHOD),
-    params: z.object({
-      content: z.string(),
-      meta: z.record(z.string(), z.string()).optional(),
-    }),
-  }),
-)
-
-export const ChannelPermissionNotificationSchema = lazySchema(() =>
-  z.object({
-    method: z.literal(CHANNEL_PERMISSION_METHOD),
-    params: z.object({
-      request_id: z.string(),
-      behavior: z.enum(['allow', 'deny']),
-    }),
-  }),
-)
-
-export type ChannelPermissionRequestParams = {
-  request_id: string
-  tool_name: string
-  description: string
-  input_preview: string
-}
 
 
 const SAFE_META_KEY = /^[A-Za-z_][A-Za-z0-9_]*$/

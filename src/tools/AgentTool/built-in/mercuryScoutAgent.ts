@@ -3,8 +3,6 @@ import { searchToolsAvailability } from '../../../utils/ripgrep.js'
 import type { BuiltInAgentDefinition } from '../loadAgentsDir.js'
 import { AGENT_TOOL_NAME } from '../constants.js'
 
-export const SCOUT_AGENT_MIN_QUERIES = 3
-
 function searchToolGuidance(): string {
   const search = searchToolsAvailability()
   if (search.available) {

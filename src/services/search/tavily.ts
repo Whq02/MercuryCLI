@@ -9,7 +9,6 @@ import {
   normaliseHits,
   searchFailure,
   searchUserAgent,
-  type SearchBackend,
   type SearchHit,
   type SearchOutcome,
   type SearchRequest,
@@ -111,10 +110,4 @@ export async function tavilySearch(request: SearchRequest, io: KeyedSearchIo = {
     tier: 'keyed',
     hits: normaliseHits(filterHitsByDomain(decoded.hits, request.allowedDomains, request.blockedDomains), request.maxResults ?? DEFAULT_MAX_RESULTS),
   }
-}
-
-export const tavilyBackend: SearchBackend = {
-  id: 'tavily',
-  tier: 'keyed',
-  search: request => tavilySearch(request),
 }

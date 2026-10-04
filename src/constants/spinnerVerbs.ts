@@ -193,5 +193,3 @@ export function sampleSpinnerVerb(pool: string[] = getSpinnerVerbs()): string {
   while (RECENT_PICKS.length > RECENT_WINDOW) RECENT_PICKS.shift()
   return picked
 }
-
-export const SPINNER_VERBS: string[] = [...STOCK_VERBS]

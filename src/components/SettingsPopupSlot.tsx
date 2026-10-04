@@ -16,7 +16,6 @@ import { FloatingPopup, POPUP_GUTTER, PopupGutter, popupGeometry, popupWidth } f
 
 export const SETTINGS_POPUP_CHROME_ROWS = 7
 export const SETTINGS_POPUP_COMPACT_CHROME_ROWS = 3
-export const SETTINGS_POPUP_MIN_WIDTH = 12
 
 export type SettingsPopupPlacement = SettingsPopupGeometry & {
   left: number

@@ -10,8 +10,6 @@ export interface NotebookCell {
   outputs?: NotebookCellOutput[]
 }
 
-export type NotebookCellMetadata = Record<string, unknown>
-
 export type NotebookCellOutput =
   | NotebookStreamOutput
   | NotebookDisplayDataOutput
