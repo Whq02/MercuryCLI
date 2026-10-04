@@ -17,7 +17,7 @@
 # gate-watch: src/cli/run.ts src/cli/headless/controlHandlers.ts src/daemon/sessionSeat.ts src/daemon/concourseWorkers.ts src/services/engine-connector/** src/screens/Chat.tsx src/components/MercuryFrame.tsx src/components/tasks/BackgroundTasksDialog.tsx src/components/mercury-ui/screens/CrewView.tsx
 # gate-watch: scripts/lib/codeText.ts scripts/lib/settingsPopupHarness.ts
 # gate-watch: scripts/providers/lib/usage-plan-world.ts src/* src/commands/config/config.tsx
-# gate-watch: src/components/InvalidConfigDialog.tsx src/components/SettingsPopupSlot.tsx src/context/popupFormContext.ts
+# gate-watch: src/components/InvalidConfigDialog.tsx src/components/InvalidSettingsDialog.tsx src/components/SettingsPopupSlot.tsx src/context/popupFormContext.ts
 # gate-watch: src/components/design-system/ThemeProvider.tsx src/components/mercury-ui/RailPanel.tsx
 # gate-watch: src/components/mercury-ui/components.tsx src/components/tasks/useFocusedWork.ts
 # gate-watch: src/context/notifications.tsx src/entrypoints/init.ts src/hooks/useExitOnCtrlCD.ts

@@ -19,6 +19,7 @@ export type ValidationError = {
   suggestion?: string
   docLink?: string
   severity?: 'error' | 'warning'
+  unknownKeys?: string[]
   mcpErrorMetadata?: {
     scope: ConfigScope
     serverName?: string
@@ -78,6 +79,7 @@ export function formatZodError(error: Pick<z.ZodError, 'issues'>, filePath: stri
     let message: string
     let expected: string | undefined
     let invalidValue: unknown
+    let unknownKeys: string[] | undefined
 
     switch (issue.code) {
       case 'invalid_value': {
@@ -99,6 +101,7 @@ export function formatZodError(error: Pick<z.ZodError, 'issues'>, filePath: stri
       case 'unrecognized_keys': {
         const keys = issue.keys ?? []
         message = `Unrecognized ${keys.length === 1 ? 'field' : 'fields'}: ${keys.join(', ')}`
+        unknownKeys = [...keys]
         break
       }
       case 'too_small': {
@@ -122,6 +125,7 @@ export function formatZodError(error: Pick<z.ZodError, 'issues'>, filePath: stri
       message,
       ...(expected !== undefined ? { expected } : {}),
       ...(invalidValue !== undefined ? { invalidValue } : {}),
+      ...(unknownKeys !== undefined ? { unknownKeys } : {}),
       ...(tip?.suggestion !== undefined ? { suggestion: tip.suggestion } : {}),
       ...(tip?.docLink !== undefined ? { docLink: tip.docLink } : {}),
     })

@@ -10,6 +10,7 @@ type Props = {
   onContinue: () => void;
   onExit: () => void;
   onFix?: () => void;
+  onRemove?: () => void;
 };
 
 function isHardError(error: ValidationError): boolean {
@@ -22,18 +23,21 @@ export function InvalidSettingsDialog({
   onContinue,
   onExit,
   onFix,
+  onRemove,
 }: Props): React.ReactNode {
   const [inputArmed, setInputArmed] = React.useState(false);
   React.useEffect(() => {
     const timer = setTimeout(() => setInputArmed(true), 350);
     return () => clearTimeout(timer);
   }, []);
-  function handleSelect(value: 'exit' | 'fix' | 'continue'): void {
+  function handleSelect(value: 'exit' | 'fix' | 'continue' | 'remove'): void {
     if (!inputArmed) return;
     if (value === 'exit') {
       onExit();
     } else if (value === 'fix') {
       onFix?.();
+    } else if (value === 'remove') {
+      onRemove?.();
     } else {
       onContinue();
     }
@@ -47,11 +51,19 @@ export function InvalidSettingsDialog({
   };
   const fixOption = { label: 'Fix with Mercury', value: 'fix' as const };
   const exitOption = { label: 'Exit and fix manually', value: 'exit' as const };
+  const removeOption = {
+    label: 'Remove these fields and continue',
+    value: 'remove' as const,
+  };
+  const removeOptions = onRemove ? [removeOption] : [];
+  const fixOptions = onFix ? [fixOption] : [];
 
-  const options: Array<{ label: string; value: 'exit' | 'fix' | 'continue' }> =
-    hasHardErrors
-      ? [...(onFix ? [fixOption] : []), exitOption, continueOption]
-      : [continueOption, ...(onFix ? [fixOption] : []), exitOption];
+  const options: Array<{
+    label: string;
+    value: 'exit' | 'fix' | 'continue' | 'remove';
+  }> = hasHardErrors
+    ? [...fixOptions, exitOption, ...removeOptions, continueOption]
+    : [...removeOptions, continueOption, ...fixOptions, exitOption];
 
   const title = hasHardErrors ? 'Settings Error' : 'Settings Warning';
   const rawOnCancel = hasHardErrors ? onExit : onContinue;
@@ -59,9 +71,12 @@ export function InvalidSettingsDialog({
     if (inputArmed) rawOnCancel();
   };
 
-  const footerText = hasHardErrors
+  const skipText = hasHardErrors
     ? 'Files with errors are skipped entirely, not just the invalid settings.'
     : 'The values listed above were skipped; the rest of the file is in effect.';
+  const footerText = onRemove
+    ? `${skipText} Removing deletes the unrecognized fields from the file where they sit and keeps every other setting.`
+    : skipText;
 
   return (
     <Dialog title={title} onCancel={onCancel} color="warning">
