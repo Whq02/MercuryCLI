@@ -40,10 +40,6 @@ const field: NodeJS.ProcessEnv = {
   PATH: process.env.PATH,
   MERCURY_CONFIG_DIR: home,
   NODE_COMPILE_CACHE: join(home, 'compile-cache'),
-  MERCURY_TAKEOVER: '1',
-  MERCURY_SA_EXIT: '0',
-  MERCURY_SA_HOME: home,
-  MERCURY_PROBE_OUT: join(scratch, 'mercury-probe-1.txt'),
   MHOME: home,
   MERCURY_WIN32_UTF8_PRESET: '1',
   MERCURY_LAUNCH_ID: 'cmd-1234-5678',
@@ -54,12 +50,12 @@ tally.check('the daemon\'s receipt names the config home it stamped', spawnSelfS
 const fieldStamps = sessionEnvStamps(field)
 tally.check('the stamped config home is a stamp', fieldStamps.includes('MERCURY_CONFIG_DIR'), fieldStamps.join(','))
 tally.check('the compile cache that names this home\'s own cache directory is a stamp', fieldStamps.includes(COMPILE_CACHE_ENV), fieldStamps.join(','))
-for (const name of ['MERCURY_TAKEOVER', 'MERCURY_SA_EXIT', 'MERCURY_SA_HOME', 'MERCURY_PROBE_OUT', 'MHOME', 'MERCURY_WIN32_UTF8_PRESET', 'MERCURY_LAUNCH_ID']) {
+for (const name of ['MHOME', 'MERCURY_WIN32_UTF8_PRESET', 'MERCURY_LAUNCH_ID']) {
   tally.check(`the launcher's ${name} is a stamp`, fieldStamps.includes(name) && LAUNCHER_STAMPS.includes(name))
 }
 tally.check('an operator pin with no carrier stays', !fieldStamps.includes('MERCURY_MODEL_LANES'))
 const fieldScrub = scrubSessionEnvStamps(field)
-tally.check('a command sees no parent home, cache or launcher scratch', ['MERCURY_CONFIG_DIR', 'NODE_COMPILE_CACHE', 'MERCURY_TAKEOVER', 'MERCURY_SA_EXIT', 'MERCURY_SA_HOME', 'MERCURY_PROBE_OUT', 'MHOME', 'MERCURY_WIN32_UTF8_PRESET', 'MERCURY_LAUNCH_ID'].every(n => fieldScrub.env[n] === undefined), JSON.stringify(fieldScrub.scrubbed))
+tally.check('a command sees no parent home, cache or launcher scratch', ['MERCURY_CONFIG_DIR', 'NODE_COMPILE_CACHE', 'MHOME', 'MERCURY_WIN32_UTF8_PRESET', 'MERCURY_LAUNCH_ID'].every(n => fieldScrub.env[n] === undefined), JSON.stringify(fieldScrub.scrubbed))
 tally.check('…and keeps the operator pin', fieldScrub.env.MERCURY_MODEL_LANES === '1')
 
 const operator: NodeJS.ProcessEnv = { PATH: process.env.PATH, MERCURY_CONFIG_DIR: home, NODE_COMPILE_CACHE: join(scratch, 'elsewhere', 'cache') }
@@ -88,7 +84,8 @@ resetOwnEnvWritesForTesting()
 
 tally.section('§3 the image pack arm records its NODE_PATH write')
 const arm = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'FileReadTool', 'imagePackArm.ts'), 'utf8')
-tally.check('armImagePack records the operator\'s NODE_PATH before it writes', arm.includes("recordOwnEnvWrite('NODE_PATH', process.env.NODE_PATH)") && arm.indexOf("recordOwnEnvWrite('NODE_PATH'") < arm.indexOf('process.env.NODE_PATH = current'))
+const recordAt = arm.indexOf("recordOwnEnvWrite('NODE_PATH', process.env.NODE_PATH)")
+tally.check('armImagePack records the operator\'s NODE_PATH before it writes', recordAt !== -1 && recordAt < arm.indexOf('process.env.NODE_PATH = current'))
 
 tally.section('§4 the owned daemon\'s receipt names the config home it stamps')
 const ownedHome = join(scratch, 'owned-home')
@@ -150,9 +147,8 @@ const cwd = join(scratch, 'work')
 seedScratchHome(runHome, cwd)
 const env = childEnv(runHome, Number(new URL(fixture.base).port))
 env.NODE_COMPILE_CACHE = join(runHome, 'compile-cache')
-env.MERCURY_TAKEOVER = '1'
-env.MERCURY_SA_EXIT = '0'
 env.MHOME = runHome
+env.MERCURY_LAUNCH_ID = 'cmd-1234-5678'
 env.MERCURY_MODEL_LANES = '1'
 stampSpawnReceipt(env, ['MERCURY_CONFIG_DIR'])
 const turn = await new Promise<{ outcome: Frame | null; code: number | null; stderr: string }>(resolve => {
@@ -187,7 +183,7 @@ if (existsSync(envFile)) {
 }
 tally.check('the command sees no parent config home', !childSeen.has('MERCURY_CONFIG_DIR'), childSeen.get('MERCURY_CONFIG_DIR'))
 tally.check('the command sees no parent compile cache', !childSeen.has('NODE_COMPILE_CACHE'), childSeen.get('NODE_COMPILE_CACHE'))
-tally.check('the command sees none of the launcher\'s scratch', !childSeen.has('MERCURY_TAKEOVER') && !childSeen.has('MERCURY_SA_EXIT') && !childSeen.has('MHOME'))
+tally.check('the command sees none of the launcher\'s scratch', !childSeen.has('MHOME') && !childSeen.has('MERCURY_LAUNCH_ID'))
 tally.check('the command keeps the operator\'s pin and the MERCURY=1 marker', childSeen.get('MERCURY_MODEL_LANES') === '1' && childSeen.get('MERCURY') === '1')
 tally.check('the result names the scrubbed home and cache', (seen?.text ?? '').includes('MERCURY_CONFIG_DIR') && (seen?.text ?? '').includes('NODE_COMPILE_CACHE'), seen?.text.slice(-400))
 

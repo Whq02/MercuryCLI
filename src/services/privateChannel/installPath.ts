@@ -148,20 +148,12 @@ export function ownCommand(roots: LayoutRoots, provenanceKind: string, resolveCo
   return ownCommandWord({ provenanceKind, found: commandOnPath(roots, resolveCommand), node: process.execPath, bundle: process.argv[1] })
 }
 
-let ownCommandMemo: string | null = null
-
 export function thisMercuryCommand(): string {
-  if (ownCommandMemo !== null) return ownCommandMemo
   try {
-    ownCommandMemo = ownCommand(resolveLayoutRoots(), resolveInstallProvenance().kind)
+    return ownCommand(resolveLayoutRoots(), resolveInstallProvenance().kind)
   } catch {
-    ownCommandMemo = 'mercury'
+    return 'mercury'
   }
-  return ownCommandMemo
-}
-
-export function resetThisMercuryCommandForTesting(): void {
-  ownCommandMemo = null
 }
 
 export function commandOnPathWarning(

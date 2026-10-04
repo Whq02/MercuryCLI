@@ -26,8 +26,8 @@ const token = (ms: number): string => {
   return `${day} ${String(date.getDate()).padStart(2, ' ')} ${month} ${two(date.getHours())}:${two(date.getMinutes())}:${two(date.getSeconds())} ${date.getFullYear()}`
 }
 
-const OWN_BUNDLE = '/Users/whq/pre27-air/pre27/dist/mercury.mjs'
-const INSTALLED_BUNDLE = '/Users/whq/.mercury/versions/1.0.0-beta.26/mercury.mjs'
+const OWN_BUNDLE = '/Users/op/pre27-air/pre27/dist/mercury.mjs'
+const INSTALLED_BUNDLE = '/Users/op/.mercury/versions/1.0.0-beta.26/mercury.mjs'
 
 const observation = (pid: number, ppid: number, args: string[], opts: { exe?: string; terminal?: string | null; terminalAlive?: boolean | null; bornMs?: number; user?: string; state?: string } = {}): ProcessSweepObservation => {
   const bornMs = opts.bornMs ?? NOW - 60_000
@@ -44,11 +44,11 @@ const table: ProcessSweepTable = {
   complete: true,
   observations: [
     observation(SELF, 1, ['node', OWN_BUNDLE, 'health', 'processes']),
-    observation(41139, 1, ['/Users/whq/.mercury/versions/1.0.0-beta.26/vendor/node/bin/node', INSTALLED_BUNDLE, 'daemon', 'run', '/Users/whq/Desktop/Test'], { bornMs: NOW - 15 * 3_600_000 }),
+    observation(41139, 1, ['/Users/op/.mercury/versions/1.0.0-beta.26/vendor/node/bin/node', INSTALLED_BUNDLE, 'daemon', 'run', '/Users/op/Desktop/Test'], { bornMs: NOW - 15 * 3_600_000 }),
     observation(69025, 1, ['mercury'], { terminal: 'ttys003', terminalAlive: true }),
     observation(71158, 41139, ['mercury']),
     observation(82903, 1, ['node', OWN_BUNDLE, 'run', 'hello']),
-    observation(77001, 1, ['/usr/bin/python3', '/Users/whq/pre27-air/runwatch.py', 'mercury.mjs'], { exe: 'python3' }),
+    observation(77001, 1, ['/usr/bin/python3', '/Users/op/pre27-air/runwatch.py', 'mercury.mjs'], { exe: 'python3' }),
     observation(7001, 7000, ['node', INSTALLED_BUNDLE, 'daemon', 'run', '/elsewhere'], { user: '502' }),
   ],
 }
@@ -57,10 +57,10 @@ const records: ProcessSweepRecords = {
   platform: 'darwin',
   selfPid: SELF,
   user: '501',
-  configHome: '/Users/whq/pre27-air/pre27/field-home/config',
+  configHome: '/Users/op/pre27-air/pre27/field-home/config',
   drainMs: 600_000,
   heartbeatAllowanceMs: 90_000,
-  planes: [{ daemonDir: '/Users/whq/pre27-air/pre27/field-home/config/daemon', supervisor: null, supervisorReadable: true, answer: null, runners: null }],
+  planes: [{ daemonDir: '/Users/op/pre27-air/pre27/field-home/config/daemon', supervisor: null, supervisorReadable: true, answer: null, runners: null }],
   registrations: [],
   memory: null,
   bundle: OWN_BUNDLE,
@@ -79,7 +79,7 @@ await check('the bundle a process runs is read from its command line', () => {
   assert.equal(bundleArgOf(['node', INSTALLED_BUNDLE, 'daemon', 'run', '/x']), INSTALLED_BUNDLE)
   assert.equal(bundleArgOf(['mercury']), null)
   assert.equal(bundleArgOf(['C:\\pre27-field\\pre27\\node.exe', 'C:\\pre27-field\\pre27\\dist\\mercury.mjs', 'daemon', 'run']), 'C:\\pre27-field\\pre27\\dist\\mercury.mjs')
-  assert.equal(bundleDirOf(INSTALLED_BUNDLE), '/Users/whq/.mercury/versions/1.0.0-beta.26')
+  assert.equal(bundleDirOf(INSTALLED_BUNDLE), '/Users/op/.mercury/versions/1.0.0-beta.26')
   assert.equal(sameBundlePath('C:\\a\\Dist\\mercury.mjs', 'c:/a/dist/mercury.mjs', 'win32'), true)
   assert.equal(sameBundlePath('/a/dist/mercury.mjs', '/a/Dist/mercury.mjs', 'darwin'), false)
 })
@@ -88,7 +88,7 @@ await check("another install's daemon, unrecorded in this home, is not ours: ano
   const got = classes()
   assert.equal(got.get(41139)!.kind, 'daemon')
   assert.equal(got.get(41139)!.classification, 'not-ours')
-  assert.match(got.get(41139)!.reason, /another Mercury build at \/Users\/whq\/\.mercury\/versions\/1\.0\.0-beta\.26; left alone/)
+  assert.match(got.get(41139)!.reason, /another Mercury build at \/Users\/op\/\.mercury\/versions\/1\.0\.0-beta\.26; left alone/)
 })
 
 await check('a process of this build that left no record keeps its honest reading', () => {
@@ -160,7 +160,7 @@ await check('the census road hands the classifier its own bundle and the path re
       waitMs: 200,
       nowMs: () => NOW,
       rpc: async () => { throw new Error('no daemon') },
-      collect: async () => ({ complete: true, observations: [observation(process.pid, 1, ['node', OWN_BUNDLE, 'health'], { user: me }), observation(41139, 1, ['node', INSTALLED_BUNDLE, 'daemon', 'run', '/Users/whq/Desktop/Test'], { user: me })] }),
+      collect: async () => ({ complete: true, observations: [observation(process.pid, 1, ['node', OWN_BUNDLE, 'health'], { user: me }), observation(41139, 1, ['node', INSTALLED_BUNDLE, 'daemon', 'run', '/Users/op/Desktop/Test'], { user: me })] }),
     })
     const other = census.entries.find(e => e.process.pid === 41139)
     assert.ok(other, 'the other install is in the census')

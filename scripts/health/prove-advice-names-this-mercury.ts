@@ -26,7 +26,7 @@ check('a Homebrew or npm install on PATH keeps its word', ownCommandWord({ prove
 check('a path with a space is quoted', ownCommandWord({ provenanceKind: 'development', found: absent, node: 'C:\\Program Files\\nodejs\\node.exe', bundle: 'C:\\pre27 field\\dist\\mercury.mjs' }) === '"C:\\\\Program Files\\\\nodejs\\\\node.exe" "C:\\\\pre27 field\\\\dist\\\\mercury.mjs"', ownCommandWord({ provenanceKind: 'development', found: absent, node: 'C:\\Program Files\\nodejs\\node.exe', bundle: 'C:\\pre27 field\\dist\\mercury.mjs' }))
 check('with no bundle to name the word stands', ownCommandWord({ provenanceKind: 'development', found: absent, node, bundle: undefined }) === 'mercury')
 const live = thisMercuryCommand()
-check('the live resolver answers a non-empty command and memoises it', live.length > 0 && thisMercuryCommand() === live, live)
+check('the live resolver answers a non-empty command, the same on every read', live.length > 0 && thisMercuryCommand() === live, live)
 
 console.log(`\n${failures === 0 ? 'ALL LAWS HOLD' : `${failures} FAILURE(S)`} — prove-advice-names-this-mercury`)
 process.exit(failures === 0 ? 0 : 1)
