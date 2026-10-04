@@ -113,23 +113,15 @@ export function composeCritterFrame(def: CritterDef, opts: CritterFrameOpts): { 
   const pose = sleepPhase !== null ? sleepPoseFor(def, form) : null
   const flowDepth = pose ? pose.flow : flowDepthFor(def, form)
   const settleDepth = pose ? 0 : settleDepthFor(def, form)
-  let art: string[]
-  if (usingSquare) {
-    const base = pose ? pose.art : def.squareDock
-    const gazed = applyGazeKey(base, gazeKey)
-    const blinked = pupil !== '●' ? heroBlinkRows(gazed) : gazed
-    const breathed = pose ? sleepBreathArt(blinked, swayPhase) : blinked
-    const settled = settleRows(breathed, settleDepth, swayPhase)
-    art = swayRows(settled, flowDepth, swayPhase)
-  } else {
-    const base = pose ? pose.art : def.art
-    const breathed = pose ? sleepBreathArt(base, swayPhase) : base
-    const settled = settleRows(breathed, settleDepth, swayPhase)
-    art = swayRows(settled, flowDepth, swayPhase)
-  }
+  const base = pose ? pose.art : usingSquare ? def.squareDock : def.art
+  const gazed = applyGazeKey(base, gazeKey)
+  const blinked = pupil !== '●' ? heroBlinkRows(gazed) : gazed
+  const breathed = pose ? sleepBreathArt(blinked, swayPhase) : blinked
+  const settled = settleRows(breathed, settleDepth, swayPhase)
+  const swayed = swayRows(settled, flowDepth, swayPhase)
   const sleepSlotCount = sleepSlotCountFor(def)
-  const sleepSlots = sleepPhase !== null ? sleepZzzSlots(art, sleepSlotCount) : []
-  if (sleepPhase !== null) art = sleepZzzArt(art, sleepPhase, sleepSlotCount)
+  const sleepSlots = sleepPhase !== null ? sleepZzzSlots(swayed, sleepSlotCount) : []
+  const art = sleepPhase !== null ? sleepZzzArt(swayed, sleepPhase, sleepSlotCount) : swayed
   return { art, sleepSlots }
 }
 

@@ -682,8 +682,8 @@ t.section('§11 — the per-critter SLEEP GLYPH LADDER (bubbles for the clam, Zz
   t.check('RENDERED clam flat awake: no bubble, no z', !/[°oz]/.test(clamAwake))
 
   const painter = await Bun.file('src/components/mercury-ui/CritterArt.tsx').text()
-  const slotsAt = painter.indexOf('sleepZzzSlots(art, sleepSlotCount)')
-  const writeAt = painter.indexOf('sleepZzzArt(art, sleepPhase, sleepSlotCount)')
+  const slotsAt = painter.indexOf('sleepZzzSlots(swayed, sleepSlotCount)')
+  const writeAt = painter.indexOf('sleepZzzArt(swayed, sleepPhase, sleepSlotCount)')
   t.check('the painter reads the slots BEFORE writing the glyph cells, both at the ladder\'s count', slotsAt > 0 && writeAt > slotsAt && /const sleepSlotCount = sleepSlotCountFor\(def\)/.test(painter), `slots@${slotsAt} write@${writeAt}`)
   t.check('both seams paint through sleepGlyphAt (one owner)', (painter.match(/sleepGlyphAt\(def, sleepSlots, c\)/g) ?? []).length === 2)
   t.check('no literal z paint survives in the painter', !/SLEEP_CELL\.repeat\(|\$\{SLEEP_CELL\} /.test(painter))
@@ -757,7 +757,7 @@ t.section('§12 — the VALVE SETTLE: the clam breathes with its shell, never sw
   const settleAt = painter.indexOf('settleRows(')
   const swayAt = painter.indexOf('swayRows(')
   t.check('the settle is applied AFTER the breath and BEFORE the sway', breathAt > 0 && settleAt > breathAt && swayAt > settleAt, `breath@${breathAt} settle@${settleAt} sway@${swayAt}`)
-  t.check('both render paths (square + flat/mini) settle', (painter.match(/settleRows\(breathed, settleDepth, swayPhase\)/g) ?? []).length === 2)
+  t.check('ONE composition settles every form (the square tier rides the same register as flat/mini — no second path)', (painter.match(/settleRows\(breathed, settleDepth, swayPhase\)/g) ?? []).length === 1 && /const base = pose \? pose\.art : usingSquare \? def\.squareDock : def\.art/.test(painter))
 }
 
 t.section('§13 — the ladder\'s three conditions: the Zzz path byte-identical (base A/B) · the width law at four · reduced motion holds the whole ladder')

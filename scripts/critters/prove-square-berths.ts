@@ -94,9 +94,9 @@ section('§4 the mounts (source locks)')
   const band = readFileSync(join(root, 'components/CompactIdentityBand.tsx'), 'utf8')
   check('the compact band renders the dock grid square in the dock-height slot', !/square:\s*[A-Za-z]/.test(band) && band.includes('height={SQUARE_DOCK_ART_LINES}') && band.includes('<AnimatedCritterArt def={def} square />'))
   const anim = readFileSync(join(root, 'components/mercury-ui/AnimatedCritterArt.tsx'), 'utf8')
-  check('the animator gazes over the dock grid', anim.includes('usingSquare ? def.squareDock'))
+  check('the animator gazes over the dock grid', anim.includes("form === 'square' ? def.squareDock : null"))
   const painter = readFileSync(join(root, 'components/mercury-ui/CritterArt.tsx'), 'utf8')
-  check('the painter\'s square base is the dock grid', painter.includes('usingSquare = square && def.squareDock.length > 0') && painter.includes('pose ? pose.art : def.squareDock'))
+  check('the painter\'s square base is the dock grid', painter.includes('usingSquare = square && def.squareDock.length > 0') && painter.includes('pose ? pose.art : usingSquare ? def.squareDock : def.art'))
 }
 
 if (failures > 0) {
