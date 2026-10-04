@@ -5,6 +5,7 @@ import { dirname, join, normalize } from 'node:path'
 import { getProjectSnapshot } from './snapshot.js'
 import { projectIntelEnabled, type SnapshotGeneration, type SnapshotRead } from './contracts.js'
 import { collectMemoryRefs } from '../../mneme/memoryRefs.js'
+import { lookupTokens } from '../../mneme/mnemeLookup.js'
 import { isMnemeEnabled } from '../../mneme/paths.js'
 
 export type CapsuleRole =
@@ -164,10 +165,6 @@ export function importNeighbours(workspace: string, rel: string): string[] {
   return [...out].sort()
 }
 
-function tokensOf(text: string): string[] {
-  return [...new Set(text.toLowerCase().match(/[a-z0-9_]{4,}/g) ?? [])]
-}
-
 export function assembleContextCapsule(input: CapsuleInput): ContextCapsule | null {
   if (!projectIntelEnabled()) return null
   const t0 = performance.now()
@@ -246,11 +243,11 @@ export function assembleContextCapsule(input: CapsuleInput): ContextCapsule | nu
   if (existsFile(input.workspace, 'docs/ARCHITECTURE.md'))
     add('docs/ARCHITECTURE.md', 'instruction', 5, `architecture overview`)
 
-  const taskTokens = tokensOf(input.task)
+  const taskTokens = lookupTokens(input.task)
   if (snapshot.surface) {
     for (const doc of snapshot.surface.docs) {
-      const stem = doc.toLowerCase().replace(/\.[a-z]+$/, '')
-      if (taskTokens.some(t => stem.includes(t)) && existsFile(input.workspace, doc)) {
+      const nameWords = doc.slice(doc.lastIndexOf('/') + 1).toLowerCase().replace(/\.[a-z]+$/, '').split(/[^a-z0-9]+/)
+      if (taskTokens.some(t => nameWords.includes(t)) && existsFile(input.workspace, doc)) {
         add(doc, 'knowledge', 6, `doc name matches the task`)
       }
     }

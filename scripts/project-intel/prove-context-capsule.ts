@@ -73,6 +73,13 @@ async function main(): Promise<void> {
   const zoned = assembleContextCapsule({ workspace: dir, task: 'general cleanup', zonePaths: ['src/services/invoicing.ts'] })
   check('accepted zone path rides tier 2 active work', zoned?.items.some(i => i.path === 'src/services/invoicing.ts' && i.tier === 2 && i.role === 'active work') === true)
 
+  section('(T6) a doc rides on a whole word of its name — never a filler word or a word inside the name')
+  const noisy = assembleContextCapsule({ workspace: dir, task: 'read the file and want the tests' })
+  const noisyDocs = noisy?.items.filter(i => i.role === 'knowledge').map(i => i.path) ?? []
+  check('filler words and the word read attach no doc (README.md stays out)', noisyDocs.length === 0, noisyDocs.join(','))
+  const named = assembleContextCapsule({ workspace: dir, task: 'update the readme' })
+  check('the whole word readme attaches README.md as knowledge', named?.items.some(i => i.path === 'README.md' && i.role === 'knowledge') === true)
+
   section('(4) budget: caps trim with named omissions')
   const tight = assembleContextCapsule({ workspace: dir, task, budget: { maxItems: 3 } })
   check('item cap respected', (tight?.items.length ?? 99) <= 3)
