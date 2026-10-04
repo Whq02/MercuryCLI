@@ -120,8 +120,8 @@ section('K4 — unmoved slices keep identity; the notify pulse always fires')
     !bus.includes('if (!changed) return') && /version: snapshots\.version \+ 1,\s*\}\s*emit\(\)/.test(bus))
   check('the selector overload exists for slice-scoped subscribers',
     bus.includes('export function useTelemetry<T>(selector: (s: TelemetrySnapshots) => T): T'))
-  check('the bus passes its bound into the listing (never lifetime history)',
-    bus.includes('listWorkflowRuns(getCwd(), { limit: WORKFLOWS_DISK_MAX * 5 })'))
+  check("the bus passes its bound into the listing (never lifetime history), keyed by the session's starting folder as the writer keys it",
+    bus.includes('listWorkflowRuns(getOriginalCwd(), { limit: WORKFLOWS_DISK_MAX * 5 })'))
 }
 
 section('K5/K6/K7/K10a — derivation cadence, parked clocks, shared timer, honest counts')

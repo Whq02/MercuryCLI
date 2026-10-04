@@ -183,9 +183,12 @@ section('T. task adapter (real durable ledger, hermetic store)')
   check('T3 an unknown task id reads ABSENT', gone.state === 'absent')
 }
 
-section('W. workflow adapter (manifest fixtures)')
+section("W. workflow adapter (manifest fixtures) — runs live beside the session's starting folder, the folder this proof began in")
 {
   const { workflowRunsRoot } = await import('../../src/tools/WorkflowTool/runManifest.js')
+  const { getOriginalCwd, setOriginalCwd } = await import('../../src/bootstrap/state.js')
+  const startingFolderBefore = getOriginalCwd()
+  setOriginalCwd(workDir)
   const runDir = join(workflowRunsRoot(workDir), 'wf_fixture1')
   mkdirSync(runDir, { recursive: true })
   const transcriptDir = join(runDir, 'transcripts')
@@ -267,6 +270,7 @@ section('W. workflow adapter (manifest fixtures)')
   const rest = continuation ? await resolveResource(continuation[0], ctx as never) : null
   check('W5c the named ref resolves to a page holding the end of the outcome',
     rest !== null && rest.state === 'ok' && (rest.resource.text ?? '').includes(sentinel), rest?.state ?? 'no ref')
+  setOriginalCwd(startingFolderBefore)
 }
 
 section('A. artifact adapter (real store round trip)')

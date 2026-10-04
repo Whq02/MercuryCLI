@@ -1,12 +1,8 @@
 
-import {
-  BLOCKER_DECLARATION_GRAMMAR,
-  parseBlockerDeclaration,
-} from '../../services/run/blockerDeclaration.js'
+import { parseBlockerDeclaration } from '../../services/run/blockerDeclaration.js'
 import { parseOperatorPauseDirective } from '../../services/run/operatorPause.js'
 import { evaluateStop, type StopDecision } from '../../services/run/completionEvaluator.js'
 import {
-  claimContinuation,
   continuationsThisTurn,
   turnBoundaryIndex,
 } from '../../services/run/continuationLatch.js'
@@ -28,7 +24,6 @@ import { isEnvDefinedFalsy, isEnvTruthy } from '../envUtils.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
   evidenceDemandCount,
-  noteEvidenceDemandIssued,
   verificationSummary,
   workspaceVerifiable,
 } from '../verification/verificationState.js'
@@ -92,7 +87,6 @@ export interface RunStopAdapterOptions {
   wordingUnfinished: boolean
   owner?: OwnerKey
   signal?: AbortSignal
-  recordOnly?: boolean
 }
 
 export interface RunStopVerdict {
@@ -222,17 +216,8 @@ export async function evaluateStopAttempt(
   }
 
   switch (decision.kind) {
-    case 'continue': {
-      if (opts.recordOnly) return { decision, allowStop: true }
-      const claimed = claimContinuation(owner, turnIdx, messages.length)
-      if (!claimed) return { decision, allowStop: true }
-      if (decision.evidenceDemand) noteEvidenceDemandIssued(owner)
-      if (snapshot) {
-        noteRunEvent(owner, { type: 'continuation', at, reason: decision.reason })
-        noteRunEvent(owner, { type: 'next-action', at, action: decision.nextAction })
-      }
-      return { decision, allowStop: false }
-    }
+    case 'continue':
+      return { decision, allowStop: true }
     case 'blocked': {
       if (snapshot && snapshot.lifecycle !== 'blocked') {
         noteRunEvent(owner, {
@@ -316,20 +301,4 @@ export function mintDeliveryArtifact(owner: OwnerKey, runId: string, hasChanges:
 
 export function _resetDeliveryLatchForTesting(): void {
   deliveredRuns.clear()
-}
-
-export const REPROMPT_FIELD_BUDGET = 800
-
-export function boundRepromptField(text: string): string {
-  // eslint-disable-next-line no-control-regex
-  const clean = text.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
-  return clean.length <= REPROMPT_FIELD_BUDGET ? clean : `${clean.slice(0, REPROMPT_FIELD_BUDGET)} […]`
-}
-
-export function repromptWithNextAction(roleReprompt: string, decision: StopDecision): string {
-  if (decision.kind !== 'continue') return roleReprompt
-  return (
-    `${roleReprompt}\n\nRun state: ${boundRepromptField(decision.reason)}. Next concrete action: ${boundRepromptField(decision.nextAction)}.` +
-    `\nIf you are genuinely blocked on input only the operator can provide, end your message with ${BLOCKER_DECLARATION_GRAMMAR} — that records the blocker and ends the loop honestly.`
-  )
 }

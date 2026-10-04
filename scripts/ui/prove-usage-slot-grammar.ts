@@ -37,7 +37,8 @@ console.log('§2 every family section rides the one grammar')
     ['the API-key slot', /absentSlotLine\('a pasted key attaches one'\)/],
   ]
   for (const [name, needle] of sections) check(`${name}: the absent slot rides absentSlotLine`, needle.test(src))
-  check('every inactive present slot rides INACTIVE_SLOT_LINE (five slots — the OpenRouter section lists each stored key as its own slot)', (src.match(/: INACTIVE_SLOT_LINE/g) ?? []).length === 5, String((src.match(/: INACTIVE_SLOT_LINE/g) ?? []).length))
+  check('the one slot body paints INACTIVE_SLOT_LINE for a present slot that is not the billing source, and nothing else spells it', (src.match(/\{INACTIVE_SLOT_LINE\}/g) ?? []).length === 1 && src.includes('if (!active) return <Text dimColor>{INACTIVE_SLOT_LINE}</Text>'), String((src.match(/INACTIVE_SLOT_LINE/g) ?? []).length))
+  check('every present slot that can be inactive rides that one body (five slots — the OpenRouter section lists each stored key as its own slot)', (src.match(/<SlotSpend active=\{/g) ?? []).length === 5, String((src.match(/<SlotSpend active=\{/g) ?? []).length))
   const bodies = src.split('\n').filter(l => !l.trim().startsWith('*') && !l.trim().startsWith('//') && !l.includes('INACTIVE_SLOT_LINE =')).join('\n')
   for (const stale of ['none connected —', 'none on this lane', 'none discovered —', 'none attached —', "'attached — not the active", "'connected — not the active", "'not the active billing source this session'"]) {
     check(`no section spells "${stale}" on its own`, !bodies.includes(stale))

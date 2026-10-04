@@ -422,7 +422,7 @@ section('§7 the surfaces read the owner')
 {
   const print = src('src/cli/run.ts')
   check('print: the initialize catalogue lists the owner\'s stops per model', print.includes('resolveEffortTruth(resolved, undefined).selectable'))
-  check('print: get_settings reports the applied tier beside the raw request', print.includes('effort: effortTruth.supportsEffort ? (effortTruth.wire ?? null) : undefined') && print.includes('effort_requested:'))
+  check('run: session/facts reports the tier the next request sends, from the owner (effortSent beside the seat\'s asked word)', /const sent = effortSentOf\(resolveEffortTruth\(activeModel \?\? get\w+Model\(\), state\.effortValue\)\)/.test(print) && print.includes("return sent === undefined ? {} : { effortSent: sent }"))
   const picker = src('src/components/concourse/CoordinatorModelPicker.tsx')
   check('the coordinator picker offers the model\'s own stops, resolved for its thinking-off call', picker.includes('coordinatorEffortOptions(effortPick.modelId)') && picker.includes("{ thinkingEnabled: false }"))
   const studio = src('src/components/agents/studio/StudioEditor.tsx')

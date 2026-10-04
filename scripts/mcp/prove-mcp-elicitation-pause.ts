@@ -2,6 +2,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { inProcessServerConfig, seatInProcessServer } from '../lib/mcpInProcess.ts'
 
 const SCRATCH = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'mcp-elicitation-pause-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
@@ -244,7 +245,8 @@ section('C. an in-process loopback server (the same client road, the SDK server 
   await client.connect(clientTransport)
   const loop = captureQueue()
   registerElicitationHandler(client as never, 'asker', loop.setAppState as never)
-  const connection = { type: 'connected', name: 'asker', client, capabilities: {}, config: { type: 'host', name: 'asker', scope: 'session' }, cleanup: async () => {} }
+  const connection = { type: 'connected' as const, name: 'asker', client, capabilities: {}, config: inProcessServerConfig('asker'), cleanup: async () => {} }
+  const unseat = seatInProcessServer(mcp, connection as never)
   const callLoop = (tool: string, id: string, signal: AbortSignal): Promise<unknown> =>
     mcp.callMCPToolWithUrlElicitationRetry({ client: connection as never, tool, args: {}, signal, parentMessage: parentFor(id, tool) as never })
 
@@ -289,6 +291,7 @@ section('C. an in-process loopback server (the same client road, the SDK server 
     check('…the call ends promptly and never as a stall', !stalledLine.test(message) && outcome.settleMs < LIMIT_MS + 1000, `${outcome.settleMs}ms ${message}`)
     check('…and the pause ends with it (the ledger saw the question enter and leave)', phases.join(',') === 'entered,left', phases.join(',') || '(no ledger on this tree)')
   }
+  unseat()
   await client.close().catch(() => {})
   await server.close().catch(() => {})
 }

@@ -398,7 +398,7 @@ try {
         { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
         { data: 'ring-drive: alpha\r', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'boot' },
         { data: 'ring-drive: scout\r', awaitText: ALPHA_DONE, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'alpha' },
-        { data: '', awaitText: SEAT_TWO_FILE, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'scout-live' },
+        { data: '', awaitText: `${(contextOf(USAGE.seatTwo) / 1000).toFixed(1)}k context`, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'scout-live' },
         { data: 'ring-drive: shell\r', awaitText: SCOUT_BACK, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'scout-done' },
         { data: '\x1b', awaitText: PROCEED, requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'shell-card' },
         { data: 'ring-drive: sleep\r', awaitText: SHELL_REFUSED, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'shell-refused' },

@@ -587,6 +587,7 @@ export async function runHeadless(
   let awaitingSessionClaim = isConcourseWorker && !options.continue && !options.resume && options.bootSessionIdPinned !== true
   const releaseQueueUntilClaimed: (() => void) | null = peer !== null && awaitingSessionClaim ? peer.holdScope('queue') : null
   let sessionFactsHoldSpent = false
+  let sessionFactsHold: Promise<void> | null = null
   let runnerRestartReason: string | undefined = flagEnv('MERCURY_RUNNER_RESTART_REASON')
   let recoveredCommandIds: string[] = []
   if (isConcourseWorker) void refreshBoxReading()
@@ -1975,6 +1976,8 @@ export async function runHeadless(
       if (params.resume === true) await hydrateResumedRun()
       ;(await import('../utils/crew/crewBirth.js')).birthSessionCrew(sid, setAppState)
       awaitingSessionClaim = false
+      sessionFactsHoldSpent = false
+      sessionFactsHold = null
       releaseQueueUntilClaimed?.()
       logForDebugging(`[session-runner] claimed: session ${sid}${claimedModel !== undefined ? ` on ${claimedModel}` : ''}`)
       if (heldNoticeWaits()) driver.kick()
@@ -1995,8 +1998,9 @@ export async function runHeadless(
       if (!sessionFactsHoldSpent) {
         sessionFactsHoldSpent = true
         const holdMs = Number.parseInt(flagEnv('MERCURY_SESSION_FACTS_HOLD_MS') ?? '', 10)
-        if (Number.isFinite(holdMs) && holdMs > 0) await new Promise(resolve => setTimeout(resolve, holdMs))
+        if (Number.isFinite(holdMs) && holdMs > 0) sessionFactsHold = new Promise(resolve => setTimeout(resolve, holdMs))
       }
+      if (sessionFactsHold !== null) await sessionFactsHold
       const state = getAppState()
       const anthropicWindow = anthropicWindowFact()
       const openaiWindow = openaiWindowFact()

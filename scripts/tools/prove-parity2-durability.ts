@@ -2,6 +2,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { inProcessServerConfig, seatInProcessServer } from '../lib/mcpInProcess.ts'
 
 const SCRATCH = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'parity2-durability-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
@@ -20,7 +21,8 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
   process.env.MERCURY_MCP_CALL_IDLE_MINUTES = '0.002'
   const { Client } = await import('@modelcontextprotocol/client')
   const { InMemoryTransport, Server } = await import('@modelcontextprotocol/server')
-  const { callMCPToolWithUrlElicitationRetry, mcpCallIdleLimitMs } = await import('../../src/services/mcp/client.ts')
+  const mcp = await import('../../src/services/mcp/client.ts')
+  const { callMCPToolWithUrlElicitationRetry, mcpCallIdleLimitMs } = mcp
 
   t('the idle knob reads 120ms from the minutes flag', mcpCallIdleLimitMs() === 120)
 
@@ -66,9 +68,10 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
     name: 'prover',
     client,
     capabilities: {},
-    config: { type: 'host', name: 'prover', scope: 'session' } as never,
+    config: inProcessServerConfig('prover'),
     cleanup: async () => {},
   }
+  const unseat = seatInProcessServer(mcp, connection)
 
   const parentFor = (id: string, name: string) => ({
     message: { content: [{ type: 'tool_use', id, name, input: {} }] },
@@ -135,6 +138,7 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
     JSON.stringify(progressSeen),
   )
   delete process.env.MERCURY_MCP_CALL_IDLE_MINUTES
+  unseat()
   await client.close().catch(() => {})
   await server.close().catch(() => {})
 }

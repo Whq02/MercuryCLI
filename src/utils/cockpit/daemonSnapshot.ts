@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { daemonControlRpc, daemonStatePath } from '../../daemon/controlSocket.js'
 import { MERCURY_DAEMON_PROTO } from '../../daemon/protocol.js'
 import { isSaturnSchedulingEnabled } from '../../tools/ScheduleCronTool/prompt.js'
+import { thisMercuryCommand } from '../../services/privateChannel/installPath.js'
 import { type Snapshot } from './types.js'
 
 function versionNoteFor(rec: { proto?: unknown }): string {
@@ -64,7 +65,7 @@ export function daemonSnapshot(): Snapshot {
         if (fresh && !pingVerdict!.ok) {
           return {
             state: 'unavailable',
-            reason: `pid ${rec.pid} alive but control socket unresponsive — wedged? (restart: \`mercury daemon\`)`,
+            reason: `pid ${rec.pid} alive but control socket unresponsive — wedged? (restart: \`${thisMercuryCommand()} daemon\`)`,
             source: 'daemon',
           }
         }
@@ -76,7 +77,7 @@ export function daemonSnapshot(): Snapshot {
       }
       return {
         state: 'unavailable',
-        reason: `stale record · pid ${rec.pid} not running (run \`mercury daemon\` to restart)`,
+        reason: `stale record · pid ${rec.pid} not running (run \`${thisMercuryCommand()} daemon\` to restart)`,
         source: 'daemon',
       }
     }
@@ -85,11 +86,11 @@ export function daemonSnapshot(): Snapshot {
     return {
       state: 'off',
       reason: cronReady
-        ? 'opt-in: run `mercury daemon` (cron substrate ready)'
-        : 'opt-in: run `mercury daemon`',
+        ? `opt-in: run \`${thisMercuryCommand()} daemon\` (cron substrate ready)`
+        : `opt-in: run \`${thisMercuryCommand()} daemon\``,
       source: 'daemon',
     }
   } catch {
-    return { state: 'off', reason: 'opt-in: run `mercury daemon`', source: 'daemon' }
+    return { state: 'off', reason: `opt-in: run \`${thisMercuryCommand()} daemon\``, source: 'daemon' }
   }
 }

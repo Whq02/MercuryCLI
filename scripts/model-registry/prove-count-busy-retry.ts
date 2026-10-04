@@ -36,11 +36,16 @@ function check(label: string, condition: boolean, detail?: unknown): void {
 }
 const show = (value: unknown): string => JSON.stringify(value)
 
-type Scripted = { status: number; headers?: Record<string, string>; body: unknown }
+type Scripted = { status: number; headers?: Record<string, string>; body: unknown; hold?: boolean }
 type Hit = { atMs: number; path: string; body: Record<string, unknown>; headers: Record<string, string | string[] | undefined> }
 let script: Scripted[] = []
 const hits: Hit[] = []
+const held: ServerResponse[] = []
 const answer = (res: ServerResponse, scripted: Scripted): void => {
+  if (scripted.hold === true) {
+    held.push(res)
+    return
+  }
   res.writeHead(scripted.status, { 'content-type': 'application/json', ...(scripted.headers ?? {}) })
   res.end(JSON.stringify(scripted.body))
 }
@@ -150,6 +155,15 @@ try {
     const g = await leg([{ status: 500, body: { type: 'error', error: { type: 'api_error', message: 'Internal server error' } } }, counted(23)], () => countMessagesTokensWithAPI(messages, []))
     check('a 500 then 200 rides the same ladder: the exact count comes back after two requests', g.result === 23 && g.hits.length === 2, { result: g.result, hits: g.hits.length })
   }
+  {
+    const patienceMs = COUNT_RETRY_BUDGET_MS + 5_000
+    const k = await leg([{ status: 200, body: null, hold: true }], () =>
+      Promise.race([countMessagesTokensWithAPI(messages, []), new Promise<'pending'>(resolve => setTimeout(() => resolve('pending'), patienceMs))]),
+    )
+    check(`a box that accepts the count and never answers: the count settles null at its own ${COUNT_RETRY_BUDGET_MS / 1000} s deadline (base: it waits the client's 600 s — still pending after ${patienceMs / 1000} s)`, k.result === null && k.elapsedMs >= COUNT_RETRY_BUDGET_MS - 200 && k.elapsedMs < patienceMs, { result: k.result, elapsedMs: k.elapsedMs })
+    check('the stalled request is not retried: one request reached the box', k.hits.length === 1, k.hits.length)
+    check('the debug log says no answer came within the budget and the caller keeps its estimate', k.lines.some(line => line.includes("no answer within the count's 15 s") && line.includes('not retried') && line.includes('the caller keeps its estimate')), k.lines)
+  }
 
   console.log('\nthe create probe on the same wire')
   {
@@ -170,6 +184,7 @@ try {
   }
 } finally {
   Math.random = realRandom
+  for (const res of held) res.destroy()
   if (origin.listening) await new Promise<void>(resolve => origin.close(() => resolve()))
   rmSync(home, { recursive: true, force: true })
 }

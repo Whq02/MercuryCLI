@@ -62,6 +62,7 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(configHome, [projDir])
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { PERMISSION_MODES } = await import('../../src/types/permissions.ts')
+const { MODE_GLOSS } = await import('../../src/utils/settings/validationTips.ts')
 const acp = await import('@agentclientprotocol/sdk')
 
 type Harness = {
@@ -123,6 +124,8 @@ try {
   check('the permission-mode config option lists the same words', j((configured?.options ?? []).map(o => o.value)) === j([...PERMISSION_MODES]), j(configured))
   const names = (created.modes?.availableModes ?? []).map(m => m.name)
   check("the names are the product's titles (Sovereign Mode, Don't Ask, Apollo Mode among them)", names.includes('Sovereign Mode') && names.includes("Don't Ask") && names.includes('Apollo Mode'), j(names))
+  const glossed = (created.modes?.availableModes ?? []).map(m => [m.id, m.description])
+  check("each mode's description is the product's one gloss (the settings tips' MODE_GLOSS), word for word", glossed.length > 0 && glossed.every(([id, description]) => description === MODE_GLOSS[id as keyof typeof MODE_GLOSS]), j(glossed))
   const unknown = await errorOf(h.agent.request('session/set_mode', { sessionId: sid, modeId: 'frobnicate' }))
   check('an unknown word is refused and the refusal lists the modes', unknown.includes("unknown mode 'frobnicate'") && unknown.includes('sovereign') && unknown.includes('apollo'), unknown)
 

@@ -30,7 +30,7 @@
 # gate-watch: src/tools/SendMessageTool/SendMessageTool.ts src/tools/LiveCommsTool/LiveCommsTool.ts
 # gate-watch: src/utils/crew/crewBirth.ts src/chatLauncher.tsx
 # gate-watch: src/services/crew/liveComms* src/services/crew/liveMessages*
-# gate-watch: src/types/command.ts
+# gate-watch: src/types/command.ts src/services/privateChannel/installPath.ts
 # gate-watch: src/utils/timeouts.ts src/utils/shell/outputLimits.ts src/utils/managedEnvConstants.ts
 # gate-watch: src/utils/subprocessEnv.ts src/tools/AgentTool/reviewerPolicy.ts
 set -u

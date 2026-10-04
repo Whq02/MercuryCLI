@@ -187,7 +187,7 @@ and prune the registrations of windows that are provably gone; the health check'
 row and `mercury health processes` read the processes live and write nothing
 under the config home, and an ending records what it did in that census.
 Nothing is ever ended on its own. The row's destructive remedy shows exactly that list and asks `End these <N>
-stale processes?`; it ends them through Mercury's own roads first (the daemon
+stale processes?`; it asks each process to end itself first (the daemon
 re-checks identity and staleness inside itself before its shutdown or kill),
 then a termination signal, a bounded wait (`MERCURY_PROCESS_SWEEP_WAIT_MS`;
 the closure allowance before a window, runner or daemon may read stale is

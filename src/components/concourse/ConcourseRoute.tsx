@@ -44,6 +44,7 @@ import { keyHintLabel } from '../mercury-ui/keyHintLabel.js';
 import { ConcourseScreen } from './ConcourseScreen.js';
 import { SessionWaitingRoom } from './SessionWaitingRoom.js';
 import { ConcourseLockup } from './ConcourseHeader.js';
+import { thisMercuryCommand } from '../../services/privateChannel/installPath.js';
 
 
 let lastCoherentSnapshot: ConcourseSnapshotV1 | null = null
@@ -1225,7 +1226,7 @@ function LiveConcourse(): React.ReactNode {
         noteControl('strip:composer', {
           state: 'failed',
           reason: 'the daemon that hosts background sessions is not running',
-          next: 'start it with `mercury daemon` · your draft is kept',
+          next: `start it with \`${thisMercuryCommand()} daemon\` · your draft is kept`,
         })
         return
       }
@@ -1238,7 +1239,7 @@ function LiveConcourse(): React.ReactNode {
           noteControl('strip:composer', {
             state: 'failed',
             reason: 'the daemon did not start (see .mercury/daemon/daemon.log)',
-            next: 'run `mercury daemon` yourself · your draft is kept',
+            next: `run \`${thisMercuryCommand()} daemon\` yourself · your draft is kept`,
           })
           return
         }

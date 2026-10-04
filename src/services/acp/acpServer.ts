@@ -51,25 +51,16 @@ import { selfScriptPath } from '../../daemon/daemonBuild.js'
 import { isAutoModeGateEnabled, isBypassPermissionsModeDisabled } from '../../utils/permissions/permissionSetup.js'
 import { PERMISSION_MODES as MODE_WORDS, type PermissionMode } from '../../types/permissions.js'
 import { permissionModeTitle } from '../../utils/permissions/PermissionMode.js'
+import { MODE_GLOSS } from '../../utils/settings/validationTips.js'
 import type { ElicitationAnswer, ElicitationRequestParams, PermissionAnswer } from '../../runner/wire/methods.js'
 import { questionFormOf } from './questionForm.js'
-
-const MODE_DESCRIPTIONS: Record<PermissionMode, string> = {
-  default: 'ask before consequential tools',
-  dontAsk: 'skip the prompts and deny instead',
-  implement: 'file edits pre-approved',
-  sovereign: 'every tool call auto-approved — asks for your consent first',
-  flow: 'the safer autonomous mode',
-  bubble: 'ask before consequential tools',
-  apollo: 'the pre-flight interview before the work',
-}
 
 function refuse(sentence: string): never {
   throw new RequestError(-32602, sentence)
 }
 
 function permissionModesOffered(): ReadonlyArray<{ id: PermissionMode; name: string; description: string }> {
-  return MODE_WORDS.filter(mode => mode !== 'sovereign' || !isBypassPermissionsModeDisabled()).map(mode => ({ id: mode, name: permissionModeTitle(mode), description: MODE_DESCRIPTIONS[mode] }))
+  return MODE_WORDS.filter(mode => mode !== 'sovereign' || !isBypassPermissionsModeDisabled()).map(mode => ({ id: mode, name: permissionModeTitle(mode), description: MODE_GLOSS[mode] }))
 }
 
 function savedModePath(cwd: string, sessionId: string): string {

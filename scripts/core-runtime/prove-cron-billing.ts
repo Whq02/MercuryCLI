@@ -266,7 +266,7 @@ async function mountPopup(columns: number, rowCount: number, width: number, rowB
   }
 }
 
-section("§3b THE POPUP, rendered from source: the API-key slot paints 'This session: …' and, beneath it, 'Scheduled: …' (red on the base: the session line stands alone)")
+section("§3b THE POPUP, rendered from source: the API-key slot paints 'Scheduled: …' as its own row with the share's figure, and no session tally (the owner's word: the popup shows no per-session line)")
 const popupFrames = new Map<string, string>()
 {
   let token = 40
@@ -281,9 +281,9 @@ const popupFrames = new Map<string, string>()
       if (line.startsWith('$') && lines.length > 0) lines[lines.length - 1] = `${lines[lines.length - 1]} ${line}`
       else lines.push(line)
     }
-    const session = lines.findIndex(line => line.startsWith('This session: 1,800 input · 80 output tokens · $'))
+    const session = lines.findIndex(line => line.startsWith('This session'))
     const scheduled = lines.findIndex(line => line.startsWith('Scheduled: 1,500 input · 60 output tokens'))
-    check(`${columns}x${rowCount}: the session line stands, and the scheduled row stands right beneath it with the share's own figure`, session >= 0 && scheduled === session + 1 && /^Scheduled: 1,500 input · 60 output tokens · \$[0-9.]+$/.test(lines[scheduled] ?? ''), lines.filter(line => line.startsWith('This session') || line.startsWith('Scheduled')).join(' | ') || frame.slice(0, 400))
+    check(`${columns}x${rowCount}: the scheduled row stands on its own with the share's figure, and no session tally is painted`, session === -1 && scheduled >= 0 && /^Scheduled: 1,500 input · 60 output tokens · \$[0-9.]+$/.test(lines[scheduled] ?? ''), lines.filter(line => line.startsWith('This session') || line.startsWith('Scheduled')).join(' | ') || frame.slice(0, 400))
   }
 }
 

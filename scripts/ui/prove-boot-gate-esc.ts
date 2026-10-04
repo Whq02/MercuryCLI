@@ -31,7 +31,7 @@ t.section('§2 — the walk footers keep naming the real move per step')
   t.check("theme: 'esc exits'", walk.includes("theme: '↑↓ preview · ↵ keep · esc exits'"))
   t.check("provider: 'esc back'", walk.includes("provider: '↑↓ move · ↵ choose · esc back'"))
   t.check("guardrails: 'esc back'", walk.includes("guardrails: '↵ continue · esc back'"))
-  t.check("terminal: 'esc skip'", walk.includes("terminal: '↑↓ move · ↵ select · esc skip'"))
+  t.check("terminal: 'esc back'", walk.includes("terminal: '↑↓ move · ↵ select · esc back'"))
 }
 
 t.section('§B9 — the first-run gates: one refusal code, the fit shed, the settle beat')

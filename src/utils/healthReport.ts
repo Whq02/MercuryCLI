@@ -13,7 +13,7 @@ import { workflowRunsRoot } from '../tools/WorkflowTool/runManifest.js'
 import { execFile, spawn } from 'node:child_process'
 import chalk from 'chalk'
 import { NODE_FLOOR_REASON, NODE_SUPPORT, nodeRuntimeProjection } from './runtime/nodePolicy.js'
-import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs'
 import { mkdir, readFile, rename } from 'node:fs/promises'
 import { cpus, loadavg } from 'node:os'
 import { deviceHeadroom } from './cockpit/deviceHeadroom.js'
@@ -69,12 +69,12 @@ import {
   getLspServerManager,
 } from '../services/lsp/manager.js'
 import { listCapabilityKills } from './permissions/capabilityGate.js'
-import { getEngineModel, parseUserSpecifiedModel, renderModelChip } from './model/model.js'
+import { getEngineModel, getUserSpecifiedModelSetting, parseUserSpecifiedModel, renderModelChip } from './model/model.js'
 import {
   describeFrontierDecision,
   frontierOperatorDecision,
 } from './model/frontierPolicy.js'
-import { computedDefault, describeComputedDefault } from './model/computedDefault.js'
+import { computedDefault, describeComputedDefault, mostRecentSignInFamily } from './model/computedDefault.js'
 import { providerDisplayName } from '../services/providers/routeLaw.js'
 import {
   getInstructionBundle,
@@ -119,10 +119,28 @@ import {
 } from './crew/roleResolver.js'
 import { recognizeModelId, unrecognisedModelIdReason } from '../services/providers/idSpaces.js'
 
-export async function computeWorkingTreeSha(cwdDir: string): Promise<string | null> {
-  const { mkdirSync, mkdtempSync, rmSync } = await import('node:fs')
+const treeScratchDirs = new Set<string>()
+let treeScratchSweepArmed = false
+
+function sweepTreeScratch(): void {
+  for (const dir of treeScratchDirs) {
+    try {
+      rmSync(dir, { recursive: true, force: true })
+    } catch {}
+  }
+  treeScratchDirs.clear()
+}
+
+export async function computeWorkingTreeSha(cwdDir: string, opts?: { signal?: AbortSignal }): Promise<string | null> {
+  const { mkdirSync, mkdtempSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const idxDir = mkdtempSync(join(tmpdir(), 'gate-tree-'))
+  treeScratchDirs.add(idxDir)
+  if (!treeScratchSweepArmed) {
+    treeScratchSweepArmed = true
+    process.once('exit', sweepTreeScratch)
+  }
+  const signal = opts?.signal
   const idx = join(idxDir, 'index')
   const objects = join(idxDir, 'objects')
   mkdirSync(objects, { recursive: true })
@@ -130,7 +148,7 @@ export async function computeWorkingTreeSha(cwdDir: string): Promise<string | nu
     execFile(
       'git',
       ['rev-parse', '--git-path', 'objects'],
-      { windowsHide: true, cwd: cwdDir, env: { ...subprocessEnv() }, timeout: 15_000 },
+      { windowsHide: true, cwd: cwdDir, env: { ...subprocessEnv() }, timeout: 15_000, ...(signal ? { signal } : {}) },
       (err, stdout) => resolve(err ? null : stdout.trim()),
     )
   })
@@ -146,11 +164,12 @@ export async function computeWorkingTreeSha(cwdDir: string): Promise<string | nu
       execFile(
         'git',
         args,
-        { windowsHide: true, cwd: cwdDir, env, timeout: 15_000 },
+        { windowsHide: true, cwd: cwdDir, env, timeout: 15_000, ...(signal ? { signal } : {}) },
         (err, stdout) => resolvePromise(err ? null : stdout.trim()),
       )
     })
   try {
+    if (signal?.aborted) return null
     if ((await run(['read-tree', 'HEAD'])) === null) return null
     if ((await run(['add', '-A', ...projectScopePathspec(cwdDir)])) === null) return null
     const tree = await run(['write-tree', '--missing-ok'])
@@ -160,6 +179,7 @@ export async function computeWorkingTreeSha(cwdDir: string): Promise<string | nu
   } finally {
     try {
       rmSync(idxDir, { recursive: true, force: true })
+      treeScratchDirs.delete(idxDir)
     } catch {
     }
   }
@@ -503,6 +523,12 @@ const PROVIDER_AUTH_PRESENTATION: Record<string, { label: string; signIn: string
 function routedAuthFamily(): string {
   try {
     const { declaredRouteOf } = require('../services/providers/routeLaw.js') as typeof import('../services/providers/routeLaw.js')
+    if (getUserSpecifiedModelSetting() === null) {
+      const decision = computedDefault()
+      if (decision.provider !== null) return decision.provider
+      const signedIn = mostRecentSignInFamily()
+      if (signedIn !== undefined) return signedIn
+    }
     return declaredRouteOf(getEngineModel()) ?? 'anthropic'
   } catch {
     return 'anthropic'
@@ -942,7 +968,8 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         {
           id: 'build-fresh',
           label: 'Running build',
-          run: async () => {
+          run: async probeCtx => {
+            const signal = probeCtx?.signal
             const entry = process.argv[1]
             if (!entry || !existsSync(entry)) {
               return {
@@ -962,7 +989,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             if (existsSync(stampPath)) {
               try {
                 const stamped = (await readFile(stampPath, 'utf8')).trim()
-                const current = await computeWorkingTreeSha(root)
+                const current = await computeWorkingTreeSha(root, { signal })
                 if (stamped.length > 0 && current !== null && stamped === current) {
                   return {
                     status: 'ok',
@@ -1084,7 +1111,8 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         {
           id: 'gate',
           label: 'Green gate',
-          run: async () => {
+          run: async probeCtx => {
+            const signal = probeCtx?.signal
             let verdictRaw: unknown = null
             try {
               verdictRaw = JSON.parse(await readFile(gateVerdictPath(), 'utf8'))
@@ -1101,7 +1129,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                     : 'a gate verdict artifact exists but this project has NO gate (scripts/run-all-suites.sh absent) — project-authored data is not certified as Mercury evidence',
               }
             }
-            const currentTree = await computeWorkingTreeSha(cwd)
+            const currentTree = await computeWorkingTreeSha(cwd, { signal })
             const interpreted = interpretGateVerdict(
               verdict,
               { sha: head.sha, dirty: head.dirty, treeSha: currentTree },

@@ -14,6 +14,7 @@ import type { AgentResultEnvelope } from '../../src/services/agentResults/contra
 import { makeOwnerKey } from '../../src/services/run/ownerKey.js'
 import { OUTCOME_CAP_CHARS } from '../../src/tools/WorkflowTool/agentTranscriptReader.js'
 import { workflowRunsRoot, RUN_MANIFEST_VERSION } from '../../src/tools/WorkflowTool/runManifest.js'
+import { getOriginalCwd, setOriginalCwd } from '../../src/bootstrap/state.js'
 import { entryToRecord } from '../../src/fabric/entryCodec.js'
 import { ordinalOf } from '../../src/fabric/ordinal.js'
 
@@ -132,9 +133,11 @@ console.log('\n=== items 3: mercury://agent/<id>?child=report (canonical project
   check('envelope advertises ?child=report', formatEnvelopeBlock(env).includes('mercury://agent/ag-done?child=report'))
 }
 
-console.log('\n=== item 4: one Inspect of mercury://workflow/<runId> ===')
+console.log('\n=== item 4: one Inspect of mercury://workflow/<runId> (runs live beside the session\'s starting folder) ===')
 {
   const runId = 'wf-vigil-1'
+  const startingFolderBefore = getOriginalCwd()
+  setOriginalCwd(scratch)
   const runDir = join(workflowRunsRoot(scratch), runId)
   const transcriptDir = join(runDir, 'transcripts')
   mkdirSync(transcriptDir, { recursive: true })
@@ -188,6 +191,7 @@ console.log('\n=== item 4: one Inspect of mercury://workflow/<runId> ===')
   check('unknown run answers absent', noRun.state === 'absent')
   const noAgent = await resolveRef(workflowAdapter, `mercury://workflow/${runId}?child=zz`)
   check('unknown agent child answers absent + names the real agents', noAgent.state === 'absent' && noAgent.state === 'absent' && (noAgent as { note: string }).note.includes('a1'))
+  setOriginalCwd(startingFolderBefore)
 }
 
 rmSync(scratch, { recursive: true, force: true })

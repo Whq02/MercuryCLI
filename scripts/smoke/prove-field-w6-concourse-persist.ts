@@ -57,7 +57,7 @@ console.log('§2 — still exactly one CLI writer of the persisted field')
   const setCalls = (main.match(/setConcourseEnabled\(/g) ?? []).length
   check('setConcourseEnabled is called exactly once in main.tsx', setCalls === 1, `found ${setCalls}`)
   check('the switch is read last-wins from argv', main.includes("[...process.argv].reverse().find(a => a === '--concourse-off' || a === '--concourse-on')"))
-  check('run and runner are built without the interactive boot options', /INTERACTIVE_BOOT_OPTIONS\.has\(option\.long \?\? ''\)\) runCommand\.addOption/.test(main) && /!INTERACTIVE_BOOT_OPTIONS\.has\(option\.long \?\? ''\)\) runnerCommand\.addOption/.test(main))
+  check('run and runner are built without the interactive boot options (each skips them before it adds the root options)', /if \(INTERACTIVE_BOOT_OPTIONS\.has\(option\.long \?\? ''\)\) continue\n\s*runCommand\.addOption\(/.test(main) && /INTERACTIVE_BOOT_OPTIONS\.has\(option\.long \?\? ''\)\) continue\n\s*runnerCommand\.addOption\(/.test(main))
 }
 
 process.exit(failures === 0 ? 0 : 1)

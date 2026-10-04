@@ -33,10 +33,12 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${!ok && detail ? `: ${detail}` : ''}`)
   if (!ok) failures++
 }
+let heldPipeOpen = false
 async function run(argv: string[], input = '', stdin: 'close' | 'open' | 'late' = 'close', uid?: number): Promise<{ code: number | null; out: string; err: string }> {
   const child = spawn('node', ['--require', uidPreload, dist, ...argv], { cwd: root, env: { ...env, ...(uid === undefined ? {} : { PROOF_UID: String(uid) }) }, stdio: ['pipe', 'pipe', 'pipe'] })
   let out = '', err = ''
-  child.stdout.on('data', data => { out += data; if (stdin === 'open') child.stdin.end() })
+  heldPipeOpen = stdin === 'open'
+  child.stdout.on('data', data => { out += data; if (stdin === 'open') { heldPipeOpen = false; child.stdin.end() } })
   child.stderr.on('data', data => { err += data })
   child.stdin.on('error', () => {})
   if (stdin === 'open' && input) child.stdin.write(input)
@@ -117,14 +119,15 @@ try {
   const measureStart = async (input: string, stdin: 'close' | 'open') => {
     const began = performance.now()
     let startMs: number | null = null
-    void api.messageRequestStarted(api.messageRequests().length + 1).then(() => { startMs = performance.now() - began })
+    let pipeOpenAtStart: boolean | null = null
+    void api.messageRequestStarted(api.messageRequests().length + 1).then(() => { startMs = performance.now() - began; pipeOpenAtStart = heldPipeOpen })
     const result = await run(['run', 'hello'], input, stdin)
-    return { ...result, startMs: startMs as number | null }
+    return { ...result, startMs: startMs as number | null, pipeOpenAtStart: pipeOpenAtStart as boolean | null }
   }
   const closed = await measureStart('', 'close')
   for (const input of ['', 'context on a held pipe']) {
     const open = await measureStart(input, 'open')
-    check('a prompt argument starts while its input pipe stays open', open.code === 0 && open.out.trim() === 'The run answered.' && open.startMs !== null && closed.startMs !== null && open.startMs - closed.startMs < 1_200, JSON.stringify({ closedMs: closed.startMs, ...open }))
+    check('a prompt argument starts while its input pipe stays open (the request reached the wire before the proof released the pipe, and the run answered)', open.code === 0 && open.out.trim() === 'The run answered.' && open.startMs !== null && open.pipeOpenAtStart === true, JSON.stringify({ closedMs: closed.startMs, ...open }))
     console.log(`run start: closed=${closed.startMs}ms held=${open.startMs}ms inputBytes=${input.length}`)
     const request = JSON.stringify(api.messageRequests().at(-1)?.body)
     if (input) check('piped context is delimited after the argument', request.includes('hello\\n\\n<stdin>\\ncontext on a held pipe\\n</stdin>'), request)

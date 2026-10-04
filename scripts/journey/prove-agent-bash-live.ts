@@ -51,6 +51,7 @@ interface Hit {
 interface Fixture {
   base: string
   hits: Hit[]
+  routeSeen(route: string, ceilingMs: number): Promise<boolean>
   close(): Promise<void>
 }
 
@@ -214,6 +215,26 @@ function parentReport(body: unknown): string {
 
 async function startFixture(port: number, opts: { background: boolean; classifierBlocks?: boolean }): Promise<Fixture> {
   const hits: Hit[] = []
+  const waiters: Array<{ route: string; settle: (seen: boolean) => void }> = []
+  const noteHit = (hit: Hit): void => {
+    hits.push(hit)
+    for (const waiter of waiters.splice(0)) {
+      if (waiter.route === hit.route) waiter.settle(true)
+      else waiters.push(waiter)
+    }
+  }
+  const routeSeen = (route: string, ceilingMs: number): Promise<boolean> => {
+    if (hits.some(h => h.route === route)) return Promise.resolve(true)
+    return new Promise<boolean>(resolve => {
+      const waiter = { route, settle: (seen: boolean) => { clearTimeout(ceiling); resolve(seen) } }
+      const ceiling = setTimeout(() => {
+        const at = waiters.indexOf(waiter)
+        if (at !== -1) waiters.splice(at, 1)
+        resolve(false)
+      }, Math.max(1, ceilingMs))
+      waiters.push(waiter)
+    })
+  }
   const gptModel = {
     id: GPT_MODEL,
     slug: GPT_MODEL,
@@ -251,7 +272,7 @@ async function startFixture(port: number, opts: { background: boolean; classifie
       const model = typeof (body as { model?: unknown })?.model === 'string' ? (body as { model: string }).model : 'fixture'
       const { route, tools, results } = routeOf(body, dialect)
       const n = hits.length + 1
-      hits.push({ n, route, dialect, streaming: (body as { stream?: unknown })?.stream === true, model, tools, results, body })
+      noteHit({ n, route, dialect, streaming: (body as { stream?: unknown })?.stream === true, model, tools, results, body })
       let blocks: Block[]
       let usage = { input: 40, output: 8 }
       switch (route) {
@@ -309,6 +330,7 @@ async function startFixture(port: number, opts: { background: boolean; classifie
   return {
     base: `http://127.0.0.1:${bound}`,
     hits,
+    routeSeen,
     close: () => new Promise<void>(resolve => server.close(() => resolve())),
   }
 }
@@ -493,7 +515,7 @@ const PTY_LEGS: Record<string, PtyLeg> = {
     name: 'default-fg',
     port: 0,
     background: false,
-    settings: { permissions: { defaultMode: 'default' } },
+    settings: { guardrails: { mode: 'default' } },
     argv: [],
     sends: [cardSend('card')],
     total: 450,
@@ -502,7 +524,7 @@ const PTY_LEGS: Record<string, PtyLeg> = {
     name: 'default-bg',
     port: 0,
     background: true,
-    settings: { permissions: { defaultMode: 'default' } },
+    settings: { guardrails: { mode: 'default' } },
     argv: [],
     sends: [
       cardSend('card'),
@@ -543,7 +565,7 @@ const PTY_LEGS: Record<string, PtyLeg> = {
     name: 'openai-fg',
     port: 0,
     background: false,
-    settings: { permissions: { defaultMode: 'default' } },
+    settings: { guardrails: { mode: 'default' } },
     argv: ['--model', GPT_MODEL],
     sends: [cardSend('card')],
     total: 450,
@@ -624,7 +646,7 @@ function headlessEnv(world: World, fixtureBase: string): NodeJS.ProcessEnv {
   }
 }
 
-async function runHosted(world: World, fixture: Fixture, args: string[], turns: Array<{ prompt: string; waitFor?: () => boolean }>): Promise<HeadlessRun> {
+async function runHosted(world: World, fixture: Fixture, args: string[], turns: Array<{ prompt: string; awaitRoute?: string }>): Promise<HeadlessRun> {
   const asks: Array<Record<string, unknown>> = []
   const host = hostRunner({ node: nodeBin!, dist: DIST, argv: args, cwd: world.cwd, home: world.cwd, env: headlessEnv(world, fixture.base) })
   host.onAsk(params => {
@@ -636,7 +658,7 @@ async function runHosted(world: World, fixture: Fixture, args: string[], turns: 
   try {
     await host.initialize()
     for (const turn of turns) {
-      while (turn.waitFor && !turn.waitFor() && Date.now() < deadline) await new Promise(r => setTimeout(r, 200))
+      if (turn.awaitRoute) await fixture.routeSeen(turn.awaitRoute, deadline - Date.now())
       const before = host.rows.length
       await host.prompt(turn.prompt)
       await host.waitFor('the turn settles', row => row.type === 'outcome' && host.rows.indexOf(row) >= before, Math.max(1_000, deadline - Date.now()))
@@ -696,7 +718,7 @@ async function runHeadlessStdio(): Promise<void> {
   console.log('\n— leg headless-stdio (background agent · the stdio prompt tool) —')
   const before = failures
   const fixture = await startFixture(Number(process.env.AB_PORT_HEADLESS_STDIO ?? '0'), { background: true })
-  const world = seedWorld({ permissions: { defaultMode: 'default' } })
+  const world = seedWorld({ guardrails: { mode: 'default' } })
   let run: HeadlessRun
   try {
     run = await runHosted(
@@ -705,7 +727,7 @@ async function runHeadlessStdio(): Promise<void> {
       ['--model', 'claude-opus-5'],
       [
         { prompt: ASK },
-        { prompt: FOLLOW_UP, waitFor: () => fixture.hits.some(h => h.route === 'seat-done') },
+        { prompt: FOLLOW_UP, awaitRoute: 'seat-done' },
       ],
     )
   } finally {
@@ -726,7 +748,7 @@ async function runHeadlessPlain(): Promise<void> {
   console.log('\n— leg headless-plain (foreground agent · no prompt tool) —')
   const before = failures
   const fixture = await startFixture(Number(process.env.AB_PORT_HEADLESS_PLAIN ?? '0'), { background: false })
-  const world = seedWorld({ permissions: { defaultMode: 'default' } })
+  const world = seedWorld({ guardrails: { mode: 'default' } })
   let run: HeadlessRun
   try {
     run = await runHostless(world, fixture, ['run', '--input', 'rows', '--format', 'rows', '--model', 'claude-opus-5'], [{ prompt: ASK }])
