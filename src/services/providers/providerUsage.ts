@@ -284,6 +284,25 @@ export function sessionSpendOfFacts(
   return spend
 }
 
+export interface ModelSessionSpend {
+  model: string
+  spend: ProviderSessionSpend
+}
+
+export function sessionSpendByModel(
+  facts: Pick<UsageFactsV1, 'modelSpend'>,
+  route: RouterProviderId | 'unrecognised',
+): ModelSessionSpend[] {
+  if (facts.modelSpend === undefined) return []
+  const own = facts.modelSpend.filter(row => row.workload === undefined && (declaredRouteOf(row.model) ?? 'unrecognised') === route)
+  const out: ModelSessionSpend[] = []
+  for (const row of own) {
+    if (out.some(entry => entry.model === row.model)) continue
+    out.push({ model: row.model, spend: spendOfRows(own.filter(r => r.model === row.model), () => true) })
+  }
+  return out
+}
+
 function scheduledUsage(): { [modelName: string]: ModelUsage } {
   return getWorkloadUsage()[WORKLOAD_CRON] ?? {}
 }

@@ -8,6 +8,7 @@ import {
 } from '../../services/api/usage.js'
 import { isClaudeAISubscriber } from '../../utils/auth.js'
 import { recentSignIns } from '../../utils/model/computedDefault.js'
+import { renderModelName } from '../../utils/model/model.js'
 import type { RouterProviderId } from '../../utils/router/providers/types.js'
 import {
   CREDITS_UNREPORTED_WORDS,
@@ -18,6 +19,7 @@ import {
   providerSessionSpend,
   providerUsageView,
   refreshProviderUsage,
+  sessionSpendByModel,
   sessionSpendOfFacts,
   usageCarryWords,
   usageCreditsLine,
@@ -191,11 +193,15 @@ function workloadLines(spend: ProviderSessionSpend, withCost: boolean): string[]
   return lines
 }
 
+export const MODEL_ROW_INDENT = '  '
+
 export function sessionSpendLines(route: RouterProviderId, screenSpend: ProviderSessionSpend, withCost: boolean): string[] {
-  const session = sessionSpendOfFacts(getFocusedSessionConnector().usage(), route)
+  const facts = getFocusedSessionConnector().usage()
+  const session = sessionSpendOfFacts(facts, route)
   if (session === null) return workloadLines(screenSpend, withCost)
-  const own = session.models === 0 ? SESSION_SPEND_NONE : tokensLine(SESSION_SPEND_LABEL, session, withCost)
-  return [own, ...workloadLines(session, withCost)]
+  if (session.models === 0) return [SESSION_SPEND_NONE, ...workloadLines(session, withCost)]
+  const perModel = sessionSpendByModel(facts, route).map(entry => `${MODEL_ROW_INDENT}${tokensLine(renderModelName(entry.model), entry.spend, withCost)}`)
+  return [tokensLine(SESSION_SPEND_LABEL, session, withCost), ...perModel, ...workloadLines(session, withCost)]
 }
 
 function SlotSpend({ active, route, spend, withCost }: { active: boolean; route: RouterProviderId; spend: ProviderSessionSpend; withCost: boolean }): React.ReactNode {
@@ -1007,6 +1013,7 @@ function AnthropicUsageSection({ width, openToken }: { width?: number; openToken
       <Box flexDirection="column" marginTop={1}>
         <SlotHeading text="Subscription" />
         {anthropicSection}
+        {subscriber ? <SlotSpend active={view.activeEntry?.kind === 'subscription-oauth'} route="anthropic" spend={view.sessionSpend} withCost={false} /> : null}
       </Box>
       <ApiKeySlot
         presentLabel={keyEntry?.label}
