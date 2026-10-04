@@ -136,7 +136,7 @@ console.log("Q5 the only session's release: the board stays, the reason shows")
   const stopAt = route.indexOf('stopSession: sessionId => {')
   const stopBody = route.slice(stopAt, route.indexOf('removeSession: sessionId => {', stopAt))
   check("the first x's refusal paints the daemon's sentence, else the wire's error and code — never a bare \"stop refused\"", stopBody.includes("reply.detail ?? reply.error ?? `stop refused${reply.code !== undefined ? ` (${reply.code})` : ''}`"))
-  check('with no daemon a dead runner is stopped in the record directly', stopBody.includes("daemon.stopConcourseSession(sessionId, 'operator', undefined)"))
+  check('with no daemon a dead runner is stopped in the record directly', stopBody.includes("workers.stopConcourseSession(sessionId, 'operator', undefined)"))
 }
 
 console.log('Q6 a refused chat-forward birth lands the face directly')
