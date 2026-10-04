@@ -263,7 +263,11 @@ the default; the other option is the oasis dark theme. You can change this
 later with `/appearance`.
 
 You can also choose "sign in later" to look around without connecting an
-account.
+account. When a provider key in your environment already signs a provider
+in, the sign-in step is not asked. In a terminal Mercury knows how to
+configure (Terminal.app, the VS Code family, Alacritty, Zed), a Terminal keys
+step offers to write one key binding into the terminal's own settings; it is
+off unless you choose it, and a backup is kept.
 
 Next, Mercury asks whether you trust the folder you opened. Nothing requested
 by a workspace configuration runs before you grant that trust. The grant
