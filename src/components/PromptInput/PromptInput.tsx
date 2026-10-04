@@ -53,13 +53,11 @@ import {
   exitCrewmateView,
   setMainChat,
 } from '../../state/crewmateViewHelpers.js'
-import { composerTargetTaskId } from '../../state/selectors.js'
 import { useComposerCrewmate, useViewedCrewmate } from '../tasks/useCrewmateView.js'
-import { CREWMATE_BETWEEN_TURNS_DETAIL, crewClearedWords, crewClearRefusedWords, crewmateEscBackWords, crewmateInterruptedWords, crewmateInterruptRefusedWords, crewmateQueuedWords, crewmateRefusedWords, crewmateResumedWords, operatorLinePlate } from '../../utils/cockpit/crewmateWords.js'
+import { crewClearedWords, crewClearRefusedWords, crewmateEscBackWords, crewmateInterruptedWords, crewmateInterruptRefusedWords } from '../../utils/cockpit/crewmateWords.js'
 import { crewStateLabel } from '../../services/engine-connector/crewFacts.js'
 import { clearCrewmate } from '../../state/crewLedger.js'
 import { interruptCrewmate } from '../tasks/crewmateInterrupt.js'
-import { queueCrewmateLine, refuseCrewmateLine } from '../tasks/crewmateQueue.js'
 import type { PromptInputMode } from '../../types/textInputTypes.js'
 import type { ImageDimensions } from '../../utils/imageResizer.js'
 import type { PastedContent } from '../../utils/config.js'
@@ -102,7 +100,6 @@ import {
   isConsoleComposing,
 } from '../../utils/cockpit/helmConsole.js'
 import { runConsoleAsk } from '../../utils/cockpit/helmConsoleAsk.js'
-import { classifyAgentViewSubmission } from './promptIntent.js'
 import { getModeFromInput, getValueFromInput } from './inputModes.js'
 import { normalizePastedInput } from '../../input-core/composer-document.js'
 import { useMaybeTruncateInput } from './useMaybeTruncateInput.js'
@@ -127,14 +124,13 @@ import { MercuryFileOpen } from '../MercuryFileOpen.js'
 import { setComposerInsert } from './composerInsert.js'
 import type { OverlaySurface } from './composerOverlay.js'
 import { useComposerModelDoors } from './useComposerModelDoors.js'
+import { useComposerSubmit } from './useComposerSubmit.js'
 import { MercuryContentSearch } from '../MercuryContentSearch.js'
 import { BackgroundTasksDialog } from '../tasks/BackgroundTasksDialog.js'
 import { isManageableTask } from '../tasks/taskStatusUtils.js'
 import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types.js'
-import { injectUserMessageToCrewmate } from '../../tasks/InProcessCrewmateTask/InProcessCrewmateTask.js'
-import { appendMessageToLocalAgent, isLocalAgentTask, queueOperatorMessage } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
+import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { getViewedCrewmateTask } from '../../state/selectors.js'
-import { sendLiveMessage } from '../../services/crew/liveComms.js'
 import { isCrewEnabled } from '../../utils/crewEnabled.js'
 import { getTheme, type Theme } from '../../utils/theme.js'
 import { useFocusedTranscript } from '../../hooks/useFocusedTranscript.js'
@@ -144,8 +140,7 @@ import { findSlashCommandPositions } from '../../utils/suggestions/commandSugges
 import { findSlackChannelPositions } from '../../utils/suggestions/slackChannelSuggestions.js'
 import { findTokenBudgetPositions } from '../../utils/tokenBudget.js'
 import type { TextHighlight } from '../../utils/textHighlighting.js'
-import { createUserMessage } from '../../utils/messages/factories.js'
-import { danglingReferences, getPastedTextRefNumLines, formatPastedTextRef, formatImageRef, parseReferences, pasteUnavailableLine } from '../../history.js'
+import { getPastedTextRefNumLines, formatPastedTextRef, formatImageRef, parseReferences } from '../../history.js'
 import { PASTE_THRESHOLD, getImageFromClipboard } from '../../utils/imagePaste.js'
 import { describeAttachedImage } from '../../utils/imageResizer.js'
 import { cacheImagePath, storeImage } from '../../utils/imageStore.js'
@@ -157,7 +152,6 @@ import {
   getNextPermissionMode,
 } from '../../utils/permissions/getNextPermissionMode.js'
 import { syncCrewmateMode } from '../../utils/crew/crewHelpers.js'
-import { parseDirectMemberMessage, sendDirectMemberMessage } from '../../utils/directMemberMessage.js'
 import { getEffortNotificationText } from '../EffortIndicator.js'
 import { isDefaultMode } from '../../utils/permissions/PermissionMode.js'
 import { getEmptyToolPermissionContext } from '../../Tool.js'
@@ -167,7 +161,7 @@ import { CompactWorkSummary, type CompactWorkControls, type CompactWorkFocus } f
 import { useOptionalKeybindingContext } from '../../keybindings/KeybindingContext.js'
 import { anyModalOverlayActive, topOverlay } from '../../context/overlayStack.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
-import { abortSpeculation, handleSpeculationAccept } from '../../services/PromptSuggestion/speculation.js'
+import { abortSpeculation } from '../../services/PromptSuggestion/speculation.js'
 import type { PromptInputHelpers } from '../../types/promptInputHelpers.js'
 import { composerBorderRole, composerBorderStyle } from '../mercury-ui/composerFloor.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
@@ -414,6 +408,10 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   }, [])
 
   const lastSelfWriteRef = useRef(input)
+  const writeDraft = useCallback((text: string): void => {
+    pendingInput.edit(text)
+    lastSelfWriteRef.current = text
+  }, [])
   const inputSelectionRangeRef = useRef<() => { start: number; end: number } | null>(
     () => null,
   )
@@ -458,13 +456,8 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   )
   if (lastSelfWriteRef.current !== input) {
     lastSelfWriteRef.current = input
-    if (cursorOffset > input.length) {
-      setCursorOffsetState(input.length)
-      pendingInput.reportCursor(input.length)
-    } else {
-      setCursorOffsetState(input.length)
-      pendingInput.reportCursor(input.length)
-    }
+    setCursorOffsetState(input.length)
+    pendingInput.reportCursor(input.length)
   }
 
   const buffer = useInputBuffer({
@@ -631,8 +624,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
           value.startsWith('!') &&
           value.slice(1) === input
         ) {
-          pendingInput.edit(input)
-          lastSelfWriteRef.current = input
+          writeDraft(input)
           setMode('bash')
           return
         }
@@ -645,8 +637,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
           buffer.pushAtomic(input, cursorOffset, pastedContents)
           setMode('bash')
           const remainder = expandTabs(getValueFromInput(value))
-          pendingInput.edit(remainder)
-          lastSelfWriteRef.current = remainder
+          writeDraft(remainder)
           setCursorOffset(remainder.length)
           return
         }
@@ -659,8 +650,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       }
 
       buffer.pushToBuffer(input, cursorOffset, pastedContents)
-      pendingInput.edit(value)
-      lastSelfWriteRef.current = value
+      writeDraft(value)
 
       const previousLength = input.length
       stashPeakRef.current = Math.max(stashPeakRef.current, value.length)
@@ -700,8 +690,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     input,
     pastedContents,
     onInputChange: (value: string) => {
-      pendingInput.edit(value)
-      lastSelfWriteRef.current = value
+      writeDraft(value)
     },
     setCursorOffset,
     setPastedContents,
@@ -755,8 +744,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       payload = ` ${payload}`
     }
     const next = input.slice(0, start) + payload + input.slice(end)
-    pendingInput.edit(next)
-    lastSelfWriteRef.current = next
+    writeDraft(next)
     setCursorOffset(start + payload.length)
   }
 
@@ -824,8 +812,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         setMode('bash')
         const remainder = expandTabs(getValueFromInput(text))
         buffer.pushAtomic(input, cursorOffset, pastedContents)
-        pendingInput.edit(remainder)
-        lastSelfWriteRef.current = remainder
+        writeDraft(remainder)
         setCursorOffset(remainder.length)
         return
       }
@@ -858,8 +845,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     },
     insert: (text: string) => insertAtCursor(text, { atomic: true }),
     setInputWithCursor: (value: string, cursor: number) => {
-      pendingInput.edit(value)
-      lastSelfWriteRef.current = value
+      writeDraft(value)
       setCursorOffset(Math.max(0, Math.min(cursor, value.length)))
     },
   }
@@ -981,8 +967,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     },
     input,
     (value: string) => {
-      pendingInput.edit(value)
-      lastSelfWriteRef.current = value
+      writeDraft(value)
     },
     setCursorOffset,
     cursorOffset,
@@ -1001,232 +986,25 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     if (edge === 'first') return cursorOffset <= firstNewline
     return cursorOffset > input.lastIndexOf('\n')
   }
-  const sameDispatchSubmitRef = useRef(false)
-  const submit = useCallback(
-    async (
-      raw: string,
-      options: { fromKeybinding?: boolean; isSlashPick?: boolean },
-    ): Promise<void> => {
-      if (compactWork !== undefined && compactWork.read() !== 'composer') return
-      const value = raw.replace(/\s+$/, '')
-      const fresh = appStateStore.getState() as AppState
-
-      if (fresh.footerSelection !== null) {
-        const stillVisible =
-          fresh.footerSelection === 'tasks'
-            ? Object.values(fresh.tasks).some(isManageableTask) ||
-              fresh.viewingAgentTaskId !== undefined
-            : fresh.footerSelection === 'bagel'
-                ? fresh.bagelActive === true
-                : fresh.remoteControlEnabled
-        if (stillVisible) return
-      }
-      if (fresh.viewSelectionMode === 'selecting-agent') return
-
-      const hasImages = Object.values(pendingInput.pastedContents()).some(
-        entry => (entry as { type?: string }).type === 'image',
-      )
-
-      const suggestion = suggestionApi.suggestion
-      const suggestionSeen =
-        ((fresh as { promptSuggestion?: { shownAt?: number | null } })
-          .promptSuggestion?.shownAt ?? 0) > 0
-      let submitted = value
-      let speculationAccept:
-        | {
-            state: unknown
-            speculationSessionTimeSavedMs: number
-            setAppState: (f: (prev: AppState) => AppState) => void
-          }
-        | undefined
-      if (
-        suggestion !== null &&
-        suggestionSeen &&
-        !hasImages &&
-        composerTargetTaskId(fresh) === undefined &&
-        (value === '' || value === suggestion)
-      ) {
-        suggestionApi.markAccepted()
-        submitted = suggestion
-        const spec = (fresh as { speculation?: { status?: string } }).speculation
-        if (spec?.status === 'active') {
-          const savedMs =
-            (fresh as { speculationSessionTimeSavedMs?: number }).speculationSessionTimeSavedMs ?? 0
-          handleSpeculationAccept(spec, savedMs, setAppState, suggestion, undefined)
-          speculationAccept = {
-            state: spec,
-            speculationSessionTimeSavedMs: savedMs,
-            setAppState,
-          }
-        }
-      }
-
-      if (!options.fromKeybinding) {
-        if (sameDispatchSubmitRef.current) return
-        sameDispatchSubmitRef.current = true
-        queueMicrotask(() => {
-          sameDispatchSubmitRef.current = false
-        })
-      }
-
-      if (isCrewEnabled() && crewContext !== undefined && submitted.startsWith('@')) {
-        const parsed = parseDirectMemberMessage(submitted)
-        if (parsed !== null) {
-          const result = await sendDirectMemberMessage(
-            parsed.recipientName,
-            parsed.message,
-            crewContext,
-            sendLiveMessage,
-          )
-          if (result.success) {
-            pendingInput.clearForSubmit(submitted)
-            pendingInput.edit('')
-            lastSelfWriteRef.current = ''
-            buffer.clearBuffer()
-            history.resetHistory()
-            setCursorOffset(0)
-            addNotification({
-              key: 'direct-message-sent',
-              text: `sent to @${result.recipientName}`,
-              priority: 'medium',
-              timeoutMs: 3000,
-              fold: (_accumulated, incoming) => incoming,
-            })
-            return
-          }
-        }
-      }
-
-      if (submitted === '' && !hasImages) return
-
-      {
-        const dangling = danglingReferences(submitted, pendingInput.pastedContents())
-        if (dangling.length > 0) {
-          addNotification({
-            key: 'paste-ref-dangling',
-            text: pasteUnavailableLine(dangling[0]!.match),
-            color: 'warning',
-            priority: 'high',
-            timeoutMs: 8000,
-          })
-          return
-        }
-      }
-
-      const open = suggestionsMirrorRef.current.suggestions
-      const isSlashSubmission =
-        options.isSlashPick === true || submitted.trimStart().startsWith('/')
-      if (
-        open.length > 0 &&
-        !isSlashSubmission &&
-        !open.every(item => item.description === 'directory')
-      ) {
-        return
-      }
-
-      suggestionApi.logOutcomeAtSubmission(
-        submitted,
-        speculationAccept !== undefined ? { skipReset: true } : undefined,
-      )
-      removeNotification('stash-hint')
-
-      if (pendingInput.mode() === 'bash') {
-        await onSubmit(submitted, helpers, speculationAccept, {
-          fromKeybinding: options.fromKeybinding === true,
-        })
-        return
-      }
-
-      const targetId = composerTargetTaskId(fresh)
-      if (targetId !== undefined) {
-        const intent = classifyAgentViewSubmission(
-          submitted,
-          options.fromKeybinding === true,
-          commands,
-        )
-        const targetName = composerCrewmateRef.current?.taskId === targetId ? composerCrewmateRef.current.name : targetId
-        const sendReceipt = (text: string, color?: 'warning'): void =>
-          addNotification({ key: 'crewmate-send', text, priority: 'medium', timeoutMs: 6000, ...(color !== undefined ? { color } : {}), fold: (_accumulated, incoming) => incoming })
-        const takeLine = (): void => {
-          pendingInput.clearForSubmit(submitted)
-          pendingInput.edit('')
-          lastSelfWriteRef.current = ''
-          buffer.clearBuffer()
-          history.resetHistory()
-          setCursorOffset(0)
-        }
-        const handBack = (): void => {
-          const restored = `${submitted}${pendingInput.text()}`
-          pendingInput.edit(restored)
-          lastSelfWriteRef.current = restored
-          setCursorOffset(restored.length)
-        }
-        const deliver = async (text: string): Promise<boolean> => {
-          if (onAgentSubmit) {
-            onAgentSubmit(text)
-            return true
-          }
-          const task = fresh.tasks[targetId]
-          if (task !== undefined && isInProcessCrewmateTask(task)) {
-            injectUserMessageToCrewmate(task.id, text, setAppState)
-            return true
-          }
-          if (task !== undefined && isLocalAgentTask(task)) {
-            if (task.status !== 'running') {
-              sendReceipt(crewmateRefusedWords(targetName, CREWMATE_BETWEEN_TURNS_DETAIL), 'warning')
-              return false
-            }
-            queueOperatorMessage(task.id, text, setAppState)
-            appendMessageToLocalAgent(
-              task.id,
-              { ...createUserMessage({ content: text }), queued: true },
-              setAppState,
-            )
-            sendReceipt(`${operatorLinePlate(targetName)} ${crewmateQueuedWords(targetName)}`)
-            return true
-          }
-          queueCrewmateLine(targetId, text)
-          const receipt = await getFocusedSessionConnector().resumeAgent(targetId, text)
-          if (receipt.outcome !== 'applied') {
-            const why = receipt.detail ?? 'no reason given'
-            refuseCrewmateLine(targetId, text, targetName, why)
-            sendReceipt(crewmateRefusedWords(targetName, why), 'warning')
-            return false
-          }
-          const queued = typeof receipt.detail === 'string' && receipt.detail.includes('"queued":true')
-          sendReceipt(`${operatorLinePlate(targetName)} ${queued ? crewmateQueuedWords(targetName) : crewmateResumedWords(targetName)}`)
-          return true
-        }
-        switch (intent.kind) {
-          case 'session-command':
-            await onSubmit(submitted, helpers, undefined, {
-              fromKeybinding: options.fromKeybinding === true,
-            })
-            return
-          case 'unknown-command':
-            addNotification({
-              key: 'agent-view-unknown-command',
-              text: `Unknown command: /${intent.bareName} — commands run in this session; ${DOUBLED_SLASH} sends the line to the agent as text`,
-              priority: 'medium',
-              timeoutMs: 6000,
-            })
-            return
-          case 'agent-literal':
-          case 'agent-command':
-          case 'agent-guidance': {
-            takeLine()
-            if (!(await deliver(intent.kind === 'agent-literal' ? intent.text : submitted))) handBack()
-            return
-          }
-        }
-      }
-
-      await onSubmit(submitted, helpers, speculationAccept, {
-        fromKeybinding: options.fromKeybinding === true,
-      })
-    },
-    [appStateStore, suggestionApi, crewContext, commands, helpers, buffer, history, onSubmit, onAgentSubmit, setAppState, setCursorOffset, addNotification, removeNotification],
-  )
+  const submit = useComposerSubmit({
+    compactWork,
+    appStateStore,
+    suggestionApi,
+    crewContext,
+    commands,
+    helpers,
+    buffer,
+    history,
+    onSubmit,
+    onAgentSubmit,
+    setAppState,
+    setCursorOffset,
+    addNotification,
+    removeNotification,
+    composerCrewmateRef,
+    suggestionsMirrorRef,
+    writeDraft,
+  })
 
   const helmVersion = useSyncExternalStore(
     subscribeHelmFocus,
@@ -1283,8 +1061,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const performUndo = useCallback((): void => {
     const entry = buffer.undo({ text: pendingInput.text(), cursorOffset, pastedContents: pendingInput.pastedContents() })
     if (entry === undefined) return
-    pendingInput.edit(entry.text)
-    lastSelfWriteRef.current = entry.text
+    writeDraft(entry.text)
     setCursorOffset(entry.cursorOffset)
     pendingInput.setPastedContents(entry.pastedContents)
     addNotification({ key: 'edit-history', text: 'undid the last edit', priority: 'low', timeoutMs: 2000, fold: (_accumulated, incoming) => incoming })
@@ -1292,8 +1069,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const performRedo = useCallback((): void => {
     const entry = buffer.redo({ text: pendingInput.text(), cursorOffset, pastedContents: pendingInput.pastedContents() })
     if (entry === undefined) return
-    pendingInput.edit(entry.text)
-    lastSelfWriteRef.current = entry.text
+    writeDraft(entry.text)
     setCursorOffset(entry.cursorOffset)
     pendingInput.setPastedContents(entry.pastedContents)
     addNotification({ key: 'edit-history', text: 'redid the last edit', priority: 'low', timeoutMs: 2000, fold: (_accumulated, incoming) => incoming })
@@ -2087,8 +1863,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         const at = Math.max(0, Math.min(cursorRef.current, text.length))
         const from = Math.max(0, at - deleteBefore)
         const next = text.slice(0, from) + insert + text.slice(at)
-        pendingInput.edit(next)
-        lastSelfWriteRef.current = next
+        writeDraft(next)
         setCursorOffset(from + insert.length)
       },
     })

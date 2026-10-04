@@ -486,7 +486,7 @@ section('§8 the composer wiring by source: the filter delegates to the reader, 
 {
   const src = readFileSync(COMPOSER, 'utf8')
   check('voiceInputFilter delegates to holdToTalkKey', /const voiceInputFilter = useCallback\(\(rawInput: string, key: Key\): string => holdToTalkKey\(rawInput, key\), \[\]\)/.test(src), extracted.source.slice(0, 160))
-  check('the composer registers the hold editor (text, cursor, splice at the caret through the one draft owner and the self-write mark) and unregisters on unmount', src.includes('setHoldToTalkEditor({') && src.includes('cursor: () => cursorRef.current') && src.includes('setHoldToTalkEditor(null)') && /splice: \(deleteBefore, insert\) => \{[\s\S]*?pendingInput\.edit\(next\)\s*lastSelfWriteRef\.current = next\s*setCursorOffset\(from \+ insert\.length\)/.test(src))
+  check('the composer registers the hold editor (text, cursor, splice at the caret through the one draft owner and the self-write mark) and unregisters on unmount', src.includes('setHoldToTalkEditor({') && src.includes('cursor: () => cursorRef.current') && src.includes('setHoldToTalkEditor(null)') && /splice: \(deleteBefore, insert\) => \{[\s\S]*?writeDraft\(next\)\s*setCursorOffset\(from \+ insert\.length\)/.test(src))
   check('esc during a take still cancels through cancelVoiceCapture', src.includes("if (voice.phase === 'recording' && key.escape) {") && src.includes('cancelVoiceCapture()'))
   check('the deferred space after a chip is untouched (a different space)', src.includes('const deferredSpaceArmedRef = useRef(false)') && src.includes('if (deferredSpaceArmedRef.current) {'))
   const sessionSrc = readFileSync(join(ROOT, 'src', 'services', 'voice', 'voiceSession.ts'), 'utf8')

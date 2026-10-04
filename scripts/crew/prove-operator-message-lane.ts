@@ -67,7 +67,7 @@ section('§2 the turn-end and stop roads deliver the lane; the running resume qu
   const runner = readFileSync(join(ROOT, 'src/cli/run.ts'), 'utf8')
   check('the runner\'s resume_task queues a note for a RUNNING agent into the operator lane and answers queued', /target\.status === 'running'[\s\S]{0,400}queueOperatorMessage\(params\.agent_id, note, setAppState\)[\s\S]{0,120}return \{ queued: true, agent_id: params\.agent_id \}/.test(runner))
   check('a running agent with no note still answers the old refusal', /note === '' \|\| !isLocalAgentTask\(target\)[\s\S]{0,80}the agent is running — nothing to resume/.test(runner))
-  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
+  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/useComposerSubmit.ts'), 'utf8')
   check('the composer\'s send road targets composerTargetTaskId and queues a local crewmate on the operator lane', /const targetId = composerTargetTaskId\(fresh\)/.test(composer) && /queueOperatorMessage\(task\.id, text, setAppState\)/.test(composer) && !/queuePendingMessage\(/.test(composer))
   check('a hosted crewmate takes the connector\'s resumeAgent door; the line is taken when ↵ lands and a refusal hands it back', /getFocusedSessionConnector\(\)\.resumeAgent\(targetId, text\)/.test(composer) && /takeLine\(\)\s*\n\s*if \(!\(await deliver\([^)]*\)\)\) handBack\(\)/.test(composer))
 }

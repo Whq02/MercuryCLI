@@ -102,7 +102,7 @@ console.log('\n── §1 resolver + seed truths ──────────�
 console.log('\n── §2 wiring pinned in source ───────────────────────────────')
 {
   const repl = read('src/screens/Chat.tsx')
-  const prompt = read('src/components/PromptInput/PromptInput.tsx') + read('src/components/PromptInput/useComposerModelDoors.tsx')
+  const prompt = read('src/components/PromptInput/PromptInput.tsx') + read('src/components/PromptInput/useComposerModelDoors.tsx') + read('src/components/PromptInput/useComposerSubmit.ts')
   check(
     'the Chat boot seed consumes the early-input capture (a hardcoded empty seed discarded boot keystrokes)',
     repl.includes('pendingInput.initSession(conversationIdHere(), consumeEarlyInput())'),
