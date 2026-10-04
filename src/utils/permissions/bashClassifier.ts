@@ -1,4 +1,3 @@
-
 export const PROMPT_PREFIX = 'prompt:'
 
 export type ClassifierResult = {
@@ -9,7 +8,6 @@ export type ClassifierResult = {
 }
 
 export type ClassifierBehavior = 'deny' | 'ask' | 'allow'
-
 
 export function isClassifierPermissionsEnabled(): boolean {
   return false
