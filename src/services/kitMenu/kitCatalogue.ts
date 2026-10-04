@@ -4,7 +4,7 @@ import { contributionCounts, parseServerRuntimeName, type ExtensionManifest } fr
 import { clearSkillCaches, getSkillDirCommands, getSkillLoadRefusals, type SkillLoadRefusal } from '../../skills/loadSkillsDir.js'
 import type { Command } from '../../types/command.js'
 import { getSettingSourceName, type SettingSource } from '../../utils/settings/constants.js'
-import { clearClaudeAIMcpConfigsCache } from '../mcp/claudeai.js'
+import { clearAnthropicConnectorsCache } from '../mcp/anthropicConnectors.js'
 import { getAllMcpConfigs } from '../mcp/config.js'
 import type { ScopedMcpServerConfig } from '../mcp/types.js'
 import type { KitCatalogue, KitRow } from './kitTypes.js'
@@ -46,7 +46,7 @@ function skillCopyWords(command: Command): string {
 export function refreshKitCatalogueDoors(): void {
   clearSkillCaches()
   clearExtensionCommandCaches()
-  clearClaudeAIMcpConfigsCache()
+  clearAnthropicConnectorsCache()
   publishActiveSet(null)
 }
 

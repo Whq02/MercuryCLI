@@ -1197,7 +1197,7 @@ export function signOutAnthropicSlot(
   resetUserCache()
   try {
     const { resetLimitsForCredentialSwitch } =
-      require('../claudeAiLimits.js') as typeof import('../claudeAiLimits.js')
+      require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
     resetLimitsForCredentialSwitch()
   } catch (error) {
     logError(error)

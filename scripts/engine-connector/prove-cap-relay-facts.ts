@@ -37,7 +37,7 @@ writeFileSync(
 )
 
 const ROOT = join(import.meta.dir, '..', '..')
-const limits = await import('../../src/services/claudeAiLimits.ts')
+const limits = await import('../../src/services/anthropicLimits.ts')
 const mock = await import('../../src/services/mockRateLimits.ts')
 const failover = await import('../../src/services/capFailover.ts')
 const seatWire = await import('../../src/services/engine-connector/seatWire.ts')
@@ -224,7 +224,7 @@ section("§4 the roads on the code: the runner answers both rows, the seat publi
   const readFactsBody = connectorSrc.slice(Math.max(0, readAt), Math.max(0, asksAt))
   check('the connector folds the verdict on every facts read, beside the OpenAI bands', readFactsBody.includes('adoptOpenaiObservedUsage(next.usage?.openaiObserved)') && readFactsBody.includes('adoptAnthropicWindowFact(next.usage?.anthropicWindow)'))
   check('…and primes its catalogue when the list moved', readFactsBody.includes('adoptOpenaiCatalogueFact(next.openaiCatalogue)') && readFactsBody.includes('next.openaiCatalogue.fetchedAtMs !== prev?.openaiCatalogue?.fetchedAtMs'))
-  const limitsSrc = readFileSync(join(ROOT, 'src/services/claudeAiLimits.ts'), 'utf8')
+  const limitsSrc = readFileSync(join(ROOT, 'src/services/anthropicLimits.ts'), 'utf8')
   check('the fold keys on the stamp the latch keys on: the active slot and the observation moment', limitsSrc.includes('if (f.owner !== resolveOwner()) return false') && limitsSrc.includes('if (verdictObservedAtMs !== null && f.observedAtMs <= verdictObservedAtMs) return false'))
   const catalogueSrc = readFileSync(join(ROOT, 'src/services/providers/openai/openaiCatalogue.ts'), 'utf8')
   check('the list primes through the one claim hand-off door', catalogueSrc.includes('return primeOpenaiCatalogue({ sourceKind: f.sourceKind, models, fetchedAtMs: f.fetchedAtMs }, env)'))

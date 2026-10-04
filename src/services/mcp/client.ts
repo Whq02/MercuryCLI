@@ -54,7 +54,7 @@ import { recursivelySanitizeUnicode } from '../../utils/sanitization.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { persistToolResult } from '../../utils/toolResultStorage.js'
 import { hasMcpDiscoveryButNoToken, MercuryMcpAuthProvider, wrapFetchWithStepUpDetection } from './auth.js'
-import { markClaudeAiMcpConnected } from './claudeai.js'
+import { markAnthropicConnectorConnected } from './anthropicConnectors.js'
 import { clearEraVerdict, readEraVerdict, recordEraVerdict } from './eraVerdictCache.js'
 import { getAllMcpConfigs } from './config.js'
 import { isMcpCatalogueMember } from './membership.js'
@@ -279,7 +279,7 @@ export function wrapFetchWithTimeout(baseFetch: FetchLike): FetchLike {
 }
 
 
-export function createClaudeAiProxyFetch(innerFetch: FetchLike): FetchLike {
+export function createAnthropicProxyFetch(innerFetch: FetchLike): FetchLike {
   return async (input, init) => {
     const send = async (): Promise<{ response: Response; sentToken: string }> => {
       await checkAndRefreshOAuthTokenIfNeeded()
@@ -599,7 +599,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
       const oauth = getOauthConfig()
       const url = `${oauth.MCP_PROXY_URL}${oauth.MCP_PROXY_PATH.replace('{server_id}', (config as { id?: string }).id ?? '')}`
       transport = new StreamableHTTPClientTransport(new URL(url), {
-        fetch: wrapFetchWithTimeout(createClaudeAiProxyFetch(fetch as FetchLike)) as never,
+        fetch: wrapFetchWithTimeout(createAnthropicProxyFetch(fetch as FetchLike)) as never,
         requestInit: { headers: { 'User-Agent': getMCPUserAgent(), 'X-Mcp-Client-Session-Id': getSessionId() } },
       })
     } else if ((type === 'stdio' || config.type === undefined) && isCoordinationServer(name) && isCoordinationServerEnabled()) {
@@ -1547,7 +1547,7 @@ function queueUrlElicitation(
 type ConnectionReport = { client: MCPServerConnection; tools: Tool[]; commands: Command[]; resources?: ServerResource[] }
 
 async function discoverFor(connection: ConnectedMCPServer, includeResourceTools: boolean): Promise<ConnectionReport> {
-  if (connection.config.type === 'claudeai-proxy') markClaudeAiMcpConnected(connection.name)
+  if (connection.config.type === 'claudeai-proxy') markAnthropicConnectorConnected(connection.name)
   const [tools, commands, resources] = await Promise.all([
     fetchToolsForClient(connection),
     fetchCommandsForClient(connection),

@@ -2,7 +2,7 @@
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { ClaudeAILimits } from '../../src/services/claudeAiLimits.ts'
+import type { AnthropicLimits } from '../../src/services/anthropicLimits.ts'
 import type { LimitWarningReads } from '../../src/services/providers/limitWarning.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -24,7 +24,7 @@ const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const cap = await import('../../src/services/capFailover.ts')
 const tiers = await import('../../src/services/providers/usageTiers.ts')
-const limits = await import('../../src/services/claudeAiLimits.ts')
+const limits = await import('../../src/services/anthropicLimits.ts')
 const messages = await import('../../src/services/rateLimitMessages.ts')
 const warnings = await import('../../src/services/providers/limitWarning.ts')
 
@@ -44,7 +44,7 @@ const wireAt = (pct: number): Headers => new Headers({
   'anthropic-ratelimit-unified-7d-reset': String(reset),
   'anthropic-ratelimit-unified-7d-surpassed-threshold': '0.25',
 })
-const latchAt = (pct: number): ClaudeAILimits => ({
+const latchAt = (pct: number): AnthropicLimits => ({
   status: 'allowed_warning',
   unifiedRateLimitFallbackAvailable: false,
   isUsingOverage: false,
@@ -59,7 +59,7 @@ const cardAt = (pct: number, pool: number, status: 'allowed' | 'allowed_warning'
     anthropicWindows: () => [view(12, '5h'), view(pct)],
     anthropicPools: () => [view(pool, 'seven_day_fable', 'Fable')],
   }, { model: MODEL })
-const stripReads = (pct: number, pool: number, header: ClaudeAILimits): LimitWarningReads => ({
+const stripReads = (pct: number, pool: number, header: AnthropicLimits): LimitWarningReads => ({
   route: () => 'anthropic',
   activeEntry: () => entry,
   spend: () => ({ inputTokens: 0, outputTokens: 0, costUSD: 0, models: 0 }),

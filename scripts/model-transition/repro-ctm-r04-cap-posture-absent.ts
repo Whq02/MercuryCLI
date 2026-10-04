@@ -11,7 +11,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
 }
 
-const limits = readFileSync(join(ROOT, 'src/services/claudeAiLimits.ts'), 'utf8')
+const limits = readFileSync(join(ROOT, 'src/services/anthropicLimits.ts'), 'utf8')
 check(
   '§A QuotaStatus vocabulary exists (allowed|allowed_warning|rejected)',
   limits.includes('allowed_warning') && limits.includes('rejected'),
@@ -31,12 +31,12 @@ check(
 )
 check(
   '§B REPRODUCED: the boot menu never reads the limits truth',
-  !menu.includes('claudeAiLimits'),
+  !menu.includes('anthropicLimits'),
 )
 
 const limitConsumers = execFileSync(
   'git',
-  ['grep', '-l', 'claudeAiLimits', '--', 'src/'],
+  ['grep', '-l', 'anthropicLimits', '--', 'src/'],
   { cwd: ROOT, encoding: 'utf8' },
 )
   .split('\n')

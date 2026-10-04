@@ -6,7 +6,7 @@ import {
   foldUtilizationFromEndpoint,
   getRawUtilization,
   resetLimitsForCredentialSwitch,
-} from '../../src/services/claudeAiLimits.ts'
+} from '../../src/services/anthropicLimits.ts'
 import { quotaWindows } from '../../src/utils/cockpit/quota.ts'
 
 let failures = 0
@@ -59,7 +59,7 @@ const resetsAtIso = new Date(Date.now() + 3_600_000).toISOString()
 }
 
 {
-  const src = readFileSync(join(import.meta.dir, '../../src/services/claudeAiLimits.ts'), 'utf8')
+  const src = readFileSync(join(import.meta.dir, '../../src/services/anthropicLimits.ts'), 'utf8')
   const stamps = src.match(/observedOwner = resolveOwner\(\)/g) ?? []
   t('§6 BOTH fold sites stamp the owner (headers + endpoint)', stamps.length === 2, `found ${stamps.length}`)
   t('§6 the one read gates on the stamp', src.includes('observedOwner === null || observedOwner === resolveOwner()'))

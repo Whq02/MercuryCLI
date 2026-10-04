@@ -1,5 +1,5 @@
 import { getAnthropicApiKey, isClaudeAISubscriber } from '../../utils/auth.js'
-import { anthropicLimitVerdict } from '../claudeAiLimits.js'
+import { anthropicLimitVerdict } from '../anthropicLimits.js'
 import { anthropicSignInWords, anthropicWindowWords, type AnthropicWindowObservation } from './anthropicRefusal.js'
 import { getGptSeatAvailability } from './openai/openaiCatalogue.js'
 import { providerDisplayName } from './routeLaw.js'

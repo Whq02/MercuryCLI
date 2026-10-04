@@ -1,5 +1,5 @@
 import { formatResetTime } from '../../utils/format.js'
-import { currentLimits, type ClaudeAILimits } from '../claudeAiLimits.js'
+import { currentLimits, type AnthropicLimits } from '../anthropicLimits.js'
 import { rateLimitWindowName } from '../rateLimitMessages.js'
 import { providerDisplayName } from './routeLaw.js'
 import { activeSourceUsage, bindingWindowOf, usageCarryWords, type ActiveUsageReads, type UsageWindowView } from './providerUsage.js'
@@ -24,7 +24,7 @@ export interface ProviderLimitWarningFacts {
 }
 
 export interface LimitWarningReads extends ActiveUsageReads {
-  anthropicLimits?: () => ClaudeAILimits
+  anthropicLimits?: () => AnthropicLimits
 }
 
 export function usageWarningNoticeText(text: string, pct: number): string {
@@ -53,7 +53,7 @@ function warningFacts(provider: string, label: string, pct: number, windowKey: s
   }
 }
 
-function anthropicWarning(limits: ClaudeAILimits): ProviderLimitWarningFacts | null {
+function anthropicWarning(limits: AnthropicLimits): ProviderLimitWarningFacts | null {
   if (limits.isUsingOverage) {
     return limits.overageStatus === 'allowed_warning' ? {
       view: { provider: 'anthropic', text: 'Anthropic says this account is close to its extra usage spending limit' },

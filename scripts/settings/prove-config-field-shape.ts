@@ -74,11 +74,11 @@ try {
 }
 check('the theme reader stays tolerant of a malformed value on its own', themeOutcome === 'returned', themeOutcome)
 
-const { hasClaudeAiMcpEverConnected } = await import('../../src/services/mcp/claudeai.ts')
+const { hasAnthropicConnectorEverConnected } = await import('../../src/services/mcp/anthropicConnectors.ts')
 let everOutcome = 'returned'
 let ever: unknown = null
 try {
-  ever = hasClaudeAiMcpEverConnected('some-connector')
+  ever = hasAnthropicConnectorEverConnected('some-connector')
 } catch (e) {
   everOutcome = `threw: ${e instanceof Error ? e.message : String(e)}`
 }

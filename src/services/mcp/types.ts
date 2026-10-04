@@ -90,7 +90,7 @@ export const McpWebSocketServerConfigSchema = lazy(() =>
 )
 export type McpWebSocketServerConfig = z.infer<ReturnType<typeof McpWebSocketServerConfigSchema>>
 
-export const McpClaudeAIProxyServerConfigSchema = lazy(() =>
+export const McpAnthropicProxyServerConfigSchema = lazy(() =>
   z.object({
     type: z.literal('claudeai-proxy'),
     url: z.string(),
@@ -98,8 +98,8 @@ export const McpClaudeAIProxyServerConfigSchema = lazy(() =>
     toolPermissions: toolPermissionsSchema().optional(),
   }),
 )
-export type McpClaudeAIProxyServerConfig = z.infer<
-  ReturnType<typeof McpClaudeAIProxyServerConfigSchema>
+export type McpAnthropicProxyServerConfig = z.infer<
+  ReturnType<typeof McpAnthropicProxyServerConfigSchema>
 >
 
 export const McpServerConfigSchema = lazy(() =>
@@ -108,7 +108,7 @@ export const McpServerConfigSchema = lazy(() =>
     McpSSEServerConfigSchema(),
     McpHTTPServerConfigSchema(),
     McpWebSocketServerConfigSchema(),
-    McpClaudeAIProxyServerConfigSchema(),
+    McpAnthropicProxyServerConfigSchema(),
   ]),
 )
 export type McpServerConfig = z.infer<ReturnType<typeof McpServerConfigSchema>>

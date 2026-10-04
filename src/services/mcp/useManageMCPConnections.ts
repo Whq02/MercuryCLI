@@ -7,7 +7,7 @@ import { useAppState, useSetAppState } from '../../state/AppState.js'
 import type { AppState } from '../../state/AppState.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { logMCPError } from '../../utils/log.js'
-import { clearClaudeAIMcpConfigsCache, fetchClaudeAIMcpConfigsIfEligible } from './claudeai.js'
+import { clearAnthropicConnectorsCache, fetchAnthropicConnectorsIfEligible } from './anthropicConnectors.js'
 import {
   clearServerCache,
   fetchCommandsForClient,
@@ -16,7 +16,7 @@ import {
   onMcpListChanged,
 } from './client.js'
 import {
-  dedupClaudeAiMcpServers,
+  dedupAnthropicConnectors,
   doesEnterpriseMcpConfigExist,
   filterMcpServersByPolicy,
   getMercuryMcpConfigs,
@@ -278,10 +278,10 @@ export function useManageMCPConnections(
       try {
         const strict = isStrictMcpConfig === true
         const skipConnectors = strict || doesEnterpriseMcpConfigExist()
-        if (!skipConnectors) clearClaudeAIMcpConfigsCache()
+        if (!skipConnectors) clearAnthropicConnectorsCache()
         const connectorFetch = skipConnectors
           ? Promise.resolve({} as Record<string, ScopedMcpServerConfig>)
-          : fetchClaudeAIMcpConfigsIfEligible()
+          : fetchAnthropicConnectorsIfEligible()
 
         const resolved = strict
           ? { servers: {} as Record<string, ScopedMcpServerConfig>, errors: [] as McpResolutionNotice[] }
@@ -332,7 +332,7 @@ export function useManageMCPConnections(
         if (cancelled) return
         if (Object.keys(connectors).length === 0) return
         const { allowed } = filterMcpServersByPolicy(connectors)
-        const { servers: survivors } = dedupClaudeAiMcpServers(allowed, merged)
+        const { servers: survivors } = dedupAnthropicConnectors(allowed, merged)
         if (Object.keys(survivors).length === 0) return
         registry.seed(survivors)
         const connectableConnectors: Record<string, ScopedMcpServerConfig> = {}

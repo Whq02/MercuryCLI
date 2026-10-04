@@ -62,7 +62,7 @@ const { signInLedgerEpoch, subscribeSignInEpoch } = await import('../../src/util
 const { anthropicCredentialPresence } = await import('../../src/services/providers/providerUsage.js')
 const { scanAccountScopes } = await import('../../src/utils/accounts/scopeScan.js')
 const { sessionAccountWords } = await import('../../src/utils/accounts/sessionAccount.js')
-const { getUsageCredentialEpoch } = await import('../../src/services/claudeAiLimits.js')
+const { getUsageCredentialEpoch } = await import('../../src/services/anthropicLimits.js')
 
 let failures = 0
 let checks = 0

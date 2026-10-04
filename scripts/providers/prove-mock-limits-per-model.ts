@@ -30,7 +30,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const mock = await import('../../src/services/mockRateLimits.ts')
-const limits = await import('../../src/services/claudeAiLimits.ts')
+const limits = await import('../../src/services/anthropicLimits.ts')
 const armScenario = (scenario: Parameters<typeof mock.setMockRateLimitScenario>[0]): void => {
   mock.setMockRateLimitScenario(scenario)
   limits.extractQuotaStatusFromHeaders(new globalThis.Headers())
@@ -134,7 +134,7 @@ const flat = (s: string): string => s.trim().split('\n').map(l => l.trim()).join
 check(`${RED}: the opus-warning arm states the Opus pool at FIRST_WARNING_PCT, never a literal`, /seven_day_opus/.test(opusArm) && /FIRST_WARNING_PCT/.test(opusArm) && !/0\.8|\b80\b/.test(opusArm), flat(opusArm))
 check(`${RED}: the sonnet-warning arm states the Sonnet pool at FIRST_WARNING_PCT, never a literal`, /seven_day_sonnet/.test(sonnetArm) && /FIRST_WARNING_PCT/.test(sonnetArm) && !/0\.8|\b80\b/.test(sonnetArm), flat(sonnetArm))
 check('both arms keep their headers, so the E9 read and the header latch stand', /representative-claim`\] = 'seven_day_opus'/.test(opusArm) && /representative-claim`\] = 'seven_day_sonnet'/.test(sonnetArm) && /allowed_warning/.test(opusArm) && /allowed_warning/.test(sonnetArm))
-check('the fold rides a lazy require of claudeAiLimits: no value import closes the cycle claudeAiLimits → rateLimitMocking → mockRateLimits', !/^import \{[^}]*\} from '\.\/claudeAiLimits\.js'/m.test(src) && /require\('\.\/claudeAiLimits\.js'\)/.test(src) && /^import type \{ RateLimitType \} from '\.\/claudeAiLimits\.js'/m.test(src))
+check('the fold rides a lazy require of anthropicLimits: no value import closes the cycle anthropicLimits → rateLimitMocking → mockRateLimits', !/^import \{[^}]*\} from '\.\/anthropicLimits\.js'/m.test(src) && /require\('\.\/anthropicLimits\.js'\)/.test(src) && /^import type \{ RateLimitType \} from '\.\/anthropicLimits\.js'/m.test(src))
 check('the two per-model descriptions say whose seat warns', /only an Opus model warns/.test(mock.getScenarioDescription('opus-warning')) && /only a Sonnet model warns/.test(mock.getScenarioDescription('sonnet-warning')), j([mock.getScenarioDescription('opus-warning'), mock.getScenarioDescription('sonnet-warning')]))
 
 rmSync(HOME, { recursive: true, force: true })

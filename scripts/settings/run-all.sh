@@ -23,9 +23,9 @@
 # gate-watch: src/context/notifications.tsx src/entrypoints/init.ts src/hooks/useExitOnCtrlCD.ts
 # gate-watch: src/ink/components/App.tsx src/ink/components/StdinContext.ts src/ink/recessLayer.ts
 # gate-watch: src/ink/squash-text-nodes.ts src/keybindings/useKeybinding.ts src/keybindings/writeBindings.ts
-# gate-watch: src/services/claudeAiLimits.ts src/services/engine-connector/focusedConnector.ts
+# gate-watch: src/services/anthropicLimits.ts src/services/engine-connector/focusedConnector.ts
 # gate-watch: src/services/instructions/* src/services/instructions/adapters/mercuryNative.ts
-# gate-watch: src/services/mcp/claudeai.ts src/services/providers/openai/openaiLimitState.ts
+# gate-watch: src/services/mcp/anthropicConnectors.ts src/services/providers/openai/openaiLimitState.ts
 # gate-watch: src/services/providers/usageFreshness.ts src/state/telemetryBus.ts src/utils/*
 # gate-watch: src/utils/cockpit/* src/utils/model/computedDefault.ts src/utils/permissions/PermissionUpdate.ts src/utils/permissions/PermissionMode.ts
 # gate-watch: src/utils/permissions/bypassPermissionsKillswitch.ts src/utils/router/providerDiscovery.ts

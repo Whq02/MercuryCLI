@@ -26,10 +26,10 @@ import {
   weeklyPoolClaimForModel,
   type AnthropicExtraUsageRecord,
   type AnthropicMoney,
-  type ClaudeAILimits,
+  type AnthropicLimits,
   type RateLimitType,
   type WeeklyPoolClaim,
-} from '../claudeAiLimits.js'
+} from '../anthropicLimits.js'
 import { rateLimitWindowName } from '../rateLimitMessages.js'
 import { subscribeSignInEpoch } from '../../utils/accounts/signInLedger.js'
 import { activeWalletEntry, anthropicCredentialAccount, walletEntries, type WalletEntry } from '../wallet/wallet.js'
@@ -409,7 +409,7 @@ export interface ActiveUsageReads {
   anthropicWindows?: () => { fiveHour: QuotaWindow; sevenDay: QuotaWindow }
   anthropicPoolWindows?: () => UsageWindowView[]
   anthropicExtraUsage?: () => AnthropicExtraUsageRecord | null
-  anthropicLimits?: () => ClaudeAILimits
+  anthropicLimits?: () => AnthropicLimits
   openaiObserved?: () => OpenaiObservedUsage
   openaiLimited?: () => OpenaiLimitWindow
   zaiKeyPresent?: () => boolean

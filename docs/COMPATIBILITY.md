@@ -65,13 +65,13 @@ Mercury consults no vendor registry of "official" MCP servers: every MCP
 server is the operator's own configuration, no boot makes a request on its
 behalf, and no server is tagged by anyone's registry.
 
-## claude.ai account connectors
+## Claude account connectors
 
-Org-managed connector configs can be fetched from the claude.ai account API —
-strictly opt-in (`src/services/mcp/claudeai.ts`): the registered
-`MERCURY_CLAUDEAI_MCP` flag alone decides, unset is off, and the fetch
-additionally requires a Claude OAuth token carrying the `user:mcp_servers`
-scope. Ever-connected connectors are recorded in the global config.
+Org-managed connector configs can be fetched from the Claude account API —
+strictly opt-in: the registered `MERCURY_ANTHROPIC_CONNECTORS` flag alone
+decides, unset is off, and the fetch additionally requires a Claude sign-in
+carrying the `user:mcp_servers` scope. Ever-connected connectors are recorded
+in the global config.
 
 ## Extensions
 

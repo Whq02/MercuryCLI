@@ -7,8 +7,8 @@ import { useNowTick } from '../../components/mercury-ui/components.js'
 import { useNotifications } from '../../context/notifications.js'
 import { Text } from '../../ink.js'
 import { useSessionConnector } from '../useSessionConnector.js'
-import { getUsageRecordVersion, subscribeUsageRecord } from '../../services/claudeAiLimits.js'
-import { useClaudeAiLimits } from '../../services/claudeAiLimitsHook.js'
+import { getUsageRecordVersion, subscribeUsageRecord } from '../../services/anthropicLimits.js'
+import { useAnthropicLimits } from '../../services/anthropicLimitsHook.js'
 import { preferSessionLimitWarning, providerLimitWarning, takeUsageWarning, usageWarningEmissionKey } from '../../services/providers/limitWarning.js'
 import { getOpenaiObservedVersion, subscribeOpenaiObserved } from '../../services/providers/openai/openaiLimitState.js'
 import { getUsingOverageText } from '../../services/rateLimitMessages.js'
@@ -22,7 +22,7 @@ const ENGINE_FEEDER_REREAD_MS = 15_000
 
 export function useRateLimitWarningNotification(model: string): void {
   const { addNotification } = useNotifications()
-  const limits = useClaudeAiLimits()
+  const limits = useAnthropicLimits()
   const tick = useNowTick(ENGINE_FEEDER_REREAD_MS)
   const connector = useSessionConnector()
   const usageRecordVersion = useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)

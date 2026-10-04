@@ -13,7 +13,7 @@ enableConfigs()
 const { normalizeOAuthErrorBody, getServerKey } = await import(
   '../../src/services/mcp/auth.ts'
 )
-const { filterMcpServersByPolicy, dedupClaudeAiMcpServers } = await import(
+const { filterMcpServersByPolicy, dedupAnthropicConnectors } = await import(
   '../../src/services/mcp/config.ts'
 )
 const { expandEnvVarsInString } = await import(
@@ -92,10 +92,10 @@ section('config-plane pure gates — policy filter · claude.ai dedup · env exp
 
   const manual = { slack: { type: 'http', url: 'https://mcp.example/slack', scope: 'user' } }
   const claudeai = { 'claude.ai Slack': { type: 'claudeai-proxy', url: 'https://mcp.example/slack', scope: 'claudeai' } }
-  const { servers: deduped } = dedupClaudeAiMcpServers(claudeai as never, manual as never)
+  const { servers: deduped } = dedupAnthropicConnectors(claudeai as never, manual as never)
   check('claude.ai connector duplicating a manual URL is suppressed', Object.keys(deduped).length === 0, j(deduped))
   const distinct = { 'claude.ai Linear': { type: 'claudeai-proxy', url: 'https://mcp.example/linear', scope: 'claudeai' } }
-  const { servers: kept } = dedupClaudeAiMcpServers(distinct as never, manual as never)
+  const { servers: kept } = dedupAnthropicConnectors(distinct as never, manual as never)
   check('a distinct connector survives dedup', 'claude.ai Linear' in kept, j(kept))
 
   process.env.MCP_CRED_PROOF_TOKEN = 'sekret'

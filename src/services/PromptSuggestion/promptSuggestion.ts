@@ -8,7 +8,7 @@ import {
 import { logError } from '../../utils/log.js'
 import { createUserMessage } from '../../utils/messages.js'
 import type { ChatHookContext } from '../../utils/hooks/postSamplingHooks.js'
-import { currentLimits } from '../claudeAiLimits.js'
+import { currentLimits } from '../anthropicLimits.js'
 import type { AppState } from '../../state/AppState.js'
 import { isSpeculationEnabled, startSpeculation } from './speculation.js'
 

@@ -27,7 +27,7 @@ console.log('============================================================')
 const msgs = await import('../../src/services/rateLimitMessages.js')
 const upsell = await import('../../src/components/messages/RateLimitMessage.js')
 
-type Limits = import('../../src/services/claudeAiLimits.js').ClaudeAILimits
+type Limits = import('../../src/services/anthropicLimits.js').AnthropicLimits
 const RESETS = Math.floor(Date.now() / 1000) + 3600
 const rejected = (extra: Partial<Limits> = {}): Limits => ({
   status: 'rejected',

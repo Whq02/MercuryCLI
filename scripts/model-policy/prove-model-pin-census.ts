@@ -37,7 +37,7 @@ const ALLOW: ReadonlyArray<{ path: string; reason: string }> = [
   { path: 'migrations/', reason: 'id rewrites are the whole job' },
   { path: 'constants/', reason: 'documentation constants (model-currency notes, betas) — no dispatch' },
   { path: 'utils/modelCost.ts', reason: 'pricing tables keyed by family id' },
-  { path: 'services/claudeAiLimits.ts', reason: 'family-CORRECT: the quota probe reads the ANTHROPIC window — the ping must ride the Anthropic wire' },
+  { path: 'services/anthropicLimits.ts', reason: 'family-CORRECT: the quota probe reads the ANTHROPIC window — the ping must ride the Anthropic wire' },
   { path: 'services/providers/anthropic/', reason: 'the Anthropic engine core — the small-fast tier getter is projected here for the anthropic lane; the engine itself is the anthropic route' },
   { path: 'services/tokenEstimation.ts', reason: "family-CORRECT: the count-tokens endpoint and the create-probe are Anthropic-wire capabilities (the in-file 1P WARNING; no other family runtime records a counting endpoint) — counting a non-Anthropic conversation through Anthropic's tokenizer would be the wrong truth even when credentialed; callers already degrade to the rough estimator" },
 ]

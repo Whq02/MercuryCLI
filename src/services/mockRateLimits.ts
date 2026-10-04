@@ -1,5 +1,5 @@
 import { flagEnv } from '../substrate/flagRegistry.js'
-import type { RateLimitType } from './claudeAiLimits.js'
+import type { RateLimitType } from './anthropicLimits.js'
 import { FIRST_WARNING_PCT } from './providers/usageTiers.js'
 
 
@@ -79,7 +79,7 @@ function weeklyPool(utilization: number): ScenarioPool {
 }
 
 function foldScenarioPools(): void {
-  const { foldUtilizationFromEndpoint } = require('./claudeAiLimits.js') as typeof import('./claudeAiLimits.js')
+  const { foldUtilizationFromEndpoint } = require('./anthropicLimits.js') as typeof import('./anthropicLimits.js')
   foldUtilizationFromEndpoint(mockUtilizationPayload() ?? {})
 }
 

@@ -26,7 +26,7 @@ import { getInstructionFiles } from './services/instructions/engine.js'
 import { initializeLspServerManager, waitForInitialization } from './services/lsp/manager.js'
 import { mercuryLspEnabled } from './services/lsp/mercuryLsp.js'
 import { qualifiedIdSpaceOf } from './services/providers/idSpaces.js'
-import { fetchClaudeAIMcpConfigsIfEligible } from './services/mcp/claudeai.js'
+import { fetchAnthropicConnectorsIfEligible } from './services/mcp/anthropicConnectors.js'
 import {
   clearServerCache,
   connectToServer,
@@ -2184,7 +2184,7 @@ async function runLaunch(args: {
     logForDebugging(`MCP servers were not all ready within ${mcpLaunchBudgetMs()}ms; continuing — late servers serve later calls`)
   }
   profileCheckpoint('after_connectMcp')
-  await connectClaudeAiConnectors(store)
+  await connectAnthropicConnectors(store)
   profileCheckpoint('after_connectMcp_claudeai')
 
   if (!isBareMode()) {
@@ -2237,7 +2237,7 @@ async function runLaunch(args: {
   }
 }
 
-async function connectClaudeAiConnectors(store: {
+async function connectAnthropicConnectors(store: {
   getState: () => AppState
   setState: (updater: (previous: AppState) => AppState) => void
 }): Promise<void> {
@@ -2248,7 +2248,7 @@ async function connectClaudeAiConnectors(store: {
     timerBox.timer = setTimeout(() => resolveTimeout('timeout'), 5000)
   })
   const work = (async () => {
-    const connectors = await fetchClaudeAIMcpConfigsIfEligible()
+    const connectors = await fetchAnthropicConnectorsIfEligible()
     if (!connectors || Object.keys(connectors).length === 0) return
     const connectorEntries = connectors
     const state = store.getState()

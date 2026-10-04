@@ -127,7 +127,7 @@ config.enableConfigs()
 const auth = await import(join(ROOT, 'src/utils/auth.ts'))
 const ledger = await import(join(ROOT, 'src/utils/accounts/signInLedger.ts'))
 const wallet = await import(join(ROOT, 'src/services/wallet/wallet.ts'))
-const limits = await import(join(ROOT, 'src/services/claudeAiLimits.ts'))
+const limits = await import(join(ROOT, 'src/services/anthropicLimits.ts'))
 const identityCache = await import(join(ROOT, 'src/utils/accounts/accountIdentity.ts'))
 function settleFixture(fixture: Fixture): void {
   writeFixture(fixture)

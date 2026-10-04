@@ -536,7 +536,7 @@ export function storeOAuthAccountInfo(info: AccountInfo): void {
   if (existing !== undefined && existing.accountUuid !== info.accountUuid) {
     try {
       const { resetLimitsForCredentialSwitch } =
-        require('../claudeAiLimits.js') as typeof import('../claudeAiLimits.js')
+        require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
       resetLimitsForCredentialSwitch()
     } catch {
     }

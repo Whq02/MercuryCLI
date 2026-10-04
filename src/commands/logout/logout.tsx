@@ -45,7 +45,7 @@ export async function performLogout({
   signOutEveryEngineCredential()
 
   try {
-    const { resetLimitsForCredentialSwitch } = await import('../../services/claudeAiLimits.js')
+    const { resetLimitsForCredentialSwitch } = await import('../../services/anthropicLimits.js')
     resetLimitsForCredentialSwitch()
   } catch (error) {
     logError(error)

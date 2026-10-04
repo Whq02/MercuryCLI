@@ -33,7 +33,7 @@ import { getEngineModel } from '../../utils/model/model.js'
 import { createStreamingTailStore, type StreamingTailStore } from '../../utils/messages/streamingTailStore.js'
 import { adoptOpenaiObservedUsage, adoptOpenaiWindowFact } from '../providers/openai/openaiLimitState.js'
 import { adoptOpenaiCatalogueFact } from '../providers/openai/openaiCatalogue.js'
-import { adoptAnthropicWindowFact } from '../claudeAiLimits.js'
+import { adoptAnthropicWindowFact } from '../anthropicLimits.js'
 import { mergeRecordsContentKeyed } from './recordIdentity.js'
 import {
   readSessionAsks,

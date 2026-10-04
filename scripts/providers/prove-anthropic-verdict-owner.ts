@@ -21,7 +21,7 @@ const section = (t: string): void => {
 }
 
 const ROOT = join(import.meta.dir, '..', '..')
-const limits = await import('../../src/services/claudeAiLimits.ts')
+const limits = await import('../../src/services/anthropicLimits.ts')
 const mock = await import('../../src/services/mockRateLimits.ts')
 const usability = await import('../../src/services/providers/providerUsability.ts')
 type Reads = import('../../src/services/providers/providerUsability.ts').ProviderUsabilityReads
@@ -138,7 +138,7 @@ section('§6 the road: the sign-in reaches the runners, and the live reads ride 
   check("the daemon relays on the client's refreshed sign-in view (the poke every sign-in and sign-out raises)", main.includes('relayCredentialChange(') && main.includes('refresh === true'))
   const usabilitySrc = src('src/services/providers/providerUsability.ts')
   check('the live usability reads take the guarded verdict, never the raw latch', usabilitySrc.includes('anthropicLimitVerdict(clock())') && !usabilitySrc.includes('currentLimits.status'))
-  const limitsSrc = src('src/services/claudeAiLimits.ts')
+  const limitsSrc = src('src/services/anthropicLimits.ts')
   const stampCalls = (source: string): number => (source.match(/^\s+stampVerdictOwner\(/gm) ?? []).length
   check('both wire paths stamp the verdict owner', stampCalls(limitsSrc) >= 2)
   check('one removed call cannot be replaced by counting the definition', stampCalls(limitsSrc.replace(/^\s+stampVerdictOwner\([^\n]*\n/m, '\n')) < 2)

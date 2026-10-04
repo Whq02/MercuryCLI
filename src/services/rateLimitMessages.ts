@@ -1,7 +1,7 @@
 import { getSubscriptionType } from '../utils/auth.js'
 import { formatResetTime } from '../utils/format.js'
 import { getMarketingNameForModel } from '../utils/model/model.js'
-import type { ClaudeAILimits, RateLimitType } from './claudeAiLimits.js'
+import type { AnthropicLimits, RateLimitType } from './anthropicLimits.js'
 import { usageWarningTier } from './providers/usageTiers.js'
 
 
@@ -107,7 +107,7 @@ function inFamilyClause(claim: RateLimitType | undefined): string | null {
   return null
 }
 
-function limitReachedMessage(limits: ClaudeAILimits, model: string): string {
+function limitReachedMessage(limits: AnthropicLimits, model: string): string {
   const onModel = onModelClause(model)
   const inFamily = inFamilyClause(limits.rateLimitType)
   const fixes = inFamily !== null ? `${SEPARATOR}${inFamily}` : ''
@@ -128,7 +128,7 @@ function limitReachedMessage(limits: ClaudeAILimits, model: string): string {
   return `Anthropic says this account's ${name} is reached${onModel}${resetClause}${fixes}`
 }
 
-function earlyWarningMessage(limits: ClaudeAILimits): string | null {
+function earlyWarningMessage(limits: AnthropicLimits): string | null {
   const claim = limits.rateLimitType
   if (claim === undefined) return null
   const name = earlyWarningName(claim)
@@ -147,7 +147,7 @@ function earlyWarningMessage(limits: ClaudeAILimits): string | null {
   return `Anthropic says this account is approaching its ${approachName}${resetClause}${upsellClause}`
 }
 
-export function getUsingOverageText(limits: ClaudeAILimits): string {
+export function getUsingOverageText(limits: AnthropicLimits): string {
   const rateLimitType = limits.rateLimitType
   let limitName: string | null = null
   if (rateLimitType === 'seven_day_fable') {
@@ -171,7 +171,7 @@ export function getUsingOverageText(limits: ClaudeAILimits): string {
   return `Anthropic says this account is now using extra usage${resetClause}`
 }
 
-export function getRateLimitMessage(limits: ClaudeAILimits, model: string): RateLimitMessage | null {
+export function getRateLimitMessage(limits: AnthropicLimits, model: string): RateLimitMessage | null {
   if (limits.isUsingOverage) {
     if (limits.overageStatus === 'allowed_warning') {
       return {
@@ -192,7 +192,7 @@ export function getRateLimitMessage(limits: ClaudeAILimits, model: string): Rate
   return null
 }
 
-export function getRateLimitErrorMessage(limits: ClaudeAILimits, model: string): string | null {
+export function getRateLimitErrorMessage(limits: AnthropicLimits, model: string): string | null {
   const result = getRateLimitMessage(limits, model)
   return result !== null && result.severity === 'error' ? result.message : null
 }
@@ -281,7 +281,7 @@ export function crossFamilyLaneRemedy(
   }
 }
 
-export function getRateLimitWarning(limits: ClaudeAILimits, model: string): string | null {
+export function getRateLimitWarning(limits: AnthropicLimits, model: string): string | null {
   const result = getRateLimitMessage(limits, model)
   return result !== null && result.severity === 'warning' ? result.message : null
 }

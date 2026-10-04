@@ -12,7 +12,7 @@ import { normalizeNameForMCP } from './normalization.js'
 import type { ScopedMcpServerConfig } from './types.js'
 
 
-export function claudeAiMcpArmed(canonical: string | undefined): boolean {
+export function anthropicConnectorsArmed(canonical: string | undefined): boolean {
   if (canonical !== undefined && canonical !== '') return isEnvTruthy(canonical)
   return false
 }
@@ -20,7 +20,7 @@ export function claudeAiMcpArmed(canonical: string | undefined): boolean {
 const REQUIRED_SCOPE = 'user:mcp_servers'
 const FETCH_TIMEOUT_MS = 5000
 
-type ClaudeAiMcpServerRow = {
+type AnthropicConnectorRow = {
   type?: string
   id: string
   display_name: string
@@ -28,11 +28,11 @@ type ClaudeAiMcpServerRow = {
   created_at?: string
 }
 
-export const fetchClaudeAIMcpConfigsIfEligible = memoize(
+export const fetchAnthropicConnectorsIfEligible = memoize(
   async (): Promise<Record<string, ScopedMcpServerConfig>> => {
-    const canonical = flagEnv('MERCURY_CLAUDEAI_MCP')
-    if (!claudeAiMcpArmed(canonical)) {
-      logForDebugging('claudeai MCP: not armed (opt in with MERCURY_CLAUDEAI_MCP=1)')
+    const canonical = flagEnv('MERCURY_ANTHROPIC_CONNECTORS')
+    if (!anthropicConnectorsArmed(canonical)) {
+      logForDebugging('claudeai MCP: not armed (opt in with MERCURY_ANTHROPIC_CONNECTORS=1)')
       return {}
     }
     const tokens = getClaudeAIOAuthTokens()
@@ -48,7 +48,7 @@ export const fetchClaudeAIMcpConfigsIfEligible = memoize(
     }
     try {
       const base = getOauthConfig().BASE_API_URL
-      const response = await axios.get<{ data?: ClaudeAiMcpServerRow[]; has_more?: boolean; next_page?: string | null }>(
+      const response = await axios.get<{ data?: AnthropicConnectorRow[]; has_more?: boolean; next_page?: string | null }>(
         `${base}/v1/mcp_servers?limit=1000`,
         {
           headers: {
@@ -88,12 +88,12 @@ export const fetchClaudeAIMcpConfigsIfEligible = memoize(
   },
 )
 
-export function clearClaudeAIMcpConfigsCache(): void {
-  fetchClaudeAIMcpConfigsIfEligible.cache?.clear?.()
+export function clearAnthropicConnectorsCache(): void {
+  fetchAnthropicConnectorsIfEligible.cache?.clear?.()
   clearMcpAuthCache()
 }
 
-export function markClaudeAiMcpConnected(name: string): void {
+export function markAnthropicConnectorConnected(name: string): void {
   saveGlobalConfig(current => {
     const list = current.claudeAiMcpEverConnected ?? []
     if (list.includes(name)) return current
@@ -101,6 +101,6 @@ export function markClaudeAiMcpConnected(name: string): void {
   })
 }
 
-export function hasClaudeAiMcpEverConnected(name: string): boolean {
+export function hasAnthropicConnectorEverConnected(name: string): boolean {
   return (getGlobalConfig().claudeAiMcpEverConnected ?? []).includes(name)
 }

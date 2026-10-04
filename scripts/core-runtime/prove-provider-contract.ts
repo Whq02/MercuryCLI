@@ -639,7 +639,7 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
 
   const MODEL_NAME_CENSUS = [
     'src/commands/model/model.tsx',
-    'src/services/claudeAiLimits.ts',
+    'src/services/anthropicLimits.ts',
     'src/services/providers/primaryBackend.ts',
     'src/utils/effort.ts',
   ].sort()

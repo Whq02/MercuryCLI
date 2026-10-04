@@ -350,7 +350,7 @@ t.section("§7 — THE ENUMERATION: the rows are the doors' own spellings (C3)")
     const scratch = mkdtempSync(join(tmpdir(), 'kit-menu-doors-'))
     const savedHome = process.env.MERCURY_CONFIG_DIR
     process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
-    delete process.env.MERCURY_CLAUDEAI_MCP
+    delete process.env.MERCURY_ANTHROPIC_CONNECTORS
     const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
     enableConfigs()
     try {

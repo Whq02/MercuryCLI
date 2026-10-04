@@ -49,7 +49,7 @@ const { providerLimitWarning, APPROACHING_LIMIT_PCT } = await import(
 )
 const { rateLimitWindowName } = await import('../../src/services/rateLimitMessages.ts')
 type Reads = NonNullable<Parameters<typeof providerLimitWarning>[0]>['reads']
-type Limits = import('../../src/services/claudeAiLimits.ts').ClaudeAILimits
+type Limits = import('../../src/services/anthropicLimits.ts').AnthropicLimits
 
 const HOUR = 3600
 const nowS = Math.floor(Date.now() / 1000)
@@ -221,7 +221,7 @@ section('§1 — anthropic: the existing meters, per-family claims included')
   const poolCalm = providerLimitWarning({ model: 'claude-fable-5', reads: poolReads(40) })
   check('…and a pool below the threshold stays silent', poolCalm === null, JSON.stringify(poolCalm))
 
-  const limitsMod = await import('../../src/services/claudeAiLimits.ts')
+  const limitsMod = await import('../../src/services/anthropicLimits.ts')
   const usageMod = await import('../../src/services/providers/providerUsage.ts')
   const isoReset = new Date(resetS * 1000).toISOString()
   limitsMod.foldUtilizationFromEndpoint({

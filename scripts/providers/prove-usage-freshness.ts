@@ -56,7 +56,7 @@ const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 const fresh = await import('../../src/services/providers/usageFreshness.ts')
 const owner = await import('../../src/services/providers/providerUsage.ts')
-const limits = await import('../../src/services/claudeAiLimits.ts')
+const limits = await import('../../src/services/anthropicLimits.ts')
 const reader = await import('../../src/services/providers/anthropic/anthropicUsageState.ts')
 const auth = await import('../../src/utils/auth.ts')
 

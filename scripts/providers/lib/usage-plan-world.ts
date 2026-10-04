@@ -135,7 +135,7 @@ export async function usagePlanWorld() {
   const owner = await import(path('src/services/providers/providerUsage.ts')) as typeof import('../../../src/services/providers/providerUsage.js')
   const fresh = await import(path('src/services/providers/usageFreshness.ts')) as typeof import('../../../src/services/providers/usageFreshness.js')
   const quota = await import(path('src/utils/cockpit/quota.ts')) as typeof import('../../../src/utils/cockpit/quota.js')
-  const records = await import(path('src/services/claudeAiLimits.ts')) as typeof import('../../../src/services/claudeAiLimits.js')
+  const records = await import(path('src/services/anthropicLimits.ts')) as typeof import('../../../src/services/anthropicLimits.js')
   await owner.refreshProviderUsage('moonshot', { fetchImpl, now: () => observedAtMs, force: true })
   await owner.refreshProviderUsage('zai', { fetchImpl, now: () => observedAtMs, force: true })
   const ids = ['moonshot', 'zai', 'anthropic', 'openai', 'openrouter', 'gemini', 'deepseek', 'huggingface', 'openai-compat', 'local']

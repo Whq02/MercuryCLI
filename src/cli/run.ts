@@ -99,7 +99,7 @@ import { createPeer, type Peer } from '../runner/wire/peer.js'
 import { invalidParams, isRpcError, refused } from '../runner/wire/errors.js'
 import type { Capabilities, ParamsOf } from '../runner/wire/methods.js'
 import { ndjsonSafeStringify } from './ndjsonSafeStringify.js'
-import { anthropicWindowFact, resetLimitsForCredentialSwitch, statusListeners, type ClaudeAILimits } from '../services/claudeAiLimits.js'
+import { anthropicWindowFact, resetLimitsForCredentialSwitch, statusListeners, type AnthropicLimits } from '../services/anthropicLimits.js'
 import { sessionLaneWall } from '../tools/MonitorTool/laneWall.js'
 import { providerLimitWarning } from '../services/providers/limitWarning.js'
 import {
@@ -887,7 +887,7 @@ export async function runHeadless(
     pendingSeeds.clear()
   }
 
-  const rateLimitListener = (limits: ClaudeAILimits): void => {
+  const rateLimitListener = (limits: AnthropicLimits): void => {
     enqueueRow(rateLimitRow(liveScope(), limits))
   }
   statusListeners.add(rateLimitListener)

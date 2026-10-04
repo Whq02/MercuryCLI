@@ -5,7 +5,7 @@ import { getIsRemoteMode } from '../../bootstrap/state.js'
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 import { useNotifications } from '../../context/notifications.js'
 import { Text } from '../../ink.js'
-import { hasClaudeAiMcpEverConnected } from '../../services/mcp/claudeai.js'
+import { hasAnthropicConnectorEverConnected } from '../../services/mcp/anthropicConnectors.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
 
 const PROXY_TYPES = ['claudeai-proxy']
@@ -32,7 +32,7 @@ export function useMcpConnectivityStatus({ mcpClients }: Props): void {
       client =>
         client.type === 'failed' &&
         client.config.type === 'claudeai-proxy' &&
-        hasClaudeAiMcpEverConnected(client.name),
+        hasAnthropicConnectorEverConnected(client.name),
     )
     const needsAuthLocal = clients.filter(
       client =>
@@ -42,7 +42,7 @@ export function useMcpConnectivityStatus({ mcpClients }: Props): void {
       client =>
         client.type === 'needs-auth' &&
         client.config.type === 'claudeai-proxy' &&
-        hasClaudeAiMcpEverConnected(client.name),
+        hasAnthropicConnectorEverConnected(client.name),
     )
 
     if (

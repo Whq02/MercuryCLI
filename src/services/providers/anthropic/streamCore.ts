@@ -142,7 +142,7 @@ import { tokenCountFromLastAPIResponse } from '../../../utils/tokens.js'
 import {
   extractQuotaStatusFromError,
   extractQuotaStatusFromHeaders,
-} from '../../claudeAiLimits.js'
+} from '../../anthropicLimits.js'
 import {
   consumePendingCacheEdits,
   getPinnedCacheEdits,

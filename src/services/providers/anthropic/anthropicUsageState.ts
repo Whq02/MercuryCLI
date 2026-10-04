@@ -11,7 +11,7 @@ import {
 import { logForDebugging } from '../../../utils/debug.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
 import { fetchUtilization, usageEndpointBase } from '../../api/usage.js'
-import { noteUsageRecordChanged, resetLimitsForCredentialSwitch } from '../../claudeAiLimits.js'
+import { noteUsageRecordChanged, resetLimitsForCredentialSwitch } from '../../anthropicLimits.js'
 import { isOAuthTokenExpired } from '../../oauth/client.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 import { formatUsageAge, formatUsageAgeShort, usagePollTtlMs } from '../usageFreshness.js'

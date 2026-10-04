@@ -131,7 +131,7 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
     if (anthropicArm) {
       const { readAnthropicPreferredSource, writeAnthropicPreferredSource, isClaudeAISubscriber } =
         await import('../../utils/auth.js')
-      const { resetLimitsForCredentialSwitch } = await import('../../services/claudeAiLimits.js')
+      const { resetLimitsForCredentialSwitch } = await import('../../services/anthropicLimits.js')
       if (target === 'sub' || target === 'subscription' || target === 'clear') {
         writeAnthropicPreferredSource(null)
       } else if (target === 'api' || target === 'api-key') {
