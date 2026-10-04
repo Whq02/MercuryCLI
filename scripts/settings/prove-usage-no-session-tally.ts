@@ -26,8 +26,8 @@ check('the frame\'s spend is the focused session\'s usage facts', frame.includes
 check('the frame never reads the screen\'s own cost ledger for the session figure', !frame.includes('getTotalCostUSD()') && !frame.includes('getModelUsage()'))
 const types = read('src/services/engine-connector/types.ts')
 check('the facts carry the totals the bar and the rail show', ['totalCostUSD: number', 'totalInputTokens: number', 'totalOutputTokens: number', 'totalCacheReadInputTokens: number', 'unpricedTurns?: number'].every(f => types.includes(f)))
-const print = read('src/cli/print.ts')
-check('the runner answers those totals from its own ledger', print.includes('totalCostUSD: getTotalCostUSD(),') && print.includes('totalInputTokens: getTotalInputTokens(),') && print.includes('unpricedTurns: getTotalUnpricedTurns(),'))
+const runner = read('src/cli/run.ts')
+check('the runner answers those totals from its own ledger', runner.includes('totalCostUSD: getTotalCostUSD(),') && runner.includes('totalInputTokens: getTotalInputTokens(),') && runner.includes('unpricedTurns: getTotalUnpricedTurns(),'))
 
 console.log(`\n${failures === 0 ? 'ALL LAWS HOLD' : `${failures} FAILURE(S)`} — prove-usage-no-session-tally`)
 process.exit(failures === 0 ? 0 : 1)

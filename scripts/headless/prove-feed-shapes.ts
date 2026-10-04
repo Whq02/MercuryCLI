@@ -336,7 +336,7 @@ section('F5 — the wait, fold, usage and context projections spell snake_case')
   const scope = { session_id: 's', turn: 1 }
   const wait = { kind: 'first-byte' as const, cold: true, promptTokens: 58_000, model: 'Opus 5', budgetMs: 160_000, sinceMs: 5, attempt: 1 }
   const waitRow = project.waitRow(scope, wait)
-  check('the request wait projects to a wait row with snake keys', waitRow.type === 'wait' && waitRow.state === 'first_byte' && keyPaths(waitRow).every(p => SNAKE.test(lastSegment(p))) && waitRow.prompt_tokens === 58_000, j(waitRow))
+  check('the request wait projects to a wait row with snake keys, its prompt figure named as the estimate it is', waitRow.type === 'wait' && waitRow.state === 'first_byte' && keyPaths(waitRow).every(p => SNAKE.test(lastSegment(p))) && waitRow.prompt_tokens_estimate === 58_000 && !('prompt_tokens' in waitRow), j(waitRow))
   check('a wait of null projects to the done state', deepEq(project.waitRow(scope, null), { type: 'wait', state: 'done', session_id: 's', turn: 1 }))
   const retry = project.retryWaitRow(scope, { attempt: 2, of: 3, reason: 'a 529', delayMs: 800, httpStatus: 529, sinceMs: 9 })
   check('the retry wait names its attempt, place, reason and delay', retry.state === 'retry' && retry.attempt === 2 && retry.of === 3 && retry.reason === 'a 529' && retry.delay_ms === 800 && retry.http_status === 529, j(retry))
