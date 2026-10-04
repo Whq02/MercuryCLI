@@ -9,7 +9,8 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'refs-home-'))
 
 const { appendObservation } = await import('../../src/mneme/mnemeBuffer.ts')
 const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.ts')
-const { collectMemoryRefs, queryTokens, renderMemoryRefLine } = await import('../../src/mneme/memoryRefs.ts')
+const { collectMemoryRefs, renderMemoryRefLine } = await import('../../src/mneme/memoryRefs.ts')
+const { lookupTokens } = await import('../../src/mneme/mnemeLookup.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -62,7 +63,12 @@ section('§3 scope + the memory switch')
   const refsOff = collectMemoryRefs('when is the release shipped', { libraryDir: libDir, projectRoot })
   check('memory off → zero refs', refsOff.length === 0)
   delete process.env.MERCURY_BARE
-  check('queryTokens bounded + deduped', queryTokens('a a the the release release ship ship').length <= 12)
+  const tokens = lookupTokens(`a a the the Release release ship ship 2026 ${Array.from({ length: 20 }, (_, i) => `word${i}`).join(' ')}`)
+  check(
+    'query tokens: lowercased, 3+ chars, no filler words, no bare numbers, deduped, at most 16',
+    tokens.length === 16 && tokens[0] === 'release' && tokens[1] === 'ship' && !tokens.includes('the') && !tokens.includes('2026'),
+    JSON.stringify(tokens),
+  )
 }
 
 section('§4 capsule integration: refs ride the working set, digest-joined')
@@ -96,6 +102,30 @@ section('§4 capsule integration: refs ride the working set, digest-joined')
   check('memory-only change changes the capsule digest (dedup honesty)', cap1 !== null && cap2 !== null && cap1.digest !== cap2.digest, `${cap1?.digest} vs ${cap2?.digest}`)
   const capIrr = assembleContextCapsule({ workspace: ws, task: 'explain bloom filters' })
   check('irrelevant task → no memory refs in the capsule', (capIrr?.memoryRefs?.length ?? 0) === 0, JSON.stringify(capIrr?.memoryRefs))
+}
+
+section('§5 filler words select nothing; a real word still finds its topic and its lines')
+{
+  const noiseLib = join(mkdtempSync(join(tmpdir(), 'refs-noise-')), 'library')
+  appendObservation({ text: 'handover notes ride the command line', source: 'operator', topicHint: 'handover' }, noiseLib)
+  appendObservation({ text: 'whether to show wanted rows was answered yourself', source: 'operator', topicHint: 'whether' }, noiseLib)
+  maybeConsolidate({ force: true, dir: noiseLib })
+  appendObservation({ text: 'command handover wanted whether show', source: 'operator', topicHint: 'handover' }, noiseLib)
+  const refsOf = (query: string) => collectMemoryRefs(query, { libraryDir: noiseLib, projectRoot, maxRefs: 16 })
+  const control = refsOf('handover')
+  check('a real word finds its topic', control.some(r => r.refId === 'mneme-topic:handover' && r.why === "topic matches 'handover'"), JSON.stringify(control))
+  check('a real word finds its content line', control.some(r => r.kind === 'mneme-fact' && r.why === "content matches 'handover'"), JSON.stringify(control))
+  check('a real word finds its recent unconsolidated row', control.some(r => r.kind === 'mneme-pending' && r.why === "recent unconsolidated matches 'handover'"), JSON.stringify(control))
+  const filler = refsOf('and the want how')
+  check("filler words 'and the want how' select nothing", filler.length === 0, filler.map(r => r.why).join(' | '))
+  const pronouns = refsOf('you were')
+  check("filler words 'you were' select nothing", pronouns.length === 0, pronouns.map(r => r.why).join(' | '))
+  const inside = refsOf('dove ether man')
+  check('a token inside a longer word selects nothing', inside.length === 0, inside.map(r => r.why).join(' | '))
+  const mixed = refsOf('and the want how handover')
+  check('filler words beside a real word add nothing', JSON.stringify(mixed) === JSON.stringify(control), mixed.map(r => r.why).join(' | '))
+  const command = refsOf('the command and')
+  check('every why-line names the real word', command.length > 0 && command.every(r => r.why.endsWith("'command'")), command.map(r => r.why).join(' | '))
 }
 
 function correctFactLocal(lib: string): boolean {
