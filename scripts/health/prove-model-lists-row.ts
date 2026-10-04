@@ -8,7 +8,7 @@ const HOME = join(SCRATCH, 'home')
 mkdirSync(HOME, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
-process.env.MERCURY_CUSTOM_OAUTH_URL = 'http://127.0.0.1:1'
+process.env.MERCURY_ANTHROPIC_OAUTH_BASE = 'http://127.0.0.1:1'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
 process.env.MERCURY_OPENAI_CHATGPT_BASE = 'http://127.0.0.1:1'

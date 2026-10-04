@@ -100,7 +100,7 @@ const server = createServer((req, res) => {
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
 const port = (server.address() as { port: number }).port
 const base = `http://127.0.0.1:${port}`
-process.env.MERCURY_CUSTOM_OAUTH_URL = base
+process.env.MERCURY_ANTHROPIC_OAUTH_BASE = base
 process.env.ANTHROPIC_BASE_URL = base
 
 const credentialsPath = join(scratch, '.credentials.json')

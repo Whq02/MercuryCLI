@@ -201,7 +201,7 @@ function childEnv(home: string, scale: string, road: Road): NodeJS.ProcessEnv {
     MERCURY_OPENAI_AUTH_BASE: 'http://127.0.0.1:9',
     MERCURY_OPENAI_CHATGPT_BASE: 'http://127.0.0.1:9/chatgpt',
     MERCURY_DEEPSEEK_API_BASE: 'http://127.0.0.1:9/deepseek',
-    MERCURY_CUSTOM_OAUTH_URL: 'http://127.0.0.1:1',
+    MERCURY_ANTHROPIC_OAUTH_BASE: 'http://127.0.0.1:1',
     ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
     ANTHROPIC_API_KEY: '',
     OPENAI_API_KEY: '',

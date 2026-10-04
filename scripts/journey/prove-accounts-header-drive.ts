@@ -189,7 +189,7 @@ async function runBoard(): Promise<{ payload: Payload | null; status: number | n
     ...process.env,
     MERCURY_CONFIG_DIR: RUN_HOME,
     MERCURY_CREDENTIAL_STORE: 'file',
-    MERCURY_CUSTOM_OAUTH_URL: `http://127.0.0.1:${fixture.port}`,
+    MERCURY_ANTHROPIC_OAUTH_BASE: `http://127.0.0.1:${fixture.port}`,
     ANTHROPIC_BASE_URL: `http://127.0.0.1:${fixture.port}`,
     MERCURY_OPENAI_API_BASE: DEAD,
     MERCURY_OPENAI_CHATGPT_BASE: DEAD,

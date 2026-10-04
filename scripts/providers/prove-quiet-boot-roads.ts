@@ -68,7 +68,7 @@ const port = await new Promise<number>(resolvePort => {
   })
 })
 const BASE = `http://127.0.0.1:${port}`
-process.env.MERCURY_CUSTOM_OAUTH_URL = BASE
+process.env.MERCURY_ANTHROPIC_OAUTH_BASE = BASE
 process.env.ANTHROPIC_BASE_URL = BASE
 writeFileSync(
   join(home, '.credentials.json'),

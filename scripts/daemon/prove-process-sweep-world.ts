@@ -75,7 +75,7 @@ function baseEnv(daemonDir: string): NodeJS.ProcessEnv {
     MERCURY_HEALTH_STATE_DIR: join(home, 'health-state'),
     ANTHROPIC_API_KEY: 'fixture-key-000',
     ANTHROPIC_BASE_URL: api.url,
-    MERCURY_CUSTOM_OAUTH_URL: 'http://127.0.0.1:1',
+    MERCURY_ANTHROPIC_OAUTH_BASE: 'http://127.0.0.1:1',
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
     MERCURY_BOOT_PREFLIGHT: '0',

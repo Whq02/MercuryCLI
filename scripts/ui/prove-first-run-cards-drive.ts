@@ -83,7 +83,7 @@ function childEnv(home: string): NodeJS.ProcessEnv {
     MERCURY_MOONSHOT_CODING_BASE: `${DEAD}/v1`,
     MERCURY_ZAI_API_BASE: `${DEAD}/v4`,
     MERCURY_DEEPSEEK_API_BASE: DEAD,
-    MERCURY_CUSTOM_OAUTH_URL: 'http://127.0.0.1:1',
+    MERCURY_ANTHROPIC_OAUTH_BASE: 'http://127.0.0.1:1',
     TERM: 'xterm-256color',
     LANG: 'en_US.UTF-8',
     COLORTERM: 'truecolor',

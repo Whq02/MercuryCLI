@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto'
 import { userInfo } from 'node:os'
 
-import { fileSuffixForOauthConfig } from '../../constants/oauth.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getAuthConfigHomeDir, getAuthScope, rawConfigHomePinSpelling } from '../envUtils.js'
 import type { SecureStorageData } from './types.js'
@@ -17,7 +16,7 @@ export const CREDENTIALS_SERVICE_SUFFIX = '-credentials'
 export function getMacOsKeychainStorageServiceName(serviceSuffix: string = ''): string {
   const configDir = getAuthConfigHomeDir().normalize('NFC')
   const dirHash = `-${createHash('sha256').update(configDir).digest('hex').slice(0, 8)}`
-  return `Mercury${fileSuffixForOauthConfig()}${serviceSuffix}${dirHash}`
+  return `Mercury${serviceSuffix}${dirHash}`
 }
 
 export function getRawSpellingKeychainStorageServiceName(serviceSuffix: string = ''): string | null {
@@ -26,7 +25,7 @@ export function getRawSpellingKeychainStorageServiceName(serviceSuffix: string =
   if (raw === null) return null
   if (raw === getAuthConfigHomeDir().normalize('NFC')) return null
   const dirHash = `-${createHash('sha256').update(raw).digest('hex').slice(0, 8)}`
-  return `Mercury${fileSuffixForOauthConfig()}${serviceSuffix}${dirHash}`
+  return `Mercury${serviceSuffix}${dirHash}`
 }
 
 export const KEYCHAIN_FALLBACK_USERNAME = 'mercury-user'

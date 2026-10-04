@@ -2337,7 +2337,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     }
   }
   if (name === 'context-claude') {
-    process.env.MERCURY_CUSTOM_OAUTH_URL = 'http://127.0.0.1:9'
+    process.env.MERCURY_ANTHROPIC_OAUTH_BASE = 'http://127.0.0.1:9'
     process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
     writeSyntheticSession('short')
     stageAccountsBoardFile(

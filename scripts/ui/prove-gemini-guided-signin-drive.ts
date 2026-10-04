@@ -321,7 +321,7 @@ async function runLeg(leg: 'walk' | 'denied' | 'look'): Promise<{
     ...process.env,
     MERCURY_CONFIG_DIR: RUN_HOME,
     MERCURY_CREDENTIAL_STORE: 'file',
-    MERCURY_CUSTOM_OAUTH_URL: 'http://127.0.0.1:1',
+    MERCURY_ANTHROPIC_OAUTH_BASE: 'http://127.0.0.1:1',
     ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key',
     ANTHROPIC_BASE_URL: DEAD,
     MERCURY_OPENAI_API_BASE: DEAD,

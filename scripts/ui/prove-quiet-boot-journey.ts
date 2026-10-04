@@ -176,7 +176,7 @@ function childEnv(home: string, netlog: string, extra: Record<string, string> = 
   for (const key of [
     'ANTHROPIC_AUTH_TOKEN',
     'MERCURY_OAUTH_TOKEN',
-    'MERCURY_CUSTOM_OAUTH_URL',
+    'MERCURY_ANTHROPIC_OAUTH_BASE',
     'OPENAI_API_KEY',
     'OPENROUTER_API_KEY',
     'GOOGLE_API_KEY',

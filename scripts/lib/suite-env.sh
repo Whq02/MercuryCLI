@@ -33,7 +33,7 @@ suite_env_guard() {
       MERCURY_LOCAL_PROBE_TARGETS) [ "${MERCURY_LOCAL_PROBE_TARGETS:-}" = none ] && continue ;;
       MERCURY_TMPDIR) [ "${MERCURY_TMPDIR:-}" = "${MERCURY_SUITE_TMPDIR:-}" ] && continue ;;
       MERCURY_GATE_*|MERCURY_CI_*|MERCURY_SUITE_*|MERCURY_SLICE_*|MERCURY_VSHOT_*) continue ;;
-      MERCURY_CUSTOM_OAUTH_URL|MERCURY_UPDATE_API_BASE_URL|MERCURY_*_BASE) continue ;;
+      MERCURY_UPDATE_API_BASE_URL|MERCURY_*_BASE) continue ;;
     esac
     case " $declared " in *" $name "*) continue ;; esac
     foreign="$foreign $name"

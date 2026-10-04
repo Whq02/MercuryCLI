@@ -210,7 +210,7 @@ function childEnv(world: World): NodeJS.ProcessEnv {
     MERCURY_MOONSHOT_CODING_BASE: `${DEAD}/v1`,
     MERCURY_ZAI_API_BASE: `${DEAD}/v4`,
     MERCURY_DEEPSEEK_API_BASE: DEAD,
-    MERCURY_CUSTOM_OAUTH_URL: DEAD,
+    MERCURY_ANTHROPIC_OAUTH_BASE: DEAD,
   }
   mkdirSync(env.TMPDIR!, { recursive: true })
   return env

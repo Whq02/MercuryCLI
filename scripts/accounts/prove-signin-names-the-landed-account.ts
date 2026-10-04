@@ -13,7 +13,7 @@ mkdirSync(HOME, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
-process.env.MERCURY_CUSTOM_OAUTH_URL = 'http://127.0.0.1:9'
+process.env.MERCURY_ANTHROPIC_OAUTH_BASE = 'http://127.0.0.1:9'
 
 const FIRST_EMAIL = 'first-account@fixture.example'
 const SECOND_EMAIL = 'second-account@fixture.example'
@@ -171,7 +171,7 @@ section('§2b the in-app sign-in reads the account\'s roles with the landed toke
   const refused = await signIn(tokensOf({ accessToken: 'fixture-roles-access-token-0005', profile: secondProfile, tokenAccount: { uuid: SECOND_UUID, emailAddress: SECOND_EMAIL, organizationUuid: 'org-second' } } as Partial<Tokens>), { fetchRoles: async () => { throw new Error('roles are not this token\'s to read') }, log: (error: unknown) => { logged.push(error) } } as never)
   check('a roles read the token is not entitled to is logged and the sign-in still lands', refused.flow === 'success' && refused.label === SECOND_EMAIL && logged.length === 1, JSON.stringify({ refused, logged: logged.map(String) }))
   const modelSource = readFileSync(join(import.meta.dir, '../../src/components/mercury-ui/screens/anthropicLoginModel.ts'), 'utf8')
-  check('the live deps read the roles through the one oauth owner, after the account is stored, only for a token with the profile scope, without holding the success', modelSource.includes('fetchRoles: fetchAndStoreUserRoles,') && modelSource.includes('if (landed !== undefined) deps.storeAccount(landed)') && modelSource.includes('fetchRoles(tokens.accessToken, origin)') && modelSource.indexOf('if (landed !== undefined) deps.storeAccount(landed)') < modelSource.indexOf('fetchRoles(tokens.accessToken, origin)') && modelSource.includes('tokens.scopes.includes(CLAUDE_AI_PROFILE_SCOPE)') && modelSource.includes('isCurrent: () => !disposed && gen === generation'))
+  check('the live deps read the roles through the one oauth owner, after the account is stored, only for a token with the profile scope, without holding the success', modelSource.includes('fetchRoles: fetchAndStoreUserRoles,') && modelSource.includes('if (landed !== undefined) deps.storeAccount(landed)') && modelSource.includes('fetchRoles(tokens.accessToken, origin)') && modelSource.indexOf('if (landed !== undefined) deps.storeAccount(landed)') < modelSource.indexOf('fetchRoles(tokens.accessToken, origin)') && modelSource.includes('tokens.scopes.includes(PROFILE_SCOPE)') && modelSource.includes('isCurrent: () => !disposed && gen === generation'))
 }
 
 section('§3 every surface that names the account reads the sign-in, with no /accounts in between')

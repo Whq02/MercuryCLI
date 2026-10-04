@@ -8,7 +8,7 @@ const ROOT = join(REPO, 'scripts')
 type Family = { name: string; seed: RegExp; seam: string; road: string }
 
 const FAMILIES: Family[] = [
-  { name: 'anthropic', seed: /claudeAiOauth|saveOAuthTokensIfNeeded\(/, seam: 'MERCURY_CUSTOM_OAUTH_URL', road: 'the token refresh and the profile read' },
+  { name: 'anthropic', seed: /claudeAiOauth|saveOAuthTokensIfNeeded\(/, seam: 'MERCURY_ANTHROPIC_OAUTH_BASE', road: 'the token refresh and the profile read' },
   { name: 'openai', seed: /\.openai-auth\.json/, seam: 'MERCURY_OPENAI_AUTH_BASE', road: 'the token refresh at the issuer' },
   { name: 'gemini', seed: /\.gemini-auth\.json/, seam: 'MERCURY_GEMINI_OAUTH_TOKEN_BASE', road: 'the token refresh' },
   { name: 'huggingface', seed: /\.huggingface-auth\.json/, seam: 'MERCURY_HUGGINGFACE_HUB_BASE', road: 'the token refresh and the identity read' },
@@ -118,15 +118,15 @@ for (const file of files) {
   if (!SOURCE_REFRESH.test(body)) continue
   if (!/claudeAiOauth|saveOAuthTokensIfNeeded\(/.test(withHelpers(file, text))) continue
   if (AXIOS_MOCK.test(body)) continue
-  if (names(file, text, 'MERCURY_CUSTOM_OAUTH_URL')) continue
-  sourceOffenders.push(`${rel(file)} calls the refresh road with a stored sign-in and no MERCURY_CUSTOM_OAUTH_URL`)
+  if (names(file, text, 'MERCURY_ANTHROPIC_OAUTH_BASE')) continue
+  sourceOffenders.push(`${rel(file)} calls the refresh road with a stored sign-in and no MERCURY_ANTHROPIC_OAUTH_BASE`)
 }
 check('no source-level refresh proof leaves the token endpoint live', sourceOffenders.length === 0, `${sourceOffenders.length} open road(s)`)
 for (const line of sourceOffenders) console.log(`    ${line}`)
 
 console.log('§4 the walk saw the estate')
 check('the walk read more than one thousand proof files', files.length > 1000, `${files.length} files`)
-check('the census knows the hosted shard\'s own pin line', readFileSync(join(ROOT, 'gate', 'ci-shard.sh'), 'utf8').includes('export MERCURY_CUSTOM_OAUTH_URL="$HERMETIC_DEAD_BASE"'))
+check('the census knows the hosted shard\'s own pin line', readFileSync(join(ROOT, 'gate', 'ci-shard.sh'), 'utf8').includes('export MERCURY_ANTHROPIC_OAUTH_BASE="$HERMETIC_DEAD_BASE"'))
 
 console.log(failures === 0 ? '\nsign-in roads pinned: GREEN' : `\nsign-in roads pinned: ${failures} RED`)
 process.exit(failures === 0 ? 0 : 1)
