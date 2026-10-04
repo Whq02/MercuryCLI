@@ -30,3 +30,9 @@ const assistant = messages.find(message => message.type === 'assistant')!
 const replayPlan = requestPlanOf([{ ...assistant, apexProviderTurn: replay } as never])
 assert.equal(JSON.stringify(openai.encodeOpenaiPlan(replayPlan)), JSON.stringify(openai.decodeOpenaiTurnRecord(replay)!.items))
 console.log('PASS: the Responses plan codec preserves item order, text registers and private replay without re-derivation')
+const gemini = await import('../../src/services/providers/gemini/geminiCodec.ts')
+const chat = await import('../../src/services/providers/zai/zaiCodec.ts')
+const chatRows = chat.mapMessagesToZai(undefined, bridge)
+const nativeRequest = { model: 'fixture-model', messages: chatRows }
+assert.equal(JSON.stringify(gemini.encodeGeminiPlan(plan, { model: 'fixture-model' })), JSON.stringify(gemini.buildGeminiRequest(nativeRequest, messages)))
+console.log('PASS: the Gemini plan codec preserves native parts, tool responses and signature replay context')

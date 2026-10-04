@@ -1,5 +1,8 @@
 import type { Message } from '../../../types/message.js'
 import type { CompatChatRequest, CompatMessage } from '../openaicompat/compatChatClient.js'
+import { requestTurnOf, type RequestPlan } from '../../../rows/request.js'
+import { mapMessagesToZai } from '../zai/zaiCodec.js'
+import type { MessageParam } from '../../../types/wire.js'
 
 export type GeminiPart = {
   text?: string
@@ -54,15 +57,13 @@ function replayItem(value: unknown, model: string, row: CompatMessage): GeminiTu
 }
 
 function contentParts(content: CompatMessage['content']): GeminiPart[] {
-  if (typeof content === 'string') return content === '' ? [] : [{ text: content }]
-  if (!Array.isArray(content)) return []
-  return content.map(part => {
-    if (part.type === 'text') return { text: part.text }
-    const url = part.image_url.url
+  const turn = requestTurnOf('user', content)
+  if (turn.stringContent !== undefined) return turn.stringContent === '' ? [] : [{ text: turn.stringContent }]
+  return turn.items.map(item => {
+    if (item.type === 'text') return { text: item.text }
+    const url = (item.value as unknown as { image_url: { url: string } }).image_url.url
     const data = /^data:([^;,]+);base64,([\s\S]*)$/.exec(url)
-    return data
-      ? { inlineData: { mimeType: data[1]!, data: data[2]! } }
-      : { fileData: { fileUri: url } }
+    return data ? { inlineData: { mimeType: data[1]!, data: data[2]! } } : { fileData: { fileUri: url } }
   })
 }
 
@@ -154,4 +155,9 @@ export function buildGeminiRequest(request: CompatChatRequest, messages: readonl
     } : {}),
     ...(Object.keys(generationConfig).length ? { generationConfig } : {}),
   }
+}
+export function encodeGeminiPlan(plan: RequestPlan, request: Omit<CompatChatRequest, 'messages'>): GeminiRequest {
+  const bridge: MessageParam[] = plan.turns.map(turn => ({ role: turn.role, content: turn.storedContent as MessageParam['content'] }))
+  const messages = plan.turns.map(turn => ({ type: turn.role, geminiProviderTurn: turn.replay?.gemini })) as unknown as Message[]
+  return buildGeminiRequest({ ...request, messages: mapMessagesToZai(plan.system, bridge) }, messages)
 }
