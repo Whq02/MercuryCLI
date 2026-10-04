@@ -66,6 +66,10 @@ export function registerHookEventHandler(newHandler: HookEventHandler | null): v
   for (const event of backlog) newHandler(event)
 }
 
+export function takeHookEventHandler(): HookEventHandler | null {
+  return handler
+}
+
 
 export function emitHookStarted(hookId: string, hookName: string, hookEvent: string): void {
   if (!shouldEmit(hookEvent)) return
@@ -107,6 +111,26 @@ export function emitHookResponse(params: {
 
 type HookOutputSnapshot = { stdout: string; stderr: string; output: string }
 
+export function hookProgressReporter(params: {
+  hookId: string
+  hookName: string
+  hookEvent: string
+}): (snapshot: HookOutputSnapshot) => void {
+  let lastOutput = ''
+  return ({ stdout, stderr, output }) => {
+    if (output === lastOutput) return
+    lastOutput = output
+    emitHookProgress({
+      hookId: params.hookId,
+      hookName: params.hookName,
+      hookEvent: params.hookEvent,
+      stdout,
+      stderr,
+      output,
+    })
+  }
+}
+
 export function startHookProgressInterval(params: {
   hookId: string
   hookName: string
@@ -114,22 +138,6 @@ export function startHookProgressInterval(params: {
   getOutput: () => HookOutputSnapshot | Promise<HookOutputSnapshot>
   intervalMs?: number
 }): () => void {
-  if (!shouldEmit(params.hookEvent)) return () => {}
-  let lastOutput = ''
-  const timer = setInterval(() => {
-    void Promise.resolve(params.getOutput()).then(({ stdout, stderr, output }) => {
-      if (output === lastOutput) return
-      lastOutput = output
-      emitHookProgress({
-        hookId: params.hookId,
-        hookName: params.hookName,
-        hookEvent: params.hookEvent,
-        stdout,
-        stderr,
-        output,
-      })
-    })
-  }, params.intervalMs ?? 1000)
-  timer.unref?.()
-  return () => clearInterval(timer)
+  void params
+  return () => {}
 }

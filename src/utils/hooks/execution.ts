@@ -50,7 +50,7 @@ import {
 import { jsonParse, jsonStringify } from '../slowOperations.js'
 import {
   emitHookResponse,
-  startHookProgressInterval,
+  hookProgressReporter,
 } from './hookEvents.js'
 import { isAsyncHookJSONOutput } from '../../types/hooks.js'
 import { logForDiagnosticsNoPII } from '../diagLogs.js'
@@ -399,6 +399,7 @@ export async function execCommandHook(
         output = output.slice(0, HOOK_OUTPUT_MAX_BYTES) + TRUNCATION_NOTE
       }
     }
+    reportProgress({ stdout, stderr, output })
 
     if (requestPrompt) {
       lineBuffer += data
@@ -493,14 +494,11 @@ export async function execCommandHook(
         stderr = stderr.slice(0, HOOK_OUTPUT_MAX_BYTES) + TRUNCATION_NOTE
       }
     }
+    reportProgress({ stdout, stderr, output })
   })
 
-  const stopProgressInterval = startHookProgressInterval({
-    hookId,
-    hookName,
-    hookEvent,
-    getOutput: async () => ({ stdout, stderr, output }),
-  })
+  const reportProgress = hookProgressReporter({ hookId, hookName, hookEvent })
+  const stopProgressInterval = () => {}
 
   const stdoutEndPromise = new Promise<void>(resolve => {
     child.stdout.on('end', () => resolve())

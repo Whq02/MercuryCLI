@@ -1,11 +1,12 @@
 import type { AsyncHookJSONOutput, HookEvent } from './contract.js'
 
 import type { ShellCommand } from '../ShellCommand.js'
+import { TaskOutput } from '../task/TaskOutput.js'
 import { logForDebugging } from '../debug.js'
 import { logError } from '../log.js'
 import { jsonParse } from '../slowOperations.js'
 import { invalidateSessionEnvCache } from '../sessionEnvironment.js'
-import { emitHookResponse, startHookProgressInterval } from './hookEvents.js'
+import { emitHookResponse, hookProgressReporter } from './hookEvents.js'
 
 
 export type PendingAsyncHookEvent = HookEvent | 'FileSuggestion'
@@ -53,6 +54,24 @@ export function registerPendingAsyncHook(params: {
   toolName?: string
 }): void {
   const timeoutMs = params.asyncResponse.asyncTimeout || DEFAULT_ASYNC_TIMEOUT_MS
+  const reportProgress = hookProgressReporter({
+    hookId: params.hookId,
+    hookName: params.hookName,
+    hookEvent: params.hookEvent,
+  })
+  const observedTaskOutput = params.shellCommand?.taskOutput
+  const onFileProgress = (): void => {
+    const taskOutput = registry.get(params.processId)?.shellCommand?.taskOutput ?? observedTaskOutput
+    if (!taskOutput) return
+    void Promise.all([taskOutput.getStdout(), taskOutput.getStderr()]).then(
+      ([stdout, stderr]) => {
+        if (registry.get(params.processId) === undefined && stdout === '' && stderr === '') return
+        reportProgress({ stdout, stderr, output: stdout + stderr })
+      },
+    )
+  }
+  const progressTaskOutput = new TaskOutput(`hookprog_${params.processId}`, onFileProgress)
+  TaskOutput.startPolling(progressTaskOutput.taskId)
   const entry: PendingAsyncHook = {
     processId: params.processId,
     hookId: params.hookId,
@@ -65,19 +84,9 @@ export function registerPendingAsyncHook(params: {
     timeout: timeoutMs,
     responseAttachmentSent: false,
     shellCommand: params.shellCommand,
-    stopProgressInterval: startHookProgressInterval({
-      hookId: params.hookId,
-      hookName: params.hookName,
-      hookEvent: params.hookEvent,
-      getOutput: async () => {
-        const live = registry.get(params.processId)
-        const taskOutput = live?.shellCommand?.taskOutput
-        if (!taskOutput) return { stdout: '', stderr: '', output: '' }
-        const stdout = await taskOutput.getStdout()
-        const stderr = taskOutput.getStderr()
-        return { stdout, stderr, output: stdout + stderr }
-      },
-    }),
+    stopProgressInterval: () => {
+      TaskOutput.stopPolling(progressTaskOutput.taskId)
+    },
   }
   registry.set(params.processId, entry)
   logForDebugging(
