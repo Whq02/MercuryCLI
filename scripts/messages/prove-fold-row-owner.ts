@@ -93,6 +93,14 @@ const viewed = await paint({ conversationId: 'crewmate:task-1', suppressNotices:
 check('the crewmate\'s rows paint under the crewmate plates', viewed.includes('[scout]') && viewed.includes('The plan has three steps.'), viewed.slice(0, 200))
 check(`RED ON THE BASE: no "${FOLD_ROW_HEAD}" row rides a crewmate\'s transcript while the LEAD folds`, !viewed.includes(FOLD_ROW_HEAD), viewed.slice(0, 300))
 
+section('§3 the fold row follows the session identity, not a mount flag')
+const foreign = await paint({ conversationId: 'some-other-session' }, null)
+check('a transcript of another conversation paints no fold row even with every notice allowed (RED on the base)', foreign.includes('The plan has three steps.') && !foreign.includes(FOLD_ROW_HEAD), foreign.slice(0, 300))
+const exported = await paint({ conversationId: 'export', renderRange: [0, 2] }, null)
+check('an export slice paints no fold row (RED on the base)', exported.includes('The plan has three steps.') && !exported.includes(FOLD_ROW_HEAD), exported.slice(0, 300))
+const ownQuiet = await paint({ conversationId: 'lead-session', suppressNotices: true }, null)
+check('the focused session\'s own transcript keeps its fold row whatever its notice strip does', ownQuiet.includes(FOLD_ROW_HEAD), ownQuiet.slice(0, 300))
+
 slot.releaseFocusedSessionConnector()
 console.log(`\n${'─'.repeat(76)}`)
 console.log(failures === 0 ? '  ALL PASS' : `  ${failures} FAILURE(S)`)

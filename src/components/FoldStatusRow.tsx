@@ -20,13 +20,14 @@ const getFocusedFold = (): FoldStatusV1 | null => {
 
 export type FoldLandingRowFacts = { type?: string; subtype?: string; timestamp?: string; content?: unknown }
 
-export function FoldStatusRow({ rows }: { rows: readonly FoldLandingRowFacts[] }): React.ReactNode {
-  const record = useSyncExternalStore(subscribeFocusedFold, getFocusedFold, getFocusedFold)
+export function FoldStatusRow({ rows, conversationId }: { rows: readonly FoldLandingRowFacts[]; conversationId: string }): React.ReactNode {
+  const live = useSyncExternalStore(subscribeFocusedFold, getFocusedFold, getFocusedFold)
+  const record = getFocusedSessionConnector().sessionId() === conversationId ? live : null
   const landingPainted =
     record !== null &&
     rows.some(row => isFoldLandingRow({ type: row.type, subtype: row.subtype, timestamp: row.timestamp, text: typeof row.content === 'string' ? row.content : '' }, record.startedAtMs))
-  const live = record !== null && record.exit === undefined
-  const nowMs = useNowTick(live ? 1000 : null)
+  const running = record !== null && record.exit === undefined
+  const nowMs = useNowTick(running ? 1000 : null)
   const tokens = useMercuryTokens()
   const fold = foldRowVisible(record, { landingPainted, nowMs }) ? record : null
   if (fold === null) return null
@@ -38,7 +39,7 @@ export function FoldStatusRow({ rows }: { rows: readonly FoldLandingRowFacts[] }
       <Text dimColor>{lead} · </Text>
       {cells.map((cell, index) =>
         cell === 'pulse' ? (
-          <WorkingGlyph key={index} color={tokens.textSecondary} active={live} />
+          <WorkingGlyph key={index} color={tokens.textSecondary} active={running} />
         ) : cell === 'empty' ? (
           <Text key={index} color={tokens.textMuted}>
             {GLYPH.barEmpty}
