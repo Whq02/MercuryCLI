@@ -14,7 +14,9 @@ const writer = await import('../../src/utils/sessionStorage/writer.ts')
 const logs = await import('../../src/utils/sessionStorage/logs.ts')
 const { loadTranscriptFile } = await import('../../src/utils/sessionStorage/loading.ts')
 const { getSessionId } = await import('../../src/bootstrap/state.ts')
-const { recordToEntry } = await import('../../src/fabric/entryCodec.ts')
+type MetaRecord = { payload?: { kind?: unknown; metaKind?: unknown; fields?: Record<string, unknown> } }
+const entryOfRecord = (record: MetaRecord): Record<string, unknown> =>
+  record.payload?.kind === 'session-meta' ? { type: record.payload.metaKind, ...(record.payload.fields ?? {}) } : {}
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -34,7 +36,7 @@ mkdirSync(join(SCRATCH, 'store'), { recursive: true })
 const lines = (): string[] => (existsSync(file) ? readFileSync(file, 'utf8').split('\n').filter(l => l.trim() !== '') : [])
 const modelLines = (): string[] => lines().filter(l => l.includes(MODEL_MARK))
 const entriesOf = (): Array<Record<string, unknown>> =>
-  modelLines().map(l => recordToEntry(JSON.parse(l) as never) as Record<string, unknown>)
+  modelLines().map(l => entryOfRecord(JSON.parse(l) as MetaRecord))
 const project = writer.getProject()
 
 section('§1 the model is cached when the session starts and stamped on the file with the first record, beside the mode')
