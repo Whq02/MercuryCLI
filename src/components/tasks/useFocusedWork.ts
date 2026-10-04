@@ -5,7 +5,7 @@ import {
   subscribeThroughFocused,
 } from '../../services/engine-connector/focusedConnector.js'
 import { runnerRecordAlive, workRowRuns } from '../../services/engine-connector/workCounts.js'
-import { readSessionWorkers } from '../../daemon/concourseSupervisor.js'
+import { readSessionWorkers } from '../../daemon/concourseWorkers.js'
 import type { MissionRowV1, SampleRowV1, WorkRosterV1, WorkRowV1 } from '../../services/engine-connector/types.js'
 import { useAppState, useAppStateStore, type AppState } from '../../state/AppState.js'
 import { getTelemetry, subscribeTelemetry, type SessionGlanceSnapshot } from '../../state/telemetryBus.js'

@@ -307,7 +307,7 @@ function staticImports(src: string): {
   check(
     'resume-identity: the admit request carries the SAME durable id and the runner boots as it',
     readFileSync(join(SRC, 'services/switchboard/hopIntoSession.ts'), 'utf8').includes('resumeSessionId: sessionId') &&
-      readFileSync(join(SRC, 'daemon/concourseSupervisor.ts'), 'utf8').includes("? ['--resume', args.sessionId!,"),
+      readFileSync(join(SRC, 'daemon/concourseWorkers.ts'), 'utf8').includes("? ['--resume', args.sessionId!,"),
   )
   check(
     'resume-identity: the restore owner adopts the resolved id — the id road carries the id asked for, and the runner door switches to it',

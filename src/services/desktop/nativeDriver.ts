@@ -318,7 +318,7 @@ class NativeDesktopDriver implements DesktopDriver {
     let stillOwned: (() => boolean) | undefined
     if (flagEnv('MERCURY_CONCOURSE_WORKER') === '1') {
       const { getSessionId } = await import('../../bootstrap/state.js')
-      const { readSessionWorkers, stampedTerminalPid } = await import('../../daemon/concourseSupervisor.js')
+      const { readSessionWorkers, stampedTerminalPid } = await import('../../daemon/concourseWorkers.js')
       const { isProcessAlive } = await import('../../daemon/ownerWatch.js')
       const record = Object.values(readSessionWorkers()).find(row => row.sessionId === String(getSessionId()) && row.endedAt === undefined)
       const pid = stampedTerminalPid(record?.focusedBy)

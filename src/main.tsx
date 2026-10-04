@@ -1713,7 +1713,7 @@ async function interactiveLaunch(args: {
     await registerSession()
     if (args.sessionTitle) await updateSessionName(args.sessionTitle)
     try {
-      const { readSessionWorkers } = await import('./daemon/concourseSupervisor.js')
+      const { readSessionWorkers } = await import('./daemon/concourseWorkers.js')
       const { sweepPrefixRecords } = await import('./services/providers/anthropic/prefixRecordStore.js')
       const liveSessionIds = Object.values(readSessionWorkers()).filter(record => record.endedAt === undefined).map(record => record.sessionId)
       await sweepPrefixRecords({ liveSessionIds })

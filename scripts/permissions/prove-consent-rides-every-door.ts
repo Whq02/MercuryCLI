@@ -34,7 +34,7 @@ saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allow
 
 const { initializeToolPermissionContext } = await import('../../src/utils/permissions/permissionSetup.ts')
 const facts = await import('../../src/services/switchboard/bootBirthFacts.ts')
-const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseSupervisor.ts')
+const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.ts')
 const { buildRunnerInvocation, headlessPermissionArgv } = await import('../../src/daemon/headlessRun.ts')
 const { deriveSessionKitForWorkspace } = await import('../../src/daemon/sessionKit.ts')
 const warm = await import('../../src/daemon/warmRunner.ts')

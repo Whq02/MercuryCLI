@@ -18,7 +18,7 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const saturn = await import('../../src/daemon/saturn.ts')
 const { applyConcourseScheduleOp } = saturn
-const { updateConcourseWorkers, concourseWorkersPath } = await import('../../src/daemon/concourseSupervisor.ts')
+const { updateConcourseWorkers, concourseWorkersPath } = await import('../../src/daemon/concourseWorkers.ts')
 const ticker = await import('../../src/daemon/saturnTicker.ts')
 const { liveFactsForSessionFire } = await import('../../src/daemon/saturnAccount.ts')
 const { readSessionFacts, sessionFactsDir, sessionFactsPath } = await import('../../src/services/engine-connector/seatProjections.ts')

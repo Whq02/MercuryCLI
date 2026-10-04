@@ -69,8 +69,8 @@ console.log('S4 the two cockpit birth doors read the same rung')
   check('the strip hands the saved default to dispatchSeedInputs beside the painted model', route.includes('dispatchSeedInputs(seeds, getCwd(), snapshotRef.current?.newSession.seeds.modelId, getInitialEffortSetting())'))
   const born = readFileSync(join(import.meta.dir, '..', '..', 'src/services/switchboard/bornSession.ts'), 'utf8')
   check("the boot face's birth door: the CLI word, else the saved default, else nothing (the daemon's convention)", born.includes('const effort = facts.effort ?? getInitialEffortSetting() ?? null') && born.includes('...(effort !== null ? { effort } : {})'))
-  const supervisor = readFileSync(join(import.meta.dir, '..', '..', 'src/daemon/concourseSupervisor.ts'), 'utf8')
-  check("the daemon's fallback stands as the last resort for an op that carries no word", supervisor.includes("effort: args.effort ?? 'high'"))
+  const daemon = readFileSync(join(import.meta.dir, '..', '..', 'src/daemon/concourseWorkers.ts'), 'utf8')
+  check("the daemon's fallback stands as the last resort for an op that carries no word", daemon.includes("effort: args.effort ?? 'high'"))
 }
 
 console.log(failures === 0 ? '\n✅ new chat effort seed GREEN' : `\n❌ new chat effort seed RED — ${failures} failure(s)`)

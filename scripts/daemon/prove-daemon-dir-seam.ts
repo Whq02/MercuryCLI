@@ -23,9 +23,9 @@ try {
   process.env.MERCURY_DAEMON_DIR = OVERRIDE
   check('daemonDir() honors the override', cs.daemonDir() === OVERRIDE, cs.daemonDir())
   check(
-    'supervisorStatePath() lands under the override',
-    (cs.supervisorStatePath() as string).startsWith(OVERRIDE + sep),
-    cs.supervisorStatePath(),
+    'daemonStatePath() lands under the override',
+    (cs.daemonStatePath() as string).startsWith(OVERRIDE + sep),
+    cs.daemonStatePath(),
   )
 
   delete process.env.MERCURY_DAEMON_DIR

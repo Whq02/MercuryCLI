@@ -251,7 +251,7 @@ section('adoption — the alive-Chat pass (ember-settle · breath · glint · nu
   const cursorFiles = [
     'src/commands/console/console.tsx',
     'src/commands/health/HealthCertificate.tsx',
-    'src/components/mercury-ui/parity/DaemonSupervisorView.tsx',
+    'src/components/mercury-ui/parity/DaemonView.tsx',
   ]
   const adopted = cursorFiles.filter(f => {
     const src = readFileSync(f, 'utf8')

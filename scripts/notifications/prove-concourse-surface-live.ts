@@ -22,7 +22,7 @@ const { buildConcourseSnapshot, readConcourseDraft, subscribeConcourseDraft, wri
 const { boardRowsOf } = await import('../../src/components/concourse/contracts.ts')
 const { projectIdentity } = await import('../../src/utils/bootCardFacts.ts')
 const { upsertObligation } = await import('../../src/services/crew/obligations.ts')
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseSupervisor.ts'
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
 
 let failures = 0
 function check(label: string, ok: boolean, detail?: string): void {
@@ -231,7 +231,7 @@ console.log('§6 board interleave')
 
 console.log('§7 surface: preflight preview, typed collision scope, plain-folder fact')
 {
-  const { recordCollisionEvidence, canonicalWorkspaceId } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { recordCollisionEvidence, canonicalWorkspaceId } = await import('../../src/daemon/concourseWorkers.ts')
   saveGlobalConfig(c => ({ ...c, switchboardCapacity: { ...c.switchboardCapacity, operatorSeats: 5 } }))
   await writeConcourseDraft('ship the parser fix', draftDir)
   seedWorkers([])

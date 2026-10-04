@@ -23,7 +23,7 @@ const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'ut
 const proto = await import('../../src/daemon/protocol.ts')
 const sock = await import('../../src/daemon/controlSocket.ts')
 const server = await import('../../src/daemon/controlServer.ts')
-const sup = await import('../../src/daemon/concourseSupervisor.ts')
+const sup = await import('../../src/daemon/concourseWorkers.ts')
 
 console.log('A the alias table routes both spellings to one handler')
 {

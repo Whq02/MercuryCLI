@@ -136,7 +136,7 @@ async function main(): Promise<void> {
     )
     check(
       'F05: the print owner starts no daemon/supervisor and no multiplayer room host',
-      !/ensureDaemon|startDaemon|spawnDaemon|longLivedSupervisor|roomHost/.test(print),
+      !/ensureDaemon|startDaemon|spawnDaemon|longLivedRespawn|roomHost/.test(print),
     )
     const cli = src('src/entrypoints/cli.tsx')
     check(

@@ -16,7 +16,7 @@ delete process.env.CI
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { applyConcourseScheduleOp } = await import('../../src/daemon/saturn.ts')
-const { updateConcourseWorkers, concourseWorkersPath } = await import('../../src/daemon/concourseSupervisor.ts')
+const { updateConcourseWorkers, concourseWorkersPath } = await import('../../src/daemon/concourseWorkers.ts')
 const { tickSaturnOnce } = await import('../../src/daemon/saturnTicker.ts')
 const { liveFactsForSessionFire, sessionWindowClosedUntil } = await import('../../src/daemon/saturnAccount.ts')
 const { anthropicWindowClosedUntil } = await import('../../src/services/anthropicLimits.ts')

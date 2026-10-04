@@ -531,7 +531,7 @@ t.section('§7b — the reply clip is VISIBLE (the silent-downgrade class): over
 
 t.section('§8 — the board view is the model’s whole world: every row, its state in plain words, with-you counted live')
 {
-  const { updateConcourseWorkers, recordCollisionEvidence } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { updateConcourseWorkers, recordCollisionEvidence } = await import('../../src/daemon/concourseWorkers.ts')
   const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
   const board = await import('../../src/services/concourse/coordinatorBoard.ts')
   const recDir = join(scratch, 'records-board')

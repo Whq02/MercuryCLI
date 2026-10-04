@@ -195,7 +195,7 @@ export async function call(_args: string, context: LocalJSXCommandContext): Prom
   ])
   const messages = (context.messages ?? []) as Message[]
   const { facts } = buildFacts(messages, context.options.engineModel, {
-    daemon: () => daemon === undefined ? 'unavailable' : daemon.controlReachable ? 'running' : daemon.supervisor ? 'unreachable' : 'not running',
+    daemon: () => daemon === undefined ? 'unavailable' : daemon.controlReachable ? 'running' : daemon.daemon ? 'unreachable' : 'not running',
     tasks: () => context.getAppState?.().tasks,
   })
   const time = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })

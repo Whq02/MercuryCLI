@@ -6,7 +6,7 @@ import type { LogOption } from '../../../types/logs.js'
 import { getLogDisplayTitle } from '../../../utils/log.js'
 import { formatRelativeTimeAgo } from '../../../utils/format.js'
 import { crewTagOf, isCrewSession } from '../../../utils/sessionClass.js'
-import { boardHomedSessionIds } from '../../../daemon/concourseSupervisor.js'
+import { boardHomedSessionIds } from '../../../daemon/concourseWorkers.js'
 import { isSubstantiveSession, partitionByProject } from '../../../utils/sessionFilter.js'
 import { isSessionCleared } from '../../../utils/sessionStorage/clearedSessions.js'
 import {

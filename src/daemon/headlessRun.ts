@@ -44,7 +44,7 @@ export function stripCrewRolePair(env: NodeJS.ProcessEnv): string[] {
   return removed
 }
 
-export function scrubSupervisorRoleEnv(env: NodeJS.ProcessEnv = process.env): string[] {
+export function scrubDaemonRoleEnv(env: NodeJS.ProcessEnv = process.env): string[] {
   const removed: string[] = []
   for (const v of sweptRoleSpellings()) {
     if (env[v] !== undefined) {

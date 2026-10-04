@@ -3,7 +3,7 @@ import {
   controlSockPath,
   currentVersion,
   daemonControlRpc,
-  readSupervisorState,
+  readDaemonState,
 } from './controlSocket.js'
 export interface FireOutcomeSummary {
   total: number
@@ -22,7 +22,7 @@ import { readdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 
 export interface MercuryDaemonStatus {
-  supervisor: { pid: number; version: string; uptimeSec: number; dir: string } | null
+  daemon: { pid: number; version: string; uptimeSec: number; dir: string } | null
   controlSock: string
   controlReachable: boolean
   controlError?: string
@@ -43,16 +43,16 @@ export interface MercuryDaemonStatus {
 }
 
 export async function getMercuryDaemonStatus(): Promise<MercuryDaemonStatus> {
-  const supervisor = await readSupervisorState().catch(() => null)
+  const record = await readDaemonState().catch(() => null)
   const ping = await daemonControlRpc({ op: 'ping' }, { timeoutMs: 1000 })
 
   const snapshot: MercuryDaemonStatus = {
-    supervisor: supervisor
+    daemon: record
       ? {
-          pid: supervisor.pid,
-          version: supervisor.version,
-          uptimeSec: Math.floor((Date.now() - supervisor.startedAt) / 1000),
-          dir: supervisor.dir,
+          pid: record.pid,
+          version: record.version,
+          uptimeSec: Math.floor((Date.now() - record.startedAt) / 1000),
+          dir: record.dir,
         }
       : null,
     controlSock: sockPathOrPlaceholder(),
@@ -74,7 +74,7 @@ export async function getMercuryDaemonStatus(): Promise<MercuryDaemonStatus> {
 
 
   if (!ping.ok) {
-    snapshot.helpers = await helperCensus(supervisor !== null && isProcessAlive(supervisor.pid) ? [{ pid: supervisor.pid, live: null }] : [], [])
+    snapshot.helpers = await helperCensus(record !== null && isProcessAlive(record.pid) ? [{ pid: record.pid, live: null }] : [], [])
     return snapshot
   }
 
@@ -135,8 +135,8 @@ export function helperPidSocketsOnDisk(): number[] {
 }
 
 export async function helperPidsOfHome(): Promise<number[]> {
-  const supervisor = await readSupervisorState().catch(() => null)
-  const known: HelperRow[] = supervisor !== null && isProcessAlive(supervisor.pid) ? [{ pid: supervisor.pid, live: null }] : []
+  const daemon = await readDaemonState().catch(() => null)
+  const known: HelperRow[] = daemon !== null && isProcessAlive(daemon.pid) ? [{ pid: daemon.pid, live: null }] : []
   const plane = await daemonControlRpc({ op: 'hello', proto: MERCURY_DAEMON_PROTO, clientVersion: currentVersion(), clientBuildTree: null }, { timeoutMs: 1000, protoRetry: false })
   const planeFacts = plane.ok && plane.op === 'hello' ? plane : null
   if (planeFacts !== null && !known.some(helper => helper.pid === planeFacts.pid)) known.unshift({ pid: planeFacts.pid, live: planeFacts.ready ? planeFacts.live : null })
@@ -178,8 +178,8 @@ function sockPathOrPlaceholder(): string {
 export function formatMercuryDaemonStatus(status: MercuryDaemonStatus): string {
   const lines: string[] = ['', 'mercury daemon:']
 
-  if (status.supervisor) {
-    const s = status.supervisor
+  if (status.daemon) {
+    const s = status.daemon
     lines.push(
       status.controlReachable
         ? `  daemon:       running · pid ${s.pid} · v${s.version} · up ${s.uptimeSec}s`
@@ -217,7 +217,7 @@ export function formatMercuryDaemonStatus(status: MercuryDaemonStatus): string {
     lines.push(`  breaker:      ${status.breakerOpen ? 'OPEN (dispatch suppressed)' : 'closed'}`)
   }
   if (status.warmRunners !== null && status.warmRunners > 0) {
-    const boundDir = status.supervisor?.dir
+    const boundDir = status.daemon?.dir
     const fold = (p: string): string =>
       process.platform === 'win32' ? p.replace(/\\/g, '/').toLowerCase() : p
     const isHere = boundDir !== undefined && fold(boundDir) === fold(process.cwd())
@@ -241,7 +241,7 @@ export function formatMercuryDaemonStatus(status: MercuryDaemonStatus): string {
     lines.push(`  version:      ${status.versionLine}`)
   }
 
-  if (status.supervisor && !status.controlReachable) {
+  if (status.daemon && !status.controlReachable) {
     lines.push(
       '  warning:      daemon record present but control socket unreachable — ' +
         'the process may have crashed; run `mercury daemon stop` to clear it',

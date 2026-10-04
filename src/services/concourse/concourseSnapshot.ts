@@ -31,7 +31,7 @@ import type { ConcourseElsewhereV1, ConcourseRowV1, ConcourseSnapshotV1 } from '
 import { ELSEWHERE_CAP, elsewhereLine, projectActivity } from './projectActivity.js'
 import { sessionTitleOf } from './sessionNaming.js'
 import { keyHintLabel } from '../../components/mercury-ui/keyHintLabel.js'
-import type { ConcourseWorkerRecordV1 } from '../../daemon/concourseSupervisor.js'
+import type { ConcourseWorkerRecordV1 } from '../../daemon/concourseWorkers.js'
 import type { DaemonSessionRecordV1 } from '../engine-connector/daemonConnector.js'
 
 export function concourseRecordState(
@@ -966,12 +966,12 @@ export async function buildConcourseSnapshot(
   opts: BuildConcourseSnapshotOpts = {},
 ): Promise<ConcourseSnapshotV1> {
   const nowMs = opts.nowMs ?? Date.now()
-  const supervisor = await import('../../daemon/concourseSupervisor.js')
+  const workers = await import('../../daemon/concourseWorkers.js')
   const obligations = await import('../crew/obligations.js')
   const { isProcessAlive } = await import('../../daemon/ownerWatch.js')
 
   const project = opts.project ?? currentProject()
-  const allRecords = supervisor.listConcourseWorkers(null, opts.recordsDir)
+  const allRecords = workers.listConcourseWorkers(null, opts.recordsDir)
   const records = allRecords.filter(r => inProject(project, r.workspaceId))
   await obligations
     .foldLegacyObligationsIntoSwitchboardScope(opts.crewDir)
@@ -1069,7 +1069,7 @@ export async function buildConcourseSnapshot(
   }
 
   try {
-    const { readCollisionEvidence } = await import('../../daemon/concourseSupervisor.js')
+    const { readCollisionEvidence } = await import('../../daemon/concourseWorkers.js')
     const retainedRows = readCollisionEvidence(opts.recordsDir)
       .filter(e => e.kind === 'authored-work-retained' && e.consumedAt === undefined && e.branchName !== undefined)
       .filter(e => inProject(project, e.workspaceId))
@@ -1233,7 +1233,7 @@ export async function buildConcourseSnapshot(
   let scopeDetail = 'shares a workspace exclusively'
   if (!scopeClear && peekRecord !== null) {
     try {
-      const evidence = supervisor
+      const evidence = workers
         .readCollisionEvidence(opts.recordsDir)
         .filter(e => e.workspaceId === peekRecord.workspaceId && e.kind === 'exclusive-overlap')
       const latest = evidence[evidence.length - 1]

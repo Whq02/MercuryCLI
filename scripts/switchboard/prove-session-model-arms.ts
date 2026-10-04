@@ -165,11 +165,11 @@ section('§6 — a record-less resume retains the transcript’s model (the vNex
 {
   const { writeFileSync, mkdirSync: mkd } = await import('node:fs')
   const { join: j } = await import('node:path')
-  const supervisor = await import('../../src/daemon/concourseSupervisor.ts')
+  const workers = await import('../../src/daemon/concourseWorkers.ts')
   const paths = await import('../../src/utils/sessionStorage/paths.ts')
   const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
   const SID = '00000000-aaaa-bbbb-cccc-00000000f6f6'
-  const workspaceId = supervisor.canonicalWorkspaceId(work)
+  const workspaceId = workers.canonicalWorkspaceId(work)
   const projDir = paths.getProjectDir(workspaceId)
   mkd(projDir, { recursive: true })
   const transcript = j(projDir, `${SID}.jsonl`)
@@ -206,7 +206,7 @@ section('§6 — a record-less resume retains the transcript’s model (the vNex
     encoded += (encodeTranscriptLine as (p: string, e: Record<string, unknown>) => { line: string })(transcript, r).line
   }
   writeFileSync(transcript, encoded)
-  const retained = supervisor.resumeModelKeyOf(SID, work)
+  const retained = workers.resumeModelKeyOf(SID, work)
   check('the record-less resume walk reads the model THROUGH the codec', retained === 'kimi-k3', String(retained))
 }
 
@@ -214,12 +214,12 @@ section('§6b — the retained walk runs the ONE provenance law (FN-013 MODEL-01
 {
   const { writeFileSync, mkdirSync: mkd } = await import('node:fs')
   const { join: j } = await import('node:path')
-  const supervisor = await import('../../src/daemon/concourseSupervisor.ts')
+  const workers = await import('../../src/daemon/concourseWorkers.ts')
   const paths = await import('../../src/utils/sessionStorage/paths.ts')
   const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
   const { restoreConversationModelFromMessages } = await import('../../src/utils/sessionRestore.ts')
   const { getDefaultEngineModelSetting, parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
-  const workspaceId = supervisor.canonicalWorkspaceId(work)
+  const workspaceId = workers.canonicalWorkspaceId(work)
   const projDir = paths.getProjectDir(workspaceId)
   mkd(projDir, { recursive: true })
   const writeFixture = (sid: string, models: string[]): void => {
@@ -263,21 +263,21 @@ section('§6b — the retained walk runs the ONE provenance law (FN-013 MODEL-01
 
   const SID_TAIL = '00000000-aaaa-bbbb-cccc-00000000a601'
   writeFixture(SID_TAIL, ['glm-5.3', '<synthetic>'])
-  const tail = supervisor.resumeModelKeyOf(SID_TAIL, work)
+  const tail = workers.resumeModelKeyOf(SID_TAIL, work)
   check('a synthetic tail row is SKIPPED — the last real served model retains', tail === 'glm-5.3', String(tail))
 
   const SID_ONLY = '00000000-aaaa-bbbb-cccc-00000000a602'
   writeFixture(SID_ONLY, ['<synthetic>'])
-  const only = supervisor.resumeModelKeyOf(SID_ONLY, work)
+  const only = workers.resumeModelKeyOf(SID_ONLY, work)
   check('a synthetic-only transcript retains NOTHING (the registry default, never the sentinel)', only === undefined, String(only))
 
   const SID_CARRIER = '00000000-aaaa-bbbb-cccc-00000000a603'
   writeFixture(SID_CARRIER, ['openrouter/stealth/ox-alpha', '<synthetic>'])
-  const carrier = supervisor.resumeModelKeyOf(SID_CARRIER, work)
+  const carrier = workers.resumeModelKeyOf(SID_CARRIER, work)
   check('a carrier-served session ending on an interrupt retains the carrier id verbatim', carrier === 'openrouter/stealth/ox-alpha', String(carrier))
 
   const agree = (label: string, sid: string, rows: unknown[]): void => {
-    const fromWalk = supervisor.resumeModelKeyOf(sid, work) ?? null
+    const fromWalk = workers.resumeModelKeyOf(sid, work) ?? null
     const fromPredicate = restoreConversationModelFromMessages(rows as Msg)
     check(`agreement — ${label}`, fromWalk === fromPredicate, `walk=${String(fromWalk)} predicate=${String(fromPredicate)}`)
   }
@@ -289,7 +289,7 @@ section('§6b — the retained walk runs the ONE provenance law (FN-013 MODEL-01
   const defaultBase = defaultResolved.replace(/\[1m\]$/i, '')
   const SID_DEFAULT = '00000000-aaaa-bbbb-cccc-00000000a604'
   writeFixture(SID_DEFAULT, [defaultBase])
-  const asDefault = supervisor.resumeModelKeyOf(SID_DEFAULT, work)
+  const asDefault = workers.resumeModelKeyOf(SID_DEFAULT, work)
   check('the walk restores the default SETTING form for the default base id', asDefault === defaultResolved, `walk=${String(asDefault)} expected=${defaultResolved}`)
   agree('default base form', SID_DEFAULT, [user(), asst(defaultBase)])
 }

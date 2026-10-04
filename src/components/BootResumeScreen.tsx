@@ -8,7 +8,7 @@ import type { BootProjectFact } from '../utils/bootCardFacts.js';
 import { getSessionId } from '../bootstrap/state.js';
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js';
 import { enterRootChat } from '../context/surfaceRoute.js';
-import { boardHomedSessionIds } from '../daemon/concourseSupervisor.js';
+import { boardHomedSessionIds } from '../daemon/concourseWorkers.js';
 import { useEngineModel } from '../hooks/useEngineModel.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import {

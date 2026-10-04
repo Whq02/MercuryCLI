@@ -27,7 +27,7 @@ const {
   saturnWakeGlanceOf,
   saturnWakeGlanceWords,
 } = saturn
-const { updateConcourseWorkers, concourseWorkersPath } = await import('../../src/daemon/concourseSupervisor.ts')
+const { updateConcourseWorkers, concourseWorkersPath } = await import('../../src/daemon/concourseWorkers.ts')
 const { tickSaturnOnce } = await import('../../src/daemon/saturnTicker.ts')
 const { liveFactsForSessionFire } = await import('../../src/daemon/saturnAccount.ts')
 const receipts = await import('../../src/services/switchboard/sessionReceipts.ts')

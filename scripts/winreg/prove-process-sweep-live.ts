@@ -41,9 +41,9 @@ try {
     children.push(child)
     await once(child, 'spawn')
     const deadline = Date.now() + 20_000
-    while (!existsSync(join(home, 'daemon/supervisor.json')) && child.exitCode === null && Date.now() < deadline) await sleep(100)
-    assert.ok(existsSync(join(home, 'daemon/supervisor.json')), 'the built daemon must register')
-    assert.equal(JSON.parse(readFileSync(join(home, 'daemon/supervisor.json'), 'utf8')).pid, child.pid)
+    while (!existsSync(join(home, 'daemon/daemon.json')) && child.exitCode === null && Date.now() < deadline) await sleep(100)
+    assert.ok(existsSync(join(home, 'daemon/daemon.json')), 'the built daemon must register')
+    assert.equal(JSON.parse(readFileSync(join(home, 'daemon/daemon.json'), 'utf8')).pid, child.pid)
   }
   const [withConsole, headless] = children
   const table = await collectWindowsProcesses()

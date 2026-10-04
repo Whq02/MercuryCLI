@@ -58,10 +58,10 @@ mock.module('../../src/daemon/headlessRun.ts', () => ({
   },
 }))
 const { TaskRoster } = await import('../../src/daemon/roster.ts')
-const supervisor = await import('../../src/daemon/longLivedSupervisor.ts')
+const daemon = await import('../../src/daemon/longLivedRespawn.ts')
 const { parseRow } = await import('../../src/rows/read.ts')
 const rowLine = (row: unknown): string => `${JSON.stringify({ jsonrpc: '2.0', method: 'row', params: row })}\n`
-const concourse = await import('../../src/daemon/concourseSupervisor.ts')
+const concourse = await import('../../src/daemon/concourseWorkers.ts')
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 3 } }))
@@ -170,7 +170,7 @@ console.log('============================================================')
 
 tally.section('§1 the outcome row names its error: the message first, then its detail joined')
 {
-  const text = supervisor.errorTextOfOutcome
+  const text = daemon.errorTextOfOutcome
   const said = (row: Record<string, unknown> | null): string => String(text(row))
   tally.check("a failed outcome reads its message, then the detail joined — never 'unknown error'", text(envelope) === ENVELOPE_TEXT, said(envelope))
   const long = outcome('failed', { message: 'E'.repeat(500), class: 'internal', detail: ['tail'] })
@@ -192,7 +192,7 @@ tally.section('§1 the outcome row names its error: the message first, then its 
 
 tally.section('§2 the stderr tail: the last 4 KB, and its last non-empty line')
 {
-  const helpers = supervisor as unknown as Record<string, unknown>
+  const helpers = daemon as unknown as Record<string, unknown>
   const keep = helpers.keepStderrTail as ((tail: Buffer | undefined, chunk: Buffer) => Buffer) | undefined
   const last = helpers.lastStderrLine as ((tail: Buffer | undefined) => string | undefined) | undefined
   tally.check('the tail keeper and the line reader exist, bounded at 4096 bytes', typeof keep === 'function' && typeof last === 'function' && helpers.STDERR_TAIL_BYTES === 4096)

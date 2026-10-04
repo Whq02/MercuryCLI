@@ -1,5 +1,5 @@
 import { getSessionId } from '../../bootstrap/state.js'
-import { readSessionWorkers, stampedTerminalPid } from '../../daemon/concourseSupervisor.js'
+import { readSessionWorkers, stampedTerminalPid } from '../../daemon/concourseWorkers.js'
 import { isProcessAlive } from '../../daemon/ownerWatch.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { spawnSwitch, spawnSwitchOffReceipt, type SpawnSwitchState } from './spawnSwitches.js'

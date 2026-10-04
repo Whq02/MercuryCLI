@@ -7,7 +7,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'stateword-home-'))
 
 const { onSeatRow, onSeatSpawned } = await import('../../src/daemon/sessionSeat.ts')
 const { readSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {

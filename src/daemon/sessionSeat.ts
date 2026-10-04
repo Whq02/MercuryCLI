@@ -17,7 +17,7 @@ import { decodeRequestWait, type RequestWaitV1 } from '../services/providers/str
 import { decodeFoldStatus, type FoldStatusV1 } from '../services/compact/foldStatus.js'
 import { workRowRuns } from '../services/engine-connector/workCounts.js'
 import { EFFORT_LEVELS, normalizeEffortLevelString } from '../utils/effort.js'
-import { markConcourseWorkerActivity, readSessionWorkers, reviveConcourseWorker, updateConcourseWorkers, workerPidAlive, type ConcourseWorkerRecordV1 } from './concourseSupervisor.js'
+import { markConcourseWorkerActivity, readSessionWorkers, reviveConcourseWorker, updateConcourseWorkers, workerPidAlive, type ConcourseWorkerRecordV1 } from './concourseWorkers.js'
 import type { LooseRow } from '../rows/read.js'
 import type { ParamsOf, ResultOf, SessionAppliedParams } from '../runner/wire/methods.js'
 import { isRpcError, RPC_METHOD_NOT_FOUND } from '../runner/wire/errors.js'

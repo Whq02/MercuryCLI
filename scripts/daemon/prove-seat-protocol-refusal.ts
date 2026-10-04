@@ -58,7 +58,7 @@ const { TaskRoster } = await import('../../src/daemon/roster.ts')
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 3 } }))
-const sup = await import('../../src/daemon/concourseSupervisor.ts')
+const sup = await import('../../src/daemon/concourseWorkers.ts')
 
 const stamp = (sessionId: string) => ({ timestamp: '2026-10-03T16:00:00.000Z', session_id: sessionId })
 const usage = { input_tokens: 0, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 0 }

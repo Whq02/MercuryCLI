@@ -1,6 +1,6 @@
 import { isOutcome, mainThreadStep, outcomeErrorText, outcomeFailed, turnOpened, type LooseRow } from '../rows/read.js'
 
-export interface LongLivedSupervisorConfig {
+export interface LongLivedRespawnConfig {
   maxRespawns: number
   backoffBaseMs: number
   backoffCapMs: number
@@ -11,7 +11,7 @@ export interface LongLivedSupervisorConfig {
 export const DEFAULT_HEALTHY_RESET_MS = 5 * 60 * 1000
 export const DEFAULT_MAX_LIFETIME_CRASHES = 20
 
-export const DEFAULT_LONG_LIVED_CONFIG: LongLivedSupervisorConfig = {
+export const DEFAULT_LONG_LIVED_CONFIG: LongLivedRespawnConfig = {
   maxRespawns: 5,
   backoffBaseMs: 1000,
   backoffCapMs: 60_000,
@@ -21,7 +21,7 @@ export const DEFAULT_LONG_LIVED_CONFIG: LongLivedSupervisorConfig = {
 
 export function longLivedBackoffMs(
   respawns: number,
-  cfg: LongLivedSupervisorConfig = DEFAULT_LONG_LIVED_CONFIG,
+  cfg: LongLivedRespawnConfig = DEFAULT_LONG_LIVED_CONFIG,
 ): number {
   const n = Math.max(1, respawns)
   if (n === 1) return 0
@@ -34,7 +34,7 @@ export type RespawnDecision =
 
 export function decideRespawn(
   respawns: number,
-  cfg: LongLivedSupervisorConfig = DEFAULT_LONG_LIVED_CONFIG,
+  cfg: LongLivedRespawnConfig = DEFAULT_LONG_LIVED_CONFIG,
   lifetimeCrashes?: number,
 ): RespawnDecision {
   const lifetimeCap = cfg.maxLifetimeCrashes ?? DEFAULT_MAX_LIFETIME_CRASHES

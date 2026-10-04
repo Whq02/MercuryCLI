@@ -29,7 +29,7 @@ const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/file
 const { drainRows } = await import('../../src/utils/sdkEventQueue.ts')
 const runControl = await import('../../src/tools/WorkflowTool/runControl.ts')
 const seat = await import('../../src/daemon/sessionSeat.ts')
-const { updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
 const { sessionFactsToWire } = await import('../../src/services/engine-connector/seatWire.ts')
 const { readSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
 

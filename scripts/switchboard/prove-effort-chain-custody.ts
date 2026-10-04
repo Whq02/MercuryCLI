@@ -41,7 +41,7 @@ enableConfigs()
 
 section('§1 — the daemon admit door: normalize, else refuse typed naming the ladder')
 {
-  const sup = await import('../../src/daemon/concourseSupervisor.ts')
+  const sup = await import('../../src/daemon/concourseWorkers.ts')
   const admit = sup.makeConcourseAdmitHandler({ roster: () => undefined, dir: join(scratch, 'daemon') })
   const junk = await admit({ workspaceDir: scratch, effort: 'ultra mega' })
   check('junk effort refuses', junk.ok === false, JSON.stringify(junk))

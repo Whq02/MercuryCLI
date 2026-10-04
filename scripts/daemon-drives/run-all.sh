@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/daemon/**
-# gate-watch: src/daemon/permissionAsks.ts src/daemon/concourseSupervisor.ts src/daemon/concourseDispatch.ts
+# gate-watch: src/daemon/permissionAsks.ts src/daemon/concourseWorkers.ts src/daemon/concourseDispatch.ts
 # gate-watch: src/components/concourse/LiveNowCell.tsx src/services/engine-connector/crewFacts.ts
 # gate-watch: src/services/engine-connector/daemonConnector.ts src/services/engine-connector/seatProjections.ts
 # gate-watch: scripts/lib/* scripts/ui/vshot.py src/daemon/* src/services/crew/obligations.ts

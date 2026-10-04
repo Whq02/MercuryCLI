@@ -232,7 +232,7 @@ mkdirSync(home2, { recursive: true })
 seedFirstRun(home2, [work, workB])
 spawnDaemon(home2)
 check('daemon2 serves (the reboot)', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
-const sup = await import('../../src/daemon/concourseSupervisor.ts')
+const sup = await import('../../src/daemon/concourseWorkers.ts')
 check(
   'the boot reconcile keeps the CRASH fact on both records (endedAt UNSET — rows kept)',
   await untilAsync(() => {

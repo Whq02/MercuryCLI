@@ -314,7 +314,7 @@ console.log('\n[12] an interrupted async native act never answers success')
 console.log('\n[13] a daemon worker reads the cockpit terminal, never the daemon ancestry')
 {
   const { getSessionId } = await import('../../src/bootstrap/state.js')
-  const { concourseWorkersPath, focusConcourseSession, blurConcourseSession } = await import('../../src/daemon/concourseSupervisor.js')
+  const { concourseWorkersPath, focusConcourseSession, blurConcourseSession } = await import('../../src/daemon/concourseWorkers.js')
   const statePath = concourseWorkersPath()
   mkdirSync(join(SCRATCH, 'daemon'), { recursive: true })
   const sessionId = String(getSessionId())

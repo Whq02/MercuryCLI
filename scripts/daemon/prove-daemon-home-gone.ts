@@ -72,7 +72,7 @@ const exited = new Promise<number | null>(resolve =>
 tally.section('a daemon boots in a scratch world and records its plane')
 let booted = false
 for (const until = Date.now() + bound(BOOT_BOUND_MS); Date.now() < until; ) {
-  if (existsSync(join(daemonDir, 'supervisor.json')) && logOf().includes('control socket up')) {
+  if (existsSync(join(daemonDir, 'daemon.json')) && logOf().includes('control socket up')) {
     booted = true
     break
   }

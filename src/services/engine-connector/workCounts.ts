@@ -1,4 +1,4 @@
-import type { ConcourseWorkerRecordV1 } from '../../daemon/concourseSupervisor.js'
+import type { ConcourseWorkerRecordV1 } from '../../daemon/concourseWorkers.js'
 import type { SampleRowV1, WorkRosterV1, WorkRowV1 } from './types.js'
 
 export function workRowRuns(row: WorkRowV1): boolean {

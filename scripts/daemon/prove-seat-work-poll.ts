@@ -7,7 +7,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'seat-work-poll-home
 
 const { onSeatRow, onFactsAnswer } = await import('../../src/daemon/sessionSeat.ts')
 const { standInRunner } = await import('../lib/seatDoor.ts')
-const { updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
 const { sessionFactsToWire } = await import('../../src/services/engine-connector/seatWire.ts')
 
 let failures = 0

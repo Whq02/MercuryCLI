@@ -28,7 +28,7 @@ const {
   SATURN_PROMPT_CAP,
 } = saturn
 const { updateConcourseWorkers, concourseWorkersPath } = await import(
-  '../../src/daemon/concourseSupervisor.ts'
+  'workers'
 )
 const { parseCronExpression, computeNextCronRun } = await import('../../src/utils/cron.ts')
 

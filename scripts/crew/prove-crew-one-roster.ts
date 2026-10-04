@@ -109,7 +109,7 @@ async function main(): Promise<void> {
     check('the daemon roster lists no seat before one is registered', taskRoster.list().length === 0)
     const source = (await import('node:fs')).readFileSync(join(ROOT, 'src/daemon/roster.ts'), 'utf8')
     check('the roster entry carries the seat\'s start folder and worktree (RosterEntry.cwd / worktree)', /cwd\?: string\n\s+worktree\?: string/.test(source), 'RosterEntry has no cwd/worktree')
-    check('registerLongLived takes the start beside the spec', /registerLongLived\(\n\s+short: string,\n\s+spec: RunnerChildSpec,\n\s+opts\?: Partial<LongLivedSupervisorConfig>,\n\s+start\?: \{ cwd: string; worktree\?: string \}/.test(source), 'registerLongLived has no start parameter')
+    check('registerLongLived takes the start beside the spec', /registerLongLived\(\n\s+short: string,\n\s+spec: RunnerChildSpec,\n\s+opts\?: Partial<LongLivedRespawnConfig>,\n\s+start\?: \{ cwd: string; worktree\?: string \}/.test(source), 'registerLongLived has no start parameter')
     const handler = (await import('node:fs')).readFileSync(join(ROOT, 'src/daemon/crewSpawn.ts'), 'utf8')
     check('the seat door hands the plan\'s folder and worktree to the roster', handler.includes("{ cwd: folder, ...(plan.worktree !== null ? { worktree: plan.worktree.path } : {}) }"), 'crewSpawn.ts registers the seat without its start')
   }

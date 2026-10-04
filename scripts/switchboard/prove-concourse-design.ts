@@ -27,7 +27,7 @@ const { buildConcourseSnapshot, olderChatsCensus, parkedBoardRows, markParkedCle
   '../../src/services/concourse/concourseSnapshot.ts'
 )
 const { projectIdentity } = await import('../../src/utils/bootCardFacts.ts')
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseSupervisor.ts'
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
 
 const NOW = Date.now()
 const DAY = 24 * 60 * 60_000

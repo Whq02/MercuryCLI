@@ -114,8 +114,8 @@ console.log('§3 idempotent execution (the owners’ own laws)')
   const kernelSrc = readFileSync(join(import.meta.dir, '..', '..', 'src/services/concourse/coordinatorKernel.ts'), 'utf8')
   check("the receipt outcome union carries 'queued'", /outcome: 'applied' \| 'noop' \| 'refused' \| 'failed' \| 'queued'/.test(kernelSrc))
   check('both daemon executors read state=queued + heldReason as QUEUED', (kernelSrc.match(/heldOpen \? 'queued' : 'refused'/g) ?? []).length === 2)
-  const supervisorSrc = readFileSync(join(import.meta.dir, '..', '..', 'src/daemon/concourseSupervisor.ts'), 'utf8')
-  check('the supervisor consumes the collision evidence for a queued merge-back too', /\(r\.outcome === 'applied' \|\| r\.outcome === 'queued'\)/.test(supervisorSrc))
+  const workersSrc = readFileSync(join(import.meta.dir, '..', '..', 'src/daemon/concourseWorkers.ts'), 'utf8')
+  check('the daemon consumes the collision evidence for a queued merge-back too', /\(r\.outcome === 'applied' \|\| r\.outcome === 'queued'\)/.test(workersSrc))
   const routeSrc = readFileSync(join(import.meta.dir, '..', '..', 'src/components/concourse/ConcourseRoute.tsx'), 'utf8')
   check('the board runs no ride of its own through the kernel', !/assistedSweep/.test(routeSrc))
 
@@ -171,8 +171,8 @@ console.log('§6 production wires at the owners')
 {
   const dispatch = readFileSync('src/daemon/concourseDispatch.ts', 'utf8')
   check('R1 wired at the dispatch owner (refusal → kernel event)', dispatch.includes("kind: 'dispatch-refused'") && dispatch.includes('runCoordinatorKernel'))
-  const supervisor = readFileSync('src/daemon/concourseSupervisor.ts', 'utf8')
-  check('R2 wired at the settle owner (first settle → kernel event)', supervisor.includes("kind: 'worker-settled'") && supervisor.includes('runCoordinatorKernel'))
+  const daemon = readFileSync('src/daemon/concourseWorkers.ts', 'utf8')
+  check('R2 wired at the settle owner (first settle → kernel event)', daemon.includes("kind: 'worker-settled'") && daemon.includes('runCoordinatorKernel'))
 }
 
 rmSync(scratch, { recursive: true, force: true })

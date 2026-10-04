@@ -21,7 +21,7 @@ enableConfigs()
 const cap = await import('../../src/services/switchboard/capacityCheck.ts')
 const compose = await import('../../src/services/capacity/composeCeilings.ts')
 const gov = await import('../../src/services/capacity/governor.ts')
-const sup = await import('../../src/daemon/concourseSupervisor.ts')
+const sup = await import('../../src/daemon/concourseWorkers.ts')
 const verb = await import('../../src/commands/seats/applySeats.ts')
 
 const SAMPLE = { cores: 8, availableBytes: 6 * cap.SEAT_COST_BYTES.runner, read: 'vm_stat' as const, sampledAt: 0 }

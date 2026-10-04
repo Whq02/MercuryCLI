@@ -195,7 +195,7 @@ const QUIT_FIRST_WORDS = 'quit every Mercury window and its background process (
 async function mercuryHoldersOf(repo: string): Promise<{ runners: string[]; indexLockAgeS: number | null; objectsInFlight: number }> {
   const runners: string[] = []
   try {
-    const { readSessionWorkers } = await import('../daemon/concourseSupervisor.js')
+    const { readSessionWorkers } = await import('../daemon/concourseWorkers.js')
     for (const rec of Object.values(readSessionWorkers())) {
       if (rec.endedAt !== undefined || rec.pid === undefined || !pidAlive(rec.pid)) continue
       let ws: string
@@ -1544,7 +1544,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             if (d.state === 'live') {
               const { daemonHandshakeEvidence, daemonSkewLine, handshakeDaemon } = await import('../daemon/handshake.js')
               const hs = await handshakeDaemon({ timeoutMs: 1000 })
-              const evidence = `supervisor.json: ${d.reason} · ${daemonHandshakeEvidence(hs)}`
+              const evidence = `daemon.json: ${d.reason} · ${daemonHandshakeEvidence(hs)}`
               if (hs.line !== null) return { status: 'warn', evidence, fix: hs.line, link: '/daemon' }
               const skew = daemonSkewLine(hs)
               if (skew !== null) return { status: 'warn', evidence, fix: skew, link: '/daemon' }
@@ -1567,7 +1567,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               }
               return {
                 status: 'warn',
-                evidence: `supervisor.json: ${d.reason}`,
+                evidence: `daemon.json: ${d.reason}`,
                 fix: `Run \`${binaryName()} daemon\` to restart, or clear the stale record.`,
                 link: '/daemon',
               }

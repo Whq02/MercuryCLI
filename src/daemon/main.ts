@@ -17,10 +17,10 @@ import { flagEnv, flagPair } from '../substrate/flagRegistry.js'
 import { stampSpawnReceipt } from '../substrate/envStamps.js'
 import { isCrewDaemon } from './daemonFeatureGates.js'
 import { installStampedDaemonLog, stampDaemonLogLine } from './daemonLogStamp.js'
-import { runTaskHeadless, buildHeadlessPrompt, getRunTimeoutMs, scrubSupervisorRoleEnv } from './headlessRun.js'
+import { runTaskHeadless, buildHeadlessPrompt, getRunTimeoutMs, scrubDaemonRoleEnv } from './headlessRun.js'
 import { CREW, crewEnabled, crewMemberModel, makeCrewSpawnHandler, makeCrewWakeRoster } from './crewSpawn.js'
 import { crewSeatPausedLine, crewSeatPauseOf, crewSeatResumedLine, crewSeatResumeRow, crewSeatWindowOf, type CrewSeatWindow } from './crewSeatPause.js'
-import { isOutcomeRow } from './longLivedSupervisor.js'
+import { isOutcomeRow } from './longLivedRespawn.js'
 import type { LooseRow } from '../rows/read.js'
 import { CREW_LEAD_NAME } from '../utils/crew/constants.js'
 import { readCrewFileAsync } from '../utils/crew/crewHelpers.js'
@@ -33,7 +33,7 @@ import {
   reconcileConcourseWorkers,
   resumeConcourseWorker,
   settleConcourseWorker,
-} from './concourseSupervisor.js'
+} from './concourseWorkers.js'
 import {
   attachYieldConcourseSession,
   blurConcourseSession,
@@ -51,7 +51,7 @@ import {
   revokeConcourseWorkflows,
   turnInFlightOf,
   workerPidAlive,
-} from './concourseSupervisor.js'
+} from './concourseWorkers.js'
 import { answerPermissionAsk, holdWorkerAsk } from './permissionAsks.js'
 import { seatCeilingFactsAsync, serveHeldReadingFromBackground } from '../services/switchboard/capacityCheck.js'
 import {
@@ -82,8 +82,8 @@ import {
   warmRunnerCount,
   warmRunnerShorts,
 } from './warmRunner.js'
-import { stopConcourseSession, reviveConcourseWorker, setConcourseSessionTitle } from './concourseSupervisor.js'
-import { readSessionWorkersSnapshot } from './concourseSupervisor.js'
+import { stopConcourseSession, reviveConcourseWorker, setConcourseSessionTitle } from './concourseWorkers.js'
+import { readSessionWorkersSnapshot } from './concourseWorkers.js'
 import { applyConcourseContractOp } from './sessionContract.js'
 import { applyConcourseScheduleOp, dropSaturnSelfWakes, type SaturnSelfWakeDropWhy } from './saturn.js'
 import { deriveScheduleAccountForModel, liveFactsForSessionFire, readLiveAccountFacts, scheduleAccountVerdict } from './saturnAccount.js'
@@ -107,27 +107,27 @@ import { armDispatchDrain, type DispatchDrainHandle } from './dispatchDrain.js'
 import { startControlServer, type ControlServerHandle } from './controlServer.js'
 import { tokenBinding, type ProcessSweepDaemonAnswer, type ProcessSweepRunnerRecord } from './processSweep.js'
 import { recordProcessCensusAtBoot, sweepRunnerRecord } from './processSweepRun.js'
-import { DAEMON_USAGE, isScreenHealAsk, parseDaemonVerb, supervisorRecordIdentity } from './verbs.js'
+import { DAEMON_USAGE, isScreenHealAsk, parseDaemonVerb, daemonRecordIdentity } from './verbs.js'
 import { hostedCallerOf, hostedCallerRefusalLine, restartEndsHostedCaller } from './hostedCaller.js'
 import {
-  acquireSupervisorLock,
+  acquireDaemonLock,
   clearControlKey,
-  clearDeadSupervisorRecords,
-  clearSupervisorState,
+  clearDeadDaemonRecords,
+  clearDaemonState,
   controlKeyPath,
   controlSockPath,
   currentVersion,
   daemonControlRpc,
   daemonDir,
-  markSupervisorStoppingSync,
+  markDaemonStoppingSync,
   mintControlKey,
   readControlKey,
-  readSupervisorState,
+  readDaemonState,
   reassertControlKey,
-  supervisorExitTeardownSync,
-  supervisorStatePath,
-  type SupervisorLock,
-  writeSupervisorState,
+  daemonExitTeardownSync,
+  daemonStatePath,
+  type DaemonLock,
+  writeDaemonState,
 } from './controlSocket.js'
 import { recordSpawnExit } from '../utils/spawnLedger.js'
 import { armDaemonHomeWatch, daemonHomeStands } from './daemonHome.js'
@@ -207,15 +207,15 @@ async function daemonStopCmd(): Promise<void> {
     // eslint-disable-next-line no-console
     console.error(`[daemon] shutdown acknowledged — reaped ${reply.reaped} worker(s)`)
   } else if (!reply.ok && reply.code === 'ENOCONN') {
-    const stale = await readSupervisorState()
+    const stale = await readDaemonState()
     if (stale && !isProcessAlive(stale.pid)) {
-      await clearDeadSupervisorRecords()
+      await clearDeadDaemonRecords()
       // eslint-disable-next-line no-console
       console.error(`[daemon] no running daemon to stop — swept the stale record of pid ${stale.pid} (control socket unreachable, process gone)`)
     } else if (stale) {
-      const verdict = supervisorRecordIdentity(stale, getProcessStartToken(stale.pid))
+      const verdict = daemonRecordIdentity(stale, getProcessStartToken(stale.pid))
       if (verdict === 'not-recorded-process') {
-        await clearDeadSupervisorRecords()
+        await clearDeadDaemonRecords()
         // eslint-disable-next-line no-console
         console.error(`[daemon] no running daemon to stop — swept the stale record of pid ${stale.pid} (the pid was recycled: its live process is not the recorded daemon)`)
       } else if (verdict === 'same-process') {
@@ -229,15 +229,15 @@ async function daemonStopCmd(): Promise<void> {
       }
     } else {
       const { probePidLock } = await import('../substrate/pidLock.js')
-      const lockPath = join(daemonDir(), 'supervisor.lock')
+      const lockPath = join(daemonDir(), 'daemon.lock')
       const lockHolder = existsSync(lockPath) ? await probePidLock(lockPath, { liveness: 'assume-alive' }) : null
       if (existsSync(lockPath) && lockHolder === null) {
-        await clearDeadSupervisorRecords()
+        await clearDeadDaemonRecords()
         // eslint-disable-next-line no-console
-        console.error('[daemon] no running daemon to stop — swept a lock-only leftover (supervisor.lock with no record, its holder gone or not the recorded process)')
+        console.error('[daemon] no running daemon to stop — swept a lock-only leftover (daemon.lock with no record, its holder gone or not the recorded process)')
       } else if (lockHolder !== null) {
         // eslint-disable-next-line no-console
-        console.error(`[daemon] no running daemon to stop — but supervisor.lock is held by live pid ${lockHolder.pid} with no record beside it; if that pid is not a Mercury daemon, end it and re-run, or remove ${lockPath} by hand`)
+        console.error(`[daemon] no running daemon to stop — but daemon.lock is held by live pid ${lockHolder.pid} with no record beside it; if that pid is not a Mercury daemon, end it and re-run, or remove ${lockPath} by hand`)
         process.exitCode = 1
       } else {
         // eslint-disable-next-line no-console
@@ -282,7 +282,7 @@ async function daemonRun(args: string[]): Promise<void> {
   // eslint-disable-next-line no-console
   console.error(`[daemon] build ${bootBuildTree ?? 'unstamped'} at ${bootScript || '?'} (${buildHold === 'held' ? 'the build folder is held open for the installer' : 'no manifest beside the bundle'})`)
 
-  const scrubbed = scrubSupervisorRoleEnv()
+  const scrubbed = scrubDaemonRoleEnv()
   if (scrubbed.length > 0) {
     logForDebugging(`[daemon] scrubbed inherited role env (daemon runs role-free): ${scrubbed.join(', ')}`)
   }
@@ -361,7 +361,7 @@ async function daemonRun(args: string[]): Promise<void> {
   })
   const startedAt = Date.now()
   let requestShutdown: (signal: string) => void = () => {}
-  let supervisorLock: SupervisorLock | null = null
+  let daemonLock: DaemonLock | null = null
   let teardownComplete = false
   let releaseHeldReading: () => void = () => {}
 
@@ -384,17 +384,17 @@ async function daemonRun(args: string[]): Promise<void> {
       if (decision.road === 'wait-lock') decision = { road: 'refuse', why: `the predecessor pid ${decision.for} did not release the daemon lock within ${SUCCESSOR_LOCK_WAIT_MS / 1000}s` }
     }
     if (decision.road === 'serve') {
-      supervisorLock = await acquireSupervisorLock()
-      if (!supervisorLock) {
+      daemonLock = await acquireDaemonLock()
+      if (!daemonLock) {
         decision = decidePlaneBoot(await planeBootFacts(stamps))
         if (decision.road !== 'handover') return refuse('the daemon lock was taken while this daemon booted')
       }
     }
     if (decision.road === 'handover') {
       handoverPredecessor = decision.from
-      supervisorLock = await acquireSupervisorLock()
+      daemonLock = await acquireDaemonLock()
       // eslint-disable-next-line no-console
-      console.error(`[daemon] ${stamp}: ${decision.why} — taking the plane${supervisorLock ? '' : `; the daemon lock is taken when its holder leaves`}`)
+      console.error(`[daemon] ${stamp}: ${decision.why} — taking the plane${daemonLock ? '' : `; the daemon lock is taken when its holder leaves`}`)
     } else if (decision.road === 'serve') {
       if (successorOf !== null) {
         // eslint-disable-next-line no-console
@@ -408,7 +408,7 @@ async function daemonRun(args: string[]): Promise<void> {
       return refuse(decision.why)
     }
     process.once('exit', code => {
-      if (!teardownComplete) supervisorExitTeardownSync('exit-before-teardown', code)
+      if (!teardownComplete) daemonExitTeardownSync('exit-before-teardown', code)
     })
     try {
       await seatCeilingFactsAsync()
@@ -601,8 +601,8 @@ async function daemonRun(args: string[]): Promise<void> {
         return { live, liveSessions }
       }
       const bootStartToken = await getProcessStartTokenAsync(process.pid)
-      const persistSupervisorRecord = (owner: number | null): Promise<void> =>
-        writeSupervisorState({
+      const persistDaemonRecord = (owner: number | null): Promise<void> =>
+        writeDaemonState({
           pid: process.pid,
           version: currentVersion(),
           origin: 'transient',
@@ -624,7 +624,7 @@ async function daemonRun(args: string[]): Promise<void> {
           () => Object.values(readSessionWorkersSnapshot().state === 'known' ? readSessionWorkers() : {}),
           await readHandoverHosts(handoverPredecessor, controlKey),
         )
-        await persistSupervisorRecord(currentOwnerPid)
+        await persistDaemonRecord(currentOwnerPid)
         const moved = renameSocketForPredecessor(handoverPredecessor)
         handover.notePlaneMoved()
         const held = handover.heldRunners(handoverPredecessor).size
@@ -1137,7 +1137,7 @@ async function daemonRun(args: string[]): Promise<void> {
           return refuse('only a daemon or a runner takes the daemon road', 'none')
         },
       }, { socketPath: process.platform === 'win32' ? controlSockPath() : predecessorSockPath(process.pid) })
-      await persistSupervisorRecord(currentOwnerPid)
+      await persistDaemonRecord(currentOwnerPid)
       {
         let healInflight = false
         let healQueued = false
@@ -1178,7 +1178,7 @@ async function daemonRun(args: string[]): Promise<void> {
             )
             if (!ownDoorOnly) {
               await reassertControlKey(controlKey)
-              await persistSupervisorRecord(currentOwnerPid)
+              await persistDaemonRecord(currentOwnerPid)
             }
             if ((sockMissing || ownSockMissing || takeBack) && daemonHomeStands('the plane heal')) await controlServer?.rebind()
           } catch (e) {
@@ -1197,7 +1197,7 @@ async function daemonRun(args: string[]): Promise<void> {
         planeHeal.unref?.()
         const planeNames = new Set([
           basename(controlKeyPath()),
-          basename(supervisorStatePath()),
+          basename(daemonStatePath()),
           ...(process.platform === 'win32' ? [] : [basename(controlSockPath())]),
           ...(ownSockPath === null ? [] : [basename(ownSockPath)]),
         ])
@@ -1324,17 +1324,17 @@ async function daemonRun(args: string[]): Promise<void> {
           stopBeat?.()
         }
       }
-      if (handoverPredecessor !== null && supervisorLock === null) {
+      if (handoverPredecessor !== null && daemonLock === null) {
         let lockClaimInflight = false
         const lockBeat = setInterval(() => {
           void (async () => {
-            if (supervisorLock !== null || lockClaimInflight) return
+            if (daemonLock !== null || lockClaimInflight) return
             if (lockHeldByLivePidSync() !== null) return
             lockClaimInflight = true
             try {
-              const taken = await acquireSupervisorLock()
+              const taken = await acquireDaemonLock()
               if (taken === null) return
-              supervisorLock = taken
+              daemonLock = taken
               stopLockBeat?.()
               // eslint-disable-next-line no-console
               console.error(`[daemon] handover from pid ${handoverPredecessor}: the predecessor released the daemon lock — this daemon holds it now`)
@@ -1487,7 +1487,7 @@ async function daemonRun(args: string[]): Promise<void> {
         // eslint-disable-next-line no-console
         console.error(`[daemon] the plane is served by pid ${supersededBy.pid} (build ${supersededBy.buildTree ?? 'unstamped'}) — no successor is spawned; this daemon simply leaves`)
       }
-      if (controlEnabled) markSupervisorStoppingSync()
+      if (controlEnabled) markDaemonStoppingSync()
       logForDebugging(`[daemon] received ${signal}, shutting down`)
       // eslint-disable-next-line no-console
       console.error(`[daemon] ${signal} — shutting down`)
@@ -1524,19 +1524,19 @@ async function daemonRun(args: string[]): Promise<void> {
           logForDebugging(`[daemon] error closing control server: ${e}`)
         }
         if (controlEnabled) await clearControlKey().catch(() => {})
-        if (controlEnabled) await clearSupervisorState().catch(() => {})
+        if (controlEnabled) await clearDaemonState().catch(() => {})
         recordSpawnExit({
-          kind: 'supervisor',
+          kind: 'daemon',
           event: 'exit',
-          id: 'supervisor',
+          id: 'daemon',
           pid: process.pid,
           reason: `shutdown:${signal}`,
         })
         teardownComplete = true
         releaseHeldReading()
         if (restartAfterTeardown) spawnSuccessorDaemon()
-        await supervisorLock?.release().catch(() => {})
-        supervisorLock = null
+        await daemonLock?.release().catch(() => {})
+        daemonLock = null
         clearInterval(keepAlive)
         resolveShutdown()
         setTimeout(() => process.exit(0), 250)
@@ -1615,8 +1615,8 @@ async function daemonRun(args: string[]): Promise<void> {
           const next = nextLiveCockpitOwner(pid)
           if (next !== undefined) {
             currentOwnerPid = next
-            void readSupervisorState()
-              .then(rec => (rec ? writeSupervisorState({ ...rec, ownerPid: next }) : undefined))
+            void readDaemonState()
+              .then(rec => (rec ? writeDaemonState({ ...rec, ownerPid: next }) : undefined))
               .catch(() => {})
             // eslint-disable-next-line no-console
             console.error(`[daemon] owner pid ${pid} gone (${why}) — ownership passes to the live cockpit pid ${next}; the daemon stays up`)

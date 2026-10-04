@@ -22,7 +22,7 @@ const LEGS = new Set((process.env.USAGE_FRESH_LEGS ?? 'a,b,c,e,f').split(',').ma
 
 const { resolveCaptureDriver, captureEngineEntry } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { readSessionWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
 
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') {

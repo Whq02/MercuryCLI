@@ -12,14 +12,14 @@ delete process.env.MERCURY_DAEMON_PERMISSION_MODE
 delete process.env.MERCURY_CONCOURSE_WORKER
 delete process.env.MERCURY_SKIP_PERMISSIONS
 
-const supervisor = await import('../../src/daemon/concourseSupervisor.ts')
+const workers = await import('../../src/daemon/concourseWorkers.ts')
 const seat = await import('../../src/daemon/sessionSeat.ts')
 const { permissionModeOf } = await import('../../src/services/engine-connector/daemonConnector.ts')
 const { getNextPermissionMode } = await import('../../src/utils/permissions/getNextPermissionMode.ts')
 const { resolvePermissionModeTransition } = await import('../../src/cli/headless/controlHandlers.ts')
 const { buildRunnerInvocation, getHeadlessPermissionMode } = await import('../../src/daemon/headlessRun.ts')
 import type { RunnerChildSpec } from '../../src/daemon/headlessRun.ts'
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseSupervisor.ts'
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
 import type { PermissionMode } from '../../src/types/permissions.ts'
 import type { ToolPermissionContext } from '../../src/Tool.ts'
 
@@ -41,24 +41,24 @@ section('§1 the record stamps the posture and consent the runner was booted wit
 {
   const spec = (permissionMode: string, allowBypass?: true): Pick<RunnerChildSpec, 'permissionMode' | 'allowBypass'> =>
     ({ permissionMode: permissionMode as RunnerChildSpec['permissionMode'], ...(allowBypass === true ? { allowBypass: true as const } : {}) })
-  const sov = supervisor.spawnPostureOf(spec('sovereign', true))
+  const sov = workers.spawnPostureOf(spec('sovereign', true))
   check('a sovereign spec with the consent stamps {sovereign, bypassConsent:true}', sov.permissionMode === 'sovereign' && sov.bypassConsent === true, JSON.stringify(sov))
-  const def = supervisor.spawnPostureOf(spec('default'))
+  const def = workers.spawnPostureOf(spec('default'))
   check('a default spec without consent stamps {default} and NO consent field', def.permissionMode === 'default' && !('bypassConsent' in def), JSON.stringify(def))
-  const apollo = supervisor.spawnPostureOf(spec('apollo'))
+  const apollo = workers.spawnPostureOf(spec('apollo'))
   check("an apollo seat stamps 'apollo' (the cockpit-attached seat's own mode)", apollo.permissionMode === 'apollo', JSON.stringify(apollo))
   process.env.MERCURY_DAEMON_PERMISSION_MODE = 'implement'
-  const env = supervisor.spawnPostureOf(spec('sovereign'))
+  const env = workers.spawnPostureOf(spec('sovereign'))
   const argv = buildRunnerInvocation({ ...baseSpec('w-env'), permissionMode: 'sovereign' }).argv
   delete process.env.MERCURY_DAEMON_PERMISSION_MODE
   check('the daemon posture env wins in the stamp exactly as it wins in the argv (record ≡ process)', env.permissionMode === 'implement' && argv.includes('implement') && !argv.includes(SKIP), `stamp=${env.permissionMode} argv=${argv.filter(a => /permission|dangerously|implement/.test(a)).join(' ')}`)
   const rec = { permissionMode: 'sovereign', bypassConsent: true } as unknown as ConcourseWorkerRecordV1
-  supervisor.stampSpawnPosture(rec, { permissionMode: 'default' })
+  workers.stampSpawnPosture(rec, { permissionMode: 'default' })
   check('a restamp without consent DROPS the record\'s old consent (never a station the runner lost)', rec.permissionMode === 'default' && rec.bypassConsent === undefined, JSON.stringify(rec))
 }
 
 function baseSpec(short: string): RunnerChildSpec {
-  return supervisor.buildConcourseWorkerSpec({
+  return workers.buildConcourseWorkerSpec({
     runnerId: short,
     sessionId: '00000000-0000-4000-8000-000000000001',
     workspaceId: HOME,
@@ -81,7 +81,7 @@ section("§3 the connector's mode read: the facts' word, else the birth posture,
   check("a skeleton without a word falls to the birth record's posture", permissionModeOf({}, { permissionMode: 'sovereign' }) === 'sovereign')
   check('no facts file + a sovereign birth record ⇒ sovereign', permissionModeOf(null, { permissionMode: 'sovereign' }) === 'sovereign')
   check('no facts file + a default birth record ⇒ default (the blank band)', permissionModeOf(null, { permissionMode: 'default' }) === 'default')
-  const seatWord = supervisor.seatInitialPermissionMode('apollo')
+  const seatWord = workers.seatInitialPermissionMode('apollo')
   check('a birth posture the seat maps at spawn reads through the SAME resolver (one mapping owner)', permissionModeOf(null, { permissionMode: 'apollo' }) === seatWord, `resolver=${seatWord}`)
   check("no facts + a birth record carrying none ⇒ null (the honest blank), never 'flow'", permissionModeOf(null, { permissionMode: null }) === null)
   check("a skeleton without a word + no birth posture ⇒ null, never 'flow'", permissionModeOf({}, { permissionMode: null }) === null)
@@ -113,7 +113,7 @@ section("§4 every revive road boots the record's posture and consent; the react
   }
   const roster = new FakeRoster()
   const seed = (patch: Partial<ConcourseWorkerRecordV1>): void => {
-    supervisor.updateConcourseWorkers(workers => {
+    workers.updateConcourseWorkers(workers => {
       for (const k of Object.keys(workers)) delete workers[k]
       workers[short] = {
         schema: 1,
@@ -128,38 +128,38 @@ section("§4 every revive road boots the record's posture and consent; the react
         pid: 4_000_001,
         ...patch,
       } as ConcourseWorkerRecordV1
-      const transcript = supervisor.concourseTranscriptPath(workers[short]!)
+      const transcript = workers.concourseTranscriptPath(workers[short]!)
       mkdirSync(join(transcript, '..'), { recursive: true })
       writeFileSync(transcript, `${JSON.stringify({ type: 'user', uuid: `${sid}-u1`, message: { role: 'user', content: 'seeded turn' } })}\n`)
     }, dir)
   }
   const lastSpec = (): RunnerChildSpec | undefined => roster.registered.at(-1)?.spec
   const argvOf = (spec: RunnerChildSpec | undefined): string[] => (spec ? buildRunnerInvocation(spec).argv : [])
-  const recordNow = (): ConcourseWorkerRecordV1 | undefined => supervisor.readSessionWorkers(dir)[short]
+  const recordNow = (): ConcourseWorkerRecordV1 | undefined => workers.readSessionWorkers(dir)[short]
 
   seed({ permissionMode: 'sovereign', bypassConsent: true })
-  const a = supervisor.reviveConcourseWorker(sid, 'auto-revive', roster, undefined, dir)
+  const a = workers.reviveConcourseWorker(sid, 'auto-revive', roster, undefined, dir)
   check('(a) the auto-revive road revives a dead sovereign+consented record', a.outcome === 'applied', JSON.stringify(a))
   check("(a) …booting the RECORD's posture: the skip flag on the argv, the consent on the spec", lastSpec()?.permissionMode === 'sovereign' && lastSpec()?.allowBypass === true && argvOf(lastSpec()).includes(SKIP), argvOf(lastSpec()).filter(x => /permission|dangerously/.test(x)).join(' '))
   check('(a) …and the record keeps its stamp', recordNow()?.permissionMode === 'sovereign' && recordNow()?.bypassConsent === true)
   seed({ permissionMode: 'sovereign', bypassConsent: true, stoppedAt: Date.now() - 1_000, stoppedBy: 'operator' })
-  const b = supervisor.reviveConcourseWorker(sid, 'operator:resume', roster, { allowStopped: true }, dir)
+  const b = workers.reviveConcourseWorker(sid, 'operator:resume', roster, { allowStopped: true }, dir)
   check("(b) the resume verb's road revives a stopped record", b.outcome === 'applied', JSON.stringify(b))
   check("(b) …booting the RECORD's posture and consent", lastSpec()?.permissionMode === 'sovereign' && lastSpec()?.allowBypass === true && argvOf(lastSpec()).includes(SKIP))
   seed({ permissionMode: 'implement' })
-  const c = supervisor.reviveConcourseWorker(sid, 'auto-revive', roster, undefined, dir)
+  const c = workers.reviveConcourseWorker(sid, 'auto-revive', roster, undefined, dir)
   check("(c) an implement record without consent revives in implement, no consent flag", c.outcome === 'applied' && lastSpec()?.permissionMode === 'implement' && lastSpec()?.allowBypass === undefined && !argvOf(lastSpec()).includes(ALLOW) && !argvOf(lastSpec()).includes(SKIP), argvOf(lastSpec()).filter(x => /permission|dangerously|implement/.test(x)).join(' '))
   seed({ permissionMode: 'sovereign', bypassConsent: true })
-  const d = supervisor.reviveConcourseWorker(sid, 'operator', roster, { allowStopped: true, clearCrash: true, permissionMode: 'default', bypassConsent: false }, dir)
+  const d = workers.reviveConcourseWorker(sid, 'operator', roster, { allowStopped: true, clearCrash: true, permissionMode: 'default', bypassConsent: false }, dir)
   check("(d) the reactivate's carried posture (default, no consent) outranks the record's", d.outcome === 'applied' && lastSpec()?.permissionMode === 'default' && lastSpec()?.allowBypass === undefined && !argvOf(lastSpec()).includes(SKIP) && !argvOf(lastSpec()).includes(ALLOW))
   check("(d) …and the record is RESTAMPED: default, the old consent dropped", recordNow()?.permissionMode === 'default' && recordNow()?.bypassConsent === undefined, JSON.stringify({ permissionMode: recordNow()?.permissionMode, bypassConsent: recordNow()?.bypassConsent }))
   seed({ permissionMode: 'default' })
-  const e = supervisor.reviveConcourseWorker(sid, 'operator', roster, { allowStopped: true, permissionMode: 'default', bypassConsent: true }, dir)
+  const e = workers.reviveConcourseWorker(sid, 'operator', roster, { allowStopped: true, permissionMode: 'default', bypassConsent: true }, dir)
   check("(e) a consented door's revive carries the allow flag and stamps the consent", e.outcome === 'applied' && lastSpec()?.allowBypass === true && argvOf(lastSpec()).includes(ALLOW) && recordNow()?.bypassConsent === true)
   seed({})
-  const f = supervisor.reviveConcourseWorker(sid, 'auto-revive', roster, undefined, dir)
-  const own = getHeadlessPermissionMode(supervisor.seatInitialPermissionMode())
-  check('(f) a record without the stamp revives on the seat\'s own resolution', f.outcome === 'applied' && lastSpec()?.permissionMode === supervisor.seatInitialPermissionMode(), `spec=${lastSpec()?.permissionMode} own=${own}`)
+  const f = workers.reviveConcourseWorker(sid, 'auto-revive', roster, undefined, dir)
+  const own = getHeadlessPermissionMode(workers.seatInitialPermissionMode())
+  check('(f) a record without the stamp revives on the seat\'s own resolution', f.outcome === 'applied' && lastSpec()?.permissionMode === workers.seatInitialPermissionMode(), `spec=${lastSpec()?.permissionMode} own=${own}`)
   check('(f) …and takes the stamp so its skeleton speaks a true word from now on', recordNow()?.permissionMode === own, `record=${recordNow()?.permissionMode}`)
   check('(f) every revive above registered a spec (six spawns, no refusal)', roster.registered.length === 6, String(roster.registered.length))
 }
@@ -169,7 +169,7 @@ section("§5 a mode change's receipt is the runner's own word: refused with its 
   const dir = mkdtempSync(join(tmpdir(), 'band-mode-seat-'))
   const sid = '00000000-0000-4000-8000-0000000000bb'
   const short = 'concourse-w3'
-  supervisor.updateConcourseWorkers(workers => {
+  workers.updateConcourseWorkers(workers => {
     workers[short] = {
       schema: 1,
       runnerId: short,

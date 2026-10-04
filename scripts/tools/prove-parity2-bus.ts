@@ -203,7 +203,7 @@ await gracefulShutdown(0)
 {
   const { decideIdleRetirement, transcriptTextHasConversation, transcriptHasConversation, sweepIdleEmptyConcourseSessions, retiredNowLabel, concourseIdleRetireMs, DEFAULT_CONCOURSE_IDLE_RETIRE_MINUTES } =
     await import('../../src/daemon/idleRetirement.ts')
-  const { concourseWorkersPath, readSessionWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { concourseWorkersPath, readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
   const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
 
   t('the default threshold is the operator\'s ten minutes', concourseIdleRetireMs() === DEFAULT_CONCOURSE_IDLE_RETIRE_MINUTES * 60_000 && DEFAULT_CONCOURSE_IDLE_RETIRE_MINUTES === 10)
@@ -297,7 +297,7 @@ await gracefulShutdown(0)
   const after = readSessionWorkers(daemonDir)
   const w1 = after['concourse-w1']!
   t('the sweep requests the stop with the typed retired fact beside the request', w1.stopRequestedAt !== undefined && w1.stopRequestedRetired?.reason === 'idle-empty' && w1.stopRequestedRetired.thresholdMs === T, JSON.stringify(w1))
-  const { updateConcourseWorkers, completeRequestedStop } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { updateConcourseWorkers, completeRequestedStop } = await import('../../src/daemon/concourseWorkers.ts')
   updateConcourseWorkers(workers => {
     const w = workers['concourse-w1']
     if (w) w.pid = 999_999

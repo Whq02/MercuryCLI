@@ -92,7 +92,7 @@ import type {
   WorkspaceFactsV1,
 } from './types.js'
 import { bootBirthFacts, type BootBirthFacts } from '../switchboard/bootBirthFacts.js'
-import { seatInitialPermissionMode } from '../../daemon/concourseSupervisor.js'
+import { seatInitialPermissionMode } from '../../daemon/concourseWorkers.js'
 import { projectOperatorRewinds } from '../compact/checkpointRewind.js'
 
 const UNKNOWN_CHECKPOINTS: CheckpointFactsV1 = Object.freeze({ capture: 'unknown' as const, restorable: Object.freeze(new Set<string>()) as ReadonlySet<string> })

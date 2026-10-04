@@ -2,7 +2,7 @@ import { statSync } from 'node:fs'
 import { flagEnabled, flagEnv } from '../substrate/flagRegistry.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { logForDebugging } from '../utils/debug.js'
-import { concourseWorkersPath, type ConcourseWorkerRecordV1 } from './concourseSupervisor.js'
+import { concourseWorkersPath, type ConcourseWorkerRecordV1 } from './concourseWorkers.js'
 import {
   describeWhen,
   dropSaturnSelfWakes,

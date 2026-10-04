@@ -195,7 +195,7 @@ export function BootSplashScreen(): React.ReactNode {
   useEffect(() => {
     if (chatBoot) return;
     let cancelled = false;
-    void import('../daemon/concourseSupervisor.js')
+    void import('../daemon/concourseWorkers.js')
       .then(sup => {
         if (!cancelled) setLiveCount(sup.countLiveConcourseWorkers());
       })
@@ -232,7 +232,7 @@ export function BootSplashScreen(): React.ReactNode {
     void (async () => {
       try {
         const [sup, saturn, box] = await Promise.all([
-          import('../daemon/concourseSupervisor.js'),
+          import('../daemon/concourseWorkers.js'),
           import('../daemon/saturn.js'),
           import('../daemon/saturnBoxSchedules.js'),
         ]);
@@ -304,7 +304,7 @@ export function BootSplashScreen(): React.ReactNode {
             await hop.focusResumedSession(p.sessionId, p.transcriptPath ?? undefined, { title: p.base });
           } else if (
             p.firstSessionId !== null &&
-            (await import('../daemon/concourseSupervisor.js')).sessionOwnedByLiveWorker(p.firstSessionId) !== null
+            (await import('../daemon/concourseWorkers.js')).sessionOwnedByLiveWorker(p.firstSessionId) !== null
           ) {
             const hop = await import('../services/switchboard/hopIntoSession.js');
             const outcome = await hop.hopIntoBoardSession(p.firstSessionId);

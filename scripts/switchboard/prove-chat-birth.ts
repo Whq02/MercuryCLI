@@ -26,10 +26,10 @@ writeFileSync(
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 8 } }))
-const { makeConcourseAdmitHandler, readSessionWorkers, concourseTranscriptPath } = await import('../../src/daemon/concourseSupervisor.ts')
+const { makeConcourseAdmitHandler, readSessionWorkers, concourseTranscriptPath } = await import('../../src/daemon/concourseWorkers.ts')
 const { ensureWorkerWorktree, workerWorktreeRoot } = await import('../../src/daemon/concourseWorktrees.ts')
 const { validateWorkerModelChoice } = await import('../../src/services/concourse/workerModels.ts')
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseSupervisor.ts'
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
 import type { RunnerChildSpec } from '../../src/daemon/headlessRun.ts'
 
 let failures = 0

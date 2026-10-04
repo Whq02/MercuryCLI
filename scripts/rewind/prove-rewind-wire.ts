@@ -58,7 +58,7 @@ section('§2 — the route: server case · client stamp · daemon dependency')
 
 section('§3 — the seat verb: applied · typed refusals · the mixed-version law')
 {
-  const { updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
   const seat = await import('../../src/daemon/sessionSeat.ts')
   const SESSION = 'rewind-wire-session-0001'
   const SHORT = 'concourse-w1'

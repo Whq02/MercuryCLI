@@ -103,12 +103,12 @@ export function staleStopVerdict(recordStartedAtMs: number, liveTokenEpochMs: nu
   return liveTokenEpochMs > recordStartedAtMs + START_TOKEN_SKEW_MS ? 'sweep-recycled' : 'alive-refuse'
 }
 
-export type SupervisorIdentityVerdict = 'same-process' | 'not-recorded-process' | 'unknown'
+export type DaemonIdentityVerdict = 'same-process' | 'not-recorded-process' | 'unknown'
 
-export function supervisorRecordIdentity(
+export function daemonRecordIdentity(
   rec: { startedAt: number; startToken?: string | null },
   liveToken: string | null,
-): SupervisorIdentityVerdict {
+): DaemonIdentityVerdict {
   if (typeof rec.startToken === 'string' && rec.startToken !== '') {
     if (liveToken === null) return 'unknown'
     return liveToken === rec.startToken ? 'same-process' : 'not-recorded-process'

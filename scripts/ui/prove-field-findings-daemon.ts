@@ -17,9 +17,9 @@ const check = (name: string, ok: boolean, detail?: string): void => {
 
 console.log('§1 daemon roster — outcome first')
 {
-  const { deriveSupervisorRows } = await import('../../src/utils/cockpit/daemonSupervisorRows.ts')
+  const { deriveDaemonRows: deriveDaemonRows } = await import('../../src/utils/cockpit/daemonRows.ts')
   const status = {
-    supervisor: { pid: 4242, version: '0.0.0', uptimeSec: 10, dir: '/tmp/x' },
+    daemon: { pid: 4242, version: '0.0.0', uptimeSec: 10, dir: '/tmp/x' },
     controlSock: '/tmp/x/control.sock',
     controlReachable: true,
     workersLive: 1,
@@ -37,11 +37,11 @@ console.log('§1 daemon roster — outcome first')
       { short: 'impl-1', sessionId: 's1', prompt: '', source: 'cron', state: 'crashed', startedAt: 0, cliVersion: '0', outcome: 'degraded', respawns: 3 },
       { short: 'impl-2', sessionId: 's2', prompt: '', source: 'cron', state: 'running', startedAt: 0, cliVersion: '0', busy: false },
     ],
-  } as unknown as Parameters<typeof deriveSupervisorRows>[0]
-  const rows = deriveSupervisorRows(status).workers
+  } as unknown as Parameters<typeof deriveDaemonRows>[0]
+  const rows = deriveDaemonRows(status).workers
   check('the derive carries the wire outcome on the settled seat and none on the live one', rows[0]?.outcome === 'degraded' && rows[1]?.outcome === undefined, JSON.stringify(rows.map(r => r.outcome)))
   check('a settled seat is never busy', rows[0]?.busy === false)
-  const view = read('src/components/mercury-ui/parity/DaemonSupervisorView.tsx')
+  const view = read('src/components/mercury-ui/parity/DaemonView.tsx')
   check("the row's activity reads the outcome first — never 'idle' for a settled seat", view.includes('const settled = w.outcome !== undefined') && view.includes('? `${GLYPH.fail} ${w.outcome}`') && view.includes('`settled · ${w.outcome}`'))
   check('a failed outcome (degraded · crashed · killed) leads with the failure glyph in the failure ink', view.includes("const failed = w.outcome === 'degraded' || w.outcome === 'crashed' || w.outcome === 'killed'") && view.includes('{failed ? GLYPH.fail : w.busy ? GLYPH.inProgress : GLYPH.done}') && view.includes('const leadInk = failed ? CRIMSON :'))
   check('POISON: the busy-only lead is gone', !view.includes("<Text color={w.stalled ? AMBER : w.busy ? TEAL : SECOND}>\n                      {w.busy ? GLYPH.inProgress : GLYPH.done}"))

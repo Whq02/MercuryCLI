@@ -1,6 +1,6 @@
 
 import { isProcessAlive } from '../../daemon/ownerWatch.js'
-import { listConcourseWorkers } from '../../daemon/concourseSupervisor.js'
+import { listConcourseWorkers } from '../../daemon/concourseWorkers.js'
 import { getProjectDir } from '../../utils/sessionStoragePortable.js'
 import { inProject, projectDisplayName, type ProjectIdentity } from '../../utils/bootCardFacts.js'
 import type { ConcourseElsewhereV1, ConcourseRowV1 } from '../../components/concourse/contracts.js'

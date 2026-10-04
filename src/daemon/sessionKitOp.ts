@@ -2,7 +2,7 @@ import { mkdirSync } from 'node:fs'
 import { logForDebugging } from '../utils/debug.js'
 import { getProjectDir } from '../utils/sessionStorage/paths.js'
 import { appendSessionReceipt } from '../services/switchboard/sessionReceipts.js'
-import { updateConcourseWorkers } from './concourseSupervisor.js'
+import { updateConcourseWorkers } from './concourseWorkers.js'
 import {
   applyKitEdit,
   cloneSessionKit,

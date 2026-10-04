@@ -190,7 +190,7 @@ section('§4 — the coordinator, LIVE: prompt id === dispatch stamp')
 
 section('§5 — workers: the spec boots on the model admission resolved')
 {
-  const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.ts')
   const spec = buildConcourseWorkerSpec({
     runnerId: 'w-seat-1',
     sessionId: 's-seat-1',

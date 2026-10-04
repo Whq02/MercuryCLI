@@ -202,7 +202,7 @@ export function BootSettingsScreen({
   const [apply, setApply] = useState<ApplyState>({ phase: 'closed' });
   useEffect(() => {
     let cancelled = false;
-    void import('../daemon/concourseSupervisor.js')
+    void import('../daemon/concourseWorkers.js')
       .then(sup => {
         if (!cancelled) setLiveCount(sup.countLiveConcourseWorkers());
       })
@@ -216,7 +216,7 @@ export function BootSettingsScreen({
   useEffect(() => {
     if (apply.phase !== 'loading') return;
     let cancelled = false;
-    void import('../daemon/concourseSupervisor.js')
+    void import('../daemon/concourseWorkers.js')
       .then(sup => {
         if (cancelled) return;
         const currentProfile = readBootDefaultsProfile(path);

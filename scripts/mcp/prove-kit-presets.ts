@@ -217,7 +217,7 @@ section('§P3 — THE ONE-SHOT WEAR: armed for exactly one session; the menu def
   facts._resetBootBirthFactsForTesting()
   store.deleteKitPreset('writing')
 
-  const sup = await import('../../src/daemon/concourseSupervisor.ts')
+  const sup = await import('../../src/daemon/concourseWorkers.ts')
   const REC_KIT = { schema: 1 as const, mcp: ['postgres'], skills: [], invocable: [] }
   const liveRec = {
     schema: 1,
@@ -230,7 +230,7 @@ section('§P3 — THE ONE-SHOT WEAR: armed for exactly one session; the menu def
     lastLiveAt: Date.now(),
     pid: process.pid,
     kit: JSON.parse(JSON.stringify(REC_KIT)),
-  } as unknown as import('../../src/daemon/concourseSupervisor.ts').ConcourseWorkerRecordV1
+  } as unknown as import('../../src/daemon/concourseWorkers.ts').ConcourseWorkerRecordV1
   const hopped = await sup.reactivateConcourseSession(
     liveRec,
     { modelKey: 'x', by: 'proof', kit: KIT_WORN },
@@ -243,7 +243,7 @@ section('§P3 — THE ONE-SHOT WEAR: armed for exactly one session; the menu def
   const hopSrc = read('src/services/switchboard/hopIntoSession.ts')
   t('P3-15 the birth door consumes at entry and spreads worn-else-carried', born.includes('const worn = takeWornPresetKit()') && born.includes('...(worn !== null ? { kit: worn.kit } : carriedKitOf(facts)),'))
   t('P3-16 the resume door PEEKS, spreads worn-else-carried, and spends only when applied (liveHop gates the take)', hopSrc.includes('const worn = peekWornPresetKit()') && hopSrc.includes('worn !== null ? { kit: worn.kit } : carriedKitOf(bootBirthFacts())') && hopSrc.includes('if (worn !== null && reply.liveHop !== true) takeWornPresetKit()'))
-  t('P3-17 the wire carries the pure-hop fact end to end (supervisor answer → protocol row → controlServer pass-through)', read('src/daemon/concourseSupervisor.ts').includes('liveHop: true,') && read('src/daemon/protocol.ts').includes('liveHop?: true') && /'liveHop'/.test(wireKeys(read('src/daemon/controlServer.ts'), 'ADMIT_WIRE_KEYS')) && read('src/daemon/controlServer.ts').includes('...pickDefined(r, ADMIT_WIRE_KEYS)'))
+  t('P3-17 the wire carries the pure-hop fact end to end (daemon answer → protocol row → controlServer pass-through)', read('src/daemon/concourseWorkers.ts').includes('liveHop: true,') && read('src/daemon/protocol.ts').includes('liveHop?: true') && /'liveHop'/.test(wireKeys(read('src/daemon/controlServer.ts'), 'ADMIT_WIRE_KEYS')) && read('src/daemon/controlServer.ts').includes('...pickDefined(r, ADMIT_WIRE_KEYS)'))
 }
 
 section('§P4 — THE COORDINATOR DOOR: the preset derivation, the closed-roster refusals, the held replay, the receipt line')
@@ -268,15 +268,15 @@ section('§P4 — THE COORDINATOR DOOR: the preset derivation, the closed-roster
   t("P4-5 a damaged entry refuses typed at the store's narrowing; a grammar-breaking name refuses typed at the wire's own law (validateKitDeltas)", !mangled.ok && mangled.reason.includes('damaged in the config') && !badGrammar.ok && badGrammar.reason.includes("preset 'bad-grammar' refused —"), JSON.stringify({ mangled, badGrammar }))
   const KIT_A = { schema: 1 as const, mcp: ['srv-on'], skills: [], invocable: [] }
   const KIT_B = { schema: 1 as const, mcp: [], skills: [], invocable: [], resolved: false as const, deltas: { mcpOff: ['srv-on'], skillStates: {}, extensionsOff: [] } }
-  const { canonicalWorkspaceId } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { canonicalWorkspaceId } = await import('../../src/daemon/concourseWorkers.ts')
   const wsId = canonicalWorkspaceId(PROJECT)
-  const rec = { schema: 1, runnerId: 'w-restamp', sessionId: 'sess-restamp-proof', workspaceId: wsId, spawnedAt: Date.now(), lastLiveAt: Date.now(), kit: KIT_A } as unknown as import('../../src/daemon/concourseSupervisor.ts').ConcourseWorkerRecordV1
+  const rec = { schema: 1, runnerId: 'w-restamp', sessionId: 'sess-restamp-proof', workspaceId: wsId, spawnedAt: Date.now(), lastLiveAt: Date.now(), kit: KIT_A } as unknown as import('../../src/daemon/concourseWorkers.ts').ConcourseWorkerRecordV1
   sk.restampSessionKit(rec, KIT_B, 'preset', 'proof')
   const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
   const { readSessionReceipts } = await import('../../src/services/switchboard/sessionReceipts.ts')
   const restampRow = JSON.stringify(readSessionReceipts(getProjectDir(wsId), 'sess-restamp-proof'))
   t("P4-6 a preset re-stamp's receipt says the preset truth (never 'from the current menu') with source 'preset' in details", deepEq(rec.kit, KIT_B) && restampRow.includes('kit re-stamped from the named preset (preset)') && restampRow.includes('"source":"preset"') && !restampRow.includes('from the current menu'), restampRow.slice(0, 200))
-  const sup = read('src/daemon/concourseSupervisor.ts')
+  const sup = read('src/daemon/concourseWorkers.ts')
   const admitBody = sup.slice(sup.indexOf('export function makeConcourseAdmitHandler'))
   const presetDoorAt = admitBody.indexOf('if (req.kitPreset !== undefined) {')
   t('P4-7 the preset door sits ABOVE the reactivate branch, the warm claim and the cold mint (one resolution, every road consumes it)', presetDoorAt !== -1 && presetDoorAt < admitBody.indexOf('if (req.resumeSessionId !== undefined) {') && presetDoorAt < admitBody.indexOf('deps.claimWarm !== undefined') && admitBody.includes('kit and kitPreset are one door — send one'))
@@ -320,7 +320,7 @@ section('§P5 — THE SWEEP: vocabulary lane-wide · both-directions isolation �
     'src/services/switchboard/bornSession.ts',
     'src/services/switchboard/hopIntoSession.ts',
     'src/daemon/sessionKit.ts',
-    'src/daemon/concourseSupervisor.ts',
+    'src/daemon/concourseWorkers.ts',
     'src/daemon/controlServer.ts',
     'src/daemon/protocol.ts',
     'src/daemon/concourseDispatch.ts',

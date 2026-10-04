@@ -216,7 +216,7 @@ section("§5 the record's view — the admission snapshot's rows and the in-sess
 section("§6 the seat verb — idle applies, busy parks and forwards, the runner's frame lands it, the respawn re-forwards")
 {
   const seat = await import('../../src/daemon/sessionSeat.ts')
-  const sup = await import('../../src/daemon/concourseSupervisor.ts')
+  const sup = await import('../../src/daemon/concourseWorkers.ts')
   const { readSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
   const recDir = mkdtempSync(join(tmpdir(), 'spawn-switch-records-'))
   const workspaceId = mkdtempSync(join(tmpdir(), 'spawn-switch-ws-'))

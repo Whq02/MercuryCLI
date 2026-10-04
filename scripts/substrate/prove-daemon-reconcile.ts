@@ -34,8 +34,8 @@ if (!deadPid || deadPid <= 1) {
   process.exit(1)
 }
 
-const supPath = controlSocket.supervisorStatePath()
-const lockPath = join(daemonScratch, 'supervisor.lock')
+const supPath = controlSocket.daemonStatePath()
+const lockPath = join(daemonScratch, 'daemon.lock')
 const keyPath = join(daemonScratch, 'control.key')
 
 function seedDeadRecords(pid: number, startedAt = Date.now() - 60_000): void {
@@ -60,13 +60,13 @@ console.log('— §1 reconcileDaemonRecords behavior —')
 seedDeadRecords(deadPid)
 const dead = await reconcileDaemonRecords({ projectDir })
 check('seeded-dead ⇒ state reconciled', dead.state === 'reconciled', JSON.stringify(dead))
-check('supervisor.json removed', !existsSync(supPath))
-check('supervisor.lock removed', !existsSync(lockPath))
+check('daemon.json removed', !existsSync(supPath))
+check('daemon.lock removed', !existsSync(lockPath))
 check('control.key removed', !existsSync(keyPath))
 check(
   'receipt names all three artifacts',
   dead.cleaned.length === 3 &&
-    ['supervisor.json', 'supervisor.lock', 'control.key'].every(n =>
+    ['daemon.json', 'daemon.lock', 'control.key'].every(n =>
       dead.cleaned.includes(n),
     ),
   dead.cleaned.join(','),
@@ -79,9 +79,9 @@ check('second pass ⇒ clean (idempotent)', again.state === 'clean' && again.cle
 seedDeadRecords(process.pid, Date.now())
 const live = await reconcileDaemonRecords({ projectDir })
 check('live daemon pid ⇒ state live, nothing touched', live.state === 'live' && live.cleaned.length === 0)
-check('live: supervisor.json intact', existsSync(supPath))
+check('live: daemon.json intact', existsSync(supPath))
 check('live: control.key intact', existsSync(keyPath))
-check('live: supervisor.lock intact', existsSync(lockPath))
+check('live: daemon.lock intact', existsSync(lockPath))
 
 {
   const seedIdentity = (lockPid: number): void => {
@@ -105,7 +105,7 @@ check('live: supervisor.lock intact', existsSync(lockPath))
   const recycled = await reconcileDaemonRecords({ projectDir })
   check(
     'POISON (the immortal stale trio): a live pid under a WRONG recorded start token is judged recycled ⇒ reconciled',
-    recycled.state === 'reconciled' && ['supervisor.json', 'supervisor.lock', 'control.key'].every(n => recycled.cleaned.includes(n)),
+    recycled.state === 'reconciled' && ['daemon.json', 'daemon.lock', 'control.key'].every(n => recycled.cleaned.includes(n)),
     JSON.stringify(recycled),
   )
   check('the receipt names the recycled verdict, not "not running"', recycled.reason.includes('recycled') && recycled.reason.includes('start-token mismatch'), recycled.reason)
@@ -166,15 +166,15 @@ check(
   (orchestrator.bootRecoveryStatusLine(orchestrator.getBootRecovery())?.text ?? '').includes('daemon record'),
 )
 
-console.log('— §3 supervisorExitTeardownSync (the sync exit backstop) —')
+console.log('— §3 daemonExitTeardownSync (the sync exit backstop) —')
 seedDeadRecords(process.pid)
-controlSocket.supervisorExitTeardownSync('proof-exit')
-check('sync teardown removes OWNED supervisor.json', !existsSync(supPath))
+controlSocket.daemonExitTeardownSync('proof-exit')
+check('sync teardown removes OWNED daemon.json', !existsSync(supPath))
 check('sync teardown removes OWNED control.key', !existsSync(keyPath))
-check('sync teardown removes OWNED supervisor.lock', !existsSync(lockPath))
+check('sync teardown removes OWNED daemon.lock', !existsSync(lockPath))
 seedDeadRecords(deadPid)
-controlSocket.supervisorExitTeardownSync('proof-exit-foreign')
-check('sync teardown LEAVES a foreign supervisor.json (the phone-line law)', existsSync(supPath))
+controlSocket.daemonExitTeardownSync('proof-exit-foreign')
+check('sync teardown LEAVES a foreign daemon.json (the phone-line law)', existsSync(supPath))
 check('sync teardown LEAVES a foreign control.key', existsSync(keyPath))
 rmSync(supPath, { force: true })
 rmSync(keyPath, { force: true })
@@ -184,8 +184,8 @@ const rows = existsSync(ledgerPath)
   ? readFileSync(ledgerPath, 'utf8').trim().split('\n').map(l => JSON.parse(l))
   : []
 check(
-  'sync teardown ledgers a supervisor exit row',
-  rows.some(r => r.kind === 'supervisor' && r.event === 'exit' && r.reason === 'proof-exit'),
+  'sync teardown ledgers a daemon exit row',
+  rows.some(r => r.kind === 'daemon' && r.event === 'exit' && r.reason === 'proof-exit'),
   `${rows.length} row(s)`,
 )
 
@@ -198,7 +198,7 @@ check(
     return true
   }
   try {
-    controlSocket.supervisorExitTeardownSync('exit-before-teardown', 1)
+    controlSocket.daemonExitTeardownSync('exit-before-teardown', 1)
   } finally {
     ;(process.stderr as unknown as { write: typeof realWrite }).write = realWrite
   }
@@ -206,7 +206,7 @@ check(
   check('the bypassed-roads death writes its one honest line with the code', line.includes('[daemon] exit (code 1) WITHOUT a shutdown road'))
   check('the line carries the sweep verdict and the site-naming probe', line.includes('records swept') && line.includes('--trace-exit'))
   const ledgerRows = readFileSync(ledgerPath, 'utf8').trim().split('\n').map(l => JSON.parse(l))
-  check('the ledger row keeps the plain reason when the sweep succeeded', ledgerRows.some(r => r.kind === 'supervisor' && r.reason === 'exit-before-teardown'))
+  check('the ledger row keeps the plain reason when the sweep succeeded', ledgerRows.some(r => r.kind === 'daemon' && r.reason === 'exit-before-teardown'))
   seedDeadRecords(process.pid, Date.now())
   const writtenQuiet: string[] = []
   ;(process.stderr as unknown as { write: (chunk: unknown) => boolean }).write = (chunk: unknown): boolean => {
@@ -214,7 +214,7 @@ check(
     return true
   }
   try {
-    controlSocket.supervisorExitTeardownSync('proof-quiet')
+    controlSocket.daemonExitTeardownSync('proof-quiet')
   } finally {
     ;(process.stderr as unknown as { write: typeof realWrite }).write = realWrite
   }
@@ -222,7 +222,7 @@ check(
   check(
     'the daemon hands the exit code into the backstop',
     readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'main.ts'), 'utf8').includes(
-      "supervisorExitTeardownSync('exit-before-teardown', code)",
+      "daemonExitTeardownSync('exit-before-teardown', code)",
     ),
   )
 }
@@ -233,7 +233,7 @@ const src = (p: string) => readFileSync(join(ROOT, p), 'utf8')
 const mainTs = src('src/daemon/main.ts')
 check(
   'daemonRun arms the process-exit sync backstop',
-  mainTs.includes("process.once('exit'") && mainTs.includes('supervisorExitTeardownSync('),
+  mainTs.includes("process.once('exit'") && mainTs.includes('daemonExitTeardownSync('),
 )
 check('daemonRun passes projectDir into boot recovery', mainTs.includes("scope: 'daemon', projectDir"))
 check(
@@ -270,8 +270,8 @@ check(
   headlessTs.includes('WORKER_PARENT_PID_ENV, String(process.pid)'),
 )
 const controlSocketTs = src('src/daemon/controlSocket.ts')
-const oneWriterCalls = (mainTs.match(/await persistSupervisorRecord\(currentOwnerPid\)/g) || []).length
-const recordWriteSites = (mainTs.match(/writeSupervisorState\(/g) || []).length
+const oneWriterCalls = (mainTs.match(/await persistDaemonRecord\(currentOwnerPid\)/g) || []).length
+const recordWriteSites = (mainTs.match(/writeDaemonState\(/g) || []).length
 const rawRecordPublishes = (controlSocketTs.match(/publishInDaemonHome\('the daemon record'/g) || []).length
 check(
   'the daemon stamps its identity baseline on EVERY record write: the one writer at boot, at the plane heal and at the take of the plane from a predecessor (a hand-over successor writes its record first, through the same writer)',
@@ -282,12 +282,12 @@ check(
 )
 check(
   'the rewrites carry the stored baseline whole: the owner hand-over in the daemon and the stopping mark in the record owner',
-  mainTs.includes('writeSupervisorState({ ...rec, ownerPid: next })') &&
+  mainTs.includes('writeDaemonState({ ...rec, ownerPid: next })') &&
     controlSocketTs.includes("{ ...current, state: 'stopping', stoppingAt: now }"),
 )
 check(
   'no record write stands beside them: the daemon writes the record only through the one writer and the owner rewrite, the record owner publishes it only from the writer and the stopping mark, and the hand-over module writes none',
-  recordWriteSites === 2 && rawRecordPublishes === 2 && !src('src/daemon/handover.ts').includes('writeSupervisorState('),
+  recordWriteSites === 2 && rawRecordPublishes === 2 && !src('src/daemon/handover.ts').includes('writeDaemonState('),
   `${recordWriteSites} record write site(s) in the daemon, ${rawRecordPublishes} raw publish(es) in the record owner`,
 )
 check(
@@ -296,7 +296,7 @@ check(
 )
 check(
   'the reconcile judges the record pid through the ONE identity owner (the D-convergence union), never a second liveness test',
-  src('src/daemon/reconcileRecords.ts').includes('supervisorRecordIdentity(sup, await getProcessStartTokenAsync(sup.pid))'),
+  src('src/daemon/reconcileRecords.ts').includes('daemonRecordIdentity(sup, await getProcessStartTokenAsync(sup.pid))'),
 )
 check(
   'spawn ledger documents the exit/reap vocabulary',

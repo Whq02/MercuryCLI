@@ -11,7 +11,7 @@ process.env.MERCURY_CONFIG_DIR = HOME
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
 
-const { updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.js')
+const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.js')
 const seatMod = await import('../../src/daemon/sessionSeat.js')
 const {
   publishSessionProgress,

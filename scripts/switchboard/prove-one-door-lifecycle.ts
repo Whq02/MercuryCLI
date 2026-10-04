@@ -75,7 +75,7 @@ console.log('C — close all chats ⇒ the boot menu (rule 5)')
     process.env.MERCURY_CONFIG_DIR = mkdtempSync(joinPath(tmpdir(), 'one-door-swap-'))
     const { enableConfigs } = await import('../../src/utils/config.js')
     enableConfigs()
-    const { evaluateConcourseAdmission } = await import('../../src/daemon/concourseSupervisor.ts')
+    const { evaluateConcourseAdmission } = await import('../../src/daemon/concourseWorkers.ts')
     const seatA = { workspaceId: '/w/alpha', isolation: 'shared' as const }
     const seatB = { workspaceId: '/w/beta', isolation: 'shared' as const }
     const birth = { workspaceId: '/w/alpha', isolation: 'shared' as const }
@@ -83,7 +83,7 @@ console.log('C — close all chats ⇒ the boot menu (rule 5)')
     check('C3s RED CONTROL: a full 2-seat world refuses a plain birth on the capacity code (the sighting)', full.admit === false && (full as { code?: string }).code === 'runtime-ceiling')
     const swapped = evaluateConcourseAdmission([seatB], birth, 2)
     check('C3s the SAME world minus the vacating seat ADMITS — the birth rides the seat /clear vacates', swapped.admit === true)
-    const sup = read('src/daemon/concourseSupervisor.ts')
+    const sup = read('src/daemon/concourseWorkers.ts')
     check('C3s the admit handler excludes exactly the vacating claim from the fold (call-shaped)', sup.includes('r.sessionId !== req.vacatingSessionId'))
     const server = read('src/daemon/controlServer.ts')
     check('C3s the wire narrows the hint and forwards it (a stale hint is the host\'s inert case, never a wire refusal)', server.includes("typeof raw.vacatingSessionId === 'string' && raw.vacatingSessionId !== ''"))

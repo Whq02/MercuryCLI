@@ -32,7 +32,7 @@ const text = (v: unknown): string => JSON.stringify(v)
 
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
-const sup = await import('../../src/daemon/concourseSupervisor.ts')
+const sup = await import('../../src/daemon/concourseWorkers.ts')
 const controlServer = await import('../../src/daemon/controlServer.ts')
 type Spec = ReturnType<typeof sup.buildConcourseWorkerSpec>
 
@@ -60,7 +60,7 @@ class FakeRoster {
   }
 }
 
-function world(seats: number): { admit: ReturnType<typeof sup.makeConcourseAdmitHandler>; roster: FakeRoster; dir: string; ws: string; records: () => Record<string, import('../../src/daemon/concourseSupervisor.ts').ConcourseWorkerRecordV1> } {
+function world(seats: number): { admit: ReturnType<typeof sup.makeConcourseAdmitHandler>; roster: FakeRoster; dir: string; ws: string; records: () => Record<string, import('../../src/daemon/concourseWorkers.ts').ConcourseWorkerRecordV1> } {
   saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: seats } }))
   const roster = new FakeRoster()
   const dir = mkdtempSync(join(SCRATCH, 'daemon-'))
@@ -143,7 +143,7 @@ console.log('\nR8 the source seams: the wire narrows and forwards the key, both 
   const admitBody = server.slice(admitAt, server.indexOf("case 'concourseWithdraw'", admitAt))
   check('R8 a malformed key refuses typed BEFORE the admit runs', admitBody.indexOf('if (raw.birthKey !== undefined && !isBirthKey(raw.birthKey))') !== -1 && admitBody.indexOf('if (raw.birthKey !== undefined && !isBirthKey(raw.birthKey))') < admitBody.indexOf('const r = await deps.concourseAdmit('))
   check('R8 a well-formed key is forwarded into the admit request', admitBody.includes("...(typeof raw.birthKey === 'string' ? { birthKey: raw.birthKey } : {}),"))
-  const source = read('src/daemon/concourseSupervisor.ts')
+  const source = read('src/daemon/concourseWorkers.ts')
   const handlerAt = source.indexOf('export function makeConcourseAdmitHandler(')
   const replayAt = source.indexOf('if (req.birthKey !== undefined) {', handlerAt)
   const reactivateAt = source.indexOf('if (req.resumeSessionId !== undefined) {', handlerAt)

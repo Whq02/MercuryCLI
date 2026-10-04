@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { daemonControlRpc, supervisorStatePath } from '../../daemon/controlSocket.js'
+import { daemonControlRpc, daemonStatePath } from '../../daemon/controlSocket.js'
 import { MERCURY_DAEMON_PROTO } from '../../daemon/protocol.js'
 import { isSaturnSchedulingEnabled } from '../../tools/ScheduleCronTool/prompt.js'
 import { type Snapshot } from './types.js'
@@ -42,7 +42,7 @@ export function daemonSnapshot(): Snapshot {
   try {
     let rec: { pid?: unknown; version?: unknown; startedAt?: unknown; proto?: unknown } | null = null
     try {
-      const parsed = JSON.parse(readFileSync(supervisorStatePath(), 'utf8'))
+      const parsed = JSON.parse(readFileSync(daemonStatePath(), 'utf8'))
       if (parsed && typeof parsed === 'object') rec = parsed
     } catch {
       rec = null

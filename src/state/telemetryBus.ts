@@ -20,7 +20,7 @@ import {
 } from '../utils/cockpit/index.js'
 import { subscribeThroughFocused, getFocusedSessionConnector, hasFocusedSession } from '../services/engine-connector/focusedConnector.js'
 import { subscribeExecutionEvents } from '../services/primitives/executionPlane.js'
-import { readSessionWorkersSnapshot, workerPidAlive } from '../daemon/concourseSupervisor.js'
+import { readSessionWorkersSnapshot, workerPidAlive } from '../daemon/concourseWorkers.js'
 import { runnerRecordAlive } from '../services/engine-connector/workCounts.js'
 
 const subscribeFocusedRecords = subscribeThroughFocused((connector, listener) => connector.subscribeRecords(listener))

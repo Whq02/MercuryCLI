@@ -271,7 +271,7 @@ section('§6 the roster: a turn that settles inside the delivery\'s answer leave
   })
   const roster = new TaskRoster({ dir: home, breaker: { shouldSuppressFire: () => false, recordResult: () => {}, recordTimeout: () => {} } as never, maxInflight: 3 })
   roster.registerLongLived('concourse-w6', { cwd: home, model: 'm', effort: 'high', role: 'MERCURY_CONCOURSE_WORKER', agentId: 'w6' } as never)
-  const sup = await import('../../src/daemon/concourseSupervisor.ts')
+  const sup = await import('../../src/daemon/concourseWorkers.ts')
   sup.updateConcourseWorkers(ws => {
     ws['concourse-w6'] = { schema: 1, runnerId: 'concourse-w6', sessionId: 'session-6', workspaceId: home, isolation: 'exclusive', modelKey: 'm', spawnedAt: 1, lastLiveAt: Date.now() }
   }, daemonDir)

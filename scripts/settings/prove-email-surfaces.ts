@@ -572,13 +572,13 @@ section('§10 the seat facts a hosted session answers carry the credential\'s ow
   mkdirSync(DAEMON_DIR, { recursive: true })
   process.env.MERCURY_DAEMON_DIR = DAEMON_DIR
   const seat = await import(join(ROOT, 'src/daemon/sessionSeat.ts'))
-  const supervisor = await import(join(ROOT, 'src/daemon/concourseSupervisor.ts'))
+  const workers = await import(join(ROOT, 'src/daemon/concourseWorkers.ts'))
   const projections = await import(join(ROOT, 'src/services/engine-connector/seatProjections.ts'))
   const { DaemonSessionConnector } = await import(join(ROOT, 'src/services/engine-connector/daemonConnector.ts'))
   const { NoSessionConnector } = await import(join(ROOT, 'src/services/engine-connector/noSessionConnector.ts'))
   const SESSION = 'aaaaaaaa-bbbb-4ccc-8ddd-seatemail001'
   const SHORT = 'concourse-se1'
-  supervisor.updateConcourseWorkers(workers => {
+  workers.updateConcourseWorkers(workers => {
     workers[SHORT] = {
       schema: 1,
       runnerId: SHORT,

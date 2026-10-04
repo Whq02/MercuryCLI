@@ -53,7 +53,7 @@ export function countRunningWorkflows(health: readonly AgentHealth[]): number {
 
 export async function readLiveSessions(): Promise<{ liveSessions: number; sessionCount: number }> {
   try {
-    const { countLiveConcourseWorkers } = await import('../daemon/concourseSupervisor.js')
+    const { countLiveConcourseWorkers } = await import('../daemon/concourseWorkers.js')
     const n = 1 + countLiveConcourseWorkers()
     return { liveSessions: n, sessionCount: n }
   } catch {

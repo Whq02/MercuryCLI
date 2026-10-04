@@ -49,7 +49,7 @@ try {
     const moved = failWorkingDispatchesForRunner('concourse-w1', 'concourse-w1: long-lived worker exceeded 5 respawns', scratch)
     const after = readConcourseDispatches(scratch)
     check(
-      "the owning WORKING row is 'failed' and carries the supervisor's reason",
+      "the owning WORKING row is 'failed' and carries the daemon's reason",
       moved === 1 && after['d-working-w1']!.state === 'failed' && after['d-working-w1']!.reason === 'concourse-w1: long-lived worker exceeded 5 respawns',
       JSON.stringify(after['d-working-w1']),
     )

@@ -17,7 +17,7 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const saturn = await import('../../src/daemon/saturn.ts')
 const ticker = await import('../../src/daemon/saturnTicker.ts')
-const supervisor = await import('../../src/daemon/concourseSupervisor.ts')
+const workers = await import('../../src/daemon/concourseWorkers.ts')
 const bridge = await import('../../src/services/saturn/sessionScheduleBridge.ts')
 const ledger = await import('../../src/services/providers/anthropic/prefixLedger.ts')
 
@@ -65,10 +65,10 @@ const workerRecord = (runnerId: string, sessionId: string, extra: Record<string,
   ...extra,
 })
 const readWorkers = (): Record<string, Record<string, unknown>> =>
-  (JSON.parse(readFileSync(supervisor.concourseWorkersPath(DAEMON_DIR), 'utf8')) as { workers: Record<string, Record<string, unknown>> }).workers
+  (JSON.parse(readFileSync(workers.concourseWorkersPath(DAEMON_DIR), 'utf8')) as { workers: Record<string, Record<string, unknown>> }).workers
 
 section('§1 a fire into a live session is a plain user frame — no model, no prefix, the session\'s own model derives the account')
-supervisor.updateConcourseWorkers(workers => {
+workers.updateConcourseWorkers(workers => {
   for (const key of Object.keys(workers)) delete workers[key]
   workers['concourse-live'] = workerRecord('concourse-live', SESSION_LIVE) as never
   workers['concourse-parked'] = workerRecord('concourse-parked', SESSION_PARKED, { parkedAt: Date.now() - 60_000 }) as never
@@ -97,7 +97,7 @@ const parkedFire = saturn.applyConcourseScheduleOp(
 check('three fire schedules land: same model, a captured other model, and one on a parked session', sameModel.outcome === 'applied' && otherModel.outcome === 'applied' && parkedFire.outcome === 'applied', `${sameModel.outcome} ${otherModel.outcome} ${parkedFire.outcome}`)
 check("the add-time derivation reads the session's model for a plain fire and the captured key for the other", j(addDerivations) === j([LIVE_MODEL, OTHER_MODEL, LIVE_MODEL]), j(addDerivations))
 const T0 = Date.now()
-supervisor.updateConcourseWorkers(workers => {
+workers.updateConcourseWorkers(workers => {
   for (const rec of Object.values(workers)) {
     for (const row of ((rec as { schedules?: Array<Record<string, unknown>> }).schedules ?? [])) row.createdAt = T0 - 120_000
   }

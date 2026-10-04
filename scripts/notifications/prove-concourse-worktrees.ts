@@ -23,7 +23,7 @@ process.env.XDG_CONFIG_HOME = join(scratch, 'xdg')
 writeFileSync(process.env.GIT_CONFIG_GLOBAL, '')
 
 const wt = await import('../../src/daemon/concourseWorktrees.ts')
-const sup = await import('../../src/daemon/concourseSupervisor.ts')
+const sup = await import('../../src/daemon/concourseWorkers.ts')
 const disp = await import('../../src/daemon/concourseDispatch.ts')
 
 let failures = 0
@@ -126,7 +126,7 @@ console.log('§5 reap — clean/runtime reaped + pruned; authored retained; noop
   }
 }
 
-console.log('§6 supervisor integration — settle + reconcile reap; retention records evidence')
+console.log('§6 daemon integration — settle + reconcile reap; retention records evidence')
 {
   const DEAD_PID = 4194999
   const w5 = await wt.ensureWorkerWorktree(repo, 'concourse-w5', daemon)
@@ -242,10 +242,10 @@ console.log('§8 preflight — every term named, zero writes')
 console.log('§9 structural no-merge — the family never writes workspace files')
 {
   const read = (p: string) => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
-  const supervisor = read('src/daemon/concourseSupervisor.ts')
+  const daemon = read('src/daemon/concourseWorkers.ts')
   const dispatch = read('src/daemon/concourseDispatch.ts')
   const worktrees = read('src/daemon/concourseWorktrees.ts')
-  for (const [name, src] of [['concourseSupervisor', supervisor], ['concourseDispatch', dispatch]] as const) {
+  for (const [name, src] of [['concourseWorkers', daemon], ['concourseDispatch', dispatch]] as const) {
     check(
       `${name}: zero hand-rolled fs writes — every publish rides durableAtomicPublishSync through the daemon-home door publishInDaemonHome`,
       !src.includes('writeFileSync(') && !src.includes('durableAtomicPublishSync(') && src.includes('publishInDaemonHome('),
@@ -254,7 +254,7 @@ console.log('§9 structural no-merge — the family never writes workspace files
   }
   check('concourseWorktrees performs NO direct file writes (git owns repository mutation)', !worktrees.includes('writeFileSync('))
   check('no concourse module merges/overwrites workspace content (no copyFile/cp/appendFile)',
-    [supervisor, dispatch, worktrees].every(s => !/copyFileSync|cpSync|appendFileSync/.test(s)))
+    [daemon, dispatch, worktrees].every(s => !/copyFileSync|cpSync|appendFileSync/.test(s)))
 }
 
 rmSync(scratch, { recursive: true, force: true })

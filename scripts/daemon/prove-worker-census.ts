@@ -99,7 +99,7 @@ const daemon = spawn(process.execPath.includes('bun') ? 'node' : process.execPat
 const daemonExit = new Promise<void>(r => daemon.once('exit', () => r()))
 
 check(
-  'the supervisor answers ping on its control socket',
+  'the daemon answers ping on its control socket',
   await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000),
 )
 

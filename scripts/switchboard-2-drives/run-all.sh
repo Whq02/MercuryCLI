@@ -2,7 +2,7 @@
 # gate-class: pty
 # gate-env: MERCURY_CROSSPROJ_CAPTURE_DIR MERCURY_FOLDERPROJ_CAPTURE_DIR MERCURY_FOLDERPROJ_KEEP MERCURY_STRIP_CAPTURE_DIR MERCURY_STRIP_KEEP
 # gate-watch: scripts/switchboard/** scripts/switchboard-2/**
-# gate-watch: src/services/concourse/** src/components/concourse/** src/daemon/concourseSupervisor.ts
+# gate-watch: src/services/concourse/** src/components/concourse/** src/daemon/concourseWorkers.ts
 # gate-watch: src/daemon/concourseDispatch.ts src/daemon/permissionAsks.ts src/services/switchboard/attachedSession.ts
 # gate-watch: src/components/SwitchboardTagBar.tsx src/context/surfaceRoute.ts
 # gate-watch: src/prompt/engineIdentity.ts src/constants/prompts.ts

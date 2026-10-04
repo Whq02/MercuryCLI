@@ -28,7 +28,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config.ts')
 enableConfigs()
 const cap = await import('../../src/services/switchboard/capacityCheck.ts')
-const sup = await import('../../src/daemon/concourseSupervisor.ts')
+const sup = await import('../../src/daemon/concourseWorkers.ts')
 
 {
   const gb = (n: number): number => n * 2 ** 30

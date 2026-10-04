@@ -105,7 +105,7 @@ try {
 
   const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
   const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
-  const sup = await import('../../src/daemon/concourseSupervisor.ts')
+  const sup = await import('../../src/daemon/concourseWorkers.ts')
   const recordOf = (): { modelKey?: string; pendingModelKey?: string } | undefined =>
     Object.values(sup.readSessionWorkers(daemonDir)).find(r => r.sessionId === sid)
   const record = {

@@ -107,7 +107,7 @@ function baseEnv(daemonDir: string): NodeJS.ProcessEnv {
 
 function controlSockOf(dir: string): string {
   try {
-    const record = JSON.parse(readFileSync(join(dir, 'supervisor.json'), 'utf8')) as { controlSock?: string }
+    const record = JSON.parse(readFileSync(join(dir, 'daemon.json'), 'utf8')) as { controlSock?: string }
     if (typeof record.controlSock === 'string' && record.controlSock !== '') return record.controlSock
   } catch {
     return join(dir, 'control.sock')

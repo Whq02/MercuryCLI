@@ -39,7 +39,7 @@ try {
   )
   writeFileSync(join(ours, 'daemon', 'roster.json'), JSON.stringify({ workers: { w1: { cliVersion: EXPECTED } } }))
   writeFileSync(
-    join(ours, 'daemon', 'supervisor.json'),
+    join(ours, 'daemon', 'daemon.json'),
     JSON.stringify({ pid: 4242, version: EXPECTED, origin: 'transient', startedAt: 1, dir: '/work', controlSock: '/tmp/mercury-daemon-0a1b2c.sock' }),
   )
   const reportA = await classifyHarnessHome(ours, { expectedVersion: EXPECTED })
@@ -79,7 +79,7 @@ try {
   )
   writeFileSync(join(old, 'daemon', 'roster.json'), JSON.stringify({ workers: { w1: { cliVersion: '1.2.0' } } }))
   writeFileSync(
-    join(old, 'daemon', 'supervisor.json'),
+    join(old, 'daemon', 'daemon.json'),
     JSON.stringify({ pid: 7, version: '1.2.0', origin: 'transient', startedAt: 1, dir: '/w', controlSock: '/tmp/mercury-daemon-9f8e7d.sock' }),
   )
   const reportD = await classifyHarnessHome(old, { expectedVersion: EXPECTED })

@@ -301,7 +301,7 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
   const [liveCount, setLiveCount] = useState<number | null>(null);
   useEffect(() => {
     let cancelled = false;
-    void import('../daemon/concourseSupervisor.js')
+    void import('../daemon/concourseWorkers.js')
       .then(sup => {
         if (!cancelled) setLiveCount(sup.countLiveConcourseWorkers());
       })

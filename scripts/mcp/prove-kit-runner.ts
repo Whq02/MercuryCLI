@@ -99,7 +99,7 @@ section('§K the carry (poison-first: a dropped or malformed kit must never mean
 
 section('§K2 the spec composes the carry (the daemon half)')
 {
-  const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.ts')
   const base = { runnerId: 'w-kit', sessionId: '11111111-2222-4333-8444-555555555555', workspaceId: PROJECT, modelKey: 'test-model' }
   const withKit = buildConcourseWorkerSpec({ ...base, kit: K_RESOLVED as never })
   const parsed = JSON.parse((withKit.extraEnv as Record<string, string>).MERCURY_SESSION_KIT ?? 'null') as unknown
@@ -115,11 +115,11 @@ section('§K2 the spec composes the carry (the daemon half)')
 
 section('§K3 call-site census (source-shape: every non-warm road passes the kit; one env owner)')
 {
-  const supervisor = readFileSync(join(REPO, 'src', 'daemon', 'concourseSupervisor.ts'), 'utf8')
-  t('K12 the cold mint HOISTS one kit for spec and stamp (record and process can never disagree)', supervisor.includes('const kit = req.kit ?? preset?.kit ?? deriveSessionKitForWorkspace(workspaceId)') && supervisor.includes('...kitStampOf(kit),'))
-  t("K13 the reactivate cold road hands the revive its restamp kit (the spec is built BEFORE the restamp writes)", supervisor.includes('kitOverride: kit,'))
-  t("K14 the revive's default is the record's standing kit; the hand-back road carries rec.kit", supervisor.includes('const reviveKit = opts?.kitOverride ?? rec.kit') && supervisor.includes('...(rec.kit !== undefined ? { kit: rec.kit } : {})'))
-  const spawnEnvWrites = supervisor.split('MERCURY_SESSION_KIT: JSON.stringify').length - 1
+  const daemon = readFileSync(join(REPO, 'src', 'daemon', 'concourseWorkers.ts'), 'utf8')
+  t('K12 the cold mint HOISTS one kit for spec and stamp (record and process can never disagree)', daemon.includes('const kit = req.kit ?? preset?.kit ?? deriveSessionKitForWorkspace(workspaceId)') && daemon.includes('...kitStampOf(kit),'))
+  t("K13 the reactivate cold road hands the revive its restamp kit (the spec is built BEFORE the restamp writes)", daemon.includes('kitOverride: kit,'))
+  t("K14 the revive's default is the record's standing kit; the hand-back road carries rec.kit", daemon.includes('const reviveKit = opts?.kitOverride ?? rec.kit') && daemon.includes('...(rec.kit !== undefined ? { kit: rec.kit } : {})'))
+  const spawnEnvWrites = daemon.split('MERCURY_SESSION_KIT: JSON.stringify').length - 1
   t('K15 the spec builder is the ONE env writer in the daemon (a single key-write site; comments free to name the spelling)', spawnEnvWrites === 1, `${spawnEnvWrites} sites`)
   const main = readFileSync(join(REPO, 'src', 'main.tsx'), 'utf8')
   t('K16 the runner consumes the pin ONCE, before MCP resolution and the command load (the shared prep)', main.includes('consumeSessionKitPin()') && main.indexOf('consumeSessionKitPin()') < main.indexOf('parseDynamicMcpConfigs('))
@@ -236,7 +236,7 @@ section('§C the completion (poison: a second road to resolved; a resolved recor
   t('C11 a pre-kit record is never stamped from a facts answer; an answer still unresolved stamps nothing', resolveSessionKitOnRecord(recPrekit as never, R) === false && recPrekit.kit === undefined && resolveSessionKitOnRecord(recResolved as never, UNRESOLVED as never) === false && deepEq(recResolved.kit?.mcp, ['x']))
 
   const seat = await import('../../src/daemon/sessionSeat.ts')
-  const { readSessionWorkers, updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { readSessionWorkers, updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
   const { sessionKitToWire } = await import('../../src/services/engine-connector/seatWire.ts')
   const DAEMON_DIR = process.env.MERCURY_DAEMON_DIR
   const SID = '22222222-3333-4444-8555-666666666666'
@@ -374,7 +374,7 @@ section('§I the inline agent-def door (poison: the byte-identical cache-hit tea
 
 section('§N non-session insulation (poison: a kit env appearing on a warm/crew/utility spec)')
 {
-  const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.ts')
   const { buildRunnerInvocation } = await import('../../src/daemon/headlessRun.ts')
   const { buildCrewSpec } = await import('../../src/daemon/crewSpawn.ts')
   const base = { runnerId: 'w-ins', sessionId: '33333333-4444-4555-8666-777777777777', workspaceId: PROJECT, modelKey: 'test-model' }
@@ -391,7 +391,7 @@ section('§N non-session insulation (poison: a kit env appearing on a warm/crew/
   const { spawnSync } = await import('node:child_process')
   const consumers = spawnSync('grep', ['-rln', 'consumeSessionKitPin(', join(REPO, 'src')], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean).map(p => p.slice(REPO.length + 1)).sort()
   t('N4 the pin has exactly TWO speakers and no daemon road: sessionKitPin.ts (the owner) and main.tsx (the one consumption) — the daemon/coordinator kernel can never latch a kit', deepEq(consumers, ['src/main.tsx', 'src/services/mcp/sessionKitPin.ts']), consumers.join(','))
-  const supSrc = readFileSync(join(REPO, 'src', 'daemon', 'concourseSupervisor.ts'), 'utf8')
+  const supSrc = readFileSync(join(REPO, 'src', 'daemon', 'concourseWorkers.ts'), 'utf8')
   const crewSrc = readFileSync(join(REPO, 'src', 'daemon', 'crewSpawn.ts'), 'utf8')
   t("N5 the insulation is structural in source: the worker strip list and the crew spec's stripEnv both name the spelling", supSrc.includes("'MERCURY_SESSION_KIT',") && crewSrc.includes("stripEnv: flagSpellings('MERCURY_SESSION_KIT')"))
 }

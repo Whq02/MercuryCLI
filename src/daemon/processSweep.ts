@@ -203,8 +203,8 @@ export interface ProcessSweepRegistration {
 
 export interface ProcessSweepPlane {
   daemonDir: string
-  supervisor: ProcessSweepDaemonRecord | null
-  supervisorReadable: boolean
+  daemon: ProcessSweepDaemonRecord | null
+  daemonReadable: boolean
   answer: ProcessSweepDaemonAnswer | null
   runners: ProcessSweepRunnerRecord[] | null
 }
@@ -341,7 +341,7 @@ export function composeProcessSweepFacts(table: ProcessSweepTable, records: Proc
   const facts: ProcessSweepFacts[] = []
   const recordedPids = new Set<number>()
   for (const plane of records.planes) {
-    if (plane.supervisor !== null) recordedPids.add(plane.supervisor.pid)
+    if (plane.daemon !== null) recordedPids.add(plane.daemon.pid)
     for (const runner of plane.answer?.runners ?? plane.runners ?? []) if (typeof runner.pid === 'number') recordedPids.add(runner.pid)
   }
   for (const registration of records.registrations ?? []) recordedPids.add(registration.pid)
@@ -369,7 +369,7 @@ export function composeProcessSweepFacts(table: ProcessSweepTable, records: Proc
     const strangerExe = exeName !== '' && !MERCURY_EXECUTABLES.has(exeName)
     let bound = false
     for (const plane of records.planes) {
-      const daemon = plane.supervisor
+      const daemon = plane.daemon
       if (daemon !== null && daemon.pid === row.pid) {
         const binding = tokenBinding(daemon.startToken, observation.startToken)
         if (binding === 'stranger') continue

@@ -90,7 +90,7 @@ const daemon = spawn(process.execPath.includes('bun') ? 'node' : process.execPat
 const daemonExit = new Promise<void>(r => daemon.once('exit', () => r()))
 
 check(
-  'the supervisor answers ping',
+  'the daemon answers ping',
   await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000),
 )
 type ListReply = { ok: boolean; jobs?: Array<{ short: string; outcome?: string; state?: string }> }

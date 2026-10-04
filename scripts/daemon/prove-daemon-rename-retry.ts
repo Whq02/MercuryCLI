@@ -17,7 +17,7 @@ delete process.env.MERCURY_FAULT_INJECT
 
 const { processSweepCensusPath, recordProcessCensusAtBoot } = await import('../../src/daemon/processSweepRun.ts')
 const { mintGitInitAsk } = await import('../../src/daemon/permissionAsks.ts')
-const { migrateTranscriptHomeToLaw } = await import('../../src/daemon/concourseSupervisor.ts')
+const { migrateTranscriptHomeToLaw } = await import('../../src/daemon/concourseWorkers.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
 const { _resetFaultInjectionCountersForTests } = await import('../../src/substrate/durablePublish.ts')
 

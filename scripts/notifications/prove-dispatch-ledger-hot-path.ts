@@ -5,7 +5,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { checker, scratchRoot } from '../engine-durability/harness.ts'
-import type { ConcourseAdmitResult } from '../../src/daemon/concourseSupervisor.ts'
+import type { ConcourseAdmitResult } from '../../src/daemon/concourseWorkers.ts'
 
 const t = checker()
 const root = scratchRoot('dispatch-ledger-hot-path')

@@ -6,7 +6,7 @@ import { presetNameProblem } from '../services/mcp/presetStore.js'
 import { getProjectDir } from '../utils/sessionStorage/paths.js'
 import { appendSessionReceipt } from '../services/switchboard/sessionReceipts.js'
 import { CONTRACT_TEXT_CAP } from './sessionContract.js'
-import { updateConcourseWorkers } from './concourseSupervisor.js'
+import { updateConcourseWorkers } from './concourseWorkers.js'
 import { wakeDelayOfSpelling } from '../utils/messages/noticeRows.js'
 
 

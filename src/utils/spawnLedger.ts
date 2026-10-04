@@ -76,7 +76,7 @@ export function recordSpawn(entry: SpawnLedgerEntry): void {
 }
 
 export interface SpawnExitEntry {
-  kind: 'long-lived' | 'headless' | 'crewmate' | 'supervisor'
+  kind: 'long-lived' | 'headless' | 'crewmate' | 'daemon'
   event: 'exit' | 'reap'
   id: string
   pid?: number

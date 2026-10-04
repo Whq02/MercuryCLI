@@ -129,7 +129,7 @@ function pidAlive(pid: number): boolean {
 }
 
 async function endOwnedDaemon(runHome: string): Promise<string> {
-  const record = path.join(runHome, 'daemon', 'supervisor.json')
+  const record = path.join(runHome, 'daemon', 'daemon.json')
   if (!existsSync(record)) return 'no daemon record'
   let pid = 0
   try {

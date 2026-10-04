@@ -188,7 +188,7 @@ try {
   const fCold = normalize(canonical(JSON.parse(readFileSync(factsOf(cold.sessionId), 'utf8'))))
   check('PARITY the facts projections are identical modulo ids/clocks', fClaimed === fCold, fClaimed === fCold ? '' : firstDiff(fClaimed, fCold))
 
-  const { readSessionWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
   const records = readSessionWorkers(daemonDir)
   const rowOf = (workerId: string): string => normalize(canonical(records[workerId] ?? {}))
   check('PARITY the worker records are identical modulo ids/clocks', rowOf(claimed.workerId) === rowOf(cold.workerId), rowOf(claimed.workerId) === rowOf(cold.workerId) ? '' : firstDiff(rowOf(claimed.workerId), rowOf(cold.workerId)))

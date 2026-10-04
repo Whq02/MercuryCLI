@@ -53,7 +53,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 const boundary = await import('../../src/utils/projectBoundary.js')
 const asks = await import('../../src/daemon/permissionAsks.js')
 const wt = await import('../../src/daemon/concourseWorktrees.js')
-const sup = await import('../../src/daemon/concourseSupervisor.js')
+const sup = await import('../../src/daemon/concourseWorkers.js')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
 const { listObligations } = await import('../../src/services/crew/obligations.js')

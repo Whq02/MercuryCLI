@@ -113,14 +113,14 @@ check('argv: identity triplet flags', inv.argv.includes('atlas') && inv.argv.inc
 section('role-pair hygiene — the three scrub seams (dual-polarity safe)')
 {
   const env: NodeJS.ProcessEnv = { MERCURY_CREW: '1', MERCURY_CREW_AGENT: 'zombie', MERCURY_CONCOURSE_WORKER: '1', OTHER: 'x' }
-  const removed = hr.scrubSupervisorRoleEnv(env)
+  const removed = hr.scrubDaemonRoleEnv(env)
   check('scrub removes the crew ROLE form + name (+ the live worker role)', env.MERCURY_CREW === undefined && env.MERCURY_CREW_AGENT === undefined && env.MERCURY_CONCOURSE_WORKER === undefined)
   check('scrub reports what it removed', removed.includes('MERCURY_CREW') && removed.includes('MERCURY_CREW_AGENT'))
   check('unrelated env untouched', env.OTHER === 'x')
 }
 {
   const env: NodeJS.ProcessEnv = { MERCURY_CREW: '0' }
-  const removed = hr.scrubSupervisorRoleEnv(env)
+  const removed = hr.scrubDaemonRoleEnv(env)
   check("scrub PRESERVES the operator kill MERCURY_CREW='0'", env.MERCURY_CREW === '0' && removed.length === 0)
 }
 const nonCrewSpec = () => ({

@@ -20,8 +20,8 @@ export async function concoursePopupFrames({ sizes, wrap, mount, settle, waitFor
   const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
   const { saveGlobalConfig } = await import('../../src/utils/config.ts')
   const { getCwd } = await import('../../src/utils/cwd.ts')
-  const supervisor = await import('../../src/daemon/concourseSupervisor.ts')
-  mock.module('../../src/daemon/concourseSupervisor.ts', () => ({ ...supervisor, effectiveSeatCeiling: () => 1 }))
+  const workers = await import('../../src/daemon/concourseWorkers.ts')
+  mock.module('../../src/daemon/concourseWorkers.ts', () => ({ ...workers, effectiveSeatCeiling: () => 1 }))
   const capacity = await import('../../src/services/switchboard/capacityCheck.ts')
   let ask = false
   mock.module('../../src/services/switchboard/capacityCheck.ts', () => ({ ...capacity, needsCapacityAsk: () => ask, effectiveSeatCeiling: () => 1 }))

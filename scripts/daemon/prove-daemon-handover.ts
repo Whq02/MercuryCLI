@@ -54,9 +54,9 @@ const OWNER_WORDS = `model refused (unknown-model) · pick one of: claude-opus-5
 
 const sock = await import('../../src/daemon/controlSocket.ts')
 const protocol = await import('../../src/daemon/protocol.ts')
-const supervisor = await import('../../src/daemon/concourseSupervisor.ts')
+const workers = await import('../../src/daemon/concourseWorkers.ts')
 const { isProcessAlive, getProcessStartTokenAsync } = await import('../../src/daemon/ownerWatch.ts')
-const { supervisorRecordIdentity } = await import('../../src/daemon/verbs.ts')
+const { daemonRecordIdentity: daemonRecordIdentity } = await import('../../src/daemon/verbs.ts')
 const handoverModule = await import('../../src/daemon/handover.ts').catch(() => null)
 const rawFrame = (sockPath: string, payload: unknown, timeoutMs: number): Promise<{ ok: boolean }> =>
   new Promise(resolve => {
@@ -150,10 +150,10 @@ section("§1b the screen's heal hands over when the restart is armed and the dep
     const restarting = await hs.handoverDaemonVersion(verdict, { state: 'restarting', live: 0 }, opts)
     check('a daemon restarting itself is left alone', restarting === null && spawned.length === 1)
     hs.resetHandoverAsksForTesting()
-    await sock.writeSupervisorState({ pid: process.pid, version: '1.0.0', origin: 'transient', startedAt: Date.now(), dir: work, controlSock: sock.controlSockPath() })
+    await sock.writeDaemonState({ pid: process.pid, version: '1.0.0', origin: 'transient', startedAt: Date.now(), dir: work, controlSock: sock.controlSockPath() })
     const already = await hs.handoverDaemonVersion(verdict, { state: 'armed', live: 2 }, opts)
     check('a screen finding a live successor already on the record spawns nothing, marks the predecessor in flight and waits for the successor', typeof already === 'string' && already.includes(`pid ${process.pid}`) && spawned.length === 1 && hs.handoverInFlightFor(424242), String(already))
-    await sock.clearDeadSupervisorRecords()
+    await sock.clearDeadDaemonRecords()
     hs.resetHandoverAsksForTesting()
     const owned = await hs.handoverDaemonVersion({ ...verdict, daemon: { ...verdict.daemon, ownerPid: 9191 } }, { state: 'refused', live: 1 }, opts)
     check("an owned predecessor's successor carries the same owner pid and no persistence", typeof owned === 'string' && spawned[1]?.env.MERCURY_DAEMON_OWNER_PID === '9191' && spawned[1]?.env.MERCURY_DAEMON_PERSIST === undefined, text(spawned[1]?.env))
@@ -163,14 +163,14 @@ section("§1b the screen's heal hands over when the restart is armed and the dep
 
 section('§2 a daemon of an old bundle holds a live session; the deployed build takes new births without touching it')
 const received: Array<Record<string, unknown>> = []
-const lock = await sock.acquireSupervisorLock()
+const lock = await sock.acquireDaemonLock()
 check('the fixture predecessor holds the daemon lock (as the real one does)', lock !== null)
 const oldKey = await sock.mintControlKey()
 const startedAt = Date.now()
-await sock.writeSupervisorState({ pid: process.pid, version: '1.0.0-beta.23', origin: 'transient', startedAt, dir: work, controlSock: sock.controlSockPath(), proto: protocol.MERCURY_DAEMON_PROTO, buildTree: OLD_TREE, ownerPid: null, foreground: false, persist: true })
+await sock.writeDaemonState({ pid: process.pid, version: '1.0.0-beta.23', origin: 'transient', startedAt, dir: work, controlSock: sock.controlSockPath(), proto: protocol.MERCURY_DAEMON_PROTO, buildTree: OLD_TREE, ownerPid: null, foreground: false, persist: true })
 const child: ChildProcess = spawn('sleep', ['600'], { stdio: 'ignore' })
 const heldSession = randomUUID()
-supervisor.updateConcourseWorkers(workers => {
+workers.updateConcourseWorkers(workers => {
   workers['concourse-w1'] = {
     schema: 1,
     runnerId: 'concourse-w1',
@@ -245,10 +245,10 @@ const moved = await until(async () => {
 const afterHello = await helloFrom()
 check('the successor answers on the plane path, ready, on its own (new) tree', moved && afterHello !== null && afterHello.buildTree !== OLD_TREE, `${text(afterHello)}\n${successorLog.join('').slice(-1500)}`)
 check("the successor names its predecessor without counting that helper's chat as its own", afterHello !== null && afterHello.predecessorPid === process.pid && Number(afterHello.live) === 0 && Number(afterHello.liveSessions) === 0, text(afterHello))
-const record = await sock.readSupervisorState()
+const record = await sock.readDaemonState()
 check('the daemon record names the successor', record !== null && record.pid === successorPid, text(record))
 const successorToken = await getProcessStartTokenAsync(successorPid)
-check("the successor's record-first write stamps its own identity baseline, and the one identity owner reads the record as the successor's, never a stranger's", record !== null && typeof record.startToken === 'string' && record.startToken !== '' && supervisorRecordIdentity(record, successorToken) === 'same-process', text({ startToken: record?.startToken, successorToken }))
+check("the successor's record-first write stamps its own identity baseline, and the one identity owner reads the record as the successor's, never a stranger's", record !== null && typeof record.startToken === 'string' && record.startToken !== '' && daemonRecordIdentity(record, successorToken) === 'same-process', text({ startToken: record?.startToken, successorToken }))
 check('the control key is the one the screens already hold (the predecessor accepts the same stamp)', readFileSync(sock.controlKeyPath(), 'utf8').trim() === oldKey)
 check("the predecessor's socket serves on under its own pid", existsSync(predecessorSockPathOf(process.pid)) && predecessorSockPathOf(process.pid) !== oldSockPath && (await rawFrame(predecessorSockPathOf(process.pid), { op: 'ping' }, 2000)).ok)
 check('nothing live was signalled: the held runner and the predecessor are alive after the move', child.pid !== undefined && isProcessAlive(child.pid) && child.exitCode === null)
@@ -257,7 +257,7 @@ check('the predecessor was never asked to stop or restart by the move', !receive
 const born = await sock.daemonControlRpc({ op: 'sessionAdmit', workspaceDir: work, birthKey: randomUUID(), isolation: 'shared', model: UNKNOWN_CLAUDE_ID, bornBlank: true } as never, { timeoutMs: 60_000 })
 check(`a new session on '${UNKNOWN_CLAUDE_ID}' (no catalogue of the old bundle knows it) is born on the new build`, born.ok === true && typeof (born as { sessionId?: unknown }).sessionId === 'string', text(born))
 check('…and the birth never reached the old daemon (its one admit is the pre-move refusal)', received.filter(r => r.op === 'sessionAdmit').length === 1, `${received.filter(r => r.op === 'sessionAdmit').length} admit(s) at the predecessor`)
-const bornRecord = Object.values(supervisor.readSessionWorkers()).find(r => r.sessionId === (born as { sessionId?: string }).sessionId)
+const bornRecord = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === (born as { sessionId?: string }).sessionId)
 check("the newborn's record carries the id verbatim (the wire decides)", bornRecord?.modelKey === UNKNOWN_CLAUDE_ID, text(bornRecord?.modelKey))
 
 const forwarded = await sock.daemonControlRpc({ op: 'sessionControl', action: 'session-facts', sessionId: heldSession, by: 'operator' } as never, { timeoutMs: 5000 })
@@ -271,7 +271,7 @@ check("the session list carries the predecessor's live session beside the newbor
 
 section('§3 the predecessor leaves: the successor takes the lock; a restart successor finding the plane served stands down')
 await lock?.release()
-const lockTaken = await until(async () => (await sock.acquireSupervisorLock()) === null, 12_000, 500)
+const lockTaken = await until(async () => (await sock.acquireDaemonLock()) === null, 12_000, 500)
 check('once the predecessor releases the daemon lock the successor holds it (a fresh acquire is refused)', lockTaken, successorLog.join('').slice(-800))
 const standDown = spawn('node', [DIST, 'daemon', 'run', work], { cwd: work, env: { ...successorEnv, MERCURY_DAEMON_HANDOVER_FROM: undefined, MERCURY_DAEMON_SUCCESSOR_OF: String(process.pid) } as NodeJS.ProcessEnv, stdio: ['ignore', 'pipe', 'pipe'] })
 const standDownLog: string[] = []

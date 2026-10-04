@@ -25,8 +25,8 @@ import {
   type DecisionReasonWireV1,
 } from '../utils/permissions/decisionReasonWire.js'
 import { clientPresenceVerdict } from './clientPresence.js'
-import { daemonDir, supervisorStatePath } from './controlSocket.js'
-import { nextLiveCockpitOwner, readSessionWorkers } from './concourseSupervisor.js'
+import { daemonDir, daemonStatePath } from './controlSocket.js'
+import { nextLiveCockpitOwner, readSessionWorkers } from './concourseWorkers.js'
 import { initGitRepository } from './concourseWorktrees.js'
 import { isProcessAlive } from './ownerWatch.js'
 import { countEntriesBounded, entryCountWords, gitInitRefusal, type GitInitRefusal } from '../utils/projectBoundary.js'
@@ -85,7 +85,7 @@ export function operatorClientPresence(dir?: string, now: number = Date.now()): 
   if (beat === 'attached') return 'attached'
   let record: { ownerPid?: unknown } | null
   try {
-    record = JSON.parse(readFileSync(supervisorStatePath(), 'utf8')) as { ownerPid?: unknown } | null
+    record = JSON.parse(readFileSync(daemonStatePath(), 'utf8')) as { ownerPid?: unknown } | null
   } catch {
     return 'unknown'
   }

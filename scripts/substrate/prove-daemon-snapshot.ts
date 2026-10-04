@@ -16,7 +16,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { daemonSnapshot } from '../../src/utils/cockpit/daemonSnapshot.js'
-import { supervisorStatePath } from '../../src/daemon/controlSocket.js'
+import { daemonStatePath } from '../../src/daemon/controlSocket.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -29,7 +29,7 @@ function section(t: string): void {
 
 const cfgDir = mkdtempSync(join(tmpdir(), 'mercury-daemon-snap-'))
 process.env.MERCURY_CONFIG_DIR = cfgDir
-const recPath = supervisorStatePath()
+const recPath = daemonStatePath()
 mkdirSync(join(recPath, '..'), { recursive: true })
 
 function writeRec(pid: number): void {

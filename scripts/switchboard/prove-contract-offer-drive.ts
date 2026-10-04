@@ -101,7 +101,7 @@ try {
     const raw = JSON.parse(readFileSync(wf, 'utf8')) as { workers?: Record<string, { pid?: number }> }
     for (const rec of Object.values(raw.workers ?? {})) if (rec.pid !== undefined) { try { process.kill(rec.pid, 'SIGTERM'); reaped.push(rec.pid) } catch {} }
   }
-  const supFile = join(daemonDir, 'supervisor.json')
+  const supFile = join(daemonDir, 'daemon.json')
   if (existsSync(supFile)) {
     const pid = (JSON.parse(readFileSync(supFile, 'utf8')) as { pid?: number }).pid
     if (typeof pid === 'number' && pid > 0) { try { process.kill(pid, 'SIGTERM'); reaped.push(pid) } catch {} }

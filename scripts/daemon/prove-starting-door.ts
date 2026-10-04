@@ -54,7 +54,7 @@ function rawRequest(path: string, frame: Record<string, unknown>, timeoutMs = 60
 }
 
 const dispatchOk = { ok: true as const, clientMessageId: 'cm-1', state: 'queued', stateRevision: 1, runnerId: 'w1', sessionId: 's1', replay: 'dispatched' }
-const fakeRoster = { list: () => [], has: () => ({ present: false }), liveCount: () => 0, totalCount: () => 0, getSupervisorState: () => ({ degraded: false }), liveWorkerFacts: () => [] }
+const fakeRoster = { list: () => [], has: () => ({ present: false }), liveCount: () => 0, totalCount: () => 0, getRespawnState: () => ({ degraded: false }), liveWorkerFacts: () => [] }
 const base = { proto: MERCURY_DAEMON_PROTO, auth: 'k' }
 
 async function startServer(opts: { ready: () => boolean; whenReady?: () => Promise<void>; startingHoldMs?: number; dir: string }) {

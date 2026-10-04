@@ -59,7 +59,7 @@ export const MERCURY_HOME_WRITER_FINGERPRINT = /mercury|hermes[-_]daemon/i
 export const MERCURY_LEGACY_LOG_GRAMMAR =
   /^\[daemon\] (?:starting autonomous scheduler for |control socket up — RPC: )/m
 
-export function isMercurySupervisorRecord(parsed: unknown): boolean {
+export function isMercuryDaemonRecord(parsed: unknown): boolean {
   if (typeof parsed !== 'object' || parsed === null) return false
   const record = parsed as Record<string, unknown>
   return (
@@ -74,7 +74,7 @@ export function isMercurySupervisorRecord(parsed: unknown): boolean {
   )
 }
 
-export type HarnessArtifactClass = 'daemon-log' | 'daemon-roster' | 'daemon-supervisor'
+export type HarnessArtifactClass = 'daemon-log' | 'daemon-roster' | 'daemon-record'
 
 export interface HarnessHomeArtifact {
   rel: string
@@ -92,13 +92,13 @@ export interface HarnessHomeReport {
 
 const HARNESS_LOG_SEGMENTS: readonly (readonly string[])[] = [['daemon.log'], ['daemon', 'daemon.log'], ['daemon', 'daemon.log.1']]
 const HARNESS_ROSTER_SEGMENTS: readonly string[] = ['daemon', 'roster.json']
-const HARNESS_SUPERVISOR_SEGMENTS: readonly string[] = ['daemon', 'supervisor.json']
+const HARNESS_DAEMON_RECORD_SEGMENTS: readonly string[] = ['daemon', 'daemon.json']
 export const HARNESS_LOG_RELS = HARNESS_LOG_SEGMENTS.map(segments => segments.join('/'))
 export const HARNESS_ROSTER_REL = HARNESS_ROSTER_SEGMENTS.join('/')
-export const HARNESS_SUPERVISOR_REL = HARNESS_SUPERVISOR_SEGMENTS.join('/')
+export const HARNESS_DAEMON_RECORD_REL = HARNESS_DAEMON_RECORD_SEGMENTS.join('/')
 
 const HARNESS_REL_SEGMENTS = new Map<string, readonly string[]>(
-  [...HARNESS_LOG_SEGMENTS, HARNESS_ROSTER_SEGMENTS, HARNESS_SUPERVISOR_SEGMENTS].map(segments => [segments.join('/'), segments]),
+  [...HARNESS_LOG_SEGMENTS, HARNESS_ROSTER_SEGMENTS, HARNESS_DAEMON_RECORD_SEGMENTS].map(segments => [segments.join('/'), segments]),
 )
 
 export function harnessArtifactPath(home: string, rel: string): string {
@@ -201,7 +201,7 @@ function classifyRoster(
   }
 }
 
-function classifySupervisor(rel: string, raw: string): HarnessHomeArtifact | null {
+function classifyDaemonRecord(rel: string, raw: string): HarnessHomeArtifact | null {
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)
@@ -212,16 +212,16 @@ function classifySupervisor(rel: string, raw: string): HarnessHomeArtifact | nul
   const record = parsed as { pid?: unknown; controlSock?: unknown }
   if (typeof record.pid !== 'number') return null
   const sock = typeof record.controlSock === 'string' ? record.controlSock : ''
-  if (MERCURY_HOME_WRITER_FINGERPRINT.test(sock) || MERCURY_HOME_WRITER_FINGERPRINT.test(raw) || isMercurySupervisorRecord(parsed)) {
-    return { rel, artifactClass: 'daemon-supervisor', verdict: 'ours', evidence: `${rel}: Mercury control-plane record` }
+  if (MERCURY_HOME_WRITER_FINGERPRINT.test(sock) || MERCURY_HOME_WRITER_FINGERPRINT.test(raw) || isMercuryDaemonRecord(parsed)) {
+    return { rel, artifactClass: 'daemon-record', verdict: 'ours', evidence: `${rel}: Mercury control-plane record` }
   }
   const tool = recognizeAgentCli(raw)
   return {
     rel,
-    artifactClass: 'daemon-supervisor',
+    artifactClass: 'daemon-record',
     verdict: 'foreign',
     ...(tool !== null ? { tool: { id: tool.id, displayName: tool.displayName } } : {}),
-    evidence: `${rel}: ${tool !== null ? `${tool.displayName} supervisor record` : "an unrecognized tool's supervisor record"} — controlSock ${sock || '(absent)'}`,
+    evidence: `${rel}: ${tool !== null ? `${tool.displayName} daemon record` : "an unrecognized tool's daemon record"} — controlSock ${sock || '(absent)'}`,
   }
 }
 
@@ -246,9 +246,9 @@ export async function classifyHarnessHome(
     if (verdict !== null) artifacts.push(verdict)
   }
 
-  const supervisorRaw = await readFile(harnessArtifactPath(home, HARNESS_SUPERVISOR_REL), 'utf8').catch(() => null)
-  if (supervisorRaw !== null) {
-    const verdict = classifySupervisor(HARNESS_SUPERVISOR_REL, supervisorRaw)
+  const recordRaw = await readFile(harnessArtifactPath(home, HARNESS_DAEMON_RECORD_REL), 'utf8').catch(() => null)
+  if (recordRaw !== null) {
+    const verdict = classifyDaemonRecord(HARNESS_DAEMON_RECORD_REL, recordRaw)
     if (verdict !== null) artifacts.push(verdict)
   }
 

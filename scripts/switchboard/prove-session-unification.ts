@@ -39,7 +39,7 @@ const { captureEngineEntry, resolveCaptureArgv0, resolveCaptureDriver, vshotBudg
 const PACE = vshotBudgetScale()
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { readSessionWorkers, workerPidAlive } = await import('../../src/daemon/concourseSupervisor.ts')
+const { readSessionWorkers, workerPidAlive } = await import('../../src/daemon/concourseWorkers.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
 
 let failures = 0

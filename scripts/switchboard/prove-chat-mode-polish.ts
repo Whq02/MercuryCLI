@@ -58,8 +58,8 @@ t.section('§D — the felt path (L15): `--chat` lands on the boot menu, and ↵
   t.check('the --chat mark still holds (the plain world for this boot; no third flag)', /if \(opts\.chat === true\) \{[\s\S]*?markChatBoot\(\)/.test(main))
   t.check("no root-action preheat remains — the menu's mount warms the daemon and its runner beneath the face (the Chat's own hook, unconditional at mount)", !main.includes('program.opts().chat === true') && read('src/screens/Chat.tsx').includes('if (await m.ensureOwnedDaemon()) await m.warmSessionRunner(getCwd());'))
   t.check('the option help says the menu is the landing and ↵ New Session the door', main.includes('↵ New Session on the menu starts the chat') && main.includes('`-chat` is the same switch'))
-  const supervisor = read('src/daemon/concourseSupervisor.ts')
-  t.check('the admit road claims the warm runner for a fresh exclusive-or-shared birth with no runner options (the ↵ birth is one)', supervisor.includes('req.resumeSessionId === undefined &&') && supervisor.includes("(effectiveIsolation === 'exclusive' || effectiveIsolation === 'shared') &&") && supervisor.includes('(req.runnerArgv === undefined || req.runnerArgv.length === 0)'))
+  const daemon = read('src/daemon/concourseWorkers.ts')
+  t.check('the admit road claims the warm runner for a fresh exclusive-or-shared birth with no runner options (the ↵ birth is one)', daemon.includes('req.resumeSessionId === undefined &&') && daemon.includes("(effectiveIsolation === 'exclusive' || effectiveIsolation === 'shared') &&") && daemon.includes('(req.runnerArgv === undefined || req.runnerArgv.length === 0)'))
   t.check('the pool drives measure the felt ↵ on the --chat face (prove-chat-mode-drive F1/F2, prove-one-door-drive L3)', read('scripts/switchboard/prove-chat-mode-drive.ts').includes('warm claim acked in (\\d+)ms') && read('scripts/switchboard/prove-one-door-drive.ts').includes("id: 'l3-chat-menu'"))
 }
 
@@ -143,7 +143,7 @@ t.section('§G — the next-session facts (L18): one record, every door, never a
   t.check("a menu row changed AFTER boot changes the next session's snapshot (the profile is read per admission, not once at boot)", menuRow !== undefined && saved.ok === true && a.snapshotId !== b.snapshotId && b.rows.find(r => r.env === menuRow.env)?.source === 'profile')
   const warm = read('src/daemon/warmRunner.ts')
   t.check('the warm pool never serves a stale snapshot (the settings-drift guard retires it; admission spawns fresh)', warm.includes('currentSnapshotId(args.workspaceId) !== entry.snapshotId') && warm.includes("retireWarmRunner(args.workspaceId, 'settings-drift', deps)"))
-  t.check('the daemon resolves the snapshot per admission (the claim and the cold road both)', (read('src/daemon/concourseSupervisor.ts').match(/resolveEffectiveSettingsSnapshot\(\{ sessionId/g) ?? []).length >= 2)
+  t.check('the daemon resolves the snapshot per admission (the claim and the cold road both)', (read('src/daemon/concourseWorkers.ts').match(/resolveEffectiveSettingsSnapshot\(\{ sessionId/g) ?? []).length >= 2)
   const route = await import('../../src/context/surfaceRoute.ts')
   const plain = { concourseEnabled: true, chatBoot: true, chatPresent: false }
   t.check('--chat before a session: the menu alone; shift+→ moves nothing (the dim hint, no commit)', route.stripStops(plain).join(',') === 'boot-settings' && JSON.stringify(route.stripMove('boot-settings', 'right', route.stripStops(plain))) === JSON.stringify({ to: null, hint: 'no chat open' }))

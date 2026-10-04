@@ -37,7 +37,7 @@ const { MERCURY_DAEMON_PROTO, MIN_PROTO } = await import('../../src/daemon/proto
 
 const FIXTURE = join(import.meta.dir, 'departure-fixture-daemon.ts')
 const LEDGER = join(daemonDirPath, 'fixture-spawns.log')
-const LOCK = join(daemonDirPath, 'supervisor.lock')
+const LOCK = join(daemonDirPath, 'daemon.lock')
 process.argv[1] = FIXTURE
 
 const spawned: ChildProcess[] = []
@@ -84,7 +84,7 @@ async function stopFixtures(): Promise<void> {
   }
 }
 function planeClear(): void {
-  for (const p of [cs.controlSockPath(), cs.supervisorStatePath(), cs.controlKeyPath(), LOCK]) {
+  for (const p of [cs.controlSockPath(), cs.daemonStatePath(), cs.controlKeyPath(), LOCK]) {
     try {
       unlinkSync(p)
     } catch {
@@ -159,7 +159,7 @@ async function startOldDaemon(mode: OldMode, opts: { record?: boolean; lock?: bo
     server.listen(cs.controlSockPath(), () => resolve())
   })
   if (opts.record !== false) {
-    await cs.writeSupervisorState({
+    await cs.writeDaemonState({
       pid,
       version: '1.0.0',
       origin: 'transient',
@@ -173,7 +173,7 @@ async function startOldDaemon(mode: OldMode, opts: { record?: boolean; lock?: bo
       startToken: null,
     })
   }
-  if (opts.lock !== false) writeFileSync(LOCK, JSON.stringify({ owner: 'hermes-supervisor-old', pid, acquiredAt: Date.now() - 5000 }))
+  if (opts.lock !== false) writeFileSync(LOCK, JSON.stringify({ owner: 'hermes-daemon-old', pid, acquiredAt: Date.now() - 5000 }))
   const close = async (): Promise<void> => {
     for (const c of conns) c.destroy()
     await new Promise<void>(resolve => server.close(() => resolve()))
@@ -191,13 +191,13 @@ async function startOldDaemon(mode: OldMode, opts: { record?: boolean; lock?: bo
     close,
     leave: async (o = {}) => {
       if (o.mark !== false) {
-        const raw = JSON.parse(readFileSync(cs.supervisorStatePath(), 'utf8')) as Record<string, unknown>
-        writeFileSync(cs.supervisorStatePath(), JSON.stringify({ ...raw, state: 'stopping', stoppingAt: Date.now() }))
+        const raw = JSON.parse(readFileSync(cs.daemonStatePath(), 'utf8')) as Record<string, unknown>
+        writeFileSync(cs.daemonStatePath(), JSON.stringify({ ...raw, state: 'stopping', stoppingAt: Date.now() }))
       }
       await close()
       await sleep(o.keepPlaneMs ?? 120)
       try {
-        unlinkSync(cs.supervisorStatePath())
+        unlinkSync(cs.daemonStatePath())
       } catch {
         return
       }
@@ -240,7 +240,7 @@ section('§1 a departing daemon: the ladder reads starting, the daemon leaves, a
   check('the door resolves usable once the daemon has left', ok === true, `resolved ${String(ok)} after ${Date.now() - started}ms`)
   check('the spawn came within a few beats of the departure, not after the ladder ran out', landed < 6000, `${landed}ms`)
   check('exactly one daemon was spawned', spawnsSeen() - before === 1, `spawns=${spawnsSeen() - before}`)
-  const rec = await cs.readSupervisorState()
+  const rec = await cs.readDaemonState()
   check('the new daemon holds the plane under its own pid, never the departed one', rec !== null && rec.pid !== old.pid && alive(rec.pid), `record=${JSON.stringify(rec)}`)
   const v = await hs.handshakeDaemon({ timeoutMs: 1500 })
   check('the new daemon answers the handshake matched', v.state === 'matched' && v.daemon?.pid === rec?.pid, `state=${v.state} pid=${v.daemon?.pid}`)
@@ -277,7 +277,7 @@ section('§3 two boots at once beside a departing daemon: one spawn, both doors 
   const [a, b] = await both
   check('both doors resolve usable', a === true && b === true, `${String(a)} ${String(b)}`)
   check('the two gestures cost one spawn (the single-flight guard)', spawnsSeen() - before === 1, `spawns=${spawnsSeen() - before}`)
-  const rec = await cs.readSupervisorState()
+  const rec = await cs.readDaemonState()
   check('one daemon holds the plane', rec !== null && rec.pid !== old.pid && ledgerPids().filter(alive).length === 1, `alive fixtures=${ledgerPids().filter(alive).length}`)
   await stopFixtures()
   planeClear()
@@ -302,7 +302,7 @@ section('§4 the plane still held by the departing daemon: no spawn beside it; t
   const holder = idler()
   await sleep(150)
   const pid = holder.pid ?? 0
-  await cs.writeSupervisorState({
+  await cs.writeDaemonState({
     pid,
     version: '1.0.0',
     origin: 'transient',
@@ -317,18 +317,18 @@ section('§4 the plane still held by the departing daemon: no spawn beside it; t
     state: 'stopping',
     stoppingAt: Date.now(),
   } as never)
-  writeFileSync(LOCK, JSON.stringify({ owner: 'hermes-supervisor-old', pid, acquiredAt: Date.now() - 5000 }))
+  writeFileSync(LOCK, JSON.stringify({ owner: 'hermes-daemon-old', pid, acquiredAt: Date.now() - 5000 }))
   const before = spawnsSeen()
   const pending = ensure.ensureOwnedDaemon()
   await sleep(800)
   check('no spawn while the departing daemon still holds its record and lock', spawnsSeen() === before, `spawns=${spawnsSeen() - before}`)
-  unlinkSync(cs.supervisorStatePath())
+  unlinkSync(cs.daemonStatePath())
   unlinkSync(LOCK)
   const cleared = Date.now()
   const ok = await pending
   check('the door resolves usable once the plane is clear', ok === true, `resolved ${String(ok)} ${Date.now() - cleared}ms after the clear`)
   check('one spawn followed the clear', spawnsSeen() - before === 1, `spawns=${spawnsSeen() - before}`)
-  const rec = await cs.readSupervisorState()
+  const rec = await cs.readDaemonState()
   check('the new daemon took the plane over under its own pid', rec !== null && rec.pid !== pid, `record=${JSON.stringify(rec)}`)
   holder.kill('SIGKILL')
   await stopFixtures()
@@ -370,7 +370,7 @@ section('§5 a wedged daemon that never leaves keeps its wait: the door answers 
 
 section("§6 the daemon's own mark: the record says stopping under its own pid, never under another's")
 {
-  await cs.writeSupervisorState({
+  await cs.writeDaemonState({
     pid: process.pid,
     version: '1.0.0',
     origin: 'transient',
@@ -383,14 +383,14 @@ section("§6 the daemon's own mark: the record says stopping under its own pid, 
     foreground: false,
     startToken: null,
   })
-  const mark = (cs as { markSupervisorStoppingSync?: () => boolean }).markSupervisorStoppingSync
+  const mark = (cs as { markDaemonStoppingSync?: () => boolean }).markDaemonStoppingSync
   check('the mark exists on the control socket', typeof mark === 'function')
   const marked = mark ? mark() : false
-  const rec = await cs.readSupervisorState()
+  const rec = await cs.readDaemonState()
   check('the mark lands on our own record', marked === true && rec?.pid === process.pid && (rec as { state?: string })?.state === 'stopping' && typeof (rec as { stoppingAt?: number })?.stoppingAt === 'number', JSON.stringify(rec))
-  await cs.writeSupervisorState({ ...(rec as NonNullable<typeof rec>), pid: process.pid + 100000, state: undefined, stoppingAt: undefined } as never)
+  await cs.writeDaemonState({ ...(rec as NonNullable<typeof rec>), pid: process.pid + 100000, state: undefined, stoppingAt: undefined } as never)
   const foreign = mark ? mark() : false
-  const after = await cs.readSupervisorState()
+  const after = await cs.readDaemonState()
   check("a record of another pid is never marked", foreign === false && (after as { state?: string })?.state === undefined, JSON.stringify(after))
   planeClear()
 }
@@ -399,12 +399,12 @@ section('§7 source pins: the shutdown road marks before it closes; the ladder r
 {
   const main = read('src/daemon/main.ts')
   const body = main.slice(main.indexOf('const shutdown = (signal: string) => {'), main.indexOf('const bail = setTimeout(() => process.exit(1), 15_000)'))
-  const markAt = body.indexOf('markSupervisorStoppingSync()')
+  const markAt = body.indexOf('markDaemonStoppingSync()')
   const closeAt = body.indexOf('controlServer?.close()')
   check('the shutdown road marks its record before it closes the socket', markAt >= 0 && closeAt >= 0 && markAt < closeAt, `mark@${markAt} close@${closeAt}`)
   const sock = read('src/daemon/controlSocket.ts')
   check("the record's type carries the stopping state", sock.includes("state?: 'stopping'") && sock.includes('stoppingAt?: number'))
-  check('the mark is ownership-checked', /markSupervisorStoppingSync[\s\S]{0,400}current\?\.pid !== process\.pid\) return false/.test(sock))
+  check('the mark is ownership-checked', /markDaemonStoppingSync[\s\S]{0,400}current\?\.pid !== process\.pid\) return false/.test(sock))
   const ens = read('src/services/switchboard/ensureDaemon.ts')
   check("the starting ladder reads the daemon's departure", ens.includes("if (v.state === 'absent' && (await planeHold()) === 'clear') return 'gone'"))
   check('a departure re-enters the door, which spawns through the one guard', ens.includes("if (outcome === 'gone') return ensureOwnedDaemon()"))

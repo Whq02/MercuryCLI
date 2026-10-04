@@ -17,7 +17,7 @@ delete process.env.MERCURY_CONCOURSE_WORKER
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 8 } }))
-const sup = await import('../../src/daemon/concourseSupervisor.ts')
+const sup = await import('../../src/daemon/concourseWorkers.ts')
 const warm = await import('../../src/daemon/warmRunner.ts')
 const { LEAVE_PENDING, standInRunner } = await import('../lib/seatDoor.ts')
 const { RpcError, RPC_REFUSED } = await import('../../src/runner/wire/errors.ts')
@@ -25,7 +25,7 @@ type StandInRunner = ReturnType<typeof standInRunner>
 type RunnerDoor = import('../../src/daemon/runnerConnection.ts').RunnerDoor
 const { validateWorkerModelChoice } = await import('../../src/services/concourse/workerModels.ts')
 const snapshot = await import('../../src/services/concourse/concourseSnapshot.ts')
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseSupervisor.ts'
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
 import type { RunnerChildSpec } from '../../src/daemon/headlessRun.ts'
 
 let failures = 0
@@ -273,16 +273,16 @@ console.log('\n── R7: the screen door reads the record and re-says the seat 
   const fnAt = hop.indexOf('async function focusResumedSessionLanding(')
   const fnBody = hop.slice(fnAt, hop.indexOf('export async function clearFocusedSession(', fnAt))
   check('R7 a live record is entered first (a hop, never a resume) — the existing pin stands', fnBody.indexOf('sessionOwnedByLiveWorker(') !== -1 && fnBody.indexOf('sessionOwnedByLiveWorker(') < fnBody.indexOf("op: 'sessionAdmit'"))
-  check('R7 the standing record names the workspace, home and title (never the screen\'s cwd for a record-backed row)', fnBody.includes('const standing = Object.values(supervisor.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)') && fnBody.includes('standing?.workspaceId ?? (await workspaceOfTranscript(transcriptPath))') && fnBody.includes('paths.getProjectDir(standing.workspaceId)'))
-  const adoptAt = fnBody.indexOf('const settled = Object.values(supervisor.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)')
+  check('R7 the standing record names the workspace, home and title (never the screen\'s cwd for a record-backed row)', fnBody.includes('const standing = Object.values(daemon.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)') && fnBody.includes('standing?.workspaceId ?? (await workspaceOfTranscript(transcriptPath))') && fnBody.includes('paths.getProjectDir(standing.workspaceId)'))
+  const adoptAt = fnBody.indexOf('const settled = Object.values(daemon.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)')
   const assertAt = fnBody.indexOf('connector.assertSeat()')
   check('R7 the admission\'s completion adopts the record WITHOUT re-pointing the slot (no post-admission hop) and re-says the seat after the adoption', adoptAt !== -1 && fnBody.indexOf('seat.daemonSessionConnectorFor({', adoptAt) > adoptAt && assertAt > adoptAt && !fnBody.includes('hopIntoBoardSession(sessionId, { firstPaintMs: 0 })'))
   check('R7 the landing gate covers the slot re-point\'s tail on both doors (a transcript read slower than the ceiling never lets the caller\'s route flip refuse over an empty slot)', fnBody.includes('const pointed = seat.focusDaemonSession(connector.record)') && fnBody.includes('void withLanding(pointed.then(() => undefined)).catch(() => {})') && hop.includes('void withLanding(hop.then(() => undefined)).catch(() => {})'))
   const connector = read('src/services/engine-connector/daemonConnector.ts')
   check('R7 assertSeat rides the ONE chain and guards on the slot (a detached connector says nothing)', /assertSeat\(\): void \{\s*if \(this\.attached\) seatVerb\('focus', this\.record\.sessionId\)\s*\}/.test(connector))
-  const supervisorSrc = read('src/daemon/concourseSupervisor.ts')
-  const admitAt = supervisorSrc.indexOf('export function makeConcourseAdmitHandler(')
-  const admitBody = supervisorSrc.slice(admitAt, supervisorSrc.indexOf('function mintWorktreeBranchName', admitAt))
+  const workersSrc = read('src/daemon/concourseWorkers.ts')
+  const admitAt = workersSrc.indexOf('export function makeConcourseAdmitHandler(')
+  const admitBody = workersSrc.slice(admitAt, workersSrc.indexOf('function mintWorktreeBranchName', admitAt))
   const reactivateAt = admitBody.indexOf('const reactivated = await reactivateConcourseSession(')
   const answeredAt = admitBody.indexOf('return reactivated.ok && retainedNote !== undefined ? { ...reactivated, note: retainedNote } : reactivated', reactivateAt)
   const warmClaimAt = admitBody.indexOf('deps.claimWarm !== undefined &&')

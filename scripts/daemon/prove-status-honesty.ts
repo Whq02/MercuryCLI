@@ -16,7 +16,7 @@ const { formatMercuryDaemonStatus } = await import('../../src/daemon/status.js')
 
 const baseStatus = (over: Record<string, unknown>): Parameters<typeof formatMercuryDaemonStatus>[0] =>
   ({
-    supervisor: { pid: 4242, version: '1.0.0', uptimeSec: 60, dir: process.cwd() },
+    daemon: { pid: 4242, version: '1.0.0', uptimeSec: 60, dir: process.cwd() },
     controlSock: '/tmp/mercury.sock',
     controlReachable: true,
     workersLive: 0,
@@ -43,7 +43,7 @@ console.log('§1 the warm line names its workspace')
     here.split('\n').find(l => l.includes('warm')) ?? '(no warm line)',
   )
   const elsewhere = formatMercuryDaemonStatus(
-    baseStatus({ supervisor: { pid: 4242, version: '1.0.0', uptimeSec: 60, dir: '/somewhere/else' } }),
+    baseStatus({ daemon: { pid: 4242, version: '1.0.0', uptimeSec: 60, dir: '/somewhere/else' } }),
   )
   check(
     'in any other folder the line names the BOUND folder and says this one boots cold',

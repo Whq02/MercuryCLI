@@ -8,7 +8,7 @@
 # gate-watch: scripts/agent-experience/baselines/mechanical/prompts/anthropic.system.txt
 # gate-watch: scripts/lib/hermetic.ts src/Tool.ts src/bootstrap/state.ts src/components/Messages.tsx
 # gate-watch: src/components/concourse/workerTranscriptFold.ts
-# gate-watch: src/components/messages/nullRenderingAttachments.ts src/daemon/concourseSupervisor.ts
+# gate-watch: src/components/messages/nullRenderingAttachments.ts src/daemon/concourseWorkers.ts
 # gate-watch: src/entrypoints/init.ts src/prompt/behaviourContract.ts
 # gate-watch: src/services/providers/anthropic/boundPrefixRecord.ts src/services/providers/toolEconomy.ts
 # gate-watch: src/utils/attachments/orchestrator.ts src/utils/cleanupRegistry.ts

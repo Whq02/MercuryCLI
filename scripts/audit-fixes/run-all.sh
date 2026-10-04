@@ -37,7 +37,7 @@ has src/utils/crew/sendMessageGovernance.ts 'answered.length > 100' 'questions.j
 has src/daemon/ownedDaemon.ts 'renameWithWin32RetrySync(logPath, `${logPath}.1`)' 'daemon.log size-gated rotation at engage (>5MB → .1)'
 has src/utils/cockpit/critterVariant.ts 'assigned.size > 256' 'critter variant map FIFO-capped'
 has src/utils/cockpit/daemonSnapshot.ts "daemonControlRpc({ op: 'ping' }" 'daemonSnapshot folds a TTL-cached authoritative ping'
-has src/utils/cockpit/daemonSnapshot.ts 'control socket unresponsive' 'wedged-supervisor downgrade (pid alive ≠ live)'
+has src/utils/cockpit/daemonSnapshot.ts 'control socket unresponsive' 'wedged-daemon downgrade (pid alive ≠ live)'
 lacks src/services/coordination/coordinationService.ts 'party:' 'the coordination brief carries no party facet'
 has src/components/mercury-ui/screens/CrewmateChatsView.tsx 'const browseVerbs' 'crewmates footer tracks selected-row affordances (r/k)'
 has src/components/tasks/RunDetailPane.tsx "agents.length > 0 ? '↑↓ agent · ↵ inspect · ' : ''" 'run-detail ↵ hint conditional on rows'

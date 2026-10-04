@@ -20,7 +20,7 @@ function resolveIn(opts: { defaultMode?: string; override?: string; home?: strin
     writeFileSync(join(home, 'settings.json'), JSON.stringify(settings))
   }
   const src = `
-    import { seatInitialPermissionMode } from ${JSON.stringify(join(HERE, '../../src/daemon/concourseSupervisor.ts'))}
+    import { seatInitialPermissionMode } from ${JSON.stringify(join(HERE, '../../src/daemon/concourseWorkers.ts'))}
     const override = process.env.__OVERRIDE__ && process.env.__OVERRIDE__.length > 0 ? process.env.__OVERRIDE__ : undefined
     process.stdout.write(String(seatInitialPermissionMode(override)))
   `

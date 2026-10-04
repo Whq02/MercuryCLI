@@ -18,11 +18,11 @@ const OPENING_QUESTION =
 async function daemonStatusLine(): Promise<string> {
   try {
     const status = await getMercuryDaemonStatus()
-    if (status.supervisor) {
+    if (status.daemon) {
       const control = status.controlReachable
         ? 'control channel reachable'
         : 'control channel not answering'
-      return `Daemon: RUNNING — pid ${status.supervisor.pid}, up ${status.supervisor.uptimeSec}s, in ${status.supervisor.dir}; ${control}. Durable jobs will fire with this session closed as long as that daemon stays up.`
+      return `Daemon: RUNNING — pid ${status.daemon.pid}, up ${status.daemon.uptimeSec}s, in ${status.daemon.dir}; ${control}. Durable jobs will fire with this session closed as long as that daemon stays up.`
     }
     return `Daemon: NOT running. Durable jobs are still written to the durable task file, but they only fire while some scheduler is alive — this session, or a daemon the user starts. Start one in the project directory with: ${binaryName()} daemon (or ${binaryName()} daemon run to stay in the foreground).`
   } catch (error) {

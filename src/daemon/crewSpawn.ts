@@ -12,7 +12,7 @@ import { resolveCrewStart, type CrewStartPlanV1 } from '../utils/crew/crewStart.
 import { resolveWorkerReconAllow } from './workerRecon.js'
 import { isolationAwarenessNote } from './isolationNote.js'
 import type { RunnerChildSpec } from './headlessRun.js'
-import type { LongLivedSupervisorConfig } from './longLivedSupervisor.js'
+import type { LongLivedRespawnConfig } from './longLivedRespawn.js'
 import type { WorkerModelValidation } from '../services/concourse/workerModels.js'
 
 function seatOwner(): typeof import('../services/concourse/workerModels.js') {
@@ -157,7 +157,7 @@ export interface CrewRosterPort {
   registerLongLived(
     short: string,
     spec: RunnerChildSpec,
-    opts?: Partial<LongLivedSupervisorConfig>,
+    opts?: Partial<LongLivedRespawnConfig>,
     start?: { cwd: string; worktree?: string },
   ): { ok: boolean; pid?: number; error?: string }
   currentLongLivedModel?(short: string): string | undefined

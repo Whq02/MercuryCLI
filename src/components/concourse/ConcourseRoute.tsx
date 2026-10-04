@@ -124,7 +124,7 @@ function useConcourseSnapshot(): {
     const unsubSlot = subscribeFocusedSessionConnector(() => rebuild())
     let watcher: import('node:fs').FSWatcher | null = null
     let lastDelta = ''
-    void Promise.all([import('../../daemon/concourseSupervisor.js'), import('node:fs')])
+    void Promise.all([import('../../daemon/concourseWorkers.js'), import('node:fs')])
       .then(([sup, fs]) => {
         if (!alive.current) return
         const deltaPath = sup.concourseDeltaPath()
@@ -570,12 +570,12 @@ function LiveConcourse(): React.ReactNode {
             const { ensureOwnedDaemon } = await import('../../services/switchboard/ensureDaemon.js')
             const daemonUp = await ensureOwnedDaemon()
             if (!daemonUp) {
-              const supervisor = await import('../../daemon/concourseSupervisor.js')
+              const workers = await import('../../daemon/concourseWorkers.js')
               const { isProcessAlive } = await import('../../daemon/ownerWatch.js')
-              const rec = Object.values(supervisor.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
+              const rec = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
               const runnerAlive = rec?.pid !== undefined && isProcessAlive(rec.pid)
               if (rec !== undefined && !runnerAlive) {
-                const out = supervisor.stopConcourseSession(sessionId, 'operator', undefined)
+                const out = workers.stopConcourseSession(sessionId, 'operator', undefined)
                 noteControl(
                   'strip:composer',
                   out.outcome === 'refused'
@@ -628,8 +628,8 @@ function LiveConcourse(): React.ReactNode {
               { timeoutMs: 15_000 },
             )) as { ok?: boolean; outcome?: string; detail?: string; error?: string; code?: string }
             const parkApplied = reply.ok === true && reply.outcome !== 'refused'
-            const supervisor = await import('../../daemon/concourseSupervisor.js')
-            const released = parkApplied && !Object.values(supervisor.readSessionWorkers()).some(r => r.sessionId === sessionId && r.endedAt === undefined)
+            const workers = await import('../../daemon/concourseWorkers.js')
+            const released = parkApplied && !Object.values(workers.readSessionWorkers()).some(r => r.sessionId === sessionId && r.endedAt === undefined)
             if (released) {
               await markParkedCleared(sessionId).catch(() => {})
               removePrefixRecord(sessionId)
@@ -684,8 +684,8 @@ function LiveConcourse(): React.ReactNode {
             if (parkedRow?.state === 'parked') {
               await markParkedCleared(sessionId)
               removePrefixRecord(sessionId)
-              const supervisorSync = await import('../../daemon/concourseSupervisor.js')
-              const parkedRecord = Object.values(supervisorSync.readSessionWorkers()).find(
+              const workersSync = await import('../../daemon/concourseWorkers.js')
+              const parkedRecord = Object.values(workersSync.readSessionWorkers()).find(
                 r => r.sessionId === sessionId && r.endedAt === undefined,
               )
               if (parkedRecord === undefined) {
@@ -696,8 +696,8 @@ function LiveConcourse(): React.ReactNode {
             }
             const { ensureOwnedDaemon } = await import('../../services/switchboard/ensureDaemon.js')
             const daemonUp = await ensureOwnedDaemon()
-            const supervisor = await import('../../daemon/concourseSupervisor.js')
-            const rec = Object.values(supervisor.readSessionWorkers()).find(
+            const workers = await import('../../daemon/concourseWorkers.js')
+            const rec = Object.values(workers.readSessionWorkers()).find(
               r => r.sessionId === sessionId && r.endedAt === undefined,
             )
             if (!rec) {
@@ -717,7 +717,7 @@ function LiveConcourse(): React.ReactNode {
               const runnerAlive = rec.pid !== undefined && isProcessAlive(rec.pid)
               reply = runnerAlive
                 ? { ok: false, error: `the daemon that hosts sessions is not reachable and the runner is alive — ${keyHintLabel('⌃x ⌃x')} retries once the daemon is back` }
-                : { ok: true, settled: supervisor.settleConcourseWorker(rec.runnerId) }
+                : { ok: true, settled: workers.settleConcourseWorker(rec.runnerId) }
             }
             if (reply.ok === true && reply.settled !== false) {
               await markParkedCleared(sessionId).catch(() => {})
@@ -1311,7 +1311,7 @@ function LiveConcourse(): React.ReactNode {
         const deliveries = await store.readConcourseHeldDeliveries()
         const deliveryIds = Object.keys(deliveries)
         if (deliveryIds.length > 0) {
-          const { readSessionWorkers } = await import('../../daemon/concourseSupervisor.js')
+          const { readSessionWorkers } = await import('../../daemon/concourseWorkers.js')
           const workers = Object.values(readSessionWorkers())
           for (const sessionId of deliveryIds) {
             const heldDelivery = deliveries[sessionId]
@@ -1345,7 +1345,7 @@ function LiveConcourse(): React.ReactNode {
           const rowsNY = snap.needsYou ?? []
           if (rowsNY.length > 0) {
             const o = await import('../../services/crew/obligations.js')
-            const sup = await import('../../daemon/concourseSupervisor.js')
+            const sup = await import('../../daemon/concourseWorkers.js')
             const state = await import('../../bootstrap/state.js')
             const hostId = String(state.getSessionId())
             const workerRecs = Object.values(sup.readSessionWorkers())
@@ -1387,7 +1387,7 @@ function LiveConcourse(): React.ReactNode {
         const rows = snap.groups.flatMap(g => g.rows)
         let cleared = false
         if (reason === 'seat') {
-          const { effectiveSeatCeiling } = await import('../../daemon/concourseSupervisor.js')
+          const { effectiveSeatCeiling } = await import('../../daemon/concourseWorkers.js')
           cleared = snap.counts.live < effectiveSeatCeiling()
         } else if (reason === 'repo-held') {
           cleared = !rows.some(

@@ -48,7 +48,7 @@ const RETIRED_CONFLATION = ['painted from its transcript, but the daemon did not
 {
   const { readFileSync } = await import('node:fs')
   const { join } = await import('node:path')
-  const sup = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'concourseSupervisor.ts'), 'utf8')
+  const sup = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'concourseWorkers.ts'), 'utf8')
   const tpl = sup.slice(sup.indexOf('= `model refused ('), sup.indexOf('= `model refused (') + 500)
   const actionAt = tpl.indexOf('admission.action')
   const detailAt = tpl.indexOf('admission.detail')

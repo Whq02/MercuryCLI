@@ -1,5 +1,5 @@
 
-import { listConcourseWorkers } from '../../daemon/concourseSupervisor.js'
+import { listConcourseWorkers } from '../../daemon/concourseWorkers.js'
 import { listExecutions } from '../../services/primitives/executionPlane.js'
 import { processMainOwner } from '../../services/run/resolveOwner.js'
 import { crewEnabled } from '../../daemon/crewSpawn.js'

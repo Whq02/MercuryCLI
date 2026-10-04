@@ -21,7 +21,7 @@ if (driver.kind !== 'posix-pty') {
   process.exit(0)
 }
 
-const { readSessionWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
 const { readSessionFacts, sessionFactsDir } = await import('../../src/services/engine-connector/seatProjections.ts')
 const { CREW_EMPTY_LINE } = await import('../../src/services/engine-connector/crewFacts.ts')
 

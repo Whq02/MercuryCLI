@@ -1,4 +1,4 @@
-import type { ConcourseAdmitRequest, ConcourseAdmitResult } from './concourseSupervisor.js'
+import type { ConcourseAdmitRequest, ConcourseAdmitResult } from './concourseWorkers.js'
 import { rowSaturnTickReceipt, type SaturnBirthSpecV1 } from './saturn.js'
 import type { SaturnTickerPortsV1 } from './saturnTicker.js'
 

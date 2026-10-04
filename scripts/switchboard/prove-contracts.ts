@@ -17,10 +17,10 @@ const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'ut
 
 const { applyConcourseContractOp, CONTRACT_TEXT_CAP } = await import('../../src/daemon/sessionContract.ts')
 const { markConcourseWorkerDelivery, readSessionWorkers } = await import(
-  '../../src/daemon/concourseSupervisor.ts'
+  'workers'
 )
 const { appendSessionReceipt, readSessionReceipts } = await import('../../src/services/switchboard/sessionReceipts.ts')
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseSupervisor.ts'
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
 
 const NOW = Date.now()
 const DIR = join(SCRATCH, 'daemon')
@@ -146,7 +146,7 @@ console.log('E — ADVISORY ALWAYS (the poison: contract state blocking a tool, 
   check('E1 a delivery lands on an UN-ACKED draft exactly as on no contract (nothing valves on contract state)', before === undefined && typeof rec().lastDeliveryAt === 'number')
   const allowed = new Set([
     'src/daemon/sessionContract.ts',
-    'src/daemon/concourseSupervisor.ts',
+    'src/daemon/concourseWorkers.ts',
     'src/daemon/main.ts',
     'src/daemon/controlServer.ts',
     'src/daemon/protocol.ts',

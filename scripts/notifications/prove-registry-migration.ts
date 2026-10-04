@@ -10,7 +10,7 @@ const t = checker()
 const root = scratchRoot('registry-migration')
 
 const registry = (await import('../../src/utils/concurrentSessions.js')) as Record<string, unknown>
-const sup = await import('../../src/daemon/concourseSupervisor.js')
+const sup = await import('../../src/daemon/concourseWorkers.js')
 
 t.section('§1 — the vestigial halves are gone; the peer-enumeration surface remains')
 {
@@ -25,7 +25,7 @@ t.section('§1 — the vestigial halves are gone; the peer-enumeration surface r
   }
 }
 
-t.section('§2 — the live-count axis answers supervisor truth')
+t.section('§2 — the live-count axis answers daemon truth')
 {
   const dir = join(root, 'daemon')
   mkdirSync(dir, { recursive: true })

@@ -2,7 +2,7 @@
   "note": "legacy write-route ratchet — may only SHRINK",
   "publish": [
     "src/components/Feedback.tsx",
-    "src/daemon/concourseSupervisor.ts",
+    "src/daemon/concourseWorkers.ts",
     "src/daemon/dispatchDrain.ts",
     "src/daemon/ownedDaemon.ts",
     "src/daemon/processSweepRun.ts",
