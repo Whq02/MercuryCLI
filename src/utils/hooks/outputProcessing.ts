@@ -1,5 +1,6 @@
 
 import type { HookEvent, HookJSONOutput, SyncHookJSONOutput } from './contract.js'
+import { hookEventTable } from './contract.js'
 
 import { createAttachmentMessage } from '../attachments.js'
 import { logForDebugging } from '../debug.js'
@@ -185,124 +186,7 @@ export function processHookJSONOutput({
       )
     }
 
-    switch (json.hookSpecificOutput.hookEventName) {
-      case 'PreToolUse': {
-        const specific = json.hookSpecificOutput
-        if (specific.permissionDecision) {
-          switch (specific.permissionDecision) {
-            case 'allow':
-              result.permissionBehavior = 'allow'
-              break
-            case 'deny':
-              result.permissionBehavior = 'deny'
-              result.blockingError = {
-                blockingError:
-                  specific.permissionDecisionReason ||
-                  json.reason ||
-                  'Blocked by hook',
-                command,
-              }
-              break
-            case 'ask':
-              result.permissionBehavior = 'ask'
-              break
-            default:
-              throw new Error(
-                `Unknown hook permissionDecision type: ${specific.permissionDecision}. Valid types are: allow, deny, ask`,
-              )
-          }
-        }
-        result.hookPermissionDecisionReason =
-          specific.permissionDecisionReason ??
-          result.hookPermissionDecisionReason ??
-          (result.permissionBehavior !== undefined ? json.reason : undefined)
-        if (specific.updatedInput) {
-          result.updatedInput = specific.updatedInput
-        }
-        result.additionalContext = specific.additionalContext
-        break
-      }
-      case 'UserPromptSubmit':
-        result.additionalContext = json.hookSpecificOutput.additionalContext
-        break
-      case 'SessionStart':
-        result.additionalContext = json.hookSpecificOutput.additionalContext
-        result.initialUserMessage = json.hookSpecificOutput.initialUserMessage
-        if (
-          'watchPaths' in json.hookSpecificOutput &&
-          json.hookSpecificOutput.watchPaths
-        ) {
-          result.watchPaths = json.hookSpecificOutput.watchPaths
-        }
-        break
-      case 'Setup':
-        result.additionalContext = json.hookSpecificOutput.additionalContext
-        break
-      case 'SubagentStart':
-        result.additionalContext = json.hookSpecificOutput.additionalContext
-        break
-      case 'PostToolUse':
-        result.additionalContext = json.hookSpecificOutput.additionalContext
-        if (json.hookSpecificOutput.updatedMCPToolOutput) {
-          result.updatedMCPToolOutput =
-            json.hookSpecificOutput.updatedMCPToolOutput
-        }
-        break
-      case 'PostToolUseFailure':
-        result.additionalContext = json.hookSpecificOutput.additionalContext
-        break
-      case 'PermissionDenied':
-        result.retry = json.hookSpecificOutput.retry
-        break
-      case 'PermissionRequest':
-        if (json.hookSpecificOutput.decision) {
-          result.permissionRequestResult = json.hookSpecificOutput.decision
-          result.permissionBehavior =
-            json.hookSpecificOutput.decision.behavior === 'allow'
-              ? 'allow'
-              : 'deny'
-          if (
-            json.hookSpecificOutput.decision.behavior === 'allow' &&
-            json.hookSpecificOutput.decision.updatedInput
-          ) {
-            result.updatedInput = json.hookSpecificOutput.decision.updatedInput
-          }
-        }
-        break
-      case 'Elicitation':
-        if (json.hookSpecificOutput.action) {
-          result.elicitationResponse = {
-            action: json.hookSpecificOutput.action,
-            content: json.hookSpecificOutput.content as
-              | ElicitationResponse['content']
-              | undefined,
-          }
-          if (json.hookSpecificOutput.action === 'decline') {
-            result.blockingError = {
-              blockingError: json.reason || 'Elicitation denied by hook',
-              command,
-            }
-          }
-        }
-        break
-      case 'ElicitationResult':
-        if (json.hookSpecificOutput.action) {
-          result.elicitationResultResponse = {
-            action: json.hookSpecificOutput.action,
-            content: json.hookSpecificOutput.content as
-              | ElicitationResponse['content']
-              | undefined,
-          }
-          if (json.hookSpecificOutput.action === 'decline') {
-            result.blockingError = {
-              blockingError:
-                json.reason || 'Elicitation result blocked by hook',
-              command,
-            }
-          }
-        }
-        break
-    }
+    Object.assign(result, hookEventTable[json.hookSpecificOutput.hookEventName].reduceSpecific?.(json, command, result))
   }
 
   return {
