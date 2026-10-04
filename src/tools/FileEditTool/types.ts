@@ -8,8 +8,9 @@ import { semanticBoolean } from '../../utils/semanticBoolean.js'
 
 
 const FILE_PATH_DESCRIPTION = 'The absolute path to the file to modify'
-const OLD_STRING_DESCRIPTION = 'The text to replace'
-const NEW_STRING_DESCRIPTION = 'The text to replace it with (must be different from old_string)'
+const OLD_STRING_DESCRIPTION = 'The text to replace (always sent together with new_string)'
+const NEW_STRING_DESCRIPTION =
+  'The text to replace it with (must be different from old_string; required whenever old_string is sent — "" deletes the text)'
 const REPLACE_ALL_DESCRIPTION = 'Replace all occurences of old_string (default false)'
 const EXPECTED_ANCHOR_DESCRIPTION =
   'The staleness anchor from your most recent Read of this file — carry the parenthesised "(anchor: …)" value across exactly'
@@ -40,19 +41,79 @@ const hunkEntrySchema = () =>
       .describe('Insert relative to the single anchor line instead of replacing it'),
   })
 
+const STRING_SHAPE = { type: 'string' } as const
+
+export const EDIT_SHAPE_DESCRIPTIONS = {
+  replace: 'Replace old_string with new_string: both are required in this shape (replace_all rewrites every occurrence)',
+  hunks: 'Line-addressed hunks against the anchored snapshot',
+  append: 'Append text at the end of the file, or at the end of section',
+  section: 'Replace the Markdown section named by section with new_string',
+} as const
+
+export const editShapes = () => [
+  {
+    description: EDIT_SHAPE_DESCRIPTIONS.replace,
+    type: 'object',
+    properties: {
+      file_path: STRING_SHAPE,
+      old_string: STRING_SHAPE,
+      new_string: STRING_SHAPE,
+      replace_all: { type: 'boolean' },
+      expected_anchor: STRING_SHAPE,
+    },
+    required: ['file_path', 'old_string', 'new_string'],
+    additionalProperties: false,
+  },
+  {
+    description: EDIT_SHAPE_DESCRIPTIONS.hunks,
+    type: 'object',
+    properties: {
+      file_path: STRING_SHAPE,
+      hunks: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: { lines: STRING_SHAPE, replace: STRING_SHAPE, insert: { type: 'string', enum: ['before', 'after'] } },
+          required: ['lines', 'replace'],
+          additionalProperties: false,
+        },
+      },
+      expected_anchor: STRING_SHAPE,
+    },
+    required: ['file_path', 'hunks'],
+    additionalProperties: false,
+  },
+  {
+    description: EDIT_SHAPE_DESCRIPTIONS.append,
+    type: 'object',
+    properties: { file_path: STRING_SHAPE, append: STRING_SHAPE, section: STRING_SHAPE },
+    required: ['file_path', 'append'],
+    additionalProperties: false,
+  },
+  {
+    description: EDIT_SHAPE_DESCRIPTIONS.section,
+    type: 'object',
+    properties: { file_path: STRING_SHAPE, section: STRING_SHAPE, new_string: STRING_SHAPE, expected_anchor: STRING_SHAPE },
+    required: ['file_path', 'section', 'new_string'],
+    additionalProperties: false,
+  },
+]
+
 const widestSchemaFactory = () =>
-  z.strictObject({
-    file_path: z.string().describe(FILE_PATH_DESCRIPTION),
-    old_string: z.string().optional().describe(OLD_STRING_DESCRIPTION),
-    new_string: z.string().optional().describe(NEW_STRING_DESCRIPTION),
-    replace_all: semanticBoolean(z.boolean().optional().default(false)).describe(
-      REPLACE_ALL_DESCRIPTION,
-    ),
-    expected_anchor: z.string().optional().describe(EXPECTED_ANCHOR_DESCRIPTION),
-    hunks: z.array(hunkEntrySchema()).optional().describe(hunksDescription()),
-    append: z.string().optional().describe(APPEND_DESCRIPTION),
-    section: z.string().optional().describe(SECTION_DESCRIPTION),
-  })
+  z
+    .strictObject({
+      file_path: z.string().describe(FILE_PATH_DESCRIPTION),
+      old_string: z.string().optional().describe(OLD_STRING_DESCRIPTION),
+      new_string: z.string().optional().describe(NEW_STRING_DESCRIPTION),
+      replace_all: semanticBoolean(z.boolean().optional().default(false)).describe(
+        REPLACE_ALL_DESCRIPTION,
+      ),
+      expected_anchor: z.string().optional().describe(EXPECTED_ANCHOR_DESCRIPTION),
+      hunks: z.array(hunkEntrySchema()).optional().describe(hunksDescription()),
+      append: z.string().optional().describe(APPEND_DESCRIPTION),
+      section: z.string().optional().describe(SECTION_DESCRIPTION),
+    })
+    .meta({ anyOf: editShapes() })
 
 const stockSchemaFactory = () =>
   z.strictObject({
