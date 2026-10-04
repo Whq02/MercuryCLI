@@ -12,13 +12,12 @@ import {
   SKIP_PRECOMPACT_THRESHOLD,
 } from '../sessionStoragePortable.js'
 import {
-  applyPreservedSegmentRelinks,
-  applySnipRemovals,
   buildConversationChain,
   findLatestMessage,
   removeExtraFields,
 } from './chain.js'
-import { applyTranscriptEntry, emptyFoldState, type TranscriptFoldState } from './fold.js'
+import { applyTranscriptEntry, emptyFoldState, finishTranscriptFold, type TranscriptFoldState } from './fold.js'
+import { transcriptRows } from './rowGraph.js'
 import { isTranscriptMessage } from './paths.js'
 import {
   resumeSnapshotEnabled,
@@ -297,7 +296,6 @@ function growthRead(state: ReaderState): TranscriptRead | null {
     const decoded = decodeTranscriptBuffer<Entry>(complete)
     if (decoded.refusal) return reset(state, 'a line outside the record format landed')
     const malformed = decoded.malformed.length
-    let sawSystem = false
     for (const entry of decoded.entries) {
       if (
         state.pruned &&
@@ -308,13 +306,9 @@ function growthRead(state: ReaderState): TranscriptRead | null {
       ) {
         return reset(state, 'a row parents onto a pruned branch')
       }
-      if (entry.type === 'system') sawSystem = true
       applyTranscriptEntry(state.fold, entry)
     }
-    if (sawSystem) {
-      applyPreservedSegmentRelinks(state.fold.messages)
-      applySnipRemovals(state.fold.messages)
-    }
+    finishTranscriptFold(state.fold)
     accounting = { malformed, invalid: decoded.invalid.length, totalLines: decoded.totalLines }
     if (malformed > 0 || accounting.invalid > 0) {
       logError(
@@ -510,8 +504,7 @@ async function coldRead(path: string, policy: TranscriptReadPolicy): Promise<{ s
   }
 
   if (state.refusal === null) {
-    applyPreservedSegmentRelinks(state.fold.messages)
-    applySnipRemovals(state.fold.messages)
+    finishTranscriptFold(state.fold)
     if (!snapshotCovered && policy === 'resume' && resumeSnapshotEnabled() && offset >= SNAPSHOT_MIN_BYTES) {
       writeResumeSnapshot(path, state.fold, offset)
       wroteSnapshot = true
@@ -730,37 +723,7 @@ function decodeLineByLine(whole: Buffer): DecodedTranscript<Entry> {
 
 
 export function computeResumeLeaves(messages: Map<UUID, TranscriptMessage>): Set<UUID> {
-  const allMessages = [...messages.values()]
-
-  const parentUuids = new Set(
-    allMessages.map(msg => msg.parentUuid).filter((uuid): uuid is UUID => uuid !== null),
-  )
-  const terminalMessages = allMessages.filter(msg => !parentUuids.has(msg.uuid))
-
-  const leafUuids = new Set<UUID>()
-  let hasCycle = false
-  for (const terminal of terminalMessages) {
-    const seen = new Set<UUID>()
-    let current: TranscriptMessage | undefined = terminal
-    while (current) {
-      if (seen.has(current.uuid)) {
-        hasCycle = true
-        break
-      }
-      seen.add(current.uuid)
-      if (current.type === 'user' || current.type === 'assistant') {
-        leafUuids.add(current.uuid)
-        break
-      }
-      current = current.parentUuid ? messages.get(current.parentUuid) : undefined
-    }
-  }
-
-  if (hasCycle) {
-    logForDebugging('cycle detected during resume-leaf computation', { level: 'warn' })
-  }
-
-  return leafUuids
+  return transcriptRows(messages).resumeLeaves()
 }
 
 export function _resetTranscriptReaderForTesting(): void {
