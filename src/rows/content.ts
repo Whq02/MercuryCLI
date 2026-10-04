@@ -68,3 +68,10 @@ export function resultsFirst(content: StoredBlock[]): StoredBlock[] {
   for (const block of content) (contentItemOf(block).type === 'tool_result' ? results : rest).push(block)
   return [...results, ...rest]
 }
+
+export function hasTextContent(content: unknown): boolean {
+  return storedBlocksOf(content).some(value => {
+    const block = value as { type?: unknown; text?: unknown } | null
+    return block?.type === 'text' && typeof block.text === 'string' && block.text !== ''
+  })
+}
