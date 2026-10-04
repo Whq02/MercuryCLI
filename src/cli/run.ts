@@ -1601,7 +1601,7 @@ export async function runHeadless(
       leadSettle.wake?.()
       disarmAgentFreshness()
       stopDrainedNotificationFrames()
-      stopIdleSdkDrain()
+      stopSdkDrain()
       statusListeners.delete(rateLimitListener)
       noteRunPhase('flush_exit')
       logForDebugging(`[run-phases] ${jsonStringify(runPhaseReport(getTotalAPIDuration()))}`)
@@ -1632,9 +1632,8 @@ export async function runHeadless(
     wall: () => sessionLaneWall(),
   })
 
-  const stopIdleSdkDrain = subscribeRows(() => {
-    if (driver.isRunning()) return
-    for (const row of drainRows()) enqueueRow(row)
+  const stopSdkDrain = subscribeRows(() => {
+    for (const row of drainRows()) enqueueRow({ ...row, ...(currentTurn !== null ? { turn: currentTurn } : {}) } as RowDraft)
   })
   subscribeToCommandQueue(() => {
     const queued = getCommandQueue()
