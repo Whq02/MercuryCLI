@@ -95,7 +95,7 @@ section('OPENAI-COMPATIBLE CHAT — a virtual row (the family-lane wire truth, r
   const rows = bridgeRows(withVirtual)
   const body = mapMessagesToZai(undefined, rows as never)
   const wire = canonicalJson(body)
-  check('RECORDED TRUTH (base): the virtual row RIDES the chat wire as an assistant row — the plan must keep these bytes until a bug is named', wire.includes('a display-only row'), wire.slice(0, 260))
+  check('the shared request plan keeps a display-only virtual row off the chat wire', !wire.includes('a display-only row'), wire.slice(0, 260))
 }
 
 section('LOCAL (Ollama) — the /api/chat body over the fixture conversation')

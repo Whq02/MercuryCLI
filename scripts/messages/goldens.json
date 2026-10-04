@@ -16474,12 +16474,11 @@
   },
   {
    "isApiErrorMessage": false,
-   "isVirtual": true,
    "message": {
     "container": null,
     "content": [
      {
-      "text": "display-only",
+      "text": "api-visible reply",
       "type": "text"
      }
     ],
@@ -16512,46 +16511,6 @@
    "timestamp": "«ts»",
    "type": "assistant",
    "uuid": "«u3»"
-  },
-  {
-   "isApiErrorMessage": false,
-   "message": {
-    "container": null,
-    "content": [
-     {
-      "text": "api-visible reply",
-      "type": "text"
-     }
-    ],
-    "context_management": null,
-    "id": "«u4»",
-    "model": "<synthetic>",
-    "role": "assistant",
-    "stop_reason": "stop_sequence",
-    "stop_sequence": "",
-    "type": "message",
-    "usage": {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 0,
-     "inference_geo": null,
-     "input_tokens": 0,
-     "iterations": null,
-     "output_tokens": 0,
-     "server_tool_use": {
-      "web_fetch_requests": 0,
-      "web_search_requests": 0
-     },
-     "service_tier": null,
-     "speed": null
-    }
-   },
-   "timestamp": "«ts»",
-   "type": "assistant",
-   "uuid": "«u5»"
   }
  ],
  "healWalkableForWire/multiBlock": [
@@ -17244,12 +17203,11 @@
   },
   {
    "isApiErrorMessage": false,
-   "isVirtual": true,
    "message": {
     "container": null,
     "content": [
      {
-      "text": "display-only",
+      "text": "api-visible reply",
       "type": "text"
      }
     ],
@@ -17282,46 +17240,6 @@
    "timestamp": "«ts»",
    "type": "assistant",
    "uuid": "«u25»"
-  },
-  {
-   "isApiErrorMessage": false,
-   "message": {
-    "container": null,
-    "content": [
-     {
-      "text": "api-visible reply",
-      "type": "text"
-     }
-    ],
-    "context_management": null,
-    "id": "«u26»",
-    "model": "<synthetic>",
-    "role": "assistant",
-    "stop_reason": "stop_sequence",
-    "stop_sequence": "",
-    "type": "message",
-    "usage": {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 0,
-     "inference_geo": null,
-     "input_tokens": 0,
-     "iterations": null,
-     "output_tokens": 0,
-     "server_tool_use": {
-      "web_fetch_requests": 0,
-      "web_search_requests": 0
-     },
-     "service_tier": null,
-     "speed": null
-    }
-   },
-   "timestamp": "«ts»",
-   "type": "assistant",
-   "uuid": "«u27»"
   }
  ],
  "orderToolResultsByUse/basic": [
@@ -17958,12 +17876,11 @@
   },
   {
    "isApiErrorMessage": false,
-   "isVirtual": true,
    "message": {
     "container": null,
     "content": [
      {
-      "text": "display-only",
+      "text": "api-visible reply",
       "type": "text"
      }
     ],
@@ -17996,46 +17913,6 @@
    "timestamp": "«ts»",
    "type": "assistant",
    "uuid": "«u3»"
-  },
-  {
-   "isApiErrorMessage": false,
-   "message": {
-    "container": null,
-    "content": [
-     {
-      "text": "api-visible reply",
-      "type": "text"
-     }
-    ],
-    "context_management": null,
-    "id": "«u4»",
-    "model": "<synthetic>",
-    "role": "assistant",
-    "stop_reason": "stop_sequence",
-    "stop_sequence": "",
-    "type": "message",
-    "usage": {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 0,
-     "inference_geo": null,
-     "input_tokens": 0,
-     "iterations": null,
-     "output_tokens": 0,
-     "server_tool_use": {
-      "web_fetch_requests": 0,
-      "web_search_requests": 0
-     },
-     "service_tier": null,
-     "speed": null
-    }
-   },
-   "timestamp": "«ts»",
-   "type": "assistant",
-   "uuid": "«u5»"
   }
  ],
  "orderToolResultsByUse/multiBlock": [
@@ -18728,12 +18605,11 @@
   },
   {
    "isApiErrorMessage": false,
-   "isVirtual": true,
    "message": {
     "container": null,
     "content": [
      {
-      "text": "display-only",
+      "text": "api-visible reply",
       "type": "text"
      }
     ],
@@ -18766,46 +18642,6 @@
    "timestamp": "«ts»",
    "type": "assistant",
    "uuid": "«u25»"
-  },
-  {
-   "isApiErrorMessage": false,
-   "message": {
-    "container": null,
-    "content": [
-     {
-      "text": "api-visible reply",
-      "type": "text"
-     }
-    ],
-    "context_management": null,
-    "id": "«u26»",
-    "model": "<synthetic>",
-    "role": "assistant",
-    "stop_reason": "stop_sequence",
-    "stop_sequence": "",
-    "type": "message",
-    "usage": {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 0,
-     "inference_geo": null,
-     "input_tokens": 0,
-     "iterations": null,
-     "output_tokens": 0,
-     "server_tool_use": {
-      "web_fetch_requests": 0,
-      "web_search_requests": 0
-     },
-     "service_tier": null,
-     "speed": null
-    }
-   },
-   "timestamp": "«ts»",
-   "type": "assistant",
-   "uuid": "«u27»"
   }
  ],
  "isUnsignedThinkingBlock/unsigned-empty-sig": true,

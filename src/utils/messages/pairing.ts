@@ -5,13 +5,12 @@ import { getStrictToolResultPairing } from '../../bootstrap/state.js'
 import { NO_CONTENT_MESSAGE } from '../../constants/messages.js'
 import type {
   AssistantMessage,
-  AttachmentMessage,
-  SystemLocalCommandMessage,
+  Message,
   ToolUseSummaryMessage,
   UserMessage,
 } from '../../types/message.js'
 import { logError } from '../log.js'
-import { normalizeAttachmentForAPI } from './attachmentText.js'
+import { requestConversationPlan } from './apiPlan.js'
 import { contentBlocksOf } from './normalize.js'
 import { createUserMessage } from './factories.js'
 import { SYNTHETIC_TOOL_RESULT_PLACEHOLDER } from './rejectionText.js'
@@ -335,36 +334,6 @@ export function foldSplitTurnsForWire(
   return out
 }
 
-function projectEnvelopeRowsForWire(
-  messages: readonly { type: string }[],
-): (UserMessage | AssistantMessage)[] {
-  const out: (UserMessage | AssistantMessage)[] = []
-  for (const m of messages) {
-    if (m.type === 'user' || m.type === 'assistant') {
-      out.push(m as UserMessage | AssistantMessage)
-      continue
-    }
-    if (m.type === 'attachment' && 'attachment' in m) {
-      out.push(...normalizeAttachmentForAPI((m as AttachmentMessage).attachment))
-      continue
-    }
-    if (
-      m.type === 'system' &&
-      (m as { subtype?: string }).subtype === 'local_command'
-    ) {
-      const sys = m as SystemLocalCommandMessage
-      out.push(
-        createUserMessage({
-          content: sys.content,
-          uuid: sys.uuid,
-          timestamp: sys.timestamp,
-        }),
-      )
-      continue
-    }
-  }
-  return out
-}
 
 function repairResultAdjacency(
   rows: (UserMessage | AssistantMessage)[],
@@ -451,8 +420,7 @@ function repairResultAdjacency(
 export function healWalkableForWire(
   messages: readonly { type: string }[],
 ): (UserMessage | AssistantMessage)[] {
-  const projected = projectEnvelopeRowsForWire(messages)
-  return pairConversationMessages(projected, 'split')
+  return requestConversationPlan(messages as readonly Message[], [], 'family').messages
 }
 
 export function orderToolResultsByUse(
