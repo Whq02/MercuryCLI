@@ -254,7 +254,7 @@ export const WaitRowSchema = lazySchema(() =>
     ...envelopeFields,
     state: z.enum(['first_byte', 'retry', 'silence', 'loading', 'done']),
     cold: z.boolean().optional(),
-    prompt_tokens: z.number().optional(),
+    prompt_tokens_estimate: z.number().optional(),
     model: z.string().optional(),
     budget_ms: z.number().optional(),
     since_ms: z.number().optional(),

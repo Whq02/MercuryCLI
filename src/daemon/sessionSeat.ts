@@ -654,7 +654,7 @@ function seatWaitOf(row: SeatRow): RequestWaitV1 | null {
     return decodeRequestWait({
       kind: 'first-byte',
       cold: row.cold === true,
-      promptTokens: num(row.prompt_tokens) ?? 0,
+      promptTokens: num(row.prompt_tokens_estimate) ?? 0,
       model: typeof row.model === 'string' ? row.model : '',
       budgetMs: num(row.budget_ms) ?? 0,
       sinceMs: num(row.since_ms) ?? 0,
