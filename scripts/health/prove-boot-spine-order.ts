@@ -91,7 +91,7 @@ console.log('— the canonical order (a later boot, distinct pid, appended to th
     `action=${actionAt} entry=${entryAt} validations=${validationsAt}`,
   )
   check('the stamp exists exactly once', main.split("recordLaunchMilestone('runtime-entry',").length === 2)
-  check("the entry rung carries the boot's kind — headless for run, interactive otherwise", main.includes("recordLaunchMilestone('runtime-entry', { boot: opts.runMode ? 'headless' : 'interactive' })"))
+  check("the entry rung carries the boot's kind as the dispatch reads it — a run, a prepare-only start or a redirected stdout is headless, a terminal is interactive", main.includes("recordLaunchMilestone('runtime-entry', { boot: getIsInteractive() ? 'interactive' : 'headless' })"))
 }
 
 console.log('— a headless run after the interactive boot (/health\'s own run road) —')

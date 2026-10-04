@@ -1092,7 +1092,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     process.exit(0)
   }
   try {
-    recordLaunchMilestone('runtime-entry', { boot: opts.runMode ? 'headless' : 'interactive' })
+    recordLaunchMilestone('runtime-entry', { boot: getIsInteractive() ? 'interactive' : 'headless' })
   } catch {
   }
   const cliName = binaryName()
