@@ -19,6 +19,8 @@ import wrapText from '../../ink/wrap-text.js'
 import { getFocusedWorkspaceCwd } from '../../hooks/useFocusedWorkspaceCwd.js'
 import { useAppState, useSetAppState, type AppState } from '../../state/AppState.js'
 import { getGlobalConfigCacheStamp, subscribeGlobalConfigCache } from '../../utils/config/globalConfig.js'
+import { getEffectivePermissionMode } from '../../utils/config/derived.js'
+import { describeSessionPermissionMode } from '../../utils/permissions/permissionSetup.js'
 import {
   EDITOR_MODES,
   getGlobalConfig,
@@ -419,6 +421,8 @@ export function Config({
     permissions.mode,
     'default',
   )
+  const sessionMode = getEffectivePermissionMode(appState.toolPermissionContext.mode)
+  const sessionModeDiffers = sessionMode.source !== 'session-choice' && sessionMode.mode !== defaultMode
   const modeOptions: ReadonlyArray<(typeof PERMISSION_MODES)[number]> = ['default', 'implement', 'apollo', 'flow', 'dontAsk']
 
   const boolValue = (on: boolean): React.ReactNode => (
@@ -780,7 +784,15 @@ export function Config({
     id: 'defaultPermissionMode',
     label: 'Default permission mode',
     kind: 'enum',
-    value: <Text>{permissionModeTitle(defaultMode)}</Text>,
+    value: sessionModeDiffers ? (
+      <Text>
+        {permissionModeTitle(defaultMode)}
+        <Text color={tokens.textSecondary}> · this session: {permissionModeTitle(sessionMode.mode)}</Text>
+      </Text>
+    ) : (
+      <Text>{permissionModeTitle(defaultMode)}</Text>
+    ),
+    warning: sessionModeDiffers ? `this session: ${describeSessionPermissionMode(sessionMode)}; the saved switch governs the next boot, never this one` : undefined,
     change: direction => {
       const next = cycleIn(modeOptions, defaultMode, direction)
       if (
