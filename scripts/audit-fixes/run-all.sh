@@ -7,6 +7,7 @@ here="$(cd "$(dirname "$0")" && pwd)"
 root="$here/../.."
 bun="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
+prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
 ok() { echo "  ✓ $1"; }
 no() { echo "  ✗ $1"; fail=1; }
 has() { grep -qF -- "$2" "$root/$1" && ok "$3" || no "$3 (missing in $1)"; }
@@ -30,7 +31,7 @@ has src/utils/effort.ts 'String(v).trim().toLowerCase()' 'parseEffortValue trims
 res=$("$bun" -e "import('$root/src/utils/effort.js').then(m=>console.log(m.parseEffortValue('  high ')==='high'?'OK':'BAD')).catch(e=>console.log('LOADERR'));" 2>&1 | tail -1)
 [ "$res" = "OK" ] && ok "parseEffortValue('  high ') === 'high' (behavioral)" || { [ "$res" = "LOADERR" ] && ok "effort behavioral skipped (unloadable)" || no "effort trim behavioral: $res"; }
 has src/utils/argumentSubstitution.ts 'escapeForRegExp(name)' 'argument name regex-escaped before new RegExp'
-"$bun" "$here/prove-reversed-mention-range.ts" || fail=1
+__t=$SECONDS; __rc=0; "$bun" "$here/prove-reversed-mention-range.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-reversed-mention-range.ts" "$__t" "$__rc"
 
 has src/daemon/roster.ts 'this.reapSettled(32)' 'roster dispatch reaps settled handles (32-tail); reapSettled had ZERO callers'
 has src/utils/crew/handoff.ts 'filtered.slice(filtered.length - 200)' 'handoffs.json bounded to the newest 200'
