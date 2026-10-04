@@ -210,7 +210,7 @@ section('§H the pick sites consume the plan (wiring anchors)')
   const ROOT = join(import.meta.dir, '..', '..')
   for (const rel of [
     'src/commands/model/mercuryModel.tsx',
-    'src/components/PromptInput/PromptInput.tsx',
+    'src/components/PromptInput/useComposerModelDoors.tsx',
     'src/commands/model/model.tsx',
   ]) {
     const src = readFileSync(join(ROOT, rel), 'utf8')
