@@ -863,7 +863,7 @@ function MessagesInner({
       ) : null}
       {
 }
-      <FoldStatusRow rows={visible as unknown as readonly FoldLandingRowFacts[]} />
+      {suppressNotices ? null : <FoldStatusRow rows={visible as unknown as readonly FoldLandingRowFacts[]} />}
       {liveReceipt !== null ? renderRow(liveReceipt, visible.length) : null}
       {afterRows.map((message, index) => (
         <React.Fragment key={itemKey(message)}>{renderRowIn(afterRows, message, index)}</React.Fragment>
