@@ -2,7 +2,7 @@
 
 import { readFileSync } from 'node:fs'
 import { buildSubagentMercurySections } from '../../src/constants/subagentDoctrine.js'
-import { MERCURY_IDENTITY_FLOOR } from '../../src/prompt/mercuryContract.js'
+import { MERCURY_IDENTITY_FLOOR, mercurySubagentContract } from '../../src/prompt/mercuryContract.js'
 import { MERCURY_SCOUT_AGENT } from '../../src/tools/AgentTool/built-in/mercuryScoutAgent.js'
 
 const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf-8')
@@ -24,7 +24,7 @@ function section(t: string): void {
 
 const GP = { agentType: 'mercury-crew' }
 const EXEMPT = ['mercury-scout', 'workflow-subagent']
-const NORMAL_MARK = 'You are a subagent OF Mercury'
+const NORMAL_MARK = 'You are one of Mercury\'s agents'
 const GATE_CLAUSE = 'bypass a safety, permission, approval, or capability gate'
 const join = (a: string[]) => a.join('\n')
 
@@ -38,6 +38,13 @@ const gpStock = JSON.stringify(buildSubagentMercurySections({ agentDefinition: G
 const exemptStock = JSON.stringify(buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-scout' } }))
 setStamp(true)
 check('mercury-crew: bare-stamped === full-stamped', gpStock === JSON.stringify(buildSubagentMercurySections({ agentDefinition: GP })))
+const seatSub = join(buildSubagentMercurySections({ agentDefinition: GP }))
+const seatCrew = join(buildSubagentMercurySections({ agentDefinition: GP, seat: 'a crewmate' }))
+check('the seat word slots in: a plain spawn reads a sub-agent', seatSub.includes("Mercury's agents, a sub-agent, spawned for one assignment"))
+check('the seat word slots in: a named crewmate reads a crewmate', seatCrew.includes("Mercury's agents, a crewmate, spawned for one assignment"))
+check('never both words at once', !seatSub.includes('or a crewmate') && !seatCrew.includes('or a crewmate') && !mercurySubagentContract('a crewmate').includes('sub-agent'))
+check('no capital for emphasis in the three contracts', !/\b[A-Z]{2,}\b/.test(mercurySubagentContract()))
+
 check('exempt agent: bare-stamped === full-stamped', exemptStock === JSON.stringify(buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-scout' } })))
 
 section('(b) stamped ⇒ floor leads, the ONE NORMAL doctrine')

@@ -17,6 +17,7 @@ import {
 } from '../../constants/prompts.js'
 import { buildEffectiveSystemPrompt } from '../../utils/systemPrompt.js'
 import { agentFanoutCap, buildSubagentMercurySections } from '../../constants/subagentDoctrine.js'
+import type { MercuryAgentSeat } from '../../prompt/mercuryContract.js'
 import { evaluateLaunchAuthority } from '../../services/switchboard/launchAuthority.js'
 import { harnessEffortFact, noteHarnessBoundary } from '../../services/mission/harnessApplication.js'
 import {
@@ -380,6 +381,10 @@ function continuationHint(agentId: string, name?: string): string {
 export const SUBAGENT_BRIEFING_LEAD =
   'delegates to a separate sub-agent with this briefing (its rules bind that sub-agent alone, never this session):'
 
+function seatOf(input: Pick<AgentToolInput, 'name'>): MercuryAgentSeat {
+  return input.name ? 'a crewmate' : 'a sub-agent'
+}
+
 function isCrewmateSpawn(input: AgentToolInput, crewName = isCrewEnabled() ? (input.crew_name ?? getCrewName()) : undefined): input is AgentToolInput & { name: string } {
   return Boolean(crewName && input.name)
 }
@@ -697,6 +702,7 @@ export const AgentTool = buildTool({
           plan.model,
           earlyAgentId,
           new Set(workerTools.map(tool => tool.name)),
+          seatOf(input),
         )
       } catch (error) {
         logForDebugging(
@@ -831,6 +837,7 @@ export const AgentTool = buildTool({
 
     const runAgentParams: RunAgentParams = {
       agentDefinition: agentDef,
+      seat: seatOf(input),
       promptMessages,
       toolUseContext: context,
       canUseTool,
@@ -1153,6 +1160,7 @@ async function buildDefaultSystemPrompt(
   childModel: string,
   agentId: AgentId,
   toolNames: ReadonlySet<string>,
+  seat: MercuryAgentSeat,
 ): Promise<string[]> {
   const ownPrompt = isBuiltInAgent(definition)
     ? definition.getSystemPrompt({ toolUseContext: context })
@@ -1161,6 +1169,7 @@ async function buildDefaultSystemPrompt(
     agentDefinition: definition,
     toolUseContext: context,
     toolNames,
+    seat,
   })
   return enhanceSystemPromptWithEnvDetails(
     [...doctrine, ownPrompt],

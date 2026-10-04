@@ -98,6 +98,7 @@ import {
 import { modelSupportsAdaptiveThinking } from '../../utils/thinking.js'
 import type { ContentReplacementState } from '../../utils/toolResultStorage.js'
 import { buildSubagentMercurySections } from '../../constants/subagentDoctrine.js'
+import type { MercuryAgentSeat } from '../../prompt/mercuryContract.js'
 import type { AgentDefinition, AgentMcpServerSpec } from './loadAgentsDir.js'
 import { isBuiltInAgent } from './loadAgentsDir.js'
 import { REVIEW_BRIEF, canonicalReviewerReceipt, restrictReviewerTools, reviewerRefusal } from './reviewerPolicy.js'
@@ -151,6 +152,7 @@ export type RunAgentParams = {
   canUseTool: CanUseToolFn
   isAsync: boolean
   agentKind?: 'crewmate' | 'workflow'
+  seat?: MercuryAgentSeat
   canShowPermissionPrompts?: boolean
   forkContextMessages?: Message[]
   querySource: QuerySource
@@ -397,6 +399,7 @@ async function buildAgentSystemPrompt(
   resolvedAgentModel: string,
   enabledToolNames: ReadonlySet<string>,
   agentId: AgentId,
+  seat: MercuryAgentSeat,
 ): Promise<string[]> {
   let ownPrompt: string
   try {
@@ -413,6 +416,7 @@ async function buildAgentSystemPrompt(
     agentDefinition: definition,
     toolUseContext,
     toolNames: enabledToolNames,
+    seat,
   })
   return enhanceSystemPromptWithEnvDetails(
     [...doctrine, ownPrompt],
@@ -552,6 +556,7 @@ export async function* runAgent(
     canUseTool,
     isAsync,
     agentKind = 'crewmate',
+    seat = 'a sub-agent',
     canShowPermissionPrompts,
     forkContextMessages,
     querySource,
@@ -900,6 +905,7 @@ export async function* runAgent(
         resolvedAgentModel,
         enabledToolNames,
         agentId,
+        seat,
       ))
     if (reviewReceipt !== undefined) systemPrompt.push(REVIEW_BRIEF, `Your declared review receipt is ${reviewReceipt}. Only its Review section is editable. Run bun verification under scripts, bash suite runners, or bun run typecheck in the frozen worktree; a with-box-lock.sh wrapper with a literal temporary BASE is accepted. Verification commands have a fresh temporary home and filesystem confinement: sources and the report are read-only, temporary results are writable. Ordinary permission checks still apply; unavailable confinement refuses without running.`)
     if (structuredOutputSpec !== undefined) {

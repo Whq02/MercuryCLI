@@ -102,7 +102,7 @@ section('§7 — one shared doctrine: role discipline + the handoff packet')
   ]) {
     check(`handoff packet carries "${line.split(':')[0]}"`, addendum.includes(line))
   }
-  check('lead owns synthesis (conclusions + evidence, never transcripts)', addendum.includes('The LEAD owns synthesis'))
+  check('lead owns synthesis (conclusions + evidence, never transcripts)', addendum.includes('The lead owns synthesis'))
   check('role specialization stays real (scout/architect/implementer/verifier)', addendum.includes('a scout maps evidence'))
   check('loyalty defined as outcome-faithful candor', addendum.includes("faithful to the operator's intended OUTCOME"))
 }
