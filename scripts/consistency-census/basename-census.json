@@ -10,7 +10,7 @@
     ".mercury.json"
   ],
   "counts": {
-    "owner-internal": 4,
+    "owner-internal": 5,
     "guide-probe": 14,
     "own-guard": 6,
     "baked-mirror": 3
@@ -155,6 +155,13 @@
       "excerpt": "return join(getManagedFilePath(), '.mercury', 'rules')",
       "cls": "baked-mirror",
       "why": "the MANAGED estate projection (the managed root mirrors the canonical .mercury layout)"
+    },
+    {
+      "file": "src/utils/env.ts",
+      "needle": ".mercury.json",
+      "excerpt": "return join(home, '.mercury.json')",
+      "cls": "owner-internal",
+      "why": "the config-home monolith family — the home resolver owns the home basenames"
     },
     {
       "file": "src/utils/envUtils.ts",
