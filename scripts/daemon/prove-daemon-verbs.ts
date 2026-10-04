@@ -32,6 +32,13 @@ section('(1) the grammar')
   check('the usage carries no --keep and no --any', !DAEMON_USAGE.includes('--keep') && !DAEMON_USAGE.includes('--any'), stopRow)
   check("the usage's stop row says every worker stops with the daemon, never that any survives", /every session process it runs \(every worker\) stops with it/.test(stopRow) && !/leaves? [^\n]*running|surviv|stay alive|keep running|live on|skips that reap/i.test(stopRow), stopRow)
   check('restart', parseDaemonVerb(['restart'], noDir).kind === 'restart')
+  for (const verb of ['run', 'status', 'stop', 'restart']) {
+    check(`${verb} --help ⇒ help (never the daemon)`, parseDaemonVerb([verb, '--help'], noDir).kind === 'help' && parseDaemonVerb([verb, '-h'], noDir).kind === 'help')
+  }
+  const runFlag = parseDaemonVerb(['run', '--frobnicate'], noDir)
+  check('run --frobnicate is REFUSED as an unknown flag, never a scheduling directory', runFlag.kind === 'unknown-flag' && runFlag.verb === 'run' && runFlag.word === '--frobnicate', JSON.stringify(runFlag))
+  const statusFlag = parseDaemonVerb(['status', '--json'], noDir)
+  check('status takes no flags', statusFlag.kind === 'unknown-flag' && statusFlag.verb === 'status')
   for (const spelling of ['help', '--help', '-h']) {
     check(`${spelling} ⇒ help (never the daemon)`, parseDaemonVerb([spelling], noDir).kind === 'help')
   }

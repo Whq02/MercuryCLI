@@ -180,7 +180,11 @@ export async function daemonMain(args: string[]): Promise<void> {
       return
     case 'unknown-flag':
       // eslint-disable-next-line no-console
-      console.error(`mercury daemon ${verb.verb}: unknown flag '${verb.word}' — stop takes no flags: it ends the daemon and reaps every in-flight worker. Run \`mercury daemon stop\` bare, or \`mercury daemon restart\` to re-execute the daemon once its live sessions finish\n${DAEMON_USAGE}`)
+      console.error(
+        verb.verb === 'stop'
+          ? `mercury daemon stop: unknown flag '${verb.word}' — stop takes no flags: it ends the daemon and reaps every in-flight worker. Run \`mercury daemon stop\` bare, or \`mercury daemon restart\` to re-execute the daemon once its live sessions finish\n${DAEMON_USAGE}`
+          : `mercury daemon ${verb.verb}: unknown flag '${verb.word}'\n${DAEMON_USAGE}`,
+      )
       process.exitCode = 1
       return
     case 'run':
