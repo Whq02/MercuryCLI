@@ -19,6 +19,14 @@ export function getFocusedWorkspaceCwd(): string {
   return getFocusedSessionConnector().workspace().cwd
 }
 
+export function getFocusedWorkspaceOriginalCwd(): string {
+  return getFocusedSessionConnector().workspace().originalCwd
+}
+
+export function useFocusedWorkspaceOriginalCwd(): string {
+  return useSyncExternalStore(subscribeFocusedWorkspace, getFocusedWorkspaceOriginalCwd, getFocusedWorkspaceOriginalCwd)
+}
+
 export function useFocusedWorkspaceCwd(): string {
   return useSyncExternalStore(subscribeFocusedWorkspace, getFocusedWorkspaceCwd, getFocusedWorkspaceCwd)
 }

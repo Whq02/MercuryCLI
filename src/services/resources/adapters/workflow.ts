@@ -1,6 +1,7 @@
 
 import { readFileSync } from 'node:fs'
 import * as path from 'node:path'
+import { getOriginalCwd } from '../../../bootstrap/state.js'
 import { statSync } from 'node:fs'
 import { readAgentTranscript, resolveAgentTranscriptFile } from '../../../tools/WorkflowTool/agentTranscriptReader.js'
 import { agentPulse, agentPulseWord } from '../../../tools/WorkflowTool/livePulse.js'
@@ -30,19 +31,23 @@ import {
   type ResourceResult,
 } from '../contracts.js'
 
+export function runsCwd(): string {
+  return getOriginalCwd()
+}
+
 export const workflowAdapter: ResourceAdapter = {
   kind: 'workflow',
   describe: 'workflow runs, phases, agents (mercury://workflow/<runId>?child=<agentId>)',
   async resolve(ref: ParsedRef, ctx: ResourceContext): Promise<ResourceResult> {
     if (ref.id === '') {
-      const { rows: runs, unreadable } = await listWorkflowRunsDetailed(ctx.cwd, { limit: 50 })
+      const { rows: runs, unreadable } = await listWorkflowRunsDetailed(runsCwd(), { limit: 50 })
       return {
         state: 'ok',
         resource: {
           ref: 'mercury://workflow',
           kind: 'workflow',
           title: 'workflow runs',
-          summary: `${runs.length} run(s) under ${workflowRunsRoot(ctx.cwd)}${
+          summary: `${runs.length} run(s) under ${workflowRunsRoot(runsCwd())}${
             unreadable > 0 ? ` · ${unreadable} unreadable (listing PARTIAL)` : ''
           }`,
           mutable: false,
@@ -54,7 +59,7 @@ export const workflowAdapter: ResourceAdapter = {
         },
       }
     }
-    const runDir = path.join(workflowRunsRoot(ctx.cwd), ref.id)
+    const runDir = path.join(workflowRunsRoot(runsCwd()), ref.id)
     const manifest = await readRunManifest(runDir)
     if (!manifest) {
       return { state: 'absent', note: `no workflow run '${ref.id}' (no manifest under ${runDir})` }
