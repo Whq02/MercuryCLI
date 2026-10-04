@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { HOOK_EVENTS } from './contract.js'
 
 import { logForDebugging } from '../debug.js'
@@ -42,6 +43,34 @@ let handler: HookEventHandler | null = null
 let queued: HookExecutionEvent[] = []
 let allHookEventsEnabled = false
 
+export type HookRunContext = {
+  cwd?: string
+  trustAccepted?: boolean
+  handler?: HookEventHandler
+}
+
+const runContext = new AsyncLocalStorage<HookRunContext>()
+
+export function getHookRunContext(): HookRunContext | undefined {
+  return runContext.getStore()
+}
+
+export async function* withHookRunContext<T>(
+  context: HookRunContext,
+  source: AsyncGenerator<T>,
+): AsyncGenerator<T> {
+  const scope = { ...runContext.getStore(), ...context }
+  try {
+    for (;;) {
+      const item = await runContext.run(scope, () => source.next())
+      if (item.done) return
+      yield item.value
+    }
+  } finally {
+    await runContext.run(scope, () => source.return(undefined as never))
+  }
+}
+
 const recognisedEvents: ReadonlySet<string> = new Set<string>(HOOK_EVENTS)
 
 function shouldEmit(hookEvent: string): boolean {
@@ -50,6 +79,8 @@ function shouldEmit(hookEvent: string): boolean {
 }
 
 function deliver(event: HookExecutionEvent): void {
+  if (recognisedEvents.has(event.hookEvent)) getHookRunContext()?.handler?.(event)
+  if (!shouldEmit(event.hookEvent)) return
   if (handler) {
     handler(event)
     return
@@ -72,7 +103,6 @@ export function takeHookEventHandler(): HookEventHandler | null {
 
 
 export function emitHookStarted(hookId: string, hookName: string, hookEvent: string): void {
-  if (!shouldEmit(hookEvent)) return
   deliver({ type: 'started', hookId, hookName, hookEvent })
 }
 
@@ -84,7 +114,6 @@ export function emitHookProgress(params: {
   stderr: string
   output: string
 }): void {
-  if (!shouldEmit(params.hookEvent)) return
   deliver({ type: 'progress', ...params })
 }
 
@@ -105,7 +134,6 @@ export function emitHookResponse(params: {
   if (logged) {
     logForDebugging(`hook ${params.hookName} (${params.hookEvent}) ${params.outcome}: ${logged}`)
   }
-  if (!shouldEmit(params.hookEvent)) return
   deliver({ type: 'response', ...params })
 }
 
