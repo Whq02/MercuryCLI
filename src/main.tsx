@@ -609,8 +609,10 @@ async function run(): Promise<void> {
     .action(async (prompt: string | undefined) => {
       await defaultAction(prompt, { ...sessionOptions(runCommand), print: true })
     })
+  const headlessResumeOption = new Option('-r, --resume <value>', 'Resume a session by its id (a UUID) or its .jsonl transcript path')
   for (const option of program.options) {
-    if (!INTERACTIVE_BOOT_OPTIONS.has(option.long ?? '')) runCommand.addOption(option)
+    if (INTERACTIVE_BOOT_OPTIONS.has(option.long ?? '')) continue
+    runCommand.addOption(option.long === '--resume' ? headlessResumeOption : option)
   }
   const runnerCommand = program.command('runner')
     .description('Serve a session to a host over stdio (JSON-RPC 2.0, one message per line): the host sends the prompts and answers the permission asks')
@@ -619,7 +621,8 @@ async function run(): Promise<void> {
       await defaultAction(undefined, { ...sessionOptions(runnerCommand), print: true, runner: true })
     })
   for (const option of program.options) {
-    if (!RUN_OUTPUT_OPTIONS.has(option.long ?? '') && !INTERACTIVE_BOOT_OPTIONS.has(option.long ?? '')) runnerCommand.addOption(option)
+    if (RUN_OUTPUT_OPTIONS.has(option.long ?? '') || INTERACTIVE_BOOT_OPTIONS.has(option.long ?? '')) continue
+    runnerCommand.addOption(option.long === '--resume' ? headlessResumeOption : option)
   }
 
   const parseProgram = () => program.parseAsync(process.argv)
