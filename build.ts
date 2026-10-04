@@ -617,7 +617,7 @@ let voiceMeta: { version: string; platform: string; addon: string; addonSha256: 
   }
 }
 
-const { BRUSH_PACK_PATH: brushRelPath, brushPackPlatform, checkBrushPackDir } = await import('./src/utils/shell/brushPack.ts');
+const { BRUSH_PACK_PATH: brushRelPath, brushLockKindFor, brushPackPlatform, brushPrepareCommand, checkBrushPackDir } = await import('./src/utils/shell/brushPack.ts');
 let brushVendored = false;
 let brushMeta: { source: string; version: string; platform: string; target: string; binary: string; binarySha256: string; license: string } | null = null;
 {
@@ -626,6 +626,7 @@ let brushMeta: { source: string; version: string; platform: string; target: stri
   const forceNo = process.env.MERCURY_BUILD_NO_VENDOR_BRUSH === '1';
   const packPlatform = brushPackPlatform(SHIP.platform, SHIP.arch);
   const packDir = packPlatform ? resolve(ROOT, brushRelPath, packPlatform) : null;
+  const brushPrepare = packPlatform ? brushPrepareCommand(brushLockKindFor(resolve(ROOT, 'vendor', 'brush.lock.json'), packPlatform), packPlatform, CROSS, TARGET_ARG) : '';
   if (!forceNo && packPlatform && packDir && statSync(resolve(packDir, '.vendor-manifest.json'), { throwIfNoEntry: false })?.isFile()) {
     const check = checkBrushPackDir(packDir, { digest: true, platform: packPlatform });
     let lockWhy: string | null = null;
@@ -661,7 +662,7 @@ let brushMeta: { source: string; version: string; platform: string; target: stri
       const why = check.state !== 'ok' ? check.note : lockWhy;
       console.error(
         `BUILD FAILED: vendor/brush/${packPlatform} pack is present but stale — ${why}.\n` +
-          '  remedy: bun run scripts/vendor/fetch-brush.ts   (then rebuild)\n' +
+          `  remedy: ${brushPrepare}   (then rebuild)\n` +
           '  (a missing pack degrades honestly instead — only a PRESENT-but-wrong pack fails the build)',
       );
       process.exit(1);
@@ -671,7 +672,7 @@ let brushMeta: { source: string; version: string; platform: string; target: stri
   } else if (!packPlatform) {
     console.warn(`no shell-engine pack layout for ${SHIP_KEY} — the artifact ships WITHOUT the vendored shell engine (degraded: shell-engine; the Bash tool keeps the system bash).`);
   } else {
-    console.warn(`no shell-engine pack for ${packPlatform} — the artifact ships WITHOUT the vendored shell engine (degraded: shell-engine; the Bash tool keeps the system bash and the engine setting refuses to arm). Prepare it: bun run scripts/vendor/fetch-brush.ts${CROSS ? ` --platform ${packPlatform}` : ''}`);
+    console.warn(`no shell-engine pack for ${packPlatform} — the artifact ships WITHOUT the vendored shell engine (degraded: shell-engine; the Bash tool keeps the system bash and the engine setting refuses to arm). Prepare it: ${brushPrepare}`);
   }
 }
 
