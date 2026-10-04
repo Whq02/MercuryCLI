@@ -246,13 +246,11 @@ section('§1b THE FOUR EYES AT REST — a cell\'s background is its UPPER half\'
       const st = glass.styleAt(x, y)
       const ch = glass.grid[y]![x]!
       if (st?.bg !== `48;2;${top}`) faults.push(`${x},${y}: bg ${st?.bg} is not the upper half ${top}`)
-      if (top !== bot) {
-        twoColour++
-        if (ch !== '▄' || st?.fg !== `38;2;${bot}`) faults.push(`${x},${y}: two-colour cell reads ${ch} fg=${st?.fg}, wanted ▄ fg=${bot}`)
-      }
+      if (ch !== '▄' || st?.fg !== `38;2;${bot}`) faults.push(`${x},${y}: painted pair reads ${ch} fg=${st?.fg}, wanted ▄ fg=${bot} (E5: every pair is ▄ with the colours swapped)`)
+      if (top !== bot) twoColour++
     }
   }
-  check(`every painted pair of the sprite reads its upper half as the cell background (${twoColour} two-colour cells, each ▄ with the lower half as the glyph)`, faults.length === 0 && twoColour > 0, faults.slice(0, 6).join('; '))
+  check(`every painted pair of the sprite goes out as ▄ with fg = the lower half and bg = the upper half — E5's bytes exactly (${twoColour} two-colour cells among them)`, faults.length === 0 && twoColour > 0, faults.slice(0, 6).join('; '))
 }
 const belowCells = restCols.map(c => `${ART_LEFT + c},${eyeLine + 1}`)
 const eyeCells = restCols.map(c => `${ART_LEFT + c},${eyeLine}`)
@@ -298,8 +296,8 @@ section('§4 the whole eye line equals a cold render of the same state: every cr
   const creamCells = clusters.flatMap(cl => cl.cells.filter(c => c.r === restRow && c.c !== cl.rest.c).map(c => ART_LEFT + c.c))
   check('the eye cells beside the pupils are cream in both halves', creamCells.every(x => {
     const hv = halves(x)
-    return row[x] === '▀' && hv.top === 'cream' && hv.bottom === 'cream'
-  }), creamCells.map(x => `${x}:${halves(x).top}/${halves(x).bottom}`).join(' '))
+    return row[x] === '▄' && hv.top === 'cream' && hv.bottom === 'cream'
+  }), creamCells.map(x => `${x}:${row[x]}${halves(x).top}/${halves(x).bottom}`).join(' '))
 }
 
 instance.unmount()

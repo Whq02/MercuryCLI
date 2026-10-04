@@ -181,7 +181,7 @@ const phaseOf = (f: Frame): string | null => {
   return null
 }
 const CARD_TOP_RE = /╭─{40,}╮/
-const CARD_BOTTOM_RE = /▀▀▀▀▀▀▀▀▀.*╰─{40,}╯/
+const CARD_BOTTOM_RE = /[▀▄]{9}.*╰─{40,}╯/
 const cardSpanOf = (f: Frame): { top: number; bottom: number } | null => {
   const bottom = f.rows.findIndex(r => CARD_BOTTOM_RE.test(r))
   if (bottom === -1) return null

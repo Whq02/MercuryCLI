@@ -267,15 +267,9 @@ function CritterArtImpl({
         cells.push(<Text key={c}> </Text>)
       } else if (tc && bc) {
         cells.push(
-          tc === bc ? (
-            <Text key={c} color={tc} backgroundColor={bc}>
-              ▀
-            </Text>
-          ) : (
-            <Text key={c} color={bc} backgroundColor={tc}>
-              ▄
-            </Text>
-          ),
+          <Text key={c} color={bc} backgroundColor={tc}>
+            ▄
+          </Text>,
         )
       } else if (tc) {
         cells.push(
