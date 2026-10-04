@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import { findOnPath } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { answerOf, inputLine, isOutcome, parseFrame, promptRow } from '../lib/rows.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -83,19 +84,16 @@ async function chat(prompt: string, turns: ScriptedTurn[]): Promise<Run> {
         for (; consumed < parts.length - 1; consumed++) {
           const line = parts[consumed]!.trim()
           if (line === '') continue
-          try {
-            const frame = JSON.parse(line) as Frame
-            frames.push(frame)
-            if (frame.type === 'result') child.stdin.end()
-          } catch {
-            continue
-          }
+          const frame = parseFrame(line)
+          if (frame === null) continue
+          frames.push(frame)
+          if (isOutcome(frame)) child.stdin.end()
         }
       })
       child.stderr.on('data', d => (stderr += String(d)))
       child.on('close', exit => finish(exit))
       child.on('error', () => finish(null))
-      child.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content: prompt } }) + '\n')
+      child.stdin.write(inputLine(promptRow(prompt)))
     })
   } finally {
     await fixture.close()
@@ -114,7 +112,7 @@ const toolResultsOf = (body: Body): string[] => {
   }
   return out
 }
-const resultText = (run: Run): string => run.frames.filter(f => f.type === 'result').map(f => String((f as { result?: unknown }).result ?? '')).join('\n')
+const resultText = (run: Run): string => run.frames.filter(isOutcome).map(answerOf).join('\n')
 const libraryOf = (): string | null => {
   const projects = join(home, 'projects')
   if (!existsSync(projects)) return null
@@ -138,7 +136,7 @@ try {
     { kind: 'tool_use', name: 'Retain', input: { items: [{ content: RULE, context: '', topic: '', pin: true, replaces: '' }] }, whenBody: 'standing rule' },
     { kind: 'text', text: 'Saved as a standing rule. Fairwinds', whenBody: 'stored' },
   ])
-  check('the chat ended on its own', tell.exit === 0 && tell.frames.some(f => f.type === 'result'), `exit=${tell.exit} frames=${tell.frames.length} stderr=${tell.stderr.slice(-300)}`)
+  check('the chat ended on its own', tell.exit === 0 && tell.frames.some(isOutcome), `exit=${tell.exit} frames=${tell.frames.length} stderr=${tell.stderr.slice(-300)}`)
   check("the first request's shelf is empty (nothing pinned yet)", tell.bodies.length >= 1 && systemTextOf(tell.bodies[0] ?? {}).includes('no pinned rules'), systemTextOf(tell.bodies[0] ?? {}).slice(0, 200))
   const results = tell.bodies.flatMap(toolResultsOf)
   const retainResult = results.find(r => r.includes('stored'))
@@ -153,7 +151,7 @@ try {
 
   section('§2 a fresh chat, nothing said about memory: its first request carries the rule on the shelf, word for word, marked')
   const fresh = await chat(ASK, [{ kind: 'text', text: '12 times 12 is 144. Fairwinds', whenBody: '12 times 12' }])
-  check('the fresh chat ended on its own', fresh.exit === 0 && fresh.frames.some(f => f.type === 'result'), `exit=${fresh.exit} stderr=${fresh.stderr.slice(-300)}`)
+  check('the fresh chat ended on its own', fresh.exit === 0 && fresh.frames.some(isOutcome), `exit=${fresh.exit} stderr=${fresh.stderr.slice(-300)}`)
   const freshSystem = systemTextOf(fresh.bodies[0] ?? {})
   const pinned = freshSystem.slice(freshSystem.indexOf('## Pinned'))
   check("the first request's system prompt carries the pinned shelf with the rule, word for word, asked for by the user", freshSystem.includes('## Pinned') && /^- end every reply with the word Fairwinds <seq=\d+, asked for by the user>$/m.test(pinned), pinned.slice(0, 400) || freshSystem.slice(0, 300))
