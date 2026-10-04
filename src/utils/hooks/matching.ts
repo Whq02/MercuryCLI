@@ -1,5 +1,4 @@
 
-import { basename } from 'path'
 import { logForDebugging } from '../debug.js'
 import {
   getHooksConfigFromSnapshot,
@@ -7,6 +6,7 @@ import {
 } from './hooksConfigSnapshot.js'
 import { getIsNonInteractiveSession, getRegisteredHooks } from '../../bootstrap/state.js'
 import { matcherShape } from './matcherGrammar.js'
+import { hookEventMatchQuery } from './contract.js'
 import type { AppState } from '../../state/AppState.js'
 import type { HookEvent, HookInput } from './contract.js'
 
@@ -191,42 +191,7 @@ export function hasHookForEvent(
 }
 
 function matchQueryForInput(hookInput: HookInput): string | undefined {
-  switch (hookInput.hook_event_name) {
-    case 'PreToolUse':
-    case 'PostToolUse':
-    case 'PostToolUseFailure':
-    case 'PermissionRequest':
-    case 'PermissionDenied':
-      return hookInput.tool_name
-    case 'SessionStart':
-    case 'ConfigChange':
-      return hookInput.source
-    case 'UserPromptExpansion':
-      return hookInput.command_name
-    case 'Setup':
-    case 'PreCompact':
-    case 'PostCompact':
-      return hookInput.trigger
-    case 'Notification':
-      return hookInput.notification_type
-    case 'SessionEnd':
-    case 'Interrupt':
-      return hookInput.reason
-    case 'StopFailure':
-      return hookInput.error
-    case 'SubagentStart':
-    case 'SubagentStop':
-      return hookInput.agent_type
-    case 'Elicitation':
-    case 'ElicitationResult':
-      return hookInput.mcp_server_name
-    case 'InstructionsLoaded':
-      return hookInput.load_reason
-    case 'FileChanged':
-      return basename(hookInput.file_path)
-    default:
-      return undefined
-  }
+  return hookEventMatchQuery(hookInput.hook_event_name, hookInput)
 }
 
 const getIfCondition = (hook: { if?: string }): string => hook.if ?? ''

@@ -3,39 +3,6 @@ import { lazySchema } from '../lazySchema.js'
 import type { TurnCutKind } from '../messages/turnCut.js'
 import { permissionUpdateSchema } from '../permissions/PermissionUpdateSchema.js'
 
-export const HOOK_EVENTS = [
-  'PreToolUse',
-  'PostToolUse',
-  'PostToolUseFailure',
-  'Notification',
-  'UserPromptSubmit',
-  'UserPromptExpansion',
-  'SessionStart',
-  'SessionEnd',
-  'Stop',
-  'StopFailure',
-  'SubagentStart',
-  'SubagentStop',
-  'PreCompact',
-  'PostCompact',
-  'PermissionRequest',
-  'PermissionDenied',
-  'Setup',
-  'CrewmateIdle',
-  'TaskCreated',
-  'TaskCompleted',
-  'Elicitation',
-  'ElicitationResult',
-  'ConfigChange',
-  'WorktreeCreate',
-  'WorktreeRemove',
-  'InstructionsLoaded',
-  'CwdChanged',
-  'FileChanged',
-  'Interrupt',
-] as const
-export type HookEvent = (typeof HOOK_EVENTS)[number]
-
 export const EXIT_REASONS = [
   'clear',
   'resume',
@@ -340,39 +307,6 @@ export const InterruptHookInputSchema = lazySchema(() =>
     tools: z.array(z.string()).describe('The names of the tool calls the interrupt ended, one per call'),
   }),
 )
-export const HookInputSchema = lazySchema(() =>
-  z.union([
-    PreToolUseHookInputSchema(),
-    PermissionRequestHookInputSchema(),
-    PostToolUseHookInputSchema(),
-    PostToolUseFailureHookInputSchema(),
-    PermissionDeniedHookInputSchema(),
-    NotificationHookInputSchema(),
-    UserPromptSubmitHookInputSchema(),
-    UserPromptExpansionHookInputSchema(),
-    SessionStartHookInputSchema(),
-    SetupHookInputSchema(),
-    StopHookInputSchema(),
-    StopFailureHookInputSchema(),
-    SubagentStartHookInputSchema(),
-    SubagentStopHookInputSchema(),
-    PreCompactHookInputSchema(),
-    PostCompactHookInputSchema(),
-    CrewmateIdleHookInputSchema(),
-    TaskCreatedHookInputSchema(),
-    TaskCompletedHookInputSchema(),
-    ElicitationHookInputSchema(),
-    ElicitationResultHookInputSchema(),
-    ConfigChangeHookInputSchema(),
-    InstructionsLoadedHookInputSchema(),
-    WorktreeCreateHookInputSchema(),
-    WorktreeRemoveHookInputSchema(),
-    CwdChangedHookInputSchema(),
-    FileChangedHookInputSchema(),
-    SessionEndHookInputSchema(),
-    InterruptHookInputSchema(),
-  ]),
-)
 
 export const AsyncHookJSONOutputSchema = lazySchema(() =>
   z.object({
@@ -491,6 +425,299 @@ export const WorktreeCreateHookSpecificOutputSchema = lazySchema(() =>
     worktreePath: z.string().describe('The worktree path the hook provisioned'),
   }),
 )
+
+export type HookMatchField =
+  | 'tool_name'
+  | 'source'
+  | 'command_name'
+  | 'trigger'
+  | 'notification_type'
+  | 'reason'
+  | 'error'
+  | 'agent_type'
+  | 'mcp_server_name'
+  | 'load_reason'
+  | 'file_path'
+  | 'basename_file_path'
+
+export type HookEventRow = {
+  input: () => z.ZodTypeAny
+  output?: () => z.ZodTypeAny
+  matchField?: HookMatchField
+  timeoutMs?: number
+  noHttp?: boolean
+  promptOutsideChat?: string
+  agentOutsideChat?: string
+}
+
+const hookEventTableRows = {
+  PreToolUse: {
+    input: PreToolUseHookInputSchema,
+    output: PreToolUseHookSpecificOutputSchema,
+    matchField: 'tool_name' as const,
+  },
+  PostToolUse: {
+    input: PostToolUseHookInputSchema,
+    output: PostToolUseHookSpecificOutputSchema,
+    matchField: 'tool_name' as const,
+  },
+  PostToolUseFailure: {
+    input: PostToolUseFailureHookInputSchema,
+    output: PostToolUseFailureHookSpecificOutputSchema,
+    matchField: 'tool_name' as const,
+  },
+  PermissionRequest: {
+    input: PermissionRequestHookInputSchema,
+    output: PermissionRequestHookSpecificOutputSchema,
+    matchField: 'tool_name' as const,
+  },
+  PermissionDenied: {
+    input: PermissionDeniedHookInputSchema,
+    output: PermissionDeniedHookSpecificOutputSchema,
+    matchField: 'tool_name' as const,
+  },
+  Notification: {
+    input: NotificationHookInputSchema,
+    output: NotificationHookSpecificOutputSchema,
+    matchField: 'notification_type' as const,
+  },
+  UserPromptSubmit: {
+    input: UserPromptSubmitHookInputSchema,
+    output: UserPromptSubmitHookSpecificOutputSchema,
+  },
+  UserPromptExpansion: {
+    input: UserPromptExpansionHookInputSchema,
+    matchField: 'command_name' as const,
+  },
+  SessionStart: {
+    input: SessionStartHookInputSchema,
+    output: SessionStartHookSpecificOutputSchema,
+    matchField: 'source' as const,
+    noHttp: true,
+  },
+  SessionEnd: {
+    input: SessionEndHookInputSchema,
+    matchField: 'reason' as const,
+    timeoutMs: 1500,
+  },
+  Stop: {
+    input: StopHookInputSchema,
+  },
+  StopFailure: {
+    input: StopFailureHookInputSchema,
+    matchField: 'error' as const,
+  },
+  SubagentStart: {
+    input: SubagentStartHookInputSchema,
+    output: SubagentStartHookSpecificOutputSchema,
+    matchField: 'agent_type' as const,
+  },
+  SubagentStop: {
+    input: SubagentStopHookInputSchema,
+    matchField: 'agent_type' as const,
+  },
+  PreCompact: {
+    input: PreCompactHookInputSchema,
+    matchField: 'trigger' as const,
+  },
+  PostCompact: {
+    input: PostCompactHookInputSchema,
+    matchField: 'trigger' as const,
+  },
+  Setup: {
+    input: SetupHookInputSchema,
+    output: SetupHookSpecificOutputSchema,
+    matchField: 'trigger' as const,
+    noHttp: true,
+  },
+  CrewmateIdle: {
+    input: CrewmateIdleHookInputSchema,
+  },
+  TaskCreated: {
+    input: TaskCreatedHookInputSchema,
+  },
+  TaskCompleted: {
+    input: TaskCompletedHookInputSchema,
+  },
+  Elicitation: {
+    input: ElicitationHookInputSchema,
+    output: ElicitationHookSpecificOutputSchema,
+    matchField: 'mcp_server_name' as const,
+  },
+  ElicitationResult: {
+    input: ElicitationResultHookInputSchema,
+    output: ElicitationResultHookSpecificOutputSchema,
+    matchField: 'mcp_server_name' as const,
+  },
+  ConfigChange: {
+    input: ConfigChangeHookInputSchema,
+    matchField: 'source' as const,
+  },
+  WorktreeCreate: {
+    input: WorktreeCreateHookInputSchema,
+    output: WorktreeCreateHookSpecificOutputSchema,
+  },
+  WorktreeRemove: {
+    input: WorktreeRemoveHookInputSchema,
+  },
+  InstructionsLoaded: {
+    input: InstructionsLoadedHookInputSchema,
+    matchField: 'load_reason' as const,
+  },
+  CwdChanged: {
+    input: CwdChangedHookInputSchema,
+    output: CwdChangedHookSpecificOutputSchema,
+  },
+  FileChanged: {
+    input: FileChangedHookInputSchema,
+    output: FileChangedHookSpecificOutputSchema,
+    matchField: 'basename_file_path' as const,
+  },
+  Interrupt: {
+    input: InterruptHookInputSchema,
+    matchField: 'reason' as const,
+  },
+} as const satisfies Record<string, HookEventRow>
+
+export const HOOK_EVENTS = [
+  'PreToolUse',
+  'PostToolUse',
+  'PostToolUseFailure',
+  'Notification',
+  'UserPromptSubmit',
+  'UserPromptExpansion',
+  'SessionStart',
+  'SessionEnd',
+  'Stop',
+  'StopFailure',
+  'SubagentStart',
+  'SubagentStop',
+  'PreCompact',
+  'PostCompact',
+  'PermissionRequest',
+  'PermissionDenied',
+  'Setup',
+  'CrewmateIdle',
+  'TaskCreated',
+  'TaskCompleted',
+  'Elicitation',
+  'ElicitationResult',
+  'ConfigChange',
+  'WorktreeCreate',
+  'WorktreeRemove',
+  'InstructionsLoaded',
+  'CwdChanged',
+  'FileChanged',
+  'Interrupt',
+] as const satisfies readonly (keyof typeof hookEventTableRows)[]
+export type HookEvent = (typeof HOOK_EVENTS)[number]
+
+export const hookEventTable = hookEventTableRows as Readonly<
+  Record<HookEvent, HookEventRow>
+>
+
+export function hookEventMatchQuery(event: HookEvent, input: HookInput): string | undefined {
+  const field = hookEventTable[event]?.matchField
+  if (field === undefined) return undefined
+  const value = (input as Record<string, string | undefined>)[field === 'basename_file_path' ? 'file_path' : field]
+  if (field === 'basename_file_path') {
+    return value === undefined ? undefined : value.split('/').pop() || value
+  }
+  return value
+}
+
+export function hookEventInputSchema(event: HookEvent): () => z.ZodType<HookInput> {
+  return hookEventTable[event].input as () => z.ZodType<HookInput>
+}
+
+const INPUT_UNION_ORDER = [
+  'PreToolUse',
+  'PermissionRequest',
+  'PostToolUse',
+  'PostToolUseFailure',
+  'PermissionDenied',
+  'Notification',
+  'UserPromptSubmit',
+  'UserPromptExpansion',
+  'SessionStart',
+  'Setup',
+  'Stop',
+  'StopFailure',
+  'SubagentStart',
+  'SubagentStop',
+  'PreCompact',
+  'PostCompact',
+  'CrewmateIdle',
+  'TaskCreated',
+  'TaskCompleted',
+  'Elicitation',
+  'ElicitationResult',
+  'ConfigChange',
+  'InstructionsLoaded',
+  'WorktreeCreate',
+  'WorktreeRemove',
+  'CwdChanged',
+  'FileChanged',
+  'SessionEnd',
+  'Interrupt',
+] as const satisfies readonly HookEvent[]
+
+export const HookInputSchema = lazySchema(() =>
+  z.union(
+    INPUT_UNION_ORDER.map(
+      event => hookEventTable[event].input(),
+    ) as [
+      ReturnType<typeof PreToolUseHookInputSchema>,
+      ReturnType<typeof PermissionRequestHookInputSchema>,
+      ReturnType<typeof PostToolUseHookInputSchema>,
+      ReturnType<typeof PostToolUseFailureHookInputSchema>,
+      ReturnType<typeof PermissionDeniedHookInputSchema>,
+      ReturnType<typeof NotificationHookInputSchema>,
+      ReturnType<typeof UserPromptSubmitHookInputSchema>,
+      ReturnType<typeof UserPromptExpansionHookInputSchema>,
+      ReturnType<typeof SessionStartHookInputSchema>,
+      ReturnType<typeof SetupHookInputSchema>,
+      ReturnType<typeof StopHookInputSchema>,
+      ReturnType<typeof StopFailureHookInputSchema>,
+      ReturnType<typeof SubagentStartHookInputSchema>,
+      ReturnType<typeof SubagentStopHookInputSchema>,
+      ReturnType<typeof PreCompactHookInputSchema>,
+      ReturnType<typeof PostCompactHookInputSchema>,
+      ReturnType<typeof CrewmateIdleHookInputSchema>,
+      ReturnType<typeof TaskCreatedHookInputSchema>,
+      ReturnType<typeof TaskCompletedHookInputSchema>,
+      ReturnType<typeof ElicitationHookInputSchema>,
+      ReturnType<typeof ElicitationResultHookInputSchema>,
+      ReturnType<typeof ConfigChangeHookInputSchema>,
+      ReturnType<typeof InstructionsLoadedHookInputSchema>,
+      ReturnType<typeof WorktreeCreateHookInputSchema>,
+      ReturnType<typeof WorktreeRemoveHookInputSchema>,
+      ReturnType<typeof CwdChangedHookInputSchema>,
+      ReturnType<typeof FileChangedHookInputSchema>,
+      ReturnType<typeof SessionEndHookInputSchema>,
+      ReturnType<typeof InterruptHookInputSchema>,
+    ],
+  ),
+)
+
+const OUTPUT_UNION_ORDER = [
+  'PreToolUse',
+  'UserPromptSubmit',
+  'SessionStart',
+  'Setup',
+  'SubagentStart',
+  'PostToolUse',
+  'PostToolUseFailure',
+  'PermissionDenied',
+  'Notification',
+  'PermissionRequest',
+  'Elicitation',
+  'ElicitationResult',
+  'WorktreeCreate',
+  'CwdChanged',
+  'FileChanged',
+] as const satisfies readonly HookEvent[]
+
 export const SyncHookJSONOutputSchema = lazySchema(() =>
   z.object({
     continue: z.boolean().optional().describe('False stops the whole turn after this hook'),
@@ -500,28 +727,34 @@ export const SyncHookJSONOutputSchema = lazySchema(() =>
     reason: z.string().optional().describe('Why it decided that'),
     systemMessage: z.string().optional().describe('A message surfaced to the user'),
     hookSpecificOutput: z
-      .union([
-        PreToolUseHookSpecificOutputSchema(),
-        UserPromptSubmitHookSpecificOutputSchema(),
-        SessionStartHookSpecificOutputSchema(),
-        SetupHookSpecificOutputSchema(),
-        SubagentStartHookSpecificOutputSchema(),
-        PostToolUseHookSpecificOutputSchema(),
-        PostToolUseFailureHookSpecificOutputSchema(),
-        PermissionDeniedHookSpecificOutputSchema(),
-        NotificationHookSpecificOutputSchema(),
-        PermissionRequestHookSpecificOutputSchema(),
-        ElicitationHookSpecificOutputSchema(),
-        ElicitationResultHookSpecificOutputSchema(),
-        WorktreeCreateHookSpecificOutputSchema(),
-        CwdChangedHookSpecificOutputSchema(),
-        FileChangedHookSpecificOutputSchema(),
-      ])
+      .union(
+        OUTPUT_UNION_ORDER.map(
+          event => hookEventTable[event].output!(),
+        ) as [
+          ReturnType<typeof PreToolUseHookSpecificOutputSchema>,
+          ReturnType<typeof UserPromptSubmitHookSpecificOutputSchema>,
+          ReturnType<typeof SessionStartHookSpecificOutputSchema>,
+          ReturnType<typeof SetupHookSpecificOutputSchema>,
+          ReturnType<typeof SubagentStartHookSpecificOutputSchema>,
+          ReturnType<typeof PostToolUseHookSpecificOutputSchema>,
+          ReturnType<typeof PostToolUseFailureHookSpecificOutputSchema>,
+          ReturnType<typeof PermissionDeniedHookSpecificOutputSchema>,
+          ReturnType<typeof NotificationHookSpecificOutputSchema>,
+          ReturnType<typeof PermissionRequestHookSpecificOutputSchema>,
+          ReturnType<typeof ElicitationHookSpecificOutputSchema>,
+          ReturnType<typeof ElicitationResultHookSpecificOutputSchema>,
+          ReturnType<typeof WorktreeCreateHookSpecificOutputSchema>,
+          ReturnType<typeof CwdChangedHookSpecificOutputSchema>,
+          ReturnType<typeof FileChangedHookSpecificOutputSchema>,
+        ],
+      )
       .optional(),
   }),
 )
-export const HookJSONOutputSchema = lazySchema(() =>
-  z.union([AsyncHookJSONOutputSchema(), SyncHookJSONOutputSchema()]),
+export type SyncHookJSONOutput = z.output<ReturnType<typeof SyncHookJSONOutputSchema>>
+export type HookJSONOutput = AsyncHookJSONOutput | SyncHookJSONOutput
+export const HookJSONOutputSchema: () => z.ZodType<HookJSONOutput> = lazySchema(() =>
+  z.union([AsyncHookJSONOutputSchema(), SyncHookJSONOutputSchema()]) as z.ZodType<HookJSONOutput>,
 )
 
 export type BaseHookInput = z.infer<ReturnType<typeof BaseHookInputSchema>>
@@ -554,7 +787,37 @@ export type CwdChangedHookInput = z.infer<ReturnType<typeof CwdChangedHookInputS
 export type FileChangedHookInput = z.infer<ReturnType<typeof FileChangedHookInputSchema>>
 export type SessionEndHookInput = z.infer<ReturnType<typeof SessionEndHookInputSchema>>
 export type InterruptHookInput = z.infer<ReturnType<typeof InterruptHookInputSchema>>
-export type HookInput = z.infer<ReturnType<typeof HookInputSchema>>
+export type HookInput = unionOfInputs
+type unionOfInputs =
+  | PreToolUseHookInput
+  | PermissionRequestHookInput
+  | PostToolUseHookInput
+  | PostToolUseFailureHookInput
+  | PermissionDeniedHookInput
+  | NotificationHookInput
+  | UserPromptSubmitHookInput
+  | UserPromptExpansionHookInput
+  | SessionStartHookInput
+  | SetupHookInput
+  | StopHookInput
+  | StopFailureHookInput
+  | SubagentStartHookInput
+  | SubagentStopHookInput
+  | PreCompactHookInput
+  | PostCompactHookInput
+  | CrewmateIdleHookInput
+  | TaskCreatedHookInput
+  | TaskCompletedHookInput
+  | ElicitationHookInput
+  | ElicitationResultHookInput
+  | ConfigChangeHookInput
+  | InstructionsLoadedHookInput
+  | WorktreeCreateHookInput
+  | WorktreeRemoveHookInput
+  | CwdChangedHookInput
+  | FileChangedHookInput
+  | SessionEndHookInput
+  | InterruptHookInput
 export type AsyncHookJSONOutput = z.infer<ReturnType<typeof AsyncHookJSONOutputSchema>>
 export type PreToolUseHookSpecificOutput = z.infer<ReturnType<typeof PreToolUseHookSpecificOutputSchema>>
 export type UserPromptSubmitHookSpecificOutput = z.infer<ReturnType<typeof UserPromptSubmitHookSpecificOutputSchema>>
@@ -571,5 +834,4 @@ export type FileChangedHookSpecificOutput = z.infer<ReturnType<typeof FileChange
 export type ElicitationHookSpecificOutput = z.infer<ReturnType<typeof ElicitationHookSpecificOutputSchema>>
 export type ElicitationResultHookSpecificOutput = z.infer<ReturnType<typeof ElicitationResultHookSpecificOutputSchema>>
 export type WorktreeCreateHookSpecificOutput = z.infer<ReturnType<typeof WorktreeCreateHookSpecificOutputSchema>>
-export type SyncHookJSONOutput = z.infer<ReturnType<typeof SyncHookJSONOutputSchema>>
-export type HookJSONOutput = z.infer<ReturnType<typeof HookJSONOutputSchema>>
+

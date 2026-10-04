@@ -10,6 +10,7 @@ import {
   getSessionId,
 } from '../../bootstrap/state.js'
 import type { AsyncHookJSONOutput, HookEvent } from './contract.js'
+import { hookEventTable } from './contract.js'
 
 import { formatShellPrefixCommand } from '../bash/shellPrefix.js'
 import { checkHasTrustDialogAccepted } from '../config.js'
@@ -61,9 +62,8 @@ export const HOOK_OUTPUT_MAX_BYTES = 10 * 1024 * 1024
 const HOOK_STREAM_SETTLE_GRACE_MS = 2_000
 const TRUNCATION_NOTE = '\n[hook output truncated at 10MB]'
 
-const SESSION_END_HOOK_TIMEOUT_MS_DEFAULT = 1500
 export function getSessionEndHookTimeoutMs(): number {
-  return SESSION_END_HOOK_TIMEOUT_MS_DEFAULT
+  return hookEventTable.SessionEnd.timeoutMs ?? TOOL_HOOK_EXECUTION_TIMEOUT_MS
 }
 
 export function executeInBackground({
