@@ -30,7 +30,7 @@ import type { MemoryType } from '../../utils/memory/types.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { pathInWorkingPath } from '../../utils/permissions/filesystem.js'
 import { isSettingSourceEnabled } from '../../utils/settings/constants.js'
-import { adapterForProfile, hasPrimaryProjectFile } from './adapters/index.js'
+import { adapterForProfile, conventionsForProfile, hasPrimaryProjectFile } from './adapters/index.js'
 import type {
   InstructionBundle,
   InstructionBundleEntry,
@@ -113,8 +113,10 @@ export function getInstructionCompositionState(): InstructionCompositionState {
 function activeConventions(): InstructionConvention[] {
   const { profile: requested, origin } = resolveRequestedInstructionProfile()
   const { resolved } = resolveEffectiveProfile(requested, origin)
-  return adapterForProfile().conventionsFor(resolved)
+  return conventionsForProfile(resolved)
 }
+
+export { conventionsForProfile } from './adapters/index.js'
 
 async function walkConventions(
   conventions: InstructionConvention[],
@@ -354,7 +356,7 @@ export const getInstructionFiles = memoize(
     const diagnostics: InstructionDiagnostic[] = []
 
     const { entries: result, fallbackComposed } = await walkConventions(
-      adapter.conventionsFor(resolution.resolved),
+      conventionsForProfile(resolution.resolved),
       forceIncludeExternal,
       skippedDuplicates,
       diagnostics,
@@ -806,7 +808,7 @@ export async function getInstructionSliceForProfile(
   const skippedDuplicates: { path: string; family: InstructionFamily }[] = []
   const diagnostics: InstructionDiagnostic[] = []
   const { entries: files } = await walkConventions(
-    adapter.conventionsFor(resolution.resolved),
+    conventionsForProfile(resolution.resolved),
     false,
     skippedDuplicates,
     diagnostics,
