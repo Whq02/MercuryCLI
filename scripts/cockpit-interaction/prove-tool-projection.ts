@@ -230,7 +230,7 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
     t.check('and leaves no free text behind', byTool.text === '', `"${byTool.text}"`)
 
     const byFile = parseSearchQuery('file:Chat.tsx timeout')
-    t.check('file: filters by path', byFile.files.join() === 'repl.tsx', JSON.stringify(byFile))
+    t.check('file: filters by path', byFile.files.join() === 'chat.tsx', JSON.stringify(byFile))
     t.check('and keeps the free text beside it', byFile.text === 'timeout', byFile.text)
 
     const failed = parseSearchQuery('failed:')
