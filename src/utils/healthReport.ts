@@ -69,12 +69,12 @@ import {
   getLspServerManager,
 } from '../services/lsp/manager.js'
 import { listCapabilityKills } from './permissions/capabilityGate.js'
-import { getEngineModel, parseUserSpecifiedModel, renderModelChip } from './model/model.js'
+import { getEngineModel, getUserSpecifiedModelSetting, parseUserSpecifiedModel, renderModelChip } from './model/model.js'
 import {
   describeFrontierDecision,
   frontierOperatorDecision,
 } from './model/frontierPolicy.js'
-import { computedDefault, describeComputedDefault } from './model/computedDefault.js'
+import { computedDefault, describeComputedDefault, mostRecentSignInFamily } from './model/computedDefault.js'
 import { providerDisplayName } from '../services/providers/routeLaw.js'
 import {
   getInstructionBundle,
@@ -503,6 +503,12 @@ const PROVIDER_AUTH_PRESENTATION: Record<string, { label: string; signIn: string
 function routedAuthFamily(): string {
   try {
     const { declaredRouteOf } = require('../services/providers/routeLaw.js') as typeof import('../services/providers/routeLaw.js')
+    if (getUserSpecifiedModelSetting() === null) {
+      const decision = computedDefault()
+      if (decision.provider !== null) return decision.provider
+      const signedIn = mostRecentSignInFamily()
+      if (signedIn !== undefined) return signedIn
+    }
     return declaredRouteOf(getEngineModel()) ?? 'anthropic'
   } catch {
     return 'anthropic'
