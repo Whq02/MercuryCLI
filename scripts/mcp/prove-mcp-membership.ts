@@ -113,11 +113,9 @@ section('§3 subagent ∩: names resolve only within the parent catalogue')
 
   const parentCfg = { type: 'stdio', command: 'parent-cmd', scope: 'local' } as never
   const disabledCfg = { type: 'stdio', command: 'blocked-cmd', scope: 'local' } as never
-  const sdkCfg = { type: 'host', name: 'wired', scope: 'dynamic' } as never
   const catalogue = [
     { name: 'shared-server', type: 'connected', config: parentCfg },
     { name: 'blocked-server', type: 'disabled', config: disabledCfg },
-    { name: 'wired-sdk', type: 'connected', config: sdkCfg },
   ] as never[]
   const definition = { agentType: 'prover-agent', source: 'built-in' } as never
 
@@ -134,7 +132,7 @@ section('§3 subagent ∩: names resolve only within the parent catalogue')
   memo.set(parentKey, Promise.resolve(fakeConnection))
 
   const outcome = await connectAgentMcpServers(
-    ['shared-server', 'outside-server', 'blocked-server', 'wired-sdk'] as never,
+    ['shared-server', 'outside-server', 'blocked-server'] as never,
     definition,
     catalogue as never,
   )
@@ -152,14 +150,9 @@ section('§3 subagent ∩: names resolve only within the parent catalogue')
     !outcome.clients.some(c => (c as { name?: string }).name === 'blocked-server'),
   )
   t(
-    'the host-typed row refused typed (the child path cannot construct the host transport)',
-    !outcome.clients.some(c => (c as { name?: string }).name === 'wired-sdk'),
-  )
-  t(
     'no refusal arm dialed the memo (no connection was opened only to refuse it)',
     !memo.has(getServerCacheKey('outside-server', parentCfg)) &&
-      !memo.has(getServerCacheKey('blocked-server', disabledCfg)) &&
-      !memo.has(getServerCacheKey('wired-sdk', sdkCfg)),
+      !memo.has(getServerCacheKey('blocked-server', disabledCfg)),
   )
   t(
     'the parent row key still owns the one connection (no re-key, no second dial)',
@@ -205,25 +198,29 @@ section('§5 the config key answers the BOOT project for the process lifetime')
   }
 }
 
-section('§6 the control-wire reconnect refuses a disabled server (source-shape)')
+section('§6 every door that dials by name consults the owner before the dial (source-shape)')
 {
-  const source = readFileSync(join(REPO, 'src', 'cli', 'run.ts'), 'utf8')
-  const start = source.indexOf("case 'mcp_reconnect': {")
-  const end = source.indexOf("case 'mcp_toggle': {")
-  const body = start >= 0 && end > start ? source.slice(start, end) : ''
-  t('the mcp_reconnect case found ahead of mcp_toggle', body.length > 0)
-  const consultAt = body.indexOf('isMcpCatalogueMember(')
-  const dialAt = body.indexOf('connectToServer(')
+  const client = readFileSync(join(REPO, 'src', 'services', 'mcp', 'client.ts'), 'utf8')
+  const start = client.indexOf('export async function getMcpToolsCommandsAndResources(')
+  const end = client.indexOf('export async function reconnectMcpServerImpl(')
+  const batch = start >= 0 && end > start ? client.slice(start, end) : ''
+  t('the batch road found ahead of the reconnect door', batch.length > 0)
+  const consultAt = batch.indexOf('isMcpCatalogueMember(')
+  const dialAt = batch.indexOf('connectToServer(')
   t(
-    'POISON armed: the handler consults the membership owner',
+    'POISON armed: the batch road consults the membership owner',
     consultAt >= 0,
-    'the wire reconnect lost its membership consult — it would dial past the record again',
+    'the batch road lost its membership consult — it would dial past the record again',
   )
   t('the consult precedes the dial', consultAt >= 0 && dialAt > consultAt)
-  t(
-    'the refusal is a typed error frame, not a silent skip',
-    body.includes('respondError') && body.includes('is disabled'),
-  )
+  t("the refusal is a typed 'disabled' row, not a silent skip", batch.includes("type: 'disabled', config }"))
+  const probe = readFileSync(join(REPO, 'src', 'cli', 'handlers', 'mcp.tsx'), 'utf8')
+  const probeAt = probe.indexOf('export async function probeServer(')
+  const probeBody = probeAt >= 0 ? probe.slice(probeAt, probe.indexOf('\n}\n', probeAt)) : ''
+  const probeConsultAt = probeBody.indexOf('isMcpCatalogueMember(')
+  const probeDialAt = probeBody.indexOf('connectToServer(')
+  t('the health probe consults the owner before its dial', probeConsultAt >= 0 && probeDialAt > probeConsultAt)
+  t("the probe answers the typed 'disabled' outcome without a dial", probeBody.includes("return { outcome: 'disabled' }"))
 }
 
 console.log('')

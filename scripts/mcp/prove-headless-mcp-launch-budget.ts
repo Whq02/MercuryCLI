@@ -87,7 +87,7 @@ section('§4 THE PRINT PATH (source pins)')
   check('the run proceeds on timeout — late servers serve later calls', main.includes("=== 'timeout') {") && main.includes('late servers serve later calls'))
   check('the helpers are static imports from the one MCP owner', /import \{[^}]*mcpLaunchBudgetMs[^}]*withMcpLaunchBudget[^}]*\} from '\.\/services\/mcp\/client\.js'/s.test(main))
   const print = readFileSync(join(SRC, 'cli/run.ts'), 'utf8')
-  check('the headless tool pool reads the MCP store live (a late server serves the next call)', print.includes('() => getAppState().mcp.tools as Tool[]'))
+  check('the headless tool pool reads the MCP store live (a late server serves the next call)', print.includes('state.mcp.tools as Tool[]') && /const state = getAppState\(\)[\s\S]{0,400}const assembledTools = assembleTools\(state\)/.test(print))
 }
 
 rmSync(HOME, { recursive: true, force: true })
