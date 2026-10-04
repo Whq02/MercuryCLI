@@ -37,7 +37,7 @@ import { useInputBuffer } from '../../hooks/useInputBuffer.js'
 import { usePromptSuggestion } from '../../hooks/usePromptSuggestion.js'
 import { useDoublePress } from '../../hooks/useDoublePress.js'
 import { useTypeahead, type SuggestionsState } from '../../hooks/useTypeahead.js'
-import { useKeybinding, useKeybindings } from '../../keybindings/useKeybinding.js'
+import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import { getShortcutDisplay } from '../../keybindings/shortcutFormat.js'
 import type { VerificationStatus } from '../../hooks/useApiKeyVerification.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
@@ -93,11 +93,11 @@ import { useComposerModelDoors } from './useComposerModelDoors.js'
 import { useComposerSubmit } from './useComposerSubmit.js'
 import { useComposerRawKeys } from './useComposerRawKeys.js'
 import { useComposerAttachments } from './useComposerAttachments.js'
+import { useComposerKeybindings } from './useComposerKeybindings.js'
 import { expandTabs, stripControls } from './composerText.js'
 import { MercuryContentSearch } from '../MercuryContentSearch.js'
 import { BackgroundTasksDialog } from '../tasks/BackgroundTasksDialog.js'
 import { isManageableTask } from '../tasks/taskStatusUtils.js'
-import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { getViewedCrewmateTask } from '../../state/selectors.js'
 import { isCrewEnabled } from '../../utils/crewEnabled.js'
@@ -110,17 +110,11 @@ import { findSlackChannelPositions } from '../../utils/suggestions/slackChannelS
 import { findTokenBudgetPositions } from '../../utils/tokenBudget.js'
 import type { TextHighlight } from '../../utils/textHighlighting.js'
 import { parseReferences } from '../../history.js'
-import { getImageFromClipboard } from '../../utils/imagePaste.js'
-import { editPromptInEditor } from '../../utils/promptEditor.js'
-import { expandPastedTextRefs } from '../../history.js'
 import {
-  cyclePermissionMode,
   getNextPermissionMode,
 } from '../../utils/permissions/getNextPermissionMode.js'
-import { syncCrewmateMode } from '../../utils/crew/crewHelpers.js'
 import { getEffortNotificationText } from '../EffortIndicator.js'
 import { isDefaultMode } from '../../utils/permissions/PermissionMode.js'
-import { getEmptyToolPermissionContext } from '../../Tool.js'
 import { CockpitActiveContext } from '../../context/cockpitActiveContext.js'
 import { CompactFrameBudgetContext, useLayoutChrome } from '../../context/layoutChromeContext.js'
 import { CompactWorkSummary, type CompactWorkControls, type CompactWorkFocus } from '../tasks/CompactWorkSummary.js'
@@ -851,267 +845,37 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the version counter by design
   }, [helmVersion])
 
-  const performUndo = useCallback((): void => {
-    const entry = buffer.undo({ text: pendingInput.text(), cursorOffset, pastedContents: pendingInput.pastedContents() })
-    if (entry === undefined) return
-    writeDraft(entry.text)
-    setCursorOffset(entry.cursorOffset)
-    pendingInput.setPastedContents(entry.pastedContents)
-    addNotification({ key: 'edit-history', text: 'undid the last edit', priority: 'low', timeoutMs: 2000, fold: (_accumulated, incoming) => incoming })
-  }, [buffer, input, cursorOffset, pastedContents, setCursorOffset, addNotification])
-  const performRedo = useCallback((): void => {
-    const entry = buffer.redo({ text: pendingInput.text(), cursorOffset, pastedContents: pendingInput.pastedContents() })
-    if (entry === undefined) return
-    writeDraft(entry.text)
-    setCursorOffset(entry.cursorOffset)
-    pendingInput.setPastedContents(entry.pastedContents)
-    addNotification({ key: 'edit-history', text: 'redid the last edit', priority: 'low', timeoutMs: 2000, fold: (_accumulated, incoming) => incoming })
-  }, [buffer, input, cursorOffset, pastedContents, setCursorOffset, addNotification])
-
-  const openExternalEditor = useCallback(async (): Promise<void> => {
-    if (input.trim() === '' && Object.keys(pastedContents).length === 0) {
-      addNotification({
-        key: 'external-editor-empty',
-        text: `type a draft first — ${getShortcutDisplay('chat:externalEditor', 'Chat', 'ctrl+x ctrl+e')} edits the current draft`,
-        priority: 'medium',
-        timeoutMs: 5000,
-      })
-      return
-    }
-    setExternalEditorActive(true)
-    try {
-      const expanded = expandPastedTextRefs(input, pastedContents)
-      const result = await editPromptInEditor(expanded)
-      if (result.error) {
-        addNotification({
-          key: 'external-editor-error',
-          text: `external editor failed: ${result.error}`,
-          color: 'warning',
-          priority: 'high',
-        })
-      } else if (typeof result.content === 'string' && result.content !== expanded) {
-        buffer.pushAtomic(input, cursorOffset, pastedContents)
-        pendingInput.edit(result.content)
-        const edited = pendingInput.text()
-        lastSelfWriteRef.current = edited
-        setCursorOffset(edited.length)
-      }
-    } catch (error) {
-      addNotification({
-        key: 'external-editor-error',
-        text: `external editor failed: ${error instanceof Error ? error.message : String(error)}`,
-        color: 'warning',
-        priority: 'high',
-      })
-    } finally {
-      setExternalEditorActive(false)
-    }
-  }, [input, pastedContents, cursorOffset, buffer, setCursorOffset, addNotification])
-
-  const performStash = useCallback((): void => {
-    if (input.trim() === '') {
-      const stashed = pendingInput.popStash()
-      if (stashed === undefined) return
-      lastSelfWriteRef.current = stashed.text
-      setCursorOffset(stashed.cursorOffset)
-      return
-    }
-    pendingInput.stashDraft(cursorOffset)
-    lastSelfWriteRef.current = ''
-    setCursorOffset(0)
-    saveGlobalConfig(config => ({ ...config, hasUsedStash: true }))
-  }, [input, cursorOffset, setCursorOffset])
-
-  const cyclePermission = useCallback((): void => {
-    const fresh = appStateStore.getState() as AppState
-    if (
-      isCrewEnabled() &&
-      fresh.viewingAgentTaskId !== undefined &&
-      fresh.tasks[fresh.viewingAgentTaskId] !== undefined &&
-      isInProcessCrewmateTask(fresh.tasks[fresh.viewingAgentTaskId])
-    ) {
-      const taskId = fresh.viewingAgentTaskId
-      setAppState(prev => {
-        const task = prev.tasks[taskId]
-        if (task === undefined || !isInProcessCrewmateTask(task)) return prev
-        const next = getNextPermissionMode({
-          ...getEmptyToolPermissionContext(),
-          mode: task.permissionMode ?? 'default',
-        })
-        if (next === task.permissionMode) return prev
-        return {
-          ...prev,
-          tasks: {
-            ...prev.tasks,
-            [taskId]: { ...task, permissionMode: next },
-          },
-        }
-      })
-      setHelpOpen(false)
-      return
-    }
-    const { nextMode, context: nextContext } = cyclePermissionMode(
-      toolPermissionContext,
-      crewContext,
-    )
-    setToolPermissionContext({ ...nextContext, mode: nextMode })
-    syncCrewmateMode(nextMode, crewContext?.crewName)
-    setHelpOpen(false)
-  }, [appStateStore, toolPermissionContext, crewContext, setToolPermissionContext, setAppState, setHelpOpen])
-
-  useKeybindings(
-    {
-      'chat:undo': () => {
-        performUndo()
-      },
-      'chat:redo': () => {
-        performRedo()
-      },
-      'chat:newline': () => {
-        insertAtCursor('\n')
-      },
-      'chat:externalEditor': () => {
-        void openExternalEditor()
-      },
-      'chat:stash': () => {
-        performStash()
-      },
-      'chat:modelPicker': () => {
-        setOverlay(current => (current === 'model-picker' ? null : 'model-picker'))
-        setHelpOpen(false)
-      },
-      'chat:thinkingToggle': () => {
-        setOverlay(current => (current === 'thinking-toggle' ? null : 'thinking-toggle'))
-        setHelpOpen(false)
-      },
-      'chat:cycleMode': () => {
-        cyclePermission()
-      },
-      'chat:imagePaste': () => {
-        void (async () => {
-          let image: Awaited<ReturnType<typeof getImageFromClipboard>>
-          try {
-            image = await getImageFromClipboard()
-          } catch (error) {
-            handleImageError(error instanceof Error ? error.message : String(error))
-            return
-          }
-          if (image === null) {
-            addNotification({
-              key: 'no-image-in-clipboard',
-              text:
-                process.env.SSH_TTY !== undefined
-                  ? 'no image in the clipboard (over SSH, transfer the file instead)'
-                  : 'no image in the clipboard (copy one, then press the paste chord)',
-              priority: 'low',
-              timeoutMs: 1000,
-            })
-            return
-          }
-          handleImagePaste(
-            image.base64,
-            image.mediaType,
-            undefined,
-            image.dimensions,
-            undefined,
-            image.byteLength,
-          )
-        })()
-      },
-    },
-    { context: 'Chat', isActive: !modalOverlayUp },
-  )
-  useKeybinding('app:commandPalette', () => {
-    setShowCommandPalette(true)
-  }, { context: 'Global', isActive: !modalOverlayUp })
-  useKeybinding('app:fileOpen', () => {
-    setShowFileOpen(true)
-  }, { context: 'Global', isActive: !modalOverlayUp })
-  useKeybinding('app:contentSearch', () => {
-    setShowContentSearch(true)
-  }, { context: 'Global', isActive: !modalOverlayUp })
-  useKeybinding(
-    'chat:messageActions',
-    () => {
-      if (onMessageActionsEnter && !isSearchingHistory) onMessageActionsEnter()
-    },
-    { context: 'Chat', isActive: !modalOverlayUp && !isSearchingHistory },
-  )
-  useKeybinding(
-    'help:dismiss',
-    () => {
-      setHelpOpen(false)
-    },
-    { context: 'Help', isActive: helpOpen },
-  )
-  useKeybinding(
-    'app:interrupt',
-    () => {
-      abortSpeculation(setAppState)
-    },
-    { context: 'Global', isActive: !isLoading && speculationActive },
-  )
-
-  const [crewmateFooterIndex, setCrewmateFooterIndex] = useState(0)
-  const runningCrewmateCount = useAppState(
-    (s: AppState) =>
-      Object.values(s.tasks).filter(
-        task => isInProcessCrewmateTask(task) && task.status === 'running',
-      ).length,
-  )
-  useKeybindings(
-    {
-      'footer:up': () => {
-        setAppState(prev => ({ ...prev, footerSelection: null }))
-      },
-      'footer:down': () => {
-        if (footerSelection === 'tasks' && runningCrewmateCount === 0) {
-          setOverlay('tasks-dialog')
-          setAppState(prev => ({ ...prev, footerSelection: null }))
-        }
-      },
-      'footer:next': () => {
-        if (runningCrewmateCount > 0 && footerSelection === 'tasks') {
-          setCrewmateFooterIndex(prev => (prev + 1) % (1 + runningCrewmateCount))
-        }
-      },
-      'footer:previous': () => {
-        if (runningCrewmateCount > 0 && footerSelection === 'tasks') {
-          setCrewmateFooterIndex(
-            prev => (prev + runningCrewmateCount) % (1 + runningCrewmateCount),
-          )
-        }
-      },
-      'footer:openSelected': () => {
-        const fresh = appStateStore.getState() as AppState
-        if (fresh.viewSelectionMode === 'selecting-agent') return
-        if (footerSelection === 'tasks') {
-          if (runningCrewmateCount > 0) {
-            if (crewmateFooterIndex === 0) exitCrewmateView(setAppState)
-            else {
-              const sorted = Object.values(fresh.tasks)
-                .filter(isInProcessCrewmateTask)
-                .filter(task => task.status === 'running')
-                .sort((a, b) =>
-                  (a.identity.agentName ?? '').localeCompare(b.identity.agentName ?? ''),
-                )
-              const target = sorted[crewmateFooterIndex - 1]
-              if (target !== undefined) enterCrewmateView(target.id, setAppState)
-            }
-            return
-          }
-          setOverlay('tasks-dialog')
-          setCrewmateFooterIndex(0)
-          setAppState(prev => ({ ...prev, footerSelection: null }))
-        }
-      },
-      'footer:clearSelection': () => {
-        setAppState(prev => ({ ...prev, footerSelection: null }))
-      },
-      'footer:close': () => false,
-    },
-    { context: 'Footer', isActive: footerSelection !== null && !modalOverlayUp },
-  )
+  const { performUndo, crewmateFooterIndex } = useComposerKeybindings({
+    buffer,
+    input,
+    cursorOffset,
+    pastedContents,
+    writeDraft,
+    lastSelfWriteRef,
+    setCursorOffset,
+    addNotification,
+    setExternalEditorActive,
+    setOverlay,
+    setHelpOpen,
+    helpOpen,
+    modalOverlayUp,
+    isSearchingHistory,
+    isLoading,
+    speculationActive,
+    onMessageActionsEnter,
+    appStateStore,
+    setAppState,
+    toolPermissionContext,
+    setToolPermissionContext,
+    crewContext,
+    footerSelection,
+    insertAtCursor,
+    handleImagePaste,
+    handleImageError,
+    setShowCommandPalette,
+    setShowFileOpen,
+    setShowContentSearch,
+  })
 
   useComposerRawKeys({
     modalOverlayUp,

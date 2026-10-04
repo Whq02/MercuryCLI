@@ -17,7 +17,7 @@ const check = (name: string, ok: boolean, detail?: string): void => {
 
 console.log('§1 CI-01 — the composer reads the field the editor returns')
 {
-  const composer = read('src/components/PromptInput/PromptInput.tsx')
+  const composer = read('src/components/PromptInput/useComposerKeybindings.ts')
   check('POISON: the `.text` cast is gone', !composer.includes('{ text?: string | null; error?: string }') && !composer.includes('returned.text'))
   check('the commit gates on result.content, lands it as the one atomic edit, and the cursor follows the landed (stripped) text', composer.includes("} else if (typeof result.content === 'string' && result.content !== expanded) {") && composer.includes('pendingInput.edit(result.content)') && composer.includes('const edited = pendingInput.text()') && composer.includes('setCursorOffset(edited.length)') && !composer.includes('setCursorOffset(result.content.length)'))
   check('the error branch still toasts the editor failure', composer.includes('text: `external editor failed: ${result.error}`'))

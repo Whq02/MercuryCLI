@@ -51,7 +51,7 @@ section('§B the externalEditor kill chain: unbound bell, guarded draft, async h
   check('ctrl+g binds ONLY in the Confirmation context (the cards)', (bindings.match(/'ctrl\+g':/g) ?? []).length === 1 && /context: 'Confirmation'[\s\S]{0,2400}'ctrl\+g': 'chat:externalEditor'/.test(bindings))
   check('the deliberate chord stays', bindings.includes("'ctrl+x ctrl+e': 'chat:externalEditor'"))
 
-  const prompt = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
+  const prompt = readFileSync(join(ROOT, 'src/components/PromptInput/useComposerKeybindings.ts'), 'utf8')
   check('an empty draft never opens the editor (guard + notice)', prompt.includes('external-editor-empty') && prompt.includes('type a draft first'))
 
   const editor = readFileSync(join(ROOT, 'src/utils/promptEditor.ts'), 'utf8')
