@@ -1,5 +1,4 @@
 import { declaredRouteOf } from '../../services/providers/routeLaw.js'
-import { isCompactLinePrefixEnabled } from '../../utils/file.js'
 import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
 import { FILE_WRITE_TOOL_NAME } from '../FileWriteTool/prompt.js'
 
@@ -27,9 +26,7 @@ function steeringBullet(offered: ReadonlySet<string> | null): string {
 }
 
 export function getEditToolDescription(offered: ReadonlySet<string> | null = null, model?: string): string {
-  const prefixShape = isCompactLinePrefixEnabled()
-    ? 'line number + tab'
-    : 'spaces + line number + →'
+  const prefixShape = 'line number + tab'
   return `Swap one exact string for another inside a file.
 
 Usage:

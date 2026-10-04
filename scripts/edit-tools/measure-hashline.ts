@@ -68,7 +68,7 @@ for (const rel of CORPUS) {
   const lines = anchorDomainLines(content)
 
   const plainPresentation = addLineNumbers({ content, startLine: 1 })
-  const anchoredPresentation = addAnchoredLineNumbers({ content, startLine: 1, compact: true })
+  const anchoredPresentation = addAnchoredLineNumbers({ content, startLine: 1 })
   readPlainBytes += Buffer.byteLength(plainPresentation, 'utf8')
   readAnchoredBytes += Buffer.byteLength(anchoredPresentation, 'utf8')
   readPlainTokens += roughTokenCountEstimationForFileType(plainPresentation, ext)

@@ -39,23 +39,16 @@ export function formatLineAnchor(lineNumber: number, lineText: string): string {
 export function addAnchoredLineNumbers({
   content,
   startLine,
-  compact,
 }: {
   content: string
   startLine: number
-  compact: boolean
 }): string {
   if (content === '') return ''
   const unmarked =
     startLine === 1 && content.charCodeAt(0) === 0xfeff ? content.slice(1) : content
   return unmarked
     .split(/\r\n|\r|\n/)
-    .map((line, index) => {
-      const lineNumber = startLine + index
-      const prefix = `${lineNumber}#${mintLineHash(line)}`
-      if (compact) return `${prefix}\t${line}`
-      return prefix.length >= 11 ? `${prefix}→${line}` : `${prefix.padStart(11, ' ')}→${line}`
-    })
+    .map((line, index) => `${startLine + index}#${mintLineHash(line)}\t${line}`)
     .join('\n')
 }
 

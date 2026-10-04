@@ -72,7 +72,7 @@ section('L. pure line-anchor math')
   check('L2b parse refuses non-refs', parseLineRef('12') === null && parseLineRef(`12#${h}x`) === null && parseLineRef('0#abcd') === null)
 
   const content = 'alpha\nbeta\ngamma'
-  const anchored = addAnchoredLineNumbers({ content, startLine: 1, compact: true })
+  const anchored = addAnchoredLineNumbers({ content, startLine: 1 })
   const rows = anchored.split('\n')
   const domain = anchorDomainLines(content)
   check('L3 anchored rows carry parseable self-verifying prefixes', rows.length === 3 && rows.every((row, i) => {
@@ -82,14 +82,19 @@ section('L. pure line-anchor math')
     return parsed !== null && parsed.line === i + 1 && verifyLineRef(domain, parsed).ok && m[2] === domain[i]
   }))
 
-  const stripHashes = (s: string): string => s.replace(/#[0-9a-f]{4}(\t|→)/g, '$1')
-  check('L4 compact anchored minus hashes == plain compact', stripHashes(anchored) === addLineNumbers({ content, startLine: 1 }))
-  const legacyAnchored = addAnchoredLineNumbers({ content, startLine: 999998, compact: false })
-  const legacyRows = legacyAnchored.split('\n')
+  const stripHashes = (s: string): string => s.replace(/#[0-9a-f]{4}\t/g, '\t')
+  check('L4 anchored minus hashes == plain', stripHashes(anchored) === addLineNumbers({ content, startLine: 1 }))
+  const wide = addAnchoredLineNumbers({ content, startLine: 999998 }).split('\n')
   check(
-    'L4b legacy pad law (11-wide prefix; 6-digit-and-up unpadded)',
-    legacyRows[0] === `999998#${mintLineHash('alpha')}→alpha` &&
-      addAnchoredLineNumbers({ content: 'x', startLine: 7, compact: false }) === `     7#${mintLineHash('x')}→x`,
+    'L4b one prefix format at every width: the number (and hash) then a tab, never padded, never an arrow',
+    wide[0] === `999998#${mintLineHash('alpha')}\talpha` &&
+      addAnchoredLineNumbers({ content: 'x', startLine: 7 }) === `7#${mintLineHash('x')}\tx` &&
+      addLineNumbers({ content: 'x', startLine: 7 }) === '7\tx' &&
+      addLineNumbers({ content: 'x', startLine: 999998 }) === '999998\tx',
+  )
+  check(
+    'L4c a padded-arrow row is not a prefix the stripper knows: the line comes back whole',
+    stripLineNumberPrefix('     7→x') === '     7→x' && stripLineNumberPrefix(`     7#${mintLineHash('x')}→x`) === `     7#${mintLineHash('x')}→x`,
   )
 
   const twins = 'a\n}\nb\n}\nc'
@@ -107,7 +112,7 @@ section('L. pure line-anchor math')
   check('L6b domain edges', anchorDomainLines('').length === 0 && anchorDomainLines('\n').length === 1 && anchorDomainLines('a').length === 1)
 
   const bomDomain = anchorDomainLines(`${BOM}hello\nworld`)
-  const bomRow = addAnchoredLineNumbers({ content: `${BOM}hello\nworld`, startLine: 1, compact: true }).split('\n')[0]!
+  const bomRow = addAnchoredLineNumbers({ content: `${BOM}hello\nworld`, startLine: 1 }).split('\n')[0]!
   check('L7 a leading BOM never reaches line 1', bomDomain[0] === 'hello' && bomRow === `1#${mintLineHash('hello')}\thello`)
 
   check('L8 codepoint-different content hashes differently (no NFC)', mintLineHash(E_ACUTE_NFC) !== mintLineHash(E_ACUTE_NFD))
@@ -401,7 +406,7 @@ section('E. hash-qualified hunks (real FileEditTool)')
 
   const fileA = join(fixtures, 'a.ts')
   writeFileSync(fileA, 'const a = 1\nconst b = 2\nconst c = 3\n')
-  const presented = addAnchoredLineNumbers({ content: readFileSync(fileA, 'utf8'), startLine: 1, compact: true })
+  const presented = addAnchoredLineNumbers({ content: readFileSync(fileA, 'utf8'), startLine: 1 })
   const row2prefix = presented.split('\n')[1]!.split(String.fromCharCode(9))[0]!
   const ctx1 = makeEditContext()
   primeRead(ctx1, fileA)

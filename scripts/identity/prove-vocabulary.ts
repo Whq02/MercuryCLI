@@ -115,6 +115,7 @@ const RETIRED: Array<[string, RegExp, string[]]> = [
   ['store-old-layout', asName(J('(?:legacyTranscript', 'StoreExistsSync|resolveProjectDir', 'WithAdoption)')), [J('legacyTranscript', 'Store'), J('ProjectDir', 'WithAdoption')]],
   ['concourse-knob-spellings', asName(J('MERCURY_CONCOURSE_', '(?:IDLE_RETIRE|NEWBORN_GRACE)_MINUTES')), [J('MERCURY_CONCOURSE_', 'IDLE'), J('MERCURY_CONCOURSE_', 'NEWBORN')]],
   ['config-migration-set', asName(J('(?:runMigrations', 'IfNeeded|MIGRATION_', 'VERSION|migration', 'Version|cached', 'Changelog|migrateChangelog', 'FromConfig|removeProject', 'History)')), [J('runMigrations', ''), J('MIGRATION_', 'VERSION'), J('migration', 'Version'), J('cached', 'Changelog'), J('migrateChangelog', ''), J('removeProject', 'History')]],
+  ['line-prefix-switch', asName(J('(?:isCompactLine', 'PrefixEnabled|LINE_FORMAT_INSTRUCTION', '_LEGACY)')), [J('isCompactLine', 'Prefix'), J('INSTRUCTION', '_LEGACY')]],
 ]
 const SETTINGS_SCOPE = /^(?:src\/|docs\/|README\.md$|scripts\/)/
 const RETIRED_SETTINGS_ROOTS = [
@@ -519,6 +520,7 @@ console.log('============================================================')
     ['concourse-knob-spellings', J('MERCURY_CONCOURSE_', 'NEWBORN_GRACE_MINUTES') + '=30'],
     ['config-migration-set', 'config.' + J('migration', 'Version') + ' === ' + J('MIGRATION_', 'VERSION')],
     ['config-migration-set', J('removeProject', 'History') + '(config.projects)'],
+    ['line-prefix-switch', 'if (' + J('isCompactLine', 'PrefixEnabled') + '())'],
   ]
   check('§5 self-test: every retired-word row has a spelling here and trips on it in src', RETIRED.every(([label]) => trips.some(([l]) => l === label)) && trips.every(([label, content]) => retiredHits('src/x.ts', content).includes(label)), trips.filter(([label, content]) => !retiredHits('src/x.ts', content).includes(label)).map(([label]) => label).join(','))
   check('§5 self-test: the rows reach docs, the README and the script estate', retiredHits('docs/x.md', trips[0]![1]).length === 1 && retiredHits('README.md', trips[0]![1]).length === 1 && retiredHits('scripts/x/prove-x.ts', trips[0]![1]).length === 1)

@@ -406,26 +406,16 @@ export async function suggestPathUnderCwd(requestedPath: string): Promise<string
   }
 }
 
-export function isCompactLinePrefixEnabled(): boolean {
-  return true
-}
-
 export function addLineNumbers({ content, startLine }: { content: string; startLine: number }): string {
   if (content === '') return ''
-  const compact = isCompactLinePrefixEnabled()
   return content
     .split(/\r\n|\r|\n/)
-    .map((line, index) => {
-      const lineNumber = startLine + index
-      if (compact) return `${lineNumber}\t${line}`
-      const rendered = String(lineNumber)
-      return rendered.length >= 6 ? `${rendered}→${line}` : `${rendered.padStart(6, ' ')}→${line}`
-    })
+    .map((line, index) => `${startLine + index}\t${line}`)
     .join('\n')
 }
 
 export function stripLineNumberPrefix(line: string): string {
-  const match = /^\s*\d+(?:#[0-9a-f]+)?(?:→|\t)([\s\S]*)$/.exec(line)
+  const match = /^\d+(?:#[0-9a-f]+)?\t([\s\S]*)$/.exec(line)
   return match ? (match[1] as string) : line
 }
 
