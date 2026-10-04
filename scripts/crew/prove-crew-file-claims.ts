@@ -50,11 +50,11 @@ console.log(` home ${HOME}`)
 console.log('============================================================')
 
 const { getProjectRoot } = await import('../../src/bootstrap/state.js')
-const leaseGlob = (await import('../../src/utils/swarm/leaseGlob.js')) as typeof import('../../src/utils/swarm/leaseGlob.js')
+const leaseGlob = (await import('../../src/utils/crew/leaseGlob.js')) as typeof import('../../src/utils/crew/leaseGlob.js')
 const crewmate = (await import('../../src/utils/crewmate.js')) as typeof import('../../src/utils/crewmate.js')
 const agentContext = (await import('../../src/utils/agentContext.js')) as typeof import('../../src/utils/agentContext.js')
-const guard = (await import('../../src/utils/swarm/leaseGuard.js')) as typeof import('../../src/utils/swarm/leaseGuard.js')
-const { CREW_LEAD_NAME } = await import('../../src/utils/swarm/constants.js')
+const guard = (await import('../../src/utils/crew/leaseGuard.js')) as typeof import('../../src/utils/crew/leaseGuard.js')
+const { CREW_LEAD_NAME } = await import('../../src/utils/crew/constants.js')
 
 type ClaimsModule = typeof import('../../src/services/crew/claims.js')
 let crew: ClaimsModule | null = null

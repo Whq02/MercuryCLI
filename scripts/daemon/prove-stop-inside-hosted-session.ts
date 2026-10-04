@@ -226,7 +226,7 @@ try {
   tally.check('the scratch-home daemon serves', await until(ping, 60_000), daemonLog().slice(-600))
   tally.check('the daemon reads ready on its handshake — its adoption done, its record published (a socket that answers ping is still adopting)', await until(ready, 60_000), `hello ${JSON.stringify(await hello())} · daemon.log tail: ${daemonLog().slice(-600)}`)
   const bootPid = await supervisorPid()
-  tally.check('the supervisor record names the daemon the proof booted', bootPid === daemon.pid, `record ${bootPid} · spawned ${daemon.pid}`)
+  tally.check('the daemon record names the daemon the proof booted', bootPid === daemon.pid, `record ${bootPid} · spawned ${daemon.pid}`)
 
   console.log('\n  the stop: `mercury daemon stop` from the Bash of a session this daemon hosts')
   const a = await dispatch('stop-inside', STOP_ASK, workA)

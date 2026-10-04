@@ -7,9 +7,9 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'refs-home-'))
 
-const { appendObservation } = await import('../../src/memdir/mnemeBuffer.ts')
-const { maybeConsolidate } = await import('../../src/memdir/mnemeConsolidate.ts')
-const { collectMemoryRefs, queryTokens, renderMemoryRefLine } = await import('../../src/memdir/memoryRefs.ts')
+const { appendObservation } = await import('../../src/mneme/mnemeBuffer.ts')
+const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.ts')
+const { collectMemoryRefs, queryTokens, renderMemoryRefLine } = await import('../../src/mneme/memoryRefs.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -18,8 +18,8 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const memDir = mkdtempSync(join(tmpdir(), 'refs-mem-'))
-const libDir = join(memDir, 'library')
+const memoryDir = mkdtempSync(join(tmpdir(), 'refs-mem-'))
+const libDir = join(memoryDir, 'library')
 const projectRoot = mkdtempSync(join(tmpdir(), 'refs-proj-'))
 mkdirSync(join(projectRoot, 'src'), { recursive: true })
 writeFileSync(join(projectRoot, 'src', 'exists.ts'), 'export {}\n')
@@ -77,10 +77,10 @@ section('§4 capsule integration: refs ride the working set, digest-joined')
   git('init', '-q', '-b', 'main')
   git('add', '-A')
   git('commit', '-q', '-m', 'baseline')
-  const { getAutoMemPath } = await import('../../src/memdir/paths.ts')
-  const capMemDir = getAutoMemPath()
-  mkdirSync(capMemDir, { recursive: true })
-  const capLib = join(capMemDir, 'library')
+  const { getMnemeHome } = await import('../../src/mneme/paths.ts')
+  const capMemoryDir = getMnemeHome()
+  mkdirSync(capMemoryDir, { recursive: true })
+  const capLib = join(capMemoryDir, 'library')
   appendObservation({ text: 'release gate opens after the smoke suite', source: 'operator', topicHint: 'releases' }, capLib)
   maybeConsolidate({ force: true, dir: capLib })
   const { assembleContextCapsule, renderCapsule } = await import('../../src/services/projectIntel/capsule.ts')
@@ -99,8 +99,8 @@ section('§4 capsule integration: refs ride the working set, digest-joined')
 }
 
 function correctFactLocal(lib: string): boolean {
-  const { listTopicDocs } = require('../../src/memdir/mnemeConsolidate.ts') as typeof import('../../src/memdir/mnemeConsolidate.ts')
-  const { correctFact } = require('../../src/memdir/mnemeCorrect.ts') as typeof import('../../src/memdir/mnemeCorrect.ts')
+  const { listTopicDocs } = require('../../src/mneme/mnemeConsolidate.ts') as typeof import('../../src/mneme/mnemeConsolidate.ts')
+  const { correctFact } = require('../../src/mneme/mnemeCorrect.ts') as typeof import('../../src/mneme/mnemeCorrect.ts')
   const doc = listTopicDocs(lib).find(d => d.slug === 'releases')
   const seq = doc?.sections[0]?.entries[0]?.seq
   if (!seq) return false

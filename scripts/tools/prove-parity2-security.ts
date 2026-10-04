@@ -82,7 +82,7 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
 }
 
 {
-  const { consolidateLockOwnedBy } = await import('../../src/memdir/mnemeConsolidate.ts')
+  const { consolidateLockOwnedBy } = await import('../../src/mneme/mnemeConsolidate.ts')
   const lock = join(SCRATCH, '.consolidate.lock')
   mkdirSync(lock)
   writeFileSync(join(lock, 'pid'), String(process.pid))

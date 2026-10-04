@@ -7,7 +7,7 @@ import {
   readCrewFileAsync,
   writeCrewFileAsync,
   type CrewFile,
-} from '../utils/swarm/crewHelpers.js'
+} from '../utils/crew/crewHelpers.js'
 import { resolveCrewStart, type CrewStartPlanV1 } from '../utils/crew/crewStart.js'
 import { resolveWorkerReconAllow } from './workerRecon.js'
 import { isolationAwarenessNote } from './isolationNote.js'

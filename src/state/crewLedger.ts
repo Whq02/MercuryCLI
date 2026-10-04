@@ -150,7 +150,7 @@ export function clearCrewmate(id: string, setAppState: SetAppState): boolean {
   })
   if (record !== null) {
     const { crew, agentId } = record
-    void import('../utils/swarm/crewHelpers.js').then(helpers => helpers.removeMemberByAgentId(crew, agentId)).catch(() => {})
+    void import('../utils/crew/crewHelpers.js').then(helpers => helpers.removeMemberByAgentId(crew, agentId)).catch(() => {})
   }
   return cleared
 }

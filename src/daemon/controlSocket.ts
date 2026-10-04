@@ -98,15 +98,15 @@ export async function writeSupervisorState(
   state: SupervisorState,
 ): Promise<void> {
   try {
-    if (!daemonHomeStands('the supervisor record')) return
-    publishInDaemonHome('the supervisor record', supervisorStatePath(), JSON.stringify(state, null, 2))
+    if (!daemonHomeStands('the daemon record')) return
+    publishInDaemonHome('the daemon record', supervisorStatePath(), JSON.stringify(state, null, 2))
   } catch (e) {
-    logForDebugging(`[daemon] could not write supervisor state: ${e}`)
+    logForDebugging(`[daemon] could not write the daemon record: ${e}`)
   }
 }
 
 export function markSupervisorStoppingSync(now = Date.now()): boolean {
-  if (!daemonHomeStands('the supervisor record')) return false
+  if (!daemonHomeStands('the daemon record')) return false
   const path = supervisorStatePath()
   let current: SupervisorState
   try {
@@ -116,9 +116,9 @@ export function markSupervisorStoppingSync(now = Date.now()): boolean {
   }
   if (current?.pid !== process.pid) return false
   try {
-    return publishInDaemonHome('the supervisor record', path, JSON.stringify({ ...current, state: 'stopping', stoppingAt: now }, null, 2)) === 'published'
+    return publishInDaemonHome('the daemon record', path, JSON.stringify({ ...current, state: 'stopping', stoppingAt: now }, null, 2)) === 'published'
   } catch (e) {
-    logForDebugging(`[daemon] could not mark the supervisor record stopping: ${e}`)
+    logForDebugging(`[daemon] could not mark the daemon record stopping: ${e}`)
     return false
   }
 }
@@ -471,12 +471,12 @@ export async function acquireSupervisorLock(): Promise<SupervisorLock | null> {
     extra: { id: owner, startedAt: Date.now() },
   })
   if (!res.held) {
-    if (!res.by) logForDebugging('[daemon] supervisor lock unavailable')
+    if (!res.by) logForDebugging('[daemon] the daemon lock is unavailable')
     return null
   }
   return {
     release: async () => {
-      noteLockRelease(`supervisor lock ${lockPath}`, await releasePidLock(lockPath, owner))
+      noteLockRelease(`daemon lock ${lockPath}`, await releasePidLock(lockPath, owner))
     },
   }
 }

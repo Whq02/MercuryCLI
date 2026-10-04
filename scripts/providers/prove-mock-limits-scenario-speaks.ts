@@ -28,8 +28,11 @@ const ROOT = join(import.meta.dir, '..', '..')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const mock = await import('../../src/services/mockRateLimits.ts')
-const mockCommand = await import('../../src/commands/mock-limits/mock-limits.ts')
 const limits = await import('../../src/services/claudeAiLimits.ts')
+const armScenario = (scenario: Parameters<typeof mock.setMockRateLimitScenario>[0]): void => {
+  mock.setMockRateLimitScenario(scenario)
+  limits.extractQuotaStatusFromHeaders(new globalThis.Headers())
+}
 const tiers = await import('../../src/services/providers/usageTiers.ts')
 const { observedFamilyWindow, decideCapAction } = await import('../../src/services/capFailover.ts')
 const { providerLimitWarningFacts } = await import('../../src/services/providers/limitWarning.ts')
@@ -52,9 +55,8 @@ const quietReads = (): Reads => ({
   anthropicPoolWindows: () => [],
 }) as unknown as Reads
 
-section('§1 the command road: /mock-limits approaching-weekly-limit through the real ingestion')
-const result = await mockCommand.call(SCENARIO)
-check('the command accepts the scenario and describes it', result.type === 'text' && result.value.includes(`Mock rate-limit scenario: ${SCENARIO}`) && result.value.includes(mock.getScenarioDescription(SCENARIO)), result.type === 'text' ? result.value.split('\n')[0] : result.type)
+section('§1 the seam road: approaching-weekly-limit through the real ingestion')
+armScenario(SCENARIO)
 check('the E9 read still names the scenario from its headers', mock.getCurrentMockScenario() === SCENARIO, j(mock.getCurrentMockScenario()))
 const headers = mock.getMockHeaders() ?? {}
 check(`${RED}: the scenario speaks the 7d utilization at the first tier, the percent the tiers speak at`, Number(headers['anthropic-ratelimit-unified-7d-utilization']) * 100 === tiers.FIRST_WARNING_PCT && Number(headers['anthropic-ratelimit-unified-7d-reset']) > Math.floor(Date.now() / 1000), j(headers))
@@ -69,17 +71,18 @@ check('a warning never offers a handoff, on any posture', (['off', 'offer', 'aut
 const facts = providerLimitWarningFacts({ model: 'fable', reads: quietReads() })
 check(`${RED}: the strip warns in the one grammar at the first tier, the header's percent beating the quiet meters`, facts !== null && facts.tier === tiers.FIRST_WARNING_PCT && facts.pct === tiers.FIRST_WARNING_PCT && new RegExp(`^Anthropic: ${tiers.FIRST_WARNING_PCT}% of the weekly limit used · resets `).test(facts.view.text), j(facts))
 
-section('§3 the controls: the other scenarios and the alias keep their shapes')
+section('§3 the controls: the other scenarios and the 7d setter keep their shapes')
 mock.setMockRateLimitScenario('normal')
 limits.extractQuotaStatusFromHeaders(new globalThis.Headers())
 check("'normal' reads allowed with no utilization", limits.currentLimits.status === 'allowed' && limits.currentLimits.utilization === undefined, j(limits.currentLimits))
 mock.setMockRateLimitScenario('weekly-limit-reached')
 limits.extractQuotaStatusFromHeaders(new globalThis.Headers())
 check("'weekly-limit-reached' still reads rejected on the weekly window", limits.currentLimits.status === 'rejected' && limits.currentLimits.rateLimitType === 'seven_day', j(limits.currentLimits))
-const alias = await mockCommand.call(`warning-7d ${tiers.SECOND_WARNING_PCT}`)
-check('the warning-7d alias still speaks the second tier through the same setter', alias.type === 'text' && limits.currentLimits.status === 'allowed_warning' && Math.round((limits.currentLimits.utilization ?? 0) * 100) === tiers.SECOND_WARNING_PCT, j(limits.currentLimits))
-await mockCommand.call(SCENARIO)
-check('the scenario re-arms after the alias, byte for byte the first tier again', limits.currentLimits.status === 'allowed_warning' && Math.round((limits.currentLimits.utilization ?? 0) * 100) === tiers.FIRST_WARNING_PCT && mock.getCurrentMockScenario() === SCENARIO, j(limits.currentLimits))
+mock.setMockUsagePercent('7d', tiers.SECOND_WARNING_PCT)
+limits.extractQuotaStatusFromHeaders(new globalThis.Headers())
+check('the 7d usage setter speaks the second tier through the same ingestion', limits.currentLimits.status === 'allowed_warning' && Math.round((limits.currentLimits.utilization ?? 0) * 100) === tiers.SECOND_WARNING_PCT, j(limits.currentLimits))
+armScenario(SCENARIO)
+check('the scenario re-arms after the 7d setter, byte for byte the first tier again', limits.currentLimits.status === 'allowed_warning' && Math.round((limits.currentLimits.utilization ?? 0) * 100) === tiers.FIRST_WARNING_PCT && mock.getCurrentMockScenario() === SCENARIO, j(limits.currentLimits))
 mock.setMockRateLimitScenario('clear')
 check('clear disarms', mock.getMockHeaders() === null || mock.shouldProcessMockLimits() === false)
 

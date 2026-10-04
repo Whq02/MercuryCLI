@@ -28,7 +28,7 @@ import { getModelOptions, KEY_CONNECT_PREFIX } from '../utils/model/modelOptions
 import { readSessionReceipts, type SessionReceiptEntry } from '../services/switchboard/sessionReceipts.js';
 import { getProjectDir } from '../utils/sessionStorage/paths.js';
 import { projectDisplayName, workedInProjects } from '../utils/bootCardFacts.js';
-import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
+import { useEngineModel } from '../hooks/useEngineModel.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { renderModelChip } from '../utils/model/model.js';
 import { wrapPlain } from './BootHealthScreen.js';
@@ -535,7 +535,7 @@ export function BootSaturnScreen({ onClose, fullScene, facts: given, nowMs: give
   const [formPick, setFormPick] = useState<{ field: 'model' | 'kit' | 'workspace' | 'opening'; options: string[] } | null>(null);
   const formPromptRef = useRef(formPrompt);
   formPromptRef.current = formPrompt;
-  const mainModel = useMainLoopModel();
+  const mainModel = useEngineModel();
 
   const refresh = useCallback((): void => {
     const atMs = givenNow ?? Date.now();

@@ -4,7 +4,7 @@ import type { WebSearchProgress } from '../../types/tools.js'
 import type { ContentBlock } from '../../types/wire.js'
 import { logError } from '../../utils/log.js'
 import { createUserMessage } from '../../utils/messages.js'
-import { getMainLoopModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../utils/model/model.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import type { NativeSearchFamily } from './nativeSearchRequest.js'
 import {
@@ -47,7 +47,7 @@ export async function nativeSearch(
 ): Promise<SearchOutcome> {
   const { context } = io
   const via = nativeBackendIdFor(family)
-  const model = (context.options.mainLoopModel as string | undefined) || getMainLoopModel()
+  const model = (context.options.engineModel as string | undefined) || getEngineModel()
   const appState = context.getAppState()
 
   const blocks: ContentBlock[] = []

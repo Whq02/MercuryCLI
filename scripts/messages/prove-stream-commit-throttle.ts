@@ -79,7 +79,7 @@ type Row = { index: number; unparsedToolInput: string }
 }
 
 {
-  const repl = readFileSync(join(import.meta.dir, '../../src/screens/REPL.tsx'), 'utf8')
+  const repl = readFileSync(join(import.meta.dir, '../../src/screens/Chat.tsx'), 'utf8')
   const connector = readFileSync(join(import.meta.dir, '../../src/services/engine-connector/daemonConnector.ts'), 'utf8')
   const seat = readFileSync(join(import.meta.dir, '../../src/daemon/sessionSeat.ts'), 'utf8')
   check('the face holds no stream batcher (no batcher.update, no streaming tool-use reset)', !repl.includes('batcher.update(') && !repl.includes('resetStreamingToolUses'))

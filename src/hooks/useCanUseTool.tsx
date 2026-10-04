@@ -12,7 +12,7 @@ import {
   createPermissionQueueOps,
 } from './toolPermission/PermissionContext.js'
 import { handleCoordinatorPermission } from './toolPermission/handlers/coordinatorHandler.js'
-import { handleSwarmWorkerPermission } from './toolPermission/handlers/swarmWorkerHandler.js'
+import { handleCrewmatePermission } from './toolPermission/handlers/crewWorkerHandler.js'
 import { handleInteractivePermission } from './toolPermission/handlers/interactiveHandler.js'
 
 export type CanUseToolFn<
@@ -103,7 +103,7 @@ export default function useCanUseTool(
               if (ctx.resolveIfAborted(resolve)) return
             }
 
-            const workerDecision = await handleSwarmWorkerPermission({
+            const workerDecision = await handleCrewmatePermission({
               ctx,
               description,
               ...{},

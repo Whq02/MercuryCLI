@@ -63,7 +63,7 @@ console.log('============================================================')
 console.log(' DaemonSupervisorView — live cockpit, honest derive')
 console.log('============================================================')
 
-section('live supervisor + a busy + an idle worker ⇒ badge live, real rows')
+section('live daemon + a busy + an idle worker ⇒ badge live, real rows')
 {
   const st = mkStatus({
     workers: [
@@ -132,7 +132,7 @@ section('control unreachable ⇒ unavailable + orphan warning, NO live rows')
   check('breaker null (unknown) renders no fake state', v.breaker === null)
 }
 
-section('no supervisor ⇒ honest-empty (NEVER a fake live)')
+section('no daemon ⇒ honest-empty (NEVER a fake live)')
 {
   const v = deriveSupervisorRows(mkStatus({ supervisor: null }))
   check("badge === 'off'", v.badge === 'off', v.badge)

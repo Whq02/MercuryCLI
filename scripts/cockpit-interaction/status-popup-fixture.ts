@@ -5,8 +5,8 @@ process.env.FORCE_COLOR = '0'
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 export const { buildFacts } = await import('../../src/commands/status/mercuryStatus.js')
-const { getDefaultMainLoopModel } = await import('../../src/utils/model/model.js')
-export const model = getDefaultMainLoopModel()
+const { getDefaultEngineModel } = await import('../../src/utils/model/model.js')
+export const model = getDefaultEngineModel()
 type Reads = NonNullable<Parameters<typeof buildFacts>[2]>
 const connector = {
   carrier: 'daemon',

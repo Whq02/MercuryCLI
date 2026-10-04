@@ -160,7 +160,7 @@ section('§2 THE LAW OF THE HINT — a required first token <…> answers bare; 
 section('§3 THE DISPATCHER — a bare send of every user-invocable prompt command (RED on the base: every <required> skill starts a turn today)')
 {
   const makeContext = (commands: Command[]): unknown => ({
-    options: { commands, tools: [], mcpClients: [], mcpResources: {}, mainLoopModel: 'fixture-model', agentDefinitions: { activeAgents: [], allAgents: [] }, debug: false, verbose: false, isNonInteractiveSession: false },
+    options: { commands, tools: [], mcpClients: [], mcpResources: {}, engineModel: 'fixture-model', agentDefinitions: { activeAgents: [], allAgents: [] }, debug: false, verbose: false, isNonInteractiveSession: false },
     abortController: new AbortController(),
     readFileState: new Map(),
     getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext(), mcp: { clients: [] }, sessionHooks: new Map() }),

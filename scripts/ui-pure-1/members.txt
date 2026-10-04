@@ -19,7 +19,7 @@ prove-face-logins.ts
 prove-field-findings-composer.ts
 prove-field-findings-concourse.ts
 prove-field-findings-sededit.ts
-prove-field-findings-terminalsetup.ts
+prove-field-findings-keysetup.ts
 prove-field-findings-transcript.ts
 prove-field-w6-caret.ts
 prove-footer-strip-hint.ts

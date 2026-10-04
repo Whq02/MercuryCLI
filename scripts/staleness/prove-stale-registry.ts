@@ -121,7 +121,7 @@ src/ink/node-cache.ts :: nodeCache :: keyed-by-truth
 src/ink/session/windowsHostSetup.ts :: presenceCache :: invalidator=evictHostPresence
 src/keybindings/loadUserBindings.ts :: cached :: keyed-by-truth
 src/keybindings/loadUserBindings.ts :: cachedCwd :: keyed-by-truth
-src/memdir/paths.ts :: getAutoMemPath :: static-for-process
+src/mneme/paths.ts :: getMnemeHome :: static-for-process
 src/projectOnboardingState.ts :: projectOnboardingHint :: invalidator=applyHarnessGround
 src/projectOnboardingState.ts :: shouldShowProjectOnboarding :: invalidator=applyHarnessGround
 src/services/aseprite/asepriteApp.ts :: versionCache :: ttl-bounded
@@ -205,7 +205,6 @@ src/tasks/taskOutcomeEnvelope.ts :: cacheBySession :: invalidator=recordTaskOutc
 src/tools/AgentTool/loadAgentsDir.ts :: definitionsCache :: invalidator=clearAgentDefinitionsCache
 src/tools/BashTool/readOnlyValidation.ts :: allowlistCache :: static-for-process
 src/tools/FileReadTool/limits.ts :: getDefaultFileReadingLimits :: static-for-process
-src/tools/REPLTool/primitiveTools.ts :: cached :: static-for-process
 src/tools/SkillTool/prompt.ts :: promptForRoot :: keyed-by-truth
 src/tools/SyntheticOutputTool/SyntheticOutputTool.ts :: schemaBoundCache :: keyed-by-truth
 src/tools/ToolSearchTool/ToolSearchTool.ts :: deferredSetCacheKey :: keyed-by-truth
@@ -326,7 +325,7 @@ src/utils/suggestions/directoryCompletion.ts :: directoryCache :: ttl-bounded
 src/utils/suggestions/directoryCompletion.ts :: pathCache :: ttl-bounded
 src/utils/suggestions/shellHistoryCompletion.ts :: corpusCache :: ttl-bounded
 src/utils/suggestions/slackChannelSuggestions.ts :: responseCache :: keyed-by-truth
-src/utils/swarm/backends/detection.ts :: insideITerm2Memo :: static-for-process
+src/utils/crew/backends/detection.ts :: insideITerm2Memo :: static-for-process
 src/utils/systemTheme.ts :: cachedSystemTheme :: static-for-process
 src/utils/task/diskOutput.ts :: memoizedTasksDir :: static-for-process
 src/utils/toolSchemaCache.ts :: toolSchemaCache :: keyed-by-truth

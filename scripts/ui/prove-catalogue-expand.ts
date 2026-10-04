@@ -73,9 +73,9 @@ if (process.argv[2] === '--compose') {
     [hf.HUGGINGFACE_MODEL_GROUP]: () => hf.getHuggingfaceFullModelOptions(),
   }
   const fullRows = (group: string) => (wholeCatalogues[group] === undefined ? undefined : applyModelAllowlist(wholeCatalogues[group]()).map(rowOf))
-  const { getMainLoopModel } = await import('../../src/utils/model/model.ts')
+  const { getEngineModel } = await import('../../src/utils/model/model.ts')
   const { providerFamilyOfSetting } = await import('../../src/utils/model/modelTransition.ts')
-  const served = getMainLoopModel()
+  const served = getEngineModel()
   const seatFamily = providerFamilyOfSetting(served)
   const seatGroup = rows.find(row => row.id === served)?.group ?? (seatFamily === 'openrouter' ? or.OPENROUTER_MODEL_GROUP : seatFamily === 'huggingface' ? hf.HUGGINGFACE_MODEL_GROUP : ANTHROPIC_MODEL_GROUP)
   const groups = picker.orderPickerGroups(picker.groupPickerRows(rows), { top: seatGroup })

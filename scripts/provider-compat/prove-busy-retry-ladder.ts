@@ -118,7 +118,7 @@ const user = (content: unknown): Message => ({ type: 'user', uuid: randomUUID(),
 function params(signal: AbortSignal = new AbortController().signal, modelId = model, door?: { agentId?: string; onWait: (wait: unknown) => void }): CompatCallModelParams {
   return {
     messages: [user('Say hello.')], systemPrompt: asSystemPrompt(['Only answer the request.']), thinkingConfig: { type: 'disabled' }, tools: [], signal,
-    options: { model: modelId, querySource: 'repl_main_thread', isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], hasAppendSystemPrompt: false, mcpTools: [], maxOutputTokensOverride: 64, ...(door === undefined ? {} : { onWait: door.onWait, ...(door.agentId !== undefined ? { agentId: door.agentId } : {}) }) } as never,
+    options: { model: modelId, querySource: 'main_thread', isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], hasAppendSystemPrompt: false, mcpTools: [], maxOutputTokensOverride: 64, ...(door === undefined ? {} : { onWait: door.onWait, ...(door.agentId !== undefined ? { agentId: door.agentId } : {}) }) } as never,
   }
 }
 type Stamp = { provider: string; retries: number; elapsedMs: number; status?: number; code?: string; detail: string }
@@ -352,7 +352,7 @@ try {
       options: {
         model: opts.model ?? HOME_MODEL,
         ...(opts.fallbackModel === undefined ? {} : { fallbackModel: opts.fallbackModel }),
-        querySource: opts.querySource ?? 'repl_main_thread',
+        querySource: opts.querySource ?? 'main_thread',
         isNonInteractiveSession: true,
         fetchOverride: homeFetch(script, homeHits) as never,
         getToolPermissionContext: async () => getEmptyToolPermissionContext(),
@@ -368,7 +368,7 @@ try {
   }
   const homeWaits = (homeHits: HomeHit[]): number[] => homeHits.slice(1).map((hit, i) => hit.atMs - homeHits[i]!.atMs)
   const foreground = (retrySeam as { isForegroundQuerySource?: (source: string) => boolean }).isForegroundQuerySource ?? ((): undefined => undefined)
-  check("the retry seam counts every sub-agent source as foreground — a resumed built-in agent's turn included — and a background summary as not", foreground('agent:builtin:mercury-crew') === true && foreground('agent:custom') === true && foreground('repl_main_thread') === true && foreground('sdk') === true && foreground('agent_summary') === false && foreground('generate_session_title') === false)
+  check("the retry seam counts every sub-agent source as foreground — a resumed built-in agent's turn included — and a background summary as not", foreground('agent:builtin:mercury-crew') === true && foreground('agent:custom') === true && foreground('main_thread') === true && foreground('sdk') === true && foreground('agent_summary') === false && foreground('generate_session_title') === false)
 
   reset(LADDER_SCALE)
   {

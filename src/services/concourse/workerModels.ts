@@ -207,8 +207,8 @@ export async function composeWorkerModelRegistry(reads: WorkerRegistryReads = {}
   const seen = new Set<string>()
   let operatorDefaultId: string | undefined
   try {
-    const { getMainLoopModel } = await import('../../utils/model/model.js')
-    operatorDefaultId = await canonicalWorkerModelId(getMainLoopModel())
+    const { getEngineModel } = await import('../../utils/model/model.js')
+    operatorDefaultId = await canonicalWorkerModelId(getEngineModel())
   } catch {
   }
   let neutralDefaultId: string | undefined

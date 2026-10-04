@@ -29,7 +29,7 @@ function MercuryCostThreshold({ onDone }: Props): React.ReactNode {
           <Text color={tokens.textPrimary}> on the Anthropic API this session.</Text>
         </Text>
         <Box marginTop={1}>
-          <Text color={tokens.textSecondary}>Track your spending anytime with /cost.</Text>
+          <Text color={tokens.textSecondary}>Track your spending anytime with /usage.</Text>
         </Box>
         <Box marginTop={1}>
           <Select

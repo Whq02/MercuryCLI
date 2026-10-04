@@ -440,7 +440,7 @@ export const SkillTool = buildTool({
         if (model) {
           next = {
             ...next,
-            options: { ...next.options, mainLoopModel: resolveSkillModelOverride(model, next.options.mainLoopModel) },
+            options: { ...next.options, engineModel: resolveSkillModelOverride(model, next.options.engineModel) },
           }
         }
         if (effort !== undefined) {

@@ -2,7 +2,7 @@ import axios, { type AxiosResponse } from 'axios'
 import { LRUCache } from 'lru-cache'
 
 import { querySmallFast, queryWithModel } from '../../services/providers/anthropic/index.js'
-import { getMainLoopModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../utils/model/model.js'
 import { sessionSmallFastModel } from '../../utils/model/providerFrontier.js'
 import { AbortError } from '../../utils/errors.js'
 import { getWebFetchUserAgent } from '../../utils/http.js'
@@ -250,7 +250,7 @@ export async function applyPromptToMarkdown(
   const small = reads?.small ?? querySmallFast
   const withModel = reads?.withModel ?? queryWithModel
   const smallModelId = reads?.smallModelId ?? sessionSmallFastModel
-  const mainModelId = reads?.mainModelId ?? getMainLoopModel
+  const mainModelId = reads?.mainModelId ?? getEngineModel
   const userPrompt = makeSecondaryModelPrompt(bounded, prompt, isPreapprovedDomain)
   const baseOptions = {
     querySource: 'web_fetch_apply' as const,

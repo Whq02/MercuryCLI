@@ -140,7 +140,7 @@ export async function getSkillListingAttachments(
   )
 
   const contextWindowTokens = getContextWindowForModel(
-    toolUseContext.options.mainLoopModel,
+    toolUseContext.options.engineModel,
     getSdkBetas(),
   )
   const formatted =

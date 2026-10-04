@@ -5,7 +5,7 @@
 # gate-watch: src/tools/AgentTool/builtInAgents* src/utils/crew/crewBirth.ts src/tools.ts src/tools/MCPTool/absentToolShim.ts
 # gate-watch: src/tools/AgentTool/reviewerPolicy.ts src/tools/AgentTool/runAgent.ts src/tools/AgentTool/constants.ts
 # gate-watch: src/utils/**
-# gate-watch: src/cli/print.ts
+# gate-watch: src/cli/run.ts
 # gate-watch: scripts/daemon/dupline-world.ts scripts/lib/* src/cli/handlers/agents.ts
 # gate-watch: src/components/messages/UserCrewmateMessage.tsx src/components/tasks/AsyncAgentDetailDialog.tsx
 # gate-watch: src/components/tasks/taskStatusUtils.tsx src/constants/prompts.ts

@@ -230,6 +230,7 @@ const rowLine = (grid: string, family: string): string | undefined =>
 const listWorld = seedWorld('list', { openaiSubscription: true, claudeSubscription: true, anthropicKeyApproved: false })
 const listEnv = {
   ...baseEnv(listWorld.home),
+  ANTHROPIC_BASE_URL: `${base}/refused`,
   MERCURY_MOCK_USAGE_PAYLOAD: JSON.stringify({
     five_hour: { utilization: 12, resets_at: new Date(Date.now() + 3600_000).toISOString() },
     seven_day: { utilization: 100, resets_at: new Date(Date.now() + 5 * 86400_000).toISOString() },
@@ -240,11 +241,13 @@ const list = ONLY.has('list') ? drive(
   'list',
   listWorld,
   listEnv,
-  'gpt-5.6-sol',
+  FABLE_51,
   [
     { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-    { requireAwait: true, awaitText: '? for shortcuts', minTick: 20, data: '/mock-limits weekly-limit-reached\r', mark: 'observed' },
-    { requireAwait: true, awaitText: '? for shortcuts', minTick: 6, awaitSettleTicks: 3, data: '/usage\r', mark: 'usage' },
+    { requireAwait: true, awaitText: '? for shortcuts', minTick: 20, data: 'hello fable\r', mark: 'ready' },
+    { requireAwait: true, awaitText: ANTHROPIC_OFFER_TITLE, minTick: 6, awaitSettleTicks: 4, data: '\x1b', mark: 'home-offer' },
+    { requireAwait: true, awaitText: '? for shortcuts', minTick: 4, awaitSettleTicks: 3, data: '/model gpt-5.6-sol\r', mark: 'after-esc' },
+    { requireAwait: true, awaitText: 'GPT-5.6 Sol ·', minTick: 6, awaitSettleTicks: 3, data: '/usage\r', mark: 'usage' },
     { afterPrevTicks: 15, data: '\x1b', mark: 'usage-close' },
     { requireAwait: true, awaitText: '? for shortcuts', minTick: 6, awaitSettleTicks: 3, data: 'hello sol\r' },
     { requireAwait: true, awaitText: OPENAI_OFFER_TITLE, minTick: 12, awaitSettleTicks: 4, data: '\x1b[B', mark: 'list' },
@@ -262,6 +265,11 @@ if (list !== null) {
   const p = list.payload
   const wire = list.wire
   const finalGrid = p ? gridText(p.grid) : ''
+  section("L0 — the Anthropic lane's own wire refused the Fable turn; its card rose, esc left it, the seat moved to GPT")
+  const refused = wire.filter(c => c.kind === 'anthropic-refused' && JSON.stringify(c.body ?? {}).includes('hello fable'))
+  check('the fixture refused the Fable turn once, the spent weekly window in its headers', refused.length === 1, `kinds=${wire.map(c => c.kind).join(',')}`)
+  check('the Anthropic card rose on the refusal', markGrid(p, 'home-offer').includes(ANTHROPIC_OFFER_TITLE), `status=${list.status} endReason=${p?.endReason ?? '?'}\n${tail(markGrid(p, 'home-offer'))}`)
+  check("the seat moved to gpt-5.6-sol (the strip's model chip names it)", markGrid(p, 'usage').includes('GPT-5.6 Sol ·'), tail(markGrid(p, 'usage'), 8))
   section('L1 — the offer lists every other signed-in family, the at-cap lane last and marked')
   const listGrid = markGrid(p, 'list')
   check('the offer card stood when the first ↓ was sent', listGrid.includes(OPENAI_OFFER_TITLE), `status=${list.status} endReason=${p?.endReason ?? '?'}\n${tail(listGrid)}`)
@@ -292,7 +300,7 @@ if (list !== null) {
   check('after ↑ the cursor is back on DeepSeek', (rowLine(up1, 'DeepSeek') ?? '').includes('▸'), tail(up1))
   const preview = markGrid(p, 'preview')
   check('the refusal-only history settles directly on the highlighted DeepSeek row, not the first', preview.includes('Set model to') && !preview.includes('Model switch preview') && (preview.includes('DeepSeek') || preview.includes(DEEPSEEK_ROW)) && !preview.includes(ZAI_ROW), tail(preview))
-  const settledTick = receiptTick(p, 11)
+  const settledTick = receiptTick(p, 13)
   check('the settlement receipt painted (the pickup send fired on its await)', settledTick > 0, `pickup send at tick ${settledTick}; endReason=${p?.endReason ?? '?'}`)
   const settled = markGrid(p, 'settled')
   check('the receipt names the chosen row', settled.includes('Set model to') && (settled.includes('DeepSeek') || settled.includes(DEEPSEEK_ROW)), tail(settled, 8))
@@ -300,11 +308,11 @@ if (list !== null) {
   const main = deepseekCalls.find(c => JSON.stringify(c.body ?? {}).includes('pick up from gpt pls'))
   check("the next turn DISPATCHED to the chosen lane's wire (DeepSeek), carrying the ask", main !== undefined, `deepseek=${deepseekCalls.length} kinds=${wire.map(c => c.kind).join(',')}`)
   check(`the switched request targets the exact chosen row (${DEEPSEEK_ROW})`, String(main?.body?.model ?? '').startsWith(DEEPSEEK_ROW), String(main?.body?.model))
-  check('no MAIN turn reached the Z.AI or Anthropic wires (a utility probe is not a turn)', !wire.some(c => (c.kind === 'zai' || c.kind === 'anthropic') && JSON.stringify(c.body ?? {}).includes('pick up from gpt pls')))
+  check('no MAIN turn reached the Z.AI or Anthropic wires (a utility probe is not a turn)', !wire.some(c => (c.kind === 'zai' || c.kind === 'anthropic' || c.kind === 'anthropic-refused') && JSON.stringify(c.body ?? {}).includes('pick up from gpt pls')))
   check('the switched reply painted', finalGrid.includes(DEEPSEEK_REPLY) || markGrid(p, 'probe').includes(DEEPSEEK_REPLY), tail(finalGrid, 10))
 
   section('L5 — the offer never re-paints after the settlement')
-  const probeTick = receiptTick(p, 12)
+  const probeTick = receiptTick(p, 14)
   check('the no-repaint probe fired on its DEADLINE (the card never returned)', settledTick > 0 && probeTick >= settledTick + PROBE_GAP - 1, `probe at tick ${probeTick} (pickup at ${settledTick}, gap ${PROBE_GAP})`)
   check('no offer card on the final screen', !finalGrid.includes(OPENAI_OFFER_TITLE))
 }
@@ -313,6 +321,7 @@ const poolWorld = seedWorld('pool', { openaiSubscription: false, claudeSubscript
 const poolResetIso = new Date(Date.now() + (22 * 3600 + 51 * 60) * 1000).toISOString()
 const poolEnv = {
   ...baseEnv(poolWorld.home),
+  ANTHROPIC_BASE_URL: `${base}/refused`,
   MERCURY_MOCK_USAGE_PAYLOAD: JSON.stringify({
     five_hour: { utilization: 36, resets_at: new Date(Date.now() + 3600_000).toISOString() },
     seven_day: { utilization: 44, resets_at: new Date(Date.now() + 5 * 86400_000).toISOString() },
@@ -326,7 +335,7 @@ const pool = ONLY.has('pool') ? drive(
   FABLE_51,
   [
     { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-    { requireAwait: true, awaitText: '? for shortcuts', minTick: 20, data: '/mock-limits weekly-limit-reached\r', mark: 'observed' },
+    { requireAwait: true, awaitText: '? for shortcuts', minTick: 20, data: 'hello fable\r', mark: 'observed' },
     { requireAwait: true, awaitText: ANTHROPIC_OFFER_TITLE, minTick: 6, awaitSettleTicks: 4, data: '\r', mark: 'pool-offer' },
     { requireAwait: true, awaitText: 'Set model to', minTick: 6, awaitSettleTicks: 2, data: 'pick up from fable pls\r', mark: 'settled' },
     { afterPrevTicks: PROBE_GAP, awaitText: ANTHROPIC_OFFER_TITLE, data: '', mark: 'probe' },
@@ -339,7 +348,8 @@ if (pool !== null) {
   const finalGrid = p ? gridText(p.grid) : ''
   section('P1 — an explicit weekly rejection arms the offer beside the full Fable pool')
   const offerTick = receiptTick(p, 2)
-  check('the offer fired from the explicit rejected fixture verdict without a model turn', offerTick > 0, `offer send at tick ${offerTick}; status=${pool.status}; endReason=${p?.endReason ?? '?'}\n${tail(markGrid(p, 'observed'))}`)
+  check("the Fable turn reached its wire once and was refused, the spent weekly window in the refusal's headers", wire.filter(c => c.kind === 'anthropic-refused' && JSON.stringify(c.body ?? {}).includes('hello fable')).length === 1, `kinds=${wire.map(c => c.kind).join(',')}`)
+  check("the offer fired from the rejected verdict the refusal carried", offerTick > 0, `offer send at tick ${offerTick}; status=${pool.status}; endReason=${p?.endReason ?? '?'}\n${tail(markGrid(p, 'observed'))}`)
   const offer = markGrid(p, 'pool-offer')
   check('the card stood when enter was sent', offer.includes(ANTHROPIC_OFFER_TITLE), tail(offer))
   check('the card names the rejected weekly window, not the full pool percentage', offer.includes('the Anthropic weekly limit is reached') && !offer.includes('weekly Fable'), tail(offer))
@@ -352,7 +362,7 @@ if (pool !== null) {
   const main = zaiCalls.find(c => JSON.stringify(c.body ?? {}).includes('pick up from fable pls'))
   check("the next turn DISPATCHED to the chosen lane's wire (Z.AI)", main !== undefined, `zai=${zaiCalls.length} kinds=${wire.map(c => c.kind).join(',')}`)
   check(`the switched request targets the exact chosen row (${ZAI_ROW})`, String(main?.body?.model ?? '').startsWith(ZAI_ROW), String(main?.body?.model))
-  check('no MAIN turn reached the Anthropic wire (the seat left before any turn; a utility probe is not a turn)', !wire.some(c => c.kind === 'anthropic' && JSON.stringify(c.body ?? {}).includes('pick up from fable pls')))
+  check('the pickup reached no Anthropic wire (the seat left after the refused turn; a utility probe is not a turn)', !wire.some(c => (c.kind === 'anthropic' || c.kind === 'anthropic-refused') && JSON.stringify(c.body ?? {}).includes('pick up from fable pls')))
   check('the switched reply painted', finalGrid.includes(ZAI_REPLY) || markGrid(p, 'probe').includes(ZAI_REPLY), tail(finalGrid, 10))
   const settledTick = receiptTick(p, 3)
   const probeTick = receiptTick(p, 4)

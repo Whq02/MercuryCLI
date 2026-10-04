@@ -85,12 +85,12 @@ try {
   })
   process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${port}`
   ;(await import('../../src/utils/config.js')).enableConfigs()
-  const { setMainLoopModelOverride } = await import('../../src/bootstrap/state.js')
+  const { setEngineModelOverride } = await import('../../src/bootstrap/state.js')
   const { COUNT_RETRY_BUDGET_MS, countMessagesTokensWithAPI, countTokensViaHaikuFallback } = await import('../../src/services/tokenEstimation.js')
   const { BUSY_RETRY_RUNGS_MS, openBusyRetryLadder, nextBusyRetryWithinBudget } = await import('../../src/services/providers/busyRetry.js')
   const { getCLISyspromptPrefix } = await import('../../src/constants/system.js')
   const { getAnthropicClientContractVersion } = await import('../../src/constants/oauth.js')
-  setMainLoopModelOverride('claude-sonnet-5-5')
+  setEngineModelOverride('claude-sonnet-5-5')
   const messages = [{ role: 'user', content: 'Count me.' }]
   const scale = 0.01
   const rungs = BUSY_RETRY_RUNGS_MS.map(ms => Math.round(ms * scale))

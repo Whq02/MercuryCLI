@@ -52,7 +52,7 @@ import {
 } from '../../utils/toolSearch.js'
 import { isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/prompt.js'
 import { deferralSearchIsServerSide, deferralWireFormFor } from '../providers/deferralWire.js'
-import { getMainLoopModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../utils/model/model.js'
 import { FILE_EDIT_TOOL_NAME } from '../../tools/FileEditTool/constants.js'
 import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
 import { FILE_WRITE_TOOL_NAME } from '../../tools/FileWriteTool/prompt.js'
@@ -113,7 +113,7 @@ export function buildSchemaNotSentHint(
   tool: Tool,
   messages: Message[],
   tools: readonly { name: string }[],
-  model = getMainLoopModel(),
+  model = getEngineModel(),
 ): string | null {
   if (!isToolSearchEnabledOptimistic()) return null
   if (!isToolSearchToolAvailable(tools)) return null
@@ -321,7 +321,7 @@ export async function* runToolUse(
     const closest = closestToolByName(toolUseContext.options.tools, requestedName)
     const loadRoad =
       closest !== undefined &&
-      buildSchemaNotSentHint(closest, toolUseContext.messages, toolUseContext.options.tools, toolUseContext.options.mainLoopModel) !== null
+      buildSchemaNotSentHint(closest, toolUseContext.messages, toolUseContext.options.tools, toolUseContext.options.engineModel) !== null
     const unknownToolText =
       closest === undefined
         ? `No such tool available: ${requestedName}. It is not in this session's tool list — call one of the tools you were given (a ToolSearch query loads a deferred tool when one is offered).`
@@ -482,7 +482,7 @@ async function runTransactionBody(args: {
       tool,
       toolUseContext.messages,
       toolUseContext.options.tools,
-      toolUseContext.options.mainLoopModel,
+      toolUseContext.options.engineModel,
     )
     if (hint) content += hint
     emitError(content, `InputValidationError: ${parsed.error.message}`)
@@ -500,7 +500,7 @@ async function runTransactionBody(args: {
           const { recordEditOutcome } = await import('../changeTransaction/editOutcomeLedger.js')
           recordEditOutcome(
             ownerFromToolUseContext(toolUseContext),
-            toolUseContext.options.mainLoopModel,
+            toolUseContext.options.engineModel,
             'edit',
             `error-${code}`,
           )
@@ -1036,7 +1036,7 @@ async function runTransactionBody(args: {
                   : `error-${result!.effect!.outcome}`
             recordEditOutcome(
               ownerFromToolUseContext(toolUseContext),
-              toolUseContext.options.mainLoopModel,
+              toolUseContext.options.engineModel,
               'edit',
               outcome,
             )

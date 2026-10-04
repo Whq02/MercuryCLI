@@ -25,11 +25,11 @@
 |---|---|---|
 | setup dialogs (showDialog family — onboarding · trust · policy · api-key · teleport · invalid-settings) | `src/interactiveHelpers.tsx` | claims the held screen (SetupScreenHost stations under hold/fullscreen policy; bare inline only when the operator chose inline) |
 | exit/error messages (exitWithMessage/exitWithError) | `src/interactiveHelpers.tsx` | releases the hold before inline render |
-| Resume Session picker (bare --resume: loading · picker · resuming · REPL swap) | `src/screens/ResumeConversation.tsx` | claims the held screen (<AlternateScreen> host; REPL swap rides the nested path) |
-| REPL cockpit (direct boot / --continue / --resume <id>) | `src/screens/REPL.tsx → src/ink/components/AlternateScreen.tsx` | claims the held screen (outermost mount consumes + arms the takeover erase) |
+| Resume Session picker (bare --resume: loading · picker · resuming · Chat swap) | `src/screens/ResumeConversation.tsx` | claims the held screen (<AlternateScreen> host; Chat swap rides the nested path) |
+| Chat cockpit (direct boot / --continue / --resume <id>) | `src/screens/Chat.tsx → src/ink/components/AlternateScreen.tsx` | claims the held screen (outermost mount consumes + arms the takeover erase) |
 | non-takeover argv paths (run · --help · subcommands · piped stdout) | `src/entrypoints/cli.tsx` | releases the hold before any output |
 
-## Slash routes — modal-slot views (local-jsx: 68)
+## Slash routes — modal-slot views (local-jsx: 67)
 
 Host: the FullscreenLayout modal slot (opaque claim; SURFACE-CLAIM
 INVARIANT forces height = terminalRows at peek 0). Kernel signals name
@@ -47,7 +47,6 @@ the interaction primitives the view actually mounts (1-hop join).
 | /capabilities | — | `src/commands/capabilities` |
 | /capabilities-detail | — | `src/commands/capabilities-detail` |
 | /cockpit | irow | `src/commands/cockpit` |
-| /color | — | `src/commands/color` |
 | /console | irow | `src/commands/console` |
 | /context | — | `src/commands/context` |
 | /contract | — | `src/commands/contract` |
@@ -70,6 +69,7 @@ the interaction primitives the view actually mounts (1-hop join).
 | /home | irow | `src/commands/home` |
 | /hooks | — | `src/commands/hooks` |
 | /keys | irow | `src/commands/keys` |
+| /keysetup | — | `src/commands/keysetup` |
 | /ledger | panes | `src/commands/ledger` |
 | /live | — | `src/commands/live` |
 | /logins | ilist irow | `src/commands/login` |
@@ -100,20 +100,19 @@ the interaction primitives the view actually mounts (1-hop join).
 | /submodels | ilist irow | `src/commands/submodels` |
 | /substrate | — | `src/commands/substrate` |
 | /surfaces | ilist irow | `src/commands/manager` |
-| /terminal-setup | — | `src/commands/terminalSetup` |
 | /title | — | `src/commands/title` |
 | /trace | — | `src/commands/trace` |
 | /workbench | panes | `src/commands/workbench` |
 | /workflows | panes | `src/commands/workflows` |
 
-## Slash routes — transcript prints (local: 35)
+## Slash routes — transcript prints (local: 31)
 
-`/accent` · `/advise` · `/auto-compact-window` · `/bootmenu` · `/branches` · `/browser` · `/clear` · `/compact` · `/concourse` · `/config` · `/cost` · `/counsel` · `/debrief` · `/files` · `/halt` · `/heapdump` · `/jev` · `/jevor` · `/keybindings` · `/kill` · `/localsetup` · `/mock-limits` · `/mouse` · `/orient` · `/rewind` · `/seats` · `/speak` · `/status` · `/subagents` · `/supervisor` · `/update-notes` · `/usage` · `/view` · `/vim` · `/voice`
+`/accent` · `/advise` · `/auto-compact-window` · `/bootmenu` · `/branches` · `/browser` · `/clear` · `/compact` · `/concourse` · `/config` · `/counsel` · `/debrief` · `/halt` · `/jev` · `/jevor` · `/keybindings` · `/kill` · `/localsetup` · `/mouse` · `/orient` · `/rewind` · `/seats` · `/speak` · `/status` · `/subagents` · `/supervisor` · `/update-notes` · `/usage` · `/view` · `/vim` · `/voice`
 
 ## Slash routes — model turns (prompt: 3)
 
 `/init` · `/review` · `/verify`
 
-## Other route types (3)
+## Other route types (2)
 
-`/crew` (text) · `/pr-comments` (text) · `/security-review` (addRules)
+`/audit` (addRules) · `/crew` (text)

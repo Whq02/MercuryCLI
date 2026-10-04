@@ -18,7 +18,7 @@ out.defaults = {
   sonnet: model.getDefaultSonnetModel(),
   haiku: model.getDefaultHaikuModel(),
   fable: model.getDefaultFableModel(),
-  mainLoopSetting: model.getDefaultMainLoopModelSetting(),
+  mainLoopSetting: model.getDefaultEngineModelSetting(),
   opusNatively1M: model.isDefaultOpusNatively1M(),
 }
 out.parse = Object.fromEntries(

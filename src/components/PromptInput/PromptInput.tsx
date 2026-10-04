@@ -111,7 +111,7 @@ import { maybeTruncateMessageForInput } from './inputPaste.js'
 import { normalizePastedInput } from '../../input-core/composer-document.js'
 import { useMaybeTruncateInput } from './useMaybeTruncateInput.js'
 import { usePromptInputPlaceholder } from './usePromptInputPlaceholder.js'
-import { useSwarmBanner } from './useSwarmBanner.js'
+import { useCrewBanner } from './useCrewBanner.js'
 import { isVimModeEnabled } from './utils.js'
 import HistorySearchInput from './HistorySearchInput.js'
 import { PromptInputFooter } from './PromptInputFooter.js'
@@ -141,7 +141,7 @@ import { injectUserMessageToCrewmate } from '../../tasks/InProcessCrewmateTask/I
 import { appendMessageToLocalAgent, isLocalAgentTask, queueOperatorMessage } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { getViewedCrewmateTask } from '../../state/selectors.js'
 import { sendLiveMessage } from '../../services/crew/liveComms.js'
-import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
+import { isCrewEnabled } from '../../utils/crewEnabled.js'
 import { getTheme, type Theme } from '../../utils/theme.js'
 import { useFocusedTranscript } from '../../hooks/useFocusedTranscript.js'
 import { useTheme } from '../design-system/ThemeProvider.js'
@@ -162,7 +162,7 @@ import {
   cyclePermissionMode,
   getNextPermissionMode,
 } from '../../utils/permissions/getNextPermissionMode.js'
-import { syncCrewmateMode } from '../../utils/swarm/crewHelpers.js'
+import { syncCrewmateMode } from '../../utils/crew/crewHelpers.js'
 import { parseDirectMemberMessage, sendDirectMemberMessage } from '../../utils/directMemberMessage.js'
 import { getEffortNotificationText } from '../EffortIndicator.js'
 import { isDefaultMode } from '../../utils/permissions/PermissionMode.js'
@@ -175,7 +175,7 @@ import { anyModalOverlayActive, topOverlay } from '../../context/overlayStack.js
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 import { abortSpeculation, handleSpeculationAccept } from '../../services/PromptSuggestion/speculation.js'
 import type { PromptInputHelpers } from '../../types/promptInputHelpers.js'
-import { composerBorderRole, composerBorderStyle, COMPOSER_BORDER_SHED_ROWS } from '../mercury-ui/replFloor.js'
+import { composerBorderRole, composerBorderStyle, COMPOSER_BORDER_SHED_ROWS } from '../mercury-ui/composerFloor.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { useNowTick } from '../mercury-ui/components.js'
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
@@ -193,6 +193,7 @@ import { OPENROUTER_CONNECT_OPTION_VALUE } from '../../services/providers/openro
 import { HUGGINGFACE_CONNECT_OPTION_VALUE } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
 import { GEMINI_CONNECT_OPTION_VALUE } from '../../services/providers/gemini/geminiCatalogue.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
+import { openFilesMenu } from '../../utils/cockpit/filesMenu.js'
 import { popupOwnsKeys, subscribePopupOwnsKeys } from '../../utils/cockpit/popupOwnsKeys.js'
 import { renderModelName } from '../../utils/model/model.js'
 import {
@@ -246,7 +247,7 @@ import { familyDisplayName } from '../../services/providers/accountSlots.js'
 
 const MANAGER_COMMAND = '/manager'
 const SESSION_TAB_COMMAND = '/sessiontab'
-const TERMINAL_SETUP_COMMAND = '/terminal-setup'
+const KEYSETUP_COMMAND = '/keysetup'
 const DOUBLED_SLASH = '//'
 const INPUT_TRUNCATION_THRESHOLD = 10_000
 const UNDO_BUFFER_SIZE = 50
@@ -391,9 +392,9 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const setAppState = useSetAppState()
   const appStateStore = useAppStateStore()
   const messages = useFocusedTranscript() as Message[]
-  const mainLoopModel = useAppState((s: AppState) => s.mainLoopModel)
-  const mainLoopModelForSession = useAppState(
-    (s: AppState) => s.mainLoopModelForSession,
+  const engineModel = useAppState((s: AppState) => s.engineModel)
+  const engineModelForSession = useAppState(
+    (s: AppState) => s.engineModelForSession,
   )
   const effortValue = useAppState((s: AppState) => s.effortValue)
   const viewedTask = useAppState((s: AppState) =>
@@ -453,8 +454,8 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     themeName,
     columns,
     rows,
-    mainLoopModel,
-    mainLoopModelForSession,
+    engineModel,
+    engineModelForSession,
     effortValue,
     viewedTask,
     footerSelection,
@@ -721,7 +722,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       addNotification({ key: 'model-switched', text: `Already on ${label} — queued switch cancelled`, priority: 'high', timeoutMs: 3000 })
       return
     }
-    const effectiveFrom = stateNow.mainLoopModelForSession ?? stateNow.mainLoopModel
+    const effectiveFrom = stateNow.engineModelForSession ?? stateNow.engineModel
     const lossNote = transitionPlanSummary(previewForSelection(messages, effectiveFrom, value))
     if (settled.kind === 'queued') {
       setAppState(prev => ({ ...prev, ...settled.patch }))
@@ -784,7 +785,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     if (probe.kind === 'queued' || probe.kind === 'applied') {
       const gatePlan = previewForSelection(
         messages,
-        probeState.mainLoopModelForSession ?? probeState.mainLoopModel,
+        probeState.engineModelForSession ?? probeState.engineModel,
         value,
       )
       if (gatePlan.needsChoice) {
@@ -1397,7 +1398,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
               fresh.viewingAgentTaskId !== undefined
             : fresh.footerSelection === 'bagel'
                 ? fresh.bagelActive === true
-                : fresh.replBridgeEnabled
+                : fresh.remoteControlEnabled
         if (stillVisible) return
       }
       if (fresh.viewSelectionMode === 'selecting-agent') return
@@ -1448,7 +1449,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         })
       }
 
-      if (isAgentSwarmsEnabled() && crewContext !== undefined && submitted.startsWith('@')) {
+      if (isCrewEnabled() && crewContext !== undefined && submitted.startsWith('@')) {
         const parsed = parseDirectMemberMessage(submitted)
         if (parsed !== null) {
           const result = await sendDirectMemberMessage(
@@ -1639,6 +1640,10 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
           setHelmFocus('prompt')
           void submitRef.current(activation.command, { fromKeybinding: true })
           break
+        case 'files':
+          setHelmFocus('prompt')
+          openFilesMenu()
+          break
         case 'console':
           setHelmFocus('telemetry')
           beginConsoleCompose()
@@ -1731,7 +1736,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const cyclePermission = useCallback((): void => {
     const fresh = appStateStore.getState() as AppState
     if (
-      isAgentSwarmsEnabled() &&
+      isCrewEnabled() &&
       fresh.viewingAgentTaskId !== undefined &&
       fresh.tasks[fresh.viewingAgentTaskId] !== undefined &&
       isInProcessCrewmateTask(fresh.tasks[fresh.viewingAgentTaskId])
@@ -1957,7 +1962,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
                 messages,
                 [],
                 new AbortController(),
-                mainLoopModel ?? '',
+                engineModel ?? '',
               )
               consoleSubmitBuffer((question, controller) =>
                 runConsoleAsk({
@@ -2155,7 +2160,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       if (getPlatform() === 'macos' && rawInput.length === 1 && 'åß∂ƒ©˙∆˚¬…æ∑'.includes(rawInput)) {
         addNotification({
           key: 'option-meta-hint',
-          text: `option produced “${rawInput}” — run ${TERMINAL_SETUP_COMMAND} to make option send meta`,
+          text: `option produced “${rawInput}” — run ${KEYSETUP_COMMAND} to make option send meta`,
           priority: 'low',
           timeoutMs: 5000,
         })
@@ -2209,7 +2214,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         setHelpOpen(false)
       }
     },
-    [modalOverlayUp, input, cursorOffset, mode, footerSelection, helpOpen, isSearchingHistory, messages, isLoading, speculationActive, appStateStore, mainLoopModel, cockpitActive, getToolUseContext, insertAtCursor, setMode, setHelpOpen, setCursorOffset, setAppState, addNotification, escapeDoublePress, voice.phase],
+    [modalOverlayUp, input, cursorOffset, mode, footerSelection, helpOpen, isSearchingHistory, messages, isLoading, speculationActive, appStateStore, engineModel, cockpitActive, getToolUseContext, insertAtCursor, setMode, setHelpOpen, setCursorOffset, setAppState, addNotification, escapeDoublePress, voice.phase],
   )
   useInput((rawInput, key, event) => {
     handleRawKey(rawInput, key, event)
@@ -2253,7 +2258,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         spans.push({ start: position.start, end: position.end, color: 'suggestion', priority: 5 })
       }
     }
-    if (isAgentSwarmsEnabled() && crewContext !== undefined) {
+    if (isCrewEnabled() && crewContext !== undefined) {
       const memberPattern = /(^|\s)@([\w-]+)/g
       for (const match of displayedValue.matchAll(memberPattern)) {
         const name = match[2] as string
@@ -2272,7 +2277,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
 
   const effortText = getEffortNotificationText(
     effortValue,
-    mainLoopModel ?? focusedMainModel,
+    engineModel ?? focusedMainModel,
   )
   const effortBaselineRef = useRef<{ armed: boolean; text: string | undefined }>({
     armed: false,
@@ -2306,7 +2311,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     cockpitActive,
     compact: isCompact,
   })
-  const banner = useSwarmBanner()
+  const banner = useCrewBanner()
   const borderStyle = isCompact ? compactBudget?.composerBorderRows === 2 ? 'round' : undefined : composerBorderStyle(rows)
   const nonDefaultModeColor = !isDefaultMode(toolPermissionContext.mode)
     ? ('permission' as keyof Theme)
@@ -2469,7 +2474,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     })
     return () => setHoldToTalkEditor(null)
   }, [setCursorOffset])
-  const capEffectiveModel = focusedEffectiveModel !== '' ? focusedEffectiveModel : (mainLoopModelForSession ?? mainLoopModel ?? focusedMainModel)
+  const capEffectiveModel = focusedEffectiveModel !== '' ? focusedEffectiveModel : (engineModelForSession ?? engineModel ?? focusedMainModel)
   const capLane = capFailoverLaneOf(declaredRouteOf(capEffectiveModel))
   const capNote = capHandoffState()
   const capHomeWindow = capLane !== null && capNote !== null ? observedFamilyWindow(capNote.homeFamily) : null
@@ -2511,7 +2516,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     return (
       <BackgroundTasksDialog
         onDone={() => setOverlay(null)}
-        toolUseContext={getToolUseContext(messages, [], new AbortController(), mainLoopModel ?? '')}
+        toolUseContext={getToolUseContext(messages, [], new AbortController(), engineModel ?? '')}
       />
     )
   }
@@ -2581,7 +2586,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   }
   if (overlay === 'model-transition-preview' && transitionConfirm !== null) {
     const held = transitionConfirm
-    const effectiveNow = mainLoopModelForSession ?? mainLoopModel ?? focusedMainModel
+    const effectiveNow = engineModelForSession ?? engineModel ?? focusedMainModel
     return (
       <TransitionPreviewCard
         plan={held.plan}
@@ -2623,8 +2628,8 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   if (overlay === 'model-picker') {
     return (
       <ModelPicker
-        initial={mainLoopModelForSession ?? mainLoopModel ?? focusedMainModel}
-        sessionModel={mainLoopModelForSession}
+        initial={engineModelForSession ?? engineModel ?? focusedMainModel}
+        sessionModel={engineModelForSession}
         onSelect={value => handleModelSelect(value)}
         onCancel={() => setOverlay(null)}
       />

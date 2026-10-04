@@ -8,12 +8,4 @@ const updateNotes = {
   load: () => import('./update-notes.js'),
 } satisfies Command
 
-export const releaseNotes = {
-  ...updateNotes,
-  name: 'release-notes',
-  description: 'The former name of /update-notes; runs the same command',
-  isHidden: true,
-  canonicalRoute: 'update-notes',
-} satisfies Command
-
 export default updateNotes

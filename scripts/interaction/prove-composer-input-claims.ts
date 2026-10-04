@@ -101,10 +101,10 @@ console.log('\n── §1 resolver + seed truths ──────────�
 
 console.log('\n── §2 wiring pinned in source ───────────────────────────────')
 {
-  const repl = read('src/screens/REPL.tsx')
+  const repl = read('src/screens/Chat.tsx')
   const prompt = read('src/components/PromptInput/PromptInput.tsx')
   check(
-    'the REPL boot seed consumes the early-input capture (a hardcoded empty seed discarded boot keystrokes)',
+    'the Chat boot seed consumes the early-input capture (a hardcoded empty seed discarded boot keystrokes)',
     repl.includes('pendingInput.initSession(conversationIdHere(), consumeEarlyInput())'),
   )
   check(
@@ -112,7 +112,7 @@ console.log('\n── §2 wiring pinned in source ──────────
     prompt.includes("invalidates: ['model-transition-applied']") && !repl.includes("key: 'model-switched'"),
   )
   check(
-    'the raw ladder carries the covered-REPL fence (concourse keys must not reach the parked composer)',
+    'the raw ladder carries the covered-Chat fence (concourse keys must not reach the parked composer)',
     prompt.includes("if (currentSurfaceRoute().kind !== 'repl') return"),
   )
   check(
@@ -222,7 +222,7 @@ function capture(
       !a.some(l => l.includes('zqxw')),
       a.find(l => l.includes('zqxw')) ?? '',
     )
-    check('esc returned to the root REPL (composer sigil present)', a.some(l => l.includes('❯')))
+    check('esc returned to the root Chat (composer sigil present)', a.some(l => l.includes('❯')))
   }
 }
 {

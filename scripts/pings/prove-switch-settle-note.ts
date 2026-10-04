@@ -238,7 +238,7 @@ section('§4 the ruled copy and the never-a-bell law (structural)')
     'the publisher carries the stamp on every facts publish',
     /modelSettled: seat\.lastModelSettle/.test(seatSrc),
   )
-  const replSrc = readFileSync(join(ROOT, 'src', 'screens', 'REPL.tsx'), 'utf8')
+  const replSrc = readFileSync(join(ROOT, 'src', 'screens', 'Chat.tsx'), 'utf8')
   check(
     'the boundary notification renders the label, Default included',
     /applied === null \? 'Default' : renderModelName\(applied\)/.test(replSrc),

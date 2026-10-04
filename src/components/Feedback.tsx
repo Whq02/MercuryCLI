@@ -58,7 +58,7 @@ import {
   type IssueAccess,
 } from '../services/repoHost/ghIssue.js'
 import { provenanceLine, resolveInstallProvenance } from '../services/privateChannel/installProvenance.js'
-import { getMainLoopModel } from '../utils/model/model.js'
+import { getEngineModel } from '../utils/model/model.js'
 import { focusedSessionModelFacts } from '../services/engine-connector/focusedConnector.js'
 import { providerFamilyOfSetting } from '../utils/model/modelTransition.js'
 import { providerDisplayName } from '../services/providers/routeLaw.js'
@@ -234,7 +234,7 @@ function installLine(): string {
 
 function modelFacts(): { family: string; model: string } {
   try {
-    const model = focusedSessionModelFacts()?.effective ?? getMainLoopModel()
+    const model = focusedSessionModelFacts()?.effective ?? getEngineModel()
     const route = providerFamilyOfSetting(model)
     return { family: route === 'unrecognised' ? 'Not sure' : providerDisplayName(route), model }
   } catch {

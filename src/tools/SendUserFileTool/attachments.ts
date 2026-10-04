@@ -60,7 +60,7 @@ export async function validateAttachmentPaths(
 
 export async function resolveAttachments(
   paths: readonly string[],
-  options: { replBridgeEnabled: boolean; signal?: AbortSignal },
+  options: { remoteControlEnabled: boolean; signal?: AbortSignal },
 ): Promise<ResolvedAttachment[]> {
   void options
   const resolved: ResolvedAttachment[] = []

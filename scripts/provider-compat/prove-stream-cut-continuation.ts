@@ -134,7 +134,7 @@ function makeCtx(): { ctx: Record<string, unknown>; abortController: AbortContro
     options: {
       commands: [],
       tools: [],
-      mainLoopModel: MODEL,
+      engineModel: MODEL,
       thinkingConfig: { type: 'enabled', budget_tokens: 1024 },
       mcpClients: [],
       mcpResources: {},

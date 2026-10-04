@@ -119,7 +119,7 @@ const frame = createRowStamper(() => '2026-10-02T00:00:00.000Z').stamp(samplesUp
 check('F6a the row is a samples_updated row with the session id and its stamp', frame.type === 'samples_updated' && frame.session_id === 'sess-1' && typeof frame.seq === 'number')
 check('F6b the row schema admits it', RowSchema().safeParse(frame).success)
 check('F6c the reader parses it as its own type, never the mission row', parseRow(JSON.stringify(frame))?.type === 'samples_updated')
-const print = readFileSync(join(REPO, 'src/cli/print.ts'), 'utf8')
+const print = readFileSync(join(REPO, 'src/cli/run.ts'), 'utf8')
 check('F6d the runner relays the rows with its facts and writes the row on every change (debounced)', print.includes('samples: await sampleRowsOf(getSessionId()),') && print.includes('subscribeSampleChanges(() => {') && print.includes('enqueueRow(samplesUpdatedRow(liveScope()))'))
 const seat = readFileSync(join(REPO, 'src/daemon/sessionSeat.ts'), 'utf8')
 check('F6e the daemon re-asks the facts on the row', /case 'samples_updated':/.test(seat))

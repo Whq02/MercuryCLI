@@ -72,7 +72,7 @@ section('§K1a the controller law — an agent task owns a fresh controller')
   const fgSrc = src('src/tools/AgentTool/foregroundExecution.tsx')
   check('the foreground run\'s owner is the task\'s controller (never the turn\'s)', fgSrc.includes('abortController: foregroundTask.abortController'))
   check('the turn\'s abort races the foreground loop and hands the run over (the same iterator, no re-run)', fgSrc.includes('TURN_ABORTED') && fgSrc.includes('continueDetached(backgroundedTaskId, nextPromise)') && !fgSrc.includes('agentIterator.return('))
-  const runner = src('src/cli/print.ts')
+  const runner = src('src/cli/run.ts')
   const interruptArm = runner.slice(runner.indexOf("'turn/interrupt': params => {"), runner.indexOf("'queue/add': async params => {"))
   check('the runner\'s interrupt releases the driver\'s hold and stops no task', interruptArm.includes('driver.releaseHold()') && !interruptArm.includes('stopRunningAgentTasks') && !runner.includes('stopRunningAgentTasks('))
   check('the crew census counts running agents and workflows, never the session\'s own row', crewStillRunning({
@@ -83,9 +83,9 @@ section('§K1a the controller law — an agent task owns a fresh controller')
     e: { type: 'local_bash', status: 'running' },
   }) === 2)
   check('the interrupted turn\'s receipt names the count and the crew view', crewStillRunningLine(2) === '2 sub-agents still running — open the crew view (/crewmates) and press x twice on its row to stop one' && crewStillRunningLine(1)?.startsWith('1 sub-agent still') === true && crewStillRunningLine(0) === null)
-  const repl = src('src/screens/REPL.tsx')
+  const repl = src('src/screens/Chat.tsx')
   const cancel = src('src/hooks/useCancelRequest.ts')
-  check('the one esc owner paints the receipt (the REPL\'s own cancel rides it) and the wait word carries no esc-stops-them clause', cancel.includes('crewStillRunningLine(running)') && cancel.includes('addDisplayRow(createSystemMessage(line') && repl.includes('interruptFocusedTurn()') && !repl.includes('esc stops them'))
+  check('the one esc owner paints the receipt (the Chat\'s own cancel rides it) and the wait word carries no esc-stops-them clause', cancel.includes('crewStillRunningLine(running)') && cancel.includes('addDisplayRow(createSystemMessage(line') && repl.includes('interruptFocusedTurn()') && !repl.includes('esc stops them'))
 }
 
 section('§K1b the driver releases the hold on an interrupt — the crew run on')
@@ -250,7 +250,7 @@ async function lifecycleWith(name: string, drive: (controller: AbortController) 
   enqueueWorkflowNotification({ taskId: 'wf-1', status: 'killed', agentCount: 0, totalTokens: 0, totalToolCalls: 0, durationMs: 1, setAppState: store.set as never })
   const wfNotes = taskNotifications().map(n => (n as { value?: string }).value ?? '')
   check('its killed notice lands exactly once', wfNotes.length === 1 && wfNotes[0]!.includes('<status>killed</status>'))
-  const runner = src('src/cli/print.ts')
+  const runner = src('src/cli/run.ts')
   const stopArmAt = runner.indexOf("'agent/stop': async params => {")
   const stopArm = runner.slice(stopArmAt, runner.indexOf("'session/quiesce': async params => {"))
   check('the runner\'s stop_task rides the one operator-stop owner and answers applied or refused with its reason', stopArmAt !== -1 && stopArm.includes('stopAgentByOperator(params.agent_id, { getAppState, setAppState }, params.note === AGENT_INTERRUPT_BY_OPERATOR ? { reason: AGENT_INTERRUPT_BY_OPERATOR } : {})') && stopArm.includes("throw refused(receipt.reason, 'agent')") && !stopArm.includes('return {}'))
@@ -261,7 +261,7 @@ async function lifecycleWith(name: string, drive: (controller: AbortController) 
 
 section('§K4 the resume road — one owner behind every door')
 {
-  const runner = src('src/cli/print.ts')
+  const runner = src('src/cli/run.ts')
   const resumeArm = runner.slice(runner.indexOf("'agent/resume': async params => {"), runner.indexOf("const legacyAt = (at: 'now' | 'turn_end')"))
   check('the runner\'s resume_task rides the one resume owner with the resume note and the runner\'s own permission road', resumeArm.includes('resumeAgentBackground({') && resumeArm.includes('AGENT_RESUME_NOTE') && resumeArm.includes('canUseTool,') && !resumeArm.includes("behavior: 'allow'"))
   check('the resume note tells the agent the work before the stop stands', AGENT_RESUME_NOTE.includes('resumed you from the crew view') && AGENT_RESUME_NOTE.includes('do not redo it'))
@@ -361,7 +361,7 @@ section('§K10b a GPT seat pays no per-runner catalogue fetch — the daemon\'s 
   })
   check('K10b the runner\'s refresh within the TTL serves the primed snapshot and fetches nothing', fetched === 0 && refreshed?.models.length === 1 && refreshed.lastError === undefined)
   cat.__resetOpenaiCatalogueForTest()
-  check('K10b the claim carries the snapshot in the feed\'s spelling and the runner decodes and primes it at the claim', src('src/daemon/warmRunner.ts').includes('openai_catalogue: openaiCatalogueToWire(openaiCatalogue)') && src('src/cli/print.ts').includes('primeOpenaiCatalogue(openaiCatalogueFromWire(params.openai_catalogue)'))
+  check('K10b the claim carries the snapshot in the feed\'s spelling and the runner decodes and primes it at the claim', src('src/daemon/warmRunner.ts').includes('openai_catalogue: openaiCatalogueToWire(openaiCatalogue)') && src('src/cli/run.ts').includes('primeOpenaiCatalogue(openaiCatalogueFromWire(params.openai_catalogue)'))
   check('K10b the daemon\'s sign-in view fetches no catalogue; the claim road reads the daemon\'s snapshot', !src('src/daemon/signInView.ts').includes('refreshOpenaiCatalogue') && src('src/daemon/warmRunner.ts').includes('getCachedOpenaiCatalogue(openaiAccount.kind)'))
 }
 

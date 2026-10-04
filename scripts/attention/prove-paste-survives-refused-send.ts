@@ -28,7 +28,7 @@ section('§A the loss mechanism: the submit clears the paste map, and a bare chi
 
 section('§B the fix at the true cause: a refused send restores the pastes with the text')
 {
-  const repl = readFileSync(join(ROOT, 'src/screens/REPL.tsx'), 'utf8')
+  const repl = readFileSync(join(ROOT, 'src/screens/Chat.tsx'), 'utf8')
   const refAt = repl.indexOf("if (receipt.state !== 'refused') return")
   const refBlock = refAt !== -1 ? repl.slice(refAt, refAt + 500) : ''
   check('the refused-send handler exists', refBlock !== '')

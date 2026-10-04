@@ -177,7 +177,7 @@ async function drive(messages: Message[], opts: { model?: string; ownerKey?: str
         getToolPermissionContext: async () => permissionContext,
         model: opts.model ?? MODEL,
         isNonInteractiveSession: true,
-        querySource: 'repl_main_thread' as never,
+        querySource: 'main_thread' as never,
         agents: [],
         hasAppendSystemPrompt: false,
         mcpTools: [],

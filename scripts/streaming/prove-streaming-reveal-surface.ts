@@ -53,13 +53,13 @@ section('§3 non-win32 without WT_SESSION: no suppression on either surface')
 
 section('§4 source pins — the consumers ride the one owner')
 {
-  const repl = readFileSync(join(ROOT, 'src/screens/REPL.tsx'), 'utf8')
+  const repl = readFileSync(join(ROOT, 'src/screens/Chat.tsx'), 'utf8')
   check(
-    'the REPL computes streamingSuppressed through the owner with its surface fact',
+    'the Chat computes streamingSuppressed through the owner with its surface fact',
     repl.includes('const streamingSuppressed = streamingRevealSuppressed(reducedMotion, fullscreen);'),
   )
   check(
-    'no bare yank-bug read remains in the REPL (the owner is the only road)',
+    'no bare yank-bug read remains in the Chat (the owner is the only road)',
     !repl.includes('hasCursorUpViewportYankBug()'),
   )
   check(

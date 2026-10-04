@@ -2,7 +2,7 @@ import { z } from 'zod/v4'
 import { buildTool, type ToolDef } from '../../Tool.js'
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 import { lazySchema } from '../../utils/lazySchema.js'
-import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
+import { isCrewEnabled } from '../../utils/crewEnabled.js'
 import {
   resolveCoordinationContext,
   crewBrief,
@@ -193,7 +193,7 @@ export const LiveCommsTool = buildTool({
     return LIVE_COMMS_TOOL_NAME
   },
   isEnabled() {
-    return isAgentSwarmsEnabled()
+    return isCrewEnabled()
   },
   isConcurrencySafe(input: Input) {
     return writesOf(input) === null

@@ -50,7 +50,7 @@ console.log('============================================================')
 console.log(' daemonSnapshot — wired-to-liveness proof')
 console.log('============================================================')
 
-section('no supervisor record ⇒ off (opt-in start path)')
+section('no daemon record ⇒ off (opt-in start path)')
 {
   rmSync(recPath, { force: true })
   const s = daemonSnapshot()

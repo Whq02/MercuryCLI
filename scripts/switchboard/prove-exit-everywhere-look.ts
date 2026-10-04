@@ -80,7 +80,7 @@ const has = (needle: string): boolean => lines.some(l => l.includes(needle))
 
 console.log('THE LOOK — the exit notice on the board at 120×40')
 check('the notice frame was captured', mark !== undefined)
-check("the notice sits at the BOTTOM-LEFT: the last row starts with it, in the REPL's own words",
+check("the notice sits at the BOTTOM-LEFT: the last row starts with it, in the Chat's own words",
   lines.length === 40 && lines[39]!.startsWith(NOTICE_ROW), JSON.stringify(lines[39] ?? ''))
 check('…and nowhere else on the frame (one owner, one row)', lines.slice(0, 39).every(l => !l.includes(NOTICE)))
 check('the board stands whole beneath it (SESSIONS · COORDINATOR)', has('SESSIONS') && has('COORDINATOR'))

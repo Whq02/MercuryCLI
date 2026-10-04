@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/acp/* src/types/permissions.ts src/utils/permissions/PermissionMode.ts src/cli/print.ts
+// gate-watch: src/services/acp/* src/types/permissions.ts src/utils/permissions/PermissionMode.ts src/cli/run.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, type ChildProcess } from 'node:child_process'

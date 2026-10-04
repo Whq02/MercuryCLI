@@ -2,7 +2,7 @@
 # gate-class: pure
 # gate-watch: src/bootstrap/state.ts src/constants/oauth.ts src/constants/system.ts
 # gate-watch: src/utils/**
-# gate-watch: scripts/lib/* src/rows/turn.ts src/cli/print.ts src/commands/model/mercuryModel.tsx
+# gate-watch: scripts/lib/* src/rows/turn.ts src/cli/run.ts src/commands/model/mercuryModel.tsx
 # gate-watch: src/commands/submodels/submodels.tsx src/components/* src/components/PromptInput/PromptInput.tsx
 # gate-watch: src/components/Settings/Usage.tsx src/components/agents/studio/StudioEditor.tsx
 # gate-watch: src/components/mercury-ui/EffortStrip.tsx src/constants/betas.ts src/constants/prompts.ts

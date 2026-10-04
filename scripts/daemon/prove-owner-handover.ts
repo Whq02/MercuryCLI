@@ -169,9 +169,9 @@ section('§B the real daemon: the owner cockpit goes, ownership passes, the daem
   check('the daemon STAYS UP after its owner cockpit goes (a second cockpit is live)', stillUp, read(logPath).slice(-800))
   check('the log names the ownership hand-over to the live cockpit', read(logPath).includes(`ownership passes to the live cockpit pid ${bpid}`), read(logPath).slice(-800))
   const recAfter = await controlSocket.readSupervisorState()
-  check('the supervisor record names the new owner (the doctor row reads it)', recAfter?.ownerPid === bpid, `record ownerPid=${recAfter?.ownerPid} want ${bpid}`)
+  check('the daemon record names the new owner (/health row reads it)', recAfter?.ownerPid === bpid, `record ownerPid=${recAfter?.ownerPid} want ${bpid}`)
   const hs = await handshake.handshakeDaemon({ timeoutMs: 3000 })
-  check('the hello facts name the new owner (the doctor handshake reads it)', hs.daemon?.ownerPid === bpid, `hello ownerPid=${hs.daemon?.ownerPid ?? 'none'} state=${hs.state}`)
+  check('the hello facts name the new owner (/health handshake reads it)', hs.daemon?.ownerPid === bpid, `hello ownerPid=${hs.daemon?.ownerPid ?? 'none'} state=${hs.state}`)
   const wafter = read(join(ddir, 'concourse-workers.json'))
   check("the surviving cockpit's session was NOT parked", wafter.includes('sess-b') && !/"parkedAt"/.test(wafter), wafter.slice(0, 200))
 

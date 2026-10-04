@@ -123,7 +123,7 @@ export const call = async (
   arg: string,
   context: LocalJSXCommandContext,
 ): Promise<LocalCommandResult> => {
-  const model = context.options.mainLoopModel
+  const model = context.options.engineModel
   const trimmed = arg.trim()
   const value = trimmed
     ? applyAutoCompactWindow(trimmed, model)

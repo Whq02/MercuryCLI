@@ -5,10 +5,10 @@ import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const { appendObservation } = await import('../../src/memdir/mnemeBuffer.ts')
-const { maybeConsolidate, listTopicDocs, readLibraryMeta } = await import('../../src/memdir/mnemeConsolidate.ts')
-const { correctFact, retireFact } = await import('../../src/memdir/mnemeCorrect.ts')
-const { grepAll } = await import('../../src/memdir/mnemeRetrieval.ts')
+const { appendObservation } = await import('../../src/mneme/mnemeBuffer.ts')
+const { maybeConsolidate, listTopicDocs, readLibraryMeta } = await import('../../src/mneme/mnemeConsolidate.ts')
+const { correctFact, retireFact } = await import('../../src/mneme/mnemeCorrect.ts')
+const { grepAll } = await import('../../src/mneme/mnemeRetrieval.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {

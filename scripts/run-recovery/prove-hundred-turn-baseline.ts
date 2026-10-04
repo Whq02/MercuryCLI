@@ -121,7 +121,7 @@ async function runTurn(n: number, shape: TurnShape): Promise<TurnEvidence> {
     options: {
       commands: [],
       tools: [tool],
-      mainLoopModel: MODEL,
+      engineModel: MODEL,
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},

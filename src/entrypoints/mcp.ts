@@ -94,7 +94,7 @@ export async function startMCPServer(
       options: {
         commands: [review],
         tools: pool,
-        mainLoopModel: null as unknown as string,
+        engineModel: null as unknown as string,
         maxThinkingTokens: 0,
         mcpClients: [],
         mcpResources: {},

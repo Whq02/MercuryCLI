@@ -4,7 +4,7 @@
 # gate-watch: src/cli/headless/** src/utils/sessionStorage/** src/query.ts
 # gate-watch: src/utils/sessionRestore.ts src/utils/conversationRecovery.ts src/utils/toolResultSummary.ts src/utils/cockpit/awaySummary.ts
 # gate-watch: scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/sessionStorage/forkedFixture.ts
-# gate-watch: src/Tool.ts src/bootstrap/state.ts src/cli/print.ts src/constants/prompts.ts
+# gate-watch: src/Tool.ts src/bootstrap/state.ts src/cli/run.ts src/constants/prompts.ts
 # gate-watch: src/constants/systemPromptSections.ts src/daemon/controlSocket.ts src/daemon/warmRunner.ts
 # gate-watch: src/services/engine-connector/daemonConnector.ts
 # gate-watch: src/services/providers/anthropic/boundPrefixRecord.ts src/services/providers/toolEconomy.ts

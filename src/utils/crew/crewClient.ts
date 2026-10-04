@@ -12,7 +12,7 @@ import {
   crewEnabled,
   isValidCrewName,
 } from '../../daemon/crewSpawn.js'
-import { readCrewFileAsync } from '../swarm/crewHelpers.js'
+import { readCrewFileAsync } from './crewHelpers.js'
 import { subscribeLiveMessagesFor, markLiveMessagesFromRead, liveMessagesFor, sendLiveMessage, type LiveCommsMessageV1 } from '../../services/crew/liveComms.js'
 import type { DaemonRequest, WireRosterEntry } from '../../daemon/protocol.js'
 import type { CrewSeatGlanceV1 } from '../../services/crew/roster.js'

@@ -219,7 +219,7 @@ async function drive(messages: Message[], model = MODEL): Promise<{ assistant: A
         getToolPermissionContext: async () => permissionContext,
         model,
         isNonInteractiveSession: true,
-        querySource: 'repl_main_thread' as never,
+        querySource: 'main_thread' as never,
         agents: [],
         hasAppendSystemPrompt: false,
         mcpTools: [],

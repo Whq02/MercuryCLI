@@ -237,10 +237,10 @@ async function rebuildLeaderProjection(
   errors: string[],
 ): Promise<LeaderProjectionSeed | null> {
   try {
-    const { rebuildCrewProjection } = await import('../utils/swarm/crewOperations.js')
+    const { rebuildCrewProjection } = await import('../utils/crew/crewOperations.js')
     const led = await rebuildCrewProjection(sessionId)
     if (!led) return null
-    const helpers = await import('../utils/swarm/crewHelpers.js')
+    const helpers = await import('../utils/crew/crewHelpers.js')
     const { setLeaderCrewName } = await import('../utils/tasks.js')
     const { setLeadCrewFallback } = await import('../utils/crewmate.js')
     setLeaderCrewName(helpers.sanitizeName(led.crewName))
@@ -308,7 +308,7 @@ export async function runBootRecovery(opts: {
 
     const describe = (reason: unknown): string => (reason instanceof Error ? reason.message : String(reason))
     const [crewSettled, changeSetSettled] = await Promise.allSettled([
-      import('../utils/swarm/crewOperations.js').then(m => m.recoverCrewJournal()),
+      import('../utils/crew/crewOperations.js').then(m => m.recoverCrewJournal()),
       import('../services/changeTransaction/changeSetCommit.js').then(m => m.recoverChangeSetJournal()),
     ])
     if (crewSettled.status === 'fulfilled') report.crewJournal = crewSettled.value

@@ -55,7 +55,7 @@ const MODULES: Record<string, string[]> = {
   decisions: [
     'src/utils/permissions/permissions.ts',
     'src/utils/permissions/permissionSetup.ts',
-    'src/utils/permissions/yoloClassifier.ts',
+    'src/utils/permissions/flowClassifier.ts',
     'src/utils/permissions/permissionsLoader.ts',
     'src/utils/permissions/PermissionMode.ts',
     'src/utils/permissions/PermissionResult.ts',
@@ -86,10 +86,10 @@ const MODULES: Record<string, string[]> = {
   ],
   agents: [
     'src/tools/AgentTool/AgentTool.tsx',
-    'src/utils/swarm/inProcessRunner.ts',
-    'src/utils/swarm/roleResolver.ts',
-    'src/utils/swarm/crewCharter.ts',
-    'src/utils/swarm/handoff.ts',
+    'src/utils/crew/inProcessRunner.ts',
+    'src/utils/crew/roleResolver.ts',
+    'src/utils/crew/crewCharter.ts',
+    'src/utils/crew/handoff.ts',
   ],
   turnEngine: [
     'src/query.ts',
@@ -101,10 +101,10 @@ const MODULES: Record<string, string[]> = {
     'src/run-core/budget-guard.ts',
     'src/run-core/attachment-drain.ts',
   ],
-  headless: ['src/cli/print.ts'],
+  headless: ['src/cli/run.ts'],
   bootUi: [
     'src/main.tsx',
-    'src/screens/REPL.tsx',
+    'src/screens/Chat.tsx',
     'src/components/PromptInput/PromptInput.tsx',
   ],
 }
@@ -123,7 +123,7 @@ const NEEDLES: Array<{ label: string; files: string[]; patterns: string[] }> = [
   },
   {
     label: 'headless output modes + the row stream',
-    files: ['src/cli/print.ts', 'src/cli/structuredIO.ts', 'src/cli/headless'],
+    files: ['src/cli/run.ts', 'src/cli/structuredIO.ts', 'src/cli/headless'],
     patterns: [
       'outputFormat',
       'outcomeRow\\(',

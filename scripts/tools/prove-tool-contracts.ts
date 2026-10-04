@@ -40,7 +40,7 @@ for (const id of CANONICAL_MODEL_IDS) {
 for (const id of ['gemini-2.5-pro', 'openrouter/qwen/qwen3-coder', 'huggingface/org/model', 'local/llama3']) {
   t(`Agent schema accepts the exact engine id '${id}' (the dispatch grammar validates it)`, agentSchema.safeParse({ ...agentBase, model: id }).success === true)
 }
-const { unrecognisedModelWordRefusal } = await import('../../src/utils/swarm/engineDispatch.ts')
+const { unrecognisedModelWordRefusal } = await import('../../src/utils/crew/engineDispatch.ts')
 const { modelFamilyWords } = await import('../../src/utils/model/modelFamilies.ts')
 t('the dispatch grammar refuses a word no family declares, naming it', (unrecognisedModelWordRefusal('banana') ?? '').includes("'banana'"))
 t('the dispatch grammar admits a served first-party id', unrecognisedModelWordRefusal('claude-haiku-4-5') === null)

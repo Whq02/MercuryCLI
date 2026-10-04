@@ -204,10 +204,9 @@ section('startup metadata remains usable while another process holds the config 
     const derived = await import(${JSON.stringify(join(SRC, 'utils/config/derived.ts'))})
     const trust = await import(${JSON.stringify(join(SRC, 'utils/config/trust.ts'))})
     const project = await import(${JSON.stringify(join(SRC, 'utils/config/projectConfig.ts'))})
-    const bridge = await import(${JSON.stringify(join(SRC, 'migrations/migrateReplBridgeEnabledToRemoteControlAtStartup.ts'))})
     const verbose = await import(${JSON.stringify(join(SRC, 'migrations/migrateVerboseToToolOutput.ts'))})
     const updates = await import(${JSON.stringify(join(SRC, 'migrations/migrateAutoUpdatesToSettings.ts'))})
-    g.saveGlobalConfig(c => ({ ...c, numStartups: 4, replBridgeEnabled: true, verbose: true, autoUpdates: false }))
+    g.saveGlobalConfig(c => ({ ...c, numStartups: 4, remoteControlAtStartup: true, verbose: true, autoUpdates: false }))
     const release = lock.lockSync(file, { realpath: false })
     const wait = Atomics.wait
     let waits = 0
@@ -216,7 +215,6 @@ section('startup metadata remains usable while another process holds the config 
     Atomics.wait = () => { waits++; throw Object.assign(new Error('unexpected synchronous lock wait'), { code: 'ELOCKED' }) }
     try {
       derived.recordFirstStartTime()
-      bridge.migrateReplBridgeEnabledToRemoteControlAtStartup()
       verbose.migrateVerboseToToolOutput()
       out.migration = updates.migrateAutoUpdatesToSettings()
       trust.recordPermissionPosture({ bypassArmed: true, envArmed: true, flagArmed: false, dialogSuppressed: true })
@@ -250,7 +248,7 @@ section('startup metadata remains usable while another process holds the config 
   check('startup readers see first-start and migrated settings without a write', cache.started && cache.remote === true && cache.output === 'full' && !cache.oldUpdates && r.migration === true && r.writesBefore === 1, JSON.stringify(r))
   check('the diagnostic posture is cached and persisted without granting trust', r.posture === 'bypass' && r.diskPosture === 'bypass' && r.trusted === false, JSON.stringify(r))
   check('contention yields to the lock-release callback and never uses Atomics.wait', r.pendingWhileLocked === true && r.released === true && r.waits === 0, JSON.stringify(r))
-  check('one later publish carries all startup metadata and clears the queue', r.writesAfter === 2 && r.pendingAfter === false && typeof disk.firstStartTime === 'string' && disk.remoteControlAtStartup === true && disk.toolOutput === 'full' && !('verbose' in disk) && !('replBridgeEnabled' in disk) && !('autoUpdates' in disk), JSON.stringify(r))
+  check('one later publish carries all startup metadata and clears the queue', r.writesAfter === 2 && r.pendingAfter === false && typeof disk.firstStartTime === 'string' && disk.remoteControlAtStartup === true && disk.toolOutput === 'full' && !('verbose' in disk) && !('autoUpdates' in disk), JSON.stringify(r))
 }
 
 section('exhausted background retries preserve pending data for a later save')

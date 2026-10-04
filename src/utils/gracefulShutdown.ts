@@ -244,11 +244,11 @@ export function isUncaughtBreakerTripped(): boolean {
 }
 
 
-function isPrintMode(): boolean {
+function isRunMode(): boolean {
   return isRunArgv()
 }
 
-let printModeSignalsOwned = false
+let runModeSignalsOwned = false
 let preflightSignalWriter: ((code: number) => void) | undefined
 
 export function setRunPreflightSignalWriter(writer: (code: number) => void): void {
@@ -261,13 +261,13 @@ function writePreflightSignal(code: number): void {
   try { writer?.(code) } catch {}
 }
 
-export function markPrintModeSignalsOwned(): void {
-  printModeSignalsOwned = true
+export function markRunModeSignalsOwned(): void {
+  runModeSignalsOwned = true
   preflightSignalWriter = undefined
 }
 
-function printModeOwnsSignals(): boolean {
-  return isPrintMode() && printModeSignalsOwned
+function runModeOwnsSignals(): boolean {
+  return isRunMode() && runModeSignalsOwned
 }
 
 function isDaemonSubcommand(): boolean {
@@ -288,13 +288,13 @@ export const setupGracefulShutdown = (): void => {
 
   if (!isDaemonSubcommand()) {
     process.on('SIGINT', () => {
-      if (printModeOwnsSignals()) return
+      if (runModeOwnsSignals()) return
       logForDiagnosticsNoPII('info', 'shutdown_signal', { signal: 'SIGINT' })
       writePreflightSignal(130)
       gracefulShutdownSync(130)
     })
     process.on('SIGTERM', () => {
-      if (printModeOwnsSignals()) return
+      if (runModeOwnsSignals()) return
       logForDiagnosticsNoPII('info', 'shutdown_signal', { signal: 'SIGTERM' })
       writePreflightSignal(143)
       gracefulShutdownSync(143)

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-watch: src/screens/REPL.tsx src/components/PromptInput/**
+# gate-watch: src/screens/Chat.tsx src/components/PromptInput/**
 # gate-watch: src/input-core/** src/components/mercury-ui/useInteractiveList.ts
 # gate-watch: src/components/mercury-ui/parity/RealmsView.tsx src/utils/promptDraft.ts
 # gate-watch: src/components/InlineChangeView.tsx src/tools/StructureTool/**

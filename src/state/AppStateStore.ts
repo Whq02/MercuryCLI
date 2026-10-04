@@ -21,7 +21,7 @@ import type { ServerResource } from '../services/mcp/types.js'
 import type { RosterEntry, Health } from '../extensions/types.js'
 import { createEmptyAttributionState, type AttributionState } from '../utils/commitAttribution.js'
 import type { PromptVariant } from '../services/PromptSuggestion/promptSuggestion.js'
-import type { REPLHookContext } from '../utils/hooks/postSamplingHooks.js'
+import type { ChatHookContext } from '../utils/hooks/postSamplingHooks.js'
 import type { Store } from './store.js'
 import type { CrewLedger } from './crewLedger.js'
 
@@ -70,7 +70,7 @@ export type SpeculationState =
       suggestionLength: number
       toolUseCount: number
       isPipelined: boolean
-      contextRef: { current: REPLHookContext }
+      contextRef: { current: ChatHookContext }
       pipelinedSuggestion?: {
         text: string
         promptId: PromptVariant
@@ -143,8 +143,8 @@ type AppStateImmutableHalf = {
   footerSelection: FooterItem | null
   bagelActive?: boolean
 
-  mainLoopModel: string | null
-  mainLoopModelForSession: string | null
+  engineModel: string | null
+  engineModelForSession: string | null
   pendingModelSwitch: { setting: string | null } | null
   lastModelTransition?: ModelTransitionReceipt | null
   foregroundTurnActive: boolean
@@ -154,9 +154,9 @@ type AppStateImmutableHalf = {
   remoteSessionUrl?: string
   remoteConnectionStatus: 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
   remoteBackgroundTaskCount: number
-  replBridgeEnabled: boolean
+  remoteControlEnabled: boolean
   bridgeActivated: boolean
-  replBridgeOutboundOnly: boolean
+  remoteControlOutboundOnly: boolean
   bridgeRegistered: boolean
   bridgeIngressOpen: boolean
   bridgeInErrorBackoff: boolean
@@ -213,11 +213,6 @@ type AppStateMutableHalf = {
     currentUrl?: string
     stickyPanelVisible?: boolean
   }
-  replToolVmContext?: {
-    vmContext: unknown
-    registeredTools: Record<string, unknown>
-    capturingConsole: unknown
-  }
 
   speculation: SpeculationState
   speculationSessionTimeSavedMs: number
@@ -267,8 +262,8 @@ export function getDefaultAppState(): AppState {
     isAssistantMode: computeAssistantMode(),
     footerSelection: null,
 
-    mainLoopModel: null,
-    mainLoopModelForSession: null,
+    engineModel: null,
+    engineModelForSession: null,
     pendingModelSwitch: null,
     lastModelTransition: null,
     foregroundTurnActive: false,
@@ -277,9 +272,9 @@ export function getDefaultAppState(): AppState {
 
     remoteConnectionStatus: 'connecting',
     remoteBackgroundTaskCount: 0,
-    replBridgeEnabled: false,
+    remoteControlEnabled: false,
     bridgeActivated: false,
-    replBridgeOutboundOnly: false,
+    remoteControlOutboundOnly: false,
     bridgeRegistered: false,
     bridgeIngressOpen: false,
     bridgeInErrorBackoff: false,

@@ -39,7 +39,7 @@ const withLsp = [{ name: 'Read' }, { name: 'LSP' }] as never
 const context = (over: Record<string, unknown> = {}, pool: unknown = withLsp) =>
   ({
     getAppState: () => ({ tasks: {}, toolPermissionContext: getEmptyToolPermissionContext() }),
-    options: { agentDefinitions: { activeAgents: [] }, tools: pool, mainLoopModel: model, mcpClients: [] },
+    options: { agentDefinitions: { activeAgents: [] }, tools: pool, engineModel: model, mcpClients: [] },
     readFileState: new Map<string, unknown>(),
     ...over,
   }) as never

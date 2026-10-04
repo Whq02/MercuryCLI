@@ -130,7 +130,7 @@ section('wiring (structural) — prompts.ts section + print-entry marker')
     "prompts.ts registers the 'runtime_posture' dynamic section",
     /systemPromptSection\('runtime_posture', \(\) => getRuntimePostureSection\(\)\)/.test(prompts),
   )
-  const print = src('src/cli/print.ts')
+  const print = src('src/cli/run.ts')
   check(
     'runHeadless stamps non-interactive with the resolved boot mode',
     /markSessionNonInteractive\(getAppState\(\)\.toolPermissionContext\?\.mode\)/.test(print),

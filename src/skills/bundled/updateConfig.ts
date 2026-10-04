@@ -27,7 +27,7 @@ The events wired most often:
 The full event enum — subagent and task events, worktree events, FileChanged, CwdChanged and the rest — is in the generated schema's hooks section; every event name there is wireable.
 
 Four hook kinds, discriminated on "type":
-- command: { "type": "command", "command": "<shell command>" } — plus optional shell ("bash" | "powershell"), async (background, non-blocking), asyncRewake (background, wakes the model when the hook exits blocking).
+- command: { "type": "command", "command": "<shell command>" } — plus optional shell ("bash" | "powershell"), async (background, non-blocking), wake (background, wakes the model when the hook exits blocking).
 - prompt: { "type": "prompt", "prompt": "..." } — a model evaluates the prompt; $ARGUMENTS receives the hook input JSON.
 - agent: { "type": "agent", "prompt": "..." } — a small agent runs with tools; $ARGUMENTS as above; its timeout defaults to 60s.
 - http: { "type": "http", "url": "https://..." } — POSTs the hook input JSON; header values may reference $VARS only when allowedEnvVars lists them, and the URL must be allowed by the events.httpDestinations setting.

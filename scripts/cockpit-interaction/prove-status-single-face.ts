@@ -15,8 +15,8 @@ const check = (name: string, ok: boolean, detail = ''): void => {
 }
 check('status is a private local screen command', command.type === 'local' && command.seat === 'screen' && command.userPrivate === true && command.supportsNonInteractive === false)
 if (command.type === 'local') {
-  const { getDefaultMainLoopModel } = await import('../../src/utils/model/model.js')
-  const context = { messages: [], options: { mainLoopModel: getDefaultMainLoopModel() } } as never
+  const { getDefaultEngineModel } = await import('../../src/utils/model/model.js')
+  const context = { messages: [], options: { engineModel: getDefaultEngineModel() } } as never
   const loaded = await command.load()
   let first = ''
   for (const args of ['', 'anything']) {

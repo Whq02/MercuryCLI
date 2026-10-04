@@ -209,7 +209,7 @@ function callParams(
     signal: new AbortController().signal,
     options: {
       model: WIRE_MODEL,
-      querySource: 'repl_main_thread',
+      querySource: 'main_thread',
       isNonInteractiveSession: true,
       getToolPermissionContext: async () => ({}) as never,
       agents: [],

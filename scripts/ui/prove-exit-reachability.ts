@@ -81,7 +81,7 @@ const EXIT_TABLE: Record<string, Exit> = {
   Transcript: {
     kind: 'binding',
     action: 'transcript:exit',
-    hints: [{ file: 'src/screens/REPL.tsx', needles: ["'q quits'"] }],
+    hints: [{ file: 'src/screens/Chat.tsx', needles: ["'q quits'"] }],
   },
   HistorySearch: {
     kind: 'binding',

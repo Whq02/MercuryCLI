@@ -98,7 +98,7 @@ const ctx: any = {
   setAppState,
   setAppStateForTasks: setAppState,
   options: {
-    mainLoopModel: 'claude-opus-4-8',
+    engineModel: 'claude-opus-4-8',
     mcpClients: [],
     mcpResources: {},
     tools: [],

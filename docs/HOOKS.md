@@ -42,7 +42,7 @@ Every hook has a `type`:
 
 - `command` runs `command` in a shell (`shell` picks `bash`, the default, or
   `powershell`). `async: true` runs it in the background without blocking;
-  `asyncRewake: true` also wakes the model when the hook exits with the
+  `wake: true` also wakes the model when the hook exits with the
   blocking status.
 - `prompt` has a model judge the condition in `prompt`; `$ARGUMENTS` receives
   the hook input JSON. `model` picks the model; without it, the session
@@ -96,7 +96,7 @@ adds its own fields; context-dependent fields can be absent:
 | `ConfigChange` | when a settings file changes | `source`, `file_path` |
 | `WorktreeCreate` | when a worktree is provisioned | `name` |
 | `WorktreeRemove` | when a worktree is removed | `worktree_path` |
-| `InstructionsLoaded` | when an instruction file is loaded | `file_path`, `memory_type`, `load_reason`, `globs`, `trigger_file_path` |
+| `InstructionsLoaded` | when an instruction file is loaded | `file_path`, `instruction_scope`, `load_reason`, `globs`, `trigger_file_path` |
 | `CwdChanged` | when the working directory changes | `old_cwd`, `new_cwd` |
 | `FileChanged` | when a watched file changes | `file_path`, `event` |
 | `Interrupt` | when a turn is cut (the operator's stop, a timeout, the parent's stop or a typed cut); nothing it answers can block or change the cut | `turn_id`, `reason` (`operator`, `idle-timeout`, `parent-stop` or `cut`), `detail`, `tools` |

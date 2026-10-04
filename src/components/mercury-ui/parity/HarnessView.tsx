@@ -7,7 +7,7 @@ import { CursorCell } from '../LiveGlyphs.js'
 import { useSessionAccent } from '../sessionAccent.js'
 import { InteractiveRow } from '../InteractiveRow.js'
 import { useInteractiveList } from '../useInteractiveList.js'
-import { useMainLoopModel } from '../../../hooks/useMainLoopModel.js'
+import { useEngineModel } from '../../../hooks/useEngineModel.js'
 import {
   harnessEffortFact,
   harnessProfileArmed,
@@ -30,7 +30,7 @@ type ActionRow = {
 export function HarnessView({ onClose }: { onClose: () => void }): React.ReactNode {
   const accent = useSessionAccent().accent
   const armed = harnessProfileArmed()
-  const mainModel = useMainLoopModel()
+  const mainModel = useEngineModel()
   const [tick, setTick] = React.useState(0)
   void tick
   const effortValue = useAppState(s => s.effortValue)

@@ -183,7 +183,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${served.root}`
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const bootstrap = await import('../../src/bootstrap/state.ts')
-const { setMainLoopModelOverride, setOriginalCwd, setCwdState } = bootstrap
+const { setEngineModelOverride, setOriginalCwd, setCwdState } = bootstrap
 process.chdir(CWD)
 setOriginalCwd(CWD)
 setCwdState(CWD)
@@ -216,7 +216,7 @@ const { getSystemContext, getUserContext } = await import('../../src/context.ts'
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { appendSystemContext, prependUserContext } = await import('../../src/utils/api.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getMainLoopModel } = await import('../../src/utils/model/model.ts')
+const { getEngineModel } = await import('../../src/utils/model/model.ts')
 const { rosterOwnerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
 const { clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
 type WarmModule = typeof import('../../src/services/providers/local/localWarm.ts')
@@ -238,7 +238,7 @@ const thinkingConfig = { type: 'adaptive' as const }
 const history: unknown[] = []
 const appStateStub = { toolPermissionContext: permissionContext, mcp: { clients: [], tools: [] }, effortValue: undefined }
 const toolUseContext = {
-  options: { tools, thinkingConfig, mainLoopModel: PERSISTED, agentDefinitions: { activeAgents: [], allAgents: [] }, commands: [], mcpClients: [], isNonInteractiveSession: true },
+  options: { tools, thinkingConfig, engineModel: PERSISTED, agentDefinitions: { activeAgents: [], allAgents: [] }, commands: [], mcpClients: [], isNonInteractiveSession: true },
   getAppState: () => appStateStub,
   setAppState: () => {},
   abortController: new AbortController(),
@@ -270,7 +270,7 @@ async function firstTurn(text: string): Promise<{ usage: Record<string, number> 
     signal: new AbortController().signal,
     options: {
       model: PERSISTED,
-      querySource: 'repl_main_thread',
+      querySource: 'main_thread',
       getToolPermissionContext: async () => permissionContext,
       agents: [],
       ownerKey,
@@ -292,11 +292,11 @@ section('0 · the world: a fixture Ollama that records requests, models the prom
 
 section('1 · the seams: the module, the runner registration line and the turn seam')
 {
-  const print = readFileSync(join(ROOT, 'src/cli/print.ts'), 'utf8')
+  const print = readFileSync(join(ROOT, 'src/cli/run.ts'), 'utf8')
   const callModel = readFileSync(join(ROOT, 'src/services/providers/local/localCallModel.ts'), 'utf8')
   check('src/services/providers/local/localWarm.ts exists and exports armLocalWarm / noteLocalTurn / localWarmFacts', warmModule !== null && typeof warmModule.armLocalWarm === 'function' && typeof warmModule.noteLocalTurn === 'function' && typeof warmModule.localWarmFacts === 'function', 'the module is absent')
   const armLine = print.split('\n').find(line => line.includes('armLocalWarm('))
-  check('src/cli/print.ts arms the warm ONCE with the side-question fallback bundle (the same prompt/tool assembly a turn uses) and the seat liveness', armLine !== undefined && armLine.includes('buildSideQuestionFallbackParams(') && armLine.includes('awaitingSessionClaim') && armLine.includes('inFlightAbort') && print.split('armLocalWarm(').length === 2, armLine ?? 'no armLocalWarm( line')
+  check('src/cli/run.ts arms the warm ONCE with the side-question fallback bundle (the same prompt/tool assembly a turn uses) and the seat liveness', armLine !== undefined && armLine.includes('buildSideQuestionFallbackParams(') && armLine.includes('awaitingSessionClaim') && armLine.includes('inFlightAbort') && print.split('armLocalWarm(').length === 2, armLine ?? 'no armLocalWarm( line')
   check('src/services/providers/local/localCallModel.ts notes the real turn before dispatch (the warm yields the server; the touch learns the knobs)', callModel.includes('noteLocalTurn(record)') && callModel.indexOf('noteLocalTurn(record)') < callModel.indexOf('yield* compatChatCallModel('), 'no noteLocalTurn(record) before the dispatch')
 }
 
@@ -305,8 +305,8 @@ const disarm = warmModule?.armLocalWarm(context as never, { live: () => live, io
 let warmHit: Hit | undefined
 {
   const before = chats().length
-  setMainLoopModelOverride(PERSISTED)
-  check('the effective model is the local one', getMainLoopModel() === PERSISTED, getMainLoopModel())
+  setEngineModelOverride(PERSISTED)
+  check('the effective model is the local one', getEngineModel() === PERSISTED, getEngineModel())
   const arrived = await waitFor(() => chats().length > before && (warmModule === null || warmModule.localWarmFacts().inFlight === null), 8_000)
   warmHit = chats()[before]
   check('a warm request reached the server after the switch, before any turn (the base sends nothing until the operator\'s first message)', arrived && warmHit !== undefined, `chats after the switch: ${chats().length - before}`)
@@ -399,7 +399,7 @@ section('5 · the touch is polite: a longer server hold, a never-expiring runner
 
 section('6 · a switch away: the clock stops and nothing is sent afterwards')
 {
-  setMainLoopModelOverride('claude-fable-5-1')
+  setEngineModelOverride('claude-fable-5-1')
   const stopped = await waitFor(() => warmModule === null || warmModule.localWarmFacts().clock === null, 2_000)
   const touchesAt = touches().length
   const chatsAt = chats().length
@@ -413,9 +413,9 @@ section('7 · a second switch cancels the first: the in-flight warm is aborted a
   fixtureKnobs.chatDelayMs = 400
   const before = chats().length
   const cancelledBefore = warmModule?.localWarmFacts().cancelled ?? 0
-  setMainLoopModelOverride(PERSISTED_SECOND)
+  setEngineModelOverride(PERSISTED_SECOND)
   await waitFor(() => chats().length > before, 2_000)
-  setMainLoopModelOverride(PERSISTED)
+  setEngineModelOverride(PERSISTED)
   const settled = await waitFor(() => (warmModule?.localWarmFacts().warmed.includes(`ollama/${MODEL}`) ?? false) && warmModule?.localWarmFacts().inFlight === null && chats().length >= before + 2, 6_000)
   fixtureKnobs.chatDelayMs = 0
   const facts = warmModule?.localWarmFacts()
@@ -428,14 +428,14 @@ section('8 · a conversation that already carries rows gets NO warm (a prefix-on
   const skippedBefore = warmModule?.localWarmFacts().skipped ?? 0
   const chatsAt = chats().length
   history.push(createUserMessage({ content: 'earlier question' }), { type: 'assistant', uuid: '00000000-0000-4000-8000-00000000a55f', timestamp: new Date().toISOString(), message: { id: 'm1', type: 'message', role: 'assistant', model: MODEL, content: [{ type: 'text', text: 'earlier answer', citations: null }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } } })
-  setMainLoopModelOverride(PERSISTED_SECOND)
+  setEngineModelOverride(PERSISTED_SECOND)
   const skipped = await waitFor(() => (warmModule?.localWarmFacts().skipped ?? 0) > skippedBefore, 3_000)
   await sleep(300)
   check('the switch on a conversation with rows skipped the warm (one debug line) and sent no chat', skipped && chats().length === chatsAt, `skipped ${String(warmModule?.localWarmFacts().skipped)}, chats +${chats().length - chatsAt}`)
   check('the keep-alive clock follows the new model regardless', warmModule?.localWarmFacts().clock === `ollama/${SECOND}`, String(warmModule?.localWarmFacts().clock))
   check('pure: a meta user row alone is not a conversation; a user or assistant row is', warmModule !== null && warmModule.conversationHasRows([createUserMessage({ content: 'x', isMeta: true }) as never]) === false && warmModule.conversationHasRows([createUserMessage({ content: 'x' }) as never]) === true)
   history.length = 0
-  setMainLoopModelOverride(PERSISTED)
+  setEngineModelOverride(PERSISTED)
   await waitFor(() => warmModule?.localWarmFacts().clock === `ollama/${MODEL}`, 2_000)
 }
 
@@ -444,7 +444,7 @@ section('9 · a warm that fails says nothing: the server goes away, the warm fai
   served.server.closeAllConnections()
   await new Promise<void>(resolve => served.server.close(() => resolve()))
   const failedBefore = warmModule?.localWarmFacts().failed ?? 0
-  setMainLoopModelOverride(PERSISTED_SECOND)
+  setEngineModelOverride(PERSISTED_SECOND)
   const failed = await waitFor(() => (warmModule?.localWarmFacts().failed ?? 0) > failedBefore, 5_000)
   const touchesAt = touches().length
   await sleep(400)

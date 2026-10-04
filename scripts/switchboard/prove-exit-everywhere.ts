@@ -33,11 +33,11 @@ const textInput = read('src/hooks/useTextInput.ts')
 const screen = read('src/components/concourse/ConcourseScreen.tsx')
 const SPELLING = 'twice to close Mercury'
 
-check("the owner counts ctrl+c by the REPL composer's own spelling and NEVER consumes the press",
+check("the owner counts ctrl+c by the Chat composer's own spelling and NEVER consumes the press",
   owner.includes("if (key.ctrl && input === 'c') press()") && !owner.includes('stopImmediatePropagation'))
 check('the second press routes through the ONE graceful shutdown (prompt_input_exit)',
   owner.includes("gracefulShutdown(0, 'prompt_input_exit')"))
-check("the chord rides the REPL's own window (EXIT_CHORD_WINDOW_MS through useDoublePress)",
+check("the chord rides the Chat's own window (EXIT_CHORD_WINDOW_MS through useDoublePress)",
   owner.includes('EXIT_CHORD_WINDOW_MS') && owner.includes('useDoublePress('))
 check("ctrl+d is not this owner's key (it keeps its own rules where it has any)", !/input === 'd'/.test(owner))
 const host = router.slice(router.indexOf('function RouteSurfaceHost'))
@@ -47,18 +47,18 @@ const iNotice = host.indexOf('<SurfaceExitChordNotice ')
 check('the owner mounts in the route host AHEAD of the surface subtree (registration order = dispatch order)',
   iChord > 0 && iChildren > iChord, `chord@${iChord} children@${iChildren}`)
 check('the notice paints AFTER the surface subtree (later siblings paint on top)', iNotice > iChildren, `notice@${iNotice}`)
-check('the REPL route mounts no host — the owner is structurally absent there (the REPL keeps its own chord)',
+check('the Chat route mounts no host — the owner is structurally absent there (the Chat keeps its own chord)',
   router.includes('{entry ? (') && router.includes('<RouteSurfaceHost'))
 const carriers = walk(join(REPO, 'src')).filter(f => readFileSync(f, 'utf8').includes(SPELLING)).map(f => relative(REPO, f))
 check('ONE spelling of the notice in src (ExitChordNotice alone)',
   carriers.length === 1 && carriers[0] === 'src/components/PromptInput/ExitChordNotice.tsx', carriers.join(','))
-check('the REPL footer paints that one component (its words byte-identical)',
+check('the Chat footer paints that one component (its words byte-identical)',
   footer.includes('<ExitChordNotice keyName={exitKeyName} />') && !footer.includes(SPELLING))
 check('the owner paints that one component too, sized from its own bytes',
   owner.includes('<ExitChordNotice keyName="Ctrl-C" />') && owner.includes('exitChordNoticeText('))
 check('the notice sits at the bottom-left of the host viewport (absolute, last row, column 0, opaque)',
   owner.includes('position="absolute"') && owner.includes('top={Math.max(0, rows - 1)}') && owner.includes('left={0}') && owner.includes('opaque={true}'))
-check('the REPL composer keeps its own chord (useTextInput: handleCtrlC over the same window, the notice through onExitMessage)',
+check('the Chat composer keeps its own chord (useTextInput: handleCtrlC over the same window, the notice through onExitMessage)',
   textInput.includes('const handleCtrlC = useDoublePress(') && textInput.includes("onExitMessage?.(show, 'Ctrl-C')") && textInput.includes('EXIT_CHORD_WINDOW_MS'))
 check("the concourse's first-press meaning survives (a non-empty draft clears)",
   screen.includes("key.ctrl && input === 'c' && side.ref.current.text.length > 0"))
@@ -304,7 +304,7 @@ console.log('leg I — the concourse under a manager card (the interview card ow
   check('I: the second press EXITS (endReason eof)', c.endReason === 'eof', c.endReason)
 }
 
-console.log('leg G — the main REPL (the control: the same words, the same exit)')
+console.log('leg G — the main Chat (the control: the same words, the same exit)')
 {
   const { runArtifactArena, grabScreens, firstOutputTs } = await import('../streaming/artifactArena.ts')
   const run = await runArtifactArena({
@@ -330,7 +330,7 @@ console.log('leg G — the main REPL (the control: the same words, the same exit
     const grabs = grabScreens(run, 120, 40, [...between, -1])
     const text = (g: { rows: string[] }): string => g.rows.join('\n')
     const noticeFrame = grabs.slice(0, -1).find(g => text(g).includes(NOTICE))
-    check("G: the REPL's own notice stood before the second press (the same words)", noticeFrame !== undefined, noticeFrame === undefined ? `no frame between the presses carried the notice (${between.length} sampled)` : `on the frame at +${noticeFrame.atMs} ms`)
+    check("G: the Chat's own notice stood before the second press (the same words)", noticeFrame !== undefined, noticeFrame === undefined ? `no frame between the presses carried the notice (${between.length} sampled)` : `on the frame at +${noticeFrame.atMs} ms`)
     const lastTee = run.teeLines.length > 0 ? run.teeLines[run.teeLines.length - 1]!.ts : 0
     check('G: the process left well inside the budget after the second press (the existing exit)', lastTee > 0 && lastTee - second < 6000, `${lastTee - second}ms`)
     check('G: the final screen holds no composer (the chat is gone)', !text(grabs[grabs.length - 1]!).includes('Type a prompt'))

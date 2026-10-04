@@ -35,7 +35,6 @@ import type {
   AgentToolProgress,
   BashProgress,
   MCPProgress,
-  REPLToolProgress,
   SkillToolProgress,
   ToolProgressData,
   WebSearchProgress,
@@ -48,7 +47,6 @@ export type {
   AgentToolProgress,
   BashProgress,
   MCPProgress,
-  REPLToolProgress,
   SkillToolProgress,
   ToolProgressData,
   WebSearchProgress,
@@ -213,7 +211,7 @@ export type ToolUseContext = {
     commands: Command[]
     debug?: boolean
     verbose: boolean
-    mainLoopModel: string
+    engineModel: string
     maxThinkingTokens?: number
     thinkingConfig?: any
     tools: Tools

@@ -109,7 +109,7 @@ for (const helper of ['src/services/providers/openai/openaiCallModel.ts', 'src/s
 
 section('§7 the fetch tool wires the two roads')
 const utils = readFileSync(join(ROOT, 'src/tools/WebFetchTool/utils.ts'), 'utf8')
-check('it reaches for the session small-fast tier and the session model', utils.includes('sessionSmallFastModel') && utils.includes('getMainLoopModel') && utils.includes('queryWithModel'))
+check('it reaches for the session small-fast tier and the session model', utils.includes('sessionSmallFastModel') && utils.includes('getEngineModel') && utils.includes('queryWithModel'))
 check('the fallback runs the session model through queryWithModel with that model', utils.includes('await withModel(') && utils.includes('model: fallbackModel'))
 const tool = readFileSync(join(ROOT, 'src/tools/WebFetchTool/WebFetchTool.ts'), 'utf8')
 check('the tool still calls applyPromptToMarkdown', tool.includes('applyPromptToMarkdown('))

@@ -178,7 +178,7 @@ await gracefulShutdown(0)
         toolPermissionContext: { mode: 'default', additionalWorkingDirectories: new Map(), alwaysAllowRules: {}, alwaysDenyRules: {} },
         mcp: { tools: [] },
       }),
-      options: { agentDefinitions: { activeAgents: [] }, mainLoopModel: 'claude-opus-5' },
+      options: { agentDefinitions: { activeAgents: [] }, engineModel: 'claude-opus-5' },
     },
     canUseTool: async () => ({ behavior: 'allow' }),
     emitProgress: (f: unknown) => {

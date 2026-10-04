@@ -54,7 +54,7 @@ const commandHookSchema = lazySchema(() =>
     timeout: z.number().positive().optional().describe('Timeout for this hook, in seconds. Unset uses the hook engine default.'),
     shell: z.enum(SHELL_TYPES).optional().describe("Shell to run the command with: 'bash' or 'powershell'. Defaults to bash."),
     async: z.boolean().optional().describe('Run in the background without blocking the event.'),
-    asyncRewake: z.boolean().optional().describe('Run in the background and wake the model when the hook exits with the blocking status. Implies async.'),
+    wake: z.boolean().optional().describe('Run in the background and wake the model when the hook exits with the blocking status. Implies async.'),
     if: z.string().optional().describe('Condition in permission-rule syntax (a tool name with an optional parenthesised pattern); the hook runs only when it matches.'),
     statusMessage: z.string().optional().describe('Message shown in the spinner while the hook runs.'),
     once: z.boolean().optional().describe('Run this hook once per session, then remove it.'),

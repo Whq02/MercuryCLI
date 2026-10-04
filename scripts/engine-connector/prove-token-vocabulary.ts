@@ -192,7 +192,7 @@ console.log('— §4 the parent —')
     state.getTotalOutputTokens() - outBefore === 900 && state.getTotalInputTokens() - inBefore === 400 && state.getTotalCacheReadInputTokens() - cacheBefore === 600,
   )
   const cost = stripAnsi(formatTotalCost())
-  check('§4 /cost says its rows are spend', cost.includes('Tokens spent by model:') && !cost.includes('Usage by model'), cost.split('\n').slice(0, 6).join(' | '))
+  check('§4 the cost summary says its rows are spend', cost.includes('Tokens spent by model:') && !cost.includes('Usage by model'), cost.split('\n').slice(0, 6).join(' | '))
 }
 
 console.log('— §5 the surfaces —')

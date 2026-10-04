@@ -28,8 +28,8 @@ try {
   writeFileSync(
     join(repoDir, 'cards-def456.jsonl'),
     [
-      row('memdir-cards', 'class-x', 'accepted', '2026-06-30T10:00:00.000Z', { mechanism: 'distill' }),
-      row('memdir-cards', 'class-x', 'refused', '2026-07-01T11:00:00.000Z', { mechanism: 'distill' }),
+      row('mneme-cards', 'class-x', 'accepted', '2026-06-30T10:00:00.000Z', { mechanism: 'distill' }),
+      row('mneme-cards', 'class-x', 'refused', '2026-07-01T11:00:00.000Z', { mechanism: 'distill' }),
     ].join('\n') + '\n',
   )
 
@@ -43,7 +43,7 @@ try {
 
   const out = await scanEvolutionLedgers([
     { label: 'repo', dir: repoDir },
-    { label: 'memdir', dir: join(root, 'DOES-NOT-EXIST') },
+    { label: 'mneme', dir: join(root, 'DOES-NOT-EXIST') },
   ])
 
   check('3 programs from 2 files (row-field grouping)', out.length === 3, out.map(l => l.program).join(','))
@@ -58,7 +58,7 @@ try {
   const a = out.find(l => l.program === 'prog-a')
   check('garbage line skipped, valid rows kept', a?.rows.length === 2)
   check('frontier best from the pure rollup', a?.summary.frontier.best?.score === 3 && a?.summary.frontier.dryIterations === 0)
-  const cards = out.find(l => l.program === 'memdir-cards')
+  const cards = out.find(l => l.program === 'mneme-cards')
   check(
     'drift arithmetic present (accept-rate over class-x)',
     cards?.drift[0]?.subject === 'class-x' && cards?.drift[0]?.acceptRate === 0.5,

@@ -49,7 +49,7 @@ t.section('§2 — the live-count axis answers supervisor truth')
   )
 }
 
-t.section('§3 — the NO-ADOPTION oracle (the REPL resume guard consumes it)')
+t.section('§3 — the NO-ADOPTION oracle (the Chat resume guard consumes it)')
 {
   const dir = join(root, 'daemon')
   t.check(

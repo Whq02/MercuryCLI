@@ -1,7 +1,7 @@
 
 import React, { memo, useContext } from 'react'
 import { Box } from '../ink.js'
-import type { Screen } from '../screens/REPL.js'
+import type { Screen } from '../screens/Chat.js'
 import type {
   NormalizedMessage,
   ProgressMessage,

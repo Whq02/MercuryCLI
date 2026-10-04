@@ -265,7 +265,7 @@ export interface ConcourseLayoutWiring {
   answerObligation: (obligationId: string) => void
   openObligation: (obligationId: string) => void
   openBootSettings: () => void
-  exitToRepl: () => void
+  exitToChat: () => void
   focusComposer: () => void
   focusList?: () => void
   openCoordinatorModel?: () => void
@@ -787,7 +787,7 @@ export function ConcourseLayout({
           <ConcourseHeader
             snapshot={snapshot}
             onBoot={() => wiring.openBootSettings()}
-            onMainRepl={() => wiring.exitToRepl()}
+            onFocusedChat={() => wiring.exitToChat()}
             columns={cols}
           />
         </Box>

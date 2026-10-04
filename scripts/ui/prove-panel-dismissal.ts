@@ -94,7 +94,7 @@ for (const [file, seam] of ownFrames) {
 for (const file of ['MercuryCommandPalette.tsx', 'MercuryFileOpen.tsx', 'MercuryContentSearch.tsx']) {
   check(`${file} raises its frame outside the modal slot`, jsx(`src/components/${file}`, 'CommandCenter').some(n => n.attributes.properties.some(p => ts.isJsxAttribute(p) && p.name.getText() === 'elevated')))
 }
-check('the chat hosts its panels in the modal slot', jsx('src/screens/REPL.tsx', 'FullscreenLayout').some(n => n.attributes.properties.some(p => ts.isJsxAttribute(p) && p.name.getText() === 'modal')))
+check('the chat hosts its panels in the modal slot', jsx('src/screens/Chat.tsx', 'FullscreenLayout').some(n => n.attributes.properties.some(p => ts.isJsxAttribute(p) && p.name.getText() === 'modal')))
 
 const layer = await import('../../src/ink/recessLayer.js')
 const stack = await import('../../src/context/overlayStack.js')

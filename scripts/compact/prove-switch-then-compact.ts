@@ -117,7 +117,7 @@ function makeContext(model: string): Record<string, unknown> {
     options: {
       tools: [],
       mcpClients: [],
-      mainLoopModel: model,
+      engineModel: model,
       maxThinkingTokens: 0,
       thinkingConfig: { type: 'disabled' as const },
       isNonInteractiveSession: true,

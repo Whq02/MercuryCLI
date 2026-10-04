@@ -147,7 +147,7 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
       `after:Mercury — surfaces:2600:${ESC}`,
       `after:Mercury — surfaces:4000:x`,
       `after:Mercury — surfaces:4500:${String.fromCharCode(127)}`,
-      'after:Mercury — surfaces:5400:/cost\\r',
+      'after:Mercury — surfaces:5400:/auto-compact-window\\r',
     ],
     seconds: 40,
     cols: 120,
@@ -268,7 +268,7 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
       )
     t.check('no /frobnicate in any model call', !userTextIncludes('/frobnicate'))
     t.check('no /manager in any model call', !userTextIncludes('/manager'))
-    t.check('no /cost in any model call', !userTextIncludes('/cost'))
+    t.check('no /auto-compact-window in any model call', !userTextIncludes('/auto-compact-window'))
 
     const { mkdirSync, writeFileSync } = await import('node:fs')
     const framesArg = process.argv.indexOf('--frames')

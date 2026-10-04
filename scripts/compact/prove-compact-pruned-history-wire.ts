@@ -95,7 +95,7 @@ function makeCtx(model: string = MODEL): Record<string, unknown> {
     options: {
       commands: [],
       tools: [FileReadTool],
-      mainLoopModel: model,
+      engineModel: model,
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},

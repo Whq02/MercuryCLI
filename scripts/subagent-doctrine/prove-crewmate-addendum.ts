@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { buildCrewmateAddendum, CREWMATE_SYSTEM_PROMPT_ADDENDUM } from '../../src/utils/swarm/crewmatePromptAddendum.js'
+import { buildCrewmateAddendum, CREWMATE_SYSTEM_PROMPT_ADDENDUM } from '../../src/utils/crew/crewmatePromptAddendum.js'
 
 function setStamp(on: boolean): void {
   if (on) (globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }

@@ -61,7 +61,7 @@ export async function makeContext(options?: {
     options: {
       commands: [],
       verbose: false,
-      mainLoopModel: 'claude-sonnet-5',
+      engineModel: 'claude-sonnet-5',
       tools: (options?.tools ?? []) as never,
       mcpClients: [],
       isNonInteractiveSession: true,

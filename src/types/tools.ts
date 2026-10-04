@@ -75,14 +75,6 @@ export type WebSearchProgress =
     }
 
 
-export type REPLToolProgress = {
-  type: 'repl_tool_call'
-  phase: 'start' | 'end'
-  toolName: string
-  toolInput: unknown
-}
-
-
 export type SdkWorkflowProgress =
   | { type: 'workflow_log'; message: string }
   | {
@@ -130,5 +122,4 @@ export type ToolProgressData =
   | SkillToolProgress
   | MCPProgress
   | WebSearchProgress
-  | REPLToolProgress
   | EvalToolProgress

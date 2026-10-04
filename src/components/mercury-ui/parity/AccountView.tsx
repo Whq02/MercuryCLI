@@ -40,7 +40,7 @@ import {
 } from '../../../services/providers/accountSlots.js'
 import { refreshProviderUsage, usageCreditsLine, usageForProvider, type ProviderFamilyPresence } from '../../../services/providers/providerUsage.js'
 import { useAppState } from '../../../state/AppState.js'
-import { getMainLoopModel, renderModelName } from '../../../utils/model/model.js'
+import { getEngineModel, renderModelName } from '../../../utils/model/model.js'
 import { useFocusedServedModel } from '../../../hooks/useDisplayedSessionModel.js'
 import { useSessionAccent } from '../sessionAccent.js'
 import { useInteractiveList } from '../useInteractiveList.js'
@@ -128,8 +128,8 @@ export function AccountView({
 
   const acct = getGlobalConfig().oauthAccount
   const servedModel = useFocusedServedModel()
-  const sessionModel = useAppState(state => state.mainLoopModelForSession ?? state.mainLoopModel)
-  const mainLoopModel = servedModel ?? sessionModel ?? getMainLoopModel()
+  const sessionModel = useAppState(state => state.engineModelForSession ?? state.engineModel)
+  const engineModel = servedModel ?? sessionModel ?? getEngineModel()
 
   const rerouteToLogins = (family: string, why: string): string => {
     onClose(why, { nextInput: `/logins ${family}`, submitNextInput: true })
@@ -235,12 +235,12 @@ export function AccountView({
 
   const billingSlot = scopeSlots.find(slot => slot.scope!.isCurrent)
   const mainLoop = mainLoopIdentity({
-    model: mainLoopModel,
+    model: engineModel,
     presences: groups.map(group => group.family),
     currentScopeIdentity: billingSlot ? identities[billingSlot.id] : undefined,
     currentScopeClaudeFamily: billingSlot?.scope?.foreignHarness ?? false,
   })
-  const mainLoopText = `${mainLoop.family} · ${renderModelName(mainLoopModel)} · ${mainLoop.text}`
+  const mainLoopText = `${mainLoop.family} · ${renderModelName(engineModel)} · ${mainLoop.text}`
   const orgText =
     mainLoop.route === 'anthropic' && mainLoop.basis === 'verified-live' && acct?.organizationName
       ? `${acct.organizationName} (snapshot)`

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/runner/wire/* src/cli/print.ts src/cli/headless/runnerMethods.ts src/daemon/runnerConnection.ts src/daemon/headlessRun.ts src/services/acp/childSession.ts
+// gate-watch: src/runner/wire/* src/cli/run.ts src/cli/headless/runnerMethods.ts src/daemon/runnerConnection.ts src/daemon/headlessRun.ts src/services/acp/childSession.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { readFileSync } from 'node:fs'
@@ -46,7 +46,7 @@ section('§1 every method declares its direction, its kind, a params schema and 
 
 section('§2 the runner side: every method a host sends has an arm, and the binder binds them all')
 {
-  const print = src('src/cli/print.ts')
+  const print = src('src/cli/run.ts')
   const hostRequests = methodsFrom('host', 'request').map(spec => spec.name)
   const hostNotifications = methodsFrom('host', 'notification').map(spec => spec.name)
   const armless = [...hostRequests, ...hostNotifications].filter(name => name !== 'initialize' && name !== '$/cancel_request' && !print.includes(`'${name}':`))

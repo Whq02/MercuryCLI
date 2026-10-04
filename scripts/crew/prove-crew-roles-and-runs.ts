@@ -44,13 +44,13 @@ console.log('============================================================')
 
 const { getSessionId } = await import('../../src/bootstrap/state.js')
 const tasks = (await import('../../src/utils/tasks.js')) as typeof import('../../src/utils/tasks.js')
-const roles = (await import('../../src/utils/swarm/roleResolver.js')) as typeof import('../../src/utils/swarm/roleResolver.js')
-const charter = (await import('../../src/utils/swarm/crewCharter.js')) as typeof import('../../src/utils/swarm/crewCharter.js')
-const addendum = (await import('../../src/utils/swarm/crewmatePromptAddendum.js')) as typeof import('../../src/utils/swarm/crewmatePromptAddendum.js')
+const roles = (await import('../../src/utils/crew/roleResolver.js')) as typeof import('../../src/utils/crew/roleResolver.js')
+const charter = (await import('../../src/utils/crew/crewCharter.js')) as typeof import('../../src/utils/crew/crewCharter.js')
+const addendum = (await import('../../src/utils/crew/crewmatePromptAddendum.js')) as typeof import('../../src/utils/crew/crewmatePromptAddendum.js')
 const { getBuiltInAgents } = await import('../../src/tools/AgentTool/builtInAgents.js')
-const { CREW_LEAD_NAME } = await import('../../src/utils/swarm/constants.js')
+const { CREW_LEAD_NAME } = await import('../../src/utils/crew/constants.js')
 const { crewStoreRoot } = await import('../../src/services/crew/identity.js')
-const { sanitizeName } = await import('../../src/utils/swarm/crewHelpers.js')
+const { sanitizeName } = await import('../../src/utils/crew/crewHelpers.js')
 
 section('§1 the runs board lists a crewmate\'s task written through the live comms store')
 {

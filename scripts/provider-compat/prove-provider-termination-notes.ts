@@ -128,7 +128,7 @@ function callParams(model: string) {
     signal: new AbortController().signal,
     options: {
       model,
-      querySource: 'repl_main_thread',
+      querySource: 'main_thread',
       isNonInteractiveSession: true,
       getToolPermissionContext: async () => ({}) as never,
       agents: [],

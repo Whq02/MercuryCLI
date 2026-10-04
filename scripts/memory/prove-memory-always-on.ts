@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
-// gate-watch: src/memdir/mnemeGates.ts src/memdir/memoryVerbs.ts src/memdir/mnemeBuffer.ts
-// gate-watch: src/memdir/mnemeConsolidate.ts src/substrate/flagRegistry.ts src/substrate/startupMenu.ts
+// gate-watch: src/mneme/mnemeGates.ts src/mneme/memoryVerbs.ts src/mneme/mnemeBuffer.ts
+// gate-watch: src/mneme/mnemeConsolidate.ts src/substrate/flagRegistry.ts src/substrate/startupMenu.ts
 // gate-watch: src/services/mcp/coordinationServer.ts src/utils/capability/declarations.ts src/query/stopHooks.ts
-// gate-watch: src/memdir/** src/tools/MemoryTools/** src/components/memory/** src/commands/memory/** src/utils/capability/**
+// gate-watch: src/mneme/** src/tools/MemoryTools/** src/components/memory/** src/commands/memory/** src/utils/capability/**
 // gate-watch: src/utils/cockpit/** src/services/mcp/** src/substrate/** src/query/** src/utils/attachments/**
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { existsSync, mkdtempSync, readFileSync, readdirSync, statSync } from 'node:fs'
@@ -25,9 +25,9 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { memoryVerbsEnabled, memoryVerbsWhyNot, retainItems } = await import('../../src/memdir/memoryVerbs.js')
-const { appendObservation, readBuffer } = await import('../../src/memdir/mnemeBuffer.js')
-const { maybeConsolidate, listTopicDocs } = await import('../../src/memdir/mnemeConsolidate.js')
+const { memoryVerbsEnabled, memoryVerbsWhyNot, retainItems } = await import('../../src/mneme/memoryVerbs.js')
+const { appendObservation, readBuffer } = await import('../../src/mneme/mnemeBuffer.js')
+const { maybeConsolidate, listTopicDocs } = await import('../../src/mneme/mnemeConsolidate.js')
 const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.js')
 const { RetainTool, RecallTool, ReflectTool, CorrectTool } = await import('../../src/tools/MemoryTools/MemoryTools.js')
 
@@ -46,7 +46,7 @@ check('two topic pages exist', listTopicDocs(lib).length === 2, listTopicDocs(li
 section('the gate words are gone')
 const envNames = new Set(FLAG_REGISTRY.map(f => f.env))
 check('the registry has no memory gate row', !envNames.has('MERCURY_MNEME') && !envNames.has('MERCURY_MEMORY_OBSERVE'))
-check('the observe hook module is gone', !existsSync(join(ROOT, 'src/memdir/mnemeObserveTurn.ts')))
+check('the observe hook module is gone', !existsSync(join(ROOT, 'src/mneme/mnemeObserveTurn.ts')))
 const server = readFileSync(join(ROOT, 'src/services/mcp/coordinationServer.ts'), 'utf8')
 check('the coordination server registers no mneme_ verb', !/registerTool\(\s*'mneme_/.test(server))
 const menu = readFileSync(join(ROOT, 'src/substrate/startupMenu.ts'), 'utf8')
@@ -62,7 +62,7 @@ function walk(dir: string, out: string[]): void {
   }
 }
 const files: string[] = []
-for (const dir of ['src/memdir', 'src/tools/MemoryTools', 'src/components/memory', 'src/commands/memory', 'src/utils/capability', 'src/utils/cockpit', 'src/services/mcp', 'src/substrate', 'src/query', 'src/utils/attachments']) {
+for (const dir of ['src/mneme', 'src/tools/MemoryTools', 'src/components/memory', 'src/commands/memory', 'src/utils/capability', 'src/utils/cockpit', 'src/services/mcp', 'src/substrate', 'src/query', 'src/utils/attachments']) {
   walk(join(ROOT, dir), files)
 }
 const carriers = files.filter(p => /MERCURY_MNEME|MERCURY_MEMORY_OBSERVE|mneme_observe|mneme_catalog|mneme_grep|mneme_read|mneme_correct|mneme_retire/.test(readFileSync(p, 'utf8')))

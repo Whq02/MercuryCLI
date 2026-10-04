@@ -306,7 +306,7 @@ export async function autoCompactIfNeeded(
     return forced ? { ...notCompacted, refusal: 'compaction has failed repeatedly and is paused for this session' } : notCompacted
   }
 
-  const model = toolUseContext.options.mainLoopModel
+  const model = toolUseContext.options.engineModel
   let measuredRawTokenCount: number | null = null
   let compact: boolean
   if (forced) {

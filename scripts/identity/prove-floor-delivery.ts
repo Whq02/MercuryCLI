@@ -129,7 +129,7 @@ section('§2 buildEffectiveSystemPrompt — floor FIRST on every replacing path'
   })
   check('an EMPTY override falls through to the floored custom path', emptyOverride[0] === FLOOR && emptyOverride[1] === 'CUSTOM')
 
-  const callers = ['src/rows/turn.ts', 'src/cli/print.ts', 'src/commands/compact/compact.ts', 'src/utils/analyzeContext.ts', 'src/tools/AgentTool/AgentTool.tsx']
+  const callers = ['src/rows/turn.ts', 'src/cli/run.ts', 'src/commands/compact/compact.ts', 'src/utils/analyzeContext.ts', 'src/tools/AgentTool/AgentTool.tsx']
   check(
     'no production caller supplies overrideSystemPrompt today',
     callers.every(f => !SRC(f).includes('overrideSystemPrompt')),
@@ -234,7 +234,7 @@ section('§6 source pins — the bun-unloadable seats, one line each')
     ['AgentTool default spawn (doctrine leads)', 'src/tools/AgentTool/AgentTool.tsx', '[...doctrine, ownPrompt]'],
     ['runAgent fallback build (doctrine leads)', 'src/tools/AgentTool/runAgent.ts', '[...doctrine, ownPrompt]'],
     ['runAgent honors override only when supplied', 'src/tools/AgentTool/runAgent.ts', 'override?.systemPrompt ??'],
-    ['swarm crewmate turn passes NO override prompt — the transcript agentId accompanies the controller, never replacing the doctrine', 'src/utils/swarm/inProcessRunner.ts', 'override: {\n              abortController: turnController,\n              ...(config.transcriptAgentId !== undefined ? { agentId: config.transcriptAgentId } : {}),\n            },'],
+    ['a crewmate turn passes NO override prompt — the transcript agentId accompanies the controller, never replacing the doctrine', 'src/utils/crew/inProcessRunner.ts', 'override: {\n              abortController: turnController,\n              ...(config.transcriptAgentId !== undefined ? { agentId: config.transcriptAgentId } : {}),\n            },'],
   ]
   for (const [label, file, needle] of pins) {
     check(`${label} — ${file}`, SRC(file).includes(needle))

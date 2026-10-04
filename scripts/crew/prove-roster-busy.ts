@@ -55,12 +55,12 @@ mock.module('../../src/tools/AgentTool/runAgent.ts', () => ({ ...runAgentModule,
 
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { getSessionId } = await import('../../src/bootstrap/state.ts')
-const { spawnInProcessCrewmate } = await import('../../src/utils/swarm/spawnInProcess.ts')
-const { runInProcessCrewmate } = await import('../../src/utils/swarm/inProcessRunner.ts')
+const { spawnInProcessCrewmate } = await import('../../src/utils/crew/spawnInProcess.ts')
+const { runInProcessCrewmate } = await import('../../src/utils/crew/inProcessRunner.ts')
 const { isInProcessCrewmateTask } = await import('../../src/tasks/InProcessCrewmateTask/types.ts')
-const { writeCrewFileAsync, readCrewFileAsync, getCrewFilePath } = await import('../../src/utils/swarm/crewHelpers.ts')
+const { writeCrewFileAsync, readCrewFileAsync, getCrewFilePath } = await import('../../src/utils/crew/crewHelpers.ts')
 const { getAgentStatuses } = await import('../../src/utils/tasks.ts')
-const { getRoomHealth } = await import('../../src/utils/swarm/roomHealth.ts')
+const { getRoomHealth } = await import('../../src/utils/crew/roomHealth.ts')
 const { crewBrief } = await import('../../src/services/coordination/coordinationService.ts')
 const { formatAgentId } = await import('../../src/utils/agentId.ts')
 type AppState = import('../../src/state/AppState.tsx').AppState
@@ -79,7 +79,7 @@ const member = (agentId: string, name: string, paneId: string): Record<string, u
 await writeCrewFileAsync(CREW, { name: CREW, createdAt: Date.now(), leadAgentId: LEAD_ID, leadSessionId: String(getSessionId()), members: [member(LEAD_ID, LEAD, 'leader'), member(SEAT_ID, SEAT, 'in-process')] } as never)
 
 const context = {
-  options: { tools: [], commands: [], mainLoopModel: MODEL, mcpClients: [], mcpResources: {}, debug: false, verbose: false, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [], allAgents: [], allowedAgentTypes: [] } },
+  options: { tools: [], commands: [], engineModel: MODEL, mcpClients: [], mcpResources: {}, debug: false, verbose: false, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [], allAgents: [], allowedAgentTypes: [] } },
   messages: [],
   abortController: new AbortController(),
   getAppState: () => state,

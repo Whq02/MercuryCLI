@@ -29,7 +29,7 @@ import type { TranscriptChainCursor } from '../../utils/sessionStorage/transcrip
 import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } from '../../utils/fileStateCache.js'
 import { getAllBaseTools } from '../../tools.js'
 import { MCPTool } from '../../tools/MCPTool/MCPTool.js'
-import { getMainLoopModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../utils/model/model.js'
 import { createStreamingTailStore, type StreamingTailStore } from '../../utils/messages/streamingTailStore.js'
 import { adoptOpenaiObservedUsage, adoptOpenaiWindowFact } from '../providers/openai/openaiLimitState.js'
 import { adoptOpenaiCatalogueFact } from '../providers/openai/openaiCatalogue.js'
@@ -1488,7 +1488,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         commands: [],
         debug: false,
         verbose: false,
-        mainLoopModel: facts?.model.effective ?? this.record.modelKey ?? getMainLoopModel(),
+        engineModel: facts?.model.effective ?? this.record.modelKey ?? getEngineModel(),
         tools: getAllBaseTools(),
         mcpClients: [],
         isNonInteractiveSession: false,
@@ -1987,7 +1987,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   modelFacts(): ModelFactsV1 {
-    const effective = this.facts?.model.effective ?? this.record.modelKey ?? getMainLoopModel()
+    const effective = this.facts?.model.effective ?? this.record.modelKey ?? getEngineModel()
     const effectiveSource: 'live' | 'record' | 'ambient' =
       this.facts !== null ? 'live' : this.record.modelKey !== undefined ? 'record' : 'ambient'
     return {
@@ -2010,7 +2010,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   async setModel(setting: string | null): Promise<ModelSwitchReceiptV1> {
-    const target = setting ?? getMainLoopModel()
+    const target = setting ?? getEngineModel()
     const current = this.modelFacts()
     if (current.effective === target && current.pendingSwitch === null) return { state: 'no-op' }
     const busy = this.effectiveLive.inFlight

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { basename } from 'node:path';
 import { Box, useInput } from '../ink.js';
 import { createSplashCore, WORD_W } from '../../assets/splash/splash-core.mjs';
-import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
+import { useEngineModel } from '../hooks/useEngineModel.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import {
   HEALTH_STATUS_META,
@@ -376,7 +376,7 @@ export function BootHealthScreen({ onClose, fullScene, certificate: given }: Boo
     [coreAccent],
   );
   const wordGlow = useGreetingShimmer(rampStops, WORD_W);
-  const mainModel = useMainLoopModel();
+  const mainModel = useEngineModel();
 
   const menuM = useMemo(() => {
     const critterKey = getSessionCritterKey();

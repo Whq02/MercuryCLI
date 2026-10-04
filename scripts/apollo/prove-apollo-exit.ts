@@ -143,14 +143,14 @@ try {
 {
   check("the flow gate's kick-out records 'flow-unavailable'", /recordModeTransition\(\{ from: 'flow', to: 'default', road: 'flow-unavailable' \}\)/.test(src('utils', 'permissions', 'permissionSetup.ts')))
   check("the launch context records the 'boot' entry", /recordModeTransition\(\{ from: null, to: context\.mode, road: 'boot' \}\)/.test(src('utils', 'permissions', 'permissionSetup.ts')))
-  check("the warm claim names 'claim'", /resolvePermissionModeTransition\(\n\s*claimedMode as WirePermissionMode,\n\s*getAppState\(\)\.toolPermissionContext,\n\s*'claim',/.test(src('cli', 'print.ts')))
+  check("the warm claim names 'claim'", /resolvePermissionModeTransition\(\n\s*claimedMode as WirePermissionMode,\n\s*getAppState\(\)\.toolPermissionContext,\n\s*'claim',/.test(src('cli', 'run.ts')))
   check("the review card names 'review-approval'", /'review-approval',/.test(src('tools', 'ApolloReviewTool', 'ApolloReviewTool.tsx')))
   check('the app-state relay audits every observed mode change', /auditModeChange\(oldMode, newMode\)/.test(src('state', 'onChangeAppState.ts')))
-  check("the screen's mirror names 'screen-mirror'", /road: 'screen-mirror'/.test(src('screens', 'REPL.tsx')))
+  check("the screen's mirror names 'screen-mirror'", /road: 'screen-mirror'/.test(src('screens', 'Chat.tsx')))
 }
 try {
   const relay = (await import('../../src/state/onChangeAppState.js')) as typeof import('../../src/state/onChangeAppState.js')
-  const base = { mainLoopModel: null, verbose: false, expandedView: false, settings: {} }
+  const base = { engineModel: null, verbose: false, expandedView: false, settings: {} }
   clearModeTransitions()
   relay.onChangeAppState({ newState: { ...base, toolPermissionContext: ctx('implement') } as never, oldState: { ...base, toolPermissionContext: ctx('apollo') } as never })
   check("the relay records a change nobody announced as 'unnamed'", last()?.road === 'unnamed' && last()?.from === 'apollo' && last()?.to === 'implement')

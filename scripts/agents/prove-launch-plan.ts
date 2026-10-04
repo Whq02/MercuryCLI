@@ -17,8 +17,8 @@ const ROOT = join(import.meta.dir, '..', '..')
 const src = (...p: string[]) => readFileSync(join(ROOT, 'src', ...p), 'utf-8')
 
 const { buildAgentLaunchPlan, deriveRunnerAgentDefinition, CREW_ESSENTIAL_TOOLS } =
-  await import('../../src/utils/swarm/agentLaunchPlan.ts')
-const { resolveCrewmateRole } = await import('../../src/utils/swarm/roleResolver.ts')
+  await import('../../src/utils/crew/agentLaunchPlan.ts')
+const { resolveCrewmateRole } = await import('../../src/utils/crew/roleResolver.ts')
 const { getBuiltInAgents } = await import('../../src/tools/AgentTool/builtInAgents.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
@@ -69,7 +69,7 @@ function base(over: Record<string, unknown> = {}): never {
     forkGateOn: false,
     forkAgent: FORK_STUB,
     defaultAgentType: 'mercury-crew',
-    mainLoopModel: 'claude-opus-4-8',
+    engineModel: 'claude-opus-4-8',
     backgroundTasksDisabled: false,
     forceAsync: false,
     ...over,
@@ -226,13 +226,13 @@ section('§6 — seam ratchets: the consumers consume the plan')
   const agentTool = src('tools', 'AgentTool', 'AgentTool.tsx')
   check('AgentTool resolves through buildAgentLaunchPlan', agentTool.includes('buildAgentLaunchPlan({'))
   check('AgentTool keeps NO alias-map copy (decode has ONE home)', !agentTool.includes('LEGACY_SUBAGENT_ALIASES'))
-  check('AgentTool resolves the explicit model through the model owner before engine validation', agentTool.includes('getAgentModel(undefined, options.mainLoopModel, input.model)') && agentTool.indexOf('getAgentModel(undefined, options.mainLoopModel, input.model)') < agentTool.indexOf('resolveEngineDispatch(modelParam)'))
-  const runner = src('utils', 'swarm', 'inProcessRunner.ts')
+  check('AgentTool resolves the explicit model through the model owner before engine validation', agentTool.includes('getAgentModel(undefined, options.engineModel, input.model)') && agentTool.indexOf('getAgentModel(undefined, options.engineModel, input.model)') < agentTool.indexOf('resolveEngineDispatch(modelParam)'))
+  const runner = src('utils', 'crew', 'inProcessRunner.ts')
   check('the runner consumes deriveRunnerAgentDefinition', runner.includes('deriveRunnerAgentDefinition({'))
   check('the runner keeps NO inline definition literal', !runner.includes("whenToUse: `In-process crewmate"))
-  const planSrc = src('utils', 'swarm', 'agentLaunchPlan.ts')
+  const planSrc = src('utils', 'crew', 'agentLaunchPlan.ts')
   check('the plan builder reads the requested type as written — no decode seam, no alias table', planSrc.includes('const requestedType = i.requestedType || undefined') && !/decodeAgentType|Record<string, string>/.test(planSrc))
-  const resolverSrc = src('utils', 'swarm', 'roleResolver.ts')
+  const resolverSrc = src('utils', 'crew', 'roleResolver.ts')
   check('the role resolver finds a definition by the requested id itself', resolverSrc.includes('agents.find(a => a.agentType === requested)') && !resolverSrc.includes('decodeAgentType'))
 
   const fg = src('tools', 'AgentTool', 'foregroundExecution.tsx')

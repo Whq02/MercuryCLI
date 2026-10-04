@@ -6,7 +6,7 @@ import { MERCURY_IDENTITY_FLOOR, PERSISTENCE_LAW } from '../prompt/mercuryContra
 import { getLspDoctrineLine } from '../services/lsp/mercuryLsp.js'
 import { getRuntimePostureDoctrineLine } from '../utils/cockpit/runtimePosture.js'
 import { getVulcanDoctrineLine } from '../utils/vulcan/vulcanGates.js'
-import { loadMemoryPrompt } from '../memdir/mnemeFrontPage.js'
+import { loadMemoryPrompt } from '../mneme/mnemeFrontPage.js'
 import { RETAIN_TOOL_NAME } from '../tools/MemoryTools/prompt.js'
 import { changeTransactionEnabled } from '../services/changeTransaction/contracts.js'
 import { ENVELOPE_DOCTRINE } from '../services/agentResults/contracts.js'

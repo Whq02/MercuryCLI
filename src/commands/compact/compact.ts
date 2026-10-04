@@ -46,7 +46,7 @@ async function buildCompactCacheSafeParams(
   }
   const { defaultSystemPrompt, userContext, systemContext } = await fetchSystemPromptParts({
     tools: options.tools,
-    mainLoopModel: options.mainLoopModel,
+    engineModel: options.engineModel,
     mcpClients: options.mcpClients,
     customSystemPrompt: options.customSystemPrompt,
     permissionMode: context.getAppState().toolPermissionContext.mode,
@@ -91,7 +91,7 @@ function buildDisplayText(
     parts.push(`(${chord} reads the full summary — what the agent retains)`)
   }
   if (hookDisplayMessage) parts.push(hookDisplayMessage)
-  const tip = getUpgradeMessage(context.getAppState().mainLoopModel)?.tip
+  const tip = getUpgradeMessage(context.getAppState().engineModel)?.tip
   if (tip) parts.push(tip)
   const rest = parts.join('\n')
   return chalk.dim(rest ? `${head}\n${rest}` : head)
@@ -174,10 +174,10 @@ async function callUnderFoldStatus(
     context.onCompactProgress?.({ type: 'stage', stage: 'micro-compaction' })
     const { messages: microcompacted } = await microcompactMessages(projected, context, 'compact')
     const cacheSafeParams = await buildCompactCacheSafeParams(microcompacted, context)
-    const foldModel = foldModelFor(microcompacted, context.options.mainLoopModel, { forced: false })
+    const foldModel = foldModelFor(microcompacted, context.options.engineModel, { forced: false })
     if (foldModel.source === 'history') {
       logForDebugging(
-        `compact: the summary is written by ${foldModel.model} — the seated ${context.options.mainLoopModel}'s window does not hold the history (about ${foldModel.count} tokens by Mercury's count)`,
+        `compact: the summary is written by ${foldModel.model} — the seated ${context.options.engineModel}'s window does not hold the history (about ${foldModel.count} tokens by Mercury's count)`,
       )
     }
     const result = await compactConversation(
@@ -190,7 +190,7 @@ async function callUnderFoldStatus(
       {
         isRecompaction: false,
         turnsSincePreviousCompact: -1,
-        autoCompactThreshold: getAutoCompactThreshold(context.options.mainLoopModel),
+        autoCompactThreshold: getAutoCompactThreshold(context.options.engineModel),
       },
       undefined,
       foldModel.model,

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: src/services/samples/** src/services/workshop/** src/tools/WorkshopTool/** docs/SAMPLES.md src/components/samples/** src/components/tasks/useFocusedWork.ts src/services/engine-connector/seatWire.ts src/daemon/runnerFrames.ts
-# gate-watch: scripts/lib/* src/Tool.ts src/cli/print.ts src/daemon/sessionSeat.ts
+# gate-watch: scripts/lib/* src/Tool.ts src/cli/run.ts src/daemon/sessionSeat.ts
 # gate-watch: src/ink/stringWidth.ts
 # gate-watch: src/services/browser/browserResolver.ts src/services/browser/browserSession.ts
 # gate-watch: src/services/engine-connector/daemonConnector.ts src/services/run/ownerKey.ts

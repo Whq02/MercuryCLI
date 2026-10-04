@@ -8,7 +8,7 @@ import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { readImageWithTokenBudget } from '../FileReadTool/FileReadTool.js'
 import { modelReceivesImageBlocks } from '../../utils/model/capabilities.js'
-import { getMainLoopModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../utils/model/model.js'
 import {
   browserVersionOf,
   detectInstalledBrowsers,
@@ -1491,7 +1491,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
           }
           imagePath = file
           let sizeNote = ''
-          if (modelReceivesImageBlocks(getMainLoopModel())) {
+          if (modelReceivesImageBlocks(getEngineModel())) {
             try {
               const img = await readImageWithTokenBudget(file)
               const inlineBytes = Math.floor((img.file.base64.length * 3) / 4)
@@ -1561,7 +1561,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
     }
   },
   mapToolResultToToolResultBlockParam(output: Output, toolUseId: string) {
-    if (output.imagePath && modelReceivesImageBlocks(getMainLoopModel())) {
+    if (output.imagePath && modelReceivesImageBlocks(getEngineModel())) {
       try {
         const bytes = readFileSync(output.inlinePath ?? output.imagePath)
         const mediaType = (output.inlinePath ? (output.inlineMediaType ?? 'image/png') : 'image/png') as 'image/png'
@@ -1580,7 +1580,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
       }
     }
     const text =
-      output.imagePath && !modelReceivesImageBlocks(getMainLoopModel())
+      output.imagePath && !modelReceivesImageBlocks(getEngineModel())
         ? `${output.result}\n(image not inlined — this model takes no image input; open the file to view it)`
         : output.result
     return {

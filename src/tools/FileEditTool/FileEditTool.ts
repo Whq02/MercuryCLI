@@ -864,7 +864,7 @@ export const FileEditTool = buildTool({
       return { result: true as const }
     }
 
-    const turnModel = (context.options as { mainLoopModel?: unknown } | undefined)?.mainLoopModel
+    const turnModel = (context.options as { engineModel?: unknown } | undefined)?.engineModel
     if (mode === 'exact' && typeof turnModel === 'string' && localRecordFor(turnModel) !== undefined) {
       const fileBytes = Buffer.byteLength(currentContent, 'utf8')
       const oldBytes = Buffer.byteLength(oldString, 'utf8')

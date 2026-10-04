@@ -84,7 +84,7 @@ const words = table
 const { PROVIDER_ID_SPACES } = await import('../../src/services/providers/idSpaces.ts')
 const model = await import('../../src/utils/model/model.ts')
 const agent = await import('../../src/utils/model/agent.ts')
-const engine = await import('../../src/utils/swarm/engineDispatch.ts')
+const engine = await import('../../src/utils/crew/engineDispatch.ts')
 const { keyLanePins, getModelOptions } = await import('../../src/utils/model/modelOptions.ts')
 const discovery = await import('../../src/utils/router/providerDiscovery.ts')
 const xai = await import('../../src/services/providers/xai/xaiCatalogue.ts')
@@ -155,7 +155,7 @@ section('§2 a keyless box: the session road answers each family\'s first record
     check(`'${word}': the picker door maps the word onto the row's own option`, picker.modelChoiceRow(word) === head, picker.modelChoiceRow(word))
     check(`'${word}': a sub-agent named the word runs the row`, agent.getAgentModel(undefined, 'claude-opus-5', word) === head && agent.getAgentModel(word, 'claude-opus-5') === head, agent.getAgentModel(undefined, 'claude-opus-5', word))
     process.env.MERCURY_MODEL = word
-    check(`'${word}': MERCURY_MODEL on the word is the main-loop model on the row, and the picker lists that row for its current mark`, model.getMainLoopModel() === head && getModelOptions().some(option => option.value === head), model.getMainLoopModel())
+    check(`'${word}': MERCURY_MODEL on the word is the main-loop model on the row, and the picker lists that row for its current mark`, model.getEngineModel() === head && getModelOptions().some(option => option.value === head), model.getEngineModel())
     delete process.env.MERCURY_MODEL
   }
 }
@@ -247,7 +247,7 @@ section('§3 the two roads agree row for row, credentialed, over fixture lists')
 section('§4 one resolver by construction: neither road spells a family word of its own')
 {
   const src = (rel: string): string => readFileSync(join(import.meta.dir, '../../src', rel), 'utf8')
-  const dispatch = src('utils/swarm/engineDispatch.ts')
+  const dispatch = src('utils/crew/engineDispatch.ts')
   check('the agent road resolves the words through the shared table', dispatch.includes('bareFamilyWordOf(modelParam)') && dispatch.includes('familyWord.headRow()') && !/modelParam === '(glm|kimi|deepseek|grok)'/.test(dispatch))
   const session = src('utils/model/model.ts')
   check('the session road resolves the words through the shared table', session.includes('resolveBareFamilyWord(lowered)') && !session.includes("case 'grok'") && !session.includes('xaiCatalogueRows'))

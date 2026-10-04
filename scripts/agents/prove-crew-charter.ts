@@ -24,7 +24,7 @@ process.env.MERCURY_CREWS_DIR = CREWS_DIR
 process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'charter-home-'))
 ;(await import('../../src/utils/config/globalConfig.js')).enableConfigs()
 
-const charter = await import('../../src/utils/swarm/crewCharter.js')
+const charter = await import('../../src/utils/crew/crewCharter.js')
 
 section('§1 — derivation')
 {
@@ -68,7 +68,7 @@ section('§2 — parsing (migration tolerance)')
 
 section('§3 — legacy crew files still read')
 {
-  const helpers = await import('../../src/utils/swarm/crewHelpers.js')
+  const helpers = await import('../../src/utils/crew/crewHelpers.js')
   const legacy = {
     name: 'legacy-crew',
     createdAt: 123,
@@ -87,7 +87,7 @@ section('§3 — legacy crew files still read')
 
 section('§4 — the crew is born with the session and founded in ONE publish: nothing is half-made, nothing is unwound')
 {
-  const helpers = await import('../../src/utils/swarm/crewHelpers.js')
+  const helpers = await import('../../src/utils/crew/crewHelpers.js')
   const crewmate = await import('../../src/utils/crewmate.js')
   const state = await import('../../src/bootstrap/state.js')
   const birth = await import('../../src/utils/crew/crewBirth.js')
@@ -99,9 +99,9 @@ section('§4 — the crew is born with the session and founded in ONE publish: n
   const founded = await helpers.readCrewFileAsync(crew)
   check('the first join founds the whole roster at once: the lead and the member, led by this session', founded !== null && founded.leadSessionId === sid && founded.members.map(m => m.name).join(',') === 'crew-lead,alpha')
   check('the founding is one atomic publish: no journal, no temp left beside the roster', !existsSync(join(CREWS_DIR, '.journal')) && !existsSync(join(CREWS_DIR, crew, 'inboxes')))
-  const helpersSrc = src('utils', 'swarm', 'crewHelpers.ts')
+  const helpersSrc = src('utils', 'crew', 'crewHelpers.ts')
   check('nothing in the roster owner removes a crew directory or a worktree any more (structural)', !/cleanupCrewDirectories|destroyWorktree|'worktree', 'remove'/.test(helpersSrc))
-  const operations = src('utils', 'swarm', 'crewOperations.ts')
+  const operations = src('utils', 'crew', 'crewOperations.ts')
   check('the crews journal keeps parsing an older build\'s create/delete records and removes nothing (structural)', /'crew-create'/.test(operations) && /'crew-delete'/.test(operations) && !/cleanupCrewDirectories|rm\(/.test(operations))
 }
 

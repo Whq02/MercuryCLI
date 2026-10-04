@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/cli/print.ts src/cli/headless/runnerMethods.ts src/cli/headless/runnerAsks.ts src/runner/wire/* src/main.tsx src/entrypoints/cli.tsx
+// gate-watch: src/cli/run.ts src/cli/headless/runnerMethods.ts src/cli/headless/runnerAsks.ts src/runner/wire/* src/main.tsx src/entrypoints/cli.tsx
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, rmSync } from 'node:fs'

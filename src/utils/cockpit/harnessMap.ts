@@ -1,7 +1,7 @@
 
 import { crewEnabled } from '../../daemon/crewSpawn.js'
-import { mnemeEnabled } from '../../memdir/mnemeGates.js'
-import { isAutoMemoryEnabled } from '../../memdir/paths.js'
+import { mnemeEnabled } from '../../mneme/mnemeGates.js'
+import { isMnemeEnabled } from '../../mneme/paths.js'
 import { dapAdapterProbePending, isDapToolCatalogEnabled, mercuryDapEnabled, reachableDapAdapterKeys } from '../../services/dap/dapClient.js'
 import { mercuryGodotEnabled } from '../../services/lsp/godotLane.js'
 import { mercuryUnityEnabled } from '../../services/ide/unityProject.js'

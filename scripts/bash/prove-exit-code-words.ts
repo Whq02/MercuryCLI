@@ -51,7 +51,7 @@ check('an unrelated command exiting 1 stays an error naming the code', verdict('
 check('node exiting 1 stays an error', verdict('node script.js', 1).isError === true)
 check('a chain whose last stage is not a lookup stays an error', verdict('pgrep -x nothing && echo running', 1).isError === true)
 
-section('§2 the built product: print mode, the model played by the fixture, the results read off the wire')
+section('§2 the built product: run mode, the model played by the fixture, the results read off the wire')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 const vendoredNode = join(ROOT, 'dist', 'vendor', 'node', 'bin', 'node')
 const nodeBin = existsSync(vendoredNode) ? vendoredNode : Bun.which('node')
@@ -121,7 +121,7 @@ if (!existsSync(DIST) || !nodeBin) {
       results.push({ text, isError: block.is_error === true })
     }
   }
-  console.log(`        note: print mode exit ${outcome.exit} after ${outcome.ms}ms; ${requests.length} model requests`)
+  console.log(`        note: run exit ${outcome.exit} after ${outcome.ms}ms; ${requests.length} model requests`)
   for (const [i, r] of results.entries()) console.log(`        note: result ${i + 1}${r.isError ? ' (error)' : ''}: ${JSON.stringify(r.text.slice(0, 140))}`)
   check('the artifact ran the six calls and closed the turn', outcome.exit === 0 && /exit-code-probe: done/.test(outcome.stdout), `exit ${outcome.exit} ${JSON.stringify(outcome.stderr.slice(-300))}`)
   check('six results reached the model', results.length === 6, String(results.length))

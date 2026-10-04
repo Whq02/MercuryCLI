@@ -16,9 +16,9 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 const main = readFileSync(join(source, 'main.tsx'), 'utf8')
-const print = main.slice(main.indexOf('async function printLaunch('))
+const print = main.slice(main.indexOf('async function runLaunch('))
 check('runner discovery settles before the first pool snapshot', print.includes('await waitForInitialization()') && print.includes('let tools = [...getTools(') && print.indexOf('await waitForInitialization()') < print.indexOf('let tools = [...getTools('))
-check('local runners keep the existing tool set', /qualifiedIdSpaceOf\(getMainLoopModel\(\)\)\?\.route !== 'local'/.test(print))
+check('local runners keep the existing tool set', /qualifiedIdSpaceOf\(getEngineModel\(\)\)\?\.route !== 'local'/.test(print))
 check('the explicit off gates runner discovery', print.includes('mercuryLspEnabled()'))
 const stream = readFileSync(join(source, 'services/providers/anthropic/streamCore.ts'), 'utf8')
 check('Anthropic never independently defers a mounted language service', !stream.includes('alsoDefer: shouldDeferLspTool'))

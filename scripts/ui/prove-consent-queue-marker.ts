@@ -39,7 +39,7 @@ check('marker renders position/total in the title row',
 check('marker sits in the titleRight/modeChip cluster',
   /\{titleRight\}\s*\{queueMarker\}\s*\{modeChip\}/.test(dialog));
 
-const repl = readFileSync('src/screens/REPL.tsx', 'utf8');
+const repl = readFileSync('src/screens/Chat.tsx', 'utf8');
 check('provider wraps the head PermissionRequest',
   repl.includes('<PermissionQueueContext.Provider value={permissionQueueStatus(resolvedConsentCount, toolUseConfirmQueue.length)}>'));
 check('resolve advances the sequence in the same handler as the settle (the connector owns the pop)',

@@ -25,7 +25,7 @@ law.declareLawfulPrefixChange('agent-3', 'its own tool set changed')
 check("an owner's own clause outranks the shared one", law.consumeLawfulPrefixChange('agent-3') === 'its own tool set changed' && law.consumeLawfulPrefixChange('agent-3') === 'the operator toggled sub-agents on')
 law.resetLawfulPrefixChanges()
 check('a reset forgets the shared clause too', law.consumeLawfulPrefixChange('main') === null)
-const print = readFileSync(join(ROOT, 'src/cli/print.ts'), 'utf8')
+const print = readFileSync(join(ROOT, 'src/cli/run.ts'), 'utf8')
 check('the spawn-switch toggle declares for every owner', print.includes('declareLawfulPrefixChangeForEveryOwner(`the operator toggled ${SPAWN_SWITCH_LABEL[kind]}'))
 
 console.log(failures === 0 ? '\nprove-lawful-change-owners: all green' : `\nprove-lawful-change-owners: ${failures} FAILURE(S)`)

@@ -549,7 +549,7 @@
                             "description": "Run in the background without blocking.",
                             "type": "boolean"
                           },
-                          "asyncRewake": {
+                          "wake": {
                             "description": "Run in the background and wake the model when the hook exits with the blocking-error status. Implies async.",
                             "type": "boolean"
                           },

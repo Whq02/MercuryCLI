@@ -10,7 +10,7 @@ import React, {
 import { Box, Text } from '../ink.js'
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
-import type { Screen } from '../screens/REPL.js'
+import type { Screen } from '../screens/Chat.js'
 import type {
   Message as WireMessage,
   NormalizedMessage,

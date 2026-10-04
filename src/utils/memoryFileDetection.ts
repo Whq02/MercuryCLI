@@ -1,6 +1,6 @@
 import { normalize } from 'node:path'
 
-import { getAutoMemPath, getMemoryBaseDir, isAutoMemoryEnabled, isAutoMemPath } from '../memdir/paths.js'
+import { getMnemeHome, getMemoryBaseDir, isMnemeEnabled, isMnemePath } from '../mneme/paths.js'
 import { isAgentMemoryPath } from '../tools/AgentTool/agentMemory.js'
 import { CORRECT_TOOL_NAME, RETAIN_TOOL_NAME } from '../tools/MemoryTools/prompt.js'
 import { getMercuryHome } from './envUtils.js'
@@ -43,38 +43,38 @@ export function detectSessionPatternType(pattern: string): 'session_memory' | 's
 }
 
 
-export function isAutoMemFile(filePath: string): boolean {
-  if (!isAutoMemoryEnabled()) return false
-  return isAutoMemPath(filePath)
+export function isMnemeFile(filePath: string): boolean {
+  if (!isMnemeEnabled()) return false
+  return isMnemePath(filePath)
 }
 
 export function memoryWriteRefusal(filePath: string): string | null {
-  if (!isAutoMemFile(filePath)) return null
+  if (!isMnemeFile(filePath)) return null
   return `${filePath} is Mercury's memory: save with ${RETAIN_TOOL_NAME} and change with ${CORRECT_TOOL_NAME} — a direct write is refused.`
 }
 
 export type MemoryScope = 'personal' | 'team'
 
 export function memoryScopeForPath(filePath: string): MemoryScope | null {
-  return isAutoMemFile(filePath) ? 'personal' : null
+  return isMnemeFile(filePath) ? 'personal' : null
 }
 
 function isAgentMemFile(filePath: string): boolean {
-  if (!isAutoMemoryEnabled()) return false
+  if (!isMnemeEnabled()) return false
   return isAgentMemoryPath(filePath)
 }
 
 export function isAutoManagedMemoryFile(filePath: string): boolean {
-  return isAutoMemFile(filePath) || detectSessionFileType(filePath) !== null || isAgentMemFile(filePath)
+  return isMnemeFile(filePath) || detectSessionFileType(filePath) !== null || isAgentMemFile(filePath)
 }
 
 export function isMemoryDirectory(dirPath: string): boolean {
   const path = comparableNormalized(dirPath)
   const withSlash = `${path}/`
-  if (isAutoMemoryEnabled()) {
+  if (isMnemeEnabled()) {
     if (withSlash.includes('/agent-memory/') || withSlash.includes('/agent-memory-local/')) return true
-    const autoMem = comparable(getAutoMemPath())
-    if (path === autoMem.replace(/\/+$/, '') || path.startsWith(autoMem)) return true
+    const mneme = comparable(getMnemeHome())
+    if (path === mneme.replace(/\/+$/, '') || path.startsWith(mneme)) return true
   }
   const home = getMercuryHome()
   const memoryBase = getMemoryBaseDir()
@@ -83,7 +83,7 @@ export function isMemoryDirectory(dirPath: string): boolean {
   if (!underHome && !underMemoryBase) return false
   if (withSlash.includes('/session-memory/')) return true
   if (underHome && withSlash.includes('/projects/')) return true
-  if (isAutoMemoryEnabled() && withSlash.includes('/memory/')) return true
+  if (isMnemeEnabled() && withSlash.includes('/memory/')) return true
   return false
 }
 
@@ -97,7 +97,7 @@ const PATH_TOKEN = /(?:[A-Za-z]:[\\/]|\/)[^\s"'`]*/g
 
 export function isShellCommandTargetingMemory(command: string): boolean {
   const normalizedCommand = comparable(command)
-  const roots = [getMercuryHome(), getMemoryBaseDir(), getAutoMemPath()]
+  const roots = [getMercuryHome(), getMemoryBaseDir(), getMnemeHome()]
   const mentioned = roots.some(root => {
     if (normalizedCommand.includes(comparable(root))) return true
     if (isWindows && normalizedCommand.includes(toMingw(root))) return true
@@ -117,7 +117,7 @@ export function isShellCommandTargetingMemory(command: string): boolean {
 
 export function isAutoManagedMemoryPattern(pattern: string): boolean {
   if (detectSessionPatternType(pattern) !== null) return true
-  if (!isAutoMemoryEnabled()) return false
+  if (!isMnemeEnabled()) return false
   const normalized = pattern.replace(/\\/g, '/')
   return normalized.includes('agent-memory/') || normalized.includes('agent-memory-local/')
 }

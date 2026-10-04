@@ -82,7 +82,7 @@ if (catalogue) {
   const absent = await c.qualifyMoonshotModel('kimi-k3')
   check('a missing typed id refuses with the shared account-labelled sentence', absent.kind === 'refused' && absent.message === "model 'kimi-k3' is not offered by the Moonshot API key (stored, auth-scoped) live catalogue. The catalogue offers: kimi-fixture-next, kimi-k2.6.", JSON.stringify(absent))
   check('an untyped served id is admitted', (await c.qualifyMoonshotModel('kimi-fixture-next')).kind === 'ok')
-  const { resolveEngineDispatch, unrecognisedModelWordRefusal } = await import('../../src/utils/swarm/engineDispatch.ts')
+  const { resolveEngineDispatch, unrecognisedModelWordRefusal } = await import('../../src/utils/crew/engineDispatch.ts')
   check('the specialist alias resolves the newest live row', (await resolveEngineDispatch('kimi'))?.model === 'kimi-fixture-next')
   check('a served untyped specialist id is admitted', (await resolveEngineDispatch('kimi-fixture-next'))?.model === 'kimi-fixture-next')
   const deadSpecialist = await resolveEngineDispatch('kimi-k3').then(() => '', error => String(error))
@@ -243,8 +243,8 @@ if (catalogue) {
   const printSource = readFileSync(join(import.meta.dir, '../../src/main.tsx'), 'utf8')
   const guardedRead = "const { readComputedDefaultCatalogue } = await import('../../utils/model/computedDefault.js')\n    await readComputedDefaultCatalogue()"
   check('the cockpit birth reads the list only when neither the record nor the door names a model', birthSource.includes(`if (facts.model === null && (req.model ?? null) === null) {\n    ${guardedRead}\n  }`))
-  const printSet = 'setInitialMainLoopModel(userSpecifiedModel ?? null)'
-  const printRead = "if (printMode) {\n    const { readComputedDefaultCatalogue } = await import('./utils/model/computedDefault.js')\n    await readComputedDefaultCatalogue()\n  }"
+  const printSet = 'setInitialEngineModel(userSpecifiedModel ?? null)'
+  const printRead = "if (runMode) {\n    const { readComputedDefaultCatalogue } = await import('./utils/model/computedDefault.js')\n    await readComputedDefaultCatalogue()\n  }"
   check('the print seat reads it after the explicit choices are set, through the same guarded owner', printSource.includes(printRead) && printSource.includes(printSet) && printSource.indexOf(printSet) < printSource.indexOf(printRead))
   console.log('the admission against the landed list')
   c.__resetMoonshotCatalogueForTest()

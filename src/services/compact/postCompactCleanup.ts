@@ -17,7 +17,7 @@ export type PostCompactScope = {
 
 type QuerySource = string
 
-const MAIN_THREAD_PREFIX = 'repl_main_thread'
+const MAIN_THREAD_PREFIX = 'main_thread'
 
 function isMainThreadCompaction(querySource: string | undefined): boolean {
   return (

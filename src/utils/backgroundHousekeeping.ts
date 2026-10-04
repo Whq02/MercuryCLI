@@ -1,6 +1,6 @@
 import * as fs from 'fs/promises'
 import { join } from 'path'
-import { scheduleMnemeMaintenance } from '../memdir/mnemeMaintenance.js'
+import { scheduleMnemeMaintenance } from '../mneme/mnemeMaintenance.js'
 import { initMagicDocs } from '../services/MagicDocs/magicDocs.js'
 import { getMercuryHome } from './envUtils.js'
 import { initSkillImprovement } from './hooks/skillImprovement.js'

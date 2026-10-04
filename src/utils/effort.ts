@@ -13,7 +13,7 @@ import {
   modelSupportsMaxEffort,
   modelSupportsXHighEffort,
 } from './model/capabilities.js'
-import { resolveAntModel } from './model/antModels.js'
+import { resolveInternalModel } from './model/internalModels.js'
 import { familyDefaultsModel } from './model/configs.js'
 import { getInitialSettings, getSettingsForSource } from './settings/settings.js'
 import { sessionThinkingEnabled } from './thinking.js'
@@ -197,7 +197,7 @@ function resolveEffortTruthWithEnv(
   sessionEnvOverride: EffortValue | null | undefined,
   context: EffortTruthContext,
 ): EffortResolution {
-  resolveAntModel(model)
+  resolveInternalModel(model)
   const freeze = (record: EffortResolution): EffortResolution => Object.freeze(record)
 
   const ownWord = agentOwnEffortWordOf(context.agentId)
@@ -608,7 +608,7 @@ export function getDefaultEffortForModel(model: string): EffortValue | undefined
 
 export function isTurnOwningQuerySource(querySource: string | undefined): boolean {
   if (querySource === undefined) return false
-  return querySource.startsWith('repl_main_thread') || querySource === 'sdk' || querySource.startsWith('agent:')
+  return querySource.startsWith('main_thread') || querySource === 'sdk' || querySource.startsWith('agent:')
 }
 
 export function shouldReconfirmEffortAfterModelChange(

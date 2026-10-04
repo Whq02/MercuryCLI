@@ -1,6 +1,6 @@
 
 import { normalize, join, relative, sep } from 'node:path'
-import { getMemoryBaseDir, isAutoMemoryEnabled } from '../../memdir/paths.js'
+import { getMemoryBaseDir, isMnemeEnabled } from '../../mneme/paths.js'
 import { getCwd } from '../../utils/cwd.js'
 import { projectConfigDirs } from '../../utils/projectConfig.js'
 import { adoptiveProjectPath } from '../../utils/projectStoreAdoption.js'
@@ -12,7 +12,7 @@ export type AgentMemoryScope = 'user' | 'project' | 'local'
 export const MEMORY_GRANT_TOOL_NAMES: readonly string[] = [RETAIN_TOOL_NAME, RECALL_TOOL_NAME, REFLECT_TOOL_NAME, CORRECT_TOOL_NAME]
 
 export function withMemoryVerbs(tools: string[] | undefined, memory: AgentMemoryScope | undefined): string[] | undefined {
-  if (!memory || !isAutoMemoryEnabled() || tools === undefined) return tools
+  if (!memory || !isMnemeEnabled() || tools === undefined) return tools
   const merged = [...tools]
   for (const name of MEMORY_GRANT_TOOL_NAMES) {
     if (!merged.includes(name)) merged.push(name)

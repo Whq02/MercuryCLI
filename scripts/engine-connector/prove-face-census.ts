@@ -12,7 +12,7 @@ const N = {
   bootstrapFacade: new RegExp(['bootstrap', 'state'].join('/')),
   costTracker: new RegExp(['cost', 'tracker'].join('-')),
   cwdOwner: new RegExp(['utils', 'cwd'].join('/')),
-  modelResolution: new RegExp('\\b(?:get|use)' + 'MainLoop' + 'Model\\b'),
+  modelResolution: new RegExp('\\b(?:get|use)EngineModel\\b'),
   queueModule: new RegExp(['input-core', 'command-queue'].join('/')),
   transcriptWriter: new RegExp(['sessionStorage', 'writer'].join('/')),
   accountOwners: new RegExp(
@@ -148,7 +148,7 @@ for (const rel of PURE_FACE) {
   )
 }
 
-const REPL_EXPECTED: Record<NeedleName, number> = {
+const CHAT_EXPECTED: Record<NeedleName, number> = {
   bootstrapFacade: 1,
   costTracker: 0,
   cwdOwner: 1,
@@ -159,15 +159,15 @@ const REPL_EXPECTED: Record<NeedleName, number> = {
   mcpManager: 0,
 }
 {
-  const content = readFileSync(join(root, 'src/screens/REPL.tsx'), 'utf8')
-  const hits = scanContent(content, 'src/screens/REPL.tsx')
+  const content = readFileSync(join(root, 'src/screens/Chat.tsx'), 'utf8')
+  const hits = scanContent(content, 'src/screens/Chat.tsx')
   const counts = Object.fromEntries(Object.keys(N).map(k => [k, 0])) as Record<NeedleName, number>
   for (const hit of hits) counts[hit.needle]++
   for (const needle of Object.keys(N) as NeedleName[]) {
     check(
-      `REPL residue pinned: ${needle} = ${REPL_EXPECTED[needle]}`,
-      counts[needle] === REPL_EXPECTED[needle],
-      counts[needle] === REPL_EXPECTED[needle]
+      `Chat residue pinned: ${needle} = ${CHAT_EXPECTED[needle]}`,
+      counts[needle] === CHAT_EXPECTED[needle],
+      counts[needle] === CHAT_EXPECTED[needle]
         ? ''
         : `got ${counts[needle]} — a new direct read is a deliberate, prover-updating act`,
     )

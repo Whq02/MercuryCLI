@@ -7,7 +7,7 @@ import { InteractiveRow } from '../mercury-ui/InteractiveRow.js';
 import { InteractiveDisclosure } from '../mercury-ui/InteractiveDisclosure.js';
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
 import { useNowTick } from '../mercury-ui/components.js';
-import { pageStepRows, WHEEL_STEP_ROWS } from '../mercury-ui/replFloor.js';
+import { pageStepRows, WHEEL_STEP_ROWS } from '../mercury-ui/composerFloor.js';
 import { Spinner } from '../Spinner.js';
 import { sampleSpinnerVerb } from '../../constants/spinnerVerbs.js';
 import { Markdown } from '../Markdown.js';

@@ -51,7 +51,7 @@ const { RowPickModal } = await import('../../src/components/concourse/RowPickMod
 const { HelpV2 } = await import('../../src/components/HelpV2/HelpV2.tsx')
 const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
 const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_REPL_ROUTE } = await import('../../src/context/surfaceRoute.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
 const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
 const settings = await import('../../src/utils/cockpit/settingsPopup.ts')
 const files = await import('../../src/utils/cockpit/filesMenu.ts')
@@ -159,7 +159,7 @@ async function close(scene: Mounted): Promise<void> {
 for (const size of process.argv.includes('--concourse-only') ? [] : selectedSizes) {
   const [columns, rows] = size.split('x').map(Number) as [number, number]
   for (const surface of [...surfaces, ...sheets]) {
-    initializeSurfaceRoute(ROOT_REPL_ROUTE)
+    initializeSurfaceRoute(ROOT_CHAT_ROUTE)
     resetChromeModeLatchForTests()
     const scene = await mountOffscreen(wrap(h(Harness, { columns })), columns, rows)
     await waitFor(() => scene.screen().includes('TTTT'), 4000)

@@ -1,0 +1,65 @@
+import { homedir } from 'node:os'
+import { isAbsolute, join, normalize, sep } from 'node:path'
+import { memoize } from 'lodash-es'
+import { getMercuryHome, isEnvTruthy } from '../utils/envUtils.js'
+import { getInitialSettings, getSettingsForSource } from '../utils/settings/settings.js'
+import { findCanonicalGitRoot } from '../utils/git.js'
+import { getProjectRoot } from '../bootstrap/state.js'
+import { sanitizePathComponent } from '../utils/tasks.js'
+
+export function isMnemeEnabled(): boolean {
+  if (isEnvTruthy(process.env.MERCURY_BARE)) return false
+  const setting = getInitialSettings().memory?.enabled
+  if (setting !== undefined) return setting
+  return true
+}
+
+export function getMemoryBaseDir(): string {
+  return getMercuryHome()
+}
+
+function readMnemeDirectoryOverride(): string | undefined {
+  for (const source of ['policySettings', 'flagSettings', 'localSettings', 'userSettings'] as const) {
+    const value = getSettingsForSource(source)?.memory?.directory
+    if (value !== undefined) return value
+  }
+  return undefined
+}
+
+function validateMemoryPathOverride(raw: string | undefined): string | undefined {
+  if (raw === undefined || raw === '') return undefined
+  let candidate = raw
+  if (candidate.startsWith('~/') || candidate.startsWith('~\\')) {
+    const remainder = candidate.slice(2)
+    const normalizedRemainder = normalize(remainder)
+    if (normalizedRemainder === '.' || normalizedRemainder === '..') return undefined
+    candidate = join(homedir(), remainder)
+  }
+  let normalized = normalize(candidate)
+  while (normalized.length > 1 && (normalized.endsWith('/') || normalized.endsWith('\\'))) {
+    normalized = normalized.slice(0, -1)
+  }
+  if (!isAbsolute(normalized)) return undefined
+  if (normalized.length < 3) return undefined
+  if (/^[A-Za-z]:[\\/]?$/.test(normalized)) return undefined
+  if (normalized.startsWith('\\\\') || normalized.startsWith('//')) return undefined
+  if (normalized.includes('\0')) return undefined
+  return `${normalized}${sep}`.normalize('NFC')
+}
+
+export function hasMnemeHomeOverride(): boolean {
+  return false
+}
+
+export const getMnemeHome = memoize((): string => {
+  const override = validateMemoryPathOverride(readMnemeDirectoryOverride())
+  if (override !== undefined) return override
+  const projectRoot = getProjectRoot()
+  const canonical = findCanonicalGitRoot(projectRoot) ?? projectRoot
+  const key = sanitizePathComponent(canonical)
+  return `${join(getMemoryBaseDir(), 'projects', key, 'memory')}${sep}`.normalize('NFC')
+}, () => getProjectRoot())
+
+export function isMnemePath(absolutePath: string): boolean {
+  return normalize(absolutePath).startsWith(getMnemeHome())
+}

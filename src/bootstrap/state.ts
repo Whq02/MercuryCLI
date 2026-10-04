@@ -346,24 +346,24 @@ export function waitForScrollIdle(): Promise<void> {
 }
 
 
-export function getMainLoopModelOverride(): ModelSetting | undefined {
-  return modelConfig.mainLoopModelOverride
+export function getEngineModelOverride(): ModelSetting | undefined {
+  return modelConfig.engineModelOverride
 }
 
-const mainLoopModelOverrideListeners = new Set<(model: ModelSetting | undefined) => void>()
+const engineModelOverrideListeners = new Set<(model: ModelSetting | undefined) => void>()
 
-export function subscribeMainLoopModelOverride(listener: (model: ModelSetting | undefined) => void): () => void {
-  mainLoopModelOverrideListeners.add(listener)
+export function subscribeEngineModelOverride(listener: (model: ModelSetting | undefined) => void): () => void {
+  engineModelOverrideListeners.add(listener)
   return () => {
-    mainLoopModelOverrideListeners.delete(listener)
+    engineModelOverrideListeners.delete(listener)
   }
 }
 
-export function setMainLoopModelOverride(
+export function setEngineModelOverride(
   model: ModelSetting | undefined,
 ): void {
-  modelConfig.mainLoopModelOverride = model
-  for (const listener of mainLoopModelOverrideListeners) {
+  modelConfig.engineModelOverride = model
+  for (const listener of engineModelOverrideListeners) {
     try {
       listener(model)
     } catch {
@@ -371,12 +371,12 @@ export function setMainLoopModelOverride(
   }
 }
 
-export function getInitialMainLoopModel(): ModelSetting {
-  return modelConfig.initialMainLoopModel
+export function getInitialEngineModel(): ModelSetting {
+  return modelConfig.initialEngineModel
 }
 
-export function setInitialMainLoopModel(model: ModelSetting): void {
-  modelConfig.initialMainLoopModel = model
+export function setInitialEngineModel(model: ModelSetting): void {
+  modelConfig.initialEngineModel = model
 }
 
 export function getSdkBetas(): string[] | undefined {

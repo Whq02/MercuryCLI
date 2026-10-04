@@ -457,7 +457,7 @@ function verdictOwnerStands(): boolean {
   return verdictOwner === null || verdictOwner === resolveOwner()
 }
 
-export function claudeWindowObserved(): boolean {
+export function anthropicWindowObserved(): boolean {
   const stands = verdictOwnerStands()
   const key = windowObserved ? (stands ? 'observed' : `drift ${verdictOwner} ${resolveOwner()}`) : 'unobserved'
   if (key !== lastWindowReadKey) {

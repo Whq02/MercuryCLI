@@ -278,7 +278,7 @@ function makeCtx(tools: unknown[]): {
     options: {
       commands: [],
       tools,
-      mainLoopModel: MODEL,
+      engineModel: MODEL,
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},
@@ -639,8 +639,8 @@ section('L5 FALLBACK — full retry on the fallback model, pairing synthesized')
   )
   check("a 'warning' system message announces the switch", warning !== undefined)
   check(
-    'mainLoopModel updated on the shared context',
-    ((r.ctx.options as Record<string, unknown>).mainLoopModel as string) === FALLBACK_MODEL,
+    'engineModel updated on the shared context',
+    ((r.ctx.options as Record<string, unknown>).engineModel as string) === FALLBACK_MODEL,
   )
   check(
     'the retry does NOT emit a second stream_request_start (same iteration)',

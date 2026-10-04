@@ -44,7 +44,6 @@ export const TOOL_FAMILY_MARKS: Record<ToolFamily, ToolFamilyMark> = {
 export const TOOL_FAMILY_BY_NAME: Record<string, ToolFamily> = {
   Bash: 'shell',
   PowerShell: 'shell',
-  REPL: 'shell',
   Launch: 'shell',
   Workshop: 'shell',
   Eval: 'shell',

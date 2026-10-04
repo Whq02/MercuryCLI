@@ -214,7 +214,7 @@ export function childEnv(runHome: string, port: number): NodeJS.ProcessEnv {
     MERCURY_DAEMON_DIR: join(runHome, 'daemon'),
     MERCURY_CREWS_DIR: join(runHome, 'crews'),
     MERCURY_HOME: join(runHome, 'proof-home'),
-    MERCURY_DOCTOR_STATE_DIR: join(runHome, 'doctor-state'),
+    MERCURY_HEALTH_STATE_DIR: join(runHome, 'health-state'),
     ANTHROPIC_API_KEY: PROBE_KEY,
     ANTHROPIC_BASE_URL: `http://127.0.0.1:${port}`,
     MERCURY_STREAM_IDLE_TIMEOUT_MS: '30000',

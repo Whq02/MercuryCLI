@@ -161,7 +161,7 @@ export function DaemonSupervisorView({ onClose }: { onClose: () => void }): Reac
   return (
     <CommandCenter
       view="daemon"
-      subtitle="supervisor + workers"
+      subtitle="daemon + workers"
       onClose={onClose}
       captureInput={false}
       footer={footer}
@@ -174,7 +174,7 @@ export function DaemonSupervisorView({ onClose }: { onClose: () => void }): Reac
       ) : v.empty ? (
         <Box marginTop={1} flexDirection="column">
           <EmptyState glyph="○" title="no daemon running" hint={v.empty} />
-          <Text color={FAINT}>  the supervisor starts headless; nothing is fabricated here</Text>
+          <Text color={FAINT}>  the daemon starts headless; nothing is fabricated here</Text>
         </Box>
       ) : (
         <Box flexDirection="column">
@@ -185,7 +185,7 @@ export function DaemonSupervisorView({ onClose }: { onClose: () => void }): Reac
           </Box>
           {v.supervisorLine ? (
             <Text>
-              <Text color={FAINT}>{'  supervisor  '}</Text>
+              <Text color={FAINT}>{'  daemon      '}</Text>
               <Text color={IVORY}>{v.supervisorLine}</Text>
             </Text>
           ) : null}

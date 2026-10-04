@@ -18,7 +18,7 @@ console.log('============================================================')
 console.log(' Crew board — real phases on the canonical surface')
 console.log('============================================================')
 
-const phases = await import('../../src/utils/swarm/crewPhases.js')
+const phases = await import('../../src/utils/crew/crewPhases.js')
 
 section('§1 — phase derivation from REAL state')
 {
@@ -78,7 +78,7 @@ section('§4 — dialog: message key, stable selection, grace windows')
   check("'m' messages the selected crewmate", dlg.includes("e.key === 'f' || e.key === 'm'"))
   check('footer hints the message action', dlg.includes('action="message"'))
   check('selection is stable BY ID across updates', dlg.includes('selectedIdRef') && dlg.includes('findIndex(i => i.id === stableId)'))
-  const runner = src('utils', 'swarm', 'inProcessRunner.ts')
+  const runner = src('utils', 'crew', 'inProcessRunner.ts')
   check('FAILED crewmates keep their row + cause visible (30s grace)', runner.includes("const evictionDelay = status === 'failed' ? 30_000 : STOPPED_DISPLAY_MS"))
   check('DONE crewmates get the visible-lifecycle grace too', runner.includes('setTimeout(() => evictTerminalTask(taskId, setAppState), evictionDelay)'))
 }

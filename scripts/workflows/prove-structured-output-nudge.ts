@@ -63,7 +63,7 @@ function makeHarness(script: Array<(call: SpawnCall) => unknown[]>) {
       }),
       options: {
         agentDefinitions: { activeAgents: [] },
-        mainLoopModel: 'claude-opus-4-8',
+        engineModel: 'claude-opus-4-8',
       },
     },
     canUseTool: async () => ({ behavior: 'allow' }),

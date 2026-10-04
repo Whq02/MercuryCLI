@@ -63,7 +63,7 @@ A new Anthropic model runs before its catalogue row lands: any id inside the
 first-party space (`claude-…`) starts from every door — the boot face's new
 session, `/clear`, `--model`, a saved setting, the crew and workflow seats,
 the advisor and console picks, the coordinator's assist model, `/model` in
-the REPL — the moment the account holds an Anthropic credential, and the
+the chat — the moment the account holds an Anthropic credential, and the
 wire decides whether it serves the id; no door judges a Claude id by whether
 the picker lists it. A catalogue row adds what only a row can: the display
 name, the price tier (until then the spend views say the figure is a family
@@ -930,8 +930,8 @@ a local server. A turn on a model with no rate on file lands in the ledger
 with its tokens counted and its cost unrecorded: it is counted as an unpriced
 turn, never priced at zero, and every cost readout says so — a lane that
 priced nothing reads "unpriced", and a figure that includes such turns says
-"+ N unpriced turns" beside itself, on the `/usage` spend lines, the `/cost`
-headline and rows, and the deck and frame vitals alike. No family is ever
+"+ N unpriced turns" beside itself, on the `/usage` spend lines, the cost
+summary at exit, and the deck and frame vitals alike. No family is ever
 priced at another family's rates.
 
 ### JEV

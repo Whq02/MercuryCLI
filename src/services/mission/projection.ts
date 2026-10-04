@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import type { RunSnapshot } from '../run/runKernel.js'
 import type { TaskRoutePlan } from '../../utils/router/contracts.js'
 import type { SnapshotRead } from '../projectIntel/contracts.js'
-import type { MemoryRef } from '../../memdir/memoryRefs.js'
+import type { MemoryRef } from '../../mneme/memoryRefs.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
   MISSION_DECISION_POINT_CAP,
@@ -315,7 +315,7 @@ export async function gatherMissionView(): Promise<MissionView | null> {
 
   let memoryRefs: MemoryRef[] = []
   try {
-    const { collectMemoryRefs } = await import('../../memdir/memoryRefs.js')
+    const { collectMemoryRefs } = await import('../../mneme/memoryRefs.js')
     const goalText = runObjective ?? plans[0]?.objective ?? ''
     memoryRefs = goalText === '' ? [] : collectMemoryRefs(goalText, { maxRefs: MISSION_MEMORY_CAP })
   } catch {

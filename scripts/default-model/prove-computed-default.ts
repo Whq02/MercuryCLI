@@ -77,9 +77,9 @@ const {
 } = await import('../../src/utils/model/computedDefault.ts')
 type ComputedDefaultFacts = import('../../src/utils/model/computedDefault.ts').ComputedDefaultFacts
 type LaneRowVerdict = import('../../src/utils/model/computedDefault.ts').LaneRowVerdict
-const { getDefaultMainLoopModelSetting, getMainLoopModel, parseUserSpecifiedModel, renderDefaultModelLabel } =
+const { getDefaultEngineModelSetting, getEngineModel, parseUserSpecifiedModel, renderDefaultModelLabel } =
   await import('../../src/utils/model/model.ts')
-const { setMainLoopModelOverride } = await import('../../src/bootstrap/state.ts')
+const { setEngineModelOverride } = await import('../../src/bootstrap/state.ts')
 const { frontierOperatorDecision } = await import('../../src/utils/model/frontierPolicy.ts')
 const { getModelOptions, keyLanePins } = await import('../../src/utils/model/modelOptions.ts')
 const { declaredRouteOf, providerDisplayName } = await import('../../src/services/providers/routeLaw.ts')
@@ -264,14 +264,14 @@ section('§4 the live chain in a scratch home')
 {
   const keyless = computedDefault()
   check('a home with no credential anywhere answers keyless — no provider, the "no sign-in yet" row', keyless.source === 'keyless' && keyless.considered.length === 0 && keyless.provider === null && keyless.row === NO_SIGN_IN_ROW, JSON.stringify(keyless.considered))
-  check('…on the placeholder that stands today (the first-party decision\'s setting) — the harness\'s model string', keyless.setting === frontierOperatorDecision().setting && getDefaultMainLoopModelSetting() === keyless.setting, `${keyless.setting} vs ${frontierOperatorDecision().setting}`)
+  check('…on the placeholder that stands today (the first-party decision\'s setting) — the harness\'s model string', keyless.setting === frontierOperatorDecision().setting && getDefaultEngineModelSetting() === keyless.setting, `${keyless.setting} vs ${frontierOperatorDecision().setting}`)
   check('a keyless home has no recommended default option', getModelOptions().every(o => typeof o.value === 'string' && o.value !== 'default' && o.label !== 'Recommended'))
   check('/model\'s label says no sign-in yet', renderDefaultModelLabel() === 'no sign-in yet (default — /logins signs a provider in)', renderDefaultModelLabel())
   check('the most recent sign-in family is none', mostRecentSignInFamily() === undefined)
 
-  setMainLoopModelOverride('sonnet')
-  check('an explicit choice outranks the default on the live chain', getMainLoopModel() === parseUserSpecifiedModel('sonnet') && getMainLoopModel() !== computedDefault().setting, getMainLoopModel())
-  setMainLoopModelOverride(undefined)
+  setEngineModelOverride('sonnet')
+  check('an explicit choice outranks the default on the live chain', getEngineModel() === parseUserSpecifiedModel('sonnet') && getEngineModel() !== computedDefault().setting, getEngineModel())
+  setEngineModelOverride(undefined)
 
   const outcome = storeZaiApiKeyLogin('zai-proof-key-000000', 'general')
   check('the Z.AI key leg stores', outcome.ok && outcome.stored, outcome.receipt)
@@ -301,7 +301,7 @@ section('§4 the live chain in a scratch home')
   check('the computed default has its real selectable model row', zaiRow !== undefined && zaiRow.label === zaiFrontier?.displayName && zaiRow.unavailable === undefined, JSON.stringify(zaiRow))
   check('a signed-in home has no recommended default option', zaiOptions.every(o => typeof o.value === 'string' && o.value !== 'default' && o.label !== 'Recommended'))
   check('/model\'s label names the row, the provider and the sign-in', renderDefaultModelLabel() === `${zaiFrontier?.displayName} (default — ${providerDisplayName('zai')}, the most recent sign-in)`, renderDefaultModelLabel())
-  check('the main-loop model rides the default (no explicit setting)', getMainLoopModel() === zaiFrontier?.id, getMainLoopModel())
+  check('the main-loop model rides the default (no explicit setting)', getEngineModel() === zaiFrontier?.id, getEngineModel())
   check('the most recent sign-in family is zai', mostRecentSignInFamily() === 'zai')
 
   await sleep(15)
@@ -364,7 +364,7 @@ section('§5 the sign-in owners — every credential-landing site records; the r
     const j = s.indexOf(b, i)
     return i >= 0 && j > i ? s.slice(i, j) : ''
   }
-  check('the session default projects the one computed default (model.ts)', between(model, 'export function getDefaultMainLoopModelSetting', '\n}').includes('computedDefault()') && !model.includes('credentiallessGptDefault') && !model.includes('applyDefaultProviderRung'))
+  check('the session default projects the one computed default (model.ts)', between(model, 'export function getDefaultEngineModelSetting', '\n}').includes('computedDefault()') && !model.includes('credentiallessGptDefault') && !model.includes('applyDefaultProviderRung'))
   check('the default description and label use the computed result', between(model, 'export function getDefaultModelDescription', '\n}').includes('computedDefault()') && between(model, 'export function renderDefaultModelLabel', '\n}').includes('computedDefault()'))
   check('the picker has no synthetic default builder', !/defaultRow|getDefaultOptionForUser|DEFAULT_LABEL/.test(src('utils/model/modelOptions.ts')))
   check("/health's Default model row projects it", between(src('utils/healthReport.ts'), "id: 'frontier'", 'link:').includes('computedDefault()'))

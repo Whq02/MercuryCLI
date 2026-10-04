@@ -133,16 +133,16 @@ function collectBoot(): BootRow[] {
 
   const resume = read('src/screens/ResumeConversation.tsx')
   rows.push({
-    surface: 'Resume Session picker (bare --resume: loading · picker · resuming · REPL swap)',
+    surface: 'Resume Session picker (bare --resume: loading · picker · resuming · Chat swap)',
     source: 'src/screens/ResumeConversation.tsx',
-    discipline: 'claims the held screen (<AlternateScreen> host; REPL swap rides the nested path)',
+    discipline: 'claims the held screen (<AlternateScreen> host; Chat swap rides the nested path)',
     ok: /launcherAltHoldPending\(\)/.test(resume) && /<AlternateScreen/.test(resume),
   })
 
   const alt = read('src/ink/components/AlternateScreen.tsx')
   rows.push({
-    surface: 'REPL cockpit (direct boot / --continue / --resume <id>)',
-    source: 'src/screens/REPL.tsx → src/ink/components/AlternateScreen.tsx',
+    surface: 'Chat cockpit (direct boot / --continue / --resume <id>)',
+    source: 'src/screens/Chat.tsx → src/ink/components/AlternateScreen.tsx',
     discipline: 'claims the held screen (outermost mount consumes + arms the takeover erase)',
     ok: /consumeLauncherAltHold\(\)/.test(alt) && /armAltScreenTakeover\(\)/.test(alt),
   })

@@ -167,7 +167,7 @@ function makeCtx(opts: { interactive?: boolean; ledger?: boolean } = {}): Record
     options: {
       commands: [],
       tools: [makeTool('EchoTool')],
-      mainLoopModel: MODEL,
+      engineModel: MODEL,
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},

@@ -430,7 +430,7 @@ check(
 }
 
 {
-  const repl = src('src/screens/REPL.tsx')
+  const repl = src('src/screens/Chat.tsx')
   check(
     '23. the screen holds no transcript writer (the session runner records; the face paints through the connector)',
     !repl.includes('useLogMessages') && repl.includes('const messages = useFocusedTranscript();'),

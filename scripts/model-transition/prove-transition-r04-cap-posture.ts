@@ -175,7 +175,7 @@ section('§E the full journey, both postures — warning → offer/auto → cont
   noteCapHandoff('claude-fable-5', 'anthropic')
   limits.resetLimitsForCredentialSwitch()
   check('after a credential switch the latch settles to its allowed default', limits.currentLimits.status === 'allowed')
-  check('…but nothing has been OBSERVED (claudeWindowObserved false)', limits.claudeWindowObserved() === false)
+  check('…but nothing has been OBSERVED (anthropicWindowObserved false)', limits.anthropicWindowObserved() === false)
   const afterSignOut = observedFamilyWindow('anthropic')
   check("…so the resolver reads 'unknown' (basis none) — never a reset", afterSignOut.state === 'unknown' && afterSignOut.basis === 'none', JSON.stringify(afterSignOut))
   check('…and no return card fires on it', decideCapReturn('offer', { window: afterSignOut.state, credentialUsable: true }, true).kind === 'none')
@@ -184,12 +184,12 @@ section('§E the full journey, both postures — warning → offer/auto → cont
   clearCapHandoffForFamily('anthropic')
   check('a sign-out of the HOME family clears the handoff note', capHandoffState() === null)
   ingest('normal')
-  check('the next wire observation re-arms the record', limits.claudeWindowObserved() === true && observedFamilyWindow('anthropic').basis === 'observed')
+  check('the next wire observation re-arms the record', limits.anthropicWindowObserved() === true && observedFamilyWindow('anthropic').basis === 'observed')
   ingest('clear')
   delete process.env.MERCURY_MOCK_LIMITS
 }
 
-section('§F the arm surfaces — boot-menu posture row + the command opening')
+section('§F the arm surface — the boot-menu posture row')
 {
   const { STARTUP_MENU, menuRowChoices } = await import('../../src/substrate/startupMenu.ts')
   const row = STARTUP_MENU.find(r => r.env === 'MERCURY_CAP_FAILOVER')
@@ -199,12 +199,6 @@ section('§F the arm surfaces — boot-menu posture row + the command opening')
     'the row cycles default(offer) → off → auto',
     JSON.stringify(menuRowChoices(row!).map(c => c.value)) === JSON.stringify([null, 'off', 'auto']),
   )
-  const cmd = (await import('../../src/commands/mock-limits/index.ts')).default
-  check('the /mock-limits opening exists behind the registered arm', cmd.name === 'mock-limits')
-  delete process.env.MERCURY_MOCK_LIMITS
-  check('unarmed builds carry no /mock-limits command', cmd.isEnabled() === false)
-  process.env.MERCURY_MOCK_LIMITS = '1'
-  check('the registered arm exposes it', cmd.isEnabled() === true)
   delete process.env.MERCURY_MOCK_LIMITS
 }
 

@@ -336,12 +336,12 @@ if (ledger === null) {
 
 section('N6 — the wiring: the runner starts the nudge and publishes the ledger; the queue and the agent task record')
 {
-  const print = src('src/cli/print.ts')
-  check('N6 the session runner starts the idle nudge with the main thread and its agents as recipients', print.includes('startIdleNudge({') && print.includes('agentRecipientState(getAppState().tasks, agentId)') && print.includes("why: 'the session is shutting down'"), 'print.ts')
-  check('N6 the runner wakes the main thread through its own queue, behind the notices', print.includes("enqueue({ value: nudgeWords(notices, waitedMs), mode: 'prompt', priority: 'later', isMeta: true"), 'print.ts')
-  check('N6 the runner wakes a named agent through its pending line, with the carriers\' text, and the copies leave through the runner\'s own retire door, which speaks no completion frame', print.includes('injectUserMessageToCrewmate(task.id, nudgeWords(notices, waitedMs, bodies), setAppState)') && print.includes('if (carriers.length > 0) retireQueuedCommands(carriers)') && print.includes('retiringQueuedCommands = true') && !print.includes('removeQueuedCommands(carriers)'), 'print.ts')
-  check('N6 the facts answer carries the ledger', print.includes('notices: noticeRows(),'), 'print.ts')
-  check('N6 the nudge stops with the runner', print.includes('idleNudge.stop()'), 'print.ts')
+  const print = src('src/cli/run.ts')
+  check('N6 the session runner starts the idle nudge with the main thread and its agents as recipients', print.includes('startIdleNudge({') && print.includes('agentRecipientState(getAppState().tasks, agentId)') && print.includes("why: 'the session is shutting down'"), 'run.ts')
+  check('N6 the runner wakes the main thread through its own queue, behind the notices', print.includes("enqueue({ value: nudgeWords(notices, waitedMs), mode: 'prompt', priority: 'later', isMeta: true"), 'run.ts')
+  check('N6 the runner wakes a named agent through its pending line, with the carriers\' text, and the copies leave through the runner\'s own retire door, which speaks no completion frame', print.includes('injectUserMessageToCrewmate(task.id, nudgeWords(notices, waitedMs, bodies), setAppState)') && print.includes('if (carriers.length > 0) retireQueuedCommands(carriers)') && print.includes('retiringQueuedCommands = true') && !print.includes('removeQueuedCommands(carriers)'), 'run.ts')
+  check('N6 the facts answer carries the ledger', print.includes('notices: noticeRows(),'), 'run.ts')
+  check('N6 the nudge stops with the runner', print.includes('idleNudge.stop()'), 'run.ts')
   const q = src('src/input-core/command-queue.ts')
   check('N6 the queue records what it carries at both enqueue doors and reports every consumption', (q.match(/recordQueuedNotice\(stamped\)/g) ?? []).length === 2 && (q.match(/consumeNotices\(queuedNoticeKeys\(/g) ?? []).length === 3 && (q.match(/retireNotices\(queuedNoticeKeys\(/g) ?? []).length === 2, 'command-queue.ts')
   const agent = src('src/tasks/LocalAgentTask/LocalAgentTask.tsx')

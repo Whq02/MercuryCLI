@@ -166,7 +166,7 @@ const { default: PromptInput } = await import('../../src/components/PromptInput/
 const { useCompactWorkControls } = await import('../../src/components/tasks/CompactWorkSummary.tsx')
 const { GlobalKeybindingHandlers } = await import('../../src/hooks/useGlobalKeybindings.tsx')
 const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_REPL_ROUTE } = await import('../../src/context/surfaceRoute.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
 const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
@@ -272,7 +272,7 @@ function Harness(): React.ReactNode {
 }
 
 async function mount(size?: Size): Promise<Scene> {
-  initializeSurfaceRoute(ROOT_REPL_ROUTE)
+  initializeSurfaceRoute(ROOT_CHAT_ROUTE)
   resetChromeModeLatchForTests()
   resetHelmFocusForTest()
   pending.edit('')

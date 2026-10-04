@@ -27,7 +27,7 @@ const tool = { name: 'fixture_tool', description: async () => 'fixture', inputSc
 const params = (model: string, signal = new AbortController().signal): CompatCallModelParams => ({
   messages: [{ type: 'user', uuid: randomUUID(), timestamp: new Date().toISOString(), message: { role: 'user', content: 'Answer the fixture.' } } as Message],
   systemPrompt: asSystemPrompt(['Answer the fixture.']), thinkingConfig: { type: 'disabled' }, tools: [tool], signal,
-  options: { model, querySource: 'repl_main_thread', isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], hasAppendSystemPrompt: false, mcpTools: [], maxOutputTokensOverride: 64 } as never,
+  options: { model, querySource: 'main_thread', isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], hasAppendSystemPrompt: false, mcpTools: [], maxOutputTokensOverride: 64 } as never,
 })
 const credential = async () => ({ apiKey: 'proof-key-ci-gate-not-a-real-key' })
 const fixtureProfile = (profile: CompatLaneProfile): CompatLaneProfile => ({ ...profile, resolveCredential: credential, requestUrl: () => 'http://127.0.0.1:1/chat/completions', buildExtras: () => ({}), toolCapabilityRefusal: () => undefined })

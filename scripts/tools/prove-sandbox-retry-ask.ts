@@ -48,7 +48,7 @@ type AskRecord = { input: Record<string, unknown>; toolUseId: string }
 function makeContext(toolUseId: string, headless: boolean) {
   let appState = getDefaultAppState()
   return {
-    options: { mainLoopModel: 'claude-sonnet-5', tools: [], commands: [], mcpClients: [], mcpResources: {}, isNonInteractiveSession: headless, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
+    options: { engineModel: 'claude-sonnet-5', tools: [], commands: [], mcpClients: [], mcpResources: {}, isNonInteractiveSession: headless, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
     readFileState: new Map(),
     messages: [],
     getAppState: () => appState,

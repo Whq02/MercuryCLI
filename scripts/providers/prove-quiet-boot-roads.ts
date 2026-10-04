@@ -88,7 +88,7 @@ section('§1 the boot makes no side request (source)')
 {
   const webfetch = readFileSync(join(ROOT, 'src/tools/WebFetchTool/utils.ts'), 'utf8')
   check('WebFetch asks no policy service (no preflight in the module)', !/preflight/i.test(webfetch) && !webfetch.includes('domain_info'))
-  const repl = readFileSync(join(ROOT, 'src/screens/REPL.tsx'), 'utf8')
+  const repl = readFileSync(join(ROOT, 'src/screens/Chat.tsx'), 'utf8')
   check("the composer's mount-time key read makes no request (probe: false)", repl.includes('reverify({ probe: false })'))
   const hook = readFileSync(join(ROOT, 'src/hooks/useApiKeyVerification.ts'), 'utf8')
   check('the key hook honours probe: false before any wire call', hook.indexOf('opts?.probe === false') !== -1 && hook.indexOf('opts?.probe === false') < hook.indexOf('await verifyApiKey('))

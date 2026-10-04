@@ -11,8 +11,8 @@ import {
   detectTreeConflicts,
   type AgentHealth,
   type TreeConflict,
-} from '../swarm/roomHealth.js'
-import { listLeases, type Lease } from '../swarm/leaseGlob.js'
+} from '../crew/roomHealth.js'
+import { listLeases, type Lease } from '../crew/leaseGlob.js'
 import { getCrewName } from '../crewmate.js'
 import { withState, type Snapshot } from './types.js'
 

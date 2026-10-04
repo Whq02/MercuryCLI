@@ -50,8 +50,8 @@ export interface ModelTransitionReceipt {
 }
 
 export interface TransitionStateSlice {
-  mainLoopModel: string | null
-  mainLoopModelForSession: string | null
+  engineModel: string | null
+  engineModelForSession: string | null
   pendingModelSwitch: { setting: string | null } | null
   lastModelTransition?: ModelTransitionReceipt | null
 }
@@ -83,7 +83,7 @@ export function settleModelSelection(
     boundary?: 'idle'
   },
 ): SettledSelection {
-  const current = prev.mainLoopModelForSession ?? prev.mainLoopModel
+  const current = prev.engineModelForSession ?? prev.engineModel
   const decision = decideModelTransition({
     currentSetting: current,
     nextSetting: next,
@@ -128,8 +128,8 @@ export function settleModelSelection(
   return {
     kind: 'applied',
     patch: {
-      mainLoopModel: next,
-      mainLoopModelForSession: null,
+      engineModel: next,
+      engineModelForSession: null,
       pendingModelSwitch: null,
       lastModelTransition: receipt,
     },
@@ -142,7 +142,7 @@ export function settlePendingAtBoundary(
 ): { patch: Partial<TransitionStateSlice>; receipt: ModelTransitionReceipt } | null {
   if (prev.pendingModelSwitch === null) return null
   const next = prev.pendingModelSwitch.setting
-  const current = prev.mainLoopModelForSession ?? prev.mainLoopModel
+  const current = prev.engineModelForSession ?? prev.engineModel
   const receipt: ModelTransitionReceipt = {
     previous: current,
     requested: next,
@@ -155,8 +155,8 @@ export function settlePendingAtBoundary(
   }
   return {
     patch: {
-      mainLoopModel: next,
-      mainLoopModelForSession: null,
+      engineModel: next,
+      engineModelForSession: null,
       pendingModelSwitch: null,
       lastModelTransition: receipt,
     },

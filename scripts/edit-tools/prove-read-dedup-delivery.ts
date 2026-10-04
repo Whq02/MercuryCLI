@@ -101,7 +101,7 @@ const owner = processMainOwner()
     {
       messages: messages as never,
       owner,
-      querySource: 'repl_main_thread' as never,
+      querySource: 'main_thread' as never,
       contentReplacementState: undefined,
       skipToolNames: new Set<string>(),
       readFileState,
@@ -138,7 +138,7 @@ section('D5 — inspect mode never touches the ledger')
     {
       messages: messages as never,
       owner,
-      querySource: 'repl_main_thread' as never,
+      querySource: 'main_thread' as never,
       contentReplacementState: undefined,
       skipToolNames: new Set<string>(),
       readFileState,

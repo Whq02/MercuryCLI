@@ -7,7 +7,7 @@ import { failureLine, searchBackendLabel, viaLine } from '../../services/search/
 import { TOOL_SUMMARY_MAX_LENGTH } from '../../constants/toolLimits.js'
 import type { WebSearchProgress } from '../../types/tools.js'
 import { AbortError } from '../../utils/errors.js'
-import { getMainLoopModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../utils/model/model.js'
 import { suggestionForExactCommand } from '../../utils/permissions/shellRuleMatching.js'
 import { truncate } from '../../utils/format.js'
 import { getProviderSearchPrompt, PROVIDER_SEARCH_TOOL_NAME } from './prompt.js'
@@ -54,7 +54,7 @@ async function runProviderSearch(
   onProgress?: (progress: { toolUseID: string; data: WebSearchProgress }) => void,
 ): Promise<Output> {
   const started = performance.now()
-  const mainModel = (context.options.mainLoopModel as string | undefined) || getMainLoopModel()
+  const mainModel = (context.options.engineModel as string | undefined) || getEngineModel()
   const family = nativeSearchFamilyOf(mainModel)
   if (!family) {
     throw new Error(
@@ -95,7 +95,7 @@ export const ProviderSearchTool = buildTool({
   maxResultSizeChars: 100_000,
   inputSchema,
   outputSchema: providerSearchOutputSchema,
-  isEnabled: () => nativeSearchFamilyOf(getMainLoopModel()) !== undefined,
+  isEnabled: () => nativeSearchFamilyOf(getEngineModel()) !== undefined,
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
   async description(input?: Partial<Input>): Promise<string> {

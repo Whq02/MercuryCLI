@@ -26,7 +26,7 @@ setOriginalCwd(cwd)
 console.log('the command-privacy law: screen-seat commands never enter a model turn')
 const all = [...builtinCommands()]
 const byName = (name: string) => all.find(command => command.name === name)
-const privateNames = ['status', 'usage', 'config', 'files', 'localsetup', 'jev', 'jevor'] as const
+const privateNames = ['status', 'usage', 'config', 'localsetup', 'jev', 'jevor'] as const
 for (const name of [...privateNames, 'halt', 'crew']) {
   const command = byName(name)
   check(`/${name} is registered and SCREEN-seat`, command !== undefined && commandSeat(command) === 'screen')
@@ -35,7 +35,7 @@ check('the private set carries the userPrivate mark', privateNames.every(name =>
 check('/halt is stop-class (interruptFirst)', (byName('halt') as { interruptFirst?: boolean } | undefined)?.interruptFirst === true)
 const runnerTable = sessionSeatCommandTable(all)
 check('the runner table excludes every private and screen-estate command', [...privateNames, 'halt', 'crew'].every(name => !runnerTable.some(command => command.name === name)))
-check('ordinary session locals keep their seat', ['compact', 'cost'].every(name => {
+check('ordinary session locals keep their seat', ['compact', 'debrief'].every(name => {
   const command = byName(name)
   return command !== undefined && commandSeat(command) === 'session'
 }))

@@ -3,7 +3,7 @@ import { getGlobalConfig } from '../config.js'
 import { logError } from '../log.js'
 import { logForDebugging } from '../debug.js'
 import type { Message } from '../../types/message.js'
-import { getMainLoopModel } from '../model/model.js'
+import { getEngineModel } from '../model/model.js'
 import { sideQuery } from '../sideQuery.js'
 
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH'
@@ -102,7 +102,7 @@ export async function generatePermissionExplanation(args: {
   const schema = explanationSchema()
   try {
     const response = await sideQuery({
-      model: getMainLoopModel(),
+      model: getEngineModel(),
       systemPrompt,
       userPrompt,
       signal,

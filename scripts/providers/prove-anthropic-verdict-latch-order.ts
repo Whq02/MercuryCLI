@@ -72,7 +72,7 @@ limits.resetLimitsForCredentialSwitch()
 check('the seeded sign-in reads as a subscriber', auth.isClaudeAISubscriber() === true)
 const tFirst = Date.now() - 60_000
 limits.extractQuotaStatusFromHeaders(allowedHeaders(), tFirst)
-check('a reply stamped a minute ago arms the latch as allowed', limits.claudeWindowObserved() === true && limits.currentLimits.status === 'allowed', limits.currentLimits.status)
+check('a reply stamped a minute ago arms the latch as allowed', limits.anthropicWindowObserved() === true && limits.currentLimits.status === 'allowed', limits.currentLimits.status)
 check("the verdict's moment is the request's own start, not the fold's clock", limits.anthropicLimitVerdict().observedAtMs === tFirst, JSON.stringify(limits.anthropicLimitVerdict()))
 const refusedReset = epoch(90 * 60_000)
 const refused = new APIError(
@@ -99,7 +99,7 @@ check('the verdict stays rejected', limits.currentLimits.status === 'rejected', 
 check("the verdict's moment is still the refusal's", limits.anthropicLimitVerdict().observedAtMs === refusedAt, JSON.stringify(limits.anthropicLimitVerdict()))
 check("the verdict still names the refusal's reset", limits.anthropicLimitVerdict().resetsAtMs === Number(refusedReset) * 1000, JSON.stringify(limits.anthropicLimitVerdict()))
 check("the meters keep the refusal's window (5h 99%), never the older reply's 40%", fiveHourPct() === 99, String(fiveHourPct()))
-check('the window stays observed', limits.claudeWindowObserved() === true)
+check('the window stays observed', limits.anthropicWindowObserved() === true)
 
 section('§2 a reply that began AFTER the refusal speaks for the window again')
 const tNewer = refusedAt + 1

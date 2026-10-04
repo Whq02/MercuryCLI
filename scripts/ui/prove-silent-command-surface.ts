@@ -26,7 +26,7 @@ const { App } = await import('../../src/components/App.tsx')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
 const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
-const { initializeSurfaceRoute, ROOT_REPL_ROUTE } = await import('../../src/context/surfaceRoute.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
 const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
 const { anyModalOverlayActive } = await import('../../src/context/overlayStack.ts')
 const { enableConfigs } = await import('../../src/utils/config.ts')
@@ -65,7 +65,7 @@ async function settle(ink: InstanceType<typeof Ink>): Promise<void> {
 for (const [columns, rows] of [[178, 51], [80, 21]] as const) {
   for (const recess of ['1', '0']) {
     process.env.MERCURY_RECESS = recess
-    initializeSurfaceRoute(ROOT_REPL_ROUTE)
+    initializeSurfaceRoute(ROOT_CHAT_ROUTE)
     resetChromeModeLatchForTests()
     const stdout = new Output(columns, rows)
     const ink = new Ink({ stdout: stdout as never, stdin: new Input() as never, stderr: stdout as never, exitOnCtrlC: false, patchConsole: false })

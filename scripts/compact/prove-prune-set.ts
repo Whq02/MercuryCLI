@@ -66,7 +66,7 @@ const named = (): Use[] => [
 const history = (): Message[] => transcript([...named(), ...fillers(9_000)])
 
 section('§A the class rule: every result is a candidate unless its class is never pruned')
-const projected = projectTimeBasedMicrocompact(history(), 'repl_main_thread')
+const projected = projectTimeBasedMicrocompact(history(), 'main_thread')
 if (projected === null) {
   check('the clearing pass armed for the fixture', false, 'projection returned null')
 } else {
@@ -82,33 +82,33 @@ section('§B the budget arithmetic: the newest 40k tokens of tool output stay, a
 {
   check('the three defaults', law.PROTECT_NEWEST_TOOL_OUTPUT_TOKENS === 40_000 && law.PRUNE_MINIMUM_SAVING_TOKENS === 20_000 && law.PLACEHOLDER_COST_FLOOR_TOKENS === 50)
   const sixteen = transcript(Array.from({ length: 16 }, (_, i) => ({ id: `r${i + 1}`, name: 'Bash', content: chars(4_000) })))
-  const p16 = projectTimeBasedMicrocompact(sixteen, 'repl_main_thread')
+  const p16 = projectTimeBasedMicrocompact(sixteen, 'main_thread')
   check('sixteen results of 4k tokens: r7 through r16 (the newest 40k) stay, r1 through r6 are cleared — the budget reaches past the recent five', p16 !== null && JSON.stringify([...p16.clearedIds].sort()) === JSON.stringify(['r1', 'r2', 'r3', 'r4', 'r5', 'r6'].sort()) && resultOf(p16.messages, 'r7') === chars(4_000), p16 === null ? 'null' : p16.clearedIds.join(','))
   const ten = transcript(Array.from({ length: 10 }, (_, i) => ({ id: `r${i + 1}`, name: 'Bash', content: chars(3_000) })))
-  check('ten results of 3k tokens (30k in all): nothing is cleared — every one sits inside the newest 40k', projectTimeBasedMicrocompact(ten, 'repl_main_thread') === null)
+  check('ten results of 3k tokens (30k in all): nothing is cleared — every one sits inside the newest 40k', projectTimeBasedMicrocompact(ten, 'main_thread') === null)
   const eleven = transcript(Array.from({ length: 11 }, (_, i) => ({ id: `r${i + 1}`, name: 'Bash', content: chars(5_000) })))
-  check('eleven results of 5k tokens: r1 through r3 sit outside the budget but would save 15k — under the 20k minimum the pass clears nothing', projectTimeBasedMicrocompact(eleven, 'repl_main_thread') === null)
+  check('eleven results of 5k tokens: r1 through r3 sit outside the budget but would save 15k — under the 20k minimum the pass clears nothing', projectTimeBasedMicrocompact(eleven, 'main_thread') === null)
   const twelve = transcript(Array.from({ length: 12 }, (_, i) => ({ id: `r${i + 1}`, name: 'Bash', content: chars(5_000) })))
-  const p12 = projectTimeBasedMicrocompact(twelve, 'repl_main_thread')
+  const p12 = projectTimeBasedMicrocompact(twelve, 'main_thread')
   check('twelve results of 5k tokens: r1 through r4 save 20k — cleared', p12 !== null && JSON.stringify([...p12.clearedIds].sort()) === JSON.stringify(['r1', 'r2', 'r3', 'r4'].sort()) && p12.tokensSaved === 20_000, p12 === null ? 'null' : `${p12.clearedIds.join(',')} ${p12.tokensSaved}`)
-  const p11pressure = projectTimeBasedMicrocompact(eleven, 'repl_main_thread', { pressure: true })
+  const p11pressure = projectTimeBasedMicrocompact(eleven, 'main_thread', { pressure: true })
   check('under context pressure the pass keeps its own law: the same eleven clear r1 through r3 (15k) with no 20k minimum', p11pressure !== null && p11pressure.clearedIds.length === 3 && p11pressure.tokensSaved === 15_000, p11pressure === null ? 'null' : `${p11pressure.clearedIds.join(',')} ${p11pressure.tokensSaved}`)
   const floor = transcript([
     { id: 'tiny49', name: 'Bash', content: 'y'.repeat(49 * 4) },
     { id: 'small52', name: 'Bash', content: 'y'.repeat(52 * 4) },
     ...Array.from({ length: 16 }, (_, i) => ({ id: `r${i + 1}`, name: 'Bash', content: chars(4_000) })),
   ])
-  const pf = projectTimeBasedMicrocompact(floor, 'repl_main_thread')
+  const pf = projectTimeBasedMicrocompact(floor, 'main_thread')
   check('a 49-token result outside the budget stays (never under 50), a 52-token one is cleared', pf !== null && resultOf(pf.messages, 'tiny49') === 'y'.repeat(49 * 4) && !resultOf(pf.messages, 'small52').includes('yyyy'), pf === null ? 'null' : pf.clearedIds.join(','))
 }
 
 section("§C a pruned Agent result reads the same line every pruned result reads")
 {
-  const digested = projectTimeBasedMicrocompact(history(), 'repl_main_thread')
+  const digested = projectTimeBasedMicrocompact(history(), 'main_thread')
   const agent = digested === null ? '' : resultOf(digested.messages, 'use_Agent')
   check('with the digest on, the Agent result wears the digest label', agent.startsWith(MC_DIGEST_PREFIX), agent.slice(0, 80))
   process.env.MERCURY_MC_DIGEST = '0'
-  const bare = projectTimeBasedMicrocompact(history(), 'repl_main_thread')
+  const bare = projectTimeBasedMicrocompact(history(), 'main_thread')
   const agentBare = bare === null ? '' : resultOf(bare.messages, 'use_Agent')
   const bashBare = bare === null ? '' : resultOf(bare.messages, 'use_Bash')
   check(`with the digest off, the Agent result is the placeholder line '${TIME_BASED_MC_CLEARED_MESSAGE}', the same as a Bash result's`, agentBare === TIME_BASED_MC_CLEARED_MESSAGE && bashBare === TIME_BASED_MC_CLEARED_MESSAGE, `${agentBare.slice(0, 60)} | ${bashBare.slice(0, 60)}`)
@@ -117,16 +117,16 @@ section("§C a pruned Agent result reads the same line every pruned result reads
 
 section('§D a result whose full output was saved to a file keeps the line that names the file')
 {
-  const cleared = projectTimeBasedMicrocompact(history(), 'repl_main_thread')
+  const cleared = projectTimeBasedMicrocompact(history(), 'main_thread')
   const persisted = cleared === null ? '' : resultOf(cleared.messages, 'use_agent_persisted')
   check('the preview bytes are gone', !persisted.includes('ppppp'), persisted.slice(0, 120))
   check('the digest label leads', persisted.startsWith(MC_DIGEST_PREFIX), persisted.slice(0, 80))
   check("the line naming the saved file rides below it, in the storage module's own words", persisted.includes(`Full output saved to: ${PERSISTED_PATH}`), persisted)
   check('the kept content reads as already cleared (no second clearing)', isClearedOrDigested(persisted))
-  const again = cleared === null ? null : projectTimeBasedMicrocompact(cleared.messages, 'repl_main_thread')
+  const again = cleared === null ? null : projectTimeBasedMicrocompact(cleared.messages, 'main_thread')
   check('a second pass over the cleared history clears nothing more', again === null, again === null ? '' : `${again.cleared} cleared again`)
   process.env.MERCURY_MC_DIGEST = '0'
-  const bare = projectTimeBasedMicrocompact(history(), 'repl_main_thread')
+  const bare = projectTimeBasedMicrocompact(history(), 'main_thread')
   const persistedBare = bare === null ? '' : resultOf(bare.messages, 'use_agent_persisted')
   check('with the digest off, the placeholder leads and the file line follows', persistedBare.startsWith(TIME_BASED_MC_CLEARED_MESSAGE) && persistedBare.includes(`Full output saved to: ${PERSISTED_PATH}`) && isClearedOrDigested(persistedBare), persistedBare.slice(0, 160))
   delete process.env.MERCURY_MC_DIGEST
@@ -135,8 +135,8 @@ section('§D a result whose full output was saved to a file keeps the line that 
 section('§E the live apply and the pure projection agree')
 {
   const base = history()
-  const pure = projectTimeBasedMicrocompact(base, 'repl_main_thread')
-  const applied = await microcompactMessages(base, undefined, 'repl_main_thread')
+  const pure = projectTimeBasedMicrocompact(base, 'main_thread')
+  const applied = await microcompactMessages(base, undefined, 'main_thread')
   check('the applied messages are the projected messages, byte for byte', pure !== null && JSON.stringify(applied.messages) === JSON.stringify(pure.messages))
   check('the applied receipt carries the same count and saving', pure !== null && applied.pruned?.cleared === pure.cleared && applied.pruned?.tokensSaved === pure.tokensSaved, JSON.stringify(applied.pruned))
 }

@@ -58,7 +58,7 @@ guard.unref?.()
 
 section('§1 — joinPromptValues / canBatchWith (pure)')
 {
-  const { joinPromptValues, canBatchWith } = await import('../../src/cli/print.ts')
+  const { joinPromptValues, canBatchWith } = await import('../../src/cli/run.ts')
   check('a single value passes through untouched', joinPromptValues(['solo']) === 'solo')
   check('all-strings join with newlines', joinPromptValues(['a', 'b', 'c']) === 'a\nb\nc')
   const mixed = joinPromptValues(['head', [{ type: 'text', text: 'block' }] as never])

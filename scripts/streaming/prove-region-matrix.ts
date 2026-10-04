@@ -4,7 +4,7 @@ import { markEpochs, runArtifactArena, type ArenaRun } from './artifactArena.ts'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
 
 const REGIONS = [
-  'render:repl-root',
+  'render:chat-root',
   'render:composer',
   'render:messages',
   'render:rail-lanes',
@@ -98,7 +98,7 @@ const spinnerWin: [number, number] = [spinnerSubmit + 1500, endTs(spinner) - 800
 
 type Scene = { name: string; run: ArenaRun; win: [number, number]; owners: string[] }
 const scenes: Scene[] = [
-  { name: 'typing', run: typing, win: typingWin, owners: ['render:composer', 'render:repl-root'] },
+  { name: 'typing', run: typing, win: typingWin, owners: ['render:composer', 'render:chat-root'] },
   { name: 'stream', run: stream, win: streamWin, owners: ['render:tail'] },
   { name: 'spinner', run: spinner, win: spinnerWin, owners: [] },
 ]

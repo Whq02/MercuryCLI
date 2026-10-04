@@ -149,7 +149,7 @@ if (POISON_DIST === undefined) {
   const routeSafeAt = globalHooks.indexOf("'app:openSurfaceSwitcher':")
   const routeSafeEnd = globalHooks.indexOf("{ context: 'Global', routeSafe: true }", routeSafeAt)
   const routeSafeBlock = globalHooks.slice(routeSafeAt, routeSafeEnd)
-  check('the completion handler registers in the REPL world beside the ctrl+x c precedent, routeSafe (the covered board is the point)', routeSafeEnd !== -1 && routeSafeBlock.includes("'concourse:closeSession': () => {") && routeSafeBlock.includes('invokeConcourseCloseChord()'))
+  check('the completion handler registers in the Chat world beside the ctrl+x c precedent, routeSafe (the covered board is the point)', routeSafeEnd !== -1 && routeSafeBlock.includes("'concourse:closeSession': () => {") && routeSafeBlock.includes('invokeConcourseCloseChord()'))
   const provider = readFileSync(join(REPO, 'src', 'keybindings', 'KeybindingProviderSetup.tsx'), 'utf8')
   check('the provider mirrors EVERY pending transition (the explicit road and the timeout clear)', provider.split('publishPendingChord(').length === 3)
   const screen = readFileSync(join(REPO, 'src', 'components', 'concourse', 'ConcourseScreen.tsx'), 'utf8')

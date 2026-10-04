@@ -89,7 +89,7 @@ const SKIPPED: Record<string, string> = {
   getDateChangeAttachments: 'reads session clock state',
   getDeferredToolsDeltaAttachment: 'reads MCP registry state',
   getMcpInstructionsDeltaAttachment: 'reads MCP connection state',
-  memoryFilesToAttachments: 'filesystem-coupled (memdir reads)',
+  memoryFilesToAttachments: 'filesystem-coupled (mneme reads)',
   getChangedFiles: 'reads readFileState vs disk mtimes',
   collectSurfacedMemories: 'reads the live message history for the attachments already surfaced',
   getRelevantMemoryAttachments: 'reads the memory library on disk (the automatic lookup) — pinned by the memory suite (prove-memory-front-page, prove-memory-always-on)',

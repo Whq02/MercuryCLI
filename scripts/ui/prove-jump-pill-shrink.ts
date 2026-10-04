@@ -47,7 +47,7 @@ const { FullscreenLayout, useUnseenDivider } = await import('../../src/component
 const { ScrollKeybindingHandler } = await import('../../src/components/ScrollKeybindingHandler.js')
 const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.js')
 const { useCompactWorkControls } = await import('../../src/components/tasks/CompactWorkSummary.js')
-const { initializeSurfaceRoute, ROOT_REPL_ROUTE } = await import('../../src/context/surfaceRoute.js')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.js')
 const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.js')
 const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.js')
 enableConfigs()
@@ -93,7 +93,7 @@ function Transcript({ rows }: { rows: Row[] }): React.ReactNode {
 }
 
 async function mountCockpit(initial: Row[]): Promise<{ m: Mounted; api: Api }> {
-  initializeSurfaceRoute(ROOT_REPL_ROUTE)
+  initializeSurfaceRoute(ROOT_CHAT_ROUTE)
   resetChromeModeLatchForTests()
   pending.edit('')
   pending.setMode('prompt')

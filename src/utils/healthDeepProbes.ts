@@ -130,7 +130,7 @@ export async function probeContextParity(): Promise<CheckResult> {
     const input = {
       messages,
       owner,
-      querySource: 'repl_main_thread' as never,
+      querySource: 'main_thread' as never,
       contentReplacementState: undefined,
       skipToolNames: new Set<string>(),
     }

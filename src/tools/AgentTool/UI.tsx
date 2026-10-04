@@ -22,7 +22,7 @@ import { buildSubagentLookups } from '../../utils/messages.js'
 import { formatTokens } from '../../utils/format.js'
 import { getTokenCountFromUsage } from '../../utils/tokens.js'
 import type { ApiUsage } from '../../types/wire.js'
-import { renderModelName, getMainLoopModel } from '../../utils/model/model.js'
+import { renderModelName, getEngineModel } from '../../utils/model/model.js'
 import { Markdown } from '../../components/Markdown.js'
 import { getAgentColor } from './agentColorManager.js'
 import { useNowTick } from '../../components/mercury-ui/components.js'
@@ -195,7 +195,7 @@ export function renderToolUseTag(
   const model = input?.model
   if (!model) return null
   try {
-    if (model === getMainLoopModel()) return null
+    if (model === getEngineModel()) return null
     return <Text dimColor>{renderModelName(model)}</Text>
   } catch {
     return null

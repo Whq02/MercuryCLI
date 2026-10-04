@@ -3,8 +3,8 @@ import React from 'react'
 import { Box, Text } from '../../ink.js'
 import type { PromptInputMode } from '../../types/textInputTypes.js'
 import { AGENT_COLOR_TO_THEME_COLOR } from '../../tools/AgentTool/agentColorManager.js'
-import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
-import { CREWMATE_COLOR_ENV_VAR } from '../../utils/swarm/constants.js'
+import { isCrewEnabled } from '../../utils/crewEnabled.js'
+import { CREWMATE_COLOR_ENV_VAR } from '../../utils/crew/constants.js'
 import type { Theme } from '../../utils/theme.js'
 import { ReadyBreath } from '../mercury-ui/LiveGlyphs.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
@@ -57,7 +57,7 @@ export function PromptInputModeIndicator({
     )
   }
 
-  const envCrewmateColor = isAgentSwarmsEnabled()
+  const envCrewmateColor = isCrewEnabled()
     ? validatedThemeColor(process.env[CREWMATE_COLOR_ENV_VAR])
     : undefined
   if (envCrewmateColor !== undefined) {

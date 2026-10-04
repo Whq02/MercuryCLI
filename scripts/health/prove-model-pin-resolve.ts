@@ -35,8 +35,8 @@ writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ engine: { model: 'so
 }
 
 {
-  const { setMainLoopModelOverride } = await import('../../src/bootstrap/state.js')
-  setMainLoopModelOverride('opus')
+  const { setEngineModelOverride } = await import('../../src/bootstrap/state.js')
+  setEngineModelOverride('opus')
   const row = await modelRow()
   check(
     'a real drift still reads as drift (the override outruns the pin)',
@@ -48,7 +48,7 @@ writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ engine: { model: 'so
     row.evidence.includes('resolves to'),
     row.evidence,
   )
-  setMainLoopModelOverride(null)
+  setEngineModelOverride(null)
 }
 
 rmSync(HOME, { recursive: true, force: true })

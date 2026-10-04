@@ -69,7 +69,7 @@ const build = (
     {
       messages: messages as never,
       owner,
-      querySource: 'repl_main_thread' as never,
+      querySource: 'main_thread' as never,
       contentReplacementState: undefined,
       skipToolNames: SKIP,
       selectionBudget: budget,

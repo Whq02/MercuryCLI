@@ -143,7 +143,7 @@ export function AssistantTextMessage({
   streamFaultRecovered?: boolean
   width?: number | string
 }): React.ReactNode {
-  const mainLoopModel = useSyncExternalStore(subscribeFocusedRowModel, getFocusedRowModel, getFocusedRowModel)
+  const engineModel = useSyncExternalStore(subscribeFocusedRowModel, getFocusedRowModel, getFocusedRowModel)
   const text = param.text
   if (text === '' || text === NO_RESPONSE_REQUESTED) return null
 
@@ -157,7 +157,7 @@ export function AssistantTextMessage({
   }
 
   if (text === PROMPT_TOO_LONG_ERROR_MESSAGE) {
-    const upgrade = getUpgradeMessage(mainLoopModel)
+    const upgrade = getUpgradeMessage(engineModel)
     return (
       <Box flexDirection="column" marginTop={addMargin ? 1 : 0}>
         <Text color="error">

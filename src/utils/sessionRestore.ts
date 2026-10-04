@@ -1,4 +1,4 @@
-import { getMainLoopModelOverride, getSessionId, setMainLoopModelOverride, setMainThreadAgentType, getLastApiCompletionTimestamp, setLastApiCompletionTimestamp } from '../bootstrap/state.js'
+import { getEngineModelOverride, getSessionId, setEngineModelOverride, setMainThreadAgentType, getLastApiCompletionTimestamp, setLastApiCompletionTimestamp } from '../bootstrap/state.js'
 import { restoreCostStateForSession } from '../cost-tracker.js'
 import type { AppState } from '../state/AppStateStore.js'
 import type { AgentColorName } from '../tools/AgentTool/agentColorManager.js'
@@ -11,7 +11,7 @@ import { fileHistoryRestoreStateFromLog } from './fileHistory.js'
 import { rearmMissionFromCard } from './hooks/missionHook.js'
 import { migrateOrphanedMissionCard } from '../services/mission/missionCard.js'
 import { billingSafeRetainedForm, servedModelOfAssistantRow } from './model/retainedModel.js'
-import { initializeCrewmateContextFromSession } from './swarm/reconnection.js'
+import { initializeCrewmateContextFromSession } from './crew/reconnection.js'
 import { isTaskToolsEnabled } from './tasks.js'
 import type { ContentReplacementRecord } from './toolResultStorage.js'
 
@@ -133,11 +133,11 @@ export function restoreAgentFromSession(
   }
   setMainThreadAgentType(agentSetting)
   if (
-    getMainLoopModelOverride() === undefined &&
+    getEngineModelOverride() === undefined &&
     match.model !== undefined &&
     match.model !== INHERIT_MODEL_SENTINEL
   ) {
-    setMainLoopModelOverride(match.model)
+    setEngineModelOverride(match.model)
   }
   return { agentDefinition: match, agentType: agentSetting }
 }
@@ -145,7 +145,7 @@ export function restoreAgentFromSession(
 
 export function restoreConversationModelFromMessages(messages?: Message[]): string | null {
   if (!messages || messages.length === 0) return null
-  if (getMainLoopModelOverride() !== undefined) return null
+  if (getEngineModelOverride() !== undefined) return null
 
   let servedModel: string | undefined
   for (let index = messages.length - 1; index >= 0; index--) {

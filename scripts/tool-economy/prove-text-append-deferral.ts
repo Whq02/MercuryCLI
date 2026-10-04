@@ -161,7 +161,7 @@ async function drive(model: string, messages: Message[]): Promise<{ body: Body |
         getToolPermissionContext: async () => permissionContext,
         model,
         isNonInteractiveSession: true,
-        querySource: 'repl_main_thread' as never,
+        querySource: 'main_thread' as never,
         agents: [],
         hasAppendSystemPrompt: false,
         mcpTools,

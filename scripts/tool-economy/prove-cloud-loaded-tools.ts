@@ -148,7 +148,7 @@ section('§4 the readers — the search corpus and the schema-not-sent hint foll
 {
   const searchContext = (model: string, messages: Message[] = [first]) => ({
     messages,
-    options: { tools: pool, mainLoopModel: model },
+    options: { tools: pool, engineModel: model },
     getAppState: () => ({ toolPermissionContext: { ...permissionContext, mode: 'default' }, mcp: { clients: [] } }),
   })
   const cloud = await ToolSearchTool.call({ query: 'commit staged changes git', max_results: 5 }, searchContext('claude-sonnet-5') as never)

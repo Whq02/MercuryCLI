@@ -159,7 +159,7 @@ function paramsFor(messages: Message[], extra: Record<string, unknown> = {}): Lo
     signal: new AbortController().signal,
     options: {
       model: PERSISTED,
-      querySource: 'repl_main_thread',
+      querySource: 'main_thread',
       getToolPermissionContext: async () => permissionContext,
       agents: [],
       isNonInteractiveSession: true,
@@ -305,7 +305,7 @@ section('§4 the warm follows: its estimate is the same rule and reads the roste
   reset(undefined)
   const appState = { toolPermissionContext: permissionContext, mcp: { clients: [], tools: [] }, effortValue: undefined }
   const toolUseContext = {
-    options: { tools: pool, thinkingConfig: { type: 'disabled' }, mainLoopModel: PERSISTED, agentDefinitions: { activeAgents: [], allAgents: [], allowedAgentTypes: [] }, commands: [], mcpClients: [], isNonInteractiveSession: true },
+    options: { tools: pool, thinkingConfig: { type: 'disabled' }, engineModel: PERSISTED, agentDefinitions: { activeAgents: [], allAgents: [], allowedAgentTypes: [] }, commands: [], mcpClients: [], isNonInteractiveSession: true },
     getAppState: () => appState,
     setAppState: () => {},
     abortController: new AbortController(),

@@ -9,7 +9,7 @@ import { ReadyBreath } from '../mercury-ui/LiveGlyphs.js';
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
 import { useLayoutChrome } from '../../context/layoutChromeContext.js';
-import { composerBorderRole, composerBorderStyle } from '../mercury-ui/replFloor.js';
+import { composerBorderRole, composerBorderStyle } from '../mercury-ui/composerFloor.js';
 import { effectiveSeatCeiling } from '../../daemon/concourseSupervisor.js';
 import { needsYouCount } from '../../utils/needsYouCount.js';
 import { controlNoteOf, type ConcourseSnapshotV1 } from './contracts.js';

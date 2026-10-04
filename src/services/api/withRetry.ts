@@ -42,7 +42,7 @@ const CONSECUTIVE_529_FALLBACK_THRESHOLD = 3
 const OVERLOADED_TYPE_MARKER = '"type":"overloaded_error"'
 
 const FOREGROUND_QUERY_SOURCES = new Set([
-  'repl_main_thread',
+  'main_thread',
   'sdk',
   'agent:custom',
   'agent:default',

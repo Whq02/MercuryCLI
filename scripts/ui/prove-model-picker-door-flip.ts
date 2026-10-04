@@ -104,7 +104,7 @@ async function mountPicker(): Promise<{ frame: () => string; press: (keys: strin
   stdout.resume()
   const input: string[] = []
   const stdin = Object.assign(new EventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return input.shift() ?? null }, readableLength: 0, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } })
-  const store = createStore({ ...getDefaultAppState(), mainLoopModel: SONNET }, () => {})
+  const store = createStore({ ...getDefaultAppState(), engineModel: SONNET }, () => {})
   const picker = await call((result?: string) => { receipts.push(result ?? '') }, { messages: [] } as never, '')
   const instance = await render(React.createElement(AppStoreContext.Provider, { value: store }, picker), { stdout: stdout as never, stdin: stdin as never, patchConsole: false })
   const frame = (): string => stripAnsi(instance.lastFrame()).replace(/\n$/, '')

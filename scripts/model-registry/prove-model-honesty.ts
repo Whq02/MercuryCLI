@@ -72,7 +72,7 @@ const { composeWorkerModelRegistry } = await import('../../src/services/concours
 const { anthropicCredentialPresence, providerFamilyPresences } = await import('../../src/services/providers/providerUsage.ts')
 const { primeOpenaiDiscovery } = await import('../../src/utils/router/providerDiscovery.ts')
 const { clearOAuthTokenCache } = await import('../../src/utils/auth.ts')
-const { getMainLoopModel, getPublicModelDisplayName, parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
+const { getEngineModel, getPublicModelDisplayName, parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
 type ModelOption = import('../../src/utils/model/modelOptions.ts').ModelOption
 type Presence = import('../../src/services/providers/providerUsage.ts').ProviderFamilyPresence
 
@@ -359,7 +359,7 @@ section('§8 inline focus follows the actual model, including aliases')
   clearOAuthTokenCache()
   const { resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.ts')
   resetComputedDefaultMemo()
-  const initial = getMainLoopModel()
+  const initial = getEngineModel()
   check('the unpicked fixture resolves to the Fable model', initial === parseUserSpecifiedModel('fable'), initial)
   const selected = focus(initial, getModelOptions())
   check('the unpicked model focuses its full-id row, not sign-in', selected.focusDefault === initial && selected.options.filter(option => option.value === initial).length === 1, JSON.stringify({ initial, focus: selected.focusDefault }))

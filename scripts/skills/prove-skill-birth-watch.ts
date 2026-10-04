@@ -73,7 +73,7 @@ console.log('L3 the watch-path derivation sees candidates that do not exist')
   t('projectConfigCandidatePaths exists and derives the missing candidate', Array.isArray(paths) && paths.length > 0 && paths.every((p: string) => p.includes('.mercury')), JSON.stringify(paths ?? null))
 }
 
-console.log('L4 the REPL watcher arms for missing candidates too')
+console.log('L4 the Chat watcher arms for missing candidates too')
 {
   const hook = readFileSync(join(SRC, 'hooks/useSkillsChange.ts'), 'utf8')
   t('it derives unfiltered candidates', hook.includes('projectConfigCandidatePaths(cwd,'))

@@ -51,7 +51,7 @@ import {
 import { getCwd } from '../../utils/cwd.js'
 import { logError } from '../../utils/log.js'
 import { getCanonicalName } from '../../utils/model/model.js'
-import { isAutoMemFile } from '../../utils/memoryFileDetection.js'
+import { isMnemeFile } from '../../utils/memoryFileDetection.js'
 import { createUserMessage } from '../../utils/messages/factories.js'
 import { mapNotebookCellsToToolResult, readNotebook } from '../../utils/notebook.js'
 import { NUL_PATH_MESSAGE, expandPath, hasNulByte } from '../../utils/path.js'
@@ -61,7 +61,7 @@ import { matchWildcardPattern } from '../../utils/permissions/shellRuleMatching.
 import { extractPDFPages, getPDFPageCount, readPDF, removePDFPages } from '../../utils/pdf.js'
 import { isPDFExtension, isPDFSupported, parsePDFPageRange } from '../../utils/pdfUtils.js'
 import { resolveModelCapabilities } from '../../utils/model/capabilities.js'
-import { getMainLoopModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../utils/model/model.js'
 import { readFileInRange, type ReadFileRangeResult } from '../../utils/readFileInRange.js'
 import { planReadThrough } from '../FileEditTool/readThrough.js'
 import { lazySchema } from '../../utils/lazySchema.js'
@@ -346,9 +346,9 @@ Whenever you read a file, you should consider whether it looks malicious. If it 
 
 const CYBER_RISK_REMINDER_EXEMPT_MODELS = new Set(['claude-opus-4-6'])
 
-function cyberRiskReminderFor(mainLoopModel: string): string {
+function cyberRiskReminderFor(engineModel: string): string {
   try {
-    if (CYBER_RISK_REMINDER_EXEMPT_MODELS.has(getCanonicalName(mainLoopModel))) return ''
+    if (CYBER_RISK_REMINDER_EXEMPT_MODELS.has(getCanonicalName(engineModel))) return ''
   } catch {
   }
   return CYBER_RISK_MITIGATION_REMINDER
@@ -618,7 +618,7 @@ async function readPdfLane(
     )
   }
   const stats = await stat(resolvedPath)
-  const turnModel = context.options.mainLoopModel
+  const turnModel = context.options.engineModel
   const pdfSupported = isPDFSupported(turnModel)
   if (!pdfSupported || stats.size > PDF_TARGET_RAW_SIZE) {
     const extraction = await extractPDFPages(resolvedPath).catch(() => undefined)
@@ -717,7 +717,7 @@ async function readTextLane(
   context.nestedMemoryAttachmentTriggers?.add(keyPath)
   notifyFileReadListeners(resolvedPath, range.content)
 
-  const memoryUpdatedAt = isAutoMemFile(resolvedPath) ? Math.floor(range.mtimeMs) : undefined
+  const memoryUpdatedAt = isMnemeFile(resolvedPath) ? Math.floor(range.mtimeMs) : undefined
   let anchor: string | undefined
   if (changeTransactionEnabled() && range.content.length > 0) {
     const wholeFile =
@@ -855,7 +855,7 @@ export const FileReadTool = buildTool({
       ? OFFSET_INSTRUCTION_TARGETED
       : OFFSET_INSTRUCTION_DEFAULT
     const targetLines = readTargetsEnabled() ? readTargetPromptLines() : undefined
-    const caps = resolveModelCapabilities(options?.model ?? getMainLoopModel())
+    const caps = resolveModelCapabilities(options?.model ?? getEngineModel())
     return renderPromptTemplate(
       lineFormat,
       maxSizeInstruction,
@@ -1122,9 +1122,9 @@ export const FileReadTool = buildTool({
 
 function cyberRiskReminderForCurrentModel(): string {
   try {
-    const { getMainLoopModel } =
+    const { getEngineModel } =
       require('../../utils/model/model.js') as typeof import('../../utils/model/model.js')
-    return cyberRiskReminderFor(getMainLoopModel())
+    return cyberRiskReminderFor(getEngineModel())
   } catch {
     return CYBER_RISK_MITIGATION_REMINDER
   }

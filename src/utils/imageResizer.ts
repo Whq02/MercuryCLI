@@ -67,10 +67,10 @@ export function anthropicResolutionTier(model: string | undefined): 'standard' |
   return major > 4 || (major === 4 && minor >= 7) ? 'highResolution' : 'standard'
 }
 
-async function mainLoopModel(): Promise<string | undefined> {
+async function engineModel(): Promise<string | undefined> {
   try {
-    const { getMainLoopModel } = await import('./model/model.js')
-    return getMainLoopModel()
+    const { getEngineModel } = await import('./model/model.js')
+    return getEngineModel()
   } catch {
     return undefined
   }
@@ -101,7 +101,7 @@ export function requestImageSidePx(limits: ImageLimits, imagesInRequest: number)
 }
 
 async function resolveCaps(options: ResizeOptions | undefined): Promise<Caps> {
-  const model = options?.model ?? (options?.limits === undefined || options?.role === 'tool-result' ? await mainLoopModel() : undefined)
+  const model = options?.model ?? (options?.limits === undefined || options?.role === 'tool-result' ? await engineModel() : undefined)
   const limits = options?.limits ?? imageLimitsForModel(model)
   const sidePx = requestImageSidePx(limits, options?.imagesInRequest ?? 0)
   let longEdgePx: number | null = null
@@ -509,7 +509,7 @@ export async function fitImagesToRequestCap<M extends RequestRow>(
   messages: M[],
   options?: RequestImageFitOptions,
 ): Promise<RequestImageFit<M>> {
-  const limits = options?.limits ?? imageLimitsForModel(options?.model ?? (await mainLoopModel()))
+  const limits = options?.limits ?? imageLimitsForModel(options?.model ?? (await engineModel()))
   const images = countRequestImages(messages)
   const sidePx = requestImageSidePx(limits, images)
   const identity: RequestImageFit<M> = { messages, firstEdited: -1, images, sized: 0, leftOut: 0, sidePx }

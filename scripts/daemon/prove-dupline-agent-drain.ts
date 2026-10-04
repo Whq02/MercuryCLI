@@ -10,7 +10,7 @@ section('S the drain scope reads the agent id before the query source (the sourc
   const machine = readFileSync(join(REPO, 'src', 'run-core', 'turn-machine.ts'), 'utf8')
   check(
     "a query that runs under an agent id is never the main thread's drain, whatever its source label",
-    machine.includes("currentAgentId === undefined &&\n      (querySource.startsWith('repl_main_thread') || querySource === 'sdk')"),
+    machine.includes("currentAgentId === undefined &&\n      (querySource.startsWith('main_thread') || querySource === 'sdk')"),
   )
 }
 

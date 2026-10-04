@@ -85,7 +85,7 @@ await stub('src/components/tasks/useFocusedWork.ts', { useFocusedWorkRows: () =>
 const vitals = { sessions: { state: 'unavailable' }, git: null, tasks: [], fleet: { state: 'off', conflicts: 0, drifting: 0 }, fleetFull: null, trace: null, workflowsDisk: [], crew: null, refreshedAt: 0, version: 1 }
 await stub('src/state/telemetryBus.ts', { useTelemetry: (selector?: (s: typeof vitals) => unknown) => (selector ? selector(vitals) : vitals) })
 await stub('src/hooks/useDisplayedSessionModel.ts', { useFocusedServedModel: () => focusedModel, useDisplayedSessionModel: () => ({ label: focusedModel, compact: focusedModel.slice('local/'.length), pendingNext: null }), useFocusedServedEffort: () => null, useFocusedBornEffort: () => null, useFocusedSentEffort: () => null })
-await stub('src/hooks/useMainLoopModel.ts', { useMainLoopModel: () => focusedModel })
+await stub('src/hooks/useEngineModel.ts', { useEngineModel: () => focusedModel })
 await stub('src/hooks/useProviderUsageOnShow.ts', { useProviderUsageOnShow: () => undefined })
 
 const ink = await import(join(ROOT, 'src/ink.ts'))

@@ -26,7 +26,7 @@ check(
   capsule.includes('React.useMemo'),
 );
 
-const repl = readFileSync('src/screens/REPL.tsx', 'utf8');
+const repl = readFileSync('src/screens/Chat.tsx', 'utf8');
 check(
   'spinnerSlotReserved carries every non-streaming gate',
   repl.includes('const spinnerSlotReserved = (!toolJSX || toolJSX.showSpinner === true)'),

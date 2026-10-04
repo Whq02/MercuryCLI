@@ -67,7 +67,7 @@ section('§2 the signal: one row from the writer, read by the daemon, admitted b
   check('the row schema admits the row', RowSchema().safeParse(JSON.parse(line)).success)
   const seat = src('src/daemon/sessionSeat.ts')
   check("the daemon's task-row arm names the type (a task write re-asks the facts within the turn)", /case 'mission_updated':/.test(seat))
-  const print = src('src/cli/print.ts')
+  const print = src('src/cli/run.ts')
   check('the runner relays listSessionMission and writes the row on every task write (debounced)', print.includes('mission: (await listSessionMission()') && print.includes('onTasksUpdated(() => {') && print.includes('enqueueRow(missionUpdatedRow(liveScope()))'))
 }
 

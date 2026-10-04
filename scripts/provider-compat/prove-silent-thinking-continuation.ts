@@ -105,7 +105,7 @@ function makeCtx(): Record<string, unknown> {
     options: {
       commands: [],
       tools: [menuTool()],
-      mainLoopModel: MODEL,
+      engineModel: MODEL,
       thinkingConfig: { type: 'adaptive' },
       mcpClients: [],
       mcpResources: {},

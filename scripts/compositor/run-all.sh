@@ -7,7 +7,7 @@
 # gate-watch: src/ink/* src/ink/components/AlternateScreen.tsx src/ink/components/App.tsx
 # gate-watch: src/ink/geometry/selection-model.ts src/ink/root/screen-session.ts
 # gate-watch: src/ink/root/terminalModeLedger.ts src/ink/session/terminalExperience.ts src/ink/termio/*
-# gate-watch: src/interactiveHelpers.tsx src/keybindings/* src/prompt/mercuryContract.ts src/screens/REPL.tsx
+# gate-watch: src/interactiveHelpers.tsx src/keybindings/* src/prompt/mercuryContract.ts src/screens/Chat.tsx
 # gate-watch: src/screens/ResumeConversation.tsx src/ink/termio/notifyPing.ts src/hooks/useTurnEndPing.ts
 # gate-watch: src/services/providers/openai/openaiCallModel.ts src/services/providers/openai/openaiWire.ts
 # gate-watch: src/skills/bundled/keybindings.ts src/utils/bash/ShellSnapshot.ts src/utils/cockpit/*

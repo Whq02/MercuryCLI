@@ -3,7 +3,7 @@ import { currentLimits, type ClaudeAILimits } from '../claudeAiLimits.js'
 import { rateLimitWindowName } from '../rateLimitMessages.js'
 import { providerDisplayName } from './routeLaw.js'
 import { activeSourceUsage, bindingWindowOf, usageCarryWords, type ActiveUsageReads, type UsageWindowView } from './providerUsage.js'
-import { getMainLoopModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../utils/model/model.js'
 
 import { FIRST_WARNING_PCT, SECOND_WARNING_PCT, usageWarningTier, type UsageWarningTier } from './usageTiers.js'
 export { FIRST_WARNING_PCT, SECOND_WARNING_PCT, APPROACHING_LIMIT_PCT, usageWarningTier, usageWindowState, type UsageWarningTier } from './usageTiers.js'
@@ -83,7 +83,7 @@ export function providerLimitWarningFacts(opts?: {
   const now = Date.now()
   if (view.limited !== undefined && view.limited.resetsAtMs > now) return null
   const notExpired = (window: UsageWindowView): boolean => window.resetsAtMs === undefined || window.resetsAtMs > now
-  const binding = bindingWindowOf({ ...view, windows: view.windows.filter(notExpired), pools: view.pools.filter(notExpired) }, opts?.model ?? getMainLoopModel())
+  const binding = bindingWindowOf({ ...view, windows: view.windows.filter(notExpired), pools: view.pools.filter(notExpired) }, opts?.model ?? getEngineModel())
   const label = view.label
   const word = label.endsWith(' usage') && label !== 'API usage'
     ? label.slice(0, -' usage'.length)

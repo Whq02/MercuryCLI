@@ -28,7 +28,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(joinPath(tmpdir(), 'prove-s5-home-'
 const { classifyModelRoute, declaredRouteOf } = await import('../../src/services/providers/callModelRouter.js')
 const { zaiCallModel } = await import('../../src/services/providers/zai/zaiCallModel.js')
 const { buildAgentLaunchPlan } = await import(
-  '../../src/utils/swarm/agentLaunchPlan.js'
+  '../../src/utils/crew/agentLaunchPlan.js'
 )
 const { SPECIALIST_ROLES, SPECIALIST_ROLE_ACCESS } = await import(
   '../../src/utils/router/providers/types.js'
@@ -65,7 +65,7 @@ section('1 · the callModel routing law')
 section('1b · the home-lane admission at the dispatch seam (the neutrality ruling)')
 {
   const { routedCallModel } = await import('../../src/services/providers/callModelRouter.js')
-  const { resolveEngineDispatch } = await import('../../src/utils/swarm/engineDispatch.js')
+  const { resolveEngineDispatch } = await import('../../src/utils/crew/engineDispatch.js')
   const { FIRST_PARTY_MODEL_ENV_PINS } = await import('../../src/services/providers/idSpaces.js')
   const { createUserMessage } = await import('../../src/utils/messages.js')
   const { asSystemPrompt } = await import('../../src/utils/systemPromptType.js')
@@ -411,7 +411,7 @@ section('4 · the launch-plan engine law (role→sandbox · denials · no floor)
     forkGateOn: false,
     forkAgent: FORK_STUB,
     defaultAgentType: 'mercury-crew',
-    mainLoopModel: 'claude-opus-4-8',
+    engineModel: 'claude-opus-4-8',
     backgroundTasksDisabled: false,
     forceAsync: false,
   }
@@ -475,7 +475,7 @@ section('4 · the launch-plan engine law (role→sandbox · denials · no floor)
   check('no dispatch: engine fields absent', plain.engineBackend === undefined && plain.engineToolDenials === undefined)
 
   {
-    const launchPlanModule = await import('../../src/utils/swarm/agentLaunchPlan.js')
+    const launchPlanModule = await import('../../src/utils/crew/agentLaunchPlan.js')
     check(
       'the launch-plan module exports no specialist-denial table (provider parity)',
       !('ENGINE_SPECIALIST_TOOL_DENIALS' in launchPlanModule),

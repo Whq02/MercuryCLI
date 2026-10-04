@@ -25,7 +25,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   )
   t(
     '§1 POISON: the AppState session-model read stays out of the rail (local-road-only, lies for daemon chats)',
-    !rail.includes('s.mainLoopModelForSession'),
+    !rail.includes('s.engineModelForSession'),
   )
   t('§1 …and paints the beside-accounts block', rail.includes('otherUsages'))
 }

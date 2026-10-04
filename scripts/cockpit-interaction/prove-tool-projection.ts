@@ -229,8 +229,8 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
     t.check('tool: filters by tool', byTool.tools.join() === 'bash' && byTool.structured, JSON.stringify(byTool))
     t.check('and leaves no free text behind', byTool.text === '', `"${byTool.text}"`)
 
-    const byFile = parseSearchQuery('file:REPL.tsx timeout')
-    t.check('file: filters by path', byFile.files.join() === 'repl.tsx', JSON.stringify(byFile))
+    const byFile = parseSearchQuery('file:Chat.tsx timeout')
+    t.check('file: filters by path', byFile.files.join() === 'chat.tsx', JSON.stringify(byFile))
     t.check('and keeps the free text beside it', byFile.text === 'timeout', byFile.text)
 
     const failed = parseSearchQuery('failed:')
@@ -281,10 +281,10 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
       JSON.stringify(spaced.text),
     )
 
-    const facets = { tools: ['Bash'], files: ['/repo/src/REPL.tsx'], failed: true }
+    const facets = { tools: ['Bash'], files: ['/repo/src/Chat.tsx'], failed: true }
     t.check('tool: matches its tool', facetsSatisfy(facets, parseSearchQuery('tool:bash')), 'hit')
     t.check('and rejects another', !facetsSatisfy(facets, parseSearchQuery('tool:grep')), 'miss')
-    t.check('file: matches a path substring', facetsSatisfy(facets, parseSearchQuery('file:REPL')), 'hit')
+    t.check('file: matches a path substring', facetsSatisfy(facets, parseSearchQuery('file:Chat')), 'hit')
     t.check('failed: matches a failure', facetsSatisfy(facets, parseSearchQuery('failed:')), 'hit')
     t.check(
       'repeated tool: is AND at the row — one present, one absent = no match',
@@ -334,7 +334,7 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
       /const facetsCache = useMemo\(\s*\n\s*\(\) => new WeakMap<[^>]+>\(\),\s*\n\s*\[lookups\],/.test(messages),
       'lookups-keyed, not useRef-permanent (re-audit finding)',
     )
-    const repl = readFileSync('src/screens/REPL.tsx', 'utf8')
+    const repl = readFileSync('src/screens/Chat.tsx', 'utf8')
     t.check(
       'every HIGHLIGHT call either clears or routes through the query parser',
       (() => {

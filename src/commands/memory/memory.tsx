@@ -115,8 +115,8 @@ function MemoryCommand({
 }
 
 async function statsReply(): Promise<string> {
-  const { mnemeStatus, readMaintenanceReceipts } = await import('../../memdir/mnemeMaintenance.js')
-  const { memoryVerbsEnabled, memoryVerbsWhyNot } = await import('../../memdir/memoryVerbs.js')
+  const { mnemeStatus, readMaintenanceReceipts } = await import('../../mneme/mnemeMaintenance.js')
+  const { memoryVerbsEnabled, memoryVerbsWhyNot } = await import('../../mneme/memoryVerbs.js')
   const status = mnemeStatus()
   if (!status.enabled) {
     return 'memory is off (memory.enabled is false in settings) — no buffer, no topic pages, no memory verbs.'
@@ -137,7 +137,7 @@ async function statsReply(): Promise<string> {
 }
 
 async function enqueueReply(): Promise<string> {
-  const { runDueMaintenance } = await import('../../memdir/mnemeMaintenance.js')
+  const { runDueMaintenance } = await import('../../mneme/mnemeMaintenance.js')
   const outcome = await runDueMaintenance('operator', { force: true })
   if (!outcome.ran) return `maintenance did not run: ${outcome.reason}`
   return `maintenance ran (${outcome.reason}) — consolidated: ${outcome.consolidated ? `yes, ${outcome.entries} entr(ies) into ${outcome.docsTouched} doc(s)` : 'nothing to do'} · ${outcome.wallMs}ms`

@@ -9,7 +9,7 @@ import { kimiDisplayPin } from '../services/providers/moonshot/kimiPins.js'
 import { gptDisplayPin, gptPriceTierFor } from '../services/providers/openai/gptPins.js'
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { glmPricePin } from '../services/providers/zai/glmPins.js'
-import { getCanonicalName, getDefaultMainLoopModelSetting, type ModelShortName } from './model/model.js'
+import { getCanonicalName, getDefaultEngineModelSetting, type ModelShortName } from './model/model.js'
 import { ALL_MODEL_CONFIGS, familyHeadOf } from './model/configs.js'
 
 
@@ -134,7 +134,7 @@ function firstPartyPricing(model: string): ResolvedModelPricing {
 }
 
 function firstPartyDefaultSetting(): string | undefined {
-  const defaultModel = getDefaultMainLoopModelSetting()
+  const defaultModel = getDefaultEngineModelSetting()
   return typeof defaultModel === 'string' && declaredRouteOf(defaultModel) === 'anthropic' ? defaultModel : undefined
 }
 

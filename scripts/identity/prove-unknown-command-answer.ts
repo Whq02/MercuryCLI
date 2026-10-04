@@ -31,7 +31,7 @@ const domains = await import('../../src/components/HelpV2/commandDomains.ts')
 
 const roster = [...commands.builtinCommands()]
 const RETIRED = 'insights'
-const NAMES = [RETIRED, 'doctor', 'party', 'multiplayer', 'rooms', 'share', 'invite', 'handoff', 'delegate', 'prompt', 'request', 'tickets', 'say']
+const NAMES = [RETIRED, 'doctor', 'party', 'multiplayer', 'rooms', 'share', 'invite', 'handoff', 'delegate', 'prompt', 'request', 'tickets', 'say', 'security-review', 'terminal-setup', 'pr-comments', 'cost', 'color', 'release-notes', 'heapdump', 'files', 'mock-limits']
 const NEVER_HAD = 'frobnicate'
 const shape = (line: string, name: string): string => line.replace(`/${name}`, '/<name>').replace(/ — closest: \/[\w:-]+/, '')
 const neverLine = slash.unknownCommandLine(NEVER_HAD, roster)
@@ -54,6 +54,9 @@ for (const name of NAMES) {
 }
 check('the roster module imports no such command', !readFileSync(join(REPO, 'src/commands.ts'), 'utf8').includes(RETIRED) && !readFileSync(join(REPO, 'src/commands.ts'), 'utf8').includes('retired'))
 check('the query sources name no such caller', !readFileSync(join(REPO, 'src/constants/querySource.ts'), 'utf8').includes(RETIRED))
+
+check('/audit is the security prompt', commands.findCommand('audit', roster)?.type === 'prompt' && commands.findCommand('audit', roster)?.description === 'Analyze the changes on this branch for security risks')
+check('/keysetup is the terminal-key action', commands.findCommand('keysetup', roster)?.type === 'local-jsx')
 
 const dist = join(REPO, 'dist/mercury.mjs')
 check('the built bundle stands for the headless door (bun run build.ts first)', existsSync(dist), dist)
@@ -82,7 +85,7 @@ if (existsSync(dist)) {
   }
   try {
     const never = door(NEVER_HAD)
-    for (const name of [RETIRED, 'doctor', 'party', 'say']) {
+    for (const name of NAMES) {
       const typed = door(name)
       check(`typed at the headless door, /${name} gets the runner's own unknown-skill line and exit 0`, typed.code === 0 && typed.out.trim() === `Unknown skill: ${name}`, JSON.stringify(typed))
       check('…byte for byte the answer a never-registered name gets, with the name swapped', typed.code === never.code && typed.out === never.out.replaceAll(NEVER_HAD, name) && typed.err === never.err, JSON.stringify(never))

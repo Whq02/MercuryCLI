@@ -93,7 +93,7 @@ function makeContext(): { ctx: Record<string, unknown>; readFileState: Map<strin
     options: {
       tools: [],
       mcpClients: [],
-      mainLoopModel: 'claude-opus-4-8',
+      engineModel: 'claude-opus-4-8',
       maxThinkingTokens: 0,
       isNonInteractiveSession: true,
       agentDefinitions: { activeAgents: [] },

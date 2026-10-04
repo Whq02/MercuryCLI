@@ -1,4 +1,4 @@
-import { parseBusEnvelope, OPERATOR_BROADCAST_LABEL, OPERATOR_NOTE_LABEL, type BusEnvelope, type DispatchEnvelope } from '../utils/swarm/busEnvelopes.js'
+import { parseBusEnvelope, OPERATOR_BROADCAST_LABEL, OPERATOR_NOTE_LABEL, type BusEnvelope, type DispatchEnvelope } from '../utils/crew/busEnvelopes.js'
 import { subscribeLiveMessagesFor, unreadLiveMessagesFor, markLiveMessagesReadWhere } from '../services/crew/liveComms.js'
 import { dispatchDedup, type DispatchDedup } from './dispatchDedup.js'
 import { faultPoint } from '../substrate/durablePublish.js'

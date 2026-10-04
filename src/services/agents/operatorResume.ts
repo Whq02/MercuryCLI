@@ -7,13 +7,13 @@ import { asAgentId } from '../../types/ids.js'
 import { formatAgentId } from '../../utils/agentId.js'
 import { getAgentTranscript, readAgentMetadata, flushSessionStorage } from '../../utils/sessionStorage.js'
 import { filterOrphanedThinkingOnlyMessages, filterUnresolvedToolUses, filterWhitespaceOnlyAssistantMessages } from '../../utils/messages.js'
-import { readCrewFileAsync, removeMemberByAgentId } from '../../utils/swarm/crewHelpers.js'
+import { readCrewFileAsync, removeMemberByAgentId } from '../../utils/crew/crewHelpers.js'
 import { reconstructForSubagentResume } from '../../utils/toolResultStorage.js'
 import { restoreBoundPrefixFromMessages } from '../providers/anthropic/boundPrefixRecord.js'
 import type { SpawnOutput, SpawnCrewmateConfig } from '../../tools/shared/spawnMultiAgent.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import { evictTerminalTask } from '../../utils/task/framework.js'
-import { cancelCrewmatePauseResume } from '../../utils/swarm/inProcessRunner.js'
+import { cancelCrewmatePauseResume } from '../../utils/crew/inProcessRunner.js'
 
 export type OperatorRespawnReceipt =
   | { outcome: 'applied'; agentId: string; taskId: string; outputFile: string; name: string; description: string }

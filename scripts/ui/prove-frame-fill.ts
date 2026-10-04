@@ -28,7 +28,7 @@ const { default: PromptInput } = await import('../../src/components/PromptInput/
 const { useCompactWorkControls } = await import('../../src/components/tasks/CompactWorkSummary.tsx')
 const { GlobalKeybindingHandlers } = await import('../../src/hooks/useGlobalKeybindings.tsx')
 const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_REPL_ROUTE } = await import('../../src/context/surfaceRoute.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
 const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
@@ -117,7 +117,7 @@ console.error = (...args: unknown[]): void => { faults.push(args.map(String).joi
 const hardLimit = setTimeout(() => { console.error('frame-fill exceeded its deadline'); process.exit(1) }, 120_000)
 hardLimit.unref()
 async function renderAt(columns: number, rows: number): Promise<string[]> {
-  initializeSurfaceRoute(ROOT_REPL_ROUTE)
+  initializeSurfaceRoute(ROOT_CHAT_ROUTE)
   resetChromeModeLatchForTests()
   pending.edit('')
   pending.setMode('prompt')

@@ -177,7 +177,7 @@ console.log('== 5 · one receipt · truthful footer ==')
   )
   const clearAt = skh.indexOf('if (shouldClearSelectionOnKey(key_0)) {')
   check('…and registers BEFORE the key-driven clear listener', guardAt !== -1 && clearAt !== -1 && guardAt < clearAt)
-  const repl = read('src/screens/REPL.tsx')
+  const repl = read('src/screens/Chat.tsx')
   check(
     'ScrollKeybindingHandler mounts before CancelRequestHandler in the permanent JSX (listener order is mount order)',
     repl.indexOf('<ScrollKeybindingHandler') !== -1 &&
@@ -230,9 +230,9 @@ console.log('== 6 · the busy fall-through ==')
     '…except while a focused input dialog owns its own settlement',
     body.includes('!isInputDialogFocused'),
   )
-  const repl = read('src/screens/REPL.tsx')
+  const repl = read('src/screens/Chat.tsx')
   check(
-    'REPL feeds the dialog-focus truth into the handler',
+    'Chat feeds the dialog-focus truth into the handler',
     repl.includes('isInputDialogFocused: focusedInputDialog !== undefined'),
   )
 }

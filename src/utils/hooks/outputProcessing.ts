@@ -9,7 +9,7 @@ import { isAsyncHookJSONOutput, isSyncHookJSONOutput } from '../../types/hooks.j
 import type {
   ElicitationResponse,
   HookBlockingError,
-  HookOutsideReplResult,
+  HookLifecycleResult,
   HookResult,
 } from './types.js'
 
@@ -331,7 +331,7 @@ export function processHookJSONOutput({
 }
 
 export function parseElicitationHookOutput(
-  result: HookOutsideReplResult,
+  result: HookLifecycleResult,
   expectedEventName: 'Elicitation' | 'ElicitationResult',
 ): {
   response?: ElicitationResponse

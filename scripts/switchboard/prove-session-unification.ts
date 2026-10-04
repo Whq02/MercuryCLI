@@ -477,7 +477,7 @@ for (const [cols, rows] of [
   })
 }
 
-const FACE_ROWS = ['New Session', 'Boot Menu', 'MCPs & Skills', 'Doctor / Health Check', 'Session Concourse', 'Sessions · Projects']
+const FACE_ROWS = ['New Session', 'Boot Menu', 'MCPs & Skills', 'Health Check', 'Session Concourse', 'Sessions · Projects']
 const KEY_MAP = keyHintLabel('⇧→ concourse')
 function assertFace(id: string, r: DriveResult, opts: { births?: boolean } = {}): void {
   for (const row of FACE_ROWS) check(`${id}: the face carries '${row}'`, r.text.includes(row))

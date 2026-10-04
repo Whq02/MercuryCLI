@@ -24,7 +24,7 @@ check('the sentence says what happened (the summariser itself was refused)', /su
 
 console.log('L3 the refused road is still refused (the why)')
 {
-  const repl = readFileSync(join(SRC, 'screens/REPL.tsx'), 'utf8')
+  const repl = readFileSync(join(SRC, 'screens/Chat.tsx'), 'utf8')
   check("the message selector's summarise action refuses the session rewrite", repl.includes("refuseSessionRewrite('summarising a stretch of the conversation')"))
 }
 

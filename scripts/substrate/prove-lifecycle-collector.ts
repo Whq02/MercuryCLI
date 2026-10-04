@@ -322,7 +322,7 @@ section('§9 WIRING')
     src('src/cli/update.ts').includes("runLifecycleVerbOpportunity('update')"),
   )
   check(
-    'the REPL boot arms the provisional reconcile',
+    'the Chat boot arms the provisional reconcile',
     src('src/main.tsx').includes('armProvisionalSessionReconcile'),
   )
   check(

@@ -11,7 +11,7 @@ import type { LocalJSXCommandCall } from '../../types/command.js'
 import type { Message } from '../../types/message.js'
 import { getContextWindowForModel } from '../../utils/context.js'
 import { contextFillView } from '../../utils/contextFill.js'
-import { getDefaultMainLoopModel, getMainLoopModel, normalizeModelStringForAPI, parseUserSpecifiedModel, renderModelName } from '../../utils/model/model.js'
+import { getDefaultEngineModel, getEngineModel, normalizeModelStringForAPI, parseUserSpecifiedModel, renderModelName } from '../../utils/model/model.js'
 import { crossProviderNote, providerFamilyOfSetting, settleModelSelection } from '../../utils/model/modelTransition.js'
 import { focusedSessionModelFacts, getFocusedSessionConnector, subscribeThroughFocused } from '../../services/engine-connector/focusedConnector.js'
 import {
@@ -661,8 +661,8 @@ function MercuryModelWrapper({
     options?: { display?: CommandResultDisplay; nextInput?: string; submitNextInput?: boolean },
   ) => void
 }): React.ReactNode {
-  const mainLoopModel = useAppState(s => s.mainLoopModel)
-  const mainLoopModelForSession = useAppState(s => s.mainLoopModelForSession)
+  const engineModel = useAppState(s => s.engineModel)
+  const engineModelForSession = useAppState(s => s.engineModelForSession)
   const effortValue = useAppState(s => s.effortValue)
   const setAppState = useSetAppState()
   const store = useAppStateStore()
@@ -671,7 +671,7 @@ function MercuryModelWrapper({
   const focusedModelKey = React.useSyncExternalStore(subscribeFocusedModelFeed, getFocusedModelKey, getFocusedModelKey)
   const focusedSeat = focusedSessionModelFacts()
   void focusedModelKey
-  const servedModel = focusedSeat !== null ? focusedSeat.effective : (mainLoopModelForSession ?? getMainLoopModel())
+  const servedModel = focusedSeat !== null ? focusedSeat.effective : (engineModelForSession ?? getEngineModel())
 
   const liveModel = servedModel
   const efforts = modelSupportsEffort(liveModel) ? [...selectableEffortLevels(liveModel)] : []
@@ -721,7 +721,7 @@ function MercuryModelWrapper({
   const listedModels: ModelChoice[] = options.map(opt => modelChoiceOf(opt, betas))
   const expandRows = (group: string): ModelChoice[] => expandRowsOf(group, betas)
   const labelOf = (id: string): string => pickLabelOf(options, id)
-  const current = focusedSeat?.effective ?? mainLoopModelForSession ?? mainLoopModel ?? getMainLoopModel()
+  const current = focusedSeat?.effective ?? engineModelForSession ?? engineModel ?? getEngineModel()
   const currentRowId = resolveCurrentRowId(listedModels, current)
   const models = orderedModelChoices(listedModels, currentRowId)
   const topGroup = seatGroupOf(listedModels, currentRowId)
@@ -729,10 +729,10 @@ function MercuryModelWrapper({
   const pendingNext =
     focusedSeat !== null
       ? focusedSeat.pendingSwitch
-        ? resolveCurrentRowId(models, parseUserSpecifiedModel(focusedSeat.pendingSwitch.setting ?? getDefaultMainLoopModel()))
+        ? resolveCurrentRowId(models, parseUserSpecifiedModel(focusedSeat.pendingSwitch.setting ?? getDefaultEngineModel()))
         : undefined
       : pendingSwitch
-        ? resolveCurrentRowId(models, parseUserSpecifiedModel(pendingSwitch.setting ?? getDefaultMainLoopModel()))
+        ? resolveCurrentRowId(models, parseUserSpecifiedModel(pendingSwitch.setting ?? getDefaultEngineModel()))
         : undefined
 
   let ctxPct: number | null = null
@@ -950,7 +950,7 @@ function MercuryModelWrapper({
     if (probe.kind === 'queued' || probe.kind === 'applied') {
       const gatePlan = previewForSelection(
         messages,
-        probeState.mainLoopModelForSession ?? probeState.mainLoopModel,
+        probeState.engineModelForSession ?? probeState.engineModel,
         value,
       )
       if (gatePlan.needsChoice) {
@@ -1006,7 +1006,7 @@ function MercuryModelWrapper({
       onDone(`Already on ${label} — queued switch cancelled${saved}${slotNote}`)
       return
     }
-    const effectiveFrom = stateNow.mainLoopModelForSession ?? stateNow.mainLoopModel
+    const effectiveFrom = stateNow.engineModelForSession ?? stateNow.engineModel
     const plan = previewForSelection(messages, effectiveFrom, value)
     const lossNote = transitionPlanSummary(plan)
     if (settled.kind === 'queued') {
@@ -1075,8 +1075,8 @@ function MercuryModelWrapper({
       onSelect={handleSelect}
       onClose={() =>
         onDone(
-          focusedSeat === null && mainLoopModelForSession
-            ? `Kept model as ${renderModelName(mainLoopModelForSession)} (session override)`
+          focusedSeat === null && engineModelForSession
+            ? `Kept model as ${renderModelName(engineModelForSession)} (session override)`
             : `Kept model as ${renderModelName(servedModel)}`,
           { display: 'system' },
         )
@@ -1090,7 +1090,7 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
   const setAppState = useSetAppStateMaybe()
   useCatalogueEpoch()
   const betas = getSdkBetas()
-  const model = nextBirthModel() ?? getMainLoopModel()
+  const model = nextBirthModel() ?? getEngineModel()
   const efforts = modelSupportsEffort(model) ? [...selectableEffortLevels(model)] : []
   const [effort, setEffort] = React.useState<string>(() => getDisplayedEffortLabel(model, getInitialEffortSetting()))
   const [slotVersion, setSlotVersion] = React.useState(0)
@@ -1187,7 +1187,7 @@ export function MercurySessionModelPicker({
 }): React.ReactNode {
   useCatalogueEpoch()
   const betas = getSdkBetas()
-  const model = currentModel ?? nextBirthModel() ?? getMainLoopModel()
+  const model = currentModel ?? nextBirthModel() ?? getEngineModel()
   const efforts = modelSupportsEffort(model) ? [...selectableEffortLevels(model)] : []
   const effort = currentEffort ?? 'default'
   const [slotVersion, setSlotVersion] = React.useState(0)

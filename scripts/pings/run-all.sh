@@ -14,7 +14,7 @@
 # gate-watch: src/components/Settings/Config.tsx src/components/concourse/ConcourseStrips.tsx
 # gate-watch: src/components/mercury-ui/needsYouJump.ts src/constants/figures.ts src/daemon/sessionSeat.ts
 # gate-watch: src/fabric/entryCodec.ts src/fabric/ordinal.ts src/hooks/useGlobalKeybindings.tsx
-# gate-watch: src/keybindings/actionGraph.ts src/keybindings/defaultBindings.ts src/screens/REPL.tsx
+# gate-watch: src/keybindings/actionGraph.ts src/keybindings/defaultBindings.ts src/screens/Chat.tsx
 # gate-watch: src/services/crew/obligations.ts src/services/crew/obligationsBridge.ts
 # gate-watch: src/services/engine-connector/seatProjections.ts src/utils/*
 set -uo pipefail

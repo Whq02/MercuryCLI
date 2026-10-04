@@ -5,11 +5,11 @@ import {
   getIsInteractive,
   getSessionId,
   setClientType,
-  setInitialMainLoopModel,
+  setInitialEngineModel,
   setSessionExtensions,
   setHeadlessOneShot,
   setIsInteractive,
-  setMainLoopModelOverride,
+  setEngineModelOverride,
   setMainThreadAgentType,
   setQuestionPreviewFormat,
   setSessionPersistenceDisabled,
@@ -21,7 +21,7 @@ import { surfaceDumpDocument } from './commands/effectiveCatalogue.js'
 import { MERCURY_VERSION } from './constants/product.js'
 import { getSystemContext, getUserContext } from './context.js'
 import { initBundledSkills } from './skills/bundled/index.js'
-import { launchRepl } from './replLauncher.js'
+import { launchChat } from './chatLauncher.js'
 import { getInstructionFiles } from './services/instructions/engine.js'
 import { initializeLspServerManager, waitForInitialization } from './services/lsp/manager.js'
 import { mercuryLspEnabled } from './services/lsp/mercuryLsp.js'
@@ -92,7 +92,7 @@ import { logError } from './utils/log.js'
 import { createUserMessage } from './utils/messages/factories.js'
 import { getRecentActivity } from './utils/logoV2Utils.js'
 import { getModelDeprecationWarning } from './utils/model/deprecation.js'
-import { getDefaultMainLoopModelSetting, getMainLoopModel, getCanonicalName } from './utils/model/model.js'
+import { getDefaultEngineModelSetting, getEngineModel, getCanonicalName } from './utils/model/model.js'
 import {
   initializeToolPermissionContext,
   stripDangerousPermissionsForAutoMode,
@@ -112,8 +112,8 @@ import { ensureKeychainPrefetchCompleted, startKeychainPrefetch } from './utils/
 import { getLastSessionLog, getLogByIndex, searchSessionsByCustomTitle, fetchLogs, sessionIdExists } from './utils/sessionStorage.js'
 import { getSessionIdFromLog } from './utils/sessionStorage/logs.js'
 import { armProvisionalSessionReconcile } from './utils/provisionalSessionReconcile.js'
-import { computeInitialCrewContext } from './utils/swarm/reconnection.js'
-import { findRoleDefinition, getRoleSystemPrompt } from './utils/swarm/roleResolver.js'
+import { computeInitialCrewContext } from './utils/crew/reconnection.js'
+import { findRoleDefinition, getRoleSystemPrompt } from './utils/crew/roleResolver.js'
 import { getTipToShowOnSpinner } from './services/tips/tipScheduler.js'
 import { getSlashCommandToolSkills } from './commands.js'
 import { countFilesRoundedRg } from './utils/ripgrep.js'
@@ -126,13 +126,12 @@ import { getDefaultAppState } from './state/AppStateStore.js'
 import { createStore } from './state/store.js'
 import { onChangeAppState } from './state/onChangeAppState.js'
 import type { AppState } from './state/AppStateStore.js'
-import type { Props as REPLProps } from './screens/REPL.js'
+import type { Props as ChatProps } from './screens/Chat.js'
 import type { UUID } from 'node:crypto'
 import { update as updateCli } from './cli/update.js'
 import type { ScopedMcpServerConfig } from './services/mcp/types.js'
 import { writeShimSet, resolveLayoutRoots } from './services/privateChannel/installLayout.js'
 import { migrateAutoUpdatesToSettings } from './migrations/migrateAutoUpdatesToSettings.js'
-import { migrateReplBridgeEnabledToRemoteControlAtStartup } from './migrations/migrateReplBridgeEnabledToRemoteControlAtStartup.js'
 import { migrateVerboseToToolOutput } from './migrations/migrateVerboseToToolOutput.js'
 import type { Root } from './ink.js'
 import chalk from 'chalk'
@@ -165,10 +164,6 @@ function refuseDebugger(): void {
 }
 refuseDebugger()
 
-function isPrintModeArgv(argv: readonly string[] = process.argv): boolean {
-  return isRunArgv(argv)
-}
-
 function applyMergedConfigEnv(): void {
   const env = getInitialSettings().environment?.values ?? {}
   for (const [key, value] of Object.entries(env)) {
@@ -185,7 +180,6 @@ function runMigrationsIfNeeded(): void {
     if (config.migrationVersion === MIGRATION_VERSION) return
     const landed: boolean[] = []
     landed.push(migrateAutoUpdatesToSettings())
-    migrateReplBridgeEnabledToRemoteControlAtStartup()
     migrateVerboseToToolOutput()
     const incomplete = landed.some(ok => ok === false)
     if (incomplete) {
@@ -290,20 +284,20 @@ export async function main(): Promise<void> {
     process.stderr.write('\x1b[?25h')
     process.stderr.write('\x1b]111\x07')
   })
-  if (!isPrintModeArgv()) {
+  if (!isRunArgv()) {
     process.on('SIGINT', () => process.exit(130))
   }
   profileCheckpoint('main_warning_handler_initialized')
 
-  const printFlag = isPrintModeArgv()
+  const runFlag = isRunArgv()
   const initOnlyFlag = readSessionOption(process.argv.slice(2), '--prepare-only').present
   const stdoutTty = Boolean(process.stdout.isTTY)
-  const isNonInteractive = printFlag || initOnlyFlag || !stdoutTty
+  const isNonInteractive = runFlag || initOnlyFlag || !stdoutTty
   if (isNonInteractive) {
     stopCapturingEarlyInput()
   }
   setIsInteractive(!isNonInteractive)
-  if (!stdoutTty && !printFlag && !initOnlyFlag && process.stdin.isTTY) {
+  if (!stdoutTty && !runFlag && !initOnlyFlag && process.stdin.isTTY) {
     writeErr(
       'stdout is not attached to a terminal, so this run is non-interactive. Pass run to silence this note, or attach a terminal to get the interactive session.',
     )
@@ -607,7 +601,7 @@ async function run(): Promise<void> {
     .argument('[prompt]', 'Prompt text; - or no argument reads stdin to EOF; an argument takes up to 1s of piped context')
     .configureHelp({ sortOptions: true })
     .action(async (prompt: string | undefined) => {
-      await defaultAction(prompt, { ...sessionOptions(runCommand), print: true })
+      await defaultAction(prompt, { ...sessionOptions(runCommand), runMode: true })
     })
   for (const option of program.options) {
     if (!INTERACTIVE_BOOT_OPTIONS.has(option.long ?? '')) runCommand.addOption(option)
@@ -616,7 +610,7 @@ async function run(): Promise<void> {
     .description('Serve a session to a host over stdio (JSON-RPC 2.0, one message per line): the host sends the prompts and answers the permission asks')
     .configureHelp({ sortOptions: true })
     .action(async () => {
-      await defaultAction(undefined, { ...sessionOptions(runnerCommand), print: true, runner: true })
+      await defaultAction(undefined, { ...sessionOptions(runnerCommand), runMode: true, runner: true })
     })
   for (const option of program.options) {
     if (!RUN_OUTPUT_OPTIONS.has(option.long ?? '') && !INTERACTIVE_BOOT_OPTIONS.has(option.long ?? '')) runnerCommand.addOption(option)
@@ -624,7 +618,7 @@ async function run(): Promise<void> {
 
   const parseProgram = () => program.parseAsync(process.argv)
 
-  if (isPrintModeArgv()) {
+  if (isRunArgv()) {
     profileCheckpoint('run_before_parse')
     if (wantsRowStream()) {
       program.exitOverride()
@@ -1126,12 +1120,12 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     process.exit(0)
   }
   try {
-    recordLaunchMilestone('runtime-entry', { boot: opts.print ? 'headless' : 'interactive' })
+    recordLaunchMilestone('runtime-entry', { boot: opts.runMode ? 'headless' : 'interactive' })
   } catch {
   }
   const cliName = binaryName()
   const isNonInteractiveSession = !getIsInteractive()
-  const printMode = Boolean(opts.print)
+  const runMode = Boolean(opts.runMode)
   const runnerDoor = opts.runner === true
 
   const worktreeOpt = opts.worktree as string | boolean | undefined
@@ -1151,8 +1145,8 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   const agentColor = typedString(opts.seatColor)
   const parentSessionId = typedString(opts.parent)
   const agentTypeOpt = typedString(opts.role)
-  const { isAgentSwarmsEnabled } = await import('./utils/agentSwarmsEnabled.js')
-  if (isAgentSwarmsEnabled()) {
+  const { isCrewEnabled } = await import('./utils/crewEnabled.js')
+  if (isCrewEnabled()) {
     const identityCount = [agentId, agentName, crewName].filter(Boolean).length
     if (identityCount > 0 && identityCount < 3) {
       failCli('--seat-id, --seat and --crew must be provided together')
@@ -1162,10 +1156,10 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   if (opts.continue && opts.resume) {
     failCli('--continue and --resume name two different sessions — give exactly one')
   }
-  if (opts.fork && !printMode) {
+  if (opts.fork && !runMode) {
     failCli('--fork requires mercury run: a managed resume continues the session as itself')
   }
-  if (opts.advise === true && !printMode) {
+  if (opts.advise === true && !runMode) {
     failCli('--advise requires mercury run: in a chat, /advise on turns the advisor on for that chat')
   }
   const sessionIdOpt = typedString(opts.sessionId)
@@ -1176,7 +1170,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     if (!UUID_SHAPE.test(sessionIdOpt)) failCli(`--session-id must be a valid UUID: ${sessionIdOpt}`)
     if (await sessionIdExists(sessionIdOpt)) failCli(`Session id already exists: ${sessionIdOpt}`, 1)
   }
-  if (printMode && opts.mode === 'apollo' && !runnerDoor) {
+  if (runMode && opts.mode === 'apollo' && !runnerDoor) {
     failCli('mercury run: apollo needs a host that answers its asks (mercury runner)')
   }
   if (opts.backupModel && opts.backupModel === opts.model) {
@@ -1207,28 +1201,28 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
 
   const inputFormat = runnerDoor || opts.input === 'rows' ? 'rows' : 'text'
   const outputFormat = runnerDoor || opts.format === 'rows' ? 'rows' : typedString(opts.format) ?? 'text'
-  if (!printMode && (opts.input || opts.format || opts.partial)) failCli('Use mercury run for --input, --format and --partial')
+  if (!runMode && (opts.input || opts.format || opts.partial)) failCli('Use mercury run for --input, --format and --partial')
   if (inputFormat === 'rows' && outputFormat !== 'rows') {
     failCli('--input rows requires run --format rows')
   }
   const includePartialMessages = Boolean(opts.partial)
-  if (opts.partial && (!printMode || outputFormat !== 'rows')) {
+  if (opts.partial && (!runMode || outputFormat !== 'rows')) {
     failCli('--partial requires run --format rows')
   }
-  if (opts.ephemeral === true && !printMode) {
+  if (opts.ephemeral === true && !runMode) {
     failCli('--ephemeral requires mercury run: an interactive session is hosted by the daemon and resumed from its transcript, so it always writes one')
   }
 
   if (opts.lean) {
     setFlagEnv('MERCURY_BARE', '1')
   }
-  let inputPrompt = printMode && inputPromptArg === '-' ? undefined : inputPromptArg
+  let inputPrompt = runMode && inputPromptArg === '-' ? undefined : inputPromptArg
   if (typedString(opts.draft)) {
     startCapturingEarlyInput()
     process.stdin.unshift?.(Buffer.from(String(opts.draft)))
   }
 
-  const bypassFromRegistry = isEnvTruthy(flagEnv('MERCURY_SKIP_PERMISSIONS')) && !isPrintModeArgv()
+  const bypassFromRegistry = isEnvTruthy(flagEnv('MERCURY_SKIP_PERMISSIONS')) && !isRunArgv()
   const dangerouslySkipPermissions = Boolean(opts.sovereign) || opts.mode === 'sovereign' || bypassFromRegistry
   const allowDangerousSkip = Boolean(opts.allowSovereign)
   const { initialPermissionModeFromCLI, isBypassPermissionsModeDisabled } = await import('./utils/permissions/permissionSetup.js')
@@ -1326,19 +1320,19 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   }
 
   let userSpecifiedModel = typedString(opts.model)
-  if (userSpecifiedModel === 'default') userSpecifiedModel = getDefaultMainLoopModelSetting() ?? undefined
+  if (userSpecifiedModel === 'default') userSpecifiedModel = getDefaultEngineModelSetting() ?? undefined
   let fallbackModel = typedString(opts.backupModel)
-  if (fallbackModel === 'default') fallbackModel = getDefaultMainLoopModelSetting() ?? undefined
+  if (fallbackModel === 'default') fallbackModel = getDefaultEngineModelSetting() ?? undefined
   if (!userSpecifiedModel && mainThreadAgentDefinition?.model && mainThreadAgentDefinition.model !== 'inherit') {
     userSpecifiedModel = mainThreadAgentDefinition.model
   }
-  if (userSpecifiedModel) setMainLoopModelOverride(userSpecifiedModel)
-  setInitialMainLoopModel(userSpecifiedModel ?? null)
-  if (printMode) {
+  if (userSpecifiedModel) setEngineModelOverride(userSpecifiedModel)
+  setInitialEngineModel(userSpecifiedModel ?? null)
+  if (runMode) {
     const { readComputedDefaultCatalogue } = await import('./utils/model/computedDefault.js')
     await readComputedDefaultCatalogue()
   }
-  const resolvedInitialModel = getMainLoopModel()
+  const resolvedInitialModel = getEngineModel()
 
   if (agentId && agentName && crewName && agentTypeOpt) {
     let rolePrompt: string | undefined
@@ -1367,8 +1361,8 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     if (inputFormat === 'rows') {
       prompt = readStdinChunks()
     } else {
-      const collected = await readStdinWithPeek(printMode ? (inputPrompt === undefined ? -1 : 1_000) : 3000)
-      if (collected === null && printMode && inputPrompt === undefined) failCli('mercury run could not read its prompt from stdin', 1)
+      const collected = await readStdinWithPeek(runMode ? (inputPrompt === undefined ? -1 : 1_000) : 3000)
+      if (collected === null && runMode && inputPrompt === undefined) failCli('mercury run could not read its prompt from stdin', 1)
       if (collected === null && inputPrompt === undefined) {
         writeErr(
           'No stdin data arrived within 3s; proceeding without piped input. Redirect from the null device to skip the wait, or keep the pipe open longer to include its data.',
@@ -1377,15 +1371,15 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
       const pieces = [inputPrompt, collected ?? undefined].filter(
         (piece): piece is string => typeof piece === 'string' && piece.length > 0,
       )
-      if (printMode && collected) syntaxInput = inputPrompt ?? ''
-      prompt = printMode && inputPrompt && collected
+      if (runMode && collected) syntaxInput = inputPrompt ?? ''
+      prompt = runMode && inputPrompt && collected
         ? `${inputPrompt}\n\n<stdin>\n${collected}${collected.endsWith('\n') ? '' : '\n'}</stdin>`
         : pieces.length > 0 ? pieces.join('\n') : undefined
     }
   }
 
   if (
-    (printMode || !process.stdout.isTTY) &&
+    (runMode || !process.stdout.isTTY) &&
     prompt === undefined &&
     !opts.resume &&
     !opts.continue &&
@@ -1429,7 +1423,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     }
   }
 
-  if (printMode && inputFormat === 'text' && (prompt === undefined || (typeof prompt === 'string' && !prompt.trim())) && !opts.resume && !opts.continue && !opts.pr) {
+  if (runMode && inputFormat === 'text' && (prompt === undefined || (typeof prompt === 'string' && !prompt.trim())) && !opts.resume && !opts.continue && !opts.pr) {
     const usage = 'Usage: mercury run "<prompt>" or pipe a prompt to mercury run -'
     if (process.stdin.isTTY) {
       writeSync(2, `${usage}\n`)
@@ -1588,7 +1582,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     return
   }
 
-  await printLaunch({
+  await runLaunch({
     opts,
     commands,
     prompt,
@@ -1756,7 +1750,7 @@ async function interactiveLaunch(args: {
     }
   })
   registerBackgroundNode('session-telemetry', async () => {
-    void getMainLoopModel()
+    void getEngineModel()
     const { ensureExtensionsLoaded } = await import('./extensions/boot.js')
     await ensureExtensionsLoaded().catch(() => {})
   })
@@ -1842,7 +1836,7 @@ async function interactiveLaunch(args: {
     agent: args.mainThreadAgentDefinition?.agentType,
     agentDefinitions: { activeAgents: args.activeAgents, allAgents: args.allAgents },
     ...(initialCrewContext ? { crewContext: initialCrewContext } : {}),
-    replBridgeEnabled: getRemoteControlAtStartup() || assistantBridgeSeed(),
+    remoteControlEnabled: getRemoteControlAtStartup() || assistantBridgeSeed(),
     promptSuggestionEnabled: false,
     ...(inputPrompt
       ? {
@@ -1889,7 +1883,7 @@ async function interactiveLaunch(args: {
     stats,
     initialState,
   }
-  const replProps: REPLProps = {
+  const chatProps: ChatProps = {
     commands,
     initialTools: [...getTools(effectiveContext)],
     debug: Boolean(opts.debug || opts.d),
@@ -1962,7 +1956,7 @@ async function interactiveLaunch(args: {
         const { getWorktreePaths } = await import('./utils/getWorktreePaths.js')
         const worktreePathsPromise = getWorktreePaths(process.cwd()).catch(() => [] as string[])
         await launchResumeChooser(root, appProps, worktreePathsPromise, {
-          ...replProps,
+          ...chatProps,
           initialSearchQuery: searchTerm,
           forkSession: Boolean(opts.fork),
           filterByPr: fromPr === true ? true : typeof fromPr === 'string' ? fromPr : undefined,
@@ -1985,7 +1979,7 @@ async function interactiveLaunch(args: {
       }
     }
 
-    await launchRepl(root, appProps, replProps, renderAndRun, {
+    await launchChat(root, appProps, chatProps, renderAndRun, {
       dynamicMcpConfig: args.dynamicMcpConfig,
       isStrictMcpConfig: Boolean(args.opts.onlyMcp),
     })
@@ -2072,7 +2066,7 @@ function dedupeByName<T extends { name?: string }>(entries: T[]): T[] {
   return result
 }
 
-async function printLaunch(args: {
+async function runLaunch(args: {
   opts: RootOptions
   commands: import('./commands.js').Command[]
   prompt: string | AsyncIterable<string> | undefined
@@ -2099,7 +2093,7 @@ async function printLaunch(args: {
 
   setHeadlessOneShot(args.inputFormat !== 'rows')
 
-  if (mercuryLspEnabled() && qualifiedIdSpaceOf(getMainLoopModel())?.route !== 'local') {
+  if (mercuryLspEnabled() && qualifiedIdSpaceOf(getEngineModel())?.route !== 'local') {
     initializeLspServerManager()
     await waitForInitialization()
   }
@@ -2226,7 +2220,7 @@ async function printLaunch(args: {
     startBackgroundHousekeeping()
   }
 
-  const { runHeadless } = await import('./cli/print.js')
+  const { runHeadless } = await import('./cli/run.js')
   try {
     await runHeadless(
       args.prompt ?? '',
@@ -2367,7 +2361,7 @@ export function startDeferredPrefetches(): void {
       const { getModelCapability } = (await import('./utils/model/capabilities.js')) as {
         getModelCapability?: (model: string) => unknown
       }
-      getModelCapability?.(getMainLoopModel())
+      getModelCapability?.(getEngineModel())
       settingsChangeDetector.initialize()
       skillChangeDetector.initialize()
     } catch (error) {

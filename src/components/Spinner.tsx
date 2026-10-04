@@ -118,7 +118,7 @@ export function SpinnerWithVerb({
   const { columns } = useTerminalSize()
   const inCockpit = useContext(CockpitActiveContext)
   const inWorkCapsule = useContext(WorkCapsuleContext)
-  const mainLoopModel = useSyncExternalStore(subscribeFocusedSpinnerModel, getFocusedSpinnerModel, getFocusedSpinnerModel)
+  const engineModel = useSyncExternalStore(subscribeFocusedSpinnerModel, getFocusedSpinnerModel, getFocusedSpinnerModel)
   const reducedMotion =
     useAppState(state => state.settings.view?.reducedMotion === true) ||
     isEnvTruthy(process.env.MERCURY_REDUCED_MOTION)
@@ -307,7 +307,7 @@ export function SpinnerWithVerb({
       crewmateTokens={crewmateTokens}
       foregroundedCrewmate={foregroundedCrewmate}
       leaderIsIdle={leaderIsIdle}
-      effortSuffix={getEffortSuffix(mainLoopModel, appEffort)}
+      effortSuffix={getEffortSuffix(engineModel, appEffort)}
       ttftText={ttftText}
       inWorkCapsule={inWorkCapsule}
       still={still}

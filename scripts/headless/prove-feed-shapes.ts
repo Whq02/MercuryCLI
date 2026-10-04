@@ -326,7 +326,7 @@ section('F3 — the seat-wire codecs: snake keys out, deep-equal back')
 section('F4 — the effort words on the wire are the one ladder')
 {
   const ladder = [...ladderModule.EFFORT_LEVELS]
-  const printSrc = readFileSync(join(ROOT, 'src/cli/print.ts'), 'utf8')
+  const printSrc = readFileSync(join(ROOT, 'src/cli/run.ts'), 'utf8')
   check("the runner's set_effort arm validates against the one ladder (isEffortLevel), no second enum", printSrc.includes("'session/set_effort': (params, ref) => {") && printSrc.includes("if (!isEffortLevel(requestedEffort)) throw refused("))
   check('the ladder ends at max', ladder.length >= 3 && ladder.every(word => typeof word === 'string') && ladder.at(-1) === 'max', j(ladder))
 }

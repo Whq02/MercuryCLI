@@ -62,7 +62,7 @@ function makeCtx(tools: readonly unknown[]): { ctx: Record<string, unknown>; abo
     options: {
       commands: [],
       tools,
-      mainLoopModel: 'claude-opus-4-8',
+      engineModel: 'claude-opus-4-8',
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},
@@ -288,8 +288,8 @@ console.log('── 5. the seams are guarded (structural) ──')
   t('…and wraps the render in a catch (a throwing hook costs one row)', /try \{\s*useMessage =\s*tool\.renderToolUseMessage/.test(row))
   const collapsed = read('src/components/messages/CollapsedReadSearchContent.tsx')
   t('the collapsed read/search row wraps the render in a catch', /try \{[^}]*tool\.renderToolUseMessage\?\.\(entry\.input/.test(collapsed))
-  const yolo = read('src/utils/permissions/yoloClassifier.ts')
-  t('the auto-mode classifier wraps every projection call in a catch', (yolo.match(/toAutoClassifierInput\?\.\(/g) ?? []).length >= 2 && (yolo.match(/try \{\s*(value =|const value =)\s*tool\.toAutoClassifierInput/g) ?? []).length >= 2)
+  const flow = read('src/utils/permissions/flowClassifier.ts')
+  t('the auto-mode classifier wraps every projection call in a catch', (flow.match(/toAutoClassifierInput\?\.\(/g) ?? []).length >= 2 && (flow.match(/try \{\s*(value =|const value =)\s*tool\.toAutoClassifierInput/g) ?? []).length >= 2)
   const messages = read('src/components/Messages.tsx')
   t('every transcript row still sits in the per-row boundary', /<RowErrorBoundary>\s*<MessageRow/.test(messages))
   const display = read('src/utils/file.ts')

@@ -9,8 +9,8 @@ import {
   deriveRunnerAgentDefinition,
   CREW_ESSENTIAL_TOOLS,
   type AgentLaunchPlanInput,
-} from '../../src/utils/swarm/agentLaunchPlan.js'
-import { findRoleDefinition } from '../../src/utils/swarm/roleResolver.js'
+} from '../../src/utils/crew/agentLaunchPlan.js'
+import { findRoleDefinition } from '../../src/utils/crew/roleResolver.js'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -70,7 +70,7 @@ section('2 · buildAgentLaunchPlan — decision laws')
     forkGateOn: false,
     forkAgent,
     defaultAgentType: 'orbit-probe',
-    mainLoopModel: 'claude-opus-4-8',
+    engineModel: 'claude-opus-4-8',
     backgroundTasksDisabled: false,
     forceAsync: false,
     ...over,

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { basename } from 'node:path';
 import { Box, useInput } from '../ink.js';
 import { createSplashCore, WORD_W } from '../../assets/splash/splash-core.mjs';
-import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
+import { useEngineModel } from '../hooks/useEngineModel.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { reloadAgentDefinitionsIntoAppState } from '../hooks/useAgentsChange.js';
 import { useSetAppStateMaybe } from '../state/AppState.js';
@@ -352,7 +352,7 @@ export function BootAgentsScreen({
   const rows = fullScene?.rows ?? termRows;
   const [workspaceDir] = useState(() => givenWorkspace ?? process.cwd());
   const faceTools = useMemo(() => (toolsOf ?? getAllBaseTools)(), [toolsOf]);
-  const mainModel = useMainLoopModel();
+  const mainModel = useEngineModel();
   const setAppStateMaybe = useSetAppStateMaybe();
 
   const [defs, setDefs] = useState<AgentDefinitionsResult | null>(given ?? null);

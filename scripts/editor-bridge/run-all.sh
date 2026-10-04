@@ -8,7 +8,7 @@
 # gate-watch: scripts/engine-durability/harness.ts scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts
 # gate-watch: scripts/prompts-panel/prove-panel-captures.ts scripts/release/package.mjs
 # gate-watch: scripts/release/payloadContract.mjs scripts/vscode/build-vsix.sh scripts/vscode/host-test/run.sh
-# gate-watch: src/bootstrap/state.ts src/cli/editorBridge.ts src/cli/print.ts
+# gate-watch: src/bootstrap/state.ts src/cli/editorBridge.ts src/cli/run.ts
 # gate-watch: src/keybindings/defaultBindings.ts src/keybindings/schema.ts src/services/journeys/runner.ts
 # gate-watch: src/services/mcp/client.ts src/services/resources/registry.ts src/services/run/*
 # gate-watch: src/substrate/sourceState.ts src/utils/* src/utils/git/gitFilesystem.ts

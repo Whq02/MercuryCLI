@@ -7,7 +7,7 @@ import {
 } from '../../utils/forkedAgent.js'
 import { logError } from '../../utils/log.js'
 import { createUserMessage } from '../../utils/messages.js'
-import type { REPLHookContext } from '../../utils/hooks/postSamplingHooks.js'
+import type { ChatHookContext } from '../../utils/hooks/postSamplingHooks.js'
 import { currentLimits } from '../claudeAiLimits.js'
 import type { AppState } from '../../state/AppState.js'
 import { isSpeculationEnabled, startSpeculation } from './speculation.js'
@@ -339,8 +339,8 @@ export function abortPromptSuggestion(): void {
   inFlightController = null
 }
 
-export async function executePromptSuggestion(context: REPLHookContext): Promise<void> {
-  if (context.querySource === undefined || !context.querySource.startsWith('repl_main_thread')) {
+export async function executePromptSuggestion(context: ChatHookContext): Promise<void> {
+  if (context.querySource === undefined || !context.querySource.startsWith('main_thread')) {
     return
   }
   const { getAppState, setAppState } = context.toolUseContext

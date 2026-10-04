@@ -60,7 +60,7 @@ const baseSnap = (over: Partial<Snap> = {}): Snap =>
   ({
     system: SYSTEM,
     toolSchemas: TOOLS('Alpha', 'Beta'),
-    querySource: 'repl_main_thread',
+    querySource: 'main_thread',
     model: 'claude-opus-5',
     lane: 'anthropic',
     ...over,
@@ -139,12 +139,12 @@ section('§B switch classes mint typed receipts')
   n = await drive(baseSnap({ model: 'gpt-5.2', lane: 'openai', toolSchemas: TOOLS('Alpha', 'Beta', 'Gamma') as never }), 8_500)
   check('sub-threshold drop → no receipt', n === 3, `receipts=${n}`)
 
-  det.notifyCompaction('repl_main_thread')
+  det.notifyCompaction('main_thread')
   n = await drive(baseSnap({ model: 'gpt-5.2', lane: 'openai', toolSchemas: TOOLS('Alpha', 'Beta', 'Gamma') as never }), 1_000)
   check('post-compaction drop → suppressed (baseline reset)', n === 3, `receipts=${n}`)
 
   await drive(baseSnap({ model: 'gpt-5.2', lane: 'openai', toolSchemas: TOOLS('Alpha', 'Beta', 'Gamma') as never }), 40_000)
-  det.notifyCacheDeletion('repl_main_thread')
+  det.notifyCacheDeletion('main_thread')
   n = await drive(baseSnap({ model: 'gpt-5.2', lane: 'openai', toolSchemas: TOOLS('Alpha', 'Beta', 'Gamma') as never }), 5_000)
   check('post-deletion drop → suppressed (expected reduction)', n === 3, `receipts=${n}`)
 }

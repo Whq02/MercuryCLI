@@ -203,9 +203,9 @@ section('6 · retention + wiring (structural — the module graph is not bun-loa
       readFileSync(join(ROOT, 'src', 'utils', 'model', 'modelTransition.ts'), 'utf8'),
     ),
   )
-  const repl = readFileSync(join(ROOT, 'src', 'screens', 'REPL.tsx'), 'utf8')
+  const repl = readFileSync(join(ROOT, 'src', 'screens', 'Chat.tsx'), 'utf8')
   check(
-    'the REPL boundary effect applies the parked switch exactly-once',
+    'the Chat boundary effect applies the parked switch exactly-once',
     repl.includes('pendingModelSwitch === null) return') &&
       repl.includes('settlePendingAtBoundary(') &&
       repl.includes('lastModelTransition: settled.receipt'),

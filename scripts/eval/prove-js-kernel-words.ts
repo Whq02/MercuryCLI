@@ -97,7 +97,7 @@ try {
   const t3 = transformJsCell('const s = `a${1}b`\nconst tpl = `${[1].map(v => `${v}`)}`var notSplit = 1')
   check('a brace closing a template interpolation never ends a segment', t3.code.includes('`${[1].map(v => `${v}`)}`var notSplit') , t3.code)
 
-  section('§5 the built product: the Eval tool in print mode, the results read off the wire')
+  section('§5 the built product: the Eval tool in run mode, the results read off the wire')
   const distAt = process.argv.indexOf('--dist')
   const DIST = distAt < 0 ? join(ROOT, 'dist', 'mercury.mjs') : resolve(process.argv[distAt + 1]!)
   const vendoredNode = join(ROOT, 'dist', 'vendor', 'node', 'bin', 'node')
@@ -200,7 +200,7 @@ try {
       }
     })()
     console.log(`        note: bundle under proof ${DIST} (${bundleFacts})`)
-    console.log(`        note: print mode exit ${outcome.exit} after ${outcome.ms}ms; ${requests.length} model requests`)
+    console.log(`        note: run exit ${outcome.exit} after ${outcome.ms}ms; ${requests.length} model requests`)
     for (const [i, r] of results.entries()) console.log(`        note: result ${i + 1}${r.isError ? ' (error)' : ''}: ${JSON.stringify(r.text.slice(0, i >= 9 ? 400 : 160))}`)
     check('the artifact ran the cells and closed the turn', outcome.exit === 0 && /kernel-words-probe: done/.test(outcome.stdout), `exit ${outcome.exit} ${JSON.stringify(outcome.stderr.slice(-300))}`)
     const expectedResults = pythonForChild !== null ? 12 : 11

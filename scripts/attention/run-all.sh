@@ -9,7 +9,7 @@
 # gate-watch: src/components/PromptInput/PromptInput.tsx src/components/mercury-ui/*
 # gate-watch: src/components/prompts-panel/PromptsPanel.tsx src/components/prompts-panel/rows.ts
 # gate-watch: src/daemon/concourseDispatch.ts src/history.ts src/keybindings/actionGraph.ts
-# gate-watch: src/screens/REPL.tsx src/services/engine-connector/daemonConnector.ts
+# gate-watch: src/screens/Chat.tsx src/services/engine-connector/daemonConnector.ts
 # gate-watch: src/services/engine-connector/focusedConnector.ts src/tools.ts src/utils/artifacts/anchors.ts
 # gate-watch: src/utils/artifacts/reviewStore.ts src/utils/cockpit/helmConsole.ts src/utils/pasteStore.ts
 # gate-watch: src/utils/promptDraft.ts

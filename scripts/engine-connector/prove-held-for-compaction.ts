@@ -111,7 +111,7 @@ g.setLiveStateWord('waiting-on-agents')
 check('the turn settling clears the held dress through the recompute road', sendOf(settled)?.heldFor === undefined && g.liveStateWord === null, j([sendOf(settled), g.liveStateWord]))
 
 section('H6 the composer and the plate (source pins)')
-const repl = readFileSync(join(SRC, 'screens/REPL.tsx'), 'utf8')
+const repl = readFileSync(join(SRC, 'screens/Chat.tsx'), 'utf8')
 check("the composer says the held line on a send while the focused seat's phase is compacting", repl.includes("if (getFocusedSeatLive().phase === 'compacting') {") && repl.includes("key: 'held-for-compaction'") && repl.includes('text: HELD_FOR_COMPACTION_LINE'))
 const plate = readFileSync(join(SRC, 'components/messages/TranscriptNameplate.tsx'), 'utf8')
 check('the plate paints held in place of queued when the meta says so', plate.includes("meta.heldFor === 'compaction' ? HELD_PLATE : QUEUED_PLATE"))

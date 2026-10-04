@@ -184,7 +184,6 @@ const TOOL_KINDS: Readonly<Record<string, AcpToolKind>> = {
   WebFetch: 'fetch',
   Bash: 'execute',
   PowerShell: 'execute',
-  REPL: 'execute',
   Debug: 'execute',
   Launch: 'execute',
   Test: 'execute',

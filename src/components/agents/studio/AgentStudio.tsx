@@ -40,7 +40,7 @@ import {
 import { GLYPH, truncateToWidth } from '../../mercury-ui/glyphs.js'
 import { useSessionAccent } from '../../mercury-ui/sessionAccent.js'
 import { useFlatList } from '../../mercury-ui/useFlatList.js'
-import { useMainLoopModel } from '../../../hooks/useMainLoopModel.js'
+import { useEngineModel } from '../../../hooks/useEngineModel.js'
 import TextInput from '../../TextInput.js'
 import { getAgentSourceDisplayName } from '../utils.js'
 import { StudioEditor, type StudioDraftBase } from './StudioEditor.js'
@@ -98,7 +98,7 @@ export function AgentStudio({ tools, initialMode, onExit }: Props): React.ReactN
   const sessionEffort = useAppState((s: AppState) => s.effortValue)
   const setAppState = useSetAppState()
   const mergedTools = useMergedTools(tools, mcpTools, toolPermissionContext)
-  const parentModel = useMainLoopModel()
+  const parentModel = useEngineModel()
   const cwd = getCwd()
 
   const [mode, setMode] = React.useState<Mode>(

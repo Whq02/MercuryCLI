@@ -174,7 +174,7 @@ from the command line or the kernel's own link to the binary, because the
 process table's command name there is the main thread's name. A
 window is read by its own registration (`<config home>/processes/`, a pid, a
 birth token and a heartbeat the cockpit writes and clears at exit) and by
-whether a live shell still owns its terminal; a daemon by its supervisor
+whether a live shell still owns its terminal; a daemon by its own
 record, its owner, its live sessions, schedules and persistence; a runner by
 the daemon's roster and its session's seat. Any live fact keeps a process
 running; an explicit or persistent daemon is never stale; a process whose

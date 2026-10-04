@@ -10,15 +10,15 @@
 # gate-watch: scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/lib/seedTranscript.ts scripts/lib/runnerHost.ts
 # gate-watch: scripts/api/read-instruction-heading.ts
 # gate-watch: docs/TRUST.md
-# gate-watch: src/memdir/mnemeGates.ts src/memdir/paths.ts src/tools/MemoryTools/prompt.ts src/utils/collapseReadSearch.ts src/utils/memoryFileDetection.ts
-# gate-watch: src/rows/turn.ts src/bootstrap/state.ts src/cli/headless/controlHandlers.ts src/cli/headless/runnerAsks.ts src/cli/print.ts
+# gate-watch: src/mneme/mnemeGates.ts src/mneme/paths.ts src/tools/MemoryTools/prompt.ts src/utils/collapseReadSearch.ts src/utils/memoryFileDetection.ts
+# gate-watch: src/rows/turn.ts src/bootstrap/state.ts src/cli/headless/controlHandlers.ts src/cli/headless/runnerAsks.ts src/cli/run.ts
 # gate-watch: src/cli/structuredIO.ts src/commands.ts src/components/FileEditToolDiff.tsx
 # gate-watch: src/components/MercuryFrame.tsx src/components/mercury-ui/compactModeChip.ts
 # gate-watch: src/components/permissions/** src/context.ts src/daemon/concourseSupervisor.ts src/daemon/headlessRun.ts
 # gate-watch: src/daemon/permissionAsks.ts src/daemon/sessionKit.ts src/daemon/warmRunner.ts
 # gate-watch: src/hooks/useCancelRequest.ts src/ink.ts
 # gate-watch: src/ink/components/StdinContext.ts src/ink/components/TerminalSizeContext.tsx src/ink/stringWidth.ts
-# gate-watch: src/interactiveHelpers.tsx src/main.tsx src/screens/REPL.tsx src/services/agents/codec.ts
+# gate-watch: src/interactiveHelpers.tsx src/main.tsx src/screens/Chat.tsx src/services/agents/codec.ts
 # gate-watch: src/services/desktop/toolName.ts src/services/engine-connector/daemonConnector.ts
 # gate-watch: src/services/instructions/engine.ts src/services/lsp/** src/services/mcp/** src/services/providers/**
 # gate-watch: src/services/switchboard/bootBirthFacts.ts src/services/switchboard/runnerArgv.ts
@@ -33,7 +33,7 @@
 # gate-watch: src/utils/healthReport.ts src/utils/messages/factories.ts src/utils/messages.ts src/utils/permissions/**
 # gate-watch: src/utils/platform.ts src/utils/sandbox/sandbox-adapter.ts src/utils/sessionStoragePortable.ts
 # gate-watch: src/utils/settings/** src/utils/subprocessEnv.ts src/utils/suggestions/directoryCompletion.ts
-# gate-watch: src/utils/swarm/agentLaunchPlan.ts src/utils/swarm/crewmateInit.ts
+# gate-watch: src/utils/crew/agentLaunchPlan.ts src/utils/crew/crewmateInit.ts
 # gate-watch: src/utils/processUserInput/processSlashCommand.tsx src/services/crew/liveMessages.ts src/utils/conversationRecovery.ts
 # gate-watch: src/daemon/controlSocket.ts src/daemon/protocol.ts src/services/engine-connector/seatProjections.ts
 # gate-watch: src/components/agents/studio/StudioEditor.tsx src/components/agents/studio/AgentStudio.tsx src/components/BootAgentsScreen.tsx

@@ -28,13 +28,13 @@ check('both message-actions keybinding groups are present unconditionally ', for
 check('shift+up still maps to chat:messageActions', /'shift\+up': 'chat:messageActions'/.test(binds))
 check('the MessageActions nav context survives (prev/next/escape)', /'messageActions:prev'/.test(binds) && /'messageActions:escape'/.test(binds))
 
-section('2. REPL: a single messageActionsDisabled gate, used at every render site')
-const repl = read('src', 'screens', 'REPL.tsx')
+section('2. Chat: a single messageActionsDisabled gate, used at every render site')
+const repl = read('src', 'screens', 'Chat.tsx')
 check('messageActionsDisabled is false unconditionally (no feature flag)', /const messageActionsDisabled = false;/.test(repl))
 check('the MessageActionsKeybindings render gates on the one disabled flag', /isActive=\{!messageActionsDisabled && focusedInputDialog === undefined\}/.test(repl))
 check('the onMessageActionsEnter handler gates on the one disabled flag', /onMessageActionsEnter=\{messageActionsDisabled \? undefined : messageActions\.enter\}/.test(repl))
-check('exactly one feature(MESSAGE_ACTIONS) in REPL (the messageActionsEnabled def)', (repl.match(/feature\('MESSAGE_ACTIONS'\)/g) ?? []).length === 0)
-check('the gate lives in the hand-written REPL() (no _c slot patched)', /export function REPL\(/.test(repl) && !/const \$ = _c\([\s\S]{0,4000}messageActionsDisabled/.test(repl))
+check('exactly one feature(MESSAGE_ACTIONS) in Chat (the messageActionsEnabled def)', (repl.match(/feature\('MESSAGE_ACTIONS'\)/g) ?? []).length === 0)
+check('the gate lives in the hand-written Chat() (no _c slot patched)', /export function Chat\(/.test(repl) && !/const \$ = _c\([\s\S]{0,4000}messageActionsDisabled/.test(repl))
 
 section('3. no env opt-out: message actions are unconditional (the compat env spelling retired with its estate)')
 check('no retired DISABLE_MESSAGE_ACTIONS env read remains', !/DISABLE_MESSAGE_ACTIONS/.test(repl))

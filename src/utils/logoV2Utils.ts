@@ -4,7 +4,7 @@ import type { LogOption } from '../types/logs.js'
 import { getSubscriptionName, isClaudeAISubscriber } from './auth.js'
 import { declaredRouteOf } from '../services/providers/callModelRouter.js'
 import { resolveOpenaiAccount } from '../services/providers/openai/openaiAccounts.js'
-import { getMainLoopModel } from './model/model.js'
+import { getEngineModel } from './model/model.js'
 import { getCwd } from './cwd.js'
 import { getDisplayPath } from './file.js'
 import { loadMessageLogs } from './sessionStorage.js'
@@ -53,7 +53,7 @@ export function getLogoDisplayData(): { version: string; cwd: string; billingTyp
   }
   const billingType = ((): string => {
     try {
-      const route = declaredRouteOf(getMainLoopModel())
+      const route = declaredRouteOf(getEngineModel())
       if (route === 'openai') return resolveOpenaiAccount()?.label ?? 'OpenAI account'
       if (route === 'zai') return 'Z.AI API usage billing'
       if (route === 'moonshot') return 'Moonshot API usage billing'

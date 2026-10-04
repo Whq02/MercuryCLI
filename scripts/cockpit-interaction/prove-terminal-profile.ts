@@ -26,7 +26,7 @@ t.section('POSIX floor')
   const noTty = resolveTerminalProfile({
     env: { TERM: 'xterm-256color' }, platform: 'darwin', isTTY: false, ...ALL_RECS,
   })
-  t.check('a tty-less stdout is unsupported (print mode is the path for pipes)', noTty.verdict === 'unsupported', noTty.verdict)
+  t.check('a tty-less stdout is unsupported (a run is the path for pipes)', noTty.verdict === 'unsupported', noTty.verdict)
 }
 
 t.section('the Windows host rule (operator ruling 3)')

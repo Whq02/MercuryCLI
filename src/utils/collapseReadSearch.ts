@@ -5,8 +5,6 @@ import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
 import { extractBashCommentLabel } from '../tools/BashTool/commentLabel.js'
 import { FILE_EDIT_TOOL_NAME } from '../tools/FileEditTool/constants.js'
 import { FILE_WRITE_TOOL_NAME } from '../tools/FileWriteTool/prompt.js'
-import { getReplPrimitiveTools } from '../tools/REPLTool/primitiveTools.js'
-import { REPL_TOOL_NAME } from '../tools/REPLTool/constants.js'
 import {
   detectGitOperation,
   type BranchAction,
@@ -35,7 +33,7 @@ import { isFullscreenEnvEnabled } from './fullscreen.js'
 import {
   isAutoManagedMemoryFile,
   isAutoManagedMemoryPattern,
-  isAutoMemFile,
+  isMnemeFile,
   isMemoryDirectory,
   isShellCommandTargetingMemory,
 } from './memoryFileDetection.js'
@@ -46,7 +44,6 @@ export type SearchOrReadResult = {
   isSearch: boolean
   isRead: boolean
   isList: boolean
-  isREPL: boolean
   isMemoryWrite: boolean
   absorbSilently: boolean
   isBashCommand: boolean
@@ -58,7 +55,6 @@ const NOT_COLLAPSIBLE: SearchOrReadResult = {
   isSearch: false,
   isRead: false,
   isList: false,
-  isREPL: false,
   isMemoryWrite: false,
   absorbSilently: false,
   isBashCommand: false,
@@ -83,12 +79,9 @@ export function getToolSearchOrReadInfo(
   toolInput: unknown,
   tools: Tools,
 ): SearchOrReadResult {
-  if (toolName === REPL_TOOL_NAME) {
-    return { ...NOT_COLLAPSIBLE, isCollapsible: true, isREPL: true, absorbSilently: true }
-  }
   if (toolName === FILE_WRITE_TOOL_NAME || toolName === FILE_EDIT_TOOL_NAME) {
     const targetPath = inputPath(toolInput)
-    if (targetPath !== undefined && isAutoManagedMemoryFile(targetPath) && !isAutoMemFile(targetPath)) {
+    if (targetPath !== undefined && isAutoManagedMemoryFile(targetPath) && !isMnemeFile(targetPath)) {
       return { ...NOT_COLLAPSIBLE, isCollapsible: true, isMemoryWrite: true }
     }
   }
@@ -96,7 +89,7 @@ export function getToolSearchOrReadInfo(
   if (fullscreen && toolName === TOOL_SEARCH_TOOL_NAME) {
     return { ...NOT_COLLAPSIBLE, isCollapsible: true, absorbSilently: true }
   }
-  const tool = findToolByName(tools, toolName) ?? findToolByName(getReplPrimitiveTools(), toolName)
+  const tool = findToolByName(tools, toolName)
   const flags = safeSearchOrReadClassification(tool, toolInput)
   if (!tool || !flags) {
     return NOT_COLLAPSIBLE
@@ -111,7 +104,6 @@ export function getToolSearchOrReadInfo(
     isSearch: flags.isSearch,
     isRead: flags.isRead,
     isList: Boolean(flags.isList),
-    isREPL: false,
     isMemoryWrite: false,
     absorbSilently: false,
     isBashCommand: fullscreen && isBash && !(flags.isSearch || flags.isRead),
@@ -127,7 +119,7 @@ export function getSearchOrReadFromContent(
   const block = content as { type?: unknown; name?: unknown; input?: unknown }
   if (block.type !== 'tool_use' || typeof block.name !== 'string') return null
   const info = getToolSearchOrReadInfo(block.name, block.input, tools)
-  if (!info.isCollapsible && !info.isREPL) return null
+  if (!info.isCollapsible) return null
   return info
 }
 
@@ -368,7 +360,6 @@ function buildCollapsedRow(group: OpenGroup): CollapsedReadSearchGroup {
     searchCount: reportedSearchCount,
     readCount: reportedReadCount,
     listCount: group.listCount,
-    replCount: 0,
     memorySearchCount: group.memorySearchCount,
     memoryReadCount,
     memoryWriteCount: group.memoryWriteCount,
@@ -600,7 +591,6 @@ export function getSearchReadSummaryText(
   searchCount: number,
   readCount: number,
   isActive: boolean,
-  replCount?: number,
   memoryCounts?: MemoryCounts,
   listCount?: number,
 ): string {
@@ -645,9 +635,6 @@ export function getSearchReadSummaryText(
       `${listCount} ${pluralize(listCount, 'directory', 'directories')}`,
       true,
     )
-  }
-  if (replCount !== undefined && replCount > 0) {
-    addClause("REPL'ing", "REPL'd", `${replCount} ${pluralize(replCount, 'time', 'times')}`, false)
   }
 
   const text = clauses.join(', ')

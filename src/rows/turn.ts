@@ -37,10 +37,10 @@ import { normalizeMessages } from '../utils/messages.js'
 import { isNotEmptyMessage } from '../utils/messages/text.js'
 import { NO_CONTENT_MESSAGE } from '../constants/messages.js'
 import { turnCutOf } from '../utils/messages/turnCut.js'
-import { getMainLoopModel } from '../utils/model/model.js'
+import { getEngineModel } from '../utils/model/model.js'
 import { getModelUsage, getTotalAPIDuration, getTotalCostUSD, getUnpricedTurns } from '../bootstrap/state.js'
 import type { ModelUsage } from '../bootstrap/state.js'
-import { notePrintPhase } from '../utils/printPhases.js'
+import { noteRunPhase } from '../utils/runPhases.js'
 import { processUserInput } from '../utils/processUserInput/processUserInput.js'
 import { getSlashCommandToolSkills } from '../commands.js'
 import { ensureExtensionsLoaded } from '../extensions/boot.js'
@@ -53,8 +53,8 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 import type { ThinkingConfig } from '../utils/thinking.js'
 import { shouldEnableThinkingByDefault } from '../utils/thinking.js'
 import { asSystemPrompt } from '../utils/systemPromptType.js'
-import { loadMemoryPrompt } from '../memdir/mnemeFrontPage.js'
-import { hasAutoMemPathOverride } from '../memdir/paths.js'
+import { loadMemoryPrompt } from '../mneme/mnemeFrontPage.js'
+import { hasMnemeHomeOverride } from '../mneme/paths.js'
 import { getCwd } from '../utils/cwd.js'
 import {
   commandOutputRow,
@@ -353,14 +353,14 @@ export class Conversation {
     }) as CanUseTool
 
     const appStateSnapshot = config.getAppState()
-    const resolvedModel = this.userSpecifiedModel ?? getMainLoopModel()
+    const resolvedModel = this.userSpecifiedModel ?? getEngineModel()
     const thinkingConfig: ThinkingConfig =
       config.thinkingConfig ?? (shouldEnableThinkingByDefault() ? ({ type: 'adaptive' } as ThinkingConfig) : ({ type: 'disabled' } as ThinkingConfig))
 
     headlessProfilerCheckpoint('before_getSystemPrompt')
     const promptParts = await fetchSystemPromptParts({
       tools: config.tools,
-      mainLoopModel: resolvedModel,
+      engineModel: resolvedModel,
       mcpClients: config.mcpClients,
       customSystemPrompt: config.customSystemPrompt,
       permissionMode: appStateSnapshot.toolPermissionContext.mode,
@@ -368,7 +368,7 @@ export class Conversation {
     headlessProfilerCheckpoint('after_getSystemPrompt')
 
     let memoryMechanicsPrompt: string | null = null
-    if (config.customSystemPrompt !== undefined && hasAutoMemPathOverride()) memoryMechanicsPrompt = await loadMemoryPrompt()
+    if (config.customSystemPrompt !== undefined && hasMnemeHomeOverride()) memoryMechanicsPrompt = await loadMemoryPrompt()
 
     const systemPromptSections: string[] = config.customSystemPrompt !== undefined ? [MERCURY_IDENTITY_FLOOR, config.customSystemPrompt] : [...promptParts.defaultSystemPrompt]
     if (memoryMechanicsPrompt) systemPromptSections.push(memoryMechanicsPrompt)
@@ -394,7 +394,7 @@ export class Conversation {
         commands: config.commands,
         debug: false,
         verbose: false,
-        mainLoopModel: model,
+        engineModel: model,
         thinkingConfig,
         tools: config.tools,
         mcpClients: config.mcpClients,
@@ -583,7 +583,7 @@ export class Conversation {
         if (usage.input_tokens === 0 && usage.output_tokens === 0) continue
         this.accumulatedUsage = accumulateUsage(this.accumulatedUsage, usage)
       }
-      notePrintPhase('settlement')
+      noteRunPhase('settlement')
       const unpricedNow = getUnpricedTurns()
       const unpricedModels = new Set(Object.keys(unpricedNow).filter(model => (unpricedNow[model] ?? 0) > (unpricedAtStart[model] ?? 0)))
       const apiMs = Math.max(0, getTotalAPIDuration() - apiDurationAtStart)
@@ -613,7 +613,7 @@ export class Conversation {
     const closeTurn = (status: OutcomeStatus, extra: Partial<OutcomeFacts> = {}): RowDraft => outcomeRow({ ...scope, turn: turnOrdinal }, outcomeFactsOf(status, extra))
 
     headlessProfilerCheckpoint('turn_row_yielded')
-    notePrintPhase('assembly')
+    noteRunPhase('assembly')
 
     if (!inputResult.shouldQuery) {
       let commandAnswer = ''
@@ -695,7 +695,7 @@ export class Conversation {
     }
 
     for await (const event of queryEvents(queryParams) as AsyncGenerator<RunEvent, unknown, unknown>) {
-      notePrintPhase('first_canonical_event')
+      noteRunPhase('first_canonical_event')
       config.onLiveness?.()
       if (event.kind === 'run_terminal') {
         terminal = event.terminal
@@ -900,7 +900,7 @@ export class Conversation {
       }
     }
 
-    notePrintPhase('terminal')
+    noteRunPhase('terminal')
     if (eagerFlush) await flushSessionStorage()
     const open = steps.flush()
     if (open !== null) yield open

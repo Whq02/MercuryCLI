@@ -514,11 +514,11 @@ section('§6 step 6: the model is set through /model\'s road and one bounded nat
   const fx = await fixtureOllama()
   fx.state.up = true
   fx.state.listed = [TAG]
-  const slice: setup.SessionModelSlice = { mainLoopModel: null, mainLoopModelForSession: null, pendingModelSwitch: null, foregroundTurnActive: false }
+  const slice: setup.SessionModelSlice = { engineModel: null, engineModelForSession: null, pendingModelSwitch: null, foregroundTurnActive: false }
   const persisted: string[] = []
   const io: setup.ProveIo = { ...machineIo(bareMachine(), fx, { setAppState: updater => Object.assign(slice, updater(slice)), persist: setting => (persisted.push(setting), { sentence: ' · saved as your default' }) }), root: fx.root, server: 'ollama' }
   const proved = await setup.pickAndProve(TAG, io)
-  check('the session model is local/qwen3.5:9b, applied', proved.model === 'local/qwen3.5:9b' && proved.settled === 'applied' && slice.mainLoopModel === 'local/qwen3.5:9b' && slice.lastModelTransition?.applied === 'local/qwen3.5:9b', JSON.stringify({ proved: proved.model, settled: proved.settled, slice }))
+  check('the session model is local/qwen3.5:9b, applied', proved.model === 'local/qwen3.5:9b' && proved.settled === 'applied' && slice.engineModel === 'local/qwen3.5:9b' && slice.lastModelTransition?.applied === 'local/qwen3.5:9b', JSON.stringify({ proved: proved.model, settled: proved.settled, slice }))
   check('the choice is persisted the way /model persists it', persisted.join(',') === 'local/qwen3.5:9b' && proved.saved === ' · saved as your default')
   check('the fixture reply "ready" is the first line', proved.ok && proved.firstLine === 'ready', JSON.stringify(proved))
   const chat = fx.hits.find(h => h.url === '/api/chat')
@@ -530,9 +530,9 @@ section('§6 step 6: the model is set through /model\'s road and one bounded nat
   check('the timings come from the done row: load 5.2 s, 14 prompt tokens in 0.3 s, 2 reply tokens', proved.timings.loadMs === 5200 && proved.timings.promptTokens === 14 && proved.timings.promptMs === 300 && proved.timings.evalTokens === 2 && proved.timings.evalMs === 200 && proved.timings.totalMs >= 0, JSON.stringify(proved.timings))
   check('the ready row', /^ready · local\/qwen3\.5:9b · 128k window · reply in [\d.]+ s$/.test(proved.words), proved.words)
   check('no /api/generate load and no /v1 road', !fx.hits.some(h => h.url === '/api/generate' || h.url === '/v1/chat/completions'), JSON.stringify(fx.hits.map(h => h.url)))
-  const busy: setup.SessionModelSlice = { mainLoopModel: 'claude-fixture', mainLoopModelForSession: null, pendingModelSwitch: null, foregroundTurnActive: true }
+  const busy: setup.SessionModelSlice = { engineModel: 'claude-fixture', engineModelForSession: null, pendingModelSwitch: null, foregroundTurnActive: true }
   const queued = await setup.pickAndProve(TAG, { ...io, setAppState: updater => Object.assign(busy, updater(busy)) })
-  check('a running turn queues the switch, as /model does', queued.settled === 'queued' && busy.pendingModelSwitch?.setting === 'local/qwen3.5:9b' && busy.mainLoopModel === 'claude-fixture', JSON.stringify(busy))
+  check('a running turn queues the switch, as /model does', queued.settled === 'queued' && busy.pendingModelSwitch?.setting === 'local/qwen3.5:9b' && busy.engineModel === 'claude-fixture', JSON.stringify(busy))
   const headless = await setup.pickAndProve(TAG, { ...io, setAppState: undefined })
   check('with no store the settle is unavailable and the setting is still saved', headless.settled === 'unavailable' && headless.settledBy === 'none' && headless.ok && persisted.length === 3)
   check('the in-process legs above went through the state setter, never a door', proved.settledBy === 'in-process' && queued.settledBy === 'in-process')
@@ -544,7 +544,7 @@ section('§6b the session door: a daemon-carried session switches through its co
   const fx = await fixtureOllama()
   fx.state.up = true
   fx.state.listed = [TAG]
-  const untouched: setup.SessionModelSlice = { mainLoopModel: 'claude-fixture', mainLoopModelForSession: null, pendingModelSwitch: null, foregroundTurnActive: false }
+  const untouched: setup.SessionModelSlice = { engineModel: 'claude-fixture', engineModelForSession: null, pendingModelSwitch: null, foregroundTurnActive: false }
   let stateSets = 0
   const persisted: string[] = []
   const door = daemonDoor()
@@ -563,7 +563,7 @@ section('§6b the session door: a daemon-carried session switches through its co
   const applied = await setup.pickAndProve(TAG, io)
   check('the daemon door was asked to set local/qwen3.5:9b, once', door.asked.join(',') === 'local/qwen3.5:9b', JSON.stringify(door.asked))
   check('the receipt is the daemon\'s word: applied, by the daemon', applied.settled === 'applied' && applied.settledBy === 'daemon' && applied.settledDetail === undefined, JSON.stringify({ settled: applied.settled, by: applied.settledBy }))
-  check('the screen\'s state was never settled (the session owns the model)', stateSets === 0 && untouched.mainLoopModel === 'claude-fixture' && untouched.pendingModelSwitch === null, JSON.stringify(untouched))
+  check('the screen\'s state was never settled (the session owns the model)', stateSets === 0 && untouched.engineModel === 'claude-fixture' && untouched.pendingModelSwitch === null, JSON.stringify(untouched))
   check('the choice is persisted after an applied receipt, as /model persists it', persisted.join(',') === 'local/qwen3.5:9b' && applied.saved === ' · saved as your default')
   check('the turn still ran and answered ready', applied.ok && applied.firstLine === 'ready' && fx.hits.filter(h => h.url === '/api/chat').length === 1)
   door.answer = { state: 'queued' }
@@ -604,7 +604,7 @@ section('§7 the road: a model already on the server is chosen and needs no pull
   const fx = await fixtureOllama()
   fx.state.listed = [TAG]
   const m = withBinary(bareMachine('darwin'), fx)
-  const slice: setup.SessionModelSlice = { mainLoopModel: null, mainLoopModelForSession: null, pendingModelSwitch: null, foregroundTurnActive: false }
+  const slice: setup.SessionModelSlice = { engineModel: null, engineModelForSession: null, pendingModelSwitch: null, foregroundTurnActive: false }
   const asked: string[] = []
   const io = machineIo(m, fx, { setAppState: updater => Object.assign(slice, updater(slice)), persist: () => ({ sentence: '' }) })
   const { events, summary } = await walk(
@@ -626,7 +626,7 @@ section('§7 the road: a model already on the server is chosen and needs no pull
   const plans = plansOf(events)
   check('every running step carries the three lines: found, willRun, keys; the choice carries found, rows, keys', plans.filter(p => p.kind !== 'choose').every(p => p.found.length > 0 && p.willRun.length > 0 && p.keys === setup.SETUP_KEYS_LINE) && plans.length === 6)
   check('step 3 will-run is the detached serve; step 5 names the show and the setting key; step 6 names /model and /api/chat with num_ctx', plans[2]!.willRun.startsWith(`${FIXTURE_BIN} serve (detached, log `) && plans[4]!.willRun.includes(`POST ${fx.root}/api/show {"model":"qwen3.5:9b"}`) && plans[4]!.willRun.includes('localModelWindows["local/qwen3.5:9b"]') && plans[5]!.willRun.startsWith('/model local/qwen3.5:9b · POST ') && plans[5]!.willRun.includes('"num_ctx":262144'), plans.map(p => p.willRun).join('\n'))
-  check('the session model was set by step 6', slice.mainLoopModel === 'local/qwen3.5:9b')
+  check('the session model was set by step 6', slice.engineModel === 'local/qwen3.5:9b')
   fx.state.listed = []
   fx.hits.length = 0
   const skipped = await walk(pickAt('4', BIG, plan => (plan.label === '4b' ? 'skip' : 'run')), io)
@@ -670,13 +670,13 @@ section('§9 the road end to end: install offered, run through the seam, then st
     }
     return undefined
   }
-  const slice: setup.SessionModelSlice = { mainLoopModel: 'claude-fixture', mainLoopModelForSession: null, pendingModelSwitch: null, foregroundTurnActive: false }
+  const slice: setup.SessionModelSlice = { engineModel: 'claude-fixture', engineModelForSession: null, pendingModelSwitch: null, foregroundTurnActive: false }
   const door = daemonDoor()
   const io = machineIo(m, fx, { focusedConnector: () => door, setAppState: updater => Object.assign(slice, updater(slice)), persist: () => ({ sentence: '' }), realpath: p => p })
   const { events, summary } = await walk(pickAt('4', TAG), io)
   const shape = stepEvents(events)
   check('the walk: 1 · 2 (none) · 2b (brew install) · 3 (brew services start) · 4 (the 9B chosen from the pull list) · 4b (pull) · 5 · 6', shape.filter(s => !s.startsWith('progress')).join(' | ') === 'step 1 | result 1 ran | step 2 | result 2 ran | step 2b | result 2b ran | step 3 | result 3 ran | step 4 | result 4 ran | step 4b | result 4b ran | step 5 | result 5 ran | step 6 | result 6 ran | done finished', shape.join(' | '))
-  check('on a daemon-carried session the road switches through the session door, not the screen state', door.asked.join(',') === 'local/qwen3.5:9b' && slice.mainLoopModel === 'claude-fixture', JSON.stringify({ asked: door.asked, slice }))
+  check('on a daemon-carried session the road switches through the session door, not the screen state', door.asked.join(',') === 'local/qwen3.5:9b' && slice.engineModel === 'claude-fixture', JSON.stringify({ asked: door.asked, slice }))
   const step2b = events.find((e): e is Extract<setup.SetupEvent, { type: 'step' }> => e.type === 'step' && e.plan.label === '2b')!
   check('step 2b shows the documented command verbatim and no sudo on darwin', step2b.plan.willRun === 'brew install ollama' && !step2b.plan.needsSudo && step2b.plan.found.includes('ollama not found'), JSON.stringify(step2b.plan))
   check('the install ran through the exec seam as sh -c', m.execs.some(e => e.file === '/bin/sh' && e.args[1] === 'brew install ollama'))
@@ -706,7 +706,7 @@ section('§10 LM Studio answering ⇒ the road ends at step 6 on that server\'s 
 {
   const lm = await fixtureLmStudio()
   const m = bareMachine('darwin')
-  const slice: setup.SessionModelSlice = { mainLoopModel: null, mainLoopModelForSession: null, pendingModelSwitch: null, foregroundTurnActive: false }
+  const slice: setup.SessionModelSlice = { engineModel: null, engineModelForSession: null, pendingModelSwitch: null, foregroundTurnActive: false }
   const io = machineIo(m, undefined, { env: { PATH: '/nowhere', MERCURY_LOCAL_PROBE_TARGETS: `lmstudio=${lm.root}` }, setAppState: updater => Object.assign(slice, updater(slice)), persist: () => ({ sentence: '' }) })
   const found = await setup.detectLocalServers(io)
   check('LM Studio is detected with its loaded model first', found.kind === 'lmstudio' && found.models[0] === 'google/gemma-4-26b-a4b' && found.words.includes('keeps working'), JSON.stringify(found))
@@ -716,7 +716,7 @@ section('§10 LM Studio answering ⇒ the road ends at step 6 on that server\'s 
   check('step 6 names that server\'s model and its /v1 road', step6.plan.willRun.startsWith('/model local/google/gemma-4-26b-a4b · POST ') && step6.plan.willRun.includes(`${lm.root}/v1/chat/completions`) && step6.plan.found.includes('nothing is installed or started'), step6.plan.willRun)
   const lmChat = lm.hits.find(h => h.url === '/v1/chat/completions')
   check('the will-run line IS the compat body that was sent', step6.plan.willRun === `/model local/google/gemma-4-26b-a4b · POST ${lm.root}/v1/chat/completions ${lmChat?.body ?? ''}`, `${step6.plan.willRun}\n${lmChat?.body}`)
-  check('the model set is the LM Studio model and the reply is ready', slice.mainLoopModel === 'local/google/gemma-4-26b-a4b' && summary.ready?.ok === true && summary.ready.firstLine === 'ready' && summary.ready.server === 'lmstudio', JSON.stringify(summary.ready))
+  check('the model set is the LM Studio model and the reply is ready', slice.engineModel === 'local/google/gemma-4-26b-a4b' && summary.ready?.ok === true && summary.ready.firstLine === 'ready' && summary.ready.server === 'lmstudio', JSON.stringify(summary.ready))
   check('the ready row names the served window', summary.ready?.words.startsWith('ready · local/google/gemma-4-26b-a4b · 8k window (served) · reply in ') === true, summary.ready?.words)
   check('no install or start was attempted', m.execs.length === 0 && summary.ran.join(',') === '1,6' && summary.notDone.length === 0)
   check('LM Studio saw only its listing and one chat', lm.hits.map(h => h.url).every(u => u === '/api/v1/models' || u === '/v1/chat/completions') && lm.hits.filter(h => h.url === '/v1/chat/completions').length === 1, JSON.stringify(lm.hits.map(h => h.url)))
@@ -748,7 +748,7 @@ section('§12 the choice: a server with two models and a session on the 27B — 
   const fx = await fixtureOllama()
   fx.state.up = true
   fx.state.listed = [BIG, OWNER_9B]
-  const slice: setup.SessionModelSlice = { mainLoopModel: BIG_ID, mainLoopModelForSession: null, pendingModelSwitch: null, foregroundTurnActive: false }
+  const slice: setup.SessionModelSlice = { engineModel: BIG_ID, engineModelForSession: null, pendingModelSwitch: null, foregroundTurnActive: false }
   const persisted: string[] = []
   const written: Array<[string, number]> = []
   const io = machineIo(bareMachine(), fx, { currentModel: () => BIG_ID, setAppState: updater => Object.assign(slice, updater(slice)), persist: setting => (persisted.push(setting), { sentence: '' }), writeWindow: (tag, window) => written.push([tag, window]) })
@@ -766,7 +766,7 @@ section('§12 the choice: a server with two models and a session on the 27B — 
   check('step 5 names the 27B: its show and its own setting key', step5?.found.startsWith(`${BIG} at ${fx.root}`) === true && step5?.willRun === `GET ${fx.root}/api/tags · POST ${fx.root}/api/show {"model":"qwen3.5:27b"} → localModelWindows["local/qwen3.5:27b"] in the config home (nothing is written to the server's environment)`, step5?.willRun)
   check("step 5's fit is the 27B's own geometry: 256k · 15.8 GiB weights + 16.0 GiB cache of 36.9 GiB usable (48.0 GiB box) · f16 · 1 slot, written under the 27B's key", resultOf(events, '5')?.lastLine === '256k · 15.8 GiB weights + 16.0 GiB cache of 36.9 GiB usable (48.0 GiB box) · f16 · 1 slot' && written.length === 1 && written[0]![0] === BIG && written[0]![1] === 262144, `${resultOf(events, '5')?.lastLine} · ${JSON.stringify(written)}`)
   const chats = fx.hits.filter(h => h.url === '/api/chat')
-  check('step 6 proves the 27B on the native road and the session stays on it (a no-op switch, nothing else persisted)', chats.length === 1 && (JSON.parse(chats[0]!.body) as { model?: string }).model === BIG && planOf(events, '6')?.willRun.startsWith(`/model ${BIG_ID} · POST `) === true && summary.ready?.model === BIG_ID && summary.ready.settled === 'no-op' && slice.mainLoopModel === BIG_ID && persisted.join(',') === BIG_ID, JSON.stringify({ chats: chats.map(c => c.body.slice(0, 60)), settled: summary.ready?.settled, slice, persisted }))
+  check('step 6 proves the 27B on the native road and the session stays on it (a no-op switch, nothing else persisted)', chats.length === 1 && (JSON.parse(chats[0]!.body) as { model?: string }).model === BIG && planOf(events, '6')?.willRun.startsWith(`/model ${BIG_ID} · POST `) === true && summary.ready?.model === BIG_ID && summary.ready.settled === 'no-op' && slice.engineModel === BIG_ID && persisted.join(',') === BIG_ID, JSON.stringify({ chats: chats.map(c => c.body.slice(0, 60)), settled: summary.ready?.settled, slice, persisted }))
   check('the 9B was never pulled, sized or proven (the road shows only the chosen 27B; the listing probes are discovery\'s own)', !fx.hits.some(h => h.url === '/api/pull') && !fx.hits.some(h => h.url === '/api/show' && h.body === JSON.stringify({ model: TAG })) && !fx.hits.some(h => h.url === '/api/chat' && !h.body.includes(`"model":"${BIG}"`)), JSON.stringify(fx.hits.map(h => `${h.url} ${h.body.slice(0, 40)}`)))
   check('the ready row names the 27B', summary.words.startsWith(`done: 1, 4, 5, 6 · ready · ${BIG_ID} · 256k window · reply in `), summary.words)
 
@@ -774,7 +774,7 @@ section('§12 the choice: a server with two models and a session on the 27B — 
   persisted.length = 0
   written.length = 0
   const kept = await walk(plan => (plan.label === '4' ? 'stop' : 'run'), io)
-  check('esc at the choice keeps the 27B: stopped at 4, nothing pulled, shown, proven, switched or persisted', kept.summary.reason === 'stopped' && kept.summary.stoppedAt === '4' && kept.summary.kept === BIG_ID && kept.summary.words === `stopped at step 4 · done: 1 · not done: 4, 5, 6 · the model stays ${BIG_ID}` && !fx.hits.some(h => h.url === '/api/pull' || h.url === '/api/chat') && persisted.length === 0 && written.length === 0 && slice.mainLoopModel === BIG_ID, kept.summary.words)
+  check('esc at the choice keeps the 27B: stopped at 4, nothing pulled, shown, proven, switched or persisted', kept.summary.reason === 'stopped' && kept.summary.stoppedAt === '4' && kept.summary.kept === BIG_ID && kept.summary.words === `stopped at step 4 · done: 1 · not done: 4, 5, 6 · the model stays ${BIG_ID}` && !fx.hits.some(h => h.url === '/api/pull' || h.url === '/api/chat') && persisted.length === 0 && written.length === 0 && slice.engineModel === BIG_ID, kept.summary.words)
   const defaulted = await walk(() => 'run', io)
   check('a consent that only ever says run never sets anything up: the choice has no default', defaulted.summary.reason === 'stopped' && defaulted.summary.stoppedAt === '4' && defaulted.summary.kept === BIG_ID && !fx.hits.some(h => h.url === '/api/pull' || h.url === '/api/chat') && persisted.length === 0, defaulted.summary.words)
   const skippedChoice = await walk(plan => (plan.label === '4' ? 'skip' : 'run'), io)

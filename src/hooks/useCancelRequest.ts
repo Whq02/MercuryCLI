@@ -24,7 +24,7 @@ import { workCounts } from '../services/engine-connector/workCounts.js'
 import type { Message } from '../types/message.js'
 import { createSystemMessage } from '../utils/messages/systemMessages.js'
 import * as pendingInput from '../input-core/pending-input.js'
-import type { Screen } from '../screens/REPL.js'
+import type { Screen } from '../screens/Chat.js'
 import type { CompactWorkControls } from '../components/tasks/CompactWorkSummary.js'
 import type { VimMode } from '../types/textInputTypes.js'
 import {

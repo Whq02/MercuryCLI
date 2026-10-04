@@ -165,7 +165,7 @@ function paramsFor(messages: unknown[], extra: Record<string, unknown>): Record<
     signal: new AbortController().signal,
     options: {
       model: PERSISTED,
-      querySource: 'repl_main_thread',
+      querySource: 'main_thread',
       getToolPermissionContext: async () => ({ mode: 'default' }) as never,
       ...extra,
     } as never,
@@ -250,8 +250,8 @@ let baseline: { starts: number; sets: string[]; cachedOnRoundTwo: number | undef
 section('2 · the keep-alive touch and the confirmation after the reply carry the SAME set: a touch on the clock is POST /api/generate with the held num_ctx and num_batch, the confirmation is a GET /api/ps — neither restarts the runner')
 {
   const history: unknown[] = [userRow('earlier question'), { type: 'assistant', uuid: '00000000-0000-4000-8000-00000000a55f', timestamp: new Date().toISOString(), message: { id: 'm1', type: 'message', role: 'assistant', model: MODEL, content: [{ type: 'text', text: 'earlier answer', citations: null }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } } }]
-  const context = () => ({ systemPrompt: ['x'], userContext: {}, systemContext: {}, toolUseContext: { options: { tools: [], thinkingConfig: { type: 'disabled' }, mainLoopModel: PERSISTED, agentDefinitions: { activeAgents: [], allAgents: [] }, commands: [], mcpClients: [], isNonInteractiveSession: true }, getAppState: () => ({ toolPermissionContext: { mode: 'default' }, mcp: { clients: [], tools: [] }, effortValue: undefined }), setAppState: () => {}, abortController: new AbortController(), messages: history }, forkContextMessages: history })
-  bootstrap.setMainLoopModelOverride(PERSISTED)
+  const context = () => ({ systemPrompt: ['x'], userContext: {}, systemContext: {}, toolUseContext: { options: { tools: [], thinkingConfig: { type: 'disabled' }, engineModel: PERSISTED, agentDefinitions: { activeAgents: [], allAgents: [] }, commands: [], mcpClients: [], isNonInteractiveSession: true }, getAppState: () => ({ toolPermissionContext: { mode: 'default' }, mcp: { clients: [], tools: [] }, effortValue: undefined }), setAppState: () => {}, abortController: new AbortController(), messages: history }, forkContextMessages: history })
+  bootstrap.setEngineModelOverride(PERSISTED)
   const disarm = warmModule.armLocalWarm(context as never, { live: () => true, io: { now: fixtureNow, settleMs: 10, tickMs: 60_000, ceilingMs: 10_000 } })
   const clockStarted = await (async () => {
     const until = Date.now() + 3_000
@@ -280,7 +280,7 @@ section('3 · every seat of the session sends the held set: the main thread, a c
   await resetWorld(undefined)
   const from = state.hits.length
   const seats: Array<{ label: string; text: string; extra: Record<string, unknown> }> = [
-    { label: 'the main thread', text: 'x'.repeat(80_000), extra: { querySource: 'repl_main_thread' } },
+    { label: 'the main thread', text: 'x'.repeat(80_000), extra: { querySource: 'main_thread' } },
     { label: 'a crewmate (Agent tool, mercury-crew)', text: 'y'.repeat(20_000), extra: { agentId: 'agent-000001', querySource: 'agent:builtin:mercury-crew' } },
     { label: 'a workflow agent (Workflow tool agent() call)', text: 'z'.repeat(60_000), extra: { agentId: 'agent-000002', querySource: 'agent:custom' } },
   ]

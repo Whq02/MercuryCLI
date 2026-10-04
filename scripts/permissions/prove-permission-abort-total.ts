@@ -142,8 +142,8 @@ console.log('— behavioral: settle-on-abort is total —')
   t('reject-then-abort resolves exactly once', h.resolutions.length === 1)
 }
 
-console.log('— structural: REPL / CancelRequestHandler wiring —')
-const repl = readFileSync('src/screens/REPL.tsx', 'utf8')
+console.log('— structural: Chat / CancelRequestHandler wiring —')
+const repl = readFileSync('src/screens/Chat.tsx', 'utf8')
 const cancel = readFileSync('src/hooks/useCancelRequest.ts', 'utf8')
 
 const connector = readFileSync('src/services/engine-connector/daemonConnector.ts', 'utf8')

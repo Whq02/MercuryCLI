@@ -81,7 +81,7 @@ for (const until = Date.now() + bound(BOOT_BOUND_MS); Date.now() < until; ) {
 }
 const before = listing()
 console.log(`the daemon directory before the removal:\n  ${before.join('\n  ')}`)
-tally.check('the daemon booted and wrote its supervisor record', booted, logOf().slice(-600))
+tally.check('the daemon booted and wrote its record', booted, logOf().slice(-600))
 
 tally.section("the daemon directory is removed under the running daemon")
 rmSync(daemonDir, { recursive: true, force: true })

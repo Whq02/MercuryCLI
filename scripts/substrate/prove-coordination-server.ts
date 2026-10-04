@@ -23,7 +23,7 @@ import {
 import {
   writeCrewFileAsync,
   type CrewFile,
-} from '../../src/utils/swarm/crewHelpers.js'
+} from '../../src/utils/crew/crewHelpers.js'
 import { liveMessagesFor } from '../../src/services/crew/liveComms.js'
 import { getCrewsDir } from '../../src/utils/envUtils.js'
 import { sanitizePathComponent } from '../../src/utils/tasks.js'

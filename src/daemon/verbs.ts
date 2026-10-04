@@ -12,10 +12,10 @@ export type DaemonVerb =
 
 export const DAEMON_USAGE = [
   'usage: mercury daemon [run [dir] | status | stop | restart | --help]',
-  '  (bare)          start the supervisor for the current folder (same as run)',
-  '  run [dir]       start the supervisor scheduling for dir (default: the current folder)',
-  '  status          probe the running supervisor and print its state',
-  '  stop            ask the supervisor to shut down; every in-flight worker is reaped with it',
+  '  (bare)          start the daemon for the current folder (same as run)',
+  '  run [dir]       start the daemon scheduling for dir (default: the current folder)',
+  '  status          probe the running daemon and print its state',
+  '  stop            ask the daemon to shut down; every in-flight worker is reaped with it',
   '  restart         re-execute the daemon as the deployed build when idle',
 ].join('\n')
 

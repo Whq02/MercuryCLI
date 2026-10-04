@@ -44,7 +44,7 @@ const row = (over: Partial<Row>): Row =>
 const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
 const screen = read('src/components/concourse/ConcourseScreen.tsx')
 const layout = read('src/components/concourse/ConcourseLayout.tsx')
-const ESC_EXIT = 'callbacks.exitToRepl()\n      return\n    }'
+const ESC_EXIT = 'callbacks.exitToChat()\n      return\n    }'
 const escLadderAt = screen.lastIndexOf('if (key.escape) {', screen.indexOf('if (olderListRef.current !== null) {'))
 const escLadder = escLadderAt === -1 ? '' : screen.slice(escLadderAt, screen.indexOf(ESC_EXIT, escLadderAt) + ESC_EXIT.length)
 
@@ -103,7 +103,7 @@ console.log('§1 — marking (item 1): space toggles in the list region; screen 
       !/persistDraft\([^)]*marked/.test(screen),
   )
   check(
-    'esc clears all marks as its own layer (after the peek close, before exitToRepl)',
+    'esc clears all marks as its own layer (after the peek close, before exitToChat)',
     ordered(escLadder, 'setRowPeekOpen(false)\n        return', 'if (markedIdsRef.current.size > 0) {') &&
       ordered(escLadder, 'if (markedIdsRef.current.size > 0) {', ESC_EXIT),
   )

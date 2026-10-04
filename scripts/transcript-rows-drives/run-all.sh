@@ -4,7 +4,7 @@
 # gate-watch: scripts/computer/computerDriveKit.ts scripts/lib/* scripts/streaming/artifactArena.ts
 # gate-watch: scripts/transcript-rows/* scripts/ui/* src/components/CustomSelect/use-select-input.ts
 # gate-watch: src/components/permissions/PermissionRequest.tsx src/input-core/pending-input.ts
-# gate-watch: src/screens/REPL.tsx src/utils/tasks.ts
+# gate-watch: src/screens/Chat.tsx src/utils/tasks.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

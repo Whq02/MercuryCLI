@@ -45,7 +45,7 @@ export interface ConcourseSeedGroup {
 export const CONCOURSE_REFERENCE_SEED = {
   header: {
     view: 'SESSION CONCOURSE',
-    breadcrumb: ['BOOT', 'CONCOURSE', 'MAIN REPL'] as const,
+    breadcrumb: ['BOOT', 'CONCOURSE', 'MAIN Chat'] as const,
     activeCrumb: 'CONCOURSE',
     right: { project: 'Moodle', user: 'sam', clock: '08:14:20' },
     coordinator: { state: 'Rules only', assistModel: 'GPT-5.6 Sol' },
@@ -113,7 +113,7 @@ export const CONCOURSE_REFERENCE_SEED = {
     center: 'coordinator rules only',
     right: '1 needs you · 5 live · 4/10 seats',
   },
-  helpStrip: '↑↓ browse · tab panes · ↵ open · n new · / filter · b boot menu · esc main REPL',
+  helpStrip: '↑↓ browse · tab panes · ↵ open · n new · / filter · b boot menu · esc main Chat',
   countsReconciliation: { live: 5, working: 3, ready: 1, needsYou: 1, queued: 2, seatsHeld: 4, seatsDenominator: 10 },
 } as const
 

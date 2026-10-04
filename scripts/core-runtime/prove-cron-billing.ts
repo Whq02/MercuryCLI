@@ -85,7 +85,6 @@ const { getTranscriptPath, getAgentTranscriptPath } = await import('../../src/ut
 const { recordToEntry } = await import('../../src/fabric/entryCodec.ts')
 const { calculateUSDCost, modelPricingBasis } = await import('../../src/utils/modelCost.ts')
 const usageOwner = await import('../../src/services/providers/providerUsage.ts')
-const costCommand = await import('../../src/commands/cost/cost.ts')
 const { Usage } = await import('../../src/components/Settings/Usage.js')
 const { Box, Text, render, flushPendingSyncWork, EventEmitter } = await import('../../src/ink.js')
 const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
@@ -94,7 +93,6 @@ const loose = (module: unknown): Record<string, (...args: never[]) => unknown> =
 const ledger = loose(state)
 const trackerLoose = loose(tracker)
 const ownerLoose = loose(usageOwner)
-const costLoose = loose(costCommand)
 const rowsLoose = loose(rows)
 
 const MODEL = 'claude-sonnet-4-5'
@@ -124,7 +122,7 @@ const SIZES: Array<[number, number, number, number]> = [
 section('§0 the census (a guard, green on both trees): the one workload, its readers, and the batch law')
 {
   check("the workload vocabulary is the one word 'cron'", workload.WORKLOAD_CRON === 'cron')
-  const runner = src('src/cli/print.ts')
+  const runner = src('src/cli/run.ts')
   const reader = between(runner, 'const workload = command.workload ?? options.workload', 'await runWithWorkload(workload, async () => {')
   check("the run-time reader takes the queued command's workload first and enters the turn under it", reader.includes('command.workload ?? options.workload') && reader.includes('runWithWorkload(workload'), reader.slice(0, 200))
   const operator = { value: OPERATOR_LINE, mode: 'prompt' } as never
@@ -145,7 +143,7 @@ section("§1 THE STAMP (red on the base): every road that queues a Saturn fire s
   } catch (error) {
     check("the stamp helper stands at the origin's home (noticeRows.saturnQueueStamp)", false, String(error))
   }
-  const runner = src('src/cli/print.ts')
+  const runner = src('src/cli/run.ts')
   const seatless = between(runner, 'const deliverLocalWake = (', 'driver.kick()')
   check('the seatless wake road spreads the one stamp (red on the base: a literal of its own)', seatless.includes('...saturnQueueStamp(next.origin)') && !seatless.includes("workload: 'cron'"), seatless.slice(seatless.indexOf('enqueue({'), seatless.indexOf('enqueue({') + 220))
   const stdinRoad = between(runner, 'const sentAt = typeof input.sentAt', 'driver.kick()')
@@ -222,14 +220,10 @@ let ownCost = 0
   }
 }
 
-section("§3 THE SURFACES (red on the base): /cost, the usage popup and the usage card each show scheduled work in its own row, beside the session's own")
+section("§3 THE SURFACES (red on the base): the usage popup and the usage card each show scheduled work in its own row, beside the session's own")
 {
   const spend = (ownerLoose.scheduledSessionSpend as (() => Raw) | undefined)?.()
   check("the usage owner's scheduled spend is the bucket's sum: 1,550 in (input + cache read + cache write, the operator-facing total) · 65 out, one unpriced turn beside the priced ones", spend !== undefined && spend.inputTokens === 1_550 && spend.outputTokens === 65 && spend.models === 2 && (spend.pricing as Raw | undefined)?.unpricedTurns === 1, j(spend))
-  const laneLine = (costLoose.scheduledLaneLine as (() => string | null) | undefined)?.()
-  check("/cost: the scheduled row in the lane grammar — 'Scheduled work: 1,550 in · 65 out — $… + 1 unpriced turn'", typeof laneLine === 'string' && laneLine.startsWith('Scheduled work: 1,550 in · 65 out — $') && laneLine.endsWith('+ 1 unpriced turn'), j(laneLine))
-  const costText = String(((await costCommand.call()) as { value?: unknown }).value ?? '')
-  check('/cost prints the scheduled row beside the totals (red on the base: no scheduled row at all)', laneLine !== null && laneLine !== undefined && costText.includes(laneLine) && costText.includes('Total cost:'), costText)
   const anthropic = usageOwner.providerSessionSpend('anthropic') as Raw
   const scheduled = anthropic.scheduled as Raw | undefined
   check("the popup's owner derivation: a provider's session spend carries its scheduled share (red on the base: no share on the spend)", scheduled !== undefined && scheduled.inputTokens === 1_500 && scheduled.outputTokens === 60 && scheduled.models === 1, j(anthropic))
@@ -246,7 +240,7 @@ section("§3 THE SURFACES (red on the base): /cost, the usage popup and the usag
   check('the outcome row keeps its per-model rows through the schema (the workload buckets stay on the ledger — no row carries them)', outcome.success && j((outcome.data as Raw).models) === j(modelRows), outcome.success ? '' : j(outcome.error.issues))
   const engine = src('src/rows/turn.ts')
   check('the turn captures the model-usage baseline before the run', engine.includes("const modelUsageAtStart = Object.fromEntries(Object.entries(getModelUsage()).map(([model, row]) => [model, { ...row }]))"))
-  check("the turn's outcome carries the per-model rows of the run window; the workload buckets stay on the ledger for /cost and the rail (no row reader)", engine.includes('const billed = usageSince(getModelUsage(), modelUsageAtStart)') && engine.includes('models: modelUsageRows(billed,') && !engine.includes('workload'))
+  check("the turn's outcome carries the per-model rows of the run window; the workload buckets stay on the ledger for /usage and the rail (no row reader)", engine.includes('const billed = usageSince(getModelUsage(), modelUsageAtStart)') && engine.includes('models: modelUsageRows(billed,') && !engine.includes('workload'))
 }
 
 async function mountPopup(columns: number, rowCount: number, width: number, rowBudget: number, openToken: number): Promise<{ frame: () => string; close: () => void }> {
@@ -338,7 +332,7 @@ state.resetCostState()
 if (frameDir !== null) {
   section(`frames → ${frameDir}`)
   mkdirSync(frameDir, { recursive: true })
-  const index: string[] = ['the scheduled bucket frames — the usage popup, the usage card rows and the /cost text, rendered from source at the named size', '']
+  const index: string[] = ['the scheduled bucket frames — the usage popup and the usage card rows, rendered from source at the named size', '']
   for (const [name, frame] of popupFrames) {
     const file = `usage-popup-${name}.txt`
     writeFileSync(join(frameDir, file), `${frame}\n`)
@@ -377,13 +371,6 @@ if (frameDir !== null) {
     const file = `usage-card-${columns}x${rowCount}.txt`
     writeFileSync(join(frameDir, file), `${frame}\n`)
     index.push(`${file} — the rail's USAGE rows: the source label, the session spend, the scheduled line`)
-    console.log(`  wrote ${file}`)
-  }
-  const costText = stripAnsi(String(((await costCommand.call()) as { value?: unknown }).value ?? ''))
-  for (const [columns, rowCount] of SIZES) {
-    const file = `cost-${columns}x${rowCount}.txt`
-    writeFileSync(join(frameDir, file), `${costText.split('\n').map(line => line.length > columns ? line.slice(0, columns) : line).join('\n')}\n`)
-    index.push(`${file} — the /cost text, the scheduled row beside the lane rows`)
     console.log(`  wrote ${file}`)
   }
   writeFileSync(join(frameDir, 'index.txt'), `${index.join('\n')}\n`)

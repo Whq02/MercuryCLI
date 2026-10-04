@@ -54,7 +54,7 @@ const door: Door | undefined = typeof manager.awaitRecordedViolations === 'funct
 function makeContext(toolUseId: string) {
   let appState = getDefaultAppState()
   return {
-    options: { mainLoopModel: 'claude-sonnet-5', tools: [], commands: [], mcpClients: [], mcpResources: {}, isNonInteractiveSession: false, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
+    options: { engineModel: 'claude-sonnet-5', tools: [], commands: [], mcpClients: [], mcpResources: {}, isNonInteractiveSession: false, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
     readFileState: new Map(),
     messages: [],
     getAppState: () => appState,

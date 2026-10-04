@@ -1,4 +1,4 @@
-import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
+import { isCrewEnabled } from '../../utils/crewEnabled.js'
 import { TASK_LIST_TOOL_NAME } from '../TaskListTool/constants.js'
 import { TASK_UPDATE_TOOL_NAME } from '../TaskUpdateTool/constants.js'
 
@@ -6,7 +6,7 @@ import { TASK_UPDATE_TOOL_NAME } from '../TaskUpdateTool/constants.js'
 export const DESCRIPTION = 'Add a task to the shared list.'
 
 export function getPrompt(): string {
-  const crewSection = isAgentSwarmsEnabled()
+  const crewSection = isCrewEnabled()
     ? `
 
 ## Working in a crew

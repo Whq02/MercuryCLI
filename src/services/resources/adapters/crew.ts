@@ -1,6 +1,6 @@
 
 import { isInProcessCrewmateTask } from '../../../tasks/InProcessCrewmateTask/types.js'
-import { CREW_LEAD_NAME } from '../../../utils/swarm/constants.js'
+import { CREW_LEAD_NAME } from '../../../utils/crew/constants.js'
 import { readCoordinationRoster, resolveCoordinationContext, type CoordinationRosterRow } from '../../coordination/coordinationService.js'
 import { crewDirectoryEnabled, listAgentBindings, type CrewAgentId } from '../../crew/identity.js'
 import { resolveCrewSnapshot, type CrewMemberV1 } from '../../crew/projection.js'

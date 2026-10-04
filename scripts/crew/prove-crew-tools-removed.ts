@@ -21,11 +21,11 @@ tally.check('src/tools/TeamDeleteTool/ is deleted', !existsSync(join(ROOT, 'src/
 for (const rel of [
   'src/tools.ts',
   'src/utils/permissions/classifierDecision.ts',
-  'src/utils/swarm/agentLaunchPlan.ts',
+  'src/utils/crew/agentLaunchPlan.ts',
   'src/utils/capability/declarations.ts',
   'src/substrate/durableOperationMatrix.ts',
   'src/utils/messages/attachmentText.ts',
-  'src/utils/swarm/crewOperations.ts',
+  'src/utils/crew/crewOperations.ts',
   'scripts/builtin-tools/fixtures/tool-census.json',
   'scripts/builtin-tools/fixtures/tool-census.md',
   'scripts/project-services/fixtures/inventory.json',
@@ -33,11 +33,11 @@ for (const rel of [
   const hits = names(src(rel))
   tally.check(`${rel} names neither tool`, hits.length === 0, hits.join(', '))
 }
-const helpers = src('src/utils/swarm/crewHelpers.ts')
+const helpers = src('src/utils/crew/crewHelpers.ts')
 tally.check('the team-directory removal road (cleanupCrewDirectories · destroyWorktree) left with the tools — nothing removes a folder or a worktree', !helpers.includes('cleanupCrewDirectories') && !helpers.includes('destroyWorktree') && !helpers.includes("'worktree', 'remove'"))
-const operations = src('src/utils/swarm/crewOperations.ts')
+const operations = src('src/utils/crew/crewOperations.ts')
 tally.check('the journal recovery reads every kind as written and the crew kinds alone have handlers — nothing deletes', src('src/substrate/operationJournal.ts').includes('handlers[op.kind]') && operations.includes("'crew-create'") && operations.includes("'crew-delete'") && !operations.includes('cleanupCrewDirectories') && !/rm\(/.test(operations))
-const runner = src('src/cli/print.ts')
+const runner = src('src/cli/run.ts')
 tally.check('the headless lead\'s end-of-input words no longer send the model to a team cleanup step', !runner.includes('team cleanup operation'))
 const glyphs = src('src/components/mercury-ui/toolGlyphs.ts')
 const { toolFamilyFor } = await import('../../src/components/mercury-ui/toolGlyphs.ts')

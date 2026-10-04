@@ -107,7 +107,7 @@ export async function execAgentHook(
       options: {
         ...toolUseContext.options,
         tools,
-        mainLoopModel: model,
+        engineModel: model,
         isNonInteractiveSession: true,
         thinkingConfig: { type: 'disabled' },
       },

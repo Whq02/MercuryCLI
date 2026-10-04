@@ -140,7 +140,7 @@ function makeCtx(): Record<string, unknown> {
     options: {
       commands: [],
       tools: [BashTool],
-      mainLoopModel: 'claude-opus-5',
+      engineModel: 'claude-opus-5',
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},

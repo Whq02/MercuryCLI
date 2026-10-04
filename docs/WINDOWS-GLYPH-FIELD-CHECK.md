@@ -69,7 +69,7 @@ Each row names the screen, how to reach it, and what it must look like.
 
    and `/health` inside a session.
 8. **The daemon.** If a background worker has been degraded, the status
-   line reads `supervisor: ▲ DEGRADED …`:
+   line reads `daemon: ▲ DEGRADED …`:
 
    ```powershell
    mercury daemon status

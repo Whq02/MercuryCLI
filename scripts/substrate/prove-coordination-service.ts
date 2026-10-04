@@ -26,7 +26,7 @@ import {
 } from '../../src/services/coordination/coordinationService.js'
 import { LiveCommsTool } from '../../src/tools/LiveCommsTool/LiveCommsTool.js'
 import { clearDynamicCrewContext, setDynamicCrewContext } from '../../src/utils/crewmate.js'
-import { writeCrewFileAsync, type CrewFile } from '../../src/utils/swarm/crewHelpers.js'
+import { writeCrewFileAsync, type CrewFile } from '../../src/utils/crew/crewHelpers.js'
 import { liveMessagesFor, sendLiveMessage } from '../../src/services/crew/liveComms.js'
 
 let failures = 0

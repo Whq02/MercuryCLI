@@ -249,7 +249,7 @@ try:
             ceiling_s=240, settle_ticks=2,
         )
         surface = "boot-menu" if MENU_NEEDLE in d.text() else ("repl-composer" if COMPOSER_NEEDLE in d.text() else "none")
-        leg("boot: the runtime landed on an interactive surface (Boot menu or REPL composer)",
+        leg("boot: the runtime landed on an interactive surface (Boot menu or Chat composer)",
             state == "ok", f"{state} · surface={surface}", polls=d.polls, surface=surface)
         print(f"    note: first interactive surface = {surface} · the boot-menu landing on Windows: "
               f"{'OBSERVED' if surface == 'boot-menu' else 'not observed on this boot (see the landing dump)'}")

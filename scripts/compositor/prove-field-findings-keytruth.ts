@@ -40,9 +40,9 @@ console.log('§2 the bundled keybindings skill renders the Windows table it used
   check('…imported from the one table owner', /import \{[\s\S]{0,200}WINDOWS_RESERVED,[\s\S]{0,100}\} from '\.\.\/\.\.\/keybindings\/reservedShortcuts\.js'/.test(skill))
 }
 
-console.log('§3 /terminal-setup no longer lists the host it just refused')
+console.log('§3 /keysetup no longer lists the host it just refused')
 {
-  const ts = readFileSync(join(ROOT, 'src/commands/terminalSetup/terminalSetup.tsx'), 'utf8')
+  const ts = readFileSync(join(ROOT, 'src/commands/keysetup/keysetup.tsx'), 'utf8')
   check(
     "win32 contributes NO 'Supported terminals' row (three lenses filed the contradiction independently)",
     !ts.includes("' - Windows Terminal\\n'") && ts.includes("process.platform === 'darwin' ? ' - Apple Terminal\\n' : ''"),

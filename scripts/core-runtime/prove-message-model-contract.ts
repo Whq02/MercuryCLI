@@ -1132,8 +1132,8 @@ section('ROWS — the projection table (the value laws the row stream carries)')
   check('itemRowsOf: a string content is one text row; an empty string none', (rows.itemRowsOf(scope, 'm', 'plain') as AnyMsg[]).length === 1 && rows.itemRowsOf(scope, 'm', '').length === 0)
   const ansi = '\u001b[2m<local-command-stdout>dim text</local-command-stdout>\u001b[22m'
   check('commandOutputTextOf: ANSI stripped, tags unwrapped, trimmed', rows.commandOutputTextOf(ansi) === 'dim text' && rows.commandOutputTextOf(' <local-command-stderr>oops</local-command-stderr>\n') === 'oops')
-  const cmdRow = rows.commandOutputRow(scope, rows.commandOutputTextOf(ansi), '/cost') as AnyMsg
-  check('commandOutputRow: type, text and command, scoped to the session and the turn', cmdRow.type === 'command_output' && cmdRow.text === 'dim text' && cmdRow.command === '/cost' && cmdRow.session_id === 'proj-session' && cmdRow.turn === 1)
+  const cmdRow = rows.commandOutputRow(scope, rows.commandOutputTextOf(ansi), '/context') as AnyMsg
+  check('commandOutputRow: type, text and command, scoped to the session and the turn', cmdRow.type === 'command_output' && cmdRow.text === 'dim text' && cmdRow.command === '/context' && cmdRow.session_id === 'proj-session' && cmdRow.turn === 1)
   const minimal = rows.rateLimitRow(scope, { status: 'allowed', isUsingOverage: false } as never) as AnyMsg
   check('rateLimitRow: minimal carries the status and the overage flag only (beside the scope)', minimal.status === 'allowed' && minimal.using_overage === false && !('window' in minimal) && !('resets_at' in minimal) && !('threshold_crossed' in minimal))
   const full = rows.rateLimitRow(scope, {

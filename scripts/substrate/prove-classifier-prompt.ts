@@ -27,7 +27,7 @@ const ext = existsSync(extPath) ? readFileSync(extPath, 'utf-8') : ''
 check('base prompt is substantive (>1000 chars)', base.length > 1000, `${base.length} chars`)
 check('external template is substantive (>1000 chars)', ext.length > 1000, `${ext.length} chars`)
 
-section('§2 base prompt structural contracts (buildYoloSystemPrompt + XML path)')
+section('§2 base prompt structural contracts (buildFlowSystemPrompt + XML path)')
 check(
   'contains the <permissions_template> placeholder exactly once',
   base.split('<permissions_template>').length === 2,
@@ -66,7 +66,7 @@ check(
 )
 
 section('§4 source gates: stamped build must BUNDLE the prompts + fail closed if ever empty')
-const src = readFileSync(join(root, 'src/utils/permissions/yoloClassifier.ts'), 'utf-8')
+const src = readFileSync(join(root, 'src/utils/permissions/flowClassifier.ts'), 'utf-8')
 check(
   'BASE_PROMPT require is unconditional',
   /BASE_PROMPT: string =\s*\n?\s*txtRequire\(require\('\.\/auto-mode-classifier-prompts\/auto_mode_system_prompt\.txt'\)\)/.test(src),
@@ -81,7 +81,7 @@ check(
     /function isUsingExternalPermissions\(\): boolean \{\s*\n?\s*return true/.test(src),
 )
 check(
-  'classifyYoloAction guards an empty system prompt FAIL-CLOSED before any API call',
+  'classifyFlowAction guards an empty system prompt FAIL-CLOSED before any API call',
   /if \(!systemPrompt\.trim\(\)\)[\s\S]{0,700}shouldBlock: true[\s\S]{0,300}unavailable: true/.test(src),
 )
 

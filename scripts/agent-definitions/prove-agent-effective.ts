@@ -217,10 +217,10 @@ const byName = (n: string) => result.activeAgents.find(a => a.agentType === n)
     /selectedAgent:\s*agentDef,[\s\S]{0,600}?model:\s*plan\.model,/.test(agentTool) &&
       !/model:\s*model\s*\?\?\s*agentDef\?\.model/.test(agentTool),
   )
-  const launchPlan = readFileSync('src/utils/swarm/agentLaunchPlan.ts', 'utf-8')
+  const launchPlan = readFileSync('src/utils/crew/agentLaunchPlan.ts', 'utf-8')
   check(
     "the plan resolves the definition's model under the caller's parameter (the one ladder)",
-    /getAgentModel\(\s*definition\.model,\s*i\.mainLoopModel,\s*isForkPath \? undefined : i\.modelParam,/.test(launchPlan),
+    /getAgentModel\(\s*definition\.model,\s*i\.engineModel,\s*isForkPath \? undefined : i\.modelParam,/.test(launchPlan),
   )
 }
 

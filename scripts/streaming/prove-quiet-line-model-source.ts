@@ -80,7 +80,7 @@ async function scene(appModel: string, sessionModel: string): Promise<{ frame: s
   const instance = await render(
     h(
       AppStateProvider as never,
-      { initialState: { ...getDefaultAppState(), foregroundTurnActive: true, mainLoopModel: appModel, mainLoopModelForSession: null } },
+      { initialState: { ...getDefaultAppState(), foregroundTurnActive: true, engineModel: appModel, engineModelForSession: null } },
       h(Box as never, { flexDirection: 'column' }, h(LiveStreamingTail as never, { store }), h(Text as never, {}, MARKER)),
     ),
     { stdout, stdin, exitOnCtrlC: false, patchConsole: false },
@@ -133,7 +133,7 @@ section('§3 the feeds: the session\'s own facts and the focused slot drive the 
 section('§4 structural: the leaf reads the focused connector\'s effective model, never AppState\'s')
 {
   const leaf = readFileSync(join(ROOT, 'src/components/LiveStreamingTail.tsx'), 'utf8')
-  check('no AppState model read remains in the leaf', !leaf.includes('s.mainLoopModelForSession ?? s.mainLoopModel'))
+  check('no AppState model read remains in the leaf', !leaf.includes('s.engineModelForSession ?? s.engineModel'))
   check('the leaf rides the focused connector\'s effective model', leaf.includes("getFocusedSessionConnector().modelFacts().effective"))
   check('…through the focused slot (a hop re-points it)', leaf.includes('subscribeThroughFocused((connector, listener) =>') && leaf.includes('connector.subscribeModel(listener)'))
 }

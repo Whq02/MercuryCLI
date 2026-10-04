@@ -219,7 +219,7 @@ section('§6b — the retained walk runs the ONE provenance law (FN-013 MODEL-01
   const paths = await import('../../src/utils/sessionStorage/paths.ts')
   const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
   const { restoreConversationModelFromMessages } = await import('../../src/utils/sessionRestore.ts')
-  const { getDefaultMainLoopModelSetting, parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
+  const { getDefaultEngineModelSetting, parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
   const workspaceId = supervisor.canonicalWorkspaceId(work)
   const projDir = paths.getProjectDir(workspaceId)
   mkd(projDir, { recursive: true })
@@ -286,7 +286,7 @@ section('§6b — the retained walk runs the ONE provenance law (FN-013 MODEL-01
   agree('synthetic only', SID_ONLY, [user(), asst('<synthetic>')])
   agree('carrier id', SID_CARRIER, [user(), asst('openrouter/stealth/ox-alpha'), asst('<synthetic>')])
 
-  const defaultResolved = parseUserSpecifiedModel(getDefaultMainLoopModelSetting())
+  const defaultResolved = parseUserSpecifiedModel(getDefaultEngineModelSetting())
   const defaultBase = defaultResolved.replace(/\[1m\]$/i, '')
   const SID_DEFAULT = '00000000-aaaa-bbbb-cccc-00000000a604'
   writeFixture(SID_DEFAULT, [defaultBase])

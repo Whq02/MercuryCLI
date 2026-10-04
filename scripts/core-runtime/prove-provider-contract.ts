@@ -275,7 +275,7 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
   )
   check(
     'effort: turn-owning source scoping survives for the tier lifecycle',
-    effort.isTurnOwningQuerySource('repl_main_thread_1') === true &&
+    effort.isTurnOwningQuerySource('main_thread_1') === true &&
       effort.isTurnOwningQuerySource('sdk') === true &&
       effort.isTurnOwningQuerySource('agent:x') === true &&
       effort.isTurnOwningQuerySource('compact') === false &&

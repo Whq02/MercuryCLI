@@ -361,7 +361,7 @@ function makeCtx(parentModel: string): { ctx: never; abort: AbortController } {
     options: {
       commands: [],
       tools: [EchoTool],
-      mainLoopModel: parentModel,
+      engineModel: parentModel,
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},
@@ -723,7 +723,7 @@ section('§D the coordinator seat — every family takes a coordinator turn')
 
 section('§A the dispatch boundary — the engine grammar is TOTAL over the routing law')
 {
-  const engine = await import('../../src/utils/swarm/engineDispatch.ts')
+  const engine = await import('../../src/utils/crew/engineDispatch.ts')
   const { PROVIDER_ID_SPACES } = await import('../../src/services/providers/routeLaw.ts')
   const { getAgentModel } = await import('../../src/utils/model/agent.ts')
 
@@ -754,8 +754,8 @@ section('§A the dispatch boundary — the engine grammar is TOTAL over the rout
     { cls: 'compat', backend: 'openai-compat' },
   ]
   const bootState = await import('../../src/bootstrap/state.ts')
-  const priorOverride = bootState.getMainLoopModelOverride()
-  bootState.setMainLoopModelOverride('claude-opus-4-8')
+  const priorOverride = bootState.getEngineModelOverride()
+  bootState.setEngineModelOverride('claude-opus-4-8')
   for (const { cls, backend, model } of CLASS_EXPECT) {
     let resolved: { backend: string; model: string } | null = null
     let threw: string | undefined
@@ -770,7 +770,7 @@ section('§A the dispatch boundary — the engine grammar is TOTAL over the rout
         declaredRouteOf(resolved.model) === backend,
       `threw=${threw ?? ''} resolved=${text(resolved)}`)
   }
-  bootState.setMainLoopModelOverride(priorOverride)
+  bootState.setEngineModelOverride(priorOverride)
 
   const geminiOk = await engine.resolveEngineDispatch('gemini-3-flash')
   check("exact 'gemini-3-flash' validates against the live catalogue", geminiOk?.backend === 'gemini' && geminiOk.model === 'gemini-3-flash', text(geminiOk))

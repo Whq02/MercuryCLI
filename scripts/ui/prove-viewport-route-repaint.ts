@@ -58,8 +58,8 @@ for (const [columns, rows] of [[120, 40], [80, 24]]) {
     const steps = [
       { name: 'Concourse entry', move: () => route.enterConcourse() },
       { name: 'Boot return', move: () => route.leaveCurrentSurface() },
-      { name: 'session entry', move: () => route.enterSessionRepl('FIRST') },
-      { name: 'same-kind session change', move: () => route.enterSessionRepl('SECOND') },
+      { name: 'session entry', move: () => route.enterSessionChat('FIRST') },
+      { name: 'same-kind session change', move: () => route.enterSessionChat('SECOND') },
       { name: 'same-kind session return', move: () => route.leaveCurrentSurface() },
     ]
     for (const step of steps) {

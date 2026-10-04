@@ -196,12 +196,12 @@ chatStatus = 200
 
 server.close()
 
-console.log('— §3 wiring pins (yoloClassifier drives both seams) —')
+console.log('— §3 wiring pins (flowClassifier drives both seams) —')
 
-const yolo = readFileSync('src/utils/permissions/yoloClassifier.ts', 'utf8')
-const classifyBand = yolo.slice(
-  yolo.indexOf('export async function classifyYoloAction('),
-  yolo.indexOf('function projectAction'),
+const flow = readFileSync('src/utils/permissions/flowClassifier.ts', 'utf8')
+const classifyBand = flow.slice(
+  flow.indexOf('export async function classifyFlowAction('),
+  flow.indexOf('function projectAction'),
 )
 t(
   'non-Anthropic-routed models take the routed transport',
@@ -218,15 +218,15 @@ t(
   !setupSource.includes('twoStageClassifier') &&
     !setupSource.includes('jsonlTranscript') &&
     !/^\s*model\?: string$/m.test(setupSource) &&
-    !yolo.includes('twoStageClassifier') &&
-    !yolo.includes('classifyYoloActionTwoStage') &&
-    !yolo.includes('jsonlTranscript') &&
-    !yolo.includes('configuredModel') &&
-    !yolo.includes("stage: 'fast'") &&
-    !yolo.includes("stage: 'thinking'"),
+    !flow.includes('twoStageClassifier') &&
+    !flow.includes('classifyFlowActionTwoStage') &&
+    !flow.includes('jsonlTranscript') &&
+    !flow.includes('configuredModel') &&
+    !flow.includes("stage: 'fast'") &&
+    !flow.includes("stage: 'thinking'"),
 )
 {
-  const { buildTranscriptForClassifier, LATEST_REQUEST_LEAD } = await import('../../src/utils/permissions/yoloClassifier.ts')
+  const { buildTranscriptForClassifier, LATEST_REQUEST_LEAD } = await import('../../src/utils/permissions/flowClassifier.ts')
   const transcript = buildTranscriptForClassifier(
     [
       { type: 'user', uuid: '00000000-0000-4000-a000-000000000001', timestamp: new Date().toISOString(), message: { role: 'user', content: 'tidy the repo' } },
@@ -240,13 +240,13 @@ t(
     JSON.stringify(transcript),
   )
 }
-t('the fallback walk iterates the family-aware chain', yolo.includes('for (const candidate of getClassifierModelChain())'))
-t('the primary model is the chain head', yolo.includes('return getClassifierModelChain()[0]!'))
+t('the fallback walk iterates the family-aware chain', flow.includes('for (const candidate of getClassifierModelChain())'))
+t('the primary model is the chain head', flow.includes('return getClassifierModelChain()[0]!'))
 t(
   'availability comes from the owning resolver, not a hardcoded family',
-  yolo.includes("usabilityForRoute('anthropic').usable"),
+  flow.includes("usabilityForRoute('anthropic').usable"),
 )
-t('an Anthropic-only model coercion is unrepresentable', !yolo.includes('return CLASSIFIER_FALLBACK_MODELS[0]'))
+t('an Anthropic-only model coercion is unrepresentable', !flow.includes('return CLASSIFIER_FALLBACK_MODELS[0]'))
 
 console.log(failures ? '\n❌ CLASSIFIER-FAMILY-ROUTING RED' : '\n✅ CLASSIFIER-FAMILY-ROUTING GREEN')
 process.exit(failures)

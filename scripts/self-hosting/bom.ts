@@ -41,7 +41,7 @@ const { getInstructionBundle } = await import(
 const { getInstructionCompositionState } = await import(
   '../../src/services/instructions/engine.js'
 )
-const { loadMemoryPrompt } = await import('../../src/memdir/mnemeFrontPage.js')
+const { loadMemoryPrompt } = await import('../../src/mneme/mnemeFrontPage.js')
 
 type Row = {
   block: string
@@ -117,7 +117,7 @@ if (mode === 'subagent') {
     rows.push({
       block: 'memory',
       group: 'dynamic',
-      owner: 'src/memdir/mnemeFrontPage.ts',
+      owner: 'src/mneme/mnemeFrontPage.ts',
       scope: 'all',
       cacheClass: 'session',
       chars: memory.length,

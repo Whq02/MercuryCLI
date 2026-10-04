@@ -8,7 +8,7 @@ import {
   getTotalLinesRemoved,
   getTotalUnpricedTurns,
 } from '../cost-tracker.js'
-import { useMainLoopModel } from '../hooks/useMainLoopModel.js'
+import { useEngineModel } from '../hooks/useEngineModel.js'
 import { useDisplayedSessionModel, useFocusedServedModel } from '../hooks/useDisplayedSessionModel.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { useProviderUsageOnShow } from '../hooks/useProviderUsageOnShow.js'
@@ -66,7 +66,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
   const cols = useTerminalSize().columns
   const compact = deckPaintsDock(cols)
   const servedModel = useFocusedServedModel()
-  const processModel = useMainLoopModel()
+  const processModel = useEngineModel()
   const rawModel = servedModel ?? processModel
   const model = useDisplayedSessionModel().compact
   const cost = getTotalCost()

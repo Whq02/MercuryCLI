@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // gate-watch: src/utils/permissions/filesystem.ts src/utils/permissions/pathValidation.ts src/utils/memoryFileDetection.ts
-// gate-watch: src/utils/collapseReadSearch.ts src/tools/FileWriteTool/FileWriteTool.ts src/tools/FileEditTool/FileEditTool.ts src/memdir/paths.ts
+// gate-watch: src/utils/collapseReadSearch.ts src/tools/FileWriteTool/FileWriteTool.ts src/tools/FileEditTool/FileEditTool.ts src/mneme/paths.ts
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -33,8 +33,8 @@ setOriginalCwd(PROJ)
 setCwdState(PROJ)
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { mnemeLibraryDir } = await import('../../src/memdir/mnemeGates.ts')
-const { getAutoMemPath } = await import('../../src/memdir/paths.ts')
+const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
+const { getMnemeHome } = await import('../../src/mneme/paths.ts')
 const { isPathAllowed } = await import('../../src/utils/permissions/pathValidation.ts')
 const { checkEditableInternalPath, checkReadableInternalPath } = await import('../../src/utils/permissions/filesystem.ts')
 const { getToolSearchOrReadInfo } = await import('../../src/utils/collapseReadSearch.ts')
@@ -79,7 +79,7 @@ try {
     const read = isPathAllowed(target, ctx, 'read') as { allowed: boolean }
     check(`default mode: a read of library/${file} stays allowed`, read.allowed === true, JSON.stringify(read))
   }
-  const oldNote = join(getAutoMemPath(), 'feedback-old-note.md')
+  const oldNote = join(getMnemeHome(), 'feedback-old-note.md')
   check('the memory directory itself (an old note beside the library) has no write carve-out either', (isPathAllowed(oldNote, ctx, 'write') as { allowed: boolean }).allowed === false)
   check('the editable carve-out classifier passes a library path through', (checkEditableInternalPath(join(lib, 'pins.json'), undefined) as { behavior: string }).behavior === 'passthrough')
   check('the readable carve-out classifier still allows it', (checkReadableInternalPath(join(lib, 'pins.json'), undefined) as { behavior: string }).behavior === 'allow')

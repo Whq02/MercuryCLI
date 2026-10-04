@@ -178,7 +178,7 @@ Object.assign(process.env, {
 })
 
 console.log('============================================================')
-console.log(' doubled-replies growth curve — the REPL seam, every dialect')
+console.log(' doubled-replies growth curve — the Chat seam, every dialect')
 console.log(`  turns per lane: ${argTurns}`)
 console.log('============================================================')
 
@@ -250,7 +250,7 @@ function makeCtx(model: string): Record<string, unknown> {
     options: {
       commands: [],
       tools: TOOLS,
-      mainLoopModel: model,
+      engineModel: model,
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},

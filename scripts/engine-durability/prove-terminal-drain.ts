@@ -34,7 +34,7 @@ function paramsFor(owner: string): unknown {
     messages: [
       { type: 'user', uuid: 'u1', isMeta: false, message: { content: 'land the change' } },
     ],
-    querySource: 'repl_main_thread',
+    querySource: 'main_thread',
     toolUseContext: {
       owner,
       agentId: 'main',

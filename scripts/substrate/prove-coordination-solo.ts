@@ -19,7 +19,7 @@ import { LiveCommsTool } from '../../src/tools/LiveCommsTool/LiveCommsTool.js'
 import { runWithAgentContext } from '../../src/utils/agentContext.js'
 import { birthSessionCrew, bornCrewContext } from '../../src/utils/crew/crewBirth.js'
 import { clearDynamicCrewContext, getLeadCrewFallback, setDynamicCrewContext, setLeadCrewFallback } from '../../src/utils/crewmate.js'
-import { appendCrewMember, getCrewDir, getCrewFilePath, writeCrewFileAsync, type CrewFile } from '../../src/utils/swarm/crewHelpers.js'
+import { appendCrewMember, getCrewDir, getCrewFilePath, writeCrewFileAsync, type CrewFile } from '../../src/utils/crew/crewHelpers.js'
 import { liveMessagesFor } from '../../src/services/crew/liveComms.js'
 import { getSessionId, switchSession } from '../../src/bootstrap/state.js'
 
@@ -176,7 +176,7 @@ try {
     setLeadCrewFallback(sid)
     const serviceSrc = readFileSync(join(ROOT, 'src/services/coordination/coordinationService.ts'), 'utf8')
     check('the resolver verifies the roster for the lead rungs and leaves a crewmate identity alone (structural)', serviceSrc.includes('if (!isCrewmate() && !crewRosterExists(crew)) return null'))
-    const helpersSrc = readFileSync(join(ROOT, 'src/utils/swarm/crewHelpers.ts'), 'utf8')
+    const helpersSrc = readFileSync(join(ROOT, 'src/utils/crew/crewHelpers.ts'), 'utf8')
     check('the roster owner answers whether a roster exists, by the same readable path its readers use (structural)', helpersSrc.includes('export function crewRosterExists(crewName: string): boolean') && helpersSrc.includes('return existsSync(readableCrewFilePath(crewName))'))
   }
 } finally {

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/cli/print.ts src/cli/headless/runnerAsks.ts src/runner/wire/* src/services/mcp/client.ts scripts/mcp/_fixture-estate-server.mjs
+// gate-watch: src/cli/run.ts src/cli/headless/runnerAsks.ts src/runner/wire/* src/services/mcp/client.ts scripts/mcp/_fixture-estate-server.mjs
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, rmSync, writeFileSync } from 'node:fs'

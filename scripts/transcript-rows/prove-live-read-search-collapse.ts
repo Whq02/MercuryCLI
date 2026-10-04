@@ -27,7 +27,7 @@ const result = (n: number, error = false): NormalizedUserMessage => ({
   timestamp: new Date(n).toISOString(),
   message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `call-${n}`, content: error ? 'failed' : 'ok', is_error: error }] },
 } as NormalizedUserMessage)
-const summary = (g: CollapsedReadSearchGroup): string => getSearchReadSummaryText(g.searchCount, g.readCount, false, g.replCount, g, g.listCount)
+const summary = (g: CollapsedReadSearchGroup): string => getSearchReadSummaryText(g.searchCount, g.readCount, false, g, g.listCount)
 const oneGroup = (rows: RenderableMessage[]): CollapsedReadSearchGroup => {
   assert.equal(rows.length, 1, `one row, got ${rows.map(m => m.type).join(', ')}`)
   assert.equal(rows[0]!.type, 'collapsed_read_search')

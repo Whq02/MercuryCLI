@@ -18,7 +18,7 @@
 # gate-watch: src/commands/console/console.tsx src/commands/feedback/issueForms.ts
 # gate-watch: src/commands/model/mercuryModel.tsx src/constants/figures.ts src/context/modalContext.tsx
 # gate-watch: src/context/surfaceRoute.ts src/hooks/useCancelRequest.ts src/keybindings/*
-# gate-watch: src/native-ts/color-diff/index.ts src/screens/REPL.tsx src/screens/ResumeConversation.tsx
+# gate-watch: src/native-ts/color-diff/index.ts src/screens/Chat.tsx src/screens/ResumeConversation.tsx
 # gate-watch: src/services/agents/* src/services/api/errors.ts src/services/api/usage.ts
 # gate-watch: src/services/capFailover.ts src/services/concourse/concourseSnapshot.ts
 # gate-watch: src/services/concourse/managerMode.ts src/services/engine-connector/daemonConnector.ts

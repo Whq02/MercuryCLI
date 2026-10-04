@@ -96,13 +96,13 @@ console.log('\nT7 the wiring — connector to ref to spinner (structural)')
   const seatLive = read('src/services/engine-connector/seatLive.ts')
   check('the seat-live extension declares the accessor', seatLive.includes('turnChars'))
   check('the seat-live extension declares the wire figure accessor', seatLive.includes('turnOutputTokens?(): number | null'))
-  const repl = read('src/screens/REPL.tsx')
+  const repl = read('src/screens/Chat.tsx')
   check(
-    'the REPL feeds the spinner ref FROM the connector (the dead useRef(0) is gone)',
+    'the Chat feeds the spinner ref FROM the connector (the dead useRef(0) is gone)',
     repl.includes('getFocusedLiveResponseChars') && !repl.includes('const responseLengthRef = useRef(0)'),
   )
-  check('the REPL feeds the wire figure to the verb row and the streaming hold row from the same connector', repl.includes('getFocusedLiveOutputTokens') && (repl.match(/outputTokensRef=\{outputTokensRef\}/g) ?? []).length === 2)
-  check('the REPL feeds the turn facts (thinking chars, the first byte, the wait) to both rows from the same connector — the live counter never reads a dead 0 while the request is alive', repl.includes('getFocusedLiveTurnFacts') && (repl.match(/liveTurnFactsRef=\{liveTurnFactsRef\}/g) ?? []).length === 2)
+  check('the Chat feeds the wire figure to the verb row and the streaming hold row from the same connector', repl.includes('getFocusedLiveOutputTokens') && (repl.match(/outputTokensRef=\{outputTokensRef\}/g) ?? []).length === 2)
+  check('the Chat feeds the turn facts (thinking chars, the first byte, the wait) to both rows from the same connector — the live counter never reads a dead 0 while the request is alive', repl.includes('getFocusedLiveTurnFacts') && (repl.match(/liveTurnFactsRef=\{liveTurnFactsRef\}/g) ?? []).length === 2)
   const spinner = read('src/components/Spinner/SpinnerAnimationRow.tsx')
   check(
     'the spinner still keys its display and tok/s off the ref (the fed ref revives both)',

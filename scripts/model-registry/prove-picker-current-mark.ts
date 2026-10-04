@@ -52,7 +52,7 @@ const { MercuryModelPicker } = await import('../../src/components/MercuryModelPi
 type ModelChoice = import('../../src/components/MercuryModelPicker.js').ModelChoice
 const { ANTHROPIC_MODEL_GROUP, getModelOptions, isProviderActionRow } = await import('../../src/utils/model/modelOptions.ts')
 type ModelOption = import('../../src/utils/model/modelOptions.ts').ModelOption
-const { getMainLoopModel, parseUserSpecifiedModel, renderModelName } = await import('../../src/utils/model/model.ts')
+const { getEngineModel, parseUserSpecifiedModel, renderModelName } = await import('../../src/utils/model/model.ts')
 const caps = await import('../../src/utils/model/capabilities.ts')
 const effort = await import('../../src/utils/effort.ts')
 
@@ -84,7 +84,7 @@ const rowLine = (frame: string, id: string): string | undefined => lines(frame).
 section('§1 the session on the raw id: the typed road and the row road name the same id')
 check('the setting parser passes the raw id through byte-identical', parseUserSpecifiedModel(RAW) === RAW, parseUserSpecifiedModel(RAW))
 process.env.MERCURY_MODEL = RAW
-check('MERCURY_MODEL on the raw id is the main-loop model', getMainLoopModel() === RAW, getMainLoopModel())
+check('MERCURY_MODEL on the raw id is the main-loop model', getEngineModel() === RAW, getEngineModel())
 delete process.env.MERCURY_MODEL
 const rows = options().filter(o => o.group === undefined)
 const rawRow = rows.find(o => o.value === RAW)
@@ -137,7 +137,7 @@ section("§5 a session on a bare family word marks the row the word means, as a 
   const every = choicesOf(options())
   for (const [word, head] of [['kimi', 'kimi-k3'], ['deepseek', 'deepseek-v4-pro'], ['glm', 'glm-5.3']] as const) {
     process.env.MERCURY_MODEL = word
-    const served = getMainLoopModel()
+    const served = getEngineModel()
     check(`'${word}' as the session model is the main-loop model ${head}`, served === head && parseUserSpecifiedModel(word) === head, served)
     const frame = await renderToString(React.createElement(MercuryModelPicker, { models: every, current: served, ctxPct: null } as never), 120)
     const marked = lines(frame).filter(line => /\bcurrent\b/.test(line) && !line.includes('model IDs are real'))

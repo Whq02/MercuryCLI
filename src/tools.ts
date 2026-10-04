@@ -3,7 +3,7 @@ import { isEnvTruthy } from './utils/envUtils.js'
 import { flagEnv } from './substrate/flagRegistry.js'
 import { getDenyRuleForTool } from './utils/permissions/permissions.js'
 import { searchToolsAvailability } from './utils/ripgrep.js'
-import { isAgentSwarmsEnabled } from './utils/agentSwarmsEnabled.js'
+import { isCrewEnabled } from './utils/crewEnabled.js'
 import { isTaskToolsEnabled } from './utils/tasks.js'
 import { isWorktreeModeEnabled } from './utils/worktreeModeEnabled.js'
 import { vulcanToolCatalogEnabled } from './utils/vulcan/vulcanGates.js'
@@ -72,7 +72,7 @@ import {
   ReflectTool,
   RetainTool,
 } from './tools/MemoryTools/MemoryTools.js'
-import { memoryVerbsEnabled } from './memdir/memoryVerbs.js'
+import { memoryVerbsEnabled } from './mneme/memoryVerbs.js'
 import { PowerShellTool } from './tools/PowerShellTool/PowerShellTool.js'
 import { ReadMcpResourceTool } from './tools/ReadMcpResourceTool/ReadMcpResourceTool.js'
 import { RecordConventionTool } from './tools/RecordConventionTool/RecordConventionTool.js'
@@ -104,7 +104,6 @@ import { WebSearchTool } from './tools/WebSearchTool/WebSearchTool.js'
 import { ProviderSearchTool } from './tools/WebSearchTool/ProviderSearchTool.js'
 import { WorkflowTool } from './tools/WorkflowTool/WorkflowTool.js'
 import { WorkshopTool } from './tools/WorkshopTool/WorkshopTool.js'
-import { REPL_ONLY_TOOLS } from './tools/REPLTool/constants.js'
 import { isPowerShellToolEnabled } from './utils/shell/shellToolUtils.js'
 
 import './services/resources/adapters/git.js'
@@ -123,7 +122,6 @@ import './services/resources/adapters/workbench.js'
 
 export { ALL_AGENT_DISALLOWED_TOOLS, ASYNC_AGENT_ALLOWED_TOOLS, CUSTOM_AGENT_DISALLOWED_TOOLS }
 
-export { REPL_ONLY_TOOLS }
 
 export const TOOL_PRESETS = ['default'] as const
 export type ToolPreset = (typeof TOOL_PRESETS)[number]
@@ -206,7 +204,7 @@ export function getAllBaseTools(): Tools {
     ...(isWorktreeModeEnabled() ? [EnterWorktreeTool, ExitWorktreeTool] : []),
     ...(checkpointRewindEnabled() ? [CheckpointTool, RewindTool] : []),
     sendMessage,
-    ...(isAgentSwarmsEnabled() && liveComms
+    ...(isCrewEnabled() && liveComms
       ? [liveComms, ...(artifactsList ? [artifactsList] : [])]
       : []),
     WORKFLOW_TOOL,

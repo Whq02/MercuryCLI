@@ -163,7 +163,6 @@ export const NON_INDEXING_TOOLS: ReadonlySet<string> = new Set([
   'ListMcpResources',
   'Monitor',
   'NotebookEdit',
-  'REPL',
   'Recall',
   'RecordConvention',
   'Reflect',

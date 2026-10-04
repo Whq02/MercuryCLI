@@ -94,7 +94,7 @@ function makeCtx(): Record<string, unknown> {
     options: {
       commands: [],
       tools: [makeTool('EchoTool')],
-      mainLoopModel: MODEL,
+      engineModel: MODEL,
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},

@@ -118,7 +118,7 @@ async function main(): Promise<void> {
   const { startControlServer } = await import(src('daemon/controlServer.ts'))
   const { mintControlKey } = await import(src('daemon/controlSocket.ts'))
   const { DaemonBreaker } = await import(src('utils/daemonBreaker.ts'))
-  const th = await import(src('utils/swarm/crewHelpers.ts'))
+  const th = await import(src('utils/crew/crewHelpers.ts'))
   const member = (name: string, agentId: string, role: string, extra: Record<string, unknown> = {}) => ({ agentId, name, role, joinedAt: t0, tmuxPaneId: '', cwd: scratch, subscriptions: [] as string[], ...extra })
   await th.writeCrewFileAsync('crew', {
     name: 'crew',

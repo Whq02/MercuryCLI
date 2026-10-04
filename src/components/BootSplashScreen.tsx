@@ -8,7 +8,7 @@ import { useTheme } from './design-system/ThemeProvider.js';
 import {
   chatOnlyBoot,
   enterConcourse,
-  enterRootRepl,
+  enterRootChat,
   leaveCurrentSurface,
   routeSurfaceRegistered,
   stripKeyMapHint,
@@ -19,7 +19,7 @@ import { getProjectDir } from '../utils/sessionStoragePortable.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { useLayoutChrome } from '../context/layoutChromeContext.js';
 import { truncateToWidth } from './mercury-ui/glyphs.js';
-import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
+import { useEngineModel } from '../hooks/useEngineModel.js';
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js';
 import { getSessionId } from '../bootstrap/state.js';
 import { getUserSpecifiedModelSetting, renderModelChip } from '../utils/model/model.js';
@@ -119,7 +119,7 @@ type BornSessionFn = typeof import('../services/switchboard/bornSession.js')['bo
 async function flipFirstBirth(start: (bornSession: BornSessionFn) => ReturnType<BornSessionFn>): Promise<string | null> {
   const { bornSession } = await import('../services/switchboard/bornSession.js');
   const birth = start(bornSession);
-  const flipped = enterRootRepl().ok;
+  const flipped = enterRootChat().ok;
   if (flipped) recordLaunchMilestone('chat-flipped');
   const born = await birth;
   if (!born.ok) {
@@ -131,7 +131,7 @@ async function flipFirstBirth(start: (bornSession: BornSessionFn) => ReturnType<
     return born.reason;
   }
   recordLaunchMilestone('birth-landed');
-  if (!flipped) enterRootRepl();
+  if (!flipped) enterRootChat();
   return null;
 }
 
@@ -282,7 +282,7 @@ export function BootSplashScreen(): React.ReactNode {
   const sessionsCtx = repoCount > 0 ? `${repoCount} repo${repoCount === 1 ? '' : 's'} · pick a session` : null;
 
   const goHome = (): void => {
-    if (!leaveCurrentSurface().ok) enterRootRepl();
+    if (!leaveCurrentSurface().ok) enterRootChat();
   };
 
   const openProject = (p: BootProjectFact): AsyncListNote => {
@@ -315,7 +315,7 @@ export function BootSplashScreen(): React.ReactNode {
         } catch (e) {
           return e instanceof Error ? e.message : String(e);
         }
-        enterRootRepl();
+        enterRootChat();
         return null;
       })(),
     };
@@ -375,7 +375,7 @@ export function BootSplashScreen(): React.ReactNode {
             } catch (e) {
               return e instanceof Error ? e.message : String(e);
             }
-            enterRootRepl();
+            enterRootChat();
             return null;
           })(),
         };
@@ -467,7 +467,7 @@ export function BootSplashScreen(): React.ReactNode {
     isCompact ? 0 : CARD_LABEL_W,
     `card:${selCleared ? -1 : list.selectedIndex}`,
   );
-  const mainModel = useMainLoopModel();
+  const mainModel = useEngineModel();
 
   const catalogueEpoch = useCatalogueEpoch();
   useEffect(() => {

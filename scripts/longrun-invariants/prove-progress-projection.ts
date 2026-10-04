@@ -107,7 +107,7 @@ section('§C wiring pins — the transcript never sees an ephemeral frame')
   )
   check('the collapsed card merges the live frame as the newest',
     collapsed.includes('useEphemeralProgressVersion(memberIds)') &&
-      (collapsed.match(/getEphemeralProgressFrame\(id\) \?\?/g) ?? []).length === 2)
+      (collapsed.match(/getEphemeralProgressFrame\(id\) \?\?/g) ?? []).length === 1)
   const grouped = readFileSync(
     join(import.meta.dir, '..', '..', 'src', 'components', 'messages', 'GroupedToolUseContent.tsx'),
     'utf8',

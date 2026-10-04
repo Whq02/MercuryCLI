@@ -57,12 +57,12 @@ export function Breadcrumb({
   active,
   onBoot,
   onConcourse,
-  onMainRepl,
+  onFocusedChat,
 }: {
   active: ConcourseSnapshotV1['breadcrumb']['active']
   onBoot?: () => void
   onConcourse?: () => void
-  onMainRepl?: () => void
+  onFocusedChat?: () => void
 }): React.ReactNode {
   const t = useMercuryTokens();
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion);
@@ -92,10 +92,10 @@ export function Breadcrumb({
         <Text color={t.textMuted}>CONCOURSE</Text>
       )}
       <Text color={t.textMuted}> › </Text>
-      {active === 'main-repl' ? (
+      {active === 'focused-chat' ? (
         <Text bold color={t.info}>FOCUSED CHAT</Text>
       ) : chat ? (
-        dest('main-repl', 'FOCUSED CHAT', onMainRepl)
+        dest('focused-chat', 'FOCUSED CHAT', onFocusedChat)
       ) : (
         <Text color={t.textMuted}>FOCUSED CHAT</Text>
       )}
@@ -106,12 +106,12 @@ export function Breadcrumb({
 export function ConcourseHeader({
   snapshot,
   onBoot,
-  onMainRepl,
+  onFocusedChat,
   columns: paneColumns,
 }: {
   snapshot: ConcourseSnapshotV1
   onBoot?: () => void
-  onMainRepl?: () => void
+  onFocusedChat?: () => void
   columns?: number
 }): React.ReactNode {
   const t = useMercuryTokens();
@@ -152,14 +152,14 @@ export function ConcourseHeader({
               <Breadcrumb
                 active={snapshot.breadcrumb.active}
                 {...(onBoot ? { onBoot } : {})}
-                {...(onMainRepl ? { onMainRepl } : {})}
+                {...(onFocusedChat ? { onFocusedChat } : {})}
               />
             </>
           ) : (
             <>
               <Box flexGrow={1} />
               {chat ? (
-                <InteractiveRow id="concourse:crumb:main-repl" directActivate hoverStyle="chrome-ink" {...(onMainRepl ? { onActivate: onMainRepl } : {})} flexShrink={0}>
+                <InteractiveRow id="concourse:crumb:focused-chat" directActivate hoverStyle="chrome-ink" {...(onFocusedChat ? { onActivate: onFocusedChat } : {})} flexShrink={0}>
                   {hover => <Text color={hover ? t.info : t.textMuted}>FOCUSED CHAT ›</Text>}
                 </InteractiveRow>
               ) : (

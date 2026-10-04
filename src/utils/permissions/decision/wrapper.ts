@@ -2,7 +2,6 @@ import { APIUserAbortError } from '../../../services/api/sdkErrors.js'
 import type { Tool, ToolPermissionContext, ToolUseContext } from '../../../Tool.js'
 import { AGENT_TOOL_NAME } from '../../../tools/AgentTool/constants.js'
 import { POWERSHELL_TOOL_NAME } from '../../../tools/PowerShellTool/toolName.js'
-import { REPL_TOOL_NAME } from '../../../tools/REPLTool/constants.js'
 import type { AssistantMessage } from '../../../types/message.js'
 import { logForDebugging } from '../../debug.js'
 import { AbortError, toError } from '../../errors.js'
@@ -39,7 +38,7 @@ import {
   buildClassifierUnavailableMessage,
   buildClassifierUnreadableMessage,
   buildFlowBlockDeclinedMessage,
-  buildYoloRejectionMessage,
+  buildFlowRejectionMessage,
   DONT_ASK_REJECT_MESSAGE,
 } from '../../messages.js'
 import {
@@ -67,10 +66,10 @@ import {
 } from '../PermissionUpdate.js'
 import type { PermissionUpdate } from '../PermissionUpdateSchema.js'
 import {
-  classifyYoloActionWithFallback,
+  classifyFlowActionWithFallback,
   formatActionForClassifier,
   type TranscriptEntry,
-} from '../yoloClassifier.js'
+} from '../flowClassifier.js'
 import { decideRuleBasedPermissions, decideToolPermission } from './engine.js'
 import type {
   DecisionTrace,
@@ -340,7 +339,7 @@ function hideDangerousAllowsFromView(context: ToolUseContext): {
 
 
 export type WrapperClassifierResult = Awaited<
-  ReturnType<typeof classifyYoloActionWithFallback>
+  ReturnType<typeof classifyFlowActionWithFallback>
 >
 
 export interface WrapperPorts {
@@ -390,7 +389,7 @@ export const defaultWrapperPorts: WrapperPorts = {
     return tool.checkPermissions(parsedInput, probeContext)
   },
   classify: (context, action, permissionContext, signal) =>
-    classifyYoloActionWithFallback(
+    classifyFlowActionWithFallback(
       context.messages,
       action,
       context.options.tools,
@@ -565,7 +564,7 @@ export async function decideToolPermissionWithModes(
       }
       recordPass('powershellGuard')
 
-      if (tool.name !== AGENT_TOOL_NAME && tool.name !== REPL_TOOL_NAME) {
+      if (tool.name !== AGENT_TOOL_NAME) {
         let probeContext: ToolUseContext | null = context
         try {
           const view = hideDangerousAllowsFromView(context)
@@ -596,7 +595,7 @@ export async function decideToolPermissionWithModes(
               logForDebugging(
                 `Flow classifier skipped for ${tool.name}: implement mode would allow this outright`,
               )
-              return decide('acceptEditsFastPath', {
+              return decide('implementFastPath', {
                 behavior: 'allow',
                 updatedInput: acceptEditsVerdict.updatedInput ?? input,
                 decisionReason: {
@@ -610,12 +609,12 @@ export async function decideToolPermissionWithModes(
               throw e
             }
           }
-          recordPass('acceptEditsFastPath')
+          recordPass('implementFastPath')
         } else {
-          recordPass('acceptEditsFastPath', 'skipped — danger filter outage')
+          recordPass('implementFastPath', 'skipped — danger filter outage')
         }
       } else {
-        recordPass('acceptEditsFastPath')
+        recordPass('implementFastPath')
       }
 
       if (
@@ -792,7 +791,7 @@ export async function decideToolPermissionWithModes(
                 classifier: 'auto-mode',
                 reason: classifierResult.reason,
               },
-              message: buildYoloRejectionMessage(classifierResult.reason),
+              message: buildFlowRejectionMessage(classifierResult.reason),
             },
             'blocked — no consent card in this session',
           )

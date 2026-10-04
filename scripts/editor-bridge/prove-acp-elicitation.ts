@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/acp/* src/cli/print.ts src/cli/headless/runnerAsks.ts src/runner/wire/* scripts/mcp/_fixture-estate-server.mjs
+// gate-watch: src/services/acp/* src/cli/run.ts src/cli/headless/runnerAsks.ts src/runner/wire/* scripts/mcp/_fixture-estate-server.mjs
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, type ChildProcess } from 'node:child_process'

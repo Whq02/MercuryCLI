@@ -182,7 +182,7 @@ function makeCtx(model: string, effortValue: string, thinkingConfig: Record<stri
     options: {
       commands: [],
       tools,
-      mainLoopModel: model,
+      engineModel: model,
       thinkingConfig,
       mcpClients: [],
       mcpResources: {},

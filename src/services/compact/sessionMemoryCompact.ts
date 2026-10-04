@@ -8,7 +8,7 @@ import {
   findLastCompactBoundaryIndex,
   isCompactBoundaryMessage,
 } from '../../utils/messages.js'
-import { getMainLoopModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../utils/model/model.js'
 import { getSessionMemoryPath } from '../../utils/permissions/filesystem.js'
 import { processSessionStartHooks } from '../../utils/sessionStart.js'
 import { getTranscriptPath } from '../../utils/sessionStorage/paths.js'
@@ -183,7 +183,7 @@ export async function trySessionMemoryCompaction(
     const keepIndex = calculateMessagesToKeepIndex(messages, lastSummarizedIndex)
     const kept = messages.slice(keepIndex).filter(message => !isCompactBoundaryMessage(message))
 
-    const hookResults = await processSessionStartHooks('compact', { model: getMainLoopModel() })
+    const hookResults = await processSessionStartHooks('compact', { model: getEngineModel() })
 
     const preTokens = tokenCountFromLastAPIResponse(messages)
     const lastMessage = messages[messages.length - 1]

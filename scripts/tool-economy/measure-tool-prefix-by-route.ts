@@ -445,7 +445,7 @@ async function drive(leg: Leg, view: 'fresh' | 'admitted', pool: Tools, admitted
         getToolPermissionContext: async () => permissionContext,
         model: leg.model,
         isNonInteractiveSession: true,
-        querySource: 'repl_main_thread' as never,
+        querySource: 'main_thread' as never,
         agents: [],
         hasAppendSystemPrompt: false,
         mcpTools: mcpTools,

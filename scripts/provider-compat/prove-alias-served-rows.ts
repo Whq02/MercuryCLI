@@ -167,7 +167,7 @@ const catalogue = await import('../../src/services/providers/moonshot/moonshotCa
 const { keyLanePins, getModelOptions, MOONSHOT_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.ts')
 const { moonshotCallModel } = await import('../../src/services/providers/moonshot/moonshotCallModel.ts')
 const { streamCompatChat } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
-const { resolveEngineDispatch } = await import('../../src/utils/swarm/engineDispatch.ts')
+const { resolveEngineDispatch } = await import('../../src/utils/crew/engineDispatch.ts')
 const { validateModel } = await import('../../src/utils/model/validateModel.ts')
 const { getModelUsage } = await import('../../src/bootstrap/state.ts')
 const { catalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
@@ -237,7 +237,7 @@ async function mountModel(model: string): Promise<{ frame: () => string; unmount
   stdout.resume()
   const input: string[] = []
   const stdin = Object.assign(new EventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return input.shift() ?? null }, readableLength: 0, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } })
-  const store = createStore({ ...getDefaultAppState(), mainLoopModel: model }, () => {})
+  const store = createStore({ ...getDefaultAppState(), engineModel: model }, () => {})
   const picker = await call(() => {}, { messages: [] } as never, '')
   const instance = await render(React.createElement(AppStoreContext.Provider, { value: store }, picker), { stdout: stdout as never, stdin: stdin as never, patchConsole: false })
   const frame = (): string => stripAnsi(instance.lastFrame()).replace(/\n$/, '')

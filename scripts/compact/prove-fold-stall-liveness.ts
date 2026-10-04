@@ -238,7 +238,7 @@ async function runFold(messages: unknown[]): Promise<Run> {
     agentType: undefined,
     agentId: undefined,
     readFileState,
-    options: { tools: [], mcpClients: [], mainLoopModel: MODEL, maxThinkingTokens: 0, thinkingConfig: { type: 'disabled' as const }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } },
+    options: { tools: [], mcpClients: [], engineModel: MODEL, maxThinkingTokens: 0, thinkingConfig: { type: 'disabled' as const }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } },
   }
   const cacheSafe = { systemPrompt: asSystemPrompt(['You are a fixture-driven session posture.']) }
   const startedAt = Date.now()

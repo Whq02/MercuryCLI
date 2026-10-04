@@ -128,7 +128,7 @@ section('§5 — the live wiring (a legacy home: config deepseek + two env keys,
   process.env.OPENROUTER_API_KEY = 'fixture-openrouter-key-123'
   resetComputedDefaultMemo()
   const deepseekPin = keyLanePins('deepseek')[0]?.id
-  const withKey = model.getDefaultMainLoopModelSetting()
+  const withKey = model.getDefaultEngineModelSetting()
   check(
     'the legacy record leads the two untimed env keys: the default setting resolves the DeepSeek frontier pin',
     deepseekPin !== undefined && withKey === deepseekPin,
@@ -136,7 +136,7 @@ section('§5 — the live wiring (a legacy home: config deepseek + two env keys,
   )
   const legacy = computedDefault()
   check('…named as the recorded default provider with no recorded time', legacy.provider === 'deepseek' && legacy.chosen?.timed === false && legacy.chosen.recency.startsWith('the recorded default provider, sign-in time not recorded'), legacy.chosen?.recency)
-  const resolvedModel = model.getMainLoopModel()
+  const resolvedModel = model.getEngineModel()
   check('…and the main-loop resolution rides it (no explicit setting present)', resolvedModel === deepseekPin, resolvedModel)
 
   check('/defaultprovider openrouter records the operator switch', switchDefaultProvider('openrouter') === true)

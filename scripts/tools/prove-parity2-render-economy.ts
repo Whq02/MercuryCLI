@@ -60,8 +60,8 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   disarm()
   t('MERCURY_UPDATE_NOTICE=0 never arms the check', !armed)
   delete process.env.MERCURY_UPDATE_NOTICE
-  const repl = readFileSync('src/screens/REPL.tsx', 'utf8')
-  t('the REPL arms the notice after mount with the existing notice surface (structural)', /scheduleQuietUpdateNotice\(text =>\s*addNotification\(\{ key: UPDATE_NOTICE_KEY/.test(repl))
+  const repl = readFileSync('src/screens/Chat.tsx', 'utf8')
+  t('the Chat arms the notice after mount with the existing notice surface (structural)', /scheduleQuietUpdateNotice\(text =>\s*addNotification\(\{ key: UPDATE_NOTICE_KEY/.test(repl))
   const doc = readFileSync('docs/TERMINAL-RUNTIME.md', 'utf8')
   t('the runtime doc states exactly what the check sends', /sends nothing about the machine or the\s+operator/.test(doc) && /MERCURY_UPDATE_NOTICE=0/.test(doc))
 }

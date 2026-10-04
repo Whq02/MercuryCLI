@@ -50,7 +50,7 @@ const LINE2 = 'the second mid-turn line'
 const LINE3 = 'the third mid-turn line'
 const LINE4 = 'the line before the escape'
 const LINE5 = 'the line during the fold'
-const SLASH = '/cost'
+const SLASH = '/auto-compact-window'
 
 section('W the words the model reads (the source)')
 {
@@ -80,7 +80,7 @@ section("D the daemon road's clock — the frame and the wiring")
   check('the daemon forwards a parseable sentAt into the dispatch request', control.includes("...(typeof raw.sentAt === 'string' && Number.isFinite(Date.parse(raw.sentAt)) ? { sentAt: raw.sentAt } : {}),"))
   const dispatchSrc = read('daemon/concourseDispatch.ts')
   check('the prompt extras carry sentAt on both delivery legs (the admit leg and the redirect leg read promptExtrasOf)', dispatchSrc.includes("...(req.sentAt !== undefined ? { sentAt: req.sentAt } : {}),") && dispatchSrc.includes("...(extras?.sentAt !== undefined ? { sent_at: extras.sentAt } : {}),"))
-  const printSrc = read('cli/print.ts')
+  const printSrc = read('cli/run.ts')
   check("the runner stamps the queued command from the frame's timestamp, or the arrival", printSrc.includes("const sentAt = typeof input.sentAt === 'string' && Number.isFinite(Date.parse(input.sentAt)) ? input.sentAt : new Date().toISOString()") && printSrc.includes("...(row.sent_at !== undefined ? { sentAt: row.sent_at } : {})"))
   const attachments = read('utils/attachments/queuedCommands.ts')
   check('the queued_command attachment carries the clock', attachments.includes("...(_.sentAt !== undefined ? { sentAt: _.sentAt } : {}),"))

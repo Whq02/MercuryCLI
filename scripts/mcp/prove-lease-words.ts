@@ -14,7 +14,7 @@ import { Client } from '@modelcontextprotocol/client'
 import { createCoordinationServer } from '../../src/services/mcp/coordinationServer.js'
 import { createLinkedTransportPair } from '../../src/services/mcp/InProcessTransport.js'
 import { clearDynamicCrewContext, setDynamicCrewContext } from '../../src/utils/crewmate.js'
-import { writeCrewFileAsync, type CrewFile } from '../../src/utils/swarm/crewHelpers.js'
+import { writeCrewFileAsync, type CrewFile } from '../../src/utils/crew/crewHelpers.js'
 import { getSessionId, switchSession } from '../../src/bootstrap/state.js'
 import { makeTally } from '../daemon/dupline-world.ts'
 

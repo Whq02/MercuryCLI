@@ -3,7 +3,7 @@ import type { AssistantMessage } from '../types/message.js'
 import type { ToolUseContext } from '../Tool.js'
 import type { QuerySource } from '../constants/querySource.js'
 import type { SystemPrompt } from '../utils/systemPromptType.js'
-import type { REPLHookContext } from '../utils/hooks/postSamplingHooks.js'
+import type { ChatHookContext } from '../utils/hooks/postSamplingHooks.js'
 import {
   executeStopHooks,
   executeTaskCompletedHooks,
@@ -32,7 +32,7 @@ export type StopHookOutcome = {
   preventContinuation: boolean
 }
 
-const MAIN_THREAD_SOURCE = 'repl_main_thread'
+const MAIN_THREAD_SOURCE = 'main_thread'
 const SDK_SOURCE = 'sdk'
 
 type StopHookInfo = { command: string; promptText?: string; durationMs?: number }
@@ -159,7 +159,7 @@ export async function* handleStopHooks(
   querySource: QuerySource | undefined,
   stopHookActive?: boolean,
 ): AsyncGenerator<Message, StopHookOutcome> {
-  const hookContext: REPLHookContext = {
+  const hookContext: ChatHookContext = {
     messages: [...messagesForQuery, ...assistantMessages],
     systemPrompt,
     userContext,
@@ -179,7 +179,7 @@ export async function* handleStopHooks(
     {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const suggestion = require('../services/PromptSuggestion/promptSuggestion.js') as {
-        executePromptSuggestion: (context: REPLHookContext) => Promise<void>
+        executePromptSuggestion: (context: ChatHookContext) => Promise<void>
       }
       void suggestion.executePromptSuggestion(hookContext).catch(error => {
         logForDebugging(`prompt suggestion failed: ${errorMessage(error)}`)
@@ -187,7 +187,7 @@ export async function* handleStopHooks(
     }
     if (!agentId) {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const mneme = require('../memdir/mnemeMaintenance.js') as {
+      const mneme = require('../mneme/mnemeMaintenance.js') as {
         scheduleMnemeMaintenance: (trigger: 'turn-end') => void
       }
       mneme.scheduleMnemeMaintenance('turn-end')

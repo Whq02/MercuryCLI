@@ -37,7 +37,7 @@ check(
     mirrorCode.includes('deriveTranscriptRows('),
 )
 check(
-  'the shared derive IS the Main REPL pipeline (normalize → reorder → group → collapse)',
+  'the shared derive IS the Main Chat pipeline (normalize → reorder → group → collapse)',
   ['normalizeMessages', 'reorderMessagesInUI', 'applyGrouping', 'collapseReadSearchGroups', 'injectTurnReceipts'].every(
     fn => foldSrc.includes(fn),
   ),

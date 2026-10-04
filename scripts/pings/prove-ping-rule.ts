@@ -94,7 +94,7 @@ section('§4 one event, one emitter, one mount')
   check('a reported focus state decides at the turn end; unknown focus waits one window', hook.includes("if (getTerminalFocusState() !== 'unknown') {\n      fire()\n      return\n    }") && hook.includes('const timer = setTimeout(fire, threshold)'))
   check('the switch and the busy fact are read at fire time', hook.includes('if (busyRef.current || isUserAtScreen(threshold) || !pingEnabled()) return'))
   check('the effect re-arms only on a new turn boundary', hook.includes('}, [write, turn.lastCompletedAt, threshold])'))
-  const repl = src('src/screens/REPL.tsx')
+  const repl = src('src/screens/Chat.tsx')
   check('the chat screen mounts the ping on its turn boundary and the seat liveness', repl.includes('useTurnEndPing({ lastCompletedAt, busy: isLoading })'))
   const { execFileSync } = await import('node:child_process')
   const grep = (needle: string): string[] =>
@@ -102,7 +102,7 @@ section('§4 one event, one emitter, one mount')
       .split('\n')
       .filter(Boolean)
       .sort()
-  check('the hook has exactly one mount (the chat screen)', grep('useTurnEndPing(').join(',') === 'src/hooks/useTurnEndPing.ts,src/screens/REPL.tsx', grep('useTurnEndPing(').join(','))
+  check('the hook has exactly one mount (the chat screen)', grep('useTurnEndPing(').join(',') === 'src/hooks/useTurnEndPing.ts,src/screens/Chat.tsx', grep('useTurnEndPing(').join(','))
   check('the emitter has exactly one caller (the hook)', grep('postTerminalNotification(').join(',') === 'src/hooks/useTurnEndPing.ts,src/ink/termio/notifyPing.ts', grep('postTerminalNotification(').join(','))
   let bare = 0
   for (const f of execFileSync('git', ['grep', '-l', 'BEL', '--', 'src'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean)) {

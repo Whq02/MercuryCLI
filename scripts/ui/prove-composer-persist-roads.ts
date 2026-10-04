@@ -76,7 +76,7 @@ const { App } = await import('../../src/components/App.js')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
 const { useAppStateStore } = await import('../../src/state/AppState.js')
 const { SurfaceRouter } = await import('../../src/components/SurfaceRouter.js')
-const { REPL } = await import('../../src/screens/REPL.js')
+const { Chat } = await import('../../src/screens/Chat.js')
 const route = await import('../../src/context/surfaceRoute.js')
 const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.js')
 const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.js')
@@ -108,7 +108,7 @@ const store = (): AppStore => {
 }
 
 slot.setFocusedSessionConnector(Object.assign(new NoSessionConnector(), { sessionId: () => SESSION }))
-route.initializeSurfaceRoute(route.ROOT_REPL_ROUTE)
+route.initializeSurfaceRoute(route.ROOT_CHAT_ROUTE)
 resetChromeModeLatchForTests()
 pending.edit('')
 pending.setMode('prompt')
@@ -147,9 +147,9 @@ async function closeWith(m: Mounted, gone: () => boolean): Promise<boolean> {
   return waitFor(gone, 4000)
 }
 
-section('§0 the real chat at 178x51: the REPL screen and its composer in one in-process tree')
+section('§0 the real chat at 178x51: the Chat screen and its composer in one in-process tree')
 const m = await mountOffscreen(
-  h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined }, h(StoreTap, null), h(SurfaceRouter, null, h(REPL, { commands, initialTools: [] }))),
+  h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined }, h(StoreTap, null), h(SurfaceRouter, null, h(Chat, { commands, initialTools: [] }))),
   COLS,
   ROWS,
 )
@@ -193,10 +193,10 @@ section('§2 /model (through the click door) — open, esc back')
   check('back from the picker the composer still reads the draft', pending.text() === DRAFT && composerRow(m).includes(DRAFT), quoted(m))
 }
 
-section('§3 the files menu (/files through the click door) — open, esc back')
+section('§3 the files menu (the files owner) — open, esc back')
 {
   await freshDraft(m)
-  helm.requestCommandDispatch('/files')
+  filesMenu.openFilesMenu()
   const opened = await waitFor(() => filesMenu.isFilesMenuOpen(), 6000)
   await settle(400)
   check('the files menu opened', opened)
@@ -204,7 +204,7 @@ section('§3 the files menu (/files through the click door) — open, esc back')
   check('the draft is still the composer text under the files menu', pending.text() === DRAFT, quoted(m))
   check('esc closed the files menu', await closeWith(m, () => !filesMenu.isFilesMenuOpen()))
   await settle(300)
-  record('files menu: /files open, esc back', pending.text(), composerRow(m))
+  record('files menu: open, esc back', pending.text(), composerRow(m))
   check('back from the files menu the composer still reads the draft', pending.text() === DRAFT && composerRow(m).includes(DRAFT), quoted(m))
 }
 
@@ -368,13 +368,13 @@ section('§9 the roads that legitimately clear: a typed submit takes the compose
 {
   pending.edit('')
   await settle(200)
-  await typeWords(m, '/files')
+  await typeWords(m, '/model')
   await press(m, KEY.enter, 300)
-  const opened = await waitFor(() => filesMenu.isFilesMenuOpen(), 6000)
+  const opened = await waitFor(() => m.screen().includes(MODEL_TITLE), 6000)
   await settle(300)
-  check('the typed /files opened the files menu', opened)
+  check('the typed /model opened the picker', opened)
   check('the typed line left the composer (submit clears — that law stays)', pending.text() === '', quoted(m))
-  check('esc closed the files menu', await closeWith(m, () => !filesMenu.isFilesMenuOpen()))
+  check('esc closed the model picker', await closeWith(m, () => !m.screen().includes(MODEL_TITLE)))
   await settle(200)
 }
 

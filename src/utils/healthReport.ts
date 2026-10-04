@@ -26,7 +26,7 @@ import { crashReportDir } from './crashReport.js'
 import { getAuthConfigHomeDir, getMercuryHome } from './envUtils.js'
 import { classifyHarnessHome, harnessArtifactPath, type HarnessHomeReport } from './knownAgentClis.js'
 import { pidAlive } from './pidAlive.js'
-import { getAutoMemPath } from '../memdir/paths.js'
+import { getMnemeHome } from '../mneme/paths.js'
 import { isAwaySummaryEnabled } from './cockpit/awaySummary.js'
 import { isMercuryCompactKeepTailEnabled } from '../services/compact/verbatimTail.js'
 import { publishAtomic } from '../substrate/fileStore.js'
@@ -70,7 +70,7 @@ import {
   getLspServerManager,
 } from '../services/lsp/manager.js'
 import { listCapabilityKills } from './permissions/capabilityGate.js'
-import { getMainLoopModel, parseUserSpecifiedModel, renderModelChip } from './model/model.js'
+import { getEngineModel, parseUserSpecifiedModel, renderModelChip } from './model/model.js'
 import {
   describeFrontierDecision,
   frontierOperatorDecision,
@@ -117,7 +117,7 @@ import { getBuiltInAgents } from '../tools/AgentTool/builtInAgents.js'
 import {
   findRoleDefinition,
   getRoleSystemPrompt,
-} from './swarm/roleResolver.js'
+} from './crew/roleResolver.js'
 import { recognizeModelId, unrecognisedModelIdReason } from '../services/providers/idSpaces.js'
 
 export async function computeWorkingTreeSha(cwdDir: string): Promise<string | null> {
@@ -504,7 +504,7 @@ const PROVIDER_AUTH_PRESENTATION: Record<string, { label: string; signIn: string
 function routedAuthFamily(): string {
   try {
     const { declaredRouteOf } = require('../services/providers/routeLaw.js') as typeof import('../services/providers/routeLaw.js')
-    return declaredRouteOf(getMainLoopModel()) ?? 'anthropic'
+    return declaredRouteOf(getEngineModel()) ?? 'anthropic'
   } catch {
     return 'anthropic'
   }
@@ -743,7 +743,7 @@ function webSearchDoorCheck(): CheckSpec {
     run: () => {
       const { liveSearchDoorReads, resolveSearchDoorPlan, nativeSearchFamilyOf, searchDoorFact } =
         require('../services/search/searchDoor.js') as typeof import('../services/search/searchDoor.js')
-      const model = getMainLoopModel()
+      const model = getEngineModel()
       const plan = resolveSearchDoorPlan(liveSearchDoorReads())
       if (plan.doors.length === 0 && nativeSearchFamilyOf(model) === undefined) {
         return {
@@ -1575,7 +1575,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             }
             return {
               status: 'off',
-              evidence: `no supervisor record — ${d.reason}${receipt ? ` · ${receipt}` : ''}`,
+              evidence: `no daemon record — ${d.reason}${receipt ? ` · ${receipt}` : ''}`,
               link: '/daemon',
             }
           },
@@ -2121,17 +2121,17 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'memory',
           label: 'Memory front page',
           run: async () => {
-            const { mnemeEnabled, mnemeLibraryDir } = await import('../memdir/mnemeGates.js')
+            const { mnemeEnabled, mnemeLibraryDir } = await import('../mneme/mnemeGates.js')
             if (!mnemeEnabled()) {
               return { status: 'off', evidence: 'memory is off (memory.enabled is false in settings) — nothing is loaded or saved' }
             }
-            const { readFrontPage, readPinnedStatus } = await import('../memdir/mnemeFrontPage.js')
-            const { formatTextSize } = await import('../memdir/mnemeUsage.js')
-            const { readHandoverReceipt } = await import('../memdir/mnemeHandover.js')
+            const { readFrontPage, readPinnedStatus } = await import('../mneme/mnemeFrontPage.js')
+            const { formatTextSize } = await import('../mneme/mnemeUsage.js')
+            const { readHandoverReceipt } = await import('../mneme/mnemeHandover.js')
             const dir = mnemeLibraryDir()
             const page = readFrontPage(dir)
             if (page === null) {
-              return { status: 'info', evidence: `no front page yet under ${getAutoMemPath()} — it is written at the first consolidation` }
+              return { status: 'info', evidence: `no front page yet under ${getMnemeHome()} — it is written at the first consolidation` }
             }
             const pinned = readPinnedStatus(dir)
             const topics = page.split('\n').filter(l => /^- /.test(l) && !/ <seq=/.test(l)).length
@@ -2152,8 +2152,8 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'memory-verbs',
           label: 'Memory verbs',
           run: async () => {
-            const { memoryVerbsEnabled, memoryVerbsWhyNot } = await import('../memdir/memoryVerbs.js')
-            const { mnemeStatus } = await import('../memdir/mnemeMaintenance.js')
+            const { memoryVerbsEnabled, memoryVerbsWhyNot } = await import('../mneme/memoryVerbs.js')
+            const { mnemeStatus } = await import('../mneme/mnemeMaintenance.js')
             if (!memoryVerbsEnabled()) {
               return {
                 status: 'off',
@@ -2292,7 +2292,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'model',
           label: 'Model pins',
           run: () => {
-            const session = getMainLoopModel()
+            const session = getEngineModel()
             let pin: string | undefined
             try {
               pin = getSettingsWithAllErrors().settings.engine?.model
@@ -2578,14 +2578,14 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'memory-lifecycle',
           label: 'Memory lifecycle',
           run: async () => {
-            const { mnemeEnabled } = await import('../memdir/mnemeGates.js')
+            const { mnemeEnabled } = await import('../mneme/mnemeGates.js')
             if (!mnemeEnabled()) {
               return {
                 status: 'off' as const,
                 evidence: 'memory is off (memory.enabled is false in settings) — nothing saved or recalled this session',
               }
             }
-            const { mnemeStatus } = await import('../memdir/mnemeMaintenance.js')
+            const { mnemeStatus } = await import('../mneme/mnemeMaintenance.js')
             const st = mnemeStatus()
             const evidence = [
               `memory: ${st.entryCount} current · ${st.buffered + st.pendingConsuming} recent · ${st.historyCount} history · ${st.topicCount} topics`,
@@ -3312,7 +3312,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           label: 'Operation journals',
           run: async () => {
             const { listJournalOperations } = await import('../substrate/operationJournal.js')
-            const { crewJournalDir } = await import('./swarm/crewOperations.js')
+            const { crewJournalDir } = await import('./crew/crewOperations.js')
             const alive = (pid: number): boolean => {
               try {
                 process.kill(pid, 0)

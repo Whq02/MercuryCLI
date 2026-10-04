@@ -9,8 +9,8 @@
     "src/extensions/records.ts",
     "src/history.ts",
     "src/keybindings/writeBindings.ts",
-    "src/memdir/mnemeConsolidate.ts",
-    "src/memdir/mnemeLibrary.ts",
+    "src/mneme/mnemeConsolidate.ts",
+    "src/mneme/mnemeLibrary.ts",
     "src/services/agents/overrides.ts",
     "src/services/agents/store.ts",
     "src/services/changeTransaction/changeSetCommit.ts",
@@ -49,6 +49,7 @@
     "src/utils/artifacts/store.ts",
     "src/utils/bootCardFacts.ts",
     "src/utils/cache/cacheClock.ts",
+    "src/utils/crew/crewHelpers.ts",
     "src/utils/debug.ts",
     "src/utils/file.ts",
     "src/utils/healthDeepProbes.ts",
@@ -62,7 +63,6 @@
     "src/utils/sessionStorage/resumeSnapshot.ts",
     "src/utils/settings/localSchema.ts",
     "src/utils/settings/settings.ts",
-    "src/utils/swarm/crewHelpers.ts",
     "src/utils/verification/verificationState.ts"
   ],
   "lock": [
@@ -73,10 +73,10 @@
     "src/tools/WorkflowTool/runManifest.ts",
     "src/utils/auth.ts",
     "src/utils/config/globalConfig.ts",
-    "src/utils/settings/settings.ts",
-    "src/utils/swarm/crewHelpers.ts",
-    "src/utils/swarm/handoff.ts",
-    "src/utils/swarm/permissionSync.ts",
-    "src/utils/swarm/sendMessageGovernance.ts"
+    "src/utils/crew/crewHelpers.ts",
+    "src/utils/crew/handoff.ts",
+    "src/utils/crew/permissionSync.ts",
+    "src/utils/crew/sendMessageGovernance.ts",
+    "src/utils/settings/settings.ts"
   ]
 }

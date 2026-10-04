@@ -2,18 +2,18 @@
 # gate-class: pure
 # gate-watch: src/services/providers/** src/utils/router/** src/utils/model/**
 # gate-watch: src/utils/modelCost.ts src/utils/context.ts src/utils/sessionRestore.ts
-# gate-watch: src/utils/swarm/engineDispatch* src/utils/swarm/agentLaunchPlan*
+# gate-watch: src/utils/crew/engineDispatch* src/utils/crew/agentLaunchPlan*
 # gate-watch: src/types/message.ts
 # gate-watch: src/prompt/** src/utils/messages/pairing.ts
 # gate-watch: scripts/provider-compat/fixtures/huggingface-models-2026-08-22.json src/Tool.ts
-# gate-watch: src/bootstrap/state.ts src/cli/print.ts src/commands/context/context-noninteractive.ts
+# gate-watch: src/bootstrap/state.ts src/cli/run.ts src/commands/context/context-noninteractive.ts
 # gate-watch: src/commands/effort/* src/commands/model/mercuryModel.tsx src/commands/model/model.tsx
 # gate-watch: src/components/* src/components/PromptInput/PromptInput.tsx src/components/Settings/Config.tsx
 # gate-watch: src/components/agents/studio/StudioEditor.tsx
 # gate-watch: src/components/concourse/CoordinatorModelPicker.tsx src/components/mercury-ui/EffortChip.tsx
 # gate-watch: src/components/mercury-ui/HarnessChip.tsx src/components/mercury-ui/parity/HarnessView.tsx
 # gate-watch: src/constants/* src/utils/effortLadder.ts src/hooks/useDisplayedSessionModel.ts
-# gate-watch: src/main.tsx src/run-core/turn-machine.ts src/screens/REPL.tsx src/services/api/errors.ts
+# gate-watch: src/main.tsx src/run-core/turn-machine.ts src/screens/Chat.tsx src/services/api/errors.ts
 # gate-watch: src/services/compact/autoCompact.ts src/services/concourse/coordinatorModels.ts
 # gate-watch: src/services/concourse/coordinatorTools.ts src/services/engine-connector/seatProjections.ts
 # gate-watch: src/services/mission/harnessApplication.ts src/services/mission/harnessProfiles.ts

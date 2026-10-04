@@ -13,7 +13,7 @@ import { markTreeSuspectAfterTurn } from '../../utils/verification/verificationS
 function turnOwningSource(querySource: QuerySource | undefined): boolean {
   if (querySource === undefined) return false
   return (
-    querySource.startsWith('repl_main_thread') ||
+    querySource.startsWith('main_thread') ||
     querySource === 'sdk' ||
     querySource.startsWith('agent:')
   )

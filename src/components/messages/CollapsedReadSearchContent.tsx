@@ -8,8 +8,6 @@ import type {
 import type { Tools } from '../../Tool.js'
 import { findToolByName, safeUserFacingName } from '../../Tool.js'
 import { useMinDisplayTime } from '../../hooks/useMinDisplayTime.js'
-import { REPL_ONLY_TOOLS } from '../../tools/REPLTool/constants.js'
-import { getReplPrimitiveTools } from '../../tools/REPLTool/primitiveTools.js'
 import type { MessageLookups } from '../../utils/messages/lookups.js'
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
 import { logError } from '../../utils/log.js'
@@ -103,7 +101,6 @@ export function CollapsedReadSearchContent({
   latch.list = Math.max(latch.list, message.listCount)
   latch.mcp = Math.max(latch.mcp, message.mcpCallCount ?? 0)
   latch.bash = Math.max(latch.bash, fullscreen ? (message.bashCount ?? 0) : 0)
-  const replCount = message.replCount
   const memoryReads = message.memoryReadCount
   const memorySearches = message.memorySearchCount
   const memoryWrites = message.memoryWriteCount
@@ -122,30 +119,6 @@ export function CollapsedReadSearchContent({
 
   let rawHint: string | null = null
   if (active) {
-    for (let i = memberIds.length - 1; i >= 0 && rawHint === null; i--) {
-      const id = memberIds[i]!
-      const frame =
-        getEphemeralProgressFrame(id) ??
-        lookups.progressMessagesByToolUseID.get(id)?.at(-1)
-      const data = frame?.data as
-        | {
-            type?: string
-            phase?: string
-            filePath?: string
-            pattern?: string
-            command?: string
-            toolName?: string
-          }
-        | undefined
-      if (data?.type === 'repl_tool_call' && data.phase === 'start') {
-        rawHint =
-          data.filePath ??
-          (data.pattern ? `"${data.pattern}"` : undefined) ??
-          data.command ??
-          data.toolName ??
-          null
-      }
-    }
     if (rawHint === null && message.latestDisplayHint) rawHint = message.latestDisplayHint
     if (rawHint === null && message.readFilePaths.length > 0) {
       rawHint = toTildePath(message.readFilePaths[message.readFilePaths.length - 1]!)
@@ -159,7 +132,6 @@ export function CollapsedReadSearchContent({
     latch.read > 0 &&
     latch.search === 0 &&
     latch.list === 0 &&
-    replCount === 0 &&
     latch.mcp === 0 &&
     bashCount === 0 &&
     gitOps === 0 &&
@@ -248,9 +220,6 @@ export function CollapsedReadSearchContent({
   if (latch.list > 0) {
     fragments.push(counted(past ? 'listed' : 'listing', latch.list, 'directory'))
   }
-  if (replCount > 0) {
-    fragments.push(counted(past ? 'evaluated' : 'evaluating', replCount, 'REPL call'))
-  }
   if (latch.mcp > 0) {
     const servers = (message.mcpServerNames ?? []).map(name =>
       name.startsWith('claude.ai ') ? name.slice('claude.ai '.length) : name,
@@ -293,7 +262,6 @@ export function CollapsedReadSearchContent({
     latch.search +
     latch.read +
     latch.list +
-    replCount +
     latch.mcp +
     bashCount +
     memoryReads +
@@ -318,10 +286,7 @@ export function CollapsedReadSearchContent({
       }
     }
     for (const entry of flat) {
-      let tool = findToolByName(tools, entry.name)
-      if (!tool && REPL_ONLY_TOOLS.has(entry.name)) {
-        tool = findToolByName(getReplPrimitiveTools(), entry.name)
-      }
+      const tool = findToolByName(tools, entry.name)
       if (!tool) continue
       let target: React.ReactNode | string | null = null
       try {

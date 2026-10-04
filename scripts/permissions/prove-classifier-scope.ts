@@ -18,7 +18,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 await import('../../src/utils/permissions/decision/wrapper.ts')
-const yolo = await import('../../src/utils/permissions/yoloClassifier.ts')
+const flow = await import('../../src/utils/permissions/flowClassifier.ts')
 const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
@@ -38,7 +38,7 @@ const toolResult = (id: string, text: string): unknown => ({
   message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: id, content: text }] },
 })
 
-const evalTool = { name: 'REPL', toAutoClassifierInput: (input: { code?: string }) => input.code ?? '' }
+const evalTool = { name: 'Chat', toAutoClassifierInput: (input: { code?: string }) => input.code ?? '' }
 const tools = [AgentTool, evalTool] as never
 
 const messages = [
@@ -48,8 +48,8 @@ const messages = [
   user(DIAGNOSIS),
 ] as never
 
-const transcript = yolo.buildTranscriptForClassifier(messages, tools)
-const action = yolo.formatActionForClassifier('REPL', { code: EVAL_CODE })
+const transcript = flow.buildTranscriptForClassifier(messages, tools)
+const action = flow.formatActionForClassifier('Chat', { code: EVAL_CODE })
 console.log(`  transcript:\n${transcript.split('\n').map(l => `    │ ${l}`).join('\n')}`)
 
 section("§1 a child's briefing is context — never this session's rules")
@@ -72,7 +72,7 @@ section("§2 the operator's latest request is the task the judge weighs")
   check('the latest request is the LAST user line, after the delegation', lines.indexOf(diagnosisLine) > lines.findIndex(l => l.startsWith('Agent ')), j(lines))
   check('exactly one line wears the latest-request mark', lines.filter(l => l.startsWith('User (latest request')).length === 1, j(lines))
   const actionInput = action.content[0]?.input as { code?: string } | undefined
-  check('the action projects as the tool name and its code', action.role === 'assistant' && action.content[0]?.name === 'REPL' && actionInput?.code === EVAL_CODE, j(action))
+  check('the action projects as the tool name and its code', action.role === 'assistant' && action.content[0]?.name === 'Chat' && actionInput?.code === EVAL_CODE, j(action))
 }
 
 section('§3 the system prompt tells the judge both laws')
@@ -81,7 +81,7 @@ section('§3 the system prompt tells the judge both laws')
   check('the prompt says the latest request is the task the agent works on now', /latest request/.test(asset) && /(task|work)[^.\n]*(now|current)/.test(asset), asset.slice(0, 300))
   check("the prompt says a sub-agent's briefing binds that sub-agent alone — not this session", /sub-agent/.test(asset) && /bind/.test(asset) && /alone|only/.test(asset), asset.slice(0, 300))
   check('the prompt weighs an action against what the latest request asks for', /latest request/.test(asset.split('## Classification process')[1] ?? ''), asset.split('## Classification process')[1]?.slice(0, 400) ?? '')
-  const assembled = yolo.buildDefaultExternalSystemPrompt()
+  const assembled = flow.buildDefaultExternalSystemPrompt()
   check('the assembled prompt carries both (the asset is what ships)', /latest request/.test(assembled) && /sub-agent/.test(assembled))
   check('the tool-reporting sentinel stays exactly once (the XML path replaces it)', assembled.split('Use the classify_result tool to report your classification.').length === 2)
 }

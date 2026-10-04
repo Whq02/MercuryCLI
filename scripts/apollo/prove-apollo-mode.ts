@@ -96,7 +96,7 @@ try {
     'the prompt-build callers thread the LIVE toolPermissionContext.mode (the next-turn law)',
     /permissionMode: appStateSnapshot\.toolPermissionContext\.mode/.test(src('rows', 'turn.ts')) &&
       /permissionMode: appState\.toolPermissionContext\.mode/.test(src('utils', 'queryContext.ts')) &&
-      src('utils', 'queryContext.ts').includes('getSystemPrompt(tools, mainLoopModel, mcpClients, permissionMode)'),
+      src('utils', 'queryContext.ts').includes('getSystemPrompt(tools, engineModel, mcpClients, permissionMode)'),
   )
   const contract = src('prompt', 'behaviourContract.ts')
   check('behaviour contract owns mode:mode-apollo → src/prompt/apolloMode.ts', /\['mode:mode-apollo', 'src\/prompt\/apolloMode\.ts'\]/.test(contract))
@@ -293,7 +293,7 @@ section('the runner accepts Apollo for every host')
       JSON.stringify(seat),
     )
 
-    const printSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'print.ts'), 'utf8')
+    const printSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'run.ts'), 'utf8')
     check(
       "the door's set_mode arm resolves through the one transition rule and answers the mode",
       /'session\/set_mode': params => \{\s*const resolved = resolvePermissionModeTransition\(params\.mode as WirePermissionMode, getAppState\(\)\.toolPermissionContext\)[\s\S]{0,400}?return \{ mode: params\.mode \}/.test(printSource),
@@ -311,7 +311,7 @@ section('the runner accepts Apollo for every host')
   const agentTool = src('tools', 'AgentTool', 'AgentTool.tsx')
   check(
     'the subagent prompt build passes NO permissionMode (main-agent-only holds by construction)',
-    /getSystemPrompt\(\s*options\.tools,\s*options\.mainLoopModel,[\s\S]{0,220}options\.mcpClients,\s*\)/.test(agentTool),
+    /getSystemPrompt\(\s*options\.tools,\s*options\.engineModel,[\s\S]{0,220}options\.mcpClients,\s*\)/.test(agentTool),
   )
   const frame = src('components', 'MercuryFrame.tsx')
   check('the mode chip reads the connector facts', /getFocusedSessionConnector\(\)\.permissionMode\(\)/.test(frame))

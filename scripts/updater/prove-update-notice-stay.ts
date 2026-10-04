@@ -133,8 +133,8 @@ const { useAppState } = await import('../../src/state/AppState.tsx')
 const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
 const { BootSplashScreen } = await import('../../src/components/BootSplashScreen.tsx')
 const { SurfaceRouter } = await import('../../src/components/SurfaceRouter.tsx')
-const { REPL } = await import('../../src/screens/REPL.tsx')
-const { initializeSurfaceRoute, ROOT_REPL_ROUTE } = await import('../../src/context/surfaceRoute.ts')
+const { Chat } = await import('../../src/screens/Chat.tsx')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
 const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
 const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
 const pending = await import('../../src/input-core/pending-input.ts')
@@ -196,7 +196,7 @@ section(`§2 the notice-area line in the chat (178x51): "${notice.updateNoticeTe
 {
   const noticeText = notice.updateNoticeText(NEWER)
   seedNewer()
-  initializeSurfaceRoute(ROOT_REPL_ROUTE)
+  initializeSurfaceRoute(ROOT_CHAT_ROUTE)
   resetChromeModeLatchForTests()
   pending.edit('')
   pending.setMode('prompt')
@@ -211,7 +211,7 @@ section(`§2 the notice-area line in the chat (178x51): "${notice.updateNoticeTe
     }, [current])
     return null
   }
-  const chat = await mountOffscreen(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined }, h(SurfaceRouter, null, h(REPL, { commands: [], initialTools: [] })), h(Probe)), 178, 51)
+  const chat = await mountOffscreen(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined }, h(SurfaceRouter, null, h(Chat, { commands: [], initialTools: [] })), h(Probe)), 178, 51)
   const composerRow = (): string => chat.lines().find(line => line.startsWith('│❯')) ?? ''
   const painted = await waitFor(() => composerRow().includes('Type a prompt'), 10_000)
   await settle(300)

@@ -8,14 +8,14 @@ import {
 } from '../../src/utils/model/frontierPolicy.js'
 import {
   getBestModel,
-  getDefaultMainLoopModel,
-  getDefaultMainLoopModelSetting,
-  getMainLoopModel,
+  getDefaultEngineModel,
+  getDefaultEngineModelSetting,
+  getEngineModel,
   getUserSpecifiedModelSetting,
   isFableAvailable,
   parseUserSpecifiedModel,
 } from '../../src/utils/model/model.js'
-import { setMainLoopModelOverride } from '../../src/bootstrap/state.js'
+import { setEngineModelOverride } from '../../src/bootstrap/state.js'
 import { restoreConversationModelFromMessages } from '../../src/utils/sessionRestore.js'
 import { computedDefault } from '../../src/utils/model/computedDefault.js'
 
@@ -149,18 +149,18 @@ console.log('\nprecedence rungs (live chain — explicit inputs only, ambient-sa
 {
   const priorEnv = process.env.MERCURY_MODEL
   try {
-    setMainLoopModelOverride('opus')
+    setEngineModelOverride('opus')
     check(
       'session /model override outranks the frontier default',
-      /^claude-opus-/.test(getMainLoopModel()),
-      getMainLoopModel(),
+      /^claude-opus-/.test(getEngineModel()),
+      getEngineModel(),
     )
     process.env.MERCURY_MODEL = 'sonnet'
     check('session override outranks MERCURY_MODEL', getUserSpecifiedModelSetting() === 'opus')
-    setMainLoopModelOverride(undefined)
+    setEngineModelOverride(undefined)
     check('MERCURY_MODEL outranks the built-in default', getUserSpecifiedModelSetting() === 'sonnet')
   } finally {
-    setMainLoopModelOverride(undefined)
+    setEngineModelOverride(undefined)
     if (priorEnv === undefined) delete process.env.MERCURY_MODEL
     else process.env.MERCURY_MODEL = priorEnv
   }
@@ -170,7 +170,7 @@ console.log('\n§8 conversation-model retention (pure helper; ambient-safe forms
 {
   const asst = (model: string): unknown => ({ type: 'assistant', message: { role: 'assistant', model } })
   const user = (): unknown => ({ type: 'user', message: { role: 'user', content: 'x' } })
-  const defaultResolved = parseUserSpecifiedModel(getDefaultMainLoopModelSetting())
+  const defaultResolved = parseUserSpecifiedModel(getDefaultEngineModelSetting())
   const defaultBase = defaultResolved.replace(/\[1m\]$/i, '')
   check(
     'a conversation that ran the CURRENT default base restores the default SETTING form',
@@ -221,10 +221,10 @@ console.log('\n§8 conversation-model retention (pure helper; ambient-safe forms
   check('no assistant rows ⇒ no retention', restoreConversationModelFromMessages([user()]) === null)
   check('empty/undefined ⇒ no retention', restoreConversationModelFromMessages([]) === null && restoreConversationModelFromMessages(undefined) === null)
   try {
-    setMainLoopModelOverride('opus')
+    setEngineModelOverride('opus')
     check('a live override (CLI/agent/SDK) always wins — retention declines', restoreConversationModelFromMessages([asst('claude-sonnet-4-6')]) === null)
   } finally {
-    setMainLoopModelOverride(undefined)
+    setEngineModelOverride(undefined)
   }
 }
 
@@ -234,10 +234,10 @@ console.log('\nprojection identities (ambient-safe on any profile)')
   check('best ≡ the decision (the first-party frontier alias)', getBestModel() === d.setting)
   check("parse('best') ≡ the decision", parseUserSpecifiedModel('best') === d.setting)
   const computed = computedDefault()
-  check('the session default ≡ the computed default', getDefaultMainLoopModelSetting() === computed.setting)
+  check('the session default ≡ the computed default', getDefaultEngineModelSetting() === computed.setting)
   check(
-    'getDefaultMainLoopModel resolves the computed setting stably',
-    getDefaultMainLoopModel() === parseUserSpecifiedModel(computed.setting),
+    'getDefaultEngineModel resolves the computed setting stably',
+    getDefaultEngineModel() === parseUserSpecifiedModel(computed.setting),
   )
   check(
     'the first-party lane and the keyless placeholder ride the decision',

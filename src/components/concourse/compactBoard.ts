@@ -2,7 +2,7 @@ import cliBoxes from 'cli-boxes'
 import { stringWidth } from '../../ink/stringWidth.js'
 import { GLYPH, truncateToWidth } from '../mercury-ui/glyphs.js'
 import { paneWindow, shedToFit } from '../mercury-ui/geometry.js'
-import { composerBorderStyle } from '../mercury-ui/replFloor.js'
+import { composerBorderStyle } from '../mercury-ui/composerFloor.js'
 import { PARKING_NOW_LEAD, PARK_REFUSED_NOW_LEAD } from '../../services/concourse/concourseSnapshot.js'
 
 export const COMPACT_SPLIT_MIN_COLS = 60

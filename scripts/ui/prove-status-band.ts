@@ -7,7 +7,7 @@ const t = (name: string, ok: boolean): void => {
   if (!ok) failures = 1
 }
 
-const repl = readFileSync('src/screens/REPL.tsx', 'utf8')
+const repl = readFileSync('src/screens/Chat.tsx', 'utf8')
 t('ONE strip definition (workingStatusStrip const)', (repl.match(/const workingStatusStrip = /g) ?? []).length === 1)
 t('strip carries the spinner + the streaming hold + the rollup', /workingStatusStrip = <Box[\s\S]{0,300}SpinnerWithVerb[\s\S]{0,1500}StreamingHoldRow[\s\S]{0,400}MercuryTurnRollup/.test(repl))
 t('bottom placement rides CockpitBottomStatus', repl.includes('<CockpitBottomStatus>{workingStatusStrip}</CockpitBottomStatus>'))
@@ -37,7 +37,7 @@ t('CockpitBottomStatus nulls when the cockpit is active', /if \(cockpit\) return
 
 t('capsule wraps the cockpit statusBand, gated on statusBandActive', /<WorkCapsule\s[\s\S]{0,200}active=\{!!statusBandActive\}/.test(card))
 t('capsule width budgets the berth interior minus the critter\'s thirteen-column slot and the gap', card.includes('width={sizeVal.columns - 4 - 1 - CR_COLS}'))
-t('REPL threads the live-turn signal (transcript mode blanks it)', repl.includes('statusBandActive={inVirtualTranscript ? undefined : spinnerSlotReserved}'))
+t('Chat threads the live-turn signal (transcript mode blanks it)', repl.includes('statusBandActive={inVirtualTranscript ? undefined : spinnerSlotReserved}'))
 const capsule = readFileSync('src/components/mercury-ui/WorkCapsule.tsx', 'utf8')
 t('capsule is a rounded furniture card while dressed (borderStrong — DUNE on dark, not identity)', capsule.includes("borderStyle={dressed ? 'round' : undefined}") && capsule.includes('borderColor={dressed ? tokens.borderStrong : undefined}'))
 t('capsule has NO header row (the ✻ verb line is the one state row — operator dedup)', !capsule.includes('WorkingGlyph') && !capsule.includes('WORKING\''))

@@ -136,11 +136,11 @@ async function hitsDuring<T>(work: () => Promise<T>): Promise<{ result: T | 'thr
 section('§1 the sovereign home resolves onto its own lane, small tier included')
 process.env.OPENROUTER_API_KEY = 'sk-or-fixture-sovereign-home'
 seedHome(HOME_MODEL)
-const { getMainLoopModel } = await import('../../src/utils/model/model.js')
+const { getEngineModel } = await import('../../src/utils/model/model.js')
 const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.js')
 const { sessionSmallFastModel, smallFastModelFor } = await import('../../src/utils/model/providerFrontier.js')
 {
-  const main = getMainLoopModel()
+  const main = getEngineModel()
   check('the main-loop model is the operator\'s OpenRouter free tier', main === HOME_MODEL, main)
   check('…and routes to openrouter', declaredRouteOf(main) === 'openrouter', declaredRouteOf(main))
   const small = sessionSmallFastModel()
@@ -170,7 +170,7 @@ section('§3 an Anthropic-route home with a first-party key DOES reach the origi
   delete process.env.OPENROUTER_API_KEY
   process.env.ANTHROPIC_API_KEY = 'sk-ant-fixture-control-leg-0000000000'
   seedHome('claude-sonnet-5')
-  const main = getMainLoopModel()
+  const main = getEngineModel()
   check('premise: the control home routes to anthropic', declaredRouteOf(main) === 'anthropic', main)
   const a = await hitsDuring(() => tokEst.countTokensWithAPI('x '.repeat(30_000)))
   check('countTokensWithAPI reached the origin', a.hits >= 1, JSON.stringify(a))
@@ -288,7 +288,7 @@ section('§5 a carrier-shaped id never reaches the first-party wire verbatim (w3
 }
 
 section('§6 a home with no first-party credential lands its default on a credentialed lane — any lane, by sign-in recency')
-const { getDefaultMainLoopModel } = await import('../../src/utils/model/model.js')
+const { getDefaultEngineModel } = await import('../../src/utils/model/model.js')
 const { evaluateComputedDefault, orderCredentials, resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.js')
 {
   const REG = ['anthropic', 'openai', 'zai', 'openrouter', 'gemini', 'moonshot', 'deepseek', 'openai-compat', 'huggingface', 'local'] as const
@@ -324,7 +324,7 @@ const { evaluateComputedDefault, orderCredentials, resetComputedDefaultMemo } = 
   const { refreshOpenrouterCatalogue } = await import('../../src/services/providers/openrouter/openrouterCatalogue.js')
   const snapshot = await refreshOpenrouterCatalogue('env', { force: true }).catch(() => null)
   check('premise: the catalogue stand-in served the free row', (snapshot?.models.length ?? 0) === 1, JSON.stringify(snapshot?.models))
-  const walked = await hitsDuring(async () => getMainLoopModel())
+  const walked = await hitsDuring(async () => getEngineModel())
   check('LIVE: the env-key-only home boots its default onto the OpenRouter free row (base: claude-opus-5, every turn refused)', walked.result === HOME_MODEL, JSON.stringify(walked))
   check('…with no first-party request', walked.hits === 0, JSON.stringify(walked))
 
@@ -332,9 +332,9 @@ const { evaluateComputedDefault, orderCredentials, resetComputedDefaultMemo } = 
   saveGlobalConfig(config => ({ ...config, defaultProvider: 'openrouter' }))
   resetComputedDefaultMemo()
   check('premise: the recorded default provider is openrouter', (getGlobalConfig() as { defaultProvider?: string }).defaultProvider === 'openrouter')
-  const recorded = await hitsDuring(async () => getDefaultMainLoopModel())
+  const recorded = await hitsDuring(async () => getDefaultEngineModel())
   check('LIVE: the recorded OpenRouter default lands on the lane\'s first picker row (the latch; base: the frontier default by swallowed overflow)', recorded.result === HOME_MODEL, JSON.stringify(recorded))
-  check('…and the main-loop model agrees', getMainLoopModel() === HOME_MODEL, getMainLoopModel())
+  check('…and the main-loop model agrees', getEngineModel() === HOME_MODEL, getEngineModel())
   const resolver = readFileSync(join(ROOT, 'src/utils/model/computedDefault.ts'), 'utf8')
   check('the picker composition carries its reentrancy latch', /walkingPicker/.test(resolver))
   saveGlobalConfig(config => {
@@ -392,14 +392,14 @@ section("§8 the operator's sighting: a fresh box's New Session is born keyless;
   const facts = await import('../../src/services/switchboard/bootBirthFacts.js')
   ;(await import('../../src/utils/model/computedDefault.js')).resetComputedDefaultMemo()
   check("LIVE: the face's road sends NO model on the fresh box (screenBirthModel is nothing while the default reads keyless)", facts.screenBirthModel() === undefined, String(facts.screenBirthModel()))
-  const { setMainLoopModelOverride } = await import('../../src/bootstrap/state.js')
+  const { setEngineModelOverride } = await import('../../src/bootstrap/state.js')
   const { resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.js')
   process.env.OPENAI_API_KEY = 'fixture-openai-key-for-the-birth'
   resetComputedDefaultMemo()
   check("LIVE: an OpenAI key alone with no catalogue fetched still reads keyless at the face's road with no explicit choice (the verdict itself stands)", facts.screenBirthModel() === undefined, String(facts.screenBirthModel()))
-  setMainLoopModelOverride('gpt-5.5')
+  setEngineModelOverride('gpt-5.5')
   check("LIVE: with --model on argv the face's road carries the operator's own model to the birth on that OpenAI-only home (the keyless-until-catalogue read never drops it)", facts.screenBirthModel() === 'gpt-5.5', String(facts.screenBirthModel()))
-  setMainLoopModelOverride(undefined)
+  setEngineModelOverride(undefined)
   delete process.env.OPENAI_API_KEY
   resetComputedDefaultMemo()
   const facedRegistry = await wm.composeWorkerModelRegistry()

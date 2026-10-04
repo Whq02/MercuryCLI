@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { join } from 'node:path'
 import { Box, Text, useInput } from '../ink.js'
 import { getCwd } from '../utils/cwd.js'
-import { getAutoMemPath } from '../memdir/paths.js'
+import { getMnemeHome } from '../mneme/paths.js'
 import {
   defaultEvolutionLedgerDir,
   evolutionLedgerEnabled,
@@ -89,7 +89,7 @@ export function LedgerView({ onClose }: { onClose: () => void }): React.ReactNod
     let alive = true
     void scanEvolutionLedgers([
       { label: 'repo', dir: defaultEvolutionLedgerDir(getCwd()) },
-      { label: 'mneme', dir: join(getAutoMemPath(), 'evolution') },
+      { label: 'mneme', dir: join(getMnemeHome(), 'evolution') },
     ]).then(l => {
       if (alive) {
         setLedgers(l)

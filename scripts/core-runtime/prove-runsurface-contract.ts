@@ -36,7 +36,7 @@ const realQueryEvents = realQueryModule.queryEvents
 type EngineQueryCall = {
   querySource: unknown
   maxTurns: unknown
-  mainLoopModel: unknown
+  engineModel: unknown
   messages: unknown[]
 }
 type EngineStep =
@@ -77,11 +77,11 @@ async function* dispatchQuery(
   engineQueryCalls.push({
     querySource: params.querySource,
     maxTurns: params.maxTurns,
-    mainLoopModel: (
+    engineModel: (
       (params.toolUseContext as Record<string, unknown>)?.options as
         | Record<string, unknown>
         | undefined
-    )?.mainLoopModel,
+    )?.engineModel,
     messages: [...(params.messages as unknown[])],
   })
   scriptRanToEnd = false
@@ -110,11 +110,11 @@ async function* dispatchQueryEvents(
   engineQueryCalls.push({
     querySource: params.querySource,
     maxTurns: params.maxTurns,
-    mainLoopModel: (
+    engineModel: (
       (params.toolUseContext as Record<string, unknown>)?.options as
         | Record<string, unknown>
         | undefined
-    )?.mainLoopModel,
+    )?.engineModel,
     messages: [...(params.messages as unknown[])],
   })
   scriptRanToEnd = false
@@ -170,7 +170,7 @@ const { SYNTHETIC_OUTPUT_TOOL_NAME } = await import(
 )
 const { AGENT_TOOL_NAME } = await import('../../src/tools/AgentTool/constants.ts')
 const { logError } = await import('../../src/utils/log.ts')
-const printMod = await import('../../src/cli/print.ts')
+const printMod = await import('../../src/cli/run.ts')
 const resumeMod = await import('../../src/cli/headless/resume.ts')
 const controlMod = await import('../../src/cli/headless/controlHandlers.ts')
 const runnerAsksMod = await import('../../src/cli/headless/runnerAsks.ts')
@@ -184,7 +184,7 @@ const { calculateUSDCost } = await import('../../src/utils/modelCost.ts')
 const { EMPTY_USAGE } = await import('../../src/services/api/emptyUsage.ts')
 foldScriptedUsage = (usage, params) => {
   const options = (params.toolUseContext as Record<string, unknown> | undefined)?.options as Record<string, unknown> | undefined
-  const model = typeof options?.mainLoopModel === 'string' ? options.mainLoopModel : MODEL
+  const model = typeof options?.engineModel === 'string' ? options.engineModel : MODEL
   const settled = { ...EMPTY_USAGE, ...usage }
   addToTotalSessionCost(calculateUSDCost(model, settled), settled, model)
 }
@@ -383,8 +383,8 @@ section('E1 TURN ROW + PLAIN TURN — the turn row first, chrome swallowed, the 
   check("query called with querySource 'sdk'", r.calls[0]!.querySource === 'sdk')
   check(
     'query rode the turn model',
-    r.calls[0]!.mainLoopModel === MODEL,
-    String(r.calls[0]!.mainLoopModel),
+    r.calls[0]!.engineModel === MODEL,
+    String(r.calls[0]!.engineModel),
   )
   check(
     'the conversation gained the prompt + assistant',
@@ -916,8 +916,8 @@ section('E18 MULTI-TURN — state persists across turns; setModel applies next t
   check('turn 2 opens with its own turn row (one per turn)', rowTypes(r2.yields)[0] === 'turn:started' && r2.yields[0]!.turn === 2)
   check(
     'setModel applies to the next turn',
-    r2.yields[0]!.model === MODEL2 && r2.calls[0]!.mainLoopModel === MODEL2,
-    `turn=${String(r2.yields[0]!.model)} query=${String(r2.calls[0]!.mainLoopModel)}`,
+    r2.yields[0]!.model === MODEL2 && r2.calls[0]!.engineModel === MODEL2,
+    `turn=${String(r2.yields[0]!.model)} query=${String(r2.calls[0]!.engineModel)}`,
   )
   const turn2Input = r2.calls[0]!.messages
   check(
@@ -1409,7 +1409,7 @@ function makeRealCtx(tools: unknown[]): Record<string, unknown> {
     options: {
       commands: [],
       tools,
-      mainLoopModel: MODEL,
+      engineModel: MODEL,
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},

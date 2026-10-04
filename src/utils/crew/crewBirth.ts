@@ -2,8 +2,8 @@ import { getSessionId } from '../../bootstrap/state.js'
 import type { AppState } from '../../state/AppStateStore.js'
 import { formatAgentId } from '../agentId.js'
 import { getCwd } from '../cwd.js'
-import { CREW_LEAD_NAME } from '../swarm/constants.js'
-import { getCrewFilePath, type CrewFile } from '../swarm/crewHelpers.js'
+import { CREW_LEAD_NAME } from './constants.js'
+import { getCrewFilePath, type CrewFile } from './crewHelpers.js'
 import { crewChildName, getLeadCrewFallback, getCrewName, isCrewmate, setLeadCrewFallback } from '../crewmate.js'
 
 export type CrewContext = NonNullable<AppState['crewContext']>

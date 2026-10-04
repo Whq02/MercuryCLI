@@ -242,7 +242,7 @@ function startLoop(extras: Record<string, unknown> = {}): Loop {
     options: {
       commands: [],
       tools: [tool],
-      mainLoopModel: MODEL,
+      engineModel: MODEL,
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},
@@ -468,10 +468,10 @@ section('W1 THE WIRE — the verb\'s ceremony at each layer, pinned in source')
   check("the seat asks the runner's session/pause_gate and awaits its word under the agent-verb deadline", seatSource.includes("'session/pause_gate', { paused }") && seatSource.includes('export async function pauseSessionGate('))
   const parse = METHODS['session/pause_gate'].params()
   check('the runner door accepts { paused: boolean } for session/pause_gate and refuses a missing boolean', parse.safeParse({ paused: true }).success && parse.safeParse({ paused: false }).success && !parse.safeParse({}).success)
-  const runner = read('src/cli/print.ts')
+  const runner = read('src/cli/run.ts')
   const armAt = runner.indexOf("'session/pause_gate': params => {")
   const arm = armAt < 0 ? '' : runner.slice(armAt, runner.indexOf("'shell/background': () => {"))
-  check("the runner's arm owns the method: paused closes the one gate, false opens it, the answer is the gate's word", armAt >= 0 && arm.includes('operatorPauseGate.pause()') && arm.includes('operatorPauseGate.resume()') && arm.includes('paused: operatorPauseGate.paused()'), armAt < 0 ? 'no pause_gate arm in print.ts' : arm.slice(0, 200))
+  check("the runner's arm owns the method: paused closes the one gate, false opens it, the answer is the gate's word", armAt >= 0 && arm.includes('operatorPauseGate.pause()') && arm.includes('operatorPauseGate.resume()') && arm.includes('paused: operatorPauseGate.paused()'), armAt < 0 ? 'no pause_gate arm in run.ts' : arm.slice(0, 200))
   check("the runner's facts answer publishes the gate's state (pauseGate: paused, parked)", runner.includes('pauseGate: { paused:') && runner.includes('parked:'))
   const wire = read('src/services/engine-connector/seatWire.ts')
   check('the facts wire spells the fact pause_gate (snake_case at every depth)', wire.includes("pauseGate: 'pause_gate'"))

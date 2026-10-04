@@ -1,5 +1,5 @@
 
-type ReplSource = 'repl_main_thread'
+type MainThreadSource = 'main_thread'
 
 type SdkSource = 'sdk'
 
@@ -14,7 +14,7 @@ type CompactionSource =
   | 'session_memory'
   | 'marble_origami'
   | 'extract_memories'
-  | 'memdir_relevance'
+  | 'mneme_relevance'
   | 'away_summary'
   | 'concourse_coordinator_compact'
 
@@ -24,7 +24,7 @@ type ClassifierSource =
   | 'auto_mode'
   | 'auto_mode_critique'
   | 'bash_classifier'
-  | 'yolo_classifier'
+  | 'flow_classifier'
   | 'agent_classifier'
   | 'permission_explainer'
   | 'model_validation'
@@ -53,7 +53,7 @@ type UtilitySource =
   | 'advisor'
 
 export type QuerySource =
-  | ReplSource
+  | MainThreadSource
   | SdkSource
   | AgentSource
   | CompactionSource

@@ -8,7 +8,7 @@ import type { HookInput } from './hooks/contract.js'
 
 import type { HookJSONOutput } from './hooks/contract.js'
 
-import { detectSessionFileType, detectSessionPatternType, isAutoMemFile } from './memoryFileDetection.js'
+import { detectSessionFileType, detectSessionPatternType, isMnemeFile } from './memoryFileDetection.js'
 
 
 type SessionFileType = 'session_memory' | 'session_transcript' | null
@@ -41,7 +41,7 @@ function extractFilePath(toolName: string, toolInput: unknown): string | null {
 export function isMemoryFileAccess(toolName: string, toolInput: unknown): boolean {
   if (classifySessionAccess(toolName, toolInput) === 'session_memory') return true
   const path = extractFilePath(toolName, toolInput)
-  return path !== null && isAutoMemFile(path)
+  return path !== null && isMnemeFile(path)
 }
 
 async function hookBody(input: HookInput): Promise<HookJSONOutput> {

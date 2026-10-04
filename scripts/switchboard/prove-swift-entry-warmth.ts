@@ -14,7 +14,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-console.log('§1 the wiring (mirror publishes · entry arms/settles · REPL paints render-only)')
+console.log('§1 the wiring (mirror publishes · entry arms/settles · Chat paints render-only)')
 const mirror = readFileSync('src/components/concourse/SessionMirror.tsx', 'utf8')
 check(
   'the mirror publishes its folded tail keyed by the ADOPTED body',
@@ -26,9 +26,9 @@ const attach = route.slice(attachStart, route.indexOf('const waitingRoomAdmitted
 const armAt = attach.indexOf('armEntryWarmth(sessionId,')
 check('the entry arms the hint at the decision, before the landing', armAt >= 0 && armAt < attach.indexOf('const landing = withLanding('))
 check('the landing settles the hint in its finally (per-session)', attach.includes('settleEntryWarmth(sessionId)'))
-const repl = readFileSync('src/screens/REPL.tsx', 'utf8')
+const repl = readFileSync('src/screens/Chat.tsx', 'utf8')
 check(
-  'the REPL paints through the one pure composer, keyed on the store version AND the focused identity',
+  'the Chat paints through the one pure composer, keyed on the store version AND the focused identity',
   repl.includes('paintedTranscriptOf(messages, enteringWarmth(), focusedSessionId)'),
 )
 check(
@@ -40,7 +40,7 @@ check(
   repl.includes('frozenTranscriptState ? messages.slice(0, frozenTranscriptState.messageCount) : messages'),
 )
 check(
-  'the REPL settles the hint at fold-complete replace (evict + settle)',
+  'the Chat settles the hint at fold-complete replace (evict + settle)',
   repl.includes('evictSessionWarmth(warmth.sessionId)') && repl.includes('settleEntryWarmth(warmth.sessionId)'),
 )
 check(
@@ -156,7 +156,7 @@ check('(c) …and never wears the entry\'s loading line', w.entryLoadingLineOf(w
 check('(c) …and never borrows the armed warmth', !JSON.stringify(w.paintedTranscriptOf([] as never, w.enteringWarmth(), 'T')).includes('warm A again'))
 check('the resting slot ("" — landing in flight) still paints the warmth', JSON.stringify(w.paintedTranscriptOf([] as never, w.enteringWarmth(), '')).includes('warm A again'))
 check(
-  'the REPL settle spares armed-or-covered',
+  'the Chat settle spares armed-or-covered',
   repl.includes('focusedId !== warmth.sessionId && focusedId !== warmth.coveredSessionId'),
 )
 check(

@@ -3,7 +3,7 @@ import { GPT_DISPLAY_PINS, gptDisplayName, parseGptModelId, type GptDisplayPin }
 import { frontierOperatorDecision } from './frontierPolicy.js'
 import {
   getDefaultSonnetModel,
-  getMainLoopModel,
+  getEngineModel,
   getMarketingNameForModel,
   getSmallFastModel,
 } from './model.js'
@@ -194,11 +194,11 @@ export function smallFastModelFor(sessionModel: string): string {
 }
 
 export function sessionSmallFastModel(): string {
-  return smallFastModelFor(getMainLoopModel())
+  return smallFastModelFor(getEngineModel())
 }
 
 export function sessionLightModel(): string {
-  const sessionModel = getMainLoopModel()
+  const sessionModel = getEngineModel()
   const route = declaredRouteOf(sessionModel)
   if (route === 'anthropic') return getDefaultSonnetModel()
   if (route === null) return sessionModel

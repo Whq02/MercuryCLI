@@ -71,7 +71,7 @@ const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProvid
 const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
 const { MercuryFrame } = await import('../../src/components/MercuryFrame.tsx')
 const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, registerRouteSurface, ROOT_REPL_ROUTE } = await import('../../src/context/surfaceRoute.ts')
+const { initializeSurfaceRoute, registerRouteSurface, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
 registerRouteSurface('concourse', { render: () => null })
 const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
 const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
@@ -115,7 +115,7 @@ section("§1 the runner's own facts: advisorFacts() reads the effective test, th
   storage.saveAdvisorSwitch(false)
   advisor.setAdvisorMinutes(10)
   saveGlobalConfig(c => { const next = { ...c.subModels }; delete next.advisor; return { ...c, subModels: Object.keys(next).length > 0 ? next : undefined } })
-  const runner = src('src/cli/print.ts')
+  const runner = src('src/cli/run.ts')
   check("the session facts answer carries `advisor: advisorFacts()` beside the pause gate, so the screen reads THIS chat's state through its connector", runner.includes('advisor: advisorFacts(),') && runner.includes("import { advisorFacts, advisorMainRound"))
   const projection = src('src/services/engine-connector/seatProjections.ts')
   const types = src('src/services/engine-connector/types.ts')
@@ -159,7 +159,7 @@ section('§2 the status row, rendered from source: the chip stands after the vit
   for (const [cols, rows] of [[178, 51], [120, 40]] as const) {
     const size = `${cols}x${rows}`
     facts = null
-    initializeSurfaceRoute(ROOT_REPL_ROUTE)
+    initializeSurfaceRoute(ROOT_CHAT_ROUTE)
     resetChromeModeLatchForTests()
     resetHelmFocusForTest()
     const stdout = new Output(cols, rows)

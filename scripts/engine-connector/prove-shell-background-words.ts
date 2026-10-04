@@ -74,7 +74,7 @@ check('the daemon relays the action to the seat verb', main.includes("if (action
 const seat = read('src/daemon/sessionSeat.ts')
 check('the seat asks shell/background through the runner door and awaits its word', seat.includes("askSeat(roster, rec.runnerId, 'shell/background', {}, 'background-shell', deadlineMs)") && seat.includes('export async function backgroundSessionShell('))
 check('a runner older than the verb is refused in one sentence naming the key and the way out', seat.includes(`"this session's runner predates shift+B · /daemon restart, then reopen the session"`))
-const runner = read('src/cli/print.ts')
+const runner = read('src/cli/run.ts')
 check('the runner answers the method from the registry: the count taken, or the typed refusal', runner.includes("'shell/background': () => {") && runner.includes("throw refused('no shell command is running in the main conversation', 'no-shell')") && !runner.includes("case 'background_shell'"))
 
 section('§5 the tool\'s road and its words')

@@ -1,6 +1,6 @@
 
 import { stat, utimes } from 'node:fs/promises'
-import { getMainLoopModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../utils/model/model.js'
 import { getAgentModel } from '../../utils/model/agent.js'
 import type { Message } from '../../types/message.js'
 import type { AgentId } from '../../types/ids.js'
@@ -193,7 +193,7 @@ export async function resumeAgentBackground(args: {
       try {
         systemPromptOverride = await getSystemPrompt(
           toolUseContext.options.tools,
-          toolUseContext.options.mainLoopModel,
+          toolUseContext.options.engineModel,
           toolUseContext.options.mcpClients,
         )
       } catch (error) {
@@ -213,7 +213,7 @@ export async function resumeAgentBackground(args: {
   const restoredModel = meta?.model
   const lifecycleModel = getAgentModel(
     restoredModel ?? definition.model,
-    getMainLoopModel(),
+    getEngineModel(),
   )
   const restoredEffort = meta?.effortOverride
   const instructionProfileOverride = meta?.instructionProfile

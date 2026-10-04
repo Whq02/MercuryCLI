@@ -41,7 +41,7 @@ check('honest receipt: /bug never claims "submitted"', !feedback.includes('bug r
   check('OP-4: the Anthropic-leaf UA presents the product identity at its owner', ua.includes('getAnthropicClientUserAgent') && ua.includes('return `mercury/${MACRO.VERSION}`'))
   const mcpClient = readFileSync(join(ROOT, 'src/services/mcp/client.ts'), 'utf8')
   check("OP-4: MCP clientInfo name is 'mercury' (both constructions)", (mcpClient.match(/name: 'mercury'/g) ?? []).length >= 2)
-  check('ruling 3: no crewmate spawn road launches a child to stamp (the one MERCURY=1 marker is the process\'s own)', !existsSync(join(ROOT, 'src/utils/swarm/spawnUtils.ts')) && !/childCommand\(|sendCommandToPane\(/.test(readFileSync(join(ROOT, 'src/tools/shared/spawnMultiAgent.ts'), 'utf8')))
+  check('ruling 3: no crewmate spawn road launches a child to stamp (the one MERCURY=1 marker is the process\'s own)', !existsSync(join(ROOT, 'src/utils/crew/spawnUtils.ts')) && !/childCommand\(|sendCommandToPane\(/.test(readFileSync(join(ROOT, 'src/tools/shared/spawnMultiAgent.ts'), 'utf8')))
   const fsPerm = readFileSync(join(ROOT, 'src/utils/permissions/filesystem.ts'), 'utf8')
   check('ruling 3: the temp root is mercury-named', fsPerm.includes('`mercury-${uid}`'))
   const keychain = readFileSync(join(ROOT, 'src/utils/secureStorage/macOsKeychainHelpers.ts'), 'utf8')

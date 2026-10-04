@@ -6,10 +6,10 @@ import {
   resolveModelCapabilities,
   toolDeferralEnabled,
 } from './model/capabilities.js'
-import { getMainLoopModel } from './model/model.js'
+import { getEngineModel } from './model/model.js'
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { deferralWireFormFor, toolReferenceWireAccepted } from '../services/providers/deferralWire.js'
-import { isAgentSwarmsEnabled } from './agentSwarmsEnabled.js'
+import { isCrewEnabled } from './crewEnabled.js'
 import { zodToJsonSchema } from './zodToJsonSchema.js'
 import { CLI_SYSPROMPT_PREFIXES } from '../constants/system.js'
 import { getSystemContext, getUserContext } from '../context.js'
@@ -117,7 +117,7 @@ export async function logContextMetrics(
 }
 
 
-const SWARM_ONLY_FIELDS: Record<string, string[]> = {
+const CREW_ONLY_FIELDS: Record<string, string[]> = {
   [AGENT_TOOL_NAME]: ['name', 'crew_name'],
 }
 
@@ -137,10 +137,10 @@ function toolCacheKey(tool: Tool): string {
   return `${tool.name}:${serialized}`
 }
 
-function stripSwarmFields(toolName: string, schema: Record<string, unknown>): Record<string, unknown> {
-  const fields = SWARM_ONLY_FIELDS[toolName]
+function stripCrewFields(toolName: string, schema: Record<string, unknown>): Record<string, unknown> {
+  const fields = CREW_ONLY_FIELDS[toolName]
   if (fields === undefined || fields.length === 0) return schema
-  if (isAgentSwarmsEnabled()) return schema
+  if (isCrewEnabled()) return schema
   const copy = { ...schema }
   const properties = { ...((copy.properties as Record<string, unknown>) ?? {}) }
   for (const field of fields) delete properties[field]
@@ -168,7 +168,7 @@ export async function toolToAPISchema(
     return { ...JSON.parse(previous), ...(options.cacheControl !== undefined ? { cache_control: options.cacheControl } : {}) } as ApiToolUnion
   }
   const cache = getToolSchemaCache()
-  const promptModel = options.model ?? getMainLoopModel()
+  const promptModel = options.model ?? getEngineModel()
   const caps = resolveModelCapabilities(promptModel)
   const fingerprint = `${declaredRouteOf(promptModel) ?? 'unrecognised'}:${caps.media.pdf ? 'p' : ''}${caps.media.images ? 'i' : ''}:${deferralWireFormFor(promptModel).form}`
   const pool = options.tools.map(item => item.name).sort().join(',')
@@ -185,7 +185,7 @@ export async function toolToAPISchema(
     const explicit = (tool as { inputJSONSchema?: Record<string, unknown> }).inputJSONSchema
     const rawSchema =
       explicit ?? (zodToJsonSchema(tool.inputSchema as never) as Record<string, unknown>)
-    const input_schema = stripSwarmFields(tool.name, rawSchema) as ToolInputSchema
+    const input_schema = stripCrewFields(tool.name, rawSchema) as ToolInputSchema
 
     const built: ApiTool = { name: tool.name, description, input_schema }
     if (fineGrainedToolStreamingEnabled()) {

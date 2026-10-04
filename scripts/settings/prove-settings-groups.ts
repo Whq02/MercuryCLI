@@ -156,21 +156,21 @@ try {
     fixture(sources)
     check(`consent source ${source} respects trust`, pipeline.hasSkipSovereignConsentPrompt() === (source !== 1))
   }
-  const { isAutoMemoryEnabled, getAutoMemPath } = await import('../../src/memdir/paths.js')
+  const { isMnemeEnabled, getMnemeHome } = await import('../../src/mneme/paths.js')
   const { getSettingsSnapshot, _resetSettingsSnapshotForTesting } = await import('../../src/utils/settings/snapshot.js')
   delete process.env.MERCURY_BARE
   fixture([{ memory: { enabled: false } }])
-  check('memory.enabled reaches the memory gate', isAutoMemoryEnabled() === false)
+  check('memory.enabled reaches the memory gate', isMnemeEnabled() === false)
   fixture([{ memory: { enabled: true } }])
-  check('memory.enabled true reaches the memory gate', isAutoMemoryEnabled() === true)
+  check('memory.enabled true reaches the memory gate', isMnemeEnabled() === true)
   for (let source = 0; source < 5; source++) {
     const sources: object[] = []
     const directory = join(root, `memory-${source}`)
     const hooks = { Stop: [{ hooks: [{ type: 'command', command: 'true' }] }] }
     sources[source] = { memory: { directory }, credentials: { keyCommand: `fixture-${source}` }, events: { hooks } }
     fixture(sources)
-    getAutoMemPath.cache.clear?.()
-    check(`memory directory source ${source} respects trust`, getAutoMemPath().startsWith(directory) === (source !== 1))
+    getMnemeHome.cache.clear?.()
+    check(`memory directory source ${source} respects trust`, getMnemeHome().startsWith(directory) === (source !== 1))
     const executable = source !== 1 && source !== 2
     check(`key command source ${source} respects checkout trust`, pipeline.getApiKeyHelperFromOutsideCheckoutSources() === (executable ? `fixture-${source}` : undefined))
     check(`hook source ${source} respects checkout trust`, isDeepStrictEqual(pipeline.getHooksFromOutsideCheckoutSources(), executable ? hooks : {}))

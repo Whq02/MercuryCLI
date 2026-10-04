@@ -265,7 +265,7 @@ function makeContext(model: string): Record<string, unknown> {
     options: {
       tools: [],
       mcpClients: [],
-      mainLoopModel: model,
+      engineModel: model,
       maxThinkingTokens: 0,
       isNonInteractiveSession: true,
       agentDefinitions: { activeAgents: [] },
@@ -439,7 +439,7 @@ section('H the turn machine end to end — the retried request after an overflow
   let appState: Record<string, unknown> = { ...(getDefaultAppState() as unknown as Record<string, unknown>), effortValue: 'high' }
   const ctx = {
     abortController: new AbortController(),
-    options: { commands: [], tools: [], mainLoopModel: 'claude-opus-4-8', thinkingConfig: { type: 'disabled' }, mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, debug: false, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
+    options: { commands: [], tools: [], engineModel: 'claude-opus-4-8', thinkingConfig: { type: 'disabled' }, mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, debug: false, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
     getAppState: () => appState,
     setAppState: (f: (prev: never) => never): void => {
       appState = f(appState as never) as unknown as Record<string, unknown>

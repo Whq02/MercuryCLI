@@ -178,7 +178,7 @@ check('the tail window ends with the stream\'s last line', tail.text.trimEnd().e
 check('the cap is half a megabyte', AGENT_TAIL_READ_CAP_BYTES === 512 * 1024)
 
 section('R7 · the seams in source')
-const print = src('src/cli/print.ts')
+const print = src('src/cli/run.ts')
 check('the runner reconciles inside the one resume closure both roads share, carrying the restart reason', /const \{ reconcileBackgroundLaunchesOnResume, coerceRestartReason \} = await import\('\.\.\/tasks\/LocalAgentTask\/launchReceipts\.js'\)/.test(print) && /reconcileBackgroundLaunchesOnResume\(messages, getAppState, setAppState, Date\.now\(\), coerceRestartReason\(runnerRestartReason\)\)/.test(print))
 check('…the cold road (--continue/--resume) and the warm claim (resume: true) both run it', /if \(options\.continue \|\| options\.resume\) await hydrateResumedRun\(\)/.test(print) && /if \(params\.resume === true\) await hydrateResumedRun\(\)/.test(print))
 const agentTool = src('src/tools/AgentTool/AgentTool.tsx')
@@ -186,7 +186,7 @@ check('the receipt line is the Agent tool\'s own first line', agentTool.includes
 const adapter = src('src/services/resources/adapters/agent.ts')
 check('the detail view reads through the bounded tail window, never the whole file', /const window = readTailWindow\(contentPath\)/.test(adapter) && !/readFileSync\(contentPath/.test(adapter))
 const footer = src('src/components/PromptInput/Notifications.tsx')
-check('the footer\'s model is the focused chat\'s effective model (the band\'s window owner), never the screen\'s own slot', /getFocusedSessionConnector\(\)\.modelFacts\(\)\.effective/.test(footer) && /useSyncExternalStore\(subscribeFocusedModel, getFocusedModel, getFocusedModel\)/.test(footer) && !/state\.mainLoopModel/.test(footer))
+check('the footer\'s model is the focused chat\'s effective model (the band\'s window owner), never the screen\'s own slot', /getFocusedSessionConnector\(\)\.modelFacts\(\)\.effective/.test(footer) && /useSyncExternalStore\(subscribeFocusedModel, getFocusedModel, getFocusedModel\)/.test(footer) && !/state\.engineModel/.test(footer))
 const local = src('src/tasks/LocalAgentTask/LocalAgentTask.tsx')
 check('the notification owner accepts the caller\'s truer summary', /summary\?: string/.test(local) && /args\.summary \?\?/.test(local))
 

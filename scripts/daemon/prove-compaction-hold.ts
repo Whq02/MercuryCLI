@@ -160,7 +160,7 @@ section('F4 the wiring — the seat, the roster, the daemon, the hint row, the c
   check('the daemon routes a session runner relaunch to the seat spawn hook', /onChildRelaunched: short => \{[\s\S]{0,120}if \(!short\.startsWith\('concourse-w'\) \|\| roster === null\) return\s*onSeatSpawned\(short, roster\)/.test(main))
   const projections = read('services/engine-connector/seatProjections.ts')
   check('the facts carry the count as an optional field (the mixed-version law)', projections.includes('runnerGeneration?: number'))
-  const repl = read('screens/REPL.tsx')
+  const repl = read('screens/Chat.tsx')
   check('the hint row paints lostLine once per clock on the live channel', repl.includes("key: 'lost-line'") && repl.includes('lost.atMs <= lostLinePaintedAtRef.current') && repl.includes('focusedConnector.subscribeLive(paintLostLine)'))
   const composer = read('components/PromptInput/PromptInput.tsx')
   check("the composer's lost-line notice outlives the plain refusal", composer.includes("addNotification({ key: 'recall-send', text: receipt.detail") && composer.includes('receipt.retired === true ? LOST_LINE_NOTICE_MS : 4000'))

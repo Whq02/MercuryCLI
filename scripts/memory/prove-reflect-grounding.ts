@@ -54,13 +54,13 @@ Object.assign(process.env, {
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
-const { retainItems } = await import('../../src/memdir/memoryVerbs.js')
-const { maybeConsolidate } = await import('../../src/memdir/mnemeConsolidate.js')
-const { mnemeLibraryDir } = await import('../../src/memdir/mnemeGates.js')
+const { retainItems } = await import('../../src/mneme/memoryVerbs.js')
+const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.js')
+const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.js')
 const { ReflectTool } = await import('../../src/tools/MemoryTools/MemoryTools.js')
 
 const context = {
-  options: { mainLoopModel: 'claude-sonnet-5', tools: [], mcpClients: [], isNonInteractiveSession: true },
+  options: { engineModel: 'claude-sonnet-5', tools: [], mcpClients: [], isNonInteractiveSession: true },
   abortController: new AbortController(),
 } as never
 
@@ -73,7 +73,7 @@ retainItems(
   { session: 'reflect' },
 )
 maybeConsolidate({ dir: mnemeLibraryDir(), force: true })
-const { recallQuery } = await import('../../src/memdir/memoryVerbs.js')
+const { recallQuery } = await import('../../src/mneme/memoryVerbs.js')
 const citableSeqs = recallQuery('release', { limit: 12 })
   .hits.map(h => /^seq:(\d+)$/.exec(h.id)?.[1])
   .filter((v): v is string => Boolean(v))
@@ -112,7 +112,7 @@ check('the raw recall (incl. doc lines) still rides along', docOnly.data.recall.
 section('no usable seat for the model → TYPED degradation to recall-with-notice')
 delete process.env.ZAI_API_KEY
 const glmContext = {
-  options: { mainLoopModel: 'glm-5.2', tools: [], mcpClients: [], isNonInteractiveSession: true },
+  options: { engineModel: 'glm-5.2', tools: [], mcpClients: [], isNonInteractiveSession: true },
   abortController: new AbortController(),
 } as never
 const degraded = await ReflectTool.call({ query: 'release' } as never, glmContext)

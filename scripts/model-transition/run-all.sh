@@ -9,7 +9,7 @@
 # gate-watch: scripts/helm-console/run-all.sh scripts/lib/codeText.ts scripts/release/launcherTemplates.mjs
 # gate-watch: scripts/session-graph/prove-resize-continuity.ts scripts/ui/* src/bootstrap/state.ts
 # gate-watch: src/commands/branch/branch.ts src/commands/crew/index.ts src/commands/login/login.tsx
-# gate-watch: src/commands/mock-limits/index.ts src/commands/model/mercuryModel.tsx
+# gate-watch: src/services/mockRateLimits.ts src/commands/model/mercuryModel.tsx
 # gate-watch: src/commands/model/model.tsx src/commands/rewind/index.ts src/components/*
 # gate-watch: src/components/CustomSelect/SelectMulti.tsx
 # gate-watch: src/components/CustomSelect/use-multi-select-state.ts src/components/PromptInput/PromptInput.tsx
@@ -17,7 +17,7 @@
 # gate-watch: src/components/messages/* src/hooks/useDisplayedSessionModel.ts src/ink/input/scanner.ts
 # gate-watch: src/interactiveHelpers.tsx src/keybindings/defaultBindings.ts src/query/deps.ts
 # gate-watch: src/query/scriptedStream.ts src/run-core/call-reference.ts src/run-core/turn-machine.ts
-# gate-watch: src/screens/REPL.tsx src/services/* src/services/acp/acpServer.ts src/services/api/*
+# gate-watch: src/screens/Chat.tsx src/services/* src/services/acp/acpServer.ts src/services/api/*
 # gate-watch: src/services/compact/autoCompact.ts src/services/crew/*
 # gate-watch: src/services/engine-connector/daemonConnector.ts
 # gate-watch: src/services/engine-connector/focusedConnector.ts src/services/instructions/* src/services/run/*

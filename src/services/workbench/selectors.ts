@@ -2,7 +2,7 @@
 import {
   deriveCrewmatePhase,
   type CrewmatePhaseInputs,
-} from '../../utils/swarm/crewPhases.js'
+} from '../../utils/crew/crewPhases.js'
 import type {
   WorkbenchLaneRow,
   WorkbenchMissionRow,

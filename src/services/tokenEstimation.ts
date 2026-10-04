@@ -6,7 +6,7 @@ import { logForDebugging } from '../utils/debug.js'
 import { logError } from '../utils/log.js'
 import { normalizeAttachmentForAPI } from '../utils/messages.js'
 import { normalizeMessagesForAPI } from '../utils/messages.js'
-import { getMainLoopModel, getSmallFastModel, normalizeModelStringForAPI } from '../utils/model/model.js'
+import { getEngineModel, getSmallFastModel, normalizeModelStringForAPI } from '../utils/model/model.js'
 import { getModelBetas } from '../utils/betas.js'
 import { sideQuery } from '../utils/sideQuery.js'
 import { sleep } from '../utils/sleep.js'
@@ -27,7 +27,7 @@ export const COUNT_RETRY_BUDGET_MS = 15_000
 const COUNT_SOURCE = 'count_tokens'
 
 function firstPartyCountApplies(): boolean {
-  return declaredRouteOf(getMainLoopModel()) === 'anthropic'
+  return declaredRouteOf(getEngineModel()) === 'anthropic'
 }
 
 function refusalWords(error: unknown): string {
@@ -112,7 +112,7 @@ export async function countMessagesTokensWithAPI(
   const carried = system !== undefined && system.length > 0 ? system : undefined
   return withTokenCountVCR(messages, tools, carried, async () => {
     try {
-      const model = normalizeModelStringForAPI(getMainLoopModel())
+      const model = normalizeModelStringForAPI(getEngineModel())
       const apiMessages = apiMessagesFor(messages)
       const body = apiMessages.length === 0 ? PLACEHOLDER_MESSAGES : apiMessages
       const thinking = hasThinkingBlocks(body)

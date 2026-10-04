@@ -188,7 +188,7 @@ async function drive(opts: {
       tools,
       mcpClients: [],
       mcpResources: {},
-      mainLoopModel: 'claude-opus-4-8',
+      engineModel: 'claude-opus-4-8',
       thinkingConfig: { type: 'disabled' as const },
       isNonInteractiveSession: true,
       agentDefinitions: { activeAgents: [], allAgents: [] },

@@ -13,7 +13,7 @@ import { openPath } from '../../utils/browser.js'
 import { getMemoryPath } from '../../utils/config.js'
 import { projectIsInGitRepo } from '../../utils/memory/versions.js'
 import { toTildePath } from '../../utils/path.js'
-import { getAutoMemPath, isAutoMemoryEnabled } from '../../memdir/paths.js'
+import { getMnemeHome, isMnemeEnabled } from '../../mneme/paths.js'
 import { updateSettingsForSource } from '../../utils/settings/settings.js'
 import { Select } from '../CustomSelect/select.js'
 import { getRelativeMemoryPath } from './MemoryUpdateNotification.js'
@@ -52,7 +52,7 @@ export function MemoryFileSelector({
 
   useExitOnCtrlCDWithKeybindings()
 
-  const [autoMemoryOn, setAutoMemoryOn] = useState(() => isAutoMemoryEnabled())
+  const [mnemeOn, setMnemeOn] = useState(() => isMnemeEnabled())
 
   const toggles: Array<{
     id: 'memory'
@@ -61,8 +61,8 @@ export function MemoryFileSelector({
     {
       id: 'memory',
       flip: () => {
-        updateSettingsForSource('userSettings', { memory: { enabled: !autoMemoryOn } })
-        setAutoMemoryOn(value => !value)
+        updateSettingsForSource('userSettings', { memory: { enabled: !mnemeOn } })
+        setMnemeOn(value => !value)
       },
     },
   ]
@@ -155,7 +155,7 @@ export function MemoryFileSelector({
       })
     }
 
-    if (autoMemoryOn) {
+    if (mnemeOn) {
       result.push({
         label: 'Open the memory folder',
         value: '::open:memory',
@@ -164,7 +164,7 @@ export function MemoryFileSelector({
     }
 
     return result
-  }, [files, autoMemoryOn])
+  }, [files, mnemeOn])
 
   const preselect =
     lastSelectedPath !== null &&
@@ -175,7 +175,7 @@ export function MemoryFileSelector({
   const activate = (value: string) => {
     lastSelectedPath = value
     if (value.startsWith('::open:')) {
-      const dir = getAutoMemPath()
+      const dir = getMnemeHome()
       try {
         mkdirSync(dir, { recursive: true })
       } catch {
@@ -193,7 +193,7 @@ export function MemoryFileSelector({
           bold={focusedToggle === 0}
           inverse={focusedToggle === 0}
         >
-          Memory: {autoMemoryOn ? 'on' : 'off'}
+          Memory: {mnemeOn ? 'on' : 'off'}
         </Text>
       </Box>
       <Select

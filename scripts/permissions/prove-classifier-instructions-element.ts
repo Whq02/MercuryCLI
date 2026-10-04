@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/permissions/yoloClassifier.ts src/utils/permissions/classifierRouted.ts
+// gate-watch: src/utils/permissions/flowClassifier.ts src/utils/permissions/classifierRouted.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync } from 'node:fs'
@@ -26,7 +26,7 @@ function section(t: string): void {
 console.log("the auto-mode check wraps the project instructions in Mercury's element")
 
 await import('../../src/utils/permissions/decision/wrapper.ts')
-const yolo = await import('../../src/utils/permissions/yoloClassifier.ts')
+const flow = await import('../../src/utils/permissions/flowClassifier.ts')
 const state = await import('../../src/bootstrap/state.ts')
 const reader = await import('../api/read-instruction-heading.ts')
 
@@ -34,9 +34,9 @@ const MARKER = 'ELEMENT-MARKER-51c2: never push without asking.'
 
 section('§1 the prefix: the cached project instructions ride inside <project_instructions>')
 {
-  check("the element is Mercury's word", yolo.CLASSIFIER_INSTRUCTIONS_ELEMENT === 'project_instructions')
-  const build = (yolo as { buildInstructionPrefix?: () => string | undefined }).buildInstructionPrefix ?? (() => undefined)
-  check('the prefix builder is a seam the proof can drive', typeof (yolo as { buildInstructionPrefix?: unknown }).buildInstructionPrefix === 'function')
+  check("the element is Mercury's word", flow.CLASSIFIER_INSTRUCTIONS_ELEMENT === 'project_instructions')
+  const build = (flow as { buildInstructionPrefix?: () => string | undefined }).buildInstructionPrefix ?? (() => undefined)
+  check('the prefix builder is a seam the proof can drive', typeof (flow as { buildInstructionPrefix?: unknown }).buildInstructionPrefix === 'function')
   state.setCachedInstructionPrompt(null)
   check('no project instructions ⇒ no prefix', build() === undefined)
   state.setCachedInstructionPrompt(MARKER)
@@ -50,7 +50,7 @@ section('§1 the prefix: the cached project instructions ride inside <project_in
 
 section('§2 both request roads carry the prefix as written')
 {
-  const requestOptions = (yolo as { classifierRequestOptions?: (args: unknown) => { messages: Array<{ role: string; content: unknown }> } }).classifierRequestOptions
+  const requestOptions = (flow as { classifierRequestOptions?: (args: unknown) => { messages: Array<{ role: string; content: unknown }> } }).classifierRequestOptions
   const options = requestOptions
     ? requestOptions({
         model: 'claude-opus-4-8',
@@ -66,7 +66,7 @@ section('§2 both request roads carry the prefix as written')
   check('…and the reader finds the element in that request body', reader.reportRow({ body: options }).classifierTag === 'project_instructions')
   const routed = readFileSync(join(REPO, 'src/utils/permissions/classifierRouted.ts'), 'utf8')
   check('the routed road prepends the same prefix to its user prompt', /args\.instructionPrefix \? `\$\{args\.instructionPrefix\}\\n\\n` : ''/.test(routed))
-  const source = readFileSync(join(REPO, 'src/utils/permissions/yoloClassifier.ts'), 'utf8')
+  const source = readFileSync(join(REPO, 'src/utils/permissions/flowClassifier.ts'), 'utf8')
   check('the element is spelled once, through the constant', (source.match(/project_instructions/g) ?? []).length === 1 && /<\$\{CLASSIFIER_INSTRUCTIONS_ELEMENT\}>/.test(source))
   state.setCachedInstructionPrompt(null)
 }

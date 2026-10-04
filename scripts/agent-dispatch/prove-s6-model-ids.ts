@@ -50,7 +50,7 @@ process.env.MERCURY_OPENAI_CHATGPT_BASE = 'http://127.0.0.1:1'
 process.env.MERCURY_OPENAI_AUTH_BASE = 'http://127.0.0.1:1'
 
 const { ENGINE_DISPATCH_MODELS, isExactEngineModelId, resolveEngineDispatch, unrecognisedModelWordRefusal } = await import(
-  '../../src/utils/swarm/engineDispatch.js'
+  '../../src/utils/crew/engineDispatch.js'
 )
 const { DEPRECATED_GPT_IDS } = await import('../../src/utils/router/providers/openai.js')
 const { __resetProviderDiscoveryForTest, refreshProviderDiscovery } = await import(

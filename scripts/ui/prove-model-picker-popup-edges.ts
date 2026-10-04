@@ -38,7 +38,7 @@ const { default: PromptInput } = await import('../../src/components/PromptInput/
 const { useCompactWorkControls } = await import('../../src/components/tasks/CompactWorkSummary.tsx')
 const { GlobalKeybindingHandlers } = await import('../../src/hooks/useGlobalKeybindings.tsx')
 const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_REPL_ROUTE } = await import('../../src/context/surfaceRoute.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
 const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
@@ -182,7 +182,7 @@ const save = (name: string, columns: number, rows: number, lines: string[]): voi
 type Scene = { lines: () => string[]; window: () => Window | null; push: (data: string) => void; type: (text: string) => Promise<void>; close: () => Promise<void> }
 
 async function popupScene(columns: number, rows: number, opts: { pendingNext?: string } = {}): Promise<Scene> {
-  initializeSurfaceRoute(ROOT_REPL_ROUTE)
+  initializeSurfaceRoute(ROOT_CHAT_ROUTE)
   resetChromeModeLatchForTests()
   pending.edit('')
   pending.setMode('prompt')

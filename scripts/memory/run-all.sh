@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/memdir/**
+# gate-watch: src/mneme/**
 # gate-watch: src/utils/evolution/evolutionLedger* src/utils/evolution/ledgerScan*
 # gate-watch: src/components/memory/MemoryCentreView.tsx src/services/compact/compact.ts
 # gate-watch: src/services/eval/evalBridge.ts src/services/instructions/engine.ts src/services/instructions/sourceText.ts

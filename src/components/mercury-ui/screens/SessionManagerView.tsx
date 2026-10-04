@@ -72,7 +72,7 @@ export function SessionManagerView({
     <CommandCenter view="sessions" onClose={onClose} captureInput={false}>
       <Box marginTop={1}>
         <EmptyState
-          title="Session switching needs the interactive REPL wiring"
+          title="Session switching needs the interactive chat wiring"
           hint="run /sessions (project scope) or /resume (full history) from the prompt"
         />
       </Box>

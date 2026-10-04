@@ -70,8 +70,8 @@ export async function checkAndDisableAutoModeIfNeeded(
 }
 
 export function useKickOffCheckAndDisableAutoModeIfNeeded(): void {
-  const mainLoopModel = useAppState(state => state.mainLoopModel)
-  const mainLoopModelForSession = useAppState(state => state.mainLoopModelForSession)
+  const engineModel = useAppState(state => state.engineModel)
+  const engineModelForSession = useAppState(state => state.engineModelForSession)
   const setAppState = useSetAppState()
   const store = useAppStateStore()
   const firstRun = useRef(true)
@@ -86,5 +86,5 @@ export function useKickOffCheckAndDisableAutoModeIfNeeded(): void {
       setAppState,
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mainLoopModel, mainLoopModelForSession])
+  }, [engineModel, engineModelForSession])
 }

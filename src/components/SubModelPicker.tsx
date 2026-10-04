@@ -11,7 +11,7 @@ import { EffortStrip } from './mercury-ui/EffortStrip.js'
 import { applyNavMotion, decodeNavKey } from './mercury-ui/navSemantics.js'
 import { isTopOverlayNow, useRegisterOverlay } from '../context/overlayContext.js'
 import type { EffortLevel } from '../utils/effort.js'
-import { getMainLoopModel, renderModelName } from '../utils/model/model.js'
+import { getEngineModel, renderModelName } from '../utils/model/model.js'
 import { focusedSessionModelFacts } from '../services/engine-connector/focusedConnector.js'
 import {
   canonicalSubModelId,
@@ -94,7 +94,7 @@ function ContainerHeader({
   const meta = CONTAINER_META[container]
   const resolved = resolveSubModel(container)
   const originWords = containerOriginWords(container, resolved)
-  const mainModel = canonicalSubModelId(focusedSessionModelFacts()?.effective ?? getMainLoopModel())
+  const mainModel = canonicalSubModelId(focusedSessionModelFacts()?.effective ?? getEngineModel())
   const cacheWords =
     container === 'console' && resolved.origin !== 'unset'
       ? resolved.model === mainModel
@@ -439,7 +439,7 @@ export function SubModelPicker({
 
   const width = Math.max(56, Math.min(100, columns - 6))
   const listRows = Math.max(4, termRows - 12 - (SUB_MODEL_CONTAINERS.length - 1))
-  const mainModel = renderModelName(focusedSessionModelFacts()?.effective ?? getMainLoopModel())
+  const mainModel = renderModelName(focusedSessionModelFacts()?.effective ?? getEngineModel())
 
   return (
     <Box flexDirection="column" width={width}>

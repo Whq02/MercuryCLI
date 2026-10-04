@@ -10,7 +10,7 @@ import type { AssistantMessage, Message } from '../types/message.js'
 import { createAbortController } from './abortController.js'
 import type { CacheSafeParams } from './forkedAgent.js'
 import type { FileStateCache } from './fileStateCache.js'
-import { getMainLoopModel } from './model/model.js'
+import { getEngineModel } from './model/model.js'
 import { asSystemPrompt } from './systemPromptType.js'
 import type { ThinkingConfig } from './thinking.js'
 import { shouldEnableThinkingByDefault } from './thinking.js'
@@ -18,13 +18,13 @@ import { shouldEnableThinkingByDefault } from './thinking.js'
 
 export async function fetchSystemPromptParts({
   tools,
-  mainLoopModel,
+  engineModel,
   mcpClients,
   customSystemPrompt,
   permissionMode,
 }: {
   tools: Tools
-  mainLoopModel: string
+  engineModel: string
   mcpClients: MCPServerConnection[]
   customSystemPrompt?: string
   permissionMode?: import('../types/permissions.js').InternalPermissionMode
@@ -32,7 +32,7 @@ export async function fetchSystemPromptParts({
   const [defaultSystemPrompt, userContext, systemContext] = await Promise.all([
     customSystemPrompt !== undefined
       ? Promise.resolve([] as string[])
-      : getSystemPrompt(tools, mainLoopModel, mcpClients, permissionMode),
+      : getSystemPrompt(tools, engineModel, mcpClients, permissionMode),
     getUserContext(),
     customSystemPrompt !== undefined ? Promise.resolve({} as { [k: string]: string }) : getSystemContext(),
   ])
@@ -64,11 +64,11 @@ export async function buildSideQuestionFallbackParams({
   thinkingConfig?: ThinkingConfig
   agents: AgentDefinition[]
 }): Promise<CacheSafeParams> {
-  const mainLoopModel = getMainLoopModel()
+  const engineModel = getEngineModel()
   const appState = getAppState()
   const { defaultSystemPrompt, userContext, systemContext } = await fetchSystemPromptParts({
     tools,
-    mainLoopModel,
+    engineModel,
     mcpClients,
     customSystemPrompt,
     permissionMode: appState.toolPermissionContext.mode,
@@ -90,7 +90,7 @@ export async function buildSideQuestionFallbackParams({
       commands,
       debug: false,
       verbose: false,
-      mainLoopModel,
+      engineModel,
       tools,
       thinkingConfig: resolvedThinking,
       mcpClients,

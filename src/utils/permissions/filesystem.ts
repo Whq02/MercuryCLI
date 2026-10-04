@@ -390,9 +390,9 @@ function isAgentMemory(path: string): boolean {
     return false
   }
 }
-function isAutoMemory(path: string): boolean {
+function isMneme(path: string): boolean {
   try {
-    return (require('../../memdir/paths.js') as { isAutoMemPath(p: string): boolean }).isAutoMemPath(path)
+    return (require('../../mneme/paths.js') as { isMnemePath(p: string): boolean }).isMnemePath(path)
   } catch {
     return false
   }
@@ -435,7 +435,7 @@ function readableInternalCategory(path: string): string | null {
   } catch {
   }
   if (isAgentMemory(path)) return 'agent-memory directory'
-  if (isAutoMemory(path)) return 'memory directory'
+  if (isMneme(path)) return 'memory directory'
   return null
 }
 

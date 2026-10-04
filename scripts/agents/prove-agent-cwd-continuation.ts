@@ -82,7 +82,7 @@ for (const [start, end] of [['export function armBudgetCutResume(', 'const overl
   if (start.startsWith('export function arm')) check(`${start}: the timer fires on the session directory`, /runWithCwdOverride\(getCwdState\(\), (fire|\(\) => fire\(\))\)/.test(body))
   if (start === 'export function armBudgetCutResume(') check(`${start}: the sign-in on another account fires the same resume on the session directory`, /subscribeCrewAccountChange\([\s\S]{0,400}runWithCwdOverride\(getCwdState\(\), \(\) => fire\(true\)\)/.test(body))
 }
-const print = src('cli', 'print.ts')
+const print = src('cli', 'run.ts')
 check('the crew resume answer carries the note and recorded directory', print.includes('recorded_cwd: resumed.recordedCwd') && print.includes('note: resumed.note'))
 
 console.log('\n' + '─'.repeat(76))

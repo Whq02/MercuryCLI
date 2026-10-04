@@ -83,7 +83,7 @@ import {
 import { isSyntheticApiErrorMessage } from '../../utils/messages/factories.js'
 import { emitTaskProgress as emitSdkTaskProgress } from '../../utils/task/sdkProgress.js'
 import { emitBackgroundAgentRows } from '../../utils/task/sdkAgentFrames.js'
-import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
+import { isCrewEnabled } from '../../utils/crewEnabled.js'
 import { isInProcessCrewmate } from '../../utils/crewmateContext.js'
 import { permissionRuleValueFromString } from '../../utils/permissions/permissionRuleParser.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
@@ -100,7 +100,7 @@ export function filterToolsForAgent(args: {
 }): Tools {
   const { tools, isBuiltIn, isAsync } = args
   const crewmateKeeps =
-    isInProcessCrewmate() && isAgentSwarmsEnabled()
+    isInProcessCrewmate() && isCrewEnabled()
   return tools.filter(tool => {
     if (tool.name.startsWith(MCP_TOOL_PREFIX)) return true
     if (ALL_AGENT_DISALLOWED_TOOLS.has(tool.name)) return false

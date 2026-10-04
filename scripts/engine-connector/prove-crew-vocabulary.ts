@@ -44,7 +44,7 @@ const FILES = [
   'src/components/MercuryTasks.tsx',
   'src/components/FleetMonitor.tsx',
   'src/components/BootAgentsScreen.tsx',
-  'src/components/PromptInput/useSwarmBanner.ts',
+  'src/components/PromptInput/useCrewBanner.ts',
   'src/commands/crewmates/index.ts',
   'src/commands/crewmates/crewmates.tsx',
   'src/commands/crew/index.ts',

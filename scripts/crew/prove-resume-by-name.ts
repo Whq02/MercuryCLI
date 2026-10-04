@@ -160,7 +160,7 @@ const settle = (ms: number): Promise<void> => new Promise(resolve => setTimeout(
 const makeLaunchCtx = (store: Store, messages: Message[], toolUseId: string): never =>
   ({
     ...(makeCtx(store, messages) as object),
-    options: { tools: [], commands: [], mcpClients: [], mcpResources: {}, mainLoopModel: 'claude-fable-5-1', maxThinkingTokens: 0, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [MERCURY_CREW_AGENT] }, debug: false, verbose: false },
+    options: { tools: [], commands: [], mcpClients: [], mcpResources: {}, engineModel: 'claude-fable-5-1', maxThinkingTokens: 0, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [MERCURY_CREW_AGENT] }, debug: false, verbose: false },
     readFileState: createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE),
     toolUseId,
     setResponseLength: () => {},

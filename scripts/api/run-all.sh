@@ -6,7 +6,7 @@
 # gate-watch: src/utils/messages/apiFilters* src/utils/messages/apiView* scripts/lib/scratchSeat.ts
 # gate-watch: src/services/api/** src/run-core/turn-machine.ts
 # gate-watch: .node-version docs/SESSIONS.md package.json scripts/compact/overflowFixture.ts
-# gate-watch: scripts/daemon/dupline-world.ts scripts/lib/* src/* src/bootstrap/state.ts src/cli/print.ts
+# gate-watch: scripts/daemon/dupline-world.ts scripts/lib/* src/* src/bootstrap/state.ts src/cli/run.ts
 # gate-watch: src/components/SwitchboardTagBar.tsx src/components/concourse/ConcourseRoute.tsx
 # gate-watch: src/components/messages/AssistantTextMessage.tsx
 # gate-watch: src/components/messages/nullRenderingAttachments.ts

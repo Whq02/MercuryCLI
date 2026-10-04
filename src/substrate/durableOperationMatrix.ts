@@ -118,7 +118,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
       'W2: after roster append, before AppState — roster/UI disagree',
     ],
     failureClass: ['FC1-crewcreate-partial'],
-    source: ['src/utils/swarm/crewHelpers.ts:353', 'src/tools/shared/spawnMultiAgent.ts'],
+    source: ['src/utils/crew/crewHelpers.ts:353', 'src/tools/shared/spawnMultiAgent.ts'],
   },
   {
     id: 'task-outcome-envelope',
@@ -319,7 +319,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     idempotencyKey: 'run id (terminal runs never reactivate)',
     publication: 'sidecar re-publish',
     recovery:
-      'the run-level story is sound (pending tools become uncertainty markers; terminal runs are receipts). Slice 5: incomplete multi-record OPERATIONS are reconciled by the boot recovery orchestrator BEFORE the REPL mounts (crews journal, orphan temps, dead epochs) — reconcileOnResume stays the run-level fold on top of already-reconciled durable state.',
+      'the run-level story is sound (pending tools become uncertainty markers; terminal runs are receipts). Slice 5: incomplete multi-record OPERATIONS are reconciled by the boot recovery orchestrator BEFORE the Chat mounts (crews journal, orphan temps, dead epochs) — reconcileOnResume stays the run-level fold on top of already-reconciled durable state.',
     interruptionWindows: [
       'W1: exit mid-reconcile — re-runs idempotently next resume (events re-fold)',
     ],
@@ -343,7 +343,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     recovery: 'TTL-bounded (30m) so lost updates self-heal; a damaged store is quarantined + ledgered (Slice 2) and the guard still fails OPEN (allow) by doctrine.',
     interruptionWindows: ['W1: kernel windows (W2/W3 closed); a dropped store fails OPEN (allow) by design'],
     failureClass: ['FC5-corrupt-store-empty-overwrite'],
-    source: ['src/utils/swarm/leaseGlob.ts'],
+    source: ['src/utils/crew/leaseGlob.ts'],
   },
   {
     id: 'store-prompt-drafts',
@@ -382,7 +382,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     recovery: 'single-record atomic through the shared durable primitive (Slice 1); sync twin can degrade to UNLOCKED best-effort on lock exhaustion (documented).',
     interruptionWindows: ['W1 (bounded): crash between tmp write and rename — orphan swept on next publish/boot'],
     failureClass: ['FC1-crewcreate-partial'],
-    source: ['src/utils/swarm/crewHelpers.ts:240', 'src/utils/swarm/crewHelpers.ts:304'],
+    source: ['src/utils/crew/crewHelpers.ts:240', 'src/utils/crew/crewHelpers.ts:304'],
   },
   {
     id: 'lifecycle-startup-sweeps',
@@ -398,12 +398,12 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     idempotencyKey: 'converging re-runs (sweeps re-derive from state)',
     publication: 'store renames',
     recovery:
-      'ONE recovery orchestrator (substrate/recoveryOrchestrator.runBootRecovery) runs at interactive boot (replLauncher, before the REPL projection mounts) AND daemon boot (before any store is read): orphan-temp sweep across the durable homes (pattern-scoped, age-gated, bounded) → crews journal recovery → dead-epoch task GC → stale daemon-record reconcile (a TerminateProcess\'d supervisor\'s supervisor.json/.lock + control.key, conservative, one receipt) → leader-projection rebuild (session scope). Idempotent, memoized per process, typed report — /run, /crew, and /health DURABILITY rows read the same state.',
+      'ONE recovery orchestrator (substrate/recoveryOrchestrator.runBootRecovery) runs at interactive boot (chatLauncher, before the Chat projection mounts) AND daemon boot (before any store is read): orphan-temp sweep across the durable homes (pattern-scoped, age-gated, bounded) → crews journal recovery → dead-epoch task GC → stale daemon-record reconcile (a TerminateProcess\'d daemon\'s supervisor.json/.lock + control.key, conservative, one receipt) → leader-projection rebuild (session scope). Idempotent, memoized per process, typed report — /run, /crew, and /health DURABILITY rows read the same state.',
     interruptionWindows: [
       'W1: exit mid-sweep — next boot converges (per-sweep; the orchestrator itself is idempotent)',
     ],
     failureClass: ['FC1-crewcreate-partial'],
-    source: ['src/substrate/recoveryOrchestrator.ts', 'src/replLauncher.tsx'],
+    source: ['src/substrate/recoveryOrchestrator.ts', 'src/chatLauncher.tsx'],
   },
   {
     id: 'text-change-set',
@@ -463,7 +463,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
       'W2: exit between run flush and owner disposal — benign (resume reconciles)',
     ],
     failureClass: ['FC1-crewcreate-partial'],
-    source: ['src/utils/swarm/crewHelpers.ts:773', 'src/services/run/ownerLifecycle.ts'],
+    source: ['src/utils/crew/crewHelpers.ts:773', 'src/services/run/ownerLifecycle.ts'],
   },
   {
     id: 'store-interview-sessions',

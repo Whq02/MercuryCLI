@@ -9,7 +9,7 @@ import {
   isInProcessCrewmateTask,
   type InProcessCrewmateTaskState,
 } from '../../tasks/InProcessCrewmateTask/types.js'
-import { CREW_LEAD_NAME } from '../../utils/swarm/constants.js'
+import { CREW_LEAD_NAME } from '../../utils/crew/constants.js'
 import { formatNumber } from '../../utils/format.js'
 import { CrewmateSpinnerLine } from './CrewmateSpinnerLine.js'
 

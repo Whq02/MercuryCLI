@@ -3,7 +3,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { MnemeEntry } from '../../src/memdir/mnemeTopicDocs.js'
+import type { MnemeEntry } from '../../src/mneme/mnemeTopicDocs.js'
 
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-recall-truncation-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
@@ -18,10 +18,10 @@ function section(t: string): void {
 }
 
 const { correctMemory, hasSeenFullRow, readMemoryRecord, RECALL_RESULT_CAP_CHARS } = await import(
-  '../../src/memdir/memoryVerbs.js'
+  '../../src/mneme/memoryVerbs.js'
 )
-const { mnemeLibraryDir } = await import('../../src/memdir/mnemeGates.js')
-const { docFileName, serializeTopicDoc } = await import('../../src/memdir/mnemeTopicDocs.js')
+const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.js')
+const { docFileName, serializeTopicDoc } = await import('../../src/mneme/mnemeTopicDocs.js')
 const { RecallTool } = await import('../../src/tools/MemoryTools/MemoryTools.js')
 
 const now = new Date().toISOString()

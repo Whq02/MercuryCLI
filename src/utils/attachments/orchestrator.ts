@@ -8,7 +8,7 @@ import { getHarnessMapDelta } from '../cockpit/harnessMap.js'
 import { getRunProtocolDelta } from '../cockpit/runProtocol.js'
 import type { QuerySource } from '../../constants/querySource.js'
 import { createAbortController } from '../abortController.js'
-import { isAgentSwarmsEnabled } from '../agentSwarmsEnabled.js'
+import { isCrewEnabled } from '../crewEnabled.js'
 import { isEnvTruthy } from '../envUtils.js'
 import { logError } from '../log.js'
 import { getLSPDiagnosticAttachments } from './diagnostics.js'
@@ -135,7 +135,7 @@ export async function getAttachments(
       Promise.resolve(
         getDeferredToolsDeltaAttachment(
           toolUseContext.options.tools,
-          toolUseContext.options.mainLoopModel,
+          toolUseContext.options.engineModel,
           messages,
           {
             callSite: isMainThread
@@ -160,7 +160,7 @@ export async function getAttachments(
         getMcpInstructionsDeltaAttachment(
           toolUseContext.options.mcpClients,
           toolUseContext.options.tools,
-          toolUseContext.options.mainLoopModel,
+          toolUseContext.options.engineModel,
           messages,
         ),
       ),
@@ -213,7 +213,7 @@ export async function getAttachments(
     maybe('contract_reminder', () =>
       getContractReminderAttachments(messages, toolUseContext),
     ),
-    ...(isAgentSwarmsEnabled()
+    ...(isCrewEnabled()
       ? [
           ...(querySource === 'session_memory'
             ? []

@@ -94,7 +94,7 @@ async function main(): Promise<void> {
     check('the bare-count road carries the samples too', composer && tail(bar.waitingStatusWords({ ...waiting, waitingOn: undefined, agentsWaiting: 2 }), 1) === 'waiting on 2 agents · 1 sample' && tail(bar.waitingStatusWords({ ...waiting, waitingOn: undefined, agentsWaiting: 0 }), 1) === 'waiting on agents · 1 sample')
     check('a parked ask keeps its place; the artifact word is the tail', composer && tail(bar.waitingStatusWords({ ...waiting, waitingOn: { ...counts.workCounts(rows), asks: 1 } }), 1) === 'waiting on 4 agents · 1 shell · 1 ask · 1 sample')
     const tagBar = read('src/components/SwitchboardTagBar.tsx')
-    const repl = read('src/screens/REPL.tsx')
+    const repl = read('src/screens/Chat.tsx')
     const spokenAt = tagBar.indexOf('const spoken = withSampleWords(words ?? line, samples)')
     const heldAt = tagBar.indexOf('const held = receipt')
     check('the row composes the tail once, after every state decision, through the fit that protects the state words', tagBar.includes('const fitted = fitStatusWords(words ?? line, samples, columns, fixedWidth)') && spokenAt >= 0 && heldAt >= 0 && spokenAt > heldAt && !tagBar.includes('fitStatusLine(spoken'))
@@ -115,7 +115,7 @@ async function main(): Promise<void> {
   section('S4 one truth: the seat projection the rail reads')
   {
     const tagBar = read('src/components/SwitchboardTagBar.tsx')
-    const repl = read('src/screens/REPL.tsx')
+    const repl = read('src/screens/Chat.tsx')
     const hook = read('src/components/tasks/useFocusedWork.ts')
     const tabs = read('src/components/mercury-ui/SessionTabs.tsx')
     const connector = read('src/services/engine-connector/daemonConnector.ts')

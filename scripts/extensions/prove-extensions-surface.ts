@@ -654,7 +654,7 @@ for (const [cols, rows] of [
     ready: '❯',
     assert: text => {
       const id = `esc-cascade-${sz}`
-      hasNot(id, text, 'installed (8)', 'the board closed back to the REPL')
+      hasNot(id, text, 'installed (8)', 'the board closed back to the Chat')
       check(`${id}: the composer is home`, text.includes('❯'))
     },
   })

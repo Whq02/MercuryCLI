@@ -299,7 +299,7 @@ function callParams(model: string, messages: Message[], ownerKey: string) {
       getToolPermissionContext: async () => permissionContext,
       model,
       isNonInteractiveSession: true,
-      querySource: 'repl_main_thread' as never,
+      querySource: 'main_thread' as never,
       agents: [],
       hasAppendSystemPrompt: false,
       mcpTools: [],

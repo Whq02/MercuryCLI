@@ -143,7 +143,7 @@ delete process.env.MERCURY_SHELL_MAX_OUTPUT
 section('§4 the Bash tool end to end on the system shell: the inline window, the clause, today’s bytes')
 let appState = getDefaultAppState()
 const toolContext = {
-  options: { mainLoopModel: 'claude-sonnet-5', tools: [], commands: [], mcpClients: [], mcpResources: {} },
+  options: { engineModel: 'claude-sonnet-5', tools: [], commands: [], mcpClients: [], mcpResources: {} },
   readFileState: new Map(),
   getAppState: () => appState,
   setAppState: (update: (state: typeof appState) => typeof appState) => {

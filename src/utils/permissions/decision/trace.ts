@@ -69,7 +69,7 @@ export type WrapperStageId =
   | 'autoFloors'
   | 'powershellGuard'
   | 'fastPathDangerFilter'
-  | 'acceptEditsFastPath'
+  | 'implementFastPath'
   | 'allowlistFastPath'
   | 'classifier'
   | 'denialLimit'
@@ -84,7 +84,7 @@ export const WRAPPER_STAGE_ORDER: readonly WrapperStageId[] = [
   'autoFloors',
   'powershellGuard',
   'fastPathDangerFilter',
-  'acceptEditsFastPath',
+  'implementFastPath',
   'allowlistFastPath',
   'classifier',
   'denialLimit',

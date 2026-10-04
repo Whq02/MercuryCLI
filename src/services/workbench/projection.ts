@@ -9,7 +9,7 @@ import {
   readAgentMetadata,
 } from '../../utils/sessionStorage/paths.js'
 import { asAgentId } from '../../types/ids.js'
-import { lastActionWasLeadHandoff } from '../../utils/swarm/crewPhases.js'
+import { lastActionWasLeadHandoff } from '../../utils/crew/crewPhases.js'
 import { computeWorkingTreeDigestAsync } from '../../utils/verification/verificationState.js'
 import { listReviewArtifactHeadsSource } from '../../utils/artifacts/reviewStore.js'
 import { lanesEnabled, listLanesSource } from '../contextLanes/lanes.js'

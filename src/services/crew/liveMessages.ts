@@ -4,7 +4,7 @@ import { CREWMATE_MESSAGE_TAG } from '../../constants/xml.js'
 import type { Message } from '../../types/message.js'
 import { PERMISSION_MODES, type InternalPermissionMode } from '../../types/permissions.js'
 import { lazySchema } from '../../utils/lazySchema.js'
-import { CREW_LEAD_NAME } from '../../utils/swarm/constants.js'
+import { CREW_LEAD_NAME } from '../../utils/crew/constants.js'
 import { escapeXml, escapeXmlAttr } from '../../utils/xml.js'
 
 export type LiveMessageEnvelope = {

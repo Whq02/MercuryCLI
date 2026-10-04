@@ -76,19 +76,19 @@ console.log('\nC6 the wiring — service stamp to glass word (structural)')
   const read = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
   const service = read('src/services/compact/compact.ts')
   check("the compact service stamps the fold's status (the record under the compacting key)", service.includes("context.setSDKStatus?.({ compacting: status })"))
-  const print = read('src/cli/print.ts')
+  const print = read('src/cli/run.ts')
   check("the runner relays the stamp as a compaction row", print.includes('compactionRow(liveScope(), fold)'))
   const seatLive = read('src/services/engine-connector/seatLive.ts')
   check("the live-phase vocabulary carries 'compacting'", seatLive.includes("'compacting'"))
   const connector = read('src/services/engine-connector/daemonConnector.ts')
   check("the connector lifts the word into phase 'compacting'", connector.includes("'compacting'"))
-  const repl = read('src/screens/REPL.tsx')
+  const repl = read('src/screens/Chat.tsx')
   check(
-    "the REPL paints the fold's own word (its own state word, never the thinking dress)",
+    "the Chat paints the fold's own word (its own state word, never the thinking dress)",
     repl.includes("compacting"),
   )
   check(
-    "the REPL never maps the compacting phase onto the thinking mode",
+    "the Chat never maps the compacting phase onto the thinking mode",
     !/compacting'\s*\?\s*'thinking'/.test(repl),
   )
 }

@@ -67,7 +67,7 @@ export function deriveSupervisorRows(status: MercuryDaemonStatus | null): Superv
       leases: null,
       fireLine: null,
       recentLine: null,
-      empty: 'run `mercury daemon` to start the supervisor',
+      empty: 'run `mercury daemon` to start one',
       version: null,
     }
   }
@@ -108,7 +108,7 @@ export function deriveSupervisorRows(status: MercuryDaemonStatus | null): Superv
 
   return {
     badge: reachable ? 'live' : 'unavailable',
-    badgeLabel: reachable ? 'supervisor live' : 'record present · socket dead',
+    badgeLabel: reachable ? 'daemon live' : 'record present · socket dead',
     supervisorLine: `pid ${s.pid} · v${s.version} · up ${s.uptimeSec}s`,
     dir: s.dir,
     degraded: status.degraded
@@ -116,7 +116,7 @@ export function deriveSupervisorRows(status: MercuryDaemonStatus | null): Superv
       : null,
     orphanWarning: reachable
       ? null
-      : 'supervisor record present but control socket unreachable — run `mercury daemon stop` to clear it',
+      : 'daemon record present but control socket unreachable — run `mercury daemon stop` to clear it',
     workers,
     breaker:
       status.breakerOpen === null ? null : status.breakerOpen ? 'OPEN · dispatch suppressed' : 'closed',

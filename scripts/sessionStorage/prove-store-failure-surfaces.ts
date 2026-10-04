@@ -56,7 +56,7 @@ await sleep(5_600)
 }
 
 {
-  const repl = readFileSync(join(import.meta.dir, '../../src/screens/REPL.tsx'), 'utf8')
+  const repl = readFileSync(join(import.meta.dir, '../../src/screens/Chat.tsx'), 'utf8')
   t("§3 the chat paints the sticky notification from the seam", repl.includes("key: 'transcript-store'") && repl.includes('subscribeTranscriptStoreHealth'))
   t('§3 …and clears it on recovery', repl.includes("removeNotification('transcript-store')"))
 }

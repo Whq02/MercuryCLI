@@ -54,7 +54,7 @@ const bashCommandHookSchema = lazySchema(() =>
       .boolean()
       .optional()
       .describe('Run in the background without blocking.'),
-    asyncRewake: z
+    wake: z
       .boolean()
       .optional()
       .describe(

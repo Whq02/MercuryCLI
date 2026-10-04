@@ -102,7 +102,7 @@ section('§4 the ChangeSet chokepoint through the REAL tool')
     nestedMemoryAttachmentTriggers: new Set<string>(),
     abortController: new AbortController(),
     agentId: undefined,
-    options: { mainLoopModel: 'model-chokepoint', tools: [] },
+    options: { engineModel: 'model-chokepoint', tools: [] },
     getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }),
   } as never
   const parent = { uuid: '00000000-0000-0000-0000-000000000004', message: { id: 'msg_fixture' } }

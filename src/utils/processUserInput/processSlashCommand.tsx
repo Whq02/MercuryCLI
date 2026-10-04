@@ -473,7 +473,7 @@ async function runForkedPromptCommand(
         cacheSafeParams,
         canUseTool:
           canUseTool ?? (async () => ({ behavior: 'allow' as const, updatedInput: {} })),
-        querySource: 'repl_main_thread',
+        querySource: 'main_thread',
         forkLabel: command.name,
         overrides: {
           getAppState: prepared.modifiedGetAppState,

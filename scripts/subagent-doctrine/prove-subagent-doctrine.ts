@@ -88,7 +88,7 @@ delete process.env.MERCURY_BARE
 
 section('(e1) memory front page — the verb sentence rides only with a reader that has the verbs')
 {
-  const { MEMORY_WRITE_VERBS_SENTENCE } = await import('../../src/memdir/mnemeFrontPage.js')
+  const { MEMORY_WRITE_VERBS_SENTENCE } = await import('../../src/mneme/mnemeFrontPage.js')
   const memoryOf = (sections: string[]): string => sections.find(s => s.startsWith('# Memory')) ?? ''
   const crew = memoryOf(buildSubagentMercurySections({ agentDefinition: GP }))
   const scout = memoryOf(buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-scout' } }))

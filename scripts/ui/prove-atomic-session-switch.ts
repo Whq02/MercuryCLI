@@ -6,7 +6,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) fail = 1;
 };
 
-const repl = readFileSync('src/screens/REPL.tsx', 'utf8');
+const repl = readFileSync('src/screens/Chat.tsx', 'utf8');
 const start = repl.indexOf('const resume = useCallback(async (sessionId: UUID');
 check('resume() found', start >= 0);
 const bodyEnd = repl.indexOf('resumeRef.current = resume;', start);

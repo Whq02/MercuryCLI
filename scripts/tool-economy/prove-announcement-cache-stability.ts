@@ -173,7 +173,7 @@ async function captureFirstParty(tools: Tools, messages: Message[]): Promise<Cap
         getToolPermissionContext: async () => permissionContext,
         model: ROUTE_MODELS.anthropic,
         isNonInteractiveSession: true,
-        querySource: 'repl_main_thread' as never,
+        querySource: 'main_thread' as never,
         agents: [],
         hasAppendSystemPrompt: false,
         mcpTools: [],

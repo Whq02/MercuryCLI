@@ -61,12 +61,12 @@ mock.module('../../src/tools/AgentTool/runAgent.ts', () => ({ ...runAgentModule,
 
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { getSessionId } = await import('../../src/bootstrap/state.ts')
-const { spawnInProcessCrewmate } = await import('../../src/utils/swarm/spawnInProcess.ts')
-const { runInProcessCrewmate } = await import('../../src/utils/swarm/inProcessRunner.ts')
+const { spawnInProcessCrewmate } = await import('../../src/utils/crew/spawnInProcess.ts')
+const { runInProcessCrewmate } = await import('../../src/utils/crew/inProcessRunner.ts')
 const { isInProcessCrewmateTask } = await import('../../src/tasks/InProcessCrewmateTask/types.ts')
 const { projectWorkRoster } = await import('../../src/utils/task/workRoster.ts')
 const { crewAgentFactsOf, crewStateLabel, crewStatusWords } = await import('../../src/services/engine-connector/crewFacts.ts')
-const { writeCrewFileAsync, readCrewFileAsync, getCrewFilePath } = await import('../../src/utils/swarm/crewHelpers.ts')
+const { writeCrewFileAsync, readCrewFileAsync, getCrewFilePath } = await import('../../src/utils/crew/crewHelpers.ts')
 const { sendLiveMessage, liveMessagesFor } = await import('../../src/services/crew/liveComms.ts')
 const { createShutdownRequestMessage, isShutdownApproved } = await import('../../src/services/crew/liveMessages.ts')
 const { hasActiveInProcessCrewmates, hasWorkingInProcessCrewmates } = await import('../../src/utils/crewmate.ts')
@@ -90,7 +90,7 @@ const member = (agentId: string, name: string): Record<string, unknown> => ({ ag
 await writeCrewFileAsync(CREW, { name: CREW, createdAt: Date.now(), leadAgentId: LEAD_ID, leadSessionId: String(getSessionId()), members: [member(LEAD_ID, LEAD), member(SEAT_ID, SEAT), member(SECOND_ID, SECOND_SEAT)] } as never)
 
 const context = {
-  options: { tools: [], commands: [], mainLoopModel: MODEL, mcpClients: [], mcpResources: {}, debug: false, verbose: false, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [], allAgents: [], allowedAgentTypes: [] } },
+  options: { tools: [], commands: [], engineModel: MODEL, mcpClients: [], mcpResources: {}, debug: false, verbose: false, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [], allAgents: [], allowedAgentTypes: [] } },
   messages: [],
   abortController: new AbortController(),
   getAppState: () => state,
@@ -144,7 +144,7 @@ check('the seat ran one turn and went idle (the task says isIdle)', wentIdle && 
 
 section('§2 a shutdown request to an idle crewmate ends it at once: the approval reaches the lead, no model turn, the task settles completed')
 {
-  const request = createShutdownRequestMessage({ requestId: REQUEST_ID, from: LEAD, reason: 'the swarm is complete' })
+  const request = createShutdownRequestMessage({ requestId: REQUEST_ID, from: LEAD, reason: 'the crew is done' })
   const delivered = await sendLiveMessage(CREW, { to: SEAT, from: LEAD, text: JSON.stringify(request), timestamp: new Date().toISOString() })
   check('rig: the shutdown request landed in the seat\'s inbox', delivered)
   const outcome = await Promise.race([seat.done, sleep(8000).then(() => null)])

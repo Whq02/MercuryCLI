@@ -161,7 +161,7 @@ function ConsoleView({
   const subtitle =
     slot.origin === 'unset'
       ? `unset · ${slot.hint}`
-      : `${renderModelName(slot.model)}${consoleModelOverride(context.options.mainLoopModel) === undefined ? ' · zero usage until ↵' : ' · ≠ main: re-reads ctx per ↵'}`
+      : `${renderModelName(slot.model)}${consoleModelOverride(context.options.engineModel) === undefined ? ' · zero usage until ↵' : ' · ≠ main: re-reads ctx per ↵'}`
 
   return (
     <CommandCenter

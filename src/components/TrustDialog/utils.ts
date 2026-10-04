@@ -46,7 +46,7 @@ export function getBashPermissionSources(): string[] {
   })
 }
 
-export function getAutoMemoryDirectorySources(): string[] {
+export function getMnemeDirectorySources(): string[] {
   return sourcesWhere(settings => Boolean(settings.memory?.directory))
 }
 

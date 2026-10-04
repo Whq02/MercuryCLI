@@ -2,7 +2,7 @@
 # gate-class: pty
 # gate-watch: scripts/engine-connector/**
 # gate-watch: src/services/engine-connector/** src/hooks/useSessionConnector.ts
-# gate-watch: src/screens/REPL.tsx src/components/MercuryFrame.tsx src/components/PromptInput/**
+# gate-watch: src/screens/Chat.tsx src/components/MercuryFrame.tsx src/components/PromptInput/**
 # gate-watch: src/components/permissions/** src/hooks/useCancelRequest.ts src/hooks/useDisplayedSessionModel.ts
 # gate-watch: scripts/lib/* scripts/streaming/artifactArena.ts scripts/streaming/turn-end-fixture-server.ts
 # gate-watch: scripts/ui/vshot.py src/components/mercury-ui/keyHintLabel.ts src/daemon/controlSocket.ts

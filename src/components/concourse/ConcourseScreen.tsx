@@ -1525,7 +1525,7 @@ export function ConcourseScreen({
         setMarkedIds(new Set())
         return
       }
-      callbacks.exitToRepl()
+      callbacks.exitToChat()
       return
     }
     if (degraded && key.ctrl && input === 'r') {
@@ -1699,7 +1699,7 @@ export function ConcourseScreen({
     if (region === 'chat') {
       if (key.return && pastGate()) {
         event.stopImmediatePropagation()
-        if (hasFocusedSession()) callbacks.exitToRepl()
+        if (hasFocusedSession()) callbacks.exitToChat()
         else if (!landingInFlight()) armContractAsk()
         return
       }
@@ -2406,7 +2406,7 @@ export function ConcourseScreen({
             ? { withdrawObligation: (id: string) => callbacks.withdrawObligation?.(id) }
             : {}),
           openBootSettings: () => callbacks.enterBootSettings(),
-          exitToRepl: () => callbacks.exitToRepl(),
+          exitToChat: () => callbacks.exitToChat(),
           focusComposer: () => setRegion('coordinator'),
           focusList: () => setRegion('list'),
           openCoordinatorModel: () => {
@@ -2483,7 +2483,7 @@ export function ConcourseScreen({
               wheelBand={[splitGeo.dividerCol + 1, termCols - 1] as [number, number]}
               focused={region === 'chat'}
               snapshot={snapshot}
-              onEnterFull={() => callbacks.exitToRepl()}
+              onEnterFull={() => callbacks.exitToChat()}
               onNewSession={() => callbacks.newSession?.()}
             />
           </Box>

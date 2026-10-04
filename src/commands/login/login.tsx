@@ -33,12 +33,12 @@ export function Login({
 }: {
   geometry: SettingsPopupGeometry
   scrollRef?: React.RefObject<ScrollBoxHandle | null>
-  onDone: (success: boolean, mainLoopModel: string) => void
+  onDone: (success: boolean, engineModel: string) => void
   onOpenaiDone?: (result: { ok: boolean; receipt: string }) => void
   startingMessage?: string
   initialFocus?: LoginFamilyFocus
 }): React.ReactNode {
-  const mainLoopModel = useAppState(state => state.mainLoopModel)
+  const engineModel = useAppState(state => state.engineModel)
   const settledRef = useRef(false)
   const accountReceipt = useRef<string | null>(null)
   const [receipt, setReceipt] = useState<{ ok: boolean; receipt: string } | null>(null)
@@ -49,7 +49,7 @@ export function Login({
     }
     if (settledRef.current) return
     settledRef.current = true
-    onDone(success, mainLoopModel ?? '')
+    onDone(success, engineModel ?? '')
   }
   const settleOpenai = (result: { ok: boolean; receipt: string }): void => {
     if (settledRef.current) return
@@ -145,7 +145,7 @@ export async function call(
       ? { nextInput: returnCommand, submitNextInput: true as const }
       : {}
   const initialFocus = parseFamilyFocus(tokens.find(token => !token.startsWith('--')))
-  const complete = (success: boolean, mainLoopModel: string): void => {
+  const complete = (success: boolean, engineModel: string): void => {
     void (async () => {
       context.onChangeAPIKey()
       context.setMessages(prev => stripSignatureBlocks(prev))
@@ -157,7 +157,7 @@ export async function call(
       } else {
         onDone('/logins closed — no credential changed', chain)
       }
-      void mainLoopModel
+      void engineModel
     })()
   }
   const completeOpenai = (result: { ok: boolean; receipt: string }): void => {

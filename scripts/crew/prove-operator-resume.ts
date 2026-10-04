@@ -21,7 +21,7 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
 const { stopAgentByOperator } = await import('../../src/services/agents/operatorStop.js')
 const { operatorResumeWords, respawnCrewmateByOperator, crewmateRespawnConfig, crewmateRespawnWords } = await import('../../src/services/agents/operatorResume.js')
-const { spawnInProcessCrewmate, unwindCrewmateSpawn } = await import('../../src/utils/swarm/spawnInProcess.js')
+const { spawnInProcessCrewmate, unwindCrewmateSpawn } = await import('../../src/utils/crew/spawnInProcess.js')
 const { getCommandQueueSnapshot, resetCommandQueue } = await import('../../src/input-core/command-queue.js')
 const { drainRows } = await import('../../src/utils/sdkEventQueue.js')
 const { spawnCrewmate } = await import('../../src/tools/shared/spawnMultiAgent.js')
@@ -55,7 +55,7 @@ const contextOf = (store: ReturnType<typeof makeStore>): ToolUseContext =>
     toolUseId: 'toolu_last_turn',
     getAppState: store.get,
     setAppState: store.set,
-    options: { mainLoopModel: 'claude-sonnet-5', agentDefinitions: { activeAgents: [] } },
+    options: { engineModel: 'claude-sonnet-5', agentDefinitions: { activeAgents: [] } },
     messages: [],
     abortController: new AbortController(),
   }) as never
@@ -137,7 +137,7 @@ section('the spawn road: a crew word that names nothing names the session\'s cre
   drainRows()
   const { sessionCrewName } = await import('../../src/utils/crew/crewBirth.js')
   const { getSessionId } = await import('../../src/bootstrap/state.js')
-  const { readCrewFile } = await import('../../src/utils/swarm/crewHelpers.js')
+  const { readCrewFile } = await import('../../src/utils/crew/crewHelpers.js')
   const crew = sessionCrewName(String(getSessionId()))
   let thrown: unknown = null
   try {
@@ -175,7 +175,7 @@ section('the unwind itself: a running crewmate row is removed and bookended fail
 
 section('the doors in source: the runner\'s resume routes a crewmate row, or an evicted row whose record is a crewmate\'s, to the transcript continuation before the agent resume and tells the main agent of an agent resume; the spawn road unwinds in the membership\'s catch')
 {
-  const runner = readFileSync(join(import.meta.dir, '../../src/cli/print.ts'), 'utf8')
+  const runner = readFileSync(join(import.meta.dir, '../../src/cli/run.ts'), 'utf8')
   const arm = runner.slice(runner.indexOf("'agent/resume': async params => {"), runner.indexOf("const legacyAt = (at: 'now' | 'turn_end')"))
   check('the resume arm continues a crewmate row through the operator resume owner with the operator\'s note and answers its receipt', arm.includes('isInProcessCrewmateTask(target)') && arm.includes('readAgentMetadata(asAgentId(params.agent_id)))?.crewmate !== undefined') && arm.includes('respawnCrewmateByOperator(params.agent_id, { getAppState, toolUseContext: lastParams.toolUseContext, prompt: params.note })') && arm.includes('respawnCrewmateByOperator(') && arm.includes('resumeAgentBackground({') && arm.indexOf('respawnCrewmateByOperator(') < arm.indexOf('resumeAgentBackground({'))
   check('the resume arm tells the main agent of an agent resumed from the board with its continuation note', arm.includes("enqueueAgentReceiptRow({ taskId: resumed.agentId, description: resumed.description, summary: operatorResumeWords(resumed.description) + (resumed.note ?? '') })"))

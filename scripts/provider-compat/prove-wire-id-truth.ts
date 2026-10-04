@@ -115,7 +115,7 @@ const { refreshOpenrouterCatalogue, getOpenrouterModelOptions } = await import(
 const { focusedOptionSupports1m, withContext1m } = await import(
   '../../src/utils/model/modelOptions.ts'
 )
-const { getCanonicalName, getMainLoopModel, parseUserSpecifiedModel } = await import(
+const { getCanonicalName, getEngineModel, parseUserSpecifiedModel } = await import(
   '../../src/utils/model/model.ts'
 )
 const { modelSupports1M, resolveContextWindow } = await import(
@@ -143,7 +143,7 @@ function callParams(model: string) {
     signal: new AbortController().signal,
     options: {
       model,
-      querySource: 'repl_main_thread',
+      querySource: 'main_thread',
       isNonInteractiveSession: true,
       getToolPermissionContext: async () => ({}) as never,
       agents: [],
@@ -260,17 +260,17 @@ section('6 · the persistence round-trip: override slot → boot parse → dispa
       parseUserSpecifiedModel('local/hf.co/org/model:tag') === 'local/hf.co/org/model:tag' &&
       parseUserSpecifiedModel('compat/qwen3-32b') === 'compat/qwen3-32b',
   )
-  bootstrap.setMainLoopModelOverride(picked)
-  check('the session override slot answers the picked id byte-identical', getMainLoopModel() === picked)
+  bootstrap.setEngineModelOverride(picked)
+  check('the session override slot answers the picked id byte-identical', getEngineModel() === picked)
   const before = captured.length
-  const { errors } = await drive(getMainLoopModel())
+  const { errors } = await drive(getEngineModel())
   const wire = captured[captured.length - 1]
   check(
     'the round-tripped id dispatches the canonical wire id',
     errors.length === 0 && captured.length === before + 1 && wire?.model === 'openai/gpt-5.6-terra',
     `wire saw '${wire?.model}'`,
   )
-  bootstrap.setMainLoopModelOverride(undefined)
+  bootstrap.setEngineModelOverride(undefined)
 }
 
 section('7 · window truth: Mercury dressing on a carrier id never buys a 1M budget')

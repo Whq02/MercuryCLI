@@ -167,7 +167,7 @@ section('A3 the production presence fact reads the daemon\'s own cockpit facts: 
   rmSync(supervisorStatePath(), { force: true })
   check('red on the base: operatorClientPresence exists', presenceOf !== undefined)
   if (presenceOf !== undefined) {
-    check('no supervisor record → unknown', presenceOf(pureDaemonDir) === 'unknown', String(presenceOf(pureDaemonDir)))
+    check('no daemon record → unknown', presenceOf(pureDaemonDir) === 'unknown', String(presenceOf(pureDaemonDir)))
     const supervisor = (ownerPid: number | null): void => writeFileSync(supervisorStatePath(), JSON.stringify({ pid: process.pid, version: '1.0.0', origin: 'transient', startedAt: Date.now(), dir: SCRATCH, controlSock: '', ownerPid }))
     supervisor(process.pid)
     check('an owned daemon whose owner terminal is alive → attached', presenceOf(pureDaemonDir) === 'attached', String(presenceOf(pureDaemonDir)))

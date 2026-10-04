@@ -158,8 +158,8 @@ const tempsIn = (dir: string): string[] => readdirSync(dir).filter(isDurableTemp
   const migrated: Array<[string, RegExp]> = [
     ['src/substrate/fileStore.ts', /await writeFile\(tmp/],
     ['src/services/run/runSidecar.ts', /\.tmp-\$\{process\.pid\}/],
-    ['src/utils/swarm/crewHelpers.ts', /renameSync\(tmp/],
-    ['src/memdir/mnemeConsolidate.ts', /renameSync\(`\$\{p\}\.tmp`/],
+    ['src/utils/crew/crewHelpers.ts', /renameSync\(tmp/],
+    ['src/mneme/mnemeConsolidate.ts', /renameSync\(`\$\{p\}\.tmp`/],
     ['src/tools/WorkflowTool/runManifest.ts', /await rename\(tmp/],
     ['src/services/mcp/config.ts', /await rename\(tempPath, mcpJsonPath\)/],
     ['src/tools/ToolSearchTool/cooccurPrior.ts', /renameSync\(tmp/],

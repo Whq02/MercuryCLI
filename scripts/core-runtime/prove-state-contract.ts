@@ -121,8 +121,8 @@ const OBSERVABLES: Array<{
   { key: 'currentTurnTokenBudget', family: 'turn', scope: 'turn', read: () => state.getCurrentTurnTokenBudget() },
   { key: 'budgetContinuationCount', family: 'turn', scope: 'turn', read: () => state.getBudgetContinuationCount() },
   { key: 'lastInteractionTime', family: 'interaction', scope: 'process', read: () => state.getLastInteractionTime() },
-  { key: 'mainLoopModelOverride', family: 'model', scope: 'session', read: () => state.getMainLoopModelOverride() },
-  { key: 'initialMainLoopModel', family: 'model', scope: 'session', read: () => state.getInitialMainLoopModel() },
+  { key: 'engineModelOverride', family: 'model', scope: 'session', read: () => state.getEngineModelOverride() },
+  { key: 'initialEngineModel', family: 'model', scope: 'session', read: () => state.getInitialEngineModel() },
   { key: 'modelStrings', family: 'model', scope: 'session', read: () => (state.getModelStrings() === null ? null : 'set') },
   { key: 'sdkBetas', family: 'model', scope: 'session', read: () => state.getSdkBetas() },
   { key: 'statsStore', family: 'telemetry', scope: 'process', read: () => (state.getStatsStore() === null ? null : 'set') },
@@ -268,12 +268,12 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'getAllowedSettingSources', 'getApiKeyFromFd', 'getBudgetContinuationCount',
     'getCacheEditingHeaderLatched', 'getCachedInstructionPrompt',
     'getClientType', 'getCurrentTurnTokenBudget', 'getCwdState', 'getDirectConnectServerUrl', 'getFlagSettingsInline', 'getFlagSettingsPath',
-    'getHasDevChannels', 'getInitialMainLoopModel', 'getSessionExtensions',
+    'getHasDevChannels', 'getInitialEngineModel', 'getSessionExtensions',
     'getInvokedSkills', 'getInvokedSkillsForAgent', 'getIsInteractive',
     'getIsNonInteractiveSession', 'getIsRemoteMode', 'getIsScrollDraining', 'getIsSessionOneShotHeadless', 'isAssistantFamilyAvailable',
     'isAssistantSessionActive', 'getLastAPIRequest', 'getLastAPIRequestMessages',
     'getLastApiCompletionTimestamp', 'getLastClassifierRequests', 'getLastEmittedDate',
-    'getLastInteractionTime', 'getLastMainRequestId', 'getMainLoopModelOverride', 'getMainThreadAgentType', 'getModelStrings', 'getModelUsage', 'getOauthTokenFromFd', 'getOriginalCwd',
+    'getLastInteractionTime', 'getLastMainRequestId', 'getEngineModelOverride', 'getMainThreadAgentType', 'getModelStrings', 'getModelUsage', 'getOauthTokenFromFd', 'getOriginalCwd',
     'getParentSessionId', 'getPlanSlugCache', 'getProjectRoot',
     'getPromptCache1hEligible', 'getPromptId',
     'getQuestionPreviewFormat', 'getRegisteredHooks',
@@ -306,18 +306,18 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'setDirectConnectServerUrl',
     'setFlagSettingsInline', 'setFlagSettingsPath', 'setHasDevChannels',
     'setHasUnknownModelCost', 'setHeadlessOneShot',
-    'setInitialMainLoopModel', 'setSessionExtensions', 'setIsInteractive', 'setIsRemoteMode',
+    'setInitialEngineModel', 'setSessionExtensions', 'setIsInteractive', 'setIsRemoteMode',
     'setAssistantSessionActive', 'setLastAPIRequest', 'setLastAPIRequestMessages',
     'setLastApiCompletionTimestamp', 'setLastClassifierRequests', 'setLastEmittedDate',
     'setLastMainRequestId',
-    'setMainLoopModelOverride', 'setMainThreadAgentType', 'setModelStrings', 'setNeedsAutoModeExitAttachment',
+    'setEngineModelOverride', 'setMainThreadAgentType', 'setModelStrings', 'setNeedsAutoModeExitAttachment',
     'setOauthTokenFromFd', 'setOriginalCwd', 'setProjectRoot',
     'setPromptCache1hEligible', 'setPromptId', 'setQuestionPreviewFormat',
     'setSdkAgentProgressSummariesEnabled', 'setSdkBetas',
     'setSessionBypassPermissionsMode', 'setSessionIngressToken',
     'setSessionPersistenceDisabled', 'setSessionSource', 'setSessionTrustAccepted',
     'setStatsStore', 'setStrictToolResultPairing', 'setSystemPromptSectionCacheEntry',
-    'snapshotOutputTokensForTurn', 'subscribeCwdState', 'subscribeMainLoopModelOverride', 'switchSession',
+    'snapshotOutputTokensForTurn', 'subscribeCwdState', 'subscribeEngineModelOverride', 'switchSession',
     'updateLastInteractionTime', 'waitForScrollIdle',
   ]
   const actual = Object.keys(state).sort()
@@ -364,8 +364,8 @@ section('LAW FAN-IN — the import census (the measurable cut baseline)')
   )
   check('fan-in census mechanism found importers', srcCensus.count > 0)
   check(
-    'fan-in census catches the relative-path variant (screens/REPL.tsx)',
-    srcCensus.files.some(f => f.endsWith('screens/REPL.tsx')),
+    'fan-in census catches the relative-path variant (screens/Chat.tsx)',
+    srcCensus.files.some(f => f.endsWith('screens/Chat.tsx')),
   )
   check(
     'fan-in census catches the OwnerKey boundary (services/run/resolveOwner.ts)',
@@ -1045,12 +1045,12 @@ section('LAW 16 API-CAPTURE — reference semantics (the /share reality pin)')
 
 section('LAW 15 MODEL-CONFIG — override/initial/strings/betas round-trips')
 {
-  state.setMainLoopModelOverride('claude-opus-4-8' as never)
-  check('model: override round-trips', state.getMainLoopModelOverride() === ('claude-opus-4-8' as never))
-  state.setMainLoopModelOverride(undefined)
-  check('model: override accepts undefined (cleared)', state.getMainLoopModelOverride() === undefined)
-  state.setInitialMainLoopModel('claude-sonnet-5' as never)
-  check('model: initial round-trips', state.getInitialMainLoopModel() === ('claude-sonnet-5' as never))
+  state.setEngineModelOverride('claude-opus-4-8' as never)
+  check('model: override round-trips', state.getEngineModelOverride() === ('claude-opus-4-8' as never))
+  state.setEngineModelOverride(undefined)
+  check('model: override accepts undefined (cleared)', state.getEngineModelOverride() === undefined)
+  state.setInitialEngineModel('claude-sonnet-5' as never)
+  check('model: initial round-trips', state.getInitialEngineModel() === ('claude-sonnet-5' as never))
   const strings = { fromEnv: 'x' }
   state.setModelStrings(strings as never)
   check('model: modelStrings stored by reference', state.getModelStrings() === (strings as never))
@@ -1061,7 +1061,7 @@ section('LAW 15 MODEL-CONFIG — override/initial/strings/betas round-trips')
   check('model: sdkBetas stored by reference', state.getSdkBetas() === betas)
   state.setSdkBetas(undefined)
   check('model: sdkBetas clearable', state.getSdkBetas() === undefined)
-  state.setInitialMainLoopModel(null)
+  state.setInitialEngineModel(null)
 }
 
 section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
@@ -1124,8 +1124,8 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
     state.getAgentColorMap().set('agent-a', 'blue' as never)
     state.getSessionCreatedCrews().add('crew-populate')
     state.addInvokedSkill('pop-skill', '/skills/pop', 'content', null)
-    state.setMainLoopModelOverride('claude-opus-4-8' as never)
-    state.setInitialMainLoopModel('claude-sonnet-5' as never)
+    state.setEngineModelOverride('claude-opus-4-8' as never)
+    state.setInitialEngineModel('claude-sonnet-5' as never)
     state.setModelStrings({ pop: true } as never)
     state.setSdkBetas(['pop-beta'])
     state.setStatsStore({ observe() {} })

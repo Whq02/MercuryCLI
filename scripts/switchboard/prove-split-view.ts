@@ -117,7 +117,7 @@ console.log('D — focus routing')
   )
   check(
     'D3 ↵ in the chat pane discriminates: the full chat with a session, the one birth door with none (landing-guarded — SP-1)',
-    screen.includes('if (hasFocusedSession()) callbacks.exitToRepl()') && screen.includes('else if (!landingInFlight()) armContractAsk()'),
+    screen.includes('if (hasFocusedSession()) callbacks.exitToChat()') && screen.includes('else if (!landingInFlight()) armContractAsk()'),
   )
   check('D4 a vanished split settles the keys on the board (never a keyless focus)', screen.includes("if (!splitActive && region === 'chat') setRegion(reducedStage ? 'list' : 'live')"))
   check(

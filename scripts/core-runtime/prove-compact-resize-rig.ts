@@ -28,7 +28,7 @@ const { GlobalKeybindingHandlers } = await import('../../src/hooks/useGlobalKeyb
 const { useLayoutChrome } = await import('../../src/context/layoutChromeContext.tsx')
 const { useTerminalSize, useRealTerminalSize } = await import('../../src/hooks/useTerminalSize.ts')
 const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
-const { initializeSurfaceRoute, ROOT_REPL_ROUTE } = await import('../../src/context/surfaceRoute.ts')
+const { initializeSurfaceRoute, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
 const { enableConfigs, saveGlobalConfig, saveCurrentProjectConfig } = await import('../../src/utils/config.ts')
 enableConfigs()
 saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: true }))
@@ -76,7 +76,7 @@ console.error = (...args: unknown[]): void => { faults.push(args.map(String).joi
 
 for (const editorMode of ['emacs', 'vim'] as const) {
   saveGlobalConfig(config => ({ ...config, editorMode, prStatusFooterEnabled: false }))
-  initializeSurfaceRoute(ROOT_REPL_ROUTE)
+  initializeSurfaceRoute(ROOT_CHAT_ROUTE)
   resetChromeModeLatchForTests()
   pending.edit('')
   pending.setMode('prompt')

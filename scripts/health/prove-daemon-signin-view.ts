@@ -159,7 +159,7 @@ try {
   }
 
   bootDaemon()
-  check('the supervisor answers ping', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
+  check('the daemon answers ping', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
 
   section('§2 agreement is green: the same estate on both sides')
   {

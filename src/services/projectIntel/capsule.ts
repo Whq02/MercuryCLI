@@ -4,8 +4,8 @@ import { readFileSync, statSync } from 'node:fs'
 import { dirname, join, normalize } from 'node:path'
 import { getProjectSnapshot } from './snapshot.js'
 import { projectIntelEnabled, type SnapshotGeneration, type SnapshotRead } from './contracts.js'
-import { collectMemoryRefs } from '../../memdir/memoryRefs.js'
-import { isAutoMemoryEnabled } from '../../memdir/paths.js'
+import { collectMemoryRefs } from '../../mneme/memoryRefs.js'
+import { isMnemeEnabled } from '../../mneme/paths.js'
 
 export type CapsuleRole =
   | 'primary edit'
@@ -258,7 +258,7 @@ export function assembleContextCapsule(input: CapsuleInput): ContextCapsule | nu
 
   let memoryRefs: CapsuleMemoryRef[] | undefined
   try {
-    if (isAutoMemoryEnabled()) {
+    if (isMnemeEnabled()) {
       const collected = collectMemoryRefs([input.task, input.goal ?? ''].join(' '), {
         maxRefs: MEMORY_REF_CAP,
         projectRoot: input.workspace,

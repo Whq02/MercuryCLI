@@ -54,11 +54,11 @@ async function* fixtureRunAgent(): AsyncGenerator<unknown> {
 mock.module('../../src/tools/AgentTool/runAgent.ts', () => ({ ...runAgentModule, runAgent: fixtureRunAgent }))
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { getSessionId } = await import('../../src/bootstrap/state.ts')
-const { spawnInProcessCrewmate } = await import('../../src/utils/swarm/spawnInProcess.ts')
-const { runInProcessCrewmate } = await import('../../src/utils/swarm/inProcessRunner.ts')
+const { spawnInProcessCrewmate } = await import('../../src/utils/crew/spawnInProcess.ts')
+const { runInProcessCrewmate } = await import('../../src/utils/crew/inProcessRunner.ts')
 const { projectWorkRoster } = await import('../../src/utils/task/workRoster.ts')
 const crew = await import('../../src/services/engine-connector/crewFacts.ts')
-const { writeCrewFileAsync, getCrewFilePath } = await import('../../src/utils/swarm/crewHelpers.ts')
+const { writeCrewFileAsync, getCrewFilePath } = await import('../../src/utils/crew/crewHelpers.ts')
 const { sendLiveMessage } = await import('../../src/services/crew/liveComms.ts')
 const { formatAgentId } = await import('../../src/utils/agentId.ts')
 type AppState = import('../../src/state/AppState.tsx').AppState
@@ -70,7 +70,7 @@ let state = { ...getDefaultAppState(), crewContext: { crewName: group, crewFileP
 const setAppState = (update: (state: AppState) => AppState): void => { state = update(state) }
 const member = (n: string) => ({ agentId: formatAgentId(n, group), name: n, agentType: 'mercury-crew', model: MODEL, joinedAt: 1000, tmuxPaneId: 'in-process', cwd: process.cwd(), subscriptions: [], backendType: 'in-process' })
 await writeCrewFileAsync(group, { name: group, createdAt: 1000, leadAgentId: leadId, leadSessionId: String(getSessionId()), members: [member(lead), member(name)] } as never)
-const context = { options: { tools: [], commands: [], mainLoopModel: MODEL, mcpClients: [], mcpResources: {}, debug: false, verbose: false, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [], allAgents: [], allowedAgentTypes: [] } }, messages: [], abortController: new AbortController(), getAppState: () => state, setAppState, setAppStateForTasks: setAppState, readFileState: new Map(), toolUseId: 'local-fixture-launch' } as never
+const context = { options: { tools: [], commands: [], engineModel: MODEL, mcpClients: [], mcpResources: {}, debug: false, verbose: false, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [], allAgents: [], allowedAgentTypes: [] } }, messages: [], abortController: new AbortController(), getAppState: () => state, setAppState, setAppStateForTasks: setAppState, readFileState: new Map(), toolUseId: 'local-fixture-launch' } as never
 const spawn = await spawnInProcessCrewmate({ name, crewName: group, prompt: 'Inspect the fixture.', model: MODEL }, { setAppState })
 if (!spawn.success || !spawn.taskId || !spawn.crewmateContext || !spawn.abortController) throw new Error(spawn.error ?? 'fixture spawn failed')
 const taskId = spawn.taskId

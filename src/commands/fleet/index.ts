@@ -1,5 +1,5 @@
 import type { Command } from '../../commands.js'
-import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
+import { isCrewEnabled } from '../../utils/crewEnabled.js'
 
 const fleet = {
   type: 'local-jsx',
@@ -8,7 +8,7 @@ const fleet = {
   needsConcourse: true,
   description:
     'Open the Mercury fleet command-center — missions, agents, leases for the crew',
-  isEnabled: () => isAgentSwarmsEnabled(),
+  isEnabled: () => isCrewEnabled(),
   load: () => import('./fleet.js'),
 } satisfies Command
 

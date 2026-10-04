@@ -16,7 +16,7 @@ const {
   writeCrewFileAsync,
   setMemberMode,
   getCrewFilePath,
-} = await import('../../src/utils/swarm/crewHelpers.js')
+} = await import('../../src/utils/crew/crewHelpers.js')
 const { flushDebugLogs } = await import('../../src/utils/debug.js')
 
 let fail = 0
@@ -104,7 +104,7 @@ section('(d) source — lock infra present + spawn appends routed through append
 {
   const fs = await import('node:fs')
   const read = (p: string) => fs.readFileSync(new URL(p, import.meta.url), 'utf-8')
-  const th = read('../../src/utils/swarm/crewHelpers.ts')
+  const th = read('../../src/utils/crew/crewHelpers.ts')
   check(
     'withLockedCrewFile (async, retry-capable, compromise-guarded) exists',
     th.includes('async function withLockedCrewFile') &&

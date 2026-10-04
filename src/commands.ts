@@ -11,7 +11,6 @@ import branches from './commands/branches/index.js'
 import counsel from './commands/counsel/index.js'
 import clear from './commands/clear/index.js'
 import caching from './commands/caching/index.js'
-import color from './commands/color/index.js'
 import compact from './commands/compact/index.js'
 import config from './commands/config/index.js'
 import contractCommand from './commands/contract/index.js'
@@ -19,7 +18,6 @@ import copy from './commands/copy/index.js'
 import { context, contextNonInteractive } from './commands/context/index.js'
 import { mission, missionNonInteractive } from './commands/mission/index.js'
 import autoCompactWindow from './commands/auto-compact-window/index.js'
-import cost from './commands/cost/index.js'
 import crew from './commands/crew/index.js'
 import debrief from './commands/debrief/index.js'
 import halt from './commands/halt/index.js'
@@ -47,7 +45,6 @@ import diff from './commands/diff/index.js'
 import health from './commands/health/index.js'
 import effort from './commands/effort/index.js'
 import exit from './commands/exit/index.js'
-import heapdump from './commands/heapdump/index.js'
 import help from './commands/help/index.js'
 import init from './commands/init.js'
 import keybindings from './commands/keybindings/index.js'
@@ -56,8 +53,7 @@ import mcp from './commands/mcp/index.js'
 import memory from './commands/memory/index.js'
 import model from './commands/model/index.js'
 import extensions from './commands/extensions/index.js'
-import prComments from './commands/pr_comments/index.js'
-import updateNotes, { releaseNotes } from './commands/update-notes/index.js'
+import updateNotes from './commands/update-notes/index.js'
 import rename from './commands/rename/index.js'
 import title from './commands/title/index.js'
 import resume from './commands/resume/index.js'
@@ -66,9 +62,8 @@ import status from './commands/status/index.js'
 import feedback from './commands/feedback/index.js'
 import review from './commands/review.js'
 import rewind from './commands/rewind/index.js'
-import securityReview from './commands/security-review.js'
-import terminalSetup from './commands/terminalSetup/index.js'
-import mockLimits from './commands/mock-limits/index.js'
+import audit from './commands/audit/index.js'
+import keysetup from './commands/keysetup/index.js'
 import usage from './commands/usage/index.js'
 import jev from './commands/jev/index.js'
 import jevor from './commands/jevor/index.js'
@@ -93,7 +88,6 @@ import fullscreen from './commands/fullscreen/index.js'
 import capabilities from './commands/capabilities/index.js'
 import harness from './commands/harness/index.js'
 import workbench from './commands/workbench/index.js'
-import files from './commands/files/index.js'
 import router from './commands/router/index.js'
 import daemon from './commands/daemon/index.js'
 import saturn from './commands/saturn/index.js'
@@ -127,7 +121,6 @@ import { isFirstPartyAnthropicBaseUrl } from './utils/model/providers.js'
 import { anyProviderCredentialed } from './services/providers/providerUsage.js'
 import { clearExtensionCommandCaches, getExtensionCommands, getExtensionSkills } from './extensions/load/commands.js'
 import { getSourceDisplayName } from './utils/settings/constants.js'
-import { getInitialSettings } from './utils/settings/settings.js'
 
 export type {
   Command,
@@ -174,7 +167,6 @@ const COMMANDS = memoize((): Command[] => [
   branches,
   counsel,
   clear,
-  color,
   compact,
   config,
   contractCommand,
@@ -184,7 +176,6 @@ const COMMANDS = memoize((): Command[] => [
   mission,
   missionNonInteractive,
   autoCompactWindow,
-  cost,
   crew,
   debrief,
   halt,
@@ -213,7 +204,6 @@ const COMMANDS = memoize((): Command[] => [
   health,
   effort,
   exit,
-  heapdump,
   help,
   init,
   keybindings,
@@ -222,9 +212,7 @@ const COMMANDS = memoize((): Command[] => [
   memory,
   model,
   extensions,
-  prComments,
   updateNotes,
-  releaseNotes,
   rename,
   resume,
   skills,
@@ -233,9 +221,8 @@ const COMMANDS = memoize((): Command[] => [
   feedback,
   review,
   rewind,
-  securityReview,
-  terminalSetup,
-  mockLimits,
+  audit,
+  keysetup,
   usage,
   jev,
   jevor,
@@ -261,7 +248,6 @@ const COMMANDS = memoize((): Command[] => [
   harness,
   caching,
   workbench,
-  ...(getInitialSettings().view?.files === false ? [] : [files]),
   router,
   daemon,
   saturn,

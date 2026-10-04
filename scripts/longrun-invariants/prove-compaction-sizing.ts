@@ -46,7 +46,7 @@ section('§A the derivation: child threshold ≠ parent threshold when windows d
 section('§B the runner wires the threshold to the effective crewmate model')
 {
   const src = readFileSync(
-    join(import.meta.dir, '..', '..', 'src', 'utils', 'swarm', 'inProcessRunner.ts'),
+    join(import.meta.dir, '..', '..', 'src', 'utils', 'crew', 'inProcessRunner.ts'),
     'utf8',
   )
   check(
@@ -59,11 +59,11 @@ section('§B the runner wires the threshold to the effective crewmate model')
   )
   check(
     'no compaction threshold reads the parent model anymore',
-    !src.includes('getAutoCompactThreshold(toolUseContext.options.mainLoopModel)'),
+    !src.includes('getAutoCompactThreshold(toolUseContext.options.engineModel)'),
   )
   check(
     'the resolution feeds from the same inputs the dispatch uses (definition + parent + override)',
-    /getAgentModel\(derivedDefinition\.model, options\.mainLoopModel, config\.model\)/.test(src),
+    /getAgentModel\(derivedDefinition\.model, options\.engineModel, config\.model\)/.test(src),
   )
 }
 

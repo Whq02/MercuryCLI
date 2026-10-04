@@ -420,7 +420,7 @@ section('§6 honest absence: every no-dial id labels itself with the one word')
 
 section('§7 the surfaces read the owner')
 {
-  const print = src('src/cli/print.ts')
+  const print = src('src/cli/run.ts')
   check('print: the initialize catalogue lists the owner\'s stops per model', print.includes('resolveEffortTruth(resolved, undefined).selectable'))
   check('print: get_settings reports the applied tier beside the raw request', print.includes('effort: effortTruth.supportsEffort ? (effortTruth.wire ?? null) : undefined') && print.includes('effort_requested:'))
   const picker = src('src/components/concourse/CoordinatorModelPicker.tsx')
@@ -472,7 +472,7 @@ section('§9 the harness effort fact is the owner\'s applied tier')
     ['src/components/mercury-ui/parity/HarnessView.tsx', 'harnessEffortFact(mainModel, effortValue)'],
     ['src/run-core/turn-machine.ts', 'refreshGovernorCeilings(iter.currentModel, iter.appState.effortValue)'],
     ['src/run-core/turn-machine.ts', 'toolUseContext.getAppState?.()?.effortValue'],
-    ['src/commands/context/context-noninteractive.ts', 'harnessContextPolicyRequest(params.mainLoopModel, params.effortValue)'],
+    ['src/commands/context/context-noninteractive.ts', 'harnessContextPolicyRequest(params.engineModel, params.effortValue)'],
     ['src/tools/AgentTool/AgentTool.tsx', 'harnessEffortFact('],
   ] as const
   for (const [file, needle] of boundaries) {

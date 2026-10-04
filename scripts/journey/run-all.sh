@@ -8,7 +8,7 @@
 # gate-watch: src/components/mercury-ui/parity/AccountView* src/services/providers/accountSlots.ts scripts/journey/prove-accounts-header-drive.ts
 # gate-watch: src/components/mercury-ui/screens/anthropicLoginModel* src/services/oauth/** src/components/BootLoginsScreen* scripts/journey/prove-signin-receipt-drive.ts
 # gate-watch: scripts/daemon/dupline-world.ts scripts/lib/* scripts/ui/vshot.py
-# gate-watch: src/commands/model/mercuryModel.tsx src/components/PromptInput/useSwarmBanner.ts
+# gate-watch: src/commands/model/mercuryModel.tsx src/components/PromptInput/useCrewBanner.ts
 # gate-watch: src/constants/figures.ts src/daemon/controlSocket.ts src/daemon/protocol.ts src/ink.ts
 # gate-watch: src/services/engine-connector/daemonConnector.ts
 # gate-watch: src/services/providers/deepseek/deepseekAccounts.ts

@@ -79,7 +79,7 @@ console.log('============================================================')
     'message_stop clear is identity when already empty',
     streaming.includes('current.length === 0 ? current : []'),
   )
-  const repl = src('src', 'screens', 'REPL.tsx')
+  const repl = src('src', 'screens', 'Chat.tsx')
   check(
     'the face holds no stream batcher (the runner streams; the seat tail carries it)',
     !repl.includes('batcher.') && !repl.includes('streamingToolUsesBatcher'),
@@ -91,13 +91,13 @@ console.log('============================================================')
 }
 
 {
-  const repl = src('src', 'screens', 'REPL.tsx')
+  const repl = src('src', 'screens', 'Chat.tsx')
   check(
-    'REPL holds no task-map subscription (no viewed-task read, no whole-map read)',
+    'Chat holds no task-map subscription (no viewed-task read, no whole-map read)',
     !repl.includes('viewingAgentTaskId') && !/const tasks = useAppState\((state|s) => (state|s)\.tasks\)/.test(repl),
   )
   check(
-    'REPL derives no crewmate-running truth of its own (the runner owns its crewmates)',
+    'Chat derives no crewmate-running truth of its own (the runner owns its crewmates)',
     !repl.includes('getRunningCrewmatesSorted') && !repl.includes('anyTaskRunning'),
   )
   const spinner = src('src', 'components', 'Spinner.tsx')

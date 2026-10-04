@@ -11,7 +11,7 @@ import {
   type InProcessCrewmateTaskState,
 } from '../tasks/InProcessCrewmateTask/types.js'
 import { describeCrewmateActivity } from './tasks/taskStatusUtils.js'
-import { isAgentSwarmsEnabled } from '../utils/agentSwarmsEnabled.js'
+import { isCrewEnabled } from '../utils/crewEnabled.js'
 import { toInkColor } from '../utils/ink.js'
 import { isTaskToolsEnabled } from '../utils/tasks.js'
 
@@ -90,7 +90,7 @@ export function TaskListV2({
 
   if (!isTaskToolsEnabled() || tasks.length === 0) return null
 
-  const swarmOn = isAgentSwarmsEnabled()
+  const crewOn = isCrewEnabled()
   const ownerColors = new Map<string, string>()
   const ownerActivities = new Map<string, string>()
   const runningOwners = new Set<string>()
@@ -99,7 +99,7 @@ export function TaskListV2({
   ) as InProcessCrewmateTaskState[]
   for (const crewmate of crewmateTasks) {
     const name = crewmate.identity.agentName
-    if (swarmOn && crewmate.identity.color) {
+    if (crewOn && crewmate.identity.color) {
       ownerColors.set(name, toInkColor(crewmate.identity.color) as string)
     }
     if (!crewmate.isIdle) {

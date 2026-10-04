@@ -273,7 +273,7 @@ section('6 · the shape: where the kick lives, and where it never does')
   check('the composition kicks the read before the key-lane rows', compose.includes('kickDeepseekCatalogue()') && compose.indexOf('kickDeepseekCatalogue()') < compose.indexOf('keyLaneProviderRows()'))
   const gate = readFileSync(join(ROOT, 'src/services/providers/catalogueGate.ts'), 'utf8')
   check('the catalogue door names the DeepSeek family and its credential owner', gate.includes("'deepseek'") && gate.includes('resolveDeepseekApiKey'))
-  const dispatch = readFileSync(join(ROOT, 'src/utils/swarm/engineDispatch.ts'), 'utf8')
+  const dispatch = readFileSync(join(ROOT, 'src/utils/crew/engineDispatch.ts'), 'utf8')
   const table = readFileSync(join(ROOT, 'src/utils/model/bareFamilyWords.ts'), 'utf8')
   check('sub-agent dispatch reads the DeepSeek class through the shared family-word table, whose resolver reads the catalogue rows, and an exact id through the folding entry lookup', /bareFamilyWordOf\(modelParam\)/.test(dispatch) && /deepseekCatalogueRows\(\)\.rows\[0\]/.test(table) && /deepseekCatalogueEntry\(id\)/.test(dispatch) && !/DEEPSEEK_STATIC_CATALOGUE\.find\(/.test(dispatch))
 }

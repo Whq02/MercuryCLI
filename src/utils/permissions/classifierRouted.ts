@@ -1,7 +1,7 @@
 import { extractTextContent } from '../messages.js'
 import { asSystemPrompt } from '../systemPromptType.js'
 import { declaredRouteOf } from '../../services/providers/routeLaw.js'
-import type { YoloClassifierResult } from '../../types/permissions.js'
+import type { FlowClassifierResult } from '../../types/permissions.js'
 
 export const CLASSIFY_SENTINEL = 'Use the classify_result tool to report your classification.'
 
@@ -110,7 +110,7 @@ export type RoutedClassifyArgs = {
   onError?: (errorText: string) => string | undefined
 }
 
-export async function classifyOverRoutedTransport(args: RoutedClassifyArgs): Promise<YoloClassifierResult> {
+export async function classifyOverRoutedTransport(args: RoutedClassifyArgs): Promise<FlowClassifierResult> {
   const { model, signal } = args
   const userPrompt =
     (args.instructionPrefix ? `${args.instructionPrefix}\n\n` : '') +
