@@ -2,24 +2,20 @@
 import { useMemo, useRef } from 'react'
 import type { Message, UserMessage } from '../types/message.js'
 
+type LineChanges = Record<'linesAdded' | 'linesRemoved', number>
+
 export type TurnFileDiff = {
   filePath: string
   hunks: Hunk[]
   isNewFile: boolean
-  linesAdded: number
-  linesRemoved: number
-}
+} & LineChanges
 
 export type TurnDiff = {
   turnIndex: number
   userPromptPreview: string
   timestamp: string
   files: Map<string, TurnFileDiff>
-  stats: {
-    filesChanged: number
-    linesAdded: number
-    linesRemoved: number
-  }
+  stats: LineChanges & { filesChanged: number }
 }
 
 type Hunk = {
