@@ -1,9 +1,8 @@
 
 
 
-import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { canonicalHomeSpelling } from '../utils/envUtils.js'
+import { getMercuryHome } from '../utils/envUtils.js'
 import { FLAG_REGISTRY, flagSpellings, selfWrittenFlagEnv, stampFlagOnEnv } from './flagRegistry.js'
 import { bootEnvSelfApplied } from './startupMenu.js'
 
@@ -26,11 +25,10 @@ const samePath = (a: string, b: string): boolean => {
   return process.platform === 'win32' ? left.toLowerCase() === right.toLowerCase() : left === right
 }
 
-export function compileCacheIsOwn(env: NodeJS.ProcessEnv): boolean {
+export function compileCacheIsOwn(env: NodeJS.ProcessEnv, home: string = getMercuryHome()): boolean {
   const value = env[COMPILE_CACHE_ENV]
   if (value === undefined || value === '') return false
-  const home = env.MERCURY_CONFIG_DIR || env.MERCURY_HOME || join(homedir(), '.mercury')
-  return samePath(value, join(canonicalHomeSpelling(home), 'compile-cache'))
+  return samePath(value, join(home, 'compile-cache'))
 }
 
 const ownEnvWrites = new Map<string, string | undefined>()

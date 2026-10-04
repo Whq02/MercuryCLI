@@ -36,6 +36,14 @@ const { sessionEnvStamps, scrubSessionEnvStamps, stampSpawnReceipt, spawnSelfSta
 tally.section('§1 the config home a daemon stamped, the cache lever and the launchers\' scratch are the session\'s own')
 const home = join(scratch, 'home')
 const pack = join(scratch, 'pack', 'node_modules')
+const { getMercuryHome } = await import('../../src/utils/envUtils.ts')
+const proofHome = process.env.MERCURY_CONFIG_DIR
+const pinHome = (dir: string | undefined): void => {
+  if (dir === undefined) delete process.env.MERCURY_CONFIG_DIR
+  else process.env.MERCURY_CONFIG_DIR = dir
+  getMercuryHome.cache.clear()
+}
+pinHome(home)
 const field: NodeJS.ProcessEnv = {
   PATH: process.env.PATH,
   MERCURY_CONFIG_DIR: home,
@@ -62,10 +70,13 @@ const operator: NodeJS.ProcessEnv = { PATH: process.env.PATH, MERCURY_CONFIG_DIR
 const operatorStamps = sessionEnvStamps(operator)
 tally.check('a config home with no receipt is the operator\'s pin', !operatorStamps.includes('MERCURY_CONFIG_DIR'), operatorStamps.join(','))
 tally.check('a compile cache that names another directory is the operator\'s', !operatorStamps.includes(COMPILE_CACHE_ENV), operatorStamps.join(','))
+pinHome(`${home}/`)
 const trailing: NodeJS.ProcessEnv = { PATH: process.env.PATH, MERCURY_CONFIG_DIR: `${home}/`, NODE_COMPILE_CACHE: join(home, 'compile-cache') }
 tally.check('the cache attribution reads the home as the product spells it', sessionEnvStamps(trailing).includes(COMPILE_CACHE_ENV))
-const defaultHome: NodeJS.ProcessEnv = { PATH: process.env.PATH, HOME: process.env.HOME, NODE_COMPILE_CACHE: join(process.env.HOME ?? '', '.mercury', 'compile-cache') }
+pinHome(undefined)
+const defaultHome: NodeJS.ProcessEnv = { PATH: process.env.PATH, HOME: process.env.HOME, NODE_COMPILE_CACHE: join(getMercuryHome(), 'compile-cache') }
 tally.check('under the default home the launcher\'s compile cache is a stamp too', sessionEnvStamps(defaultHome).includes(COMPILE_CACHE_ENV))
+pinHome(proofHome)
 
 tally.section('§2 the process\'s own write over an operator value hands the operator\'s value back')
 resetOwnEnvWritesForTesting()
@@ -96,7 +107,6 @@ const dumper = join(scratch, 'dump-env.ts')
 writeFileSync(dumper, `import { writeFileSync } from 'node:fs'\nimport { join } from 'node:path'\nwriteFileSync(join(process.argv[4] ?? '.', 'env.json'), JSON.stringify(process.env))\n`)
 const savedHome = process.env.MERCURY_CONFIG_DIR
 process.env.MERCURY_CONFIG_DIR = ownedHome
-const { getMercuryHome } = await import('../../src/utils/envUtils.ts')
 getMercuryHome.cache.clear()
 const { spawnOwnedDaemon } = await import('../../src/daemon/ownedDaemon.ts')
 const waitFor = async (path: string, ms: number): Promise<boolean> => {
