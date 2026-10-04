@@ -141,6 +141,7 @@ section('(6) the verb road, live in a scratch home: `stop --keep` and `stop --an
   const keep = client('stop', '--keep')
   check("`stop --keep` refuses: exit 1, `unknown flag '--keep'`, the usage, and the two things to run instead", keep.status === 1 && keep.text.includes("mercury daemon stop: unknown flag '--keep'") && keep.text.includes('Usage: mercury daemon') && keep.text.includes('`mercury daemon stop`') && keep.text.includes('`mercury daemon restart`'), `exit ${keep.status}: ${firstLine(keep.text)}`)
   check('…and the usage it prints carries no --keep', !keep.text.replace("unknown flag '--keep'", '').includes('--keep'), keep.text.split('\n').find(l => l.includes('--keep') && !l.includes('unknown flag')) ?? '')
+  check("…and the refusal says what the usage's stop row says: every session process it runs (every worker) stops with it", firstLine(keep.text).includes('it ends the daemon and every session process it runs (every worker) stops with it'), firstLine(keep.text))
   const any = client('stop', '--any')
   check('`stop --any` refuses the same way', any.status === 1 && any.text.includes("mercury daemon stop: unknown flag '--any'"), `exit ${any.status}: ${firstLine(any.text)}`)
   const bare = client('stop')
