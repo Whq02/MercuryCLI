@@ -6,11 +6,10 @@ import { describeModeRoad, lastModeTransitionFrom } from '../permissions/modeTra
 import { permissionModeTitle } from '../permissions/PermissionMode.js'
 import {
   getIsNonInteractiveSession,
-  getLastEmittedDate,
   getOriginalCwd,
-  setLastEmittedDate,
 } from '../../bootstrap/state.js'
 import { getLocalISODate } from '../../constants/common.js'
+import { capsuleStateFor } from './capsuleState.js'
 import {
   buildRepoSurfaceMap,
   hasOrientationDoc,
@@ -42,21 +41,20 @@ export function getRepoSurfaceMapAttachment(
 export function getDateChangeAttachments(
   messages: Message[] | undefined,
 ): Attachment[] {
+  return getCapsuleDateChange({}, messages)
+}
+
+export function getCapsuleDateChange(
+  context: Pick<ToolUseContext, 'owner' | 'agentId'>,
+  messages: Message[] | undefined,
+): Attachment[] {
+  const state = capsuleStateFor(context, messages)
   const currentDate = getLocalISODate()
-  const lastDate = getLastEmittedDate()
-
-  if (lastDate === null) {
-    setLastEmittedDate(currentDate)
-    return []
-  }
-
-  if (currentDate === lastDate) {
-    return []
-  }
-
-  setLastEmittedDate(currentDate)
-
-  return [{ type: 'date_change', newDate: currentDate }]
+  const lastDate = state.lastDate
+  state.lastDate = currentDate
+  return lastDate !== null && lastDate !== currentDate
+    ? [{ type: 'date_change', newDate: currentDate }]
+    : []
 }
 
 

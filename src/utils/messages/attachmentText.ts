@@ -75,6 +75,7 @@ function getAutoModeSparseInstructions(): UserMessage[] {
 export function normalizeAttachmentForAPI(
   attachment: Attachment,
 ): UserMessage[] {
+  if (attachment.capsuleReceipt) return []
   if (isCrewEnabled()) {
     if (isCrewMessagesAttachment(attachment)) {
       const boundedMessages = attachment.messages.map(message => ({
@@ -418,6 +419,7 @@ ${attachment.markdown}`
       ])
     }
     case 'context_capsule': {
+      if (attachment.sections) return projectCapsuleSections(attachment)
       const content = `${attachment.markdown}
 
 These are evidence-ranked STARTING POINTS (exact task names > active work > import adjacency > current changes), not a complete file list — dereference to read, verify before relying, and explore beyond them when the task needs it.
@@ -902,4 +904,31 @@ function createToolUseMessage(
     content: `Called the ${toolName} tool with the following input: ${jsonStringify(input)}`,
     isMeta: true,
   })
+}
+
+function projectCapsuleSections(attachment: Extract<Attachment, { type: 'context_capsule' }>): UserMessage[] {
+  const content: ContentBlockParam[] = []
+  const text = (value: string): void => {
+    const prior = content.at(-1)
+    if (prior?.type === 'text') prior.text += value
+    else content.push({ type: 'text', text: value })
+  }
+  const safe = (value: string): string => value.replace(/<(\/?)system-reminder/g, '<\u200b$1system-reminder')
+  text('<system-reminder>\n')
+  text(safe(attachment.markdown || '# Working set'))
+  if (attachment.markdown) text('\n\nThese are evidence-ranked STARTING POINTS (exact task names > active work > import adjacency > current changes), not a complete file list — dereference to read, verify before relying, and explore beyond them when the task needs it.')
+  if (attachment.workingSet?.length) {
+    text('\n\n' + attachment.workingSet.map(item => safe(`- ${item.ref} — ${item.reason}`)).join('\n'))
+  }
+  for (const section of attachment.sections ?? []) {
+    text(`\n\n## ${safe(section.name)}`)
+    for (const block of section.content) {
+      if (block.type === 'text') text(`\n\n${safe(block.text)}`)
+      else content.push(block)
+    }
+  }
+  text(`\n\ncapsule-digest:${safe(attachment.digest)}`)
+  if (attachment.delta) text(`\nWorking-set delta vs the previous capsule: ${safe(attachment.delta)}`)
+  text('\n</system-reminder>')
+  return [createUserMessage({ content, isMeta: true })]
 }
