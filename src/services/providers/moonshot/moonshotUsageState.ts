@@ -209,18 +209,73 @@ function wireInstant(value: unknown): number | undefined {
   return undefined
 }
 
-function decodeWindowDetail(raw: unknown, windowMinutes?: number): KimiUsageWindow | undefined {
-  if (typeof raw !== 'object' || raw === null) return undefined
-  const r = raw as Record<string, unknown>
+const SPAN_SUFFIX_MINUTES: Record<string, number> = {
+  m: 1,
+  min: 1,
+  h: 60,
+  hr: 60,
+  d: 24 * 60,
+  day: 24 * 60,
+  w: 7 * 24 * 60,
+  wk: 7 * 24 * 60,
+}
+
+const USAGES_WINDOWS: Record<string, { name: string; windowMinutes?: number }> = {
+  limit_5h: { name: '5h', windowMinutes: 300 },
+  limit_7d: { name: '7d', windowMinutes: 10080 },
+  limit_month_total: { name: 'month' },
+  limit_month_code: { name: 'month code' },
+}
+
+function statedUsagesWindow(key: string): { name: string; windowMinutes?: number } {
+  const known = USAGES_WINDOWS[key]
+  if (known !== undefined) return known
+  const name = key.replace(/^limit_/, '').replace(/_+/g, ' ').trim() || key
+  const span = /^(\d+)\s*(m|min|h|hr|d|day|w|wk)$/i.exec(name)
+  const minutes = span ? Number(span[1]) * SPAN_SUFFIX_MINUTES[span[2]!.toLowerCase()]! : undefined
+  return minutes !== undefined && minutes > 0 ? { name, windowMinutes: minutes } : { name }
+}
+
+function wireCounts(r: Record<string, unknown>): { used: number; limit: number } | undefined {
   const used = wireInt(r.used)
   const limit = wireInt(r.limit)
-  if (used === undefined || limit === undefined) return undefined
-  const resetsAtMs = wireInstant(r.resetTime)
+  const remaining = wireInt(r.remaining)
+  if (used !== undefined && limit !== undefined) return { used, limit }
+  if (limit !== undefined && remaining !== undefined) return { used: limit - remaining, limit }
+  if (used !== undefined && remaining !== undefined) return { used, limit: used + remaining }
+  return undefined
+}
+
+function wireRatio(r: Record<string, unknown>): number | undefined {
+  const ratio = wireNumber(r.used_ratio ?? r.usedRatio)
+  return ratio !== undefined && ratio >= 0 ? ratio : undefined
+}
+
+function decodeWindow(raw: unknown, stated: { name?: string; windowMinutes?: number } = {}): KimiUsageWindow | undefined {
+  const r = record(raw)
+  if (r === undefined) return undefined
+  const counts = wireCounts(r)
+  const usedRatio = counts === undefined ? wireRatio(r) : undefined
+  if (counts === undefined && usedRatio === undefined) return undefined
+  const name = typeof r.name === 'string' && r.name.trim() ? r.name.trim() : stated.name
+  const resetsAtMs = wireInstant(r.resetTime ?? r.reset_time ?? r.resetAt)
   return {
-    ...(typeof r.name === 'string' && r.name.trim() ? { name: r.name.trim() } : {}),
-    ...(windowMinutes !== undefined ? { windowMinutes } : {}),
-    used,
-    limit,
+    ...(name !== undefined ? { name } : {}),
+    ...(stated.windowMinutes !== undefined ? { windowMinutes: stated.windowMinutes } : {}),
+    ...(counts ?? {}),
+    ...(usedRatio !== undefined ? { usedRatio } : {}),
+    ...(resetsAtMs !== undefined ? { resetsAtMs } : {}),
+  }
+}
+
+function mergeWindows(first: KimiUsageWindow, second: KimiUsageWindow): KimiUsageWindow {
+  const figure = first.used !== undefined || second.used === undefined ? first : second
+  const name = first.name ?? second.name
+  const resetsAtMs = figure.resetsAtMs ?? first.resetsAtMs ?? second.resetsAtMs
+  return {
+    ...(name !== undefined ? { name } : {}),
+    ...(first.windowMinutes !== undefined ? { windowMinutes: first.windowMinutes } : {}),
+    ...(figure.used !== undefined && figure.limit !== undefined ? { used: figure.used, limit: figure.limit } : { usedRatio: figure.usedRatio! }),
     ...(resetsAtMs !== undefined ? { resetsAtMs } : {}),
   }
 }
@@ -250,32 +305,26 @@ function decodeExtraUsage(raw: unknown): KimiManagedUsage['extraUsage'] {
 export function decodeKimiManagedUsage(body: unknown, nowMs: number): KimiManagedUsage | undefined {
   const o = record(body)
   if (o === undefined) return undefined
-  const quota = decodeWindowDetail(o.usage)
+  const quota = decodeWindow(o.usage)
   const windows: KimiUsageWindow[] = []
   const usages = record(o.usages)
-  for (const [key, name, windowMinutes] of [
-    ['limit_5h', '5h', 300],
-    ['limit_7d', '7d', 10080],
-    ['limit_month_total', 'month', undefined],
-    ['limit_month_code', 'month code', undefined],
-  ] as const) {
-    const entry = record(usages?.[key])
-    const usedRatio = wireNumber(entry?.used_ratio)
-    if (usedRatio === undefined || usedRatio < 0) continue
-    const resetsAtMs = wireInstant(entry?.reset_time)
-    windows.push({ name, usedRatio, ...(windowMinutes !== undefined ? { windowMinutes } : {}), ...(resetsAtMs !== undefined ? { resetsAtMs } : {}) })
+  for (const [key, entry] of Object.entries(usages ?? {})) {
+    const window = decodeWindow(entry, statedUsagesWindow(key))
+    if (window !== undefined) windows.push(window)
   }
   if (Array.isArray(o.limits)) {
     for (const entry of o.limits) {
-      if (typeof entry !== 'object' || entry === null) continue
-      const e = entry as Record<string, unknown>
-      const window = record(e.window)
+      const e = record(entry)
+      const window = record(e?.window)
       const duration = wireInt(window?.duration)
       const unit = typeof window?.timeUnit === 'string' ? TIME_UNIT_MINUTES[window.timeUnit] : undefined
       const windowMinutes =
         duration !== undefined && unit !== undefined && duration > 0 ? duration * unit : undefined
-      const detail = decodeWindowDetail(e.detail, windowMinutes)
-      if (detail && !windows.some(w => w.usedRatio !== undefined && w.windowMinutes === detail.windowMinutes)) windows.push(detail)
+      const detail = decodeWindow(e?.detail, { windowMinutes })
+      if (detail === undefined) continue
+      const twin = windowMinutes !== undefined ? windows.findIndex(w => w.windowMinutes === windowMinutes) : -1
+      if (twin < 0) windows.push(detail)
+      else windows[twin] = mergeWindows(windows[twin]!, detail)
     }
   }
   const extraUsage = decodeExtraUsage(o.boosterWallet)
