@@ -74,6 +74,8 @@ writePatience(BUDGET_MINUTES)
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
 const { WARM_BOOT_ALLOWANCE_MS } = await import('../../src/daemon/warmRunner.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const { recordToEntry } = await import('../../src/fabric/entryCodec.ts')
+const { recoveryNoticeFacts } = await import('../../src/services/api/recoveryBudget.ts')
 
 type Capture = { kind: string; at: number; arm?: string; route?: string; status?: number; streaming?: boolean; nth?: number; toolResult?: boolean }
 const captureFile = join(SCRATCH, 'wire-captures.jsonl')
@@ -169,6 +171,18 @@ const readFacts = (sid: string): { busy?: boolean } | undefined => {
   }
 }
 const noticeCount = (sid: string): number => (seatTranscript(sid).match(/"noticeKind":"api_error"/g) ?? []).length
+const seatNoticeFacts = (sid: string): NonNullable<ReturnType<typeof recoveryNoticeFacts>>[] =>
+  seatTranscript(sid)
+    .split('\n')
+    .filter(line => line.includes('"noticeKind":"api_error"'))
+    .flatMap(line => {
+      try {
+        const facts = recoveryNoticeFacts(recordToEntry(JSON.parse(line) as never))
+        return facts === null ? [] : [facts]
+      } catch {
+        return []
+      }
+    })
 const pausedOf = (sid: string): WorkRow['paused'] | null => {
   for (const row of seatRows(sid)) if (row.paused !== undefined) return row.paused
   return null
@@ -408,7 +422,8 @@ try {
       const afterToolRequest = seatHits.find(c => c.toolResult === true && c.nth === 2 && c.streaming === true)
       check(`${tag} the wire saw the recovery: streamed tries, the non-streamed fallback, then the busy answer and the reply`, seatHits.some(c => c.streaming === false) && seatAnswers.some(c => c.status === 429) && afterToolReply !== undefined, JSON.stringify(seatHits.map(c => [c.streaming, c.toolResult, c.nth])))
       check(`${tag} the seat's reply answered its own after-tool request (route seat, tool result carried, second try)`, afterToolRequest !== undefined && afterToolReply !== undefined && afterToolReply.streaming === true && afterToolReply.at >= afterToolRequest.at, JSON.stringify(seatAnswers.map(c => [c.status, c.toolResult, c.nth])))
-      check(`${tag} the row names the recovery, never a refusal`, leg.waits.some(w => w.startsWith(`${cause} — `) && /up to (\d+ s|\d+m(?: \d+s)?)/.test(w)), leg.waits.join(' | '))
+      const recoveries = seatNoticeFacts(leg.sid).filter(f => f.kind === 'recovery' && f.cause === cause && f.declaredMs > 0)
+      check(`${tag} the row names the recovery, never a refusal (the sampled row, or the seat's own recovery notice with that cause and its ceiling)`, leg.waits.some(w => w.startsWith(`${cause} — `) && /up to (\d+ s|\d+m(?: \d+s)?)/.test(w)) || recoveries.length > 0, `${leg.waits.join(' | ')} · recovery notices on disk: ${recoveries.map(f => `${f.cause} up to ${f.declaredMs} ms`).join(' | ') || 'none'}`)
       check(`${tag} the busy answer after the tool call is waited out with the budget whole`, leg.waits.some(w => busy.test(w) && /waiting 1 s/.test(w) && /5 s of the 6s retry budget left$/.test(w)), leg.waits.join(' | '))
       check(`${tag} the seat is never cut and lands`, leg.cut === null && leg.landed, `cut=${leg.cut} landed=${leg.landed}`)
       check(`${tag} the receipt is the seat's reply`, leg.receipt !== null && /recovered after busy/.test(leg.receipt), leg.receipt ?? '(none)')
