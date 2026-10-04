@@ -7,6 +7,7 @@ import { join, resolve } from 'node:path'
 const ROOT = resolve(import.meta.dir, '..', '..')
 const FIXTURE = join(import.meta.dir, 'voice-transcriber-fixture-server.ts')
 const COMPOSER = join(ROOT, 'src', 'components', 'PromptInput', 'PromptInput.tsx')
+const COMPOSER_MODULES = ['useComposerRawKeys.ts', 'useComposerDraft.ts'].map(name => join(ROOT, 'src', 'components', 'PromptInput', name))
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'hold-to-talk-')))
 const HOME = join(SCRATCH, 'home')
 mkdirSync(HOME, { recursive: true })
@@ -484,10 +485,10 @@ section('§7 the words say the new law: hold space to speak, release to stop, es
 
 section('§8 the composer wiring by source: the filter delegates to the reader, the editor seam is registered, esc still cancels')
 {
-  const src = readFileSync(COMPOSER, 'utf8')
+  const src = [COMPOSER, ...COMPOSER_MODULES].map(path => readFileSync(path, 'utf8')).join('\n')
   check('voiceInputFilter delegates to holdToTalkKey', /const voiceInputFilter = useCallback\(\(rawInput: string, key: Key\): string => holdToTalkKey\(rawInput, key\), \[\]\)/.test(src), extracted.source.slice(0, 160))
   check('the composer registers the hold editor (text, cursor, splice at the caret through the one draft owner and the self-write mark) and unregisters on unmount', src.includes('setHoldToTalkEditor({') && src.includes('cursor: () => cursorRef.current') && src.includes('setHoldToTalkEditor(null)') && /splice: \(deleteBefore, insert\) => \{[\s\S]*?writeDraft\(next\)\s*setCursorOffset\(from \+ insert\.length\)/.test(src))
-  check('esc during a take still cancels through cancelVoiceCapture', src.includes("if (voice.phase === 'recording' && key.escape) {") && src.includes('cancelVoiceCapture()'))
+  check('esc during a take still cancels through cancelVoiceCapture', src.includes("if (voicePhase === 'recording' && key.escape) {") && src.includes('cancelVoiceCapture()'))
   check('the deferred space after a chip is untouched (a different space)', src.includes('const deferredSpaceArmedRef = useRef(false)') && src.includes('if (deferredSpaceArmedRef.current) {'))
   const sessionSrc = readFileSync(join(ROOT, 'src', 'services', 'voice', 'voiceSession.ts'), 'utf8')
   check('the session offers startVoiceCapture and stopVoiceCapture beside the toggle /voice keeps', sessionSrc.includes('export async function startVoiceCapture(') && sessionSrc.includes('export function stopVoiceCapture(') && sessionSrc.includes('export async function toggleVoiceCapture('))

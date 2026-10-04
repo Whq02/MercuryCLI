@@ -257,7 +257,7 @@ section('§4 the ruled copy and the never-a-bell law (structural)')
     "the /model command's daemon branch carries the note",
     /const doorCross =[\s\S]{0,240}?crossProviderNote\(target\)/.test(modelCmdSrc) && modelCmdSrc.includes('${doorCross}'),
   )
-  const composerSrc = readFileSync(join(ROOT, 'src', 'components', 'PromptInput', 'PromptInput.tsx'), 'utf8')
+  const composerSrc = readFileSync(join(ROOT, 'src', 'components', 'PromptInput', 'useComposerModelDoors.tsx'), 'utf8')
   check(
     "the composer's daemon arm reads the from-model before the door",
     /const effectiveBefore = focused\.modelFacts\(\)\.effective[\s\S]{0,400}?void focused\.setModel\(value\)\.then\(receipt =>/.test(composerSrc),

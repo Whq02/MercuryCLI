@@ -146,7 +146,17 @@ if (driver.kind !== 'posix-pty') {
     { atTick: 80, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r' },
     { atTick: 160, awaitText: 'Type a prompt', minTick: 5, awaitStableTicks: 2, requireAwait: true, data: '' },
   ]
-  const mark = (label: string): Record<string, unknown> => ({ afterPrevTicks: 4, data: '', mark: label })
+  const CHAT = '⇧← boot face'
+  const FACE = '⇧→ chat'
+  const on = (needle: string, data: string, extra: Record<string, unknown> = {}): Record<string, unknown> => ({
+    atTick: 199,
+    awaitText: needle,
+    minTick: 1,
+    requireAwait: true,
+    data,
+    ...extra,
+  })
+  const mark = (label: string): Record<string, unknown> => on(CHAT, '', { awaitStableTicks: 2, mark: label })
 
   const capture = (tag: string, sends: Record<string, unknown>[]): Map<string, Mark> | null => {
     const home = seededHome(`home-${tag}`)
@@ -159,6 +169,7 @@ if (driver.kind !== 'posix-pty') {
         cwd: project,
         sends: [...opening, ...sends],
         total: 200,
+        readyText: [CHAT],
         stableTicks: 4,
         cols: 120,
         rows: 40,
@@ -195,15 +206,14 @@ if (driver.kind !== 'posix-pty') {
 
   const marks = capture('route-switch', [
     mark('idle'),
-    { afterPrevTicks: 2, data: `${ESC}[1;2D` },
-    { atTick: 190, awaitText: '⇧→ chat', minTick: 1, awaitSettleTicks: 2, requireAwait: true, data: `${ESC}[1;2C${X10_HEAD}` },
-    { afterPrevTicks: 1, data: X10_TAIL },
-    { atTick: 199, awaitText: '⇧← boot face', minTick: 1, awaitSettleTicks: 2, requireAwait: true, data: '' },
+    on(CHAT, `${ESC}[1;2D`),
+    on(FACE, `${ESC}[1;2C${X10_HEAD}`, { awaitSettleTicks: 2 }),
+    on(CHAT, X10_TAIL, { awaitSettleTicks: 1 }),
     mark('after-switch'),
-    { afterPrevTicks: 2, data: X10_HEAD },
-    { afterPrevTicks: 1, data: X10_TAIL },
+    on(CHAT, X10_HEAD, { awaitSettleTicks: 1 }),
+    on(CHAT, X10_TAIL, { awaitSettleTicks: 1 }),
     mark('after-split'),
-    { afterPrevTicks: 2, data: 'ok' },
+    on(CHAT, 'ok', { awaitSettleTicks: 1 }),
     mark('after-typing'),
   ])
   if (marks) {

@@ -39,7 +39,7 @@ check("ctrl+x p binds app:commandPalette", /'ctrl\+x p':\s*'app:commandPalette'/
 check('the ctrl+x p binding is present unconditionally (a plain entry, no gated spread)', /^\s+'ctrl\+x p': 'app:commandPalette',$/m.test(binds))
 
 section('3. PromptInput wiring (import · state · keybinding · render), stamp-gated')
-const pi = read('src', 'components', 'PromptInput', 'PromptInput.tsx')
+const pi = read('src', 'components', 'PromptInput', 'PromptInput.tsx') + read('src', 'components', 'PromptInput', 'useComposerKeybindings.ts')
 check('imports MercuryCommandPalette', /import \{ MercuryCommandPalette \} from '\.\.\/MercuryCommandPalette\.js'/.test(pi))
 check('has showCommandPalette state', /const \[showCommandPalette, setShowCommandPalette\] = useState\(false\)/.test(pi))
 check("useKeybinding('app:commandPalette', …) opens it", /useKeybinding\('app:commandPalette'/.test(pi))
@@ -59,7 +59,7 @@ check('component file exists', existsSync(join(root, 'src', 'components', 'Mercu
 check('↵ inserts `/name ` (template) — launcher fills the prompt, user confirms', /onRun\(`\/\$\{it\.name\} `\)/.test(pal))
 check('the palette NEVER calls the composer submit (submitInput)', !/submitInput/.test(pal))
 check('↵ routes through the ONE activate path (editor onSubmit → activateSelected)', /onSubmit=\{\(\) => \{[\s\S]{0,120}activateSelected\(sel\)/.test(pal))
-check('the PromptInput onRun path inserts at cursor (no buffer clobber → no data loss)', /onRun=\{text =>[\s\S]{0,160}insertTextAtCursor/.test(pi))
+check('the PromptInput onRun path inserts at cursor (no buffer clobber → no data loss)', /onRun=\{text =>[\s\S]{0,160}insertAtomic/.test(pi))
 check('visible rows are clamped to the ACTIVE slot height (the SCALED cockpit reserve — LUSTRE L4)',
   /reserve: cockpitActive \? cockpitBottomSlotReserve\(termRows\) : HEIGHT_RESERVE/.test(pal))
 check('the count/recency live in the always-pinned footer (no clippable header row)', /footer=\{footer\}/.test(pal) && !/SectionHeader/.test(pal))
