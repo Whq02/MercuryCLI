@@ -24,7 +24,7 @@ function section(title: string): void {
 }
 
 const EFFORT_ROW = /effort: ([a-z]+) · \/effort to change/
-const READY_ROW = /ready · .+? · ([a-z]+)\s*$/
+const READY_ROW = /ready · .+? · (max|xhigh|high|medium|low)\b/
 
 section('§1 by construction — the notice names the word the status chip names')
 {
@@ -132,8 +132,10 @@ if (driver.kind !== 'posix-pty') {
     on(PROMPT, `${ESC}p`, { awaitSettleTicks: 1 }),
     on(PICKER, `${ESC}[B`, { awaitSettleTicks: 1 }),
     on(PICKER, '\r', { awaitSettleTicks: 1 }),
-    on(PROMPT, '', { awaitSettleTicks: 4, mark: 'picked' }),
+    on(PROMPT, '', { awaitSettleTicks: 3, mark: 'picked' }),
     on('Set model to', '', { awaitSettleTicks: 1, mark: 'switched' }),
+    on(PROMPT, '', { awaitSettleTicks: 8, mark: 'picked-later' }),
+    on(PROMPT, '', { awaitSettleTicks: 8, mark: 'picked-latest' }),
   ]
   const gridPath = join(scratch, 'optp.json')
   const cfgPath = join(scratch, 'optp-cfg.json')
@@ -144,7 +146,7 @@ if (driver.kind !== 'posix-pty') {
       cwd: project,
       sends,
       total: 220,
-      readyText: ['Set model to'],
+      readyText: [PROMPT],
       cols: 120,
       rows: 40,
       out: gridPath,
@@ -177,18 +179,20 @@ if (driver.kind !== 'posix-pty') {
       return undefined
     }
     const idle = marks.get('idle')
-    const picked = marks.get('picked')
     const switched = marks.get('switched')
-    check('the hosted chat booted and its status row reads max', idle !== undefined && statusWord(idle.grid) === 'max', idle ? rows(idle.grid).filter(r => r.includes('ready ·')).join(' | ') : 'no mark')
-    check('the pick left the status row at max', picked !== undefined && statusWord(picked.grid) === 'max', picked ? rows(picked.grid).filter(r => r.includes('ready ·')).join(' | ') : 'no mark')
-    const word = picked === undefined ? undefined : noticeWord(picked.grid)
+    const after = ['picked', 'switched', 'picked-later', 'picked-latest'].map(label => marks.get(label)).filter((m): m is Mark => m !== undefined)
+    check('the hosted chat booted with an empty composer', idle !== undefined && rows(idle.grid).some(r => r.includes(PROMPT)), idle ? rows(idle.grid).filter(r => r.includes('❯')).join(' | ') : 'no mark')
+    check('the four readings after the pick were taken', after.length === 4, after.map(m => m.label).join(','))
+    const status = after.map(m => statusWord(m.grid))
+    check('the status row carries the seat word max after the pick', status.every(w => w === 'max'), after.map(m => rows(m.grid).filter(r => r.includes('ready ·')).join(' | ')).join(' || '))
+    const seen = after.map(m => ({ label: m.label, word: noticeWord(m.grid), status: statusWord(m.grid) }))
     check(
-      'after the pick no effort notice names a word the status row does not show',
-      picked !== undefined && (word === undefined || word === statusWord(picked.grid)),
-      picked ? `notice ${JSON.stringify(word)} · status ${JSON.stringify(statusWord(picked.grid))} · ${rows(picked.grid).filter(r => EFFORT_ROW.test(r)).join(' | ')}` : 'no mark',
+      'no effort notice after the pick names a word the status row does not show',
+      seen.every(s => s.word === undefined || s.word === s.status),
+      seen.map(s => `${s.label}: notice ${JSON.stringify(s.word)} status ${JSON.stringify(s.status)}`).join(' · '),
     )
     check('the switch itself was announced', switched !== undefined && rows(switched.grid).some(r => r.includes('Set model to')), switched ? rows(switched.grid).filter(r => r.includes('model')).join(' | ') : 'no mark')
-    writeFileSync(join(scratch, 'picked.txt'), picked ? rows(picked.grid).join('\n') : '')
+    for (const m of after) writeFileSync(join(scratch, `${m.label}.txt`), rows(m.grid).join('\n'))
     console.log(`  frames: ${scratch}`)
   }
 }

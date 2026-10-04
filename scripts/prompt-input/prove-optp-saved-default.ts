@@ -27,7 +27,8 @@ const SAVED = 'saved as your default'
 
 section('§1 by construction — the picker pick and /model share the one owner of the saved default')
 {
-  const doors = readFileSync(join(ROOT, 'src', 'components', 'PromptInput', 'useComposerModelDoors.tsx'), 'utf8')
+  const doorsPath = join(ROOT, 'src', 'components', 'PromptInput', 'useComposerModelDoors.tsx')
+  const doors = readFileSync(existsSync(doorsPath) ? doorsPath : join(ROOT, 'src', 'components', 'PromptInput', 'PromptInput.tsx'), 'utf8')
   const model = readFileSync(join(ROOT, 'src', 'commands', 'model', 'mercuryModel.tsx'), 'utf8')
   check("the composer's pick road saves the choice through persistModelChoice", doors.includes("from '../../commands/model/persistModelChoice.js'") && doors.includes('persistModelChoice(value).sentence'))
   check('/model saves through the same owner', model.includes('persistModelChoice(value).sentence'))
@@ -150,8 +151,8 @@ if (driver.kind !== 'posix-pty') {
     const picker = marks.get('picker')
     const switched = marks.get('switched')
     check('the hosted chat booted', idle !== undefined && rows(idle.grid).some(r => r.includes('ready ·')), idle ? rows(idle.grid).filter(r => r.includes('ready')).join(' | ') : 'no mark')
-    const pickedRow = picker === undefined ? undefined : rows(picker.grid).find(r => /❯\s+\S/.test(r) && !r.includes(PROMPT))
-    const pickedId = pickedRow === undefined ? undefined : /❯\s+(\S+)/.exec(pickedRow)?.[1]
+    const pickedRow = picker === undefined ? undefined : rows(picker.grid).find(r => /❯\s+(?:\d+\.\s+)?claude-/.test(r))
+    const pickedId = pickedRow === undefined ? undefined : /❯\s+(?:\d+\.\s+)?(\S+)/.exec(pickedRow)?.[1]
     check('the picker opened on opt+p and ↓ moved the cursor to a model row', pickedId !== undefined && pickedId.startsWith('claude-'), pickedRow ?? 'no ❯ row')
     const receipt = switched === undefined ? undefined : rows(switched.grid).find(r => r.includes('Set model to'))
     check('the receipt names the pick as the saved default, as /model does', receipt !== undefined && receipt.includes(SAVED), receipt ?? 'no receipt')
