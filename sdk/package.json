@@ -1,0 +1,26 @@
+{
+  "name": "mercury-sdk-draft",
+  "version": "0.0.0-draft",
+  "private": true,
+  "description": "A draft TypeScript client for the Mercury run door: the row vocabulary generated from the tree, a typed row stream and the door's refusals as typed errors. Parked in the repository; not published.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^6.0.3"
+  }
+}
