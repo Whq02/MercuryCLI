@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/screens/Chat* src/types/message* src/utils/messages/**
+# gate-watch: src/screens/Chat* src/types/message* src/utils/messages/** src/rows/project.ts
 # gate-watch: src/components/* src/components/concourse/CoordinatorPane.tsx
 # gate-watch: src/components/messages/AssistantTextMessage.tsx src/components/messages/UserTextMessage.tsx
 # gate-watch: src/components/messages/UserToolResultMessage/UserToolErrorMessage.tsx
