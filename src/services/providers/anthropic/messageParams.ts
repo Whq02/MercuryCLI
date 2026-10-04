@@ -1,16 +1,14 @@
-
-import {
-  type AssistantMessage,
-  type UserMessage,
-} from '../../../types/message.js'
+import type { AssistantMessage, UserMessage } from '../../../types/message.js'
 import type { MessageParam } from '../../../types/wire.js'
+import { contentItemOf } from '../../../rows/content.js'
+import { requestTurnOf, type RequestPlan, type RequestTurn } from '../../../rows/request.js'
 import { getCacheControl } from './requestParams.js'
 
 type WireContent = MessageParam['content']
 type WireBlock = Exclude<WireContent, string>[number]
 
 function canonicalWireBlock(block: WireBlock): WireBlock {
-  if (block.type !== 'tool_result') return block
+  if (contentItemOf(block).type !== 'tool_result') return block
   const { type, tool_use_id, content, is_error, ...rest } = block as WireBlock & {
     tool_use_id: string
     content?: unknown
@@ -25,29 +23,22 @@ function canonicalWireBlock(block: WireBlock): WireBlock {
   } as WireBlock
 }
 
-function contentWithCacheMarker(
-  content: UserMessage['message']['content'] | AssistantMessage['message']['content'],
-  enablePromptCaching: boolean,
-  eligible: (blockType: string) => boolean,
-): WireContent {
-  if (typeof content === 'string') {
-    return [
-      {
-        type: 'text',
-        text: content,
-        ...(enablePromptCaching && {
-          cache_control: getCacheControl(),
-        }),
-      },
-    ]
+function contentWithCacheMarker(turn: RequestTurn, enablePromptCaching: boolean): WireContent {
+  if (turn.stringContent !== undefined) {
+    return [{ type: 'text', text: turn.stringContent, ...(enablePromptCaching && { cache_control: getCacheControl() }) }]
   }
-  const lastIndex = content.length - 1
-  return content.map((block, i) => ({
-    ...canonicalWireBlock(block as WireBlock),
-    ...(i === lastIndex && enablePromptCaching && eligible(block.type)
-      ? { cache_control: getCacheControl() }
-      : {}),
+  return turn.items.map((item, index) => ({
+    ...canonicalWireBlock(item.value as WireBlock),
+    ...(index === turn.items.length - 1 && enablePromptCaching && (turn.role === 'user' || item.type !== 'reasoning') ? { cache_control: getCacheControl() } : {}),
   })) as WireContent
+}
+
+function encodeAnthropicTurn(turn: RequestTurn, addCache: boolean, enablePromptCaching: boolean): MessageParam {
+  if (addCache) return { role: turn.role, content: contentWithCacheMarker(turn, enablePromptCaching) }
+  const content = turn.role === 'assistant' ? turn.storedContent as WireContent
+    : turn.stringContent !== undefined ? [{ type: 'text' as const, text: turn.stringContent }]
+      : turn.items.map(item => canonicalWireBlock(item.value as WireBlock))
+  return { role: turn.role, content }
 }
 
 export function userMessageToMessageParam(
@@ -55,22 +46,7 @@ export function userMessageToMessageParam(
   addCache = false,
   enablePromptCaching: boolean,
 ): MessageParam {
-  if (addCache) {
-    return {
-      role: 'user',
-      content: contentWithCacheMarker(
-        message.message.content,
-        enablePromptCaching,
-        () => true,
-      ),
-    }
-  }
-  return {
-    role: 'user',
-    content: Array.isArray(message.message.content)
-      ? (message.message.content as WireBlock[]).map(canonicalWireBlock)
-      : [{ type: 'text', text: message.message.content }],
-  }
+  return encodeAnthropicTurn(requestTurnOf('user', message.message.content), addCache, enablePromptCaching)
 }
 
 export function assistantMessageToMessageParam(
@@ -78,19 +54,9 @@ export function assistantMessageToMessageParam(
   addCache = false,
   enablePromptCaching: boolean,
 ): MessageParam {
-  if (addCache) {
-    return {
-      role: 'assistant',
-      content: contentWithCacheMarker(
-        message.message.content,
-        enablePromptCaching,
-        blockType =>
-          blockType !== 'thinking' && blockType !== 'redacted_thinking',
-      ),
-    }
-  }
-  return {
-    role: 'assistant',
-    content: message.message.content,
-  }
+  return encodeAnthropicTurn(requestTurnOf('assistant', message.message.content), addCache, enablePromptCaching)
+}
+
+export function encodeAnthropicPlan(plan: RequestPlan, enablePromptCaching = false, cacheTurn = -1): MessageParam[] {
+  return plan.turns.map((turn, index) => encodeAnthropicTurn(turn, index === cacheTurn, enablePromptCaching))
 }
