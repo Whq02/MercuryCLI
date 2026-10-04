@@ -60,7 +60,7 @@ const emptyTable = (): RuleTableShape => ({
 function buildRuleTable(context: ToolPermissionContext): RuleTableShape {
   const table = emptyTable()
   for (const behavior of ['allow', 'deny', 'ask'] as const) {
-    const bySource = ruleStringsByBehavior(context, behavior)
+    const bySource = ruleStringsByBehavior(context, behavior) ?? {}
     for (const source of PERMISSION_RULE_SOURCES) {
       for (const ruleString of bySource[source] ?? []) {
         const row: PermissionRule = {
@@ -84,14 +84,16 @@ function buildRuleTable(context: ToolPermissionContext): RuleTableShape {
   return table
 }
 
-const tableCache = new WeakMap<ToolPermissionContext, { rules: ToolPermissionContext['alwaysAllowRules']; table: RuleTableShape }>()
+const tableCache = new WeakMap<ToolPermissionContext, { allow: ToolPermissionContext['alwaysAllowRules']; deny: ToolPermissionContext['alwaysAllowRules']; ask: ToolPermissionContext['alwaysAllowRules']; table: RuleTableShape }>()
 
 function ruleTable(context: ToolPermissionContext): RuleTableShape {
-  const rules = context.alwaysAllowRules
+  const allow = context.alwaysAllowRules
+  const deny = context.alwaysDenyRules
+  const ask = context.alwaysAskRules
   const cached = tableCache.get(context)
-  if (cached && cached.rules === rules) return cached.table
+  if (cached && cached.allow === allow && cached.deny === deny && cached.ask === ask) return cached.table
   const table = buildRuleTable(context)
-  tableCache.set(context, { rules, table })
+  tableCache.set(context, { allow, deny, ask, table })
   return table
 }
 
