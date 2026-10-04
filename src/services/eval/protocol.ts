@@ -56,7 +56,6 @@ export const runnerFrameSchema = z.discriminatedUnion('t', [
 
 export type RunnerFrame = z.infer<typeof runnerFrameSchema>
 export type BridgeRequestFrame = z.infer<typeof bridgeFrame>
-export type BridgeKind = BridgeRequestFrame['kind']
 
 
 export type HostFrame =

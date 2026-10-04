@@ -495,16 +495,6 @@ export type JsonOutputFormat = {
   schema: { [key: string]: unknown }
 }
 
-export type ToolChoice =
-  | { type: 'auto'; disable_parallel_tool_use?: boolean }
-  | { type: 'any'; disable_parallel_tool_use?: boolean }
-  | { type: 'tool'; name: string; disable_parallel_tool_use?: boolean }
-  | { type: 'none' }
-
-export type ThinkingConfigParam =
-  | { type: 'enabled'; budget_tokens: number }
-  | { type: 'disabled' }
-
 export type ToolInputSchema = {
   type: 'object'
   properties?: unknown | null

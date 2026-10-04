@@ -120,11 +120,7 @@ const outputSchemaObject = z.object({
   outcome: outcomeSchema,
 })
 
-export const _sdkInputSchema = inputSchemaObject
-export const _sdkOutputSchema = outputSchemaObject
-
 export type Question = z.infer<typeof questionSchema>
-export type QuestionOption = z.infer<typeof questionOptionSchema>
 export type Input = z.infer<typeof inputSchemaObject>
 export type Output = z.infer<typeof outputSchemaObject>
 

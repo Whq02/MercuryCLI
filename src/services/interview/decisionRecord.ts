@@ -118,21 +118,3 @@ export function latestDecisionRecordSync(): InterviewDecisionRecord | null {
     return null
   }
 }
-
-export function formatDecisionRecordForPlanning(record: InterviewDecisionRecord): string {
-  const lines = record.decisions.map(d => {
-    const sel = d.selected.labels.map(l => JSON.stringify(l)).join(', ')
-    const free = d.selected.freeText ? `${sel ? `${sel} · ` : ''}${JSON.stringify(d.selected.freeText)}` : sel
-    const notes = d.notes ? ` (notes: ${JSON.stringify(d.notes)})` : ''
-    return `- [${d.decisionId}] ${JSON.stringify(d.question)} -> ${free}${notes}`
-  })
-  const open =
-    record.unresolved.length > 0
-      ? `\nDeliberately left open: ${record.unresolved.map(u => `[${u}]`).join(' ')}`
-      : ''
-  return `## Decisions Already Made (interview record ${record.recordId})
-
-The operator has already decided these. Plan FROM them, reference them by decision id, and do not re-ask any of them unless new evidence makes an answer inconsistent — in that case say what changed.
-
-${lines.join('\n')}${open}`
-}

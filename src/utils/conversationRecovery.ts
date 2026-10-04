@@ -443,12 +443,6 @@ async function walkTranscriptFile(path: string): Promise<WalkedTranscript> {
   }
 }
 
-export async function loadMessagesFromJsonlPath(
-  path: string,
-): Promise<{ messages: SerializedMessage[]; sessionId: UUID | undefined }> {
-  return walkTranscriptFile(path)
-}
-
 type ResumeResult = ResumeFacts & {
   messages: Message[]
   turnInterruptionState: TurnInterruptionState

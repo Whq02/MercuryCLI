@@ -124,37 +124,3 @@ export function hasWorkingInProcessCrewmates(appState: AppState): boolean {
     task => isInProcessCrewmateTask(task) && task.status === 'running' && !task.isIdle,
   )
 }
-
-export function waitForCrewmatesToBecomeIdle(
-  setAppState: (updater: (prev: AppState) => AppState) => void,
-  appState: AppState,
-): Promise<void> {
-  const waitingIds = Object.entries(appState.tasks)
-    .filter(([, task]) => isInProcessCrewmateTask(task) && task.status === 'running' && !task.isIdle)
-    .map(([taskId]) => taskId)
-  if (waitingIds.length === 0) return Promise.resolve()
-
-  return new Promise(resolve => {
-    let outstanding = waitingIds.length
-    const settleOne = (): void => {
-      outstanding--
-      if (outstanding === 0) resolve()
-    }
-    setAppState(prev => {
-      const nextTasks = { ...prev.tasks }
-      for (const taskId of waitingIds) {
-        const task = nextTasks[taskId]
-        if (!isInProcessCrewmateTask(task)) continue
-        if (task.isIdle) {
-          settleOne()
-          continue
-        }
-        nextTasks[taskId] = {
-          ...task,
-          onIdleCallbacks: [...(task.onIdleCallbacks ?? []), settleOne],
-        }
-      }
-      return { ...prev, tasks: nextTasks }
-    })
-  })
-}

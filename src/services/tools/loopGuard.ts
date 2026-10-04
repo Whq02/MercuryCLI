@@ -505,8 +505,3 @@ export function closeRound(owner: OwnerKey, roundID: string, complete = true): L
     return quiet(0)
   }
 }
-
-export function observeToolCall(owner: OwnerKey, observation: LoopGuardObservation): LoopGuardVerdict {
-  recordToolCall(owner, observation)
-  return closeRound(owner, observation.roundID)
-}

@@ -1,6 +1,6 @@
 import { createServer, type Server, type ServerResponse } from 'node:http'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
-import { chmodSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
 import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
@@ -74,10 +74,6 @@ function writeAuthFile(mutate: (file: OpenrouterAuthFile) => OpenrouterAuthFile)
   } catch {
   }
   noteCredentialChange()
-}
-
-export function openrouterAuthFileExists(): boolean {
-  return existsSync(authFilePath())
 }
 
 export function openrouterAuthPathForDisplay(): string {

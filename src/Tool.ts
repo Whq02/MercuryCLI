@@ -192,14 +192,6 @@ export type ToolRenderOptions = {
   [key: string]: any
 }
 
-export type ToolResultRenderOptions = ToolRenderOptions & {
-  progressMessagesForMessage?: ProgressMessage[]
-  style?: 'condensed' | 'default'
-  isTranscriptMode?: boolean
-  input?: unknown
-  width?: number | string
-}
-
 export type AgentDefinitionsState = {
   activeAgents: AgentDefinition[]
   allowedAgentTypes?: string[]

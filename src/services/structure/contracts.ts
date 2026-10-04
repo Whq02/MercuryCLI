@@ -10,8 +10,6 @@ export function structurePolyglotEnabled(): boolean {
   return structureEnabled() && !isEnvDefinedFalsy(flagEnv('MERCURY_STRUCTURE_POLYGLOT'))
 }
 
-export const STRUCTURE_LANGS = ['js', 'jsx', 'ts', 'tsx', 'mjs', 'cjs', 'mts', 'cts'] as const
-
 export const STRUCTURE_SELECTS = [
   'function',
   'class',
@@ -151,9 +149,4 @@ export interface StructurePreview {
   receiptRef?: string
   evidenceRefs?: string[]
   note?: string
-}
-
-export interface StructureUnavailable {
-  state: 'unavailable'
-  note: string
 }

@@ -132,11 +132,6 @@ export function setScreen(owner: OwnerKey, map: ScreenMap): void {
   ownerStates.get(owner).screen = map
 }
 
-export function clearScreen(owner: OwnerKey): void {
-  const state = ownerStates.peek(owner)
-  if (state) state.screen = null
-}
-
 export const SCREENSHOT_REGISTRY_CAP = 2000
 
 const screenshotRegistry = new Map<string, { path: string; owner: OwnerKey | null }>()

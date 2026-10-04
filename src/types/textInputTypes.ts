@@ -64,11 +64,6 @@ export type BaseTextInputProps = {
 
 export type VimMode = 'INSERT' | 'NORMAL'
 
-export type VimTextInputProps = BaseTextInputProps & {
-  initialMode?: VimMode
-  onModeChange?: (mode: VimMode) => void
-}
-
 export type BaseInputState = {
   onInput: (input: string, key: Key) => void
   renderedValue: string

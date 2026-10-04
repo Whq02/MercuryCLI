@@ -39,7 +39,6 @@ const ALLOWLIST = [
   'src/services/api/sdkErrors.ts',
   'src/services/api/withRetry.ts',
   'src/services/rateLimitMocking.ts',
-  'src/services/tokenEstimation.ts',
   'src/services/vcr.ts',
   'src/utils/model/validateModel.ts',
 ].sort()

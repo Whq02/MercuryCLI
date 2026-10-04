@@ -59,11 +59,6 @@ export function astLanguageNames(): string[] {
   return availableAstLanguages().map(l => l.name)
 }
 
-export function uncarriedAstLanguages(): PolyglotLanguage[] {
-  const have = new Set(astLanguageNames())
-  return POLYGLOT_LANGUAGES.filter(l => !have.has(l.name))
-}
-
 export const GRAMMAR_PACK_REMEDY =
   'the grammar-pack extension is not vendored in this build — the operator prepares it with `bun run scripts/vendor/fetch-grammars.ts` and rebuilds (release archives carry it)'
 
@@ -236,15 +231,6 @@ export function resolveAstScope(opts: {
     ...(glob !== undefined && { glob }),
     ...(lang !== undefined && { lang }),
   }
-}
-
-export function describeScopeLanguages(files: readonly AstScopeFile[]): string {
-  const counts = new Map<string, number>()
-  for (const f of files) counts.set(f.lang.name, (counts.get(f.lang.name) ?? 0) + 1)
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .map(([name, n]) => `${n} ${name}`)
-    .join(', ')
 }
 
 export function describeSkipped(skipped: ReadonlyArray<[string, number]>, cap = 6): string {

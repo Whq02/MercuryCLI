@@ -9,13 +9,6 @@ export function setCommandLifecycleListener(cb: CommandLifecycleListener | null)
   primaryListener = cb
 }
 
-export function addCommandLifecycleTap(cb: CommandLifecycleListener): () => void {
-  taps.add(cb)
-  return () => {
-    taps.delete(cb)
-  }
-}
-
 export function notifyCommandLifecycle(uuid: string, state: CommandLifecycleState): void {
   primaryListener?.(uuid, state)
   for (const tap of taps) {

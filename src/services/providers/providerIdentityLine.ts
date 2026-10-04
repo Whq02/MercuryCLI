@@ -79,10 +79,6 @@ function familyGroups(reads?: AccountSlotReads): FamilySlotGroup[] {
   return groups
 }
 
-export function resetProviderIdentityMemo(): void {
-  memo = null
-}
-
 export function providerIdentityLine(family: string, reads?: AccountSlotReads): ProviderIdentityLine {
   const group = familyGroups(reads).find(candidate => candidate.family.id === family)
   if (group === undefined) return { kind: 'none', text: NO_ACCOUNT_WORDS }

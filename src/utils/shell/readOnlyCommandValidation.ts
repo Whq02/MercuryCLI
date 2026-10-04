@@ -9,8 +9,6 @@ export type ExternalCommandConfig = {
   respectsDoubleDash?: boolean
 }
 
-export const FLAG_PATTERN = /^-[A-Za-z0-9_-]/
-
 export function validateFlagArgument(value: string, argType: FlagArgType): boolean {
   switch (argType) {
     case 'number':

@@ -239,10 +239,6 @@ export function recordUncaughtAndCheckBreaker(nowMs: number): boolean {
   return false
 }
 
-export function isUncaughtBreakerTripped(): boolean {
-  return breaker.tripped
-}
-
 
 function isRunMode(): boolean {
   return isRunArgv()

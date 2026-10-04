@@ -97,10 +97,6 @@ export async function resolveCrewStart(
   return { name, cwd, worktree, runDir: worktree.path, model }
 }
 
-export function crewStartRecordOf(plan: CrewStartPlanV1): CrewStartRecordV1 {
-  return { name: plan.name, cwd: plan.cwd, worktree: plan.worktree?.path ?? null, model: plan.model }
-}
-
 const crewStarts = new Map<string, CrewStartRecordV1>()
 
 export function recordCrewStart(id: string, record: CrewStartRecordV1): void {

@@ -4,10 +4,8 @@ import { getMercuryHome } from '../../utils/envUtils.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
-import { roughTokenCountEstimation } from '../tokenEstimation.js'
 
 const PER_SECTION_TOKEN_LIMIT = 2000
-const WHOLE_FILE_TOKEN_LIMIT = 12_000
 
 export const DEFAULT_SESSION_MEMORY_TEMPLATE = `
 # Session Title
@@ -84,74 +82,6 @@ The file's structure is fixed. Do not add, remove, rename or reorder any heading
 Favour specifics over summary: real paths, symbol names, verbatim error text, exact commands. Do not restate anything already written in project instruction files. An empty section is better than filler. Keep each section within its budget by dropping the least valuable detail first. Refresh the current-state section every time — it is what survives a later compaction. Reproduce any requested artefact in the key-results section in full.
 
 The notes file to edit is {{notesPath}}.`
-
-function renderTemplate(template: string, variables: Record<string, string>): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (match, name: string) => {
-    return Object.prototype.hasOwnProperty.call(variables, name) ? variables[name] : match
-  })
-}
-
-export async function buildSessionMemoryUpdatePrompt(
-  currentNotes: string,
-  notesPath: string,
-): Promise<string> {
-  const prompt = await loadSessionMemoryPrompt()
-  const rendered = renderTemplate(prompt, { currentNotes, notesPath })
-  return rendered + buildSizeReminders(currentNotes)
-}
-
-
-function estimateSectionTokens(notes: string): Map<string, number> {
-  const sections = new Map<string, number>()
-  const lines = notes.split('\n')
-  let currentHeading: string | null = null
-  let body: string[] = []
-  const flush = (): void => {
-    if (currentHeading !== null && body.length > 0) {
-      sections.set(currentHeading, roughTokenCountEstimation(body.join('\n').trim()))
-    }
-  }
-  for (const line of lines) {
-    if (/^#\s/.test(line)) {
-      flush()
-      currentHeading = line
-      body = []
-    } else if (currentHeading !== null) {
-      body.push(line)
-    }
-  }
-  flush()
-  return sections
-}
-
-function buildSizeReminders(notes: string): string {
-  const wholeFileTokens = roughTokenCountEstimation(notes)
-  const sections = estimateSectionTokens(notes)
-  const oversized = [...sections.entries()]
-    .filter(([, tokens]) => tokens > PER_SECTION_TOKEN_LIMIT)
-    .sort((a, b) => b[1] - a[1])
-  const overTotal = wholeFileTokens > WHOLE_FILE_TOKEN_LIMIT
-
-  if (!overTotal && oversized.length === 0) return ''
-
-  let output = ''
-  if (overTotal) {
-    output +=
-      `\n\n**CRITICAL:** the notes file is about ${wholeFileTokens} tokens, over the ${WHOLE_FILE_TOKEN_LIMIT}-token maximum. ` +
-      `Condense it to fit: shorten the oversized sections aggressively by dropping less important detail, merging entries, and summarising older ones. ` +
-      `Keep the current-state and errors sections accurate and detailed.`
-  }
-  if (oversized.length > 0) {
-    const leadIn = overTotal
-      ? '\n\nThese sections are also over the per-section budget (largest first):'
-      : `\n\nThese sections are over the ${PER_SECTION_TOKEN_LIMIT}-token per-section budget (largest first):`
-    output += leadIn
-    for (const [heading, tokens] of oversized) {
-      output += `\n- ${heading}: about ${tokens} tokens (limit ${PER_SECTION_TOKEN_LIMIT}).`
-    }
-  }
-  return output
-}
 
 
 export async function isSessionMemoryEmpty(content: string): Promise<boolean> {

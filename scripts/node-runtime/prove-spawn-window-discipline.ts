@@ -43,13 +43,6 @@ const ALLOWLIST: ReadonlyArray<{ path: string; callee: string; value: string; co
     reason: 'the launch splash asset IS the screen on a direct start (stdio inherit); CREATE_NO_WINDOW would sever it from this console',
   },
   {
-    path: 'src/utils/terminalPanel.ts',
-    callee: 'spawnSync',
-    value: 'false',
-    count: 2,
-    reason: 'tmux attach + the fallback panel shell ARE the screen (stdio inherit)',
-  },
-  {
     path: 'src/utils/worktree.ts',
     callee: 'spawnSync',
     value: 'options?.inherit !== true',

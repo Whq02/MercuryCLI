@@ -14,10 +14,6 @@ const PUBLIC_GIT_HOST = 'github.com'
 
 const repositoryCache = new Map<string, ParsedRepository>()
 
-export function clearRepositoryCaches(): void {
-  repositoryCache.clear()
-}
-
 function looksLikeRealHostname(host: string): boolean {
   if (!host.includes('.')) return false
   const segments = host.split('.')
@@ -113,8 +109,4 @@ export function getCachedRepository(): string | null {
   const cached = repositoryCache.get(getCwd())
   if (!cached || cached.host !== PUBLIC_GIT_HOST) return null
   return `${cached.owner}/${cached.name}`
-}
-
-export function getCachedRepositoryHost(): string | null {
-  return repositoryCache.get(getCwd())?.host ?? null
 }

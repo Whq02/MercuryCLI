@@ -879,16 +879,6 @@ export function isCrewPremiumSubscriber(): boolean {
   return getSubscriptionType() === 'team' && getRateLimitTier() === 'default_claude_max_5x'
 }
 
-export function isConsumerSubscriber(): boolean {
-  const type = getSubscriptionType()
-  return isClaudeAISubscriber() && (type === 'max' || type === 'pro')
-}
-
-export function hasOpusAccess(): boolean {
-  const type = getSubscriptionType()
-  return type === 'max' || type === 'enterprise' || type === 'team' || type === 'pro' || type === null
-}
-
 export function getRateLimitTier(): RateLimitTier | null {
   if (!isAnthropicAuthEnabled()) return null
   const tokens = getClaudeAIOAuthTokens()
@@ -914,19 +904,6 @@ export function getSubscriptionName(): string {
 
 export function is1PApiCustomer(): boolean {
   return !isClaudeAISubscriber()
-}
-
-const OVERAGE_BILLING_TYPES = new Set([
-  'stripe_subscription',
-  'stripe_subscription_contracted',
-  'apple_subscription',
-  'google_play_subscription',
-])
-
-export function isOverageProvisioningAllowed(): boolean {
-  if (!isClaudeAISubscriber()) return false
-  const billing = getOauthAccountInfo()?.billingType
-  return billing !== undefined && billing !== null && OVERAGE_BILLING_TYPES.has(billing)
 }
 
 const scopedAccountIdentityCache = new Map<

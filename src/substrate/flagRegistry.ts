@@ -236,7 +236,6 @@ export const FLAG_REGISTRY: readonly FlagSpec[] = [
   { env: 'MERCURY_ASEPRITE_NO_DISCOVERY', kind: 'opt-in', tier: 'infra', evidence: 'scripts/aseprite/run-all.sh', summary: 'blank Aseprite location discovery below the pin (the ambient-state proof seam, the MERCURY_BROWSER_NO_DISCOVERY sibling — resolution-law proofs must not read the calibration machine)', off: 'normal discovery', consumer: 'src/services/aseprite/asepriteApp.ts' },
   { env: 'MERCURY_LOOP_AWAY_HINT', kind: 'value', summary: 'read by loopFire', off: 'see consumer', consumer: 'src/services/loopFire.ts' },
   { env: 'MERCURY_LOOP_DYNAMIC', kind: 'value', summary: 'read by loopFire', off: 'see consumer', consumer: 'src/services/loopFire.ts' },
-  { env: 'MERCURY_LOOP_KEEPALIVE', kind: 'value', summary: 'read by loopFire', off: 'see consumer', consumer: 'src/services/loopFire.ts' },
   { env: 'MERCURY_LOOP_PERSISTENT', kind: 'value', summary: 'read by loopFire', off: 'see consumer', consumer: 'src/services/loopFire.ts' },
   { env: 'MERCURY_LOOP_PROMPT', kind: 'value', summary: 'read by loopFire', off: 'see consumer', consumer: 'src/services/loopFire.ts' },
   { env: 'MERCURY_MC_DIGEST', kind: 'default-on', tier: 'additive', summary: 'shape-only microcompact digest (zero-content-leak by construction)', off: '=0 → the byte-exact bare placeholder', consumer: 'src/services/compact/microCompactDigest.ts' },

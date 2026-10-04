@@ -264,11 +264,3 @@ export async function stopAgentWatch(): Promise<void> {
 }
 
 export const subscribeAgentsChanged = agentsChanged.subscribe
-
-export async function rearmAgentWatch(): Promise<void> {
-  if (watchedCwd) {
-    const cwd = watchedCwd
-    watchedCwd = null
-    await startAgentWatch(cwd)
-  }
-}

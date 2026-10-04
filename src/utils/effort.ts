@@ -610,19 +610,3 @@ export function isTurnOwningQuerySource(querySource: string | undefined): boolea
   if (querySource === undefined) return false
   return querySource.startsWith('main_thread') || querySource === 'sdk' || querySource.startsWith('agent:')
 }
-
-export function shouldReconfirmEffortAfterModelChange(
-  newValue: EffortValue | undefined,
-  appStateEffort: EffortValue | undefined,
-  model: string,
-  hasConversation: boolean,
-): boolean {
-  if (!hasConversation) return false
-  if (!modelSupportsEffort(model)) return false
-  if (isLaunchEffortPinned(model)) {
-    if (newValue === undefined || newValue === getLaunchDefaultEffort(model)) return false
-    return true
-  }
-  if (resolveAppliedEffort(model, newValue) === resolveAppliedEffort(model, appStateEffort)) return false
-  return true
-}

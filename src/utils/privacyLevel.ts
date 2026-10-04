@@ -33,10 +33,6 @@ export function isEssentialTrafficOnly(): boolean {
   return getPrivacyLevel() === 'essential-traffic'
 }
 
-export function isTelemetryDisabled(): boolean {
-  return getPrivacyLevel() !== 'default'
-}
-
 export function getEssentialTrafficOnlyReason(env: NodeJS.ProcessEnv = process.env): string | null {
   return env[NONESSENTIAL_TRAFFIC_VAR] ? NONESSENTIAL_TRAFFIC_VAR : null
 }

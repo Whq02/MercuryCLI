@@ -363,23 +363,6 @@ export function StateBadge({
   )
 }
 
-export function StatusDot({
-  state,
-  glyph,
-  color,
-}: {
-  state?: SnapshotState
-  glyph?: string
-  color?: string
-}): React.ReactNode {
-  const t = useMercuryTokens()
-  if (state) {
-    const s = stateStyleOf(t, state)
-    return <Text color={s.color}>{s.glyph}</Text>
-  }
-  return <Text color={color ?? t.textMuted}>{glyph ?? GLYPH.idle}</Text>
-}
-
 type ChipToneName = 'active' | 'warn' | 'danger' | 'idle' | 'pending' | 'neutral' | 'accent'
 function chipTone(t: ReturnType<typeof useMercuryTokens>, tone: string): string {
   switch (tone) {
@@ -410,24 +393,6 @@ export function Chip({
   )
 }
 
-
-export function MetricPill({
-  label,
-  value,
-  tone,
-}: {
-  label?: string
-  value: string
-  tone?: string
-}): React.ReactNode {
-  const t = useMercuryTokens()
-  return (
-    <Text>
-      {label ? <Text color={t.textMuted}>{label} </Text> : null}
-      <Text color={tone ?? t.textPrimary}>{value}</Text>
-    </Text>
-  )
-}
 
 export type KVRow = {
   k: string
@@ -758,30 +723,6 @@ export type MapNode = {
   name: string
   state?: SnapshotState
   detail?: string
-}
-export function SystemMap({
-  title,
-  nodes,
-}: {
-  title?: string
-  nodes: MapNode[]
-}): React.ReactNode {
-  const t = useMercuryTokens()
-  return (
-    <Box flexDirection="column">
-      {title ? <Heading>{title}</Heading> : null}
-      {nodes.map((n, i) => {
-        const s = stateStyleOf(t, n.state ?? 'off')
-        return (
-          <Text key={i}>
-            <Text color={s.color}>{s.glyph} </Text>
-            <Text color={n.state === 'off' ? t.textSecondary : t.textPrimary}>{n.name}</Text>
-            {n.detail ? <Text color={t.textMuted}> · {truncateToWidth(n.detail, 28)}</Text> : null}
-          </Text>
-        )
-      })}
-    </Box>
-  )
 }
 
 export function UsageMeter({

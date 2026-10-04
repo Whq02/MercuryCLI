@@ -15,10 +15,6 @@ interface PriorCapsule {
 
 const lastAttached = new Map<string, { digest: string; refs: string[] }>()
 
-export function getLastAttachedCapsule(ownerKey: string): { digest: string; refs: string[] } | null {
-  return lastAttached.get(ownerKey) ?? null
-}
-
 export function capsuleContinuationLine(ownerKey: string, maxRefs = 8): string | null {
   const last = lastAttached.get(ownerKey)
   if (!last) return null

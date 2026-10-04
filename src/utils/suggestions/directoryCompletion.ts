@@ -156,12 +156,3 @@ export function isPathLikeToken(token: string): boolean {
   if (token.startsWith('\\\\')) return true
   return false
 }
-
-export function clearDirectoryCache(): void {
-  directoryCache.clear()
-}
-
-export function clearPathCache(): void {
-  directoryCache.clear()
-  pathCache.clear()
-}

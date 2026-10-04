@@ -111,18 +111,6 @@ export function getToolSearchOrReadInfo(
   }
 }
 
-export function getSearchOrReadFromContent(
-  content: unknown,
-  tools: Tools,
-): SearchOrReadResult | null {
-  if (typeof content !== 'object' || content === null) return null
-  const block = content as { type?: unknown; name?: unknown; input?: unknown }
-  if (block.type !== 'tool_use' || typeof block.name !== 'string') return null
-  const info = getToolSearchOrReadInfo(block.name, block.input, tools)
-  if (!info.isCollapsible) return null
-  return info
-}
-
 
 type ToolUseMember = { toolUseId: string; input: unknown }
 
@@ -692,21 +680,4 @@ export function getToolUseIdsFromCollapsedGroup(message: CollapsedReadSearchGrou
     }
   }
   return ids
-}
-
-export function hasAnyToolInProgress(
-  message: CollapsedReadSearchGroup,
-  inProgressToolUseIDs: Set<string>,
-): boolean {
-  return getToolUseIdsFromCollapsedGroup(message).some(id => inProgressToolUseIDs.has(id))
-}
-
-export function getDisplayMessageFromCollapsed(
-  message: CollapsedReadSearchGroup,
-): NormalizedAssistantMessage | NormalizedUserMessage {
-  const display = message.displayMessage
-  if (display.type === 'grouped_tool_use') {
-    return display.displayMessage
-  }
-  return display
 }

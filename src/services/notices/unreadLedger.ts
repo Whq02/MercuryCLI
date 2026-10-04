@@ -217,15 +217,6 @@ export function unreadNoticeCount(agentId: string): number {
   return n
 }
 
-export function unreadNoticeCounts(): Map<string, number> {
-  const counts = new Map<string, number>()
-  for (const record of records) {
-    if (!isOpen(record.state)) continue
-    counts.set(record.agentId, (counts.get(record.agentId) ?? 0) + 1)
-  }
-  return counts
-}
-
 function rowOf(record: NoticeRecord): NoticeRowV1 {
   return {
     id: record.id,

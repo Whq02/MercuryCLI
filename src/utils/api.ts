@@ -1,6 +1,5 @@
 import { isEnvTruthy } from './envUtils.js'
 import { logForDebugging } from './debug.js'
-import { isAnalyticsDisabled } from '../services/analytics/config.js'
 import {
   fineGrainedToolStreamingEnabled,
   resolveModelCapabilities,
@@ -12,11 +11,7 @@ import { deferralWireFormFor, toolReferenceWireAccepted } from '../services/prov
 import { isCrewEnabled } from './crewEnabled.js'
 import { zodToJsonSchema } from './zodToJsonSchema.js'
 import { CLI_SYSPROMPT_PREFIXES } from '../constants/system.js'
-import { getSystemContext, getUserContext } from '../context.js'
 import { userContextReminderBody } from './userContextReminder.js'
-import { prefetchAllMcpResources } from '../services/mcp/client.js'
-import type { ScopedMcpServerConfig } from '../services/mcp/types.js'
-import { getTools } from '../tools.js'
 import { AGENT_TOOL_NAME } from '../tools/AgentTool/constants.js'
 import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
 import { FILE_EDIT_TOOL_NAME } from '../tools/FileEditTool/constants.js'
@@ -24,9 +19,7 @@ import { normalizeFileEditInput } from '../tools/FileEditTool/utils.js'
 import { FILE_WRITE_TOOL_NAME } from '../tools/FileWriteTool/prompt.js'
 import { getCwd } from './cwd.js'
 import { createUserMessage } from './messages.js'
-import { getFileReadIgnorePatterns, normalizePatternsToPath } from './permissions/filesystem.js'
 import { getPlatform } from './platform.js'
-import { countFilesRoundedRg } from './ripgrep.js'
 import { jsonStringify } from './slowOperations.js'
 import { getConversationToolSchemas, getToolSchemaCache, requestedToolSchemaChange, settleToolSchemaChange } from './toolSchemaCache.js'
 import { declareLawfulPrefixChange } from '../services/providers/lawfulPrefixChange.js'
@@ -93,27 +86,6 @@ export function prependUserContext(
   const body = userContextReminderBody(context)
   if (body === null) return messages
   return [createUserMessage({ content: body, isMeta: true }), ...messages]
-}
-
-
-const FILE_COUNT_TIMEOUT_MS = 1000
-
-export async function logContextMetrics(
-  mcpConfigs: Record<string, ScopedMcpServerConfig>,
-  toolPermissionContext: ToolPermissionContext,
-): Promise<void> {
-  if (isAnalyticsDisabled()) return
-  const ignorePatterns = normalizePatternsToPath(
-    getFileReadIgnorePatterns(toolPermissionContext),
-    getCwd(),
-  )
-  await Promise.all([
-    prefetchAllMcpResources(mcpConfigs),
-    Promise.resolve(getTools(toolPermissionContext)),
-    getUserContext(),
-    getSystemContext(),
-    countFilesRoundedRg(getCwd(), AbortSignal.timeout(FILE_COUNT_TIMEOUT_MS), ignorePatterns),
-  ])
 }
 
 

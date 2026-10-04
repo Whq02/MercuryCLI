@@ -9,8 +9,8 @@ import { getGlobalMercuryFile } from '../../utils/env.js'
 import { errorMessage, errorMessageWithCause, getErrnoCode } from '../../utils/errors.js'
 import { isSettingSourceEnabled } from '../../utils/settings/constants.js'
 import { getInitialSettings, getSettingsForSource } from '../../utils/settings/settings.js'
-import { getEnterpriseMcpFilePath, getMcpConfigByName, projectMcpFilePath } from './config.js'
-import { getMcpPrefix, mcpInfoFromString } from './mcpStringUtils.js'
+import { getEnterpriseMcpFilePath, projectMcpFilePath } from './config.js'
+import { getMcpPrefix } from './mcpStringUtils.js'
 import { normalizeNameForMCP } from './normalization.js'
 import type {
   ConfigScope,
@@ -46,13 +46,6 @@ export function commandBelongsToServer(command: NamedCommand, serverName: string
     command.name.startsWith(getMcpPrefix(serverName)) ||
     command.name.startsWith(`${normalized}:`)
   )
-}
-
-export function filterCommandsByServer<T extends NamedCommand>(
-  commands: T[],
-  serverName: string,
-): T[] {
-  return commands.filter(command => commandBelongsToServer(command, serverName))
 }
 
 export function excludeCommandsByServer<T extends NamedCommand>(
@@ -91,17 +84,8 @@ export function excludeResourcesByServer(
   return rest
 }
 
-export function isToolFromMcpServer(toolName: string, serverName: string): boolean {
-  const info = mcpInfoFromString(toolName)
-  return info !== null && info.serverName === normalizeNameForMCP(serverName)
-}
-
 export function isMcpTool(tool: { name: string; isMcp?: boolean }): boolean {
   return tool.name.startsWith('mcp__') || tool.isMcp === true
-}
-
-export function isMcpCommand(command: { name: string; isMcp?: boolean }): boolean {
-  return command.name.startsWith('mcp__') || command.isMcp === true
 }
 
 
@@ -363,16 +347,6 @@ export function getProjectMcpServerStatus(
   }
 
   return 'pending'
-}
-
-
-export function getMcpServerScopeFromToolName(toolName: string): ConfigScope | undefined {
-  const info = mcpInfoFromString(toolName)
-  if (info === null) return undefined
-  const config = getMcpConfigByName(info.serverName)
-  if (config !== null) return config.scope
-  if (info.serverName.startsWith('claude_ai_')) return 'claudeai'
-  return undefined
 }
 
 

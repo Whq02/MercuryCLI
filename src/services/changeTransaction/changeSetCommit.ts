@@ -712,10 +712,6 @@ export async function runVerbatimTextCommit(opts: {
   })
 }
 
-export function _resetChangeSetLocksForTesting(): void {
-  pathLocks.clear()
-}
-
 export type { DurableOperation as ChangeSetJournalOperation }
 
 async function unlinkWithWin32Retry(path: string): Promise<void> {

@@ -46,8 +46,6 @@ export const SPECIALIST_ROLES = [
   'test-author',
 ] as const
 export type SpecialistRole = (typeof SPECIALIST_ROLES)[number]
-export const isSpecialistRole = (v: unknown): v is SpecialistRole =>
-  typeof v === 'string' && (SPECIALIST_ROLES as readonly string[]).includes(v)
 
 export const SPECIALIST_ROLE_ACCESS: Record<SpecialistRole, 'advisory' | 'authoring'> = {
   advisor: 'advisory',

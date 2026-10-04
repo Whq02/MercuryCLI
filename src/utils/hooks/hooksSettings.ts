@@ -159,10 +159,6 @@ export function getAllHooks(appState: AppState): IndividualHookConfig[] {
   return rows
 }
 
-export function getHooksForEvent(appState: AppState, event: HookEvent): IndividualHookConfig[] {
-  return getAllHooks(appState).filter(row => row.event === event)
-}
-
 export function hookSourceDescriptionDisplayString(source: HookSource): string {
   switch (source) {
     case 'userSettings': {

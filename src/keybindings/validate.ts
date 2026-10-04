@@ -359,21 +359,3 @@ export function formatWarning(w: KeybindingWarning): string {
   const head = `${glyph} Keybinding ${w.severity}: ${w.message}`
   return w.suggestion ? `${head}\n    ${w.suggestion}` : head
 }
-
-export function formatWarnings(ws: KeybindingWarning[]): string {
-  if (ws.length === 0) return ''
-  const errors = ws.filter(w => w.severity === 'error')
-  const warnings = ws.filter(w => w.severity === 'warning')
-  const sections: string[] = []
-  if (errors.length > 0) {
-    sections.push(
-      `${errors.length} keybinding error${errors.length === 1 ? '' : 's'}:\n${errors.map(formatWarning).join('\n')}`,
-    )
-  }
-  if (warnings.length > 0) {
-    sections.push(
-      `${warnings.length} keybinding warning${warnings.length === 1 ? '' : 's'}:\n${warnings.map(formatWarning).join('\n')}`,
-    )
-  }
-  return sections.join('\n\n')
-}

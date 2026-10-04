@@ -334,11 +334,6 @@ function isAbortShapedError(error: unknown): boolean {
   )
 }
 
-export function abortPromptSuggestion(): void {
-  inFlightController?.abort()
-  inFlightController = null
-}
-
 export async function executePromptSuggestion(context: ChatHookContext): Promise<void> {
   if (context.querySource === undefined || !context.querySource.startsWith('main_thread')) {
     return

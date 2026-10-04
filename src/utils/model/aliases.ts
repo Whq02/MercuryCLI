@@ -28,5 +28,3 @@ export const AGENT_DISPATCH_MODELS = [
   'opus[1m]',
   'fable[1m]',
 ] as const
-
-export type AgentDispatchModel = (typeof AGENT_DISPATCH_MODELS)[number]

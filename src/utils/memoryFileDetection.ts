@@ -55,10 +55,6 @@ export function memoryWriteRefusal(filePath: string): string | null {
 
 export type MemoryScope = 'personal' | 'team'
 
-export function memoryScopeForPath(filePath: string): MemoryScope | null {
-  return isMnemeFile(filePath) ? 'personal' : null
-}
-
 function isAgentMemFile(filePath: string): boolean {
   if (!isMnemeEnabled()) return false
   return isAgentMemoryPath(filePath)

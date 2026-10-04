@@ -49,10 +49,6 @@ export const ESC_TYPE = {
   ST: 0x5c,
 } as const
 
-export function isC0(byte: number): boolean {
-  return byte < 0x20 || byte === 0x7f
-}
-
 export function isEscFinal(byte: number): boolean {
   return byte >= 0x30 && byte <= 0x7e
 }

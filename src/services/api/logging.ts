@@ -10,8 +10,6 @@ import { classifyAPIError } from './errors.js'
 import { EMPTY_USAGE } from './emptyUsage.js'
 
 
-export type GlobalCacheStrategy = 'tool_based' | 'system_prompt' | 'none'
-
 export { EMPTY_USAGE }
 export type { NonNullableUsage }
 
@@ -27,10 +25,6 @@ function consumePostCompactionMarker(): boolean {
   const was = postCompactionPending
   postCompactionPending = false
   return was
-}
-
-export function getLastApiSuccessTimestamp(): number | null {
-  return lastApiSuccessAt
 }
 
 

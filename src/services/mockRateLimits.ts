@@ -454,7 +454,3 @@ export function mockUtilizationPayload(): import('./api/usage.js').Utilization |
 export function setMockSubscriptionType(type: string | null): void {
   void type
 }
-
-export function shouldUseMockSubscription(): boolean {
-  return false
-}

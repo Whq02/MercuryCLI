@@ -59,6 +59,11 @@
       "reason": "The render engine core's flat projection (the record → row projection the ledger settles), landed behind MERCURY_RENDER_ENGINE with its law suite (scripts/render-engine) ahead of the cockpit mount; reached from the proofs alone until the mount takes the core."
     },
     {
+      "file": "src/services/analytics/config.ts",
+      "class": "proof-or-fixture-only",
+      "reason": "The analytics-collection switch (isAnalyticsDisabled answers true); no product module imports it, and scripts/substrate/prove-no-telemetry-egress.ts reads it to pin that collection stays off with or without build metadata."
+    },
+    {
       "file": "src/services/channel/frame.ts",
       "class": "living-specimen",
       "reason": "The multiplayer wire kept deliberately at the /say retirement (operator-ruled: \"Retire /say but keep the wire so that it stays for the agents\"); the extracted channel home is maintained estate awaiting the post-release multiplayer consumer."
@@ -170,8 +175,8 @@
     },
     {
       "file": "src/utils/terminalPanel.ts",
-      "class": "proof-or-fixture-only",
-      "reason": "The built-in terminal panel (tmux + direct-shell fallback behind the alternate screen), deliberately rewritten as one of S32's 22 manifest files; its current consumer is scripts/ui/prove-s32-acceptance.ts (checks 63-64 pin fallback + cleanup discipline on this source). The awaited consumer is the panel's keybinding/command mount, which no rewrite lane has landed yet — mounting is a product-surface decision, not a remount."
+      "class": "superseded-unreachable",
+      "reason": "Holds only getTerminalPanelSocket, the per-instance multiplexer socket name; no product module and no proof imports it, and no panel mounts on it."
     }
   ]
 }

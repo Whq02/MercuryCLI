@@ -190,13 +190,6 @@ export function hasRequiredMcpServers(
   })
 }
 
-export function filterAgentsByMcpRequirements(
-  agents: readonly AgentDefinition[],
-  availableServers: readonly string[],
-): AgentDefinition[] {
-  return agents.filter(agent => hasRequiredMcpServers(agent, availableServers))
-}
-
 
 function makeSystemPromptClosure(
   agentType: string,

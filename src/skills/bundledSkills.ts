@@ -149,7 +149,3 @@ export function registerBundledSkill(definition: BundledSkillDefinition): void {
 export function getBundledSkills(): Command[] {
   return [...registry]
 }
-
-export function clearBundledSkills(): void {
-  registry.length = 0
-}

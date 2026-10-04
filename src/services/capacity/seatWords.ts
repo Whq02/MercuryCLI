@@ -37,5 +37,3 @@ export function splitWaitSentence(sentence: string): { gate: string; holders: st
   const m = /^(.*\bheld) \((.*)\)$/.exec(sentence)
   return m === null ? { gate: sentence, holders: '' } : { gate: m[1]!, holders: m[2]! }
 }
-
-export const SEAT_WAIT_STATUS_WORD = 'waiting'

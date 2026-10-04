@@ -8,7 +8,6 @@ export const DESKTOP_KEY_NAMES = [
   'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12',
   'shift', 'control', 'alt', 'super',
 ] as const
-export type DesktopNamedKey = (typeof DESKTOP_KEY_NAMES)[number]
 
 export function isDesktopKey(key: string): boolean {
   if ((DESKTOP_KEY_NAMES as readonly string[]).includes(key)) return true

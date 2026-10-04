@@ -1,5 +1,4 @@
 
-import { probeGodotEditorReachable } from '../lsp/godotLane.js'
 import { listVulcanInstances, sameVulcanInstance, selectVulcanInstance, type VulcanInstance, type VulcanInstanceRole } from './instances.js'
 import { getVulcanClient } from './vulcanClient.js'
 import {
@@ -63,18 +62,6 @@ export function derivePresence(
     words = `no editor running on this project (${census.processes.filter(p => p.editor).length} on other projects)`
   }
   return { state, port, reachable, censusOk: census.ok, editors, processes: census.processes, words }
-}
-
-export async function probeGodotEditorPresence(
-  projectRoot: string,
-  port: number,
-  census?: { ok: boolean; processes: GodotProcess[] },
-): Promise<GodotEditorPresence> {
-  const [reachable, seen] = await Promise.all([
-    probeGodotEditorReachable(port),
-    census ? Promise.resolve(census) : takeCensus(),
-  ])
-  return derivePresence(port, reachable, seen, projectRoot)
 }
 
 export const PRESENCE_ROLES: readonly VulcanInstanceRole[] = ['agent-editor', 'operator-editor']

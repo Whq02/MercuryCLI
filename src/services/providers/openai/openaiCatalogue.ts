@@ -212,17 +212,6 @@ export const APEX_GPT_ROLES = [
 ] as const
 export type ApexGptRole = (typeof APEX_GPT_ROLES)[number]
 
-export interface GptQualificationReceipt {
-  modelId: string
-  role: ApexGptRole
-  sourceKind: OpenaiAccountSourceKind
-  adapterDigest: string
-  architectureEpoch: string
-  liveEfforts: string[]
-  defaultEffort?: string
-  qualifiedAtMs: number
-}
-
 export type GptCandidateIdentity = GptModelIdentity | { family: 'gpt'; canonicalId: string; unparsed: true }
 
 export interface GptCandidate {

@@ -1,6 +1,3 @@
-export const META_FACTS_SOURCE = 'https://dev.meta.ai/docs/models'
-export const META_PRICING_SOURCE = 'https://dev.meta.ai/docs/pricing-rate-limits'
-export const META_REASONING_SOURCE = 'https://dev.meta.ai/docs/reasoning'
 export const META_OBSERVED_AT = '2026-09-30'
 export const META_EFFORTS = ['minimal', 'low', 'medium', 'high', 'xhigh'] as const
 

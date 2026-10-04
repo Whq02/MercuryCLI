@@ -1,9 +1,9 @@
 import { z } from 'zod'
 
 import { buildTool, type ToolUseContext } from '../../Tool.js'
-import { nativeBackendIdFor, nativeSearch } from '../../services/search/nativeSearch.js'
+import { nativeSearch } from '../../services/search/nativeSearch.js'
 import { nativeSearchFamilyOf } from '../../services/search/searchDoor.js'
-import { failureLine, searchBackendLabel, viaLine } from '../../services/search/searchContract.js'
+import { failureLine, viaLine } from '../../services/search/searchContract.js'
 import { TOOL_SUMMARY_MAX_LENGTH } from '../../constants/toolLimits.js'
 import type { WebSearchProgress } from '../../types/tools.js'
 import { AbortError } from '../../utils/errors.js'
@@ -163,7 +163,3 @@ export const ProviderSearchTool = buildTool({
   renderToolUseRejectedMessage: () => null,
   renderToolUseErrorMessage: () => null,
 })
-
-export function providerSearchDoorLabel(family: 'anthropic' | 'openai'): string {
-  return searchBackendLabel(nativeBackendIdFor(family))
-}

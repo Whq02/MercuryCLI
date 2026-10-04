@@ -697,34 +697,7 @@ export interface ConfigMenuRow {
   }
 }
 
-export const COORDINATOR_MENU_ROW: ConfigMenuRow = {
-  id: 'coordinator',
-  label: 'Coordinator',
-  group: 'miscellaneous',
-  options: ['on', 'off'],
-  defaultLabel: 'off',
-  summary:
-    'the concourse coordinator — on, it launches, watches and reconciles your sessions; off, the composer starts sessions directly',
-  detail: {
-    controls:
-      "Whether the concourse coordinator manages your sessions. on: you talk to it in the concourse — it launches, watches, queues and reconciles sessions in plain words. off: the concourse composer starts sessions directly — your text becomes the session's task and its title. Applies at the coordinator's next turn.",
-    on: [
-      'the concourse pane converses — launch, pause, relay and reconcile by asking',
-      'needs-you questions are relayed into the chat and carried back',
-    ],
-    off: [
-      'typing in the concourse composer starts a session directly',
-      'the board, mirror and manual start keep working',
-    ],
-  },
-}
-
 export type CoordinatorMenuChoice = 'on' | 'off'
-
-export async function readCoordinatorMenuChoice(): Promise<CoordinatorMenuChoice> {
-  const { getGlobalConfig } = await import('../utils/config.js')
-  return getGlobalConfig().concourseCoordinator?.mode === 'agent-assisted' ? 'on' : 'off'
-}
 
 export async function writeCoordinatorMenuChoice(
   choice: CoordinatorMenuChoice,

@@ -2,7 +2,7 @@
 import type { Task } from '../../utils/tasks.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import { truncateToWidth as rigorousTruncateToWidth } from '../../utils/truncate.js'
-import { AMBER, FAINT, SECOND, TEAL } from '../mercuryPalette.js'
+import { AMBER, FAINT, TEAL } from '../mercuryPalette.js'
 
 export const GLYPH = {
   sep: '│',
@@ -73,12 +73,6 @@ export const HEALTH_GLYPH: Record<string, { glyph: string; color: string }> = {
   idle: { glyph: GLYPH.idle, color: FAINT },
   busy: { glyph: GLYPH.busy, color: TEAL },
   drifting: { glyph: GLYPH.drifting, color: AMBER },
-}
-
-export const OWNERSHIP_GLYPH: Record<'substrate' | 'upstream' | 'hybrid', { glyph: string; color: string; label: string }> = {
-  substrate: { glyph: GLYPH.ownSubstrate, color: SECOND, label: 'substrate' },
-  upstream: { glyph: GLYPH.ownUpstream, color: FAINT, label: 'upstream' },
-  hybrid: { glyph: GLYPH.ownHybrid, color: AMBER, label: 'hybrid' },
 }
 
 

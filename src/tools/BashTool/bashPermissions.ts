@@ -50,7 +50,6 @@ import { checkReadOnlyConstraints } from './readOnlyValidation.js'
 import { checkSedConstraints } from './sedValidation.js'
 import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
 import { shouldUseSandbox } from './shouldUseSandbox.js'
-import { isAbortError } from '../../utils/errors.js'
 
 export { matchWildcardPattern, permissionRuleExtractPrefix }
 export const bashPermissionRule = (ruleContent: string): ShellPermissionRule =>
@@ -930,10 +929,6 @@ async function runSpeculativeClassification(
   return undefined
 }
 
-export function peekSpeculativeClassifierCheck(command: string): Promise<PermissionResult | undefined> | undefined {
-  return speculativeChecks.get(command)
-}
-
 export function consumeSpeculativeClassifierCheck(command: string): Promise<PermissionResult | undefined> | undefined {
   const promise = speculativeChecks.get(command)
   speculativeChecks.delete(command)
@@ -942,45 +937,6 @@ export function consumeSpeculativeClassifierCheck(command: string): Promise<Perm
 
 export function clearSpeculativeChecks(): void {
   speculativeChecks.clear()
-}
-
-export async function awaitClassifierAutoApproval(
-  pendingCheck: PendingClassifierCheck,
-  signal: AbortSignal,
-  isNonInteractiveSession: boolean,
-): Promise<PermissionDecisionReason | undefined> {
-  const speculative = consumeSpeculativeClassifierCheck(pendingCheck.command)
-  if (speculative) {
-    await speculative
-  } else {
-    await classifyBashCommand(pendingCheck.command, pendingCheck.cwd, pendingCheck.descriptions, 'allow', signal, isNonInteractiveSession)
-  }
-  return undefined
-}
-
-export async function executeAsyncClassifierCheck(
-  pendingCheck: PendingClassifierCheck,
-  signal: AbortSignal,
-  isNonInteractiveSession: boolean,
-  callbacks: {
-    shouldContinue: () => boolean;
-    onAllow: (reason: PermissionDecisionReason) => void;
-    onComplete?: () => void;
-  },
-): Promise<void> {
-  try {
-    await classifyBashCommand(pendingCheck.command, pendingCheck.cwd, pendingCheck.descriptions, 'allow', signal, isNonInteractiveSession)
-  } catch (error) {
-    if (isAbortError(error) || (error as Error)?.name === 'AbortError') {
-      callbacks.onComplete?.()
-      return
-    }
-    callbacks.onComplete?.()
-    throw error
-  }
-  if (!callbacks.shouldContinue()) return
-  void callbacks.onAllow
-  callbacks.onComplete?.()
 }
 
 function maybeAttachPendingCheck(result: PermissionResult, command: string, context: ToolPermissionContext): PermissionResult {

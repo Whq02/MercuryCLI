@@ -472,10 +472,6 @@ export function localModelRecord(wireId: string): LocalModelRecord | undefined {
   return cachedLocalModels().find(m => m.id.toLowerCase() === lower)
 }
 
-export function localServerFor(model: LocalModelRecord): LocalServerRecord | undefined {
-  return cached?.servers.find(s => s.baseUrl === model.baseUrl && s.kind === model.server)
-}
-
 export interface ServedWindowLoad {
   numCtx?: number
   numBatch?: number

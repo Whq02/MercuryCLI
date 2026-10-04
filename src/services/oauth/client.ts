@@ -388,8 +388,6 @@ export function isOAuthTokenExpired(expiresAt: number | null): boolean {
   return Date.now() + EXPIRY_BUFFER_MS >= expiresAt
 }
 
-const OAUTH_ERROR_TYPE_RE = /^[a-z][a-z_]{0,39}$/
-
 function oauthErrorType(error: unknown): string | undefined {
   if (!(error instanceof AxiosError) || error.response === undefined) return undefined
   const body = error.response.data as { error?: unknown } | undefined
@@ -426,20 +424,6 @@ export function isInvalidGrantError(error: unknown): boolean {
   return oauthErrorType(error) === 'invalid_grant'
 }
 
-export function extractOAuthErrorFields(
-  error: unknown,
-): { status: string; errorType?: string; isInvalidGrant?: boolean } | undefined {
-  if (!(error instanceof AxiosError) || error.response === undefined) return undefined
-  const rawType = oauthErrorType(error)
-  const errorType =
-    rawType === undefined ? undefined : OAUTH_ERROR_TYPE_RE.test(rawType) ? rawType : 'unparseable'
-  return {
-    status: String(error.response.status),
-    ...(errorType === undefined ? {} : { errorType }),
-    ...(errorType === 'invalid_grant' ? { isInvalidGrant: true } : {}),
-  }
-}
-
 
 export async function revokeOAuthToken(token: string, clientId?: string): Promise<void> {
   const config = getOauthConfig()
@@ -464,16 +448,6 @@ export async function revokeOAuthToken(token: string, clientId?: string): Promis
   }
 }
 
-
-export async function getOrganizationUUID(): Promise<string | undefined> {
-  const stored = getGlobalConfig().oauthAccount?.organizationUuid
-  if (stored) return stored
-  const credential = readStoredCredential()
-  if (!credential?.accessToken) return undefined
-  if (!credential.scopes.includes(CLAUDE_AI_PROFILE_SCOPE)) return undefined
-  const profile = await getOauthProfileFromOauthToken(credential.accessToken)
-  return profile?.organization?.uuid
-}
 
 export async function populateOAuthAccountInfoIfNeeded(): Promise<void> {
   const envAccountUuid = process.env.MERCURY_ACCOUNT_UUID

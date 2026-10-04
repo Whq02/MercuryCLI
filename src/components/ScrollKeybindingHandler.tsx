@@ -8,7 +8,6 @@ import {
   useSelection,
   type SelectionApi,
 } from '../ink/hooks/use-selection.js'
-import type { FocusMove } from '../ink/geometry/selection.js'
 import { useCopyOnSelect, useSelectionBgColor } from '../hooks/useCopyOnSelect.js'
 import { useKeybindings } from '../keybindings/useKeybinding.js'
 import { topOverlay, topOverlayOwnsPageKeys } from '../context/overlayStack.js'
@@ -198,17 +197,6 @@ export function shouldClearSelectionOnKey(key: Key): boolean {
   if (key.shift || key.meta) return false
   if (key.wheelUp || key.wheelDown) return false
   return true
-}
-
-export function selectionFocusMoveForKey(key: Key): FocusMove | null {
-  if (!key.shift || key.meta) return null
-  if (key.upArrow) return 'up'
-  if (key.downArrow) return 'down'
-  if (key.leftArrow) return 'left'
-  if (key.rightArrow) return 'right'
-  if (key.home) return 'lineStart'
-  if (key.end) return 'lineEnd'
-  return null
 }
 
 export function dragScrollDirection(

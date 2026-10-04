@@ -1002,11 +1002,6 @@ function catalogueDeclaresImages(model: string, route: CallModelRoute): boolean 
 }
 
 
-export function toolSearchPassthroughUncertain(): boolean {
-  return !isFirstPartyAnthropicBaseUrl()
-}
-
-
 export function fineGrainedToolStreamingEnabled(): boolean {
   if (!isFirstPartyAnthropicBaseUrl()) {
     return false

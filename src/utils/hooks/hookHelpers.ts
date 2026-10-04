@@ -19,8 +19,6 @@ export const hookResponseSchema = memoize(() =>
   }),
 )
 
-export type HookResponse = z.infer<ReturnType<typeof hookResponseSchema>>
-
 export function addArgumentsToPrompt(prompt: string, jsonInput: string): string {
   return substituteArguments(prompt, jsonInput)
 }

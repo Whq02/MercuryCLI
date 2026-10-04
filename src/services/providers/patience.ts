@@ -32,8 +32,6 @@ export interface PatienceCustomSetting {
   recoveryBudgetMinutes?: number
 }
 
-export type PatienceSetting = 'normal' | 'patient' | PatienceCustomSetting
-
 export interface Patience {
   mode: PatienceMode
   numbers: PatienceNumbers

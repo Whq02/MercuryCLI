@@ -10,12 +10,6 @@ export function staleEditRecoveryEnabled(): boolean {
 
 const RELOCATION_CONTEXT_LINES = 2
 
-export interface RelocatedHunk {
-  hunk: EditHunkInput
-  oldSpelling: string
-  newSpelling: string
-}
-
 export type StaleRecoveryOutcome =
   | { ok: true; hunks: EditHunkInput[]; warnings: string[] }
   | { ok: false; reason: string }

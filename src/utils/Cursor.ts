@@ -18,9 +18,6 @@ export function isVimWordChar(ch: string): boolean {
 export function isVimWhitespace(ch: string): boolean {
   return WHITESPACE_REGEX.test(ch)
 }
-export function isVimPunctuation(ch: string): boolean {
-  return ch.length > 0 && !isVimWordChar(ch) && !isVimWhitespace(ch)
-}
 
 
 const CHIP_END_RE = new RegExp(`(?:${CHIP_PATTERN})$`)

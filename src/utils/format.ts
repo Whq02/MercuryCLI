@@ -110,11 +110,6 @@ export function formatTokens(n: number): string {
   return formatNumber(n).replace('.0', '')
 }
 
-export function formatTokenEstimate(n: number): string {
-  if (n < 20) return '< 20'
-  return `~${formatTokens(Math.round(n / 10) * 10)}`
-}
-
 
 const RELATIVE_UNITS: Array<{
   unit: Intl.RelativeTimeFormatUnit

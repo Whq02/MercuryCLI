@@ -58,21 +58,6 @@ function subscribeKey(key: string, cb: () => void): () => void {
   }
 }
 
-export function useEphemeralProgress(
-  toolUseID: string | undefined,
-): ProgressMessage | undefined {
-  const subscribe = useCallback(
-    (cb: () => void) =>
-      toolUseID === undefined ? () => {} : subscribeKey(toolUseID, cb),
-    [toolUseID],
-  )
-  const get = useCallback(
-    () => (toolUseID === undefined ? undefined : frames.get(toolUseID)),
-    [toolUseID],
-  )
-  return useSyncExternalStore(subscribe, get, get)
-}
-
 export function useEphemeralProgressVersion(
   toolUseIDs: readonly string[],
 ): number {

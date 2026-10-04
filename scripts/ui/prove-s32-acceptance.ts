@@ -937,7 +937,6 @@ const git = (cwd: string, cmd: string): string => execSync(`git ${cmd}`, { cwd, 
 console.log('\n── clipboard, panel, pipeline (58–72) ──')
 
 const imagePasteSrc = src('src/utils/imagePaste.ts')
-const panelSrc = src('src/utils/terminalPanel.ts')
 const processUserInputSrc = src('src/utils/processUserInput/processUserInput.ts')
 const bashSrc = src('src/utils/processUserInput/processBashCommand.tsx')
 const slashSrc = src('src/utils/processUserInput/processSlashCommand.tsx')
@@ -957,10 +956,6 @@ pin('60. BMP clipboard payload converts to PNG before encoding', /bmp/i.test(ima
 }
 
 pin('62. relative pasted filename read from the clipboard path only on basename match', /basename/.test(imagePasteSrc))
-
-pin('63. panel falls back to a direct shell; alt-screen left in finally', /finally/.test(panelSrc) && /fallback|direct/i.test(panelSrc))
-
-pin('64. panel cleanup registered at most once, never blocking shutdown', /once|registered/i.test(panelSrc) && /cleanup/i.test(panelSrc))
 
 pin('65. hook-blocking submission ⇒ exactly ONE warning system message, no user message', /blocking/.test(processUserInputSrc) && /warning/.test(processUserInputSrc))
 

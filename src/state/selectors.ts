@@ -93,14 +93,6 @@ export function getViewedEscAction(task: TaskState): 'interrupt' | 'main' {
   return 'main'
 }
 
-export function getAttachedEscAction(
-  worker: { ended?: boolean; paused?: boolean } | null,
-  turnLive: boolean,
-): 'interrupt' | 'detach' {
-  if (worker && !worker.ended && !worker.paused && turnLive) return 'interrupt'
-  return 'detach'
-}
-
 export function projectViewedAgent(
   task: TaskState,
   agentNameRegistry: ReadonlyMap<string, string>,

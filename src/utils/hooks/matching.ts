@@ -117,14 +117,6 @@ export function hookDedupKey(m: MatchedHook, payload: string): string {
   return `${m.extensionRoot ?? m.skillRoot ?? ''}\0${payload}`
 }
 
-export function getHookTypeCounts(hooks: MatchedHook[]): Record<string, number> {
-  const counts: Record<string, number> = {}
-  for (const h of hooks) {
-    counts[h.hook.type] = (counts[h.hook.type] || 0) + 1
-  }
-  return counts
-}
-
 export function getHooksConfig(
   appState: AppState | undefined,
   sessionId: string,
@@ -404,23 +396,4 @@ export async function getMatchingHooks(
     )
     return []
   }
-}
-
-export function getHookDefinitionsForTelemetry(
-  matchedHooks: MatchedHook[],
-): Array<{ type: string; command?: string; prompt?: string; name?: string }> {
-  return matchedHooks.map(({ hook }) => {
-    if (hook.type === 'command') {
-      return { type: 'command', command: hook.command }
-    } else if (hook.type === 'prompt') {
-      return { type: 'prompt', prompt: hook.prompt }
-    } else if (hook.type === 'http') {
-      return { type: 'http', command: hook.url }
-    } else if (hook.type === 'function') {
-      return { type: 'function', name: 'function' }
-    } else if (hook.type === 'callback') {
-      return { type: 'callback', name: 'callback' }
-    }
-    return { type: 'unknown' }
-  })
 }

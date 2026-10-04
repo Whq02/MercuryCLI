@@ -5,7 +5,6 @@ import { clampClause } from '../../utils/waitCeiling.js'
 import { maybeResizeAndDownsampleImageBuffer } from '../../utils/imageResizer.js'
 import type {
   Base64ImageSource,
-  ContentBlockParam,
   ImageBlockParam,
   ToolResultBlockParam,
 } from '../../types/wire.js'
@@ -110,25 +109,4 @@ export function formatExcerpt(content: string, maxLength: number): string {
 export function outputBudgetClause(budget: OutputBudget): string | undefined {
   if (budget.clampedTo === undefined) return undefined
   return `[${clampClause('max_output_chars', budget.effective, budget.clampedTo, 'chars')}]`
-}
-
-
-export function createContentSummary(content: ContentBlockParam[]): string {
-  let imageCount = 0
-  let textCount = 0
-  const previews: string[] = []
-  for (const block of content) {
-    if (block.type === 'image') {
-      imageCount++
-    } else if (block.type === 'text' && typeof (block as { text?: string }).text === 'string' && (block as { text: string }).text !== '') {
-      textCount++
-      const text = (block as { text: string }).text
-      previews.push(text.length > 200 ? `${text.slice(0, 200)}…` : text)
-    }
-  }
-  const parts: string[] = []
-  if (imageCount > 0) parts.push(`${imageCount} ${plural(imageCount, 'image')}`)
-  if (textCount > 0) parts.push(`${textCount} ${plural(textCount, 'text block')}`)
-  const header = `MCP result${parts.length > 0 ? `: ${parts.join(', ')}` : ''}`
-  return previews.length > 0 ? `${header}\n\n${previews.join('\n\n')}` : header
 }

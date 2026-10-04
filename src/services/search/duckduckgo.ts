@@ -18,7 +18,6 @@ import {
   normaliseHits,
   searchFailure,
   searchUserAgent,
-  type SearchBackend,
   type SearchFailure,
   type SearchHit,
   type SearchOutcome,
@@ -245,10 +244,4 @@ export async function keylessSearch(request: SearchRequest, io: KeylessSearchIo 
     : ''
   const cooling = coolDownMs > 0 ? `; cooling down ${secondsLeftLabel(coolDownMs)} before the next knock` : ''
   return searchFailure(lite.failure.kind, 'duckduckgo-lite', `${lite.failure.message} (the html door: ${html.failure.kind} — ${html.failure.message}${retryWords})${cooling}`)
-}
-
-export const duckduckgoBackend: SearchBackend = {
-  id: 'duckduckgo',
-  tier: 'keyless',
-  search: request => keylessSearch(request),
 }

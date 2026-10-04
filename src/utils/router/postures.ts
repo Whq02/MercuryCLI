@@ -60,7 +60,3 @@ export function resolveRouterPosture(): RouterPosture {
   if (isRouterPosture(env)) return env
   return readRouterPostureFile().posture
 }
-
-export function resolveRouterModelPin(): RouterModelPin {
-  return readRouterPostureFile().pin
-}

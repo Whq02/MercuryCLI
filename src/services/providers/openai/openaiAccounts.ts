@@ -3,7 +3,6 @@ import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import {
   chmodSync,
   closeSync,
-  existsSync,
   mkdirSync,
   openSync,
   readFileSync,
@@ -97,10 +96,6 @@ function writeAuthFile(mutate: (file: OpenaiAuthFile) => OpenaiAuthFile): void {
   } catch {
   }
   noteCredentialChange()
-}
-
-export function openaiAuthFileExists(): boolean {
-  return existsSync(authFilePath())
 }
 
 export function openaiAuthPathForDisplay(): string {

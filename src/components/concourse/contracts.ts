@@ -178,34 +178,6 @@ export function stableSelectionFallback(
   return { sessionId: ids[Math.max(0, index)] ?? null, index: Math.max(0, index) }
 }
 
-export function deriveEffectivePeek(
-  storePeek: ConcourseSnapshotV1['peek'],
-  sessionRows: readonly ConcourseRowV1[],
-  selectedId: string | null,
-): ConcourseSnapshotV1['peek'] {
-  const selRow = selectedId !== null ? sessionRows.find(r => r.sessionId === selectedId) : undefined
-  if (storePeek === null || selRow === undefined || storePeek.sessionId === selRow.sessionId) return storePeek
-  return {
-    sessionId: selRow.sessionId,
-    title: selRow.title,
-    state: selRow.state,
-    projectLabel: selRow.projectLabel,
-    agentLabel: selRow.ownerLabel ?? 'Mercury',
-    modelLabel: '—',
-    seats: typeof selRow.seats === 'string' ? null : selRow.seats,
-    timeline: [],
-    scope: { kind: 'clear' as const },
-    actions: [
-      'enter-full-session' as const,
-      ...(selRow.state === 'working' || selRow.state === 'needs-you' || selRow.state === 'ready-to-review'
-        ? (['pause-after-turn', 'redirect'] as const)
-        : []),
-      ...(selRow.state === 'paused' ? (['resume'] as const) : []),
-    ],
-    residentState: 'settled' as const,
-  }
-}
-
 export type ControlNoteKind = 'pending' | 'applied' | 'held' | 'refused' | 'failed'
 export interface ControlNote {
   state: ControlNoteKind

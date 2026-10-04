@@ -211,23 +211,3 @@ export type MercuryRecord = {
   payload: RecordPayload
   annotations?: Record<string, unknown>
 }
-
-export function classifyRecordKind(payload: RecordPayload): RecordKind {
-  switch (payload.kind) {
-    case 'input':
-    case 'output':
-    case 'tool-settlement':
-    case 'progress':
-    case 'attachment':
-    case 'notice':
-    case 'boundary':
-    case 'receipt':
-    case 'session-meta':
-    case 'unknown-retained':
-      return payload.kind
-    default: {
-      const _exhaustive: never = payload
-      return _exhaustive
-    }
-  }
-}

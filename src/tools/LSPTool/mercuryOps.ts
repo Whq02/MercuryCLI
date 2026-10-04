@@ -656,10 +656,6 @@ function statusRowsFor(manager: LSPServerManager, filePath?: string): LspServerS
   return rows
 }
 
-export function lspServerStatusRows(manager: LSPServerManager): LspServerStatusRow[] {
-  return statusRowsFor(manager)
-}
-
 
 type WireCodeAction = {
   title: string

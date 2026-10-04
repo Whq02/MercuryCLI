@@ -34,10 +34,6 @@ export function markEmptyReply(message: AssistantMessage, kind: EmptyReplyKind =
   marked.providerEmptyReplyKind = kind
 }
 
-export function isEmptyReplyMessage(message: AssistantMessage): boolean {
-  return (message as MarkedAssistantMessage).providerEmptyReply === true
-}
-
 export function emptyReplyKindOf(message: AssistantMessage): EmptyReplyKind | undefined {
   const marked = message as MarkedAssistantMessage
   if (marked.providerEmptyReply !== true) return undefined

@@ -45,8 +45,6 @@ export const TaskSchema = lazySchema(() =>
 )
 export type Task = z.infer<ReturnType<typeof TaskSchema>>
 
-export const DEFAULT_TASKS_MODE_TASK_LIST_ID = 'tasklist'
-
 export function isTaskToolsEnabled(): boolean {
   return isEnvTruthy(process.env.MERCURY_TASKS) || !getIsNonInteractiveSession()
 }

@@ -131,12 +131,6 @@ export function liveWorkshopRuntimeCount(): number {
   return n
 }
 
-export function _workshopWorkerCountForTesting(): number {
-  let n = 0
-  void n
-  return n
-}
-
 
 interface TsCompiler {
   version: string

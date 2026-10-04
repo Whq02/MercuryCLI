@@ -22,7 +22,6 @@ import { getSessionId } from '../../bootstrap/state.js'
 import { abortSpeculation } from '../../services/PromptSuggestion/speculation.js'
 import { processOwnerForLane } from '../../services/run/resolveOwner.js'
 import { recordTaskOutcome, shellOutcomeState } from '../taskOutcomeEnvelope.js'
-import { isMainSessionTask } from '../LocalMainSessionTask.js'
 import { backgroundAgentTask, isLocalAgentTask } from '../LocalAgentTask/LocalAgentTask.js'
 import { getCwd } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -628,16 +627,6 @@ export function backgroundExistingForegroundTask(
     launch,
   })
   return true
-}
-
-export function hasForegroundTasks(state: AppState): boolean {
-  for (const task of Object.values(state.tasks ?? {})) {
-    if (isMainSessionTask(task)) continue
-    if ('isBackgrounded' in task && task.isBackgrounded === false && task.status === 'running') {
-      return true
-    }
-  }
-  return false
 }
 
 export function backgroundAll(getAppState: () => AppState, setAppState: SetAppState): void {

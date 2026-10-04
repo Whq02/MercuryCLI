@@ -172,7 +172,6 @@ export const COMPACT_LIST_FOOT = '↑↓ pick · ↵ steer'
 export const COMPACT_LIST_FOOT_REDUCED = '↑↓ pick · ↵ enter'
 export const COMPACT_FILTER_TAIL = '↵ apply · esc clear'
 export const COMPACT_FILTER_FOOT = `type to filter · ${COMPACT_FILTER_TAIL}`
-export const COMPACT_OPENED_FOOT = '↵ send · x stop · p pause · esc back'
 export const COMPACT_OPENED_FOOT_REDUCED = '↵ enter · x stop · p pause · esc back'
 
 export function compactListFoot(facts: { filtering: boolean; reduced: boolean }): string {

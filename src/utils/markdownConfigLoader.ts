@@ -28,8 +28,6 @@ export const MERCURY_CONFIG_DIRECTORIES = [
   'workflows',
 ] as const
 
-export type MercuryConfigDirectory = (typeof MERCURY_CONFIG_DIRECTORIES)[number]
-
 export type MarkdownFile = {
   filePath: string
   baseDir: string

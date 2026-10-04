@@ -38,14 +38,6 @@ export const ALL_CRITTERS: Critter[] = [
   CRITTERS.clam!,
 ]
 
-export function accentForPrincipal(principalId: string): string {
-  let h = 0
-  for (let i = 0; i < principalId.length; i++) {
-    h = (h * 31 + principalId.charCodeAt(i)) >>> 0
-  }
-  return ALL_CRITTERS[h % ALL_CRITTERS.length]!.accent
-}
-
 let activeKey: string | null = null
 
 function poolKeyOr(key: string): string {

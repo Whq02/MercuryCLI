@@ -527,9 +527,6 @@ export function clearSkillCaches(): void {
   pruneDynamicSkillsSync()
 }
 
-export const getCommandDirCommands = getSkillDirCommands
-export const clearCommandCaches = clearSkillCaches
-
 
 type DynamicSkillEntry = { name: string; filePath: string; mtimeMs: number; command: Command }
 type DynamicDirRecord =

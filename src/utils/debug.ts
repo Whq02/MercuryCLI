@@ -60,14 +60,6 @@ export const getDebugFilePath = memoize((): string | null => {
 
 let hasFormattedOutput = false
 
-export function setHasFormattedOutput(v: boolean): void {
-  hasFormattedOutput = v
-}
-
-export function getHasFormattedOutput(): boolean {
-  return hasFormattedOutput
-}
-
 export function getDebugLogPath(): string {
   const explicit = getDebugFilePath()
   if (explicit) return explicit
