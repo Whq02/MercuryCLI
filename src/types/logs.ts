@@ -102,6 +102,12 @@ export type AdvisorSwitchEntry = {
   sessionId: UUID
 }
 
+export type SessionModelEntry = {
+  type: 'model'
+  model: string
+  sessionId: UUID
+}
+
 export type PersistedWorktreeSession = {
   originalCwd: string
   worktreePath: string
@@ -198,6 +204,7 @@ export type Entry =
   | PRLinkMessage
   | ModeEntry
   | AdvisorSwitchEntry
+  | SessionModelEntry
   | WorktreeStateEntry
   | ContentReplacementEntry
   | FileHistorySnapshotMessage
@@ -241,6 +248,7 @@ export type LogOption = {
   endedOnError?: boolean
   mode?: 'coordinator' | 'normal'
   advisor?: boolean
+  model?: string
   worktreeSession?: PersistedWorktreeSession | null
   contentReplacements?: ContentReplacementRecord[]
 }

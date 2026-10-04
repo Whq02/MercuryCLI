@@ -603,7 +603,7 @@ section("§2c THE SWITCH ON THE SESSION'S OWN RECORD: /advise on writes an advis
   check('a record with no switch leaves the cache as it stands', storage.advisorSwitchOfSession() === false)
   const resumeRoads = [src('src/cli/headless/resume.ts'), src('src/cli/run.ts')]
   check('every headless resume road hands the loaded facts to restoreSessionMetadata — --continue, --resume and the warm claim', resumeRoads[0]!.split('restoreSessionMetadata(').length === 3 && resumeRoads[1]!.includes('restoreSessionMetadata(resumed)'))
-  check('the resume snapshot schema moved past the one older builds wrote, so a snapshot without the switch map is never trusted', SNAPSHOT_SCHEMA === 3)
+  check('the resume snapshot schema moved past the one older builds wrote, so a snapshot without the switch map is never trusted', SNAPSHOT_SCHEMA >= 3)
   const reader = src('src/utils/sessionStorage/transcriptReader.ts')
   check('the pre-boundary metadata pass keeps the advisor-switch record across a compaction, beside the mode', reader.includes(`'"metaKind":"advisor-switch"'`) && reader.includes(`'"metaKind":"mode"'`))
 }

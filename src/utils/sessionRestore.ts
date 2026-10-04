@@ -30,6 +30,7 @@ export type ResumedConversationLog = {
   tag?: string
   mode?: 'coordinator' | 'normal'
   advisor?: boolean
+  model?: string
   worktreeSession?: PersistedWorktreeSession | null
   prNumber?: number
   prUrl?: string
@@ -160,4 +161,10 @@ export function restoreConversationModelFromMessages(messages?: Message[]): stri
   if (servedModel === undefined) return null
 
   return billingSafeRetainedForm(servedModel)
+}
+
+export function restoreConversationModel(result: Pick<ResumedConversationLog, 'messages' | 'model'>): string | null {
+  if (getEngineModelOverride() !== undefined) return null
+  if (result.model) return result.model
+  return restoreConversationModelFromMessages(result.messages)
 }
