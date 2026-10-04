@@ -6,7 +6,7 @@
 # gate-watch: src/components/MessageSelector* src/keybindings/**
 # gate-watch: src/components/CustomSelect/** src/components/permissions/AskUserQuestionPermissionRequest/**
 # gate-watch: scripts/lib/* scripts/streaming/artifactArena.ts scripts/ui/renderScenarios.ts
-# gate-watch: scripts/ui/vshot.py
+# gate-watch: scripts/ui/vshot.py src/substrate/flagRegistry.ts
 # gate-watch: src/* src/components/* src/components/PromptInput/* src/components/mercury-ui/*
 # gate-watch: src/components/messages/AssistantToolUseMessage.tsx src/components/tasks/CompactWorkSummary.tsx
 # gate-watch: src/components/tasks/useFocusedWork.ts src/entrypoints/init.ts src/hooks/*
