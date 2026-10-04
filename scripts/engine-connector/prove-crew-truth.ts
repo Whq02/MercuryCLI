@@ -379,7 +379,7 @@ console.log('— T6 the source pins —')
   check('T6 the /tasks row and card read the owner', (board.match(/crewAgentFactsOf\(work, null\)/g) ?? []).length === 2)
   check(
     'T6 the usage section attributes through the owner',
-    src('src/components/HelmTelemetryRail.tsx').includes('crewUsageLine(crewAgentsOf(workRoster.rows'),
+    src('src/utils/cockpit/helmTelemetryModel.ts').includes('crewUsageLine(crewAgentsOf(input.workRoster.rows'),
   )
   const view = src('src/components/mercury-ui/screens/CrewView.tsx')
   check(

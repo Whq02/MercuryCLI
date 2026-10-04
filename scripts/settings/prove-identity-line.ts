@@ -480,7 +480,7 @@ section('one composer, one reader per family, both surfaces read it')
   const composer = read('src/services/providers/providerIdentityLine.ts')
   check('the identity composer exists beside the usage owner', composer !== '', 'src/services/providers/providerIdentityLine.ts is absent')
   check('the composer reads the presence owner and the roster, never a second grammar of its own', composer.includes('deriveFamilySlotGroups(') && composer.includes('presenceIdentityWords(') && composer.includes(`'${NO_ACCOUNT}'`))
-  check('the rail prints the composer\'s line under every block label', read('src/components/HelmTelemetryRail.tsx').includes('providerIdentityLine('))
+  check('the rail prints the composer\'s line under every block label', read('src/utils/cockpit/helmTelemetryModel.ts').includes('providerIdentityLine('))
   check('the popup prints the composer\'s sentence under every section title', read('src/components/Settings/Usage.tsx').includes('providerIdentityLine('))
 }
 
