@@ -50,7 +50,7 @@ t(
     }),
   ),
 )
-t('the cursor section is shed-immune (published-model lookup)', /cursorRow: published\[getHelmCursor\('lanes'\)\]/.test(rail) && /getHelmRows\('lanes'\)/.test(rail) && /const cursorSection = cursorSectionOf\(built, input\.cursorRow\)/.test(model) && /if \(cursorSection\) mustKeep\.add\(cursorSection\)/.test(model) && /helmRowSig\(r\.row\) === sig\) return s\.key/.test(model))
+t('the cursor section is shed-immune (published-model lookup)', /cursorRow: focused \? published\[getHelmCursor\('lanes'\)\] : undefined/.test(rail) && /getHelmRows\('lanes'\)/.test(rail) && /const cursorSection = cursorSectionOf\(built, input\.cursorRow\)/.test(model) && /if \(cursorSection\) mustKeep\.add\(cursorSection\)/.test(model) && /helmRowSig\(r\.row\) === sig\) return s\.key/.test(model))
 t('the ceiling is the measured availRows', /const shedCeiling = input\.availRows \?\? Infinity/.test(model) && /availRows,\n/.test(rail))
 
 t(

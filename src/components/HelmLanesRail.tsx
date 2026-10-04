@@ -420,7 +420,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     mergedTelemetry,
     availRows,
     activity,
-    cursorRow: published[getHelmCursor('lanes')],
+    cursorRow: focused ? published[getHelmCursor('lanes')] : undefined,
     sessionCrew,
     daemonCrew,
     viewingAgentTaskId,

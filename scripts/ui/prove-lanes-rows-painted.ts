@@ -65,7 +65,7 @@ function shellTask(id: string, command: string): Record<string, unknown> {
 }
 
 type Mounted = { frame: () => string; paint: (availRows: number | undefined) => Promise<void>; close: () => Promise<void> }
-async function mount(tasks: Record<string, unknown>, availRows: number | undefined, width = 28): Promise<Mounted> {
+async function mount(tasks: Record<string, unknown>, availRows: number | undefined, width = 28, merged = false): Promise<Mounted> {
   focus.resetHelmFocusForTest()
   activity.resetCockpitActivityForTests()
   let written = ''
@@ -75,7 +75,7 @@ async function mount(tasks: Record<string, unknown>, availRows: number | undefin
   ) as unknown as NodeJS.WriteStream
   const stdin = Object.assign(new Readable({ read() {} }), { isTTY: true, setRawMode() {}, ref() {}, unref() {} }) as unknown as NodeJS.ReadStream
   const state = { ...getDefaultAppState(), tasks }
-  const tree = (rows: number | undefined) => h(AppStateProvider as never, { initialState: state }, h(HelmLanesRail as never, { width, mergedTelemetry: false, availRows: rows }))
+  const tree = (rows: number | undefined) => h(AppStateProvider as never, { initialState: state }, h(HelmLanesRail as never, { width, mergedTelemetry: merged, availRows: rows }))
   const instance = await render(tree(availRows), { stdout, stdin, exitOnCtrlC: false, patchConsole: false })
   await settle(250)
   return {
@@ -125,6 +125,29 @@ section('§2 the section holding the cursor never sheds, whatever the label of t
   check('RED ON THE BASE: under height pressure the CREW section holding the cursor stays painted', short.includes('CREW') && short.includes('count the'), short)
   check('…with the caret still on the agent row', caretRows(short).some(l => l.includes('count the')), JSON.stringify(caretRows(short)))
   check('…and the card that yields first is the one shed', !short.includes('WORKBENCH') && short.includes('more: /workbench'), short)
+  await m.close()
+}
+
+section('§3 the shed bills the rows it paints: a merged rail whose painted rows exactly fill the glass sheds nothing')
+{
+  const m = await mount({}, 40, 24, true)
+  await settle(400)
+  const tall = m.frame()
+  const inked = tall.split('\n').filter(l => l.trim() !== '')
+  check('tall: the merged solo rail paints its banner, the WORKBENCH card, the four NEXT hints, FILES and the three-row TELEMETRY glance (14 inked rows) with their flat headers and gaps', tall.includes('WORKBENCH') && tall.includes('NEXT') && tall.includes('FILES') && tall.includes('TELEMETRY') && !tall.includes('RECENT') && inked.length === 14, `${inked.length} inked: ${tall}`)
+  const glass = 1 + (1 + 2) + (1 + 2) + (1 + 2) + (3 + 2)
+  await m.paint(glass)
+  const exact = m.frame()
+  check(`RED ON THE BASE: with exactly ${glass} rows of glass (banner 1, card 1+2, hint 1+2, files 1+2, glance 3+2) the rail sheds nothing`, exact.includes('WORKBENCH') && !exact.includes('more: /workbench'), exact)
+  await m.paint(glass - 1)
+  const tight = m.frame()
+  check('one row less sheds the WORKBENCH card first, with the pointer — the resting cursor protects nothing while the rail is not focused', !tight.includes('WORKBENCH') && tight.includes('more: /workbench'), tight)
+  await m.paint(40)
+  focus.setHelmFocus('lanes')
+  await settle(250)
+  await m.paint(glass - 1)
+  const held = m.frame()
+  check('…and once the rail holds focus, the section under the cursor stays and the next in the ladder yields', held.includes('WORKBENCH') && !held.includes('NEXT') && held.includes('more: /help'), held)
   await m.close()
 }
 
