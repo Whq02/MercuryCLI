@@ -24,6 +24,8 @@ type ScanState =
   | 'dcs'
   | 'apc'
   | 'resync'
+  | 'resync-head'
+  | 'resync-x10'
 
 export type ScannerOptions = {
   x10Mouse?: boolean
@@ -50,11 +52,13 @@ export function createScanner(options?: ScannerOptions): Scanner {
   let carry = ''
   let sealedFlushes = 0
   let fedSinceFlush = false
+  let x10Owed = 0
 
   const run = (input: string, flush: boolean): ScanToken[] => {
-    const result = scan(carry + input, state, flush, x10Mouse, { sealedFlushes, fedSinceFlush })
+    const result = scan(carry + input, state, flush, x10Mouse, { sealedFlushes, fedSinceFlush, x10Owed })
     state = result.state
     carry = result.carry
+    x10Owed = result.x10Owed ?? 0
     if (flush) {
       sealedFlushes = result.sealed ? sealedFlushes + 1 : 0
       fedSinceFlush = false
@@ -73,6 +77,7 @@ export function createScanner(options?: ScannerOptions): Scanner {
       carry = ''
       sealedFlushes = 0
       fedSinceFlush = false
+      x10Owed = 0
     },
     buffer: () => carry,
   }
@@ -81,6 +86,7 @@ export function createScanner(options?: ScannerOptions): Scanner {
 type FlushPolicy = {
   sealedFlushes: number
   fedSinceFlush: boolean
+  x10Owed: number
 }
 
 function isResponseHead(s: string): boolean {
@@ -112,9 +118,10 @@ function scan(
   flush: boolean,
   x10Mouse: boolean,
   policy: FlushPolicy,
-): { tokens: ScanToken[]; state: ScanState; carry: string; sealed?: boolean } {
+): { tokens: ScanToken[]; state: ScanState; carry: string; sealed?: boolean; x10Owed?: number } {
   const tokens: ScanToken[] = []
   let state = initial
+  let x10Owed = initial === 'resync-x10' ? policy.x10Owed : 0
   let i = 0
   let textStart = 0
   let seqStart = 0
@@ -163,6 +170,30 @@ function scan(
         } else {
           state = 'ground'
           textStart = i
+        }
+        break
+
+      case 'resync-head':
+        if (x10Mouse && code === 0x4d) {
+          i++
+          textStart = i
+          x10Owed = 3
+          state = 'resync-x10'
+        } else {
+          state = 'resync'
+        }
+        break
+
+      case 'resync-x10':
+        if (x10Owed > 0 && code >= 0x20 && code !== 0x7f) {
+          i++
+          textStart = i
+          x10Owed--
+          if (x10Owed === 0) state = 'ground'
+        } else {
+          state = 'ground'
+          textStart = i
+          x10Owed = 0
         }
         break
 
@@ -282,14 +313,21 @@ function scan(
     flushText()
     return { tokens, state, carry: '' }
   }
-  if (state === 'resync') {
+  if (state === 'resync' || state === 'resync-head') {
     return { tokens, state, carry: '' }
+  }
+  if (state === 'resync-x10') {
+    return { tokens, state, carry: '', x10Owed }
   }
   const remaining = data.slice(seqStart)
   if (!flush) {
     return { tokens, state, carry: remaining }
   }
   if (remaining && isPartialMouseHead(remaining, x10Mouse)) {
+    if (remaining.length > 2 && remaining.charCodeAt(2) === 0x4d) {
+      return { tokens, state: 'resync-x10', carry: '', x10Owed: 6 - remaining.length }
+    }
+    if (x10Mouse && remaining === '\x1b[') return { tokens, state: 'resync-head', carry: '' }
     const next: ScanState = /^\x1b\[<?[\d;]*$/.test(remaining) ? 'resync' : 'ground'
     return { tokens, state: next, carry: '' }
   }

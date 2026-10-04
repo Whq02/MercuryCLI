@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
+# gate-watch: src/ink/input/** src/ink/events/input-event.ts
 # gate-watch: src/screens/Chat.tsx src/components/PromptInput/**
 # gate-watch: src/input-core/** src/components/mercury-ui/useInteractiveList.ts
 # gate-watch: src/components/mercury-ui/parity/RealmsView.tsx src/utils/promptDraft.ts
@@ -23,6 +24,7 @@ cd "$(dirname "$0")/../.." || exit 1
 BUN="${BUN:-$HOME/.bun/bin/bun}"
 overall=0
 for p in \
+  scripts/prompt-input/prove-composer-mouse-tail.ts \
   scripts/prompt-input/prove-prompt-input-switch-fence.ts \
   scripts/prompt-input/prove-prompt-input-async-note.ts \
   scripts/prompt-input/prove-prompt-input-change-view.ts \
