@@ -131,7 +131,7 @@ section('a virtual (display-only) row — the family-lane wire truth')
   const withVirtual = [...DIALECT_CONVERSATION.slice(0, 2), VIRTUAL_ROW as never, ...DIALECT_CONVERSATION.slice(2)]
   const { body } = await drive(withVirtual)
   const wire = canonicalJson(body?.input)
-  check('RECORDED TRUTH (base): the virtual row RIDES the family wire as an assistant message item — the plan must keep these bytes until a bug is named', wire.includes('a display-only row'), wire.slice(0, 260))
+  check('the shared request plan keeps a display-only virtual row off the Responses wire', !wire.includes('a display-only row'), wire.slice(0, 260))
 }
 
 section('the structured-output ask — the Responses text.format json_schema block')

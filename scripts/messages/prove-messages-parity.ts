@@ -7,7 +7,8 @@ import { CORPUS, COMPOSITE, TOOLS_FIXTURE } from './fixtures.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const GOLDEN_PATH = join(HERE, 'goldens.json');
-const RECORD = process.argv.includes('--record');
+const RECORD_ONLY = process.argv.filter(arg => arg.startsWith('--record-only=')).map(arg => arg.slice('--record-only='.length));
+const RECORD = process.argv.includes('--record') || RECORD_ONLY.length > 0;
 
 const UUID_SUB_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 const ISO_SUB_RE = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z/g;
@@ -560,7 +561,12 @@ if (RECORD) {
   if (failures > 0) {
     console.log(`  [REFUSED] --record: ${failures} shape/coverage check(s) failed on the generated values — goldens.json left untouched`);
   } else {
-    writeFileSync(GOLDEN_PATH, JSON.stringify(results, null, 1) + '\n');
+    const recorded = RECORD_ONLY.length > 0 ? JSON.parse(readFileSync(GOLDEN_PATH, 'utf8')) as Record<string, unknown> : results;
+    for (const key of RECORD_ONLY) {
+      if (!(key in results) || !(key in recorded)) throw new Error(`Unknown existing golden case: ${key}`);
+      recorded[key] = results[key];
+    }
+    writeFileSync(GOLDEN_PATH, JSON.stringify(recorded, null, 1) + '\n');
     console.log(
       `  [RECORDED] ${Object.keys(results).length} golden case(s) → scripts/messages/goldens.json (covered ${covered.size} exports, skipped ${Object.keys(SKIPPED).length})`,
     );

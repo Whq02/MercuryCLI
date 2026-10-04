@@ -51,7 +51,8 @@ if (recording) {
   assert.equal(golden.base, '71641f1bdcef83a22b5ab0a03cff54f004655af8')
   assert.deepEqual(Object.keys(bodies).sort(), Object.keys(golden.bodies).sort())
   for (const [name, body] of Object.entries(bodies)) {
-    assert.equal(canonicalJson(body), canonicalJson(golden.bodies[name]), `${name}: wire bytes changed`)
+    assert.equal(canonicalJson(body), canonicalJson(golden.bodies[name]), `${name}: canonical wire bytes changed`)
+    assert.equal(JSON.stringify(body), JSON.stringify(golden.bodies[name]), `${name}: serialized wire bytes changed`)
     console.log(`PASS: ${name} request bytes are identical to the original base`)
   }
 }

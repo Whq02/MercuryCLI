@@ -21,6 +21,18 @@ import {
   reorderAttachmentsForAPI,
 } from './apiView.js'
 import { joinBatchedContent } from './batchedContent.js'
+import { requestPlanOf, type RequestPlan } from '../../rows/request.js'
+import { storedBlocksOf } from '../../rows/content.js'
+import { normalizeAttachmentForAPI } from './attachmentText.js'
+import { createUserMessage } from './factories.js'
+import { mergeAssistantMessages, mergeUserMessages, mergeUserMessagesAndToolResults, isToolResultMessage } from './merge.js'
+import { pairConversationMessages } from './pairing.js'
+import { dropEmptyTextBlocks, filterOrphanedThinkingOnlyMessages, filterTrailingThinkingFromLastAssistant, filterWhitespaceOnlyAssistantMessages, ensureNonEmptyAssistantContent, sanitizeErrorToolResultContent } from './apiFilters.js'
+import { stripToolReferenceBlocksFromUserMessage, stripUnavailableToolReferencesFromUserMessage, withToolReferenceTurnBoundary } from './apiView.js'
+import { isToolSearchEnabledOptimistic } from '../toolSearch.js'
+import { normalizeToolInputForAPI } from '../api.js'
+import { toolMatchesName } from '../../Tool.js'
+import { validateImagesForAPI } from '../imageValidation.js'
 
 export type PlannedMessage =
   | UserMessage
@@ -222,4 +234,102 @@ function foldBatchedRows(messages: PlannedMessage[]): PlannedMessage[] {
     i = j - 1
   }
   return out
+}
+export interface RequestConversationPlan extends ApiConversationPlan {
+  messages: (UserMessage | AssistantMessage)[]
+  request: RequestPlan
+}
+
+export function requestConversationPlan(
+  messages: readonly Message[],
+  tools: Tools = [],
+  geometry: 'anthropic' | 'family' = 'anthropic',
+): RequestConversationPlan {
+  const selection = geometry === 'anthropic'
+    ? planApiConversation(messages as Message[], tools)
+    : {
+      selected: messages.filter((message): message is PlannedMessage =>
+        ((message.type === 'user' || message.type === 'assistant') && !message.isVirtual) ||
+        message.type === 'attachment' || isSystemLocalCommandMessage(message)),
+      stripTargets: new Map<string, Set<string>>(),
+      availableToolNames: new Set(tools.map(tool => tool.name)),
+    }
+  const projected = projectConversationSelection(selection, tools, geometry)
+  const prepared = geometry === 'family' ? pairConversationMessages(projected, 'split') : finishApiContent(projected)
+  let request: RequestPlan | undefined
+  return { ...selection, messages: prepared, get request() { return request ??= requestPlanOf(prepared, { tools }) } }
+}
+
+function projectConversationSelection(
+  plan: ApiConversationPlan,
+  tools: Tools,
+  geometry: 'anthropic' | 'family',
+): (UserMessage | AssistantMessage)[] {
+  const out: (UserMessage | AssistantMessage)[] = []
+  const putUser = (message: UserMessage, fromAttachment = false): void => {
+    const previous = out.at(-1)
+    if (geometry === 'anthropic' && previous?.type === 'user') {
+      out[out.length - 1] = fromAttachment ? mergeUserMessagesAndToolResults(previous, message) : mergeUserMessages(previous, message)
+    } else out.push(message)
+  }
+  for (const message of plan.selected) {
+    if (message.type === 'attachment') {
+      const projected = normalizeAttachmentForAPI(message.attachment)
+      if (geometry === 'anthropic' && out.at(-1)?.type === 'user') {
+        for (const row of projected) putUser(row, true)
+      } else out.push(...projected)
+      continue
+    }
+    if (message.type === 'system') {
+      putUser(createUserMessage({ content: message.content, uuid: message.uuid, timestamp: message.timestamp }))
+      continue
+    }
+    if (geometry === 'family') {
+      out.push(message)
+      continue
+    }
+    if (message.type === 'user') {
+      const references = isToolSearchEnabledOptimistic()
+        ? stripUnavailableToolReferencesFromUserMessage(message, plan.availableToolNames)
+        : stripToolReferenceBlocksFromUserMessage(message)
+      const kept = applyStripTargets(references, plan.stripTargets)
+      if (kept !== null) putUser(withToolReferenceTurnBoundary(kept))
+      continue
+    }
+    const toolSearch = isToolSearchEnabledOptimistic()
+    const normalized: AssistantMessage = {
+      ...message,
+      message: {
+        ...message.message,
+        content: storedBlocksOf(message.message.content).map(block => {
+          if (block.type !== 'tool_use') return block
+          const tool = tools.find(candidate => toolMatchesName(candidate, block.name))
+          const name = tool?.name ?? block.name
+          const input = tool ? normalizeToolInputForAPI(tool, block.input as Record<string, unknown>) : block.input
+          return toolSearch ? { ...block, name, input } : { type: 'tool_use' as const, id: block.id, name, input }
+        }) as AssistantMessage['message']['content'],
+      },
+    }
+    let joined = false
+    for (let index = out.length - 1; index >= 0; index--) {
+      const previous = out[index]!
+      if (previous.type !== 'assistant' && !isToolResultMessage(previous)) break
+      if (previous.type === 'assistant' && previous.message.id === normalized.message.id) {
+        out[index] = mergeAssistantMessages(previous, normalized)
+        joined = true
+        break
+      }
+    }
+    if (!joined) out.push(normalized)
+  }
+  return out
+}
+
+function finishApiContent(messages: (UserMessage | AssistantMessage)[]): (UserMessage | AssistantMessage)[] {
+  let rows = messages
+  for (const stage of [dropEmptyTextBlocks, filterOrphanedThinkingOnlyMessages, filterTrailingThinkingFromLastAssistant, filterWhitespaceOnlyAssistantMessages, ensureNonEmptyAssistantContent, sanitizeErrorToolResultContent]) {
+    rows = stage(rows) as (UserMessage | AssistantMessage)[]
+  }
+  validateImagesForAPI(rows)
+  return rows
 }
