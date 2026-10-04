@@ -426,6 +426,8 @@ export const WorktreeCreateHookSpecificOutputSchema = lazySchema(() =>
   }),
 )
 
+import { hookSpecificReducers, type HookSpecificReducer } from './resultEffects.js'
+
 export type HookMatchField =
   | 'tool_name'
   | 'source'
@@ -448,6 +450,8 @@ export type HookEventRow = {
   noHttp?: boolean
   promptOutsideChat?: string
   agentOutsideChat?: string
+  feedback?: (text: string, hookName?: string) => string
+  reduceSpecific?: HookSpecificReducer
 }
 
 const hookEventTableRows = {
@@ -455,6 +459,7 @@ const hookEventTableRows = {
     input: PreToolUseHookInputSchema,
     output: PreToolUseHookSpecificOutputSchema,
     matchField: 'tool_name' as const,
+    feedback: (text: string, hookName?: string) => `${hookName} hook error: ${text}`,
   },
   PostToolUse: {
     input: PostToolUseHookInputSchema,
@@ -484,6 +489,7 @@ const hookEventTableRows = {
   UserPromptSubmit: {
     input: UserPromptSubmitHookInputSchema,
     output: UserPromptSubmitHookSpecificOutputSchema,
+    feedback: (text: string) => `UserPromptSubmit operation blocked by hook:\n${text}`,
   },
   UserPromptExpansion: {
     input: UserPromptExpansionHookInputSchema,
@@ -502,6 +508,7 @@ const hookEventTableRows = {
   },
   Stop: {
     input: StopHookInputSchema,
+    feedback: (text: string) => `Stop hook feedback:\n${text}`,
   },
   StopFailure: {
     input: StopFailureHookInputSchema,
@@ -532,12 +539,15 @@ const hookEventTableRows = {
   },
   CrewmateIdle: {
     input: CrewmateIdleHookInputSchema,
+    feedback: (text: string) => `CrewmateIdle hook feedback:\n${text}`,
   },
   TaskCreated: {
     input: TaskCreatedHookInputSchema,
+    feedback: (text: string) => `TaskCreated hook feedback:\n${text}`,
   },
   TaskCompleted: {
     input: TaskCompletedHookInputSchema,
+    feedback: (text: string) => `TaskCompleted hook feedback:\n${text}`,
   },
   Elicitation: {
     input: ElicitationHookInputSchema,
@@ -612,9 +622,9 @@ export const HOOK_EVENTS = [
 ] as const satisfies readonly (keyof typeof hookEventTableRows)[]
 export type HookEvent = (typeof HOOK_EVENTS)[number]
 
-export const hookEventTable = hookEventTableRows as Readonly<
-  Record<HookEvent, HookEventRow>
->
+export const hookEventTable = Object.fromEntries(
+  HOOK_EVENTS.map(event => [event, { ...hookEventTableRows[event], reduceSpecific: hookSpecificReducers[event] }]),
+) as unknown as Readonly<Record<HookEvent, HookEventRow>>
 
 export function hookEventMatchQuery(event: HookEvent, input: HookInput): string | undefined {
   const field = hookEventTable[event]?.matchField

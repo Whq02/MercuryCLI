@@ -193,7 +193,7 @@ async function modelTransport(run: Invocation): Promise<HookResult> {
   }
 }
 
-async function inProcessTransport(run: Invocation): Promise<HookResult> {
+async function inProcessOutcome(run: Invocation): Promise<HookResult> {
   if (run.hook.type === 'callback') {
     const combined = createCombinedAbortSignal(run.signal, { timeoutMs: run.hook.timeout ? run.hook.timeout * 1000 : run.timeoutMs })
     try {
@@ -203,6 +203,17 @@ async function inProcessTransport(run: Invocation): Promise<HookResult> {
   const hook = run.hook as FunctionHook
   if (!run.messages) return { message: createAttachmentMessage({ type: 'hook_error_during_execution', hookName: run.hookName, toolUseID: run.toolUseID, hookEvent: run.hookEvent, content: 'Messages not provided for function hook' }), outcome: 'non_blocking_error', hook }
   return executeFunctionHook({ hook, messages: run.messages, hookName: run.hookName, toolUseID: run.toolUseID, hookEvent: run.hookEvent, timeoutMs: run.timeoutMs, signal: run.signal, hookInput: run.hookInput, tool: run.toolUseContext && 'tool_name' in run.hookInput ? findToolByName(run.toolUseContext.options.tools, run.hookInput.tool_name) : undefined })
+}
+
+async function inProcessTransport(run: Invocation): Promise<HookResult> {
+  const visible = !(run.hook.type === 'callback' && run.hook.internal) && !(run.hook.type === 'function' && run.hook.silent)
+  if (visible) emitHookStarted(run.hookId, run.hookName, run.hookEvent)
+  const result = await inProcessOutcome(run)
+  if (visible) {
+    const output = result.lifecycle?.output ?? result.systemMessage ?? result.blockingError?.blockingError ?? ''
+    response(run, output, output, '', result.outcome === 'cancelled' ? 'cancelled' : result.outcome === 'success' ? 'success' : 'error')
+  }
+  return result
 }
 
 const transportTable = {
@@ -397,6 +408,6 @@ export async function* runHookEvent({ event, fields, toolUseID = randomUUID(), m
 }): AsyncGenerator<AggregatedHookResult | HookResult> {
   const record = fields as Record<string, unknown>
   const base = createBaseHookInput(record.permission_mode as string | undefined, sessionId, toolUseContext ? { agentId: toolUseContext.agentId, agentType: record.agent_type as string | undefined } : record.agent_id !== undefined || record.agent_type !== undefined ? { agentId: record.agent_id as string | undefined, agentType: record.agent_type as string | undefined } : undefined)
-  const hookInput = { ...base, ...record, ...(cwd !== undefined ? { cwd } : {}), ...(transcriptPath !== undefined ? { transcript_path: transcriptPath } : {}), hook_event_name: event } as HookInput
-  yield* withHookRunContext({ cwd: hookInput.cwd, ...(trustAccepted !== undefined ? { trustAccepted } : {}), ...(marks ? { handler: emitted => { if (emitted.type === 'started') marks.started({ ...emitted, hookEvent: event }); else if (emitted.type === 'progress') marks.progress?.(emitted); else marks.response({ ...emitted, hookEvent: event }) } } : {}) }, executeHooks({ hookInput, toolUseID, matchQuery: matchQuery ?? hookEventMatchQuery(event, hookInput), signal, timeoutMs: timeoutMs ?? hookEventTable[event].timeoutMs ?? TOOL_HOOK_EXECUTION_TIMEOUT_MS, toolUseContext, messages, forceSyncExecution, requestPrompt, toolInputSummary, perHook, getAppState }))
+  const hookInput = { ...base, ...record, session_id: base.session_id, cwd: cwd ?? base.cwd, transcript_path: transcriptPath ?? base.transcript_path, hook_event_name: event } as HookInput
+  yield* withHookRunContext({ sessionId: hookInput.session_id, cwd: hookInput.cwd, ...(trustAccepted !== undefined ? { trustAccepted } : {}), ...(marks ? { handler: emitted => { if (emitted.type === 'started') marks.started({ ...emitted, hookEvent: event }); else if (emitted.type === 'progress') marks.progress?.(emitted); else marks.response({ ...emitted, hookEvent: event }) } } : {}) }, executeHooks({ hookInput, toolUseID, matchQuery: matchQuery ?? hookEventMatchQuery(event, hookInput), signal, timeoutMs: timeoutMs ?? hookEventTable[event].timeoutMs ?? TOOL_HOOK_EXECUTION_TIMEOUT_MS, toolUseContext, messages, forceSyncExecution, requestPrompt, toolInputSummary, perHook, getAppState }))
 }

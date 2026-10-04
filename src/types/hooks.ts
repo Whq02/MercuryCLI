@@ -90,6 +90,7 @@ export type PermissionRequestResult =
       interrupt?: boolean
     }
 
-export type HookResult = import('../utils/hooks/types.js').HookResult
+export type HookResult = Omit<import('../utils/hooks/types.js').HookResult, 'message' | 'hook'> & { message?: unknown }
 
-export type AggregatedHookResult = import('../utils/hooks/types.js').AggregatedHookResult
+export type AggregatedHookResult = Omit<import('../utils/hooks/types.js').AggregatedHookResult, 'message'> & { message?: unknown; blockingErrors: HookBlockingError[] }
+export type HookOutputContractCheck = true

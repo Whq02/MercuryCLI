@@ -42,8 +42,16 @@ const QUEUE_CAP = 100
 let handler: HookEventHandler | null = null
 let queued: HookExecutionEvent[] = []
 let allHookEventsEnabled = false
+const observers = new Set<HookEventHandler>()
+
+export function subscribeHookExecutionEvents(observer: HookEventHandler): () => void {
+  observers.add(observer)
+  for (const event of queued) observer(event)
+  return () => { observers.delete(observer) }
+}
 
 export type HookRunContext = {
+  sessionId?: string
   cwd?: string
   trustAccepted?: boolean
   handler?: HookEventHandler
@@ -79,7 +87,10 @@ function shouldEmit(hookEvent: string): boolean {
 }
 
 function deliver(event: HookExecutionEvent): void {
-  if (recognisedEvents.has(event.hookEvent)) getHookRunContext()?.handler?.(event)
+  if (recognisedEvents.has(event.hookEvent)) {
+    getHookRunContext()?.handler?.(event)
+    for (const observer of observers) observer(event)
+  }
   if (!shouldEmit(event.hookEvent)) return
   if (handler) {
     handler(event)
