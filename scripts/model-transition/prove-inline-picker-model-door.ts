@@ -10,7 +10,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 const promptInput = readFileSync(join(SRC, 'components/PromptInput/useComposerModelDoors.tsx'), 'utf8')
-const applyAt = promptInput.indexOf('const applyModelSelection = (value: string | null): void => {')
+const applyAt = promptInput.indexOf('const applyModelSelection = (value: string | null, persist = false): void => {')
 const nextFnAt = promptInput.indexOf('const handleModelSelect', applyAt)
 const apply = applyAt >= 0 && nextFnAt > applyAt ? promptInput.slice(applyAt, nextFnAt) : ''
 

@@ -20,6 +20,7 @@ import { HUGGINGFACE_CONNECT_OPTION_VALUE } from '../../services/providers/huggi
 import { GEMINI_CONNECT_OPTION_VALUE } from '../../services/providers/gemini/geminiCatalogue.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
 import { renderModelName } from '../../utils/model/model.js'
+import { persistModelChoice } from '../../commands/model/persistModelChoice.js'
 import {
   capFailoverLaneOf,
   capHandoffState,
@@ -91,7 +92,7 @@ export type ComposerModelDoorsInput = {
 }
 
 export type ComposerModelDoors = {
-  handleModelSelect: (value: string) => void
+  handleModelSelect: (value: string, persist?: boolean) => void
   capLaneLine: string | null
   capLaneCut: ReturnType<typeof capLaneLineCut>
   surface: React.ReactNode | null
@@ -116,6 +117,7 @@ export function useComposerModelDoors({
     value: string
     plan: TransitionPlan
     refreshed: boolean
+    persist: boolean
   } | null>(null)
   const [capOffer, setCapOffer] = useState<{
     trigger: 'rejected' | 'reset'
@@ -149,7 +151,7 @@ export function useComposerModelDoors({
   useSyncExternalStore(subscribeOpenaiObserved, getOpenaiObservedVersion, getOpenaiObservedVersion)
   useSyncExternalStore(subscribeCapHandoff, getCapHandoffVersion, getCapHandoffVersion)
 
-  const applyModelSelection = (value: string | null): void => {
+  const applyModelSelection = (value: string | null, persist = false): void => {
     const focused = getFocusedSessionConnector()
     if (focused.carrier === 'daemon') {
       const label = value === null ? 'Default' : renderModelName(value)
@@ -157,12 +159,13 @@ export function useComposerModelDoors({
       const effectiveBefore = focused.modelFacts().effective
       void focused.setModel(value).then(receipt => {
         settleCapHandoffIntent(receipt.state === 'applied' || receipt.state === 'queued')
-        if (receipt.state === 'no-op') {
-          addNotification({ key: 'model-switched', text: `Already on ${label} — nothing to change`, priority: 'high', timeoutMs: 3000 })
-          return
-        }
         if (receipt.state === 'refused') {
           addNotification({ key: 'model-switched', text: `The model switch was refused: ${receipt.detail}`, priority: 'high', timeoutMs: 5000 })
+          return
+        }
+        const saved = persist ? persistModelChoice(value).sentence : ''
+        if (receipt.state === 'no-op') {
+          addNotification({ key: 'model-switched', text: saved === '' ? `Already on ${label} — nothing to change` : `Already on ${label}${saved}`, priority: 'high', timeoutMs: 3000 })
           return
         }
         const doorCross = providerFamilyOfSetting(effectiveBefore) !== providerFamilyOfSetting(value) ? crossProviderNote(value) : ''
@@ -173,13 +176,13 @@ export function useComposerModelDoors({
             ? {
                 key: 'model-switched',
                 invalidates: ['model-transition-applied'],
-                text: `Model switch queued: ${label} applies when this session's turn settles (the running turn keeps its model)${doorCross}${doorLossNote}`,
+                text: `Model switch queued: ${label}${saved === '' ? '' : `${saved} —`} applies when this session's turn settles (the running turn keeps its model)${doorCross}${doorLossNote}`,
                 priority: 'high',
                 timeoutMs: 5000,
               }
             : {
                 key: 'model-switched',
-                text: `Set model to ${label} — this session's next message runs it${receipt.note !== undefined ? ` (${receipt.note})` : ''}${doorCross}${doorLossNote}`,
+                text: `Set model to ${label}${saved} — this session's next message runs it${receipt.note !== undefined ? ` (${receipt.note})` : ''}${doorCross}${doorLossNote}`,
                 priority: 'high',
                 timeoutMs: 3000,
               },
@@ -195,13 +198,14 @@ export function useComposerModelDoors({
     settleCapHandoffIntent(settled.kind === 'applied' || settled.kind === 'queued')
     const label = value === null ? 'Default' : renderModelName(value)
     setOverlay(null)
+    const saved = persist ? persistModelChoice(value).sentence : ''
     if (settled.kind === 'no-op') {
-      addNotification({ key: 'model-switched', text: `Already on ${label} — nothing to change`, priority: 'high', timeoutMs: 3000 })
+      addNotification({ key: 'model-switched', text: saved === '' ? `Already on ${label} — nothing to change` : `Already on ${label}${saved}`, priority: 'high', timeoutMs: 3000 })
       return
     }
     if (settled.kind === 'cancelled-pending') {
       setAppState(prev => ({ ...prev, ...settled.patch }))
-      addNotification({ key: 'model-switched', text: `Already on ${label} — queued switch cancelled`, priority: 'high', timeoutMs: 3000 })
+      addNotification({ key: 'model-switched', text: `Already on ${label} — queued switch cancelled${saved}`, priority: 'high', timeoutMs: 3000 })
       return
     }
     const effectiveFrom = stateNow.engineModelForSession ?? stateNow.engineModel
@@ -211,7 +215,7 @@ export function useComposerModelDoors({
       addNotification({
         key: 'model-switched',
         invalidates: ['model-transition-applied'],
-        text: `Model switch queued: ${label} applies when the current turn settles (the running turn keeps its model)${settled.crossProvider ? crossProviderNote(value) : ''}${lossNote}`,
+        text: `Model switch queued: ${label}${saved === '' ? '' : `${saved} —`} applies when the current turn settles (the running turn keeps its model)${settled.crossProvider ? crossProviderNote(value) : ''}${lossNote}`,
         priority: 'high',
         timeoutMs: 5000,
       })
@@ -220,13 +224,13 @@ export function useComposerModelDoors({
     setAppState(prev => ({ ...prev, ...settled.patch }))
     addNotification({
       key: 'model-switched',
-      text: `Set model to ${label}${settled.receipt.crossProvider ? crossProviderNote(value) : ''}${lossNote}`,
+      text: `Set model to ${label}${saved}${settled.receipt.crossProvider ? crossProviderNote(value) : ''}${lossNote}`,
       priority: 'high',
       timeoutMs: 3000,
     })
   }
 
-  const handleModelSelect = (value: string): void => {
+  const handleModelSelect = (value: string, persist = false): void => {
     if (value === ANTHROPIC_CONNECT_OPTION_VALUE) {
       setOverlay(null)
       requestCommandDispatch('/logins anthropic')
@@ -271,12 +275,12 @@ export function useComposerModelDoors({
         value,
       )
       if (gatePlan.needsChoice) {
-        setTransitionConfirm({ value, plan: gatePlan, refreshed: false })
+        setTransitionConfirm({ value, plan: gatePlan, refreshed: false, persist })
         setOverlay('model-transition-preview')
         return
       }
     }
-    applyModelSelection(value)
+    applyModelSelection(value, persist)
   }
 
   useEffect(() => {
@@ -475,12 +479,12 @@ export function useComposerModelDoors({
             if (held.plan.window?.fits === false) {
               const foldingSession = getFocusedSessionConnector()
               if (foldingSession.carrier === 'daemon') {
-                void foldingSession.sendWords('/compact').then(() => applyModelSelection(held.value))
+                void foldingSession.sendWords('/compact').then(() => applyModelSelection(held.value, held.persist))
                 return
               }
               requestCommandDispatch('/compact')
             }
-            applyModelSelection(held.value)
+            applyModelSelection(held.value, held.persist)
           }}
           onCancel={() => {
             capHandoffIntentRef.current = null
@@ -501,7 +505,7 @@ export function useComposerModelDoors({
         <ModelPicker
           initial={engineModelForSession ?? engineModel ?? focusedMainModel}
           sessionModel={engineModelForSession}
-          onSelect={value => handleModelSelect(value)}
+          onSelect={value => handleModelSelect(value, true)}
           onCancel={() => setOverlay(null)}
         />
       )
