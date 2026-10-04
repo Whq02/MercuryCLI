@@ -41,6 +41,8 @@ try {
   check('compaction resets exactly once', (await listing.getSkillListingAttachments(context)).length === 0)
   listing.resetSentSkillNames()
   listing.suppressNextSkillListing()
+  const bootstrap = await import(`${root}/src/bootstrap/state.ts`)
+  bootstrap.regenerateSessionId()
   const child = await listing.getSkillListingAttachments({ ...context, agentId: 'capsule-child', messages: [] })
   check('a child cannot consume the main resume suppression', child.some((row: any) => row.content.includes('capsule-proof')))
   check('the resumed main still suppresses its already-visible listing', (await listing.getSkillListingAttachments(context)).length === 0)
