@@ -1,4 +1,3 @@
-
 import type { UUID } from 'crypto'
 import { builtInCommandNames } from '../../commands.js'
 import { COMMAND_NAME_TAG } from '../../constants/xml.js'
@@ -13,82 +12,46 @@ import type {
   AssistantMessage,
   AttachmentMessage,
   Message,
-  SystemCompactBoundaryMessage,
   SystemMessage,
   UserMessage,
 } from '../../types/message.js'
 import { logForDebugging } from '../debug.js'
 import type { FileHistorySnapshot } from '../fileHistory.js'
-import { logError } from '../log.js'
-import { extractTag, isCompactBoundaryMessage, normalizeAttachmentForAPI } from '../messages.js'
+import { extractTag, normalizeAttachmentForAPI } from '../messages.js'
+import { transcriptRows } from './rowGraph.js'
 
 const SKIP_FIRST_PROMPT_PATTERN =
   /^(?:\s*<[a-z][\w-]*[\s>]|\[Request interrupted by user[^\]]*\])/
 
 export function extractFirstPrompt(transcript: TranscriptMessage[]): string {
   const textContent = getFirstMeaningfulUserMessageTextContent(transcript)
-  if (textContent) {
-    let result = textContent.replace(/\n/g, ' ').trim()
-
-    if (result.length > 200) {
-      result = result.slice(0, 200).trim() + '…'
-    }
-
-    return result
-  }
-
-  return 'No prompt'
+  if (!textContent) return 'No prompt'
+  const flat = textContent.replace(/\n/g, ' ').trim()
+  return flat.length > 200 ? flat.slice(0, 200).trim() + '…' : flat
 }
 
 export function getFirstMeaningfulUserMessageTextContent<T extends Message>(
   transcript: T[],
 ): string | undefined {
   for (const msg of transcript) {
-    if (msg.type !== 'user' || msg.isMeta) continue
-    if ('isCompactSummary' in msg && msg.isCompactSummary) continue
-
+    if (msg.type !== 'user' || msg.isMeta || msg.isCompactSummary) continue
     const content = msg.message?.content
     if (!content) continue
-
-    const texts: string[] = []
-    if (typeof content === 'string') {
-      texts.push(content)
-    } else if (Array.isArray(content)) {
-      for (const block of content) {
-        if (block.type === 'text' && block.text) {
-          texts.push(block.text)
-        }
+    const texts = typeof content === 'string'
+      ? [content]
+      : Array.isArray(content) ? content.flatMap(block => block.type === 'text' && block.text ? [block.text] : []) : []
+    for (const text of texts) {
+      if (!text) continue
+      const command = extractTag(text, COMMAND_NAME_TAG)
+      if (command) {
+        if (builtInCommandNames().has(command.replace(/^\//, ''))) continue
+        const args = extractTag(text, 'command-args')?.trim()
+        if (!args) continue
+        return `${command} ${args}`
       }
-    }
-
-    for (const textContent of texts) {
-      if (!textContent) continue
-
-      const commandNameTag = extractTag(textContent, COMMAND_NAME_TAG)
-      if (commandNameTag) {
-        const commandName = commandNameTag.replace(/^\//, '')
-
-        if (builtInCommandNames().has(commandName)) {
-          continue
-        } else {
-          const commandArgs = extractTag(textContent, 'command-args')?.trim()
-          if (!commandArgs) {
-            continue
-          }
-          return `${commandNameTag} ${commandArgs}`
-        }
-      }
-
-      const bashInput = extractTag(textContent, 'bash-input')
-      if (bashInput) {
-        return `! ${bashInput}`
-      }
-
-      if (SKIP_FIRST_PROMPT_PATTERN.test(textContent)) {
-        continue
-      }
-
-      return textContent
+      const shell = extractTag(text, 'bash-input')
+      if (shell) return `! ${shell}`
+      if (!SKIP_FIRST_PROMPT_PATTERN.test(text)) return text
     }
   }
   return undefined
@@ -97,161 +60,17 @@ export function getFirstMeaningfulUserMessageTextContent<T extends Message>(
 export function removeExtraFields(
   transcript: TranscriptMessage[],
 ): SerializedMessage[] {
-  return transcript.map(m => {
-    const { isSidechain, parentUuid, ...serializedMessage } = m
-    return serializedMessage
-  })
+  return transcript.map(({ isSidechain, parentUuid, ...message }) => message)
 }
 
 export function applyPreservedSegmentRelinks(
   messages: Map<UUID, TranscriptMessage>,
 ): void {
-  type Seg = NonNullable<
-    SystemCompactBoundaryMessage['compactMetadata']['preservedSegment']
-  >
-
-  let lastSeg: Seg | undefined
-  let lastSegBoundaryIdx = -1
-  let absoluteLastBoundaryIdx = -1
-  const entryIndex = new Map<UUID, number>()
-  let i = 0
-  for (const entry of messages.values()) {
-    entryIndex.set(entry.uuid, i)
-    if (isCompactBoundaryMessage(entry)) {
-      absoluteLastBoundaryIdx = i
-      const seg = entry.compactMetadata?.preservedSegment
-      if (seg) {
-        lastSeg = seg
-        lastSegBoundaryIdx = i
-      }
-    }
-    i++
-  }
-  if (!lastSeg) return
-
-  const segIsLive = lastSegBoundaryIdx === absoluteLastBoundaryIdx
-
-  const preservedUuids = new Set<UUID>()
-  if (segIsLive) {
-    const walkSeen = new Set<UUID>()
-    let cur = messages.get(lastSeg.tailUuid)
-    let reachedHead = false
-    while (cur && !walkSeen.has(cur.uuid)) {
-      walkSeen.add(cur.uuid)
-      preservedUuids.add(cur.uuid)
-      if (cur.uuid === lastSeg.headUuid) {
-        reachedHead = true
-        break
-      }
-      cur = cur.parentUuid ? messages.get(cur.parentUuid) : undefined
-    }
-    if (!reachedHead) {
-      return
-    }
-  }
-
-  if (segIsLive) {
-    const head = messages.get(lastSeg.headUuid)
-    if (head && head.parentUuid !== lastSeg.anchorUuid) {
-      messages.set(lastSeg.headUuid, {
-        ...head,
-        parentUuid: lastSeg.anchorUuid,
-      })
-    }
-    for (const [uuid, msg] of messages) {
-      if (msg.parentUuid === lastSeg.anchorUuid && uuid !== lastSeg.headUuid) {
-        messages.set(uuid, { ...msg, parentUuid: lastSeg.tailUuid })
-      }
-    }
-    for (const uuid of preservedUuids) {
-      const msg = messages.get(uuid)
-      if (msg?.type !== 'assistant') continue
-      const usage = msg.message.usage
-      if (
-        usage !== undefined &&
-        usage.input_tokens === 0 &&
-        usage.output_tokens === 0 &&
-        usage.cache_creation_input_tokens === 0 &&
-        usage.cache_read_input_tokens === 0
-      ) {
-        continue
-      }
-      messages.set(uuid, {
-        ...msg,
-        message: {
-          ...msg.message,
-          usage: {
-            ...msg.message.usage,
-            input_tokens: 0,
-            output_tokens: 0,
-            cache_creation_input_tokens: 0,
-            cache_read_input_tokens: 0,
-          },
-        },
-      })
-    }
-  }
-
-  const toDelete: UUID[] = []
-  for (const [uuid] of messages) {
-    const idx = entryIndex.get(uuid)
-    if (
-      idx !== undefined &&
-      idx < absoluteLastBoundaryIdx &&
-      !preservedUuids.has(uuid)
-    ) {
-      toDelete.push(uuid)
-    }
-  }
-  for (const uuid of toDelete) messages.delete(uuid)
+  transcriptRows(messages).relinkPreserved()
 }
 
 export function applySnipRemovals(messages: Map<UUID, TranscriptMessage>): void {
-  type WithSnipMeta = { snipMetadata?: { removedUuids?: UUID[] } }
-  const toDelete = new Set<UUID>()
-  for (const entry of messages.values()) {
-    const removedUuids = (entry as WithSnipMeta).snipMetadata?.removedUuids
-    if (!removedUuids) continue
-    for (const uuid of removedUuids) toDelete.add(uuid)
-  }
-  if (toDelete.size === 0) return
-
-  const deletedParent = new Map<UUID, UUID | null>()
-  let removedCount = 0
-  for (const uuid of toDelete) {
-    const entry = messages.get(uuid)
-    if (!entry) continue
-    deletedParent.set(uuid, entry.parentUuid)
-    messages.delete(uuid)
-    removedCount++
-  }
-
-  const resolve = (start: UUID): UUID | null => {
-    const path: UUID[] = []
-    let cur: UUID | null | undefined = start
-    while (cur && toDelete.has(cur)) {
-      path.push(cur)
-      cur = deletedParent.get(cur)
-      if (cur === undefined) {
-        cur = null
-        break
-      }
-    }
-    for (const p of path) deletedParent.set(p, cur)
-    return cur
-  }
-  let relinkedCount = 0
-  for (const [uuid, msg] of messages) {
-    if (!msg.parentUuid || !toDelete.has(msg.parentUuid)) continue
-    messages.set(uuid, { ...msg, parentUuid: resolve(msg.parentUuid) })
-    relinkedCount++
-  }
-
-  if (removedCount > 0 || relinkedCount > 0) {
-    logForDebugging(
-      `snip replay on load: ${removedCount} message(s) removed, ${relinkedCount} survivor(s) re-linked`,
-    )
-  }
+  transcriptRows(messages).removeSnipped()
 }
 
 export function findLatestMessage<T extends { timestamp: string }>(
@@ -275,143 +94,18 @@ export function buildConversationChain(
   messages: Map<UUID, TranscriptMessage>,
   leafMessage: TranscriptMessage,
 ): TranscriptMessage[] {
-  const transcript: TranscriptMessage[] = []
-  const seen = new Set<UUID>()
-  let currentMsg: TranscriptMessage | undefined = leafMessage
-  while (currentMsg) {
-    if (seen.has(currentMsg.uuid)) {
-      logError(
-        new Error(
-          `Cycle detected in parentUuid chain at message ${currentMsg.uuid}. Returning partial transcript.`,
-        ),
-      )
-      break
-    }
-    seen.add(currentMsg.uuid)
-    transcript.push(currentMsg)
-    currentMsg = currentMsg.parentUuid
-      ? messages.get(currentMsg.parentUuid)
-      : undefined
-  }
-  transcript.reverse()
-  return recoverChainAttachedNotes(messages, recoverOrphanedParallelToolResults(messages, transcript, seen), seen)
-}
-
-function recoverChainAttachedNotes(
-  messages: Map<UUID, TranscriptMessage>,
-  chain: TranscriptMessage[],
-  seen: Set<UUID>,
-): TranscriptMessage[] {
-  const notesByParent = new Map<UUID, TranscriptMessage[]>()
-  for (const m of messages.values()) {
-    if (m.type !== 'system' || seen.has(m.uuid) || !m.parentUuid || !seen.has(m.parentUuid)) continue
-    const subtype = (m as { subtype?: string }).subtype
-    if (subtype === 'compact_boundary' || subtype === 'microcompact_boundary') continue
-    const group = notesByParent.get(m.parentUuid)
-    if (group) group.push(m)
-    else notesByParent.set(m.parentUuid, [m])
-  }
-  if (notesByParent.size === 0) return chain
-  const out: TranscriptMessage[] = []
-  for (const m of chain) {
-    out.push(m)
-    const notes = notesByParent.get(m.uuid)
-    if (notes) {
-      for (const note of notes) {
-        seen.add(note.uuid)
-        out.push(note)
-      }
-    }
-  }
-  return out
-}
-
-function recoverOrphanedParallelToolResults(
-  messages: Map<UUID, TranscriptMessage>,
-  chain: TranscriptMessage[],
-  seen: Set<UUID>,
-): TranscriptMessage[] {
-  type ChainAssistant = Extract<TranscriptMessage, { type: 'assistant' }>
-  const chainAssistants = chain.filter(
-    (m): m is ChainAssistant => m.type === 'assistant',
-  )
-  if (chainAssistants.length === 0) return chain
-
-  const anchorByMsgId = new Map<string, ChainAssistant>()
-  for (const a of chainAssistants) {
-    if (a.message.id) anchorByMsgId.set(a.message.id, a)
-  }
-
-  const siblingsByMsgId = new Map<string, TranscriptMessage[]>()
-  const toolResultsByAsst = new Map<UUID, TranscriptMessage[]>()
-  for (const m of messages.values()) {
-    if (m.type === 'assistant' && m.message.id) {
-      const group = siblingsByMsgId.get(m.message.id)
-      if (group) group.push(m)
-      else siblingsByMsgId.set(m.message.id, [m])
-    } else if (
-      m.type === 'user' &&
-      m.parentUuid &&
-      Array.isArray(m.message.content) &&
-      m.message.content.some(b => b.type === 'tool_result')
-    ) {
-      const group = toolResultsByAsst.get(m.parentUuid)
-      if (group) group.push(m)
-      else toolResultsByAsst.set(m.parentUuid, [m])
-    }
-  }
-
-  const processedGroups = new Set<string>()
-  const inserts = new Map<UUID, TranscriptMessage[]>()
-  let recoveredCount = 0
-  for (const asst of chainAssistants) {
-    const msgId = asst.message.id
-    if (!msgId || processedGroups.has(msgId)) continue
-    processedGroups.add(msgId)
-
-    const group = siblingsByMsgId.get(msgId) ?? [asst]
-    const orphanedSiblings = group.filter(s => !seen.has(s.uuid))
-    const orphanedTRs: TranscriptMessage[] = []
-    for (const member of group) {
-      const trs = toolResultsByAsst.get(member.uuid)
-      if (!trs) continue
-      for (const tr of trs) {
-        if (!seen.has(tr.uuid)) orphanedTRs.push(tr)
-      }
-    }
-    if (orphanedSiblings.length === 0 && orphanedTRs.length === 0) continue
-
-    orphanedSiblings.sort((a, b) => a.timestamp.localeCompare(b.timestamp))
-    orphanedTRs.sort((a, b) => a.timestamp.localeCompare(b.timestamp))
-
-    const anchor = anchorByMsgId.get(msgId)!
-    const recovered = [...orphanedSiblings, ...orphanedTRs]
-    for (const r of recovered) seen.add(r.uuid)
-    recoveredCount += recovered.length
-    inserts.set(anchor.uuid, recovered)
-  }
-
-  if (recoveredCount === 0) return chain
-
-  const result: TranscriptMessage[] = []
-  for (const m of chain) {
-    result.push(m)
-    const toInsert = inserts.get(m.uuid)
-    if (toInsert) result.push(...toInsert)
-  }
-  return result
+  return transcriptRows(messages).chain(leafMessage)
 }
 
 export function checkResumeConsistency(chain: Message[]): void {
   for (let i = chain.length - 1; i >= 0; i--) {
-    const m = chain[i]!
-    if (m.type !== 'system' || m.subtype !== 'turn_duration') continue
-    const expected = m.messageCount
-    if (expected === undefined) return
-    const drift = i - expected
+    const row = chain[i]!
+    if (row.type !== 'system' || row.subtype !== 'turn_duration') continue
+    if (row.messageCount === undefined) return
+    const drift = i - row.messageCount
     if (drift !== 0) {
       logForDebugging(
-        `resume round-trip drift: turn_duration checkpoint expected ${expected} prior message(s), chain has ${i} (drift ${drift > 0 ? '+' : ''}${drift})`,
+        `resume round-trip drift: turn_duration checkpoint expected ${row.messageCount} prior message(s), chain has ${i} (drift ${drift > 0 ? '+' : ''}${drift})`,
         { level: 'warn' },
       )
     }
@@ -424,21 +118,15 @@ export function buildFileHistorySnapshotChain(
   conversation: TranscriptMessage[],
 ): FileHistorySnapshot[] {
   const snapshots: FileHistorySnapshot[] = []
-  const indexByMessageId = new Map<string, number>()
-  for (const message of conversation) {
-    const snapshotMessage = fileHistorySnapshots.get(message.uuid)
-    if (!snapshotMessage) {
-      continue
-    }
-    const { snapshot, isSnapshotUpdate } = snapshotMessage
-    const existingIndex = isSnapshotUpdate
-      ? indexByMessageId.get(snapshot.messageId)
-      : undefined
-    if (existingIndex === undefined) {
-      indexByMessageId.set(snapshot.messageId, snapshots.length)
-      snapshots.push(snapshot)
-    } else {
-      snapshots[existingIndex] = snapshot
+  const slots = new Map<string, number>()
+  for (const row of conversation) {
+    const entry = fileHistorySnapshots.get(row.uuid)
+    if (!entry) continue
+    const slot = entry.isSnapshotUpdate ? slots.get(entry.snapshot.messageId) : undefined
+    if (slot !== undefined) snapshots[slot] = entry.snapshot
+    else {
+      slots.set(entry.snapshot.messageId, snapshots.length)
+      snapshots.push(entry.snapshot)
     }
   }
   return snapshots
@@ -455,10 +143,8 @@ export function cleanMessagesForLogging(
   messages: Message[],
   allMessages: readonly Message[] = messages,
 ): Transcript {
-  const filtered = messages.filter(isLoggableMessage) as Transcript
-  return transformMessagesForExternalTranscript(
-    filtered,
-  ).map(message => projectForTranscript(message, allMessages))
+  return transformMessagesForExternalTranscript(messages.filter(isLoggableMessage) as Transcript)
+    .map(message => projectForTranscript(message, allMessages))
 }
 
 export type Transcript = (
@@ -470,16 +156,19 @@ export type Transcript = (
 
 export function isLoggableMessage(m: Message): boolean {
   if (m.type === 'progress') return false
-  if (m.type === 'attachment') {
-    const att = m.attachment
-    if (att.type === 'hook_non_blocking_error' || att.type === 'hook_error_during_execution') return true
-    if (att.type === 'bypassed_ask') return true
-    if (att.type === 'bound_prefix') return true
-    if (att.type === 'dead_thinking') return true
-    if (att.type === 'images_left_out') return true
-    return normalizeAttachmentForAPI(att).length > 0
+  if (m.type !== 'attachment') return true
+  const att = m.attachment
+  switch (att.type) {
+    case 'hook_non_blocking_error':
+    case 'hook_error_during_execution':
+    case 'bypassed_ask':
+    case 'bound_prefix':
+    case 'dead_thinking':
+    case 'images_left_out':
+      return true
+    default:
+      return Boolean((att as { capsuleReceipt?: unknown }).capsuleReceipt) || normalizeAttachmentForAPI(att).length > 0
   }
-  return true
 }
 
 export function transformMessagesForExternalTranscript(messages: Transcript): Transcript {
