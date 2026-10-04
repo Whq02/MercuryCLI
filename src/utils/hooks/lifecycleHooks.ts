@@ -60,6 +60,7 @@ export async function executeLifecycleHooks({
 
 function lifecycleRowOf(event: HookEvent, result: HookResult): HookLifecycleResult {
   const hook = result.hook
+  if (result.lifecycle) return result.lifecycle
   const command =
     hook.type === 'callback'
       ? 'callback'
