@@ -108,7 +108,7 @@ stands, so the next chat returns to it the moment that family signs in;
 The board's New
 Session strip births on the same saved choice; its own effort pick, when
 you make one, holds for that one birth. A resumed session
-keeps the model and effort it ran on unless the command line says
+keeps the model and effort it was on unless the command line says
 otherwise: `--continue --model <id> --effort <level>` brings the session
 back on the launch's model and effort, its record is re-stamped, and the
 resume card names which won when the launch's word and the session's saved

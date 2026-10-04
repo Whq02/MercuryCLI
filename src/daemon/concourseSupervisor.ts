@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, statSync } from 'nod
 import { join } from 'node:path'
 import { randomUUID } from '../utils/crypto.js'
 import { recordToEntry } from '../fabric/entryCodec.js'
-import { billingSafeRetainedForm, servedModelOfAssistantRow } from '../utils/model/retainedModel.js'
+import { billingSafeRetainedForm, servedModelOfAssistantRow, sessionModelOfEntry } from '../utils/model/retainedModel.js'
 import { logForDebugging } from '../utils/debug.js'
 import { gitInitRefusal, type GitInitRefusal } from '../utils/projectBoundary.js'
 import { renameWithWin32RetrySync } from '../substrate/durablePublish.js'
@@ -720,14 +720,19 @@ export function resumeModelKeyOf(sessionId: string, workspaceDir: string, dir?: 
   let retained: string | undefined
   try {
     scanTranscriptLinesBackward(transcript, line => {
-      if (!line.includes('assistant') && !line.includes('output')) return
+      if (!line.includes('assistant') && !line.includes('output') && !line.includes('"metaKind":"model"')) return
       try {
         const row = JSON.parse(line) as Record<string, unknown>
         const entry = (
           typeof row.recordId === 'string' && row.payload !== undefined
             ? (recordToEntry(row as never) as Record<string, unknown>)
             : row
-        ) as { type?: string; message?: { model?: unknown } }
+        ) as { type?: string; model?: unknown; message?: { model?: unknown } }
+        const chosen = sessionModelOfEntry(entry)
+        if (chosen !== undefined) {
+          retained = chosen
+          return true
+        }
         const served = servedModelOfAssistantRow(entry)
         if (served !== undefined) {
           retained = billingSafeRetainedForm(served)

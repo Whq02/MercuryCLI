@@ -298,6 +298,7 @@ export function restoreSessionMetadata(meta: {
   agentSetting?: string
   mode?: 'coordinator' | 'normal'
   advisor?: boolean
+  model?: string
   worktreeSession?: PersistedWorktreeSession | null
   prNumber?: number
   prUrl?: string
@@ -311,6 +312,7 @@ export function restoreSessionMetadata(meta: {
   if (meta.agentSetting) project.currentSessionAgentSetting = meta.agentSetting
   if (meta.mode) project.currentSessionMode = meta.mode
   if (meta.advisor !== undefined) project.currentSessionAdvisor = meta.advisor
+  if (meta.model) project.currentSessionModel = meta.model
   if (meta.worktreeSession !== undefined)
     project.currentSessionWorktree = meta.worktreeSession
   if (meta.prNumber !== undefined)
@@ -329,6 +331,7 @@ export function clearSessionMetadata(): void {
   project.currentSessionAgentSetting = undefined
   project.currentSessionMode = undefined
   project.currentSessionAdvisor = undefined
+  project.currentSessionModel = undefined
   project.currentSessionWorktree = undefined
   project.currentSessionPrNumber = undefined
   project.currentSessionPrUrl = undefined
@@ -388,6 +391,19 @@ export function saveAdvisorSwitch(on: boolean): void {
     appendEntryToFile(project.sessionFile, {
       type: 'advisor-switch',
       on,
+      sessionId: getSessionId(),
+    })
+  }
+}
+
+export function saveSessionModel(model: string): void {
+  const project = getProject()
+  if (!model || project.currentSessionModel === model) return
+  project.currentSessionModel = model
+  if (project.sessionFile) {
+    appendEntryToFile(project.sessionFile, {
+      type: 'model',
+      model,
       sessionId: getSessionId(),
     })
   }
@@ -541,6 +557,7 @@ export type ResumeFacts = Pick<
   | 'tag'
   | 'mode'
   | 'advisor'
+  | 'model'
   | 'worktreeSession'
   | 'prNumber'
   | 'prUrl'
@@ -566,6 +583,7 @@ export function resumeFactsOf(
     tag: fold.tags.get(sessionId),
     mode: fold.modes.get(sessionId) as LogOption['mode'],
     advisor: fold.advisorSwitches.get(sessionId),
+    model: fold.sessionModels.get(sessionId),
     worktreeSession: fold.worktreeStates.has(sessionId) ? fold.worktreeStates.get(sessionId) : undefined,
     prNumber: fold.prNumbers.get(sessionId),
     prUrl: fold.prUrls.get(sessionId),

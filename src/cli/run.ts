@@ -228,8 +228,9 @@ import {
   doesMessageExistInSession,
   saveAdvisorSwitch,
   saveAgentSetting,
+  saveSessionModel,
 } from '../utils/sessionStorage.js'
-import { restoreAgentFromSession, restoreConversationModelFromMessages, restoreSessionStateFromLog } from '../utils/sessionRestore.js'
+import { restoreAgentFromSession, restoreConversationModel, restoreSessionStateFromLog } from '../utils/sessionRestore.js'
 import {
   notifySessionStateChanged,
   setPermissionModeChangedListener,
@@ -627,7 +628,7 @@ export async function runHeadless(
   }
 
   if ((options.continue || options.resume) && !getEngineModelOverride()) {
-    const recorded = restoreConversationModelFromMessages(messages)
+    const recorded = restoreConversationModel({ messages, model: loaded.model })
     if (recorded && !options.userSpecifiedModel) {
       setEngineModelOverride(recorded)
     }
@@ -815,6 +816,7 @@ export async function runHeadless(
     options.userSpecifiedModel === undefined
       ? undefined
       : parseUserSpecifiedModel(options.userSpecifiedModel)
+  saveSessionModel(activeModel ?? getEngineModel())
   let thinkingConfig: ThinkingConfig | undefined = options.thinkingConfig
   let initializeJsonSchema: Record<string, unknown> | undefined
   let activeCommands = commands
@@ -1010,6 +1012,7 @@ export async function runHeadless(
     const previous = activeModel ?? getEngineModel()
     activeModel = model
     setEngineModelOverride(model)
+    saveSessionModel(model)
     notifySessionStateChanged('idle')
     if (model !== previous) await injectModelSwitchBreadcrumbs(model)
   }
@@ -1956,6 +1959,7 @@ export async function runHeadless(
       if (claimedModel !== undefined) {
         activeModel = parseUserSpecifiedModel(claimedModel)
         setEngineModelOverride(claimedModel)
+        saveSessionModel(activeModel)
         setFlagEnv('MERCURY_MODEL', claimedModel)
       }
       if (claimedEffort !== undefined) {

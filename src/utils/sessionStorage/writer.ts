@@ -375,6 +375,7 @@ const ALWAYS_APPEND_KINDS = new Set<Entry['type']>([
   'speculation-accept',
   'mode',
   'advisor-switch',
+  'model',
   'worktree-state',
   'context-collapse-commit',
   'context-collapse-snapshot',
@@ -390,6 +391,7 @@ class Project {
   currentSessionAgentSetting: string | undefined
   currentSessionMode: 'coordinator' | 'normal' | undefined
   currentSessionAdvisor: boolean | undefined
+  currentSessionModel: string | undefined
   currentSessionWorktree: PersistedWorktreeSession | null | undefined
   currentSessionPrNumber: number | undefined
   currentSessionPrUrl: string | undefined
@@ -706,6 +708,13 @@ class Project {
       appendEntryToFile(this.sessionFile, {
         type: 'advisor-switch',
         on: this.currentSessionAdvisor,
+        sessionId,
+      })
+    }
+    if (this.currentSessionModel) {
+      appendEntryToFile(this.sessionFile, {
+        type: 'model',
+        model: this.currentSessionModel,
         sessionId,
       })
     }

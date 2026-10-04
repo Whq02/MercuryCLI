@@ -126,6 +126,7 @@ export {
   saveAiGeneratedTitle,
   saveCustomTitle,
   saveMode,
+  saveSessionModel,
   saveTag,
   saveTaskSummary,
   saveWorktreeState,

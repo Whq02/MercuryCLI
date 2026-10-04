@@ -295,6 +295,76 @@ section('§6b — the retained walk runs the ONE provenance law (FN-013 MODEL-01
   agree('default base form', SID_DEFAULT, [user(), asst(defaultBase)])
 }
 
+section("§6c — the session's own model entry: written when the session starts, read first by both resume roads; a transcript without one falls back to the served rows")
+{
+  const { readFileSync, writeFileSync, mkdirSync: mkd } = await import('node:fs')
+  const { join: j } = await import('node:path')
+  const supervisor = await import('../../src/daemon/concourseSupervisor.ts')
+  const paths = await import('../../src/utils/sessionStorage/paths.ts')
+  const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
+  const { loadTranscriptFile } = await import('../../src/utils/sessionStorage/loading.ts')
+  const restore = (await import('../../src/utils/sessionRestore.ts')) as Record<string, unknown>
+  const fromRows = restore.restoreConversationModelFromMessages as (messages: unknown[]) => string | null
+  const restoreConversationModel = (restore.restoreConversationModel ?? ((r: { messages: unknown[] }) => fromRows(r.messages))) as (r: { messages: unknown[]; model?: string }) => string | null
+  const workspaceId = supervisor.canonicalWorkspaceId(work)
+  const projDir = paths.getProjectDir(workspaceId)
+  mkd(projDir, { recursive: true })
+  type Row = { kind: 'model'; model: string } | { kind: 'served'; model: string }
+  const writeShape = (sid: string, rows: Row[]): string => {
+    const transcript = j(projDir, `${sid}.jsonl`)
+    let parent: string | null = null
+    let seq = 0
+    let encoded = ''
+    const push = (row: Record<string, unknown>): void => {
+      encoded += (encodeTranscriptLine as (p: string, e: Record<string, unknown>) => { line: string })(transcript, row).line
+    }
+    const uuidOf = (n: number): string => `00000000-0000-4000-8000-0000${sid.slice(-4)}${String(n).padStart(4, '0')}`
+    const meta = (uuid: string) => ({ isSidechain: false, entrypoint: 'cli', cwd: work, sessionId: sid, version: '1.0.0-beta.27', gitBranch: '', parentUuid: parent, uuid, timestamp: `2026-10-04T04:00:${String(seq).padStart(2, '0')}.000Z` })
+    const first = uuidOf(seq)
+    push({ ...meta(first), type: 'user', message: { role: 'user', content: 'the first turn, never answered or answered below' } })
+    parent = first
+    for (const row of rows) {
+      seq++
+      if (row.kind === 'model') {
+        push({ type: 'model', model: row.model, sessionId: sid })
+        continue
+      }
+      const uuid = uuidOf(seq)
+      push({ ...meta(uuid), type: 'assistant', message: { role: 'assistant', model: row.model, content: [{ type: 'text', text: `served by ${row.model}.` }] } })
+      parent = uuid
+    }
+    writeFileSync(transcript, encoded)
+    return transcript
+  }
+  const headlessRoad = async (transcript: string, sid: string): Promise<string | null> => {
+    const fold = await loadTranscriptFile(transcript)
+    const messages = [...fold.messages.values()]
+    return restoreConversationModel({ messages, model: fold.sessionModels?.get(sid as never) })
+  }
+
+  const SID_UNANSWERED = '00000000-aaaa-bbbb-cccc-00000000a701'
+  const unanswered = writeShape(SID_UNANSWERED, [{ kind: 'model', model: 'openrouter/stealth/space-bunny-alpha' }])
+  const walkUnanswered = supervisor.resumeModelKeyOf(SID_UNANSWERED, work)
+  check('the daemon walk reads the model entry of a session whose first turn was never answered — a provider-prefixed id, verbatim (red on the base: undefined, the registry default)', walkUnanswered === 'openrouter/stealth/space-bunny-alpha', String(walkUnanswered))
+  const headlessUnanswered = await headlessRoad(unanswered, SID_UNANSWERED)
+  check('the headless reader reads the same entry first (red on the base: null, the default)', headlessUnanswered === 'openrouter/stealth/space-bunny-alpha', String(headlessUnanswered))
+
+  const SID_SWITCHED = '00000000-aaaa-bbbb-cccc-00000000a702'
+  const switched = writeShape(SID_SWITCHED, [{ kind: 'model', model: 'glm-5.3' }, { kind: 'served', model: 'glm-5.3' }, { kind: 'model', model: 'kimi-k3' }])
+  check('a session that switched model after an answer resumes on the switch — the newest entry — on both roads', supervisor.resumeModelKeyOf(SID_SWITCHED, work) === 'kimi-k3' && (await headlessRoad(switched, SID_SWITCHED)) === 'kimi-k3', `walk=${String(supervisor.resumeModelKeyOf(SID_SWITCHED, work))}`)
+
+  const SID_OLD = '00000000-aaaa-bbbb-cccc-00000000a703'
+  const old = writeShape(SID_OLD, [{ kind: 'served', model: 'glm-5.3' }, { kind: 'served', model: '<synthetic>' }])
+  check('an old-shape transcript (no entry) still answers from its served rows on both roads', supervisor.resumeModelKeyOf(SID_OLD, work) === 'glm-5.3' && (await headlessRoad(old, SID_OLD)) === 'glm-5.3', `walk=${String(supervisor.resumeModelKeyOf(SID_OLD, work))}`)
+
+  const SID_OLD_UNANSWERED = '00000000-aaaa-bbbb-cccc-00000000a704'
+  const oldUnanswered = writeShape(SID_OLD_UNANSWERED, [])
+  check('an old-shape unanswered transcript retains nothing on both roads — the registry default serves it, as today', supervisor.resumeModelKeyOf(SID_OLD_UNANSWERED, work) === undefined && (await headlessRoad(oldUnanswered, SID_OLD_UNANSWERED)) === null)
+
+  const admit = readFileSync(j(import.meta.dir, '../../src/daemon/concourseSupervisor.ts'), 'utf8')
+  check('the admission policy reads the resume walk for a re-admitted session', admit.includes('resumeModelKeyOf(req.resumeSessionId, req.workspaceDir, deps.dir)'))
+}
+
 section("§7 — spoken names resolve on the LAUNCH path (the coordinator's words)")
 {
   const sonnet = await wm.validateWorkerModelChoice('sonnet 5', 'session')

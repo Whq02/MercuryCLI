@@ -60,6 +60,7 @@ type LoadInitialMessagesResult = {
   contentReplacements?: ContentReplacementRecord[]
   turnInterruptionState?: TurnInterruptionState
   agentSetting?: string
+  model?: string
 }
 
 export async function loadInitialMessages(
@@ -110,6 +111,7 @@ export async function loadInitialMessages(
           contentReplacements: result.contentReplacements,
           turnInterruptionState: result.turnInterruptionState,
           agentSetting: result.agentSetting,
+          model: result.model,
         }
       }
       emitLoadError('No conversation found to continue', options.outputFormat)
@@ -202,6 +204,7 @@ export async function loadInitialMessages(
         contentReplacements: result.contentReplacements,
         turnInterruptionState: result.turnInterruptionState,
         agentSetting: result.agentSetting,
+        model: result.model,
       }
     } catch (error) {
       logError(error)
