@@ -231,6 +231,9 @@ function outageFactsOf(error: unknown): OutageWaitFacts | null {
 
 const OVERLOADED_MARKER = '"type":"overloaded_error"'
 
+export const EMPTY_STREAM_END_MARKER = 'ended the stream before its first event'
+export const EMPTY_STREAM_REASON_WORDS = 'an empty stream'
+
 function causeWords(kind: RecoveryWaitClass, status: number | undefined, message: string): string {
   if (kind === 'throttle') {
     if (status === 429) return 'provider busy (HTTP 429)'
@@ -241,6 +244,7 @@ function causeWords(kind: RecoveryWaitClass, status: number | undefined, message
     if (status === 404) return 'the streaming door refused (HTTP 404)'
     return /watchdog|no stream events|went quiet|silen/i.test(message) ? 'the stream went quiet' : 'the stream dropped'
   }
+  if (message.includes(EMPTY_STREAM_END_MARKER)) return EMPTY_STREAM_REASON_WORDS
   if (status === 408) return 'the request timed out (HTTP 408)'
   if (status === 409) return 'provider conflict (HTTP 409)'
   if (status === 401 || status === 403) return `the sign-in is refreshing (HTTP ${status})`
