@@ -211,6 +211,7 @@
    ],
    "src/utils/permissions/permissionSetup.ts": [
     "createDisabledBypassPermissionsContext",
+    "describeSessionPermissionMode",
     "findDangerousClassifierPermissions",
     "getAutoModeUnavailableNotification",
     "getAutoModeUnavailableReason",
@@ -225,8 +226,10 @@
     "parseToolListFromCLI",
     "resolvePermissionModeCandidates",
     "resolveSavedPermissionMode",
+    "resolveSessionPermissionMode",
     "restoreDangerousPermissions",
     "savedPermissionModeCandidate",
+    "sessionPermissionModeSourceWords",
     "setPermissionModeWithGuards",
     "stripDangerousPermissionsForAutoMode",
     "transitionPermissionMode",
@@ -234,6 +237,8 @@
     "type:AutoModeGateCheckResult",
     "type:AutoModeUnavailableReason",
     "type:DangerousPermissionInfo",
+    "type:SessionPermissionModeResolution",
+    "type:SessionPermissionModeSource",
     "type:SetPermissionModeResult",
     "validateModeEntry",
     "verifyAutoModeGateAccess"
