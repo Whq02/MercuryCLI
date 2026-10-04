@@ -98,6 +98,7 @@ import {
   stripDangerousPermissionsForAutoMode,
 } from './utils/permissions/permissionSetup.js'
 import { PERMISSION_MODES, modeBypassesPermissions, type PermissionMode } from './utils/permissions/PermissionMode.js'
+import { MODE_GLOSS } from './utils/settings/validationTips.js'
 import { profileCheckpoint, profileReport } from './utils/startupProfiler.js'
 import { resetUserCache, getCoreUserData } from './utils/user.js'
 import { settingsChangeDetector } from './utils/settings/changeDetector.js'
@@ -426,8 +427,8 @@ async function run(): Promise<void> {
     .addOption(new Option('--input <format>', 'Read JSON-line rows from stdin with run').choices(['rows']))
     .option('--schema <schema>', 'JSON schema for structured output')
     .option('--partial', 'Include partial rows while run streams')
-    .option('--sovereign', 'Run without permission prompts')
-    .option('--allow-sovereign', 'Allow the session to enter sovereign mode')
+    .option('--sovereign', 'Start in sovereign mode: no permission prompts at all (a deny rule still refuses)')
+    .option('--allow-sovereign', 'Let the session switch into running without permission prompts (sovereign mode) later; it does not start there')
     .addOption(new Option('--reasoning-mode <mode>', 'Thinking mode').choices(['enabled', 'adaptive', 'disabled']).hideHelp())
     .addOption(new Option('--max-turns <turns>', 'Maximum turns for a run').argParser((value: string) => {
       const parsed = Number(value)
@@ -436,23 +437,23 @@ async function run(): Promise<void> {
       }
       return parsed
     }).hideHelp())
-    .option('--budget <amount>', 'Maximum spend for a run', value => {
+    .option('--budget <usd>', 'The most a run may spend, in US dollars (2.50 is two dollars fifty); the turn ends when it is reached', value => {
       const parsed = Number(value)
       if (!Number.isFinite(parsed) || parsed <= 0) {
         failCli('--budget must be a positive number greater than 0')
       }
       return parsed
     })
-    .option('--allowed-tools <tools...>', 'Allowed tool rules')
+    .option('--allowed-tools <tools...>', 'Tools the model may use without asking, as rules: a tool name, or a tool with a pattern — Read, Bash(git *), Edit(src/**), mcp__server__tool')
     .option('--toolset <tools...>', 'Base tool set')
-    .option('--block-tools <tools...>', 'Denied tool rules')
+    .option('--block-tools <tools...>', 'Tools the model may never use, in the same shape as --allowed-tools')
     .option('--mcp <configs...>', 'MCP server configs (JSON or file paths)')
     .option('--only-mcp', 'Only use MCP servers from --mcp')
-    .option('--brief <prompt>', 'Set the session system brief')
+    .option('--brief <prompt>', 'Set the standing instructions the model reads before the conversation (the session system brief)')
     .addOption(new Option('--brief-file <file>', 'Read the session system brief from a file').hideHelp())
     .option('--brief-add <prompt>', 'Append to the session system brief')
     .addOption(new Option('--brief-add-file <file>', 'Append to the session system brief from a file').hideHelp())
-    .addOption(new Option('--mode <mode>', 'Permission mode').choices(PERMISSION_MODES))
+    .addOption(new Option('--mode <mode>', `Permission mode — ${PERMISSION_MODES.map(mode => `${mode}: ${MODE_GLOSS[mode]}`).join('; ')}`).choices(PERMISSION_MODES))
     .option('-c, --continue', 'Continue the most recent conversation')
     .option('-r, --resume [value]', 'Resume a conversation (session id, title, or picker)')
     .option('--fork', 'Fork to a new session id on resume')
@@ -462,7 +463,7 @@ async function run(): Promise<void> {
     .addOption(new Option('--replay-to <message-id>', 'Truncate the resumed session at a message').hideHelp())
     .addOption(new Option('--restore-files <user-message-id>', 'Rewind files to a user message').hideHelp())
     .option('--model <model>', 'The model for the session')
-    .option('--advise', 'Turn the advisor on for this run at birth — the headless form of /advise on; the advisor master switch in the run\'s config home must be on')
+    .option('--advise', 'Turn on the second model that advises the working model (the advisor) from the run\'s first turn (at birth) — the headless form of /advise on; the advisor\'s master switch in Mercury\'s home folder for this run (the config home) must be on')
     .option(`--effort <level>`, `Reasoning effort level (${EFFORT_LEVELS.join(', ')})`, value => {
       const { level } = parseCliEffort(value)
       if (level === undefined) {
@@ -476,17 +477,17 @@ async function run(): Promise<void> {
     .option('--provider-preview <betas...>', 'Provider beta headers')
     .option('--backup-model <model>', 'Fallback model when the primary is overloaded')
     .addOption(new Option('--meter-tag <tag>', 'Workload tag').hideHelp())
-    .option('--project <directory>', 'Start in this project; place this option before all other arguments', () => {
+    .option('--project <directory>', 'Start in this folder; it must come first on the command line, before everything else (mercury --project <dir> run …)', () => {
       throw new Error('--project must appear before all other arguments')
     })
     .option('--config <file-or-json>', 'Extra settings (path or inline JSON)')
     .option('--session-id <uuid>', 'Use a specific session id')
     .option('--title <name>', 'Session title')
-    .option('--chat', 'Boot the plain world: the Boot face and a chat, nothing else on the strip — no concourse in this boot; ↵ New Session on the menu starts the chat (the classic feel; `-chat` is the same switch)')
-    .option('--concourse-off', 'Turn the session concourse off for this and every future boot (persisted; the strip is the boot face and the chat alone; the boot face\'s Session Concourse row keeps a plain live view of your sessions; `-concourse-off` is the same switch)')
-    .option('--concourse-on', 'Turn the session concourse back on for this and every future boot (persisted; the default is on; `-concourse-on` is the same switch)')
+    .option('--chat', 'Open only the screen Mercury opens on (the Boot face) and a chat: no board of your sessions (no concourse) in this boot, and the row of screens shift+←/→ move between (the strip) is those two alone; ↵ New Session on the menu starts the chat (`-chat` is the same switch)')
+    .option('--concourse-off', 'Turn the concourse off for this and every future boot (persisted; the strip is the Boot face and the chat alone; the Boot face\'s Session Concourse row keeps a plain live view of your sessions; `-concourse-off` is the same switch)')
+    .option('--concourse-on', 'Turn the concourse back on for this and every future boot (persisted; the default is on; `-concourse-on` is the same switch)')
     .option('--agent-defs <json>', 'Extra agent definitions (JSON)')
-    .option('--config-layers <sources>', 'Comma-separated allowed setting sources')
+    .option('--config-layers <sources>', 'Which settings sources may apply, comma-separated: user, project, local')
     .option('--extension <path>', 'An extension folder approved for this session only (repeatable)', (value, previous: string[]) => [...previous, value], [] as string[])
     .option('--no-commands', 'Disable all slash commands')
     .option('-v, --version', 'Print the version')
@@ -563,7 +564,7 @@ async function run(): Promise<void> {
   })
   const runCommand = program.command('run')
     .description('Run a prompt without a terminal UI; use only in directories you trust')
-    .argument('[prompt]', 'Prompt text; - or no argument reads stdin to EOF; an argument takes up to 1s of piped context')
+    .argument('[prompt]', 'The prompt; - or no prompt reads it from stdin to the end; with a prompt, anything piped in within 1 s is added as context')
     .configureHelp({ sortOptions: true })
     .action(async (prompt: string | undefined) => {
       await defaultAction(prompt, { ...sessionOptions(runCommand), runMode: true })
@@ -633,7 +634,7 @@ async function run(): Promise<void> {
 async function registerSubcommands(program: CommanderCommand): Promise<void> {
   const cliName = binaryName()
 
-  const mcp = program.command('mcp').description('Manage MCP servers')
+  const mcp = program.command('mcp').description('Manage MCP servers').helpCommand('help [command]', 'Show help for a command')
   mcp.enablePositionalOptions().configureHelp({ sortSubcommands: true, sortOptions: true })
   mcp
     .command('serve')
@@ -662,7 +663,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
   mcp
     .command('list')
     .description(
-      'List configured MCP servers. The trust dialog is skipped, and stdio servers from the project MCP file are spawned for health checks.',
+      "List the configured MCP servers and check each by connecting to it (a stdio server is started for the check; the project's servers are included without the approval question)",
     )
     .action(async () => {
       const { mcpListHandler } = await import('./cli/handlers/mcp.js')
@@ -671,7 +672,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
   mcp
     .command('get <name>')
     .description(
-      'Show one MCP server. The trust dialog is skipped, and stdio servers from the project MCP file are spawned for health checks.',
+      'Show one MCP server and check it by connecting to it (a stdio server is started for the check; a project server is included without the approval question)',
     )
     .action(async name => {
       const { mcpGetHandler } = await import('./cli/handlers/mcp.js')
@@ -694,7 +695,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
       await mcpResetChoicesHandler()
     })
 
-  const auth = program.command('auth').description('Manage authentication')
+  const auth = program.command('auth').description('Manage authentication').helpCommand('help [command]', 'Show help for a command')
   auth
     .command('mint')
     .description('Create a long-lived authentication token')
@@ -708,7 +709,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     .description('Sign in')
     .option('--email <email>', 'Account email')
     .option('--sso', 'Use SSO')
-    .option('--console', 'Console account (the default is the subscription sign-in)')
+    .option('--console', 'Sign in with an Anthropic Console (API) account; the default is the subscription sign-in')
     .action(async options => {
       const { authLogin } = await import('./cli/handlers/auth.js')
       await authLogin(options)
@@ -729,19 +730,19 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
       await authLogout()
     })
 
-  const extensions = program.command('extensions').description('Install extensions and manage their sources')
+  const extensions = program.command('extensions').description('Install extensions and manage their sources').helpCommand('help [command]', 'Show help for a command')
   extensions
     .command('list')
-    .description('The installed roster with state and the first reason; --source lists what a source offers')
+    .description('The installed extensions, each with its state and the first reason behind it; --source lists what one source offers')
     .option('--json', 'JSON output')
-    .option('--source <label>', "List a source's extensions")
+    .option('--source <label>', 'List what one source offers, by the name you filed it under (its label)')
     .action(async options => {
       const { listVerb } = await import('./extensions/cli.js')
       process.exitCode = (await listVerb(options)).exit
     })
   extensions
     .command('sources')
-    .description('The sources with state')
+    .description('Your sources, each with its state')
     .option('--json', 'JSON output')
     .action(async options => {
       const { sourcesVerb } = await import('./extensions/cli.js')
@@ -750,14 +751,15 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
   extensions
     .command('add <source>')
     .description('Add a source: a git URL on any host, a folder, or an archive (nothing is installed)')
-    .option('--label <label>', 'The label to file it under')
+    .option('--label <label>', 'The name to file the source under (its label)')
     .option('--json', 'JSON output')
     .action(async (source, options) => {
       const { addVerb } = await import('./extensions/cli.js')
       process.exitCode = (await addVerb(source, options)).exit
     })
   extensions
-    .command('remove <label>')
+    .command('remove')
+    .argument('<label>', 'The name you filed the source under (its label)')
     .description('Remove a source (its installed copies keep working)')
     .option('--and-extensions', 'Also uninstall the extensions installed from it')
     .action(async (label, options) => {
@@ -765,7 +767,8 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
       process.exitCode = (await removeVerb(label, options)).exit
     })
   extensions
-    .command('refresh [label]')
+    .command('refresh')
+    .argument('[label]', 'The name you filed the source under (its label); none means every source')
     .description('Refresh one or every source; prints the updates found (installs nothing)')
     .option('--json', 'JSON output')
     .action(async (label, options) => {
@@ -773,8 +776,9 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
       process.exitCode = (await checkVerb(label, options)).exit
     })
   extensions
-    .command('install <name>')
-    .description('Install <name>[@label]: fetch, show the card, approve with --yes on a TTY-less run')
+    .command('install')
+    .argument('<name>', 'The extension to install; name@label takes it from the one source filed under that name (its label)')
+    .description('Install an extension: fetch it, show what it will run on your machine and what it needs (the card), then approve it (on a TTY-less run, --yes is the approval)')
     .option('--yes', 'Approve without asking (the only scripted approval)')
     .option('--project', 'Switch on for this project only')
     .action(async (name, options) => {
@@ -783,7 +787,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     })
   extensions
     .command('trust <id>')
-    .description('The approval card for an installed-off or found extension')
+    .description('Show what an installed-but-off or newly found extension will run and needs, then approve it')
     .option('--yes', 'Approve without asking')
     .option('--project', 'Switch on for this project only')
     .action(async (id, options) => {
@@ -792,7 +796,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     })
   extensions
     .command('enable <id>')
-    .description('Turn the switch on')
+    .description('Turn an installed extension on')
     .option('--project', 'For this project only')
     .action(async (id, options) => {
       const { enableVerb } = await import('./extensions/cli.js')
@@ -800,7 +804,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     })
   extensions
     .command('disable <id>')
-    .description('Turn the switch off')
+    .description('Turn an installed extension off (its switch)')
     .option('--project', 'For this project only')
     .action(async (id, options) => {
       const { disableVerb } = await import('./extensions/cli.js')
@@ -810,7 +814,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     .command('update [id]')
     .description('Update to the version the source lists (after a check); --previous swaps back')
     .option('--all', 'Every installed extension with a known update')
-    .option('--yes', 'Approve a changed contributions set without asking')
+    .option('--yes', 'Approve without asking when the update changes what the extension contributes')
     .option('--previous', 'Swap back to the kept previous version')
     .action(async (id, options) => {
       const { updateVerb } = await import('./extensions/cli.js')
@@ -827,7 +831,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     })
   extensions
     .command('fence <entry>')
-    .description('Block an extension id, a source label, a URL or a host')
+    .description('Add an entry to the blocklist (the fence): an extension id, the name a source is filed under (its label), a URL or a host')
     .action(async entry => {
       const { blockVerb } = await import('./extensions/cli.js')
       process.exitCode = (await blockVerb(entry)).exit
@@ -841,7 +845,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     })
   extensions
     .command('inspect <path>')
-    .description("The maker's linter: a manifest or a catalogue and its contributions")
+    .description("The maker's linter — checks an extension's manifest, or a source's list of extensions (its catalogue), and what each contributes")
     .option('--json', 'JSON output')
     .action(async (path, options) => {
       const { validateVerb } = await import('./extensions/cli.js')
@@ -850,7 +854,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
   extensions
     .command('scaffold <name>')
     .description('Scaffold an extension folder (or, with --source, a source root) that validates clean')
-    .option('--source', 'Scaffold a source root with a catalogue and the README template')
+    .option('--source', 'Scaffold a source root with its list of extensions (a catalogue) and the README template')
     .option('--dir <dir>', 'Where to create it (default: the current directory)')
     .action(async (name, options) => {
       const { initVerb } = await import('./extensions/cli.js')
@@ -860,7 +864,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
   program
     .command('roster')
     .description('Print the agent inventory')
-    .option('--config-layers <sources>', 'Comma-separated allowed setting sources')
+    .option('--config-layers <sources>', 'Which settings sources may apply, comma-separated: user, project, local')
     .action(async () => {
       const { agentsHandler } = await import('./cli/handlers/agents.js')
       await agentsHandler()
@@ -869,12 +873,12 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
 
   program.command('health [topic]')
     .description('Check the installation health: configured MCP servers are validated WITHOUT starting them; `health processes` lists Mercury\'s own processes as JSON')
-    .option('--json', 'JSON certificate output')
-    .option('--deep', 'Deep inventory')
+    .option('--json', 'The full health report as JSON (the certificate)')
+    .option('--deep', 'Run the slower, deeper checks too')
     .option('--fix', 'Run the guided fix flow')
     .option('--only <id>', 'Limit to one check')
     .option('--yes', 'Assume yes at fix prompts')
-    .option('--end-stale', 'With `health processes`: end the stale processes the listing names, through Mercury\'s own roads first')
+    .option('--end-stale', 'With `health processes`: end the stale processes the listing names — first by asking the background process that runs them (the daemon), then a termination signal, then a kill')
     .action(async (topic, options) => {
       if (typeof topic === 'string' && topic !== '') {
         if (topic !== 'processes') {
@@ -897,7 +901,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
 
   program
     .command('godot [verb] [args...]')
-    .description('Godot engine jobs on frozen projects: run | check | capture | frames | profile | tour | jobs | cancel | result')
+    .description('Godot engine jobs, each on a copy of the project taken the moment the job is submitted (a frozen project): run | check | capture | frames | profile | tour | jobs | cancel | result')
     .allowUnknownOption(true)
     .allowExcessArguments(true)
     .action(async (_verb: string | undefined, _args: string[] | undefined, _options: unknown, command: { args: string[] }) => {
@@ -906,7 +910,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     })
 
   for (const [name, description, usage] of [
-    ['daemon [subcommand]', 'The background daemon: run | status | stop | restart', `Usage: ${cliName} daemon <run|status|stop|restart>`],
+    ['daemon [subcommand]', 'The background process that hosts your sessions and runs scheduled jobs (the daemon): run | status | stop | restart', `Usage: ${cliName} daemon <run|status|stop|restart>`],
     ['acp', 'Serve an editor over the Agent Client Protocol on stdio', `Usage: ${cliName} acp`],
   ] as const) {
     program
@@ -922,8 +926,8 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
   program
     .command('image <image>')
     .description('Render an image to the terminal')
-    .option('--protocol <p>', 'Force a display protocol')
-    .option('--cols <n>', 'Cells-tier column budget', Number)
+    .option('--protocol <p>', 'Force a display protocol: iterm, kitty, sixel or cells')
+    .option('--cols <n>', 'Width limit in terminal columns (default 76) — exact when the picture is drawn as coloured text (the cells protocol)', Number)
     .action(async (image: string, options: { protocol?: string; cols?: number }) => {
       await showAction(image, options)
     })
@@ -944,7 +948,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     .option('--check', 'Only check for updates')
     .option('--status', 'Show update status')
     .option('--rollback', 'Roll back to the previous version')
-    .option('--yes', "Run the channel's own upgrade without asking (an install made by Homebrew or npm)")
+    .option('--yes', "Inside an install made by Homebrew or npm, run that package manager's own upgrade without asking first")
     .option('--json', 'JSON output')
     .action(async options => {
       await updateCli(options)
@@ -952,7 +956,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
 
   program
     .command('install')
-    .description('Install this extracted release archive user-locally (managed launcher shims)')
+    .description('Install the release archive this command runs from, for your user only (a stable `mercury` command and its managed launcher shims); a build tree is refused')
     .option('--allow-unsigned', 'Explicitly allow an unsigned payload; invalid or untrusted signatures still refuse')
     .option('--dry-run', 'Preview only')
     .option('--uninstall', 'Remove the shims')

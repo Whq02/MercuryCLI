@@ -11,12 +11,21 @@ export type DaemonVerb =
   | { kind: 'unknown-flag'; verb: 'stop'; word: string }
 
 export const DAEMON_USAGE = [
-  'usage: mercury daemon [run [dir] | status | stop | restart | --help]',
-  '  (bare)          start the daemon for the current folder (same as run)',
-  '  run [dir]       start the daemon scheduling for dir (default: the current folder)',
-  '  status          probe the running daemon and print its state',
-  '  stop            ask the daemon to shut down; every in-flight worker is reaped with it',
-  '  restart         re-execute the daemon as the deployed build when idle',
+  'Usage: mercury daemon [options] [command]',
+  '',
+  'The background process that hosts your sessions and runs scheduled jobs',
+  '(the daemon); bare `mercury daemon` is `run`',
+  '',
+  'Options:',
+  '  -h, --help  Show help',
+  '',
+  'Commands:',
+  '  run [dir]   Start the daemon for dir (default: the current folder)',
+  '  status      Probe the running daemon and print its state',
+  '  stop        Ask the daemon to shut down; every session process it runs',
+  '              (every worker) stops with it',
+  '  restart     Re-execute the daemon, once idle, as the Mercury build now',
+  '              installed (the deployed build)',
 ].join('\n')
 
 const defaultIsDir = (p: string): boolean => {
