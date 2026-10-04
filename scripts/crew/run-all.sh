@@ -37,7 +37,7 @@
 # gate-watch: src/utils/config/globalConfig.ts src/utils/messages/* src/utils/model/computedDefault.ts
 # gate-watch: src/utils/model/configs.ts src/utils/sessionStorage/logs.ts src/utils/sessionStorage/paths.ts
 # gate-watch: src/utils/crew/busEnvelopes.ts src/utils/crew/spawnInProcess.ts src/utils/task/*
-# gate-watch: src/components/PromptInput/PromptInput.tsx src/components/tasks/crewmateInterrupt.ts src/state/selectors.ts src/state/crewmateViewHelpers.ts src/utils/attachments/queuedCommands.ts src/utils/cockpit/crewmateWords.ts
+# gate-watch: src/components/PromptInput/PromptInput.tsx src/components/tasks/crewmateInterrupt.ts src/state/selectors.ts src/state/crewmateViewHelpers.ts src/utils/attachments/queuedCommands.ts src/utils/cockpit/crewmateWords.ts src/components/PromptInput/useComposerSubmit.ts
 # gate-watch: src/components/tasks/useCrewmateTranscript.ts src/tasks/InProcessCrewmateTask/types.ts src/utils/crew/inProcessRunner.ts
 # gate-watch: src/services/coordination/coordinationService.ts src/utils/crew/roomHealth.ts
 # gate-watch: src/utils/crew/crewBirth.ts src/utils/crew/crewConvert.ts package.json scripts/builtin-tools/fixtures/tool-census.json scripts/builtin-tools/fixtures/tool-census.md scripts/project-services/fixtures/inventory.json

@@ -732,7 +732,6 @@
     "type:Screen"
    ],
    "src/components/PromptInput/PromptInput.tsx": [
-    "__stripControlsForTest",
     "default",
     "type:PromptInputProps"
    ]

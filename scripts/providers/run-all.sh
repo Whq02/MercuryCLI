@@ -13,7 +13,7 @@
 # gate-watch: src/bootstrap/state.ts src/cli/run.ts src/commands/feedback/index.ts
 # gate-watch: src/commands/login/login.tsx
 # gate-watch: src/commands/model/mercuryModel.tsx src/commands/model/model.tsx src/commands/router/router.tsx
-# gate-watch: src/components/* src/components/PromptInput/PromptInput.tsx src/components/Settings/Usage.tsx
+# gate-watch: src/components/* src/components/PromptInput/PromptInput.tsx src/components/Settings/Usage.tsx src/components/PromptInput/useComposerModelDoors.tsx
 # gate-watch: src/components/mercury-ui/RailPanel.tsx src/components/mercury-ui/components.tsx
 # gate-watch: src/components/mercury-ui/parity/AccountView.tsx src/components/tasks/useFocusedWork.ts
 # gate-watch: src/constants/oauth.ts src/context/notifications.tsx src/daemon/main.ts

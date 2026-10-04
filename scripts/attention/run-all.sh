@@ -6,7 +6,7 @@
 # gate-watch: integrations/acp/README.md integrations/vscode/extension.js integrations/vscode/package.json
 # gate-watch: scripts/engine-durability/harness.ts scripts/streaming/bench-stream-fluidity.ts
 # gate-watch: src/bootstrap/state.ts src/commands/console/console.tsx
-# gate-watch: src/components/PromptInput/PromptInput.tsx src/components/mercury-ui/*
+# gate-watch: src/components/PromptInput/PromptInput.tsx src/components/mercury-ui/* src/components/PromptInput/useComposerAttachments.ts src/components/PromptInput/useComposerSubmit.ts
 # gate-watch: src/components/prompts-panel/PromptsPanel.tsx src/components/prompts-panel/rows.ts
 # gate-watch: src/daemon/concourseDispatch.ts src/history.ts src/keybindings/actionGraph.ts
 # gate-watch: src/screens/Chat.tsx src/services/engine-connector/daemonConnector.ts
