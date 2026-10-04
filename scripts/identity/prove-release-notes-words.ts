@@ -33,7 +33,7 @@ const HOUSE_WORDS: Array<[string, RegExp]> = [
   ['lane', /\blanes?\b/i],
   ['owner', /\bowners?\b/i],
   ['law', /\blaws?\b/i],
-  ['pin', /\bpin(s|ned)?\b/i],
+  ['pin', /\bpins?\b/i],
   ['prover', /\bprovers?\b/i],
   ['turn receipt', /turn receipt/i],
   ['supercode', /\bsupercode\b/i],
