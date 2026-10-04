@@ -14,8 +14,6 @@ export function eraVerdictCachePath(): string {
   return join(getMercuryHome(), 'mcp-era-cache.json')
 }
 
-const DIGEST = /^[0-9a-f]{64}$/
-
 function fileKey(serverKey: string): string {
   return createHash('sha256').update(serverKey).digest('hex')
 }
@@ -37,7 +35,6 @@ function mutate(update: (cache: CacheFile) => void): Promise<void> {
     .then(async () => {
       const cache = await readCache()
       update(cache)
-      for (const key of Object.keys(cache)) if (!DIGEST.test(key)) delete cache[key]
       const path = eraVerdictCachePath()
       await mkdir(dirname(path), { recursive: true })
       await writeFile(path, JSON.stringify(cache, null, 2))
