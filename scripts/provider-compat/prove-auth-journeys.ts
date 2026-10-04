@@ -1134,14 +1134,14 @@ check("hygiene: maskedKeyTail refuses short values (nothing to mask ⇒ '')", ma
     'universe: the scan cannot enumerate siblings (no readdir, no account- roster pattern)',
     !scanOwnerSrc.includes('readdirSync') && !scanOwnerSrc.includes("account-'"),
   )
-  const claudeHome = join(HOME, '.claude')
-  mkdirSync(claudeHome, { recursive: true })
-  process.env.MERCURY_CONFIG_DIR = claudeHome
+  const foreignHome = join(HOME, '.codex')
+  mkdirSync(foreignHome, { recursive: true })
+  process.env.MERCURY_CONFIG_DIR = foreignHome
   ;(envUtils.getMercuryHome as unknown as { cache: { clear(): void } }).cache.clear()
   const claudeScan = scanAccountScopes()
   check(
-    'universe: a claude-family resolved home is the one row, marked foreignHarness (honesty, never billable)',
-    claudeScan.length === 1 && claudeScan[0]!.foreignHarness === true && claudeScan[0]!.dir === claudeHome,
+    "universe: another harness's resolved home is the one row, marked foreignHarness (honesty, never billable)",
+    claudeScan.length === 1 && claudeScan[0]!.foreignHarness === true && claudeScan[0]!.dir === foreignHome,
     JSON.stringify(claudeScan),
   )
   process.env.MERCURY_CONFIG_DIR = HOME
