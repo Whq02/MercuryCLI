@@ -1,4 +1,3 @@
-
 import { readdir, stat } from 'fs/promises'
 import { relative, resolve } from 'path'
 import { getCwd } from 'src/utils/cwd.js'
@@ -8,154 +7,71 @@ import { getProjectRoot, getSdkBetas } from '../../bootstrap/state.js'
 import { getMcpSkillCommands, getSkillToolCommands } from '../../commands.js'
 import { formatCommandsWithinBudgetDetailed } from '../../tools/SkillTool/prompt.js'
 import { SKILL_TOOL_NAME } from '../../tools/SkillTool/constants.js'
-import type { Command } from '../../types/command.js'
 import { getContextWindowForModel } from '../context.js'
 import { logForDebugging } from '../debug.js'
 import type { Attachment } from './types.js'
-
+import { capsuleStateFor, resetCapsuleSkillNames, suppressCapsuleSkillListing } from './capsuleState.js'
 
 export async function getDynamicSkillAttachments(
   toolUseContext: ToolUseContext,
 ): Promise<Attachment[]> {
-  const attachments: Attachment[] = []
-
-  if (
-    toolUseContext.dynamicSkillDirTriggers &&
-    toolUseContext.dynamicSkillDirTriggers.size > 0
-  ) {
-    const perDirResults = await Promise.all(
-      Array.from(toolUseContext.dynamicSkillDirTriggers).map(async skillDir => {
+  const triggers = toolUseContext.dynamicSkillDirTriggers
+  if (!triggers?.size) return []
+  const directories = [...triggers]
+  const rows = await Promise.all(directories.map(async skillDir => {
+    try {
+      const entries = await readdir(skillDir, { withFileTypes: true })
+      const names = await Promise.all(entries.filter(e => e.isDirectory() || e.isSymbolicLink()).map(async entry => {
         try {
-          const entries = await readdir(skillDir, { withFileTypes: true })
-          const candidates = entries
-            .filter(e => e.isDirectory() || e.isSymbolicLink())
-            .map(e => e.name)
-          const checked = await Promise.all(
-            candidates.map(async name => {
-              try {
-                await stat(resolve(skillDir, name, 'SKILL.md'))
-                return name
-              } catch {
-                return null
-              }
-            }),
-          )
-          return {
-            skillDir,
-            skillNames: checked.filter((n): n is string => n !== null),
-          }
+          await stat(resolve(skillDir, entry.name, 'SKILL.md'))
+          return entry.name
         } catch {
-          return { skillDir, skillNames: [] }
+          return null
         }
-      }),
-    )
-
-    for (const { skillDir, skillNames } of perDirResults) {
-      if (skillNames.length > 0) {
-        attachments.push({
-          type: 'dynamic_skill',
-          skillDir,
-          skillNames,
-          displayPath: relative(getCwd(), skillDir),
-        })
-      }
+      }))
+      const skillNames = names.filter((name): name is string => name !== null)
+      return skillNames.length ? { type: 'dynamic_skill' as const, skillDir, skillNames, displayPath: relative(getCwd(), skillDir) } : null
+    } catch {
+      return null
     }
-
-    toolUseContext.dynamicSkillDirTriggers.clear()
-  }
-
-  return attachments
+  }))
+  for (const directory of directories) triggers.delete(directory)
+  return rows.filter((row): row is NonNullable<typeof row> => row !== null)
 }
 
-const sentSkillNames = new Map<string, Set<string>>()
-
 export function resetSentSkillNames(): void {
-  sentSkillNames.clear()
-  suppressNext = false
+  resetCapsuleSkillNames()
 }
 
 export function suppressNextSkillListing(): void {
-  suppressNext = true
+  suppressCapsuleSkillListing()
 }
-let suppressNext = false
 
 export async function getSkillListingAttachments(
   toolUseContext: ToolUseContext,
 ): Promise<Attachment[]> {
-  if (process.env.NODE_ENV === 'test') {
+  if (!toolUseContext.options.tools.some(t => toolMatchesName(t, SKILL_TOOL_NAME))) return []
+  const state = capsuleStateFor(toolUseContext, toolUseContext.messages)
+  const localCommands = await getSkillToolCommands(getProjectRoot())
+  const mcpSkills = getMcpSkillCommands(toolUseContext.getAppState().mcp.commands)
+  const commands = mcpSkills.length ? uniqBy([...localCommands, ...mcpSkills], 'name') : localCommands
+  const sent = state.sentSkillNames
+  if (state.suppressNextSkills) {
+    state.suppressNextSkills = false
+    for (const command of commands) sent.add(command.name)
     return []
   }
-
-  if (
-    !toolUseContext.options.tools.some(t => toolMatchesName(t, SKILL_TOOL_NAME))
-  ) {
-    return []
-  }
-
-  const cwd = getProjectRoot()
-  const localCommands = await getSkillToolCommands(cwd)
-  const mcpSkills = getMcpSkillCommands(
-    toolUseContext.getAppState().mcp.commands,
-  )
-  let allCommands =
-    mcpSkills.length > 0
-      ? uniqBy([...localCommands, ...mcpSkills], 'name')
-      : localCommands
-
-  const agentKey = toolUseContext.agentId ?? ''
-  let sent = sentSkillNames.get(agentKey)
-  if (!sent) {
-    sent = new Set()
-    sentSkillNames.set(agentKey, sent)
-  }
-
-  if (suppressNext) {
-    suppressNext = false
-    for (const cmd of allCommands) {
-      sent.add(cmd.name)
-    }
-    return []
-  }
-
-  const newSkills = allCommands.filter((cmd: Command) => !sent.has(cmd.name))
-
-  const currentNames = new Set(allCommands.map(cmd => cmd.name))
-  const removedNames = [...sent].filter(name => !currentNames.has(name))
-  for (const name of removedNames) {
-    sent.delete(name)
-  }
-
-  if (newSkills.length === 0 && removedNames.length === 0) {
-    return []
-  }
-
+  const current = new Set(commands.map(command => command.name))
+  const newSkills = commands.filter(command => !sent.has(command.name))
+  const removedNames = [...sent].filter(name => !current.has(name))
+  for (const name of removedNames) sent.delete(name)
+  if (!newSkills.length && !removedNames.length) return []
   const isInitial = sent.size === 0
-
-  for (const cmd of newSkills) {
-    sent.add(cmd.name)
-  }
-
+  for (const command of newSkills) sent.add(command.name)
   logForDebugging(
     `Sending ${newSkills.length} skills via attachment (${isInitial ? 'initial' : 'dynamic'}, ${removedNames.length} removed, ${sent.size} total sent)`,
   )
-
-  const contextWindowTokens = getContextWindowForModel(
-    toolUseContext.options.engineModel,
-    getSdkBetas(),
-  )
-  const formatted =
-    newSkills.length > 0
-      ? formatCommandsWithinBudgetDetailed(newSkills, contextWindowTokens)
-      : { content: '', truncation: null }
-
-  return [
-    {
-      type: 'skill_listing',
-      content: formatted.content,
-      skillCount: newSkills.length,
-      isInitial,
-      removedNames,
-      truncation: formatted.truncation,
-    },
-  ]
+  const contextWindowTokens = getContextWindowForModel(toolUseContext.options.engineModel, getSdkBetas())
+  const formatted = newSkills.length ? formatCommandsWithinBudgetDetailed(newSkills, contextWindowTokens) : { content: '', truncation: null }
+  return [{ type: 'skill_listing', content: formatted.content, skillCount: newSkills.length, isInitial, removedNames, truncation: formatted.truncation }]
 }
