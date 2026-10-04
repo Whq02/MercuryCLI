@@ -36,6 +36,7 @@ const { AlternateScreen } = await import(`${ROOT}/src/ink/components/AlternateSc
 const { default: useInput } = await import(`${ROOT}/src/ink/hooks/use-input.js`)
 const { AnimatedCritterArt } = await import(`${ROOT}/src/components/mercury-ui/AnimatedCritterArt.js`)
 const { cellColor, critterDefForKey, EYE_BG, SQUARE_DOCK_ART_LINES } = await import(`${ROOT}/src/utils/cockpit/critterData.js`)
+const { composeCritterFrame } = await import(`${ROOT}/src/components/mercury-ui/CritterArt.js`)
 const { BLINK_CYCLE, LID_MS, SECOND_LID_AT } = await import(`${ROOT}/src/utils/cockpit/critterIdle.js`)
 const { heroEyeClusters } = await import(`${ROOT}/src/utils/cockpit/critterGaze.js`)
 const { setMotionPosture } = await import(`${ROOT}/src/utils/cockpit/motionGovernor.js`)
@@ -222,7 +223,38 @@ check('the critter is on the glass with its pupils at rest (lower half)', restOk
 if (!restOk) {
   console.log(stderr.chunks.join('').slice(0, 1500))
 }
-const aboveCells = restCols.map(c => `${ART_LEFT + c},${eyeLine - 1}`)
+
+section('§1b THE FOUR EYES AT REST — a cell\'s background is its UPPER half\'s colour, so the gap Apple Terminal leaves above a half-block glyph never shows the pupil')
+{
+  const restStyle = restCols.map(c => {
+    const st = glass.styleAt(ART_LEFT + c, eyeLine)
+    return { ch: glass.grid[eyeLine]![ART_LEFT + c]!, fg: st?.fg ?? 'default', bg: st?.bg ?? 'default' }
+  })
+  check('each pupil cell at rest carries the CREAM (upper half) as its background and the pupil as its foreground glyph ▄', restStyle.every(s => s.ch === '▄' && s.bg === `48;2;${CREAM}` && s.fg === `38;2;${PUPIL}`), restStyle.map(s => `${s.ch} fg=${s.fg} bg=${s.bg}`).join(' | '))
+  check('no pupil cell at rest has the pupil colour as its background (the sliver above the glyph would be a second pupil)', restStyle.every(s => s.bg !== `48;2;${PUPIL}`), restStyle.map(s => s.bg).join(' '))
+  const composed = composeCritterFrame(def, { square: true }).art
+  const asRgb = (hex: string | undefined): string | undefined => (hex === undefined ? undefined : rgb(hex))
+  const faults: string[] = []
+  let twoColour = 0
+  for (let r = 0; r + 1 < composed.length; r += 2) {
+    const y = ART_TOP + (r >> 1)
+    for (let c = 0; c < composed[r]!.length; c++) {
+      const top = asRgb(cellColor(def, composed[r]![c]))
+      const bot = asRgb(cellColor(def, composed[r + 1]![c]))
+      if (top === undefined || bot === undefined) continue
+      const x = ART_LEFT + c
+      const st = glass.styleAt(x, y)
+      const ch = glass.grid[y]![x]!
+      if (st?.bg !== `48;2;${top}`) faults.push(`${x},${y}: bg ${st?.bg} is not the upper half ${top}`)
+      if (top !== bot) {
+        twoColour++
+        if (ch !== '▄' || st?.fg !== `38;2;${bot}`) faults.push(`${x},${y}: two-colour cell reads ${ch} fg=${st?.fg}, wanted ▄ fg=${bot}`)
+      }
+    }
+  }
+  check(`every painted pair of the sprite reads its upper half as the cell background (${twoColour} two-colour cells, each ▄ with the lower half as the glyph)`, faults.length === 0 && twoColour > 0, faults.slice(0, 6).join('; '))
+}
+const belowCells = restCols.map(c => `${ART_LEFT + c},${eyeLine + 1}`)
 const eyeCells = restCols.map(c => `${ART_LEFT + c},${eyeLine}`)
 
 const sgrMotion = (col0: number, row0: number): string => `\x1b[<35;${col0 + 1};${row0 + 1}M`
@@ -235,25 +267,26 @@ push(sgrMotion(faceCol, 0))
 const upOk = await awaitGlass(() => pupilsAt('top'))
 check('pointer above ⇒ every pupil in the UPPER half, the lower half cream', upOk, eyeRow())
 const upTouched = touchedBy(bytesSince(upMark))
-check('the up frame rewrote each pupil cell (a ▀ whose foreground turned dark)', eyeCells.every(k => upTouched.has(k)), [...upTouched].sort().join(' '))
+check('the up frame rewrote each pupil cell (a standing half-block cell whose two colours swapped)', eyeCells.every(k => upTouched.has(k)), [...upTouched].sort().join(' '))
+check('…and repainted the cell BELOW each pupil, where a ▄ bleeds on Apple Terminal, so the old lower-half colour cannot survive there', belowCells.every(k => upTouched.has(k)), [...upTouched].sort().join(' '))
 
-section('§3 THE FOUR EYES — the pointer below the critter: the pupils come back DOWN; the dark ▀ that bled into the cell above recolours, so that cell must be repainted too')
+section('§3 THE FOUR EYES IN MOTION — the pointer below the critter: the pupils come back DOWN; the standing ▄ recolours, so the cell it bleeds into (below) must be repainted too')
 await awayFromLid()
 const framesBefore = frames
 const downMark = stdout.chunks.length
-const aboveBefore = aboveCells.map(k => { const [x, y] = k.split(',').map(Number) as [number, number]; return glass.grid[y]![x] })
+const belowBefore = belowCells.map(k => { const [x, y] = k.split(',').map(Number) as [number, number]; return glass.grid[y]![x] })
 push(sgrMotion(faceCol, ROWS - 1))
 const downPainted = await awaitGlass(() => frames > framesBefore && restCols.every(c => halves(ART_LEFT + c).bottom === 'pupil'))
 check('pointer below ⇒ a frame painted the pupils back into the lower half', downPainted, `frames ${frames - framesBefore} ${eyeRow()}`)
 const upperCleared = restCols.every(c => halves(ART_LEFT + c).top === 'cream')
 check('the bytes of the down frame carry cream in the upper half of every eye cell (the frame itself is right)', upperCleared, eyeRow())
 const downTouched = touchedBy(bytesSince(downMark))
-check('the down frame REPAINTS the cell above each pupil — the forehead cell the dark ▀ bled into — so no sliver of the old pupil survives at the top of the eye', aboveCells.every(k => downTouched.has(k)), `touched ${[...downTouched].sort().join(' ')}; wanted ${aboveCells.join(' ')}`)
-check('the repainted cell above keeps its own value (the forehead glyph it had, not a blank)', aboveCells.every((k, i) => {
+check('the down frame REPAINTS the cell below each pupil — the cell a recoloured ▄ bleeds into — so no sliver of the old colour survives beside the eye', belowCells.every(k => downTouched.has(k)), `touched ${[...downTouched].sort().join(' ')}; wanted ${belowCells.join(' ')}`)
+check('the repainted cell below keeps its own value (the glyph it had, not a blank)', belowCells.every((k, i) => {
   const [x, y] = k.split(',').map(Number) as [number, number]
-  return glass.grid[y]![x] === aboveBefore[i] && glass.grid[y]![x] !== ' '
-}), aboveCells.map((k, i) => { const [x, y] = k.split(',').map(Number) as [number, number]; return `${k}:${JSON.stringify(aboveBefore[i])}→${JSON.stringify(glass.grid[y]![x])}` }).join(' '))
-check('the eye cells carry a half-block glyph on every frame (the eye seam never changed glyph)', restCols.every(c => glass.grid[eyeLine]![ART_LEFT + c] === '▀'), eyeRow())
+  return glass.grid[y]![x] === belowBefore[i] && glass.grid[y]![x] !== ' '
+}), belowCells.map((k, i) => { const [x, y] = k.split(',').map(Number) as [number, number]; return `${k}:${JSON.stringify(belowBefore[i])}→${JSON.stringify(glass.grid[y]![x])}` }).join(' '))
+check('the eye cells carry a half-block glyph on every frame', restCols.every(c => ['▀', '▄'].includes(glass.grid[eyeLine]![ART_LEFT + c]!)), eyeRow())
 check('the glass replay raised no vocabulary fault', glassFault === '', glassFault)
 
 section('§4 the whole eye line equals a cold render of the same state: every cream cell cream, every pupil cell one pupil')
