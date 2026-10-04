@@ -251,11 +251,11 @@ section('F3 the fold itself overflows — the shed head is folded into a part su
   check("the boundary is typed 'overflow'", (boundaryOf(r.yields) as { compactMetadata?: { trigger?: string } } | undefined)?.compactMetadata?.trigger === 'overflow')
 }
 
-section('F4 the fold cannot shrink under the window — the typed refusal names the fold\'s own reason')
+section('F4 the fold cannot shrink under the window — the ladder walks every part down to its floor, then the typed refusal names the fold\'s own reason')
 {
   const shape = OVERFLOW_WIRE_SHAPES.anthropic!
   const refused = { error: { status: 400, body: { type: 'error', error: { type: 'invalid_request_error', message: 'prompt is too long: 201000 tokens > 200000 maximum' } } } } as const
-  fixture.script([{ error: { status: shape.status, body: shape.body } }, refused, refused, refused, refused, refused, refused, { text: 'never reached' }])
+  fixture.script([{ error: { status: shape.status, body: shape.body } }, ...Array.from({ length: 14 }, () => refused), { text: 'never reached' }])
   const r = await drive('claude-opus-4-8', 3)
   check('terminal prompt_too_long, the run never threw', r.threw === undefined && r.terminal.reason === 'prompt_too_long', `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)}`)
   const errs = errorTexts(r.yields)
