@@ -378,7 +378,9 @@ function runRemedyCmd(
   })
 }
 import {
-  MERCURY_DOCTRINE,
+  MERCURY_COORDINATOR_CONTRACT,
+  MERCURY_SESSION_CONTRACT,
+  MERCURY_SUBAGENT_CONTRACT,
   mercuryDoctrineEnabled,
 } from '../prompt/mercuryContract.js'
 
@@ -956,12 +958,12 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             if (!mercuryDoctrineEnabled()) {
               return {
                 status: 'off',
-                evidence: 'MERCURY_WRAPPER_APPEND=0 — the doctrine layer is off this session by choice',
+                evidence: 'MERCURY_WRAPPER_APPEND=0 — the session contract is off this session by choice',
               }
             }
             return {
               status: 'ok',
-              evidence: `doctrine on — built-in source, ${MERCURY_DOCTRINE.length} chars`,
+              evidence: `contracts on — built-in source, session ${MERCURY_SESSION_CONTRACT.length} · coordinator ${MERCURY_COORDINATOR_CONTRACT.length} · sub-agent ${MERCURY_SUBAGENT_CONTRACT.length} chars`,
             }
           },
         },

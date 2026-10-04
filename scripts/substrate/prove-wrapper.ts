@@ -1,12 +1,17 @@
 #!/usr/bin/env bun
 
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import {
-  MERCURY_DOCTRINE,
   MERCURY_IDENTITY_FLOOR,
   MERCURY_IDENTITY_RECONCILE,
+  MERCURY_SESSION_CONTRACT,
+  MERCURY_SESSION_DOCTRINE,
   getMercuryContractSections,
   mercuryDoctrineEnabled,
 } from '../../src/prompt/mercuryContract.js'
+
+const STATIC_HEAD = readFileSync(join(import.meta.dir, '..', '..', 'src/constants/prompts.ts'), 'utf8')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -43,18 +48,20 @@ const secs = getMercuryContractSections()
 check('returns 2 sections when the doctrine layer is on (no family overlay)', secs.length === 2, `len=${secs.length}`)
 check('every section carries a semantic name + string text', secs.every(s => typeof s.name === 'string' && s.name.length > 0 && typeof s.text === 'string'))
 check('section[0] is the identity floor (LEADS at model-wake)', secs[0]!.name === 'identity-floor' && secs[0]!.text === MERCURY_IDENTITY_FLOOR)
-check('section[1] is the Mercury doctrine', secs[1]!.name === 'mercury-doctrine' && secs[1]!.text === MERCURY_DOCTRINE)
+check('section[1] is the Mercury doctrine: the session contract inside its tag', secs[1]!.name === 'mercury-doctrine' && secs[1]!.text === MERCURY_SESSION_DOCTRINE && MERCURY_SESSION_DOCTRINE === `<mercury-doctrine>\n${MERCURY_SESSION_CONTRACT}\n</mercury-doctrine>`)
 check('the closing reconcile fixes the brand to Mercury', /Mercury/.test(MERCURY_IDENTITY_RECONCILE))
 check('no positional section names (semantic-ID law)', secs.every(s => !/^wrapper-\d|^mode-\d+$/.test(s.name)))
 
-section('doctrine content: voice · autonomy · evidence, one owner each')
-check('doctrine carries the voice clause (outcome-first close)', /outcome-first/.test(MERCURY_DOCTRINE))
-check('doctrine carries the autonomy clause (never end on a promise)', /Before ending your turn/.test(MERCURY_DOCTRINE))
-check('doctrine carries the evidence clause (audit claims against tool results)', /audit each claim against a tool result/.test(MERCURY_DOCTRINE))
-check('doctrine carries the assessment-mode boundary', /deliverable is your assessment/.test(MERCURY_DOCTRINE))
-check('voice: the tool-call line is a form rule, no second when-rule', /When a line introduces a tool call, keep it terse and present-tense\./.test(MERCURY_DOCTRINE) && !/only when it helps the operator follow/.test(MERCURY_DOCTRINE))
-check('length: narration is skipped on short work alone, no read-only exemption', /Skip progress narration on short work unless state materially changed\./.test(MERCURY_DOCTRINE) && !/short or read-only work/.test(MERCURY_DOCTRINE))
-check('evidence: reuse recorded evidence while it applies, recheck on change, memory is not verification', /Reuse recorded evidence while it still applies to the current state\. Recheck when relevant state changed, evidence is missing or stale, or new evidence contradicts it\. Memory alone is not verification\./.test(MERCURY_DOCTRINE) && !/verify recalled or remembered facts/.test(MERCURY_DOCTRINE))
+section('session contract content: voice · autonomy · evidence · ending the turn; the mechanics stay with the static head (one owner each)')
+check('contract carries the voice clause (open on the read or the move, close outcome first with the evidence named)', /Open on what you found or what you are about to do, never on a pleasantry or a restatement of the request/.test(MERCURY_SESSION_CONTRACT) && /close with the outcome first/.test(MERCURY_SESSION_CONTRACT) && /one line naming the evidence you verified/.test(MERCURY_SESSION_CONTRACT))
+check('contract carries the autonomy clause (act with enough information, name the assumption, stop only for the destructive, a scope change or operator-only input)', /With enough information, act and name any assumption you made/.test(MERCURY_SESSION_CONTRACT) && /stopping only for a destructive act, a real scope change or input only the operator can give/.test(MERCURY_SESSION_CONTRACT))
+check('contract carries the assessment-mode boundary', /describes a problem rather than asking for a change, assess and stop/.test(MERCURY_SESSION_CONTRACT))
+check('contract carries the evidence clause (claims only from this session\'s tool results; name what is not verified)', /Claim only what a tool result from this session shows, name what is not verified/.test(MERCURY_SESSION_CONTRACT))
+check('contract carries the persistence clause (keep going while evidence advances; never wind down because the session is long)', /keep going while evidence advances the outcome, never winding down because the session is long/.test(MERCURY_SESSION_CONTRACT))
+check('contract carries the last-paragraph check (never end on a plan, a promise or a self-answerable question)', /Before ending your turn, check your last paragraph and do now any work it only plans, promises or asks about/.test(MERCURY_SESSION_CONTRACT))
+check('contract carries the idle rule (end the turn when the work settles or when told to idle; no sleeps or timers)', /end the turn when the work settles or when told to idle, never holding it open with sleeps or timers/.test(MERCURY_SESSION_CONTRACT))
+check('the tool-call working note, the quick-task preamble rule and the evidence-reuse condition stay with the static head alone (one owner)', !/tool call|narration|appendix|reuse/.test(MERCURY_SESSION_CONTRACT) && STATIC_HEAD.includes('Text written before a tool call is a one-line working note about the next step') && STATIC_HEAD.includes('Skip preambles for quick tasks') && STATIC_HEAD.includes('on the rare occasion process or reasoning must appear, put it at the end') && STATIC_HEAD.includes('no re-verifying what was already checked while its evidence still applies to the current state'))
+check('the brevity preference stays with the floor alone (one owner)', !/brevity/.test(MERCURY_SESSION_CONTRACT) && /Follow their stated preferences ahead of generic defaults/.test(MERCURY_IDENTITY_FLOOR))
 
 section('doctrine gate: MERCURY_WRAPPER_APPEND=0 opts out the DOCTRINE, never the floor')
 delete process.env.MERCURY_WRAPPER_APPEND

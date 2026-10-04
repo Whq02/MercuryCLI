@@ -57,9 +57,9 @@ section('§2 one-owner law — sentinel doctrine phrases live in ONE section')
     ['authorization-scope-bound', /Authorization stands for the scope/],
     ['no-colon-before-tool-calls', /colon before tool calls/],
     ['working-note-before-a-tool-call', /working note about the next step/],
-    ['outcome-first close', /outcome-first|answer "what happened"/],
-    ['end-turn-on-promise guard', /promise about work (you have not done|not yet done)/],
-    ['audit-claims-against-tool-results', /audit each claim against a tool result/],
+    ['outcome-first close', /close with the outcome first/],
+    ['end-turn-on-promise guard', /Before ending your turn, check your last paragraph/],
+    ['claims-only-from-tool-results', /Claim only what a tool result from this session shows/],
   ]
   for (const [label, re] of sentinels) {
     const owners = contract.sections.filter(s => re.test(s.text)).map(s => s.name)
