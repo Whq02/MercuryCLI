@@ -59,6 +59,21 @@ export const MERCURY_HOME_WRITER_FINGERPRINT = /mercury|hermes[-_]daemon/i
 export const MERCURY_LEGACY_LOG_GRAMMAR =
   /^\[daemon\] (?:starting autonomous scheduler for |control socket up — RPC: )/m
 
+export function isMercurySupervisorRecord(parsed: unknown): boolean {
+  if (typeof parsed !== 'object' || parsed === null) return false
+  const record = parsed as Record<string, unknown>
+  return (
+    typeof record.pid === 'number' &&
+    typeof record.version === 'string' &&
+    record.origin === 'transient' &&
+    typeof record.startedAt === 'number' &&
+    typeof record.dir === 'string' &&
+    typeof record.controlSock === 'string' &&
+    (record.proto === undefined || typeof record.proto === 'number') &&
+    (record.ownerPid === undefined || record.ownerPid === null || typeof record.ownerPid === 'number')
+  )
+}
+
 export type HarnessArtifactClass = 'daemon-log' | 'daemon-roster' | 'daemon-supervisor'
 
 export interface HarnessHomeArtifact {
@@ -197,7 +212,7 @@ function classifySupervisor(rel: string, raw: string): HarnessHomeArtifact | nul
   const record = parsed as { pid?: unknown; controlSock?: unknown }
   if (typeof record.pid !== 'number') return null
   const sock = typeof record.controlSock === 'string' ? record.controlSock : ''
-  if (MERCURY_HOME_WRITER_FINGERPRINT.test(sock) || MERCURY_HOME_WRITER_FINGERPRINT.test(raw)) {
+  if (MERCURY_HOME_WRITER_FINGERPRINT.test(sock) || MERCURY_HOME_WRITER_FINGERPRINT.test(raw) || isMercurySupervisorRecord(parsed)) {
     return { rel, artifactClass: 'daemon-supervisor', verdict: 'ours', evidence: `${rel}: Mercury control-plane record` }
   }
   const tool = recognizeAgentCli(raw)
