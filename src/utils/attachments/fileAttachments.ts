@@ -45,7 +45,7 @@ export async function getChangedFiles(
       const fileState = toolUseContext.readFileState.get(filePath)
       if (!fileState) return null
 
-      if (fileState.offset !== undefined || fileState.limit !== undefined) {
+      if ((fileState.offset ?? 0) !== 0 || fileState.limit !== undefined) {
         return null
       }
 
@@ -158,6 +158,7 @@ export async function generateFileAttachment(
   | null
 > {
   const { offset, limit } = options ?? {}
+  const policy = FILE_READ_MODES[mode]
 
   const appState = toolUseContext.getAppState()
   if (isFileReadDenied(filename, appState.toolPermissionContext)) {
@@ -165,7 +166,7 @@ export async function generateFileAttachment(
   }
 
   if (
-    mode === 'at-mention' &&
+    policy.checkSize &&
     !isFileWithinReadSizeLimit(
       filename,
       getDefaultFileReadingLimits().maxSizeBytes,
@@ -181,7 +182,7 @@ export async function generateFileAttachment(
     }
   }
 
-  if (mode === 'at-mention') {
+  if (policy.referencePDF) {
     const pdfRef = await tryGetPDFReference(filename)
     if (pdfRef) {
       return pdfRef
@@ -189,7 +190,7 @@ export async function generateFileAttachment(
   }
 
   const existingFileState = toolUseContext.readFileState.get(filename)
-  if (existingFileState && mode === 'at-mention') {
+  if (existingFileState && policy.reuseRead) {
     try {
       const mtimeMs = await getFileModificationTimeAsync(filename)
 
@@ -222,13 +223,21 @@ export async function generateFileAttachment(
       limit,
     }
 
+    async function read(input: typeof fileInput, truncated = false): Promise<FileAttachment> {
+      const result = await FileReadTool.call(input, toolUseContext)
+      return {
+        type: 'file', filename, content: result.data, displayPath: relative(getCwd(), filename),
+        ...(truncated ? { truncated: true } : {}),
+      }
+    }
+
     async function readTruncatedFile(): Promise<
       | FileAttachment
       | CompactFileReferenceAttachment
       | AlreadyReadFileAttachment
       | null
     > {
-      if (mode === 'compact') {
+      if (policy.oversizedReference) {
         return {
           type: 'compact_file_reference',
           filename,
@@ -247,15 +256,7 @@ export async function generateFileAttachment(
           offset: offset ?? 1,
           limit: MAX_LINES_TO_READ,
         }
-        const result = await FileReadTool.call(truncatedInput, toolUseContext)
-
-        return {
-          type: 'file' as const,
-          filename,
-          content: result.data,
-          truncated: true,
-          displayPath: relative(getCwd(), filename),
-        }
+        return await read(truncatedInput, true)
       } catch {
         return null
       }
@@ -267,13 +268,7 @@ export async function generateFileAttachment(
     }
 
     try {
-      const result = await FileReadTool.call(fileInput, toolUseContext)
-      return {
-        type: 'file',
-        filename,
-        content: result.data,
-        displayPath: relative(getCwd(), filename),
-      }
+      return await read(fileInput)
     } catch (error) {
       if (
         error instanceof MaxFileReadTokenExceededError ||
@@ -287,3 +282,8 @@ export async function generateFileAttachment(
     return null
   }
 }
+
+const FILE_READ_MODES = {
+  compact: { checkSize: false, referencePDF: false, reuseRead: false, oversizedReference: true },
+  'at-mention': { checkSize: true, referencePDF: true, reuseRead: true, oversizedReference: false },
+} as const
