@@ -37,14 +37,6 @@ export function getStartupPerfLogPath(): string {
   return join(getMercuryHome(), 'startup-perf', `${getSessionId()}.txt`)
 }
 
-const PHASE_DEFINITIONS = {
-  import_time: ['cli_entry', 'main_tsx_imports_loaded'],
-  init_time: ['init_function_start', 'init_function_end'],
-  settings_time: ['eagerLoadSettings_start', 'eagerLoadSettings_end'],
-  total_time: ['cli_entry', 'main_after_run'],
-} as const
-
-
 function buildReport(): string {
   const marks = getPerformance().getEntriesByType('mark')
   const lines: string[] = [BANNER, 'STARTUP PROFILING REPORT', BANNER, '']
