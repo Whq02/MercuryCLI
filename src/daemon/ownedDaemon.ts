@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { renameWithWin32RetrySync } from '../substrate/durablePublish.js'
 import { registerCleanup } from '../utils/cleanupRegistry.js'
 import { logForDebugging } from '../utils/debug.js'
-import { getMercuryHome } from '../utils/envUtils.js'
+import { canonicalHomeSpelling, getMercuryHome } from '../utils/envUtils.js'
 import { hasStoredOAuthToken } from '../utils/auth.js'
 import { subscribeSignInEpoch } from '../utils/accounts/signInLedger.js'
 import { STORED_TOKEN_SCRUB_VARS } from '../utils/subprocessEnv.js'
@@ -243,6 +243,8 @@ export function spawnOwnedDaemon(
   spawnHistory.set(label, { lastAt: now, count: (history?.count ?? 0) + 1 })
   try {
     const env: NodeJS.ProcessEnv = { ...process.env, ...flagPair(OWNER_PID_ENV, String(process.pid)) }
+    const pinnedHome = process.env.MERCURY_CONFIG_DIR
+    const homeStamped = !pinnedHome || canonicalHomeSpelling(pinnedHome) !== getMercuryHome()
     env.MERCURY_CONFIG_DIR = getMercuryHome()
     const storedTokenAtSpawn = hasStoredOAuthToken()
     if (storedTokenAtSpawn) {
@@ -273,6 +275,7 @@ export function spawnOwnedDaemon(
     }
     const ownerPipe = process.platform !== 'win32' && opts?.ownerPipe !== false
     if (ownerPipe) Object.assign(env, flagPair(OWNER_FD_ENV, String(OWNER_PIPE_STDIO_INDEX)))
+    if (homeStamped) stampSpawnReceipt(env, ['MERCURY_CONFIG_DIR'])
     stampSpawnReceipt(env, [...flagSpellings(OWNER_PID_ENV), ...flagSpellings(OWNER_FD_ENV), ...Object.keys(opts?.extraEnv ?? {})])
     const child = spawn(node, [script, 'daemon', 'run', projectDir], {
       cwd: projectDir,

@@ -133,7 +133,7 @@ async function mountPopup(columns: number, rowCount: number, width: number, rowB
   }
 }
 
-section("§2 THE POPUP, rendered from source: the API-key slot paints 'This session: …', 'Scheduled: …' and beneath them 'Advisor: …' (red on the base: no advisor line)")
+section("§2 THE POPUP, rendered from source: the API-key slot paints 'Scheduled: …' and beneath it 'Advisor: …', no session tally (red on the base: no advisor line)")
 const popupFrames = new Map<string, string>()
 {
   state.resetCostState()
@@ -159,10 +159,10 @@ const popupFrames = new Map<string, string>()
       if (line.startsWith('$') && lines.length > 0) lines[lines.length - 1] = `${lines[lines.length - 1]} ${line}`
       else lines.push(line)
     }
-    const session = lines.findIndex(line => line.startsWith('This session: 1,890 input · 94 output tokens · $'))
+    const session = lines.findIndex(line => line.startsWith('This session'))
     const scheduled = lines.findIndex(line => line.startsWith('Scheduled: 1,500 input · 60 output tokens'))
     const advisor = lines.findIndex(line => line.startsWith('Advisor: 90 input · 14 output tokens'))
-    check(`${columns}x${rowCount}: the session line, the scheduled row beneath it, the advisor row beneath that, each with its own figure`, session >= 0 && scheduled === session + 1 && advisor === session + 2 && /^Advisor: 90 input · 14 output tokens · \$[0-9.]+$/.test(lines[advisor] ?? ''), lines.filter(line => line.startsWith('This session') || line.startsWith('Scheduled') || line.startsWith('Advisor')).join(' | ') || frame.slice(0, 400))
+    check(`${columns}x${rowCount}: no session tally line; the scheduled row stands and the advisor row beneath it, each with its own figure`, session === -1 && scheduled >= 0 && advisor === scheduled + 1 && /^Advisor: 90 input · 14 output tokens · \$[0-9.]+$/.test(lines[advisor] ?? ''), lines.filter(line => line.startsWith('This session') || line.startsWith('Scheduled') || line.startsWith('Advisor')).join(' | ') || frame.slice(0, 400))
   }
   state.resetCostState()
   const popup = await mountPopup(178, 51, 146, 22, token++)

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { realpathSync } from 'node:fs'
 import { mkdir, readdir, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { renameWithWin32Retry } from '../substrate/durablePublish.js'
@@ -11,6 +12,7 @@ import { getProcessStartTokenAsync } from './ownerWatch.js'
 import type { DaemonReply, DaemonRequest } from './protocol.js'
 import {
   PROCESS_SWEEP_WORDS,
+  bundleArgOf,
   classifyMercuryProcess,
   composeProcessSweepFacts,
   processSweepIdentityKey,
@@ -222,6 +224,7 @@ export interface ProcessSweepDeps {
   signal?: (pid: number, signal: NodeJS.Signals) => boolean
   sleep?: (ms: number) => Promise<void>
   record?: boolean
+  bundle?: string
 }
 
 function platformCollector(waitMs: number, nowMs: number): (recordedPids: readonly number[]) => Promise<ProcessSweepTable> {
@@ -264,8 +267,23 @@ async function gather(deps: ProcessSweepDeps): Promise<{ table: ProcessSweepTabl
     planes,
     registrations,
     memory: await readCensusMemory(home),
+    bundle: ownBundlePath(deps.bundle),
+    resolvePath,
   }
   return { table, records }
+}
+
+function resolvePath(path: string): string | null {
+  try {
+    return realpathSync.native(path)
+  } catch {
+    return null
+  }
+}
+
+export function ownBundlePath(bundle: string | undefined = process.argv[1]): string | null {
+  if (typeof bundle !== 'string' || bundleArgOf([bundle]) === null) return null
+  return resolvePath(bundle) ?? bundle
 }
 
 export async function readMercuryProcesses(deps: ProcessSweepDeps = {}): Promise<ProcessSweepCensus> {

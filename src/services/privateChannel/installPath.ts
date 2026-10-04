@@ -5,8 +5,8 @@ import { basename, dirname, join } from 'node:path'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { whichSync } from '../../utils/which.js'
-import { pathEntryEquals, type LayoutRoots } from './installLayout.js'
-import { isNpmWrapperCommand } from './installProvenance.js'
+import { pathEntryEquals, resolveLayoutRoots, type LayoutRoots } from './installLayout.js'
+import { isNpmWrapperCommand, resolveInstallProvenance } from './installProvenance.js'
 
 export const PATH_SENTINEL = 'mercury-managed-path'
 export const WIN32_USER_PATH_STORE = 'the user PATH (HKCU\\Environment)'
@@ -127,6 +127,33 @@ export function commandOnPath(roots: LayoutRoots, resolveCommand: (name: string)
 
 export function npmWrapperOnPath(found: CommandOnPath): string | null {
   return found.state === 'other' && found.npmWrapper ? found.resolved : null
+}
+
+export interface OwnCommandFacts {
+  provenanceKind: string
+  found: CommandOnPath
+  node: string
+  bundle: string | undefined
+}
+
+export function ownCommandWord(facts: OwnCommandFacts): string {
+  if (facts.provenanceKind === 'managed' && facts.found.state === 'stable') return 'mercury'
+  if ((facts.provenanceKind === 'homebrew' || facts.provenanceKind === 'npm') && facts.found.state !== 'absent') return 'mercury'
+  if (facts.bundle === undefined || facts.bundle.trim() === '') return 'mercury'
+  const quote = (part: string): string => (/[\s"']/.test(part) ? JSON.stringify(part) : part)
+  return `${quote(facts.node)} ${quote(facts.bundle)}`
+}
+
+export function ownCommand(roots: LayoutRoots, provenanceKind: string, resolveCommand: (name: string) => string | null = whichSync): string {
+  return ownCommandWord({ provenanceKind, found: commandOnPath(roots, resolveCommand), node: process.execPath, bundle: process.argv[1] })
+}
+
+export function thisMercuryCommand(): string {
+  try {
+    return ownCommand(resolveLayoutRoots(), resolveInstallProvenance().kind)
+  } catch {
+    return 'mercury'
+  }
 }
 
 export function commandOnPathWarning(

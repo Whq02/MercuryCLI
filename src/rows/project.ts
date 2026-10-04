@@ -280,7 +280,7 @@ export function waitRow(scope: RowScope, wait: RequestWaitV1 | null): Unstamped<
         type: 'wait' as const,
         state: wait.phase === 'loading' ? ('loading' as const) : ('first_byte' as const),
         cold: wait.cold,
-        prompt_tokens: wait.promptTokens,
+        prompt_tokens_estimate: wait.promptTokens,
         model: wait.model,
         budget_ms: wait.budgetMs,
         since_ms: wait.sinceMs,

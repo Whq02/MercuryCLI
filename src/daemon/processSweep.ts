@@ -36,6 +36,8 @@ export interface ProcessSweepFacts {
   ownership: ProcessSweepRead
   sameUser: ProcessSweepRead
   sameHome: ProcessSweepRead
+  sameBuild?: ProcessSweepRead
+  bundleDir?: string | null
   self: ProcessSweepRead
   state: string
   liveness: {
@@ -85,6 +87,7 @@ export function classifyMercuryProcess(facts: ProcessSweepFacts): ProcessSweepEn
   if (facts.sameUser === false) return entry('not-ours', 'another user owns this process')
   if (facts.ownership === false) return entry('not-ours', 'not a Mercury executable and bundle')
   if (facts.self === true) return entry('running', 'this Mercury is reading the processes')
+  if (facts.sameBuild === false) return entry('not-ours', `another Mercury build${facts.bundleDir ? ` at ${facts.bundleDir}` : ''}; left alone`)
   const required = ['terminal', 'registration', 'owner', 'session', 'work', 'schedules', 'persistence'] as const
   const readings = required.map(name => {
     try {
@@ -217,6 +220,26 @@ export interface ProcessSweepRecords {
   planes: ProcessSweepPlane[]
   registrations: ProcessSweepRegistration[] | null
   memory: Record<string, number> | null
+  bundle?: string | null
+  resolvePath?: (path: string) => string | null
+}
+
+export function bundleArgOf(args: readonly string[]): string | null {
+  const found = args.find(arg => /(^|[\\/])mercury\.mjs$/i.test(arg.trim()))
+  return found === undefined ? null : found.trim()
+}
+
+export function sameBundlePath(left: string, right: string, platform: NodeJS.Platform): boolean {
+  const fold = (path: string): string => {
+    const unified = path.replace(/[\\/]+/g, '/')
+    return platform === 'win32' ? unified.toLowerCase() : unified
+  }
+  return fold(left) === fold(right)
+}
+
+export function bundleDirOf(bundle: string): string {
+  const cut = Math.max(bundle.lastIndexOf('/'), bundle.lastIndexOf('\\'))
+  return cut > 0 ? bundle.slice(0, cut) : bundle
 }
 
 export interface ProcessSweepEnding {
@@ -438,13 +461,19 @@ export function composeProcessSweepFacts(table: ProcessSweepTable, records: Proc
       })
       continue
     }
-    const bundleNamed = row.args.some(arg => /(^|[\\/])mercury\.mjs$/i.test(arg.trim()))
+    const bundleArg = bundleArgOf(row.args)
+    const bundleNamed = bundleArg !== null
+    const ownBundle = typeof records.bundle === 'string' && records.bundle.trim() !== '' ? records.bundle : null
+    const observedBundle = bundleArg === null ? null : (records.resolvePath?.(bundleArg) ?? bundleArg)
+    const sameBuild: ProcessSweepRead = ownBundle === null || observedBundle === null ? null : sameBundlePath(ownBundle, observedBundle, records.platform)
     facts.push({
       ...base,
       kind: kindFromArgs(row.args),
       registrationId: null,
       ownership: strangerExe ? false : bundleNamed ? true : null,
       sameHome: null,
+      sameBuild,
+      bundleDir: observedBundle === null ? null : bundleDirOf(observedBundle),
       liveness: liveness({ terminal: terminalRead() }),
       closed: null,
       graceElapsed: null,

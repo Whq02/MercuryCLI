@@ -35,7 +35,7 @@ import {
   otherSessionRunnerPids,
   useFocusedWorkRoster,
 } from './useFocusedWork.js'
-import { useFocusedWorkspaceCwd } from '../../hooks/useFocusedWorkspaceCwd.js'
+import { useFocusedWorkspaceOriginalCwd } from '../../hooks/useFocusedWorkspaceCwd.js'
 import { formatDuration, formatTokens } from '../../utils/format.js'
 import { mintIntentId, submitDispatch } from '../../services/attention/actions.js'
 import {
@@ -479,7 +479,7 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
   const tokens = useMercuryTokens()
   const tasks = useAppState(s => s.tasks)
   const roster = useFocusedWorkRoster()
-  const cwd = useFocusedWorkspaceCwd()
+  const cwd = useFocusedWorkspaceOriginalCwd()
   const [pastRuns, setPastRuns] = useState<Array<WorkflowRunManifest & { mtimeMs: number }>>([])
   const [pastLoaded, setPastLoaded] = useState(false)
   const [unreadableRuns, setUnreadableRuns] = useState(0)

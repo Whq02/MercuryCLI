@@ -605,6 +605,13 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
+      "file": "scripts/health/prove-process-census-other-build.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "observation(77001, 1, ['/usr/bin/python3', '/Users/op/pre27-air/runwatch.py', 'mercury.mjs'], { exe: 'python3' }),",
+      "cls": "platform-owner",
+      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
+    },
+    {
       "file": "scripts/helm-console/live-console-e2e.ts",
       "mechanism": "hardcoded-tmp",
       "excerpt": "writeFileSync('/tmp/vshot-live-console.json', JSON.stringify({ ...cfg, out: gridPath }))",

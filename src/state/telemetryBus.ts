@@ -9,7 +9,7 @@ import {
 } from '../tools/WorkflowTool/runManifest.js'
 import { crewSeatGlances } from '../utils/crew/crewClient.js'
 import type { CrewSeatGlanceV1 } from '../services/crew/roster.js'
-import { getCwd } from '../utils/cwd.js'
+import { getOriginalCwd } from '../bootstrap/state.js'
 import { logForDebugging } from '../utils/debug.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { getGitState, subscribeGitFacts, type GitRepoState } from '../utils/git.js'
@@ -121,7 +121,7 @@ async function refreshOnce(): Promise<void> {
         }
       })
       .catch(() => {}),
-    listWorkflowRuns(getCwd(), { limit: WORKFLOWS_DISK_MAX * 5 })
+    listWorkflowRuns(getOriginalCwd(), { limit: WORKFLOWS_DISK_MAX * 5 })
       .then(runs => {
         next.workflowsDisk = runs
           .filter(m => m.status === 'running' || m.status === 'paused')

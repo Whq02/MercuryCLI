@@ -5,6 +5,7 @@
 # gate-watch: src/**
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: assets/splash/mercury-splash.mjs bun.lock docs/INSTALL-WINDOWS-FROM-SOURCE.md
+# gate-watch: scripts/lib/hermetic.ts scripts/lib/rows.ts scripts/lib/scriptedTurn.ts scripts/daemon/dupline-world.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -17,7 +18,7 @@ BUN="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
 
 echo "── Node 24 LTS runtime-contract proofs ──"
-for prover in prove-node-policy prove-entry-gate prove-compile-cache prove-win32-console prove-windows-seams prove-spawn-window-discipline prove-copy-truth prove-workflow-toolchain prove-field-findings-exit-writes prove-broken-pipe-uniform; do
+for prover in prove-node-policy prove-entry-gate prove-compile-cache prove-win32-console prove-windows-seams prove-spawn-window-discipline prove-copy-truth prove-workflow-toolchain prove-field-findings-exit-writes prove-broken-pipe-uniform prove-session-env-own-stamps; do
   echo ""
   echo "▶ $prover"
   __t=$SECONDS; __rc=0; "$BUN" run "$here/$prover.ts" || { __rc=$?; fail=1; }; prover_mark "$here/$prover.ts" "$__t" "$__rc"
