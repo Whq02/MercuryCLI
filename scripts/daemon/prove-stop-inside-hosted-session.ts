@@ -74,10 +74,12 @@ tally.section('§2 the verbs consult the verdict before anything that would end 
   const teardown = main.slice(main.indexOf('const shutdown = (signal: string) => {'), main.indexOf('const bail = setTimeout(() => process.exit(1), 15_000)'))
   tally.check('the seam stands as read: the teardown reaps every rostered worker (why the refusal is client-side, and why no flag can keep one)', teardown.includes('for (const j of roster.list())') && teardown.includes('roster.kill(j.short)'))
   const { DAEMON_USAGE, parseDaemonVerb } = await import('../../src/daemon/verbs.ts')
-  const stopRow = DAEMON_USAGE.split('\n').find(l => l.trimStart().startsWith('stop')) ?? ''
+  const usageLines = DAEMON_USAGE.split('\n')
+  const stopRowAt = usageLines.findIndex(l => l.trimStart().startsWith('stop'))
+  const stopRow = usageLines.slice(stopRowAt, stopRowAt + 2).filter((l, i) => i === 0 || /^\s{8,}\S/.test(l)).join(' ').replace(/\s+/g, ' ')
   const promisesSurvival = (text: string): boolean => /leaves? (in-flight )?(them|workers) running|workers? (survive|stay alive|keep running|live on)|skips that reap/i.test(text)
   tally.check('the usage carries no --keep: the flag is retired, not explained', !DAEMON_USAGE.includes('--keep') && !DAEMON_USAGE.includes('--any'), stopRow)
-  tally.check('the stop row of the usage names the reap and promises no survival', /reap/.test(stopRow) && !promisesSurvival(stopRow), stopRow)
+  tally.check('the stop row of the usage says every worker stops with the daemon and promises no survival', /every session process it runs \(every worker\) stops with it/.test(stopRow) && !promisesSurvival(stopRow), stopRow)
   const keep = parseDaemonVerb(['stop', '--keep'], () => false) as { kind: string; word?: string }
   tally.check("`stop --keep` is refused by the grammar, typed, naming the flag", keep.kind === 'unknown-flag' && keep.word === '--keep', `accepted as ${JSON.stringify(keep)}`)
   tally.check('the stop verb reads no --keep and asks for the reap by name', !stop.includes('--keep') && stop.includes("{ op: 'shutdown', reapWorkers: true }"), stop.split('\n').filter(l => /--keep|reapWorkers/.test(l)).join(' | '))
