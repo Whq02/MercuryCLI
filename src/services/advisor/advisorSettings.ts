@@ -20,7 +20,7 @@ export interface AdvisorSettings {
 
 export const ADVISOR_DEFAULT_MINUTES = 10
 export const ADVISOR_MINUTES_FLOOR = 1
-export const ADVISOR_MINUTES_LADDER: readonly number[] = Object.freeze([10, 20, 30, 45, 60])
+export const ADVISOR_MINUTES_LADDER: readonly number[] = Object.freeze([2, 5, 10, 20, 30, 45, 60])
 export const ADVISOR_CONTAINER = 'advisor' as const
 export const ADVISOR_ENV_VAR = subModelEnvVar(ADVISOR_CONTAINER)
 

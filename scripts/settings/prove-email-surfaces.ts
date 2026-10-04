@@ -153,6 +153,7 @@ const connector = {
   subscribeModel: () => () => {},
   records: () => [],
   subscribeRecords: () => () => {},
+  usage: () => ({ totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false }),
 }
 await stub('src/services/engine-connector/focusedConnector.ts', {
   getFocusedSessionConnector: () => connector,

@@ -43,6 +43,7 @@ const USAGE: KeyTable = {
   totalCacheCreationInputTokens: 'total_cache_creation_input_tokens',
   hasUnknownModelCost: 'has_unknown_model_cost',
   unpricedTurns: 'unpriced_turns',
+  modelSpend: 'model_spend',
   limitWarning: 'limit_warning',
   openaiObserved: 'openai_observed',
   anthropicWindow: 'anthropic_window',
@@ -50,6 +51,14 @@ const USAGE: KeyTable = {
   geminiWindow: 'gemini_window',
   openrouterWindow: 'openrouter_window',
   huggingfaceWindow: 'huggingface_window',
+}
+const MODEL_SPEND: KeyTable = {
+  inputTokens: 'input_tokens',
+  outputTokens: 'output_tokens',
+  cacheReadInputTokens: 'cache_read_input_tokens',
+  cacheCreationInputTokens: 'cache_creation_input_tokens',
+  costUSD: 'cost_usd',
+  unpricedTurns: 'unpriced_turns',
 }
 const ANTHROPIC_WINDOW: KeyTable = {
   observedAtMs: 'observed_at_ms',
@@ -249,7 +258,8 @@ function usageNested(
       if (isRow(next[failureKey])) next[failureKey] = renamed(next[failureKey] as Row, jevTable.lastRequestId ? { requestId: 'request_id' } : { request_id: 'requestId' })
       out.jev = next
     }
-    void table
+    const spendKey = table.modelSpend ?? 'modelSpend'
+    if (Array.isArray(out[spendKey])) out[spendKey] = rows(out[spendKey], table.totalCostUSD === undefined ? flip(MODEL_SPEND) : MODEL_SPEND)
   }
 }
 

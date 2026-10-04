@@ -44,6 +44,7 @@ export function pinScratchHome(prefix: string): string {
   process.env.MERCURY_LIVE_CLOCK = '0'
   process.env.MERCURY_LIVE_GLYPHS = '0'
   process.env.MERCURY_RECESS = '0'
+  process.env.MERCURY_CLIPBOARD_FILE = join(home, 'clipboard.txt')
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   return home
 }

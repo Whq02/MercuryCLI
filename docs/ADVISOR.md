@@ -30,7 +30,7 @@ switch above every chat. The advisor runs for a chat only when both are on.
   it was. With the settings on the row reads
   `on · every 10 minutes · /advise turns it on per chat`.
 - **`/config` → Advisor interval** — how many minutes pass between notes:
-  10 · 20 · 30 · 45 · 60 (10 by default; the floor is 1).
+  2 · 5 · 10 · 20 · 30 · 45 · 60 (10 by default; the floor is 1).
 - **`/submodels` → ADVISOR** — the advisor's model, picked from the same live
   catalogue the main `/model` picker offers: every signed-in family's models
   and the local catalogue, carriers included. `tab` moves between the CONSOLE

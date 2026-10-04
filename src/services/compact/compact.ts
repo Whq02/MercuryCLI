@@ -1,4 +1,4 @@
-import { canAnswerAsks, getMainThreadAgentType, getInvokedSkillsForAgent } from '../../bootstrap/state.js'
+import { canAnswerAsks, getMainThreadAgentType, getInvokedSkillsForAgent, getSdkBetas } from '../../bootstrap/state.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { ToolUseContext } from '../../Tool.js'
 import type { NonNullableUsage } from '../api/emptyUsage.js'
@@ -46,7 +46,7 @@ import { tokenCountWithEstimation } from '../../utils/tokens.js'
 import { extractDiscoveredToolNames, isToolSearchEnabled } from '../../utils/toolSearch.js'
 import { sleep } from '../../utils/sleep.js'
 import { COMPACT_MAX_OUTPUT_TOKENS } from '../../utils/context.js'
-import { getModelMaxOutputTokens, servesPerMessageEffort, notePerMessageEffortRefused, refusesPerMessageEffortRow } from '../../utils/model/capabilities.js'
+import { getContextWindowForModel, getModelMaxOutputTokens, servesPerMessageEffort, notePerMessageEffortRefused, refusesPerMessageEffortRow } from '../../utils/model/capabilities.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { API_ERROR_MESSAGE_PREFIX, PROMPT_TOO_LONG_ERROR_MESSAGE, getPromptTooLongTokenGap } from '../api/errors.js'
 import { type OverflowSignal, overflowGapTokens, overflowSignalOf } from '../api/overflowSignal.js'
@@ -98,12 +98,18 @@ export const POST_COMPACT_SKILLS_TOKEN_BUDGET = 25_000
 export const ERROR_MESSAGE_NOT_ENOUGH_MESSAGES = 'Not enough messages to compact.'
 export const ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD = 'Compaction cannot bring the context under its threshold'
 export const ERROR_MESSAGE_PROMPT_TOO_LONG =
-  'This conversation has outgrown one pass: after three narrowing retries the summariser itself was refused as too long. Start a fresh conversation with /clear, or switch to a model with a larger context window and run /compact again.'
+  'This conversation could not be folded: the summariser itself was refused as too long even for its smallest part. Start a fresh conversation with /clear, or switch to a model with a larger context window and run /compact again.'
 export const ERROR_MESSAGE_USER_ABORT = 'Compaction cancelled.'
 export const ERROR_MESSAGE_INCOMPLETE_RESPONSE =
   'Compaction was interrupted before a summary arrived — likely a network issue; try again.'
 
 const PTL_RETRY_LIMIT = 3
+const PART_SUMMARY_MARKER = '[earlier turns folded into this summary for the compaction]'
+const PART_TEXT_CHUNK_CHARS = 40_000
+const PART_TEXT_CHUNK_FLOOR_CHARS = 2_000
+const REFUSAL_RETRY_WINDOW_SHARE = 0.6
+export const MODEL_REFUSAL_STOP_KEY = 'stop_reason: refusal'
+export const FOLD_REFUSED_RETRY_NOTE = 'The model refused the first compaction request; the retry handed the conversation over as text and landed.'
 const PTL_TRUNCATION_MARKER = '[earlier turns folded for the compaction retry]'
 const LEGACY_PTL_TRUNCATION_MARKER = '[earlier conversation truncated for compaction retry]'
 const KEEPALIVE_INTERVAL_MS = 30_000
@@ -351,6 +357,7 @@ export type CompactionResult = {
   postCompactTokenCount: number
   truePostCompactTokenCount?: number
   compactionUsage?: NonNullableUsage
+  notes?: string[]
 }
 
 export type RecompactionInfo = {
@@ -948,7 +955,7 @@ async function streamingFallbackAttempts(
         attempts += 1
         continue
       }
-      if (!isOverflowAnswer(captured)) {
+      if (!isOverflowAnswer(captured) && !summaryRefusedByModel(captured)) {
         const malformed = malformedHistoryRefusalOf(captured)
         if (malformed !== null) {
           throw new CompactionRefusedForHistoryError(malformed, {
@@ -996,6 +1003,159 @@ async function runSummarization(
   })
 }
 
+function summaryRefused(response: AssistantMessage): boolean {
+  const text = getAssistantMessageText(response) ?? ''
+  return text.startsWith(PROMPT_TOO_LONG_ERROR_MESSAGE) || overflowSignalOf(response) !== null
+}
+
+export function summaryRefusedByModel(response: AssistantMessage): boolean {
+  if (response.isApiErrorMessage !== true) return false
+  const details = typeof response.errorDetails === 'string' ? response.errorDetails : ''
+  return details.startsWith(MODEL_REFUSAL_STOP_KEY) || (getAssistantMessageText(response) ?? '').includes(`(${MODEL_REFUSAL_STOP_KEY})`)
+}
+
+export function conversationAsText(messages: readonly Message[]): string {
+  return messages.filter(message => !isCompactCapsuleMessage(message) && !isPtlMarkerMessage(message)).map(messageAsText).filter(line => line !== '').join('\n\n')
+}
+
+export function refusalRetryChunkChars(model: string): number {
+  const window = getContextWindowForModel(model, getSdkBetas())
+  return Math.max(PART_TEXT_CHUNK_CHARS, Math.floor(window * REFUSAL_RETRY_WINDOW_SHARE * 4))
+}
+
+async function summarizeFold(
+  messages: Message[],
+  cacheSafeParams: CacheSafeParams,
+  promptText: string,
+  context: ToolUseContext,
+  logMissing: boolean,
+): Promise<{ summary: string; notes: string[]; response: AssistantMessage }> {
+  const response = await summarizeWithPtlRetry(messages, cacheSafeParams, promptText, context)
+  if (!summaryRefusedByModel(response)) return { summary: validateSummary(response, logMissing), notes: [], response }
+  logForDebugging(`compact: the summariser's request was refused by the model (${(getAssistantMessageText(response) ?? '').slice(0, 120)}) — retrying once with the conversation as text`)
+  context.onCompactProgress?.({ type: 'retry', attempt: 2, why: 'refused' })
+  const text = conversationAsText(messages)
+  const chunkChars = refusalRetryChunkChars(context.options.engineModel)
+  const parts = await summarizeTextInParts(text, chunkChars, cacheSafeParams, promptText, context)
+  if (parts === null) throw new Error(ERROR_MESSAGE_PROMPT_TOO_LONG)
+  if (splitTextForFold(text, chunkChars).length === 1) return { summary: parts, notes: [FOLD_REFUSED_RETRY_NOTE], response }
+  const whole = await summarizeWithPtlRetry([...messages.filter(isCompactCapsuleMessage), partCapsule(parts)], cacheSafeParams, promptText, context)
+  return { summary: validateSummary(whole, logMissing), notes: [FOLD_REFUSED_RETRY_NOTE], response: whole }
+}
+
+export function isPartSummaryMessage(message: Message): boolean {
+  if (message.type !== 'user') return false
+  const user = message as UserMessage
+  return user.isMeta === true && typeof user.message.content === 'string' && user.message.content.startsWith(PART_SUMMARY_MARKER)
+}
+
+function partCapsule(summary: string): UserMessage {
+  return createUserMessage({ content: `${PART_SUMMARY_MARKER}\n\n${summary}`, isMeta: true })
+}
+
+function messageAsText(message: Message): string {
+  if (message.type !== 'user' && message.type !== 'assistant') return ''
+  const content = (message as UserMessage | AssistantMessage).message.content
+  if (typeof content === 'string') return `${message.type}: ${content}`
+  const parts: string[] = []
+  for (const block of content as Array<Record<string, unknown>>) {
+    if (block.type === 'text' && typeof block.text === 'string') parts.push(block.text)
+    else if (block.type === 'tool_use') parts.push(`[tool call ${String(block.name)}] ${JSON.stringify(block.input)}`)
+    else if (block.type === 'tool_result') {
+      const inner = block.content
+      const text = typeof inner === 'string' ? inner : Array.isArray(inner) ? inner.map(b => (typeof (b as { text?: unknown }).text === 'string' ? (b as { text: string }).text : '')).join('\n') : ''
+      parts.push(`[tool result] ${text}`)
+    } else if (block.type === 'image' || block.type === 'document') parts.push(`[${String(block.type)} omitted]`)
+  }
+  return `${message.type}: ${parts.join('\n')}`
+}
+
+export function splitTextForFold(text: string, chunkChars: number): string[] {
+  const chunks: string[] = []
+  for (let at = 0; at < text.length; at += chunkChars) chunks.push(text.slice(at, at + chunkChars))
+  return chunks.length === 0 ? [''] : chunks
+}
+
+async function summarizeTextInParts(
+  text: string,
+  chunkChars: number,
+  cacheSafeParams: CacheSafeParams,
+  promptText: string,
+  context: ToolUseContext,
+): Promise<string | null> {
+  const summaries: string[] = []
+  for (const chunk of splitTextForFold(text, chunkChars)) {
+    const response = await runSummarization([createUserMessage({ content: chunk })], cacheSafeParams, createUserMessage({ content: promptText }), context)
+    if (!summaryRefused(response)) {
+      summaries.push(validateSummary(response, false))
+      continue
+    }
+    if (chunkChars <= PART_TEXT_CHUNK_FLOOR_CHARS) return null
+    const narrower = await summarizeTextInParts(chunk, Math.max(PART_TEXT_CHUNK_FLOOR_CHARS, Math.floor(chunkChars / 2)), cacheSafeParams, promptText, context)
+    if (narrower === null) return null
+    summaries.push(narrower)
+  }
+  return summaries.join('\n\n')
+}
+
+async function foldAllAsText(
+  input: Message[],
+  cacheSafeParams: CacheSafeParams,
+  promptText: string,
+  context: ToolUseContext,
+): Promise<Message[] | null> {
+  const working = input.filter(message => !isCompactCapsuleMessage(message))
+  if (working.length === 0) return null
+  const text = working.map(messageAsText).filter(line => line !== '').join('\n\n')
+  const summary = await summarizeTextInParts(text, PART_TEXT_CHUNK_CHARS, cacheSafeParams, promptText, context)
+  if (summary === null) return null
+  const capsule = partCapsule(summary)
+  if (estimateContextTokens([capsule]) >= estimateContextTokens(working)) return null
+  return [...input.filter(isCompactCapsuleMessage), capsule]
+}
+
+async function foldHeadIntoCapsule(
+  messages: Message[],
+  ptlResponse: AssistantMessage,
+  cacheSafeParams: CacheSafeParams,
+  promptText: string,
+  context: ToolUseContext,
+): Promise<Message[] | null> {
+  const input = messages.filter(message => !isPtlMarkerMessage(message))
+  const groups = groupMessagesByApiRound(input)
+  const workingOf = (rows: Message[]): Message[] => rows.filter(message => !isCompactCapsuleMessage(message))
+  const sizeOf = (rows: Message[]): number => estimateContextTokens(workingOf(rows))
+  const signal = overflowSignalOf(ptlResponse)
+  const gap = getPromptTooLongTokenGap(ptlResponse) ?? (signal !== null ? overflowGapTokens(signal) : undefined)
+  if (groups.length >= 2) {
+    const ahead = groups.slice(0, groups.length - 1).flat()
+    const coverable = gap === undefined || sizeOf(ahead) >= gap
+    if (coverable && workingOf(ahead).length > 0) {
+      let dropCount: number
+      if (gap !== undefined) {
+        dropCount = 0
+        let freed = 0
+        while (dropCount < groups.length - 1 && freed < gap) {
+          freed += sizeOf(groups[dropCount] as Message[])
+          dropCount++
+        }
+      } else {
+        dropCount = Math.ceil(groups.length / 2)
+      }
+      dropCount = Math.max(1, Math.min(dropCount, groups.length - 1))
+      while (dropCount < groups.length - 1 && workingOf(groups.slice(0, dropCount).flat()).length === 0) dropCount++
+      const head = groups.slice(0, dropCount).flat()
+      const working = workingOf(head)
+      if (working.length > 0) {
+        const partResponse = await summarizeWithPtlRetry(working, cacheSafeParams, promptText, context)
+        const capsule = partCapsule(validateSummary(partResponse, false))
+        return [...head.filter(isCompactCapsuleMessage), capsule, ...groups.slice(dropCount).flat()]
+      }
+    }
+  }
+  return foldAllAsText(input, cacheSafeParams, promptText, context)
+}
+
 async function summarizeWithPtlRetry(
   initialMessages: Message[],
   cacheSafeParams: CacheSafeParams,
@@ -1003,17 +1163,20 @@ async function summarizeWithPtlRetry(
   context: ToolUseContext,
 ): Promise<AssistantMessage> {
   let messages = initialMessages
-  let response: AssistantMessage | null = null
-  for (let attempt = 0; attempt <= PTL_RETRY_LIMIT; attempt++) {
+  let before = estimateContextTokens(messages)
+  const bound = groupMessagesByApiRound(messages).length + PTL_RETRY_LIMIT
+  for (let attempt = 0; attempt <= bound; attempt++) {
     if (attempt > 0) context.onCompactProgress?.({ type: 'retry', attempt: attempt + 1 })
     const promptMessage = createUserMessage({ content: promptText })
-    response = await runSummarization(messages, cacheSafeParams, promptMessage, context)
-    const text = getAssistantMessageText(response) ?? ''
-    if (!text.startsWith(PROMPT_TOO_LONG_ERROR_MESSAGE) && overflowSignalOf(response) === null) return response
-    if (attempt === PTL_RETRY_LIMIT) break
-    const truncated = truncateHeadForPTLRetry(messages, response)
-    if (truncated === null) break
-    messages = truncated
+    const response = await runSummarization(messages, cacheSafeParams, promptMessage, context)
+    if (!summaryRefused(response)) return response
+    if (attempt === bound) break
+    const folded = await foldHeadIntoCapsule(messages, response, cacheSafeParams, promptText, context)
+    if (folded === null) break
+    const after = estimateContextTokens(folded)
+    if (after >= before && groupMessagesByApiRound(folded).length >= groupMessagesByApiRound(messages).length) break
+    before = after
+    messages = folded
   }
   throw new Error(ERROR_MESSAGE_PROMPT_TOO_LONG)
 }
@@ -1026,7 +1189,7 @@ function validateSummary(response: AssistantMessage, logMissing: boolean): strin
     }
     throw new Error('Failed to generate a conversation summary.')
   }
-  if (text.startsWith(API_ERROR_MESSAGE_PREFIX)) throw new Error(text)
+  if (text.startsWith(API_ERROR_MESSAGE_PREFIX) || response.isApiErrorMessage === true) throw new Error(text)
   return text
 }
 
@@ -1217,8 +1380,7 @@ export async function compactConversation(
     const owner = ownerFromToolUseContext(context)
     const capsuleProbe = buildRunContinuationCapsule(owner)
     const promptText = getCompactPrompt(mergedInstructions, { runCapsulePresent: capsuleProbe !== null })
-    const response = await summarizeWithPtlRetry(messages, summaryCacheSafeParams, promptText, summaryContext)
-    const rawSummary = validateSummary(response, true)
+    const { summary: rawSummary, notes, response } = await summarizeFold(messages, summaryCacheSafeParams, promptText, summaryContext, true)
     context.onCompactProgress?.({ type: 'stage', stage: 'restoring' })
 
     let messagesToKeep: Message[] | undefined
@@ -1334,6 +1496,7 @@ export async function compactConversation(
       ...partial,
       userDisplayMessage: display.length > 0 ? display.join('\n') : undefined,
       truePostCompactTokenCount,
+      ...(notes.length > 0 ? { notes } : {}),
     }
   } catch (err) {
     if (!isAutoCompact) notifyCompactionError(context, err)
@@ -1401,8 +1564,7 @@ export async function partialCompactConversation(
     context.onCompactProgress?.({ type: 'compact_start' })
     const promptText = getPartialCompactPrompt(customInstructions, direction)
     const apiMessages = direction === 'up_to' ? summarize : allMessages
-    const response = await summarizeWithPtlRetry(apiMessages, cacheSafeParams, promptText, context)
-    const rawSummary = validateSummary(response, false)
+    const { summary: rawSummary, notes, response } = await summarizeFold(apiMessages, cacheSafeParams, promptText, context, false)
 
     const ledgerBeforeFold = [...context.readFileState.entries()]
     const snapshot = snapshotAndClearReadState(context)
@@ -1467,6 +1629,7 @@ export async function partialCompactConversation(
       preCompactTokenCount,
       postCompactTokenCount: callUsageTotal,
       compactionUsage: usage,
+      ...(notes.length > 0 ? { notes } : {}),
     }
     return {
       ...partialResult,

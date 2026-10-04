@@ -62,7 +62,7 @@ export async function startMCPServer(
         })
         const inputSchema = zodToJsonSchema(tool.inputSchema)
         const outputSchemaRaw = tool.outputSchema
-          ? zodToJsonSchema(tool.outputSchema)
+          ? zodToJsonSchema(tool.outputSchema, 'output')
           : undefined
         const outputSchema =
           outputSchemaRaw &&

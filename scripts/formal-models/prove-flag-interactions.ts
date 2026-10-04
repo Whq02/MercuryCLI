@@ -102,6 +102,7 @@ const DOMAINS: Record<string, string[]> = {
   MERCURY_DESKTOP_FAKE_SCENE: ['', '/tmp/sweep-scene.json'],
   MERCURY_DESKTOP_FAKE_LOG: ['', '/tmp/sweep-acts.jsonl'],
   MERCURY_DESKTOP_PACK_DIR: ['', '/tmp/sweep-desktop-pack'],
+  MERCURY_CLIPBOARD_FILE: ['', '/tmp/sweep-clipboard.txt'],
   MERCURY_SHELL_TIMEOUT_MS: ['', '5000', '900000'],
   MERCURY_SHELL_MAX_TIMEOUT_MS: ['', '7000'],
 }

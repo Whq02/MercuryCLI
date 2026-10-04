@@ -3,13 +3,17 @@ import { z, type ZodTypeAny } from 'zod/v4'
 
 export type JsonSchema7Type = Record<string, unknown>
 
-const conversionCache = new WeakMap<object, JsonSchema7Type>()
+export type SchemaSide = 'input' | 'output'
 
-export function zodToJsonSchema(schema: ZodTypeAny): JsonSchema7Type {
-  const cached = conversionCache.get(schema as object)
+const conversionCache = new WeakMap<object, Partial<Record<SchemaSide, JsonSchema7Type>>>()
+
+export function zodToJsonSchema(schema: ZodTypeAny, side: SchemaSide = 'input'): JsonSchema7Type {
+  const sides = conversionCache.get(schema as object) ?? {}
+  const cached = sides[side]
   if (cached !== undefined) return cached
-  const converted = z.toJSONSchema(schema as never) as JsonSchema7Type
+  const converted = z.toJSONSchema(schema as never, { io: side }) as JsonSchema7Type
   delete converted.$schema
-  conversionCache.set(schema as object, converted)
+  sides[side] = converted
+  conversionCache.set(schema as object, sides)
   return converted
 }

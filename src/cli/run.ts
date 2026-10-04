@@ -53,6 +53,7 @@ import { getCurrentProjectConfig, readGlobalConfigAgain } from '../utils/config.
 import { mcpRosterEntriesOf, skillsRosterOf } from '../services/engine-connector/rosterTerms.js'
 import type { SessionFactsAnswerV1 } from '../services/engine-connector/seatProjections.js'
 import { effortSentOf } from '../services/engine-connector/seatProjections.js'
+import { sessionModelSpendRows } from '../services/engine-connector/modelSpendFacts.js'
 import {
   openaiCatalogueFromWire,
   rewindOutcomeToWire,
@@ -2026,6 +2027,7 @@ export async function runHeadless(
           totalCacheCreationInputTokens: getTotalCacheCreationInputTokens(),
           hasUnknownModelCost: hasUnknownModelCost(),
           unpricedTurns: getTotalUnpricedTurns(),
+          modelSpend: sessionModelSpendRows(),
           limitWarning: providerLimitWarning({ model: activeModel ?? getEngineModel() }),
           ...(() => {
             const observed = openaiObservedUsage()

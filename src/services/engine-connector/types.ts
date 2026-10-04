@@ -113,6 +113,7 @@ export type UsageFactsV1 = {
   totalCacheCreationInputTokens: number
   hasUnknownModelCost: boolean
   unpricedTurns?: number
+  modelSpend?: ModelSpendRowV1[]
   limitWarning?: LimitWarningFactV1 | null
   openaiObserved?: {
     primary?: OpenaiObservedBandV1
@@ -125,6 +126,17 @@ export type UsageFactsV1 = {
   openrouterWindow?: LaneWindowFactV1
   huggingfaceWindow?: LaneWindowFactV1
   jev?: JevFactsV1
+}
+
+export type ModelSpendRowV1 = {
+  model: string
+  workload?: string
+  inputTokens: number
+  outputTokens: number
+  cacheReadInputTokens: number
+  cacheCreationInputTokens: number
+  costUSD: number
+  unpricedTurns: number
 }
 
 export type JevFactsV1 = {

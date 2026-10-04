@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { EventEmitter } from 'node:events'
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
@@ -19,6 +19,7 @@ process.env.MERCURY_CRITTER_SLEEP = '0'
 process.env.MERCURY_LIVE_CLOCK = '0'
 process.env.MERCURY_LIVE_GLYPHS = '0'
 process.env.MERCURY_TERMINAL_TITLE = '0'
+process.env.MERCURY_CLIPBOARD_FILE = join(SCRATCH, 'clipboard.txt')
 delete process.env.NODE_ENV
 
 const React = await import('react')
@@ -466,6 +467,8 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
   check('the highlight spans from the pane top down to the anchor line', rows.length > 0 && rows[0]! <= viewportTop && rows.at(-1)! >= anchorNow, `rows ${rows[0]}..${rows.at(-1)}, anchor at ${anchorNow}`)
   const copied = (ink as unknown as { copySelectionNoClear: () => string }).copySelectionNoClear()
   check('the copy carries the anchor line and the lines that scrolled in above it', copied.includes(anchorLine.slice(0, 6)) && copied.split('\n').length >= heldStill, `${copied.split('\n').length} lines copied; ${JSON.stringify(copied.slice(-80))}`)
+  const clipboardFile = join(SCRATCH, 'clipboard.txt')
+  check('the copy went to the fixture clipboard file, never the machine\'s clipboard', existsSync(clipboardFile) && readFileSync(clipboardFile, 'utf8') === copied, existsSync(clipboardFile) ? `${readFileSync(clipboardFile, 'utf8').length} bytes in the file vs ${copied.length} copied` : 'no clipboard file')
   await releaseAt(above)
   await clearAll()
   ;(handle as unknown as { scrollToBottom: () => void } | null)?.scrollToBottom()

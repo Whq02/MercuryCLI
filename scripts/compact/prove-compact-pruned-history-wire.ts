@@ -395,22 +395,26 @@ section('P2 the summariser itself overflows — the truncated retry answers ever
     { error: { status: 400, body: OVERFLOW_SMALL_GAP } },
     { calls: [readCall(ROUNDS + 1, 'b_read_late')], reasoning: reasoning(ROUNDS + 3), usage: { input: 300_000, output: 30 } },
     { error: { status: 400, body: OVERFLOW_SMALL_GAP } },
-    { text: 'SUMMARY after truncation: the later notes files were read.' },
-    { text: 'the recovered answer after a truncated compaction', usage: { input: 700, output: 12 } },
+    { text: 'PART SUMMARY: the first notes files were read.' },
+    { text: 'SUMMARY after the fold in parts: the later notes files were read.' },
+    { text: 'the recovered answer after a compaction in parts', usage: { input: 700, output: 12 } },
   ])
   const r = await drive(ctxB, [...historyB, createUserMessage({ content: SECOND_ASK })])
   check('the run completed', r.threw === undefined && r.terminal.reason === 'completed', `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)} errors=${JSON.stringify(errorTexts(r.yields))}`)
-  check('five Responses requests: overflow · pruned retry · summariser (refused) · summariser (truncated) · reply', r.wire.length === 5, `${r.wire.length}`)
+  check('six Responses requests: overflow · pruned retry · summariser (refused) · the shed head\'s own summary · summariser (the whole) · reply (red on the base: five, the head dropped)', r.wire.length === 6, `${r.wire.length}`)
   const first = r.wire[2]
-  const second = r.wire[3]
-  check('both summariser requests carry the compaction prompt', first !== undefined && second !== undefined && isSummariserRequest(first.body) && isSummariserRequest(second.body))
+  const part = r.wire[3]
+  const second = r.wire[4]
+  check('every summariser request carries the compaction prompt', first !== undefined && part !== undefined && second !== undefined && isSummariserRequest(first.body) && isSummariserRequest(part.body) && isSummariserRequest(second.body))
   const firstItems = first !== undefined ? inputOf(first.body) : []
+  const partItems = part !== undefined ? inputOf(part.body) : []
   const secondItems = second !== undefined ? inputOf(second.body) : []
-  check('the truncated retry is smaller than the first summariser request', secondItems.length < firstItems.length, `${secondItems.length} vs ${firstItems.length}`)
+  check('the part request and the whole retry are each smaller than the first summariser request', partItems.length < firstItems.length && secondItems.length < firstItems.length, `${partItems.length} / ${secondItems.length} vs ${firstItems.length}`)
   check('THE RULE on the first summariser request: every function_call is answered', unansweredCalls(firstItems).length === 0, `unanswered=${JSON.stringify(unansweredCalls(firstItems))}`)
-  check('THE RULE on the truncated retry: every function_call is answered', unansweredCalls(secondItems).length === 0, `unanswered=${JSON.stringify(unansweredCalls(secondItems))} calls=${JSON.stringify(callIds(secondItems))} outputs=${JSON.stringify(outputIds(secondItems))}`)
-  check('no call id is sent twice on the truncated retry', duplicateCalls(secondItems).length === 0, JSON.stringify(duplicateCalls(secondItems)))
-  check('the reply settled last; the run minted no error row', lastAssistantText(r.yields) === 'the recovered answer after a truncated compaction' && freshErrorTexts(r.yields, historyB).length === 0, JSON.stringify(freshErrorTexts(r.yields, historyB)))
+  check('THE RULE on the part request: every function_call is answered', unansweredCalls(partItems).length === 0, `unanswered=${JSON.stringify(unansweredCalls(partItems))} calls=${JSON.stringify(callIds(partItems))} outputs=${JSON.stringify(outputIds(partItems))}`)
+  check('THE RULE on the whole retry: every function_call is answered', unansweredCalls(secondItems).length === 0, `unanswered=${JSON.stringify(unansweredCalls(secondItems))} calls=${JSON.stringify(callIds(secondItems))} outputs=${JSON.stringify(outputIds(secondItems))}`)
+  check('no call id is sent twice on the whole retry', duplicateCalls(secondItems).length === 0, JSON.stringify(duplicateCalls(secondItems)))
+  check('the reply settled last; the run minted no error row', lastAssistantText(r.yields) === 'the recovered answer after a compaction in parts' && freshErrorTexts(r.yields, historyB).length === 0, JSON.stringify(freshErrorTexts(r.yields, historyB)))
 }
 
 section('P3 with the provider\'s own input rule armed, the whole run goes through with zero refusals')

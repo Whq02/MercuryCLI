@@ -69,7 +69,7 @@ const config = await import(join(ROOT, 'src/utils/config.ts'))
 config.enableConfigs()
 
 let focusedModel = `local/${MODEL_27}`
-const connector = { modelFacts: () => ({ main: focusedModel, effective: focusedModel }), subscribeModel: () => () => {}, records: () => [], subscribeRecords: () => () => {} }
+const connector = { modelFacts: () => ({ main: focusedModel, effective: focusedModel }), subscribeModel: () => () => {}, records: () => [], subscribeRecords: () => () => {}, usage: () => ({ totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false }) }
 await stub('src/keybindings/useKeybinding.ts', { useKeybinding: () => undefined, useKeybindings: () => undefined })
 await stub('src/hooks/useExitOnCtrlCD.ts', { useExitOnCtrlCD: () => undefined })
 await stub('src/context/notifications.tsx', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
