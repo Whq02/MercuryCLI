@@ -10,7 +10,7 @@ export interface CapsuleState {
 }
 
 const states = new Map<string, CapsuleState>()
-const resumedListings = new Set<string>()
+let resumedMainListing = false
 
 export function capsuleGeneration(messages: readonly Message[] | undefined): string {
   for (let i = (messages?.length ?? 0) - 1; i >= 0; i--) {
@@ -31,12 +31,15 @@ export function capsuleStateFor(
     state = { generation, sentSkillNames: new Set(), suppressNextSkills: false, lastDate: null }
     states.set(key, state)
   }
-  if (resumedListings.delete(key)) state.suppressNextSkills = true
+  if (resumedMainListing && !context.agentId && key === String(processMainOwner())) {
+    state.suppressNextSkills = true
+    resumedMainListing = false
+  }
   return state
 }
 
 export function resetCapsuleSkillNames(): void {
-  resumedListings.clear()
+  resumedMainListing = false
   for (const state of states.values()) {
     state.sentSkillNames.clear()
     state.suppressNextSkills = false
@@ -44,10 +47,10 @@ export function resetCapsuleSkillNames(): void {
 }
 
 export function suppressCapsuleSkillListing(): void {
-  resumedListings.add(String(processMainOwner()))
+  resumedMainListing = true
 }
 
 export function resetCapsuleState(): void {
   states.clear()
-  resumedListings.clear()
+  resumedMainListing = false
 }

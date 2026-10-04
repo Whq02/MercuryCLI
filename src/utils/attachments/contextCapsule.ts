@@ -1,7 +1,10 @@
 
 import { createHash } from 'node:crypto'
 import { relative } from 'node:path'
-import type { Attachment } from './types.js'
+import type { Attachment, CapsuleSection, CapsuleWorkingRef } from './types.js'
+import type { ContentBlockParam } from '../../types/wire.js'
+import { capsuleKind } from './capsuleKinds.js'
+import { capsuleGeneration } from './capsuleState.js'
 import type { Message } from 'src/types/message.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { cacheKeys } from '../fileStateCache.js'
@@ -64,11 +67,13 @@ export function priorCapsuleFromTranscript(messages: readonly Message[] | undefi
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i] as {
       type?: string
-      attachment?: { type?: string; digest?: string; refs?: string[]; semDigest?: string }
+      subtype?: string
+      attachment?: { type?: string; digest?: string; baseDigest?: string; refs?: string[]; semDigest?: string }
     }
+    if (m?.type === 'system' && m.subtype === 'compact_boundary') return null
     if (m?.type === 'attachment' && m.attachment?.type === 'context_capsule') {
       return {
-        digest: m.attachment.digest ?? '',
+        digest: m.attachment.baseDigest ?? m.attachment.digest ?? '',
         refs: m.attachment.refs ?? [],
         ...(m.attachment.semDigest !== undefined ? { semDigest: m.attachment.semDigest } : {}),
       }
@@ -203,4 +208,112 @@ export async function getContextCapsuleAttachment(
   } catch {
     return []
   }
+}
+
+type CapsuleAttachment = Extract<Attachment, { type: 'context_capsule' }>
+
+function visibleCapsule(messages: readonly Message[] | undefined): CapsuleAttachment | undefined {
+  for (let i = (messages?.length ?? 0) - 1; i >= 0; i--) {
+    const message = messages![i]!
+    if (message.type === 'system' && message.subtype === 'compact_boundary') return undefined
+    if (message.type === 'attachment' && message.attachment.type === 'context_capsule') return message.attachment
+  }
+  return undefined
+}
+
+function capsuleBody(text: string): string {
+  const open = '<system-reminder>\n'
+  const close = '\n</system-reminder>'
+  return text.startsWith(open) && text.endsWith(close) ? text.slice(open.length, -close.length) : text
+}
+
+function workingRefs(attachment: Attachment): CapsuleWorkingRef[] {
+  if (attachment.type === 'relevant_memories') {
+    return attachment.memories.flatMap(memory => (memory.ids?.length ? memory.ids : [memory.path]).map(id => ({
+      ref: id.startsWith('seq:') ? `mneme:${id.slice(4)}` : id.startsWith('pending:') ? `mneme-pending:${id.slice(8)}` : id,
+      path: memory.path,
+      reason: 'memory' as const,
+    })))
+  }
+  const path = 'filename' in attachment ? attachment.filename : 'path' in attachment ? attachment.path : undefined
+  if (typeof path !== 'string') return []
+  const workspace = getOriginalCwd()
+  const local = relative(workspace, path)
+  const ref = local.startsWith('..') || local.startsWith('/') ? path : `mercury://file/${local}`
+  const reason = attachment.type === 'nested_memory' ? 'instructions'
+    : attachment.type === 'edited_text_file' || attachment.type === 'edited_image_file' ? 'edited'
+      : attachment.type === 'compact_file_reference' ? 'read' : 'mentioned'
+  return [{ ref, path, reason }]
+}
+
+export function foldAttachmentsIntoCapsule(
+  attachments: Attachment[],
+  messages: readonly Message[] | undefined,
+  input: string | null,
+  context?: Pick<ToolUseContext, 'owner' | 'agentId'>,
+): Attachment[] {
+  const { normalizeAttachmentForAPI } = require('../messages/attachmentText.js') as typeof import('../messages/attachmentText.js')
+  const sections: CapsuleSection[] = []
+  const workingSet: CapsuleWorkingRef[] = []
+  const members = new Set<Attachment>()
+  let hasEvent = false
+  for (const attachment of attachments) {
+    const kind = capsuleKind(attachment.type)
+    if (!kind || attachment.capsuleReceipt) continue
+    const content: ContentBlockParam[] = []
+    for (const message of normalizeAttachmentForAPI(attachment)) {
+      const body = message.message.content
+      if (typeof body === 'string') content.push({ type: 'text', text: capsuleBody(body) })
+      else for (const block of body) {
+        content.push(block.type === 'text' ? { ...block, text: capsuleBody(block.text) } : block)
+      }
+    }
+    if (!content.length) continue
+    let section = sections.at(-1)
+    if (!section || section.name !== kind.section) {
+      section = { name: kind.section, kinds: [], content: [] }
+      sections.push(section)
+    }
+    section.kinds.push(attachment.type)
+    section.content.push(...content)
+    workingSet.push(...workingRefs(attachment))
+    members.add(attachment)
+    hasEvent ||= kind.cadence === 'event'
+  }
+  if (!sections.length) return attachments
+  const base = attachments.find((a): a is CapsuleAttachment => a.type === 'context_capsule')
+  const prior = visibleCapsule(messages)
+  const previousBase = prior?.baseDigest ?? (prior?.sections ? '' : prior?.digest) ?? ''
+  const baseDigest = base?.digest ?? previousBase
+  const generation = capsuleGeneration(messages)
+  const lastTurn = messages?.findLast(m => m.type === 'user' || m.type === 'assistant')
+  const sectionDigest = createHash('sha256').update(JSON.stringify({
+    generation, sections, workingSet, event: hasEvent ? [lastTurn?.uuid ?? '', input] : undefined,
+  })).digest('hex').slice(0, 12)
+  const digest = createHash('sha256').update(JSON.stringify({ baseDigest, sectionDigest })).digest('hex').slice(0, 12)
+  const receipts = attachments.filter(a => a !== base).map(a => members.has(a) ? { ...a, capsuleReceipt: digest } : a)
+  if (prior?.digest === digest) return receipts
+  const capsule: CapsuleAttachment = {
+    type: 'context_capsule',
+    markdown: base?.markdown ?? '',
+    digest,
+    baseDigest,
+    sectionDigest,
+    semDigest: base?.semDigest ?? prior?.semDigest,
+    refs: [...new Set([...(base?.refs ?? prior?.refs ?? []), ...workingSet.map(ref => ref.ref)])],
+    delta: base?.delta ?? null,
+    sections,
+    workingSet,
+  }
+  if (context) {
+    const { ownerFromToolUseContext } = require('../../services/run/resolveOwner.js') as typeof import('../../services/run/resolveOwner.js')
+    if (lastAttached.size > 64) {
+      const oldest = lastAttached.keys().next().value
+      if (oldest !== undefined) lastAttached.delete(oldest)
+    }
+    lastAttached.set(String(ownerFromToolUseContext(context)), { digest, refs: capsule.refs })
+  }
+  const index = attachments.findIndex(a => a === base || members.has(a))
+  receipts.splice(Math.max(0, index), 0, capsule)
+  return receipts
 }
