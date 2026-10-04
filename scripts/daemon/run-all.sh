@@ -26,6 +26,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-pty-degrade.ts" || { __rc=$?; fail
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-box-facts.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-box-facts.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-supervisor-lock.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-supervisor-lock.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-verbs.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-verbs.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-bundle-answers-status.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-bundle-answers-status.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-signin-live.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-signin-live.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-dispatch-death-settles.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-dispatch-death-settles.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-control-ops-ledger.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-control-ops-ledger.ts" "$__t" "$__rc"
