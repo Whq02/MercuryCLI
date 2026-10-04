@@ -3,11 +3,12 @@ import { basename, dirname, join } from 'node:path'
 
 import { findGitRoot } from '../../utils/git.js'
 import { pathInWorkingPath } from '../../utils/permissions/filesystem.js'
-import { mercuryNativeConvention } from './adapters/mercuryNative.js'
+import { mercuryNativeConvention } from './nativeSource.js'
+import { MAX_INCLUDE_DEPTH } from './discovery.js'
 import { clearInstructionFileCaches } from './engine.js'
 import { parseInstructionFileContent } from './sourceText.js'
 
-const MAX_POINTER_DEPTH = 5
+const MAX_POINTER_DEPTH = MAX_INCLUDE_DEPTH
 
 export const POINTER_PROSE_MAX_LINES = 6
 

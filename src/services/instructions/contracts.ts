@@ -50,7 +50,8 @@ export type InstructionConvention = {
 
 export type InstructionAdapter = {
   readonly id: 'mercury' | (string & {})
-  foreignConventions(): InstructionConvention[]
+  conventionsFor(profile: InstructionProfile): InstructionConvention[]
+  foreignConventions?(): InstructionConvention[]
 }
 
 export type InstructionProfileResolution = {

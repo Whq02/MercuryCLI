@@ -2,6 +2,7 @@ import { basename } from 'node:path'
 
 import { SHARED_INSTRUCTION_FILE } from './adapters/agentsMd.js'
 import type { InstructionSourceEntry } from './contracts.js'
+import { NATIVE_INSTRUCTION_FILE_NAMES } from './nativeSource.js'
 import {
   getInstructionFiles,
   onInstructionCacheInvalidated,
@@ -9,7 +10,7 @@ import {
 
 export const PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD = 400
 
-const ENTRY_BASENAMES_BY_RANK = ['MERCURY.md', SHARED_INSTRUCTION_FILE, 'MERCURY.local.md']
+const ENTRY_BASENAMES_BY_RANK = [NATIVE_INSTRUCTION_FILE_NAMES[0], SHARED_INSTRUCTION_FILE, NATIVE_INSTRUCTION_FILE_NAMES[1]]
 const ENTRY_BASENAMES = new Set(ENTRY_BASENAMES_BY_RANK)
 
 export function measuredGuideName(files: readonly InstructionSourceEntry[]): string {
