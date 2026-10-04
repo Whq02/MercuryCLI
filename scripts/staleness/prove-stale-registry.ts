@@ -285,6 +285,7 @@ src/utils/mtls.ts :: getMTLSConfig :: static-for-process
 src/utils/permissions/filesystem.ts :: bundledSkillsRootCache :: static-for-process
 src/utils/permissions/filesystem.ts :: tempDirCache :: static-for-process
 src/utils/permissions/filesystem.ts :: workingDirResolutionCache :: keyed-by-truth
+src/utils/permissions/decision/rules.ts :: tableCache :: keyed-by-truth
 src/utils/permissions/shellRuleMatching.ts :: compiledCache :: keyed-by-truth
 src/utils/platform.ts :: getLinuxDistroInfo :: static-for-process
 src/utils/platform.ts :: getPlatform :: static-for-process
