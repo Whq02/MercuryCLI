@@ -120,11 +120,10 @@ still remembers what came before.
 ## What it costs
 
 Every call the advisor makes is counted under its own workload. `/usage`
-shows it as a second line in each family's session slot, beneath the
-session's own figure and the scheduled work's:
+shows it as its own line in each family's active slot, beneath the
+scheduled work's:
 
 ```
-This session: 1,890 input · 94 output tokens · $0.01
 Scheduled: 1,500 input · 60 output tokens · $0.01
 Advisor: 90 input · 14 output tokens · $0.00
 ```
