@@ -35,7 +35,7 @@ for (let i = 0; i < args.length; i++) {
   const arg = args[i] as string
   if (arg === '--brush') brushArg = args[++i]
   else if (arg === '--out') out = args[++i]
-  else if (arg === '--print') print = true
+  else if (arg === '--show') print = true
 }
 
 
