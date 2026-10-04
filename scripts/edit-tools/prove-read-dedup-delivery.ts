@@ -8,7 +8,13 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'dedup-delivery-home-'))
 process.env.MERCURY_BARE = '1'
 process.env.MERCURY_TIME_BASED_MC = '1'
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
+process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 delete process.env.NODE_ENV
+
+const { startFixtureApi } = await import('../lib/fixtureApi.ts')
+const api = await startFixtureApi([])
+process.env.ANTHROPIC_BASE_URL = api.url
 
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
 const { FILE_UNCHANGED_STUB } = await import('../../src/tools/FileReadTool/prompt.ts')
@@ -148,5 +154,6 @@ section('D5 — inspect mode never touches the ledger')
   check('the entry survives an inspect build', before && readFileState.has(files[0]!))
 }
 
+await api.close()
 console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)
 process.exit(failures === 0 ? 0 : 1)
