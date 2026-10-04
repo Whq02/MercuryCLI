@@ -180,13 +180,17 @@ function tokensLine(label: string, spend: ProviderSessionSpend, withCost: boolea
   return `${label}: ${spend.inputTokens.toLocaleString()} input · ${spend.outputTokens.toLocaleString()} output tokens${withCost ? ` · ${formatLaneSpend(spend)}` : ''}`
 }
 
-function spendLine(spend: ProviderSessionSpend, withCost: boolean): string {
-  if (spend.models === 0) return 'This session: 0 tokens.'
-  const own = tokensLine('This session', spend, withCost)
-  const lines = [own]
+function workloadLines(spend: ProviderSessionSpend, withCost: boolean): string[] {
+  const lines: string[] = []
   if (spend.scheduled !== undefined) lines.push(tokensLine(SCHEDULED_SPEND_LABEL, spend.scheduled, withCost))
   if (spend.advisor !== undefined) lines.push(tokensLine(ADVISOR_SPEND_LABEL, spend.advisor, withCost))
-  return lines.join('\n')
+  return lines
+}
+
+function SlotSpend({ active, spend, withCost }: { active: boolean; spend: ProviderSessionSpend; withCost: boolean }): React.ReactNode {
+  if (!active) return <Text dimColor>{INACTIVE_SLOT_LINE}</Text>
+  const lines = workloadLines(spend, withCost)
+  return lines.length === 0 ? null : <Text dimColor>{lines.join('\n')}</Text>
 }
 
 export function absentSlotLine(route: string): string {
@@ -215,9 +219,7 @@ function ApiKeySlot({
       ) : (
         <Box flexDirection="column">
           <Text dimColor>{presentLabel}</Text>
-          <Text dimColor>
-            {isActive ? spendLine(spend, true) : INACTIVE_SLOT_LINE}
-          </Text>
+          <SlotSpend active={isActive} spend={spend} withCost />
           {isActive && creditsLine !== undefined ? <Text dimColor>{creditsLine}</Text> : null}
           {isActive && note !== undefined ? <Text dimColor>{note}</Text> : null}
         </Box>
@@ -450,11 +452,7 @@ function OpenaiUsageSection({ width }: { width?: number }): React.ReactNode {
             ) : (
               <FullWindowLine usage={owner} />
             )}
-            <Text dimColor>
-              {active?.kind === 'subscription-oauth'
-                ? spendLine(spend, false)
-                : INACTIVE_SLOT_LINE}
-            </Text>
+            <SlotSpend active={active?.kind === 'subscription-oauth'} spend={spend} withCost={false} />
           </Box>
         )}
       </Box>
@@ -498,7 +496,7 @@ function OpenrouterUsageSection({ width }: { width?: number }): React.ReactNode 
           <Box flexDirection="column">
             <Text dimColor>{oauth.identity}</Text>
             {oauth.stateNote !== undefined ? <Text dimColor>{oauth.stateNote}</Text> : null}
-            <Text dimColor>{oauth.active ? spendLine(spend, true) : INACTIVE_SLOT_LINE}</Text>
+            <SlotSpend active={oauth.active} spend={spend} withCost />
           </Box>
         )}
       </Box>
@@ -507,7 +505,7 @@ function OpenrouterUsageSection({ width }: { width?: number }): React.ReactNode 
           <SlotHeading text={`${key.kindLabel}${key.active ? ' · active' : ''}`} />
           <Text dimColor>{key.identity}</Text>
           {key.stateNote !== undefined ? <Text dimColor>{key.stateNote}</Text> : null}
-          <Text dimColor>{key.active ? spendLine(spend, true) : INACTIVE_SLOT_LINE}</Text>
+          <SlotSpend active={key.active} spend={spend} withCost />
         </Box>
       ))}
       {windows.map(w => (
@@ -539,11 +537,7 @@ function GeminiUsageSection({ width }: { width?: number }): React.ReactNode {
         ) : (
           <Box flexDirection="column">
             <Text dimColor>{oauth.label}</Text>
-            <Text dimColor>
-              {active?.kind === 'oauth'
-                ? spendLine(spend, true)
-                : INACTIVE_SLOT_LINE}
-            </Text>
+            <SlotSpend active={active?.kind === 'oauth'} spend={spend} withCost />
           </Box>
         )}
       </Box>
@@ -590,7 +584,7 @@ function HuggingfaceUsageSection(): React.ReactNode {
         {account?.kind === 'oauth' ? (
           <Box flexDirection="column">
             <Text dimColor>{account.label}</Text>
-            <Text dimColor>{spendLine(spend, false)}</Text>
+            <SlotSpend active spend={spend} withCost={false} />
           </Box>
         ) : (
           <Text dimColor>{absentSlotLine("/logins huggingface signs in with the Hub's device-code flow")}</Text>
@@ -644,7 +638,7 @@ function LocalUsageSection(): React.ReactNode {
                 {server.models.some(m => m.toolsDeclared === false) ? ' · some declare no tool support' : ''}
               </Text>
             ))}
-            <Text dimColor>{spendLine(spend, false)}</Text>
+            <SlotSpend active spend={spend} withCost={false} />
           </Box>
         ) : (
           <Text dimColor>{absentSlotLine(ENGINE_USAGE_PRESENTATION.local!.connect)}</Text>
@@ -718,7 +712,7 @@ function MoonshotUsageSection({ width }: { width?: number }): React.ReactNode {
         {account?.kind === 'kimi-oauth' ? (
           <Box flexDirection="column">
             <Text dimColor>{account.label}</Text>
-            <Text dimColor>{spendLine(spend, false)}</Text>
+            <SlotSpend active spend={spend} withCost={false} />
             {windows.length > 0 ? (
               windows.map(window => window.usedPct !== undefined ? (
                 <ObservedWindowMeter
@@ -772,7 +766,7 @@ function XaiUsageSection({ width }: { width?: number }): React.ReactNode {
         {subscription ? (
           <Box flexDirection="column">
             <Text dimColor>{[account.label, usage.tier !== account.label ? usage.tier : undefined].filter((part): part is string => part !== undefined).join(' · ')}</Text>
-            <Text dimColor>{spendLine(spend, false)}</Text>
+            <SlotSpend active spend={spend} withCost={false} />
             {usage.absence !== undefined ? (
               <Text dimColor>{usage.absence}</Text>
             ) : windows.length > 0 ? (
@@ -827,7 +821,7 @@ function ZaiUsageSection({ width, credentialLabel }: { width?: number; credentia
         {coding ? (
           <Box flexDirection="column">
             <Text dimColor>{[credentialLabel ?? 'GLM Coding Plan key', usage.tier].filter((part): part is string => part !== undefined).join(' · ')}</Text>
-            <Text dimColor>{spendLine(spend, false)}</Text>
+            <SlotSpend active spend={spend} withCost={false} />
             {usage.absence !== undefined ? (
               <Text dimColor>{usage.absence}</Text>
             ) : windows.length > 0 ? (

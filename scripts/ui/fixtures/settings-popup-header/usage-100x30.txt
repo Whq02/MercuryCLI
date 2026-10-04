@@ -14,8 +14,8 @@ TELEMETRY           │ │                                                     
   · health — run /h…│ │                                                                          │ │
                     │ │ API key                                                                  │ │
                     │ │ Anthropic API key (ANTHROPIC_API_KEY)                                    │ │
-                    │ │ This session: 0 tokens.                                                  │ │
                     │ │ no usage endpoint is read for an API key on this lane — the provider     │ │
+                    │ │ console is the view                                                      │ │
                     │ │ JEV official · Mercury's count: no chat open · allowance $20.00 · off ·… │ │
                     │ │ ↓ 11 more · OpenAI · Z.AI · OpenRouter · Gemini · Moonshot · DeepSeek ·… │ │
                     │ │                                                                          │ │

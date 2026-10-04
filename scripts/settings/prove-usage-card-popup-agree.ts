@@ -151,7 +151,7 @@ check("the popup's words: 'header-fed · stale · last read 55 min ago' under 'W
 check("the card never says 'no usage read' while the popup paints a read — the two strings the operator saw", !cardEmpty && cardRows.length === popupMeters.length, `card=${JSON.stringify(cardRows)} · popup=${JSON.stringify(popupMeters)}`)
 check("both say STALE with the same age: the card 'stale ↻55m' per row, the popup 'stale · last read 55 min ago' per meter", cardRows.every(row => row.endsWith('stale ↻55m')) && popupMeters.every(m => m.words.endsWith('stale · last read 55 min ago')), JSON.stringify(cardRows))
 check('the card names the same windows at the same percents as the popup (5h 0% · wk 52%)', cardRows.map(row => row.split(' ').slice(0, 2).join(' ')).join(' | ') === '5h 0% | wk 52%', JSON.stringify(cardRows))
-check('a session that spent nothing changes neither surface: the spend line is its own fact', popupFrame.includes('This session: 0 tokens.') && primary.spend.models === 0)
+check('a session that spent nothing changes neither surface, and the popup carries no session tally line', !popupFrame.includes('This session') && primary.spend.models === 0)
 
 section('§3 the laws this pin transcribes stand in the source (the rail, the popup, the composer)')
 {

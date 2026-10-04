@@ -15,7 +15,6 @@ TELEMETRY               │ │ none — /logins anthropic connects a subscripti
   · spend —             │ │                                                                                          │ │
   · ctx — · —           │ │ API key                                                                                  │ │
   · health — run /health│ │ Anthropic API key (ANTHROPIC_API_KEY)                                                    │ │
-                        │ │ This session: 0 tokens.                                                                  │ │
                         │ │ no usage endpoint is read for an API key on this lane — the provider console is the view │ │
                         │ │                                                                                          │ │
                         │ │ OpenAI usage                                                                             │ │
@@ -26,6 +25,7 @@ TELEMETRY               │ │ none — /logins anthropic connects a subscripti
                         │ │ no account                                                                               │ │
                         │ │ not connected — /logins zai adds a Z.AI API key (general or GLM Coding Plan; ZAI_API_KEY │ │
                         │ │ works too).                                                                              │ │
+                        │ │                                                                                          │ │
                         │ │ JEV official · Mercury's count: no chat open · allowance $20.00 · off · credits: not re… │ │
                         │ │ ↓ 9 more · OpenRouter · Gemini · Moonshot · DeepSeek · xAI · Meta · Custom endpoint · H… │ │
                         │ │                                                                                          │ │
