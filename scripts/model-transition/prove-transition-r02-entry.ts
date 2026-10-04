@@ -46,7 +46,12 @@ section('§A the ONE provider station — the /logins card mounted in the walk')
     'the walk hand-rolls NO row list beside the card (the drift class stays dead)',
     !/ProviderChoice/.test(walkBesideItsIntro) &&
       !/OpenRouter|DeepSeek|Hugging Face/.test(walkBesideItsIntro) &&
-      !/beginOpenaiBrowserConnect|resolveProviderUsability/.test(onboarding),
+      !/beginOpenaiBrowserConnect/.test(onboarding),
+  )
+  check(
+    "the walk's one read of provider usability gates whether the station is asked at all (no provider can run a turn), never which rows it shows",
+    onboarding.split('resolveProviderUsability(').length === 2 &&
+      onboarding.includes('isAnthropicAuthEnabled() && !Object.values(resolveProviderUsability()).some(lane => lane.usable)'),
   )
   check(
     "ONE station, not two: the walk carries no second sign-in step id",
