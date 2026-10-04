@@ -246,6 +246,7 @@ export interface CompactionRow {
   summary_tokens?: number
   summary_cap_tokens?: number
   attempt?: number
+  retry_why?: 'refused'
   exit?: 'landed' | 'cancelled' | 'failed'
   tokens_before?: number
 }
@@ -1482,6 +1483,12 @@ export const ROW_SCHEMAS: Readonly<Record<RowType | PartialRowType, JsonSchema>>
       },
       "attempt": {
         "type": "number"
+      },
+      "retry_why": {
+        "type": "string",
+        "enum": [
+          "refused"
+        ]
       },
       "exit": {
         "type": "string",
