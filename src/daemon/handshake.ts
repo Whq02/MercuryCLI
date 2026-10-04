@@ -679,12 +679,15 @@ export async function moveDaemonToDeployedBuild(opts: {
   return second ?? stopLine(`it restarted on its old build (v${back.daemon.version}) and would not hand over`)
 }
 
+export const SUCCESSOR_WAIT_TRIES = 80
+export const SUCCESSOR_WAIT_POLL_MS = 250
+
 async function waitForHandshake(
   done: (v: DaemonHandshakeVerdict) => boolean,
   opts: { pollMs?: number; tries?: number },
 ): Promise<DaemonHandshakeVerdict | null> {
-  const tries = opts.tries ?? 40
-  const pollMs = opts.pollMs ?? 250
+  const tries = opts.tries ?? SUCCESSOR_WAIT_TRIES
+  const pollMs = opts.pollMs ?? SUCCESSOR_WAIT_POLL_MS
   for (let i = 0; i < tries; i++) {
     const v = await handshakeDaemon({ timeoutMs: 500 })
     if (done(v)) return v

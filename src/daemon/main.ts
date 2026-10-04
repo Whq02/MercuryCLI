@@ -1308,7 +1308,8 @@ async function daemonRun(args: string[]): Promise<void> {
               }
               const reads = (idleReads.get(pid) ?? 0) + 1
               idleReads.set(pid, reads)
-              if (reads < IDLE_PREDECESSOR_READS) continue
+              const holdsLock = daemonLock === null && lockHeldByLivePidSync() === pid
+              if (reads < (holdsLock ? 1 : IDLE_PREDECESSOR_READS)) continue
               idleReads.delete(pid)
               // eslint-disable-next-line no-console
               console.error(`[daemon] the daemon this one took over from (pid ${pid}, v${reply.version}) holds no live session and has not left on its own — asking it to leave`)
@@ -1318,10 +1319,12 @@ async function daemonRun(args: string[]): Promise<void> {
             sweepInflight = false
           }
         }
-        const idleSweep = setInterval(() => {
+        const sweepNow = (): void => {
           void askIdlePredecessorsToLeave().catch(e => logForDebugging(`[daemon] the idle-predecessor sweep failed (the next beat retries): ${e}`))
-        }, SESSIONLESS_EXIT_BEAT_MS)
+        }
+        const idleSweep = setInterval(sweepNow, SESSIONLESS_EXIT_BEAT_MS)
         idleSweep.unref?.()
+        setTimeout(sweepNow, FIRST_IDLE_SWEEP_MS).unref?.()
         const stopBeat = stopSessionlessBeat
         stopSessionlessBeat = () => {
           clearInterval(idleSweep)
@@ -1656,6 +1659,7 @@ const ARMED_RESTART_BEAT_MS = 4_000
 const HANDOVER_LOCK_BEAT_MS = 2_000
 const PREDECESSOR_SHUTDOWN_WAIT_MS = 2_000
 const IDLE_PREDECESSOR_READS = 3
+const FIRST_IDLE_SWEEP_MS = 1_000
 
 async function planeAnswer(bootBuildTree: string | null): Promise<{ pid: number; buildTree: string | null } | null> {
   const reply = await daemonControlRpc(
