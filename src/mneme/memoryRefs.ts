@@ -2,6 +2,7 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
+import { escapeRegExp, lookupTokens } from './mnemeLookup.js'
 import { catalogDocs, grepLibrary, grepPending, PENDING_SLUG } from './mnemeRetrieval.js'
 
 export type MemoryRefKind = 'mneme-fact' | 'mneme-topic' | 'mneme-pending'
@@ -22,15 +23,7 @@ export interface MemoryRef {
 
 const SUMMARY_CAP = 140
 const cap = (s: string): string => (s.length > SUMMARY_CAP ? s.slice(0, SUMMARY_CAP - 1) + '…' : s)
-
-export function queryTokens(raw: string): string[] {
-  return [...new Set(
-    raw
-      .toLowerCase()
-      .split(/[^a-z0-9_.\-/]+/)
-      .filter(t => t.length >= 3),
-  )].slice(0, 12)
-}
+const wordStart = (t: string): string => `(^|[^a-z0-9])${escapeRegExp(t)}`
 
 function pathFreshness(summary: string, projectRoot: string | null): 'current' | 'needs-review' {
   if (!projectRoot) return 'current'
@@ -46,7 +39,7 @@ export interface CollectOpts {
 }
 
 export function collectMemoryRefs(query: string, opts: CollectOpts = {}): MemoryRef[] {
-  const tokens = queryTokens(query)
+  const tokens = lookupTokens(query)
   if (tokens.length === 0 || !mnemeEnabled()) return []
   const maxRefs = Math.min(Math.max(opts.maxRefs ?? 8, 1), 16)
   const projectRoot = opts.projectRoot ?? null
@@ -59,8 +52,11 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
   }
 
   const dir = opts.libraryDir ?? mnemeLibraryDir()
+  const matchers = tokens.map(t => ({ token: t, pattern: wordStart(t), re: new RegExp(wordStart(t)) }))
   for (const d of catalogDocs(dir)) {
-    const hit = tokens.find(t => d.slug.includes(t) || d.summary.toLowerCase().includes(t))
+    const slug = d.slug.toLowerCase()
+    const summary = d.summary.toLowerCase()
+    const hit = matchers.find(m => m.re.test(slug) || m.re.test(summary))
     if (hit) {
       push({
         refId: `mneme-topic:${d.slug}`,
@@ -70,14 +66,14 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
         status: 'current',
         summary: cap(`${d.slug}: ${d.summary}`),
         capturedAt: d.updated,
-        why: `topic matches '${hit}'`,
+        why: `topic matches '${hit.token}'`,
         deref: `Recall read:"doc:${d.slug}"`,
         tier: 1,
       })
     }
   }
-  for (const t of tokens) {
-    for (const h of grepLibrary(t, { dir, maxHits: 3 })) {
+  for (const { token: t, pattern } of matchers) {
+    for (const h of grepLibrary(pattern, { dir, maxHits: 3 })) {
       const sig = h.text.match(/<seq=(\d+), time=([^,>]+), source=([^,>]*?)[,>]/)
       push({
         refId: sig ? `mneme:${sig[1]}` : `mneme-line:${h.slug}:${h.line}`,
@@ -93,7 +89,7 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
         tier: 2,
       })
     }
-    for (const h of grepPending(t, { dir, maxHits: 2 })) {
+    for (const h of grepPending(pattern, { dir, maxHits: 2 })) {
       push({
         refId: `mneme-pending:${h.line}`,
         kind: 'mneme-pending',
