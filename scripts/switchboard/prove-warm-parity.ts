@@ -136,7 +136,7 @@ try {
       modelKey: 'claude-opus-5',
       effort: 'high',
       title: 'Parity probe',
-    } as never)) as { ok?: boolean; sessionId?: string; workerId?: string; error?: string }
+    } as never, { timeoutMs: 30_000 })) as { ok?: boolean; sessionId?: string; workerId?: string; error?: string }
     check(`${id} dispatches`, d.ok === true && typeof d.sessionId === 'string', JSON.stringify(d))
     return { sessionId: d.sessionId ?? '', workerId: d.workerId ?? '' }
   }

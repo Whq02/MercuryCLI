@@ -65,7 +65,6 @@ const ROWS: Row[] = [
     scope: CODE,
     what: 'no internal name spells the other MCP file',
     allow: [
-      ['scripts/identity/prove-vocabulary.ts', 'the retired settings keys it seals'],
       ['scripts/identity/prove-retired-keys-unknown.ts', 'the retired settings keys it proves unknown'],
     ],
   },
