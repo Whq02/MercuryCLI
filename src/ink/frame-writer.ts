@@ -264,7 +264,7 @@ function emitDirtyCells(
       return
     }
 
-    if (removed && (!added || added.char !== removed.char)) {
+    if (removed && (!added || added.char !== removed.char || added.styleId !== removed.styleId)) {
       const rows = bleedRows(removed.char)
       if (rows !== 0) {
         if ((rows & 1) !== 0 && y > minRow) bleedLedger.add((y - 1) * stride + x)
