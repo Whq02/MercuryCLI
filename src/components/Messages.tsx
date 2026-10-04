@@ -200,7 +200,7 @@ export function isAssistantContinuationRow(
 type MessagesProps = {
   messages: WireMessage[]
   tools: Tools
-  commands: Command[]
+  commands?: Command[]
   verbose: boolean
   toolJSX: { jsx: React.ReactNode | null; shouldHidePromptInput: boolean } | null
   toolUseConfirmQueue: unknown[]
@@ -361,7 +361,6 @@ export function composeTranscript(input: {
 function MessagesInner({
   messages,
   tools,
-  commands,
   verbose,
   toolJSX,
   toolUseConfirmQueue,
@@ -832,7 +831,6 @@ function MessagesInner({
                   ))
             }
             tools={tools}
-            commands={commands}
             verbose={verbose || isItemExpanded(msg_8)}
             inProgressToolUseIDs={inProgressToolUseIDs}
             streamingToolUseIDs={EMPTY_STRING_SET as Set<string>}
@@ -857,7 +855,6 @@ function MessagesInner({
     },
     [
       tools,
-      commands,
       verbose,
       inProgressToolUseIDs,
       screen,

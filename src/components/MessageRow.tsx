@@ -148,7 +148,7 @@ export type MessageRowProps = {
   isUserContinuation: boolean
   hasContentAfter: boolean
   tools: Tools
-  commands: Command[]
+  commands?: Command[]
   verbose: boolean
   inProgressToolUseIDs: Set<string>
   streamingToolUseIDs: Set<string>
@@ -171,7 +171,6 @@ function MessageRowInner({
   isUserContinuation,
   hasContentAfter,
   tools,
-  commands,
   verbose,
   inProgressToolUseIDs,
   streamingToolUseIDs,
@@ -259,7 +258,6 @@ function MessageRowInner({
     <Message
       message={message}
       tools={tools}
-      commands={commands}
       verbose={rowVerbose}
       addMargin={!isUserContinuation}
       shouldAnimate={shouldAnimate}
