@@ -57,11 +57,12 @@ try {
   check("'preserve' policy keeps the root on release", rel3.released && !rel3.cleaned && existsSync(root3))
 
   const { readFileSync } = await import('node:fs')
-  const doctrine = readFileSync(join(ROOT, 'src/constants/subagentDoctrine.ts'), 'utf8')
+  const { buildSubagentMercurySections } = await import(join(ROOT, 'src/constants/subagentDoctrine.ts'))
+  const doctrine = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-crew' } }).join('\n')
   check('subagent doctrine briefs scratch discipline (the ONE seam)',
-    doctrine.includes('session scratchpad directory') &&
+    doctrine.includes('under your session scratchpad') &&
     doctrine.includes('never bare /tmp or the project tree') &&
-    /delete what your run created/i.test(doctrine))
+    /delet\w* what your run created/i.test(doctrine))
   const worktreeSrc = readFileSync(join(ROOT, 'src/utils/worktree.ts'), 'utf8')
   check('a session worktree registers its lease (the one production registrar)', worktreeSrc.includes("registerScratchLease({ kind: 'session'"))
   const healthSrc = readFileSync(join(ROOT, 'src/utils/healthReport.ts'), 'utf8')

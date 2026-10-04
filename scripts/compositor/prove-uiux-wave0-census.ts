@@ -439,21 +439,21 @@ section('VP — one sprite for the berth at every allocation; the decision consu
 section('RV — reasoning depth is not answer length; one balanced default + one override')
 {
   const contract = await import('../../src/prompt/mercuryContract.js')
+  const PERSIST = 'keep going while evidence advances the outcome'
   check(
-    'RV-06: stop-at-sufficient-evidence joined the ONE persistence law (never a parallel clause)',
-    /sufficiency, not exhaustion/.test(contract.PERSISTENCE_LAW) &&
-      contract.MERCURY_DOCTRINE.includes(contract.PERSISTENCE_LAW),
+    'RV-06: persistence is ONE clause, the same words on the session and the sub-agent contract (never a parallel clause, no separate law constant)',
+    contract.MERCURY_SESSION_CONTRACT.includes(PERSIST) &&
+      contract.MERCURY_SUBAGENT_CONTRACT.includes(PERSIST) &&
+      !src('src/prompt/mercuryContract.ts').includes('PERSISTENCE_LAW'),
   )
   check(
-    'RV-02/08: the doctrine separates reasoning depth from answer verbosity (effort never silently changes length)',
-    /answer length is its own control/.test(contract.MERCURY_DOCTRINE) &&
-      /never answer verbosity/.test(contract.MERCURY_DOCTRINE),
+    'RV-02/08: the session contract names no reasoning-depth knob (no retired word); answer length is the static head\'s communication rule (scripts/substrate/prove-wrapper.ts pins it there)',
+    !new RegExp('\\b(effort|' + ['deep', 'think'].join('') + '|' + ['super', 'code'].join('') + '|verbosity)\\b', 'i').test(contract.MERCURY_SESSION_CONTRACT),
   )
   check(
-    'RV-03/04/05: brevity override + suppressed narration + evidence-behind-outcome ride the same Length paragraph',
-    /operator brevity preference overrides/.test(contract.MERCURY_DOCTRINE) &&
-      /Skip progress narration/.test(contract.MERCURY_DOCTRINE) &&
-      /appendix or artifact/.test(contract.MERCURY_DOCTRINE),
+    'RV-03/04/05: the brevity preference is the floor\'s rule; short-work narration and evidence-behind-outcome are the static head\'s (scripts/substrate/prove-wrapper.ts pins them there); the contract repeats none',
+    /Follow their stated preferences ahead of generic defaults/.test(contract.MERCURY_IDENTITY_FLOOR) &&
+      !/brevity|narration|appendix/.test(contract.MERCURY_SESSION_CONTRACT),
   )
   check(
     'RV-01: the concise profile is ONE settings override at the contract owner (schema key + conditional section; no knob wall)',

@@ -142,10 +142,8 @@ check(!prompt.includes('Fix insecure code immediately when you see it'), 'no fix
 
 console.log('assembled prompt — evidence: reuse while it applies, recheck on change')
 check(
-  once(
-    'Reuse recorded evidence while it still applies to the current state. Recheck when relevant state changed, evidence is missing or stale, or new evidence contradicts it. Memory alone is not verification.',
-  ),
-  'the evidence rule rides exactly once',
+  once('Claim only what a tool result from this session shows, name what is not verified'),
+  'the evidence rule rides exactly once (the session contract)',
 )
 check(
   prompt.includes('no re-verifying what was already checked while its evidence still applies to the current state') &&

@@ -227,7 +227,7 @@ section('§6 source pins — the bun-unloadable seats, one line each')
     ['every session turn — interactive (the concourse runner) and headless alike (custom prompt)', 'src/rows/turn.ts', '? [MERCURY_IDENTITY_FLOOR, config.customSystemPrompt]'],
     ['bare MERCURY_BARE prompt', 'src/constants/prompts.ts', '${simpleHead}\\n\\n${MERCURY_IDENTITY_FLOOR}'],
     ['default prompt contract splice (frozen per conversation through the section cache)', 'src/constants/prompts.ts', "systemPromptSection('mercury-contract', () => JSON.stringify(getMercuryContractSections()))"],
-    ['switchboard coordinator seat (its own floor, then its engine line)', 'src/services/concourse/coordinatorCall.ts', 'asSystemPrompt([\n          MERCURY_COORDINATOR_FLOOR,\n          engineLine,\n          input.contract,'],
+    ['switchboard coordinator seat (its own floor, then its engine line, then its contract, then the persona)', 'src/services/concourse/coordinatorCall.ts', 'asSystemPrompt([\n          MERCURY_COORDINATOR_FLOOR,\n          engineLine,\n          MERCURY_COORDINATOR_CONTRACT,\n          input.contract,'],
     ['every seat states its engine from ONE owner', 'src/constants/prompts.ts', 'return mercuryEngineIdentityLine(modelId)'],
     ['agent-prompt replacement seat', 'src/utils/systemPrompt.ts', 'parts.push(MERCURY_IDENTITY_FLOOR, agentPrompt)'],
     ['custom-prompt replacement seat', 'src/utils/systemPrompt.ts', 'parts.push(MERCURY_IDENTITY_FLOOR, customSystemPrompt)'],

@@ -287,11 +287,12 @@ console.log('§11 contract v2 — signal.emit gone from the model vocabulary; ra
     lane.COORDINATOR_CONTRACT === (await import('../../src/services/concourse/coordinatorPersona.ts')).COORDINATOR_PERSONA,
   )
   check('the contract text no longer offers signal.emit', !lane.COORDINATOR_CONTRACT.includes('signal.emit'))
+  const seatContract = (await import('../../src/prompt/mercuryContract.ts')).MERCURY_COORDINATOR_CONTRACT
   check(
-    'the contract carries the Q3 two-step + the attainable-goal law',
+    'the persona carries the Q3 two-step; the seat contract carries the attainable-goal law (v10: conduct moved to the contract)',
     lane.COORDINATOR_CONTRACT.includes('operatorConfirmed') &&
-      lane.COORDINATOR_CONTRACT.replace(/\s+/g, ' ').includes('unattainable') &&
-      lane.COORDINATOR_CONTRACT.replace(/\s+/g, ' ').includes('smallest honest question'),
+      seatContract.includes('unattainable') &&
+      seatContract.includes('smallest honest question'),
   )
   lane._resetCoordinatorLaneForTesting()
   const receipt = await lane.runAssistedTurn(
@@ -620,7 +621,7 @@ console.log('§18 the behavior fixtures (§9.3 table)')
         const r = await oneTurn('fx-impossible', [], { smallestQuestion: 'which of the two conflicting priorities wins?' })
         const feedRows = activity.activityRows(activity.cachedActivityFeed())
         const asked = feedRows.find(x => x.verb === 'asked' && x.objectLabel.includes('conflicting priorities'))
-        const contractFlat = lane.COORDINATOR_CONTRACT.replace(/\s+/g, ' ')
+        const contractFlat = (await import('../../src/prompt/mercuryContract.ts')).MERCURY_COORDINATOR_CONTRACT
         const contractSaysSo = contractFlat.includes('unattainable') && contractFlat.includes('smallest honest question')
         return {
           ok: r.outcome === 'executed' && r.receipts.length === 0 && r.smallestQuestion?.includes('conflicting') === true && asked !== undefined && contractSaysSo,

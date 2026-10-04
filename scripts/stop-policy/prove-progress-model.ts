@@ -179,19 +179,21 @@ section('§7 one continuation per attempt across families; wording demoted; drai
   )
 }
 
-section('§8 ONE persistence law, spliced at every surface (SS-08/10/11)')
+section('§8 ONE persistence law, the same words on every seat that works a task (SS-08/10/11)')
 {
-  const { PERSISTENCE_LAW, MERCURY_DOCTRINE } = await import(
+  const { MERCURY_SESSION_CONTRACT, MERCURY_SUBAGENT_CONTRACT } = await import(
     '../../src/prompt/mercuryContract.ts'
   )
-  check('the law suggests and never counts (keep going while evidence advances · when a road stalls, take another · the blocked ask names what changed, what was tried, what blocks, the smallest input)',
-    /Keep going while evidence advances/.test(PERSISTENCE_LAW) && /when a road stalls, take another/.test(PERSISTENCE_LAW) && /smallest input you need/.test(PERSISTENCE_LAW) && !/strategy once|stop looping|handoff|strateg/.test(PERSISTENCE_LAW))
-  check('the sufficiency clause on verification loops stays', /sufficiency, not exhaustion/.test(PERSISTENCE_LAW))
-  check('the doctrine (native surface) carries the law VERBATIM', MERCURY_DOCTRINE.includes(PERSISTENCE_LAW))
+  const PERSIST = 'keep going while evidence advances the outcome'
+  const BLOCKED: Record<string, RegExp> = { session: /input only the operator can give/, 'sub-agent': /returning blocked, with what you need named/ }
+  for (const [seat, text] of [['session', MERCURY_SESSION_CONTRACT], ['sub-agent', MERCURY_SUBAGENT_CONTRACT]] as const) {
+    check(`${seat}: the law suggests and never counts (keep going while evidence advances; no repetition count, no strategy switch)`, text.includes(PERSIST) && !/strategy once|stop looping|handoff|strateg/.test(text))
+    check(`${seat}: a block stops for what only the operator or the caller can give, named`, BLOCKED[seat]!.test(text))
+  }
   const doctrineSrc = src('src/constants/subagentDoctrine.ts')
-  check('the subagent doctrine splices the law in its one register', (doctrineSrc.match(/\$\{PERSISTENCE_LAW\}/g) ?? []).length === 1)
+  check('the subagent doctrine splices the sub-agent contract in its one register', (doctrineSrc.match(/\$\{MERCURY_SUBAGENT_CONTRACT\}/g) ?? []).length === 1)
   const contract = src('src/prompt/mercuryContract.ts')
-  check('exactly ONE law definition exists (SS-11: one canonical owner)', (contract.match(/export const PERSISTENCE_LAW/g) ?? []).length === 1)
+  check('no separate law constant exists (SS-11: the words live in the contracts, one owner)', !contract.includes('PERSISTENCE_LAW') && (contract.match(new RegExp(PERSIST, 'g')) ?? []).length === 2)
   check('the retired GPT overlay is GONE (one content for every family)', !contract.includes('agentic_persistence'))
 }
 
