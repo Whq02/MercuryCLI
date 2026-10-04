@@ -24,11 +24,11 @@
 # gate-watch: src/ink/components/App.tsx src/ink/components/StdinContext.ts src/ink/recessLayer.ts
 # gate-watch: src/ink/squash-text-nodes.ts src/keybindings/useKeybinding.ts src/keybindings/writeBindings.ts
 # gate-watch: src/services/anthropicLimits.ts src/services/engine-connector/focusedConnector.ts
-# gate-watch: src/services/instructions/* src/services/instructions/adapters/mercuryNative.ts
+# gate-watch: src/services/instructions/* src/services/instructions/adapters/**
 # gate-watch: src/services/mcp/anthropicConnectors.ts src/services/providers/openai/openaiLimitState.ts
 # gate-watch: src/services/providers/usageFreshness.ts src/state/telemetryBus.ts src/utils/*
 # gate-watch: src/utils/cockpit/* src/utils/model/computedDefault.ts src/utils/permissions/PermissionUpdate.ts src/utils/permissions/PermissionMode.ts
-# gate-watch: src/utils/permissions/bypassPermissionsKillswitch.ts src/utils/router/providerDiscovery.ts
+# gate-watch: src/utils/permissions/bypassPermissionsKillswitch.ts src/utils/permissions/permissionSetup.ts src/utils/router/providerDiscovery.ts
 # gate-watch: src/services/providers/providerIdentityLine.ts src/services/providers/moonshot/** src/services/providers/huggingface/** src/services/providers/gemini/** src/services/providers/openrouter/** src/services/providers/local/** src/services/providers/openaicompat/** src/services/providers/deepseek/** src/utils/router/providerSecrets.ts src/utils/router/modelRegistry.ts src/ink/events/input-event.ts src/ink/input/interpreter.ts
 # gate-watch: src/services/localServer/** src/services/providers/catalogueOnDemand.ts
 # gate-watch: src/commands/localsetup/** src/components/LocalSetupDialog.tsx src/components/BootSaturnScreen.tsx src/components/HelpV2/commandDomains.ts src/components/MercuryModelPicker.tsx
