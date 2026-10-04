@@ -17,11 +17,13 @@ export interface FoldStatusV1 {
   summaryTokens: number
   summaryCapTokens: number
   attempt: number
+  retryWhy?: 'refused'
   exit?: FoldExit
   endedAtMs?: number
 }
 
 export const FOLD_ROW_HEAD = 'compacting context'
+export const FOLD_REFUSED_RETRY_ROW_WORDS = 'the model refused the first request; retrying with the conversation handed over as text'
 export const FOLD_STAGE_WORDS: Readonly<Record<FoldStage, string>> = {
   'session-memory': 'session memory',
   'micro-compaction': 'micro-compaction',
@@ -86,7 +88,7 @@ export function foldStatusOnEvent(status: FoldStatusV1, event: CompactProgressEv
       return { ...advanced, fill, summaryTokens: tokens }
     }
     case 'retry':
-      return { ...status, attempt: Math.max(status.attempt, event.attempt) }
+      return { ...status, attempt: Math.max(status.attempt, event.attempt), ...(event.why === 'refused' ? { retryWhy: 'refused' as const } : {}) }
     case 'hooks_start':
       return event.hookType === 'pre_compact' ? status : advanceStage(status, 'restoring')
     case 'compact_end':
@@ -117,6 +119,7 @@ export function decodeFoldStatus(raw: unknown): FoldStatusV1 | null {
   if (!finite(r.summaryTokens) || !finite(r.summaryCapTokens) || !finite(r.attempt)) return null
   if (r.exit !== undefined && !(typeof r.exit === 'string' && EXIT_WORDS.has(r.exit))) return null
   if (r.endedAtMs !== undefined && !finite(r.endedAtMs)) return null
+  if (r.retryWhy !== undefined && r.retryWhy !== 'refused') return null
   return {
     schema: 1,
     trigger: r.trigger,
@@ -127,6 +130,7 @@ export function decodeFoldStatus(raw: unknown): FoldStatusV1 | null {
     summaryTokens: Math.max(0, Math.floor(r.summaryTokens)),
     summaryCapTokens: Math.max(0, Math.floor(r.summaryCapTokens)),
     attempt: Math.max(1, Math.floor(r.attempt)),
+    ...(r.retryWhy === 'refused' ? { retryWhy: 'refused' as const } : {}),
     ...(r.exit !== undefined ? { exit: r.exit as FoldExit } : {}),
     ...(r.endedAtMs !== undefined ? { endedAtMs: r.endedAtMs as number } : {}),
   }
@@ -137,6 +141,7 @@ const FOLD_WIRE_KEYS: Readonly<Record<string, string>> = {
   summaryTokens: 'summary_tokens',
   summaryCapTokens: 'summary_cap_tokens',
   endedAtMs: 'ended_at_ms',
+  retryWhy: 'retry_why',
 }
 function renamedKeys(value: unknown, table: Readonly<Record<string, string>>): unknown {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return value
@@ -204,7 +209,7 @@ export function foldRowWords(status: FoldStatusV1, nowMs: number): { head: strin
       ? FOLD_EXIT_WORDS[status.exit]
       : status.stage === null
         ? null
-        : `${FOLD_STAGE_WORDS[status.stage]}${status.attempt > 1 ? ` · retry ${status.attempt}` : ''}`
+        : `${FOLD_STAGE_WORDS[status.stage]}${status.attempt > 1 ? ` · retry ${status.attempt}` : ''}${status.retryWhy === 'refused' ? ` · ${FOLD_REFUSED_RETRY_ROW_WORDS}` : ''}`
   const tokens = status.exit === undefined && status.stage === 'summarising' && status.summaryTokens > 0 ? `↓ ${formatTokens(status.summaryTokens)} tokens` : null
   const bar = foldBarText(foldBarCells(status))
   const elapsed = formatDuration(foldElapsedMs(status, nowMs), { mostSignificantOnly: true })

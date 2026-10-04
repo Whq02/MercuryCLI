@@ -90,6 +90,7 @@ function buildDisplayText(
       getBindingDisplayText('app:toggleTranscript', 'Global', loadKeybindingsSync()) ?? 'ctrl+o'
     parts.push(`(${chord} reads the full summary — what the agent retains)`)
   }
+  for (const note of result.notes ?? []) parts.push(note)
   if (hookDisplayMessage) parts.push(hookDisplayMessage)
   const tip = getUpgradeMessage(context.getAppState().engineModel)?.tip
   if (tip) parts.push(tip)
