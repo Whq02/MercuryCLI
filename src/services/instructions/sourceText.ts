@@ -180,6 +180,17 @@ type MarkdownToken = {
   items?: MarkdownToken[]
 }
 
+export function isAcceptedImportSpelling(path: string): boolean {
+  return (
+    path.startsWith('./') ||
+    path.startsWith('~/') ||
+    (path.startsWith('/') && path !== '/') ||
+    (!path.startsWith('@') &&
+      !path.match(/^[#%^&*()]+/) &&
+      path.match(/^[a-zA-Z0-9._-]/) !== null)
+  )
+}
+
 function extractIncludePathsFromTokens(
   tokens: ReturnType<Lexer['lex']>,
   basePath: string,
@@ -187,10 +198,12 @@ function extractIncludePathsFromTokens(
   const absolutePaths = new Set<string>()
   const bareMentions = new Set<string>()
 
+  const IMPORT_TOKEN = /(?:^|\s)@((?:[^\s\\]|\\ |\\(?=\S))+)/g
+  const SENTENCE_PUNCTUATION = /[.,;:!?]+$/
+
   function extractPathsFromText(textContent: string) {
-    const includeRegex = /(?:^|\s)@((?:[^\s\\]|\\ |\\(?=\S))+)/g
     let match
-    while ((match = includeRegex.exec(textContent)) !== null) {
+    while ((match = IMPORT_TOKEN.exec(textContent)) !== null) {
       let path = match[1]
       if (!path) continue
 
@@ -201,18 +214,10 @@ function extractIncludePathsFromTokens(
       if (!path) continue
 
       path = path.replace(/\\ /g, ' ')
-
-      path = path.replace(/[.,;:!?]+$/, '')
+      path = path.replace(SENTENCE_PUNCTUATION, '')
 
       if (path) {
-        const isValidPath =
-          path.startsWith('./') ||
-          path.startsWith('~/') ||
-          (path.startsWith('/') && path !== '/') ||
-          (!path.startsWith('@') &&
-            !path.match(/^[#%^&*()]+/) &&
-            path.match(/^[a-zA-Z0-9._-]/))
-
+        const isValidPath = isAcceptedImportSpelling(path)
         if (isValidPath) {
           const resolvedPath = expandPath(path, dirname(basePath))
           const hasPathEvidence = path.includes('/') || path.includes('.')
