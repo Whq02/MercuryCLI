@@ -52,7 +52,6 @@ import {
 } from '../../state/crewmateViewHelpers.js'
 import { useComposerCrewmate, useViewedCrewmate } from '../tasks/useCrewmateView.js'
 import type { PromptInputMode } from '../../types/textInputTypes.js'
-import type { ImageDimensions } from '../../utils/imageResizer.js'
 import type { PastedContent } from '../../utils/config.js'
 import type { Message } from '../../types/message.js'
 import type { VimMode } from '../../types/textInputTypes.js'
@@ -70,7 +69,6 @@ import {
   beginConsoleCompose,
 } from '../../utils/cockpit/helmConsole.js'
 import { getModeFromInput, getValueFromInput } from './inputModes.js'
-import { normalizePastedInput } from '../../input-core/composer-document.js'
 import { useMaybeTruncateInput } from './useMaybeTruncateInput.js'
 import { usePromptInputPlaceholder } from './usePromptInputPlaceholder.js'
 import { useCrewBanner } from './useCrewBanner.js'
@@ -90,11 +88,12 @@ import VimTextInput from '../VimTextInput.js'
 import { ThinkingToggle } from '../ThinkingToggle.js'
 import { MercuryCommandPalette } from '../MercuryCommandPalette.js'
 import { MercuryFileOpen } from '../MercuryFileOpen.js'
-import { setComposerInsert } from './composerInsert.js'
 import type { OverlaySurface } from './composerOverlay.js'
 import { useComposerModelDoors } from './useComposerModelDoors.js'
 import { useComposerSubmit } from './useComposerSubmit.js'
 import { useComposerRawKeys } from './useComposerRawKeys.js'
+import { useComposerAttachments } from './useComposerAttachments.js'
+import { expandTabs, stripControls } from './composerText.js'
 import { MercuryContentSearch } from '../MercuryContentSearch.js'
 import { BackgroundTasksDialog } from '../tasks/BackgroundTasksDialog.js'
 import { isManageableTask } from '../tasks/taskStatusUtils.js'
@@ -110,13 +109,10 @@ import { findSlashCommandPositions } from '../../utils/suggestions/commandSugges
 import { findSlackChannelPositions } from '../../utils/suggestions/slackChannelSuggestions.js'
 import { findTokenBudgetPositions } from '../../utils/tokenBudget.js'
 import type { TextHighlight } from '../../utils/textHighlighting.js'
-import { getPastedTextRefNumLines, formatPastedTextRef, formatImageRef, parseReferences } from '../../history.js'
-import { PASTE_THRESHOLD, getImageFromClipboard } from '../../utils/imagePaste.js'
-import { describeAttachedImage } from '../../utils/imageResizer.js'
-import { cacheImagePath, storeImage } from '../../utils/imageStore.js'
+import { parseReferences } from '../../history.js'
+import { getImageFromClipboard } from '../../utils/imagePaste.js'
 import { editPromptInEditor } from '../../utils/promptEditor.js'
 import { expandPastedTextRefs } from '../../history.js'
-import { hashPastedText, storePastedText } from '../../utils/pasteStore.js'
 import {
   cyclePermissionMode,
   getNextPermissionMode,
@@ -141,7 +137,6 @@ import { popupOwnsKeys, subscribePopupOwnsKeys } from '../../utils/cockpit/popup
 import { AMBER } from '../mercuryPalette.js'
 import type { Key } from '../../ink/events/input-event.js'
 import { stringWidth } from '../../ink/stringWidth.js'
-import stripAnsi from 'strip-ansi'
 import { truncateToWidth } from '../mercury-ui/glyphs.js'
 import { submitTrace } from '../../utils/submitTrace.js'
 import { fluxMark, fluxWhy } from '../../utils/flux/fluxProbe.js'
@@ -150,7 +145,6 @@ const MANAGER_COMMAND = '/manager'
 const SESSION_TAB_COMMAND = '/sessiontab'
 const KEYSETUP_COMMAND = '/keysetup'
 const DOUBLED_SLASH = '//'
-const INPUT_TRUNCATION_THRESHOLD = 10_000
 const UNDO_BUFFER_SIZE = 50
 const UNDO_COALESCE_MS = 1000
 const LOST_LINE_NOTICE_MS = 8000
@@ -207,21 +201,6 @@ export type PromptInputProps = {
   } | null>
   onAgentSubmit?: (text: string) => void
 }
-
-function expandTabs(value: string): string {
-  return value.includes('\t') ? value.replaceAll('\t', '    ') : value
-}
-
-function stripControls(value: string): string {
-  // eslint-disable-next-line no-control-regex -- the control filter is the point
-  return stripAnsi(value.replace(/[\u0080-\u009f]/g, '')).replace(
-    // eslint-disable-next-line no-control-regex -- the control filter is the point
-    /[\u0000-\u0008\u000b-\u001f\u007f]/g,
-    '',
-  )
-}
-
-export const __stripControlsForTest = stripControls
 
 const subscribeFocusedComposerModel = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener))
 const getFocusedComposerMainModel = (): string => getFocusedSessionConnector().modelFacts().main
@@ -655,178 +634,23 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     [input, mode, helpOpen, cursorOffset, pastedContents, buffer, speculationActive, footerSelection, setHelpOpen, setMode, setCursorOffset, removeNotification, addNotification, setAppState],
   )
 
-  useMaybeTruncateInput({
+  const attachments = useComposerAttachments({
     input,
+    cursorOffset,
     pastedContents,
-    onInputChange: (value: string) => {
-      writeDraft(value)
-    },
+    buffer,
+    messages,
+    rows,
+    inputSelectionRangeRef,
+    writeDraft,
     setCursorOffset,
+    setMode,
     setPastedContents,
+    addNotification,
+    deferredSpaceArmedRef,
+    insertTextRef,
   })
-
-  const nextPasteIdRef = useRef<number | null>(null)
-  if (nextPasteIdRef.current === null) {
-    let max = 0
-    for (const message of messages) {
-      const content = (message as { message?: { content?: unknown } }).message?.content
-      if (typeof content === 'string') {
-        for (const ref of parseReferences(content)) max = Math.max(max, ref.id)
-      } else if (Array.isArray(content)) {
-        for (const block of content) {
-          const text = (block as { text?: string }).text
-          if (typeof text === 'string') {
-            for (const ref of parseReferences(text)) max = Math.max(max, ref.id)
-          }
-        }
-      }
-      const ids = (message as { imagePasteIds?: number[] }).imagePasteIds
-      if (Array.isArray(ids)) for (const id of ids) max = Math.max(max, id)
-    }
-    nextPasteIdRef.current = max + 1
-  }
-  const allocatePasteId = (): number => {
-    const taken = new Set<number>(
-      Object.keys(pendingInput.pastedContents()).map(Number),
-    )
-    for (const ref of parseReferences(pendingInput.text())) taken.add(ref.id)
-    let id = nextPasteIdRef.current ?? 1
-    while (taken.has(id)) id++
-    nextPasteIdRef.current = id + 1
-    return id
-  }
-
-  const insertAtCursor = (text: string, options?: { atomic?: boolean }): void => {
-    if (!options?.atomic) buffer.pushToBuffer(input, cursorOffset, pastedContents);
-    else buffer.pushAtomic(input, cursorOffset, pastedContents);
-    const range = inputSelectionRangeRef.current();
-    const start = range ? range.start : Math.max(0, Math.min(cursorOffset, input.length))
-    const end = range ? range.end : start
-    let payload = text
-    if (
-      !range &&
-      start === input.length &&
-      input !== '' &&
-      !/\s$/.test(input) &&
-      payload !== ''
-    ) {
-      payload = ` ${payload}`
-    }
-    const next = input.slice(0, start) + payload + input.slice(end)
-    writeDraft(next)
-    setCursorOffset(start + payload.length)
-  }
-
-  const handleImagePaste = useCallback(
-    (
-      base64Image: string,
-      mediaType?: string,
-      filename?: string,
-      dimensions?: ImageDimensions,
-      sourcePath?: string,
-      byteLength?: number,
-    ): void => {
-      setMode('prompt')
-      const pendingSpace = deferredSpaceArmedRef.current
-      const id = allocatePasteId()
-      const entry: PastedContent = {
-        id,
-        type: 'image',
-        content: base64Image,
-        mediaType: mediaType ?? 'image/png',
-        filename: filename ?? `image-${id}.png`,
-        ...(dimensions ? { dimensions } : {}),
-        ...(sourcePath ? { sourcePath } : {}),
-      } as PastedContent
-      cacheImagePath(entry)
-      void storeImage(entry).catch(() => {})
-      setPastedContents(prev => ({ ...prev, [id]: entry }))
-      insertAtCursor(`${pendingSpace ? ' ' : ''}${formatImageRef(id)}`, { atomic: true })
-      deferredSpaceArmedRef.current = true
-      const bytes = byteLength ?? Math.floor((base64Image.length * 3) / 4)
-      addNotification({
-        key: `image-attached-${id}`,
-        text: `${formatImageRef(id)} attached — ${describeAttachedImage(dimensions, bytes)}`,
-        priority: 'low',
-        timeoutMs: 4000,
-      })
-    },
-    [insertAtCursor, setMode, setPastedContents, addNotification],
-  )
-
-  const handleImageError = useCallback(
-    (message: string): void => {
-      addNotification({
-        key: 'image-attach-failed',
-        text: message,
-        color: 'warning',
-        priority: 'high',
-        timeoutMs: 10000,
-      })
-    },
-    [addNotification],
-  )
-
-  const handleTextPaste = useCallback(
-    (raw: string): void => {
-      deferredSpaceArmedRef.current = false
-      const text = stripControls(normalizePastedInput(raw))
-      const lineCount = (text.match(/\n/g) ?? []).length + 1
-      if (
-        input === '' &&
-        lineCount === 1 &&
-        text.length <= PASTE_THRESHOLD &&
-        getModeFromInput(text) === 'bash'
-      ) {
-        setMode('bash')
-        const remainder = expandTabs(getValueFromInput(text))
-        buffer.pushAtomic(input, cursorOffset, pastedContents)
-        writeDraft(remainder)
-        setCursorOffset(remainder.length)
-        return
-      }
-      const lineCap = Math.max(1, Math.min(rows - 10, 2))
-      if (text.length > PASTE_THRESHOLD || lineCount > lineCap) {
-        const id = allocatePasteId()
-        const numLines = getPastedTextRefNumLines(text)
-        const contentHash = hashPastedText(text)
-        const entry: PastedContent = {
-          id,
-          type: 'text',
-          content: text,
-          contentHash,
-        } as PastedContent
-        void storePastedText(contentHash, text).catch(() => {})
-        setPastedContents(prev => ({ ...prev, [id]: entry }))
-        insertAtCursor(formatPastedTextRef(id, numLines), { atomic: true })
-        return
-      }
-      insertAtCursor(expandTabs(text), { atomic: true })
-    },
-    [input, rows, cursorOffset, pastedContents, buffer, insertAtCursor, setMode, setCursorOffset, setPastedContents],
-  )
-
-  const cursorRef = useRef(cursorOffset)
-  cursorRef.current = cursorOffset
-  insertTextRef.current = {
-    get cursorOffset() {
-      return cursorRef.current
-    },
-    insert: (text: string) => insertAtCursor(text, { atomic: true }),
-    setInputWithCursor: (value: string, cursor: number) => {
-      writeDraft(value)
-      setCursorOffset(Math.max(0, Math.min(cursor, value.length)))
-    },
-  }
-  setComposerInsert(text => insertAtCursor(text, { atomic: true }))
-  useEffect(() => {
-    return () => {
-      insertTextRef.current = null
-      setComposerInsert(null)
-      void pendingInput.flushDrafts()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- unmount-only flush
-  }, [])
+  const { insertAtCursor, insertAtomic, handleImagePaste, handleImageError, handleTextPaste, cursorRef } = attachments
 
   const [suggestionsState, setSuggestionsStateRaw] = useState<SuggestionsState>({
     suggestions: [],
@@ -1502,9 +1326,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     noteOwnInputSelectionChanged()
   }, [ownSelected])
   const pushAtomic = buffer.pushAtomic
-  const insertTextAtCursor = (text: string): void => {
-    insertAtCursor(text, { atomic: true })
-  }
   const handleInputBoxClick = (event: { localCol: number; localRow: number }): void => {
     if (isSearchingHistory || input === '') return
     setCursorOffset(
@@ -1631,7 +1452,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         ]}
         onRun={text => {
           setShowCommandPalette(false)
-          insertTextAtCursor(text)
+          insertAtomic(text)
         }}
         onClose={() => setShowCommandPalette(false)}
       />
@@ -1642,7 +1463,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       <MercuryFileOpen
         onPick={text => {
           setShowFileOpen(false)
-          insertTextAtCursor(text)
+          insertAtomic(text)
         }}
         onClose={() => setShowFileOpen(false)}
       />
@@ -1653,7 +1474,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       <MercuryContentSearch
         onPick={text => {
           setShowContentSearch(false)
-          insertTextAtCursor(text)
+          insertAtomic(text)
         }}
         onClose={() => setShowContentSearch(false)}
       />
