@@ -18,13 +18,29 @@ export async function launchInvalidSettingsDialog(
     onExit: () => void
   },
 ): Promise<void> {
-  const [{ InvalidSettingsDialog }, { AppStateProvider }, { KeybindingSetup }] =
-    await Promise.all([
-      import('./components/InvalidSettingsDialog.js'),
-      import('./state/AppState.js'),
-      import('./keybindings/KeybindingProviderSetup.js'),
-    ])
+  const [
+    { InvalidSettingsDialog },
+    { AppStateProvider },
+    { KeybindingSetup },
+    { removableUnknownKeys, removeUnknownKeys },
+    { addBootNote },
+  ] = await Promise.all([
+    import('./components/InvalidSettingsDialog.js'),
+    import('./state/AppState.js'),
+    import('./keybindings/KeybindingProviderSetup.js'),
+    import('./utils/settings/unknownKeyRemoval.js'),
+    import('./substrate/bootNotes.js'),
+  ])
+  const removals = removableUnknownKeys(settingsErrors)
   await new Promise<void>(resolve => {
+    const onRemove =
+      removals.length === 0
+        ? undefined
+        : (): void => {
+            const fault = removeUnknownKeys(removals)
+            if (fault !== null) addBootNote('warn', `settings: the unrecognized fields were not removed — ${fault.message}`)
+            resolve()
+          }
     root.render(
       <AppStateProvider>
         <KeybindingSetup>
@@ -33,6 +49,7 @@ export async function launchInvalidSettingsDialog(
               settingsErrors={settingsErrors}
               onContinue={() => resolve()}
               onExit={onExit}
+              onRemove={onRemove}
             />
           </SetupScreenHost>
         </KeybindingSetup>
