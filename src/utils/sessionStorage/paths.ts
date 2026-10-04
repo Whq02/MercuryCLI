@@ -17,17 +17,10 @@ import { isFsInaccessible } from '../errors.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { durableAtomicPublish } from '../../substrate/durablePublish.js'
 import { getProjectDir as resolveProjectDir } from '../sessionStoragePortable.js'
+import { EPHEMERAL_STORAGE_PROGRESS, storageRowPolicy } from '../../rows/storage.js'
 
 export function isTranscriptMessage(entry: Entry): entry is TranscriptMessage {
-  switch (entry.type) {
-    case 'user':
-    case 'assistant':
-    case 'attachment':
-    case 'system':
-      return true
-    default:
-      return false
-  }
+  return storageRowPolicy(entry.type)?.fold === 'message'
 }
 
 export function isChainParticipant(m: Pick<Message, 'type'>): boolean {
@@ -53,14 +46,8 @@ export function isPersistedProgressEntry(
   )
 }
 
-const EPHEMERAL_PROGRESS_TYPES = new Set([
-  'bash_progress',
-  'powershell_progress',
-  'mcp_progress',
-])
-
 export function isEphemeralToolProgress(dataType: unknown): boolean {
-  return typeof dataType === 'string' && EPHEMERAL_PROGRESS_TYPES.has(dataType)
+  return typeof dataType === 'string' && EPHEMERAL_STORAGE_PROGRESS.has(dataType)
 }
 
 export function getProjectsDir(): string {

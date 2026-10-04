@@ -28,6 +28,7 @@ import type {
 } from '../../types/logs.js'
 import type { AttributionSnapshotMessage } from '../../types/logs.js'
 import type { Message } from '../../types/message.js'
+import { storageRowPolicy } from '../../rows/storage.js'
 import type { QueueOperationMessage } from '../../types/messageQueueTypes.js'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { registerExitCliffSeam } from '../exitCliffDrain.js'
@@ -353,28 +354,6 @@ export async function recordContextCollapseSnapshot(snapshot: {
 export async function flushSessionStorage(): Promise<void> {
   await getProject().flush()
 }
-
-const ALWAYS_APPEND_KINDS = new Set<Entry['type']>([
-  'summary',
-  'custom-title',
-  'ai-title',
-  'last-prompt',
-  'task-summary',
-  'tag',
-  'agent-name',
-  'agent-color',
-  'agent-setting',
-  'pr-link',
-  'file-history-snapshot',
-  'attribution-snapshot',
-  'speculation-accept',
-  'mode',
-  'advisor-switch',
-  'model',
-  'worktree-state',
-  'context-collapse-commit',
-  'context-collapse-snapshot',
-])
 
 class Project {
   currentSessionTag: string | undefined
@@ -994,7 +973,7 @@ class Project {
       sessionFile = existing
     }
 
-    if (ALWAYS_APPEND_KINDS.has(entry.type)) {
+    if (storageRowPolicy(entry.type)?.write === 'append') {
       void this.enqueueWrite(sessionFile, entry)
       return
     }
