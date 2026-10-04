@@ -249,9 +249,10 @@ const inputRow = records1.find(r => {
   return payload?.kind === 'input' && JSON.stringify(payload.content ?? '').includes(QUEUED)
 })
 check('leg 1: the words folded into the running turn as a queued_command row (not a new turn)', queuedRow !== undefined && inputRow === undefined, `queued row ${queuedRow === undefined ? 'absent' : 'present'} · input row ${inputRow === undefined ? 'absent' : 'present'} · ${records1.length} records in ${transcriptFile() ?? 'no transcript'}`)
-const queuedPrompt = ((queuedRow?.payload as { fields?: { prompt?: unknown } } | undefined)?.fields?.prompt ?? null) as { type?: string; source?: { type?: string; path?: string } }[] | null
+const queuedPrompt = ((queuedRow?.payload as { fields?: { prompt?: unknown } } | undefined)?.fields?.prompt ?? null) as { type?: string; source?: { type?: string; data?: string } }[] | null
 const rowImage = Array.isArray(queuedPrompt) ? queuedPrompt.find(b => b.type === 'image') : undefined
-check('leg 1: the transcript row keeps the image as a store reference', rowImage !== undefined && rowImage.source?.type === STORED_IMAGE_SOURCE_TYPE && stored.includes(String(rowImage.source.path ?? '')), JSON.stringify(rowImage?.source ?? null).slice(0, 200))
+const rowImageSha = typeof rowImage?.source?.data === 'string' ? sha256(Buffer.from(rowImage.source.data, 'base64')) : ''
+check('leg 1: the transcript row keeps the image as the row carried it — the pasted bytes, never a store reference', rowImage !== undefined && rowImage.source?.type === 'base64' && rowImageSha === storedSha, JSON.stringify({ type: rowImage?.source?.type, sha256: rowImageSha.slice(0, 12) }))
 const folded = requestsSaying(QUEUED)
 check('leg 1: the next request after the fold reached the wire', folded.length >= 1, `${api.messageRequests().length} message request(s)`)
 const foldedImages = folded.flatMap(r => imagesOf(r.body))
@@ -282,12 +283,9 @@ check('leg 2: the history\'s image reaches the wire as no store reference', resu
 check('leg 2: the history\'s image reaches the wire as the pasted bytes', resumedImages.some(i => i.type === 'base64' && i.sha256 === storedSha), describe(resumedImages))
 check('leg 2: the fixture\'s reply landed on the glass', markRows(leg2.payload, 'reply2').some(r => r.includes('Seen it again.')), markRows(leg2.payload, 'reply2').filter(r => /Mercury\]/.test(r)).join(' | '))
 const records2 = transcriptRecords()
-const stillReference = records2.some(r => {
-  const payload = r.payload as { kind?: string; attachmentType?: string; fields?: { prompt?: unknown } } | undefined
-  return payload?.kind === 'attachment' && payload.attachmentType === 'queued_command' && JSON.stringify(payload.fields?.prompt ?? '').includes(STORED_IMAGE_SOURCE_TYPE)
-})
-const bytesInTranscript = records2.some(r => JSON.stringify(r).includes(pngBytes.toString('base64').slice(0, 64)))
-check('leg 2: the transcript still keeps the reference, never the bytes', stillReference && !bytesInTranscript, `${records2.length} records · reference ${stillReference ? 'kept' : 'gone'} · bytes ${bytesInTranscript ? 'present' : 'absent'}`)
+const referenceInTranscript = records2.some(r => JSON.stringify(r).includes(STORED_IMAGE_SOURCE_TYPE))
+const bytesRows = records2.filter(r => JSON.stringify(r).includes(pngBytes.toString('base64').slice(0, 64)))
+check('leg 2: the transcript keeps the one row with the bytes and no store reference', !referenceInTranscript && bytesRows.length === 1, `${records2.length} records · reference ${referenceInTranscript ? 'present' : 'absent'} · rows with the bytes ${bytesRows.length}`)
 
 const evidence = [[leg1.payload, 'face'], [leg1.payload, 'typed'], [leg1.payload, 'hold'], [leg1.payload, 'chip'], [leg1.payload, 'sent'], [leg1.payload, 'reply'], [leg2.payload, 'typed2'], [leg2.payload, 'reply2']] as const
 if (FRAMES !== null) {
