@@ -6,6 +6,7 @@ import {
   shouldAllowManagedHooksOnly,
 } from './hooksConfigSnapshot.js'
 import { getIsNonInteractiveSession, getRegisteredHooks } from '../../bootstrap/state.js'
+import { matcherShape } from './matcherGrammar.js'
 import type { AppState } from '../../state/AppState.js'
 import type { HookEvent, HookInput } from './contract.js'
 
@@ -34,10 +35,11 @@ import {
 } from './sessionHooks.js'
 
 export function matchesPattern(matchQuery: string, matcher: string): boolean {
-  if (!matcher || matcher === '*') {
+  const shape = matcherShape(matcher)
+  if (shape === 'everything') {
     return true
   }
-  if (/^[a-zA-Z0-9_|]+$/.test(matcher)) {
+  if (shape === 'names') {
     if (matcher.includes('|')) {
       const patterns = matcher.split('|').map(p => p.trim())
       return patterns.includes(matchQuery)

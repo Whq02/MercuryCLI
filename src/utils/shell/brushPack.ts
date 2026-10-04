@@ -54,6 +54,22 @@ export interface BrushCargoBuildManifest extends BrushPackManifestBase {
 
 export type BrushPackManifest = BrushReleaseArchiveManifest | BrushCargoBuildManifest
 
+export type BrushLockKind = 'fetch' | 'build'
+
+export function brushLockKindFor(lockPath: string, packPlatform: string): BrushLockKind {
+  try {
+    const lock = JSON.parse(readFileSync(lockPath, 'utf8')) as { platforms?: Record<string, { kind?: string }> }
+    return lock.platforms?.[packPlatform]?.kind === 'build' ? 'build' : 'fetch'
+  } catch {
+    return 'fetch'
+  }
+}
+
+export function brushPrepareCommand(kind: BrushLockKind, packPlatform: string, cross: boolean, targetArg: string | null): string {
+  if (kind === 'build') return `bun run scripts/vendor/build-brush.ts${cross && targetArg ? ` --target ${targetArg}` : ''} (needs cargo)`
+  return `bun run scripts/vendor/fetch-brush.ts${cross ? ` --platform ${packPlatform}` : ''}`
+}
+
 const HEX64 = /^[0-9a-f]{64}$/
 
 function walkDigests(dir: string, base: string): string[] {
@@ -169,19 +185,24 @@ export function resolveBrushPackDir(moduleDir: string = path.dirname(fileURLToPa
     return { state: 'ok', dir: vendored, binaryPath: vendoredCheck.binaryPath, manifest: vendoredCheck.manifest, source: 'vendored' }
   }
   let dir = moduleDir
+  let lockPath: string | null = null
   for (let i = 0; i < 6; i++) {
     const candidate = path.join(dir, ...BRUSH_PACK_PATH.split('/'), platform)
     const check = checkBrushPackDir(candidate, { platform })
     if (check.state === 'ok') return { state: 'ok', dir: candidate, binaryPath: check.binaryPath, manifest: check.manifest, source: 'workspace' }
     if (check.state === 'mismatch') return { state: 'unavailable', note: check.note }
-    if (existsSync(path.join(dir, 'package.json')) || existsSync(path.join(dir, '.git'))) break
+    if (existsSync(path.join(dir, 'package.json')) || existsSync(path.join(dir, '.git'))) {
+      lockPath = path.join(dir, 'vendor', 'brush.lock.json')
+      break
+    }
     const parent = path.dirname(dir)
     if (parent === dir) break
     dir = parent
   }
   if (vendoredCheck.state === 'mismatch') return { state: 'unavailable', note: vendoredCheck.note }
+  const kind: BrushLockKind = lockPath !== null && existsSync(lockPath) ? brushLockKindFor(lockPath, platform) : platform === 'win-x64' ? 'build' : 'fetch'
   return {
     state: 'unavailable',
-    note: `no shell-engine pack for ${platform}: neither ${BRUSH_PACK_PATH}/${platform} beside the bundle nor the checkout's own (prepare it: bun run scripts/vendor/fetch-brush.ts, then rebuild)`,
+    note: `no shell-engine pack for ${platform}: neither ${BRUSH_PACK_PATH}/${platform} beside the bundle nor the checkout's own (prepare it: ${brushPrepareCommand(kind, platform, false, null)}, then rebuild)`,
   }
 }

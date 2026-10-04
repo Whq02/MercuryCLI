@@ -153,6 +153,7 @@ function writeLogLine(content: string): void {
   } catch {
     return
   }
+  if (getDebugFilePath() !== null) return
   pendingMaintenance = maybeRotateDebugLog(logPath, content.length).then(() => {
     refreshLatestSymlink(logPath, logDir)
   })

@@ -36,7 +36,7 @@ import {
 import type { SettingsJson } from './types.js'
 import { SettingsSchema } from './types.js'
 import type { ValidationError, SettingsWithErrors } from './validation.js'
-import { filterInvalidPermissionRules, formatZodError } from './validation.js'
+import { filterInvalidPermissionRules, formatZodError, unknownKeyWarnings } from './validation.js'
 
 
 export function settingsMergeCustomizer(objValue: unknown, srcValue: unknown): unknown {
@@ -88,9 +88,9 @@ function parseSettingsFileUncached(filePath: string): { settings: SettingsJson |
       salvaged !== null
         ? formatZodError(result.error, filePath).map(record => ({ ...record, severity: 'warning' as const }))
         : formatZodError(result.error, filePath)
-    return { settings: salvaged, errors: [...zodErrors, ...warnings] }
+    return { settings: salvaged, errors: [...zodErrors, ...warnings, ...(salvaged === null ? [] : unknownKeyWarnings(salvaged, filePath))] }
   }
-  return { settings: result.data as SettingsJson, errors: warnings }
+  return { settings: result.data as SettingsJson, errors: [...warnings, ...unknownKeyWarnings(result.data, filePath)] }
 }
 
 const SALVAGE_REMOVED: unique symbol = Symbol('settings-salvage-removed')

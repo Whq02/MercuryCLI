@@ -1,4 +1,4 @@
-import { reconcileManagedShims, resolveLayoutRoots, type LayoutRoots } from 'src/services/privateChannel/installLayout.js'
+import { readCurrentVersionState, reconcileManagedShims, resolveLayoutRoots, type LayoutRoots } from 'src/services/privateChannel/installLayout.js'
 import { commandOnPath, commandOnPathWarning, npmWrapperOnPath } from 'src/services/privateChannel/installPath.js'
 import {
   askYesNo,
@@ -194,6 +194,9 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
   const roots = resolveLayoutRoots()
   const provenance = resolveInstallProvenance()
   const installer = foreignInstallerOf(provenance)
+  const sourceCheckout = provenance.kind === 'development' && readCurrentVersionState(roots).state === 'absent'
+  const sourceCheckoutReason = `this Mercury is a source checkout at ${provenance.activeRoot} and no managed install lives under ${roots.versionsDir}; \`mercury update\` manages installs made by \`mercury install\` or the install script`
+  const sourceCheckoutRemedy = 'rebuild it with `git pull && bun run build.ts`'
   const npmWrapper = provenance.kind === 'managed' ? npmWrapperOnPath(commandOnPath(roots)) : null
   const provenanceRecord = {
     kind: provenance.kind,
@@ -247,6 +250,11 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
       if (options.json) return failJson({ mode: 'rollback', state: 'refused', reason, remedy, provenance: provenanceRecord })
       return cliError(`rollback refused: ${reason}\n  ${remedy}`)
     }
+    if (sourceCheckout) {
+      const remedy = `a checkout has no earlier version to return to — ${sourceCheckoutRemedy}, or check out an earlier commit`
+      if (options.json) return failJson({ mode: 'rollback', state: 'refused', reason: sourceCheckoutReason, remedy, provenance: provenanceRecord })
+      return cliError(`rollback refused: ${sourceCheckoutReason}\n  ${remedy}`)
+    }
     reconcileManagedShims(roots)
     const rolled = await performRollback(roots, progress)
     const daemon = rolled.state === 'rolled-back' ? await moveDaemonAfterUpdate() : null
@@ -270,19 +278,22 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
         ? emitJson({ mode: 'check', ...check, provenance: provenanceRecord })
         : failJson({ mode: 'check', ...check, provenance: provenanceRecord })
     }
+    const thisMercury = sourceCheckout ? `\n  this Mercury: ${provenanceStatusWords(provenance, npmWrapper)}` : ''
     switch (check.state) {
       case 'update-available': {
         const next = installer
           ? `this Mercury was installed by ${installer.name}; ${installerRoadWords(installer)}`
-          : `run \`mercury update\` to install it${npmWrapper === null ? '' : ` (${NPM_WRAPPER_ROAD_WORDS})`}`
+          : sourceCheckout
+            ? `this Mercury: ${provenanceStatusWords(provenance, npmWrapper)}`
+            : `run \`mercury update\` to install it${npmWrapper === null ? '' : ` (${NPM_WRAPPER_ROAD_WORDS})`}`
         return cliOk(
           `update available: ${check.tag} (installed: ${check.installed})\n  asset: ${check.assetName}\n  channel: ${check.channelRepo} (${describeChannelRoad(check.road)})\n${next}`,
         )
       }
       case 'current':
-        return cliOk(`Mercury is current: ${check.installed} (channel: ${check.channelRepo}, ${describeChannelRoad(check.road)})`)
+        return cliOk(`Mercury is current: ${check.installed} (channel: ${check.channelRepo}, ${describeChannelRoad(check.road)})${thisMercury}`)
       case 'no-releases':
-        return cliOk(`no releases found on ${check.channelRepo} (${describeChannelRoad(check.road)}); installed: ${check.installed}`)
+        return cliOk(`no releases found on ${check.channelRepo} (${describeChannelRoad(check.road)}); installed: ${check.installed}${thisMercury}`)
       case 'access-unavailable':
         return cliError(`update check unavailable: ${check.access.note}\n  ${check.access.remedy}`)
       case 'unsupported-platform':
@@ -301,6 +312,10 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
   }
 
   if (installer) return installerRoad(installer, options, roots, provenanceRecord)
+  if (sourceCheckout) {
+    if (options.json) return failJson({ mode: 'update', state: 'refused', stage: 'provenance', reason: sourceCheckoutReason, remedy: sourceCheckoutRemedy, provenance: provenanceRecord })
+    return cliError(`update refused: ${sourceCheckoutReason}\n  ${sourceCheckoutRemedy}\nthe active installation was not changed`)
+  }
   const result = await performUpdate(roots, progress, { allowUnsigned: options.allowUnsigned })
   const installCurrent = result.state === 'updated' || (result.state === 'no-update' && result.check.state === 'current')
   if (installCurrent) {

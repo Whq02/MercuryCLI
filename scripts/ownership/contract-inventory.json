@@ -158,9 +158,11 @@
     "editTimeSettingsSchema",
     "filterInvalidPermissionRules",
     "formatZodError",
+    "settingsFaultLine",
     "type:FieldPath",
     "type:SettingsWithErrors",
     "type:ValidationError",
+    "unknownKeyWarnings",
     "validateSettingsFileContent"
    ],
    "src/utils/settings/settingsCache.ts": [

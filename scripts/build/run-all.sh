@@ -7,6 +7,7 @@
 # gate-watch: src/utils/gracefulShutdown* src/utils/proxy* src/utils/mtls* src/utils/lockfile* src/utils/caCerts*
 # gate-watch: src/entrypoints/cli* src/entrypoints/init*
 # gate-watch: assets/splash/mercury-splash.mjs assets/splash/splash-core.mjs
+# gate-watch: src/utils/shell/brushPack.ts docs/INSTALL-WINDOWS-FROM-SOURCE.md vendor/brush.lock.json
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"
@@ -38,6 +39,8 @@ run_proof "$root/scripts/build/prove-vendor-tar-dialect.ts" "${BUN:-$HOME/.bun/b
 run_proof "$root/scripts/build/prove-image-processor-pack.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$root/scripts/build/prove-image-processor-pack.ts" || fail=1
 
 run_proof "$root/scripts/build/prove-seccomp-pack.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$root/scripts/build/prove-seccomp-pack.ts" || fail=1
+
+run_proof "$root/scripts/build/prove-brush-prepare-words.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$root/scripts/build/prove-brush-prepare-words.ts" || fail=1
 
 run_proof "$root/scripts/build/prove-bundle-neutral-paths.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$root/scripts/build/prove-bundle-neutral-paths.ts" || fail=1
 

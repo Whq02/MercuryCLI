@@ -2,6 +2,7 @@ import { z } from 'zod/v4'
 import { lazySchema } from '../utils/lazySchema.js'
 import { SHELL_TYPES } from '../utils/shell/shellProvider.js'
 import { HOOK_EVENTS, type HookEvent } from '../utils/hooks/contract.js'
+import { matcherCompiles } from '../utils/hooks/matcherGrammar.js'
 
 const ifSchema = lazySchema(() =>
   z
@@ -139,15 +140,11 @@ export const HookMatcherSchema = lazySchema(() =>
       hooks: z.array(HookCommandSchema()),
     })
     .superRefine((entry, ctx) => {
-      if (entry.matcher === undefined) return
-      try {
-        new RegExp(entry.matcher)
-      } catch {
-        ctx.addIssue({
-          code: 'custom',
-          message: `matcher is not a valid regular expression: ${JSON.stringify(entry.matcher)}`,
-        })
-      }
+      if (matcherCompiles(entry.matcher)) return
+      ctx.addIssue({
+        code: 'custom',
+        message: `matcher is not a valid regular expression: ${JSON.stringify(entry.matcher)}`,
+      })
     }),
 )
 

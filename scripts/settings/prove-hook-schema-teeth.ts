@@ -87,6 +87,22 @@ section('§4 CONTROLS')
   check('a DELIBERATELY matcher-less entry stays legal (matcher is optional)', noMatcher.errors.length === 0 && noMatcher.matchers.length === 1)
 }
 
+section('§5 THE DOCUMENTED GRAMMAR — the schema accepts every matcher the runtime matcher accepts')
+{
+  const { matchesPattern } = await import('../../src/utils/hooks/matching.ts')
+  const { matcherCompiles, matcherShape } = await import('../../src/utils/hooks/matcherGrammar.ts')
+  const star = parseHooks({ PreToolUse: [{ matcher: '*', hooks: [{ type: 'command', command: 'echo every tool' }] }] })
+  check('"*" (docs/HOOKS.md: matches everything) parses with zero errors', star.errors.length === 0, JSON.stringify(star.errors).slice(0, 160))
+  check('…and the entry survives with its matcher as written', star.matchers.length === 1 && star.matchers[0]?.matcher === '*', JSON.stringify(star.matchers.map(m => m.matcher ?? '(absent)')))
+  const empty = parseHooks({ PreToolUse: [{ matcher: '', hooks: [{ type: 'command', command: 'echo every tool' }] }] })
+  check('"" (the empty matcher) parses with zero errors and survives', empty.errors.length === 0 && empty.matchers.length === 1 && empty.matchers[0]?.matcher === '', JSON.stringify(empty.errors).slice(0, 120))
+  for (const matcher of ['*', '', 'Bash', 'Bash|Read', '^(Read|Edit)$', 'mcp__.*']) {
+    check(`the schema and the runtime agree on ${JSON.stringify(matcher)}: the schema admits it and the runtime applies it`, matcherCompiles(matcher) && (matcher === '' || matcher === '*' ? matchesPattern('Bash', matcher) : matcherShape(matcher) !== 'regex' || matchesPattern('Read', matcher) === new RegExp(matcher).test('Read')))
+  }
+  check('"*" is the runtime\'s match-everything, never a regex', matcherShape('*') === 'everything' && matchesPattern('Bash', '*') && matchesPattern('Write', '*'))
+  check('an uncompilable regex is still refused by both', !matcherCompiles('startu[p') && !matchesPattern('startup', 'startu[p') && parseHooks({ PreToolUse: [{ matcher: 'startu[p', hooks: [{ type: 'command', command: 'echo x' }] }] }).errors.length > 0)
+}
+
 rmSync(HOME, { recursive: true, force: true })
 if (failures > 0) {
   console.error(`\nprove-hook-schema-teeth: ${failures} FAILURE(S)`)

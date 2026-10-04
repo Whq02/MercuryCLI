@@ -171,7 +171,11 @@ Command on PATH row does not ask for a PATH change. `--check` reports the
 newest release against the version running on every channel and ends with the
 road that applies (`mercury update` runs Homebrew's upgrade; `run mercury
 update to install it` on the channel's own layout); `--status` names where
-this Mercury came from. On Windows the PowerShell installer and the `.zip`
+this Mercury came from. A source checkout (a bundle built with `bun run
+build.ts` inside its repository) is not an install the channel manages: `--check` and `--status` end
+with its own line — `a source checkout at <dist> — rebuild it with git pull &&
+bun run build.ts` — and the bare update and `--rollback` refuse there before
+anything is downloaded or written. On Windows the PowerShell installer and the `.zip`
 archive make a managed install, so the channel road applies there; Homebrew
 does not exist on Windows and the npm road there is untested. After an update
 of a managed install, the lines after the update name the `mercury` the shell

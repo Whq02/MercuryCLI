@@ -5,6 +5,7 @@ import { useExitOnCtrlCDWithKeybindings } from '../hooks/useExitOnCtrlCDWithKeyb
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { Box, Text, usePreviewTheme, useTheme, useThemeSetting } from '../ink.js'
 import { isAnthropicAuthEnabled } from '../utils/auth.js'
+import { resolveProviderUsability } from '../services/providers/providerUsability.js'
 import { normalizeApiKeyForConfig } from '../utils/authPortable.js'
 import { getCustomApiKeyStatus } from '../utils/config.js'
 import { env } from '../utils/env.js'
@@ -51,8 +52,8 @@ const GUARDRAILS_WORDS = {
 
 const TERMINAL_WORDS = {
   title: 'Terminal keys',
-  appleTweak: "Mercury can make Option+Enter add a new line and silence Terminal's bell.",
-  tweak: 'Mercury can bind Shift+Enter in this terminal so the key adds a new line.',
+  appleTweak: "Mercury can make Option+Enter add a new line and silence Terminal's bell. Yes writes those two keys into Terminal's own settings for every profile, with a backup kept beside them; Terminal needs a restart afterwards.",
+  tweak: "Mercury can bind Shift+Enter in this terminal so the key adds a new line. Yes writes one keybinding into this terminal's own settings file, with a backup kept beside it.",
   install: 'yes, set it up',
   later: 'not now; use /keysetup later',
 }
@@ -292,6 +293,7 @@ function TerminalKeys({
     rows,
     rowId: r => r.id,
     idNamespace: 'onboarding:terminal',
+    initialId: 'no',
     onClose: onBack,
     actions: [
       {
@@ -339,7 +341,7 @@ type Props = {
 
 export function Onboarding({ onDone }: Props): React.ReactNode {
   const [stepIndex, setStepIndex] = useState(0)
-  const [oauthEnabled] = useState(() => isAnthropicAuthEnabled())
+  const [oauthEnabled] = useState(() => isAnthropicAuthEnabled() && !Object.values(resolveProviderUsability()).some(lane => lane.usable))
   const [theme] = useTheme()
   const exitState = useExitOnCtrlCDWithKeybindings()
   const notes = bootNotes()
@@ -403,7 +405,7 @@ export function Onboarding({ onDone }: Props): React.ReactNode {
     provider: '↑↓ move · ↵ choose · esc back',
     'api-key': '↑↓ move · ↵ select',
     guardrails: '↵ continue · esc back',
-    terminal: '↑↓ move · ↵ select · esc skip',
+    terminal: '↑↓ move · ↵ select · esc back',
   }
   const footer = exitState.pending
     ? exitChordNoticeText(exitState.keyName)

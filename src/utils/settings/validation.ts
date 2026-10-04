@@ -52,7 +52,7 @@ function receivedTypeName(issue: IssueLike): string {
   return typeof value
 }
 
-export function formatZodError(error: z.ZodError, filePath: string): ValidationError[] {
+export function formatZodError(error: Pick<z.ZodError, 'issues'>, filePath: string): ValidationError[] {
   const records: ValidationError[] = []
   for (const rawIssue of error.issues) {
     const issue = rawIssue as unknown as IssueLike
@@ -129,6 +129,12 @@ export function formatZodError(error: z.ZodError, filePath: string): ValidationE
   return records
 }
 
+export function settingsFaultLine(error: ValidationError): string {
+  const where = [error.file, error.path, error.message].filter(Boolean).join(' · ')
+  const effect = error.severity === 'warning' ? 'this value is skipped; the rest of the file applies' : 'the file is skipped'
+  return `settings: ${where} — ${effect}`
+}
+
 const EDIT_STRICT_GROUPS = [
   'credentials', 'files', 'records', 'briefs', 'memory', 'turns', 'environment', 'credit', 'engine', 'kit',
   'events', 'voice', 'activity', 'view', 'context', 'input', 'shell', 'routing', 'channels', 'workspace', 'local',
@@ -142,6 +148,14 @@ export function editTimeSettingsSchema(): z.ZodObject {
     if (inner instanceof z.ZodObject) shape[group] = z.strictObject(inner.shape).optional()
   }
   return z.strictObject(shape)
+}
+
+export function unknownKeyWarnings(data: unknown, filePath: string): ValidationError[] {
+  const strict = editTimeSettingsSchema().safeParse(data)
+  if (strict.success) return []
+  const issues = strict.error.issues.filter(issue => issue.code === 'unrecognized_keys')
+  if (issues.length === 0) return []
+  return formatZodError({ issues }, filePath).map(record => ({ ...record, severity: 'warning' as const }))
 }
 
 export function validateSettingsFileContent(

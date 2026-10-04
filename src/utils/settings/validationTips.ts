@@ -60,7 +60,7 @@ function matchTip(context: TipContext): ValidationTip | null {
   if (context.path.includes('hooks') && context.code === 'invalid_type') {
     return {
       suggestion:
-        'Hooks use a matcher plus a hooks array. The matcher is a STRING: a tool name, a pipe-separated list, or empty to match everything. Example: {"PreToolUse": [{"matcher": "Bash|Edit", "hooks": [{"type": "command", "command": "./check.sh"}]}]}',
+        'Hooks use a matcher plus a hooks array. The matcher is a STRING: a tool name, a pipe-separated list, a regular expression, or * or empty to match everything. Example: {"PreToolUse": [{"matcher": "Bash|Edit", "hooks": [{"type": "command", "command": "./check.sh"}]}]}',
     }
   }
   if (context.code === 'invalid_type' && context.expected === 'boolean') {

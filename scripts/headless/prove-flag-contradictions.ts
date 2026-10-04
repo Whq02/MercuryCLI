@@ -73,6 +73,31 @@ console.log('§3 run --resume with a target that is neither an id nor a .jsonl p
   check('--format rows: a refused outcome row carries the same sentence, class load, exit 2', rows.code === 2 && outcome?.status === 'refused' && outcome.error?.class === 'load' && /mercury run --resume needs a session id/.test(outcome.error?.message ?? '') && !/print mode/.test(outcome.error?.message ?? ''), `${rows.code} · ${rows.out.trim().slice(0, 200)}`)
 }
 
+console.log('§4 run --help says exactly what run --resume takes — the words the parser then holds it to')
+{
+  const optionLine = (text: string, flag: string): string => {
+    const lines = text.split('\n')
+    const at = lines.findIndex(l => l.includes(flag))
+    if (at < 0) return ''
+    let joined = lines[at] ?? ''
+    for (let i = at + 1; i < lines.length && /^\s{20,}\S/.test(lines[i] ?? '') && !/^\s+-/.test(lines[i] ?? ''); i++) joined += ` ${(lines[i] ?? '').trim()}`
+    return joined.replace(/\s+/g, ' ').trim()
+  }
+  const help = await run(['run', '--help'])
+  const resumeLine = optionLine(help.out, '--resume')
+  check('run --help exits 0 and carries a --resume line', help.code === 0 && resumeLine !== '', `${help.code} · ${help.out.trim().slice(0, 120)}`)
+  check('the line names a session id (a UUID) or a .jsonl transcript path', /^-r, --resume <value> Resume a session by its id \(a UUID\) or its \.jsonl transcript path$/.test(resumeLine), resumeLine)
+  check('…and promises no title and no picker (the chat\'s roads, not run\'s)', !/title|picker/.test(resumeLine), resumeLine)
+  const runner = await run(['runner', '--help'])
+  const runnerLine = optionLine(runner.out, '--resume')
+  check('runner --help holds the same line', runnerLine === resumeLine, runnerLine)
+  const root = await run(['--help'])
+  const rootLine = optionLine(root.out, '--resume')
+  check('the chat\'s --help keeps the id, title or picker (where they exist)', /^-r, --resume \[value\] Resume a conversation \(session id, title, or picker\)$/.test(rootLine), rootLine)
+  const bare = await run(['run', '--format', 'text', 'hi', '--resume'])
+  check('a bare run --resume is the parser\'s ordinary missing-argument refusal (exit 2)', bare.code === 2 && /option '-r, --resume <value>' argument missing/.test(bare.out), `${bare.code} · ${bare.out.trim().slice(0, 160)}`)
+}
+
 rmSync(home, { recursive: true, force: true })
 rmSync(cwd, { recursive: true, force: true })
 console.log(failures === 0 ? '\nprove-flag-contradictions: ALL LAWS HOLD' : `\nprove-flag-contradictions: ${failures} FAILURE(S)`)
