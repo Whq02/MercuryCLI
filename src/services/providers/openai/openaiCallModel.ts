@@ -90,6 +90,7 @@ import { providerWaitIsWindow, retrySeconds, stampProviderWait } from '../../api
 import { NetworkOutageError, nextReconnect, openReconnectLadder, ReconnectBudgetSpentError, type ReconnectLadder } from '../../api/reconnectLadder.js'
 import { sleep } from '../../../utils/sleep.js'
 import { busyRecoveryDetail, busyRefusalFact, heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, takesBusyLadder, type BusyRetryLadder } from '../busyRetry.js'
+import { EMPTY_STREAM_TRIES, emptyStreamRetryNotice, emptyStreamRetryWaitMs, emptyStreamSpentWords, isEmptyStreamFault } from '../emptyStreamRetry.js'
 import { isTemporaryStreamFault } from '../temporaryStreamError.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import {
@@ -664,10 +665,14 @@ export async function* openaiCallModel(
   let recovery: 'retried' | 'no-new-credential' | undefined
   let busy: { ladder: BusyRetryLadder; fault: OpenaiFault } | undefined
   let reconnect: ReconnectLadder | undefined
+  let emptyEnds = 0
+  let emptyEnd = false
   const busyPrefix = (line: string, fault: OpenaiFault, typed: string): string =>
     busy !== undefined && takesBusyLadder(fault, typed)
       ? `${API_ERROR_MESSAGE_PREFIX}: OpenAI stayed busy through ${busy.ladder.waitsMs.length} ${busy.ladder.waitsMs.length === 1 ? 'retry' : 'retries'} over ${retrySeconds(Date.now() - busy.ladder.startedAtMs)} — ${line.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`
-      : line
+      : emptyEnd
+        ? `${API_ERROR_MESSAGE_PREFIX}: ${emptyStreamSpentWords('OpenAI', Date.now() - turnStartedAtMs)} — ${line.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`
+        : line
   for (let attempt = 1; attempt <= OPENAI_MAX_ATTEMPTS || busy !== undefined; attempt++) {
     attemptStartedAtMs = Date.now()
     noteRunPhase('dispatch')
@@ -804,7 +809,24 @@ export async function* openaiCallModel(
       }
       logForDebugging(`[openai] busy refusal (${wireDetail}) — the retry ladder is spent after ${ladder.waitsMs.length} retries and ${retrySeconds(ladder.spentMs)} of waiting`)
     }
+    emptyEnd = busy === undefined && !singleShot && !reissueAtServedWord && outcome.retryEligible && isEmptyStreamFault(outcome.fault)
+    if (emptyEnd) {
+      emptyEnds++
+      if (emptyEnds < EMPTY_STREAM_TRIES) {
+        const waitMs = emptyStreamRetryWaitMs()
+        const notice = emptyStreamRetryNotice({ provider: 'OpenAI', detail: outcome.fault.code, attempt: emptyEnds + 1, waitMs })
+        logForDebugging(`[openai] ${notice.error.message} — retrying in ${retrySeconds(waitMs)} (attempt ${emptyEnds + 1} of ${EMPTY_STREAM_TRIES})`, { level: 'warn' })
+        yield notice
+        options.onWait?.(retryNoticeWait(notice))
+        await sleep(waitMs, signal)
+        if (signal.aborted) return
+        attempt--
+        continue
+      }
+      logForDebugging(`[openai] ${emptyStreamSpentWords('OpenAI', Date.now() - turnStartedAtMs)} (${wireDetail})`, { level: 'error' })
+    }
     const retryable =
+      !emptyEnd &&
       !providerWaitIsWindow(askedMs) &&
       (reissueAtServedWord || (busy === undefined && !singleShot && outcome.retryEligible && outcome.fault.retryable && attempt < OPENAI_MAX_ATTEMPTS))
     if (retryable) {

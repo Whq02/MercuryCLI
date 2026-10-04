@@ -23,6 +23,7 @@ import { NetworkOutageError, nextReconnect, openReconnectLadder, ReconnectBudget
 import { sleep } from '../../../utils/sleep.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { busyRecoveryDetail, busyRefusalFact, heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, takesBusyLadder, type BusyRetryLadder } from '../busyRetry.js'
+import { EMPTY_STREAM_TRIES, emptyStreamRetryNotice, emptyStreamRetryWaitMs, emptyStreamSpentWords, isEmptyStreamFault } from '../emptyStreamRetry.js'
 import { createSystemAPIErrorMessage } from '../../../utils/messages/systemMessages.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { classifyOverflowFault, type OverflowSignal } from '../../api/overflowSignal.js'
@@ -295,6 +296,7 @@ export async function* zaiCallModel(
   let attemptStartedAtMs = turnStartedAtMs
   let busy: { ladder: BusyRetryLadder; fault: ZaiFault } | undefined
   let reconnect: ReconnectLadder | undefined
+  let emptyEnds = 0
   for (let attempt = 1; attempt <= ZAI_MAX_ATTEMPTS || busy !== undefined; attempt++) {
     attemptStartedAtMs = Date.now()
     const outcome = yield* streamOneZaiAttempt({
@@ -370,8 +372,24 @@ export async function* zaiCallModel(
       }
       logForDebugging(`[zai] busy refusal (${wireDetail}) — the retry ladder is spent after ${ladder.waitsMs.length} retries and ${retrySeconds(ladder.spentMs)} of waiting`)
     }
+    const emptyEnd = busy === undefined && !singleShot && outcome.retryEligible && isEmptyStreamFault(outcome.fault)
+    if (emptyEnd) {
+      emptyEnds++
+      if (emptyEnds < EMPTY_STREAM_TRIES) {
+        const waitMs = emptyStreamRetryWaitMs()
+        const notice = emptyStreamRetryNotice({ provider: ZAI_FAULT_PROFILE.providerLabel, detail: outcome.fault.code, attempt: emptyEnds + 1, waitMs })
+        logForDebugging(`[zai] ${notice.error.message} — retrying in ${retrySeconds(waitMs)} (attempt ${emptyEnds + 1} of ${EMPTY_STREAM_TRIES})`, { level: 'warn' })
+        yield notice
+        options.onWait?.(retryNoticeWait(notice))
+        await sleep(waitMs, signal)
+        if (signal.aborted) return
+        attempt--
+        continue
+      }
+      logForDebugging(`[zai] ${emptyStreamSpentWords(ZAI_FAULT_PROFILE.providerLabel, Date.now() - turnStartedAtMs)} (${wireDetail})`, { level: 'error' })
+    }
     const retryable =
-      busy === undefined && !singleShot && !providerWaitIsWindow(askedMs) && outcome.retryEligible && outcome.fault.retryable && attempt < ZAI_MAX_ATTEMPTS
+      !emptyEnd && busy === undefined && !singleShot && !providerWaitIsWindow(askedMs) && outcome.retryEligible && outcome.fault.retryable && attempt < ZAI_MAX_ATTEMPTS
     if (retryable) {
       const delayMs = Math.max(ZAI_RETRY_BACKOFF_MS * attempt, askedMs ?? 0)
       const notice = createSystemAPIErrorMessage(
@@ -410,7 +428,9 @@ export async function* zaiCallModel(
     const stayedBusy =
       busy !== undefined && takesBusyLadder(outcome.fault, typed)
         ? `${API_ERROR_MESSAGE_PREFIX}: ${ZAI_FAULT_PROFILE.providerLabel} stayed busy through ${busy.ladder.waitsMs.length} ${busy.ladder.waitsMs.length === 1 ? 'retry' : 'retries'} over ${retrySeconds(Date.now() - busy.ladder.startedAtMs)} — ${terminalText.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`
-        : terminalText
+        : emptyEnd
+          ? `${API_ERROR_MESSAGE_PREFIX}: ${emptyStreamSpentWords(ZAI_FAULT_PROFILE.providerLabel, Date.now() - turnStartedAtMs)} — ${terminalText.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`
+          : terminalText
     yield withEffort(stampProviderWait(
       apiErrorMessage(
         stayedBusy,

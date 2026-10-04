@@ -1,6 +1,7 @@
 
 import type { ClientOptions } from '@anthropic-ai/sdk'
 import {
+  APIConnectionError,
   APIConnectionTimeoutError,
   APIError,
   APIUserAbortError,
@@ -180,6 +181,9 @@ import {
   withRetry,
 } from '../../api/withRetry.js'
 import type { HeldBusyRetryWait } from '../busyRetry.js'
+import { EMPTY_STREAM_TRIES, emptyStreamRetryNotice, emptyStreamRetryWaitMs, emptyStreamSpentWords } from '../emptyStreamRetry.js'
+import { retrySeconds } from '../../api/recoveryBudget.js'
+import { sleep } from '../../../utils/sleep.js'
 import {
   addCacheBreakpoints,
   assembleTurnSystemPrompt,
@@ -197,6 +201,7 @@ import {
   estimateRequestTokens,
   firstByteBudgetMs,
   firstByteTimeoutLine,
+  retryNoticeWait,
   retryReasonWords,
   silentAfterHeadersFaultWords,
   silentAfterHeadersWindowMs,
@@ -366,6 +371,13 @@ async function sendGatewayProbe(
 
 function getNonstreamingFallbackTimeoutMs(): number {
   return nonstreamingFallbackCeilingMs()
+}
+
+const NO_EVENTS_MESSAGE = 'Stream ended without receiving any events'
+const EMPTY_CLOSE_DETAIL = 'closed with no events'
+
+function spokenByProvider(error: unknown): boolean {
+  return error instanceof APIError && !(error instanceof APIConnectionError)
 }
 
 export async function* executeNonStreamingRequest(
@@ -864,6 +876,7 @@ async function* queryModel(
   let maxOutputTokens = 0
   let preFirstEventStreamRetryUsed = false
   let streamCutRetryUsed = false
+  let emptyStreamEnds = 0
 
   const mintAssistantMessage = (
     base: BetaMessage,
@@ -1431,11 +1444,11 @@ async function* queryModel(
       if (!partialMessage || (newMessages.length === 0 && !stopReason)) {
         logForDebugging(
           !partialMessage
-            ? 'stream closed before message_start — routing to the non-streaming fallback'
+            ? 'stream closed before message_start'
             : 'stream closed after message_start with no completed block and no stop_reason — routing to the non-streaming fallback',
           { level: 'error' },
         )
-        throw new Error('Stream ended without receiving any events')
+        throw new Error(NO_EVENTS_MESSAGE)
       }
       if (stopReason === null && settledTailStands()) {
         yield* settleTypedEnd({ reason: 'closed-after-last-item', provider: 'Anthropic' })
@@ -1500,6 +1513,25 @@ async function* queryModel(
           )
           throw new APIConnectionTimeoutError({ message: 'Request timed out' })
         }
+      }
+
+      if (!sawFirstStreamEvent && !streamIdleAborted && !signal.aborted && !spokenByProvider(streamingError)) {
+        emptyStreamEnds++
+        const cutBeforeEvents = transportCutOf(streamingError)
+        const detail = cutBeforeEvents !== null ? cutBeforeEvents.code : errorMessage(streamingError) === NO_EVENTS_MESSAGE ? EMPTY_CLOSE_DETAIL : errorMessage(streamingError)
+        if (emptyStreamEnds < EMPTY_STREAM_TRIES) {
+          resetApiConnectionPool()
+          const waitMs = emptyStreamRetryWaitMs()
+          const notice = emptyStreamRetryNotice({ provider: 'Anthropic', detail, cause: streamingError, attempt: emptyStreamEnds + 1, waitMs })
+          logForDebugging(`${notice.error.message} — retrying in ${retrySeconds(waitMs)} (attempt ${emptyStreamEnds + 1} of ${EMPTY_STREAM_TRIES})`, { level: 'warn' })
+          yield notice
+          options.onWait?.(retryNoticeWait(notice))
+          await sleep(waitMs, signal)
+          if (signal.aborted) throw new APIUserAbortError()
+          continue streamingPass
+        }
+        logForDebugging(`${emptyStreamSpentWords('Anthropic', Date.now() - startIncludingRetries)} (${detail})`, { level: 'error' })
+        throw new Error(`${emptyStreamSpentWords('Anthropic', Date.now() - startIncludingRetries)} — ${detail}; try again shortly`)
       }
 
       const disableFallback =

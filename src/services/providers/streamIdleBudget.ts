@@ -1,4 +1,4 @@
-import { outageCauseWordsOf } from '../api/recoveryBudget.js'
+import { EMPTY_STREAM_END_MARKER, EMPTY_STREAM_REASON_WORDS, outageCauseWordsOf } from '../api/recoveryBudget.js'
 import type { SystemAPIErrorMessage } from '../../types/message.js'
 import { currentPatience, PATIENCE_NORMAL } from './patience.js'
 
@@ -277,6 +277,7 @@ export function retryReasonWords(status: number | null | undefined, message?: st
   if (message === undefined) return 'a connection error'
   const outage = outageCauseWordsOf(message)
   if (outage !== undefined) return outage
+  if (message.includes(EMPTY_STREAM_END_MARKER)) return EMPTY_STREAM_REASON_WORDS
   if (/no first byte/.test(message)) return 'a first-byte timeout'
   if (/not one byte after the headers/.test(message)) return 'a dead connection'
   return 'a connection error'

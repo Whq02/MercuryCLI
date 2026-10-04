@@ -26,6 +26,7 @@ import { patienceSeconds } from '../patience.js'
 import { createSystemAPIErrorMessage } from '../../../utils/messages/systemMessages.js'
 import { sleep } from '../../../utils/sleep.js'
 import { busyRecoveryDetail, busyRefusalFact, heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, takesBusyLadder, type BusyRetryLadder } from '../busyRetry.js'
+import { EMPTY_STREAM_TRIES, emptyStreamRetryNotice, emptyStreamRetryWaitMs, emptyStreamSpentWords, isEmptyStreamFault } from '../emptyStreamRetry.js'
 import { isTemporaryStreamFault } from '../temporaryStreamError.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { classifyOverflowFault, type OverflowSignal } from '../../api/overflowSignal.js'
@@ -509,6 +510,7 @@ export async function* compatChatCallModel(
   let attemptStartedAtMs = turnStartedAtMs
   let busy: { ladder: BusyRetryLadder; fault: CompatFault } | undefined
   let reconnect: ReconnectLadder | undefined
+  let emptyEnds = 0
   for (let attempt = 1; attempt <= COMPAT_MAX_ATTEMPTS || busy !== undefined; attempt++) {
     attemptStartedAtMs = Date.now()
     const outcome = yield* streamOneCompatAttempt({
@@ -605,8 +607,24 @@ export async function* compatChatCallModel(
       }
       logForDebugging(`[compat:${profile.lane}] busy refusal (${wireDetail}) — the retry ladder is spent after ${ladder.waitsMs.length} retries and ${retrySeconds(ladder.spentMs)} of waiting`)
     }
+    const emptyEnd = busy === undefined && !singleShot && outcome.retryEligible && isEmptyStreamFault(outcome.fault)
+    if (emptyEnd) {
+      emptyEnds++
+      if (emptyEnds < EMPTY_STREAM_TRIES) {
+        const waitMs = emptyStreamRetryWaitMs()
+        const notice = emptyStreamRetryNotice({ provider: profile.providerLabel, detail: outcome.fault.code, attempt: emptyEnds + 1, waitMs })
+        logForDebugging(`[compat:${profile.lane}] ${notice.error.message} — retrying in ${retrySeconds(waitMs)} (attempt ${emptyEnds + 1} of ${EMPTY_STREAM_TRIES})`, { level: 'warn' })
+        yield notice
+        options.onWait?.(retryNoticeWait(notice))
+        await sleep(waitMs, signal)
+        if (signal.aborted) return
+        attempt--
+        continue
+      }
+      logForDebugging(`[compat:${profile.lane}] ${emptyStreamSpentWords(profile.providerLabel, Date.now() - turnStartedAtMs)} (${wireDetail})`, { level: 'error' })
+    }
     const retryable =
-      busy === undefined && !singleShot && !providerWaitIsWindow(askedMs) && outcome.retryEligible && outcome.fault.retryable && attempt < COMPAT_MAX_ATTEMPTS
+      !emptyEnd && busy === undefined && !singleShot && !providerWaitIsWindow(askedMs) && outcome.retryEligible && outcome.fault.retryable && attempt < COMPAT_MAX_ATTEMPTS
     if (retryable) {
       const delayMs = Math.max(COMPAT_RETRY_BACKOFF_MS * attempt, askedMs ?? 0)
       const notice = createSystemAPIErrorMessage(
@@ -654,7 +672,9 @@ export async function* compatChatCallModel(
     const stayedBusy =
       busy !== undefined && takesBusyLadder(outcome.fault, typed)
         ? `${API_ERROR_MESSAGE_PREFIX}: ${profile.providerLabel} stayed busy through ${busy.ladder.waitsMs.length} ${busy.ladder.waitsMs.length === 1 ? 'retry' : 'retries'} over ${retrySeconds(Date.now() - busy.ladder.startedAtMs)} — ${terminalText.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`
-        : terminalText
+        : emptyEnd
+          ? `${API_ERROR_MESSAGE_PREFIX}: ${emptyStreamSpentWords(profile.providerLabel, Date.now() - turnStartedAtMs)} — ${terminalText.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`
+          : terminalText
     yield withEffort(stampProviderWait(
       apiErrorMessage(
         stayedBusy,
