@@ -1,6 +1,6 @@
 
 import type { ContentBlockParam, TextBlockParam, ToolResultBlockParam } from '../../types/wire.js'
-import last from 'lodash-es/last.js'
+import { contentItemsOf, joinContentAtTextSeam, resultsFirst, storedBlocksOf } from '../../rows/content.js'
 import type {
   AssistantMessage,
   Message,
@@ -17,25 +17,14 @@ export function normalizeUserTextContent(
 export function hoistToolResults(
   content: ContentBlockParam[],
 ): ContentBlockParam[] {
-  const toolResults: ContentBlockParam[] = []
-  const otherBlocks: ContentBlockParam[] = []
-  for (const block of content) {
-    if (block.type === 'tool_result') toolResults.push(block)
-    else otherBlocks.push(block)
-  }
-  return [...toolResults, ...otherBlocks]
+  return resultsFirst(content) as ContentBlockParam[]
 }
 
 export function joinTextAtSeam(
   a: ContentBlockParam[],
   b: ContentBlockParam[],
 ): ContentBlockParam[] {
-  const lastA = a.at(-1)
-  const firstB = b[0]
-  if (lastA?.type === 'text' && firstB?.type === 'text') {
-    return [...a.slice(0, -1), { ...lastA, text: lastA.text + '\n' }, ...b]
-  }
-  return [...a, ...b]
+  return joinContentAtTextSeam(a, b) as ContentBlockParam[]
 }
 
 type ToolResultContentItem = Extract<
@@ -101,7 +90,7 @@ export function mergeUserContentBlocks(
   a: ContentBlockParam[],
   b: ContentBlockParam[],
 ): ContentBlockParam[] {
-  const lastBlock = last(a)
+  const lastBlock = a.at(-1)
   if (lastBlock?.type !== 'tool_result') {
     return [...a, ...b]
   }
@@ -142,7 +131,7 @@ export function mergeAssistantMessages(
     ...a,
     message: {
       ...a.message,
-      content: [...a.message.content, ...b.message.content],
+      content: [...storedBlocksOf(a.message.content), ...storedBlocksOf(b.message.content)] as AssistantMessage['message']['content'],
     },
   }
 }
@@ -151,7 +140,7 @@ export function isToolResultMessage(msg: Message): boolean {
   if (msg.type !== 'user') return false
   const content = msg.message.content
   if (typeof content === 'string') return false
-  return content.some(block => block.type === 'tool_result')
+  return contentItemsOf(content).some(item => item.type === 'tool_result')
 }
 
 export function mergeUserMessages(a: UserMessage, b: UserMessage): UserMessage {
