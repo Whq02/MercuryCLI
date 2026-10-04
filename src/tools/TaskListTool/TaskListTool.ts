@@ -10,19 +10,16 @@ import { DESCRIPTION, getPrompt } from './prompt.js'
 const inputSchema = lazySchema(() => z.strictObject({}))
 type InputSchema = ReturnType<typeof inputSchema>
 
-const outputSchema = lazySchema(() =>
-  z.object({
-    tasks: z.array(
-      z.object({
-        id: z.string(),
-        subject: z.string(),
-        status: z.enum(TASK_STATUSES),
-        owner: z.string().optional(),
-        blockedBy: z.array(z.string()),
-      }),
-    ),
-  }),
-)
+const outputSchema = lazySchema(() => {
+  const taskRow = z.object({
+    id: z.string(),
+    subject: z.string(),
+    status: z.enum(TASK_STATUSES),
+    owner: z.string().optional(),
+    blockedBy: z.string().array(),
+  })
+  return z.object({ tasks: taskRow.array() })
+})
 type OutputSchema = ReturnType<typeof outputSchema>
 export type Output = z.infer<OutputSchema>
 
