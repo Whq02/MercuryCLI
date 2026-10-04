@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
+# gate-watch: src/utils/attachments/mentions.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -29,7 +30,7 @@ has src/utils/effort.ts 'String(v).trim().toLowerCase()' 'parseEffortValue trims
 res=$("$bun" -e "import('$root/src/utils/effort.js').then(m=>console.log(m.parseEffortValue('  high ')==='high'?'OK':'BAD')).catch(e=>console.log('LOADERR'));" 2>&1 | tail -1)
 [ "$res" = "OK" ] && ok "parseEffortValue('  high ') === 'high' (behavioral)" || { [ "$res" = "LOADERR" ] && ok "effort behavioral skipped (unloadable)" || no "effort trim behavioral: $res"; }
 has src/utils/argumentSubstitution.ts 'escapeForRegExp(name)' 'argument name regex-escaped before new RegExp'
-has src/utils/attachments/mentions.ts 'lineEnd = lineStart' 'reversed @-mention range clamped to single line'
+"$bun" "$here/prove-reversed-mention-range.ts" || fail=1
 
 has src/daemon/roster.ts 'this.reapSettled(32)' 'roster dispatch reaps settled handles (32-tail); reapSettled had ZERO callers'
 has src/utils/crew/handoff.ts 'filtered.slice(filtered.length - 200)' 'handoffs.json bounded to the newest 200'
