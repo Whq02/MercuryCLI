@@ -1,5 +1,6 @@
 import { resetSettingsCache } from 'src/utils/settings/settingsCache.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import type { SessionPermissionModeResolution } from '../../utils/permissions/permissionSetup.js'
 
 function isPostureEnvTruthy(v: string | undefined): boolean {
   if (!v) return false
@@ -19,6 +20,7 @@ export class PostureOwner {
   questionPreviewFormat: 'markdown' | 'html' | undefined = undefined
   isRemoteMode = false
   sessionBypassPermissionsMode = false
+  permissionModeResolution: Readonly<SessionPermissionModeResolution> | null = null
   sessionTrustAccepted = false
   sessionPersistenceDisabled = false
   private assistantDefaultCache: boolean | null = null

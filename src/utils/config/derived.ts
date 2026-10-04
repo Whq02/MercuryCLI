@@ -1,5 +1,7 @@
 import { join } from 'path'
-import { getOriginalCwd } from '../../bootstrap/state.js'
+import { getOriginalCwd, getSessionPermissionModeResolution } from '../../bootstrap/state.js'
+import type { PermissionMode } from '../../types/permissions.js'
+import type { SessionPermissionModeResolution } from '../permissions/permissionSetup.js'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import {
   getMercuryHome,
@@ -70,4 +72,10 @@ export function getManagedRulesDir(): string {
 
 export function getUserRulesDir(): string {
   return join(getMercuryHome(), 'rules')
+}
+export function getEffectivePermissionMode(sessionMode: PermissionMode): SessionPermissionModeResolution {
+  const birth = getSessionPermissionModeResolution()
+  return birth?.mode === sessionMode
+    ? { ...birth }
+    : { mode: sessionMode, source: 'session-choice' }
 }

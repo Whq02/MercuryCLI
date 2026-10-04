@@ -8,7 +8,8 @@ import {
   setAutoModeCircuitBroken,
   getAutoModeFlagCli,
 } from './autoModeState.js'
-import { setNeedsAutoModeExitAttachment } from '../../bootstrap/state.js'
+import { setNeedsAutoModeExitAttachment, setSessionPermissionModeResolution } from '../../bootstrap/state.js'
+import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../debug.js'
 import { holdModeTransition, recordModeTransition, type ModeTransitionRoad } from './modeTransitions.js'
 import { getEngineModel } from '../model/model.js'
@@ -436,7 +437,15 @@ export function initialPermissionModeFromCLI({
   permissionModeCli?: string
   dangerouslySkipPermissions: boolean
 }): { mode: PermissionMode; notification?: string } {
-  return resolveSessionPermissionMode({ permissionModeCli, dangerouslySkipPermissions })
+  const resolution = resolveSessionPermissionMode({
+    permissionModeCli,
+    dangerouslySkipPermissions,
+    envBypassArmed: flagEnabled('MERCURY_SKIP_PERMISSIONS'),
+  })
+  setSessionPermissionModeResolution(resolution)
+  return resolution.notification === undefined
+    ? { mode: resolution.mode }
+    : { mode: resolution.mode, notification: resolution.notification }
 }
 
 export type SessionPermissionModeSource =
@@ -444,6 +453,7 @@ export type SessionPermissionModeSource =
   | 'mode-argument'
   | 'saved-settings'
   | 'session-birth'
+  | 'session-choice'
   | 'default'
 
 export type SessionPermissionModeResolution = {
@@ -462,6 +472,8 @@ export function sessionPermissionModeSourceWords(source: SessionPermissionModeSo
       return 'your settings'
     case 'session-birth':
       return "the session's birth"
+    case 'session-choice':
+      return "the session's own choice"
     case 'default':
       return 'the default'
   }
@@ -505,7 +517,7 @@ export function resolveSessionPermissionMode({
   ) {
     autoModeStateModule?.setAutoModeActive(true)
   }
-  return { ...result, source: result.mode === 'default' ? 'default' : winner.source }
+  return { ...result, source: winner.source }
 }
 
 export function resolvePermissionModeCandidates(
