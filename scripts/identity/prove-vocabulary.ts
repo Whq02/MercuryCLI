@@ -108,6 +108,9 @@ const RETIRED: Array<[string, RegExp, string[]]> = [
   ['skill-scope-name', new RegExp(J('ClaudeSkill', 'Scope')), [J('ClaudeSkill', 'Scope')]],
   ['command-words', new RegExp("(?<=['\"`\\s(])/" + J('(?:pr-', 'comments|co', 'st|co', 'lor|release-', 'notes|heap', 'dump|mock-', 'limits|fi', 'les|security-', 'review|terminal-', 'setup)') + "(?![\\w=\\\\(/-])(?![^\\n/]*\\/[dgimsuy]*\\.(?:test|exec|match|replace|source|split)\\b)"), [J('/pr-', 'comments'), J('/co', 'st'), J('/co', 'lor'), J('/release-', 'notes'), J('/heap', 'dump'), J('/mock-', 'limits'), J('/fi', 'les'), J('/security-', 'review'), J('/terminal-', 'setup')]],
   ['health-word', new RegExp(J('doc', 'tor'), 'i'), [J('doc', 'tor'), J('Doc', 'tor'), J('DOC', 'TOR')]],
+  ['stop-checker-slash', new RegExp("(?<=['\"`\\s(])/" + J('super', 'visor') + '(?![\\w-])'), [J('/super', 'visor')]],
+  ['stop-checker-env', asName(J('MERCURY_SUPER', 'VISOR')), [J('MERCURY_SUPER', 'VISOR')]],
+  ['stop-checker-key', asName(J('(?:(?:setS|s)uper', 'visorEnabled|super', 'visorGate|super', 'visedStopVerdict|SUPER', 'VISOR_EVALUATOR_DEADLINE_MS)')), [J('visor', 'Enabled'), J('visor', 'Gate'), J('vised', 'StopVerdict'), J('VISOR_', 'EVALUATOR')]],
 ]
 const SETTINGS_SCOPE = /^(?:src\/|docs\/|README\.md$|scripts\/)/
 const RETIRED_SETTINGS_ROOTS = [
@@ -500,6 +503,10 @@ console.log('============================================================')
     ['command-words', 'type ' + J('/co', 'st') + ' to see the spend'],
     ['command-words', "'" + J('/fi', 'les') + "'"],
     ['health-word', 'mercury doc' + 'tor --json'],
+    ['stop-checker-slash', 'type /' + J('super', 'visor') + ' on to check stops'],
+    ['stop-checker-env', 'process.env.' + J('MERCURY_SUPER', 'VISOR') + " === '1'"],
+    ['stop-checker-key', 'getGlobalConfig().' + J('super', 'visorEnabled') + ' === true'],
+    ['stop-checker-key', "import { " + J('setSuper', 'visorEnabled') + " } from './" + J('super', 'visorGate') + ".js'"],
   ]
   check('§5 self-test: every retired-word row has a spelling here and trips on it in src', RETIRED.every(([label]) => trips.some(([l]) => l === label)) && trips.every(([label, content]) => retiredHits('src/x.ts', content).includes(label)), trips.filter(([label, content]) => !retiredHits('src/x.ts', content).includes(label)).map(([label]) => label).join(','))
   check('§5 self-test: the rows reach docs, the README and the script estate', retiredHits('docs/x.md', trips[0]![1]).length === 1 && retiredHits('README.md', trips[0]![1]).length === 1 && retiredHits('scripts/x/prove-x.ts', trips[0]![1]).length === 1)
