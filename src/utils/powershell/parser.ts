@@ -173,31 +173,23 @@ export function mapStatementType(typeName: string): string {
   return RECOGNISED_STATEMENT_TYPES.has(typeName) ? typeName : 'UnknownStatementAst'
 }
 
+const ELEMENT_CLASS_BY_AST = new Map<string, ElementClass>([
+  ['ScriptBlockExpressionAst', 'ScriptBlock'],
+  ['SubExpressionAst', 'SubExpression'],
+  ['ArrayExpressionAst', 'SubExpression'],
+  ['ParenExpressionAst', 'SubExpression'],
+  ['ExpandableStringExpressionAst', 'ExpandableString'],
+  ['InvokeMemberExpressionAst', 'MemberInvocation'],
+  ['MemberExpressionAst', 'MemberInvocation'],
+  ['VariableExpressionAst', 'Variable'],
+  ['StringConstantExpressionAst', 'StringConstant'],
+  ['ConstantExpressionAst', 'StringConstant'],
+  ['CommandParameterAst', 'Parameter'],
+])
+
 export function mapElementType(typeName: string | undefined, wrappedTypeName?: string): ElementClass {
-  switch (typeName) {
-    case 'ScriptBlockExpressionAst':
-      return 'ScriptBlock'
-    case 'SubExpressionAst':
-    case 'ArrayExpressionAst':
-    case 'ParenExpressionAst':
-      return 'SubExpression'
-    case 'ExpandableStringExpressionAst':
-      return 'ExpandableString'
-    case 'InvokeMemberExpressionAst':
-    case 'MemberExpressionAst':
-      return 'MemberInvocation'
-    case 'VariableExpressionAst':
-      return 'Variable'
-    case 'StringConstantExpressionAst':
-    case 'ConstantExpressionAst':
-      return 'StringConstant'
-    case 'CommandParameterAst':
-      return 'Parameter'
-    case 'CommandExpressionAst':
-      return wrappedTypeName ? mapElementType(wrappedTypeName) : 'Other'
-    default:
-      return 'Other'
-  }
+  const expression = typeName === 'CommandExpressionAst' ? wrappedTypeName : typeName
+  return expression === undefined ? 'Other' : ELEMENT_CLASS_BY_AST.get(expression) ?? 'Other'
 }
 
 
