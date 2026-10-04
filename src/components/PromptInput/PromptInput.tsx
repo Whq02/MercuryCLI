@@ -94,7 +94,8 @@ import { findSlackChannelPositions } from '../../utils/suggestions/slackChannelS
 import { findTokenBudgetPositions } from '../../utils/tokenBudget.js'
 import type { TextHighlight } from '../../utils/textHighlighting.js'
 import { parseReferences } from '../../history.js'
-import { getEffortNotificationText } from '../EffortIndicator.js'
+import { composerEffortNotice } from './composerEffortNotice.js'
+import { useFocusedBornEffort, useFocusedSentEffort, useFocusedServedEffort } from '../../hooks/useDisplayedSessionModel.js'
 import { isDefaultMode } from '../../utils/permissions/PermissionMode.js'
 import { CockpitActiveContext } from '../../context/cockpitActiveContext.js'
 import { CompactFrameBudgetContext, useLayoutChrome } from '../../context/layoutChromeContext.js'
@@ -279,6 +280,9 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     getFocusedComposerEffectiveModel,
     getFocusedComposerEffectiveModel,
   )
+  const seatEffort = useFocusedServedEffort()
+  const sentEffort = useFocusedSentEffort()
+  const bornEffort = useFocusedBornEffort()
   const voice = useSyncExternalStore(subscribeVoice, voiceSnapshot, voiceSnapshot)
   const voiceReceiptSeqRef = useRef(0)
   useEffect(() => {
@@ -735,10 +739,13 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     return spans
   }, [displayedValue, isSearchingHistory, historySearch.historyMatch, historySearch.historyFailedMatch, historySearch.historyQuery, cursorOffset, commands, mcpClients, crewContext])
 
-  const effortText = getEffortNotificationText(
+  const effortText = composerEffortNotice({
+    model: focusedEffectiveModel !== '' ? focusedEffectiveModel : (engineModel ?? focusedMainModel),
+    seatEffort,
+    sentEffort,
     effortValue,
-    engineModel ?? focusedMainModel,
-  )
+    bornEffort,
+  })
   const effortBaselineRef = useRef<{ armed: boolean; text: string | undefined }>({
     armed: false,
     text: undefined,
