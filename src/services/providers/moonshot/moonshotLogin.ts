@@ -66,7 +66,7 @@ export function kimiUsageReceiptLine(usage: KimiManagedUsage): string {
   if (window.usedRatio !== undefined) return `usage ${window.name ?? 'window'} ${Math.round(window.usedRatio * 100)}%${reset}`
   if (window.used === undefined || window.limit === undefined) return 'usage endpoint answered (no figures stated)'
   const pct = window.limit > 0 ? ` (${Math.round((window.used / window.limit) * 100)}%)` : ''
-  return `usage ${window.used}/${window.limit}${pct}${reset}`
+  return `usage ${window.name !== undefined ? `${window.name} ` : ''}${window.used}/${window.limit}${pct}${reset}`
 }
 
 export async function runKimiDeviceLogin(args: KimiDeviceLoginArgs): Promise<KimiDeviceLoginOutcome> {

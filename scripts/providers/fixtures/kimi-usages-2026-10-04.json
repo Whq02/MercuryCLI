@@ -1,0 +1,82 @@
+{
+  "observed": "2026-10-04T05:21Z",
+  "request": "GET https://api.kimi.ai/coding/v1/usages (a live Kimi sign-in bearer, accept: application/json)",
+  "plan": "a Kimi sign-in stating a 5-hour window and two monthly windows, no weekly window",
+  "redaction": "the bearer never entered the capture; every figure kept as the wire stated it",
+  "status": 200,
+  "body": {
+    "limits": [
+      {
+        "window": {
+          "duration": 300,
+          "timeUnit": "TIME_UNIT_MINUTE"
+        },
+        "detail": {
+          "limit": "100",
+          "used": "97",
+          "remaining": "3",
+          "resetTime": "2026-10-04T06:01:43.944051Z"
+        }
+      }
+    ],
+    "usages": {
+      "limit_5h": {
+        "used_ratio": 0,
+        "reset_time": "2026-10-04T06:01:43Z"
+      },
+      "limit_month_total": {
+        "used_ratio": 0.0538,
+        "reset_time": "2026-11-04T00:00:00Z"
+      },
+      "limit_month_code": {
+        "used_ratio": 0,
+        "reset_time": "2026-11-04T00:00:00Z"
+      }
+    }
+  },
+  "publicBodies": {
+    "2026-09-20": {
+      "source": "https://github.com/MoonshotAI/kimi-code/issues/3951",
+      "note": "limits[].detail states limit and remaining with no used; usages.limit_5h and limit_7d read used_ratio 0 while the weekly quota is exhausted and the API answers 403",
+      "body": {
+        "usage": {
+          "limit": "100",
+          "used": "100",
+          "resetTime": "2026-09-24T02:09:07.465054Z"
+        },
+        "limits": [
+          {
+            "window": { "duration": 300, "timeUnit": "TIME_UNIT_MINUTE" },
+            "detail": {
+              "limit": "100",
+              "remaining": "100",
+              "resetTime": "2026-09-21T01:09:07.465054Z"
+            }
+          }
+        ],
+        "usages": {
+          "limit_5h": { "used_ratio": 0, "reset_time": "2026-09-21T01:09:06Z" },
+          "limit_7d": { "used_ratio": 0, "reset_time": "2026-09-24T02:09:06Z" }
+        }
+      }
+    },
+    "2026-09-22": {
+      "source": "https://github.com/can1357/oh-my-pi/issues/12790",
+      "note": "limits[].detail counts 100 of 100 for the 5-hour window while usages.limit_5h.used_ratio reads 0; the monthly windows are stated as ratios only",
+      "body": {
+        "limits": [
+          {
+            "window": { "duration": 300, "timeUnit": "TIME_UNIT_MINUTE" },
+            "detail": { "limit": "100", "used": "100", "resetTime": "2026-09-22T12:22:15.593402Z" }
+          }
+        ],
+        "usages": {
+          "limit_5h": { "used_ratio": 0, "reset_time": "2026-09-22T12:22:15Z" },
+          "limit_month_total": { "used_ratio": 0.0795, "reset_time": "2026-10-22T00:00:00Z" },
+          "limit_month_code": { "used_ratio": 0, "reset_time": "2026-10-22T00:00:00Z" }
+        }
+      }
+    }
+  },
+  "vendorDecoder": "https://github.com/MoonshotAI/kimi-code/blob/main/packages/oauth/src/managed-usage.ts reads usages.limit_5h, limit_7d, limit_month_total, limit_month_code (used_ratio, reset_time) and boosterWallet; it does not read limits[] or usage"
+}

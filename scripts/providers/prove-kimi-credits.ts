@@ -72,9 +72,10 @@ try {
     const malformed = reader.decodeKimiManagedUsage({ usages: { limit_5h: { used_ratio: '' }, limit_7d: { used_ratio: null }, limit_month_total: { used_ratio: -1 } }, boosterWallet: null }, world.now())
     check('missing, blank and invalid ratios never fabricate a zero-percent meter', malformed?.windows.length === 0)
     const both = reader.decodeKimiManagedUsage({ ...body, limits: [world.fiveHour, world.week] }, world.now())!
-    check('current windows win without duplicate legacy meters', both.windows.length === 4)
+    check('one window per stated length: the counted 5h and 7d figures stand over their ratio twins, the monthly ratios stay', both.windows.map(w => `${w.name}:${w.used !== undefined ? `${w.used}/${w.limit}` : w.usedRatio}`).join('|') === '5h:50/100|7d:250/1000|month:0.75|month code:0.125' && both.windows.every(w => (w.used === undefined) !== (w.usedRatio === undefined)), JSON.stringify(both.windows))
     const login = await import(world.path('src/services/providers/moonshot/moonshotLogin.ts'))
-    check('the login receipt states a ratio as percent, not an invented used/limit count', login.kimiUsageReceiptLine(both).startsWith('usage 5h 25%'))
+    check('the login receipt names the window and states the counts the wire stated', login.kimiUsageReceiptLine(both).startsWith('usage 5h 50/100 (50%)'), login.kimiUsageReceiptLine(both))
+    check('a window stated only as a ratio keeps its percent on the receipt, never an invented count', login.kimiUsageReceiptLine(reader.decodeKimiManagedUsage(body, world.now())!).startsWith('usage 5h 25%'), login.kimiUsageReceiptLine(reader.decodeKimiManagedUsage(body, world.now())!))
     world.setBody(body)
     let release!: () => void
     let started!: () => void
