@@ -22,7 +22,7 @@ check(
   repl.includes('rekeyedSessionRef.current !== focusedSessionId') &&
     repl.includes("pendingInput.rekeyToSession(focusedSessionId === '' ? null : focusedSessionId, { landing })"),
 )
-const prompt = readFileSync('src/components/PromptInput/PromptInput.tsx', 'utf8')
+const prompt = readFileSync('src/components/PromptInput/useComposerDraft.ts', 'utf8')
 check(
   "PromptInput's cursor re-key is the boot-seed promoted (ref-guarded)",
   prompt.includes('cursorSessionRef.current === focusedId') && prompt.includes('pendingInput.readDraftFor(focusedId)'),

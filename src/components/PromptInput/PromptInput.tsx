@@ -29,7 +29,6 @@ import { usePromptSuggestion } from '../../hooks/usePromptSuggestion.js'
 import { useDoublePress } from '../../hooks/useDoublePress.js'
 import { useTypeahead, type SuggestionsState } from '../../hooks/useTypeahead.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
-import { getShortcutDisplay } from '../../keybindings/shortcutFormat.js'
 import type { VerificationStatus } from '../../hooks/useApiKeyVerification.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
@@ -53,13 +52,11 @@ import {
   getHelmFocus,
   getHelmVersion,
   setHelmFocus,
-  setPromptEmpty,
   subscribeHelmFocus,
 } from '../../utils/cockpit/helmFocus.js'
 import {
   beginConsoleCompose,
 } from '../../utils/cockpit/helmConsole.js'
-import { getModeFromInput, getValueFromInput } from './inputModes.js'
 import { useMaybeTruncateInput } from './useMaybeTruncateInput.js'
 import { usePromptInputPlaceholder } from './usePromptInputPlaceholder.js'
 import { useCrewBanner } from './useCrewBanner.js'
@@ -86,7 +83,7 @@ import { useComposerRawKeys } from './useComposerRawKeys.js'
 import { useComposerAttachments } from './useComposerAttachments.js'
 import { useComposerKeybindings } from './useComposerKeybindings.js'
 import { useComposerSelectionRoad, useComposerSelectionState } from './useComposerSelection.js'
-import { expandTabs, stripControls } from './composerText.js'
+import { useComposerDraft } from './useComposerDraft.js'
 import { MercuryContentSearch } from '../MercuryContentSearch.js'
 import { BackgroundTasksDialog } from '../tasks/BackgroundTasksDialog.js'
 import { isManageableTask } from '../tasks/taskStatusUtils.js'
@@ -113,7 +110,6 @@ import { CompactWorkSummary, type CompactWorkControls, type CompactWorkFocus } f
 import { useOptionalKeybindingContext } from '../../keybindings/KeybindingContext.js'
 import { anyModalOverlayActive, topOverlay } from '../../context/overlayStack.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
-import { abortSpeculation } from '../../services/PromptSuggestion/speculation.js'
 import type { PromptInputHelpers } from '../../types/promptInputHelpers.js'
 import { composerBorderRole, composerBorderStyle } from '../mercury-ui/composerFloor.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
@@ -131,8 +127,6 @@ const MANAGER_COMMAND = '/manager'
 const SESSION_TAB_COMMAND = '/sessiontab'
 const KEYSETUP_COMMAND = '/keysetup'
 const DOUBLED_SLASH = '//'
-const UNDO_BUFFER_SIZE = 50
-const UNDO_COALESCE_MS = 1000
 const LOST_LINE_NOTICE_MS = 8000
 
 export type PromptInputProps = {
@@ -263,11 +257,32 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const fullscreen = isFullscreenEnvEnabled()
   const cockpitActive = useContext(CockpitActiveContext)
 
-  const editGen = useSyncExternalStore(
-    pendingInput.subscribePendingInput,
-    pendingInput.editGeneration,
-    pendingInput.editGeneration,
-  )
+  const draft = useComposerDraft({
+    helpOpen,
+    setHelpOpen,
+    speculationActive,
+    footerSelection,
+    setAppState,
+    addNotification,
+    removeNotification,
+  })
+  const {
+    editGen,
+    input,
+    mode,
+    pastedContents,
+    stash,
+    cursorOffset,
+    setCursorOffset,
+    lastSelfWriteRef,
+    writeDraft,
+    buffer,
+    setMode,
+    setPastedContents,
+    deferredSpaceArmedRef,
+    deferredSpaceShiftRef,
+    onChange,
+  } = draft
   const focusedMainModel = useSyncExternalStore(
     subscribeFocusedComposerModel,
     getFocusedComposerMainModel,
@@ -278,7 +293,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     getFocusedComposerEffectiveModel,
     getFocusedComposerEffectiveModel,
   )
-  void editGen
   const voice = useSyncExternalStore(subscribeVoice, voiceSnapshot, voiceSnapshot)
   const voiceReceiptSeqRef = useRef(0)
   useEffect(() => {
@@ -319,92 +333,8 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     setAppState,
     appStateStore,
   }))
-  const input = pendingInput.text()
-  const mode = pendingInput.mode()
-  const pastedContents = pendingInput.pastedContents()
-  const stash = pendingInput.stashedPrompt()
-
-  const [cursorOffset, setCursorOffsetState] = useState(() => {
-    const draft = pendingInput.readDraftFor(getFocusedSessionConnector().sessionId())
-    if (
-      input !== '' &&
-      draft !== null &&
-      draft.text === input &&
-      typeof draft.cursorOffset === 'number'
-    ) {
-      return Math.max(0, Math.min(draft.cursorOffset, input.length))
-    }
-    return input.length
-  })
-  const setCursorOffset = useCallback((offset: number): void => {
-    setCursorOffsetState(offset)
-    pendingInput.reportCursor(offset)
-  }, [])
-
-  const lastSelfWriteRef = useRef(input)
-  const writeDraft = useCallback((text: string): void => {
-    pendingInput.edit(text)
-    lastSelfWriteRef.current = text
-  }, [])
   const selection = useComposerSelectionState()
   const { inputSelectionRangeRef, inputBoxRef, selectionApi, clearOwnSelection } = selection
-  if (lastSelfWriteRef.current !== input) {
-    lastSelfWriteRef.current = input
-    setCursorOffsetState(input.length)
-    pendingInput.reportCursor(input.length)
-  }
-
-  const buffer = useInputBuffer({
-    maxBufferSize: UNDO_BUFFER_SIZE,
-    debounceMs: UNDO_COALESCE_MS,
-  })
-
-  const bufferSessionRef = useRef(getFocusedSessionConnector().sessionId())
-  if (bufferSessionRef.current !== getFocusedSessionConnector().sessionId()) {
-    bufferSessionRef.current = getFocusedSessionConnector().sessionId()
-    buffer.clearBuffer();
-  }
-
-  const cursorSessionRef = useRef(getFocusedSessionConnector().sessionId())
-  const cursorAtRepointRef = useRef<number | null>(null)
-  useEffect(() => {
-    const focusedId = getFocusedSessionConnector().sessionId()
-    if (cursorSessionRef.current === focusedId) return
-    if (cursorAtRepointRef.current === null) cursorAtRepointRef.current = cursorOffset
-    const draft = pendingInput.readDraftFor(focusedId)
-    if (draft !== null && draft.text === input && input !== '') {
-      cursorSessionRef.current = focusedId
-      const untouched = cursorAtRepointRef.current === cursorOffset
-      cursorAtRepointRef.current = null
-      if (untouched && typeof draft.cursorOffset === 'number') {
-        setCursorOffset(Math.max(0, Math.min(draft.cursorOffset, input.length)))
-      }
-    } else if (input === '' && (draft === null || (draft.text ?? '') === '')) {
-      cursorSessionRef.current = focusedId
-      cursorAtRepointRef.current = null
-    }
-  })
-
-  const setMode = useCallback((next: PromptInputMode): void => {
-    pendingInput.setMode(next)
-  }, [])
-  const setPastedContents = useCallback(
-    (
-      next:
-        | Record<number, PastedContent>
-        | ((prev: Record<number, PastedContent>) => Record<number, PastedContent>),
-    ): void => {
-      const resolved =
-        typeof next === 'function' ? next(pendingInput.pastedContents()) : next
-      pendingInput.setPastedContents(resolved)
-    },
-    [],
-  )
-
-  const deferredSpaceArmedRef = useRef(false)
-  const deferredSpaceShiftRef = useRef(0)
-
-  const stashPeakRef = useRef(0)
 
   const [overlay, setOverlay] = useState<OverlaySurface>(null)
   const [showCommandPalette, setShowCommandPalette] = useState(false)
@@ -474,9 +404,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       : undefined)
   const viewedAgentColor = viewedCrewmateTask?.identity?.color
 
-  useEffect(() => {
-    setPromptEmpty(input.trim() === '')
-  }, [input])
 
   const suggestionApi = usePromptSuggestion({
     inputValue: input,
@@ -488,97 +415,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   useEffect(() => {
     if (suggestionDisplayable) markSuggestionShown()
   }, [suggestionDisplayable, markSuggestionShown])
-  const onChange = useCallback(
-    (raw: string): void => {
-      if (raw === '?' && input === '') {
-        setHelpOpen(!helpOpen)
-        return
-      }
-      if (helpOpen) setHelpOpen(false)
-
-      let value = expandTabs(stripControls(raw))
-
-      if (deferredSpaceArmedRef.current) {
-        deferredSpaceArmedRef.current = false
-        if (
-          cursorOffset === input.length &&
-          value.length === input.length + 1 &&
-          value.startsWith(input) &&
-          value.slice(input.length) !== ' ' &&
-          value.slice(input.length).trim() !== ''
-        ) {
-          value = `${input} ${value.slice(input.length)}`
-          deferredSpaceShiftRef.current = 1
-        }
-      }
-
-      if (mode === 'prompt') {
-        if (
-          value.length === input.length + 1 &&
-          value.startsWith('!') &&
-          value.slice(1) === input
-        ) {
-          writeDraft(input)
-          setMode('bash')
-          return
-        }
-        if (
-          input === '' &&
-          value.length > 1 &&
-          !value.includes('\n') &&
-          getModeFromInput(value) === 'bash'
-        ) {
-          buffer.pushAtomic(input, cursorOffset, pastedContents)
-          setMode('bash')
-          const remainder = expandTabs(getValueFromInput(value))
-          writeDraft(remainder)
-          setCursorOffset(remainder.length)
-          return
-        }
-      }
-
-      removeNotification('stash-hint')
-      if (speculationActive) abortSpeculation(setAppState)
-      if (footerSelection !== null) {
-        setAppState(prev => ({ ...prev, footerSelection: null }))
-      }
-
-      buffer.pushToBuffer(input, cursorOffset, pastedContents)
-      writeDraft(value)
-
-      const previousLength = input.length
-      stashPeakRef.current = Math.max(stashPeakRef.current, value.length)
-      if (
-        stashPeakRef.current >= 20 &&
-        value.length <= 5 &&
-        previousLength < 20 &&
-        getGlobalConfig().hasUsedStash !== true
-      ) {
-        stashPeakRef.current = 0
-        addNotification({
-          key: 'stash-hint',
-          text: `${getShortcutDisplay('chat:stash', 'Chat', 'ctrl+s')} stashes the draft for later`,
-          priority: 'low',
-          timeoutMs: 5000,
-        })
-      }
-      if (value === '') stashPeakRef.current = 0
-
-      const live = pendingInput.text()
-      const present = new Set(parseReferences(live).map(ref => ref.id))
-      {
-        const prev = pendingInput.pastedContents()
-        let changed = false
-        const next: Record<number, PastedContent> = {}
-        for (const [id, entry] of Object.entries(prev)) {
-          if (present.has(Number(id))) next[Number(id)] = entry
-          else changed = true
-        }
-        if (changed) pendingInput.setPastedContents(next)
-      }
-    },
-    [input, mode, helpOpen, cursorOffset, pastedContents, buffer, speculationActive, footerSelection, setHelpOpen, setMode, setCursorOffset, removeNotification, addNotification, setAppState],
-  )
 
   const attachments = useComposerAttachments({
     input,
