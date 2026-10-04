@@ -110,7 +110,7 @@ const RETIRED_ADOPTION_FIELDS: Record<string, unknown> = {
 }
 const NONSENSE = 'notASetting'
 
-type Loaded = { errors: number; sibling: unknown; carried: boolean; bytesAfter: string }
+type Loaded = { errors: number; words: string; sibling: unknown; carried: boolean; bytesAfter: string }
 const settingsPath = join(HOME, 'settings.json')
 function load(key: string, value: unknown): Loaded {
   const file = { [key]: value, view: { sessionsBar: true } }
@@ -122,6 +122,7 @@ function load(key: string, value: unknown): Loaded {
   const raw = loaded.settings as Record<string, unknown>
   return {
     errors: loaded.errors.length,
+    words: loaded.errors.map(error => `${error.path} ${error.message} ${error.severity ?? ''} ${error.suggestion ?? ''}`).join(' | '),
     sibling: (raw.view as { sessionsBar?: unknown } | undefined)?.sessionsBar,
     carried: j(raw[key]) === j(value),
     bytesAfter: readFileSync(settingsPath, 'utf8'),
@@ -137,11 +138,12 @@ const NEW_PATHS = /credentials\.|files\.|records\.|briefs\.|memory\.|turns\.|env
 section('§1 every retired settings root is an unknown key: the loader carries it, reads nothing from it, applies the declared sibling, writes no byte — exactly as a nonsense key')
 {
   const control = load(NONSENSE, 'x')
-  check('control: the nonsense key loads without errors, is carried, and the sibling applies', control.errors === 0 && control.carried && control.sibling === true, j(control))
+  check('control: the nonsense key loads with one warning naming it in the generic unknown-field words, is carried, and the sibling applies', control.errors === 1 && control.words === ` Unrecognized field: ${NONSENSE} warning Check for typos, or consult the settings documentation for the supported fields` && control.carried && control.sibling === true, j(control))
   for (const [key, value] of Object.entries({ ...RETIRED_SETTINGS_ROOTS, ...RETIRED_ADOPTION_FIELDS })) {
     const loaded = load(key, value)
-    const same = loaded.errors === control.errors && loaded.carried && loaded.sibling === true
-    check(`${key}: loads as the nonsense key does (no error, carried, view.sessionsBar read)`, same, j(loaded))
+    const same = loaded.errors === control.errors && loaded.words === control.words.replace(NONSENSE, key) && loaded.carried && loaded.sibling === true
+    check(`${key}: loads as the nonsense key does (the same one generic warning, carried, view.sessionsBar read)`, same, j(loaded))
+    check(`${key}: the warning names no grouped path and no replacement`, !NEW_PATHS.test(loaded.words.replace(key, '')) && !/instead|use |rename|was|formerly/i.test(loaded.words), loaded.words)
     check(`${key}: the file is not rewritten`, loaded.bytesAfter === JSON.stringify({ [key]: value, view: { sessionsBar: true } }, null, 2))
   }
 }

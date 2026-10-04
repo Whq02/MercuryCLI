@@ -244,11 +244,11 @@ try {
   fixture([unknownFile])
   const unknownBytes = readFileSync(files[0]!, 'utf8')
   const loaded = pipeline.getSettingsWithErrors()
-  check('a file with unknown keys loads without error', loaded.errors.length === 0, JSON.stringify(loaded.errors))
+  check('a file with unknown keys loads, each unknown key a named warning', loaded.errors.length === 2 && loaded.errors.every(error => error.severity === 'warning'), JSON.stringify(loaded.errors))
   check('the declared sibling of an unknown key applies', loaded.settings.engine?.model === 'fixture-model')
   check('unknown keys are carried, not read', isDeepStrictEqual((loaded.settings as Record<string, unknown>).notASetting, { keep: [false, 0, ''] }) && (loaded.settings.engine as Record<string, unknown>).notASetting === true)
   check('loading a file with unknown keys writes no byte', readFileSync(files[0]!, 'utf8') === unknownBytes)
-  check('the unknown keys appear in no tip', JSON.stringify(loaded.errors).includes('notASetting') === false)
+  check('each unknown key is named at its path with the generic unknown-field words', loaded.errors.some(error => error.path === '' && error.message === 'Unrecognized field: notASetting') && loaded.errors.some(error => error.path === 'engine' && error.message === 'Unrecognized field: notASetting'), JSON.stringify(loaded.errors.map(error => `${error.path}:${error.message}`)))
 } finally {
   rmSync(root, { recursive: true, force: true })
 }

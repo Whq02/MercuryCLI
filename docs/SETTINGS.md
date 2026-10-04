@@ -26,6 +26,10 @@ apply. Permission denies and managed locks remain binding.
 Mercury writes an editor-schema pointer as `$schema` in your settings file.
 The schema at `<config home>/schema/settings.schema.json` belongs to the
 installed build and works offline. Use it for completion and validation.
+A value Mercury cannot read, and a key it does not know, is named where
+settings faults are reported: the health check's Settings row, the chat's
+settings notice, and one `settings:` line on stderr at the start of a
+headless run; the rest of the file still applies.
 Settings that execute project commands still require workspace trust
 ([TRUST.md](TRUST.md)). Keep secrets in `/logins` or a credential helper,
 not in a shared project file.
