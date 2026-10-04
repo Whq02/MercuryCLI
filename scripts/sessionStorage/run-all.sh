@@ -20,6 +20,7 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fail=0
 echo "── session-persistence proofs ──"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-sessionstorage-parity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-sessionstorage-parity.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-resume-parity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-resume-parity.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-project-key-canonical.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-project-key-canonical.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-project-home-fold.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-project-home-fold.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-project-key-stability.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-project-key-stability.ts" "$__t" "$__rc"
