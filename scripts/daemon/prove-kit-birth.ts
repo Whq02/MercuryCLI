@@ -29,7 +29,7 @@ const registry = await wm.composeWorkerModelRegistry()
 const AVAILABLE = registry.entries.find(e => e.session.availability === 'available')?.modelId
 const ENSURE_SKIP = AVAILABLE === undefined ? 'skipped — no dispatchable family in this scratch home (the fixture presence did not land)' : ''
 
-const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseSupervisor.ts')
+const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.ts')
 const warm = await import('../../src/daemon/warmRunner.ts')
 const { LEAVE_PENDING, standInRunner } = await import('../lib/seatDoor.ts')
 const { RpcError, RPC_REFUSED } = await import('../../src/runner/wire/errors.ts')
@@ -157,7 +157,7 @@ console.log('\n── §G4-G8: the warm-claim kit gate ──')
 if (ENSURE_SKIP !== '') {
   note(`G4–G8 ${ENSURE_SKIP}`)
 } else {
-  const { makeConcourseAdmitHandler, readSessionWorkers, updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { makeConcourseAdmitHandler, readSessionWorkers, updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
   const { realpathSync } = await import('node:fs')
   const MODEL = AVAILABLE!
   {
@@ -271,7 +271,7 @@ console.log('\n── §R: the record-less resume\'s loud row ──')
 if (ENSURE_SKIP !== '') {
   note(`R1–R3 ${ENSURE_SKIP}`)
 } else {
-  const { makeConcourseAdmitHandler, readSessionWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { makeConcourseAdmitHandler, readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
   const { readSessionReceipts } = await import('../../src/services/switchboard/sessionReceipts.ts')
   const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
   const { realpathSync } = await import('node:fs')
@@ -301,7 +301,7 @@ console.log('\n── §A: kit-source on the answer ──')
 if (ENSURE_SKIP !== '') {
   note(`A1–A4 ${ENSURE_SKIP}`)
 } else {
-  const { makeConcourseAdmitHandler, updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { makeConcourseAdmitHandler, updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
   const { realpathSync, readFileSync } = await import('node:fs')
   const MODEL = AVAILABLE!
   const roster = new FakeRoster()
@@ -369,7 +369,7 @@ console.log('\n── §S: the identical-worlds sweep ──')
     'src/services/switchboard/bootBirthFacts.ts',
     'src/services/switchboard/ensureDaemon.ts',
     'src/services/switchboard/attachedSession.ts',
-    'src/daemon/concourseSupervisor.ts',
+    'src/daemon/concourseWorkers.ts',
     'src/daemon/warmRunner.ts',
     'src/daemon/sessionKit.ts',
     'src/daemon/sessionKitOp.ts',

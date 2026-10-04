@@ -28,7 +28,7 @@ const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts'
 const { switchboardGeometry } = await import('../../src/components/concourse/ConcourseLayout.tsx')
 const { paneWindow } = await import('../../src/components/mercury-ui/paneWindow.ts')
 const state = await import('../../src/bootstrap/state.ts')
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseSupervisor.ts'
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
 
 const NOW = Date.now()
 const recordsDir = join(SCRATCH, 'daemon')

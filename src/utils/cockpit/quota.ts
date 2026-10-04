@@ -1,5 +1,5 @@
 
-import { getRawUtilization } from '../../services/claudeAiLimits.js'
+import { getRawUtilization } from '../../services/anthropicLimits.js'
 import type { UsageFeed } from '../../services/providers/usageFreshness.js'
 import type { SnapshotState } from '../../components/mercury-ui/theme.js'
 

@@ -27,7 +27,7 @@ import { localWindowReasonTag } from '../services/providers/local/localWindow.js
 import { openrouterSlots } from '../services/providers/accountSlots.js'
 import { NO_USAGE_READ_WORDS, usageAgeTail, usageAgeWords, usagePollTtlMs } from '../services/providers/usageFreshness.js'
 import { useProviderUsageOnShow } from '../hooks/useProviderUsageOnShow.js'
-import { getUsageRecordVersion, subscribeUsageRecord } from '../services/claudeAiLimits.js'
+import { getUsageRecordVersion, subscribeUsageRecord } from '../services/anthropicLimits.js'
 import {
   getFocusedSessionConnector,
   subscribeThroughFocused,

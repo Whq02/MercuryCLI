@@ -10,7 +10,7 @@ process.env.MERCURY_HOME = scratch
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_EVOLUTION_LEDGER = '0'
-for (const name of ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'MERCURY_USAGE_SEED', 'MERCURY_MOCK_LIMITS', 'MERCURY_MOCK_USAGE_PAYLOAD', 'MERCURY_USAGE_POLL_MS', 'NODE_ENV', 'CI']) {
+for (const name of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'MERCURY_USAGE_SEED', 'MERCURY_MOCK_LIMITS', 'MERCURY_MOCK_USAGE_PAYLOAD', 'MERCURY_USAGE_POLL_MS', 'NODE_ENV', 'CI']) {
   delete process.env[name]
 }
 const seedSubscriber = (expiresAt: number): void => {
@@ -56,7 +56,7 @@ const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 const fresh = await import('../../src/services/providers/usageFreshness.ts')
 const owner = await import('../../src/services/providers/providerUsage.ts')
-const limits = await import('../../src/services/claudeAiLimits.ts')
+const limits = await import('../../src/services/anthropicLimits.ts')
 const reader = await import('../../src/services/providers/anthropic/anthropicUsageState.ts')
 const auth = await import('../../src/utils/auth.ts')
 

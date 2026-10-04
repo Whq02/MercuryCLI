@@ -117,7 +117,7 @@ function arena(name: string, extra: Record<string, string> = {}): Arena {
       MERCURY_LOCAL_PROBE_TARGETS: 'none',
       ANTHROPIC_BASE_URL: fixture.url,
       ANTHROPIC_API_KEY: 'fixture-key-000',
-      MERCURY_CUSTOM_OAUTH_URL: 'http://127.0.0.1:1',
+      MERCURY_ANTHROPIC_OAUTH_BASE: 'http://127.0.0.1:1',
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
       MERCURY_CREWS_DIR: join(home, 'crews'),
       MERCURY_THINKING_BINDING: 'drop_block',

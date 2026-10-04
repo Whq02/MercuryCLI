@@ -19,7 +19,7 @@ mkdirSync(home, { recursive: true })
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) {
   process.env[spelling] = home
 }
-for (const key of ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'ZAI_API_KEY']) {
+for (const key of ['ANTHROPIC_API_KEY', 'ZAI_API_KEY']) {
   delete process.env[key]
 }
 delete process.env.NODE_ENV
@@ -190,7 +190,7 @@ section('§4 — the coordinator, LIVE: prompt id === dispatch stamp')
 
 section('§5 — workers: the spec boots on the model admission resolved')
 {
-  const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.ts')
   const spec = buildConcourseWorkerSpec({
     runnerId: 'w-seat-1',
     sessionId: 's-seat-1',

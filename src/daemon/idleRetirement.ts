@@ -10,7 +10,7 @@ import {
   readSessionWorkers,
   stopConcourseSession,
   type ConcourseWorkerRecordV1,
-} from './concourseSupervisor.js'
+} from './concourseWorkers.js'
 import { isProcessAlive } from './ownerWatch.js'
 
 export const DEFAULT_CONCOURSE_IDLE_RETIRE_MINUTES = 10

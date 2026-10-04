@@ -35,7 +35,7 @@ function saveDiagnostics(world: ReturnType<typeof fixture>, tag: string): void {
   mkdirSync(directory)
   const copied: string[] = []
   const missing: string[] = []
-  for (const name of ['daemon.log', 'daemon.log.1', 'supervisor.json']) {
+  for (const name of ['daemon.log', 'daemon.log.1', 'daemon.json']) {
     const source = join(world.daemon, name)
     if (!existsSync(source)) { missing.push(name); continue }
     copyFileSync(source, join(directory, name))

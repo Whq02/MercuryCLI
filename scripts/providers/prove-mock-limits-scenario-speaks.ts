@@ -28,7 +28,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const mock = await import('../../src/services/mockRateLimits.ts')
-const limits = await import('../../src/services/claudeAiLimits.ts')
+const limits = await import('../../src/services/anthropicLimits.ts')
 const armScenario = (scenario: Parameters<typeof mock.setMockRateLimitScenario>[0]): void => {
   mock.setMockRateLimitScenario(scenario)
   limits.extractQuotaStatusFromHeaders(new globalThis.Headers())

@@ -151,7 +151,7 @@ console.log('\n§3 the seat stamps the provider message id into the tail file')
 try {
   const { onSeatRow, onSeatSpawned } = await import('../../src/daemon/sessionSeat.ts')
   const { readSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
-  const { updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
 
   const dir = mkdtempSync(join(tmpdir(), 'tailid-daemon-'))
   const sid = 'aaaaaaaa-bbbb-4ccc-8ddd-tailidentity'

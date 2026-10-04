@@ -23,7 +23,7 @@ const protocol = await import('../../src/daemon/protocol.js')
 const socketMod = await import('../../src/daemon/controlSocket.js')
 const hsMod = await import('../../src/daemon/handshake.js')
 const { MERCURY_DAEMON_PROTO, encodeFrame, readControlFrame } = protocol
-const { controlSockPath, daemonControlRpc, forgetDaemonProtoForTesting, supervisorStatePath } = socketMod
+const { controlSockPath, daemonControlRpc, forgetDaemonProtoForTesting, daemonStatePath: daemonStatePath } = socketMod
 
 const CONTROL_KEY = 'k'.repeat(64)
 
@@ -183,8 +183,8 @@ function startVersionedDaemon(opts: {
 function seedRecords(dir: string, workers: Record<string, unknown>): void {
   writeFileSync(join(dir, 'concourse-workers.json'), JSON.stringify({ version: 1, workers }))
 }
-function seedSupervisorRecord(dir: string, rec: Record<string, unknown>): void {
-  writeFileSync(join(dir, 'supervisor.json'), JSON.stringify(rec))
+function seedDaemonRecord(dir: string, rec: Record<string, unknown>): void {
+  writeFileSync(join(dir, 'daemon.json'), JSON.stringify(rec))
 }
 
 console.log('============================================================')
@@ -197,7 +197,7 @@ section('A · pre-handshake daemon, 1 live session: detected, honest line, never
   seedRecords(dir, {
     'concourse-w1': { workerId: 'concourse-w1', sessionId: 's1', pid: process.pid },
   })
-  seedSupervisorRecord(dir, { pid: process.pid, version: '1.5.6', origin: 'transient', startedAt: Date.now() - 60_000, dir: '/tmp/p', controlSock: controlSockPath() })
+  seedDaemonRecord(dir, { pid: process.pid, version: '1.5.6', origin: 'transient', startedAt: Date.now() - 60_000, dir: '/tmp/p', controlSock: controlSockPath() })
   const old = await startOldDaemon({
     version: '1.5.6',
     jobs: [
@@ -232,7 +232,7 @@ section('A · pre-handshake daemon, 1 live session: detected, honest line, never
 section('B · pre-handshake daemon, idle: no silent kill; /daemon restart stops it and starts a successor whose posture the receipt names')
 {
   const dir = freshPlane()
-  seedSupervisorRecord(dir, { pid: process.pid, version: '1.5.6', origin: 'transient', startedAt: Date.now() - 60_000, dir: '/tmp/project-b', controlSock: controlSockPath() })
+  seedDaemonRecord(dir, { pid: process.pid, version: '1.5.6', origin: 'transient', startedAt: Date.now() - 60_000, dir: '/tmp/project-b', controlSock: controlSockPath() })
   const old = await startOldDaemon({ version: '1.5.6', jobs: [] })
   const v = await hsMod.handshakeDaemon({ timeoutMs: 500 })
   check('B1 idle detected (live 0), still never killed by the handshake alone', v.live === 0 && old.killed() === false)
@@ -326,7 +326,7 @@ section('E · the real control server: hello answers while starting and needs no
   const key = await mintControlKey()
   let ready = false
   const restartAsks: string[] = []
-  const fakeRoster = { list: () => [], has: () => ({ present: false }), liveCount: () => 0, totalCount: () => 0, getSupervisorState: () => ({ degraded: false }) } as never
+  const fakeRoster = { list: () => [], has: () => ({ present: false }), liveCount: () => 0, totalCount: () => 0, getRespawnState: () => ({ degraded: false }) } as never
   const server = await startControlServer({
     roster: fakeRoster,
     breaker: new DaemonBreaker(),
@@ -413,9 +413,9 @@ section('G · wiring: ensureDaemon rides the handshake; main wires hello/restart
   const dmain = read('src/daemon/main.ts')
   check('G3 the daemon serves hello facts with the BOOT-captured tree', dmain.includes('buildTree: bootBuildTree') && dmain.includes('describeArtifactIdentity(currentVersion()).buildTree'))
   check('G4 restart-when-idle: armed while live, refused on a terminal, storm-guarded', dmain.includes('restartWhenIdle: by =>') && dmain.includes('restartArmed = true') && dmain.includes('runs on a terminal') && dmain.includes('RESTART_STORM_GUARD_MS'))
-  check('G5 the successor is spawned BEFORE the lock release and waits for the lock', dmain.indexOf('spawnSuccessorDaemon()') !== -1 && dmain.indexOf('spawnSuccessorDaemon()') < dmain.indexOf('await supervisorLock?.release()') && dmain.includes('SUCCESSOR_LOCK_WAIT_MS'))
+  check('G5 the successor is spawned BEFORE the lock release and waits for the lock', dmain.indexOf('spawnSuccessorDaemon()') !== -1 && dmain.indexOf('spawnSuccessorDaemon()') < dmain.indexOf('await daemonLock?.release()') && dmain.includes('SUCCESSOR_LOCK_WAIT_MS'))
   check('G6 the successor re-executes THIS daemon: own argv, env, cwd', dmain.includes('[...process.execArgv, ...process.argv.slice(1)]') && dmain.includes('cwd: process.cwd()'))
-  check('G7 supervisor.json carries the version fact and the LIVE owner (the hand-over updates it)', dmain.includes('proto: MERCURY_DAEMON_PROTO') && dmain.includes('let currentOwnerPid = parseOwnerPid()') && dmain.includes('ownerPid: currentOwnerPid'))
+  check('G7 daemon.json carries the version fact and the LIVE owner (the hand-over updates it)', dmain.includes('proto: MERCURY_DAEMON_PROTO') && dmain.includes('let currentOwnerPid = parseOwnerPid()') && dmain.includes('ownerPid: currentOwnerPid'))
   const repl = read('src/screens/Chat.tsx')
   check('G8 the Chat paints the one line and clears it on match', repl.includes('subscribeDaemonHandshake') && repl.includes("removeNotification(key)"))
   const health = read('src/utils/healthReport.ts')

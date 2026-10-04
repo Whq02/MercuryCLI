@@ -2,7 +2,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseSupervisor.ts'
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'newborn-grace-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
@@ -23,7 +23,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
 
-const sup = await import('../../src/daemon/concourseSupervisor.ts')
+const sup = await import('../../src/daemon/concourseWorkers.ts')
 const idle = await import('../../src/daemon/idleRetirement.ts')
 const dir = process.env.MERCURY_DAEMON_DIR!
 
@@ -112,7 +112,7 @@ console.log('N4 the birth crosses the wire and stamps both mints')
   const admitAt = server.indexOf("case 'sessionAdmit': {")
   const admitBody = server.slice(admitAt, server.indexOf("case 'concourseWithdraw'", admitAt))
   check('N4 the control server forwards bornBlank into the admit request', admitBody.includes('raw.bornBlank === true ? { bornBlank: true }'))
-  const source = read('src/daemon/concourseSupervisor.ts')
+  const source = read('src/daemon/concourseWorkers.ts')
   const admitHandlerAt = source.indexOf('export function makeConcourseAdmitHandler(')
   const claimAt = source.indexOf('deps.claimWarm !== undefined &&', admitHandlerAt)
   const coldAt = source.indexOf('let runnerId: string | null = null', claimAt)

@@ -2,7 +2,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseSupervisor.ts'
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'close-all-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
@@ -19,7 +19,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
 
-const sup = await import('../../src/daemon/concourseSupervisor.ts')
+const sup = await import('../../src/daemon/concourseWorkers.ts')
 const idle = await import('../../src/daemon/idleRetirement.ts')
 const handover = await import('../../src/substrate/splashHandover.ts')
 const dir = process.env.MERCURY_DAEMON_DIR!
@@ -136,7 +136,7 @@ console.log("Q5 the only session's release: the board stays, the reason shows")
   const stopAt = route.indexOf('stopSession: sessionId => {')
   const stopBody = route.slice(stopAt, route.indexOf('removeSession: sessionId => {', stopAt))
   check("the first x's refusal paints the daemon's sentence, else the wire's error and code — never a bare \"stop refused\"", stopBody.includes("reply.detail ?? reply.error ?? `stop refused${reply.code !== undefined ? ` (${reply.code})` : ''}`"))
-  check('with no daemon a dead runner is stopped in the record directly', stopBody.includes("supervisor.stopConcourseSession(sessionId, 'operator', undefined)"))
+  check('with no daemon a dead runner is stopped in the record directly', stopBody.includes("workers.stopConcourseSession(sessionId, 'operator', undefined)"))
 }
 
 console.log('Q6 a refused chat-forward birth lands the face directly')

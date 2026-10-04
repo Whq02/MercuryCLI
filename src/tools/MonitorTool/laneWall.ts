@@ -25,7 +25,7 @@ function liveLaneWallReads(): LaneWallReads {
       return resolveProviderUsability()
     },
     anthropicVerdict: nowMs => {
-      const { anthropicLimitVerdict } = require('../../services/claudeAiLimits.js') as typeof import('../../services/claudeAiLimits.js')
+      const { anthropicLimitVerdict } = require('../../services/anthropicLimits.js') as typeof import('../../services/anthropicLimits.js')
       return anthropicLimitVerdict(nowMs)
     },
     openaiWindow: () => {

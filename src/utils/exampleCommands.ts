@@ -16,7 +16,7 @@ const NON_CORE_PATTERNS: RegExp[] = [
   /\.(json|ya?ml|toml|xml|ini|cfg|conf|env|lock|txt|md|mdx|rst|csv|log|svg)$/i,
   /(^|\/)\.?(eslintrc|prettierrc|babelrc|editorconfig|gitignore|gitattributes|dockerignore|npmrc)/,
   /(^|\/)(tsconfig|jsconfig|biome|vitest\.config|jest\.config|webpack\.config|vite\.config|rollup\.config)\.[a-z]+$/,
-  /(^|\/)(\.github|\.vscode|\.idea|\.claude)\//,
+  /(^|\/)(\.github|\.vscode|\.idea)\//,
   /(^|\/)(CHANGELOG|LICENSE|CONTRIBUTING|CODEOWNERS|README)(\.[a-z]+)?$/i,
 ]
 

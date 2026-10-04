@@ -31,7 +31,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const auth = await import('../../src/utils/auth.ts')
-const limits = await import('../../src/services/claudeAiLimits.ts')
+const limits = await import('../../src/services/anthropicLimits.ts')
 const { quotaWindows } = await import('../../src/utils/cockpit/quota.ts')
 const { APIError } = await import('@anthropic-ai/sdk')
 

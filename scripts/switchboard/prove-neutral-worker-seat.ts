@@ -27,7 +27,6 @@ const CREDENTIAL_KEYS = [
   'ANTHROPIC_API_KEY',
   'ANTHROPIC_AUTH_TOKEN',
   'ANTHROPIC_BASE_URL',
-  'CLAUDE_CODE_OAUTH_TOKEN',
   'OPENAI_API_KEY',
   'ZAI_API_KEY',
   'DEEPSEEK_API_KEY',
@@ -125,8 +124,8 @@ section('§2 — a keyless home: no neutral default, no roster, the two-door sen
   const keylessAdmit = await wm.validateWorkerModelChoice(undefined, 'session')
   check('the daemon admits the unnamed SESSION launch keyless (never a refusal naming a family)', keylessAdmit.ok && keylessAdmit.keyless === true, text(keylessAdmit))
   check('a keyless runner boots with NO --model', read('src/daemon/headlessRun.ts').includes("...(spec.keyless ? [] : ['--model', model]),"))
-  const supervisor = read('src/daemon/concourseSupervisor.ts')
-  check('the admission stamps the record keyless, skips the warm claim, and a resume re-validates it unnamed', supervisor.includes('const keyless = admission.keyless === true') && supervisor.includes('!keyless &&') && supervisor.includes('r.keyless !== true'))
+  const daemon = read('src/daemon/concourseWorkers.ts')
+  check('the admission stamps the record keyless, skips the warm claim, and a resume re-validates it unnamed', daemon.includes('const keyless = admission.keyless === true') && daemon.includes('!keyless &&') && daemon.includes('r.keyless !== true'))
   check('a keyless home warms nothing (no runner pinned to the placeholder)', read('src/daemon/warmRunner.ts').includes('validated.keyless === true'))
 }
 

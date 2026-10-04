@@ -14,7 +14,7 @@
 # gate-watch: src/services/providers/accountSlots* src/components/mercury-ui/parity/AccountView*
 # gate-watch: src/components/HelmTelemetryRail* src/components/BootLoginsScreen* src/components/BootSplashScreen* src/services/wallet/** src/utils/accounts/** src/utils/auth.ts
 # gate-watch: src/cli/handlers/auth.ts src/utils/status.tsx src/state/AppState.tsx src/cli/sessionArgs.ts
-# gate-watch: src/cli/run.ts src/cli/headless/controlHandlers.ts src/daemon/sessionSeat.ts src/daemon/concourseSupervisor.ts src/services/engine-connector/** src/screens/Chat.tsx src/components/MercuryFrame.tsx src/components/tasks/BackgroundTasksDialog.tsx src/components/mercury-ui/screens/CrewView.tsx
+# gate-watch: src/cli/run.ts src/cli/headless/controlHandlers.ts src/daemon/sessionSeat.ts src/daemon/concourseWorkers.ts src/services/engine-connector/** src/screens/Chat.tsx src/components/MercuryFrame.tsx src/components/tasks/BackgroundTasksDialog.tsx src/components/mercury-ui/screens/CrewView.tsx
 # gate-watch: scripts/lib/codeText.ts scripts/lib/settingsPopupHarness.ts
 # gate-watch: scripts/providers/lib/usage-plan-world.ts src/* src/commands/config/config.tsx
 # gate-watch: src/components/InvalidConfigDialog.tsx src/components/SettingsPopupSlot.tsx src/context/popupFormContext.ts
@@ -23,9 +23,9 @@
 # gate-watch: src/context/notifications.tsx src/entrypoints/init.ts src/hooks/useExitOnCtrlCD.ts
 # gate-watch: src/ink/components/App.tsx src/ink/components/StdinContext.ts src/ink/recessLayer.ts
 # gate-watch: src/ink/squash-text-nodes.ts src/keybindings/useKeybinding.ts src/keybindings/writeBindings.ts
-# gate-watch: src/services/claudeAiLimits.ts src/services/engine-connector/focusedConnector.ts
+# gate-watch: src/services/anthropicLimits.ts src/services/engine-connector/focusedConnector.ts
 # gate-watch: src/services/instructions/* src/services/instructions/adapters/mercuryNative.ts
-# gate-watch: src/services/mcp/claudeai.ts src/services/providers/openai/openaiLimitState.ts
+# gate-watch: src/services/mcp/anthropicConnectors.ts src/services/providers/openai/openaiLimitState.ts
 # gate-watch: src/services/providers/usageFreshness.ts src/state/telemetryBus.ts src/utils/*
 # gate-watch: src/utils/cockpit/* src/utils/model/computedDefault.ts src/utils/permissions/PermissionUpdate.ts src/utils/permissions/PermissionMode.ts
 # gate-watch: src/utils/permissions/bypassPermissionsKillswitch.ts src/utils/router/providerDiscovery.ts

@@ -113,7 +113,7 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
 {
   const { holdWorkerAsk, answerPermissionAsk, listPendingPermissionAsks, expiredAskDenialMessage, permissionAskExpiryMs, DEFAULT_PERMISSION_ASK_EXPIRY_MINUTES } =
     await import('../../src/daemon/permissionAsks.ts')
-  const { concourseWorkersPath } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { concourseWorkersPath } = await import('../../src/daemon/concourseWorkers.ts')
   type Answer = import('../../src/runner/wire/methods.ts').PermissionAnswer
   const record = (short: string) => ({
     runnerId: short,

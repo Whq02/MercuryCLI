@@ -74,7 +74,7 @@ section('§D the live bundle reads the OWNING stores')
 {
   const src = readFileSync(join(ROOT, 'src/services/providers/providerUsability.ts'), 'utf8')
   check(
-    'auth.ts · claudeAiLimits.anthropicLimitVerdict · getGptSeatAvailability',
+    'auth.ts · anthropicLimits.anthropicLimitVerdict · getGptSeatAvailability',
     src.includes("from '../../utils/auth.js'") &&
       src.includes('anthropicLimitVerdict') &&
       /getGptSeatAvailability\(/.test(src),

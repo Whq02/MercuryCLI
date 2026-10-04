@@ -18,7 +18,7 @@ mkdirSync(home, { recursive: true })
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) {
   process.env[spelling] = home
 }
-for (const key of ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'ZAI_API_KEY', 'OPENAI_API_KEY', 'MERCURY_EFFORT_LEVEL']) {
+for (const key of ['ANTHROPIC_API_KEY', 'ZAI_API_KEY', 'OPENAI_API_KEY', 'MERCURY_EFFORT_LEVEL']) {
   delete process.env[key]
 }
 delete process.env.NODE_ENV
@@ -41,7 +41,7 @@ enableConfigs()
 
 section('§1 — the daemon admit door: normalize, else refuse typed naming the ladder')
 {
-  const sup = await import('../../src/daemon/concourseSupervisor.ts')
+  const sup = await import('../../src/daemon/concourseWorkers.ts')
   const admit = sup.makeConcourseAdmitHandler({ roster: () => undefined, dir: join(scratch, 'daemon') })
   const junk = await admit({ workspaceDir: scratch, effort: 'ultra mega' })
   check('junk effort refuses', junk.ok === false, JSON.stringify(junk))

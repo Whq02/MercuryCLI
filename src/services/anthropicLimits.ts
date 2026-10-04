@@ -32,7 +32,7 @@ export type OverageDisabledReason =
 
 export type QuotaStatus = 'allowed' | 'allowed_warning' | 'rejected'
 
-export type ClaudeAILimits = {
+export type AnthropicLimits = {
   status: QuotaStatus
   unifiedRateLimitFallbackAvailable: boolean
   resetsAt?: number | undefined
@@ -45,17 +45,17 @@ export type ClaudeAILimits = {
   surpassedThreshold?: number
 }
 
-const DEFAULT_LIMITS: ClaudeAILimits = {
+const DEFAULT_LIMITS: AnthropicLimits = {
   status: 'allowed',
   unifiedRateLimitFallbackAvailable: false,
   isUsingOverage: false,
 }
 
-export let currentLimits: ClaudeAILimits = { ...DEFAULT_LIMITS }
+export let currentLimits: AnthropicLimits = { ...DEFAULT_LIMITS }
 
-export const statusListeners: Set<(limits: ClaudeAILimits) => void> = new Set()
+export const statusListeners: Set<(limits: AnthropicLimits) => void> = new Set()
 
-export function emitStatusChange(limits: ClaudeAILimits): void {
+export function emitStatusChange(limits: AnthropicLimits): void {
   currentLimits = limits
   for (const listener of statusListeners) {
     listener(limits)
@@ -347,7 +347,7 @@ function headerValue(headers: Headers, name: string): string | undefined {
   return value === null ? undefined : value
 }
 
-type EarlyWarning = ClaudeAILimits
+type EarlyWarning = AnthropicLimits
 
 function detectEarlyWarning(headers: Headers, fallbackAvailable: boolean): EarlyWarning | null {
   const { FIRST_WARNING_PCT } = require('./providers/usageTiers.js') as typeof import('./providers/usageTiers.js')
@@ -383,7 +383,7 @@ function detectEarlyWarning(headers: Headers, fallbackAvailable: boolean): Early
   return warning
 }
 
-export function computeNewLimitsFromHeaders(headers: Headers): ClaudeAILimits {
+export function computeNewLimitsFromHeaders(headers: Headers): AnthropicLimits {
   const statusRaw = headerValue(headers, 'anthropic-ratelimit-unified-status')
   const status = (statusRaw === undefined || statusRaw === '' ? 'allowed' : statusRaw) as QuotaStatus
   const resetRaw = headerValue(headers, 'anthropic-ratelimit-unified-reset')
@@ -406,7 +406,7 @@ export function computeNewLimitsFromHeaders(headers: Headers): ClaudeAILimits {
     if (warning !== null) return warning
   }
 
-  const record: ClaudeAILimits = {
+  const record: AnthropicLimits = {
     status: status === 'allowed_warning' ? 'allowed' : status,
     unifiedRateLimitFallbackAvailable: fallbackAvailable,
     resetsAt,
@@ -536,7 +536,7 @@ export function adoptAnthropicWindowFact(fact: unknown): boolean {
   if (f.owner !== resolveOwner()) return false
   if (verdictObservedAtMs !== null && f.observedAtMs <= verdictObservedAtMs) return false
   const resetsAtMs = typeof f.resetsAtMs === 'number' && Number.isFinite(f.resetsAtMs) && f.resetsAtMs > 0 ? f.resetsAtMs : undefined
-  const next: ClaudeAILimits = {
+  const next: AnthropicLimits = {
     status: f.status,
     unifiedRateLimitFallbackAvailable: false,
     resetsAt: resetsAtMs !== undefined ? resetsAtMs / 1000 : undefined,
@@ -594,7 +594,7 @@ export function extractQuotaStatusFromError(error: unknown): void {
     if (!shouldProcessRateLimits(isClaudeAISubscriber())) return
     if (classifyAnthropicRefusal(anthropicRefusalFactsOf(error)) !== 'window') return
     const headers = (error as { headers?: Headers }).headers
-    let next: ClaudeAILimits
+    let next: AnthropicLimits
     if (headers) {
       const effective = processRateLimitHeaders(headers)
       recomputeRawUtilization(effective)

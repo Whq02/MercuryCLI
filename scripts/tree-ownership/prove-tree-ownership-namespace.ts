@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:f
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { flagEnv, flagPair, flagSpellings } from '../../src/substrate/flagRegistry.ts'
-import { adoptiveProjectPath } from '../../src/utils/projectStoreAdoption.js'
+import { projectLocalPath } from '../../src/services/projectLocal/paths.js'
 
 const ROOT = join(import.meta.dir, '..', '..')
 
@@ -21,22 +21,22 @@ console.log('============================================================')
 console.log(' sovereign namespace — fresh-native, one spelling')
 console.log('============================================================')
 
-section('(1) canonical-write (adoptiveProjectPath)')
+section('(1) canonical-write (projectLocalPath)')
 {
   const scratch = mkdtempSync(join(tmpdir(), 'sov-ns-'))
   try {
     const fresh = join(scratch, 'fresh')
     mkdirSync(fresh, { recursive: true })
-    check('fresh store resolves .mercury', adoptiveProjectPath(fresh, 'party') === join(fresh, '.mercury', 'party'))
+    check('fresh store resolves .mercury', projectLocalPath(fresh, 'party') === join(fresh, '.mercury', 'party'))
     check('resolving creates nothing', !existsSync(join(fresh, '.mercury')))
     const compat = join(scratch, 'compat')
     mkdirSync(join(compat, '.claude', 'party'), { recursive: true })
-    check('an external .claude store is never a home: canonical returned', adoptiveProjectPath(compat, 'party') === join(compat, '.mercury', 'party'))
+    check('an external .claude store is never a home: canonical returned', projectLocalPath(compat, 'party') === join(compat, '.mercury', 'party'))
     check('…and nothing is copied out of it', !existsSync(join(compat, '.mercury', 'party')))
     const both = join(scratch, 'both')
     mkdirSync(join(both, '.mercury', 'party'), { recursive: true })
     mkdirSync(join(both, '.claude', 'party'), { recursive: true })
-    check('canonical store answers when both exist', adoptiveProjectPath(both, 'party') === join(both, '.mercury', 'party'))
+    check('canonical store answers when both exist', projectLocalPath(both, 'party') === join(both, '.mercury', 'party'))
   } finally {
     rmSync(scratch, { recursive: true, force: true })
   }

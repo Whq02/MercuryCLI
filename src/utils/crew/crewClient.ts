@@ -2,7 +2,7 @@ import { flagPair } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../debug.js'
 import { daemonSnapshot } from '../cockpit/daemonSnapshot.js'
 import {
-  clearDeadSupervisorRecords,
+  clearDeadDaemonRecords,
   daemonControlRpc,
 } from '../../daemon/controlSocket.js'
 import { spawnOwnedDaemon } from '../../daemon/ownedDaemon.js'
@@ -58,7 +58,7 @@ export function ensureCrewDaemon(projectDir: string): void {
     }
     logForDebugging('[crew] recorded daemon is pid-alive but not serving — clearing + respawning')
     try {
-      await clearDeadSupervisorRecords()
+      await clearDeadDaemonRecords()
     } catch {
     }
     spawnCrewDaemon(projectDir)

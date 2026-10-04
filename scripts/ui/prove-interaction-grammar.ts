@@ -43,9 +43,9 @@ const READY_FLAG_RE = /setTimeout\s*\(\s*\(\)\s*=>\s*set\w*(Ready|Buffer|Armed)/
 }
 
 {
-  const src = read('src/components/mercury-ui/parity/DaemonSupervisorView.tsx')
-  t('DaemonSupervisorView: useOpenEventGate (the one seam)', src.includes('useOpenEventGate('))
-  t('DaemonSupervisorView: no setTimeout ready-flag', !READY_FLAG_RE.test(src))
+  const src = read('src/components/mercury-ui/parity/DaemonView.tsx')
+  t('DaemonView: useOpenEventGate (the one seam)', src.includes('useOpenEventGate('))
+  t('DaemonView: no setTimeout ready-flag', !READY_FLAG_RE.test(src))
 }
 
 {

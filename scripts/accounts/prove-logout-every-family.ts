@@ -22,7 +22,6 @@ console.log('============================================================')
 for (const key of [
   'ANTHROPIC_API_KEY',
   'ANTHROPIC_AUTH_TOKEN',
-  'CLAUDE_CODE_OAUTH_TOKEN',
   'MERCURY_OAUTH_TOKEN',
   'OPENAI_API_KEY',
   'ZAI_API_KEY',

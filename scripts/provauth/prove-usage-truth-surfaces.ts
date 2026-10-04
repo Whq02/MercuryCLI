@@ -24,7 +24,6 @@ const savedEnv: Record<string, string | undefined> = {}
 for (const key of [
   'ANTHROPIC_API_KEY',
   'ANTHROPIC_AUTH_TOKEN',
-  'CLAUDE_CODE_OAUTH_TOKEN',
   'OPENAI_API_KEY',
   'ZAI_API_KEY',
   'OPENROUTER_API_KEY',
@@ -66,7 +65,7 @@ const providerUsage = await import('../../src/services/providers/providerUsage.j
 const usageTab = await import('../../src/components/Settings/Usage.js')
 const usability = await import('../../src/services/providers/providerUsability.js')
 const openaiLimits = await import('../../src/services/providers/openai/openaiLimitState.js')
-const claudeLimits = await import('../../src/services/claudeAiLimits.js')
+const claudeLimits = await import('../../src/services/anthropicLimits.js')
 const quota = await import('../../src/utils/cockpit/quota.js')
 import type { RouterProviderId } from '../../src/utils/router/providers/types.js'
 

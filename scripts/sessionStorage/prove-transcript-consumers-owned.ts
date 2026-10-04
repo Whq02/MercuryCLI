@@ -63,8 +63,8 @@ section('the line-folding consumers ride the reader\'s byte cursor and backward 
   check('the mirror pane\'s hook reads only through the service seam', pane.includes("import('../../services/concourse/workerTranscript.js')") && !pane.includes('readFileSync('))
   const receipts = src('services/switchboard/sessionReceipts.ts')
   check('the close receipt\'s window reads through the byte cursor, carry re-joined as an unread line', receipts.includes("readTranscriptBytesAfter(path, { offset: from, carry: '' })") && receipts.includes('`${read.text}\\n${read.cursor.carry}`') && !receipts.includes('openSync('))
-  const supervisor = src('daemon/concourseSupervisor.ts')
-  check('the retained-model walk reads newest lines first through the reader', supervisor.includes('scanTranscriptLinesBackward(transcript, line => {') && !supervisor.includes('readFileSync(transcript'))
+  const daemon = src('daemon/concourseWorkers.ts')
+  check('the retained-model walk reads newest lines first through the reader', daemon.includes('scanTranscriptLinesBackward(transcript, line => {') && !daemon.includes('readFileSync(transcript'))
 }
 
 section('the session ledger rebuild reads the raw record stream through the reader')

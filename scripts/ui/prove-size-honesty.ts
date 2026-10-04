@@ -165,7 +165,7 @@ console.log('§11 C12 — the strip note truncates its middle, never its fix')
 
 console.log('§12 C13 — the daemon rows measure the terminal')
 {
-  const view = read('src/components/mercury-ui/parity/DaemonSupervisorView.tsx')
+  const view = read('src/components/mercury-ui/parity/DaemonView.tsx')
   check('the detail and dir budgets derive from the live width', view.includes('const detailBudget = Math.max(40, termCols - 24)') && view.includes('const dirBudget = Math.max(40, termCols - 22)'))
   check('both consumers ride the budgets', view.includes('truncateToWidth(detail, detailBudget)') && view.includes('truncateToWidth(v.dir, dirBudget)'))
   check('no fixed detail/dir cell survives', !view.includes('truncateToWidth(detail, 56)') && !view.includes('truncateToWidth(v.dir, 54)'))

@@ -34,7 +34,7 @@ const home = join(scratch, 'home')
 mkdirSync(home, { recursive: true })
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spelling] = home
 const CREDENTIAL_KEYS = [
-  'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL', 'CLAUDE_CODE_OAUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY',
+  'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL', 'OPENAI_API_KEY', 'ZAI_API_KEY',
   'DEEPSEEK_API_KEY', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_OAUTH_TOKEN', 'MERCURY_GEMINI_OAUTH_TOKEN',
   'MOONSHOT_API_KEY', 'MOONSHOT_TOKEN', 'HF_TOKEN', 'HF_OAUTH_TOKEN', 'MERCURY_COMPAT_API_KEY', 'MERCURY_COMPAT_BASE_URL',
 ] as const
@@ -205,7 +205,7 @@ try {
     workers = (JSON.parse(readFileSync(wf, 'utf8')) as { workers?: Record<string, Worker> }).workers ?? {}
     for (const rec of Object.values(workers)) if (rec.pid !== undefined) { try { process.kill(rec.pid, 'SIGTERM'); reaped.push(rec.pid) } catch {} }
   }
-  const supFile = join(daemonDir, 'supervisor.json')
+  const supFile = join(daemonDir, 'daemon.json')
   if (existsSync(supFile)) {
     const pid = (JSON.parse(readFileSync(supFile, 'utf8')) as { pid?: number }).pid
     if (typeof pid === 'number' && pid > 0) { try { process.kill(pid, 'SIGTERM'); reaped.push(pid) } catch {} }
@@ -249,8 +249,8 @@ section('§6 THE RESUME SIBLING — a resumed session whose retained model has n
 {
   const socket = read('src/daemon/controlServer.ts')
   check('the admit answer carries the retained-model note across the control socket', /const ADMIT_WIRE_KEYS = \[[^\]]*'note'[^\]]*\]/.test(socket))
-  const supervisor6 = read('src/daemon/concourseSupervisor.ts')
-  check('the admission re-validates a refused retained model UNNAMED and mints the note on every ok road', supervisor6.includes("validated.reason.startsWith('no-credential:')") && supervisor6.split('retainedNote !== undefined').length >= 4)
+  const daemon6 = read('src/daemon/concourseWorkers.ts')
+  check('the admission re-validates a refused retained model UNNAMED and mints the note on every ok road', daemon6.includes("validated.reason.startsWith('no-credential:')") && daemon6.split('retainedNote !== undefined').length >= 4)
   check('the resume door paints the note on the screen-receipt seam', read('src/services/switchboard/hopIntoSession.ts').includes("if (typeof reply.note === 'string' && reply.note !== '') mintImmediateReceipt(`▲ ${reply.note}`, 'warning')"))
   const home2 = mkdtempSync(join(tmpdir(), 'resume-keyless-home-'))
   const cwd2 = realpathSync(mkdtempSync(join(tmpdir(), 'resume-keyless-cwd-')))
@@ -342,7 +342,7 @@ section('§6 THE RESUME SIBLING — a resumed session whose retained model has n
       workersAfter = (JSON.parse(readFileSync(wf, 'utf8')) as { workers?: Record<string, Worker & { keyless?: boolean; modelKey?: string }> }).workers ?? {}
       for (const rec of Object.values(workersAfter)) if (rec.pid !== undefined) { try { process.kill(rec.pid, 'SIGTERM') } catch {} }
     }
-    const supFile = join(daemonDir2, 'supervisor.json')
+    const supFile = join(daemonDir2, 'daemon.json')
     if (existsSync(supFile)) {
       const pid = (JSON.parse(readFileSync(supFile, 'utf8')) as { pid?: number }).pid
       if (typeof pid === 'number' && pid > 0) { try { process.kill(pid, 'SIGTERM') } catch {} }

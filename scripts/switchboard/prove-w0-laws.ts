@@ -15,7 +15,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 
-const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseSupervisor.js')
+const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.js')
 const { buildRunnerInvocation } = await import('../../src/daemon/headlessRun.js')
 const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.js')
 const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.js')
@@ -80,7 +80,7 @@ check(
 console.log('LAW 3 — capacity role intact:')
 check('MERCURY_CONCOURSE_WORKER stamps 1 on the child env', inv.env.MERCURY_CONCOURSE_WORKER === '1')
 
-const { updateConcourseWorkers, attachYieldConcourseSession, detachRespawnConcourseSession, grantConcourseWorkflows, revokeConcourseWorkflows, sessionOwnedByLiveWorker, stopConcourseSession, readSessionWorkers } = await import('../../src/daemon/concourseSupervisor.js')
+const { updateConcourseWorkers, attachYieldConcourseSession, detachRespawnConcourseSession, grantConcourseWorkflows, revokeConcourseWorkflows, sessionOwnedByLiveWorker, stopConcourseSession, readSessionWorkers } = await import('../../src/daemon/concourseWorkers.js')
 const { evaluateLaunchAuthority } = await import('../../src/services/switchboard/launchAuthority.js')
 
 const recDir = mkdtempSync(join(tmpdir(), 'switchboard-w2-records-'))
@@ -317,7 +317,7 @@ console.log('\n§ drive-12 — the live view, the one lift, the stale-tag law, P
   const routeSrc = readFileSync(join(import.meta.dirname, '../../src/components/concourse/ConcourseRoute.tsx'), 'utf8')
   check('the hop hands the record model/effort to the connector', hopSrc.includes('{ modelKey: rec.modelKey }') && hopSrc.includes('{ effort: rec.effort }'))
   check('the enter never yields the runner (no attach RPC on the enter path)', !routeSrc.includes("action: 'attach'") && !hopSrc.includes("action: 'attach'"))
-  const supSrc = readFileSync(join(import.meta.dirname, '../../src/daemon/concourseSupervisor.ts'), 'utf8')
+  const supSrc = readFileSync(join(import.meta.dirname, '../../src/daemon/concourseWorkers.ts'), 'utf8')
   const yieldStart = supSrc.indexOf('export function attachYieldConcourseSession(')
   const yieldBody = supSrc.slice(yieldStart, supSrc.indexOf('\n}\n', yieldStart))
   check('attachYield stamps the ENTER valve, never pausedAt', yieldBody.includes('rec.attachRequestedAt = Date.now()') && !yieldBody.includes('rec.pausedAt = Date.now()'))

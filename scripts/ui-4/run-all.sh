@@ -9,7 +9,7 @@
 # gate-watch: scripts/provider-compat/fixtures/huggingface-models-2026-08-22.json
 # gate-watch: src/commands/feedback/issueForms.ts src/fabric/entryCodec.ts src/fabric/ordinal.ts
 # gate-watch: src/history.ts src/native-ts/color-diff/index.ts src/screens/Chat.tsx src/services/api/errors.ts
-# gate-watch: src/services/api/usage.ts src/services/claudeAiLimits.ts src/services/mockRateLimits.ts
+# gate-watch: src/services/api/usage.ts src/services/anthropicLimits.ts src/services/mockRateLimits.ts
 # gate-watch: src/services/providers/huggingface/huggingfaceCatalogue.ts
 # gate-watch: src/services/providers/openrouter/openrouterCatalogue.ts src/services/providers/providerUsage.ts
 # gate-watch: src/substrate/startupMenu.ts src/tools/GlobTool/GlobTool.ts src/tools/GlobTool/prompt.ts

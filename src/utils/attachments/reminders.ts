@@ -177,7 +177,7 @@ export async function getContractReminderAttachments(
 
   let contract: { text: string; status: string; amendments: { length: number } } | undefined
   try {
-    const { readSessionWorkers } = await import('../../daemon/concourseSupervisor.js')
+    const { readSessionWorkers } = await import('../../daemon/concourseWorkers.js')
     const sessionId = getSessionId()
     const rec = Object.values(readSessionWorkers()).find(
       r => r.sessionId === sessionId && r.endedAt === undefined,

@@ -10,7 +10,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
-process.env.MERCURY_CUSTOM_OAUTH_URL = 'http://127.0.0.1:1'
+process.env.MERCURY_ANTHROPIC_OAUTH_BASE = 'http://127.0.0.1:1'
 process.env.MERCURY_MAX_RETRIES = '2'
 for (const key of ['NODE_ENV', 'CI', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_HOME', 'MERCURY_DISABLE_NONSTREAMING_FALLBACK']) delete process.env[key]
 writeFileSync(join(home, '.mercury.json'), JSON.stringify({ customApiKeyResponses: { approved: ['proof-key-ci-gate-not-a-real-key'.slice(-20)], rejected: [] } }))

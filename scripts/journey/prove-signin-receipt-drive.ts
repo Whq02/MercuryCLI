@@ -197,7 +197,7 @@ function pidAlive(pid: number): boolean {
 }
 
 async function endOwnedDaemon(runHome: string): Promise<string> {
-  const recordFile = path.join(runHome, 'daemon', 'supervisor.json')
+  const recordFile = path.join(runHome, 'daemon', 'daemon.json')
   if (!existsSync(recordFile)) return 'no daemon record'
   let pid = 0
   try {
@@ -297,7 +297,7 @@ async function runLeg(leg: 'chat' | 'face'): Promise<{
     ...process.env,
     MERCURY_CONFIG_DIR: RUN_HOME,
     MERCURY_CREDENTIAL_STORE: 'file',
-    MERCURY_CUSTOM_OAUTH_URL: `http://127.0.0.1:${fixture.port}`,
+    MERCURY_ANTHROPIC_OAUTH_BASE: `http://127.0.0.1:${fixture.port}`,
     ANTHROPIC_BASE_URL: `http://127.0.0.1:${fixture.port}`,
     MERCURY_OPENAI_API_BASE: DEAD,
     MERCURY_OPENAI_CHATGPT_BASE: DEAD,

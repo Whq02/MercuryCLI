@@ -117,8 +117,8 @@ try {
     JSON.stringify({ entered, now }),
   )
 
-  const supervisor = await import('../../src/daemon/concourseSupervisor.ts')
-  const recBefore = Object.values(supervisor.readSessionWorkers(daemonDir)).find(r => r.sessionId === sessionId)
+  const workers = await import('../../src/daemon/concourseWorkers.ts')
+  const recBefore = Object.values(workers.readSessionWorkers(daemonDir)).find(r => r.sessionId === sessionId)
   const capBefore = recBefore?.settingsSnapshot?.profileRevision
   check('the admitted record carries the §5.8 capture', typeof capBefore === 'number', JSON.stringify(recBefore?.settingsSnapshot ?? null))
   check('the peek says the capture is CURRENT before any Boot edit', snapA.peek?.settings?.current === true && snapA.peek?.settings?.revisionLabel === `r${capBefore}`, JSON.stringify(snapA.peek?.settings ?? null))
@@ -131,7 +131,7 @@ try {
   const newRev = saved.ok ? saved.revision : -1
   check('the profile revision advanced', saved.ok && newRev === (capBefore ?? 0) + 1, `r${capBefore} → r${newRev}`)
 
-  const recAfter = Object.values(supervisor.readSessionWorkers(daemonDir)).find(r => r.sessionId === sessionId)
+  const recAfter = Object.values(workers.readSessionWorkers(daemonDir)).find(r => r.sessionId === sessionId)
   check(
     'the EXISTING record’s capture is byte-unchanged after the Boot edit',
     JSON.stringify(recAfter?.settingsSnapshot) === JSON.stringify(recBefore?.settingsSnapshot),

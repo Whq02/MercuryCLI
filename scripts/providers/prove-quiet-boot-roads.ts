@@ -68,7 +68,7 @@ const port = await new Promise<number>(resolvePort => {
   })
 })
 const BASE = `http://127.0.0.1:${port}`
-process.env.MERCURY_CUSTOM_OAUTH_URL = BASE
+process.env.MERCURY_ANTHROPIC_OAUTH_BASE = BASE
 process.env.ANTHROPIC_BASE_URL = BASE
 writeFileSync(
   join(home, '.credentials.json'),
@@ -94,7 +94,7 @@ section('§1 the boot makes no side request (source)')
   check('the key hook honours probe: false before any wire call', hook.indexOf('opts?.probe === false') !== -1 && hook.indexOf('opts?.probe === false') < hook.indexOf('await verifyApiKey('))
   const main = readFileSync(join(ROOT, 'src/main.tsx'), 'utf8')
   check('the boot registers no startup request batch', !main.includes('startup-prefetch-batch') && !main.includes('runStartupPrefetchBatch'))
-  const limits = readFileSync(join(ROOT, 'src/services/claudeAiLimits.ts'), 'utf8')
+  const limits = readFileSync(join(ROOT, 'src/services/anthropicLimits.ts'), 'utf8')
   check('the usage record holds no quota probe', !limits.includes('quota_check') && !limits.includes("content: 'quota'"))
   check('the boot arms no usage clock', !main.includes("'usage-poll'") && !main.includes('armProviderUsagePoll'))
   const usageOwner = readFileSync(join(ROOT, 'src/services/providers/providerUsage.ts'), 'utf8')

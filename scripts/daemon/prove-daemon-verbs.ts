@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { DAEMON_USAGE, looksLikeDirectoryArg, parseDaemonVerb, START_TOKEN_SKEW_MS, staleStopVerdict, startTokenEpochMs, supervisorRecordIdentity } from '../../src/daemon/verbs.js'
+import { DAEMON_USAGE, looksLikeDirectoryArg, parseDaemonVerb, START_TOKEN_SKEW_MS, staleStopVerdict, startTokenEpochMs, daemonRecordIdentity } from '../../src/daemon/verbs.js'
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
@@ -32,6 +32,13 @@ section('(1) the grammar')
   check('the usage carries no --keep and no --any', !DAEMON_USAGE.includes('--keep') && !DAEMON_USAGE.includes('--any'), stopRow)
   check("the usage's stop row says every worker stops with the daemon, never that any survives", /every session process it runs \(every worker\) stops with it/.test(stopRow) && !/leaves? [^\n]*running|surviv|stay alive|keep running|live on|skips that reap/i.test(stopRow), stopRow)
   check('restart', parseDaemonVerb(['restart'], noDir).kind === 'restart')
+  for (const verb of ['run', 'status', 'stop', 'restart']) {
+    check(`${verb} --help ⇒ help (never the daemon)`, parseDaemonVerb([verb, '--help'], noDir).kind === 'help' && parseDaemonVerb([verb, '-h'], noDir).kind === 'help')
+  }
+  const runFlag = parseDaemonVerb(['run', '--frobnicate'], noDir)
+  check('run --frobnicate is REFUSED as an unknown flag, never a scheduling directory', runFlag.kind === 'unknown-flag' && runFlag.verb === 'run' && runFlag.word === '--frobnicate', JSON.stringify(runFlag))
+  const statusFlag = parseDaemonVerb(['status', '--json'], noDir)
+  check('status takes no flags', statusFlag.kind === 'unknown-flag' && statusFlag.verb === 'status')
   for (const spelling of ['help', '--help', '-h']) {
     check(`${spelling} ⇒ help (never the daemon)`, parseDaemonVerb([spelling], noDir).kind === 'help')
   }
@@ -71,8 +78,8 @@ section('(4) stop sweeps only a dead record; status tells the socket\'s truth')
   const main = readFileSync(join(ROOT, 'src', 'daemon', 'main.ts'), 'utf8')
   const stop = main.slice(main.indexOf('async function daemonStopCmd('), main.indexOf('async function daemonRestartCmd('))
   check('the stop verb asks for the reap by name — always — and reads no --keep or --any', stop.includes("{ op: 'shutdown', reapWorkers: true }") && !stop.includes('--keep') && !stop.includes('--any'), stop.split('\n').filter(l => /--keep|--any|reapWorkers/.test(l)).join(' | '))
-  check('ENOCONN reads the record before deciding', /ENOCONN[\s\S]*?readSupervisorState\(\)/.test(stop))
-  check('the sweep is gated on the recorded pid being GONE (ownerWatch.isProcessAlive — ESRCH is the only "gone")', /if \(stale && !isProcessAlive\(stale\.pid\)\) \{\s*await clearDeadSupervisorRecords\(\)/.test(stop))
+  check('ENOCONN reads the record before deciding', /ENOCONN[\s\S]*?readDaemonState\(\)/.test(stop))
+  check('the sweep is gated on the recorded pid being GONE (ownerWatch.isProcessAlive — ESRCH is the only "gone")', /if \(stale && !isProcessAlive\(stale\.pid\)\) \{\s*await clearDeadDaemonRecords\(\)/.test(stop))
   check('a live-but-silent pid is never swept (it may be binding)', /else if \(stale\) \{[\s\S]*?alive[\s\S]*?process\.exitCode = 1/.test(stop))
   const status = readFileSync(join(ROOT, 'src', 'daemon', 'status.ts'), 'utf8')
   check('the headline says "running" only when the socket answers', status.includes('status.controlReachable\n        ? `  daemon:       running') && status.includes('record present, not answering'))
@@ -93,31 +100,31 @@ section('(5) identity beyond the pid — the ENOCONN stop sweeps only a RECYCLED
   check('an unreadable identity ⇒ refuse UNKNOWN', staleStopVerdict(stamped, null) === 'unknown-refuse')
   const main = readFileSync(join(ROOT, 'src', 'daemon', 'main.ts'), 'utf8')
   const stop = main.slice(main.indexOf('async function daemonStopCmd('), main.indexOf('async function daemonRestartCmd('))
-  check('the alive arm consults the ONE identity owner through the LIVE start token', stop.includes('supervisorRecordIdentity(stale, getProcessStartToken(stale.pid))'))
-  check('the recycled arm sweeps through clearDeadSupervisorRecords', /not-recorded-process'\)[\s\S]{0,140}clearDeadSupervisorRecords\(\)/.test(stop))
+  check('the alive arm consults the ONE identity owner through the LIVE start token', stop.includes('daemonRecordIdentity(stale, getProcessStartToken(stale.pid))'))
+  check('the recycled arm sweeps through clearDeadDaemonRecords', /not-recorded-process'\)[\s\S]{0,140}clearDeadDaemonRecords\(\)/.test(stop))
   check('the unknown arm never prescribes a by-hand kill', !/could not be read[^\n]*end that process/.test(stop))
   check('only the identity-MATCHED arm keeps the by-hand line', (stop.match(/end that process by hand/g) ?? []).length === 1 && /IS the recorded daemon[^\n]*end that process by hand/.test(stop))
 }
 
-section('(5b) THE ONE IDENTITY OWNER — supervisorRecordIdentity unions the two D arms (the convergence ruling)')
+section('(5b) THE ONE IDENTITY OWNER — daemonRecordIdentity unions the two D arms (the convergence ruling)')
 {
   const rec = { startedAt: Date.UTC(2026, 7, 28, 9, 0, 0), startToken: 'Thu Aug 28 08:59:58 2026' }
-  check('baseline byte-equal ⇒ the recorded daemon', supervisorRecordIdentity(rec, 'Thu Aug 28 08:59:58 2026') === 'same-process')
-  check('baseline mismatch ⇒ NOT the recorded process (a recycled pid, whatever its birth time parses to)', supervisorRecordIdentity(rec, 'Thu Aug 28 08:00:00 2026') === 'not-recorded-process')
-  check("a pid gone inside the probe window ('' vs a baseline) ⇒ not the recorded process", supervisorRecordIdentity(rec, '') === 'not-recorded-process')
-  check('a glitched probe (null) under a baseline ⇒ unknown, never a sweep verdict', supervisorRecordIdentity(rec, null) === 'unknown')
+  check('baseline byte-equal ⇒ the recorded daemon', daemonRecordIdentity(rec, 'Thu Aug 28 08:59:58 2026') === 'same-process')
+  check('baseline mismatch ⇒ NOT the recorded process (a recycled pid, whatever its birth time parses to)', daemonRecordIdentity(rec, 'Thu Aug 28 08:00:00 2026') === 'not-recorded-process')
+  check("a pid gone inside the probe window ('' vs a baseline) ⇒ not the recorded process", daemonRecordIdentity(rec, '') === 'not-recorded-process')
+  check('a glitched probe (null) under a baseline ⇒ unknown, never a sweep verdict', daemonRecordIdentity(rec, null) === 'unknown')
   const pre = { startedAt: Date.UTC(2026, 7, 28, 9, 0, 0) }
   const bornAfter = new Date(pre.startedAt + START_TOKEN_SKEW_MS + 60_000).toUTCString()
   const bornBefore = new Date(pre.startedAt - 60_000).toUTCString()
-  check('pre-token record + a process born after the stamp plus skew ⇒ not the recorded process', supervisorRecordIdentity(pre, bornAfter) === 'not-recorded-process')
-  check('pre-token record + a process born at-or-before ⇒ the recorded daemon', supervisorRecordIdentity(pre, bornBefore) === 'same-process')
-  check('pre-token record + an unparseable or absent token ⇒ unknown', supervisorRecordIdentity(pre, 'Get-CimInstance : Access denied') === 'unknown' && supervisorRecordIdentity(pre, null) === 'unknown' && supervisorRecordIdentity({ ...pre, startToken: null }, null) === 'unknown')
-  check('an explicit null baseline takes the fallback arm (a boot whose probe failed still gets the birth-time judgment)', supervisorRecordIdentity({ ...pre, startToken: null }, bornAfter) === 'not-recorded-process')
+  check('pre-token record + a process born after the stamp plus skew ⇒ not the recorded process', daemonRecordIdentity(pre, bornAfter) === 'not-recorded-process')
+  check('pre-token record + a process born at-or-before ⇒ the recorded daemon', daemonRecordIdentity(pre, bornBefore) === 'same-process')
+  check('pre-token record + an unparseable or absent token ⇒ unknown', daemonRecordIdentity(pre, 'Get-CimInstance : Access denied') === 'unknown' && daemonRecordIdentity(pre, null) === 'unknown' && daemonRecordIdentity({ ...pre, startToken: null }, null) === 'unknown')
+  check('an explicit null baseline takes the fallback arm (a boot whose probe failed still gets the birth-time judgment)', daemonRecordIdentity({ ...pre, startToken: null }, bornAfter) === 'not-recorded-process')
   const reconcile = readFileSync(join(ROOT, 'src', 'daemon', 'reconcileRecords.ts'), 'utf8')
-  check('the boot reconcile consults the ONE owner', reconcile.includes('supervisorRecordIdentity(sup, await getProcessStartTokenAsync(sup.pid))'))
+  check('the boot reconcile consults the ONE owner', reconcile.includes('daemonRecordIdentity(sup, await getProcessStartTokenAsync(sup.pid))'))
   check('the reconcile keeps the conservative polarity (only a not-recorded verdict falls through to the sweep gates)', reconcile.includes("if (verdict !== 'not-recorded-process') {"))
   const srcMain = readFileSync(join(ROOT, 'src', 'daemon', 'main.ts'), 'utf8')
-  check('POISON: no second judgment — main.ts consults the owner and never calls the fallback internals directly', srcMain.includes('supervisorRecordIdentity(') && !srcMain.includes('staleStopVerdict(') && !srcMain.includes('startTokenEpochMs('))
+  check('POISON: no second judgment — main.ts consults the owner and never calls the fallback internals directly', srcMain.includes('daemonRecordIdentity(') && !srcMain.includes('staleStopVerdict(') && !srcMain.includes('startTokenEpochMs('))
   check('POISON: the reconcile never re-implements the byte-compare beside the owner', !reconcile.includes('ownerIdentityMatches('))
 }
 

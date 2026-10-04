@@ -8,7 +8,7 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'ctm-capfix-config-'))
 process.env.ANTHROPIC_API_KEY = 'fixture-key'
 
-const { computeNewLimitsFromHeaders } = await import('../../src/services/claudeAiLimits.ts')
+const { computeNewLimitsFromHeaders } = await import('../../src/services/anthropicLimits.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

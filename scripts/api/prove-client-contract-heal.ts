@@ -110,7 +110,7 @@ process.env.MERCURY_CONFIG_DIR = scratchRoot
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.ANTHROPIC_BASE_URL = DEAD_LETTER
-process.env.MERCURY_CUSTOM_OAUTH_URL = DEAD_LETTER
+process.env.MERCURY_ANTHROPIC_OAUTH_BASE = DEAD_LETTER
 process.env.MERCURY_NPM_REGISTRY_BASE = `http://127.0.0.1:${registryPort}`
 for (const key of ['NODE_ENV', 'CI', 'MERCURY_ANTHROPIC_CLIENT_CONTRACT', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'MERCURY_FAULT_INJECT', 'MERCURY_SCRIPTED_STREAM', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR', 'MERCURY_API_KEY_FILE_DESCRIPTOR', 'MERCURY_BARE', 'HTTPS_PROXY', 'HTTP_PROXY', 'https_proxy', 'http_proxy']) delete process.env[key]
 const APPROVED_KEY_CONFIG = JSON.stringify({ customApiKeyResponses: { approved: ['proof-key-ci-gate-not-a-real-key'.slice(-20)], rejected: [] } })

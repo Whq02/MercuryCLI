@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseSupervisor.ts'
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'focus-one-writer-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
@@ -26,7 +26,7 @@ function grepSrc(pattern: string): string[] {
   }
 }
 
-const sup = await import('../../src/daemon/concourseSupervisor.ts')
+const sup = await import('../../src/daemon/concourseWorkers.ts')
 const dir = process.env.MERCURY_DAEMON_DIR!
 const DEAD_PID = 2_147_000_000
 const T = 10 * 60_000
@@ -58,19 +58,19 @@ const roster = { kill: (short: string): boolean => (killed.push(short), true) }
 console.log('W1 the focus fact has ONE writer')
 {
   const assignments = grepSrc('\\.focusedAt = |\\.focusedBy = |focusedAt: Date|focusedBy: ')
-  const foreign = assignments.filter(l => !l.startsWith('src/daemon/concourseSupervisor.ts'))
-  check('every focusedAt/focusedBy assignment in src lives in concourseSupervisor.ts', assignments.length > 0 && foreign.length === 0, foreign.join(' | '))
-  const supervisor = read('src/daemon/concourseSupervisor.ts')
-  const writerAt = supervisor.indexOf('export function focusConcourseSession(')
-  const writerBody = supervisor.slice(writerAt, supervisor.indexOf('export function blurConcourseSession(', writerAt))
-  const stampSites = (supervisor.match(/rec\.focusedAt = Date\.now\(\)/g) ?? []).length
-  check('the ONE stamp site is focusConcourseSession (settle and park only DELETE the fact)', stampSites === 1 && writerBody.includes('rec.focusedAt = Date.now()') && supervisor.includes('delete rec.focusedAt') )
+  const foreign = assignments.filter(l => !l.startsWith('src/daemon/concourseWorkers.ts'))
+  check('every focusedAt/focusedBy assignment in src lives in concourseWorkers.ts', assignments.length > 0 && foreign.length === 0, foreign.join(' | '))
+  const daemon = read('src/daemon/concourseWorkers.ts')
+  const writerAt = daemon.indexOf('export function focusConcourseSession(')
+  const writerBody = daemon.slice(writerAt, daemon.indexOf('export function blurConcourseSession(', writerAt))
+  const stampSites = (daemon.match(/rec\.focusedAt = Date\.now\(\)/g) ?? []).length
+  check('the ONE stamp site is focusConcourseSession (settle and park only DELETE the fact)', stampSites === 1 && writerBody.includes('rec.focusedAt = Date.now()') && daemon.includes('delete rec.focusedAt') )
   const verbSites = grepSrc("seatVerb\\('(focus|blur)'")
   const verbForeign = verbSites.filter(l => !l.startsWith('src/services/engine-connector/daemonConnector.ts'))
   check("every seat-verb call site lives in daemonConnector.ts (attach → focus, detach → blur, the send re-assert, assertSeat) on the one chain", verbSites.length >= 4 && verbForeign.length === 0, verbForeign.join(' | '))
   const connector = read('src/services/engine-connector/daemonConnector.ts')
   check('the chain is module-level and serialized (a late blur never lands over a re-focus)', connector.includes('let seatChain: Promise<unknown> = Promise.resolve()') && connector.includes('seatChain = seatChain'))
-  const wireCallers = grepSrc('focusConcourseSession\\(|blurConcourseSession\\(').filter(l => !l.startsWith('src/daemon/concourseSupervisor.ts'))
+  const wireCallers = grepSrc('focusConcourseSession\\(|blurConcourseSession\\(').filter(l => !l.startsWith('src/daemon/concourseWorkers.ts'))
   check("the daemon's focus/blur handler (main.ts) is the wire's only door to the writer", wireCallers.length > 0 && wireCallers.every(l => l.startsWith('src/daemon/main.ts')), wireCallers.join(' | '))
 }
 
@@ -126,7 +126,7 @@ console.log('W4 newborn × parked (law 5, kept and named)')
   const messaged = sup.parkConcourseSession(sid('n2'), seat, roster, dir)
   check('a chat born and NEVER messaged that the operator closes is RELEASED — killed, ended, never a parked row (nothing to bring back)', newborn.outcome === 'applied' && newborn.released && killed.includes('concourse-w1') && rec('concourse-w1')?.endedAt !== undefined && rec('concourse-w1')?.parkedAt === undefined)
   check('a chat born the same way but MESSAGED once is PARKED when closed — on the board, reactivatable', messaged.outcome === 'applied' && !messaged.released && rec('concourse-w2')?.parkedAt !== undefined && rec('concourse-w2')?.endedAt === undefined)
-  check("the one definition (isNewbornRecord) is what the park verb, the reaper's grace and the reconcile's release all read", read('src/daemon/concourseSupervisor.ts').split('isNewbornRecord(').length >= 3 && read('src/daemon/idleRetirement.ts').includes('rec.bornBlankAt !== undefined && rec.lastDeliveryAt === undefined'))
+  check("the one definition (isNewbornRecord) is what the park verb, the reaper's grace and the reconcile's release all read", read('src/daemon/concourseWorkers.ts').split('isNewbornRecord(').length >= 3 && read('src/daemon/idleRetirement.ts').includes('rec.bornBlankAt !== undefined && rec.lastDeliveryAt === undefined'))
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

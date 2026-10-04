@@ -15,7 +15,7 @@ process.chdir(GROUND_A)
 if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
 delete process.env.CI
 delete process.env.MERCURY_SESSION_KIT
-delete process.env.MERCURY_CLAUDEAI_MCP
+delete process.env.MERCURY_ANTHROPIC_CONNECTORS
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
@@ -95,7 +95,7 @@ section('§3 the seams stand in source')
   const screen = readFileSync(join(REPO, 'src', 'components', 'KitMenuScreen.tsx'), 'utf8')
   t('F8 the screen enumerates through the FRESH door on every open, re-arms the watcher on the current ground, subscribes while open and unsubscribes on close', screen.includes('enumerateKitCatalogueFresh(process.cwd())') && screen.includes('skillChangeDetector.rearmWatchRoots()') && screen.includes('skillChangeDetector.subscribe(enumerate)') && screen.includes('unsubscribe()'))
   const catalogue = readFileSync(join(REPO, 'src', 'services', 'kitMenu', 'kitCatalogue.ts'), 'utf8')
-  t('F9 the fresh door drops all four memos (loader skills · extension catalogues · connector fetch · active set) and only for the REAL doors', catalogue.includes('clearSkillCaches()') && catalogue.includes('clearExtensionCommandCaches()') && catalogue.includes('clearClaudeAIMcpConfigsCache()') && catalogue.includes('publishActiveSet(null)') && catalogue.includes('doors === REAL_KIT_DOORS'))
+  t('F9 the fresh door drops all four memos (loader skills · extension catalogues · connector fetch · active set) and only for the REAL doors', catalogue.includes('clearSkillCaches()') && catalogue.includes('clearExtensionCommandCaches()') && catalogue.includes('clearAnthropicConnectorsCache()') && catalogue.includes('publishActiveSet(null)') && catalogue.includes('doors === REAL_KIT_DOORS'))
   const det = readFileSync(join(REPO, 'src', 'utils', 'skills', 'skillChangeDetector.ts'), 'utf8')
   t('F10 the re-arm keeps the signal and the dynamic-skills registration (only the proof-reset clears them) and never double-registers the cleanup', !/rearmWatchRoots[\s\S]{0,400}changeSignal\.clear/.test(det) && det.includes('if (unregisterCleanup === null)') && det.includes('registerDynamicSkillsOnce()'))
 }

@@ -24,7 +24,7 @@ import {
   controlSockPath,
   currentVersion,
   ownsControlPlaneSync,
-  supervisorStatePath,
+  daemonStatePath,
   verifyControlAuth,
 } from './controlSocket.js'
 import { isProcessAlive } from './ownerWatch.js'
@@ -302,7 +302,7 @@ function removeStaleSocket(sockPath: string): Promise<void> {
 
 function livePlaneOwnerIsForeign(): boolean {
   try {
-    const raw = JSON.parse(readFileSync(supervisorStatePath(), 'utf8')) as { pid?: number }
+    const raw = JSON.parse(readFileSync(daemonStatePath(), 'utf8')) as { pid?: number }
     return typeof raw?.pid === 'number' && raw.pid !== process.pid && isProcessAlive(raw.pid)
   } catch {
     return false
@@ -597,7 +597,7 @@ async function routeControlRequest(
     case 'status': {
       if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
       const now = Date.now()
-      const sup = deps.roster.getSupervisorState()
+      const sup = deps.roster.getRespawnState()
       return answer(sock, {
         ok: true,
         op: 'status',

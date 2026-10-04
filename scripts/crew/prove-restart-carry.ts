@@ -173,7 +173,7 @@ section('S1-S2 the seat facts: a fresh incarnation across a seat delete and re-c
 {
   const { onSeatSpawned, onSeatSettled, publishSeatFacts, seatGenerationOf, queueReadinessFacts } = await import('../../src/daemon/sessionSeat.ts')
   const { readSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
-  const { updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
   const dir = mkdtempSync(join(tmpdir(), 'restart-carry-daemon-'))
   const sid = 'aaaaaaaa-bbbb-4ccc-8ddd-restartcarry'
   const SHORT = 'concourse-rc1'

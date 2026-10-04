@@ -124,7 +124,7 @@ const baseEnv: Record<string, string> = {
   MERCURY_CONFIG_DIR: home,
   MERCURY_CREDENTIAL_STORE: 'file',
   BROWSER: '/usr/bin/true',
-  MERCURY_CUSTOM_OAUTH_URL: 'http://127.0.0.1:1',
+  MERCURY_ANTHROPIC_OAUTH_BASE: 'http://127.0.0.1:1',
   ANTHROPIC_API_KEY: KEYS.anthropic,
   ANTHROPIC_BASE_URL: `${base}/anthropic`,
   OPENAI_API_KEY: KEYS.openai,

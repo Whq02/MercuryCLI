@@ -77,7 +77,7 @@ delete process.env.MERCURY_CONCOURSE
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { resolveCaptureDriver } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { readSessionWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

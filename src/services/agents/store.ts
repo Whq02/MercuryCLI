@@ -4,7 +4,7 @@ import { durableAtomicPublish } from '../../substrate/durablePublish.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { findGitRoot } from '../../utils/git.js'
-import { adoptiveProjectPath } from '../../utils/projectStoreAdoption.js'
+import { projectLocalPath } from '../projectLocal/paths.js'
 import type { SettingSource } from '../../utils/settings/constants.js'
 import { decodeAgentDocument, validateAgentIdentifier } from './codec.js'
 import {
@@ -59,7 +59,7 @@ export function newAgentDirectory(
     return join(getMercuryHome(), 'agents')
   }
   const root = findGitRoot(cwd) ?? cwd
-  return adoptiveProjectPath(root, 'agents')
+  return projectLocalPath(root, 'agents')
 }
 
 export function newAgentPath(

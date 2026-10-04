@@ -103,7 +103,7 @@ check('the turn settled with the scripted text (the full-output-at-settle world 
 section('§2 the captured frames replayed through the real seat → store → row')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
-const { updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
 const seatMod = await import('../../src/daemon/sessionSeat.ts')
 const { daemonSessionConnectorFor } = await import('../../src/services/engine-connector/daemonConnector.ts')
 const { getEphemeralProgressFrame } = await import('../../src/state/ephemeralProgressStore.ts')

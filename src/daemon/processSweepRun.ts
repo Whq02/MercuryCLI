@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { renameWithWin32Retry } from '../substrate/durablePublish.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { getMercuryHome } from '../utils/envUtils.js'
-import { readSessionWorkersSnapshot, stampedTerminalPid, type ConcourseWorkerRecordV1 } from './concourseSupervisor.js'
+import { readSessionWorkersSnapshot, stampedTerminalPid, type ConcourseWorkerRecordV1 } from './concourseWorkers.js'
 import { daemonControlRpc, daemonDir } from './controlSocket.js'
 import { sessionParkDrainMs } from './idleRetirement.js'
 import { getProcessStartTokenAsync } from './ownerWatch.js'
@@ -171,12 +171,12 @@ async function clearRegistrationById(home: string, id: string): Promise<void> {
 }
 
 async function readPlane(dir: string, own: boolean, rpc: (request: DaemonRequest) => Promise<DaemonReply>, waitMs: number): Promise<ProcessSweepPlane> {
-  let supervisor: ProcessSweepDaemonRecord | null = null
-  let supervisorReadable = true
+  let daemon: ProcessSweepDaemonRecord | null = null
+  let daemonReadable = true
   try {
-    const raw = JSON.parse(await readFile(join(dir, 'supervisor.json'), 'utf8')) as Record<string, unknown>
+    const raw = JSON.parse(await readFile(join(dir, 'daemon.json'), 'utf8')) as Record<string, unknown>
     if (typeof raw.pid === 'number' && typeof raw.startedAt === 'number') {
-      supervisor = {
+      daemon = {
         pid: raw.pid,
         startToken: typeof raw.startToken === 'string' ? raw.startToken : raw.startToken === null ? null : undefined,
         ownerPid: typeof raw.ownerPid === 'number' ? raw.ownerPid : raw.ownerPid === null ? null : undefined,
@@ -184,17 +184,17 @@ async function readPlane(dir: string, own: boolean, rpc: (request: DaemonRequest
         startedAt: raw.startedAt,
       }
     } else {
-      supervisorReadable = false
+      daemonReadable = false
     }
   } catch (error) {
-    supervisorReadable = (error as NodeJS.ErrnoException).code === 'ENOENT'
+    daemonReadable = (error as NodeJS.ErrnoException).code === 'ENOENT'
   }
   const snapshot = readSessionWorkersSnapshot(dir)
   const runners: ProcessSweepRunnerRecord[] | null = snapshot.state === 'known'
     ? Object.values(snapshot.workers).map(record => sweepRunnerRecord(record, record.pid, false))
     : null
   let answer: ProcessSweepDaemonAnswer | null = null
-  if (own && supervisor !== null) {
+  if (own && daemon !== null) {
     try {
       const reply = await rpc({ op: 'processSweep', proto: 0, action: 'facts' })
       if (reply.ok && reply.op === 'processSweep' && reply.action === 'facts') answer = reply.facts
@@ -202,7 +202,7 @@ async function readPlane(dir: string, own: boolean, rpc: (request: DaemonRequest
       answer = null
     }
   }
-  return { daemonDir: dir, supervisor, supervisorReadable, answer, runners }
+  return { daemonDir: dir, daemon, daemonReadable, answer, runners }
 }
 
 async function readCensusMemory(home: string): Promise<Record<string, number> | null> {
@@ -248,7 +248,7 @@ async function gather(deps: ProcessSweepDeps): Promise<{ table: ProcessSweepTabl
   }
   const recordedPids = new Set<number>()
   for (const plane of planes) {
-    if (plane.supervisor !== null) recordedPids.add(plane.supervisor.pid)
+    if (plane.daemon !== null) recordedPids.add(plane.daemon.pid)
     for (const runner of plane.answer?.runners ?? plane.runners ?? []) if (typeof runner.pid === 'number') recordedPids.add(runner.pid)
   }
   for (const registration of registrations ?? []) recordedPids.add(registration.pid)
@@ -375,8 +375,8 @@ export async function endStaleProcesses(reviewed: readonly ProcessSweepEntry[], 
         continue
       }
       const plane = first.records.planes.find(candidate => candidate.daemonDir === own)
-      if (plane?.supervisor !== null && plane?.supervisor !== undefined && (
-        (entry.kind === 'daemon' && plane.supervisor.pid === entry.process.pid) ||
+      if (plane?.daemon !== null && plane?.daemon !== undefined && (
+        (entry.kind === 'daemon' && plane.daemon.pid === entry.process.pid) ||
         (entry.kind === 'runner' && (plane.answer?.runners ?? plane.runners ?? []).some(runner => runner.pid === entry.process.pid))
       )) {
         let reply: DaemonReply | null = null
@@ -441,8 +441,8 @@ export async function endStaleProcesses(reviewed: readonly ProcessSweepEntry[], 
       continue
     }
     const ownPlane = first.records.planes.find(plane => plane.daemonDir === own)
-    const daemonRoad = ownPlane !== undefined && ownPlane.supervisor !== null && (
-      (first.fresh.kind === 'daemon' && ownPlane.supervisor.pid === entry.process.pid) ||
+    const daemonRoad = ownPlane !== undefined && ownPlane.daemon !== null && (
+      (first.fresh.kind === 'daemon' && ownPlane.daemon.pid === entry.process.pid) ||
       (first.fresh.kind === 'runner' && (ownPlane.answer?.runners ?? ownPlane.runners ?? []).some(runner => runner.pid === entry.process.pid))
     )
     if (daemonRoad) {

@@ -106,7 +106,7 @@ const daemon = spawn(process.execPath.includes('bun') ? 'node' : process.execPat
 const daemonExited = new Promise<void>(r => daemon.once('exit', () => r()))
 
 check(
-  'the supervisor answers ping on its control socket',
+  'the daemon answers ping on its control socket',
   await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000),
 )
 
@@ -154,7 +154,7 @@ for (let i = 0; i < 4; i++) {
   }
 }
 {
-  const { readSessionWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
   const recs = Object.values(readSessionWorkers(daemonDir)).filter(
     r => r.endedAt === undefined && r.worktreePath !== undefined,
   )
@@ -189,7 +189,7 @@ check(
   JSON.stringify(dispatched),
 )
 check(
-  'five workers are simultaneously LIVE on the supervisor summary',
+  'five workers are simultaneously LIVE on the daemon summary',
   await untilAsync(async () => (await listed()).length === 5, 60_000),
   JSON.stringify(await listed()),
 )
@@ -278,7 +278,7 @@ check(
   await untilAsync(() => (releasedPid === undefined ? true : !alive(releasedPid)), 30_000),
 )
 {
-  const { readSessionWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
   const isoLive = Object.values(readSessionWorkers(daemonDir)).find(
     r => r.endedAt === undefined && r.worktreePath !== undefined,
   )

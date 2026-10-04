@@ -15,7 +15,7 @@ const LOOPBACK = new Set(['127.0.0.1', '::1', 'localhost', '0.0.0.0', '::'])
 const FAMILY_BASE = /^MERCURY_[A-Z0-9]+_(?:[A-Z]+_)*BASE$/
 const UPDATE_SEAM = 'MERCURY_UPDATE_API_BASE_URL'
 const SLOTS = ['MERCURY_COMPAT_BASE_URL', 'MERCURY_LOCAL_BASE_URL']
-const OAUTH_SEAM = 'MERCURY_CUSTOM_OAUTH_URL'
+const OAUTH_SEAM = 'MERCURY_ANTHROPIC_OAUTH_BASE'
 const INHERITED_GATEWAY = 'https://gateway.example.invalid'
 const DEADLINE_BOUND_MS = 15_000
 const INVALID_KEY = /Invalid API key/
@@ -283,7 +283,7 @@ section('§4 — the sign-in refresh road under the pin: a home seeded expired-w
     ms: join(work, 'turn-refresh.ms'),
   }
   const boxBase = `http://${BOX_HOST}:${readTrim(portFile)}`
-  const env: NodeJS.ProcessEnv = { ...baseEnv, MERCURY_CONFIG_DIR: oauthHome, ANTHROPIC_BASE_URL: boxBase, MERCURY_CUSTOM_OAUTH_URL: boxBase }
+  const env: NodeJS.ProcessEnv = { ...baseEnv, MERCURY_CONFIG_DIR: oauthHome, ANTHROPIC_BASE_URL: boxBase, MERCURY_ANTHROPIC_OAUTH_BASE: boxBase }
   delete env.ANTHROPIC_API_KEY
   spawnSync('bash', ['-c', turnScript({ cwd, ...refreshRoad })], { cwd: ROOT, env, encoding: 'utf8', timeout: 120_000, killSignal: 'SIGKILL' })
   try {
@@ -301,7 +301,7 @@ section('§4 — the sign-in refresh road under the pin: a home seeded expired-w
   const ledger = censusOf(`${portFile}.ledger`)
   check('the box answered the token refresh itself (POST /v1/oauth/token in its ledger)', ledger.some(l => l === 'POST /v1/oauth/token'), ledger.join(' · ') || '(empty ledger)')
   const shard = readFileSync(join(ROOT, 'scripts', 'gate', 'ci-shard.sh'), 'utf8')
-  check('the shard pins the sign-in endpoint to its box beside the messages base', shard.includes('export MERCURY_CUSTOM_OAUTH_URL="$HERMETIC_DEAD_BASE"'))
+  check('the shard pins the sign-in endpoint to its box beside the messages base', shard.includes('export MERCURY_ANTHROPIC_OAUTH_BASE="$HERMETIC_DEAD_BASE"'))
 }
 
 clearTimeout(guard)

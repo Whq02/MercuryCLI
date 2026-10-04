@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { daemonDir, daemonLastUnreachableAt, readSupervisorState } from '../../daemon/controlSocket.js'
+import { daemonDir, daemonLastUnreachableAt, readDaemonState } from '../../daemon/controlSocket.js'
 import type { DaemonHandshakeVerdict } from '../../daemon/handshake.js'
 import { isProcessAlive } from '../../daemon/ownerWatch.js'
 import { probePidLock } from '../../substrate/pidLock.js'
@@ -67,9 +67,9 @@ function ladderRounds(): number {
 type PlaneHold = 'clear' | 'stopping' | 'held'
 
 async function planeHold(): Promise<PlaneHold> {
-  const record = await readSupervisorState()
+  const record = await readDaemonState()
   if (record !== null && isProcessAlive(record.pid)) return record.state === 'stopping' ? 'stopping' : 'held'
-  const holder = await probePidLock(join(daemonDir(), 'supervisor.lock'), { liveness: 'assume-alive', cachedLiveness: true })
+  const holder = await probePidLock(join(daemonDir(), 'daemon.lock'), { liveness: 'assume-alive', cachedLiveness: true })
   return holder === null ? 'clear' : 'held'
 }
 

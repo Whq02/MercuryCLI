@@ -39,7 +39,7 @@ const status = (): string[] =>
 
 const homeStores = await import('../../src/utils/projectHomeStores.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
-const { adoptiveProjectPath } = await import('../../src/utils/projectStoreAdoption.ts')
+const { projectLocalPath } = await import('../../src/services/projectLocal/paths.ts')
 const { apolloSpecDirectory } = await import('../../src/utils/projectConfig.ts')
 const { workflowRunsRoot, workflowsDir } = await import('../../src/tools/WorkflowTool/runManifest.ts')
 const { defaultEvolutionLedgerDir, writeEvolutionRow } = await import('../../src/utils/evolution/evolutionLedger.ts')
@@ -130,7 +130,7 @@ section('H3 — the migration: read once, the folder copy stays, /health names i
 
 section('H4 — the shared set stays in the project folder')
 {
-  check('settings.json resolves in the project folder', adoptiveProjectPath(REPO, 'settings.json') === join(REPO, '.mercury', 'settings.json'))
+  check('settings.json resolves in the project folder', projectLocalPath(REPO, 'settings.json') === join(REPO, '.mercury', 'settings.json'))
   check('the machine-local settings file resolves in the project folder too (its global exclude is the settings owner\'s road)', String(getSettingsFilePathForSource('localSettings')).endsWith(join('.mercury', 'settings.local.json')))
   const settingsSource = readFileSync(join(import.meta.dir, '../../src/utils/settings/settings.ts'), 'utf8')
   check('the settings owner still routes the local file through the global-ignore helper', /source === 'localSettings'[\s\S]{0,120}addFileGlobRuleToGitignore\(getRelativeSettingsFilePathForSource\('localSettings'\)\)/.test(settingsSource))

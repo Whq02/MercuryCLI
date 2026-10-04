@@ -14,7 +14,7 @@ delete process.env.ANTHROPIC_AUTH_TOKEN
 delete process.env.MERCURY_OAUTH_TOKEN
 delete process.env.CI
 delete process.env.NODE_ENV
-delete process.env.MERCURY_CUSTOM_OAUTH_URL
+delete process.env.MERCURY_ANTHROPIC_OAUTH_BASE
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')

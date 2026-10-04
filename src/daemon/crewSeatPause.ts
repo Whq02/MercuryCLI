@@ -1,5 +1,5 @@
 import { AGENT_WINDOW_RESUME_NOTE, CREW_ACCOUNT_RESUME_NOTE, pauseClockWords, pauseLineWords, type AgentPauseV1 } from '../tasks/LocalAgentTask/agentPause.js'
-import { errorTextOfOutcome, isOutcomeRow } from './longLivedSupervisor.js'
+import { errorTextOfOutcome, isOutcomeRow } from './longLivedRespawn.js'
 import type { LooseRow } from '../rows/read.js'
 import type { InputRow } from '../rows/vocabulary.js'
 

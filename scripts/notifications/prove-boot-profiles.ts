@@ -61,11 +61,11 @@ t.section('§3 — resolution provenance (explicit env ALWAYS wins)')
   t.check('the snapshot pins the profile revision + digest', snap.profileRevision === 3 && /^snap-r3-/.test(snap.snapshotId), snap.snapshotId)
 }
 
-t.section('§4 — at the supervisor seam: immutable + resume-retained')
+t.section('§4 — at the daemon seam: immutable + resume-retained')
 {
   const dir = join(root, 'daemon')
   const { makeConcourseAdmitHandler, readSessionWorkers, settleConcourseWorker } = await import(
-    '../../src/daemon/concourseSupervisor.js'
+    '../../src/daemon/concourseWorkers.js'
   )
   const liveShorts = new Set<string>()
   let nextPid = 51000

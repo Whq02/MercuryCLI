@@ -198,7 +198,7 @@ console.log('§9 D5 — the collapse notice dies when the frame affords again')
 
 console.log('§10 D6 — the daemon cursor survives the roster shuffle by key')
 {
-  const view = read('src/components/mercury-ui/parity/DaemonSupervisorView.tsx')
+  const view = read('src/components/mercury-ui/parity/DaemonView.tsx')
   check('the cursor carries a key beside the index', view.includes("const [selKey, setSelKey] = React.useState<string | null>(null)"))
   check('the key wins where it exists; the clamp is the reap fallback', view.includes('const clampedSel = keyAt >= 0 ? keyAt : indexClamped'))
   check('the index state re-anchors to the painted row', view.includes('if (sel !== clampedSel) setSel(clampedSel)'))

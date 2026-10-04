@@ -19,7 +19,7 @@ Object.assign(process.env, { MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE:
 const { daemonControlRpc, readControlKey, controlSockPath } = await import('../../src/daemon/controlSocket.ts')
 const { forwardFrame } = await import('../../src/daemon/handover.ts')
 const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
-const { readSessionWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
 const { isProcessAlive } = await import('../../src/daemon/ownerWatch.ts')
 const { formatMercuryDaemonStatus, getMercuryDaemonStatus, helperPidSocketsOnDisk } = await import('../../src/daemon/status.ts')
 let failures = 0

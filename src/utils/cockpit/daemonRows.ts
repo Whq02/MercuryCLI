@@ -1,10 +1,10 @@
 import type { MercuryDaemonStatus } from '../../daemon/status.js'
-import { getMaxTurnMs } from '../../daemon/longLivedSupervisor.js'
+import { getMaxTurnMs } from '../../daemon/longLivedRespawn.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
-export type SupervisorBadge = 'off' | 'live' | 'unavailable'
+export type DaemonBadge = 'off' | 'live' | 'unavailable'
 
-export interface SupervisorWorkerRow {
+export interface DaemonWorkerRow {
   short: string
   state: string
   model: string
@@ -17,14 +17,14 @@ export interface SupervisorWorkerRow {
   outcome?: string
 }
 
-export interface SupervisorView {
-  badge: SupervisorBadge
+export interface DaemonRows {
+  badge: DaemonBadge
   badgeLabel: string
-  supervisorLine: string | null
+  daemonLine: string | null
   dir: string | null
   degraded: string | null
   orphanWarning: string | null
-  workers: SupervisorWorkerRow[]
+  workers: DaemonWorkerRow[]
   breaker: string | null
   breakerOpen: boolean
   leases: number | null
@@ -52,12 +52,12 @@ const OUTCOME_ORDER = [
   'loop_stopped',
 ]
 
-export function deriveSupervisorRows(status: MercuryDaemonStatus | null): SupervisorView {
-  if (status === null || status.supervisor === null) {
+export function deriveDaemonRows(status: MercuryDaemonStatus | null): DaemonRows {
+  if (status === null || status.daemon === null) {
     return {
       badge: 'off',
       badgeLabel: 'no daemon running',
-      supervisorLine: null,
+      daemonLine: null,
       dir: null,
       degraded: null,
       orphanWarning: null,
@@ -72,10 +72,10 @@ export function deriveSupervisorRows(status: MercuryDaemonStatus | null): Superv
     }
   }
 
-  const s = status.supervisor
+  const s = status.daemon
   const reachable = status.controlReachable
   const stallMs = Math.round(getMaxTurnMs(flagEnv('MERCURY_WORKER_MAX_TURN_MS')) * 0.5)
-  const workers: SupervisorWorkerRow[] = (status.workers ?? []).map(w => {
+  const workers: DaemonWorkerRow[] = (status.workers ?? []).map(w => {
     const busy = w.busy === true
     const turnMs = w.turnElapsedMs
     return {
@@ -109,7 +109,7 @@ export function deriveSupervisorRows(status: MercuryDaemonStatus | null): Superv
   return {
     badge: reachable ? 'live' : 'unavailable',
     badgeLabel: reachable ? 'daemon live' : 'record present · socket dead',
-    supervisorLine: `pid ${s.pid} · v${s.version} · up ${s.uptimeSec}s`,
+    daemonLine: `pid ${s.pid} · v${s.version} · up ${s.uptimeSec}s`,
     dir: s.dir,
     degraded: status.degraded
       ? (status.degradedReason ?? 'a long-lived worker exhausted its respawn budget')

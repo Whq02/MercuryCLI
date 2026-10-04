@@ -135,8 +135,8 @@ async function main(): Promise<void> {
       !print.includes("from 'ink'") && !/\brender\(/.test(print) && !/splash/i.test(print),
     )
     check(
-      'F05: the print owner starts no daemon/supervisor and no multiplayer room host',
-      !/ensureDaemon|startDaemon|spawnDaemon|longLivedSupervisor|roomHost/.test(print),
+      'F05: the print owner starts no daemon and no multiplayer room host',
+      !/ensureDaemon|startDaemon|spawnDaemon|longLivedRespawn|roomHost/.test(print),
     )
     const cli = src('src/entrypoints/cli.tsx')
     check(

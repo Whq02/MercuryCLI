@@ -50,8 +50,8 @@ export function controlSockPath(): string {
   return join(tmpdir(), `hermes-daemon-${h}.sock`)
 }
 
-export function supervisorStatePath(): string {
-  return join(daemonDir(), 'supervisor.json')
+export function daemonStatePath(): string {
+  return join(daemonDir(), 'daemon.json')
 }
 
 export function controlKeyPath(): string {
@@ -59,7 +59,7 @@ export function controlKeyPath(): string {
 }
 
 
-export interface SupervisorState {
+export interface DaemonState {
   pid: number
   version: string
   origin: 'transient'
@@ -76,9 +76,9 @@ export interface SupervisorState {
   stoppingAt?: number
 }
 
-export async function readSupervisorState(): Promise<SupervisorState | null> {
+export async function readDaemonState(): Promise<DaemonState | null> {
   try {
-    const raw = await readFile(supervisorStatePath(), 'utf8')
+    const raw = await readFile(daemonStatePath(), 'utf8')
     const parsed = JSON.parse(raw)
     if (
       parsed &&
@@ -86,7 +86,7 @@ export async function readSupervisorState(): Promise<SupervisorState | null> {
       typeof parsed.pid === 'number' &&
       typeof parsed.startedAt === 'number'
     ) {
-      return parsed as SupervisorState
+      return parsed as DaemonState
     }
     return null
   } catch {
@@ -94,23 +94,23 @@ export async function readSupervisorState(): Promise<SupervisorState | null> {
   }
 }
 
-export async function writeSupervisorState(
-  state: SupervisorState,
+export async function writeDaemonState(
+  state: DaemonState,
 ): Promise<void> {
   try {
     if (!daemonHomeStands('the daemon record')) return
-    publishInDaemonHome('the daemon record', supervisorStatePath(), JSON.stringify(state, null, 2))
+    publishInDaemonHome('the daemon record', daemonStatePath(), JSON.stringify(state, null, 2))
   } catch (e) {
     logForDebugging(`[daemon] could not write the daemon record: ${e}`)
   }
 }
 
-export function markSupervisorStoppingSync(now = Date.now()): boolean {
+export function markDaemonStoppingSync(now = Date.now()): boolean {
   if (!daemonHomeStands('the daemon record')) return false
-  const path = supervisorStatePath()
-  let current: SupervisorState
+  const path = daemonStatePath()
+  let current: DaemonState
   try {
-    current = JSON.parse(readFileSync(path, 'utf8')) as SupervisorState
+    current = JSON.parse(readFileSync(path, 'utf8')) as DaemonState
   } catch {
     return false
   }
@@ -125,7 +125,7 @@ export function markSupervisorStoppingSync(now = Date.now()): boolean {
 
 export function ownsControlPlaneSync(): boolean {
   try {
-    const raw = JSON.parse(readFileSync(supervisorStatePath(), 'utf8')) as { pid?: number }
+    const raw = JSON.parse(readFileSync(daemonStatePath(), 'utf8')) as { pid?: number }
     return raw?.pid === process.pid
   } catch {
     return false
@@ -141,14 +141,14 @@ export async function reassertControlKey(key: string): Promise<void> {
   }
 }
 
-export async function clearSupervisorState(): Promise<void> {
+export async function clearDaemonState(): Promise<void> {
   if (!ownsControlPlaneSync()) return
-  await unlink(supervisorStatePath()).catch(() => {})
+  await unlink(daemonStatePath()).catch(() => {})
 }
 
-export async function clearDeadSupervisorRecords(): Promise<void> {
-  await unlink(supervisorStatePath()).catch(() => {})
-  await unlink(join(daemonDir(), 'supervisor.lock')).catch(() => {})
+export async function clearDeadDaemonRecords(): Promise<void> {
+  await unlink(daemonStatePath()).catch(() => {})
+  await unlink(join(daemonDir(), 'daemon.lock')).catch(() => {})
   await unlink(controlKeyPath()).catch(() => {})
 }
 
@@ -157,10 +157,10 @@ export async function clearControlKey(): Promise<void> {
   await unlink(controlKeyPath()).catch(() => {})
 }
 
-export function supervisorExitTeardownSync(reason: string, exitCode?: number): void {
+export function daemonExitTeardownSync(reason: string, exitCode?: number): void {
   const keptFiles: string[] = []
   if (ownsControlPlaneSync()) {
-    for (const p of [supervisorStatePath(), join(daemonDir(), 'supervisor.lock'), controlKeyPath()]) {
+    for (const p of [daemonStatePath(), join(daemonDir(), 'daemon.lock'), controlKeyPath()]) {
       try {
         unlinkSync(p)
       } catch (e) {
@@ -171,9 +171,9 @@ export function supervisorExitTeardownSync(reason: string, exitCode?: number): v
     }
   }
   recordSpawnExit({
-    kind: 'supervisor',
+    kind: 'daemon',
     event: 'exit',
-    id: 'supervisor',
+    id: 'daemon',
     pid: process.pid,
     reason: keptFiles.length > 0 ? `${reason} (sweep-failed: ${keptFiles.join(', ')})` : reason,
   })
@@ -450,22 +450,22 @@ function rpcOnce(outbound: DaemonRequest & { proto?: number; auth?: string }, ti
 }
 
 
-export function mintSupervisorIdentity(): string {
-  return `hermes-supervisor-${randomUUID()}`
+export function mintDaemonIdentity(): string {
+  return `hermes-daemon-${randomUUID()}`
 }
 
-function supervisorLockPath(): string {
-  return join(daemonDir(), 'supervisor.lock')
+function daemonLockPath(): string {
+  return join(daemonDir(), 'daemon.lock')
 }
 
-export interface SupervisorLock {
+export interface DaemonLock {
   release: () => Promise<void>
 }
 
-export async function acquireSupervisorLock(): Promise<SupervisorLock | null> {
+export async function acquireDaemonLock(): Promise<DaemonLock | null> {
   await mkdir(daemonDir(), { recursive: true })
-  const lockPath = supervisorLockPath()
-  const owner = mintSupervisorIdentity()
+  const lockPath = daemonLockPath()
+  const owner = mintDaemonIdentity()
   const res = await acquirePidLock(lockPath, owner, {
     liveness: 'assume-alive',
     extra: { id: owner, startedAt: Date.now() },

@@ -1,7 +1,7 @@
 
 import { basename, dirname } from 'node:path'
 import { closeSync, openSync, readSync } from 'node:fs'
-import { concourseDeltaPath, readSessionWorkers, type ConcourseWorkerRecordV1 } from '../../daemon/concourseSupervisor.js'
+import { concourseDeltaPath, readSessionWorkers, type ConcourseWorkerRecordV1 } from '../../daemon/concourseWorkers.js'
 import { recordToEntry } from '../../fabric/entryCodec.js'
 import { workerTranscriptPath } from './workerTranscript.js'
 import { shouldMintTitle } from './sessionNaming.js'

@@ -13,7 +13,7 @@ const ledger = join(dir, 'fixture-spawns.log')
 const note = (line: string): void => appendFileSync(ledger, `${process.pid} ${Date.now()} ${line}\n`)
 note('booted')
 
-const lock = await cs.acquireSupervisorLock()
+const lock = await cs.acquireDaemonLock()
 if (lock === null) {
   note('refused-lock')
   process.exit(0)
@@ -72,7 +72,7 @@ await new Promise<void>((resolve, reject) => {
   server.once('error', reject)
   server.listen(sockPath, () => resolve())
 })
-await cs.writeSupervisorState({
+await cs.writeDaemonState({
   pid: process.pid,
   version: '1.0.0',
   origin: 'transient',
@@ -92,14 +92,14 @@ async function leave(why: string): Promise<void> {
   if (leaving) return
   leaving = true
   note(`leaving ${why}`)
-  cs.markSupervisorStoppingSync?.()
+  cs.markDaemonStoppingSync?.()
   await new Promise<void>(resolve => server.close(() => resolve()))
   try {
     unlinkSync(sockPath)
   } catch {
     note('socket already gone')
   }
-  await cs.clearSupervisorState()
+  await cs.clearDaemonState()
   await lock!.release()
   note('left')
   process.exit(0)

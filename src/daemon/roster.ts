@@ -35,8 +35,8 @@ import {
   getMaxTurnMs,
   DEFAULT_LONG_LIVED_CONFIG,
   DEFAULT_HEALTHY_RESET_MS,
-  type LongLivedSupervisorConfig,
-} from './longLivedSupervisor.js'
+  type LongLivedRespawnConfig,
+} from './longLivedRespawn.js'
 import { calculateContextPercentages, getContextWindowForModel } from '../utils/context.js'
 import {
   buildCarryForwardNote,
@@ -77,7 +77,7 @@ const EXIT_DRAIN_BACKSTOP_MS = 2_000
 
 interface LongLivedSeat {
   spec: RunnerChildSpec
-  cfg: LongLivedSupervisorConfig
+  cfg: LongLivedRespawnConfig
   respawns: number
   lifetimeCrashes: number
   lastSpawnAt: number
@@ -141,7 +141,7 @@ export class TaskRoster {
 
   constructor(private readonly opts: RosterOptions) {}
 
-  getSupervisorState(): { degraded: boolean; reason: string } {
+  getRespawnState(): { degraded: boolean; reason: string } {
     return { ...this.degradedState }
   }
 
@@ -237,7 +237,7 @@ export class TaskRoster {
     ll.turnStartedAt = Date.now()
     const worker = short.startsWith('concourse-w')
     if (worker) {
-      void import('./concourseSupervisor.js')
+      void import('./concourseWorkers.js')
         .then(sup => sup.markConcourseWorkerDelivery(short))
         .catch(() => {})
     }
@@ -246,7 +246,7 @@ export class TaskRoster {
         ll.turnActive = false
         ll.turnStartedAt = undefined
         if (worker) {
-          void import('./concourseSupervisor.js')
+          void import('./concourseWorkers.js')
             .then(sup => sup.markConcourseWorkerTurnSettled(short))
             .catch(() => {})
         }
@@ -301,7 +301,7 @@ export class TaskRoster {
   registerLongLived(
     short: string,
     spec: RunnerChildSpec,
-    opts?: Partial<LongLivedSupervisorConfig>,
+    opts?: Partial<LongLivedRespawnConfig>,
     start?: { cwd: string; worktree?: string },
   ): { ok: boolean; pid?: number; error?: string } {
     const existing = this.handles.get(short)
@@ -576,7 +576,7 @@ export class TaskRoster {
     h.entry.pid = child.pid
     if (short.startsWith('concourse-w') && typeof child.pid === 'number') {
       const livePid = child.pid
-      void import('./concourseSupervisor.js')
+      void import('./concourseWorkers.js')
         .then(sup => sup.markConcourseWorkerRespawn(short, livePid))
         .catch(() => {})
     }
@@ -636,7 +636,7 @@ export class TaskRoster {
       ll.turnActive = false
       ll.turnStartedAt = undefined
       if (short.startsWith('concourse-w')) {
-        void import('./concourseSupervisor.js')
+        void import('./concourseWorkers.js')
           .then(sup => sup.markConcourseWorkerTurnSettled(short))
           .catch(() => {})
       }
@@ -688,7 +688,7 @@ export class TaskRoster {
       ll.turnActive = false
       ll.turnStartedAt = undefined
       if (short.startsWith('concourse-w')) {
-        void import('./concourseSupervisor.js')
+        void import('./concourseWorkers.js')
           .then(sup => sup.markConcourseWorkerTurnSettled(short))
           .catch(() => {})
       }
@@ -728,7 +728,7 @@ export class TaskRoster {
         ll.connection = undefined
       }
       if (ll.turnActive && short.startsWith('concourse-w')) {
-        void import('./concourseSupervisor.js')
+        void import('./concourseWorkers.js')
           .then(sup => sup.markConcourseWorkerTurnSettled(short))
           .catch(() => {})
       }
@@ -748,7 +748,7 @@ export class TaskRoster {
         h.entry.outcome = 'killed'
         ledgerExit('killed')
         if (short.startsWith('concourse-w')) {
-          void import('./concourseSupervisor.js')
+          void import('./concourseWorkers.js')
             .then(async sup => {
               sup.completeRequestedStop(short)
               await sup.completeFencedRetirement(short)
@@ -803,7 +803,7 @@ export class TaskRoster {
         const reason =
           detail ??
           `crashed mid-run (${exitWords})${keptText ? ` — ${keptText}` : ''}${respawning ? ' · resumed — the interrupted ask needs a re-send' : ''}`
-        void import('./concourseSupervisor.js')
+        void import('./concourseWorkers.js')
           .then(sup => sup.markConcourseWorkerCrash(short, { reason, respawning }))
           .catch(() => {})
       }

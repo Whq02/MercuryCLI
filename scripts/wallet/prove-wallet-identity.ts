@@ -268,7 +268,7 @@ const address = server.address()
 const BASE = `http://127.0.0.1:${typeof address === 'object' && address !== null ? address.port : 0}`
 const DEAD = 'http://127.0.0.1:1'
 Object.assign(process.env, {
-  MERCURY_CUSTOM_OAUTH_URL: BASE,
+  MERCURY_ANTHROPIC_OAUTH_BASE: BASE,
   ANTHROPIC_BASE_URL: BASE,
   MERCURY_OPENAI_AUTH_BASE: `${BASE}/openai`,
   MERCURY_OPENAI_API_BASE: DEAD,

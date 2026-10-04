@@ -148,11 +148,6 @@ async function collectLockSidecars(budget: LifecycleBudget): Promise<LifecycleCl
     roots.push(daemonDir())
   } catch {
   }
-  try {
-    const { adoptiveProjectPath } = await import('../utils/projectStoreAdoption.js')
-    const { getProjectRoot } = await import('../bootstrap/state.js')
-  } catch {
-  }
   for (const root of roots) {
     if (overBudget(budget)) return receipt
     for (const entry of await listDir(root)) {
@@ -296,7 +291,7 @@ export const LIFECYCLE_MANIFEST: readonly LifecycleClassDecl[] = [
   {
     id: 'concourse-worker-records',
     lane: 'semantic-state',
-    owner: 'src/daemon/concourseSupervisor.ts',
+    owner: 'src/daemon/concourseWorkers.ts',
     root: '<daemon>/concourse-workers.json',
     kind: 'semantic',
     liveReference:
@@ -305,7 +300,7 @@ export const LIFECYCLE_MANIFEST: readonly LifecycleClassDecl[] = [
     retention:
       'terminal records stay as the resumable-session index (re-admission rides --resume); the file is one bounded JSON keyed by the five worker slots',
     action: 'retain',
-    prover: 'scripts/notifications/prove-concourse-supervisor.ts',
+    prover: 'scripts/notifications/prove-concourse-daemon.ts',
   },
   {
     id: 'concourse-dispatch-ledger',
@@ -361,7 +356,7 @@ export const LIFECYCLE_MANIFEST: readonly LifecycleClassDecl[] = [
   {
     id: 'concourse-collision-evidence',
     lane: 'semantic-state',
-    owner: 'src/daemon/concourseSupervisor.ts',
+    owner: 'src/daemon/concourseWorkers.ts',
     root: '<daemon>/concourse-collisions.json',
     kind: 'semantic',
     liveReference:
@@ -492,7 +487,7 @@ export const LIFECYCLE_MANIFEST: readonly LifecycleClassDecl[] = [
     id: 'daemon-records',
     lane: 'daemon-reconciliation',
     owner: 'src/daemon/reconcileRecords.ts',
-    root: '<daemon dir>/supervisor.json · supervisor.lock · control.key',
+    root: '<daemon dir>/daemon.json · daemon.lock · control.key',
     kind: 'lock',
     liveReference: 'daemon pid alive (conservative on PID reuse — G13)',
     terminal: 'confirmed-dead daemon',

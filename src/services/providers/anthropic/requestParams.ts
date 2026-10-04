@@ -28,7 +28,7 @@ import {
   getSmallFastModel,
 } from '../../../utils/model/model.js'
 import { jsonStringify } from '../../../utils/slowOperations.js'
-import { currentLimits } from '../../claudeAiLimits.js'
+import { currentLimits } from '../../anthropicLimits.js'
 import { getAnthropicClient } from '../../api/client.js'
 import { CannotRetryError, withRetry } from '../../api/withRetry.js'
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray

@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { CONFIG_HOME, RUNTIME_CWD, SID, cleanupScenario, encodeFixtureTranscript, scenario } from '../ui/renderScenarios.ts'
 import { gridToPng } from '../ui/gridToPng.ts'
 import { getProjectDir, projectSlug } from '../../src/utils/sessionStoragePortable.ts'
-import { readSessionWorkers } from '../../src/daemon/concourseSupervisor.ts'
+import { readSessionWorkers } from '../../src/daemon/concourseWorkers.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 function reapRenderDaemonSessions(): void {

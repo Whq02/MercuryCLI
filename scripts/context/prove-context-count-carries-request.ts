@@ -7,9 +7,9 @@ import { join } from 'node:path'
 
 for (const key of [
   'https_proxy', 'HTTPS_PROXY', 'http_proxy', 'HTTP_PROXY',
-  'ANTHROPIC_AUTH_TOKEN', 'CLAUDE_CODE_OAUTH_TOKEN', 'MERCURY_OAUTH_TOKEN',
+  'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN',
   'MERCURY_PROVIDER_HEADERS', 'MERCURY_WIRE_DUMP', 'MERCURY_BARE', 'MERCURY_MODEL',
-  'MERCURY_EFFORT_LEVEL', 'CLAUDE_EFFORT', 'MERCURY_TOOL_SEARCH',
+  'MERCURY_EFFORT_LEVEL', 'MERCURY_TOOL_SEARCH',
 ]) delete process.env[key]
 delete process.env.NODE_ENV
 delete process.env.ANTHROPIC_BASE_URL

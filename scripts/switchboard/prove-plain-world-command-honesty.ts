@@ -99,7 +99,7 @@ try {
       }
     }
   }
-  const supFile = join(daemonDir, 'supervisor.json')
+  const supFile = join(daemonDir, 'daemon.json')
   if (existsSync(supFile)) {
     const pid = (JSON.parse(readFileSync(supFile, 'utf8')) as { pid?: number }).pid
     if (typeof pid === 'number' && pid > 0) { try { process.kill(pid, 'SIGTERM') } catch {  } }

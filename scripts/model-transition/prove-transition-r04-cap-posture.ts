@@ -113,7 +113,7 @@ section('§D registry truth')
 section('§E the full journey, both postures — warning → offer/auto → continue → reset → return')
 {
   process.env.MERCURY_MOCK_LIMITS = '1'
-  const limits = await import('../../src/services/claudeAiLimits.ts')
+  const limits = await import('../../src/services/anthropicLimits.ts')
   const { capHandoffState, noteCapHandoff, noteCapReturn } = await import(
     '../../src/services/capFailover.ts'
   )

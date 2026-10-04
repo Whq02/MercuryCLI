@@ -60,7 +60,7 @@ const records: ProcessSweepRecords = {
   configHome: '/Users/op/pre27-air/pre27/field-home/config',
   drainMs: 600_000,
   heartbeatAllowanceMs: 90_000,
-  planes: [{ daemonDir: '/Users/op/pre27-air/pre27/field-home/config/daemon', supervisor: null, supervisorReadable: true, answer: null, runners: null }],
+  planes: [{ daemonDir: '/Users/op/pre27-air/pre27/field-home/config/daemon', daemon: null, daemonReadable: true, answer: null, runners: null }],
   registrations: [],
   memory: null,
   bundle: OWN_BUNDLE,

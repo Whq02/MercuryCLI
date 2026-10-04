@@ -14,7 +14,7 @@ enableConfigs()
 const { setMockRateLimitScenario, shouldProcessMockLimits, getMockHeaders } = await import(
   '../../src/services/mockRateLimits.ts'
 )
-const limits = await import('../../src/services/claudeAiLimits.ts')
+const limits = await import('../../src/services/anthropicLimits.ts')
 
 let failed = 0
 function check(label: string, cond: boolean, detail = ''): void {

@@ -67,9 +67,7 @@ function evidenceRecords(): Array<{ scope: string; coverage: string; ok: boolean
     const verifyRoot = join(scratch, 'config-home', 'verify')
     for (const entry of readdirSync(verifyRoot)) candidates.push(join(verifyRoot, entry, 'evidence.json'))
   } catch {  }
-  for (const home of ['.claude', '.mercury']) {
-    candidates.push(join(scratch, home, 'verify', 'evidence.json'))
-  }
+  candidates.push(join(scratch, '.mercury', 'verify', 'evidence.json'))
   for (const p of candidates) {
     if (existsSync(p)) {
       try {
@@ -109,7 +107,7 @@ writeFileSync(join(scratch, 'lib/alpha/a.txt'), 'alpha v1\n')
 writeFileSync(join(scratch, 'lib/beta/b.txt'), 'beta v1\n')
 writeFileSync(join(scratch, 'lib/wide.txt'), 'wide v1\n')
 writeFileSync(join(scratch, 'docs/readme.md'), 'ignored\n')
-writeFileSync(join(scratch, '.gitignore'), '.claude/\n.mercury/\nmarkers/\nconfig-home/\nproof-home/\n')
+writeFileSync(join(scratch, '.gitignore'), '.mercury/\nmarkers/\nconfig-home/\nproof-home/\n')
 
 sh('git init -q')
 sh('git config user.email slice-e2e@proof.local && git config user.name slice-e2e')

@@ -22,7 +22,6 @@ console.log('============================================================')
 for (const key of [
   'ANTHROPIC_API_KEY',
   'ANTHROPIC_AUTH_TOKEN',
-  'CLAUDE_CODE_OAUTH_TOKEN',
   'OPENAI_API_KEY',
   'ZAI_API_KEY',
   'MERCURY_USAGE_SEED',
@@ -39,7 +38,7 @@ process.env.MERCURY_OPENAI_AUTH_BASE = 'https://fixture.invalid/oauth'
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 
-const limits = await import('../../src/services/claudeAiLimits.js')
+const limits = await import('../../src/services/anthropicLimits.js')
 
 const WINDOWS = {
   five_hour: { utilization: 42, resets_at: new Date(Date.now() + 3600_000).toISOString() },

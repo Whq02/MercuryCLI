@@ -47,7 +47,7 @@ export type {
 }
 export { SandboxViolationStore, SandboxRuntimeConfigSchema }
 
-const CONFIG_HOMES = ['.mercury', '.claude']
+const CONFIG_HOMES = ['.mercury']
 const BARE_REPO_ENTRIES = ['HEAD', 'objects', 'refs', 'hooks', 'config']
 const SETTINGS_FILES = ['settings.json', 'settings.local.json']
 const SANDBOX_VIOLATION_MONITOR = true

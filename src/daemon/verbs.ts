@@ -8,7 +8,7 @@ export type DaemonVerb =
   | { kind: 'restart' }
   | { kind: 'help' }
   | { kind: 'unknown'; word: string }
-  | { kind: 'unknown-flag'; verb: 'stop'; word: string }
+  | { kind: 'unknown-flag'; verb: 'run' | 'status' | 'stop' | 'restart'; word: string }
 
 export const DAEMON_USAGE = [
   'Usage: mercury daemon [options] [command]',
@@ -49,18 +49,22 @@ export function looksLikeDirectoryArg(word: string, isDir: (p: string) => boolea
   return isDir(word)
 }
 
+const HELP_WORDS = new Set(['help', '--help', '-h'])
+
 export function parseDaemonVerb(args: readonly string[], isDir: (p: string) => boolean = defaultIsDir): DaemonVerb {
   const first = args[0]
   if (first === undefined) return { kind: 'run', args: [] }
+  const second = args[1]
+  if (second !== undefined && HELP_WORDS.has(second) && (first === 'run' || first === 'status' || first === 'stop' || first === 'restart')) return { kind: 'help' }
   switch (first) {
     case 'run':
-      return { kind: 'run', args: args.slice(1) }
+      return second !== undefined && second.startsWith('-') ? { kind: 'unknown-flag', verb: 'run', word: second } : { kind: 'run', args: args.slice(1) }
     case 'status':
-      return { kind: 'status' }
+      return second === undefined ? { kind: 'status' } : { kind: 'unknown-flag', verb: 'status', word: second }
     case 'stop':
-      return args.length === 1 ? { kind: 'stop' } : { kind: 'unknown-flag', verb: 'stop', word: args[1] ?? '' }
+      return second === undefined ? { kind: 'stop' } : { kind: 'unknown-flag', verb: 'stop', word: second }
     case 'restart':
-      return { kind: 'restart' }
+      return second === undefined ? { kind: 'restart' } : { kind: 'unknown-flag', verb: 'restart', word: second }
     case 'help':
     case '--help':
     case '-h':
@@ -103,12 +107,12 @@ export function staleStopVerdict(recordStartedAtMs: number, liveTokenEpochMs: nu
   return liveTokenEpochMs > recordStartedAtMs + START_TOKEN_SKEW_MS ? 'sweep-recycled' : 'alive-refuse'
 }
 
-export type SupervisorIdentityVerdict = 'same-process' | 'not-recorded-process' | 'unknown'
+export type DaemonIdentityVerdict = 'same-process' | 'not-recorded-process' | 'unknown'
 
-export function supervisorRecordIdentity(
+export function daemonRecordIdentity(
   rec: { startedAt: number; startToken?: string | null },
   liveToken: string | null,
-): SupervisorIdentityVerdict {
+): DaemonIdentityVerdict {
   if (typeof rec.startToken === 'string' && rec.startToken !== '') {
     if (liveToken === null) return 'unknown'
     return liveToken === rec.startToken ? 'same-process' : 'not-recorded-process'

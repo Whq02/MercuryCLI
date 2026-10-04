@@ -69,7 +69,7 @@ assert.match(attachment, /usageWarningNoticeText\(attachment\.text, attachment\.
 console.log('PASS warning tiers, words-only postures and one context notice per tier')
 
 console.log('RED on the base: the bare 36% latch beats the quiet meter and the time-relative table remains')
-const { computeNewLimitsFromHeaders } = await import('../../src/services/claudeAiLimits.ts')
+const { computeNewLimitsFromHeaders } = await import('../../src/services/anthropicLimits.ts')
 for (const pct of [36, 81]) {
   const header = {
     ...limits,
@@ -98,7 +98,7 @@ assert.equal(computeNewLimitsFromHeaders(new Headers({
   'anthropic-ratelimit-unified-reset': String(reset),
   'anthropic-ratelimit-unified-representative-claim': 'seven_day',
 })).status, 'allowed')
-const decoder = readFileSync(new URL('../../src/services/claudeAiLimits.ts', import.meta.url), 'utf8')
+const decoder = readFileSync(new URL('../../src/services/anthropicLimits.ts', import.meta.url), 'utf8')
 assert.ok(!decoder.includes('TIME_RELATIVE_CONFIGS') && !decoder.includes('elapsedFraction'))
 console.log('PASS the card and strip follow the number; a bare warning is quiet')
 
@@ -181,7 +181,7 @@ console.log('PASS the tier key survives the existing facts codec')
 console.log('the seam speaks each weekly tier through its usage setter')
 process.env.MERCURY_MOCK_LIMITS = '1'
 const mock = await import('../../src/services/mockRateLimits.ts')
-const { extractQuotaStatusFromHeaders } = await import('../../src/services/claudeAiLimits.ts')
+const { extractQuotaStatusFromHeaders } = await import('../../src/services/anthropicLimits.ts')
 let mockReset: string | undefined
 for (const pct of [79, 80, 85, 90, 100]) {
   mock.setMockUsagePercent('7d', pct)

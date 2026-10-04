@@ -231,9 +231,9 @@ import { usageCarryWords, usageForProvider } from '../../services/providers/prov
 import { slotSeatView, slotSwitchTransient, switchActiveSlot } from '../../services/providers/slotSwitch.js'
 import { paintSlotSwitchReceipt } from '../../utils/model/slotSwitchReceipt.js'
 import { getOpenaiObservedVersion, openaiLimitWindow, subscribeOpenaiObserved } from '../../services/providers/openai/openaiLimitState.js'
-import { getUsageRecordVersion, subscribeUsageRecord } from '../../services/claudeAiLimits.js'
+import { getUsageRecordVersion, subscribeUsageRecord } from '../../services/anthropicLimits.js'
 import { SlotOfferCard } from '../SlotOfferCard.js'
-import { useClaudeAiLimits } from '../../services/claudeAiLimitsHook.js'
+import { useAnthropicLimits } from '../../services/anthropicLimitsHook.js'
 import { formatResetTime } from '../../utils/format.js'
 import { AMBER } from '../mercuryPalette.js'
 import type { Key } from '../../ink/events/input-event.js'
@@ -655,7 +655,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     resetText: string | null
     carryWords: string | null
   } | null>(null)
-  const limits = useClaudeAiLimits()
+  const limits = useAnthropicLimits()
   const capHandoffIntentRef = useRef<CapHandoffNote | null>(null)
   const settleCapHandoffIntent = (landed: boolean): void => {
     const intent = capHandoffIntentRef.current

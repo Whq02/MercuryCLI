@@ -8,7 +8,7 @@ import { checker, scratchRoot } from '../engine-durability/harness.ts'
 import type { RunnerChildSpec } from '../../src/daemon/headlessRun.ts'
 
 const t = checker()
-const root = scratchRoot('concourse-supervisor')
+const root = scratchRoot('concourse-workers')
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config.ts')
 enableConfigs()
 saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: 0, allowed: true, recommendedSeats: 5 } }))
@@ -27,7 +27,7 @@ const {
   readSessionWorkers,
   reconcileConcourseWorkers,
   settleConcourseWorker,
-} = await import('../../src/daemon/concourseSupervisor.js')
+} = await import('../../src/daemon/concourseWorkers.js')
 
 t.section('§1 — the pure seat-lease fold (the machine cap; line 6: no artificial ceiling)')
 {
@@ -191,7 +191,7 @@ t.section('§3 — the admission handler over a fake roster port')
     'subset',
   )
   const summary = listConcourseWorkers(liveShorts, dir)
-  t.check('the bounded supervisor summary answers five live workers', summary.length === 5, String(summary.length))
+  t.check('the bounded daemon summary answers five live workers', summary.length === 5, String(summary.length))
 }
 
 t.section('§4 — settle + crash reconciliation (exactly-once, G13-conservative, rows KEPT)')
@@ -239,7 +239,7 @@ t.section('§4 — settle + crash reconciliation (exactly-once, G13-conservative
 t.section('§4b — the crash fact clears on the operator\'s own acts')
 {
   const dir = join(root, 'daemon')
-  const { markConcourseWorkerCrash, markConcourseWorkerDelivery } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { markConcourseWorkerCrash, markConcourseWorkerDelivery } = await import('../../src/daemon/concourseWorkers.js')
   const ids = Object.keys(readSessionWorkers(dir)).filter(id => readSessionWorkers(dir)[id]!.endedAt === undefined)
   const subject = ids[0]!
   markConcourseWorkerCrash(subject, { reason: 'crashed mid-run (exit 1)', respawning: true }, dir)
@@ -259,7 +259,7 @@ t.section('§4b — the crash fact clears on the operator\'s own acts')
 t.section('§4c — a stale respawn promise converges at the reconcile (the daemon died mid-episode)')
 {
   const dir = join(root, 'daemon')
-  const { markConcourseWorkerCrash, markConcourseWorkerDelivery } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { markConcourseWorkerCrash, markConcourseWorkerDelivery } = await import('../../src/daemon/concourseWorkers.js')
   const ids = Object.keys(readSessionWorkers(dir)).filter(id => readSessionWorkers(dir)[id]!.endedAt === undefined)
   const subject = ids[0]!
   markConcourseWorkerCrash(subject, { reason: 'crashed mid-run (exit 1) · resumed — the interrupted ask needs a re-send', respawning: true }, dir)
@@ -285,7 +285,7 @@ t.section('§4c — a stale respawn promise converges at the reconcile (the daem
 
 t.section('§pause/resume — the delivery valve record half')
 {
-  const { pauseConcourseWorker, resumeConcourseWorker } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { pauseConcourseWorker, resumeConcourseWorker } = await import('../../src/daemon/concourseWorkers.js')
   const { writeFileSync, mkdirSync } = await import('node:fs')
   const { join: j } = await import('node:path')
   const dir = j(root, 'daemon')
@@ -381,4 +381,4 @@ t.section('§worktree admission — isolated claims carve REAL worktrees')
   )
 }
 
-t.finish('prove-concourse-supervisor')
+t.finish('prove-concourse-workers')

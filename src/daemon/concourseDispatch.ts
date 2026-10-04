@@ -17,8 +17,8 @@ import {
   type ConcourseAdmitRequest,
   type ConcourseAdmitResult,
   type ConcourseMoveV1,
-} from './concourseSupervisor.js'
-import type { ConcourseReviveOutcome } from './concourseSupervisor.js'
+} from './concourseWorkers.js'
+import type { ConcourseReviveOutcome } from './concourseWorkers.js'
 
 type ConcourseReviveRefusal = Extract<ConcourseReviveOutcome, { outcome: 'refused' }>['reason']
 import { workspaceKindOf } from './concourseWorktrees.js'

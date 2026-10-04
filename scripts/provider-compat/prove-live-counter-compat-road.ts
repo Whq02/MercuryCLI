@@ -14,7 +14,7 @@ delete process.env.MERCURY_HOME
 
 const { onSeatRow } = await import('../../src/daemon/sessionSeat.ts')
 const { readSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
 const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
 const { compatSlotLaneProfile } = await import('../../src/services/providers/openaicompat/compatCallModel.ts')
 const { streamCompatChat } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')

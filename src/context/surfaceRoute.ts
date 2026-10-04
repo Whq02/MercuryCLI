@@ -456,8 +456,8 @@ export async function resolveInitialSurface(
   if (policy === 'always') return settle(concourse, 'always')
   let live = 0
   try {
-    const supervisor = await import('../daemon/concourseSupervisor.js')
-    live = supervisor.countLiveConcourseWorkers(opts.recordsDir)
+    const workers = await import('../daemon/concourseWorkers.js')
+    live = workers.countLiveConcourseWorkers(opts.recordsDir)
   } catch {
     live = 0
   }

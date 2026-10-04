@@ -70,7 +70,7 @@ console.log('B — the one-connector law (never a second host)')
   const store = read('src/components/concourse/splitView.ts')
   check('B1 the chat pane reads THE focused slot', pane.includes('subscribeFocusedSessionConnector') && pane.includes('getFocusedSessionConnector'))
   check('B2 the chat pane paints through the landed SessionMirror (the real pipeline)', pane.includes('<SessionMirror'))
-  const forbidden = ['hopIntoSession', 'bornSession', 'attachedSession', 'daemonControlRpc', 'concourseSupervisor', 'setFocusedSessionConnector']
+  const forbidden = ['hopIntoSession', 'bornSession', 'attachedSession', 'daemonControlRpc', 'concourseWorkers', 'setFocusedSessionConnector']
   check(
     'B3 the pane mints nothing: no hop door, no birth door, no attach ledger, no daemon RPC, no slot write',
     forbidden.every(name => !pane.includes(name)),

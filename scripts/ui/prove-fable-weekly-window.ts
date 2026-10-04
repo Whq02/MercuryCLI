@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { getRateLimitDisplayName } from '../../src/services/claudeAiLimits.js'
+import { getRateLimitDisplayName } from '../../src/services/anthropicLimits.js'
 import { getRateLimitMessage } from '../../src/services/rateLimitMessages.js'
 
 let failures = 0

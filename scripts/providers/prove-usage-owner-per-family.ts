@@ -383,7 +383,7 @@ section('§8 the first-party subscription: the extra-usage figure rides the one 
   )
   const { dropCredentialMemos } = await import('../../src/utils/auth.js')
   const { resetWalletEntriesMemo } = await import('../../src/services/wallet/wallet.js')
-  const limits = await import('../../src/services/claudeAiLimits.ts')
+  const limits = await import('../../src/services/anthropicLimits.ts')
   const reader = await import('../../src/services/providers/anthropic/anthropicUsageState.ts')
   dropCredentialMemos()
   resetWalletEntriesMemo()

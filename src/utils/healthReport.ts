@@ -1,7 +1,6 @@
 
 import { getHistoryFlushHealth, historyEverFlushedThisProcess } from '../history.js'
 import { readBootAttemptResidue } from '../substrate/bootBeacon.js'
-import { adoptiveProjectPath } from './projectStoreAdoption.js'
 import { isReadOnlyDiagnostic } from './diagnosticReadOnly.js'
 import { projectHomeLeftovers, projectHomeStore } from './projectHomeStores.js'
 import { MERCURY_PROJECT_DIR } from './projectConfig.js'
@@ -9,7 +8,7 @@ import { homeDirectory, isHomeDirectory, projectScopePathspec, USER_ROOT_NAMES }
 import { findGitRoot, gitProbeNote } from './git.js'
 import { settleChildRun } from './childSettle.js'
 import { subprocessEnv } from './subprocessEnv.js'
-import { adoptiveProjectLocalPath } from '../services/projectLocal/paths.js'
+import { projectLocalPath } from '../services/projectLocal/paths.js'
 import { workflowRunsRoot } from '../tools/WorkflowTool/runManifest.js'
 import { execFile, spawn } from 'node:child_process'
 import chalk from 'chalk'
@@ -196,7 +195,7 @@ const QUIT_FIRST_WORDS = 'quit every Mercury window and its background process (
 async function mercuryHoldersOf(repo: string): Promise<{ runners: string[]; indexLockAgeS: number | null; objectsInFlight: number }> {
   const runners: string[] = []
   try {
-    const { readSessionWorkers } = await import('../daemon/concourseSupervisor.js')
+    const { readSessionWorkers } = await import('../daemon/concourseWorkers.js')
     for (const rec of Object.values(readSessionWorkers())) {
       if (rec.endedAt !== undefined || rec.pid === undefined || !pidAlive(rec.pid)) continue
       let ws: string
@@ -411,7 +410,7 @@ export function lastCertPath(): string {
 }
 
 export function gateVerdictPath(): string {
-  return join(adoptiveProjectPath(healthStateRoot(), 'gate'), 'verdict.json')
+  return join(projectLocalPath(healthStateRoot(), 'gate'), 'verdict.json')
 }
 
 function readTsVersion(tsPath: string): string | null {
@@ -1545,7 +1544,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             if (d.state === 'live') {
               const { daemonHandshakeEvidence, daemonSkewLine, handshakeDaemon } = await import('../daemon/handshake.js')
               const hs = await handshakeDaemon({ timeoutMs: 1000 })
-              const evidence = `supervisor.json: ${d.reason} · ${daemonHandshakeEvidence(hs)}`
+              const evidence = `daemon.json: ${d.reason} · ${daemonHandshakeEvidence(hs)}`
               if (hs.line !== null) return { status: 'warn', evidence, fix: hs.line, link: '/daemon' }
               const skew = daemonSkewLine(hs)
               if (skew !== null) return { status: 'warn', evidence, fix: skew, link: '/daemon' }
@@ -1568,7 +1567,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               }
               return {
                 status: 'warn',
-                evidence: `supervisor.json: ${d.reason}`,
+                evidence: `daemon.json: ${d.reason}`,
                 fix: `Run \`${binaryName()} daemon\` to restart, or clear the stale record.`,
                 link: '/daemon',
               }
@@ -1939,12 +1938,12 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const { existsSync, readdirSync } = await import('node:fs')
             const { join } = await import('node:path')
             const { getMercuryHome } = await import('./envUtils.js')
-            const { adoptiveProjectPath } = await import('./projectStoreAdoption.js')
+            const { projectLocalPath } = await import('../services/projectLocal/paths.js')
             const { getOriginalCwd } = await import('../bootstrap/state.js')
             const userDir = join(getMercuryHome(), 'agents')
             let projectDir = ''
             try {
-              projectDir = adoptiveProjectPath(getOriginalCwd(), 'agents')
+              projectDir = projectLocalPath(getOriginalCwd(), 'agents')
             } catch {
             }
             const countMd = (dir: string): number | null => {

@@ -22,7 +22,6 @@ for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) {
   process.env[spelling] = home
 }
 for (const key of [
-  'CLAUDE_CODE_OAUTH_TOKEN',
   'OPENAI_API_KEY',
   'MERCURY_MODEL',
   'OPENROUTER_API_KEY',
@@ -190,7 +189,7 @@ section('§5 the road census — every door reaches a capability owner; a new ju
     ['src/components/BootSplashScreen.tsx', "the boot face's New Session", 'bornSession'],
     ['src/services/switchboard/hopIntoSession.ts', '/clear', 'bornSession('],
     ['src/services/switchboard/bornSession.ts', 'the birth door reaches the daemon admission', "op: 'sessionAdmit'"],
-    ['src/daemon/concourseSupervisor.ts', 'the daemon admission', 'validateWorkerModelChoice('],
+    ['src/daemon/concourseWorkers.ts', 'the daemon admission', 'validateWorkerModelChoice('],
     ['src/daemon/concourseDispatch.ts', 'the birth preflight', 'validateWorkerModelChoice('],
     ['src/daemon/crewSpawn.ts', 'the crew seat', 'validateWorkerModelChoice('],
     ['src/daemon/controlServer.ts', 'the seat reconfigure', 'validateWorkerModelChoice('],

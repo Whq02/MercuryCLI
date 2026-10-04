@@ -18,7 +18,7 @@ const retry = await import('../../src/services/api/withRetry.js')
 const errors = await import('../../src/services/api/errors.js')
 const { APIError } = await import('../../src/services/api/sdkErrors.js')
 const auth = await import('../../src/utils/auth.js')
-const { CLAUDE_AI_OAUTH_SCOPES } = await import('../../src/constants/oauth.js')
+const { SUBSCRIPTION_OAUTH_SCOPES } = await import('../../src/constants/oauth.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -78,7 +78,7 @@ section('W4 — the retry decision on the subscription road')
     accessToken: 'at-fixture',
     refreshToken: 'rt-fixture',
     expiresAt: Date.now() + 3_600_000,
-    scopes: [...CLAUDE_AI_OAUTH_SCOPES],
+    scopes: [...SUBSCRIPTION_OAUTH_SCOPES],
     subscriptionType: 'max',
     rateLimitTier: 'default_claude_max_5x',
   } as never)

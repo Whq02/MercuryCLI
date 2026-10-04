@@ -302,8 +302,8 @@ try {
     check('the owner watch has no probe on a cadence of its own (the token is read again only when liveness moved)', !/t - facts\.lastProbeAt >= floorMs/.test(ow) && /cameBack/.test(ow))
     const main = read(join(REPO, 'src/daemon/main.ts'))
     check('the handover lock beat claims only when the lock holder is gone (a kill(0) read, no process)', /if \(lockHeldByLivePidSync\(\) !== null\) return/.test(main))
-    check('the successor lock wait re-decides on kill(0) facts instead of claiming every 100 ms', /while \(decision\.road === 'wait-lock' && Date\.now\(\) < deadline\)/.test(main) && !/while \(!supervisorLock && Date\.now\(\) < deadline\)/.test(main))
-    const sup = read(join(REPO, 'src/daemon/concourseSupervisor.ts'))
+    check('the successor lock wait re-decides on kill(0) facts instead of claiming every 100 ms', /while \(decision\.road === 'wait-lock' && Date\.now\(\) < deadline\)/.test(main) && !/while \(!daemonLock && Date\.now\(\) < deadline\)/.test(main))
+    const sup = read(join(REPO, 'src/daemon/concourseWorkers.ts'))
     check('the reconcile never probes a runner the daemon itself rosters or holds', /const pidLive = rosterLive \|\| workerPidAlive\(rec\)/.test(sup) && /rosteredOrHeld\(\)/.test(main))
   }
 } finally {

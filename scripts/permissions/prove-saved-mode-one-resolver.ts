@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/permissions/permissionSetup.ts src/daemon/concourseSupervisor.ts src/daemon/headlessRun.ts
+// gate-watch: src/utils/permissions/permissionSetup.ts src/daemon/concourseWorkers.ts src/daemon/headlessRun.ts
 // gate-watch: src/daemon/controlSocket.ts src/daemon/protocol.ts src/services/engine-connector/seatProjections.ts
 // gate-watch: scripts/lib/firstRunSeed.ts
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
@@ -63,7 +63,7 @@ type Seam = { seat: string; argv: string[]; direct: { mode: string; notification
 function seamIn(name: string, settings: unknown): Seam | null {
   const home = homeWith(`seam-${name}`, settings)
   const src = `
-    import { seatInitialPermissionMode } from ${JSON.stringify(join(ROOT, 'src/daemon/concourseSupervisor.ts'))}
+    import { seatInitialPermissionMode } from ${JSON.stringify(join(ROOT, 'src/daemon/concourseWorkers.ts'))}
     import { headlessPermissionArgv } from ${JSON.stringify(join(ROOT, 'src/daemon/headlessRun.ts'))}
     import { initialPermissionModeFromCLI } from ${JSON.stringify(join(ROOT, 'src/utils/permissions/permissionSetup.ts'))}
     const seat = seatInitialPermissionMode(undefined)
@@ -144,7 +144,7 @@ if (!existsSync(BIN)) {
   section('§3 the seat door on the built product: a daemon-admitted session under each saved word')
   const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
   const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
-  const { readSessionWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
   const { readSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
   const rpc = (request: object, timeoutMs = 10_000) => daemonControlRpc(request as never, { timeoutMs })
   type Seat = { record?: string; consent?: true; runner?: string; spoke: boolean; log: string }

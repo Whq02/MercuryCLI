@@ -189,6 +189,9 @@ const homeSweep = [...top].filter(([k]) => k.startsWith('tui: lstat') && k.inclu
 check('§5 no lstat sweep of the config home in the TUI at idle beyond a root-level write (the settings watcher ignores by path)', perMin(homeSweep) <= 60, `${perMin(homeSweep)}/min`)
 const presenceRenames = [...top].filter(([k]) => k.startsWith('tui: renameSync') && k.includes('/presence/')).reduce((n, [, v]) => n + v, 0)
 check('§6 the retired presence estate writes nothing (no rename under a presence/ dir)', perMin(presenceRenames) === 0, `${perMin(presenceRenames)}/min`)
+const OTHER_TOOL_DIR = ['.cla', 'ude'].join('')
+const otherToolProbes = [...top].filter(([k]) => k.includes(`${FOLDER}/${OTHER_TOOL_DIR}`)).reduce((n, [, v]) => n + v, 0)
+check('§7 no file operation at idle names another tool\'s folder under the project (every probe is of Mercury\'s own home)', otherToolProbes === 0, `${otherToolProbes} over the idle window`)
 
 console.log(`\n${failures === 0 ? '✅ STORE POLL BUDGET: green' : `❌ ${failures} FAILURE(S)`}`)
 process.exit(failures === 0 ? 0 : 1)

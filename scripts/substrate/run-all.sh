@@ -16,7 +16,7 @@
 # gate-watch: src/commands/effectiveCatalogue.ts src/commands/feedback/index.ts src/commands/health/index.ts
 # gate-watch: src/commands/login/index.ts src/commands/logout/index.ts src/components/*
 # gate-watch: src/components/mercury-ui/components.tsx
-# gate-watch: src/components/mercury-ui/parity/DaemonSupervisorView.tsx
+# gate-watch: src/components/mercury-ui/parity/DaemonView.tsx
 # gate-watch: src/components/messages/SystemTextMessage.tsx src/context/stats.tsx src/entrypoints/mcp.ts
 # gate-watch: src/prompt/behaviourContract.ts src/prompt/mercuryContract.ts
 # gate-watch: src/screens/Chat.tsx src/services/compact/* src/services/coordination/coordinationService.ts
@@ -93,7 +93,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shutdown-authority.ts" || { __rc=$
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-compaction-trace.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-compaction-trace.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-evolution-ledger.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-evolution-ledger.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-snapshot.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-snapshot.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-supervisor-view.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-supervisor-view.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-view.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-view.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-reconcile.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-reconcile.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-handover-window-owner.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-handover-window-owner.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-ledger-flush-death.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-ledger-flush-death.ts" "$__t" "$__rc"

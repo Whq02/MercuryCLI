@@ -23,11 +23,11 @@ const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
 const snapshotMod = await import('../../src/services/concourse/concourseSnapshot.ts')
 const { buildConcourseSnapshot, bootScopedSeedOverrides, readConcourseSeedOverrides, resolveHarnessGround, writeConcourseSeedOverride } = snapshotMod
-const supervisor = await import('../../src/daemon/concourseSupervisor.ts')
+const workers = await import('../../src/daemon/concourseWorkers.ts')
 const { applyHarnessGround } = await import('../../src/services/switchboard/harnessGround.ts')
 const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
 const { getCwd } = await import('../../src/utils/cwd.ts')
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseSupervisor.ts'
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
 
 const NOW = Date.now()
 const recordsDir = join(SCRATCH, 'daemon')
@@ -115,32 +115,32 @@ console.log('§1 — SWITCHING NEVER TOUCHES A SESSION: a switch is a change of 
   seedChat(P_B, S_B1, 'beta one', 9 * 60_000)
   seedWorkers([liveRecord('concourse-w1', S_A1, P_A), liveRecord('concourse-w2', S_A2, P_A, { pausedAt: NOW - 60_000, pausedBy: 'operator' }), liveRecord('concourse-w3', S_B1, P_B)])
   await switchTo(P_A)
-  const before = { daemon: treeBytes(recordsDir), crew: treeBytes(crewDir), delta: existsSync(supervisor.concourseDeltaPath(recordsDir)) }
+  const before = { daemon: treeBytes(recordsDir), crew: treeBytes(crewDir), delta: existsSync(workers.concourseDeltaPath(recordsDir)) }
   const atA = await build()
   check('the view at A names A', atA.context.projectLabel === basename(P_A), atA.context.projectLabel)
   await switchTo(P_B)
   const atB = await build()
   check('the view at B names B (the switch moved the eyes)', atB.context.projectLabel === basename(P_B), atB.context.projectLabel)
-  const afterB = { daemon: treeBytes(recordsDir), crew: treeBytes(crewDir), delta: existsSync(supervisor.concourseDeltaPath(recordsDir)) }
+  const afterB = { daemon: treeBytes(recordsDir), crew: treeBytes(crewDir), delta: existsSync(workers.concourseDeltaPath(recordsDir)) }
   check('A→B: every daemon record is byte-identical (nothing paused, parked, retired, blurred or stamped)', afterB.daemon === before.daemon)
   check('A→B: the obligations store is byte-identical (no ask minted, none settled)', afterB.crew === before.crew)
   check('A→B: no delta stamp was published (no roster transition — the daemon never heard about the switch)', afterB.delta === before.delta && before.delta === false)
   check('A→B: the focused slot is untouched (no session focused before, none after)', slot.hasFocusedSession() === false && slot.landingInFlight() === false)
   await switchTo(P_A)
   const backA = await build()
-  const afterA = { daemon: treeBytes(recordsDir), crew: treeBytes(crewDir), delta: existsSync(supervisor.concourseDeltaPath(recordsDir)) }
+  const afterA = { daemon: treeBytes(recordsDir), crew: treeBytes(crewDir), delta: existsSync(workers.concourseDeltaPath(recordsDir)) }
   check('B→A: the view names A again', backA.context.projectLabel === basename(P_A))
   check('B→A: every record still byte-identical to the start', afterA.daemon === before.daemon && afterA.crew === before.crew && afterA.delta === false)
   check('B→A: the paused session is still paused, the live ones still live (the records say so, unchanged)', (() => {
-    const w = supervisor.readSessionWorkers(recordsDir)
+    const w = workers.readSessionWorkers(recordsDir)
     return w['concourse-w2']?.pausedAt === NOW - 60_000 && w['concourse-w1']?.endedAt === undefined && w['concourse-w3']?.endedAt === undefined && w['concourse-w1']?.focusedAt === undefined
   })())
   check('the switch door is the ground apply: the cwd state moved with it', getCwd() === P_A)
 
-  const stamped = supervisor.focusConcourseSession(S_B1, 'operator:1', recordsDir)
-  check('POISON CONTROL: a lifecycle write (the focus stamp) changes the record bytes and publishes a delta — the comparator has teeth', stamped.outcome === 'applied' && treeBytes(recordsDir) !== before.daemon && existsSync(supervisor.concourseDeltaPath(recordsDir)))
-  supervisor.blurConcourseSession(S_B1, 'operator:1', recordsDir)
-  rmSync(supervisor.concourseDeltaPath(recordsDir), { force: true })
+  const stamped = workers.focusConcourseSession(S_B1, 'operator:1', recordsDir)
+  check('POISON CONTROL: a lifecycle write (the focus stamp) changes the record bytes and publishes a delta — the comparator has teeth', stamped.outcome === 'applied' && treeBytes(recordsDir) !== before.daemon && existsSync(workers.concourseDeltaPath(recordsDir)))
+  workers.blurConcourseSession(S_B1, 'operator:1', recordsDir)
+  rmSync(workers.concourseDeltaPath(recordsDir), { force: true })
 
   const start = 5_000_000
   check('chip law (pure): a chip stamped before this boot reads as unset; its siblings survive', (() => {
@@ -174,7 +174,7 @@ console.log('§1 — SWITCHING NEVER TOUCHES A SESSION: a switch is a change of 
   const openBody = openAt !== -1 && openEnd > openAt ? face.slice(openAt, openEnd) : ''
   check('Projects-↵\'s switch half is the same two verbs (seed + ground apply); its enter is the operator\'s own hop, never a lifecycle op', openBody.includes('writeConcourseSeedOverride({ projectDir: p.dir })') && openBody.includes('ground.applyHarnessGround(p.dir)') && !openBody.includes('daemonControlRpc') && !openBody.includes('sessionControl'))
   check('the route rebuilds the board on the ground beat (the switch re-scopes the view within a beat)', route.includes('const unsubProject = subscribeCurrentProject(rebuild)') && route.includes('unsubProject()'))
-  const sup = read('src/daemon/concourseSupervisor.ts')
+  const sup = read('src/daemon/concourseWorkers.ts')
   const reconcileAt = sup.indexOf('export function reconcileConcourseWorkers(')
   const reconcileBody = sup.slice(reconcileAt, sup.indexOf('\nexport function', reconcileAt + 10))
   const uiGround = ['getCwd(', 'seedOverrides', 'concourse-draft', 'currentProject(', 'resolveHarnessGround', 'projectDir']
@@ -272,7 +272,7 @@ console.log('§3 — A NEW FOCUS HANDS IT BACK SILENTLY: focusing a session of t
   check('SILENT: no notice — the groups are the standard groups only (the elsewhere door included, law 4), no NEEDS YOU row names X, no rail entry names X', handedBack.groups.every(g => ['attached', 'needs-you', 'stalled', 'ready-to-review', 'working', 'queued', 'starting', 'paused', 'stopped', 'elsewhere', 'parked'].includes(g.id)) && !handedBack.needsYou.some(o => o.sessionId === S_A1) && handedBack.counts.needsYou === 0)
   check('SILENT: no obligation minted, no record byte moved (the hop\'s blur is the daemon\'s only moving fact, and only on the real hop)', treeBytes(crewDir) === before.crew && treeBytes(recordsDir) === before.daemon)
   check('X\'s state is unchanged: still running, still not paused, not parked, not focused-stamped by anything here', (() => {
-    const w = supervisor.readSessionWorkers(recordsDir)['concourse-w1']
+    const w = workers.readSessionWorkers(recordsDir)['concourse-w1']
     return w?.endedAt === undefined && w?.pausedAt === undefined && w?.stoppedAt === undefined && w?.focusedAt === undefined
   })())
   await switchTo(P_A)
@@ -477,15 +477,15 @@ console.log('§7 — THE ANNEX: Projects-↵ hops into a wordless live newborn t
   check('a catalogued folder with a wordless first chat lists with the card\'s firstSessionId and no resumable transcript', rowG !== undefined && rowG.sessionId === null && rowG.transcriptPath === null && rowG.firstSessionId === S_G0, JSON.stringify(rowG))
   check('a card-less project carries no firstSessionId', workedInProjects().find(r => r.dir === P_A)?.firstSessionId === null)
   seedWorkers([liveRecord('concourse-w1', S_G0, P_G)])
-  check('the gate the face reads: the first session is owned by a LIVE worker (a hop, not a birth)', supervisor.sessionOwnedByLiveWorker(S_G0, recordsDir) === 'concourse-w1')
+  check('the gate the face reads: the first session is owned by a LIVE worker (a hop, not a birth)', workers.sessionOwnedByLiveWorker(S_G0, recordsDir) === 'concourse-w1')
   seedWorkers([])
-  check('with no live worker the gate answers null (the birth arm stands, as before)', supervisor.sessionOwnedByLiveWorker(S_G0, recordsDir) === null)
+  check('with no live worker the gate answers null (the birth arm stands, as before)', workers.sessionOwnedByLiveWorker(S_G0, recordsDir) === null)
   const face = read('src/components/BootSplashScreen.tsx')
   const openAt = face.indexOf('const openProject = (p: BootProjectFact): AsyncListNote => {')
   const openEnd = face.indexOf('const composedRows: BootRow[] = useMemo(', openAt)
   const openBody = openAt !== -1 && openEnd > openAt ? face.slice(openAt, openEnd) : ''
   check('Projects-↵: the resumable arm first, then the card-aware hop (firstSessionId owned by a live worker → hopIntoBoardSession), then the birth', openBody.indexOf('if (p.sessionId !== null) {') !== -1 && openBody.indexOf('if (p.sessionId !== null) {') < openBody.indexOf('sessionOwnedByLiveWorker(p.firstSessionId) !== null') && openBody.indexOf('sessionOwnedByLiveWorker(p.firstSessionId) !== null') !== -1 && openBody.indexOf('sessionOwnedByLiveWorker(p.firstSessionId) !== null') < openBody.indexOf('hop.hopIntoBoardSession(p.firstSessionId)') && openBody.indexOf('hop.hopIntoBoardSession(p.firstSessionId)') !== -1 && openBody.indexOf('hop.hopIntoBoardSession(p.firstSessionId)') < openBody.indexOf('bornSession({ workspaceDir: p.dir })'))
-  check('the hop reads the daemon\'s oracle through a dynamic import (the concourse subsystem stays off the face\'s static boot graph)', openBody.includes("(await import('../daemon/concourseSupervisor.js')).sessionOwnedByLiveWorker(p.firstSessionId)") && !face.includes("from '../daemon/concourseSupervisor.js'"))
+  check('the hop reads the daemon\'s oracle through a dynamic import (the concourse subsystem stays off the face\'s static boot graph)', openBody.includes("(await import('../daemon/concourseWorkers.js')).sessionOwnedByLiveWorker(p.firstSessionId)") && !face.includes("from '../daemon/concourseWorkers.js'"))
   const facts = read('src/utils/bootCardFacts.ts')
   check('the fact carries firstSessionId from the card (empty ⇒ null)', facts.includes('firstSessionId: string | null') && facts.includes("firstSessionId: e.facts.card !== null && e.facts.card.firstSessionId.length > 0 ? e.facts.card.firstSessionId : null,"))
 }
@@ -495,7 +495,7 @@ console.log('§8 — SESSION-AWARE NAMING: three stages, one owner; the mint onc
   const { sessionTitleOf, newSessionTitle, isWorkerIdTitle, shouldMintTitle } = await import('../../src/services/concourse/sessionNaming.ts')
   const { transcriptHeadFacts } = await import('../../src/services/concourse/sessionTitleMint.ts')
   const manifest = await import('../../src/components/concourse/controlManifest.ts')
-  const { setConcourseSessionTitle } = supervisor
+  const { setConcourseSessionTitle } = workers
   check('stage 1: an untitled, wordless session is the FACT — "new session · <project> · ready" — never an invented name', sessionTitleOf({ workspaceId: P_A }, () => null) === `new session · ${basename(P_A)} · ready` && newSessionTitle(P_A) === `new session · ${basename(P_A)} · ready`)
   check('stage 2: the first words name it the moment they exist (zero cost — the board\'s own brief)', sessionTitleOf({ workspaceId: P_A }, () => 'fix the auth tests') === 'fix the auth tests')
   check('stage 3 / the operator: a stored title outranks the words', sessionTitleOf({ title: 'Fix flaky auth tests', workspaceId: P_A }, () => 'fix the auth tests') === 'Fix flaky auth tests')
@@ -513,10 +513,10 @@ console.log('§8 — SESSION-AWARE NAMING: three stages, one owner; the mint onc
   }
   const twoTurns = transcriptHeadFacts({ sessionId: S_T2, workspaceId: P_A })
   check('two replies read TWO turns and a description carrying the chat\'s own words', twoTurns.assistantTurns >= 2 && twoTurns.description.includes('first ask') && shouldMintTitle({}, twoTurns.assistantTurns))
-  rmSync(supervisor.concourseDeltaPath(recordsDir), { force: true })
+  rmSync(workers.concourseDeltaPath(recordsDir), { force: true })
   seedWorkers([liveRecord('concourse-w1', S_T2, P_A, { title: undefined })])
-  const recOf = (): ConcourseWorkerRecordV1 | undefined => supervisor.readSessionWorkers(recordsDir)['concourse-w1']
-  check('a minted title fills the empty slot, stamps titleMintedAt once, and publishes (the delta repaints every board)', setConcourseSessionTitle(S_T2, '  Fix   the auth tests  ', 'title-mint', 'minted', recordsDir).outcome === 'applied' && recOf()?.title === 'Fix the auth tests' && recOf()?.titleSource === 'minted' && typeof recOf()?.titleMintedAt === 'number' && existsSync(supervisor.concourseDeltaPath(recordsDir)))
+  const recOf = (): ConcourseWorkerRecordV1 | undefined => workers.readSessionWorkers(recordsDir)['concourse-w1']
+  check('a minted title fills the empty slot, stamps titleMintedAt once, and publishes (the delta repaints every board)', setConcourseSessionTitle(S_T2, '  Fix   the auth tests  ', 'title-mint', 'minted', recordsDir).outcome === 'applied' && recOf()?.title === 'Fix the auth tests' && recOf()?.titleSource === 'minted' && typeof recOf()?.titleMintedAt === 'number' && existsSync(workers.concourseDeltaPath(recordsDir)))
   seedWorkers([liveRecord('concourse-w1', S_T2, P_A, { title: undefined, titleMintedAt: 5 })])
   check('the mint never runs twice: a second minted write is a NOOP even with the slot empty again', setConcourseSessionTitle(S_T2, 'Another', 'title-mint', 'minted', recordsDir).outcome === 'noop' && (recOf()?.title ?? '') === '')
   seedWorkers([liveRecord('concourse-w1', S_T2, P_A, { title: 'My name' })])
@@ -539,7 +539,7 @@ console.log('§8 — SESSION-AWARE NAMING: three stages, one owner; the mint onc
   check('the builder and the peek derive through the ONE owner; the worker-short title fallback is GONE from the estate', builder8.includes('sessionTitleOf(rec, () => headBriefLabel(rec, 48))') && builder8.includes('sessionTitleOf(peekRecord, () => headBriefLabel(peekRecord, 48))') && !builder8.includes('rec.title ?? rec.runnerId') && !read('src/services/switchboard/hopIntoSession.ts').includes('rec.title ?? rec.runnerId'))
   check('the chat\'s tag reads the record title the hop derives through the owner (the --chat "concourse-w3" tag retires)', read('src/services/switchboard/hopIntoSession.ts').includes('sessionTitleOf(rec, () => headBriefLabel(rec, 48))') && read('src/components/SwitchboardTagBar.tsx').includes('s.title'))
   check('the wire carries set-title end to end: the protocol, the server\'s guard and payload, the executor\'s arm, the one writer', read('src/daemon/protocol.ts').includes("| 'set-title'") && read('src/daemon/controlServer.ts').includes("raw.action === 'set-title'") && read('src/daemon/controlServer.ts').includes('title: raw.title.slice(0, 200)') && read('src/daemon/main.ts').includes("if (action === 'set-title') {") && read('src/daemon/main.ts').includes('settle(setConcourseSessionTitle('))
-  check('the stamp has ONE writer: titleMintedAt is assigned in the supervisor verb alone (a failed mint leaves no stamp anywhere)', (read('src/daemon/concourseSupervisor.ts').match(/titleMintedAt = /g) ?? []).length === 1 && !read('src/services/concourse/sessionTitleMint.ts').includes('titleMintedAt ='))
+  check('the stamp has ONE writer: titleMintedAt is assigned in the daemon verb alone (a failed mint leaves no stamp anywhere)', (read('src/daemon/concourseWorkers.ts').match(/titleMintedAt = /g) ?? []).length === 1 && !read('src/services/concourse/sessionTitleMint.ts').includes('titleMintedAt ='))
   check('/title is registered and rides the op as the operator\'s word; no words ⇒ the same small call, explicitly asked', read('src/commands.ts').includes("import title from './commands/title/index.js'") && read('src/commands/title/title.ts').includes("action: 'set-title'") && read('src/commands/title/title.ts').includes("titleSource: 'operator'") && read('src/commands/title/title.ts').includes('generateSessionTitle('))
   check('the board\'s rename: the r key and context on the full stage only; the route writes the operator\'s word; the legend prints r exactly with the composer doors', read('src/components/concourse/ConcourseScreen.tsx').includes("kind: 'rename'") && read('src/components/concourse/ConcourseScreen.tsx').includes("input === 'r' && !key.ctrl && !key.meta && !reducedStage") && read('src/components/concourse/ConcourseRoute.tsx').includes("action: 'set-title', sessionId, by: 'operator', title, titleSource: 'operator'") && manifest.regionKeysFor('list', { newSession: false }).every(k => k.keys !== 'r') && manifest.regionKeysFor('list', { newSession: true }).some(k => k.keys === 'r'))
   check('the mint rides the estate\'s existing small call and mounts in the visible process, in every world', read('src/services/concourse/sessionTitleMint.ts').includes("import('../../utils/sessionTitle.js')") && read('src/screens/Chat.tsx').includes('useSessionTitleMint();') && !read('src/hooks/useSessionTitleMint.ts').includes('chatOnlyBoot'))

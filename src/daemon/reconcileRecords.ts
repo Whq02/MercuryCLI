@@ -7,11 +7,11 @@ import { logForDebugging } from '../utils/debug.js'
 import {
   daemonControlRpc,
   daemonDir,
-  readSupervisorState,
-  supervisorStatePath,
+  readDaemonState,
+  daemonStatePath,
 } from './controlSocket.js'
 import { getProcessStartTokenAsync, isProcessAlive } from './ownerWatch.js'
-import { supervisorRecordIdentity } from './verbs.js'
+import { daemonRecordIdentity } from './verbs.js'
 
 export interface DaemonRecordsReconcile {
   state: 'live' | 'clean' | 'reconciled'
@@ -24,14 +24,14 @@ export async function reconcileDaemonRecords(opts?: {
   projectDir?: string
 }): Promise<DaemonRecordsReconcile> {
   const dir = daemonDir()
-  const supPath = supervisorStatePath()
-  const lockPath = join(dir, 'supervisor.lock')
+  const supPath = daemonStatePath()
+  const lockPath = join(dir, 'daemon.lock')
   const keyPath = join(dir, 'control.key')
 
-  const sup = await readSupervisorState()
+  const sup = await readDaemonState()
   let recordPidRecycled = false
   if (sup && isProcessAlive(sup.pid)) {
-    const verdict = supervisorRecordIdentity(sup, await getProcessStartTokenAsync(sup.pid))
+    const verdict = daemonRecordIdentity(sup, await getProcessStartTokenAsync(sup.pid))
     if (verdict !== 'not-recorded-process') {
       return { state: 'live', cleaned: [], reason: `daemon pid ${sup.pid} alive` }
     }
@@ -42,7 +42,7 @@ export async function reconcileDaemonRecords(opts?: {
     return {
       state: 'live',
       cleaned: [],
-      reason: `supervisor.lock held by live pid ${lockHolder.pid}`,
+      reason: `daemon.lock held by live pid ${lockHolder.pid}`,
     }
   }
 
@@ -78,8 +78,8 @@ export async function reconcileDaemonRecords(opts?: {
     } catch {
     }
   }
-  if (supExists) await rm(supPath, 'supervisor.json')
-  if (lockExists) await rm(lockPath, 'supervisor.lock')
+  if (supExists) await rm(supPath, 'daemon.json')
+  if (lockExists) await rm(lockPath, 'daemon.lock')
   if (keyExists) await rm(keyPath, 'control.key')
   if (schedulerCleaned) cleaned.push(schedulerCleaned)
 

@@ -87,8 +87,8 @@ console.log('\n4 the writers that took private roads now publish through the sea
   const control = read(join(DAEMON, 'controlSocket.ts'))
   const asksCode = read(join(DAEMON, 'permissionAsks.ts'))
   const routed: Array<{ file: string; code: string; fn: string }> = [
-    { file: 'controlSocket.ts', code: control, fn: 'writeSupervisorState' },
-    { file: 'controlSocket.ts', code: control, fn: 'markSupervisorStoppingSync' },
+    { file: 'controlSocket.ts', code: control, fn: 'writeDaemonState' },
+    { file: 'controlSocket.ts', code: control, fn: 'markDaemonStoppingSync' },
     { file: 'controlSocket.ts', code: control, fn: 'reassertControlKey' },
     { file: 'permissionAsks.ts', code: asksCode, fn: 'writeGitInitAsks' },
   ]

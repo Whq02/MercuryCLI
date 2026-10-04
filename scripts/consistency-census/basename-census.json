@@ -10,9 +10,9 @@
     ".mercury.json"
   ],
   "counts": {
-    "owner-internal": 4,
+    "owner-internal": 5,
     "guide-probe": 14,
-    "peer-boundary": 13,
+    "own-guard": 6,
     "baked-mirror": 3
   },
   "sites": [
@@ -88,17 +88,10 @@
     },
     {
       "file": "src/services/projectIntel/impact.ts",
-      "needle": ".claude",
-      "excerpt": "'__pycache__', '.cache', 'coverage', '.claude', '.mercury',",
-      "cls": "peer-boundary",
-      "why": "Mercury's home and another tool's named TOGETHER as protections (walk-skips, sandbox deny-writes, the tree digest's exclusions)"
-    },
-    {
-      "file": "src/services/projectIntel/impact.ts",
       "needle": ".mercury",
-      "excerpt": "'__pycache__', '.cache', 'coverage', '.claude', '.mercury',",
-      "cls": "peer-boundary",
-      "why": "Mercury's home and another tool's named TOGETHER as protections (walk-skips, sandbox deny-writes, the tree digest's exclusions)"
+      "excerpt": "'__pycache__', '.cache', 'coverage', '.mercury',",
+      "cls": "own-guard",
+      "why": "Mercury's home held as protection vocabulary (the scan's walk-skips, the sandbox deny-writes, the tree digest's exclusions) — never a read or a write path"
     },
     {
       "file": "src/services/projectIntel/snapshot.ts",
@@ -127,13 +120,6 @@
       "excerpt": "return join(process.cwd(), '.mercury', dir)",
       "cls": "guide-probe",
       "why": "the markdown/skills/rules discovery surfaces name the .mercury home and the user guide file beside the owner calls"
-    },
-    {
-      "file": "src/utils/accounts/scopeScan.ts",
-      "needle": ".claude",
-      "excerpt": "const FOREIGN_HARNESS_HOMES = new Set(['.claude', '.codex', '.gemini', '.copilot', '.cursor', '.kiro', '.cline', '.continue', '.qwen', '.pi'",
-      "cls": "peer-boundary",
-      "why": "the account estate's peer table: another tool's home resolved as Mercury's config home is recognised and never signed in, billed or written"
     },
     {
       "file": "src/utils/cockpit/repoSurfaceMap.ts",
@@ -171,6 +157,13 @@
       "why": "the MANAGED estate projection (the managed root mirrors the canonical .mercury layout)"
     },
     {
+      "file": "src/utils/env.ts",
+      "needle": ".mercury.json",
+      "excerpt": "return join(home, '.mercury.json')",
+      "cls": "owner-internal",
+      "why": "the config-home monolith family — the home resolver owns the home basenames"
+    },
+    {
       "file": "src/utils/envUtils.ts",
       "needle": ".mercury",
       "excerpt": "process.env.MERCURY_CONFIG_DIR || flagEnv('MERCURY_HOME') || join(homedir(), '.mercury')",
@@ -179,38 +172,24 @@
     },
     {
       "file": "src/utils/permissions/filesystem.ts",
-      "needle": ".claude.json",
-      "excerpt": "'.claude.json',",
-      "cls": "peer-boundary",
-      "why": "the permission estate names other tools' executable config as protected paths (edits ask first) beside Mercury's own"
-    },
-    {
-      "file": "src/utils/permissions/filesystem.ts",
       "needle": ".mercury.json",
       "excerpt": "'.mercury.json',",
-      "cls": "peer-boundary",
-      "why": "the permission estate names other tools' executable config as protected paths (edits ask first) beside Mercury's own"
-    },
-    {
-      "file": "src/utils/permissions/filesystem.ts",
-      "needle": ".claude",
-      "excerpt": "'.claude',",
-      "cls": "peer-boundary",
-      "why": "the permission estate names other tools' executable config as protected paths (edits ask first) beside Mercury's own"
+      "cls": "own-guard",
+      "why": "the permission estate names Mercury's own config as protected paths (edits ask first)"
     },
     {
       "file": "src/utils/permissions/filesystem.ts",
       "needle": ".mercury",
       "excerpt": "'.mercury',",
-      "cls": "peer-boundary",
-      "why": "the permission estate names other tools' executable config as protected paths (edits ask first) beside Mercury's own"
+      "cls": "own-guard",
+      "why": "the permission estate names Mercury's own config as protected paths (edits ask first)"
     },
     {
       "file": "src/utils/permissions/filesystem.ts",
       "needle": ".mercury",
       "excerpt": "{ dir: joinWithSep(joinWithSep(cwd, '.mercury'), 'skills'), prefix: '/.mercury/skills/' },",
-      "cls": "peer-boundary",
-      "why": "the permission estate names other tools' executable config as protected paths (edits ask first) beside Mercury's own"
+      "cls": "own-guard",
+      "why": "the permission estate names Mercury's own config as protected paths (edits ask first)"
     },
     {
       "file": "src/utils/projectConfig.ts",
@@ -220,39 +199,18 @@
       "why": "the project-dirs owner — the ONE place project basenames join paths"
     },
     {
-      "file": "src/utils/projectStoreAdoption.ts",
-      "needle": ".claude",
-      "excerpt": "const source = join(root, '.claude')",
-      "cls": "peer-boundary",
-      "why": "the alias-refusal guard names the other tool's dir it refuses to write through — a boundary check, never a read or write path"
-    },
-    {
-      "file": "src/utils/sandbox/sandbox-adapter.ts",
-      "needle": ".claude",
-      "excerpt": "const CONFIG_HOMES = ['.mercury', '.claude']",
-      "cls": "peer-boundary",
-      "why": "Mercury's home and another tool's named TOGETHER as protections (walk-skips, sandbox deny-writes, the tree digest's exclusions)"
-    },
-    {
       "file": "src/utils/sandbox/sandbox-adapter.ts",
       "needle": ".mercury",
-      "excerpt": "const CONFIG_HOMES = ['.mercury', '.claude']",
-      "cls": "peer-boundary",
-      "why": "Mercury's home and another tool's named TOGETHER as protections (walk-skips, sandbox deny-writes, the tree digest's exclusions)"
-    },
-    {
-      "file": "src/utils/verification/verificationState.ts",
-      "needle": ".claude",
-      "excerpt": "const HARNESS_DIRS = ['.claude', '.mercury'] as const",
-      "cls": "peer-boundary",
-      "why": "Mercury's home and another tool's named TOGETHER as protections (walk-skips, sandbox deny-writes, the tree digest's exclusions)"
+      "excerpt": "const CONFIG_HOMES = ['.mercury']",
+      "cls": "own-guard",
+      "why": "Mercury's home held as protection vocabulary (the scan's walk-skips, the sandbox deny-writes, the tree digest's exclusions) — never a read or a write path"
     },
     {
       "file": "src/utils/verification/verificationState.ts",
       "needle": ".mercury",
-      "excerpt": "const HARNESS_DIRS = ['.claude', '.mercury'] as const",
-      "cls": "peer-boundary",
-      "why": "Mercury's home and another tool's named TOGETHER as protections (walk-skips, sandbox deny-writes, the tree digest's exclusions)"
+      "excerpt": "const HARNESS_DIRS = ['.mercury'] as const",
+      "cls": "own-guard",
+      "why": "Mercury's home held as protection vocabulary (the scan's walk-skips, the sandbox deny-writes, the tree digest's exclusions) — never a read or a write path"
     }
   ]
 }

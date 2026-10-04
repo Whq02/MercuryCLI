@@ -73,7 +73,7 @@ const untilAsync = async (pred: () => Promise<boolean>, ms: number): Promise<boo
   }
   return false
 }
-const sup = await import('../../src/daemon/concourseSupervisor.ts')
+const sup = await import('../../src/daemon/concourseWorkers.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
 let sessionId = ''
 let transcript = ''

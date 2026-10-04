@@ -6,7 +6,7 @@ import type { EffortValue } from '../../utils/effort.js'
 import { parseEffortValue } from '../../utils/effort.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { findGitRoot } from '../../utils/git.js'
-import { adoptiveProjectPath } from '../../utils/projectStoreAdoption.js'
+import { projectLocalPath } from '../projectLocal/paths.js'
 
 export const AGENT_OVERRIDES_BASENAME = 'agent-overrides.json'
 
@@ -37,7 +37,7 @@ export function userOverridesPath(): string {
 
 export function projectOverridesPath(cwd: string): string {
   const root = findGitRoot(cwd) ?? cwd
-  return adoptiveProjectPath(root, AGENT_OVERRIDES_BASENAME)
+  return projectLocalPath(root, AGENT_OVERRIDES_BASENAME)
 }
 
 function parseOverridesFile(raw: string, path: string): AgentOverridesFile {

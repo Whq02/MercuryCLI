@@ -179,7 +179,7 @@ const daemon: ChildProcess = spawn('node', [DIST, 'daemon', 'run', work], {
     MERCURY_DAEMON_DIR: daemonDir,
     MERCURY_CREDENTIAL_STORE: 'file',
     ANTHROPIC_BASE_URL: base,
-    MERCURY_CUSTOM_OAUTH_URL: 'http://127.0.0.1:1',
+    MERCURY_ANTHROPIC_OAUTH_BASE: 'http://127.0.0.1:1',
     MERCURY_CACHE_CLOCK: '0',
     MERCURY_PARTY: '0',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',

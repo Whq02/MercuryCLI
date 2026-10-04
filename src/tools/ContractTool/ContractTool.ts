@@ -37,7 +37,7 @@ export function contractToolHosted(): boolean {
 }
 
 async function readOwnContract(): Promise<{ contract: SessionContractV1 | undefined; title: string; found: boolean }> {
-  const { readSessionWorkers } = await import('../../daemon/concourseSupervisor.js')
+  const { readSessionWorkers } = await import('../../daemon/concourseWorkers.js')
   const sessionId = getSessionId()
   const rec = Object.values(readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
   return { contract: rec?.contract, title: rec?.title ?? sessionId.slice(0, 8), found: rec !== undefined }

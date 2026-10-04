@@ -34,7 +34,7 @@ check "…never disclosing credential values" "$(case "$out" in *fixture-do-not-
 check "…before any proof ran" "$(case "$out" in *"SYNTH RAN"*) echo 1;; *) echo 0;; esac)"
 check "…and the line says how to run deliberately" "$(case "$out" in *"MERCURY_SUITE_ENV=any"*) echo 0;; *) echo 1;; esac)"
 
-out="$(clean MERCURY_CONFIG_DIR="$scratch/home" MERCURY_HOME="$scratch/home" MERCURY_CREDENTIAL_STORE=file MERCURY_GATE_PREBUILT=1 MERCURY_GATE_CORES=2 MERCURY_SUITE_TIMEOUT=3000 MERCURY_CI_SHARD_OUT="$scratch/out" MERCURY_VSHOT_BUDGET_SCALE=3 MERCURY_OPENAI_API_BASE=http://127.0.0.1:1 MERCURY_CUSTOM_OAUTH_URL=http://127.0.0.1:1 MERCURY_UPDATE_API_BASE_URL=http://127.0.0.1:1 MERCURY_DAEMON_DIR="$scratch/home" bash "$runner" 2>&1)"; rc=$?
+out="$(clean MERCURY_CONFIG_DIR="$scratch/home" MERCURY_HOME="$scratch/home" MERCURY_CREDENTIAL_STORE=file MERCURY_GATE_PREBUILT=1 MERCURY_GATE_CORES=2 MERCURY_SUITE_TIMEOUT=3000 MERCURY_CI_SHARD_OUT="$scratch/out" MERCURY_VSHOT_BUDGET_SCALE=3 MERCURY_OPENAI_API_BASE=http://127.0.0.1:1 MERCURY_ANTHROPIC_OAUTH_BASE=http://127.0.0.1:1 MERCURY_UPDATE_API_BASE_URL=http://127.0.0.1:1 MERCURY_DAEMON_DIR="$scratch/home" bash "$runner" 2>&1)"; rc=$?
 check "the pool's own environment line runs the suite" "$([ "$rc" = 0 ] && case "$out" in *"SYNTH RAN"*) echo 0;; *) echo 1;; esac || echo 1)" "rc=$rc $out"
 
 mkdir -p "$scratch/unit"

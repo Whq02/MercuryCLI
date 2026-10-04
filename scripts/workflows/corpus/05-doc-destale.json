@@ -1,7 +1,7 @@
 {
   "id": "doc-destale",
   "title": "De-stale a doc section against source (evidence-only edits)",
-  "prompt": "docs/SESSIONS.md may contain file:line anchors for src/daemon/concourseSupervisor.ts that have drifted. Verify EVERY anchor in that page that points at concourseSupervisor.ts against the actual source, correct any stale line numbers, and add (or refresh) a one-line note in the page's worker-seat discussion stating that MERCURY_DAEMON_PERMISSION_MODE, when set, overrides every daemon-spawned worker's permission posture (unset means flow). Claims must match source; do not invent anchors.",
+  "prompt": "docs/SESSIONS.md may contain file:line anchors for src/daemon/concourseWorkers.ts that have drifted. Verify EVERY anchor in that page that points at concourseWorkers.ts against the actual source, correct any stale line numbers, and add (or refresh) a one-line note in the page's worker-seat discussion stating that MERCURY_DAEMON_PERMISSION_MODE, when set, overrides every daemon-spawned worker's permission posture (unset means flow). Claims must match source; do not invent anchors.",
   "baseRef": "bench-corpus-v1",
   "timeboxMs": 1200000,
   "successChecks": [

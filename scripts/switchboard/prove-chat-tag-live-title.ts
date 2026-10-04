@@ -17,7 +17,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-const supervisor = await import('../../src/daemon/concourseSupervisor.ts')
+const workers = await import('../../src/daemon/concourseWorkers.ts')
 const { sessionTitleOf, newSessionTitle } = await import('../../src/services/concourse/sessionNaming.ts')
 const { headBriefLabel } = await import('../../src/services/concourse/concourseSnapshot.ts')
 const { liveTitleDeriverFor } = await import('../../src/services/switchboard/hopIntoSession.ts')
@@ -28,11 +28,11 @@ const workspace = join(SCRATCH, 'work')
 mkdirSync(workspace, { recursive: true })
 const sessionId = 'aaaaaaaa-1111-4222-8333-444444444444'
 const record = { sessionId, runnerId: 'r1', title: newSessionTitle(workspace), projectLabel: 'work', workspaceId: workspace, home: paths.getProjectDir(workspace) }
-const deriver = liveTitleDeriverFor(supervisor, sessionTitleOf, headBriefLabel)
+const deriver = liveTitleDeriverFor(workers, sessionTitleOf, headBriefLabel)
 
 check('§1a no record, no words ⇒ the stage-1 fact', deriver(record) === newSessionTitle(workspace), String(deriver(record)))
 
-const workersPath = supervisor.concourseWorkersPath(DAEMON)
+const workersPath = workers.concourseWorkersPath(DAEMON)
 const writeWorkers = (title: string | undefined): void => {
   writeFileSync(workersPath, JSON.stringify({ version: 1, workers: { r1: { sessionId, runnerId: 'r1', workspaceId: workspace, ...(title !== undefined ? { title } : {}) } } }))
 }
@@ -60,7 +60,7 @@ const connectorSrc = readFileSync(new URL('../../src/services/engine-connector/d
 const hopSrc = readFileSync(new URL('../../src/services/switchboard/hopIntoSession.ts', import.meta.url), 'utf8')
 check('§2 status() reads the title through the registered deriver, the snapshot as the fallback', connectorSrc.includes('title: liveTitleDeriver?.(this.record) ?? this.record.title'))
 check('§2 POISON absent: status() no longer spells the frozen snapshot alone', !/title: this\.record\.title,\n/.test(connectorSrc))
-check('§2 the hop registers the deriver beside its snapshot derivation', hopSrc.includes('seat.registerLiveTitleDeriver(liveTitleDeriverFor(supervisor, sessionTitleOf, headBriefLabel))'))
+check('§2 the hop registers the deriver beside its snapshot derivation', hopSrc.includes('seat.registerLiveTitleDeriver(liveTitleDeriverFor(workers, sessionTitleOf, headBriefLabel))'))
 
 const { extractFirstPromptFromHead } = await import('../../src/utils/sessionStoragePortable.ts')
 const { formatCommandInputTags, createSyntheticUserCaveatMessage } = await import('../../src/utils/messages/factories.ts')

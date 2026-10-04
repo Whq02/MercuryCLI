@@ -45,7 +45,7 @@ const address = server.address()
 if (!address || typeof address === 'string') throw new Error('fixture has no port')
 const children: ChildProcess[] = []
 function login(account: string): Promise<{ rc: number | null; stdout: string; stderr: string }> {
-  const env = { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true', MERCURY_OAUTH_REFRESH_TOKEN: `fixture-${account}`, MERCURY_OAUTH_SCOPES: 'user:profile user:inference', MERCURY_CUSTOM_OAUTH_URL: `http://127.0.0.1:${address.port}`, ANTHROPIC_BASE_URL: `http://127.0.0.1:${address.port}`, MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_BOOT_PREFLIGHT: '0' }
+  const env = { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true', MERCURY_OAUTH_REFRESH_TOKEN: `fixture-${account}`, MERCURY_OAUTH_SCOPES: 'user:profile user:inference', MERCURY_ANTHROPIC_OAUTH_BASE: `http://127.0.0.1:${address.port}`, ANTHROPIC_BASE_URL: `http://127.0.0.1:${address.port}`, MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_BOOT_PREFLIGHT: '0' }
   for (const key of ['ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_AUTH_SCOPE_DIR', 'MERCURY_HOME', 'NODE_ENV']) delete (env as Record<string, unknown>)[key]
   const child = spawn(node, [BIN, 'auth', 'login'], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
   children.push(child)

@@ -292,7 +292,7 @@ function liveFamilyWindowReads(): Required<FamilyWindowReads> {
       return anthropicPoolWindowViews().filter(view => view.state === 'live')
     },
     anthropic: () => {
-      const limits = require('./claudeAiLimits.js') as typeof import('./claudeAiLimits.js')
+      const limits = require('./anthropicLimits.js') as typeof import('./anthropicLimits.js')
       const current = limits.currentLimits
       return {
         status: current.status,

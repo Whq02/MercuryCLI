@@ -22,7 +22,6 @@ console.log('============================================================')
 for (const key of [
   'ANTHROPIC_API_KEY',
   'ANTHROPIC_AUTH_TOKEN',
-  'CLAUDE_CODE_OAUTH_TOKEN',
   'OPENAI_API_KEY',
   'ZAI_API_KEY',
   'OPENROUTER_API_KEY',
@@ -45,7 +44,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 
-const limits = await import('../../src/services/claudeAiLimits.js')
+const limits = await import('../../src/services/anthropicLimits.js')
 const usage = await import('../../src/services/providers/providerUsage.js')
 const { providerLimitWarning, preferSessionLimitWarning, APPROACHING_LIMIT_PCT } = await import(
   '../../src/services/providers/limitWarning.js'

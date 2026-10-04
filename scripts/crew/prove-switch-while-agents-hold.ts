@@ -8,7 +8,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'switch-hold-home-')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
 const seat = await import('../../src/daemon/sessionSeat.ts')
-const { updateConcourseWorkers, readSessionWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+const { updateConcourseWorkers, readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
 const { readSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
 
 let failures = 0

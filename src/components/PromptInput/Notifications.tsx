@@ -14,7 +14,7 @@ import type { MCPServerConnection } from '../../services/mcp/types.js'
 import type { Message } from '../../types/message.js'
 import type { VerificationStatus } from '../../hooks/useApiKeyVerification.js'
 import { useAppState, type AppState } from '../../state/AppState.js'
-import { useClaudeAiLimits } from '../../services/claudeAiLimitsHook.js'
+import { useAnthropicLimits } from '../../services/anthropicLimitsHook.js'
 import { useNotifications, type Notification } from '../../context/notifications.js'
 import {
   registerHookEventHandler,
@@ -121,7 +121,7 @@ function NotificationsColumn({
     (state: AppState) => state.notifications.current,
   )
   const engineModel = useSyncExternalStore(subscribeFocusedModel, getFocusedModel, getFocusedModel)
-  const limits = useClaudeAiLimits()
+  const limits = useAnthropicLimits()
 
   const addRef = useRef(addNotification)
   addRef.current = addNotification

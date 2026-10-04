@@ -125,7 +125,7 @@ src/mneme/paths.ts :: getMnemeHome :: static-for-process
 src/projectOnboardingState.ts :: projectOnboardingHint :: invalidator=applyHarnessGround
 src/projectOnboardingState.ts :: shouldShowProjectOnboarding :: invalidator=applyHarnessGround
 src/services/aseprite/asepriteApp.ts :: versionCache :: ttl-bounded
-src/services/claudeAiLimits.ts :: ownerCache :: ttl-bounded
+src/services/anthropicLimits.ts :: ownerCache :: ttl-bounded
 src/services/concourse/concourseSnapshot.ts :: olderFactCache :: keyed-by-truth
 src/services/concourse/coordinatorIdentity.ts :: cached :: static-for-process
 src/services/concourse/coordinatorTools.ts :: knownDirsCache :: ttl-bounded
@@ -157,7 +157,7 @@ src/services/lsp/ruffLane.ts :: versionCache :: ttl-bounded
 src/services/lsp/unityLane.ts :: probeCache :: ttl-bounded
 src/services/mcp/auth.ts :: metadataCache :: static-for-process
 src/services/mcp/channelsRoot.ts :: channelsRootCache :: static-for-process
-src/services/mcp/claudeai.ts :: fetchClaudeAIMcpConfigsIfEligible :: static-for-process
+src/services/mcp/anthropicConnectors.ts :: fetchAnthropicConnectorsIfEligible :: static-for-process
 src/services/mcp/client.ts :: connectToServer :: invalidator=transport.onclose
 src/services/mcp/client.ts :: fetchCommandsForClient :: invalidator=transport.onclose
 src/services/mcp/client.ts :: fetchResourcesForClient :: invalidator=transport.onclose

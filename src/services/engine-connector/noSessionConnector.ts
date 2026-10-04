@@ -171,7 +171,7 @@ export class NoSessionConnector implements EngineConnectorV1 {
   permissionMode(): PermissionMode | null {
     const born = landingWordsOf(bootBirthFacts()).permissionMode
     if (born === null) return null
-    const { seatInitialPermissionMode } = require('../../daemon/concourseSupervisor.js') as typeof import('../../daemon/concourseSupervisor.js')
+    const { seatInitialPermissionMode } = require('../../daemon/concourseWorkers.js') as typeof import('../../daemon/concourseWorkers.js')
     return seatInitialPermissionMode(born) as PermissionMode
   }
   subscribePermissionMode(): () => void {

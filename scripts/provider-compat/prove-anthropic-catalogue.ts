@@ -11,13 +11,12 @@ mkdirSync(HOME, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
-process.env.MERCURY_CUSTOM_OAUTH_URL = 'http://127.0.0.1:1'
+process.env.MERCURY_ANTHROPIC_OAUTH_BASE = 'http://127.0.0.1:1'
 process.env.ANTHROPIC_BASE_URL = 'https://anthropic.fixture.invalid'
 for (const key of [
   'ANTHROPIC_API_KEY',
   'ANTHROPIC_AUTH_TOKEN',
   'MERCURY_OAUTH_TOKEN',
-  'CLAUDE_CODE_OAUTH_TOKEN',
   'OPENAI_API_KEY',
   'OPENROUTER_API_KEY',
   'GOOGLE_API_KEY',

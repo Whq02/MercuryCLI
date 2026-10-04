@@ -77,7 +77,7 @@ function liveReads(): Required<SlotSwitchReads> {
       return plan ? `Claude subscription (${plan})` : 'Claude subscription'
     },
     anthropicWall: () => {
-      const { currentLimits } = require('../claudeAiLimits.js') as typeof import('../claudeAiLimits.js')
+      const { currentLimits } = require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
       return currentLimits.status === 'rejected'
         ? { walled: true, ...(currentLimits.resetsAt !== undefined ? { resetsAtMs: currentLimits.resetsAt * 1000 } : {}) }
         : { walled: false }
@@ -225,7 +225,7 @@ function liveWrites(): Required<SlotSwitchWrites> {
       writeAnthropicPreferredSource(kind)
     },
     resetAnthropicLimits: () => {
-      const { resetLimitsForCredentialSwitch } = require('../claudeAiLimits.js') as typeof import('../claudeAiLimits.js')
+      const { resetLimitsForCredentialSwitch } = require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
       resetLimitsForCredentialSwitch()
     },
     clearAuthHeaderCaches: () => {

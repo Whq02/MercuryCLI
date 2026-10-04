@@ -34,7 +34,7 @@ export async function completeHandback(
 export async function healStaleAttachRecords(): Promise<number> {
   let healed = 0
   try {
-    const sup = await import('../../daemon/concourseSupervisor.js')
+    const sup = await import('../../daemon/concourseWorkers.js')
     const { isProcessAlive } = await import('../../daemon/ownerWatch.js')
     for (const rec of Object.values(sup.readSessionWorkers())) {
       if (rec.endedAt !== undefined || rec.attachedAt === undefined) continue

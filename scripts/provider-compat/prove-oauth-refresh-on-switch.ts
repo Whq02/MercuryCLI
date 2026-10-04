@@ -142,7 +142,7 @@ const { routedCallModel } = await import('../../src/services/providers/callModel
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const auth = await import('../../src/utils/auth.ts')
-const { CLAUDE_AI_OAUTH_SCOPES } = await import('../../src/constants/oauth.ts')
+const { SUBSCRIPTION_OAUTH_SCOPES } = await import('../../src/constants/oauth.ts')
 type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
 type Message = import('../../src/types/message.ts').Message
 
@@ -184,7 +184,7 @@ async function drive(): Promise<{ last: AssistantMessage | undefined; errors: As
 function seed(tokens: { accessToken: string; refreshToken: string; expiresAt: number }): void {
   auth.saveOAuthTokensIfNeeded({
     ...tokens,
-    scopes: [...CLAUDE_AI_OAUTH_SCOPES],
+    scopes: [...SUBSCRIPTION_OAUTH_SCOPES],
     subscriptionType: 'max',
     rateLimitTier: 'default_claude_max_5x',
   } as never)

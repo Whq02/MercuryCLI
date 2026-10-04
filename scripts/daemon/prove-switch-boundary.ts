@@ -401,7 +401,7 @@ if (ONLY === undefined || ONLY === 'D') {
   try {
     const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
     const { clientVersionFacts } = await import('../../src/daemon/handshake.ts')
-    const sup = await import('../../src/daemon/concourseSupervisor.ts')
+    const sup = await import('../../src/daemon/concourseWorkers.ts')
     const proj = await import('../../src/services/engine-connector/seatProjections.ts')
     const rpc = (req: Record<string, unknown>): Promise<Record<string, unknown>> => daemonControlRpc(req as never) as Promise<Record<string, unknown>>
     const client = clientVersionFacts()

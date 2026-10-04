@@ -26,7 +26,7 @@ const server: Server = createServer((_req, res) => {
 })
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
 const port = (server.address() as { port: number }).port
-process.env.MERCURY_CUSTOM_OAUTH_URL = `http://127.0.0.1:${port}`
+process.env.MERCURY_ANTHROPIC_OAUTH_BASE = `http://127.0.0.1:${port}`
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()

@@ -319,7 +319,7 @@ section('the runner accepts Apollo for every host')
 
 section("the seat's initial posture: a carried 'apollo' crosses the admission; the env road keeps the strict list")
 {
-  const { seatInitialPermissionMode } = (await import('../../src/daemon/concourseSupervisor.js')) as typeof import('../../src/daemon/concourseSupervisor.js')
+  const { seatInitialPermissionMode } = (await import('../../src/daemon/concourseWorkers.js')) as typeof import('../../src/daemon/concourseWorkers.js')
   const { getHeadlessPermissionMode, headlessPermissionArgv, HEADLESS_PERMISSION_MODES } = (await import('../../src/daemon/headlessRun.js')) as typeof import('../../src/daemon/headlessRun.js')
   const headless = HEADLESS_PERMISSION_MODES as readonly string[]
   check("a carried 'apollo' crosses the admission as apollo", seatInitialPermissionMode('apollo' as never) === 'apollo')
@@ -339,8 +339,8 @@ section("the seat's initial posture: a carried 'apollo' crosses the admission; t
     if (priorEnv === undefined) delete process.env.MERCURY_DAEMON_PERMISSION_MODE
     else process.env.MERCURY_DAEMON_PERMISSION_MODE = priorEnv
   }
-  const supervisor = src('daemon', 'concourseSupervisor.ts')
-  check("the apollo arm sits on the CARRIED road, and the saved default resolves through the one resolver the direct boot reads", /override === 'apollo'\) return 'apollo'/.test(supervisor) && /const saved = resolveSavedPermissionMode\(\)/.test(supervisor) && !/getInitialSettings/.test(supervisor))
+  const daemon = src('daemon', 'concourseWorkers.ts')
+  check("the apollo arm sits on the CARRIED road, and the saved default resolves through the one resolver the direct boot reads", /override === 'apollo'\) return 'apollo'/.test(daemon) && /const saved = resolveSavedPermissionMode\(\)/.test(daemon) && !/getInitialSettings/.test(daemon))
   const hop = src('services', 'switchboard', 'hopIntoSession.ts')
   check('the birth road carries the boot facts posture into the admission', /bootBirthFacts\(\)\.permissionMode/.test(hop))
 }

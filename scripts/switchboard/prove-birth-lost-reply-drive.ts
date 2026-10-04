@@ -102,7 +102,7 @@ const worldEnv: NodeJS.ProcessEnv = {
   TERM: 'xterm-256color',
   ...deadBases,
   ANTHROPIC_BASE_URL: DEAD,
-  MERCURY_CUSTOM_OAUTH_URL: DEAD,
+  MERCURY_ANTHROPIC_OAUTH_BASE: DEAD,
   MERCURY_UPDATE_API_BASE_URL: DEAD,
   ...(KEYLESS ? {} : { ANTHROPIC_API_KEY: PROBE_KEY }),
   MERCURY_CONFIG_DIR: configDir,
@@ -136,22 +136,22 @@ spawned.push(daemon)
 process.env.MERCURY_DAEMON_DIR = daemonDir
 const sockPath = controlSockPath()
 const upstreamPath = `${sockPath}.up`
-const supervisorPath = join(daemonDir, 'supervisor.json')
+const daemonRecordPath = join(daemonDir, 'daemon.json')
 const workersPath = join(daemonDir, 'concourse-workers.json')
 {
   const until = Date.now() + vshotBudgetMs(20_000)
-  while (Date.now() < until && !(existsSync(sockPath) && existsSync(supervisorPath) && existsSync(join(daemonDir, 'control.key')))) await sleep(100)
+  while (Date.now() < until && !(existsSync(sockPath) && existsSync(daemonRecordPath) && existsSync(join(daemonDir, 'control.key')))) await sleep(100)
 }
 section('§1 the world — a real daemon of the bundle, then the forwarding stand-in takes its socket path')
-check('the daemon of the bundle came up in the world (socket, record and key present)', existsSync(sockPath) && existsSync(supervisorPath), `daemon pid ${daemon.pid}`)
-const supervisorPid = ((): number | null => {
+check('the daemon of the bundle came up in the world (socket, record and key present)', existsSync(sockPath) && existsSync(daemonRecordPath), `daemon pid ${daemon.pid}`)
+const daemonPid = ((): number | null => {
   try {
-    return (JSON.parse(readFileSync(supervisorPath, 'utf8')) as { pid?: number }).pid ?? null
+    return (JSON.parse(readFileSync(daemonRecordPath, 'utf8')) as { pid?: number }).pid ?? null
   } catch {
     return null
   }
 })()
-check('the record names the daemon this proof spawned', supervisorPid === daemon.pid, `record pid ${supervisorPid} · spawned ${daemon.pid}`)
+check('the record names the daemon this proof spawned', daemonPid === daemon.pid, `record pid ${daemonPid} · spawned ${daemon.pid}`)
 
 const ledger = join(world, 'standin-ledger.jsonl')
 writeFileSync(ledger, '')

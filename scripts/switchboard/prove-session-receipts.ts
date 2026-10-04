@@ -24,7 +24,7 @@ const {
   machineFloorDetailsOf,
   receiptsPathBesideTranscript,
 } = await import('../../src/services/switchboard/sessionReceipts.ts')
-const supervisor = await import('../../src/daemon/concourseSupervisor.ts')
+const workers = await import('../../src/daemon/concourseWorkers.ts')
 const { buildPruneOffer, operatorPruneTranscripts } = await import('../../src/utils/sessionStorage/transcriptPruneDoor.ts')
 
 const DAEMON_DIR = join(SCRATCH, 'daemon')
@@ -113,49 +113,49 @@ console.log('B — one park trail, one settle trail, never doubled, never both f
   const S = sid('b01')
   const RUNNER = 'concourse-w1'
   writeTranscript(S)
-  supervisor.updateConcourseWorkers(w => {
+  workers.updateConcourseWorkers(w => {
     w[RUNNER] = {
       schema: 1, runnerId: RUNNER, sessionId: S, workspaceId: WS, isolation: 'exclusive',
       modelKey: 'test-model', agentName: 'tester', spawnedAt: Date.now() - 60_000, lastLiveAt: Date.now(),
       lastDeliveryAt: Date.now() - 30_000, lastTurnSettledAt: Date.now() - 20_000,
     }
   }, DAEMON_DIR)
-  const park = supervisor.parkConcourseSession(S, 'operator:test', undefined, DAEMON_DIR)
+  const park = workers.parkConcourseSession(S, 'operator:test', undefined, DAEMON_DIR)
   check('the park applies (dead runner parks at once)', park.outcome === 'applied' && park.released === false, JSON.stringify(park))
   let entries = readSessionReceipts(getProjectDir(WS), S)
   check('the park seam wrote exactly its trail: machine-floor + agent-close', entries.length === 2 && entries[0]!.kind === 'machine-floor' && entries[1]!.kind === 'agent-close', entries.map(e => e.kind).join(','))
   check('the park floor says park, and its by is the daemon; the close carries the agent\'s name', machineFloorDetailsOf(entries[0]!)?.closedBy === 'park' && entries[0]!.by === 'daemon' && entries[1]!.by === 'tester')
-  const rePark = supervisor.parkConcourseSession(S, 'operator:test', undefined, DAEMON_DIR)
+  const rePark = workers.parkConcourseSession(S, 'operator:test', undefined, DAEMON_DIR)
   check('POISON: a re-park noops and writes nothing (still 2 entries)', rePark.outcome === 'noop' && readSessionReceipts(getProjectDir(WS), S).length === 2)
-  supervisor.updateConcourseWorkers(w => {
+  workers.updateConcourseWorkers(w => {
     const rec = w[RUNNER]!
     delete rec.parkedAt
     delete rec.parkedBy
     delete rec.parkReason
   }, DAEMON_DIR)
-  supervisor.markConcourseWorkerDelivery(RUNNER, DAEMON_DIR)
-  supervisor.markConcourseWorkerTurnSettled(RUNNER, DAEMON_DIR)
-  const settled = supervisor.settleConcourseWorker(RUNNER, DAEMON_DIR)
+  workers.markConcourseWorkerDelivery(RUNNER, DAEMON_DIR)
+  workers.markConcourseWorkerTurnSettled(RUNNER, DAEMON_DIR)
+  const settled = workers.settleConcourseWorker(RUNNER, DAEMON_DIR)
   entries = readSessionReceipts(getProjectDir(WS), S)
   check('the finish seam wrote its own trail after the reactivate (4 entries: park pair + settle pair)', settled && entries.length === 4, String(entries.length))
   check('the newest floor says settle (the park floor stands beneath it)', machineFloorDetailsOf(entries[2]!)?.closedBy === 'settle' && machineFloorDetailsOf(entries[0]!)?.closedBy === 'park')
-  const settledAgain = supervisor.settleConcourseWorker(RUNNER, DAEMON_DIR)
+  const settledAgain = workers.settleConcourseWorker(RUNNER, DAEMON_DIR)
   check('POISON: a second settle noops and writes nothing (the endedAt guard holds the trail at 4)', settledAgain === false && readSessionReceipts(getProjectDir(WS), S).length === 4)
 }
 {
   const S = sid('b02')
   const RUNNER = 'concourse-w2'
   writeTranscript(S)
-  supervisor.updateConcourseWorkers(w => {
+  workers.updateConcourseWorkers(w => {
     w[RUNNER] = {
       schema: 1, runnerId: RUNNER, sessionId: S, workspaceId: WS, isolation: 'exclusive',
       modelKey: 'test-model', spawnedAt: Date.now() - 60_000, lastLiveAt: Date.now(),
       lastDeliveryAt: Date.now() - 30_000, lastTurnSettledAt: Date.now() - 20_000,
     }
   }, DAEMON_DIR)
-  supervisor.parkConcourseSession(S, 'operator:test', undefined, DAEMON_DIR)
+  workers.parkConcourseSession(S, 'operator:test', undefined, DAEMON_DIR)
   const afterPark = readSessionReceipts(getProjectDir(WS), S).length
-  supervisor.settleConcourseWorker(RUNNER, DAEMON_DIR)
+  workers.settleConcourseWorker(RUNNER, DAEMON_DIR)
   check('POISON: the x-x release of a STILL-PARKED record writes nothing new (the park edge already wrote; nothing ran since)', afterPark === 2 && readSessionReceipts(getProjectDir(WS), S).length === 2, String(readSessionReceipts(getProjectDir(WS), S).length))
   check('the agent-close by falls to \'session\' when the record names no agent', readSessionReceipts(getProjectDir(WS), S)[1]!.by === 'session')
 }
@@ -164,14 +164,14 @@ console.log('C — born blank and never messaged ⇒ no receipts file is ever bo
 {
   const S = sid('c01')
   const RUNNER = 'concourse-w3'
-  supervisor.updateConcourseWorkers(w => {
+  workers.updateConcourseWorkers(w => {
     w[RUNNER] = {
       schema: 1, runnerId: RUNNER, sessionId: S, workspaceId: WS, isolation: 'exclusive',
       modelKey: 'test-model', spawnedAt: Date.now() - 60_000, lastLiveAt: Date.now(),
       bornBlankAt: Date.now() - 60_000,
     }
   }, DAEMON_DIR)
-  const park = supervisor.parkConcourseSession(S, 'operator:test', undefined, DAEMON_DIR)
+  const park = workers.parkConcourseSession(S, 'operator:test', undefined, DAEMON_DIR)
   check('the newborn is RELEASED, not parked (one-door\'s rule kept)', park.outcome === 'applied' && park.released === true, JSON.stringify(park))
   check('POISON: no orphan receipts file beside no transcript', !existsSync(join(getProjectDir(WS), `${S}.receipts.jsonl`)))
 }
@@ -234,7 +234,7 @@ console.log('G — the receipts seam is append/read only, forever')
 {
   const seam = readSrc('src/services/switchboard/sessionReceipts.ts')
   check('no unlink/rm anywhere in the seam module (retention rides the transcript\'s law)', !/unlinkSync\(|rmSync\(|\.unlink\(|rimraf/.test(seam))
-  check('the finish seam is the settle\'s one writer and the park stamp is the other (no second finish detector)', (readSrc('src/daemon/concourseSupervisor.ts').match(/writeSessionCloseReceipts\(/g) ?? []).length === 2)
+  check('the finish seam is the settle\'s one writer and the park stamp is the other (no second finish detector)', (readSrc('src/daemon/concourseWorkers.ts').match(/writeSessionCloseReceipts\(/g) ?? []).length === 2)
 }
 
 console.log(failures === 0 ? 'prove-session-receipts: ALL PASS' : `prove-session-receipts: ${failures} FAILURE(S)`)

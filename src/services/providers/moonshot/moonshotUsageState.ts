@@ -1,5 +1,5 @@
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
-import { noteUsageRecordChanged } from '../../claudeAiLimits.js'
+import { noteUsageRecordChanged } from '../../anthropicLimits.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'

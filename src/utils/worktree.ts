@@ -16,7 +16,7 @@ import { containsPathTraversal } from './path.js'
 import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { executeWorktreeCreateHook, executeWorktreeRemoveHook, hasWorktreeCreateHook } from './hooks.js'
 import { logError } from './log.js'
-import { nonAdoptiveProjectPath } from './projectStoreAdoption.js'
+import { projectLocalPath } from '../services/projectLocal/paths.js'
 import { getInitialSettings, getRelativeSettingsFilePathForSource } from './settings/settings.js'
 import { sleep } from './sleep.js'
 import { isInITerm2, isInsideTmuxSync } from './crew/backends/detection.js'
@@ -42,7 +42,7 @@ export function validateWorktreeSlug(slug: string): void {
 
 
 function worktreesHome(gitRoot: string): string {
-  return nonAdoptiveProjectPath(gitRoot, 'worktrees')
+  return projectLocalPath(gitRoot, 'worktrees')
 }
 
 function flattenSlug(slug: string): string {

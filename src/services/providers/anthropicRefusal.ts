@@ -1,4 +1,4 @@
-import type { ClaudeAILimits } from '../claudeAiLimits.js'
+import type { AnthropicLimits } from '../anthropicLimits.js'
 import { credentialWallLine, isRevokedSignInText, observedCredentialWall } from './credentialWall.js'
 
 export type AnthropicRefusalKind = 'window' | 'sign-in' | 'other'
@@ -56,7 +56,7 @@ export function anthropicWindowWords(seen?: AnthropicWindowObservation, carry?: 
   return `${head}${tail}`
 }
 
-export function anthropicCarryWords(limits?: ClaudeAILimits): string | undefined {
+export function anthropicCarryWords(limits?: AnthropicLimits): string | undefined {
   try {
     const { anthropicExtraUsageCarry, usageCarryWords } =
       require('./providerUsage.js') as typeof import('./providerUsage.js')
@@ -72,7 +72,7 @@ export function anthropicSignInWords(opts?: { nonInteractive?: boolean }): strin
 
 export function standingAnthropicRefusal(): StandingAnthropicRefusal | null {
   if (observedCredentialWall('anthropic') === 'sign-in') return { kind: 'sign-in', words: anthropicSignInWords() }
-  const { anthropicLimitVerdict } = require('../claudeAiLimits.js') as typeof import('../claudeAiLimits.js')
+  const { anthropicLimitVerdict } = require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
   const verdict = anthropicLimitVerdict()
   if (verdict.status !== 'rejected') return null
   const seen: AnthropicWindowObservation | undefined =

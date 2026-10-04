@@ -39,7 +39,7 @@ export async function fetchUtilization(): Promise<Utilization | null> {
     if (mocked !== null) {
       try {
         const { foldUtilizationFromEndpoint } =
-          require('../claudeAiLimits.js') as typeof import('../claudeAiLimits.js')
+          require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
         foldUtilizationFromEndpoint(mocked, undefined)
       } catch {
       }
@@ -59,7 +59,7 @@ export async function fetchUtilization(): Promise<Utilization | null> {
   let issuedEpoch: number | undefined
   try {
     const { getUsageCredentialEpoch } =
-      require('../claudeAiLimits.js') as typeof import('../claudeAiLimits.js')
+      require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
     issuedEpoch = getUsageCredentialEpoch()
   } catch {
     issuedEpoch = undefined
@@ -78,7 +78,7 @@ export async function fetchUtilization(): Promise<Utilization | null> {
   if (data !== null) {
     try {
       const { foldUtilizationFromEndpoint } =
-        require('../claudeAiLimits.js') as typeof import('../claudeAiLimits.js')
+        require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
       foldUtilizationFromEndpoint(data, issuedEpoch)
     } catch {
     }

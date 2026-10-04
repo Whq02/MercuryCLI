@@ -22,7 +22,7 @@ const { workerTranscriptPath } = await import('../../src/services/concourse/work
 const { buildConcourseSnapshot, writeConcourseSeedOverride } = await import('../../src/services/concourse/concourseSnapshot.ts')
 const { applyHarnessGround } = await import('../../src/services/switchboard/harnessGround.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseSupervisor.ts'
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
 
 const NOW = Date.now()
 const recordsDir = join(SCRATCH, 'daemon')

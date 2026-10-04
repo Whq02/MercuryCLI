@@ -201,7 +201,7 @@ function walk(root: string): string[] {
 }
 
 {
-  const sup = read('src/daemon/concourseSupervisor.ts')
+  const sup = read('src/daemon/concourseWorkers.ts')
   const claimAt = sup.indexOf('deps.claimWarm !== undefined &&')
   const claimBody = claimAt !== -1 ? sup.slice(claimAt, sup.indexOf('const used = new Set(', claimAt)) : ''
   check('P8 the claim seam exists inside admission', claimAt !== -1)

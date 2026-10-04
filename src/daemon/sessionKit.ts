@@ -5,7 +5,7 @@ import { appendSessionReceipt } from '../services/switchboard/sessionReceipts.js
 import { getGlobalConfig, getProjectConfigForWorkspace } from '../utils/config.js'
 import { emptyKitDeltas, kitDeltasForWorkspace, type KitDeltasV1 } from '../services/mcp/kitStore.js'
 import { kitPresetDeltas } from '../services/mcp/presetStore.js'
-import type { ConcourseWorkerRecordV1 } from './concourseSupervisor.js'
+import type { ConcourseWorkerRecordV1 } from './concourseWorkers.js'
 
 export interface SessionKitV1 {
   schema: 1

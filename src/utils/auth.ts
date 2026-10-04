@@ -9,9 +9,9 @@ import { scopeIdentityFile } from './accounts/scopeScan.js'
 import memoize from 'lodash-es/memoize.js'
 
 import {
-  CLAUDE_AI_INFERENCE_SCOPE,
-  CLAUDE_AI_OAUTH_SCOPES,
-  CLAUDE_AI_PROFILE_SCOPE,
+  INFERENCE_SCOPE,
+  SUBSCRIPTION_OAUTH_SCOPES,
+  PROFILE_SCOPE,
 } from '../constants/oauth.js'
 import { getIsNonInteractiveSession, preferThirdPartyAuthentication } from '../bootstrap/state.js'
 import { getGlobalConfig, saveGlobalConfig, checkHasTrustDialogAccepted, untrustedWorkspaceHeadless } from './config.js'
@@ -563,7 +563,7 @@ function synthesizedEnvToken(accessToken: string): OAuthTokens {
     accessToken,
     refreshToken: null,
     expiresAt: null,
-    scopes: [CLAUDE_AI_INFERENCE_SCOPE],
+    scopes: [INFERENCE_SCOPE],
     subscriptionType: null,
     rateLimitTier: null,
   }
@@ -887,7 +887,7 @@ export function getRateLimitTier(): RateLimitTier | null {
 
 export function hasProfileScope(): boolean {
   const tokens = getClaudeAIOAuthTokens()
-  return tokens?.scopes.includes(CLAUDE_AI_PROFILE_SCOPE) ?? false
+  return tokens?.scopes.includes(PROFILE_SCOPE) ?? false
 }
 
 const SUBSCRIPTION_NAMES: Record<SubscriptionType, string> = {

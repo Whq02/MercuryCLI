@@ -84,7 +84,7 @@ console.log('\nstore-plane agreement — every inline resolver follows the ONE r
 const controlSocketSrc = readFileSync(join(ROOT, 'src', 'daemon', 'controlSocket.ts'), 'utf-8')
 check('daemon controlSocket configHome delegates to getMercuryHome', /function configHome\(\): string \{\s*\n\s*return getMercuryHome\(\)/.test(controlSocketSrc))
 const envSrc = readFileSync(join(ROOT, 'src', 'utils', 'env.ts'), 'utf-8')
-check('getGlobalMercuryFile env-less defaults into the resolved home (Mercury-named)', envSrc.includes('globalConfigFileIn(getMercuryHome())') && envSrc.includes('`.mercury${fileSuffixForOauthConfig()}.json`'))
+check('getGlobalMercuryFile env-less defaults into the resolved home (Mercury-named)', envSrc.includes('globalConfigFileIn(getMercuryHome())') && envSrc.includes("join(home, '.mercury.json')"))
 const envUtilsSrc = readFileSync(join(ROOT, 'src', 'utils', 'envUtils.ts'), 'utf-8')
 check('envUtils source carries no ~/.claude default arm', !envUtilsSrc.includes(".claude').normalize"))
 check('envUtils source never probes the filesystem to pick a home (no existence rung)', !/existsSync\([^)]*\.mercury/.test(envUtilsSrc))

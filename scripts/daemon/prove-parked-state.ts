@@ -27,7 +27,7 @@ const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config
 enableConfigs()
 saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 8 } }))
 
-const sup = await import('../../src/daemon/concourseSupervisor.ts')
+const sup = await import('../../src/daemon/concourseWorkers.ts')
 const { standInRunner } = await import('../lib/seatDoor.ts')
 type StandInRunner = ReturnType<typeof standInRunner>
 type RunnerDoor = import('../../src/daemon/runnerConnection.ts').RunnerDoor
@@ -36,7 +36,7 @@ const snapshot = await import('../../src/services/concourse/concourseSnapshot.ts
 const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 const { getCwd } = await import('../../src/utils/cwd.ts')
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseSupervisor.ts'
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
 
 const dir = process.env.MERCURY_DAEMON_DIR!
 const DEAD_PID = 2_147_000_000
@@ -417,13 +417,13 @@ console.log('L7 the wire and the seams')
   check('park-all rides parkAllConcourseSessions with the live-terminal exception; park rides parkConcourseSession', main.slice(parkAllAt, lookupAt).includes('exceptFocusedByLiveTerminal: true') && main.slice(parkAt, seatVerbsAt).includes('parkConcourseSession(sessionId, by, roster ?? undefined)'))
   const idleAt = main.indexOf('onIdle: short => {')
   check("the roster's idle edge completes a requested park (a mid-turn close finishes its turn, then parks)", main.slice(idleAt, idleAt + 2_000).includes('completeRequestedPark(short, roster)'))
-  const supervisor = read('src/daemon/concourseSupervisor.ts')
-  check("admission's live-worker derivation excludes parked records", supervisor.includes('r.endedAt === undefined && r.parkedAt === undefined && (liveShorts.has(r.runnerId) || r.attachedAt !== undefined)'))
+  const daemon = read('src/daemon/concourseWorkers.ts')
+  check("admission's live-worker derivation excludes parked records", daemon.includes('r.endedAt === undefined && r.parkedAt === undefined && (liveShorts.has(r.runnerId) || r.attachedAt !== undefined)'))
   check("the pool's seat count excludes them the same way", read('src/daemon/warmRunner.ts').includes('r.endedAt === undefined && r.parkedAt === undefined && (liveShorts.has(r.runnerId) || r.attachedAt !== undefined)'))
-  const reconcileAt = supervisor.indexOf('export function reconcileConcourseWorkers(')
-  const reconcileBody = supervisor.slice(reconcileAt, supervisor.indexOf('export function listConcourseWorkers(', reconcileAt))
+  const reconcileAt = daemon.indexOf('export function reconcileConcourseWorkers(')
+  const reconcileBody = daemon.slice(reconcileAt, daemon.indexOf('export function listConcourseWorkers(', reconcileAt))
   check('the reconcile answers parked before the crash arm (and never releases it)', reconcileBody.indexOf('if (rec.parkedAt !== undefined) {') !== -1 && reconcileBody.indexOf('if (rec.parkedAt !== undefined) {') < reconcileBody.indexOf('rec.crash = {'))
-  check('the pickers read parked records as resumable history', supervisor.includes('if (rec.endedAt === undefined && rec.parkedAt === undefined) out.add(rec.sessionId)'))
+  check('the pickers read parked records as resumable history', daemon.includes('if (rec.endedAt === undefined && rec.parkedAt === undefined) out.add(rec.sessionId)'))
   check("the reaper's typed refusal", read('src/daemon/idleRetirement.ts').includes("if (rec.parkedAt !== undefined) return { retire: false, reason: 'parked' }"))
   const board = read('src/services/concourse/concourseSnapshot.ts')
   check("the ladder reads parkedAt right after attachedAt", /rec\.attachedAt !== undefined\s*\?\s*'attached'\s*:\s*rec\.parkedAt !== undefined\s*\?\s*'parked'/.test(board))

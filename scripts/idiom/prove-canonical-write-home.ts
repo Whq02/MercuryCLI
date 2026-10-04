@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, statSy
 import { tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
 
-const { adoptiveProjectPath } = await import('../../src/utils/projectStoreAdoption.js')
+const { projectLocalPath } = await import('../../src/services/projectLocal/paths.js')
 const { MERCURY_PROJECT_DIR } = await import('../../src/utils/projectConfig.js')
 
 let failures = 0
@@ -21,7 +21,7 @@ const inMercury = (p: string, root: string): boolean =>
 section('§A fresh project resolves canonical')
 {
   const root = mkdtempSync(join(tmpdir(), 'idiom-home-fresh-'))
-  const p = adoptiveProjectPath(root, 'tasks')
+  const p = projectLocalPath(root, 'tasks')
   check('fresh project write home is .mercury', inMercury(p, root), p)
   check('resolving creates nothing', !existsSync(join(root, MERCURY_PROJECT_DIR)))
 }
@@ -34,7 +34,7 @@ section('§B external .claude dir: never a home, never read')
   writeFileSync(join(srcDir, 'existing.json'), '{"t":1}\n')
   const before = statSync(join(srcDir, 'existing.json'))
 
-  const p = adoptiveProjectPath(root, 'tasks')
+  const p = projectLocalPath(root, 'tasks')
   check('resolves canonical .mercury', inMercury(p, root), p)
   check('external content NOT copied (never read)', !existsSync(join(p, 'existing.json')))
   const after = statSync(join(srcDir, 'existing.json'))
@@ -45,10 +45,10 @@ section('§B external .claude dir: never a home, never read')
 section('§D idempotence — the same canonical answer on every call')
 {
   const root = mkdtempSync(join(tmpdir(), 'idiom-home-idem-'))
-  const p1 = adoptiveProjectPath(root, 'verify')
+  const p1 = projectLocalPath(root, 'verify')
   mkdirSync(p1, { recursive: true })
   writeFileSync(join(p1, 'evidence.json'), '{"canonical":true}')
-  const p2 = adoptiveProjectPath(root, 'verify')
+  const p2 = projectLocalPath(root, 'verify')
   check('second call returns the same canonical home', p1 === p2)
   check('canonical content stands', readFileSync(join(p2, 'evidence.json'), 'utf8') === '{"canonical":true}')
 }
@@ -58,29 +58,9 @@ section("§E compat 'state' facet OFF — canonical-only, zero I/O")
   const root = mkdtempSync(join(tmpdir(), 'idiom-home-off-'))
   mkdirSync(join(root, '.claude', 'tasks'), { recursive: true })
   writeFileSync(join(root, '.claude', 'tasks', 'x.json'), '{}')
-  const p = adoptiveProjectPath(root, 'tasks')
+  const p = projectLocalPath(root, 'tasks')
   check('resolves canonical', inMercury(p, root), p)
   check('nothing is written or copied', !existsSync(p))
-}
-
-section('§F alias write-through refusal (D11): .mercury linked into .claude')
-{
-  const { symlinkSync } = await import('node:fs')
-  const root = mkdtempSync(join(tmpdir(), 'idiom-home-alias-'))
-  mkdirSync(join(root, '.claude'), { recursive: true })
-  try {
-    symlinkSync(join(root, '.claude'), join(root, MERCURY_PROJECT_DIR), 'junction')
-    let threw = false
-    try {
-      adoptiveProjectPath(root, 'tasks')
-    } catch (e) {
-      threw = (e as Error).name === 'CanonicalRootAliasError'
-    }
-    check('typed CanonicalRootAliasError raised before any write', threw)
-    check('nothing was written through the alias', !existsSync(join(root, '.claude', 'tasks')))
-  } catch (e) {
-    check('symlink fixture creatable on this host', false, String(e))
-  }
 }
 
 section('§G global config monolith is Mercury-named (C2)')

@@ -21,7 +21,6 @@ for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) {
   process.env[spelling] = home
 }
 for (const key of [
-  'CLAUDE_CODE_OAUTH_TOKEN',
   'OPENAI_API_KEY',
   'MERCURY_MODEL',
   'OPENROUTER_API_KEY',
@@ -166,11 +165,11 @@ section('§6 — a record-less resume retains the transcript’s model (the vNex
 {
   const { writeFileSync, mkdirSync: mkd } = await import('node:fs')
   const { join: j } = await import('node:path')
-  const supervisor = await import('../../src/daemon/concourseSupervisor.ts')
+  const workers = await import('../../src/daemon/concourseWorkers.ts')
   const paths = await import('../../src/utils/sessionStorage/paths.ts')
   const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
   const SID = '00000000-aaaa-bbbb-cccc-00000000f6f6'
-  const workspaceId = supervisor.canonicalWorkspaceId(work)
+  const workspaceId = workers.canonicalWorkspaceId(work)
   const projDir = paths.getProjectDir(workspaceId)
   mkd(projDir, { recursive: true })
   const transcript = j(projDir, `${SID}.jsonl`)
@@ -207,7 +206,7 @@ section('§6 — a record-less resume retains the transcript’s model (the vNex
     encoded += (encodeTranscriptLine as (p: string, e: Record<string, unknown>) => { line: string })(transcript, r).line
   }
   writeFileSync(transcript, encoded)
-  const retained = supervisor.resumeModelKeyOf(SID, work)
+  const retained = workers.resumeModelKeyOf(SID, work)
   check('the record-less resume walk reads the model THROUGH the codec', retained === 'kimi-k3', String(retained))
 }
 
@@ -215,12 +214,12 @@ section('§6b — the retained walk runs the ONE provenance law (FN-013 MODEL-01
 {
   const { writeFileSync, mkdirSync: mkd } = await import('node:fs')
   const { join: j } = await import('node:path')
-  const supervisor = await import('../../src/daemon/concourseSupervisor.ts')
+  const workers = await import('../../src/daemon/concourseWorkers.ts')
   const paths = await import('../../src/utils/sessionStorage/paths.ts')
   const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
   const { restoreConversationModelFromMessages } = await import('../../src/utils/sessionRestore.ts')
   const { getDefaultEngineModelSetting, parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
-  const workspaceId = supervisor.canonicalWorkspaceId(work)
+  const workspaceId = workers.canonicalWorkspaceId(work)
   const projDir = paths.getProjectDir(workspaceId)
   mkd(projDir, { recursive: true })
   const writeFixture = (sid: string, models: string[]): void => {
@@ -264,21 +263,21 @@ section('§6b — the retained walk runs the ONE provenance law (FN-013 MODEL-01
 
   const SID_TAIL = '00000000-aaaa-bbbb-cccc-00000000a601'
   writeFixture(SID_TAIL, ['glm-5.3', '<synthetic>'])
-  const tail = supervisor.resumeModelKeyOf(SID_TAIL, work)
+  const tail = workers.resumeModelKeyOf(SID_TAIL, work)
   check('a synthetic tail row is SKIPPED — the last real served model retains', tail === 'glm-5.3', String(tail))
 
   const SID_ONLY = '00000000-aaaa-bbbb-cccc-00000000a602'
   writeFixture(SID_ONLY, ['<synthetic>'])
-  const only = supervisor.resumeModelKeyOf(SID_ONLY, work)
+  const only = workers.resumeModelKeyOf(SID_ONLY, work)
   check('a synthetic-only transcript retains NOTHING (the registry default, never the sentinel)', only === undefined, String(only))
 
   const SID_CARRIER = '00000000-aaaa-bbbb-cccc-00000000a603'
   writeFixture(SID_CARRIER, ['openrouter/stealth/ox-alpha', '<synthetic>'])
-  const carrier = supervisor.resumeModelKeyOf(SID_CARRIER, work)
+  const carrier = workers.resumeModelKeyOf(SID_CARRIER, work)
   check('a carrier-served session ending on an interrupt retains the carrier id verbatim', carrier === 'openrouter/stealth/ox-alpha', String(carrier))
 
   const agree = (label: string, sid: string, rows: unknown[]): void => {
-    const fromWalk = supervisor.resumeModelKeyOf(sid, work) ?? null
+    const fromWalk = workers.resumeModelKeyOf(sid, work) ?? null
     const fromPredicate = restoreConversationModelFromMessages(rows as Msg)
     check(`agreement — ${label}`, fromWalk === fromPredicate, `walk=${String(fromWalk)} predicate=${String(fromPredicate)}`)
   }
@@ -290,7 +289,7 @@ section('§6b — the retained walk runs the ONE provenance law (FN-013 MODEL-01
   const defaultBase = defaultResolved.replace(/\[1m\]$/i, '')
   const SID_DEFAULT = '00000000-aaaa-bbbb-cccc-00000000a604'
   writeFixture(SID_DEFAULT, [defaultBase])
-  const asDefault = supervisor.resumeModelKeyOf(SID_DEFAULT, work)
+  const asDefault = workers.resumeModelKeyOf(SID_DEFAULT, work)
   check('the walk restores the default SETTING form for the default base id', asDefault === defaultResolved, `walk=${String(asDefault)} expected=${defaultResolved}`)
   agree('default base form', SID_DEFAULT, [user(), asst(defaultBase)])
 }
@@ -299,14 +298,14 @@ section("§6c — the session's own model entry: written when the session starts
 {
   const { readFileSync, writeFileSync, mkdirSync: mkd } = await import('node:fs')
   const { join: j } = await import('node:path')
-  const supervisor = await import('../../src/daemon/concourseSupervisor.ts')
+  const workers = await import('../../src/daemon/concourseWorkers.ts')
   const paths = await import('../../src/utils/sessionStorage/paths.ts')
   const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
   const { loadTranscriptFile } = await import('../../src/utils/sessionStorage/loading.ts')
   const restore = (await import('../../src/utils/sessionRestore.ts')) as Record<string, unknown>
   const fromRows = restore.restoreConversationModelFromMessages as (messages: unknown[]) => string | null
   const restoreConversationModel = (restore.restoreConversationModel ?? ((r: { messages: unknown[] }) => fromRows(r.messages))) as (r: { messages: unknown[]; model?: string }) => string | null
-  const workspaceId = supervisor.canonicalWorkspaceId(work)
+  const workspaceId = workers.canonicalWorkspaceId(work)
   const projDir = paths.getProjectDir(workspaceId)
   mkd(projDir, { recursive: true })
   type Row = { kind: 'model'; model: string } | { kind: 'served'; model: string }
@@ -344,24 +343,24 @@ section("§6c — the session's own model entry: written when the session starts
 
   const SID_UNANSWERED = '00000000-aaaa-bbbb-cccc-00000000a701'
   const unanswered = writeShape(SID_UNANSWERED, [{ kind: 'model', model: 'openrouter/stealth/space-bunny-alpha' }])
-  const walkUnanswered = supervisor.resumeModelKeyOf(SID_UNANSWERED, work)
+  const walkUnanswered = workers.resumeModelKeyOf(SID_UNANSWERED, work)
   check('the daemon walk reads the model entry of a session whose first turn was never answered — a provider-prefixed id, verbatim (red on the base: undefined, the registry default)', walkUnanswered === 'openrouter/stealth/space-bunny-alpha', String(walkUnanswered))
   const headlessUnanswered = await headlessRoad(unanswered, SID_UNANSWERED)
   check('the headless reader reads the same entry first (red on the base: null, the default)', headlessUnanswered === 'openrouter/stealth/space-bunny-alpha', String(headlessUnanswered))
 
   const SID_SWITCHED = '00000000-aaaa-bbbb-cccc-00000000a702'
   const switched = writeShape(SID_SWITCHED, [{ kind: 'model', model: 'glm-5.3' }, { kind: 'served', model: 'glm-5.3' }, { kind: 'model', model: 'kimi-k3' }])
-  check('a session that switched model after an answer resumes on the switch — the newest entry — on both roads', supervisor.resumeModelKeyOf(SID_SWITCHED, work) === 'kimi-k3' && (await headlessRoad(switched, SID_SWITCHED)) === 'kimi-k3', `walk=${String(supervisor.resumeModelKeyOf(SID_SWITCHED, work))}`)
+  check('a session that switched model after an answer resumes on the switch — the newest entry — on both roads', workers.resumeModelKeyOf(SID_SWITCHED, work) === 'kimi-k3' && (await headlessRoad(switched, SID_SWITCHED)) === 'kimi-k3', `walk=${String(workers.resumeModelKeyOf(SID_SWITCHED, work))}`)
 
   const SID_OLD = '00000000-aaaa-bbbb-cccc-00000000a703'
   const old = writeShape(SID_OLD, [{ kind: 'served', model: 'glm-5.3' }, { kind: 'served', model: '<synthetic>' }])
-  check('an old-shape transcript (no entry) still answers from its served rows on both roads', supervisor.resumeModelKeyOf(SID_OLD, work) === 'glm-5.3' && (await headlessRoad(old, SID_OLD)) === 'glm-5.3', `walk=${String(supervisor.resumeModelKeyOf(SID_OLD, work))}`)
+  check('an old-shape transcript (no entry) still answers from its served rows on both roads', workers.resumeModelKeyOf(SID_OLD, work) === 'glm-5.3' && (await headlessRoad(old, SID_OLD)) === 'glm-5.3', `walk=${String(workers.resumeModelKeyOf(SID_OLD, work))}`)
 
   const SID_OLD_UNANSWERED = '00000000-aaaa-bbbb-cccc-00000000a704'
   const oldUnanswered = writeShape(SID_OLD_UNANSWERED, [])
-  check('an old-shape unanswered transcript retains nothing on both roads — the registry default serves it, as today', supervisor.resumeModelKeyOf(SID_OLD_UNANSWERED, work) === undefined && (await headlessRoad(oldUnanswered, SID_OLD_UNANSWERED)) === null)
+  check('an old-shape unanswered transcript retains nothing on both roads — the registry default serves it, as today', workers.resumeModelKeyOf(SID_OLD_UNANSWERED, work) === undefined && (await headlessRoad(oldUnanswered, SID_OLD_UNANSWERED)) === null)
 
-  const admit = readFileSync(j(import.meta.dir, '../../src/daemon/concourseSupervisor.ts'), 'utf8')
+  const admit = readFileSync(j(import.meta.dir, '../../src/daemon/concourseWorkers.ts'), 'utf8')
   check('the admission policy reads the resume walk for a re-admitted session', admit.includes('resumeModelKeyOf(req.resumeSessionId, req.workspaceDir, deps.dir)'))
 }
 

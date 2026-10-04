@@ -8,7 +8,7 @@
 # gate-watch: src/components/CustomSelect/** src/components/permissions/AskUserQuestionPermissionRequest/**
 # gate-watch: src/components/permissions/ApolloReviewPermissionRequest/** src/utils/settings/types*
 # gate-watch: src/bootstrap/state.ts src/cli/headless/controlHandlers.ts src/cli/run.ts src/components/mercury-ui/glyphs.ts
-# gate-watch: src/daemon/concourseSupervisor.ts src/daemon/headlessRun.ts src/ink.ts
+# gate-watch: src/daemon/concourseWorkers.ts src/daemon/headlessRun.ts src/ink.ts
 # gate-watch: src/tools/ToolSearchTool/prompt.ts src/utils/* src/utils/permissions/permissionSetup.ts
 # gate-watch: src/utils/settings/settings.ts
 # gate-watch: src/rows/* src/runner/wire/*

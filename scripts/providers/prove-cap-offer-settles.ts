@@ -280,7 +280,7 @@ section('§G the offer fires on the BINDING window: the seat model\'s weekly poo
   const throwingPools = cap.observedFamilyWindow('anthropic', { ...reads, anthropicPools: () => { throw new Error('reader down') } }, { model: FABLE_51 })
   check('a pool reader that throws never unsettles the latch fact', throwingPools.state === 'allowed')
 
-  const limits = await import('../../src/services/claudeAiLimits.ts')
+  const limits = await import('../../src/services/anthropicLimits.ts')
   limits.__setRawUtilizationForTest({
     five_hour: { utilization: 0.36, resets_at: Math.floor((now + 3600_000) / 1000) },
     seven_day: { utilization: 0.44, resets_at: Math.floor((now + 5 * 86400_000) / 1000) },

@@ -24,7 +24,6 @@ console.log('============================================================')
 for (const key of [
   'ANTHROPIC_API_KEY',
   'ANTHROPIC_AUTH_TOKEN',
-  'CLAUDE_CODE_OAUTH_TOKEN',
   'OPENROUTER_API_KEY',
   'GOOGLE_API_KEY',
   'GEMINI_API_KEY',

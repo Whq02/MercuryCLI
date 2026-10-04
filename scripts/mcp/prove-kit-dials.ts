@@ -164,7 +164,7 @@ section('§H the write re-point')
 section('§C the seat dial: idle forwards whole, busy parks honest, the beat drains')
 {
   const seat = await import('../../src/daemon/sessionSeat.ts')
-  const { readSessionWorkers, updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { readSessionWorkers, updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
   const { readSessionReceipts } = await import('../../src/services/switchboard/sessionReceipts.ts')
   const { sessionKitToWire } = await import('../../src/services/engine-connector/seatWire.ts')
   const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
@@ -358,7 +358,7 @@ section('§S the skills dial: session rows, off rows listed, tri-state words')
 section('§D a dial never writes config/menu/sibling; a menu edit never reaches a live session')
 {
   const seat = await import('../../src/daemon/sessionSeat.ts')
-  const { readSessionWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
   const { setMcpServerEnabledForWorkspace, kitDeltasForWorkspace } = await import('../../src/services/mcp/kitStore.ts')
   const DAEMON_DIR = process.env.MERCURY_DAEMON_DIR!
   const SID = '22222222-3333-4444-8555-777777777777'

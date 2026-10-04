@@ -241,7 +241,7 @@ void exit.then(() => {
 })
 while (!captureDone && newDaemon === null && Date.now() - departAt < vshotBudgetMs(50_000)) {
   try {
-    const rec = JSON.parse(readFileSync(cs.supervisorStatePath(), 'utf8')) as { pid?: number }
+    const rec = JSON.parse(readFileSync(cs.daemonStatePath(), 'utf8')) as { pid?: number }
     if (typeof rec.pid === 'number' && rec.pid !== oldPid && pidAlive(rec.pid)) newDaemon = { pid: rec.pid, at: Date.now() }
   } catch {
     await sleep(100)

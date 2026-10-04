@@ -52,7 +52,7 @@ console.log('============================================================')
 
 const asks = await import('../../src/daemon/permissionAsks.ts')
 const seat = await import('../../src/daemon/sessionSeat.ts')
-const { concourseWorkersPath } = await import('../../src/daemon/concourseSupervisor.ts')
+const { concourseWorkersPath } = await import('../../src/daemon/concourseWorkers.ts')
 const obligations = await import('../../src/services/crew/obligations.ts')
 
 type Presence = 'attached' | 'absent' | 'unknown'

@@ -5,7 +5,7 @@
 # gate-watch: src/commands/run/runInspectorModel*
 # gate-watch: src/commands/crew/index* src/components/** src/context/overlayContext*
 # gate-watch: src/context/overlayStack* src/daemon/** src/hooks/useLayoutTier* src/hooks/useCwdState* src/hooks/useFocusedWorkspaceCwd* src/ink/**
-# gate-watch: src/keybindings/KeybindingProviderSetup* src/services/claudeAiLimits*
+# gate-watch: src/keybindings/KeybindingProviderSetup* src/services/anthropicLimits*
 # gate-watch: src/utils/ripgrep.ts src/hooks/fileSuggestions.ts
 # gate-watch: src/services/rateLimitMessages* src/services/run/** src/state/AppState*
 # gate-watch: src/state/AppStateStore* src/substrate/bootNotes*

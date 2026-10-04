@@ -143,7 +143,7 @@ const enterSelected = (title: string): Send[] => [
 
 try {
   const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-  const sup = await import('../../src/daemon/concourseSupervisor.ts')
+  const sup = await import('../../src/daemon/concourseWorkers.ts')
   check('the scratch daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
   const admit = async (title: string, work: string, cmid: string, modelKey: string): Promise<string> => {
     const d = (await daemonControlRpc({
@@ -264,7 +264,7 @@ try {
   clientBeat.stop()
   try {
     const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-    const sup = await import('../../src/daemon/concourseSupervisor.ts')
+    const sup = await import('../../src/daemon/concourseWorkers.ts')
     for (const rec of Object.values(sup.readSessionWorkers(daemonDir))) {
       if (rec.endedAt === undefined) await daemonControlRpc({ op: 'concourseRelease', workerId: rec.workerId } as never).catch(() => undefined)
     }

@@ -19,7 +19,7 @@ mkdirSync(process.env.MERCURY_CREWS_DIR, { recursive: true })
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 delete process.env.MERCURY_HOME
-for (const k of ['MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOKENS', 'MERCURY_BLOCKING_LIMIT_OVERRIDE', 'CLAUDE_CREW_NAME', 'CLAUDE_AGENT_NAME', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'NODE_ENV', 'MERCURY_SCRIPTED_STREAM']) {
+for (const k of ['MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOKENS', 'MERCURY_BLOCKING_LIMIT_OVERRIDE', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'NODE_ENV', 'MERCURY_SCRIPTED_STREAM']) {
   delete process.env[k]
 }
 
@@ -65,7 +65,7 @@ const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/file
 const gateModule = await import('../../src/run-core/pauseGate.ts')
 const door = await import('../../src/components/mercury-ui/screens/crewPauseDoor.ts')
 const seat = await import('../../src/daemon/sessionSeat.ts')
-const { updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
 const { sessionFactsToWire } = await import('../../src/services/engine-connector/seatWire.ts')
 const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
 const crew = await import('../../src/services/engine-connector/crewFacts.ts')

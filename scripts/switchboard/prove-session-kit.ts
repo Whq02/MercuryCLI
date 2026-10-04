@@ -126,12 +126,12 @@ console.log('W — the menu store by EXPLICIT workspace (poison: the process-cwd
 
 console.log('A — the additive law: absent ≠ empty; the admission stamps the CARRIED kit')
 const { makeConcourseAdmitHandler, readSessionWorkers, updateConcourseWorkers, reactivateConcourseSession, buildConcourseWorkerSpec, concourseTranscriptPath } = await import(
-  '../../src/daemon/concourseSupervisor.ts'
+  '../../src/daemon/concourseWorkers.ts'
 )
 const sessionKit = await import('../../src/daemon/sessionKit.ts')
 const { readSessionReceipts } = await import('../../src/services/switchboard/sessionReceipts.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
-type WorkerRecord = import('../../src/daemon/concourseSupervisor.ts').ConcourseWorkerRecordV1
+type WorkerRecord = import('../../src/daemon/concourseWorkers.ts').ConcourseWorkerRecordV1
 type Kit = import('../../src/daemon/sessionKit.ts').SessionKitV1
 const DAEMON = process.env.MERCURY_DAEMON_DIR!
 const WS = join(SCRATCH, 'ws-kit')
@@ -298,7 +298,7 @@ console.log('R — the re-stamp: a reactivation takes the CURRENT menu, the old 
   const noKit = await reactivateConcourseSession(recOf('concourse-w7')!, { modelKey: MODEL, by: 'operator' }, [], { roster: () => roster as never, dir: DAEMON })
   const derivedRows = readSessionReceipts(home, 'sess-parked-0007')
   check("R9 a reactivation carrying NO kit RE-STAMPS from the DERIVED current menu (unresolved, the workspace's deltas) — the standing kit goes to the receipt as history with source 'derived', never reloaded", noKit.ok && recOf('concourse-w7')?.kit?.resolved === false && deepEq(recOf('concourse-w7')?.kit?.deltas, { mcpOff: [], skillStates: {}, extensionsOff: [] }) && derivedRows.length === 1 && deepEq(derivedRows[0]!.details?.was, K1) && derivedRows[0]!.details?.source === 'derived')
-  const sup = read('src/daemon/concourseSupervisor.ts')
+  const sup = read('src/daemon/concourseWorkers.ts')
   const reactivateFn = sup.slice(sup.indexOf('export async function reactivateConcourseSession('))
   const hopReturn = reactivateFn.indexOf('if (alive || held || rec.attachedAt !== undefined) {')
   const firstRestamp = reactivateFn.indexOf('restampSessionKit(')
@@ -314,7 +314,7 @@ console.log('N — no world check anywhere in the kit path (the worlds are ident
     'src/services/mcp/kitStore.ts',
     'src/services/mcp/disabledRecord.ts',
     'src/utils/config/projectConfig.ts',
-    'src/daemon/concourseSupervisor.ts',
+    'src/daemon/concourseWorkers.ts',
     'src/daemon/controlServer.ts',
     'src/daemon/protocol.ts',
     'src/services/switchboard/bootBirthFacts.ts',
@@ -324,8 +324,8 @@ console.log('N — no world check anywhere in the kit path (the worlds are ident
   ]
   const dirty = files.filter(f => /chatOnlyBoot|chatBoot\(|MERCURY_SPLASH_CHAT/.test(read(f)))
   check('N1 none of the kit\'s files reads chatOnlyBoot / chatBoot / MERCURY_SPLASH_CHAT (poison: any world predicate in the kit path)', dirty.length === 0, dirty.join(','))
-  const kitSites = read('src/daemon/concourseSupervisor.ts').split('\n').filter(l => /\bkit\b/.test(l) && !/^\s*(\/\/|\*|\/\*\*)/.test(l))
-  check('O0 the supervisor writes the kit only through the two named seams (kitStampOf at the mints, restampSessionKit at the reactivate) — never a bare `.kit =`', !kitSites.some(l => /\.kit\s*=[^=]/.test(l)) && kitSites.filter(l => l.includes('kitStampOf(')).length === 2)
+  const kitSites = read('src/daemon/concourseWorkers.ts').split('\n').filter(l => /\bkit\b/.test(l) && !/^\s*(\/\/|\*|\/\*\*)/.test(l))
+  check('O0 the daemon writes the kit only through the two named seams (kitStampOf at the mints, restampSessionKit at the reactivate) — never a bare `.kit =`', !kitSites.some(l => /\.kit\s*=[^=]/.test(l)) && kitSites.filter(l => l.includes('kitStampOf(')).length === 2)
   const bareWrites = ['src/daemon', 'src/services/switchboard', 'src/services/mcp', 'src/components/concourse']
     .flatMap(d => spawnSync('grep', ['-rln', '\\.kit = ', join(SRC_ROOT, d)], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean))
     .map(p => p.slice(SRC_ROOT.length + 1))
@@ -434,7 +434,7 @@ console.log("D — the daemon-side derivation: a birth the screen never saw stam
     const rec = born.ok ? recOf(born.runnerId) : undefined
     check("D5 a birth through the admit with NO carried kit (the coordinator's road) stamps the DERIVED kit with that workspace's deltas", born.ok && rec !== undefined && rec.kit?.resolved === false && deepEq(rec.kit.deltas, derived.deltas) && deepEq(rec.kit.mcp, ['srv-on']), born.ok ? '' : born.error)
   }
-  const sup = read('src/daemon/concourseSupervisor.ts')
+  const sup = read('src/daemon/concourseWorkers.ts')
   check('D6 both mints stamp carried-else-preset-else-derived through the ONE hoisted kit (above the warm claim: gate + spec + both stamps share the value; no inline second derivation)', !sup.includes('kitStampOf(req.kit ?? deriveSessionKitForWorkspace(workspaceId))') && sup.split('const kit = req.kit ?? preset?.kit ?? deriveSessionKitForWorkspace(workspaceId)').length === 2 && sup.split('kitStampOf(kit),').length === 3 && !sup.includes('kitStampOf(req.kit)') && sup.includes('const kit = req.kit ?? preset?.kit ?? deriveSessionKitForWorkspace(workspaceId)') && sup.indexOf('const kit = req.kit ?? preset?.kit ?? deriveSessionKitForWorkspace(workspaceId)') < sup.indexOf('deps.claimWarm !== undefined'))
   const reactivateFn = sup.slice(sup.indexOf('export async function reactivateConcourseSession('))
   const hopReturn = reactivateFn.indexOf('if (alive || held || rec.attachedAt !== undefined) {')

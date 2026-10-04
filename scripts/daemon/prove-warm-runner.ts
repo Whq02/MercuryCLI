@@ -20,7 +20,7 @@ function pinSeatCeiling(recommendedSeats: number): void {
 }
 pinSeatCeiling(8)
 const { makeConcourseAdmitHandler, readSessionWorkers, buildConcourseWorkerSpec, canonicalWorkspaceId, runnerRestartReasonOf } = await import(
-  '../../src/daemon/concourseSupervisor.ts'
+  '../../src/daemon/concourseWorkers.ts'
 )
 const warm = await import('../../src/daemon/warmRunner.ts')
 const { LEAVE_PENDING, standInRunner } = await import('../lib/seatDoor.ts')
@@ -305,7 +305,7 @@ console.log('\n── W14: the settle reply on the tail ──')
 {
   const { onSeatRow } = await import('../../src/daemon/sessionSeat.ts')
   const { readSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
-  const { updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
   const tailDir = mkdtempSync(join(tmpdir(), 'warm-tail-'))
   const sid = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
   updateConcourseWorkers(workers => {
@@ -488,7 +488,7 @@ console.log('\n── WR: the restart reason travels to the resumed runner (item
   const rosterSrc = read('src/daemon/roster.ts')
   check('WR the roster stamps "crash" on the crash-respawn (MERCURY_RUNNER_RESTART_REASON on the respawn spec)', /crash-respawn'\)[\s\S]{0,220}flagPair\('MERCURY_RUNNER_RESTART_REASON', 'crash'\)/.test(rosterSrc))
   check('WR the roster stamps "settings" on the reconfigure-respawn', /reconfiguring[\s\S]{0,220}flagPair\('MERCURY_RUNNER_RESTART_REASON', 'settings'\)/.test(rosterSrc))
-  const supSrc = read('src/daemon/concourseSupervisor.ts')
+  const supSrc = read('src/daemon/concourseWorkers.ts')
   check('WR the cold revive passes the record-derived reason', /restartReason: runnerRestartReasonOf\(rec\)/.test(supSrc))
   check('WR the reactivate warm road passes the reason to the claim', (supSrc.match(/restartReason: runnerRestartReasonOf\(rec\)/g) ?? []).length >= 2)
   const printSrc = read('src/cli/run.ts')

@@ -269,7 +269,7 @@ console.log('D — permission ids: stable from birth to answer, across repaint/r
       rowA.ref?.slice('permission:'.length) === 'req-stable-1',
   )
   const asks = await import('../../src/daemon/permissionAsks.ts')
-  const { updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
   const sid = '550e8400-e29b-41d4-a716-446655440077'
   updateConcourseWorkers(ws => {
     ws['concourse-w1'] = {
@@ -470,7 +470,7 @@ console.log('G — the git-offer No leg: deny proceeds lawfully; the copy tells 
 {
   const { mkdirSync: mkDir, writeFileSync: writeF } = await import('node:fs')
   const d = await import('../../src/daemon/concourseDispatch.ts')
-  const sup = await import('../../src/daemon/concourseSupervisor.ts')
+  const sup = await import('../../src/daemon/concourseWorkers.ts')
   const denyDir = mkdtempSync(join(tmpdir(), 'board-controls-deny-'))
   const folder = mkdtempSync(join(tmpdir(), 'board-controls-plain-'))
   const canonical = sup.canonicalWorkspaceId(folder)

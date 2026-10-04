@@ -39,7 +39,7 @@ try {
   )
   writeFileSync(join(ours, 'daemon', 'roster.json'), JSON.stringify({ workers: { w1: { cliVersion: EXPECTED } } }))
   writeFileSync(
-    join(ours, 'daemon', 'supervisor.json'),
+    join(ours, 'daemon', 'daemon.json'),
     JSON.stringify({ pid: 4242, version: EXPECTED, origin: 'transient', startedAt: 1, dir: '/work', controlSock: '/tmp/mercury-daemon-0a1b2c.sock' }),
   )
   const reportA = await classifyHarnessHome(ours, { expectedVersion: EXPECTED })
@@ -79,7 +79,7 @@ try {
   )
   writeFileSync(join(old, 'daemon', 'roster.json'), JSON.stringify({ workers: { w1: { cliVersion: '1.2.0' } } }))
   writeFileSync(
-    join(old, 'daemon', 'supervisor.json'),
+    join(old, 'daemon', 'daemon.json'),
     JSON.stringify({ pid: 7, version: '1.2.0', origin: 'transient', startedAt: 1, dir: '/w', controlSock: '/tmp/mercury-daemon-9f8e7d.sock' }),
   )
   const reportD = await classifyHarnessHome(old, { expectedVersion: EXPECTED })
@@ -101,28 +101,28 @@ try {
 
   const plain = makeHome('field-home')
   writeFileSync(
-    join(plain, 'daemon', 'supervisor.json'),
+    join(plain, 'daemon', 'daemon.json'),
     JSON.stringify({ pid: 77237, version: EXPECTED, origin: 'transient', startedAt: 1759530740000, dir: '/Users/op/pre27-air/pre27', controlSock: '/Users/op/pre27-air/pre27/field-home/config/daemon/control.sock', proto: 12, buildTree: '5f385be5e7de', ownerPid: 76730, foreground: false, startToken: 'Fri  3 Oct 23:32:20 2026', persist: false }, null, 2),
   )
   const reportPlain = await classifyHarnessHome(plain, { expectedVersion: EXPECTED })
   check(
-    "(e) the product's own supervisor record in a home whose path and socket spell no product token is OURS",
-    reportPlain.foreign.length === 0 && reportPlain.artifacts.some(a => a.artifactClass === 'daemon-supervisor' && a.verdict === 'ours'),
+    "(e) the product's own daemon record in a home whose path and socket spell no product token is OURS",
+    reportPlain.foreign.length === 0 && reportPlain.artifacts.some(a => a.artifactClass === 'daemon-record' && a.verdict === 'ours'),
     JSON.stringify(reportPlain.artifacts),
   )
   const oldPlain = makeHome('field-home-old')
   writeFileSync(
-    join(oldPlain, 'daemon', 'supervisor.json'),
+    join(oldPlain, 'daemon', 'daemon.json'),
     JSON.stringify({ pid: 41139, version: '1.0.0-beta.26', origin: 'transient', startedAt: 1759475311000, dir: '/Users/op/Desktop/Test', controlSock: '/Users/op/field-home/daemon/control.sock' }),
   )
   const reportOldPlain = await classifyHarnessHome(oldPlain, { expectedVersion: EXPECTED })
   check('(e) an older build\'s record with the same grammar is OURS too', reportOldPlain.foreign.length === 0, JSON.stringify(reportOldPlain.artifacts))
   const alienRecord = makeHome('alien-record')
-  writeFileSync(join(alienRecord, 'daemon', 'supervisor.json'), JSON.stringify({ pid: 9, controlSock: '/Users/op/field-home/daemon/agentd.sock', tool: 'frobnicator-agentd', since: '2026-10-03' }))
+  writeFileSync(join(alienRecord, 'daemon', 'daemon.json'), JSON.stringify({ pid: 9, controlSock: '/Users/op/field-home/daemon/agentd.sock', tool: 'frobnicator-agentd', since: '2026-10-03' }))
   const reportAlienRecord = await classifyHarnessHome(alienRecord, { expectedVersion: EXPECTED })
   check(
-    "(e) a supervisor record in another tool's grammar still reads foreign",
-    reportAlienRecord.foreign.length === 1 && (reportAlienRecord.foreign[0]?.evidence ?? '').includes("unrecognized tool's supervisor record"),
+    "(e) a daemon record in another tool's grammar still reads foreign",
+    reportAlienRecord.foreign.length === 1 && (reportAlienRecord.foreign[0]?.evidence ?? '').includes("unrecognized tool's daemon record"),
     JSON.stringify(reportAlienRecord.artifacts),
   )
 

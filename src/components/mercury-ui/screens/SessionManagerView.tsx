@@ -14,7 +14,7 @@ import {
   type PruneOffer,
   type PruneReceipt,
 } from '../../../utils/sessionStorage/transcriptPruneDoor.js'
-import { boardHomedSessionIds } from '../../../daemon/concourseSupervisor.js'
+import { boardHomedSessionIds } from '../../../daemon/concourseWorkers.js'
 import { getSessionIdFromLog } from '../../../utils/sessionStorage.js'
 import { AMBER, CRIMSON, DUNE, FAINT, IVORY, SECOND, TEAL } from '../../mercuryPalette.js'
 import { useSessionPickerModel, type SessionScope } from './sessionPickerModel.js'

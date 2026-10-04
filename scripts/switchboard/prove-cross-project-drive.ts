@@ -31,7 +31,7 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { resolveCaptureDriver } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
-const { readSessionWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
 const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
 
 let failures = 0

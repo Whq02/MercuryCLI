@@ -118,7 +118,7 @@ console.log('§5 — the main Chat is managed session #1 (ruling 26)')
 {
   const bridge = src('src/utils/liveCountBridge.ts')
   check('the live-count self term counts the Chat itself as one session (managed session #1)', /const n = 1 \+ countLiveConcourseWorkers\(\)/.test(bridge) && /return \{ liveSessions: 1, sessionCount: 1 \}/.test(bridge))
-  check('…and the worker term reads SUPERVISOR truth', bridge.includes('countLiveConcourseWorkers') || bridge.includes('concourseSupervisor'))
+  check('…and the worker term reads DAEMON truth', bridge.includes('countLiveConcourseWorkers') || bridge.includes('concourseWorkers'))
   const turnMachine = src('src/run-core/turn-machine.ts')
   check("the main Chat's own turns hold counted FOREGROUND permits (the backstop)", turnMachine.includes("'foreground'") && turnMachine.includes('acquireModelPermit'))
 }

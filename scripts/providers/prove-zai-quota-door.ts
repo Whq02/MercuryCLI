@@ -92,7 +92,7 @@ try {
   enableConfigs()
   const secrets = await import('../../src/utils/router/providerSecrets.ts')
   const owner = await import('../../src/services/providers/providerUsage.ts')
-  const records = await import('../../src/services/claudeAiLimits.ts')
+  const records = await import('../../src/services/anthropicLimits.ts')
   const fresh = await import('../../src/services/providers/usageFreshness.ts')
   secrets.writeStoredZaiApiKey(KEY, 'coding')
   const before = wire.length

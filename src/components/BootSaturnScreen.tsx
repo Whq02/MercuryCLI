@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { basename } from 'node:path';
 import { Box, useInput } from '../ink.js';
 import { createSplashCore, WORD_W } from '../../assets/splash/splash-core.mjs';
-import { readSessionWorkers } from '../daemon/concourseSupervisor.js';
+import { readSessionWorkers } from '../daemon/concourseWorkers.js';
 import { formatRelativeTimeAgo } from '../utils/format.js';
 import { daemonControlRpc } from '../daemon/controlSocket.js';
 import { MERCURY_DAEMON_PROTO } from '../daemon/protocol.js';

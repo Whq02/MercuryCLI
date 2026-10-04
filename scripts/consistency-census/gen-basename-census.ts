@@ -68,9 +68,9 @@ walk(join(ROOT, 'src'))
 
 const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boolean; cls: string; why: string }> = [
   {
-    test: (_f, needle) => needle === OTHER_GUIDE,
+    test: (_f, needle) => needle === OTHER_GUIDE || needle === OTHER_HOME || needle === `${OTHER_HOME}.json`,
     cls: 'FORBIDDEN',
-    why: "another tool's guide file is an ordinary file — nothing in src probes, lists or composes it",
+    why: "another tool's home or guide file is an ordinary file — nothing in src probes, lists, protects or composes it",
   },
   {
     test: f => f === 'src/utils/env.ts' || f === 'src/utils/envUtils.ts',
@@ -108,24 +108,9 @@ const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boole
     why: 'the MANAGED estate projection (the managed root mirrors the canonical .mercury layout)',
   },
   {
-    test: (_f, _n, excerpt) => /homedir\(\)/.test(excerpt),
-    cls: 'peer-boundary',
-    why: "identity checks against another tool's home directory (health · keychain scoping) — a deliberate recognition, never a store join",
-  },
-  {
-    test: (_f, _n, excerpt) => excerpt.includes("'.mercury'") && excerpt.includes(`'${OTHER_HOME}'`),
-    cls: 'peer-boundary',
-    why: "Mercury's home and another tool's named TOGETHER as protections (walk-skips, sandbox deny-writes, the tree digest's exclusions)",
-  },
-  {
-    test: f =>
-      f === 'src/utils/accounts/accountIdentity.ts' ||
-      f === 'src/utils/accounts/scopeScan.ts' ||
-      f === 'src/utils/auth.ts' ||
-      f === 'src/daemon/saturnAccount.ts' ||
-      f === 'src/components/mercury-ui/parity/AccountView.tsx',
-    cls: 'peer-boundary',
-    why: "the account estate's peer table: another tool's home resolved as Mercury's config home is recognised and never signed in, billed or written",
+    test: f => f === 'src/services/projectIntel/impact.ts' || f === 'src/utils/sandbox/sandbox-adapter.ts' || f === 'src/utils/verification/verificationState.ts',
+    cls: 'own-guard',
+    why: "Mercury's home held as protection vocabulary (the scan's walk-skips, the sandbox deny-writes, the tree digest's exclusions) — never a read or a write path",
   },
   {
     test: f => f === 'src/entrypoints/cli.tsx',
@@ -138,14 +123,9 @@ const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boole
     why: 'the surface map lists the guides present at the root by name — existence only, never a content load',
   },
   {
-    test: (f, n) => f === 'src/utils/projectStoreAdoption.ts' && n === OTHER_HOME,
-    cls: 'peer-boundary',
-    why: "the alias-refusal guard names the other tool's dir it refuses to write through — a boundary check, never a read or write path",
-  },
-  {
     test: f => f === 'src/utils/permissions/filesystem.ts',
-    cls: 'peer-boundary',
-    why: "the permission estate names other tools' executable config as protected paths (edits ask first) beside Mercury's own",
+    cls: 'own-guard',
+    why: "the permission estate names Mercury's own config as protected paths (edits ask first)",
   },
   {
     test: f => f === 'src/utils/markdownConfigLoader.ts' || f === 'src/skills/loadSkillsDir.ts' || f === 'src/utils/config/derived.ts',
@@ -162,9 +142,6 @@ const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boole
 const classified = hits.map(h => {
   for (const r of RULES) {
     if (r.test(h.file, h.needle, h.excerpt)) return { ...h, cls: r.cls, why: r.why }
-  }
-  if (h.needle === OTHER_HOME && /join\(/.test(h.excerpt)) {
-    return { ...h, cls: 'FORBIDDEN', why: "a project join of another tool's home outside the owners and the boundary — route through projectConfig" }
   }
   return { ...h, cls: 'UNCLASSIFIED', why: 'new/unknown site — classify or fix' }
 })

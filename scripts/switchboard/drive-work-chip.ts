@@ -162,7 +162,7 @@ try {
       } as never)) as { ok?: boolean; sessionId?: string }
       check('beta dispatched', b.ok === true && b.sessionId !== undefined, JSON.stringify(b))
       betaId = b.sessionId ?? ''
-      const sup = await import('../../src/daemon/concourseSupervisor.ts')
+      const sup = await import('../../src/daemon/concourseWorkers.ts')
       for (const rec of Object.values(sup.readSessionWorkers(daemonDir))) {
         if (rec.pid !== undefined && rec.endedAt === undefined) workerPids.push(rec.pid)
       }

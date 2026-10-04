@@ -14,7 +14,7 @@
 # gate-watch: src/rows/turn.ts src/bootstrap/state.ts src/cli/headless/controlHandlers.ts src/cli/headless/runnerAsks.ts src/cli/run.ts
 # gate-watch: src/cli/structuredIO.ts src/commands.ts src/components/FileEditToolDiff.tsx
 # gate-watch: src/components/MercuryFrame.tsx src/components/mercury-ui/compactModeChip.ts
-# gate-watch: src/components/permissions/** src/context.ts src/daemon/concourseSupervisor.ts src/daemon/headlessRun.ts
+# gate-watch: src/components/permissions/** src/context.ts src/daemon/concourseWorkers.ts src/daemon/headlessRun.ts
 # gate-watch: src/daemon/permissionAsks.ts src/daemon/sessionKit.ts src/daemon/warmRunner.ts
 # gate-watch: src/hooks/useCancelRequest.ts src/ink.ts
 # gate-watch: src/ink/components/StdinContext.ts src/ink/components/TerminalSizeContext.tsx src/ink/stringWidth.ts

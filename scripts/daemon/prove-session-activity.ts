@@ -8,11 +8,11 @@ const home = mkdtempSync(join(tmpdir(), 'activity-home-'))
 const dir = mkdtempSync(join(tmpdir(), 'activity-store-'))
 process.env.MERCURY_CONFIG_DIR = home
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const supervisor = await import('../../src/daemon/concourseSupervisor.ts')
+const workers = await import('../../src/daemon/concourseWorkers.ts')
 const seat = await import('../../src/daemon/sessionSeat.ts')
 const { sessionFactsToWire } = await import('../../src/services/engine-connector/seatWire.ts')
 import type { WorkRowV1 } from '../../src/services/engine-connector/types.ts'
-import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseSupervisor.ts'
+import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
 
 let checks = 0
 function check(label: string, value: unknown): void {
@@ -44,17 +44,17 @@ const facts = (work: WorkRowV1[]): void =>
     dir,
   )
 const agent = (id: string, status = 'running'): WorkRowV1 => ({ id, kind: 'agent', name: id, status, startTime: 100 })
-const disk = () => JSON.parse(readFileSync(supervisor.concourseWorkersPath(dir), 'utf8')).workers[short] as ConcourseWorkerRecordV1
+const disk = () => JSON.parse(readFileSync(workers.concourseWorkersPath(dir), 'utf8')).workers[short] as ConcourseWorkerRecordV1
 const realNow = Date.now
 let now = 1000
 Date.now = () => now
 try {
-  supervisor.updateConcourseWorkers(workers => {
+  workers.updateConcourseWorkers(workers => {
     workers[short] = { schema: 1, runnerId: short, sessionId: 'activity-fixture', workspaceId: home, isolation: 'shared', modelKey: 'claude-sonnet-5', spawnedAt: now, lastLiveAt: now }
   }, dir)
   check('a new record is idle with no invented last turn', disk().activity?.state === 'idle' && disk().activity?.lastTurnAt === null)
   active = true
-  supervisor.markConcourseWorkerDelivery(short, dir)
+  workers.markConcourseWorkerDelivery(short, dir)
   check('delivery records working before any response', disk().activity?.state === 'working' && disk().activity?.lastTurnAt === null)
   facts([agent('first'), agent('nested')])
   check('a working parent with two children is still working', disk().activity?.state === 'working' && disk().activity?.subagents === 2)
@@ -69,7 +69,7 @@ try {
   now = 4000
   active = false
   feed({ type: 'outcome', seq: 3, timestamp: 't', session_id: 'activity-fixture', turn: 1, schema: 1, turn_id: 't-act', status: 'completed', answer: 'waiting for children', steps: 1, wall_ms: 1, usage: { input_tokens: 1, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 1 }, models: [], denials: [] })
-  supervisor.markConcourseWorkerTurnSettled(short, dir)
+  workers.markConcourseWorkerTurnSettled(short, dir)
   seat.onSeatIdle(short, roster, dir)
   check('a completed parent turn cannot hide running children as idle', disk().activity?.state === 'waiting' && disk().activity?.subagents === 2)
   check('the completed turn updates the clock', disk().activity?.lastTurnAt === 4000)
@@ -88,12 +88,12 @@ try {
   feed({ type: 'heartbeat', seq: 4, timestamp: 't', session_id: 'activity-fixture', turn: 1 })
   assert.deepEqual(disk().activity, previous)
   check('a row with nothing for the activity (a heartbeat) does not invent another turn', disk().activity?.lastTurnAt === 4000)
-  check('an older runner can report an explicit count without a work roster', supervisor.sessionActivityOf(true, undefined, 4, 700).description === 'waiting on 4 sub-agents')
+  check('an older runner can report an explicit count without a work roster', workers.sessionActivityOf(true, undefined, 4, 700).description === 'waiting on 4 sub-agents')
   facts([agent('remaining')])
-  supervisor.updateConcourseWorkers(workers => { workers[short]!.crash = { at: now, reason: 'process ended', respawning: false } }, dir)
+  workers.updateConcourseWorkers(workers => { workers[short]!.crash = { at: now, reason: 'process ended', respawning: false } }, dir)
   check('a dead process cannot retain running activity', disk().activity?.state === 'idle' && disk().crash?.reason === 'process ended')
-  supervisor.updateConcourseWorkers(workers => { delete workers[short]!.crash; workers[short]!.endedAt = now }, dir)
-  supervisor.markConcourseWorkerActivity(short, { turnActive: true, lastTurnAt: 9000 }, dir)
+  workers.updateConcourseWorkers(workers => { delete workers[short]!.crash; workers[short]!.endedAt = now }, dir)
+  workers.markConcourseWorkerActivity(short, { turnActive: true, lastTurnAt: 9000 }, dir)
   check('late activity cannot reopen an ended record', disk().activity?.state === 'idle' && disk().activity?.lastTurnAt === 4000)
   seat.onSeatSettled(short)
   check('the state survives the in-memory observer being retired', disk().activity?.lastTurnAt === 4000)

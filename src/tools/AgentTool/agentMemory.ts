@@ -3,7 +3,7 @@ import { normalize, join, relative, sep } from 'node:path'
 import { getMemoryBaseDir, isMnemeEnabled } from '../../mneme/paths.js'
 import { getCwd } from '../../utils/cwd.js'
 import { projectConfigDirs } from '../../utils/projectConfig.js'
-import { adoptiveProjectPath } from '../../utils/projectStoreAdoption.js'
+import { projectLocalPath } from '../../services/projectLocal/paths.js'
 import { projectHomePath, projectHomeStore } from '../../utils/projectHomeStores.js'
 import { CORRECT_TOOL_NAME, RECALL_TOOL_NAME, REFLECT_TOOL_NAME, RETAIN_TOOL_NAME } from '../MemoryTools/prompt.js'
 
@@ -37,7 +37,7 @@ export function getAgentMemoryDir(
       return join(getMemoryBaseDir(), AGENT_MEMORY_SUBDIR, dirName) + sep
     case 'project':
       return (
-        adoptiveProjectPath(getCwd(), AGENT_MEMORY_SUBDIR, dirName) + sep
+        projectLocalPath(getCwd(), AGENT_MEMORY_SUBDIR, dirName) + sep
       )
     case 'local':
       return projectHomeStore(getCwd(), AGENT_MEMORY_LOCAL_SUBDIR, dirName) + sep

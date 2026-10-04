@@ -7,7 +7,7 @@ import { armLandingWords, bootBirthFacts, carriedConsentOf, carriedKitOf, peekWo
 import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
 
 export function liveTitleDeriverFor(
-  supervisor: {
+  workers: {
     readSessionWorkers: (dir?: string) => Record<string, { sessionId: string; title?: string }>
     concourseWorkersPath: (dir?: string) => string
   },
@@ -19,11 +19,11 @@ export function liveTitleDeriverFor(
   let titlesBySession = new Map<string, string | undefined>()
   return record => {
     try {
-      const mtime = statSync(supervisor.concourseWorkersPath()).mtimeMs
+      const mtime = statSync(workers.concourseWorkersPath()).mtimeMs
       if (mtime !== recordsMtime) {
         recordsMtime = mtime
         titlesBySession = new Map()
-        for (const rec of Object.values(supervisor.readSessionWorkers())) titlesBySession.set(rec.sessionId, rec.title)
+        for (const rec of Object.values(workers.readSessionWorkers())) titlesBySession.set(rec.sessionId, rec.title)
       }
     } catch {
     }
@@ -48,15 +48,15 @@ export function hopIntoBoardSession(sessionId: string, opts?: { firstPaintMs?: n
 }
 
 async function hopIntoBoardSessionLanding(sessionId: string, opts?: { firstPaintMs?: number }): Promise<HopOutcome> {
-  const supervisor = await import('../../daemon/concourseSupervisor.js')
-  const rec = Object.values(supervisor.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
+  const workers = await import('../../daemon/concourseWorkers.js')
+  const rec = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
   if (!rec) return { ok: false, reason: 'no live session record owns this id' }
   const paths = await import('../../utils/sessionStorage/paths.js')
   const seat = await import('../engine-connector/daemonConnector.js')
   const { sessionTitleOf } = await import('../concourse/sessionNaming.js')
   const { headBriefLabel } = await import('../concourse/concourseSnapshot.js')
   const title = sessionTitleOf(rec, () => headBriefLabel(rec, 48))
-  seat.registerLiveTitleDeriver(liveTitleDeriverFor(supervisor, sessionTitleOf, headBriefLabel))
+  seat.registerLiveTitleDeriver(liveTitleDeriverFor(workers, sessionTitleOf, headBriefLabel))
   if (!hasFocusedSession()) {
     armLandingWords({ model: rec.modelKey ?? null, effort: rec.effort ?? null, permissionMode: (rec.permissionMode as PermissionMode | undefined) ?? null })
     emitFocusedSessionConnectorChanged()
@@ -134,15 +134,15 @@ async function focusResumedSessionLanding(
   transcriptPath: string | undefined,
   opts?: ResumeOptions,
 ): Promise<ResumeOutcome> {
-  const supervisor = await import('../../daemon/concourseSupervisor.js')
+  const workers = await import('../../daemon/concourseWorkers.js')
   const launch = { ...(opts?.model !== undefined ? { model: opts.model } : {}), ...(opts?.effort !== undefined ? { effort: opts.effort } : {}) }
   const launchGiven = launch.model !== undefined || launch.effort !== undefined
-  if (supervisor.sessionOwnedByLiveWorker(sessionId) !== null) {
+  if (workers.sessionOwnedByLiveWorker(sessionId) !== null) {
     const hop = await hopIntoBoardSession(sessionId, opts)
     if (hop.ok && launchGiven) void applyLaunchWordOnHop(sessionId, launch)
     return { ...hop, admitted: Promise.resolve(hop.ok), refusal: Promise.resolve(hop.ok ? null : hop.reason) }
   }
-  const standing = Object.values(supervisor.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
+  const standing = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
   const workspaceDir = standing?.workspaceId ?? (await workspaceOfTranscript(transcriptPath))
   const paths = await import('../../utils/sessionStorage/paths.js')
   const seat = await import('../engine-connector/daemonConnector.js')
@@ -168,10 +168,10 @@ async function focusResumedSessionLanding(
   })
   const saved = launchGiven
     ? {
-        model: standing?.modelKey ?? supervisor.resumeModelKeyOf(sessionId, workspaceDir),
+        model: standing?.modelKey ?? workers.resumeModelKeyOf(sessionId, workspaceDir),
         effort:
           standing?.effort ??
-          Object.values(supervisor.readSessionWorkers())
+          Object.values(workers.readSessionWorkers())
             .filter(r => r.sessionId === sessionId && r.effort !== undefined)
             .sort((a, b) => b.spawnedAt - a.spawnedAt)[0]?.effort ??
           'high',
@@ -198,7 +198,7 @@ async function focusResumedSessionLanding(
       if (typeof reply.note === 'string' && reply.note !== '') mintImmediateReceipt(`▲ ${reply.note}`, 'warning')
       if (reply.liveHop === true) mintImmediateReceipt(composeHeldLine(title))
       if (worn !== null && reply.liveHop !== true) takeWornPresetKit()
-      const settled = Object.values(supervisor.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
+      const settled = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
       if (settled === undefined) return 'no live session record owns this id'
       seat.daemonSessionConnectorFor({
         sessionId,
@@ -240,8 +240,8 @@ export async function closeFocusedChat(opts: { fate: 'park' | 'end' }): Promise<
   if (!slot.hasFocusedSession()) return { ok: true, closed: false, sessionId: null, fate: 'none' }
   const sessionId = slot.getFocusedSessionConnector().sessionId()
   let fate: Extract<CloseOutcome, { ok: true }>['fate'] = 'none'
-  const supervisor = await import('../../daemon/concourseSupervisor.js')
-  const rec = Object.values(supervisor.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
+  const workers = await import('../../daemon/concourseWorkers.js')
+  const rec = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
   if (rec !== undefined) {
     try {
       const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
@@ -287,8 +287,8 @@ export async function clearFocusedSession(): Promise<{ ok: true; cleared: boolea
 }
 
 async function parkSessionById(sessionId: string): Promise<void> {
-  const supervisor = await import('../../daemon/concourseSupervisor.js')
-  const rec = Object.values(supervisor.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
+  const workers = await import('../../daemon/concourseWorkers.js')
+  const rec = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
   if (rec === undefined) return
   try {
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
@@ -299,8 +299,8 @@ async function parkSessionById(sessionId: string): Promise<void> {
 
 async function paintReactivationScheduleWarn(sessionId: string): Promise<void> {
   try {
-    const supervisor = await import('../../daemon/concourseSupervisor.js')
-    const rec = Object.values(supervisor.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
+    const workers = await import('../../daemon/concourseWorkers.js')
+    const rec = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
     const schedules = rec?.schedules ?? []
     if (schedules.length === 0) return
     const { saturnNextFireMs } = await import('../../daemon/saturn.js')

@@ -35,7 +35,7 @@ import TextInput from '../TextInput.js'
 import { CapabilitiesSection } from './CapabilitiesSection.js'
 import { describeReconnectOutcome } from './utils/reconnectHelpers.js'
 import type {
-  ClaudeAIServerInfo,
+  AnthropicProxyServerInfo,
   HTTPServerInfo,
   SSEServerInfo,
   ServerInfo,
@@ -43,7 +43,7 @@ import type {
 
 const COPY_FEEDBACK_MS = 2_000
 
-type RemoteServerInfo = SSEServerInfo | HTTPServerInfo | ClaudeAIServerInfo
+type RemoteServerInfo = SSEServerInfo | HTTPServerInfo | AnthropicProxyServerInfo
 
 type Phase =
   | { id: 'menu' }
@@ -56,8 +56,8 @@ function capitalise(name: string): string {
   return name.length > 0 ? name[0]!.toUpperCase() + name.slice(1) : name
 }
 
-function buildProxyAuthUrl(server: ClaudeAIServerInfo): string {
-  const origin = getOauthConfig().CLAUDE_AI_ORIGIN
+function buildProxyAuthUrl(server: AnthropicProxyServerInfo): string {
+  const origin = getOauthConfig().SUBSCRIPTION_ORIGIN
   const organizationUuid = getOauthAccountInfo()?.organizationUuid
   const serverId = server.config.id?.replace(/^mcprs/, 'mcpsrv')
   if (organizationUuid && serverId) {
@@ -457,13 +457,13 @@ export function MCPRemoteServerMenu({
                 void startOAuth()
                 return
               case 'proxy-auth': {
-                void openBrowser(buildProxyAuthUrl(remote as ClaudeAIServerInfo))
+                void openBrowser(buildProxyAuthUrl(remote as AnthropicProxyServerInfo))
                 setPhase({ id: 'proxy-auth' })
                 return
               }
               case 'proxy-clear': {
                 void openBrowser(
-                  `${getOauthConfig().CLAUDE_AI_ORIGIN}/settings/connectors`,
+                  `${getOauthConfig().SUBSCRIPTION_ORIGIN}/settings/connectors`,
                 )
                 setPhase({ id: 'proxy-clear-step2' })
                 return

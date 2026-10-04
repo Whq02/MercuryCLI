@@ -1,7 +1,7 @@
 
 import type { ConcourseRowV1 } from '../../components/concourse/contracts.js'
 import { concourseWaitCopy } from '../../components/concourse/contracts.js'
-import type { ConcourseWorkerRecordV1 } from '../../daemon/concourseSupervisor.js'
+import type { ConcourseWorkerRecordV1 } from '../../daemon/concourseWorkers.js'
 import { OLDER_CHATS_ROW_PREFIX } from './concourseSnapshot.js'
 
 export interface CoordinatorBoardSessionV1 {
@@ -145,7 +145,7 @@ export async function coordinatorBoardView(opts: CoordinatorBoardViewOpts = {}):
   }
   let records: Record<string, ConcourseWorkerRecordV1> = {}
   try {
-    const sup = await import('../../daemon/concourseSupervisor.js')
+    const sup = await import('../../daemon/concourseWorkers.js')
     records = sup.readSessionWorkers(opts.recordsDir)
   } catch {
   }

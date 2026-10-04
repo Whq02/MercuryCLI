@@ -22,7 +22,7 @@ const section = (t: string): void => {
 }
 
 const ROOT = join(import.meta.dir, '..', '..')
-const limits = await import('../../src/services/claudeAiLimits.ts')
+const limits = await import('../../src/services/anthropicLimits.ts')
 const mock = await import('../../src/services/mockRateLimits.ts')
 const usability = await import('../../src/services/providers/providerUsability.ts')
 const failover = await import('../../src/services/capFailover.ts')
@@ -140,7 +140,7 @@ section('§5 a departed account still reads unknown ahead of any lifetime')
 section('§6 the roads: the verdict owns its lifetime; the meters and the cap return keep theirs')
 {
   const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
-  const limitsSrc = src('src/services/claudeAiLimits.ts')
+  const limitsSrc = src('src/services/anthropicLimits.ts')
   check('the verdict takes the clock it is read at', /export function anthropicLimitVerdict\(nowMs: number = Date\.now\(\)\)/.test(limitsSrc))
   check('…and lapses at the stated reset or the seed span', limitsSrc.includes('SEED_DEFAULT_TTL_SECONDS * 1000') && limitsSrc.includes('lapsesAtMs'))
   const observedRead = limitsSrc.slice(limitsSrc.indexOf('export function anthropicWindowObserved()'), limitsSrc.indexOf('export type AnthropicLimitVerdict'))

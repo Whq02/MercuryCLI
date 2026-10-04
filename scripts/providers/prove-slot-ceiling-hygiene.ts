@@ -29,7 +29,7 @@ enableConfigs()
 const slots = await import('../../src/services/providers/accountSlots.ts')
 const scopes = await import('../../src/utils/accounts/scopeScan.ts')
 const auth = await import('../../src/utils/auth.ts')
-const { CLAUDE_AI_OAUTH_SCOPES } = await import('../../src/constants/oauth.ts')
+const { SUBSCRIPTION_OAUTH_SCOPES } = await import('../../src/constants/oauth.ts')
 
 section('§A the typed ceiling refusal — boundary-exact, family-named')
 {
@@ -51,7 +51,7 @@ section('§B the structural universe — one scope, replace-on-save')
       accessToken,
       refreshToken: `rt-${accessToken}`,
       expiresAt: Date.now() + 3_600_000,
-      scopes: [...CLAUDE_AI_OAUTH_SCOPES],
+      scopes: [...SUBSCRIPTION_OAUTH_SCOPES],
       subscriptionType: 'max',
       rateLimitTier: 'default_claude_max_5x',
     } as never)

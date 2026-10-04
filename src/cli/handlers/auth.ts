@@ -46,7 +46,7 @@ function logoutPreservingOnboarding(): void {
   getApiKeyFromConfigOrMacOSKeychain.cache?.clear?.()
   try {
     const { resetLimitsForCredentialSwitch } =
-      require('../../services/claudeAiLimits.js') as typeof import('../../services/claudeAiLimits.js')
+      require('../../services/anthropicLimits.js') as typeof import('../../services/anthropicLimits.js')
     resetLimitsForCredentialSwitch()
   } catch {
   }

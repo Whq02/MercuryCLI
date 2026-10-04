@@ -36,7 +36,7 @@ process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'import-home')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.NODE_ENV
-for (const k of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'CLAUDE_CODE_OAUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'HF_TOKEN', 'MERCURY_MODEL']) {
+for (const k of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'HF_TOKEN', 'MERCURY_MODEL']) {
   delete process.env[k]
 }
 const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
@@ -202,7 +202,7 @@ function childEnv(home: string): NodeJS.ProcessEnv {
     MERCURY_OPENAI_CHATGPT_BASE: `${base}/chatgpt`,
     MERCURY_OPENAI_API_BASE: `${base}/openai/v1`,
     MERCURY_OPENAI_AUTH_BASE: 'http://127.0.0.1:9',
-    MERCURY_CUSTOM_OAUTH_URL: 'http://127.0.0.1:1',
+    MERCURY_ANTHROPIC_OAUTH_BASE: 'http://127.0.0.1:1',
     ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
     ANTHROPIC_API_KEY: '',
     OPENAI_API_KEY: '',
@@ -214,7 +214,6 @@ function childEnv(home: string): NodeJS.ProcessEnv {
   }
   delete env.NODE_ENV
   delete env.ANTHROPIC_AUTH_TOKEN
-  delete env.CLAUDE_CODE_OAUTH_TOKEN
   return env
 }
 

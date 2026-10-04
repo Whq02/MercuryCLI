@@ -50,8 +50,8 @@ console.log(' the base parks every ask whoever is there (checks marked red on th
 console.log('============================================================')
 
 const asks = await import('../../src/daemon/permissionAsks.ts')
-const { concourseWorkersPath } = await import('../../src/daemon/concourseSupervisor.ts')
-const { supervisorStatePath } = await import('../../src/daemon/controlSocket.ts')
+const { concourseWorkersPath } = await import('../../src/daemon/concourseWorkers.ts')
+const { daemonStatePath: daemonStatePath } = await import('../../src/daemon/controlSocket.ts')
 const { isDenialResultText, UNANSWERED_ASK_REJECT_MESSAGE } = await import('../../src/utils/messages/rejectionText.ts')
 const obligations = await import('../../src/services/crew/obligations.ts')
 type Presence = 'attached' | 'absent' | 'unknown'
@@ -164,14 +164,14 @@ section('A2 the parking law stands with a client attached, and when presence can
 section('A3 the production presence fact reads the daemon\'s own cockpit facts: the owner pid and the live focus/attach stamps')
 {
   warmTable()
-  rmSync(supervisorStatePath(), { force: true })
+  rmSync(daemonStatePath(), { force: true })
   check('red on the base: operatorClientPresence exists', presenceOf !== undefined)
   if (presenceOf !== undefined) {
     check('no daemon record → unknown', presenceOf(pureDaemonDir) === 'unknown', String(presenceOf(pureDaemonDir)))
-    const supervisor = (ownerPid: number | null): void => writeFileSync(supervisorStatePath(), JSON.stringify({ pid: process.pid, version: '1.0.0', origin: 'transient', startedAt: Date.now(), dir: SCRATCH, controlSock: '', ownerPid }))
-    supervisor(process.pid)
+    const daemon = (ownerPid: number | null): void => writeFileSync(daemonStatePath(), JSON.stringify({ pid: process.pid, version: '1.0.0', origin: 'transient', startedAt: Date.now(), dir: SCRATCH, controlSock: '', ownerPid }))
+    daemon(process.pid)
     check('an owned daemon whose owner terminal is alive → attached', presenceOf(pureDaemonDir) === 'attached', String(presenceOf(pureDaemonDir)))
-    supervisor(null)
+    daemon(null)
     writeWorkers({ 'concourse-w1': record('concourse-w1') })
     check('a persistent daemon (no owner) with no live focus or attach stamp → absent', presenceOf(pureDaemonDir) === 'absent', String(presenceOf(pureDaemonDir)))
     writeWorkers({ 'concourse-w1': record('concourse-w1', { focusedAt: Date.now(), focusedBy: `operator:${process.pid}` }) })
@@ -180,9 +180,9 @@ section('A3 the production presence fact reads the daemon\'s own cockpit facts: 
     check('...a stamp naming a dead terminal counts for nothing → absent', presenceOf(pureDaemonDir) === 'absent', String(presenceOf(pureDaemonDir)))
     writeWorkers({ 'concourse-w1': record('concourse-w1', { endedAt: Date.now(), focusedAt: Date.now(), focusedBy: `operator:${process.pid}` }) })
     check('...a stamp on an ended record counts for nothing → absent', presenceOf(pureDaemonDir) === 'absent', String(presenceOf(pureDaemonDir)))
-    supervisor(999999)
+    daemon(999999)
     check('an owned daemon whose owner is gone and no stamp → absent', presenceOf(pureDaemonDir) === 'absent', String(presenceOf(pureDaemonDir)))
-    rmSync(supervisorStatePath(), { force: true })
+    rmSync(daemonStatePath(), { force: true })
   }
 }
 
@@ -195,15 +195,15 @@ section('A4 the screen-presence beat: a live client that keeps beating is attach
     const screen = screenBeat
     const stale = beatModule.CLIENT_PRESENCE_STALE_MS
     const now = Date.now()
-    writeFileSync(supervisorStatePath(), JSON.stringify({ pid: process.pid, version: '1.0.0', origin: 'transient', startedAt: now - 3_600_000, dir: SCRATCH, controlSock: '', ownerPid: null }))
+    writeFileSync(daemonStatePath(), JSON.stringify({ pid: process.pid, version: '1.0.0', origin: 'transient', startedAt: now - 3_600_000, dir: SCRATCH, controlSock: '', ownerPid: null }))
     writeWorkers({ 'concourse-w1': record('concourse-w1') })
     beatModule.resetClientPresenceForProofs({ since: now - stale - 1 })
     check('a persistent daemon, no owner, no stamp, a warm table with no beat → absent', presenceOf(pureDaemonDir, now) === 'absent', String(presenceOf(pureDaemonDir, now)))
     beatModule.noteClientPresence(process.pid, 'screen', now)
     check('...a live screen beating (this process) → attached, no stamp needed (the blank chat)', presenceOf(pureDaemonDir, now) === 'attached', String(presenceOf(pureDaemonDir, now)))
-    rmSync(supervisorStatePath(), { force: true })
+    rmSync(daemonStatePath(), { force: true })
     check('...the beat wins even when the daemon record cannot be read', presenceOf(pureDaemonDir, now) === 'attached', String(presenceOf(pureDaemonDir, now)))
-    writeFileSync(supervisorStatePath(), JSON.stringify({ pid: process.pid, version: '1.0.0', origin: 'transient', startedAt: now - 3_600_000, dir: SCRATCH, controlSock: '', ownerPid: null }))
+    writeFileSync(daemonStatePath(), JSON.stringify({ pid: process.pid, version: '1.0.0', origin: 'transient', startedAt: now - 3_600_000, dir: SCRATCH, controlSock: '', ownerPid: null }))
     check('...a beat older than the stale window counts for nothing → absent', presenceOf(pureDaemonDir, now + stale + 1) === 'absent', String(presenceOf(pureDaemonDir, now + stale + 1)))
     beatModule.resetClientPresenceForProofs({ since: now - stale - 1 })
     beatModule.noteClientPresence(999999, 'screen', now)
@@ -212,7 +212,7 @@ section('A4 the screen-presence beat: a live client that keeps beating is attach
     check('a daemon younger than one stale window that has heard no client yet → unknown (parks: a client may still be announcing itself)', presenceOf(pureDaemonDir, now) === 'unknown', String(presenceOf(pureDaemonDir, now)))
     check('...and absent once the window has passed with nobody heard', presenceOf(pureDaemonDir, now + stale + 1) === 'absent', String(presenceOf(pureDaemonDir, now + stale + 1)))
     beatModule.resetClientPresenceForProofs({ since: now - stale - 1 })
-    rmSync(supervisorStatePath(), { force: true })
+    rmSync(daemonStatePath(), { force: true })
     const frame = screen.screenPresenceFrame(4242)
     check('the screen\'s beat is a keyless hello naming its pid and kind', frame.op === 'hello' && frame.clientPid === 4242 && frame.clientKind === 'screen', j(frame))
     const bootstrap = await import('../../src/bootstrap/state.ts')

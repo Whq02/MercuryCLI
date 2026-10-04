@@ -8,7 +8,7 @@ import {
   storeOAuthAccountInfo,
 } from '../../../services/oauth/client.js'
 import type { OAuthTokens } from '../../../services/oauth/types.js'
-import { CLAUDE_AI_PROFILE_SCOPE } from '../../../constants/oauth.js'
+import { PROFILE_SCOPE } from '../../../constants/oauth.js'
 import {
   loginShadowWarning,
   saveOAuthTokensIfNeeded,
@@ -231,7 +231,7 @@ export function createAnthropicLoginMachine(
       const landed = accountInfoFromTokens(tokens)
       if (landed !== undefined) deps.storeAccount(landed)
       const fetchRoles = deps.fetchRoles
-      if (landed !== undefined && fetchRoles !== undefined && tokens.scopes.includes(CLAUDE_AI_PROFILE_SCOPE)) {
+      if (landed !== undefined && fetchRoles !== undefined && tokens.scopes.includes(PROFILE_SCOPE)) {
         rolesRequest?.abort()
         const request = new AbortController()
         rolesRequest = request

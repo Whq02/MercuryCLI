@@ -6,10 +6,10 @@ import { join, resolve } from 'node:path'
 const ROOT = resolve(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 
-const supervisor = await import('../../src/daemon/longLivedSupervisor.ts')
+const daemon = await import('../../src/daemon/longLivedRespawn.ts')
 const { RowSchema } = await import('../../src/rows/vocabulary.ts')
 const { turnStartedRow, outcomeRow, createRowStamper } = await import('../../src/rows/project.ts')
-const { isTurnOpenRow, isOutcomeRow, decideWorkerBusy } = supervisor
+const { isTurnOpenRow, isOutcomeRow, decideWorkerBusy } = daemon
 const { parseRow: parseRunnerLine } = await import('../../src/rows/read.ts')
 
 let failures = 0

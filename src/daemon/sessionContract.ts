@@ -1,5 +1,5 @@
 
-import { updateConcourseWorkers } from './concourseSupervisor.js'
+import { updateConcourseWorkers } from './concourseWorkers.js'
 
 export interface SessionContractAmendmentV1 {
   text: string

@@ -68,7 +68,7 @@ import {
   type ConcourseRegion,
 } from './ConcourseLayout.js';
 import { getOriginalCwd } from '../../bootstrap/state.js';
-import { effectiveSeatCeiling } from '../../daemon/concourseSupervisor.js';
+import { effectiveSeatCeiling } from '../../daemon/concourseWorkers.js';
 import { credentialWallLineForModel } from '../../services/providers/credentialWall.js';
 import {
   collapseSplitForFrame,

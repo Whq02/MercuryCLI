@@ -437,7 +437,7 @@ try {
   }
 
   p5Stage('read A worker pid')
-  const sup = await import('../../src/daemon/concourseSupervisor.ts')
+  const sup = await import('../../src/daemon/concourseWorkers.ts')
   const pidOf = (sid: string): number | undefined =>
     Object.values(sup.readSessionWorkers(daemonDir)).find(r => r.sessionId === sid && r.endedAt === undefined)?.pid
   await untilAsync(() => pidOf(A.sessionId) !== undefined, 30_000)

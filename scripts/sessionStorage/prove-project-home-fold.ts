@@ -62,9 +62,9 @@ try {
   }
 
   check('§6 the transcript-home derivation stores a `.mercury`-grounded birth PARENT-side (MERCURY_SESSION_HOME\'s value)', getProjectDir(configHome) === getProjectDir(root) && getProjectDir(configHome).includes(sanitizePath(root).slice(0, 20)))
-  const supervisor = codeOnlyText('src/daemon/concourseSupervisor.ts', readFileSync(join(ROOT, 'src/daemon/concourseSupervisor.ts'), 'utf8'))
+  const workers = codeOnlyText('src/daemon/concourseWorkers.ts', readFileSync(join(ROOT, 'src/daemon/concourseWorkers.ts'), 'utf8'))
   const daemonPaths = codeOnlyText('src/utils/sessionStorage/paths.ts', readFileSync(join(ROOT, 'src/utils/sessionStorage/paths.ts'), 'utf8'))
-  check('§6 SOURCE SEAM: the spawn sets MERCURY_SESSION_HOME via getProjectDir(args.workspaceId)', supervisor.includes('MERCURY_SESSION_HOME: getProjectDir(args.workspaceId)') && supervisor.includes("import { getProjectDir } from '../utils/sessionStorage/paths.js'"))
+  check('§6 SOURCE SEAM: the spawn sets MERCURY_SESSION_HOME via getProjectDir(args.workspaceId)', workers.includes('MERCURY_SESSION_HOME: getProjectDir(args.workspaceId)') && workers.includes("import { getProjectDir } from '../utils/sessionStorage/paths.js'"))
   check('§6 SOURCE SEAM: that getProjectDir IS the folding derivation proved above (paths delegates to the portable resolver)', daemonPaths.includes("import { getProjectDir as resolveProjectDir } from '../sessionStoragePortable.js'") && daemonPaths.includes('return resolveProjectDir(projectDir)'))
 } finally {
   rmSync(scratch, { recursive: true, force: true })

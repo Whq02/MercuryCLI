@@ -11,7 +11,7 @@ const SCAN_DEPTH = 5
 const CODE_EXT = /\.(ts|tsx|js|jsx|mjs|cjs|py)$/
 const SKIP_DIRS = new Set([
   '.git', 'node_modules', 'dist', 'build', 'out', 'vendor', 'venv', '.venv',
-  '__pycache__', '.cache', 'coverage', '.claude', '.mercury',
+  '__pycache__', '.cache', 'coverage', '.mercury',
 ])
 const TEST_PATH_RE = /(^|\/)((tests?|__tests__|spec)\/|test_[^/]+\.py$)|\.(test|spec)\.[a-z]+$/
 

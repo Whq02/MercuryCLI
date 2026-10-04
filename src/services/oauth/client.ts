@@ -2,9 +2,9 @@ import axios, { AxiosError } from 'axios'
 
 import {
   ALL_OAUTH_SCOPES,
-  CLAUDE_AI_INFERENCE_SCOPE,
-  CLAUDE_AI_OAUTH_SCOPES,
-  CLAUDE_AI_PROFILE_SCOPE,
+  INFERENCE_SCOPE,
+  SUBSCRIPTION_OAUTH_SCOPES,
+  PROFILE_SCOPE,
   OAUTH_BETA_HEADER,
   getOauthConfig,
 } from '../../constants/oauth.js'
@@ -46,7 +46,7 @@ const EXPIRY_BUFFER_MS = 5 * 60 * 1000
 
 
 export function shouldUseClaudeAIAuth(scopes: string[] | undefined): boolean {
-  return scopes?.includes(CLAUDE_AI_INFERENCE_SCOPE) ?? false
+  return scopes?.includes(INFERENCE_SCOPE) ?? false
 }
 
 export function parseScopes(scopeString?: string | null): string[] {
@@ -77,7 +77,7 @@ export function buildAuthUrl({
   loginMethod?: string
 }): string {
   const config = getOauthConfig()
-  const base = loginWithClaudeAi ? config.CLAUDE_AI_AUTHORIZE_URL : config.CONSOLE_AUTHORIZE_URL
+  const base = loginWithClaudeAi ? config.SUBSCRIPTION_AUTHORIZE_URL : config.CONSOLE_AUTHORIZE_URL
   const url = new URL(base)
   url.searchParams.append('code', 'true')
   url.searchParams.append('client_id', config.CLIENT_ID)
@@ -88,7 +88,7 @@ export function buildAuthUrl({
   )
   url.searchParams.append(
     'scope',
-    inferenceOnly === true ? CLAUDE_AI_INFERENCE_SCOPE : ALL_OAUTH_SCOPES.join(' '),
+    inferenceOnly === true ? INFERENCE_SCOPE : ALL_OAUTH_SCOPES.join(' '),
   )
   url.searchParams.append('code_challenge', codeChallenge)
   url.searchParams.append('code_challenge_method', 'S256')
@@ -201,7 +201,7 @@ export async function refreshOAuthToken(
         scope:
           scopes !== undefined && scopes.length > 0
             ? scopes.join(' ')
-            : CLAUDE_AI_OAUTH_SCOPES.join(' '),
+            : SUBSCRIPTION_OAUTH_SCOPES.join(' '),
       },
       { timeout: EXCHANGE_TIMEOUT_MS, headers: { 'User-Agent': getMercuryUserAgent() } },
     )
@@ -470,7 +470,7 @@ export async function populateOAuthAccountInfoIfNeeded(): Promise<void> {
   if (!isClaudeAISubscriber()) return
   const credential = readStoredCredential()
   if (!credential?.accessToken) return
-  if (!credential.scopes.includes(CLAUDE_AI_PROFILE_SCOPE)) return
+  if (!credential.scopes.includes(PROFILE_SCOPE)) return
 
   const profile = await getOauthProfileFromOauthToken(credential.accessToken)
   if (profile === null) return
@@ -536,7 +536,7 @@ export function storeOAuthAccountInfo(info: AccountInfo): void {
   if (existing !== undefined && existing.accountUuid !== info.accountUuid) {
     try {
       const { resetLimitsForCredentialSwitch } =
-        require('../claudeAiLimits.js') as typeof import('../claudeAiLimits.js')
+        require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
       resetLimitsForCredentialSwitch()
     } catch {
     }

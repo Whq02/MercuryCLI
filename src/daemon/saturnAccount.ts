@@ -6,7 +6,7 @@ import { getClaudeAIOAuthTokens, isAnthropicOAuthSignInExpired, isClaudeAISubscr
 import { getAuthConfigHomeDir } from '../utils/envUtils.js'
 import { readScopeIdentity, scopeIdentityFile } from '../utils/accounts/scopeScan.js'
 import { LOCAL_UNREACHABLE_REMEDY } from '../services/providers/local/localAccounts.js'
-import { anthropicWindowClosedUntil } from '../services/claudeAiLimits.js'
+import { anthropicWindowClosedUntil } from '../services/anthropicLimits.js'
 import { openaiWindowClosedUntil } from '../services/providers/openai/openaiLimitState.js'
 import { laneWindowClosedUntil } from '../services/providers/laneWindowFact.js'
 import { readSessionFacts } from '../services/engine-connector/seatProjections.js'

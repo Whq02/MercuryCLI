@@ -18,7 +18,7 @@ mkdirSync(home, { recursive: true })
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) {
   process.env[spelling] = home
 }
-for (const key of ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'MERCURY_MODEL']) {
+for (const key of ['ANTHROPIC_API_KEY', 'MERCURY_MODEL']) {
   delete process.env[key]
 }
 delete process.env.NODE_ENV
@@ -79,7 +79,7 @@ section('§1 — the seam: the armed payload stands in for the wire, whole')
 section('§2 — the one owner walks the full per-family vocabulary; the panel reads it')
 {
   const { anthropicPoolWindowViews } = await import('../../src/services/providers/providerUsage.ts')
-  const { WEEKLY_POOL_CLAIMS } = await import('../../src/services/claudeAiLimits.ts')
+  const { WEEKLY_POOL_CLAIMS } = await import('../../src/services/anthropicLimits.ts')
   check('the owner\'s vocabulary lists every pooled family (fable included)', WEEKLY_POOL_CLAIMS.join(',') === 'seven_day_fable,seven_day_opus,seven_day_sonnet')
   const pools = anthropicPoolWindowViews()
   const byKey = Object.fromEntries(pools.map(p => [p.key, Math.round(p.usedPct ?? -1)]))

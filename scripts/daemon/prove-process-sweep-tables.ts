@@ -271,8 +271,8 @@ function world(): { table: ProcessSweepTable; records: ProcessSweepRecords } {
     heartbeatAllowanceMs: 90_000,
     planes: [{
       daemonDir: '/home/one/daemon',
-      supervisor: { pid: 4001, startToken: tokenFor(4001), ownerPid: 3002, persist: false, startedAt: born('2026-09-20T09:02:00+01:00') },
-      supervisorReadable: true,
+      daemon: { pid: 4001, startToken: tokenFor(4001), ownerPid: 3002, persist: false, startedAt: born('2026-09-20T09:02:00+01:00') },
+      daemonReadable: true,
       answer: { pid: 4001, ownerPid: 3002, live: 1, liveSessions: 1, persist: false, runners: [
         { pid: 4002, procStart: tokenFor(4002), endedAt: undefined, stoppedAt: undefined, parkedAt: undefined, seatHolders: [{ stamp: 'operator:3002', terminalPid: 3002 }], schedules: 0, activity: 'idle', warm: false },
         { pid: 4003, procStart: tokenFor(4003), endedAt: NOW - 1_200_000, stoppedAt: undefined, parkedAt: undefined, seatHolders: [], schedules: 0, activity: undefined, warm: false },
@@ -325,8 +325,8 @@ await check('a linux world whose process table names every Mercury process MainT
     heartbeatAllowanceMs: 90_000,
     planes: [{
       daemonDir: '/home/one/daemon',
-      supervisor: { pid: 2002, startToken: tokenFor(2002), ownerPid: 2001, persist: false, startedAt: born('2026-09-20T09:00:10+01:00') },
-      supervisorReadable: true,
+      daemon: { pid: 2002, startToken: tokenFor(2002), ownerPid: 2001, persist: false, startedAt: born('2026-09-20T09:00:10+01:00') },
+      daemonReadable: true,
       answer: { pid: 2002, ownerPid: 2001, live: 1, liveSessions: 1, persist: false, runners: [
         { pid: 2003, procStart: tokenFor(2003), endedAt: undefined, stoppedAt: undefined, parkedAt: undefined, seatHolders: [{ stamp: 'operator:2001', terminalPid: 2001 }], schedules: 0, activity: 'idle', warm: false },
         { pid: 2007, procStart: tokenFor(2007), endedAt: undefined, stoppedAt: undefined, parkedAt: undefined, seatHolders: [{ stamp: 'operator:2001', terminalPid: 2001 }], schedules: 0, activity: 'idle', warm: false },
@@ -384,10 +384,10 @@ await check('a bundle-named daemon of a plane this reader holds no records for c
 
 await check('a live cockpit on the plane protects an owner-gone daemon; without one it waits for the drain allowance, then reads stale once its first sighting is old enough', () => {
   const guarded = world()
-  const protectedRecords = { ...guarded.records, planes: [{ ...guarded.records.planes[0]!, supervisor: { ...guarded.records.planes[0]!.supervisor!, ownerPid: 3999 }, answer: { ...guarded.records.planes[0]!.answer!, ownerPid: 3999, live: 0, liveSessions: 0, runners: [] } }] }
+  const protectedRecords = { ...guarded.records, planes: [{ ...guarded.records.planes[0]!, daemon: { ...guarded.records.planes[0]!.daemon!, ownerPid: 3999 }, answer: { ...guarded.records.planes[0]!.answer!, ownerPid: 3999, live: 0, liveSessions: 0, runners: [] } }] }
   assert.match(classes(guarded.table, protectedRecords).get(4001)!.reason, /registration/)
   const { table, records } = world()
-  const gone = { ...records, registrations: [records.registrations![1]!], planes: [{ ...records.planes[0]!, supervisor: { ...records.planes[0]!.supervisor!, ownerPid: 3999 }, answer: { ...records.planes[0]!.answer!, ownerPid: 3999, live: 0, liveSessions: 0, runners: [] } }] }
+  const gone = { ...records, registrations: [records.registrations![1]!], planes: [{ ...records.planes[0]!, daemon: { ...records.planes[0]!.daemon!, ownerPid: 3999 }, answer: { ...records.planes[0]!.answer!, ownerPid: 3999, live: 0, liveSessions: 0, runners: [] } }] }
   const first = readProcessSweepCensus(table, gone)
   const daemon = first.entries.find(entry => entry.process.pid === 4001)!
   assert.equal(daemon.classification, 'running')
@@ -402,7 +402,7 @@ await check('a live cockpit on the plane protects an owner-gone daemon; without 
 await check('an explicit daemon and a persistent daemon stay running even with their owner gone', () => {
   const { table, records } = world()
   for (const shape of [{ ownerPid: null, persist: false }, { ownerPid: 3999, persist: true }]) {
-    const variant = { ...records, registrations: [records.registrations![1]!], planes: [{ ...records.planes[0]!, supervisor: { ...records.planes[0]!.supervisor!, ...shape }, answer: { ...records.planes[0]!.answer!, ownerPid: shape.ownerPid, persist: shape.persist, live: 0, liveSessions: 0, runners: [] } }], memory: { [`daemon:4001:${table.observations.find(row => row.process.pid === 4001)!.startToken}`]: NOW - 700_000 } }
+    const variant = { ...records, registrations: [records.registrations![1]!], planes: [{ ...records.planes[0]!, daemon: { ...records.planes[0]!.daemon!, ...shape }, answer: { ...records.planes[0]!.answer!, ownerPid: shape.ownerPid, persist: shape.persist, live: 0, liveSessions: 0, runners: [] } }], memory: { [`daemon:4001:${table.observations.find(row => row.process.pid === 4001)!.startToken}`]: NOW - 700_000 } }
     const got = classes(table, variant)
     assert.equal(got.get(4001)!.classification, 'running')
     assert.match(got.get(4001)!.reason, /persistence/)
@@ -411,7 +411,7 @@ await check('an explicit daemon and a persistent daemon stay running even with t
 
 await check('a daemon record without the persistence fact cannot be ended', () => {
   const { table, records } = world()
-  const variant = { ...records, registrations: [records.registrations![1]!], planes: [{ ...records.planes[0]!, supervisor: { ...records.planes[0]!.supervisor!, ownerPid: 3999, persist: undefined }, answer: null, runners: [] }], memory: { [`daemon:4001:${table.observations.find(row => row.process.pid === 4001)!.startToken}`]: NOW - 700_000 } }
+  const variant = { ...records, registrations: [records.registrations![1]!], planes: [{ ...records.planes[0]!, daemon: { ...records.planes[0]!.daemon!, ownerPid: 3999, persist: undefined }, answer: null, runners: [] }], memory: { [`daemon:4001:${table.observations.find(row => row.process.pid === 4001)!.startToken}`]: NOW - 700_000 } }
   const got = classes(table, variant)
   assert.equal(got.get(4001)!.classification, 'cannot-end')
   assert.match(got.get(4001)!.reason, /could not be read/)
@@ -545,16 +545,16 @@ await check('a classifier exception is a refusal of the whole census, never a pa
 
 await check('a successor owner born after the daemon is a live owner, never a recycled pid', () => {
   const { table, records } = world()
-  const successor = { ...records, registrations: [records.registrations![1]!], memory: { [`daemon:4001:${table.observations.find(row => row.process.pid === 4001)!.startToken}`]: NOW - 700_000 }, planes: [{ ...records.planes[0]!, supervisor: { ...records.planes[0]!.supervisor!, ownerPid: 9001 }, answer: { ...records.planes[0]!.answer!, ownerPid: 9001, live: 0, liveSessions: 0, runners: [] } }] }
+  const successor = { ...records, registrations: [records.registrations![1]!], memory: { [`daemon:4001:${table.observations.find(row => row.process.pid === 4001)!.startToken}`]: NOW - 700_000 }, planes: [{ ...records.planes[0]!, daemon: { ...records.planes[0]!.daemon!, ownerPid: 9001 }, answer: { ...records.planes[0]!.answer!, ownerPid: 9001, live: 0, liveSessions: 0, runners: [] } }] }
   const got = classes(table, successor)
   assert.equal(got.get(4001)!.classification, 'running')
   assert.match(got.get(4001)!.reason, /owner/)
-  assert.ok(table.observations.find(row => row.process.pid === 9001)!.process.startedAtMs > records.planes[0]!.supervisor!.startedAt, 'the fixture\'s successor is younger than the daemon')
+  assert.ok(table.observations.find(row => row.process.pid === 9001)!.process.startedAtMs > records.planes[0]!.daemon!.startedAt, 'the fixture\'s successor is younger than the daemon')
 })
 
 await check('a registration whose token could not be read is unknown, not absent: the owner-gone daemon cannot be ended', () => {
   const { table, records } = world()
-  const uncertain = { ...records, registrations: [{ ...records.registrations![0]!, startToken: null }], memory: { [`daemon:4001:${table.observations.find(row => row.process.pid === 4001)!.startToken}`]: NOW - 700_000 }, planes: [{ ...records.planes[0]!, supervisor: { ...records.planes[0]!.supervisor!, ownerPid: 3999 }, answer: { ...records.planes[0]!.answer!, ownerPid: 3999, live: 0, liveSessions: 0, runners: [] } }] }
+  const uncertain = { ...records, registrations: [{ ...records.registrations![0]!, startToken: null }], memory: { [`daemon:4001:${table.observations.find(row => row.process.pid === 4001)!.startToken}`]: NOW - 700_000 }, planes: [{ ...records.planes[0]!, daemon: { ...records.planes[0]!.daemon!, ownerPid: 3999 }, answer: { ...records.planes[0]!.answer!, ownerPid: 3999, live: 0, liveSessions: 0, runners: [] } }] }
   const got = classes(table, uncertain)
   assert.equal(got.get(4001)!.classification, 'cannot-end')
   assert.match(got.get(4001)!.reason, /registration/)
@@ -564,9 +564,9 @@ await check('a parked session record is not an open session; an open one still p
   const { table, records } = world()
   const runner = records.planes[0]!.answer!.runners![0]!
   const base = { ...records, registrations: [records.registrations![1]!], memory: { [`daemon:4001:${table.observations.find(row => row.process.pid === 4001)!.startToken}`]: NOW - 700_000 } }
-  const parked = { ...base, planes: [{ ...records.planes[0]!, supervisor: { ...records.planes[0]!.supervisor!, ownerPid: 3999 }, answer: { ...records.planes[0]!.answer!, ownerPid: 3999, live: 0, liveSessions: 0, runners: [{ ...runner, pid: 4444, parkedAt: NOW - 5_000, seatHolders: [] }] } }] }
+  const parked = { ...base, planes: [{ ...records.planes[0]!, daemon: { ...records.planes[0]!.daemon!, ownerPid: 3999 }, answer: { ...records.planes[0]!.answer!, ownerPid: 3999, live: 0, liveSessions: 0, runners: [{ ...runner, pid: 4444, parkedAt: NOW - 5_000, seatHolders: [] }] } }] }
   assert.equal(classes(table, parked).get(4001)!.classification, 'stale')
-  const open = { ...base, planes: [{ ...records.planes[0]!, supervisor: { ...records.planes[0]!.supervisor!, ownerPid: 3999 }, answer: { ...records.planes[0]!.answer!, ownerPid: 3999, live: 0, liveSessions: 0, runners: [{ ...runner, pid: 4444, seatHolders: [] }] } }] }
+  const open = { ...base, planes: [{ ...records.planes[0]!, daemon: { ...records.planes[0]!.daemon!, ownerPid: 3999 }, answer: { ...records.planes[0]!.answer!, ownerPid: 3999, live: 0, liveSessions: 0, runners: [{ ...runner, pid: 4444, seatHolders: [] }] } }] }
   assert.equal(classes(table, open).get(4001)!.classification, 'running')
   assert.match(classes(table, open).get(4001)!.reason, /session/)
 })
@@ -601,7 +601,7 @@ const ladderTable = (): ProcessSweepTable => {
 }
 const daemonToken = ladderTable().observations.find(row => row.process.pid === 4001)!.startToken
 const runnerToken = ladderTable().observations.find(row => row.process.pid === 4003)!.startToken
-writeFileSync(join(daemonDir, 'supervisor.json'), JSON.stringify({ pid: 4001, version: '1', origin: 'transient', startedAt: born('2026-09-20T09:02:00+01:00'), dir: '/work', controlSock: join(daemonDir, 'control.sock'), ownerPid: 3999, persist: false, startToken: daemonToken }))
+writeFileSync(join(daemonDir, 'daemon.json'), JSON.stringify({ pid: 4001, version: '1', origin: 'transient', startedAt: born('2026-09-20T09:02:00+01:00'), dir: '/work', controlSock: join(daemonDir, 'control.sock'), ownerPid: 3999, persist: false, startToken: daemonToken }))
 writeFileSync(join(daemonDir, 'concourse-workers.json'), JSON.stringify({ version: 1, workers: { 'concourse-w1': { schema: 1, runnerId: 'concourse-w1', sessionId: 's-1', workspaceId: '/work', isolation: 'read-only', modelKey: 'm', spawnedAt: NOW - 2_000_000, lastLiveAt: NOW - 1_500_000, pid: 4003, procStart: runnerToken, endedAt: NOW - 1_200_000 } } }))
 writeFileSync(join(home, 'processes', 'census.json'), JSON.stringify({ readAt: NOW - 700_000, platform: 'darwin', complete: true, entries: [], memory: { [`daemon:4001:${daemonToken}`]: NOW - 700_000 }, endings: [] }))
 process.env.MERCURY_SESSION_PARK_DRAIN_MINUTES = '10'

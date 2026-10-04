@@ -21,7 +21,7 @@ const { daemonControlRpc, readControlKey, controlSockPath } = await import('../.
 const handoverMod = (await import('../../src/daemon/handover.ts')) as typeof import('../../src/daemon/handover.ts') & { predecessorSockPidOf?: (entry: string, plane?: string) => number | null }
 const { forwardFrame, predecessorSockPath, renameSocketForPredecessor } = handoverMod
 const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
-const { readSessionWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
 const { isProcessAlive } = await import('../../src/daemon/ownerWatch.ts')
 const hostedMod = (await import('../../src/daemon/hostedCaller.ts')) as typeof import('../../src/daemon/hostedCaller.ts')
 let failures = 0

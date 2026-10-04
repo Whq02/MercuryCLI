@@ -2,7 +2,6 @@ import { existsSync, mkdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { MERCURY_PROJECT_DIR, PROJECT_CONFIG_DIR_NAMES, projectConfigDirs } from '../../utils/projectConfig.js'
-import { adoptiveProjectPath } from '../../utils/projectStoreAdoption.js'
 
 export function projectLocalDir(root: string): string {
   return join(root, MERCURY_PROJECT_DIR)
@@ -10,10 +9,6 @@ export function projectLocalDir(root: string): string {
 
 export function projectLocalPath(root: string, ...segments: string[]): string {
   return join(root, MERCURY_PROJECT_DIR, ...segments)
-}
-
-export function adoptiveProjectLocalPath(root: string, ...segments: string[]): string {
-  return adoptiveProjectPath(root, ...segments)
 }
 
 export function projectLocalEstateExists(root: string): boolean {
@@ -31,12 +26,7 @@ export function initializeProjectLocalEstate(root: string): { dir: string; creat
   }
   if (home !== '' && absolute === home) return null
   if (projectLocalEstateExists(root)) return { dir: projectLocalDir(root), created: false }
-  let dir: string
-  try {
-    dir = adoptiveProjectPath(root)
-  } catch {
-    return null
-  }
+  const dir = projectLocalDir(root)
   try {
     mkdirSync(dir)
   } catch (error) {

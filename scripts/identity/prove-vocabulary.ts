@@ -116,7 +116,14 @@ const RETIRED: Array<[string, RegExp, string[]]> = [
   ['concourse-knob-spellings', asName(J('MERCURY_CONCOURSE_', '(?:IDLE_RETIRE|NEWBORN_GRACE)_MINUTES')), [J('MERCURY_CONCOURSE_', 'IDLE'), J('MERCURY_CONCOURSE_', 'NEWBORN')]],
   ['config-migration-set', asName(J('(?:runMigrations', 'IfNeeded|MIGRATION_', 'VERSION|migration', 'Version|cached', 'Changelog|migrateChangelog', 'FromConfig|removeProject', 'History)')), [J('runMigrations', ''), J('MIGRATION_', 'VERSION'), J('migration', 'Version'), J('cached', 'Changelog'), J('migrateChangelog', ''), J('removeProject', 'History')]],
   ['line-prefix-switch', asName(J('(?:isCompactLine', 'PrefixEnabled|LINE_FORMAT_INSTRUCTION', '_LEGACY)')), [J('isCompactLine', 'Prefix'), J('INSTRUCTION', '_LEGACY')]],
+  ['other-tool-home', new RegExp('(?<![\\w])\\.cla' + 'ude(?:\\.json)?(?![\\w.])'), [J('.cla', 'ude')]],
+  ['adoption-resolver', asName(J('(?:projectStore', 'Adoption|(?:non)?adoptive', 'ProjectPath|adoptive', 'ProjectLocalPath|CanonicalRoot', 'AliasError)')), [J('Store', 'Adoption'), J('doptive', 'Project'), J('CanonicalRoot', 'Alias')]],
+  ['daemon-word', new RegExp('(?<![\\w])super' + 'visors?(?![\\w])', 'i'), [J('super', 'visor'), J('Super', 'visor'), J('SUPER', 'VISOR')]],
+  ['other-tool-env-names', asName(J('CLAUDE_', '(?:CODE_[A-Z_]+|EFFORT|CREW_NAME|AGENT_NAME|ENABLE_STREAM_WATCHDOG|OPUS_4_6_CONFIG|CONFIG_DIR|AI_[A-Z_]+)')), [J('CLAUDE_', 'CODE_'), J('CLAUDE_', 'EFFORT'), J('CLAUDE_', 'CREW_'), J('CLAUDE_', 'AGENT_'), J('CLAUDE_', 'ENABLE_'), J('CLAUDE_', 'OPUS_'), J('CLAUDE_', 'CONFIG_DIR'), J('CLAUDE_', 'AI_')]],
+  ['government-route', new RegExp(J('fed', 'start|CUSTOM_OAUTH', '_ALLOWLIST|MERCURY_CUSTOM', '_OAUTH_URL|fileSuffixFor', 'OauthConfig|OAUTH_FILE', '_SUFFIX|-custom-', 'oauth'), 'i'), [J('ed', 'start'), J('CUSTOM_', 'OAUTH'), J('fileSuffixFor', 'Oauth'), J('OAUTH_FILE', '_SUFFIX'), J('custom-', 'oauth')]],
+  ['claude-site-names', new RegExp(J('claudeAi', 'Limits|ClaudeAI', 'Limits|useClaudeAi', 'Limits|mcp/', 'claudeai\\b|claudeai\\.(?:ts|js)|claudeAiMcp', 'Armed|fetchClaudeAI', 'Mcp|clearClaudeAI', 'Mcp|markClaudeAi', 'Mcp|hasClaudeAiMcp', 'Ever|dedupClaudeAi', 'Mcp|McpClaudeAI', 'Proxy|ClaudeAI', 'ServerInfo|createClaudeAi', 'ProxyFetch|connectClaudeAi', 'Connectors|MERCURY_CLAUDEAI', '_MCP|prove-claudeai', '-optin')), [J('laudeAi', 'Limits'), J('ClaudeAI', 'Limits'), J('laude', 'ai'), J('ClaudeAI', 'Mcp'), J('ClaudeAi', 'Mcp'), J('McpClaudeAI', ''), J('ClaudeAI', 'ServerInfo'), J('ClaudeAi', 'Proxy'), J('ClaudeAi', 'Connectors'), J('CLAUDEAI', '_MCP')]],
 ]
+const PRODUCT_ONLY_ROWS = new Set(['other-tool-home'])
 const SETTINGS_SCOPE = /^(?:src\/|docs\/|README\.md$|scripts\/)/
 const RETIRED_SETTINGS_ROOTS = [
   'apiKeyHelper', 'proxyAuthHelper', 'forceLoginMethod', 'forceLoginOrgUUID', 'fileSuggestion', 'respectGitignore', 'cleanupPeriodDays',
@@ -238,6 +245,12 @@ const ALLOW: Array<[string, string, string]> = [
   ['scripts/identity/prove-unknown-command-answer.ts', 'health-word', 'names the word it proves unknown'],
   ['scripts/command-catalogue/prove-beta-journey-matrix.ts', 'health-word', 'names the word it proves is no surface'],
   ['scripts/ui/prove-old-transcript-rows.ts', 'screen-chat-word', "an older transcript's absent tool name — the row it proves paints by name"],
+  ['src/utils/knownAgentClis.ts', 'other-tool-env-names', "the peer table: another tool's session-token spellings struck from Mercury's children, one data row per known tool"],
+  ['scripts/health/prove-foreign-harness-inversion.ts', 'other-tool-env-names', 'pins the peer table row by row'],
+  ['scripts/mission-runner/live/runner.ts', 'other-tool-env-names', "an external agent CLI's own effort contract, set only when the runner drives that CLI"],
+  ['scripts/model-policy/prove-model-policy-surfaces.ts', 'other-tool-env-names', 'names the spelling it proves absent'],
+  ['scripts/accounts/prove-oauth-loopback-seam.ts', 'government-route', 'names the record field it proves absent'],
+  ['scripts/identity/prove-unknown-command-answer.ts', 'daemon-word', 'names the slash word it proves unknown'],
 ]
 function allowed(path: string, rule: string): boolean {
   for (const [prefix, rules] of ALLOW) {
@@ -297,6 +310,7 @@ function scan(files: Array<{ path: string; content: string }>): Violation[] {
       }
       if (retiredHere) {
         for (const [label, re, stems] of RETIRED) {
+          if (PRODUCT_ONLY_ROWS.has(label) && f.path.startsWith('scripts/')) continue
           if (!stems.some(stem => line.includes(stem)) || allowed(f.path, label) || !re.test(line)) continue
           out.push({ path: f.path, line: i + 1, rule: `retired:${label}`, text: line.trim().slice(0, 140) })
           break
@@ -521,6 +535,17 @@ console.log('============================================================')
     ['config-migration-set', 'config.' + J('migration', 'Version') + ' === ' + J('MIGRATION_', 'VERSION')],
     ['config-migration-set', J('removeProject', 'History') + '(config.projects)'],
     ['line-prefix-switch', 'if (' + J('isCompactLine', 'PrefixEnabled') + '())'],
+    ['other-tool-home', "const source = join(root, '" + J('.cla', 'ude') + "')"],
+    ['other-tool-home', "writeFileSync(join(home, '" + J('.cla', 'ude') + ".json'), bytes)"],
+    ['adoption-resolver', J('adoptive', 'ProjectPath') + "(root, 'tasks')"],
+    ['daemon-word', 'the ' + J('super', 'visor') + ' record'],
+    ['daemon-word', J('super', 'visor') + '.json'],
+    ['other-tool-env-names', "delete env." + J('CLAUDE_', 'CODE_OAUTH_TOKEN')],
+    ['other-tool-env-names', J('CLAUDE_', 'AI_OAUTH_SCOPES') + '.join(' + "' '" + ')'],
+    ['government-route', "'https://claude." + J('fed', 'start') + ".com'"],
+    ['government-route', 'process.env.' + J('MERCURY_CUSTOM', '_OAUTH_URL')],
+    ['claude-site-names', "import { x } from '../" + J('claudeAi', 'Limits') + ".js'"],
+    ['claude-site-names', "flagEnv('" + J('MERCURY_CLAUDEAI', '_MCP') + "')"],
   ]
   check('§5 self-test: every retired-word row has a spelling here and trips on it in src', RETIRED.every(([label]) => trips.some(([l]) => l === label)) && trips.every(([label, content]) => retiredHits('src/x.ts', content).includes(label)), trips.filter(([label, content]) => !retiredHits('src/x.ts', content).includes(label)).map(([label]) => label).join(','))
   check('§5 self-test: the rows reach docs, the README and the script estate', retiredHits('docs/x.md', trips[0]![1]).length === 1 && retiredHits('README.md', trips[0]![1]).length === 1 && retiredHits('scripts/x/prove-x.ts', trips[0]![1]).length === 1)
@@ -541,6 +566,8 @@ console.log('============================================================')
     'mercury roster; mercury bridge install; --log-file out.log; --crew alpha --seat bravo; MERCURY_MEMORY_OBSERVE=1',
     "type: 'hook_error_during_execution'; api_ms: 12; steps: 3; session/set_mode; permission/request; the stream-fault row; { type: 'callback' }; the SDK of the provider; sdkErrors.ts; the MCP SDK",
     't(a, /' + J('co', 'lor') + "=\\{tokens\\.success\\}/.test(src)); t(b, /" + J('fi', 'les') + " stay on disk/.test(msg)); t(c, /" + J('co', 'lor') + " = 'warning'/.test(dialog)); t(d, /" + J('co', 'lor') + '/.test(grid)); src/commands/' + J('co', 'st') + '/; the replay; replace(); mercury health --json; the Mneme home; crew; flowClassifier; getEngineModel()',
+    "https://platform.claude.com/oauth/authorize; https://beacon.claude-ai.staging.ant.dev; 'anthropic.claude-opus-4-8-v1:0'; getSecureStorage().read()?.claudeAiOauth; cfg.claudeAiMcpEverConnected; type: 'claudeai-proxy'; signInRoute: 'claudeai'; key: 'mcp-claudeai-failed'; https://claude.ai/settings/connectors",
+    "projectLocalPath(root, 'settings.json'); daemon.json; readDaemonState(); the supervision policy; a supervised child; MERCURY_ANTHROPIC_OAUTH_BASE; isLoopbackOauthOrigin(url); MERCURY_ANTHROPIC_CONNECTORS; anthropicLimits.ts; mcp/anthropicConnectors.js; /^(ANTHROPIC_|CLAUDE_|OPENAI_)/.test(name); CLAUDE_ID; CLAUDE_EMAIL; UNKNOWN_CLAUDE_ID",
   ]
   check('§5 self-test: kept identifiers, ordinary English and other programs stay quiet', quiet.every(content => retiredHits('src/x.ts', content).length === 0), quiet.filter(content => retiredHits('src/x.ts', content).length > 0).join(' | '))
   check('§5 self-test: a published record and a forbidden-words list keep their lines', retiredHits('src/constants/changelog.ts', trips[1]![1]).length === 0 && retiredHits('docs/releases/1.0.0-beta.9.md', trips[1]![1]).length === 0 && retiredHits('scripts/identity/prove-release-notes-words.ts', trips[1]![1]).length === 0)

@@ -113,8 +113,8 @@ await detector.initialize()
   await ground.applyHarnessGround(worktreeWReal)
   check('S3 a same-repo worktree move never re-keys the project slice', projectConfig.getProjectPathForConfig() === keyA)
   const restore = readFileSync(join(repoRoot, 'src/utils/sessionRestore.ts'), 'utf8')
-  const supervisor = readFileSync(join(repoRoot, 'src/daemon/concourseSupervisor.ts'), 'utf8')
-  check('S3 the worktree re-home is the daemon’s spawn (the runner boots inside the recorded worktree); the restore module moves no directory', (supervisor.match(/cwd: rec\.worktreePath \?\? rec\.workspaceId,/g) ?? []).length >= 3 && !restore.includes('process.chdir('))
+  const daemon = readFileSync(join(repoRoot, 'src/daemon/concourseWorkers.ts'), 'utf8')
+  check('S3 the worktree re-home is the daemon’s spawn (the runner boots inside the recorded worktree); the restore module moves no directory', (daemon.match(/cwd: rec\.worktreePath \?\? rec\.workspaceId,/g) ?? []).length >= 3 && !restore.includes('process.chdir('))
 }
 
 {

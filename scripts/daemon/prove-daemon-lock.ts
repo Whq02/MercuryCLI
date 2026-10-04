@@ -17,15 +17,15 @@ process.env.MERCURY_CONFIG_DIR = home
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const cs = (await import('../../src/daemon/controlSocket.js')) as typeof import('../../src/daemon/controlSocket.js')
-const lockPath = join(home, 'daemon', 'supervisor.lock')
+const lockPath = join(home, 'daemon', 'daemon.lock')
 
 console.log('============================================================')
-console.log(' Supervisor mutex — HB-0066/HB-0072 (one daemon per config home)')
+console.log(' Daemon mutex — HB-0066/HB-0072 (one daemon per config home)')
 console.log('============================================================')
 
 section('clean acquire → lock file written → release removes it')
 {
-  const lock = await cs.acquireSupervisorLock()
+  const lock = await cs.acquireDaemonLock()
   check('acquire on a clean home ⇒ a lock handle', lock !== null)
   check('lock file exists on disk', existsSync(lockPath))
   check('lock records THIS pid', JSON.parse(readFileSync(lockPath, 'utf8')).pid === process.pid)
@@ -37,7 +37,7 @@ section('a live holder (different pid) ⇒ acquire REFUSES (null), file untouche
 {
   const livePayload = JSON.stringify({ pid: 1, startedAt: Date.now(), id: 'other-live' })
   writeFileSync(lockPath, livePayload)
-  const refused = await cs.acquireSupervisorLock()
+  const refused = await cs.acquireDaemonLock()
   check('acquire REFUSES when a live daemon owns the home', refused === null)
   check('the live holder lock was NOT overwritten (no clobber)', readFileSync(lockPath, 'utf8') === livePayload)
   rmSync(lockPath)
@@ -46,7 +46,7 @@ section('a live holder (different pid) ⇒ acquire REFUSES (null), file untouche
 section('a stale holder (dead pid) ⇒ acquire RECLAIMS the lock')
 {
   writeFileSync(lockPath, JSON.stringify({ pid: 2_146_999_999, startedAt: 0, id: 'stale' }))
-  const reclaimed = await cs.acquireSupervisorLock()
+  const reclaimed = await cs.acquireDaemonLock()
   check('acquire RECLAIMS a stale lock', reclaimed !== null)
   check('the reclaimed lock now records THIS pid', JSON.parse(readFileSync(lockPath, 'utf8')).pid === process.pid)
   await reclaimed!.release()
@@ -55,7 +55,7 @@ section('a stale holder (dead pid) ⇒ acquire RECLAIMS the lock')
 
 section('release only removes OUR lock — a successor takeover is left intact')
 {
-  const mine = await cs.acquireSupervisorLock()
+  const mine = await cs.acquireDaemonLock()
   check('acquired (ours)', mine !== null)
   const successor = JSON.stringify({ pid: 1, startedAt: Date.now(), id: 'successor' })
   writeFileSync(lockPath, successor)
@@ -67,16 +67,16 @@ section('release only removes OUR lock — a successor takeover is left intact')
 section('structural: daemon main acquires before control, refuses on null, releases on shutdown')
 {
   const main = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'main.ts'), 'utf8')
-  check('acquires the lock', /supervisorLock = await acquireSupervisorLock\(\)/.test(main))
-  check('refuses (returns) when contended', /if \(!supervisorLock\)[\s\S]{0,260}return/.test(main))
-  check('acquire precedes the control server bind', main.indexOf('acquireSupervisorLock()') !== -1 && main.indexOf('acquireSupervisorLock()') < main.indexOf('startControlServer({'))
-  check('releases the lock on shutdown', /supervisorLock\?\.release\(\)/.test(main))
+  check('acquires the lock', /daemonLock = await acquireDaemonLock\(\)/.test(main))
+  check('refuses (returns) when contended', /if \(!daemonLock\)[\s\S]{0,260}return/.test(main))
+  check('acquire precedes the control server bind', main.indexOf('acquireDaemonLock()') !== -1 && main.indexOf('acquireDaemonLock()') < main.indexOf('startControlServer({'))
+  check('releases the lock on shutdown', /daemonLock\?\.release\(\)/.test(main))
 }
 
 rmSync(home, { recursive: true, force: true })
 
 console.log('\n' + '═'.repeat(76))
-if (failures === 0) console.log('✅ ALL SUPERVISOR-LOCK PROOFS PASS')
-else console.log(`❌ ${failures} SUPERVISOR-LOCK PROOF(S) FAILED`)
+if (failures === 0) console.log('✅ ALL DAEMON-LOCK PROOFS PASS')
+else console.log(`❌ ${failures} DAEMON-LOCK PROOF(S) FAILED`)
 console.log('═'.repeat(76))
 process.exit(failures === 0 ? 0 : 1)

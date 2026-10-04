@@ -5,7 +5,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { checker, scratchRoot } from '../engine-durability/harness.ts'
-import type { ConcourseAdmitResult } from '../../src/daemon/concourseSupervisor.ts'
+import type { ConcourseAdmitResult } from '../../src/daemon/concourseWorkers.ts'
 
 const t = checker()
 const root = scratchRoot('concourse-dispatch')
@@ -82,7 +82,7 @@ t.section('§4 — content hygiene (shape-only digests)')
 t.section('§5 — the delivery valve + redirect')
 {
   const { writeFileSync, mkdirSync } = await import('node:fs')
-  const { pauseConcourseWorker, resumeConcourseWorker } = await import('../../src/daemon/concourseSupervisor.ts')
+  const { pauseConcourseWorker, resumeConcourseWorker } = await import('../../src/daemon/concourseWorkers.ts')
   mkdirSync(dir, { recursive: true })
   writeFileSync(
     join(dir, 'concourse-workers.json'),
@@ -151,7 +151,7 @@ t.section('§5 — the delivery valve + redirect')
   const notReady = await vhandler({ clientMessageId: 'rd-5', prompt: 'to one the roster cannot take yet', workspaceDir: '', targetSessionId: 'sess-dead' })
   t.check("a revive refused because the daemon's roster is not ready settles failed with that in its words and offers a RETRY (the refusal is temporary), never a new session", notReady.ok === false && /could not be revived: daemon roster not ready/.test(notReady.error ?? '') && notReady.moves?.[0]?.verb === 'retry' && /temporary/.test(notReady.moves[0].label) && readConcourseDispatches(dir)['rd-5']!.state === 'failed', JSON.stringify(notReady))
   const daemonSrc = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', rel), 'utf8')
-  const reviveBody = daemonSrc('concourseSupervisor.ts').split('export function reviveConcourseWorker(')[1]?.split('\n}\n')[0] ?? ''
+  const reviveBody = daemonSrc('concourseWorkers.ts').split('export function reviveConcourseWorker(')[1]?.split('\n}\n')[0] ?? ''
   t.check('a revive is never refused on a seat count: the revive reads no ceiling and the roster reads none at all (the ceiling holds at admission, where the dispatch refuses runtime-ceiling)', reviveBody.length > 0 && !/runtime-ceiling|SeatCeiling|countLiveConcourseWorkers/.test(reviveBody) && !/SeatCeiling\(|describeSeatReading\(/.test(daemonSrc('roster.ts')), JSON.stringify({ reviveBodyChars: reviveBody.length }))
   reviveAnswers.push({ ok: false, error: 'a live worker already holds this id', reason: 'respawn-failed' })
   const spawn = await vhandler({ clientMessageId: 'rd-6', prompt: 'to a refused spawn', workspaceDir: '', targetSessionId: 'sess-dead' })

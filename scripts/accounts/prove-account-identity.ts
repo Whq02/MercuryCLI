@@ -127,7 +127,7 @@ try {
   rmSync(adoptDir, { recursive: true, force: true })
   console.log('── every mainstream harness home reads as another tool\'s, never Mercury\'s ──')
   const { isForeignHarnessDir } = await import('../../src/utils/accounts/scopeScan.ts')
-  const foreignHomes = ['.claude', '.claude-work', '.claude/projects', '.codex', '.gemini', '.copilot', '.cursor', '.kiro', '.cline', '.continue', '.qwen', '.pi', '.pi/agent', '.omp', '.omp/agent', '.config/opencode', '.config/amp', '.config/goose']
+  const foreignHomes = ['.codex', '.gemini', '.copilot', '.cursor', '.kiro', '.cline', '.continue', '.qwen', '.pi', '.pi/agent', '.omp', '.omp/agent', '.config/opencode', '.config/amp', '.config/goose']
   check('the harness homes read foreign', foreignHomes.every(h => isForeignHarnessDir(join('/proof-home', h))))
   check('a trailing slash changes nothing', isForeignHarnessDir('/proof-home/.codex/'))
   check('Mercury\'s own homes and other folders read as Mercury\'s', ['.mercury', '.mercury-work', '.config/mercury', '.config/other', 'codex'].every(h => !isForeignHarnessDir(join('/proof-home', h))))

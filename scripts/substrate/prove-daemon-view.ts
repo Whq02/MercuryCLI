@@ -15,7 +15,7 @@ plugin({
 import { readFileSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { deriveSupervisorRows } from '../../src/utils/cockpit/daemonSupervisorRows.js'
+import { deriveDaemonRows } from '../../src/utils/cockpit/daemonRows.js'
 import type { MercuryDaemonStatus } from '../../src/daemon/status.js'
 
 let failures = 0
@@ -41,7 +41,7 @@ function mkWorker(o: Partial<Record<string, unknown>>): never {
 }
 function mkStatus(o: Partial<MercuryDaemonStatus>): MercuryDaemonStatus {
   return {
-    supervisor: { pid: 321, version: '1.0.0', uptimeSec: 142, dir: '/tmp/d' },
+    daemon: { pid: 321, version: '1.0.0', uptimeSec: 142, dir: '/tmp/d' },
     controlSock: '/tmp/d/control.sock',
     controlReachable: true,
     workersLive: 1,
@@ -60,7 +60,7 @@ function mkStatus(o: Partial<MercuryDaemonStatus>): MercuryDaemonStatus {
 }
 
 console.log('============================================================')
-console.log(' DaemonSupervisorView — live cockpit, honest derive')
+console.log(' DaemonView — live cockpit, honest derive')
 console.log('============================================================')
 
 section('live daemon + a busy + an idle worker ⇒ badge live, real rows')
@@ -71,9 +71,9 @@ section('live daemon + a busy + an idle worker ⇒ badge live, real rows')
       mkWorker({ short: 'runner', state: 'idle', model: 'claude-fable-5[1m]', effort: 'xhigh', contextPct: 7, respawns: 0, busy: false }),
     ],
   })
-  const v = deriveSupervisorRows(st)
+  const v = deriveDaemonRows(st)
   check("badge === 'live'", v.badge === 'live', v.badge)
-  check('supervisorLine carries pid/version/uptime', /pid 321 · v1\.0\.0 · up 142s/.test(v.supervisorLine ?? ''))
+  check('daemonLine carries pid/version/uptime', /pid 321 · v1\.0\.0 · up 142s/.test(v.daemonLine ?? ''))
   check('2 worker rows', v.workers.length === 2, `${v.workers.length}`)
   check('busy worker: model/effort/ctx/busy mapped', v.workers[0]!.short === 'scout' && v.workers[0]!.model === 'claude-opus-5' && v.workers[0]!.effort === 'max' && v.workers[0]!.ctx === '42%' && v.workers[0]!.busy === true)
   check('idle worker: busy=false, respawns 0, ctx 7%', v.workers[1]!.busy === false && v.workers[1]!.respawns === 0 && v.workers[1]!.ctx === '7%')
@@ -83,7 +83,7 @@ section('live daemon + a busy + an idle worker ⇒ badge live, real rows')
 
 section("missing telemetry ⇒ honest '?'/'–' placeholders, never invented")
 {
-  const v = deriveSupervisorRows(mkStatus({ workers: [mkWorker({ short: 'w', state: 'running' })] }))
+  const v = deriveDaemonRows(mkStatus({ workers: [mkWorker({ short: 'w', state: 'running' })] }))
   check("model '?' when unset", v.workers[0]!.model === '?')
   check("effort '?' when unset", v.workers[0]!.effort === '?')
   check("ctx '–' when no usage frame", v.workers[0]!.ctx === '–')
@@ -93,7 +93,7 @@ section("missing telemetry ⇒ honest '?'/'–' placeholders, never invented")
 
 section('elapsed-on-turn + stall (busy too long ⇒ the AMBER heads-up)')
 {
-  const v = deriveSupervisorRows(
+  const v = deriveDaemonRows(
     mkStatus({
       workers: [
         mkWorker({ short: 'busy-ok', busy: true, turnElapsedMs: 8 * 60_000 }),
@@ -117,15 +117,15 @@ section('elapsed-on-turn + stall (busy too long ⇒ the AMBER heads-up)')
 
 section('degraded ⇒ the loud escalation reason')
 {
-  const v = deriveSupervisorRows(mkStatus({ degraded: true, degradedReason: 'scout exhausted respawns' }))
+  const v = deriveDaemonRows(mkStatus({ degraded: true, degradedReason: 'scout exhausted respawns' }))
   check('degraded string present', v.degraded === 'scout exhausted respawns')
-  const vNoReason = deriveSupervisorRows(mkStatus({ degraded: true }))
+  const vNoReason = deriveDaemonRows(mkStatus({ degraded: true }))
   check('degraded falls back to a default reason', /exhausted its respawn budget/.test(vNoReason.degraded ?? ''))
 }
 
 section('control unreachable ⇒ unavailable + orphan warning, NO live rows')
 {
-  const v = deriveSupervisorRows(mkStatus({ controlReachable: false, workers: [], breakerOpen: null, leaseCount: null }))
+  const v = deriveDaemonRows(mkStatus({ controlReachable: false, workers: [], breakerOpen: null, leaseCount: null }))
   check("badge === 'unavailable'", v.badge === 'unavailable', v.badge)
   check('orphan warning present', /control socket unreachable/.test(v.orphanWarning ?? ''))
   check('no worker rows when unreachable', v.workers.length === 0)
@@ -134,18 +134,18 @@ section('control unreachable ⇒ unavailable + orphan warning, NO live rows')
 
 section('no daemon ⇒ honest-empty (NEVER a fake live)')
 {
-  const v = deriveSupervisorRows(mkStatus({ supervisor: null }))
+  const v = deriveDaemonRows(mkStatus({ daemon: null }))
   check("badge === 'off'", v.badge === 'off', v.badge)
   check('empty hint points at `mercury daemon`', /run `mercury daemon`/.test(v.empty ?? ''))
   check('zero rows', v.workers.length === 0)
   check('badge is NOT live', (v.badge as string) !== 'live')
-  const vNull = deriveSupervisorRows(null)
+  const vNull = deriveDaemonRows(null)
   check('null status ⇒ empty too', vNull.badge === 'off' && vNull.workers.length === 0)
 }
 
 section('fire-outcome rollup + recent-trend (window is a real subset)')
 {
-  const v = deriveSupervisorRows(mkStatus({
+  const v = deriveDaemonRows(mkStatus({
     fireOutcomes: {
       total: 30,
       byOutcome: { useful: 18, no_op: 9, failed: 3 },
@@ -157,7 +157,7 @@ section('fire-outcome rollup + recent-trend (window is a real subset)')
   }))
   check('fireLine has total + useful-rate + last', /fires 30 · useful-rate 60% · last useful/.test(v.fireLine ?? ''))
   check('recentLine present (total>window)', /recent 10:/.test(v.recentLine ?? ''))
-  const v2 = deriveSupervisorRows(mkStatus({
+  const v2 = deriveDaemonRows(mkStatus({
     fireOutcomes: { total: 5, byOutcome: { useful: 5 }, usefulRate: 1, recentByOutcome: { useful: 5 }, recentWindow: 10 } as never,
   }))
   check('no recent line when total ≤ window', v2.recentLine === null)
@@ -165,12 +165,12 @@ section('fire-outcome rollup + recent-trend (window is a real subset)')
 
 section('anti-fabrication: the rewritten view carries NO mockup literals')
 {
-  const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'components', 'mercury-ui', 'parity', 'DaemonSupervisorView.tsx'), 'utf-8')
+  const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'components', 'mercury-ui', 'parity', 'DaemonView.tsx'), 'utf-8')
   check("no fake 'pid 4821'", !src.includes('pid 4821'))
   check("no fake 'orphan b_3f1'", !src.includes('orphan b_3f1'))
   check("no fake 'queue 2'", !src.includes('queue 2'))
   check('reads the live RPC (getMercuryDaemonStatus)', src.includes('getMercuryDaemonStatus'))
-  check('derives via the pure helper (deriveSupervisorRows)', src.includes('deriveSupervisorRows'))
+  check('derives via the pure helper (deriveDaemonRows)', src.includes('deriveDaemonRows'))
   check('no leftover useSpecimenNav (the old fake-roster nav)', !src.includes('useSpecimenNav'))
 }
 
@@ -181,7 +181,7 @@ section('the /daemon command is stamp-gated (byte-identical OFF)')
   check('no longer the unconditional () => true', !/isEnabled:\s*\(\)\s*=>\s*true/.test(idx))
 }
 
-section('getMercuryDaemonStatus never throws on a missing socket (supervisor:null, workers:[])')
+section('getMercuryDaemonStatus never throws on a missing socket (daemon:null, workers:[])')
 {
   const cfgDir = mkdtempSync(join(tmpdir(), 'mercury-daemon-view-'))
   process.env.MERCURY_CONFIG_DIR = cfgDir
@@ -194,13 +194,13 @@ section('getMercuryDaemonStatus never throws on a missing socket (supervisor:nul
     threw = true
   }
   check('did not throw', !threw)
-  check('supervisor === null (no daemon)', st?.supervisor === null)
+  check('daemon === null (no daemon)', st?.daemon === null)
   check('workers === [] (the additive field defaults honestly)', Array.isArray(st?.workers) && st?.workers.length === 0)
-  check('derive(real no-daemon status) ⇒ honest-empty', deriveSupervisorRows(st).empty !== null)
+  check('derive(real no-daemon status) ⇒ honest-empty', deriveDaemonRows(st).empty !== null)
 }
 
 console.log('\n' + '═'.repeat(76))
-if (failures === 0) console.log('✅ ALL DAEMON-SUPERVISOR-VIEW PROOFS PASS')
-else console.log(`❌ ${failures} DAEMON-SUPERVISOR-VIEW PROOF(S) FAILED`)
+if (failures === 0) console.log('✅ ALL DAEMON-VIEW PROOFS PASS')
+else console.log(`❌ ${failures} DAEMON-VIEW PROOF(S) FAILED`)
 console.log('═'.repeat(76))
 process.exit(failures === 0 ? 0 : 1)

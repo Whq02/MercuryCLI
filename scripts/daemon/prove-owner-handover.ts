@@ -70,7 +70,7 @@ function done(): never {
   process.exit(failures === 0 ? 0 : 1)
 }
 
-const sup = await import('../../src/daemon/concourseSupervisor.ts')
+const sup = await import('../../src/daemon/concourseWorkers.ts')
 const owned = await import('../../src/daemon/ownedDaemon.ts')
 const ownerWatch = await import('../../src/daemon/ownerWatch.ts')
 const handshake = await import('../../src/daemon/handshake.ts')
@@ -168,7 +168,7 @@ section('§B the real daemon: the owner cockpit goes, ownership passes, the daem
   const stillUp = ownerWatch.isProcessAlive(dpid)
   check('the daemon STAYS UP after its owner cockpit goes (a second cockpit is live)', stillUp, read(logPath).slice(-800))
   check('the log names the ownership hand-over to the live cockpit', read(logPath).includes(`ownership passes to the live cockpit pid ${bpid}`), read(logPath).slice(-800))
-  const recAfter = await controlSocket.readSupervisorState()
+  const recAfter = await controlSocket.readDaemonState()
   check('the daemon record names the new owner (/health row reads it)', recAfter?.ownerPid === bpid, `record ownerPid=${recAfter?.ownerPid} want ${bpid}`)
   const hs = await handshake.handshakeDaemon({ timeoutMs: 3000 })
   check('the hello facts name the new owner (/health handshake reads it)', hs.daemon?.ownerPid === bpid, `hello ownerPid=${hs.daemon?.ownerPid ?? 'none'} state=${hs.state}`)
@@ -191,7 +191,7 @@ section('§C the wiring (source pins)')
   check('the hello facts and the record read the live owner, not the env stamp', main.includes('ownerPid: currentOwnerPid') && !main.includes('ownerPid: parseOwnerPid()'))
   const od = read(join(ROOT, 'src/daemon/ownedDaemon.ts'))
   check('the parent reaper steps aside while another live cockpit holds the daemon', od.includes('if (anotherLiveCockpitHoldsDaemon(process.pid)) return'))
-  const cs = read(join(ROOT, 'src/daemon/concourseSupervisor.ts'))
+  const cs = read(join(ROOT, 'src/daemon/concourseWorkers.ts'))
   check('nextLiveCockpitOwner skips ended and parked records', cs.includes('export function nextLiveCockpitOwner(') && cs.includes('rec.endedAt !== undefined || rec.parkedAt !== undefined'))
 }
 

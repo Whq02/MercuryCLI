@@ -22,7 +22,7 @@ import { isRestrictedToExtensionsOnly } from '../../utils/settings/extensionOnly
 import { getInitialSettings, getSettingsForSource } from '../../utils/settings/settings.js'
 import { getExtensionMcpServers } from '../../extensions/load/servers.js'
 import { parseServerRuntimeName } from '../../extensions/manifest.js'
-import { fetchClaudeAIMcpConfigsIfEligible } from './claudeai.js'
+import { fetchAnthropicConnectorsIfEligible } from './anthropicConnectors.js'
 import { isMcpServerDisabledIn, withMcpServerEnabled } from './disabledRecord.js'
 import { expandEnvVarsInString } from './envExpansion.js'
 import {
@@ -582,7 +582,7 @@ export function dedupExtensionMcpServers(
   return { servers, suppressed }
 }
 
-export function dedupClaudeAiMcpServers(
+export function dedupAnthropicConnectors(
   connectorServers: Record<string, ScopedMcpServerConfig>,
   manualServers: Record<string, McpServerConfig | ScopedMcpServerConfig>,
 ): DedupResult {
@@ -702,12 +702,12 @@ export async function getAllMcpConfigs(): Promise<{
   if (doesEnterpriseMcpConfigExist()) {
     return getMercuryMcpConfigs()
   }
-  const connectorFetch = fetchClaudeAIMcpConfigsIfEligible()
+  const connectorFetch = fetchAnthropicConnectorsIfEligible()
   const resolved = await getMercuryMcpConfigs()
   const connectors = await connectorFetch
   if (Object.keys(connectors).length === 0) return resolved
   const { allowed: allowedConnectors } = filterMcpServersByPolicy(connectors)
-  const { servers: dedupedConnectors } = dedupClaudeAiMcpServers(
+  const { servers: dedupedConnectors } = dedupAnthropicConnectors(
     allowedConnectors,
     resolved.servers,
   )

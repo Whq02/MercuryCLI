@@ -20,7 +20,7 @@ import { isLocalShellTask } from '../tasks/LocalShellTask/guards.js'
 import type { TaskState } from '../tasks/types.js'
 import type { LogOption } from '../types/logs.js'
 import { saturnWakeGlanceOf, saturnWakeGlanceWords, type SaturnWakeGlanceV1 } from '../daemon/saturn.js'
-import { readSessionWorkers } from '../daemon/concourseSupervisor.js'
+import { readSessionWorkers } from '../daemon/concourseWorkers.js'
 
 function formatSpan(ms: number): string {
   const s = Math.max(0, Math.round(ms / 1000))
@@ -35,7 +35,7 @@ import { getActiveMission, getActiveMissionVersion, subscribeActiveMission } fro
 import { isProjectSession, isSubstantiveSession } from '../utils/sessionFilter.js'
 import { isSessionCleared } from '../utils/sessionStorage/clearedSessions.js'
 import { isCrewSession } from '../utils/sessionClass.js'
-import { boardHomedSessionIds } from '../daemon/concourseSupervisor.js'
+import { boardHomedSessionIds } from '../daemon/concourseWorkers.js'
 import { getSessionIdFromLog, loadAllProjectsMessageLogs } from '../utils/sessionStorage.js'
 import { getHelmCursor, getHelmFocus, getHelmLanesVersion, getHelmRows, helmRowSig, publishHelmRows, requestCommandDispatch, requestHelmRowActivation, requestHelmRowActivationBySig, setHelmCursor, setHelmCursorBySig, subscribeHelmFocus, type HelmRow } from '../utils/cockpit/helmFocus.js'
 import { openFilesMenu } from '../utils/cockpit/filesMenu.js'

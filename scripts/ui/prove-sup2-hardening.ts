@@ -501,8 +501,8 @@ console.log('§31 pidlock + daemon stop — the reuse guard reaches every platfo
   const main = read('src/daemon/main.ts')
   const stopArm = main.slice(main.indexOf('async function daemonStopCmd'), main.indexOf('async function daemonRestartCmd'))
   check('the lock-only leftover is swept under the ENOCONN dead-confirm', stopArm.includes('swept a lock-only leftover') && stopArm.includes("reply.code === 'ENOCONN'") && stopArm.indexOf("reply.code === 'ENOCONN'") < stopArm.indexOf('swept a lock-only leftover'))
-  check('a live-by-identity lock holder is named, never stolen', stopArm.includes('supervisor.lock is held by live pid') && stopArm.includes("liveness: 'assume-alive'"))
-  check('the sweep is the existing confirmed-dead owner', stopArm.includes('await clearDeadSupervisorRecords()'))
+  check('a live-by-identity lock holder is named, never stolen', stopArm.includes('daemon.lock is held by live pid') && stopArm.includes("liveness: 'assume-alive'"))
+  check('the sweep is the existing confirmed-dead owner', stopArm.includes('await clearDeadDaemonRecords()'))
 }
 
 console.log('§32 wedged daemon — true bound, one ladder, honest refusal')
@@ -538,7 +538,7 @@ console.log('§35 daemon teardown — the key clears before the record it is che
 {
   const main = read('src/daemon/main.ts')
   const i = main.indexOf('if (controlEnabled) await clearControlKey().catch(() => {})')
-  const j = main.indexOf('if (controlEnabled) await clearSupervisorState().catch(() => {})')
+  const j = main.indexOf('if (controlEnabled) await clearDaemonState().catch(() => {})')
   check('both clears still run on the graceful path', i !== -1 && j !== -1)
   check('the key clear PRECEDES the record clear (the guard reads the record)', i < j)
 }

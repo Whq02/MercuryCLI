@@ -64,7 +64,7 @@ const childEnv: NodeJS.ProcessEnv = {
   MERCURY_LOCAL_PROBE_TARGETS: 'none',
   MERCURY_CREDENTIAL_STORE: 'file',
   ANTHROPIC_BASE_URL: 'http://127.0.0.1:1',
-  MERCURY_CUSTOM_OAUTH_URL: 'http://127.0.0.1:1',
+  MERCURY_ANTHROPIC_OAUTH_BASE: 'http://127.0.0.1:1',
   BROWSER: '/usr/bin/true',
 }
 

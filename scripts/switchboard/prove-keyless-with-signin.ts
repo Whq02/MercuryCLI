@@ -61,7 +61,7 @@ console.log('§3 the note\'s road, by source')
 {
   const wmSrc = read('src/services/concourse/workerModels.ts')
   check('the keyless arm reads the computed default (keyless with sign-ins present), session arm, unnamed only', wmSrc.includes("if (decision.source === 'keyless' && decision.considered.length > 0) {") && wmSrc.includes("return { ok: true, entry: { ...entry, displayName: NO_USABLE_ROW }, keyless: true, note: `${NO_USABLE_ROW} — ${keylessReason(decision)}` }"))
-  const sup = read('src/daemon/concourseSupervisor.ts')
+  const sup = read('src/daemon/concourseWorkers.ts')
   check("the daemon's admit reply carries the keyless note on the retained-model seam", sup.includes('if (keyless && admission.note !== undefined && retainedNote === undefined) retainedNote = admission.note'))
   const needle = "if (typeof reply.note === 'string' && reply.note !== '') mintImmediateReceipt(`▲ ${reply.note}`, 'warning')"
   check('the birth door mints the reply\'s note as a warning receipt', read('src/services/switchboard/bornSession.ts').includes(needle))

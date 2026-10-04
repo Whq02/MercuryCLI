@@ -173,9 +173,9 @@ const readFacts = (sid: string): { busy?: boolean } | undefined => {
     return undefined
   }
 }
-const supervisorPid = async (): Promise<number | null> => {
+const daemonPid = async (): Promise<number | null> => {
   try {
-    return (JSON.parse(readFileSync(join(daemonDir, 'supervisor.json'), 'utf8')) as { pid?: number }).pid ?? null
+    return (JSON.parse(readFileSync(join(daemonDir, 'daemon.json'), 'utf8')) as { pid?: number }).pid ?? null
   } catch {
     return null
   }
@@ -210,7 +210,7 @@ const cleanup = async (): Promise<void> => {
     daemon.kill('SIGTERM')
   } catch {
   }
-  const successor = await supervisorPid()
+  const successor = await daemonPid()
   if (successor !== null && successor !== daemon.pid && alive(successor)) {
     console.log(`  [cleanup] a successor daemon (pid ${successor}) came up in the scratch home — ending it`)
     try {
@@ -227,7 +227,7 @@ const cleanup = async (): Promise<void> => {
 try {
   tally.check('the scratch-home daemon serves', await until(ping, 60_000), daemonLog().slice(-600))
   tally.check('the daemon reads ready on its handshake — its adoption done, its record published (a socket that answers ping is still adopting)', await until(ready, 60_000), `hello ${JSON.stringify(await hello())} · daemon.log tail: ${daemonLog().slice(-600)}`)
-  const bootPid = await supervisorPid()
+  const bootPid = await daemonPid()
   tally.check('the daemon record names the daemon the proof booted', bootPid === daemon.pid, `record ${bootPid} · spawned ${daemon.pid}`)
 
   console.log('\n  the stop: `mercury daemon stop` from the Bash of a session this daemon hosts')
@@ -242,7 +242,7 @@ try {
   tally.check('the stop came back to the model as a tool result — the turn went on (red on the base: the runner was cut before any result)', answered && stopResult !== '', `runner alive=${alive(pidA)} · daemon alive=${alive(daemon.pid)} · daemon.log tail: ${daemonLog().slice(-500)}`)
   tally.check('the result carries the one refusal line', stopResult.includes(REFUSAL), stopResult.slice(0, 300))
   tally.check('the stop exited 1 (refused), nothing acknowledged', stopExit === '1' && !stopResult.includes('shutdown acknowledged'), `exit ${stopExit}`)
-  tally.check('the daemon still serves, the same process', (await ping()) && alive(daemon.pid) && (await supervisorPid()) === daemon.pid, `daemon alive=${alive(daemon.pid)} · record ${await supervisorPid()}`)
+  tally.check('the daemon still serves, the same process', (await ping()) && alive(daemon.pid) && (await daemonPid()) === daemon.pid, `daemon alive=${alive(daemon.pid)} · record ${await daemonPid()}`)
   tally.check('the daemon never began a shutdown', !/control:shutdown|shutting down/.test(daemonLog()), daemonLog().split('\n').filter(l => /shut/.test(l)).join(' | '))
   tally.check("the runner lives on — nothing signalled its tree", alive(pidA), `pid ${pidA} alive=${alive(pidA)}`)
   tally.check('the turn settled: the model spoke after the tool result and the seat reads idle', await until(() => fixture.requests.some(r => r.step === 1 && r.ask.includes(STOP_ASK)) && readFacts(a.sid)?.busy === false, 60_000), JSON.stringify({ steps: fixture.requests.map(r => r.step), facts: readFacts(a.sid) }))

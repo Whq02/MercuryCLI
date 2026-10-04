@@ -3,14 +3,14 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const HOME = mkdtempSync(join(tmpdir(), 'claudeai-optin-'))
+const HOME = mkdtempSync(join(tmpdir(), 'connectors-optin-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.NODE_ENV = 'test'
-delete process.env.MERCURY_CLAUDEAI_MCP
+delete process.env.MERCURY_ANTHROPIC_CONNECTORS
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { claudeAiMcpArmed, fetchClaudeAIMcpConfigsIfEligible, clearClaudeAIMcpConfigsCache } = await import(
-  '../../src/services/mcp/claudeai.ts'
+const { anthropicConnectorsArmed, fetchAnthropicConnectorsIfEligible, clearAnthropicConnectorsCache } = await import(
+  '../../src/services/mcp/anthropicConnectors.ts'
 )
 
 let failures = 0
@@ -30,49 +30,49 @@ section('§1 THE POLARITY TABLE')
     ['true', true, 'truthy spellings honored'],
   ]
   for (const [canonical, want, label] of rows) {
-    check(label, claudeAiMcpArmed(canonical) === want)
+    check(label, anthropicConnectorsArmed(canonical) === want)
   }
 }
 
 section('§2 THE LIVE GATE')
 {
-  clearClaudeAIMcpConfigsCache()
-  const unarmed = await fetchClaudeAIMcpConfigsIfEligible()
+  clearAnthropicConnectorsCache()
+  const unarmed = await fetchAnthropicConnectorsIfEligible()
   check('unarmed ⇒ the fetch settles {} (no catalog, no wire)', Object.keys(unarmed).length === 0)
 
-  clearClaudeAIMcpConfigsCache()
-  process.env.MERCURY_CLAUDEAI_MCP = '1'
-  const armedNoToken = await fetchClaudeAIMcpConfigsIfEligible()
+  clearAnthropicConnectorsCache()
+  process.env.MERCURY_ANTHROPIC_CONNECTORS = '1'
+  const armedNoToken = await fetchAnthropicConnectorsIfEligible()
   check(
     'armed without a stored token ⇒ {} for the TOKEN reason (arming honored, nothing invented)',
     Object.keys(armedNoToken).length === 0,
   )
-  delete process.env.MERCURY_CLAUDEAI_MCP
+  delete process.env.MERCURY_ANTHROPIC_CONNECTORS
 }
 
 section('§3 WIRING')
 {
   const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
   const registry = src('src/substrate/flagRegistry.ts')
-  check('MERCURY_CLAUDEAI_MCP is REGISTERED (opt-in)', registry.includes("env: 'MERCURY_CLAUDEAI_MCP'"))
-  const gate = src('src/services/mcp/claudeai.ts')
+  check('MERCURY_ANTHROPIC_CONNECTORS is REGISTERED (opt-in)', registry.includes("env: 'MERCURY_ANTHROPIC_CONNECTORS'"))
+  const gate = src('src/services/mcp/anthropicConnectors.ts')
   check(
     'the fetch consults the canonical row THROUGH the registry resolver',
-    gate.includes("flagEnv('MERCURY_CLAUDEAI_MCP')"),
+    gate.includes("flagEnv('MERCURY_ANTHROPIC_CONNECTORS')"),
   )
   check(
     'the gate is the pure exported decision (polarity table provable forever)',
-    gate.includes('export function claudeAiMcpArmed('),
+    gate.includes('export function anthropicConnectorsArmed('),
   )
   check(
     'the gate precedes every token read (unarmed sessions read nothing)',
-    gate.indexOf('claudeAiMcpArmed(') !== -1 && gate.indexOf('claudeAiMcpArmed(') < gate.indexOf('getClaudeAIOAuthTokens()'),
+    gate.indexOf('anthropicConnectorsArmed(') !== -1 && gate.indexOf('anthropicConnectorsArmed(') < gate.indexOf('getClaudeAIOAuthTokens()'),
   )
 }
 
 rmSync(HOME, { recursive: true, force: true })
 if (failures > 0) {
-  console.error(`\nprove-claudeai-optin: ${failures} FAILURE(S)`)
+  console.error(`\nprove-anthropic-connectors-optin: ${failures} FAILURE(S)`)
   process.exit(1)
 }
-console.log('\nprove-claudeai-optin: all green')
+console.log('\nprove-anthropic-connectors-optin: all green')

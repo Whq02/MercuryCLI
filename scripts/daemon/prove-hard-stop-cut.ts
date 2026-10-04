@@ -58,7 +58,7 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(configDir, [work, ...folders])
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
-const sup = await import('../../src/daemon/concourseSupervisor.ts')
+const sup = await import('../../src/daemon/concourseWorkers.ts')
 
 const LONG_THINK_ASK = 'think long please'
 type Rec = { runnerId: string; sessionId: string; pid?: number; stoppedAt?: number; stoppedBy?: string; stopRequestedAt?: number; crash?: { at: number; reason: string; respawning: boolean }; turnCutAt?: number; turnCutBy?: string; lastDeliveryAt?: number; lastTurnSettledAt?: number }

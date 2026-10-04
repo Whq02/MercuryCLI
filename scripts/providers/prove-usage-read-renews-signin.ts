@@ -20,7 +20,7 @@ process.env.MERCURY_HOME = scratch
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_EVOLUTION_LEDGER = '0'
-for (const name of ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR', 'OPENAI_API_KEY', 'MERCURY_AUTH_SCOPE_DIR', 'MERCURY_USAGE_SEED', 'MERCURY_MOCK_LIMITS', 'MERCURY_MOCK_USAGE_PAYLOAD', 'MERCURY_USAGE_POLL_MS', 'MERCURY_OAUTH_CLIENT_ID', 'NODE_ENV', 'CI']) {
+for (const name of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR', 'OPENAI_API_KEY', 'MERCURY_AUTH_SCOPE_DIR', 'MERCURY_USAGE_SEED', 'MERCURY_MOCK_LIMITS', 'MERCURY_MOCK_USAGE_PAYLOAD', 'MERCURY_USAGE_POLL_MS', 'MERCURY_OAUTH_CLIENT_ID', 'NODE_ENV', 'CI']) {
   delete process.env[name]
 }
 
@@ -100,7 +100,7 @@ const server = createServer((req, res) => {
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
 const port = (server.address() as { port: number }).port
 const base = `http://127.0.0.1:${port}`
-process.env.MERCURY_CUSTOM_OAUTH_URL = base
+process.env.MERCURY_ANTHROPIC_OAUTH_BASE = base
 process.env.ANTHROPIC_BASE_URL = base
 
 const credentialsPath = join(scratch, '.credentials.json')
@@ -142,7 +142,7 @@ await stub('../../src/components/ConfigurableShortcutHint.js', () => ({ Configur
 const reader = await import('../../src/services/providers/anthropic/anthropicUsageState.ts')
 const owner = await import('../../src/services/providers/providerUsage.ts')
 const auth = await import('../../src/utils/auth.ts')
-const limits = await import('../../src/services/claudeAiLimits.ts')
+const limits = await import('../../src/services/anthropicLimits.ts')
 const fresh = await import('../../src/services/providers/usageFreshness.ts')
 const { isOAuthTokenExpired } = await import('../../src/services/oauth/client.ts')
 const { formatCountdown, formatCountdownCoarse } = await import('../../src/utils/cockpit/quota.ts')

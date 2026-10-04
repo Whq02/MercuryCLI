@@ -3,7 +3,6 @@ import { join } from 'node:path'
 
 import { memoize } from 'lodash-es'
 
-import { fileSuffixForOauthConfig } from '../constants/oauth.js'
 import { getMercuryHome, isEnvTruthy } from './envUtils.js'
 import { whichSync } from './which.js'
 
@@ -11,7 +10,7 @@ import { whichSync } from './which.js'
 export function globalConfigFileIn(home: string): string {
   const preSuffixPath = join(home, '.config.json')
   if (existsSync(preSuffixPath)) return preSuffixPath
-  return join(home, `.mercury${fileSuffixForOauthConfig()}.json`)
+  return join(home, '.mercury.json')
 }
 
 export const getGlobalMercuryFile = memoize((): string => globalConfigFileIn(getMercuryHome()))

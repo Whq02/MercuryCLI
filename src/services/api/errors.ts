@@ -15,8 +15,8 @@ import { anthropicCarryWords, classifyAnthropicRefusal } from '../providers/anth
 import { clientContractGateText, modelRefusalFromError, noteModelRefusal, type ModelRefusalRequest } from '../providers/anthropic/modelRefusal.js'
 import { classifyCredentialWall, credentialWallLine, isRevokedSignInText } from '../providers/credentialWall.js'
 import { classifyOverflowFault, type OverflowFamily } from './overflowSignal.js'
-import type { ClaudeAILimits, OverageDisabledReason, QuotaStatus } from '../claudeAiLimits.js'
-import { getRateLimitErrorMessage } from '../claudeAiLimits.js'
+import type { AnthropicLimits, OverageDisabledReason, QuotaStatus } from '../anthropicLimits.js'
+import { getRateLimitErrorMessage } from '../anthropicLimits.js'
 import { composeAnthropicWallRemedies } from '../rateLimitMessages.js'
 import { shouldProcessRateLimits } from '../rateLimitMocking.js'
 import {
@@ -490,7 +490,7 @@ function composeAssistantMessageFromError(
     )
 
     if ((claim !== undefined && claim !== '') || (overageStatus !== undefined && overageStatus !== '')) {
-      const limits: ClaudeAILimits = {
+      const limits: AnthropicLimits = {
         status: 'rejected',
         unifiedRateLimitFallbackAvailable: false,
         isUsingOverage: false,
@@ -499,7 +499,7 @@ function composeAssistantMessageFromError(
           ? { overageResetsAt: Number(overageReset) }
           : {}),
         ...(claim !== undefined && claim !== ''
-          ? { rateLimitType: claim as ClaudeAILimits['rateLimitType'] }
+          ? { rateLimitType: claim as AnthropicLimits['rateLimitType'] }
           : {}),
         ...(overageStatus !== undefined && overageStatus !== ''
           ? { overageStatus: overageStatus as QuotaStatus }

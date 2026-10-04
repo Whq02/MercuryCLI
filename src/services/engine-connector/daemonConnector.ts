@@ -33,7 +33,7 @@ import { getEngineModel } from '../../utils/model/model.js'
 import { createStreamingTailStore, type StreamingTailStore } from '../../utils/messages/streamingTailStore.js'
 import { adoptOpenaiObservedUsage, adoptOpenaiWindowFact } from '../providers/openai/openaiLimitState.js'
 import { adoptOpenaiCatalogueFact } from '../providers/openai/openaiCatalogue.js'
-import { adoptAnthropicWindowFact } from '../claudeAiLimits.js'
+import { adoptAnthropicWindowFact } from '../anthropicLimits.js'
 import { mergeRecordsContentKeyed } from './recordIdentity.js'
 import {
   readSessionAsks,
@@ -92,7 +92,7 @@ import type {
   WorkspaceFactsV1,
 } from './types.js'
 import { bootBirthFacts, type BootBirthFacts } from '../switchboard/bootBirthFacts.js'
-import { seatInitialPermissionMode } from '../../daemon/concourseSupervisor.js'
+import { seatInitialPermissionMode } from '../../daemon/concourseWorkers.js'
 import { projectOperatorRewinds } from '../compact/checkpointRewind.js'
 
 const UNKNOWN_CHECKPOINTS: CheckpointFactsV1 = Object.freeze({ capture: 'unknown' as const, restorable: Object.freeze(new Set<string>()) as ReadonlySet<string> })

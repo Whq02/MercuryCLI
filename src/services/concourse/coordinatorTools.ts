@@ -92,7 +92,7 @@ export function createCoordinatorToolContext(init: {
       init.readWorkers ??
       (async () => {
         try {
-          const sup = await import('../../daemon/concourseSupervisor.js')
+          const sup = await import('../../daemon/concourseWorkers.js')
           return sup.readSessionWorkers() as unknown as Record<string, WorkerRecordView>
         } catch {
           return {}
@@ -144,7 +144,7 @@ export async function knownProjectDirs(): Promise<string[]> {
   try {
     const dispatch = await import('../../daemon/concourseDispatch.js')
     for (const rec of Object.values(dispatch.readConcourseDispatches())) addIfDir(rec.workspaceId)
-    const sup = await import('../../daemon/concourseSupervisor.js')
+    const sup = await import('../../daemon/concourseWorkers.js')
     for (const rec of Object.values(sup.readSessionWorkers())) addIfDir(rec.workspaceId)
   } catch {
   }

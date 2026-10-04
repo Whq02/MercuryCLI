@@ -1,5 +1,5 @@
 
-import { adoptiveProjectPath } from '../projectStoreAdoption.js'
+import { projectLocalPath } from '../../services/projectLocal/paths.js'
 import { getMercuryHome } from '../envUtils.js'
 import { sanitizePath } from '../sessionStoragePortable.js'
 import { execFile, execFileSync, spawn, spawnSync, type ChildProcess } from 'node:child_process'
@@ -118,7 +118,7 @@ export function _verificationOwnerCountForTesting(): number {
 
 const digestCache = new Map<string, { digest: string | null; at: number }>()
 
-const HARNESS_DIRS = ['.claude', '.mercury'] as const
+const HARNESS_DIRS = ['.mercury'] as const
 const EXCLUDE_HARNESS = HARNESS_DIRS.map(d => `:(exclude,glob)**/${d}/**`)
 const SLOW_SCAN_MS = 2_000
 const SCAN_INTERVAL_FLOOR_MS = 30_000
@@ -692,7 +692,7 @@ function evidencePath(cwd: string): string {
   return path.join(verifyStoreDir(cwd), 'evidence.json')
 }
 function workspaceEvidencePath(cwd: string): string {
-  return path.join(adoptiveProjectPath(cwd, 'verify'), 'evidence.json')
+  return path.join(projectLocalPath(cwd, 'verify'), 'evidence.json')
 }
 function workspaceEvidenceOptIn(): boolean {
   const v = flagEnv('MERCURY_WORKSPACE_EVIDENCE')

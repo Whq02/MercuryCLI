@@ -31,7 +31,7 @@ enableConfigs()
 
 const owner = await import('../../src/services/providers/providerUsage.ts')
 const fresh = await import('../../src/services/providers/usageFreshness.ts')
-const limits = await import('../../src/services/claudeAiLimits.ts')
+const limits = await import('../../src/services/anthropicLimits.ts')
 const { providerLimitWarning } = await import('../../src/services/providers/limitWarning.ts')
 type Reads = NonNullable<Parameters<typeof owner.activeSourceUsage>[0]>['reads']
 
@@ -225,7 +225,7 @@ section('§4 credits: the provider-stated balance with feed + age, or the honest
   check('a Kimi sign-in without a wallet names the checked usage and membership billing views', kimi.credits?.state === 'unreported' && line(kimi)?.includes('Kimi /usages states no Extra Usage balance') === true && line(kimi)?.includes('Kimi Code Console') === true && line(kimi, 'compact') === 'credits not stated', line(kimi))
   const kimiWallet = owner.usageForProvider('moonshot', { moonshotAccount: () => ({ kind: 'kimi-oauth' }), kimiManagedUsage: () => ({ observedAtMs: NOW - 4_000, windows: [], extraUsage: { balance: '12.34', currency: 'CNY' } }), spend: () => spend })
   check('Kimi Extra Usage carries its stated currency and the managed read stamp', line(kimiWallet) === 'credits: CNY 12.34 Extra Usage balance · endpoint-fed · read 4 s ago' && line(kimiWallet, 'compact') === 'credits CNY 12.34 extra', line(kimiWallet))
-  const extra = (over: Partial<import('../../src/services/claudeAiLimits.ts').AnthropicExtraUsageRecord>, readAtMs = NOW - 10_000): Reads => ({
+  const extra = (over: Partial<import('../../src/services/anthropicLimits.ts').AnthropicExtraUsageRecord>, readAtMs = NOW - 10_000): Reads => ({
     ...subscriptionReads(),
     anthropicExtraUsage: () => ({ stated: true, enabled: true, used: { amount: 1240, currency: 'USD', exponent: 2 }, limit: { amount: 5000, currency: 'USD', exponent: 2 }, period: 'month', utilizationPct: 24.8, source: 'endpoint', observedAtMs: readAtMs, ...over }),
   }) as Reads
@@ -377,12 +377,12 @@ section('§9 the carry words: a reached window says what carries the requests fr
   const prose = (view: { carry?: import('../../src/services/providers/providerUsage.ts').UsageCarryView }): string | undefined => owner.usageCarryWords(view.carry, NOW)
   const compact = (view: { carry?: import('../../src/services/providers/providerUsage.ts').UsageCarryView }): string | undefined => owner.usageCarryWords(view.carry, NOW, 'compact')
   const allowed = { status: 'allowed' as const, unifiedRateLimitFallbackAvailable: false, isUsingOverage: false }
-  const extra = (over: Partial<import('../../src/services/claudeAiLimits.ts').AnthropicExtraUsageRecord> | null, limits: import('../../src/services/claudeAiLimits.ts').ClaudeAILimits = allowed, readAtMs = NOW - 10_000): Reads => ({
+  const extra = (over: Partial<import('../../src/services/anthropicLimits.ts').AnthropicExtraUsageRecord> | null, limits: import('../../src/services/anthropicLimits.ts').AnthropicLimits = allowed, readAtMs = NOW - 10_000): Reads => ({
     ...subscriptionReads(),
     anthropicExtraUsage: () => over === null ? null : { stated: true, enabled: true, used: { amount: 1240, currency: 'USD', exponent: 2 }, limit: { amount: 5000, currency: 'USD', exponent: 2 }, period: 'month', utilizationPct: 24.8, source: 'endpoint', observedAtMs: readAtMs, ...over },
     anthropicLimits: () => limits,
   }) as Reads
-  const sub = (over: Partial<import('../../src/services/claudeAiLimits.ts').AnthropicExtraUsageRecord> | null, limits?: import('../../src/services/claudeAiLimits.ts').ClaudeAILimits, readAtMs?: number) => owner.activeSourceUsage({ model: 'claude-fable-5-1', reads: extra(over, limits, readAtMs) })
+  const sub = (over: Partial<import('../../src/services/anthropicLimits.ts').AnthropicExtraUsageRecord> | null, limits?: import('../../src/services/anthropicLimits.ts').AnthropicLimits, readAtMs?: number) => owner.activeSourceUsage({ model: 'claude-fable-5-1', reads: extra(over, limits, readAtMs) })
   const on = sub({})
   check("Anthropic, extra usage on: 'on extra usage · USD 12.40 of 50.00 this month' · 'on extra usage 12.40/50'", on.carry?.state === 'carries' && prose(on) === 'on extra usage · USD 12.40 of 50.00 this month' && compact(on) === 'on extra usage 12.40/50', `${prose(on)} | ${compact(on)}`)
   check('…stamped by the endpoint read', on.carry?.source === 'endpoint' && on.carry.observedAtMs === NOW - 10_000 && on.carry.freshForMs === fresh.usageStaleAfterMs())

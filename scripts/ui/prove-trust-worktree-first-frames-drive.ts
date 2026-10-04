@@ -82,7 +82,7 @@ const childEnv: NodeJS.ProcessEnv = {
   MERCURY_CREDENTIAL_STORE: 'file',
   ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key',
   ANTHROPIC_BASE_URL: 'http://127.0.0.1:1',
-  MERCURY_CUSTOM_OAUTH_URL: 'http://127.0.0.1:1',
+  MERCURY_ANTHROPIC_OAUTH_BASE: 'http://127.0.0.1:1',
   MERCURY_OPENAI_CHATGPT_BASE: 'http://127.0.0.1:1',
   MERCURY_OPENAI_API_BASE: 'http://127.0.0.1:1',
   MERCURY_OPENAI_AUTH_BASE: 'http://127.0.0.1:1',

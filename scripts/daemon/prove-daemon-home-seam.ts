@@ -49,7 +49,7 @@ enableConfigs()
 const homeWatch = await import('../../src/daemon/daemonHome.ts')
 const durable = await import('../../src/substrate/durablePublish.ts')
 const control = await import('../../src/daemon/controlSocket.ts')
-const sup = await import('../../src/daemon/concourseSupervisor.ts')
+const sup = await import('../../src/daemon/concourseWorkers.ts')
 const dispatch = await import('../../src/daemon/concourseDispatch.ts')
 const box = await import('../../src/daemon/saturnBoxSchedules.ts')
 const asks = await import('../../src/daemon/permissionAsks.ts')
@@ -285,8 +285,8 @@ console.log('\nW1 armed, home standing: each daemon writer meets an ENOENT from 
     heldAt: Date.parse('2026-03-01T09:00:01Z'),
     envelope: { scheduleId: '0badf00d', kind: 'birth' as const, dueAt: Date.parse('2026-03-01T09:00:00Z'), birth: { workspaceId: PROJECT, modelKey: 'claude-fable-5', presence: 'headless' as const } },
   }
-  const supervisor = (): Parameters<typeof control.writeSupervisorState>[0] =>
-    ({ pid: process.pid, version: '1.0.0', origin: 'transient', startedAt: Date.now(), dir: PROJECT, controlSock: control.controlSockPath() }) as Parameters<typeof control.writeSupervisorState>[0]
+  const daemon = (): Parameters<typeof control.writeDaemonState>[0] =>
+    ({ pid: process.pid, version: '1.0.0', origin: 'transient', startedAt: Date.now(), dir: PROJECT, controlSock: control.controlSockPath() }) as Parameters<typeof control.writeDaemonState>[0]
   const evidence = { schema: 1, kind: 'authored-work-retained', workspaceId: PROJECT, holders: [{ workerId: 'w1' }], observedAt: Date.now() } as unknown as Parameters<typeof sup.recordCollisionEvidence>[0]
   const op = { clientOpId: 'op1', action: 'park', sessionId: 's1', outcome: 'applied', atMs: Date.now() } as unknown as Parameters<typeof dispatch.recordConcourseControlOp>[0]
   type Writer = { n: string; where: string; file: string; phase: string; seed?: () => void; act: () => void | Promise<void>; landed: () => boolean }
@@ -306,15 +306,15 @@ console.log('\nW1 armed, home standing: each daemon writer meets an ENOENT from 
       landed: () => !readText(join(DAEMON_DIR, 'concourse-dispatches.json')).includes('"queued"'),
     },
     { n: 'W1.7', where: 'the control-op ledger', file: 'concourse-control-ops.json', phase: 'create-temp', act: () => dispatch.recordConcourseControlOp(op, DAEMON_DIR), landed: () => existsSync(join(DAEMON_DIR, 'concourse-control-ops.json')) },
-    { n: 'W1.8', where: 'the daemon record', file: 'supervisor.json', phase: 'create-temp', act: () => control.writeSupervisorState(supervisor()), landed: () => existsSync(join(DAEMON_DIR, 'supervisor.json')) },
+    { n: 'W1.8', where: 'the daemon record', file: 'daemon.json', phase: 'create-temp', act: () => control.writeDaemonState(daemon()), landed: () => existsSync(join(DAEMON_DIR, 'daemon.json')) },
     {
       n: 'W1.9',
       where: 'the daemon record',
-      file: 'supervisor.json',
+      file: 'daemon.json',
       phase: 'create-temp',
-      seed: () => writeFileSync(join(DAEMON_DIR, 'supervisor.json'), JSON.stringify(supervisor(), null, 2)),
-      act: () => void control.markSupervisorStoppingSync(),
-      landed: () => readText(join(DAEMON_DIR, 'supervisor.json')).includes('"stopping"'),
+      seed: () => writeFileSync(join(DAEMON_DIR, 'daemon.json'), JSON.stringify(daemon(), null, 2)),
+      act: () => void control.markDaemonStoppingSync(),
+      landed: () => readText(join(DAEMON_DIR, 'daemon.json')).includes('"stopping"'),
     },
     { n: 'W1.10', where: 'the control key', file: 'control.key', phase: 'create-temp', act: () => control.reassertControlKey('k'.repeat(64)), landed: () => existsSync(join(DAEMON_DIR, 'control.key')) },
     { n: 'W1.11', where: 'the git-init asks', file: 'git-init-asks.json', phase: 'rename', act: () => void asks.mintGitInitAsk(PROJECT), landed: () => existsSync(join(DAEMON_DIR, 'git-init-asks.json')) },

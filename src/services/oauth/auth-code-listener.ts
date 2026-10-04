@@ -100,7 +100,7 @@ export class AuthCodeListener {
     }
     const config = getOauthConfig()
     const target = shouldUseClaudeAIAuth(scopes)
-      ? config.CLAUDEAI_SUCCESS_URL
+      ? config.SUBSCRIPTION_SUCCESS_URL
       : config.CONSOLE_SUCCESS_URL
     response.writeHead(302, { Location: target })
     response.end()
@@ -110,7 +110,7 @@ export class AuthCodeListener {
     const response = this.pendingResponse
     if (response === null) return
     this.pendingResponse = null
-    response.writeHead(302, { Location: getOauthConfig().CLAUDEAI_SUCCESS_URL })
+    response.writeHead(302, { Location: getOauthConfig().SUBSCRIPTION_SUCCESS_URL })
     response.end()
   }
 

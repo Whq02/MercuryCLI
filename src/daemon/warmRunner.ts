@@ -19,7 +19,7 @@ import {
   CONCOURSE_SHORT_PREFIX,
   effectiveSeatCeiling,
   readSessionWorkers,
-} from './concourseSupervisor.js'
+} from './concourseWorkers.js'
 import type { RunnerChildSpec } from './headlessRun.js'
 import { isProcessAlive } from './ownerWatch.js'
 import { PeerClosed, PeerDeadline } from '../runner/wire/peer.js'

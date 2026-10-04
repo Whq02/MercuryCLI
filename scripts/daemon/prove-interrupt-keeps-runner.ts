@@ -78,7 +78,7 @@ console.log('============================================================')
 
 tally.section('§1 the rule, pure: the first death in a healthy window respawns at once; the second and later keep the ladder; the ceilings stand')
 {
-  const { decideRespawn, longLivedBackoffMs, DEFAULT_LONG_LIVED_CONFIG } = await import('../../src/daemon/longLivedSupervisor.ts')
+  const { decideRespawn, longLivedBackoffMs, DEFAULT_LONG_LIVED_CONFIG } = await import('../../src/daemon/longLivedRespawn.ts')
   const first = decideRespawn(1)
   tally.check('red on the base: the first respawn waits nothing (delayMs 0)', first.action === 'respawn' && first.delayMs === 0, JSON.stringify(first))
   const ladder = [2, 3, 4, 5].map(n => decideRespawn(n))

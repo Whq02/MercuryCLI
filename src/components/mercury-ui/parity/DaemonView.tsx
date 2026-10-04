@@ -20,7 +20,7 @@ import { useSessionAccent } from '../sessionAccent.js'
 import { useOpenEventGate } from '../useOpenEventGate.js'
 import { getMercuryDaemonStatus, type MercuryDaemonStatus } from '../../../daemon/status.js'
 import { daemonSnapshot } from '../../../utils/cockpit/daemonSnapshot.js'
-import { deriveSupervisorRows } from '../../../utils/cockpit/daemonSupervisorRows.js'
+import { deriveDaemonRows } from '../../../utils/cockpit/daemonRows.js'
 
 
 const MAX_ROWS = 12
@@ -28,7 +28,7 @@ const COCKPIT_POLL_MS = 4000
 const NOTE_EXPIRE_MS = 2500
 
 const EMPTY_STATUS: MercuryDaemonStatus = {
-  supervisor: null,
+  daemon: null,
   controlSock: '',
   controlReachable: false,
   workersLive: null,
@@ -45,7 +45,7 @@ const EMPTY_STATUS: MercuryDaemonStatus = {
   workers: [],
 }
 
-export function DaemonSupervisorView({ onClose }: { onClose: () => void }): React.ReactNode {
+export function DaemonView({ onClose }: { onClose: () => void }): React.ReactNode {
   const { columns: termCols } = useTerminalSize()
   const detailBudget = Math.max(40, termCols - 24)
   const dirBudget = Math.max(40, termCols - 22)
@@ -103,7 +103,7 @@ export function DaemonSupervisorView({ onClose }: { onClose: () => void }): Reac
   }, [pollEnabled])
 
   const probing = status === null
-  const v = deriveSupervisorRows(status)
+  const v = deriveDaemonRows(status)
   const indexClamped = Math.min(sel, Math.max(0, v.workers.length - 1))
   const keyAt = selKey !== null ? v.workers.findIndex(w => w.short === selKey) : -1
   const clampedSel = keyAt >= 0 ? keyAt : indexClamped
@@ -183,10 +183,10 @@ export function DaemonSupervisorView({ onClose }: { onClose: () => void }): Reac
             <StateBadge state={v.badge} label={v.badgeLabel} />
             <Text color={FAINT}> · localhost-only ◆ safe</Text>
           </Box>
-          {v.supervisorLine ? (
+          {v.daemonLine ? (
             <Text>
               <Text color={FAINT}>{'  daemon      '}</Text>
-              <Text color={IVORY}>{v.supervisorLine}</Text>
+              <Text color={IVORY}>{v.daemonLine}</Text>
             </Text>
           ) : null}
           {v.dir ? <Text color={FAINT}>{`  dir         ${truncateToWidth(v.dir, dirBudget)}`}</Text> : null}

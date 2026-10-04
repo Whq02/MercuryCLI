@@ -23,7 +23,7 @@ const server = createServer((req, res) => {
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
 const address = server.address()
 if (!address || typeof address === 'string') throw new Error('fixture has no port')
-process.env.MERCURY_CUSTOM_OAUTH_URL = `http://127.0.0.1:${address.port}`
+process.env.MERCURY_ANTHROPIC_OAUTH_BASE = `http://127.0.0.1:${address.port}`
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
 const { getGlobalConfig } = await import('../../src/utils/config.js')
