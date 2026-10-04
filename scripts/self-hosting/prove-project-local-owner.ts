@@ -53,7 +53,7 @@ check(
 console.log('resolution is pure — deriving creates nothing')
 owner.projectLocalDir(root)
 owner.projectLocalPath(root, 'apollo')
-owner.adoptiveProjectLocalPath(root, 'health')
+owner.projectLocalPath(root, 'health')
 lastCertPath()
 lastPreflightPath()
 check(readdirSync(root).length === 0, 'virgin project root untouched after every derivation')

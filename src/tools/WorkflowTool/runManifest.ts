@@ -1,5 +1,5 @@
 
-import { adoptiveProjectPath } from '../../utils/projectStoreAdoption.js'
+import { projectLocalPath } from '../../services/projectLocal/paths.js'
 import { projectHomeStore } from '../../utils/projectHomeStores.js'
 import { randomUUID } from 'node:crypto'
 import { mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
@@ -334,7 +334,7 @@ export async function readRunManifest(
 }
 
 export function workflowsDir(cwd: string): string {
-  return adoptiveProjectPath(cwd, 'workflows')
+  return projectLocalPath(cwd, 'workflows')
 }
 
 export function workflowRunsRoot(cwd: string): string {

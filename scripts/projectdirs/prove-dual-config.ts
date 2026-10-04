@@ -7,7 +7,7 @@ import {
   projectConfigDirs,
   resolveProjectConfigPath,
 } from '../../src/utils/projectConfig.js'
-import { adoptiveProjectPath } from '../../src/utils/projectStoreAdoption.js'
+import { projectLocalPath } from '../../src/services/projectLocal/paths.js'
 import { getProjectDirsUpToHome } from '../../src/utils/markdownConfigLoader.js'
 import { loadProjectWards } from '../../src/utils/hooks/wardsHook.js'
 
@@ -26,14 +26,14 @@ const root = mkdtempSync(join(tmpdir(), 'dualdir-'))
   const fresh = join(root, 'fresh')
   mkdirSync(fresh, { recursive: true })
   check(
-    adoptiveProjectPath(fresh, 'router') === join(fresh, '.mercury', 'router'),
+    projectLocalPath(fresh, 'router') === join(fresh, '.mercury', 'router'),
     'FRESH project: a Mercury store homes under .mercury/ (nothing ever writes .claude/)',
   )
   check(!existsSync(join(fresh, '.mercury')), '…and resolving is pure: no directory is created')
   const external = join(root, 'external')
   mkdirSync(join(external, '.claude', 'party'), { recursive: true })
   check(
-    adoptiveProjectPath(external, 'party') === join(external, '.mercury', 'party'),
+    projectLocalPath(external, 'party') === join(external, '.mercury', 'party'),
     'EXTERNAL-DIR project: a .claude/ store is NOT a home — canonical .mercury returned, nothing adopted',
   )
   check(
@@ -44,7 +44,7 @@ const root = mkdtempSync(join(tmpdir(), 'dualdir-'))
   mkdirSync(join(both, '.claude', 'evolution'), { recursive: true })
   mkdirSync(join(both, '.mercury', 'evolution'), { recursive: true })
   check(
-    adoptiveProjectPath(both, 'evolution') === join(both, '.mercury', 'evolution'),
+    projectLocalPath(both, 'evolution') === join(both, '.mercury', 'evolution'),
     'BOTH present: .mercury/ is the answer (the external dir is ignored)',
   )
 }

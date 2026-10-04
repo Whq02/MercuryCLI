@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { adoptiveProjectPath } from '../../src/utils/projectStoreAdoption.js'
+import { projectLocalPath } from '../../src/services/projectLocal/paths.js'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -31,7 +31,7 @@ for (const [label, dirs] of shapes) {
   const root = join(scratch, label.replace(/[^a-z]+/gi, '-'))
   mkdirSync(root, { recursive: true })
   for (const d of dirs) mkdirSync(join(root, d), { recursive: true })
-  const ts = adoptiveProjectPath(root, 'gate').replaceAll('\\', '/')
+  const ts = projectLocalPath(root, 'gate').replaceAll('\\', '/')
   const sh = shellResolve(root, 'gate').replaceAll('\\', '/')
   check(`${label}: shell === TS`, ts === sh, `ts=${ts} sh=${sh}`)
 }

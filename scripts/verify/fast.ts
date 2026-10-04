@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { adoptiveProjectPath } from '../../src/utils/projectStoreAdoption.js'
+import { projectLocalPath } from '../../src/services/projectLocal/paths.js'
 import { isAdvisoryKind, readLedger } from '../gate/ledger.js'
 import { spawnSync } from 'node:child_process'
 import { gitOutOrNull } from '../lib/git.ts'
@@ -59,7 +59,7 @@ function dirtyPaths(): string[] {
 
 function localGreenTree(): { tree: string; headSha: string | null } | null {
   try {
-    const v = JSON.parse(readFileSync(join(adoptiveProjectPath(ROOT, 'gate'), 'verdict.json'), 'utf8'))
+    const v = JSON.parse(readFileSync(join(projectLocalPath(ROOT, 'gate'), 'verdict.json'), 'utf8'))
     if (v?.ok !== true || typeof v?.treeSha !== 'string') return null
     const kind = gitOut(['cat-file', '-t', v.treeSha])?.trim()
     if (kind !== 'tree') return null
@@ -189,7 +189,7 @@ function loadDurations(): Record<string, number> {
   } catch {
   }
   try {
-    const v = JSON.parse(readFileSync(join(adoptiveProjectPath(ROOT, 'gate'), 'verdict.json'), 'utf8'))
+    const v = JSON.parse(readFileSync(join(projectLocalPath(ROOT, 'gate'), 'verdict.json'), 'utf8'))
     if (v?.durations && typeof v.durations === 'object') {
       for (const [k, s] of Object.entries(v.durations as Record<string, unknown>)) {
         if (typeof s === 'number' && Number.isFinite(s)) out[k] = s

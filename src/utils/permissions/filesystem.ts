@@ -37,7 +37,6 @@ export const DANGEROUS_FILES: string[] = [
   '.profile',
   '.ripgreprc',
   '.mcp.json',
-  '.claude.json',
   '.mercury.json',
 ]
 
@@ -45,7 +44,6 @@ export const DANGEROUS_DIRECTORIES: string[] = [
   '.git',
   '.vscode',
   '.idea',
-  '.claude',
   '.mercury',
 ]
 

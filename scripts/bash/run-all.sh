@@ -11,7 +11,7 @@
 # gate-watch: src/services/workshop/pythonRuntime.ts src/services/workshop/pythonRunnerSource.ts
 # gate-watch: src/services/tcpBridge/entry.ts src/services/ide/cppBuild.ts src/services/mcp/headersHelper.ts
 # gate-watch: src/utils/collapseBackgroundBashNotifications*
-# gate-watch: src/utils/worktree.ts src/utils/projectStoreAdoption.ts
+# gate-watch: src/utils/worktree.ts src/services/projectLocal/paths.ts
 # gate-watch: src/utils/bash/ShellSnapshot.ts src/utils/shell/engineSession.ts src/utils/shell/brushPack.ts
 # gate-watch: src/services/lsp/LSPClient.ts src/services/dap/dapClient.ts
 # gate-watch: src/utils/bash/bashPipeCommand* src/utils/bash/shellQuoting* src/utils/shell/bashProvider* src/utils/sandbox/sandbox-adapter*

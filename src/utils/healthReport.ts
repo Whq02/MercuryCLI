@@ -1,7 +1,6 @@
 
 import { getHistoryFlushHealth, historyEverFlushedThisProcess } from '../history.js'
 import { readBootAttemptResidue } from '../substrate/bootBeacon.js'
-import { adoptiveProjectPath } from './projectStoreAdoption.js'
 import { isReadOnlyDiagnostic } from './diagnosticReadOnly.js'
 import { projectHomeLeftovers, projectHomeStore } from './projectHomeStores.js'
 import { MERCURY_PROJECT_DIR } from './projectConfig.js'
@@ -9,7 +8,7 @@ import { homeDirectory, isHomeDirectory, projectScopePathspec, USER_ROOT_NAMES }
 import { findGitRoot, gitProbeNote } from './git.js'
 import { settleChildRun } from './childSettle.js'
 import { subprocessEnv } from './subprocessEnv.js'
-import { adoptiveProjectLocalPath } from '../services/projectLocal/paths.js'
+import { projectLocalPath } from '../services/projectLocal/paths.js'
 import { workflowRunsRoot } from '../tools/WorkflowTool/runManifest.js'
 import { execFile, spawn } from 'node:child_process'
 import chalk from 'chalk'
@@ -411,7 +410,7 @@ export function lastCertPath(): string {
 }
 
 export function gateVerdictPath(): string {
-  return join(adoptiveProjectPath(healthStateRoot(), 'gate'), 'verdict.json')
+  return join(projectLocalPath(healthStateRoot(), 'gate'), 'verdict.json')
 }
 
 function readTsVersion(tsPath: string): string | null {
@@ -1939,12 +1938,12 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const { existsSync, readdirSync } = await import('node:fs')
             const { join } = await import('node:path')
             const { getMercuryHome } = await import('./envUtils.js')
-            const { adoptiveProjectPath } = await import('./projectStoreAdoption.js')
+            const { projectLocalPath } = await import('../services/projectLocal/paths.js')
             const { getOriginalCwd } = await import('../bootstrap/state.js')
             const userDir = join(getMercuryHome(), 'agents')
             let projectDir = ''
             try {
-              projectDir = adoptiveProjectPath(getOriginalCwd(), 'agents')
+              projectDir = projectLocalPath(getOriginalCwd(), 'agents')
             } catch {
             }
             const countMd = (dir: string): number | null => {

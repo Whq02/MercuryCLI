@@ -17,13 +17,13 @@ export type AccountScope = {
   foreignHarness: boolean
 }
 
-const FOREIGN_HARNESS_HOMES = new Set(['.claude', '.codex', '.gemini', '.copilot', '.cursor', '.kiro', '.cline', '.continue', '.qwen', '.pi', '.omp'])
+const FOREIGN_HARNESS_HOMES = new Set(['.codex', '.gemini', '.copilot', '.cursor', '.kiro', '.cline', '.continue', '.qwen', '.pi', '.omp'])
 const FOREIGN_HARNESS_CONFIG_HOMES = new Set(['opencode', 'amp', 'goose'])
 export function isForeignHarnessDir(dir: string): boolean {
   const trimmed = dir.replace(/[\\/]+$/, '')
   const base = basename(trimmed)
   const parent = basename(dirname(trimmed))
-  if ([base, parent].some(s => FOREIGN_HARNESS_HOMES.has(s) || s.startsWith('.claude-'))) return true
+  if ([base, parent].some(s => FOREIGN_HARNESS_HOMES.has(s))) return true
   return parent === '.config' && FOREIGN_HARNESS_CONFIG_HOMES.has(base)
 }
 

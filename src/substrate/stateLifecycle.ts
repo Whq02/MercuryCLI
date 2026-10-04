@@ -148,11 +148,6 @@ async function collectLockSidecars(budget: LifecycleBudget): Promise<LifecycleCl
     roots.push(daemonDir())
   } catch {
   }
-  try {
-    const { adoptiveProjectPath } = await import('../utils/projectStoreAdoption.js')
-    const { getProjectRoot } = await import('../bootstrap/state.js')
-  } catch {
-  }
   for (const root of roots) {
     if (overBudget(budget)) return receipt
     for (const entry of await listDir(root)) {

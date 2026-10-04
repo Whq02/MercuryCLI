@@ -94,7 +94,7 @@ function rows(): Row[] {
 const mark = (): number => rows().length
 const since = (n: number): Row[] => rows().slice(n)
 const isAdd = (r: Row): boolean => r.argv.startsWith('add -A')
-const EXCLUDE_ADD = 'add -A -- . :(exclude,glob)**/.claude/** :(exclude,glob)**/.mercury/**'
+const EXCLUDE_ADD = 'add -A -- . :(exclude,glob)**/.mercury/**'
 
 const vs = await import('../../src/utils/verification/verificationState.ts')
 vs._resetVerificationStateForTesting()
@@ -172,10 +172,10 @@ section('§3 exclude before the cost — harness churn never moves the digest, n
   const d2 = await vs.computeWorkingTreeDigestAsync(repo)
   r = since(n0)
   check('the ignored-and-present harness dir (the exclude-pathspec trap) still rides the exclude road', d2 === base2 && r.some(x => x.argv === EXCLUDE_ADD) && !r.some(x => x.argv.startsWith('reset ')), r.map(x => x.argv).join(' | '))
-  mkdirSync(join(repo, '.claude'), { recursive: true })
-  const settings = join(repo, '.claude', 'settings.json')
+  mkdirSync(join(repo, '.mercury'), { recursive: true })
+  const settings = join(repo, '.mercury', 'settings.json')
   writeFileSync(settings, '{}\n')
-  git(repo, 'add', '-A')
+  git(repo, 'add', '-f', settings)
   git(repo, 'commit', '-qm', 'track a harness file')
   vs.markMutation(undefined, [settings], repo)
   const base3 = await vs.computeWorkingTreeDigestAsync(repo, { fresh: true })

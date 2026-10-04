@@ -15,7 +15,7 @@ import { safeParseJSON, stripBOM } from '../json.js'
 import * as lockfile from '../lockfile.js'
 import { logError } from '../log.js'
 import { MERCURY_PROJECT_DIR, resolveProjectConfigPath } from '../projectConfig.js'
-import { adoptiveProjectPath } from '../projectStoreAdoption.js'
+import { projectLocalPath } from '../../services/projectLocal/paths.js'
 import { jsonStringify } from '../slowOperations.js'
 import { profileCheckpoint } from '../startupProfiler.js'
 import type { EditableSettingSource, SettingSource } from './constants.js'
@@ -186,9 +186,9 @@ export function getRelativeSettingsFilePathForSource(source: 'projectSettings' |
 export function getSettingsWriteFilePathForSource(source: SettingSource): string | undefined {
   switch (source) {
     case 'projectSettings':
-      return adoptiveProjectPath(getOriginalCwd(), 'settings.json')
+      return projectLocalPath(getOriginalCwd(), 'settings.json')
     case 'localSettings':
-      return adoptiveProjectPath(getOriginalCwd(), 'settings.local.json')
+      return projectLocalPath(getOriginalCwd(), 'settings.local.json')
     default:
       return getSettingsFilePathForSource(source)
   }
