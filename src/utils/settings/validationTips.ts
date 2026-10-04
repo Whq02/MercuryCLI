@@ -15,13 +15,13 @@ export type TipContext = {
   value?: unknown
 }
 
-const MODE_GLOSS: Record<(typeof PERMISSION_MODES)[number], string> = {
-  default: 'standard prompting',
-  implement: 'file edits pre-approved',
-  dontAsk: 'skip prompts, deny instead',
-  sovereign: 'bypass everything',
-  flow: 'classifier-arbitrated',
-  apollo: 'the pre-flight interview, then one autonomous build',
+export const MODE_GLOSS: Record<(typeof PERMISSION_MODES)[number], string> = {
+  default: 'asks before each action no rule already allows',
+  implement: 'file edits inside the project go ahead without asking',
+  dontAsk: 'never asks, what would have asked is refused',
+  sovereign: 'no prompts at all, a deny rule still refuses',
+  flow: 'a classifier answers the asks for you',
+  apollo: 'the pre-flight interview, then one build on its own',
 }
 
 const DEFAULT_MODE_SUGGESTION = `Valid modes: ${PERMISSION_MODES.map(mode => `"${mode}" (${MODE_GLOSS[mode]})`).join(', ')}`

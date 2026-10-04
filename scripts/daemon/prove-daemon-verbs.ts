@@ -26,9 +26,11 @@ section('(1) the grammar')
   check("stop --keep is REFUSED, typed, naming the flag (nothing keeps a worker: the daemon's teardown ends every one)", keep.kind === 'unknown-flag' && keep.verb === 'stop' && keep.word === '--keep', `accepted as ${JSON.stringify(keep)}`)
   const any = parseDaemonVerb(['stop', '--any'], noDir)
   check('stop --any is REFUSED the same way (the reap is the default; it needs no flag)', any.kind === 'unknown-flag' && any.word === '--any', `accepted as ${JSON.stringify(any)}`)
-  const stopRow = DAEMON_USAGE.split('\n').find(l => l.trimStart().startsWith('stop')) ?? ''
+  const usageLines = DAEMON_USAGE.split('\n')
+  const stopAt = usageLines.findIndex(l => l.trimStart().startsWith('stop'))
+  const stopRow = usageLines.slice(stopAt, stopAt + 2).filter((l, i) => i === 0 || /^\s{8,}\S/.test(l)).join(' ').replace(/\s+/g, ' ')
   check('the usage carries no --keep and no --any', !DAEMON_USAGE.includes('--keep') && !DAEMON_USAGE.includes('--any'), stopRow)
-  check("the usage's stop row says the in-flight workers are reaped, never that any survives", /reap/.test(stopRow) && !/leaves? [^\n]*running|surviv|stay alive|keep running|live on|skips that reap/i.test(stopRow), stopRow)
+  check("the usage's stop row says every worker stops with the daemon, never that any survives", /every session process it runs \(every worker\) stops with it/.test(stopRow) && !/leaves? [^\n]*running|surviv|stay alive|keep running|live on|skips that reap/i.test(stopRow), stopRow)
   check('restart', parseDaemonVerb(['restart'], noDir).kind === 'restart')
   for (const spelling of ['help', '--help', '-h']) {
     check(`${spelling} ⇒ help (never the daemon)`, parseDaemonVerb([spelling], noDir).kind === 'help')
@@ -130,7 +132,7 @@ section('(6) the verb road, live in a scratch home: `stop --keep` and `stop --an
   }
   const firstLine = (t: string): string => t.trim().split('\n')[0] ?? ''
   const keep = client('stop', '--keep')
-  check("`stop --keep` refuses: exit 1, `unknown flag '--keep'`, the usage, and the two things to run instead", keep.status === 1 && keep.text.includes("mercury daemon stop: unknown flag '--keep'") && keep.text.includes('usage: mercury daemon') && keep.text.includes('`mercury daemon stop`') && keep.text.includes('`mercury daemon restart`'), `exit ${keep.status}: ${firstLine(keep.text)}`)
+  check("`stop --keep` refuses: exit 1, `unknown flag '--keep'`, the usage, and the two things to run instead", keep.status === 1 && keep.text.includes("mercury daemon stop: unknown flag '--keep'") && keep.text.includes('Usage: mercury daemon') && keep.text.includes('`mercury daemon stop`') && keep.text.includes('`mercury daemon restart`'), `exit ${keep.status}: ${firstLine(keep.text)}`)
   check('…and the usage it prints carries no --keep', !keep.text.replace("unknown flag '--keep'", '').includes('--keep'), keep.text.split('\n').find(l => l.includes('--keep') && !l.includes('unknown flag')) ?? '')
   const any = client('stop', '--any')
   check('`stop --any` refuses the same way', any.status === 1 && any.text.includes("mercury daemon stop: unknown flag '--any'"), `exit ${any.status}: ${firstLine(any.text)}`)

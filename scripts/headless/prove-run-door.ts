@@ -70,7 +70,20 @@ try {
   const bootSwitches = ['--chat', '--concourse-off', '--concourse-on', '--multiplex', '--pr']
   const listsFlag = (text: string, flag: string): boolean => new RegExp(`(^|\\s)${flag}(\\s|$|,)`, 'm').test(text)
   check('run help lists none of the interactive boot\'s switches', help.code === 0 && bootSwitches.every(flag => !listsFlag(help.out, flag)), bootSwitches.filter(flag => listsFlag(help.out, flag)).join(','))
-  check('run help says system brief for --brief and --brief-add alike, and names no chat screen for --advise', /--brief <prompt>[^\n]*system brief/.test(help.out) && /--brief-add <prompt>[^\n]*system brief/.test(help.out) && !/\/config/.test(help.out), help.out.split('\n').filter(l => /--brief|--advise/.test(l)).join(' | '))
+  const optionEntry = (text: string, flag: string): string => {
+    const lines = text.split('\n')
+    const start = lines.findIndex(l => l.startsWith(`  ${flag} `) || l === `  ${flag}`)
+    if (start < 0) return ''
+    const column = lines[start]!.search(/\S/)
+    const entry = [lines[start]!]
+    for (let i = start + 1; i < lines.length; i++) {
+      const line = lines[i]!
+      if (line.trim() === '' || line.search(/\S/) <= column) break
+      entry.push(line.trim())
+    }
+    return entry.join(' ')
+  }
+  check('run help says system brief for --brief and --brief-add alike, and names no chat screen for --advise', /system brief/.test(optionEntry(help.out, '--brief <prompt>')) && /system brief/.test(optionEntry(help.out, '--brief-add <prompt>')) && !/\/config/.test(help.out), [optionEntry(help.out, '--brief <prompt>'), optionEntry(help.out, '--brief-add <prompt>'), optionEntry(help.out, '--advise')].join(' | '))
   const runnerHelp = await run(['runner', '--help'])
   check('runner help lists none of the interactive boot\'s switches nor the run output options', runnerHelp.code === 0 && [...bootSwitches, '--format', '--input', '--partial'].every(flag => !listsFlag(runnerHelp.out, flag)), [...bootSwitches, '--format', '--input', '--partial'].filter(flag => listsFlag(runnerHelp.out, flag)).join(','))
   for (const verb of ['run', 'runner']) {

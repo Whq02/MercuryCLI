@@ -467,7 +467,7 @@ section(`§1d THE HEADLESS FLAG: a headless run with --advise has its chat's swi
     }
   }
   const main = readFileSync(join(ROOT, 'src/main.tsx'), 'utf8')
-  check("--advise is declared in --help and refused off the run road (in a chat, /advise on is the door)", main.includes(".option('--advise', 'Turn the advisor on for this run at birth") && main.includes("failCli('--advise requires mercury run: in a chat, /advise on turns the advisor on for that chat')"))
+  check("--advise is declared in --help and refused off the run road (in a chat, /advise on is the door)", main.includes(".option('--advise', 'Turn on the second model that advises the working model (the advisor) from the run\\'s first turn (at birth)") && main.includes("failCli('--advise requires mercury run: in a chat, /advise on turns the advisor on for that chat')"))
   wire.length = 0
   agentReplies = 0
 }
