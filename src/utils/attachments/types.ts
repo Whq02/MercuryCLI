@@ -178,6 +178,7 @@ export type HookNonBlockingErrorAttachment = {
 }
 
 export type Attachment =
+  (
   | FileAttachment
   | CompactFileReferenceAttachment
   | PDFReferenceAttachment
@@ -290,6 +291,10 @@ export type Attachment =
       semDigest?: string
       refs: string[]
       delta: string | null
+      sections?: CapsuleSection[]
+      workingSet?: CapsuleWorkingRef[]
+      sectionDigest?: string
+      baseDigest?: string
     }
   | {
       type: 'critical_system_reminder'
@@ -472,6 +477,19 @@ export type Attachment =
       messages: Array<{ ordinal: number; text: string; truncated?: boolean }>
       omitted: number
     }
+  ) & { capsuleReceipt?: string }
+
+export type CapsuleSection = {
+  name: import('./capsuleKinds.js').CapsuleSectionName
+  kinds: Attachment['type'][]
+  content: ContentBlockParam[]
+}
+
+export type CapsuleWorkingRef = {
+  ref: string
+  path: string
+  reason: 'read' | 'mentioned' | 'edited' | 'instructions' | 'memory'
+}
 
 export const CREW_MESSAGES_KIND = 'crew_messages' as const
 

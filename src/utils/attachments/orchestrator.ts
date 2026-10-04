@@ -14,11 +14,11 @@ import { logError } from '../log.js'
 import { getLSPDiagnosticAttachments } from './diagnostics.js'
 import { getChangedFiles } from './fileAttachments.js'
 import {
-  getDateChangeAttachments,
+  getCapsuleDateChange,
   getModePackAttachments,
   getRepoSurfaceMapAttachment,
 } from './modeLifecycles.js'
-import { getContextCapsuleAttachment } from './contextCapsule.js'
+import { foldAttachmentsIntoCapsule, getContextCapsuleAttachment } from './contextCapsule.js'
 import { getNestedMemoryAttachments } from './nestedMemory.js'
 import {
   processAgentMentions,
@@ -80,7 +80,7 @@ export async function getAttachments(
     ATTACHMENT_SOFT_ABORT_MS,
     abortController,
   )
-  const context = { ...toolUseContext, abortController }
+  const context = { ...toolUseContext, abortController, messages: messages ?? toolUseContext.messages }
 
   const isMainThread = !toolUseContext.agentId
 
@@ -129,7 +129,7 @@ export async function getAttachments(
       priority: true,
     }),
     maybe('date_change', () =>
-      Promise.resolve(getDateChangeAttachments(messages)),
+      Promise.resolve(getCapsuleDateChange(context, messages)),
     ),
     maybe('deferred_tools_delta', () =>
       Promise.resolve(
@@ -279,18 +279,17 @@ export async function getAttachments(
       ]
     : []
 
-  const [threadAttachmentResults, mainThreadAttachmentResults] =
-    await Promise.all([
-      Promise.all(allThreadAttachments),
-      Promise.all(mainThreadAttachments),
-    ])
+  const continuationResults = await Promise.all([
+    ...allThreadAttachments,
+    ...mainThreadAttachments,
+  ])
 
   clearTimeout(timeoutId)
-  return [
+  const collected = [
     ...userAttachmentResults.flat(),
-    ...threadAttachmentResults.flat(),
-    ...mainThreadAttachmentResults.flat(),
+    ...continuationResults.flat(),
   ].filter(a => a !== undefined && a !== null) as Attachment[]
+  return options?.localSubmission ? collected : foldAttachmentsIntoCapsule(collected, messages, input, context)
 }
 
 const ATTACHMENT_SOFT_ABORT_MS = 1_000

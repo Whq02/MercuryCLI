@@ -27,56 +27,33 @@ import {
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { CONTRACT_TOOL_NAME } from '../../tools/ContractTool/prompt.js'
 
+function reminderClock(messages: Message[], kind: 'task_reminder' | 'contract_reminder', tools: readonly string[]) {
+  let touched = false
+  let reminded = false
+  let turnsSinceTouch = 0
+  let turnsSinceReminder = 0
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i]
+    if (message?.type === 'assistant' && !isThinkingMessage(message)) {
+      touched ||= Array.isArray(message.message.content) && message.message.content.some(
+        block => block.type === 'tool_use' && tools.includes(block.name),
+      )
+      if (!touched) turnsSinceTouch++
+      if (!reminded) turnsSinceReminder++
+    } else if (message?.type === 'attachment' && message.attachment.type === kind) {
+      reminded = true
+    }
+    if (touched && reminded) break
+  }
+  return { touched, reminded, turnsSinceTouch, turnsSinceReminder }
+}
+
 function getTaskReminderTurnCounts(messages: Message[]): {
   turnsSinceLastTaskManagement: number
   turnsSinceLastReminder: number
 } {
-  let lastTaskManagementIndex = -1
-  let lastReminderIndex = -1
-  let assistantTurnsSinceTaskManagement = 0
-  let assistantTurnsSinceReminder = 0
-
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const message = messages[i]
-
-    if (message?.type === 'assistant') {
-      if (isThinkingMessage(message)) {
-        continue
-      }
-
-      if (
-        lastTaskManagementIndex === -1 &&
-        'message' in message &&
-        Array.isArray(message.message?.content) &&
-        message.message.content.some(
-          block =>
-            block.type === 'tool_use' &&
-            (block.name === TASK_CREATE_TOOL_NAME ||
-              block.name === TASK_UPDATE_TOOL_NAME),
-        )
-      ) {
-        lastTaskManagementIndex = i
-      }
-
-      if (lastTaskManagementIndex === -1) assistantTurnsSinceTaskManagement++
-      if (lastReminderIndex === -1) assistantTurnsSinceReminder++
-    } else if (
-      lastReminderIndex === -1 &&
-      message?.type === 'attachment' &&
-      message.attachment.type === 'task_reminder'
-    ) {
-      lastReminderIndex = i
-    }
-
-    if (lastTaskManagementIndex !== -1 && lastReminderIndex !== -1) {
-      break
-    }
-  }
-
-  return {
-    turnsSinceLastTaskManagement: assistantTurnsSinceTaskManagement,
-    turnsSinceLastReminder: assistantTurnsSinceReminder,
-  }
+  const clock = reminderClock(messages, 'task_reminder', [TASK_CREATE_TOOL_NAME, TASK_UPDATE_TOOL_NAME])
+  return { turnsSinceLastTaskManagement: clock.turnsSinceTouch, turnsSinceLastReminder: clock.turnsSinceReminder }
 }
 
 export async function getTaskReminderAttachments(
@@ -123,48 +100,10 @@ function getContractReminderTurnCounts(messages: Message[]): {
   turnsSinceLastTouch: number | null
   turnsSinceLastReminder: number | null
 } {
-  let lastTouchIndex = -1
-  let lastReminderIndex = -1
-  let assistantTurnsSinceTouch = 0
-  let assistantTurnsSinceReminder = 0
-
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const message = messages[i]
-
-    if (message?.type === 'assistant') {
-      if (isThinkingMessage(message)) {
-        continue
-      }
-
-      if (
-        lastTouchIndex === -1 &&
-        'message' in message &&
-        Array.isArray(message.message?.content) &&
-        message.message.content.some(
-          block => block.type === 'tool_use' && block.name === CONTRACT_TOOL_NAME,
-        )
-      ) {
-        lastTouchIndex = i
-      }
-
-      if (lastTouchIndex === -1) assistantTurnsSinceTouch++
-      if (lastReminderIndex === -1) assistantTurnsSinceReminder++
-    } else if (
-      lastReminderIndex === -1 &&
-      message?.type === 'attachment' &&
-      message.attachment.type === 'contract_reminder'
-    ) {
-      lastReminderIndex = i
-    }
-
-    if (lastTouchIndex !== -1 && lastReminderIndex !== -1) {
-      break
-    }
-  }
-
+  const clock = reminderClock(messages, 'contract_reminder', [CONTRACT_TOOL_NAME])
   return {
-    turnsSinceLastTouch: lastTouchIndex === -1 ? null : assistantTurnsSinceTouch,
-    turnsSinceLastReminder: lastReminderIndex === -1 ? null : assistantTurnsSinceReminder,
+    turnsSinceLastTouch: clock.touched ? clock.turnsSinceTouch : null,
+    turnsSinceLastReminder: clock.reminded ? clock.turnsSinceReminder : null,
   }
 }
 
