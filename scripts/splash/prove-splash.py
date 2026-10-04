@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import fcntl
+import hashlib
 import json
 import os
 import pty
@@ -11,6 +12,7 @@ import sys
 import tempfile
 import termios
 import time
+import unicodedata
 
 SCALE = max(1.0, float(os.environ.get('MERCURY_VSHOT_BUDGET_SCALE', '1') or 1))
 from pathlib import Path
@@ -1151,22 +1153,31 @@ check('both files present: the native file wins',
 check("both files present: the external file's facts never render",
       'other@compat.test' not in plain and 'Octopus' not in plain)
 
-print('\n── K1: health chip reads the ADOPTIVE project path (.mercury first)')
+print("\n── K1: health chip reads the certificate where /health writes it (the project's store under the config home)")
+
+
+def project_home_dir(home, cwd):
+    canonical = unicodedata.normalize('NFC', os.path.realpath(cwd))
+    slug = re.sub(r'[^a-zA-Z0-9]', '-', canonical) + '-' + hashlib.sha256(canonical.encode('utf-8')).hexdigest()[:8]
+    return os.path.join(home, 'projects', slug)
+
+
 cert_cwd = tempfile.mkdtemp(prefix='splash-proof-certcwd.')
-os.makedirs(os.path.join(cert_cwd, '.mercury', 'health'), exist_ok=True)
-with open(os.path.join(cert_cwd, '.mercury', 'health', 'last-cert.json'), 'w') as f:
+cert_store = os.path.join(project_home_dir(home_native, cert_cwd), 'health')
+os.makedirs(cert_store, exist_ok=True)
+with open(os.path.join(cert_store, 'last-cert.json'), 'w') as f:
     json.dump({'verdict': 'certified', 'ranAt': '2026-08-07T12:00:00Z'}, f)
 raw = run_pty(120, 44, {'MERCURY_HOME': home_native, **INLINE}, cwd=cert_cwd)
 plain = STRIP.sub('', raw)
-check('health chip renders from <cwd>/.mercury/health',
+check("health chip renders the certificate from <config home>/projects/<slug>/health",
       'Health' in plain and 'certified' in plain)
 cert_cwd2 = tempfile.mkdtemp(prefix='splash-proof-certcwd2.')
-os.makedirs(os.path.join(cert_cwd2, '.claude', 'health'), exist_ok=True)
-with open(os.path.join(cert_cwd2, '.claude', 'health', 'last-cert.json'), 'w') as f:
+os.makedirs(os.path.join(cert_cwd2, '.mercury', 'health'), exist_ok=True)
+with open(os.path.join(cert_cwd2, '.mercury', 'health', 'last-cert.json'), 'w') as f:
     json.dump({'verdict': 'caution', 'ranAt': '2026-08-07T12:00:00Z'}, f)
 raw = run_pty(120, 44, {'MERCURY_HOME': home_native, **INLINE}, cwd=cert_cwd2)
 plain = STRIP.sub('', raw)
-check('health chip never reads the external <cwd>/.claude/health', 'caution' not in plain)
+check("health chip never reads a certificate left in the project folder (<cwd>/.mercury/health)", 'caution' not in plain)
 
 print('\n── K2: the launched cwd WINS (two-repo continue/resume dir law)')
 

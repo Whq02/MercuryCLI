@@ -182,8 +182,10 @@ section('§7 resolveConfigFile ↔ runtime parity (K1 — the frozen-stale class
     (src.match(/readFileSync\(resolveConfigFile\(\), 'utf8'\)/g) ?? []).length >= 2,
   )
   check(
-    "the health chip iterates the Mercury home ['.mercury']",
-    src.includes("for (const projDir of ['.mercury'])"),
+    "the health chip reads the certificate from the project's store under the config home, never the project folder",
+    src.includes("join(projectHomeDir(process.env.MERCURY_HEALTH_STATE_DIR || process.cwd()), 'health', 'last-cert.json')") &&
+      src.includes("join(CONFIG_HOME, 'projects')") &&
+      !src.includes("join(process.cwd(), projDir, 'health'"),
   )
   const envSrc = readFileSync(
     join(import.meta.dir, '..', '..', 'src', 'utils', 'env.ts'),

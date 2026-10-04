@@ -2,7 +2,8 @@
 
 
 import { spawnSync } from 'node:child_process'
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 
@@ -721,18 +722,50 @@ function certInfo() {
   certInfoCached = computeCertInfo()
   return certInfoCached
 }
+const MAX_SANITIZED_LENGTH = 200
+function sanitizeProjectPath(name) {
+  const sanitized = name.replace(/[^a-zA-Z0-9]/g, '-')
+  if (sanitized.length <= MAX_SANITIZED_LENGTH) return sanitized
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0
+  return sanitized.slice(0, MAX_SANITIZED_LENGTH) + '-' + Math.abs(hash).toString(36)
+}
+function holdsTranscripts(dir) {
+  try {
+    return readdirSync(dir).some(name => name.endsWith('.jsonl'))
+  } catch { return false }
+}
+function foldProjectConfigHomeTail(dir) {
+  if (basename(dir) !== '.mercury') return dir
+  const parentBase = basename(dirname(dir))
+  return parentBase.length === 0 || parentBase === '.mercury' ? dir : dirname(dir)
+}
+function projectHomeDir(root) {
+  const projects = join(CONFIG_HOME, 'projects')
+  const folded = foldProjectConfigHomeTail(root)
+  let canonical
+  try {
+    canonical = realpathSync(folded).normalize('NFC')
+  } catch { canonical = folded.normalize('NFC') }
+  canonical = foldProjectConfigHomeTail(canonical)
+  const hashed = join(projects, sanitizeProjectPath(canonical) + '-' + createHash('sha256').update(canonical).digest('hex').slice(0, 8))
+  try {
+    if (statSync(hashed).isDirectory()) return hashed
+  } catch {  }
+  const legacyCanonical = join(projects, sanitizeProjectPath(canonical))
+  if (holdsTranscripts(legacyCanonical)) return legacyCanonical
+  const legacyRaw = join(projects, sanitizeProjectPath(folded.normalize('NFC')))
+  if (canonical !== folded.normalize('NFC') && holdsTranscripts(legacyRaw)) return legacyRaw
+  return hashed
+}
 function computeCertInfo() {
-  for (const projDir of ['.mercury']) {
-    try {
-      const o = JSON.parse(
-        readFileSync(join(process.cwd(), projDir, 'health', 'last-cert.json'), 'utf8'),
-      )
-      if (o && typeof o.verdict === 'string') {
-        const t = Date.parse(o.ranAt)
-        return { verdict: o.verdict, age: Number.isFinite(t) ? fmtAge(Date.now() - t) : null }
-      }
-    } catch (err) { noteChipFailure('health(' + projDir + ')', err)  }
-  }
+  try {
+    const o = JSON.parse(readFileSync(join(projectHomeDir(process.env.MERCURY_HEALTH_STATE_DIR || process.cwd()), 'health', 'last-cert.json'), 'utf8'))
+    if (o && typeof o.verdict === 'string') {
+      const t = Date.parse(o.ranAt)
+      return { verdict: o.verdict, age: Number.isFinite(t) ? fmtAge(Date.now() - t) : null }
+    }
+  } catch (err) { noteChipFailure('health', err) }
   return null
 }
 
