@@ -90,6 +90,25 @@ function unionMembers(sf: ts.SourceFile, root: string): { members: Member[]; sha
       walk(node.type, via, seen)
       return
     }
+    if (ts.isIntersectionTypeNode(node)) {
+      const start = members.length
+      const shared: string[] = []
+      for (const part of node.types) {
+        if (ts.isTypeLiteralNode(part) && !part.members.some(member => ts.isPropertySignature(member) && propertyName(member.name) === 'type')) {
+          for (const member of part.members) {
+            if (!ts.isPropertySignature(member)) {
+              shapeless.push(`${via} intersection has a non-property member at ${UNION_SOURCE}:${lineOf(sf, member)}`)
+              continue
+            }
+            const name = propertyName(member.name)
+            if (name !== null) shared.push(name)
+          }
+        } else walk(part, via, seen)
+      }
+      if (members.length === start) shapeless.push(`${via} intersection has no discriminated member`)
+      for (const member of members.slice(start)) member.fields = [...new Set([...member.fields, ...shared])]
+      return
+    }
     if (ts.isTypeLiteralNode(node)) {
       let kind: string | null = null
       const fields: string[] = []
@@ -177,6 +196,12 @@ const missing = (have: Iterable<string>, want: Iterable<string>): string[] => {
   return sorted(new Set([...want].filter(k => !set.has(k))))
 }
 const named = (xs: string[]): string => (xs.length === 0 ? '' : `${xs.length}: ${xs.join(', ')}`)
+
+const intersectionFixture = ts.createSourceFile('fixture.ts', "type Attachment = ({ type: 'one'; first: string } | { type: 'two'; second: number }) & { receipt?: string }", ts.ScriptTarget.Latest, true)
+const intersectionRows = unionMembers(intersectionFixture, UNION_NAME)
+check('the census reads every discriminant and shared field through an additive intersection', intersectionRows.shapeless.length === 0 && intersectionRows.members.length === 2 && intersectionRows.members.every(member => member.fields.includes('receipt')) && intersectionRows.members[0]!.fields.includes('first') && intersectionRows.members[1]!.fields.includes('second'))
+const shapelessFixture = ts.createSourceFile('fixture.ts', 'type Attachment = { receipt?: string } & { other?: number }', ts.ScriptTarget.Latest, true)
+check('an intersection without a discriminated member still fails the census', unionMembers(shapelessFixture, UNION_NAME).shapeless.length > 0)
 
 section(`§A the ${UNION_NAME} union, read from ${UNION_SOURCE}`)
 const { members, shapeless } = unionMembers(parse(UNION_SOURCE), UNION_NAME)
