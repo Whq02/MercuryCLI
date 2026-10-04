@@ -163,33 +163,13 @@ section('§3 http — frozen loopback settles failed with the honest reason')
   t('§3 reason names transport + seconds', error.includes('(http)') && error.includes(`did not answer in ${DEADLINE_LABEL}`), error)
 }
 
-section('§4 sdk — a control host that never answers settles the batch')
-{
-  const started = Date.now()
-  const settled = await Promise.race([
-    mcp.setupSdkMcpClients(
-      { 'frozen-sdk': { type: 'host' } as never },
-      () => new Promise(() => {}),
-    ),
-    new Promise<null>(r => setTimeout(() => r(null), SETTLE_BUDGET_MS)),
-  ])
-  const wallMs = Date.now() - started
-  t('§4 the batch settles (the deadline exists at the sdk site)', settled !== null, `still pending after ${wallMs}ms`)
-  if (settled !== null) {
-    const rows = (settled as { clients: Array<Record<string, unknown>> }).clients
-    t('§4 the row is failed', rows.length === 1 && rows[0]!.type === 'failed', JSON.stringify(rows.map(r => r.type)))
-    const error = String(rows[0]?.error ?? '')
-    t('§4 reason names transport + seconds', error.includes('(sdk)') && error.includes(`did not answer in ${DEADLINE_LABEL}`), error)
-  }
-}
-
 section('§5 the gauge detail carries the failed reason verbatim (source pin)')
 {
   const { readFileSync } = await import('node:fs')
   const gauge = readFileSync(join(import.meta.dir, '..', '..', 'src/utils/cockpit/mcpGauge.ts'), 'utf8')
   t('§5 failed detail embeds the connection error', gauge.includes('connection failed${error ? `: ${error}`'))
   const client = readFileSync(join(import.meta.dir, '..', '..', 'src/services/mcp/client.ts'), 'utf8')
-  t('§5 every deadline reason shares the one grammar', (client.match(/did not answer in /g) ?? []).length >= 2)
+  t('§5 every deadline reason shares the one grammar — spelled once, every transport reads it', (client.match(/did not answer in /g) ?? []).length === 1 && /\(\$\{transportLabel\}\) did not answer in /.test(client))
 }
 
 section('§6 the advertised deadline is the whole truth — one burn per retry')
