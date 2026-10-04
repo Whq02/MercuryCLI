@@ -33,7 +33,6 @@ const INVENTORY: Record<string, string[]> = {
   'upsertUnresolvedEvent': ['src/services/crew/dispatch.ts', 'src/utils/artifacts/reviewStore.ts'],
   'resolveEventByRef': ['src/services/crew/dispatch.ts', 'src/utils/artifacts/reviewStore.ts'],
   'linkConversation': ['src/services/crew/consoleHandoff.ts'],
-  'rekeyOperatorRecords': ['src/services/crew/identity.ts'],
   'listReadCursors': ['src/services/acp/acpServer.ts'],
   'deriveInbox': ['src/services/acp/acpServer.ts'],
   'openSideConversation': ['src/utils/cockpit/helmConsole.ts'],
@@ -121,13 +120,13 @@ const functionExportsIn = (code: string): string[] =>
 t.section('§0 — the inventories read CODE, never comments')
 {
   const consumerReal = "import { seatOfAgent } from './seatBridge.js'\nexport function route(id: string) { return seatOfAgent(id) }\n"
-  const consumerDestructure = "export async function boot() { const { rekeyOperatorRecords } = await import('./conversations.js'); rekeyOperatorRecords() }\n"
+  const consumerDestructure = "export async function boot() { const { listReadCursors } = await import('./conversations.js'); listReadCursors() }\n"
   const consumerCommentOnly = "// seatOfAgent used to be called here\n/* and seatOfAgent is mentioned in this block */\nexport function route(id: string) { return id }\n"
   const definerCommentOnly = "// export function seatOfAgent(id: string) {}\n/** export const seatOfAgent = 1 */\nexport function other() {}\n"
   const definerReal = "export function seatOfAgent(id: string) { return id }\n"
   const code = (text: string): string => codeOnlyText('fixture.ts', text)
   t.check('a real import reference counts as consuming', referencesSymbolIn(code(consumerReal), 'seatOfAgent'))
-  t.check('a dynamic-import destructure counts as consuming', referencesSymbolIn(code(consumerDestructure), 'rekeyOperatorRecords'))
+  t.check('a dynamic-import destructure counts as consuming', referencesSymbolIn(code(consumerDestructure), 'listReadCursors'))
   t.check('a symbol that survives ONLY in comments does NOT count as consuming', !referencesSymbolIn(code(consumerCommentOnly), 'seatOfAgent'))
   t.check('a raw-text read WOULD have counted the comment-only mention (the fault this section guards)', referencesSymbolIn(consumerCommentOnly, 'seatOfAgent'))
   t.check('a comment-only export declaration is NOT a definition', !definesSymbolIn(code(definerCommentOnly), 'seatOfAgent'))

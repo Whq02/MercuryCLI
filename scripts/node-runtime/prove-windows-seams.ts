@@ -359,7 +359,7 @@ section('(16) MERCURY_SPLASH=static exits the splash asset like off')
   check('all three launcher shells skip the asset under static (the contract the asset now matches)', /!= "static"/.test(launchers) && /=="static"/.test(launchers) && /-ne 'static'/.test(launchers))
 }
 
-section('(17) raw-spelling credential + principal continuity (the F-11 aftermath)')
+section('(17) raw-spelling credential continuity + the one keyed principal (the F-11 aftermath)')
 {
   const savedConfigDir = process.env.MERCURY_CONFIG_DIR
   const savedHome = process.env.MERCURY_HOME
@@ -374,22 +374,14 @@ section('(17) raw-spelling credential + principal continuity (the F-11 aftermath
     const expectedHash = createHash('sha256').update('/h/op/.mercury/').digest('hex').slice(0, 8)
     check('a trailing-separator pin derives the raw-spelling service name from the RAW hash', rawName !== null && rawName.startsWith('Mercury') && rawName.endsWith(`-${expectedHash}`), String(rawName))
     check('…and it differs from the canonical service name', rawName !== helpers.getMacOsKeychainStorageServiceName('-credentials'))
-    const rawId = identity.rawPinOperatorPrincipalId()
-    const expectedRawId = `op-${createHash('sha256').update('/h/op/.mercury/|op').digest('hex').slice(0, 12)}`
-    check('the raw-pin principal id is the PRE-fold derivation', rawId === expectedRawId, String(rawId))
-    const legacyId = identity.legacyOperatorPrincipalId()
-    check('the legacy canonical hash differs (the fold moved it)', legacyId !== rawId && /^op-[0-9a-f]{12}$/.test(legacyId))
+    check('the identity module derives no id from the pin spelling', Object.keys(identity).sort().join(',') === 'assistantPrincipal,operatorPrincipal', Object.keys(identity).join(','))
     const realHome = mkdtempSync(join(tmpdir(), 'winseams-id-'))
     process.env.MERCURY_CONFIG_DIR = `${realHome}/`
     process.env.USER = 'op'
     const keyedId = identity.operatorPrincipal().id
-    const rawId2 = identity.rawPinOperatorPrincipalId()
-    const legacyId2 = identity.legacyOperatorPrincipalId()
-    check('the keyed id is op-<12 hex> and equals NEITHER legacy generation', /^op-[0-9a-f]{12}$/.test(keyedId) && keyedId !== rawId2 && keyedId !== legacyId2, keyedId)
-    check('the operator owns records keyed by the CURRENT id and BOTH legacy generations', rawId2 !== null && identity.principalIdOwnsRecord(keyedId, keyedId) && identity.principalIdOwnsRecord(keyedId, legacyId2) && identity.principalIdOwnsRecord(keyedId, rawId2))
-    check('a different principal claims none, and an ownerless record is nobody\'s', !identity.principalIdOwnsRecord('op-ffffffffffff', rawId2!) && !identity.principalIdOwnsRecord(keyedId, 'op-ffffffffffff') && !identity.principalIdOwnsRecord(keyedId, null))
+    check('the keyed id is op-<12 hex>', /^op-[0-9a-f]{12}$/.test(keyedId), keyedId)
     process.env.MERCURY_CONFIG_DIR = realHome
-    check('a CANONICAL pin has no raw twin — no fallback exists, nothing to migrate', helpers.getRawSpellingKeychainStorageServiceName('-credentials') === null && identity.rawPinOperatorPrincipalId() === null)
+    check('a CANONICAL pin has no raw twin — no fallback exists, nothing to migrate', helpers.getRawSpellingKeychainStorageServiceName('-credentials') === null)
     check('the keyed id is STABLE across the spelling change (same home, same key)', identity.operatorPrincipal().id === keyedId)
     rmSync(realHome, { recursive: true, force: true })
   } finally {
