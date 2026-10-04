@@ -228,23 +228,26 @@ section('F2 a chat-completions family (OpenRouter via the compat runtime)')
   check('the notice names the family and the numbers', r.yields.some(y => y.type === 'system' && String(y.content ?? '').includes('context overflowed (OpenRouter: 140,000 tokens > 131,072) — folding the conversation and retrying')))
 }
 
-section('F3 the fold itself overflows — the retry-by-truncation lands the summary')
+section('F3 the fold itself overflows — the shed head is folded into a part summary first, then the whole lands (red on the base: the head was dropped, four requests)')
 {
   const shape = OVERFLOW_WIRE_SHAPES.anthropic!
   fixture.script([
     { error: { status: shape.status, body: shape.body } },
     { error: { status: 400, body: { type: 'error', error: { type: 'invalid_request_error', message: 'prompt is too long: 201000 tokens > 200000 maximum' } } } },
-    { text: 'SUMMARY after truncation: the later modules were adjusted; the operator asks to land the change.' },
-    { text: 'recovered after a truncated fold', usage: { input: 300, output: 8 } },
+    { text: 'PART SUMMARY: module 0 was adjusted first.' },
+    { text: 'SUMMARY after the fold in parts: the later modules were adjusted; the operator asks to land the change.' },
+    { text: 'recovered after a fold in parts', usage: { input: 300, output: 8 } },
   ])
   const r = await drive('claude-opus-4-8', 6)
   check('the run completed', r.threw === undefined && r.terminal.reason === 'completed', `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)}`)
-  check('four requests: overflow · summary (refused) · summary (truncated) · retry', r.wire.length === 4, String(r.wire.length))
+  check('five requests: overflow · summary (refused) · the shed head\'s own summary · the whole (part capsule + the rest) · retry', r.wire.length === 5, String(r.wire.length))
   const first = r.wire[1]
-  const second = r.wire[2]
+  const part = r.wire[2]
+  const whole = r.wire[3]
   check('the first summary call carried the whole head', first !== undefined && wireText(first.body).includes('ask 0: adjust module 0'))
-  check('the second summary call dropped the head (the oldest round is gone, the rest stands)', second !== undefined && !wireText(second.body).includes('ask 0: adjust module 0') && wireText(second.body).includes('reply 5: module 5 adjusted'), second !== undefined ? `${wireMessageCount('anthropic', second.body)} messages` : 'no second call')
-  check('the reply settled last', lastAssistantText(r.yields) === 'recovered after a truncated fold', lastAssistantText(r.yields))
+  check('the shed head is summarised on its own, not dropped: the part call carries the oldest round and nothing later', part !== undefined && wireText(part.body).includes('ask 0: adjust module 0') && !wireText(part.body).includes('reply 5: module 5 adjusted'), part !== undefined ? `${wireMessageCount('anthropic', part.body)} messages` : 'no part call')
+  check('the whole call opens on the part capsule and keeps the rest (the oldest round lives in the capsule)', whole !== undefined && wireText(whole.body).includes('earlier turns folded into this summary for the compaction') && wireText(whole.body).includes('PART SUMMARY: module 0 was adjusted first.') && !wireText(whole.body).includes('ask 0: adjust module 0') && wireText(whole.body).includes('reply 5: module 5 adjusted'), whole !== undefined ? `${wireMessageCount('anthropic', whole.body)} messages` : 'no whole call')
+  check('the reply settled last', lastAssistantText(r.yields) === 'recovered after a fold in parts', lastAssistantText(r.yields))
   check("the boundary is typed 'overflow'", (boundaryOf(r.yields) as { compactMetadata?: { trigger?: string } } | undefined)?.compactMetadata?.trigger === 'overflow')
 }
 
