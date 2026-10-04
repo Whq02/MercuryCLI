@@ -1,4 +1,3 @@
-
 export type DenialTrackingState = {
   consecutiveDenials: number
   totalDenials: number
