@@ -2,6 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { hostRunner, type HostedRunner } from '../lib/runnerHost.ts'
 import { answeredWith } from '../lib/rows.ts'
 import { existsSync, mkdirSync, mkdtempSync } from 'node:fs'
@@ -365,7 +366,7 @@ section('L10 — the one spelling: every driven row is a declared type with snak
 section('L12 — every refusal of the feed is one envelope: one field set, one usage shape')
 {
   const a = await runDist(['run', 'hello', '--format', 'rows', '--max-turns', '0'])
-  const b = await runDist(['run', '--resume', '', 'hello', '--format', 'rows'])
+  const b = await runDist(['run', '--resume', randomUUID(), 'hello', '--format', 'rows'])
   const frame = (cap: Capture): Record<string, unknown> | null => {
     try {
       return JSON.parse(cap.stdout.trim().split('\n')[0] ?? '') as Record<string, unknown>
