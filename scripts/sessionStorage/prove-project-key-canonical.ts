@@ -31,22 +31,20 @@ try {
   const keyLink = getProjectDir(link)
   check('symlinked spelling keys to the SAME project dir as the real path', keyReal === keyLink, `real=${basename(keyReal)} link=${basename(keyLink)}`)
 
-  const real2 = join(scratch, 'legacy-project')
+  const real2 = join(scratch, 'linked-project')
   mkdirSync(real2)
-  const link2 = join(scratch, 'legacy-link')
+  const link2 = join(scratch, 'linked-link')
   symlinkSync(real2, link2)
-  const rawKeyed = getProjectDir(link2 + '-prime-raw')
-  void rawKeyed
   const { sanitizePath } = await import(join(ROOT, 'src/utils/sessionStoragePortable.ts'))
   const { getMercuryHome } = await import(join(ROOT, 'src/utils/envUtils.ts'))
   const projectsDir = join(getMercuryHome(), 'projects')
-  const legacyDir = join(projectsDir, sanitizePath(link2))
-  mkdirSync(legacyDir, { recursive: true })
-  writeFileSync(join(legacyDir, '00000000-0000-0000-0000-000000000000.jsonl'), '')
+  const rawHashless = join(projectsDir, sanitizePath(link2))
+  mkdirSync(rawHashless, { recursive: true })
+  writeFileSync(join(rawHashless, '00000000-0000-0000-0000-000000000000.jsonl'), '')
   try {
-    check('existing RAW-keyed session dir is honored in place', getProjectDir(link2) === legacyDir, getProjectDir(link2))
+    check('a hash-less directory under the RAW spelling is not read, transcript or not: the symlink keys to its canonical hashed store', getProjectDir(link2) !== rawHashless && getProjectDir(link2) === getProjectDir(real2), getProjectDir(link2))
   } finally {
-    rmSync(legacyDir, { recursive: true, force: true })
+    rmSync(rawHashless, { recursive: true, force: true })
   }
 
   const nfd = join(scratch, 'cafe\u0301-missing')
@@ -82,18 +80,18 @@ try {
       getProjectDir(fresh).endsWith(projectSlug(fresh)),
       getProjectDir(fresh),
     )
-    const legacyProj = join(scratch, 'h15-legacy-project')
-    const legacyStore = join(projectsDir, sanitizePath(legacyProj))
-    mkdirSync(legacyStore, { recursive: true })
-    writeFileSync(join(legacyStore, '00000000-0000-0000-0000-000000000001.jsonl'), '')
+    const sibling = join(scratch, 'h15-hashless-sibling')
+    const hashless = join(projectsDir, sanitizePath(sibling))
+    mkdirSync(hashless, { recursive: true })
+    writeFileSync(join(hashless, '00000000-0000-0000-0000-000000000001.jsonl'), '')
     try {
       check(
-        'H-15: an existing legacy hashless store is ADOPTED in place (no migration, no fragmentation)',
-        getProjectDir(legacyProj) === legacyStore,
-        getProjectDir(legacyProj),
+        'H-15: a hash-less directory holding a transcript is not read — the project keys to the hashed slug',
+        getProjectDir(sibling) !== hashless && getProjectDir(sibling).endsWith(projectSlug(sibling)),
+        getProjectDir(sibling),
       )
     } finally {
-      rmSync(legacyStore, { recursive: true, force: true })
+      rmSync(hashless, { recursive: true, force: true })
     }
   }
 } finally {

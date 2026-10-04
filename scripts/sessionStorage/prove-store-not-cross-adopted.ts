@@ -36,8 +36,8 @@ section('§1 A MNEME ESTATE IS NOT A STORE')
 
   const dotStore = getProjectDir(dotProj)
   const underscoreStore = getProjectDir(underscoreProj)
-  check('app.1 does NOT adopt the mneme estate (FC-007)', dotStore !== hashless, dotStore)
-  check('app_1 does NOT adopt the mneme estate (FC-007)', underscoreStore !== hashless, underscoreStore)
+  check('app.1 does NOT read the mneme estate (FC-007)', dotStore !== hashless, dotStore)
+  check('app_1 does NOT read the mneme estate (FC-007)', underscoreStore !== hashless, underscoreStore)
 
   section('§2 DISTINCT STORES')
   check(
@@ -47,14 +47,14 @@ section('§1 A MNEME ESTATE IS NOT A STORE')
   )
 }
 
-section('§3 A REAL LEGACY STORE STILL ADOPTS')
+section('§3 A HASH-LESS DIRECTORY HOLDING A TRANSCRIPT IS NOT READ')
 {
-  const legacyProj = join(scratch, 'legacy.proj')
-  mkdirSync(legacyProj)
-  const legacyStore = join(projectsDir, sanitizePath(legacyProj))
-  mkdirSync(legacyStore, { recursive: true })
-  writeFileSync(join(legacyStore, '11111111-1111-1111-1111-111111111111.jsonl'), '')
-  check('a hashless dir HOLDING a transcript adopts in place', getProjectDir(legacyProj) === legacyStore, getProjectDir(legacyProj))
+  const proj = join(scratch, 'hashless.proj')
+  mkdirSync(proj)
+  const hashless = join(projectsDir, sanitizePath(proj))
+  mkdirSync(hashless, { recursive: true })
+  writeFileSync(join(hashless, '11111111-1111-1111-1111-111111111111.jsonl'), '')
+  check('the project keys to its hashed store, never the hash-less directory', getProjectDir(proj) !== hashless && getProjectDir(proj) === join(projectsDir, projectSlug(proj)), getProjectDir(proj))
 }
 
 rmSync(HOME, { recursive: true, force: true })

@@ -112,6 +112,7 @@ const RETIRED: Array<[string, RegExp, string[]]> = [
   ['stop-checker-env', asName(J('MERCURY_SUPER', 'VISOR')), [J('MERCURY_SUPER', 'VISOR')]],
   ['stop-checker-key', asName(J('(?:(?:setS|s)uper', 'visorEnabled|super', 'visorGate|super', 'visedStopVerdict|SUPER', 'VISOR_EVALUATOR_DEADLINE_MS)')), [J('visor', 'Enabled'), J('visor', 'Gate'), J('vised', 'StopVerdict'), J('VISOR_', 'EVALUATOR')]],
   ['identity-old-ids', asName(J('(?:legacyOperator', 'PrincipalIds?|isLegacyOperator', 'PrincipalId|rawPinOperator', 'PrincipalId|principalId', 'OwnsRecord|rekeyLegacy', 'OperatorIds|rekeyOperator', 'Records)')), [J('Operator', 'PrincipalId'), J('principalId', 'OwnsRecord'), J('rekey', 'Legacy'), J('rekeyOperator', 'Records')]],
+  ['store-old-layout', asName(J('(?:legacyTranscript', 'StoreExistsSync|resolveProjectDir', 'WithAdoption)')), [J('legacyTranscript', 'Store'), J('ProjectDir', 'WithAdoption')]],
 ]
 const SETTINGS_SCOPE = /^(?:src\/|docs\/|README\.md$|scripts\/)/
 const RETIRED_SETTINGS_ROOTS = [
@@ -510,6 +511,7 @@ console.log('============================================================')
     ['stop-checker-key', "import { " + J('setSuper', 'visorEnabled') + " } from './" + J('super', 'visorGate') + ".js'"],
     ['identity-old-ids', J('legacyOperator', 'PrincipalIds') + '()'],
     ['identity-old-ids', J('principalId', 'OwnsRecord') + '(caller, owner)'],
+    ['store-old-layout', 'if (' + J('legacyTranscript', 'StoreExistsSync') + '(dir))'],
   ]
   check('§5 self-test: every retired-word row has a spelling here and trips on it in src', RETIRED.every(([label]) => trips.some(([l]) => l === label)) && trips.every(([label, content]) => retiredHits('src/x.ts', content).includes(label)), trips.filter(([label, content]) => !retiredHits('src/x.ts', content).includes(label)).map(([label]) => label).join(','))
   check('§5 self-test: the rows reach docs, the README and the script estate', retiredHits('docs/x.md', trips[0]![1]).length === 1 && retiredHits('README.md', trips[0]![1]).length === 1 && retiredHits('scripts/x/prove-x.ts', trips[0]![1]).length === 1)

@@ -16,7 +16,7 @@ import { getMercuryHome } from '../envUtils.js'
 import { isFsInaccessible } from '../errors.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { durableAtomicPublish } from '../../substrate/durablePublish.js'
-import { getProjectDir as resolveProjectDirWithAdoption } from '../sessionStoragePortable.js'
+import { getProjectDir as resolveProjectDir } from '../sessionStoragePortable.js'
 
 export function isTranscriptMessage(entry: Entry): entry is TranscriptMessage {
   switch (entry.type) {
@@ -235,5 +235,5 @@ export function isCustomTitleEnabled(): boolean {
 }
 
 export const getProjectDir = (projectDir: string): string => {
-  return resolveProjectDirWithAdoption(projectDir)
+  return resolveProjectDir(projectDir)
 }

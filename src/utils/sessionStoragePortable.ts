@@ -1,5 +1,5 @@
 import { createHash, type UUID } from 'node:crypto'
-import { readdirSync, realpathSync, statSync } from 'node:fs'
+import { realpathSync } from 'node:fs'
 import { open, realpath, stat } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 
@@ -295,22 +295,6 @@ function canonicalizePathSyncFacts(dir: string): { canonical: string; canonicali
   }
 }
 
-function directoryExistsSync(path: string): boolean {
-  try {
-    return statSync(path).isDirectory()
-  } catch {
-    return false
-  }
-}
-
-function legacyTranscriptStoreExistsSync(path: string): boolean {
-  try {
-    return readdirSync(path).some(name => name.endsWith('.jsonl'))
-  } catch {
-    return false
-  }
-}
-
 const projectDirMemo = new Map<string, string>()
 
 export function foldProjectConfigHomeTail(dir: string): string {
@@ -325,7 +309,6 @@ export function foldProjectConfigHomeTail(dir: string): string {
 export function getProjectDir(projectDir: string): string {
   const memoised = projectDirMemo.get(projectDir)
   if (memoised !== undefined) return memoised
-  const projects = getProjectsDir()
   const folded = foldProjectConfigHomeTail(projectDir)
   const facts = canonicalizePathSyncFacts(folded)
   const canonical = foldProjectConfigHomeTail(facts.canonical)
@@ -334,17 +317,7 @@ export function getProjectDir(projectDir: string): string {
     if (facts.canonicalized) projectDirMemo.set(projectDir, byCanonical)
     return byCanonical
   }
-  const hashed = join(projects, projectSlug(canonical))
-  let resolved = hashed
-  if (!directoryExistsSync(hashed)) {
-    const legacyCanonical = join(projects, sanitizePath(canonical))
-    if (legacyTranscriptStoreExistsSync(legacyCanonical)) {
-      resolved = legacyCanonical
-    } else if (canonical !== folded) {
-      const legacyRaw = join(projects, sanitizePath(folded))
-      if (legacyTranscriptStoreExistsSync(legacyRaw)) resolved = legacyRaw
-    }
-  }
+  const resolved = join(getProjectsDir(), projectSlug(canonical))
   if (facts.canonicalized) {
     projectDirMemo.set(projectDir, resolved)
     projectDirMemo.set(canonical, resolved)

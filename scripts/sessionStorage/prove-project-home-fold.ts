@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { mkdtempSync, mkdirSync, rmSync, symlinkSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, realpathSync, rmSync, symlinkSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
 import { codeOnlyText } from '../lib/codeText.ts'
@@ -9,7 +9,7 @@ const CONFIG_SCRATCH = mkdtempSync(join(tmpdir(), 'homefold-home-'))
 process.env.MERCURY_CONFIG_DIR = CONFIG_SCRATCH
 
 const ROOT = resolve(import.meta.dir, '..', '..')
-const { getProjectDir, foldProjectConfigHomeTail, sanitizePath } = await import(
+const { getProjectDir, foldProjectConfigHomeTail, projectSlug, sanitizePath } = await import(
   join(ROOT, 'src/utils/sessionStoragePortable.ts')
 )
 const { projectDisplayName } = await import(join(ROOT, 'src/utils/bootCardFacts.ts'))
@@ -47,24 +47,25 @@ try {
   mkdirSync(sub, { recursive: true })
   check('§4 an ordinary subdir still keys to ITSELF (the fold is config-home tails only — folder-as-project stands)', getProjectDir(sub) !== getProjectDir(root) && basename(getProjectDir(sub)).includes('csgo-prototype'), basename(getProjectDir(sub)))
 
-  const legacyRoot = join(scratch, 'legacy-era-project')
-  const legacyHome = join(legacyRoot, '.mercury')
-  mkdirSync(legacyHome, { recursive: true })
+  const foldRoot = join(scratch, 'folded-project')
+  const foldHome = join(foldRoot, '.mercury')
+  mkdirSync(foldHome, { recursive: true })
   const projectsDir = join(getMercuryHome(), 'projects')
-  const legacyStore = join(projectsDir, sanitizePath(legacyRoot))
-  mkdirSync(legacyStore, { recursive: true })
-  writeFileSync(join(legacyStore, '00000000-0000-0000-0000-000000000002.jsonl'), '')
+  const hashless = join(projectsDir, sanitizePath(foldRoot))
+  mkdirSync(hashless, { recursive: true })
+  writeFileSync(join(hashless, '00000000-0000-0000-0000-000000000002.jsonl'), '')
   try {
-    check('§5 the adoption ladder rides the FOLDED spelling: a config-home spelling adopts the PARENT\'s legacy store in place', getProjectDir(legacyHome) === legacyStore, getProjectDir(legacyHome))
+    check('§5 the derivation rides the FOLDED spelling: a config-home spelling keys to the PARENT\'s hashed store', getProjectDir(foldHome) === join(projectsDir, projectSlug(realpathSync(foldRoot).normalize('NFC'))), getProjectDir(foldHome))
+    check('§5 a hash-less directory holding a transcript is not read', getProjectDir(foldHome) !== hashless && getProjectDir(foldRoot) !== hashless, getProjectDir(foldRoot))
   } finally {
-    rmSync(legacyStore, { recursive: true, force: true })
+    rmSync(hashless, { recursive: true, force: true })
   }
 
   check('§6 the transcript-home derivation stores a `.mercury`-grounded birth PARENT-side (MERCURY_SESSION_HOME\'s value)', getProjectDir(configHome) === getProjectDir(root) && getProjectDir(configHome).includes(sanitizePath(root).slice(0, 20)))
   const supervisor = codeOnlyText('src/daemon/concourseSupervisor.ts', readFileSync(join(ROOT, 'src/daemon/concourseSupervisor.ts'), 'utf8'))
   const daemonPaths = codeOnlyText('src/utils/sessionStorage/paths.ts', readFileSync(join(ROOT, 'src/utils/sessionStorage/paths.ts'), 'utf8'))
   check('§6 SOURCE SEAM: the spawn sets MERCURY_SESSION_HOME via getProjectDir(args.workspaceId)', supervisor.includes('MERCURY_SESSION_HOME: getProjectDir(args.workspaceId)') && supervisor.includes("import { getProjectDir } from '../utils/sessionStorage/paths.js'"))
-  check('§6 SOURCE SEAM: that getProjectDir IS the folding derivation proved above (paths delegates to the portable resolver)', daemonPaths.includes("import { getProjectDir as resolveProjectDirWithAdoption } from '../sessionStoragePortable.js'") && daemonPaths.includes('return resolveProjectDirWithAdoption(projectDir)'))
+  check('§6 SOURCE SEAM: that getProjectDir IS the folding derivation proved above (paths delegates to the portable resolver)', daemonPaths.includes("import { getProjectDir as resolveProjectDir } from '../sessionStoragePortable.js'") && daemonPaths.includes('return resolveProjectDir(projectDir)'))
 } finally {
   rmSync(scratch, { recursive: true, force: true })
   rmSync(CONFIG_SCRATCH, { recursive: true, force: true })
