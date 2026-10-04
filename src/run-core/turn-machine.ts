@@ -55,6 +55,7 @@ import {
   overflowLadderArmed,
   overflowRecoveryNotice,
   overflowRefusalText,
+  requestSizeWarning,
   foldRemedyIsHeadless,
   splitCarriedOperatorTail,
   sizePruneRequest,
@@ -1698,6 +1699,10 @@ export async function* runEventCore(
       }
 
       if (lastMessage?.isApiErrorMessage) {
+        const sizeWarning = requestSizeWarning(messagesForQuery, iter.currentModel)
+        if (sizeWarning !== null) {
+          yield emit({ kind: 'notice', message: createSystemMessage(sizeWarning, 'warning') })
+        }
         void executeStopFailureHooks(lastMessage, toolUseContext)
         const terminal: Terminal = { reason: 'completed' }
         yield emit({ kind: 'run_terminal', terminal })

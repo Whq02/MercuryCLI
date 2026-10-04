@@ -264,8 +264,9 @@ section('S5 the fold\'s own retry reads every family — truncation by a stamped
     `${truncatedUnknown?.length}`,
   )
   const src = readFileSync(join(ROOT, 'src/services/compact/compact.ts'), 'utf8')
+  const refusedBody = src.slice(src.indexOf('function summaryRefused'), src.indexOf('export function isPartSummaryMessage'))
   const retryBody = src.slice(src.indexOf('async function summarizeWithPtlRetry'), src.indexOf('function validateSummary'))
-  check('source pin: summarizeWithPtlRetry consults overflowSignalOf beside the content key', retryBody.includes('overflowSignalOf(response) === null') && retryBody.includes('PROMPT_TOO_LONG_ERROR_MESSAGE'))
+  check('source pin: the summariser\'s refusal read consults overflowSignalOf beside the content key, and the fold-in-parts loop reads it', refusedBody.includes('overflowSignalOf(response) !== null') && refusedBody.includes('PROMPT_TOO_LONG_ERROR_MESSAGE') && retryBody.includes('summaryRefused(response)'))
 }
 
 await fixture.close()

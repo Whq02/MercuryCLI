@@ -11,7 +11,7 @@ import {
   overflowWhoClause,
 } from '../api/overflowSignal.js'
 import { tokenCountWithEstimation } from '../../utils/tokens.js'
-import { autoCompactDisabledReason, compactionSettingsText, resolveAutoCompactWindow, type AutoCompactTrackingState } from './autoCompact.js'
+import { autoCompactDisabledReason, compactionSettingsText, getAutoCompactThreshold, resolveAutoCompactWindow, type AutoCompactTrackingState } from './autoCompact.js'
 import { FOLD_WINDOW_REFUSAL_KEY } from './compact.js'
 import { compactionBreakerAllows } from './compactionPolicy.js'
 
@@ -132,6 +132,20 @@ export function measureOverflow(signal: OverflowSignal, messages: readonly Messa
     measuredTokens: tokenCountWithEstimation(messages, model),
     measuredWindow: resolveAutoCompactWindow(model).window,
   }
+}
+
+export const SIZE_WARNING_SHARE = 0.8
+
+export function requestSizeWarning(messages: readonly Message[], model: string): string | null {
+  const tokens = tokenCountWithEstimation(messages, model)
+  const window = resolveAutoCompactWindow(model).window
+  if (!(window > 0) || tokens < Math.floor(window * SIZE_WARNING_SHARE)) return null
+  const fmt = (n: number): string => n.toLocaleString('en-US')
+  const size = `about ${fmt(tokens)} of the model's ${fmt(window)}-token window by Mercury's count`
+  const next = autoCompactDisabledReason() === null && tokens >= getAutoCompactThreshold(model)
+    ? 'Mercury folds it before the next request'
+    : '/compact folds it by hand'
+  return `the request failed and this conversation is near the window (${size}) — a request this size can be refused; ${next}`
 }
 
 export function overflowRecoveryNotice(

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -250,21 +250,39 @@ section('D · the copy receipt on both trigger paths (the standing scenarios)')
     { targetText: 'second task', targetDx: 3, afterPrevTicks: 1, data: SGR(32) },
     { targetText: 'second task', targetDx: 3, afterPrevTicks: 1, data: SGR(0, true) },
   ]
+  const shimDir = mkdtempSync(join(tmpdir(), 'exitcopy-shim-'))
+  const shimLog = join(shimDir, 'native-copy-calls.log')
+  for (const exe of ['pbcopy', 'wl-copy', 'xclip', 'xsel']) {
+    writeFileSync(join(shimDir, exe), `#!/bin/sh\nprintf '%s:' "${exe}" >> "${shimLog}"\ncat >> "${shimLog}"\nexit 0\n`, { mode: 0o755 })
+  }
+  const shimmedPath = { PATH: `${shimDir}:${process.env.PATH ?? ''}` }
+  const clipboardOf = (tag: string): string => {
+    const file = `/tmp/exitcopy-${tag}-${process.pid}.json.clipboard`
+    return existsSync(file) ? readFileSync(file, 'utf8') : ''
+  }
+  const nativeCalls = (): string => (existsSync(shimLog) ? readFileSync(shimLog, 'utf8') : '')
   const sel = scenario('copy-receipt-select', 80, 44) as unknown as ScenarioCfg
-  const pSel = drive('receipt-select', sel, DRAG, sel.total, 'Copied to clipboard')
+  const pSel = drive('receipt-select', sel, DRAG, sel.total, 'Copied to clipboard', shimmedPath)
   if (pSel) {
     check('drag-release raised "Copied to clipboard"', textOf(pSel.grid).includes('Copied to clipboard'))
+    check('the copy landed in the capture\'s clipboard file, not the machine\'s clipboard (red on the base: no file, pbcopy ran)', clipboardOf('receipt-select').includes('task'), JSON.stringify(clipboardOf('receipt-select').slice(0, 120)))
+    check('no native clipboard utility was called by the capture', nativeCalls() === '', nativeCalls().slice(0, 120))
   }
   cleanupScenario('copy-receipt-select')
+  rmSync(`/tmp/exitcopy-receipt-select-${process.pid}.json.clipboard`, { force: true })
 
   const ctl = scenario('copy-receipt-ctrlc', 80, 44) as unknown as ScenarioCfg
-  const pCtl = drive('receipt-ctrlc', ctl, [...DRAG, { afterPrevTicks: 4, data: CTRL_C }], ctl.total, 'Copied to clipboard')
+  const pCtl = drive('receipt-ctrlc', ctl, [...DRAG, { afterPrevTicks: 4, data: CTRL_C }], ctl.total, 'Copied to clipboard', shimmedPath)
   if (pCtl) {
     const text = textOf(pCtl.grid)
     check('ctrl+c with a selection raised "Copied to clipboard"', text.includes('Copied to clipboard'))
     check('…and the press was CONSUMED by the copy (no exit notice)', !text.includes(NOTICE))
+    check('the ctrl+c copy landed in the capture\'s clipboard file too', clipboardOf('receipt-ctrlc').includes('task'), JSON.stringify(clipboardOf('receipt-ctrlc').slice(0, 120)))
+    check('still no native clipboard utility call', nativeCalls() === '', nativeCalls().slice(0, 120))
   }
   cleanupScenario('copy-receipt-ctrlc')
+  rmSync(`/tmp/exitcopy-receipt-ctrlc-${process.pid}.json.clipboard`, { force: true })
+  rmSync(shimDir, { recursive: true, force: true })
 }
 
 console.log('\n' + '='.repeat(60))

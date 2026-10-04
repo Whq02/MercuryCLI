@@ -29,7 +29,7 @@ console.log('L3 the refused road is still refused (the why)')
 }
 
 console.log('L4 the stable key still leads')
-check('the sentence still opens with the outgrown-one-pass key the presenter tests', text.startsWith('This conversation has outgrown one pass'), text)
+check('the sentence opens with its stable key (the fold could not be folded) and never claims a retry count the ladder no longer has', text.startsWith('This conversation could not be folded') && !/three narrowing retries/.test(text), text)
 
 console.log(failures === 0 ? '\nprove-ptl-recovery-road: ALL PASS' : `\nprove-ptl-recovery-road: ${failures} FAIL`)
 process.exit(failures === 0 ? 0 : 1)

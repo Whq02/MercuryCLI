@@ -687,6 +687,7 @@ function seatFoldOf(row: SeatRow, startedAtMs: number): FoldStatusV1 | null {
     summaryTokens: typeof row.summary_tokens === 'number' ? row.summary_tokens : 0,
     summaryCapTokens: typeof row.summary_cap_tokens === 'number' ? row.summary_cap_tokens : 0,
     attempt: typeof row.attempt === 'number' ? row.attempt : 1,
+    ...(row.retry_why === 'refused' ? { retryWhy: 'refused' } : {}),
     ...(typeof row.exit === 'string' ? { exit: row.exit, endedAtMs: Date.now() } : {}),
   })
 }

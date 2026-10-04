@@ -1,4 +1,5 @@
 
+import { CLIPBOARD_FILE_ROUTE, writeClipboardFile } from '../../utils/clipboardFile.js'
 import { env } from '../../utils/env.js'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
 import { BEL, ESC, SEP } from './ansi.js'
@@ -168,7 +169,7 @@ async function copyNative(text: string): Promise<NativeRoute | null> {
 
 export interface ClipboardReceipt {
   sequence: string
-  settled: Array<'pbcopy' | 'wl-copy' | 'xclip' | 'xsel' | 'clip.exe' | 'tmux-buffer'>
+  settled: Array<'pbcopy' | 'wl-copy' | 'xclip' | 'xsel' | 'clip.exe' | 'tmux-buffer' | typeof CLIPBOARD_FILE_ROUTE>
   osc52Emitted: boolean
   confirmation: string
 }
@@ -182,7 +183,26 @@ export function subscribeClipboardReceipts(listener: ClipboardReceiptListener): 
   }
 }
 
+function publishClipboardReceipt(receipt: ClipboardReceipt): ClipboardReceipt {
+  for (const listener of [...receiptListeners]) {
+    try {
+      listener(receipt)
+    } catch {
+    }
+  }
+  return receipt
+}
+
 export async function setClipboardWithReceipt(text: string): Promise<ClipboardReceipt> {
+  const file = writeClipboardFile(text)
+  if (file !== null) {
+    return publishClipboardReceipt({
+      sequence: '',
+      settled: file === 'written' ? [CLIPBOARD_FILE_ROUTE] : [],
+      osc52Emitted: false,
+      confirmation: file === 'written' ? `copied (${CLIPBOARD_FILE_ROUTE})` : 'the clipboard file could not be written',
+    })
+  }
   const base64 = Buffer.from(text, 'utf8').toString('base64')
   const rawSequence = osc(OSC.CLIPBOARD, 'c', base64)
 
@@ -205,14 +225,7 @@ export async function setClipboardWithReceipt(text: string): Promise<ClipboardRe
       ? `copied (${settled.join(' + ')})`
       : 'offered to the terminal via OSC 52 — delivery depends on your terminal'
 
-  const receipt: ClipboardReceipt = { sequence, settled, osc52Emitted: true, confirmation }
-  for (const listener of [...receiptListeners]) {
-    try {
-      listener(receipt)
-    } catch {
-    }
-  }
-  return receipt
+  return publishClipboardReceipt({ sequence, settled, osc52Emitted: true, confirmation })
 }
 
 export async function setClipboard(text: string): Promise<string> {

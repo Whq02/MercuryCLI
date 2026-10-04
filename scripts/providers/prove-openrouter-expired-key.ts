@@ -108,7 +108,7 @@ try {
   await stub('../../src/keybindings/useKeybinding.js', { useKeybinding: () => undefined, useKeybindings: () => undefined })
   await stub('../../src/hooks/useExitOnCtrlCD.js', { useExitOnCtrlCD: () => undefined })
   await stub('../../src/context/notifications.js', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
-  const connector = { modelFacts: () => ({ main: 'openrouter/fixture/model' }), subscribeModel: () => () => {} }
+  const connector = { modelFacts: () => ({ main: 'openrouter/fixture/model' }), subscribeModel: () => () => {}, usage: () => ({ totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false }) }
   await stub('../../src/services/engine-connector/focusedConnector.js', { getFocusedSessionConnector: () => connector, subscribeThroughFocused: () => () => () => {} })
   await stub('../../src/components/tasks/useFocusedWork.js', { useFocusedWorkRows: () => [], useFocusedWorkRoster: () => ({ rows: [], mission: [], reported: true }), otherSessionRunnerPids: () => new Set(), focusedSessionIdOrNull: () => null })
   await stub('../../src/state/telemetryBus.js', { useTelemetry: () => ({ trace: null, workflowsDisk: [] }) })
