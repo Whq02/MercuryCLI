@@ -9,6 +9,7 @@ prove-command-domains.ts
 prove-command-palette.ts
 prove-composer-draft-survives-dispatch.ts
 prove-composer-persist-roads.ts
+prove-lanes-rows-painted.ts
 prove-scratch-home-release.ts
 prove-concourse-caret-vertical.ts
 prove-content-search.ts

@@ -265,7 +265,7 @@ section('§5 the shape')
     ['src/components/Deck.tsx', 'formatSessionCost(cost, unpricedTurns)'],
     ['src/components/DeckPane.tsx', 'formatSessionCost(cost, unpricedTurns)'],
     ['src/components/MercuryFrame.tsx', 'formatSessionCost(cost, unpricedTurns)'],
-    ['src/components/HelmLanesRail.tsx', 'formatSessionCost(focusedSpendUSD, focusedUnpriced)'],
+    ['src/utils/cockpit/helmLanesModel.ts', 'formatSessionCost(focusedSpendUSD, focusedUnpriced)'],
   ] as const) {
     check(`${file} spells its figure through the one law`, readFileSync(join(ROOT, file), 'utf8').includes(needle))
   }

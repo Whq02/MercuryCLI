@@ -365,7 +365,7 @@ console.log('— T6 the source pins —')
     'T6 the background registration carries the resolved model',
     src('src/tools/AgentTool/AgentTool.tsx').includes('model: plan.model,\n        toolUseId: context.toolUseId,'),
   )
-  const rail = src('src/components/HelmLanesRail.tsx')
+  const rail = src('src/components/HelmLanesRail.tsx') + src('src/utils/cockpit/helmLanesModel.ts')
   const ledger = src('src/state/crewLedger.ts')
   check(
     'T6 the rail builds every crew row from the owner (through the session crew ledger) and spells a running verb from it',

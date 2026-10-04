@@ -270,7 +270,7 @@ section('§3 one owner: the door routes through the reader · the freshest obser
     ['src/components/HelmTelemetryRail.tsx', 'usageAgeTail(w, readNow)'],
     ['src/components/MercuryFrame.tsx', 'usageAgeTail(first, usageNow)'],
     ['src/components/DeckPane.tsx', 'usageAgeTail(stripFirst, now)'],
-    ['src/components/HelmLanesRail.tsx', 'usageAgeTail(lead, Date.now())'],
+    ['src/utils/cockpit/helmLanesModel.ts', 'usageAgeTail(lead, nowMs)'],
     ['src/components/Deck.tsx', 'usageSourceWords(freshest, now)'],
     ['src/components/Settings/Usage.tsx', 'usageSourceWords(w)'],
   ] as const

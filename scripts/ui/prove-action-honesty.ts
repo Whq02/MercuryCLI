@@ -9,7 +9,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) fail = 1;
 };
 
-const rail = readFileSync('src/components/HelmLanesRail.tsx', 'utf8');
+const rail = readFileSync('src/components/HelmLanesRail.tsx', 'utf8') + readFileSync('src/utils/cockpit/helmLanesModel.ts', 'utf8');
 check(
   'the rail builds no ledger rows of its own (the TASKS card retired; RUNS opens /tasks)',
   !/mission:a:/.test(rail) && !/mission:q:/.test(rail) && !/section\('tasks'/.test(rail),
@@ -21,7 +21,8 @@ check(
 check(
   'wake row registers BEFORE the telemetry glance build (cursor-walk order)',
   rail.indexOf("label: 'wake:glance'") > 0 &&
-    rail.indexOf("label: 'wake:glance'") < rail.indexOf('let glanceSection'),
+    rail.indexOf("label: 'wake:glance'") < rail.indexOf('const glanceSection') &&
+    /saturnSection\(\), glanceSection\(\)\]/.test(rail),
 );
 
 const { requestPromptPrefill, consumePromptPrefill } = await import(
