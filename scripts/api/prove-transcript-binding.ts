@@ -300,6 +300,7 @@ if (!existsSync(DIST)) {
           ANTHROPIC_API_KEY: 'fixture-key-000',
           MERCURY_DAEMON_DIR: join(home, 'daemon'),
           MERCURY_CREWS_DIR: join(home, 'crews'),
+          MERCURY_LOCAL_PROBE_TARGETS: 'none',
           MERCURY_THINKING_BINDING: 'error',
         },
       }

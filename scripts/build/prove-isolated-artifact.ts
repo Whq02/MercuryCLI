@@ -54,6 +54,7 @@ const cleanEnv: Record<string, string> = {
   HOME: isoHome,
   PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
   TERM: 'dumb',
+  MERCURY_LOCAL_PROBE_TARGETS: 'none',
 }
 const runIso = (
   args: string[],

@@ -71,5 +71,6 @@ switchboard-4-drives	1200
 switchboard-5-drives	1200
 switchboard-6-drives	1200
 daemon	2400
+headless	1800
 transcript-rows-drives	3000
 ui-drives	4800

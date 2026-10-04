@@ -49,10 +49,9 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0-beta.26' }
-
-const OLD_VERSION = '1.0.0-beta.26'
-const NEW_VERSION = '1.0.0-beta.27'
+const OLD_VERSION = (JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { version: string }).version
+const NEW_VERSION = OLD_VERSION.replace(/\d+$/, n => String(Number(n) + 1))
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: OLD_VERSION }
 const OLD_TREE = 'a91f96d7a74b0000000000000000000000000000'
 const NEW_TREE = '0518549998ad0000000000000000000000000000'
 const THIRD_TREE = 'cccccccccccc0000000000000000000000000000'
@@ -88,32 +87,32 @@ const screen = { proto: MERCURY_DAEMON_PROTO, version: NEW_VERSION, buildTree: N
 section('§A the pure grammar: a daemon of another build is visible')
 {
   const armed = hsMod.decideHandshake({ kind: 'hello', reply: helloReply({ live: 2, liveSessions: 2, restartArmed: true }) }, screen)
-  check('A1 a rebuilt daemon whose restart is armed behind live sessions carries THE LINE: both versions and that new sessions run on its build', armed.state === 'rebuilt' && armed.healState === 'armed' && armed.line === 'daemon v1.0.0-beta.26 is another build of this Mercury v1.0.0-beta.27 running with 2 live sessions — new sessions run on its build until it restarts · /daemon restart when ready', text({ state: armed.state, healState: armed.healState, line: armed.line }))
+  check('A1 a rebuilt daemon whose restart is armed behind live sessions carries THE LINE: both versions and that new sessions run on its build', armed.state === 'rebuilt' && armed.healState === 'armed' && armed.line === `daemon v${OLD_VERSION} is another build of this Mercury v${NEW_VERSION} running with 2 live sessions — new sessions run on its build until it restarts · /daemon restart when ready`, text({ state: armed.state, healState: armed.healState, line: armed.line }))
   const idle = hsMod.decideHandshake({ kind: 'hello', reply: helloReply({ live: 3, liveSessions: 3 }) }, screen)
   check('A2 before the heal is asked the pure decision owes no line (the door heals at once; the health row warns on the state itself)', idle.state === 'rebuilt' && idle.healState === 'none' && idle.line === null, text(idle.line))
-  const refused = hsMod.applyHeal(idle, { state: 'refused', live: 0, detail: 'came back unchanged 3s ago: the install\'s current version is still v1.0.0-beta.26' })
-  check('A3 a refused heal puts the reason on the rebuilt line', refused.line === "daemon v1.0.0-beta.26 is another build of this Mercury v1.0.0-beta.27 — new sessions run on its build until it restarts · came back unchanged 3s ago: the install's current version is still v1.0.0-beta.26", String(refused.line))
+  const refused = hsMod.applyHeal(idle, { state: 'refused', live: 0, detail: `came back unchanged 3s ago: the install\'s current version is still v${OLD_VERSION}` })
+  check('A3 a refused heal puts the reason on the rebuilt line', refused.line === `daemon v${OLD_VERSION} is another build of this Mercury v${NEW_VERSION} — new sessions run on its build until it restarts · came back unchanged 3s ago: the install's current version is still v${OLD_VERSION}`, String(refused.line))
   const restarting = hsMod.applyHeal(idle, { state: 'restarting', live: 0 })
   check('A4 a daemon restarting itself owes no line (it is moving)', restarting.line === null && hsMod.daemonSkewLine(restarting) === null)
-  check('A5 the health row\'s skew line stands while the heal is pending, naming both versions', hsMod.daemonSkewLine(idle) === 'daemon v1.0.0-beta.26 is another build of this Mercury v1.0.0-beta.27 — new sessions run on its build until it restarts · /daemon restart moves it', String(hsMod.daemonSkewLine(idle)))
+  check('A5 the health row\'s skew line stands while the heal is pending, naming both versions', hsMod.daemonSkewLine(idle) === `daemon v${OLD_VERSION} is another build of this Mercury v${NEW_VERSION} — new sessions run on its build until it restarts · /daemon restart moves it`, String(hsMod.daemonSkewLine(idle)))
   const evidence = hsMod.daemonHandshakeEvidence(idle)
-  check('A6 the certificate evidence names both trees AND both versions', evidence.includes('tree a91f96d7a74b vs 0518549998ad') && evidence.includes('this Mercury v1.0.0-beta.27') && evidence.includes('daemon v1.0.0-beta.26'), evidence)
-  check('A7 the "Mercury build" row gets the daemon\'s build beside the screen\'s only when they differ', hsMod.daemonBuildBesideScreen(idle) === 'daemon v1.0.0-beta.26 · tree a91f96d7a74b (another build — new sessions run on it until it restarts)' && hsMod.daemonBuildBesideScreen(hsMod.decideHandshake({ kind: 'hello', reply: helloReply({ buildTree: NEW_TREE.slice(0, 12) }) }, screen)) === null, String(hsMod.daemonBuildBesideScreen(idle)))
+  check('A6 the certificate evidence names both trees AND both versions', evidence.includes('tree a91f96d7a74b vs 0518549998ad') && evidence.includes(`this Mercury v${NEW_VERSION}`) && evidence.includes(`daemon v${OLD_VERSION}`), evidence)
+  check('A7 the "Mercury build" row gets the daemon\'s build beside the screen\'s only when they differ', hsMod.daemonBuildBesideScreen(idle) === `daemon v${OLD_VERSION} · tree a91f96d7a74b (another build — new sessions run on it until it restarts)` && hsMod.daemonBuildBesideScreen(hsMod.decideHandshake({ kind: 'hello', reply: helloReply({ buildTree: NEW_TREE.slice(0, 12) }) }, screen)) === null, String(hsMod.daemonBuildBesideScreen(idle)))
   const older = hsMod.decideHandshake({ kind: 'hello', reply: helloReply({ proto: MERCURY_DAEMON_PROTO - 1, live: 2, liveSessions: 2, restartArmed: true }) }, screen)
-  check('A8 the older-daemon line keeps its words (the armed fact now comes from hello)', older.healState === 'armed' && older.line === 'daemon v1.0.0-beta.26 running with 2 live sessions — new features wait until it restarts · /daemon restart when ready', String(older.line))
+  check('A8 the older-daemon line keeps its words (the armed fact now comes from hello)', older.healState === 'armed' && older.line === `daemon v${OLD_VERSION} running with 2 live sessions — new features wait until it restarts · /daemon restart when ready`, String(older.line))
   const oldScreen = { proto: MERCURY_DAEMON_PROTO, version: OLD_VERSION, buildTree: OLD_TREE.slice(0, 12) }
   const installed = { buildTree: NEW_TREE.slice(0, 12), version: NEW_VERSION }
   const reversed = hsMod.decideHandshake({ kind: 'hello', reply: helloReply({ version: NEW_VERSION, buildTree: NEW_TREE.slice(0, 12), live: 1, liveSessions: 1 }) }, oldScreen, Date.now(), installed)
-  check('A9 THE REVERSED ARM: an older screen over the daemon that runs the installed build asks for no restart — the heal is "reopen" and the line says so plainly', reversed.state === 'rebuilt' && reversed.heal === 'reopen' && reversed.healState === 'none' && reversed.line === 'close this window and open Mercury again — a newer Mercury (v1.0.0-beta.27) is installed and the daemon runs it; this Mercury (v1.0.0-beta.26) is the older build', text({ heal: reversed.heal, line: reversed.line }))
+  check('A9 THE REVERSED ARM: an older screen over the daemon that runs the installed build asks for no restart — the heal is "reopen" and the line says so plainly', reversed.state === 'rebuilt' && reversed.heal === 'reopen' && reversed.healState === 'none' && reversed.line === `close this window and open Mercury again — a newer Mercury (v${NEW_VERSION}) is installed and the daemon runs it; this Mercury (v${OLD_VERSION}) is the older build`, text({ heal: reversed.heal, line: reversed.line }))
   const byVersion = hsMod.decideHandshake({ kind: 'hello', reply: helloReply({ version: NEW_VERSION, buildTree: THIRD_TREE.slice(0, 12) }) }, oldScreen)
-  check('A10 …and a daemon of a newer version than the screen reads the same way even when no install layout answers', byVersion.heal === 'reopen' && byVersion.line !== null && byVersion.line.startsWith('close this window and open Mercury again — a newer Mercury (v1.0.0-beta.27) is installed'), String(byVersion.line))
+  check('A10 …and a daemon of a newer version than the screen reads the same way even when no install layout answers', byVersion.heal === 'reopen' && byVersion.line !== null && byVersion.line.startsWith(`close this window and open Mercury again — a newer Mercury (v${NEW_VERSION}) is installed`), String(byVersion.line))
   const forward = hsMod.decideHandshake({ kind: 'hello', reply: helloReply({ live: 1, liveSessions: 1 }) }, screen, Date.now(), installed)
   check('A11 the forward arm (a newer screen over an older daemon) still heals by restart-when-idle', forward.heal === 'restart-when-idle' && forward.state === 'rebuilt', text({ heal: forward.heal }))
   const sameVersionOld = { ...oldScreen, version: OLD_VERSION }
   const equal = hsMod.decideHandshake({ kind: 'hello', reply: helloReply({ version: OLD_VERSION, buildTree: NEW_TREE.slice(0, 12) }) }, sameVersionOld, Date.now(), installed)
   check('A12 equal version strings name the two trees on the reopen line (a dev box: two builds of one version)', equal.heal === 'reopen' && equal.line === 'close this window and open Mercury again — a newer Mercury (tree 0518549998ad) is installed and the daemon runs it; this Mercury (tree a91f96d7a74b) is the older build', String(equal.line))
   const equalForward = hsMod.applyHeal(hsMod.decideHandshake({ kind: 'hello', reply: helloReply({ version: NEW_VERSION, buildTree: OLD_TREE.slice(0, 12) }) }, screen), { state: 'refused', live: 0, detail: 'another build is installed' })
-  check('A13 …and on the rebuilt line of the forward arm', equalForward.line === 'daemon (tree a91f96d7a74b) is another build of this Mercury v1.0.0-beta.27 (tree 0518549998ad) — new sessions run on its build until it restarts · another build is installed', String(equalForward.line))
+  check('A13 …and on the rebuilt line of the forward arm', equalForward.line === `daemon (tree a91f96d7a74b) is another build of this Mercury v${NEW_VERSION} (tree 0518549998ad) — new sessions run on its build until it restarts · another build is installed`, String(equalForward.line))
   check('A14 the health row and the "Mercury build" row carry the reopen words for the reversed arm; the certificate evidence names the older side', hsMod.daemonSkewLine(reversed) === reversed.line && String(hsMod.daemonBuildBesideScreen(reversed)).includes('(the installed build — close this window and open Mercury again)') && hsMod.daemonHandshakeEvidence(reversed).includes('this Mercury is the older build — close this window and open Mercury again'), `${hsMod.daemonBuildBesideScreen(reversed)} | ${hsMod.daemonHandshakeEvidence(reversed)}`)
   const verbs = (await import(join(ROOT, 'src/daemon/verbs.ts'))) as { isScreenHealAsk?: (by: string) => boolean }
   const heal = verbs.isScreenHealAsk ?? ((): boolean | null => null)

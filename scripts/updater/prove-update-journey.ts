@@ -70,6 +70,7 @@ function runCli(
       HOME: home,
       ...(IS_WIN ? { LOCALAPPDATA: join(home, 'AppData', 'Local') } : {}),
       MERCURY_CONFIG_DIR: configHome,
+      MERCURY_LOCAL_PROBE_TARGETS: 'none',
       MERCURY_VERSIONS_DIR: versionsDir,
       MERCURY_UPDATE_CHANNEL_REPO: SLUG,
       MERCURY_UPDATE_API_BASE_URL: DEAD_API_BASE,

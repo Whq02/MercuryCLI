@@ -58,7 +58,8 @@ section('the product spells its config home once')
 
 const PRODUCT_LINE = /mercury\.mjs|render-tui\.ts/
 const NOT_A_BOOT_LINE = /readFileSync|existsSync|statSync|readFile\(|console\.|throw |\[SKIP\]|\.log\(|import |grep /
-const SPAWN_CALL = /\b(?:spawn|spawnSync|execFile|execFileSync|exec|execSync|Bun\.spawn|fork)\s*\(/g
+const SPAWNS = /\b(?:spawn|spawnSync|execFile|execFileSync|exec|execSync|Bun\.spawn|fork)\s*\(/
+const SPAWN_CALL = new RegExp(SPAWNS.source, 'g')
 
 function balanced(text: string, open: number, o: string, c: string): number {
   let depth = 0
@@ -150,7 +151,7 @@ function closureNames(file: string, needle: RegExp, memo: Map<string, boolean>, 
 
 const bootingFiles = tracked(['scripts/**/*.ts', 'scripts/**/*.tsx', 'scripts/**/*.mjs']).filter(file => {
   const lines = code(file).split('\n')
-  return lines.some(line => PRODUCT_LINE.test(line) && !NOT_A_BOOT_LINE.test(line)) && SPAWN_CALL.test(code(file))
+  return lines.some(line => PRODUCT_LINE.test(line) && !NOT_A_BOOT_LINE.test(line)) && SPAWNS.test(code(file))
 })
 
 function censusOfSpawnEnvs(

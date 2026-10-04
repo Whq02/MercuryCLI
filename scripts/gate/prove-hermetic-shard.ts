@@ -154,6 +154,7 @@ const baseEnv: NodeJS.ProcessEnv = {
   MERCURY_CONFIG_DIR: home,
   MERCURY_HOME: join(work, 'boot-home'),
   MERCURY_CREDENTIAL_STORE: 'file',
+  MERCURY_LOCAL_PROBE_TARGETS: 'none',
   BROWSER: '/usr/bin/true',
   ANTHROPIC_API_KEY: ambientKey,
 }
