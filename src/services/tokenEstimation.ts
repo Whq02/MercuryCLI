@@ -13,6 +13,7 @@ import { modelSupportsAdaptiveThinking } from '../utils/thinking.js'
 import { isToolReferenceBlock } from '../utils/toolSearch.js'
 import { getAnthropicClient } from './api/client.js'
 import { isSpentUsageWindowAnswer, providerAskedWaitMs, providerWaitIsWindow, retrySeconds } from './api/recoveryBudget.js'
+import { APIConnectionTimeoutError } from './api/sdkErrors.js'
 import { is529Error, isRetryableError } from './api/withRetry.js'
 import { busyRetryScale, nextBusyRetryWithinBudget, openBusyRetryLadder } from './providers/busyRetry.js'
 import { declaredRouteOf } from './providers/routeLaw.js'
@@ -36,6 +37,7 @@ function refusalWords(error: unknown): string {
 }
 
 function countRetryRefusal(error: unknown, askedMs: number | undefined): string | null {
+  if (error instanceof APIConnectionTimeoutError) return `no answer within the count's ${retrySeconds(COUNT_RETRY_BUDGET_MS)} — a stalled count is not retried`
   if (is529Error(error)) return 'an overload is not retried by a count (nobody waits on it; retries multiply the load)'
   if (isSpentUsageWindowAnswer(error)) return 'the usage window is spent'
   if (providerWaitIsWindow(askedMs)) return `the provider asked for ${retrySeconds(askedMs ?? 0)} — its usage window, not a burst`
@@ -117,20 +119,23 @@ export async function countMessagesTokensWithAPI(
       const betas = getModelBetas(model)
       const client = await getAnthropicClient({ maxRetries: 0, source: COUNT_SOURCE })
       const response = await countWithBusyRetry(COUNT_SOURCE, () =>
-        client.beta.messages.countTokens({
-          model,
-          messages: body as never,
-          tools: tools as never,
-          ...(carried !== undefined ? { system: carried as never } : {}),
-          ...(betas.length > 0 ? { betas } : {}),
-          ...(thinking
-            ? {
-                thinking: modelSupportsAdaptiveThinking(model)
-                  ? { type: 'adaptive' }
-                  : { type: 'enabled', budget_tokens: THINKING_BUDGET_TOKENS },
-              }
-            : {}),
-        }),
+        client.beta.messages.countTokens(
+          {
+            model,
+            messages: body as never,
+            tools: tools as never,
+            ...(carried !== undefined ? { system: carried as never } : {}),
+            ...(betas.length > 0 ? { betas } : {}),
+            ...(thinking
+              ? {
+                  thinking: modelSupportsAdaptiveThinking(model)
+                    ? { type: 'adaptive' }
+                    : { type: 'enabled', budget_tokens: THINKING_BUDGET_TOKENS },
+                }
+              : {}),
+          },
+          { timeout: COUNT_RETRY_BUDGET_MS },
+        ),
       )
       const count = (response as { input_tokens?: unknown }).input_tokens
       return typeof count === 'number' ? count : null
