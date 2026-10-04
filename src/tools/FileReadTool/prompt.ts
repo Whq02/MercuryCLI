@@ -14,9 +14,6 @@ export const DESCRIPTION = 'Read the contents of a local file.'
 export const LINE_FORMAT_INSTRUCTION =
   'a line number followed by a tab, then the line content'
 
-export const LINE_FORMAT_INSTRUCTION_LEGACY =
-  'a right-aligned line number followed by an arrow (→), then the line content'
-
 export const OFFSET_INSTRUCTION_DEFAULT =
   'Reading the entire file is fine — prefer that unless the file is huge.'
 

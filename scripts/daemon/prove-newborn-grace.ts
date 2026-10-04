@@ -9,7 +9,6 @@ process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 process.env.MERCURY_DAEMON_DIR = join(SCRATCH, 'daemon')
 delete process.env.MERCURY_HOME
 delete process.env.MERCURY_SESSION_NEWBORN_GRACE_MINUTES
-delete process.env.MERCURY_CONCOURSE_NEWBORN_GRACE_MINUTES
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
 writeFileSync(
@@ -84,12 +83,10 @@ console.log('N2 a bounded grace window')
   process.env.MERCURY_SESSION_NEWBORN_GRACE_MINUTES = '45'
   check('N2 the knob reads minutes', idle.concourseNewbornGraceMs() === 45 * 60_000)
   delete process.env.MERCURY_SESSION_NEWBORN_GRACE_MINUTES
-  process.env.MERCURY_CONCOURSE_NEWBORN_GRACE_MINUTES = '30'
-  check('N2 the legacy spelling alone still sets the grace', idle.concourseNewbornGraceMs() === 30 * 60_000)
-  process.env.MERCURY_SESSION_NEWBORN_GRACE_MINUTES = '45'
-  check('N2 the canonical spelling wins one rung above the legacy', idle.concourseNewbornGraceMs() === 45 * 60_000)
-  delete process.env.MERCURY_SESSION_NEWBORN_GRACE_MINUTES
-  delete process.env.MERCURY_CONCOURSE_NEWBORN_GRACE_MINUTES
+  const OLD_SPELLING = 'MERCURY_CONCOURSE_' + 'NEWBORN_GRACE_MINUTES'
+  process.env[OLD_SPELLING] = '30'
+  check('N2 an older concourse-named spelling alone changes nothing (an unknown environment name)', idle.concourseNewbornGraceMs() === 0)
+  delete process.env[OLD_SPELLING]
 }
 
 console.log('N3 the reconcile: a dead newborn is released, a dead session is a crash')
@@ -130,7 +127,7 @@ console.log('N4 the birth crosses the wire and stamps both mints')
   const protocol = read('src/daemon/protocol.ts')
   check('N4 the protocol names the field on the admit op', /op: 'sessionAdmit'[\s\S]{0,1200}bornBlank\?: true/.test(protocol))
   const registry = read('src/substrate/flagRegistry.ts')
-  check('N4 the grace knob is a registered row under its session spelling, the legacy concourse spelling registered beside it', registry.includes("env: 'MERCURY_SESSION_NEWBORN_GRACE_MINUTES'") && registry.includes("env: 'MERCURY_CONCOURSE_NEWBORN_GRACE_MINUTES'"))
+  check('N4 the grace knob is a registered row under its session spelling and no other', registry.includes("env: 'MERCURY_SESSION_NEWBORN_GRACE_MINUTES'") && !registry.includes('MERCURY_CONCOURSE_' + 'NEWBORN_GRACE_MINUTES'))
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

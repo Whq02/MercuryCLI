@@ -43,16 +43,15 @@ const first = keys.ensureOperatorKey()
   check('both halves decode to 32 bytes', Buffer.from(parsed.publicKey, 'base64url').length === 32 && Buffer.from(parsed.privateKey, 'base64url').length === 32)
 }
 
-section('(2) the id derives from the PUBLIC key, in the legacy shape')
+section('(2) the id derives from the PUBLIC key')
 {
   const path = keys.operatorKeyPath()
   const parsed = JSON.parse(readFileSync(path, 'utf8')) as { publicKey: string }
   const expected = `op-${createHash('sha256').update(Buffer.from(parsed.publicKey, 'base64url')).digest('hex').slice(0, 12)}`
   check('id === op- + sha256(raw public key)[0:12]', first.id === expected, `${first.id} vs ${expected}`)
-  check('the shape matches the legacy generation exactly (op- + 12 hex — the size-preserving re-key law)', /^op-[0-9a-f]{12}$/.test(first.id))
+  check('the id is op- + 12 hex', /^op-[0-9a-f]{12}$/.test(first.id))
   check('operatorPrincipal() carries the keyed id', identity.operatorPrincipal().id === first.id)
   check('…and the login as the display name', identity.operatorPrincipal().name === 'opid-tester')
-  check('the keyed id is not either legacy derivation', first.id !== identity.legacyOperatorPrincipalId() && !identity.legacyOperatorPrincipalIds().includes(first.id))
 }
 
 section('(3) born once: re-resolve adopts, never re-mints')
@@ -100,15 +99,16 @@ section('(4) never in a project; stable across folders and logins')
   }
 }
 
-section('(5) the adoption law bridges BOTH legacy generations')
+section('(5) the keyed id is the only id')
 {
-  const keyed = identity.operatorPrincipal().id
-  const legacy = identity.legacyOperatorPrincipalId()
-  check('legacy canonical recognized', identity.principalIdOwnsRecord(keyed, legacy))
-  check('the keyed id owns its own records', identity.principalIdOwnsRecord(keyed, keyed))
-  check('a foreign op id refused; ownerless refused', !identity.principalIdOwnsRecord(keyed, 'op-ffffffffffff') && !identity.principalIdOwnsRecord(keyed, null))
-  check('a NON-operator caller gains nothing from the legacy bridge', !identity.principalIdOwnsRecord('guest-abcdef0123456789', legacy))
-  check('legacy ids are re-key candidates; the keyed id is not', identity.isLegacyOperatorPrincipalId(legacy) && !identity.isLegacyOperatorPrincipalId(keyed))
+  const ROOT = join(import.meta.dir, '..', '..')
+  const names = Object.keys(identity).sort()
+  check('the identity module answers the operator and the assistant principals and nothing else', names.join(',') === 'assistantPrincipal,operatorPrincipal', names.join(','))
+  const barrel = readFileSync(join(ROOT, 'src/substrate/identity/index.ts'), 'utf8')
+  check('no other derivation exists to recognise or re-key a record by', !existsSync(join(ROOT, 'src/substrate/identity/rekey.ts')) && !/rekey|OwnsRecord/i.test(barrel), barrel.match(/rekey|OwnsRecord/i)?.[0] ?? '')
+  const crew = readFileSync(join(ROOT, 'src/services/crew/identity.ts'), 'utf8')
+  const conversations = readFileSync(join(ROOT, 'src/services/crew/conversations.ts'), 'utf8')
+  check('the crew boot and the conversations store re-key nothing', !/rekey/i.test(crew) && !/rekey/i.test(conversations))
 }
 
 section('(6) damage is loud; the mode heals')

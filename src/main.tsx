@@ -99,7 +99,6 @@ import {
 } from './utils/permissions/permissionSetup.js'
 import { PERMISSION_MODES, modeBypassesPermissions, type PermissionMode } from './utils/permissions/PermissionMode.js'
 import { profileCheckpoint, profileReport } from './utils/startupProfiler.js'
-import { migrateChangelogFromConfig } from './utils/releaseNotes.js'
 import { resetUserCache, getCoreUserData } from './utils/user.js'
 import { settingsChangeDetector } from './utils/settings/changeDetector.js'
 import { skillChangeDetector } from './utils/skills/skillChangeDetector.js'
@@ -131,8 +130,6 @@ import type { UUID } from 'node:crypto'
 import { update as updateCli } from './cli/update.js'
 import type { ScopedMcpServerConfig } from './services/mcp/types.js'
 import { writeShimSet, resolveLayoutRoots } from './services/privateChannel/installLayout.js'
-import { migrateAutoUpdatesToSettings } from './migrations/migrateAutoUpdatesToSettings.js'
-import { migrateVerboseToToolOutput } from './migrations/migrateVerboseToToolOutput.js'
 import type { Root } from './ink.js'
 import chalk from 'chalk'
 import { refusedOutcome } from './cli/headless/refusalEnvelope.js'
@@ -171,36 +168,6 @@ function applyMergedConfigEnv(): void {
   }
 }
 
-
-const MIGRATION_VERSION = 13
-
-function runMigrationsIfNeeded(): void {
-  try {
-    const config = getGlobalConfig()
-    if (config.migrationVersion === MIGRATION_VERSION) return
-    const landed: boolean[] = []
-    landed.push(migrateAutoUpdatesToSettings())
-    migrateVerboseToToolOutput()
-    const incomplete = landed.some(ok => ok === false)
-    if (incomplete) {
-      logForDebugging(
-        'a startup migration could not land its settings write; the migration version stamp is withheld so the set retries next boot',
-        { level: 'error' },
-      )
-    }
-    if (!incomplete && getGlobalConfig().migrationVersion !== MIGRATION_VERSION) {
-      saveGlobalConfigDeferred(current =>
-        current.migrationVersion !== MIGRATION_VERSION
-          ? { ...current, migrationVersion: MIGRATION_VERSION }
-          : current,
-      )
-    }
-  } catch (error) {
-    logError(error)
-    logForDebugging('a config migration threw; boot continues')
-  }
-  void migrateChangelogFromConfig().catch(() => {})
-}
 
 const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -589,8 +556,6 @@ async function run(): Promise<void> {
       }
       setSessionExtensions(extensionPaths)
     }
-    runMigrationsIfNeeded()
-    profileCheckpoint('preAction_after_migrations')
   })
 
   program.action(async (prompt: string | undefined) => {

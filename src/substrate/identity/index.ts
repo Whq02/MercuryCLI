@@ -1,15 +1,6 @@
 
 export type { Principal } from './principal.js'
-export {
-  operatorPrincipal,
-  legacyOperatorPrincipalId,
-  legacyOperatorPrincipalIds,
-  isLegacyOperatorPrincipalId,
-  rawPinOperatorPrincipalId,
-  principalIdOwnsRecord,
-  assistantPrincipal,
-} from './identity.js'
-export { type RekeyResult, rekeyLegacyOperatorIds } from './rekey.js'
+export { operatorPrincipal, assistantPrincipal } from './identity.js'
 export {
   type OperatorAccountFact,
   type OperatorAccountFacts,

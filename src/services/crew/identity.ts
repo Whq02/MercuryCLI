@@ -590,19 +590,6 @@ export async function bootCrewIdentity(args: {
     const main = { agentId: registered.agentId }
     await migrateLegacyIdentities()
     try {
-      const [{ rekeyOperatorRecords }, identityMod] = await Promise.all([
-        import('./conversations.js'),
-        import('../../substrate/identity/identity.js'),
-      ])
-      const moved = await rekeyOperatorRecords(
-        identityMod.legacyOperatorPrincipalIds(),
-        identityMod.operatorPrincipal().id,
-      )
-      if (moved > 0) logForDebugging(`[crew/identity] operator re-key moved ${moved} legacy-keyed positions`)
-    } catch (e) {
-      logForDebugging(`[crew/identity] operator re-key skipped (non-blocking): ${e}`)
-    }
-    try {
       const { mintConversation, MAIN_CONVERSATION_ID } = await import('./conversations.js')
       const { operatorPrincipal } = await import('../../substrate/identity/identity.js')
       await mintConversation({

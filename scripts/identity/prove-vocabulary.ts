@@ -111,6 +111,11 @@ const RETIRED: Array<[string, RegExp, string[]]> = [
   ['stop-checker-slash', new RegExp("(?<=['\"`\\s(])/" + J('super', 'visor') + '(?![\\w-])'), [J('/super', 'visor')]],
   ['stop-checker-env', asName(J('MERCURY_SUPER', 'VISOR')), [J('MERCURY_SUPER', 'VISOR')]],
   ['stop-checker-key', asName(J('(?:(?:setS|s)uper', 'visorEnabled|super', 'visorGate|super', 'visedStopVerdict|SUPER', 'VISOR_EVALUATOR_DEADLINE_MS)')), [J('visor', 'Enabled'), J('visor', 'Gate'), J('vised', 'StopVerdict'), J('VISOR_', 'EVALUATOR')]],
+  ['identity-old-ids', asName(J('(?:legacyOperator', 'PrincipalIds?|isLegacyOperator', 'PrincipalId|rawPinOperator', 'PrincipalId|principalId', 'OwnsRecord|rekeyLegacy', 'OperatorIds|rekeyOperator', 'Records)')), [J('Operator', 'PrincipalId'), J('principalId', 'OwnsRecord'), J('rekey', 'Legacy'), J('rekeyOperator', 'Records')]],
+  ['store-old-layout', asName(J('(?:legacyTranscript', 'StoreExistsSync|resolveProjectDir', 'WithAdoption)')), [J('legacyTranscript', 'Store'), J('ProjectDir', 'WithAdoption')]],
+  ['concourse-knob-spellings', asName(J('MERCURY_CONCOURSE_', '(?:IDLE_RETIRE|NEWBORN_GRACE)_MINUTES')), [J('MERCURY_CONCOURSE_', 'IDLE'), J('MERCURY_CONCOURSE_', 'NEWBORN')]],
+  ['config-migration-set', asName(J('(?:runMigrations', 'IfNeeded|MIGRATION_', 'VERSION|migration', 'Version|cached', 'Changelog|migrateChangelog', 'FromConfig|removeProject', 'History)')), [J('runMigrations', ''), J('MIGRATION_', 'VERSION'), J('migration', 'Version'), J('cached', 'Changelog'), J('migrateChangelog', ''), J('removeProject', 'History')]],
+  ['line-prefix-switch', asName(J('(?:isCompactLine', 'PrefixEnabled|LINE_FORMAT_INSTRUCTION', '_LEGACY)')), [J('isCompactLine', 'Prefix'), J('INSTRUCTION', '_LEGACY')]],
 ]
 const SETTINGS_SCOPE = /^(?:src\/|docs\/|README\.md$|scripts\/)/
 const RETIRED_SETTINGS_ROOTS = [
@@ -131,7 +136,7 @@ const RETIRED_SETTINGS_FIELDS = [
 ]
 const RETIRED_SETTINGS_MODULES = [
   'migrateSettingsSpellings', 'migrateEnableAllProjectMcpServersToSettings', 'migrateBypassPermissionsAcceptedToSettings', 'migrateAutoupdateEnvName',
-  'migrateConfigSpellings',
+  'migrateConfigSpellings', 'migrateAutoUpdatesToSettings', 'migrateVerboseToToolOutput',
 ]
 const RETIRED_POLICY_PLACES = [J('com.anthropic.', 'claudecode'), J('Policies\\\\', 'ClaudeCode')]
 const SETTINGS_LEAF_KEPT = new Set(['model', 'agent', 'hooks', 'sandbox', 'worktree', 'language', 'env', 'attribution', 'permissions'])
@@ -199,6 +204,7 @@ const ALLOW: Array<[string, string, string]> = [
   ['docs/releases/', 'retired', 'published release pages keep their lines'],
   ['scripts/identity/prove-release-notes-words.ts', 'retired', 'the release-notes word list — a forbidden-words list under scripts/identity'],
   ['scripts/identity/prove-retired-keys-unknown.ts', 'retired,settings', 'the retired settings keys it proves unknown — a forbidden-words list under scripts/identity'],
+  ['scripts/settings/prove-global-config-read-as-written.ts', 'config-migration-set,settings', 'names the retired config keys and the migration modules it proves gone'],
   ['scripts/computer/prove-computer-readiness.ts', 'settings', "the desktop scene file's own permissions record, not a settings key"],
   ['scripts/sessionStorage/prove-old-transcript-kinds-parse.ts', 'agent-type-general-purpose,option-crew-words', "an older build's sidecar fixture — one of the 16 on-disk proofs, unedited; and the retired crew spelling it proves absent from the launcher"],
   ['scripts/mission-runner/corpus/', 'mode-autopilot', "a fixture game's own autopilot — a scenario word, not the mode"],
@@ -507,6 +513,14 @@ console.log('============================================================')
     ['stop-checker-env', 'process.env.' + J('MERCURY_SUPER', 'VISOR') + " === '1'"],
     ['stop-checker-key', 'getGlobalConfig().' + J('super', 'visorEnabled') + ' === true'],
     ['stop-checker-key', "import { " + J('setSuper', 'visorEnabled') + " } from './" + J('super', 'visorGate') + ".js'"],
+    ['identity-old-ids', J('legacyOperator', 'PrincipalIds') + '()'],
+    ['identity-old-ids', J('principalId', 'OwnsRecord') + '(caller, owner)'],
+    ['store-old-layout', 'if (' + J('legacyTranscript', 'StoreExistsSync') + '(dir))'],
+    ['concourse-knob-spellings', 'process.env.' + J('MERCURY_CONCOURSE_', 'IDLE_RETIRE_MINUTES')],
+    ['concourse-knob-spellings', J('MERCURY_CONCOURSE_', 'NEWBORN_GRACE_MINUTES') + '=30'],
+    ['config-migration-set', 'config.' + J('migration', 'Version') + ' === ' + J('MIGRATION_', 'VERSION')],
+    ['config-migration-set', J('removeProject', 'History') + '(config.projects)'],
+    ['line-prefix-switch', 'if (' + J('isCompactLine', 'PrefixEnabled') + '())'],
   ]
   check('§5 self-test: every retired-word row has a spelling here and trips on it in src', RETIRED.every(([label]) => trips.some(([l]) => l === label)) && trips.every(([label, content]) => retiredHits('src/x.ts', content).includes(label)), trips.filter(([label, content]) => !retiredHits('src/x.ts', content).includes(label)).map(([label]) => label).join(','))
   check('§5 self-test: the rows reach docs, the README and the script estate', retiredHits('docs/x.md', trips[0]![1]).length === 1 && retiredHits('README.md', trips[0]![1]).length === 1 && retiredHits('scripts/x/prove-x.ts', trips[0]![1]).length === 1)

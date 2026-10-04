@@ -368,50 +368,47 @@ console.log('B — the New Session tab: declared, keyed, born in the current gro
 console.log('C — the renames: the idle knob speaks the session estate; the accent module says the screen; the in-process connector is gone')
 {
   const CANON = 'MERCURY_SESSION_IDLE_RETIRE_MINUTES'
-  const LEGACY = 'MERCURY_CONCOURSE_IDLE_RETIRE_MINUTES'
-  const saved = { canon: process.env[CANON], legacy: process.env[LEGACY] }
+  const OLD = 'MERCURY_CONCOURSE_' + 'IDLE_RETIRE_MINUTES'
+  const saved = { canon: process.env[CANON], old: process.env[OLD] }
   delete process.env[CANON]
-  delete process.env[LEGACY]
+  delete process.env[OLD]
   const { concourseIdleRetireMs, DEFAULT_CONCOURSE_IDLE_RETIRE_MINUTES } = await import('../../src/daemon/idleRetirement.ts')
-  const { FLAG_REGISTRY, flagEnv } = await import('../../src/substrate/flagRegistry.ts')
-  check('C1 both spellings unset ⇒ the operator\'s ten minutes', concourseIdleRetireMs() === DEFAULT_CONCOURSE_IDLE_RETIRE_MINUTES * 60_000 && DEFAULT_CONCOURSE_IDLE_RETIRE_MINUTES === 10)
-  process.env[LEGACY] = '5'
-  check('C1 the legacy spelling alone still sets the threshold (tolerated, never a silent break)', concourseIdleRetireMs() === 5 * 60_000, String(concourseIdleRetireMs()))
+  const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
+  check('C1 unset ⇒ the operator\'s ten minutes', concourseIdleRetireMs() === DEFAULT_CONCOURSE_IDLE_RETIRE_MINUTES * 60_000 && DEFAULT_CONCOURSE_IDLE_RETIRE_MINUTES === 10)
+  process.env[OLD] = '5'
+  check('C1 the old concourse spelling alone changes nothing (an unknown name)', concourseIdleRetireMs() === DEFAULT_CONCOURSE_IDLE_RETIRE_MINUTES * 60_000, String(concourseIdleRetireMs()))
   process.env[CANON] = '7'
-  check('C1 the canonical spelling wins one rung above the legacy', concourseIdleRetireMs() === 7 * 60_000, String(concourseIdleRetireMs()))
-  delete process.env[LEGACY]
-  check('C1 the canonical spelling alone sets it', concourseIdleRetireMs() === 7 * 60_000)
+  check('C1 the session spelling sets the threshold', concourseIdleRetireMs() === 7 * 60_000, String(concourseIdleRetireMs()))
+  delete process.env[OLD]
+  check('C1 the session spelling alone sets it', concourseIdleRetireMs() === 7 * 60_000)
   delete process.env[CANON]
   if (saved.canon !== undefined) process.env[CANON] = saved.canon
-  if (saved.legacy !== undefined) process.env[LEGACY] = saved.legacy
+  if (saved.old !== undefined) process.env[OLD] = saved.old
   const canonRow = FLAG_REGISTRY.find(f => f.env === CANON)
-  const legacyRow = FLAG_REGISTRY.find(f => f.env === LEGACY)
-  check('C1 both spellings are REGISTERED rows (the reader throws on neither)', canonRow?.kind === 'value' && legacyRow?.kind === 'value' && flagEnv(CANON) === saved.canon && flagEnv(LEGACY) === saved.legacy)
-  check('C1 the legacy row names the canonical, is dated for removal, and reads second', legacyRow !== undefined && legacyRow.summary.includes(CANON) && typeof legacyRow.retirement === 'string' && /REMOVE after 20\d\d-\d\d-\d\d/.test(legacyRow.retirement) && (legacyRow.interactsWith ?? []).includes(CANON))
+  check('C1 the session spelling is the ONE registered row; the old spelling is no row', canonRow?.kind === 'value' && FLAG_REGISTRY.every(f => f.env !== OLD && !(f.interactsWith ?? []).includes(OLD) && !f.summary.includes(OLD) && !(f.off ?? '').includes(OLD)))
   const reaper = read('src/daemon/idleRetirement.ts')
-  check('C1 the reaper reads canonical-then-legacy through the ONE bounded reader and logs the canonical name', reaper.includes(`flagEnv('${CANON}') ?? flagEnv('${LEGACY}')`) && reaper.includes(`(threshold \${formatLimit(thresholdMs)}, ${CANON})`))
+  check('C1 the reaper reads the session spelling through the ONE bounded reader, nothing below it, and logs the name', reaper.includes(`flagEnv('${CANON}'),`) && !reaper.includes(OLD) && reaper.includes(`(threshold \${formatLimit(thresholdMs)}, ${CANON})`))
   const GRACE = 'MERCURY_SESSION_NEWBORN_GRACE_MINUTES'
-  const GRACE_LEGACY = 'MERCURY_CONCOURSE_NEWBORN_GRACE_MINUTES'
-  const savedGrace = { canon: process.env[GRACE], legacy: process.env[GRACE_LEGACY] }
+  const GRACE_OLD = 'MERCURY_CONCOURSE_' + 'NEWBORN_GRACE_MINUTES'
+  const savedGrace = { canon: process.env[GRACE], old: process.env[GRACE_OLD] }
   delete process.env[GRACE]
-  delete process.env[GRACE_LEGACY]
+  delete process.env[GRACE_OLD]
   const { concourseNewbornGraceMs } = await import('../../src/daemon/idleRetirement.ts')
-  check('C1 grace: both spellings unset ⇒ never (0)', concourseNewbornGraceMs() === 0)
-  process.env[GRACE_LEGACY] = '30'
-  check('C1 grace: the legacy spelling alone still sets the grace', concourseNewbornGraceMs() === 30 * 60_000)
+  check('C1 grace: unset ⇒ never (0)', concourseNewbornGraceMs() === 0)
+  process.env[GRACE_OLD] = '30'
+  check('C1 grace: the old concourse spelling alone changes nothing (an unknown name)', concourseNewbornGraceMs() === 0)
   process.env[GRACE] = '45'
-  check('C1 grace: the canonical spelling wins one rung above the legacy', concourseNewbornGraceMs() === 45 * 60_000)
+  check('C1 grace: the session spelling sets the grace', concourseNewbornGraceMs() === 45 * 60_000)
   delete process.env[GRACE]
-  delete process.env[GRACE_LEGACY]
+  delete process.env[GRACE_OLD]
   if (savedGrace.canon !== undefined) process.env[GRACE] = savedGrace.canon
-  if (savedGrace.legacy !== undefined) process.env[GRACE_LEGACY] = savedGrace.legacy
+  if (savedGrace.old !== undefined) process.env[GRACE_OLD] = savedGrace.old
   const graceRow = FLAG_REGISTRY.find(f => f.env === GRACE)
-  const graceLegacyRow = FLAG_REGISTRY.find(f => f.env === GRACE_LEGACY)
-  check('C1 grace: both spellings are REGISTERED rows; the legacy names the canonical and is dated', graceRow?.kind === 'value' && graceLegacyRow?.kind === 'value' && graceLegacyRow.summary.includes(GRACE) && typeof graceLegacyRow.retirement === 'string' && /REMOVE after 20\d\d-\d\d-\d\d/.test(graceLegacyRow.retirement))
-  check('C1 the knob graph is symmetric: canonical idle ↔ canonical grace, each legacy ↔ its own canonical', (canonRow?.interactsWith ?? []).includes(GRACE) && (graceRow?.interactsWith ?? []).includes(CANON) && (graceRow?.interactsWith ?? []).includes(GRACE_LEGACY) && (graceLegacyRow?.interactsWith ?? []).join(',') === GRACE && (legacyRow?.interactsWith ?? []).join(',') === CANON)
-  check('C1 grace: the reaper reads canonical-then-legacy through the ONE bounded reader', reaper.includes(`flagEnv('${GRACE}') ?? flagEnv('${GRACE_LEGACY}')`))
+  check('C1 grace: the session spelling is the ONE registered row; the old spelling is no row', graceRow?.kind === 'value' && FLAG_REGISTRY.every(f => f.env !== GRACE_OLD && !(f.interactsWith ?? []).includes(GRACE_OLD) && !f.summary.includes(GRACE_OLD) && !(f.off ?? '').includes(GRACE_OLD)))
+  check('C1 the knob graph is symmetric: idle ↔ grace', (canonRow?.interactsWith ?? []).includes(GRACE) && (graceRow?.interactsWith ?? []).includes(CANON))
+  check('C1 grace: the reaper reads the session spelling through the ONE bounded reader, nothing below it', reaper.includes(`flagEnv('${GRACE}'),`) && !reaper.includes(GRACE_OLD))
   const sibling = read('scripts/daemon/prove-newborn-grace.ts')
-  check('C1 grace: the sibling prover pins the session spelling and tolerates the legacy (its needles repointed)', sibling.includes(`env: '${GRACE}'`) && sibling.includes(`process.env.${GRACE} = '45'`) && sibling.includes(`process.env.${GRACE_LEGACY} = '30'`))
+  check('C1 grace: the sibling prover pins the session spelling and knows no other', sibling.includes(`env: '${GRACE}'`) && sibling.includes(`process.env.${GRACE} = '45'`) && !sibling.includes(GRACE_OLD))
   const accent = read('src/components/mercury-ui/sessionAccent.ts')
   check('C2 the chat-first phrasing is gone ("Session-only", "the critter session-theme", "the active session critter")', !accent.includes('Session-only') && !accent.includes('critter session-theme') && !accent.includes('The active session critter') && !accent.includes('the live session critter'))
   check('C2 the exported spellings stand (the sweep is named, not smuggled)', accent.includes('export function getSessionAccent(): Critter') && accent.includes('export function useSessionAccent(): Critter'))

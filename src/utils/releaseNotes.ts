@@ -1,7 +1,6 @@
 import { coerce } from 'semver'
 
 import { MERCURY_CHANGELOG } from '../constants/changelog.js'
-import { getGlobalConfig, saveGlobalConfig } from './config.js'
 import { logError } from './log.js'
 import { gt } from './semver.js'
 
@@ -12,15 +11,6 @@ export function getStoredChangelogFromMemory(): string {
 
 export async function getStoredChangelog(): Promise<string> {
   return MERCURY_CHANGELOG
-}
-
-export async function migrateChangelogFromConfig(): Promise<void> {
-  const config = getGlobalConfig() as { cachedChangelog?: string }
-  if (config.cachedChangelog === undefined) return
-  saveGlobalConfig(current => {
-    const { cachedChangelog: _dropped, ...rest } = current as { cachedChangelog?: string } & Record<string, unknown>
-    return rest as typeof current
-  })
 }
 
 export function parseChangelog(content: string): Record<string, string[]> {

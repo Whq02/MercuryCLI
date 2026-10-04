@@ -111,8 +111,8 @@ const numberedLines = (text: string): number[] => {
 const rawCarried = (text: string): string =>
   text
     .split('\n')
-    .filter(line => /^\s*\d+(?:→|\t)/.test(line))
-    .map(line => line.replace(/^\s*\d+(?:→|\t)/, ''))
+    .filter(line => /^\d+\t/.test(line))
+    .map(line => line.replace(/^\d+\t/, ''))
     .join('\n')
 const anchorsIn = (text: string): string[] => [...text.matchAll(/\(anchor: (ra:[0-9a-f]{12}:L\d+\+\d+)\)/g)].map(m => m[1]!)
 const LAW = 'Read the file before editing it'

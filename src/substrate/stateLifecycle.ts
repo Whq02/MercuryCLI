@@ -533,7 +533,7 @@ export const LIFECYCLE_MANIFEST: readonly LifecycleClassDecl[] = [
     liveReference:
       'always — the operator IS this key: the principal id derives from its public half, and every owner compare and signed authorship resolves through it',
     terminal:
-      'never while the home lives — deleting it mints a NEW identity (the adoption law bridges only the pre-key hash generations)',
+      'never while the home lives — deleting it mints a NEW identity that owns none of the old one\'s records',
     retention: 'one 0600 file, born once (exclusive create), never rotated, never collected',
     action: 'retain',
     prover: 'scripts/operator-identity/prove-operator-identity.ts',

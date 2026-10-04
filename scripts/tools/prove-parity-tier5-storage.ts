@@ -20,21 +20,21 @@ t(
   new Set([underscore, hyphen, dot]).size === 3,
   [underscore, hyphen, dot].join(' · '),
 )
-const { getProjectDir: resolveWithAdoption, sanitizePath } = await import(
+const { getProjectDir: resolveProjectDir, projectSlug, sanitizePath } = await import(
   '../../src/utils/sessionStoragePortable.ts'
 )
-const legacyDir = join(scratchHome, 'projects', sanitizePath('/tmp/parity-legacy_proj'))
-mkdirSync(legacyDir, { recursive: true })
-writeFileSync(join(legacyDir, 'parity-legacy.jsonl'), '{}\n')
+const hashlessWithTranscript = join(scratchHome, 'projects', sanitizePath('/tmp/parity-hashless_proj'))
+mkdirSync(hashlessWithTranscript, { recursive: true })
+writeFileSync(join(hashlessWithTranscript, 'parity-hashless.jsonl'), '{}\n')
 t(
-  'an existing legacy store is honoured in place (no orphaned history)',
-  resolveWithAdoption('/tmp/parity-legacy_proj') === legacyDir,
+  'a hash-less directory holding a transcript is not read — the hashed store is the store',
+  resolveProjectDir('/tmp/parity-hashless_proj') !== hashlessWithTranscript && resolveProjectDir('/tmp/parity-hashless_proj').endsWith(projectSlug('/tmp/parity-hashless_proj')),
 )
 const bareDir = join(scratchHome, 'projects', sanitizePath('/tmp/parity-bare_proj'))
 mkdirSync(bareDir, { recursive: true })
 t(
-  'a BARE legacy directory (no transcript inside) is NOT adopted — the hashed store wins (FC-007)',
-  resolveWithAdoption('/tmp/parity-bare_proj') !== bareDir,
+  'a BARE hash-less directory (no transcript inside) is not read either — the hashed store wins (FC-007)',
+  resolveProjectDir('/tmp/parity-bare_proj') !== bareDir,
 )
 
 const { parseFrontmatter, FRONTMATTER_REGEX } = await import(

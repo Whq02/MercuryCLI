@@ -175,11 +175,12 @@ await (async () => {
   check('…and the verdict reads back under the key', (await readEraVerdict(secretKey, t0 + 1))?.kind === 'legacy')
   resetEraVerdictMemo()
   check('…from a fresh read of the file too', (await readEraVerdict(secretKey, t0 + 1))?.kind === 'legacy')
-  writeFileSync(eraVerdictCachePath(), JSON.stringify({ 'old:{"env":{"TOKEN":"sekrit-old"}}': { era: 'legacy', at: t0 } }))
+  writeFileSync(eraVerdictCachePath(), JSON.stringify({ 'not-a-digest': { era: 'legacy', at: t0 } }))
   resetEraVerdictMemo()
   await recordEraVerdict('srv-d', 'legacy', t0)
-  check('a key written in clear by an earlier file is dropped at the next write', !readFileSync(eraVerdictCachePath(), 'utf8').includes('sekrit-old'))
-  check('…while the digest keys stay', (await readEraVerdict('srv-d', t0 + 1))?.kind === 'legacy')
+  const carried = JSON.parse(readFileSync(eraVerdictCachePath(), 'utf8')) as Record<string, unknown>
+  check('an entry the cache did not write is carried as written: the next write keeps it beside the digest keys', JSON.stringify(carried['not-a-digest']) === JSON.stringify({ era: 'legacy', at: t0 }) && Object.keys(carried).length === 2, JSON.stringify(carried))
+  check('…and is never read: a verdict is looked up by its digest alone', (await readEraVerdict('not-a-digest', t0 + 1)) === undefined && (await readEraVerdict('srv-d', t0 + 1))?.kind === 'legacy')
 })()
 
 section('(5) the health row reading')

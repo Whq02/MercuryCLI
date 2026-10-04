@@ -57,7 +57,7 @@ function corruptKeyError(path: string, cause: unknown): Error {
   return new Error(
     `[identity] the operator identity key at ${path} is unreadable or corrupt (${cause instanceof Error ? cause.message : String(cause)}). ` +
       'This file IS the operator identity: restore it from a backup, or delete it to mint a NEW identity — ' +
-      'records keyed by a lost key are re-owned only through the legacy adoption law, never by a silent re-mint.',
+      'records keyed by a lost key stay with that key, never re-owned by a silent re-mint.',
   )
 }
 

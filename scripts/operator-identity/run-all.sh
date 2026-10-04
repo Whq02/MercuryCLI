@@ -12,7 +12,6 @@ echo "############################################################"
 echo "# Mercury operator identity"
 echo "############################################################"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-operator-identity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-operator-identity.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-identity-migration.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-identity-migration.ts" "$__t" "$__rc"
 
 if [ "$fail" -ne 0 ]; then
   echo "❌ operator-identity suite RED"
