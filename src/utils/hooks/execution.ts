@@ -50,6 +50,7 @@ import {
 import { jsonParse, jsonStringify } from '../slowOperations.js'
 import {
   emitHookResponse,
+  getHookRunContext,
   hookProgressReporter,
 } from './hookEvents.js'
 import { isAsyncHookJSONOutput } from '../../types/hooks.js'
@@ -173,7 +174,7 @@ export function createBaseHookInput(
   return {
     session_id: resolvedSessionId,
     transcript_path: getTranscriptPathForSession(resolvedSessionId),
-    cwd: getCwd(),
+    cwd: getHookRunContext()?.cwd ?? getCwd(),
     permission_mode: permissionMode,
     agent_id: agentInfo?.agentId,
     agent_type: resolvedAgentType,
@@ -288,7 +289,7 @@ export async function execCommandHook(
     envVars.MERCURY_ENV_FILE = await getHookEnvFilePath(hookEvent, hookIndex)
   }
 
-  const hookCwd = getCwd()
+  const hookCwd = getHookRunContext()?.cwd ?? getCwd()
   const safeCwd = (await pathExists(hookCwd)) ? hookCwd : getOriginalCwd()
   if (safeCwd !== hookCwd) {
     logForDebugging(

@@ -48,6 +48,9 @@ export async function executeLifecycleHooks({
     signal,
     timeoutMs,
     getAppState,
+    sessionId: hookInput.session_id,
+    cwd: hookInput.cwd,
+    transcriptPath: hookInput.transcript_path,
     perHook: true,
   })) {
     rows.push(lifecycleRowOf(event, result as HookResult))

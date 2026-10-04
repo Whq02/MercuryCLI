@@ -33,7 +33,7 @@ import type { PermissionResult } from '../permissions/PermissionResult.js'
 import { findToolByName, type Tool, type ToolUseContext } from '../../Tool.js'
 import { execCommandHook, shouldSkipHookDueToTrust, TOOL_HOOK_EXECUTION_TIMEOUT_MS, createBaseHookInput } from './execution.js'
 import { hookEventTable, hookEventMatchQuery } from './contract.js'
-import { registerHookEventHandler, takeHookEventHandler } from './hookEvents.js'
+import { withHookRunContext, getHookRunContext, type HookProgressEvent } from './hookEvents.js'
 import { getMatchingHooks, isInternalHook } from './matching.js'
 import { parseHookOutput, parseHttpHookOutput, processHookJSONOutput } from './outputProcessing.js'
 import type { AggregatedHookResult, HookResult } from './types.js'
@@ -102,7 +102,8 @@ export async function* executeHooks({
 
   const boundRequestPrompt = requestPrompt?.(hookName, toolInputSummary)
 
-  if (shouldSkipHookDueToTrust()) {
+  const trustAccepted = getHookRunContext()?.trustAccepted
+  if (trustAccepted === false || (trustAccepted === undefined && shouldSkipHookDueToTrust())) {
     logForDebugging(
       `Skipping ${hookName} hook execution - workspace trust not accepted`,
     )
@@ -110,7 +111,7 @@ export async function* executeHooks({
   }
 
   const appState = getAppState ? getAppState() : toolUseContext ? toolUseContext.getAppState() : undefined
-  const sessionId = toolUseContext?.agentId ?? getSessionId()
+  const sessionId = toolUseContext?.agentId ?? hookInput.session_id
   const matchingHooks = await getMatchingHooks(
     appState,
     sessionId,
@@ -1212,6 +1213,9 @@ export async function* runHookEvent({
   requestPrompt,
   toolInputSummary,
   sessionId,
+  cwd,
+  transcriptPath,
+  trustAccepted,
   getAppState,
   marks,
   perHook,
@@ -1231,8 +1235,12 @@ export async function* runHookEvent({
   ) => (request: PromptRequest) => Promise<PromptResponse>
   toolInputSummary?: string | null
   sessionId?: string
+  cwd?: string
+  transcriptPath?: string
+  trustAccepted?: boolean
   getAppState?: () => Parameters<typeof getMatchingHooks>[0]
   marks?: {
+    progress?: (mark: HookProgressEvent) => void
     started: (mark: { hookId: string; hookName: string; hookEvent: HookEvent }) => void
     response: (mark: {
       hookId: string
@@ -1266,20 +1274,22 @@ export async function* runHookEvent({
   const hookInput = {
     ...base,
     ...eventFields,
+    ...(cwd !== undefined ? { cwd } : {}),
+    ...(transcriptPath !== undefined ? { transcript_path: transcriptPath } : {}),
     hook_event_name: event,
   } as HookInput
 
   const resolvedMatchQuery = matchQuery ?? hookEventMatchQuery(event, hookInput)
 
-  const priorHandler = takeHookEventHandler()
-  if (marks) {
-    registerHookEventHandler(emitted => {
-      if (emitted.type === 'started') marks.started({ hookId: emitted.hookId, hookName: emitted.hookName, hookEvent: event })
-      else if (emitted.type === 'response') marks.response({ ...emitted, hookEvent: event })
-    })
-  }
-  try {
-    yield* executeHooks({
+  yield* withHookRunContext({
+    cwd: hookInput.cwd,
+    trustAccepted,
+    ...(marks ? { handler: emitted => {
+      if (emitted.type === 'started') marks.started({ ...emitted, hookEvent: event })
+      else if (emitted.type === 'progress') marks.progress?.(emitted)
+      else marks.response({ ...emitted, hookEvent: event })
+    } } : {}),
+  }, executeHooks({
       hookInput,
       toolUseID,
       matchQuery: resolvedMatchQuery,
@@ -1292,8 +1302,5 @@ export async function* runHookEvent({
       toolInputSummary,
       perHook,
       getAppState,
-    })
-  } finally {
-    if (marks) registerHookEventHandler(priorHandler)
-  }
+    }))
 }
