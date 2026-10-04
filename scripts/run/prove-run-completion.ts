@@ -363,8 +363,8 @@ async function main(): Promise<void> {
         { maxBlocks: 3, wordingUnfinished: false, owner: abuseOwner },
       )
       check(
-        'abuse: no-substance declaration does NOT block — the loop continues',
-        abuseVerdict.decision.kind === 'continue' && abuseVerdict.allowStop === false,
+        'abuse: no-substance declaration does NOT block — the decision stays continue and the stop stands',
+        abuseVerdict.decision.kind === 'continue' && abuseVerdict.allowStop === true,
         abuseVerdict.decision.kind,
       )
       const abuseSnap = coord.getRunSnapshot(abuseOwner)
@@ -374,7 +374,7 @@ async function main(): Promise<void> {
         String(abuseSnap?.lifecycle),
       )
       check(
-        'abuse: the refusal reason reaches the continue re-prompt',
+        "abuse: the refusal reason rides the continue decision's reason",
         abuseVerdict.decision.kind === 'continue' &&
           /blocker declaration refused/.test(abuseVerdict.decision.reason) &&
           /substance/.test(abuseVerdict.decision.reason),
@@ -383,10 +383,9 @@ async function main(): Promise<void> {
         'abuse: the refusal is recorded on the /run timeline (stop-decision detail)',
         /blocker declaration refused/.test(abuseSnap?.lastStopDecision?.detail ?? ''),
       )
-      const reprompt = adapter.repromptWithNextAction('Keep working.', abuseVerdict.decision)
       check(
-        'the continue re-prompt teaches the exact grammar',
-        /BLOCKED ON OPERATOR/.test(reprompt) && /RESUME WHEN/.test(reprompt),
+        'the adapter composes no re-prompt and claims no continuation: a continue decision is a stop that stands',
+        !('repromptWithNextAction' in adapter) && !('boundRepromptField' in adapter) && !('REPROMPT_FIELD_BUDGET' in adapter) && !(abuseSnap?.recentEvents ?? []).some(e => e.type === 'continuation'),
       )
 
       const escOwner = mkOwner('run-blocker-esc')
@@ -458,8 +457,8 @@ async function main(): Promise<void> {
         { maxBlocks: 3, wordingUnfinished: false, owner: escOwner },
       )
       check(
-        'after the answer the evidence loop resumes (open deliverable → continue)',
-        resumedVerdict.decision.kind === 'continue' && resumedVerdict.allowStop === false,
+        'after the answer the evaluator reads the open deliverable again (continue) and the stop stands',
+        resumedVerdict.decision.kind === 'continue' && resumedVerdict.allowStop === true,
         resumedVerdict.decision.kind,
       )
       await tasksMod.resetTaskList(listId)
@@ -716,9 +715,9 @@ async function main(): Promise<void> {
         blocks: [],
         blockedBy: [],
       })
-      const verdict = await adapter.evaluateStopAttempt(messages, { maxBlocks: 3, wordingUnfinished: false, owner: seatOwner, recordOnly: true })
+      const verdict = await adapter.evaluateStopAttempt(messages, { maxBlocks: 3, wordingUnfinished: false, owner: seatOwner })
       check(
-        'non-interactive seat + an open task → continue (the stop stands in record mode)',
+        'non-interactive seat + an open task → continue (the stop stands)',
         verdict.decision.kind === 'continue' && verdict.allowStop === true,
         JSON.stringify(verdict.decision),
       )
@@ -734,7 +733,7 @@ async function main(): Promise<void> {
         JSON.stringify(snap?.lastStopDecision),
       )
       await tasksMod.updateTask(listId, tid, { status: 'completed' })
-      const verdict2 = await adapter.evaluateStopAttempt(messages, { maxBlocks: 3, wordingUnfinished: false, owner: seatOwner, recordOnly: true })
+      const verdict2 = await adapter.evaluateStopAttempt(messages, { maxBlocks: 3, wordingUnfinished: false, owner: seatOwner })
       const snap2 = coord.getRunSnapshot(seatOwner)
       check(
         'closing the task completes the one-shot run and the record reads completed with all deliverables closed',

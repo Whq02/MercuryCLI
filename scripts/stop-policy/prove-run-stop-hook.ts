@@ -83,7 +83,7 @@ section('§2 the hook never blocks — its one answer is true, the record its on
   const callback = arm.slice(0, arm.indexOf('\n    },'))
   const returns = callback.match(/\breturn\b[^\n]*/g) ?? []
   check('every return in the Stop callback is `return true`', returns.length > 0 && returns.every(r => /^return true\b/.test(r)), returns.join(' | '))
-  check('the callback folds the decision into the record and nothing more (recordOnly)', /recordOnly:\s*true/.test(callback))
+  check('the callback hands the stop to the adapter with the ceiling, the evidence-only posture and the signal — nothing more', /await evaluateStopAttempt\(messages, \{\s*maxBlocks: MAX_BLOCKS,\s*wordingUnfinished: false,[^}]*\bsignal,\s*\}\)/.test(callback))
   check('the callback reads no environment and no setting', !/process\.env|flagEnv\(|getGlobalConfig\(|getSettings/.test(callback))
   check('the module composes no re-prompt', !/repromptWithNextAction|RUN_STOP_REPROMPT/.test(text))
   const exported = Object.keys(hook).sort()

@@ -1,6 +1,6 @@
 
 import type { SetAppState } from '../messageQueueManager.js'
-import { addFunctionHook, removeFunctionHook } from './sessionHooks.js'
+import { addFunctionHook } from './sessionHooks.js'
 import { evaluateStopAttempt } from './runStopAdapter.js'
 
 export const RUN_STOP_HOOK_ID = 'mercury-run-stop'
@@ -29,7 +29,6 @@ export function registerRunStopHook(setAppState: SetAppState, sessionId: string)
           maxBlocks: MAX_BLOCKS,
           wordingUnfinished: false,
           signal,
-          recordOnly: true,
         })
       } catch {
       }
