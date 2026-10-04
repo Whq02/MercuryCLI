@@ -53,6 +53,7 @@ prove-session-pulse.ts
 prove-settings-popup-mouse-report.ts
 prove-size-ladder.ts
 prove-spinner-hud.ts
+prove-spinner-hud-plan.ts
 prove-streaming-nameplate.ts
 prove-surface-claim.ts
 prove-text-emission-paints-once.ts
