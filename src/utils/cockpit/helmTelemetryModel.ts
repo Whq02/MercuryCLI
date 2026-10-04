@@ -108,6 +108,11 @@ export type TelemetryModel = {
   consoleOn: boolean
 }
 
+export function sessionTraceRecords(trace: Snapshot<{ data: TraceData }> | null, sessionId: string | null): TraceData['records'] {
+  if (trace === null || trace.state !== 'live' || sessionId === null) return []
+  return trace.data.records.filter(r => r.sessionId === sessionId)
+}
+
 export function buildTelemetryModel(input: TelemetryInput): TelemetryModel {
   const { tok, usage, otherUsages, readNow, now } = input
   const rowW = railPanelInnerWidth(input.width)
@@ -285,9 +290,9 @@ export function buildTelemetryModel(input: TelemetryInput): TelemetryModel {
   ]
 
   const trace = input.trace
-  const traceLive = trace?.state === 'live'
-  const traceTotal = traceLive ? trace.data.total : 0
-  const recent = traceLive ? trace.data.records.slice(-TRACE_ROWS).reverse() : []
+  const own = sessionTraceRecords(trace, input.focusedSessionId)
+  const traceTotal = own.length
+  const recent = own.slice(-TRACE_ROWS).reverse()
   const traceRows: TelemetryRowSpec[] = []
   if (trace === null) traceRows.push({ kind: 'empty', key: 'trace:loading', text: 'loading…' })
   else if (recent.length === 0) traceRows.push({ kind: 'empty', key: 'trace:none', text: 'fills as tools run' })
@@ -385,7 +390,7 @@ export function buildTelemetryModel(input: TelemetryInput): TelemetryModel {
             rows: healthRows,
           },
         ]),
-    ...(traceShed ? [] : [{ key: 'trace' as const, glyph: GLYPH.trace, label: 'TRACE', count: `${traceTotal} · repo`, open: '/trace', rows: traceRows }]),
+    ...(traceShed ? [] : [{ key: 'trace' as const, glyph: GLYPH.trace, label: 'TRACE', count: String(traceTotal), open: '/trace', rows: traceRows }]),
     ...(consoleOn && !consoleShed
       ? [{ key: 'console' as const, glyph: GLYPH.prompt, label: 'CONSOLE', count: input.console.count > 0 ? String(input.console.count) : undefined, open: '/console', rows: consoleRows }]
       : []),
