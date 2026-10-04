@@ -31,7 +31,9 @@ import { isEnvTruthy } from '../envUtils.js'
 import { getIsNonInteractiveSession, getSessionId } from '../../bootstrap/state.js'
 import type { PermissionResult } from '../permissions/PermissionResult.js'
 import { findToolByName, type Tool, type ToolUseContext } from '../../Tool.js'
-import { execCommandHook, shouldSkipHookDueToTrust, TOOL_HOOK_EXECUTION_TIMEOUT_MS } from './execution.js'
+import { execCommandHook, shouldSkipHookDueToTrust, TOOL_HOOK_EXECUTION_TIMEOUT_MS, createBaseHookInput } from './execution.js'
+import { hookEventTable, hookEventMatchQuery } from './contract.js'
+import { registerHookEventHandler, takeHookEventHandler } from './hookEvents.js'
 import { getMatchingHooks, isInternalHook } from './matching.js'
 import { parseHookOutput, parseHttpHookOutput, processHookJSONOutput } from './outputProcessing.js'
 import type { AggregatedHookResult, HookResult } from './types.js'
@@ -68,6 +70,8 @@ export async function* executeHooks({
   forceSyncExecution,
   requestPrompt,
   toolInputSummary,
+  perHook,
+  getAppState,
 }: {
   hookInput: HookInput
   toolUseID: string
@@ -82,7 +86,9 @@ export async function* executeHooks({
     toolInputSummary?: string | null,
   ) => (request: PromptRequest) => Promise<PromptResponse>
   toolInputSummary?: string | null
-}): AsyncGenerator<AggregatedHookResult> {
+  perHook?: boolean
+  getAppState?: () => Parameters<typeof getMatchingHooks>[0]
+}): AsyncGenerator<AggregatedHookResult | HookResult> {
   if (shouldDisableAllHooksIncludingManaged()) {
     return
   }
@@ -103,7 +109,7 @@ export async function* executeHooks({
     return
   }
 
-  const appState = toolUseContext ? toolUseContext.getAppState() : undefined
+  const appState = getAppState ? getAppState() : toolUseContext ? toolUseContext.getAppState() : undefined
   const sessionId = toolUseContext?.agentId ?? getSessionId()
   const matchingHooks = await getMatchingHooks(
     appState,
@@ -141,6 +147,9 @@ export async function* executeHooks({
   }
 
   for (const { hook } of matchingHooks) {
+    if (perHook) {
+      break
+    }
     if (hook.type === 'function' && (hook as { silent?: boolean }).silent) {
       continue
     }
@@ -836,6 +845,16 @@ export async function* executeHooks({
 
   let permissionBehavior: PermissionResult['behavior'] | undefined
 
+  if (perHook) {
+    const totalDurationMs = Date.now() - batchStartTime
+    getStatsStore()?.observe('hook_duration_ms', totalDurationMs)
+    addToTurnHookDuration(totalDurationMs)
+    for await (const result of all(hookPromises)) {
+      yield result
+    }
+    return
+  }
+
   for await (const result of all(hookPromises)) {
     outcomes[result.outcome]++
 
@@ -1177,5 +1196,104 @@ function reportHeadlessHookFailure(line: string): void {
   try {
     process.stderr.write(`${line}\n`)
   } catch {
+  }
+}
+
+export async function* runHookEvent({
+  event,
+  fields,
+  toolUseID = randomUUID(),
+  matchQuery,
+  signal,
+  timeoutMs,
+  toolUseContext,
+  messages,
+  forceSyncExecution,
+  requestPrompt,
+  toolInputSummary,
+  sessionId,
+  getAppState,
+  marks,
+  perHook,
+}: {
+  event: HookEvent
+  fields: Partial<Omit<HookInput, 'hook_event_name' | 'session_id' | 'transcript_path' | 'cwd'>>
+  toolUseID?: string
+  matchQuery?: string
+  signal?: AbortSignal
+  timeoutMs?: number
+  toolUseContext?: ToolUseContext
+  messages?: Message[]
+  forceSyncExecution?: boolean
+  requestPrompt?: (
+    sourceName: string,
+    toolInputSummary?: string | null,
+  ) => (request: PromptRequest) => Promise<PromptResponse>
+  toolInputSummary?: string | null
+  sessionId?: string
+  getAppState?: () => Parameters<typeof getMatchingHooks>[0]
+  marks?: {
+    started: (mark: { hookId: string; hookName: string; hookEvent: HookEvent }) => void
+    response: (mark: {
+      hookId: string
+      hookName: string
+      hookEvent: HookEvent
+      output: string
+      stdout: string
+      stderr: string
+      exitCode?: number
+      outcome: 'success' | 'error' | 'cancelled'
+    }) => void
+  }
+  perHook?: boolean
+}): AsyncGenerator<AggregatedHookResult | HookResult> {
+  const row = hookEventTable[event]
+  const resolvedTimeoutMs = timeoutMs ?? row.timeoutMs ?? TOOL_HOOK_EXECUTION_TIMEOUT_MS
+  const fieldRecord = fields as Record<string, unknown>
+  const base = createBaseHookInput(
+    fieldRecord.permission_mode as string | undefined,
+    sessionId,
+    toolUseContext
+      ? { agentId: toolUseContext.agentId, agentType: fieldRecord.agent_type as string | undefined }
+      : fieldRecord.agent_id !== undefined || fieldRecord.agent_type !== undefined
+        ? { agentId: fieldRecord.agent_id as string | undefined, agentType: fieldRecord.agent_type as string | undefined }
+        : undefined,
+  )
+  const { permission_mode: _pm, agent_id: _ai, agent_type: _at, ...eventFields } = fieldRecord
+  void _pm
+  void _ai
+  void _at
+  const hookInput = {
+    ...base,
+    ...eventFields,
+    hook_event_name: event,
+  } as HookInput
+
+  const resolvedMatchQuery = matchQuery ?? hookEventMatchQuery(event, hookInput)
+
+  const priorHandler = takeHookEventHandler()
+  if (marks) {
+    registerHookEventHandler(emitted => {
+      if (emitted.type === 'started') marks.started({ hookId: emitted.hookId, hookName: emitted.hookName, hookEvent: event })
+      else if (emitted.type === 'response') marks.response({ ...emitted, hookEvent: event })
+    })
+  }
+  try {
+    yield* executeHooks({
+      hookInput,
+      toolUseID,
+      matchQuery: resolvedMatchQuery,
+      signal,
+      timeoutMs: resolvedTimeoutMs,
+      toolUseContext,
+      messages,
+      forceSyncExecution,
+      requestPrompt,
+      toolInputSummary,
+      perHook,
+      getAppState,
+    })
+  } finally {
+    if (marks) registerHookEventHandler(priorHandler)
   }
 }
