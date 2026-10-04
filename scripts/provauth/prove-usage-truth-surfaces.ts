@@ -24,7 +24,6 @@ const savedEnv: Record<string, string | undefined> = {}
 for (const key of [
   'ANTHROPIC_API_KEY',
   'ANTHROPIC_AUTH_TOKEN',
-  'CLAUDE_CODE_OAUTH_TOKEN',
   'OPENAI_API_KEY',
   'ZAI_API_KEY',
   'OPENROUTER_API_KEY',

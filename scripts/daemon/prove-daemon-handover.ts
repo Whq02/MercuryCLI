@@ -41,7 +41,6 @@ process.env.MERCURY_CONFIG_DIR = home
 delete process.env.MERCURY_HOME
 delete process.env.MERCURY_DAEMON_DIR
 delete process.env.MERCURY_MODEL
-delete process.env.CLAUDE_CODE_OAUTH_TOKEN
 process.env.NODE_ENV = 'test'
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'

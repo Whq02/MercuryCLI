@@ -13,7 +13,6 @@ process.env.MERCURY_MOCK_LIMITS = '1'
 delete process.env.MERCURY_MOCK_USAGE_PAYLOAD
 delete process.env.MERCURY_USAGE_SEED
 delete process.env.MERCURY_MODEL
-delete process.env.CLAUDE_CODE_OAUTH_TOKEN
 
 let failures = 0
 let checks = 0

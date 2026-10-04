@@ -5,7 +5,7 @@ import { join } from 'node:path'
 
 const scratch = mkdtempSync(join(tmpdir(), 'neutral-model-doors-'))
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spelling] = scratch
-for (const key of ['MERCURY_MODEL', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'MERCURY_DEFAULT_HAIKU_MODEL', 'MERCURY_SMALL_FAST_MODEL', 'MERCURY_WORKER_PARENT_PID']) delete process.env[key]
+for (const key of ['MERCURY_MODEL', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'MERCURY_DEFAULT_HAIKU_MODEL', 'MERCURY_SMALL_FAST_MODEL', 'MERCURY_WORKER_PARENT_PID']) delete process.env[key]
 delete process.env.NODE_ENV
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'

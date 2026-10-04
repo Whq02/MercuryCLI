@@ -16,7 +16,6 @@ const section = (t: string): void => {
 
 delete process.env.NODE_ENV
 delete process.env.CI
-delete process.env.CLAUDE_EFFORT
 delete process.env.MERCURY_MODEL
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'switch-precedence-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'

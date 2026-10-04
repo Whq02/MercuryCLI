@@ -21,7 +21,6 @@ for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) {
   process.env[spelling] = home
 }
 for (const key of [
-  'CLAUDE_CODE_OAUTH_TOKEN',
   'OPENAI_API_KEY',
   'MERCURY_MODEL',
   'OPENROUTER_API_KEY',

@@ -113,7 +113,6 @@ if (process.platform === 'win32') {
   }
   delete env.NODE_ENV
   delete env.ANTHROPIC_AUTH_TOKEN
-  delete env.CLAUDE_CODE_OAUTH_TOKEN
   delete env.MERCURY_MODEL
   const startedAt = Date.now()
   const child = spawn(node, [DIST, 'run', 'reply with the word ready', '--format', 'text', '--sovereign', '--model', 'claude-opus-4-8'], { cwd: world, env, stdio: ['ignore', 'pipe', 'pipe'] })

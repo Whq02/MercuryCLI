@@ -33,7 +33,7 @@ const work = join(SCRATCH, 'work')
 mkdirSync(work, { recursive: true })
 writeFileSync(join(work, 'README.md'), '# busy retry fixture\n')
 delete process.env.NODE_ENV
-for (const k of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'CLAUDE_CODE_OAUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'HF_TOKEN', 'DEEPSEEK_API_KEY', 'MERCURY_MODEL', 'MERCURY_BUSY_RETRY_SCALE', 'MERCURY_HEADLESS_IDLE_MINUTES']) delete process.env[k]
+for (const k of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'HF_TOKEN', 'DEEPSEEK_API_KEY', 'MERCURY_MODEL', 'MERCURY_BUSY_RETRY_SCALE', 'MERCURY_HEADLESS_IDLE_MINUTES']) delete process.env[k]
 
 const GEMINI_MODEL = 'gemini-3.5-flash'
 const PROMPT = 'say the word'
@@ -213,7 +213,6 @@ function childEnv(home: string, scale: string, road: Road): NodeJS.ProcessEnv {
   }
   delete env.NODE_ENV
   delete env.ANTHROPIC_AUTH_TOKEN
-  delete env.CLAUDE_CODE_OAUTH_TOKEN
   return env
 }
 type Frame = Record<string, unknown>

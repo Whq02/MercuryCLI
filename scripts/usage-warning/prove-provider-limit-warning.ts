@@ -20,7 +20,6 @@ for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) {
 }
 for (const key of [
   'ANTHROPIC_API_KEY',
-  'CLAUDE_CODE_OAUTH_TOKEN',
   'MERCURY_MODEL',
   'OPENROUTER_API_KEY',
   'GOOGLE_API_KEY',

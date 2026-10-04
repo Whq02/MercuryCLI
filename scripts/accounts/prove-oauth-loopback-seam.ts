@@ -42,7 +42,7 @@ section('§2 the record under a loopback pin')
   const base = 'http://127.0.0.1:65000'
   const record = withCustom(base, () => oauth.getOauthConfig())
   check('the token endpoint rides the pinned loopback base', record.TOKEN_URL === `${base}/v1/oauth/token`, record.TOKEN_URL)
-  check('the api base, the authorize doors and the roles endpoint ride it too', record.BASE_API_URL === base && record.CLAUDE_AI_AUTHORIZE_URL.startsWith(base) && record.ROLES_URL.startsWith(base), JSON.stringify({ base: record.BASE_API_URL, roles: record.ROLES_URL }))
+  check('the api base, the authorize doors and the roles endpoint ride it too', record.BASE_API_URL === base && record.SUBSCRIPTION_AUTHORIZE_URL.startsWith(base) && record.ROLES_URL.startsWith(base), JSON.stringify({ base: record.BASE_API_URL, roles: record.ROLES_URL }))
   check('a trailing slash is trimmed, never doubled', withCustom(`${base}/`, () => oauth.getOauthConfig()).TOKEN_URL === `${base}/v1/oauth/token`)
 }
 

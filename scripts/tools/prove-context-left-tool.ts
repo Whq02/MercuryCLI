@@ -7,7 +7,7 @@ const ROOT = resolve(import.meta.dir, '../..')
 process.chdir(ROOT)
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
-for (const key of ['OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'OPENAI_API_KEY', 'HF_TOKEN', 'MERCURY_MODEL', 'MERCURY_DISABLE_1M_CONTEXT', 'CLAUDE_EFFORT', 'MERCURY_HOME', 'MERCURY_AUTO_COMPACT', 'MERCURY_COMPACT', 'MERCURY_AUTOCOMPACT_PCT_OVERRIDE', 'MERCURY_BLOCKING_LIMIT_OVERRIDE', 'MERCURY_BARE']) {
+for (const key of ['OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'OPENAI_API_KEY', 'HF_TOKEN', 'MERCURY_MODEL', 'MERCURY_DISABLE_1M_CONTEXT', 'MERCURY_HOME', 'MERCURY_AUTO_COMPACT', 'MERCURY_COMPACT', 'MERCURY_AUTOCOMPACT_PCT_OVERRIDE', 'MERCURY_BLOCKING_LIMIT_OVERRIDE', 'MERCURY_BARE']) {
   delete process.env[key]
 }
 const home = process.env.MERCURY_CONFIG_DIR && process.env.MERCURY_CONFIG_DIR.startsWith('/private/tmp/') ? process.env.MERCURY_CONFIG_DIR : mkdtempSync(join(tmpdir(), 'context-left-tool-'))

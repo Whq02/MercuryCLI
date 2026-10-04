@@ -57,7 +57,7 @@ function capitalise(name: string): string {
 }
 
 function buildProxyAuthUrl(server: ClaudeAIServerInfo): string {
-  const origin = getOauthConfig().CLAUDE_AI_ORIGIN
+  const origin = getOauthConfig().SUBSCRIPTION_ORIGIN
   const organizationUuid = getOauthAccountInfo()?.organizationUuid
   const serverId = server.config.id?.replace(/^mcprs/, 'mcpsrv')
   if (organizationUuid && serverId) {
@@ -463,7 +463,7 @@ export function MCPRemoteServerMenu({
               }
               case 'proxy-clear': {
                 void openBrowser(
-                  `${getOauthConfig().CLAUDE_AI_ORIGIN}/settings/connectors`,
+                  `${getOauthConfig().SUBSCRIPTION_ORIGIN}/settings/connectors`,
                 )
                 setPhase({ id: 'proxy-clear-step2' })
                 return

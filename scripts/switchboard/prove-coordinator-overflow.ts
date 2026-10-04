@@ -24,7 +24,7 @@ const home = join(scratch, 'home')
 mkdirSync(home, { recursive: true })
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spelling] = home
 for (const key of [
-  'ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'ZAI_API_KEY', 'OPENAI_API_KEY', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT',
+  'ANTHROPIC_API_KEY', 'ZAI_API_KEY', 'OPENAI_API_KEY', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT',
   'MERCURY_AUTOCOMPACT_PCT_OVERRIDE', 'MERCURY_BLOCKING_LIMIT_OVERRIDE', 'MERCURY_OVERFLOW_RECOVERY', 'MERCURY_MODEL',
 ]) {
   delete process.env[key]

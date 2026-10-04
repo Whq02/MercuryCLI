@@ -20,7 +20,6 @@ mkdirSync(join(scratchHome, '.mercury'), { recursive: true })
 const SCRUB = [
   'ANTHROPIC_API_KEY',
   'ANTHROPIC_AUTH_TOKEN',
-  'CLAUDE_CODE_OAUTH_TOKEN',
   'MERCURY_OAUTH_TOKEN',
   'OPENAI_API_KEY',
   'GEMINI_API_KEY',

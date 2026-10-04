@@ -194,10 +194,10 @@ process.env.NODE_ENV = 'test'
 
 {
   const auth = await import('../../src/utils/auth.js')
-  const { CLAUDE_AI_OAUTH_SCOPES } = await import('../../src/constants/oauth.js')
+  const { SUBSCRIPTION_OAUTH_SCOPES } = await import('../../src/constants/oauth.js')
   auth.saveOAuthTokensIfNeeded({
     accessToken: 'at-fixture', refreshToken: 'rt-fixture', expiresAt: Date.now() + 3_600_000,
-    scopes: [...CLAUDE_AI_OAUTH_SCOPES], subscriptionType: 'max', rateLimitTier: 'default_claude_max_5x',
+    scopes: [...SUBSCRIPTION_OAUTH_SCOPES], subscriptionType: 'max', rateLimitTier: 'default_claude_max_5x',
   } as never)
   auth.clearOAuthTokenCache()
   const revokedBody = { type: 'error', error: { type: 'authentication_error', message: 'OAuth access token has been revoked' } }
