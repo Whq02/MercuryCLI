@@ -185,33 +185,19 @@ async function runWorld(label: string, extraEnv: Record<string, string>): Promis
 }
 
 if (import.meta.main) {
-  section('§1 a run that files a task and stops: the record never reads complete while the task is open')
+  section('§1 a run that files a task and stops: the stop stands, nothing re-prompts, and the record never reads complete while the task is open')
   {
     const failedAtOpen = failed()
-    const world = await runWorld('record', { MERCURY_SUPERVISOR: '0' })
+    const world = await runWorld('record', {})
     const arms = world.hits.map(h => h.arm)
     check('the runner booted and the turn settled on the model’s own last words', world.status === 'completed' && world.answer === FILED_END, `${world.status}: ${world.answer.slice(0, 120)} | ${world.stderrTail}`)
-    check('the fixture answered one TaskCreate and one end of turn, nothing more, and no re-prompt reached the wire', j(arms.filter(a => a !== 'svc')) === j(['create', 'filed-end']) && world.hits.every(h => h.reprompts === 0), j(world.hits))
+    check('the fixture answered one TaskCreate and one end of turn, nothing more, and no re-prompt reached the wire', j(arms.filter(a => a !== 'svc')) === j(['create', 'filed-end']) && world.hits.every(h => h.reprompts === 0 && !h.reprompted), j(world.hits))
     const run = world.record
     check('the run record holds the filed task as an open deliverable', run !== null && openOf(run).length === 1 && openOf(run)[0]!.title === TASK_SUBJECT, run ? brief(run) : `${world.records} record(s)`)
     check('the record does not read completed while a deliverable is open', run !== null && run.lifecycle !== 'completed' && run.phase !== 'done', run ? brief(run) : 'no record')
     check('the last stop decision is a continue that names the open deliverable count', run?.lastStopDecision?.decision === 'continue' && /1 deliverable\(s\) still open/.test(run.lastStopDecision.detail ?? ''), run ? brief(run) : 'no record')
+    check('the record carries no continuation: the stop stood', run !== null && !(run.recentEvents ?? []).some(e => e.type === 'continuation'), run ? j((run.recentEvents ?? []).map(e => e.type)) : 'no record')
     check('no stop decision on the record claims completion beside an unsatisfied count', run !== null && !(run.recentEvents ?? []).some(e => e.type === 'stop-decision' && e.decision === 'complete' && /UNSATISFIED/.test(e.detail ?? '')), run ? j((run.recentEvents ?? []).filter(e => e.type === 'stop-decision')) : 'no record')
-    if (failed() === failedAtOpen) await removeWorld(world.home)
-    else console.log(`  [forensics] the world stays at ${world.home}`)
-  }
-
-  section('§2 with the supervisor on, the run is asked to work the open deliverable, closes it, and only then completes')
-  {
-    const failedAtOpen = failed()
-    const world = await runWorld('supervised', { MERCURY_SUPERVISOR: '1' })
-    const arms = world.hits.filter(h => h.arm !== 'svc').map(h => h.arm)
-    check('the runner booted and the turn settled on the model’s own last words', world.status === 'completed' && world.answer === CLOSED_END, `${world.status}: ${world.answer.slice(0, 120)} | ${world.stderrTail}`)
-    check('a re-prompt on the wire named the open deliverable, once', world.hits.filter(h => h.reprompted).length === 1 && (world.hits[world.hits.length - 1]?.reprompts ?? 0) === 1, j(world.hits))
-    check('the model closed the task on the re-prompt and ended', j(arms) === j(['create', 'filed-end', 'close', 'closed-end']), j(arms))
-    const run = world.record
-    check('the record reads completed with every deliverable closed', run?.lifecycle === 'completed' && (run.deliverables ?? []).length === 1 && openOf(run).length === 0, run ? brief(run) : 'no record')
-    check('the completion names all deliverables closed, not an unsatisfied count', run?.lastStopDecision?.decision === 'complete' && /all 1 deliverable\(s\) closed/.test(run.lastStopDecision.detail ?? '') && !/UNSATISFIED/.test(run.lastStopDecision.detail ?? ''), run ? brief(run) : 'no record')
     if (failed() === failedAtOpen) await removeWorld(world.home)
     else console.log(`  [forensics] the world stays at ${world.home}`)
   }

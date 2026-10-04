@@ -659,7 +659,7 @@ the live list can also include skills and extension commands.
 
 | Domain | Commands |
 | --- | --- |
-| current work | `/run` `/runs` `/workbench` `/diff` `/mission` `/supervisor` |
+| current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
 | crew & delegation | `/agents` `/subagents` `/crewmates` `/crew` `/workflows` `/fleet` `/monitor` `/router` `/daemon` `/saturn` `/seats` `/live` `/halt` `/kill` `/unkill` `/surfaces` |
 | session & context | `/clear` `/compact` `/context` `/auto-compact-window` `/resume` `/rewind` `/sessions` `/concourse` `/branches` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/debrief` `/realms` |
 | memory & goals | `/memory` `/console` `/orient` |

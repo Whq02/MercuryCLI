@@ -176,7 +176,6 @@ export type GlobalConfig = {
     requestCeiling?: number
     subagents?: boolean
   }
-  supervisorEnabled?: boolean
   advisor?: {
     enabled?: boolean
     minutes?: number

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/services/run/** src/utils/hooks/missionHook*
-# gate-watch: src/utils/hooks/runStopAdapter* src/utils/hooks/runStopHook* src/utils/hooks/supervisorGate* src/query/stopHooks*
+# gate-watch: src/utils/hooks/runStopAdapter* src/utils/hooks/runStopHook* src/query/stopHooks*
 # gate-watch: src/utils/verification/verificationState* src/substrate/pidLock* src/rows/turn.ts
 # gate-watch: src/services/providers/openai/openaiWire* src/services/providers/openai/openaiCallModel*
 # gate-watch: src/rows/* src/runner/wire/*
@@ -26,7 +26,7 @@ PROOFS=(
   prove-surface-sweep.ts
   prove-tool-delta-grammar.ts
   prove-run-phases.ts
-  prove-supervisor-gate.ts
+  prove-run-stop-hook.ts
 )
 
 echo "############################################################"
