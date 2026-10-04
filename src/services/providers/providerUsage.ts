@@ -1,4 +1,5 @@
 import { getModelUsage, getUnpricedTurns, getWorkloadUnpricedTurns, getWorkloadUsage, type ModelUsage } from '../../bootstrap/state.js'
+import type { ModelSpendRowV1, UsageFactsV1 } from '../engine-connector/types.js'
 import { formatLaneSpend } from '../../utils/spendSpelling.js'
 import { formatTokens } from '../../utils/format.js'
 import { WORKLOAD_ADVISOR, WORKLOAD_CRON } from '../../utils/workloadContext.js'
@@ -249,6 +250,36 @@ function spendForRoute(route: RouterProviderId | 'unrecognised'): ProviderSessio
   const scheduled = spendOf(scheduledUsage(), scheduledUnpricedTurns(), admit)
   if (scheduled.models > 0) spend.scheduled = scheduled
   const advisor = spendOf(advisorUsage(), advisorUnpricedTurns(), admit)
+  if (advisor.models > 0) spend.advisor = advisor
+  return spend
+}
+
+function spendOfRows(rows: readonly ModelSpendRowV1[], admit: (model: string) => boolean): ProviderSessionSpend {
+  const usage: { [modelName: string]: ModelUsage } = {}
+  const unpriced: { [modelName: string]: number } = {}
+  for (const row of rows) {
+    const record = usage[row.model] ?? { inputTokens: 0, outputTokens: 0, cacheReadInputTokens: 0, cacheCreationInputTokens: 0, webSearchRequests: 0, costUSD: 0 }
+    record.inputTokens += row.inputTokens
+    record.outputTokens += row.outputTokens
+    record.cacheReadInputTokens += row.cacheReadInputTokens
+    record.cacheCreationInputTokens += row.cacheCreationInputTokens
+    record.costUSD += row.costUSD
+    usage[row.model] = record
+    if (row.unpricedTurns > 0) unpriced[row.model] = (unpriced[row.model] ?? 0) + row.unpricedTurns
+  }
+  return spendOf(usage, unpriced, admit)
+}
+
+export function sessionSpendOfFacts(
+  facts: Pick<UsageFactsV1, 'modelSpend'>,
+  route: RouterProviderId | 'unrecognised',
+): ProviderSessionSpend | null {
+  if (facts.modelSpend === undefined) return null
+  const admit = (model: string): boolean => (declaredRouteOf(model) ?? 'unrecognised') === route
+  const spend = spendOfRows(facts.modelSpend.filter(row => row.workload === undefined), admit)
+  const scheduled = spendOfRows(facts.modelSpend.filter(row => row.workload === WORKLOAD_CRON), admit)
+  if (scheduled.models > 0) spend.scheduled = scheduled
+  const advisor = spendOfRows(facts.modelSpend.filter(row => row.workload === WORKLOAD_ADVISOR), admit)
   if (advisor.models > 0) spend.advisor = advisor
   return spend
 }

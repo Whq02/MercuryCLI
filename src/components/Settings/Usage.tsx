@@ -18,6 +18,7 @@ import {
   providerSessionSpend,
   providerUsageView,
   refreshProviderUsage,
+  sessionSpendOfFacts,
   usageCarryWords,
   usageCreditsLine,
   usageForProvider,
@@ -28,6 +29,7 @@ import {
   type ProviderSessionSpend,
   type UsageWindowView,
 } from '../../services/providers/providerUsage.js'
+import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import { providerIdentityLine, providerIdentitySentence } from '../../services/providers/providerIdentityLine.js'
 import { openrouterSlots } from '../../services/providers/accountSlots.js'
 import { jevRoadWords, jevUsdLabel } from '../../services/jev/jevContract.js'
@@ -173,8 +175,10 @@ function IdentityLine({ family }: { family: RouterProviderId }): React.ReactNode
   </Box>
 }
 
+export const SESSION_SPEND_LABEL = 'This session'
 export const SCHEDULED_SPEND_LABEL = 'Scheduled'
 export const ADVISOR_SPEND_LABEL = 'Advisor'
+export const SESSION_SPEND_NONE = `${SESSION_SPEND_LABEL}: 0 tokens.`
 
 function tokensLine(label: string, spend: ProviderSessionSpend, withCost: boolean): string {
   return `${label}: ${spend.inputTokens.toLocaleString()} input · ${spend.outputTokens.toLocaleString()} output tokens${withCost ? ` · ${formatLaneSpend(spend)}` : ''}`
@@ -187,9 +191,16 @@ function workloadLines(spend: ProviderSessionSpend, withCost: boolean): string[]
   return lines
 }
 
-function SlotSpend({ active, spend, withCost }: { active: boolean; spend: ProviderSessionSpend; withCost: boolean }): React.ReactNode {
+export function sessionSpendLines(route: RouterProviderId, screenSpend: ProviderSessionSpend, withCost: boolean): string[] {
+  const session = sessionSpendOfFacts(getFocusedSessionConnector().usage(), route)
+  if (session === null) return workloadLines(screenSpend, withCost)
+  const own = session.models === 0 ? SESSION_SPEND_NONE : tokensLine(SESSION_SPEND_LABEL, session, withCost)
+  return [own, ...workloadLines(session, withCost)]
+}
+
+function SlotSpend({ active, route, spend, withCost }: { active: boolean; route: RouterProviderId; spend: ProviderSessionSpend; withCost: boolean }): React.ReactNode {
   if (!active) return <Text dimColor>{INACTIVE_SLOT_LINE}</Text>
-  const lines = workloadLines(spend, withCost)
+  const lines = sessionSpendLines(route, spend, withCost)
   return lines.length === 0 ? null : <Text dimColor>{lines.join('\n')}</Text>
 }
 
@@ -201,12 +212,14 @@ export const INACTIVE_SLOT_LINE = 'not the active billing source this session'
 function ApiKeySlot({
   presentLabel,
   isActive,
+  route,
   spend,
   note,
   creditsLine,
 }: {
   presentLabel?: string
   isActive: boolean
+  route: RouterProviderId
   spend: ProviderSessionSpend
   note?: string
   creditsLine?: string
@@ -219,7 +232,7 @@ function ApiKeySlot({
       ) : (
         <Box flexDirection="column">
           <Text dimColor>{presentLabel}</Text>
-          <SlotSpend active={isActive} spend={spend} withCost />
+          <SlotSpend active={isActive} route={route} spend={spend} withCost />
           {isActive && creditsLine !== undefined ? <Text dimColor>{creditsLine}</Text> : null}
           {isActive && note !== undefined ? <Text dimColor>{note}</Text> : null}
         </Box>
@@ -452,13 +465,14 @@ function OpenaiUsageSection({ width }: { width?: number }): React.ReactNode {
             ) : (
               <FullWindowLine usage={owner} />
             )}
-            <SlotSpend active={active?.kind === 'subscription-oauth'} spend={spend} withCost={false} />
+            <SlotSpend active={active?.kind === 'subscription-oauth'} route="openai" spend={spend} withCost={false} />
           </Box>
         )}
       </Box>
       <ApiKeySlot
         presentLabel={key?.label}
         isActive={active?.kind === 'api-key'}
+        route="openai"
         spend={spend}
         {...(owner.absence !== undefined ? { note: owner.absence } : {})}
       />
@@ -496,16 +510,16 @@ function OpenrouterUsageSection({ width }: { width?: number }): React.ReactNode 
           <Box flexDirection="column">
             <Text dimColor>{oauth.identity}</Text>
             {oauth.stateNote !== undefined ? <Text dimColor>{oauth.stateNote}</Text> : null}
-            <SlotSpend active={oauth.active} spend={spend} withCost />
+            <SlotSpend active={oauth.active} route="openrouter" spend={spend} withCost />
           </Box>
         )}
       </Box>
-      {keys.length === 0 ? <ApiKeySlot isActive={false} spend={spend} /> : keys.map(key => (
+      {keys.length === 0 ? <ApiKeySlot isActive={false} route="openrouter" spend={spend} /> : keys.map(key => (
         <Box key={key.id} flexDirection="column" marginTop={1}>
           <SlotHeading text={`${key.kindLabel}${key.active ? ' · active' : ''}`} />
           <Text dimColor>{key.identity}</Text>
           {key.stateNote !== undefined ? <Text dimColor>{key.stateNote}</Text> : null}
-          <SlotSpend active={key.active} spend={spend} withCost />
+          <SlotSpend active={key.active} route="openrouter" spend={spend} withCost />
         </Box>
       ))}
       {windows.map(w => (
@@ -537,13 +551,14 @@ function GeminiUsageSection({ width }: { width?: number }): React.ReactNode {
         ) : (
           <Box flexDirection="column">
             <Text dimColor>{oauth.label}</Text>
-            <SlotSpend active={active?.kind === 'oauth'} spend={spend} withCost />
+            <SlotSpend active={active?.kind === 'oauth'} route="gemini" spend={spend} withCost />
           </Box>
         )}
       </Box>
       <ApiKeySlot
         presentLabel={key?.label}
         isActive={active?.kind === 'api-key'}
+        route="gemini"
         spend={spend}
       />
       <Text dimColor>{usage.absence ?? ENGINE_USAGE_PRESENTATION.gemini!.limitsNote}</Text>
@@ -584,7 +599,7 @@ function HuggingfaceUsageSection(): React.ReactNode {
         {account?.kind === 'oauth' ? (
           <Box flexDirection="column">
             <Text dimColor>{account.label}</Text>
-            <SlotSpend active spend={spend} withCost={false} />
+            <SlotSpend active route="huggingface" spend={spend} withCost={false} />
           </Box>
         ) : (
           <Text dimColor>{absentSlotLine("/logins huggingface signs in with the Hub's device-code flow")}</Text>
@@ -593,6 +608,7 @@ function HuggingfaceUsageSection(): React.ReactNode {
       <ApiKeySlot
         presentLabel={account?.kind === 'api-key' ? account.label : undefined}
         isActive={account?.kind === 'api-key'}
+        route="huggingface"
         spend={spend}
       />
       {account && planRow !== '' ? <Text dimColor>{planRow}</Text> : null}
@@ -638,7 +654,7 @@ function LocalUsageSection(): React.ReactNode {
                 {server.models.some(m => m.toolsDeclared === false) ? ' · some declare no tool support' : ''}
               </Text>
             ))}
-            <SlotSpend active spend={spend} withCost={false} />
+            <SlotSpend active route="local" spend={spend} withCost={false} />
           </Box>
         ) : (
           <Text dimColor>{absentSlotLine(ENGINE_USAGE_PRESENTATION.local!.connect)}</Text>
@@ -684,6 +700,7 @@ function EngineUsageSection({ section, width }: { section: UsageSection; width?:
       <ApiKeySlot
         presentLabel={section.family.credentialLabel}
         isActive={section.family.credentialed}
+        route={section.id}
         spend={spend}
       />
       {figuresLine(usage) !== undefined ? <Text dimColor>{figuresLine(usage)}</Text> : null}
@@ -712,7 +729,7 @@ function MoonshotUsageSection({ width }: { width?: number }): React.ReactNode {
         {account?.kind === 'kimi-oauth' ? (
           <Box flexDirection="column">
             <Text dimColor>{account.label}</Text>
-            <SlotSpend active spend={spend} withCost={false} />
+            <SlotSpend active route="moonshot" spend={spend} withCost={false} />
             {windows.length > 0 ? (
               windows.map(window => window.usedPct !== undefined ? (
                 <ObservedWindowMeter
@@ -738,6 +755,7 @@ function MoonshotUsageSection({ width }: { width?: number }): React.ReactNode {
           key ? (key.source === 'env' ? 'MOONSHOT_API_KEY (env)' : 'Moonshot API key (stored, auth-scoped)') : undefined
         }
         isActive={account?.kind === 'api-key'}
+        route="moonshot"
         spend={spend}
       />
       <Text dimColor>
@@ -766,7 +784,7 @@ function XaiUsageSection({ width }: { width?: number }): React.ReactNode {
         {subscription ? (
           <Box flexDirection="column">
             <Text dimColor>{[account.label, usage.tier !== account.label ? usage.tier : undefined].filter((part): part is string => part !== undefined).join(' · ')}</Text>
-            <SlotSpend active spend={spend} withCost={false} />
+            <SlotSpend active route="xai" spend={spend} withCost={false} />
             {usage.absence !== undefined ? (
               <Text dimColor>{usage.absence}</Text>
             ) : windows.length > 0 ? (
@@ -790,6 +808,7 @@ function XaiUsageSection({ width }: { width?: number }): React.ReactNode {
       <ApiKeySlot
         presentLabel={key ? (key.source === 'env' ? 'XAI_API_KEY (env)' : 'xAI API key (stored, auth-scoped)') : undefined}
         isActive={account?.kind === 'api-key'}
+        route="xai"
         spend={spend}
       />
       {!subscription && figures !== undefined ? <Text dimColor>{figures}</Text> : null}
@@ -821,7 +840,7 @@ function ZaiUsageSection({ width, credentialLabel }: { width?: number; credentia
         {coding ? (
           <Box flexDirection="column">
             <Text dimColor>{[credentialLabel ?? 'GLM Coding Plan key', usage.tier].filter((part): part is string => part !== undefined).join(' · ')}</Text>
-            <SlotSpend active spend={spend} withCost={false} />
+            <SlotSpend active route="zai" spend={spend} withCost={false} />
             {usage.absence !== undefined ? (
               <Text dimColor>{usage.absence}</Text>
             ) : windows.length > 0 ? (
@@ -847,6 +866,7 @@ function ZaiUsageSection({ width, credentialLabel }: { width?: number; credentia
       <ApiKeySlot
         presentLabel={!coding && account !== undefined ? credentialLabel ?? 'Z.AI API key' : undefined}
         isActive={!coding && account !== undefined}
+        route="zai"
         spend={spend}
       />
       <Text dimColor>
@@ -991,6 +1011,7 @@ function AnthropicUsageSection({ width, openToken }: { width?: number; openToken
       <ApiKeySlot
         presentLabel={keyEntry?.label}
         isActive={view.activeEntry?.kind === 'api-key'}
+        route="anthropic"
         spend={view.sessionSpend}
         {...(owner.absence !== undefined ? { note: owner.absence } : {})}
       />
