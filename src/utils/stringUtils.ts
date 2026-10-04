@@ -10,8 +10,12 @@ export function capitalize(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1)
 }
 
-export function plural(n: number, word: string, pluralWord: string = `${word}s`): string {
+export function plural(n: number, word: string, pluralWord: string = pluralOf(word)): string {
   return n === 1 ? word : pluralWord
+}
+
+function pluralOf(word: string): string {
+  return /[^aeiou]y$/i.test(word) ? `${word.slice(0, -1)}ies` : `${word}s`
 }
 
 export function firstLineOf(s: string): string {
