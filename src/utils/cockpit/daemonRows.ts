@@ -1,6 +1,7 @@
 import type { MercuryDaemonStatus } from '../../daemon/status.js'
 import { getMaxTurnMs } from '../../daemon/longLivedRespawn.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { thisMercuryCommand } from '../../services/privateChannel/installPath.js'
 
 export type DaemonBadge = 'off' | 'live' | 'unavailable'
 
@@ -67,7 +68,7 @@ export function deriveDaemonRows(status: MercuryDaemonStatus | null): DaemonRows
       leases: null,
       fireLine: null,
       recentLine: null,
-      empty: 'run `mercury daemon` to start one',
+      empty: `run \`${thisMercuryCommand()} daemon\` to start one`,
       version: null,
     }
   }
@@ -116,7 +117,7 @@ export function deriveDaemonRows(status: MercuryDaemonStatus | null): DaemonRows
       : null,
     orphanWarning: reachable
       ? null
-      : 'daemon record present but control socket unreachable — run `mercury daemon stop` to clear it',
+      : `daemon record present but control socket unreachable — run \`${thisMercuryCommand()} daemon stop\` to clear it`,
     workers,
     breaker:
       status.breakerOpen === null ? null : status.breakerOpen ? 'OPEN · dispatch suppressed' : 'closed',

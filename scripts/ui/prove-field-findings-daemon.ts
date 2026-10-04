@@ -57,7 +57,7 @@ console.log('§2 deck-daemon-words — one snapshot owner; human words; no bare 
   check('the reason reaches the deck only as the uptime it carries — never painted raw', deck.includes("daemon.reason?.match(/up (\\d+)s/)") && !/\{daemon\.reason\}/.test(deck))
   check('the owner speaks a human sentence for a wedged daemon (pid alive, socket unresponsive)', snap.includes('alive but control socket unresponsive'))
   check('the owner speaks a human sentence for a stale record', snap.includes('stale record · pid'))
-  check("the owner speaks the opt-in sentence when no daemon runs", snap.includes('opt-in: run `mercury daemon`'))
+  check("the owner speaks the opt-in sentence when no daemon runs, naming this install's own command", snap.includes('opt-in: run \\`${thisMercuryCommand()} daemon\\`'))
   check('POISON: no reason is a bare wire code', !/reason: '(?:ENOCONN|ETIMEOUT|ESTARTING|EPROTO)'/.test(snap))
 }
 

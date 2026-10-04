@@ -1,5 +1,10 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
+import { spawnSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
+import { DIST, NODE } from '../daemon/dupline-world.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -27,6 +32,39 @@ check('a path with a space is quoted', ownCommandWord({ provenanceKind: 'develop
 check('with no bundle to name the word stands', ownCommandWord({ provenanceKind: 'development', found: absent, node, bundle: undefined }) === 'mercury')
 const live = thisMercuryCommand()
 check('the live resolver answers a non-empty command, the same on every read', live.length > 0 && thisMercuryCommand() === live, live)
+
+console.log("§2 the built product's health advice names THIS install (a source build with no `mercury` on PATH)")
+{
+  type Row = { id: string; status: string; evidence?: string; fix?: string }
+  const rows = (value: unknown, out: Row[] = []): Row[] => {
+    if (Array.isArray(value)) for (const item of value) rows(item, out)
+    else if (value !== null && typeof value === 'object') {
+      const record = value as Record<string, unknown>
+      if (typeof record.id === 'string' && typeof record.status === 'string') out.push(record as unknown as Row)
+      for (const inner of Object.values(record)) rows(inner, out)
+    }
+    return out
+  }
+  const world = mkdtempSync(join(tmpdir(), 'advice-word-'))
+  const work = join(world, 'work')
+  mkdirSync(work)
+  const env: NodeJS.ProcessEnv = { ...process.env, HOME: join(world, 'home'), MERCURY_CONFIG_DIR: join(world, 'config'), TMPDIR: world, PATH: `/usr/bin:/bin:${dirname(NODE)}`, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none' }
+  delete env.MERCURY_HOME
+  mkdirSync(env.HOME!, { recursive: true })
+  const run = spawnSync(NODE, [DIST, 'health', '--json'], { cwd: work, env, encoding: 'utf8', timeout: 120_000 })
+  let parsed: unknown = null
+  try {
+    parsed = JSON.parse(run.stdout)
+  } catch {
+    parsed = null
+  }
+  const daemonRow = rows(parsed).find(row => row.id === 'daemon')
+  const advice = daemonRow?.evidence ?? ''
+  check('health answered a certificate with the daemon row', daemonRow !== undefined, run.stderr.slice(-300))
+  check('with no daemon the row offers the opt-in start', advice.includes('opt-in: run `'), advice)
+  check("the start it names is this build's own invocation (node and bundle), not the bare word", advice.includes(`${DIST} daemon\``) && !advice.includes('run `mercury daemon`'), advice)
+  rmSync(world, { recursive: true, force: true })
+}
 
 console.log(`\n${failures === 0 ? 'ALL LAWS HOLD' : `${failures} FAILURE(S)`} — prove-advice-names-this-mercury`)
 process.exit(failures === 0 ? 0 : 1)

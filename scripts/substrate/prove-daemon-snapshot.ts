@@ -16,6 +16,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { daemonSnapshot } from '../../src/utils/cockpit/daemonSnapshot.js'
+import { thisMercuryCommand } from '../../src/services/privateChannel/installPath.js'
 import { daemonStatePath } from '../../src/daemon/controlSocket.js'
 
 let failures = 0
@@ -55,7 +56,7 @@ section('no daemon record ⇒ off (opt-in start path)')
   rmSync(recPath, { force: true })
   const s = daemonSnapshot()
   check('state === off', s.state === 'off', `state='${s.state}'`)
-  check('reason carries the opt-in start path', /opt-in: run `mercury daemon`/.test(s.reason ?? ''))
+  check("reason carries the opt-in start path, spelled as this install's own command", (s.reason ?? '').startsWith(`opt-in: run \`${thisMercuryCommand()} daemon\``), s.reason ?? '')
 }
 
 section('record present + pid alive ⇒ live')

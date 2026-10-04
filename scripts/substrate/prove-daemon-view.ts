@@ -16,6 +16,7 @@ import { readFileSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { deriveDaemonRows } from '../../src/utils/cockpit/daemonRows.js'
+import { thisMercuryCommand } from '../../src/services/privateChannel/installPath.js'
 import type { MercuryDaemonStatus } from '../../src/daemon/status.js'
 
 let failures = 0
@@ -136,7 +137,7 @@ section('no daemon ⇒ honest-empty (NEVER a fake live)')
 {
   const v = deriveDaemonRows(mkStatus({ daemon: null }))
   check("badge === 'off'", v.badge === 'off', v.badge)
-  check('empty hint points at `mercury daemon`', /run `mercury daemon`/.test(v.empty ?? ''))
+  check("empty hint points at this install's own `… daemon` start", (v.empty ?? '').startsWith(`run \`${thisMercuryCommand()} daemon\``), v.empty ?? '')
   check('zero rows', v.workers.length === 0)
   check('badge is NOT live', (v.badge as string) !== 'live')
   const vNull = deriveDaemonRows(null)

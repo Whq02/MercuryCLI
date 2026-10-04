@@ -14,6 +14,7 @@ import { listCapabilityKills, getAgentCapParseRejects } from '../permissions/cap
 import { ctxForecastEnabled } from './ctxForecast.js'
 import { carryForwardEnabled } from '../../daemon/carryForward.js'
 import { evolutionLedgerEnabled } from '../evolution/evolutionLedger.js'
+import { thisMercuryCommand } from '../../services/privateChannel/installPath.js'
 import { type Snapshot } from './types.js'
 
 export type Capability = { name: string; on: boolean; hint: string }
@@ -93,7 +94,7 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
     title: 'Autonomy',
     rows: [
       { name: 'Saturn scheduling', on: cronOn, hint: cronOn ? 'enabled' : 'MERCURY_SATURN_DISABLE set' },
-      { name: 'Scheduler daemon', on: daemonLive, hint: daemonLive ? (daemon.reason ?? 'live') : 'opt-in: mercury daemon' },
+      { name: 'Scheduler daemon', on: daemonLive, hint: daemonLive ? (daemon.reason ?? 'live') : `opt-in: ${thisMercuryCommand()} daemon` },
       { name: 'Daemon circuit-breaker', on: cronOn, hint: `daemon · trips at ${breakerFails} fails` },
       {
         name: 'Carry-forward handoff',
