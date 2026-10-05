@@ -221,10 +221,10 @@ section('§3 WIRING (IP-01/10/12/16)')
     'resolution is bounded — no spawns in the owner (IP-16)',
     !/(?<![.\w])(spawn|spawnSync|execFile|exec)\(/.test(owner),
   )
-  const diag = src('src/utils/healthDiagnostic.ts')
+  const report = src('src/utils/healthReport.ts')
   check(
-    'getCurrentInstallationType delegates to the ONE snapshot (IP-01)',
-    diag.includes('resolveInstallProvenance') && !diag.includes("return 'source-build'"),
+    'the install-provenance row reads the ONE snapshot, never a hand-rolled kind (IP-01)',
+    report.slice(report.indexOf("id: 'install-provenance'"), report.indexOf("id: 'install-provenance'") + 4000).includes('resolveInstallProvenance') && !report.includes("return 'source-build'"),
   )
   check(
     "/health carries the install-provenance row consuming the same snapshot (IP-10)",

@@ -8,10 +8,12 @@ import {
   sessionFactsPath,
   sessionTailDir,
   sessionTailPath,
+  type SessionTailV1,
 } from '../../services/engine-connector/seatProjections.js'
 import { WORK_UNREPORTED_MARK, workChipLine, workCounts } from '../../services/engine-connector/workCounts.js'
 import type { WorkRowV1 } from '../../services/engine-connector/types.js'
-import { sanitizeLabel, tailActivity } from '../../services/concourse/concourseSnapshot.js'
+import { MODEL_TURN_NOW_WORD, sanitizeLabel, tailActivity } from '../../services/concourse/concourseSnapshot.js'
+import { LOADING_PHASE_WORD, READING_PHASE_WORD, RETRY_PHASE_WORD } from '../Spinner/liveCounterWords.js'
 import { workerTranscriptPath } from '../../services/concourse/workerTranscript.js'
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -20,8 +22,22 @@ import { logForDebugging } from '../../utils/debug.js'
 export type LiveTileNow =
   | { kind: 'streaming'; line: string }
   | { kind: 'tool'; line: string }
+  | { kind: 'phase'; line: string }
   | { kind: 'settled'; line: string }
   | { kind: 'still' }
+
+export type LiveTileTail = Pick<SessionTailV1, 'atMs' | 'text'> & Partial<Pick<SessionTailV1, 'streamBlock' | 'stateWord' | 'waitingOnAgents' | 'wait'>>
+
+export function liveTilePhase(tail: LiveTileTail | null): string | null {
+  if (tail === null) return null
+  if (tail.stateWord === 'compacting') return 'compacting'
+  if (tail.stateWord === 'waiting-on-agents') return `waiting on ${tail.waitingOnAgents ?? 1} ${(tail.waitingOnAgents ?? 1) === 1 ? 'agent' : 'agents'}`
+  if (tail.wait?.kind === 'first-byte') return tail.wait.phase === 'loading' ? LOADING_PHASE_WORD : READING_PHASE_WORD
+  if (tail.wait?.kind === 'retry') return RETRY_PHASE_WORD
+  if (tail.streamBlock === 'thinking') return 'thinking'
+  if (tail.streamBlock === 'text' || tail.streamBlock === 'tool_use') return 'writing'
+  return null
+}
 
 const nowEquals = (a: LiveTileNow, b: LiveTileNow): boolean =>
   a.kind === b.kind && (a.kind === 'still' || (b.kind !== 'still' && a.line === (b as { line: string }).line))
@@ -41,12 +57,9 @@ export function askTileCopy(title: string, question: string): string {
 }
 
 const TAIL_FRESH_MS = 10_000
-export function gateTailFreshness(
-  tail: { atMs: number; text: string | null } | null,
-  nowMs: number,
-): { atMs: number; text: string | null } | null {
+export function gateTailFreshness(tail: LiveTileTail | null, nowMs: number): LiveTileTail | null {
   if (tail === null || tail.text === null) return tail
-  return nowMs - tail.atMs < TAIL_FRESH_MS ? tail : { atMs: tail.atMs, text: null }
+  return nowMs - tail.atMs < TAIL_FRESH_MS ? tail : { ...tail, text: null }
 }
 const DRAIN_COALESCE_MS = 80
 const HEARTBEAT_MS = 1000
@@ -69,8 +82,8 @@ interface TileEntry {
 export interface LiveTileStoreDeps {
   tailDir: () => string
   tailPath: (sessionId: string) => string
-  readTail: (sessionId: string) => { atMs: number; text: string | null } | null
-  activity: (rec: { sessionId: string; workspaceId: string }) => { label: string; kind?: 'tool' | 'text' } | null
+  readTail: (sessionId: string) => LiveTileTail | null
+  activity: (rec: { sessionId: string; workspaceId: string }) => { label: string; kind?: 'tool' | 'text'; settled?: true } | null
   transcriptPath: (rec: { sessionId: string; workspaceId: string }) => string
   nowMs: () => number
   forceDegrade: boolean
@@ -214,14 +227,18 @@ export class LiveTileStore {
     this.drainTimer = t
   }
 
-  private derive(e: TileEntry, tail: { atMs: number; text: string | null } | null): LiveTileNow {
+  private derive(e: TileEntry, tail: LiveTileTail | null): LiveTileNow {
     if (tail !== null && tail.text !== null && this.deps.nowMs() - tail.atMs < TAIL_FRESH_MS) {
       const line = lastLineOf(tail.text)
       if (line.length > 0) return { kind: 'streaming', line }
     }
+    const phase = liveTilePhase(tail)
+    if (phase !== null) return { kind: 'phase', line: phase }
     const act = this.deps.activity({ sessionId: e.sessionId, workspaceId: e.workspaceId })
-    if (act !== null && act.label.length > 0)
-      return act.kind === 'tool' ? { kind: 'tool', line: act.label } : { kind: 'settled', line: act.label }
+    if (act !== null && act.label.length > 0) {
+      if (act.kind === 'tool') return act.settled === true ? { kind: 'phase', line: MODEL_TURN_NOW_WORD } : { kind: 'tool', line: act.label }
+      return { kind: 'settled', line: act.label }
+    }
     return { kind: 'still' }
   }
 

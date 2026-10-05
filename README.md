@@ -435,9 +435,9 @@ The output row types, by their `type` field:
   `message_id` and `block`.
 - `tool_result` — the call's result: `call_id`, `status` (`ok`, `error` or
   `aborted`) and `output`.
-- `tool_update` — progress from a running shell, PowerShell or MCP call:
-  `call_id`, `tick`, `source`, and whichever of `line`, `elapsed_s`, `lines`,
-  `bytes`, `budget_ms`, `progress` and `total` the call reports.
+- `tool_update` — progress from a running shell, PowerShell, MCP or Eval
+  call: `call_id`, `tick`, `source`, and whichever of `line`, `elapsed_s`,
+  `lines`, `bytes`, `budget_ms`, `progress` and `total` the call reports.
 - `step` — one model call of the main thread: `message_id`, `model`, `usage`,
   and `stop` when the model said why it stopped.
 - `outcome` — the turn's result, described below.
@@ -475,11 +475,14 @@ included when available. Usage names `input_tokens` (cached tokens included),
 when reported, `reasoning_output_tokens`. `models` gives the per-model
 figures; `steps` counts the main thread's model calls.
 
-The status is `completed`, `refused`, `failed`, `interrupted`, `turn_limit`,
-`budget_limit`, `schema_unmet` or `loop_stopped`. A completed run exits 0,
-other outcomes exit 1, and a usage error exits 2. SIGINT and SIGTERM exit
-130 and 143 after the interrupted turn's outcome is flushed. A refused tool
-call is listed in `denials`; it does not make a completed turn a failure.
+The status is `completed`, `blocked`, `refused`, `failed`, `interrupted`,
+`turn_limit`, `budget_limit`, `schema_unmet` or `loop_stopped`. A completed
+run exits 0, other outcomes exit 1, and a usage error exits 2. SIGINT and
+SIGTERM exit 130 and 143 after the interrupted turn's outcome is flushed. A
+refused tool call is listed in `denials`; it does not make a completed turn a
+failure. A run whose final answer ends with the two lines `BLOCKED ON
+OPERATOR: …` and `RESUME WHEN: …` is `blocked`: the answer is kept, `error`
+carries the blocker and the resume condition, and the run exits 1.
 
 `--input rows` requires `--format rows` and reads one input object per line:
 

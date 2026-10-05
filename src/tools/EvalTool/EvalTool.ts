@@ -47,6 +47,7 @@ type EvalToolInput = z.infer<InputSchema>
 export type EvalToolOutput = EvalCellOutcome & { language: EvalLanguage; title?: string }
 
 const PROGRESS_THROTTLE_MS = 300
+const RUNNING_TICK_MS = 1000
 
 function composeResultText(output: EvalToolOutput): string {
   const parts: string[] = []
@@ -135,18 +136,38 @@ const evalToolDef = buildTool({
     let pendingStream: 'stdout' | 'stderr' = 'stdout'
     let lastEmit = 0
     let flushTimer: ReturnType<typeof setTimeout> | null = null
+    let lastOutputLine = ''
     const flushTail = (): void => {
       if (!pendingTail) return
+      const tail = pendingTail.slice(-2_000)
+      lastOutputLine = tail.trimEnd().split('\n').at(-1) ?? ''
       emit({
         type: 'eval_progress',
         kind: 'output',
         stream: pendingStream,
-        tail: pendingTail.slice(-2_000),
+        tail,
         language: input.language,
         ...(input.title ? { title: input.title } : {}),
       })
       lastEmit = Date.now()
       pendingTail = ''
+    }
+    let runningTimer: ReturnType<typeof setInterval> | null = null
+    const onCellStarted = ({ budgetMs }: { budgetMs: number | null }): void => {
+      const startedAt = Date.now()
+      const tick = (): void =>
+        emit({
+          type: 'eval_progress',
+          kind: 'running',
+          elapsedSeconds: Math.floor((Date.now() - startedAt) / 1000),
+          ...(budgetMs !== null ? { budgetMs } : {}),
+          ...(lastOutputLine !== '' ? { tail: lastOutputLine } : {}),
+          language: input.language,
+          ...(input.title ? { title: input.title } : {}),
+        })
+      tick()
+      runningTimer = setInterval(tick, RUNNING_TICK_MS)
+      runningTimer.unref?.()
     }
 
     try {
@@ -162,6 +183,7 @@ const evalToolDef = buildTool({
         },
         abortSignal: context.abortController.signal,
         serveBridge,
+        onCellStarted,
         onLiveOutput: (stream, chunk) => {
           pendingStream = stream
           pendingTail += chunk
@@ -185,6 +207,7 @@ const evalToolDef = buildTool({
       return { data }
     } finally {
       if (flushTimer) clearTimeout(flushTimer)
+      if (runningTimer) clearInterval(runningTimer)
       context.abortController.signal.removeEventListener('abort', onSessionAbort)
       cellAbort.abort()
     }

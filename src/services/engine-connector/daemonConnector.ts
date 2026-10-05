@@ -54,7 +54,7 @@ import {
 } from './seatProjections.js'
 import { clearEphemeralProgress, publishEphemeralProgress } from '../../state/ephemeralProgressStore.js'
 import type { ProgressMessage } from '../../types/message.js'
-import type { MCPProgress, ShellProgress } from '../../types/tools.js'
+import type { EvalToolProgress, MCPProgress, ShellProgress } from '../../types/tools.js'
 import { IDLE_LIVE, type LiveTurnFactsV1, type LostLineV1, type SeatLiveExtensionV1, type SeatStatusV1, type SessionLiveV1 } from './seatLive.js'
 import { interruptLatchRelease } from './interruptLatch.js'
 import { createNoticeRow, deliveredNoticeRow, isNoticeFact, isNoticeKey, noticeKeyOf, noticeRowLanded, queueOrderedSends } from './queuedNotices.js'
@@ -71,6 +71,7 @@ import type {
   AskAnswerV1,
   AskReceiptV1,
   CheckpointFactsV1,
+  EditOutcomeRowV1,
   EngineConnectorV1,
   KitDialReceiptV1,
   SpawnSwitchReceiptV1,
@@ -148,8 +149,16 @@ export function lostWithRunnerLine(lines: readonly string[]): string {
 const PENDING_WITHDRAW_WAIT_MS = 10_000
 
 function reconstructedProgressMessage(parentToolUseID: string, entry: SessionProgressEntryV1): ProgressMessage {
-  let data: ShellProgress | MCPProgress
-  if (entry.dataType === 'mcp_progress') {
+  let data: ShellProgress | MCPProgress | EvalToolProgress
+  if (entry.dataType === 'eval_progress') {
+    data = {
+      type: 'eval_progress',
+      kind: 'running',
+      elapsedSeconds: entry.elapsedTimeSeconds ?? 0,
+      ...(entry.budgetMs !== undefined ? { budgetMs: entry.budgetMs } : {}),
+      ...(entry.latestLine !== undefined ? { tail: entry.latestLine } : {}),
+    }
+  } else if (entry.dataType === 'mcp_progress') {
     const mcp: MCPProgress = { type: 'mcp_progress', status: 'progress', serverName: '', toolName: '' }
     if (entry.mcpProgress !== undefined) mcp.progress = entry.mcpProgress
     if (entry.mcpTotal !== undefined) mcp.total = entry.mcpTotal
@@ -478,6 +487,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private liveTurnChars = 0
   private liveTurnOutputTokens: number | null = null
   private liveTurnThinkingChars = 0
+  private liveTurnThinkingBlocks = 0
   private liveFirstByteAtMs: number | null = null
   private liveStateWord: 'compacting' | 'waiting-on-agents' | null = null
   private liveAgentsWaiting = 0
@@ -603,6 +613,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       this.liveTurnChars = 0
       this.liveTurnOutputTokens = null
       this.liveTurnThinkingChars = 0
+      this.liveTurnThinkingBlocks = 0
       this.liveFirstByteAtMs = null
       this.setLiveStateWord(null)
       this.setLiveFold(null)
@@ -614,6 +625,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.liveTurnChars = tail.turnChars ?? 0
     this.liveTurnOutputTokens = typeof tail.turnOutputTokens === 'number' ? tail.turnOutputTokens : null
     this.liveTurnThinkingChars = typeof tail.turnThinkingChars === 'number' && Number.isFinite(tail.turnThinkingChars) ? Math.max(0, tail.turnThinkingChars) : 0
+    this.liveTurnThinkingBlocks = typeof tail.turnThinkingBlocks === 'number' && Number.isFinite(tail.turnThinkingBlocks) ? Math.max(0, Math.floor(tail.turnThinkingBlocks)) : 0
     this.liveFirstByteAtMs = typeof tail.firstByteAtMs === 'number' && Number.isFinite(tail.firstByteAtMs) ? tail.firstByteAtMs : null
     this.setLiveStateWord(
       tail.stateWord === 'compacting' ? 'compacting' : tail.stateWord === 'waiting-on-agents' ? 'waiting-on-agents' : null,
@@ -707,8 +719,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     return {
       replyChars: Math.max(0, this.liveTurnChars - this.liveTurnThinkingChars),
       thinkingChars: this.liveTurnThinkingChars,
+      thinkingBlocks: this.liveTurnThinkingBlocks,
       wireOutputTokens: this.liveTurnOutputTokens,
       firstByteAtMs: this.liveFirstByteAtMs,
+      lastByteAtMs: this.effectiveLive.inFlight ? this.lastEventAtMs : null,
       wait: this.liveWait,
     }
   }
@@ -728,7 +742,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const wasCompacting = this.liveStateWord === 'compacting'
     this.liveStateWord = word
     this.liveAgentsWaiting = count
-    if (wasCompacting !== (word === 'compacting')) {
+    if (wasCompacting && word !== 'compacting') {
       for (const s of this.sends) if (s.state === 'queued') this.dressSend(s.clientMessageId, 'queued')
     }
     this.recomputeLive()
@@ -1134,7 +1148,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   private dressSend(clientMessageId: string, state: SeatSend['state']): void {
-    const heldFor = state === 'queued' && this.liveStateWord === 'compacting' ? ('compaction' as const) : undefined
+    const current = this.sends.find(s => s.clientMessageId === clientMessageId)
+    const enqueuedUnderTheFold = current !== undefined && (current.state !== 'queued' || current.heldFor === 'compaction')
+    const heldFor = state === 'queued' && this.liveStateWord === 'compacting' && enqueuedUnderTheFold ? ('compaction' as const) : undefined
     this.sends = this.sends.map(s => {
       if (s.clientMessageId !== clientMessageId) return s
       const next: SeatSend = { ...s, state }
@@ -2094,6 +2110,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   identity(): SeatIdentityV1 {
     return this.facts?.identity ?? { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null }
+  }
+
+  editOutcomes(): EditOutcomeRowV1[] | null {
+    return this.facts?.editOutcomes ?? null
   }
 
   skillsRoster(): SkillsRosterV1 {

@@ -51,6 +51,7 @@ export type ModelOption = {
   descriptionForModel?: string
   group?: string
   unavailable?: string
+  cataloguePending?: true
   statedContextWindow?: number
   catalogueDoor?: { family: string; total: number }
   liveUnknown?: boolean
@@ -417,7 +418,8 @@ function getQualifiedGptOptions(): ModelOption[] {
       group: OPENAI_MODEL_GROUP,
     }
     if (signIn) return [connectRow]
-    return [connectRow, ...GPT_DISPLAY_PINS.map(pin => unavailableGptRow(pin, reason))]
+    const pending = availability.why === 'catalogue-pending'
+    return [connectRow, ...GPT_DISPLAY_PINS.map(pin => (pending ? { ...unavailableGptRow(pin, reason), cataloguePending: true as const } : unavailableGptRow(pin, reason)))]
   }
   const source =
     availability.sourceKind === 'chatgpt-subscription' ? 'ChatGPT subscription' : 'OpenAI API key'

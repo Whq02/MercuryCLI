@@ -6,6 +6,7 @@ import React, {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react'
 import { Box, Text } from '../ink.js'
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js'
@@ -22,6 +23,7 @@ import type { Command } from '../commands.js'
 import type { AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js'
 import { AGENT_TOOL_NAME } from '../tools/AgentTool/constants.js'
 import { hiddenAgentToolUses } from '../tools/AgentTool/UI.js'
+import { expandedRowsOf, subscribeExpandedRows, toggleExpandedRow, transcriptMemoryOf, type TranscriptAnchor } from './messages/transcriptMemory.js'
 import {
   buildMessageLookups,
   EMPTY_STRING_SET,
@@ -104,7 +106,7 @@ const EMPTY_NORMALIZED: NormalizedMessage[] = []
 const EMPTY_SYNTHETIC: Array<{ streaming: StreamingToolUse; uuid: ReturnType<typeof deriveUUID> }> = []
 const EMPTY_COMPOSITION: TranscriptComposition = { collapsed: [], lookups: buildMessageLookups([], []), truncated: false, hiddenCount: 0 }
 
-export type SliceAnchor = { uuid: string; idx: number } | null
+export type SliceAnchor = TranscriptAnchor
 
 export function computeSliceStart(
   collapsed: RenderableMessage[],
@@ -478,7 +480,7 @@ function MessagesInner({
     )
   }, [engineForLedger, collapsed, afterRows])
 
-  const anchorRef = useRef<SliceAnchor>(null)
+  const anchorRef = transcriptMemoryOf(conversationId).anchor
   const { visible, liveReceipt } = useMemo(() => {
     let rows: RenderableMessage[]
     if (renderRange) {
@@ -554,9 +556,12 @@ function MessagesInner({
     [collapsed],
   )
 
-  const [expandedKeys, setExpandedKeys] = useState<ReadonlySet<string>>(
-    () => new Set<string>(),
+  const subscribeExpansion = useCallback(
+    (listener: () => void) => subscribeExpandedRows(conversationId, listener),
+    [conversationId],
   )
+  const readExpansion = useCallback(() => expandedRowsOf(conversationId), [conversationId])
+  const expandedKeys = useSyncExternalStore(subscribeExpansion, readExpansion, readExpansion)
   const expansionKeyOf = useCallback((msg: RenderableMessage): string => {
     if (
       msg.type !== 'grouped_tool_use' &&
@@ -660,16 +665,8 @@ function MessagesInner({
     !isMessageSelectorVisible
 
   const onItemClick = useCallback(
-    (message: RenderableMessage) => {
-      const key = expansionKeyOf(message)
-      setExpandedKeys(previous => {
-        const next = new Set(previous)
-        if (next.has(key)) next.delete(key)
-        else next.add(key)
-        return next
-      })
-    },
-    [expansionKeyOf],
+    (message: RenderableMessage) => toggleExpandedRow(conversationId, expansionKeyOf(message)),
+    [conversationId, expansionKeyOf],
   )
 
   const searchTextCache = useRef(new WeakMap<object, string>())

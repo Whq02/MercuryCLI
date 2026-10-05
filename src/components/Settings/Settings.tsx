@@ -41,7 +41,7 @@ export function useSettingsPopupFrame(): SettingsPopupFrame {
   return frame
 }
 
-export function useOptionalSettingsPopupFrame(): SettingsPopupFrame | null {
+export function useSettingsPopupFrameIfAny(): SettingsPopupFrame | null {
   return useContext(SettingsPopupFrameContext)
 }
 

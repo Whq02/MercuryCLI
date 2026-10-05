@@ -274,7 +274,7 @@ export function outcomeRow(scope: RowScope & { turn: number }, facts: OutcomeFac
     turn_id: facts.turnId,
     status: facts.status,
     ...(stop !== undefined ? { stop } : {}),
-    ...(facts.status === 'completed' && facts.answer !== undefined ? { answer: facts.answer } : {}),
+    ...((facts.status === 'completed' || facts.status === 'blocked') && facts.answer !== undefined ? { answer: facts.answer } : {}),
     ...(facts.structured !== undefined ? { structured: facts.structured } : {}),
     ...(error !== undefined ? { error } : {}),
     steps: facts.steps,

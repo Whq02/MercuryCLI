@@ -125,6 +125,7 @@ interface SeatState {
   turnOutputTokens: number | null
   messageOutputTokens: number
   turnThinkingChars: number
+  turnThinkingBlocks: number
   firstByteAtMs: number | null
   stateWord: 'compacting' | 'waiting-on-agents' | null
   waitingOnAgents: number
@@ -154,7 +155,7 @@ export function seatGenerationOf(short: string): number {
 function seatOf(short: string): SeatState {
   let s = seats.get(short)
   if (!s) {
-    s = { short, lastAnswer: null, generation: seatGenerations.get(short) ?? 0, debounce: null, workPoll: null, lastBusy: false, lastFactsAtMs: 0, sessionId: null, tail: null, tailMessageId: null, tailPhase: null, tailTimer: null, tailDirty: false, streamedThisTurn: false, turnChars: 0, turnOutputTokens: null, messageOutputTokens: 0, turnThinkingChars: 0, firstByteAtMs: null, stateWord: null, waitingOnAgents: 0, fold: null, wait: null, progress: new Map(), progressTimer: null, progressDirty: false, lastModelSettle: null, heldModel: null, heldEffort: null, heldSpawnSwitches: {}, lastEventAtMs: null, streamBlock: null, blockSinceMs: null, livenessTimer: null, livenessDirty: false }
+    s = { short, lastAnswer: null, generation: seatGenerations.get(short) ?? 0, debounce: null, workPoll: null, lastBusy: false, lastFactsAtMs: 0, sessionId: null, tail: null, tailMessageId: null, tailPhase: null, tailTimer: null, tailDirty: false, streamedThisTurn: false, turnChars: 0, turnOutputTokens: null, messageOutputTokens: 0, turnThinkingChars: 0, turnThinkingBlocks: 0, firstByteAtMs: null, stateWord: null, waitingOnAgents: 0, fold: null, wait: null, progress: new Map(), progressTimer: null, progressDirty: false, lastModelSettle: null, heldModel: null, heldEffort: null, heldSpawnSwitches: {}, lastEventAtMs: null, streamBlock: null, blockSinceMs: null, livenessTimer: null, livenessDirty: false }
     seats.set(short, s)
   }
   return s
@@ -176,6 +177,7 @@ function publishTailNow(seat: SeatState, dir?: string): void {
         ...(seat.turnChars > 0 ? { turnChars: seat.turnChars } : {}),
         ...(seat.turnOutputTokens !== null ? { turnOutputTokens: seat.turnOutputTokens + seat.messageOutputTokens } : {}),
         ...(seat.turnThinkingChars > 0 ? { turnThinkingChars: seat.turnThinkingChars } : {}),
+        ...(seat.turnThinkingBlocks > 0 ? { turnThinkingBlocks: seat.turnThinkingBlocks } : {}),
         ...(seat.firstByteAtMs !== null ? { firstByteAtMs: seat.firstByteAtMs } : {}),
         ...(seat.tailMessageId !== null ? { messageId: seat.tailMessageId } : {}),
         ...(seat.tailPhase !== null ? { phase: seat.tailPhase } : {}),
@@ -271,6 +273,7 @@ function onSeatPartialRow(seat: SeatState, row: SeatRow, dir?: string): void {
     }
     seat.streamBlock = seatBlockOf(row.of)
     seat.blockSinceMs = seat.streamBlock === null ? null : Date.now()
+    if (seat.streamBlock === 'thinking') seat.turnThinkingBlocks += 1
     if (row.of === 'text') seat.tailPhase = textPhaseOf(row.phase)
     publishTailNow(seat, dir)
     return
@@ -366,7 +369,7 @@ function onSeatToolUpdate(seat: SeatState, row: SeatRow, dir?: string): void {
   const key = typeof row.parent_call_id === 'string' ? row.parent_call_id : row.call_id
   const prior = seat.progress.get(key)
   if (prior !== undefined && row.tick <= prior.seq) return
-  const dataType = row.source === 'mcp' ? 'mcp_progress' : row.source === 'powershell' ? 'powershell_progress' : 'bash_progress'
+  const dataType = row.source === 'mcp' ? 'mcp_progress' : row.source === 'powershell' ? 'powershell_progress' : row.source === 'eval' ? 'eval_progress' : 'bash_progress'
   seat.progress.set(key, {
     toolUseID: row.call_id,
     dataType,
@@ -807,6 +810,7 @@ export function onSeatRow(short: string, row: SeatRow, roster: SeatRosterPort, d
       seat.turnOutputTokens = null
       seat.messageOutputTokens = 0
       seat.turnThinkingChars = 0
+      seat.turnThinkingBlocks = 0
       seat.firstByteAtMs = null
       seat.tailMessageId = null
       seat.tailPhase = null
@@ -858,6 +862,7 @@ export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: strin
   seat.turnOutputTokens = null
   seat.messageOutputTokens = 0
   seat.turnThinkingChars = 0
+  seat.turnThinkingBlocks = 0
   seat.firstByteAtMs = null
   seat.tailMessageId = null
   seat.tailPhase = null

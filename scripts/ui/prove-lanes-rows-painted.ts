@@ -127,6 +127,16 @@ section('§2 the section holding the cursor never sheds, whatever the label of t
   check('…and the card that yields first is the one shed', !short.includes('WORKBENCH') && short.includes('more: /workbench'), short)
   await m.close()
 }
+{
+  const m = await mount({ a1: agentTask('a1', 'count the harbour', 'running') }, 40)
+  const rest = (focus.getHelmRows('lanes') as Array<{ kind: string; label: string }>)[focus.getHelmCursor('lanes')]
+  check('at rest (never focused) the cursor rests on the first published row, in the CREW section', rest !== undefined && rest.label.startsWith('crew'), JSON.stringify(rest))
+  await m.paint(9)
+  const short = m.frame()
+  check('RED ON THE CURRENT TIP: a busy rail at rest, too short even for its CREW section, keeps the section under the resting cursor and clips the sections below (the base shape)', short.includes('CREW') && short.includes('count the'), short)
+  check('…the card below is the one shed, with the pointer', !short.includes('WORKBENCH') && short.includes('more: /workbench'), short)
+  await m.close()
+}
 
 section('§3 the shed bills the rows it paints: a merged rail whose painted rows exactly fill the glass sheds nothing')
 {
@@ -141,7 +151,7 @@ section('§3 the shed bills the rows it paints: a merged rail whose painted rows
   check(`RED ON THE BASE: with exactly ${glass} rows of glass (banner 1, card 1+2, hint 1+2, files 1+2, glance 3+2) the rail sheds nothing`, exact.includes('WORKBENCH') && !exact.includes('more: /workbench'), exact)
   await m.paint(glass - 1)
   const tight = m.frame()
-  check('one row less sheds the WORKBENCH card first, with the pointer — the resting cursor protects nothing while the rail is not focused', !tight.includes('WORKBENCH') && tight.includes('more: /workbench'), tight)
+  check('one row less keeps the WORKBENCH card under the resting cursor and sheds the next in the ladder, with the pointer (the base shape at rest)', tight.includes('WORKBENCH') && !tight.includes('NEXT') && tight.includes('more: /help'), tight)
   await m.paint(40)
   focus.setHelmFocus('lanes')
   await settle(250)
