@@ -182,6 +182,7 @@ const DEFAULT_HEADLESS_IDLE_MINUTES = 20
 const SIGNAL_SETTLE_MS = 5_000
 import { getInMemoryErrors, logError } from '../utils/log.js'
 import { processMainOwner } from '../services/run/resolveOwner.js'
+import { editOutcomeRows } from '../services/changeTransaction/editOutcomeLedger.js'
 import { getRunSnapshot, reconcileOnResume } from '../services/run/runCoordinator.js'
 import type { Message } from '../types/message.js'
 import type { ContentBlockParam } from '../types/wire.js'
@@ -2066,6 +2067,7 @@ export async function runHeadless(
         work: projectWorkRoster(state.tasks),
         pauseGate: { paused: operatorPauseGate.paused(), parked: operatorPauseGate.parked().length },
         advisor: advisorFacts(),
+        editOutcomes: editOutcomeRows(processMainOwner()),
         notices: noticeRows(),
         mission: (await listSessionMission().catch((): Awaited<ReturnType<typeof listSessionMission>> => [])).map(task => ({
           id: task.id,

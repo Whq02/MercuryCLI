@@ -200,6 +200,7 @@ const FACTS: KeyTable = {
   spawnSwitches: 'spawn_switches',
   openaiCatalogue: 'openai_catalogue',
   pauseGate: 'pause_gate',
+  editOutcomes: 'edit_outcomes',
 }
 const BOX: KeyTable = {
   atMs: 'at_ms',

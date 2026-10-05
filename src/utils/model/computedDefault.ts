@@ -288,7 +288,9 @@ function pickerRowFor(family: string, rows: ModelOption[] | null): LaneRowVerdic
     const selectable = familyRows.filter(option => option.unavailable === undefined)
     if (selectable.length === 0) {
       const first = familyRows[0]
-      if (first !== undefined && first.unavailable !== undefined) return { usable: false, why: `${first.label}: ${first.unavailable}` }
+      if (first !== undefined && first.unavailable !== undefined) {
+        return { usable: false, why: `${first.label}: ${first.unavailable}`, ...(familyRows.every(option => option.cataloguePending === true) ? { unfetched: true } : {}) }
+      }
       const { catalogueTrafficVerdict } =
         require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
       const gate = (['huggingface', 'openrouter', 'gemini', 'openai', 'local'] as const).includes(family as never)
