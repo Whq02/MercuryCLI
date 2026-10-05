@@ -13,7 +13,7 @@ import { isMouseCaptureEnabled } from '../utils/config/derived.js'
 import { isMouseTrackingEnabled as mouseTrackingEnabledByEnvironment } from '../utils/fullscreen.js'
 import { logError } from '../utils/log.js'
 import { applyPointerShape, resetPointerShape } from '../utils/cockpit/pointerShape.js'
-import { burnFrameCostPad, noteFrameCost } from '../utils/cockpit/motionGovernor.js'
+import { burnFrameCostPad, noteFrameCost, noteFrameWire } from '../utils/cockpit/motionGovernor.js'
 import {
   CharPool,
   charInCellAt,
@@ -82,6 +82,7 @@ import createRenderer, { type Renderer, type RenderResult } from './renderer.js'
 import { refreshConsoleSize } from './root/console-size.js'
 import { planCursor, type CursorPoint } from './root/cursor-park.js'
 import { FrameLedger } from './root/frame-ledger.js'
+import { readFrameWire } from './root/frame-trace.js'
 import { applyOverlayPass, type SearchPositions } from './root/overlay-pass.js'
 import { RenderScheduler } from './root/render-scheduler.js'
 import {
@@ -882,7 +883,6 @@ export default class Ink {
 
     const durationMs = performance.now() - frameStart
     this.engine?.notePaintCost(durationMs, 'normal')
-    noteFrameCost(durationMs)
     fluxFrame(durationMs, patches.length)
     const commitMs = getLastCommitMs()
     const yogaMs = getLastYogaMs()
@@ -904,6 +904,8 @@ export default class Ink {
       },
       flickers,
     })
+    noteFrameWire(readFrameWire())
+    noteFrameCost(durationMs)
   }
 
   private resolveCursorTarget(): CursorPoint | null {
