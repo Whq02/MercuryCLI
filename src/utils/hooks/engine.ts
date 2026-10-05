@@ -248,6 +248,10 @@ function permissionAfter(prior: PermissionResult['behavior'] | undefined, next: 
   return prior
 }
 
+export async function* executeHooksPerHook(options: Parameters<typeof executeHooks>[0] & { perHook?: boolean }): AsyncGenerator<HookResult> {
+  for await (const result of executeHooks({ ...options, perHook: true })) yield result as HookResult
+}
+
 export async function* executeHooks({
   hookInput, toolUseID, matchQuery, signal, timeoutMs = TOOL_HOOK_EXECUTION_TIMEOUT_MS, toolUseContext, messages, forceSyncExecution, requestPrompt, toolInputSummary, perHook, getAppState,
 }: {
@@ -263,7 +267,7 @@ export async function* executeHooks({
   toolInputSummary?: string | null
   perHook?: boolean
   getAppState?: () => Parameters<typeof getMatchingHooks>[0]
-}): AsyncGenerator<AggregatedHookResult | HookResult> {
+}): AsyncGenerator<AggregatedHookResult> {
   if (shouldDisableAllHooksIncludingManaged() || isEnvTruthy(process.env.MERCURY_BARE)) return
   const hookEvent = hookInput.hook_event_name
   const hookName = matchQuery ? `${hookEvent}:${matchQuery}` : hookEvent
@@ -312,7 +316,7 @@ export async function* executeHooks({
         await stream.return(undefined as never)
         return item.done ? undefined : item.value
       }))
-      for (const result of results) if (result) yield result
+      for (const result of results) if (result) yield result as AggregatedHookResult
       return
     }
     for await (const result of all(streams)) {

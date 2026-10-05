@@ -189,6 +189,6 @@ export function startHookProgressInterval(params: {
   getOutput: () => HookOutputSnapshot | Promise<HookOutputSnapshot>
   intervalMs?: number
 }): () => void {
-  void params
+  logForDebugging(`hook ${params.hookName} (${params.hookEvent}) progress rides its output chunks; the interval road is retired`)
   return () => {}
 }
