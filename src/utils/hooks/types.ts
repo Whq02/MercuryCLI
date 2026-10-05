@@ -36,6 +36,7 @@ export interface HookResult {
   elicitationResultResponse?: ElicitationResponse
   retry?: boolean
   hook: HookCommand | HookCallback | FunctionHook
+  lifecycle?: HookLifecycleResult
 }
 
 export type AggregatedHookResult = {

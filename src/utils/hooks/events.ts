@@ -33,7 +33,7 @@ import type {
 } from '../../types/hooks.js'
 import type { AggregatedHookResult, HookBlockingError } from './types.js'
 import { checkLeaseGuard } from '../crew/leaseGuard.js'
-import { executeHooks } from './engine.js'
+import { runHookInput } from './rows.js'
 import { executeLifecycleHooks } from './lifecycleHooks.js'
 import { hasHookForEvent } from './matching.js'
 import { parseElicitationHookOutput } from './outputProcessing.js'
@@ -105,7 +105,7 @@ export async function* executePreToolHooks<ToolInput>(
     tool_use_id: toolUseID,
   }
 
-  yield* executeHooks({
+  yield* runHookInput({
     hookInput,
     toolUseID,
     matchQuery: toolName,
@@ -137,7 +137,7 @@ export async function* executePostToolHooks<ToolInput, ToolResponse>(
     tool_use_id: toolUseID,
   }
 
-  yield* executeHooks({
+  yield* runHookInput({
     hookInput,
     toolUseID,
     matchQuery: toolName,
@@ -174,7 +174,7 @@ export async function* executePostToolUseFailureHooks<ToolInput>(
     is_interrupt: isInterrupt,
   }
 
-  yield* executeHooks({
+  yield* runHookInput({
     hookInput,
     toolUseID,
     matchQuery: toolName,
@@ -209,7 +209,7 @@ export async function* executePermissionDeniedHooks<ToolInput>(
     reason,
   }
 
-  yield* executeHooks({
+  yield* runHookInput({
     hookInput,
     toolUseID,
     matchQuery: toolName,
@@ -318,7 +318,7 @@ export async function* executeStopHooks(
         last_assistant_message: lastAssistantText,
       }
 
-  yield* executeHooks({
+  yield* runHookInput({
     hookInput,
     toolUseID: randomUUID(),
     signal,
@@ -343,7 +343,7 @@ export async function* executeCrewmateIdleHooks(
     crew_name: crewName,
   }
 
-  yield* executeHooks({
+  yield* runHookInput({
     hookInput,
     toolUseID: randomUUID(),
     signal,
@@ -372,7 +372,7 @@ export async function* executeTaskCreatedHooks(
     crew_name: crewName,
   }
 
-  yield* executeHooks({
+  yield* runHookInput({
     hookInput,
     toolUseID: randomUUID(),
     signal,
@@ -402,7 +402,7 @@ export async function* executeTaskCompletedHooks(
     crew_name: crewName,
   }
 
-  yield* executeHooks({
+  yield* runHookInput({
     hookInput,
     toolUseID: randomUUID(),
     signal,
@@ -432,7 +432,7 @@ export async function* executeUserPromptSubmitHooks(
     prompt,
   }
 
-  yield* executeHooks({
+  yield* runHookInput({
     hookInput,
     toolUseID: randomUUID(),
     signal: toolUseContext.abortController.signal,
@@ -467,7 +467,7 @@ export async function* executeUserPromptExpansionHooks(
     prompt: fullCommandString,
   }
 
-  yield* executeHooks({
+  yield* runHookInput({
     hookInput,
     toolUseID: randomUUID(),
     matchQuery: command.name,
@@ -495,7 +495,7 @@ export async function* executeSessionStartHooks(
     model,
   }
 
-  yield* executeHooks({
+  yield* runHookInput({
     hookInput,
     toolUseID: randomUUID(),
     matchQuery: source,
@@ -517,7 +517,7 @@ export async function* executeSetupHooks(
     trigger,
   }
 
-  yield* executeHooks({
+  yield* runHookInput({
     hookInput,
     toolUseID: randomUUID(),
     matchQuery: trigger,
@@ -540,7 +540,7 @@ export async function* executeSubagentStartHooks(
     agent_type: agentType,
   }
 
-  yield* executeHooks({
+  yield* runHookInput({
     hookInput,
     toolUseID: randomUUID(),
     matchQuery: agentType,
@@ -787,7 +787,7 @@ export async function* executePermissionRequestHooks<ToolInput>(
     permission_suggestions: permissionSuggestions,
   }
 
-  yield* executeHooks({
+  yield* runHookInput({
     hookInput,
     toolUseID,
     matchQuery: toolName,
