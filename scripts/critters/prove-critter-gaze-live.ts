@@ -48,7 +48,7 @@ function eyeClusters(g: Grid): Array<{ cols: number[]; pupilCol: number }> {
     let run: number[] = []
     const flush = (): void => {
       if (run.length >= 2) {
-        const pupil = run.find(x => norm(row[x]!.bg) === PUPIL_HEX)
+        const pupil = run.find(x => norm(row[x]!.bg) === PUPIL_HEX || norm(row[x]!.fg) === PUPIL_HEX)
         if (pupil !== undefined) clusters.push({ cols: run, pupilCol: pupil })
       }
       run = []
@@ -58,7 +58,8 @@ function eyeClusters(g: Grid): Array<{ cols: number[]; pupilCol: number }> {
       const cream =
         norm(cell.fg) === CREAM ||
         norm(cell.bg) === CREAM ||
-        norm(cell.bg) === PUPIL_HEX
+        norm(cell.bg) === PUPIL_HEX ||
+        norm(cell.fg) === PUPIL_HEX
       if (cream) run.push(x)
       else flush()
     }

@@ -4,7 +4,9 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
-const SRC = readFileSync(join(root, 'src/components/Spinner/SpinnerAnimationRow.tsx'), 'utf-8')
+const ROW = readFileSync(join(root, 'src/components/Spinner/SpinnerAnimationRow.tsx'), 'utf-8')
+const HUD = readFileSync(join(root, 'src/components/Spinner/spinnerHud.ts'), 'utf-8')
+const SRC = `${ROW}\n${HUD}`
 
 let failures = 0
 const check = (label: string, cond: boolean): void => {
@@ -28,8 +30,7 @@ check('imports the SPARK ramp + gaugeColor from the kit',
 check('the gauge fill is ramp-colored via gaugeColor(ctxPct)', /gaugeColor\(ctxPct\)/.test(SRC))
 check('the spark cell is selected off the SPARK ramp by fill %',
   /SPARK\[Math\.min\(SPARK\.length\s*-\s*1,\s*Math\.floor\(\(ctxPct\s*\/\s*100\)\s*\*\s*SPARK\.length\)\)\]/.test(SRC))
-const ctxBlock = SRC.slice(SRC.indexOf('Context-window burn'), SRC.indexOf('Context-window burn') + 1400)
-check('the gauge introduces NO raw hex (tokens only)', !/#[0-9a-fA-F]{3,6}\b/.test(ctxBlock))
+check('the gauge introduces NO raw hex (tokens only)', !/#[0-9a-fA-F]{3,6}\b/.test(HUD))
 
 check('showCtx is present ', /const showCtx\s*=/.test(SRC))
 check('showCtx is WIDTH-gated last (availableSpace > usedAfterTokens + ctxWidth)',
@@ -38,7 +39,7 @@ check('HONEST: gauge self-omits when usedPct is null (ctxPct != null guard)',
   /ctxPct\s*!=\s*null/.test(SRC) && /ctxPctRaw\s*!=\s*null\s*\?\s*Math\.round\(ctxPctRaw\)\s*:\s*null/.test(SRC))
 check("the 'ctx' label rides the adaptive secondary meta token", /<Text color=\{tokens\.textSecondary\}>\{' ctx'\}<\/Text>/.test(SRC))
 check('rendered only when showCtx && ctxPct != null (no NaN/null leak)',
-  /showCtx\s*&&\s*ctxPct\s*!=\s*null/.test(SRC))
+  /showCtx\s*&&\s*ctxPct\s*!=\s*null/.test(ROW))
 
 const SPIN = readFileSync(join(root, 'src/components/Spinner.tsx'), 'utf-8')
 const Chat = readFileSync(join(root, 'src/screens/Chat.tsx'), 'utf-8')
@@ -73,7 +74,7 @@ check('the rate rides the adaptive secondary meta token', /<Text key="otps"[\s\S
 
 console.log('\n  -- the strip height latch: within a turn the working card only grows --')
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
-const { spinnerStackDecision } = await import('../../src/components/Spinner/SpinnerAnimationRow.tsx')
+const { spinnerStackDecision } = await import('../../src/components/Spinner/spinnerHud.ts')
 const { stringWidth } = await import('../../src/ink/stringWidth.ts')
 type LatchModule = { stripLinesForEpoch: (latch: { epoch: number; lines: number }, epoch: number, wanted: number) => number; turnStripLines: (epoch: number, wanted: number) => number }
 const latchModule = await import('../../src/components/Spinner/stripHeight.ts').then(m => m as LatchModule).catch(() => null)
@@ -122,7 +123,7 @@ detail('the latch module stands beside the stacking decision (src/components/Spi
   const shared = latchModule === null ? [] : [latchModule.turnStripLines(9, 2), latchModule.turnStripLines(9, 1), latchModule.turnStripLines(10, 1)]
   detail(`the shared turn latch the rows read: ${shared.join(',')}`, shared.length === 3 && shared[0] === 2 && shared[1] === 2 && shared[2] === 1, 'no latch')
 }
-check('SpinnerAnimationRow keys the latch by the turn clock (loadingStartTimeRef.current) after the band decision', /const stacked = spinnerStackDecision\(\{[\s\S]{0,400}turnStripLines\(loadingStartTimeRef\.current, stacked \? 2 : 1\)/.test(SRC))
+check('the plan keys the latch by the turn clock after the band decision (the row hands it turnStripLines on loadingStartTimeRef.current)', /const stacked = spinnerStackDecision\(\{[\s\S]{0,400}stripLines\(stacked \? 2 : 1\)/.test(HUD) && /wanted => turnStripLines\(loadingStartTimeRef\.current, wanted\)/.test(ROW))
 check('the stacked second row is reserved even when segment B has nothing to say (height={1})', /secondRow \? \([\s\S]{0,80}<Box flexDirection="row" height=\{1\} width="100%">/.test(SRC))
 check('StreamingHoldRow reads the same turn latch and its footprint rides it', /turnStripLines\(loadingStartTimeRef\.current, 1\)/.test(HOLD) && /<Box height=\{stripLines\} width="100%">/.test(HOLD))
 

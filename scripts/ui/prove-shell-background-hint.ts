@@ -620,7 +620,6 @@ async function chromeWorld(name: string, helmHome: '0' | '1'): Promise<void> {
   const pauseStart = { current: null as number | null }
   const responseLength = { current: 0 }
   const outputTokens = { current: null as number | null }
-  const apiMetrics = { current: [] as Array<{ ttftMs: number; firstTokenTime: number; lastTokenTime: number; responseLengthBaseline: number; endResponseLength: number }> }
   function Transcript(): ReactNode {
     useSeat(seat)
     const { columns } = useTerminalSize()
@@ -644,7 +643,7 @@ async function chromeWorld(name: string, helmHome: '0' | '1'): Promise<void> {
           mode: running ? 'tool-use' : 'thinking', loadingStartTimeRef: startedAt, totalPausedMsRef: paused, pauseStartTimeRef: pauseStart,
           spinnerTip: null, responseLengthRef: responseLength, outputTokensRef: outputTokens, overrideColor: null, overrideShimmerColor: null,
           overrideMessage: null, still: false, spinnerSuffix: null, verbose: false, hasActiveTools: running, activeToolCount: live.inProgressToolUseIDs.size,
-          activeToolLabel: activeToolVerb(records, live.inProgressToolUseIDs) ?? null, leaderIsIdle: false, apiMetricsRef: apiMetrics,
+          activeToolLabel: activeToolVerb(records, live.inProgressToolUseIDs) ?? null, leaderIsIdle: false,
         } as never),
         statusBandActive: true,
         bottom: h(Box, { flexDirection: 'column' },

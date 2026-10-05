@@ -104,12 +104,13 @@ console.log('\nT7 the wiring — connector to ref to spinner (structural)')
   check('the Chat feeds the wire figure to the verb row and the streaming hold row from the same connector', repl.includes('getFocusedLiveOutputTokens') && (repl.match(/outputTokensRef=\{outputTokensRef\}/g) ?? []).length === 2)
   check('the Chat feeds the turn facts (thinking chars, the first byte, the wait) to both rows from the same connector — the live counter never reads a dead 0 while the request is alive', repl.includes('getFocusedLiveTurnFacts') && (repl.match(/liveTurnFactsRef=\{liveTurnFactsRef\}/g) ?? []).length === 2)
   const spinner = read('src/components/Spinner/SpinnerAnimationRow.tsx')
+  const hud = read('src/components/Spinner/spinnerHud.ts')
   check(
     'the spinner still keys its display and tok/s off the ref (the fed ref revives both)',
     spinner.includes('responseLengthRef.current') && spinner.includes('smoothedOtpsRef'),
   )
-  check('the spinner paints the count from the one words function (liveCounterWords: the wire figure as a fact, characters over four with the ~ mark, the thinking count apart, no count while nothing has arrived) — the old zero-persisting tokens text is gone', spinner.includes(': liveWords.count') && !spinner.includes('tokenDirection'))
-  check('the cadence beside it stays a text rate and its label says so', spinner.includes('`~${otps} tok/s`'))
+  check('the spinner paints the count from the one words function (liveCounterWords: the wire figure as a fact, characters over four with the ~ mark, the thinking count apart, no count while nothing has arrived) — the old zero-persisting tokens text is gone', hud.includes('return facts.liveWords.count') && !spinner.includes('tokenDirection') && !hud.includes('tokenDirection'))
+  check('the cadence beside it stays a text rate and its label says so', hud.includes('`~${facts.otps} tok/s`'))
   const hold = read('src/components/Spinner/StreamingHoldRow.tsx')
   const compact = read('src/components/Spinner.tsx')
   check('the streaming hold row and the compact line read the same figure through the one words function (liveCounterWords over the seat facts, the two refs as the fallback)', hold.includes('liveCounterWords(') && hold.includes('turnFactsOfRefs(liveChars, outputTokensRef?.current ?? null)') && compact.includes('liveCounterWords(') && compact.includes('turnFactsOfRefs(responseLengthRef.current ?? 0, outputTokensRef?.current ?? null)'))

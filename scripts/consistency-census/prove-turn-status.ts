@@ -11,6 +11,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 const spinner = readFileSync(join(ROOT, 'src/components/Spinner.tsx'), 'utf8')
 const row = readFileSync(join(ROOT, 'src/components/Spinner/SpinnerAnimationRow.tsx'), 'utf8')
+const hud = readFileSync(join(ROOT, 'src/components/Spinner/spinnerHud.ts'), 'utf8')
 
 check('§A no thinkingStatus state machine in Spinner.tsx', !/useState<'thinking'/.test(spinner) && !spinner.includes('setThinkingStatus'))
 check('§A no thinkingStatus prop reaches the row', !/thinkingStatus[:=]/.test(row.split('unison W3')[0] ?? row) && !row.includes('thinkingStatus={'))
@@ -18,30 +19,30 @@ check('§A no display timeouts for the thinking label anywhere', !spinner.includ
 const liveWords = readFileSync(join(ROOT, 'src/components/Spinner/liveCounterWords.ts'), 'utf8')
 check(
   "§A the live thinking label keys off the stream mode and the seat's live facts alone (liveCounterWords owns the phase word: reading the prompt, loading, retrying replace the label only while the facts say so — a pure function, never a timer or a state machine)",
-  row.includes("const inThinking = mode === 'thinking'") &&
-    row.includes("import { liveCounterPhaseOf, liveCounterWords, turnFactsOfRefs } from './liveCounterWords.js'") &&
-    row.includes('const waitPhaseText = liveWords.reading || liveWords.phase !== liveCounterPhaseOf(mode) ? liveWords.phase : null') &&
-    row.includes('const thinkingText = inThinking && waitPhaseText === null ? thinkingLabelFull : null') &&
+  row.includes("import { liveCounterPhaseOf, liveCounterWords, turnFactsOfRefs } from './liveCounterWords.js'") &&
+    row.includes('livePhase: liveCounterPhaseOf(mode)') &&
+    hud.includes('const waitPhaseText = liveWords.reading || liveWords.phase !== facts.livePhase ? liveWords.phase : null') &&
+    hud.includes("const thinkingText = mode === 'thinking' && waitPhaseText === null ? facts.thinkingLabel : null") &&
     !/setTimeout|setInterval|useState|useRef|useEffect/.test(liveWords),
 )
 
 check('§B the retired per-phase clock is gone from the row', !row.includes('phaseElapsedMs'))
-check('§B the whole-turn timer is the single default time basis', row.includes('effectiveElapsedMs') && row.includes('timerText'))
+check('§B the whole-turn timer is the single default time basis', row.includes('effectiveElapsedMs') && hud.includes('const timerText = formatDuration(effectiveElapsedMs, { mostSignificantOnly: true })'))
 
-check('§C one phrase: the thinking label is admitted exactly when it exists', row.includes('const wantsThinking = thinkingText !== null'))
-check('§C the painted message is the verb chain', row.includes('const message = messageProp'))
+check('§C one phrase: the thinking label is admitted exactly when it exists', hud.includes("if (thinkingText !== null) {\n    if (!admit({ key: 'thinking', text: thinkingText, kind: 'thinking' })) {"))
+check('§C the painted message is the verb chain (the one message prop is budgeted and painted)', hud.includes('const messageWidth = stringWidth(facts.message) + 2') && row.includes('<GlimmerMessage\n              message={message}'))
 
 check(
   '§D the HUD order law is in-source (action · elapsed · burn · work-in-flight: the segment pushes sit in that order)',
   (() => {
-    const at = ['thinkingText', 'timerText', 'tokensText', 'ctxText', 'wifText'].map(name => row.indexOf(`fullSegmentTexts.push(${name})`))
+    const at = ['thinkingText', 'timerText', 'tokensText', 'ctxText', 'wifText'].map(name => hud.indexOf(`fullSegmentTexts.push(${name})`))
     return at.every((pos, i) => pos >= 0 && (i === 0 || pos > at[i - 1]!))
   })(),
 )
-check('§D token readout persists from zero (no zero→non-zero shuffle)', row.includes('const tokensAfterMs = 0'))
+check('§D token readout persists from zero (no zero→non-zero shuffle: the count admits on the meta gate alone, never an elapsed term)', hud.includes("if (metaGate && tokensText !== null) admit({ key: 'tokens', text: tokensText })"))
 
 check('§E work colour resolves through theme tokens', row.includes('useMercuryTokens') || /Adaptive meta ink/.test(row))
-check('§E reduced motion disables the thinking shimmer', row.includes('inThinking && !reducedMotion'))
+check('§E reduced motion disables the thinking shimmer', row.includes("mode === 'thinking' && !reducedMotion"))
 
 console.log(failed === 0 ? '\n ✅ ONE TURN-STATUS PROJECTION HOLDS' : `\n ❌ ${failed} FAILED`)
 process.exit(failed === 0 ? 0 : 1)

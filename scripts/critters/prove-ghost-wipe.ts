@@ -98,6 +98,40 @@ t.section('§2 — the wipe: a departed glyph re-emits the neighbour it bled int
   t.check('a ▀ replaced by text is a departure too', sameSet(toText.touched, setOf('5,3', '5,2')), show(toText.touched))
 }
 
+t.section('§2b — the recolour: a standing half-block glyph whose colour changes bled its OLD colour into the neighbour — the neighbour is re-emitted (the four-eyes class)')
+{
+  const dark = styles.intern([{ code: '\x1b[38;2;62;19;19m', endCode: '\x1b[39m' } as never, { code: '\x1b[48;2;237;232;221m', endCode: '\x1b[49m' } as never])
+  const cream = styles.intern([{ code: '\x1b[38;2;237;232;221m', endCode: '\x1b[39m' } as never, { code: '\x1b[48;2;62;19;19m', endCode: '\x1b[49m' } as never])
+  const body = styles.intern([{ code: '\x1b[38;2;177;54;54m', endCode: '\x1b[39m' } as never, { code: '\x1b[48;2;177;54;54m', endCode: '\x1b[49m' } as never])
+  const eyeFrame = (glyph: string, eyeStyle: number): Frame => {
+    const s = screenOf({})
+    setCellAt(s, 5, 2, { char: '▄', styleId: body, width: CellWidth.Narrow, hyperlink: undefined })
+    setCellAt(s, 5, 3, { char: glyph, styleId: eyeStyle, width: CellWidth.Narrow, hyperlink: undefined })
+    setCellAt(s, 5, 4, { char: '▀', styleId: body, width: CellWidth.Narrow, hyperlink: undefined })
+    return { screen: s, viewport: { width: W, height: H + 1 }, cursor: { x: 0, y: 0, visible: true } }
+  }
+  const driveStyled = (a: Frame, b: Frame): { touched: Set<string>; grid: (x: number, y: number) => string } => {
+    const writer = new FrameWriter({ isTTY: true, stylePool: styles })
+    const diff = optimizePatches(writer.render(a, b, true, true))
+    const emu = new AnsiEmulator(W, H, true)
+    emu.feed(CURSOR_HOME + serialize(diff))
+    const touched = new Set<string>()
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (emu.styleAt(x, y) !== null) touched.add(`${x},${y}`)
+    return { touched, grid: (x, y) => emu.grid[y]![x]! }
+  }
+  const down = driveStyled(eyeFrame('▀', dark), eyeFrame('▀', cream))
+  t.check('a ▀ recolouring (the pupil going down: dark top → cream top) re-emits the cell ABOVE and its own cell — nothing else', sameSet(down.touched, setOf('5,3', '5,2')), show(down.touched))
+  t.check('…the re-emitted neighbour keeps its own glyph (the forehead ▄, not a blank)', down.grid(5, 2) === '▄')
+  const up = driveStyled(eyeFrame('▀', cream), eyeFrame('▀', dark))
+  t.check('the reverse recolour (the pupil going up) re-emits the cell above too, so the frame never leaves a sliver in either direction', sameSet(up.touched, setOf('5,3', '5,2')), show(up.touched))
+  const lower = driveStyled(eyeFrame('▄', dark), eyeFrame('▄', cream))
+  t.check('a ▄ recolouring re-emits the cell BELOW', sameSet(lower.touched, setOf('5,3', '5,4')), show(lower.touched))
+  const same = driveStyled(eyeFrame('▀', cream), eyeFrame('▀', cream))
+  t.check('an unchanged styled glyph emits nothing (ZERO-DIRTY ⇒ ZERO PATCHES holds for styled cells)', same.touched.size === 0, show(same.touched))
+  const text = driveStyled(eyeFrame('x', dark), eyeFrame('x', cream))
+  t.check('a recolouring TEXT cell (no half-block glyph) touches its own cell alone', sameSet(text.touched, setOf('5,3')), show(text.touched))
+}
+
 t.section('§3 — once: a neighbour is written once, however many departures name it')
 {
   const changedAbove = drive({ '5,3': '▀', '5,2': 'a' }, { '5,2': 'b' })

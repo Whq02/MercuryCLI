@@ -86,9 +86,10 @@ if direct and journey:
                     if bd[i][3][j] != bj[i][3][j]), 'all equal'))
     def has_critter(g):
         lines = [cell_text(row) for row in g['grid']]
+        import re
         for y, line in enumerate(lines[:-2]):
-            x = line.find('▀▀▄▄▄▄▄▀▀')
-            if x >= 0 and all(lines[y + dy][x:x + 9] == '▀' * 9 for dy in (1, 2)):
+            m = re.search('[▀▄]{9}', line)
+            if m and all(re.fullmatch('[▀▄]{9}', lines[y + dy][m.start():m.start() + 9] or '') for dy in (1, 2)):
                 return True
         return False
     check('R4 critter: mascot art present in both final frames',

@@ -1,6 +1,5 @@
 import React, { useRef } from 'react'
 import { Box, Text } from '../../ink.js'
-import { stringWidth } from '../../ink/stringWidth.js'
 import { useAnimationValue } from '../../ink/hooks/use-animation-value.js'
 import type { InProcessCrewmateTaskState } from '../../tasks/InProcessCrewmateTask/types.js'
 import type { Theme } from '../../utils/theme.js'
@@ -10,8 +9,7 @@ import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { gaugeColor } from '../mercury-ui/theme.js'
 import { FOCAL_TICK_MS, WORK_TICK_MS } from '../../utils/cockpit/liveGlyphs.js'
 import { getLiveContextUsage } from '../../utils/cockpit/contextUsageLive.js'
-import { formatDuration, formatNumber } from '../../utils/format.js'
-import { GLYPH, SPARK } from '../mercury-ui/glyphs.js'
+import { GLYPH } from '../mercury-ui/glyphs.js'
 import { GlimmerMessage } from './GlimmerMessage.js'
 import { SpinnerGlyph } from './SpinnerGlyph.js'
 import { useShimmerAnimation } from './useShimmerAnimation.js'
@@ -23,29 +21,15 @@ import { crewmateRole } from '../tasks/taskStatusUtils.js'
 import type { LiveTurnFactsV1 } from '../../services/engine-connector/seatLive.js'
 import { liveCounterPhaseOf, liveCounterWords, turnFactsOfRefs } from './liveCounterWords.js'
 import { turnStripLines } from './stripHeight.js'
-
-export const STACK_EXIT_SLACK = 6
-export function spinnerStackDecision(facts: {
-  eligible: boolean
-  cost: number
-  space: number
-  wasStacked: boolean
-}): boolean {
-  if (!facts.eligible) return false
-  if (facts.cost > facts.space) return true
-  return facts.wasStacked && facts.cost > facts.space - STACK_EXIT_SLACK
-}
-
+import { planSpinnerHud, type HudSegment } from './spinnerHud.js'
 
 const SLOW_TICK_MS = WORK_TICK_MS * 2
-const RAIL_INSET = 2
 const THINKING_SHIMMER_SUPPRESS_MS = 3000
 const THINKING_SHIMMER_PERIOD_MS = 2000
 
 export type SpinnerAnimationRowProps = {
   mode: SpinnerMode
   reducedMotion: boolean
-  hasActiveTools: boolean
   activeToolCount: number
   responseLengthRef: React.RefObject<number>
   outputTokensRef?: React.RefObject<number | null>
@@ -63,25 +47,20 @@ export type SpinnerAnimationRowProps = {
   hasRunningCrewmates: boolean
   crewmateTokens: number
   foregroundedCrewmate: InProcessCrewmateTaskState | undefined
-  leaderIsIdle?: boolean
   effortSuffix?: string
-  ttftText?: string | null
   inWorkCapsule?: boolean
   still?: boolean
 }
 
-export function SpinnerAnimationRow(
-  props: SpinnerAnimationRowProps,
-): React.ReactNode {
+export function SpinnerAnimationRow(props: SpinnerAnimationRowProps): React.ReactNode {
   const {
     mode,
     reducedMotion,
-    hasActiveTools,
     activeToolCount,
     responseLengthRef,
     outputTokensRef,
     liveTurnFactsRef,
-    message: messageProp,
+    message,
     messageColor,
     shimmerColor,
     overrideColor,
@@ -94,9 +73,7 @@ export function SpinnerAnimationRow(
     hasRunningCrewmates,
     crewmateTokens,
     foregroundedCrewmate,
-    leaderIsIdle,
     effortSuffix,
-    ttftText,
     inWorkCapsule = false,
     still = false,
   } = props
@@ -112,26 +89,14 @@ export function SpinnerAnimationRow(
   if (loadingStartTimeRef.current < earliestStartRef.current) {
     earliestStartRef.current = loadingStartTimeRef.current
   }
-  const pauseHeld =
-    pauseStartTimeRef.current !== null ? now - pauseStartTimeRef.current : 0
-  const segmentElapsed =
-    now - loadingStartTimeRef.current - totalPausedMsRef.current - pauseHeld
-  const anchoredElapsed =
-    now - earliestStartRef.current - totalPausedMsRef.current - pauseHeld
+  const pauseHeld = pauseStartTimeRef.current !== null ? now - pauseStartTimeRef.current : 0
+  const segmentElapsed = now - loadingStartTimeRef.current - totalPausedMsRef.current - pauseHeld
+  const anchoredElapsed = now - earliestStartRef.current - totalPausedMsRef.current - pauseHeld
   const effectiveElapsedMs = Math.max(segmentElapsed, anchoredElapsed, 0)
 
-  const [workRef, workTime] = useAnimationValue(
-    reducedMotion ? null : WORK_TICK_MS,
-    time => time,
-  )
-  const [, focalTime] = useAnimationValue(
-    reducedMotion || mode !== 'requesting' ? null : FOCAL_TICK_MS,
-    time => time,
-  )
-  const [, slowTime] = useAnimationValue(
-    reducedMotion ? null : SLOW_TICK_MS,
-    time => time,
-  )
+  const [workRef, workTime] = useAnimationValue(reducedMotion ? null : WORK_TICK_MS, time => time)
+  const [, focalTime] = useAnimationValue(reducedMotion || mode !== 'requesting' ? null : FOCAL_TICK_MS, time => time)
+  const [, slowTime] = useAnimationValue(reducedMotion ? null : SLOW_TICK_MS, time => time)
   const time = Math.max(workTime, focalTime, slowTime)
 
   const { stillWaiting, attentionIntensity } = useStalledAnimation(time, {
@@ -142,27 +107,20 @@ export function SpinnerAnimationRow(
   })
 
   const currentResponseLength = responseLengthRef.current ?? 0
-  useAnimationValue(
-    reducedMotion ? null : FOCAL_TICK_MS,
-    () => responseLengthRef.current ?? 0,
-  )
+  useAnimationValue(reducedMotion ? null : FOCAL_TICK_MS, () => responseLengthRef.current ?? 0)
   const foregroundedActive =
     foregroundedCrewmate !== undefined &&
     (foregroundedCrewmate as { status?: string }).status === 'running' &&
     foregroundedCrewmate.isIdle !== true
   const crewmateOnlyTokens = foregroundedActive
-    ? ((foregroundedCrewmate.progress as { totalTokens?: number } | undefined)
-        ?.totalTokens ?? 0)
+    ? ((foregroundedCrewmate.progress as { totalTokens?: number } | undefined)?.totalTokens ?? 0)
     : null
   const liveWords = liveCounterWords(
     { ...(liveTurnFactsRef?.current ?? turnFactsOfRefs(currentResponseLength, outputTokensRef?.current ?? null)), phase: liveCounterPhaseOf(mode), sentAtMs: now - effectiveElapsedMs },
     now,
   )
   const liveFigure = liveWords.figure
-  const displayedTokens =
-    crewmateOnlyTokens !== null
-      ? crewmateOnlyTokens
-      : liveFigure.total + crewmateTokens
+  const displayedTokens = crewmateOnlyTokens !== null ? crewmateOnlyTokens : liveFigure.total + crewmateTokens
   const tokensEstimated = crewmateOnlyTokens === null && liveFigure.estimated
 
   const rateSampleRef = useRef({ at: 0, len: 0 })
@@ -182,171 +140,52 @@ export function SpinnerAnimationRow(
     }
   }
   const otps = Math.round(smoothedOtpsRef.current)
-  const otpsEligible =
-    (mode === 'responding' || mode === 'tool-input') && otps >= 1
 
-  const inThinking = mode === 'thinking'
-  const thinkingLabelFull = `${THINKING_WORD}${effortSuffix ?? ''}`
-  const message = messageProp
-  const messageWidth = stringWidth(message) + 2
-  const separatorWidth = 3
-  const suffixText = spinnerSuffix ?? ''
-  const suffixWidth =
-    suffixText === '' ? 0 : stringWidth(suffixText) + separatorWidth
-
-  const interruptHint = foregroundedActive
-    ? `esc interrupts @${foregroundedCrewmate.identity.agentName}`
-    : null
-  const foregroundedIdleQuiet =
-    foregroundedCrewmate !== undefined && !foregroundedActive
-
-  const waitPhaseText = liveWords.reading || liveWords.phase !== liveCounterPhaseOf(mode) ? liveWords.phase : null
-  const thinkingText = inThinking && waitPhaseText === null ? thinkingLabelFull : null
-  const wantsThinking = thinkingText !== null
-  const promiseText = liveWords.promise
-  const timerText = formatDuration(effectiveElapsedMs, { mostSignificantOnly: true })
-  const tokensAfterMs = 0
-  void tokensAfterMs
-  const metaGate = verbose || hasRunningCrewmates || effectiveElapsedMs > 0
-  const tokensText: string | null =
-    crewmateOnlyTokens !== null || hasRunningCrewmates
-      ? displayedTokens > 0
-        ? `${tokensEstimated ? '~' : ''}${formatNumber(displayedTokens)} tokens`
-        : null
-      : liveWords.count
-
+  const interruptHint = foregroundedActive ? `esc interrupts @${foregroundedCrewmate.identity.agentName}` : null
+  const foregroundedIdleQuiet = foregroundedCrewmate !== undefined && !foregroundedActive
   const ctxPctRaw = getLiveContextUsage().usedPct
   const ctxPct = ctxPctRaw != null ? Math.round(ctxPctRaw) : null
-  const ctxSpark =
-    ctxPct != null
-      ? SPARK[Math.min(SPARK.length - 1, Math.floor((ctxPct / 100) * SPARK.length))]
-      : ''
-  const ctxText = ctxPct != null ? `${ctxSpark} ${ctxPct}% ctx` : ''
-  const ctxWidth = stringWidth(ctxText) + separatorWidth
+  const suffixText = spinnerSuffix ?? ''
 
-  const wifText =
-    activeToolCount >= 2 ? `${GLYPH.inProgress} ${activeToolCount} tools` : ''
-  const wifWidth = stringWidth(wifText) + separatorWidth
-
-  const otpsText = otpsEligible ? `~${otps} tok/s` : ''
-  const otpsWidth = stringWidth(otpsText) + separatorWidth
-
-  const fullSegmentTexts: string[] = []
-  if (stillWaiting) fullSegmentTexts.push('still waiting…')
-  if (wantsThinking && thinkingText !== null) fullSegmentTexts.push(thinkingText)
-  if (waitPhaseText !== null) fullSegmentTexts.push(waitPhaseText)
-  if (metaGate && effectiveElapsedMs >= 1000) fullSegmentTexts.push(timerText)
-  if (metaGate && tokensText !== null) fullSegmentTexts.push(tokensText)
-  if (metaGate && ctxPct != null) fullSegmentTexts.push(ctxText)
-  if (metaGate && wifText !== '') fullSegmentTexts.push(wifText)
-  if (metaGate && otpsText !== '') fullSegmentTexts.push(otpsText)
-  if (metaGate && ttftText) fullSegmentTexts.push(ttftText)
-  if (promiseText !== null) fullSegmentTexts.push(promiseText)
-  const fullMetaCost = fullSegmentTexts.reduce(
-    (sum, text) => sum + stringWidth(text) + separatorWidth,
-    0,
+  const plan = planSpinnerHud(
+    {
+      mode,
+      message,
+      columns,
+      verbose,
+      still,
+      suffixText,
+      stillWaiting,
+      thinkingLabel: `${THINKING_WORD}${effortSuffix ?? ''}`,
+      liveWords,
+      livePhase: liveCounterPhaseOf(mode),
+      effectiveElapsedMs,
+      hasRunningCrewmates,
+      displayedTokens,
+      tokensEstimated,
+      crewmateOnlyTokens,
+      ctxPct,
+      activeToolCount,
+      otps,
+      interruptHint,
+      foregroundedIdleQuiet,
+      wasStacked: stackedLatchRef.current,
+    },
+    wanted => turnStripLines(loadingStartTimeRef.current, wanted),
   )
-  const segBFullCost =
-    interruptHint !== null
-      ? stringWidth(interruptHint) + 2 + separatorWidth
-      : foregroundedIdleQuiet
-        ? 0
-        : fullMetaCost
-  const railSpace = columns - RAIL_INSET
-  const oneLineSpace = railSpace - messageWidth - suffixWidth - 5
-  const stacked = spinnerStackDecision({
-    eligible: segBFullCost > 0 || suffixText !== '',
-    cost: segBFullCost,
-    space: oneLineSpace,
-    wasStacked: stackedLatchRef.current,
-  })
-  stackedLatchRef.current = stacked
-  const stripLines = turnStripLines(loadingStartTimeRef.current, stacked ? 2 : 1)
-  const secondRow = stripLines > 1
-  const availableSpace = secondRow ? railSpace - suffixWidth - 5 : oneLineSpace
-
-  type Segment = { key: string; text: string; kind?: 'thinking' | 'waiting' }
-  const admitted: Segment[] = []
-  let used = 0
-  const admit = (segment: Segment): boolean => {
-    const cost = stringWidth(segment.text) + separatorWidth
-    if (availableSpace - used - cost < 0) return false
-    used += cost
-    admitted.push(segment)
-    return true
-  }
-
-  if (stillWaiting) {
-    admit({ key: 'waiting', text: 'still waiting…', kind: 'waiting' })
-  }
-  if (wantsThinking && thinkingText !== null) {
-    if (!admit({ key: 'thinking', text: thinkingText, kind: 'thinking' })) {
-      admit({ key: 'thinking', text: THINKING_WORD, kind: 'thinking' })
-    }
-  }
-  if (waitPhaseText !== null) {
-    admit({ key: 'phase', text: waitPhaseText })
-  }
-  if (metaGate && effectiveElapsedMs >= 1000) {
-    admit({
-      key: 'timer',
-      text: timerText,
-    })
-  }
-  if (metaGate && tokensText !== null) {
-    admit({
-      key: 'tokens',
-      text: tokensText,
-    })
-  }
-  const usedAfterTokens = used
-
-  const showCtx =
-    metaGate && ctxPct != null && availableSpace > usedAfterTokens + ctxWidth
-  if (showCtx) used += ctxWidth
-  const usedAfterCtx = used
-
-  const showWif =
-    metaGate && wifText !== '' && availableSpace > usedAfterCtx + wifWidth
-  if (showWif) used += wifWidth
-  const usedAfterWif = used
-
-  const showOtps =
-    metaGate && otpsText !== '' && availableSpace > usedAfterWif + otpsWidth
-  if (showOtps) used += otpsWidth
-
-  if (metaGate && ttftText) {
-    admit({ key: 'ttft', text: ttftText })
-  }
-  if (promiseText !== null) {
-    admit({ key: 'promise', text: promiseText })
-  }
-
-  const orderedKeys = ['phase', 'timer', 'tokens', 'ttft', 'promise', 'thinking', 'waiting']
-  const ordered = orderedKeys
-    .map(key => admitted.find(segment => segment.key === key))
-    .filter((segment): segment is Segment => segment !== undefined)
+  stackedLatchRef.current = plan.stacked
+  const { ordered, secondRow, showCtx, showWif, showOtps, wifText, otpsText, ctxSpark } = plan
 
   const displayedHead = message.split(' · ')[0]!.replace(/…\s*$/, '').trim()
   const cadence = isQuicksilverLine(displayedHead) ? 'quicksilver' : 'standard'
   const frame = Math.floor(time / WORK_TICK_MS)
-  const [shimmerRef, glimmerIndex] = useShimmerAnimation(
-    mode,
-    message,
-    stillWaiting,
-  )
-  const flashOpacity =
-    mode === 'tool-use' && !reducedMotion
-      ? (Math.sin((slowTime / 2000) * Math.PI * 2) + 1) / 2
-      : 0
+  const [shimmerRef, glimmerIndex] = useShimmerAnimation(mode, message, stillWaiting)
+  const flashOpacity = mode === 'tool-use' && !reducedMotion ? (Math.sin((slowTime / 2000) * Math.PI * 2) + 1) / 2 : 0
   const effectiveIntensity = overrideColor !== null ? 0 : attentionIntensity
 
-  const shimmerActive =
-    inThinking && !reducedMotion &&
-    time > THINKING_SHIMMER_SUPPRESS_MS
-  const shimmerPhase =
-    (Math.sin((time / THINKING_SHIMMER_PERIOD_MS) * Math.PI * 2) + 1) / 2
-  const metaColor = (segment: Segment): string | undefined => {
+  const shimmerActive = mode === 'thinking' && !reducedMotion && time > THINKING_SHIMMER_SUPPRESS_MS
+  const shimmerPhase = (Math.sin((time / THINKING_SHIMMER_PERIOD_MS) * Math.PI * 2) + 1) / 2
+  const metaColor = (segment: HudSegment): string | undefined => {
     if (segment.kind === 'waiting') return theme.warning
     if (segment.kind === 'thinking') {
       if (!shimmerActive) return THINKING_COLOR
@@ -355,13 +194,6 @@ export function SpinnerAnimationRow(
     }
     return undefined
   }
-
-  const onlyThinking = ordered.length === 1 && ordered[0]!.kind === 'thinking'
-  const gaugesVisible = showCtx || showWif || showOtps
-  const metaVisible = ordered.length > 0 || gaugesVisible
-
-  void leaderIsIdle
-  void hasActiveTools
 
   const metaNodes: React.ReactNode[] = []
   for (const segment of ordered.filter(s => s.kind === undefined)) {
@@ -403,7 +235,7 @@ export function SpinnerAnimationRow(
       </Text>,
     )
   }
-  const metaGroup = !metaVisible ? null : onlyThinking && !gaugesVisible ? (
+  const metaGroup = !plan.metaVisible ? null : plan.onlyThinking && !plan.gaugesVisible ? (
     <Text color={metaColor(ordered[0]!)}>
       ({ordered[0]!.text})
     </Text>
@@ -427,14 +259,10 @@ export function SpinnerAnimationRow(
     ) : foregroundedIdleQuiet ? null : (
       metaGroup
     )
-  const segBVisible = !still && (suffixText !== '' || segBTail !== null)
+  const segBVisible = plan.segBVisible
 
   return (
-    <Box
-      flexDirection="column"
-      width="100%"
-      marginTop={inWorkCapsule ? 0 : 1}
-    >
+    <Box flexDirection="column" width="100%" marginTop={inWorkCapsule ? 0 : 1}>
       <Box flexDirection="row" width="100%">
         {still ? (
           <Box ref={workRef} flexWrap="wrap" height={1} width={2}>

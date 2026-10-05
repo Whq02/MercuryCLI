@@ -250,8 +250,8 @@ console.log('— view + decode wiring (static) —')
   const anim = readFileSync('src/components/mercury-ui/AnimatedCritterArt.tsx', 'utf8')
   t('gaze gated on animate + NOT asleep + a gaze grid (square) + critterGazeEnabled',
     /animate && !asleep && gazeGrid !== null && critterGazeEnabled\(\)/.test(anim) &&
-    /const gazeGrid = usingSquare \? def\.squareDock : null/.test(anim))
-  t('view threads gazeKey into CritterArt', anim.includes('gazeKey={gazeKey}'))
+    /const gazeGrid = form === 'square' \? def\.squareDock : null/.test(anim))
+  t('view threads gazeKey into CritterArt', anim.includes('gazeKey={frame.gazeKey}'))
   const cart = readFileSync('src/components/mercury-ui/CritterArt.tsx', 'utf8')
   t('CritterArt applies gaze BEFORE blink', /applyGazeKey\(base, gazeKey\)[\s\S]{0,200}heroBlinkRows\(gazed\)/.test(cart))
   const scen = readFileSync('scripts/ui/renderScenarios.ts', 'utf8')
