@@ -97,6 +97,10 @@ export class TranscriptRows {
     return [...ids].filter(id => this.has(id)).sort((a, b) => this.positions.get(a)! - this.positions.get(b)!).map(id => this.get(id)!)
   }
 
+  childrenOf(id: UUID): TranscriptMessage[] {
+    return this.ordered(this.children.get(id) ?? [])
+  }
+
   finish(): void {
     if (!this.structural) return
     this.relinkPreserved()
