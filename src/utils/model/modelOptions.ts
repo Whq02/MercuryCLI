@@ -469,7 +469,11 @@ export type KeyLaneListState =
   | { kind: 'unread'; reading: boolean; error?: string }
 
 export function keyLaneListState(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta'): KeyLaneListState {
-  if (provider === 'zai') return { kind: 'pin' }
+  if (provider === 'zai') {
+    const { zaiCatalogueRows } = require('../../services/providers/zai/zaiCatalogue.js') as typeof import('../../services/providers/zai/zaiCatalogue.js')
+    const { source } = zaiCatalogueRows()
+    return source.kind === 'live' ? { kind: 'live', count: source.count } : { kind: 'pin' }
+  }
   if (provider === 'xai') {
     const { getCachedXaiCatalogue, xaiCatalogueRows } = require('../../services/providers/xai/xaiCatalogue.js') as typeof import('../../services/providers/xai/xaiCatalogue.js')
     const snapshot = getCachedXaiCatalogue()
@@ -564,13 +568,14 @@ export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 
     return metaCatalogueRows().rows.map(row => ({ ...row, ...(metaDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
   }
   if (provider === 'zai') {
-    const { GLM_STATIC_CATALOGUE } =
-      require('../router/providers/zai.js') as typeof import('../router/providers/zai.js')
-    return GLM_STATIC_CATALOGUE.map(entry => ({
-      id: entry.id,
-      displayName: entry.displayLabel,
-      observedAt: '2026-08-21',
-      ...(entry.contextWindow !== undefined ? { contextWindow: entry.contextWindow } : {}),
+    const { zaiCatalogueRows } = require('../../services/providers/zai/zaiCatalogue.js') as typeof import('../../services/providers/zai/zaiCatalogue.js')
+    return zaiCatalogueRows().rows.map(row => ({
+      id: row.id,
+      displayName: row.displayName,
+      observedAt: row.observedAt,
+      ...(row.contextWindow !== undefined ? { contextWindow: row.contextWindow } : {}),
+      listedLive: row.listedLive,
+      ...(row.liveUnknown === true ? { liveUnknown: true } : {}),
     }))
   }
   if (provider === 'moonshot') {
@@ -661,6 +666,7 @@ export function keyLaneProviderRows(reads: KeyLaneReads = liveKeyLaneReads()): M
       connectHint: '↵ opens /logins zai (a Z.AI API key — general or GLM Coding Plan) — ZAI_API_KEY works too',
       keyPresent: reads.zaiKeyPresent(),
       pins: keyLanePins('zai'),
+      listState: keyLaneListState('zai'),
     }),
   )
   out.push(
@@ -776,6 +782,7 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
     pushIfAbsent(options, row)
   }
   kickDeepseekCatalogue()
+  ;(require('../../services/providers/zai/zaiCatalogue.js') as typeof import('../../services/providers/zai/zaiCatalogue.js')).kickZaiCatalogue()
   ;(require('../../services/providers/xai/xaiCatalogue.js') as typeof import('../../services/providers/xai/xaiCatalogue.js')).kickXaiCatalogue()
   ;(require('../../services/providers/meta/metaCatalogue.js') as typeof import('../../services/providers/meta/metaCatalogue.js')).kickMetaCatalogue()
   kickMoonshotCatalogue()

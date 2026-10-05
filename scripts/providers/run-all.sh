@@ -6,6 +6,7 @@
 # gate-watch: src/commands/defaultprovider/defaultprovider.tsx src/commands/status/mercuryStatus.tsx src/state/AppState.tsx
 # gate-watch: src/utils/router/modelRegistry.ts src/utils/router/providerDiscovery.ts
 # gate-watch: src/utils/router/providers/deepseek.ts src/utils/router/providers/xai.ts
+# gate-watch: src/utils/router/providers/zai.ts src/services/providers/zai/zaiCatalogue.ts src/utils/crew/engineDispatch.ts scripts/providers/fixtures/zai-models-2026-10-05.json
 # gate-watch: src/services/providers/providerUsability* src/services/providers/providerUsage* src/services/providers/openai/openaiLimitState* src/services/engine-connector/daemonConnector*
 # gate-watch: src/services/providers/accountSlots* src/components/ConsoleOAuthFlow*
 # gate-watch: src/services/providers/sseDecoder*

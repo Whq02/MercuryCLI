@@ -148,9 +148,24 @@ keeps deferral off, including on `kimi-for-coding-highspeed`. Without a
 capability observation, only the recorded K3 ids and supported K2 coding
 alias use this form; other K2 ids are not assumed to support it.
 
-Z.AI documents no model-list endpoint. Its rows therefore remain recorded
-observations, dated 2026-08-21, not a claim of current availability. A chat
-refusal carries Z.AI's own reason after the status.
+Z.AI's GLM rows follow the same road: with a Z.AI key present, Mercury reads
+the account's model list (`GET /models` on the base the key is valid on — a
+GLM Coding Plan key reads `https://api.z.ai/api/coding/paas/v4`, a general
+key or `ZAI_API_KEY` reads `https://api.z.ai/api/paas/v4`) when the picker
+composes its rows, and paints the GLM ids it names, newest first. The list
+states ids only; each row's window and reasoning dial are the facts
+docs.z.ai states for that id (read 2026-10-05): `glm-5.3`, `glm-5.3-flash`
+and `glm-5.3-flashx` have a 1M-token window, a 128K output ceiling and the
+dial `low` · `high` · `max` with thinking always on; `glm-5.2` has the 1M
+window and the seven-level dial; older ids keep their documented windows
+and offer no dial. An id the docs do not name paints under its raw name
+with no window and no dial. The family word `glm` means the newest row the
+list serves. While no list has landed, the recorded rows (`glm-5.3`,
+`glm-5.3-flash`, `glm-5.2`) stand in with their date; a model the list no
+longer carries leaves the group. On the Coding Plan, Z.AI serves `glm-5.3`
+and `glm-5.3-flash` under their own names and answers an older id with one
+of those two; a model the plan does not include is refused with Z.AI's own
+reason after the status, as every chat refusal is.
 
 A retired DeepSeek id resolves to its current one wherever a model id is
 read — a saved setting, `MERCURY_MODEL`, `/model`, a sub-agent's model —

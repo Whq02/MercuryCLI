@@ -120,20 +120,22 @@ section('2 · describe() — present, honest, secret-free, catalogue-verified')
     oai.catalogue.every(e => e.efforts.length === 0),
   )
   check(
-    "zai catalogue = ['glm-5.3', 'glm-5.2'] (5.3 the flagship, docs fetched 2026-08-21), 1M ctx each",
-    zai.catalogue.length === 2 &&
+    "zai catalogue with no list read = the dated floor ['glm-5.3', 'glm-5.3-flash', 'glm-5.2'] (docs read 2026-10-05), 1M ctx each",
+    zai.catalogue.length === 3 &&
       zai.catalogue[0]!.id === 'glm-5.3' &&
-      zai.catalogue[1]!.id === 'glm-5.2' &&
+      zai.catalogue[1]!.id === 'glm-5.3-flash' &&
+      zai.catalogue[2]!.id === 'glm-5.2' &&
       zai.catalogue.every(e => e.contextWindow === 1_000_000),
   )
   check('no invented glm-5.5* anywhere', zai.catalogue.every(e => !e.id.includes('5.5')))
   check(
-    'glm-5.3 efforts = the documented low|high|max vocabulary (2026-08-21)',
-    JSON.stringify(zai.catalogue[0]!.efforts) === JSON.stringify(['low', 'high', 'max']),
+    'glm-5.3 and glm-5.3-flash efforts = the documented low|high|max vocabulary (2026-10-05)',
+    JSON.stringify(zai.catalogue[0]!.efforts) === JSON.stringify(['low', 'high', 'max']) &&
+      JSON.stringify(zai.catalogue[1]!.efforts) === JSON.stringify(['low', 'high', 'max']),
   )
   check(
     'glm-5.2 efforts = the documented reasoning_effort vocabulary (max first)',
-    JSON.stringify(zai.catalogue[1]!.efforts) ===
+    JSON.stringify(zai.catalogue[2]!.efforts) ===
       JSON.stringify(['max', 'xhigh', 'high', 'medium', 'low', 'minimal', 'none']),
   )
   for (const [name, d] of [['anthropic', anth], ['openai', oai], ['zai', zai]] as const) {

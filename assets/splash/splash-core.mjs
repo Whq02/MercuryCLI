@@ -140,6 +140,7 @@ const MODEL_NAMES = {
   "k3": "K3",
   "k3-256k": "K3 256K",
   "glm-5.3": "GLM-5.3",
+  "glm-5.3-flash": "GLM-5.3-Flash",
   "glm-5.2": "GLM-5.2",
   "sonnet": "Sonnet 5.5",
   "opus": "Opus 5.5",

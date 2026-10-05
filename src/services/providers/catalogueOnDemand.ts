@@ -1,6 +1,6 @@
 import { catalogueTrafficVerdict } from './catalogueGate.js'
 
-export const KEYED_CATALOGUE_FAMILIES = ['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'xai', 'meta'] as const
+export const KEYED_CATALOGUE_FAMILIES = ['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'xai', 'meta', 'zai'] as const
 export type KeyedCatalogueFamily = (typeof KEYED_CATALOGUE_FAMILIES)[number]
 
 export const CATALOGUE_READ_BOUND_MS = 5_000
@@ -80,6 +80,13 @@ export async function readCatalogueIfPending(family: string, opts?: { boundMs?: 
         if (!resolveHuggingfaceAccount(process.env) || !catalogueTrafficVerdict('huggingface').allowed) return false
         if (!nothingUsable(getCachedHuggingfaceCatalogue())) return false
         await bounded(refreshHuggingfaceCatalogue({ force }), boundMs)
+        return true
+      }
+      case 'zai': {
+        const { getCachedZaiCatalogue, refreshZaiCatalogue } = await import('./zai/zaiCatalogue.js')
+        if (!catalogueTrafficVerdict('zai').allowed) return false
+        if (!force && !nothingUsable(getCachedZaiCatalogue())) return false
+        await bounded(refreshZaiCatalogue({ force }), boundMs)
         return true
       }
       default:
