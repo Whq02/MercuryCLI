@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { costRows, fiveRunMedians, timingNoise, trimmedSpread } from './cost-comparison.ts'
+import { boxFloors, costRows, fiveRunMedians, RELATIVE_FLOOR, timingNoise, trimmedSpread } from './cost-comparison.ts'
 
 const runs = [5, 1, 4, 2, 3].map(ms => ({ metrics: { timeMs: ms, bytes: 100 } }))
 assert.deepEqual(fiveRunMedians(runs), { bytes: 100, timeMs: 3 })
@@ -32,4 +32,20 @@ assert.equal(costRows({ timeMs: 3 }, { timeMs: 5.0000001 }, { timeMs: 2 })[0]!.p
 assert.equal(costRows({ bytes: 100 }, { bytes: 101 }, { bytes: 50 })[0]!.pass, false)
 assert.equal(costRows({ bytes: 100 }, { bytes: 101 }, { bytes: 50 })[0]!.floor, 0)
 assert.throws(() => costRows({ timeMs: 3 }, { timeMs: 3 }, { timeMs: -1 }), /noise floor/)
-console.log('[PASS] judge teeth: five complete runs, equal metric sets, finite readings; a byte count never gets a floor and refuses a one-byte increase; a time is refused beyond the larger side\'s five-run trimmed spread (the instrument\'s own measured noise, 0 when the runs agree) and an arbitrarily small increase refuses at a zero floor')
+
+assert.equal(RELATIVE_FLOOR, 0.15)
+const near = (a: number, b: number): boolean => Math.abs(a - b) < 1e-9
+const steadyFloor = boxFloors({ timeMs: 3, bytes: 100 }, steady, steady)
+assert.ok(Object.keys(steadyFloor).join() === 'timeMs' && steadyFloor.timeMs!.spread === 0 && near(steadyFloor.timeMs!.relative, 0.45) && near(steadyFloor.timeMs!.floor, 0.45))
+const spreadFloor = boxFloors({ timeMs: 3, bytes: 100 }, runs, steady)
+assert.ok(spreadFloor.timeMs!.spread === 2 && near(spreadFloor.timeMs!.relative, 0.45) && spreadFloor.timeMs!.floor === 2)
+assert.deepEqual(boxFloors({ timeMs: 0, bytes: 100 }, steady, steady), { timeMs: { spread: 0, relative: 0, floor: 0 } })
+assert.throws(() => boxFloors({ bytes: 100 }, steady, steady), /base reading/)
+const quiet = [0.44, 0.46, 0.45, 0.46, 0.45].map(ms => ({ metrics: { timeMs: ms, bytes: 100 } }))
+const quietFloor = boxFloors({ timeMs: 0.45, bytes: 100 }, quiet, quiet)
+assert.ok(near(quietFloor.timeMs!.spread, 0.01) && near(quietFloor.timeMs!.floor, 0.0675))
+const tenPercent = costRows({ timeMs: 0.45, bytes: 100 }, { timeMs: 0.495, bytes: 100 }, { timeMs: quietFloor.timeMs!.floor })
+assert.deepEqual(tenPercent.map(row => [row.metric, row.pass]), [['bytes', true], ['timeMs', true]])
+assert.equal(costRows({ timeMs: 0.45 }, { timeMs: 0.52 }, { timeMs: quietFloor.timeMs!.floor })[0]!.pass, false)
+assert.equal(costRows({ timeMs: 0.45, bytes: 100 }, { timeMs: 0.495, bytes: 101 }, { timeMs: 1 })[0]!.pass, false)
+console.log('[PASS] judge teeth: five complete runs, equal metric sets, finite readings; a byte count never gets a floor and refuses a one-byte increase; a time is refused beyond the box\'s floor — the larger side\'s five-run trimmed spread (the instrument\'s own measured noise, 0 when the runs agree) or 15% of the base reading, whichever is larger — and an arbitrarily small increase refuses at a zero floor')
