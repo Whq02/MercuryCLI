@@ -38,7 +38,7 @@ section('structural — the three seams')
     ti.includes('selectionRange: props.selectionRange') &&
       ti.includes('onSelectionConsumed: props.onSelectionConsumed'),
   )
-  const pi = readFileSync('src/components/PromptInput/PromptInput.tsx', 'utf8')
+  const pi = readFileSync('src/components/PromptInput/PromptInput.tsx', 'utf8') + readFileSync('src/components/PromptInput/useComposerSelection.ts', 'utf8')
   check(
     'PromptInput adapter is history-search guarded (the displayed match is not the input)',
     pi.includes('const mapSelectionToInputRange = ') &&

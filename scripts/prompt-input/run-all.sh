@@ -8,6 +8,7 @@
 # gate-watch: src/utils/Cursor.ts src/utils/inputRange.ts
 # gate-watch: src/hooks/fileSuggestions.ts src/hooks/useTypeahead.tsx src/utils/suggestions/directoryCompletion.ts
 # gate-watch: src/hooks/useHistorySearch.ts
+# gate-watch: src/commands/model/mercuryModel.tsx
 # gate-watch: src/components/ScrollKeybindingHandler.tsx src/components/MercuryModelPicker.tsx
 # gate-watch: src/components/HelmLanesRail.tsx
 # gate-watch: scripts/lib/* scripts/ui/renderScenarios.ts scripts/ui/vshot.py src/commands.ts
@@ -41,6 +42,8 @@ for p in \
   scripts/prompt-input/prove-stash-carries-mode.ts \
   scripts/prompt-input/prove-edit-sanitises.ts \
   scripts/prompt-input/prove-typed-word-plain-ink.ts \
+  scripts/prompt-input/prove-optp-effort-notice.ts \
+  scripts/prompt-input/prove-optp-saved-default.ts \
 ; do
   echo "── $p"
   __t=$SECONDS; __rc=0; "$BUN" run "$p" || { __rc=$?; overall=1; }; prover_mark "$p" "$__t" "$__rc"

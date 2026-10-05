@@ -139,7 +139,7 @@ section('§E RED on the base: the card can still be built for a warning, and kee
   check("the card has no arm that paints 'approaching the <family> <window>'", approaching === null, approaching !== null ? `found ${approaching[0]}` : '')
   check("the card's trigger prop is 'rejected' | 'reset'", card.includes("trigger: 'rejected' | 'reset'") && !card.includes("trigger: 'warning' | 'rejected' | 'reset'"))
   check('the card still names a reached window and exhausted credits as the wire named them', card.includes('`the ${homeName} ${windowNoun} is reached — ${homeName} requests are refused until reset`') && card.includes('`the ${homeName} credits are exhausted — ${homeName} requests are refused until reset`'))
-  const composer = source('src/components/PromptInput/PromptInput.tsx')
+  const composer = source('src/components/PromptInput/useComposerModelDoors.tsx')
   check("the composer's offer state admits no 'warning' trigger", !composer.includes("trigger: 'warning' | 'rejected' | 'reset'"))
   check('the composer hands the card the decision\'s own trigger', composer.includes('trigger: action.trigger') && composer.includes('trigger={offer.trigger}'))
   const docs = source('docs/ENGINES.md')

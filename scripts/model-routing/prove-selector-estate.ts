@@ -192,7 +192,7 @@ section('6 · retention + wiring (structural — the module graph is not bun-loa
       retained.includes('model !== SYNTHETIC_MODEL') &&
       restore.includes("from './model/retainedModel.js'"),
   )
-  const prompt = readFileSync(join(ROOT, 'src', 'components', 'PromptInput', 'PromptInput.tsx'), 'utf8')
+  const prompt = readFileSync(join(ROOT, 'src', 'components', 'PromptInput', 'useComposerModelDoors.tsx'), 'utf8')
   check(
     'the picker consumes the settlement owner (settleModelSelection wraps decideModelTransition)',
     prompt.includes('settleModelSelection(') && !prompt.includes('decideModelTransition({'),

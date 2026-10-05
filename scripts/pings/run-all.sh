@@ -17,6 +17,7 @@
 # gate-watch: src/keybindings/actionGraph.ts src/keybindings/defaultBindings.ts src/screens/Chat.tsx
 # gate-watch: src/services/crew/obligations.ts src/services/crew/obligationsBridge.ts
 # gate-watch: src/services/engine-connector/seatProjections.ts src/utils/*
+# gate-watch: src/components/PromptInput/useComposerModelDoors.tsx
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

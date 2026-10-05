@@ -108,7 +108,7 @@ console.log('============================================================')
       /const foregroundedCrewmate = useAppState\(state =>\s*getViewedCrewmateTask\(state\),?\s*\)/.test(spinner) &&
       /const runningCrewmateCount = useAppState\(state =>/.test(spinner),
   )
-  const pi = src('src', 'components', 'PromptInput', 'PromptInput.tsx')
+  const pi = src('src', 'components', 'PromptInput', 'PromptInput.tsx') + src('src', 'components', 'PromptInput', 'useComposerSubmit.ts') + src('src', 'components', 'PromptInput', 'useComposerKeybindings.ts')
   check(
     'PromptInput subscribes to primitives; handlers read the store at event time',
     !/const tasks = useAppState\(\(s: AppState\) => s\.tasks\)/.test(pi) &&

@@ -54,7 +54,7 @@ try {
       paste ? `type=${paste.type} len=${paste.content?.length ?? 0}` : 'no paste entry — pruned')
   }
 
-  const promptSrc = readFileSync(join(import.meta.dir, '../../src/components/PromptInput/PromptInput.tsx'), 'utf8')
+  const promptSrc = readFileSync(join(import.meta.dir, '../../src/components/PromptInput/useComposerAttachments.ts'), 'utf8')
   const pruneIdx = promptSrc.indexOf('for (const ref of parseReferences(pendingInput.text())) taken.add(ref.id)')
   const pruneBody = promptSrc.slice(Math.max(0, pruneIdx - 160), pruneIdx + 120)
   t('C: the prune derives from pendingInput.text(), not the render snapshot',

@@ -4,7 +4,7 @@
 # gate-watch: src/utils/worktree.ts src/utils/cache/cacheClock.ts scripts/release/payloadContract.mjs
 # gate-watch: scripts/lib/git.ts scripts/lib/executionProfile.ts scripts/lib/captureDriver.ts
 # gate-watch: assets/splash/mercury-splash.mjs src/bootstrap/state.ts src/commands/mouse/mouse.ts
-# gate-watch: src/components/* src/components/PromptInput/PromptInput.tsx
+# gate-watch: src/components/* src/components/PromptInput/PromptInput.tsx src/components/PromptInput/useComposerSubmit.ts
 # gate-watch: src/components/PromptInput/promptIntent.ts src/components/Spinner/SpinnerAnimationRow.tsx
 # gate-watch: src/components/mercury-ui/assets.tsx src/components/mercury-ui/components.tsx
 # gate-watch: src/constants/prompts.ts src/entrypoints/cli.tsx src/fabric/entryCodec.ts src/fabric/ordinal.ts

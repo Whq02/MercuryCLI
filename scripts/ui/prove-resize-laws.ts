@@ -137,7 +137,7 @@ console.log('§6 D2 — the composer viewport holds still inside the band')
       hook.includes('getViewportCharOffset(maxVisibleLines, viewportStartLine)') &&
       hook.includes('getViewportCharEnd(maxVisibleLines, viewportStartLine)'),
   )
-  const prompt = read('src/components/PromptInput/PromptInput.tsx')
+  const prompt = read('src/components/PromptInput/PromptInput.tsx') + read('src/components/PromptInput/useComposerSelection.ts')
   check(
     'the click mapper reads the PAINTED window (the shared ref), never an independent centring',
     prompt.includes('composerViewportStartRef.current ?? cursor.getViewportStartLine(maxVisibleLines)') &&

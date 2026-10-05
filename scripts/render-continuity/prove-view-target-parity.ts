@@ -330,7 +330,7 @@ t.section('§3 manage-visibility predicate + the one esc grammar')
   }
 
   const src = (p: string): string => readFileSync(join(HERE, '..', '..', p), 'utf8')
-  const prompt = src('src/components/PromptInput/PromptInput.tsx')
+  const prompt = src('src/components/PromptInput/useComposerRawKeys.ts')
   t.check(
     "the composer's esc on a viewed crewmate consumes interruptCrewmate and, on idle, exitCrewmateView (esc back to Mercury Lead)",
     /key\.escape[\s\S]{0,900}?interruptCrewmate\(viewed/.test(prompt) && /road === 'idle'\)\s*\{\s*exitCrewmateView\(/.test(prompt),

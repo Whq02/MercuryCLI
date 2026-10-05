@@ -27,7 +27,7 @@ check('ctrl+x g binds app:contentSearch', /'ctrl\+x g':\s*'app:contentSearch'/.t
 check('the ctrl+x g binding is present unconditionally (a plain entry, no gated spread)', /^\s+'ctrl\+x g': 'app:contentSearch',$/m.test(binds))
 
 section('2. PromptInput wiring, stamp-gated')
-const pi = read('src', 'components', 'PromptInput', 'PromptInput.tsx')
+const pi = read('src', 'components', 'PromptInput', 'PromptInput.tsx') + read('src', 'components', 'PromptInput', 'useComposerKeybindings.ts')
 check('imports MercuryContentSearch', /import \{ MercuryContentSearch \} from '\.\.\/MercuryContentSearch\.js'/.test(pi))
 check('has showContentSearch state', /const \[showContentSearch, setShowContentSearch\] = useState\(false\)/.test(pi))
 check("useKeybinding('app:contentSearch', …) is wired", /useKeybinding\('app:contentSearch',[\s\S]{0,80}setShowContentSearch\(true\)/.test(pi))
@@ -40,7 +40,7 @@ check('component file exists', existsSync(join(root, 'src', 'components', 'Mercu
 check('↵ inserts `@file#Lline ` (line-anchored mention)', /onPick\(`@\$\{it\.file\}#L\$\{it\.line\} `\)/.test(cs))
 check('NEVER calls the composer submit (submitInput)', !/submitInput/.test(cs))
 check('↵ routes through onPick insertion only', /onSubmit=\{\(\) => \{[\s\S]{0,160}onPick\(`@\$\{it\.file\}#L\$\{it\.line\} `\)/.test(cs))
-check('the PromptInput onPick path inserts at cursor (no data loss)', /if \(showContentSearch\)[\s\S]{0,600}insertTextAtCursor/.test(pi))
+check('the PromptInput onPick path inserts at cursor (no data loss)', /if \(showContentSearch\)[\s\S]{0,600}insertAtomic/.test(pi))
 check('aborts the in-flight grep on a new query (AbortController)', /abortRef\.current\?\.abort\(\)/.test(cs) && /new AbortController\(\)/.test(cs))
 check('a gen-guard drops stale result sets', /genRef\.current/.test(cs) && /gen === genRef\.current/.test(cs))
 check('a 2-char floor keeps grep off noise', /MIN_QUERY = 2/.test(cs) && /length < MIN_QUERY/.test(cs))

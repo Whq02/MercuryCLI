@@ -32,7 +32,7 @@ check(
 )
 
 section('PromptInput — the one input owner routes compose')
-const pi = read('src/components/PromptInput/PromptInput.tsx')
+const pi = read('src/components/PromptInput/PromptInput.tsx') + read('src/components/PromptInput/useComposerRawKeys.ts')
 check('compose branch gated on telemetry pane', pi.includes("focusPane === 'telemetry' && isConsoleComposing()"))
 check('↵ submits through the store (single usage seam)', pi.includes('consoleSubmitBuffer((question, controller) =>') && pi.includes('runConsoleAsk({'))
 check('esc aborts a pending ask first', pi.includes('if (!consoleAbortAsk()) exitConsoleCompose()'))

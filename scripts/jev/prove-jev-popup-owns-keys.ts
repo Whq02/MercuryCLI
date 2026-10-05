@@ -332,7 +332,7 @@ section("§7 the Boot Settings face's JEV row: ←/→ flip it (no composer stan
 
 section('§8 the source pins')
 {
-  const prompt = readFileSync(join(REPO, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
+  const prompt = readFileSync(join(REPO, 'src/components/PromptInput/PromptInput.tsx'), 'utf8') + readFileSync(join(REPO, 'src/components/PromptInput/useComposerRawKeys.ts'), 'utf8')
   check('the composer subscribes to the popup predicate and folds it into the overlay union', prompt.includes("import { popupOwnsKeys, subscribePopupOwnsKeys } from '../../utils/cockpit/popupOwnsKeys.js'") && prompt.includes('const popupUp = useSyncExternalStore(subscribePopupOwnsKeys, popupOwnsKeys, popupOwnsKeys)') && /const modalOverlayUp =[\s\S]{0,400}hasSuppressedDialogs \|\|\n\s+popupUp/.test(prompt))
   check('the raw ladder reads the predicate live at its hard skip', prompt.includes("if (modalOverlayUp || popupOwnsKeys() || compactWork?.read() === 'summary' || compactWork?.read() === 'detail') return"))
   check("the text input's byte gate carries the predicate too", /const keyboardOwnedByOverlay =[\s\S]{0,300}isLocalJSXCommandActive \|\|\n\s+popupUp/.test(prompt))

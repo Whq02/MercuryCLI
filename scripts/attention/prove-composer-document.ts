@@ -96,7 +96,7 @@ t.section('§3 — the ONE normalization rule')
     C.normalizePastedInput(raw) === 'ared\nb\nc    d',
     JSON.stringify(C.normalizePastedInput(raw)),
   )
-  const prompt = readFileSync('src/components/PromptInput/PromptInput.tsx', 'utf8')
+  const prompt = readFileSync('src/components/PromptInput/useComposerAttachments.ts', 'utf8')
   t.check(
     'PromptInput consumes the extracted rule (normalizePastedInput) — no drift possible',
     prompt.includes('normalizePastedInput'),

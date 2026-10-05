@@ -12,7 +12,7 @@ const read = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 
 const intent = read('src/components/PromptInput/promptIntent.ts')
 check('§A the classifier takes no session-kind parameter (kind-invariant by construction)', /inputParam: string,\s*\n\s*fromKeybinding: boolean,\s*\n\s*commands: Command\[\],/.test(intent))
-const prompt = read('src/components/PromptInput/PromptInput.tsx')
+const prompt = read('src/components/PromptInput/useComposerSubmit.ts')
 const consumerCount = (prompt.match(/classifyAgentViewSubmission\(/g) ?? []).length
 check('§A exactly ONE composer consumer routes on the classifier', consumerCount === 1, String(consumerCount))
 check('§A the consumer routes on the typed task classifiers', prompt.includes('isInProcessCrewmateTask(task)') && prompt.includes('isLocalAgentTask(task)'))

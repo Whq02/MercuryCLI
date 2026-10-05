@@ -403,11 +403,11 @@ section('(17) raw-spelling credential continuity + the one keyed principal (the 
 
 section("(18) the shell-mode '!' is consumed by exactly one owner (w2-f13-02 — the appended-bang class)")
 {
-  const prompt = readFileSync(join(ROOT, 'src', 'components', 'PromptInput', 'PromptInput.tsx'), 'utf8')
+  const prompt = readFileSync(join(ROOT, 'src', 'components', 'PromptInput', 'useComposerDraft.ts'), 'utf8')
   const singleBangAt = prompt.indexOf('value.slice(1) === input')
   const singleBang = prompt.slice(singleBangAt, prompt.indexOf("setMode('bash')", singleBangAt))
-  check("the single-'!'-at-offset-0 branch writes the draft through pendingInput.edit before the mode flips", singleBang.includes('pendingInput.edit(input)'))
-  check('…and marks the write as its own, so the reconciliation cannot re-import the retained !', singleBang.includes('lastSelfWriteRef.current = input'))
+  check("the single-'!'-at-offset-0 branch writes the draft through the one draft-write owner before the mode flips", singleBang.includes('writeDraft(input)'))
+  check('…and that owner marks the write as its own, so the reconciliation cannot re-import the retained !', /const writeDraft = useCallback\(\(text: string\): void => \{\s*pendingInput\.edit\(text\)\s*lastSelfWriteRef\.current = text/.test(prompt))
 }
 
 console.log('\n============================================================')

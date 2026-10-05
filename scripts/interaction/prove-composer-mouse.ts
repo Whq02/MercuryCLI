@@ -58,7 +58,7 @@ section('§2 source — the gesture road')
 {
   const ink = readFileSync('src/ink/ink.tsx', 'utf8')
   const app = readFileSync('src/ink/components/App.tsx', 'utf8')
-  const pi = readFileSync('src/components/PromptInput/PromptInput.tsx', 'utf8')
+  const pi = readFileSync('src/components/PromptInput/PromptInput.tsx', 'utf8') + readFileSync('src/components/PromptInput/useComposerSelection.ts', 'utf8')
   const hook = readFileSync('src/hooks/useTextInput.ts', 'utf8')
   const startAt = ink.indexOf('handleSelectionStart(col: number, row: number, pressHadAlt = false): void {')
   const multiAt = ink.indexOf('handleMultiClick(col: number, row: number, count: 2 | 3): void {')

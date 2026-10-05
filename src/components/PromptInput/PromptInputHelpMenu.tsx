@@ -197,7 +197,6 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
             {[
               'subs N/M caps on/total',
               'trace N',
-              'repo — repo-wide tool calls',
               `${GLYPH.fail}N = killed by a gate`,
               'mcp ≤X risk ceiling',
               'saturn — scheduler pulse',

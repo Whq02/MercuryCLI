@@ -53,7 +53,7 @@ check(
   emitAt >= 0 && guardAt > emitAt && keyboardAt > guardAt,
 )
 
-const prompt = readFileSync('src/components/PromptInput/PromptInput.tsx', 'utf8')
+const prompt = readFileSync('src/components/PromptInput/useComposerRawKeys.ts', 'utf8')
 check(
   "the composer ladder declines prior-generation events (SR-022's consumer)",
   prompt.includes('event.seq !== undefined && isPriorGenerationInput(event.seq)) return'),

@@ -87,7 +87,7 @@ section('§E the first consumer is live — the preview card at all three sites'
   check('the card warns on an unusable target + states delegation honesty', card.includes('targetUsability') && card.includes('not\n            usable right now') === false ? card.includes('usable right now') : true)
   for (const rel of [
     'src/commands/model/mercuryModel.tsx',
-    'src/components/PromptInput/PromptInput.tsx',
+    'src/components/PromptInput/useComposerModelDoors.tsx',
     'src/commands/model/model.tsx',
   ]) {
     const s = readFileSync(join(ROOT, rel), 'utf8')

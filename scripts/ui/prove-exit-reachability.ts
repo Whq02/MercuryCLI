@@ -277,6 +277,7 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
   }
   const HINT_ROSTER: Record<string, { reason: string; witness?: string }> = {
     'src/components/BaseTextInput.tsx': { reason: 'a primitive; the host prints the hint' },
+    'src/components/PromptInput/useComposerRawKeys.ts': { reason: 'the composer’s raw key ladder; the composer’s footer prints the way out', witness: 'src/components/PromptInput/PromptInputFooterLeftSide.tsx' },
     'src/components/ScrollKeybindingHandler.tsx': { reason: 'renders nothing' },
     'src/components/SurfaceExitChord.tsx': { reason: 'renders nothing' },
     'src/components/concourse/CoordinatorPane.tsx': { reason: 'the board’s key atlas prints the way out', witness: 'src/components/concourse/ConcourseScreen.tsx' },

@@ -453,7 +453,7 @@ console.log('native-core T13/T14 — input-scheduling contract')
   const repoRoot = resolve(import.meta.dir, '../..')
   const repl = readFileSync(join(repoRoot, 'src/screens/Chat.tsx'), 'utf8')
   const query = readFileSync(join(repoRoot, 'src/query.ts'), 'utf8')
-  const promptInput = readFileSync(join(repoRoot, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
+  const promptInput = readFileSync(join(repoRoot, 'src/components/PromptInput/useComposerDraft.ts'), 'utf8')
 
   const localShell = readFileSync(join(repoRoot, 'src/tasks/LocalShellTask/LocalShellTask.tsx'), 'utf8')
   const localMainSession = readFileSync(join(repoRoot, 'src/tasks/LocalMainSessionTask.ts'), 'utf8')

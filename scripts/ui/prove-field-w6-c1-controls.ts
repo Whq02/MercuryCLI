@@ -44,7 +44,7 @@ for (const c of cases) {
 
 console.log('§2 — the product source carries the two-pass C1-before-strip-ansi filter')
 {
-  const src = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
+  const src = readFileSync(join(ROOT, 'src/components/PromptInput/composerText.ts'), 'utf8')
   const fn = src.slice(src.indexOf('function stripControls'), src.indexOf('function stripControls') + 400)
   check('C1 is removed inside the strip-ansi call (before it runs)', /stripAnsi\(value\.replace\(\/\[\\u0080-\\u009f\]\/g/.test(fn))
   check('the C0/DEL class still follows strip-ansi', fn.includes('\\u0000-\\u0008\\u000b-\\u001f\\u007f'))
