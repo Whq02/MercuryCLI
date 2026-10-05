@@ -136,14 +136,16 @@ function paginate<T>(
   entries: T[],
   headLimit: number | undefined,
   offset: number,
-): { slice: T[]; appliedLimit?: number; appliedOffset?: number } {
+): { slice: T[]; start: number; appliedLimit?: number; appliedOffset?: number } {
   const limit = effectiveLimit(headLimit)
   const afterOffset = offset > 0 ? entries.slice(offset) : entries
+  const start = entries.length - afterOffset.length
   if (limit === undefined || afterOffset.length <= limit) {
-    return { slice: afterOffset, ...(offset > 0 ? { appliedOffset: offset } : {}) }
+    return { slice: afterOffset, start, ...(offset > 0 ? { appliedOffset: offset } : {}) }
   }
   return {
     slice: afterOffset.slice(0, limit),
+    start,
     appliedLimit: limit,
     ...(offset > 0 ? { appliedOffset: offset } : {}),
   }
@@ -167,6 +169,37 @@ function relativizePrefixed(line: string, splitOn: 'first' | 'last'): string {
   if (index === -1) return line
   const pathPart = line.slice(0, index)
   return `${toRelativePath(pathPart)}${line.slice(index)}`
+}
+
+function sharedPrefix(first: string, second: string): string {
+  const limit = Math.min(first.length, second.length)
+  let end = 0
+  while (end < limit && first.charCodeAt(end) === second.charCodeAt(end)) end++
+  return first.slice(0, end)
+}
+
+function relativizeContentLines(lines: readonly string[], from: number, count: number): string[] {
+  const relativized: string[] = []
+  let shared = ''
+  let groupEnd = from
+  for (let at = from; at < from + count; at++) {
+    const line = lines[at]!
+    if (line === '--') {
+      relativized.push(line)
+      continue
+    }
+    if (at >= groupEnd) {
+      let groupStart = at
+      while (groupStart > 0 && lines[groupStart - 1] !== '--') groupStart--
+      groupEnd = at + 1
+      while (groupEnd < lines.length && lines[groupEnd] !== '--') groupEnd++
+      shared = lines[groupStart]!
+      for (let index = groupStart + 1; index < groupEnd; index++) shared = sharedPrefix(shared, lines[index]!)
+    }
+    const isContext = shared !== '' && line.startsWith(shared) && line.charAt(shared.length) === '-'
+    relativized.push(isContext ? `${toRelativePath(shared)}${line.slice(shared.length)}` : relativizePrefixed(line, 'first'))
+  }
+  return relativized
 }
 
 const SINGLE_QUOTE_CLASS = `['${LEFT_SINGLE_CURLY_QUOTE}${RIGHT_SINGLE_CURLY_QUOTE}]`
@@ -218,7 +251,7 @@ export function realSearchRoot(root: string): string {
 function respellRoot(line: string, real: string, given: string): string {
   if (!line.startsWith(real)) return line
   const next = line.charAt(real.length)
-  return next === '' || next === '/' || next === '\\' || next === ':' ? `${given}${line.slice(real.length)}` : line
+  return next === '' || next === '/' || next === '\\' || next === ':' || next === '-' ? `${given}${line.slice(real.length)}` : line
 }
 
 async function buildArgs(input: Input, context: ToolUseContext, searchRoot: string): Promise<string[]> {
@@ -421,7 +454,7 @@ export const GrepTool = buildTool({
     const incomplete = answer.complete ? undefined : (answer.reason ?? 'the search did not finish')
 
     if (mode === 'content') {
-      const { slice, appliedLimit, appliedOffset } = paginate(lines, input.head_limit, offset)
+      const { slice, start, appliedLimit, appliedOffset } = paginate(lines, input.head_limit, offset)
       if ((anchorPatchEnabled() || staleEditRecoveryEnabled()) && (input['-n'] ?? true)) {
         try {
           const owner = ownerFromToolUseContext(context)
@@ -438,7 +471,10 @@ export const GrepTool = buildTool({
         } catch {
         }
       }
-      const relativized = slice.map(line => relativizePrefixed(line, 'first'))
+      const withContext = (input.context ?? input['-C'] ?? Math.max(input['-B'] ?? 0, input['-A'] ?? 0)) > 0
+      const relativized = withContext
+        ? relativizeContentLines(lines, start, slice.length)
+        : slice.map(line => relativizePrefixed(line, 'first'))
       return {
         data: {
           mode,
