@@ -45,6 +45,18 @@ export async function sessionFiles(projectDir: string, options: { stat?: boolean
   return rows.filter((row): row is IndexedSession => row !== null)
 }
 
+export function flatPrompt(text: string): string {
+  return text.replace(/\n/g, ' ').trim()
+}
+
+export function clippedPrompt(flat: string): string {
+  return flat.length > 200 ? flat.slice(0, 200).trim() + '…' : flat
+}
+
+export function promptLabel(text: string): string {
+  return clippedPrompt(flatPrompt(text))
+}
+
 export function sessionPromptFromWindow(chunk: string, builtIn: (name: string) => boolean = () => true, portable = false): string {
   let commandFallback = ''
   for (const line of chunk.split('\n')) {
@@ -60,7 +72,7 @@ export function sessionPromptFromWindow(chunk: string, builtIn: (name: string) =
         ? payload.content.flatMap((block: { kind?: string; text?: string }) => block.kind === 'text' && typeof block.text === 'string' && (portable || !block.text.startsWith(GROUND_NOTE_MARK)) ? [portable ? stripGroundNote(block.text) : block.text] : []) : []
       for (const text of texts) {
         if (!text) continue
-        const flat = text.replace(/\n/g, ' ').trim()
+        const flat = flatPrompt(text)
         if (portable && (flat === '' || /^\s*<[a-z]/.test(flat) && !flat.includes('<command-name>') && !flat.includes('<bash-input>'))) continue
         const command = /<command-name>([\s\S]*?)<\/command-name>/.exec(flat)?.[1]
         if (command) {
@@ -72,7 +84,7 @@ export function sessionPromptFromWindow(chunk: string, builtIn: (name: string) =
         const shell = /<bash-input>([\s\S]*?)<\/bash-input>/.exec(flat)?.[1]
         if (shell) return `! ${shell}`
         if (/^(?:\s*<[a-z][\w-]*[\s>]|\[Request interrupted by user[^\]]*\])/.test(flat)) continue
-        return flat.length > 200 ? flat.slice(0, 200).trim() + '…' : flat
+        return clippedPrompt(flat)
       }
     } catch {}
   }
