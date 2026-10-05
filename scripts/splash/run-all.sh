@@ -5,6 +5,7 @@
 # gate-watch: docs/INSTALL-WINDOWS-FROM-SOURCE.md scripts/engine-durability/harness.ts
 # gate-watch: scripts/lib/generated-assets-map.mjs src/components/mercury-ui/focalRamp.ts
 # gate-watch: src/components/mercuryPalette.ts src/ink/colorize.ts src/substrate/* src/utils/*
+# gate-watch: scripts/ink-runtime/ansiEmulator.ts
 # gate-watch: src/utils/cockpit/critterData.ts src/utils/cockpit/greetingShimmer.ts src/utils/model/* src/services/providers/xai/xaiPins.ts
 # gate-watch: src/services/providers/deepseek/deepseekPins.ts src/services/providers/moonshot/kimiPins.ts src/utils/router/providers/zai.ts
 set -u
