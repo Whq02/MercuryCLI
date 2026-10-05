@@ -1,0 +1,170 @@
+{
+  "baseSha": "59a987410603024225009f4dd483b0cfe024fe02",
+  "tipSha": "59a987410603024225009f4dd483b0cfe024fe02",
+  "sourceTree": "1e74792f195fea6ef5cf057d6d57e095a39245a7",
+  "sceneDigest": "b44d69733afb4b8085ef215e07a93a8f4884038a9956b4833f49940e01c360f3",
+  "cols": 177,
+  "rows": 49,
+  "platform": "darwin",
+  "architecture": "arm64",
+  "box": "Apple M5 Pro",
+  "osRelease": "27.0.0",
+  "terminal": "Apple_Terminal identity over byte-exact POSIX pty",
+  "repetitions": 5,
+  "comparison": "live base and tip on this box",
+  "measuredAt": "2026-10-05T01:31:54.251Z",
+  "silentKeys": [
+    3,
+    9,
+    15
+  ],
+  "medians": {
+    "fullComposeMs": 0.8768329999984417,
+    "fullFrameMs": 3.191353999999592,
+    "fullLayoutMs": 0.4471460000004299,
+    "idleBytesPer10s": 0,
+    "keyBurstEndMs": 1.70947265625,
+    "keyBytes": 61,
+    "keyFirstMaxMs": 2.5126953125,
+    "keyFirstMs": 1.66943359375,
+    "keyLastMs": 1.70947265625,
+    "pointerBytes": 5,
+    "smallFrameMs": 0.3366669999995793,
+    "viewBurstEndMs": 5.0418701171875,
+    "viewBytes": 31660,
+    "viewFirstMs": 3.9610595703125,
+    "viewLastMs": 5.0418701171875
+  },
+  "runs": [
+    {
+      "metrics": {
+        "keyBytes": 61,
+        "keyFirstMs": 1.66943359375,
+        "keyFirstMaxMs": 4.023193359375,
+        "keyBurstEndMs": 1.70947265625,
+        "keyLastMs": 1.70947265625,
+        "viewBytes": 31660,
+        "viewFirstMs": 3.9610595703125,
+        "viewBurstEndMs": 5.0418701171875,
+        "viewLastMs": 5.0418701171875,
+        "idleBytesPer10s": 0,
+        "pointerBytes": 5,
+        "fullFrameMs": 3.191353999999592,
+        "smallFrameMs": 0.32162500000049477,
+        "fullLayoutMs": 0.434312499999578,
+        "fullComposeMs": 0.9116045000009763
+      },
+      "silentKeys": [
+        3,
+        9,
+        15
+      ],
+      "frames": 28,
+      "inputs": 28
+    },
+    {
+      "metrics": {
+        "keyBytes": 61,
+        "keyFirstMs": 1.78662109375,
+        "keyFirstMaxMs": 2.5126953125,
+        "keyBurstEndMs": 1.8525390625,
+        "keyLastMs": 1.8525390625,
+        "viewBytes": 31660,
+        "viewFirstMs": 5.2109375,
+        "viewBurstEndMs": 10.0684814453125,
+        "viewLastMs": 10.0684814453125,
+        "idleBytesPer10s": 0,
+        "pointerBytes": 5,
+        "fullFrameMs": 6.054582999999184,
+        "smallFrameMs": 0.34204200000021956,
+        "fullLayoutMs": 0.4593119999999544,
+        "fullComposeMs": 0.9290619999983392
+      },
+      "silentKeys": [
+        3,
+        9,
+        15
+      ],
+      "frames": 28,
+      "inputs": 28
+    },
+    {
+      "metrics": {
+        "keyBytes": 61,
+        "keyFirstMs": 1.556884765625,
+        "keyFirstMaxMs": 2.655517578125,
+        "keyBurstEndMs": 1.598876953125,
+        "keyLastMs": 1.598876953125,
+        "viewBytes": 31660,
+        "viewFirstMs": 4.546142578125,
+        "viewBurstEndMs": 5.9654541015625,
+        "viewLastMs": 5.9654541015625,
+        "idleBytesPer10s": 0,
+        "pointerBytes": 5,
+        "fullFrameMs": 3.818207999999686,
+        "smallFrameMs": 0.32966600000145263,
+        "fullLayoutMs": 0.4471460000004299,
+        "fullComposeMs": 0.8768329999984417
+      },
+      "silentKeys": [
+        3,
+        9,
+        15
+      ],
+      "frames": 28,
+      "inputs": 28
+    },
+    {
+      "metrics": {
+        "keyBytes": 61,
+        "keyFirstMs": 1.6376953125,
+        "keyFirstMaxMs": 1.9326171875,
+        "keyBurstEndMs": 1.6435546875,
+        "keyLastMs": 1.6435546875,
+        "viewBytes": 31660,
+        "viewFirstMs": 3.8414306640625,
+        "viewBurstEndMs": 4.7916259765625,
+        "viewLastMs": 4.7916259765625,
+        "idleBytesPer10s": 0,
+        "pointerBytes": 5,
+        "fullFrameMs": 2.870749500000784,
+        "smallFrameMs": 0.3366669999995793,
+        "fullLayoutMs": 0.4585209999995641,
+        "fullComposeMs": 0.8594369999991613
+      },
+      "silentKeys": [
+        3,
+        9,
+        15
+      ],
+      "frames": 28,
+      "inputs": 28
+    },
+    {
+      "metrics": {
+        "keyBytes": 61,
+        "keyFirstMs": 2.00537109375,
+        "keyFirstMaxMs": 2.4814453125,
+        "keyBurstEndMs": 2.025390625,
+        "keyLastMs": 2.025390625,
+        "viewBytes": 31660,
+        "viewFirstMs": 3.6988525390625,
+        "viewBurstEndMs": 4.6419677734375,
+        "viewLastMs": 4.6419677734375,
+        "idleBytesPer10s": 0,
+        "pointerBytes": 5,
+        "fullFrameMs": 2.9798954999996567,
+        "smallFrameMs": 0.39129200000024866,
+        "fullLayoutMs": 0.444729499998175,
+        "fullComposeMs": 0.81927099999848
+      },
+      "silentKeys": [
+        3,
+        9,
+        15
+      ],
+      "frames": 28,
+      "inputs": 28
+    }
+  ]
+}
