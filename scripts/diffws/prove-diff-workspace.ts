@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { resolveProofHome } from '../lib/proofHome.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
@@ -13,8 +13,8 @@ const FIX = join(REPO, '.mercury', 'proof-fixtures', 'diffws', 'fx')
 const SID = 'd1ffd1ff-2222-4222-8222-222222222222'
 const CONFIG_HOME = resolveProofHome([FIX])
 
-const { sanitizePath } = await import('../../src/utils/sessionStoragePortable.ts')
-const PROJ_DIR = join(CONFIG_HOME, 'projects', sanitizePath(FIX))
+const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
+const PROJ_DIR = join(CONFIG_HOME, 'projects', basename(getProjectDir(FIX)))
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import { mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
+import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
@@ -50,7 +50,7 @@ function seedSession(home: string, cell: Cell): void {
   mkdirSync(home, { recursive: true })
   seedFirstRun(home, [ROOT])
   const sid = '00000000-aaaa-bbbb-cccc-a3a3a3a3a3a3'
-  const projDir = join(home, 'projects', sanitizePath(ROOT))
+  const projDir = join(home, 'projects', basename(getProjectDir(ROOT)))
   mkdirSync(projDir, { recursive: true })
   const linesForTurn = (n: number): number =>
     cell.mix ? (n % 2 === 1 ? 12 : 1) : cell.msgLines

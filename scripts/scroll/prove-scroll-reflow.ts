@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
-import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
+import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
@@ -44,7 +44,7 @@ function seedSession(home: string): void {
   rmSync(home, { recursive: true, force: true })
   mkdirSync(home, { recursive: true })
   seedFirstRun(home, [ROOT])
-  const projDir = join(home, 'projects', sanitizePath(ROOT))
+  const projDir = join(home, 'projects', basename(getProjectDir(ROOT)))
   mkdirSync(projDir, { recursive: true })
   const lines: Record<string, unknown>[] = []
   let prevUuid: string | null = null

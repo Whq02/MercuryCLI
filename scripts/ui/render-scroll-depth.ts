@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
+import { basename, join } from 'node:path'
+import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 import { resolveProofHome } from '../lib/proofHome.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
@@ -9,7 +9,7 @@ const REPO = join(new URL('.', import.meta.url).pathname, '../..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
 const VSHOT = join(REPO, 'scripts/ui/vshot.py')
 const CONFIG_HOME = resolveProofHome([REPO.normalize('NFC')])
-const PROJECTS = join(CONFIG_HOME, 'projects', sanitizePath(REPO.normalize('NFC')))
+const PROJECTS = join(CONFIG_HOME, 'projects', basename(getProjectDir(REPO.normalize('NFC'))))
 const SID = `00000000-aaaa-bbbb-ffff-${(process.pid % 0xffffff).toString(16).padStart(12, '0')}`
 
 const base = (extra: Record<string, unknown>) => ({

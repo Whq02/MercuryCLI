@@ -2,10 +2,10 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
-import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
+import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const BIN = process.env.MERCURY_CRASH_REENTRY_BIN ?? join(ROOT, 'dist/mercury.mjs')
@@ -61,7 +61,7 @@ function seedHome(name: string): Home {
   mkdirSync(home, { recursive: true })
   mkdirSync(cwd, { recursive: true })
   seedFirstRun(home, [cwd])
-  const projDir = join(home, 'projects', sanitizePath(cwd))
+  const projDir = join(home, 'projects', basename(getProjectDir(cwd)))
   mkdirSync(projDir, { recursive: true })
   return { home, cwd, projDir }
 }
@@ -210,7 +210,7 @@ section('§6 the resolver, road by road')
     const h = seedHome('resolver')
     const older = seedTranscript(h, RESUMED, 'OLDER', 3 * HOUR)
     const crashed = seedTranscript(h, CRASHED, 'CRASHED', 2 * HOUR)
-    const projectDirOf = (cwd: string): string => join(h.home, 'projects', sanitizePath(cwd))
+    const projectDirOf = (cwd: string): string => join(h.home, 'projects', basename(getProjectDir(cwd)))
     const opts = { projectDirOf, currentCwd: h.cwd, sessionsDir: join(h.home, 'sessions'), clearedAt: () => null }
     const recorded = resolve({ sessionId: CRASHED, cwd: h.cwd, pid: 1, transcriptPath: crashed }, opts)
     check('a recorded transcript path wins', recorded?.road === 'recorded' && recorded.transcriptPath === crashed, JSON.stringify(recorded))

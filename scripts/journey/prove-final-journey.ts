@@ -3,7 +3,7 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
@@ -13,8 +13,8 @@ const VSHOT = join(import.meta.dir, '../ui/vshot.py')
 const FIX = join(REPO, '.mercury', 'proof-fixtures', 'journey', 'jx')
 const { resolveProofHome } = await import('../lib/proofHome.ts')
 const CONFIG_HOME = resolveProofHome([FIX], { keep: Boolean(process.env.JOURNEY_KEEP_FIXTURE) })
-const { sanitizePath } = await import('../../src/utils/sessionStoragePortable.ts')
-const PROJ_DIR = join(CONFIG_HOME, 'projects', sanitizePath(FIX))
+const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
+const PROJ_DIR = join(CONFIG_HOME, 'projects', basename(getProjectDir(FIX)))
 const SID_A = 'facef00d-aaaa-4aaa-8aaa-000000000001'
 const SID_B = 'facef00d-bbbb-4bbb-8bbb-000000000002'
 

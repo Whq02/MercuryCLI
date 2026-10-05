@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -88,8 +88,8 @@ async function seedWorld(): Promise<{ home: string; cwd: string }> {
   seedFirstRun(home, [cwd])
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ events: { hooks: { SessionStart: [{ matcher: 'compact', hooks: [{ type: 'command', command: `sleep ${RESTORE_HOLD_S}` }] }] } } }))
   process.env.MERCURY_CONFIG_DIR = home
-  const { sanitizePath } = await import('../../src/utils/sessionStoragePortable.ts')
-  const projDir = join(home, 'projects', sanitizePath(cwd))
+  const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
+  const projDir = join(home, 'projects', basename(getProjectDir(cwd)))
   mkdirSync(projDir, { recursive: true })
   for (const key of ['fold', 'cancel', 'refuse'] as const) writeFileSync(join(projDir, `${SID[key]}.jsonl`), seedRows(SID[key], cwd, 30, 3, 900))
   writeFileSync(join(projDir, `${SID.auto}.jsonl`), seedRows(SID.auto, cwd, 60, 6, 16_000))

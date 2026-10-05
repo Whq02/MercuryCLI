@@ -6,8 +6,8 @@ process.env.NODE_ENV = 'test'
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
+import { basename, join } from 'node:path'
+import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { checker } from '../engine-durability/harness.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
@@ -28,7 +28,7 @@ function seedHome(name: string): string {
 function seedSession(home: string): string {
   const cwd = process.cwd()
   const SID = `00000000-bbbb-cccc-dddd-${(process.pid % 0xffffff).toString(16).padStart(12, '0')}`
-  const projects = join(home, 'projects', sanitizePath(cwd))
+  const projects = join(home, 'projects', basename(getProjectDir(cwd)))
   mkdirSync(projects, { recursive: true })
   const base = (extra: Record<string, unknown>): Record<string, unknown> => ({
     isSidechain: false,
