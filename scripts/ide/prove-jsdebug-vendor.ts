@@ -2,7 +2,7 @@
 
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, relative, resolve } from 'node:path'
 
@@ -161,16 +161,34 @@ section('(5) degraded-build seam (MERCURY_BUILD_NO_VENDOR_JSDEBUG=1, scratch out
   }
 }
 
-section('(6) the mismatch arm, STANDING (poisoned cache ⇒ BUILD FAILED naming the fetch)')
+section('(6) the mismatch arm, STANDING (a poisoned SCRATCH copy of the cache ⇒ BUILD FAILED naming the fetch; the shared cache is never written)')
 if (existsSync(join(EXTRACT, '.vendor-manifest.json'))) {
   const vmanPath = join(EXTRACT, '.vendor-manifest.json')
   const original = readFileSync(vmanPath)
   const scratch = mkdtempSync(join(tmpdir(), 'jsdebug-poison-build-'))
+  const mirror = mkdtempSync(join(tmpdir(), 'jsdebug-poison-root-'))
   try {
+    for (const entry of readdirSync(ROOT)) {
+      if (entry === 'vendor' || entry === 'build.ts' || entry === 'dist' || entry === '.git') continue
+      symlinkSync(join(ROOT, entry), join(mirror, entry))
+    }
+    copyFileSync(join(ROOT, 'build.ts'), join(mirror, 'build.ts'))
+    mkdirSync(join(mirror, 'vendor'))
+    for (const entry of readdirSync(join(ROOT, 'vendor'))) {
+      if (entry === 'js-debug') continue
+      symlinkSync(join(ROOT, 'vendor', entry), join(mirror, 'vendor', entry))
+    }
+    const realExtract = realpathSync(EXTRACT)
+    const mirrorExtract = join(mirror, 'vendor', 'js-debug', 'extracted')
+    mkdirSync(mirrorExtract, { recursive: true })
+    for (const entry of readdirSync(realExtract)) {
+      if (entry === '.vendor-manifest.json') continue
+      symlinkSync(join(realExtract, entry), join(mirrorExtract, entry))
+    }
     const poisoned = { ...(JSON.parse(original.toString('utf8')) as Record<string, unknown>), version: '0.0.0-poison' }
-    writeFileSync(vmanPath, JSON.stringify(poisoned, null, 2) + '\n')
+    writeFileSync(join(mirrorExtract, '.vendor-manifest.json'), JSON.stringify(poisoned, null, 2) + '\n')
     const bun = process.env.BUN ?? join(process.env.HOME ?? '', '.bun', 'bin', 'bun')
-    const r = spawnSync(bun, ['run', join(ROOT, 'build.ts')], {
+    const r = spawnSync(bun, ['run', join(mirror, 'build.ts')], {
       encoding: 'utf8',
       timeout: 300_000,
       cwd: ROOT,
@@ -180,20 +198,21 @@ if (existsSync(join(EXTRACT, '.vendor-manifest.json'))) {
         MERCURY_BUILD_TIME: '2026-01-01T00:00:00.000Z',
       },
     })
-    check('poisoned cache FAILS the build (exit 1)', r.status === 1, `exit ${r.status}`)
+    check('poisoned cache FAILS the build (exit 1)', r.status === 1, `exit ${r.status}: ${(r.stderr || r.stdout || '').slice(-300)}`)
     const err = `${r.stderr ?? ''}${r.stdout ?? ''}`
     check('…naming the mismatch', err.includes('vendor/js-debug cache does not match vendor/js-debug.lock.json'))
     check('…and the fetch remedy', err.includes('bun run scripts/vendor/fetch-js-debug.ts'))
   } finally {
-    writeFileSync(vmanPath, original)
+    rmSync(mirror, { recursive: true, force: true })
     rmSync(scratch, { recursive: true, force: true })
   }
+  check('the shared cache manifest was never written (bytes unchanged)', readFileSync(vmanPath).equals(original))
   const recheck = spawnSync(
     process.env.BUN ?? join(process.env.HOME ?? '', '.bun', 'bin', 'bun'),
     ['run', join(ROOT, 'scripts', 'vendor', 'fetch-js-debug.ts'), '--check'],
     { encoding: 'utf8', timeout: 120_000, env: { ...process.env } },
   )
-  check('cache byte-restored after the poison (--check OK)', recheck.status === 0, (recheck.stderr || '').slice(0, 200))
+  check('the shared cache still passes --check', recheck.status === 0, (recheck.stderr || '').slice(0, 200))
 } else {
   console.log('  [SKIP — LOUD] no local vendor cache; the mismatch arm needs it.')
   failures++
