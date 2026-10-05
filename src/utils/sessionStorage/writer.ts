@@ -29,6 +29,8 @@ import type {
 import type { AttributionSnapshotMessage } from '../../types/logs.js'
 import type { Message } from '../../types/message.js'
 import { storageRowPolicy } from '../../rows/storage.js'
+import { SessionMeta, SESSION_META_COMPAT_FIELDS } from './sessionMeta.js'
+import { readTranscriptTailSync } from './transcriptReader.js'
 import type { QueueOperationMessage } from '../../types/messageQueueTypes.js'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { registerExitCliffSeam } from '../exitCliffDrain.js'
@@ -42,10 +44,7 @@ import { getFsImplementation } from '../fsOperations.js'
 import { getBranch } from '../git.js'
 import { logError } from '../log.js'
 import { isCompactBoundaryMessage } from '../messages.js'
-import {
-  extractLastJsonStringField,
-  LITE_READ_BUF_SIZE,
-} from '../sessionStoragePortable.js'
+import { LITE_READ_BUF_SIZE } from '../sessionStoragePortable.js'
 import { getSettings_DEPRECATED } from '../settings/settings.js'
 import { jsonParse, jsonStringify } from '../slowOperations.js'
 import type { ContentReplacementRecord } from '../toolResultStorage.js'
@@ -396,7 +395,23 @@ class Project {
   private readonly MAX_CHUNK_BYTES = 100 * 1024 * 1024
   private fileWriteChain: Promise<unknown> = Promise.resolve()
 
-  constructor() {}
+  readonly metadata = new SessionMeta({
+    currentId: () => getSessionId() as UUID,
+    currentFile: () => this.sessionFile,
+    append: appendEntryToFile,
+    tail: path => readTranscriptTailSync(path, LITE_READ_BUF_SIZE),
+  })
+
+  constructor() {
+    for (const [name, field] of Object.entries(SESSION_META_COMPAT_FIELDS)) {
+      Object.defineProperty(this, name, {
+        enumerable: true,
+        configurable: true,
+        get: () => this.metadata.fields[field],
+        set: value => { (this.metadata.fields as Record<string, unknown>)[field] = value },
+      })
+    }
+  }
 
   _resetFlushState(): void {
     this.settleState = new Map()
@@ -597,118 +612,7 @@ class Project {
   }
 
   reAppendSessionMetadata(skipTitleRefresh = false): void {
-    if (!this.sessionFile) return
-    const sessionId = getSessionId() as UUID
-    if (!sessionId) return
-
-    const tail = readFileTailSync(this.sessionFile)
-
-    const isMetaLine = (l: string, metaKind: string): boolean =>
-      l.startsWith('{"schemaVersion":') && l.includes(`"metaKind":"${metaKind}"`)
-    const tailLines = tail.split('\n')
-    if (!skipTitleRefresh) {
-      const titleLine = tailLines.findLast((l: string) =>
-        isMetaLine(l, 'custom-title'),
-      )
-      if (titleLine) {
-        const tailTitle = extractLastJsonStringField(titleLine, 'customTitle')
-        if (tailTitle !== undefined) {
-          this.currentSessionTitle = tailTitle || undefined
-        }
-      }
-    }
-    const tagLine = tailLines.findLast((l: string) => isMetaLine(l, 'tag'))
-    if (tagLine) {
-      const tailTag = extractLastJsonStringField(tagLine, 'tag')
-      if (tailTag !== undefined) {
-        this.currentSessionTag = tailTag || undefined
-      }
-    }
-
-    if (this.currentSessionLastPrompt) {
-      appendEntryToFile(this.sessionFile, {
-        type: 'last-prompt',
-        lastPrompt: this.currentSessionLastPrompt,
-        sessionId,
-      })
-    }
-    if (this.currentSessionTitle) {
-      appendEntryToFile(this.sessionFile, {
-        type: 'custom-title',
-        customTitle: this.currentSessionTitle,
-        sessionId,
-      })
-    }
-    if (this.currentSessionTag) {
-      appendEntryToFile(this.sessionFile, {
-        type: 'tag',
-        tag: this.currentSessionTag,
-        sessionId,
-      })
-    }
-    if (this.currentSessionAgentName) {
-      appendEntryToFile(this.sessionFile, {
-        type: 'agent-name',
-        agentName: this.currentSessionAgentName,
-        sessionId,
-      })
-    }
-    if (this.currentSessionAgentColor) {
-      appendEntryToFile(this.sessionFile, {
-        type: 'agent-color',
-        agentColor: this.currentSessionAgentColor,
-        sessionId,
-      })
-    }
-    if (this.currentSessionAgentSetting) {
-      appendEntryToFile(this.sessionFile, {
-        type: 'agent-setting',
-        agentSetting: this.currentSessionAgentSetting,
-        sessionId,
-      })
-    }
-    if (this.currentSessionMode) {
-      appendEntryToFile(this.sessionFile, {
-        type: 'mode',
-        mode: this.currentSessionMode,
-        sessionId,
-      })
-    }
-    if (this.currentSessionAdvisor !== undefined) {
-      appendEntryToFile(this.sessionFile, {
-        type: 'advisor-switch',
-        on: this.currentSessionAdvisor,
-        sessionId,
-      })
-    }
-    if (this.currentSessionModel) {
-      appendEntryToFile(this.sessionFile, {
-        type: 'model',
-        model: this.currentSessionModel,
-        sessionId,
-      })
-    }
-    if (this.currentSessionWorktree !== undefined) {
-      appendEntryToFile(this.sessionFile, {
-        type: 'worktree-state',
-        worktreeSession: this.currentSessionWorktree,
-        sessionId,
-      })
-    }
-    if (
-      this.currentSessionPrNumber !== undefined &&
-      this.currentSessionPrUrl &&
-      this.currentSessionPrRepository
-    ) {
-      appendEntryToFile(this.sessionFile, {
-        type: 'pr-link',
-        sessionId,
-        prNumber: this.currentSessionPrNumber,
-        prUrl: this.currentSessionPrUrl,
-        prRepository: this.currentSessionPrRepository,
-        timestamp: new Date().toISOString(),
-      })
-    }
+    this.metadata.restamp(skipTitleRefresh)
   }
 
   async flush(): Promise<void> {
@@ -1128,29 +1032,6 @@ class Project {
 export type CrewInfo = {
   crewName?: string
   agentName?: string
-}
-
-function readFileTailSync(fullPath: string): string {
-  let fd: number | undefined
-  try {
-    fd = openSync(fullPath, 'r')
-    const st = fstatSync(fd)
-    const tailOffset = Math.max(0, st.size - LITE_READ_BUF_SIZE)
-    const buf = Buffer.allocUnsafe(
-      Math.min(LITE_READ_BUF_SIZE, st.size - tailOffset),
-    )
-    const bytesRead = readSync(fd, buf, 0, buf.length, tailOffset)
-    return buf.toString('utf8', 0, bytesRead)
-  } catch {
-    return ''
-  } finally {
-    if (fd !== undefined) {
-      try {
-        closeSync(fd)
-      } catch {
-      }
-    }
-  }
 }
 
 export function appendEntryToFile(

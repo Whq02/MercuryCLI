@@ -82,8 +82,11 @@ section("L4 this process's own title save invalidates")
   logs.invalidateSessionListingMemo()
   await progressive()
   check('the listing after invalidateSessionListingMemo sweeps again', census.sweeps === sweepsBefore + 1)
-  const src = readFileSync(join(ROOT, 'src/utils/sessionStorage/logs.ts'), 'utf8')
-  check('saveCustomTitle calls the invalidation right after its append', /type: 'custom-title',[\s\S]{0,200}?\}\)\n(?:\s*\/\/[^\n]*\n)*\s*invalidateSessionListingMemo\(\)/.test(src))
+  const id = uuidAt(0, 0)
+  const beforeSave = census.sweeps
+  await logs.saveCustomTitle(id as never, 'renamed', join(projectsDir, 'proj-0', `${id}.jsonl`))
+  const afterSave = await progressive()
+  check('saveCustomTitle calls the invalidation right after its append', census.sweeps === beforeSave + 1 && afterSave.logs.some(row => row.sessionId === id && row.customTitle === 'renamed'))
 }
 
 section('L5 the public door rides the memo; callers get fresh rows')

@@ -634,6 +634,18 @@ export function readTranscriptBytesAfter(path: string, cursor: TranscriptByteCur
   }
 }
 
+export function readTranscriptTailSync(path: string, bytes: number): string {
+  try {
+    const stat = io.statSync(path)
+    if (!stat) return ''
+    const buffer = io.readRangeSync(path, Math.max(0, stat.size - bytes), stat.size)
+    transcriptReaderCensus.bytesRead += buffer.length
+    return buffer.toString('utf8')
+  } catch {
+    return ''
+  }
+}
+
 export function scanTranscriptLinesBackward(path: string, visit: (line: string) => boolean | void): void {
   const st = io.statSync(path)
   if (st === null || st.size === 0) return
