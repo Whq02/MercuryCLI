@@ -2,8 +2,8 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
+import { basename, join } from 'node:path'
+import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 const RUNTIME_CWD = join(import.meta.dir, '..', '..')
@@ -31,7 +31,7 @@ writeFileSync(join(home, '.mercury.json'), JSON.stringify({
   customApiKeyResponses: { approved: [FAKE_KEY.slice(-20)], rejected: [] },
   projects: { [RUNTIME_CWD]: { hasTrustDialogAccepted: true } },
 }))
-const PROJECTS = join(home, 'projects', sanitizePath(RUNTIME_CWD))
+const PROJECTS = join(home, 'projects', basename(getProjectDir(RUNTIME_CWD)))
 mkdirSync(PROJECTS, { recursive: true })
 
 const base = (extra: Record<string, unknown>) => ({

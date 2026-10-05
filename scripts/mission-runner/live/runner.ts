@@ -1,13 +1,13 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir, homedir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { basename, join, resolve } from 'node:path'
 import { parseFrame } from '../../lib/rows.ts'
 import {
   evaluateMissionCompletion,
   parseReviewResult,
 } from '../../../src/services/mission/completion.js'
-import { sanitizePath } from '../../../src/utils/sessionStoragePortable.js'
+import { getProjectDir } from '../../../src/utils/sessionStoragePortable.js'
 import { CORPUS_SEED_ROOT, type HelixTask } from '../corpus/contracts.js'
 import { taskById } from '../corpus/tasks.js'
 import { gradeTask } from '../corpus/grade.js'
@@ -368,7 +368,7 @@ export function findLatestSession(configHome: string, workdir: string, sinceMs: 
   }
   let best: { id: string; mtime: number } | null = null
   for (const candidate of candidates) {
-    const dir = join(configHome, 'projects', sanitizePath(candidate))
+    const dir = join(configHome, 'projects', basename(getProjectDir(candidate)))
     try {
       for (const entry of readdirSync(dir)) {
         if (!entry.endsWith('.jsonl')) continue

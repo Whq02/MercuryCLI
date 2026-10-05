@@ -2,13 +2,14 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { COMPASS_SID, buildCompass1k } from './fixture1k.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { entryToRecord } from '../../src/fabric/entryCodec.ts'
 import { ordinalOf } from '../../src/fabric/ordinal.ts'
+import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(HERE, '..', '..')
@@ -75,9 +76,7 @@ function encodeTranscript(lines: Record<string, unknown>[], sessionId: string): 
 }
 
 function projectSlug(cwd: string): string {
-  const s = cwd.replace(/[^a-zA-Z0-9]/g, '-')
-  if (s.length > 200) throw new Error(`arena cwd too long for the no-hash slug path: ${cwd}`)
-  return s
+  return basename(getProjectDir(cwd))
 }
 
 export async function runCompassArena(opts: CompassArenaOpts): Promise<CompassRun> {

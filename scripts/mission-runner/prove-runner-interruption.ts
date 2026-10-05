@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { findLatestSession, launchArgs, runTaskWithPolicy } from './live/runner.js'
 import { policyById } from './live/policies.js'
-import { sanitizePath } from '../../src/utils/sessionStoragePortable.js'
+import { getProjectDir } from '../../src/utils/sessionStoragePortable.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -60,7 +60,7 @@ const plain = launchArgs(policy, 'go')
 check('§4 no resume flag without a session', !plain.includes('--resume'))
 
 const workdirFake = join(scratchRoot, 'projected work', 'dir')
-const slugDir = join(configHome, 'projects', sanitizePath(workdirFake))
+const slugDir = join(configHome, 'projects', basename(getProjectDir(workdirFake)))
 mkdirSync(slugDir, { recursive: true })
 writeFileSync(join(slugDir, 'older-session.jsonl'), '{}\n')
 utimesSync(join(slugDir, 'older-session.jsonl'), new Date(1000), new Date(1000))
