@@ -267,10 +267,10 @@ section('§3 one owner: the door routes through the reader · the freshest obser
   check('a bare header record (no stamp — a proof seam) keeps the header precedence', Math.round((raw.five_hour?.utilization ?? 0) * 100) === 13)
   limits.resetLimitsForCredentialSwitch()
   const painters = [
-    ['src/components/HelmTelemetryRail.tsx', 'usageAgeTail(w, readNow)'],
+    ['src/utils/cockpit/helmTelemetryModel.ts', 'usageAgeTail(w, readNow)'],
     ['src/components/MercuryFrame.tsx', 'usageAgeTail(first, usageNow)'],
     ['src/components/DeckPane.tsx', 'usageAgeTail(stripFirst, now)'],
-    ['src/components/HelmLanesRail.tsx', 'usageAgeTail(lead, Date.now())'],
+    ['src/utils/cockpit/helmLanesModel.ts', 'usageAgeTail(lead, nowMs)'],
     ['src/components/Deck.tsx', 'usageSourceWords(freshest, now)'],
     ['src/components/Settings/Usage.tsx', 'usageSourceWords(w)'],
   ] as const
@@ -279,8 +279,8 @@ section('§3 one owner: the door routes through the reader · the freshest obser
     const code = text.split('\n').filter(line => !/^\s*(\/\/|\*|\/\*)/.test(line)).join('\n')
     check(`${file} paints the read's age through the owner (${call}) and spells no age word of its own`, text.includes(call) && !/['`]↻/.test(code) && !code.includes("'stale ") && !code.includes('last read'), file)
   }
-  const rail = src('src/components/HelmTelemetryRail.tsx')
-  check('the rail paints the reader\'s compact note under the meters', rail.includes('usage.readerNoteCompact') && rail.includes("key=\"usage:reader\""))
+  const rail = src('src/utils/cockpit/helmTelemetryModel.ts')
+  check('the rail paints the reader\'s compact note under the meters', rail.includes('usage.readerNoteCompact') && rail.includes("key: 'usage:reader'"))
   const deck = src('src/components/Deck.tsx')
   check('/deck paints the reader\'s note', deck.includes('usage.readerNote') && deck.includes('key="reader"'))
   check('isServerWait is the reader\'s one exported predicate (a 429 with Retry-After; never a bare 429 or a 500)', reader.isServerWait({ kind: 'http', status: 429, retryAfterMs: 5000 }) && reader.isServerWait({ status: 429, retryAfterMs: 1 }) && !reader.isServerWait({ kind: 'http', status: 429 }) && !reader.isServerWait({ kind: 'http', status: 500, retryAfterMs: 5000 }) && !reader.isServerWait(undefined))

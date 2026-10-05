@@ -79,9 +79,9 @@ section('§1 the per-model pools ride the active-source view, and every renderer
     check(`${family}: a family that reports no per-model pools shows none`, Array.isArray(u.pools) && u.pools.length === 0)
   }
 
-  const rail = src('src/components/HelmTelemetryRail.tsx')
-  check('the rail folds the focused source\'s pools under its windows', rail.includes('usage.pools.filter(w => w.state === \'live\')'))
-  check('…and every beside-account\'s pools under its own block', rail.includes('other.pools.filter(x => x.state === \'live\')'))
+  const rail = src('src/utils/cockpit/helmTelemetryModel.ts')
+  check('the rail folds the focused source\'s pools under its windows', rail.includes('...source.pools.filter(w => w.state === \'live\').map(w => ({ w, pool: true }))') && rail.includes("meterRowsOf(usage, 'usage:', "))
+  check('…and every beside-account\'s pools under its own block', rail.includes('meterRowsOf(other, `usage:${other.provider}:`, '))
   check('the rail\'s meter tail carries the read\'s age and turns stale before the countdown', rail.includes('usageAgeTail(w, readNow)') && rail.includes('usageViewIsStale(w, readNow)') && rail.includes('meterTail(w, pool)'))
   const deck = src('src/components/Deck.tsx')
   check('/deck paints the pools beside the pair and one read line', deck.includes('[...usage.windows, ...usage.pools]') && deck.includes('usageSourceWords(freshest, now)'))
@@ -273,8 +273,8 @@ section('§4 credits: the provider-stated balance with feed + age, or the honest
   check("a credential switch drops the figure with the windows: 'not read yet'", limits.getEndpointExtraUsage() === null && line(owner.usageForProvider('anthropic', { activeEntry: () => ({ ...subEntry }), anthropicPlan: () => 'max', spend: () => spend })) === `credits: ${owner.EXTRA_USAGE_NOT_READ_WORDS}`)
   const tab = src('src/components/Settings/Usage.tsx')
   check('every source on the tab carries the owner\'s credits line regardless of its shape', tab.includes('<UsageCredits usage={usageForProvider(family)} />') && tab.includes('const line = usageCreditsLine(usage.credits)'))
-  const rail = src('src/components/HelmTelemetryRail.tsx')
-  check('the rail\'s api-key block carries the compact credits line', rail.includes("usageCreditsLine(usage.credits, now, 'compact')"))
+  const rail = src('src/utils/cockpit/helmTelemetryModel.ts')
+  check('the rail\'s api-key block carries the compact credits line', rail.includes("usageCreditsLine(source.credits, now, 'compact')") && rail.includes("creditsOf(usage, 'usage:credits')"))
   const deck = src('src/components/Deck.tsx')
   check('/deck\'s api-key block carries the credits row', deck.includes("padTo('credits', 11)") && deck.includes('usageCreditsWords(usage.credits, now)'))
 }
@@ -308,7 +308,7 @@ section('§5 never a fabricated zero: unstated pools and null figures are absent
   check('a summary never spells a 0% for a pool that was not stated', !/Fable|Opus|Sonnet/.test(summary) && summary.includes('5h 36%') && summary.includes('7d 44%'), summary)
   const empty = owner.usageSummaryWords(owner.usageForProvider('anthropic', { activeEntry: () => ({ ...subEntry }), anthropicPlan: () => 'max', spend: () => spend }), NOW)
   check("a subscription with nothing observed says 'no usage read' — never 0%", empty.includes(fresh.NO_USAGE_READ_WORDS) && !empty.includes('0%'), empty)
-  const rail = src('src/components/HelmTelemetryRail.tsx')
+  const rail = src('src/utils/cockpit/helmTelemetryModel.ts')
   const deck = src('src/components/Deck.tsx')
   check('the rail and /deck lead their unread state with the one spelling', rail.includes('${NO_USAGE_READ_WORDS} · fills after first reply') && deck.includes('{NO_USAGE_READ_WORDS} · fills after first reply'))
 }
@@ -335,6 +335,7 @@ section('§7 one vocabulary: the feed + freshness words live in one module; no s
   const surfaces = [
     'src/services/providers/providerUsage.ts',
     'src/components/HelmTelemetryRail.tsx',
+    'src/utils/cockpit/helmTelemetryModel.ts',
     'src/components/Deck.tsx',
     'src/components/DeckPane.tsx',
     'src/components/MercuryFrame.tsx',
@@ -523,7 +524,7 @@ section('§9 the carry words: a reached window says what carries the requests fr
   const delegated = usability.delegationDispatchBlocker('openai', map)
   check('a delegated dispatch refusal names what carries the requests', (delegated ?? '').includes('(the openai usage window is reached — resets per /usage · on credits · 62,500 left)'), delegated ?? '(null)')
 
-  const rail = src('src/components/HelmTelemetryRail.tsx')
+  const rail = src('src/utils/cockpit/helmTelemetryModel.ts')
   check("the rail paints the compact carry words under its reached line through the one composer, and the '100% · …' row without a wall", rail.includes("usageCarryWords(usage.carry, readNow, 'compact')") && rail.includes("reached === 'wall' ? carry : `100% · ${carry}`") && rail.includes('usageWindowReached(usage, readNow)'))
   const tab = src('src/components/Settings/Usage.tsx')
   check('the /usage tab appends the carry words to its reached sentences and paints the 100% line under every family\'s meters', tab.includes('toLocaleString()}{carryTail(owner)}.') && tab.includes('toLocaleTimeString()}${carryTail(usage)}.') && (tab.match(/<FullWindowLine usage=/g) ?? []).length >= 4 && tab.includes('A usage window reads 100%${carryTail(usage)}.'))

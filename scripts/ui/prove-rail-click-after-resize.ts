@@ -98,7 +98,7 @@ for (const shape of SHAPES) {
       { atTick: 999, requireAwait: true, awaitText: 'shortcuts', minTick: 4, awaitSettleTicks: 8, data: '\x1b[I', mark: 'chat' },
       { atTick: 999, requireAwait: true, awaitText: 'no prompts sent yet', minTick: 2, awaitSettleTicks: 3, data: '/mission relay probe\r', mark: 'mission' },
       { atTick: 999, requireAwait: true, awaitText: 'no prompts sent yet', minTick: 2, awaitSettleTicks: 3, data: '\t', mark: 'focus' },
-      { atTick: 999, requireAwait: true, awaitText: '◆ relay probe', minTick: 2, awaitSettleTicks: 3, targetText: '◆ relay probe', targetDx: 2, data: CLICK, mark: 'warmup' },
+      { atTick: 999, requireAwait: true, awaitText: '◆ relay probe', minTick: 2, awaitSettleTicks: 3, targetText: 'WORKBENCH', targetDx: 2, data: CLICK, mark: 'warmup' },
       { atTick: 999, requireAwait: true, awaitText: 'no prompts sent yet', minTick: 2, awaitSettleTicks: 3, targetText: 'no prompts sent yet', data: CLICK, mark: 'click1' },
       { atTick: 999, requireAwait: true, awaitText: '❯ no prompts sent yet', minTick: 1, awaitSettleTicks: 2, data: '', mark: 'after1' },
       { atTick: 999, requireAwait: true, awaitText: '◆ relay probe', minTick: SHRINK_AT + 3, awaitSettleTicks: 3, targetText: '◆ relay probe', targetDx: 2, data: CLICK, mark: 'click2' },

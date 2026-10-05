@@ -15,7 +15,7 @@ function check(label: string, cond: boolean): void {
 const fullscreen = read('src/utils/fullscreen.ts')
 const layout = read('src/components/FullscreenLayout.tsx')
 const geometry = read('src/utils/helmGeometry.ts')
-const lanes = read('src/components/HelmLanesRail.tsx')
+const lanes = read('src/components/HelmLanesRail.tsx') + read('src/utils/cockpit/helmLanesModel.ts')
 const telemetry = read('src/components/HelmTelemetryRail.tsx')
 const welcome = read('src/components/MercuryHome.tsx')
 const frame = read('src/components/MercuryFrame.tsx')
@@ -110,9 +110,9 @@ check('M4: CREW is capped (slice CREW_ROWS) with a +N more overflow',
 check('no TASKS card: the rail builds no ledger section or rows of its own',
   !/section\('tasks'/.test(lanes) && !/missionNodes/.test(lanes) && !/'TASKS'/.test(lanes) && !/no open tasks/.test(lanes))
 check('RUNS is the one rail door to the /runs board (header opens /runs)',
-  /section\('runs', GLYPH\.turns, 'RUNS', `\$\{runsLive\} live`, runNodes, \{ open: '\/runs' \}\)/.test(lanes))
+  /key: 'runs', glyph: GLYPH\.turns, label: 'RUNS', count: `\$\{runsLive\} live`, open: '\/runs', rows/.test(lanes))
 check('a ledger alone never forces the busy layout (the solo gate reads crew, the viewed or pinned crewmate, runs and daemon crew only — no peers term)',
-  /const solo =\n\s+crewAll\.length === 0 &&\n\s+keptIds\.length === 0 &&\n\s+runsAll\.length === 0 &&\n\s+daemonCrew\.length === 0\n/.test(lanes) && !/ledgerOpen/.test(lanes) && !/peers\.length/.test(lanes))
+  /return input\.sessionCrew\.length === 0 && keptIds\.length === 0 && runsOf\(input\.tasks, input\.roster\)\.length === 0 && input\.daemonCrew\.length === 0/.test(lanes) && !/ledgerOpen/.test(lanes) && !/peers\.length/.test(lanes))
 check('S4: the dead selectedCaret/focus path is removed from the rail',
   !/selectedCaret/.test(lanes) && !/onCursorMax/.test(lanes))
 
@@ -121,9 +121,9 @@ check('RUNS: kind derives from the task shape (isLocalShellTask + kind monitor)'
 check('RUNS: agent tasks are excluded (they live in CREW)',
   /!isLocalAgentTask\(t\) && !isInProcessCrewmateTask\(t\)/.test(lanes))
 check('RUNS: running rows rotate (glyphLive → WorkingGlyph in RailRow)',
-  /glyphLive=\{live\}/.test(lanes) && /glyphLive \? \(\s*<WorkingGlyph color=\{glyphColor\} active \/>/m.test(lanes))
+  /glyphLive: live,/.test(lanes) && /glyphLive=\{spec\.glyphLive\}/.test(lanes) && /glyphLive \? \(\s*<WorkingGlyph color=\{glyphColor\} active \/>/m.test(lanes))
 check('RUNS: verb carries kind + live elapsed (formatSpan)',
-  /\$\{r\.kind\} \$\{formatSpan\(Date\.now\(\) - r\.startedAtMs\)\}/.test(lanes))
+  /\$\{r\.kind\} \$\{formatSpan\(nowMs - r\.startedAtMs\)\}/.test(lanes) && /const nowMs = Date\.now\(\)/.test(lanes))
 check('RUNS: lane is capped (RUNS_ROWS) with a +N more overflow',
   /slice\(0, RUNS_ROWS\)/.test(lanes) && /runsMore/.test(lanes))
 check('RUNS: rows drill to the SPECIFIC task card (/runs <id>)',
@@ -133,11 +133,11 @@ check('RUNS: elapsed floors on a stamped start (never an epoch span)',
 check('MoreRow has click parity (requestHelmRowActivation on click)',
   /function MoreRow\([\s\S]{0,900}requestHelmRowActivation\('lanes', rowIndex\)/.test(lanes))
 check('RUNS: a live run is never "solo" (runsAll gates the empty-state)',
-  /runsAll\.length === 0 &&/.test(lanes))
+  /runsOf\(input\.tasks, input\.roster\)\.length === 0 &&/.test(lanes))
 check('RUNS: elapsed stays honest while runs live (the 15s tick arms on runsLive)',
-  /useNowTick\(\s*mergedTelemetry \|\| runsLive > 0 \? 15_000 : null,?\s*\)/.test(lanes))
+  /useNowTick\(\s*mergedTelemetry \|\| model\.runsLive > 0 \? 15_000 : null,?\s*\)/.test(lanes))
 check('CREW: running agent rows rotate too (one liveness grammar; an idle crewmate, the viewed ◉ and main-chat ★ marks stand still)',
-  /glyphLive=\{c\.status === 'running' && !idle && !isViewing && !isMainChat\}/.test(lanes))
+  /const live = c\.status === 'running' && !idle\n/.test(lanes) && /glyphLive: live && !isViewing && !isMainChat,/.test(lanes))
 
 check('telemetry rail renders the ctx-fill gauge (getLiveContextUsage)',
   /getLiveContextUsage/.test(telemetry) && /ctx /.test(telemetry))

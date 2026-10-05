@@ -379,7 +379,7 @@ section('§7 the surfaces read the one credential-account owner')
   const composer = read('src/services/providers/providerIdentityLine.ts')
   check('the identity composer reads the presence owner, whose Anthropic identity is the sign-in email', composer.includes('presenceIdentityWords(') && owner.includes('anthropicSignInEmail(reads)'))
   check('the usage popup reads the identity composer', read('src/components/Settings/Usage.tsx').includes('providerIdentityLine('))
-  check('the usage card reads the identity composer', read('src/components/HelmTelemetryRail.tsx').includes('providerIdentityLine('))
+  check('the usage card reads the identity composer', read('src/utils/cockpit/helmTelemetryModel.ts').includes('providerIdentityLine('))
 }
 
 type ScopeRead = import('../../src/utils/accounts/accountIdentity.ts').ScopeIdentityState

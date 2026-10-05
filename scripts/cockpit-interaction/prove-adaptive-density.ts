@@ -137,27 +137,28 @@ t.section('§2 — one published activity, subscribed rather than polled')
 t.section('§3 — the rail consumes the plan; no lane order is written twice')
 {
   const rail = readFileSync('src/components/HelmLanesRail.tsx', 'utf8')
-  t.check('the rail reads the published activity', rail.includes('useCockpitActivity()'), 'subscribed')
-  t.check('and builds the ONE plan', rail.includes('densityPlan(activity'), 'one owner')
+  const model = readFileSync('src/utils/cockpit/helmLanesModel.ts', 'utf8')
+  t.check('the rail reads the published activity', rail.includes('useCockpitActivity()') && rail.includes('activity,'), 'subscribed')
+  t.check('and builds the ONE plan', model.includes('densityPlan(input.activity') && rail.includes('buildLanesModel(input)'), 'one owner')
   t.check(
     'the shed loop walks the plan, not a literal',
-    rail.includes('for (const k of density.shedOrder)'),
+    model.includes('for (const k of density.shedOrder)'),
     'plan-driven',
   )
   t.check(
     'no hardcoded shed order survives in the rail',
-    !/for \(const k of \[/.test(rail),
+    !/for \(const k of \[/.test(rail) && !/for \(const k of \[/.test(model),
     'single source',
   )
   t.check(
     'the never-shed floor comes from the plan owner',
-    rail.includes('HELM_DENSITY_FLOOR'),
+    model.includes('HELM_DENSITY_FLOOR'),
     'shared floor',
   )
   t.check(
-    'and the hint budget is spent through it, so the intent formula cannot drift',
-    rail.includes('Math.min(5 + (mission ? 0 : 1), hintCap)') && rail.includes('hints.slice(0, hintCap)'),
-    'formula mirrors the builder',
+    'and the hint budget is spent through it, so the shed cost cannot drift from the rows',
+    model.includes('hints.slice(0, hintCap)') && model.includes('spent -= costOf(s)') && !model.includes('intents') && !rail.includes('intents'),
+    'the cost is the built rows',
   )
   const repl = readFileSync('src/screens/Chat.tsx', 'utf8')
   t.check('the Chat publishes all four states', /publishCockpitActivity\(cockpitActivity\)/.test(repl), 'published')

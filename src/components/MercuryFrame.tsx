@@ -64,6 +64,7 @@ import { useFocusedTranscript } from '../hooks/useFocusedTranscript.js'
 import { useFocusedWorkspaceCwd } from '../hooks/useFocusedWorkspaceCwd.js'
 import { formatQuietAge, workflowPulseAt } from '../tools/WorkflowTool/livePulse.js'
 import { focusedWorkRows, runningWorkflowRows, useFocusedWorkRoster } from './tasks/useFocusedWork.js'
+import { hasSeatLive } from '../services/engine-connector/seatLive.js'
 import type { AppState } from '../state/AppState.js'
 import { SessionMark } from './mercury-ui/assets.js'
 import { Sep, UsageMeter, useNowTick } from './mercury-ui/components.js'
@@ -101,6 +102,18 @@ const getFocusedSessionPin = (): string | null => getFocusedSessionConnector().m
 const getFocusedAdvisorChip = (): string | null => advisorChipWords(getFocusedSessionConnector().advisorFacts())
 const subscribeFocusedPermissionMode = subscribeThroughFocused((connector, listener) => connector.subscribePermissionMode(listener))
 const getFocusedPermissionMode = (): PermissionMode | null => getFocusedSessionConnector().permissionMode()
+const subscribeFocusedLive = subscribeThroughFocused((connector, listener) => (hasSeatLive(connector) ? connector.subscribeLive(listener) : () => {}))
+const getFocusedThinkingKey = (): string => {
+  const c = getFocusedSessionConnector()
+  if (!hasSeatLive(c)) return ''
+  const live = c.live()
+  return live.inFlight && live.phase === 'thinking' ? 'thinking' : ''
+}
+export function thinkingPulseWords(status: { phaseMs: number | null; quietMs: number | null }): string {
+  const elapsed = status.phaseMs !== null ? ` ${formatQuietAge(status.phaseMs)}` : ''
+  const age = status.quietMs !== null ? ` ${GLYPH.dot} ↻${formatQuietAge(status.quietMs)}` : ''
+  return `${GLYPH.inProgress} thinking${elapsed}${age}`
+}
 
 function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNode {
   fluxMark('render:frame')
@@ -394,6 +407,18 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
     [allTasks, workRoster],
   )
   const wfNow = useNowTick(!isCompact && wfLive.length > 0 ? 10_000 : null)
+  const thinkingKey = useSyncExternalStore(subscribeFocusedLive, getFocusedThinkingKey, getFocusedThinkingKey)
+  const focusedSeat = getFocusedSessionConnector()
+  const thinkingStatus = thinkingKey === 'thinking' && hasSeatLive(focusedSeat) ? focusedSeat.status() : null
+  const thinkingShown = !isCompact && !routeSurface && thinkingStatus !== null && thinkingStatus.wait === null
+  useNowTick(thinkingShown ? 1000 : null)
+  const thinkingNode =
+    thinkingShown && thinkingStatus !== null ? (
+      <Text>
+        <Sep />
+        <Text color={thinkingStatus.stuck ? tok.warning : tok.success}>{thinkingPulseWords(thinkingStatus)}</Text>
+      </Text>
+    ) : null
   let wfNode: React.ReactNode = null
   if (wfLive.length > 0) {
     const pulses = wfLive.flatMap(w => (w.pulse ? [workflowPulseAt(w.pulse, wfNow)] : []))
@@ -457,6 +482,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
         {turnsNode}
         {needsNode}
         {motionNode}
+        {thinkingNode}
         {
 }
         {wfNode}

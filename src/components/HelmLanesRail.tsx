@@ -1,36 +1,17 @@
 import * as React from 'react'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { getProjectRoot } from '../bootstrap/state.js'
-import { formatSessionCost } from '../cost-tracker.js'
 import { conversationIdHere, getFocusedSessionConnector, subscribeFocusedSessionConnector, subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
-import { crewSettled, crewStateLabel, crewTokensLabel, type CrewAgentFacts } from '../services/engine-connector/crewFacts.js'
-import { workRowRuns } from '../services/engine-connector/workCounts.js'
 import { promptRows } from './prompts-panel/rows.js'
 import { filterResumableSessions } from '../commands/resume/resume.js'
 import { Box, Text } from '../ink.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
-import { isTerminalTaskStatus, type TaskStatus } from '../Task.js'
 import { useAppState } from '../state/AppState.js'
-import { isInProcessCrewmateTask } from '../tasks/InProcessCrewmateTask/types.js'
-import { isLocalAgentTask } from '../tasks/LocalAgentTask/LocalAgentTask.js'
 import { useSessionCrew } from './tasks/useCrewLedger.js'
 import { useFocusedWorkRoster } from './tasks/useFocusedWork.js'
-import { MAIN_CONVERSATION_ID } from '../services/crew/conversations.js'
-import { isLocalShellTask } from '../tasks/LocalShellTask/guards.js'
-import type { TaskState } from '../tasks/types.js'
 import type { LogOption } from '../types/logs.js'
-import { saturnWakeGlanceOf, saturnWakeGlanceWords, type SaturnWakeGlanceV1 } from '../daemon/saturn.js'
+import { saturnWakeGlanceOf, type SaturnWakeGlanceV1 } from '../daemon/saturn.js'
 import { readSessionWorkers } from '../daemon/concourseWorkers.js'
-
-function formatSpan(ms: number): string {
-  const s = Math.max(0, Math.round(ms / 1000))
-  if (s < 60) return `${s}s`
-  const m = s / 60
-  if (m < 90) return `${Math.round(m)}m`
-  const h = m / 60
-  if (h < 48) return `${h.toFixed(h < 10 ? 1 : 0)}h`
-  return `${Math.round(h / 24)}d`
-}
 import { getActiveMission, getActiveMissionVersion, subscribeActiveMission } from '../utils/hooks/missionHook.js'
 import { isProjectSession, isSubstantiveSession } from '../utils/sessionFilter.js'
 import { isSessionCleared } from '../utils/sessionStorage/clearedSessions.js'
@@ -39,109 +20,28 @@ import { boardHomedSessionIds } from '../daemon/concourseWorkers.js'
 import { getSessionIdFromLog, loadAllProjectsMessageLogs } from '../utils/sessionStorage.js'
 import { getHelmCursor, getHelmFocus, getHelmLanesVersion, getHelmRows, helmRowSig, publishHelmRows, requestCommandDispatch, requestHelmRowActivation, requestHelmRowActivationBySig, setHelmCursor, setHelmCursorBySig, subscribeHelmFocus, type HelmRow } from '../utils/cockpit/helmFocus.js'
 import { openFilesMenu } from '../utils/cockpit/filesMenu.js'
-import { formatCountdown } from '../utils/cockpit/quota.js'
 import { activeSourceUsage } from '../services/providers/providerUsage.js'
-import { usageAgeTail } from '../services/providers/usageFreshness.js'
-import {
-  getLiveContextUsage,
-  getLiveContextUsageVersion,
-  subscribeLiveContextUsage,
-} from '../utils/cockpit/contextUsageLive.js'
-import { contextPercentLabel, contextWindowLabel } from '../utils/contextFill.js'
+import { getLiveContextUsage, getLiveContextUsageVersion, subscribeLiveContextUsage } from '../utils/cockpit/contextUsageLive.js'
 import { healthCertSnapshot } from '../utils/cockpit/healthCertSnapshot.js'
 import { useNowTick } from './mercury-ui/components.js'
 import { useProviderUsageOnShow } from '../hooks/useProviderUsageOnShow.js'
 import { useFocusedWorkspaceCwd } from '../hooks/useFocusedWorkspaceCwd.js'
 import { GLYPH, displayWidth, truncateToWidth } from './mercury-ui/glyphs.js'
 import { ValueGlow, CURSOR_NUDGE_MS, AttentionPulse, WorkingGlyph } from './mercury-ui/LiveGlyphs.js'
-import { RailPanel, railPanelInnerWidth } from './mercury-ui/RailPanel.js'
-import { densityPlan, hintBudget, HELM_DENSITY_FLOOR } from '../utils/helmDensity.js'
+import { RailPanel } from './mercury-ui/RailPanel.js'
 import { useCockpitActivity } from '../utils/cockpit/cockpitActivity.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
-import type { MercuryThemeTokens } from '../utils/mercuryTokens.js'
-import { tabLabel } from './mercury-ui/SessionTabs.js'
 import { useTelemetry } from '../state/telemetryBus.js'
 import { fluxMark, fluxWhy } from '../utils/flux/fluxProbe.js'
 import { basename } from 'node:path'
 import { getRunSnapshot, subscribeRuns } from '../services/run/runCoordinator.js'
-import { isTerminalLifecycle } from '../services/run/runKernel.js'
 import { processMainOwner } from '../services/run/resolveOwner.js'
 import { isEnvDefinedFalsy } from '../utils/envUtils.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
-import { lerpHex } from '../utils/theme.js'
-import { LEAD_ROW_NAME, crewChatDoor } from '../utils/cockpit/crewmateWords.js'
+import { buildLanesModel, planningObjectiveOf, soloOf, wrapRailRows, type LanesInput, type LanesRowSpec, type LanesSectionSpec } from '../utils/cockpit/helmLanesModel.js'
 
-
-type CrewRow = { id: string; label: string; status: TaskStatus; hosted?: boolean; facts?: CrewAgentFacts }
-
-type CrewEntry =
-  | { kind: 'task'; row: CrewRow }
-  | { kind: 'daemon'; name: string; online: boolean; unread: number; model?: string }
-
-export function wrapRailRows(text: string, width: number, maxRows: number): string[] {
-  const words = text.split(/\s+/).filter(Boolean)
-  const rows: string[] = []
-  let line = ''
-  const push = (row: string): boolean => {
-    rows.push(row)
-    if (rows.length === maxRows) {
-      rows[maxRows - 1] = truncateToWidth(`${rows[maxRows - 1]!}…`, width)
-      return true
-    }
-    return false
-  }
-  for (const w of words) {
-    const candidate = line === '' ? w : `${line} ${w}`
-    if (displayWidth(candidate) <= width) {
-      line = candidate
-      continue
-    }
-    if (line !== '' && push(line)) return rows
-    if (displayWidth(w) <= width) {
-      line = w
-      continue
-    }
-    if (push(truncateToWidth(w, width))) return rows
-    line = ''
-  }
-  if (line !== '') rows.push(line)
-  return rows.slice(0, maxRows)
-}
-
-type RunKind = 'shell' | 'monitor' | 'workflow' | 'cloud' | 'run'
-type RunRow = { id: string; title: string; status: TaskStatus; kind: RunKind; startedAtMs: number }
-
-function runKindOf(t: TaskState): RunKind {
-  if (isLocalShellTask(t)) return t.kind === 'monitor' ? 'monitor' : 'shell'
-  switch (t.type) {
-    case 'local_workflow':
-      return 'workflow'
-    case 'remote_agent':
-      return 'cloud'
-    case 'monitor_mcp':
-      return 'monitor'
-    default:
-      return 'run'
-  }
-}
-
-function statusTone(status: TaskStatus, tok: MercuryThemeTokens): { label: string; tone: string } {
-  switch (status) {
-    case 'running':
-      return { label: 'running', tone: tok.success }
-    case 'pending':
-      return { label: 'pending', tone: tok.textSecondary }
-    case 'completed':
-      return { label: 'done', tone: tok.textMuted }
-    case 'failed':
-      return { label: 'failed', tone: tok.failure }
-    case 'killed':
-      return { label: 'killed', tone: tok.failure }
-    default:
-      return { label: status, tone: tok.textMuted }
-  }
-}
+export { wrapRailRows }
 
 function RailRow({
   width,
@@ -246,20 +146,6 @@ function RailRow({
     </InteractiveRow>
   )
 }
-
-
-function railRowProps(
-  isOn: (i: number) => boolean,
-  sel: (r: HelmRow) => number,
-  row: HelmRow,
-): { selected: boolean; rowIndex: number; rowSig: string } {
-  const i = sel(row)
-  return { selected: isOn(i), rowIndex: i, rowSig: helmRowSig(row) }
-}
-
-const lastKnownRecent = new Map<string, LogOption[]>()
-let lastKnownWakeGlance: SaturnWakeGlanceV1 | null = null
-const lastKnownWorkShape = new Map<string, string>()
 
 const subscribeFocusedRecords = subscribeThroughFocused((c, l) => c.subscribeRecords(l))
 
@@ -378,240 +264,17 @@ function SectionHeader({ label, width }: { label: string; width: number }): Reac
   )
 }
 
-const CREW_ROWS = 6
-const RUNS_ROWS = 4
+const lastKnownRecent = new Map<string, LogOption[]>()
+let lastKnownWakeGlance: SaturnWakeGlanceV1 | null = null
+const lastKnownWorkShape = new Map<string, string>()
 
-export const HelmLanesRail = React.memo(HelmLanesRailImpl)
-
-function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { width: number; mergedTelemetry?: boolean; availRows?: number }): React.ReactNode {
-  fluxMark('render:rail-lanes')
-  const tok = useMercuryTokens()
-  const activity = useCockpitActivity()
-  const ctxUsageVersion = useSyncExternalStore(subscribeLiveContextUsage, getLiveContextUsageVersion, getLiveContextUsageVersion)
-  const lanesVersion = useSyncExternalStore(subscribeHelmFocus, getHelmLanesVersion, getHelmLanesVersion)
-  const missionVersion = useSyncExternalStore(subscribeActiveMission, getActiveMissionVersion, getActiveMissionVersion)
-  const focused = getHelmFocus() === 'lanes'
-  const cur = getHelmCursor('lanes')
-  const { accent } = useSessionAccent()
-
-  const focusedRecords = useSyncExternalStore(
-    subscribeFocusedRecords,
-    () => getFocusedSessionConnector().records(),
-    () => getFocusedSessionConnector().records(),
-  )
-  const lastSentPrompt = React.useMemo(() => {
-    const rows = promptRows(focusedRecords)
-    return rows.length > 0 ? rows[rows.length - 1]! : null
-  }, [focusedRecords])
-
-  const workRunSnap = useSyncExternalStore(
-    subscribeRuns,
-    () => getRunSnapshot(processMainOwner()),
-    () => null,
-  )
-  const planningObjective =
-    workRunSnap &&
-    workRunSnap.substantive &&
-    !isTerminalLifecycle(workRunSnap.lifecycle) &&
-    workRunSnap.deliverables.length >= 2 &&
-    workRunSnap.deliverables.every(d => d.state !== 'done')
-      ? workRunSnap.objective
-      : null
-  const [workShape, setWorkShape] = useState<string | null>(() =>
-    planningObjective ? (lastKnownWorkShape.get(planningObjective) ?? null) : null,
-  )
-  useEffect(() => {
-    if (!planningObjective) return
-    let alive = true
-    void import('../services/mission/projection.js')
-      .then(async m => {
-        const d = await m.gatherPolicyDecision(planningObjective, 0)
-        if (alive && d) {
-          if (lastKnownWorkShape.size > 8) lastKnownWorkShape.clear()
-          lastKnownWorkShape.set(planningObjective, d.profile.id)
-          setWorkShape(d.profile.id)
-        }
-      })
-      .catch(() => {})
-    return () => {
-      alive = false
-    }
-  }, [planningObjective])
-
-  const boxed = !mergedTelemetry
-  const rowW = boxed ? railPanelInnerWidth(width) : width
-
-  const tasks = useAppState(s => s.tasks)
-  const viewingAgentTaskId = useAppState(s => s.viewingAgentTaskId)
-  const mainChatTaskId = useAppState(s => s.mainChatTaskId)
-  const roster = useFocusedWorkRoster()
-
-  const sessionCrew = useSessionCrew()
-  const crewRows: CrewRow[] = sessionCrew.map(row => ({
-    id: row.facts.id,
-    label: row.facts.name,
-    status: row.facts.status as TaskStatus,
-    ...(row.hosted ? { hosted: true } : {}),
-    facts: row.facts,
-  }))
-  const keptIds = [viewingAgentTaskId, mainChatTaskId].filter((id): id is string => id != null)
-  const crewAll = [...crewRows].sort((a, b) => (a.status === 'running' ? 0 : 1) - (b.status === 'running' ? 0 : 1))
-  const keptBeyondCap = crewAll.filter((c, i) => i >= CREW_ROWS && keptIds.includes(c.id))
-  if (keptBeyondCap.length > 0) {
-    const rest = crewAll.filter(c => !keptBeyondCap.includes(c))
-    rest.splice(Math.max(0, CREW_ROWS - keptBeyondCap.length), 0, ...keptBeyondCap)
-    crewAll.splice(0, crewAll.length, ...rest)
-  }
-  const telemetry = useTelemetry()
-  const railWhyRef = React.useRef<Record<string, unknown> | null>(null)
-  fluxWhy('rail-lanes', railWhyRef, () => ({
-    width,
-    mergedTelemetry,
-    availRows,
-    tok,
-    activity,
-    ctxUsageVersion,
-    lanesVersion,
-    missionVersion,
-    accent,
-    focusedRecords,
-    workRunSnap,
-    workShape,
-    tasks,
-    roster,
-    viewingAgentTaskId,
-    mainChatTaskId,
-    telemetry,
-  }))
-
-  const daemonCrewRaw = telemetry.crew ?? []
-  const daemonCrew = [...daemonCrewRaw].sort(
-    (a, b) =>
-      b.unread - a.unread ||
-      Number(b.online) - Number(a.online) ||
-      a.name.localeCompare(b.name),
-  )
-
-  const crewEntries: CrewEntry[] = [
-    ...crewAll.map(row => ({ kind: 'task' as const, row })),
-    ...daemonCrew.map(m => ({ kind: 'daemon' as const, ...m })),
-  ]
-  const crewShown = crewEntries.slice(0, CREW_ROWS)
-  const crewMore = crewEntries.length - crewShown.length
-
-  const localRuns: RunRow[] = Object.values(tasks)
-    .filter(t => !isLocalAgentTask(t) && !isInProcessCrewmateTask(t))
-    .filter(t => !isTerminalTaskStatus(t.status))
-    .map(t => ({
-      id: t.id,
-      title: t.description || (isLocalShellTask(t) ? t.command : t.type),
-      status: t.status,
-      kind: runKindOf(t),
-      startedAtMs: t.startTime,
-    }))
-  const localRunIds = new Set(localRuns.map(r => r.id))
-  const hostedRuns: RunRow[] = roster.rows
-    .filter(row => !localRunIds.has(row.id) && row.kind !== 'agent' && row.kind !== 'crewmate' && workRowRuns(row))
-    .map(row => ({
-      id: row.id,
-      title: row.name,
-      status: row.status === 'pending' ? 'pending' : 'running',
-      kind: row.kind === 'workflow' ? 'workflow' : row.kind === 'monitor' ? 'monitor' : 'shell',
-      startedAtMs: row.startTime,
-    }))
-  const runsAll: RunRow[] = [...localRuns, ...hostedRuns]
-    .sort(
-      (a, b) =>
-        (a.status === 'running' ? 0 : 1) - (b.status === 'running' ? 0 : 1) ||
-        a.startedAtMs - b.startedAtMs,
-    )
-  const runsShown = runsAll.slice(0, RUNS_ROWS)
-  const runsMore = runsAll.length - runsShown.length
-  const runsLive = runsAll.reduce((n, r) => n + (r.status === 'running' ? 1 : 0), 0)
-
-  const ledger = telemetry.tasks
-
-  const work = (() => {
-    if (isEnvDefinedFalsy(flagEnv('MERCURY_WORK_LANE'))) return null
-    const snap = workRunSnap
-    if (!snap || !snap.substantive) return null
-    if (snap.lifecycle === 'cancelled') return null
-    const w = Math.max(8, rowW - 2)
-    const cont = Math.max(6, w - 2)
-    const rows: Array<{ text: string; color: string }> = []
-    const pushWrapped = (prefix: string, text: string, color: string, maxRows: number): void => {
-      const parts = wrapRailRows(text, cont, maxRows)
-      parts.forEach((p, i) =>
-        rows.push({ text: i === 0 ? `${prefix}${p}` : `  ${p}`, color }),
-      )
-    }
-    pushWrapped('', snap.objective, tok.textPrimary, 3)
-    const doneCount = snap.deliverables.filter(d => d.state === 'done').length
-    const terminal = snap.lifecycle === 'completed'
-    const statusBits = [terminal ? 'done' : snap.phase]
-    if (snap.deliverables.length > 0) statusBits.push(`${doneCount}/${snap.deliverables.length}`)
-    if (snap.unresolvedBadEffects > 0) statusBits.push(`${snap.unresolvedBadEffects}!`)
-    rows.push({ text: truncateToWidth(statusBits.join(' · '), w), color: tok.textSecondary })
-    if (planningObjective !== null && snap.objective === planningObjective) {
-      if (workShape) rows.push({ text: truncateToWidth(`via ${workShape}`, w), color: tok.textSecondary })
-      pushWrapped('', 'plan: edit /runs · steer by typing', tok.textMuted, 2)
-    }
-    const active = snap.deliverables.find(d => d.state === 'in-progress')
-    if (active && !terminal) pushWrapped(`${GLYPH.busy} `, active.title || active.id, tok.success, 2)
-    if (snap.blocker) {
-      pushWrapped(`${GLYPH.circledBullet} `, `${snap.blocker.ownedBy}: ${snap.blocker.description}`, tok.warning, 2)
-    } else if (snap.nextAction) {
-      pushWrapped('→ ', snap.nextAction, tok.success, 3)
-    }
-    const vState = snap.verification.state
-    const vColor = vState === 'verified' ? tok.success : vState === 'failed' ? tok.failure : tok.warning
-    if (snap.changedPaths.length > 0) {
-      const first = basename(snap.changedPaths[0]!)
-      const extra = snap.totalChangedPaths - 1
-      rows.push({ text: truncateToWidth(`± ${first}${extra > 0 ? ` +${extra}` : ''}`, w), color: tok.textSecondary })
-      rows.push({ text: truncateToWidth(`checks: ${vState}`, w), color: vColor })
-    } else if (terminal || snap.verification.state !== 'unverified') {
-      rows.push({ text: truncateToWidth(`checks: ${vState}`, w), color: vColor })
-    }
-    const ledgerById = new Map(ledger.map(t => [t.id, t]))
-    const openIds = new Set(ledger.filter(t => t.status !== 'completed').map(t => t.id))
-    const isDepBlocked = (id: string): boolean =>
-      (ledgerById.get(id)?.blockedBy ?? []).some(b => openIds.has(b))
-    if (!terminal) {
-      const queued = snap.deliverables.find(d => d.state === 'open' && !isDepBlocked(d.id))
-      if (queued) pushWrapped(`${GLYPH.pending} `, queued.title || queued.id, tok.textSecondary, 2)
-      const depBlocked = snap.deliverables.find(
-        d => (d.state === 'open' || d.state === 'in-progress') && d.id !== active?.id && isDepBlocked(d.id),
-      )
-      if (depBlocked) pushWrapped(`${GLYPH.circledBullet} `, depBlocked.title || depBlocked.id, tok.warning, 2)
-    }
-    if (terminal && !snap.nextAction) {
-      rows.push({ text: truncateToWidth('review: /diff', w), color: tok.success })
-    }
-    return { rows, doneCount, total: snap.deliverables.length, terminal }
-  })()
-
-  const workbenchRows: string[] | null = lastSentPrompt
-    ? wrapRailRows(lastSentPrompt.text.replace(/\s+/g, ' ').trim(), Math.max(6, rowW - 2), 2)
-    : null
-  const filesOff = useAppState(s => s.settings.view?.files === false)
-  const filesFolder = basename(useFocusedWorkspaceCwd())
-
-  const solo =
-    crewAll.length === 0 &&
-    keptIds.length === 0 &&
-    runsAll.length === 0 &&
-    daemonCrew.length === 0
-
+function useRecentSessions(solo: boolean): LogOption[] | null {
   const conversationId = useSyncExternalStore(subscribeFocusedSessionConnector, conversationIdHere, conversationIdHere)
   const recentScopeKey = `${getProjectRoot() || ''}::${conversationId}`
-  const [recentSnap, setRecentSnap] = useState<{ key: string; rows: LogOption[] | null }>(
-    () => ({ key: recentScopeKey, rows: lastKnownRecent.get(recentScopeKey) ?? null }),
-  )
-  if (recentSnap.key !== recentScopeKey) {
-    setRecentSnap({ key: recentScopeKey, rows: lastKnownRecent.get(recentScopeKey) ?? null })
-  }
-  const recent = recentSnap.key === recentScopeKey ? recentSnap.rows : lastKnownRecent.get(recentScopeKey) ?? null
+  const [recentSnap, setRecentSnap] = useState<{ key: string; rows: LogOption[] | null }>(() => ({
+    key: recentScopeKey,
+    rows: lastKnownRecent.get(recentScopeKey) ?? null,
+  }))
   useEffect(() => {
     if (!solo) return
     let alive = true
@@ -639,11 +302,11 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
       alive = false
     }
   }, [solo, recentScopeKey])
-  const mission = getActiveMission()
+  return recentSnap.key === recentScopeKey ? recentSnap.rows : lastKnownRecent.get(recentScopeKey) ?? null
+}
 
-  const [wakeGlance, setWakeGlance] = useState<SaturnWakeGlanceV1 | null>(
-    () => lastKnownWakeGlance,
-  )
+function useWakeGlance(): SaturnWakeGlanceV1 | null {
+  const [wakeGlance, setWakeGlance] = useState<SaturnWakeGlanceV1 | null>(() => lastKnownWakeGlance)
   useEffect(() => {
     let alive = true
     const probe = () => {
@@ -665,378 +328,203 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
       clearInterval(t)
     }
   }, [])
+  return wakeGlance
+}
 
-  const SECTION_CHROME = boxed ? 3 : 2
-  const shedCeiling = availRows ?? Infinity
-  const density = densityPlan(activity, availRows ?? Infinity)
-  const hintCap = hintBudget(density)
-  const intents: Record<string, number> = {
-    crew: solo ? 0 : Math.max(1, 1 + crewShown.length + (crewMore > 0 ? 1 : 0)),
-    work: work ? work.rows.length : 0,
-    runs: solo ? 0 : runsShown.length + (runsMore > 0 ? 1 : 0),
-    recent: solo ? (recent == null ? 1 : recent.length) : 0,
-    mission: solo && mission ? 1 : 0,
-    workbench: workbenchRows ? workbenchRows.length : 1,
-    next: solo ? Math.min(5 + (mission ? 0 : 1), hintCap) : 0,
-    files: filesOff ? 0 : 1,
-    saturn: 0,
-  }
-  const sectionCost = (key: string): number => (intents[key] ?? 0) > 0 ? (intents[key] ?? 0) + SECTION_CHROME : 0
-  const publishedRows = getHelmRows('lanes')
-  const cursorLabel = publishedRows[getHelmCursor('lanes')]?.label ?? ''
-  const cursorSection =
-    cursorLabel.startsWith('crew') ? 'crew'
-    : cursorLabel.startsWith('recent') ? 'recent'
-    : cursorLabel.startsWith('workbench') ? 'workbench'
-    : cursorLabel.startsWith('hint') ? 'next'
-    : cursorLabel.startsWith('files') ? 'files'
-    : null
-  const shedSet = new Set<string>()
-  {
-    const mustKeep = new Set<string>([...HELM_DENSITY_FLOOR, ...density.keep])
-    if (cursorSection) mustKeep.add(cursorSection)
-    let spent =
-      1 +
-      (['crew', 'work', 'runs', 'recent', 'mission', 'workbench', 'next', 'files'] as const)
-        .reduce((n, k) => n + sectionCost(k), 0) +
-      (mergedTelemetry ? 4 + SECTION_CHROME : 0) +
-      (wakeGlance ? 1 + SECTION_CHROME : 0)
-    for (const k of density.shedOrder) {
-      if (spent <= shedCeiling) break
-      if (mustKeep.has(k) || sectionCost(k) === 0) continue
-      shedSet.add(k)
-      spent -= sectionCost(k)
-    }
-  }
-
-  const rowsModel: HelmRow[] = []
-  const sel = (row: HelmRow): number => {
-    rowsModel.push(row)
-    return rowsModel.length - 1
-  }
-  const isOn = (i: number): boolean => focused && cur === i
-
-  const viewingChild = viewingAgentTaskId != null
-  const crewShed = shedSet.has('crew')
-  const mainChatTint = lerpHex(tok.success, tok.surface1, 0.78)
-  const rootNode: React.ReactNode = crewShed ? null : (
-    <RailRow
-      key={`crewroot:${MAIN_CONVERSATION_ID}`}
-      width={rowW}
-      glyph={GLYPH.spark}
-      glyphColor={viewingChild ? tok.textMuted : accent}
-      name={LEAD_ROW_NAME}
-      nameColor={viewingChild ? tok.textPrimary : accent}
-      nameBold
-      marked={!viewingChild}
-      directActivate
-      {...railRowProps(isOn, sel, { kind: 'main', label: 'crew:root' })}
-    />
+function useWorkShape(planningObjective: string | null): string | null {
+  const [workShape, setWorkShape] = useState<string | null>(() =>
+    planningObjective ? (lastKnownWorkShape.get(planningObjective) ?? null) : null,
   )
-  const crewChildNodes: React.ReactNode[] = crewShed ? [] : crewShown.map(entry => {
-    if (entry.kind === 'daemon') {
-      const unreadVerb = entry.unread > 0 ? `${entry.unread} new` : entry.online ? 'online' : 'offline'
-      return (
-        <RailRow
-          key={`crewd:${entry.name}`}
-          width={rowW}
-          glyph={entry.online ? GLYPH.busy : GLYPH.idle}
-          glyphColor={entry.online ? tok.success : tok.textMuted}
-          name={`@${entry.name}`}
-          nameColor={tok.textPrimary}
-          verb={unreadVerb}
-          verbColor={entry.unread > 0 ? tok.warning : entry.online ? tok.textSecondary : tok.textMuted}
-          verbPulse={entry.unread > 0}
-          {...railRowProps(isOn, sel, { kind: 'command', command: crewChatDoor(entry.name), label: `crew:d:${entry.name}` })}
-        />
-      )
-    }
-    const c = entry.row
-    const isViewing = viewingAgentTaskId != null && c.id === viewingAgentTaskId
-    const isMainChat = mainChatTaskId != null && c.id === mainChatTaskId
-    const base = statusTone(c.status, tok)
-    const finished = c.facts !== undefined ? crewSettled(c.facts) : c.status !== 'running' && c.status !== 'pending'
-    const greyed = finished && c.facts?.state !== 'failed'
-    const idle = c.facts?.state === 'idle'
-    const tokensVerb = c.status === 'running' && !idle && c.facts !== undefined ? crewTokensLabel(c.facts) : null
-    const verbLabel = tokensVerb ?? (c.facts !== undefined ? crewStateLabel(c.facts) : base.label)
-    const g = isMainChat ? GLYPH.star : isViewing ? GLYPH.circledBullet : c.status === 'running' && !idle ? GLYPH.busy : GLYPH.idle
-    const gColor = isMainChat ? tok.warning : isViewing ? accent : c.status === 'running' && !idle ? tok.success : tok.textMuted
-    return (
-      <RailRow
-        key={`crew:${c.id}`}
-        width={rowW}
-        glyph={g}
-        glyphColor={gColor}
-        glyphLive={c.status === 'running' && !idle && !isViewing && !isMainChat}
-        name={c.label}
-        nameColor={greyed ? tok.textMuted : tok.textPrimary}
-        nameBold={isViewing || isMainChat}
-        marked={isViewing}
-        tint={isMainChat ? mainChatTint : isViewing ? tok.selection : undefined}
-        directActivate
-        verb={verbLabel}
-        verbColor={greyed ? tok.textMuted : base.tone}
-        {...railRowProps(isOn, sel, { kind: 'crewmate', id: c.id, label: c.hosted ? `crew:h:${c.id}` : c.label })}
-      />
-    )
-  })
-  const crewNodes: React.ReactNode[] = crewShed ? [] : [rootNode, ...crewChildNodes]
-  if (crewMore > 0 && !crewShed)
-    crewNodes.push(
-      <MoreRow
-        key="crew:more"
-        n={crewMore}
-        width={rowW}
-        {...railRowProps(isOn, sel, { kind: 'command', command: '/crewmates', label: 'crew:more' })}
-      />,
-    )
-
-  const workNodes: React.ReactNode[] = work
-    ? work.rows.map((r, i) => (
-        <Box key={`work:${i}`} width={rowW}>
-          <Text color={r.color} wrap="truncate-end">
-            {`  ${r.text}`}
-          </Text>
-        </Box>
-      ))
-    : []
-
-  const runNodes: React.ReactNode[] = runsShown.map(r => {
-    const live = r.status === 'running'
-    const verb = live && r.startedAtMs > 0 ? `${r.kind} ${formatSpan(Date.now() - r.startedAtMs)}` : r.kind
-    return (
-      <RailRow
-        key={`run:${r.id}`}
-        width={rowW}
-        glyph={live ? GLYPH.busy : GLYPH.pending}
-        glyphColor={live ? tok.success : tok.textMuted}
-        glyphLive={live}
-        name={r.title}
-        nameColor={live ? tok.textPrimary : tok.textSecondary}
-        verb={verb}
-        verbColor={live ? tok.textSecondary : tok.textMuted}
-        {...railRowProps(isOn, sel, {
-          kind: 'command',
-          command: `/runs ${r.id}`,
-          label: `run:${r.id}`,
-        })}
-      />
-    )
-  })
-  if (runsMore > 0)
-    runNodes.push(
-      <MoreRow
-        key="runs:more"
-        n={runsMore}
-        width={rowW}
-        {...railRowProps(isOn, sel, { kind: 'command', command: '/runs', label: 'runs:more' })}
-      />,
-    )
-
-  const soloNodes: React.ReactNode[] = []
-  if (solo && !shedSet.has('recent')) {
-    for (const log of recent ?? []) {
-      const label = tabLabel(log)
-      soloNodes.push(
-        <RailRow
-          key={`recent:${log.value}`}
-          width={rowW}
-          glyph={GLYPH.pending}
-          glyphColor={tok.textMuted}
-          name={label}
-          nameColor={tok.textSecondary}
-          selected={isOn(sel({ kind: 'command', command: '/sessions', label: `recent:${label}` }))}
-        />,
-      )
-    }
-    if (recent == null) {
-      soloNodes.push(
-        <Box key="recent:scanning" width={rowW}>
-          <Text color={tok.textMuted} wrap="truncate-end">
-            {'  scanning…'}
-          </Text>
-        </Box>,
-      )
-    }
-  }
-  const missionNode: React.ReactNode =
-    solo && mission ? (
-      <RailRow
-        key="mission"
-        width={rowW}
-        glyph={GLYPH.mission}
-        glyphColor={tok.success}
-        name={mission ? mission.condition : ''}
-        nameColor={tok.textPrimary}
-        {...railRowProps(isOn, sel, { kind: 'command', command: '/mission', label: 'mission' })}
-      />
-    ) : null
-  const workbenchNodes: React.ReactNode[] = []
-  if (!shedSet.has('workbench')) {
-    workbenchNodes.push(
-      <WorkbenchCardRow
-        key="workbench:last"
-        width={rowW}
-        lines={workbenchRows}
-        {...railRowProps(isOn, sel, { kind: 'command', command: '/workbench', label: 'workbench:last' })}
-      />,
-    )
-  }
-  const hintNodes: React.ReactNode[] = []
-  if (solo && !shedSet.has('next')) {
-    const hints: Array<{ command: string; label: string }> = [
-      { command: '/workflows', label: '/workflows — agent runs' },
-      { command: '/health', label: '/health — health cert' },
-      { command: '/memory', label: '/memory — memory' },
-    ]
-    if (!mission) hints.push({ command: '/mission', label: '/mission — set a mission' })
-    for (const h of hints.slice(0, hintCap)) {
-      hintNodes.push(
-        <RailRow
-          key={`hint:${h.command}`}
-          width={rowW}
-          glyph={GLYPH.dot}
-          glyphColor={tok.textMuted}
-          name={h.label}
-          nameColor={tok.textMuted}
-          selected={isOn(sel({ kind: 'command', command: h.command, label: `hint:${h.command}` }))}
-        />,
-      )
-    }
-  }
-
-  const filesNodes: React.ReactNode[] = []
-  if (!filesOff) {
-    filesNodes.push(
-      <RailRow
-        key="files:browse"
-        width={rowW}
-        glyph="↵"
-        glyphColor={tok.textMuted}
-        name="or click · browse"
-        nameColor={tok.textMuted}
-        {...railRowProps(isOn, sel, { kind: 'files', label: 'files:browse' })}
-      />,
-    )
-  }
-
-
-  const wakeWords = wakeGlance ? saturnWakeGlanceWords(wakeGlance, Date.now()) : null
-  const wakeBody = wakeWords ? (
-    <RailRow
-      width={rowW}
-      glyph={GLYPH.inProgress}
-      glyphColor={tok.success}
-      name={wakeWords.name}
-      nameColor={tok.textSecondary}
-      verb={wakeWords.verb}
-      verbColor={tok.textMuted}
-      {...railRowProps(isOn, sel, { kind: 'command', command: '/saturn', label: 'wake:glance' })}
-    />
-  ) : null
-
-  useNowTick(mergedTelemetry || runsLive > 0 ? 15_000 : null)
-  useProviderUsageOnShow(mergedTelemetry)
-  let glanceSection: React.ReactNode = null
-  if (mergedTelemetry) {
-    const glanceUsage = activeSourceUsage()
-    const lead = glanceUsage.windows.find(w => w.state === 'live' && w.usedPct != null)
-    const focusedUsage = getFocusedSessionConnector().usage()
-    const focusedSpendUSD = focusedUsage.totalCostUSD
-    const focusedUnpriced = focusedUsage.unpricedTurns ?? 0
-    const leadAge = lead !== undefined ? usageAgeTail(lead, Date.now()) : undefined
-    const usageLabel =
-      lead !== undefined
-        ? `${lead.label} ${Math.round(lead.usedPct!)}%${
-            lead.resetsAtMs != null ? ` · ${formatCountdown(lead.resetsAtMs - Date.now())}` : ''
-          }${leadAge !== undefined ? ` · ${leadAge}` : ''}`
-        : glanceUsage.shape === 'api-spend'
-          ? `spend ${
-              focusedUnpriced > 0
-                ? formatSessionCost(focusedSpendUSD, focusedUnpriced)
-                : focusedSpendUSD > 0
-                  ? `$${focusedSpendUSD.toFixed(2)}`
-                  : '—'
-            }`
-          : 'usage — after first reply'
-    const ctxLive = getLiveContextUsage()
-    const ctxLabel = `ctx ${contextPercentLabel(ctxLive.usedPct, ctxLive.fillSource)} · ${contextWindowLabel(ctxLive.window, ctxLive.windowSource, ctxLive.windowPinned)}`
-    const chip = healthCertSnapshot().data
-    const verdictUp = chip.verdict != null ? String(chip.verdict).toUpperCase() : null
-    const healthLabel =
-      chip.verdict != null
-        ? `${String(chip.verdict).toLowerCase()}${chip.ageMs != null ? ` · ${formatCountdown(chip.ageMs)} old` : ''}`
-        : 'health — run /health'
-    const healthTone =
-      verdictUp === 'FAULT' ? tok.failure : verdictUp === 'CAUTION' ? tok.warning : tok.textSecondary
-    glanceSection = (
-      <Box flexDirection="column" flexShrink={0}>
-        <Box marginTop={1}>
-          <SectionHeader label="TELEMETRY" width={rowW} />
-        </Box>
-        <RailRow
-          width={rowW}
-          glyph={GLYPH.dot}
-          glyphColor={tok.textMuted}
-          name={usageLabel}
-          nameColor={tok.textSecondary}
-          {...railRowProps(isOn, sel, { kind: 'command', command: '/deck', label: 'tel:usage' })}
-        />
-        <RailRow
-          width={rowW}
-          glyph={GLYPH.dot}
-          glyphColor={tok.textMuted}
-          name={ctxLabel}
-          nameColor={tok.textSecondary}
-          {...railRowProps(isOn, sel, { kind: 'command', command: '/deck', label: 'tel:ctx' })}
-        />
-        <RailRow
-          width={rowW}
-          glyph={verdictUp === 'FAULT' ? GLYPH.fail : verdictUp === 'CAUTION' ? GLYPH.warn : GLYPH.dot}
-          glyphColor={healthTone === tok.textSecondary ? tok.textMuted : healthTone}
-          name={healthLabel}
-          nameColor={healthTone}
-          {...railRowProps(isOn, sel, { kind: 'command', command: '/health', label: 'tel:health' })}
-        />
-      </Box>
-    )
-  }
-
-  const crewWord = crewEntries.length === 1 ? 'agent' : 'agents'
-
-  const rowsSig = rowsModel.map(helmRowSig).join('|')
   useEffect(() => {
-    publishHelmRows('lanes', rowsModel)
+    if (!planningObjective) return
+    let alive = true
+    void import('../services/mission/projection.js')
+      .then(async m => {
+        const d = await m.gatherPolicyDecision(planningObjective, 0)
+        if (alive && d) {
+          if (lastKnownWorkShape.size > 8) lastKnownWorkShape.clear()
+          lastKnownWorkShape.set(planningObjective, d.profile.id)
+          setWorkShape(d.profile.id)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [planningObjective])
+  return workShape
+}
+
+export const HelmLanesRail = React.memo(HelmLanesRailImpl)
+
+function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { width: number; mergedTelemetry?: boolean; availRows?: number }): React.ReactNode {
+  fluxMark('render:rail-lanes')
+  const tok = useMercuryTokens()
+  const { accent } = useSessionAccent()
+  const activity = useCockpitActivity()
+  const ctxUsageVersion = useSyncExternalStore(subscribeLiveContextUsage, getLiveContextUsageVersion, getLiveContextUsageVersion)
+  const lanesVersion = useSyncExternalStore(subscribeHelmFocus, getHelmLanesVersion, getHelmLanesVersion)
+  const missionVersion = useSyncExternalStore(subscribeActiveMission, getActiveMissionVersion, getActiveMissionVersion)
+  const focused = getHelmFocus() === 'lanes'
+  const cur = getHelmCursor('lanes')
+  const focusedRecords = useSyncExternalStore(
+    subscribeFocusedRecords,
+    () => getFocusedSessionConnector().records(),
+    () => getFocusedSessionConnector().records(),
+  )
+  const lastSentPrompt = React.useMemo(() => {
+    const rows = promptRows(focusedRecords)
+    return rows.length > 0 ? rows[rows.length - 1]!.text : null
+  }, [focusedRecords])
+  const workRunSnap = useSyncExternalStore(subscribeRuns, () => getRunSnapshot(processMainOwner()), () => null)
+  const workLaneOff = isEnvDefinedFalsy(flagEnv('MERCURY_WORK_LANE'))
+  const planningObjective = planningObjectiveOf(workRunSnap)
+  const workShape = useWorkShape(planningObjective)
+  const tasks = useAppState(s => s.tasks)
+  const viewingAgentTaskId = useAppState(s => s.viewingAgentTaskId)
+  const mainChatTaskId = useAppState(s => s.mainChatTaskId)
+  const roster = useFocusedWorkRoster()
+  const sessionCrew = useSessionCrew()
+  const telemetry = useTelemetry()
+  const filesOff = useAppState(s => s.settings.view?.files === false)
+  const filesFolder = basename(useFocusedWorkspaceCwd())
+  const mission = getActiveMission()
+  const wakeGlance = useWakeGlance()
+  const daemonCrew = telemetry.crew ?? []
+  const solo = soloOf({ sessionCrew, daemonCrew, viewingAgentTaskId, mainChatTaskId, tasks, roster })
+  const recent = useRecentSessions(solo)
+  const railWhyRef = React.useRef<Record<string, unknown> | null>(null)
+  fluxWhy('rail-lanes', railWhyRef, () => ({
+    width,
+    mergedTelemetry,
+    availRows,
+    tok,
+    activity,
+    ctxUsageVersion,
+    lanesVersion,
+    missionVersion,
+    accent,
+    focusedRecords,
+    workRunSnap,
+    workShape,
+    tasks,
+    roster,
+    viewingAgentTaskId,
+    mainChatTaskId,
+    telemetry,
+  }))
+  const nowMs = Date.now()
+  const published = getHelmRows('lanes')
+  const input: LanesInput = {
+    width,
+    mergedTelemetry,
+    availRows,
+    activity,
+    cursorRow: focused ? published[getHelmCursor('lanes')] : undefined,
+    sessionCrew,
+    daemonCrew,
+    viewingAgentTaskId,
+    mainChatTaskId,
+    tasks,
+    roster,
+    workRunSnap: workLaneOff ? null : workRunSnap,
+    workShape,
+    ledger: telemetry.tasks,
+    lastSentPrompt,
+    filesOff,
+    filesFolder,
+    recent,
+    missionCondition: mission ? mission.condition : null,
+    wakeGlance,
+    glance: mergedTelemetry
+      ? (() => {
+          const focusedUsage = getFocusedSessionConnector().usage()
+          return {
+            usage: activeSourceUsage(),
+            focusedSpendUSD: focusedUsage.totalCostUSD,
+            focusedUnpriced: focusedUsage.unpricedTurns ?? 0,
+            ctx: getLiveContextUsage(),
+            chip: healthCertSnapshot().data,
+            nowMs,
+          }
+        })()
+      : null,
+    nowMs,
+    tok,
+    accent,
+  }
+  const model = buildLanesModel(input)
+  useNowTick(mergedTelemetry || model.runsLive > 0 ? 15_000 : null)
+  useProviderUsageOnShow(mergedTelemetry)
+
+  const rowsSig = model.rows.map(helmRowSig).join('|')
+  useEffect(() => {
+    publishHelmRows('lanes', model.rows)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rowsSig])
 
+  const isOn = (i: number): boolean => focused && cur === i
+  let index = 0
+  const paintRow = (spec: LanesRowSpec): React.ReactNode => {
+    if (spec.kind === 'text') {
+      return (
+        <Box key={spec.key} width={model.rowW}>
+          <Text color={spec.color} wrap="truncate-end">
+            {spec.text}
+          </Text>
+        </Box>
+      )
+    }
+    const i = spec.row === undefined ? undefined : index++
+    const selected = i === undefined ? false : isOn(i)
+    const sig = spec.row === undefined ? undefined : helmRowSig(spec.row)
+    if (spec.kind === 'card') return <WorkbenchCardRow key={spec.key} width={model.rowW} lines={spec.lines} selected={selected} rowIndex={i} rowSig={sig} />
+    if (spec.kind === 'more') return <MoreRow key={spec.key} n={spec.n} width={model.rowW} selected={selected} rowIndex={i} rowSig={sig} />
+    return (
+      <RailRow
+        key={spec.key}
+        width={model.rowW}
+        glyph={spec.glyph}
+        glyphColor={spec.glyphColor}
+        glyphLive={spec.glyphLive}
+        name={spec.name}
+        nameColor={spec.nameColor}
+        nameBold={spec.nameBold}
+        verb={spec.verb}
+        verbColor={spec.verbColor}
+        verbPulse={spec.verbPulse}
+        marked={spec.marked}
+        directActivate={spec.directActivate}
+        tint={spec.tint}
+        selected={selected}
+        rowIndex={i}
+        rowSig={sig}
+      />
+    )
+  }
   let painted = 0
-  const section = (
-    key: string,
-    glyph: string,
-    label: string,
-    count: string | undefined,
-    body: React.ReactNode,
-    opts?: { open?: string | (() => void) },
-  ): React.ReactNode => {
-    const open = opts?.open
+  const paintSection = (s: LanesSectionSpec): React.ReactNode => {
+    const body = s.rows.map(paintRow)
+    if (model.boxed) {
+      const open = s.open
+      return (
+        <RailPanel
+          key={s.key}
+          glyph={s.glyph}
+          label={s.label}
+          count={s.count}
+          width={width}
+          headerAction={open ? { id: `helm:lane:${s.key}`, run: open === 'files' ? openFilesMenu : () => requestCommandDispatch(open) } : undefined}
+        >
+          {body}
+        </RailPanel>
+      )
+    }
     const first = painted++ === 0
-    return boxed ? (
-      <RailPanel
-        key={key}
-        glyph={glyph}
-        label={label}
-        count={count}
-        width={width}
-        headerAction={open ? { id: `helm:lane:${key}`, run: typeof open === 'function' ? open : () => requestCommandDispatch(open) } : undefined}
-      >
-        {body}
-      </RailPanel>
-    ) : (
-      <Box key={key} flexDirection="column" flexShrink={0}>
-        <Box marginTop={first ? 0 : 1}>
-          <SectionHeader label={count ? `${label} · ${count}` : label} width={rowW} />
+    return (
+      <Box key={s.key} flexDirection="column" flexShrink={0}>
+        <Box marginTop={first && !s.marginAlways ? 0 : 1}>
+          <SectionHeader label={s.count ? `${s.label} · ${s.count}` : s.label} width={model.rowW} />
         </Box>
         {body}
       </Box>
@@ -1045,12 +533,8 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
 
   return (
     <Box flexDirection="column" width={width}>
-      {
-}
       <Box width={width} height={1} flexShrink={0}>
         <Text wrap="truncate-end">
-          {
-}
           <ValueGlow value={focused} color={focused ? accent : tok.textMuted} ms={CURSOR_NUDGE_MS}>
             {focused ? <Text bold>{`${GLYPH.prompt} `}</Text> : '  '}
           </ValueGlow>
@@ -1064,101 +548,14 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
           )}
         </Text>
       </Box>
-
-      {solo ? (
-        <>
-          {
-}
-          {work
-            ? section(
-                'work',
-                work.terminal ? GLYPH.done : GLYPH.busy,
-                'WORK',
-                work.total > 0 ? `${work.doneCount}/${work.total}` : undefined,
-                workNodes,
-                { open: '/workbench' },
-              )
-            : null}
-
-          {}
-          {soloNodes.length > 0 ? section('recent', GLYPH.read, 'RECENT', undefined, soloNodes, { open: '/sessions' }) : null}
-
-          {}
-          {missionNode ? section('mission', GLYPH.mission, 'MISSION', undefined, missionNode, { open: '/mission' }) : null}
-
-          {workbenchNodes.length > 0
-            ? section('workbench', GLYPH.prompt, 'WORKBENCH', undefined, workbenchNodes, { open: '/workbench' })
-            : null}
-
-          {}
-          {hintNodes.length > 0 ? section('next', GLYPH.cursor, 'NEXT', undefined, hintNodes, { open: '/help' }) : null}
-
-          {filesNodes.length > 0 ? section('files', '▤', 'FILES', filesFolder, filesNodes, { open: openFilesMenu }) : null}
-        </>
-      ) : (
-        <>
-          {
-}
-          {shedSet.has('crew') || (crewEntries.length === 0 && keptIds.length === 0) ? null : section(
-            'crew',
-            GLYPH.fisheye,
-            'CREW',
-            `${crewEntries.length} ${crewWord}`,
-            crewNodes,
-            { open: '/crewmates' },
-          )}
-
-          {}
-          {work
-            ? section(
-                'work',
-                work.terminal ? GLYPH.done : GLYPH.busy,
-                'WORK',
-                work.total > 0 ? `${work.doneCount}/${work.total}` : undefined,
-                workNodes,
-                { open: '/workbench' },
-              )
-            : null}
-
-          {
-}
-          {runsShown.length > 0
-            ? section('runs', GLYPH.turns, 'RUNS', `${runsLive} live`, runNodes, { open: '/runs' })
-            : null}
-
-          {workbenchNodes.length > 0
-            ? section('workbench', GLYPH.prompt, 'WORKBENCH', undefined, workbenchNodes, { open: '/workbench' })
-            : null}
-
-          {filesNodes.length > 0 ? section('files', '▤', 'FILES', filesFolder, filesNodes, { open: openFilesMenu }) : null}
-        </>
-      )}
-
-      {
-}
-      {wakeGlance ? section('saturn', GLYPH.inProgress, 'SATURN', undefined, wakeBody, { open: '/saturn' }) : null}
-
-      {
-}
-      {mergedTelemetry ? glanceSection : null}
-
-      {
-}
-      {shedSet.size > 0 ? (
+      {model.sections.map(paintSection)}
+      {model.pointer !== null ? (
         <Box width={width} height={1} flexShrink={0}>
           <Text wrap="truncate-end">
-            <Text color={tok.textMuted}>
-              {'  more: ' +
-                [...shedSet]
-                  .map(k => (k === 'next' ? '/help' : k === 'recent' ? '/sessions' : `/${k}`))
-                  .join(' · ')}
-            </Text>
+            <Text color={tok.textMuted}>{model.pointer}</Text>
           </Text>
         </Box>
       ) : null}
-
-      {
-}
     </Box>
   )
 }

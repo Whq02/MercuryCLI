@@ -365,7 +365,7 @@ console.log('— T6 the source pins —')
     'T6 the background registration carries the resolved model',
     src('src/tools/AgentTool/AgentTool.tsx').includes('model: plan.model,\n        toolUseId: context.toolUseId,'),
   )
-  const rail = src('src/components/HelmLanesRail.tsx')
+  const rail = src('src/components/HelmLanesRail.tsx') + src('src/utils/cockpit/helmLanesModel.ts')
   const ledger = src('src/state/crewLedger.ts')
   check(
     'T6 the rail builds every crew row from the owner (through the session crew ledger) and spells a running verb from it',
@@ -379,7 +379,7 @@ console.log('— T6 the source pins —')
   check('T6 the /tasks row and card read the owner', (board.match(/crewAgentFactsOf\(work, null\)/g) ?? []).length === 2)
   check(
     'T6 the usage section attributes through the owner',
-    src('src/components/HelmTelemetryRail.tsx').includes('crewUsageLine(crewAgentsOf(workRoster.rows'),
+    src('src/utils/cockpit/helmTelemetryModel.ts').includes('crewUsageLine(crewAgentsOf(input.workRoster.rows'),
   )
   const view = src('src/components/mercury-ui/screens/CrewView.tsx')
   check(
