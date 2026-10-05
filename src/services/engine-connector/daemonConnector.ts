@@ -742,7 +742,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const wasCompacting = this.liveStateWord === 'compacting'
     this.liveStateWord = word
     this.liveAgentsWaiting = count
-    if (wasCompacting !== (word === 'compacting')) {
+    if (wasCompacting && word !== 'compacting') {
       for (const s of this.sends) if (s.state === 'queued') this.dressSend(s.clientMessageId, 'queued')
     }
     this.recomputeLive()
@@ -1148,7 +1148,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   private dressSend(clientMessageId: string, state: SeatSend['state']): void {
-    const heldFor = state === 'queued' && this.liveStateWord === 'compacting' ? ('compaction' as const) : undefined
+    const current = this.sends.find(s => s.clientMessageId === clientMessageId)
+    const enqueuedUnderTheFold = current !== undefined && (current.state !== 'queued' || current.heldFor === 'compaction')
+    const heldFor = state === 'queued' && this.liveStateWord === 'compacting' && enqueuedUnderTheFold ? ('compaction' as const) : undefined
     this.sends = this.sends.map(s => {
       if (s.clientMessageId !== clientMessageId) return s
       const next: SeatSend = { ...s, state }
