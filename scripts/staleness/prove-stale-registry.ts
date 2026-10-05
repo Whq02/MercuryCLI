@@ -184,6 +184,7 @@ src/services/providers/providerIdentityLine.ts :: memo :: ttl-bounded
 src/services/providers/providerUsage.ts :: activeUsageCache :: ttl-bounded
 src/services/providers/providerUsage.ts :: otherUsagesCache :: ttl-bounded
 src/services/providers/xai/xaiCatalogue.ts :: catalogueCache :: ttl-bounded
+src/services/providers/zai/zaiCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/repoHost/repoHost.ts :: cache :: ttl-bounded
 src/services/samples/facts.ts :: cached :: keyed-by-truth
 src/services/saturn/sessionScheduleBridge.ts :: rosterCache :: subscription-fed
