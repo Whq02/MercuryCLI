@@ -27,8 +27,10 @@ const bridge = messages.map(message => ({
 assert.equal(JSON.stringify(openai.encodeOpenaiPlan(plan)), JSON.stringify(openai.mapMessagesToOpenaiInput(bridge)))
 const replay = { provider: 'openai', items: [{ type: 'reasoning', id: 'fixture-reasoning', summary: [], encrypted_content: 'fixture-private-replay' }, { type: 'message', role: 'assistant', phase: 'final_answer', content: [{ type: 'output_text', text: 'fixture settled answer' }] }] }
 const assistant = messages.find(message => message.type === 'assistant')!
-const replayPlan = requestPlanOf([{ ...assistant, apexProviderTurn: replay } as never])
-assert.equal(JSON.stringify(openai.encodeOpenaiPlan(replayPlan)), JSON.stringify(openai.decodeOpenaiTurnRecord(replay)!.items))
+const replayPlan = requestPlanOf([{ ...assistant, message: { ...assistant.message, model: 'fixture-openai-model' }, apexProviderTurn: replay } as never])
+assert.equal(JSON.stringify(openai.encodeOpenaiPlan(replayPlan, { model: 'fixture-openai-model' })), JSON.stringify(openai.decodeOpenaiTurnRecord(replay)!.items))
+assert.equal(JSON.stringify(openai.encodeOpenaiPlan(replayPlan)).includes('fixture-private-replay'), false)
+assert.equal(JSON.stringify(openai.encodeOpenaiPlan(replayPlan, { model: 'fixture-other-model' })).includes('fixture-private-replay'), false)
 console.log('PASS: the Responses plan codec preserves item order, text registers and private replay without re-derivation')
 const gemini = await import('../../src/services/providers/gemini/geminiCodec.ts')
 const chat = await import('../../src/services/providers/zai/zaiCodec.ts')

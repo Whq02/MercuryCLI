@@ -7,6 +7,7 @@ export interface RequestTurn {
   storedContent: unknown
   stringContent?: string
   messageId?: string
+  servedModel?: string
   uuid?: string
   timestamp?: string
   replay?: { openai?: unknown; gemini?: unknown; xai?: unknown; openrouter?: unknown }
@@ -30,6 +31,7 @@ export function requestPlanOf(messages: readonly (UserMessage | AssistantMessage
       timestamp: message.timestamp,
       ...(message.type === 'assistant' ? {
         messageId: message.message.id,
+        servedModel: message.message.model,
         replay: { openai: message.apexProviderTurn, gemini: message.geminiProviderTurn, xai: message.xaiProviderTurn, openrouter: message.openrouterProviderTurn },
       } : {}),
     })),
