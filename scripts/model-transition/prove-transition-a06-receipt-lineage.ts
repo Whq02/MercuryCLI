@@ -23,7 +23,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-section('§A the consumption fence — exactly four allowlisted touchers')
+section('§A the consumption fence — the exact registered carriers')
 {
   const ALLOW = new Set([
     'src/types/message.ts',
@@ -42,7 +42,7 @@ section('§A the consumption fence — exactly four allowlisted touchers')
   const rogue = hits.filter(h => !ALLOW.has(h))
   const missing = [...ALLOW].filter(a => !hits.includes(a))
   check('every code toucher is allowlisted (no new consumer without this row)', rogue.length === 0, rogue.join(' · '))
-  check('the allowlist itself is live (all four present)', missing.length === 0, missing.join(' · '))
+  check('the allowlist itself is live (every registered carrier is present)', missing.length === 0, missing.join(' · '))
   const writer = readFileSync(join(ROOT, 'src/utils/sessionStorage/writer.ts'), 'utf8')
   check(
     'the writer persists the settled WHOLE entry (receipt rides the atomic line)',
