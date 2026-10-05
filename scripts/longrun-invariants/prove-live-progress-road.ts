@@ -45,7 +45,7 @@ const until = async (cond: () => boolean, boundMs: number): Promise<number> => {
 section('§A the runner tap — one bounded latest-line row per beat per tool (the turn runner, read at its source)')
 {
   const turn = readFileSync(join(import.meta.dir, '../../src/rows/turn.ts'), 'utf8')
-  const tapAt = turn.indexOf('if (isEphemeralToolProgress(data.type)) {')
+  const tapAt = turn.indexOf('if (isEphemeralToolProgress(data.type) || evalRunning !== null) {')
   const tap = turn.slice(tapAt, turn.indexOf('return rows\n      }', tapAt))
   check('a shell or mcp progress tick yields ONE tool_update row through toolUpdateRow', tap.includes('toolUpdateRow(updateScope, {') && tap.includes('callId,') && tap.includes('const key = JSON.stringify([scope.session_id, callId])'))
   check('…naming its RUNNING call (the call the turn knows, else its parent) in that call\'s own scope — a child\'s row carries parent_call_id', tap.includes('const callId = callScopes.has(progress.toolUseID) ? progress.toolUseID : progress.parentToolUseID') && tap.includes('const updateScope = callScopes.get(callId) ?? rowScope') && turn.includes('callScopes.set(item.call_id, rowScope)') && turn.includes("const scopeFor = (parentCallId: string | undefined): RowScope => (parentCallId === undefined ? scope : { ...scope, parent_call_id: parentCallId })"))
