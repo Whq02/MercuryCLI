@@ -5,7 +5,7 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
-import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
+import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 import {
   emptyRunSnapshot,
   reduceRunEvent,
@@ -33,7 +33,7 @@ export const SIDS = {
   J5: '00000000-aaaa-bbbb-eee5-000000000005',
 } as const
 
-const PROJECT_DIR = () => path.join(RUN_HOME, 'projects', sanitizePath(FIXTURE_CWD))
+const PROJECT_DIR = () => path.join(RUN_HOME, 'projects', path.basename(getProjectDir(FIXTURE_CWD)))
 
 let exitCleanupArmed = false
 

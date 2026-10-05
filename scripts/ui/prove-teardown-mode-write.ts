@@ -3,7 +3,7 @@ process.env.NODE_ENV = 'test'
 
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { Readable, Writable } from 'node:stream'
 
@@ -149,14 +149,14 @@ section('§4 the built artifact under a PTY that hangs up after the quiet spell'
   check('dist/mercury.mjs is built (this leg drives the artifact)', existsSync(BIN))
   check('a capture driver is available', driver.kind !== 'unavailable', driver.kind === 'unavailable' ? driver.reason : '')
   if (existsSync(BIN) && driver.kind !== 'unavailable') {
-    const { sanitizePath } = await import('../../src/utils/sessionStoragePortable.js')
+    const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.js')
     const { encodeSeedTranscript } = await import('../lib/seedTranscript.js')
     const { seedFirstRun } = await import('../lib/firstRunSeed.js')
     const SID = '00000000-aaaa-bbbb-cccc-e10e10e10e10'
     const home = join(SCRATCH, 'home-pty')
     mkdirSync(home, { recursive: true })
     seedFirstRun(home, [ROOT])
-    const projDir = join(home, 'projects', sanitizePath(ROOT))
+    const projDir = join(home, 'projects', basename(getProjectDir(ROOT)))
     mkdirSync(projDir, { recursive: true })
     const lines: Record<string, unknown>[] = []
     let prev: string | null = null

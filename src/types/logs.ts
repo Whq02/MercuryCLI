@@ -1,9 +1,8 @@
 import type { UUID } from 'crypto'
-import type { AgentId } from './ids.js'
 import type { Message } from './message.js'
-import type { QueueOperationMessage } from './messageQueueTypes.js'
 import type { ContentReplacementRecord } from '../utils/toolResultStorage.js'
 import type { FileHistorySnapshot } from '../utils/fileHistory.js'
+import type { FileAttribution, StorageRowOf, StoredRow, WorktreeBinding } from '../rows/storage.js'
 
 export type SerializedMessage = Message & {
   cwd: string
@@ -27,192 +26,95 @@ export type TranscriptMessage = SerializedMessage & {
 }
 
 export type SummaryMessage = {
-  type: 'summary'
-  summary: string
-  leafUuid: UUID
+  [K in keyof StorageRowOf<'summary'>]: StorageRowOf<'summary'>[K]
 }
 
 export type CustomTitleMessage = {
-  type: 'custom-title'
-  customTitle: string
-  sessionId: UUID
+  [K in keyof StorageRowOf<'custom-title'>]: StorageRowOf<'custom-title'>[K]
 }
 
 export type AiTitleMessage = {
-  type: 'ai-title'
-  aiTitle: string
-  sessionId: UUID
+  [K in keyof StorageRowOf<'ai-title'>]: StorageRowOf<'ai-title'>[K]
 }
 
 export type LastPromptMessage = {
-  type: 'last-prompt'
-  lastPrompt: string
-  sessionId: UUID
+  [K in keyof StorageRowOf<'last-prompt'>]: StorageRowOf<'last-prompt'>[K]
 }
 
 export type TaskSummaryMessage = {
-  type: 'task-summary'
-  summary: string
-  sessionId: UUID
-  timestamp: string
+  [K in keyof StorageRowOf<'task-summary'>]: StorageRowOf<'task-summary'>[K]
 }
 
 export type TagMessage = {
-  type: 'tag'
-  tag: string
-  sessionId: UUID
+  [K in keyof StorageRowOf<'tag'>]: StorageRowOf<'tag'>[K]
 }
 
 export type AgentNameMessage = {
-  type: 'agent-name'
-  agentName: string
-  sessionId: UUID
+  [K in keyof StorageRowOf<'agent-name'>]: StorageRowOf<'agent-name'>[K]
 }
 
 export type AgentColorMessage = {
-  type: 'agent-color'
-  agentColor: string
-  sessionId: UUID
+  [K in keyof StorageRowOf<'agent-color'>]: StorageRowOf<'agent-color'>[K]
 }
 
 export type AgentSettingMessage = {
-  type: 'agent-setting'
-  agentSetting: string
-  sessionId: UUID
+  [K in keyof StorageRowOf<'agent-setting'>]: StorageRowOf<'agent-setting'>[K]
 }
 
 export type PRLinkMessage = {
-  type: 'pr-link'
-  sessionId: UUID
-  prNumber: number
-  prUrl: string
-  prRepository: string
-  timestamp: string
+  [K in keyof StorageRowOf<'pr-link'>]: StorageRowOf<'pr-link'>[K]
 }
 
 export type ModeEntry = {
-  type: 'mode'
-  mode: 'coordinator' | 'normal'
-  sessionId: UUID
+  [K in keyof StorageRowOf<'mode'>]: StorageRowOf<'mode'>[K]
 }
 
 export type AdvisorSwitchEntry = {
-  type: 'advisor-switch'
-  on: boolean
-  sessionId: UUID
+  [K in keyof StorageRowOf<'advisor-switch'>]: StorageRowOf<'advisor-switch'>[K]
 }
 
 export type SessionModelEntry = {
-  type: 'model'
-  model: string
-  sessionId: UUID
+  [K in keyof StorageRowOf<'model'>]: StorageRowOf<'model'>[K]
 }
 
 export type PersistedWorktreeSession = {
-  originalCwd: string
-  worktreePath: string
-  worktreeName: string
-  worktreeBranch?: string
-  originalBranch?: string
-  originalHeadCommit?: string
-  sessionId: string
-  tmuxSessionName?: string
-  hookBased?: boolean
+  [K in keyof WorktreeBinding]: WorktreeBinding[K]
 }
 
 export type WorktreeStateEntry = {
-  type: 'worktree-state'
-  worktreeSession: PersistedWorktreeSession | null
-  sessionId: UUID
+  [K in keyof StorageRowOf<'worktree-state'>]: StorageRowOf<'worktree-state'>[K]
 }
 
 export type ContentReplacementEntry = {
-  type: 'content-replacement'
-  sessionId: UUID
-  agentId?: AgentId
-  replacements: ContentReplacementRecord[]
+  [K in keyof StorageRowOf<'content-replacement'>]: StorageRowOf<'content-replacement'>[K]
 }
 
 export type FileHistorySnapshotMessage = {
-  type: 'file-history-snapshot'
-  messageId: UUID
-  snapshot: FileHistorySnapshot
-  isSnapshotUpdate: boolean
+  [K in keyof StorageRowOf<'file-history-snapshot'>]: StorageRowOf<'file-history-snapshot'>[K]
 }
 
 export type FileAttributionState = {
-  contentHash: string
-  mercuryContribution: number
-  mtime: number
+  [K in keyof FileAttribution]: FileAttribution[K]
 }
 
 export type AttributionSnapshotMessage = {
-  type: 'attribution-snapshot'
-  messageId: UUID
-  surface: 'cli' | 'ide' | 'web' | 'api'
-  fileStates: Record<string, FileAttributionState>
-  promptCount: number
-  promptCountAtLastCommit: number
-  permissionPromptCount: number
-  permissionPromptCountAtLastCommit: number
-  escapeCount: number
-  escapeCountAtLastCommit: number
+  [K in keyof StorageRowOf<'attribution-snapshot'>]: StorageRowOf<'attribution-snapshot'>[K]
 }
 
 export type SpeculationAcceptMessage = {
-  type: 'speculation-accept'
-  timestamp: string
-  timeSavedMs: number
+  [K in keyof StorageRowOf<'speculation-accept'>]: StorageRowOf<'speculation-accept'>[K]
 }
 
 export type ContextCollapseCommitEntry = {
-  type: 'context-collapse-commit'
-  sessionId: UUID
-  collapseId: string
-  summaryUuid: string
-  summaryContent: string
-  summary: string
-  firstArchivedUuid: string
-  lastArchivedUuid: string
+  [K in keyof StorageRowOf<'context-collapse-commit'>]: StorageRowOf<'context-collapse-commit'>[K]
 }
 
 export type ContextCollapseSnapshotEntry = {
-  type: 'context-collapse-snapshot'
-  sessionId: UUID
-  staged: Array<{
-    startUuid: string
-    endUuid: string
-    summary: string
-    risk: number
-    stagedAt: number
-  }>
-  armed: boolean
-  lastSpawnTokens: number
+  [K in keyof StorageRowOf<'context-collapse-snapshot'>]: StorageRowOf<'context-collapse-snapshot'>[K]
 }
 
 export type Entry =
-  | TranscriptMessage
-  | SummaryMessage
-  | CustomTitleMessage
-  | AiTitleMessage
-  | LastPromptMessage
-  | TaskSummaryMessage
-  | TagMessage
-  | AgentNameMessage
-  | AgentColorMessage
-  | AgentSettingMessage
-  | PRLinkMessage
-  | ModeEntry
-  | AdvisorSwitchEntry
-  | SessionModelEntry
-  | WorktreeStateEntry
-  | ContentReplacementEntry
-  | FileHistorySnapshotMessage
-  | AttributionSnapshotMessage
-  | SpeculationAcceptMessage
-  | ContextCollapseCommitEntry
-  | ContextCollapseSnapshotEntry
-  | QueueOperationMessage
+  StoredRow
 
 export type LogOption = {
   date: string

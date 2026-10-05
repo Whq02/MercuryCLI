@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
+import { basename, join } from 'node:path'
+import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 import { resolveProofHome } from '../lib/proofHome.ts'
 import { mixToward, RECESS_MIX } from '../../src/ink/cell-grid.ts'
 import {
@@ -14,7 +14,7 @@ const REPO = join(new URL('.', import.meta.url).pathname, '../..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
 const VSHOT = join(REPO, 'scripts/ui/vshot.py')
 const CONFIG_HOME = resolveProofHome([RUNTIME_CWD])
-const PROJECTS = join(CONFIG_HOME, 'projects', sanitizePath(RUNTIME_CWD))
+const PROJECTS = join(CONFIG_HOME, 'projects', basename(getProjectDir(RUNTIME_CWD)))
 const SID = `00000000-aaaa-bbbb-eeee-${(process.pid % 0xffffff).toString(16).padStart(12, '0')}`
 
 let failures = 0

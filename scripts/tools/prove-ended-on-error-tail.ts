@@ -140,7 +140,7 @@ section('(e) wiring â€” the end state is derived unconditionally, plumbed lite â
 {
 const _ssDir = join(import.meta.dir, '..', '..', 'src', 'utils', 'sessionStorage')
 const storage = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'sessionStorage.ts'), 'utf-8') + readdirSync(_ssDir).filter(f => f.endsWith('.ts')).map(f => readFileSync(join(_ssDir, f), 'utf-8')).join('\n')
-  check('readLiteMetadata derives via scanTailForEndedOnError (unconditional)', /const endedOnError = scanTailForEndedOnError\(tail\)/.test(storage))
+  check('the session label facts derive endedOnError via scanTailForEndedOnError (unconditional)', /endedOnError: scanTailForEndedOnError\(tail\)/.test(storage))
   check('enrichLog copies it onto the LogOption', /endedOnError: meta\.endedOnError,/.test(storage))
   const logs = readFileSync(join(import.meta.dir, '..', '..', 'src', 'types', 'logs.ts'), 'utf-8')
   check('LogOption carries the optional field', /endedOnError\?: boolean/.test(logs))

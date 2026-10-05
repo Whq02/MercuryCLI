@@ -3,7 +3,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 
 const arg = (name: string): string | undefined => {
   const at = process.argv.indexOf(name)
@@ -19,7 +19,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 const { seedFirstRun } = await import(join(root, 'scripts/lib/firstRunSeed.ts'))
 const { encodeSeedTranscript } = await import(join(root, 'scripts/lib/seedTranscript.ts'))
-const { sanitizePath } = await import(join(root, 'src/utils/sessionStoragePortable.ts'))
+const { getProjectDir } = await import(join(root, 'src/utils/sessionStoragePortable.ts'))
 const { resolveCaptureDriver, captureEngineEntry, vshotBudgetMs } = await import(join(root, 'scripts/lib/captureDriver.ts'))
 const { getAllReleaseNotes, earlierReleasesLine, earlierReleasesCount } = await import(join(root, 'src/utils/releaseNotes.ts'))
 const driver = resolveCaptureDriver()
@@ -115,7 +115,7 @@ console.log('── /update-notes: the running release on the chat, the earlier 
   }
   add({ type: 'user', message: { role: 'user', content: 'Say hello.' } })
   add({ type: 'assistant', message: { id: 'hello-reply', role: 'assistant', type: 'message', model: 'claude-opus-4-8', stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 10, output_tokens: 4, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }, content: [{ type: 'text', text: 'Hello. What shall we work on?' }] } })
-  const project = join(w.config, 'projects', sanitizePath(w.cwd))
+  const project = join(w.config, 'projects', basename(getProjectDir(w.cwd)))
   mkdirSync(project, { recursive: true })
   writeFileSync(join(project, `${sid}.jsonl`), encodeSeedTranscript(rows, sid))
   const cfg = {

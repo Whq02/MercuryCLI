@@ -1,15 +1,15 @@
 #!/usr/bin/env bun
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
+import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 import { resolveProofHome } from '../lib/proofHome.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const RUNTIME_CWD = join(import.meta.dir, '..', '..')
 const REPO = RUNTIME_CWD
 const CONFIG_HOME = resolveProofHome([RUNTIME_CWD])
-const PROJECTS = join(CONFIG_HOME, 'projects', sanitizePath(RUNTIME_CWD))
+const PROJECTS = join(CONFIG_HOME, 'projects', basename(getProjectDir(RUNTIME_CWD)))
 const VSHOT = new URL('./vshot.py', import.meta.url).pathname
 const BIN = join(REPO, 'dist', 'mercury.mjs')
 const SID = '00000000-aaaa-bbbb-cccc-00000000d71e'

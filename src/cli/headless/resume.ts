@@ -55,6 +55,8 @@ export function removeInterruptedMessage(
   }
 }
 
+type Resumed = NonNullable<Awaited<ReturnType<typeof loadConversationForResume>>>
+
 type LoadInitialMessagesResult = {
   messages: Message[]
   contentReplacements?: ContentReplacementRecord[]
@@ -75,6 +77,38 @@ export async function loadInitialMessages(
   },
 ): Promise<LoadInitialMessagesResult> {
   const persistSession = !isSessionPersistenceDisabled()
+  const refuse = (message: string, code = 1): LoadInitialMessagesResult => {
+    emitLoadError(message, options.outputFormat)
+    gracefulShutdownSync(code)
+    return { messages: [] }
+  }
+  const adopt = async (result: Resumed, fallbackHome: string | null): Promise<LoadInitialMessagesResult> => {
+    if (!options.forkSession && result.sessionId) {
+      switchSession(
+        asSessionId(result.sessionId),
+        result.fullPath ? dirname(result.fullPath) : fallbackHome,
+      )
+      if (persistSession) {
+        await resetSessionFilePointer()
+      }
+    }
+    await restoreSessionStateFromLog(result, setAppState)
+    restoreSessionMetadata(
+      options.forkSession
+        ? { ...result, worktreeSession: undefined }
+        : result,
+    )
+    if (options.forkSession && persistSession && result.contentReplacements?.length) {
+      await recordContentReplacement(result.contentReplacements)
+    }
+    return {
+      messages: result.messages,
+      contentReplacements: result.contentReplacements,
+      turnInterruptionState: result.turnInterruptionState,
+      agentSetting: result.agentSetting,
+      model: result.model,
+    }
+  }
   armProvisionalSessionReconcile()
 
   if (options.continue) {
@@ -83,40 +117,8 @@ export async function loadInitialMessages(
         undefined ,
         undefined ,
       )
-      if (result && hasConversationTurn(result.messages)) {
-        if (!options.forkSession) {
-          if (result.sessionId) {
-            switchSession(
-              asSessionId(result.sessionId),
-              result.fullPath ? dirname(result.fullPath) : null,
-            )
-            if (persistSession) {
-              await resetSessionFilePointer()
-            }
-          }
-        }
-        await restoreSessionStateFromLog(result, setAppState)
-
-        restoreSessionMetadata(
-          options.forkSession
-            ? { ...result, worktreeSession: undefined }
-            : result,
-        )
-
-        if (options.forkSession && persistSession && result.contentReplacements?.length) {
-          await recordContentReplacement(result.contentReplacements)
-        }
-        return {
-          messages: result.messages,
-          contentReplacements: result.contentReplacements,
-          turnInterruptionState: result.turnInterruptionState,
-          agentSetting: result.agentSetting,
-          model: result.model,
-        }
-      }
-      emitLoadError('No conversation found to continue', options.outputFormat)
-      gracefulShutdownSync(1)
-      return { messages: [] }
+      if (result && hasConversationTurn(result.messages)) return adopt(result, null)
+      return refuse('No conversation found to continue')
     } catch (error) {
       logError(error)
       gracefulShutdownSync(1)
@@ -131,12 +133,7 @@ export async function loadInitialMessages(
       )
       if (!parsedSessionId) {
         const given = typeof options.resume === 'string' ? options.resume : ''
-        emitLoadError(
-          `${binaryName()} run --resume needs a session id (a UUID) or a .jsonl transcript path: ${JSON.stringify(given)} is neither`,
-          options.outputFormat,
-        )
-        gracefulShutdownSync(2)
-        return { messages: [] }
+        return refuse(`${binaryName()} run --resume needs a session id (a UUID) or a .jsonl transcript path: ${JSON.stringify(given)} is neither`, 2)
       }
 
       const homePin = consumeSessionHomePin()
@@ -153,68 +150,29 @@ export async function loadInitialMessages(
       )
 
       if (!result || !hasConversationTurn(result.messages)) {
-        emitLoadError(
+        return refuse(
           parsedSessionId.isJsonlFile
             ? `No conversation could be loaded from: ${typeof options.resume === 'string' ? options.resume : parsedSessionId.sessionId}`
             : `No conversation found with session ID: ${parsedSessionId.sessionId}`,
-          options.outputFormat,
         )
-        gracefulShutdownSync(1)
-        return { messages: [] }
       }
 
       if (options.resumeSessionAt) {
         const index = result.messages.findIndex(
           m => m.uuid === options.resumeSessionAt,
         )
-        if (index < 0) {
-          emitLoadError(
-            `No message found with message.uuid of: ${options.resumeSessionAt}`,
-            options.outputFormat,
-          )
-          gracefulShutdownSync(1)
-          return { messages: [] }
-        }
-
+        if (index < 0) return refuse(`No message found with message.uuid of: ${options.resumeSessionAt}`)
         result.messages = result.messages.slice(0, index + 1)
       }
 
-      if (!options.forkSession && result.sessionId) {
-        switchSession(
-          asSessionId(result.sessionId),
-          result.fullPath ? dirname(result.fullPath) : homePin,
-        )
-        if (persistSession) {
-          await resetSessionFilePointer()
-        }
-      }
-      await restoreSessionStateFromLog(result, setAppState)
-
-      restoreSessionMetadata(
-        options.forkSession
-          ? { ...result, worktreeSession: undefined }
-          : result,
-      )
-
-      if (options.forkSession && persistSession && result.contentReplacements?.length) {
-        await recordContentReplacement(result.contentReplacements)
-      }
-      return {
-        messages: result.messages,
-        contentReplacements: result.contentReplacements,
-        turnInterruptionState: result.turnInterruptionState,
-        agentSetting: result.agentSetting,
-        model: result.model,
-      }
+      return adopt(result, homePin)
     } catch (error) {
       logError(error)
-      const errorMessage =
+      return refuse(
         error instanceof Error
           ? `Failed to resume session: ${error.message}`
-          : 'Failed to resume session with mercury run'
-      emitLoadError(errorMessage, options.outputFormat)
-      gracefulShutdownSync(1)
-      return { messages: [] }
+          : 'Failed to resume session with mercury run',
+      )
     }
   }
 

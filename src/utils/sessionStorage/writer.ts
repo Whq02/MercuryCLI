@@ -1,4 +1,3 @@
-
 import type { UUID } from 'crypto'
 import {
   closeSync,
@@ -19,6 +18,7 @@ import {
   getSessionId,
   isSessionPersistenceDisabled,
 } from '../../bootstrap/state.js'
+import { recordToEntry } from '../../fabric/entryCodec.js'
 import { type AgentId, asAgentId } from '../../types/ids.js'
 import type {
   ContentReplacementEntry,
@@ -29,6 +29,10 @@ import type {
 } from '../../types/logs.js'
 import type { AttributionSnapshotMessage } from '../../types/logs.js'
 import type { Message } from '../../types/message.js'
+import { storageRowPolicy } from '../../rows/storage.js'
+import { SessionMeta, SESSION_META_COMPAT_FIELDS } from './sessionMeta.js'
+import { promptLabel } from './sessionIndex.js'
+import { readTranscriptTailSync } from './transcriptReader.js'
 import type { QueueOperationMessage } from '../../types/messageQueueTypes.js'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { registerExitCliffSeam } from '../exitCliffDrain.js'
@@ -40,13 +44,9 @@ import type { FileHistorySnapshot } from '../fileHistory.js'
 import { formatFileSize } from '../format.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { getBranch } from '../git.js'
-import { isShuttingDown } from '../gracefulShutdown.js'
 import { logError } from '../log.js'
 import { isCompactBoundaryMessage } from '../messages.js'
-import {
-  extractLastJsonStringField,
-  LITE_READ_BUF_SIZE,
-} from '../sessionStoragePortable.js'
+import { LITE_READ_BUF_SIZE } from '../sessionStoragePortable.js'
 import { getSettings_DEPRECATED } from '../settings/settings.js'
 import { jsonParse, jsonStringify } from '../slowOperations.js'
 import type { ContentReplacementRecord } from '../toolResultStorage.js'
@@ -65,7 +65,6 @@ import {
   getTranscriptPath,
   getTranscriptPathForSession,
   isChainParticipant,
-  isTranscriptMessage,
 } from './paths.js'
 import {
   encodeTranscriptLine,
@@ -184,7 +183,7 @@ type InternalEventWriter = (
 ) => Promise<void>
 
 export function setInternalEventWriter(writer: InternalEventWriter): void {
-  getProject().setInternalEventWriter(writer)
+  void writer
 }
 
 type InternalEventReader = () => Promise<
@@ -195,17 +194,31 @@ export function setInternalEventReader(
   reader: InternalEventReader,
   subagentReader: InternalEventReader,
 ): void {
-  getProject().setInternalEventReader(reader)
-  getProject().setInternalSubagentEventReader(subagentReader)
+  void reader
+  void subagentReader
 }
 
 export function setRemoteIngressUrlForTesting(url: string): void {
-  getProject().setRemoteIngressUrl(url)
+  void url
 }
 
 let transcriptMessagesVisited = 0
 export function getTranscriptMessagesVisited(): number {
   return transcriptMessagesVisited
+}
+
+function partitionUnwritten(
+  messages: Transcript,
+  onDisk: ReadonlySet<UUID>,
+  parentHint: UUID | undefined,
+): { unwritten: Transcript; parent: UUID | undefined } {
+  const unwritten: Transcript = []
+  let parent = parentHint
+  for (const m of messages) {
+    if (!onDisk.has(m.uuid as UUID)) unwritten.push(m)
+    else if (unwritten.length === 0 && isChainParticipant(m)) parent = m.uuid as UUID
+  }
+  return { unwritten, parent }
 }
 
 export async function recordTranscript(
@@ -216,21 +229,8 @@ export async function recordTranscript(
 ): Promise<UUID | null> {
   transcriptMessagesVisited += messages.length
   const cleanedMessages = cleanMessagesForLogging(messages, allMessages)
-  const sessionId = getSessionId() as UUID
-  const messageSet = await getSessionMessages(sessionId)
-  const newMessages: typeof cleanedMessages = []
-  let startingParentUuid: UUID | undefined = startingParentUuidHint
-  let seenNewMessage = false
-  for (const m of cleanedMessages) {
-    if (messageSet.has(m.uuid as UUID)) {
-      if (!seenNewMessage && isChainParticipant(m)) {
-        startingParentUuid = m.uuid as UUID
-      }
-    } else {
-      newMessages.push(m)
-      seenNewMessage = true
-    }
-  }
+  const messageSet = await getSessionMessages(getSessionId() as UUID)
+  const { unwritten: newMessages, parent: startingParentUuid } = partitionUnwritten(cleanedMessages, messageSet, startingParentUuidHint)
   const preferLiveLeaf = messageSet.size > 0
   if (newMessages.length > 0) {
     await getProject().insertMessageChain(
@@ -276,6 +276,22 @@ export async function removeTranscriptMessage(targetUuid: UUID): Promise<void> {
   await getProject().removeMessageByUuid(targetUuid)
 }
 
+function lineAround(tail: Buffer, matchIdx: number, matchLength: number, bytesRead: number, windowAtFileStart: boolean): { start: number; end: number } | null {
+  const prevNl = tail.lastIndexOf(0x0a, matchIdx)
+  if (prevNl < 0 && !windowAtFileStart) return null
+  const nextNl = tail.indexOf(0x0a, matchIdx + matchLength)
+  return { start: prevNl + 1, end: nextNl >= 0 ? nextNl + 1 : bytesRead }
+}
+
+function storedLineUuid(parsed: Record<string, unknown>): unknown {
+  const envelope =
+    typeof parsed.schemaVersion === 'number' &&
+    typeof parsed.payload === 'object' &&
+    parsed.payload !== null
+  const entry = envelope ? recordToEntry(parsed as never) : parsed
+  return entry.uuid
+}
+
 export async function recordFileHistorySnapshot(
   messageId: UUID,
   snapshot: FileHistorySnapshot,
@@ -316,6 +332,12 @@ export function adoptResumedSessionFile(): void {
   project.currentSessionChainLeaf = undefined
 }
 
+async function recordSessionRow(row: (sessionId: UUID) => Entry): Promise<void> {
+  const sessionId = getSessionId() as UUID
+  if (!sessionId) return
+  await getProject().appendEntry(row(sessionId))
+}
+
 export async function recordContextCollapseCommit(commit: {
   collapseId: string
   summaryUuid: string
@@ -324,13 +346,7 @@ export async function recordContextCollapseCommit(commit: {
   firstArchivedUuid: string
   lastArchivedUuid: string
 }): Promise<void> {
-  const sessionId = getSessionId() as UUID
-  if (!sessionId) return
-  await getProject().appendEntry({
-    type: 'context-collapse-commit',
-    sessionId,
-    ...commit,
-  })
+  await recordSessionRow(sessionId => ({ type: 'context-collapse-commit', sessionId, ...commit }))
 }
 
 export async function recordContextCollapseSnapshot(snapshot: {
@@ -344,42 +360,12 @@ export async function recordContextCollapseSnapshot(snapshot: {
   armed: boolean
   lastSpawnTokens: number
 }): Promise<void> {
-  const sessionId = getSessionId() as UUID
-  if (!sessionId) return
-  await getProject().appendEntry({
-    type: 'context-collapse-snapshot',
-    sessionId,
-    ...snapshot,
-  })
+  await recordSessionRow(sessionId => ({ type: 'context-collapse-snapshot', sessionId, ...snapshot }))
 }
 
 export async function flushSessionStorage(): Promise<void> {
   await getProject().flush()
 }
-
-const REMOTE_FLUSH_INTERVAL_MS = 10
-
-const ALWAYS_APPEND_KINDS = new Set<Entry['type']>([
-  'summary',
-  'custom-title',
-  'ai-title',
-  'last-prompt',
-  'task-summary',
-  'tag',
-  'agent-name',
-  'agent-color',
-  'agent-setting',
-  'pr-link',
-  'file-history-snapshot',
-  'attribution-snapshot',
-  'speculation-accept',
-  'mode',
-  'advisor-switch',
-  'model',
-  'worktree-state',
-  'context-collapse-commit',
-  'context-collapse-snapshot',
-])
 
 class Project {
   currentSessionTag: string | undefined
@@ -399,10 +385,6 @@ class Project {
 
   sessionFile: string | null = null
   private pendingEntries: Entry[] = []
-  private remoteIngressUrl: string | null = null
-  private internalEventWriter: InternalEventWriter | null = null
-  private internalEventReader: InternalEventReader | null = null
-  private internalSubagentEventReader: InternalEventReader | null = null
   private pendingWriteCount: number = 0
   private flushResolvers: Array<() => void> = []
   private writeQueues = new Map<
@@ -426,7 +408,23 @@ class Project {
   private readonly MAX_CHUNK_BYTES = 100 * 1024 * 1024
   private fileWriteChain: Promise<unknown> = Promise.resolve()
 
-  constructor() {}
+  readonly metadata = new SessionMeta({
+    currentId: () => getSessionId() as UUID,
+    currentFile: () => this.sessionFile,
+    append: appendEntryToFile,
+    tail: path => readTranscriptTailSync(path, LITE_READ_BUF_SIZE),
+  })
+
+  constructor() {
+    for (const [name, field] of Object.entries(SESSION_META_COMPAT_FIELDS)) {
+      Object.defineProperty(this, name, {
+        enumerable: true,
+        configurable: true,
+        get: () => this.metadata.fields[field],
+        set: value => { (this.metadata.fields as Record<string, unknown>)[field] = value },
+      })
+    }
+  }
 
   _resetFlushState(): void {
     this.settleState = new Map()
@@ -439,26 +437,16 @@ class Project {
     this.writeQueues = new Map()
   }
 
-  private incrementPendingWrites(): void {
-    this.pendingWriteCount++
-  }
-
-  private decrementPendingWrites(): void {
-    this.pendingWriteCount--
-    if (this.pendingWriteCount === 0) {
-      for (const resolve of this.flushResolvers) {
-        resolve()
-      }
-      this.flushResolvers = []
-    }
+  private settleFlushWaiters(): void {
+    for (const resolve of this.flushResolvers.splice(0)) resolve()
   }
 
   private async trackWrite<T>(fn: () => Promise<T>): Promise<T> {
-    this.incrementPendingWrites()
+    this.pendingWriteCount++
     try {
       return await fn()
     } finally {
-      this.decrementPendingWrites()
+      if (--this.pendingWriteCount === 0) this.settleFlushWaiters()
     }
   }
 
@@ -627,118 +615,7 @@ class Project {
   }
 
   reAppendSessionMetadata(skipTitleRefresh = false): void {
-    if (!this.sessionFile) return
-    const sessionId = getSessionId() as UUID
-    if (!sessionId) return
-
-    const tail = readFileTailSync(this.sessionFile)
-
-    const isMetaLine = (l: string, metaKind: string): boolean =>
-      l.startsWith('{"schemaVersion":') && l.includes(`"metaKind":"${metaKind}"`)
-    const tailLines = tail.split('\n')
-    if (!skipTitleRefresh) {
-      const titleLine = tailLines.findLast((l: string) =>
-        isMetaLine(l, 'custom-title'),
-      )
-      if (titleLine) {
-        const tailTitle = extractLastJsonStringField(titleLine, 'customTitle')
-        if (tailTitle !== undefined) {
-          this.currentSessionTitle = tailTitle || undefined
-        }
-      }
-    }
-    const tagLine = tailLines.findLast((l: string) => isMetaLine(l, 'tag'))
-    if (tagLine) {
-      const tailTag = extractLastJsonStringField(tagLine, 'tag')
-      if (tailTag !== undefined) {
-        this.currentSessionTag = tailTag || undefined
-      }
-    }
-
-    if (this.currentSessionLastPrompt) {
-      appendEntryToFile(this.sessionFile, {
-        type: 'last-prompt',
-        lastPrompt: this.currentSessionLastPrompt,
-        sessionId,
-      })
-    }
-    if (this.currentSessionTitle) {
-      appendEntryToFile(this.sessionFile, {
-        type: 'custom-title',
-        customTitle: this.currentSessionTitle,
-        sessionId,
-      })
-    }
-    if (this.currentSessionTag) {
-      appendEntryToFile(this.sessionFile, {
-        type: 'tag',
-        tag: this.currentSessionTag,
-        sessionId,
-      })
-    }
-    if (this.currentSessionAgentName) {
-      appendEntryToFile(this.sessionFile, {
-        type: 'agent-name',
-        agentName: this.currentSessionAgentName,
-        sessionId,
-      })
-    }
-    if (this.currentSessionAgentColor) {
-      appendEntryToFile(this.sessionFile, {
-        type: 'agent-color',
-        agentColor: this.currentSessionAgentColor,
-        sessionId,
-      })
-    }
-    if (this.currentSessionAgentSetting) {
-      appendEntryToFile(this.sessionFile, {
-        type: 'agent-setting',
-        agentSetting: this.currentSessionAgentSetting,
-        sessionId,
-      })
-    }
-    if (this.currentSessionMode) {
-      appendEntryToFile(this.sessionFile, {
-        type: 'mode',
-        mode: this.currentSessionMode,
-        sessionId,
-      })
-    }
-    if (this.currentSessionAdvisor !== undefined) {
-      appendEntryToFile(this.sessionFile, {
-        type: 'advisor-switch',
-        on: this.currentSessionAdvisor,
-        sessionId,
-      })
-    }
-    if (this.currentSessionModel) {
-      appendEntryToFile(this.sessionFile, {
-        type: 'model',
-        model: this.currentSessionModel,
-        sessionId,
-      })
-    }
-    if (this.currentSessionWorktree !== undefined) {
-      appendEntryToFile(this.sessionFile, {
-        type: 'worktree-state',
-        worktreeSession: this.currentSessionWorktree,
-        sessionId,
-      })
-    }
-    if (
-      this.currentSessionPrNumber !== undefined &&
-      this.currentSessionPrUrl &&
-      this.currentSessionPrRepository
-    ) {
-      appendEntryToFile(this.sessionFile, {
-        type: 'pr-link',
-        sessionId,
-        prNumber: this.currentSessionPrNumber,
-        prUrl: this.currentSessionPrUrl,
-        prRepository: this.currentSessionPrRepository,
-        timestamp: new Date().toISOString(),
-      })
-    }
+    this.metadata.restamp(skipTitleRefresh)
   }
 
   async flush(): Promise<void> {
@@ -780,22 +657,14 @@ class Project {
 
             const needle = `"uuid":"${targetUuid}"`
             const matchIdx = tail.lastIndexOf(needle)
-
-            if (matchIdx >= 0) {
-              const prevNl = tail.lastIndexOf(0x0a, matchIdx)
-              if (prevNl >= 0 || tailStart === 0) {
-                const lineStart = prevNl + 1
-                const nextNl = tail.indexOf(0x0a, matchIdx + needle.length)
-                const lineEnd = nextNl >= 0 ? nextNl + 1 : bytesRead
-
-                const absLineStart = tailStart + lineStart
-                const afterLen = bytesRead - lineEnd
-                ftruncateSync(fd, absLineStart)
-                if (afterLen > 0) {
-                  writeSync(fd, tail, lineEnd, afterLen, absLineStart)
-                }
-                return
-              }
+            const line = matchIdx >= 0 ? lineAround(tail, matchIdx, needle.length, bytesRead, tailStart === 0) : null
+            if (line) {
+              const { start: lineStart, end: lineEnd } = line
+              const absLineStart = tailStart + lineStart
+              const afterLen = bytesRead - lineEnd
+              ftruncateSync(fd, absLineStart)
+              if (afterLen > 0) writeSync(fd, tail, lineEnd, afterLen, absLineStart)
+              return
             }
           } finally {
             closeSync(fd)
@@ -812,8 +681,7 @@ class Project {
           const lines = content.split('\n').filter((line: string) => {
             if (!line.trim()) return true
             try {
-              const entry = jsonParse(line)
-              return entry.uuid !== targetUuid
+              return storedLineUuid(jsonParse(line)) !== targetUuid
             } catch {
               return true
             }
@@ -840,13 +708,7 @@ class Project {
     if (this.shouldSkipPersistence()) return
     this.ensureCurrentSessionFile()
     this.reAppendSessionMetadata()
-    if (this.pendingEntries.length > 0) {
-      const buffered = this.pendingEntries
-      this.pendingEntries = []
-      for (const entry of buffered) {
-        await this.appendEntry(entry)
-      }
-    }
+    for (const entry of this.pendingEntries.splice(0)) await this.appendEntry(entry)
   }
 
   async insertMessageChain(
@@ -923,13 +785,13 @@ class Project {
 
       if (!isSidechain) {
         const text = getFirstMeaningfulUserMessageTextContent(messages)
-        if (text) {
-          const flat = text.replace(/\n/g, ' ').trim()
-          this.currentSessionLastPrompt =
-            flat.length > 200 ? flat.slice(0, 200).trim() + '…' : flat
-        }
+        if (text) this.metadata.cache('lastPrompt', promptLabel(text))
       }
     }))
+  }
+
+  private insertTracked(entry: Entry): Promise<void> {
+    return this.trackWrite(() => this.appendEntry(entry))
   }
 
   async insertFileHistorySnapshot(
@@ -937,73 +799,52 @@ class Project {
     snapshot: FileHistorySnapshot,
     isSnapshotUpdate: boolean,
   ) {
-    return this.trackWrite(async () => {
-      const fileHistoryMessage: FileHistorySnapshotMessage = {
-        type: 'file-history-snapshot',
-        messageId,
-        snapshot,
-        isSnapshotUpdate,
-      }
-      await this.appendEntry(fileHistoryMessage)
-    })
+    const fileHistoryMessage: FileHistorySnapshotMessage = { type: 'file-history-snapshot', messageId, snapshot, isSnapshotUpdate }
+    return this.insertTracked(fileHistoryMessage)
   }
 
   async insertQueueOperation(queueOp: QueueOperationMessage) {
-    return this.trackWrite(async () => {
-      await this.appendEntry(queueOp)
-    })
+    return this.insertTracked(queueOp)
   }
 
   async insertAttributionSnapshot(snapshot: AttributionSnapshotMessage) {
-    return this.trackWrite(async () => {
-      await this.appendEntry(snapshot)
-    })
+    return this.insertTracked(snapshot)
   }
 
   async insertContentReplacement(
     replacements: ContentReplacementRecord[],
     agentId?: AgentId,
   ) {
-    return this.trackWrite(async () => {
-      const entry: ContentReplacementEntry = {
-        type: 'content-replacement',
-        sessionId: getSessionId() as UUID,
-        agentId,
-        replacements,
-      }
-      await this.appendEntry(entry)
-    })
+    const entry: ContentReplacementEntry = { type: 'content-replacement', sessionId: getSessionId() as UUID, agentId, replacements }
+    return this.insertTracked(entry)
+  }
+
+  private async sessionFileFor(sessionId: UUID, entry: Entry): Promise<string | null> {
+    if (sessionId === (getSessionId() as UUID)) {
+      if (this.sessionFile !== null) return this.sessionFile
+      this.pendingEntries.push(entry)
+      return null
+    }
+    const existing = await this.getExistingSessionFile(sessionId)
+    if (!existing) {
+      logError(
+        new Error(
+          `appendEntry: session file not found for other session ${sessionId}`,
+        ),
+      )
+      return null
+    }
+    return existing
   }
 
   async appendEntry(entry: Entry, sessionId: UUID = getSessionId() as UUID) {
     if (this.shouldSkipPersistence()) {
       return
     }
+    const sessionFile = await this.sessionFileFor(sessionId, entry)
+    if (sessionFile === null) return
 
-    const currentSessionId = getSessionId() as UUID
-    const isCurrentSession = sessionId === currentSessionId
-
-    let sessionFile: string
-    if (isCurrentSession) {
-      if (this.sessionFile === null) {
-        this.pendingEntries.push(entry)
-        return
-      }
-      sessionFile = this.sessionFile
-    } else {
-      const existing = await this.getExistingSessionFile(sessionId)
-      if (!existing) {
-        logError(
-          new Error(
-            `appendEntry: session file not found for other session ${sessionId}`,
-          ),
-        )
-        return
-      }
-      sessionFile = existing
-    }
-
-    if (ALWAYS_APPEND_KINDS.has(entry.type)) {
+    if (storageRowPolicy(entry.type)?.write === 'append') {
       void this.enqueueWrite(sessionFile, entry)
       return
     }
@@ -1043,10 +884,6 @@ class Project {
     if (!messageSet.has(message.uuid)) {
       this.enqueueMessageWrite(targetFile, message)
       messageSet.add(message.uuid)
-
-      if (isTranscriptMessage(message)) {
-        await this.persistToRemote(sessionId, message)
-      }
     }
   }
 
@@ -1134,93 +971,34 @@ class Project {
     }
   }
 
-  private async persistToRemote(sessionId: UUID, entry: TranscriptMessage) {
-    if (isShuttingDown()) {
-      return
-    }
-
-    if (this.internalEventWriter) {
-      try {
-        await this.internalEventWriter(
-          'transcript',
-          entry as unknown as Record<string, unknown>,
-          {
-            ...(isCompactBoundaryMessage(entry) && { isCompaction: true }),
-            ...(entry.agentId && { agentId: entry.agentId }),
-          },
-        )
-      } catch {
-        logForDebugging('Failed to write transcript as internal event')
-      }
-      return
-    }
-  }
-
   setRemoteIngressUrl(url: string): void {
-    this.remoteIngressUrl = url
-    logForDebugging(`Remote persistence enabled with URL: ${url}`)
-    if (url) {
-      this.FLUSH_INTERVAL_MS = REMOTE_FLUSH_INTERVAL_MS
-    }
+    void url
   }
 
   setInternalEventWriter(writer: InternalEventWriter): void {
-    this.internalEventWriter = writer
-    logForDebugging(
-      'CCR v2 internal event writer registered for transcript persistence',
-    )
-    this.FLUSH_INTERVAL_MS = REMOTE_FLUSH_INTERVAL_MS
+    void writer
   }
 
   setInternalEventReader(reader: InternalEventReader): void {
-    this.internalEventReader = reader
-    logForDebugging(
-      'CCR v2 internal event reader registered for session resume',
-    )
+    void reader
   }
 
   setInternalSubagentEventReader(reader: InternalEventReader): void {
-    this.internalSubagentEventReader = reader
-    logForDebugging(
-      'CCR v2 subagent event reader registered for session resume',
-    )
+    void reader
   }
 
   getInternalEventReader(): InternalEventReader | null {
-    return this.internalEventReader
+    return null
   }
 
   getInternalSubagentEventReader(): InternalEventReader | null {
-    return this.internalSubagentEventReader
+    return null
   }
 }
 
 export type CrewInfo = {
   crewName?: string
   agentName?: string
-}
-
-function readFileTailSync(fullPath: string): string {
-  let fd: number | undefined
-  try {
-    fd = openSync(fullPath, 'r')
-    const st = fstatSync(fd)
-    const tailOffset = Math.max(0, st.size - LITE_READ_BUF_SIZE)
-    const buf = Buffer.allocUnsafe(
-      Math.min(LITE_READ_BUF_SIZE, st.size - tailOffset),
-    )
-    const bytesRead = readSync(fd, buf, 0, buf.length, tailOffset)
-    return buf.toString('utf8', 0, bytesRead)
-  } catch {
-    return ''
-  } finally {
-    if (fd !== undefined) {
-      try {
-        closeSync(fd)
-      } catch {
-      }
-    }
-  }
 }
 
 export function appendEntryToFile(

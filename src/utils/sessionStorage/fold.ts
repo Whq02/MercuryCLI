@@ -1,4 +1,3 @@
-
 import type { UUID } from 'crypto'
 import type { AgentId } from '../../types/ids.js'
 import type {
@@ -10,10 +9,12 @@ import type {
   PersistedWorktreeSession,
   TranscriptMessage,
 } from '../../types/logs.js'
+import type { StorageRowKind, StorageRowOf } from '../../rows/storage.js'
 import { isCompactBoundaryMessage } from '../messages.js'
 import type { ContentReplacementRecord } from '../toolResultStorage.js'
-import { isPersistedProgressEntry, isTranscriptMessage } from './paths.js'
+import { isPersistedProgressEntry } from './paths.js'
 import { migrateTranscriptEntryKind } from '../../migrations/migrateTranscriptEntryKinds.js'
+import { createTranscriptRows, transcriptRows } from './rowGraph.js'
 
 export type TranscriptFoldState = {
   messages: Map<UUID, TranscriptMessage>
@@ -41,7 +42,7 @@ export type TranscriptFoldState = {
 
 export function emptyFoldState(): TranscriptFoldState {
   return {
-    messages: new Map(),
+    messages: createTranscriptRows(),
     summaries: new Map(),
     customTitles: new Map(),
     tags: new Map(),
@@ -65,75 +66,70 @@ export function emptyFoldState(): TranscriptFoldState {
   }
 }
 
+function messageRow(state: TranscriptFoldState, row: TranscriptMessage): void {
+  if (row.parentUuid && state.progressBridge.has(row.parentUuid)) row.parentUuid = state.progressBridge.get(row.parentUuid) ?? null
+  transcriptRows(state.messages).set(row.uuid, row)
+  if (isCompactBoundaryMessage(row)) {
+    state.contextCollapseCommits.length = 0
+    state.contextCollapseSnapshot = undefined
+  }
+}
+
+function appendReplacements<K>(map: Map<K, ContentReplacementRecord[]>, key: K, additions: ContentReplacementRecord[]): void {
+  let records = map.get(key)
+  if (!records) map.set(key, records = [])
+  records.push(...additions)
+}
+
+const foldRows = {
+  user: messageRow,
+  assistant: messageRow,
+  attachment: messageRow,
+  system: messageRow,
+  progress: () => {},
+  summary: (state, row) => { if (row.leafUuid) state.summaries.set(row.leafUuid, row.summary) },
+  'custom-title': (state, row) => { if (row.sessionId) state.customTitles.set(row.sessionId, row.customTitle) },
+  'ai-title': () => {},
+  'last-prompt': () => {},
+  'task-summary': () => {},
+  tag: (state, row) => { if (row.sessionId) state.tags.set(row.sessionId, row.tag) },
+  'agent-name': (state, row) => { if (row.sessionId) state.agentNames.set(row.sessionId, row.agentName) },
+  'agent-color': (state, row) => { if (row.sessionId) state.agentColors.set(row.sessionId, row.agentColor) },
+  'agent-setting': (state, row) => { if (row.sessionId) state.agentSettings.set(row.sessionId, row.agentSetting) },
+  mode: (state, row) => { if (row.sessionId) state.modes.set(row.sessionId, row.mode) },
+  'advisor-switch': (state, row) => { if (row.sessionId) state.advisorSwitches.set(row.sessionId, row.on === true) },
+  model: (state, row) => { if (row.sessionId && typeof row.model === 'string' && row.model !== '') state.sessionModels.set(row.sessionId, row.model) },
+  'worktree-state': (state, row) => { if (row.sessionId) state.worktreeStates.set(row.sessionId, row.worktreeSession) },
+  'pr-link': (state, row) => {
+    if (!row.sessionId) return
+    state.prNumbers.set(row.sessionId, row.prNumber)
+    state.prUrls.set(row.sessionId, row.prUrl)
+    state.prRepositories.set(row.sessionId, row.prRepository)
+  },
+  'file-history-snapshot': (state, row) => { state.fileHistorySnapshots.set(row.messageId, row) },
+  'attribution-snapshot': (state, row) => { state.attributionSnapshots.set(row.messageId, row) },
+  'content-replacement': (state, row) => {
+    if (row.agentId) appendReplacements(state.agentContentReplacements, row.agentId, row.replacements)
+    else appendReplacements(state.contentReplacements, row.sessionId, row.replacements)
+  },
+  'context-collapse-commit': (state, row) => { state.contextCollapseCommits.push(row) },
+  'context-collapse-snapshot': (state, row) => { state.contextCollapseSnapshot = row },
+  'speculation-accept': () => {},
+  'queue-operation': () => {},
+} satisfies { [K in StorageRowKind]: (state: TranscriptFoldState, row: StorageRowOf<K>) => void }
+
 export function applyTranscriptEntry(st: TranscriptFoldState, entry: Entry): void {
   entry = migrateTranscriptEntryKind(entry)
-  const {
-    messages, summaries, customTitles, tags, agentNames, agentColors,
-    agentSettings, prNumbers, prUrls, prRepositories, modes, advisorSwitches, sessionModels, worktreeStates,
-    fileHistorySnapshots, attributionSnapshots, contentReplacements,
-    agentContentReplacements, contextCollapseCommits, progressBridge,
-  } = st
-
   if (isPersistedProgressEntry(entry)) {
     const parent = entry.parentUuid
-    progressBridge.set(
-      entry.uuid,
-      parent && progressBridge.has(parent)
-        ? (progressBridge.get(parent) ?? null)
-        : parent,
-    )
+    st.progressBridge.set(entry.uuid, parent && st.progressBridge.has(parent) ? st.progressBridge.get(parent) ?? null : parent)
     return
   }
-  if (isTranscriptMessage(entry)) {
-    if (entry.parentUuid && progressBridge.has(entry.parentUuid)) {
-      entry.parentUuid = progressBridge.get(entry.parentUuid) ?? null
-    }
-    messages.set(entry.uuid, entry)
-    if (isCompactBoundaryMessage(entry)) {
-      contextCollapseCommits.length = 0
-      st.contextCollapseSnapshot = undefined
-    }
-  } else if (entry.type === 'summary' && entry.leafUuid) {
-    summaries.set(entry.leafUuid, entry.summary)
-  } else if (entry.type === 'custom-title' && entry.sessionId) {
-    customTitles.set(entry.sessionId, entry.customTitle)
-  } else if (entry.type === 'tag' && entry.sessionId) {
-    tags.set(entry.sessionId, entry.tag)
-  } else if (entry.type === 'agent-name' && entry.sessionId) {
-    agentNames.set(entry.sessionId, entry.agentName)
-  } else if (entry.type === 'agent-color' && entry.sessionId) {
-    agentColors.set(entry.sessionId, entry.agentColor)
-  } else if (entry.type === 'agent-setting' && entry.sessionId) {
-    agentSettings.set(entry.sessionId, entry.agentSetting)
-  } else if (entry.type === 'mode' && entry.sessionId) {
-    modes.set(entry.sessionId, entry.mode)
-  } else if (entry.type === 'advisor-switch' && entry.sessionId) {
-    advisorSwitches.set(entry.sessionId, entry.on === true)
-  } else if (entry.type === 'model' && entry.sessionId) {
-    if (typeof entry.model === 'string' && entry.model !== '') sessionModels.set(entry.sessionId, entry.model)
-  } else if (entry.type === 'worktree-state' && entry.sessionId) {
-    worktreeStates.set(entry.sessionId, entry.worktreeSession)
-  } else if (entry.type === 'pr-link' && entry.sessionId) {
-    prNumbers.set(entry.sessionId, entry.prNumber)
-    prUrls.set(entry.sessionId, entry.prUrl)
-    prRepositories.set(entry.sessionId, entry.prRepository)
-  } else if (entry.type === 'file-history-snapshot') {
-    fileHistorySnapshots.set(entry.messageId, entry)
-  } else if (entry.type === 'attribution-snapshot') {
-    attributionSnapshots.set(entry.messageId, entry)
-  } else if (entry.type === 'content-replacement') {
-    if (entry.agentId) {
-      const existing = agentContentReplacements.get(entry.agentId) ?? []
-      agentContentReplacements.set(entry.agentId, existing)
-      existing.push(...entry.replacements)
-    } else {
-      const existing = contentReplacements.get(entry.sessionId) ?? []
-      contentReplacements.set(entry.sessionId, existing)
-      existing.push(...entry.replacements)
-    }
-  } else if (entry.type === 'context-collapse-commit') {
-    contextCollapseCommits.push(entry)
-  } else if (entry.type === 'context-collapse-snapshot') {
-    st.contextCollapseSnapshot = entry
-  }
+  if (!Object.hasOwn(foldRows, entry.type)) return
+  const reduce = foldRows[entry.type] as (state: TranscriptFoldState, row: Entry) => void
+  reduce(st, entry)
+}
+
+export function finishTranscriptFold(state: TranscriptFoldState): void {
+  transcriptRows(state.messages).finish()
 }

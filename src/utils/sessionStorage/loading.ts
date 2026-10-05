@@ -5,6 +5,7 @@ import { getOriginalCwd, getSessionProjectDir } from '../../bootstrap/state.js'
 import { logError } from '../log.js'
 import { emptyFoldState, type TranscriptFoldState } from './fold.js'
 import { getProjectDir } from './paths.js'
+import { createTranscriptRows } from './rowGraph.js'
 import { computeResumeLeaves, readTranscript } from './transcriptReader.js'
 
 export { applyTranscriptEntry, emptyFoldState, type TranscriptFoldState } from './fold.js'
@@ -48,7 +49,7 @@ export async function loadTranscriptFile(
 
 function copyOfFold(fold: TranscriptFoldState): TranscriptFoldState {
   return {
-    messages: new Map(fold.messages),
+    messages: createTranscriptRows(fold.messages),
     summaries: new Map(fold.summaries),
     customTitles: new Map(fold.customTitles),
     tags: new Map(fold.tags),

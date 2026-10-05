@@ -95,7 +95,6 @@ section('§3 the wiring, call-shaped')
     'listingTruth:projectDirs',
     'sweepAllProjectsProgressive:projectDirs',
     'getStatOnlyLogsForWorktrees:matched',
-    'getSessionFilesWithMtime:candidates',
     'transcriptCensus:projectDirs',
   ]
   const poolSites = inventoryPoolSites(logsSrc)
@@ -105,7 +104,10 @@ section('§3 the wiring, call-shaped')
     `got ${poolSites.join(', ') || '(none)'}`,
   )
   check('every pool site sizes from discoveryPoolWidth()', (logsSrc.match(/mapWithConcurrency\([^,]+,\s*discoveryPoolWidth\(\)/g) ?? []).length === EXPECTED_POOL_SITES.length)
-  check('the unbounded stat fan-out is gone (no bare Promise.all over candidates)', !/await Promise\.all\(\s*candidates\.map/.test(logsSrc))
+  const indexPath = join(import.meta.dir, '..', '..', 'src', 'utils', 'sessionStorage', 'sessionIndex.ts')
+  const indexSrc = codeOnlyText(indexPath, readFileSync(indexPath, 'utf8'))
+  check('the shared session index receives the discovery width and bounds its stat workers', logsSrc.includes('sessionFiles(projectDir, {') && logsSrc.includes('concurrency: discoveryPoolWidth()') && indexSrc.includes('Math.min(candidates.length, options.concurrency ?? 32)') && indexSrc.includes('rows[index] ='))
+  check('the unbounded stat fan-out is gone (no bare Promise.all over candidates)', !/await Promise\.all\(\s*candidates\.map/.test(logsSrc + indexSrc))
   check('no fan-out over the pool item lists bypasses the pool (no Promise.all(<items>.map) on those lists)', !/Promise\.all\(\s*(?:projectDirs|matched|candidates)\.map/.test(logsSrc))
   const commentLookalike = `// const x = await mapWithConcurrency(projectDirs, discoveryPoolWidth(), d => d)\n/* mapWithConcurrency(candidates, discoveryPoolWidth(), c => c) */\nasync function ghost(projectDirs: string[]) { return projectDirs }\n`
   check('a comment-only pool call is NOT inventoried (code-only read)', inventoryPoolSites(codeOnlyText('lookalike.ts', commentLookalike)).length === 0)

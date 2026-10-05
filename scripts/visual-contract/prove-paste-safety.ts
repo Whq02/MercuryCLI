@@ -5,9 +5,9 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
-import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
+import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 import { checker } from '../engine-durability/harness.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
@@ -129,7 +129,7 @@ t.section('§2 — resumed history: persisted control bytes replay inert')
   const home = seedHome('home-resume')
   const cwd = process.cwd()
   const SID = `00000000-aaaa-bbbb-cccc-${(process.pid % 0xffffff).toString(16).padStart(12, '0')}`
-  const projects = join(home, 'projects', sanitizePath(cwd))
+  const projects = join(home, 'projects', basename(getProjectDir(cwd)))
   mkdirSync(projects, { recursive: true })
   const base = (extra: Record<string, unknown>): Record<string, unknown> => ({
     isSidechain: false,

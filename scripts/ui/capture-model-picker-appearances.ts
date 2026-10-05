@@ -1,15 +1,15 @@
 #!/usr/bin/env bun
 import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
+import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 import { resolveProofHome } from '../lib/proofHome.ts'
 import { gridToPng } from './gridToPng.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const RUNTIME_CWD = join(import.meta.dir, '..', '..')
 const CONFIG_HOME = resolveProofHome([RUNTIME_CWD])
-const PROJECTS = join(CONFIG_HOME, 'projects', sanitizePath(RUNTIME_CWD))
+const PROJECTS = join(CONFIG_HOME, 'projects', basename(getProjectDir(RUNTIME_CWD)))
 const VSHOT = new URL('./vshot.py', import.meta.url).pathname
 const BIN = join(RUNTIME_CWD, 'dist', 'mercury.mjs')
 const OUT = process.env.CAPTURE_OUT ?? '/tmp/model-picker-captures'

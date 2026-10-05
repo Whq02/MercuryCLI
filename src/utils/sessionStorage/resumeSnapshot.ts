@@ -5,6 +5,7 @@ import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { jsonParse, jsonStringify } from '../slowOperations.js'
 import { emptyFoldState, type TranscriptFoldState } from './fold.js'
+import { createTranscriptRows } from './rowGraph.js'
 
 export const SNAPSHOT_SCHEMA = 4
 const DIGEST_TAIL_BYTES = 4096
@@ -50,7 +51,8 @@ function deserializeFold(raw: SerializedFold): TranscriptFoldState {
   for (const [k, v] of Object.entries(raw)) {
     if (!(k in st)) continue
     if (v !== null && typeof v === 'object' && '«map»' in (v as object)) {
-      st[k] = new Map((v as { '«map»': [unknown, unknown][] })['«map»'])
+      const entries = (v as { '«map»': [unknown, unknown][] })['«map»']
+      st[k] = k === 'messages' ? createTranscriptRows(entries as Parameters<typeof createTranscriptRows>[0]) : new Map(entries)
     } else {
       st[k] = v
     }

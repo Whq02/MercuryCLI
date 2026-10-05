@@ -39,7 +39,7 @@ console.log('§2 SL-2 — the manager walks the whole stat listing')
   check('the empty state waits while sessions are still loading (no "No other sessions" over a half-read store)', view.includes('{logs === null || (flat.length === 0 && pendingMore > 0) ? ('))
   check('an unmount stops the walk (alive gate on the loop)', core.includes('while (alive && next < first.allStatLogs.length)'))
   const logs = read('src/utils/sessionStorage/logs.ts')
-  check('the loader exposes the listing and cursor the manager now consumes', logs.includes('return { logs, allStatLogs: sorted, nextIndex }') && logs.includes('export async function enrichLogs('))
+  check('the loader exposes the listing and cursor the manager now consumes', logs.includes('return { logs: renumbered(logs), allStatLogs, nextIndex }') && logs.includes('export async function enrichLogs('))
 }
 
 console.log('§3 SL-7 — resume-hint quoting: bash on POSIX, PS single-quote on win32')
