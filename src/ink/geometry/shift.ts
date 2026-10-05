@@ -2,34 +2,39 @@ import type { Screen } from '../cell-grid.js'
 import { clamp } from '../layout/geometry.js'
 import { extractRowText } from './extract.js'
 import { popForDebtShrink, pushCaptured, truncateToDebt } from './offscreen-ledger.js'
-import {
-  clearSelection,
-  type Point,
-  selectionBounds,
-  type SelectionState,
-} from './selection-model.js'
+import { clearSelection, type Point, selectionBounds, type SelectionState } from './selection-model.js'
 
-function shiftSpan(
-  s: SelectionState,
-  dRow: number,
-  minRow: number,
-  maxRow: number,
-  edgeCols?: { min: number; max: number },
-): void {
-  if (!s.anchorSpan) return
-  const shift = (p: Point): Point => {
-    const r = p.row + dRow
-    if (edgeCols) {
-      if (r < minRow) return { col: edgeCols.min, row: minRow }
-      if (r > maxRow) return { col: edgeCols.max, row: maxRow }
-    }
-    return { col: p.col, row: clamp(r, minRow, maxRow) }
+type End = 'anchor' | 'focus'
+
+function rawRow(s: SelectionState, end: End, point: Point): number {
+  return (end === 'anchor' ? s.virtualAnchorRow : s.virtualFocusRow) ?? point.row
+}
+
+function moveEnd(s: SelectionState, end: End, raw: number, min: number, max: number, width?: number): void {
+  const point = s[end]
+  if (!point) return
+  const clipped = raw < min || raw > max
+  const column = width === undefined ? point.col : raw < min ? 0 : raw > max ? width - 1 : point.col
+  const row = width === undefined ? clamp(raw, min, max) : raw < min ? min : raw > max ? max : raw
+  s[end] = { col: column, row }
+  if (end === 'anchor') s.virtualAnchorRow = clipped ? raw : undefined
+  else s.virtualFocusRow = clipped ? raw : undefined
+}
+
+function pastSameEdge(a: number, b: number | undefined, min: number, max: number): boolean {
+  return b !== undefined && ((a < min && b < min) || (a > max && b > max))
+}
+
+function shiftSpan(s: SelectionState, delta: number, min: number, max: number, width?: number): void {
+  const span = s.anchorSpan
+  if (!span) return
+  const translate = (point: Point): Point => {
+    const row = point.row + delta
+    const col = width === undefined ? point.col : row < min ? 0 : row > max ? width - 1 : point.col
+    const target = width === undefined ? clamp(row, min, max) : row < min ? min : row > max ? max : row
+    return { col, row: target }
   }
-  s.anchorSpan = {
-    lo: shift(s.anchorSpan.lo),
-    hi: shift(s.anchorSpan.hi),
-    kind: s.anchorSpan.kind,
-  }
+  s.anchorSpan = { lo: translate(span.lo), hi: translate(span.hi), kind: span.kind }
 }
 
 export function shiftSelection(
@@ -40,35 +45,25 @@ export function shiftSelection(
   width: number,
 ): void {
   if (!s.anchor || !s.focus) return
-  const vAnchor = (s.virtualAnchorRow ?? s.anchor.row) + dRow
-  const vFocus = (s.virtualFocusRow ?? s.focus.row) + dRow
-  if ((vAnchor < minRow && vFocus < minRow) || (vAnchor > maxRow && vFocus > maxRow)) {
+  const anchor = rawRow(s, 'anchor', s.anchor)
+  const focus = rawRow(s, 'focus', s.focus)
+  const nextAnchor = anchor + dRow
+  const nextFocus = focus + dRow
+  if (pastSameEdge(nextAnchor, nextFocus, minRow, maxRow)) {
     clearSelection(s)
     return
   }
-
-  const oldMin = Math.min(s.virtualAnchorRow ?? s.anchor.row, s.virtualFocusRow ?? s.focus.row)
-  const oldMax = Math.max(s.virtualAnchorRow ?? s.anchor.row, s.virtualFocusRow ?? s.focus.row)
-  const oldAboveDebt = Math.max(0, minRow - oldMin)
-  const oldBelowDebt = Math.max(0, oldMax - maxRow)
-  const newAboveDebt = Math.max(0, minRow - Math.min(vAnchor, vFocus))
-  const newBelowDebt = Math.max(0, Math.max(vAnchor, vFocus) - maxRow)
-
-  popForDebtShrink(s, oldAboveDebt - newAboveDebt, 'above')
-  popForDebtShrink(s, oldBelowDebt - newBelowDebt, 'below')
-  truncateToDebt(s, newAboveDebt, 'above')
-  truncateToDebt(s, newBelowDebt, 'below')
-
-  const shift = (p: Point, vRow: number): Point => {
-    if (vRow < minRow) return { col: 0, row: minRow }
-    if (vRow > maxRow) return { col: width - 1, row: maxRow }
-    return { col: p.col, row: vRow }
-  }
-  s.anchor = shift(s.anchor, vAnchor)
-  s.focus = shift(s.focus, vFocus)
-  s.virtualAnchorRow = vAnchor < minRow || vAnchor > maxRow ? vAnchor : undefined
-  s.virtualFocusRow = vFocus < minRow || vFocus > maxRow ? vFocus : undefined
-  shiftSpan(s, dRow, minRow, maxRow, { min: 0, max: width - 1 })
+  const beforeAbove = Math.max(0, minRow - Math.min(anchor, focus))
+  const beforeBelow = Math.max(0, Math.max(anchor, focus) - maxRow)
+  const afterAbove = Math.max(0, minRow - Math.min(nextAnchor, nextFocus))
+  const afterBelow = Math.max(0, Math.max(nextAnchor, nextFocus) - maxRow)
+  popForDebtShrink(s, beforeAbove - afterAbove, 'above')
+  popForDebtShrink(s, beforeBelow - afterBelow, 'below')
+  truncateToDebt(s, afterAbove, 'above')
+  truncateToDebt(s, afterBelow, 'below')
+  moveEnd(s, 'anchor', nextAnchor, minRow, maxRow, width)
+  moveEnd(s, 'focus', nextFocus, minRow, maxRow, width)
+  shiftSpan(s, dRow, minRow, maxRow, width)
 }
 
 export function shiftAnchor(
@@ -78,9 +73,7 @@ export function shiftAnchor(
   maxRow: number,
 ): void {
   if (!s.anchor) return
-  const raw = (s.virtualAnchorRow ?? s.anchor.row) + dRow
-  s.anchor = { col: s.anchor.col, row: clamp(raw, minRow, maxRow) }
-  s.virtualAnchorRow = raw < minRow || raw > maxRow ? raw : undefined
+  moveEnd(s, 'anchor', rawRow(s, 'anchor', s.anchor) + dRow, minRow, maxRow)
   shiftSpan(s, dRow, minRow, maxRow)
 }
 
@@ -91,23 +84,15 @@ export function shiftSelectionForFollow(
   maxRow: number,
 ): boolean {
   if (!s.anchor) return false
-  const rawAnchor = (s.virtualAnchorRow ?? s.anchor.row) + dRow
-  const rawFocus = s.focus ? (s.virtualFocusRow ?? s.focus.row) + dRow : undefined
-  if (rawAnchor < minRow && rawFocus !== undefined && rawFocus < minRow) {
+  const anchor = rawRow(s, 'anchor', s.anchor) + dRow
+  const focus = s.focus ? rawRow(s, 'focus', s.focus) + dRow : undefined
+  if (pastSameEdge(anchor, focus, minRow, maxRow)) {
     clearSelection(s)
     return true
   }
-  if (rawAnchor > maxRow && rawFocus !== undefined && rawFocus > maxRow) {
-    clearSelection(s)
-    return true
-  }
-  s.anchor = { col: s.anchor.col, row: clamp(rawAnchor, minRow, maxRow) }
-  if (s.focus && rawFocus !== undefined) {
-    s.focus = { col: s.focus.col, row: clamp(rawFocus, minRow, maxRow) }
-  }
-  s.virtualAnchorRow = rawAnchor < minRow || rawAnchor > maxRow ? rawAnchor : undefined
-  s.virtualFocusRow =
-    rawFocus !== undefined && (rawFocus < minRow || rawFocus > maxRow) ? rawFocus : undefined
+  moveEnd(s, 'anchor', anchor, minRow, maxRow)
+  if (focus !== undefined) moveEnd(s, 'focus', focus, minRow, maxRow)
+  else s.virtualFocusRow = undefined
   shiftSpan(s, dRow, minRow, maxRow)
   return false
 }
@@ -119,39 +104,29 @@ export function captureScrolledRows(
   lastRow: number,
   side: 'above' | 'below',
 ): void {
-  const b = selectionBounds(s)
-  if (!b || firstRow > lastRow) return
-  const { start, end } = b
-  const lo = Math.max(firstRow, start.row)
-  const hi = Math.min(lastRow, end.row)
-  if (lo > hi) return
-
-  const width = screen.width
-  const sw = screen.softWrap
-  const bandLo = s.clipLo ?? 0
-  const bandHi = s.clipHi ?? width - 1
-  const captured: string[] = []
-  const capturedSW: boolean[] = []
-  for (let row = lo; row <= hi; row++) {
-    const colStart = Math.max(row === start.row ? start.col : 0, bandLo)
-    const colEnd = Math.min(row === end.row ? end.col : width - 1, bandHi)
-    captured.push(colEnd >= colStart ? extractRowText(screen, row, colStart, colEnd) : '')
-    capturedSW.push(sw[row]! !== 0)
+  const bounds = selectionBounds(s)
+  if (!bounds || firstRow > lastRow) return
+  const first = Math.max(firstRow, bounds.start.row)
+  const last = Math.min(lastRow, bounds.end.row)
+  if (first > last) return
+  const texts: string[] = []
+  const joins: boolean[] = []
+  for (let row = first; row <= last; row++) {
+    const left = Math.max(row === bounds.start.row ? bounds.start.col : 0, s.clipLo ?? 0)
+    const right = Math.min(row === bounds.end.row ? bounds.end.col : screen.width - 1, s.clipHi ?? screen.width - 1)
+    texts.push(right >= left ? extractRowText(screen, row, left, right) : '')
+    joins.push(screen.softWrap[row]! !== 0)
   }
-  pushCaptured(s, captured, capturedSW, side)
-
-  const isBoundary =
-    side === 'above'
-      ? s.anchor && s.anchor.row === start.row && lo === start.row
-      : s.anchor && s.anchor.row === end.row && hi === end.row
-  if (isBoundary && s.anchor) {
-    s.anchor = { col: side === 'above' ? 0 : width - 1, row: s.anchor.row }
-    if (s.anchorSpan) {
-      s.anchorSpan = {
-        kind: s.anchorSpan.kind,
-        lo: { col: 0, row: s.anchorSpan.lo.row },
-        hi: { col: width - 1, row: s.anchorSpan.hi.row },
-      }
+  pushCaptured(s, texts, joins, side)
+  const boundary = side === 'above' ? bounds.start.row : bounds.end.row
+  const capturedBoundary = side === 'above' ? first : last
+  if (!s.anchor || s.anchor.row !== boundary || capturedBoundary !== boundary) return
+  s.anchor = { col: side === 'above' ? 0 : screen.width - 1, row: s.anchor.row }
+  if (s.anchorSpan) {
+    s.anchorSpan = {
+      kind: s.anchorSpan.kind,
+      lo: { col: 0, row: s.anchorSpan.lo.row },
+      hi: { col: screen.width - 1, row: s.anchorSpan.hi.row },
     }
   }
 }
