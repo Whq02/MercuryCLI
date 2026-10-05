@@ -109,13 +109,13 @@ t.section('§1 — composer echo: a control-sequence paste renders printables on
   t.check('tee captured child output', r.tee.length > 0, `${r.tee.length} bytes`)
   t.check(
     'the pasted OSC title is never re-emitted by the child',
-    !r.tee.includes(']0;PWNED-TITLE'),
-    'no ]0;PWNED-TITLE in output',
+    !r.tee.includes('\x1b]0;PWNED-TITLE'),
+    'no ESC ]0;PWNED-TITLE in output',
   )
   t.check(
     'the pasted OSC 52 clipboard write is never re-emitted',
-    !r.tee.includes(']52;c;UFdORUQ='),
-    'no ]52; payload in output',
+    !r.tee.includes('\x1b]52;c;UFdORUQ='),
+    'no ESC ]52; payload in output',
   )
   t.check(
     'the paste-adjacent clear-screen is never replayed (A1 followed by 2J)',
@@ -198,13 +198,13 @@ t.section('§2 — resumed history: persisted control bytes replay inert')
   )
   t.check(
     'the historical OSC title is never written to the terminal',
-    !r.tee.includes(']0;PWNED-HIST'),
-    'no ]0;PWNED-HIST in output',
+    !r.tee.includes('\x1b]0;PWNED-HIST'),
+    'no ESC ]0;PWNED-HIST in output',
   )
   t.check(
     'the historical OSC 52 clipboard write is never written to the terminal',
-    !r.tee.includes(']52;c;U0VDUkVU'),
-    'no ]52; payload in output',
+    !r.tee.includes('\x1b]52;c;U0VDUkVU'),
+    'no ESC ]52; payload in output',
   )
   t.check(
     'the history-adjacent clear-screen is never replayed (HISTA1 followed by 2J)',
