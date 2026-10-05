@@ -30,6 +30,7 @@ import { extractFirstPromptFromHead, getProjectDir, LITE_READ_BUF_SIZE } from '.
 import type { ConcourseElsewhereV1, ConcourseRowV1, ConcourseSnapshotV1 } from '../../components/concourse/contracts.js'
 import { ELSEWHERE_CAP, elsewhereLine, projectActivity } from './projectActivity.js'
 import { sessionTitleOf } from './sessionNaming.js'
+import { stripTerminalControls } from '../../utils/stringUtils.js'
 import { keyHintLabel } from '../../components/mercury-ui/keyHintLabel.js'
 import type { ConcourseWorkerRecordV1 } from '../../daemon/concourseWorkers.js'
 import type { DaemonSessionRecordV1 } from '../engine-connector/daemonConnector.js'
@@ -906,7 +907,7 @@ export function parkedBoardRows(
 
 export function sanitizeLabel(raw: string): string {
   let out = ''
-  for (const ch of raw) {
+  for (const ch of stripTerminalControls(raw)) {
     const code = ch.codePointAt(0) ?? 0
     if (code < 0x20 || code === 0x7f || (code >= 0x80 && code <= 0x9f)) continue
     out += ch
