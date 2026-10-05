@@ -28,6 +28,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-stdin-o
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-progress-marks.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hook-progress-marks.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-daemon-hook-road.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-hook-road.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-lifecycle-hook-contract.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-lifecycle-hook-contract.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-lifecycle-off-event-refusal.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-lifecycle-off-event-refusal.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-row-road.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hook-row-road.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-async-hook-progress-marks.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-async-hook-progress-marks.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-nonzero-report.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hook-nonzero-report.ts" "$__t" "$__rc"
