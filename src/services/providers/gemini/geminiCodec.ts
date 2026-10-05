@@ -1,6 +1,6 @@
 import type { Message } from '../../../types/message.js'
 import type { CompatChatRequest, CompatMessage } from '../openaicompat/compatChatClient.js'
-import { requestTurnOf, type RequestPlan } from '../../../rows/request.js'
+import { requestTurnOf } from '../../../rows/request.js'
 import { mapMessagesToZai } from '../zai/zaiCodec.js'
 import type { MessageParam } from '../../../types/wire.js'
 
@@ -155,9 +155,4 @@ export function buildGeminiRequest(request: CompatChatRequest, messages: readonl
     } : {}),
     ...(Object.keys(generationConfig).length ? { generationConfig } : {}),
   }
-}
-export function encodeGeminiPlan(plan: RequestPlan, request: Omit<CompatChatRequest, 'messages'>): GeminiRequest {
-  const bridge: MessageParam[] = plan.turns.map(turn => ({ role: turn.role, content: turn.storedContent as MessageParam['content'] }))
-  const messages = plan.turns.map(turn => ({ type: turn.role, geminiProviderTurn: turn.replay?.gemini })) as unknown as Message[]
-  return buildGeminiRequest({ ...request, messages: mapMessagesToZai(plan.system, bridge) }, messages)
 }

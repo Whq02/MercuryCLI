@@ -13,19 +13,7 @@ for (const geometry of ['anthropic', 'family'] as const) {
   const legacy = geometry === 'anthropic' ? normalizeMessagesForAPI(history, FIXTURE_TOOLS as never) : healWalkableForWire(history)
   assert.deepEqual(plan.messages, legacy)
   assert.equal(plan.messages.some(message => message.isVirtual), false)
-  assert.equal(plan.request, plan.request)
-  assert.equal(plan.request.turns.length, plan.messages.length)
-  plan.request.turns.forEach((turn, index) => {
-    const message = plan.messages[index]!
-    assert.equal(turn.uuid, message.uuid)
-    assert.equal(turn.timestamp, message.timestamp)
-    assert.equal(turn.storedContent, message.message.content)
-    if (message.type === 'assistant') {
-      assert.equal(turn.messageId, message.message.id)
-      assert.equal(turn.replay?.openai, message.apexProviderTurn)
-      assert.equal(turn.replay?.gemini, message.geminiProviderTurn)
-    }
-  })
+  assert.equal('request' in plan, false)
 }
 assert.equal(history[2], VIRTUAL_ROW)
 console.log('PASS: both request geometries consume one row-backed plan without changing transcript identity or replay facts')

@@ -21,7 +21,6 @@ import {
   reorderAttachmentsForAPI,
 } from './apiView.js'
 import { joinBatchedContent } from './batchedContent.js'
-import { requestPlanOf, type RequestPlan } from '../../rows/request.js'
 import { storedBlocksOf } from '../../rows/content.js'
 import { normalizeAttachmentForAPI } from './attachmentText.js'
 import { createUserMessage } from './factories.js'
@@ -237,7 +236,6 @@ function foldBatchedRows(messages: PlannedMessage[]): PlannedMessage[] {
 }
 export interface RequestConversationPlan extends ApiConversationPlan {
   messages: (UserMessage | AssistantMessage)[]
-  request: RequestPlan
 }
 
 export function requestConversationPlan(
@@ -256,8 +254,7 @@ export function requestConversationPlan(
     }
   const projected = projectConversationSelection(selection, tools, geometry)
   const prepared = geometry === 'family' ? pairConversationMessages(projected, 'split') : finishApiContent(projected)
-  let request: RequestPlan | undefined
-  return { ...selection, messages: prepared, get request() { return request ??= requestPlanOf(prepared, { tools }) } }
+  return { ...selection, messages: prepared }
 }
 
 function projectConversationSelection(

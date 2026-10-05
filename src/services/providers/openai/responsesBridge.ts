@@ -1,6 +1,6 @@
 import type { JsonOutputFormat, MessageParam, TextPhase } from '../../../types/wire.js'
 import { toOpenaiStrictSchema } from '../../../utils/messages/structuredOutputDialect.js'
-import { requestTurnOf, type RequestPlan } from '../../../rows/request.js'
+import { requestTurnOf } from '../../../rows/request.js'
 import type { ApiShapedTool } from '../zai/zaiCodec.js'
 import type {
   OpenaiFunctionTool,
@@ -367,13 +367,4 @@ export function buildOpenaiResponsesRequest(
         }
       : {}),
   }
-}
-export function encodeOpenaiPlan(plan: RequestPlan, opts?: { imagesSupported?: boolean; model?: string }): OpenaiInputItem[] {
-  const messages: BridgeMessage[] = plan.turns.map(turn => ({
-    role: turn.role,
-    content: turn.storedContent as MessageParam['content'],
-    ...(turn.messageId !== undefined ? { turnId: turn.messageId } : {}),
-    ...(turn.replay?.openai !== undefined && opts?.model !== undefined && turn.servedModel === opts.model ? { turnRecord: decodeOpenaiTurnRecord(turn.replay.openai) } : {}),
-  }))
-  return mapMessagesToOpenaiInput(messages, opts)
 }

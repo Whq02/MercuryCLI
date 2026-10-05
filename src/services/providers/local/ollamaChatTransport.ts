@@ -1,7 +1,6 @@
 import { Agent } from 'undici'
 import type { AssistantMessage } from '../../../types/message.js'
-import { requestTurnOf, type RequestPlan } from '../../../rows/request.js'
-import { encodeChatPlan } from '../zai/zaiCodec.js'
+import { requestTurnOf } from '../../../rows/request.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { buildApiAgentOptions, getApiDispatcher, getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
@@ -540,7 +539,4 @@ export async function* streamOllamaChat(options: CompatStreamOptions, knobs: Oll
     if (shape.ended === 'open') shape.ended = options.signal?.aborted === true ? 'cancelled' : 'abandoned'
     logForDebugging(ollamaWireDumpLine(options.request.model, shape, head, totalChars))
   }
-}
-export function encodeLocalPlan(plan: RequestPlan, request: Omit<CompatChatRequest, 'messages'>, knobs: OllamaChatKnobs): Record<string, unknown> {
-  return ollamaChatBody({ ...request, messages: encodeChatPlan(plan) }, knobs)
 }
