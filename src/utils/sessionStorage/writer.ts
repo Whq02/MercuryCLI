@@ -18,6 +18,7 @@ import {
   getSessionId,
   isSessionPersistenceDisabled,
 } from '../../bootstrap/state.js'
+import { recordToEntry } from '../../fabric/entryCodec.js'
 import { type AgentId, asAgentId } from '../../types/ids.js'
 import type {
   ContentReplacementEntry,
@@ -271,6 +272,15 @@ export async function recordQueueOperation(queueOp: QueueOperationMessage) {
 
 export async function removeTranscriptMessage(targetUuid: UUID): Promise<void> {
   await getProject().removeMessageByUuid(targetUuid)
+}
+
+function storedLineUuid(parsed: Record<string, unknown>): unknown {
+  const envelope =
+    typeof parsed.schemaVersion === 'number' &&
+    typeof parsed.payload === 'object' &&
+    parsed.payload !== null
+  const entry = envelope ? recordToEntry(parsed as never) : parsed
+  return entry.uuid
 }
 
 export async function recordFileHistorySnapshot(
@@ -686,8 +696,7 @@ class Project {
           const lines = content.split('\n').filter((line: string) => {
             if (!line.trim()) return true
             try {
-              const entry = jsonParse(line)
-              return entry.uuid !== targetUuid
+              return storedLineUuid(jsonParse(line)) !== targetUuid
             } catch {
               return true
             }
