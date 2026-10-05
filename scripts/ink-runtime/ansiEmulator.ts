@@ -100,6 +100,7 @@ export class AnsiEmulator {
   edClears = 0
   scrollbackErased = 0
   private readonly altScreen: boolean
+  private savedCursor: { x: number; y: number; sgr: SgrState } | null = null
 
   constructor(width: number, height: number, altScreen: boolean) {
     this.width = width
@@ -150,6 +151,16 @@ export class AnsiEmulator {
           i = this.handleCsi(bytes, i + 2)
         } else if (next === ']') {
           i = this.handleOsc(bytes, i + 2)
+        } else if (next === '7') {
+          this.savedCursor = { x: this.cursorX, y: this.cursorY, sgr: { ...this.sgr } }
+          i += 2
+        } else if (next === '8') {
+          if (this.savedCursor !== null) {
+            this.cursorX = this.savedCursor.x
+            this.cursorY = this.savedCursor.y
+            this.sgr = { ...this.savedCursor.sgr }
+          }
+          i += 2
         } else {
           throw new Error(
             `ansiEmulator: unknown escape ${JSON.stringify(bytes.slice(i, i + 8))} at ${i}`,
@@ -253,6 +264,9 @@ export class AnsiEmulator {
         applySgrParams(this.sgr, sgrParams)
         break
       }
+      case 'n':
+        if (p0 !== 6) throw new Error(`ansiEmulator: unknown CSI ${JSON.stringify(body + final)}`)
+        break
       case 'h':
       case 'l':
         if (body === '?25') this.cursorVisible = final === 'h'
