@@ -17,7 +17,11 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_ANTHROPIC_OAUTH_BASE = 'http://127.0.0.1:1'
 process.env.OPENAI_API_KEY = 'fixture-openai-key'
 process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:9/v1'
-for (const k of ['MERCURY_HOME', 'CI', 'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'HF_TOKEN', 'HUGGINGFACE_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'MERCURY_COMPAT_BASE_URL', 'MERCURY_COMPAT_API_KEY', 'MERCURY_LOCAL_BASE_URL']) delete process.env[k]
+process.env.XAI_API_KEY = 'fixture-xai-key'
+process.env.MERCURY_XAI_API_BASE = 'http://127.0.0.1:9'
+process.env.MOONSHOT_API_KEY = 'fixture-moonshot-key'
+process.env.MERCURY_MOONSHOT_API_BASE = 'http://127.0.0.1:9'
+for (const k of ['MERCURY_HOME', 'CI', 'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'HF_TOKEN', 'HUGGINGFACE_API_KEY', 'DEEPSEEK_API_KEY', 'MERCURY_COMPAT_BASE_URL', 'MERCURY_COMPAT_API_KEY', 'MERCURY_LOCAL_BASE_URL']) delete process.env[k]
 writeFileSync(join(daemonDir, 'control.key'), 'k'.repeat(64))
 process.chdir(work)
 
@@ -51,6 +55,21 @@ section('§1 THE SIGN-IN VIEW — a family whose live catalogue is not fetched y
   check('every pending GPT lineup row carries the typed pending mark beside its words', gptRows.length > 0 && gptRows.every(o => o.unavailable !== undefined && o.cataloguePending === true), j(gptRows.map(o => [o.value, o.unavailable, o.cataloguePending])))
   const computed = read('src/utils/model/computedDefault.ts')
   check('the verdict reads the typed mark, never the reason\'s words', computed.includes("familyRows.every(option => option.cataloguePending === true) ? { unfetched: true } : {}"))
+
+  section('§1b THE KEY LANES — a key lane whose account list no process has read yet (xAI, Moonshot: a fresh `mercury health` never kicks the read) is the same timing gap, never a FAULT against a daemon that has read it')
+  for (const [family, row] of [['xai', 'Grok 4.7'], ['moonshot', 'K3']] as const) {
+    const mine = view.families.find(f => f.family === family)
+    check(`${family}: the key is present and the list is not read yet (${mine?.why ?? ''})`, mine?.credentialed === true && mine.usable === false && /model list has not been read$/.test(mine.why ?? ''), j(mine))
+    check(`RED ON THE BASE: ${family} is marked unfetched (the lead's live check read \`mercury health\` FAULT: daemon ≠ client — ${family}: client "the account's model list has not been read" vs daemon "usable (${row})")`, mine?.unfetched === true, j(mine))
+    const daemon = { ...view, families: view.families.map(f => (f.family === family ? { family, credentialed: true, usable: true, row, why: 'the newest row this sign-in can use (the live catalogue)' } : f)) } as never
+    check(`RED ON THE BASE: a daemon that has read the ${family} list and a client that has not disagree on nothing`, compareSignInViews(view, daemon).length === 0, j(compareSignInViews(view, daemon)))
+  }
+  process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
+  const refused = composeSignInView({ refresh: true }).families.find(f => f.family === 'xai')
+  delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
+  check(`teeth: a list the gate refuses to read is not a timing gap — the mark is absent (${refused?.why ?? ''})`, refused?.credentialed === true && refused.usable === false && refused.unfetched !== true, j(refused))
+  const daemonRead = { ...view, families: view.families.map(f => (f.family === 'xai' ? { family: 'xai', credentialed: true, usable: true, row: 'Grok 4.7', why: 'the newest row this sign-in can use (the live catalogue)' } : f)) } as never
+  check('teeth: that refused read still reads as a difference against a daemon with the list', compareSignInViews({ ...view, families: view.families.map(f => (f.family === 'xai' ? refused! : f)) } as never, daemonRead).length === 1)
 }
 
 section('§2 EDIT OUTCOMES — the cockpit\'s /health counts the SESSION\'s edits (the runner\'s ledger through the session facts), not its own process\'s')
