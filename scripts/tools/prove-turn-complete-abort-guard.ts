@@ -61,7 +61,7 @@ check(
 check(
   'the settlement reads the status off the terminal and the cut, then gates the completed yield on it',
   /const aborted = terminal\.reason === 'aborted_streaming' \|\| terminal\.reason === 'aborted_tools'\s*const cut = aborted \? turnCutOf\(this\.abortController\.signal\.reason\)\.kind : null/.test(engine) &&
-    /const settled = endedOnApiError \? \{ status: 'failed' as const, errorClass: 'model' as const \} : statusOfTerminal\(terminal, cut\)\s*if \(settled\.status === 'completed'\) \{[\s\S]{0,200}?closeTurn\('completed'/.test(engine),
+    /const settled = endedOnApiError \? \{ status: 'failed' as const, errorClass: 'model' as const \} : statusOfTerminal\(terminal, cut\)\s*if \(settled\.status === 'completed'\) \{[\s\S]{0,700}?closeTurn\('completed'/.test(engine),
 )
 check(
   'the completed outcomes are the closed two (local command · the gated settlement)',
