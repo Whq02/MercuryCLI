@@ -7,10 +7,11 @@ import { MERCURY_PROJECT_DIR } from './projectConfig.js'
 import { homeDirectory, isHomeDirectory, projectScopePathspec, USER_ROOT_NAMES } from './projectBoundary.js'
 import { findGitRoot, gitProbeNote } from './git.js'
 import { settleChildRun } from './childSettle.js'
+import { endProcessTree } from './processGroup.js'
 import { subprocessEnv } from './subprocessEnv.js'
 import { projectLocalPath } from '../services/projectLocal/paths.js'
 import { workflowRunsRoot } from '../tools/WorkflowTool/runManifest.js'
-import { execFile, spawn } from 'node:child_process'
+import { execFile, spawn, type ChildProcess } from 'node:child_process'
 import chalk from 'chalk'
 import { NODE_FLOOR_REASON, NODE_SUPPORT, nodeRuntimeProjection } from './runtime/nodePolicy.js'
 import { existsSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs'
@@ -120,13 +121,34 @@ import {
 import { recognizeModelId, unrecognisedModelIdReason } from '../services/providers/idSpaces.js'
 
 const treeScratchDirs = new Set<string>()
+const treeScratchGits = new Set<ChildProcess>()
 let treeScratchSweepArmed = false
+const TREE_SCRATCH_RELEASE_MS = 10_000
+const TREE_SCRATCH_RETRY_MS = 50
+
+function removeTreeScratch(dir: string): boolean {
+  try {
+    rmSync(dir, { recursive: true, force: true })
+    treeScratchDirs.delete(dir)
+    return true
+  } catch {
+    return false
+  }
+}
 
 function sweepTreeScratch(): void {
-  for (const dir of treeScratchDirs) {
-    try {
-      rmSync(dir, { recursive: true, force: true })
-    } catch {}
+  const windows = process.platform === 'win32'
+  if (windows) {
+    for (const child of treeScratchGits) {
+      if (child.pid === undefined || child.exitCode !== null || child.signalCode !== null) continue
+      void endProcessTree(child, 'SIGKILL')
+    }
+  }
+  const giveUpAt = Date.now() + (windows ? TREE_SCRATCH_RELEASE_MS : 0)
+  for (const dir of [...treeScratchDirs]) {
+    while (!removeTreeScratch(dir) && Date.now() < giveUpAt) {
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, TREE_SCRATCH_RETRY_MS)
+    }
   }
   treeScratchDirs.clear()
 }
@@ -161,12 +183,20 @@ export async function computeWorkingTreeSha(cwdDir: string, opts?: { signal?: Ab
   }
   const run = (args: string[]): Promise<string | null> =>
     new Promise(resolvePromise => {
-      execFile(
+      const windows = process.platform === 'win32'
+      const child = execFile(
         'git',
         args,
-        { windowsHide: true, cwd: cwdDir, env, timeout: 15_000, ...(signal ? { signal } : {}) },
-        (err, stdout) => resolvePromise(err ? null : stdout.trim()),
+        { windowsHide: true, cwd: cwdDir, env, ...(windows ? {} : { timeout: 15_000, ...(signal ? { signal } : {}) }) },
+        (err, stdout) => {
+          treeScratchGits.delete(child)
+          resolvePromise(err ? null : stdout.trim())
+        },
       )
+      if (windows) {
+        treeScratchGits.add(child)
+        void settleChildRun(child, { timeoutMs: 15_000, ...(signal ? { signal } : {}) })
+      }
     })
   try {
     if (signal?.aborted) return null
@@ -177,10 +207,12 @@ export async function computeWorkingTreeSha(cwdDir: string, opts?: { signal?: Ab
   } catch {
     return null
   } finally {
-    try {
-      rmSync(idxDir, { recursive: true, force: true })
-      treeScratchDirs.delete(idxDir)
-    } catch {
+    if (!removeTreeScratch(idxDir) && process.platform === 'win32') {
+      const giveUpAt = Date.now() + TREE_SCRATCH_RELEASE_MS
+      while (treeScratchDirs.has(idxDir) && Date.now() < giveUpAt) {
+        await new Promise<void>(resume => setTimeout(resume, TREE_SCRATCH_RETRY_MS))
+        removeTreeScratch(idxDir)
+      }
     }
   }
 }
@@ -534,6 +566,16 @@ function routedAuthFamily(): string {
     return declaredRouteOf(getEngineModel()) ?? 'anthropic'
   } catch {
     return 'anthropic'
+  }
+}
+
+function unresolvedDefaultRow(): string | null {
+  try {
+    if (getUserSpecifiedModelSetting() !== null) return null
+    const decision = computedDefault()
+    return decision.source === 'keyless' && decision.considered.length > 0 ? decision.row : null
+  } catch {
+    return null
   }
 }
 
@@ -2336,7 +2378,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               }
             }
             if (!pin) {
-              return { status: 'ok', evidence: `session model ${session} · no settings pin` }
+              return { status: 'ok', evidence: `session model ${unresolvedDefaultRow() ?? session} · no settings pin` }
             }
             let pinResolved = pin
             try {

@@ -47,6 +47,15 @@ function envFlagDefaultOn(name: string): boolean {
   return isEnvTruthy(raw === undefined || raw === '' ? '1' : raw)
 }
 
+function hasInteriorSlash(glob: string): boolean {
+  return (glob.endsWith('/') ? glob.slice(0, -1) : glob).includes('/')
+}
+
+function searchRootAnchor(searchDir: string, pattern: string, ignores: string[]): { cwd?: string } {
+  if (!isAbsolute(searchDir) || !hasInteriorSlash(pattern) || pattern.startsWith('**/') || ignores.some(hasInteriorSlash)) return {}
+  return getPlatform() === 'windows' && /^[\\/]{2}/.test(searchDir) ? {} : { cwd: searchDir }
+}
+
 export async function glob(
   filePattern: string,
   cwd: string,
@@ -75,11 +84,12 @@ export async function glob(
   if (envFlagDefaultOn('MERCURY_GLOB_HIDDEN')) args.push('--hidden')
 
   const ignoreByRoot = getFileReadIgnorePatterns(toolPermissionContext)
-  for (const ignore of normalizePatternsToPath(ignoreByRoot as never, searchDir)) {
+  const ignores = normalizePatternsToPath(ignoreByRoot as never, searchDir)
+  for (const ignore of ignores) {
     args.push('--glob', `!${ignore}`)
   }
 
-  const answer = await ripGrepAnswer(args, searchDir, abortSignal)
+  const answer = await ripGrepAnswer(args, searchDir, abortSignal, searchRootAnchor(searchDir, normalizeGlobPattern(pattern), ignores))
   const files = answer.lines.map(entry => (isAbsolute(entry) ? entry : resolve(join(searchDir, entry))))
   const truncated = files.length > offset + limit
   return {

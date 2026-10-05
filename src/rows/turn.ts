@@ -523,6 +523,7 @@ export class Conversation {
     }
 
     const syntheticCallsBeforeTurn = this.countSyntheticOutputCalls()
+    const priorUuids = new Set<string>(this.mutableMessages.map(message => message.uuid))
 
     const inputResult = await processUserInput({
       input: prompt,
@@ -618,6 +619,7 @@ export class Conversation {
     if (!inputResult.shouldQuery) {
       let commandAnswer = ''
       for (const message of inputResult.messages) {
+        if (priorUuids.has(message.uuid)) continue
         if (message.type === 'user') {
           const text = messageTextContent(message)
           const isCompactSummary = (message as { isCompactSummary?: boolean }).isCompactSummary === true

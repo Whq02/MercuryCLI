@@ -11,6 +11,7 @@
 # gate-watch: src/utils/messages/turnCut.ts src/utils/settings/settings.ts src/utils/settings/types.ts
 # gate-watch: src/services/tools/toolHooks.ts
 # gate-watch: src/rows/vocabulary.ts src/rows/project.ts
+# gate-watch: src/cli/headless/resume.ts src/utils/model/model.ts src/utils/sessionStorage/vnext.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -39,5 +40,6 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-sh-hook-spel
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-ssrf-v6-spellings.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-ssrf-v6-spellings.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-skill-hooks-deapply.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-skill-hooks-deapply.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-interrupt-hook.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-interrupt-hook.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-session-start-model.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-session-start-model.ts" "$__t" "$__rc"
 if [[ "$fail" == "0" ]]; then echo "✅ HOOKS SUITE GREEN"; exit 0; else
   echo "❌ HOOKS SUITE RED"; exit 1; fi

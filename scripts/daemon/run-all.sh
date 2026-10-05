@@ -45,6 +45,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-halt-roster.ts" || { __rc=$?; fail
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-worker-recon.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-worker-recon.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-warm-runner.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-warm-runner.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-warm-consent-boot.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-warm-consent-boot.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-warm-claim-respawn-posture.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-warm-claim-respawn-posture.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-newborn-grace.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-newborn-grace.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-kit-birth.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-kit-birth.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-birth-replay.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-birth-replay.ts" "$__t" "$__rc"

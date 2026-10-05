@@ -20,7 +20,7 @@ import {
   effectiveSeatCeiling,
   readSessionWorkers,
 } from './concourseWorkers.js'
-import type { RunnerChildSpec } from './headlessRun.js'
+import type { RunnerChildSpec, SeatPermissionMode } from './headlessRun.js'
 import { isProcessAlive } from './ownerWatch.js'
 import { PeerClosed, PeerDeadline } from '../runner/wire/peer.js'
 import type { RunnerDoor } from './runnerConnection.js'
@@ -86,7 +86,7 @@ export interface WarmRosterPort {
   kill(short: string): boolean
   patchSeatClaim(
     short: string,
-    patch: { model: string; effort: string; respawnExtraArgv: readonly string[] },
+    patch: { model: string; effort: string; respawnExtraArgv: readonly string[]; permissionMode: SeatPermissionMode },
   ): RunnerChildSpec | null
 }
 
@@ -414,6 +414,7 @@ export async function claimWarmRunner(
     model: args.modelKey,
     effort: args.effort,
     respawnExtraArgv: ['--resume', args.sessionId],
+    permissionMode: args.permissionMode as SeatPermissionMode,
   })
   if (spec === null) {
     roster.kill(entry.short)

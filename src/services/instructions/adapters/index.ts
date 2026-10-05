@@ -7,12 +7,10 @@ import type {
 } from '../contracts.js'
 import { resolveRequestedInstructionProfile } from '../profile.js'
 import { conventionsForProfile as composeNativeFirst } from '../compositionOrder.js'
-import { foreignInstructionConventions } from './agentsMd.js'
 
 export const mercuryAdapter: InstructionAdapter = {
   id: 'mercury',
   conventionsFor: conventionsForProfile,
-  foreignConventions: foreignInstructionConventions,
 }
 
 export function adapterForProfile(): InstructionAdapter {
