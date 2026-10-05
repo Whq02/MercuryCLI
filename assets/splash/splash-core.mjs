@@ -418,6 +418,7 @@ function rasterHard(grid, toneAt) {
       else if (t !== '.' && b === '.') { sgr = paint(px(t, x)); cell = '▀' }
       else if (t === '.' && b !== '.') { sgr = paint(px(b, x)); cell = '▄' }
       else if (t === b) { sgr = paint(px(t, x)); cell = '█' }
+      else if (TRUECOLOR) { sgr = paint(px(b, x)) + paintBg(px(t, x)); cell = '▄' }
       else { sgr = paint(px(t, x)) + paintBg(px(b, x)); cell = '▀' }
       if (sgr !== run) { line += R + sgr; run = sgr }
       line += cell

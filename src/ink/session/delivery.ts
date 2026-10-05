@@ -31,6 +31,20 @@ let lastWriteSpins = 0
 const SPIN_LIMIT = 400
 const SPIN_QUANTUM_MS = 2.5
 
+export type FrameDelivery = {
+  readonly seq: number
+  readonly bytes: number
+  readonly writtenAt: number
+  drainedAt: number | null
+}
+
+let deliverySeq = 0
+let lastDelivery: FrameDelivery | null = null
+
+export function lastFrameDelivery(): FrameDelivery | null {
+  return lastDelivery
+}
+
 export function writeAllSync(
   fd: number,
   data: Buffer,
@@ -118,12 +132,17 @@ export function writeDiffToTerminal(
   const useFd = out.isTTY === true && typeof out.fd === 'number'
   let delivered = true
   const door = terminalDoor()
+  const record: FrameDelivery = { seq: ++deliverySeq, bytes: Buffer.byteLength(buffer, 'utf8'), writtenAt: performance.now(), drainedAt: null }
+  lastDelivery = record
   if (door !== null && useFd) {
     door.enqueue({ kind: 'frame', bytes: buffer })
   } else if (useFd) {
     delivered = writeAllSync(out.fd!, Buffer.from(buffer, 'utf8'), syscalls)
+    record.drainedAt = performance.now()
   } else {
-    terminal.stdout.write(buffer)
+    terminal.stdout.write(buffer, () => {
+      record.drainedAt = performance.now()
+    })
   }
 
   if (process.env.INK_WRITE_TEE) {
