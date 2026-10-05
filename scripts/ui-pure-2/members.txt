@@ -28,6 +28,7 @@ prove-key-hint-labels.ts
 prove-lanes-shed.ts
 prove-launchripple-deletion.ts
 prove-live-counter.ts
+prove-thinking-shimmer-quiet.ts
 prove-live-glyphs.ts
 prove-logins-key-lines.ts
 prove-logins-popup.ts

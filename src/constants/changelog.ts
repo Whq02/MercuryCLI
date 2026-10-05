@@ -62,6 +62,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed the status line sitting on a frozen token count for a long think, with nothing to tell it from a dead stream; while a think streams it reads how long ago the last byte arrived and how many thinking blocks have come
 - Fixed the concourse board saying running Glob for minutes after the Glob had finished; the NOW cell reads the session's live phase and names a tool only until its result lands
 - Fixed an Eval cell labelled Starting kernel… for its whole run; the row says running with the elapsed once the kernel has the cell
+- Fixed the thinking label starting to shimmer the moment a think begins later in a turn; every think holds its label still for its first three seconds, as a turn's first think does
 - Fixed the advisor interval choices in /config: 2 and 5 minutes join 10 · 20 · 30 · 45 · 60
 - Fixed a background helper that had handed over keeping the daemon lock for fifteen seconds after an update or rollback; it leaves at its first idle read
 

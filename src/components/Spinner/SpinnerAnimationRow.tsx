@@ -183,7 +183,11 @@ export function SpinnerAnimationRow(props: SpinnerAnimationRowProps): React.Reac
   const flashOpacity = mode === 'tool-use' && !reducedMotion ? (Math.sin((slowTime / 2000) * Math.PI * 2) + 1) / 2 : 0
   const effectiveIntensity = overrideColor !== null ? 0 : attentionIntensity
 
-  const shimmerActive = mode === 'thinking' && !reducedMotion && time > THINKING_SHIMMER_SUPPRESS_MS
+  const thinkingSinceRef = useRef<number | null>(null)
+  if (mode !== 'thinking') thinkingSinceRef.current = null
+  else if (thinkingSinceRef.current === null) thinkingSinceRef.current = time
+  const thinkingAgeMs = thinkingSinceRef.current === null ? 0 : time - thinkingSinceRef.current
+  const shimmerActive = mode === 'thinking' && !reducedMotion && thinkingAgeMs > THINKING_SHIMMER_SUPPRESS_MS
   const shimmerPhase = (Math.sin((time / THINKING_SHIMMER_PERIOD_MS) * Math.PI * 2) + 1) / 2
   const metaColor = (segment: HudSegment): string | undefined => {
     if (segment.kind === 'waiting') return theme.warning
