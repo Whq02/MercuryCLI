@@ -151,8 +151,7 @@ const SKIPPED: Record<string, string> = Object.fromEntries(
     'writeAgentMetadata', 'readAgentMetadata', 'writeRemoteAgentMetadata', 'readRemoteAgentMetadata',
     'deleteRemoteAgentMetadata', 'listRemoteAgentMetadata', 'setAgentTranscriptSubdir',
     'clearAgentTranscriptSubdir', 'getTranscriptPath', 'resetProjectFlushStateForTesting',
-    'resetProjectForTesting', 'setSessionFileForTesting', 'setInternalEventWriter',
-    'setInternalEventReader', 'setRemoteIngressUrlForTesting', 'recordTranscript',
+    'resetProjectForTesting', 'setSessionFileForTesting', 'recordTranscript',
     'recordSidechainTranscript', 'recordQueueOperation', 'removeTranscriptMessage',
     'registerAgentTranscriptDestination',
     'transcriptCensus',
@@ -198,23 +197,12 @@ const W = await import('../../src/utils/sessionStorage/writer.ts')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 S.resetProjectForTesting()
-let installedCalls = 0
-const inertWriter = async () => { installedCalls++ }
-const inertReader = async () => { installedCalls++; return [] }
-S.setInternalEventWriter(inertWriter)
-S.setInternalEventReader(inertReader, inertReader)
-S.setRemoteIngressUrlForTesting('https://fixture.invalid')
-isolation('retained registration signatures create no writer', W.peekProject() === null)
-const writer = W.getProject()
-writer.setInternalEventWriter(inertWriter)
-writer.setInternalEventReader(inertReader)
-writer.setInternalSubagentEventReader(inertReader)
-writer.setRemoteIngressUrl('https://fixture.invalid')
-isolation('retained reader signatures return the unset result', writer.getInternalEventReader() === null && writer.getInternalSubagentEventReader() === null)
+isolation('reading the project before a write creates no writer', W.peekProject() === null)
+W.getProject()
 S.setSessionFileForTesting(join(PRIVATE_HOME, 'inert.jsonl'))
 await S.recordTranscript([user('00000000-0000-4000-8000-000000000301', null, 'local transcript')])
 await S.flushSessionStorage()
-isolation('the transcript has one local persistence road', installedCalls === 0 && existsSync(join(PRIVATE_HOME, 'inert.jsonl')))
+isolation('the transcript has one local persistence road', existsSync(join(PRIVATE_HOME, 'inert.jsonl')))
 S.resetProjectForTesting()
 
 const failures = isolationFailures + recordOrVerify({

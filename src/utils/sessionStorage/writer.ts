@@ -176,32 +176,6 @@ export function setSessionFileForTesting(path: string): void {
   getProject().sessionFile = path
 }
 
-type InternalEventWriter = (
-  eventType: string,
-  payload: Record<string, unknown>,
-  options?: { isCompaction?: boolean; agentId?: string },
-) => Promise<void>
-
-export function setInternalEventWriter(writer: InternalEventWriter): void {
-  void writer
-}
-
-type InternalEventReader = () => Promise<
-  { payload: Record<string, unknown>; agent_id?: string }[] | null
->
-
-export function setInternalEventReader(
-  reader: InternalEventReader,
-  subagentReader: InternalEventReader,
-): void {
-  void reader
-  void subagentReader
-}
-
-export function setRemoteIngressUrlForTesting(url: string): void {
-  void url
-}
-
 let transcriptMessagesVisited = 0
 export function getTranscriptMessagesVisited(): number {
   return transcriptMessagesVisited
@@ -971,29 +945,6 @@ class Project {
     }
   }
 
-  setRemoteIngressUrl(url: string): void {
-    void url
-  }
-
-  setInternalEventWriter(writer: InternalEventWriter): void {
-    void writer
-  }
-
-  setInternalEventReader(reader: InternalEventReader): void {
-    void reader
-  }
-
-  setInternalSubagentEventReader(reader: InternalEventReader): void {
-    void reader
-  }
-
-  getInternalEventReader(): InternalEventReader | null {
-    return null
-  }
-
-  getInternalSubagentEventReader(): InternalEventReader | null {
-    return null
-  }
 }
 
 export type CrewInfo = {
