@@ -159,12 +159,12 @@ console.log('============================================================')
 }
 
 {
-  const rail = src('src', 'components', 'HelmTelemetryRail.tsx')
+  const rail = src('src', 'components', 'HelmTelemetryRail.tsx') + src('src', 'utils', 'cockpit', 'helmTelemetryModel.ts')
   check(
     'sections shed in reverse priority against the measured ceiling',
-    rail.includes('const shedCeiling = availRows ?? termRows - 7') &&
-      rail.includes('const healthShed = !fitsSection(healthRowsIntended)') &&
-      rail.includes('const traceShed = !fitsSection(traceRowsIntended)') &&
+    rail.includes('const shedCeiling = availRows ?? termRows - CHROME_ROWS') &&
+      rail.includes('const healthShed = !fitsSection(healthRows.length)') &&
+      rail.includes('const traceShed = !fitsSection(traceRows.length)') &&
       rail.includes('const consoleShed = consoleOn && !fitsSection(1)'),
   )
   check(
@@ -173,9 +173,10 @@ console.log('============================================================')
   )
   check(
     'a shed section registers NO selectable rows (builders gated)',
-    rail.includes('healthShed ? [] : [') &&
-      /const traceNodes: React\.ReactNode\[\] = \[\]\s*\n\s*if \(!traceShed\)/.test(rail) &&
-      /consoleShed/.test(rail),
+    /\.\.\.\(healthShed\s*\n?\s*\? \[\]\s*\n?\s*: \[/.test(rail) &&
+      rail.includes('traceShed ? [] : [') &&
+      /\.\.\.\(consoleOn && !consoleShed\s*\n?\s*\? \[\{ key: 'console'/.test(rail) &&
+      rail.includes('if (consoleOn && !consoleShed) {'),
   )
   check(
     'everything shed folds into ONE honest pointer line, fit-gated',
@@ -186,7 +187,7 @@ console.log('============================================================')
   )
   check(
     'the published row model is built ONLY from rendered rows (sel() inside the gates)',
-    rail.includes("publishHelmRows('telemetry', rowsModel)"),
+    rail.includes("publishHelmRows('telemetry', model.rows)") && rail.includes("for (const s of sections) for (const r of s.rows) if ('row' in r && r.row !== undefined) rows.push(r.row)"),
   )
 }
 

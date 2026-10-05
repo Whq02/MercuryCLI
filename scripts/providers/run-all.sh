@@ -37,6 +37,7 @@
 # gate-watch: src/tools/FileWriteTool/FileWriteTool.ts src/types/message.ts
 # gate-watch: src/runner/wire/methods.ts
 # gate-watch: src/services/providers/emptyStreamRetry.ts scripts/lib/firstRunSeed.ts scripts/lib/captureDriver.ts
+# gate-watch: src/utils/cockpit/helmLanesModel.ts src/utils/cockpit/helmTelemetryModel.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

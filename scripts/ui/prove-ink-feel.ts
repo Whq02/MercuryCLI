@@ -44,11 +44,11 @@ check('SESSION chrome hovers through ink (muted → info; white ink retired from
 const ls = read('src/components/PromptInput/PromptInputFooterLeftSide.tsx')
 check('`? for shortcuts` is a Box sibling dispatching /help', /onClick=\{\(\) => \{[\s\S]{0,240}requestCommandDispatch\('\/help'\)/.test(ls))
 
-const tr = read('src/components/HelmTelemetryRail.tsx')
+const tr = read('src/components/HelmTelemetryRail.tsx') + read('src/utils/cockpit/helmTelemetryModel.ts')
 check(
   'telemetry rows activate by LABEL (one adapter + ≥9 labeled rows)',
   tr.includes("requestHelmRowActivationByLabel('telemetry', label)") &&
-    ((tr.match(/sel\(\{ kind: '[a-z]+',[^}]*\blabel: /g) ?? []).length >= 9),
+    ((tr.match(/row: \{ kind: '[a-z]+',[^}]*\blabel[:,] /g) ?? []).length >= 9),
 )
 
 const ink = read('src/ink/ink.tsx')

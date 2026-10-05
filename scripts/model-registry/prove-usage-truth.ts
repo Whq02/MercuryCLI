@@ -312,21 +312,21 @@ section('4 · structural — two slots, honest absences, one owner, both seams')
     usageColumns(146, 10).meterW === 42 && usageColumns(146, 10).colW === 46 && !usageTab.includes('useTerminalSize'),
   )
 
-  const rail = src('src/components/HelmTelemetryRail.tsx')
+  const rail = src('src/components/HelmTelemetryRail.tsx') + src('src/utils/cockpit/helmTelemetryModel.ts')
   check(
     'rail: consumes the SAME owner (windowSourceUsages, which reads activeSourceUsage)',
     /import \{[^}]*\bwindowSourceUsages\b[^}]*\} from '\.\.\/services\/providers\/providerUsage\.js'/.test(rail) &&
       rail.includes('= windowSourceUsages({ model: sessionModel })') &&
       src('src/services/providers/providerUsage.ts').includes('const primary = activeSourceUsage(opts)'),
   )
-  check('rail: the quiet source label line exists', rail.includes('usage:source') && rail.includes('{usage.label}'))
+  check('rail: the quiet source label line exists', rail.includes("muted('usage:source', usage.label)"))
   check(
     'rail: the api-spend branch renders spend truth, never a bar',
     rail.includes("usage.shape === 'api-spend'") && rail.includes('usage:spend'),
   )
   check(
     'rail: window rows ride the derived window key (source switches republish)',
-    rail.includes('`usage:${w.key}`'),
+    rail.includes('const label = `${keyPrefix}${w.key}`') && rail.includes("meterRowsOf(usage, 'usage:', "),
   )
 
   const client = src('src/services/providers/openai/openaiClient.ts')

@@ -362,13 +362,13 @@ section('§3 one window decode per family — shared view fns + the anthropic en
 
 section('§4 signed-out honesty in the meter renderers (source pins)')
 {
-  const rail = readFileSync(join(ROOT, 'src/components/HelmTelemetryRail.tsx'), 'utf8')
+  const rail = readFileSync(join(ROOT, 'src/utils/cockpit/helmTelemetryModel.ts'), 'utf8')
   const deck = readFileSync(join(ROOT, 'src/components/Deck.tsx'), 'utf8')
   check('rail: renders the owner why-not for a none source', rail.includes('usage.whyNot'))
-  const railCode = codeOnlyText('HelmTelemetryRail.tsx', rail)
+  const railCode = codeOnlyText('helmTelemetryModel.ts', rail)
   const noneBranchAt = railCode.indexOf("usageEmpty && usage.sourceKind === 'none'")
-  const whyNotHintAt = railCode.indexOf('<EmptyHint key="usage:whynot"')
-  const fillsHintAt = railCode.search(/<EmptyHint key="usage:none" text=\{`\$\{NO_USAGE_READ_WORDS\} · fills after first reply`\}/)
+  const whyNotHintAt = railCode.indexOf("{ kind: 'empty', key: 'usage:whynot'")
+  const fillsHintAt = railCode.search(/\{ kind: 'empty', key: 'usage:none', text: `\$\{NO_USAGE_READ_WORDS\} · fills after first reply` \}/)
   check('rail: the none branch, its why-not hint and the fills-after hint are all rendered code', noneBranchAt !== -1 && whyNotHintAt !== -1 && fillsHintAt !== -1, JSON.stringify({ noneBranchAt, whyNotHintAt, fillsHintAt }))
   check(
     'rail: the none branch is adjudicated BEFORE the fills-after hint',

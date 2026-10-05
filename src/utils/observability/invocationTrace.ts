@@ -5,7 +5,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { appendFile, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { durableAtomicPublish } from '../../substrate/durablePublish.js'
-import { getMainThreadAgentType } from '../../bootstrap/state.js'
+import { getMainThreadAgentType, getSessionId } from '../../bootstrap/state.js'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { logForDebugging } from '../debug.js'
 import { getMercuryHome, isEnvDefinedFalsy, isEnvTruthy } from '../envUtils.js'
@@ -158,6 +158,7 @@ export interface InvocationTrace {
   tool: string
   surface: InvocationSurface
   risk: CapabilityRisk
+  sessionId?: string
   agentId?: string
   killed?: boolean
   durationMs?: number
@@ -207,6 +208,14 @@ export function buildInvocationTrace(
     agentId = undefined
   }
   if (typeof agentId === 'string' && agentId) trace.agentId = agentId
+
+  let sessionId: string | undefined
+  try {
+    sessionId = String(getSessionId())
+  } catch {
+    sessionId = undefined
+  }
+  if (typeof sessionId === 'string' && sessionId) trace.sessionId = sessionId
 
   if (opts.killed === true) trace.killed = true
   if (typeof opts.durationMs === 'number' && Number.isFinite(opts.durationMs)) {
