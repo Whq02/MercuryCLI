@@ -30,6 +30,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-deepseek-kim
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-splash-receipt.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-splash-receipt.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-ripple-drain.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-ripple-drain.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-muse-row.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-muse-row.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-splash-cells.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-splash-cells.ts" "$__t" "$__rc"
 if [ "$fail" -ne 0 ]; then
   echo "❌ splash suite: FAILURES"
   exit 1

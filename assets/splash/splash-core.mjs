@@ -362,6 +362,30 @@ function placeBlock(block, rows) {
   return { placed: [...Array(top).fill(''), ...block], top }
 }
 
+export function emitCells(cells) {
+  const final = new Map()
+  for (const c of cells) final.set(c.y * 65536 + c.x, c)
+  const order = [...final.values()].sort((a, b) =>
+    a.sgr < b.sgr ? -1 : a.sgr > b.sgr ? 1 : a.y - b.y || a.x - b.x,
+  )
+  let out = ''
+  let sgr = ''
+  let x = -1
+  let y = -1
+  for (const c of order) {
+    if (c.sgr !== sgr) {
+      out += c.sgr
+      sgr = c.sgr
+    }
+    if (c.y !== y) out += `\x1b[${c.y + 1};${c.x + 1}H`
+    else if (c.x !== x) out += `\x1b[${c.x + 1}G`
+    out += c.ch
+    x = c.x + 1
+    y = c.y
+  }
+  return sgr === '' ? out : out + '\x1b[0m'
+}
+
 export function createSplashCore({ nocolor = false, truecolor = true, accent } = {}) {
   const NOCOLOR = !!nocolor
   const TRUECOLOR = !NOCOLOR && !!truecolor

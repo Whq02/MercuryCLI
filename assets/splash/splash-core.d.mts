@@ -230,6 +230,13 @@ export function padVis(s: string, w: number): string
 export function wrapWords(txt: string, w: number): string[]
 export function zipCols(a: string[], b: string[], aW: number, gap: number): string[]
 export function placeBlock(block: string[], rows: number): { placed: string[]; top: number }
+export interface SplashCell {
+  x: number
+  y: number
+  sgr: string
+  ch: string
+}
+export function emitCells(cells: readonly SplashCell[]): string
 export function mixc(a: number[], b: number[], t: number): number[]
 export function rampSample(u: number): number[]
 export function fmtAge(ms: number): string
