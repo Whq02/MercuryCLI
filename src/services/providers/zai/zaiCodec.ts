@@ -1,4 +1,5 @@
 import { providerRefusedImage } from '../../api/mediaRefusal.js'
+import { requestTurnOf, type RequestPlan } from '../../../rows/request.js'
 import type { MessageParam } from '../../../types/wire.js'
 import type { EffortWireFact } from '../../../utils/effortStamp.js'
 import type {
@@ -118,26 +119,20 @@ export function mapMessagesToZai(
   const imagesSupported = opts?.imagesSupported !== false
   if (system && system.trim() !== '') out.push({ role: 'system', content: system })
   for (const message of messages) {
-    if (typeof message.content === 'string') {
-      out.push({ role: message.role, content: message.content })
+    const turn = requestTurnOf(message.role, message.content)
+    if (turn.stringContent !== undefined) {
+      out.push({ role: turn.role, content: turn.stringContent })
       continue
     }
     if (message.role === 'assistant') {
       const texts: string[] = []
       const thinkingTexts: string[] = []
       const toolCalls: ZaiMessage['tool_calls'] = []
-      for (const block of message.content) {
-        if (block.type === 'text') texts.push((block as { text: string }).text)
-        else if (block.type === 'tool_use') {
-          const b = block as { id: string; name: string; input: unknown }
-          toolCalls!.push({
-            id: b.id,
-            type: 'function',
-            function: { name: b.name, arguments: JSON.stringify(b.input ?? {}) },
-          })
-        } else if (block.type === 'thinking' && opts?.keepReasoningHistory === true) {
-          thinkingTexts.push((block as { thinking: string }).thinking)
-        }
+      for (const item of turn.items) {
+        if (item.type === 'text') texts.push(item.text)
+        else if (item.type === 'tool_call' && item.native === 'tool_use') {
+          toolCalls!.push({ id: item.call_id, type: 'function', function: { name: item.tool, arguments: JSON.stringify(item.input ?? {}) } })
+        } else if (item.type === 'reasoning' && !item.redacted && opts?.keepReasoningHistory === true) thinkingTexts.push(item.text)
       }
       out.push({
         role: 'assistant',
@@ -151,23 +146,18 @@ export function mapMessagesToZai(
     const declarationRows: ZaiWireMessage[] = []
     const userParts: string[] = []
     const userImages: string[] = []
-    for (const block of message.content) {
-      if (block.type === 'text') userParts.push((block as { text: string }).text)
-      else if (block.type === 'tool_result') {
-        const b = block as { tool_use_id: string; content?: unknown; is_error?: boolean }
-        const parts = partsOfToolResultContent(b.content, imagesSupported)
-        toolRows.push({
-          role: 'tool',
-          tool_call_id: b.tool_use_id,
-          content: b.is_error ? `[tool error] ${parts.text}` : parts.text,
-        })
+    for (const item of turn.items) {
+      if (item.type === 'text') userParts.push(item.text)
+      else if (item.type === 'tool_result') {
+        const parts = partsOfToolResultContent(item.output, imagesSupported)
+        toolRows.push({ role: 'tool', tool_call_id: item.call_id, content: (item.value as { is_error?: boolean }).is_error ? `[tool error] ${parts.text}` : parts.text })
         userImages.push(...parts.images)
-        const declaration = opts?.toolDeclarations?.get(b.tool_use_id)
+        const declaration = opts?.toolDeclarations?.get(item.call_id)
         if (declaration !== undefined) declarationRows.push(declaration)
       } else {
-        const url = block.type === 'image' && imagesSupported ? imageUrlOfBlock(block) : undefined
+        const url = item.value.type === 'image' && imagesSupported ? imageUrlOfBlock(item.value) : undefined
         if (url !== undefined) userImages.push(url)
-        else userParts.push(`[${block.type}]`)
+        else userParts.push(`[${item.value.type}]`)
       }
     }
     out.push(...toolRows)
@@ -295,4 +285,8 @@ export async function assembleZaiTurn(
     ...(usage ? { usage } : {}),
     ...(fault ? { fault } : {}),
   }
+}
+export function encodeChatPlan(plan: RequestPlan, opts?: Parameters<typeof mapMessagesToZai>[2]): ZaiWireMessage[] {
+  const messages = plan.turns.map(turn => ({ role: turn.role, content: turn.storedContent as MessageParam['content'] }))
+  return mapMessagesToZai(plan.system, messages, opts)
 }

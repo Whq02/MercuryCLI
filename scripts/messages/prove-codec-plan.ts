@@ -36,3 +36,7 @@ const chatRows = chat.mapMessagesToZai(undefined, bridge)
 const nativeRequest = { model: 'fixture-model', messages: chatRows }
 assert.equal(JSON.stringify(gemini.encodeGeminiPlan(plan, { model: 'fixture-model' })), JSON.stringify(gemini.buildGeminiRequest(nativeRequest, messages)))
 console.log('PASS: the Gemini plan codec preserves native parts, tool responses and signature replay context')
+for (const keepReasoningHistory of [false, true]) {
+  assert.equal(JSON.stringify(chat.encodeChatPlan(plan, { keepReasoningHistory })), JSON.stringify(chat.mapMessagesToZai(undefined, bridge, { keepReasoningHistory })))
+}
+console.log('PASS: the compatible-chat plan codec retains each selected reasoning-history and image spelling')
