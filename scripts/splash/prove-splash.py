@@ -1030,11 +1030,46 @@ check('a known truecolor terminal without COLORTERM ⇒ truecolor', '\x1b[38;2;'
 forcedtc = run_pty(120, 44, {'COLORTERM': None, 'MERCURY_TRUECOLOR': '1'})
 check('MERCURY_TRUECOLOR=1 forces the full depth without COLORTERM', '\x1b[38;2;' in forcedtc)
 check('the 256 fallback without COLORTERM is byte-identical to the MERCURY_TRUECOLOR=0 fallback', bare256 == raw256)
-_base_txt = [l.rstrip() for l in vis_lines(raw_rf) if l.strip()]
+def _rendered_cells(raw, cols, rows):
+    code = (
+        "import sys, pyte\n"
+        "raw = sys.stdin.buffer.read().decode('utf-8', 'replace')\n"
+        f"s = pyte.Screen({cols}, {rows})\n"
+        "st = pyte.Stream(s)\n"
+        "st.feed(raw)\n"
+        f"for y in range({rows}):\n"
+        f"    print(''.join(s.buffer[y][x].data for x in range({cols})))\n"
+        f"    print(''.join('b' if s.buffer[y][x].bg != 'default' else '.' for x in range({cols})))\n"
+    )
+    r = subprocess.run(['/usr/bin/python3', '-c', code], input=raw.encode(), capture_output=True, timeout=60)
+    lines = r.stdout.decode('utf-8', 'replace').split('\n')
+    return [(lines[2 * y], lines[2 * y + 1]) for y in range(rows)] if r.returncode == 0 and len(lines) >= 2 * rows else None
+
+
+def _tier_screen_verdict(tc, other, cols, rows):
+    a = _rendered_cells(tc, cols, rows)
+    b = _rendered_cells(other, cols, rows)
+    if a is None or b is None:
+        return False, 0, 'pyte render failed'
+    lower_half = 0
+    bad = []
+    for y in range(rows):
+        for x in range(cols):
+            ga, gb = a[y][0][x], b[y][0][x]
+            if ga == gb:
+                continue
+            if ga == '▄' and a[y][1][x] == 'b' and gb == '▀':
+                lower_half += 1
+                continue
+            bad.append(f'{x},{y}:{ga!r}->{gb!r}')
+    return not bad, lower_half, ' '.join(bad[:6])
+
+
+_tc_pairs = sum(1 for row, bgs in _rendered_cells(raw_rf, 120, 44) for g, b in zip(row, bgs) if g == '▄' and b == 'b')
 for _label, _rawx in (('NO_COLOR', plainraw), ('256-fallback', raw256)):
-    _txt = [l.rstrip() for l in vis_lines(_rawx) if l.strip()]
-    check(f'{_label}: stripped frame text identical to truecolor (colour-only across tiers)',
-          _txt == _base_txt, f'{len(_txt)} vs {len(_base_txt)} lines')
+    _ok, _lower, _bad = _tier_screen_verdict(raw_rf, _rawx, 120, 44)
+    check(f'{_label}: the rendered frame is identical to truecolor cell for cell, the two-colour cells\' lower half excepted (colour-only across tiers; {_lower} such cells)',
+          _ok and _lower == _tc_pairs, f'{_bad or f"{_lower} lower-half cells of {_tc_pairs}"}')
 
 print('\n── ROUND 7: the flat-ground law (no field background; OSC 11 = the shared family ground)')
 raw_ground = run_pty(172, 42)
