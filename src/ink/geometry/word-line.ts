@@ -5,10 +5,31 @@ import { comparePoints, type Point, type SelectionState } from './selection-mode
 
 const WORD_CHAR = /[\p{L}\p{N}_/.\-+~\\]/u
 
-function charClass(c: string): 0 | 1 | 2 {
-  if (c === ' ' || c === '') return 0
-  if (WORD_CHAR.test(c)) return 1
-  return 2
+function charClass(text: string): 0 | 1 | 2 {
+  return text === ' ' || text === '' ? 0 : WORD_CHAR.test(text) ? 1 : 2
+}
+
+function runEdge(screen: Screen, row: number, origin: number, step: -1 | 1, kind: number): number {
+  const rowStart = row * screen.width
+  let edge = origin
+  while (true) {
+    let next = edge + step
+    if (next < 0 || next >= screen.width || screen.noSelect[rowStart + next] === 1) return edge
+    let cell = cellAt(screen, next, row)
+    if (!cell) return edge
+    if (cell.width === CellWidth.SpacerTail) {
+      if (step === 1) {
+        edge = next
+        continue
+      }
+      next--
+      if (next < 0 || screen.noSelect[rowStart + next] === 1) return edge
+      cell = cellAt(screen, next, row)
+      if (!cell) return edge
+    }
+    if (charClass(cell.char) !== kind) return edge
+    edge = next
+  }
 }
 
 export function wordBoundsAt(
@@ -17,53 +38,19 @@ export function wordBoundsAt(
   row: number,
 ): { lo: number; hi: number } | null {
   if (row < 0 || row >= screen.height) return null
-  const width = screen.width
-  const noSelect = screen.noSelect
-  const rowOff = row * width
+  const origin = col > 0 && cellAt(screen, col, row)?.width === CellWidth.SpacerTail ? col - 1 : col
+  if (origin < 0 || origin >= screen.width || screen.noSelect[row * screen.width + origin] === 1) return null
+  const cell = cellAt(screen, origin, row)
+  if (!cell) return null
+  const kind = charClass(cell.char)
+  return { lo: runEdge(screen, row, origin, -1, kind), hi: runEdge(screen, row, origin, 1, kind) }
+}
 
-  let c = col
-  if (c > 0) {
-    const cell = cellAt(screen, c, row)
-    if (cell && cell.width === CellWidth.SpacerTail) c -= 1
-  }
-  if (c < 0 || c >= width || noSelect[rowOff + c] === 1) return null
-
-  const startCell = cellAt(screen, c, row)
-  if (!startCell) return null
-  const cls = charClass(startCell.char)
-
-  let lo = c
-  while (lo > 0) {
-    const prev = lo - 1
-    if (noSelect[rowOff + prev] === 1) break
-    const pc = cellAt(screen, prev, row)
-    if (!pc) break
-    if (pc.width === CellWidth.SpacerTail) {
-      if (prev === 0 || noSelect[rowOff + prev - 1] === 1) break
-      const head = cellAt(screen, prev - 1, row)
-      if (!head || charClass(head.char) !== cls) break
-      lo = prev - 1
-      continue
-    }
-    if (charClass(pc.char) !== cls) break
-    lo = prev
-  }
-
-  let hi = c
-  while (hi < width - 1) {
-    const next = hi + 1
-    if (noSelect[rowOff + next] === 1) break
-    const nc = cellAt(screen, next, row)
-    if (!nc) break
-    if (nc.width === CellWidth.SpacerTail) {
-      hi = next
-      continue
-    }
-    if (charClass(nc.char) !== cls) break
-    hi = next
-  }
-
-  return { lo, hi }
+function beginSpan(s: SelectionState, lo: Point, hi: Point, kind: 'word' | 'line'): void {
+  s.anchor = lo
+  s.focus = hi
+  s.isDragging = true
+  s.anchorSpan = { lo, hi, kind }
 }
 
 export function selectWordAt(
@@ -72,24 +59,13 @@ export function selectWordAt(
   col: number,
   row: number,
 ): void {
-  const b = wordBoundsAt(screen, col, row)
-  if (!b) return
-  const lo = { col: b.lo, row }
-  const hi = { col: b.hi, row }
-  s.anchor = lo
-  s.focus = hi
-  s.isDragging = true
-  s.anchorSpan = { lo, hi, kind: 'word' }
+  const bounds = wordBoundsAt(screen, col, row)
+  if (bounds) beginSpan(s, { col: bounds.lo, row }, { col: bounds.hi, row }, 'word')
 }
 
 export function selectLineAt(s: SelectionState, screen: Screen, row: number): void {
   if (row < 0 || row >= screen.height) return
-  const lo = { col: 0, row }
-  const hi = { col: screen.width - 1, row }
-  s.anchor = lo
-  s.focus = hi
-  s.isDragging = true
-  s.anchorSpan = { lo, hi, kind: 'line' }
+  beginSpan(s, { col: 0, row }, { col: screen.width - 1, row }, 'line')
 }
 
 export function extendSelection(
@@ -98,27 +74,16 @@ export function extendSelection(
   col: number,
   row: number,
 ): void {
-  if (!s.isDragging || !s.anchorSpan) return
   const span = s.anchorSpan
-  let mLo: Point
-  let mHi: Point
-  if (span.kind === 'word') {
-    const b = wordBoundsAt(screen, col, row)
-    mLo = { col: b ? b.lo : col, row }
-    mHi = { col: b ? b.hi : col, row }
-  } else {
-    const r = clamp(row, 0, screen.height - 1)
-    mLo = { col: 0, row: r }
-    mHi = { col: screen.width - 1, row: r }
-  }
-  if (comparePoints(mHi, span.lo) < 0) {
-    s.anchor = span.hi
-    s.focus = mLo
-  } else if (comparePoints(mLo, span.hi) > 0) {
-    s.anchor = span.lo
-    s.focus = mHi
-  } else {
-    s.anchor = span.lo
-    s.focus = span.hi
-  }
+  if (!s.isDragging || !span) return
+  const targetRow = span.kind === 'line' ? clamp(row, 0, screen.height - 1) : row
+  const bounds = span.kind === 'word'
+    ? wordBoundsAt(screen, col, row) ?? { lo: col, hi: col }
+    : { lo: 0, hi: screen.width - 1 }
+  const first = { col: bounds.lo, row: targetRow }
+  const last = { col: bounds.hi, row: targetRow }
+  const before = comparePoints(last, span.lo) < 0
+  const after = !before && comparePoints(first, span.hi) > 0
+  s.anchor = before ? span.hi : span.lo
+  s.focus = before ? first : after ? last : span.hi
 }
