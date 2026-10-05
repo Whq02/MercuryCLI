@@ -206,7 +206,13 @@ const COMPACT_STRIP_RE = /^(✶|✸|✹|✺|✷) \S.* · /
 const compactStripRowOf = (f: Frame): number => f.rows.findIndex(r => COMPACT_STRIP_RE.test(r))
 const composerRowOf = (f: Frame): number => f.rows.findIndex(r => /^╭─+╮$/.test(r))
 const userRowOf = (f: Frame): number => f.rows.findIndex(r => r.includes('anatomy probe') && r.includes('❯'))
-const textRowOf = (f: Frame): number => f.rows.findIndex(r => TOKEN_RE.test(r))
+const paneStart = (f: Frame): number => Math.max(0, (f.rows.find(r => r.includes('✶ VIEW')) ?? '').indexOf('│'))
+const paneRows = (f: Frame): string[] => {
+  const start = paneStart(f)
+  return start === 0 ? f.rows : f.rows.map(r => r.slice(start))
+}
+const hasToken = (f: Frame): boolean => paneRows(f).some(r => TOKEN_RE.test(r))
+const textRowOf = (f: Frame): number => paneRows(f).findIndex(r => TOKEN_RE.test(r))
 const stripWordsOf = (f: Frame): string => {
   const lines = cardLinesOf(f)
   if (lines.length > 0) return lines.join(' ↵ ')
@@ -268,7 +274,7 @@ for (const scene of scenes) {
   restoreOffsets(run, screens)
   const final = screens[screens.length - 1]
   const timed = screens.filter(f => f.atMs !== -1)
-  const withText = timed.filter(f => f.rows.some(r => TOKEN_RE.test(r)))
+  const withText = timed.filter(hasToken)
 
   if (FRAMES_DIR !== null) {
     mkdirSync(FRAMES_DIR, { recursive: true })
@@ -346,7 +352,7 @@ for (const scene of scenes) {
   }
 
   const identityLaw = [...withText, final].every(f => {
-    const textIdx = f.rows.findIndex(r => TOKEN_RE.test(r))
+    const textIdx = textRowOf(f)
     if (textIdx === -1) return true
     return f.rows.some((r, i) => i <= textIdx && r.includes('[Mercury]')) || scene.scrolls
   })
@@ -357,16 +363,16 @@ for (const scene of scenes) {
       const verdict = downOnlyWithCard([...withText, final].map(f => ({ atMs: f.atMs, row: rowOf(f), cardRows: cardRowsOf(f) })))
       t.check(`${label} moves down only with the working card's own growth, once at most (no insert-above; upward growth-scroll allowed)`, verdict.ok, verdict.detail)
     }
-    rowLaw('the text start row', f => f.rows.findIndex(r => TOKEN_RE.test(r)))
+    rowLaw('the text start row', textRowOf)
     rowLaw('the settled user row', f => f.rows.findIndex(r => r.includes('anatomy probe') && r.includes('❯')))
   }
 
   const dupEver = [...timed, final].some(f =>
-    TOKENS.some(tok => f.rows.filter(r => r.includes(`${tok} stream body`)).length > 1),
+    TOKENS.some(tok => paneRows(f).filter(r => r.includes(`${tok} stream body`)).length > 1),
   )
   t.check('no token is ever painted on two rows', !dupEver)
   const firstTextAt = withText.length ? withText[0].atMs : Number.MAX_SAFE_INTEGER
-  const blankFrames = timed.filter(f => f.atMs > firstTextAt && !f.rows.some(r => TOKEN_RE.test(r)))
+  const blankFrames = timed.filter(f => f.atMs > firstTextAt && !hasToken(f))
   t.check('no blank-transcript frame between first text and settlement', blankFrames.length === 0 || Boolean(scene.interrupted) || scene.scrolls, blankFrames.map(f => `@${f.atMs} (fed to ${(f as Frame & { fedToMs?: number }).fedToMs ?? '?'}; rows with ink ${f.rows.filter(r => r.trim() !== '').length})`).join(', '))
 
   let elapsedLawHolds = true
@@ -401,7 +407,7 @@ for (const scene of scenes) {
   t.check('the elapsed value never resets within the turn', monotonic)
 
   if (scene.interrupted) {
-    const preEsc = timed.filter(f => f.atMs <= S(8000) && f.rows.some(r => TOKEN_RE.test(r))).pop()
+    const preEsc = timed.filter(f => f.atMs <= S(8000) && hasToken(f)).pop()
     const keptAll = preEsc
       ? TOKENS.filter(tok => preEsc.rows.some(r => r.includes(`${tok} stream body`))).every(tok =>
           final.rows.some(r => r.includes(`${tok} stream body`)),
@@ -413,7 +419,6 @@ for (const scene of scenes) {
 
   if (scene.markdown) {
     let restyles = 0
-    const paneStart = (f: Frame): number => Math.max(0, (f.rows.find(r => r.includes('✶ VIEW')) ?? '').indexOf('│'))
     for (let i = 1; i < timed.length; i++) {
       for (const tok of TOKENS.slice(0, 6)) {
         const a = timed[i - 1].rows.find(r => r.includes(`${tok} stream body`))?.slice(paneStart(timed[i - 1]))
