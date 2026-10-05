@@ -4,7 +4,6 @@ import type { TerminalResponse } from '../input/input-decoder.js'
 import { csi } from '../termio/csi.js'
 import { osc } from '../termio/osc.js'
 
-
 export type TerminalQuery<T extends TerminalResponse = TerminalResponse> = {
   request: string
   match: (r: TerminalResponse) => r is T
@@ -80,6 +79,7 @@ type Batch = {
   queries: PendingQuery[]
   sentinel: (() => void) | null
   flushedAt: number
+  timer?: ReturnType<typeof setTimeout>
 }
 
 const DEFAULT_QUERY_SETTLE_MS = 250
@@ -154,8 +154,11 @@ export class TerminalQuerier {
 
   flush(): Promise<void> {
     return new Promise(resolve => {
-      this.openBatch.sentinel = resolve
-      this.openBatch.flushedAt = Date.now()
+      const batch = this.openBatch
+      batch.sentinel = resolve
+      batch.flushedAt = Date.now()
+      batch.timer = setTimeout(() => this.closeBatch(batch), 250)
+      batch.timer.unref?.()
       this.batches.push({ queries: [], sentinel: null, flushedAt: 0 })
       const bytes = this.pendingRequests + SENTINEL
       this.pendingRequests = ''
@@ -164,6 +167,9 @@ export class TerminalQuerier {
   }
 
   onResponse(r: TerminalResponse): void {
+    for (const batch of [...this.batches]) {
+      if (batch.sentinel !== null && Date.now() - batch.flushedAt >= 250) this.closeBatch(batch)
+    }
     for (const batch of this.batches) {
       const idx = batch.queries.findIndex(q => q.match(r))
       if (idx !== -1) {
@@ -175,10 +181,17 @@ export class TerminalQuerier {
     if (r.type === 'da1') {
       const idx = this.batches.findIndex(b => b.sentinel !== null)
       if (idx === -1) return
-      const [batch] = this.batches.splice(idx, 1)
-      for (const q of batch!.queries) q.resolve(undefined)
-      batch!.sentinel!()
-      this.notifySettled()
+      this.closeBatch(this.batches[idx]!)
     }
+  }
+
+  private closeBatch(batch: Batch): void {
+    const index = this.batches.indexOf(batch)
+    if (index === -1) return
+    this.batches.splice(index, 1)
+    if (batch.timer !== undefined) clearTimeout(batch.timer)
+    for (const query of batch.queries) query.resolve(undefined)
+    batch.sentinel?.()
+    this.notifySettled()
   }
 }

@@ -53,6 +53,7 @@ export class RenderScheduler {
   private probeHoldSpentMs = 0
   private probeHoldTimer: ReturnType<typeof setTimeout> | null = null
   private chokeTimer: ReturnType<typeof setTimeout> | null = null
+  private queuedPaint: object | null = null
 
   private engine(): ReturnType<typeof cockpitEngine> {
     return cockpitEngine()
@@ -89,9 +90,20 @@ export class RenderScheduler {
       return
     }
     if (this.chokeTimer !== null) return
+    if (this.queuedPaint !== null) return
     this.everInvoked = true
     this.windowOpenedAt = this.clock.now()
-    this.clock.queueMicrotask(this.paint)
+    const ticket = {}
+    this.queuedPaint = ticket
+    this.clock.queueMicrotask(() => {
+      if (this.queuedPaint !== ticket) return
+      this.queuedPaint = null
+      if (this.settleHeld) {
+        this.pendingWhileHeld = true
+        return
+      }
+      this.paint()
+    })
   }
 
   holdForSettle(): void {
@@ -123,6 +135,7 @@ export class RenderScheduler {
     }
     const engine = this.engine()
     const inputPriority = engine?.consumeInputPriority() ?? false
+    if (this.queuedPaint !== null) return
     const windowMs = this.windowMs(inputPriority)
     if (now - this.windowOpenedAt >= windowMs) {
       if (this.trailingTimer !== null) {
@@ -161,6 +174,7 @@ export class RenderScheduler {
   }
 
   onRenderEntry(): void {
+    this.queuedPaint = null
     if (this.drainTimer !== null) {
       this.clock.clearTimeout(this.drainTimer)
       this.drainTimer = null

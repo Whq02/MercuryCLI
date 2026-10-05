@@ -71,8 +71,8 @@ console.log('native-core T4 — input interpretation contract')
     k3.length === 1 && k3[0]!.name === 'escape', JSON.stringify(events3))
 
   const events4 = drive(['\x1b[1;', null, '5C', null])
-  check('mid-flush: split CSI key force-emits then tail is text',
-    events4.length >= 1, JSON.stringify(events4))
+  check('mid-flush: a dropped CSI key head owns its tail through the final',
+    events4.length === 0, JSON.stringify(events4))
 
   for (const head of ['\x1b[1;', '\x1b[114;1:', '\x1b[114;1:3']) {
     const ev = drive([head, null]).filter(e => e.kind === 'key') as ParsedKey[]

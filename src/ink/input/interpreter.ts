@@ -59,6 +59,14 @@ const DA1_RE = /^\x1b\[\?([\d;]*)c$/
 const DA2_RE = /^\x1b\[>([\d;]*)c$/
 const KITTY_FLAGS_RE = /^\x1b\[\?(\d+)u$/
 const CURSOR_POSITION_RE = /^\x1b\[\?(\d+);(\d+)R$/
+const PLAIN_CURSOR_POSITION_RE = /^\x1b\[(\d+);(\d+)R$/
+const cursorWindows = new Set<{ rows: ReadonlySet<number>; until: number }>()
+
+export function openPlainCursorWindow(rows: readonly number[], until: number): () => void {
+  const window = { rows: new Set(rows), until }
+  cursorWindows.add(window)
+  return () => { cursorWindows.delete(window) }
+}
 const OSC_RESPONSE_RE = /^\x1b\](\d+);(.*?)(?:\x07|\x1b\\)$/s
 const XTVERSION_RE = /^\x1bP>\|(.*?)(?:\x07|\x1b\\)$/s
 
@@ -80,6 +88,17 @@ export function interpretResponse(s: string): TerminalResponse | null {
     }
     if ((m = CURSOR_POSITION_RE.exec(s))) {
       return { type: 'cursorPosition', row: parseInt(m[1]!, 10), col: parseInt(m[2]!, 10) }
+    }
+    if ((m = PLAIN_CURSOR_POSITION_RE.exec(s))) {
+      const row = Number(m[1])
+      const col = Number(m[2])
+      for (const window of cursorWindows) {
+        if (performance.now() >= window.until) {
+          cursorWindows.delete(window)
+        } else if (window.rows.has(row) && Number.isSafeInteger(col) && col > 0) {
+          return { type: 'cursorPosition', row, col }
+        }
+      }
     }
     return null
   }
@@ -139,6 +158,21 @@ const KEY_NAME: Record<string, string> = {
   '[2^': 'insert', '[3^': 'delete', '[5^': 'pageup',
   '[6^': 'pagedown', '[7^': 'home', '[8^': 'end',
   '[Z': 'tab',
+}
+
+const LITERAL_KEYS: Record<string, Partial<ParsedKey>> = {
+  '\r': { name: 'return', raw: undefined },
+  '\n': { name: 'enter' },
+  '\t': { name: 'tab' },
+  '\b': { name: 'backspace' },
+  '\x7f': { name: 'backspace' },
+  '\x1b\b': { name: 'backspace', meta: true },
+  '\x1b\x7f': { name: 'backspace', meta: true },
+  '\x1b': { name: 'escape' },
+  '\x1b\x1b': { name: 'escape', meta: true },
+  ' ': { name: 'space' },
+  '\x1b ': { name: 'space', meta: true },
+  '\x1f': { name: '_', ctrl: true },
 }
 
 const CSI_P = '[P'
@@ -289,6 +323,10 @@ export function createPasteKey(content: string): ParsedKey {
 export function interpretKey(s: string = ''): ParsedKey {
   let match: RegExpExecArray | null
 
+  if (PLAIN_CURSOR_POSITION_RE.test(s) && !s.startsWith('\x1b[1;')) {
+    return { ...baseKey(s), name: undefined, code: '[R' }
+  }
+
   if ((match = CSI_U_RE.exec(s))) {
     if (match[5] === '3') return baseKey(s)
     const key = modifiedKey(s, parseInt(match[1]!, 10), match[4] ? parseInt(match[4], 10) : 1)
@@ -337,38 +375,22 @@ export function interpretKey(s: string = ''): ParsedKey {
   key.sequence = key.sequence || s || key.name
 
   let parts: RegExpExecArray | null
-  if (s === '\r') {
-    key.raw = undefined
-    key.name = 'return'
-  } else if (s === '\n') {
-    key.name = 'enter'
-  } else if (s === '\t') {
-    key.name = 'tab'
-  } else if (s === '\b' || s === '\x1b\b') {
-    key.name = 'backspace'
-    key.meta = s.charAt(0) === '\x1b'
-  } else if (s === '\x7f' || s === '\x1b\x7f') {
-    key.name = 'backspace'
-    key.meta = s.charAt(0) === '\x1b'
-  } else if (s === '\x1b' || s === '\x1b\x1b') {
-    key.name = 'escape'
-    key.meta = s.length === 2
-  } else if (s === ' ' || s === '\x1b ') {
-    key.name = 'space'
-    key.meta = s.length === 2
-  } else if (s === '\x1f') {
-    key.name = '_'
-    key.ctrl = true
-  } else if (s <= '\x1a' && s.length === 1) {
-    key.name = String.fromCharCode(s.charCodeAt(0) + 'a'.charCodeAt(0) - 1)
-    key.ctrl = true
-  } else if (s.length === 1 && s >= '0' && s <= '9') {
-    key.name = 'number'
-  } else if (s.length === 1 && s >= 'a' && s <= 'z') {
-    key.name = s
-  } else if (s.length === 1 && s >= 'A' && s <= 'Z') {
-    key.name = s.toLowerCase()
-    key.shift = true
+  const literal = Object.hasOwn(LITERAL_KEYS, s) ? LITERAL_KEYS[s] : undefined
+  if (literal) {
+    Object.assign(key, literal)
+  } else if (s.length === 1) {
+    const code = s.charCodeAt(0)
+    if (code <= 0x1a) {
+      key.name = String.fromCharCode(code + 0x60)
+      key.ctrl = true
+    } else if (code >= 0x30 && code <= 0x39) {
+      key.name = 'number'
+    } else if (code >= 0x41 && code <= 0x5a) {
+      key.name = s.toLowerCase()
+      key.shift = true
+    } else if (code >= 0x61 && code <= 0x7a) {
+      key.name = s
+    }
   } else if ((parts = META_KEY_CODE_RE.exec(s))) {
     key.meta = true
     key.shift = /^[A-Z]$/.test(parts[1]!)
@@ -411,9 +433,9 @@ export function interpretKey(s: string = ''): ParsedKey {
 
 
 const ORPHAN_MOUSE_PROBE_RE =
-  /^\[(?:<\d+;\d+;\d+[Mm]|M[\x60-\x7f][\x20-￿]{2})|\d+;\d+;\d+[Mm]/
+  /^\[(?:<\d+;\d+;\d+[Mm]|M[\x20-\x7f][\x20-￿]{2})|\d+;\d+;\d+[Mm]/
 const ORPHAN_MOUSE_EVENT_RE =
-  /\[<\d+;\d+;\d+[Mm]|\[M[\x60-\x7f][\x20-￿]{2}|\[?<?\d+;\d+;\d+[Mm]/g
+  /\[<\d+;\d+;\d+[Mm]|\[M[\x20-\x7f][\x20-￿]{2}|\[?<?\d+;\d+;\d+[Mm]/g
 const MOUSE_FRAGMENT_RE = /^(?:<?\d*;?\d*;?\d*[Mm]?|<\d*)$/
 
 export function hasOrphanMouseBytes(text: string): boolean {
