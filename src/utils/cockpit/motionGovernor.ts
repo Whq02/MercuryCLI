@@ -16,6 +16,9 @@ export type MotionPosture = 'auto' | 'full' | 'reduced' | 'off'
 export type IdleMotionLevel = 'full' | 'reduced' | 'off'
 export type IdleMotionPart = 'critter' | 'glyphs' | 'clock'
 export type GovernorLevel = 'full' | 'reduced'
+export type GovernorTrip = 'paint' | 'wire'
+
+export type FrameWireNote = { seq: number; wireBytes: number; drainMs: number | null }
 
 export interface LoopMeter {
   begin(): void
@@ -43,8 +46,13 @@ const REAL_LOOP_METER: LoopMeter = (() => {
 type GovernorState = {
   posture: MotionPosture
   level: GovernorLevel
+  trip: GovernorTrip | null
   overRun: number
   overCostMs: number
+  drainRun: number
+  drainRunMs: number
+  frameDrainMs: number | null
+  wireSeq: number
   underRun: number
   reducedPeriodMs: number
   framesSeen: number
@@ -55,8 +63,13 @@ type GovernorState = {
 const S: GovernorState = ((globalThis as Record<string, unknown>).__mercuryMotionGovernor ??= {
   posture: 'auto',
   level: 'full',
+  trip: null,
   overRun: 0,
   overCostMs: 0,
+  drainRun: 0,
+  drainRunMs: 0,
+  frameDrainMs: null,
+  wireSeq: -1,
   underRun: 0,
   reducedPeriodMs: REDUCED_FLOOR_MS,
   framesSeen: 0,
@@ -91,14 +104,64 @@ export function governorLevel(): GovernorLevel {
   return S.level
 }
 
+export function governorTrip(): GovernorTrip | null {
+  return S.trip
+}
+
 export function reducedPeriodMs(): number {
   return S.reducedPeriodMs
 }
 
+function clearRuns(): void {
+  S.overRun = 0
+  S.overCostMs = 0
+  S.drainRun = 0
+  S.drainRunMs = 0
+  S.underRun = 0
+}
+
+function tripTo(reason: GovernorTrip): void {
+  clearRuns()
+  S.level = 'reduced'
+  S.trip = reason
+  S.reducedPeriodMs = REDUCED_FLOOR_MS
+  notify()
+}
+
+function release(): void {
+  clearRuns()
+  S.level = 'full'
+  S.trip = null
+  S.reducedPeriodMs = REDUCED_FLOOR_MS
+  notify()
+}
+
+export function noteFrameWire(wire: FrameWireNote | null): void {
+  if (wire === null || wire.seq === S.wireSeq) return
+  S.wireSeq = wire.seq
+  const drain = wire.drainMs
+  S.frameDrainMs = drain !== null && Number.isFinite(drain) && drain >= 0 ? drain : null
+}
+
 export function noteFrameCost(costMs: number): void {
   if (!Number.isFinite(costMs) || costMs < 0) return
+  const drainMs = S.frameDrainMs
+  S.frameDrainMs = null
   S.framesSeen++
   if (S.level === 'full') {
+    if (drainMs !== null) {
+      if (drainMs > FRAME_BUDGET_MS) {
+        S.drainRun++
+        S.drainRunMs += drainMs
+        if (S.drainRun >= TRIP_RUN && S.drainRunMs >= TRIP_RUN_COST_MS) {
+          tripTo('wire')
+          return
+        }
+      } else {
+        S.drainRun = 0
+        S.drainRunMs = 0
+      }
+    }
     if (costMs > FRAME_BUDGET_MS) {
       if (S.overRun === 0) S.meter.begin()
       S.overRun++
@@ -107,12 +170,7 @@ export function noteFrameCost(costMs: number): void {
         S.overRun = 0
         S.overCostMs = 0
         const busy = S.meter.busyShare()
-        if (busy === null || busy >= LOOP_BUSY_SHARE) {
-          S.level = 'reduced'
-          S.underRun = 0
-          S.reducedPeriodMs = REDUCED_FLOOR_MS
-          notify()
-        }
+        if (busy === null || busy >= LOOP_BUSY_SHARE) tripTo('paint')
       }
     } else {
       S.overRun = 0
@@ -127,16 +185,9 @@ export function noteFrameCost(costMs: number): void {
     S.reducedPeriodMs = period
     notify()
   }
-  if (costMs <= FRAME_BUDGET_MS) {
+  if (costMs <= FRAME_BUDGET_MS && (drainMs === null || drainMs <= FRAME_BUDGET_MS)) {
     S.underRun++
-    if (S.underRun >= RELEASE_RUN) {
-      S.level = 'full'
-      S.underRun = 0
-      S.overRun = 0
-      S.overCostMs = 0
-      S.reducedPeriodMs = REDUCED_FLOOR_MS
-      notify()
-    }
+    if (S.underRun >= RELEASE_RUN) release()
   } else {
     S.underRun = 0
   }
@@ -167,6 +218,7 @@ export function clockPeriodMs(baseMs: number): number {
 export function motionGovernorFacts(): {
   posture: MotionPosture
   level: GovernorLevel
+  trip: GovernorTrip | null
   effective: IdleMotionLevel
   reducedPeriodMs: number
   framesSeen: number
@@ -174,6 +226,7 @@ export function motionGovernorFacts(): {
   return {
     posture: S.posture,
     level: S.level,
+    trip: S.trip,
     effective: idleMotionLevel('clock'),
     reducedPeriodMs: S.reducedPeriodMs,
     framesSeen: S.framesSeen,
@@ -202,9 +255,10 @@ export function __setLoopMeterForTest(meter: LoopMeter | null): void {
 export function __motionGovernorResetForTest(): void {
   S.posture = 'auto'
   S.level = 'full'
-  S.overRun = 0
-  S.overCostMs = 0
-  S.underRun = 0
+  S.trip = null
+  clearRuns()
+  S.frameDrainMs = null
+  S.wireSeq = -1
   S.reducedPeriodMs = REDUCED_FLOOR_MS
   S.framesSeen = 0
 }
