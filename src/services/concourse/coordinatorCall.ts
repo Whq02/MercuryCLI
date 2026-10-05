@@ -136,7 +136,7 @@ export async function liveCoordinatorCallModel(
       entry.receipts !== undefined && entry.receipts.length > 0
         ? `\n\n<receipts>\n${entry.receipts.map(r => `- ${r.label}`).join('\n')}\n</receipts>`
         : ''
-    messages.push(createAssistantMessage({ content: `${age}${entry.text}${receiptLines}`, isVirtual: true }))
+    messages.push(createAssistantMessage({ content: `${age}${entry.text}${receiptLines}` }))
   }
   const boardBlock = `<switchboard${input.board.clock !== undefined ? ` clock="${input.board.clock}"` : ''}>\n${JSON.stringify(
     { event: input.event, board: input.board },

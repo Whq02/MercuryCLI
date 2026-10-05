@@ -54,6 +54,15 @@ const MODELS_BODY = {
   ],
 }
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
+const anthropicSse = (): string =>
+  [
+    `event: message_start\n${sse({ type: 'message_start', message: { id: 'msg_replay_1', type: 'message', role: 'assistant', model: 'fixture', content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 9, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 1 } } })}`,
+    `event: content_block_start\n${sse({ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } })}`,
+    `event: content_block_delta\n${sse({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'ok' } })}`,
+    `event: content_block_stop\n${sse({ type: 'content_block_stop', index: 0 })}`,
+    `event: message_delta\n${sse({ type: 'message_delta', delta: { stop_reason: 'end_turn', stop_sequence: null }, usage: { input_tokens: 9, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 1 } })}`,
+    `event: message_stop\n${sse({ type: 'message_stop' })}`,
+  ].join('')
 const responsesSse = (): string =>
   [
     sse({ type: 'response.created', response: { id: 'resp_replay_1' } }),
@@ -83,6 +92,12 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       captured.push({ url, body })
       res.writeHead(200, { 'content-type': 'text/event-stream' })
       res.end(responsesSse())
+      return
+    }
+    if (req.method === 'POST' && url.startsWith('/v1/messages')) {
+      captured.push({ url, body })
+      res.writeHead(200, { 'content-type': 'text/event-stream' })
+      res.end(anthropicSse())
       return
     }
     captured.push({ url })
@@ -240,6 +255,39 @@ section('§4 — the wire: a notice is a bracketed note, never an assistant turn
   check('the coordinator’s own reply IS an assistant turn', assistantText.includes('Nothing is running right now'), assistantText.slice(0, 300))
   check('the stale ask rides with its age tag', /\[\d+[mhd] earlier\]/.test(wire), wire.slice(0, 300))
   check('the settled ask says it is not an open ask', wire.includes('not an open ask'), wire.slice(0, 300))
+}
+
+section('§5 — the Anthropic coordinator keeps its own earlier replies too')
+{
+  const { liveCoordinatorCallModel } = await import('../../src/services/concourse/coordinatorCall.ts')
+  const previousBase = process.env.ANTHROPIC_BASE_URL
+  process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${port}`
+  try {
+    const before = captured.length
+    await liveCoordinatorCallModel(
+      {
+        contractVersion: lane.COORDINATOR_CONTRACT_VERSION,
+        contract: lane.COORDINATOR_CONTRACT,
+        event: { kind: 'operator-message', messageId: 'replay-wire-claude', text: 'anything for me?' },
+        board: { counts: {}, sessions: [], openObligations: [] },
+        conversation: capturedTail,
+      },
+      'claude-sonnet-5',
+    )
+    const messages = captured.slice(before).filter(c => c.url.startsWith('/v1/messages'))
+    check('exactly ONE Anthropic call settled the turn', messages.length === 1, String(messages.length))
+    const claudeWire = JSON.stringify(messages[0]?.body ?? {})
+    const claudeBlocks = Array.isArray(messages[0]?.body?.messages) ? (messages[0].body.messages as Array<Record<string, unknown>>) : []
+    const claudeAssistant = claudeBlocks
+      .filter(m => m.role === 'assistant')
+      .map(m => JSON.stringify(m))
+      .join('\n')
+    check('the coordinator’s own reply IS an assistant turn on the Anthropic wire', claudeAssistant.includes('Nothing is running right now'), claudeAssistant.slice(0, 300))
+    check('…and the harness notice still is not', !claudeAssistant.includes('The turn did not run'), claudeAssistant.slice(0, 300))
+    check('the notice rides the history as a bracketed harness note there too', claudeWire.includes('[harness'), claudeWire.slice(0, 300))
+  } finally {
+    process.env.ANTHROPIC_BASE_URL = previousBase
+  }
 }
 
 server.close()
