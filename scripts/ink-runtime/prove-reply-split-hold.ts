@@ -61,11 +61,11 @@ check('a split XTVERSION reply types nothing (the sealed tail must not surface a
 check('the split OSC and XTVERSION replies resolve as responses (the head rides the seal)', splitOsc.responses === 1 && splitXtv.responses === 1, `osc=${splitOsc.responses} xtversion=${splitXtv.responses}`)
 check('control: the whole XTVERSION reply is one response atom', feedAll([XTV]).responses === 1)
 
-console.log('\n the deadline: a head no tail ever follows is let go after two flushes, and the loop hears the keyboard')
-const dead = feedAll(['\x1b[?64;1;2;', null, null, 'q'])
+console.log('\n the deadline drops the reply head while its tail debt ends at a final or control byte')
+const dead = feedAll(['\x1b[?64;1;2;', null, null, '\x03', 'q'])
 const deadTyped = typedText(dead.atoms)
-check('a response head with no tail types nothing at the deadline', !deadTyped.some(t => t !== 'q'), `typed ${JSON.stringify(deadTyped)}`)
-check('the keystroke after the deadline is heard', deadTyped.includes('q') && dead.atoms.some(a => a.kind === 'key' && a.name === 'q'), JSON.stringify(deadTyped))
+check('a response head with no tail types nothing at the deadline', deadTyped.join('') === 'cq', `typed ${JSON.stringify(deadTyped)}`)
+check('a control byte ends the debt and the following keystroke is heard', deadTyped.includes('q') && dead.atoms.some(a => a.kind === 'key' && a.name === 'q'), JSON.stringify(deadTyped))
 const deadDecrpm = feedAll(['\x1b[?2026;1$', null, null])
 check('a DECRPM head with its intermediate types nothing at the deadline', typedText(deadDecrpm.atoms).length === 0, JSON.stringify(typedText(deadDecrpm.atoms)))
 const heldState = (() => {
@@ -75,7 +75,7 @@ const heldState = (() => {
   return { held: afterFlush.incomplete, released: afterSecond.incomplete }
 })()
 check('the held head stays in the carry across the first flush (the loop re-arms its timer on it)', heldState.held === '\x1b[?64;1;2;', JSON.stringify(heldState))
-check('the second flush lets it go (the carry is empty, the machine is on ground)', heldState.released === '', JSON.stringify(heldState))
+check('the second flush drops the carry while retaining only the tail debt', heldState.released === '', JSON.stringify(heldState))
 const lateTail = feedAll(['\x1b[?64;1;2;', null, '6;9;15;', '22c'])
 check('a tail spread over two later reads still completes the reply', lateTail.responses === 1 && typedText(lateTail.atoms).length === 0, JSON.stringify(typedText(lateTail.atoms)))
 
@@ -87,7 +87,7 @@ check('the loop hears the keyboard again after the seal grounds', sealedTyped.in
 
 console.log('\n keys split at the flush keep their shape')
 const splitKey = feedAll(['\x1b[1;', null, '5C', null])
-check('a split ctrl+right still force-emits its head silently (the flush-split sink) and the tail is text', splitKey.atoms.length >= 1 && !typedText(splitKey.atoms).some(t => t.startsWith('[')), JSON.stringify(typedText(splitKey.atoms)))
+check('a split ctrl+right drops both the partial head and its owed tail', splitKey.atoms.length === 0 && typedText(splitKey.atoms).length === 0, JSON.stringify(typedText(splitKey.atoms)))
 const mouseHead = feedAll(['\x1b[<64;1', null, '0;5M', null])
 check('a split SGR mouse head is still dropped and its tail swallowed', typedText(mouseHead.atoms).length === 0 && mouseHead.responses === 0, JSON.stringify(typedText(mouseHead.atoms)))
 const loneEsc = feedAll(['\x1b', null])
