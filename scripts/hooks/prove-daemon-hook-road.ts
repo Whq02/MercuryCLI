@@ -14,7 +14,7 @@ mkdirSync(cwd)
 const ledger = join(root, 'inputs.jsonl')
 const closed = join(root, 'closed')
 const quote = (value: string): string => `'${value.replaceAll("'", "'\\''")}'`
-const program = `const fs=require('node:fs');const input=JSON.parse(fs.readFileSync(0,'utf8'));fs.appendFileSync(${JSON.stringify(ledger)},JSON.stringify({...input,spawn_cwd:process.cwd()})+'\\n');process.stdout.write(JSON.stringify({systemMessage:input.hook_event_name+' from worker'})+'\\n')`
+const program = `const fs=require('node:fs');const input=JSON.parse(fs.readFileSync(0,'utf8'));fs.appendFileSync(${JSON.stringify(ledger)},JSON.stringify({...input,spawn_cwd:process.cwd()})+'\\n');process.stdout.write('w'.repeat(8192)+'\\n');process.stdout.write(JSON.stringify({systemMessage:input.hook_event_name+' from worker'})+'\\n')`
 const command = `${quote(process.execPath)} -e ${quote(program)}`
 writeFileSync(join(home, 'settings.json'), JSON.stringify({ events: { hooks: Object.fromEntries(['SessionStart', 'Notification', 'SessionEnd'].map(event => [event, [{ hooks: [{ type: 'command', command }] }]])) } }))
 const worker = spawn(process.execPath, [join(import.meta.dir, 'daemon-hook-fixture-worker.ts'), closed], {

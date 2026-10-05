@@ -39,6 +39,8 @@ export type HookEventHandler = (event: HookExecutionEvent) => void
 
 const QUEUE_CAP = 100
 
+export const HOOK_PROGRESS_MIN_DELTA_BYTES = 8192
+
 let handler: HookEventHandler | null = null
 let queued: HookExecutionEvent[] = []
 let allHookEventsEnabled = false
@@ -156,16 +158,26 @@ export function hookProgressReporter(params: {
   hookEvent: string
 }): (snapshot: HookOutputSnapshot) => void {
   let lastOutput = ''
+  let pendingDelta = ''
   return ({ stdout, stderr, output }) => {
     if (output === lastOutput) return
+    if (output.length < lastOutput.length || !output.startsWith(lastOutput)) {
+      lastOutput = output
+      pendingDelta = ''
+      return
+    }
+    pendingDelta += output.slice(lastOutput.length)
     lastOutput = output
+    if (pendingDelta.length < HOOK_PROGRESS_MIN_DELTA_BYTES) return
+    const delta = pendingDelta
+    pendingDelta = ''
     emitHookProgress({
       hookId: params.hookId,
       hookName: params.hookName,
       hookEvent: params.hookEvent,
-      stdout,
-      stderr,
-      output,
+      stdout: delta,
+      stderr: '',
+      output: delta,
     })
   }
 }
