@@ -3,6 +3,7 @@ import { withDiagnosticsTiming } from './diagLogs.js'
 import { getMainThreadAgentType } from '../bootstrap/state.js'
 import { isBareMode } from './envUtils.js'
 import { logError } from './log.js'
+import { getEngineModel } from './model/model.js'
 import { createAttachmentMessage } from './attachments/orchestrator.js'
 import { executeSessionStartHooks, executeSetupHooks } from './hooks.js'
 import { shouldAllowManagedHooksOnly } from './hooks/hooksConfigSnapshot.js'
@@ -51,7 +52,7 @@ export async function processSessionStartHooks(
     source,
     options.sessionId,
     agentType,
-    options.model,
+    options.model ?? getEngineModel(),
     undefined,
     undefined,
     options.forceSyncExecution,
