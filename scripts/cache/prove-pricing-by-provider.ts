@@ -250,7 +250,8 @@ section('§5 the shape')
   const glm = readFileSync(join(ROOT, 'src/services/providers/zai/glmPins.ts'), 'utf8')
   const gemini = readFileSync(join(ROOT, 'src/services/providers/gemini/geminiPins.ts'), 'utf8')
   check('both new price tables are zero-import (bun-loadable pins)', !/^import /m.test(glm) && !/^import /m.test(gemini))
-  check('both new price tables name their source and date', glm.includes('docs.z.ai/guides/overview/pricing') && gemini.includes('ai.google.dev/gemini-api/docs/pricing') && glm.includes("observedAt: '2026-09-01'") && gemini.includes("observedAt: '2026-09-01'"))
+  const dated = /observedAt: '20\d\d-\d\d-\d\d'/
+  check('both new price tables name their source and date', glm.includes('docs.z.ai/guides/overview/pricing') && gemini.includes('ai.google.dev/gemini-api/docs/pricing') && dated.test(glm) && dated.test(gemini))
   const tab = readFileSync(join(ROOT, 'src/components/Settings/Usage.tsx'), 'utf8')
   check('the Usage tab spells its spend line through the one law (formatLaneSpend)', tab.includes('formatLaneSpend(spend)') && !tab.includes('spendPricingNote'))
   const tracker = readFileSync(join(ROOT, 'src/cost-tracker.ts'), 'utf8')
@@ -269,7 +270,9 @@ section('§5 the shape')
   ] as const) {
     check(`${file} spells its figure through the one law`, readFileSync(join(ROOT, file), 'utf8').includes(needle))
   }
-  check('every price pin cites its page beside its date', (glm.match(/source: GLM_PRICING_PAGE/g) ?? []).length === (glm.match(/observedAt: '2026-09-01'/g) ?? []).length && (gemini.match(/source: GEMINI_PRICING_PAGE/g) ?? []).length === (gemini.match(/observedAt: '2026-09-01'/g) ?? []).length)
+  const priceTable = (text: string, name: string): string => text.slice(text.indexOf(`export const ${name}`), text.indexOf('\n]', text.indexOf(`export const ${name}`)))
+  const datedRows = (text: string): number => (text.match(/observedAt: '20\d\d-\d\d-\d\d'/g) ?? []).length
+  check('every price pin cites its page beside its date', (glm.match(/source: GLM_PRICING_PAGE/g) ?? []).length === datedRows(priceTable(glm, 'GLM_PRICE_PINS')) && (gemini.match(/source: GEMINI_PRICING_PAGE/g) ?? []).length === datedRows(priceTable(gemini, 'GEMINI_PRICE_PINS')))
 }
 
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-pricing-by-provider${failures ? ` (${failures} failure(s))` : ''}`)
