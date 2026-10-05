@@ -209,15 +209,8 @@ export async function saveCustomTitle(
   source: 'user' | 'auto' = 'user',
 ) {
   const resolvedPath = fullPath ?? getTranscriptPathForSession(sessionId)
-  appendEntryToFile(resolvedPath, {
-    type: 'custom-title',
-    customTitle,
-    sessionId,
-  })
+  getProject().metadata.write({ type: 'custom-title', customTitle, sessionId }, resolvedPath)
   invalidateSessionListingMemo()
-  if (sessionId === getSessionId()) {
-    getProject().currentSessionTitle = customTitle
-  }
 }
 
 export function saveAiGeneratedTitle(sessionId: UUID, aiTitle: string): void {
@@ -239,10 +232,7 @@ export function saveTaskSummary(sessionId: UUID, summary: string): void {
 
 export async function saveTag(sessionId: UUID, tag: string, fullPath?: string) {
   const resolvedPath = fullPath ?? getTranscriptPathForSession(sessionId)
-  appendEntryToFile(resolvedPath, { type: 'tag', tag, sessionId })
-  if (sessionId === getSessionId()) {
-    getProject().currentSessionTag = tag
-  }
+  getProject().metadata.write({ type: 'tag', tag, sessionId }, resolvedPath)
 }
 
 export async function linkSessionToPR(
@@ -253,20 +243,7 @@ export async function linkSessionToPR(
   fullPath?: string,
 ): Promise<void> {
   const resolvedPath = fullPath ?? getTranscriptPathForSession(sessionId)
-  appendEntryToFile(resolvedPath, {
-    type: 'pr-link',
-    sessionId,
-    prNumber,
-    prUrl,
-    prRepository,
-    timestamp: new Date().toISOString(),
-  })
-  if (sessionId === getSessionId()) {
-    const project = getProject()
-    project.currentSessionPrNumber = prNumber
-    project.currentSessionPrUrl = prUrl
-    project.currentSessionPrRepository = prRepository
-  }
+  getProject().metadata.write({ type: 'pr-link', sessionId, prNumber, prUrl, prRepository, timestamp: new Date().toISOString() }, resolvedPath)
 }
 
 export function getCurrentSessionTag(sessionId: UUID): string | undefined {
@@ -304,38 +281,11 @@ export function restoreSessionMetadata(meta: {
   prUrl?: string
   prRepository?: string
 }): void {
-  const project = getProject()
-  if (meta.customTitle) project.currentSessionTitle ??= meta.customTitle
-  if (meta.tag !== undefined) project.currentSessionTag = meta.tag || undefined
-  if (meta.agentName) project.currentSessionAgentName = meta.agentName
-  if (meta.agentColor) project.currentSessionAgentColor = meta.agentColor
-  if (meta.agentSetting) project.currentSessionAgentSetting = meta.agentSetting
-  if (meta.mode) project.currentSessionMode = meta.mode
-  if (meta.advisor !== undefined) project.currentSessionAdvisor = meta.advisor
-  if (meta.model) project.currentSessionModel = meta.model
-  if (meta.worktreeSession !== undefined)
-    project.currentSessionWorktree = meta.worktreeSession
-  if (meta.prNumber !== undefined)
-    project.currentSessionPrNumber = meta.prNumber
-  if (meta.prUrl) project.currentSessionPrUrl = meta.prUrl
-  if (meta.prRepository) project.currentSessionPrRepository = meta.prRepository
+  getProject().metadata.restore(meta)
 }
 
 export function clearSessionMetadata(): void {
-  const project = getProject()
-  project.currentSessionTitle = undefined
-  project.currentSessionTag = undefined
-  project.currentSessionAgentName = undefined
-  project.currentSessionAgentColor = undefined
-  project.currentSessionLastPrompt = undefined
-  project.currentSessionAgentSetting = undefined
-  project.currentSessionMode = undefined
-  project.currentSessionAdvisor = undefined
-  project.currentSessionModel = undefined
-  project.currentSessionWorktree = undefined
-  project.currentSessionPrNumber = undefined
-  project.currentSessionPrUrl = undefined
-  project.currentSessionPrRepository = undefined
+  getProject().metadata.clear()
 }
 
 export function reAppendSessionMetadata(): void {
@@ -349,11 +299,8 @@ export async function saveAgentName(
   source: 'user' | 'auto' = 'user',
 ) {
   const resolvedPath = fullPath ?? getTranscriptPathForSession(sessionId)
-  appendEntryToFile(resolvedPath, { type: 'agent-name', agentName, sessionId })
-  if (sessionId === getSessionId()) {
-    getProject().currentSessionAgentName = agentName
-    void updateSessionName(agentName)
-  }
+  getProject().metadata.write({ type: 'agent-name', agentName, sessionId }, resolvedPath)
+  if (sessionId === getSessionId()) void updateSessionName(agentName)
 }
 
 export async function saveAgentColor(
@@ -362,14 +309,7 @@ export async function saveAgentColor(
   fullPath?: string,
 ) {
   const resolvedPath = fullPath ?? getTranscriptPathForSession(sessionId)
-  appendEntryToFile(resolvedPath, {
-    type: 'agent-color',
-    agentColor,
-    sessionId,
-  })
-  if (sessionId === getSessionId()) {
-    getProject().currentSessionAgentColor = agentColor
-  }
+  getProject().metadata.write({ type: 'agent-color', agentColor, sessionId }, resolvedPath)
 }
 
 export function saveAgentSetting(agentSetting: string): void {
@@ -385,28 +325,11 @@ export function saveMode(mode: 'coordinator' | 'normal'): void {
 }
 
 export function saveAdvisorSwitch(on: boolean): void {
-  const project = getProject()
-  project.currentSessionAdvisor = on
-  if (project.sessionFile) {
-    appendEntryToFile(project.sessionFile, {
-      type: 'advisor-switch',
-      on,
-      sessionId: getSessionId(),
-    })
-  }
+  getProject().metadata.saveCached('advisor-switch', on)
 }
 
 export function saveSessionModel(model: string): void {
-  const project = getProject()
-  if (!model || project.currentSessionModel === model) return
-  project.currentSessionModel = model
-  if (project.sessionFile) {
-    appendEntryToFile(project.sessionFile, {
-      type: 'model',
-      model,
-      sessionId: getSessionId(),
-    })
-  }
+  getProject().metadata.saveCached('model', model)
 }
 
 export function saveWorktreeState(
@@ -425,15 +348,7 @@ export function saveWorktreeState(
         hookBased: worktreeSession.hookBased,
       }
     : null
-  const project = getProject()
-  project.currentSessionWorktree = stripped
-  if (project.sessionFile) {
-    appendEntryToFile(project.sessionFile, {
-      type: 'worktree-state',
-      worktreeSession: stripped,
-      sessionId: getSessionId(),
-    })
-  }
+  getProject().metadata.saveCached('worktree-state', stripped)
 }
 
 export function getSessionIdFromLog(log: LogOption): UUID | undefined {
