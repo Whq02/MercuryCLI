@@ -8,7 +8,7 @@ import { resolveOpenaiAccount } from '../../services/providers/openai/openaiAcco
 import { buildRouterModelSnapshot } from '../router/modelRegistry.js'
 import { refreshProviderDiscovery } from '../router/providerDiscovery.js'
 import { DEPRECATED_GPT_IDS } from '../router/providers/openai.js'
-import { GLM_STATIC_CATALOGUE } from '../router/providers/zai.js'
+import { zaiCatalogueEntries, zaiCatalogueEntry } from '../router/providers/zai.js'
 import { moonshotCatalogueRows, qualifyMoonshotModel, refreshMoonshotCatalogue } from '../../services/providers/moonshot/moonshotCatalogue.js'
 import { resolveMoonshotAccount } from '../../services/providers/moonshot/moonshotAccounts.js'
 import { kimiDisplayName } from '../../services/providers/moonshot/kimiPins.js'
@@ -452,10 +452,11 @@ export async function resolveEngineDispatch(
       }
     }
     await requireProviderAvailable('zai')
-    const pin = GLM_STATIC_CATALOGUE.find(entry => entry.id === id)
+    if (!zaiCatalogueEntry(id)) await readCatalogueIfPending('zai')
+    const pin = zaiCatalogueEntry(id)
     if (!pin) {
       throw new Error(
-        `GLM model '${id}' is not a catalogue-verified id (pins: ${GLM_STATIC_CATALOGUE.map(c => c.id).join(', ')}) — never dispatching an unverified id.`,
+        `GLM model '${id}' is not a catalogue-verified id (listed: ${zaiCatalogueEntries().map(c => c.id).join(', ')}) — never dispatching an unverified id.`,
       )
     }
     return { backend: 'zai', model: pin.id, displayLabel: pin.displayLabel }

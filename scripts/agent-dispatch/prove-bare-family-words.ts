@@ -251,7 +251,7 @@ section('§4 one resolver by construction: neither road spells a family word of 
   const session = src('utils/model/model.ts')
   check('the session road resolves the words through the shared table', session.includes('resolveBareFamilyWord(lowered)') && !session.includes("case 'grok'") && !session.includes('xaiCatalogueRows'))
   const table = src('utils/model/bareFamilyWords.ts')
-  check('the table reads each family through its own catalogue owner, required at call time', table.includes("require('../../services/providers/xai/xaiCatalogue.js')") && table.includes("require('../../services/providers/moonshot/moonshotCatalogue.js')") && table.includes("require('../../services/providers/deepseek/deepseekCatalogue.js')") && table.includes("require('../router/providers/zai.js')") && !/^import (?!type )/m.test(table))
+  check('the table reads each family through its own catalogue owner, required at call time', table.includes("require('../../services/providers/xai/xaiCatalogue.js')") && table.includes("require('../../services/providers/moonshot/moonshotCatalogue.js')") && table.includes("require('../../services/providers/deepseek/deepseekCatalogue.js')") && table.includes("require('../../services/providers/zai/zaiCatalogue.js')") && !/^import (?!type )/m.test(table))
   const tool = src('tools/AgentTool/AgentTool.tsx')
   check("the Agent tool's words say each family word means its newest row", tool.includes("'glm' (Z.AI's newest GLM row)") && tool.includes("'kimi' (Moonshot's newest Kimi row)") && tool.includes("'deepseek' (DeepSeek's newest row)") && tool.includes("'grok' (xAI's newest Grok row)"))
   const engines = readFileSync(join(import.meta.dir, '../../docs/ENGINES.md'), 'utf8')

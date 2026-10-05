@@ -28,7 +28,6 @@ export type ModelListSource =
   | { kind: 'list'; ids: string[]; fetchedAtMs: number }
   | { kind: 'unread'; lastError?: string; lastAttemptAtMs?: number }
   | { kind: 'no-credential' }
-  | { kind: 'no-endpoint'; datedAt: string }
   | { kind: 'unreadable'; reason: string }
 
 export interface ModelListFact {
@@ -54,11 +53,6 @@ export const MODEL_LISTS_READ_HINT = '/model or a chat naming the family reads i
 export const MODEL_LISTS_UNREAD_EVIDENCE = `no list read in this process — ${MODEL_LISTS_READ_HINT}; the release-day check reads every list`
 
 const NOT_JUDGED = (n: number): string => `${n} typed ${n === 1 ? 'id' : 'ids'} not judged`
-const TYPED = (n: number): string => `${n} typed ${n === 1 ? 'id' : 'ids'}`
-
-function isReadable(fact: ModelListFact): boolean {
-  return fact.list.kind !== 'no-endpoint'
-}
 
 export function modelListFamilyLines(fact: ModelListFact, nowMs: number): string[] {
   const head = `${fact.name} · ${fact.source ?? 'no credential'}`
@@ -77,8 +71,6 @@ export function modelListFamilyLines(fact: ModelListFact, nowMs: number): string
       ]
     case 'no-credential':
       return [`${fact.name} · no credential · ${NOT_JUDGED(fact.typed.length)}`]
-    case 'no-endpoint':
-      return [`${head} · no live list — typed table dated ${list.datedAt} · ${TYPED(fact.typed.length)}`]
     case 'unreadable':
       return [`${head} · the cached list could not be read (${list.reason}) · ${NOT_JUDGED(fact.typed.length)}`]
   }
@@ -90,7 +82,7 @@ export function composeModelListsRow(facts: readonly ModelListFact[], nowMs: num
   let listsRead = 0
   let unread = 0
   let unreadable = 0
-  const readable = facts.filter(isReadable).length
+  const readable = facts.length
   const lacking: string[] = []
   const lines: string[] = []
   for (const fact of facts) {
@@ -260,24 +252,19 @@ function huggingfaceFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
   })
 }
 
-function zaiTable(): { ids: string[]; datedAt: string } {
-  const { keyLanePins } = require('../../utils/model/modelOptions.js') as typeof import('../../utils/model/modelOptions.js')
-  const pins = keyLanePins('zai')
-  return { ids: pins.map(pin => pin.id), datedAt: pins[0]?.observedAt ?? 'unknown' }
-}
-
 function zaiFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
-  const typed = (): string[] => zaiTable().ids
+  const typed = (): string[] => [...(require('./zai/glmPins.js') as typeof import('./zai/glmPins.js')).GLM_STATIC_FLOOR_IDS]
   return guarded('zai', name, typed, () => {
     const { resolveZaiDispatch } = require('../../utils/router/providerDiscovery.js') as typeof import('../../utils/router/providerDiscovery.js')
-    const table = zaiTable()
+    const { getCachedZaiCatalogue } = require('./zai/zaiCatalogue.js') as typeof import('./zai/zaiCatalogue.js')
     const dispatch = resolveZaiDispatch(env)
+    if (!dispatch) return { family: 'zai', name, typed: typed(), list: { kind: 'no-credential' } }
     return {
       family: 'zai',
       name,
-      ...(dispatch ? { source: dispatch.plan === 'coding' ? `GLM Coding Plan key (${dispatch.source})` : `Z.AI API key (${dispatch.source})` } : {}),
-      typed: table.ids,
-      list: { kind: 'no-endpoint', datedAt: table.datedAt },
+      source: dispatch.plan === 'coding' ? `GLM Coding Plan key (${dispatch.source})` : `Z.AI API key (${dispatch.source})`,
+      typed: typed(),
+      list: cachedListSource(getCachedZaiCatalogue(env)),
     }
   })
 }

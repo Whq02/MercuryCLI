@@ -1,4 +1,6 @@
 import { getCachedProviderDiscovery, primeZaiDiscovery } from '../providerDiscovery.js'
+import { GLM_STATIC_FLOOR_IDS, glmDisplayPin, glmEffortsFor } from '../../../services/providers/zai/glmPins.js'
+import { zaiCatalogueRows } from '../../../services/providers/zai/zaiCatalogue.js'
 import type {
   ProviderCatalogueEntry,
   ProviderDescription,
@@ -13,31 +15,42 @@ import type {
 import { SPECIALIST_ROLES } from './types.js'
 
 const ALL_ROLES: readonly SpecialistRole[] = SPECIALIST_ROLES
-const GLM_EFFORTS = ['max', 'xhigh', 'high', 'medium', 'low', 'minimal', 'none'] as const
-const GLM_53_EFFORTS = ['low', 'high', 'max'] as const
 
-export const GLM_STATIC_CATALOGUE: readonly ProviderCatalogueEntry[] = [
-  {
-    id: 'glm-5.3',
-    displayLabel: 'GLM-5.3',
-    modelClass: 'glm',
-    contextWindow: 1_000_000,
-    efforts: GLM_53_EFFORTS,
+function entryOf(row: { id: string; displayName: string; contextWindow?: number }): ProviderCatalogueEntry {
+  return {
+    id: row.id,
+    displayLabel: row.displayName,
+    modelClass: 'glm' as const,
+    ...(row.contextWindow !== undefined ? { contextWindow: row.contextWindow } : {}),
+    efforts: [...(glmEffortsFor(row.id) ?? [])],
     roles: ALL_ROLES,
-  },
-  {
-    id: 'glm-5.2',
-    displayLabel: 'GLM-5.2',
-    modelClass: 'glm',
-    contextWindow: 1_000_000,
-    efforts: GLM_EFFORTS,
-    roles: ALL_ROLES,
-  },
-]
+  }
+}
+
+export const GLM_STATIC_CATALOGUE: readonly ProviderCatalogueEntry[] = GLM_STATIC_FLOOR_IDS.flatMap(id => {
+  const pin = glmDisplayPin(id)
+  return pin ? [entryOf(pin)] : []
+})
+
+export function zaiLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
+  const { rows, source } = zaiCatalogueRows()
+  if (source.kind !== 'live') return undefined
+  return { fetchedAtMs: source.fetchedAtMs, entries: rows.map(entryOf) }
+}
+
+export function zaiCatalogueEntries(): readonly ProviderCatalogueEntry[] {
+  return zaiLiveCatalogue()?.entries ?? GLM_STATIC_CATALOGUE
+}
+
+export function zaiCatalogueEntry(id: string): ProviderCatalogueEntry | undefined {
+  const wanted = id.trim().toLowerCase()
+  return zaiCatalogueEntries().find(entry => entry.id === wanted)
+}
 
 export function describeZaiProvider(): ProviderDescription {
   const discovery = getCachedProviderDiscovery('zai')
   const keyPresent = discovery?.provider === 'zai' ? discovery.keyPresent : false
+  const live = zaiLiveCatalogue()
   return {
     transport: 'zai-chat-completions',
     capabilities: [
@@ -60,8 +73,10 @@ export function describeZaiProvider(): ProviderDescription {
               : 'ZAI_API_KEY (env)',
         }
       : { kind: 'none', label: 'no Z.AI API key detected' },
-    catalogue: GLM_STATIC_CATALOGUE,
-    catalogueSource: 'static-pin',
+    catalogue: live?.entries ?? GLM_STATIC_CATALOGUE,
+    ...(live
+      ? { catalogueSource: 'live-discovery' as const, discoveredAtMs: live.fetchedAtMs }
+      : { catalogueSource: 'static-pin' as const }),
   }
 }
 
@@ -74,7 +89,7 @@ export function zaiStatus(): RouterProviderStatus {
 
 export function listZaiModels(): RouterProviderModel[] {
   if (!zaiStatus().available) return []
-  return GLM_STATIC_CATALOGUE.map(entry => ({
+  return zaiCatalogueEntries().map(entry => ({
     ref: {
       provider: 'zai' as const,
       model: entry.id,
