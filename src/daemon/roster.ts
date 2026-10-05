@@ -20,6 +20,7 @@ import {
   buildHeadlessPrompt,
   spawnRunnerChild,
   type RunnerChildSpec,
+  type SeatPermissionMode,
 } from './headlessRun.js'
 import { resolveWorkerReconAllow } from './workerRecon.js'
 import {
@@ -499,7 +500,7 @@ export class TaskRoster {
 
   patchSeatClaim(
     short: string,
-    patch: { model: string; effort: string; respawnExtraArgv: readonly string[] },
+    patch: { model: string; effort: string; respawnExtraArgv: readonly string[]; permissionMode: SeatPermissionMode },
   ): RunnerChildSpec | null {
     const h = this.handles.get(short)
     if (!h?.longLived) return null
@@ -508,6 +509,7 @@ export class TaskRoster {
       model: patch.model,
       effort: patch.effort,
       respawnExtraArgv: [...patch.respawnExtraArgv],
+      permissionMode: patch.permissionMode,
     }
     if (h.longLived.running) h.longLived.running = { model: patch.model, effort: patch.effort }
     return h.longLived.spec

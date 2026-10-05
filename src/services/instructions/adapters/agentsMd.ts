@@ -37,6 +37,7 @@ export const agentsMdConvention: InstructionConvention = {
   instructionFileNames: [SHARED_INSTRUCTION_FILE],
   rulesPathMarkers: [],
 }
+
 export function foreignInstructionConventions(): InstructionConvention[] {
   return [agentsMdConvention]
 }

@@ -7,6 +7,7 @@ import {
   TASK_NOTIFICATION_TAG,
   TOOL_USE_ID_TAG,
 } from '../../constants/xml.js'
+import { AGENT_MESSAGE_STATUS } from '../../constants/agentMessage.js'
 import type { AppState } from '../../state/AppStateStore.js'
 import type { Message } from '../../types/message.js'
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
@@ -229,6 +230,7 @@ export function settledLaunchIds(messages: readonly Message[]): Set<string> {
     if (toolUseId) settled.add(toolUseId)
     if (taskId) settled.add(taskId)
   }
+  for (const id of endedNoticeIds(messages)) settled.add(id)
   return settled
 }
 
@@ -455,6 +457,28 @@ export function queuedNoticeIds(messages: readonly Message[]): Set<string> {
       if (toolUseId) ids.add(toolUseId)
       if (taskId) ids.add(taskId)
     }
+  }
+  return ids
+}
+
+const NON_ENDING_STATUSES: ReadonlySet<string> = new Set(['resumed', AGENT_MESSAGE_STATUS])
+
+function endedNoticeIds(messages: readonly Message[]): Set<string> {
+  const ids = new Set<string>()
+  const read = (text: string): void => {
+    for (const notice of text.match(NOTICE_BLOCK) ?? []) {
+      if (NON_ENDING_STATUSES.has(pickTag(notice, STATUS_TAG) ?? '')) continue
+      const toolUseId = pickTag(notice, TOOL_USE_ID_TAG)
+      const taskId = pickTag(notice, TASK_ID_TAG)
+      if (toolUseId) ids.add(toolUseId)
+      if (taskId) ids.add(taskId)
+    }
+  }
+  for (const message of messages) {
+    if (message.type === 'user') read(textOf(message.message.content))
+    if (message.type !== 'attachment') continue
+    const attachment = message.attachment as unknown as { type?: unknown; prompt?: unknown }
+    if (attachment.type === 'queued_command') read(textOf(attachment.prompt))
   }
   return ids
 }

@@ -47,14 +47,12 @@ type RuleTableShape = {
   rows: PermissionRule[]
   byBehavior: Record<PermissionBehavior, PermissionRule[]>
   contentScoped: Map<string, PermissionRule[]>
-  toolWide: PermissionRule[]
 }
 
 const emptyTable = (): RuleTableShape => ({
   rows: [],
   byBehavior: { allow: [], deny: [], ask: [] },
   contentScoped: new Map(),
-  toolWide: [],
 })
 
 function buildRuleTable(context: ToolPermissionContext): RuleTableShape {
@@ -75,8 +73,6 @@ function buildRuleTable(context: ToolPermissionContext): RuleTableShape {
           const bucket = table.contentScoped.get(key)
           if (bucket) bucket.push(row)
           else table.contentScoped.set(key, [row])
-        } else {
-          table.toolWide.push(row)
         }
       }
     }

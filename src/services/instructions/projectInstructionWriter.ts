@@ -3,7 +3,7 @@ import { basename, dirname, join } from 'node:path'
 
 import { findGitRoot } from '../../utils/git.js'
 import { pathInWorkingPath } from '../../utils/permissions/filesystem.js'
-import { mercuryNativeConvention } from './nativeSource.js'
+import { NATIVE_INSTRUCTION_FILE_NAMES, mercuryNativeConvention } from './nativeSource.js'
 import { MAX_INCLUDE_DEPTH } from './discovery.js'
 import { clearInstructionFileCaches } from './engine.js'
 import { parseInstructionFileContent } from './sourceText.js'
@@ -34,7 +34,7 @@ export function resolveProjectInstructionEntry(cwd: string): {
       if (existsSync(candidate)) return { path: candidate, exists: true }
     }
   }
-  return { path: join(root, 'MERCURY.md'), exists: false }
+  return { path: join(root, NATIVE_INSTRUCTION_FILE_NAMES[0]), exists: false }
 }
 
 type ParsedEstateFile = {

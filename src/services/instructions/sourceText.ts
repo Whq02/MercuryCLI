@@ -202,8 +202,7 @@ function extractIncludePathsFromTokens(
   const SENTENCE_PUNCTUATION = /[.,;:!?]+$/
 
   function extractPathsFromText(textContent: string) {
-    let match
-    while ((match = IMPORT_TOKEN.exec(textContent)) !== null) {
+    for (const match of textContent.matchAll(IMPORT_TOKEN)) {
       let path = match[1]
       if (!path) continue
 

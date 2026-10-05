@@ -1,7 +1,7 @@
 import type { UUID } from 'crypto'
 import { basename, relative } from 'node:path'
 
-import { addInvokedSkill } from '../bootstrap/state.js'
+import { addInvokedSkill, getEngineModelOverride } from '../bootstrap/state.js'
 import { rehydrateScreenshots } from '../services/desktop/screenshotRetention.js'
 import { restoreBoundPrefixFromMessages } from '../services/providers/anthropic/boundPrefixRecord.js'
 import type { AttachmentMessage, Message, NormalizedUserMessage, UserMessage } from '../types/message.js'
@@ -11,6 +11,7 @@ import { suppressNextSkillListing } from './attachments/skillListing.js'
 import { getCwd } from './cwd.js'
 import { copyFileHistoryForResume } from './fileHistory.js'
 import { logError } from './log.js'
+import { parseUserSpecifiedModel } from './model/model.js'
 import { mintImmediateReceipt } from './model/seatReceipts.js'
 import {
   createAssistantMessage,
@@ -515,7 +516,11 @@ export async function loadConversationForResume(
     restoreSkillStateFromMessages(asMessages)
     restoreBoundPrefixFromMessages(asMessages)
     const { messages: deserialized, turnInterruptionState } = deserializeMessagesWithInterruptDetection(asMessages)
-    const hookMessages = await processSessionStartHooks('resume', { sessionId })
+    const recordedModel = getEngineModelOverride() === undefined ? facts.model : undefined
+    const hookMessages = await processSessionStartHooks('resume', {
+      sessionId,
+      model: recordedModel ? parseUserSpecifiedModel(recordedModel) : undefined,
+    })
     const dedupedHooks = filterDuplicateSessionStartHooks(hookMessages as Message[], deserialized)
 
     return {

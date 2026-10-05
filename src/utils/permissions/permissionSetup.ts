@@ -490,12 +490,10 @@ export function resolveSessionPermissionMode({
   permissionModeCli,
   dangerouslySkipPermissions,
   envBypassArmed,
-  sessionMode,
 }: {
   permissionModeCli?: string
   dangerouslySkipPermissions: boolean
   envBypassArmed?: boolean
-  sessionMode?: PermissionMode
 }): SessionPermissionModeResolution {
   const requested = permissionModeCli ? permissionModeFromString(permissionModeCli) : undefined
   const candidates: Array<{ mode: PermissionMode; source: SessionPermissionModeSource }> = []
@@ -506,7 +504,6 @@ export function resolveSessionPermissionMode({
   if (requested) candidates.push({ mode: requested, source: 'mode-argument' })
   const settingsMode = savedPermissionModeCandidate()
   if (settingsMode) candidates.push({ mode: settingsMode, source: 'saved-settings' })
-  if (sessionMode !== undefined) candidates.push({ mode: sessionMode, source: 'session-birth' })
 
   const ordered: PermissionMode[] = candidates.map(c => c.mode)
   const result = resolvePermissionModeCandidates(ordered, { dangerouslySkipPermissions })

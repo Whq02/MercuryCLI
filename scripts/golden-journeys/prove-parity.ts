@@ -17,11 +17,10 @@ requireDist()
 const { check, failures } = makeChecker()
 console.log('prove-parity — the M5 terminal↔editor fact matrix')
 
+process.env.MERCURY_CONFIG_DIR = RUN_HOME
 seedWorld()
 const sid = SIDS.J3
 seedSubstantialState(sid)
-
-process.env.MERCURY_CONFIG_DIR = RUN_HOME
 process.chdir(FIXTURE_CWD)
 const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
 const { reconcileOnResume, getRunSnapshot } = await import(
@@ -89,7 +88,7 @@ const editorOnly: Array<[string, string | null]> = [
 ]
 for (const [fact, editorValue] of editorOnly) {
   check(
-    `${fact}: the editor projection carries the fact (terminal owner retired with the WORK lane — lead-queued)`,
+    `${fact}: the editor projection carries the fact (its one owner since the WORK lane retired)`,
     editorValue !== null,
     `editor=${JSON.stringify(editorValue)}`,
   )
