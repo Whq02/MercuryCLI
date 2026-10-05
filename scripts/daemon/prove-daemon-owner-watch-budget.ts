@@ -48,7 +48,8 @@ if (!existsSync(DIST)) {
   console.error('✗ dist/mercury.mjs missing — run `bun run build.ts` first')
   process.exit(1)
 }
-const NODE = process.execPath.includes('bun') ? 'node' : process.execPath
+const VENDORED_NODE = join(ROOT, 'dist', 'vendor', 'node', ...(process.platform === 'win32' ? ['node.exe'] : ['bin', 'node']))
+const NODE = existsSync(VENDORED_NODE) ? VENDORED_NODE : 'node'
 const POSIX = process.platform !== 'win32'
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
@@ -278,9 +279,9 @@ if (POSIX) {
   const HELPER = `
 const { spawn } = require('node:child_process')
 const fs = require('node:fs')
-const [dist, work, logPath] = process.argv.slice(1)
+const [node, dist, work, logPath] = process.argv.slice(1)
 const logFd = fs.openSync(logPath, 'a')
-const child = spawn(process.execPath, [dist, 'daemon', 'run', work], {
+const child = spawn(node, [dist, 'daemon', 'run', work], {
   cwd: work,
   env: { ...process.env, MERCURY_DAEMON_OWNER_PID: String(process.pid), MERCURY_DAEMON_OWNER_FD: '3' },
   stdio: ['ignore', logFd, logFd, 'pipe'],
@@ -302,7 +303,7 @@ process.stdin.on('data', d => {
 process.stdin.resume()
 `
   const logPath2 = join(SCRATCH, 'daemon2.log')
-  const helper = spawn(NODE, ['-e', HELPER, DIST, work, logPath2], {
+  const helper = spawn(NODE, ['-e', HELPER, NODE, DIST, work, logPath2], {
     cwd: work,
     env: { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_DAEMON_DIR: daemonDir2, MERCURY_CREDENTIAL_STORE: 'file' },
     stdio: ['pipe', 'pipe', 'inherit'],
