@@ -17,11 +17,18 @@ const MARK = /\p{M}/u
 const SKIN = /[\u{1f3fb}-\u{1f3ff}]/u
 const FLAG = /^[\u{1f1e6}-\u{1f1ff}]{2}$/u
 
+function asksEmojiPresentation(cluster: string): boolean {
+  for (let i = 0; i < cluster.length; i++) {
+    if (cluster.charCodeAt(i) === 0xfe0f) return true
+  }
+  return false
+}
+
 function textWidthClass(cluster: string, cells: number): TextWidthClass | undefined {
   if (cluster.includes('\u20e3')) return undefined
   const joined = cluster.includes('\u200d') && cluster.length > 1
   const toned = SKIN.test(cluster)
-  const presentation = cluster.includes('\ufe0f')
+  const presentation = asksEmojiPresentation(cluster)
   if (Number(joined) + Number(toned) + Number(presentation) > 1) return undefined
   if (joined) return 'zwj'
   if (toned && [...cluster].length > 1) return 'skin'
@@ -61,6 +68,6 @@ export function widthMayDisagree(
   const point = cluster.codePointAt(0)
   return point !== undefined && (
     (point >= 0x1fa70 && point <= 0x1fbff) ||
-    (cluster.length >= 2 && cluster.includes('\ufe0f'))
+    (cluster.length >= 2 && asksEmojiPresentation(cluster))
   )
 }
