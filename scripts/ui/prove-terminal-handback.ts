@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { CONFIG_HOME, scenario, cleanupScenario } from './renderScenarios.ts'
 import {
+  journeyTail,
   lastStateOf,
   mark,
   modeEventsBetween,
@@ -313,6 +314,46 @@ const staysForegroundAfter = (r: HostReport, fromMs: number, toMs: number | null
 const childHeldTerminal = (s: HostSample | undefined): boolean =>
   s !== undefined && s.foreground === false && s.tree.some(row => row.pid !== s.pid && row.pgid === s.tpgid)
 
+section('H · the host reports what it was waiting for and the last frame when its budget ends or it is killed from outside')
+{
+  const spent = runJobControlHost({
+    tag: 'handback-host-budget',
+    argv: ['sleep', '30'],
+    cwd: ROOT,
+    cols: 80,
+    rows: 24,
+    env: journeyEnv({}),
+    bundleMarker: 'sleep',
+    budgetSeconds: 2,
+    steps: [
+      { wait: 'host$', timeout: 15 },
+      { launch: true },
+      { wait: 'a needle that never paints', timeout: 60 },
+      { mark: 'unreached' },
+    ],
+  })
+  check('a spent budget ends the host on its own, inside its budget, with a report', spent.status === 0 && spent.report !== null && (spent.report.elapsedMs ?? 0) < 10_000, journeyTail(spent))
+  check('…that names the wait it was in', spent.report?.endReason === 'budget-while-waiting:a needle that never paints', journeyTail(spent))
+  check('…and carries the last frame and the step', (spent.report?.finalGrid ?? '').includes('host$') && spent.report?.lastStep === 'wait:a needle that never paints' && !spent.report.marks.some(m => m.label === 'unreached'), journeyTail(spent))
+  const killed = runJobControlHost({
+    tag: 'handback-host-killed',
+    argv: ['sleep', '30'],
+    cwd: ROOT,
+    cols: 80,
+    rows: 24,
+    env: journeyEnv({}),
+    bundleMarker: 'sleep',
+    budgetSeconds: 60,
+    hostTimeoutSeconds: 3,
+    steps: [
+      { wait: 'host$', timeout: 15 },
+      { launch: true },
+      { wait: 'a needle that never paints', timeout: 50 },
+    ],
+  })
+  check('a host killed from outside still writes its report, naming the step it died in', killed.status !== 0 && killed.report !== null && killed.report.endReason === 'terminated-by-host-during:wait:a needle that never paints', journeyTail(killed))
+}
+
 section('B · a killed terminal-thief ⇒ the native reclaim flips the foreground group back within 200 ms; the next read succeeds')
 const RECLAIM_DRIVER = join(ROOT, 'scripts/ui/jobcontrolReclaimDriver.ts')
 const parseReceipt = (grid: string): { reclaimed: string; reason: string; before: string; after: string } | null => {
@@ -351,7 +392,7 @@ if (!packPresent) {
       { mark: 'read' },
     ],
   })
-  check('the reclaim journey completed', run.status === 0 && run.report !== null && run.report.endReason === 'steps-done', `status=${run.status} end=${run.report?.endReason} ${run.stderr.slice(-300)} ${run.report?.log.slice(-8).join(' | ') ?? ''}`)
+  check('the reclaim journey completed', run.status === 0 && run.report !== null && run.report.endReason === 'steps-done', journeyTail(run))
   if (run.report && run.report.endReason === 'steps-done') {
     const r = run.report
     const holds = r.samples.find(s => s.label === 'thief-holds')
@@ -399,8 +440,8 @@ if (!packPresent) {
       { mark: 'after' },
     ],
   })
-  check('the fallback journey completed', run.status === 0 && run.report !== null && (run.report.endReason === 'steps-done' || run.report.endReason === 'budget'), `status=${run.status} end=${run.report?.endReason} ${run.stderr.slice(-200)} ${run.report?.log.slice(-8).join(' | ') ?? ''}`)
-  if (run.report && (run.report.endReason === 'steps-done' || run.report.endReason === 'budget')) {
+  check('the fallback journey completed', run.status === 0 && run.report !== null && (run.report.endReason === 'steps-done' || run.report.endReason.startsWith('budget')), journeyTail(run))
+  if (run.report && (run.report.endReason === 'steps-done' || run.report.endReason.startsWith('budget'))) {
     const r = run.report
     const holds = r.samples.find(s => s.label === 'thief-holds')
     const kill = mark(r, 'signal:kill-thief')!
@@ -477,7 +518,7 @@ if (!packPresent) {
   if (run.report !== null && run.report.endReason !== 'steps-done' && composerCrashed && editorNeverHeld) {
     skip('A/C the killed and the normal editor return', COMPOSER_CRASH_POINTER)
   } else {
-    check('the editor journey completed', run.status === 0 && run.report !== null && run.report.endReason === 'steps-done', `status=${run.status} end=${run.report?.endReason} crash=${composerCrashed} ${run.stderr.slice(-200)} ${run.report?.log.slice(-6).join(' | ') ?? ''}`)
+    check('the editor journey completed', run.status === 0 && run.report !== null && run.report.endReason === 'steps-done', `crash=${composerCrashed} ${journeyTail(run)}`)
     if (run.report && run.report.endReason === 'steps-done') {
       const r = run.report
       const kill = mark(r, 'signal:kill-editor')!

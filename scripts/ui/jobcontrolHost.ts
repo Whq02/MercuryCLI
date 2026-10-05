@@ -27,6 +27,9 @@ export type HostReport = {
   finalGrid: string
   log: string[]
   rawBytes: number
+  budgetSeconds?: number
+  elapsedMs?: number
+  lastStep?: string
 }
 
 export type HostRun = {
@@ -47,6 +50,7 @@ export function runJobControlHost(opts: {
   budgetSeconds?: number
   bundleMarker?: string
   bundleTitle?: string
+  hostTimeoutSeconds?: number
 }): HostRun {
   const base = join(tmpdir(), `jobcontrol-${opts.tag}-${process.pid}`)
   const cfgPath = `${base}.cfg.json`
@@ -72,7 +76,7 @@ export function runJobControlHost(opts: {
   )
   const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'jobcontrol-host.py'), cfgPath, reportPath], {
     encoding: 'utf8',
-    timeout: vshotBudgetMs(((opts.budgetSeconds ?? 150) + 30) * 1000),
+    timeout: opts.hostTimeoutSeconds !== undefined ? opts.hostTimeoutSeconds * 1000 : vshotBudgetMs(((opts.budgetSeconds ?? 150) + 30) * 1000),
     env: opts.env,
   })
   const report = existsSync(reportPath) ? (JSON.parse(readFileSync(reportPath, 'utf8')) as HostReport) : null
@@ -82,6 +86,13 @@ export function runJobControlHost(opts: {
 }
 
 export const mark = (r: HostReport, label: string): HostMark | undefined => r.marks.find(m => m.label === label)
+
+export function journeyTail(run: HostRun): string {
+  const r = run.report
+  if (r === null) return `status=${run.status} no report ${run.stderr.slice(-200)}`
+  const rows = r.finalGrid.split('\n').filter(row => row.trim() !== '').slice(-4).map(row => row.trimEnd())
+  return `status=${run.status} end=${r.endReason} at ${r.elapsedMs ?? '?'} ms of ${r.budgetSeconds ?? '?'} s (${r.lastStep ?? '?'}) · ${r.log.slice(-6).join(' | ')} · last frame: ${JSON.stringify(rows)}`
+}
 
 export function modeEventsBetween(r: HostReport, from: number, to: number | null): HostModeEvent[] {
   return r.modeEvents.filter(e => e.offset >= from && (to === null || e.offset < to))
