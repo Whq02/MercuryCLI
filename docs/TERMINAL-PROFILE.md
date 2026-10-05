@@ -146,8 +146,11 @@ of the Boot Menu's Performance section.
   busy, motion drops to reduced — the clock at a quarter-second floor
   (slower while a frame costs more than its interval), the mascot still, the
   glyphs turning at that cadence — and comes back only after a longer run of
-  cheap frames, so it never flaps. While reduced, the status line says
-  `reduced`.
+  cheap frames, so it never flaps. The same drop happens when a run of
+  frames takes longer than the budget to reach the terminal (a slow link:
+  ssh, a console host, a slow pipe), with the same patience before dropping
+  and before coming back. While reduced, the status line says `reduced`,
+  and `reduced · slow link` when the link is the reason.
 - `full`: never reduces.
 - `reduced`: the slow cadence and the still mascot, always.
 - `off`: no idle motion at all — the mascot still, the glyphs static, the
