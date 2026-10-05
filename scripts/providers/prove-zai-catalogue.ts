@@ -5,8 +5,9 @@ import { readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { proofHome } from '../lib/hermetic.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-for (const key of ['ZAI_API_KEY', 'XAI_API_KEY', 'DEEPSEEK_API_KEY', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'MOONSHOT_API_KEY', 'MERCURY_MODEL', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'MERCURY_DISABLE_1M_CONTEXT', 'MERCURY_ZAI_API_BASE']) delete process.env[key]
+for (const key of ['ZAI_API_KEY', 'XAI_API_KEY', 'DEEPSEEK_API_KEY', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'MOONSHOT_API_KEY', 'MERCURY_MODEL', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'MERCURY_DISABLE_1M_CONTEXT']) delete process.env[key]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+process.env.MERCURY_ZAI_API_BASE = 'http://127.0.0.1:1/v4'
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const cat = await import('../../src/services/providers/zai/zaiCatalogue.ts')
@@ -59,7 +60,9 @@ try {
   check('a stored Coding Plan key opens the door', catalogueTrafficVerdict('zai').allowed)
   const epoch = catalogueEpoch()
   const snapshot = await cat.refreshZaiCatalogue({ force: true, fetchImpl: page(FIXTURE) })
-  check('the list is read once from <coding base>/models with the bearer key', requests.length === 1 && requests[0] === 'https://api.z.ai/api/coding/paas/v4/models', requests.join(','))
+  check('the list is read once from <base>/models with the bearer key (the base pinned to a dead loopback for the gate)', requests.length === 1 && requests[0] === 'http://127.0.0.1:1/v4/models', requests.join(','))
+  const road = readFileSync(join(ROOT, 'src/services/providers/zai/zaiCatalogue.ts'), 'utf8')
+  check("the list base is the key's plan base through the one owner (zaiApiBase(env, plan))", road.includes('return zaiApiBase(env, plan)') && road.includes('listBase(env, dispatch.plan)') && !road.includes('api.z.ai'))
   check('the snapshot lands 11 rows under the coding plan with no error', snapshot?.models.length === 11 && snapshot.plan === 'coding' && snapshot.keySource === 'stored' && snapshot.lastError === undefined, JSON.stringify(snapshot))
   check('settlement signals the catalogue epoch', catalogueEpoch() === epoch + 1)
   check('the rows are the list, newest creation first, the flagship family leading', ids(cat.zaiCatalogueRows().rows) === LIVE_IDS_NEWEST_FIRST, ids(cat.zaiCatalogueRows().rows))
@@ -111,8 +114,8 @@ try {
   process.env.ZAI_API_KEY = 'zai-fixture-env-general-key'
   check('another credential never inherits this list: the env key sees the floor', cat.getCachedZaiCatalogue() === null && ids(cat.zaiCatalogueRows().rows) === FLOOR && router.describeZaiProvider().catalogueSource === 'static-pin')
   const envRequests: string[] = []
-  await cat.refreshZaiCatalogue({ force: true, fetchImpl: (async (url: unknown) => { envRequests.push(String(url)); return Response.json({ data: [] }) }) as typeof fetch })
-  check('an env key rides the general base for the list', envRequests[0] === 'https://api.z.ai/api/paas/v4/models', envRequests.join(','))
+  await cat.refreshZaiCatalogue({ force: true, fetchImpl: (async (url: unknown, init?: RequestInit) => { envRequests.push(`${new Headers(init?.headers).get('authorization')} ${String(url)}`); return Response.json({ data: [] }) }) as typeof fetch })
+  check('an env key reads its own list under its own bearer, as a general-plan snapshot', envRequests[0] === 'Bearer zai-fixture-env-general-key http://127.0.0.1:1/v4/models' && cat.getCachedZaiCatalogue()?.plan === 'general', envRequests.join(','))
   check('a successful empty list never drops below the floor: the floor rows stand with the pin provenance', cat.zaiCatalogueRows().source.kind === 'pin' && ids(cat.zaiCatalogueRows().rows) === FLOOR && router.describeZaiProvider().catalogueSource === 'static-pin' && cat.getCachedZaiCatalogue()?.lastError === undefined)
   delete process.env.ZAI_API_KEY
   check('back on the stored key the list is there again', ids(cat.zaiCatalogueRows().rows) === LIVE_IDS_NEWEST_FIRST)
