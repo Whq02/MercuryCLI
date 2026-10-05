@@ -59,7 +59,8 @@ console.log('\n§2 the width has one owner')
   const logs = readFileSync(join(ROOT, 'src/utils/sessionStorage/logs.ts'), 'utf8')
   check('the session-discovery scans import the width from the pool module', /import \{[^}]*\bdiscoveryPoolWidth\b[^}]*\} from '\.\.\/concurrency\.js'/.test(logs))
   check('…and keep no local copy', !/function discoveryPoolWidth\(/.test(logs))
-  check('…still sizing every scan from it', (logs.match(/mapWithConcurrency\([^,]+, discoveryPoolWidth\(\)/g) ?? []).length >= 6)
+  check('…still sizing every scan from it', (logs.match(/mapWithConcurrency\([^,]+, discoveryPoolWidth\(\)|concurrency: discoveryPoolWidth\(\)/g) ?? []).length >= 6)
+  check('…and no scan sized any other way', (logs.match(/mapWithConcurrency\(/g) ?? []).length === (logs.match(/mapWithConcurrency\([^,]+, discoveryPoolWidth\(\)/g) ?? []).length)
 }
 
 console.log('\n§3 the Grep walk is the bounded pool')

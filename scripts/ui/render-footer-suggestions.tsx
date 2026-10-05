@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 import { execFileSync } from 'node:child_process'
 import { writeFileSync, existsSync, mkdirSync, rmSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { basename, join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
+import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 const RUNTIME_CWD = join(import.meta.dir, '..', '..')
 
 let failures = 0
@@ -20,7 +20,7 @@ if (!existsSync(VSHOT) || !existsSync(BIN)) {
 }
 
 const CONFIG_HOME = (process.env.MERCURY_CONFIG_DIR ?? join(process.env.HOME!, '.mercury')).normalize('NFC')
-const PROJECTS = join(CONFIG_HOME, 'projects', sanitizePath(RUNTIME_CWD))
+const PROJECTS = join(CONFIG_HOME, 'projects', basename(getProjectDir(RUNTIME_CWD)))
 const SID = '00000000-aaaa-bbbb-cccc-0000000000f9'
 let u = 0
 const uuid = () => `00000000-0000-4000-8000-${String(++u).padStart(12, '0')}`

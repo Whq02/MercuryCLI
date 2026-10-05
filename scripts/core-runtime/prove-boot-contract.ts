@@ -301,9 +301,11 @@ function staticImports(src: string): {
       readFileSync(join(SRC, 'daemon/concourseWorkers.ts'), 'utf8').includes("? ['--resume', args.sessionId!,"),
   )
   check(
-    'resume-identity: the restore owner adopts the resolved id — the id road carries the id asked for, and the runner door switches to it',
+    'resume-identity: the restore owner adopts the resolved id — the id road carries the id asked for, and the runner door switches to it on its one adoption road, which both legs take',
     loaderSrc.includes('sessionId = asSessionId(source)') &&
-      (doorSrc.match(/switchSession\(\s*asSessionId\(result\.sessionId\),/g) ?? []).length === 2,
+      (doorSrc.match(/switchSession\(\s*asSessionId\(result\.sessionId\),/g) ?? []).length === 1 &&
+      doorSrc.includes('return adopt(result, null)') &&
+      doorSrc.includes('return adopt(result, homePin)'),
   )
 }
 

@@ -18,16 +18,16 @@ console.log('============================================================')
 console.log(' lite-metadata sidechain — first-line scoped (HB-0108)')
 console.log('============================================================')
 
-section('source: isSidechain reads the FIRST parsed message field (firstMessageField)')
+section('source: isSidechain reads the FIRST parsed message field (firstField)')
 check(
-  'firstMessageField helper parses each candidate line and tests `field in o`',
-  /function firstMessageField\(head: string, field: string\): unknown \{[\s\S]{0,520}JSON\.parse\(line\)[\s\S]{0,160}field in o\) return o\[field\]/.test(
+  'firstField helper parses each candidate line and tests `field in record`',
+  /function firstField\(head: string, field: string\): unknown \{[\s\S]{0,520}JSON\.parse\(line\)[\s\S]{0,160}field in record\) return record\[field\]/.test(
     storage,
   ),
 )
 check(
-  'isSidechain = firstMessageField(head, "isSidechain") === true (NOT a whole-head substring)',
-  /const isSidechain = firstMessageField\(head, 'isSidechain'\) === true/.test(storage),
+  'isSidechain: firstField(head, "isSidechain") === true (NOT a whole-head substring)',
+  /isSidechain: firstField\(head, 'isSidechain'\) === true/.test(storage),
 )
 check('the old unscoped head.includes("isSidechain") is gone', !/head\.includes\('"isSidechain":true'\)/.test(storage))
 

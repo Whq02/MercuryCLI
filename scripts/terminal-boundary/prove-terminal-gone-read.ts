@@ -2,11 +2,11 @@
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
-import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
+import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const BIN = process.env.MERCURY_TERMINAL_GONE_BIN ?? join(ROOT, 'dist/mercury.mjs')
@@ -39,7 +39,7 @@ function seedHome(name: string): { home: string; cwd: string; transcript: string
   mkdirSync(home, { recursive: true })
   mkdirSync(cwd, { recursive: true })
   seedFirstRun(home, [cwd])
-  const projDir = join(home, 'projects', sanitizePath(cwd))
+  const projDir = join(home, 'projects', basename(getProjectDir(cwd)))
   mkdirSync(projDir, { recursive: true })
   const lines: Record<string, unknown>[] = []
   let prev: string | null = null

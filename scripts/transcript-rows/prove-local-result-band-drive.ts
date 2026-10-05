@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 
 const arg = (name: string): string | undefined => {
   const at = process.argv.indexOf(name)
@@ -17,7 +17,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 const { seedFirstRun } = await import(join(root, 'scripts/lib/firstRunSeed.ts'))
 const { encodeSeedTranscript } = await import(join(root, 'scripts/lib/seedTranscript.ts'))
-const { sanitizePath } = await import(join(root, 'src/utils/sessionStoragePortable.ts'))
+const { getProjectDir } = await import(join(root, 'src/utils/sessionStoragePortable.ts'))
 const { resolveCaptureDriver, captureEngineEntry, vshotBudgetMs } = await import(join(root, 'scripts/lib/captureDriver.ts'))
 const driver = resolveCaptureDriver()
 if (driver.kind === 'unavailable') throw new Error(driver.remedy)
@@ -106,7 +106,7 @@ async function drive(cols: number, rows: number): Promise<{ marks: Mark[]; exit:
   add({ type: 'user', message: { role: 'user', content: 'Show the notes.' } })
   add({ type: 'assistant', message: { id: 'notes-reply', role: 'assistant', type: 'message', model: 'claude-opus-4-8', stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 10, output_tokens: 4, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }, content: [{ type: 'text', text: 'Here they are.' }] } })
   add({ type: 'user', message: { role: 'user', content: `<local-command-stdout>${longResult()}</local-command-stdout>` } })
-  const project = join(config, 'projects', sanitizePath(cwd))
+  const project = join(config, 'projects', basename(getProjectDir(cwd)))
   mkdirSync(project, { recursive: true })
   writeFileSync(join(project, `${sid}.jsonl`), encodeSeedTranscript(seeded, sid))
   const node = join(dirname(dist), 'vendor/node', process.platform === 'win32' ? 'node.exe' : 'bin/node')

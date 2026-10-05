@@ -1,7 +1,7 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { basename, join, resolve } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -36,7 +36,7 @@ if (!existsSync(DIST)) {
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
 const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
-const { sanitizePath } = await import('../../src/utils/sessionStoragePortable.ts')
+const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
 
 const SID = '00000000-aaaa-bbbb-cccc-000000000077'
 const CAPTURE_OUT = process.env.PINGS_CAPTURE_OUT
@@ -85,7 +85,7 @@ function makeWorld(tag: string): World {
     prev = uuid
     return outRow
   })
-  const projDir = join(home, 'projects', sanitizePath(cwd))
+  const projDir = join(home, 'projects', basename(getProjectDir(cwd)))
   mkdirSync(projDir, { recursive: true })
   writeFileSync(join(projDir, `${SID}.jsonl`), rows.map(l => JSON.stringify(entryToRecord(l as never, ctx as never))).join('\n') + '\n')
   return { home, cwd, aux, out }

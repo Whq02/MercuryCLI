@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/utils/sessionStorage/** src/utils/sessionStoragePortable.ts src/history.ts
+# gate-watch: src/utils/sessionStorage/** src/utils/sessionStoragePortable.ts src/history.ts src/rows/storage.ts
 # gate-watch: scripts/engine-durability/harness.ts scripts/lib/codeText.ts scripts/lib/goldenReplay.ts
 # gate-watch: scripts/staleness/prove-stale-registry.ts src/Tool.ts src/bootstrap/state.ts
 # gate-watch: src/daemon/concourseWorkers.ts src/fabric/transcriptDecode.ts src/hooks/useHistorySearch.ts
@@ -20,6 +20,13 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fail=0
 echo "── session-persistence proofs ──"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-sessionstorage-parity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-sessionstorage-parity.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-resume-parity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-resume-parity.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-storage-row-vocabulary.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-storage-row-vocabulary.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-indexed-fold.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-indexed-fold.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-snip-cycle.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-snip-cycle.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-meta-owner.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-meta-owner.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-tombstone-record-envelope.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-tombstone-record-envelope.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-sdk-listing-tag.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-sdk-listing-tag.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-project-key-canonical.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-project-key-canonical.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-project-home-fold.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-project-home-fold.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-project-key-stability.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-project-key-stability.ts" "$__t" "$__rc"

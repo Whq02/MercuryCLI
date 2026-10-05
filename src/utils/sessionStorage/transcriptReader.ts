@@ -1,6 +1,6 @@
 import type { UUID } from 'crypto'
 import { closeSync, openSync, readSync, statSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { open, readFile } from 'node:fs/promises'
 import { decodeTranscriptBuffer, type DecodedTranscript, type InvalidShape, type MalformedLine } from '../../fabric/transcriptDecode.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import type { Entry, SerializedMessage, TranscriptMessage } from '../../types/logs.js'
@@ -12,13 +12,12 @@ import {
   SKIP_PRECOMPACT_THRESHOLD,
 } from '../sessionStoragePortable.js'
 import {
-  applyPreservedSegmentRelinks,
-  applySnipRemovals,
   buildConversationChain,
   findLatestMessage,
   removeExtraFields,
 } from './chain.js'
-import { applyTranscriptEntry, emptyFoldState, type TranscriptFoldState } from './fold.js'
+import { applyTranscriptEntry, emptyFoldState, finishTranscriptFold, type TranscriptFoldState } from './fold.js'
+import { transcriptRows } from './rowGraph.js'
 import { isTranscriptMessage } from './paths.js'
 import {
   resumeSnapshotEnabled,
@@ -297,7 +296,6 @@ function growthRead(state: ReaderState): TranscriptRead | null {
     const decoded = decodeTranscriptBuffer<Entry>(complete)
     if (decoded.refusal) return reset(state, 'a line outside the record format landed')
     const malformed = decoded.malformed.length
-    let sawSystem = false
     for (const entry of decoded.entries) {
       if (
         state.pruned &&
@@ -308,13 +306,9 @@ function growthRead(state: ReaderState): TranscriptRead | null {
       ) {
         return reset(state, 'a row parents onto a pruned branch')
       }
-      if (entry.type === 'system') sawSystem = true
       applyTranscriptEntry(state.fold, entry)
     }
-    if (sawSystem) {
-      applyPreservedSegmentRelinks(state.fold.messages)
-      applySnipRemovals(state.fold.messages)
-    }
+    finishTranscriptFold(state.fold)
     accounting = { malformed, invalid: decoded.invalid.length, totalLines: decoded.totalLines }
     if (malformed > 0 || accounting.invalid > 0) {
       logError(
@@ -510,8 +504,7 @@ async function coldRead(path: string, policy: TranscriptReadPolicy): Promise<{ s
   }
 
   if (state.refusal === null) {
-    applyPreservedSegmentRelinks(state.fold.messages)
-    applySnipRemovals(state.fold.messages)
+    finishTranscriptFold(state.fold)
     if (!snapshotCovered && policy === 'resume' && resumeSnapshotEnabled() && offset >= SNAPSHOT_MIN_BYTES) {
       writeResumeSnapshot(path, state.fold, offset)
       wroteSnapshot = true
@@ -641,6 +634,18 @@ export function readTranscriptBytesAfter(path: string, cursor: TranscriptByteCur
   }
 }
 
+export function readTranscriptTailSync(path: string, bytes: number): string {
+  try {
+    const stat = io.statSync(path)
+    if (!stat) return ''
+    const buffer = io.readRangeSync(path, Math.max(0, stat.size - bytes), stat.size)
+    transcriptReaderCensus.bytesRead += buffer.length
+    return buffer.toString('utf8')
+  } catch {
+    return ''
+  }
+}
+
 export function scanTranscriptLinesBackward(path: string, visit: (line: string) => boolean | void): void {
   const st = io.statSync(path)
   if (st === null || st.size === 0) return
@@ -730,37 +735,7 @@ function decodeLineByLine(whole: Buffer): DecodedTranscript<Entry> {
 
 
 export function computeResumeLeaves(messages: Map<UUID, TranscriptMessage>): Set<UUID> {
-  const allMessages = [...messages.values()]
-
-  const parentUuids = new Set(
-    allMessages.map(msg => msg.parentUuid).filter((uuid): uuid is UUID => uuid !== null),
-  )
-  const terminalMessages = allMessages.filter(msg => !parentUuids.has(msg.uuid))
-
-  const leafUuids = new Set<UUID>()
-  let hasCycle = false
-  for (const terminal of terminalMessages) {
-    const seen = new Set<UUID>()
-    let current: TranscriptMessage | undefined = terminal
-    while (current) {
-      if (seen.has(current.uuid)) {
-        hasCycle = true
-        break
-      }
-      seen.add(current.uuid)
-      if (current.type === 'user' || current.type === 'assistant') {
-        leafUuids.add(current.uuid)
-        break
-      }
-      current = current.parentUuid ? messages.get(current.parentUuid) : undefined
-    }
-  }
-
-  if (hasCycle) {
-    logForDebugging('cycle detected during resume-leaf computation', { level: 'warn' })
-  }
-
-  return leafUuids
+  return transcriptRows(messages).resumeLeaves()
 }
 
 export function _resetTranscriptReaderForTesting(): void {
@@ -777,6 +752,10 @@ export function _resetTranscriptReaderForTesting(): void {
 
 export function _transcriptReaderRetentionForTesting(): { states: string[]; retained: string[]; recent: string[] } {
   return { states: [...states.keys()], retained: [...retained.keys()], recent: [...recent] }
+}
+
+export function _scanPreBoundaryMetadataForTesting(filePath: string, endOffset: number): Promise<string[]> {
+  return scanPreBoundaryMetadata(filePath, endOffset)
 }
 
 
@@ -800,61 +779,51 @@ function resolveMetadataBuf(carry: Buffer | null, chunkBuf: Buffer): Buffer | nu
   return firstNl === -1 ? null : chunkBuf.subarray(firstNl + 1)
 }
 
+const METADATA_SCAN_WINDOW_BYTES = 64 * 1024
+
+function hasMetadataMarker(buf: Buffer, from = 0, to = buf.length): boolean {
+  for (const marker of METADATA_MARKER_BUFS) {
+    const at = buf.indexOf(marker, from)
+    if (at !== -1 && at < to) return true
+  }
+  return false
+}
+
+function collectMetadataLines(buf: Buffer, into: string[]): Buffer {
+  if (!hasMetadataMarker(buf)) {
+    const lastNl = buf.lastIndexOf(NEWLINE)
+    return lastNl >= 0 ? buf.subarray(lastNl + 1) : buf
+  }
+  let lineStart = 0
+  for (let nl = buf.indexOf(NEWLINE); nl !== -1; nl = buf.indexOf(NEWLINE, lineStart)) {
+    if (hasMetadataMarker(buf, lineStart, nl)) into.push(buf.toString('utf-8', lineStart, nl))
+    lineStart = nl + 1
+  }
+  return buf.subarray(lineStart)
+}
+
 async function scanPreBoundaryMetadata(filePath: string, endOffset: number): Promise<string[]> {
-  const { createReadStream } = await import('fs')
-
-  const stream = createReadStream(filePath, { end: endOffset - 1 })
   const metadataLines: string[] = []
-  let carry: Buffer | null = null
-
-  for await (const chunk of stream) {
-    const chunkBuf = chunk as Buffer
-    const buf = resolveMetadataBuf(carry, chunkBuf)
-    if (buf === null) {
-      carry = null
-      continue
-    }
-
-    let hasAnyMarker = false
-    for (const m of METADATA_MARKER_BUFS) {
-      if (buf.includes(m)) {
-        hasAnyMarker = true
-        break
+  const handle = await open(filePath, 'r')
+  try {
+    let carry: Buffer | null = null
+    for (let position = 0; position < endOffset; ) {
+      const window = Buffer.allocUnsafe(Math.min(METADATA_SCAN_WINDOW_BYTES, endOffset - position))
+      const { bytesRead } = await handle.read(window, 0, window.length, position)
+      if (bytesRead === 0) break
+      position += bytesRead
+      const buf = resolveMetadataBuf(carry, window.subarray(0, bytesRead))
+      if (buf === null) {
+        carry = null
+        continue
       }
+      carry = collectMetadataLines(buf, metadataLines)
+      if (carry.length > 64 * 1024) carry = null
     }
-
-    if (hasAnyMarker) {
-      let lineStart = 0
-      let nl = buf.indexOf(NEWLINE)
-      while (nl !== -1) {
-        for (const m of METADATA_MARKER_BUFS) {
-          const mIdx = buf.indexOf(m, lineStart)
-          if (mIdx !== -1 && mIdx < nl) {
-            metadataLines.push(buf.toString('utf-8', lineStart, nl))
-            break
-          }
-        }
-        lineStart = nl + 1
-        nl = buf.indexOf(NEWLINE, lineStart)
-      }
-      carry = buf.subarray(lineStart)
-    } else {
-      const lastNl = buf.lastIndexOf(NEWLINE)
-      carry = lastNl >= 0 ? buf.subarray(lastNl + 1) : buf
-    }
-
-    if (carry.length > 64 * 1024) carry = null
+    if (carry !== null && carry.length > 0 && hasMetadataMarker(carry)) metadataLines.push(carry.toString('utf-8'))
+  } finally {
+    await handle.close()
   }
-
-  if (carry !== null && carry.length > 0) {
-    for (const m of METADATA_MARKER_BUFS) {
-      if (carry.includes(m)) {
-        metadataLines.push(carry.toString('utf-8'))
-        break
-      }
-    }
-  }
-
   return metadataLines
 }
 

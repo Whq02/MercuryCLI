@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'projects-truth-'))
 delete process.env.MERCURY_HOME
@@ -81,7 +81,7 @@ const read = (rel: string): string => readFileSync(rel, 'utf8')
 {
   const { mkdirSync, utimesSync, writeFileSync, existsSync } = await import('node:fs')
   const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
-  const { sanitizePath } = await import('../../src/utils/sessionStoragePortable.ts')
+  const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
   const { workedInProjects, scanBootCardFacts } = await import('../../src/utils/bootCardFacts.ts')
   const home = process.env.MERCURY_CONFIG_DIR!
   const projReal = join(home, 'repo-real')
@@ -119,8 +119,8 @@ const read = (rel: string): string => readFileSync(rel, 'utf8')
   const SID_REAL = '00000000-aaaa-4000-8000-00000000aea1'
   const SID_HUSK = '00000000-aaaa-4000-8000-00000000dead'
   const SID_ONLY = '00000000-aaaa-4000-8000-00000000dea2'
-  const dirReal = join(home, 'projects', sanitizePath(projReal))
-  const dirGhost = join(home, 'projects', sanitizePath(projGhost))
+  const dirReal = join(home, 'projects', basename(getProjectDir(projReal)))
+  const dirGhost = join(home, 'projects', basename(getProjectDir(projGhost)))
   mkdirSync(dirReal, { recursive: true })
   mkdirSync(dirGhost, { recursive: true })
   const old = new Date(Date.now() - 3_600_000)

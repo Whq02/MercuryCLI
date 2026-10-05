@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 
 const arg = (name: string): string | undefined => {
   const at = process.argv.indexOf(name)
@@ -25,7 +25,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 const { seedFirstRun } = await import(join(root, 'scripts/lib/firstRunSeed.ts'))
 const { encodeSeedTranscript } = await import(join(root, 'scripts/lib/seedTranscript.ts'))
-const { sanitizePath } = await import(join(root, 'src/utils/sessionStoragePortable.ts'))
+const { getProjectDir } = await import(join(root, 'src/utils/sessionStoragePortable.ts'))
 const { resolveCaptureDriver, captureEngineEntry, vshotBudgetMs } = await import(join(root, 'scripts/lib/captureDriver.ts'))
 const { startOverflowFixture } = await import(join(root, 'scripts/compact/overflowFixture.ts'))
 const driver = resolveCaptureDriver()
@@ -51,7 +51,7 @@ for (let i = 0; i < 16; i++) {
   add({ type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `read-${i}`, content: `revision ${i}\n${'the current file contents remain available for the next step.\n'.repeat(650)}` }] } })
 }
 add({ type: 'assistant', message: { id: 'ready-message', role: 'assistant', type: 'message', model: 'gpt-5.6-sol', stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 165000, output_tokens: 6, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }, content: [{ type: 'text', text: 'The latest file is ready.' }] } })
-const project = join(config, 'projects', sanitizePath(cwd))
+const project = join(config, 'projects', basename(getProjectDir(cwd)))
 mkdirSync(project, { recursive: true })
 writeFileSync(join(project, `${sid}.jsonl`), encodeSeedTranscript(rows, sid))
 const node = join(dirname(dist), 'vendor/node', process.platform === 'win32' ? 'node.exe' : 'bin/node')

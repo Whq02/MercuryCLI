@@ -96,8 +96,12 @@ section('§6 the source pins: the pre-boundary metadata pass keeps the entry acr
 {
   const reader = readFileSync(join(import.meta.dir, '../../src/utils/sessionStorage/transcriptReader.ts'), 'utf8')
   check('the pre-boundary metadata pass lists the model kind beside the mode and the advisor switch', reader.includes(`'"metaKind":"model"'`) && reader.includes(`'"metaKind":"mode"'`))
-  const writerSrc = readFileSync(join(import.meta.dir, '../../src/utils/sessionStorage/writer.ts'), 'utf8')
-  check('the writer appends the model kind unconditionally, like every other session fact', /ALWAYS_APPEND_KINDS = new Set<Entry\['type'\]>\(\[[^\]]*'model'/s.test(writerSrc))
+  const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+  enableConfigs()
+  const before = modelLines().length
+  await project.appendEntry({ type: 'model', sessionId: SID as never, model: CARRIER })
+  await writer.flushSessionStorage()
+  check('the writer appends the model kind unconditionally, like every other session fact', modelLines().length === before + 1 && entriesOf().at(-1)?.model === CARRIER)
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })
