@@ -37,6 +37,10 @@ export function cleanupStream(
   }
 }
 
+function positiveUsageValue(value: number | null | undefined, previous: number): number {
+  return value != null && value > 0 ? value : previous
+}
+
 export function updateUsage(
   usage: Readonly<NonNullableUsage>,
   partUsage: ApiMessageDeltaUsage | undefined,
@@ -45,20 +49,13 @@ export function updateUsage(
     return { ...usage }
   }
   return {
-    input_tokens:
-      partUsage.input_tokens !== null && partUsage.input_tokens > 0
-        ? partUsage.input_tokens
-        : usage.input_tokens,
-    cache_creation_input_tokens:
-      partUsage.cache_creation_input_tokens !== null &&
-      partUsage.cache_creation_input_tokens > 0
-        ? partUsage.cache_creation_input_tokens
-        : usage.cache_creation_input_tokens,
-    cache_read_input_tokens:
-      partUsage.cache_read_input_tokens !== null &&
-      partUsage.cache_read_input_tokens > 0
-        ? partUsage.cache_read_input_tokens
-        : usage.cache_read_input_tokens,
+    input_tokens: positiveUsageValue(partUsage.input_tokens, usage.input_tokens),
+    cache_creation_input_tokens: positiveUsageValue(
+      partUsage.cache_creation_input_tokens, usage.cache_creation_input_tokens,
+    ),
+    cache_read_input_tokens: positiveUsageValue(
+      partUsage.cache_read_input_tokens, usage.cache_read_input_tokens,
+    ),
     output_tokens: partUsage.output_tokens ?? usage.output_tokens,
     server_tool_use: {
       web_search_requests:
@@ -212,36 +209,27 @@ export function addCacheBreakpoints(
   if (newCacheEdits && result.length > 0) {
     const dedupedNewEdits = deduplicateEdits(newCacheEdits)
     if (dedupedNewEdits.edits.length > 0) {
-      for (let i = result.length - 1; i >= 0; i--) {
-        const msg = result[i]
-        if (msg && msg.role === 'user') {
-          if (!Array.isArray(msg.content)) {
-            msg.content = [{ type: 'text', text: msg.content as string }]
-          }
-          insertBlockAfterToolResults(msg.content, dedupedNewEdits)
-          pinCacheEdits(i, newCacheEdits)
-
-          logForDebugging(
-            `Added cache_edits block with ${dedupedNewEdits.edits.length} deletion(s) to message[${i}]: ${dedupedNewEdits.edits.map(e => e.cache_reference).join(', ')}`,
-          )
-          break
+      const i = result.findLastIndex(message => message?.role === 'user')
+      const msg = result[i]
+      if (msg) {
+        if (!Array.isArray(msg.content)) {
+          msg.content = [{ type: 'text', text: msg.content as string }]
         }
+        insertBlockAfterToolResults(msg.content, dedupedNewEdits)
+        pinCacheEdits(i, newCacheEdits)
+        logForDebugging(
+          `Added cache_edits block with ${dedupedNewEdits.edits.length} deletion(s) to message[${i}]: ${dedupedNewEdits.edits.map(e => e.cache_reference).join(', ')}`,
+        )
       }
     }
   }
 
   if (enablePromptCaching) {
-    let lastCCMsg = -1
-    for (let i = 0; i < result.length; i++) {
-      const msg = result[i]!
-      if (Array.isArray(msg.content)) {
-        for (const block of msg.content) {
-          if (block && typeof block === 'object' && 'cache_control' in block) {
-            lastCCMsg = i
-          }
-        }
-      }
-    }
+    const lastCCMsg = result.findLastIndex(message =>
+      Array.isArray(message.content) && message.content.some(block =>
+        block && typeof block === 'object' && 'cache_control' in block,
+      ),
+    )
 
     if (lastCCMsg >= 0) {
       for (let i = 0; i < lastCCMsg; i++) {
