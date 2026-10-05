@@ -106,9 +106,17 @@ export function preserveUntouchedLineEndings(
     bottomRaw--
     bottomUpdated--
   }
-  const middleStyled = updatedLines
-    .slice(top, bottomUpdated + 1)
-    .map(line => (majority === 'CRLF' ? line.replace(/\n$/, '\r\n') : line))
+  const rawMiddle = rawLines.slice(top, bottomRaw + 1)
+  const updatedMiddle = updatedLines.slice(top, bottomUpdated + 1)
+  const rawKnown = new Set(rawMiddle.map(normalize))
+  const lineForLine =
+    rawMiddle.length === updatedMiddle.length &&
+    updatedMiddle.every((line, index) => line === normalize(rawMiddle[index] as string) || !rawKnown.has(line))
+  const middleStyled = updatedMiddle.map((line, index) => {
+    const own = lineForLine ? (rawMiddle[index] as string) : ''
+    const ending = own.endsWith('\r\n') ? 'CRLF' : own.endsWith('\n') ? 'LF' : majority
+    return ending === 'CRLF' ? line.replace(/\n$/, '\r\n') : line
+  })
   return [
     ...rawLines.slice(0, top),
     ...middleStyled,
