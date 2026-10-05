@@ -109,7 +109,7 @@ section('§D the surfaces (structural)')
   const rateRow = readFileSync(join(ROOT, 'src/components/messages/RateLimitMessage.tsx'), 'utf8')
   check('the renderer no longer recomputes the slot remedy from live state (FN-016 R9)', !rateRow.includes('slotWallAppendix'))
   check('…nor the account or lane remedies (a settled row never rewrites)', !rateRow.includes('isClaudeAISubscriber') && !rateRow.includes('liveCapFailoverTarget'))
-  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
+  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/useComposerModelDoors.tsx'), 'utf8')
   check('the composer runs the slot rung through the ONE decision fn', composer.includes('decideSlotWallAction(posture, {'))
   check('the rung sits BEFORE the cross-family posture-off return', composer.includes('decideSlotWallAction') && composer.indexOf('decideSlotWallAction') < composer.indexOf("if (posture === 'off') return"))
   check('the offer mounts SlotOfferCard on its own overlay', composer.includes("overlay === 'slot-offer'") && composer.includes('<SlotOfferCard'))
@@ -135,7 +135,7 @@ section('§E the card never fights the keyboard, and the memories outlive the co
   _resetOfferMemoriesForTesting()
   check('the test reset clears both memories', !offerDismissed('slot|anthropic|subscription|123') && !offerAutoDone('handoff|rejected|999'))
 
-  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
+  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/useComposerModelDoors.tsx'), 'utf8')
   check('the composer consults the session-scoped memories (no component-ref sets remain)',
     composer.includes('offerDismissed(slotKey)') && !composer.includes('slotDismissedRef') && !composer.includes('capDismissedRef') && !composer.includes('slotAutoOnceRef') && !composer.includes('capAutoOnceRef'))
   check('the slot offer defers while a turn is in flight', composer.includes('if (turnInFlightNow) return'))
@@ -147,7 +147,7 @@ section('§E the card never fights the keyboard, and the memories outlive the co
 
 section('§G a dismissed slot offer leaves the ladder standing (FN-016 R19)')
 {
-  const composerCode = codeOnlyText('PromptInput.tsx', readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8'))
+  const composerCode = codeOnlyText('useComposerModelDoors.tsx', readFileSync(join(ROOT, 'src/components/PromptInput/useComposerModelDoors.tsx'), 'utf8'))
   check('the mount is followed by its own return (the rung took the screen)',
     /setOverlay\('slot-offer'\)\s*\n\s*return\s*\n\s*\}/.test(composerCode))
   check('the dismissed path falls through to the next rung (no return between the mount guard and the auto arm)',
@@ -161,7 +161,7 @@ section('§F the offer card speaks only what the estate observed (FN-016 R18)')
   const card = readFileSync(join(ROOT, 'src/components/SlotOfferCard.tsx'), 'utf8')
   check('the card carries the observation fact (headroomObserved)', card.includes('headroomObserved'))
   check('…and speaks the unobserved window as such', card.includes('unobserved') && card.includes('signed in with headroom'))
-  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
+  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/useComposerModelDoors.tsx'), 'utf8')
   check('the composer hands the card the view\'s own wallKnown verdict', composer.includes('headroomObserved: view.other.wallKnown') && composer.includes('headroomObserved={offer.headroomObserved}'))
 }
 
@@ -188,7 +188,7 @@ section('§H the switch receipt is durable (FN-016 R20)')
   check('a chat without the door answers false (the caller keeps the footer as the record)', paintSlotSwitchReceipt({ switched: false, family: 'openai', receipt: refusal }) === false)
   focus._resetFocusedSessionConnectorForTesting()
 
-  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
+  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/useComposerModelDoors.tsx'), 'utf8')
   check('the auto arm receipts through the owner', /noteOfferAutoDone\(slotKey\)\s*\n\s*const outcome = switchActiveSlot\(family\)\s*\n[\s\S]{0,300}?const durable = paintSlotSwitchReceipt\(outcome\)/.test(composer))
   check('the accept arm receipts through the owner', /onAccept=\{\(\) => \{[\s\S]{0,600}?switchActiveSlot\(offer\.family\)[\s\S]{0,300}?const durable = paintSlotSwitchReceipt\(outcome\)/.test(composer))
   check('both footers carry the transient, the whole receipt only without a door', (composer.match(/text: durable \? slotSwitchTransient\(outcome\.receipt\) : outcome\.receipt/g) ?? []).length === 2)
@@ -220,7 +220,7 @@ section('§H the wall key is stable: a reset-moment shift never re-arms; an obse
   check("the other seat's clear leaves this seat's answered wall alone", offerDismissed(key))
   check('a seat flip keys a new wall', slotWallKey('anthropic', 'api-key') !== key)
   _resetOfferMemoriesForTesting()
-  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
+  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/useComposerModelDoors.tsx'), 'utf8')
   check('the composer keys the rung on the owner and feeds it the observed wall every commit', composer.includes("slotWallKey(family, view.active ?? '')") && composer.includes("noteSlotWallObserved(family, view.active ?? '', activeWall.walled)"))
   check('the composer no longer embeds the reset moment in the slot key', !composer.includes("${activeWall.resetsAtMs ?? ''}`"))
 }

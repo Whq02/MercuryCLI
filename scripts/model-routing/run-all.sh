@@ -9,6 +9,7 @@
 # gate-watch: src/bootstrap/state.ts src/cli/run.ts src/commands/context/context-noninteractive.ts
 # gate-watch: src/commands/effort/* src/commands/model/mercuryModel.tsx src/commands/model/model.tsx
 # gate-watch: src/components/* src/components/PromptInput/PromptInput.tsx src/components/Settings/Config.tsx
+# gate-watch: src/components/PromptInput/useComposerModelDoors.tsx
 # gate-watch: src/components/agents/studio/StudioEditor.tsx
 # gate-watch: src/components/concourse/CoordinatorModelPicker.tsx src/components/mercury-ui/EffortChip.tsx
 # gate-watch: src/components/mercury-ui/HarnessChip.tsx src/components/mercury-ui/parity/HarnessView.tsx

@@ -9,62 +9,35 @@ import React, {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { appendFileSync } from 'node:fs'
-import { flagEnv } from '../../substrate/flagRegistry.js'
-import { Box, Text, useInput } from '../../ink.js'
-import { KeyboardEvent } from '../../ink/events/keyboard-event.js'
-import type { DOMElement } from '../../ink/dom.js'
-import { nodeCache, type CachedLayout } from '../../ink/node-cache.js'
-import { useSelection } from '../../ink/hooks/use-selection.js'
-import { Cursor } from '../../utils/Cursor.js'
-import {
-  noteOwnInputSelectionChanged,
-  noteOwnInputSelectionSettled,
-  registerInputSelectionOwner,
-} from '../../utils/cockpit/inputSelectionBridge.js'
-import type { TextGesture } from '../../ink/events/text-gesture.js'
+import { Box, Text } from '../../ink.js'
 import { getFocusedSessionConnector, subscribeThroughFocused } from '../../services/engine-connector/focusedConnector.js'
 import type { Command } from '../../commands.js'
 import type { LocalJSXCommandContext } from '../../commands.js'
 import { useNotifications } from '../../context/notifications.js'
-import { useSetPromptOverlayDialog } from '../../context/promptOverlayContext.js'
 import {
   currentSurfaceRoute,
-  isPriorGenerationInput,
   subscribeSurfaceRoute,
   surfaceRouteVersion,
 } from '../../context/surfaceRoute.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useArrowKeyHistory } from '../../hooks/useArrowKeyHistory.js'
 import { useHistorySearch } from '../../hooks/useHistorySearch.js'
-import { useInputBuffer } from '../../hooks/useInputBuffer.js'
 import { usePromptSuggestion } from '../../hooks/usePromptSuggestion.js'
-import { useDoublePress } from '../../hooks/useDoublePress.js'
 import { useTypeahead, type SuggestionsState } from '../../hooks/useTypeahead.js'
-import { useKeybinding, useKeybindings } from '../../keybindings/useKeybinding.js'
-import { getShortcutDisplay } from '../../keybindings/shortcutFormat.js'
+import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import type { VerificationStatus } from '../../hooks/useApiKeyVerification.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import * as pendingInput from '../../input-core/pending-input.js'
 import { holdToTalkKey, setHoldToTalkEditor } from '../../services/voice/holdToTalk.js'
-import { cancelVoiceCapture, subscribeVoice, voiceSnapshot } from '../../services/voice/voiceSession.js'
+import { subscribeVoice, voiceSnapshot } from '../../services/voice/voiceSession.js'
 import { useAppState, useAppStateStore, useSetAppState, type AppState } from '../../state/AppState.js'
 import {
-  clearMainChat,
   enterCrewmateView,
   exitCrewmateView,
-  setMainChat,
 } from '../../state/crewmateViewHelpers.js'
-import { composerTargetTaskId } from '../../state/selectors.js'
 import { useComposerCrewmate, useViewedCrewmate } from '../tasks/useCrewmateView.js'
-import { CREWMATE_BETWEEN_TURNS_DETAIL, crewClearedWords, crewClearRefusedWords, crewmateEscBackWords, crewmateInterruptedWords, crewmateInterruptRefusedWords, crewmateQueuedWords, crewmateRefusedWords, crewmateResumedWords, operatorLinePlate } from '../../utils/cockpit/crewmateWords.js'
-import { crewStateLabel } from '../../services/engine-connector/crewFacts.js'
-import { clearCrewmate } from '../../state/crewLedger.js'
-import { interruptCrewmate } from '../tasks/crewmateInterrupt.js'
-import { queueCrewmateLine, refuseCrewmateLine } from '../tasks/crewmateQueue.js'
 import type { PromptInputMode } from '../../types/textInputTypes.js'
-import type { ImageDimensions } from '../../utils/imageResizer.js'
 import type { PastedContent } from '../../utils/config.js'
 import type { Message } from '../../types/message.js'
 import type { VimMode } from '../../types/textInputTypes.js'
@@ -72,44 +45,14 @@ import {
   consumeCommandDispatch,
   consumeHelmActivation,
   consumePromptPrefill,
-  currentHelmRow,
-  cycleHelmFocus,
-  getHelmCursor,
   getHelmFocus,
   getHelmVersion,
-  helmRailPastEntryBuffer,
-  moveHelmCursor,
-  nextHelmPane,
-  requestHelmRowActivation,
   setHelmFocus,
-  setPromptEmpty,
   subscribeHelmFocus,
 } from '../../utils/cockpit/helmFocus.js'
 import {
   beginConsoleCompose,
-  consoleAbortAsk,
-  consoleBackspace,
-  consoleClear,
-  consoleCursorEnd,
-  consoleCursorHome,
-  consoleDeleteForward,
-  consoleEnabled,
-  consoleHistoryMove,
-  consoleInsert,
-  consoleKillLine,
-  consoleKillWord,
-  consoleMoveCursor,
-  consoleSubmitBuffer,
-  exitConsoleCompose,
-  getConsoleBuffer,
-  isConsoleComposing,
 } from '../../utils/cockpit/helmConsole.js'
-import { runConsoleAsk } from '../../utils/cockpit/helmConsoleAsk.js'
-import { classifyAgentViewSubmission } from './promptIntent.js'
-import { getModeFromInput, getValueFromInput, prependModeCharacterToInput } from './inputModes.js'
-import { maybeTruncateMessageForInput } from './inputPaste.js'
-import { normalizePastedInput } from '../../input-core/composer-document.js'
-import { useMaybeTruncateInput } from './useMaybeTruncateInput.js'
 import { usePromptInputPlaceholder } from './usePromptInputPlaceholder.js'
 import { useCrewBanner } from './useCrewBanner.js'
 import { isVimModeEnabled } from './utils.js'
@@ -122,25 +65,25 @@ import {
   setSelectedSuggestionStore,
 } from './suggestionSelectionStore.js'
 import { Notifications } from './Notifications.js'
-import { HighlightedInput } from './ShimmeredInput.js'
 import { IssueFlagBanner } from './IssueFlagBanner.js'
 import TextInput from '../TextInput.js'
 import VimTextInput from '../VimTextInput.js'
-import ModelPicker from '../ModelPicker.js'
 import { ThinkingToggle } from '../ThinkingToggle.js'
-import { TransitionPreviewCard } from '../TransitionPreviewCard.js'
-import { CapOfferCard } from '../CapOfferCard.js'
 import { MercuryCommandPalette } from '../MercuryCommandPalette.js'
 import { MercuryFileOpen } from '../MercuryFileOpen.js'
-import { setComposerInsert } from './composerInsert.js'
+import type { OverlaySurface } from './composerOverlay.js'
+import { useComposerModelDoors } from './useComposerModelDoors.js'
+import { useComposerSubmit } from './useComposerSubmit.js'
+import { useComposerRawKeys } from './useComposerRawKeys.js'
+import { useComposerAttachments } from './useComposerAttachments.js'
+import { useComposerKeybindings } from './useComposerKeybindings.js'
+import { useComposerSelectionRoad, useComposerSelectionState } from './useComposerSelection.js'
+import { useComposerDraft } from './useComposerDraft.js'
 import { MercuryContentSearch } from '../MercuryContentSearch.js'
 import { BackgroundTasksDialog } from '../tasks/BackgroundTasksDialog.js'
 import { isManageableTask } from '../tasks/taskStatusUtils.js'
-import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types.js'
-import { injectUserMessageToCrewmate } from '../../tasks/InProcessCrewmateTask/InProcessCrewmateTask.js'
-import { appendMessageToLocalAgent, isLocalAgentTask, queueOperatorMessage } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
+import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { getViewedCrewmateTask } from '../../state/selectors.js'
-import { sendLiveMessage } from '../../services/crew/liveComms.js'
 import { isCrewEnabled } from '../../utils/crewEnabled.js'
 import { getTheme, type Theme } from '../../utils/theme.js'
 import { useFocusedTranscript } from '../../hooks/useFocusedTranscript.js'
@@ -150,118 +93,29 @@ import { findSlashCommandPositions } from '../../utils/suggestions/commandSugges
 import { findSlackChannelPositions } from '../../utils/suggestions/slackChannelSuggestions.js'
 import { findTokenBudgetPositions } from '../../utils/tokenBudget.js'
 import type { TextHighlight } from '../../utils/textHighlighting.js'
-import { createUserMessage } from '../../utils/messages/factories.js'
-import { danglingReferences, getPastedTextRefNumLines, formatPastedTextRef, formatImageRef, parseReferences, pasteUnavailableLine } from '../../history.js'
-import { PASTE_THRESHOLD, getImageFromClipboard } from '../../utils/imagePaste.js'
-import { describeAttachedImage } from '../../utils/imageResizer.js'
-import { cacheImagePath, storeImage } from '../../utils/imageStore.js'
-import { editPromptInEditor } from '../../utils/promptEditor.js'
-import { expandPastedTextRefs } from '../../history.js'
-import { hashPastedText, storePastedText } from '../../utils/pasteStore.js'
-import {
-  cyclePermissionMode,
-  getNextPermissionMode,
-} from '../../utils/permissions/getNextPermissionMode.js'
-import { syncCrewmateMode } from '../../utils/crew/crewHelpers.js'
-import { parseDirectMemberMessage, sendDirectMemberMessage } from '../../utils/directMemberMessage.js'
-import { getEffortNotificationText } from '../EffortIndicator.js'
+import { parseReferences } from '../../history.js'
+import { composerEffortNotice } from './composerEffortNotice.js'
+import { useFocusedBornEffort, useFocusedSentEffort, useFocusedServedEffort } from '../../hooks/useDisplayedSessionModel.js'
 import { isDefaultMode } from '../../utils/permissions/PermissionMode.js'
-import { getEmptyToolPermissionContext } from '../../Tool.js'
 import { CockpitActiveContext } from '../../context/cockpitActiveContext.js'
 import { CompactFrameBudgetContext, useLayoutChrome } from '../../context/layoutChromeContext.js'
 import { CompactWorkSummary, type CompactWorkControls, type CompactWorkFocus } from '../tasks/CompactWorkSummary.js'
 import { useOptionalKeybindingContext } from '../../keybindings/KeybindingContext.js'
 import { anyModalOverlayActive, topOverlay } from '../../context/overlayStack.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
-import { abortSpeculation, handleSpeculationAccept } from '../../services/PromptSuggestion/speculation.js'
 import type { PromptInputHelpers } from '../../types/promptInputHelpers.js'
-import { composerBorderRole, composerBorderStyle, COMPOSER_BORDER_SHED_ROWS } from '../mercury-ui/composerFloor.js'
+import { composerBorderRole, composerBorderStyle } from '../mercury-ui/composerFloor.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
-import { useNowTick } from '../mercury-ui/components.js'
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
-import { getPlatform } from '../../utils/platform.js'
-import { crossProviderNote, providerFamilyOfSetting, settleModelSelection, type TransitionPlan } from '../../utils/model/modelTransition.js'
-import {
-  previewForSelection,
-  reconfirmTransitionPlan,
-  transitionPlanSummary,
-} from '../../services/providers/transitionPreview.js'
-import { usabilityForRoute } from '../../services/providers/providerUsability.js'
-import { declaredRouteOf, type CallModelRoute } from '../../services/providers/callModelRouter.js'
-import { ANTHROPIC_CONNECT_OPTION_VALUE, GPT_CONNECT_OPTION_VALUE, parseKeyConnectValue } from '../../utils/model/modelOptions.js'
-import { OPENROUTER_CONNECT_OPTION_VALUE } from '../../services/providers/openrouter/openrouterCatalogue.js'
-import { HUGGINGFACE_CONNECT_OPTION_VALUE } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
-import { GEMINI_CONNECT_OPTION_VALUE } from '../../services/providers/gemini/geminiCatalogue.js'
-import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
 import { openFilesMenu } from '../../utils/cockpit/filesMenu.js'
 import { popupOwnsKeys, subscribePopupOwnsKeys } from '../../utils/cockpit/popupOwnsKeys.js'
-import { renderModelName } from '../../utils/model/model.js'
-import {
-  capFailoverLaneOf,
-  capHandoffState,
-  capLaneLineCut,
-  capLaneLineKey,
-  capLaneLineUntil,
-  capLaneLineWords,
-  capOfferAnswered,
-  decideCapAction,
-  decideCapReturn,
-  decideSlotWallAction,
-  getCapHandoffVersion,
-  liveCapFailoverCandidates,
-  liveCapFailoverTarget,
-  noteCapHandoff,
-  type CapFailoverListedFamily,
-  type CapHandoffNote,
-  noteCapOfferAnswered,
-  noteCapReturn,
-  noteCapWindowObserved,
-  noteOfferAutoDone,
-  noteOfferDismissal,
-  noteSlotWallObserved,
-  observedFamilyWindow,
-  offerAutoDone,
-  offerDismissed,
-  resolveCapPosture,
-  slotWallKey,
-  subscribeCapHandoff,
-} from '../../services/capFailover.js'
-import { providerDisplayName } from '../../services/providers/routeLaw.js'
-import { usageCarryWords, usageForProvider } from '../../services/providers/providerUsage.js'
-import { slotSeatView, slotSwitchTransient, switchActiveSlot } from '../../services/providers/slotSwitch.js'
-import { paintSlotSwitchReceipt } from '../../utils/model/slotSwitchReceipt.js'
-import { getOpenaiObservedVersion, openaiLimitWindow, subscribeOpenaiObserved } from '../../services/providers/openai/openaiLimitState.js'
-import { getUsageRecordVersion, subscribeUsageRecord } from '../../services/anthropicLimits.js'
-import { SlotOfferCard } from '../SlotOfferCard.js'
-import { useAnthropicLimits } from '../../services/anthropicLimitsHook.js'
-import { formatResetTime } from '../../utils/format.js'
 import { AMBER } from '../mercuryPalette.js'
 import type { Key } from '../../ink/events/input-event.js'
 import { stringWidth } from '../../ink/stringWidth.js'
-import stripAnsi from 'strip-ansi'
 import { truncateToWidth } from '../mercury-ui/glyphs.js'
-import { logForDebugging } from '../../utils/debug.js'
-import { submitTrace } from '../../utils/submitTrace.js'
 import { fluxMark, fluxWhy } from '../../utils/flux/fluxProbe.js'
-import { familyDisplayName } from '../../services/providers/accountSlots.js'
 
-const MANAGER_COMMAND = '/manager'
-const SESSION_TAB_COMMAND = '/sessiontab'
-const KEYSETUP_COMMAND = '/keysetup'
-const DOUBLED_SLASH = '//'
-const INPUT_TRUNCATION_THRESHOLD = 10_000
-const UNDO_BUFFER_SIZE = 50
-const UNDO_COALESCE_MS = 1000
 const LOST_LINE_NOTICE_MS = 8000
-
-type OverlaySurface =
-  | null
-  | 'tasks-dialog'
-  | 'model-transition-preview'
-  | 'model-picker'
-  | 'thinking-toggle'
-  | 'cap-offer'
-  | 'slot-offer'
 
 export type PromptInputProps = {
   compactWork?: CompactWorkControls
@@ -316,32 +170,9 @@ export type PromptInputProps = {
   onAgentSubmit?: (text: string) => void
 }
 
-function expandTabs(value: string): string {
-  return value.includes('\t') ? value.replaceAll('\t', '    ') : value
-}
-
-function stripControls(value: string): string {
-  // eslint-disable-next-line no-control-regex -- the control filter is the point
-  return stripAnsi(value.replace(/[\u0080-\u009f]/g, '')).replace(
-    // eslint-disable-next-line no-control-regex -- the control filter is the point
-    /[\u0000-\u0008\u000b-\u001f\u007f]/g,
-    '',
-  )
-}
-
-export const __stripControlsForTest = stripControls
-
 const subscribeFocusedComposerModel = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener))
 const getFocusedComposerMainModel = (): string => getFocusedSessionConnector().modelFacts().main
 const getFocusedComposerEffectiveModel = (): string => getFocusedSessionConnector().modelFacts().effective
-
-function traceCapHandoff(ev: string, fields: Record<string, unknown>): void {
-  const path = flagEnv('MERCURY_CONNECTOR_TRACE')
-  if (!path) return
-  try {
-    appendFileSync(path, `${JSON.stringify({ t: Date.now(), ev, ...fields })}\n`)
-  } catch {}
-}
 
 function PromptInputInner(props: PromptInputProps): React.ReactNode {
   fluxMark('render:composer')
@@ -376,7 +207,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     insertTextRef,
     onAgentSubmit,
   } = props
-  void setVimMode
 
   const tokens = useMercuryTokens()
   const composerBloom = tokens.accentSoft
@@ -414,11 +244,32 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const fullscreen = isFullscreenEnvEnabled()
   const cockpitActive = useContext(CockpitActiveContext)
 
-  const editGen = useSyncExternalStore(
-    pendingInput.subscribePendingInput,
-    pendingInput.editGeneration,
-    pendingInput.editGeneration,
-  )
+  const draft = useComposerDraft({
+    helpOpen,
+    setHelpOpen,
+    speculationActive,
+    footerSelection,
+    setAppState,
+    addNotification,
+    removeNotification,
+  })
+  const {
+    editGen,
+    input,
+    mode,
+    pastedContents,
+    stash,
+    cursorOffset,
+    setCursorOffset,
+    lastSelfWriteRef,
+    writeDraft,
+    buffer,
+    setMode,
+    setPastedContents,
+    deferredSpaceArmedRef,
+    deferredSpaceShiftRef,
+    onChange,
+  } = draft
   const focusedMainModel = useSyncExternalStore(
     subscribeFocusedComposerModel,
     getFocusedComposerMainModel,
@@ -429,7 +280,9 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     getFocusedComposerEffectiveModel,
     getFocusedComposerEffectiveModel,
   )
-  void editGen
+  const seatEffort = useFocusedServedEffort()
+  const sentEffort = useFocusedSentEffort()
+  const bornEffort = useFocusedBornEffort()
   const voice = useSyncExternalStore(subscribeVoice, voiceSnapshot, voiceSnapshot)
   const voiceReceiptSeqRef = useRef(0)
   useEffect(() => {
@@ -470,133 +323,8 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     setAppState,
     appStateStore,
   }))
-  const input = pendingInput.text()
-  const mode = pendingInput.mode()
-  const pastedContents = pendingInput.pastedContents()
-  const stash = pendingInput.stashedPrompt()
-
-  const [cursorOffset, setCursorOffsetState] = useState(() => {
-    const draft = pendingInput.readDraftFor(getFocusedSessionConnector().sessionId())
-    if (
-      input !== '' &&
-      draft !== null &&
-      draft.text === input &&
-      typeof draft.cursorOffset === 'number'
-    ) {
-      return Math.max(0, Math.min(draft.cursorOffset, input.length))
-    }
-    return input.length
-  })
-  const setCursorOffset = useCallback((offset: number): void => {
-    setCursorOffsetState(offset)
-    pendingInput.reportCursor(offset)
-  }, [])
-
-  const lastSelfWriteRef = useRef(input)
-  const inputSelectionRangeRef = useRef<() => { start: number; end: number } | null>(
-    () => null,
-  )
-  const inputBoxRef = useRef<DOMElement | null>(null)
-  const selectionApi = useSelection()
-  const selectionGestureRectRef = useRef<CachedLayout | null>(null)
-  const [, setOwnSelectionState] = useState<{ start: number; end: number; of: string } | null>(null)
-  const ownSelectionRef = useRef<{ start: number; end: number; of: string } | null>(null)
-  const gestureAnchorRef = useRef<{ start: number; end: number; col: number; row: number; moved: boolean } | null>(
-    null,
-  )
-  const ownSelectionOf = (text: string): { start: number; end: number } | null => {
-    const own = ownSelectionRef.current
-    if (own === null || own.of !== text || own.start >= own.end) return null
-    return { start: own.start, end: own.end }
-  }
-  const setOwnSelection = (next: { start: number; end: number; of: string } | null): void => {
-    const had = ownSelectionRef.current !== null
-    ownSelectionRef.current = next
-    setOwnSelectionState(next)
-    if (had || next !== null) noteOwnInputSelectionChanged()
-  }
-  const clearOwnSelection = (): void => {
-    gestureAnchorRef.current = null
-    if (ownSelectionRef.current === null) return
-    setOwnSelection(null)
-  }
-  useEffect(
-    () =>
-      selectionApi.subscribe(() => {
-        const state = selectionApi.getState()
-        if (!state?.anchor) {
-          selectionGestureRectRef.current = null
-          return
-        }
-        clearOwnSelection()
-        if (state.focus !== null && selectionGestureRectRef.current !== null) return
-        const box = inputBoxRef.current
-        selectionGestureRectRef.current = (box ? nodeCache.get(box) : undefined) ?? null
-      }),
-    [selectionApi],
-  )
-  if (lastSelfWriteRef.current !== input) {
-    lastSelfWriteRef.current = input
-    if (cursorOffset > input.length) {
-      setCursorOffsetState(input.length)
-      pendingInput.reportCursor(input.length)
-    } else {
-      setCursorOffsetState(input.length)
-      pendingInput.reportCursor(input.length)
-    }
-  }
-
-  const buffer = useInputBuffer({
-    maxBufferSize: UNDO_BUFFER_SIZE,
-    debounceMs: UNDO_COALESCE_MS,
-  })
-
-  const bufferSessionRef = useRef(getFocusedSessionConnector().sessionId())
-  if (bufferSessionRef.current !== getFocusedSessionConnector().sessionId()) {
-    bufferSessionRef.current = getFocusedSessionConnector().sessionId()
-    buffer.clearBuffer();
-  }
-
-  const cursorSessionRef = useRef(getFocusedSessionConnector().sessionId())
-  const cursorAtRepointRef = useRef<number | null>(null)
-  useEffect(() => {
-    const focusedId = getFocusedSessionConnector().sessionId()
-    if (cursorSessionRef.current === focusedId) return
-    if (cursorAtRepointRef.current === null) cursorAtRepointRef.current = cursorOffset
-    const draft = pendingInput.readDraftFor(focusedId)
-    if (draft !== null && draft.text === input && input !== '') {
-      cursorSessionRef.current = focusedId
-      const untouched = cursorAtRepointRef.current === cursorOffset
-      cursorAtRepointRef.current = null
-      if (untouched && typeof draft.cursorOffset === 'number') {
-        setCursorOffset(Math.max(0, Math.min(draft.cursorOffset, input.length)))
-      }
-    } else if (input === '' && (draft === null || (draft.text ?? '') === '')) {
-      cursorSessionRef.current = focusedId
-      cursorAtRepointRef.current = null
-    }
-  })
-
-  const setMode = useCallback((next: PromptInputMode): void => {
-    pendingInput.setMode(next)
-  }, [])
-  const setPastedContents = useCallback(
-    (
-      next:
-        | Record<number, PastedContent>
-        | ((prev: Record<number, PastedContent>) => Record<number, PastedContent>),
-    ): void => {
-      const resolved =
-        typeof next === 'function' ? next(pendingInput.pastedContents()) : next
-      pendingInput.setPastedContents(resolved)
-    },
-    [],
-  )
-
-  const deferredSpaceArmedRef = useRef(false)
-  const deferredSpaceShiftRef = useRef(0)
-
-  const stashPeakRef = useRef(0)
+  const selection = useComposerSelectionState()
+  const { inputSelectionRangeRef, inputBoxRef, selectionApi, clearOwnSelection } = selection
 
   const [overlay, setOverlay] = useState<OverlaySurface>(null)
   const [showCommandPalette, setShowCommandPalette] = useState(false)
@@ -630,323 +358,22 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     if (compactWork?.read() === 'summary' && !canFocusSummary()) compactWork.set('composer')
   }, [summaryVisible, modalOverlayUp, externalEditorActive, isSearchingHistory, helpOpen, exitState.pending, compactWork])
 
-  const [transitionConfirm, setTransitionConfirm] = useState<{
-    value: string
-    plan: TransitionPlan
-    refreshed: boolean
-  } | null>(null)
-  const [capOffer, setCapOffer] = useState<{
-    trigger: 'rejected' | 'reset'
-    direction: 'handoff' | 'return'
-    windowName: string | null
-    resetText: string | null
-    targetModel: string
-    targetRoute: CallModelRoute
-    rows: CapFailoverListedFamily[]
-    homeRoute: CallModelRoute
-    awayRoute: CallModelRoute
-  } | null>(null)
-  const [slotOffer, setSlotOffer] = useState<{
-    key: string
-    family: 'anthropic' | 'openai'
-    fromLabel: string
-    toLabel: string
-    headroomObserved: boolean
-    resetText: string | null
-    carryWords: string | null
-  } | null>(null)
-  const limits = useAnthropicLimits()
-  const capHandoffIntentRef = useRef<CapHandoffNote | null>(null)
-  const settleCapHandoffIntent = (landed: boolean): void => {
-    const intent = capHandoffIntentRef.current
-    capHandoffIntentRef.current = null
-    if (intent !== null && landed) noteCapHandoff(intent.homeModel, intent.homeFamily)
-    if (intent !== null && landed) traceCapHandoff('cap-handoff-noted', { ...intent })
-  }
-  useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
-  useSyncExternalStore(subscribeOpenaiObserved, getOpenaiObservedVersion, getOpenaiObservedVersion)
-  useSyncExternalStore(subscribeCapHandoff, getCapHandoffVersion, getCapHandoffVersion)
-
-  const applyModelSelection = (value: string | null): void => {
-    const focused = getFocusedSessionConnector()
-    if (focused.carrier === 'daemon') {
-      const label = value === null ? 'Default' : renderModelName(value)
-      setOverlay(null)
-      const effectiveBefore = focused.modelFacts().effective
-      void focused.setModel(value).then(receipt => {
-        settleCapHandoffIntent(receipt.state === 'applied' || receipt.state === 'queued')
-        if (receipt.state === 'no-op') {
-          addNotification({ key: 'model-switched', text: `Already on ${label} — nothing to change`, priority: 'high', timeoutMs: 3000 })
-          return
-        }
-        if (receipt.state === 'refused') {
-          addNotification({ key: 'model-switched', text: `The model switch was refused: ${receipt.detail}`, priority: 'high', timeoutMs: 5000 })
-          return
-        }
-        const doorCross = providerFamilyOfSetting(effectiveBefore) !== providerFamilyOfSetting(value) ? crossProviderNote(value) : ''
-        const doorPlan = previewForSelection(messages, effectiveBefore, value)
-        const doorLossNote = transitionPlanSummary(doorPlan)
-        addNotification(
-          receipt.state === 'queued'
-            ? {
-                key: 'model-switched',
-                invalidates: ['model-transition-applied'],
-                text: `Model switch queued: ${label} applies when this session's turn settles (the running turn keeps its model)${doorCross}${doorLossNote}`,
-                priority: 'high',
-                timeoutMs: 5000,
-              }
-            : {
-                key: 'model-switched',
-                text: `Set model to ${label} — this session's next message runs it${receipt.note !== undefined ? ` (${receipt.note})` : ''}${doorCross}${doorLossNote}`,
-                priority: 'high',
-                timeoutMs: 3000,
-              },
-        )
-      })
-      return
-    }
-    const stateNow = appStateStore.getState()
-    const settled = settleModelSelection(stateNow, value, {
-      turnActive:
-        stateNow.foregroundTurnActive || stateNow.pendingModelSwitch !== null,
-    })
-    settleCapHandoffIntent(settled.kind === 'applied' || settled.kind === 'queued')
-    const label = value === null ? 'Default' : renderModelName(value)
-    setOverlay(null)
-    if (settled.kind === 'no-op') {
-      addNotification({ key: 'model-switched', text: `Already on ${label} — nothing to change`, priority: 'high', timeoutMs: 3000 })
-      return
-    }
-    if (settled.kind === 'cancelled-pending') {
-      setAppState(prev => ({ ...prev, ...settled.patch }))
-      addNotification({ key: 'model-switched', text: `Already on ${label} — queued switch cancelled`, priority: 'high', timeoutMs: 3000 })
-      return
-    }
-    const effectiveFrom = stateNow.engineModelForSession ?? stateNow.engineModel
-    const lossNote = transitionPlanSummary(previewForSelection(messages, effectiveFrom, value))
-    if (settled.kind === 'queued') {
-      setAppState(prev => ({ ...prev, ...settled.patch }))
-      addNotification({
-        key: 'model-switched',
-        invalidates: ['model-transition-applied'],
-        text: `Model switch queued: ${label} applies when the current turn settles (the running turn keeps its model)${settled.crossProvider ? crossProviderNote(value) : ''}${lossNote}`,
-        priority: 'high',
-        timeoutMs: 5000,
-      })
-      return
-    }
-    setAppState(prev => ({ ...prev, ...settled.patch }))
-    addNotification({
-      key: 'model-switched',
-      text: `Set model to ${label}${settled.receipt.crossProvider ? crossProviderNote(value) : ''}${lossNote}`,
-      priority: 'high',
-      timeoutMs: 3000,
-    })
-  }
-
-  const handleModelSelect = (value: string): void => {
-    if (value === ANTHROPIC_CONNECT_OPTION_VALUE) {
-      setOverlay(null)
-      requestCommandDispatch('/logins anthropic')
-      return
-    }
-    if (
-      value === GPT_CONNECT_OPTION_VALUE ||
-      value === OPENROUTER_CONNECT_OPTION_VALUE ||
-      value === GEMINI_CONNECT_OPTION_VALUE ||
-      value === HUGGINGFACE_CONNECT_OPTION_VALUE
-    ) {
-      setOverlay(null)
-      requestCommandDispatch('/logins')
-      return
-    }
-    {
-      const keyLane = parseKeyConnectValue(value)
-      if (keyLane !== undefined) {
-        setOverlay(null)
-        if (keyLane === 'compat') {
-          addNotification({
-            key: 'compat-configure',
-            text: 'Custom endpoint: set MERCURY_COMPAT_BASE_URL (+ MERCURY_COMPAT_MODELS, optional MERCURY_COMPAT_API_KEY or /router key compat) — the rows go live next /model open',
-            priority: 'high',
-            timeoutMs: 6000,
-          })
-          return
-        }
-        requestCommandDispatch(`/logins ${keyLane}`)
-        return
-      }
-    }
-    const probeState = appStateStore.getState()
-    const probe = settleModelSelection(probeState, value, {
-      turnActive:
-        probeState.foregroundTurnActive || probeState.pendingModelSwitch !== null,
-    })
-    if (probe.kind === 'queued' || probe.kind === 'applied') {
-      const gatePlan = previewForSelection(
-        messages,
-        probeState.engineModelForSession ?? probeState.engineModel,
-        value,
-      )
-      if (gatePlan.needsChoice) {
-        setTransitionConfirm({ value, plan: gatePlan, refreshed: false })
-        setOverlay('model-transition-preview')
-        return
-      }
-    }
-    applyModelSelection(value)
-  }
-
-  useEffect(() => {
-    const posture = resolveCapPosture()
-    {
-      const factsNow = getFocusedSessionConnector().modelFacts()
-      const effectiveModel = factsNow.sessionPin ?? factsNow.setting ?? factsNow.main
-      const family = declaredRouteOf(effectiveModel)
-      if (family === 'anthropic' || family === 'openai') {
-        const view = slotSeatView(family)
-        const activeWall = ((): { walled: boolean; resetsAtMs?: number } => {
-          if (family === 'anthropic') {
-            return limits.status === 'rejected'
-              ? { walled: true, ...(limits.resetsAt !== undefined ? { resetsAtMs: limits.resetsAt * 1000 } : {}) }
-              : { walled: false }
-          }
-          if (view.active === undefined) return { walled: false }
-          const window = openaiLimitWindow(view.active === 'api-key' ? 'api-key' : 'chatgpt-subscription')
-          return window.state === 'limited' ? { walled: true, resetsAtMs: window.resetsAtMs } : { walled: false }
-        })()
-        const action = decideSlotWallAction(posture, {
-          activeWalled: activeWall.walled,
-          otherSignedIn: view.other !== undefined,
-          otherWalled: view.other?.walled === true,
-        })
-        if (action.kind !== 'none' && view.other !== undefined && view.activeLabel !== undefined) {
-          const slotKey = slotWallKey(family, view.active ?? '')
-          noteSlotWallObserved(family, view.active ?? '', activeWall.walled)
-          if (action.kind === 'offer') {
-            const turnInFlightNow = appStateStore.getState().foregroundTurnActive
-            if (turnInFlightNow) return
-            if (!offerDismissed(slotKey) && !modalOverlayUp) {
-              setSlotOffer({
-                key: slotKey,
-                family,
-                fromLabel: view.activeLabel,
-                toLabel: view.other.label,
-                headroomObserved: view.other.wallKnown,
-                resetText:
-                  activeWall.resetsAtMs !== undefined
-                    ? (formatResetTime(activeWall.resetsAtMs / 1000) ?? null)
-                    : null,
-                carryWords: usageCarryWords(usageForProvider(family).carry) ?? null,
-              })
-              setOverlay('slot-offer')
-              return
-            }
-          } else if (!offerAutoDone(slotKey)) {
-            noteOfferAutoDone(slotKey)
-            const outcome = switchActiveSlot(family)
-            const durable = paintSlotSwitchReceipt(outcome)
-            addNotification({
-              key: 'slot-failover',
-              text: durable ? slotSwitchTransient(outcome.receipt) : outcome.receipt,
-              priority: 'high',
-              timeoutMs: 8000,
-            })
-            return
-          }
-        }
-      }
-    }
-    if (posture === 'off') return
-    const modelFactsNow = getFocusedSessionConnector().modelFacts()
-    const effective =
-      modelFactsNow.sessionPin ?? modelFactsNow.setting ?? modelFactsNow.main
-    const liveRoute = declaredRouteOf(effective)
-    const noted = capHandoffState()
-    if (noted !== null && liveRoute === noted.homeFamily && modelFactsNow.pendingSwitch === null && appStateStore.getState().pendingModelSwitch === null) {
-      traceCapHandoff('cap-handoff-self-heal', { ...noted, effective, pendingSwitch: modelFactsNow.pendingSwitch })
-      noteCapReturn()
-      return
-    }
-    const onFailoverLane = noted !== null && liveRoute !== noted.homeFamily
-    const homeFamily: string | null = noted !== null && onFailoverLane ? noted.homeFamily : liveRoute
-    if (homeFamily === null) return
-    const homeUsability = onFailoverLane ? usabilityForRoute(homeFamily as CallModelRoute) : null
-    if (homeUsability !== null && homeUsability.credential === 'none') {
-      noteCapReturn()
-      return
-    }
-    const window = observedFamilyWindow(homeFamily, undefined, {
-      model: onFailoverLane ? (noted?.homeModel ?? null) : effective,
-    })
-    noteCapWindowObserved(homeFamily, window.state)
-    const action =
-      onFailoverLane && homeUsability !== null
-        ? decideCapReturn(posture, { window: window.state, credentialUsable: homeUsability.usable }, true)
-        : decideCapAction(posture, window.state)
-    if (action.kind === 'none') return
-    const direction: 'handoff' | 'return' = onFailoverLane ? 'return' : 'handoff'
-    const windowName = window.windowName ?? null
-    const resetText =
-      window.resetsAtMs !== undefined ? (formatResetTime(window.resetsAtMs / 1000) ?? null) : null
-    const homeName = providerDisplayName(homeFamily)
-    if (action.kind === 'offer') {
-      if (capOfferAnswered(direction, homeFamily)) return
-      if (modalOverlayUp) return
-      let target: string | null
-      let rows: CapFailoverListedFamily[] = []
-      if (direction === 'return') {
-        target = noted?.homeModel ?? getFocusedSessionConnector().modelFacts().main
-      } else {
-        const set = liveCapFailoverCandidates(homeFamily)
-        target = set.candidates[0]?.model ?? null
-        rows = set.listed
-      }
-      if (target === null) return
-      const targetRoute = declaredRouteOf(target)
-      if (targetRoute === null) return
-      const awayRouteResolved = direction === 'return' ? liveRoute : targetRoute
-      if (awayRouteResolved === null) return
-      setCapOffer({
-        trigger: action.trigger,
-        direction,
-        windowName,
-        resetText,
-        targetModel: target,
-        targetRoute,
-        rows,
-        homeRoute: homeFamily as CallModelRoute,
-        awayRoute: awayRouteResolved,
-      })
-      setOverlay('cap-offer')
-      return
-    }
-    if (capOfferAnswered(direction, homeFamily)) return
-    noteCapOfferAnswered(direction, homeFamily)
-    if (direction === 'handoff') {
-      const target = liveCapFailoverTarget(homeFamily)?.model
-      if (target === undefined) return
-      capHandoffIntentRef.current = { homeModel: effective, homeFamily }
-      applyModelSelection(target)
-      const homeCarry = usageCarryWords(usageForProvider(homeFamily as CallModelRoute).carry)
-      addNotification({
-        key: 'cap-failover',
-        text: `Usage handoff: ${renderModelName(target)} — the ${homeName} ${windowName ?? 'usage'} window is reached${resetText !== null ? ` · resets ${resetText}` : ''}${homeCarry !== undefined ? ` · ${homeCarry}` : ''}`,
-        priority: 'high',
-        timeoutMs: 8000,
-      })
-      return
-    }
-    const home = noted?.homeModel ?? null
-    noteCapReturn()
-    applyModelSelection(home)
-    addNotification({
-      key: 'cap-failover',
-      text: `Returned home: ${home === null ? 'Default' : renderModelName(home)} — the ${homeName} lane`,
-      priority: 'high',
-      timeoutMs: 8000,
-    })
+  const doors = useComposerModelDoors({
+    overlay,
+    setOverlay,
+    messages,
+    modalOverlayUp,
+    engineModel,
+    engineModelForSession,
+    focusedMainModel,
+    focusedEffectiveModel,
+    isCompact,
+    columns,
+    appStateStore,
+    setAppState,
+    addNotification,
   })
+  const { capLaneLine, capLaneCut } = doors
 
   const viewedCrewmateTask = getViewedCrewmateTask(
     appStateStore.getState(),
@@ -967,9 +394,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       : undefined)
   const viewedAgentColor = viewedCrewmateTask?.identity?.color
 
-  useEffect(() => {
-    setPromptEmpty(input.trim() === '')
-  }, [input])
 
   const suggestionApi = usePromptSuggestion({
     inputValue: input,
@@ -981,277 +405,24 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   useEffect(() => {
     if (suggestionDisplayable) markSuggestionShown()
   }, [suggestionDisplayable, markSuggestionShown])
-  const onChange = useCallback(
-    (raw: string): void => {
-      if (raw === '?' && input === '') {
-        setHelpOpen(!helpOpen)
-        return
-      }
-      if (helpOpen) setHelpOpen(false)
 
-      let value = expandTabs(stripControls(raw))
-
-      if (deferredSpaceArmedRef.current) {
-        deferredSpaceArmedRef.current = false
-        if (
-          cursorOffset === input.length &&
-          value.length === input.length + 1 &&
-          value.startsWith(input) &&
-          value.slice(input.length) !== ' ' &&
-          value.slice(input.length).trim() !== ''
-        ) {
-          value = `${input} ${value.slice(input.length)}`
-          deferredSpaceShiftRef.current = 1
-        }
-      }
-
-      if (mode === 'prompt') {
-        if (
-          value.length === input.length + 1 &&
-          value.startsWith('!') &&
-          value.slice(1) === input
-        ) {
-          pendingInput.edit(input)
-          lastSelfWriteRef.current = input
-          setMode('bash')
-          return
-        }
-        if (
-          input === '' &&
-          value.length > 1 &&
-          !value.includes('\n') &&
-          getModeFromInput(value) === 'bash'
-        ) {
-          buffer.pushAtomic(input, cursorOffset, pastedContents)
-          setMode('bash')
-          const remainder = expandTabs(getValueFromInput(value))
-          pendingInput.edit(remainder)
-          lastSelfWriteRef.current = remainder
-          setCursorOffset(remainder.length)
-          return
-        }
-      }
-
-      removeNotification('stash-hint')
-      if (speculationActive) abortSpeculation(setAppState)
-      if (footerSelection !== null) {
-        setAppState(prev => ({ ...prev, footerSelection: null }))
-      }
-
-      buffer.pushToBuffer(input, cursorOffset, pastedContents)
-      pendingInput.edit(value)
-      lastSelfWriteRef.current = value
-
-      const previousLength = input.length
-      stashPeakRef.current = Math.max(stashPeakRef.current, value.length)
-      if (
-        stashPeakRef.current >= 20 &&
-        value.length <= 5 &&
-        previousLength < 20 &&
-        getGlobalConfig().hasUsedStash !== true
-      ) {
-        stashPeakRef.current = 0
-        addNotification({
-          key: 'stash-hint',
-          text: `${getShortcutDisplay('chat:stash', 'Chat', 'ctrl+s')} stashes the draft for later`,
-          priority: 'low',
-          timeoutMs: 5000,
-        })
-      }
-      if (value === '') stashPeakRef.current = 0
-
-      const live = pendingInput.text()
-      const present = new Set(parseReferences(live).map(ref => ref.id))
-      {
-        const prev = pendingInput.pastedContents()
-        let changed = false
-        const next: Record<number, PastedContent> = {}
-        for (const [id, entry] of Object.entries(prev)) {
-          if (present.has(Number(id))) next[Number(id)] = entry
-          else changed = true
-        }
-        if (changed) pendingInput.setPastedContents(next)
-      }
-    },
-    [input, mode, helpOpen, cursorOffset, pastedContents, buffer, speculationActive, footerSelection, setHelpOpen, setMode, setCursorOffset, removeNotification, addNotification, setAppState],
-  )
-
-  useMaybeTruncateInput({
+  const attachments = useComposerAttachments({
     input,
+    cursorOffset,
     pastedContents,
-    onInputChange: (value: string) => {
-      pendingInput.edit(value)
-      lastSelfWriteRef.current = value
-    },
+    buffer,
+    messages,
+    rows,
+    inputSelectionRangeRef,
+    writeDraft,
     setCursorOffset,
+    setMode,
     setPastedContents,
+    addNotification,
+    deferredSpaceArmedRef,
+    insertTextRef,
   })
-
-  const nextPasteIdRef = useRef<number | null>(null)
-  if (nextPasteIdRef.current === null) {
-    let max = 0
-    for (const message of messages) {
-      const content = (message as { message?: { content?: unknown } }).message?.content
-      if (typeof content === 'string') {
-        for (const ref of parseReferences(content)) max = Math.max(max, ref.id)
-      } else if (Array.isArray(content)) {
-        for (const block of content) {
-          const text = (block as { text?: string }).text
-          if (typeof text === 'string') {
-            for (const ref of parseReferences(text)) max = Math.max(max, ref.id)
-          }
-        }
-      }
-      const ids = (message as { imagePasteIds?: number[] }).imagePasteIds
-      if (Array.isArray(ids)) for (const id of ids) max = Math.max(max, id)
-    }
-    nextPasteIdRef.current = max + 1
-  }
-  const allocatePasteId = (): number => {
-    const taken = new Set<number>(
-      Object.keys(pendingInput.pastedContents()).map(Number),
-    )
-    for (const ref of parseReferences(pendingInput.text())) taken.add(ref.id)
-    let id = nextPasteIdRef.current ?? 1
-    while (taken.has(id)) id++
-    nextPasteIdRef.current = id + 1
-    return id
-  }
-
-  const insertAtCursor = (text: string, options?: { atomic?: boolean }): void => {
-    if (!options?.atomic) buffer.pushToBuffer(input, cursorOffset, pastedContents);
-    else buffer.pushAtomic(input, cursorOffset, pastedContents);
-    const range = inputSelectionRangeRef.current();
-    const start = range ? range.start : Math.max(0, Math.min(cursorOffset, input.length))
-    const end = range ? range.end : start
-    let payload = text
-    if (
-      !range &&
-      start === input.length &&
-      input !== '' &&
-      !/\s$/.test(input) &&
-      payload !== ''
-    ) {
-      payload = ` ${payload}`
-    }
-    const next = input.slice(0, start) + payload + input.slice(end)
-    pendingInput.edit(next)
-    lastSelfWriteRef.current = next
-    setCursorOffset(start + payload.length)
-  }
-
-  const handleImagePaste = useCallback(
-    (
-      base64Image: string,
-      mediaType?: string,
-      filename?: string,
-      dimensions?: ImageDimensions,
-      sourcePath?: string,
-      byteLength?: number,
-    ): void => {
-      setMode('prompt')
-      const pendingSpace = deferredSpaceArmedRef.current
-      const id = allocatePasteId()
-      const entry: PastedContent = {
-        id,
-        type: 'image',
-        content: base64Image,
-        mediaType: mediaType ?? 'image/png',
-        filename: filename ?? `image-${id}.png`,
-        ...(dimensions ? { dimensions } : {}),
-        ...(sourcePath ? { sourcePath } : {}),
-      } as PastedContent
-      cacheImagePath(entry)
-      void storeImage(entry).catch(() => {})
-      setPastedContents(prev => ({ ...prev, [id]: entry }))
-      insertAtCursor(`${pendingSpace ? ' ' : ''}${formatImageRef(id)}`, { atomic: true })
-      deferredSpaceArmedRef.current = true
-      const bytes = byteLength ?? Math.floor((base64Image.length * 3) / 4)
-      addNotification({
-        key: `image-attached-${id}`,
-        text: `${formatImageRef(id)} attached — ${describeAttachedImage(dimensions, bytes)}`,
-        priority: 'low',
-        timeoutMs: 4000,
-      })
-    },
-    [insertAtCursor, setMode, setPastedContents, addNotification],
-  )
-
-  const handleImageError = useCallback(
-    (message: string): void => {
-      addNotification({
-        key: 'image-attach-failed',
-        text: message,
-        color: 'warning',
-        priority: 'high',
-        timeoutMs: 10000,
-      })
-    },
-    [addNotification],
-  )
-
-  const handleTextPaste = useCallback(
-    (raw: string): void => {
-      deferredSpaceArmedRef.current = false
-      const text = stripControls(normalizePastedInput(raw))
-      const lineCount = (text.match(/\n/g) ?? []).length + 1
-      if (
-        input === '' &&
-        lineCount === 1 &&
-        text.length <= PASTE_THRESHOLD &&
-        getModeFromInput(text) === 'bash'
-      ) {
-        setMode('bash')
-        const remainder = expandTabs(getValueFromInput(text))
-        buffer.pushAtomic(input, cursorOffset, pastedContents)
-        pendingInput.edit(remainder)
-        lastSelfWriteRef.current = remainder
-        setCursorOffset(remainder.length)
-        return
-      }
-      const lineCap = Math.max(1, Math.min(rows - 10, 2))
-      if (text.length > PASTE_THRESHOLD || lineCount > lineCap) {
-        const id = allocatePasteId()
-        const numLines = getPastedTextRefNumLines(text)
-        const contentHash = hashPastedText(text)
-        const entry: PastedContent = {
-          id,
-          type: 'text',
-          content: text,
-          contentHash,
-        } as PastedContent
-        void storePastedText(contentHash, text).catch(() => {})
-        setPastedContents(prev => ({ ...prev, [id]: entry }))
-        insertAtCursor(formatPastedTextRef(id, numLines), { atomic: true })
-        return
-      }
-      insertAtCursor(expandTabs(text), { atomic: true })
-    },
-    [input, rows, cursorOffset, pastedContents, buffer, insertAtCursor, setMode, setCursorOffset, setPastedContents],
-  )
-
-  const cursorRef = useRef(cursorOffset)
-  cursorRef.current = cursorOffset
-  insertTextRef.current = {
-    get cursorOffset() {
-      return cursorRef.current
-    },
-    insert: (text: string) => insertAtCursor(text, { atomic: true }),
-    setInputWithCursor: (value: string, cursor: number) => {
-      pendingInput.edit(value)
-      lastSelfWriteRef.current = value
-      setCursorOffset(Math.max(0, Math.min(cursor, value.length)))
-    },
-  }
-  setComposerInsert(text => insertAtCursor(text, { atomic: true }))
-  useEffect(() => {
-    return () => {
-      insertTextRef.current = null
-      setComposerInsert(null)
-      void pendingInput.flushDrafts()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- unmount-only flush
-  }, [])
+  const { insertAtCursor, insertAtomic, handleImagePaste, handleImageError, handleTextPaste, cursorRef } = attachments
 
   const [suggestionsState, setSuggestionsStateRaw] = useState<SuggestionsState>({
     suggestions: [],
@@ -1361,8 +532,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     },
     input,
     (value: string) => {
-      pendingInput.edit(value)
-      lastSelfWriteRef.current = value
+      writeDraft(value)
     },
     setCursorOffset,
     cursorOffset,
@@ -1381,232 +551,25 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     if (edge === 'first') return cursorOffset <= firstNewline
     return cursorOffset > input.lastIndexOf('\n')
   }
-  const sameDispatchSubmitRef = useRef(false)
-  const submit = useCallback(
-    async (
-      raw: string,
-      options: { fromKeybinding?: boolean; isSlashPick?: boolean },
-    ): Promise<void> => {
-      if (compactWork !== undefined && compactWork.read() !== 'composer') return
-      const value = raw.replace(/\s+$/, '')
-      const fresh = appStateStore.getState() as AppState
-
-      if (fresh.footerSelection !== null) {
-        const stillVisible =
-          fresh.footerSelection === 'tasks'
-            ? Object.values(fresh.tasks).some(isManageableTask) ||
-              fresh.viewingAgentTaskId !== undefined
-            : fresh.footerSelection === 'bagel'
-                ? fresh.bagelActive === true
-                : fresh.remoteControlEnabled
-        if (stillVisible) return
-      }
-      if (fresh.viewSelectionMode === 'selecting-agent') return
-
-      const hasImages = Object.values(pendingInput.pastedContents()).some(
-        entry => (entry as { type?: string }).type === 'image',
-      )
-
-      const suggestion = suggestionApi.suggestion
-      const suggestionSeen =
-        ((fresh as { promptSuggestion?: { shownAt?: number | null } })
-          .promptSuggestion?.shownAt ?? 0) > 0
-      let submitted = value
-      let speculationAccept:
-        | {
-            state: unknown
-            speculationSessionTimeSavedMs: number
-            setAppState: (f: (prev: AppState) => AppState) => void
-          }
-        | undefined
-      if (
-        suggestion !== null &&
-        suggestionSeen &&
-        !hasImages &&
-        composerTargetTaskId(fresh) === undefined &&
-        (value === '' || value === suggestion)
-      ) {
-        suggestionApi.markAccepted()
-        submitted = suggestion
-        const spec = (fresh as { speculation?: { status?: string } }).speculation
-        if (spec?.status === 'active') {
-          const savedMs =
-            (fresh as { speculationSessionTimeSavedMs?: number }).speculationSessionTimeSavedMs ?? 0
-          handleSpeculationAccept(spec, savedMs, setAppState, suggestion, undefined)
-          speculationAccept = {
-            state: spec,
-            speculationSessionTimeSavedMs: savedMs,
-            setAppState,
-          }
-        }
-      }
-
-      if (!options.fromKeybinding) {
-        if (sameDispatchSubmitRef.current) return
-        sameDispatchSubmitRef.current = true
-        queueMicrotask(() => {
-          sameDispatchSubmitRef.current = false
-        })
-      }
-
-      if (isCrewEnabled() && crewContext !== undefined && submitted.startsWith('@')) {
-        const parsed = parseDirectMemberMessage(submitted)
-        if (parsed !== null) {
-          const result = await sendDirectMemberMessage(
-            parsed.recipientName,
-            parsed.message,
-            crewContext,
-            sendLiveMessage,
-          )
-          if (result.success) {
-            pendingInput.clearForSubmit(submitted)
-            pendingInput.edit('')
-            lastSelfWriteRef.current = ''
-            buffer.clearBuffer()
-            history.resetHistory()
-            setCursorOffset(0)
-            addNotification({
-              key: 'direct-message-sent',
-              text: `sent to @${result.recipientName}`,
-              priority: 'medium',
-              timeoutMs: 3000,
-              fold: (_accumulated, incoming) => incoming,
-            })
-            return
-          }
-        }
-      }
-
-      if (submitted === '' && !hasImages) return
-
-      {
-        const dangling = danglingReferences(submitted, pendingInput.pastedContents())
-        if (dangling.length > 0) {
-          addNotification({
-            key: 'paste-ref-dangling',
-            text: pasteUnavailableLine(dangling[0]!.match),
-            color: 'warning',
-            priority: 'high',
-            timeoutMs: 8000,
-          })
-          return
-        }
-      }
-
-      const open = suggestionsMirrorRef.current.suggestions
-      const isSlashSubmission =
-        options.isSlashPick === true || submitted.trimStart().startsWith('/')
-      if (
-        open.length > 0 &&
-        !isSlashSubmission &&
-        !open.every(item => item.description === 'directory')
-      ) {
-        return
-      }
-
-      suggestionApi.logOutcomeAtSubmission(
-        submitted,
-        speculationAccept !== undefined ? { skipReset: true } : undefined,
-      )
-      removeNotification('stash-hint')
-
-      if (pendingInput.mode() === 'bash') {
-        await onSubmit(submitted, helpers, speculationAccept, {
-          fromKeybinding: options.fromKeybinding === true,
-        })
-        return
-      }
-
-      const targetId = composerTargetTaskId(fresh)
-      if (targetId !== undefined) {
-        const intent = classifyAgentViewSubmission(
-          submitted,
-          options.fromKeybinding === true,
-          commands,
-        )
-        const targetName = composerCrewmateRef.current?.taskId === targetId ? composerCrewmateRef.current.name : targetId
-        const sendReceipt = (text: string, color?: 'warning'): void =>
-          addNotification({ key: 'crewmate-send', text, priority: 'medium', timeoutMs: 6000, ...(color !== undefined ? { color } : {}), fold: (_accumulated, incoming) => incoming })
-        const takeLine = (): void => {
-          pendingInput.clearForSubmit(submitted)
-          pendingInput.edit('')
-          lastSelfWriteRef.current = ''
-          buffer.clearBuffer()
-          history.resetHistory()
-          setCursorOffset(0)
-        }
-        const handBack = (): void => {
-          const restored = `${submitted}${pendingInput.text()}`
-          pendingInput.edit(restored)
-          lastSelfWriteRef.current = restored
-          setCursorOffset(restored.length)
-        }
-        const deliver = async (text: string): Promise<boolean> => {
-          if (onAgentSubmit) {
-            onAgentSubmit(text)
-            return true
-          }
-          const task = fresh.tasks[targetId]
-          if (task !== undefined && isInProcessCrewmateTask(task)) {
-            injectUserMessageToCrewmate(task.id, text, setAppState)
-            return true
-          }
-          if (task !== undefined && isLocalAgentTask(task)) {
-            if (task.status !== 'running') {
-              sendReceipt(crewmateRefusedWords(targetName, CREWMATE_BETWEEN_TURNS_DETAIL), 'warning')
-              return false
-            }
-            queueOperatorMessage(task.id, text, setAppState)
-            appendMessageToLocalAgent(
-              task.id,
-              { ...createUserMessage({ content: text }), queued: true },
-              setAppState,
-            )
-            sendReceipt(`${operatorLinePlate(targetName)} ${crewmateQueuedWords(targetName)}`)
-            return true
-          }
-          queueCrewmateLine(targetId, text)
-          const receipt = await getFocusedSessionConnector().resumeAgent(targetId, text)
-          if (receipt.outcome !== 'applied') {
-            const why = receipt.detail ?? 'no reason given'
-            refuseCrewmateLine(targetId, text, targetName, why)
-            sendReceipt(crewmateRefusedWords(targetName, why), 'warning')
-            return false
-          }
-          const queued = typeof receipt.detail === 'string' && receipt.detail.includes('"queued":true')
-          sendReceipt(`${operatorLinePlate(targetName)} ${queued ? crewmateQueuedWords(targetName) : crewmateResumedWords(targetName)}`)
-          return true
-        }
-        switch (intent.kind) {
-          case 'session-command':
-            await onSubmit(submitted, helpers, undefined, {
-              fromKeybinding: options.fromKeybinding === true,
-            })
-            return
-          case 'unknown-command':
-            addNotification({
-              key: 'agent-view-unknown-command',
-              text: `Unknown command: /${intent.bareName} — commands run in this session; ${DOUBLED_SLASH} sends the line to the agent as text`,
-              priority: 'medium',
-              timeoutMs: 6000,
-            })
-            return
-          case 'agent-literal':
-          case 'agent-command':
-          case 'agent-guidance': {
-            takeLine()
-            if (!(await deliver(intent.kind === 'agent-literal' ? intent.text : submitted))) handBack()
-            return
-          }
-        }
-      }
-
-      await onSubmit(submitted, helpers, speculationAccept, {
-        fromKeybinding: options.fromKeybinding === true,
-      })
-    },
-    [appStateStore, suggestionApi, crewContext, commands, helpers, buffer, history, onSubmit, onAgentSubmit, setAppState, setCursorOffset, addNotification, removeNotification],
-  )
+  const submit = useComposerSubmit({
+    compactWork,
+    appStateStore,
+    suggestionApi,
+    crewContext,
+    commands,
+    helpers,
+    buffer,
+    history,
+    onSubmit,
+    onAgentSubmit,
+    setAppState,
+    setCursorOffset,
+    addNotification,
+    removeNotification,
+    composerCrewmateRef,
+    suggestionsMirrorRef,
+    writeDraft,
+  })
 
   const helmVersion = useSyncExternalStore(
     subscribeHelmFocus,
@@ -1660,564 +623,65 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the version counter by design
   }, [helmVersion])
 
-  const performUndo = useCallback((): void => {
-    const entry = buffer.undo({ text: pendingInput.text(), cursorOffset, pastedContents: pendingInput.pastedContents() })
-    if (entry === undefined) return
-    pendingInput.edit(entry.text)
-    lastSelfWriteRef.current = entry.text
-    setCursorOffset(entry.cursorOffset)
-    pendingInput.setPastedContents(entry.pastedContents)
-    addNotification({ key: 'edit-history', text: 'undid the last edit', priority: 'low', timeoutMs: 2000, fold: (_accumulated, incoming) => incoming })
-  }, [buffer, input, cursorOffset, pastedContents, setCursorOffset, addNotification])
-  const performRedo = useCallback((): void => {
-    const entry = buffer.redo({ text: pendingInput.text(), cursorOffset, pastedContents: pendingInput.pastedContents() })
-    if (entry === undefined) return
-    pendingInput.edit(entry.text)
-    lastSelfWriteRef.current = entry.text
-    setCursorOffset(entry.cursorOffset)
-    pendingInput.setPastedContents(entry.pastedContents)
-    addNotification({ key: 'edit-history', text: 'redid the last edit', priority: 'low', timeoutMs: 2000, fold: (_accumulated, incoming) => incoming })
-  }, [buffer, input, cursorOffset, pastedContents, setCursorOffset, addNotification])
+  const { performUndo, crewmateFooterIndex } = useComposerKeybindings({
+    buffer,
+    input,
+    cursorOffset,
+    pastedContents,
+    writeDraft,
+    lastSelfWriteRef,
+    setCursorOffset,
+    addNotification,
+    setExternalEditorActive,
+    setOverlay,
+    setHelpOpen,
+    helpOpen,
+    modalOverlayUp,
+    isSearchingHistory,
+    isLoading,
+    speculationActive,
+    onMessageActionsEnter,
+    appStateStore,
+    setAppState,
+    toolPermissionContext,
+    setToolPermissionContext,
+    crewContext,
+    footerSelection,
+    insertAtCursor,
+    handleImagePaste,
+    handleImageError,
+    setShowCommandPalette,
+    setShowFileOpen,
+    setShowContentSearch,
+  })
 
-  const openExternalEditor = useCallback(async (): Promise<void> => {
-    if (input.trim() === '' && Object.keys(pastedContents).length === 0) {
-      addNotification({
-        key: 'external-editor-empty',
-        text: `type a draft first — ${getShortcutDisplay('chat:externalEditor', 'Chat', 'ctrl+x ctrl+e')} edits the current draft`,
-        priority: 'medium',
-        timeoutMs: 5000,
-      })
-      return
-    }
-    setExternalEditorActive(true)
-    try {
-      const expanded = expandPastedTextRefs(input, pastedContents)
-      const result = await editPromptInEditor(expanded)
-      if (result.error) {
-        addNotification({
-          key: 'external-editor-error',
-          text: `external editor failed: ${result.error}`,
-          color: 'warning',
-          priority: 'high',
-        })
-      } else if (typeof result.content === 'string' && result.content !== expanded) {
-        buffer.pushAtomic(input, cursorOffset, pastedContents)
-        pendingInput.edit(result.content)
-        const edited = pendingInput.text()
-        lastSelfWriteRef.current = edited
-        setCursorOffset(edited.length)
-      }
-    } catch (error) {
-      addNotification({
-        key: 'external-editor-error',
-        text: `external editor failed: ${error instanceof Error ? error.message : String(error)}`,
-        color: 'warning',
-        priority: 'high',
-      })
-    } finally {
-      setExternalEditorActive(false)
-    }
-  }, [input, pastedContents, cursorOffset, buffer, setCursorOffset, addNotification])
-
-  const performStash = useCallback((): void => {
-    if (input.trim() === '') {
-      const stashed = pendingInput.popStash()
-      if (stashed === undefined) return
-      lastSelfWriteRef.current = stashed.text
-      setCursorOffset(stashed.cursorOffset)
-      return
-    }
-    pendingInput.stashDraft(cursorOffset)
-    lastSelfWriteRef.current = ''
-    setCursorOffset(0)
-    saveGlobalConfig(config => ({ ...config, hasUsedStash: true }))
-  }, [input, cursorOffset, setCursorOffset])
-
-  const cyclePermission = useCallback((): void => {
-    const fresh = appStateStore.getState() as AppState
-    if (
-      isCrewEnabled() &&
-      fresh.viewingAgentTaskId !== undefined &&
-      fresh.tasks[fresh.viewingAgentTaskId] !== undefined &&
-      isInProcessCrewmateTask(fresh.tasks[fresh.viewingAgentTaskId])
-    ) {
-      const taskId = fresh.viewingAgentTaskId
-      setAppState(prev => {
-        const task = prev.tasks[taskId]
-        if (task === undefined || !isInProcessCrewmateTask(task)) return prev
-        const next = getNextPermissionMode({
-          ...getEmptyToolPermissionContext(),
-          mode: task.permissionMode ?? 'default',
-        })
-        if (next === task.permissionMode) return prev
-        return {
-          ...prev,
-          tasks: {
-            ...prev.tasks,
-            [taskId]: { ...task, permissionMode: next },
-          },
-        }
-      })
-      setHelpOpen(false)
-      return
-    }
-    const { nextMode, context: nextContext } = cyclePermissionMode(
-      toolPermissionContext,
-      crewContext,
-    )
-    setToolPermissionContext({ ...nextContext, mode: nextMode })
-    syncCrewmateMode(nextMode, crewContext?.crewName)
-    setHelpOpen(false)
-  }, [appStateStore, toolPermissionContext, crewContext, setToolPermissionContext, setAppState, setHelpOpen])
-
-  useKeybindings(
-    {
-      'chat:undo': () => {
-        performUndo()
-      },
-      'chat:redo': () => {
-        performRedo()
-      },
-      'chat:newline': () => {
-        insertAtCursor('\n')
-      },
-      'chat:externalEditor': () => {
-        void openExternalEditor()
-      },
-      'chat:stash': () => {
-        performStash()
-      },
-      'chat:modelPicker': () => {
-        setOverlay(current => (current === 'model-picker' ? null : 'model-picker'))
-        setHelpOpen(false)
-      },
-      'chat:thinkingToggle': () => {
-        setOverlay(current => (current === 'thinking-toggle' ? null : 'thinking-toggle'))
-        setHelpOpen(false)
-      },
-      'chat:cycleMode': () => {
-        cyclePermission()
-      },
-      'chat:imagePaste': () => {
-        void (async () => {
-          let image: Awaited<ReturnType<typeof getImageFromClipboard>>
-          try {
-            image = await getImageFromClipboard()
-          } catch (error) {
-            handleImageError(error instanceof Error ? error.message : String(error))
-            return
-          }
-          if (image === null) {
-            addNotification({
-              key: 'no-image-in-clipboard',
-              text:
-                process.env.SSH_TTY !== undefined
-                  ? 'no image in the clipboard (over SSH, transfer the file instead)'
-                  : 'no image in the clipboard (copy one, then press the paste chord)',
-              priority: 'low',
-              timeoutMs: 1000,
-            })
-            return
-          }
-          handleImagePaste(
-            image.base64,
-            image.mediaType,
-            undefined,
-            image.dimensions,
-            undefined,
-            image.byteLength,
-          )
-        })()
-      },
-    },
-    { context: 'Chat', isActive: !modalOverlayUp },
-  )
-  useKeybinding('app:commandPalette', () => {
-    setShowCommandPalette(true)
-  }, { context: 'Global', isActive: !modalOverlayUp })
-  useKeybinding('app:fileOpen', () => {
-    setShowFileOpen(true)
-  }, { context: 'Global', isActive: !modalOverlayUp })
-  useKeybinding('app:contentSearch', () => {
-    setShowContentSearch(true)
-  }, { context: 'Global', isActive: !modalOverlayUp })
-  useKeybinding(
-    'chat:messageActions',
-    () => {
-      if (onMessageActionsEnter && !isSearchingHistory) onMessageActionsEnter()
-    },
-    { context: 'Chat', isActive: !modalOverlayUp && !isSearchingHistory },
-  )
-  useKeybinding(
-    'help:dismiss',
-    () => {
-      setHelpOpen(false)
-    },
-    { context: 'Help', isActive: helpOpen },
-  )
-  useKeybinding(
-    'app:interrupt',
-    () => {
-      abortSpeculation(setAppState)
-    },
-    { context: 'Global', isActive: !isLoading && speculationActive },
-  )
-
-  const [crewmateFooterIndex, setCrewmateFooterIndex] = useState(0)
-  const runningCrewmateCount = useAppState(
-    (s: AppState) =>
-      Object.values(s.tasks).filter(
-        task => isInProcessCrewmateTask(task) && task.status === 'running',
-      ).length,
-  )
-  useKeybindings(
-    {
-      'footer:up': () => {
-        setAppState(prev => ({ ...prev, footerSelection: null }))
-      },
-      'footer:down': () => {
-        if (footerSelection === 'tasks' && runningCrewmateCount === 0) {
-          setOverlay('tasks-dialog')
-          setAppState(prev => ({ ...prev, footerSelection: null }))
-        }
-      },
-      'footer:next': () => {
-        if (runningCrewmateCount > 0 && footerSelection === 'tasks') {
-          setCrewmateFooterIndex(prev => (prev + 1) % (1 + runningCrewmateCount))
-        }
-      },
-      'footer:previous': () => {
-        if (runningCrewmateCount > 0 && footerSelection === 'tasks') {
-          setCrewmateFooterIndex(
-            prev => (prev + runningCrewmateCount) % (1 + runningCrewmateCount),
-          )
-        }
-      },
-      'footer:openSelected': () => {
-        const fresh = appStateStore.getState() as AppState
-        if (fresh.viewSelectionMode === 'selecting-agent') return
-        if (footerSelection === 'tasks') {
-          if (runningCrewmateCount > 0) {
-            if (crewmateFooterIndex === 0) exitCrewmateView(setAppState)
-            else {
-              const sorted = Object.values(fresh.tasks)
-                .filter(isInProcessCrewmateTask)
-                .filter(task => task.status === 'running')
-                .sort((a, b) =>
-                  (a.identity.agentName ?? '').localeCompare(b.identity.agentName ?? ''),
-                )
-              const target = sorted[crewmateFooterIndex - 1]
-              if (target !== undefined) enterCrewmateView(target.id, setAppState)
-            }
-            return
-          }
-          setOverlay('tasks-dialog')
-          setCrewmateFooterIndex(0)
-          setAppState(prev => ({ ...prev, footerSelection: null }))
-        }
-      },
-      'footer:clearSelection': () => {
-        setAppState(prev => ({ ...prev, footerSelection: null }))
-      },
-      'footer:close': () => false,
-    },
-    { context: 'Footer', isActive: footerSelection !== null && !modalOverlayUp },
-  )
-
-  const escapeDoublePress = useDoublePress(
-    () => {},
-    () => {
-      onShowMessageSelector()
-    },
-  )
-  const handleRawKey = useCallback(
-    (
-      rawInput: string,
-      key: Key,
-      event: { stopImmediatePropagation: () => void; seq?: number },
-    ): void => {
-      if (modalOverlayUp || popupOwnsKeys() || compactWork?.read() === 'summary' || compactWork?.read() === 'detail') return
-      if (currentSurfaceRoute().kind !== 'repl') return
-      if (event.seq !== undefined && isPriorGenerationInput(event.seq)) return
-
-      const focusPane = getHelmFocus()
-
-      if (focusPane !== 'prompt') {
-        const composing = focusPane === 'telemetry' && isConsoleComposing()
-        if (composing) {
-          event.stopImmediatePropagation()
-          if (key.escape) {
-            if (!consoleAbortAsk()) exitConsoleCompose()
-            return
-          }
-          if (key.tab) {
-            exitConsoleCompose()
-            setHelmFocus(nextHelmPane(focusPane))
-            return
-          }
-          if (key.return) {
-            const buffered = getConsoleBuffer()
-            if (buffered.trim() !== '') {
-              const context = getToolUseContext(
-                messages,
-                [],
-                new AbortController(),
-                engineModel ?? '',
-              )
-              consoleSubmitBuffer((question, controller) =>
-                runConsoleAsk({
-                  question,
-                  context,
-                  abortController: controller,
-                }),
-              )
-            }
-            return
-          }
-          if (key.backspace || rawInput === '\u007f') {
-            consoleBackspace()
-            return
-          }
-          if (key.delete) {
-            consoleDeleteForward()
-            return
-          }
-          if (key.leftArrow) {
-            consoleMoveCursor(-1)
-            return
-          }
-          if (key.rightArrow) {
-            consoleMoveCursor(1)
-            return
-          }
-          if (key.ctrl && rawInput === 'a') {
-            consoleCursorHome()
-            return
-          }
-          if (key.ctrl && rawInput === 'e') {
-            consoleCursorEnd()
-            return
-          }
-          if (key.ctrl && rawInput === 'k') {
-            consoleKillLine()
-            return
-          }
-          if (key.ctrl && rawInput === 'w') {
-            consoleKillWord()
-            return
-          }
-          if (key.ctrl && rawInput === 'l') {
-            consoleClear()
-            return
-          }
-          if (key.upArrow) {
-            consoleHistoryMove(-1)
-            return
-          }
-          if (key.downArrow) {
-            consoleHistoryMove(1)
-            return
-          }
-          if (
-            rawInput !== '' &&
-            !key.ctrl &&
-            !key.meta &&
-            rawInput >= ' '
-          ) {
-            consoleInsert(rawInput)
-          }
-          return
-        }
-        if (key.escape) {
-          event.stopImmediatePropagation()
-          setHelmFocus('prompt')
-          return
-        }
-        if (key.tab) {
-          event.stopImmediatePropagation()
-          cycleHelmFocus()
-          return
-        }
-        if (key.upArrow || key.downArrow) {
-          event.stopImmediatePropagation()
-          moveHelmCursor(focusPane, key.downArrow ? 1 : -1)
-          return
-        }
-        if (key.return) {
-          event.stopImmediatePropagation()
-          if (!helmRailPastEntryBuffer()) return
-          requestHelmRowActivation(focusPane, getHelmCursor(focusPane))
-          return
-        }
-        if (rawInput === 'm' && !key.ctrl && !key.meta && focusPane === 'lanes') {
-          const row = currentHelmRow('lanes')
-          if (row !== undefined && (row.kind === 'crewmate' || row.kind === 'main')) {
-            event.stopImmediatePropagation()
-            if (!helmRailPastEntryBuffer()) return
-            if (row.kind === 'main') clearMainChat(setAppState)
-            else {
-              setMainChat(row.id, setAppState)
-              enterCrewmateView(row.id, setAppState)
-            }
-            setHelmFocus('prompt')
-            return
-          }
-        }
-        if (rawInput === 'c' && !key.ctrl && !key.meta && focusPane === 'lanes') {
-          const row = currentHelmRow('lanes')
-          if (row !== undefined && row.kind === 'crewmate') {
-            event.stopImmediatePropagation()
-            if (!helmRailPastEntryBuffer()) return
-            const ledgerRow = (appStateStore.getState() as AppState).crewLedger[row.id]
-            const facts = ledgerRow?.facts ?? { name: row.id, running: true }
-            const cleared = clearCrewmate(row.id, setAppState)
-            addNotification({ key: 'crewmate-send', text: cleared ? crewClearedWords(facts.name) : crewClearRefusedWords(facts), priority: 'medium', timeoutMs: 5000, fold: (_accumulated, incoming) => incoming })
-            return
-          }
-        }
-        if (
-          rawInput !== '' &&
-          !key.ctrl &&
-          !key.meta &&
-          rawInput >= ' ' &&
-          !key.tab
-        ) {
-          const composeCapable = focusPane === 'telemetry' && consoleEnabled()
-          event.stopImmediatePropagation()
-          if (composeCapable) {
-            beginConsoleCompose(rawInput)
-          } else {
-            setHelmFocus('prompt')
-            insertAtCursor(rawInput)
-          }
-          return
-        }
-        return
-      }
-
-      const emptyPlainPrompt =
-        input === '' && cursorOffset === 0 && mode === 'prompt' &&
-        footerSelection === null && !helpOpen && !isSearchingHistory
-
-      if (key.escape && voice.phase !== 'recording' && mode === 'prompt' && footerSelection === null && !helpOpen && !isSearchingHistory) {
-        const freshState = appStateStore.getState() as AppState
-        const viewed = freshState.viewingAgentTaskId
-        if (viewed !== undefined) {
-          event.stopImmediatePropagation()
-          const crewmate = viewedCrewmateRef.current?.taskId === viewed ? viewedCrewmateRef.current : null
-          const name = crewmate?.name ?? viewed
-          const say = (text: string): void => addNotification({ key: 'crewmate-send', text, priority: 'medium', timeoutMs: 5000, fold: (_accumulated, incoming) => incoming })
-          const road = interruptCrewmate(viewed, freshState, setAppState, undefined, {
-            facts: crewmate?.facts ?? null,
-            onRefused: detail => say(crewmateInterruptRefusedWords(name, detail)),
-          })
-          if (road === 'idle') {
-            exitCrewmateView(setAppState)
-            say(crewmateEscBackWords(name, crewmate?.facts != null ? crewStateLabel(crewmate.facts) : 'between turns'))
-            return
-          }
-          say(crewmateInterruptedWords(name))
-          return
-        }
-      }
-
-      if (voice.phase === 'recording' && key.escape) {
-        event.stopImmediatePropagation()
-        cancelVoiceCapture()
-        return
-      }
-
-      if (
-        key.tab &&
-        !key.shift &&
-        emptyPlainPrompt &&
-        suggestionsMirrorRef.current.suggestions.length === 0
-      ) {
-        if (cockpitActive) {
-          event.stopImmediatePropagation()
-          setHelmFocus('lanes')
-          return
-        }
-      }
-
-      if (
-        emptyPlainPrompt &&
-        key.meta &&
-        !key.ctrl &&
-        (key.leftArrow || key.rightArrow)
-      ) {
-        event.stopImmediatePropagation()
-        void submitRef.current(SESSION_TAB_COMMAND, { fromKeybinding: true })
-        return
-      }
-
-      if (emptyPlainPrompt && key.leftArrow && !key.ctrl && !key.meta) {
-        event.stopImmediatePropagation()
-        void submitRef.current(MANAGER_COMMAND, { fromKeybinding: true })
-        return
-      }
-
-      if (getPlatform() === 'macos' && rawInput.length === 1 && 'åß∂ƒ©˙∆˚¬…æ∑'.includes(rawInput)) {
-        addNotification({
-          key: 'option-meta-hint',
-          text: `option produced “${rawInput}” — run ${KEYSETUP_COMMAND} to make option send meta`,
-          priority: 'low',
-          timeoutMs: 5000,
-        })
-      }
-
-      if (
-        footerSelection !== null &&
-        rawInput !== '' &&
-        !key.ctrl &&
-        !key.meta &&
-        !key.escape &&
-        !key.return &&
-        rawInput >= ' '
-      ) {
-        event.stopImmediatePropagation()
-        insertAtCursor(rawInput)
-        return
-      }
-
-      if (
-        cursorOffset === 0 &&
-        (key.escape || key.backspace || key.delete || (key.ctrl && rawInput === 'u'))
-      ) {
-        if (mode === 'bash') {
-          setMode('prompt')
-          setHelpOpen(false)
-        } else if (helpOpen && (key.backspace || key.delete) && input === '') {
-          setHelpOpen(false)
-        }
-      }
-
-      if (key.escape) {
-        if (speculationActive) {
-          abortSpeculation(setAppState)
-          event.stopImmediatePropagation()
-          return
-        }
-        if (helpOpen) {
-          setHelpOpen(false)
-          event.stopImmediatePropagation()
-          return
-        }
-        if (footerSelection !== null) return
-        if (messages.length > 0 && input === '' && !isLoading) {
-          escapeDoublePress()
-        }
-        return
-      }
-
-      if (key.return && helpOpen) {
-        setHelpOpen(false)
-      }
-    },
-    [modalOverlayUp, input, cursorOffset, mode, footerSelection, helpOpen, isSearchingHistory, messages, isLoading, speculationActive, appStateStore, engineModel, cockpitActive, getToolUseContext, insertAtCursor, setMode, setHelpOpen, setCursorOffset, setAppState, addNotification, escapeDoublePress, voice.phase],
-  )
-  useInput((rawInput, key, event) => {
-    handleRawKey(rawInput, key, event)
+  useComposerRawKeys({
+    modalOverlayUp,
+    compactWork,
+    input,
+    cursorOffset,
+    mode,
+    footerSelection,
+    helpOpen,
+    isSearchingHistory,
+    messages,
+    isLoading,
+    speculationActive,
+    appStateStore,
+    engineModel,
+    cockpitActive,
+    voicePhase: voice.phase,
+    getToolUseContext,
+    insertAtCursor,
+    setMode,
+    setHelpOpen,
+    setCursorOffset,
+    setAppState,
+    addNotification,
+    onShowMessageSelector,
+    submitRef,
+    suggestionsMirrorRef,
+    viewedCrewmateRef,
   })
 
 
@@ -2275,10 +739,13 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     return spans
   }, [displayedValue, isSearchingHistory, historySearch.historyMatch, historySearch.historyFailedMatch, historySearch.historyQuery, cursorOffset, commands, mcpClients, crewContext])
 
-  const effortText = getEffortNotificationText(
+  const effortText = composerEffortNotice({
+    model: focusedEffectiveModel !== '' ? focusedEffectiveModel : (engineModel ?? focusedMainModel),
+    seatEffort,
+    sentEffort,
     effortValue,
-    engineModel ?? focusedMainModel,
-  )
+    bornEffort,
+  })
   const effortBaselineRef = useRef<{ armed: boolean; text: string | undefined }>({
     armed: false,
     text: undefined,
@@ -2329,133 +796,21 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     : fullscreen ? Math.max(3, Math.floor(rows / 2) - 5) : undefined
 
   const textColumns = isCompact ? Math.max(1, compactBudget?.inputColumns ?? columns) : columns - 3
-  const cellSpanAt =(localCol: number, localRow: number): { start: number; end: number } => {
-    const cursor = Cursor.fromText(input, textColumns, cursorOffset)
-    const viewportStart =
-      composerViewportStartRef.current ?? cursor.getViewportStartLine(maxVisibleLines)
-    const line = localRow + viewportStart
-    const doc = cursor.measuredText
-    const lineEnd = doc.getLineEndOffset(line)
-    const start = Math.min(doc.getOffsetFromPosition({ line, column: localCol }), lineEnd)
-    return { start, end: start < lineEnd ? doc.nextOffset(start) : start }
-  }
-  const offsetAtCell = (localCol: number, localRow: number): number => cellSpanAt(localCol, localRow).start
-  const mapSelectionToInputRange = (): { start: number; end: number } | null => {
-    if (isSearchingHistory) return null
-    const state = selectionApi.getState()
-    if (!state || !state.anchor || !state.focus) return null
-    const box = inputBoxRef.current
-    const rect = selectionGestureRectRef.current ?? (box ? nodeCache.get(box) : undefined)
-    const trace = (why: string, start = -1, end = -1): void =>
-      submitTrace('input-selection', '', {
-        why,
-        rx: rect?.x ?? -1, ry: rect?.y ?? -1, rw: rect?.width ?? -1, rh: rect?.height ?? -1,
-        ac: state.anchor!.col, ar: state.anchor!.row, fc: state.focus!.col, fr: state.focus!.row,
-        start, end, len: input.length,
-      })
-    if (!box) {
-      trace('no-box')
-      return null
-    }
-    if (!rect) {
-      trace('no-rect')
-      return null
-    }
-    const inside = (p: { col: number; row: number }): boolean =>
-      p.col >= rect.x &&
-      p.col < rect.x + rect.width &&
-      p.row >= rect.y &&
-      p.row < rect.y + rect.height
-    if (!inside(state.anchor) || !inside(state.focus)) {
-      trace('outside')
-      return null
-    }
-    const [first, last] =
-      state.anchor.row < state.focus.row ||
-      (state.anchor.row === state.focus.row && state.anchor.col <= state.focus.col)
-        ? [state.anchor, state.focus]
-        : [state.focus, state.anchor]
-    const start = offsetAtCell(first.col - rect.x, first.row - rect.y)
-    const end = Math.min(
-      input.length,
-      offsetAtCell(last.col - rect.x, last.row - rect.y) + 1,
-    )
-    trace(start >= end ? 'degenerate' : 'ok', start, end)
-    if (start >= end) return null
-    return { start, end }
-  }
-  inputSelectionRangeRef.current =() => ownSelectionOf(pendingInput.text()) ?? mapSelectionToInputRange()
-  useEffect(
-    () =>
-      registerInputSelectionOwner({
-        range: () => inputSelectionRangeRef.current(),
-        own: () => {
-          const text = pendingInput.text()
-          const range = ownSelectionOf(text)
-          return range === null ? null : { ...range, text: text.slice(range.start, range.end) }
-        },
-        clear: clearOwnSelection,
-      }),
-    [],
-  )
-  const ownSelection = ownSelectionOf(input)
-  const ownSelected = ownSelection !== null
-  useEffect(() => {
-    noteOwnInputSelectionChanged()
-  }, [ownSelected])
+  const composerViewportStartRef = useRef<number | undefined>(undefined)
+  const { ownSelection, handleInputBoxClick, handleInputTextGesture } = useComposerSelectionRoad(selection, {
+    input,
+    cursorOffset,
+    textColumns,
+    maxVisibleLines,
+    composerViewportStartRef,
+    isSearchingHistory,
+    setCursorOffset,
+  })
   const pushAtomic = buffer.pushAtomic
-  const insertTextAtCursor = (text: string): void => {
-    insertAtCursor(text, { atomic: true })
-  }
-  const handleInputBoxClick = (event: { localCol: number; localRow: number }): void => {
-    if (isSearchingHistory || input === '') return
-    setCursorOffset(
-      Math.max(0, Math.min(input.length, offsetAtCell(event.localCol, event.localRow))),
-    )
-  }
-  const handleInputTextGesture =(gesture: TextGesture): boolean => {
-    if (isSearchingHistory || isVimModeEnabled() || input === '') return false
-    if (gesture.kind === 'press') {
-      if (gesture.clickCount >= 2) {
-        gestureAnchorRef.current = null
-        setOwnSelection({ start: 0, end: input.length, of: input })
-        setCursorOffset(input.length)
-        return true
-      }
-      const cell = cellSpanAt(gesture.localCol, gesture.localRow)
-      gestureAnchorRef.current = { ...cell, col: gesture.localCol, row: gesture.localRow, moved: false }
-      setOwnSelection(null)
-      setCursorOffset(cell.start)
-      return true
-    }
-    if (gesture.kind === 'drag') {
-      const anchor = gestureAnchorRef.current
-      if (anchor === null) return true
-      if (!anchor.moved) {
-        if (gesture.localCol === anchor.col && gesture.localRow === anchor.row) return true
-        anchor.moved = true
-      }
-      const cell = cellSpanAt(gesture.localCol, gesture.localRow)
-      const forward = cell.start >= anchor.start
-      const start = forward ? anchor.start : cell.start
-      const end = forward ? Math.max(cell.end, anchor.end) : anchor.end
-      setOwnSelection(start < end ? { start, end, of: input } : null)
-      setCursorOffset(forward ? end : start)
-      return true
-    }
-    gestureAnchorRef.current = null
-    if (ownSelectionOf(input) !== null) noteOwnInputSelectionSettled()
-    return true
-  }
-
-  const setOverlayDialog = useSetPromptOverlayDialog
-  void setOverlayDialog
 
   const exitStateChange = useCallback((show: boolean, keyName?: string): void => {
     setExitState({ pending: show, keyName: keyName ?? null })
   }, [])
-
-  const composerViewportStartRef = useRef<number | undefined>(undefined)
 
   const voiceInputFilter = useCallback((rawInput: string, key: Key): string => holdToTalkKey(rawInput, key), [])
   useEffect(() => {
@@ -2467,35 +822,12 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         const at = Math.max(0, Math.min(cursorRef.current, text.length))
         const from = Math.max(0, at - deleteBefore)
         const next = text.slice(0, from) + insert + text.slice(at)
-        pendingInput.edit(next)
-        lastSelfWriteRef.current = next
+        writeDraft(next)
         setCursorOffset(from + insert.length)
       },
     })
     return () => setHoldToTalkEditor(null)
   }, [setCursorOffset])
-  const capEffectiveModel = focusedEffectiveModel !== '' ? focusedEffectiveModel : (engineModelForSession ?? engineModel ?? focusedMainModel)
-  const capLane = capFailoverLaneOf(declaredRouteOf(capEffectiveModel))
-  const capNote = capHandoffState()
-  const capHomeWindow = capLane !== null && capNote !== null ? observedFamilyWindow(capNote.homeFamily) : null
-  const capLaneFacts =
-    capLane !== null && capNote !== null
-      ? {
-          lane: capLane,
-          modelName: renderModelName(capEffectiveModel),
-          homeName: providerDisplayName(capNote.homeFamily),
-          homeWindow: capHomeWindow,
-          resetText:
-            capHomeWindow !== null && capHomeWindow.resetsAtMs !== undefined
-              ? formatResetTime(capHomeWindow.resetsAtMs / 1000)
-              : undefined,
-        }
-      : null
-  const capLaneUntil = capLaneLineUntil(capLaneFacts === null ? null : capLaneLineKey(capLaneFacts), Date.now())
-  const capLaneStanding = capLaneUntil !== null && Date.now() < capLaneUntil
-  useNowTick(capLaneStanding ? 1000 : null)
-  const capLaneLine = capLaneStanding && capLaneFacts !== null ? capLaneLineWords(capLaneFacts) : null
-  const capLaneCut = capLaneLine !== null && isCompact ? capLaneLineCut(capLaneLine, columns - 1) : null
   if (externalEditorActive) {
     return (
       <Box
@@ -2556,7 +888,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         ]}
         onRun={text => {
           setShowCommandPalette(false)
-          insertTextAtCursor(text)
+          insertAtomic(text)
         }}
         onClose={() => setShowCommandPalette(false)}
       />
@@ -2567,7 +899,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       <MercuryFileOpen
         onPick={text => {
           setShowFileOpen(false)
-          insertTextAtCursor(text)
+          insertAtomic(text)
         }}
         onClose={() => setShowFileOpen(false)}
       />
@@ -2578,63 +910,13 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       <MercuryContentSearch
         onPick={text => {
           setShowContentSearch(false)
-          insertTextAtCursor(text)
+          insertAtomic(text)
         }}
         onClose={() => setShowContentSearch(false)}
       />
     )
   }
-  if (overlay === 'model-transition-preview' && transitionConfirm !== null) {
-    const held = transitionConfirm
-    const effectiveNow = engineModelForSession ?? engineModel ?? focusedMainModel
-    return (
-      <TransitionPreviewCard
-        plan={held.plan}
-        targetUsability={usabilityForRoute(held.plan.targetRoute)}
-        fromLabel={renderModelName(effectiveNow)}
-        toLabel={renderModelName(held.value)}
-        refreshed={held.refreshed}
-        onConfirm={() => {
-          const verdict = reconfirmTransitionPlan(held.plan, messages)
-          if (!verdict.ok) {
-            setTransitionConfirm({ ...held, plan: verdict.freshPlan, refreshed: true })
-            return
-          }
-          setTransitionConfirm(null)
-          if (held.plan.window?.fits === false) {
-            const foldingSession = getFocusedSessionConnector()
-            if (foldingSession.carrier === 'daemon') {
-              void foldingSession.sendWords('/compact').then(() => applyModelSelection(held.value))
-              return
-            }
-            requestCommandDispatch('/compact')
-          }
-          applyModelSelection(held.value)
-        }}
-        onCancel={() => {
-          capHandoffIntentRef.current = null
-          setTransitionConfirm(null)
-          setOverlay(null)
-          addNotification({
-            key: 'model-switched',
-            text: `Kept model as ${renderModelName(effectiveNow)} — switch cancelled at the preview`,
-            priority: 'high',
-            timeoutMs: 3000,
-          })
-        }}
-      />
-    )
-  }
-  if (overlay === 'model-picker') {
-    return (
-      <ModelPicker
-        initial={engineModelForSession ?? engineModel ?? focusedMainModel}
-        sessionModel={engineModelForSession}
-        onSelect={value => handleModelSelect(value)}
-        onCancel={() => setOverlay(null)}
-      />
-    )
-  }
+  if (doors.surface !== null) return doors.surface
   if (overlay === 'thinking-toggle') {
     return (
       <ThinkingToggle
@@ -2652,69 +934,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
           })
         }}
         onCancel={() => setOverlay(null)}
-      />
-    )
-  }
-  if (overlay === 'cap-offer' && capOffer !== null) {
-    const offer = capOffer
-    return (
-      <CapOfferCard
-        trigger={offer.trigger}
-        windowName={offer.windowName}
-        resetText={offer.resetText}
-        carryWords={offer.direction === 'handoff' ? (usageCarryWords(usageForProvider(offer.homeRoute).carry) ?? null) : null}
-        targetModel={offer.targetModel}
-        homeRoute={offer.homeRoute}
-        awayRoute={offer.awayRoute}
-        homeUsability={usabilityForRoute(offer.homeRoute)}
-        awayUsability={usabilityForRoute(offer.awayRoute)}
-        rows={offer.direction === 'handoff' ? offer.rows : undefined}
-        onAccept={chosen => {
-          setCapOffer(null)
-          setOverlay(null)
-          noteCapOfferAnswered(offer.direction, offer.homeRoute)
-          if (offer.direction === 'handoff') {
-            const seat = getFocusedSessionConnector().modelFacts()
-            capHandoffIntentRef.current = { homeModel: seat.sessionPin ?? seat.setting ?? seat.effective, homeFamily: offer.homeRoute }
-          }
-          handleModelSelect(chosen.model)
-        }}
-        onDismiss={() => {
-          noteCapOfferAnswered(offer.direction, offer.homeRoute)
-          setCapOffer(null)
-          setOverlay(null)
-        }}
-      />
-    )
-  }
-
-  if (overlay === 'slot-offer' && slotOffer !== null) {
-    const offer = slotOffer
-    return (
-      <SlotOfferCard
-        familyName={familyDisplayName(offer.family)}
-        fromLabel={offer.fromLabel}
-        toLabel={offer.toLabel}
-        headroomObserved={offer.headroomObserved}
-        resetText={offer.resetText}
-        carryWords={offer.carryWords}
-        onAccept={() => {
-          setSlotOffer(null)
-          setOverlay(null)
-          const outcome = switchActiveSlot(offer.family)
-          const durable = paintSlotSwitchReceipt(outcome)
-          addNotification({
-            key: 'slot-failover',
-            text: durable ? slotSwitchTransient(outcome.receipt) : outcome.receipt,
-            priority: 'high',
-            timeoutMs: 8000,
-          })
-        }}
-        onDismiss={() => {
-          noteOfferDismissal(offer.key)
-          setSlotOffer(null)
-          setOverlay(null)
-        }}
       />
     )
   }

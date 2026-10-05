@@ -531,7 +531,7 @@ section('§9 the carry words: a reached window says what carries the requests fr
   const deck = src('src/components/Deck.tsx')
   check('/deck appends them to its reached line and paints the 100% row', deck.includes('usageCarryWords(usage.carry, now)') && deck.includes('{formatCountdown(usage.limited.resetsAtMs - now)}{carryTail}') && deck.includes('100%{carryTail}'))
   const slotCard = src('src/components/SlotOfferCard.tsx')
-  const composer = src('src/components/PromptInput/PromptInput.tsx')
+  const composer = src('src/components/PromptInput/useComposerModelDoors.tsx')
   check('the slot offer card carries a carry line under its reached sentence, handed the owner\'s words by the composer', slotCard.includes('{GLYPH.dot} {carryWords}') && composer.includes('carryWords: usageCarryWords(usageForProvider(family).carry) ?? null') && composer.includes('carryWords={offer.carryWords}'))
   check('the handoff notice appends them after its reset', composer.includes("window is reached${resetText !== null ? ` · resets ${resetText}` : ''}${homeCarry !== undefined ? ` · ${homeCarry}` : ''}"))
   const capCard = src('src/components/CapOfferCard.tsx')

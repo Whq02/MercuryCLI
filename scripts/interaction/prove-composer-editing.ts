@@ -46,7 +46,7 @@ console.log('\n── §2 contracts pinned in source ─────────
   check('buffer exposes the bidirectional API', ['pushToBuffer', 'pushAtomic', 'undo', 'redo', 'canUndo', 'canRedo', 'clearBuffer'].every(k => buf.includes(k)))
   check('a new edit truncates the forward branch', buf.includes('if (redoStackRef.current.length > 0) redoStackRef.current = []'))
   check('entries carry text + cursor + paste metadata together', buf.includes('pastedContents: Record<number, PastedContent>'))
-  const pi = read('src/components/PromptInput/PromptInput.tsx')
+  const pi = read('src/components/PromptInput/PromptInput.tsx') + read('src/components/PromptInput/useComposerAttachments.ts') + read('src/components/PromptInput/useComposerKeybindings.ts') + read('src/components/PromptInput/useComposerDraft.ts')
   check('undo/redo receive the LIVE state (pending edits never skipped)', pi.includes('buffer.undo({ text: pendingInput.text(), cursorOffset, pastedContents: pendingInput.pastedContents() })') && pi.includes('buffer.redo({ text: pendingInput.text(), cursorOffset, pastedContents: pendingInput.pastedContents() })'))
   check('insertions are atomic transactions', pi.includes('pushAtomic(input, cursorOffset, pastedContents);\n    const range = inputSelectionRangeRef.current();'))
   check('external-editor return is one atomic edit', /typeof result\.content === 'string' && result\.content !== expanded\) \{(?:\s*\/\/[^\n]*)*\s*buffer\.pushAtomic\(input, cursorOffset, pastedContents\)\s*pendingInput\.edit\(result\.content\)/.test(pi))

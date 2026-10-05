@@ -27,7 +27,7 @@ check('the cut hands the body the columns left after the tail', cut !== null && 
 check('a row wide enough for the whole sentence is not cut (120 columns as before)', cap.capLaneLineCut(words, 119) === null)
 check('a sentence exactly as wide as the row is not cut', cap.capLaneLineCut(words, stringWidth(words)) === null)
 check('a sentence without the tail is left alone', cap.capLaneLineCut('on the anthropic failover lane · Fable 5.1', 20) === null)
-const composer = read('src/components/PromptInput/PromptInput.tsx')
+const composer = read('src/components/PromptInput/PromptInput.tsx') + read('src/components/PromptInput/useComposerModelDoors.tsx')
 check('the composer cuts only on the compact layouts, one column in from the width, and paints the cut body in a fixed-width box with the end cut and the tail beside it', composer.includes('const capLaneCut = capLaneLine !== null && isCompact ? capLaneLineCut(capLaneLine, columns - 1) : null') && composer.includes('<Box width={capLaneCut.bodyColumns} flexShrink={0} minWidth={0}>') && composer.includes('<Text color={AMBER} wrap="truncate-end">{capLaneCut.body}</Text>') && composer.includes('<Text color={AMBER}>{capLaneCut.tail}</Text>'))
 check('a wide layout paints the sentence as before', composer.includes('<Text color={AMBER}>{capLaneLine}</Text>'))
 

@@ -169,7 +169,7 @@ section('§D the neutral candidate law and the decision core are unchanged')
 
 section('§E the composer answers on the STABLE owner; the exact-id resolver is wired')
 {
-  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
+  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/useComposerModelDoors.tsx'), 'utf8')
   check('the composer no longer keys the cross-family arm on the volatile state|reset string', !/`\$\{direction\}\|\$\{homeFamily\}\|\$\{window\.state\}/.test(composer))
   check('the composer answers the cross-family offer on the stable owner', /capOfferAnswered\(direction, homeFamily\)/.test(composer))
   check('the composer re-arms on the observed window every commit', /noteCapWindowObserved\(homeFamily, window\.state\)/.test(composer))
@@ -301,7 +301,7 @@ section('§H the card: ↑↓ over the rows, ↵ for the highlighted row, esc st
   check('each row prints the family, the landing row and its usage words; at-cap rows carry the mark', card.includes('capUsageWords(row.window, rowReset)') && card.includes("row.atCap ? `${GLYPH.warn} ` : ''"))
   check("the binding window is named as the wire named it — never a second 'window' after it; a warning never builds the card", card.includes('`the ${homeName} ${windowNoun} is reached — ${homeName} requests are refused until reset`') && !card.includes("${windowName ?? 'usage'} window") && !card.includes('approaching the'))
   check('the card owns the keyboard while it stands (esc never doubles as the turn interrupt)', card.includes("useRegisterOverlay('cap-offer')"))
-  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
+  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/useComposerModelDoors.tsx'), 'utf8')
   check('the composer reads the home window FOR the seat model (the pool that binds)', composer.includes('model: onFailoverLane ? (noted?.homeModel ?? null) : effective'))
   check('the composer hands the card the whole list from the one owner and settles the CHOSEN row', composer.includes('rows = set.listed') && composer.includes('handleModelSelect(chosen.model)'))
 }
@@ -320,7 +320,7 @@ section('§I the within-family slot rung: a stable wall key, re-armed only by an
   cap.noteOfferDismissal(key)
   cap.noteSlotWallObserved('openai', 'api-key', false)
   check('a clear on the OTHER seat leaves this seat\'s answered wall alone', cap.offerDismissed(key))
-  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
+  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/useComposerModelDoors.tsx'), 'utf8')
   check('the composer keys the slot rung on the stable owner and re-arms from the observed wall', composer.includes("slotWallKey(family, view.active ?? '')") && composer.includes("noteSlotWallObserved(family, view.active ?? '', activeWall.walled)"))
   check('the slot key no longer carries the reset moment', !composer.includes("${activeWall.resetsAtMs ?? ''}`"))
 }
@@ -351,7 +351,7 @@ section("§J a band that lands re-runs the offer at once: the OpenAI record's ch
   openai.recordOpenaiUsageLimit(now + 60_000, 'api-key', () => now)
   check('an unsubscribed listener hears nothing more', fired === 4)
   openai.__resetOpenaiLimitStateForTest()
-  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
+  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/useComposerModelDoors.tsx'), 'utf8')
   check("the composer follows the anthropic record's version and the OpenAI record's version (the cap effect re-runs on either)", composer.includes('useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)') && composer.includes('useSyncExternalStore(subscribeOpenaiObserved, getOpenaiObservedVersion, getOpenaiObservedVersion)'))
   const strip = readFileSync(join(ROOT, 'src/hooks/notifs/useRateLimitWarningNotification.tsx'), 'utf8')
   check("the strip warning follows both records' versions and re-derives on them", strip.includes('useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)') && strip.includes('useSyncExternalStore(subscribeOpenaiObserved, getOpenaiObservedVersion, getOpenaiObservedVersion)') && /\[limits, model, tick, connector, addNotification, usageRecordVersion, openaiObservedVersion\]/.test(strip))

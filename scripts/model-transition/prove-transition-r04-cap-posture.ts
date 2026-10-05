@@ -347,7 +347,7 @@ section('§I the words — the card names the family; the spend posture is per f
   check('the card title names the HOME family (window reset — return? · usage window)', card.includes('`${homeName} window reset — return?`') && card.includes('`${homeName} usage window`'))
   check('the card never spells a default subscription lane', !card.includes('Claude is your subscription lane') && !card.includes('Claude is the subscription lane') && !card.includes("'Claude window reset"))
   check('the card composes both spend lines through the ONE posture owner', /import \{[^}]*\blaneSpendPosture\b[^}]*\} from '\.\.\/services\/capFailover\.js'/.test(card) && card.includes('laneSpendPosture(homeRoute') && card.includes('laneSpendPosture(awayRoute'))
-  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
+  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/useComposerModelDoors.tsx'), 'utf8')
   check('the composer reads the home window through the ONE resolver, for the seat model (the pool that binds)', composer.includes('observedFamilyWindow(homeFamily, undefined, {'))
   check('the composer derives the home family from the handoff note, not a hardwired family', composer.includes('liveRoute === noted.homeFamily') && !composer.includes("liveRoute === 'anthropic'"))
   check('the composer asks the neutral candidate set for the HOME family', composer.includes('liveCapFailoverTarget(homeFamily)'))

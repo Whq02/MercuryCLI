@@ -124,6 +124,7 @@ reg(
   [
     'src/components/BaseTextInput.tsx',
     'src/components/PromptInput/PromptInput.tsx',
+    'src/components/PromptInput/useComposerRawKeys.ts',
     'src/components/concourse/ConcourseStrips.tsx',
   ],
   'editor',

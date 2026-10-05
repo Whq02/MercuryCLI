@@ -248,7 +248,7 @@ section('§E the surfaces read the ONE answer (structural source pins)')
   for (const pickSite of [
     'src/commands/model/model.tsx',
     'src/commands/model/mercuryModel.tsx',
-    'src/components/PromptInput/PromptInput.tsx',
+    'src/components/PromptInput/useComposerModelDoors.tsx',
   ]) {
     const source = readFileSync(join(ROOT, pickSite), 'utf8')
     check(

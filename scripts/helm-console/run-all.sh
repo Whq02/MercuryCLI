@@ -3,7 +3,7 @@
 # gate-watch: scripts/ui/render-tui.ts scripts/ui/vshot.py src/components/mercury-ui/glyphs*
 # gate-watch: src/constants/spinnerVerbs* src/utils/cockpit/**
 # gate-watch: src/commands.ts src/commands/console/console.tsx src/commands/console/index.ts src/components/*
-# gate-watch: src/components/HelpV2/commandDomains.ts src/components/PromptInput/PromptInput.tsx
+# gate-watch: src/components/HelpV2/commandDomains.ts src/components/PromptInput/PromptInput.tsx src/components/PromptInput/useComposerRawKeys.ts
 # gate-watch: src/components/Spinner/SpinnerAnimationRow.tsx src/components/Spinner/SpinnerGlyph.tsx
 # gate-watch: src/services/providers/anthropic/streamCore.ts src/services/providers/routeLaw.ts
 # gate-watch: src/services/tools/toolExecution.ts src/state/telemetryBus.ts src/substrate/flagRegistry.ts
