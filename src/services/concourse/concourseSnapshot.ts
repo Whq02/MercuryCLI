@@ -130,10 +130,15 @@ const timestampMsOf = (raw: unknown): number | undefined => {
   return Number.isFinite(ms) ? ms : undefined
 }
 
-export function tailActivity(rec: { sessionId: string; workspaceId: string }): { label: string; kind: 'tool' | 'text'; at?: number } | null {
+export type TailActivity = { label: string; kind: 'tool' | 'text'; at?: number; settled?: true }
+
+export const MODEL_TURN_NOW_WORD = 'thinking'
+
+export function tailActivity(rec: { sessionId: string; workspaceId: string }): TailActivity | null {
   try {
     const lines = transcriptWindowLines(rec, 8192, 'tail')
     if (lines === null) return null
+    const landed = new Set<string>()
     for (let i = lines.length - 1; i >= 0; i--) {
       const raw = lines[i]
       if (raw === undefined || raw.length < 8) continue
@@ -144,12 +149,21 @@ export function tailActivity(rec: { sessionId: string; workspaceId: string }): {
         continue
       }
       const e = entryShapeOf(entry)
-      if (e === null || e.type !== 'assistant') continue
+      if (e === null) continue
       const content = e.message?.content
+      if (e.type === 'user') {
+        if (Array.isArray(content)) {
+          for (const block of content as Array<{ type?: unknown; tool_use_id?: unknown }>) {
+            if (block?.type === 'tool_result' && typeof block.tool_use_id === 'string') landed.add(block.tool_use_id)
+          }
+        }
+        continue
+      }
+      if (e.type !== 'assistant') continue
       if (!Array.isArray(content)) continue
       const at = timestampMsOf(e.timestamp)
       for (let j = content.length - 1; j >= 0; j--) {
-        const b = content[j] as { type?: unknown; name?: unknown; text?: unknown; input?: unknown }
+        const b = content[j] as { type?: unknown; id?: unknown; name?: unknown; text?: unknown; input?: unknown }
         if (b.type === 'tool_use' && typeof b.name === 'string') {
           const input = (b.input ?? {}) as Record<string, unknown>
           const hint =
@@ -162,7 +176,8 @@ export function tailActivity(rec: { sessionId: string; workspaceId: string }): {
                   : typeof input.pattern === 'string'
                     ? input.pattern
                     : ''
-          return { label: sanitizeLabel(`${b.name}${hint.length > 0 ? ` · ${hint}` : ''}`.slice(0, 56)), kind: 'tool', ...(at !== undefined ? { at } : {}) }
+          const settled = typeof b.id === 'string' && landed.has(b.id)
+          return { label: sanitizeLabel(`${b.name}${hint.length > 0 ? ` · ${hint}` : ''}`.slice(0, 56)), kind: 'tool', ...(at !== undefined ? { at } : {}), ...(settled ? { settled: true } : {}) }
         }
         if (b.type === 'text' && typeof b.text === 'string' && b.text.trim().length > 0) {
           return { label: sanitizeLabel(b.text.trim().replace(/\s+/g, ' ').slice(0, 56)), kind: 'text', ...(at !== undefined ? { at } : {}) }
@@ -175,8 +190,13 @@ export function tailActivity(rec: { sessionId: string; workspaceId: string }): {
   }
 }
 
+export function activityNowLabel(activity: TailActivity | null): string | null {
+  if (activity === null) return null
+  return activity.kind === 'tool' && activity.settled === true ? MODEL_TURN_NOW_WORD : activity.label
+}
+
 export function tailActivityLabel(rec: { sessionId: string; workspaceId: string }): string | null {
-  return tailActivity(rec)?.label ?? null
+  return activityNowLabel(tailActivity(rec))
 }
 
 export function headBriefLabel(rec: { sessionId: string; workspaceId: string }, maxChars = 200): string | null {
