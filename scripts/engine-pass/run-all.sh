@@ -15,6 +15,7 @@ fail=0
 run_proof scripts/engine-pass/prove-judge-teeth.ts "$BUN" scripts/engine-pass/prove-judge-teeth.ts || fail=1
 run_proof scripts/engine-pass/prove-recorder.ts "$BUN" scripts/engine-pass/prove-recorder.ts || fail=1
 run_proof scripts/engine-pass/prove-engine-contract.ts "$BUN" scripts/engine-pass/prove-engine-contract.ts || fail=1
+run_proof scripts/engine-pass/prove-frame-wire.ts "$BUN" scripts/engine-pass/prove-frame-wire.ts || fail=1
 run_proof scripts/engine-pass/prove-frames-identical.ts "$BUN" scripts/engine-pass/prove-frames-identical.ts || fail=1
 run_proof scripts/engine-pass/prove-frame-cost.ts "$BUN" scripts/engine-pass/prove-frame-cost.ts || fail=1
 exit "$fail"
