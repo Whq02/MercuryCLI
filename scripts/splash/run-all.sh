@@ -20,6 +20,7 @@ __t=$SECONDS; __rc=0; node --check "$here/../../assets/splash/mercury-splash.mjs
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/bake-menu.mjs" --check || { __rc=$?; fail=1; }; prover_mark "$here/bake-menu.mjs" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/bake-ramp.mjs" --check || { __rc=$?; fail=1; }; prover_mark "$here/bake-ramp.mjs" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-face-fit-floor.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-face-fit-floor.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-face-lower-half.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-face-lower-half.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-ramp-parity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-ramp-parity.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-splash-units.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-splash-units.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-sonnet-55-row.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-sonnet-55-row.ts" "$__t" "$__rc"
