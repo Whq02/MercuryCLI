@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto'
 import chalk from 'chalk'
 import type { HookEvent, HookInput, HookJSONOutput, SyncHookJSONOutput } from './contract.js'
-import { hookEventTable, hookEventMatchQuery } from './contract.js'
+import { hookEventTable } from './contract.js'
 import { getStatsStore, addToTurnHookDuration, getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import { createAttachmentMessage } from '../attachments.js'
 import { createCombinedAbortSignal } from '../combinedAbortSignal.js'
@@ -408,6 +408,6 @@ export async function* runHookEvent({ event, fields, toolUseID = randomUUID(), m
 }): AsyncGenerator<AggregatedHookResult | HookResult> {
   const record = fields as Record<string, unknown>
   const base = createBaseHookInput(record.permission_mode as string | undefined, sessionId, toolUseContext ? { agentId: toolUseContext.agentId, agentType: record.agent_type as string | undefined } : record.agent_id !== undefined || record.agent_type !== undefined ? { agentId: record.agent_id as string | undefined, agentType: record.agent_type as string | undefined } : undefined)
-  const hookInput = { ...base, ...record, session_id: base.session_id, cwd: cwd ?? base.cwd, transcript_path: transcriptPath ?? base.transcript_path, hook_event_name: event } as HookInput
-  yield* withHookRunContext({ sessionId: hookInput.session_id, cwd: hookInput.cwd, ...(trustAccepted !== undefined ? { trustAccepted } : {}), ...(marks ? { handler: emitted => { if (emitted.type === 'started') marks.started({ ...emitted, hookEvent: event }); else if (emitted.type === 'progress') marks.progress?.(emitted); else marks.response({ ...emitted, hookEvent: event }) } } : {}) }, executeHooks({ hookInput, toolUseID, matchQuery: matchQuery ?? hookEventMatchQuery(event, hookInput), signal, timeoutMs: timeoutMs ?? hookEventTable[event].timeoutMs ?? TOOL_HOOK_EXECUTION_TIMEOUT_MS, toolUseContext, messages, forceSyncExecution, requestPrompt, toolInputSummary, perHook, getAppState }))
+  const hookInput = { ...base, hook_event_name: event, ...record, session_id: base.session_id, cwd: cwd ?? base.cwd, transcript_path: transcriptPath ?? base.transcript_path } as HookInput
+  yield* withHookRunContext({ sessionId: hookInput.session_id, cwd: hookInput.cwd, ...(trustAccepted !== undefined ? { trustAccepted } : {}), ...(marks ? { handler: emitted => { if (emitted.type === 'started') marks.started({ ...emitted, hookEvent: event }); else if (emitted.type === 'progress') marks.progress?.(emitted); else marks.response({ ...emitted, hookEvent: event }) } } : {}) }, executeHooks({ hookInput, toolUseID, matchQuery, signal, timeoutMs: timeoutMs ?? hookEventTable[event].timeoutMs ?? TOOL_HOOK_EXECUTION_TIMEOUT_MS, toolUseContext, messages, forceSyncExecution, requestPrompt, toolInputSummary, perHook, getAppState }))
 }
