@@ -167,7 +167,9 @@ import {
   headlessProfilerStartTurn,
   logHeadlessProfilerTurn,
 } from '../utils/headlessProfiler.js'
-import { registerHookEventHandler } from '../utils/hooks/hookEvents.js'
+import { subscribeHookExecutionEvents } from '../utils/hooks/hookEvents.js'
+import { HOOK_LIFECYCLE_EVENTS } from '../utils/hooks/contract.js'
+import { hookTaskRow } from '../utils/hooks/rows.js'
 import { executeElicitationHooks, executeElicitationResultHooks, executeNotificationHooks } from '../utils/hooks.js'
 import { processSetupHooks, takeInitialUserMessage, type processSessionStartHooks } from '../utils/sessionStart.js'
 import { createIdleTimeoutManager } from '../utils/idleTimeout.js'
@@ -473,6 +475,13 @@ export async function runHeadless(
   let sessionRowFor: string | null = null
   const liveScope = (): RowScope => ({ session_id: getSessionId(), ...(currentTurn !== null ? { turn: currentTurn } : {}) })
   const enqueueRow = (row: RowDraft): void => io.outbound.enqueue(row)
+  const hookRowsActive = peer !== null || options.outputFormat === 'rows'
+  const releaseHookRows = hookRowsActive
+    ? subscribeHookExecutionEvents(event => {
+        if (!HOOK_LIFECYCLE_EVENTS.has(event.hookEvent as never)) return
+        enqueueRow(hookTaskRow(liveScope(), event))
+      })
+    : undefined
   let openFold: { trigger: CompactionRow['trigger']; landing: boolean } | null = null
   const foldRow = (fold: FoldStatusV1 | null): RowDraft | null => {
     if (fold !== null && fold.exit !== undefined) {
@@ -1712,6 +1721,7 @@ export async function runHeadless(
   process.on('exit', () => saveCurrentSessionCosts())
   const { registerCleanup } = await import('../utils/cleanupRegistry.js')
   registerCleanup(async () => {
+    releaseHookRows?.()
     idleNudge.stop()
     logForDiagnosticsNoPII('info', 'headless_sigterm_state', {
       cycle_running: driver.isRunning(),
