@@ -330,7 +330,7 @@ export default class App extends PureComponent<Props, State> {
       const kittyQuery = this.querier.send(kittyKeyboard())
       finishWidthProbe = queueTerminalWidthProbe(this.querier, this.props.stdout, () => {
         instances.get(this.props.stdout)?.forceRedraw()
-      })
+      }, instances.get(this.props.stdout)?.isAltScreenActive === true)
       const [version, background, sync, kitty] = await Promise.all([
         versionQuery,
         backgroundQuery,

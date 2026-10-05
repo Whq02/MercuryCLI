@@ -26,9 +26,11 @@ export function queueTerminalWidthProbe(
   querier: TerminalQuerier,
   stdout: NodeJS.WriteStream,
   repaint: () => void,
+  altScreen: boolean,
 ): (() => void) | null {
   if (sampledStreams.has(stdout)) return null
   if (stdout.isTTY !== true || !Number.isInteger(stdout.rows) || !Number.isInteger(stdout.columns) || stdout.rows < 9 || stdout.columns < 16) return null
+  if (altScreen !== true) return null
   sampledStreams.add(stdout)
   measurements = Object.freeze({})
   const deadline = performance.now() + 250
