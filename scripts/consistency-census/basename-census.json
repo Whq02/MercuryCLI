@@ -11,7 +11,7 @@
   ],
   "counts": {
     "owner-internal": 5,
-    "guide-probe": 11,
+    "guide-probe": 10,
     "own-guard": 6,
     "baked-mirror": 3
   },
@@ -41,13 +41,6 @@
       "file": "src/services/instructions/nativeSource.ts",
       "needle": "MERCURY.md",
       "excerpt": "export const NATIVE_INSTRUCTION_FILE_NAMES = ['MERCURY.md', 'MERCURY.local.md'] as const",
-      "cls": "guide-probe",
-      "why": "the instruction engine: the native convention names MERCURY.md, the shared convention AGENTS.md (composed when no MERCURY.md stands), the capture writer and the effective-size measure name the entry files"
-    },
-    {
-      "file": "src/services/instructions/projectInstructionWriter.ts",
-      "needle": "MERCURY.md",
-      "excerpt": "return { path: join(root, 'MERCURY.md'), exists: false }",
       "cls": "guide-probe",
       "why": "the instruction engine: the native convention names MERCURY.md, the shared convention AGENTS.md (composed when no MERCURY.md stands), the capture writer and the effective-size measure name the entry files"
     },
