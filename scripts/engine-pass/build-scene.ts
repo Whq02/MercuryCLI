@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { ROOT } from './support.ts'
 
-export async function buildScene(sourceRoot: string, outdir: string): Promise<string> {
+export async function buildScene(sourceRoot: string, outdir: string, entry = 'scripts/engine-pass/scene.tsx'): Promise<string> {
   const src = resolve(sourceRoot, 'src')
   const pkg = JSON.parse(readFileSync(resolve(sourceRoot, 'package.json'), 'utf8'))
   const repo = (pkg.repository?.url ?? '').replace(/^git\+/, '').replace(/\.git$/, '')
@@ -16,7 +16,7 @@ export async function buildScene(sourceRoot: string, outdir: string): Promise<st
   }
   mkdirSync(outdir, { recursive: true })
   const result = await Bun.build({
-    entrypoints: [resolve(ROOT, 'scripts/engine-pass/scene.tsx')],
+    entrypoints: [resolve(ROOT, entry)],
     outdir, naming: 'scene.mjs', target: 'node', format: 'esm',
     define: {
       MACRO: JSON.stringify({ VERSION: pkg.version, PACKAGE_URL: repo, NATIVE_PACKAGE_URL: `${repo}/releases`, FEEDBACK_CHANNEL: '/feedback', BUILD_TIME: 'frame-cost', VERSION_CHANGELOG: '', ISSUES_EXPLAINER: 'report the issue with /feedback' }),
