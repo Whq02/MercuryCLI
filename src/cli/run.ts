@@ -2371,6 +2371,7 @@ export async function runHeadless(
       const text = last.answer ?? ''
       await flushWrite(process.stdout, text.endsWith('\n') ? text : `${text}\n`)
     } else {
+      if (last.status === 'blocked' && last.answer) await flushWrite(process.stdout, last.answer.replace(/\n?$/, '\n'))
       const sentence =
         last.status === 'refused' || last.status === 'failed'
           ? (last.error?.message ?? (last.status === 'refused' ? 'The request was refused' : 'The turn failed'))

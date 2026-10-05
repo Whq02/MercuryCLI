@@ -36,7 +36,7 @@ export type PartialRowType = (typeof PARTIAL_ROW_TYPES)[number]
 export const INPUT_ROW_TYPES = ['prompt', 'shell', 'note'] as const
 export type InputRowType = (typeof INPUT_ROW_TYPES)[number]
 
-export const OUTCOME_STATUSES = ['completed', 'refused', 'interrupted', 'turn_limit', 'budget_limit', 'schema_unmet', 'loop_stopped', 'failed'] as const
+export const OUTCOME_STATUSES = ['completed', 'blocked', 'refused', 'interrupted', 'turn_limit', 'budget_limit', 'schema_unmet', 'loop_stopped', 'failed'] as const
 export type OutcomeStatus = (typeof OUTCOME_STATUSES)[number]
 
 export const STOP_WORDS = ['end_turn', 'max_tokens', 'stop_sequence', 'tool_use', 'refusal', 'pause', 'hook'] as const
@@ -66,6 +66,7 @@ export const ERROR_CLASSES = [
   'budget_limit',
   'schema_unmet',
   'loop_stopped',
+  'blocked',
 ] as const
 export type ErrorClass = (typeof ERROR_CLASSES)[number]
 
@@ -524,6 +525,7 @@ export function exitCodeOf(status: OutcomeStatus): 0 | 1 {
 }
 
 export const OUTCOME_SENTENCES: Record<Exclude<OutcomeStatus, 'completed' | 'refused' | 'failed'>, (detail: { maxTurns?: number; maxBudgetUsd?: number; message?: string }) => string> = {
+  blocked: d => d.message ?? 'Blocked on the operator',
   interrupted: () => 'Interrupted',
   turn_limit: d => `Reached the maximum number of turns (${d.maxTurns ?? 'configured limit'})`,
   budget_limit: d => `Reached the maximum budget of $${d.maxBudgetUsd ?? 'the configured amount'}`,

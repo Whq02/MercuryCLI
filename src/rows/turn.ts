@@ -31,7 +31,9 @@ import { engageCommitGate } from '../utils/hooks/commitGate.js'
 import { registerForcedReadHook } from '../utils/hooks/forcedReadHook.js'
 import { registerStructuredOutputEnforcement } from '../utils/hooks/hookHelpers.js'
 import { registerRunStopHook } from '../utils/hooks/runStopHook.js'
+import { lastAssistantText } from '../utils/hooks/runStopAdapter.js'
 import { registerWardsHook } from '../utils/hooks/wardsHook.js'
+import { parseBlockerDeclaration } from '../services/run/blockerDeclaration.js'
 import { getInMemoryErrors, logError } from '../utils/log.js'
 import { normalizeMessages } from '../utils/messages.js'
 import { isNotEmptyMessage } from '../utils/messages/text.js'
@@ -931,6 +933,11 @@ export class Conversation {
     const endedOnApiError = terminal.reason === 'completed' && lastAssistant?.isApiErrorMessage === true
     const settled = endedOnApiError ? { status: 'failed' as const, errorClass: 'model' as const } : statusOfTerminal(terminal, cut)
     if (settled.status === 'completed') {
+      const blocker = parseBlockerDeclaration(lastAssistantText(lastAssistant === undefined ? [] : [lastAssistant]))
+      if (blocker.kind === 'declared') {
+        yield closeTurn('blocked', { answer, error: { message: `Blocked on the operator: ${blocker.description}`, class: 'blocked', detail: [`resume when: ${blocker.resumeCondition}`] } })
+        return
+      }
       yield closeTurn('completed', { answer, ...(this.structuredOutput !== undefined ? { structured: this.structuredOutput } : {}) })
       return
     }
