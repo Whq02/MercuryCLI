@@ -119,6 +119,7 @@ class FakeStdin extends EventEmitter {
 }
 
 const PROBE_CSI = /\x1b\[(?:[<>=][0-9;]*[a-zA-Z]|\?[0-9;]*\$p|\?[0-9;]*u|[0-9;]*c|6n)/g
+const WIDTH_PROBE_WRITE = /\x1b7.*\x1b\[6n/s
 
 export type Mounted = {
   push: (data: string) => void
@@ -147,7 +148,10 @@ export async function mountOffscreen(element: unknown, columns: number, rows: nu
   ink.render(element as never)
   const replay = (): InstanceType<typeof AnsiEmulator> => {
     const emu = new AnsiEmulator(columns, rows, true)
-    for (const w of stdout.writes) emu.feed(w.replace(PROBE_CSI, ''))
+    for (const w of stdout.writes) {
+      if (WIDTH_PROBE_WRITE.test(w)) continue
+      emu.feed(w.replace(PROBE_CSI, ''))
+    }
     return emu
   }
   return {

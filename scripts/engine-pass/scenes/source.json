@@ -1,0 +1,7 @@
+{
+ "source": "59a987410603024225009f4dd483b0cfe024fe02",
+ "build": "8ac8f98306e5a5d3afd262152e81be9e03ce4f0f",
+ "capture": "scripts/ui/vshot.py",
+ "cols": 177,
+ "rows": 49
+}
