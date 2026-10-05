@@ -35,7 +35,7 @@ export type Props = {
   message: RenderableMessage
   messages?: RenderableMessage[]
   tools: Tools
-  commands: Command[]
+  commands?: Command[]
   verbose: boolean
   addMargin: boolean
   shouldAnimate: boolean
@@ -76,9 +76,7 @@ function displayMessageOf(message: RenderableMessage): NormalizedMessage | null 
 
 function MessageInner({
   message,
-  messages,
   tools,
-  commands,
   verbose,
   addMargin,
   shouldAnimate,
@@ -97,9 +95,7 @@ function MessageInner({
   isActiveGroup = false,
   streamFaultRecovered = false,
 }: Props): React.ReactNode {
-  void messages
   void isStatic
-  void commands
 
   const display = displayMessageOf(message)
 

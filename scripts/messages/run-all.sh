@@ -5,6 +5,9 @@
 # gate-watch: src/components/messages/AssistantTextMessage.tsx src/components/messages/UserTextMessage.tsx
 # gate-watch: src/components/messages/UserToolResultMessage/UserToolErrorMessage.tsx
 # gate-watch: src/components/messages/UserToolResultMessage/UserToolResultMessage.tsx
+# gate-watch: src/components/messages/TranscriptNameplate.tsx src/services/compact/foldStatus.ts
+# gate-watch: src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts src/services/engine-connector/seatLive.ts
+# gate-watch: src/state/AppState.tsx src/state/AppStateStore.ts src/utils/permissions/filesystem.ts
 # gate-watch: src/daemon/sessionSeat.ts src/fabric/entryCodec.ts src/fabric/ordinal.ts
 # gate-watch: src/query/stopHooks.ts src/run-core/turn-machine.ts
 # gate-watch: src/services/api/errors.ts src/services/concourse/coordinatorCall.ts

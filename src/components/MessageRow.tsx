@@ -68,6 +68,9 @@ function rowToolUseIDs(msg: RenderableMessage): string[] {
       return first?.type === 'tool_use' ? [first.id] : []
     })
   }
+  if (msg.type === 'collapsed_read_search') {
+    return msg.messages.flatMap(member => rowToolUseIDs(member as RenderableMessage))
+  }
   if (msg.type !== 'assistant') return []
   const content = msg.message.content
   if (!Array.isArray(content)) return []
@@ -145,7 +148,7 @@ export type MessageRowProps = {
   isUserContinuation: boolean
   hasContentAfter: boolean
   tools: Tools
-  commands: Command[]
+  commands?: Command[]
   verbose: boolean
   inProgressToolUseIDs: Set<string>
   streamingToolUseIDs: Set<string>
@@ -168,7 +171,6 @@ function MessageRowInner({
   isUserContinuation,
   hasContentAfter,
   tools,
-  commands,
   verbose,
   inProgressToolUseIDs,
   streamingToolUseIDs,
@@ -256,7 +258,6 @@ function MessageRowInner({
     <Message
       message={message}
       tools={tools}
-      commands={commands}
       verbose={rowVerbose}
       addMargin={!isUserContinuation}
       shouldAnimate={shouldAnimate}
@@ -365,12 +366,6 @@ export function areMessageRowPropsEqual(
   if (prev.message !== next.message) return false
   if (prev.screen !== next.screen) return false
   if (prev.verbose !== next.verbose) return false
-  if (
-    next.message.type === 'collapsed_read_search' &&
-    next.screen !== 'transcript'
-  ) {
-    return false
-  }
   if (prev.columns !== next.columns) return false
   const prevLatest =
     prev.latestBashOutputUUID !== null &&
