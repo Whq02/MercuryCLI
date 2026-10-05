@@ -113,6 +113,7 @@ const matchExpectations: Array<[string, Record<string, unknown>, string | undefi
   ['Elicitation', { mcp_server_name: 'srv' }, 'srv'],
   ['InstructionsLoaded', { load_reason: 'compact' }, 'compact'],
   ['FileChanged', { file_path: '/a/b/c.txt' }, 'c.txt'],
+  ['FileChanged', { file_path: '/a/b/' }, 'b'],
   ['CrewmateIdle', {}, undefined],
   ['TaskCreated', {}, undefined],
   ['Stop', {}, undefined],

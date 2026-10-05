@@ -1,3 +1,4 @@
+import { basename } from 'path'
 import { z } from 'zod/v4'
 import { lazySchema } from '../lazySchema.js'
 import type { TurnCutKind } from '../messages/turnCut.js'
@@ -632,7 +633,7 @@ export function hookEventMatchQuery(event: HookEvent, input: HookInput): string 
   if (field === undefined) return undefined
   const value = (input as Record<string, string | undefined>)[field === 'basename_file_path' ? 'file_path' : field]
   if (field === 'basename_file_path') {
-    return value === undefined ? undefined : value.split('/').pop() || value
+    return value === undefined ? undefined : basename(value)
   }
   return value
 }
