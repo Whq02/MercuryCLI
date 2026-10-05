@@ -1,4 +1,4 @@
-import type { ContentBlock, ContentBlockParam, ToolResultBlockParam, ToolUseBlock, ToolUseBlockParam } from '../../types/wire.js'
+import type { ContentBlock, ContentBlockParam, ToolResultBlockParam } from '../../types/wire.js'
 import { MESSAGE_STAMPER } from '../../rows/project.js'
 import { clientCallItemsOf, contentItemsOf, resultItemsOf, storedBlocksOf } from '../../rows/content.js'
 import { getStrictToolResultPairing } from '../../bootstrap/state.js'
