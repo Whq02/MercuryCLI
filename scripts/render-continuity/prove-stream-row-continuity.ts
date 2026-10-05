@@ -378,7 +378,7 @@ for (const scene of scenes) {
   let elapsedLawHolds = true
   let monotonic = true
   let prev = -1
-  const withoutPostscript = (r: string): string => r.replace(/\w+ thought for \d+[smhd]\b/g, '').replace(/first byte expected within [\dsmh ]+|past the [\dsmh ]+ first-byte budget/g, '')
+  const withoutPostscript = (r: string): string => r.replace(/\w+ thought for \d+[smhd]\b/g, '').replace(/first byte expected within [\dsmh ]+|past the [\dsmh ]+ first-byte budget/g, '').replace(/↻\d+[smhd]\b/g, '')
   const carriesElapsed = (r: string): boolean => /\b\d+s\b/.test(withoutPostscript(r)) && /esc|interrupt|thinking|✻|✶/i.test(r)
   const spinnerFrames = timed.filter(f => f.rows.some(carriesElapsed))
   const turnFrames: typeof timed = []
