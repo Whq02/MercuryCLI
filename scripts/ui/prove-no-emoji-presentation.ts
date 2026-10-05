@@ -43,6 +43,8 @@ const BASE_FONT_TEXT = new Set<number>([
   0x2122,
 ])
 
+const WIRE_PAYLOAD_FILES = new Set<string>(['src/ink/session/widthProbe.ts'])
+
 type Rule = 'emoji-presentation' | 'emoji-selector' | 'text-selector' | 'emoji-property'
 type Finding = { file: string; line: number; col: number; codePoint: number; rule: Rule; via: string }
 
@@ -177,6 +179,7 @@ const painted: Finding[] = []
 for (const abs of files) {
   const rel = relative(ROOT, abs).split('\\').join('/')
   const text = readFileSync(abs).toString('utf8')
+  if (WIRE_PAYLOAD_FILES.has(rel)) continue
   anywhere.push(...anywhereFindings(text, rel))
   painted.push(...paintedFindingsOfSource(rel, text))
 }
