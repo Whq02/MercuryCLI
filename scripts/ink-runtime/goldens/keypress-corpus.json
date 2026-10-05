@@ -1212,12 +1212,12 @@
  "response-cpr": {
   "events": [
    {
+    "code": "[R",
     "ctrl": false,
     "fn": false,
     "isPasted": false,
     "kind": "key",
     "meta": false,
-    "name": "",
     "option": false,
     "raw": "\u001b[24;80R",
     "sequence": "\u001b[24;80R",
