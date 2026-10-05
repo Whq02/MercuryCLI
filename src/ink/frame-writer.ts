@@ -36,6 +36,7 @@ const NEWLINE = { type: 'stdout', content: '\n' } as const
 class CursorModel {
   x: number
   y: number
+  private exact = false
 
   constructor(
     origin: { x: number; y: number },
@@ -56,8 +57,10 @@ class CursorModel {
       this.rowMove(out, targetX, targetY, dy)
       return
     }
+    if (this.exact && targetX === this.x) return
     out.push({ type: 'cursorTo', col: targetX + 1 })
     this.x = targetX
+    this.exact = true
   }
 
   moveTo(out: Diff, targetX: number, targetY: number): void {
@@ -69,6 +72,7 @@ class CursorModel {
     if (targetX !== this.x) {
       out.push({ type: 'cursorTo', col: targetX + 1 })
       this.x = targetX
+      this.exact = true
     }
   }
 
@@ -79,8 +83,7 @@ class CursorModel {
       out.push(CARRIAGE_RETURN)
       out.push({ type: 'cursorMove', x: targetX, y: dy })
     }
-    this.x = targetX
-    this.y = targetY
+    this.place(targetX, targetY)
   }
 
   lineFeedTo(out: Diff, y: number): void {
@@ -88,18 +91,31 @@ class CursorModel {
     const n = y - this.y
     out.push(CARRIAGE_RETURN)
     for (let i = 0; i < n; i++) out.push(NEWLINE)
-    this.x = 0
-    this.y = y
+    this.place(0, y)
   }
 
-  wrote(cellWidth: number): void {
+  place(x: number, y: number): void {
+    this.x = x
+    this.y = y
+    this.exact = true
+  }
+
+  wrote(cellWidth: number, agreed: boolean): void {
     if (this.x >= this.viewportWidth) {
       this.x = cellWidth
       this.y++
+      this.exact = false
     } else {
       this.x += cellWidth
+      this.exact = agreed
     }
   }
+}
+
+function agreedAdvance(char: string): boolean {
+  if (char.length !== 1) return false
+  const code = char.charCodeAt(0)
+  return (code >= 0x20 && code <= 0x7e) || (code >= 0x2500 && code <= 0x257f)
 }
 
 class AttributeCursor {
@@ -168,7 +184,7 @@ function emitCell(
   if (compensate) {
     out.push({ type: 'cursorTo', col: px + cellWidth + 1 })
   }
-  cursor.wrote(cellWidth)
+  cursor.wrote(cellWidth, compensate || agreedAdvance(cell.char))
   return true
 }
 
@@ -202,8 +218,7 @@ function paintRows(
     if (!alt) {
       out.push(CARRIAGE_RETURN)
       out.push(NEWLINE)
-      cursor.x = 0
-      cursor.y = y + 1
+      cursor.place(0, y + 1)
     }
   }
 }
@@ -278,7 +293,7 @@ function emitDirtyCells(
     } else if (removed) {
       attrs.resetAll(out)
       out.push({ type: 'stdout', content: ' ' })
-      cursor.wrote(1)
+      cursor.wrote(1, true)
     }
   })
   if (bleedLedger.size > 0) {
@@ -293,7 +308,7 @@ function emitDirtyCells(
       if (isEmptyCellAt(next.screen, x, y)) {
         attrs.resetAll(out)
         out.push({ type: 'stdout', content: ' ' })
-        cursor.wrote(1)
+        cursor.wrote(1, true)
       } else {
         emitCell(out, cursor, attrs, cell, next.viewport.width)
       }
@@ -444,8 +459,7 @@ export class FrameWriter {
       }
       if (count > 0) {
         out.push({ type: 'clear', count })
-        cursor.x = 0
-        cursor.y = next.screen.height
+        cursor.place(0, next.screen.height)
       }
     }
 
