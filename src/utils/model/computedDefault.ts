@@ -236,7 +236,7 @@ function keyLaneRow(family: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta'): L
     const pin = family === 'meta' ? pins.find(pin => !/-contributor$/i.test(pin.id)) : pins[0]
     if (pin === undefined) {
       const list = keyLaneListState(family)
-      if (list.kind === 'unread') return { usable: false, why: `the account's model list has not been read${list.error !== undefined ? ` (${list.error})` : ''}` }
+      if (list.kind === 'unread') return { usable: false, why: `the account's model list has not been read${list.error !== undefined ? ` (${list.error})` : ''}`, ...(list.reading ? { unfetched: true } : {}) }
       return { usable: false, why: 'no selectable row in the catalogue' }
     }
     return {
