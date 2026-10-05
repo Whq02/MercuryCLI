@@ -2,18 +2,20 @@
 import { csi } from './csi.js'
 
 export const DEC = {
-  CURSOR_VISIBLE: 25,
-  ALT_SCREEN: 47,
   ALT_SCREEN_CLEAR: 1049,
+  ALT_SCREEN: 47,
+  CURSOR_VISIBLE: 25,
+  SYNCHRONIZED_UPDATE: 2026,
+  BRACKETED_PASTE: 2004,
+  FOCUS_EVENTS: 1004,
+  ALTERNATE_SCROLL: 1007,
   MOUSE_NORMAL: 1000,
   MOUSE_BUTTON: 1002,
   MOUSE_ANY: 1003,
   MOUSE_SGR: 1006,
-  FOCUS_EVENTS: 1004,
-  ALTERNATE_SCROLL: 1007,
-  BRACKETED_PASTE: 2004,
-  SYNCHRONIZED_UPDATE: 2026,
 } as const
+
+const MOUSE_TRACKING_MODES = [DEC.MOUSE_NORMAL, DEC.MOUSE_BUTTON, DEC.MOUSE_ANY, DEC.MOUSE_SGR] as const
 
 export function decset(mode: number): string {
   return csi(`?${mode}h`)
@@ -35,15 +37,9 @@ export const ENTER_ALT_SCREEN = decset(DEC.ALT_SCREEN_CLEAR)
 export const EXIT_ALT_SCREEN = decreset(DEC.ALT_SCREEN_CLEAR)
 
 export const ENABLE_MOUSE_TRACKING =
-  decset(DEC.MOUSE_NORMAL) +
-  decset(DEC.MOUSE_BUTTON) +
-  decset(DEC.MOUSE_ANY) +
-  decset(DEC.MOUSE_SGR)
+  MOUSE_TRACKING_MODES.map(decset).join('')
 export const DISABLE_MOUSE_TRACKING =
-  decreset(DEC.MOUSE_SGR) +
-  decreset(DEC.MOUSE_ANY) +
-  decreset(DEC.MOUSE_BUTTON) +
-  decreset(DEC.MOUSE_NORMAL)
+  MOUSE_TRACKING_MODES.map(decreset).reverse().join('')
 
 export const ENABLE_ALTERNATE_SCROLL = decset(DEC.ALTERNATE_SCROLL)
 export const DISABLE_ALTERNATE_SCROLL = decreset(DEC.ALTERNATE_SCROLL)
