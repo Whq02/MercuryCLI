@@ -84,6 +84,9 @@ import {
   type DeepseekCatalogueSnapshot,
 } from '../../services/providers/deepseek/deepseekCatalogue.js'
 import { deepseekApiBase, resolveDeepseekApiKey } from '../../services/providers/deepseek/deepseekAccounts.js'
+import { getCachedZaiCatalogue, refreshZaiCatalogue, type ZaiCatalogueSnapshot } from '../../services/providers/zai/zaiCatalogue.js'
+import { zaiApiBase } from '../../services/providers/zai/zaiClient.js'
+import { resolveZaiDispatch } from '../../utils/router/providerDiscovery.js'
 import {
   getCachedXaiCatalogue,
   refreshXaiCatalogue,
@@ -300,6 +303,19 @@ const DEEPSEEK_ROAD: CatalogueRoad<DeepseekCatalogueSnapshot> = {
   },
   cached: () => getCachedDeepseekCatalogue(),
   refresh: () => refreshDeepseekCatalogue({ force: true }),
+  populated: snapshot => snapshot.models.length > 0,
+  failed: snapshot => snapshot.lastError !== undefined,
+  changed: (before, after) => !isDeepStrictEqual(before.models, after.models),
+}
+
+const ZAI_ROAD: CatalogueRoad<ZaiCatalogueSnapshot> = {
+  family: 'Z.AI',
+  identity: () => {
+    const dispatch = resolveZaiDispatch()
+    return dispatch ? `${dispatch.source}:${credentialFingerprint(dispatch.key)}:${zaiApiBase(process.env, dispatch.plan)}` : undefined
+  },
+  cached: () => getCachedZaiCatalogue(),
+  refresh: () => refreshZaiCatalogue({ force: true }),
   populated: snapshot => snapshot.models.length > 0,
   failed: snapshot => snapshot.lastError !== undefined,
   changed: (before, after) => !isDeepStrictEqual(before.models, after.models),
@@ -759,6 +775,7 @@ function MercuryModelWrapper({
   useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
   useCatalogueRefreshOnOpen(MOONSHOT_ROAD, setNotice)
   useCatalogueRefreshOnOpen(DEEPSEEK_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(ZAI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(XAI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(META_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
@@ -1102,6 +1119,7 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
   useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
   useCatalogueRefreshOnOpen(MOONSHOT_ROAD, setNotice)
   useCatalogueRefreshOnOpen(DEEPSEEK_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(ZAI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(XAI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(META_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
@@ -1199,6 +1217,7 @@ export function MercurySessionModelPicker({
   useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
   useCatalogueRefreshOnOpen(MOONSHOT_ROAD, setNotice)
   useCatalogueRefreshOnOpen(DEEPSEEK_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(ZAI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(XAI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(META_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
@@ -1272,6 +1291,7 @@ export function MercuryModelChoicePicker({ leading, current, onSelect, onSignIn,
   useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
   useCatalogueRefreshOnOpen(MOONSHOT_ROAD, setNotice)
   useCatalogueRefreshOnOpen(DEEPSEEK_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(ZAI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(XAI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(META_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)

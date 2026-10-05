@@ -10,6 +10,7 @@ import {
 import { keyLanePins } from './modelOptions.js'
 import { moonshotCatalogueSourceWords } from '../../services/providers/moonshot/moonshotCatalogue.js'
 import { deepseekCatalogueSourceWords } from '../../services/providers/deepseek/deepseekCatalogue.js'
+import { zaiCatalogueSourceWords } from '../../services/providers/zai/zaiCatalogue.js'
 
 export interface ProviderFrontierFact {
   modelId: string
@@ -61,7 +62,7 @@ export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFac
       case 'deepseek': {
         const pin = keyLanePins(route)[0]
         if (!pin) return undefined
-        const liveWords = route === 'deepseek' ? deepseekCatalogueSourceWords() : route === 'moonshot' ? moonshotCatalogueSourceWords() : undefined
+        const liveWords = route === 'deepseek' ? deepseekCatalogueSourceWords() : route === 'moonshot' ? moonshotCatalogueSourceWords() : zaiCatalogueSourceWords()
         if (liveWords !== undefined) return { modelId: pin.id, displayName: pin.displayName, source: liveWords }
         return { modelId: pin.id, displayName: pin.displayName, observedAt: pin.observedAt }
       }
