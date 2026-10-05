@@ -132,6 +132,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-facts-stamp-order.ts" || { __rc=$?
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-process-sweep.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-process-sweep.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-process-sweep-tables.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-process-sweep-tables.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-field-e004-daemon-skew.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-field-e004-daemon-skew.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-update-leftover-helper.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-update-leftover-helper.ts" "$__t" "$__rc"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL DAEMON PROOFS PASS"; else echo "# ❌ SOME DAEMON PROOFS FAILED"; fi
 echo "############################################################"
