@@ -1,7 +1,6 @@
 import type { AsyncHookJSONOutput, HookEvent } from './contract.js'
 
 import type { ShellCommand } from '../ShellCommand.js'
-import { TaskOutput } from '../task/TaskOutput.js'
 import { logForDebugging } from '../debug.js'
 import { logError } from '../log.js'
 import { jsonParse } from '../slowOperations.js'
@@ -41,6 +40,7 @@ export type AsyncHookResponsePayload = {
 const DEFAULT_ASYNC_TIMEOUT_MS = 15_000
 
 const registry = new Map<string, PendingAsyncHook>()
+const completionMarks = new WeakMap<PendingAsyncHook, Promise<void>>()
 
 export function registerPendingAsyncHook(params: {
   processId: string
@@ -52,6 +52,7 @@ export function registerPendingAsyncHook(params: {
   shellCommand: ShellCommand | undefined
   extensionId?: string
   toolName?: string
+  subscribeProgress?: (observer: (snapshot: { stdout: string; stderr: string; output: string }) => void) => () => void
 }): void {
   const timeoutMs = params.asyncResponse.asyncTimeout || DEFAULT_ASYNC_TIMEOUT_MS
   const reportProgress = hookProgressReporter({
@@ -59,19 +60,7 @@ export function registerPendingAsyncHook(params: {
     hookName: params.hookName,
     hookEvent: params.hookEvent,
   })
-  const observedTaskOutput = params.shellCommand?.taskOutput
-  const onFileProgress = (): void => {
-    const taskOutput = registry.get(params.processId)?.shellCommand?.taskOutput ?? observedTaskOutput
-    if (!taskOutput) return
-    void Promise.all([taskOutput.getStdout(), taskOutput.getStderr()]).then(
-      ([stdout, stderr]) => {
-        if (registry.get(params.processId) === undefined && stdout === '' && stderr === '') return
-        reportProgress({ stdout, stderr, output: stdout + stderr })
-      },
-    )
-  }
-  const progressTaskOutput = new TaskOutput(`hookprog_${params.processId}`, onFileProgress)
-  TaskOutput.startPolling(progressTaskOutput.taskId)
+  const unsubscribe = params.subscribeProgress?.(reportProgress) ?? (() => {})
   const entry: PendingAsyncHook = {
     processId: params.processId,
     hookId: params.hookId,
@@ -84,11 +73,13 @@ export function registerPendingAsyncHook(params: {
     timeout: timeoutMs,
     responseAttachmentSent: false,
     shellCommand: params.shellCommand,
-    stopProgressInterval: () => {
-      TaskOutput.stopPolling(progressTaskOutput.taskId)
-    },
+    stopProgressInterval: unsubscribe,
   }
   registry.set(params.processId, entry)
+  if (params.shellCommand) {
+    const completion = params.shellCommand.result.then(result => finalizeEntry(params.processId, entry, result.code, params.shellCommand?.status === 'killed' ? 'cancelled' : result.code === 0 ? 'success' : 'error')).catch(logError)
+    completionMarks.set(entry, completion)
+  }
   logForDebugging(
     `async hook registered: pid ${params.processId}, ${params.hookName}, timeout ${timeoutMs}ms`,
   )
@@ -106,7 +97,6 @@ function finalizeEntry(
   const finalize = async (): Promise<void> => {
     const stdout = taskOutput ? await taskOutput.getStdout() : ''
     const stderr = taskOutput ? taskOutput.getStderr() : ''
-    entry.shellCommand?.cleanup()
     emitHookResponse({
       hookId: entry.hookId,
       hookName: entry.hookName,
@@ -184,7 +174,9 @@ export async function checkForAsyncHookResponses(): Promise<AsyncHookResponsePay
         const result = await entry.shellCommand.result
         const exitCode = result.code
         entry.responseAttachmentSent = true
-        await finalizeEntry(processId, entry, exitCode, exitCode === 0 ? 'success' : 'error')
+        const completion = completionMarks.get(entry)
+        if (completion) await completion
+        else await finalizeEntry(processId, entry, exitCode, exitCode === 0 ? 'success' : 'error')
         if (entry.hookEvent === 'SessionStart') sessionStartAnswered = true
         removals.push(processId)
         payloads.push({
@@ -204,7 +196,10 @@ export async function checkForAsyncHookResponses(): Promise<AsyncHookResponsePay
     }),
   )
 
-  for (const processId of removals) registry.delete(processId)
+  for (const processId of removals) {
+    registry.get(processId)?.shellCommand?.cleanup()
+    registry.delete(processId)
+  }
   if (sessionStartAnswered) invalidateSessionEnvCache()
   logForDebugging(`async hook poll done: ${registry.size} still pending`)
   return payloads
@@ -228,15 +223,12 @@ export async function finalizePendingAsyncHooks(): Promise<void> {
           entry.stopProgressInterval()
           return
         }
-        if (entry.shellCommand.status === 'completed') {
-          const result = await entry.shellCommand.result
-          await finalizeEntry(processId, entry, result.code, result.code === 0 ? 'success' : 'error')
-          return
-        }
-        if (entry.shellCommand.status !== 'killed') {
-          entry.shellCommand.kill()
-        }
-        await finalizeEntry(processId, entry, 1, 'cancelled')
+        if (entry.shellCommand.status !== 'completed' && entry.shellCommand.status !== 'killed') entry.shellCommand.kill()
+        const result = await entry.shellCommand.result
+        const completion = completionMarks.get(entry)
+        if (completion) await completion
+        else await finalizeEntry(processId, entry, result.code, entry.shellCommand.status === 'killed' ? 'cancelled' : result.code === 0 ? 'success' : 'error')
+        entry.shellCommand.cleanup()
       } catch (error) {
         logError(error)
       }
