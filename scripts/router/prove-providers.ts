@@ -183,10 +183,11 @@ section('3 · credentialed — live status; THE SEAT LAW HOLDS')
   check('zai (key present): available', zaiStatus.available === true, zaiStatus.reason ?? '')
   const zaiModels = zaiProviderAdapter.listModels()
   check(
-    'zai listModels: the catalogue pins — glm-5.3 flagship first, glm-5.2 behind it, both @ 1M context',
-    zaiModels.length === 2 &&
+    'zai listModels: the floor rows while no list has landed — glm-5.3 first, glm-5.3-flash, then glm-5.2, all @ 1M context',
+    zaiModels.length === 3 &&
       zaiModels[0]!.ref.model === 'glm-5.3' &&
-      zaiModels[1]!.ref.model === 'glm-5.2' &&
+      zaiModels[1]!.ref.model === 'glm-5.3-flash' &&
+      zaiModels[2]!.ref.model === 'glm-5.2' &&
       zaiModels.every(m => m.ref.provider === 'zai' && m.ref.contextWindow === 1_000_000),
     JSON.stringify(zaiModels.map(m => m.ref)),
   )
@@ -275,8 +276,8 @@ section('3 · credentialed — live status; THE SEAT LAW HOLDS')
     JSON.stringify(snapshot.resolveExact('gpt-5.5')),
   )
   check(
-    'listAvailable() now includes the engine catalogues (display truth: 3 anthropic + 3 qualified gpt + 2 glm)',
-    snapshot.listAvailable().length === 3 + 3 + 2,
+    'listAvailable() now includes the engine catalogues (display truth: 3 anthropic + 3 qualified gpt + 3 glm)',
+    snapshot.listAvailable().length === 3 + 3 + 3,
     String(snapshot.listAvailable().length),
   )
   __resetOpenaiCatalogueForTest()

@@ -1,0 +1,34 @@
+kind	name	reason	lane	commit
+shape	src/ink/ink.tsx:default	the engine gains isAltEntryPending(): a pane that mounts while the alternate-screen entry still waits for its first frame reads the pending entry instead of resetting the screen (the shell prompt comes back below the lines that were on screen before Mercury started)	fix-windows	5cecda4cd
+unexported	TerminalFocusContextProps	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	TextName	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	getRootNode	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	getFocusManager	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	getOwnerChain	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	BorderTextOptions	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	CUSTOM_BORDER_STYLES	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	renderToScreen	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	ModeState	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	ADDITIONAL_HYPERLINK_TERMINALS	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	TerminalQuery	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	Ansi256Color	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	CSI_PREFIX	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	CSI_RANGE	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	CursorStyle	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	CURSOR_LEFT	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	eraseLine	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	ERASE_LINE	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	eraseScreen	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	decset	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	decreset	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	colorsEqual	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	CursorDirection	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	CursorAction	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	EraseAction	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	ScrollAction	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	ModeAction	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	LinkAction	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	TitleAction	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	OSC_PREFIX	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	ClipboardPath	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+unexported	tmuxLoadBuffer	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
