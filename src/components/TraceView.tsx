@@ -1,7 +1,8 @@
 import * as React from 'react'
 import { Box, Text, useInput } from '../ink.js'
 import { pokeTelemetry, useTelemetry } from '../state/telemetryBus.js'
-import { aggregateByTool, aggregateVelocity } from '../utils/cockpit/index.js'
+import { aggregateByTool, aggregateVelocity, sessionTraceSnapshot } from '../utils/cockpit/index.js'
+import { conversationIdHere } from '../services/engine-connector/focusedConnector.js'
 import { SECOND, AMBER, CRIMSON, FAINT, IVORY, TEAL } from './mercuryPalette.js'
 import { GLYPH, padTo, truncateToWidth } from './mercury-ui/glyphs.js'
 import {
@@ -49,7 +50,8 @@ function fmtIdle(sec: number): string {
 }
 
 export function TraceView({ onClose }: { onClose: () => void }): React.ReactNode {
-  const { trace: snap, refreshedAt } = useTelemetry()
+  const { trace: bus, refreshedAt } = useTelemetry()
+  const snap = bus === null ? null : sessionTraceSnapshot(bus, conversationIdHere())
   const now = useNowTick()
   const pastOpenEvent = useOpenEventGate()
   useInput(input => {

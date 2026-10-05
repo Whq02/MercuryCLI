@@ -23,6 +23,7 @@ import {
   gitSnapshot,
   mcpGauge,
   permissionsSnapshot,
+  sessionTraceSnapshot,
   substrateSnapshot,
   traceSnapshot,
   type FleetData,
@@ -33,6 +34,7 @@ import {
 import { activeSourceUsage, freshestUsageView, usageCarryWords, usageCreditsWords, usageWindowReached } from '../services/providers/providerUsage.js'
 import { NO_USAGE_READ_WORDS, usageSourceWords } from '../services/providers/usageFreshness.js'
 import { mercuryDoctrineEnabled } from '../prompt/mercuryContract.js'
+import { conversationIdHere } from '../services/engine-connector/focusedConnector.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import {
   CommandCenter,
@@ -83,7 +85,7 @@ export function Deck({ onClose }: { onClose: () => void }): React.ReactNode {
     let alive = true
     gitSnapshot().then(s => alive && setGit(s))
     fleetGauge().then(s => alive && setFleet(s))
-    traceSnapshot().then(s => alive && setTrace(s))
+    traceSnapshot().then(s => alive && setTrace(sessionTraceSnapshot(s, conversationIdHere())))
     listTasks(getTaskListId())
       .then(ts => {
         if (!alive) return
@@ -302,7 +304,7 @@ export function Deck({ onClose }: { onClose: () => void }): React.ReactNode {
               {trace?.state === 'live' ? (
                 <Text color={t.textMuted}>
                   {' · '}
-                  <Text color={t.textPrimary}>{trace.data.total}</Text> · <Text color={t.textMuted}>{trace.data.highRisk} high-risk class</Text> · <Text color={trace.data.killed > 0 ? t.failure : t.textMuted}>{trace.data.killed} killed</Text> · <Text color={t.textMuted}>{trace.data.errors} errored</Text> · repo
+                  <Text color={t.textPrimary}>{trace.data.total}</Text> · <Text color={t.textMuted}>{trace.data.highRisk} high-risk class</Text> · <Text color={trace.data.killed > 0 ? t.failure : t.textMuted}>{trace.data.killed} killed</Text> · <Text color={t.textMuted}>{trace.data.errors} errored</Text>
                 </Text>
               ) : null}
             </Text>

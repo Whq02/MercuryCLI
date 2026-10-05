@@ -157,6 +157,22 @@ export function aggregateVelocity(
   return { perMin, bins, binMs, total, peakPerMin, trend, idleSec }
 }
 
+export function sessionTraceSnapshot(snapshot: Snapshot<{ data: TraceData }>, sessionId: string | null): Snapshot<{ data: TraceData }> {
+  if (snapshot.state !== 'live') return snapshot
+  const records = (snapshot.data.records ?? []).filter(r => sessionId !== null && r.sessionId === sessionId)
+  return {
+    ...snapshot,
+    data: {
+      ...snapshot.data,
+      records,
+      total: records.length,
+      highRisk: records.filter(r => r.risk === 'high').length,
+      killed: records.filter(r => r.killed === true).length,
+      errors: records.filter(r => r.ok === false && r.killed !== true).length,
+    },
+  }
+}
+
 export async function traceSnapshot(): Promise<Snapshot<{ data: TraceData }>> {
   const enabled = (() => {
     try {
