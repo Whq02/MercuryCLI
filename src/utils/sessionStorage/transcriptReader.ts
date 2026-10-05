@@ -1,6 +1,6 @@
 import type { UUID } from 'crypto'
 import { closeSync, openSync, readSync, statSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { open, readFile } from 'node:fs/promises'
 import { decodeTranscriptBuffer, type DecodedTranscript, type InvalidShape, type MalformedLine } from '../../fabric/transcriptDecode.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import type { Entry, SerializedMessage, TranscriptMessage } from '../../types/logs.js'
@@ -754,6 +754,10 @@ export function _transcriptReaderRetentionForTesting(): { states: string[]; reta
   return { states: [...states.keys()], retained: [...retained.keys()], recent: [...recent] }
 }
 
+export function _scanPreBoundaryMetadataForTesting(filePath: string, endOffset: number): Promise<string[]> {
+  return scanPreBoundaryMetadata(filePath, endOffset)
+}
+
 
 function resolveMetadataBuf(carry: Buffer | null, chunkBuf: Buffer): Buffer | null {
   if (carry === null || carry.length === 0) return chunkBuf
@@ -775,61 +779,51 @@ function resolveMetadataBuf(carry: Buffer | null, chunkBuf: Buffer): Buffer | nu
   return firstNl === -1 ? null : chunkBuf.subarray(firstNl + 1)
 }
 
+const METADATA_SCAN_WINDOW_BYTES = 64 * 1024
+
+function hasMetadataMarker(buf: Buffer, from = 0, to = buf.length): boolean {
+  for (const marker of METADATA_MARKER_BUFS) {
+    const at = buf.indexOf(marker, from)
+    if (at !== -1 && at < to) return true
+  }
+  return false
+}
+
+function collectMetadataLines(buf: Buffer, into: string[]): Buffer {
+  if (!hasMetadataMarker(buf)) {
+    const lastNl = buf.lastIndexOf(NEWLINE)
+    return lastNl >= 0 ? buf.subarray(lastNl + 1) : buf
+  }
+  let lineStart = 0
+  for (let nl = buf.indexOf(NEWLINE); nl !== -1; nl = buf.indexOf(NEWLINE, lineStart)) {
+    if (hasMetadataMarker(buf, lineStart, nl)) into.push(buf.toString('utf-8', lineStart, nl))
+    lineStart = nl + 1
+  }
+  return buf.subarray(lineStart)
+}
+
 async function scanPreBoundaryMetadata(filePath: string, endOffset: number): Promise<string[]> {
-  const { createReadStream } = await import('fs')
-
-  const stream = createReadStream(filePath, { end: endOffset - 1 })
   const metadataLines: string[] = []
-  let carry: Buffer | null = null
-
-  for await (const chunk of stream) {
-    const chunkBuf = chunk as Buffer
-    const buf = resolveMetadataBuf(carry, chunkBuf)
-    if (buf === null) {
-      carry = null
-      continue
-    }
-
-    let hasAnyMarker = false
-    for (const m of METADATA_MARKER_BUFS) {
-      if (buf.includes(m)) {
-        hasAnyMarker = true
-        break
+  const handle = await open(filePath, 'r')
+  try {
+    let carry: Buffer | null = null
+    for (let position = 0; position < endOffset; ) {
+      const window = Buffer.allocUnsafe(Math.min(METADATA_SCAN_WINDOW_BYTES, endOffset - position))
+      const { bytesRead } = await handle.read(window, 0, window.length, position)
+      if (bytesRead === 0) break
+      position += bytesRead
+      const buf = resolveMetadataBuf(carry, window.subarray(0, bytesRead))
+      if (buf === null) {
+        carry = null
+        continue
       }
+      carry = collectMetadataLines(buf, metadataLines)
+      if (carry.length > 64 * 1024) carry = null
     }
-
-    if (hasAnyMarker) {
-      let lineStart = 0
-      let nl = buf.indexOf(NEWLINE)
-      while (nl !== -1) {
-        for (const m of METADATA_MARKER_BUFS) {
-          const mIdx = buf.indexOf(m, lineStart)
-          if (mIdx !== -1 && mIdx < nl) {
-            metadataLines.push(buf.toString('utf-8', lineStart, nl))
-            break
-          }
-        }
-        lineStart = nl + 1
-        nl = buf.indexOf(NEWLINE, lineStart)
-      }
-      carry = buf.subarray(lineStart)
-    } else {
-      const lastNl = buf.lastIndexOf(NEWLINE)
-      carry = lastNl >= 0 ? buf.subarray(lastNl + 1) : buf
-    }
-
-    if (carry.length > 64 * 1024) carry = null
+    if (carry !== null && carry.length > 0 && hasMetadataMarker(carry)) metadataLines.push(carry.toString('utf-8'))
+  } finally {
+    await handle.close()
   }
-
-  if (carry !== null && carry.length > 0) {
-    for (const m of METADATA_MARKER_BUFS) {
-      if (carry.includes(m)) {
-        metadataLines.push(carry.toString('utf-8'))
-        break
-      }
-    }
-  }
-
   return metadataLines
 }
 
