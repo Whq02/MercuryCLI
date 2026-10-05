@@ -40,3 +40,6 @@ for (const keepReasoningHistory of [false, true]) {
   assert.equal(JSON.stringify(chat.encodeChatPlan(plan, { keepReasoningHistory })), JSON.stringify(chat.mapMessagesToZai(undefined, bridge, { keepReasoningHistory })))
 }
 console.log('PASS: the compatible-chat plan codec retains each selected reasoning-history and image spelling')
+const local = await import('../../src/services/providers/local/ollamaChatTransport.ts')
+assert.equal(JSON.stringify(local.encodeLocalPlan(plan, { model: 'fixture-model' }, { numCtx: 8192 })), JSON.stringify(local.ollamaChatBody(nativeRequest, { numCtx: 8192 })))
+console.log('PASS: the local plan codec retains Ollama text, images, tool names and request options')
