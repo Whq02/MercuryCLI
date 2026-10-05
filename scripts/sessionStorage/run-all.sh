@@ -25,6 +25,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-storage-row-
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-indexed-fold.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-indexed-fold.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-snip-cycle.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-snip-cycle.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-meta-owner.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-meta-owner.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-tombstone-record-envelope.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-tombstone-record-envelope.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-project-key-canonical.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-project-key-canonical.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-project-home-fold.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-project-home-fold.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-project-key-stability.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-project-key-stability.ts" "$__t" "$__rc"
