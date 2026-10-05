@@ -3,6 +3,7 @@
 # gate-watch: src/ink/hooks/** src/ink/components/MotionParkContext.ts src/components/FullscreenLayout.tsx src/components/mercury-ui/components.tsx src/hooks/useArrowKeyHistory.tsx src/components/PromptInput/** assets/splash/**
 # gate-watch: scripts/lib/captureDriver.ts scripts/streaming/artifactArena.ts
 # gate-watch: src/utils/cockpit/greetingShimmer.ts
+# gate-watch: src/utils/cockpit/motionGovernor.ts src/ink/root/frame-trace.ts src/ink/session/delivery.ts src/ink/ink.tsx src/interactiveHelpers.tsx src/main.tsx src/components/MercuryFrame.tsx
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

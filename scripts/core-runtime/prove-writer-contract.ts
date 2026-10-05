@@ -1,33 +1,20 @@
 #!/usr/bin/env bun
 import type { Frame } from '../../src/ink/frame.js'
-import { FrameWriter } from '../../src/ink/frame-writer.js'
-import { optimizePatches as optimize } from '../../src/ink/patch-stream.js'
-import {
-  appendChildNode,
-  createNode,
-  createTextNode,
-} from '../../src/ink/dom.js'
-import { CellWidth, cellAt, charInCellAt } from '../../src/ink/cell-grid.js'
-import { CURSOR_HOME } from '../../src/ink/termio/csi.js'
-import { writeDiffToTerminal } from '../../src/ink/session/delivery.js'
-import {
-  AnsiEmulator,
-  defaultSgr,
-  type SgrState,
-  sgrStateOfStyleString,
-} from '../ink-runtime/ansiEmulator.js'
-import {
-  applySceneStyle,
-  buildDom,
-  composeScene,
-  type ComposeContext,
-  type FrameScene,
-  makeContext,
-  type SceneNode,
-} from '../ink-runtime/frameHarness.js'
+import type { SgrState } from '../ink-runtime/ansiEmulator.js'
+import type { ComposeContext, FrameScene, SceneNode } from '../ink-runtime/frameHarness.js'
+process.env.FORCE_COLOR = '3'
+const { FrameWriter } = await import('../../src/ink/frame-writer.js')
+const { optimizePatches: optimize } = await import('../../src/ink/patch-stream.js')
+const { appendChildNode, createNode, createTextNode } = await import('../../src/ink/dom.js')
+const { CellWidth, cellAt, charInCellAt } = await import('../../src/ink/cell-grid.js')
+const { CURSOR_HOME } = await import('../../src/ink/termio/csi.js')
+const { writeDiffToTerminal } = await import('../../src/ink/session/delivery.js')
+const { AnsiEmulator, defaultSgr, sgrStateOfStyleString } = await import('../ink-runtime/ansiEmulator.js')
+const { applySceneStyle, buildDom, composeScene, makeContext } = await import('../ink-runtime/frameHarness.js')
 
 let failures = 0
 let checks = 0
+let styledCells = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) {
@@ -101,6 +88,7 @@ function checkFrameState(
           `model ${JSON.stringify(cell.char)} vs terminal ${JSON.stringify(emuChar)}`,
         )
         const exp = expectedStyle(ctx, cell.styleId)
+        if (JSON.stringify(exp) !== JSON.stringify(defaultSgr())) styledCells++
         check(
           `${label}: style (${x},${y}) ${JSON.stringify(cell.char)}`,
           sameVisibleStyle(cell.char, emu.styleAt(x, wy), exp),
@@ -370,6 +358,8 @@ function cloneEmu(src: AnsiEmulator): AnsiEmulator {
   return c
 }
 
+check('STYLE REPLAY compared styled cells (non-default expectations, not none against none)', styledCells > 0, `${styledCells} styled cells`)
+console.log(`  STYLE REPLAY: ${styledCells} styled cells compared`)
 if (failures > 0) {
   console.log(`\nnative-core writer contract: RED (${failures}/${checks} checks failed)`)
   process.exit(1)

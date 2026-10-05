@@ -171,18 +171,17 @@ export async function imageToCells(png: Buffer, maxCols = 76, maxRows = 22): Pro
       const tr = data[top]!
       const tg = data[top + 1]!
       const tb = data[top + 2]!
-      const fg = truecolorActive()
-        ? `${ESC}[38;2;${tr};${tg};${tb}m`
-        : `${ESC}[38;5;${rgbToXterm256(tr, tg, tb)}m`
       if (hasBottom) {
         const br = data[bot]!
         const bg = data[bot + 1]!
         const bb = data[bot + 2]!
         line += truecolorActive()
-          ? `${fg}${ESC}[48;2;${br};${bg};${bb}m▀`
-          : `${fg}${ESC}[48;5;${rgbToXterm256(br, bg, bb)}m▀`
+          ? `${ESC}[48;2;${tr};${tg};${tb}m${ESC}[38;2;${br};${bg};${bb}m▄`
+          : `${ESC}[48;5;${rgbToXterm256(tr, tg, tb)}m${ESC}[38;5;${rgbToXterm256(br, bg, bb)}m▄`
       } else {
-        line += `${fg}▀`
+        line += truecolorActive()
+          ? `${ESC}[38;2;${tr};${tg};${tb}m▀`
+          : `${ESC}[38;5;${rgbToXterm256(tr, tg, tb)}m▀`
       }
     }
     line += `${ESC}[0m`

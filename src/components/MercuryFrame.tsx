@@ -28,7 +28,7 @@ import { chatOnlyBoot } from '../context/surfaceRoute.js'
 import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
 import { needsYouJump } from './mercury-ui/needsYouJump.js'
 import { useIdleMotion } from '../hooks/useIdleMotion.js'
-import { motionPosture } from '../utils/cockpit/motionGovernor.js'
+import { governorTrip, motionPosture } from '../utils/cockpit/motionGovernor.js'
 import '../services/crew/obligationsBridge.js'
 import '../services/workbench/attentionBridge.js'
 import { isDeckPaneActive } from '../utils/fullscreen.js'
@@ -192,11 +192,13 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
     ) : null
 
   const motionLevel = useIdleMotion('clock')
+  const motionAuto = motionPosture() === 'auto'
   const motionNode =
     motionLevel === 'reduced' ? (
       <Text>
         <Sep />
-        <Text color={motionPosture() === 'auto' ? tok.warning : tok.textSecondary}>reduced</Text>
+        <Text color={motionAuto ? tok.warning : tok.textSecondary}>reduced</Text>
+        {motionAuto && governorTrip() === 'wire' ? <Text color={tok.textMuted}> · wire</Text> : null}
       </Text>
     ) : null
 

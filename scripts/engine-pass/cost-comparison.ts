@@ -35,6 +35,20 @@ export function timingNoise(...sides: ReadonlyArray<ReadonlyArray<Run>>): Record
   return noise
 }
 
+export const RELATIVE_FLOOR = 0.15
+
+export function boxFloors(base: Record<string, number>, ...sides: ReadonlyArray<ReadonlyArray<Run>>): Record<string, { spread: number; relative: number; floor: number }> {
+  const noise = timingNoise(...sides)
+  const floors: Record<string, { spread: number; relative: number; floor: number }> = {}
+  for (const metric of Object.keys(noise)) {
+    const reading = base[metric]
+    assert.ok(reading !== undefined && Number.isFinite(reading) && reading >= 0, 'a base reading is required for every timing floor')
+    const relative = RELATIVE_FLOOR * reading
+    floors[metric] = { spread: noise[metric]!, relative, floor: Math.max(noise[metric]!, relative) }
+  }
+  return floors
+}
+
 export function costRows(base: Record<string, number>, tip: Record<string, number>, noise: Record<string, number> = {}): Array<{ metric: string; base: number; tip: number; floor: number; pass: boolean }> {
   assert.deepEqual(Object.keys(tip).sort(), Object.keys(base).sort(), 'base and tip must measure the same metrics')
   assert.ok(Object.keys(base).length > 0, 'no empty comparison')
