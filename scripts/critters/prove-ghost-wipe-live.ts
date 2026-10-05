@@ -89,14 +89,20 @@ const preclick = payload.marks?.find(m => m.label === 'preclick')
 t.check('the pre-click mark captured the clam berth', preclick !== undefined && artRows(preclick.grid).length > 0)
 const oldRows = preclick ? artRows(preclick.grid) : []
 const OLD_TOP = oldRows[0] ?? -1
-const ROW_ABOVE = OLD_TOP - 1
 const finalRows = artRows(payload.grid)
 const newTop = finalRows[0] ?? -1
-const departedTop = Array.from({ length: ART_X1 - ART_X0 }, (_, i) => i + ART_X0).filter(x => {
-  const before = preclick?.grid[OLD_TOP]?.[x]?.c
-  return (before === '▀' || before === '█') && before !== payload.grid[OLD_TOP]?.[x]?.c
-})
-t.check('the click cycles the square berth and vacates upper-half cells on its crown', OLD_TOP >= 0 && newTop >= 0 && departedTop.length > 0, `old ${oldRows.join(',')} → new ${finalRows.join(',')}; departed ${departedTop.join(',')}`)
+const HALF = new Set(['▀', '▄', '█'])
+const bleedRowsOf = (glyph: string, y: number): number[] => (glyph === '▀' ? [y - 1] : glyph === '▄' ? [y + 1] : glyph === '█' ? [y - 1, y + 1] : [])
+const departed: Array<[number, number, string, string]> = []
+for (const y of oldRows) {
+  for (let x = ART_X0; x < ART_X1; x++) {
+    const before = preclick?.grid[y]?.[x]?.c ?? ' '
+    const after = payload.grid[y]?.[x]?.c ?? ' '
+    if (HALF.has(before) && before !== after) departed.push([x, y, before, after])
+  }
+}
+const bleedRowSet = [...new Set(departed.flatMap(([, y, before]) => bleedRowsOf(before, y)))].sort((a, b) => a - b)
+t.check('the click cycles the square berth: half-block glyphs leave their cells in the art', OLD_TOP >= 0 && newTop >= 0 && departed.length > 0, `old ${oldRows.join(',')} → new ${finalRows.join(',')}; departed ${departed.map(([x, y, b, a]) => `${x}:${y} ${b}→${a}`).join(' ')}`)
 
 type Paint = {
   startTick: number
@@ -119,7 +125,7 @@ const cyclePaint = (frames: Paint[], releaseTick: number, departed: Paint['chang
   departed.length === 0 ? undefined : frames.find(frame => frame.startTick >= releaseTick && departed.every(([x, y, before, after]) =>
     frame.changes.some(([cx, cy, cb, ca]) => cx === x && cy === y && cb === before && ca === after)))
 const wipeCovers = (paint: Paint | undefined, departed: Paint['changes']): boolean =>
-  paint !== undefined && departed.length > 0 && departed.every(([x, y]) => paint.written.some(([wx, wy]) => wx === x && wy === y - 1))
+  paint !== undefined && departed.length > 0 && departed.every(([x, y, before]) => bleedRowsOf(before, y).every(by => paint.written.some(([wx, wy]) => wx === x && wy === by)))
 const teeChunk = (tick: number, text: string): Buffer => {
   const body = Buffer.from(text)
   const header = Buffer.alloc(8)
@@ -143,7 +149,7 @@ for (const wipe of [true, false]) {
   t.check(`${wipe ? 'witness' : 'poison'}: only the glyph-changing paint owns the cycle, even across read ticks`, control.status === 0 && paint?.startTick === 37 && paint.endTick === 38 && paint.changes.length === 5)
   t.check(wipe ? 'the complete paint retains every departing cell and its neighbour write' : 'a missing wipe stays red even when a later paint touches the same neighbours', wipeCovers(paint, witnessDepartures) === wipe)
 }
-const departures: Paint['changes'] = departedTop.map(x => [x, OLD_TOP, preclick!.grid[OLD_TOP]![x]!.c, payload.grid[OLD_TOP]![x]!.c])
+const departures: Paint['changes'] = departed
 const replay = replayTee(tee)
 t.check('the tee replays (python3 + pyte)', replay.status === 0, replay.stderr.slice(0, 300))
 const byTick = new Map(Object.entries(replay.data.ticks).map(([tick, rows]) => [Number(tick), new Map(Object.entries(rows).map(([row, count]) => [Number(row), count]))]))
@@ -156,18 +162,20 @@ const releaseTick = payload.sendReceipts?.[2]?.atTick ?? Number.POSITIVE_INFINIT
 const cycle = cyclePaint(replay.data.frames, releaseTick, departures)
 const cycleTick = cycle?.endTick
 t.check('a tick after the click rewrites the vacated rows (the cycle landed in the tee)', cycle !== undefined, `release ${releaseTick}; paint ${cycle?.startTick}..${cycleTick}; ticks ${[...byTick.keys()].join(',')}`)
-const aboveCells = cycle?.rows[ROW_ABOVE] ?? 0
+const bleedCells = bleedRowSet.reduce((sum, y) => sum + (cycle?.rows[y] ?? 0), 0)
+const bleedWanted = departed.reduce((sum, [, y, before]) => sum + bleedRowsOf(before, y).length, 0)
 if (POISON) {
-  t.check(`POISON: the cycle tick never touches the row above the old top run (row ${ROW_ABOVE}: ${aboveCells} cells)`, aboveCells === 0)
+  t.check(`POISON: the cycle tick never touches the rows the departed glyphs bled into (rows ${bleedRowSet.join(',')}: ${bleedCells} cells)`, bleedCells === 0)
 } else {
-  t.check(`the cycle tick re-emits the row above the old top run (row ${ROW_ABOVE}: ${aboveCells} cells in the art's columns — the crown's slivers)`, wipeCovers(cycle, departures) && aboveCells >= departedTop.length, `${aboveCells} for ${departedTop.length} departed cells`)
+  t.check(`the cycle tick re-emits the rows the departed glyphs bled into (rows ${bleedRowSet.join(',')}: ${bleedCells} cells in the art's columns — the slivers)`, wipeCovers(cycle, departures) && bleedCells >= bleedWanted, `${bleedCells} for ${bleedWanted} bleed cells`)
 }
 const BOOT_TICKS = Math.round(8 * vshotBudgetScale())
 const wholeFrame = (tk: number): boolean => (byTick.get(tk)?.size ?? 0) >= ROWS
 const preTicks = [...byTick.keys()].filter(tk => tk < CLICK_AT && tk > BOOT_TICKS && !wholeFrame(tk))
-const preAbove = preTicks.filter(tk => rowsAt(tk, ROW_ABOVE) > 0)
-t.check(`no tick before the click touches that row (${preTicks.length} ticks — blink and sway edges)`, preAbove.length === 0, preAbove.join(','))
+const quietRows = bleedRowSet.filter(y => !oldRows.includes(y))
+const preAbove = preTicks.filter(tk => quietRows.some(y => rowsAt(tk, y) > 0))
+t.check(`no tick before the click touches the bleed rows outside the art (rows ${quietRows.join(',')}; ${preTicks.length} ticks — blink and sway edges)`, preAbove.length === 0, preAbove.join(','))
 const edgeTick = preTicks.reduce((best, tk) => (sumAt(tk) > sumAt(best) ? tk : best), preTicks[0] ?? 0)
-console.log(`  · cycle tick ${cycleTick}: ${cycleTick !== undefined ? sumAt(cycleTick) : 0} cells in the art's columns (row ${ROW_ABOVE}: ${aboveCells}); largest pre-click edge tick ${edgeTick}: ${sumAt(edgeTick)} cells, rows ${[...(byTick.get(edgeTick)?.keys() ?? [])].sort((a, b) => a - b).join(',')}`)
+console.log(`  · cycle tick ${cycleTick}: ${cycleTick !== undefined ? sumAt(cycleTick) : 0} cells in the art's columns (bleed rows ${bleedRowSet.join(',')}: ${bleedCells}); largest pre-click edge tick ${edgeTick}: ${sumAt(edgeTick)} cells, rows ${[...(byTick.get(edgeTick)?.keys() ?? [])].sort((a, b) => a - b).join(',')}`)
 
 t.finish(POISON ? 'GHOST-WIPE-LIVE (poison)' : 'GHOST-WIPE-LIVE')
