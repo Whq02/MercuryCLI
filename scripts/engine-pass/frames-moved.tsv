@@ -1,1 +1,3 @@
 path	bug	lane	commit
+scripts/ui/crew-screens-frames-120x40.json	the four eyes on the enter screen: the head's 17 two-colour cells go out as ▄ with the lower pixel as the glyph (the sliver of the lower pixel above a ▀ on Apple Terminal)	engine-drawing	848bf36c9
+scripts/ui/crew-screens-frames-178x51.json	the four eyes on the enter screen: the head's 17 two-colour cells go out as ▄ with the lower pixel as the glyph (the sliver of the lower pixel above a ▀ on Apple Terminal)	engine-drawing	848bf36c9
