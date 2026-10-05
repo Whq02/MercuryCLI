@@ -131,68 +131,6 @@ export function isPermissionResponse(text: string): PermissionResponseMessage | 
   return parsed as PermissionResponseMessage
 }
 
-type SandboxPermissionRequestMessage = {
-  type: 'sandbox_permission_request'
-  requestId: string
-  workerId: string
-  workerName: string
-  workerColor?: string
-  hostPattern: { host: string }
-  createdAt: number
-}
-
-export function createSandboxPermissionRequestMessage(params: {
-  requestId: string
-  workerId: string
-  workerName: string
-  workerColor?: string
-  host: string
-}): SandboxPermissionRequestMessage {
-  return {
-    type: 'sandbox_permission_request',
-    requestId: params.requestId,
-    workerId: params.workerId,
-    workerName: params.workerName,
-    ...(params.workerColor !== undefined ? { workerColor: params.workerColor } : {}),
-    hostPattern: { host: params.host },
-    createdAt: Date.now(),
-  }
-}
-
-export function isSandboxPermissionRequest(text: string): SandboxPermissionRequestMessage | null {
-  const parsed = parseStructuredText(text)
-  if (!parsed || parsed.type !== 'sandbox_permission_request') return null
-  return parsed as SandboxPermissionRequestMessage
-}
-
-type SandboxPermissionResponseMessage = {
-  type: 'sandbox_permission_response'
-  requestId: string
-  host: string
-  allow: boolean
-  timestamp: string
-}
-
-export function createSandboxPermissionResponseMessage(params: {
-  requestId: string
-  host: string
-  allow: boolean
-}): SandboxPermissionResponseMessage {
-  return {
-    type: 'sandbox_permission_response',
-    requestId: params.requestId,
-    host: params.host,
-    allow: params.allow,
-    timestamp: new Date().toISOString(),
-  }
-}
-
-export function isSandboxPermissionResponse(text: string): SandboxPermissionResponseMessage | null {
-  const parsed = parseStructuredText(text)
-  if (!parsed || parsed.type !== 'sandbox_permission_response') return null
-  return parsed as SandboxPermissionResponseMessage
-}
-
 const ShutdownRequestMessageSchema = lazySchema(() =>
   z.object({
     type: z.literal('shutdown_request'),
