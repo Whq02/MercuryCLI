@@ -26,6 +26,7 @@ import {
   liveGptEffortCatalogue,
 } from '../../services/providers/openai/openaiCatalogue.js'
 import {
+  glmDisplayPin,
   glmEffortsFor,
   isGlmModelId,
 } from '../../services/providers/zai/glmPins.js'
@@ -676,11 +677,7 @@ export function resolveContextWindow(
   }
   const enginePinnedWindow = (() => {
     const id = normalizeForEnginePins(model)
-    if (isGlmModelId(id)) {
-      const { GLM_STATIC_CATALOGUE } =
-        require('../router/providers/zai.js') as typeof import('../router/providers/zai.js')
-      return GLM_STATIC_CATALOGUE.find(e => e.id === id)?.contextWindow
-    }
+    if (isGlmModelId(id)) return glmDisplayPin(id)?.contextWindow
     if (isKimiModelId(id) || carrierRoute === 'moonshot') return kimiDisplayPin(id)?.contextWindow
     if (isDeepseekModelId(id)) return deepseekDisplayPin(id)?.contextWindow
     if (isXaiModelId(id)) return xaiModelFacts(id)?.contextWindow

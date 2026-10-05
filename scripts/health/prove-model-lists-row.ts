@@ -57,7 +57,7 @@ section('§1 the one comparison: a typed id is served when the list carries it, 
 section('§2 the row over recorded lists')
 const openaiList = (ids: string[], ageMs = 120_000): Fact =>
   fact({ family: 'openai', name: 'OpenAI', source: 'ChatGPT pro subscription', typed: ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.4-mini'], list: { kind: 'list', ids, fetchedAtMs: NOW - ageMs } })
-const zai = fact({ family: 'zai', name: 'Z.AI', source: 'Z.AI API key (env)', typed: ['glm-5.3', 'glm-5.2'], list: { kind: 'no-endpoint', datedAt: '2026-08-21' } })
+const zai = fact({ family: 'zai', name: 'Z.AI', source: 'GLM Coding Plan key (stored)', typed: ['glm-5.3', 'glm-5.3-flash', 'glm-5.2'], list: { kind: 'unread' } })
 const moonshot = fact({ family: 'moonshot', name: 'Moonshot', typed: ['kimi-k3', 'kimi-k2.6'], list: { kind: 'no-credential' } })
 const anthropic = fact({ family: 'anthropic', name: 'Anthropic', source: 'Anthropic API key', typed: ['claude-fable-5-1', 'claude-opus-5'], list: { kind: 'unread' } })
 const geminiUnread = fact({ family: 'gemini', name: 'Gemini', source: 'Gemini API key (GEMINI_API_KEY env)', typed: ['gemini-3.7-flash'], list: { kind: 'unread' } })
@@ -66,7 +66,7 @@ const hfNone = fact({ family: 'huggingface', name: 'Hugging Face', typed: ['moon
 {
   const row = composeModelListsRow([anthropic, openaiList(['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.4-mini']), zai, moonshot, deepseekNone, geminiUnread, hfNone], NOW)
   check('every typed id served → ok', row.status === 'ok', row.status)
-  check('the evidence counts served, not served and the lists read of the readable families', row.evidence === 'served 3 · not served 0 · lists read 1 of 6', row.evidence)
+  check('the evidence counts served, not served and the lists read of the readable families', row.evidence === 'served 3 · not served 0 · lists read 1 of 7', row.evidence)
   check('the OpenAI line: source · served · not served · the list\'s age', row.detail.includes('OpenAI · ChatGPT pro subscription · served 3 · not served 0 · list from 2m ago'), row.detail)
   check('no not-served line beneath a family whose list serves every id', !row.detail.includes('not served:'))
   check('no fix on an ok row', row.fix === undefined)
@@ -74,7 +74,7 @@ const hfNone = fact({ family: 'huggingface', name: 'Hugging Face', typed: ['moon
 {
   const row = composeModelListsRow([anthropic, openaiList(['gpt-6-astra', 'gpt-5.6-sol']), zai, moonshot, deepseekNone, geminiUnread, hfNone], NOW)
   check('one retired id → warn', row.status === 'warn', row.status)
-  check('the evidence names the count and the family', row.evidence === 'served 2 · not served 1 (OpenAI) · lists read 1 of 6', row.evidence)
+  check('the evidence names the count and the family', row.evidence === 'served 2 · not served 1 (OpenAI) · lists read 1 of 7', row.evidence)
   const lines = row.detail.split('\n')
   const at = lines.indexOf('OpenAI · ChatGPT pro subscription · served 2 · not served 1 · list from 2m ago')
   check('the family line carries its counts', at >= 0, row.detail)
@@ -84,12 +84,12 @@ const hfNone = fact({ family: 'huggingface', name: 'Hugging Face', typed: ['moon
 {
   const gemini = fact({ ...geminiUnread, list: { kind: 'list', ids: ['gemini-x'], fetchedAtMs: NOW - 5_000 } })
   const row = composeModelListsRow([anthropic, openaiList(['gpt-5.6-sol']), zai, moonshot, deepseekNone, gemini, hfNone], NOW)
-  check('two families lacking → both named, counts summed', row.evidence === 'served 1 · not served 3 (OpenAI, Gemini) · lists read 2 of 6', row.evidence)
+  check('two families lacking → both named, counts summed', row.evidence === 'served 1 · not served 3 (OpenAI, Gemini) · lists read 2 of 7', row.evidence)
 }
 {
   const row = composeModelListsRow([anthropic, fact({ ...openaiList([]), list: { kind: 'unread' } }), zai, moonshot, deepseekNone, geminiUnread, hfNone], NOW)
   check('no list read for any signed-in family → info, never a caution', row.status === 'info', row.status)
-  check('the evidence says no list was read in this process, how one is read, and who reads every list', row.evidence === 'no list read in this process — /model or a chat naming the family reads it; the release-day check reads every list · lists read 0 of 6' && row.evidence.startsWith(MODEL_LISTS_UNREAD_EVIDENCE), row.evidence)
+  check('the evidence says no list was read in this process, how one is read, and who reads every list', row.evidence === 'no list read in this process — /model or a chat naming the family reads it; the release-day check reads every list · lists read 0 of 7' && row.evidence.startsWith(MODEL_LISTS_UNREAD_EVIDENCE), row.evidence)
   check('the OpenAI line reads no list read in this process with the typed count', row.detail.includes('OpenAI · ChatGPT pro subscription · no list read in this process — /model or a chat naming the family reads it · 3 typed ids not judged'), row.detail)
   check('no fix on an info row', row.fix === undefined)
 }
@@ -99,16 +99,16 @@ const hfNone = fact({ family: 'huggingface', name: 'Hugging Face', typed: ['moon
   check('a failed read with nothing cached → info, the line names the failure and its age', row.status === 'info' && row.detail.includes('OpenAI · ChatGPT pro subscription · the last list read failed 30s ago (http-503) · 3 typed ids not judged'), row.detail)
 }
 {
-  const row = composeModelListsRow([fact({ ...anthropic, source: undefined, list: { kind: 'no-credential' } }), fact({ ...openaiList([]), list: { kind: 'no-credential' } }), fact({ ...zai, source: undefined }), moonshot, deepseekNone, fact({ ...geminiUnread, source: undefined, list: { kind: 'no-credential' } }), hfNone], NOW)
+  const row = composeModelListsRow([fact({ ...anthropic, source: undefined, list: { kind: 'no-credential' } }), fact({ ...openaiList([]), list: { kind: 'no-credential' } }), fact({ ...zai, source: undefined, list: { kind: 'no-credential' } }), moonshot, deepseekNone, fact({ ...geminiUnread, source: undefined, list: { kind: 'no-credential' } }), hfNone], NOW)
   check('no credential for any family with a live list → info', row.status === 'info', row.status)
-  check('the evidence says so', row.evidence === 'no credential for a family with a live list · lists read 0 of 6', row.evidence)
+  check('the evidence says so', row.evidence === 'no credential for a family with a live list · lists read 0 of 7', row.evidence)
   check('a family without a credential reads not judged', row.detail.includes('OpenAI · no credential · 3 typed ids not judged'), row.detail)
   check('Anthropic without a credential reads not judged like every other family', row.detail.includes('Anthropic · no credential · 2 typed ids not judged'), row.detail)
 }
 {
   const lines = modelListFamilyLines(zai, NOW)
-  check('a family with no live endpoint reads the dated typed table', lines[0] === 'Z.AI · Z.AI API key (env) · no live list — typed table dated 2026-08-21 · 2 typed ids', lines[0])
-  check('the same words without a credential', modelListFamilyLines(fact({ ...zai, source: undefined }), NOW)[0] === 'Z.AI · no credential · no live list — typed table dated 2026-08-21 · 2 typed ids')
+  check('Z.AI with a Coding Plan key and no list read reads the same words as every other family', lines[0] === 'Z.AI · GLM Coding Plan key (stored) · no list read in this process — /model or a chat naming the family reads it · 3 typed ids not judged', lines[0])
+  check('the same shape without a credential', modelListFamilyLines(fact({ ...zai, source: undefined, list: { kind: 'no-credential' } }), NOW)[0] === 'Z.AI · no credential · 3 typed ids not judged')
   check('Moonshot without a credential reads not judged, its list being readable', modelListFamilyLines(moonshot, NOW)[0] === 'Moonshot · no credential · 2 typed ids not judged', modelListFamilyLines(moonshot, NOW)[0])
   check('Anthropic with a credential and no list read reads the same words as every other family', modelListFamilyLines(anthropic, NOW)[0] === 'Anthropic · Anthropic API key · no list read in this process — /model or a chat naming the family reads it · 2 typed ids not judged', modelListFamilyLines(anthropic, NOW)[0])
   const anthropicList = fact({ ...anthropic, list: { kind: 'list', ids: ['claude-fable-5-1', 'claude-opus-5-5'], fetchedAtMs: NOW - 45_000 } })
@@ -127,18 +127,18 @@ section('§2b Moonshot over its cached live list: served, lacking, unread, unrea
   const moonshotList = (ids: string[]): Fact => fact({ family: 'moonshot', name: 'Moonshot', source: 'MOONSHOT_API_KEY (env)', typed: ['kimi-k3', 'kimi-k2.6'], list: { kind: 'list', ids, fetchedAtMs: NOW - 30_000 } })
   const world = (ms: Fact): Fact[] => [anthropic, fact({ ...openaiList([]), list: { kind: 'no-credential' } }), zai, ms, deepseekNone, geminiUnread, hfNone]
   const served = composeModelListsRow(world(moonshotList(['kimi-k3', 'kimi-k2.6', 'kimi-fixture-next'])), NOW)
-  check('a Moonshot list serving every typed id → ok, counted among the five readable lists', served.status === 'ok' && served.evidence === 'served 2 · not served 0 · lists read 1 of 6', served.evidence)
+  check('a Moonshot list serving every typed id → ok, counted among the five readable lists', served.status === 'ok' && served.evidence === 'served 2 · not served 0 · lists read 1 of 7', served.evidence)
   check('the Moonshot line: source · served · not served · the list\'s age', served.detail.includes('Moonshot · MOONSHOT_API_KEY (env) · served 2 · not served 0 · list from 30s ago'), served.detail)
   const lacking = composeModelListsRow(world(moonshotList(['kimi-k3'])), NOW)
   const lines = lacking.detail.split('\n')
   const at = lines.indexOf('Moonshot · MOONSHOT_API_KEY (env) · served 1 · not served 1 · list from 30s ago')
-  check('a Moonshot list lacking a typed id → warn naming Moonshot, the id on the line beneath', lacking.status === 'warn' && lacking.evidence === 'served 1 · not served 1 (Moonshot) · lists read 1 of 6' && at >= 0 && lines[at + 1] === 'Moonshot not served: kimi-k2.6' && lacking.fix === MODEL_LISTS_FIX, lacking.detail)
+  check('a Moonshot list lacking a typed id → warn naming Moonshot, the id on the line beneath', lacking.status === 'warn' && lacking.evidence === 'served 1 · not served 1 (Moonshot) · lists read 1 of 7' && at >= 0 && lines[at + 1] === 'Moonshot not served: kimi-k2.6' && lacking.fix === MODEL_LISTS_FIX, lacking.detail)
   const unread = composeModelListsRow(world(fact({ ...moonshotList([]), list: { kind: 'unread' } })), NOW)
   check('a Moonshot credential with no list read → info, the same read hint as every other family', unread.status === 'info' && unread.detail.includes('Moonshot · MOONSHOT_API_KEY (env) · no list read in this process — /model or a chat naming the family reads it · 2 typed ids not judged'), unread.detail)
   const failed = composeModelListsRow(world(fact({ ...moonshotList([]), list: { kind: 'unread', lastError: 'the models endpoint answered a body that is not JSON', lastAttemptAtMs: NOW - 10_000 } })), NOW)
   check('a failed Moonshot read with nothing cached → info naming the failure and its age', failed.status === 'info' && failed.detail.includes('Moonshot · MOONSHOT_API_KEY (env) · the last list read failed 10s ago (the models endpoint answered a body that is not JSON) · 2 typed ids not judged'), failed.detail)
   const broken = composeModelListsRow(world(fact({ ...moonshotList([]), list: { kind: 'unreadable', reason: 'boom' } })), NOW)
-  check('a Moonshot cache that could not be read → unknown with the reason', broken.status === 'unknown' && broken.evidence === 'a cached list could not be read · lists read 0 of 6' && broken.detail.includes('Moonshot · MOONSHOT_API_KEY (env) · the cached list could not be read (boom) · 2 typed ids not judged'), broken.detail)
+  check('a Moonshot cache that could not be read → unknown with the reason', broken.status === 'unknown' && broken.evidence === 'a cached list could not be read · lists read 0 of 7' && broken.detail.includes('Moonshot · MOONSHOT_API_KEY (env) · the cached list could not be read (boom) · 2 typed ids not judged'), broken.detail)
 }
 
 section('§3 the reader: the facts come from the catalogue caches this process holds, never a fetch')
@@ -160,9 +160,9 @@ const byFamily = (facts: Fact[], family: Fact['family']): Fact => facts.find(f =
   const facts = readModelListFacts(process.env)
   check('nine families in the brief\'s order', facts.map(f => f.family).join(',') === 'anthropic,openai,zai,moonshot,deepseek,xai,meta,gemini,huggingface', facts.map(f => f.family).join(','))
   check('the typed ids are the tables\' own', byFamily(facts, 'openai').typed.join(',') === GPT_DISPLAY_PINS.map(p => p.id).join(',') && byFamily(facts, 'gemini').typed.join(',') === GEMINI_PRICE_PINS.map(p => p.id).join(',') && byFamily(facts, 'deepseek').typed.join(',') === DEEPSEEK_DISPLAY_PINS.map(p => p.id).join(',') && byFamily(facts, 'huggingface').typed.join(',') === HUGGINGFACE_DISPLAY_PINS.map(p => p.id).join(',') && byFamily(facts, 'moonshot').typed.join(',') === KIMI_DISPLAY_PINS.map(p => p.id).join(','))
-  check('Z.AI reads its dated typed table (no documented model list); Moonshot reads through its cache, never the dated table', byFamily(facts, 'zai').list.kind === 'no-endpoint' && byFamily(facts, 'zai').typed.length > 0 && byFamily(facts, 'moonshot').list.kind !== 'no-endpoint' && byFamily(facts, 'moonshot').typed.length > 0, JSON.stringify(byFamily(facts, 'moonshot')))
+  check('Z.AI and Moonshot read through their caches: a home with no key reads no credential, the typed floor beside it', byFamily(facts, 'zai').list.kind === 'no-credential' && byFamily(facts, 'zai').typed.join(',') === 'glm-5.3,glm-5.3-flash,glm-5.2' && byFamily(facts, 'moonshot').list.kind === 'no-credential' && byFamily(facts, 'moonshot').typed.length > 0, JSON.stringify(byFamily(facts, 'zai')))
   check('Anthropic with the fixture key and nothing cached reads unread with its source, like every keyed family', byFamily(facts, 'anthropic').list.kind === 'unread' && byFamily(facts, 'anthropic').source === 'Anthropic API key', JSON.stringify(byFamily(facts, 'anthropic')))
-  check('the five keyed families read no credential in a home with none', (['openai', 'deepseek', 'gemini', 'huggingface', 'moonshot'] as const).every(f => byFamily(facts, f).list.kind === 'no-credential'))
+  check('the six keyed families read no credential in a home with none', (['openai', 'zai', 'deepseek', 'gemini', 'huggingface', 'moonshot'] as const).every(f => byFamily(facts, f).list.kind === 'no-credential'))
   const row = composeModelListsRow(facts, Date.now())
   check('the row over that home reads info', row.status === 'info', row.evidence)
 }
@@ -226,7 +226,7 @@ const byFamily = (facts: Fact[], family: Fact['family']): Fact => facts.find(f =
   const ms = byFamily(readModelListFacts(process.env), 'moonshot')
   check("Moonshot: the cached list is read through the env key's account, the list's own ids and stamp", ms.list.kind === 'list' && ms.list.ids.join(',') === [...KIMI_TYPED, 'kimi-fixture-next'].join(',') && ms.list.fetchedAtMs > 0 && ms.source === 'MOONSHOT_API_KEY (env)', JSON.stringify(ms))
   const servedRow = composeModelListsRow(readModelListFacts(process.env), Date.now())
-  check('the row over that list reads ok and counts the Moonshot list among the readable eight', servedRow.status === 'ok' && servedRow.evidence === `served ${KIMI_TYPED.length} · not served 0 · lists read 1 of 8`, servedRow.evidence)
+  check('the row over that list reads ok and counts the Moonshot list among the readable nine', servedRow.status === 'ok' && servedRow.evidence === `served ${KIMI_TYPED.length} · not served 0 · lists read 1 of 9`, servedRow.evidence)
   moonshotCatalogue.__resetMoonshotCatalogueForTest()
   await moonshotCatalogue.refreshMoonshotCatalogue({ env: process.env, fetchImpl: listOf(KIMI_TYPED.slice(0, -1), { created: 1 }) })
   const lackingRow = composeModelListsRow(readModelListFacts(process.env), Date.now())
@@ -247,7 +247,7 @@ const byFamily = (facts: Fact[], family: Fact['family']): Fact => facts.find(f =
   const an = byFamily(readModelListFacts(process.env), 'anthropic')
   check("Anthropic: the cached union is read through the key door with the list's own ids and stamp", an.list.kind === 'list' && an.list.ids.join(',') === [...anthropicTyped, 'claude-opus-5-7'].join(',') && an.list.fetchedAtMs > 0 && an.source === 'Anthropic API key', JSON.stringify(an))
   const anthropicRow = composeModelListsRow(readModelListFacts(process.env), Date.now())
-  check('the row over that list reads ok and counts the Anthropic list among the readable eight', anthropicRow.status === 'ok' && anthropicRow.evidence === `served ${anthropicTyped.length} · not served 0 · lists read 1 of 8`, anthropicRow.evidence)
+  check('the row over that list reads ok and counts the Anthropic list among the readable nine', anthropicRow.status === 'ok' && anthropicRow.evidence === `served ${anthropicTyped.length} · not served 0 · lists read 1 of 9`, anthropicRow.evidence)
   anthropicCatalogue.__resetAnthropicCatalogueForTest()
   await anthropicCatalogue.refreshAnthropicCatalogue({ force: true, fetchImpl: anthropicPage(anthropicTyped.slice(1)) })
   const anthropicLacking = composeModelListsRow(readModelListFacts(process.env), Date.now())

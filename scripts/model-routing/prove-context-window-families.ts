@@ -76,7 +76,7 @@ console.log('============================================================')
 
 section('W1 · unfetched: pins ride, everything else is the LABELLED conservative default')
 {
-  const fallbackIds = ['openrouter/stealth/ox-alpha', 'gemini-fixture-pro', 'huggingface/qwen/unpinned-model', 'local/llama3.1', 'compat/my-model', 'kimi-k2.5', 'glm-4.7', 'deepseek-v4-flash-vision-exp', 'gpt-5.4']
+  const fallbackIds = ['openrouter/stealth/ox-alpha', 'gemini-fixture-pro', 'huggingface/qwen/unpinned-model', 'local/llama3.1', 'compat/my-model', 'kimi-k2.5', 'glm-5-turbo', 'deepseek-v4-flash-vision-exp', 'gpt-5.4']
   for (const id of fallbackIds) {
     const r = resolveContextWindow(id)
     check(`${id}: 200,000 · source fallback · reason stated`, r.effectiveWindow === MODEL_CONTEXT_WINDOW_DEFAULT && r.source === 'fallback' && typeof r.fallbackReason === 'string' && r.fallbackReason.length > 0, JSON.stringify({ w: r.effectiveWindow, s: r.source, reason: r.fallbackReason }))

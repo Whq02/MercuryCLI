@@ -12,9 +12,8 @@ export interface BareFamilyWord {
 }
 
 function glmHeadRow(): BareFamilyWordRow | undefined {
-  const { GLM_STATIC_CATALOGUE } = require('../router/providers/zai.js') as typeof import('../router/providers/zai.js')
-  const head = GLM_STATIC_CATALOGUE[0]
-  return head === undefined ? undefined : { id: head.id, displayName: head.displayLabel }
+  const { zaiCatalogueRows } = require('../../services/providers/zai/zaiCatalogue.js') as typeof import('../../services/providers/zai/zaiCatalogue.js')
+  return zaiCatalogueRows().rows[0]
 }
 
 function kimiHeadRow(): BareFamilyWordRow | undefined {

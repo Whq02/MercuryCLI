@@ -46,14 +46,10 @@ function classification(file: string, table: string, owner: string, body: string
     return undefined
   }
   if (table === 'GLM_STATIC_CATALOGUE') {
-    const permitted: Record<string, string[]> = {
-      'src/utils/router/providers/zai.ts': ['describeZaiProvider', 'listZaiModels'],
-      'src/utils/crew/engineDispatch.ts': ['resolveEngineDispatch'],
-      'src/utils/model/bareFamilyWords.ts': ['glmHeadRow'],
-      'src/utils/model/modelOptions.ts': ['keyLanePins'],
-      'src/utils/model/capabilities.ts': ['resolveContextWindow'],
-    }
-    return permitted[file]?.includes(owner) ? 'dated Z.AI observation; no documented models endpoint' : undefined
+    if (file !== 'src/utils/router/providers/zai.ts') return undefined
+    if (owner === 'zaiCatalogueEntries' && body.includes('zaiLiveCatalogue()?.entries ?? GLM_STATIC_CATALOGUE') && onlyReads(body, 'GLM_STATIC_CATALOGUE', ['zaiLiveCatalogue()?.entries ?? GLM_STATIC_CATALOGUE'])) return 'the dated floor behind the live Z.AI list; a landed list replaces it'
+    if (owner === 'describeZaiProvider' && body.includes('live?.entries ?? GLM_STATIC_CATALOGUE') && body.includes("catalogueSource: 'live-discovery'") && onlyReads(body, 'GLM_STATIC_CATALOGUE', ['live?.entries ?? GLM_STATIC_CATALOGUE'])) return 'the dated floor behind the live Z.AI list, with the provenance named'
+    return undefined
   }
   if (file === 'src/services/providers/openai/gptPins.ts' && owner === 'gptDisplayPin') return 'display/price metadata by id'
   if (file === 'src/utils/model/providerFrontier.ts' && ['providerFrontierFact', 'providerLightFact', 'providerSmallFastFact'].includes(owner)) return `existing OpenAI chooser obligation: ${openaiOwner}`
@@ -125,6 +121,8 @@ const familyWords = readFileSync(join(SRC, 'utils/model/bareFamilyWords.ts'), 'u
 check('Moonshot picker reads the live-backed row owner', options.includes('moonshotCatalogueRows().rows') && !options.includes('KIMI_DISPLAY_PINS'))
 check('Moonshot specialist choice and exact admission read the catalogue, never a parallel static projection', dispatch.includes('bareFamilyWordOf(modelParam)') && familyWords.includes('moonshotCatalogueRows().rows[0]') && !familyWords.includes('KIMI_DISPLAY_PINS') && dispatch.includes('qualifyMoonshotModel(') && !dispatch.includes('KIMI_STATIC_CATALOGUE'))
 check('the Moonshot adapter does not rebuild a chooser from typed pins', adapter.includes('moonshotCatalogueRows()') && !adapter.includes('KIMI_DISPLAY_PINS'))
+const capabilities = readFileSync(join(SRC, 'utils/model/capabilities.ts'), 'utf8')
+check('the GLM picker, family word, exact admission and window read the live-backed row owner, never the static table', options.includes('zaiCatalogueRows().rows') && familyWords.includes('zaiCatalogueRows().rows[0]') && dispatch.includes('zaiCatalogueEntry(id)') && capabilities.includes('glmDisplayPin(id)?.contextWindow') && ![options, familyWords, dispatch, capabilities].some(source => source.includes('GLM_STATIC_CATALOGUE')))
 check('the census actually found consumers', consumers > 0)
 console.log(`${consumers} consumers, ${failures} failures`)
 process.exit(failures === 0 ? 0 : 1)
