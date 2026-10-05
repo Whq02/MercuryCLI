@@ -53,6 +53,7 @@ const check = (name: string, yes: boolean): void => {
 }
 const guard = setTimeout(() => { console.error('FAIL fixture daemon exceeded its liveness deadline'); worker.kill('SIGTERM'); client.destroy(); process.exit(1) }, 60_000)
 try {
+  const expectedFields: Record<string, string> = { SessionStart: 'source', Notification: 'notification_type', SessionEnd: 'reason' }
   for (const [event, fields] of [
     ['SessionStart', { source: 'startup' }],
     ['Notification', { message: 'worker notification', notification_type: 'test' }],
@@ -63,17 +64,26 @@ try {
     await done
     check(`${event} fired and completed in the worker`, marks.some(mark => mark.kind === 'response' && mark.hookEvent === event && mark.outcome === 'success' && String(mark.output).includes(`${event} from worker`)))
     check(`${event} output chunks emit progress marks without a screen`, marks.some(mark => mark.kind === 'progress' && mark.hookEvent === event))
+    const eventMarks = marks.filter(mark => mark.sessionId === 'worker-data-session' && mark.hookEvent === event)
+    check(`${event} carries the worker's data-in identity on every mark`, eventMarks.length > 0 && eventMarks.every(mark => mark.sessionId === 'worker-data-session'))
+    check(`${event} emits exactly one started/response pair for one matched hook`, eventMarks.filter(mark => mark.kind === 'started').length === 1 && eventMarks.filter(mark => mark.kind === 'response').length === 1)
   }
   const records = existsSync(ledger) ? readFileSync(ledger, 'utf8').trim().split('\n').map(line => JSON.parse(line) as Record<string, unknown>) : []
   check('all three hooks ran exactly once', records.length === 3)
   check('every hook input carries the data-in session identity', records.length === 3 && records.every(record => record.session_id === 'worker-data-session'))
   check('every hook input and child process carries the data-in cwd', records.length === 3 && records.every(record => record.cwd === cwd && record.spawn_cwd === cwd))
   check('every hook input carries the data-in transcript path', records.length === 3 && records.every(record => record.transcript_path === join(root, 'worker-transcript.jsonl')))
+  const perEventCounts = Object.fromEntries(['SessionStart', 'Notification', 'SessionEnd'].map(event => [event, records.filter(record => record.hook_event_name === event).length]))
+  check('each lifecycle event fired the worker hook exactly once', Object.values(perEventCounts).every(count => count === 1))
+  for (const [event, field] of Object.entries(expectedFields)) {
+    check(`${event} input carries its event field ${field}`, records.some(record => record.hook_event_name === event && String(record[field] ?? '') !== ''))
+  }
   const done = new Promise<void>(resolve => { pending = resolve })
   client.write(`${JSON.stringify({ event: 'SessionStart', fields: { source: 'startup' }, sessionId: 'untrusted-worker', cwd, transcriptPath: join(root, 'untrusted.jsonl'), trustAccepted: false })}\n`)
   await done
   check('explicitly untrusted worker data cannot execute hooks even in a noninteractive worker', existsSync(ledger) && readFileSync(ledger, 'utf8').trim().split('\n').length === 3 && !marks.some(mark => mark.sessionId === 'untrusted-worker' && mark.kind === 'started'))
-  check('the fixture worker reported no engine exceptions', !marks.some(mark => mark.kind === 'failed'))
+  check('no mark of another session ever crosses the worker wire', !marks.some(mark => mark.sessionId !== 'worker-data-session' && mark.sessionId !== 'untrusted-worker'))
+  check('the fixture worker reported no engine exceptions', !marks.some(mark => mark.kind === 'failed' || mark.kind === 'assertion'))
 } finally {
   worker.stdin.end()
   const code = await exited
