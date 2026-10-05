@@ -255,6 +255,7 @@ section('§4 — the wire: a notice is a bracketed note, never an assistant turn
   check('the coordinator’s own reply IS an assistant turn', assistantText.includes('Nothing is running right now'), assistantText.slice(0, 300))
   check('the stale ask rides with its age tag', /\[\d+[mhd] earlier\]/.test(wire), wire.slice(0, 300))
   check('the settled ask says it is not an open ask', wire.includes('not an open ask'), wire.slice(0, 300))
+  check('the first wire message is a user turn (the Responses leg)', items[0]?.role === 'user', JSON.stringify(items[0]?.role))
 }
 
 section('§5 — the Anthropic coordinator keeps its own earlier replies too')
@@ -285,6 +286,43 @@ section('§5 — the Anthropic coordinator keeps its own earlier replies too')
     check('the coordinator’s own reply IS an assistant turn on the Anthropic wire', claudeAssistant.includes('Nothing is running right now'), claudeAssistant.slice(0, 300))
     check('…and the harness notice still is not', !claudeAssistant.includes('The turn did not run'), claudeAssistant.slice(0, 300))
     check('the notice rides the history as a bracketed harness note there too', claudeWire.includes('[harness'), claudeWire.slice(0, 300))
+    check('the first wire message is a user turn (the Anthropic leg)', claudeBlocks[0]?.role === 'user', JSON.stringify(claudeBlocks[0]?.role))
+  } finally {
+    process.env.ANTHROPIC_BASE_URL = previousBase
+  }
+}
+
+section('§6 — the replay window opens at an ask, never at a coordinator turn')
+{
+  const { liveCoordinatorCallModel } = await import('../../src/services/concourse/coordinatorCall.ts')
+  const leadingTail = [
+    { id: 'co:pre-window', role: 'coordinator' as const, text: 'Launched the parser lane before the window moved.', ts: Date.now() - 9 * HOUR },
+    { id: 'op:in-window', role: 'operator' as const, text: 'what about the docs half?', ts: Date.now() - 2 * HOUR },
+    { id: 'co:in-window', role: 'coordinator' as const, text: 'The docs half is queued behind the parser lane.', ts: Date.now() - 2 * HOUR + 60_000 },
+  ]
+  const previousBase = process.env.ANTHROPIC_BASE_URL
+  process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${port}`
+  try {
+    for (const [label, model, urlMatch] of [['Anthropic', 'claude-sonnet-5', '/v1/messages'], ['Responses', 'gpt-5.6-sol', '/responses']] as const) {
+      const before = captured.length
+      await liveCoordinatorCallModel(
+        {
+          contractVersion: lane.COORDINATOR_CONTRACT_VERSION,
+          contract: lane.COORDINATOR_CONTRACT,
+          event: { kind: 'operator-message', messageId: `replay-lead-${label}`, text: 'anything new?' },
+          board: { counts: {}, sessions: [], openObligations: [] },
+          conversation: leadingTail,
+        },
+        model,
+      )
+      const calls = captured.slice(before).filter(c => c.url.startsWith(urlMatch))
+      check(`the ${label} leg settled exactly ONE call`, calls.length === 1, String(calls.length))
+      const raw = calls[0]?.body ?? {}
+      const rows = Array.isArray(raw.messages) ? (raw.messages as Array<Record<string, unknown>>) : Array.isArray(raw.input) ? (raw.input as Array<Record<string, unknown>>) : []
+      check(`the ${label} wire opens at a user turn`, rows[0]?.role === 'user', JSON.stringify(rows[0]?.role))
+      check(`the leading pre-window coordinator turn never reached the ${label} wire`, !JSON.stringify(raw).includes('before the window moved'), JSON.stringify(raw).slice(0, 300))
+      check(`the in-window coordinator reply still rides the ${label} wire`, JSON.stringify(raw).includes('queued behind the parser lane'), JSON.stringify(raw).slice(0, 300))
+    }
   } finally {
     process.env.ANTHROPIC_BASE_URL = previousBase
   }

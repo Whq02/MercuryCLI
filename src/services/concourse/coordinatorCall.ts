@@ -118,6 +118,7 @@ export async function liveCoordinatorCallModel(
   }
   for (const entry of tail) {
     if (entry.text.length === 0 && (entry.receipts === undefined || entry.receipts.length === 0)) continue
+    if (entry.role === 'coordinator' && !messages.some(message => message.type === 'user')) continue
     const age = entry.age !== undefined ? `[${entry.age}] ` : ''
     if (entry.role === 'harness') {
       messages.push(
