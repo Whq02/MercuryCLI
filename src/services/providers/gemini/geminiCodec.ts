@@ -1,5 +1,6 @@
 import type { Message } from '../../../types/message.js'
 import type { CompatChatRequest, CompatMessage } from '../openaicompat/compatChatClient.js'
+import { requestTurnOf } from '../../../rows/request.js'
 
 export type GeminiPart = {
   text?: string
@@ -54,15 +55,13 @@ function replayItem(value: unknown, model: string, row: CompatMessage): GeminiTu
 }
 
 function contentParts(content: CompatMessage['content']): GeminiPart[] {
-  if (typeof content === 'string') return content === '' ? [] : [{ text: content }]
-  if (!Array.isArray(content)) return []
-  return content.map(part => {
-    if (part.type === 'text') return { text: part.text }
-    const url = part.image_url.url
+  const turn = requestTurnOf('user', content)
+  if (turn.stringContent !== undefined) return turn.stringContent === '' ? [] : [{ text: turn.stringContent }]
+  return turn.items.map(item => {
+    if (item.type === 'text') return { text: item.text }
+    const url = (item.value as unknown as { image_url: { url: string } }).image_url.url
     const data = /^data:([^;,]+);base64,([\s\S]*)$/.exec(url)
-    return data
-      ? { inlineData: { mimeType: data[1]!, data: data[2]! } }
-      : { fileData: { fileUri: url } }
+    return data ? { inlineData: { mimeType: data[1]!, data: data[2]! } } : { fileData: { fileUri: url } }
   })
 }
 

@@ -1,5 +1,6 @@
 import type { JsonOutputFormat, MessageParam, TextPhase } from '../../../types/wire.js'
 import { toOpenaiStrictSchema } from '../../../utils/messages/structuredOutputDialect.js'
+import { requestTurnOf } from '../../../rows/request.js'
 import type { ApiShapedTool } from '../zai/zaiCodec.js'
 import type {
   OpenaiFunctionTool,
@@ -192,14 +193,9 @@ function mapUserMessage(
   message: BridgeMessage,
   imagesSupported: boolean,
 ): void {
-  if (typeof message.content === 'string') {
-    if (message.content.trim() !== '') {
-      out.push({
-        type: 'message',
-        role: 'user',
-        content: [{ type: 'input_text', text: message.content }],
-      })
-    }
+  const turn = requestTurnOf('user', message.content)
+  if (turn.stringContent !== undefined) {
+    if (turn.stringContent.trim() !== '') out.push({ type: 'message', role: 'user', content: [{ type: 'input_text', text: turn.stringContent }] })
     return
   }
   const parts: UserPart[] = []
@@ -208,67 +204,42 @@ function mapUserMessage(
     if (last && last.type === 'input_text') last.text += `\n${text}`
     else parts.push({ type: 'input_text', text })
   }
-  for (const block of message.content) {
-    if (block.type === 'text') {
-      pushText((block as { text: string }).text)
-    } else if (block.type === 'image') {
-      const url = imagesSupported ? imageUrlOfBlock(block) : undefined
+  for (const item of turn.items) {
+    if (item.type === 'text') pushText(item.text)
+    else if (item.value.type === 'image') {
+      const url = imagesSupported ? imageUrlOfBlock(item.value) : undefined
       if (url) parts.push({ type: 'input_image', image_url: url })
       else pushText('[image]')
-    } else if (block.type === 'tool_result') {
+    } else if (item.type === 'tool_result') {
       flushUserParts(out, parts)
-      const b = block as { tool_use_id: string; content?: unknown; is_error?: boolean }
-      out.push({
-        type: 'function_call_output',
-        call_id: b.tool_use_id,
-        output: toolResultOutput(b.content, b.is_error === true, imagesSupported),
-      })
-    } else {
-      pushText(`[${block.type}]`)
-    }
+      out.push({ type: 'function_call_output', call_id: item.call_id, output: toolResultOutput(item.output, (item.value as { is_error?: boolean }).is_error === true, imagesSupported) })
+    } else pushText(`[${item.value.type}]`)
   }
   flushUserParts(out, parts)
 }
 
 function mapDerivedAssistantMessage(out: OpenaiInputItem[], message: BridgeMessage): void {
-  if (typeof message.content === 'string') {
-    if (message.content.trim() !== '') {
-      out.push({
-        type: 'message',
-        role: 'assistant',
-        content: [{ type: 'output_text', text: message.content }],
-      })
-    }
+  const turn = requestTurnOf('assistant', message.content)
+  if (turn.stringContent !== undefined) {
+    if (turn.stringContent.trim() !== '') out.push({ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: turn.stringContent }] })
     return
   }
   const texts: string[] = []
   let textsPhase: TextPhase | undefined
   const flushTexts = (): void => {
     if (texts.length === 0) return
-    out.push({
-      type: 'message',
-      role: 'assistant',
-      content: texts.map(text => ({ type: 'output_text' as const, text })),
-      ...(textsPhase ? { phase: textsPhase } : {}),
-    })
+    out.push({ type: 'message', role: 'assistant', content: texts.map(text => ({ type: 'output_text' as const, text })), ...(textsPhase ? { phase: textsPhase } : {}) })
     texts.length = 0
     textsPhase = undefined
   }
-  for (const block of message.content) {
-    if (block.type === 'text') {
-      const b = block as { text: string; phase?: TextPhase }
-      if (texts.length > 0 && b.phase !== textsPhase) flushTexts()
-      textsPhase = b.phase
-      texts.push(b.text)
-    } else if (block.type === 'tool_use') {
+  for (const item of turn.items) {
+    if (item.type === 'text') {
+      if (texts.length > 0 && item.phase !== textsPhase) flushTexts()
+      textsPhase = item.phase
+      texts.push(item.text)
+    } else if (item.type === 'tool_call' && item.native === 'tool_use') {
       flushTexts()
-      const b = block as { id: string; name: string; input: unknown }
-      out.push({
-        type: 'function_call',
-        call_id: b.id,
-        name: b.name,
-        arguments: JSON.stringify(b.input ?? {}),
-      })
+      out.push({ type: 'function_call', call_id: item.call_id, name: item.tool, arguments: JSON.stringify(item.input ?? {}) })
     }
   }
   flushTexts()

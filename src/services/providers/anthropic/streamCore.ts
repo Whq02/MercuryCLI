@@ -113,8 +113,6 @@ import {
   createStreamCutMessage,
   createSystemAPIErrorMessage,
   createUserMessage,
-  ensureToolResultPairing,
-  orderToolResultsByUse,
   normalizeContentFromAPI,
   normalizeMessagesForAPI,
   stripCallerFieldFromAssistantMessage,
@@ -122,6 +120,7 @@ import {
   stripUnsignedThinkingBlocks,
 } from '../../../utils/messages.js'
 import { stripThinkingFromIndex, stripThinkingFromOtherModels } from '../../../utils/messages/apiFilters.js'
+import { pairConversationMessages } from '../../../utils/messages/pairing.js'
 import { processOwnerForLane } from '../../run/resolveOwner.js'
 import {
   getCanonicalName,
@@ -590,7 +589,7 @@ async function* queryModel(
     )
   }
 
-  messagesForAPI = orderToolResultsByUse(ensureToolResultPairing(messagesForAPI))
+  messagesForAPI = pairConversationMessages(messagesForAPI, 'canonical')
 
   messagesForAPI = stripUnsignedThinkingBlocks(messagesForAPI)
 

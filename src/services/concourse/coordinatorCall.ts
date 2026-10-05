@@ -118,6 +118,7 @@ export async function liveCoordinatorCallModel(
   }
   for (const entry of tail) {
     if (entry.text.length === 0 && (entry.receipts === undefined || entry.receipts.length === 0)) continue
+    if (entry.role === 'coordinator' && !messages.some(message => message.type === 'user')) continue
     const age = entry.age !== undefined ? `[${entry.age}] ` : ''
     if (entry.role === 'harness') {
       messages.push(
@@ -136,7 +137,7 @@ export async function liveCoordinatorCallModel(
       entry.receipts !== undefined && entry.receipts.length > 0
         ? `\n\n<receipts>\n${entry.receipts.map(r => `- ${r.label}`).join('\n')}\n</receipts>`
         : ''
-    messages.push(createAssistantMessage({ content: `${age}${entry.text}${receiptLines}`, isVirtual: true }))
+    messages.push(createAssistantMessage({ content: `${age}${entry.text}${receiptLines}` }))
   }
   const boardBlock = `<switchboard${input.board.clock !== undefined ? ` clock="${input.board.clock}"` : ''}>\n${JSON.stringify(
     { event: input.event, board: input.board },

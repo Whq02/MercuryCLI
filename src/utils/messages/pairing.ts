@@ -1,16 +1,16 @@
-import type { ContentBlock, ContentBlockParam, ToolResultBlockParam, ToolUseBlock, ToolUseBlockParam } from '../../types/wire.js'
-import { randomUUID } from 'crypto'
+import type { ContentBlock, ContentBlockParam, ToolResultBlockParam } from '../../types/wire.js'
+import { MESSAGE_STAMPER } from '../../rows/project.js'
+import { clientCallItemsOf, contentItemsOf, resultItemsOf, storedBlocksOf } from '../../rows/content.js'
 import { getStrictToolResultPairing } from '../../bootstrap/state.js'
 import { NO_CONTENT_MESSAGE } from '../../constants/messages.js'
 import type {
   AssistantMessage,
-  AttachmentMessage,
-  SystemLocalCommandMessage,
+  Message,
   ToolUseSummaryMessage,
   UserMessage,
 } from '../../types/message.js'
 import { logError } from '../log.js'
-import { normalizeAttachmentForAPI } from './attachmentText.js'
+import { requestConversationPlan } from './apiPlan.js'
 import { contentBlocksOf } from './normalize.js'
 import { createUserMessage } from './factories.js'
 import { SYNTHETIC_TOOL_RESULT_PLACEHOLDER } from './rejectionText.js'
@@ -19,12 +19,13 @@ export function createToolUseSummaryMessage(
   summary: string,
   precedingToolUseIds: string[],
 ): ToolUseSummaryMessage {
+  const stamp = MESSAGE_STAMPER.mint()
   return {
     type: 'tool_use_summary',
     summary,
     precedingToolUseIds,
-    uuid: randomUUID(),
-    timestamp: new Date().toISOString(),
+    uuid: stamp.uuid,
+    timestamp: stamp.timestamp,
   }
 }
 
@@ -89,24 +90,21 @@ export function ensureToolResultPairing(
     }
 
     const seenToolUseIds = new Set<string>()
-    const finalContent = msgContent.filter(block => {
-      if (block.type === 'tool_use') {
-        if (allSeenToolUseIds.has(block.id)) {
+    const finalContent = contentItemsOf(msgContent).filter(item => {
+      if (item.type !== 'tool_call') return true
+      if (item.native === 'tool_use') {
+        if (allSeenToolUseIds.has(item.call_id)) {
           repaired = true
           return false
         }
-        allSeenToolUseIds.add(block.id)
-        seenToolUseIds.add(block.id)
-      }
-      if (
-        (block.type === 'server_tool_use' || block.type === 'mcp_tool_use') &&
-        !serverResultIds.has((block as { id: string }).id)
-      ) {
+        allSeenToolUseIds.add(item.call_id)
+        seenToolUseIds.add(item.call_id)
+      } else if (!serverResultIds.has(item.call_id)) {
         repaired = true
         return false
       }
       return true
-    })
+    }).map(item => item.value) as ContentBlock[]
 
     const assistantContentChanged =
       finalContent.length !== msgContent.length ||
@@ -135,18 +133,9 @@ export function ensureToolResultPairing(
     if (nextMsg?.type === 'user') {
       const content = nextMsg.message.content
       if (Array.isArray(content)) {
-        for (const block of content) {
-          if (
-            typeof block === 'object' &&
-            'type' in block &&
-            block.type === 'tool_result'
-          ) {
-            const trId = (block as ToolResultBlockParam).tool_use_id
-            if (existingToolResultIds.has(trId)) {
-              hasDuplicateToolResults = true
-            }
-            existingToolResultIds.add(trId)
-          }
+        for (const item of resultItemsOf(content)) {
+          if (existingToolResultIds.has(item.call_id)) hasDuplicateToolResults = true
+          existingToolResultIds.add(item.call_id)
         }
       }
     }
@@ -232,14 +221,11 @@ export function ensureToolResultPairing(
   if (repaired) {
     const messageTypes = messages.map((m, idx) => {
       if (m.type === 'assistant') {
-        const toolUses = contentBlocksOf(m.message.content)
-          .filter(b => b.type === 'tool_use')
-          .map(b => (b as ToolUseBlock | ToolUseBlockParam).id)
-        const serverToolUses = contentBlocksOf(m.message.content)
-          .filter(
-            b => b.type === 'server_tool_use' || b.type === 'mcp_tool_use',
-          )
-          .map(b => (b as { id: string }).id)
+        const toolUses: string[] = []
+        const serverToolUses: string[] = []
+        for (const item of contentItemsOf(m.message.content)) {
+          if (item.type === 'tool_call') (item.native === 'tool_use' ? toolUses : serverToolUses).push(item.call_id)
+        }
         const parts = [
           `id=${m.message.id}`,
           `tool_uses=[${toolUses.join(',')}]`,
@@ -318,7 +304,7 @@ export function foldSplitTurnsForWire(
           : {}),
         message: {
           ...prev.message,
-          content: [...prev.message.content, ...msg.message.content],
+          content: [...storedBlocksOf(prev.message.content), ...storedBlocksOf(msg.message.content)] as ContentBlock[],
           stop_reason: msg.message.stop_reason ?? prev.message.stop_reason,
           usage: msg.message.usage ?? prev.message.usage,
         },
@@ -348,36 +334,6 @@ export function foldSplitTurnsForWire(
   return out
 }
 
-function projectEnvelopeRowsForWire(
-  messages: readonly { type: string }[],
-): (UserMessage | AssistantMessage)[] {
-  const out: (UserMessage | AssistantMessage)[] = []
-  for (const m of messages) {
-    if (m.type === 'user' || m.type === 'assistant') {
-      out.push(m as UserMessage | AssistantMessage)
-      continue
-    }
-    if (m.type === 'attachment' && 'attachment' in m) {
-      out.push(...normalizeAttachmentForAPI((m as AttachmentMessage).attachment))
-      continue
-    }
-    if (
-      m.type === 'system' &&
-      (m as { subtype?: string }).subtype === 'local_command'
-    ) {
-      const sys = m as SystemLocalCommandMessage
-      out.push(
-        createUserMessage({
-          content: sys.content,
-          uuid: sys.uuid,
-          timestamp: sys.timestamp,
-        }),
-      )
-      continue
-    }
-  }
-  return out
-}
 
 function repairResultAdjacency(
   rows: (UserMessage | AssistantMessage)[],
@@ -403,9 +359,7 @@ function repairResultAdjacency(
   const inserts = new Map<number, ToolResultBlockParam[]>()
   rows.forEach((m, ri) => {
     if (m.type !== 'assistant') return
-    const useIds = contentBlocksOf(m.message.content)
-      .filter(b => b.type === 'tool_use')
-      .map(b => (b as ToolUseBlock | ToolUseBlockParam).id)
+    const useIds = clientCallItemsOf(m.message.content).map(item => item.call_id)
     if (useIds.length === 0) return
     const next = rows[ri + 1]
     const nextIsUser = next?.type === 'user' && Array.isArray(next.message.content)
@@ -466,12 +420,7 @@ function repairResultAdjacency(
 export function healWalkableForWire(
   messages: readonly { type: string }[],
 ): (UserMessage | AssistantMessage)[] {
-  const projected = projectEnvelopeRowsForWire(messages)
-  return orderToolResultsByUse(
-    ensureToolResultPairing(
-      repairResultAdjacency(foldSplitTurnsForWire(projected)),
-    ),
-  )
+  return requestConversationPlan(messages as readonly Message[], [], 'family').messages
 }
 
 export function orderToolResultsByUse(
@@ -488,9 +437,7 @@ export function orderToolResultsByUse(
     const prev = rows[i - 1]
     if (!prev || prev.type !== 'assistant') return row
     const useOrder = new Map<string, number>()
-    for (const b of contentBlocksOf(prev.message.content)) {
-      if (b.type === 'tool_use') useOrder.set((b as ToolUseBlock | ToolUseBlockParam).id, useOrder.size)
-    }
+    for (const item of clientCallItemsOf(prev.message.content)) useOrder.set(item.call_id, useOrder.size)
     if (useOrder.size === 0) return row
     const content = row.message.content as ContentBlockParam[]
     const results = content
@@ -548,4 +495,12 @@ export function stripUnsignedThinkingBlocks(
     return { ...msg, message: { ...msg.message, content: projected } }
   })
   return changed ? result : messages
+}
+
+export function pairConversationMessages(
+  messages: (UserMessage | AssistantMessage)[],
+  geometry: 'canonical' | 'split',
+): (UserMessage | AssistantMessage)[] {
+  const turns = geometry === 'split' ? repairResultAdjacency(foldSplitTurnsForWire(messages)) : messages
+  return orderToolResultsByUse(ensureToolResultPairing(turns))
 }
