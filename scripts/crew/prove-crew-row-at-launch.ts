@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
-import { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, sleep, TURN_MS } from './crew-world.ts'
+import { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, TURN_MS } from './crew-world.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
@@ -45,11 +45,12 @@ try {
   session.submit(`${FIRST}: count the harbour with one agent.`)
   await session.waitFor('the agent never asked the fixture for its first reply', () => agentRequestSeen(world), TURN_MS)
   const askedAt = Date.now()
-  while (Date.now() - askedAt < HOLD_MS / 3) {
-    startedWhileHeld = taskStarted(rowsOf(session.frames))
-    if (startedWhileHeld !== undefined) break
-    await sleep(50)
-  }
+  await session.waitFor(
+    'neither the task started row nor the held reply reached the wire',
+    () => taskStarted(rowsOf(session.frames)) !== undefined || agentReplyAt(rowsOf(session.frames)) !== -1,
+    TURN_MS,
+  )
+  startedWhileHeld = taskStarted(rowsOf(session.frames))
   rowsAtLaunch = session.frames.length
   tally.check(
     'RED ON THE BASE: the `task started` row for the launched agent is on the wire while its first reply is held',

@@ -157,7 +157,7 @@ section('§1 the laws stand in the source: the slot reads the focused session\'s
   const frame = read('src/components/MercuryFrame.tsx')
   const rail = read('src/components/HelmLanesRail.tsx')
   check("the frame's spend is the focused session's usage facts", frame.includes('const usageFacts = getFocusedSessionConnector().usage()') && frame.includes('const cost = usageFacts.totalCostUSD') && !frame.includes('getTotalCostUSD()'))
-  check("the lanes rail's glance spend is the focused session's usage facts", rail.includes('const focusedUsage = getFocusedSessionConnector().usage()') && rail.includes('const focusedSpendUSD = focusedUsage.totalCostUSD') && !rail.includes('getTotalCostUSD()'))
+  check("the lanes rail's glance spend is the focused session's usage facts", rail.includes('const focusedUsage = getFocusedSessionConnector().usage()') && rail.includes('focusedSpendUSD: focusedUsage.totalCostUSD') && !rail.includes('getTotalCostUSD()') && !read('src/utils/cockpit/helmLanesModel.ts').includes('getTotalCostUSD()'))
   const words = JSON.parse(read('scripts/settings/usage-popup-words.json')) as Record<string, string[]>
   check('the recorded popup words (no session focused) carry no session tally', Object.values(words).every(runs => runs.every(run => !run.startsWith('This session'))))
 }
