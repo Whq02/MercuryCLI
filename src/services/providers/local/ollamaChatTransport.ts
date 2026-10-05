@@ -1,5 +1,7 @@
 import { Agent } from 'undici'
 import type { AssistantMessage } from '../../../types/message.js'
+import { requestTurnOf, type RequestPlan } from '../../../rows/request.js'
+import { encodeChatPlan } from '../zai/zaiCodec.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { buildApiAgentOptions, getApiDispatcher, getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
@@ -112,14 +114,16 @@ export function ollamaMessagesOf(messages: readonly CompatWireMessage[]): Ollama
     if (!('content' in m)) continue
     let content = ''
     const images: string[] = []
-    if (typeof m.content === 'string') content = m.content
-    else if (Array.isArray(m.content)) {
-      for (const part of m.content) {
-        if (part.type === 'text') content += part.text
-        else if (part.type === 'image_url') {
-          const b64 = dataUrlBase64(part.image_url.url)
+    const turn = requestTurnOf(m.role === 'assistant' ? 'assistant' : 'user', m.content)
+    if (turn.stringContent !== undefined) content = turn.stringContent
+    else {
+      for (const item of turn.items) {
+        if (item.type === 'text') content += item.text
+        else if ((item.value as { type: string }).type === 'image_url') {
+          const url = (item.value as unknown as { image_url: { url: string } }).image_url.url
+          const b64 = dataUrlBase64(url)
           if (b64 !== undefined) images.push(b64)
-          else content += `[image ${part.image_url.url}]`
+          else content += `[image ${url}]`
         }
       }
     }
@@ -536,4 +540,7 @@ export async function* streamOllamaChat(options: CompatStreamOptions, knobs: Oll
     if (shape.ended === 'open') shape.ended = options.signal?.aborted === true ? 'cancelled' : 'abandoned'
     logForDebugging(ollamaWireDumpLine(options.request.model, shape, head, totalChars))
   }
+}
+export function encodeLocalPlan(plan: RequestPlan, request: Omit<CompatChatRequest, 'messages'>, knobs: OllamaChatKnobs): Record<string, unknown> {
+  return ollamaChatBody({ ...request, messages: encodeChatPlan(plan) }, knobs)
 }
