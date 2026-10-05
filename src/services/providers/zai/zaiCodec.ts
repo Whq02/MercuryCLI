@@ -1,5 +1,5 @@
 import { providerRefusedImage } from '../../api/mediaRefusal.js'
-import { requestTurnOf, type RequestPlan } from '../../../rows/request.js'
+import { requestTurnOf } from '../../../rows/request.js'
 import type { MessageParam } from '../../../types/wire.js'
 import type { EffortWireFact } from '../../../utils/effortStamp.js'
 import type {
@@ -285,8 +285,4 @@ export async function assembleZaiTurn(
     ...(usage ? { usage } : {}),
     ...(fault ? { fault } : {}),
   }
-}
-export function encodeChatPlan(plan: RequestPlan, opts?: Parameters<typeof mapMessagesToZai>[2]): ZaiWireMessage[] {
-  const messages = plan.turns.map(turn => ({ role: turn.role, content: turn.storedContent as MessageParam['content'] }))
-  return mapMessagesToZai(plan.system, messages, opts)
 }

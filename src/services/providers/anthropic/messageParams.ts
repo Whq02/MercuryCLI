@@ -1,7 +1,7 @@
 import type { AssistantMessage, UserMessage } from '../../../types/message.js'
 import type { MessageParam } from '../../../types/wire.js'
 import { contentItemOf } from '../../../rows/content.js'
-import { requestTurnOf, type RequestPlan, type RequestTurn } from '../../../rows/request.js'
+import { requestTurnOf, type RequestTurn } from '../../../rows/request.js'
 import { getCacheControl } from './requestParams.js'
 
 type WireContent = MessageParam['content']
@@ -55,8 +55,4 @@ export function assistantMessageToMessageParam(
   enablePromptCaching: boolean,
 ): MessageParam {
   return encodeAnthropicTurn(requestTurnOf('assistant', message.message.content), addCache, enablePromptCaching)
-}
-
-export function encodeAnthropicPlan(plan: RequestPlan, enablePromptCaching = false, cacheTurn = -1): MessageParam[] {
-  return plan.turns.map((turn, index) => encodeAnthropicTurn(turn, index === cacheTurn, enablePromptCaching))
 }

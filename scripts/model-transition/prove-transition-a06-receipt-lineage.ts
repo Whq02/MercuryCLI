@@ -30,7 +30,6 @@ section('§A the consumption fence — the exact registered carriers')
     'src/services/providers/openai/openaiCallModel.ts',
     'src/services/providers/transitionPreview.ts',
     'src/utils/messages/pairing.ts',
-    'src/rows/request.ts',
   ])
   const hits = execFileSync('git', ['grep', '-l', 'apexProviderTurn', '--', 'src/'], {
     cwd: ROOT,
