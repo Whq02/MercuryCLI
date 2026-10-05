@@ -32,7 +32,7 @@ export function verbSurfaceFromSource(mainSource, cliSource) {
     const aliases = [...own.matchAll(/\.alias\('([^']+)'\)/g)].map(m => m[1])
     commands.push({ name: firstWord(site[1]), aliases })
   }
-  const loop = /for \(const \[name, usage\] of \[([\s\S]*?)\] as const\)/.exec(mainSource)
+  const loop = /for \(const \[name, (?:description, )?usage\] of \[([\s\S]*?)\] as const\)/.exec(mainSource)
   if (loop) {
     for (const row of loop[1].matchAll(/\[\s*'([^']+)'/g)) {
       commands.push({ name: firstWord(row[1]), aliases: [] })

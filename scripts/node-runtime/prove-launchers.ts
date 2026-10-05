@@ -551,7 +551,7 @@ section('(8) the skip-verb set DERIVES from the product\'s registered verb surfa
     const names = surface.commands.map(c => c.name)
     const aliases = surface.commands.flatMap(c => c.aliases)
     const rawSites = (mainTsx.match(/\bprogram\s*\.command\('/g) ?? []).length
-    const loopBlock = /for \(const \[name, usage\] of \[([\s\S]*?)\] as const\)/.exec(mainTsx)
+    const loopBlock = /for \(const \[name, (?:description, )?usage\] of \[([\s\S]*?)\] as const\)/.exec(mainTsx)
     const rawLoopRows = loopBlock ? (loopBlock[1]!.match(/^\s*\['/gm) ?? []).length : 0
     check(`the census is complete against the raw registration count (${rawSites} sites + ${rawLoopRows} loop rows)`, rawSites + rawLoopRows === surface.commands.length && rawSites >= 10 && rawLoopRows === 2, `${surface.commands.length} censused: ${names.join(',')}`)
     for (const verb of ['health', 'image', 'bridge', 'update', 'install', 'mcp', 'auth', 'extensions', 'roster', 'daemon', 'acp']) {
