@@ -198,7 +198,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
       <Text>
         <Sep />
         <Text color={motionAuto ? tok.warning : tok.textSecondary}>reduced</Text>
-        {motionAuto && governorTrip() === 'wire' ? <Text color={tok.textMuted}> · wire</Text> : null}
+        {motionAuto && governorTrip() === 'wire' ? <Text color={tok.textMuted}> · slow link</Text> : null}
       </Text>
     ) : null
 
