@@ -1,8 +1,6 @@
 import type { Message } from '../../../types/message.js'
 import type { CompatChatRequest, CompatMessage } from '../openaicompat/compatChatClient.js'
 import { requestTurnOf } from '../../../rows/request.js'
-import { mapMessagesToZai } from '../zai/zaiCodec.js'
-import type { MessageParam } from '../../../types/wire.js'
 
 export type GeminiPart = {
   text?: string
