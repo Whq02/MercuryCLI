@@ -4,7 +4,7 @@ import { isTurnCutText } from './messages.js'
 
 const searchTextCache = new WeakMap<object, string>()
 
-export function toolUseSearchText(input: unknown): string {
+function toolUseSearchText(input: unknown): string {
   if (typeof input !== 'object' || input === null) return ''
   const record = input as Record<string, unknown>
   const parts: string[] = []

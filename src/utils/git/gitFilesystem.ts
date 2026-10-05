@@ -44,7 +44,7 @@ export async function resolveGitDir(startPath: string = getCwd()): Promise<strin
 }
 
 
-export function isSafeRefName(name: string): boolean {
+function isSafeRefName(name: string): boolean {
   if (name === '') return false
   if (name.startsWith('-') || name.startsWith('/')) return false
   if (name.includes('..')) return false
@@ -54,7 +54,7 @@ export function isSafeRefName(name: string): boolean {
   return /^[A-Za-z0-9/._+@-]+$/.test(name)
 }
 
-export function isValidGitSha(s: string): boolean {
+function isValidGitSha(s: string): boolean {
   return /^[0-9a-f]{40}$/.test(s) || /^[0-9a-f]{64}$/.test(s)
 }
 
@@ -132,7 +132,7 @@ export async function resolveRef(gitDir: string, ref: string): Promise<string | 
   return null
 }
 
-export async function readRawSymref(gitDir: string, refPath: string, branchPrefix: string): Promise<string | null> {
+async function readRawSymref(gitDir: string, refPath: string, branchPrefix: string): Promise<string | null> {
   try {
     const content = (await readFile(join(gitDir, refPath), 'utf8')).trim()
     if (!content.startsWith('ref:')) return null
@@ -412,34 +412,6 @@ export async function readWorktreeHeadSha(worktreePath: string): Promise<string 
     return resolveRef(gitDir, `refs/heads/${head.name}`)
   } catch {
     return null
-  }
-}
-
-export async function getRemoteUrlForDir(cwd: string): Promise<string | null> {
-  try {
-    const gitDir = await resolveGitDir(cwd)
-    if (gitDir === null) return null
-    const fromGitDir = await parseGitConfigValue(gitDir, 'remote', 'origin', 'url')
-    if (fromGitDir !== null) return fromGitDir
-    const commonDir = await getCommonDir(gitDir)
-    if (commonDir !== null && commonDir !== gitDir) {
-      return parseGitConfigValue(commonDir, 'remote', 'origin', 'url')
-    }
-    return null
-  } catch {
-    return null
-  }
-}
-
-export async function isShallowClone(): Promise<boolean> {
-  const gitDir = await resolveGitDir()
-  if (gitDir === null) return false
-  const commonDir = await getCommonDir(gitDir)
-  try {
-    await stat(join(commonDir ?? gitDir, 'shallow'))
-    return true
-  } catch {
-    return false
   }
 }
 

@@ -77,7 +77,7 @@ function displayKey(key: string): string {
   return DISPLAY_NAMES[key] ?? key
 }
 
-export function keystrokeToString(ks: ParsedKeystroke): string {
+function keystrokeToString(ks: ParsedKeystroke): string {
   const parts: string[] = []
   if (ks.ctrl) parts.push('ctrl')
   if (ks.alt) parts.push('alt')

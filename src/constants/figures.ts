@@ -19,7 +19,6 @@ export const DIAMOND_OPEN = '◇'
 export const FLAG_ICON = '⚑'
 
 export const BLOCKQUOTE_BAR = '▎'
-export const HEAVY_HORIZONTAL = '━'
 
 export const BRIDGE_SPINNER_FRAMES = [
   '·|·',

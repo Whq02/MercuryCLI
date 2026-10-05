@@ -11,7 +11,7 @@ import { isProcessRunning } from './genericProcessUtils.js'
 import { getAgentId } from './crewmate.js'
 
 
-export type SessionKind = 'interactive' | 'bg' | 'daemon'
+type SessionKind = 'interactive' | 'bg' | 'daemon'
 
 type SessionRecord = {
   pid: number

@@ -7,7 +7,7 @@ import { logError } from '../../utils/log.js'
 import type { Diagnostic, DiagnosticFile } from '../diagnosticTracking.js'
 
 
-export type PendingLSPDiagnostic = {
+type PendingLSPDiagnostic = {
   serverName: string
   files: DiagnosticFile[]
   timestamp: number

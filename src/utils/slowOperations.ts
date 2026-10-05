@@ -1,6 +1,5 @@
 
 import { closeSync, fsyncSync, openSync, writeFileSync, writeSync } from 'node:fs'
-import { cloneDeep as lodashCloneDeep } from 'lodash-es'
 
 function resolveThreshold(): number {
   if (process.env.NODE_ENV === 'development') return 20
@@ -19,7 +18,6 @@ export function slowLogging(
 ): Disposable {
   return NOOP_DISPOSABLE
 }
-
 
 export function jsonStringify(
   value: unknown,
@@ -55,10 +53,6 @@ export function jsonParse(
 
 export function clone<T>(value: T, options?: StructuredSerializeOptions): T {
   return structuredClone(value, options)
-}
-
-export function cloneDeep<T>(value: T): T {
-  return lodashCloneDeep(value)
 }
 
 export function writeFileSync_DEPRECATED(

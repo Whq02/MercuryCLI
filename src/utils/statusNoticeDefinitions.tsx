@@ -24,15 +24,15 @@ import { mnemeEnabled } from '../mneme/mnemeGates.js'
 import { formatTextSize } from '../mneme/mnemeUsage.js'
 
 
-export type StatusNoticeType = 'warning' | 'info'
+type StatusNoticeType = 'warning' | 'info'
 
-export type StatusNoticeContext = {
+type StatusNoticeContext = {
   config: GlobalConfig
   agentDefinitions?: AgentDefinitionsResult
   memoryFiles: InstructionSourceEntry[]
 }
 
-export type StatusNoticeDefinition = {
+type StatusNoticeDefinition = {
   id: string
   type: StatusNoticeType
   isActive: (context: StatusNoticeContext) => boolean

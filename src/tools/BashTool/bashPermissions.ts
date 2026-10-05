@@ -57,8 +57,8 @@ export const bashPermissionRule = (ruleContent: string): ShellPermissionRule =>
 
 const TOOL_NAME = 'Bash'
 
-export const MAX_SUBCOMMANDS_FOR_SECURITY_CHECK = 50
-export const MAX_SUGGESTED_RULES_FOR_COMPOUND = 5
+const MAX_SUBCOMMANDS_FOR_SECURITY_CHECK = 50
+const MAX_SUGGESTED_RULES_FOR_COMPOUND = 5
 
 type BashInput = {
   command: string
@@ -260,7 +260,7 @@ export function isNormalizedGitCommand(command: string): boolean {
   return false
 }
 
-export function isNormalizedCdCommand(command: string): boolean {
+function isNormalizedCdCommand(command: string): boolean {
   const stripped = stripSafeWrappers(command)
   const parse = pinnedCommandAnalysis.tryParseShellCommand(stripped)
   if (!parse.success) return /\b(?:cd|pushd|popd)\b/.test(stripped)
@@ -268,7 +268,7 @@ export function isNormalizedCdCommand(command: string): boolean {
   return tokens[0] === 'cd' || tokens[0] === 'pushd' || tokens[0] === 'popd'
 }
 
-export function commandHasAnyCd(command: string): boolean {
+function commandHasAnyCd(command: string): boolean {
   return pinnedCommandAnalysis
     .splitCommand(command)
     .some(sub => isNormalizedCdCommand(sub.trim()))
@@ -524,7 +524,7 @@ function isReadOnly(command: string, compoundHasCd: boolean): boolean {
   return checkReadOnlyConstraints({ command }, compoundHasCd).behavior === 'allow'
 }
 
-export async function checkCommandAndSuggestRules(
+async function checkCommandAndSuggestRules(
   input: BashInput,
   context: ToolPermissionContext,
   prefixHint: { commandPrefix: string | null } | null | undefined,
@@ -927,12 +927,6 @@ async function runSpeculativeClassification(
 ): Promise<PermissionResult | undefined> {
   await classifyBashCommand(command, getCwd(), descriptions, 'allow', signal, isNonInteractiveSession)
   return undefined
-}
-
-export function consumeSpeculativeClassifierCheck(command: string): Promise<PermissionResult | undefined> | undefined {
-  const promise = speculativeChecks.get(command)
-  speculativeChecks.delete(command)
-  return promise
 }
 
 export function clearSpeculativeChecks(): void {

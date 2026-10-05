@@ -19,7 +19,7 @@ export type GitDiffStats = {
   linesRemoved: number
 }
 
-export type PerFileStats = {
+type PerFileStats = {
   added: number
   removed: number
   isBinary: boolean
@@ -32,19 +32,9 @@ export type GitDiffResult = {
   hunks: Map<string, StructuredPatchHunk[]>
 }
 
-export type NumstatResult = {
+type NumstatResult = {
   stats: GitDiffStats
   perFileStats: Map<string, PerFileStats>
-}
-
-export type ToolUseDiff = {
-  filename: string
-  status: 'added' | 'modified'
-  additions: number
-  deletions: number
-  changes: number
-  patch: string
-  repository?: string | null
 }
 
 export type GitDiffSpec = {
@@ -84,7 +74,7 @@ async function isTransientStateIn(cwd: string): Promise<boolean> {
 }
 
 
-export function parseGitNumstat(stdout: string): NumstatResult {
+function parseGitNumstat(stdout: string): NumstatResult {
   const perFileStats = new Map<string, PerFileStats>()
   let filesCount = 0
   let linesAdded = 0
@@ -109,7 +99,7 @@ export function parseGitNumstat(stdout: string): NumstatResult {
   return { stats: { filesCount, linesAdded, linesRemoved }, perFileStats }
 }
 
-export function parseGitDiff(stdout: string): Map<string, StructuredPatchHunk[]> {
+function parseGitDiff(stdout: string): Map<string, StructuredPatchHunk[]> {
   const result = new Map<string, StructuredPatchHunk[]>()
   const segments = stdout.split(/^diff --git /m).slice(1)
   let files = 0
@@ -165,7 +155,7 @@ export function parseGitDiff(stdout: string): Map<string, StructuredPatchHunk[]>
   return result
 }
 
-export function parseShortstat(stdout: string): GitDiffStats | null {
+function parseShortstat(stdout: string): GitDiffStats | null {
   const match = /(\d+) files? changed(?:, (\d+) insertions?\(\+\))?(?:, (\d+) deletions?\(-\))?/.exec(stdout)
   if (!match) return null
   return {

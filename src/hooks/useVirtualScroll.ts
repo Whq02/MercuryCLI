@@ -42,7 +42,7 @@ const MOUNT_COST_CLAMP_MIN_MS = 0.02
 const MOUNT_COST_CLAMP_MAX_MS = 20
 const MOUNT_COST_EMA_WEIGHT = 0.2
 
-export type VirtualScrollResult = {
+type VirtualScrollResult = {
   range: readonly [number, number]
   topSpacer: number
   bottomSpacer: number

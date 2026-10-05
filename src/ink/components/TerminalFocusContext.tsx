@@ -9,7 +9,7 @@ import {
 
 export type { TerminalFocusState }
 
-export type TerminalFocusContextProps = {
+type TerminalFocusContextProps = {
   readonly isTerminalFocused: boolean
   readonly focusState: TerminalFocusState
 }

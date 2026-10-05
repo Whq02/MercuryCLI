@@ -69,7 +69,7 @@ export type { PowerShellProgress }
 
 const SLEEP_THRESHOLD_SECONDS = 2
 
-export function detectBlockedSleepPattern(command: string): string | null {
+function detectBlockedSleepPattern(command: string): string | null {
   const trimmed = command.trim()
   const firstStatement = (trimmed.split(/[;|&\r\n]/)[0] ?? '').trim()
   const match = firstStatement.match(/^(?:start-sleep|sleep)(?:\s+(?:-s(?:econds)?)?\s*)?(\d+(?:\.\d+)?)\s*$/i)
@@ -107,7 +107,7 @@ function buildModelSchema() {
 }
 const modelInputSchema = lazySchema(buildModelSchema)
 type ModelInput = z.infer<ReturnType<typeof buildModelSchema>>
-export type PowerShellToolInput = ModelInput
+type PowerShellToolInput = ModelInput
 
 export type Out = {
   stdout: string

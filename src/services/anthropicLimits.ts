@@ -55,7 +55,7 @@ export let currentLimits: AnthropicLimits = { ...DEFAULT_LIMITS }
 
 export const statusListeners: Set<(limits: AnthropicLimits) => void> = new Set()
 
-export function emitStatusChange(limits: AnthropicLimits): void {
+function emitStatusChange(limits: AnthropicLimits): void {
   currentLimits = limits
   for (const listener of statusListeners) {
     listener(limits)

@@ -44,18 +44,18 @@ import { isToolSearchEnabled } from './toolSearch.js'
 
 export const TOOL_TOKEN_COUNT_OVERHEAD = 500
 
-export interface DeferredBuiltinTool {
+interface DeferredBuiltinTool {
   name: string
   tokens: number
   isLoaded: boolean
 }
 
-export interface SystemToolDetail {
+interface SystemToolDetail {
   name: string
   tokens: number
 }
 
-export interface SystemPromptSectionDetail {
+interface SystemPromptSectionDetail {
   name: string
   tokens: number
 }
@@ -207,7 +207,7 @@ export async function countToolDefinitionTokens(
   return (await countMessagesTokens([], schemas)) ?? 0
 }
 
-export async function countMcpToolTokens(
+async function countMcpToolTokens(
   tools: readonly Tool[],
   getToolPermissionContext: GetToolPermissionContext,
   agentInfo: AgentDefinitionsResult,

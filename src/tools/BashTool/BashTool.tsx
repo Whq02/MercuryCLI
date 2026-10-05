@@ -231,7 +231,7 @@ const REDIRECT_OPERATORS = new Set(['>', '>>', '>&'])
 const CONTROL_OPERATORS = new Set(['||', '&&', '|', ';'])
 const SILENT_COMMANDS = new Set(['mv', 'cp', 'rm', 'mkdir', 'rmdir', 'chmod', 'chown', 'chgrp', 'touch', 'ln', 'cd', 'export', 'unset', 'wait'])
 
-export function isSearchOrReadBashCommand(command: string): { isSearch: boolean; isRead: boolean; isList: boolean } {
+function isSearchOrReadBashCommand(command: string): { isSearch: boolean; isRead: boolean; isList: boolean } {
   const parts = splitCommandWithOperators(command)
   if (parts.length === 0) return { isSearch: false, isRead: false, isList: false }
   let isSearch = false

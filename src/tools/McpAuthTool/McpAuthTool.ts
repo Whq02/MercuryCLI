@@ -16,7 +16,7 @@ import {
 import { logMCPDebug, logMCPError } from '../../utils/log.js'
 
 
-export type McpAuthOutput = {
+type McpAuthOutput = {
   message: string
   authUrl?: string
   status: 'auth_url' | 'unsupported' | 'error'

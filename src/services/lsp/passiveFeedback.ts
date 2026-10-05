@@ -10,7 +10,7 @@ import { recordPublishedReport, registerPendingLSPDiagnostic } from './LSPDiagno
 import type { LSPServerManager } from './LSPServerManager.js'
 
 
-export type HandlerRegistrationResult = {
+type HandlerRegistrationResult = {
   totalServers: number
   successCount: number
   registrationErrors: Array<{ serverName: string; error: Error }>

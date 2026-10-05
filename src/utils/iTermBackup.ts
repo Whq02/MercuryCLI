@@ -10,7 +10,7 @@ export type RestoreResult = { status: 'restored' | 'no_backup' } | { status: 'fa
 
 const ITERM2_PREFERENCES_PATH = join(homedir(), 'Library', 'Preferences', 'com.googlecode.iterm2.plist')
 
-export function markITerm2SetupComplete(): void {
+function markITerm2SetupComplete(): void {
   saveGlobalConfig(config => ({ ...config, iterm2SetupInProgress: false }))
 }
 

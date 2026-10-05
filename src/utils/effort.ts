@@ -40,7 +40,7 @@ export function isEffortLevel(v: string): v is EffortLevel {
   return (EFFORT_LEVELS as readonly string[]).includes(v)
 }
 
-export function isValidNumericEffort(v: number): boolean {
+function isValidNumericEffort(v: number): boolean {
   return Number.isInteger(v)
 }
 
@@ -519,7 +519,7 @@ export function getEffortValueDescription(value: EffortValue, model?: string): s
   return base
 }
 
-export type OpusDefaultEffortConfig = {
+type OpusDefaultEffortConfig = {
   enabled: boolean
   dialogTitle: string
   dialogDescription: string
@@ -532,7 +532,7 @@ const DEFAULT_OPUS_EFFORT_CONFIG: OpusDefaultEffortConfig = {
     'Effort determines how long Mercury thinks. Medium is recommended for most tasks to balance speed, intelligence and rate limits.',
 }
 
-export function getOpusDefaultEffortConfig(): OpusDefaultEffortConfig {
+function getOpusDefaultEffortConfig(): OpusDefaultEffortConfig {
   return { ...DEFAULT_OPUS_EFFORT_CONFIG }
 }
 

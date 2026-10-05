@@ -31,9 +31,9 @@ export const MODULE_LOADING_CMDLETS: Set<string> = new Set([
   'save-script',
 ])
 
-export const NETWORK_CMDLETS: Set<string> = new Set(['invoke-webrequest', 'invoke-restmethod'])
+const NETWORK_CMDLETS: Set<string> = new Set(['invoke-webrequest', 'invoke-restmethod'])
 
-export const ALIAS_HIJACK_CMDLETS: Set<string> = new Set([
+const ALIAS_HIJACK_CMDLETS: Set<string> = new Set([
   'set-alias',
   'sal',
   'new-alias',
@@ -44,13 +44,13 @@ export const ALIAS_HIJACK_CMDLETS: Set<string> = new Set([
   'nv',
 ])
 
-export const WMI_CIM_CMDLETS: Set<string> = new Set([
+const WMI_CIM_CMDLETS: Set<string> = new Set([
   'invoke-wmimethod',
   'iwmi',
   'invoke-cimmethod',
 ])
 
-export const ARG_GATED_CMDLETS: Set<string> = new Set([
+const ARG_GATED_CMDLETS: Set<string> = new Set([
   'select-object',
   'sort-object',
   'group-object',

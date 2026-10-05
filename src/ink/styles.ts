@@ -15,7 +15,7 @@ import {
 
 export type RGBColor = `rgb(${string})`
 export type HexColor = `#${string}`
-export type Ansi256Color = `ansi256(${string})`
+type Ansi256Color = `ansi256(${string})`
 export type AnsiColor = `ansi:${string}`
 export type Color = RGBColor | HexColor | Ansi256Color | AnsiColor
 

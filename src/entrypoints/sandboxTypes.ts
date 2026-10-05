@@ -1,7 +1,7 @@
 import { z } from 'zod/v4'
 import { lazySchema } from '../utils/lazySchema.js'
 
-export const SandboxNetworkConfigSchema = lazySchema(() =>
+const SandboxNetworkConfigSchema = lazySchema(() =>
   z
     .object({
       allowedDomains: z
@@ -30,7 +30,7 @@ export const SandboxNetworkConfigSchema = lazySchema(() =>
     .optional(),
 )
 
-export const SandboxFilesystemConfigSchema = lazySchema(() =>
+const SandboxFilesystemConfigSchema = lazySchema(() =>
   z
     .object({
       allowWrite: z.array(z.string()).optional().describe('Writable path patterns'),
@@ -92,10 +92,3 @@ export const SandboxSettingsSchema = lazySchema(() =>
 )
 
 export type SandboxSettings = z.infer<ReturnType<typeof SandboxSettingsSchema>>
-export type SandboxNetworkConfig = NonNullable<
-  z.infer<ReturnType<typeof SandboxNetworkConfigSchema>>
->
-export type SandboxFilesystemConfig = NonNullable<
-  z.infer<ReturnType<typeof SandboxFilesystemConfigSchema>>
->
-export type SandboxIgnoreViolations = SandboxSettings['ignoreViolations']

@@ -163,7 +163,7 @@ function effectiveAllowlist(): Map<string, ExternalCommandConfig> {
 }
 
 
-export function isCommandSafeViaFlagParsing(command: string): boolean {
+function isCommandSafeViaFlagParsing(command: string): boolean {
   const parse = tryParseShellCommand(command)
   if (!parse.success) return false
   const tokens: string[] = []

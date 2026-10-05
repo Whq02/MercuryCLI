@@ -13,7 +13,7 @@ const EVENT_ORDER: SessionEnvHookEvent[] = ['Setup', 'SessionStart', 'CwdChanged
 
 const FRAGMENT_PATTERN = /^([a-z]+)-hook-(\d+)\.sh$/
 
-export async function getSessionEnvDirPath(): Promise<string> {
+async function getSessionEnvDirPath(): Promise<string> {
   const dir = join(getMercuryHome(), 'session-env', getSessionId())
   await mkdir(dir, { recursive: true })
   return dir

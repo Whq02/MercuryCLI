@@ -4,7 +4,7 @@ import { MERCURY_VERSION } from '../constants/product.js'
 import type { Message } from '../types/message.js'
 
 
-export const FINGERPRINT_SALT = '59cf53e54c78'
+const FINGERPRINT_SALT = '59cf53e54c78'
 
 const CHARACTER_INDICES = [4, 7, 20]
 const SUBSTITUTE_CHARACTER = '0'

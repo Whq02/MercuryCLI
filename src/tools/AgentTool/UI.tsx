@@ -122,7 +122,7 @@ function latestTokenTotal(
 }
 
 
-export function AgentPromptDisplay({
+function AgentPromptDisplay({
   prompt,
   dim,
 }: {
@@ -142,7 +142,7 @@ export function AgentPromptDisplay({
   )
 }
 
-export function AgentResponseDisplay({
+function AgentResponseDisplay({
   content,
 }: {
   content: ReadonlyArray<{ type: 'text'; text: string }>
@@ -546,7 +546,7 @@ function parseGroupInput(entry: GroupedToolUse): AgentUiInput {
   return raw
 }
 
-export function extractLastToolInfo(
+function extractLastToolInfo(
   progressMessages: readonly ProgressMessage[],
   tools: Tools,
 ): string | null {

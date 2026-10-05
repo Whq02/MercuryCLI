@@ -43,7 +43,7 @@ export const getWslVersion = memoize((): string | undefined => {
   }
 })
 
-export type LinuxDistroInfo = {
+type LinuxDistroInfo = {
   distroId?: string
   distroVersion?: string
   kernelRelease?: string

@@ -233,7 +233,7 @@ const ARGV_WRAPPERS = new Set(['time', 'nohup', 'timeout', 'nice', 'stdbuf', 'en
 const TIMEOUT_VALUE = /^[A-Za-z0-9_.+-]+$/
 const DURATION = /^\d+(?:\.\d+)?[smhd]?$/
 
-export function stripWrappersFromArgv(argv: string[]): string[] {
+function stripWrappersFromArgv(argv: string[]): string[] {
   let current = argv
   while (current.length > 0 && ARGV_WRAPPERS.has(current[0] as string)) {
     const stripped = stripOneWrapper(current)

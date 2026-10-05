@@ -6,7 +6,7 @@ import { quote } from './bash/shellQuote.js'
 import { binaryName } from './config.js'
 import { getSessionIdFromLog } from './sessionStorage.js'
 
-export type CrossProjectResumeResult =
+type CrossProjectResumeResult =
   | { isCrossProject: false }
   | { isCrossProject: true; isSameRepoWorktree: true; projectPath: string }
   | { isCrossProject: true; isSameRepoWorktree: false; projectPath: string; command: string }

@@ -7,7 +7,7 @@ import { getEngineModel } from './model/model.js'
 
 export type ImageRule = 'bytes' | 'patches' | 'request'
 
-export type OversizedImage = { index: number; size: number; width?: number; height?: number; patches?: number; patchPx?: number }
+type OversizedImage = { index: number; size: number; width?: number; height?: number; patches?: number; patchPx?: number }
 
 export class ImageSizeError extends Error {
   readonly oversizedImages: OversizedImage[]

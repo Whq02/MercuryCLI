@@ -8,7 +8,7 @@ const PRESET_PREFIX =
   'You are Mercury, a private source-built terminal coding harness, running a headless session for its operator.'
 const AGENT_PREFIX = 'You are a Mercury agent.'
 
-export type CLISyspromptPrefix =
+type CLISyspromptPrefix =
   | typeof DEFAULT_PREFIX
   | typeof PRESET_PREFIX
   | typeof AGENT_PREFIX

@@ -35,7 +35,7 @@ export type TransitionContext = OperatorContext & {
   onDotRepeat?: () => void
 }
 
-export type TransitionResult = {
+type TransitionResult = {
   next?: CommandState
   execute?: () => void
 }

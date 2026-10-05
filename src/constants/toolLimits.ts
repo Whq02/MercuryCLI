@@ -1,10 +1,6 @@
 
 export const DEFAULT_MAX_RESULT_SIZE_CHARS = 50_000
 
-export const MAX_TOOL_RESULT_TOKENS = 100_000
-
-export const BYTES_PER_TOKEN = 4
-
 export const MAX_TOOL_RESULTS_PER_MESSAGE_CHARS = 200_000
 
 export const TOOL_SUMMARY_MAX_LENGTH = 50

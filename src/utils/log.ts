@@ -9,7 +9,7 @@ import { toError } from './errors.js'
 import { isEssentialTrafficOnly } from './privacyLevel.js'
 
 
-export type ErrorLogSink = {
+type ErrorLogSink = {
   logError: (error: Error) => void
   logMCPError: (serverName: string, error: unknown) => void
   logMCPDebug: (serverName: string, message: string) => void

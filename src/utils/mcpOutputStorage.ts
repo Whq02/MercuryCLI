@@ -72,7 +72,7 @@ function normalizeMime(mimeType: string | undefined): string {
   return (mimeType.split(';')[0] ?? '').trim().toLowerCase()
 }
 
-export function extensionForMimeType(mimeType: string | undefined): string {
+function extensionForMimeType(mimeType: string | undefined): string {
   return MIME_EXTENSIONS[normalizeMime(mimeType)] ?? 'bin'
 }
 
@@ -87,7 +87,7 @@ export function isBinaryContentType(contentType: string): boolean {
   return true
 }
 
-export type PersistBinaryResult = { filepath: string; size: number; ext: string } | { error: string }
+type PersistBinaryResult = { filepath: string; size: number; ext: string } | { error: string }
 
 export async function persistBinaryContent(
   bytes: Buffer,

@@ -72,10 +72,6 @@ export function sanitizeName(name: string): string {
   return name.replace(/[^A-Za-z0-9]/g, '-').toLowerCase()
 }
 
-export function sanitizeAgentName(name: string): string {
-  return name.replace(/@/g, '-')
-}
-
 export function getCrewDir(crewName: string): string {
   return join(getCrewsDir(), sanitizeName(crewName))
 }
@@ -386,27 +382,6 @@ export function removeCrewmateFromCrewFile(
   })
 }
 
-export function addHiddenPaneId(crewName: string, paneId: string): boolean {
-  return withLockedCrewFileSync(crewName, current => {
-    if (current === null) return { next: null, result: false }
-    const hidden = current.hiddenPaneIds ?? []
-    if (hidden.includes(paneId)) return { next: null, result: true }
-    return { next: { ...current, hiddenPaneIds: [...hidden, paneId] }, result: true }
-  })
-}
-
-export function removeHiddenPaneId(crewName: string, paneId: string): boolean {
-  return withLockedCrewFileSync(crewName, current => {
-    if (current === null) return { next: null, result: false }
-    const hidden = current.hiddenPaneIds ?? []
-    if (!hidden.includes(paneId)) return { next: null, result: true }
-    return {
-      next: { ...current, hiddenPaneIds: hidden.filter(id => id !== paneId) },
-      result: true,
-    }
-  })
-}
-
 export function removeMemberFromCrew(crewName: string, paneId: string): boolean {
   return withLockedCrewFileSync(crewName, current => {
     if (current === null) return { next: null, result: false }
@@ -452,25 +427,6 @@ export function setMemberMode(crewName: string, memberName: string, mode: Permis
       },
       result: true,
     }
-  })
-}
-
-export function setMultipleMemberModes(
-  crewName: string,
-  updates: Array<{ memberName: string; mode: PermissionMode }>,
-): boolean {
-  return withLockedCrewFileSync(crewName, current => {
-    if (current === null) return { next: null, result: false }
-    const requestedByName = new Map(updates.map(update => [update.memberName, update.mode]))
-    let changed = false
-    const members = current.members.map(member => {
-      const requested = requestedByName.get(member.name)
-      if (requested === undefined || member.mode === requested) return member
-      changed = true
-      return { ...member, mode: requested }
-    })
-    if (!changed) return { next: null, result: true }
-    return { next: { ...current, members }, result: true }
   })
 }
 
@@ -537,7 +493,7 @@ export type SpawnCrewOutput = {
   error?: string
 }
 
-export type CleanupOutput = {
+type CleanupOutput = {
   operation: 'cleanup'
   success: boolean
   error?: string

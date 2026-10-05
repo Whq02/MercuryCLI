@@ -9,7 +9,7 @@ import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { gitExe } from './git.js'
 
 
-export type CoreUserData = {
+type CoreUserData = {
   sessionId: string
   email?: string
   appVersion: string

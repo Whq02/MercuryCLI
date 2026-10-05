@@ -14,7 +14,7 @@ import {
 } from '../../../utils/permissions/permissionRuleParser.js'
 import type { PermissionBehavior, PermissionRuleValue } from '../../../types/permissions.js'
 
-export type PermissionRuleInputProps = {
+type PermissionRuleInputProps = {
   onCancel: () => void
   onSubmit: (ruleValue: PermissionRuleValue, ruleBehavior: PermissionBehavior) => void
   ruleBehavior: PermissionBehavior

@@ -24,11 +24,11 @@ function lastUnescaped(text: string, ch: string): number {
   return -1
 }
 
-export function escapeRuleContent(content: string): string {
+function escapeRuleContent(content: string): string {
   return content.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)')
 }
 
-export function unescapeRuleContent(content: string): string {
+function unescapeRuleContent(content: string): string {
   return content.replace(/\\\(/g, '(').replace(/\\\)/g, ')').replace(/\\\\/g, '\\')
 }
 

@@ -317,7 +317,7 @@ function itemAt<T>(
   return item
 }
 
-export type UseSelectNavigationProps<T> = {
+type UseSelectNavigationProps<T> = {
   visibleOptionCount?: number
   options: OptionWithDescription<T>[]
   initialFocusValue?: T

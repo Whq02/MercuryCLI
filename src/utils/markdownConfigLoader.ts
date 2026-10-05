@@ -28,7 +28,7 @@ export const MERCURY_CONFIG_DIRECTORIES = [
   'workflows',
 ] as const
 
-export type MarkdownFile = {
+type MarkdownFile = {
   filePath: string
   baseDir: string
   frontmatter: FrontmatterData

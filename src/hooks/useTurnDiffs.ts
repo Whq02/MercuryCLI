@@ -4,7 +4,7 @@ import type { Message, UserMessage } from '../types/message.js'
 
 type LineChanges = Record<'linesAdded' | 'linesRemoved', number>
 
-export type TurnFileDiff = {
+type TurnFileDiff = {
   filePath: string
   hunks: Hunk[]
   isNewFile: boolean

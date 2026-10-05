@@ -26,7 +26,7 @@ import { crewmateStopped, readCrewFileAsync } from './crew/crewHelpers.js'
 
 export const TASK_STATUSES = ['pending', 'in_progress', 'completed'] as const
 
-export const TaskStatusSchema = lazySchema(() => z.enum(TASK_STATUSES))
+const TaskStatusSchema = lazySchema(() => z.enum(TASK_STATUSES))
 export type TaskStatus = (typeof TASK_STATUSES)[number]
 
 export const TaskSchema = lazySchema(() =>
@@ -472,9 +472,9 @@ export async function blockTask(taskListId: string, fromTaskId: string, toTaskId
 }
 
 
-export type ClaimTaskOptions = { checkAgentBusy?: boolean }
+type ClaimTaskOptions = { checkAgentBusy?: boolean }
 
-export type ClaimTaskResult =
+type ClaimTaskResult =
   | { success: true; task: Task }
   | { success: false; reason: 'task_not_found' }
   | { success: false; reason: 'already_claimed' | 'already_resolved'; task: Task }
@@ -594,7 +594,7 @@ export async function getAgentStatuses(crewName: string): Promise<AgentStatus[] 
   })
 }
 
-export type UnassignTasksResult = {
+type UnassignTasksResult = {
   unassignedTasks: Array<{ id: string; subject: string }>
   notificationMessage: string
 }

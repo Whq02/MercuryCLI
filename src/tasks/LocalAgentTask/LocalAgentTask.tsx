@@ -156,7 +156,7 @@ export function foldResponseIntoLedger(ledger: AgentLedger, assistant: Assistant
   if (model !== undefined) ledger.servedModel = model
 }
 
-export type ActivityDescriptionResolver = (
+type ActivityDescriptionResolver = (
   toolName: string,
   input: unknown,
 ) => string | null
@@ -798,7 +798,7 @@ export function stopRunningAgentTasks(
   return running
 }
 
-export function markAgentsNotified(taskId: string, setAppState: SetAppState): void {
+function markAgentsNotified(taskId: string, setAppState: SetAppState): void {
   updateTaskState<LocalAgentTaskState>(taskId, setAppState, task =>
     task.notified ? task : { ...task, notified: true },
   )

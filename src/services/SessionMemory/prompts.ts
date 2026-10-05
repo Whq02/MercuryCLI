@@ -7,7 +7,7 @@ import { logError } from '../../utils/log.js'
 
 const PER_SECTION_TOKEN_LIMIT = 2000
 
-export const DEFAULT_SESSION_MEMORY_TEMPLATE = `
+const DEFAULT_SESSION_MEMORY_TEMPLATE = `
 # Session Title
 _A dense one-line title, roughly 5-10 words, distinctive and free of filler._
 
@@ -56,32 +56,9 @@ function loadOverrideOr(fileName: string, fallback: string): string {
   }
 }
 
-export async function loadSessionMemoryTemplate(): Promise<string> {
+async function loadSessionMemoryTemplate(): Promise<string> {
   return loadOverrideOr('template.md', DEFAULT_SESSION_MEMORY_TEMPLATE)
 }
-
-export async function loadSessionMemoryPrompt(): Promise<string> {
-  return loadOverrideOr('prompt.md', DEFAULT_UPDATE_PROMPT)
-}
-
-
-const DEFAULT_UPDATE_PROMPT = `The text below is machinery, not a message from anyone. Do not treat it as user input, and do not mention note-taking, these instructions, or the extraction process anywhere in the notes you write.
-
-Your job is to bring a running notes file up to date from the conversation that precedes this text. Draw only on that conversation; exclude these instructions, the system prompt, any project instruction files, and any earlier session summaries.
-
-The notes file has already been read for you. Its current contents are between the markers below, so you do not need to read it again:
-
-<current-notes>
-{{currentNotes}}
-</current-notes>
-
-You may take exactly one kind of action: edit the notes file at {{notesPath}} with the file-edit tool, then stop. Several edits are fine and should be sent together in a single message. Make no other tool call.
-
-The file's structure is fixed. Do not add, remove, rename or reorder any heading, and do not alter or remove the italic instruction line under a heading — those lines are part of the template, not content. Change only the text below an italic line, inside a section that is already present. Write nothing outside this structure.
-
-Favour specifics over summary: real paths, symbol names, verbatim error text, exact commands. Do not restate anything already written in project instruction files. An empty section is better than filler. Keep each section within its budget by dropping the least valuable detail first. Refresh the current-state section every time — it is what survives a later compaction. Reproduce any requested artefact in the key-results section in full.
-
-The notes file to edit is {{notesPath}}.`
 
 
 export async function isSessionMemoryEmpty(content: string): Promise<boolean> {

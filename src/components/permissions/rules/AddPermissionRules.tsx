@@ -28,7 +28,7 @@ import type {
 } from '../../../types/permissions.js'
 import { PermissionRuleDescription } from './PermissionRuleDescription.js'
 
-export function optionForPermissionSaveDestination(
+function optionForPermissionSaveDestination(
   source: EditableSettingSource,
 ): OptionWithDescription<string> {
   if (source === 'userSettings') {

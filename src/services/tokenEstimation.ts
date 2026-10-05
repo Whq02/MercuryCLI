@@ -283,7 +283,7 @@ function estimateContent(content: unknown): number {
   return total
 }
 
-export function roughTokenCountEstimationForMessage(message: Message): number {
+function roughTokenCountEstimationForMessage(message: Message): number {
   if (message.type === 'assistant' || message.type === 'user') {
     return estimateContent(message.message.content)
   }

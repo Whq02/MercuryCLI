@@ -11,7 +11,7 @@ import { logMCPDebug, logMCPError } from '../../utils/log.js'
 import { urlElicitationVerdict } from './toolPolicy.js'
 
 
-export type ElicitationWaitingState = {
+type ElicitationWaitingState = {
   actionLabel: string
   showCancel?: boolean
 }

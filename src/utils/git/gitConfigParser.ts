@@ -89,7 +89,7 @@ function parseKeyValueLine(line: string, key: string): string | null {
   return parseValueText(line.slice(index))
 }
 
-export function parseConfigString(
+function parseConfigString(
   config: string,
   section: string,
   subsection: string | null,

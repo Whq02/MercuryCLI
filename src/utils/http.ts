@@ -48,7 +48,7 @@ export function getWebFetchUserAgent(): string {
 }
 
 
-export type AuthHeaders = {
+type AuthHeaders = {
   headers: Record<string, string>
   error?: string
 }

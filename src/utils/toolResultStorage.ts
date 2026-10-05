@@ -23,7 +23,7 @@ export const LEGACY_TOOL_RESULT_CLEARED_MESSAGE = '[Old tool result content clea
 export const PREVIEW_SIZE_CHARS = 2000
 export const PREVIEW_MAX_LINE_CHARS = 400
 
-export type PersistedToolResult = {
+type PersistedToolResult = {
   filepath: string
   originalSize: number
   isJson: boolean
@@ -31,9 +31,9 @@ export type PersistedToolResult = {
   hasMore: boolean
 }
 
-export type PersistToolResultError = { error: string }
+type PersistToolResultError = { error: string }
 
-export function isPersistError(
+function isPersistError(
   result: PersistedToolResult | PersistToolResultError,
 ): result is PersistToolResultError {
   return 'error' in result
@@ -53,7 +53,7 @@ export type ContentReplacementState = {
   budgetChars?: number
 }
 
-export function getPersistenceThreshold(declaredMaxResultSizeChars: number): number {
+function getPersistenceThreshold(declaredMaxResultSizeChars: number): number {
   if (!Number.isFinite(declaredMaxResultSizeChars)) return declaredMaxResultSizeChars
   return Math.min(declaredMaxResultSizeChars, DEFAULT_MAX_RESULT_SIZE_CHARS)
 }
@@ -160,7 +160,7 @@ export function buildLargeToolResultMessage(result: PersistedToolResult): string
   )
 }
 
-export function isToolResultContentEmpty(content: unknown): boolean {
+function isToolResultContentEmpty(content: unknown): boolean {
   if (content === undefined || content === null) return true
   if (typeof content === 'string') return content.trim() === ''
   if (Array.isArray(content)) {

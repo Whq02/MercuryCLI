@@ -100,7 +100,7 @@ function exactSuggestions(command: string): ReturnType<typeof suggestionForExact
   return suggestionForExactCommand(TOOL_NAME, command.trim())
 }
 
-export function powershellToolCheckExactMatchPermission(input: { command: string }, toolPermissionContext: ToolPermissionContext): PermissionResult {
+function powershellToolCheckExactMatchPermission(input: { command: string }, toolPermissionContext: ToolPermissionContext): PermissionResult {
   const command = input.command.trim()
   const deny = matchRules(command, toolPermissionContext, 'deny', 'exact')
   if (deny) return ruledVerdict(toolPermissionContext, command, deny, 'deny')

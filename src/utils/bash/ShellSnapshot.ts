@@ -182,7 +182,7 @@ export type RipgrepShellIntegration = {
   snippet: string
 }
 
-export function createRipgrepShellIntegration(): RipgrepShellIntegration {
+function createRipgrepShellIntegration(): RipgrepShellIntegration {
   const rgCommand = ripgrepCommand()
   if (rgCommand.argv0 !== undefined) {
     return {
@@ -197,7 +197,7 @@ export function createRipgrepShellIntegration(): RipgrepShellIntegration {
   return { type: 'function', snippet: createResilientRgFunction(rgCommand) }
 }
 
-export function createFindGrepShellIntegration(): string | null {
+function createFindGrepShellIntegration(): string | null {
   if (!hasEmbeddedSearchTools()) return null
   const binaryPath = embeddedSearchToolsBinaryPath()
   const findFunction = buildArgv0Function('find', 'bfs', binaryPath, [

@@ -128,7 +128,7 @@ async function createBackup(filePath: string, version: number): Promise<FileHist
 }
 
 
-export async function checkOriginFileChanged(
+async function checkOriginFileChanged(
   originalFile: string,
   backupFileName: string,
   statsHint?: Awaited<ReturnType<typeof stat>>,

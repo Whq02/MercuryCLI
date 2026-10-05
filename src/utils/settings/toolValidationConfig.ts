@@ -6,7 +6,7 @@ export type CustomValidationResult = {
   examples?: string[]
 }
 
-export type ToolValidationConfig = {
+type ToolValidationConfig = {
   filePatternTools: ReadonlySet<string>
   bashPrefixTools: ReadonlySet<string>
   customValidation: ReadonlyMap<string, (content: string) => CustomValidationResult>
@@ -46,7 +46,7 @@ function validateWebFetchContent(content: string): CustomValidationResult {
   return { valid: true }
 }
 
-export const TOOL_VALIDATION_CONFIG: ToolValidationConfig = {
+const TOOL_VALIDATION_CONFIG: ToolValidationConfig = {
   filePatternTools: new Set(['Read', 'Write', 'Edit', 'Glob', 'NotebookRead', 'NotebookEdit']),
   bashPrefixTools: new Set(['Bash']),
   customValidation: new Map([

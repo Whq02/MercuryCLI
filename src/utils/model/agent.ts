@@ -1,12 +1,10 @@
 import { subagentDefaultModel } from '../agentDefaults.js'
-import { MODEL_ALIASES } from './aliases.js'
+
 import { classifyModelRoute } from '../../services/providers/idSpaces.js'
 import { FIRST_PARTY_FAMILY_WORDS, routeOfFamilyWord } from './modelFamilies.js'
 import { getCanonicalName, parseUserSpecifiedModel } from './model.js'
 
 const INHERIT = 'inherit'
-
-export const AGENT_MODEL_OPTIONS: readonly string[] = [...MODEL_ALIASES, INHERIT]
 
 export function getDefaultSubagentModel(): string {
   return INHERIT

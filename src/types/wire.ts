@@ -64,7 +64,7 @@ export type WebFetchToolResultBlock = {
   caller?: ToolCaller
 }
 
-export type AdvisorToolResultBlock = {
+type AdvisorToolResultBlock = {
   type: 'advisor_tool_result'
   tool_use_id: string
   content: unknown

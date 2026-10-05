@@ -89,7 +89,7 @@ import { plainMessageSummary } from './summary.js'
 import { renderToolResultMessage, renderToolUseMessage } from './UI.js'
 
 
-export type MessageRouting = {
+type MessageRouting = {
   sender: string
   senderColor?: string
   target: string
@@ -98,24 +98,24 @@ export type MessageRouting = {
   content?: string
 }
 
-export type MessageOutput = {
+type MessageOutput = {
   success: boolean
   message: string
   routing?: MessageRouting
 }
 
-export type BroadcastOutput = MessageOutput & {
+type BroadcastOutput = MessageOutput & {
   recipients: string[]
 }
 
-export type RequestOutput = {
+type RequestOutput = {
   success: boolean
   message: string
   request_id: string
   target: string
 }
 
-export type ResponseOutput = {
+type ResponseOutput = {
   success: boolean
   message: string
   request_id?: string

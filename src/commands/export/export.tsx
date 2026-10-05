@@ -29,7 +29,7 @@ export function extractFirstPrompt(messages: Message[], transform: (text: string
   return firstLine.length > 50 ? `${firstLine.slice(0, 49)}…` : firstLine
 }
 
-export function sanitizeFilename(text: string): string {
+function sanitizeFilename(text: string): string {
   return text
     .toLowerCase()
     .replace(/[^\p{L}\p{N}\s-]/gu, '')

@@ -9,14 +9,14 @@ import { formatFileSize } from './format.js'
 import { getFsImplementation } from './fsOperations.js'
 
 
-export type PDFError = {
+type PDFError = {
   reason: 'empty' | 'too_large' | 'password_protected' | 'corrupted' | 'unknown' | 'unavailable'
   message: string
 }
 
-export type PDFResult<T> = { success: true; data: T } | { success: false; error: PDFError }
+type PDFResult<T> = { success: true; data: T } | { success: false; error: PDFError }
 
-export type PDFExtractPagesResult = {
+type PDFExtractPagesResult = {
   type: 'parts'
   file: { filePath: string; originalSize: number; count: number; outputDir: string }
 }
@@ -60,7 +60,7 @@ export async function getPDFPageCount(filePath: string): Promise<number | null> 
 
 let pdftoppmAvailable: Promise<boolean> | null = null
 
-export function isPdftoppmAvailable(): Promise<boolean> {
+function isPdftoppmAvailable(): Promise<boolean> {
   if (!pdftoppmAvailable) {
     pdftoppmAvailable = execFileNoThrow('pdftoppm', ['-v'], { timeout: PDFTOPPM_PROBE_TIMEOUT_MS, useCwd: false }).then(
       result => result.code === 0 || result.stderr.length > 0,

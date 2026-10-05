@@ -414,11 +414,6 @@ export const call: LocalJSXCommandCall = async (onDone, context) => {
   return null
 }
 
-
-export function isShiftEnterKeyBindingInstalled(): boolean {
-  return getGlobalConfig().shiftEnterKeyBindingInstalled === true
-}
-
 export function hasUsedBackslashReturn(): boolean {
   return getGlobalConfig().hasUsedBackslashReturn === true
 }
@@ -435,10 +430,4 @@ export function shouldOfferTerminalSetup(): boolean {
     return getGlobalConfig().optionAsMetaKeyInstalled !== true
   }
   return getGlobalConfig().shiftEnterKeyBindingInstalled !== true
-}
-
-export function getNativeCSIuTerminalDisplayName(): string | null {
-  const terminal = env.terminal
-  if (!terminal) return null
-  return NATIVE_TERMINALS[terminal] ?? null
 }

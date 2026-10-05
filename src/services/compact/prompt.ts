@@ -120,7 +120,7 @@ export function getPartialCompactPrompt(
   return `${withCustomInstructions(parts.join('\n\n'), customInstructions)}\n\n${NO_TOOLS_TRAILER}`
 }
 
-export function formatCompactSummary(summary: string): string {
+function formatCompactSummary(summary: string): string {
   let out = summary.replace(/<analysis>[\s\S]*?<\/analysis>/, '')
   const summaryBlock = /<summary>([\s\S]*?)<\/summary>/.exec(out)
   if (summaryBlock !== null) {

@@ -2,7 +2,7 @@
 import { getGraphemeSegmenter } from '../utils/intl.js'
 import { isVimWhitespace, isVimWordChar } from '../utils/Cursor.js'
 
-export type TextObjectRange = { start: number; end: number } | null
+type TextObjectRange = { start: number; end: number } | null
 
 const QUOTES = new Set(['"', "'", '`'])
 

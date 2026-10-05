@@ -7,7 +7,7 @@ const POLL_INTERVAL_MS = 60000
 const IDLE_STOP_MS = 3600000
 const SLOW_FETCH_DISABLE_MS = 4000
 
-export type PrStatusState = {
+type PrStatusState = {
   number: number | null
   url: string | null
   reviewState: PrReviewState | null

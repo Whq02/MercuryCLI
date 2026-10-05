@@ -3,7 +3,7 @@ import { partiallySanitizeUnicode } from '../sanitization.js'
 
 export const DEEP_LINK_PROTOCOL = 'mercury'
 
-export type DeepLinkAction = {
+type DeepLinkAction = {
   query?: string
   cwd?: string
   repo?: string

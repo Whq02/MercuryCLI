@@ -15,7 +15,7 @@ function resolveWorkflowTask(): Task | undefined {
 
 const MonitorMcpTask: Task | undefined = undefined
 
-export function getAllTasks(): Task[] {
+function getAllTasks(): Task[] {
   const tasks: Task[] = [LocalShellTask, LocalAgentTask, InProcessCrewmateTask]
   const workflow = resolveWorkflowTask()
   if (workflow) tasks.push(workflow)

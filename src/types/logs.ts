@@ -25,50 +25,6 @@ export type TranscriptMessage = SerializedMessage & {
   workload?: string
 }
 
-export type SummaryMessage = {
-  [K in keyof StorageRowOf<'summary'>]: StorageRowOf<'summary'>[K]
-}
-
-export type CustomTitleMessage = {
-  [K in keyof StorageRowOf<'custom-title'>]: StorageRowOf<'custom-title'>[K]
-}
-
-export type AiTitleMessage = {
-  [K in keyof StorageRowOf<'ai-title'>]: StorageRowOf<'ai-title'>[K]
-}
-
-export type LastPromptMessage = {
-  [K in keyof StorageRowOf<'last-prompt'>]: StorageRowOf<'last-prompt'>[K]
-}
-
-export type TaskSummaryMessage = {
-  [K in keyof StorageRowOf<'task-summary'>]: StorageRowOf<'task-summary'>[K]
-}
-
-export type TagMessage = {
-  [K in keyof StorageRowOf<'tag'>]: StorageRowOf<'tag'>[K]
-}
-
-export type AgentNameMessage = {
-  [K in keyof StorageRowOf<'agent-name'>]: StorageRowOf<'agent-name'>[K]
-}
-
-export type AgentColorMessage = {
-  [K in keyof StorageRowOf<'agent-color'>]: StorageRowOf<'agent-color'>[K]
-}
-
-export type AgentSettingMessage = {
-  [K in keyof StorageRowOf<'agent-setting'>]: StorageRowOf<'agent-setting'>[K]
-}
-
-export type PRLinkMessage = {
-  [K in keyof StorageRowOf<'pr-link'>]: StorageRowOf<'pr-link'>[K]
-}
-
-export type ModeEntry = {
-  [K in keyof StorageRowOf<'mode'>]: StorageRowOf<'mode'>[K]
-}
-
 export type AdvisorSwitchEntry = {
   [K in keyof StorageRowOf<'advisor-switch'>]: StorageRowOf<'advisor-switch'>[K]
 }
@@ -79,10 +35,6 @@ export type SessionModelEntry = {
 
 export type PersistedWorktreeSession = {
   [K in keyof WorktreeBinding]: WorktreeBinding[K]
-}
-
-export type WorktreeStateEntry = {
-  [K in keyof StorageRowOf<'worktree-state'>]: StorageRowOf<'worktree-state'>[K]
 }
 
 export type ContentReplacementEntry = {
@@ -99,10 +51,6 @@ export type FileAttributionState = {
 
 export type AttributionSnapshotMessage = {
   [K in keyof StorageRowOf<'attribution-snapshot'>]: StorageRowOf<'attribution-snapshot'>[K]
-}
-
-export type SpeculationAcceptMessage = {
-  [K in keyof StorageRowOf<'speculation-accept'>]: StorageRowOf<'speculation-accept'>[K]
 }
 
 export type ContextCollapseCommitEntry = {

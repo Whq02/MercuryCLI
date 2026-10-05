@@ -32,7 +32,7 @@ let mdmCache: MdmTierResult | null = null
 let hkcuCache: MdmTierResult | null = null
 let loadInFlight: Promise<void> | null = null
 
-export function parseRegQueryStdout(
+function parseRegQueryStdout(
   stdout: string,
   valueName: string = WINDOWS_REGISTRY_VALUE_NAME,
 ): string | null {
@@ -120,7 +120,7 @@ function parseTiers(raw: RawReadResult): { mdm: MdmTierResult; hkcu: MdmTierResu
   return { mdm: EMPTY_TIER, hkcu: EMPTY_TIER }
 }
 
-export function startMdmSettingsLoad(): void {
+function startMdmSettingsLoad(): void {
   if (loadInFlight !== null) return
   loadInFlight = (async () => {
     const startedAt = Date.now()

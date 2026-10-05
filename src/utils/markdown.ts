@@ -74,7 +74,7 @@ function formatOrdinal(n: number, depth: number): string {
 }
 
 
-export function padAligned(
+function padAligned(
   content: string,
   displayWidth: number,
   targetWidth: number,

@@ -13,7 +13,7 @@ import { logForDebugging } from '../utils/debug.js'
 
 const POLL_MS = 500
 
-export type PermissionResponseCallback = {
+type PermissionResponseCallback = {
   requestId: string
   toolUseId: string
   onAllow: (
@@ -25,7 +25,7 @@ export type PermissionResponseCallback = {
   onReject: (feedback?: string, contentBlocks?: ContentBlockParam[]) => void
 }
 
-export type SandboxPermissionResponseCallback = {
+type SandboxPermissionResponseCallback = {
   requestId: string
   host: string
   resolve: (allow: boolean) => void
@@ -42,10 +42,6 @@ export function registerPermissionCallback(
 
 export function unregisterPermissionCallback(requestId: string): void {
   permissionCallbacks.delete(requestId)
-}
-
-export function hasPermissionCallback(requestId: string): boolean {
-  return permissionCallbacks.has(requestId)
 }
 
 export function validateExternalPermissionUpdates(
@@ -91,21 +87,6 @@ export function processMailboxPermissionResponse({
     callback.onReject(feedback)
   }
   return true
-}
-
-export function registerSandboxPermissionCallback(
-  callback: SandboxPermissionResponseCallback,
-): void {
-  sandboxCallbacks.set(callback.requestId, callback)
-}
-
-export function hasSandboxPermissionCallback(requestId: string): boolean {
-  return sandboxCallbacks.has(requestId)
-}
-
-export function clearAllPendingCallbacks(): void {
-  permissionCallbacks.clear()
-  sandboxCallbacks.clear()
 }
 
 export function useCrewPermissionPoller(): void {

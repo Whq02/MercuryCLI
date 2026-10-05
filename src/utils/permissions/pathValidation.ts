@@ -16,8 +16,8 @@ import {
 
 export type FileOperationType = 'read' | 'write' | 'create'
 
-export type PathCheckResult = { allowed: boolean; decisionReason?: PermissionDecisionReason }
-export type ResolvedPathCheckResult = PathCheckResult & { resolvedPath: string }
+type PathCheckResult = { allowed: boolean; decisionReason?: PermissionDecisionReason }
+type ResolvedPathCheckResult = PathCheckResult & { resolvedPath: string }
 
 const GLOB_METACHARS = /[*?[\]{}]/
 
@@ -27,7 +27,7 @@ export function formatDirectoryList(directories: string[]): string {
   return `${quoted.slice(0, 5).join(', ')} and ${quoted.length - 5} more`
 }
 
-export function getGlobBaseDirectory(path: string): string {
+function getGlobBaseDirectory(path: string): string {
   if (!GLOB_METACHARS.test(path)) return path
   const firstMeta = path.search(GLOB_METACHARS)
   const prefix = path.slice(0, firstMeta)
@@ -115,7 +115,7 @@ export function isPathAllowed(
   return { allowed: false }
 }
 
-export function validateGlobPattern(
+function validateGlobPattern(
   cleanPath: string,
   cwd: string,
   context: ToolPermissionContext,

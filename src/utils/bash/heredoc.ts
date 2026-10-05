@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto'
 
-export type HeredocInfo = {
+type HeredocInfo = {
   fullText: string
   delimiter: string
   operatorStartIndex: number
@@ -9,7 +9,7 @@ export type HeredocInfo = {
   contentEndIndex: number
 }
 
-export type HeredocExtractionResult = {
+type HeredocExtractionResult = {
   processedCommand: string
   heredocs: Map<string, HeredocInfo>
 }

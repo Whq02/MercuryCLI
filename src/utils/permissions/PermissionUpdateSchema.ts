@@ -6,7 +6,7 @@ export type {
   PermissionUpdateDestination,
 } from '../../types/permissions.js'
 
-export function permissionUpdateDestinationSchema() {
+function permissionUpdateDestinationSchema() {
   return z.enum(['userSettings', 'projectSettings', 'localSettings', 'session', 'cliArg'])
 }
 

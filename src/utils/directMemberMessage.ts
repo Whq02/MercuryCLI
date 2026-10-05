@@ -16,7 +16,7 @@ type LiveMessageSender = (
   },
 ) => Promise<boolean | void>
 
-export type DirectMessageResult =
+type DirectMessageResult =
   | { success: true; recipientName: string }
   | { success: false; error: 'no_crew_context' }
   | { success: false; error: 'unknown_recipient'; recipientName: string }

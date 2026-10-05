@@ -19,7 +19,7 @@ export type PermissionHandlerParams = {
   operationType: FileOperationType
 }
 
-export type PermissionHandlerOptions = {
+type PermissionHandlerOptions = {
   hasFeedback?: boolean
   feedback?: string
   enteredFeedbackMode?: boolean

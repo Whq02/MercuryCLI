@@ -29,7 +29,7 @@ export function isImageOutput(content: string): boolean {
   return IMAGE_DATA_URL_RE.test(content)
 }
 
-export function parseDataUri(s: string): { mediaType: string; data: string } | null {
+function parseDataUri(s: string): { mediaType: string; data: string } | null {
   const match = s.trim().match(DATA_URI_RE)
   if (!match) return null
   return { mediaType: match[1] as string, data: match[2] as string }

@@ -65,7 +65,7 @@ export function getAnthropicClientContractVersion(): string {
 
 export const MCP_CLIENT_METADATA_URL = 'https://claude.ai/oauth/claude-code-client-metadata'
 
-export const CONSOLE_OAUTH_SCOPES = ['org:create_api_key', 'user:profile'] as const
+const CONSOLE_OAUTH_SCOPES = ['org:create_api_key', 'user:profile'] as const
 export const SUBSCRIPTION_OAUTH_SCOPES = [
   'user:profile',
   'user:inference',

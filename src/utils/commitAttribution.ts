@@ -36,7 +36,7 @@ export type AttributionState = {
   escapeCountAtLastCommit: number
 }
 
-export type AttributionSummary = {
+type AttributionSummary = {
   mercuryChars: number
   humanChars: number
   percentage: number
@@ -50,7 +50,7 @@ export type FileAttribution = {
   surface: string
 }
 
-export type AttributionData = {
+type AttributionData = {
   version: 1
   summary: AttributionSummary
   files: Record<string, FileAttribution>
@@ -59,16 +59,16 @@ export type AttributionData = {
   sessions: string[]
 }
 
-export function getAttributionRepoRoot(): string {
+function getAttributionRepoRoot(): string {
   return findGitRoot(getCwd()) ?? getOriginalCwd()
 }
 
-export function getClientSurface(): string {
+function getClientSurface(): string {
   const value = process.env.MERCURY_ENTRYPOINT
   return value === undefined ? 'cli' : value
 }
 
-export function computeContentHash(content: string): string {
+function computeContentHash(content: string): string {
   return createHash('sha256').update(content).digest('hex')
 }
 
@@ -84,7 +84,7 @@ function tryRelativeUnderRoot(root: string, filePath: string): string | null {
   return relativePath.split(sep).join('/')
 }
 
-export function normalizeFilePath(filePath: string): string {
+function normalizeFilePath(filePath: string): string {
   if (!isAbsolute(filePath)) return filePath
   const root = getAttributionRepoRoot()
   const fs = getFsImplementation()
@@ -105,7 +105,7 @@ export function normalizeFilePath(filePath: string): string {
   )
 }
 
-export function expandFilePath(filePath: string): string {
+function expandFilePath(filePath: string): string {
   if (isAbsolute(filePath)) return filePath
   return join(getAttributionRepoRoot(), filePath)
 }
@@ -314,7 +314,7 @@ export async function calculateCommitAttribution(
   }
 }
 
-export async function getGitDiffSize(filePath: string): Promise<number> {
+async function getGitDiffSize(filePath: string): Promise<number> {
   try {
     const result = await execFileNoThrowWithCwd(
       gitExe(),
@@ -333,7 +333,7 @@ export async function getGitDiffSize(filePath: string): Promise<number> {
   }
 }
 
-export async function isFileDeleted(filePath: string): Promise<boolean> {
+async function isFileDeleted(filePath: string): Promise<boolean> {
   try {
     const result = await execFileNoThrowWithCwd(
       gitExe(),

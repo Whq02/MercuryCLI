@@ -2,7 +2,7 @@ import type { TsNode } from './bashParser.js'
 
 export type Node = TsNode
 
-export interface ParsedCommandData {
+interface ParsedCommandData {
   rootNode: Node
   envVars: string[]
   commandNode: Node | null

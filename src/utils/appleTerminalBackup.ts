@@ -13,7 +13,7 @@ export function getTerminalPlistPath(): string {
   return join(homedir(), 'Library', 'Preferences', 'com.apple.Terminal.plist')
 }
 
-export function markTerminalSetupInProgress(backupPath: string): void {
+function markTerminalSetupInProgress(backupPath: string): void {
   saveGlobalConfig(currentConfig => ({
     ...currentConfig,
     appleTerminalSetupInProgress: true,

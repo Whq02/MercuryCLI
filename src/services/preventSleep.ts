@@ -84,7 +84,7 @@ export function stopPreventSleep(): void {
   }
 }
 
-export function forceStopPreventSleep(): void {
+function forceStopPreventSleep(): void {
   referenceCount = 0
   disarmRestartTimer()
   killHelper()

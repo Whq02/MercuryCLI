@@ -286,7 +286,6 @@ export { joinPromptValues, canBatchWith }
 export { removeInterruptedMessage }
 
 const MAILBOX_REFUSAL_NOTICE_AFTER = 20
-const CONCOURSE_INTERRUPT_PREFIX = 'concourse-interrupt-'
 const INTERRUPT_DEDUPE_CAP = 200
 const RECEIVED_UUID_CAP = 10_000
 
@@ -821,7 +820,6 @@ export async function runHeadless(
   registerProcessOutputErrorHandlers()
   noteRunPhase('config_auth')
 
-  const streamingOptions = options
   let sessionInitialized = false
   let activeModel: string | undefined =
     options.userSpecifiedModel === undefined
@@ -1040,25 +1038,6 @@ export async function runHeadless(
     enqueueRow(modeRow(liveScope(), mode))
   })
 
-  const refreshExtensionState = async (): Promise<{ errorCount: number; extensions: Array<{ name: string; path: string; source: string }> }> => {
-    const { reloadExtensions, noteReloaded } = await import('../extensions/boot.js')
-    const pending = reloadExtensions({
-      onServersChanged: () =>
-        setAppState(prev => ({ ...prev, mcp: { ...prev.mcp, extensionReconnectKey: prev.mcp.extensionReconnectKey + 1 } })),
-    })
-    noteReloaded(pending)
-    const outcome = await pending
-    const refreshed = await getCommands(getCwd())
-    activeCommands = refreshed
-    const { getAgentDefinitionsWithOverrides } = await import('../tools/AgentTool/loadAgentsDir.js')
-    const fresh = await getAgentDefinitionsWithOverrides(getCwd())
-    const sdkInjected = activeAgents.filter(agent => agent.source === 'flagSettings')
-    activeAgents = [...fresh.activeAgents, ...sdkInjected]
-    return {
-      errorCount: outcome.counts.broken,
-      extensions: outcome.set.active.map(ext => ({ name: ext.manifest.name, path: ext.root, source: ext.entry.id })),
-    }
-  }
 
   skillChangeDetector.subscribe(() => {
     clearCommandMemoizationCaches()

@@ -29,7 +29,7 @@ export type SuggestionItem = {
   color?: string
 }
 
-export const OVERLAY_MAX_ITEMS = 5
+const OVERLAY_MAX_ITEMS = 5
 
 const UNIFIED_GLYPHS: Array<[string, string]> = [
   ['file-', GLYPH.read],

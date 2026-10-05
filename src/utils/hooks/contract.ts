@@ -4,7 +4,7 @@ import { lazySchema } from '../lazySchema.js'
 import type { TurnCutKind } from '../messages/turnCut.js'
 import { permissionUpdateSchema } from '../permissions/PermissionUpdateSchema.js'
 
-export const EXIT_REASONS = [
+const EXIT_REASONS = [
   'clear',
   'resume',
   'logout',
@@ -22,9 +22,9 @@ const baseHookFields = {
   agent_id: z.string().optional().describe('Set when a subagent fired the hook'),
   agent_type: z.string().optional().describe('The firing agent\'s type, when known'),
 }
-export const BaseHookInputSchema = lazySchema(() => z.object(baseHookFields))
+const BaseHookInputSchema = lazySchema(() => z.object(baseHookFields))
 
-export const PreToolUseHookInputSchema = lazySchema(() =>
+const PreToolUseHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('PreToolUse'),
@@ -33,7 +33,7 @@ export const PreToolUseHookInputSchema = lazySchema(() =>
     tool_use_id: z.string().optional().describe('The provider id of this tool call'),
   }),
 )
-export const PermissionRequestHookInputSchema = lazySchema(() =>
+const PermissionRequestHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('PermissionRequest'),
@@ -46,7 +46,7 @@ export const PermissionRequestHookInputSchema = lazySchema(() =>
       .describe('Rule updates the harness would offer for this ask'),
   }),
 )
-export const PostToolUseHookInputSchema = lazySchema(() =>
+const PostToolUseHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('PostToolUse'),
@@ -56,7 +56,7 @@ export const PostToolUseHookInputSchema = lazySchema(() =>
     tool_use_id: z.string().optional().describe('The provider id of the finished call'),
   }),
 )
-export const PostToolUseFailureHookInputSchema = lazySchema(() =>
+const PostToolUseFailureHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('PostToolUseFailure'),
@@ -67,7 +67,7 @@ export const PostToolUseFailureHookInputSchema = lazySchema(() =>
     is_interrupt: z.boolean().optional().describe('True when the failure was a user interrupt'),
   }),
 )
-export const PermissionDeniedHookInputSchema = lazySchema(() =>
+const PermissionDeniedHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('PermissionDenied'),
@@ -77,7 +77,7 @@ export const PermissionDeniedHookInputSchema = lazySchema(() =>
     reason: z.string().optional().describe('Why it was refused'),
   }),
 )
-export const NotificationHookInputSchema = lazySchema(() =>
+const NotificationHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('Notification'),
@@ -86,7 +86,7 @@ export const NotificationHookInputSchema = lazySchema(() =>
     notification_type: z.string().optional().describe('The notification category'),
   }),
 )
-export const UserPromptSubmitHookInputSchema = lazySchema(() =>
+const UserPromptSubmitHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('UserPromptSubmit'),
@@ -106,7 +106,7 @@ export const UserPromptExpansionHookInputSchema = lazySchema(() =>
       .describe('Whether a local slash command or an MCP prompt expanded'),
   }),
 )
-export const SessionStartHookInputSchema = lazySchema(() =>
+const SessionStartHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('SessionStart'),
@@ -116,14 +116,14 @@ export const SessionStartHookInputSchema = lazySchema(() =>
     model: z.string().optional().describe('The model the session starts on'),
   }),
 )
-export const SetupHookInputSchema = lazySchema(() =>
+const SetupHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('Setup'),
     trigger: z.enum(['init', 'maintenance']).describe('Which setup pass is running'),
   }),
 )
-export const StopHookInputSchema = lazySchema(() =>
+const StopHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('Stop'),
@@ -131,7 +131,7 @@ export const StopHookInputSchema = lazySchema(() =>
     last_assistant_message: z.string().optional().describe('Text of the final assistant message this turn'),
   }),
 )
-export const StopFailureHookInputSchema = lazySchema(() =>
+const StopFailureHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('StopFailure'),
@@ -140,7 +140,7 @@ export const StopFailureHookInputSchema = lazySchema(() =>
     last_assistant_message: z.string().optional().describe('Text of the final assistant message this turn'),
   }),
 )
-export const SubagentStartHookInputSchema = lazySchema(() =>
+const SubagentStartHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('SubagentStart'),
@@ -148,7 +148,7 @@ export const SubagentStartHookInputSchema = lazySchema(() =>
     prompt: z.string().optional().describe('The task prompt the subagent starts with'),
   }),
 )
-export const SubagentStopHookInputSchema = lazySchema(() =>
+const SubagentStopHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('SubagentStop'),
@@ -157,7 +157,7 @@ export const SubagentStopHookInputSchema = lazySchema(() =>
     last_assistant_message: z.string().optional().describe('Text of the subagent\'s final assistant message'),
   }),
 )
-export const PreCompactHookInputSchema = lazySchema(() =>
+const PreCompactHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('PreCompact'),
@@ -165,7 +165,7 @@ export const PreCompactHookInputSchema = lazySchema(() =>
     custom_instructions: z.string().nullable().describe('User guidance for the compaction, when given'),
   }),
 )
-export const PostCompactHookInputSchema = lazySchema(() =>
+const PostCompactHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('PostCompact'),
@@ -181,7 +181,7 @@ export const CrewmateIdleHookInputSchema = lazySchema(() =>
     crew_name: z.string().optional().describe('The crew it belongs to'),
   }),
 )
-export const TaskCreatedHookInputSchema = lazySchema(() =>
+const TaskCreatedHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('TaskCreated'),
@@ -192,7 +192,7 @@ export const TaskCreatedHookInputSchema = lazySchema(() =>
     crew_name: z.string().optional().describe('The owning crew'),
   }),
 )
-export const TaskCompletedHookInputSchema = lazySchema(() =>
+const TaskCompletedHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('TaskCompleted'),
@@ -204,7 +204,7 @@ export const TaskCompletedHookInputSchema = lazySchema(() =>
     status: z.enum(['completed', 'failed', 'stopped']).optional().describe('How the task ended'),
   }),
 )
-export const ElicitationHookInputSchema = lazySchema(() =>
+const ElicitationHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('Elicitation'),
@@ -216,7 +216,7 @@ export const ElicitationHookInputSchema = lazySchema(() =>
     elicitation_id: z.string().optional().describe('Correlates this ask with its result'),
   }),
 )
-export const ElicitationResultHookInputSchema = lazySchema(() =>
+const ElicitationResultHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('ElicitationResult'),
@@ -227,7 +227,7 @@ export const ElicitationResultHookInputSchema = lazySchema(() =>
     elicitation_id: z.string().optional().describe('Correlates back to the original ask'),
   }),
 )
-export const ConfigChangeHookInputSchema = lazySchema(() =>
+const ConfigChangeHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('ConfigChange'),
@@ -242,7 +242,7 @@ export const ConfigChangeHookInputSchema = lazySchema(() =>
     file_path: z.string().optional().describe('The settings file that changed'),
   }),
 )
-export const InstructionsLoadedHookInputSchema = lazySchema(() =>
+const InstructionsLoadedHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('InstructionsLoaded'),
@@ -274,7 +274,7 @@ export const WorktreeRemoveHookInputSchema = lazySchema(() =>
     worktree_path: z.string().describe('The worktree being removed'),
   }),
 )
-export const CwdChangedHookInputSchema = lazySchema(() =>
+const CwdChangedHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('CwdChanged'),
@@ -282,7 +282,7 @@ export const CwdChangedHookInputSchema = lazySchema(() =>
     old_cwd: z.string().optional().describe('The directory before the change'),
   }),
 )
-export const FileChangedHookInputSchema = lazySchema(() =>
+const FileChangedHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('FileChanged'),
@@ -290,7 +290,7 @@ export const FileChangedHookInputSchema = lazySchema(() =>
     event: z.enum(['change', 'add', 'unlink']).describe('What happened to it'),
   }),
 )
-export const SessionEndHookInputSchema = lazySchema(() =>
+const SessionEndHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('SessionEnd'),
@@ -309,13 +309,13 @@ export const InterruptHookInputSchema = lazySchema(() =>
   }),
 )
 
-export const AsyncHookJSONOutputSchema = lazySchema(() =>
+const AsyncHookJSONOutputSchema = lazySchema(() =>
   z.object({
     async: z.literal(true).describe('Marks the hook as still running; its result arrives later'),
     asyncTimeout: z.number().optional().describe('Milliseconds to wait before giving up on it'),
   }),
 )
-export const PreToolUseHookSpecificOutputSchema = lazySchema(() =>
+const PreToolUseHookSpecificOutputSchema = lazySchema(() =>
   z.object({
     hookEventName: z.literal('PreToolUse'),
     permissionDecision: z.enum(['allow', 'deny', 'ask']).optional().describe('The hook\'s verdict on the tool call'),
@@ -324,13 +324,13 @@ export const PreToolUseHookSpecificOutputSchema = lazySchema(() =>
     additionalContext: z.string().optional().describe('Extra context injected for the model'),
   }),
 )
-export const UserPromptSubmitHookSpecificOutputSchema = lazySchema(() =>
+const UserPromptSubmitHookSpecificOutputSchema = lazySchema(() =>
   z.object({
     hookEventName: z.literal('UserPromptSubmit'),
     additionalContext: z.string().optional().describe('Extra context injected alongside the prompt'),
   }),
 )
-export const SessionStartHookSpecificOutputSchema = lazySchema(() =>
+const SessionStartHookSpecificOutputSchema = lazySchema(() =>
   z.object({
     hookEventName: z.literal('SessionStart'),
     additionalContext: z.string().optional().describe('Extra context injected at session start'),
@@ -338,44 +338,44 @@ export const SessionStartHookSpecificOutputSchema = lazySchema(() =>
     watchPaths: z.array(z.string()).optional().describe('Paths to watch for FileChanged fires'),
   }),
 )
-export const SetupHookSpecificOutputSchema = lazySchema(() =>
+const SetupHookSpecificOutputSchema = lazySchema(() =>
   z.object({
     hookEventName: z.literal('Setup'),
     additionalContext: z.string().optional().describe('Extra context injected after setup'),
   }),
 )
-export const SubagentStartHookSpecificOutputSchema = lazySchema(() =>
+const SubagentStartHookSpecificOutputSchema = lazySchema(() =>
   z.object({
     hookEventName: z.literal('SubagentStart'),
     additionalContext: z.string().optional().describe('Extra context injected into the subagent'),
   }),
 )
-export const PostToolUseHookSpecificOutputSchema = lazySchema(() =>
+const PostToolUseHookSpecificOutputSchema = lazySchema(() =>
   z.object({
     hookEventName: z.literal('PostToolUse'),
     additionalContext: z.string().optional().describe('Extra context injected after the tool ran'),
     updatedMCPToolOutput: z.unknown().optional().describe('A replacement result for an MCP tool call'),
   }),
 )
-export const PostToolUseFailureHookSpecificOutputSchema = lazySchema(() =>
+const PostToolUseFailureHookSpecificOutputSchema = lazySchema(() =>
   z.object({
     hookEventName: z.literal('PostToolUseFailure'),
     additionalContext: z.string().optional().describe('Extra context injected after the failure'),
   }),
 )
-export const PermissionDeniedHookSpecificOutputSchema = lazySchema(() =>
+const PermissionDeniedHookSpecificOutputSchema = lazySchema(() =>
   z.object({
     hookEventName: z.literal('PermissionDenied'),
     retry: z.boolean().optional().describe('Ask the model to try the call again'),
   }),
 )
-export const NotificationHookSpecificOutputSchema = lazySchema(() =>
+const NotificationHookSpecificOutputSchema = lazySchema(() =>
   z.object({
     hookEventName: z.literal('Notification'),
     additionalContext: z.string().optional().describe('Extra context injected with the notification'),
   }),
 )
-export const PermissionRequestHookSpecificOutputSchema = lazySchema(() =>
+const PermissionRequestHookSpecificOutputSchema = lazySchema(() =>
   z.object({
     hookEventName: z.literal('PermissionRequest'),
     decision: z
@@ -394,33 +394,33 @@ export const PermissionRequestHookSpecificOutputSchema = lazySchema(() =>
       .describe('How the hook settles the permission request'),
   }),
 )
-export const CwdChangedHookSpecificOutputSchema = lazySchema(() =>
+const CwdChangedHookSpecificOutputSchema = lazySchema(() =>
   z.object({
     hookEventName: z.literal('CwdChanged'),
     watchPaths: z.array(z.string()).optional().describe('Paths to watch for FileChanged fires'),
   }),
 )
-export const FileChangedHookSpecificOutputSchema = lazySchema(() =>
+const FileChangedHookSpecificOutputSchema = lazySchema(() =>
   z.object({
     hookEventName: z.literal('FileChanged'),
     watchPaths: z.array(z.string()).optional().describe('Paths to watch for FileChanged fires'),
   }),
 )
-export const ElicitationHookSpecificOutputSchema = lazySchema(() =>
+const ElicitationHookSpecificOutputSchema = lazySchema(() =>
   z.object({
     hookEventName: z.literal('Elicitation'),
     action: z.enum(['accept', 'decline', 'cancel']).optional().describe('Answer the ask programmatically'),
     content: z.record(z.string(), z.unknown()).optional().describe('The values to submit on accept'),
   }),
 )
-export const ElicitationResultHookSpecificOutputSchema = lazySchema(() =>
+const ElicitationResultHookSpecificOutputSchema = lazySchema(() =>
   z.object({
     hookEventName: z.literal('ElicitationResult'),
     action: z.enum(['accept', 'decline', 'cancel']).optional().describe('Override how the result reads'),
     content: z.record(z.string(), z.unknown()).optional().describe('Replacement values for the result'),
   }),
 )
-export const WorktreeCreateHookSpecificOutputSchema = lazySchema(() =>
+const WorktreeCreateHookSpecificOutputSchema = lazySchema(() =>
   z.object({
     hookEventName: z.literal('WorktreeCreate'),
     worktreePath: z.string().describe('The worktree path the hook provisioned'),
@@ -658,75 +658,6 @@ export function hookEventInputSchema(event: HookEvent): () => z.ZodType<HookInpu
   return hookEventTable[event].input as () => z.ZodType<HookInput>
 }
 
-const INPUT_UNION_ORDER = [
-  'PreToolUse',
-  'PermissionRequest',
-  'PostToolUse',
-  'PostToolUseFailure',
-  'PermissionDenied',
-  'Notification',
-  'UserPromptSubmit',
-  'UserPromptExpansion',
-  'SessionStart',
-  'Setup',
-  'Stop',
-  'StopFailure',
-  'SubagentStart',
-  'SubagentStop',
-  'PreCompact',
-  'PostCompact',
-  'CrewmateIdle',
-  'TaskCreated',
-  'TaskCompleted',
-  'Elicitation',
-  'ElicitationResult',
-  'ConfigChange',
-  'InstructionsLoaded',
-  'WorktreeCreate',
-  'WorktreeRemove',
-  'CwdChanged',
-  'FileChanged',
-  'SessionEnd',
-  'Interrupt',
-] as const satisfies readonly HookEvent[]
-
-export const HookInputSchema = lazySchema(() =>
-  z.union(
-    INPUT_UNION_ORDER.map(
-      event => hookEventTable[event].input(),
-    ) as [
-      ReturnType<typeof PreToolUseHookInputSchema>,
-      ReturnType<typeof PermissionRequestHookInputSchema>,
-      ReturnType<typeof PostToolUseHookInputSchema>,
-      ReturnType<typeof PostToolUseFailureHookInputSchema>,
-      ReturnType<typeof PermissionDeniedHookInputSchema>,
-      ReturnType<typeof NotificationHookInputSchema>,
-      ReturnType<typeof UserPromptSubmitHookInputSchema>,
-      ReturnType<typeof UserPromptExpansionHookInputSchema>,
-      ReturnType<typeof SessionStartHookInputSchema>,
-      ReturnType<typeof SetupHookInputSchema>,
-      ReturnType<typeof StopHookInputSchema>,
-      ReturnType<typeof StopFailureHookInputSchema>,
-      ReturnType<typeof SubagentStartHookInputSchema>,
-      ReturnType<typeof SubagentStopHookInputSchema>,
-      ReturnType<typeof PreCompactHookInputSchema>,
-      ReturnType<typeof PostCompactHookInputSchema>,
-      ReturnType<typeof CrewmateIdleHookInputSchema>,
-      ReturnType<typeof TaskCreatedHookInputSchema>,
-      ReturnType<typeof TaskCompletedHookInputSchema>,
-      ReturnType<typeof ElicitationHookInputSchema>,
-      ReturnType<typeof ElicitationResultHookInputSchema>,
-      ReturnType<typeof ConfigChangeHookInputSchema>,
-      ReturnType<typeof InstructionsLoadedHookInputSchema>,
-      ReturnType<typeof WorktreeCreateHookInputSchema>,
-      ReturnType<typeof WorktreeRemoveHookInputSchema>,
-      ReturnType<typeof CwdChangedHookInputSchema>,
-      ReturnType<typeof FileChangedHookInputSchema>,
-      ReturnType<typeof SessionEndHookInputSchema>,
-      ReturnType<typeof InterruptHookInputSchema>,
-    ],
-  ),
-)
 
 const OUTPUT_UNION_ORDER = [
   'PreToolUse',
@@ -862,4 +793,3 @@ export type FileChangedHookSpecificOutput = z.infer<ReturnType<typeof FileChange
 export type ElicitationHookSpecificOutput = z.infer<ReturnType<typeof ElicitationHookSpecificOutputSchema>>
 export type ElicitationResultHookSpecificOutput = z.infer<ReturnType<typeof ElicitationResultHookSpecificOutputSchema>>
 export type WorktreeCreateHookSpecificOutput = z.infer<ReturnType<typeof WorktreeCreateHookSpecificOutputSchema>>
-

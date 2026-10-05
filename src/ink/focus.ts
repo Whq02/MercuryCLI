@@ -122,16 +122,3 @@ export class FocusManager {
     this.moveFocus(root, -1)
   }
 }
-
-export function getRootNode(node: DOMElement): DOMElement {
-  let current: DOMElement | undefined = node
-  while (current) {
-    if (current.focusManager) return current
-    current = current.parentNode
-  }
-  throw new Error('getRootNode: node is not in a tree with a focus manager')
-}
-
-export function getFocusManager(node: DOMElement): FocusManager {
-  return getRootNode(node).focusManager!
-}

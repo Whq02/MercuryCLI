@@ -9,15 +9,15 @@ import { truncateToWidth } from '../../utils/format.js'
 import { SKILL_TOOL_NAME } from './constants.js'
 
 
-export const SKILL_BUDGET_CONTEXT_PERCENT = 0.01
+const SKILL_BUDGET_CONTEXT_PERCENT = 0.01
 export const CHARS_PER_TOKEN = 4
-export const DEFAULT_CHAR_BUDGET = 8_000
-export const MAX_LISTING_DESC_CHARS = 250
+const DEFAULT_CHAR_BUDGET = 8_000
+const MAX_LISTING_DESC_CHARS = 250
 
 const MIN_DESCRIPTION_ALLOWANCE = 20
 const NAME_OVERHEAD = 4
 
-export function getCharBudget(contextWindowTokens?: number): number {
+function getCharBudget(contextWindowTokens?: number): number {
   const override = Number(flagEnv('MERCURY_SKILL_CHAR_BUDGET'))
   if (Number.isFinite(override) && override !== 0) return override
   if (contextWindowTokens !== undefined && contextWindowTokens > 0) {

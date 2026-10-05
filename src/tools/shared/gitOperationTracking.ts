@@ -72,7 +72,7 @@ function refAfterSubcommand(command: string, subcommand: string): string | undef
   return undefined
 }
 
-export function parseGitCommitId(stdout: string): string | undefined {
+function parseGitCommitId(stdout: string): string | undefined {
   const match = COMMIT_SUMMARY_LINE.exec(stdout)
   return match ? match[1]!.slice(0, 6) : undefined
 }

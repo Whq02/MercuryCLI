@@ -3,7 +3,7 @@ import React from 'react'
 import { Box, Text } from '../../ink.js'
 import { isShutdownRejected, isShutdownRequest, type ShutdownRejectedMessage, type ShutdownRequestMessage } from '../../services/crew/liveMessages.js'
 
-export function ShutdownRequestDisplay({
+function ShutdownRequestDisplay({
   request,
 }: {
   request: ShutdownRequestMessage
@@ -18,7 +18,7 @@ export function ShutdownRequestDisplay({
   )
 }
 
-export function ShutdownRejectedDisplay({
+function ShutdownRejectedDisplay({
   rejected,
 }: {
   rejected: ShutdownRejectedMessage

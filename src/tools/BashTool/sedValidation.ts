@@ -14,7 +14,7 @@ function tokeniseSedArgs(command: string): { tokens: Array<string | null>; ok: b
 
 const GLOB_OR_OP: null = null
 
-export function hasFileArgs(command: string): boolean {
+function hasFileArgs(command: string): boolean {
   if (!/^sed\s/.test(command)) return false
   let parseOk = true
   let glob = false
@@ -52,7 +52,7 @@ export function hasFileArgs(command: string): boolean {
   return false
 }
 
-export function extractSedExpressions(command: string): string[] {
+function extractSedExpressions(command: string): string[] {
   if (!/^sed\s/.test(command)) return []
   const argText = command.replace(/^sed\s+/, '')
   if (/-e\s*[wWe]/.test(argText) || /-w\s*[eE]/.test(argText)) {
@@ -96,11 +96,11 @@ export function extractSedExpressions(command: string): string[] {
   return expressions
 }
 
-export function isPrintCommand(cmd: string): boolean {
+function isPrintCommand(cmd: string): boolean {
   return /^\s*(?:\d+(?:,\d+)?)?p\s*$/.test(cmd)
 }
 
-export function isLinePrintingCommand(command: string, expressions: string[]): boolean {
+function isLinePrintingCommand(command: string, expressions: string[]): boolean {
   if (!/^sed\s/.test(command)) return false
   const parse = tryParseShellCommand(command.replace(/^sed\s+/, ''))
   if (!parse.success) return false

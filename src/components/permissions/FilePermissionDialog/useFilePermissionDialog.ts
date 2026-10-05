@@ -13,7 +13,7 @@ import {
 } from './permissionOptions.js'
 import { PERMISSION_HANDLERS, type PermissionHandlerParams } from './usePermissionHandler.js'
 
-export type UseFilePermissionDialogResult<T> = {
+type UseFilePermissionDialogResult<T> = {
   options: PermissionOptionWithLabel[]
   onChange: (option: PermissionOption, input: T, feedback?: string) => void
   acceptFeedback: string

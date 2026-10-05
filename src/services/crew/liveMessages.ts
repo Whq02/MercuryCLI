@@ -34,7 +34,7 @@ function parseStructuredText(text: string): Record<string, unknown> | null {
   }
 }
 
-export type IdleNotificationMessage = {
+type IdleNotificationMessage = {
   type: 'idle_notification'
   from: string
   timestamp: string
@@ -58,7 +58,7 @@ export function isIdleNotification(text: string): IdleNotificationMessage | null
   return parsed as IdleNotificationMessage
 }
 
-export type PermissionRequestMessage = {
+type PermissionRequestMessage = {
   type: 'permission_request'
   request_id: string
   agent_id: string
@@ -87,7 +87,7 @@ export function isPermissionRequest(text: string): PermissionRequestMessage | nu
   return parsed as PermissionRequestMessage
 }
 
-export type PermissionResponseMessage = {
+type PermissionResponseMessage = {
   type: 'permission_response'
   request_id: string
 } & (
@@ -131,7 +131,7 @@ export function isPermissionResponse(text: string): PermissionResponseMessage | 
   return parsed as PermissionResponseMessage
 }
 
-export type SandboxPermissionRequestMessage = {
+type SandboxPermissionRequestMessage = {
   type: 'sandbox_permission_request'
   requestId: string
   workerId: string
@@ -165,7 +165,7 @@ export function isSandboxPermissionRequest(text: string): SandboxPermissionReque
   return parsed as SandboxPermissionRequestMessage
 }
 
-export type SandboxPermissionResponseMessage = {
+type SandboxPermissionResponseMessage = {
   type: 'sandbox_permission_response'
   requestId: string
   host: string
@@ -193,7 +193,7 @@ export function isSandboxPermissionResponse(text: string): SandboxPermissionResp
   return parsed as SandboxPermissionResponseMessage
 }
 
-export const ShutdownRequestMessageSchema = lazySchema(() =>
+const ShutdownRequestMessageSchema = lazySchema(() =>
   z.object({
     type: z.literal('shutdown_request'),
     requestId: z.string(),
@@ -225,7 +225,7 @@ export function isShutdownRequest(text: string): ShutdownRequestMessage | null {
   return result.success ? result.data : null
 }
 
-export const ShutdownApprovedMessageSchema = lazySchema(() =>
+const ShutdownApprovedMessageSchema = lazySchema(() =>
   z.object({
     type: z.literal('shutdown_approved'),
     requestId: z.string(),
@@ -235,7 +235,7 @@ export const ShutdownApprovedMessageSchema = lazySchema(() =>
     backendType: z.string().optional(),
   }),
 )
-export type ShutdownApprovedMessage = z.infer<ReturnType<typeof ShutdownApprovedMessageSchema>>
+type ShutdownApprovedMessage = z.infer<ReturnType<typeof ShutdownApprovedMessageSchema>>
 
 export function createShutdownApprovedMessage(params: {
   requestId: string
@@ -260,7 +260,7 @@ export function isShutdownApproved(text: string): ShutdownApprovedMessage | null
   return result.success ? result.data : null
 }
 
-export const ShutdownRejectedMessageSchema = lazySchema(() =>
+const ShutdownRejectedMessageSchema = lazySchema(() =>
   z.object({
     type: z.literal('shutdown_rejected'),
     requestId: z.string(),
@@ -325,7 +325,7 @@ export function isCrewPermissionUpdate(text: string): CrewPermissionUpdateMessag
   return parsed as CrewPermissionUpdateMessage
 }
 
-export const ModeSetRequestMessageSchema = lazySchema(() =>
+const ModeSetRequestMessageSchema = lazySchema(() =>
   z.object({
     type: z.literal('mode_set_request'),
     mode: z.custom<InternalPermissionMode>(
@@ -334,7 +334,7 @@ export const ModeSetRequestMessageSchema = lazySchema(() =>
     from: z.string(),
   }),
 )
-export type ModeSetRequestMessage = z.infer<ReturnType<typeof ModeSetRequestMessageSchema>>
+type ModeSetRequestMessage = z.infer<ReturnType<typeof ModeSetRequestMessageSchema>>
 
 export function isModeSetRequest(text: string): ModeSetRequestMessage | null {
   const parsed = parseStructuredText(text)

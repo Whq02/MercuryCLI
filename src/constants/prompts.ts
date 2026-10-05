@@ -61,7 +61,7 @@ function getModelCurrencySection(): string {
 }
 
 
-export function prependBullets(items: Array<string | string[]>): string[] {
+function prependBullets(items: Array<string | string[]>): string[] {
   const out: string[] = []
   for (const item of items) {
     if (typeof item === 'string') out.push(` - ${item}`)
@@ -79,7 +79,7 @@ function shellLine(): string {
   return `Shell: ${shell}`
 }
 
-export function getUnameSR(): string {
+function getUnameSR(): string {
   if (process.platform === 'win32') return `${osVersion()} ${release()}`
   return `${osType()} ${release()}`
 }

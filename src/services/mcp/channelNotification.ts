@@ -9,7 +9,6 @@ import { isChannelsEnabled } from './channelAllowlist.js'
 
 
 export const CHANNEL_MESSAGE_METHOD = 'notifications/claude/channel'
-export const CHANNEL_PERMISSION_METHOD = 'notifications/claude/channel/permission'
 
 export const CHANNEL_CAPABILITY_KEY = 'claude/channel'
 
@@ -30,7 +29,7 @@ export function wrapChannelMessage(
 }
 
 
-export type ChannelGateResult =
+type ChannelGateResult =
   | { register: true; entry: ChannelEntry }
   | {
       register: false
@@ -43,7 +42,7 @@ function capabilityDeclared(capabilities: unknown, key: string): boolean {
   return Boolean(experimental?.[key])
 }
 
-export function findChannelEntry(serverName: string, channels: ChannelEntry[]): ChannelEntry | undefined {
+function findChannelEntry(serverName: string, channels: ChannelEntry[]): ChannelEntry | undefined {
   for (const entry of channels) {
     if (entry.kind === 'server') {
       if (entry.name === serverName) return entry

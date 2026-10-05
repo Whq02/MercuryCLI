@@ -6,7 +6,7 @@ import type { ValidationResult } from '../../Tool.js'
 import { getCwd } from '../../utils/cwd.js'
 import { IMAGE_EXTENSION_REGEX } from '../../utils/imagePaste.js'
 
-export type ResolvedAttachment = {
+type ResolvedAttachment = {
   path: string
   size: number
   isImage: boolean

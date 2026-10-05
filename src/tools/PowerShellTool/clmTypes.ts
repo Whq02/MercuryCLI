@@ -1,5 +1,5 @@
 
-export const CLM_ALLOWED_TYPES: ReadonlySet<string> = new Set([
+const CLM_ALLOWED_TYPES: ReadonlySet<string> = new Set([
   'alias', 'allowemptycollection', 'allowemptystring', 'allownull',
   'argumentcompleter', 'argumentcompletions', 'array', 'bigint', 'bool', 'byte',
   'char', 'cimclass', 'cimconverter', 'ciminstance', 'cimtype', 'cmdletbinding',
@@ -43,7 +43,7 @@ export const CLM_ALLOWED_TYPES: ReadonlySet<string> = new Set([
   'microsoft.powershell.commands.modulespecification',
 ])
 
-export function normalizeTypeName(name: string): string {
+function normalizeTypeName(name: string): string {
   let out = name.toLowerCase().trim()
   out = out.replace(/\[\s*\]$/, '')
   out = out.replace(/\[[^\]]*\]$/, '')

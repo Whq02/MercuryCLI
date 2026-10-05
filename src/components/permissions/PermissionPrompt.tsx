@@ -5,7 +5,7 @@ import { useKeybindings } from '../../keybindings/useKeybinding.js'
 import { useSetAppState } from '../../state/AppState.js'
 import { type OptionWithDescription, Select } from '../CustomSelect/select.js'
 
-export type FeedbackType = 'accept' | 'reject'
+type FeedbackType = 'accept' | 'reject'
 
 export type PermissionPromptOption<T extends string> = {
   value: T
@@ -17,7 +17,7 @@ export type PermissionPromptOption<T extends string> = {
   keybinding?: KeybindingAction
 }
 
-export type PermissionPromptProps<T extends string> = {
+type PermissionPromptProps<T extends string> = {
   options: PermissionPromptOption<T>[]
   onSelect: (value: T, feedback?: string) => void
   onCancel?: () => void

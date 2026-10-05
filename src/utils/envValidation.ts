@@ -1,7 +1,7 @@
 import { logForDebugging } from './debug.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 
-export type EnvVarValidationResult = {
+type EnvVarValidationResult = {
   effective: number
   status: 'valid' | 'capped' | 'invalid'
   message?: string

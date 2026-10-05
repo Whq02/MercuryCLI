@@ -40,7 +40,7 @@ export function excludeToolsByServer<T extends NamedTool>(tools: T[], serverName
   return tools.filter(tool => !toolBelongsToServer(tool, serverName, prefix))
 }
 
-export function commandBelongsToServer(command: NamedCommand, serverName: string): boolean {
+function commandBelongsToServer(command: NamedCommand, serverName: string): boolean {
   const normalized = normalizeNameForMCP(serverName)
   return (
     command.name.startsWith(getMcpPrefix(serverName)) ||
@@ -102,7 +102,7 @@ function sortKeysDeep(value: unknown): unknown {
   return value
 }
 
-export function hashMcpConfig(config: McpServerConfig | ScopedMcpServerConfig): string {
+function hashMcpConfig(config: McpServerConfig | ScopedMcpServerConfig): string {
   const { scope: _scope, ...content } = config as ScopedMcpServerConfig
   const canonical = JSON.stringify(sortKeysDeep(content))
   return createHash('sha256').update(canonical).digest('hex').slice(0, 16)

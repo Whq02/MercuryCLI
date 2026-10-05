@@ -17,7 +17,7 @@ import {
 } from '../utils/messages.js'
 
 
-export type NavigableType =
+type NavigableType =
   | 'user'
   | 'assistant'
   | 'grouped_tool_use'
@@ -26,7 +26,7 @@ export type NavigableType =
   | 'attachment'
   | 'turn_receipt'
 
-export type NavigableMessage = RenderableMessage
+type NavigableMessage = RenderableMessage
 
 const ALL_NAVIGABLE_TYPES: readonly NavigableType[] = [
   'user',
@@ -244,7 +244,7 @@ export type MessageActionsNav = {
   getSelected: () => NavigableMessage | undefined
 }
 
-export type MessageActionCaps = {
+type MessageActionCaps = {
   copy: (text: string) => void
   edit: (userMessage: NormalizedUserMessage) => Promise<void>
 }

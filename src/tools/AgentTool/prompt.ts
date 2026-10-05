@@ -29,7 +29,7 @@ function describeTools(agent: AgentDefinition): string {
   return 'All tools'
 }
 
-export function formatAgentLine(agent: AgentDefinition): string {
+function formatAgentLine(agent: AgentDefinition): string {
   return `- ${agent.agentType}: ${agent.whenToUse} (Tools: ${describeTools(agent)})`
 }
 

@@ -64,12 +64,12 @@ export type AlreadyReadFileAttachment = {
   displayPath: string
 }
 
-export type AgentMentionAttachment = {
+type AgentMentionAttachment = {
   type: 'agent_mention'
   agentType: string
 }
 
-export type AsyncHookResponseAttachment = {
+type AsyncHookResponseAttachment = {
   type: 'async_hook_response'
   processId: string
   hookName: string
@@ -125,7 +125,7 @@ export type BypassedAskAttachment = {
   reason: string
 }
 
-export type HookSystemMessageAttachment = {
+type HookSystemMessageAttachment = {
   type: 'hook_system_message'
   content: string
   hookName: string
@@ -133,7 +133,7 @@ export type HookSystemMessageAttachment = {
   hookEvent: HookEvent
 }
 
-export type HookCancelledAttachment = {
+type HookCancelledAttachment = {
   type: 'hook_cancelled'
   hookName: string
   toolUseID: string
@@ -142,7 +142,7 @@ export type HookCancelledAttachment = {
   durationMs?: number
 }
 
-export type HookErrorDuringExecutionAttachment = {
+type HookErrorDuringExecutionAttachment = {
   type: 'hook_error_during_execution'
   content: string
   hookName: string
@@ -152,7 +152,7 @@ export type HookErrorDuringExecutionAttachment = {
   durationMs?: number
 }
 
-export type HookSuccessAttachment = {
+type HookSuccessAttachment = {
   type: 'hook_success'
   content: string
   hookName: string
@@ -165,7 +165,7 @@ export type HookSuccessAttachment = {
   durationMs?: number
 }
 
-export type HookNonBlockingErrorAttachment = {
+type HookNonBlockingErrorAttachment = {
   type: 'hook_non_blocking_error'
   hookName: string
   stderr: string

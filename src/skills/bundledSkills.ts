@@ -10,7 +10,7 @@ import { getBundledSkillsRoot } from '../utils/permissions/filesystem.js'
 import { logForDebugging } from '../utils/debug.js'
 import { baseDirLine } from './baseDirLine.js'
 
-export type BundledSkillDefinition = {
+type BundledSkillDefinition = {
   name: string
   description: string | (() => string)
   menuDescription?: string

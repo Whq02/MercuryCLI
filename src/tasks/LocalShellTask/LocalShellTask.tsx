@@ -51,7 +51,7 @@ const WATCHDOG_POLL_INTERVAL_MS = 5000
 const WATCHDOG_STALL_THRESHOLD_MS = 45_000
 const WATCHDOG_TAIL_BYTES = 1024
 
-export function looksLikePrompt(tail: string): boolean {
+function looksLikePrompt(tail: string): boolean {
   const lines = tail.trimEnd().split('\n')
   const lastLine = (lines[lines.length - 1] ?? '').trim()
   if (lastLine === '') return false

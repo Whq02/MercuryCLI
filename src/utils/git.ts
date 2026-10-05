@@ -115,7 +115,7 @@ export async function dirIsInGitRepo(cwd: string): Promise<boolean> {
 }
 
 
-export async function getHead(): Promise<string> {
+async function getHead(): Promise<string> {
   return getCachedHead()
 }
 
@@ -149,35 +149,6 @@ export async function getRemoteUrl(): Promise<string | null> {
 export function redactGitRemoteCredentials<T extends string | null | undefined>(url: T): T {
   if (url === null || url === undefined) return url
   return (url as string).replace(/:\/\/[^/@]+@/, '://***@') as T
-}
-
-export function normalizeGitRemoteUrl(url: string): string | null {
-  let host: string | undefined
-  let path: string | undefined
-  const ssh = /^git@([^:]+):(.+)$/.exec(url)
-  if (ssh) {
-    host = ssh[1] as string
-    path = ssh[2] as string
-  } else {
-    const parsed = /^(https?|ssh):\/\/(?:[^@/]+@)?([^/]+)\/(.+)$/.exec(url)
-    if (!parsed) return null
-    host = parsed[2] as string
-    path = parsed[3] as string
-  }
-  path = path.replace(/\.git$/, '').replace(/\/+$/, '')
-  const bareHost = host.replace(/:\d+$/, '')
-  if ((bareHost === 'localhost' || /^127\.\d+\.\d+\.\d+$/.test(bareHost)) && path.startsWith('git/')) {
-    const remainder = path.slice('git/'.length)
-    const segments = remainder.split('/')
-    if (segments.length >= 3 && (segments[0] as string).includes('.')) {
-      host = segments[0] as string
-      path = segments.slice(1).join('/')
-    } else {
-      host = 'github.com'
-      path = remainder
-    }
-  }
-  return `${host}/${path}`.toLowerCase()
 }
 
 
@@ -253,7 +224,7 @@ export async function getIsClean(options?: {
   return (await probeClean(mode)).value ?? false
 }
 
-export type GitFileStatus = {
+type GitFileStatus = {
   tracked: string[]
   untracked: string[]
 }
@@ -285,7 +256,7 @@ export async function getFileStatus(): Promise<GitFileStatus> {
   return { tracked, untracked }
 }
 
-export async function getWorktreeCount(): Promise<number> {
+async function getWorktreeCount(): Promise<number> {
   return getWorktreeCountFromFs()
 }
 
@@ -627,35 +598,6 @@ export async function getGithubRepo(): Promise<string | null> {
   }
   logForDebugging(`getGithubRepo: ${parsed.owner}/${parsed.name}`)
   return `${parsed.owner}/${parsed.name}`
-}
-
-
-export type PreservedGitState = {
-  remote_base_sha: string | null
-  remote_base: string | null
-  patch: string
-  untracked_files: Array<{ path: string; content: string }>
-  format_patch: string | null
-  head_sha: string | null
-  branch_name: string | null
-}
-
-export async function findRemoteBase(): Promise<string | null> {
-  const upstream = await execFileNoThrow(gitExe(), ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}'], {
-    preserveOutputOnError: false,
-  })
-  if (upstream.code === 0 && upstream.stdout.trim() !== '') return upstream.stdout.trim()
-  const symbolic = await execFileNoThrow(gitExe(), ['symbolic-ref', 'refs/remotes/origin/HEAD'], { preserveOutputOnError: false })
-  const candidates: string[] = []
-  if (symbolic.code === 0 && symbolic.stdout.trim() !== '') {
-    candidates.push(symbolic.stdout.trim().replace(/^refs\/remotes\//, ''))
-  }
-  candidates.push('origin/main', 'origin/staging', 'origin/master')
-  for (const candidate of candidates) {
-    const probe = await execFileNoThrow(gitExe(), ['rev-parse', '--verify', candidate], { preserveOutputOnError: false })
-    if (probe.code === 0) return candidate
-  }
-  return null
 }
 
 

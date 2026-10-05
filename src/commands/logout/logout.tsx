@@ -18,7 +18,7 @@ import { getSecureStorage } from '../../utils/secureStorage/index.js'
 import { clearToolSchemaCache } from '../../utils/toolSchemaCache.js'
 import { resetUserCache } from '../../utils/user.js'
 
-export function clearAuthRelatedCaches(): void {
+function clearAuthRelatedCaches(): void {
   clearOAuthTokenCache()
   clearBetasCaches()
   clearToolSchemaCache()

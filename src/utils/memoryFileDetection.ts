@@ -53,8 +53,6 @@ export function memoryWriteRefusal(filePath: string): string | null {
   return `${filePath} is Mercury's memory: save with ${RETAIN_TOOL_NAME} and change with ${CORRECT_TOOL_NAME} — a direct write is refused.`
 }
 
-export type MemoryScope = 'personal' | 'team'
-
 function isAgentMemFile(filePath: string): boolean {
   if (!isMnemeEnabled()) return false
   return isAgentMemoryPath(filePath)

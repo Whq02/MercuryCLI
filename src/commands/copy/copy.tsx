@@ -26,7 +26,7 @@ const BLOCK_LABEL_WIDTH = 60
 
 const FULL_RESPONSE_FILENAME = 'response.md'
 
-export function collectRecentAssistantTexts(messages: Message[]): string[] {
+function collectRecentAssistantTexts(messages: Message[]): string[] {
   const texts: string[] = []
   for (let i = messages.length - 1; i >= 0 && texts.length < LOOK_BACK_CAP; i--) {
     const message = messages[i]
@@ -46,7 +46,7 @@ export function collectRecentAssistantTexts(messages: Message[]): string[] {
   return texts
 }
 
-export function fileExtension(lang: string | undefined): string {
+function fileExtension(lang: string | undefined): string {
   const sanitized = (lang ?? '').replace(/[^a-zA-Z0-9]/g, '')
   if (sanitized === '' || sanitized === 'plaintext') return '.txt'
   return `.${sanitized}`

@@ -7,7 +7,7 @@ import { usageWarningTier } from './providers/usageTiers.js'
 
 const SEPARATOR = ' · '
 
-export const RATE_LIMIT_ERROR_PREFIXES = [
+const RATE_LIMIT_ERROR_PREFIXES = [
   "Anthropic says this account's",
   'Anthropic says this account has used',
   'Anthropic says this account is now using extra usage · ',

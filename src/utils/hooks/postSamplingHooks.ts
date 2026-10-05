@@ -14,7 +14,7 @@ export type ChatHookContext = {
   querySource?: QuerySource
 }
 
-export type PostSamplingHook = (context: ChatHookContext) => Promise<void> | void
+type PostSamplingHook = (context: ChatHookContext) => Promise<void> | void
 
 const hooks: PostSamplingHook[] = []
 

@@ -23,7 +23,7 @@ export type ParsedRedirection = {
   isMerging: boolean
 }
 
-export type CommandElementChild = { type: ElementClass; text: string }
+type CommandElementChild = { type: ElementClass; text: string }
 
 export type ParsedCommandElement = {
   name: string
@@ -66,10 +66,10 @@ export type ParsedPowerShellCommand = {
   hasScriptRequirements?: boolean
 }
 
-export type RawCommandElement = Record<string, unknown>
-export type RawRedirection = Record<string, unknown>
-export type RawPipelineElement = Record<string, unknown>
-export type RawStatement = Record<string, unknown>
+type RawCommandElement = Record<string, unknown>
+type RawRedirection = Record<string, unknown>
+type RawPipelineElement = Record<string, unknown>
+type RawStatement = Record<string, unknown>
 
 
 export const COMMON_ALIASES: Record<string, string> = Object.assign(Object.create(null), {
@@ -127,11 +127,11 @@ const ARGV_OVERHEAD = 200
 const BASE64_SAFETY_MARGIN = 100
 const NON_WINDOWS_BUDGET = 4500
 
-export const PARSE_SCRIPT_BODY = buildAnalysisProgramBody()
+const PARSE_SCRIPT_BODY = buildAnalysisProgramBody()
 
-export const WINDOWS_MAX_COMMAND_LENGTH = computeWindowsBudget()
+const WINDOWS_MAX_COMMAND_LENGTH = computeWindowsBudget()
 
-export const MAX_COMMAND_LENGTH = process.platform === 'win32' ? WINDOWS_MAX_COMMAND_LENGTH : NON_WINDOWS_BUDGET
+const MAX_COMMAND_LENGTH = process.platform === 'win32' ? WINDOWS_MAX_COMMAND_LENGTH : NON_WINDOWS_BUDGET
 
 function computeWindowsBudget(): number {
   const programCharBudget = ((WINDOWS_ARGV_CAP - ARGV_OVERHEAD) * 3) / 8
@@ -169,7 +169,7 @@ const RECOGNISED_STATEMENT_TYPES: ReadonlySet<string> = new Set([
   'FunctionDefinitionAst', 'DataStatementAst',
 ])
 
-export function mapStatementType(typeName: string): string {
+function mapStatementType(typeName: string): string {
   return RECOGNISED_STATEMENT_TYPES.has(typeName) ? typeName : 'UnknownStatementAst'
 }
 
@@ -187,7 +187,7 @@ const ELEMENT_CLASS_BY_AST = new Map<string, ElementClass>([
   ['CommandParameterAst', 'Parameter'],
 ])
 
-export function mapElementType(typeName: string | undefined, wrappedTypeName?: string): ElementClass {
+function mapElementType(typeName: string | undefined, wrappedTypeName?: string): ElementClass {
   const expression = typeName === 'CommandExpressionAst' ? wrappedTypeName : typeName
   return expression === undefined ? 'Other' : ELEMENT_CLASS_BY_AST.get(expression) ?? 'Other'
 }
@@ -200,7 +200,7 @@ function asArray<T>(value: unknown): T[] {
 
 const NULL_TARGET_RE = /^\$\{?null\}?$/i
 
-export function transformRedirection(raw: RawRedirection): ParsedRedirection {
+function transformRedirection(raw: RawRedirection): ParsedRedirection {
   if (raw.type === 'MergingRedirectionAst') {
     return { operator: '2>&1', target: '', isMerging: true }
   }
@@ -233,7 +233,7 @@ function extractCommandName(elements: RawCommandElement[]): {
   return { name: raw, classification: classifyCommandName(raw) }
 }
 
-export function transformCommandAst(raw: RawCommandElement, elementType: string): ParsedCommandElement {
+function transformCommandAst(raw: RawCommandElement, elementType: string): ParsedCommandElement {
   const elements = asArray<RawCommandElement>(raw.elements)
   const { name, classification } = extractCommandName(elements)
 
@@ -272,7 +272,7 @@ export function transformCommandAst(raw: RawCommandElement, elementType: string)
   }
 }
 
-export function transformExpressionElement(raw: RawPipelineElement): ParsedCommandElement {
+function transformExpressionElement(raw: RawPipelineElement): ParsedCommandElement {
   const text = (raw.text as string) ?? ''
   const wrapped = raw.wrappedType as string | undefined
   const rawKind = raw.type as string
@@ -299,7 +299,7 @@ function dedupeRedirections(redirections: ParsedRedirection[]): ParsedRedirectio
   return out
 }
 
-export function transformStatement(raw: RawStatement): ParsedStatement {
+function transformStatement(raw: RawStatement): ParsedStatement {
   const typeName = (raw.type as string) ?? 'UnknownStatementAst'
   const isPipeline = raw.elements !== undefined
 
@@ -519,7 +519,7 @@ export function getAllCommandNames(parsed: ParsedPowerShellCommand): string[] {
   return getAllCommands(parsed).map(c => c.name.toLowerCase())
 }
 
-export function getAllRedirections(parsed: ParsedPowerShellCommand): ParsedRedirection[] {
+function getAllRedirections(parsed: ParsedPowerShellCommand): ParsedRedirection[] {
   const out: ParsedRedirection[] = []
   for (const statement of parsed.statements) {
     out.push(...(statement.redirections ?? []))

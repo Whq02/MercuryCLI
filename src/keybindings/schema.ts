@@ -73,7 +73,7 @@ export const KeybindingBlockSchema = lazySchema(() =>
   }),
 )
 
-export const KeybindingsSchema = lazySchema(() =>
+const KeybindingsSchema = lazySchema(() =>
   z.object({
     $schema: z.string().optional().describe('A JSON-Schema URL for editor validation'),
     $docs: z.string().optional().describe('A documentation URL'),

@@ -5,13 +5,13 @@ import { jsonParse } from './slowOperations.js'
 
 export type PrReviewState = 'approved' | 'pending' | 'changes_requested' | 'draft' | 'merged' | 'closed'
 
-export type PrStatus = {
+type PrStatus = {
   number: number
   url: string
   reviewState: PrReviewState
 }
 
-export function deriveReviewState(isDraft: boolean, reviewDecision: string): PrReviewState {
+function deriveReviewState(isDraft: boolean, reviewDecision: string): PrReviewState {
   if (isDraft) return 'draft'
   if (reviewDecision === 'APPROVED') return 'approved'
   if (reviewDecision === 'CHANGES_REQUESTED') return 'changes_requested'

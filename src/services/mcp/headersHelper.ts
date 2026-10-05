@@ -14,7 +14,7 @@ type RemoteWithHelper = {
   scope?: string
 }
 
-export async function getMcpHeadersFromHelper(
+async function getMcpHeadersFromHelper(
   serverName: string,
   config: McpServerConfig | ScopedMcpServerConfig,
 ): Promise<Record<string, string> | undefined> {

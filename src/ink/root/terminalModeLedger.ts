@@ -12,7 +12,7 @@ export type TerminalMode =
   | 'progress-ring'
   | 'terminal-title'
 
-export type ModeState = 'acquired' | 'imported' | 'released'
+type ModeState = 'acquired' | 'imported' | 'released'
 
 export interface TerminalModeRecord {
   owner: string

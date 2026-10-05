@@ -4,7 +4,7 @@ import type { TerminalResponse } from '../input/input-decoder.js'
 import { csi } from '../termio/csi.js'
 import { osc } from '../termio/osc.js'
 
-export type TerminalQuery<T extends TerminalResponse = TerminalResponse> = {
+type TerminalQuery<T extends TerminalResponse = TerminalResponse> = {
   request: string
   match: (r: TerminalResponse) => r is T
 }

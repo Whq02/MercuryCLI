@@ -9,8 +9,8 @@ import { getCACertificates } from './caCerts.js'
 import { logForDebugging } from './debug.js'
 
 
-export type MTLSConfig = { cert?: string; key?: string; passphrase?: string }
-export type TLSConfig = MTLSConfig & { ca?: string[] }
+type MTLSConfig = { cert?: string; key?: string; passphrase?: string }
+type TLSConfig = MTLSConfig & { ca?: string[] }
 
 function readMaterial(variable: string): string | undefined {
   const path = process.env[variable]

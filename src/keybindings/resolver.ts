@@ -45,7 +45,7 @@ function buildKeystroke(input: string, key: Key): ParsedKeystroke | null {
   }
 }
 
-export function keystrokesEqual(a: ParsedKeystroke, b: ParsedKeystroke): boolean {
+function keystrokesEqual(a: ParsedKeystroke, b: ParsedKeystroke): boolean {
   return (
     a.key === b.key &&
     a.ctrl === b.ctrl &&

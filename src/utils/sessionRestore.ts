@@ -1,7 +1,7 @@
 import { getEngineModelOverride, getSessionId, setEngineModelOverride, setMainThreadAgentType, getLastApiCompletionTimestamp, setLastApiCompletionTimestamp } from '../bootstrap/state.js'
 import { restoreCostStateForSession } from '../cost-tracker.js'
 import type { AppState } from '../state/AppStateStore.js'
-import type { AgentColorName } from '../tools/AgentTool/agentColorManager.js'
+
 import type { AgentDefinition, AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js'
 import type { PersistedWorktreeSession } from '../types/logs.js'
 import type { AssistantMessage, Message } from '../types/message.js'
@@ -36,8 +36,6 @@ export type ResumedConversationLog = {
   prUrl?: string
   prRepository?: string
 }
-
-const DEFAULT_AGENT_COLOR = 'default'
 
 const INHERIT_MODEL_SENTINEL = 'inherit'
 
@@ -98,20 +96,6 @@ function adoptedSessionIdOf(result: Pick<ResumedConversationLog, 'messages' | 's
   return String(result.sessionId ?? fromMessages?.sessionId ?? getSessionId())
 }
 
-
-export function computeStandaloneAgentContext(
-  agentName: string | undefined,
-  agentColor: string | undefined,
-): { name: string; color?: AgentColorName } | undefined {
-  if (agentName === undefined && agentColor === undefined) return undefined
-  return {
-    name: agentName ?? '',
-    ...(agentColor !== undefined && agentColor !== DEFAULT_AGENT_COLOR
-      ? { color: agentColor as AgentColorName }
-      : {}),
-  }
-}
-
 export function restoreAgentFromSession(
   agentSetting: string | undefined,
   currentAgentDefinition: AgentDefinition | undefined,
@@ -142,7 +126,6 @@ export function restoreAgentFromSession(
   }
   return { agentDefinition: match, agentType: agentSetting }
 }
-
 
 export function restoreConversationModelFromMessages(messages?: Message[]): string | null {
   if (!messages || messages.length === 0) return null

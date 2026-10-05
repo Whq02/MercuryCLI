@@ -47,7 +47,7 @@ type SessionHookGroup = {
   hooks: SessionHookEntry[]
 }
 
-export type SessionStore = {
+type SessionStore = {
   hooks: Partial<Record<HookEvent, SessionHookGroup[]>>
 }
 

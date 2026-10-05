@@ -1,7 +1,7 @@
 
-export const COMMON_SWITCHES: string[] = ['-verbose', '-debug']
+const COMMON_SWITCHES: string[] = ['-verbose', '-debug']
 
-export const COMMON_VALUE_PARAMS: string[] = [
+const COMMON_VALUE_PARAMS: string[] = [
   '-erroraction', '-warningaction', '-informationaction', '-progressaction',
   '-errorvariable', '-warningvariable', '-informationvariable', '-outvariable',
   '-outbuffer', '-pipelinevariable',

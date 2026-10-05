@@ -2,7 +2,7 @@ import { extractOutputRedirections, splitCommandWithOperators } from './commands
 import type { Node } from './parser.js'
 import { analyzeCommand, type TreeSitterAnalysis } from './treeSitterAnalysis.js'
 
-export type OutputRedirection = {
+type OutputRedirection = {
   target: string
   operator: '>' | '>>'
 }
@@ -115,7 +115,7 @@ function collectOutputRedirections(rootNode: Node): RedirectionRecord[] {
   return records
 }
 
-export class RegexParsedCommand_DEPRECATED implements IParsedCommand {
+class RegexParsedCommand_DEPRECATED implements IParsedCommand {
   readonly originalCommand: string
 
   constructor(command: string) {

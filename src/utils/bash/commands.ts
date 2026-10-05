@@ -179,7 +179,7 @@ function dedupeQuoteMarkers(text: string, markers: Markers): string {
     .join(markers.singleQuote)
 }
 
-export function filterControlOperators(parts: string[]): string[] {
+function filterControlOperators(parts: string[]): string[] {
   return parts.filter(part => !CONTROL_OPERATOR_TOKENS.has(part))
 }
 
@@ -540,7 +540,7 @@ function quoteFragmentForReconstruction(fragment: string): string {
 }
 
 
-export function isHelpCommand(command: string): boolean {
+function isHelpCommand(command: string): boolean {
   const trimmed = command.trim()
   if (!trimmed.endsWith('--help')) return false
   if (trimmed.includes('"') || trimmed.includes("'")) return false

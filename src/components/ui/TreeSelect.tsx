@@ -19,7 +19,7 @@ export type TreeNode<T> = {
   metadata?: Record<string, unknown>
 }
 
-export type TreeSelectProps<T> = {
+type TreeSelectProps<T> = {
   nodes: TreeNode<T>[]
   focusedNodeId?: string
   isNodeExpanded?: (nodeId: string) => boolean

@@ -177,20 +177,6 @@ export function computeActiveAgents(
 }
 
 
-export function hasRequiredMcpServers(
-  agent: AgentDefinition,
-  availableServers: readonly string[],
-): boolean {
-  const required = agent.requiredMcpServers
-  if (!required || required.length === 0) return true
-  const lowered = availableServers.map(name => name.toLowerCase())
-  return required.every(pattern => {
-    const needle = pattern.toLowerCase()
-    return lowered.some(name => name.includes(needle))
-  })
-}
-
-
 function makeSystemPromptClosure(
   agentType: string,
   prompt: string,
@@ -245,7 +231,7 @@ function validateHooks(raw: unknown, origin: string): HooksSettings | undefined 
 }
 
 
-export function parseAgentFromMarkdown(
+function parseAgentFromMarkdown(
   filePath: string,
   baseDir: string,
   frontmatter: Record<string, unknown>,

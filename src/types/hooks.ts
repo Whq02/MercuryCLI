@@ -1,9 +1,8 @@
 import { z } from 'zod/v4'
 import { lazySchema } from '../utils/lazySchema.js'
-import { HookJSONOutputSchema, SyncHookJSONOutputSchema, type AsyncHookJSONOutput, type HookEvent, type HookInput, type HookJSONOutput, type SyncHookJSONOutput } from '../utils/hooks/contract.js'
+import { HookJSONOutputSchema, type AsyncHookJSONOutput, type HookEvent, type HookInput, type HookJSONOutput, type SyncHookJSONOutput } from '../utils/hooks/contract.js'
 import type { PermissionUpdate } from './permissions.js'
 import type { AppState } from '../state/AppState.js'
-
 
 export const promptRequestSchema = lazySchema(() =>
   z.object({
@@ -26,7 +25,6 @@ export type PromptResponse = {
   selected: string
 }
 
-export const syncHookResponseSchema = SyncHookJSONOutputSchema
 export const hookJSONOutputSchema = HookJSONOutputSchema
 
 export function isAsyncHookJSONOutput(
@@ -42,7 +40,7 @@ export function isSyncHookJSONOutput(
 }
 
 
-export type HookCallbackContext = {
+type HookCallbackContext = {
   getAppState: () => AppState
   updateAttributionState: (updater: (prev: unknown) => unknown) => void
 }

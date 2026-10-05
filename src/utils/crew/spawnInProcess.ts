@@ -27,12 +27,12 @@ import { markMemberStopped } from './crewHelpers.js'
 import { setLiveBusy } from '../../services/crew/liveComms.js'
 
 
-export type SpawnContext = {
+type SpawnContext = {
   setAppState: (updater: (prevState: AppState) => AppState) => void
   toolUseId?: string
 }
 
-export type InProcessSpawnConfig = {
+type InProcessSpawnConfig = {
   name: string
   crewName: string
   prompt: string
@@ -46,7 +46,7 @@ export type InProcessSpawnConfig = {
   instructionAtSpawn?: InProcessCrewmateTaskState['instructionAtSpawn']
 }
 
-export type InProcessSpawnOutput = {
+type InProcessSpawnOutput = {
   success: boolean
   agentId: string
   taskId?: string

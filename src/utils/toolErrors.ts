@@ -37,7 +37,7 @@ export function cutAroundSpillNotice(content: string, maxLength: number): string
   return head + notice + tail
 }
 
-export function getErrorParts(error: Error): string[] {
+function getErrorParts(error: Error): string[] {
   if (error instanceof ShellError) {
     const headline =
       !error.interrupted && Number.isFinite(error.code) && error.code !== 0

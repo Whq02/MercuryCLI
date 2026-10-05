@@ -1,4 +1,4 @@
-export const PROMPT_PREFIX = 'prompt:'
+
 
 export type ClassifierResult = {
   matches: boolean

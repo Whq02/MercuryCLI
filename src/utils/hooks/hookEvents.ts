@@ -4,7 +4,7 @@ import { HOOK_EVENTS } from './contract.js'
 import { logForDebugging } from '../debug.js'
 
 
-export type HookStartedEvent = {
+type HookStartedEvent = {
   type: 'started'
   hookId: string
   hookName: string
@@ -21,7 +21,7 @@ export type HookProgressEvent = {
   output: string
 }
 
-export type HookResponseEvent = {
+type HookResponseEvent = {
   type: 'response'
   hookId: string
   hookName: string
@@ -35,7 +35,7 @@ export type HookResponseEvent = {
 
 export type HookExecutionEvent = HookStartedEvent | HookProgressEvent | HookResponseEvent
 
-export type HookEventHandler = (event: HookExecutionEvent) => void
+type HookEventHandler = (event: HookExecutionEvent) => void
 
 const QUEUE_CAP = 100
 
@@ -114,12 +114,11 @@ export function takeHookEventHandler(): HookEventHandler | null {
   return handler
 }
 
-
 export function emitHookStarted(hookId: string, hookName: string, hookEvent: string): void {
   deliver({ type: 'started', hookId, hookName, hookEvent })
 }
 
-export function emitHookProgress(params: {
+function emitHookProgress(params: {
   hookId: string
   hookName: string
   hookEvent: string
@@ -180,15 +179,4 @@ export function hookProgressReporter(params: {
       output: delta,
     })
   }
-}
-
-export function startHookProgressInterval(params: {
-  hookId: string
-  hookName: string
-  hookEvent: string
-  getOutput: () => HookOutputSnapshot | Promise<HookOutputSnapshot>
-  intervalMs?: number
-}): () => void {
-  logForDebugging(`hook ${params.hookName} (${params.hookEvent}) progress rides its output chunks; the interval road is retired`)
-  return () => {}
 }

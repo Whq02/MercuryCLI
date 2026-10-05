@@ -123,7 +123,7 @@ export type UseTypeaheadResult = {
   hoverSuggestionAt: (index: number) => void
 }
 
-export function extractSearchToken({
+function extractSearchToken({
   token,
   isQuoted,
 }: {
@@ -140,7 +140,7 @@ export function extractSearchToken({
   return token.startsWith('@') ? token.slice(1) : token
 }
 
-export function formatReplacementValue({
+function formatReplacementValue({
   displayText,
   mode,
   hasAtPrefix,
@@ -164,7 +164,7 @@ export function formatReplacementValue({
   return `${displayText}${suffix}`
 }
 
-export function applyShellSuggestion(
+function applyShellSuggestion(
   suggestion: Suggestion,
   input: string,
   cursorOffset: number,
@@ -185,7 +185,7 @@ export function applyShellSuggestion(
   setCursorOffset(wordStart + replacement.length)
 }
 
-export function applyDirectorySuggestion(
+function applyDirectorySuggestion(
   input: string,
   suggestionId: string,
   tokenStartPos: number,
@@ -226,7 +226,7 @@ function shellCompletionTypeOf(
 
 const TOKEN_CHAR = /[^\s]/
 
-export function extractCompletionToken(
+function extractCompletionToken(
   text: string,
   cursorPos: number,
   includeAtSymbol?: boolean,

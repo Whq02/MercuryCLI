@@ -31,7 +31,7 @@ import {
   getSyntaxTheme,
 } from './StructuredDiff/colorDiff.js'
 
-export type ThemePickerProps = {
+type ThemePickerProps = {
   onThemeSelect: (setting: ThemeSetting) => void
   showIntroText?: boolean
   helpText?: string

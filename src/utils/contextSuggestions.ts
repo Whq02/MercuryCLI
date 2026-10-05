@@ -7,7 +7,7 @@ import { getDisplayPath } from './file.js'
 import { formatTokens } from './format.js'
 
 
-export type SuggestionSeverity = 'info' | 'warning'
+type SuggestionSeverity = 'info' | 'warning'
 
 export type ContextSuggestion = {
   severity: SuggestionSeverity
