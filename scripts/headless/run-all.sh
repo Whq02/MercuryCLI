@@ -19,6 +19,7 @@
 # gate-watch: src/rows/* src/runner/wire/* src/query/transitions.ts src/utils/messages/turnCut.ts scripts/mcp/_fixture-estate-server.mjs
 # gate-watch: src/daemon/runnerConnection.ts src/daemon/headlessRun.ts src/services/acp/childSession.ts
 # gate-watch: src/daemon/verbs.ts src/utils/settings/validationTips.ts
+# gate-watch: src/cli/headless/restartCarry.ts src/tasks/LocalAgentTask/launchReceipts.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
