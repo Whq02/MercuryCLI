@@ -140,7 +140,7 @@ section('§3 THE CELL — a phase line paints as its words, a tool line as runni
   const cell = read('src/components/concourse/LiveNowCell.tsx')
   check('the cell prefixes only a tool line with running', cell.includes("now.kind === 'tool' ? `running ${now.line}` : now.line"))
   const tiles = read('src/components/concourse/liveTiles.ts')
-  check('the tile derives the phase before the transcript activity and after the streaming text', tiles.indexOf("return { kind: 'streaming', line }") < tiles.indexOf('const phase = liveTilePhase(tail)') && tiles.indexOf('const phase = liveTilePhase(tail)') < tiles.indexOf('this.deps.activity({ sessionId: e.sessionId'))
+  check('the tile derives the phase before the transcript activity and after the streaming text', tiles.includes("return { kind: 'streaming', line }") && tiles.indexOf("return { kind: 'streaming', line }") < tiles.indexOf('const phase = liveTilePhase(tail)') && tiles.indexOf('const phase = liveTilePhase(tail)') < tiles.indexOf('this.deps.activity({ sessionId: e.sessionId'))
 }
 
 console.log(`\n${'═'.repeat(76)}`)
