@@ -335,9 +335,9 @@ if (process.argv[2] === '--serve') {
     const first = runProduct(fixture.port, { prompt: `describe @${SMALL}`, sessionId })
     const captured1 = fixture.capture()
     check('the first request carried the attached image', captured1[0]?.images.length === 1 && captured1[0].images[0]?.width === 64, j(captured1).slice(0, 300))
-    const rows = assistantTexts(first)
-    const refusalRow = rows.find(t => t.startsWith('API Error: OpenAI stream failed (openai-invalid_image)'))
-    check('the provider\'s refusal settled as the route\'s error row, its words unchanged', refusalRow !== undefined && refusalRow.includes('Invalid image'), j(rows).slice(0, 400) || `exit ${first.status}; stderr: ${first.stderr.slice(-300)}`)
+    const outcome = resultFrame(first)
+    const refusalRow = typeof (outcome?.error as { message?: unknown } | undefined)?.message === 'string' ? ((outcome!.error as { message: string }).message) : undefined
+    check('the provider\'s refusal settled as the run\'s failed outcome, its words unchanged', outcome?.status === 'failed' && refusalRow !== undefined && refusalRow.includes('openai-invalid_image') && refusalRow.includes('Invalid image'), j(outcome ?? assistantTexts(first)).slice(0, 400) || `exit ${first.status}; stderr: ${first.stderr.slice(-300)}`)
     const records = recordFiles(join(HOME, 'projects')).filter(p => p.endsWith(`${sessionId}.jsonl`))
     const record = records[0] ? readFileSync(records[0], 'utf8') : ''
     check('the session record holds the refusal row', record.includes('openai-invalid_image'), records.length === 0 ? `no record for ${sessionId} under ${join(HOME, 'projects')}` : '')
