@@ -459,10 +459,10 @@ console.log('F — the ground note: composed at dispatch from the REAL isolation
     'F5 the board brief (and its stage-2 title) derive from the words alone — the brief reads the session list\'s first-prompt extractor, which strips the note from every text',
     snapSrc.includes('extractFirstPromptFromHead(lines.join') && portableSrc.includes('const text = stripGroundNote(rawText)'),
   )
-  const logsSrc = read('src/utils/sessionStorage/logs.ts')
+  const indexSrc = read('src/utils/sessionStorage/sessionIndex.ts')
   check(
     "F5 the /resume and /sessions pickers' first-prompt reader strips it too — one mark, every namer",
-    logsSrc.includes('texts.push(stripGroundNote(content))') && logsSrc.includes('!(b.text as string).startsWith(GROUND_NOTE_MARK)'),
+    indexSrc.includes('[stripGroundNote(payload.content)]') && indexSrc.includes('!block.text.startsWith(GROUND_NOTE_MARK)'),
   )
 }
 
