@@ -1,17 +1,14 @@
 import figures from 'figures'
 import * as React from 'react'
 import { useContext } from 'react'
-import { Box, Text } from '../../ink.js'
-import { formatBriefTimestamp } from '../../utils/formatBriefTimestamp.js'
+import { Text } from '../../ink.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { MessageActionsSelectedContext } from '../messageActions.js'
-import { TranscriptNameplate, useMessageMeta } from './TranscriptNameplate.js'
+import { TranscriptNameplate } from './TranscriptNameplate.js'
 
 type Props = {
   text: string
-  useBriefLayout?: boolean
-  timestamp?: string
 }
 
 function userPointerColor(isSelected: boolean, accent: string): string {
@@ -20,29 +17,11 @@ function userPointerColor(isSelected: boolean, accent: string): string {
 }
 
 
-export function HighlightedThinkingText({
-  text,
-  useBriefLayout,
-  timestamp,
-}: Props): React.ReactNode {
+export function HighlightedThinkingText({ text }: Props): React.ReactNode {
   const isSelected = useContext(MessageActionsSelectedContext)
   const { accent } = useSessionAccent()
   const pointerColor = userPointerColor(isSelected, accent)
   const textColor = useMercuryTokens().accentSoft
-  const meta = useMessageMeta()
-  if (useBriefLayout) {
-    const ts = meta?.queued ? 'queued' : timestamp ? formatBriefTimestamp(timestamp) : ''
-    return (
-      <Box flexDirection="column" paddingLeft={2}>
-        <Box flexDirection="row">
-          <Text color={'briefLabelYou'}>You</Text>
-          {ts ? <Text dimColor> {ts}</Text> : null}
-        </Box>
-        <Text color={textColor}>{text}</Text>
-      </Box>
-    )
-  }
-
   return (
     <Text>
       <TranscriptNameplate />

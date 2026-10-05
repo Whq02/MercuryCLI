@@ -56,7 +56,7 @@ export function MessageMetaProvider({
       : 'user'
   const timestamp = message?.timestamp
   const queued = message?.queued === true
-  const heldFor = message?.heldFor === 'compaction' ? ('compaction' as const) : undefined
+  const heldFor = queued && message?.heldFor === 'compaction' ? ('compaction' as const) : undefined
   const attachedClassify = React.useContext(AttachedAttributionContext)
   const attachedAuthor: AttachedAuthor | undefined =
     attachedClassify !== null ? (role === 'assistant' ? 'agent' : attachedClassify(message)) : undefined
@@ -95,6 +95,15 @@ export const HELD_PLATE = 'held'.padEnd(8)
 export const HELD_FOR_COMPACTION_LINE = 'held until the compaction lands — it delivers once, on its own (↑ takes it back)'
 const plateOf = (meta: { queued?: boolean; heldFor?: 'compaction' }): string => (meta.heldFor === 'compaction' ? HELD_PLATE : QUEUED_PLATE)
 
+export type ClockColumnMeta = { timestamp?: string; queued?: boolean; heldFor?: 'compaction' }
+
+export function clockColumnOf(meta: ClockColumnMeta, grammar: 'plate' | 'notice'): string | null {
+  const clock = formatClock(meta.timestamp)
+  if (meta.queued !== true) return clock === null ? null : `${clock} `
+  if (grammar === 'plate') return `${plateOf(meta)} `
+  return `${HELD_PLATE} ${meta.heldFor !== 'compaction' && clock !== null ? `since ${clock} ` : ''}`
+}
+
 export function formatClock(ts?: string): string | null {
   if (!ts) return null
   const d = new Date(ts)
@@ -105,12 +114,9 @@ export function formatClock(ts?: string): string | null {
 export function NameplateClock(): React.ReactNode {
   const meta = React.useContext(MessageMetaContext)
   if (!meta) return null
-  const clock = formatClock(meta.timestamp)
-  if (meta.queued) {
-    return <Text color={FAINT}>{HELD_PLATE} {meta.heldFor !== 'compaction' && clock ? `since ${clock} ` : ''}</Text>
-  }
-  if (!clock) return null
-  return <Text color={FAINT}>{clock} </Text>
+  const column = clockColumnOf(meta, 'notice')
+  if (column === null) return null
+  return <Text color={FAINT}>{column}</Text>
 }
 
 export function TranscriptNameplate(): React.ReactNode {
@@ -145,13 +151,10 @@ export function TranscriptNameplate(): React.ReactNode {
     name = isAgent ? 'Mercury' : userHandle()
     nameColor = isAgent ? critter.accent : userBloom
   }
+  const column = clockColumnOf(meta, 'plate')
   return (
     <Text>
-      {meta.queued ? (
-        <Text color={FAINT}>{plateOf(meta)} </Text>
-      ) : clock ? (
-        <Text color={FAINT}>{clock} </Text>
-      ) : null}
+      {column === null ? null : <Text color={FAINT}>{column}</Text>}
       <Text color={FAINT}>[</Text>
       <Text color={nameColor}>{name}</Text>
       <Text color={FAINT}>] </Text>

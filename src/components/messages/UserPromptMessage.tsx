@@ -23,8 +23,6 @@ function headTailTruncated(text: string): string {
 export function UserPromptMessage({
   addMargin,
   param,
-  isTranscriptMode,
-  timestamp,
 }: {
   addMargin: boolean
   param: TextBlockParam
@@ -33,7 +31,6 @@ export function UserPromptMessage({
 }): React.ReactNode {
   const sanitized = headTailTruncated(stripTerminalControls(param.text))
   const isSelected = useContext(MessageActionsSelectedContext)
-  void isTranscriptMode
   if (sanitized === '') {
     logError(new Error('UserPromptMessage rendered with empty text'))
     return null
@@ -44,7 +41,7 @@ export function UserPromptMessage({
       marginTop={addMargin ? 1 : 0}
       backgroundColor={isSelected ? 'messageActionsBackground' : undefined}
     >
-      <HighlightedThinkingText text={sanitized} timestamp={timestamp} />
+      <HighlightedThinkingText text={sanitized} />
     </Box>
   )
 }

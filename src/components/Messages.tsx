@@ -132,6 +132,44 @@ export function computeSliceStart(
 
 export { shouldRenderStatically } from './MessageRow.js'
 
+const SAME_ROW_DEPTH = 3
+
+function sameValue(a: unknown, b: unknown, depth: number): boolean {
+  if (a === b) return true
+  if (depth === 0 || a === null || b === null || typeof a !== 'object' || typeof b !== 'object') return false
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
+    for (let i = 0; i < a.length; i++) if (!sameValue(a[i], b[i], depth - 1)) return false
+    return true
+  }
+  const left = a as Record<string, unknown>
+  const right = b as Record<string, unknown>
+  const keys = Object.keys(left)
+  if (keys.length !== Object.keys(right).length) return false
+  for (const key of keys) {
+    if (!Object.prototype.hasOwnProperty.call(right, key)) return false
+    if (!sameValue(left[key], right[key], depth - 1)) return false
+  }
+  return true
+}
+
+export function reuseSettledRows(
+  previous: readonly RenderableMessage[],
+  next: RenderableMessage[],
+): RenderableMessage[] {
+  if (previous.length === 0) return next
+  const before = new Map<string, RenderableMessage>()
+  for (const row of previous) before.set(row.uuid, row)
+  let reused = false
+  const out = next.map(row => {
+    const prior = before.get(row.uuid)
+    if (prior === undefined || prior === row || !sameValue(prior, row, SAME_ROW_DEPTH)) return row
+    reused = true
+    return prior
+  })
+  return reused ? out : next
+}
+
 export function isAssistantContinuationRow(
   messages: RenderableMessage[],
   index: number,
@@ -162,7 +200,7 @@ export function isAssistantContinuationRow(
 type MessagesProps = {
   messages: WireMessage[]
   tools: Tools
-  commands: Command[]
+  commands?: Command[]
   verbose: boolean
   toolJSX: { jsx: React.ReactNode | null; shouldHidePromptInput: boolean } | null
   toolUseConfirmQueue: unknown[]
@@ -201,7 +239,7 @@ type TranscriptComposition = {
   hiddenCount: number
 }
 
-function composeTranscript(input: {
+export function composeTranscript(input: {
   normalized: NormalizedMessage[]
   syntheticStreamingRows: Array<{ streaming: StreamingToolUse; uuid: ReturnType<typeof deriveUUID> }>
   verbose: boolean
@@ -323,7 +361,6 @@ function composeTranscript(input: {
 function MessagesInner({
   messages,
   tools,
-  commands,
   verbose,
   toolJSX,
   toolUseConfirmQueue,
@@ -420,8 +457,11 @@ function MessagesInner({
         : composeTranscript({ normalized: normalizedAfter, syntheticStreamingRows: EMPTY_SYNTHETIC, verbose, fullscreen, isTranscriptMode, truncateTranscript: false, tools, inProgressToolUseIDs }),
     [verbose, normalizedAfter, isTranscriptMode, tools, fullscreen, inProgressToolUseIDs],
   )
-  const { collapsed, lookups, truncated, hiddenCount } = derived
-  const afterRows = derivedAfter.collapsed
+  const { lookups, truncated, hiddenCount } = derived
+  const settledRowsRef = useRef<{ before: RenderableMessage[]; after: RenderableMessage[] }>({ before: [], after: [] })
+  const collapsed = useMemo(() => reuseSettledRows(settledRowsRef.current.before, derived.collapsed), [derived])
+  const afterRows = useMemo(() => reuseSettledRows(settledRowsRef.current.after, derivedAfter.collapsed), [derivedAfter])
+  settledRowsRef.current = { before: collapsed, after: afterRows }
 
   const engineForLedger = cockpitEngine()
   useEffect(() => {
@@ -791,7 +831,6 @@ function MessagesInner({
                   ))
             }
             tools={tools}
-            commands={commands}
             verbose={verbose || isItemExpanded(msg_8)}
             inProgressToolUseIDs={inProgressToolUseIDs}
             streamingToolUseIDs={EMPTY_STRING_SET as Set<string>}
@@ -816,7 +855,6 @@ function MessagesInner({
     },
     [
       tools,
-      commands,
       verbose,
       inProgressToolUseIDs,
       screen,
@@ -863,7 +901,7 @@ function MessagesInner({
       ) : null}
       {
 }
-      <FoldStatusRow rows={visible as unknown as readonly FoldLandingRowFacts[]} />
+      <FoldStatusRow rows={visible as unknown as readonly FoldLandingRowFacts[]} conversationId={conversationId} />
       {liveReceipt !== null ? renderRow(liveReceipt, visible.length) : null}
       {afterRows.map((message, index) => (
         <React.Fragment key={itemKey(message)}>{renderRowIn(afterRows, message, index)}</React.Fragment>
@@ -952,6 +990,7 @@ function areMessagesPropsEqual(
   }
   if (prev.conversationId !== next.conversationId) return false
   if (prev.disableRenderCap !== next.disableRenderCap) return false
+  if (prev.hidePastReasoning !== next.hidePastReasoning) return false
   if (prev.suppressLogo !== next.suppressLogo) return false
   if (prev.suppressNotices !== next.suppressNotices) return false
   if (prev.ownsCursor !== next.ownsCursor) return false
