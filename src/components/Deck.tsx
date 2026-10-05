@@ -3,10 +3,6 @@ import { useEffect, useState } from 'react'
 import {
   formatLaneSpend,
   formatSessionCost,
-  getTotalCost,
-  getTotalLinesAdded,
-  getTotalLinesRemoved,
-  getTotalUnpricedTurns,
 } from '../cost-tracker.js'
 import { useEngineModel } from '../hooks/useEngineModel.js'
 import { useDisplayedSessionModel } from '../hooks/useDisplayedSessionModel.js'
@@ -34,7 +30,7 @@ import {
 import { activeSourceUsage, freshestUsageView, usageCarryWords, usageCreditsWords, usageWindowReached } from '../services/providers/providerUsage.js'
 import { NO_USAGE_READ_WORDS, usageSourceWords } from '../services/providers/usageFreshness.js'
 import { mercuryDoctrineEnabled } from '../prompt/mercuryContract.js'
-import { conversationIdHere } from '../services/engine-connector/focusedConnector.js'
+import { conversationIdHere, getFocusedSessionConnector } from '../services/engine-connector/focusedConnector.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import {
   CommandCenter,
@@ -62,11 +58,12 @@ export function Deck({ onClose }: { onClose: () => void }): React.ReactNode {
   const t = useMercuryTokens()
   const model = useDisplayedSessionModel().label
   useProviderUsageOnShow(true)
-  const cost = getTotalCost()
-  const unpricedTurns = getTotalUnpricedTurns()
+  const usageFacts = getFocusedSessionConnector().usage()
+  const cost = usageFacts.totalCostUSD
+  const unpricedTurns = usageFacts.unpricedTurns ?? 0
   const costFigure = unpricedTurns > 0 ? formatSessionCost(cost, unpricedTurns) : `$${cost.toFixed(2)}`
-  const added = getTotalLinesAdded()
-  const removed = getTotalLinesRemoved()
+  const added = usageFacts.totalLinesAdded
+  const removed = usageFacts.totalLinesRemoved
 
   const substrate = substrateSnapshot()
   const perms = permissionsSnapshot()

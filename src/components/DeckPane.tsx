@@ -1,13 +1,7 @@
 import * as React from 'react'
 import { useSyncExternalStore } from 'react'
 import { contextWindowLabel } from '../utils/contextFill.js'
-import {
-  formatSessionCost,
-  getTotalCost,
-  getTotalLinesAdded,
-  getTotalLinesRemoved,
-  getTotalUnpricedTurns,
-} from '../cost-tracker.js'
+import { formatSessionCost } from '../cost-tracker.js'
 import { useEngineModel } from '../hooks/useEngineModel.js'
 import { useDisplayedSessionModel, useFocusedServedModel } from '../hooks/useDisplayedSessionModel.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
@@ -37,7 +31,7 @@ import {
   subscribeLiveContextUsage,
   type SnapshotState,
 } from '../utils/cockpit/index.js'
-import { conversationIdHere } from '../services/engine-connector/focusedConnector.js'
+import { conversationIdHere, getFocusedSessionConnector } from '../services/engine-connector/focusedConnector.js'
 import { formatCountdown } from '../utils/cockpit/quota.js'
 import { localWindowRuleWords } from '../services/providers/local/localWindow.js'
 import { activeSourceUsage, usageViewIsStale } from '../services/providers/providerUsage.js'
@@ -70,11 +64,12 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
   const processModel = useEngineModel()
   const rawModel = servedModel ?? processModel
   const model = useDisplayedSessionModel().compact
-  const cost = getTotalCost()
-  const unpricedTurns = getTotalUnpricedTurns()
+  const usageFacts = getFocusedSessionConnector().usage()
+  const cost = usageFacts.totalCostUSD
+  const unpricedTurns = usageFacts.unpricedTurns ?? 0
   const costFigure = unpricedTurns > 0 ? formatSessionCost(cost, unpricedTurns) : `$${cost.toFixed(2)}`
-  const added = getTotalLinesAdded()
-  const removed = getTotalLinesRemoved()
+  const added = usageFacts.totalLinesAdded
+  const removed = usageFacts.totalLinesRemoved
 
   const vitals = useTelemetry()
   const git = vitals.git

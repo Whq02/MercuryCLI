@@ -1,11 +1,7 @@
 import * as React from 'react'
 import { Box, Text, useInput } from '../../../ink.js'
 import { useDisplayedSessionModel } from '../../../hooks/useDisplayedSessionModel.js'
-import {
-  getTotalCost,
-  getTotalLinesAdded,
-  getTotalLinesRemoved,
-} from '../../../cost-tracker.js'
+import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js'
 import { pokeTelemetry, useTelemetry } from '../../../state/telemetryBus.js'
 import type { Task } from '../../../utils/tasks.js'
 import type { AgentHealth } from '../../../utils/crew/roomHealth.js'
@@ -337,9 +333,10 @@ function renderDetail(r: MonRow, now: number, k: MercuryThemeTokens): React.Reac
 function HeaderLine(): React.ReactNode {
   const k = useMercuryTokens()
   const model = useDisplayedSessionModel().compact
-  const cost = getTotalCost()
-  const added = getTotalLinesAdded()
-  const removed = getTotalLinesRemoved()
+  const usage = getFocusedSessionConnector().usage()
+  const cost = usage.totalCostUSD
+  const added = usage.totalLinesAdded
+  const removed = usage.totalLinesRemoved
   return (
     <Text>
       <Text color={k.textMuted}>model </Text>
