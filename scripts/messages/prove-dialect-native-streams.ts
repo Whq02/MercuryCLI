@@ -4,6 +4,8 @@ import { writeFileSync } from 'node:fs'
 import { DIALECT_CONVERSATION } from './dialectFixture.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
+process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 const tip = resolve(new URL('../..', import.meta.url).pathname)
 const base = process.argv[2] ? resolve(process.argv[2]) : tip
 const frames = [

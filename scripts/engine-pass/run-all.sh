@@ -6,8 +6,7 @@
 # gate-watch: design-system/live/** scripts/lib/ptyRecorder.ts scripts/lib/firstRunSeed.ts
 # gate-watch: scripts/engine-connector/prove-crew-token-rows.ts scripts/critters/prove-critter-sleep.ts scripts/visual-contract/baseline-capture.ts
 set -uo pipefail
-. "$(dirname "$0")/../lib/suite-env.sh" || exit 78
-suite_env_guard "$0"
+. "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"
 cd "$(dirname "$0")/../.." || exit 1
 BUN="${BUN:-bun}"
