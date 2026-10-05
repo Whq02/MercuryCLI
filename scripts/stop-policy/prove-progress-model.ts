@@ -191,7 +191,7 @@ section('§8 ONE persistence law, the same words on every seat that works a task
     check(`${seat}: a block stops for what only the operator or the caller can give, named`, BLOCKED[seat]!.test(text))
   }
   const doctrineSrc = src('src/constants/subagentDoctrine.ts')
-  check('the subagent doctrine splices the sub-agent contract in its one register', (doctrineSrc.match(/\$\{MERCURY_SUBAGENT_CONTRACT\}/g) ?? []).length === 1)
+  check('the subagent doctrine splices the sub-agent contract in its one register (the seat word slotted in)', (doctrineSrc.match(/\$\{mercurySubagentContract\(seat\)\}/g) ?? []).length === 1 && !doctrineSrc.includes('${MERCURY_SUBAGENT_CONTRACT}'))
   const contract = src('src/prompt/mercuryContract.ts')
   check('no separate law constant exists (SS-11: the words live in the contracts, one owner)', !contract.includes('PERSISTENCE_LAW') && (contract.match(new RegExp(PERSIST, 'g')) ?? []).length === 2)
   check('the retired GPT overlay is GONE (one content for every family)', !contract.includes('agentic_persistence'))
