@@ -471,16 +471,6 @@ const hookEventTableRows = {
     output: PostToolUseFailureHookSpecificOutputSchema,
     matchField: 'tool_name' as const,
   },
-  PermissionRequest: {
-    input: PermissionRequestHookInputSchema,
-    output: PermissionRequestHookSpecificOutputSchema,
-    matchField: 'tool_name' as const,
-  },
-  PermissionDenied: {
-    input: PermissionDeniedHookInputSchema,
-    output: PermissionDeniedHookSpecificOutputSchema,
-    matchField: 'tool_name' as const,
-  },
   Notification: {
     input: NotificationHookInputSchema,
     output: NotificationHookSpecificOutputSchema,
@@ -530,6 +520,16 @@ const hookEventTableRows = {
   PostCompact: {
     input: PostCompactHookInputSchema,
     matchField: 'trigger' as const,
+  },
+  PermissionRequest: {
+    input: PermissionRequestHookInputSchema,
+    output: PermissionRequestHookSpecificOutputSchema,
+    matchField: 'tool_name' as const,
+  },
+  PermissionDenied: {
+    input: PermissionDeniedHookInputSchema,
+    output: PermissionDeniedHookSpecificOutputSchema,
+    matchField: 'tool_name' as const,
   },
   Setup: {
     input: SetupHookInputSchema,
@@ -589,7 +589,7 @@ const hookEventTableRows = {
   },
 } as const satisfies Record<string, HookEventRow>
 
-export const HOOK_EVENTS = [
+type HookEventOrder = readonly [
   'PreToolUse',
   'PostToolUse',
   'PostToolUseFailure',
@@ -619,7 +619,8 @@ export const HOOK_EVENTS = [
   'CwdChanged',
   'FileChanged',
   'Interrupt',
-] as const satisfies readonly (keyof typeof hookEventTableRows)[]
+]
+export const HOOK_EVENTS = Object.keys(hookEventTableRows) as unknown as HookEventOrder
 export type HookEvent = (typeof HOOK_EVENTS)[number]
 
 export const hookEventTable = Object.fromEntries(
