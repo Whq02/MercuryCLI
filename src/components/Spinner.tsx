@@ -68,7 +68,6 @@ export type SpinnerWithVerbProps = {
   activeToolCount: number
   activeToolLabel?: string | null
   leaderIsIdle?: boolean
-  apiMetricsRef?: React.RefObject<unknown>
 }
 
 export function nextPendingTask<T extends { id: string; status: string; blockedBy?: readonly string[] }>(tasks: readonly T[]): T | undefined {
