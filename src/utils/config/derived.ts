@@ -73,6 +73,7 @@ export function getManagedRulesDir(): string {
 export function getUserRulesDir(): string {
   return join(getMercuryHome(), 'rules')
 }
+
 export function getEffectivePermissionMode(sessionMode: PermissionMode): SessionPermissionModeResolution {
   const birth = getSessionPermissionModeResolution()
   return birth?.mode === sessionMode
