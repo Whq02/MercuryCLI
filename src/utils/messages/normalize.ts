@@ -9,12 +9,11 @@ import type {
   UserMessage,
 } from '../../types/message.js'
 import { createUserMessage } from './factories.js'
+import { storedBlocksOf } from '../../rows/content.js'
 import { deriveUUID } from './identity.js'
 
 export function contentBlocksOf(content: unknown): (ContentBlock | ContentBlockParam)[] {
-  if (Array.isArray(content)) return content as (ContentBlock | ContentBlockParam)[]
-  if (typeof content === 'string') return [{ type: 'text', text: content, citations: [] }]
-  return []
+  return storedBlocksOf(content)
 }
 
 export let _normalizePassesForProof = 0

@@ -1,4 +1,5 @@
 import type { Message } from '../../types/message.js'
+import { hasTextContent } from '../../rows/content.js'
 
 export interface TailReleaseIds {
   current: string | null
@@ -30,10 +31,5 @@ export function computeTailRelease(visible: readonly Message[], ids: TailRelease
 }
 
 function carriesText(content: unknown): boolean {
-  if (typeof content === 'string') return content !== ''
-  if (!Array.isArray(content)) return false
-  return content.some(block => {
-    const b = block as { type?: unknown; text?: unknown } | null
-    return b?.type === 'text' && typeof b.text === 'string' && b.text !== ''
-  })
+  return hasTextContent(content)
 }

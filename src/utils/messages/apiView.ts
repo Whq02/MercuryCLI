@@ -1,18 +1,9 @@
 
 import type { ContentBlock, ContentBlockParam, ApiMessage } from '../../types/wire.js'
 import isObject from 'lodash-es/isObject.js'
-import last from 'lodash-es/last.js'
 import { sanitizeToolNameForAnalytics } from 'src/services/analytics/metadata.js'
 import {
-  getImageTooLargeErrorMessage,
-  getPdfInvalidErrorMessage,
-  getPdfPasswordProtectedErrorMessage,
-  getPdfTooLargeErrorMessage,
-  getRequestTooLargeErrorMessage,
-} from '../../services/api/errors.js'
-import {
   findToolByName,
-  toolMatchesName,
   type Tools,
 } from '../../Tool.js'
 import type {
@@ -22,34 +13,16 @@ import type {
   SystemLocalCommandMessage,
   UserMessage,
 } from '../../types/message.js'
-import { normalizeToolInput, normalizeToolInputForAPI } from '../api.js'
+import { normalizeToolInput } from '../api.js'
 import { contentBlocksOf } from './normalize.js'
 import { STRIPPED_ADMISSION_RECORD_TEXT } from '../../tools/ToolSearchTool/prompt.js'
 import { logForDebugging } from '../debug.js'
-import { validateImagesForAPI } from '../imageValidation.js'
 import { safeParseJSON } from '../json.js'
 import { logError } from '../log.js'
 import {
   isToolReferenceBlock,
-  isToolSearchEnabledOptimistic,
 } from '../toolSearch.js'
-import {
-  dropEmptyTextBlocks,
-  ensureNonEmptyAssistantContent,
-  filterOrphanedThinkingOnlyMessages,
-  filterTrailingThinkingFromLastAssistant,
-  filterWhitespaceOnlyAssistantMessages,
-  sanitizeErrorToolResultContent,
-} from './apiFilters.js'
-import { normalizeAttachmentForAPI } from './attachmentText.js'
-import { createUserMessage } from './factories.js'
-import { applyStripTargets, planApiConversation } from './apiPlan.js'
-import {
-  isToolResultMessage,
-  mergeAssistantMessages,
-  mergeUserMessages,
-  mergeUserMessagesAndToolResults,
-} from './merge.js'
+import { requestConversationPlan } from './apiPlan.js'
 
 const TOOL_REFERENCE_TURN_BOUNDARY = 'Tool loaded.'
 
@@ -95,7 +68,7 @@ export function isSystemLocalCommandMessage(
   return message.type === 'system' && message.subtype === 'local_command'
 }
 
-function stripUnavailableToolReferencesFromUserMessage(
+export function stripUnavailableToolReferencesFromUserMessage(
   message: UserMessage,
   availableToolNames: Set<string>,
 ): UserMessage {
@@ -283,151 +256,7 @@ export function normalizeMessagesForAPI(
   messages: Message[],
   tools: Tools = [],
 ): (UserMessage | AssistantMessage)[] {
-  const { selected, stripTargets, availableToolNames } = planApiConversation(
-    messages,
-    tools,
-  )
-
-  const result: (UserMessage | AssistantMessage)[] = []
-  selected
-    .forEach(message => {
-      switch (message.type) {
-        case 'system': {
-          const userMsg = createUserMessage({
-            content: message.content,
-            uuid: message.uuid,
-            timestamp: message.timestamp,
-          })
-          const lastMessage = last(result)
-          if (lastMessage?.type === 'user') {
-            result[result.length - 1] = mergeUserMessages(lastMessage, userMsg)
-            return
-          }
-          result.push(userMsg)
-          return
-        }
-        case 'user': {
-
-          let normalizedMessage = message
-          if (!isToolSearchEnabledOptimistic()) {
-            normalizedMessage = stripToolReferenceBlocksFromUserMessage(message)
-          } else {
-            normalizedMessage = stripUnavailableToolReferencesFromUserMessage(
-              message,
-              availableToolNames,
-            )
-          }
-
-          const kept = applyStripTargets(normalizedMessage, stripTargets)
-          if (kept === null) {
-            return
-          }
-          normalizedMessage = kept
-
-          normalizedMessage = withToolReferenceTurnBoundary(normalizedMessage)
-
-          const lastMessage = last(result)
-          if (lastMessage?.type === 'user') {
-            result[result.length - 1] = mergeUserMessages(
-              lastMessage,
-              normalizedMessage,
-            )
-            return
-          }
-
-          result.push(normalizedMessage)
-          return
-        }
-        case 'assistant': {
-          const toolSearchEnabled = isToolSearchEnabledOptimistic()
-          const normalizedMessage: AssistantMessage = {
-            ...message,
-            message: {
-              ...message.message,
-              content: (contentBlocksOf(message.message.content) as ContentBlock[]).map(block => {
-                if (block.type === 'tool_use') {
-                  const tool = tools.find(t => toolMatchesName(t, block.name))
-                  const normalizedInput = tool
-                    ? normalizeToolInputForAPI(
-                        tool,
-                        block.input as Record<string, unknown>,
-                      )
-                    : block.input
-                  const canonicalName = tool?.name ?? block.name
-
-                  if (toolSearchEnabled) {
-                    return {
-                      ...block,
-                      name: canonicalName,
-                      input: normalizedInput,
-                    }
-                  }
-
-                  return {
-                    type: 'tool_use' as const,
-                    id: block.id,
-                    name: canonicalName,
-                    input: normalizedInput,
-                  }
-                }
-                return block
-              }),
-            },
-          }
-
-          for (let i = result.length - 1; i >= 0; i--) {
-            const msg = result[i]!
-
-            if (msg.type !== 'assistant' && !isToolResultMessage(msg)) {
-              break
-            }
-
-            if (msg.type === 'assistant') {
-              if (msg.message.id === normalizedMessage.message.id) {
-                result[i] = mergeAssistantMessages(msg, normalizedMessage)
-                return
-              }
-              continue
-            }
-          }
-
-          result.push(normalizedMessage)
-          return
-        }
-        case 'attachment': {
-          const attachmentMessage = normalizeAttachmentForAPI(
-            message.attachment,
-          )
-
-          const lastMessage = last(result)
-          if (lastMessage?.type === 'user') {
-            result[result.length - 1] = attachmentMessage.reduce(
-              (p, c) => mergeUserMessagesAndToolResults(p, c),
-              lastMessage,
-            )
-            return
-          }
-
-          result.push(...attachmentMessage)
-          return
-        }
-      }
-    })
-
-
-  const withFilteredOrphans = filterOrphanedThinkingOnlyMessages(dropEmptyTextBlocks(result))
-
-  const withFilteredThinking =
-    filterTrailingThinkingFromLastAssistant(withFilteredOrphans)
-  const withFilteredWhitespace =
-    filterWhitespaceOnlyAssistantMessages(withFilteredThinking)
-  const withNonEmpty = ensureNonEmptyAssistantContent(withFilteredWhitespace)
-
-  const sanitized = sanitizeErrorToolResultContent(withNonEmpty)
-
-  validateImagesForAPI(sanitized)
-
-  return sanitized
+  return requestConversationPlan(messages, tools).messages
 }
 
 
@@ -445,7 +274,7 @@ export function normalizeContentFromAPI(
     )
     contentBlocks = contentBlocks.filter(b => b != null)
   }
-  return contentBlocks.map(contentBlock => {
+  return (contentBlocksOf(contentBlocks) as ApiMessage['content']).map(contentBlock => {
     switch (contentBlock.type) {
       case 'tool_use': {
         if (

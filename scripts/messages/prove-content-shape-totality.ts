@@ -15,9 +15,11 @@ const DIR = join(import.meta.dir, '..', '..', 'src', 'utils', 'messages')
 
 {
   const normalizeSrc = readFileSync(join(DIR, 'normalize.ts'), 'utf8')
+  const contentSrc = readFileSync(new URL('../../src/rows/content.ts', import.meta.url), 'utf8')
   t('§1 the shape owner is exported from normalize.ts', /export function contentBlocksOf\(/.test(normalizeSrc))
-  t('§1 the owner handles the string shape (wire equivalence)', /typeof content === 'string'/.test(normalizeSrc))
-  t('§1 the owner guards with Array.isArray', /Array\.isArray\(content\)/.test(normalizeSrc))
+  t('§1 the legacy shape door delegates to the row-content owner', /return storedBlocksOf\(content\)/.test(normalizeSrc))
+  t('§1 the row-content owner handles the string shape (wire equivalence)', /typeof content === 'string'/.test(contentSrc))
+  t('§1 the row-content owner guards with Array.isArray', /Array\.isArray\(content\)/.test(contentSrc))
 }
 
 const CALL_CHAIN = /\.message\.content\s*\.\s*(map|some|every|filter|flatMap|find|findIndex|forEach|reduce|slice|includes|at|concat|indexOf|join)\s*\(/g

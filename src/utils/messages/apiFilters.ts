@@ -7,6 +7,7 @@ import type {
   UserMessage,
 } from '../../types/message.js'
 import { mergeUserMessages } from './merge.js'
+import { clientCallItemsOf, contentItemsOf, isReasoningContent, resultItemsOf } from '../../rows/content.js'
 import { DEAD_THINKING_PLACEHOLDER } from '../../services/providers/anthropic/deadThinkingPlaceholder.js'
 
 type ThinkingBlockType =
@@ -20,7 +21,7 @@ type ThinkingBlockType =
 export function isThinkingBlock(
   block: ContentBlockParam | ContentBlock | ContentBlock,
 ): block is ThinkingBlockType {
-  return block.type === 'thinking' || block.type === 'redacted_thinking'
+  return isReasoningContent(block)
 }
 
 export function filterTrailingThinkingFromLastAssistant(
@@ -163,9 +164,7 @@ export function filterOrphanedThinkingOnlyMessages(
     if (msg.type !== 'assistant') continue
     const content = msg.message.content
     if (!Array.isArray(content)) continue
-    const hasNonThinking = content.some(
-      block => block.type !== 'thinking' && block.type !== 'redacted_thinking',
-    )
+    const hasNonThinking = contentItemsOf(content).some(item => item.type !== 'reasoning')
     if (hasNonThinking && msg.message.id) {
       messageIdsWithNonThinkingContent.add(msg.message.id)
     }
@@ -176,9 +175,7 @@ export function filterOrphanedThinkingOnlyMessages(
     const content = msg.message.content
     if (!Array.isArray(content) || content.length === 0) return true
 
-    const allThinking = content.every(
-      block => block.type === 'thinking' || block.type === 'redacted_thinking',
-    )
+    const allThinking = contentItemsOf(content).every(item => item.type === 'reasoning')
     if (!allThinking) return true
     if (
       msg.message.id &&
@@ -273,10 +270,8 @@ export function filterUnresolvedToolUses(messages: Message[]): Message[] {
     if (msg.type !== 'user' && msg.type !== 'assistant') continue
     const content = msg.message.content
     if (!Array.isArray(content)) continue
-    for (const block of content) {
-      if (block.type === 'tool_use') toolUseIds.add(block.id)
-      if (block.type === 'tool_result') toolResultIds.add(block.tool_use_id)
-    }
+    for (const item of clientCallItemsOf(content)) toolUseIds.add(item.call_id)
+    for (const item of resultItemsOf(content)) toolResultIds.add(item.call_id)
   }
 
   const unresolvedIds = new Set(
@@ -288,10 +283,7 @@ export function filterUnresolvedToolUses(messages: Message[]): Message[] {
     if (msg.type !== 'assistant') return true
     const content = msg.message.content
     if (!Array.isArray(content)) return true
-    const toolUseBlockIds: string[] = []
-    for (const b of content) {
-      if (b.type === 'tool_use') toolUseBlockIds.push(b.id)
-    }
+    const toolUseBlockIds = clientCallItemsOf(content).map(item => item.call_id)
     if (toolUseBlockIds.length === 0) return true
     return !toolUseBlockIds.every(id => unresolvedIds.has(id))
   })

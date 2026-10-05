@@ -132,7 +132,8 @@ section('§6 the banner-collapse face (FN-016 R3, verify-only): every retry atte
   check('the countdown is mount-local state (a fresh mount restarts it)', banner.includes('const [countdownMs, setCountdownMs] = useState(0)'))
   const producer = readFileSync(join(ROOT, 'src/utils/messages/systemMessages.ts'), 'utf8')
   const creator = producer.slice(producer.indexOf('export function createSystemAPIErrorMessage'), producer.indexOf('compact-boundary predicates'))
-  check('every attempt\'s banner carries a fresh uuid', creator.includes('uuid: randomUUID()'))
+  const { createSystemAPIErrorMessage } = await import(join(ROOT, 'src/utils/messages/systemMessages.ts'))
+  check('every attempt\'s banner carries a fresh uuid', creator.includes('MESSAGE_STAMPER.mint()') && new Set(Array.from({ length: 64 }, () => createSystemAPIErrorMessage(new Error('fixture retry'), 0, 1, 2).uuid)).size === 64)
 }
 
 section('§7 the long scrolled window — 400 rows, every live mutation, keys exact and unique')

@@ -1,0 +1,1157 @@
+{
+  "base": "71641f1bdcef83a22b5ab0a03cff54f004655af8",
+  "bodies": {
+    "anthropic-conversation": {
+      "system": "You are the dialect fixture.",
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Count the words in my notes file."
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "thinking",
+              "thinking": "considering the count request carefully",
+              "signature": "sig-fixture-sonnet-1"
+            },
+            {
+              "type": "text",
+              "text": "I will read the file first."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "here is the screenshot of the file too"
+            },
+            {
+              "type": "image",
+              "source": {
+                "type": "base64",
+                "media_type": "image/png",
+                "data": "aWF0dG9rZW4="
+              }
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "thinking",
+              "thinking": "considering the count request carefully",
+              "signature": "sig-fixture-sonnet-1"
+            },
+            {
+              "type": "text",
+              "text": "Reading and counting now."
+            },
+            {
+              "type": "tool_use",
+              "id": "toolu_A",
+              "name": "Read",
+              "input": {
+                "file_path": "/proj/notes.txt"
+              }
+            },
+            {
+              "type": "tool_use",
+              "id": "toolu_B",
+              "name": "Bash",
+              "input": {
+                "command": "wc -w /proj/notes.txt"
+              }
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "tool_result",
+              "tool_use_id": "toolu_A",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "the quick brown fox jumps over the lazy dog"
+                }
+              ]
+            },
+            {
+              "type": "tool_result",
+              "tool_use_id": "toolu_B",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "9 words"
+                }
+              ],
+              "is_error": false
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "The file holds nine words."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Summarise what you found in one sentence."
+            }
+          ]
+        }
+      ],
+      "tools": [
+        {
+          "name": "Read",
+          "description": "Read a file",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "file_path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "file_path"
+            ]
+          }
+        },
+        {
+          "name": "Bash",
+          "description": "Run a command",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "command": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "command"
+            ]
+          }
+        }
+      ],
+      "output_config": {
+        "format": {
+          "type": "json_schema",
+          "name": "word_count",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "words": {
+                "type": "number"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "words"
+            ]
+          }
+        }
+      }
+    },
+    "openai-conversation": {
+      "model": "fixture-openai-model",
+      "instructions": "You are the dialect fixture.",
+      "input": [
+        {
+          "type": "message",
+          "role": "user",
+          "content": [
+            {
+              "type": "input_text",
+              "text": "Count the words in my notes file."
+            }
+          ]
+        },
+        {
+          "type": "message",
+          "role": "assistant",
+          "content": [
+            {
+              "type": "output_text",
+              "text": "I will read the file first."
+            }
+          ]
+        },
+        {
+          "type": "message",
+          "role": "user",
+          "content": [
+            {
+              "type": "input_text",
+              "text": "here is the screenshot of the file too"
+            },
+            {
+              "type": "input_image",
+              "image_url": "data:image/png;base64,aWF0dG9rZW4="
+            }
+          ]
+        },
+        {
+          "type": "message",
+          "role": "assistant",
+          "content": [
+            {
+              "type": "output_text",
+              "text": "Reading and counting now."
+            }
+          ]
+        },
+        {
+          "type": "function_call",
+          "call_id": "toolu_A",
+          "name": "Read",
+          "arguments": "{\"file_path\":\"/proj/notes.txt\"}"
+        },
+        {
+          "type": "function_call",
+          "call_id": "toolu_B",
+          "name": "Bash",
+          "arguments": "{\"command\":\"wc -w /proj/notes.txt\"}"
+        },
+        {
+          "type": "function_call_output",
+          "call_id": "toolu_A",
+          "output": "the quick brown fox jumps over the lazy dog"
+        },
+        {
+          "type": "function_call_output",
+          "call_id": "toolu_B",
+          "output": "9 words"
+        },
+        {
+          "type": "message",
+          "role": "assistant",
+          "content": [
+            {
+              "type": "output_text",
+              "text": "The file holds nine words."
+            }
+          ]
+        },
+        {
+          "type": "message",
+          "role": "user",
+          "content": [
+            {
+              "type": "input_text",
+              "text": "Summarise what you found in one sentence."
+            }
+          ]
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "name": "Read",
+          "description": "Read a file",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "file_path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "file_path"
+            ]
+          }
+        },
+        {
+          "type": "function",
+          "name": "Bash",
+          "description": "Run a command",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "command": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "command"
+            ]
+          }
+        }
+      ],
+      "tool_choice": "auto",
+      "parallel_tool_calls": true,
+      "reasoning": {
+        "summary": "auto"
+      },
+      "store": false,
+      "stream": true,
+      "include": [
+        "reasoning.encrypted_content"
+      ],
+      "text": {
+        "format": {
+          "type": "json_schema",
+          "name": "mercury_structured_output",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "words": {
+                "type": "number"
+              },
+              "note": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "words",
+              "note"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    "chat-conversation": {
+      "model": "fixture-chat-model",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the dialect fixture."
+        },
+        {
+          "role": "user",
+          "content": "Count the words in my notes file."
+        },
+        {
+          "role": "assistant",
+          "content": "I will read the file first."
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "here is the screenshot of the file too"
+            },
+            {
+              "type": "image_url",
+              "image_url": {
+                "url": "data:image/png;base64,aWF0dG9rZW4="
+              }
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "content": "Reading and counting now.",
+          "tool_calls": [
+            {
+              "id": "toolu_A",
+              "type": "function",
+              "function": {
+                "name": "Read",
+                "arguments": "{\"file_path\":\"/proj/notes.txt\"}"
+              }
+            },
+            {
+              "id": "toolu_B",
+              "type": "function",
+              "function": {
+                "name": "Bash",
+                "arguments": "{\"command\":\"wc -w /proj/notes.txt\"}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "toolu_A",
+          "content": "the quick brown fox jumps over the lazy dog"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "toolu_B",
+          "content": "9 words"
+        },
+        {
+          "role": "assistant",
+          "content": "The file holds nine words."
+        },
+        {
+          "role": "user",
+          "content": "Summarise what you found in one sentence."
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "Read",
+            "description": "Read a file",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "file_path": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "file_path"
+              ]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "Bash",
+            "description": "Run a command",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "command": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "command"
+              ]
+            }
+          }
+        }
+      ],
+      "tool_choice": "auto"
+    },
+    "gemini-conversation": {
+      "contents": [
+        {
+          "role": "user",
+          "parts": [
+            {
+              "text": "Count the words in my notes file."
+            }
+          ]
+        },
+        {
+          "role": "model",
+          "parts": [
+            {
+              "text": "I will read the file first."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "parts": [
+            {
+              "text": "here is the screenshot of the file too"
+            },
+            {
+              "inlineData": {
+                "mimeType": "image/png",
+                "data": "aWF0dG9rZW4="
+              }
+            }
+          ]
+        },
+        {
+          "role": "model",
+          "parts": [
+            {
+              "text": "Reading and counting now."
+            },
+            {
+              "functionCall": {
+                "name": "Read",
+                "args": {
+                  "file_path": "/proj/notes.txt"
+                }
+              },
+              "thoughtSignature": "skip_thought_signature_validator"
+            },
+            {
+              "functionCall": {
+                "name": "Bash",
+                "args": {
+                  "command": "wc -w /proj/notes.txt"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "parts": [
+            {
+              "functionResponse": {
+                "name": "Read",
+                "response": {
+                  "output": "the quick brown fox jumps over the lazy dog"
+                }
+              }
+            },
+            {
+              "functionResponse": {
+                "name": "Bash",
+                "response": {
+                  "output": "9 words"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "model",
+          "parts": [
+            {
+              "text": "The file holds nine words."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "parts": [
+            {
+              "text": "Summarise what you found in one sentence."
+            }
+          ]
+        }
+      ],
+      "systemInstruction": {
+        "parts": [
+          {
+            "text": "You are the dialect fixture."
+          }
+        ]
+      },
+      "tools": [
+        {
+          "functionDeclarations": [
+            {
+              "name": "Read",
+              "description": "Read a file",
+              "parametersJsonSchema": {
+                "type": "object",
+                "properties": {
+                  "file_path": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file_path"
+                ]
+              }
+            },
+            {
+              "name": "Bash",
+              "description": "Run a command",
+              "parametersJsonSchema": {
+                "type": "object",
+                "properties": {
+                  "command": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "command"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "toolConfig": {
+        "functionCallingConfig": {
+          "mode": "AUTO"
+        }
+      }
+    },
+    "local-conversation": {
+      "model": "fixture-chat-model",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the dialect fixture."
+        },
+        {
+          "role": "user",
+          "content": "Count the words in my notes file."
+        },
+        {
+          "role": "assistant",
+          "content": "I will read the file first."
+        },
+        {
+          "role": "user",
+          "content": "here is the screenshot of the file too",
+          "images": [
+            "aWF0dG9rZW4="
+          ]
+        },
+        {
+          "role": "assistant",
+          "content": "Reading and counting now.",
+          "tool_calls": [
+            {
+              "id": "toolu_A",
+              "function": {
+                "name": "Read",
+                "arguments": {
+                  "file_path": "/proj/notes.txt"
+                }
+              }
+            },
+            {
+              "id": "toolu_B",
+              "function": {
+                "name": "Bash",
+                "arguments": {
+                  "command": "wc -w /proj/notes.txt"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "content": "the quick brown fox jumps over the lazy dog",
+          "tool_call_id": "toolu_A",
+          "tool_name": "Read"
+        },
+        {
+          "role": "tool",
+          "content": "9 words",
+          "tool_call_id": "toolu_B",
+          "tool_name": "Bash"
+        },
+        {
+          "role": "assistant",
+          "content": "The file holds nine words."
+        },
+        {
+          "role": "user",
+          "content": "Summarise what you found in one sentence."
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "Read",
+            "description": "Read a file",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "file_path": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "file_path"
+              ]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "Bash",
+            "description": "Run a command",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "command": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "command"
+              ]
+            }
+          }
+        }
+      ],
+      "stream": true,
+      "truncate": false,
+      "options": {
+        "num_ctx": 8192
+      }
+    },
+    "anthropic-two-model": {
+      "system": "You are the dialect fixture.",
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Start a word-count tool project."
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "Laying out the plan."
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "Here is the tool sketch."
+            }
+          ]
+        },
+        {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "thinking",
+              "thinking": "considering the count request carefully",
+              "signature": "sig-fixture-sonnet-1"
+            },
+            {
+              "type": "text",
+              "text": "Continuing with the sketch."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Make the counter handle UTF-8."
+            }
+          ]
+        }
+      ],
+      "tools": [
+        {
+          "name": "Read",
+          "description": "Read a file",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "file_path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "file_path"
+            ]
+          }
+        },
+        {
+          "name": "Bash",
+          "description": "Run a command",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "command": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "command"
+            ]
+          }
+        }
+      ],
+      "output_config": {
+        "format": {
+          "type": "json_schema",
+          "name": "word_count",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "words": {
+                "type": "number"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "words"
+            ]
+          }
+        }
+      }
+    },
+    "openai-two-model": {
+      "model": "fixture-openai-model",
+      "instructions": "You are the dialect fixture.",
+      "input": [
+        {
+          "type": "message",
+          "role": "user",
+          "content": [
+            {
+              "type": "input_text",
+              "text": "Start a word-count tool project."
+            }
+          ]
+        },
+        {
+          "type": "message",
+          "role": "assistant",
+          "content": [
+            {
+              "type": "output_text",
+              "text": "Laying out the plan."
+            }
+          ]
+        },
+        {
+          "type": "message",
+          "role": "assistant",
+          "content": [
+            {
+              "type": "output_text",
+              "text": "Here is the tool sketch."
+            }
+          ]
+        },
+        {
+          "type": "message",
+          "role": "assistant",
+          "content": [
+            {
+              "type": "output_text",
+              "text": "Continuing with the sketch."
+            }
+          ]
+        },
+        {
+          "type": "message",
+          "role": "user",
+          "content": [
+            {
+              "type": "input_text",
+              "text": "Make the counter handle UTF-8."
+            }
+          ]
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "name": "Read",
+          "description": "Read a file",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "file_path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "file_path"
+            ]
+          }
+        },
+        {
+          "type": "function",
+          "name": "Bash",
+          "description": "Run a command",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "command": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "command"
+            ]
+          }
+        }
+      ],
+      "tool_choice": "auto",
+      "parallel_tool_calls": true,
+      "reasoning": {
+        "summary": "auto"
+      },
+      "store": false,
+      "stream": true,
+      "include": [
+        "reasoning.encrypted_content"
+      ],
+      "text": {
+        "format": {
+          "type": "json_schema",
+          "name": "mercury_structured_output",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "words": {
+                "type": "number"
+              },
+              "note": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "words",
+              "note"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    "chat-two-model": {
+      "model": "fixture-chat-model",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the dialect fixture."
+        },
+        {
+          "role": "user",
+          "content": "Start a word-count tool project."
+        },
+        {
+          "role": "assistant",
+          "content": "Laying out the plan."
+        },
+        {
+          "role": "assistant",
+          "content": "Here is the tool sketch."
+        },
+        {
+          "role": "assistant",
+          "content": "Continuing with the sketch."
+        },
+        {
+          "role": "user",
+          "content": "Make the counter handle UTF-8."
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "Read",
+            "description": "Read a file",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "file_path": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "file_path"
+              ]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "Bash",
+            "description": "Run a command",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "command": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "command"
+              ]
+            }
+          }
+        }
+      ],
+      "tool_choice": "auto"
+    },
+    "gemini-two-model": {
+      "contents": [
+        {
+          "role": "user",
+          "parts": [
+            {
+              "text": "Start a word-count tool project."
+            }
+          ]
+        },
+        {
+          "role": "model",
+          "parts": [
+            {
+              "text": "Laying out the plan."
+            },
+            {
+              "text": "Here is the tool sketch."
+            },
+            {
+              "text": "Continuing with the sketch."
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "parts": [
+            {
+              "text": "Make the counter handle UTF-8."
+            }
+          ]
+        }
+      ],
+      "systemInstruction": {
+        "parts": [
+          {
+            "text": "You are the dialect fixture."
+          }
+        ]
+      },
+      "tools": [
+        {
+          "functionDeclarations": [
+            {
+              "name": "Read",
+              "description": "Read a file",
+              "parametersJsonSchema": {
+                "type": "object",
+                "properties": {
+                  "file_path": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "file_path"
+                ]
+              }
+            },
+            {
+              "name": "Bash",
+              "description": "Run a command",
+              "parametersJsonSchema": {
+                "type": "object",
+                "properties": {
+                  "command": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "command"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "toolConfig": {
+        "functionCallingConfig": {
+          "mode": "AUTO"
+        }
+      }
+    },
+    "local-two-model": {
+      "model": "fixture-chat-model",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are the dialect fixture."
+        },
+        {
+          "role": "user",
+          "content": "Start a word-count tool project."
+        },
+        {
+          "role": "assistant",
+          "content": "Laying out the plan."
+        },
+        {
+          "role": "assistant",
+          "content": "Here is the tool sketch."
+        },
+        {
+          "role": "assistant",
+          "content": "Continuing with the sketch."
+        },
+        {
+          "role": "user",
+          "content": "Make the counter handle UTF-8."
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "Read",
+            "description": "Read a file",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "file_path": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "file_path"
+              ]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "Bash",
+            "description": "Run a command",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "command": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "command"
+              ]
+            }
+          }
+        }
+      ],
+      "stream": true,
+      "truncate": false,
+      "options": {
+        "num_ctx": 8192
+      }
+    }
+  }
+}

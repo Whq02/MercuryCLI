@@ -5,7 +5,7 @@ import {
   deepestErrorDetail,
   recentTransportFailure,
 } from '../../services/api/transportEvidence.js'
-import { randomUUID, type UUID } from 'crypto'
+import type { UUID } from 'crypto'
 import type {
   AwayRecapMetadata,
   Message,
@@ -28,6 +28,7 @@ import type {
   SystemTurnDurationMessage,
 } from '../../types/message.js'
 import type { CompactMetadata } from '../../types/message.js'
+import { MESSAGE_STAMPER } from '../../rows/project.js'
 import { logForDebugging } from '../debug.js'
 import { formatTokens } from '../format.js'
 
@@ -43,8 +44,7 @@ export function createSystemMessage(
     subtype: 'informational',
     content,
     isMeta: false,
-    timestamp: new Date().toISOString(),
-    uuid: randomUUID(),
+    ...MESSAGE_STAMPER.mint(),
     toolUseID,
     level,
     ...(preventContinuation && { preventContinuation }),
@@ -64,8 +64,7 @@ export function createRosterTransitionMessage(
     content,
     level: 'info',
     isMeta: false,
-    timestamp: new Date().toISOString(),
-    uuid: randomUUID(),
+    ...MESSAGE_STAMPER.mint(),
   }
 }
 
@@ -86,8 +85,7 @@ export function createStreamCutMessage(input: {
     ...(input.code !== undefined ? { code: input.code } : {}),
     level: 'info',
     isMeta: false,
-    timestamp: new Date().toISOString(),
-    uuid: randomUUID(),
+    ...MESSAGE_STAMPER.mint(),
   }
 }
 
@@ -110,8 +108,7 @@ export function createBusyRecoveryMessage(input: {
     ...(input.code !== undefined ? { code: input.code } : {}),
     level: 'info',
     isMeta: false,
-    timestamp: new Date().toISOString(),
-    uuid: randomUUID(),
+    ...MESSAGE_STAMPER.mint(),
   }
 }
 
@@ -125,8 +122,7 @@ export function createThinkingNoteMessage(
     content,
     level,
     isMeta: false,
-    timestamp: new Date().toISOString(),
-    uuid: randomUUID(),
+    ...MESSAGE_STAMPER.mint(),
   }
 }
 
@@ -141,8 +137,7 @@ export function createThinkingDeadMessage(
     content,
     level: 'info',
     isMeta: false,
-    timestamp: new Date().toISOString(),
-    uuid: randomUUID(),
+    ...MESSAGE_STAMPER.mint(),
   }
 }
 
@@ -156,8 +151,7 @@ export function createSeatReceiptMessage(
     content,
     level,
     isMeta: false,
-    timestamp: new Date().toISOString(),
-    uuid: randomUUID(),
+    ...MESSAGE_STAMPER.mint(),
   }
 }
 
@@ -171,8 +165,7 @@ export function createPermissionRetryMessage(
     commands,
     level: 'info',
     isMeta: false,
-    timestamp: new Date().toISOString(),
-    uuid: randomUUID(),
+    ...MESSAGE_STAMPER.mint(),
   }
 }
 
@@ -185,8 +178,7 @@ export function createScheduledTaskFireMessage(
     subtype: 'scheduled_task_fire',
     content,
     isMeta: false,
-    timestamp: new Date().toISOString(),
-    uuid: randomUUID(),
+    ...MESSAGE_STAMPER.mint(),
   }
 }
 
@@ -212,8 +204,7 @@ export function createStopHookSummaryMessage(
     stopReason,
     hasOutput,
     level,
-    timestamp: new Date().toISOString(),
-    uuid: randomUUID(),
+    ...MESSAGE_STAMPER.mint(),
     toolUseID,
     hookLabel,
     totalDurationMs,
@@ -233,8 +224,7 @@ export function createTurnDurationMessage(
     budgetLimit: budget?.limit,
     budgetNudges: budget?.nudges,
     messageCount,
-    timestamp: new Date().toISOString(),
-    uuid: randomUUID(),
+    ...MESSAGE_STAMPER.mint(),
     isMeta: false,
   }
 }
@@ -252,8 +242,7 @@ export function createModelTransitionMessage(
     boundary: receipt.boundary,
     crossProvider: receipt.crossProvider,
     cacheDisposition: receipt.cacheDisposition,
-    timestamp: new Date().toISOString(),
-    uuid: randomUUID(),
+    ...MESSAGE_STAMPER.mint(),
     isMeta: false,
   }
 }
@@ -267,8 +256,7 @@ export function createAwaySummaryMessage(
     subtype: 'away_summary',
     content,
     ...(recapMetadata ? { recapMetadata } : {}),
-    timestamp: new Date().toISOString(),
-    uuid: randomUUID(),
+    ...MESSAGE_STAMPER.mint(),
     isMeta: false,
   }
 }
@@ -280,8 +268,7 @@ export function createMemorySavedMessage(
     type: 'system',
     subtype: 'memory_saved',
     writtenPaths,
-    timestamp: new Date().toISOString(),
-    uuid: randomUUID(),
+    ...MESSAGE_STAMPER.mint(),
     isMeta: false,
   }
 }
@@ -290,8 +277,7 @@ export function createAgentsKilledMessage(): SystemAgentsKilledMessage {
   return {
     type: 'system',
     subtype: 'agents_killed',
-    timestamp: new Date().toISOString(),
-    uuid: randomUUID(),
+    ...MESSAGE_STAMPER.mint(),
     isMeta: false,
   }
 }
@@ -323,8 +309,7 @@ export function createApiMetricsMessage(metrics: {
     hookCount: metrics.hookCount,
     classifierCount: metrics.classifierCount,
     configWriteCount: metrics.configWriteCount,
-    timestamp: new Date().toISOString(),
-    uuid: randomUUID(),
+    ...MESSAGE_STAMPER.mint(),
     isMeta: false,
   }
 }
@@ -337,8 +322,7 @@ export function createCommandInputMessage(
     subtype: 'local_command',
     content,
     level: 'info',
-    timestamp: new Date().toISOString(),
-    uuid: randomUUID(),
+    ...MESSAGE_STAMPER.mint(),
     isMeta: false,
   }
 }
@@ -355,8 +339,7 @@ export function createCompactBoundaryMessage(
     subtype: 'compact_boundary',
     content: `Conversation compacted`,
     isMeta: false,
-    timestamp: new Date().toISOString(),
-    uuid: randomUUID(),
+    ...MESSAGE_STAMPER.mint(),
     level: 'info',
     compactMetadata: {
       trigger,
@@ -385,8 +368,7 @@ export function createMicrocompactBoundaryMessage(
     subtype: 'microcompact_boundary',
     content: 'Context microcompacted',
     isMeta: false,
-    timestamp: new Date().toISOString(),
-    uuid: randomUUID(),
+    ...MESSAGE_STAMPER.mint(),
     level: 'info',
     microcompactMetadata: {
       trigger,
@@ -466,8 +448,7 @@ export function createSystemAPIErrorMessage(
       : {}),
     retryAttempt,
     maxRetries,
-    timestamp: new Date().toISOString(),
-    uuid: randomUUID(),
+    ...MESSAGE_STAMPER.mint(),
   }
 }
 
