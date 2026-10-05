@@ -52,7 +52,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed auth status and /health's model row naming an Anthropic model for a home whose only sign-in is OpenRouter; auth status routes to OpenRouter and exits 0
 - Fixed /health in the cockpit saying FAULT, with a remedy for a cause that did not exist, while mercury health said CAUTION; a live catalogue one process has not fetched yet is a timing gap, and Edit outcomes count the session's own edits
 - Fixed a timed-out health check leaving its gate-tree folder in the temp directory on Windows
-- Fixed the Edit tool's schema reading old_string and new_string as optional; the four edit shapes are stated as schema
+- Fixed the Edit tool's schema reading replace_all as required and saying nothing of its four shapes; the schema names them in its own words
 - Fixed compaction failing on a conversation too big to summarise in one request; compaction runs in parts, and one plain warning says when a conversation's size is what makes its requests fail
 - Fixed compaction stopping on a model's refusal of its first request; it says so and retries once with the conversation handed over as text
 - Fixed a /compact line wearing "held" for a beat after the runner had taken it

@@ -41,63 +41,8 @@ const hunkEntrySchema = () =>
       .describe('Insert relative to the single anchor line instead of replacing it'),
   })
 
-const STRING_SHAPE = { type: 'string' } as const
-
-export const EDIT_SHAPE_DESCRIPTIONS = {
-  replace: 'Replace old_string with new_string: both are required in this shape (replace_all rewrites every occurrence)',
-  hunks: 'Line-addressed hunks against the anchored snapshot',
-  append: 'Append text at the end of the file, or at the end of section',
-  section: 'Replace the Markdown section named by section with new_string',
-} as const
-
-export const editShapes = () => [
-  {
-    description: EDIT_SHAPE_DESCRIPTIONS.replace,
-    type: 'object',
-    properties: {
-      file_path: STRING_SHAPE,
-      old_string: STRING_SHAPE,
-      new_string: STRING_SHAPE,
-      replace_all: { type: 'boolean' },
-      expected_anchor: STRING_SHAPE,
-    },
-    required: ['file_path', 'old_string', 'new_string'],
-    additionalProperties: false,
-  },
-  {
-    description: EDIT_SHAPE_DESCRIPTIONS.hunks,
-    type: 'object',
-    properties: {
-      file_path: STRING_SHAPE,
-      hunks: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: { lines: STRING_SHAPE, replace: STRING_SHAPE, insert: { type: 'string', enum: ['before', 'after'] } },
-          required: ['lines', 'replace'],
-          additionalProperties: false,
-        },
-      },
-      expected_anchor: STRING_SHAPE,
-    },
-    required: ['file_path', 'hunks'],
-    additionalProperties: false,
-  },
-  {
-    description: EDIT_SHAPE_DESCRIPTIONS.append,
-    type: 'object',
-    properties: { file_path: STRING_SHAPE, append: STRING_SHAPE, section: STRING_SHAPE },
-    required: ['file_path', 'append'],
-    additionalProperties: false,
-  },
-  {
-    description: EDIT_SHAPE_DESCRIPTIONS.section,
-    type: 'object',
-    properties: { file_path: STRING_SHAPE, section: STRING_SHAPE, new_string: STRING_SHAPE, expected_anchor: STRING_SHAPE },
-    required: ['file_path', 'section', 'new_string'],
-    additionalProperties: false,
-  },
-]
+export const EDIT_SHAPES_DESCRIPTION =
+  'One of four shapes: old_string + new_string (replace the text; both required together, replace_all rewrites every occurrence) · hunks (line-addressed hunks against the anchored snapshot) · append (text at the end of the file, or at the end of section) · section + new_string (replace the Markdown section named by section)'
 
 const widestSchemaFactory = () =>
   z
@@ -113,7 +58,7 @@ const widestSchemaFactory = () =>
       append: z.string().optional().describe(APPEND_DESCRIPTION),
       section: z.string().optional().describe(SECTION_DESCRIPTION),
     })
-    .meta({ anyOf: editShapes() })
+    .describe(EDIT_SHAPES_DESCRIPTION)
 
 const stockSchemaFactory = () =>
   z.strictObject({

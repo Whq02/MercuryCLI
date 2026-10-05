@@ -28,28 +28,22 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-type Branch = { description?: string; type?: string; properties?: Record<string, unknown>; required?: string[]; additionalProperties?: unknown }
-type Wire = { type?: string; properties?: Record<string, unknown>; required?: string[]; additionalProperties?: unknown; anyOf?: Branch[] }
+type Wire = { type?: string; description?: string; properties?: Record<string, unknown>; required?: string[]; additionalProperties?: unknown; anyOf?: unknown; oneOf?: unknown; allOf?: unknown }
 
 const wire = zodToJsonSchema(FileEditTool.inputSchema as never) as Wire
-const branches = wire.anyOf ?? []
 const rootRequired = wire.required ?? []
 const rootKeys = Object.keys(wire.properties ?? {})
-const plain = branches.find(b => (b.required ?? []).includes('old_string'))
-const hunks = branches.find(b => (b.required ?? []).includes('hunks'))
-const append = branches.find(b => (b.required ?? []).includes('append'))
-const sectionShape = branches.find(b => (b.required ?? []).includes('section'))
+const rootWords = wire.description ?? ''
 
-section('§1 the wire schema is one object root with four shapes')
+section('§1 the wire schema is one plain object root that names its four shapes in its own words')
 check('the root stays an object with every field listed (the form every road takes)', wire.type === 'object' && rootKeys.length === 8 && wire.additionalProperties === false, JSON.stringify(rootKeys))
 check('the root requires file_path and nothing else: replace_all no longer reads as required', JSON.stringify(rootRequired) === JSON.stringify(['file_path']), JSON.stringify(rootRequired))
-check('four shapes ride under anyOf: old_string+new_string · hunks · append · section', branches.length === 4 && plain !== undefined && hunks !== undefined && append !== undefined && sectionShape !== undefined, `${branches.length} branches: ${branches.map(b => JSON.stringify(b.required ?? [])).join(' ')}`)
-check('the plain shape requires old_string AND new_string', (plain?.required ?? []).includes('old_string') && (plain?.required ?? []).includes('new_string') && (plain?.required ?? []).includes('file_path'), JSON.stringify(plain?.required ?? []))
-check('every shape is a closed object naming its own fields, each a field of the root', branches.every(b => b.type === 'object' && b.additionalProperties === false && (b.required ?? []).includes('file_path') && Object.keys(b.properties ?? {}).every(k => rootKeys.includes(k)) && (b.required ?? []).every(k => Object.keys(b.properties ?? {}).includes(k))), branches.map(b => Object.keys(b.properties ?? {}).join('+')).join(' | '))
-check('each shape carries a sentence a model reads', branches.every(b => typeof b.description === 'string' && b.description.length > 0))
+check('the root carries no anyOf, oneOf or allOf (the Anthropic API refuses a combinator at the top level of input_schema: the lead\'s live check read "API Error: 400 tools.5.custom.input_schema: input_schema does not support oneOf, allOf, or anyOf at the top level" on every turn)', wire.anyOf === undefined && wire.oneOf === undefined && wire.allOf === undefined, JSON.stringify(Object.keys(wire)))
+check('the root description names the four shapes: old_string + new_string · hunks · append · section + new_string', /old_string \+ new_string/.test(rootWords) && /\bhunks\b/.test(rootWords) && /\bappend\b/.test(rootWords) && /section \+ new_string/.test(rootWords), rootWords)
+check('the root description says old_string and new_string are required together', /both required together/.test(rootWords), rootWords)
 check('the old_string and new_string field words say they travel together', String((wire.properties?.old_string as { description?: string })?.description ?? '').includes('new_string') && String((wire.properties?.new_string as { description?: string })?.description ?? '').includes('old_string'))
 
-section('§2 under the one JSON-schema engine the four shapes validate and the Kimi-K3 shape is refused')
+section('§2 under the one JSON-schema engine the four shapes validate; the shapes a plain root cannot refuse, the runtime refuses')
 const compiled = compileJsonSchema(wire)
 check('the wire schema compiles under the one engine', compiled.ok, compiled.ok ? '' : compiled.error)
 const valid = (value: unknown): boolean => compiled.ok && compiled.check(value).length === 0
@@ -80,16 +74,17 @@ const refused: Array<[string, Record<string, unknown>]> = [
   ['append beside old_string', { file_path, append: 'tail', old_string: 'a' }],
   ['a hunk without its replace', { file_path, hunks: [{ lines: '3' }], expected_anchor: 'fa:0123456789ab' }],
 ]
-for (const [label, value] of refused) check(`refused — ${label}`, !valid(value))
 
 section('§3 the runtime agrees with the schema')
 const parse = (value: unknown): boolean => (FileEditTool.inputSchema as unknown as { safeParse: (v: unknown) => { success: boolean } }).safeParse(value).success
 check('the zod schema the executor re-parses accepts each of the nine accepted shapes', accepted.every(([, value]) => parse(value)))
+const refusedByRuntime = async (value: Record<string, unknown>): Promise<boolean> => !parse(value) || (await FileEditTool.validateInput(value as never, context)).result === false
 const context = {
   readFileState: new Map<string, unknown>(),
   abortController: new AbortController(),
   getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }),
 } as never
+for (const [label, value] of refused) check(`refused by the runtime — ${label}`, await refusedByRuntime(value))
 const k3 = await FileEditTool.validateInput({ file_path, old_string: 'a' } as never, context)
 check('validateInput refuses the Kimi-K3 shape with the existing words', k3.result === false && k3.message === 'old_string and new_string are required unless hunks, append or section are provided.', JSON.stringify(k3))
 const bare = await FileEditTool.validateInput({ file_path } as never, context)
@@ -99,10 +94,10 @@ check('validateInput refuses section alone with the existing section words', lon
 const both = await FileEditTool.validateInput({ file_path, old_string: 'a', new_string: 'b', hunks: [{ lines: '3', replace: 'x' }], expected_anchor: 'fa:0123456789ab' } as never, context)
 check('validateInput refuses old_string beside hunks with the existing exclusivity words', both.result === false && (both.message ?? '').startsWith('hunks and old_string/new_string/replace_all are mutually exclusive'), JSON.stringify(both))
 
-section('§4 every road sends the same four-shape schema')
+section('§4 every road sends the same plain-root schema')
 const shaped = [{ name: 'Edit', description: 'd', input_schema: wire }]
 const chat = mapToolsToZai(shaped)[0] as { function: { parameters: unknown } }
-check('the chat-completions family (Z.AI, Moonshot, DeepSeek, OpenRouter, Hugging Face, local servers) carries the root with its anyOf as the function parameters', JSON.stringify(chat.function.parameters) === JSON.stringify(wire))
+check('the chat-completions family (Z.AI, Moonshot, DeepSeek, OpenRouter, Hugging Face, local servers) carries the root as the function parameters', JSON.stringify(chat.function.parameters) === JSON.stringify(wire))
 const responses = mapToolsToOpenai(shaped)[0] as { parameters: unknown }
 check('the OpenAI Responses road carries the same parameters, flat, no strict flag', JSON.stringify(responses.parameters) === JSON.stringify(wire) && !('strict' in responses))
 const gemini = buildGeminiRequest({ model: 'gemini-2.5-pro', messages: [], tools: mapToolsToZai(shaped) as never } as never, []) as { tools?: Array<{ functionDeclarations: Array<{ parametersJsonSchema: unknown }> }> }
