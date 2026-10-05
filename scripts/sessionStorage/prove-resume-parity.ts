@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
@@ -74,10 +74,11 @@ if (mode === '--compare') {
     }
     return snap(normalize(result))
   }
+  const spellings = [...new Set([realpathSync(root), root])].sort((a, b) => b.length - a.length)
   const neutral = (value: any): any => {
-    if (typeof value === 'string') return value.split(root).join('<scratch>')
+    if (typeof value === 'string') return spellings.reduce((text, spelling) => text.split(spelling).join('<scratch>'), value)
     if (Array.isArray(value)) return value.map(neutral)
-    if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, neutral(item)]))
+    if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, key === 'displayPath' && typeof item === 'string' ? neutral(item.replace(/^(?:\.\.\/)+/, '<up>/')) : neutral(item)]))
     return value
   }
   const snap = (value: unknown): string => digest(neutral(stable(value)))
