@@ -5,6 +5,7 @@ import { Message as MessageComponent } from '../../components/Message.js'
 import { MessageResponse } from '../../components/MessageResponse.js'
 import { CtrlOToExpand, SubAgentProvider } from '../../components/CtrlOToExpand.js'
 import { FallbackToolUseRejectedMessage } from '../../components/FallbackToolUseRejectedMessage.js'
+import { ShellTimeDisplay } from '../../components/shell/ShellTimeDisplay.js'
 import type { ProgressMessage } from '../../types/message.js'
 import type { EvalToolProgress } from '../../types/tools.js'
 import type { Tools } from '../../Tool.js'
@@ -51,6 +52,19 @@ export function renderEvalProgressMessage(
   }
   const nested = events.filter(e => e.kind === 'nested')
   const lastOutput = [...events].reverse().find(e => e.kind === 'output')
+  const running = [...events].reverse().find(e => e.kind === 'running')
+  const time = running !== undefined && running.kind === 'running' ? <ShellTimeDisplay elapsedTimeSeconds={running.elapsedSeconds} timeoutMs={running.budgetMs} /> : null
+  const outputTail = lastOutput !== undefined && lastOutput.kind === 'output' && lastOutput.tail.trim() ? lastOutput.tail : running?.kind === 'running' && running.tail !== undefined && running.tail.trim() ? running.tail : null
+  if (nested.length === 0 && outputTail === null) {
+    return (
+      <MessageResponse height={1}>
+        <Box gap={1}>
+          <Text dimColor>running…</Text>
+          {time}
+        </Box>
+      </MessageResponse>
+    )
+  }
   const lookups = buildSubagentLookups([])
   const shown = nested.slice(-4)
   return (
@@ -80,10 +94,10 @@ export function renderEvalProgressMessage(
           </MessageResponse>
         ))}
       </SubAgentProvider>
-      {lastOutput && lastOutput.kind === 'output' && lastOutput.tail.trim() ? (
+      {outputTail !== null ? (
         <MessageResponse>
           <Box flexDirection="column">
-            {lastOutput.tail
+            {outputTail
               .split('\n')
               .slice(-5)
               .map((line, index) => (
@@ -91,6 +105,12 @@ export function renderEvalProgressMessage(
                   {line}
                 </Text>
               ))}
+            {time !== null ? (
+              <Box gap={1}>
+                <Text dimColor>running…</Text>
+                {time}
+              </Box>
+            ) : null}
           </Box>
         </MessageResponse>
       ) : null}

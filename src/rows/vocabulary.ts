@@ -183,7 +183,7 @@ export const ToolUpdateRowSchema = lazySchema(() =>
     ...envelopeFields,
     call_id: z.string(),
     tick: z.number().int().min(1),
-    source: z.enum(['shell', 'powershell', 'mcp']),
+    source: z.enum(['shell', 'powershell', 'mcp', 'eval']),
     line: z.string().optional(),
     elapsed_s: z.number().optional(),
     lines: z.number().int().optional(),

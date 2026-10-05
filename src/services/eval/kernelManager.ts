@@ -167,6 +167,7 @@ export interface RunCellRequest {
   abortSignal: AbortSignal
   serveBridge: BridgeServer
   onLiveOutput?: (stream: 'stdout' | 'stderr', chunk: string) => void
+  onCellStarted?: (facts: { budgetMs: number | null }) => void
 }
 
 interface KernelEntry {
@@ -431,6 +432,7 @@ export class EvalKernelManager {
     let interruptRequested: 'budget' | 'wall' | 'abort' | null = null
     let escalated = false
 
+    request.onCellStarted?.({ budgetMs: timeoutSeconds === null ? null : timeoutSeconds * 1000 })
     const execPromise = entry.kernel.exec(cellId, code, {
       onStdout: chunk => {
         stdout.push(chunk)

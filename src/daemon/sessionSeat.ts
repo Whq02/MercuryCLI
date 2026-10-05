@@ -369,7 +369,7 @@ function onSeatToolUpdate(seat: SeatState, row: SeatRow, dir?: string): void {
   const key = typeof row.parent_call_id === 'string' ? row.parent_call_id : row.call_id
   const prior = seat.progress.get(key)
   if (prior !== undefined && row.tick <= prior.seq) return
-  const dataType = row.source === 'mcp' ? 'mcp_progress' : row.source === 'powershell' ? 'powershell_progress' : 'bash_progress'
+  const dataType = row.source === 'mcp' ? 'mcp_progress' : row.source === 'powershell' ? 'powershell_progress' : row.source === 'eval' ? 'eval_progress' : 'bash_progress'
   seat.progress.set(key, {
     toolUseID: row.call_id,
     dataType,

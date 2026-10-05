@@ -17,7 +17,7 @@ import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../tools/SyntheticOutputTool/constan
 import type { AssistantMessage, CompactMetadata, Message, MessageOrigin, ProgressMessage } from '../types/message.js'
 import type { ApiStreamEvent, ContentBlockParam } from '../types/wire.js'
 import type { BatchedPrompt, QueuedCommand } from '../types/textInputTypes.js'
-import type { MCPProgress, ShellProgress } from '../types/tools.js'
+import type { EvalToolProgress, MCPProgress, ShellProgress } from '../types/tools.js'
 import { createAttachmentMessage } from '../utils/attachments/orchestrator.js'
 import { getQueuedCommandAttachments } from '../utils/attachments/queuedCommands.js'
 import { getGlobalConfig } from '../utils/config.js'
@@ -487,7 +487,8 @@ export class Conversation {
           const inner = data.message as Message
           return rowsOfMessage(inner, progress.parentToolUseID)
         }
-        if (isEphemeralToolProgress(data.type)) {
+        const evalRunning = data.type === 'eval_progress' && (data as { kind?: string }).kind === 'running' ? (data as Extract<EvalToolProgress, { kind: 'running' }>) : null
+        if (isEphemeralToolProgress(data.type) || evalRunning !== null) {
           const callId = callScopes.has(progress.toolUseID) ? progress.toolUseID : progress.parentToolUseID
           const updateScope = callScopes.get(callId) ?? rowScope
           const key = JSON.stringify([scope.session_id, callId])
@@ -501,6 +502,19 @@ export class Conversation {
           }
           const tick = (state?.tick ?? 0) + 1
           toolUpdateState.set(key, { lastEmitMs: now, tick })
+          if (evalRunning !== null) {
+            rows.push(
+              toolUpdateRow(updateScope, {
+                callId,
+                tick,
+                source: 'eval',
+                line: latestLineOf(evalRunning.tail),
+                elapsedS: evalRunning.elapsedSeconds,
+                budgetMs: evalRunning.budgetMs,
+              }),
+            )
+            return rows
+          }
           const shell = data as Partial<ShellProgress>
           const mcp = data as Partial<MCPProgress>
           const isMcp = data.type === 'mcp_progress'
