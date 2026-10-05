@@ -368,12 +368,12 @@ export function buildOpenaiResponsesRequest(
       : {}),
   }
 }
-export function encodeOpenaiPlan(plan: RequestPlan, opts?: { imagesSupported?: boolean }): OpenaiInputItem[] {
+export function encodeOpenaiPlan(plan: RequestPlan, opts?: { imagesSupported?: boolean; model?: string }): OpenaiInputItem[] {
   const messages: BridgeMessage[] = plan.turns.map(turn => ({
     role: turn.role,
     content: turn.storedContent as MessageParam['content'],
     ...(turn.messageId !== undefined ? { turnId: turn.messageId } : {}),
-    ...(turn.replay?.openai !== undefined ? { turnRecord: decodeOpenaiTurnRecord(turn.replay.openai) } : {}),
+    ...(turn.replay?.openai !== undefined && opts?.model !== undefined && turn.servedModel === opts.model ? { turnRecord: decodeOpenaiTurnRecord(turn.replay.openai) } : {}),
   }))
   return mapMessagesToOpenaiInput(messages, opts)
 }
