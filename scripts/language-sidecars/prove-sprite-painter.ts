@@ -25,7 +25,7 @@ const { lines, cols, rows } = await spriteToAnsi(png, 8)
 check('rows >= 1 and one line per row', rows >= 1 && lines.length === rows)
 check('cols within the requested bound', cols >= 1 && cols <= 8)
 const joined = lines.join('')
-check('uses the half-block glyph ▀', joined.includes('▀'))
+check('uses the half-block glyphs (▄ for a pair, ▀ over an empty bottom)', /[▀▄]/.test(joined))
 check('uses a truecolor escape', joined.includes(ESC + '[38;2;') || joined.includes(ESC + '[48;2;'))
 
 let strayControl = false

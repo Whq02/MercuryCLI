@@ -111,7 +111,7 @@ function withTtyStdout<T>(fn: () => T): T {
     .png()
     .toBuffer()
   const cells = await imageToCells(png, 20, 8)
-  check('cells: half-blocks + truecolor SGR', cells.includes('▀') && cells.includes('[38;2;'))
+  check('cells: half-blocks + truecolor SGR', /[▀▄]/.test(cells) && cells.includes('[38;2;'))
   chalk.level = 2
   const reduced = await imageToCells(png, 20, 8)
   chalk.level = 3
@@ -135,7 +135,7 @@ function withTtyStdout<T>(fn: () => T): T {
     encoding: 'utf8',
     timeout: 60_000,
   })
-  check('image (bundle): cells tier renders half-blocks on stdout', cellsRun.status === 0 && cellsRun.stdout.includes('▀'), cellsRun.stderr.slice(0, 120))
+  check('image (bundle): cells tier renders half-blocks on stdout', cellsRun.status === 0 && /[▀▄]/.test(cellsRun.stdout), cellsRun.stderr.slice(0, 120))
   check('image (bundle): names the tier on stderr', cellsRun.stderr.includes('[cells]'))
   const itermRun = spawnSync('node', [dist, 'image', fixture, '--protocol', 'iterm'], {
     encoding: 'utf8',
@@ -207,7 +207,7 @@ console.log('\nWI-6 — link fallback when native decode is unavailable:')
   const healthy = await withEnvAsync({ MERCURY_IMAGE_PROTOCOL: 'cells' }, () =>
     renderImageForTerminal(fixture),
   )
-  check('healthy sharp: cells tier decodes again after reset', healthy.protocol === 'cells' && healthy.payload.includes('▀'))
+  check('healthy sharp: cells tier decodes again after reset', healthy.protocol === 'cells' && /[▀▄]/.test(healthy.payload))
   check('imageLinkLine is pure + truthful for arbitrary paths', imageLinkLine('/x/y.png', 'why').includes('/x/y.png') && imageLinkLine('/x/y.png', 'why').includes('why'))
   const srcOf = (p: string) => require('node:fs').readFileSync(join(ROOT, p), 'utf8')
   check(
