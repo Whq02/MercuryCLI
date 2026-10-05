@@ -1,7 +1,7 @@
 import { join } from 'path'
 
 import type { InstructionConvention } from '../contracts.js'
-import { isProjectInstructionExcluded } from './mercuryNative.js'
+import { isProjectInstructionExcluded } from '../nativeSource.js'
 
 export const SHARED_INSTRUCTION_FILE = 'AGENTS.md'
 
@@ -36,4 +36,7 @@ export const agentsMdConvention: InstructionConvention = {
   isExcluded: isProjectInstructionExcluded,
   instructionFileNames: [SHARED_INSTRUCTION_FILE],
   rulesPathMarkers: [],
+}
+export function foreignInstructionConventions(): InstructionConvention[] {
+  return [agentsMdConvention]
 }

@@ -4,23 +4,23 @@ import { getFsImplementation } from '../../../utils/fsOperations.js'
 import type {
   InstructionAdapter,
   InstructionConvention,
-  InstructionProfile,
 } from '../contracts.js'
 import { resolveRequestedInstructionProfile } from '../profile.js'
-import { agentsMdConvention } from './agentsMd.js'
-import { mercuryNativeConvention } from './mercuryNative.js'
+import { conventionsForProfile as composeNativeFirst } from '../compositionOrder.js'
+import { foreignInstructionConventions } from './agentsMd.js'
 
 export const mercuryAdapter: InstructionAdapter = {
   id: 'mercury',
-  conventionsFor(profile: InstructionProfile): InstructionConvention[] {
-    return profile === 'native'
-      ? [mercuryNativeConvention]
-      : [mercuryNativeConvention, agentsMdConvention]
-  },
+  conventionsFor: conventionsForProfile,
+  foreignConventions: foreignInstructionConventions,
 }
 
 export function adapterForProfile(): InstructionAdapter {
   return mercuryAdapter
+}
+
+export function conventionsForProfile(profile: 'auto' | 'native'): InstructionConvention[] {
+  return composeNativeFirst(profile)
 }
 
 function isFile(path: string): boolean {
@@ -48,7 +48,7 @@ function chainOf(dir: string): string[] {
 }
 
 export function composedGuideFilesAt(dir: string): string[] {
-  const conventions = adapterForProfile().conventionsFor(resolveRequestedInstructionProfile().profile)
+  const conventions = conventionsForProfile(resolveRequestedInstructionProfile().profile)
   const primary = conventions.filter(c => !c.fallback)
   const present = primary.flatMap(c => c.projectDirFiles(dir)).filter(isFile)
   if (present.length > 0) return present
