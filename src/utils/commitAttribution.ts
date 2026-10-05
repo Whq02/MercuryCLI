@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { isAbsolute, join, relative, sep } from 'node:path'
 
 import { getOriginalCwd, getSessionId } from '../bootstrap/state.js'
-import type { AttributionSnapshotMessage, FileAttributionState } from '../types/logs.js'
+import type { AttributionSnapshotEntry, FileAttributionState } from '../types/logs.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
@@ -349,7 +349,7 @@ async function isFileDeleted(filePath: string): Promise<boolean> {
 export function stateToSnapshotMessage(
   state: AttributionState,
   messageId: string,
-): AttributionSnapshotMessage {
+): AttributionSnapshotEntry {
   return {
     type: 'attribution-snapshot',
     messageId,
@@ -361,11 +361,11 @@ export function stateToSnapshotMessage(
     permissionPromptCountAtLastCommit: state.permissionPromptCountAtLastCommit,
     escapeCount: state.escapeCount,
     escapeCountAtLastCommit: state.escapeCountAtLastCommit,
-  } as AttributionSnapshotMessage
+  } as AttributionSnapshotEntry
 }
 
 export function restoreAttributionStateFromSnapshots(
-  snapshots: AttributionSnapshotMessage[],
+  snapshots: AttributionSnapshotEntry[],
 ): AttributionState {
   const empty = createEmptyAttributionState()
   const last = snapshots[snapshots.length - 1]

@@ -18,8 +18,8 @@ import { loginSuccessReceipt } from '../../utils/accounts/loginReceipt.js'
 import { logError } from '../../utils/log.js'
 import { stripSignatureBlocks } from '../../utils/messages.js'
 import {
-  checkAndDisableBypassPermissionsIfNeeded,
-  resetBypassPermissionsCheck,
+  checkAndDisableSovereignIfNeeded,
+  resetSovereignCheck,
 } from '../../utils/permissions/bypassPermissionsKillswitch.js'
 import { resetUserCache } from '../../utils/user.js'
 
@@ -83,8 +83,8 @@ function LoginReceipt({ receipt, onDone }: { receipt: string; onDone: () => void
 function runPostLoginRefresh(context: LocalJSXCommandContext): void {
   resetCostState()
   resetUserCache()
-  resetBypassPermissionsCheck()
-  void checkAndDisableBypassPermissionsIfNeeded(
+  resetSovereignCheck()
+  void checkAndDisableSovereignIfNeeded(
     context.getAppState().toolPermissionContext,
     context.setAppState,
   ).catch(logError)

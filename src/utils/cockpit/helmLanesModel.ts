@@ -5,7 +5,7 @@ import type { TaskState } from '../../tasks/types.js'
 import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isLocalShellTask } from '../../tasks/LocalShellTask/guards.js'
-import type { LogOption } from '../../types/logs.js'
+import type { SessionListing } from '../../types/logs.js'
 import type { WorkRosterV1 } from '../../services/engine-connector/types.js'
 import { crewSettled, crewStateLabel, crewTokensLabel, type CrewAgentFacts } from '../../services/engine-connector/crewFacts.js'
 import { workRowRuns } from '../../services/engine-connector/workCounts.js'
@@ -318,7 +318,7 @@ export type LanesInput = {
   lastSentPrompt: string | null
   filesOff: boolean
   filesFolder: string
-  recent: LogOption[] | null
+  recent: SessionListing[] | null
   missionCondition: string | null
   wakeGlance: SaturnWakeGlanceV1 | null
   glance: GlanceReads | null

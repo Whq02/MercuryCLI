@@ -239,7 +239,7 @@ try {
     return (JSON.parse(raw) as { permissionMode?: string }).permissionMode === 'implement'
   }, 10_000))
 
-  check('D8 loadFullLog returns EVERY delivered turn (the record chain is whole)', await untilAsync(() => {
+  check('D8 fillSessionListing returns EVERY delivered turn (the record chain is whole)', await untilAsync(() => {
     const s = JSON.stringify(connector.records())
     return s.includes('tidy the scratch folder') && s.includes('Tidied after your allow.') && s.includes('sonnet-law body.')
   }, 10_000), `rows=${connector.records().length}`)

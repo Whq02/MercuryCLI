@@ -14,7 +14,7 @@ const { getProjectSnapshot, _resetProjectIntelForTesting } = await import(
   '../../src/services/projectIntel/snapshot.js'
 )
 const { isTurnBoundaryRow } = await import('../../src/hooks/useLogMessages.js')
-const { cleanMessagesForLogging } = await import(
+const { cleanForTranscript } = await import(
   '../../src/utils/sessionStorage/chain.js'
 )
 

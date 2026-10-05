@@ -2,7 +2,7 @@ import { setLastAPIRequest, setLastAPIRequestMessages } from '../bootstrap/state
 import { flagEnabled } from '../substrate/flagRegistry.js'
 import type { QuerySource } from '../constants/querySource.js'
 import { TICK_TAG } from '../constants/xml.js'
-import type { LogOption } from '../types/logs.js'
+import type { SessionListing } from '../types/logs.js'
 import type { ApiRequestParams } from '../types/wire.js'
 import { stripDisplayTags, stripDisplayTagsAllowEmpty } from './displayTags.js'
 import { toError } from './errors.js'
@@ -93,7 +93,7 @@ function isAutonomousPrompt(firstPrompt: string | undefined): boolean {
   return typeof firstPrompt === 'string' && firstPrompt.trimStart().startsWith(`<${TICK_TAG}`)
 }
 
-export function getLogDisplayTitle(log: LogOption, defaultTitle?: string): string {
+export function getLogDisplayTitle(log: SessionListing, defaultTitle?: string): string {
   const autonomous = isAutonomousPrompt(log.firstPrompt)
   const strippedPrompt = log.firstPrompt ? stripDisplayTagsAllowEmpty(log.firstPrompt) : ''
   let title: string

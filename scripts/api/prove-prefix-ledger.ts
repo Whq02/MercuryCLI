@@ -179,12 +179,12 @@ section('§1 the ledger, pure — digests, the range law, the names per part')
   const collected = deadThinkingMarks([user(TEXT('x')), deadRow, { type: 'system', subtype: 'informational', content: 'noise' }] as never)
   check('deadThinkingMarks reads every thinking_dead row into a map by response id', collected.size === 2 && collected.get('msg_1')?.has(0) === true && collected.get('msg_2')?.has(0) === true)
   const { createDeadThinkingAttachment } = binding
-  const { isLoggableMessage } = await import('../../src/utils/sessionStorage/chain.ts')
+  const { isTranscribable } = await import('../../src/utils/sessionStorage/chain.ts')
   const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
   const deadAtt = createDeadThinkingAttachment([{ messageId: 'msg_1', blockIndex: 0 }, { messageId: 'msg_2', blockIndex: 0 }])
   check('the dead marks ride a dead_thinking attachment', deadAtt.type === 'attachment' && (deadAtt.attachment as { type: string }).type === 'dead_thinking')
   check('deadThinkingMarks reads the attachment form (and the legacy system row) into the map', deadThinkingMarks([user(TEXT('x')), deadAtt, deadRow] as never).get('msg_1')?.has(0) === true && deadThinkingMarks([deadAtt] as never).get('msg_2')?.has(0) === true)
-  check('the dead-thinking attachment persists to disk AND projects nothing to the wire (unlike the info notice that was lost)', isLoggableMessage(deadAtt as never) === true && normalizeAttachmentForAPI(deadAtt.attachment).length === 0)
+  check('the dead-thinking attachment persists to disk AND projects nothing to the wire (unlike the info notice that was lost)', isTranscribable(deadAtt as never) === true && normalizeAttachmentForAPI(deadAtt.attachment).length === 0)
   const wire = [
     { type: 'user', uuid: 'u1', message: { role: 'user', content: [TEXT('q')] } },
     { type: 'assistant', uuid: 'a1', message: { id: 'msg_1', role: 'assistant', content: [THINK('one'), TEXT('a')] } },

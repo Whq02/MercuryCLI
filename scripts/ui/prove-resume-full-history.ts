@@ -46,11 +46,11 @@ console.log('============================================================')
   check(
     "the core keeps cleared sessions in 'all' scope",
     /facts\.scope === 'project'\s*\?\s*partitionByProject\(/.test(model) &&
-      model.includes("{ inProject: operatorLogs, elsewhere: [] as LogOption[] }"),
+      model.includes("{ inProject: operatorLogs, elsewhere: [] as SessionListing[] }"),
   )
   check(
     "'all' scope marks cleared sessions instead of hiding them (the hook binds the live cleared cache; the skin paints the mark)",
-    model.includes("facts.scope === 'all' ? facts.isCleared(getSessionIdFromLog(log)) : undefined") &&
+    model.includes("facts.scope === 'all' ? facts.isCleared(sessionIdOfListing(log)) : undefined") &&
       model.includes('isCleared: id => isSessionCleared(id)') &&
       view.includes('· cleared'),
   )

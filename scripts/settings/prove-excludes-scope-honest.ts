@@ -13,7 +13,7 @@ mkdirSync(join(PROJ, '.mercury'), { recursive: true })
 writeFileSync(join(PROJ, '.mercury', 'settings.json'), JSON.stringify({ briefs: { exclude: ['**/MERCURY.md'] } }))
 process.chdir(PROJ)
 
-const adapter = await import('../../src/services/instructions/adapters/mercuryNative.ts')
+const adapter = await import('../../src/services/instructions/nativeSource.ts')
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
 
 let failures = 0

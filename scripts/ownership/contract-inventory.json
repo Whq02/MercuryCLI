@@ -210,7 +210,7 @@
     "toolAlwaysAllowedRule"
    ],
    "src/utils/permissions/permissionSetup.ts": [
-    "createDisabledBypassPermissionsContext",
+    "createSovereignDisabledContext",
     "describeSessionPermissionMode",
     "findDangerousClassifierPermissions",
     "getAutoModeUnavailableNotification",
@@ -219,7 +219,7 @@
     "initialPermissionModeFromCLI",
     "initializeToolPermissionContext",
     "isAutoModeGateEnabled",
-    "isBypassPermissionsModeDisabled",
+    "isSovereignDisabled",
     "isDangerousBashPermission",
     "isDangerousPowerShellPermission",
     "isDangerousTaskPermission",

@@ -68,7 +68,7 @@ section('§1 the source law — flip first, birth behind, the refusal on the sea
   check('the milestone kinds exist', ["'chat-flipped'", "'birth-landed'", "'birth-refused'"].every(k => milestones.includes(k)))
   const picker = read('src/screens/ResumeConversation.tsx')
   check('the resume picker parses no transcript before the hop', !picker.includes('loadConversationForResume('))
-  check('…and hops on the log’s path and title through the one resume door', picker.includes('focusResumedSession(String(sessionId), log.fullPath, {') && picker.includes('title: log.customTitle ?? log.agentName,') && picker.includes('const sessionId = getSessionIdFromLog(log)'))
+  check('…and hops on the log’s path and title through the one resume door', picker.includes('focusResumedSession(String(sessionId), log.fullPath, {') && picker.includes('title: log.customTitle ?? log.agentName,') && picker.includes('const sessionId = sessionIdOfListing(log)'))
   const wm = read('src/services/concourse/workerModels.ts')
   check('the registry admits ONLY a launch with no id at all keyless, the row reading the keyless words', wm.includes("if (arm === 'session' && idOrKey === undefined) return { ok: true, entry: { ...entry, displayName: NO_SIGN_IN_ROW }, keyless: true }") && wm.includes('const unnamed = idOrKey === undefined || (id === defaultId && defaultDispatches)'))
   check('…and its keyless seed is the operator’s own row (the id the face names), so that launch counts as unnamed', ordered(wm, "const firstAvailable = registry.entries.find(e => e[arm].availability === 'available')", 'const operatorRow = registry.entries.find(e => e.isOperatorDefault === true)', 'return registry.entries[0]?.modelId'))

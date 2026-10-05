@@ -415,8 +415,8 @@ section('G the resume road — the block survives a reload the way the summary d
   const loaded = chain.buildConversationChain(map as never, map.get(a3.uuid as never) as never) as unknown as AnyMsg[]
   const order = loaded.map(m => (m.uuid === boundary.uuid ? 'boundary' : m.uuid === block.uuid ? 'block' : m.uuid === summary.uuid ? 'summary' : m.uuid === u1.uuid ? 'u1' : m.uuid === a1.uuid ? 'a1' : m.uuid === u2.uuid ? 'u2' : m.uuid === a2.uuid ? 'a2' : m.uuid === u3.uuid ? 'u3' : 'a3'))
   check('the reloaded chain: boundary, block, summary, the kept tail, the later turn — the folded head pruned', j(order) === j(['boundary', 'block', 'summary', 'u2', 'a2', 'u3', 'a3']), j(order))
-  check('the block is a loggable row (it projects to the wire, so the file keeps it)', chain.isLoggableMessage(block as never) === true)
-  check('an empty block is not persisted (it projects nothing)', chain.isLoggableMessage(createAttachmentMessage({ type: KIND, messages: [], omitted: 0 } as never) as never) === false)
+  check('the block is a loggable row (it projects to the wire, so the file keeps it)', chain.isTranscribable(block as never) === true)
+  check('an empty block is not persisted (it projects nothing)', chain.isTranscribable(createAttachmentMessage({ type: KIND, messages: [], omitted: 0 } as never) as never) === false)
 }
 
 section('H the turn machine end to end — the retried request after an overflow fold carries the asks verbatim, ahead of the summary')

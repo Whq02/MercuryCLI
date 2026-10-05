@@ -3,8 +3,8 @@ import { builtInCommandNames } from '../../commands.js'
 import { COMMAND_NAME_TAG } from '../../constants/xml.js'
 import { projectForTranscript } from '../../services/desktop/screenshotRetention.js'
 import type {
-  AttributionSnapshotMessage,
-  FileHistorySnapshotMessage,
+  AttributionSnapshotEntry,
+  FileHistorySnapshotEntry,
   SerializedMessage,
   TranscriptMessage,
 } from '../../types/logs.js'
@@ -114,7 +114,7 @@ export function checkResumeConsistency(chain: Message[]): void {
 }
 
 export function buildFileHistorySnapshotChain(
-  fileHistorySnapshots: Map<UUID, FileHistorySnapshotMessage>,
+  fileHistorySnapshots: Map<UUID, FileHistorySnapshotEntry>,
   conversation: TranscriptMessage[],
 ): FileHistorySnapshot[] {
   const snapshots: FileHistorySnapshot[] = []
@@ -133,17 +133,17 @@ export function buildFileHistorySnapshotChain(
 }
 
 export function buildAttributionSnapshotChain(
-  attributionSnapshots: Map<UUID, AttributionSnapshotMessage>,
+  attributionSnapshots: Map<UUID, AttributionSnapshotEntry>,
   _conversation: TranscriptMessage[],
-): AttributionSnapshotMessage[] {
+): AttributionSnapshotEntry[] {
   return Array.from(attributionSnapshots.values())
 }
 
-export function cleanMessagesForLogging(
+export function cleanForTranscript(
   messages: Message[],
   allMessages: readonly Message[] = messages,
 ): Transcript {
-  return transformMessagesForExternalTranscript(messages.filter(isLoggableMessage) as Transcript)
+  return transformMessagesForExternalTranscript(messages.filter(isTranscribable) as Transcript)
     .map(message => projectForTranscript(message, allMessages))
 }
 
@@ -154,7 +154,7 @@ export type Transcript = (
   | SystemMessage
 )[]
 
-export function isLoggableMessage(m: Message): boolean {
+export function isTranscribable(m: Message): boolean {
   if (m.type === 'progress') return false
   if (m.type !== 'attachment') return true
   const att = m.attachment

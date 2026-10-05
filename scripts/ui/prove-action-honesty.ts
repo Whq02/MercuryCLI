@@ -56,7 +56,7 @@ check(
 const tabs = readFileSync('src/components/mercury-ui/SessionTabs.tsx', 'utf8');
 check(
   'SessionTabs seeds from a scope-keyed last-known cache',
-  tabs.includes('const lastKnownTabs = new Map<string, LogOption[]>()') &&
+  tabs.includes('const lastKnownTabs = new Map<string, SessionListing[]>()') &&
     tabs.includes('rows: lastKnownTabs.get(scopeKey) ?? null'),
 );
 check(
@@ -72,7 +72,7 @@ check(
 );
 check(
   'rail RECENT lane seeds from its scope-keyed cache',
-  rail.includes('const lastKnownRecent = new Map<string, LogOption[]>()') &&
+  rail.includes('const lastKnownRecent = new Map<string, SessionListing[]>()') &&
     rail.includes('lastKnownRecent.get(recentScopeKey) ?? null'),
 );
 check(

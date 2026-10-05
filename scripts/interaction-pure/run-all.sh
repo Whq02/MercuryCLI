@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: scripts/interaction/** scripts/interaction-pure/**
+# gate-watch: scripts/interaction/** scripts/interaction-pure/** scripts/lib/settingsPopupHarness.ts scripts/ui/vshot.py
 # gate-watch: src/components/design-system/ThemeProvider* src/components/mercuryPalette*
 # gate-watch: src/components/mercury-ui/InteractiveRow* src/components/mercury-ui/NavigablePanes*
 # gate-watch: src/ink/** src/state/AppState* src/utils/inputRange* src/utils/mercuryTokens*

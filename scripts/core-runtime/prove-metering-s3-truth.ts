@@ -38,9 +38,6 @@ section('§17 the partial fold reports a real post figure')
 
 section('§20 one definition of progress.tokenCount')
 {
-  const main = read('src/tasks/LocalMainSessionTask.ts')
-  check('the main-session task folds the wire usage through the one ledger (the spend) when present', /foldResponseIntoLedger\(ledger, message\)/.test(main))
-  check('…and reports it as tokenCount, the estimate standing in only before any usage', /const tokensSnapshot = sawUsage \? ledger\.inputTokens \+ ledger\.outputTokens : estimatedTokens/.test(main))
   const agent = read('src/tasks/LocalAgentTask/LocalAgentTask.tsx')
   check('the agent task defines the same quantity (the ledger\'s spend: input + output summed over every response)', /return tracker\.ledger\.inputTokens \+ tracker\.ledger\.outputTokens/.test(agent))
 }

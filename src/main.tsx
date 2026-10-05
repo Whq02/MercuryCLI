@@ -109,8 +109,8 @@ import { resetSettingsCache, setSessionSettingsCache } from './utils/settings/se
 import { setFlagSettingsInline, setFlagSettingsPath, setAllowedSettingSources, getSessionProjectDir } from './bootstrap/state.js'
 import { startMdmRawRead } from './utils/settings/mdm/rawRead.js'
 import { ensureKeychainPrefetchCompleted, startKeychainPrefetch } from './utils/secureStorage/keychainPrefetch.js'
-import { getLastSessionLog, getLogByIndex, searchSessionsByCustomTitle, fetchLogs, sessionIdExists } from './utils/sessionStorage.js'
-import { getSessionIdFromLog } from './utils/sessionStorage/logs.js'
+import { lastSession, sessionAtIndex, searchSessionsByCustomTitle, listSessions, sessionIdExists } from './utils/sessionStorage.js'
+import { sessionIdOfListing } from './utils/sessionStorage/logs.js'
 import { armProvisionalSessionReconcile } from './utils/provisionalSessionReconcile.js'
 import { computeInitialCrewContext } from './utils/crew/reconnection.js'
 import { findRoleDefinition, getRoleSystemPrompt } from './utils/crew/roleResolver.js'
@@ -1197,12 +1197,12 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   const bypassFromRegistry = isEnvTruthy(flagEnv('MERCURY_SKIP_PERMISSIONS')) && !isRunArgv()
   const dangerouslySkipPermissions = Boolean(opts.sovereign) || opts.mode === 'sovereign' || bypassFromRegistry
   const allowDangerousSkip = Boolean(opts.allowSovereign)
-  const { initialPermissionModeFromCLI, isBypassPermissionsModeDisabled } = await import('./utils/permissions/permissionSetup.js')
+  const { initialPermissionModeFromCLI, isSovereignDisabled } = await import('./utils/permissions/permissionSetup.js')
   const explicitMode = typedString(opts.mode) as PermissionMode | undefined
   if (opts.sovereign && explicitMode && !modeBypassesPermissions(explicitMode)) {
     failCli(`mercury run: --sovereign conflicts with --mode ${explicitMode}; choose one permission posture`)
   }
-  if ((opts.sovereign || opts.mode === 'sovereign' || allowDangerousSkip) && isBypassPermissionsModeDisabled()) {
+  if ((opts.sovereign || opts.mode === 'sovereign' || allowDangerousSkip) && isSovereignDisabled()) {
     const word = opts.sovereign ? '--sovereign' : opts.mode === 'sovereign' ? '--mode sovereign' : '--allow-sovereign'
     failCli(`mercury run: ${word} is disabled by permissions policy`)
   }
@@ -1211,8 +1211,8 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     dangerouslySkipPermissions,
   })
   const permissionMode: PermissionMode = resolved.mode
-  const { setSessionBypassPermissionsMode } = await import('./bootstrap/state.js')
-  setSessionBypassPermissionsMode(modeBypassesPermissions(permissionMode))
+  const { setSessionSovereign } = await import('./bootstrap/state.js')
+  setSessionSovereign(modeBypassesPermissions(permissionMode))
 
   const permissionInit = await initializeToolPermissionContext({
     allowedToolsCli: (opts.allowedTools as string[] | undefined) ?? [],
@@ -1892,8 +1892,8 @@ async function interactiveLaunch(args: {
       })
     }
     if (opts.continue) {
-      const lastLog = await getLogByIndex(0)
-      const sessionId = lastLog ? getSessionIdFromLog(lastLog as Parameters<typeof getSessionIdFromLog>[0]) : undefined
+      const lastLog = await sessionAtIndex(0)
+      const sessionId = lastLog ? sessionIdOfListing(lastLog as Parameters<typeof sessionIdOfListing>[0]) : undefined
       if (!lastLog || !sessionId) {
         await exitWithError(root, 'No conversation found to continue')
         return
@@ -1909,12 +1909,12 @@ async function interactiveLaunch(args: {
         const matches = await searchSessionsByCustomTitle(resumeValue)
         if (Array.isArray(matches) && matches.length === 1) {
           resumeLog = matches[0] as ResumeLog
-          resumeSessionId = getSessionIdFromLog(matches[0] as Parameters<typeof getSessionIdFromLog>[0])
+          resumeSessionId = sessionIdOfListing(matches[0] as Parameters<typeof sessionIdOfListing>[0])
         } else {
           searchTerm = resumeValue
         }
       } else if (typeof resumeValue === 'string') {
-        const log = await getLastSessionLog(resumeValue as UUID).catch(() => null)
+        const log = await lastSession(resumeValue as UUID).catch(() => null)
         if (!log) {
           await exitWithError(root, `No conversation found for session id ${resumeValue}`)
           return
@@ -2140,7 +2140,7 @@ async function runLaunch(args: {
   if (modeBypassesPermissions(args.permissionMode) || args.allowDangerousSkip) {
     void import('./utils/permissions/bypassPermissionsKillswitch.js')
       .then(m =>
-        m.checkAndDisableBypassPermissionsIfNeeded(
+        m.checkAndDisableSovereignIfNeeded(
           store.getState().toolPermissionContext,
           updater => store.setState(updater),
         ),

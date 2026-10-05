@@ -883,8 +883,8 @@ t.section('§10 — THE WIRING, DARK (A7: the deep-link · route silence on the 
   t.check("the card row opens the layer (the recut's wiring)", face.includes("case 'logins':") && face.includes('setLoginsOpen(true);'))
 
   const screen = read('src/components/BootLoginsScreen.tsx')
-  t.check('credential caches reset before policy checks', screen.includes('user.resetUserCache();') && screen.includes('killswitch.resetBypassPermissionsCheck();') && screen.indexOf('user.resetUserCache();') < screen.indexOf('killswitch.resetBypassPermissionsCheck();') && !screen.includes('services/analytics/featureGates'))
-  t.check('the authVersion bump rides the MAYBE setter; the killswitch re-check stays outside the updater', screen.includes('const setAppStateMaybe = useSetAppStateMaybe();') && screen.includes('authVersion: (prev.authVersion ?? 0) + 1') && screen.includes('checkAndDisableBypassPermissionsIfNeeded(capturedContext, setAppStateMaybe)'))
+  t.check('credential caches reset before policy checks', screen.includes('user.resetUserCache();') && screen.includes('killswitch.resetSovereignCheck();') && screen.indexOf('user.resetUserCache();') < screen.indexOf('killswitch.resetSovereignCheck();') && !screen.includes('services/analytics/featureGates'))
+  t.check('the authVersion bump rides the MAYBE setter; the killswitch re-check stays outside the updater', screen.includes('const setAppStateMaybe = useSetAppStateMaybe();') && screen.includes('authVersion: (prev.authVersion ?? 0) + 1') && screen.includes('checkAndDisableSovereignIfNeeded(capturedContext, setAppStateMaybe)'))
   t.check('the settle fires on OK settles only and never on injected facts', screen.includes('if (current.ok) settleSignedIn();') && screen.slice(screen.indexOf('const settleSignedIn = (): void => {'), screen.indexOf('const settleSignedIn = (): void => {') + 160).includes('postLoginSettle();') && screen.includes('if (given !== undefined) return;'))
 }
 
@@ -1066,17 +1066,17 @@ t.section('§12 — THE SECRECY RIDER (the ruling: keys masked on screen AND abs
   t.check(
     'the settle captures the posture INSIDE the bump updater (one tick, no gap)',
     screen.includes('capturedContext = prev.toolPermissionContext;') &&
-      screen.includes('void killswitch.checkAndDisableBypassPermissionsIfNeeded(capturedContext, setAppStateMaybe)'),
+      screen.includes('void killswitch.checkAndDisableSovereignIfNeeded(capturedContext, setAppStateMaybe)'),
   )
   const killswitch = read('src/utils/permissions/bypassPermissionsKillswitch.ts')
   const availabilityAt = killswitch.indexOf('if (!context.isBypassPermissionsModeAvailable) return')
-  const ioAt = killswitch.indexOf('isBypassPermissionsModeDisabled()')
+  const ioAt = killswitch.indexOf('isSovereignDisabled()')
   t.check(
     'the availability read precedes the IO await, and the disable write reads FRESH prev (never the captured posture)',
     availabilityAt !== -1 &&
       ioAt !== -1 &&
       availabilityAt < ioAt &&
-      killswitch.includes('createDisabledBypassPermissionsContext(prev.toolPermissionContext)'),
+      killswitch.includes('createSovereignDisabledContext(prev.toolPermissionContext)'),
   )
 }
 

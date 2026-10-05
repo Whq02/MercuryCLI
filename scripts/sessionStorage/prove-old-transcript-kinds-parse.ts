@@ -204,7 +204,7 @@ const plainFile = join(dir, `${PLAIN_SID}.jsonl`)
 const p1 = uid()
 appendFileSync(plainFile, (vnext.encodeTranscriptLine(plainFile, { uuid: p1, parentUuid: null, isSidechain: false, cwd: SCRATCH, sessionId: PLAIN_SID, version: '1.0.0', timestamp: at(50), type: 'user', message: { role: 'user', content: 'a plain session' } }) as { line: string }).line)
 const lite = (sessionId: string, fullPath: string): Record<string, unknown> => ({ date: at(60), messages: [], isLite: true, fullPath, value: 0, created: new Date(), modified: new Date(), firstPrompt: '', fileSize: readFileSync(fullPath).length, sessionId })
-const enriched = await logs.enrichLogs([lite(SID, file), lite(PLAIN_SID, plainFile)] as never, 0, 2)
+const enriched = await logs.enrichSessionListings([lite(SID, file), lite(PLAIN_SID, plainFile)] as never, 0, 2)
 const liteOld = enriched.logs.find(l => l.sessionId === SID) ?? null
 const litePlain = enriched.logs.find(l => l.sessionId === PLAIN_SID) ?? null
 check('the lite session listing reads no crew stamp from the old head line: the transcript is listed beside the plain session like any other', liteOld !== null && litePlain !== null, JSON.stringify(enriched.logs.map(l => l.sessionId)))

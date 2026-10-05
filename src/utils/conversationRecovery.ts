@@ -5,7 +5,7 @@ import { addInvokedSkill } from '../bootstrap/state.js'
 import { rehydrateScreenshots } from '../services/desktop/screenshotRetention.js'
 import { restoreBoundPrefixFromMessages } from '../services/providers/anthropic/boundPrefixRecord.js'
 import type { AttachmentMessage, Message, NormalizedUserMessage, UserMessage } from '../types/message.js'
-import type { LogOption, SerializedMessage, TranscriptMessage } from '../types/logs.js'
+import type { SessionListing, SerializedMessage, TranscriptMessage } from '../types/logs.js'
 import { PERMISSION_MODES } from '../types/permissions.js'
 import { suppressNextSkillListing } from './attachments/skillListing.js'
 import { getCwd } from './cwd.js'
@@ -34,11 +34,11 @@ import { resumeFactsOf, type ResumeFacts } from './sessionStorage/logs.js'
 import {
   buildConversationChain,
   checkResumeConsistency,
-  getLastSessionLog,
-  getSessionIdFromLog,
-  isLiteLog,
-  loadFullLog,
-  loadMessageLogs,
+  lastSession,
+  sessionIdOfListing,
+  isLiteListing,
+  fillSessionListing,
+  listProjectSessions,
   loadTranscriptFile,
   removeExtraFields,
 } from './sessionStorage.js'
@@ -455,18 +455,18 @@ export function hasConversationTurn(messages: readonly { type: string }[]): bool
 }
 
 export async function loadConversationForResume(
-  source: string | LogOption | undefined,
+  source: string | SessionListing | undefined,
   sourceJsonlFile: string | undefined,
 ): Promise<ResumeResult | null> {
   try {
-    let log: LogOption | null | undefined
+    let log: SessionListing | null | undefined
     let messages: SerializedMessage[] | undefined
     let sessionId: SessionId | undefined
     let fullPath: string | undefined
     let facts: ResumeFacts = {}
 
     if (source === undefined) {
-      const logs = await loadMessageLogs()
+      const logs = await listProjectSessions()
       log = logs[0]
     } else if (sourceJsonlFile !== undefined) {
       const walked = await walkTranscriptFile(sourceJsonlFile)
@@ -474,7 +474,7 @@ export async function loadConversationForResume(
       sessionId = walked.sessionId as SessionId | undefined
       facts = walked.facts
     } else if (typeof source === 'string') {
-      log = await getLastSessionLog(source as UUID)
+      log = await lastSession(source as UUID)
       sessionId = asSessionId(source)
     } else {
       log = source
@@ -483,8 +483,8 @@ export async function loadConversationForResume(
     if (!log && messages === undefined) return null
 
     if (log) {
-      if (isLiteLog(log)) log = await loadFullLog(log)
-      if (sessionId === undefined) sessionId = getSessionIdFromLog(log) as SessionId
+      if (isLiteListing(log)) log = await fillSessionListing(log)
+      if (sessionId === undefined) sessionId = sessionIdOfListing(log) as SessionId
       void copyFileHistoryForResume(log)
       messages = log.messages as SerializedMessage[]
       checkResumeConsistency(messages as unknown as Message[])

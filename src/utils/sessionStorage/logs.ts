@@ -15,11 +15,11 @@ import {
   type SessionId,
 } from '../../types/ids.js'
 import type {
-  LogOption,
+  SessionListing,
   PersistedWorktreeSession,
   TranscriptMessage,
 } from '../../types/logs.js'
-import { sortLogs } from '../../types/logs.js'
+import { sortSessionListings } from '../../types/logs.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import {
   decodeTranscriptBuffer,
@@ -56,7 +56,7 @@ import type { SessionMetaFields } from './sessionMeta.js'
 
 export async function loadTranscriptFromFile(
   filePath: string,
-): Promise<LogOption> {
+): Promise<SessionListing> {
   if (filePath.endsWith('.jsonl')) {
     const fold = await loadTranscriptFile(filePath)
     const { messages, summaries, leafUuids } = fold
@@ -107,7 +107,7 @@ function visibleTurnCount(chain: TranscriptMessage[]): number {
   return chain.filter(paintsConversationRow).length
 }
 
-function chainLogOption(chain: TranscriptMessage[], anchor: TranscriptMessage, fullPath?: string): LogOption {
+function chainLogOption(chain: TranscriptMessage[], anchor: TranscriptMessage, fullPath?: string): SessionListing {
   const first = chain[0]!
   return {
     date: anchor.timestamp,
@@ -125,8 +125,8 @@ function chainLogOption(chain: TranscriptMessage[], anchor: TranscriptMessage, f
   }
 }
 
-function newestPerKey(logs: LogOption[], keyOf: (log: LogOption) => string | undefined): LogOption[] {
-  const newest = new Map<string, LogOption>()
+function newestPerKey(logs: SessionListing[], keyOf: (log: SessionListing) => string | undefined): SessionListing[] {
+  const newest = new Map<string, SessionListing>()
   for (const log of logs) {
     const key = keyOf(log)
     if (!key) continue
@@ -136,20 +136,20 @@ function newestPerKey(logs: LogOption[], keyOf: (log: LogOption) => string | und
   return [...newest.values()]
 }
 
-function renumbered(logs: LogOption[]): LogOption[] {
+function renumbered(logs: SessionListing[]): SessionListing[] {
   logs.forEach((log, i) => {
     log.value = i
   })
   return logs
 }
 
-function numbered(logs: LogOption[]): LogOption[] {
-  return renumbered(sortLogs(logs))
+function numbered(logs: SessionListing[]): SessionListing[] {
+  return renumbered(sortSessionListings(logs))
 }
 
-export async function fetchLogs(limit?: number): Promise<LogOption[]> {
+export async function listSessions(limit?: number): Promise<SessionListing[]> {
   const projectDir = getProjectDir(getOriginalCwd())
-  return getSessionFilesLite(projectDir, limit, getOriginalCwd())
+  return sessionFilesLite(projectDir, limit, getOriginalCwd())
 }
 
 export async function saveCustomTitle(
@@ -285,19 +285,19 @@ export function saveWorktreeState(
   getProject().metadata.saveCached('worktree-state', stripped)
 }
 
-export function getSessionIdFromLog(log: LogOption): UUID | undefined {
+export function sessionIdOfListing(log: SessionListing): UUID | undefined {
   if (log.sessionId) {
     return log.sessionId as UUID
   }
   return log.messages[0]?.sessionId as UUID | undefined
 }
 
-export function isLiteLog(log: LogOption): boolean {
+export function isLiteListing(log: SessionListing): boolean {
   return log.messages.length === 0 && log.sessionId !== undefined
 }
 
-export async function loadFullLog(log: LogOption): Promise<LogOption> {
-  if (!isLiteLog(log)) {
+export async function fillSessionListing(log: SessionListing): Promise<SessionListing> {
+  if (!isLiteListing(log)) {
     return log
   }
   const sessionFile = log.fullPath
@@ -347,16 +347,16 @@ export async function loadFullLog(log: LogOption): Promise<LogOption> {
 export async function searchSessionsByCustomTitle(
   query: string,
   options?: { limit?: number; exact?: boolean },
-): Promise<LogOption[]> {
+): Promise<SessionListing[]> {
   const { limit, exact } = options || {}
   const allStatLogs = await getStatOnlyLogsForWorktrees(await getWorktreePaths(getOriginalCwd()))
-  const { logs } = await enrichLogs(allStatLogs, 0, allStatLogs.length)
+  const { logs } = await enrichSessionListings(allStatLogs, 0, allStatLogs.length)
   const wanted = query.toLowerCase().trim()
   const titled = logs.filter(log => {
     const title = log.customTitle?.toLowerCase().trim()
     return Boolean(title) && (exact ? title === wanted : title!.includes(wanted))
   })
-  const newest = newestPerKey(titled, getSessionIdFromLog).sort((a, b) => b.modified.getTime() - a.modified.getTime())
+  const newest = newestPerKey(titled, sessionIdOfListing).sort((a, b) => b.modified.getTime() - a.modified.getTime())
   return limit ? newest.slice(0, limit) : newest
 }
 
@@ -373,7 +373,7 @@ export async function doesMessageExistInSession(
 }
 
 export type ResumeFacts = Pick<
-  LogOption,
+  SessionListing,
   | 'fileHistorySnapshots'
   | 'attributionSnapshots'
   | 'contentReplacements'
@@ -410,7 +410,7 @@ export function resumeFactsOf(
     agentSetting: fold.agentSettings.get(sessionId),
     customTitle: fold.customTitles.get(sessionId),
     tag: fold.tags.get(sessionId),
-    mode: fold.modes.get(sessionId) as LogOption['mode'],
+    mode: fold.modes.get(sessionId) as SessionListing['mode'],
     advisor: fold.advisorSwitches.get(sessionId),
     model: fold.sessionModels.get(sessionId),
     worktreeSession: fold.worktreeStates.has(sessionId) ? fold.worktreeStates.get(sessionId) : undefined,
@@ -420,9 +420,9 @@ export function resumeFactsOf(
   }
 }
 
-export async function getLastSessionLog(
+export async function lastSession(
   sessionId: UUID,
-): Promise<LogOption | null> {
+): Promise<SessionListing | null> {
   const fold = await loadSessionFile(sessionId)
   const { messages, summaries } = fold
   if (messages.size === 0) return null
@@ -443,17 +443,17 @@ export async function getLastSessionLog(
   }
 }
 
-export async function loadMessageLogs(limit?: number): Promise<LogOption[]> {
-  const rows = await fetchLogs(limit)
-  return numbered((await enrichLogs(rows, 0, rows.length)).logs)
+export async function listProjectSessions(limit?: number): Promise<SessionListing[]> {
+  const rows = await listSessions(limit)
+  return numbered((await enrichSessionListings(rows, 0, rows.length)).logs)
 }
 
-export async function loadAllProjectsMessageLogs(
+export async function listSessionsAcrossProjects(
   limit?: number,
   options?: { skipIndex?: boolean; initialEnrichCount?: number },
-): Promise<LogOption[]> {
+): Promise<SessionListing[]> {
   if (options?.skipIndex) return loadAllProjectsMessageLogsFull(limit)
-  const page = await loadAllProjectsMessageLogsProgressive(limit, options?.initialEnrichCount ?? INITIAL_ENRICH_COUNT)
+  const page = await listSessionsAcrossProjectsProgressive(limit, options?.initialEnrichCount ?? INITIAL_ENRICH_COUNT)
   return page.logs
 }
 
@@ -467,14 +467,14 @@ async function projectDirectories(projectsDir: string, failed?: (error: unknown)
   }
 }
 
-async function progressivePage(allStatLogs: LogOption[], initialEnrichCount: number): Promise<SessionLogResult> {
-  const { logs, nextIndex } = await enrichLogs(allStatLogs, 0, initialEnrichCount)
+async function progressivePage(allStatLogs: SessionListing[], initialEnrichCount: number): Promise<SessionPage> {
+  const { logs, nextIndex } = await enrichSessionListings(allStatLogs, 0, initialEnrichCount)
   return { logs: renumbered(logs), allStatLogs, nextIndex }
 }
 
 async function loadAllProjectsMessageLogsFull(
   limit?: number,
-): Promise<LogOption[]> {
+): Promise<SessionListing[]> {
   const projectDirs = await projectDirectories(getProjectsDir())
   if (!projectDirs) return []
   const logsPerProject = await mapWithConcurrency(projectDirs, discoveryPoolWidth(), projectDir =>
@@ -488,10 +488,10 @@ interface ListingMemo {
   key: string
   truth: string
   at: number
-  result: SessionLogResult
+  result: SessionPage
 }
 let listingMemo: ListingMemo | null = null
-let listingFlight: { key: string; promise: Promise<SessionLogResult> } | null = null
+let listingFlight: { key: string; promise: Promise<SessionPage> } | null = null
 export const listingCensus = { sweeps: 0, served: 0, joined: 0 }
 
 async function listingTruth(projectsDir: string, projectDirs: string[]): Promise<string | null> {
@@ -510,7 +510,7 @@ async function listingTruth(projectsDir: string, projectDirs: string[]): Promise
   }
 }
 
-function shareListing(result: SessionLogResult): SessionLogResult {
+function shareListing(result: SessionPage): SessionPage {
   return {
     logs: result.logs.map(log => ({ ...log })),
     allStatLogs: result.allStatLogs.map(log => ({ ...log })),
@@ -522,10 +522,10 @@ export function invalidateSessionListingMemo(): void {
   listingMemo = null
 }
 
-export async function loadAllProjectsMessageLogsProgressive(
+export async function listSessionsAcrossProjectsProgressive(
   limit?: number,
   initialEnrichCount: number = INITIAL_ENRICH_COUNT,
-): Promise<SessionLogResult> {
+): Promise<SessionPage> {
   const projectsDir = getProjectsDir()
   const projectDirs = await projectDirectories(projectsDir)
   if (!projectDirs) return { logs: [], allStatLogs: [], nextIndex: 0 }
@@ -557,34 +557,34 @@ async function sweepAllProjectsProgressive(
   projectDirs: string[],
   limit: number | undefined,
   initialEnrichCount: number,
-): Promise<SessionLogResult> {
+): Promise<SessionPage> {
   listingCensus.sweeps++
   const perProject = await mapWithConcurrency(projectDirs, discoveryPoolWidth(), projectDir =>
-    getSessionFilesLite(projectDir, limit),
+    sessionFilesLite(projectDir, limit),
   )
   return progressivePage(numbered(newestPerKey(perProject.flat(), log => log.sessionId)), initialEnrichCount)
 }
 
-export type SessionLogResult = {
-  logs: LogOption[]
-  allStatLogs: LogOption[]
+export type SessionPage = {
+  logs: SessionListing[]
+  allStatLogs: SessionListing[]
   nextIndex: number
 }
 
-export async function loadSameRepoMessageLogs(
+export async function listRepoSessions(
   worktreePaths: string[],
   limit?: number,
   initialEnrichCount: number = INITIAL_ENRICH_COUNT,
-): Promise<LogOption[]> {
-  const page = await loadSameRepoMessageLogsProgressive(worktreePaths, limit, initialEnrichCount)
+): Promise<SessionListing[]> {
+  const page = await listRepoSessionsProgressive(worktreePaths, limit, initialEnrichCount)
   return page.logs
 }
 
-export async function loadSameRepoMessageLogsProgressive(
+export async function listRepoSessionsProgressive(
   worktreePaths: string[],
   limit?: number,
   initialEnrichCount: number = INITIAL_ENRICH_COUNT,
-): Promise<SessionLogResult> {
+): Promise<SessionPage> {
   logForDebugging(
     `/resume: loading sessions for cwd=${getOriginalCwd()}, worktrees=[${worktreePaths.join(', ')}]`,
   )
@@ -614,17 +614,17 @@ function worktreeStores(projectDirs: string[], worktreePaths: string[]): Array<{
 async function getStatOnlyLogsForWorktrees(
   worktreePaths: string[],
   limit?: number,
-): Promise<LogOption[]> {
+): Promise<SessionListing[]> {
   const cwd = getOriginalCwd()
-  if (worktreePaths.length <= 1) return getSessionFilesLite(getProjectDir(cwd), undefined, cwd)
+  if (worktreePaths.length <= 1) return sessionFilesLite(getProjectDir(cwd), undefined, cwd)
   const projectsDir = getProjectsDir()
   const projectDirs = await projectDirectories(projectsDir, e =>
     logForDebugging(`Failed to read projects dir ${projectsDir}, falling back to current project: ${e}`),
   )
-  if (!projectDirs) return getSessionFilesLite(getProjectDir(cwd), limit, cwd)
+  if (!projectDirs) return sessionFilesLite(getProjectDir(cwd), limit, cwd)
   const matched = worktreeStores(projectDirs, worktreePaths)
   const perDir = await mapWithConcurrency(matched, discoveryPoolWidth(), ({ dir, wtPath }) =>
-    getSessionFilesLite(dir, undefined, wtPath),
+    sessionFilesLite(dir, undefined, wtPath),
   )
   return numbered(newestPerKey(perDir.flat(), log => log.sessionId))
 }
@@ -716,8 +716,8 @@ export async function loadAllSubagentTranscriptsFromDisk(): Promise<{
   return loadSubagentTranscripts(agentIds)
 }
 
-export async function getLogByIndex(index: number): Promise<LogOption | null> {
-  const logs = await loadMessageLogs()
+export async function sessionAtIndex(index: number): Promise<SessionListing | null> {
+  const logs = await listProjectSessions()
   return logs[index] || null
 }
 
@@ -774,7 +774,7 @@ async function newestSessionFiles(projectDir: string, limit?: number): Promise<I
   return limit && files.length > limit ? files.slice(0, limit) : files
 }
 
-export async function getSessionFilesWithMtime(
+export async function sessionFilesWithMtime(
   projectDir: string,
 ): Promise<
   Map<string, { path: string; mtime: number; ctime: number; size: number }>
@@ -791,7 +791,7 @@ export async function transcriptCensus(): Promise<{
   const projectDirs = await projectDirectories(getProjectsDir())
   if (!projectDirs) return { count: 0, bytes: 0, oldestMtimeMs: null }
   const perProject = await mapWithConcurrency(projectDirs, discoveryPoolWidth(), projectDir =>
-    getSessionFilesWithMtime(projectDir),
+    sessionFilesWithMtime(projectDir),
   )
   let count = 0
   let bytes = 0
@@ -829,15 +829,15 @@ type LiteMetadata = {
 const byTimestamp = (a: TranscriptMessage, b: TranscriptMessage): number =>
   a.timestamp < b.timestamp ? -1 : a.timestamp > b.timestamp ? 1 : 0
 
-export async function loadAllLogsFromSessionFile(
+export async function listingsOfSessionFile(
   sessionFile: string,
   projectPathOverride?: string,
-): Promise<LogOption[]> {
+): Promise<SessionListing[]> {
   const fold = await loadTranscriptFile(sessionFile, { keepAllLeaves: true })
   const { messages, summaries, leafUuids } = fold
   if (messages.size === 0) return []
   const rows = transcriptRows(messages)
-  const logs: LogOption[] = []
+  const logs: SessionListing[] = []
   for (const leaf of messages.values()) {
     if (!leafUuids.has(leaf.uuid)) continue
     const chain = buildConversationChain(messages, leaf)
@@ -860,11 +860,11 @@ export async function loadAllLogsFromSessionFile(
 async function getLogsWithoutIndex(
   projectDir: string,
   limit?: number,
-): Promise<LogOption[]> {
-  const logs: LogOption[] = []
+): Promise<SessionListing[]> {
+  const logs: SessionListing[] = []
   for (const file of await newestSessionFiles(projectDir, limit)) {
     try {
-      logs.push(...(await loadAllLogsFromSessionFile(file.path)))
+      logs.push(...(await listingsOfSessionFile(file.path)))
     } catch {
       logForDebugging(`Failed to load session file: ${file.path}`)
     }
@@ -884,7 +884,7 @@ export function extractFirstPromptFromChunk(chunk: string): string {
   return sessionPromptFromWindow(chunk, name => builtInCommandNames().has(name))
 }
 
-function liteLogOption(file: IndexedSession, projectPath?: string): LogOption {
+function liteLogOption(file: IndexedSession, projectPath?: string): SessionListing {
   return {
     date: new Date(file.mtime).toISOString(),
     messages: [],
@@ -901,22 +901,22 @@ function liteLogOption(file: IndexedSession, projectPath?: string): LogOption {
   }
 }
 
-export async function getSessionFilesLite(
+export async function sessionFilesLite(
   projectDir: string,
   limit?: number,
   projectPath?: string,
-): Promise<LogOption[]> {
+): Promise<SessionListing[]> {
   const files = await newestSessionFiles(projectDir, limit)
   return numbered(files.map(file => liteLogOption(file, projectPath)))
 }
 
 async function enrichLog(
-  log: LogOption,
+  log: SessionListing,
   readBuf: Buffer,
-): Promise<LogOption | null> {
+): Promise<SessionListing | null> {
   if (!log.isLite || !log.fullPath) return log
   const meta = await readLiteMetadata(log.fullPath, log.fileSize ?? 0, readBuf)
-  const enriched: LogOption = {
+  const enriched: SessionListing = {
     ...log,
     isLite: false,
     firstPrompt: meta.firstPrompt || (meta.customTitle ? '' : '(session)'),
@@ -941,13 +941,13 @@ async function enrichLog(
   return enriched
 }
 
-export async function enrichLogs(
-  allLogs: LogOption[],
+export async function enrichSessionListings(
+  allLogs: SessionListing[],
   startIndex: number,
   count: number,
-): Promise<{ logs: LogOption[]; nextIndex: number }> {
+): Promise<{ logs: SessionListing[]; nextIndex: number }> {
   const readBuf = Buffer.alloc(LITE_READ_BUF_SIZE)
-  const logs: LogOption[] = []
+  const logs: SessionListing[] = []
   let nextIndex = startIndex
   while (nextIndex < allLogs.length && logs.length < count) {
     const enriched = await enrichLog(allLogs[nextIndex++]!, readBuf)

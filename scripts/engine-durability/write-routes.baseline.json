@@ -75,7 +75,6 @@
     "src/utils/config/globalConfig.ts",
     "src/utils/crew/crewHelpers.ts",
     "src/utils/crew/handoff.ts",
-    "src/utils/crew/permissionSync.ts",
     "src/utils/crew/sendMessageGovernance.ts",
     "src/utils/settings/settings.ts"
   ]

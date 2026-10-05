@@ -108,15 +108,15 @@ const owner = factsOf(logs.resumeFactsOf(fold, SID as never, chain))
 check('the owner derives every fact for the session: the snapshot chain, the replacements, the collapse facts, the row family', owner !== null && (owner.fileHistorySnapshots as unknown[]).length === 1 && (owner.contentReplacements as unknown[]).length === 1 && (owner.contextCollapseCommits as unknown[]).length === 1 && owner.contextCollapseSnapshot !== undefined && owner.customTitle === TITLE && owner.tag === TAG && owner.agentName === AGENT && owner.agentColor === COLOR && owner.agentSetting === SETTING && owner.mode === MODE && (owner.worktreeSession as { worktreePath: string }).worktreePath === worktreeRecord.worktreePath && owner.prNumber === PR.prNumber && owner.prUrl === PR.prUrl && owner.prRepository === PR.prRepository, j(owner))
 
 section('§2 the four resume readers hand back the owner\'s facts byte for byte')
-const byId = await logs.getLastSessionLog(SID as never)
+const byId = await logs.lastSession(SID as never)
 check('the session-id road (the last-log accessor) reads the owner', byId !== null && j(factsOf(byId)) === j(owner), j(factsOf(byId)))
 const walked = await loadConversationForResume(SID, transcriptPath)
 check('the file road (the transcript walk) reads the owner', walked !== null && j(factsOf(walked)) === j(owner), j(factsOf(walked)))
-const lite = (await logs.fetchLogs()).find(l => l.sessionId === SID)
-check('the listing lists the fixture lite: no messages yet, the session id known, the path set', lite !== undefined && logs.isLiteLog(lite) && lite.fullPath === transcriptPath, j({ lite: lite && { sessionId: lite.sessionId, messages: lite.messages.length, fullPath: lite.fullPath } }))
-const full = lite ? await logs.loadFullLog(lite) : null
-check(`${RED}: the picker's full load (--continue, /resume <title>, the resume picker) hands back the owner's facts`, full !== null && !logs.isLiteLog(full) && j(factsOf(full)) === j(owner), j(factsOf(full)))
-const perLeaf = await logs.loadAllLogsFromSessionFile(transcriptPath)
+const lite = (await logs.listSessions()).find(l => l.sessionId === SID)
+check('the listing lists the fixture lite: no messages yet, the session id known, the path set', lite !== undefined && logs.isLiteListing(lite) && lite.fullPath === transcriptPath, j({ lite: lite && { sessionId: lite.sessionId, messages: lite.messages.length, fullPath: lite.fullPath } }))
+const full = lite ? await logs.fillSessionListing(lite) : null
+check(`${RED}: the picker's full load (--continue, /resume <title>, the resume picker) hands back the owner's facts`, full !== null && !logs.isLiteListing(full) && j(factsOf(full)) === j(owner), j(factsOf(full)))
+const perLeaf = await logs.listingsOfSessionFile(transcriptPath)
 check('the per-leaf load finds the one leaf', perLeaf.length === 1 && perLeaf[0]?.sessionId === SID, j(perLeaf.map(l => l.sessionId)))
 check(`${RED}: the per-leaf load (every branch of one file) hands back the owner's facts — the worktree record and the collapse facts included`, perLeaf.length === 1 && j(factsOf(perLeaf[0])) === j(owner), j(factsOf(perLeaf[0])))
 const opened = await logs.loadTranscriptFromFile(transcriptPath)
@@ -134,8 +134,8 @@ const body = (name: string): string => {
   const next = logsSrc.indexOf('\nexport ', at + 1)
   return at === -1 ? '' : logsSrc.slice(at, next === -1 ? undefined : next)
 }
-check('the last-log accessor calls resumeFactsOf', body('getLastSessionLog').includes('resumeFactsOf('))
-for (const name of ['loadFullLog', 'loadAllLogsFromSessionFile', 'loadTranscriptFromFile']) {
+check('the last-log accessor calls resumeFactsOf', body('lastSession').includes('resumeFactsOf('))
+for (const name of ['fillSessionListing', 'listingsOfSessionFile', 'loadTranscriptFromFile']) {
   check(`${RED}: ${name} calls resumeFactsOf`, body(name).includes('resumeFactsOf('), `resumeFactsOf( absent from ${name}'s body`)
 }
 check('the walk calls resumeFactsOf', recoverySrc.includes('facts: resumeFactsOf(loaded, sessionId, chain)'))

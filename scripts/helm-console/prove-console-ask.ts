@@ -175,7 +175,7 @@ section('(3) the sandbox boundary — source pins at the owners')
   const writer = read('src/utils/sessionStorage/writer.ts')
   check(
     'recordSidechainTranscript inserts with the sidechain flag set',
-    /insertMessageChain\(\s*cleanMessagesForLogging\(messages\),\s*true,/.test(writer),
+    /insertMessageChain\(\s*cleanForTranscript\(messages\),\s*true,/.test(writer),
   )
 
   const toolExec = read('src/services/tools/toolExecution.ts')

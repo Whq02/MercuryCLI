@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url'
 
 const source = process.argv[2] ? resolve(process.argv[2]) : resolve(import.meta.dir, '../..')
 const { applyTranscriptEntry, emptyFoldState } = await import(pathToFileURL(resolve(source, 'src/utils/sessionStorage/fold.ts')).href)
-const { buildConversationChain, applySnipRemovals, isLoggableMessage } = await import(pathToFileURL(resolve(source, 'src/utils/sessionStorage/chain.ts')).href)
+const { buildConversationChain, applySnipRemovals, isTranscribable } = await import(pathToFileURL(resolve(source, 'src/utils/sessionStorage/chain.ts')).href)
 const { computeResumeLeaves } = await import(pathToFileURL(resolve(source, 'src/utils/sessionStorage/transcriptReader.ts')).href)
 const sessionId = '00000000-0000-4000-8000-000000000001'
 const id = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
@@ -43,5 +43,5 @@ const removed = new Map([
 applySnipRemovals(removed)
 assert.equal(removed.has(id(2)), false)
 assert.equal(removed.get(id(3)).parentUuid, id(1))
-assert.equal(isLoggableMessage({ ...stamp(9, 8), type: 'attachment', attachment: { type: 'hook_success', content: '', capsuleReceipt: { digest: 'proof' } } }), true)
+assert.equal(isTranscribable({ ...stamp(9, 8), type: 'attachment', attachment: { type: 'hook_success', content: '', capsuleReceipt: { digest: 'proof' } } }), true)
 console.log('PASS indexed fold: native Map shape, no whole-map chain or leaf scan, parallel results, attached notes, growth, snip healing, and receipt persistence')

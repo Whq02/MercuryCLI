@@ -12,7 +12,7 @@ import { type AppState } from 'src/state/AppStateStore.js'
 import { PERMISSION_MODES, type PermissionMode as InternalPermissionMode } from 'src/types/permissions.js'
 import { fileHistoryCanRestore, fileHistoryEnabled, fileHistoryRestore, type RestoreDriftOracle } from 'src/utils/fileHistory.js'
 import { holdModeTransition, type ModeTransitionRoad, recordModeTransition } from 'src/utils/permissions/modeTransitions.js'
-import { isBypassPermissionsModeDisabled, transitionPermissionMode } from 'src/utils/permissions/permissionSetup.js'
+import { isSovereignDisabled, transitionPermissionMode } from 'src/utils/permissions/permissionSetup.js'
 
 type RewindFilesResult = {
   can_rewind?: boolean
@@ -168,7 +168,7 @@ function decidePermissionModeTransition(
     return { ok: false, error: `'${String(mode)}' is not a permission mode; the modes are ${PERMISSION_MODES.join(', ')}` }
   }
   if (mode === 'sovereign') {
-    if (isBypassPermissionsModeDisabled()) {
+    if (isSovereignDisabled()) {
       return {
         ok: false,
         error: 'Cannot set permission mode to sovereign because it is disabled by settings or configuration',

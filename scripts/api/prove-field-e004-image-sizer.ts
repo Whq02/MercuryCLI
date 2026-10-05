@@ -311,7 +311,7 @@ section('§2 the once-per-session notice: the receipt, the transcript mark, the 
   const chain = await import(join(ROOT, 'src/utils/sessionStorage/chain.ts'))
   const render = readFileSync(join(ROOT, 'src/components/messages/nullRenderingAttachments.ts'), 'utf8')
   const wire = readFileSync(join(ROOT, 'src/utils/messages/attachmentText.ts'), 'utf8')
-  check('the mark persists in the transcript (a resume reads it back), renders nothing on screen and projects nothing to the wire', chain.isLoggableMessage(leftOutMark) && render.includes("'images_left_out'") && /case 'images_left_out':\n\s*return \[\]/.test(wire))
+  check('the mark persists in the transcript (a resume reads it back), renders nothing on screen and projects nothing to the wire', chain.isTranscribable(leftOutMark) && render.includes("'images_left_out'") && /case 'images_left_out':\n\s*return \[\]/.test(wire))
   for (const road of ['anthropic/streamCore.ts', 'openaicompat/compatChatCallModel.ts', 'openai/openaiCallModel.ts', 'zai/zaiCallModel.ts']) {
     const source = readFileSync(join(ROOT, 'src/services/providers', road), 'utf8')
     check(`${road} fits the request's images under the conversation's owner, so the receipt lands on the right conversation`, /fitImagesToRequestCap\([^)]*owner: /.test(source), road)

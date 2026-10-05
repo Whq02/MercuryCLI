@@ -6,29 +6,29 @@ import { enqueueNotification } from '../../context/notifications.js'
 import { useAppState, useAppStateStore, useSetAppState } from '../../state/AppState.js'
 import { modeBypassesPermissions } from './PermissionMode.js'
 import {
-  createDisabledBypassPermissionsContext,
-  isBypassPermissionsModeDisabled,
+  createSovereignDisabledContext,
+  isSovereignDisabled,
 } from './permissionSetup.js'
 
 type SetAppState = (updater: (prev: AppState) => AppState) => void
 
 let bypassCheckRan = false
 
-export function resetBypassPermissionsCheck(): void {
+export function resetSovereignCheck(): void {
   bypassCheckRan = false
 }
 
-export async function checkAndDisableBypassPermissionsIfNeeded(
+export async function checkAndDisableSovereignIfNeeded(
   context: ToolPermissionContext,
   setAppState: SetAppState,
 ): Promise<void> {
   if (bypassCheckRan) return
   if (!context.isBypassPermissionsModeAvailable) return
   bypassCheckRan = true
-  if (isBypassPermissionsModeDisabled()) {
+  if (isSovereignDisabled()) {
     setAppState(prev => ({
       ...prev,
-      toolPermissionContext: createDisabledBypassPermissionsContext(prev.toolPermissionContext),
+      toolPermissionContext: createSovereignDisabledContext(prev.toolPermissionContext),
     }))
     enqueueNotification(setAppState, {
       key: 'bypass-killswitch',
@@ -42,7 +42,7 @@ export async function checkAndDisableBypassPermissionsIfNeeded(
   }
 }
 
-export function useKickOffCheckAndDisableBypassPermissionsIfNeeded(): void {
+export function useKickOffCheckAndDisableSovereignIfNeeded(): void {
   const toolPermissionContext = useAppState(
     state => state.toolPermissionContext as ToolPermissionContext,
   )
@@ -52,7 +52,7 @@ export function useKickOffCheckAndDisableBypassPermissionsIfNeeded(): void {
     if (started.current) return
     started.current = true
     if (getIsRemoteMode()) return
-    void checkAndDisableBypassPermissionsIfNeeded(toolPermissionContext, setAppState)
+    void checkAndDisableSovereignIfNeeded(toolPermissionContext, setAppState)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 }

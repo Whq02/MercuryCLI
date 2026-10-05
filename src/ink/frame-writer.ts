@@ -23,6 +23,8 @@ import {
   setScrollRegion,
 } from './termio/csi.js'
 import { LINK_END, link as oscLink } from './termio/osc.js'
+import { widthMayDisagree as measuredWidthMayDisagree } from './width-probe-table.js'
+import { readTerminalWidthMeasurements } from './session/widthProbe.js'
 
 
 type Options = {
@@ -163,15 +165,7 @@ class AttributeCursor {
 }
 
 function widthMayDisagree(char: string): boolean {
-  const cp = char.codePointAt(0)
-  if (cp === undefined) return false
-  if ((cp >= 0x1fa70 && cp <= 0x1faff) || (cp >= 0x1fb00 && cp <= 0x1fbff)) return true
-  if (char.length >= 2) {
-    for (let i = 0; i < char.length; i++) {
-      if (char.charCodeAt(i) === 0xfe0f) return true
-    }
-  }
-  return false
+  return measuredWidthMayDisagree(char, readTerminalWidthMeasurements())
 }
 
 function emitCell(

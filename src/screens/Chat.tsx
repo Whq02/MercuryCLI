@@ -43,7 +43,7 @@ import { useLayoutChrome } from '../context/layoutChromeContext.js';
 import { useCompactWorkControls } from '../components/tasks/CompactWorkSummary.js';
 import { BackgroundTasksDialog } from '../components/tasks/BackgroundTasksDialog.js';
 import {
-  useKickOffCheckAndDisableBypassPermissionsIfNeeded,
+  useKickOffCheckAndDisableSovereignIfNeeded,
   useKickOffCheckAndDisableAutoModeIfNeeded,
 } from '../utils/permissions/bypassPermissionsKillswitch.js';
 import { useExtensions } from '../hooks/useExtensions.js';
@@ -148,7 +148,7 @@ import { flagEnv } from '../substrate/flagRegistry.js';
 import { resolveTerminalExperience } from '../ink/session/terminalExperience.js';
 import type { SetToolJSXFn, Tool, ToolPermissionContext } from '../Tool.js';
 import { resolveToolJSX } from './toolJsxArbitration.js';
-import type { LogOption } from '../types/logs.js';
+import type { SessionListing } from '../types/logs.js';
 import type { Message, NormalizedUserMessage, ProgressMessage, UserMessage } from '../types/message.js';
 import { ASK_USER_QUESTION_TOOL_NAME } from '../tools/AskUserQuestionTool/prompt.js';
 import type { PromptInputMode } from '../types/textInputTypes.js';
@@ -291,7 +291,7 @@ type FocusedInputDialog = 'message-selector' | 'tool-permission' | 'elicitation'
 
 type ToolJSXState = Parameters<SetToolJSXFn>[0];
 
-type ResumableLog = Omit<Partial<LogOption>, 'messages'> & { messages: Message[] };
+type ResumableLog = Omit<Partial<SessionListing>, 'messages'> & { messages: Message[] };
 
 type FrozenTranscriptState = { messageCount: number; streamingToolUseCount: number };
 
@@ -924,7 +924,7 @@ export function Chat({
     return readFileStateRef.current;
   }, []);
 
-  const resumeRef = useRef<(sessionId: UUID, log: LogOption, entrypoint: ResumeEntrypoint) => Promise<void>>(async () => {});
+  const resumeRef = useRef<(sessionId: UUID, log: SessionListing, entrypoint: ResumeEntrypoint) => Promise<void>>(async () => {});
   const getToolUseContext = useCallback(
     (currentMessages: Message[], newMessages: Message[], controller: AbortController, model: string) => {
       const state = store.getState();
@@ -970,7 +970,7 @@ export function Chat({
         onChangeAPIKey: () => {
           void apiKeyVerification.reverify();
         },
-        resume: (sessionId: UUID, log: LogOption, entrypoint: ResumeEntrypoint) => resumeRef.current(sessionId, log, entrypoint),
+        resume: (sessionId: UUID, log: SessionListing, entrypoint: ResumeEntrypoint) => resumeRef.current(sessionId, log, entrypoint),
       };
       return context;
     },
@@ -1350,7 +1350,7 @@ export function Chat({
   useSettingsChange(() => {});
   useAgentsChange(getCwd());
   useSkillsChange(getCwd(), () => {});
-  useKickOffCheckAndDisableBypassPermissionsIfNeeded();
+  useKickOffCheckAndDisableSovereignIfNeeded();
   useKickOffCheckAndDisableAutoModeIfNeeded();
   useExtensions({ enabled: true });
   useCostSummary(useFpsMetrics());

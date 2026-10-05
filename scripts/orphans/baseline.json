@@ -177,6 +177,11 @@
       "file": "src/utils/terminalPanel.ts",
       "class": "superseded-unreachable",
       "reason": "Holds only getTerminalPanelSocket, the per-instance multiplexer socket name; no product module and no proof imports it, and no panel mounts on it."
+    },
+    {
+      "file": "src/utils/healthDiagnostic.ts",
+      "class": "superseded-unreachable",
+      "reason": "The old health diagnostic (install provenance, managed-settings warnings): its one product reader was an exported status helper nothing called, deleted at the rename fold; /health reads healthReport.ts. The proofs that still drive it in isolation (prove-install-provenance, prove-managed-lock-words, prove-disable-disconnects, prove-health-self-recognition) keep it until the fix lane rules wire-or-delete."
     }
   ]
 }

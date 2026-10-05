@@ -493,11 +493,11 @@ export function preferThirdPartyAuthentication(): boolean {
   return posture.preferThirdPartyAuthentication()
 }
 
-export function setSessionBypassPermissionsMode(value: boolean): void {
+export function setSessionSovereign(value: boolean): void {
   posture.sessionBypassPermissionsMode = value
 }
 
-export function getSessionBypassPermissionsMode(): boolean {
+export function getSessionSovereign(): boolean {
   return posture.sessionBypassPermissionsMode
 }
 

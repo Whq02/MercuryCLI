@@ -5,7 +5,6 @@ import { join } from 'node:path'
 import { proofHome } from '../lib/hermetic.js'
 import { conventionsForProfile } from '../../src/services/instructions/engine.js'
 import { adapterForProfile } from '../../src/services/instructions/adapters/index.js'
-import { mercuryNativeConvention as adapterConvention } from '../../src/services/instructions/adapters/mercuryNative.js'
 import { mercuryNativeConvention } from '../../src/services/instructions/nativeSource.js'
 import { measureEffectiveProjectInstructionLines } from '../../src/services/instructions/effectiveSize.js'
 import { captureProjectInstruction, followPointerLaw } from '../../src/services/instructions/projectInstructionWriter.js'
@@ -13,7 +12,6 @@ import { captureProjectInstruction, followPointerLaw } from '../../src/services/
 const ids = (profile: 'auto' | 'native') => conventionsForProfile(profile).map(convention => convention.id)
 assert.deepEqual(ids('native'), ['mercury-native'])
 assert.deepEqual(ids('auto'), ['mercury-native', 'agents-md'])
-assert.equal(adapterConvention, mercuryNativeConvention)
 for (const profile of ['native', 'auto'] as const) {
   assert.deepEqual(adapterForProfile().conventionsFor(profile), conventionsForProfile(profile))
 }

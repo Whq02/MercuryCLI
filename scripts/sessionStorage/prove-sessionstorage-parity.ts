@@ -88,11 +88,11 @@ add('isTranscriptMessage', 'kinds', () =>
     S.isTranscriptMessage(e as never),
   ),
 )
-add('isLoggableMessage', 'kinds', () =>
+add('isTranscribable', 'kinds', () =>
   [
     user('00000000-0000-4000-8000-000000000011', null, 'real'),
     { type: 'progress', data: { type: 'hook_progress' } } as never,
-  ].map(m => S.isLoggableMessage(m as never)),
+  ].map(m => S.isTranscribable(m as never)),
 )
 
 const U1 = '00000000-0000-4000-8000-000000000101'
@@ -123,23 +123,23 @@ add('checkResumeConsistency', 'consistent-chain', () =>
 add('getFirstMeaningfulUserMessageTextContent', 'first-real', () =>
   S.getFirstMeaningfulUserMessageTextContent(clone(CHAIN) as never),
 )
-add('cleanMessagesForLogging', 'passthrough-shape', () =>
-  S.cleanMessagesForLogging(clone([user(U1, null, 'y')]) as never),
+add('cleanForTranscript', 'passthrough-shape', () =>
+  S.cleanForTranscript(clone([user(U1, null, 'y')]) as never),
 )
 add('extractAgentIdsFromMessages', 'none', () =>
   S.extractAgentIdsFromMessages(clone(CHAIN) as never),
 )
-add('getSessionIdFromLog', 'from-path', () =>
-  S.getSessionIdFromLog({
+add('sessionIdOfListing', 'from-path', () =>
+  S.sessionIdOfListing({
     fullPath: '/x/00000000-0000-4000-8000-00000000cafe.jsonl',
     messages: [],
   } as never),
 )
-add('isLiteLog', 'lite-vs-full', () =>
+add('isLiteListing', 'lite-vs-full', () =>
   [
     { messages: [], isLite: true } as never,
     { messages: [user(U1, null, 'z')] } as never,
-  ].map(l => S.isLiteLog(l as never)),
+  ].map(l => S.isLiteListing(l as never)),
 )
 add('extractCrewmateTranscriptsFromTasks', 'empty', () =>
   S.extractCrewmateTranscriptsFromTasks({} as never),
@@ -159,18 +159,18 @@ const SKIPPED: Record<string, string> = Object.fromEntries(
     'recordFileHistorySnapshot', 'recordAttributionSnapshot', 'recordContentReplacement',
     'resetSessionFilePointer', 'adoptResumedSessionFile', 'recordContextCollapseCommit',
     'recordContextCollapseSnapshot', 'flushSessionStorage', 'hydrateRemoteSession',
-    'hydrateFromCCRv2InternalEvents', 'loadTranscriptFromFile', 'fetchLogs', 'saveCustomTitle',
+    'hydrateFromCCRv2InternalEvents', 'loadTranscriptFromFile', 'listSessions', 'saveCustomTitle',
     'saveAiGeneratedTitle', 'saveTaskSummary', 'saveTag', 'linkSessionToPR', 'getCurrentSessionTag',
     'getCurrentSessionTitle', 'getCurrentSessionAgentColor', 'restoreSessionMetadata',
     'clearSessionMetadata', 'reAppendSessionMetadata', 'saveAgentName', 'saveAgentColor',
-    'saveAgentSetting', 'cacheSessionTitle', 'saveMode', 'saveWorktreeState', 'loadFullLog',
+    'saveAgentSetting', 'cacheSessionTitle', 'saveMode', 'saveWorktreeState', 'fillSessionListing',
     'saveAdvisorSwitch', 'advisorSwitchOfSession', 'saveSessionModel',
     'searchSessionsByCustomTitle', 'loadTranscriptFile', 'clearSessionMessagesCache',
-    'doesMessageExistInSession', 'getLastSessionLog', 'loadMessageLogs', 'loadAllProjectsMessageLogs',
-    'loadAllProjectsMessageLogsProgressive', 'loadSameRepoMessageLogs',
-    'loadSameRepoMessageLogsProgressive', 'getAgentTranscript', 'loadSubagentTranscripts',
-    'loadAllSubagentTranscriptsFromDisk', 'getLogByIndex', 'findUnresolvedToolUse',
-    'getSessionFilesWithMtime', 'loadAllLogsFromSessionFile', 'getSessionFilesLite', 'enrichLogs',
+    'doesMessageExistInSession', 'lastSession', 'listProjectSessions', 'listSessionsAcrossProjects',
+    'listSessionsAcrossProjectsProgressive', 'listRepoSessions',
+    'listRepoSessionsProgressive', 'getAgentTranscript', 'loadSubagentTranscripts',
+    'loadAllSubagentTranscriptsFromDisk', 'sessionAtIndex', 'findUnresolvedToolUse',
+    'sessionFilesWithMtime', 'listingsOfSessionFile', 'sessionFilesLite', 'enrichSessionListings',
   ].map(k => [k, IO]),
 )
 

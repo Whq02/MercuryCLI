@@ -259,7 +259,6 @@ src/utils/exampleCommands.ts :: getExampleCommandFromCache :: invalidator=applyH
 src/utils/exampleCommands.ts :: refreshExampleCommands :: invalidator=applyHarnessGround
 src/utils/fileReadCache.ts :: fileReadCache :: keyed-by-truth
 src/utils/forkedAgent.ts :: lastCacheSafeParams :: keyed-by-truth
-src/utils/formatBriefTimestamp.ts :: formatterCache :: keyed-by-truth
 src/utils/fullscreen.ts :: controlModeCache :: static-for-process
 src/utils/genericProcessUtils.ts :: cachedPowerShellExe :: static-for-process
 src/utils/genericProcessUtils.ts :: metaCache :: ttl-bounded

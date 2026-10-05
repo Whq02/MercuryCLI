@@ -1,6 +1,6 @@
 import { isCrewSession, crewTagOf } from '../../src/utils/sessionClass.ts'
 import { DISPATCH_REPORT_BACK_FRAMING } from '../../src/daemon/dispatchDrain.ts'
-import type { LogOption } from '../../src/types/logs.ts'
+import type { SessionListing } from '../../src/types/logs.ts'
 
 let failures = 0
 const check = (ok: boolean, label: string): void => {
@@ -8,7 +8,7 @@ const check = (ok: boolean, label: string): void => {
   if (!ok) failures++
 }
 
-const base = (extra: Partial<LogOption>): LogOption =>
+const base = (extra: Partial<SessionListing>): SessionListing =>
   ({
     date: '2026-07-04',
     messages: [],
@@ -20,7 +20,7 @@ const base = (extra: Partial<LogOption>): LogOption =>
     fileSize: 100_000,
     isSidechain: false,
     ...extra,
-  }) as LogOption
+  }) as SessionListing
 
 check(isCrewSession(base({ crewName: 'crew', agentName: 'scout' })), 'crew seat via crewName stamp')
 check(isCrewSession(base({ crewName: 'crew' })), 'crewName stamp alone')

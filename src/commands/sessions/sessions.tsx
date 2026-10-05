@@ -2,14 +2,14 @@ import type { UUID } from 'crypto'
 import * as React from 'react'
 import { SessionManagerView } from '../../components/mercury-ui/screens/SessionManagerView.js'
 import type { ResumeEntrypoint } from '../../commands.js'
-import type { LogOption } from '../../types/logs.js'
+import type { SessionListing } from '../../types/logs.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 
 export const call: LocalJSXCommandCall = async (onDone, context) => {
   const live = context.resume
 
   const onResume = live
-    ? (sessionId: UUID, log: LogOption, entrypoint: ResumeEntrypoint) =>
+    ? (sessionId: UUID, log: SessionListing, entrypoint: ResumeEntrypoint) =>
         context.resume!(sessionId, log, entrypoint)
     : undefined
 

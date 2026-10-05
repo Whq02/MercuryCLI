@@ -21,7 +21,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 
 const { getProjectsDir } = await import('../../src/utils/sessionStorage/paths.ts')
 const logs = await import('../../src/utils/sessionStorage/logs.ts')
-type SessionLogResult = import('../../src/utils/sessionStorage/logs.ts').SessionLogResult
+type SessionPage = import('../../src/utils/sessionStorage/logs.ts').SessionPage
 
 const projectsDir = getProjectsDir()
 const P = 6
@@ -40,8 +40,8 @@ for (let p = 0; p < P; p++) {
 }
 const S = P * PER
 const census = logs.listingCensus
-const ids = (r: SessionLogResult): string => r.allStatLogs.map(l => String(l.sessionId ?? '')).sort().join(',')
-const progressive = (): Promise<SessionLogResult> => logs.loadAllProjectsMessageLogsProgressive()
+const ids = (r: SessionPage): string => r.allStatLogs.map(l => String(l.sessionId ?? '')).sort().join(',')
+const progressive = (): Promise<SessionPage> => logs.listSessionsAcrossProjectsProgressive()
 
 section('L1 single-flight — concurrent callers share ONE sweep')
 {
@@ -93,13 +93,13 @@ section('L5 the public door rides the memo; callers get fresh rows')
 {
   const sweepsBefore = census.sweeps
   const servedBefore = census.served
-  const all = await logs.loadAllProjectsMessageLogs()
-  const again = await logs.loadAllProjectsMessageLogs()
-  check('loadAllProjectsMessageLogs (the strip, the rail, /resume, /sessiontab) is served by the memo', census.sweeps === sweepsBefore && census.served === servedBefore + 2, JSON.stringify(census))
+  const all = await logs.listSessionsAcrossProjects()
+  const again = await logs.listSessionsAcrossProjects()
+  check('listSessionsAcrossProjects (the strip, the rail, /resume, /sessiontab) is served by the memo', census.sweeps === sweepsBefore && census.served === servedBefore + 2, JSON.stringify(census))
   check('the two answers agree row for row', all.length > 0 && all.length === again.length && all.every((l, i) => l.sessionId === again[i]!.sessionId && l.modified.getTime() === again[i]!.modified.getTime()), `${all.length}`)
   if (all.length > 0) {
     all[0]!.value = 999
-    const third = await logs.loadAllProjectsMessageLogs()
+    const third = await logs.listSessionsAcrossProjects()
     check('a caller mutating its rows never reaches the memo (fresh objects per listing)', third[0]!.value !== 999, String(third[0]!.value))
   }
 }
@@ -110,7 +110,7 @@ section('L6 wiring')
   check('the memo is served only on an equal truth stamp inside the TTL', /memo\.key === key && memo\.truth === truth && Date\.now\(\) - memo\.at < LISTING_MEMO_TTL_MS/.test(src) && /const LISTING_MEMO_TTL_MS = 5_000/.test(src))
   check("the truth stamp is the root's mtime plus every project directory's mtime", /const root = await stat\(projectsDir\)[\s\S]{0,400}?\(await stat\(dir\)\)\.mtimeMs/.test(src))
   check('the running sweep is shared (single-flight) and cleared by identity', /listingFlight !== null && listingFlight\.key === key/.test(src) && /listingFlight\.promise === promise\) listingFlight = null/.test(src))
-  check('the sweep body is the one the pool prover pins (mapWithConcurrency over getSessionFilesLite)', /mapWithConcurrency\(projectDirs, discoveryPoolWidth\(\), projectDir =>\n\s*getSessionFilesLite\(projectDir, limit\),/.test(src))
+  check('the sweep body is the one the pool prover pins (mapWithConcurrency over sessionFilesLite)', /mapWithConcurrency\(projectDirs, discoveryPoolWidth\(\), projectDir =>\n\s*sessionFilesLite\(projectDir, limit\),/.test(src))
   const registry = readFileSync(join(ROOT, 'scripts/staleness/prove-stale-registry.ts'), 'utf8')
   check('the memo carries its stale-registry row (keyed-by-truth)', registry.includes('src/utils/sessionStorage/logs.ts :: listingMemo :: keyed-by-truth'))
 }

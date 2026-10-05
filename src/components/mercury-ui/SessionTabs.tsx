@@ -9,7 +9,7 @@ import { getProjectRoot } from '../../bootstrap/state.js'
 import { conversationIdHere, subscribeFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import { filterResumableSessions } from '../../commands/resume/resume.js'
 import { Box, Text } from '../../ink.js'
-import type { LogOption } from '../../types/logs.js'
+import type { SessionListing } from '../../types/logs.js'
 import { formatRelativeTimeAgo } from '../../utils/format.js'
 import { getLogDisplayTitle } from '../../utils/log.js'
 import { isCrewSession } from '../../utils/sessionClass.js'
@@ -18,8 +18,8 @@ import { isProjectSession, isSubstantiveSession } from '../../utils/sessionFilte
 import { isSessionCleared } from '../../utils/sessionStorage/clearedSessions.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import {
-  getSessionIdFromLog,
-  loadAllProjectsMessageLogs,
+  sessionIdOfListing,
+  listSessionsAcrossProjects,
 } from '../../utils/sessionStorage.js'
 import {
   isPromptEmpty,
@@ -38,7 +38,7 @@ import type { SampleRowV1 } from '../../services/engine-connector/types.js'
 import type { MercuryThemeTokens } from '../../utils/mercuryTokens.js'
 
 
-export function tabLabel(log: LogOption): string {
+export function tabLabel(log: SessionListing): string {
   const cleaned = Array.from(getLogDisplayTitle(log, 'untitled'), ch => (ch.charCodeAt(0) < 0x20 ? ' ' : ch))
     .join('')
     .replace(/\s+/g, ' ')
@@ -53,7 +53,7 @@ function sampleTone(state: SampleRowV1['state'], tokens: MercuryThemeTokens): st
   return state === 'approved' ? tokens.success : state === 'changes-needed' ? tokens.warning : tokens.textMuted
 }
 
-const lastKnownTabs = new Map<string, LogOption[]>()
+const lastKnownTabs = new Map<string, SessionListing[]>()
 
 export function SessionTabs({
   cols,
@@ -67,7 +67,7 @@ export function SessionTabs({
   const tokens = useMercuryTokens()
   const sessionId = useSyncExternalStore(subscribeFocusedSessionConnector, conversationIdHere, conversationIdHere)
   const scopeKey = `${getProjectRoot() || ''}::${sessionId}`
-  const [tabs, setTabs] = useState<{ key: string; rows: LogOption[] | null }>(
+  const [tabs, setTabs] = useState<{ key: string; rows: SessionListing[] | null }>(
     () => ({ key: scopeKey, rows: lastKnownTabs.get(scopeKey) ?? null }),
   )
   if (tabs.key !== scopeKey) {
@@ -92,14 +92,14 @@ export function SessionTabs({
     let alive = true
     void (async () => {
       try {
-        const all = await loadAllProjectsMessageLogs()
+        const all = await listSessionsAcrossProjects()
         const boardHomed = boardHomedSessionIds()
         const resumable = filterResumableSessions(all, sessionId)
           .filter(isSubstantiveSession)
-          .filter(l => !boardHomed.has(getSessionIdFromLog(l) ?? ''))
+          .filter(l => !boardHomed.has(sessionIdOfListing(l) ?? ''))
           .filter(l => !isCrewSession(l))
           .filter(l => isProjectSession(l, getProjectRoot() || ''))
-          .filter(l => !isSessionCleared(getSessionIdFromLog(l)))
+          .filter(l => !isSessionCleared(sessionIdOfListing(l)))
         resumable.sort(
           (a, b) =>
             new Date(b.modified).getTime() - new Date(a.modified).getTime(),
@@ -121,8 +121,8 @@ export function SessionTabs({
   const plainWorld = chatOnlyBoot()
   const tabList = others ?? []
   const railVisible = barOn && !(tabList.length === 0 && samples.length === 0 && !concourseLive) && cols >= 70
-  const flipTo = (log: LogOption | undefined): void => {
-    const id = log !== undefined ? getSessionIdFromLog(log) : undefined
+  const flipTo = (log: SessionListing | undefined): void => {
+    const id = log !== undefined ? sessionIdOfListing(log) : undefined
     if (id !== undefined && id !== null) requestCommandDispatch(`/sessiontab ${id}`)
   }
   const flipArmed = railVisible && promptEmpty && tabList.length > 0
@@ -279,7 +279,7 @@ export function SessionTabs({
         </Box>
       ) : null}
       {shown.map((log, i) => {
-        const id = getSessionIdFromLog(log)
+        const id = sessionIdOfListing(log)
         const isHover = hovered === i
         return (
           <React.Fragment key={id ?? i}>

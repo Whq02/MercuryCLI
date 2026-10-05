@@ -23,11 +23,11 @@ import { type AgentId, asAgentId } from '../../types/ids.js'
 import type {
   ContentReplacementEntry,
   Entry,
-  FileHistorySnapshotMessage,
+  FileHistorySnapshotEntry,
   PersistedWorktreeSession,
   TranscriptMessage,
 } from '../../types/logs.js'
-import type { AttributionSnapshotMessage } from '../../types/logs.js'
+import type { AttributionSnapshotEntry } from '../../types/logs.js'
 import type { Message } from '../../types/message.js'
 import { storageRowPolicy } from '../../rows/storage.js'
 import { SessionMeta, SESSION_META_COMPAT_FIELDS } from './sessionMeta.js'
@@ -53,7 +53,7 @@ import type { ContentReplacementRecord } from '../toolResultStorage.js'
 import { getWorkload } from '../workloadContext.js'
 import { effortNotOnWire } from '../effortStamp.js'
 import {
-  cleanMessagesForLogging,
+  cleanForTranscript,
   getFirstMeaningfulUserMessageTextContent,
   type Transcript,
 } from './chain.js'
@@ -228,7 +228,7 @@ export async function recordTranscript(
   allMessages?: readonly Message[],
 ): Promise<UUID | null> {
   transcriptMessagesVisited += messages.length
-  const cleanedMessages = cleanMessagesForLogging(messages, allMessages)
+  const cleanedMessages = cleanForTranscript(messages, allMessages)
   const messageSet = await getSessionMessages(getSessionId() as UUID)
   const { unwritten: newMessages, parent: startingParentUuid } = partitionUnwritten(cleanedMessages, messageSet, startingParentUuidHint)
   const preferLiveLeaf = messageSet.size > 0
@@ -261,7 +261,7 @@ export async function recordSidechainTranscript(
   startingParentUuid?: UUID | null,
 ) {
   await getProject().insertMessageChain(
-    cleanMessagesForLogging(messages),
+    cleanForTranscript(messages),
     true,
     agentId,
     startingParentUuid,
@@ -305,7 +305,7 @@ export async function recordFileHistorySnapshot(
 }
 
 export async function recordAttributionSnapshot(
-  snapshot: AttributionSnapshotMessage,
+  snapshot: AttributionSnapshotEntry,
 ) {
   await getProject().insertAttributionSnapshot(snapshot)
 }
@@ -799,7 +799,7 @@ class Project {
     snapshot: FileHistorySnapshot,
     isSnapshotUpdate: boolean,
   ) {
-    const fileHistoryMessage: FileHistorySnapshotMessage = { type: 'file-history-snapshot', messageId, snapshot, isSnapshotUpdate }
+    const fileHistoryMessage: FileHistorySnapshotEntry = { type: 'file-history-snapshot', messageId, snapshot, isSnapshotUpdate }
     return this.insertTracked(fileHistoryMessage)
   }
 
@@ -807,7 +807,7 @@ class Project {
     return this.insertTracked(queueOp)
   }
 
-  async insertAttributionSnapshot(snapshot: AttributionSnapshotMessage) {
+  async insertAttributionSnapshot(snapshot: AttributionSnapshotEntry) {
     return this.insertTracked(snapshot)
   }
 
@@ -920,7 +920,7 @@ class Project {
     if (this.shouldSkipPersistence()) return
     const cached = this.settleState.get(message.uuid)
     if (!cached) return
-    const [cleaned] = cleanMessagesForLogging([message])
+    const [cleaned] = cleanForTranscript([message])
     if (!cleaned) return
     const settled = { ...cached.entry, ...cleaned } as Entry
     const semanticLine = jsonStringify(settled) + '\n'

@@ -4,7 +4,7 @@ import type { UUID } from 'node:crypto'
 import type { Message } from '../types/message.js'
 import { recordTranscript, flushSessionStorage } from '../utils/sessionStorage/writer.js'
 import {
-  cleanMessagesForLogging,
+  cleanForTranscript,
 } from '../utils/sessionStorage/chain.js'
 import { isChainParticipant } from '../utils/sessionStorage/paths.js'
 import { isCrewEnabled } from '../utils/crewEnabled.js'
@@ -37,7 +37,7 @@ function lastLoggableUuid(
   slice: Message[],
   allMessages: readonly Message[],
 ): UUID | undefined {
-  const transformed = cleanMessagesForLogging(slice, allMessages)
+  const transformed = cleanForTranscript(slice, allMessages)
   for (let i = transformed.length - 1; i >= 0; i--) {
     const m = transformed[i]!
     if (isChainParticipant(m)) return m.uuid as UUID

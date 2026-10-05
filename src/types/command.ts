@@ -5,7 +5,7 @@ import type { HooksSettings } from '../schemas/hooks.js'
 import type { EffortValue } from '../utils/effort.js'
 import type { CanUseToolFn } from '../hooks/useCanUseTool.js'
 import type { Message } from './message.js'
-import type { LogOption } from './logs.js'
+import type { SessionListing } from './logs.js'
 import type { ContentBlockParam } from './wire.js'
 import type { ExtensionManifest } from '../extensions/manifest.js'
 import type { ThemeName } from '../utils/theme.js'
@@ -153,7 +153,7 @@ export type LocalJSXCommandContext = ToolUseContext & {
   onChangeAPIKey: () => void
   resume?: (
     sessionId: UUID,
-    log: LogOption,
+    log: SessionListing,
     entrypoint: ResumeEntrypoint,
   ) => Promise<void>
   options: ToolUseContext['options'] & {

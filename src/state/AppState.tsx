@@ -9,8 +9,8 @@ import {
 } from './AppStateStore.js'
 import { onChangeAppState } from './onChangeAppState.js'
 import {
-  createDisabledBypassPermissionsContext,
-  isBypassPermissionsModeDisabled,
+  createSovereignDisabledContext,
+  isSovereignDisabled,
 } from '../utils/permissions/permissionSetup.js'
 import { applySettingsChange } from '../utils/settings/applySettingsChange.js'
 import { settingsChangeDetector } from '../utils/settings/changeDetector.js'
@@ -62,13 +62,13 @@ export function AppStateProvider({
 
   useEffect(() => {
     const context = store.getState().toolPermissionContext
-    if (context.isBypassPermissionsModeAvailable && isBypassPermissionsModeDisabled()) {
+    if (context.isBypassPermissionsModeAvailable && isSovereignDisabled()) {
       logForDebugging(
         'sovereign mode disabled by remotely-loaded policy settings that arrived before mount; correcting the permission context',
       )
       store.setState(prev => ({
         ...prev,
-        toolPermissionContext: createDisabledBypassPermissionsContext(
+        toolPermissionContext: createSovereignDisabledContext(
           prev.toolPermissionContext,
         ),
       }))
