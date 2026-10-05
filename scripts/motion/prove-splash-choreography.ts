@@ -37,7 +37,7 @@ function cell(
   cols: number,
   rows: number,
   extra: string[] = [],
-): { report: Report; framesDir: string; raw: Buffer; exit: number } {
+): { report: Report; framesDir: string; raw: Buffer; exit: number; rawAfter: (ms: number) => Buffer; resizeAt: number | null } {
   const reel = join(scratch, `${name}.jsonl`)
   const framesDir = join(scratch, `${name}-frames`)
   const cap = spawnSync(
@@ -55,12 +55,17 @@ function cell(
     if (r.status !== 0) throw new Error(`${sub} ${name} failed: ${r.stderr}`)
   }
   const report = JSON.parse(readFileSync(join(scratch, `${name}.report.json`), 'utf8')) as Report
-  let raw = Buffer.alloc(0)
+  const chunks: Array<{ t: number; b: Buffer }> = []
+  let resizeAt: number | null = null
   for (const line of readFileSync(reel, 'utf8').split('\n')) {
-    if (!line.includes('"b"')) continue
-    raw = Buffer.concat([raw, Buffer.from((JSON.parse(line) as { b: string }).b, 'base64')])
+    if (line === '') continue
+    const rec = JSON.parse(line) as { t?: number; b?: string; ev?: string }
+    if (rec.b !== undefined) chunks.push({ t: rec.t ?? 0, b: Buffer.from(rec.b, 'base64') })
+    else if (rec.ev === 'resize' && resizeAt === null) resizeAt = rec.t ?? 0
   }
-  return { report, framesDir, raw, exit }
+  const raw = Buffer.concat(chunks.map(c => c.b))
+  const rawAfter = (ms: number): Buffer => Buffer.concat(chunks.filter(c => c.t >= ms).map(c => c.b))
+  return { report, framesDir, raw, exit, rawAfter, resizeAt }
 }
 
 const frameText = (dir: string, i: number): string[] =>
@@ -132,13 +137,13 @@ console.log('── SPLASH choreography: the one-scene motion laws ──')
 }
 
 {
-  const { report, framesDir, raw, exit } = cell('reseat', 120, 38, ['--resize', '800:80x24'])
+  const { report, framesDir, exit, rawAfter, resizeAt } = cell('reseat', 120, 38, ['--resize', '800:80x24'])
   check('LAW 5: the resized run still hands off (exit 0)', exit === 0, `exit=${exit}`)
   const pf = report.per_frame
   const post = pf.filter(f => f.cols === 80)
   check('LAW 5: the run CONTINUES after the resize (≥20 more units)', post.length >= 20, `post=${post.length}`)
-  const rawStr = raw.toString('latin1')
-  const marker = rawStr.slice(Math.floor(rawStr.length * 0.4))
+  check('LAW 5: the reel recorded the resize', resizeAt !== null, resizeAt === null ? 'no resize event in the reel' : `at ${resizeAt} ms`)
+  const marker = rawAfter((resizeAt ?? 0) + 60).toString('latin1')
   let oob = 0
   for (const m of marker.matchAll(/\x1b\[(\d+);(\d+)H/g)) {
     if (Number(m[1]) > 24 || Number(m[2]) > 80) oob++

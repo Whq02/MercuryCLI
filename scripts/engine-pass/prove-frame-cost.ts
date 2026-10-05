@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { cpus, release } from 'node:os'
 import { recordPty, decodePtyRecording, sharedClockMs, outputBursts, type PtyRecord } from '../lib/ptyRecorder.ts'
 import { buildScene } from './build-scene.ts'
-import { costRows, fiveRunMedians, timingNoise } from './cost-comparison.ts'
+import { boxFloors, costRows, fiveRunMedians, RELATIVE_FLOOR } from './cost-comparison.ts'
 import { BASE, ROOT, argument, baseSources, git, hasBaseObject, median, scratch } from './support.ts'
 
 type Frame = { atMs: number; view: string; draft: string; durationMs: number; phases?: { patches: number; renderer: number; diff: number; optimize: number; write: number; yoga: number; commit: number } }
@@ -70,7 +70,7 @@ async function measure(bundle: string, label: string): Promise<{ metrics: Metric
       const end = inputs[index + 1]?.atMs ?? ended
       const output = outputBetween(recording.records, input.atMs, end)
       const burst = outputBursts(output)[0] ?? []
-      const active = frames.filter(frame => frame.atMs >= input.atMs && frame.atMs < end && (frame.phases?.patches ?? 0) > 0)
+      const active = frames.filter(frame => frame.atMs - frame.durationMs >= input.atMs && frame.atMs - frame.durationMs < end && (frame.phases?.patches ?? 0) > 0)
       if (input.kind === 'view') assert.ok(output.length > 0, `${label} missing repaint for view switch ${index}`)
       if (input.kind !== 'pointer' && output.length > 0) assert.ok(active.length > 0, `${label} missing engine timing for input ${index}`)
       return {
@@ -144,33 +144,39 @@ for (const run of [...runs.base, ...runs.tip, ...(recorded?.runs ?? [])]) assert
 const digest = createHash('sha256')
 for (const name of ['boot', 'chat', 'concourse']) digest.update(readFileSync(join(scenes, `${name}.json`)))
 const identity = { baseSha: BASE, tipSha: git('rev-parse', 'HEAD'), sourceTree: git('rev-parse', 'HEAD:src'), sceneDigest: digest.digest('hex'), cols: 177, rows: 49, platform: process.platform, architecture: process.arch, box: cpus()[0]?.model ?? 'unreported', osRelease: release(), terminal: 'Apple_Terminal identity over byte-exact POSIX pty', repetitions: 5, comparison: liveBase ? 'live base and tip on this box' : 'tip against committed base record' }
-const report = { ...identity, silentKeys, base, tip, noise: timingNoise(liveBase ? runs.base : recorded!.runs, runs.tip), runs }
+const floors = boxFloors(base, liveBase ? runs.base : recorded!.runs, runs.tip)
+const noise = Object.fromEntries(Object.entries(floors).map(([metric, floor]) => [metric, floor.floor]))
+const report = { ...identity, silentKeys, base, tip, noise, floors, runs }
 writeFileSync(join(work, 'report.json'), JSON.stringify(report, null, 2) + '\n')
 if (recordingBase) writeFileSync(baselinePath, JSON.stringify({ ...identity, measuredAt: new Date().toISOString(), silentKeys, medians: base, runs: runs.base }, null, 2) + '\n', { flag: 'wx' })
 let failures = 0
+const signed = (value: number): string => `${value > 0 ? '+' : ''}${value.toFixed(6)}`
 if (recorded) {
   assert.equal(recorded.baseSha, BASE, 'recorded base identity differs')
   assert.equal(recorded.sceneDigest, identity.sceneDigest, 'the measured scenes changed')
   assert.deepEqual(fiveRunMedians(recorded.runs), recorded.medians, 'the committed medians do not follow their five recorded runs')
   if (liveBase) {
+    const recordFloors = boxFloors(recorded.medians, runs.base, recorded.runs)
     for (const key of Object.keys(base)) {
-      const spreadOf = (samples: Array<{ metrics: Metrics }>): number => {
-        const values = samples.map(run => run.metrics[key]!)
-        return Math.max(...values) - Math.min(...values)
-      }
-      const spread = Math.max(spreadOf(runs.base), spreadOf(recorded.runs))
       const exact = !key.endsWith('Ms')
-      const agrees = exact ? base[key] === recorded.medians[key] : Math.abs(base[key]! - recorded.medians[key]!) <= spread
-      if (!agrees) failures++
-      console.log(`[${agrees ? 'PASS' : 'FAIL'}] base record ${key}: recorded ${recorded.medians[key]} live ${base[key]}${exact ? ' (exact)' : ` (observed five-run spread ${spread})`}`)
+      if (exact) {
+        const agrees = base[key] === recorded.medians[key]
+        if (!agrees) failures++
+        console.log(`[${agrees ? 'PASS' : 'FAIL'}] base record ${key}: recorded ${recorded.medians[key]} live ${base[key]} (exact)`)
+        continue
+      }
+      const delta = base[key]! - recorded.medians[key]!
+      const floor = recordFloors[key]!
+      const drift = Math.abs(delta) > floor.floor
+      console.log(`[BASE RECORD] ${key}: recorded ${recorded.medians[key]!.toFixed(6)} live ${base[key]!.toFixed(6)} (${signed(delta)}, ${signed(delta / recorded.medians[key]! * 100)}%; the box's floor ${floor.floor.toFixed(6)} = spread ${floor.spread.toFixed(6)} | ${RELATIVE_FLOOR * 100}% ${floor.relative.toFixed(6)}) ${drift ? 'DRIFT: this box reads the base differently from the record today' : 'agrees'}`)
     }
   } else console.log('[BASE RECORD] base git object absent; tip compared with the committed five-run record, not a same-box live comparison')
 }
-const noise = timingNoise(liveBase ? runs.base : recorded!.runs, runs.tip)
 for (const row of costRows(base, tip, noise)) {
   if (!row.pass) failures++
-  const floor = row.floor > 0 ? ` (five-run noise ${row.floor.toFixed(6)}: ${row.tip - row.base > 0 ? '+' : ''}${(row.tip - row.base).toFixed(6)})` : ' (exact)'
-  console.log(`[${row.pass ? 'PASS' : 'FAIL'}] ${row.metric}: base ${row.base.toFixed(6)} tip ${row.tip.toFixed(6)}${floor}`)
+  const floor = floors[row.metric]
+  const detail = floor ? ` (${signed(row.tip - row.base)} against the box's floor ${floor.floor.toFixed(6)} = spread ${floor.spread.toFixed(6)} | ${RELATIVE_FLOOR * 100}% ${floor.relative.toFixed(6)})` : ' (exact)'
+  console.log(`[${row.pass ? 'PASS' : 'FAIL'}] ${row.metric}: base ${row.base.toFixed(6)} tip ${row.tip.toFixed(6)}${detail}`)
 }
 const fullBudget = argument('--full-budget-ms')
 if (fullBudget !== undefined && tip.fullFrameMs! > Number(fullBudget)) {

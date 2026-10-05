@@ -3,6 +3,7 @@ import {
   createNode,
   createTextNode,
   setStyle,
+  setTextStyles,
   type DOMElement,
 } from '../../src/ink/dom.js'
 import { emptyFrame, type Frame } from '../../src/ink/frame.js'
@@ -14,13 +15,27 @@ import {
   type Screen,
   StylePool,
 } from '../../src/ink/cell-grid.js'
-import applyStyles, { type Styles } from '../../src/ink/styles.js'
+import applyStyles, { type Styles, type TextStyles } from '../../src/ink/styles.js'
 
 export type SceneNode = {
   kind: 'box' | 'text'
-  style?: Styles
+  style?: Styles & TextStyles
+  textStyles?: TextStyles
   text?: string
   children?: SceneNode[]
+}
+
+const TEXT_STYLE_KEYS = ['color', 'backgroundColor', 'dim', 'bold', 'italic', 'underline', 'strikethrough', 'inverse'] as const
+
+export function splitTextStyles(style: (Styles & TextStyles) | undefined, textStyles: TextStyles | undefined): { layout: Styles; text: TextStyles } {
+  const layout: Record<string, unknown> = {}
+  const text: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(style ?? {})) {
+    if ((TEXT_STYLE_KEYS as readonly string[]).includes(key)) text[key] = value
+    else layout[key] = value
+  }
+  Object.assign(text, textStyles ?? {})
+  return { layout: layout as Styles, text: text as TextStyles }
 }
 
 export type FrameScene = {
@@ -38,7 +53,9 @@ export function applySceneStyle(el: DOMElement, style: Styles): void {
 export function buildDom(spec: SceneNode): DOMElement {
   if (spec.kind === 'text') {
     const el = createNode('ink-text')
-    if (spec.style) applySceneStyle(el, spec.style)
+    const { layout, text } = splitTextStyles(spec.style, spec.textStyles)
+    if (spec.style) applySceneStyle(el, layout)
+    if (Object.keys(text).length > 0) setTextStyles(el, text)
     if (spec.text !== undefined) appendChildNode(el, createTextNode(spec.text) as never)
     spec.children?.forEach(c => appendChildNode(el, buildDom(c)))
     return el

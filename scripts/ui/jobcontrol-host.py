@@ -32,6 +32,33 @@ def ms():
     return int((time.monotonic() - t0) * 1000)
 
 
+def remaining():
+    return max(0.0, budget_s - (time.monotonic() - t0))
+
+
+def bounded(seconds):
+    return min(float(seconds), remaining())
+
+
+def step_name(step):
+    for key in ("wait", "launch", "typeline", "send", "signal", "sleep", "mark", "observe", "face_row", "await_state", "poll", "await_settle"):
+        if key in step:
+            return "%s:%s" % (key, step.get("label") or step[key])
+    return "step"
+
+
+def _terminated(signum, frame):
+    global end_reason
+    end_reason = "terminated-by-host-during:%s" % current_step
+    raise SystemExit(143)
+
+
+def _alarm(signum, frame):
+    global end_reason
+    end_reason = "budget-alarm-during:%s" % current_step
+    raise SystemExit(142)
+
+
 _KITTY_SEQ = re.compile(rb"\x1b\[[<>=][0-9;]*u")
 _KITTY_TAIL = re.compile(rb"(?:\x1b|\x1b\[|\x1b\[[<>=][0-9;]*)$")
 _carry = b""
@@ -224,10 +251,11 @@ def run_step(step):
     global end_reason
     if "wait" in step:
         needles = step["wait"] if isinstance(step["wait"], list) else [step["wait"]]
-        hit = wait_for(needles, float(step.get("timeout", 30)))
-        log("wait %r -> %r" % (needles, hit))
+        limit = bounded(step.get("timeout", 30))
+        hit = wait_for(needles, limit)
+        log("wait %r -> %r (limit %.1fs, budget left %.1fs)" % (needles, hit, limit, remaining()))
         if hit is None and step.get("required", True):
-            end_reason = "never-saw:%s" % needles[0]
+            end_reason = ("budget-while-waiting:%s" if remaining() <= 0 else "never-saw:%s") % needles[0]
             return False
     elif "launch" in step:
         log("launch %r" % command)
@@ -259,7 +287,7 @@ def run_step(step):
         marks.append({"label": "signal:%s" % step.get("label", step["signal"]), "ms": ms(),
                       "teeOffset": len(raw), "grid": text()})
     elif "sleep" in step:
-        sleep_pumping(float(step["sleep"]))
+        sleep_pumping(bounded(step["sleep"]))
     elif "mark" in step:
         mark(step["mark"])
     elif "observe" in step:
@@ -268,7 +296,7 @@ def run_step(step):
         face_row(step["face_row"])
     elif "await_state" in step:
         want = step["await_state"]
-        deadline = time.monotonic() + float(step.get("timeout", 10))
+        deadline = time.monotonic() + bounded(step.get("timeout", 10))
         seen = False
         while time.monotonic() < deadline:
             sleep_pumping(0.05)
@@ -282,7 +310,7 @@ def run_step(step):
             return False
     elif "poll" in step:
         until = step.get("until")
-        deadline = time.monotonic() + float(step.get("seconds", 10))
+        deadline = time.monotonic() + bounded(step.get("seconds", 10))
         interval = float(step.get("interval", 0.2))
         while time.monotonic() < deadline:
             sleep_pumping(interval)
@@ -293,7 +321,7 @@ def run_step(step):
                 break
     elif "await_settle" in step:
         need = int(step.get("checks", 4))
-        deadline = time.monotonic() + float(step.get("timeout", 20))
+        deadline = time.monotonic() + bounded(step.get("timeout", 20))
         last = None
         run = 0
         while time.monotonic() < deadline:
@@ -306,14 +334,42 @@ def run_step(step):
     return True
 
 
+current_step = "start"
+signal.signal(signal.SIGTERM, _terminated)
+signal.signal(signal.SIGALRM, _alarm)
+signal.alarm(int(budget_s) + 5)
 try:
     for step in steps:
-        if ms() > budget_s * 1000:
-            end_reason = "budget"
+        current_step = step_name(step)
+        if remaining() <= 0:
+            end_reason = "budget-before:%s" % current_step
             break
         if not run_step(step):
             break
 finally:
+    signal.alarm(0)
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    final_text = text()
+    shell_lines = [l.strip() for l in final_text.split("\n")
+                   if re.search(r"Stopped|suspended|Terminated|Killed", l)]
+    report = {
+        "endReason": end_reason,
+        "bundlePid": bundle_pid,
+        "marks": marks,
+        "samples": state_samples,
+        "modeEvents": mode_events,
+        "shellLines": shell_lines,
+        "finalGrid": final_text,
+        "log": log_lines,
+        "rawBytes": len(raw),
+        "budgetSeconds": budget_s,
+        "elapsedMs": ms(),
+        "lastStep": current_step,
+    }
+    with open(report_path, "w") as f:
+        json.dump(report, f)
+    if tee:
+        tee.close()
     table = ps_table()
     me = find_bundle(table)
     if me is not None:
@@ -334,21 +390,3 @@ finally:
         os.remove(inputrc_path)
     except OSError:
         pass
-    final_text = text()
-    shell_lines = [l.strip() for l in final_text.split("\n")
-                   if re.search(r"Stopped|suspended|Terminated|Killed", l)]
-    report = {
-        "endReason": end_reason,
-        "bundlePid": bundle_pid,
-        "marks": marks,
-        "samples": state_samples,
-        "modeEvents": mode_events,
-        "shellLines": shell_lines,
-        "finalGrid": final_text,
-        "log": log_lines,
-        "rawBytes": len(raw),
-    }
-    with open(report_path, "w") as f:
-        json.dump(report, f)
-    if tee:
-        tee.close()

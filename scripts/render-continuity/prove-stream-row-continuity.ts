@@ -8,11 +8,12 @@ import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const { runPulseArena, anchoredOffset, restoreOffsets } = await import('./lib/pulseArena.ts')
+const { downOnlyWithCard } = await import('./lib/rowLaw.ts')
 const { checker } = await import('../engine-durability/harness.ts')
 type ScriptedTurn = import('../lib/fixtureApi.ts').ScriptedTurn
 
 const HERE = dirname(fileURLToPath(import.meta.url))
-const SCREENGRAB = join(HERE, '..', 'streaming', 'screengrab.py')
+const SCREENGRAB = join(HERE, 'lib', 'framegrab.py')
 const framesFlag = process.argv.indexOf('--frames')
 const FRAMES_DIR = framesFlag >= 0 && process.argv[framesFlag + 1] ? resolve(process.argv[framesFlag + 1]!) : null
 const onlyFlag = process.argv.indexOf('--only')
@@ -205,7 +206,13 @@ const COMPACT_STRIP_RE = /^(✶|✸|✹|✺|✷) \S.* · /
 const compactStripRowOf = (f: Frame): number => f.rows.findIndex(r => COMPACT_STRIP_RE.test(r))
 const composerRowOf = (f: Frame): number => f.rows.findIndex(r => /^╭─+╮$/.test(r))
 const userRowOf = (f: Frame): number => f.rows.findIndex(r => r.includes('anatomy probe') && r.includes('❯'))
-const textRowOf = (f: Frame): number => f.rows.findIndex(r => TOKEN_RE.test(r))
+const paneStart = (f: Frame): number => Math.max(0, (f.rows.find(r => r.includes('✶ VIEW')) ?? '').indexOf('│'))
+const paneRows = (f: Frame): string[] => {
+  const start = paneStart(f)
+  return start === 0 ? f.rows : f.rows.map(r => r.slice(start))
+}
+const hasToken = (f: Frame): boolean => paneRows(f).some(r => TOKEN_RE.test(r))
+const textRowOf = (f: Frame): number => paneRows(f).findIndex(r => TOKEN_RE.test(r))
 const stripWordsOf = (f: Frame): string => {
   const lines = cardLinesOf(f)
   if (lines.length > 0) return lines.join(' ↵ ')
@@ -221,6 +228,20 @@ const movesOf = (seq: number[]): { down: number; up: number } => {
     else if (seq[i]! < seq[i - 1]!) up++
   }
   return { down, up }
+}
+
+t.section('the row law\'s teeth (synthetic frames, order-proof)')
+{
+  const f = (atMs: number, row: number, cardRows: number | null): import('./lib/rowLaw.ts').RowFrame => ({ atMs, row, cardRows })
+  t.check('a row that moves down by exactly the card\'s growth is lawful, and the settle\'s return up with it', downOnlyWithCard([f(1, 11, 1), f(2, 12, 2), f(3, 12, 2), f(4, 11, null)]).ok)
+  t.check('the same two states sampled in the other order are lawful too (the sampling order cannot flip the verdict)', downOnlyWithCard([f(1, 12, 2), f(2, 11, null)]).ok && downOnlyWithCard([f(1, 11, 1), f(2, 12, 2)]).ok)
+  const insert = downOnlyWithCard([f(1, 11, 1), f(2, 12, 1)])
+  t.check('a row that moves down while the card holds its lines is an insert-above', !insert.ok && /row 11→12 while the card went 1→1/.test(insert.detail), insert.detail)
+  const mismatch = downOnlyWithCard([f(1, 11, 1), f(2, 13, 2)])
+  t.check('a row that moves down by more than the card grew is an insert-above', !mismatch.ok, mismatch.detail)
+  const twice = downOnlyWithCard([f(1, 11, 1), f(2, 12, 2), f(3, 11, 1), f(4, 12, 2)])
+  t.check('two growths in one turn are refused (the card grows once)', !twice.ok && /2 downward moves/.test(twice.detail), twice.detail)
+  t.check('frames without the row are skipped, never a move', downOnlyWithCard([f(1, 11, 1), f(2, -1, 2), f(3, 11, 1)]).ok)
 }
 
 for (const scene of scenes) {
@@ -253,7 +274,7 @@ for (const scene of scenes) {
   restoreOffsets(run, screens)
   const final = screens[screens.length - 1]
   const timed = screens.filter(f => f.atMs !== -1)
-  const withText = timed.filter(f => f.rows.some(r => TOKEN_RE.test(r)))
+  const withText = timed.filter(hasToken)
 
   if (FRAMES_DIR !== null) {
     mkdirSync(FRAMES_DIR, { recursive: true })
@@ -331,38 +352,28 @@ for (const scene of scenes) {
   }
 
   const identityLaw = [...withText, final].every(f => {
-    const textIdx = f.rows.findIndex(r => TOKEN_RE.test(r))
+    const textIdx = textRowOf(f)
     if (textIdx === -1) return true
     return f.rows.some((r, i) => i <= textIdx && r.includes('[Mercury]')) || scene.scrolls
   })
   t.check('every frame with response text carries the nameplate at-or-above it', identityLaw)
 
   if (!scene.scrolls && scene.flips === undefined) {
-    const startSeq = [...withText, final]
-      .filter(f => f.rows.some(r => TOKEN_RE.test(r)))
-      .map(f => f.rows.findIndex(r => TOKEN_RE.test(r)))
-    const neverDown = startSeq.every((v, i) => i === 0 || v <= startSeq[i - 1])
-    t.check(
-      'the text start row never moves DOWN (no insert-above; upward growth-scroll allowed)',
-      neverDown,
-      `rows ${[...new Set(startSeq)].join(',')}`,
-    )
-    const userSeq = [...withText, final]
-      .map(f => f.rows.findIndex(r => r.includes('anatomy probe') && r.includes('❯')))
-      .filter(i => i !== -1)
-    const userNeverDown = userSeq.every((v, i) => i === 0 || v <= userSeq[i - 1])
-    t.check('the settled user row never moves down', userNeverDown, `rows ${[...new Set(userSeq)].join(',')}`)
+    const rowLaw = (label: string, rowOf: (f: Frame) => number): void => {
+      const verdict = downOnlyWithCard([...withText, final].map(f => ({ atMs: f.atMs, row: rowOf(f), cardRows: cardRowsOf(f) })))
+      t.check(`${label} moves down only with the working card's own growth, once at most (no insert-above; upward growth-scroll allowed)`, verdict.ok, verdict.detail)
+    }
+    rowLaw('the text start row', textRowOf)
+    rowLaw('the settled user row', f => f.rows.findIndex(r => r.includes('anatomy probe') && r.includes('❯')))
   }
 
   const dupEver = [...timed, final].some(f =>
-    TOKENS.some(tok => f.rows.filter(r => r.includes(`${tok} stream body`)).length > 1),
+    TOKENS.some(tok => paneRows(f).filter(r => r.includes(`${tok} stream body`)).length > 1),
   )
   t.check('no token is ever painted on two rows', !dupEver)
   const firstTextAt = withText.length ? withText[0].atMs : Number.MAX_SAFE_INTEGER
-  const blankAfterText = timed.some(
-    f => f.atMs > firstTextAt && !f.rows.some(r => TOKEN_RE.test(r)),
-  )
-  t.check('no blank-transcript frame between first text and settlement', !blankAfterText || Boolean(scene.interrupted) || scene.scrolls)
+  const blankFrames = timed.filter(f => f.atMs > firstTextAt && !hasToken(f))
+  t.check('no blank-transcript frame between first text and settlement', blankFrames.length === 0 || Boolean(scene.interrupted) || scene.scrolls, blankFrames.map(f => `@${f.atMs} (fed to ${(f as Frame & { fedToMs?: number }).fedToMs ?? '?'}; rows with ink ${f.rows.filter(r => r.trim() !== '').length})`).join(', '))
 
   let elapsedLawHolds = true
   let monotonic = true
@@ -396,7 +407,7 @@ for (const scene of scenes) {
   t.check('the elapsed value never resets within the turn', monotonic)
 
   if (scene.interrupted) {
-    const preEsc = timed.filter(f => f.atMs <= S(8000) && f.rows.some(r => TOKEN_RE.test(r))).pop()
+    const preEsc = timed.filter(f => f.atMs <= S(8000) && hasToken(f)).pop()
     const keptAll = preEsc
       ? TOKENS.filter(tok => preEsc.rows.some(r => r.includes(`${tok} stream body`))).every(tok =>
           final.rows.some(r => r.includes(`${tok} stream body`)),
@@ -408,7 +419,6 @@ for (const scene of scenes) {
 
   if (scene.markdown) {
     let restyles = 0
-    const paneStart = (f: Frame): number => Math.max(0, (f.rows.find(r => r.includes('✶ VIEW')) ?? '').indexOf('│'))
     for (let i = 1; i < timed.length; i++) {
       for (const tok of TOKENS.slice(0, 6)) {
         const a = timed[i - 1].rows.find(r => r.includes(`${tok} stream body`))?.slice(paneStart(timed[i - 1]))

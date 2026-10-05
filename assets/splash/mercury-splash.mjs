@@ -7,7 +7,7 @@ import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, rea
 import { homedir, tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 
-import { adoptGroundFamily, createSplashCore, HEADSTD, WORD, MENU, MODEL_NAMES, GROUND, assembleCardRows, fmtAge, ACCENT_FAMILIES, DEFAULT_CRITTER, accentFamilyKeyOf, glowPhaseAt, glowSettled, GLOW_TICK_MS, WORD_W, CARD_LABEL_W, cpWidth, MARK_RE, truecolorFingerprintOf } from './splash-core.mjs'
+import { adoptGroundFamily, createSplashCore, emitCells, HEADSTD, WORD, MENU, MODEL_NAMES, GROUND, assembleCardRows, fmtAge, ACCENT_FAMILIES, DEFAULT_CRITTER, accentFamilyKeyOf, glowPhaseAt, glowSettled, GLOW_TICK_MS, WORD_W, CARD_LABEL_W, cpWidth, MARK_RE, truecolorFingerprintOf } from './splash-core.mjs'
 
 const out = process.stdout
 
@@ -284,11 +284,8 @@ async function ripple() {
     while (paths.length < N_PATHS) paths.push(spawnPath(paths.length))
     NF = Math.min(140, Math.max(NF, fNow + Math.round(frameCeil() * 0.7)))
     respawnCeil = Math.round(frameCeil() * 0.55)
-    let buf = '\x1b[?2026h\x1b[2J\x1b[H' + placed.join('\n')
-    for (const c of residue) {
-      buf += at(c.x, c.y) + rgbFg(RESIDUE_TONE) +
-        CODE_GLYPHS[(c.x * 7 + c.y * 13) % CODE_GLYPHS.length] + R
-    }
+    const buf = '\x1b[?2026h\x1b[2J\x1b[H' + placed.join('\n') +
+      emitCells(residue.map(c => ({ x: c.x, y: c.y, sgr: rgbFg(RESIDUE_TONE), ch: CODE_GLYPHS[(c.x * 7 + c.y * 13) % CODE_GLYPHS.length] })))
     await Promise.race([writeFrame(buf + '\x1b[?2026l'), interrupt()])
   }
   const tickMs = 24
@@ -307,7 +304,7 @@ async function ripple() {
       t0 = Date.now()
       continue
     }
-    let buf = '\x1b[?2026h'
+    const cells = []
     let anyAlive = false
     let pi = 0
     const bcx = (box.x0 + box.x1) / 2
@@ -324,8 +321,7 @@ async function ripple() {
         const age = p.trail.length - 1 - k
         if (masked(cell.x, cell.y)) continue
         if (age >= TRAIL) {
-          buf += at(cell.x, cell.y) + rgbFg(RESIDUE_TONE) +
-            CODE_GLYPHS[(cell.x * 7 + cell.y * 13) % CODE_GLYPHS.length] + R
+          cells.push({ x: cell.x, y: cell.y, sgr: rgbFg(RESIDUE_TONE), ch: CODE_GLYPHS[(cell.x * 7 + cell.y * 13) % CODE_GLYPHS.length] })
           const key = cell.x + ',' + cell.y
           if (!residueSet.has(key)) {
             residueSet.add(key)
@@ -341,7 +337,7 @@ async function ripple() {
                 : mixc(FAM.deep, FAM.main, a / 0.45)
           const glyph =
             a < 0.15 ? '·' : CODE_GLYPHS[(cell.x * 7 + cell.y * 13) % CODE_GLYPHS.length]
-          buf += at(cell.x, cell.y) + rgbFg(fg) + glyph + R
+          cells.push({ x: cell.x, y: cell.y, sgr: rgbFg(fg), ch: glyph })
         }
       }
       p.trail = p.trail.filter((_, k) => p.trail.length - 1 - k < TRAIL)
@@ -399,7 +395,7 @@ async function ripple() {
       }
       anyAlive = anyAlive || p.alive
     }
-    if (!HERO) buf += HOLD_BRAND
+    const buf = '\x1b[?2026h' + emitCells(cells) + (HERO ? '' : HOLD_BRAND)
     const drawn = writeFrame(buf + '\x1b[?2026l')
     if (!anyAlive && paths.every(p => p.trail.length === 0)) {
       await Promise.race([drawn, interrupt()])
@@ -427,14 +423,9 @@ async function ripple() {
       const tFade = Date.now()
       for (let s = 0; s <= F; s++) {
         if (rippleAborted() || cappedFrames > 0 || sizeEpoch !== epochSeen) break
-        let buf = '\x1b[?2026h'
-        for (const c of residue.slice(s * cohort, (s + 1) * cohort)) {
-          buf += at(c.x, c.y) + rgbFg(FADE_TONE) +
-            CODE_GLYPHS[(c.x * 7 + c.y * 13) % CODE_GLYPHS.length] + R
-        }
-        if (s > 0) for (const c of residue.slice((s - 1) * cohort, s * cohort)) {
-          buf += at(c.x, c.y) + ' '
-        }
+        const cells = residue.slice(s * cohort, (s + 1) * cohort).map(c => ({ x: c.x, y: c.y, sgr: rgbFg(FADE_TONE), ch: CODE_GLYPHS[(c.x * 7 + c.y * 13) % CODE_GLYPHS.length] }))
+        if (s > 0) for (const c of residue.slice((s - 1) * cohort, s * cohort)) cells.push({ x: c.x, y: c.y, sgr: '', ch: ' ' })
+        const buf = '\x1b[?2026h' + emitCells(cells)
         await Promise.race([
           Promise.all([writeFrame(buf + '\x1b[?2026l'), sleep(Math.max(6, tickMs * (s + 1) - (Date.now() - tFade)))]),
           interrupt(),
