@@ -4,6 +4,8 @@ export interface FrameTraceRow {
   seq: number
   at: number
   totalMs: number
+  layoutMs: number
+  paintMs: number
   yogaMs: number
   commitMs: number
   rendererMs: number
@@ -53,6 +55,8 @@ export function recordFrameTrace(ev: FrameTraceInput): void {
     seq: seq++,
     at: now,
     totalMs: ev.durationMs,
+    layoutMs: ev.phases?.yoga ?? 0,
+    paintMs: ev.durationMs,
     yogaMs: ev.phases?.yoga ?? 0,
     commitMs: ev.phases?.commit ?? 0,
     rendererMs: ev.phases?.renderer ?? 0,
