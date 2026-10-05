@@ -2065,7 +2065,6 @@ export function Chat({
     }),
     [],
   );
-  const apiMetricsRef = useRef<Array<{ ttftMs: number; firstTokenTime: number; lastTokenTime: number; responseLengthBaseline: number; endResponseLength: number }>>([]);
   const onlySleepToolActive = useMemo(() => {
     if (viewInProgressToolUseIDs.size === 0) return false;
     const sleeping = new Set<string>();
@@ -2109,7 +2108,6 @@ export function Chat({
         activeToolCount={viewInProgressToolUseIDs.size}
         activeToolLabel={activeToolVerb(messages, viewInProgressToolUseIDs)}
         leaderIsIdle={!isLoading}
-        apiMetricsRef={apiMetricsRef}
       />
     ) : spinnerSlotReserved ? <StreamingHoldRow loadingStartTimeRef={seatStartTimeRef} totalPausedMsRef={seatPausedMsRef} pauseStartTimeRef={seatPauseStartRef} responseLengthRef={responseLengthRef} outputTokensRef={outputTokensRef} liveTurnFactsRef={liveTurnFactsRef} /> : null}
     {!isCompact ? <MercuryTurnRollup
