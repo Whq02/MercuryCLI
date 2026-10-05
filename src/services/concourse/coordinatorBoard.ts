@@ -294,7 +294,7 @@ export async function coordinatorBoardView(opts: CoordinatorBoardViewOpts = {}):
         }),
         ...(row.foreignProject !== undefined ? { carriedFrom: row.foreignProject } : {}),
         ...(brief !== null ? { brief } : {}),
-        ...(activity !== null ? { now: activity.label } : row.nowLabel ? { now: row.nowLabel } : {}),
+        ...(activity !== null ? { now: snap.activityNowLabel(activity) ?? activity.label } : row.nowLabel ? { now: row.nowLabel } : {}),
         ...(activity?.at !== undefined ? { lastSpokeAgo: snap.ageLabelOf(nowMs, activity.at) } : {}),
         ...(row.ageLabel !== null ? { age: row.ageLabel } : {}),
         ...(project !== undefined ? { project } : {}),
