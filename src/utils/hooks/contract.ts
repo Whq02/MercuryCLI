@@ -765,8 +765,8 @@ export const SyncHookJSONOutputSchema = lazySchema(() =>
 )
 export type SyncHookJSONOutput = z.output<ReturnType<typeof SyncHookJSONOutputSchema>>
 export type HookJSONOutput = AsyncHookJSONOutput | SyncHookJSONOutput
-export const HookJSONOutputSchema: () => z.ZodType<HookJSONOutput> = lazySchema(() =>
-  z.union([AsyncHookJSONOutputSchema(), SyncHookJSONOutputSchema()]) as z.ZodType<HookJSONOutput>,
+export const HookJSONOutputSchema = lazySchema(() =>
+  z.union([AsyncHookJSONOutputSchema(), SyncHookJSONOutputSchema()]),
 )
 
 export type BaseHookInput = z.infer<ReturnType<typeof BaseHookInputSchema>>
