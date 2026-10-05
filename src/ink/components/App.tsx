@@ -61,6 +61,7 @@ import {
 import { getTerminalFocused, setTerminalFocused } from '../session/focus-store.js'
 import { decrqm, kittyKeyboard, oscColor, TerminalQuerier, terminalQuerySettleMs, xtversion } from '../session/querier.js'
 import { resolveTerminalExperience } from '../session/terminalExperience.js'
+import { queueTerminalWidthProbe } from '../session/widthProbe.js'
 import { cockpitEngine } from '../../render-engine/cockpit/engineMount.js'
 import { termWrite } from '../../render-engine/cockpit/terminalOut.js'
 import { resolveAlternateScrollIntent } from '../termio/alternateScrollPolicy.js'
@@ -314,6 +315,7 @@ export default class App extends PureComponent<Props, State> {
   }
 
   private async probeTerminalIdentity(): Promise<void> {
+    let finishWidthProbe: (() => void) | null = null
     try {
       const versionQuery = this.querier.send(xtversion())
       let backgroundQuery: Promise<{ type: 'osc'; code: number; data: string } | undefined> =
@@ -326,6 +328,9 @@ export default class App extends PureComponent<Props, State> {
       if (isDecrqmProbeSafe()) markSyncProbeOutstanding(true)
       const syncQuery = isDecrqmProbeSafe() ? this.querier.send(decrqm(2026)) : Promise.resolve(undefined)
       const kittyQuery = this.querier.send(kittyKeyboard())
+      finishWidthProbe = queueTerminalWidthProbe(this.querier, this.props.stdout, () => {
+        instances.get(this.props.stdout)?.forceRedraw()
+      })
       const [version, background, sync, kitty] = await Promise.all([
         versionQuery,
         backgroundQuery,
@@ -368,6 +373,8 @@ export default class App extends PureComponent<Props, State> {
     } catch (error) {
       markSyncProbeOutstanding(false)
       logError(error)
+    } finally {
+      finishWidthProbe?.()
     }
   }
 

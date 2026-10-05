@@ -59,6 +59,14 @@ const DA1_RE = /^\x1b\[\?([\d;]*)c$/
 const DA2_RE = /^\x1b\[>([\d;]*)c$/
 const KITTY_FLAGS_RE = /^\x1b\[\?(\d+)u$/
 const CURSOR_POSITION_RE = /^\x1b\[\?(\d+);(\d+)R$/
+const PLAIN_CURSOR_POSITION_RE = /^\x1b\[(\d+);(\d+)R$/
+const cursorWindows = new Set<{ rows: ReadonlySet<number>; until: number }>()
+
+export function openPlainCursorWindow(rows: readonly number[], until: number): () => void {
+  const window = { rows: new Set(rows), until }
+  cursorWindows.add(window)
+  return () => { cursorWindows.delete(window) }
+}
 const OSC_RESPONSE_RE = /^\x1b\](\d+);(.*?)(?:\x07|\x1b\\)$/s
 const XTVERSION_RE = /^\x1bP>\|(.*?)(?:\x07|\x1b\\)$/s
 
@@ -80,6 +88,17 @@ export function interpretResponse(s: string): TerminalResponse | null {
     }
     if ((m = CURSOR_POSITION_RE.exec(s))) {
       return { type: 'cursorPosition', row: parseInt(m[1]!, 10), col: parseInt(m[2]!, 10) }
+    }
+    if ((m = PLAIN_CURSOR_POSITION_RE.exec(s))) {
+      const row = Number(m[1])
+      const col = Number(m[2])
+      for (const window of cursorWindows) {
+        if (performance.now() >= window.until) {
+          cursorWindows.delete(window)
+        } else if (window.rows.has(row) && Number.isSafeInteger(col) && col > 0) {
+          return { type: 'cursorPosition', row, col }
+        }
+      }
     }
     return null
   }
@@ -288,6 +307,10 @@ export function createPasteKey(content: string): ParsedKey {
 
 export function interpretKey(s: string = ''): ParsedKey {
   let match: RegExpExecArray | null
+
+  if (PLAIN_CURSOR_POSITION_RE.test(s) && !s.startsWith('\x1b[1;')) {
+    return { ...baseKey(s), name: undefined, code: '[R' }
+  }
 
   if ((match = CSI_U_RE.exec(s))) {
     if (match[5] === '3') return baseKey(s)
