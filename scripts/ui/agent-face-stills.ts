@@ -258,7 +258,14 @@ async function captureFaceFrames(): Promise<Record<string, string>> {
 }
 
 const write = process.argv.includes('--write')
+const frameDirectoryIndex = process.argv.indexOf('--frames')
+const frameDirectory = frameDirectoryIndex < 0 ? null : process.argv[frameDirectoryIndex + 1]
+if (frameDirectoryIndex >= 0 && !frameDirectory) throw new Error('--frames needs an output directory')
 const frames = { ...(await captureInchatFrames()), ...(await captureFaceFrames()) }
+if (frameDirectory) {
+  mkdirSync(frameDirectory, { recursive: true })
+  for (const [name, frame] of Object.entries(frames)) writeFileSync(join(frameDirectory, `${name}.txt`), frame)
+}
 let failed = 0
 mkdirSync(FIXTURES, { recursive: true })
 for (const [name, frame] of Object.entries(frames)) {
@@ -266,7 +273,7 @@ for (const [name, frame] of Object.entries(frames)) {
   if (write) {
     writeFileSync(path, frame)
     console.log(`wrote ${name} (${frame.split('\n').length} lines)`)
-  } else {
+  } else if (!frameDirectory) {
     let expected: string | null = null
     try {
       expected = readFileSync(path, 'utf-8')
