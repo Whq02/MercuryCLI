@@ -148,7 +148,7 @@ const OBSERVABLES: Array<{
   { key: 'sessionSource', family: 'posture', scope: 'session', read: () => state.getSessionSource() },
   { key: 'questionPreviewFormat', family: 'posture', scope: 'session', read: () => state.getQuestionPreviewFormat() },
   { key: 'isRemoteMode', family: 'posture', scope: 'session', read: () => state.getIsRemoteMode() },
-  { key: 'sessionBypassPermissionsMode', family: 'posture', scope: 'session', read: () => state.getSessionBypassPermissionsMode() },
+  { key: 'sessionBypassPermissionsMode', family: 'posture', scope: 'session', read: () => state.getSessionSovereign() },
   { key: 'permissionModeResolution', family: 'posture', scope: 'session', read: () => state.getSessionPermissionModeResolution() },
   { key: 'sessionTrustAccepted', family: 'posture', scope: 'session', read: () => state.getSessionTrustAccepted() },
   { key: 'sessionPersistenceDisabled', family: 'posture', scope: 'session', read: () => state.isSessionPersistenceDisabled() },
@@ -278,7 +278,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'getParentSessionId', 'getPlanSlugCache', 'getProjectRoot',
     'getPromptCache1hEligible', 'getPromptId',
     'getQuestionPreviewFormat', 'getRegisteredHooks',
-    'getSdkAgentProgressSummariesEnabled', 'getSdkBetas', 'getSessionBypassPermissionsMode',
+    'getSdkAgentProgressSummariesEnabled', 'getSdkBetas', 'getSessionSovereign',
     'getSessionCreatedCrews', 'getSessionId',
     'getSessionIngressToken', 'getSessionProjectDir', 'getSessionSource',
     'getSessionTrustAccepted', 'getStatsStore', 'getSessionPermissionModeResolution',
@@ -315,7 +315,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'setOauthTokenFromFd', 'setOriginalCwd', 'setProjectRoot',
     'setPromptCache1hEligible', 'setPromptId', 'setQuestionPreviewFormat',
     'setSdkAgentProgressSummariesEnabled', 'setSdkBetas',
-    'setSessionBypassPermissionsMode', 'setSessionIngressToken', 'setSessionPermissionModeResolution',
+    'setSessionSovereign', 'setSessionIngressToken', 'setSessionPermissionModeResolution',
     'setSessionPersistenceDisabled', 'setSessionSource', 'setSessionTrustAccepted',
     'setStatsStore', 'setStrictToolResultPairing', 'setSystemPromptSectionCacheEntry',
     'snapshotOutputTokensForTurn', 'subscribeCwdState', 'subscribeEngineModelOverride', 'switchSession',
@@ -1105,7 +1105,7 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
     state.setSessionSource('populate')
     state.setQuestionPreviewFormat('markdown')
     state.setIsRemoteMode(true)
-    state.setSessionBypassPermissionsMode(true)
+    state.setSessionSovereign(true)
     state.setSessionPermissionModeResolution({ mode: 'sovereign', source: 'launch-flag' })
     state.setSessionTrustAccepted(true)
     state.setSessionPersistenceDisabled(true)

@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from 'react'
 import { getSessionId } from '../../../bootstrap/state.js'
 import type { ResumeEntrypoint } from '../../../commands.js'
 import { Box, Text, useInput } from '../../../ink.js'
-import type { LogOption } from '../../../types/logs.js'
+import type { SessionListing } from '../../../types/logs.js'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
 import { formatFileSize, formatRelativeTimeAgo } from '../../../utils/format.js'
 import { retentionWindowDays } from '../../../utils/cleanup.js'
@@ -15,7 +15,7 @@ import {
   type PruneReceipt,
 } from '../../../utils/sessionStorage/transcriptPruneDoor.js'
 import { boardHomedSessionIds } from '../../../daemon/concourseWorkers.js'
-import { getSessionIdFromLog } from '../../../utils/sessionStorage.js'
+import { sessionIdOfListing } from '../../../utils/sessionStorage.js'
 import { AMBER, CRIMSON, DUNE, FAINT, IVORY, SECOND, TEAL } from '../../mercuryPalette.js'
 import { useSessionPickerModel, type SessionScope } from './sessionPickerModel.js'
 import { useMercuryTokens } from '../useMercuryTokens.js'
@@ -51,7 +51,7 @@ export function SessionManagerView({
   onCloseAll?: () => void
   onResume?: (
     sessionId: UUID,
-    log: LogOption,
+    log: SessionListing,
     entrypoint: ResumeEntrypoint,
   ) => Promise<void>
   onNewSession?: () => void
@@ -105,7 +105,7 @@ function LiveSessionManager({
   onCloseAll: () => void
   onResume: (
     sessionId: UUID,
-    log: LogOption,
+    log: SessionListing,
     entrypoint: ResumeEntrypoint,
   ) => Promise<void>
   onNewSession: () => void
@@ -135,7 +135,7 @@ function LiveSessionManager({
   const crewHidden = crew.length - crewShown.length
   const navKeys = useMemo(
     () => [
-      ...flat.map(f => `s:${getSessionIdFromLog(f.row.log) ?? `${f.project}:${f.row.label}`}`),
+      ...flat.map(f => `s:${sessionIdOfListing(f.row.log) ?? `${f.project}:${f.row.label}`}`),
       ...crewShown.map(c => `c:${c.tag}:${c.label}`),
     ],
     [flat, crewShown],
@@ -149,7 +149,7 @@ function LiveSessionManager({
   const shown = flat.slice(winStart, winEnd)
   const newerHidden = winStart
   const olderHidden = flat.length - winEnd
-  const targetAt = (i: number): LogOption | null =>
+  const targetAt = (i: number): SessionListing | null =>
     i < flat.length ? (flat[i]?.row.log ?? null) : (crewShown[i - flat.length]?.log ?? null)
   const targetLabel = (i: number): string =>
     i < flat.length
@@ -186,7 +186,7 @@ function LiveSessionManager({
   async function switchTo(i: number) {
     const log = targetAt(i)
     if (!log) return
-    const sessionId = getSessionIdFromLog(log)
+    const sessionId = sessionIdOfListing(log)
     if (!sessionId) return
     const gen = ++switchGenRef.current
     setSwitching('swapping')
@@ -491,8 +491,8 @@ function LiveSessionManager({
               const i = winStart + wi
               const on = i === sel
               const pending = confirming === i
-              const def = critterForKey(getSessionIdFromLog(f.row.log) ?? f.row.label)
-              const cardKey = navKeys[i] ?? (getSessionIdFromLog(f.row.log) ?? f.row.label)
+              const def = critterForKey(sessionIdOfListing(f.row.log) ?? f.row.label)
+              const cardKey = navKeys[i] ?? (sessionIdOfListing(f.row.log) ?? f.row.label)
               return (
                 <InteractiveRow
                   key={cardKey}

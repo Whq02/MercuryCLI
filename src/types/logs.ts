@@ -41,7 +41,7 @@ export type ContentReplacementEntry = {
   [K in keyof StorageRowOf<'content-replacement'>]: StorageRowOf<'content-replacement'>[K]
 }
 
-export type FileHistorySnapshotMessage = {
+export type FileHistorySnapshotEntry = {
   [K in keyof StorageRowOf<'file-history-snapshot'>]: StorageRowOf<'file-history-snapshot'>[K]
 }
 
@@ -49,7 +49,7 @@ export type FileAttributionState = {
   [K in keyof FileAttribution]: FileAttribution[K]
 }
 
-export type AttributionSnapshotMessage = {
+export type AttributionSnapshotEntry = {
   [K in keyof StorageRowOf<'attribution-snapshot'>]: StorageRowOf<'attribution-snapshot'>[K]
 }
 
@@ -64,7 +64,7 @@ export type ContextCollapseSnapshotEntry = {
 export type Entry =
   StoredRow
 
-export type LogOption = {
+export type SessionListing = {
   date: string
   messages: SerializedMessage[]
   fullPath?: string
@@ -87,7 +87,7 @@ export type LogOption = {
   customTitle?: string
   tag?: string
   fileHistorySnapshots?: FileHistorySnapshot[]
-  attributionSnapshots?: AttributionSnapshotMessage[]
+  attributionSnapshots?: AttributionSnapshotEntry[]
   contextCollapseCommits?: ContextCollapseCommitEntry[]
   contextCollapseSnapshot?: ContextCollapseSnapshotEntry
   gitBranch?: string
@@ -103,7 +103,7 @@ export type LogOption = {
   contentReplacements?: ContentReplacementRecord[]
 }
 
-export function sortLogs(logs: LogOption[]): LogOption[] {
+export function sortSessionListings(logs: SessionListing[]): SessionListing[] {
   return logs.sort(
     (a, b) =>
       b.modified.getTime() - a.modified.getTime() ||

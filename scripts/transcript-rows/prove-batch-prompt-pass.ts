@@ -125,7 +125,7 @@ try {
 
   const { createUserMessage, createCompactBoundaryMessage, getMessagesAfterCompactBoundary } = await import('../../src/utils/messages.ts')
   const { createAttachmentMessage } = await import('../../src/utils/attachments.ts')
-  const { cleanMessagesForLogging } = await import('../../src/utils/sessionStorage/chain.ts')
+  const { cleanForTranscript } = await import('../../src/utils/sessionStorage/chain.ts')
   const foldAttachment = createAttachmentMessage({ type: 'hook_additional_context', content: ['FOLD-ATTACHMENT-SENTINEL'], hookName: 'fold-probe', toolUseID: 'fold-probe', hookEvent: 'SessionStart' })
   table.push({
     type: 'local', name: 'fold-probe', description: 'compact fixture', isEnabled: () => true, supportsNonInteractive: true,
@@ -146,7 +146,7 @@ try {
   const compactView = (messages: Message[]) => JSON.stringify(planApiConversation(getMessagesAfterCompactBoundary(messages)).selected)
   const singleView = compactView(foldSingle.messages)
   check('a standalone compact keeps its summary visible to the model', singleView.includes('SUMMARY-SENTINEL'))
-  for (const [label, messages] of [['live', foldBatch.messages], ['recorded', cleanMessagesForLogging(foldBatch.messages)]] as const) {
+  for (const [label, messages] of [['live', foldBatch.messages], ['recorded', cleanForTranscript(foldBatch.messages)]] as const) {
     const view = compactView(messages)
     const summaryAt = view.indexOf('SUMMARY-SENTINEL')
     const followUpAt = view.indexOf('FOLLOW-UP-SENTINEL')

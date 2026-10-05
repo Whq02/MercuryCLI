@@ -48,7 +48,6 @@ import {
   formatRelativeTime,
   formatResetText,
 } from '../../src/utils/format.js'
-import { formatBriefTimestamp } from '../../src/utils/formatBriefTimestamp.js'
 import { renderTruncatedContent, isOutputLineTruncated } from '../../src/utils/terminal.js'
 import { applyMarkdown, configureMarked } from '../../src/utils/markdown.js'
 import {
@@ -570,30 +569,6 @@ console.log('\n── formatters, markdown, folding (32–42) ──')
   const future = formatRelativeTime(new Date('2026-08-18T12:01:00Z'), { style: 'narrow', now })
   const zero = formatRelativeTime(now, { style: 'narrow', now })
   check('35. narrow relative time: abbreviated unit both directions; sub-second zero case', /1m|1 ?min/.test(past) && /1m|1 ?min/.test(future) && past !== future && typeof zero === 'string' && zero.length > 0, JSON.stringify({ past, future, zero }))
-}
-
-{
-  const now = new Date('2026-08-18T20:00:00')
-  const sameDay = formatBriefTimestamp('2026-08-18T09:30:00', now)
-  const withinSix = formatBriefTimestamp('2026-08-15T09:30:00', now)
-  const older = formatBriefTimestamp('2026-07-01T09:30:00', now)
-  const bad = formatBriefTimestamp('not-a-date', now)
-  const prevLc = process.env.LC_ALL
-  process.env.LC_ALL = 'xx_NOT_A_LOCALE.UTF-8@bogus'
-  let invalidTagOk = true
-  let invalidOut = ''
-  try {
-    invalidOut = formatBriefTimestamp('2026-08-18T09:30:00', now)
-  } catch {
-    invalidTagOk = false
-  }
-  if (prevLc === undefined) delete process.env.LC_ALL
-  else process.env.LC_ALL = prevLc
-  check(
-    '36. brief timestamp: same-day/within-six/older by local midnight; unparseable ⇒ empty; invalid locale falls back',
-    bad === '' && sameDay !== withinSix && withinSix !== older && sameDay.length > 0 && invalidTagOk && invalidOut.length > 0,
-    JSON.stringify({ sameDay, withinSix, older, invalidOut }),
-  )
 }
 
 {

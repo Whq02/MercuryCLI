@@ -321,7 +321,7 @@ section('§5 the session switcher keeps its exit live while the swap lands (the 
   check('esc during the swap leaves the panel while the swap keeps going', view.includes('if (key.escape) leaveSwitch()') && view.includes("if (phase === 'swapping') onCloseAll()"))
   const fences = (view.match(/if \(gen !== switchGenRef\.current\) return/g) ?? []).length
   check(`a generation fence drops the late land (1 fence, found ${fences})`, fences === 1)
-  check('the switch reads no transcript before the hop (no whole-file load, no loading phase)', !view.includes('loadFullLog') && !view.includes("'loading'") && view.includes("await onResume(sessionId, log, 'slash_command_picker')"))
+  check('the switch reads no transcript before the hop (no whole-file load, no loading phase)', !view.includes('fillSessionListing') && !view.includes("'loading'") && view.includes("await onResume(sessionId, log, 'slash_command_picker')"))
   check('the swapping footer names the leave', view.includes('switching — the swap keeps going · esc back to the chat'))
   check('the prune door’s deleting beat advertises no exit (closeKeys none)', view.includes("closeKeys={prune.stage === 'deleting' ? 'none' : 'esc-arrow'}") && view.includes("'deleting the named set…'"))
   check('a cancelled switch disarms the confirm it came from', /switchGenRef\.current\+\+\s*\n\s*setSwitching\(null\)\s*\n\s*setConfirmingKey\(null\)/.test(view))

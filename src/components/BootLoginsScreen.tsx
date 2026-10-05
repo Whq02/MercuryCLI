@@ -1020,15 +1020,15 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
           import('../utils/permissions/bypassPermissionsKillswitch.js'),
         ]);
         user.resetUserCache();
-        killswitch.resetBypassPermissionsCheck();
+        killswitch.resetSovereignCheck();
         if (setAppStateMaybe !== null) {
-          let capturedContext: Parameters<typeof killswitch.checkAndDisableBypassPermissionsIfNeeded>[0] | null = null;
+          let capturedContext: Parameters<typeof killswitch.checkAndDisableSovereignIfNeeded>[0] | null = null;
           setAppStateMaybe(prev => {
             capturedContext = prev.toolPermissionContext;
             return { ...prev, authVersion: (prev.authVersion ?? 0) + 1 };
           });
           if (capturedContext !== null) {
-            void killswitch.checkAndDisableBypassPermissionsIfNeeded(capturedContext, setAppStateMaybe).catch(() => {});
+            void killswitch.checkAndDisableSovereignIfNeeded(capturedContext, setAppStateMaybe).catch(() => {});
           }
         }
       } catch {

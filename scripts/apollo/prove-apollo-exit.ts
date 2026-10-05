@@ -110,9 +110,9 @@ try {
   check('a same-mode set records nothing', last()?.road === 'crew-lead')
 
   clearModeTransitions()
-  const killed = setup.createDisabledBypassPermissionsContext(ctx('sovereign', true) as never) as unknown as Ctx
+  const killed = setup.createSovereignDisabledContext(ctx('sovereign', true) as never) as unknown as Ctx
   check("the bypass kill records 'bypass-disabled' (sovereign → default)", killed.mode === 'default' && last()?.road === 'bypass-disabled')
-  const untouched = setup.createDisabledBypassPermissionsContext(ctx('default') as never) as unknown as Ctx
+  const untouched = setup.createSovereignDisabledContext(ctx('default') as never) as unknown as Ctx
   check('the bypass kill on a non-bypass posture records nothing', untouched.mode === 'default' && modeTransitions().length === 1)
 
   const control = (await import('../../src/cli/headless/controlHandlers.js')) as typeof import('../../src/cli/headless/controlHandlers.js')

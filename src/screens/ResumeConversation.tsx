@@ -16,17 +16,17 @@ import { KeybindingSetup } from '../keybindings/KeybindingProviderSetup.js'
 import { useKeybinding } from '../keybindings/useKeybinding.js'
 import type { Tool } from '../Tool.js'
 import type { Command } from '../commands.js'
-import type { LogOption } from '../types/logs.js'
+import type { SessionListing } from '../types/logs.js'
 import { checkCrossProjectResume } from '../utils/crossProjectResume.js'
 import { logError } from '../utils/log.js'
 import { isFullscreenEnvEnabled, isMouseTrackingEnabled } from '../utils/fullscreen.js'
 import { estateGroundBg } from '../utils/mercuryTokens.js'
 import {
-  enrichLogs,
-  getSessionIdFromLog,
-  loadAllProjectsMessageLogsProgressive,
-  loadSameRepoMessageLogsProgressive,
-  type SessionLogResult,
+  enrichSessionListings,
+  sessionIdOfListing,
+  listSessionsAcrossProjectsProgressive,
+  listRepoSessionsProgressive,
+  type SessionPage,
 } from '../utils/sessionStorage/logs.js'
 import { isCustomTitleEnabled } from '../utils/sessionStorage/paths.js'
 import { Chat, type Props as ChatProps } from './Chat.js'
@@ -44,7 +44,7 @@ type Props = {
   filterByPr?: boolean | number | string
 }
 
-function matchesPrFilter(log: LogOption, filter: Props['filterByPr']): boolean {
+function matchesPrFilter(log: SessionListing, filter: Props['filterByPr']): boolean {
   if (filter === undefined) return true
   const prNumber = (log as { prNumber?: number }).prNumber
   if (filter === true) return prNumber !== undefined
@@ -126,8 +126,8 @@ export function ResumeConversation({
   filterByPr,
 }: Props): React.ReactNode {
   const store = useAppStateStore()
-  const [logs, setLogs] = useState<LogOption[]>([])
-  const [allStatLogs, setAllStatLogs] = useState<LogOption[]>([])
+  const [logs, setLogs] = useState<SessionListing[]>([])
+  const [allStatLogs, setAllStatLogs] = useState<SessionListing[]>([])
   const [nextIndex, setNextIndex] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [isResuming, setIsResuming] = useState(false)
@@ -141,7 +141,7 @@ export function ResumeConversation({
     () => launcherAltHoldPending() || isFullscreenEnvEnabled(),
   )
 
-  const applyResult = useCallback((result: SessionLogResult) => {
+  const applyResult = useCallback((result: SessionPage) => {
     setLogs(result.logs)
     logCountRef.current = result.logs.length
     setAllStatLogs(result.allStatLogs)
@@ -153,8 +153,8 @@ export function ResumeConversation({
       setIsLoading(true)
       try {
         const result = allProjects
-          ? await loadAllProjectsMessageLogsProgressive()
-          : await loadSameRepoMessageLogsProgressive(worktreePaths)
+          ? await listSessionsAcrossProjectsProgressive()
+          : await listRepoSessionsProgressive(worktreePaths)
         applyResult(result)
       } catch (error) {
         logError(error)
@@ -176,7 +176,7 @@ export function ResumeConversation({
     try {
       let start = nextIndex
       while (start < allStatLogs.length) {
-        const batch = await enrichLogs(allStatLogs, start, LOAD_MORE_BATCH)
+        const batch = await enrichSessionListings(allStatLogs, start, LOAD_MORE_BATCH)
         start = batch.nextIndex
         setNextIndex(batch.nextIndex)
         if (batch.logs.length > 0) {
@@ -206,7 +206,7 @@ export function ResumeConversation({
     setResumeRefusal('resume cancelled — the session file is untouched; pick again, or esc to quit')
   }, [])
   const onSelect = useCallback(
-    async (log: LogOption) => {
+    async (log: SessionListing) => {
       setIsResuming(true)
       setResumeRefusal(null)
       const gen = ++resumeGenRef.current
@@ -227,7 +227,7 @@ export function ResumeConversation({
         )
         return
       }
-      const sessionId = getSessionIdFromLog(log)
+      const sessionId = sessionIdOfListing(log)
       if (!sessionId) {
         setIsResuming(false)
         setResumeRefusal('could not resume — the session file carries no session id · the file was left untouched')
@@ -325,7 +325,7 @@ export function ResumeConversation({
       initialSearchQuery={initialSearchQuery}
       onLogsChanged={isCustomTitleEnabled() ? () => void load(showAllProjects) : undefined}
       onLogRenamed={(sessionId, title) => {
-        const patch = (rows: LogOption[]): LogOption[] =>
+        const patch = (rows: SessionListing[]): SessionListing[] =>
           rows.map(l => (String(l.sessionId) === sessionId ? { ...l, customTitle: title } : l))
         setLogs(patch)
         setAllStatLogs(patch)

@@ -10,7 +10,7 @@ import { getIsNonInteractiveSession, getOriginalCwd, getSessionId } from '../boo
 import { commitPlanDigest, runTextChangeSetCommit, type CommitTarget } from '../services/changeTransaction/changeSetCommit.js'
 import { sha256Hex } from '../services/changeTransaction/changeSetPlan.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
-import type { LogOption } from '../types/logs.js'
+import type { SessionListing } from '../types/logs.js'
 import { getGlobalConfig } from './config.js'
 import { logForDebugging } from './debug.js'
 import { getMercuryHome } from './envUtils.js'
@@ -522,7 +522,7 @@ export function fileHistoryRestoreStateFromLog(
   onUpdateState({ snapshots: migrated, trackedFiles, snapshotSequence: migrated.length })
 }
 
-export async function copyFileHistoryForResume(log: LogOption): Promise<void> {
+export async function copyFileHistoryForResume(log: SessionListing): Promise<void> {
   try {
     if (!fileHistoryEnabled()) return
     const snapshots = log.fileHistorySnapshots as FileHistorySnapshot[] | undefined

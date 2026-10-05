@@ -197,7 +197,7 @@ rmSync(ROOT, { recursive: true, force: true })
 }
 
 {
-  const { mercuryNativeConvention } = await import('../../src/services/instructions/adapters/mercuryNative.ts')
+  const { mercuryNativeConvention } = await import('../../src/services/instructions/nativeSource.ts')
   const dir = '/proj'
   const projectFiles = mercuryNativeConvention.projectDirFiles(dir)
   const localFiles = (mercuryNativeConvention as { localDirFiles?: (d: string) => string[] }).localDirFiles?.(dir) ?? []

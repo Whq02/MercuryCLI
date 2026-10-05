@@ -391,11 +391,11 @@ function isBypassDisabledBySettingsOrPolicy(): boolean {
   return getSettings_DEPRECATED().guardrails?.disableSovereignMode === true
 }
 
-export function isBypassPermissionsModeDisabled(): boolean {
+export function isSovereignDisabled(): boolean {
   return isBypassDisabledBySettingsOrPolicy()
 }
 
-export function createDisabledBypassPermissionsContext(
+export function createSovereignDisabledContext(
   currentContext: ToolPermissionContext,
 ): ToolPermissionContext {
   let next = currentContext

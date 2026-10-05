@@ -136,14 +136,14 @@ section('(d) formatLogMetadata — the ✕ marker is the LAST part, only when tr
   check('endedOnError absent ⇒ byte-identical to false', unmarkedAbsent === unmarkedFalse)
 }
 
-section('(e) wiring — the end state is derived unconditionally, plumbed lite → LogOption → picker')
+section('(e) wiring — the end state is derived unconditionally, plumbed lite → SessionListing → picker')
 {
 const _ssDir = join(import.meta.dir, '..', '..', 'src', 'utils', 'sessionStorage')
 const storage = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'sessionStorage.ts'), 'utf-8') + readdirSync(_ssDir).filter(f => f.endsWith('.ts')).map(f => readFileSync(join(_ssDir, f), 'utf-8')).join('\n')
   check('the session label facts derive endedOnError via scanTailForEndedOnError (unconditional)', /endedOnError: scanTailForEndedOnError\(tail\)/.test(storage))
-  check('enrichLog copies it onto the LogOption', /endedOnError: meta\.endedOnError,/.test(storage))
+  check('enrichLog copies it onto the SessionListing', /endedOnError: meta\.endedOnError,/.test(storage))
   const logs = readFileSync(join(import.meta.dir, '..', '..', 'src', 'types', 'logs.ts'), 'utf-8')
-  check('LogOption carries the optional field', /endedOnError\?: boolean/.test(logs))
+  check('SessionListing carries the optional field', /endedOnError\?: boolean/.test(logs))
   const selector = readFileSync(join(import.meta.dir, '..', '..', 'src', 'components', 'LogSelector.tsx'), 'utf-8')
   check('LogSelector renders it through the plain formatLogMetadata string (no bespoke path)', /formatLogMetadata\(log\)/.test(selector) && !selector.includes('endedOnError'))
 }

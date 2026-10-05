@@ -1,10 +1,10 @@
 import { existsSync } from 'node:fs'
 
 import { getOriginalCwd } from '../bootstrap/state.js'
-import type { LogOption } from '../types/logs.js'
+import type { SessionListing } from '../types/logs.js'
 import { quote } from './bash/shellQuote.js'
 import { binaryName } from './config.js'
-import { getSessionIdFromLog } from './sessionStorage.js'
+import { sessionIdOfListing } from './sessionStorage.js'
 
 type CrossProjectResumeResult =
   | { isCrossProject: false }
@@ -12,7 +12,7 @@ type CrossProjectResumeResult =
   | { isCrossProject: true; isSameRepoWorktree: false; projectPath: string; command: string }
 
 export function checkCrossProjectResume(
-  log: LogOption,
+  log: SessionListing,
   showAllProjects: boolean,
   worktreePaths: string[],
 ): CrossProjectResumeResult {
@@ -26,7 +26,7 @@ export function checkCrossProjectResume(
     return { isCrossProject: false }
   }
 
-  const sessionId = getSessionIdFromLog(log)
+  const sessionId = sessionIdOfListing(log)
   if (!sessionId) return { isCrossProject: false }
   const quotedPath = quote([projectPath])
   const command = `cd ${quotedPath} && ${binaryName()} --resume ${sessionId}`

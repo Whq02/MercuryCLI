@@ -288,7 +288,7 @@ function staticImports(src: string): {
   )
   check(
     'resume-identity: the title-match branch hands the matched log\'s own id through',
-    /resumeSessionId = getSessionIdFromLog\(/.test(resumeBlock),
+    /resumeSessionId = sessionIdOfListing\(/.test(resumeBlock),
   )
   check(
     'resume-identity: resumeAtBoot hands the id to the one resume door',

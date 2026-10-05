@@ -16,7 +16,7 @@ const {
   stateToSnapshotMessage,
   trackFileModification,
 } = await import('../../src/utils/commitAttribution.ts')
-import type { AttributionSnapshotMessage } from '../../src/types/logs.ts'
+import type { AttributionSnapshotEntry } from '../../src/types/logs.ts'
 
 let failures = 0
 function check(label: string, cond: boolean): void {
@@ -41,7 +41,7 @@ const mixedSnapshot = {
   permissionPromptCountAtLastCommit: 0,
   escapeCount: 0,
   escapeCountAtLastCommit: 0,
-} as unknown as AttributionSnapshotMessage
+} as unknown as AttributionSnapshotEntry
 
 section('§1 RESTORE — the one spelling reads; a foreign key contributes nothing')
 const restored = restoreAttributionStateFromSnapshots([mixedSnapshot])

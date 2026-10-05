@@ -66,7 +66,7 @@ section('§1 the pool policy')
 
 section('§2 the enumerator over a scratch history')
 {
-  const { getSessionFilesWithMtime, getSessionFilesLite } = await import('../../src/utils/sessionStorage/logs.ts')
+  const { sessionFilesWithMtime, sessionFilesLite } = await import('../../src/utils/sessionStorage/logs.ts')
   const projectDir = mkdtempSync(join(tmpdir(), 'discovery-pool-proj-'))
   mkdirSync(projectDir, { recursive: true })
   const ids: string[] = []
@@ -77,10 +77,10 @@ section('§2 the enumerator over a scratch history')
   }
   writeFileSync(join(projectDir, 'not-a-session.txt'), 'junk')
   writeFileSync(join(projectDir, 'not-a-uuid.jsonl'), 'junk')
-  const map = await getSessionFilesWithMtime(projectDir)
+  const map = await sessionFilesWithMtime(projectDir)
   check('exactly the UUID transcripts enumerate', map.size === 40, `size=${map.size}`)
   check('stat facts ride each row (size truthful)', ids.every(id => (map.get(id)?.size ?? -1) === Buffer.byteLength(`line-${ids.indexOf(id)}\n`.repeat(ids.indexOf(id) + 1))))
-  const lite = await getSessionFilesLite(projectDir)
+  const lite = await sessionFilesLite(projectDir)
   check('the lite listing still answers every row', lite.length === 40)
   const sortedByDate = [...lite].every((row, i, all) => i === 0 || all[i - 1]!.modified.getTime() >= row.modified.getTime())
   check('the lite listing still sorts newest-first (the pool changed latency, never shape)', sortedByDate)

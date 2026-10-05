@@ -1,6 +1,6 @@
 import { z } from 'zod/v4'
 import { lazySchema } from '../utils/lazySchema.js'
-import { HookJSONOutputSchema, type AsyncHookJSONOutput, type HookEvent, type HookInput, type HookJSONOutput, type SyncHookJSONOutput } from '../utils/hooks/contract.js'
+import { type AsyncHookJSONOutput, type HookEvent, type HookInput, type HookJSONOutput, type SyncHookJSONOutput } from '../utils/hooks/contract.js'
 import type { PermissionUpdate } from './permissions.js'
 import type { AppState } from '../state/AppState.js'
 
@@ -25,7 +25,6 @@ export type PromptResponse = {
   selected: string
 }
 
-export const hookJSONOutputSchema = HookJSONOutputSchema
 
 export function isAsyncHookJSONOutput(
   json: HookJSONOutput | undefined,

@@ -1,13 +1,13 @@
 import { getDirectConnectServerUrl, getSessionId } from '../bootstrap/state.js'
 import { MERCURY_VERSION } from '../constants/product.js'
-import type { LogOption } from '../types/logs.js'
+import type { SessionListing } from '../types/logs.js'
 import { getSubscriptionName, isClaudeAISubscriber } from './auth.js'
 import { declaredRouteOf } from '../services/providers/callModelRouter.js'
 import { resolveOpenaiAccount } from '../services/providers/openai/openaiAccounts.js'
 import { getEngineModel } from './model/model.js'
 import { getCwd } from './cwd.js'
 import { getDisplayPath } from './file.js'
-import { loadMessageLogs } from './sessionStorage.js'
+import { listProjectSessions } from './sessionStorage.js'
 import { getInitialSettings } from './settings/settings.js'
 
 const RECENT_ACTIVITY_LOAD_LIMIT = 10
@@ -15,17 +15,17 @@ const RECENT_ACTIVITY_KEEP = 3
 const NO_PROMPT_PLACEHOLDER = 'No prompt'
 const APOLOGY_MARKER = 'I apologize'
 
-let recentActivityPromise: Promise<LogOption[]> | null = null
+let recentActivityPromise: Promise<SessionListing[]> | null = null
 
 function meaningful(value: string | undefined): boolean {
   return value !== undefined && value !== '' && value !== NO_PROMPT_PLACEHOLDER
 }
 
-export function getRecentActivity(): Promise<LogOption[]> {
+export function getRecentActivity(): Promise<SessionListing[]> {
   if (recentActivityPromise) return recentActivityPromise
   recentActivityPromise = (async () => {
     try {
-      const logs = await loadMessageLogs(RECENT_ACTIVITY_LOAD_LIMIT)
+      const logs = await listProjectSessions(RECENT_ACTIVITY_LOAD_LIMIT)
       const currentSession = getSessionId()
       const kept = logs
         .filter(log => !log.isSidechain)

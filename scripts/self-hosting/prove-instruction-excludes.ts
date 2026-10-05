@@ -54,7 +54,7 @@ const driverSrc = `
 import { enableConfigs } from '${repo}/src/utils/config/globalConfig.js'
 enableConfigs()
 const { getInstructionFiles } = await import('${repo}/src/services/instructions/engine.js')
-const { mercuryNativeConvention } = await import('${repo}/src/services/instructions/adapters/mercuryNative.js')
+const { mercuryNativeConvention } = await import('${repo}/src/services/instructions/nativeSource.js')
 const { getSettingsWithErrors } = await import('${repo}/src/utils/settings/settings.js')
 const files = await getInstructionFiles()
 const probes = JSON.parse(process.env.EXCL_PROBES ?? '[]')

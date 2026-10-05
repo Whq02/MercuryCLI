@@ -1,11 +1,10 @@
 
 import type { HookEvent, HookJSONOutput, SyncHookJSONOutput } from './contract.js'
-import { hookEventTable } from './contract.js'
+import { HookJSONOutputSchema, hookEventTable } from './contract.js'
 
 import { createAttachmentMessage } from '../attachments.js'
 import { logForDebugging } from '../debug.js'
 import { jsonParse, jsonStringify } from '../slowOperations.js'
-import { hookJSONOutputSchema } from '../../types/hooks.js'
 import { isAsyncHookJSONOutput, isSyncHookJSONOutput } from '../../types/hooks.js'
 import type {
   ElicitationResponse,
@@ -18,7 +17,7 @@ export function validateHookJson(
   jsonString: string,
 ): { json: HookJSONOutput } | { validationError: string } {
   const parsed = jsonParse(jsonString)
-  const validation = hookJSONOutputSchema().safeParse(parsed)
+  const validation = HookJSONOutputSchema().safeParse(parsed)
   if (validation.success) {
     logForDebugging('Successfully parsed and validated hook JSON output')
     return { json: validation.data }
@@ -91,7 +90,7 @@ export function parseHttpHookOutput(body: string): {
   const trimmed = body.trim()
 
   if (trimmed === '') {
-    const validation = hookJSONOutputSchema().safeParse({})
+    const validation = HookJSONOutputSchema().safeParse({})
     if (validation.success) {
       logForDebugging(
         'HTTP hook returned empty body, treating as empty JSON object',
@@ -240,7 +239,7 @@ export function parseElicitationHookOutput(
   }
 
   try {
-    const parsed = hookJSONOutputSchema().parse(JSON.parse(trimmed))
+    const parsed = HookJSONOutputSchema().parse(JSON.parse(trimmed))
     if (isAsyncHookJSONOutput(parsed)) {
       return {}
     }

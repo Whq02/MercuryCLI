@@ -168,8 +168,8 @@ check('§G9 cross-provider switch flagged in the receipt', g9.kind === 'applied'
       row.applied === settled.receipt.applied &&
       row.resolution === 'applied',
   )
-  const { isLoggableMessage } = await import('../../src/utils/sessionStorage/chain.ts')
-  check('§I2 the row persists (loggable ⇒ transcript/resume/SDK agree)', isLoggableMessage(row as never))
+  const { isTranscribable } = await import('../../src/utils/sessionStorage/chain.ts')
+  check('§I2 the row persists (loggable ⇒ transcript/resume/SDK agree)', isTranscribable(row as never))
   const codec = await import('../../src/fabric/entryCodec.ts')
   const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
   let ordN = 0

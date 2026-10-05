@@ -1,4 +1,4 @@
-import type { LogOption } from '../types/logs.js'
+import type { SessionListing } from '../types/logs.js'
 
 export type SessionClass = 'operator' | 'crew'
 
@@ -7,7 +7,7 @@ const BRIDGE_FIRST_PROMPT =
 const FRAMED_DISPATCH_HEAD =
   'Dispatched work, relayed over the bus with the dispatcher'
 
-export function isCrewSession(log: LogOption): boolean {
+export function isCrewSession(log: SessionListing): boolean {
   if (log.isCrewmate) return true
   if (log.crewName && log.crewName.trim() !== '') return true
   const fp = (log.firstPrompt ?? '').trim()
@@ -15,7 +15,7 @@ export function isCrewSession(log: LogOption): boolean {
   return BRIDGE_FIRST_PROMPT.test(fp)
 }
 
-export function crewTagOf(log: LogOption): string {
+export function crewTagOf(log: SessionListing): string {
   const crew = (log.crewName ?? '').trim()
   const agent = (log.agentName ?? '').trim()
   if (crew && agent) return `${crew} · ${agent}`

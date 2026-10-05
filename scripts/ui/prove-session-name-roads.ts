@@ -33,7 +33,7 @@ const entries = [
   createUserMessage({ content: title }),
 ].map((row, index, rows) => ({ ...row, sessionId: SID_ERRORED, cwd: RUNTIME_CWD, parentUuid: index === 0 ? null : rows[index - 1]!.uuid }))
 const bytes = encodeSeedTranscript(entries, SID_ERRORED)
-const log = { firstPrompt: extractFirstPromptFromHead(bytes), sessionId: SID_ERRORED } as import('../../src/types/logs.ts').LogOption
+const log = { firstPrompt: extractFirstPromptFromHead(bytes), sessionId: SID_ERRORED } as import('../../src/types/logs.ts').SessionListing
 check('the strip and /sessions name the same first real prompt', tabLabel(log) === title && rowLabel(log) === title, `${tabLabel(log)} / ${rowLabel(log)}`)
 const tagged = { ...log, firstPrompt: '<local-command-caveat>synthetic words</local-command-caveat>', summary: title }
 check('the strip and /sessions share the summary and markup cleanup', tabLabel(tagged) === rowLabel(tagged) && rowLabel(tagged) === title, `${tabLabel(tagged)} / ${rowLabel(tagged)}`)

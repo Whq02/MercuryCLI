@@ -3,7 +3,7 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { LogOption } from '../../src/types/logs.js'
+import type { SessionListing } from '../../src/types/logs.js'
 import { isProjectSession, partitionByProject } from '../../src/utils/sessionFilter.js'
 import {
   isSessionCleared,
@@ -22,7 +22,7 @@ function section(t: string): void {
 
 const ROOT = join(import.meta.dir, '..', '..')
 const src = (...p: string[]) => readFileSync(join(ROOT, 'src', ...p), 'utf-8')
-const log = (projectPath?: string) => ({ projectPath }) as unknown as LogOption
+const log = (projectPath?: string) => ({ projectPath }) as unknown as SessionListing
 
 console.log('============================================================')
 console.log(' project-scoped sessions — proof')
@@ -106,7 +106,7 @@ section('4. every switcher surface applies the scope (source)')
   const resume = src('commands', 'resume', 'resume.tsx')
   check(
     '/resume keeps the cross-project reach (allProjects loader intact)',
-    /loadAllProjectsMessageLogs\(\)/.test(resume),
+    /listSessionsAcrossProjects\(\)/.test(resume),
   )
 }
 

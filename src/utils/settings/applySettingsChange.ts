@@ -2,8 +2,8 @@ import type { AppState } from '../../state/AppStateStore.js'
 import { updateHooksConfigSnapshot } from '../hooks/hooksConfigSnapshot.js'
 import { loadAllPermissionRulesFromDisk } from '../permissions/permissionsLoader.js'
 import {
-  createDisabledBypassPermissionsContext,
-  isBypassPermissionsModeDisabled,
+  createSovereignDisabledContext,
+  isSovereignDisabled,
   transitionPlanAutoMode,
 } from '../permissions/permissionSetup.js'
 import { syncPermissionRulesFromDisk } from '../permissions/permissions.js'
@@ -21,10 +21,10 @@ export function applySettingsChange(
   setAppState(prev => {
     let toolPermissionContext = syncPermissionRulesFromDisk(prev.toolPermissionContext as never, rules) as never
     if (
-      isBypassPermissionsModeDisabled() &&
+      isSovereignDisabled() &&
       (toolPermissionContext as { mode?: string }).mode !== undefined
     ) {
-      toolPermissionContext = createDisabledBypassPermissionsContext(toolPermissionContext as never) as never
+      toolPermissionContext = createSovereignDisabledContext(toolPermissionContext as never) as never
     }
     toolPermissionContext = transitionPlanAutoMode(toolPermissionContext as never) as never
 

@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Box, Text } from '../ink.js'
 import { TerminalSizeContext } from '../ink/components/TerminalSizeContext.js'
-import type { LogOption } from '../types/logs.js'
+import type { SessionListing } from '../types/logs.js'
 import { Messages } from './Messages.js'
 import { useKeybinding } from '../keybindings/useKeybinding.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
@@ -12,21 +12,21 @@ import { getEmptyToolPermissionContext } from '../Tool.js'
 import { deserializeMessages } from '../utils/conversationRecovery.js'
 import { formatLogMetadata } from '../utils/format.js'
 import { getLogDisplayTitle } from '../utils/log.js'
-import { isLiteLog, loadFullLog } from '../utils/sessionStorage.js'
+import { isLiteListing, fillSessionListing } from '../utils/sessionStorage.js'
 
 export function SessionPreview({
   log,
   onExit,
   onSelect,
 }: {
-  log: LogOption
+  log: SessionListing
   onExit: () => void
-  onSelect: (log: LogOption) => void
+  onSelect: (log: SessionListing) => void
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   const { columns, rows } = useTerminalSize()
-  const [fullLog, setFullLog] = useState<LogOption | null>(
-    isLiteLog(log) ? null : log,
+  const [fullLog, setFullLog] = useState<SessionListing | null>(
+    isLiteListing(log) ? null : log,
   )
   const cardHeight = Math.max(6, rows)
   const interior = useMemo(
@@ -35,12 +35,12 @@ export function SessionPreview({
   )
 
   useEffect(() => {
-    if (!isLiteLog(log)) {
+    if (!isLiteListing(log)) {
       setFullLog(log)
       return
     }
     let cancelled = false
-    void loadFullLog(log).then(loaded => {
+    void fillSessionListing(log).then(loaded => {
       if (!cancelled) setFullLog(loaded)
     })
     return () => {

@@ -14,7 +14,7 @@ import type {
   LocalJSXCommandContext,
   LocalJSXCommandOnDone,
 } from '../../types/command.js'
-import type { LogOption, SerializedMessage } from '../../types/logs.js'
+import type { SessionListing, SerializedMessage } from '../../types/logs.js'
 import type { ContentReplacementRecord } from '../../utils/toolResultStorage.js'
 import { binaryName } from '../../utils/config/derived.js'
 import { errorMessage } from '../../utils/errors.js'
@@ -91,7 +91,7 @@ function firstUserRecord(records: TranscriptRecord[]): TranscriptRecord | undefi
 type ForkOutcome = {
   newSessionId: UUID
   forkPath: string
-  descriptor: LogOption
+  descriptor: SessionListing
   title: string
 }
 
@@ -182,7 +182,7 @@ async function forkSession(title: string | undefined): Promise<ForkOutcome> {
   await saveCustomTitle(newSessionId, chosenTitle, forkPath)
 
   const now = new Date()
-  const descriptor: LogOption = {
+  const descriptor: SessionListing = {
     date: now.toISOString().split('T')[0]!,
     messages: serializedMessages as SerializedMessage[],
     fullPath: forkPath,
@@ -192,14 +192,14 @@ async function forkSession(title: string | undefined): Promise<ForkOutcome> {
     firstPrompt: derivedPrompt,
     messageCount: kept.length,
     isSidechain: false,
-    leafUuid: (previousUuid ?? undefined) as LogOption['leafUuid'],
+    leafUuid: (previousUuid ?? undefined) as SessionListing['leafUuid'],
     customTitle: chosenTitle,
     contentReplacements: carriedReplacements as ContentReplacementRecord[],
   }
   return { newSessionId, forkPath, descriptor, title: chosenTitle }
 }
 
-function loadSessionAsDescriptor(sessionId: string): LogOption | null {
+function loadSessionAsDescriptor(sessionId: string): SessionListing | null {
   try {
     const path = getTranscriptPathForSession(sessionId)
     const records = parseTranscriptLines(readFileSync(path, 'utf8'))
@@ -209,7 +209,7 @@ function loadSessionAsDescriptor(sessionId: string): LogOption | null {
       .filter(record => record.type === 'content-replacement' && record.sessionId === sessionId)
       .flatMap(record => (Array.isArray(record.replacements) ? record.replacements : []))
     const now = new Date()
-    const descriptor: LogOption = {
+    const descriptor: SessionListing = {
       date: now.toISOString().split('T')[0]!,
       messages: kept as SerializedMessage[],
       fullPath: path,
@@ -219,7 +219,7 @@ function loadSessionAsDescriptor(sessionId: string): LogOption | null {
       firstPrompt: deriveFirstPrompt(firstUserRecord(kept)),
       messageCount: kept.length,
       isSidechain: false,
-      leafUuid: kept[kept.length - 1]?.uuid as LogOption['leafUuid'],
+      leafUuid: kept[kept.length - 1]?.uuid as SessionListing['leafUuid'],
       contentReplacements: replacements as ContentReplacementRecord[],
     }
     return descriptor

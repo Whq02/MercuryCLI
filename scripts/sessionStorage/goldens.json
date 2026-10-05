@@ -24,7 +24,7 @@
   true,
   false
  ],
- "isLoggableMessage/kinds": [
+ "isTranscribable/kinds": [
   true,
   false
  ],
@@ -84,7 +84,7 @@
  ],
  "checkResumeConsistency/consistent-chain": "«undefined»",
  "getFirstMeaningfulUserMessageTextContent/first-real": "first",
- "cleanMessagesForLogging/passthrough-shape": [
+ "cleanForTranscript/passthrough-shape": [
   {
    "message": {
     "content": "y",
@@ -98,8 +98,8 @@
   }
  ],
  "extractAgentIdsFromMessages/none": [],
- "getSessionIdFromLog/from-path": "«undefined»",
- "isLiteLog/lite-vs-full": [
+ "sessionIdOfListing/from-path": "«undefined»",
+ "isLiteListing/lite-vs-full": [
   false,
   false
  ],

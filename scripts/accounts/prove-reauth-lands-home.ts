@@ -56,7 +56,7 @@ section('§2 the settle contract (structural)')
 section('§3 nothing on the settle path can reject')
 {
   check('no remote refresh remains on the settle path (neither settings nor policy limits)', !loginSrc.includes('refreshRemoteManagedSettings') && !loginSrc.includes('refreshPolicyLimits'))
-  check('the killswitch re-check is void-catch', loginSrc.includes('.catch(logError)') && loginSrc.includes('checkAndDisableBypassPermissionsIfNeeded'))
+  check('the killswitch re-check is void-catch', loginSrc.includes('.catch(logError)') && loginSrc.includes('checkAndDisableSovereignIfNeeded'))
   const refreshBody = loginSrc.slice(loginSrc.indexOf('function runPostLoginRefresh'), loginSrc.indexOf('export function parseFamilyFocus'))
   check('credential cache refresh is synchronous', !refreshBody.includes('await ') && refreshBody.includes('resetUserCache()') && refreshBody.includes('resetCostState()'))
   check('login does not import configuration refresh plumbing', !loginSrc.includes('services/analytics/featureGates'))

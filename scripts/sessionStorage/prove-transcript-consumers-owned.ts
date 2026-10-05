@@ -45,7 +45,7 @@ section('the daemon connector reads the chain since its cursor')
 {
   const connector = src('services/engine-connector/daemonConnector.ts')
   check('the tick asks for the chain since the cursor', connector.includes('reader.readTranscriptChainSince(this.transcriptPath, this.chainCursor)'))
-  check('the tick no longer loads the whole log', !connector.includes('loadFullLog('))
+  check('the tick no longer loads the whole log', !connector.includes('fillSessionListing('))
   check('the path is retained while the slot holds the session and released at detach', connector.includes('this.releaseTranscript = reader.retainTranscript(this.transcriptPath)') && connector.includes('this.releaseTranscript?.()'))
   check('the merge signs rows by the reader\'s tokens (content by construction) and keeps its both-directions law', connector.includes('reader.chainRowSigner()') && /if \(merge\.reusedAll\) return/.test(connector))
   check('the live-turn fold refolds only from the cursor\'s moved index', connector.includes('this.liveFold.fold(this.rawRecords, chain.since)'))

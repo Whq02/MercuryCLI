@@ -10,7 +10,7 @@ import React, {
 } from 'react'
 import { basename } from 'path'
 import { Box, Text, useInput } from '../ink.js'
-import type { LogOption } from '../types/logs.js'
+import type { SessionListing } from '../types/logs.js'
 import { getLogDisplayTitle } from '../utils/log.js'
 import { SearchBox } from './SearchBox.js'
 import { SessionPreview } from './SessionPreview.js'
@@ -38,11 +38,11 @@ import { logError } from '../utils/log.js'
 import type { UUID } from 'crypto'
 
 type LogSelectorProps = {
-  logs: LogOption[]
+  logs: SessionListing[]
   maxHeight?: number
   forceWidth?: number
   onCancel?: () => void
-  onSelect: (log: LogOption) => void
+  onSelect: (log: SessionListing) => void
   onLogsChanged?: () => void
   onLogRenamed?: (sessionId: string, title: string) => void
   onLoadMore?: (count: number) => void
@@ -57,11 +57,11 @@ function collapseWhitespace(text: string): string {
   return text.replace(/\s+/g, ' ').trim()
 }
 
-function displayTitle(log: LogOption): string {
+function displayTitle(log: SessionListing): string {
   return collapseWhitespace(getLogDisplayTitle(log, '(no prompt)'))
 }
 
-function prDescriptor(log: LogOption): string {
+function prDescriptor(log: SessionListing): string {
   if (log.prNumber === undefined) return ''
   return `#${log.prNumber}${log.prRepository ? ` ${log.prRepository}` : ''}`
 }
@@ -70,7 +70,7 @@ function truncateLabel(text: string, width: number): string {
   return truncateToWidth(text, Math.max(MIN_LABEL_WIDTH, width))
 }
 
-function hasMeaningfulEntry(log: LogOption): boolean {
+function hasMeaningfulEntry(log: SessionListing): boolean {
   if (log.sessionId !== undefined && log.sessionId === getSessionId()) {
     return true
   }
@@ -84,12 +84,12 @@ function hasMeaningfulEntry(log: LogOption): boolean {
   )
 }
 
-function describeLog(log: LogOption, withProjectPath: boolean): string {
+function describeLog(log: SessionListing, withProjectPath: boolean): string {
   const base = formatLogMetadata(log)
   return withProjectPath && log.projectPath ? `${base} · ${log.projectPath}` : base
 }
 
-function describeLogFitted(log: LogOption, withProjectPath: boolean, width: number): string {
+function describeLogFitted(log: SessionListing, withProjectPath: boolean, width: number): string {
   return truncateToWidth(describeLog(log, withProjectPath), Math.max(MIN_LABEL_WIDTH, width))
 }
 
@@ -115,11 +115,11 @@ export function LogSelector({
   const [branchFilter, setBranchFilter] = useState(false)
   const [allWorktrees, setAllWorktrees] = useState(false)
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
-  const [focusedLog, setFocusedLog] = useState<LogOption | null>(null)
-  const [renameTarget, setRenameTarget] = useState<LogOption | null>(null)
+  const [focusedLog, setFocusedLog] = useState<SessionListing | null>(null)
+  const [renameTarget, setRenameTarget] = useState<SessionListing | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const [renameCursor, setRenameCursor] = useState(0)
-  const [previewLog, setPreviewLog] = useState<LogOption | null>(null)
+  const [previewLog, setPreviewLog] = useState<SessionListing | null>(null)
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
 
   const [branch, setBranch] = useState<string | null>(null)
@@ -200,10 +200,10 @@ export function LogSelector({
   const tagTabs = tags.length > 0 ? ['all', ...tags] : []
 
   const forceExpanded = query.trim() !== '' || branchFilter
-  type Row = { log: LogOption; children: LogOption[] }
+  type Row = { log: SessionListing; children: SessionListing[] }
   const grouped: Row[] = useMemo(() => {
     if (!renaming) return searched.map(log => ({ log, children: [] }))
-    const bySession = new Map<string, LogOption[]>()
+    const bySession = new Map<string, SessionListing[]>()
     const singles: Row[] = []
     for (const log of searched) {
       if (log.sessionId === undefined) {
@@ -338,7 +338,7 @@ export function LogSelector({
     )
   }
 
-  const rowLabel = (log: LogOption, kind: 'header' | 'child' | 'flat', forkCount: number): string => {
+  const rowLabel = (log: SessionListing, kind: 'header' | 'child' | 'flat', forkCount: number): string => {
     const prefixWidth = kind === 'header' && forkCount > 0 ? 2 : kind === 'child' ? 4 : 0
     const sidechainSuffix = log.isSidechain ? ' (sidechain)' : ''
     const forkSuffix = kind === 'header' && forkCount > 0 ? ` (+${forkCount})` : ''
@@ -386,7 +386,7 @@ export function LogSelector({
       no sessions match{emptyReasons.length > 0 ? ` — ${emptyReasons.join(' · ')}` : ''}
     </Text>
   ) : renaming ? (
-    <TreeSelect<LogOption>
+    <TreeSelect<SessionListing>
       isDisabled={searchMode}
       nodes={grouped.map(row => ({
         id: row.log.sessionId ?? `path:${row.log.fullPath ?? row.log.value}`,

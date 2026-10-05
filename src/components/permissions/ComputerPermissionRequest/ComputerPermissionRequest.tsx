@@ -10,7 +10,7 @@ import { useAppState } from '../../../state/AppState.js'
 import { writeBootEnvChoice } from '../../../substrate/startupMenu.js'
 import type { PermissionUpdate } from '../../../types/permissions.js'
 import { postureBypassesAsks } from '../../../utils/permissions/decision/engine.js'
-import { isBypassPermissionsModeDisabled } from '../../../utils/permissions/permissionSetup.js'
+import { isSovereignDisabled } from '../../../utils/permissions/permissionSetup.js'
 import { getGlobalConfig } from '../../../utils/config.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { getSystemThemeName } from '../../../utils/systemTheme.js'
@@ -88,7 +88,7 @@ export function applyComputerAskChoice(choice: ComputerAskChoice, sessionId: str
       return { allow: true, grant, saved: null, savedError: null, permissionUpdates: NO_UPDATES }
     }
     case 'sovereign': {
-      if (isBypassPermissionsModeDisabled()) {
+      if (isSovereignDisabled()) {
         logForDebugging(`computer ask: sovereign mode was not turned on — ${SOVEREIGN_MODE_DISABLED}`)
         return { allow: true, grant: null, saved: null, savedError: SOVEREIGN_MODE_DISABLED, permissionUpdates: NO_UPDATES }
       }

@@ -13,7 +13,7 @@ function check(label: string, ok: boolean, detail = ''): void {
 
 const { getFsImplementation, setFsImplementation } = await import('../../src/utils/fsOperations.ts')
 const { processRulesDir } = await import('../../src/services/instructions/discovery.ts')
-const { mercuryNativeConvention } = await import('../../src/services/instructions/adapters/mercuryNative.ts')
+const { mercuryNativeConvention } = await import('../../src/services/instructions/nativeSource.ts')
 
 const real = getFsImplementation()
 const scratch = mkdtempSync(join(tmpdir(), 'rules-cache-dir-'))

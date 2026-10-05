@@ -10,7 +10,7 @@ import { useIsInsideModal } from '../../context/modalContext.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import type { ResumeEntrypoint } from '../../commands.js'
 import type { LocalJSXCommandContext, LocalJSXCommandOnDone } from '../../types/command.js'
-import type { LogOption } from '../../types/logs.js'
+import type { SessionListing } from '../../types/logs.js'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import { conversationIdHere } from '../../services/engine-connector/focusedConnector.js'
 import { getWorktreePathsPortable } from '../../utils/getWorktreePathsPortable.js'
@@ -20,22 +20,22 @@ import { validateUuid } from '../../utils/uuid.js'
 import { errorMessage } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
 import {
-  getLastSessionLog,
-  getSessionIdFromLog,
+  lastSession,
+  sessionIdOfListing,
   isCustomTitleEnabled,
-  isLiteLog,
-  loadAllProjectsMessageLogs,
-  loadFullLog,
-  loadSameRepoMessageLogs,
+  isLiteListing,
+  listSessionsAcrossProjects,
+  fillSessionListing,
+  listRepoSessions,
   searchSessionsByCustomTitle,
 } from '../../utils/sessionStorage.js'
 
 export function filterResumableSessions(
-  logs: LogOption[],
+  logs: SessionListing[],
   currentSessionId: string,
-): LogOption[] {
+): SessionListing[] {
   return logs.filter(
-    log => !log.isSidechain && getSessionIdFromLog(log) !== currentSessionId,
+    log => !log.isSidechain && sessionIdOfListing(log) !== currentSessionId,
   )
 }
 
@@ -43,7 +43,7 @@ async function performResume(
   context: LocalJSXCommandContext,
   onDone: LocalJSXCommandOnDone,
   sessionId: UUID,
-  log: LogOption,
+  log: SessionListing,
   entrypoint: ResumeEntrypoint,
 ): Promise<void> {
   try {
@@ -90,7 +90,7 @@ function ResumeLogPicker({
 }): React.ReactNode {
   const size = useTerminalSize()
   const insideModal = useIsInsideModal()
-  const [logs, setLogs] = useState<LogOption[] | null>(null)
+  const [logs, setLogs] = useState<SessionListing[] | null>(null)
   const [showAllProjects, setShowAllProjects] = useState(false)
   const [reloadNonce, setReloadNonce] = useState(0)
   const [resuming, setResuming] = useState(false)
@@ -103,8 +103,8 @@ function ResumeLogPicker({
         const worktreePaths = await getWorktreePathsPortable(getOriginalCwd())
         worktreePathsRef.current = worktreePaths
         const loaded = showAllProjects
-          ? await loadAllProjectsMessageLogs()
-          : await loadSameRepoMessageLogs(worktreePaths)
+          ? await listSessionsAcrossProjects()
+          : await listRepoSessions(worktreePaths)
         if (cancelled) return
         const resumable = filterResumableSessions(loaded, conversationIdHere())
         if (resumable.length === 0) {
@@ -124,16 +124,16 @@ function ResumeLogPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showAllProjects, reloadNonce])
 
-  const handleSelect = (log: LogOption): void => {
+  const handleSelect = (log: SessionListing): void => {
     setResuming(true)
     void (async () => {
-      const rawId = getSessionIdFromLog(log)
+      const rawId = sessionIdOfListing(log)
       const sessionId = rawId !== undefined ? validateUuid(rawId) : null
       if (sessionId === null) {
         onDone('Failed to resume: could not determine the session id.')
         return
       }
-      const full = isLiteLog(log) ? await loadFullLog(log) : log
+      const full = isLiteListing(log) ? await fillSessionListing(log) : log
       const cross = checkCrossProjectResume(full, showAllProjects, worktreePathsRef.current)
       if (cross.isCrossProject && !cross.isSameRepoWorktree) {
         try {
@@ -196,23 +196,23 @@ function ResumeByArgument({
     void (async () => {
       try {
         const worktreePaths = await getWorktreePathsPortable(getOriginalCwd())
-        const logs = await loadSameRepoMessageLogs(worktreePaths)
+        const logs = await listRepoSessions(worktreePaths)
         if (logs.length === 0) {
           setCardMessage('No conversations found to resume.')
           return
         }
         const uuid = validateUuid(argument)
         if (uuid !== null) {
-          const matches = logs.filter(log => getSessionIdFromLog(log) === uuid)
+          const matches = logs.filter(log => sessionIdOfListing(log) === uuid)
           if (matches.length > 0) {
             const mostRecent = [...matches].sort(
               (a, b) => (b.modified?.getTime?.() ?? 0) - (a.modified?.getTime?.() ?? 0),
             )[0]!
-            const full = isLiteLog(mostRecent) ? await loadFullLog(mostRecent) : mostRecent
+            const full = isLiteListing(mostRecent) ? await fillSessionListing(mostRecent) : mostRecent
             await performResume(context, onDone, uuid, full, 'slash_command_session_id')
             return
           }
-          const direct = await getLastSessionLog(uuid)
+          const direct = await lastSession(uuid)
           if (direct) {
             await performResume(context, onDone, uuid, direct, 'slash_command_session_id')
             return
@@ -228,10 +228,10 @@ function ResumeByArgument({
           }
           if (matches.length === 1) {
             const match = matches[0]!
-            const rawId = getSessionIdFromLog(match)
+            const rawId = sessionIdOfListing(match)
             const sessionId = rawId !== undefined ? validateUuid(rawId) : null
             if (sessionId !== null) {
-              const full = isLiteLog(match) ? await loadFullLog(match) : match
+              const full = isLiteListing(match) ? await fillSessionListing(match) : match
               await performResume(context, onDone, sessionId, full, 'slash_command_title')
               return
             }

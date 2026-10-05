@@ -27,7 +27,7 @@ const { getHeldToolsAttachment } = await import('../../src/utils/attachments/del
 const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
 const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
 const { isNullRenderingAttachment } = await import('../../src/components/messages/nullRenderingAttachments.ts')
-const { isLoggableMessage } = await import('../../src/utils/sessionStorage/chain.ts')
+const { isTranscribable } = await import('../../src/utils/sessionStorage/chain.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
 const { z } = await import('zod/v4')
@@ -68,7 +68,7 @@ check('one persisted row names the held tools, sorted', rows.length === 1 && row
 check('the row tells the model the tools are held until the next compaction or /clear and cannot be called yet', row !== undefined && row.body.includes('held out of your tool list until the next compaction or /clear') && row.body.includes('cannot be called yet') && row.body.includes('LateBuiltin') && row.body.includes('mcp__srv__lookup'), row?.body)
 const message = createAttachmentMessage(row as never)
 const wire = normalizeAttachmentForAPI(row as never)
-check('the row reaches the model as one reminder row and persists on the transcript, never painted', wire.length === 1 && j(wire[0]).includes('held out of your tool list') && isLoggableMessage(message) && isNullRenderingAttachment(message), `wire=${wire.length}`)
+check('the row reaches the model as one reminder row and persists on the transcript, never painted', wire.length === 1 && j(wire[0]).includes('held out of your tool list') && isTranscribable(message) && isNullRenderingAttachment(message), `wire=${wire.length}`)
 const history = [...messages, message]
 check('the hold is announced once: with the row in the history nothing is announced again', getHeldToolsAttachment(owner, history as never).length === 0)
 const p3 = await plan([search, read, late, connector], history)

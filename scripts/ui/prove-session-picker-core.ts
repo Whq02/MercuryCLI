@@ -12,7 +12,7 @@ import {
   rowProject,
   type SessionPickerFacts,
 } from '../../src/components/mercury-ui/screens/sessionPickerModel.js'
-import type { LogOption } from '../../src/types/logs.js'
+import type { SessionListing } from '../../src/types/logs.js'
 
 const t = checker()
 const REPO = join(import.meta.dir, '..', '..')
@@ -20,7 +20,7 @@ const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 const modelSrc = read('src/components/mercury-ui/screens/sessionPickerModel.ts')
 const skinSrc = read('src/components/mercury-ui/screens/SessionManagerView.tsx')
 
-function log(over: Partial<LogOption> & { sessionId: string; modifiedMs: number }): LogOption {
+function log(over: Partial<SessionListing> & { sessionId: string; modifiedMs: number }): SessionListing {
   const { modifiedMs, ...rest } = over
   return {
     date: new Date(modifiedMs).toISOString(),
@@ -36,7 +36,7 @@ function log(over: Partial<LogOption> & { sessionId: string; modifiedMs: number 
     projectPath: '/repo/alpha',
     fileSize: 9000,
     ...rest,
-  } as LogOption
+  } as SessionListing
 }
 
 t.section('§1 — IDENTITY, BOTH DIRECTIONS (one owner; the skin consumes the hook)')
@@ -45,9 +45,9 @@ t.section('§1 — IDENTITY, BOTH DIRECTIONS (one owner; the skin consumes the h
     'filterResumableSessions(all, currentSessionId).filter(isSubstantiveSession)',
     'partitionByProject(',
     "getLogDisplayTitle(log, '(untitled session)')",
-    'boardHomed.has(getSessionIdFromLog(l)',
-    'loadAllProjectsMessageLogsProgressive()',
-    'enrichLogs(first.allStatLogs, next, ENRICH_BATCH)',
+    'boardHomed.has(sessionIdOfListing(l)',
+    'listSessionsAcrossProjectsProgressive()',
+    'enrichSessionListings(first.allStatLogs, next, ENRICH_BATCH)',
     "split(/[\\\\/]/).pop()",
   ]
   for (const needle of movedNeedles) {
@@ -56,8 +56,8 @@ t.section('§1 — IDENTITY, BOTH DIRECTIONS (one owner; the skin consumes the h
   const forkTokens = [
     'partitionByProject',
     'isSubstantiveSession',
-    'loadAllProjectsMessageLogsProgressive',
-    'enrichLogs',
+    'listSessionsAcrossProjectsProgressive',
+    'enrichSessionListings',
     'isCrewSession',
     'getLogDisplayTitle',
     'filterResumableSessions',
@@ -74,7 +74,7 @@ t.section('§1 — IDENTITY, BOTH DIRECTIONS (one owner; the skin consumes the h
 
 t.section('§2 — THE RESUMABLE PROJECTION (drop · keep · order)')
 {
-  const all: LogOption[] = [
+  const all: SessionListing[] = [
     log({ sessionId: 'old', modifiedMs: 1_000 }),
     log({ sessionId: 'current', modifiedMs: 5_000 }),
     log({ sessionId: 'side', modifiedMs: 4_000, isSidechain: true }),
@@ -88,7 +88,7 @@ t.section('§2 — THE RESUMABLE PROJECTION (drop · keep · order)')
 
 t.section('§3 — SCOPE SEMANTICS (project · all · board-homed · crew · heads)')
 {
-  const logs: LogOption[] = [
+  const logs: SessionListing[] = [
     log({ sessionId: 'a1', modifiedMs: 9_000, projectPath: '/repo/alpha' }),
     log({ sessionId: 'b1', modifiedMs: 8_000, projectPath: '/repo/beta' }),
     log({ sessionId: 'a2', modifiedMs: 7_000, projectPath: '/repo/alpha' }),
@@ -139,7 +139,7 @@ t.section('§4 — THE CLOCK SEAM (seen cells byte-stable under an injected now)
 
 t.section('§5 — THE VIEW FILTER (act two: filterDir — identity both directions)')
 {
-  const logs: LogOption[] = [
+  const logs: SessionListing[] = [
     log({ sessionId: 'a1', modifiedMs: 9_000, projectPath: '/repo/alpha' }),
     log({ sessionId: 'b1', modifiedMs: 8_000, projectPath: '/repo/beta' }),
     log({ sessionId: 'a2', modifiedMs: 7_000, projectPath: '/repo/alpha/nested' }),

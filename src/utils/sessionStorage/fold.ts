@@ -1,11 +1,11 @@
 import type { UUID } from 'crypto'
 import type { AgentId } from '../../types/ids.js'
 import type {
-  AttributionSnapshotMessage,
+  AttributionSnapshotEntry,
   ContextCollapseCommitEntry,
   ContextCollapseSnapshotEntry,
   Entry,
-  FileHistorySnapshotMessage,
+  FileHistorySnapshotEntry,
   PersistedWorktreeSession,
   TranscriptMessage,
 } from '../../types/logs.js'
@@ -31,8 +31,8 @@ export type TranscriptFoldState = {
   advisorSwitches: Map<UUID, boolean>
   sessionModels: Map<UUID, string>
   worktreeStates: Map<UUID, PersistedWorktreeSession | null>
-  fileHistorySnapshots: Map<UUID, FileHistorySnapshotMessage>
-  attributionSnapshots: Map<UUID, AttributionSnapshotMessage>
+  fileHistorySnapshots: Map<UUID, FileHistorySnapshotEntry>
+  attributionSnapshots: Map<UUID, AttributionSnapshotEntry>
   contentReplacements: Map<UUID, ContentReplacementRecord[]>
   agentContentReplacements: Map<AgentId, ContentReplacementRecord[]>
   contextCollapseCommits: ContextCollapseCommitEntry[]

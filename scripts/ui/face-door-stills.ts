@@ -33,7 +33,7 @@ import {
   type ResumeEntry,
 } from '../../src/components/BootResumeScreen.js'
 import { projectSessionPickerRows, type SessionScope } from '../../src/components/mercury-ui/screens/sessionPickerModel.js'
-import type { LogOption } from '../../src/types/logs.js'
+import type { SessionListing } from '../../src/types/logs.js'
 import { buildPruneOffer, type PruneReceipt } from '../../src/utils/sessionStorage/transcriptPruneDoor.js'
 
 export const STILLS_DIR = join(import.meta.dir, 'fixtures', 'face-doors')
@@ -162,7 +162,7 @@ export function composeHealth(
 }
 
 
-function fixtureLog(over: Partial<LogOption> & { sessionId: string; modifiedMs: number; title?: string }): LogOption {
+function fixtureLog(over: Partial<SessionListing> & { sessionId: string; modifiedMs: number; title?: string }): SessionListing {
   const { modifiedMs, title, ...rest } = over
   return {
     date: new Date(modifiedMs).toISOString(),
@@ -178,11 +178,11 @@ function fixtureLog(over: Partial<LogOption> & { sessionId: string; modifiedMs: 
     projectPath: '/repo/orchard-src',
     fileSize: 9000,
     ...rest,
-  } as LogOption
+  } as SessionListing
 }
 
 const MIN = 60_000
-export const RESUME_FIXTURE_LOGS: LogOption[] = [
+export const RESUME_FIXTURE_LOGS: SessionListing[] = [
   fixtureLog({ sessionId: 'a1', modifiedMs: FIXED_NOW - 2 * MIN, title: 'the tool-loop fold' }),
   fixtureLog({ sessionId: 'a2', modifiedMs: FIXED_NOW - 3 * 60 * MIN, title: 'concourse polish' }),
   fixtureLog({ sessionId: 'b1', modifiedMs: FIXED_NOW - 26 * 60 * MIN, title: 'moodle groundwork', projectPath: '/repo/moodle' }),
@@ -194,10 +194,10 @@ export const RESUME_FIXTURE_LOGS: LogOption[] = [
     isCrewmate: true,
     crewName: 'party',
     agentName: 'dps1',
-  } as Partial<LogOption> & { sessionId: string; modifiedMs: number; title: string }),
+  } as Partial<SessionListing> & { sessionId: string; modifiedMs: number; title: string }),
 ]
 
-export function resumeModelOf(scope: SessionScope, opts: { cleared?: string[]; logs?: LogOption[] } = {}): ReturnType<typeof projectSessionPickerRows> {
+export function resumeModelOf(scope: SessionScope, opts: { cleared?: string[]; logs?: SessionListing[] } = {}): ReturnType<typeof projectSessionPickerRows> {
   return projectSessionPickerRows(opts.logs ?? RESUME_FIXTURE_LOGS, {
     scope,
     projectDir: '/repo/orchard-src',
@@ -207,7 +207,7 @@ export function resumeModelOf(scope: SessionScope, opts: { cleared?: string[]; l
   })
 }
 
-export const PRUNE_FIXTURE_LOGS: LogOption[] = [
+export const PRUNE_FIXTURE_LOGS: SessionListing[] = [
   ...RESUME_FIXTURE_LOGS,
   fixtureLog({ sessionId: 'old1', modifiedMs: FIXED_NOW - 40 * 24 * 60 * MIN, title: 'forty-day spike', fileSize: 120_000 }),
   fixtureLog({ sessionId: 'old2', modifiedMs: FIXED_NOW - 90 * 24 * 60 * MIN, title: 'ninety-day archive', fileSize: 48_000 }),
@@ -220,7 +220,7 @@ export function composeResume(
     scope?: SessionScope
     sel?: number
     cleared?: string[]
-    logs?: LogOption[]
+    logs?: SessionListing[]
     pendingMore?: number
     prune?: { answer: 'no' | 'yes' } | { receipt: PruneReceipt }
   } = {},

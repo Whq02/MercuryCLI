@@ -9,7 +9,7 @@ import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { useAppState } from '../state/AppState.js'
 import { useSessionCrew } from './tasks/useCrewLedger.js'
 import { useFocusedWorkRoster } from './tasks/useFocusedWork.js'
-import type { LogOption } from '../types/logs.js'
+import type { SessionListing } from '../types/logs.js'
 import { saturnWakeGlanceOf, type SaturnWakeGlanceV1 } from '../daemon/saturn.js'
 import { readSessionWorkers } from '../daemon/concourseWorkers.js'
 import { getActiveMission, getActiveMissionVersion, subscribeActiveMission } from '../utils/hooks/missionHook.js'
@@ -17,7 +17,7 @@ import { isProjectSession, isSubstantiveSession } from '../utils/sessionFilter.j
 import { isSessionCleared } from '../utils/sessionStorage/clearedSessions.js'
 import { isCrewSession } from '../utils/sessionClass.js'
 import { boardHomedSessionIds } from '../daemon/concourseWorkers.js'
-import { getSessionIdFromLog, loadAllProjectsMessageLogs } from '../utils/sessionStorage.js'
+import { sessionIdOfListing, listSessionsAcrossProjects } from '../utils/sessionStorage.js'
 import { getHelmCursor, getHelmFocus, getHelmLanesVersion, getHelmRows, helmRowSig, publishHelmRows, requestCommandDispatch, requestHelmRowActivation, requestHelmRowActivationBySig, setHelmCursor, setHelmCursorBySig, subscribeHelmFocus, type HelmRow } from '../utils/cockpit/helmFocus.js'
 import { openFilesMenu } from '../utils/cockpit/filesMenu.js'
 import { activeSourceUsage } from '../services/providers/providerUsage.js'
@@ -264,14 +264,14 @@ function SectionHeader({ label, width }: { label: string; width: number }): Reac
   )
 }
 
-const lastKnownRecent = new Map<string, LogOption[]>()
+const lastKnownRecent = new Map<string, SessionListing[]>()
 let lastKnownWakeGlance: SaturnWakeGlanceV1 | null = null
 const lastKnownWorkShape = new Map<string, string>()
 
-function useRecentSessions(solo: boolean): LogOption[] | null {
+function useRecentSessions(solo: boolean): SessionListing[] | null {
   const conversationId = useSyncExternalStore(subscribeFocusedSessionConnector, conversationIdHere, conversationIdHere)
   const recentScopeKey = `${getProjectRoot() || ''}::${conversationId}`
-  const [recentSnap, setRecentSnap] = useState<{ key: string; rows: LogOption[] | null }>(() => ({
+  const [recentSnap, setRecentSnap] = useState<{ key: string; rows: SessionListing[] | null }>(() => ({
     key: recentScopeKey,
     rows: lastKnownRecent.get(recentScopeKey) ?? null,
   }))
@@ -280,14 +280,14 @@ function useRecentSessions(solo: boolean): LogOption[] | null {
     let alive = true
     void (async () => {
       try {
-        const all = await loadAllProjectsMessageLogs()
+        const all = await listSessionsAcrossProjects()
         const boardHomed = boardHomedSessionIds()
         const resumable = filterResumableSessions(all, conversationId)
           .filter(isSubstantiveSession)
-          .filter(l => !boardHomed.has(getSessionIdFromLog(l) ?? ''))
+          .filter(l => !boardHomed.has(sessionIdOfListing(l) ?? ''))
           .filter(l => !isCrewSession(l))
           .filter(l => isProjectSession(l, getProjectRoot() || ''))
-          .filter(l => !isSessionCleared(getSessionIdFromLog(l)))
+          .filter(l => !isSessionCleared(sessionIdOfListing(l)))
         resumable.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime())
         if (alive) {
           const rows = resumable.slice(0, 3)

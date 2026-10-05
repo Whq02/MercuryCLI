@@ -19,7 +19,7 @@ process.env.FORCE_COLOR = '3'
 const { streamRenderedMessages } = await import('../../src/utils/exportRenderer.tsx')
 const { NO_RESPONSE_REQUESTED, INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE } = await import('../../src/utils/messages.ts')
 const { startsWithApiErrorPrefix } = await import('../../src/services/api/errors.ts')
-const { loadAllLogsFromSessionFile } = await import('../../src/utils/sessionStorage/logs.ts')
+const { listingsOfSessionFile } = await import('../../src/utils/sessionStorage/logs.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -170,7 +170,7 @@ section('§2 a recorded transcript — every prose text block paints exactly onc
     const rawTextBlocks = records
       .filter(r => r.payload?.kind === 'output')
       .reduce((n, r) => n + (r.payload?.content ?? []).filter(b => b.kind === 'text').length, 0)
-    const logs = await loadAllLogsFromSessionFile(copy)
+    const logs = await listingsOfSessionFile(copy)
     const longest = logs.reduce<(typeof logs)[number] | undefined>((best, log) => (log.messages.length > (best?.messages.length ?? -1) ? log : best), undefined)
     check('the transcript resumes to a conversation', longest !== undefined && longest.messages.length > 0, `${logs.length} leaf conversation(s)`)
     if (longest) {

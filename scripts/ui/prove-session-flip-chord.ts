@@ -24,7 +24,7 @@ console.log('§2 the strip consumes both actions on the click road')
 const strip = readFileSync(join(REPO, 'src', 'components', 'mercury-ui', 'SessionTabs.tsx'), 'utf8')
 check('both actions ride useKeybinding with the armed condition', /useKeybinding\('chat:flipSessionForward', \(\) => flipTo\(tabList\[0\]\), \{ context: 'Chat', isActive: flipArmed \}\)/.test(strip) && /useKeybinding\('chat:flipSessionBack', \(\) => flipTo\(tabList\[tabList\.length - 1\]\), \{ context: 'Chat', isActive: flipArmed \}\)/.test(strip))
 check('armed = the advert\'s own condition (rail painted · empty prompt · a tab to flip to)', strip.includes('const flipArmed = railVisible && promptEmpty && tabList.length > 0'))
-check('the flip dispatches the SAME /sessiontab road the clicks ride', /const flipTo = \(log: LogOption \| undefined\): void => \{[^]{0,300}?requestCommandDispatch\(`\/sessiontab \$\{id\}`\)/.test(strip))
+check('the flip dispatches the SAME /sessiontab road the clicks ride', /const flipTo = \(log: SessionListing \| undefined\): void => \{[^]{0,300}?requestCommandDispatch\(`\/sessiontab \$\{id\}`\)/.test(strip))
 check('registered BEFORE the visibility return (hook order)', strip.includes("useKeybinding('chat:flipSessionForward'") && strip.indexOf("useKeybinding('chat:flipSessionForward'") < strip.indexOf('if (!railVisible) return null'))
 
 console.log('§3 the advert is honest')

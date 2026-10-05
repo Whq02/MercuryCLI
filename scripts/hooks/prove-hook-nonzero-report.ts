@@ -161,16 +161,16 @@ console.log('§3 the interactive road keeps its renderer (call-shaped)')
 
 console.log("§4 the failure row is the operator's record — the transcript filter keeps it (module-level)")
 {
-  const { isLoggableMessage } = await import('../../src/utils/sessionStorage/chain.js')
+  const { isTranscribable } = await import('../../src/utils/sessionStorage/chain.js')
   const att = (type: string, extra: Record<string, unknown> = {}): never =>
     ({ type: 'attachment', uuid: 'u', timestamp: 't', attachment: { type, ...extra } }) as never
-  check('hook_non_blocking_error persists', isLoggableMessage(att('hook_non_blocking_error', { hookName: 'h', hookEvent: 'UserPromptSubmit', stderr: 'x' })))
-  check('hook_error_during_execution persists', isLoggableMessage(att('hook_error_during_execution', { hookName: 'h', hookEvent: 'PreToolUse' })))
-  check('a context attachment WITH content persists (the request renders it — hook_additional_context)', isLoggableMessage(att('hook_additional_context', { hookName: 'h', content: ['ctx'] })))
-  check('a context attachment without content stays out (renders nothing)', !isLoggableMessage(att('hook_additional_context', { hookName: 'h', content: [] })))
-  check('a quiet success row stays out too (hook_success, empty)', !isLoggableMessage(att('hook_success', { hookName: 'h', hookEvent: 'UserPromptSubmit', content: '' })))
-  check('a success row the model reads persists (hook_success on UserPromptSubmit with content)', isLoggableMessage(att('hook_success', { hookName: 'h', hookEvent: 'UserPromptSubmit', content: 'remember the style guide' })))
-  check('a success row on an event the model never reads stays out (hook_success, PreToolUse)', !isLoggableMessage(att('hook_success', { hookName: 'h', hookEvent: 'PreToolUse', content: 'noise' })))
+  check('hook_non_blocking_error persists', isTranscribable(att('hook_non_blocking_error', { hookName: 'h', hookEvent: 'UserPromptSubmit', stderr: 'x' })))
+  check('hook_error_during_execution persists', isTranscribable(att('hook_error_during_execution', { hookName: 'h', hookEvent: 'PreToolUse' })))
+  check('a context attachment WITH content persists (the request renders it — hook_additional_context)', isTranscribable(att('hook_additional_context', { hookName: 'h', content: ['ctx'] })))
+  check('a context attachment without content stays out (renders nothing)', !isTranscribable(att('hook_additional_context', { hookName: 'h', content: [] })))
+  check('a quiet success row stays out too (hook_success, empty)', !isTranscribable(att('hook_success', { hookName: 'h', hookEvent: 'UserPromptSubmit', content: '' })))
+  check('a success row the model reads persists (hook_success on UserPromptSubmit with content)', isTranscribable(att('hook_success', { hookName: 'h', hookEvent: 'UserPromptSubmit', content: 'remember the style guide' })))
+  check('a success row on an event the model never reads stays out (hook_success, PreToolUse)', !isTranscribable(att('hook_success', { hookName: 'h', hookEvent: 'PreToolUse', content: 'noise' })))
 }
 
 console.log(failures === 0 ? '\nprove-hook-nonzero-report: all green' : `\nprove-hook-nonzero-report: ${failures} FAILURE(S)`)

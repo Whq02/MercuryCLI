@@ -45,7 +45,7 @@ if (mode === '--compare') {
   enableConfigs()
   const { loadTranscriptFile } = await import('../../src/utils/sessionStorage/loading.js')
   const { buildConversationChain } = await import('../../src/utils/sessionStorage/chain.js')
-  const { getSessionFilesLite, enrichLogs, loadAllLogsFromSessionFile, getLastSessionLog } = await import('../../src/utils/sessionStorage/logs.js')
+  const { sessionFilesLite, enrichSessionListings, listingsOfSessionFile, lastSession } = await import('../../src/utils/sessionStorage/logs.js')
   const { _resetTranscriptReaderForTesting } = await import('../../src/utils/sessionStorage/transcriptReader.js')
   const { switchSession } = await import('../../src/bootstrap/state.js')
   const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.js')
@@ -110,8 +110,8 @@ if (mode === '--compare') {
       if (!statSync(project).isDirectory()) continue
       const files = readdirSync(project).filter(name => /^[0-9a-f-]{36}\.jsonl$/.test(name)).sort()
       if (files.length === 0) continue
-      const lite = await getSessionFilesLite(project)
-      const listing = await enrichLogs(lite, 0, lite.length)
+      const lite = await sessionFilesLite(project)
+      const listing = await enrichSessionListings(lite, 0, lite.length)
       projects.push({ id: digest(directory), rows: listing.logs.map(row => ({ session: row.sessionId, digest: snap({ ...row, created: undefined }) })) })
       for (const file of files) {
         const path = join(project, file)
@@ -122,10 +122,10 @@ if (mode === '--compare') {
         check(`resume parity warm read ${sessions.length + 1}`, snap(warm) === snap(fold))
         const entries = [...fold.messages].map(([id, row]) => ({ id, type: row.type, digest: snap(row) }))
         const chains = [...fold.leafUuids].map(id => ({ id, rows: buildConversationChain(fold.messages, fold.messages.get(id)!).map(row => ({ id: row.uuid, type: row.type, digest: snap(row) })) }))
-        const allLeaves = await loadAllLogsFromSessionFile(path)
+        const allLeaves = await listingsOfSessionFile(path)
         const sessionId = basename(file, '.jsonl')
         switchSession(sessionId as never, project)
-        const resumed = await getLastSessionLog(sessionId as never)
+        const resumed = await lastSession(sessionId as never)
         if (readFileSync(path, 'utf8').includes('[screenshot not kept in the conversation file')) throw new Error('A fixture needs external screenshot assets; copy them into the proof home first')
         const conversation = await loadConversationForResume(sessionId, undefined)
         const headless = await loadInitialMessages(() => {}, {

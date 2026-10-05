@@ -1,4 +1,4 @@
-import { getSessionBypassPermissionsMode } from '../../bootstrap/state.js'
+import { getSessionSovereign } from '../../bootstrap/state.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { resolveComputerAccess, type ComputerAccessResolution } from '../../substrate/startupMenu.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
@@ -8,7 +8,7 @@ export function savedComputerAccess(): string | undefined {
 }
 
 export function sovereignPostureNow(): boolean {
-  return getSessionBypassPermissionsMode() || isEnvTruthy(flagEnv('MERCURY_SKIP_PERMISSIONS'))
+  return getSessionSovereign() || isEnvTruthy(flagEnv('MERCURY_SKIP_PERMISSIONS'))
 }
 
 export function computerAccessNow(sovereignOn: boolean = sovereignPostureNow()): ComputerAccessResolution {

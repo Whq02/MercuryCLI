@@ -8,7 +8,7 @@ import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { isTopOverlayNow, useRegisterOverlay } from '../context/overlayContext.js'
 import { decodeNavKey } from './mercury-ui/navSemantics.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
-import type { LogOption } from '../types/logs.js'
+import type { SessionListing } from '../types/logs.js'
 import { formatFileSize } from '../utils/format.js'
 
 
@@ -16,7 +16,7 @@ const TITLE_WIDTH = 34
 const DATE_WIDTH = 12
 const MAX_ROWS = 12
 
-function sessionTitle(s: LogOption): string {
+function sessionTitle(s: SessionListing): string {
   return (s.customTitle || s.summary || s.firstPrompt || s.sessionId || 'untitled').replace(/\s+/g, ' ').trim()
 }
 
@@ -27,9 +27,9 @@ export function MercuryResume({
   onClose,
   isActive = true,
 }: {
-  sessions?: LogOption[]
+  sessions?: SessionListing[]
   loading?: boolean
-  onSelect?: (session: LogOption) => void
+  onSelect?: (session: SessionListing) => void
   onClose: () => void
   isActive?: boolean
 }): React.ReactNode {

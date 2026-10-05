@@ -25,7 +25,7 @@ import {
   type PruneOffer,
   type PruneReceipt,
 } from '../utils/sessionStorage/transcriptPruneDoor.js';
-import { getSessionIdFromLog } from '../utils/sessionStorage.js';
+import { sessionIdOfListing } from '../utils/sessionStorage.js';
 import { renderModelChip } from '../utils/model/model.js';
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js';
 import { renderSceneLine } from './mercury-ui/SceneCanvas.js';
@@ -271,7 +271,7 @@ type SelectableRow =
   | { kind: 'project'; project: BootProjectFact & { running?: number } };
 
 function selectableIdOf(row: SelectableRow): string {
-  if (row.kind === 'session') return `resume:${getSessionIdFromLog(row.flat.row.log) ?? row.flat.row.label}`;
+  if (row.kind === 'session') return `resume:${sessionIdOfListing(row.flat.row.log) ?? row.flat.row.label}`;
   if (row.kind === 'crew') return `crew:${row.crew.tag}:${row.crew.label}`;
   return `project:${row.project.dir}`;
 }
@@ -380,7 +380,7 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
       pending: 'opening…',
       result: (async (): Promise<string | null> => {
         try {
-          const sessionId = getSessionIdFromLog(log);
+          const sessionId = sessionIdOfListing(log);
           if (!sessionId) return 'could not resume — the row carries no session id';
           const hop = await import('../services/switchboard/hopIntoSession.js');
           const outcome = await hop.focusResumedSession(String(sessionId), log.fullPath, {

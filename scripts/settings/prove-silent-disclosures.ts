@@ -62,8 +62,8 @@ section('§2 the killswitch drive — the mode flip says why')
   const live = makeStore({
     toolPermissionContext: { mode: 'sovereign', isBypassPermissionsModeAvailable: true },
   })
-  killswitch.resetBypassPermissionsCheck()
-  await killswitch.checkAndDisableBypassPermissionsIfNeeded(
+  killswitch.resetSovereignCheck()
+  await killswitch.checkAndDisableSovereignIfNeeded(
     live.get().toolPermissionContext as never,
     live.set as never,
   )
@@ -81,8 +81,8 @@ section('§2 the killswitch drive — the mode flip says why')
   const idle = makeStore({
     toolPermissionContext: { mode: 'default', isBypassPermissionsModeAvailable: true },
   })
-  killswitch.resetBypassPermissionsCheck()
-  await killswitch.checkAndDisableBypassPermissionsIfNeeded(
+  killswitch.resetSovereignCheck()
+  await killswitch.checkAndDisableSovereignIfNeeded(
     idle.get().toolPermissionContext as never,
     idle.set as never,
   )
@@ -95,8 +95,8 @@ section('§2 the killswitch drive — the mode flip says why')
   const free = makeStore({
     toolPermissionContext: { mode: 'sovereign', isBypassPermissionsModeAvailable: true },
   })
-  killswitch.resetBypassPermissionsCheck()
-  await killswitch.checkAndDisableBypassPermissionsIfNeeded(
+  killswitch.resetSovereignCheck()
+  await killswitch.checkAndDisableSovereignIfNeeded(
     free.get().toolPermissionContext as never,
     free.set as never,
   )

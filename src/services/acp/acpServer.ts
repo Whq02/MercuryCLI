@@ -48,7 +48,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { getContextWindowForModel } from '../../utils/model/capabilities.js'
 import { MercuryChildSession, toolResultText, type ToolAsk, type TurnEndDetail } from './childSession.js'
 import { selfScriptPath } from '../../daemon/daemonBuild.js'
-import { isAutoModeGateEnabled, isBypassPermissionsModeDisabled } from '../../utils/permissions/permissionSetup.js'
+import { isAutoModeGateEnabled, isSovereignDisabled } from '../../utils/permissions/permissionSetup.js'
 import { PERMISSION_MODES as MODE_WORDS, type PermissionMode } from '../../types/permissions.js'
 import { permissionModeTitle } from '../../utils/permissions/PermissionMode.js'
 import { MODE_GLOSS } from '../../utils/settings/validationTips.js'
@@ -60,7 +60,7 @@ function refuse(sentence: string): never {
 }
 
 function permissionModesOffered(): ReadonlyArray<{ id: PermissionMode; name: string; description: string }> {
-  return MODE_WORDS.filter(mode => mode !== 'sovereign' || !isBypassPermissionsModeDisabled()).map(mode => ({ id: mode, name: permissionModeTitle(mode), description: MODE_GLOSS[mode] }))
+  return MODE_WORDS.filter(mode => mode !== 'sovereign' || !isSovereignDisabled()).map(mode => ({ id: mode, name: permissionModeTitle(mode), description: MODE_GLOSS[mode] }))
 }
 
 function savedModePath(cwd: string, sessionId: string): string {
@@ -775,7 +775,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
           ? { resumeSessionId: args.resumeSessionId }
           : { sessionId: acpSessionId }),
         permissionMode: args.modeId ?? 'default',
-        allowSovereign: !isBypassPermissionsModeDisabled(),
+        allowSovereign: !isSovereignDisabled(),
         elicitation: clientElicitation,
         entry,
         ...(mcp !== null && { mcpConfig: mcp.json }),

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { conversationIdHere } from '../../../services/engine-connector/focusedConnector.js'
 import { currentProject, subscribeCurrentProject } from '../../../utils/bootCardFacts.js'
 import { filterResumableSessions } from '../../../commands/resume/resume.js'
-import type { LogOption } from '../../../types/logs.js'
+import type { SessionListing } from '../../../types/logs.js'
 import { getLogDisplayTitle } from '../../../utils/log.js'
 import { formatRelativeTimeAgo } from '../../../utils/format.js'
 import { crewTagOf, isCrewSession } from '../../../utils/sessionClass.js'
@@ -10,9 +10,9 @@ import { boardHomedSessionIds } from '../../../daemon/concourseWorkers.js'
 import { isSubstantiveSession, partitionByProject } from '../../../utils/sessionFilter.js'
 import { isSessionCleared } from '../../../utils/sessionStorage/clearedSessions.js'
 import {
-  enrichLogs,
-  getSessionIdFromLog,
-  loadAllProjectsMessageLogsProgressive,
+  enrichSessionListings,
+  sessionIdOfListing,
+  listSessionsAcrossProjectsProgressive,
 } from '../../../utils/sessionStorage.js'
 import { useNowTick } from '../components.js'
 
@@ -23,22 +23,22 @@ export type SessionPickerRow = {
   project: string
   label: string
   seen: string
-  log: LogOption
+  log: SessionListing
   cleared?: boolean
 }
 export type SessionPickerFlatRow = { project: string; head: boolean; row: SessionPickerRow }
-export type SessionPickerCrewRow = { tag: string; label: string; seen: string; log: LogOption }
+export type SessionPickerCrewRow = { tag: string; label: string; seen: string; log: SessionListing }
 
-export function rowLabel(log: LogOption): string {
+export function rowLabel(log: SessionListing): string {
   return getLogDisplayTitle(log, '(untitled session)')
 }
 
-export function rowProject(log: LogOption): string {
+export function rowProject(log: SessionListing): string {
   const p = log.projectPath || currentProject().dir
   return p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p
 }
 
-export function resumableNewestFirst(all: LogOption[], currentSessionId: string): LogOption[] {
+export function resumableNewestFirst(all: SessionListing[], currentSessionId: string): SessionListing[] {
   const resumable = filterResumableSessions(all, currentSessionId).filter(isSubstantiveSession)
   resumable.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime())
   return resumable
@@ -54,22 +54,22 @@ export interface SessionPickerFacts {
 }
 
 export function projectSessionPickerRows(
-  logs: LogOption[],
+  logs: SessionListing[],
   facts: SessionPickerFacts,
 ): { flat: SessionPickerFlatRow[]; crew: SessionPickerCrewRow[]; elsewhereCount: number } {
   const now = facts.nowMs !== undefined ? new Date(facts.nowMs) : undefined
-  const seenOf = (log: LogOption): string =>
+  const seenOf = (log: SessionListing): string =>
     formatRelativeTimeAgo(new Date(log.modified), { style: 'short', ...(now !== undefined ? { now } : {}) })
   const operatorLogs = logs.filter(
-    l => !isCrewSession(l) && !facts.boardHomed.has(getSessionIdFromLog(l) ?? ''),
+    l => !isCrewSession(l) && !facts.boardHomed.has(sessionIdOfListing(l) ?? ''),
   )
   const scoped =
     facts.scope === 'project'
       ? partitionByProject(
-          operatorLogs.filter(l => !facts.isCleared(getSessionIdFromLog(l))),
+          operatorLogs.filter(l => !facts.isCleared(sessionIdOfListing(l))),
           facts.projectDir,
         )
-      : { inProject: operatorLogs, elsewhere: [] as LogOption[] }
+      : { inProject: operatorLogs, elsewhere: [] as SessionListing[] }
   const viewed =
     facts.filterDir !== undefined
       ? partitionByProject(scoped.inProject, facts.filterDir).inProject
@@ -80,7 +80,7 @@ export function projectSessionPickerRows(
     label: rowLabel(log),
     seen: seenOf(log),
     log,
-    cleared: facts.scope === 'all' ? facts.isCleared(getSessionIdFromLog(log)) : undefined,
+    cleared: facts.scope === 'all' ? facts.isCleared(sessionIdOfListing(log)) : undefined,
   }))
   const flat: SessionPickerFlatRow[] = rows.map((row, i) => ({
     project: row.project,
@@ -99,20 +99,20 @@ export function projectSessionPickerRows(
 const ENRICH_BATCH = 50
 
 export function useResumableSessionLogs(opts: { enabled?: boolean } = {}): {
-  logs: LogOption[] | null
+  logs: SessionListing[] | null
   pendingMore: number
   dropSessions: (sessionIds: ReadonlySet<string>) => void
 } {
   const enabled = opts.enabled !== false
-  const [logs, setLogs] = useState<LogOption[] | null>(null)
+  const [logs, setLogs] = useState<SessionListing[] | null>(null)
   const [pendingMore, setPendingMore] = useState(0)
   useEffect(() => {
     if (!enabled) return
     let alive = true
     void (async () => {
       try {
-        const first = await loadAllProjectsMessageLogsProgressive()
-        const publish = (all: LogOption[]): void => {
+        const first = await listSessionsAcrossProjectsProgressive()
+        const publish = (all: SessionListing[]): void => {
           if (alive) setLogs(resumableNewestFirst(all, conversationIdHere()))
         }
         let acc = first.logs
@@ -120,7 +120,7 @@ export function useResumableSessionLogs(opts: { enabled?: boolean } = {}): {
         publish(acc)
         if (alive) setPendingMore(Math.max(0, first.allStatLogs.length - next))
         while (alive && next < first.allStatLogs.length) {
-          const batch = await enrichLogs(first.allStatLogs, next, ENRICH_BATCH)
+          const batch = await enrichSessionListings(first.allStatLogs, next, ENRICH_BATCH)
           next = batch.nextIndex
           acc = [...acc, ...batch.logs]
           publish(acc)
@@ -138,7 +138,7 @@ export function useResumableSessionLogs(opts: { enabled?: boolean } = {}): {
     }
   }, [enabled])
   const dropSessions = (sessionIds: ReadonlySet<string>): void => {
-    setLogs(prev => (prev === null ? prev : prev.filter(l => !sessionIds.has(getSessionIdFromLog(l) ?? ''))))
+    setLogs(prev => (prev === null ? prev : prev.filter(l => !sessionIds.has(sessionIdOfListing(l) ?? ''))))
   }
   return { logs, pendingMore, dropSessions }
 }
@@ -147,7 +147,7 @@ export function useSessionPickerModel(
   scope: SessionScope,
   opts: { enabled?: boolean; filterDir?: string } = {},
 ): {
-  logs: LogOption[] | null
+  logs: SessionListing[] | null
   pendingMore: number
   projectKey: string
   flat: SessionPickerFlatRow[]
