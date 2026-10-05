@@ -5,7 +5,7 @@ import { SettingsStatusView, type StatusFact } from '../../components/mercury-ui
 import { AMBER, FAINT } from '../../components/mercuryPalette.js'
 import { compactWorkCounts, focusedWorkRows, focusedWorkflowRows, otherSessionRunnerPids, runningWorkflowRows } from '../../components/tasks/useFocusedWork.js'
 import { getMercuryDaemonStatus } from '../../daemon/status.js'
-import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
+import { conversationIdHere, getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
 import { familyDisplayName } from '../../services/providers/accountSlots.js'
 import { presenceIdentityWords, providerFamilyPresences, usageForProvider, usageViewIsStale } from '../../services/providers/providerUsage.js'
 import { seatCeilingFacts } from '../../services/switchboard/capacityCheck.js'
@@ -21,6 +21,7 @@ import { gitSnapshot } from '../../utils/cockpit/gitSnapshot.js'
 import { healthCertSnapshot } from '../../utils/cockpit/healthCertSnapshot.js'
 import { mcpGauge } from '../../utils/cockpit/mcpGauge.js'
 import { modelGauge } from '../../utils/cockpit/modelGauge.js'
+import { sessionTraceSnapshot } from '../../utils/cockpit/traceSnapshot.js'
 import { closeSettingsPopup, openSettingsPopup } from '../../utils/cockpit/settingsPopup.js'
 import { getCwd } from '../../utils/cwd.js'
 import type { ModelName } from '../../utils/model/model.js'
@@ -45,6 +46,7 @@ const liveReads = {
   mcp: mcpGauge,
   tasks: (): AppState['tasks'] | undefined => undefined,
   daemon: (): string => 'unavailable — not read',
+  conversationId: conversationIdHere,
 }
 
 function read<T>(owner: () => T): T | undefined {
@@ -168,7 +170,7 @@ export function buildFacts(messages: Message[], model: ModelName, overrides: Par
   const workflow = roster?.reported === false || running === undefined || external === undefined ? 'unavailable'
     : running.length > 0 ? [...new Set(running.map(row => row.status))].join(' · ')
     : external.length > 0 ? external.some(run => run.liveness === 'wedged') ? 'wedged elsewhere' : 'running elsewhere' : 'idle'
-  const trace = telemetry?.trace
+  const trace = telemetry?.trace === undefined || telemetry.trace === null ? undefined : sessionTraceSnapshot(telemetry.trace, read(reads.conversationId) ?? null)
   const traceWords = trace?.state === 'live' ? String(trace.data.total) : trace?.reason ?? 'unavailable'
   const facts: StatusFact[] = [
     { k: 'environment', v: 'Session & environment', bold: true },
@@ -181,7 +183,7 @@ export function buildFacts(messages: Message[], model: ModelName, overrides: Par
     { k: 'tools-gap', v: '' },
     { k: 'tools', v: 'Connectivity & tools', bold: true },
     { k: 'connectivity', v: `  health: ${healthWords} — /health · MCP servers ${mcpCount} — /mcp · skills ${skills?.skills.length ?? 'unavailable'} — /skills` },
-    { k: 'workflow', v: `  workflow ${workflow} · trace ${traceWords} · repo` },
+    { k: 'workflow', v: `  workflow ${workflow} · trace ${traceWords}` },
   ]
   const diagnostic = usage?.state !== 'live' && usage?.reason !== CONTEXT_FRESH_SESSION_REASON
     ? `Context usage ${usage?.reason ?? 'unavailable'}` : undefined

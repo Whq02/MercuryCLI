@@ -151,6 +151,7 @@ export async function usagePlanWorld() {
   const clockListeners = new Set<() => void>()
   const subscribeClock = (listener: () => void) => { clockListeners.add(listener); return () => { clockListeners.delete(listener) } }
   const connector = {
+    sessionId: () => 'usage-plan-world-session',
     modelFacts: () => ({ main: model }),
     subscribeModel: (listener: () => void) => { modelListeners.add(listener); return () => { modelListeners.delete(listener) } },
     usage: () => ({ totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false }),

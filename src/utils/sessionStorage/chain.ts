@@ -18,6 +18,7 @@ import type {
 import { logForDebugging } from '../debug.js'
 import type { FileHistorySnapshot } from '../fileHistory.js'
 import { extractTag, normalizeAttachmentForAPI } from '../messages.js'
+import { stripTerminalControls } from '../stringUtils.js'
 import { transcriptRows } from './rowGraph.js'
 
 const SKIP_FIRST_PROMPT_PATTERN =
@@ -26,7 +27,7 @@ const SKIP_FIRST_PROMPT_PATTERN =
 export function extractFirstPrompt(transcript: TranscriptMessage[]): string {
   const textContent = getFirstMeaningfulUserMessageTextContent(transcript)
   if (!textContent) return 'No prompt'
-  const flat = textContent.replace(/\n/g, ' ').trim()
+  const flat = stripTerminalControls(textContent).replace(/\n/g, ' ').trim()
   return flat.length > 200 ? flat.slice(0, 200).trim() + '…' : flat
 }
 

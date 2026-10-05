@@ -20,7 +20,7 @@ export function spinnerStackDecision(facts: {
 
 export const RAIL_INSET = 2
 const SEPARATOR_WIDTH = 3
-const HUD_ORDER = ['phase', 'timer', 'tokens', 'promise', 'thinking', 'waiting'] as const
+const HUD_ORDER = ['phase', 'timer', 'tokens', 'pulse', 'promise', 'thinking', 'waiting'] as const
 
 export type HudSegmentKind = 'thinking' | 'waiting'
 export type HudSegment = { key: string; text: string; kind?: HudSegmentKind }
@@ -87,6 +87,7 @@ export function planSpinnerHud(facts: HudFacts, stripLines: (wanted: number) => 
   const timerText = formatDuration(effectiveElapsedMs, { mostSignificantOnly: true })
   const metaGate = facts.verbose || facts.hasRunningCrewmates || effectiveElapsedMs > 0
   const tokensText = hudTokensText(facts)
+  const pulseText = liveWords.pulse
   const ctxPct = facts.ctxPct
   const ctxSpark = hudCtxSpark(ctxPct)
   const ctxText = ctxPct != null ? `${ctxSpark} ${ctxPct}% ctx` : ''
@@ -103,6 +104,7 @@ export function planSpinnerHud(facts: HudFacts, stripLines: (wanted: number) => 
   if (waitPhaseText !== null) fullSegmentTexts.push(waitPhaseText)
   if (metaGate && effectiveElapsedMs >= 1000) fullSegmentTexts.push(timerText)
   if (metaGate && tokensText !== null) fullSegmentTexts.push(tokensText)
+  if (metaGate && pulseText !== null) fullSegmentTexts.push(pulseText)
   if (metaGate && ctxPct != null) fullSegmentTexts.push(ctxText)
   if (metaGate && wifText !== '') fullSegmentTexts.push(wifText)
   if (metaGate && otpsText !== '') fullSegmentTexts.push(otpsText)
@@ -143,6 +145,7 @@ export function planSpinnerHud(facts: HudFacts, stripLines: (wanted: number) => 
   if (waitPhaseText !== null) admit({ key: 'phase', text: waitPhaseText })
   if (metaGate && effectiveElapsedMs >= 1000) admit({ key: 'timer', text: timerText })
   if (metaGate && tokensText !== null) admit({ key: 'tokens', text: tokensText })
+  if (metaGate && pulseText !== null) admit({ key: 'pulse', text: pulseText })
   const usedAfterTokens = used
   const showCtx = metaGate && ctxPct != null && availableSpace > usedAfterTokens + ctxWidth
   if (showCtx) used += ctxWidth

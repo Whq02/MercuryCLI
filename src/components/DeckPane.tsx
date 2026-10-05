@@ -1,13 +1,7 @@
 import * as React from 'react'
 import { useSyncExternalStore } from 'react'
 import { contextWindowLabel } from '../utils/contextFill.js'
-import {
-  formatSessionCost,
-  getTotalCost,
-  getTotalLinesAdded,
-  getTotalLinesRemoved,
-  getTotalUnpricedTurns,
-} from '../cost-tracker.js'
+import { formatSessionCost } from '../cost-tracker.js'
 import { useEngineModel } from '../hooks/useEngineModel.js'
 import { useDisplayedSessionModel, useFocusedServedModel } from '../hooks/useDisplayedSessionModel.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
@@ -33,10 +27,11 @@ import {
   type RosterSnapshot,
   getLiveContextUsage,
   getLiveContextUsageVersion,
+  sessionTraceSnapshot,
   subscribeLiveContextUsage,
-  traceSnapshot,
   type SnapshotState,
 } from '../utils/cockpit/index.js'
+import { conversationIdHere, getFocusedSessionConnector } from '../services/engine-connector/focusedConnector.js'
 import { formatCountdown } from '../utils/cockpit/quota.js'
 import { localWindowRuleWords } from '../services/providers/local/localWindow.js'
 import { activeSourceUsage, usageViewIsStale } from '../services/providers/providerUsage.js'
@@ -69,11 +64,12 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
   const processModel = useEngineModel()
   const rawModel = servedModel ?? processModel
   const model = useDisplayedSessionModel().compact
-  const cost = getTotalCost()
-  const unpricedTurns = getTotalUnpricedTurns()
+  const usageFacts = getFocusedSessionConnector().usage()
+  const cost = usageFacts.totalCostUSD
+  const unpricedTurns = usageFacts.unpricedTurns ?? 0
   const costFigure = unpricedTurns > 0 ? formatSessionCost(cost, unpricedTurns) : `$${cost.toFixed(2)}`
-  const added = getTotalLinesAdded()
-  const removed = getTotalLinesRemoved()
+  const added = usageFacts.totalLinesAdded
+  const removed = usageFacts.totalLinesRemoved
 
   const vitals = useTelemetry()
   const git = vitals.git
@@ -84,15 +80,16 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
     conflicts: vitals.fleet.conflicts,
     drifting: vitals.fleet.drifting,
   }
+  const ownTrace = vitals.trace ? sessionTraceSnapshot(vitals.trace, conversationIdHere()) : null
   const trace =
-    vitals.trace && vitals.trace.state === 'live'
+    ownTrace && ownTrace.state === 'live'
       ? {
           state: 'live' as SnapshotState,
-          total: vitals.trace.data.total,
-          highRisk: vitals.trace.data.highRisk,
-          killed: vitals.trace.data.killed,
+          total: ownTrace.data.total,
+          highRisk: ownTrace.data.highRisk,
+          killed: ownTrace.data.killed,
         }
-      : { state: (vitals.trace?.state ?? 'off') as SnapshotState, total: 0, highRisk: 0, killed: 0 }
+      : { state: (ownTrace?.state ?? 'off') as SnapshotState, total: 0, highRisk: 0, killed: 0 }
   const daemon = daemonSnapshot()
   const daemonUpSec = daemon.state === 'live' ? Number(daemon.reason?.match(/up (\d+)s/)?.[1]) : NaN
   const killCount = Object.values(listCapabilityKills()).reduce((n, arr) => n + arr.length, 0)
@@ -176,7 +173,6 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
       )}
       {
 }
-      {trace.state === 'live' ? <Text color={tok.textMuted}>{' · repo'}</Text> : null}
       {trace.killed > 0 ? <Text color={tok.failure}>{` ${GLYPH.fail}${trace.killed}`}</Text> : null}
       {}
       {killCount > 0 ? <Text color={tok.failure}>{` · ${GLYPH.fail}kill ${killCount}`}</Text> : null}

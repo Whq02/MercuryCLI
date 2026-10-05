@@ -11,6 +11,7 @@ prove-composer-draft-survives-dispatch.ts
 prove-composer-persist-roads.ts
 prove-lanes-rows-painted.ts
 prove-trace-rail-session-own.ts
+prove-trace-readers-session-own.ts
 prove-frame-thinking-pulse.ts
 prove-scratch-home-release.ts
 prove-concourse-caret-vertical.ts
@@ -85,3 +86,4 @@ prove-crew-ledger.ts
 prove-silent-command-surface.ts
 prove-crewmate-transcript.ts
 prove-crews-dialog-gone.ts
+prove-diff-chip-session-own.ts

@@ -1,5 +1,8 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { getUsageRecordVersion, subscribeUsageRecord } from '../../services/anthropicLimits.js'
+import { useSettingsPopupFrameIfAny } from './Settings.js'
+import { usagePopupLine } from './usageLine.js'
 import { Box, Text, measureElement, useInput, wrapText, type DOMElement } from '../../ink.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import {
@@ -1216,6 +1219,11 @@ function UsageCompact({ openToken, width, rowBudget }: { openToken?: number; wid
 }
 
 export function Usage({ openToken, width = 146, rowBudget = 22, compact = false }: { openToken?: number; width?: number; rowBudget?: number; compact?: boolean }): React.ReactNode {
+  const frame = useSettingsPopupFrameIfAny()
+  const usageVersion = useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
+  useEffect(() => {
+    frame?.setLine(usagePopupLine())
+  }, [frame, usageVersion])
   return compact ? <UsageCompact {...(openToken !== undefined ? { openToken } : {})} width={width} rowBudget={rowBudget} /> : <UsageFull {...(openToken !== undefined ? { openToken } : {})} width={width} rowBudget={rowBudget} />
 }
 

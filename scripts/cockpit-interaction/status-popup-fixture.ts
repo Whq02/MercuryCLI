@@ -23,7 +23,21 @@ export const fixtureReads = {
   model: () => ({ state: 'live', data: { name: 'Fable 5.1', window: 1_000_000 } }),
   context: () => ({ state: 'live', data: { usedPct: 12, window: 1_000_000, fillSource: 'wire', windowSource: 'catalogue' } }),
   connector: () => connector,
-  telemetry: () => ({ sessions: { state: 'known', rows: [{ sessionId: 'fixture', live: true, paused: false, parked: false, stopped: false }] }, trace: { state: 'live', data: { total: 17274 } }, workflowsDisk: [] }),
+  telemetry: () => ({
+    sessions: { state: 'known', rows: [{ sessionId: 'fixture', live: true, paused: false, parked: false, stopped: false }] },
+    trace: {
+      state: 'live',
+      data: {
+        total: 17274,
+        records: [
+          ...['Read', 'Edit', 'Bash'].map(tool => ({ ts: '2026-10-04T18:10:00.000Z', tool, risk: tool === 'Bash' ? 'high' : 'low', ok: true, sessionId: 'fixture' })),
+          ...Array.from({ length: 17271 }, (_, i) => ({ ts: '2026-10-04T18:00:00.000Z', tool: 'Bash', risk: 'high', ok: true, sessionId: `other-${i % 7}` })),
+        ],
+      },
+    },
+    workflowsDisk: [],
+  }),
+  conversationId: () => 'fixture',
   seats: () => ({ seats: 17 }),
   settings: () => ({ shell: { engine: 'system' } }),
   shell: () => ({ engine: 'system' }),

@@ -139,6 +139,13 @@ export type ModelSpendRowV1 = {
   unpricedTurns: number
 }
 
+export type EditOutcomeRowV1 = {
+  model: string
+  surface: string
+  outcome: string
+  count: number
+}
+
 export type JevFactsV1 = {
   road?: 'official' | 'openrouter'
   lastCostUsd?: number | null

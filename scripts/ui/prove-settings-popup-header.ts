@@ -188,7 +188,7 @@ for (const [columns, rows] of [[120, 40], [100, 30]] as const) {
     else if (!frames && !arg('--source-ref') && process.platform === 'darwin') check(`${label}: the stored frame matches the source render`, readFileSync(join(stills, name), 'utf8') === frame)
     if (surface.view === 'status') {
       for (let step = 0; step < 80; step++) scene.push('\x1b[B')
-      check(`${label}: the last status fact remains reachable with its header and close hint`, await waitFor(() => scene.screen().includes('workflow idle · trace 17274 · repo') && scene.screen().includes(header) && scene.screen().includes('esc or click outside'), 4000))
+      check(`${label}: the last status fact remains reachable with its header and close hint`, await waitFor(() => scene.screen().includes('workflow idle · trace 3') && scene.screen().includes(header) && scene.screen().includes('esc or click outside'), 4000))
     }
     store.closeSettingsPopup()
     check(`${label}: closing restores the header and transcript`, await waitFor(() => !scene.screen().includes(title) && scene.lines()[headerRow] === before[headerRow], 4000))

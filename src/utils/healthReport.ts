@@ -592,9 +592,15 @@ function editOutcomeHealthChecks(): CheckSpec[] {
       id: 'edit-outcomes',
       label: 'Edit outcomes',
       run: async () => {
-        const { editOutcomeHealthRows } = await import('../services/changeTransaction/editOutcomeLedger.js')
+        const { editOutcomeHealthRows, editOutcomeHealthRowsOf } = await import('../services/changeTransaction/editOutcomeLedger.js')
         const { processMainOwner } = await import('../services/run/resolveOwner.js')
-        const rows = editOutcomeHealthRows(processMainOwner())
+        const { getFocusedSessionConnector, hasFocusedSession } = await import('../services/engine-connector/focusedConnector.js')
+        const { hasSeatLive } = await import('../services/engine-connector/seatLive.js')
+        const focused = hasFocusedSession() ? getFocusedSessionConnector() : null
+        const seat = focused !== null && hasSeatLive(focused) ? focused : null
+        const sessionRows = seat?.editOutcomes?.()
+        if (seat !== null && sessionRows === null) return { status: 'off', evidence: "the session's runner reports no edit ledger (an older runner)" }
+        const rows = sessionRows !== undefined && sessionRows !== null ? editOutcomeHealthRowsOf(sessionRows) : editOutcomeHealthRows(processMainOwner())
         if (rows.length === 0) return { status: 'ok', evidence: 'no edit attempts this session' }
         return {
           status: 'info',
@@ -2285,6 +2291,21 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
       id: 'settings',
       title: 'SETTINGS & FLAGS',
       checks: [
+        {
+          id: 'managed-policy',
+          label: 'Managed policy',
+          run: async () => {
+            const { detectLinuxGlobPatternWarnings, detectManagedSettingsWarnings, managedPolicyPath, managedPolicyPresent } = await import('./healthDiagnostic.js')
+            const warnings = [...detectManagedSettingsWarnings(), ...detectLinuxGlobPatternWarnings()]
+            if (warnings.length > 0) {
+              return { status: 'warn', evidence: warnings.map(w => w.issue).join(' · '), fix: warnings.map(w => w.fix).join('\n') }
+            }
+            const policy = managedPolicyPath()
+            return managedPolicyPresent()
+              ? { status: 'ok', evidence: `managed policy at ${policy} read clean` }
+              : { status: 'info', evidence: `no managed policy (nothing at ${policy})` }
+          },
+        },
         {
           id: 'settings',
           label: 'Settings',

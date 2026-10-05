@@ -12,6 +12,7 @@
 # gate-watch: src/utils/healthReport.ts src/cli/update.ts src/services/privateChannel/installLayout.ts src/services/privateChannel/vendoredRuntime.ts package.json
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: scripts/lib/seatDoor.ts
+# gate-watch: src/services/engine-connector/daemonConnector.ts src/services/engine-connector/seatLive.ts src/components/Spinner/liveCounterWords.ts src/components/Spinner/spinnerHud.ts src/components/Spinner/SpinnerAnimationRow.tsx
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -93,6 +94,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-loop-cadence.ts" || { __rc=$?; fai
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-live-turn-chars.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-live-turn-chars.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-liveness-stamp.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-liveness-stamp.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-seat-live-counter.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-seat-live-counter.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-think-pulse-reading.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-think-pulse-reading.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-seat-line-adversarial.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-seat-line-adversarial.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-worker-liveness-identity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-worker-liveness-identity.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-quit-reaps-the-tree.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-quit-reaps-the-tree.ts" "$__t" "$__rc"
