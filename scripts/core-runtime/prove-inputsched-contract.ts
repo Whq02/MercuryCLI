@@ -910,6 +910,7 @@ function stripEsc(w: string): string {
   return w.replace(/\u001b(?:\[[0-9;?<>=$ ]*[a-zA-Z@`]|\][^\u0007\u001b]*(?:\u0007|\u001b\\)|[()][0-9A-B])/g, '')
 }
 function isFrameWrite(w: string): boolean {
+  if (w.includes(`${ESC}[6n`) || w.includes(`${ESC}[>0q`)) return false
   return stripEsc(w).trim().length > 0 || /\u001b\[\d+;\d+H/.test(w) || w === `${ESC}[H` || w.includes(`${ESC}[?2026h`)
 }
 {
