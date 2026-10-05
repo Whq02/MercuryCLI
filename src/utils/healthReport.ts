@@ -569,6 +569,16 @@ function routedAuthFamily(): string {
   }
 }
 
+function unresolvedDefaultRow(): string | null {
+  try {
+    if (getUserSpecifiedModelSetting() !== null) return null
+    const decision = computedDefault()
+    return decision.source === 'keyless' && decision.considered.length > 0 ? decision.row : null
+  } catch {
+    return null
+  }
+}
+
 function editOutcomeHealthChecks(): CheckSpec[] {
   try {
     const { editOutcomeLedgerEnabled } =
@@ -2368,7 +2378,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               }
             }
             if (!pin) {
-              return { status: 'ok', evidence: `session model ${session} · no settings pin` }
+              return { status: 'ok', evidence: `session model ${unresolvedDefaultRow() ?? session} · no settings pin` }
             }
             let pinResolved = pin
             try {
