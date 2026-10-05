@@ -41,6 +41,10 @@ export function useSettingsPopupFrame(): SettingsPopupFrame {
   return frame
 }
 
+export function useOptionalSettingsPopupFrame(): SettingsPopupFrame | null {
+  return useContext(SettingsPopupFrameContext)
+}
+
 const RECEIPT_TIMEOUT_MS = 8000
 
 type PaintsRows = { addDisplayRow?: (row: Message) => void }
