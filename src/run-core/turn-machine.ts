@@ -187,14 +187,28 @@ import { refreshGovernorCeilings } from '../services/capacity/composeCeilings.js
 import { count } from '../utils/array.js'
 
 const MAX_OUTPUT_TOKENS_RECOVERY_LIMIT = 3
+const OUTPUT_LIMIT_RECOVERY_TEXT = [
+  'Output token limit hit. Resume directly — no apology, no recap of what you were doing. ',
+  'Pick up mid-thought if that is where the cut happened. Break remaining work into smaller pieces.',
+].join('')
+
+function refreshTurnTools(context: ToolUseContext): ToolUseContext {
+  const { options } = context
+  if (!options.refreshTools) return context
+  const tools = options.refreshTools()
+  if (tools === options.tools) return context
+  return { ...context, options: { ...options, tools } }
+}
 
 type EventMint = ReturnType<typeof createEventMint>
+
+type ContextFacts = Record<string, string>
 
 export type QueryParams = {
   messages: Message[]
   systemPrompt: SystemPrompt
-  userContext: { [k: string]: string }
-  systemContext: { [k: string]: string }
+  userContext: ContextFacts
+  systemContext: ContextFacts
   canUseTool: CanUseToolFn
   toolUseContext: ToolUseContext
   fallbackModel?: string
@@ -1457,9 +1471,7 @@ export async function* runEventCore(
 
         if (decision.kind === 'nudge') {
           const recoveryMessage = createUserMessage({
-            content:
-              `Output token limit hit. Resume directly — no apology, no recap of what you were doing. ` +
-              `Pick up mid-thought if that is where the cut happened. Break remaining work into smaller pieces.`,
+            content: OUTPUT_LIMIT_RECOVERY_TEXT,
             isMeta: true,
           })
 
@@ -1862,48 +1874,26 @@ export async function* runEventCore(
       !toolUseContext.abortController.signal.aborted &&
       !toolUseContext.agentId
     ) {
-      const lastAssistantMessage = assistantMessages.at(-1)
-      let lastAssistantText: string | undefined
-      if (lastAssistantMessage) {
-        const textBlocks = lastAssistantMessage.message.content.filter(
-          block => block.type === 'text',
-        )
-        if (textBlocks.length > 0) {
-          const lastTextBlock = textBlocks.at(-1)
-          if (lastTextBlock && 'text' in lastTextBlock) {
-            lastAssistantText = lastTextBlock.text
-          }
+      const lastTextBlock = assistantMessages.at(-1)?.message.content.findLast(
+        block => block.type === 'text',
+      )
+      const lastAssistantText = lastTextBlock && 'text' in lastTextBlock
+        ? lastTextBlock.text
+        : undefined
+
+      const firstResultByCall = new Map<string, ToolResultBlockParam>()
+      for (const result of toolResults) {
+        if (result.type !== 'user' || !Array.isArray(result.message.content)) continue
+        for (const content of result.message.content) {
+          if (content.type !== 'tool_result' || firstResultByCall.has(content.tool_use_id)) continue
+          firstResultByCall.set(content.tool_use_id, content)
         }
       }
-
       const toolUseIds = toolUseBlocks.map(block => block.id)
-      const toolInfoForSummary = toolUseBlocks.map(block => {
-        const toolResult = toolResults.find(
-          result =>
-            result.type === 'user' &&
-            Array.isArray(result.message.content) &&
-            result.message.content.some(
-              content =>
-                content.type === 'tool_result' &&
-                content.tool_use_id === block.id,
-            ),
-        )
-        const resultContent =
-          toolResult?.type === 'user' &&
-          Array.isArray(toolResult.message.content)
-            ? toolResult.message.content.find(
-                (c): c is ToolResultBlockParam =>
-                  c.type === 'tool_result' && c.tool_use_id === block.id,
-              )
-            : undefined
-        return {
-          name: block.name,
-          input: block.input,
-          output:
-            resultContent && 'content' in resultContent
-              ? resultContent.content
-              : null,
-        }
+      const toolInfoForSummary = toolUseBlocks.map(({ id, name, input }) => {
+        const settlement = firstResultByCall.get(id)
+        const output = settlement && 'content' in settlement ? settlement.content : null
+        return { name, input, output }
       })
 
       nextPendingToolUseSummary = generateToolUseSummary({
@@ -1912,12 +1902,7 @@ export async function* runEventCore(
         isNonInteractiveSession: toolUseContext.options.isNonInteractiveSession,
         lastAssistantText,
       })
-        .then(summary => {
-          if (summary) {
-            return createToolUseSummaryMessage(summary, toolUseIds)
-          }
-          return null
-        })
+        .then(summary => summary ? createToolUseSummaryMessage(summary, toolUseIds) : null)
         .catch(() => null)
     }
 
@@ -2045,23 +2030,8 @@ export async function* runEventCore(
     }
 
 
-    if (updatedToolUseContext.options.refreshTools) {
-      const refreshedTools = updatedToolUseContext.options.refreshTools()
-      if (refreshedTools !== updatedToolUseContext.options.tools) {
-        updatedToolUseContext = {
-          ...updatedToolUseContext,
-          options: {
-            ...updatedToolUseContext.options,
-            tools: refreshedTools,
-          },
-        }
-      }
-    }
-
-    const toolUseContextWithQueryTracking = {
-      ...updatedToolUseContext,
-      queryTracking,
-    }
+    updatedToolUseContext = refreshTurnTools(updatedToolUseContext)
+    const toolUseContextWithQueryTracking = { ...updatedToolUseContext, queryTracking }
 
     const nextTurnCount = turnCount + 1
 
