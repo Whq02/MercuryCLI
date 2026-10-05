@@ -80,7 +80,7 @@ function parseSessionInfoFromLite(sessionId: string, lite: LiteSessionFile, proj
   const tailLines = lite.tail.split('\n')
   for (let index = tailLines.length - 1; index >= 0; index--) {
     const line = tailLines[index] as string
-    if (line.startsWith('{"type":"tag"')) {
+    if (line.startsWith('{"type":"tag"') || (line.includes('"kind":"session-meta"') && line.includes('"metaKind":"tag"'))) {
       tag = extractJsonStringField(line, 'tag')
       break
     }
