@@ -46,7 +46,7 @@ for (const line of out.lines) {
 }
 check('zero ▀ cells without an explicit fg', nakedUpper === 0, `naked=${nakedUpper}`)
 check('top-silhouette cells use ▄ (lower half-block)', out.lines.some(l => l.includes('▄')))
-check('▄ cells carry fg + terminal-bg reset (49)', out.lines.every(l => !l.includes('▄') || /\[49m\x1b\[38;2;[0-9;]+m▄/.test(l)))
+check('▄ cells carry a fg and a background: the terminal-bg reset (49) over a transparent top, the top pixel (48;2) over a painted one', out.lines.every(l => !l.includes('▄') || /(\[49m|\[48;2;[0-9;]+m)\x1b\[38;2;[0-9;]+m▄/.test(l)))
 
 section('B. flood matte — outside drops, fringe drops, interior white renders')
 const joined = out.lines.join('\n')

@@ -118,9 +118,11 @@ export async function spriteToAnsi(
         row += `${ESC}[49m${fgSgr(br, bg2, bb)}▄`
         continue
       }
-      const fg = fgSgr(tr, tg, tb)
-      const bg = botBg ? `${ESC}[49m` : bgSgr(br, bg2, bb)
-      row += `${fg}${bg}▀`
+      if (botBg) {
+        row += `${fgSgr(tr, tg, tb)}${ESC}[49m▀`
+        continue
+      }
+      row += `${bgSgr(tr, tg, tb)}${fgSgr(br, bg2, bb)}▄`
     }
     lines.push(row + `${ESC}[0m`)
   }
