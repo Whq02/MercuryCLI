@@ -1273,6 +1273,10 @@ export default class Ink {
     this.ledger.contaminate('takeover')
   }
 
+  isAltEntryPending(): boolean {
+    return this.pendingAltEntry !== null
+  }
+
   forceRedraw(): void {
     if (!this.isTTY || this.isUnmounted || this.isPaused) return
     termWrite(this.options.stdout, ERASE_SCREEN + CURSOR_HOME, 'mode')
