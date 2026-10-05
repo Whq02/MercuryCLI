@@ -761,27 +761,27 @@ export function clearRegion(
 export function shiftRows(screen: Screen, top: number, bottom: number, n: number): void {
   if (n === 0 || top < 0 || bottom >= screen.height || top > bottom) return
   const w = screen.width
-  const { cells64, noSelect: noSel, softWrap: sw } = screen
+  const { cells64, noSelect, softWrap } = screen
+  const blank = (fromRow: number, toRow: number): void => {
+    cells64.fill(EMPTY_CELL_VALUE, fromRow * w, toRow * w)
+    noSelect.fill(0, fromRow * w, toRow * w)
+    softWrap.fill(0, fromRow, toRow)
+  }
+  const move = (toRow: number, fromRow: number, endRow: number): void => {
+    cells64.copyWithin(toRow * w, fromRow * w, endRow * w)
+    noSelect.copyWithin(toRow * w, fromRow * w, endRow * w)
+    softWrap.copyWithin(toRow, fromRow, endRow)
+  }
   if (Math.abs(n) > bottom - top) {
-    cells64.fill(EMPTY_CELL_VALUE, top * w, (bottom + 1) * w)
-    noSel.fill(0, top * w, (bottom + 1) * w)
-    sw.fill(0, top, bottom + 1)
+    blank(top, bottom + 1)
     return
   }
   if (n > 0) {
-    cells64.copyWithin(top * w, (top + n) * w, (bottom + 1) * w)
-    noSel.copyWithin(top * w, (top + n) * w, (bottom + 1) * w)
-    sw.copyWithin(top, top + n, bottom + 1)
-    cells64.fill(EMPTY_CELL_VALUE, (bottom - n + 1) * w, (bottom + 1) * w)
-    noSel.fill(0, (bottom - n + 1) * w, (bottom + 1) * w)
-    sw.fill(0, bottom - n + 1, bottom + 1)
+    move(top, top + n, bottom + 1)
+    blank(bottom - n + 1, bottom + 1)
   } else {
-    cells64.copyWithin((top - n) * w, top * w, (bottom + n + 1) * w)
-    noSel.copyWithin((top - n) * w, top * w, (bottom + n + 1) * w)
-    sw.copyWithin(top - n, top, bottom + n + 1)
-    cells64.fill(EMPTY_CELL_VALUE, top * w, (top - n) * w)
-    noSel.fill(0, top * w, (top - n) * w)
-    sw.fill(0, top, top - n)
+    move(top - n, top, bottom + n + 1)
+    blank(top, top - n)
   }
 }
 
