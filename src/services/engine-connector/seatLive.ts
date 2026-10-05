@@ -33,8 +33,10 @@ export type LostLineV1 = { text: string; atMs: number }
 export interface LiveTurnFactsV1 {
   replyChars: number
   thinkingChars: number
+  thinkingBlocks?: number
   wireOutputTokens: number | null
   firstByteAtMs: number | null
+  lastByteAtMs?: number | null
   wait: RequestWaitV1 | null
 }
 
