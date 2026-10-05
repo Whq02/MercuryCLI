@@ -160,7 +160,6 @@ async function mount(name: string, work: WorkRoster): Promise<Mount> {
   const pauseStart = { current: null as number | null }
   const responseLength = { current: 0 }
   const outputTokens = { current: null as number | null }
-  const apiMetrics = { current: [] as Array<{ ttftMs: number; firstTokenTime: number; lastTokenTime: number; responseLengthBaseline: number; endResponseLength: number }> }
   function Transcript(): ReactNode {
     return h(Text, null, Array.from({ length: 6 }, (_, i) => `specimen transcript row ${i + 1}`).join('\n'))
   }
@@ -179,7 +178,7 @@ async function mount(name: string, work: WorkRoster): Promise<Mount> {
           mode: 'thinking', loadingStartTimeRef: startedAt, totalPausedMsRef: paused, pauseStartTimeRef: pauseStart,
           spinnerTip: null, responseLengthRef: responseLength, outputTokensRef: outputTokens, overrideColor: null, overrideShimmerColor: null,
           overrideMessage: null, still: false, spinnerSuffix: null, verbose: false, hasActiveTools: false, activeToolCount: 0,
-          activeToolLabel: null, leaderIsIdle: false, apiMetricsRef: apiMetrics,
+          activeToolLabel: null, leaderIsIdle: false,
         }),
         statusBandActive: true,
         bottom: h(PromptInput, {

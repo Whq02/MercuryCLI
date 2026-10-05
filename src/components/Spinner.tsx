@@ -3,7 +3,6 @@ import React, {
   useCallback,
   useContext,
   useEffect,
-  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -69,15 +68,7 @@ export type SpinnerWithVerbProps = {
   activeToolCount: number
   activeToolLabel?: string | null
   leaderIsIdle?: boolean
-  apiMetricsRef: React.RefObject<
-    Array<{
-      ttftMs: number
-      firstTokenTime: number
-      lastTokenTime: number
-      responseLengthBaseline: number
-      endResponseLength: number
-    }>
-  >
+  apiMetricsRef?: React.RefObject<unknown>
 }
 
 export function nextPendingTask<T extends { id: string; status: string; blockedBy?: readonly string[] }>(tasks: readonly T[]): T | undefined {
@@ -113,7 +104,6 @@ export function SpinnerWithVerb({
   activeToolCount,
   activeToolLabel,
   leaderIsIdle,
-  apiMetricsRef,
 }: SpinnerWithVerbProps): React.ReactNode {
   const { columns } = useTerminalSize()
   const inCockpit = useContext(CockpitActiveContext)
@@ -191,11 +181,6 @@ export function SpinnerWithVerb({
     overrideColor ?? (requesting ? 'info' : 'brand')
   const shimmerColor: ThemeKey =
     overrideShimmerColor ?? (requesting ? 'infoShimmer' : 'brandShimmer')
-
-  const ttftText = useMemo(() => {
-    const sample = apiMetricsRef.current?.[0]
-    return sample ? `ttft ${(sample.ttftMs / 1000).toFixed(1)}s` : null
-  }, [apiMetricsRef])
 
   useEffect(() => {
     const id = `spinner:${effectiveMode}`
@@ -288,7 +273,6 @@ export function SpinnerWithVerb({
     <SpinnerAnimationRow
       mode={effectiveMode}
       reducedMotion={reducedMotion}
-      hasActiveTools={hasActiveTools}
       activeToolCount={activeToolCount}
       responseLengthRef={responseLengthRef}
       outputTokensRef={outputTokensRef}
@@ -306,9 +290,7 @@ export function SpinnerWithVerb({
       hasRunningCrewmates={hasRunningCrewmates}
       crewmateTokens={crewmateTokens}
       foregroundedCrewmate={foregroundedCrewmate}
-      leaderIsIdle={leaderIsIdle}
       effortSuffix={getEffortSuffix(engineModel, appEffort)}
-      ttftText={ttftText}
       inWorkCapsule={inWorkCapsule}
       still={still}
     />

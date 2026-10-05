@@ -160,7 +160,7 @@ const compactRow = (turn: (typeof rowFacts)[keyof typeof rowFacts], startedMs: n
       compact: true, compactWarning: false, mode: 'thinking', loadingStartTimeRef: ref(startedMs), totalPausedMsRef: ref(0), pauseStartTimeRef: ref<number | null>(null),
       spinnerTip: null, responseLengthRef: ref(turn.thinkingChars + turn.replyChars), outputTokensRef: ref<number | null>(turn.wireOutputTokens), liveTurnFactsRef: ref(turn),
       overrideColor: null, overrideShimmerColor: null, overrideMessage: 'Thinking', still: false, spinnerSuffix: null, verbose: false,
-      hasActiveTools: false, activeToolCount: 0, activeToolLabel: null, leaderIsIdle: false, apiMetricsRef: ref([]),
+      hasActiveTools: false, activeToolCount: 0, activeToolLabel: null, leaderIsIdle: false,
     } as never))
 const fullRow = (turn: (typeof rowFacts)[keyof typeof rowFacts], startedMs: number, columns: number): ReactNode =>
   h(SpinnerAnimationRow, {

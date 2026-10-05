@@ -139,7 +139,7 @@ const RENDERERS: Record<string, string> = {
   live: 'src/components/LiveStreamingTail.tsx',
   spinner: 'src/components/Spinner/SpinnerAnimationRow.tsx',
 };
-const sources = Object.fromEntries(Object.entries(RENDERERS).map(([k, p]) => [k, readFileSync(p, 'utf8')]));
+const sources = Object.fromEntries(Object.entries(RENDERERS).map(([k, p]) => [k, readFileSync(p, 'utf8') + (k === 'spinner' ? `\n${readFileSync('src/components/Spinner/spinnerHud.ts', 'utf8')}` : '')]));
 for (const [name, src] of Object.entries(sources)) {
   check(`${name}: imports the thinking grammar owner`, src.includes("/thinkingGrammar.js'"));
   check(`${name}: spells no glyph of its own`, !src.includes('\u2733') && !src.includes('TEARDROP_ASTERISK') && !code(src).includes('\u273B'));

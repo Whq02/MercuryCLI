@@ -194,7 +194,7 @@ function berthOf(g: Grid): Berth {
   const cardBottom = inner.findIndex(row => row.indexOf('╰', left + 1) >= 0)
   const cardLeft = inner.map(row => row.indexOf('╭', left + 1)).find(c => c >= 0) ?? -1
   const art: Array<[number, number]> = []
-  for (let r = top + 1; r < bottom; r++) for (let c = left + 1; c < right; c++) if (g[r]![c]!.c === '▀') art.push([c, r])
+  for (let r = top + 1; r < bottom; r++) for (let c = left + 1; c < right; c++) if (g[r]![c]!.c === '▀' || g[r]![c]!.c === '▄') art.push([c, r])
   return {
     left, right, top, bottom,
     cardTop: cardTop < 0 ? -1 : top + 1 + cardTop,
@@ -294,7 +294,7 @@ try {
   const bootLeft = slotLeft(boot)
   for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(boot[3 + r]![bootLeft + col]!, band.grid[r]![2 + col]!)) spriteDiff++
   check('the three inner rows carry the band sprite at the slot\'s left (27 cells)', spriteDiff === 0, `${spriteDiff} cells differ, expected column ${bootLeft}`)
-  check('the sprite cells at the slot\'s left are half-block glyphs', boot.slice(3, 6).every(row => row.slice(bootLeft, bootLeft + 9).every(cell => cell.c === '▀')))
+  check('the sprite cells at the slot\'s left are half-block glyphs', boot.slice(3, 6).every(row => row.slice(bootLeft, bootLeft + 9).every(cell => cell.c === '▀' || cell.c === '▄')))
   const ground = boot[7]![33]!.bg
   let tintOff = 0
   for (let r = 3; r <= 5; r++) for (let col = 32; col <= 145; col++) { if (col >= bootLeft && col < bootLeft + 9) continue; const cell = boot[r]![col]!; if (cell.c !== ' ' || cell.bg !== ground) tintOff++ }
@@ -322,7 +322,7 @@ try {
   check('with the bar on the box stays five rows (border at 2, border at 6)', boxRows(bar, 31).top === 2 && boxRows(bar, 31).bottom === 6, `top ${boxRows(bar, 31).top} bottom ${boxRows(bar, 31).bottom}`)
   check('with the bar on the strip sits at row 42 and the pane’s bottom border at row 40', rowWith(bar, '⊞ SESSIONS') === 42 && paneOn === 40, `strip ${rowWith(bar, '⊞ SESSIONS')} pane ${paneOn}`)
   check('the bar carries the critter’s glyph, the model and the effort on its second row', /▗.*▖ │ Opus 5\.5 · ● high/.test(text(bar)[43] ?? ''), JSON.stringify(text(bar)[43]))
-  check('the sprite stays the band sprite with the bar on (27 cells at the slot’s left)', bar.slice(3, 6).every(row => row.slice(slotLeft(bar), slotLeft(bar) + 9).every(cell => cell.c === '▀')))
+  check('the sprite stays the band sprite with the bar on (27 cells at the slot’s left)', bar.slice(3, 6).every(row => row.slice(slotLeft(bar), slotLeft(bar) + 9).every(cell => cell.c === '▀' || cell.c === '▄')))
   sameLook('/view off after /view on repaints the default look outside the chat’s own rows (the command receipts and the prompt list are the chat’s)', barOff, boot)
   check('bare /view answers the state in one line under the composer', text(state).some(line => line.includes('SESSIONS bar off — /view on shows it')))
   check('bare /view changes nothing: the bar stays off', rowWith(state, '⊞ SESSIONS') === -1)
@@ -366,7 +366,7 @@ try {
   check('80×30 after /view on: the choice is saved for the wide layout', tallSaved === true, `sessionsBar ${String(tallSaved)}`)
 
   console.log('§9 the 80×21 band is untouched')
-  check('the 80×21 band paints the dock sprite at rows 0–2, columns 2–10', band.grid.slice(0, 3).every(row => row.slice(2, 11).every(cell => cell.c === '▀')))
+  check('the 80×21 band paints the dock sprite at rows 0–2, columns 2–10', band.grid.slice(0, 3).every(row => row.slice(2, 11).every(cell => cell.c === '▀' || cell.c === '▄')))
   check('the band’s status row reads 1 session on', rowWith(band.grid, '1 session on') === 20, `row ${rowWith(band.grid, '1 session on')}`)
 
   console.log('§10 the title reads ✶ VIEW, and a click on it shows and hides the bar and saves the choice')
@@ -388,7 +388,7 @@ try {
     const left = border.indexOf('╭')
     const bounds = boxRows(idle, left)
     const at = slotLeft(idle)
-    check(`${cols}×${rows}: the idle sprite sits at the slot's left and fills the three inner rows`, bounds.bottom - bounds.top === 4 && idle.slice(bounds.top + 1, bounds.bottom).every(row => row.slice(at, at + 9).every(cell => cell.c === '▀')), `expected ${at},${bounds.top + 1}`)
+    check(`${cols}×${rows}: the idle sprite sits at the slot's left and fills the three inner rows`, bounds.bottom - bounds.top === 4 && idle.slice(bounds.top + 1, bounds.bottom).every(row => row.slice(at, at + 9).every(cell => cell.c === '▀' || cell.c === '▄')), `expected ${at},${bounds.top + 1}`)
     const busy = await capture(`busy-${cols}x${rows}`, homeFor(`busy-${cols}`), cols, rows, [onReady('hello fixture\r', 'idle')], 'first byte', [], true)
     const b = berthOf(busy.grid)
     check(`${cols}×${rows}: work paints beside the sprite`, b.cardLeft > left && b.cells === 27, `card ${b.cardLeft}, art cells ${b.cells}`)
@@ -431,25 +431,25 @@ try {
   }
   const companion = await capture('companion-178x51', homeFor('companion-178'), 178, 51, [onReady('/companion tip\r', 'landing'), { requireAwait: true, awaitText: 'Unknown command', awaitSettleTicks: 6, data: '', mark: 'answer' }], 'Unknown command')
   check('/companion is no command: the chat answers Unknown command and no tip line paints', rowWith(companion.grid, 'Unknown command: /companion') >= 0 && rowWith(companion.grid, 'tip —') === -1, `row ${rowWith(companion.grid, 'Unknown command: /companion')}`)
-  check('/companion leaves the box five rows with the sprite alone', boxRows(companion.grid, 31).top === 2 && boxRows(companion.grid, 31).bottom === 6 && companion.grid.slice(3, 6).every(row => row.slice(slotLeft(companion.grid), slotLeft(companion.grid) + 9).every(cell => cell.c === '▀')))
+  check('/companion leaves the box five rows with the sprite alone', boxRows(companion.grid, 31).top === 2 && boxRows(companion.grid, 31).bottom === 6 && companion.grid.slice(3, 6).every(row => row.slice(slotLeft(companion.grid), slotLeft(companion.grid) + 9).every(cell => cell.c === '▀' || cell.c === '▄')))
   }
   console.log('§13 the small critter outside the cockpit keeps its neighbours in place')
   for (const cols of [178, 120]) {
     const inline = await capture(`inline-${cols}x29`, homeFor(`inline-${cols}`), cols, 29, [], 'ready ·', [], false, { MERCURY_FULLSCREEN: '0' })
     const lines = text(inline.grid)
-    const r = lines.findIndex(row => row.includes('▀'.repeat(9)))
-    const x = r < 0 ? -1 : lines[r]!.indexOf('▀'.repeat(9))
-    check(`${cols}×29: the inline sprite paints its complete three rows`, r >= 0 && lines.slice(r, r + 3).every(row => row.slice(x, x + 9) === '▀'.repeat(9)))
-    const flourish = lines.find(row => row.includes('──') && row.includes('▀'.repeat(9))) ?? ''
+    const r = lines.findIndex(row => /[▀▄]{9}/.test(row))
+    const x = r < 0 ? -1 : lines[r]!.search(/[▀▄]{9}/)
+    check(`${cols}×29: the inline sprite paints its complete three rows`, r >= 0 && lines.slice(r, r + 3).every(row => /^[▀▄]{9}$/.test(row.slice(x, x + 9))))
+    const flourish = lines.find(row => row.includes('──') && /[▀▄]{9}/.test(row)) ?? ''
     const left = flourish.indexOf('──')
     const right = flourish.lastIndexOf('──')
     check(`${cols}×29: the inline sprite is centred between its flourishes`, left >= 0 && right > left && x === Math.round((left + right + 1 - 8) / 2), `sprite ${x}, flourishes ${left}..${right}`)
   }
   const deck = await capture('deck-99x29', homeFor('deck'), 120, 40, [{ requireAwait: true, awaitText: '⇧← back', awaitSettleTicks: 8, data: '', mark: 'wide-deck' }], 'ready ·', [{ afterMark: 'wide-deck', afterMs: 400, cols: 99, rows: 29 }], false, { MERCURY_HELM_HOME: '0', MERCURY_DECK_PANE: '1' })
   const deckLines = text(deck.grid)
-  const deckRow = deckLines.findIndex(row => row.includes('▀'.repeat(9)))
-  const deckX = deckRow < 0 ? -1 : deckLines[deckRow]!.indexOf('▀'.repeat(9))
-  check('99×29: the deck dock paints its complete three-row sprite', deckRow >= 0 && deckLines.slice(deckRow, deckRow + 3).every(row => row.slice(deckX, deckX + 9) === '▀'.repeat(9)))
+  const deckRow = deckLines.findIndex(row => /[▀▄]{9}/.test(row))
+  const deckX = deckRow < 0 ? -1 : deckLines[deckRow]!.search(/[▀▄]{9}/)
+  check('99×29: the deck dock paints its complete three-row sprite', deckRow >= 0 && deckLines.slice(deckRow, deckRow + 3).every(row => /^[▀▄]{9}$/.test(row.slice(deckX, deckX + 9))))
   check('99×29: the deck sprite is centred in its existing thirteen-column slot', deckX === 4, `sprite column ${deckX}`)
 } catch (error) {
   failures++

@@ -34,7 +34,7 @@ console.log('§1 B1 — the width-resize scale preserves recorded zeros')
 console.log('§2 B2 — the spinner stack decision is a hysteresis band')
 {
   const { spinnerStackDecision, STACK_EXIT_SLACK } = await import(
-    '../../src/components/Spinner/SpinnerAnimationRow.tsx'
+    '../../src/components/Spinner/spinnerHud.ts'
   )
   const d = (cost: number, wasStacked: boolean, space = 40): boolean =>
     spinnerStackDecision({ eligible: true, cost, space, wasStacked })
@@ -47,7 +47,7 @@ console.log('§2 B2 — the spinner stack decision is a hysteresis band')
   const row = read('src/components/Spinner/SpinnerAnimationRow.tsx')
   check(
     'the component rides the pure fold through a per-instance latch',
-    row.includes('const stacked = spinnerStackDecision({') && row.includes('stackedLatchRef.current = stacked') && row.includes('const stackedLatchRef = useRef(false)'),
+    read('src/components/Spinner/spinnerHud.ts').includes('const stacked = spinnerStackDecision({') && row.includes('stackedLatchRef.current = plan.stacked') && row.includes('const stackedLatchRef = useRef(false)'),
   )
   check('the raw flapping comparison is gone', !row.includes('(segBFullCost > 0 || suffixText !== \'\') && segBFullCost > oneLineSpace\n'))
 }
