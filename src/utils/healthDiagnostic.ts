@@ -1,49 +1,14 @@
 import { join } from 'node:path'
 
-import { MERCURY_VERSION } from '../constants/product.js'
-import {
-  resolveInstallProvenance,
-  type InstallProvenanceKind,
-} from '../services/privateChannel/installProvenance.js'
 import { SandboxManager } from './sandbox/sandbox-adapter.js'
-import { getCwd } from './cwd.js'
-import { isInBundledMode } from './bundledMode.js'
 import { getFsImplementation } from './fsOperations.js'
 import { getPlatform } from './platform.js'
-import { getRipgrepStatus, warmRipgrepStatus } from './ripgrep.js'
 import { CUSTOMIZATION_SURFACES } from './settings/types.js'
 import { getManagedFilePath } from './settings/managedPath.js'
 
+export type ManagedPolicyWarning = { issue: string; fix: string }
 
-const UNKNOWN_MARKER = 'unknown'
-
-type InstallationType = InstallProvenanceKind
-
-type DiagnosticInfo = {
-  installationType: InstallationType
-  version: string
-  installationPath: string
-  invokedBinary: string
-  configInstallMethod: string
-  warnings: Array<{ issue: string; fix: string }>
-  recommendation?: string
-  ripgrepStatus: { working: boolean; mode: string; systemPath?: string }
-}
-
-function getInvokedBinary(): string {
-  try {
-    if (isInBundledMode()) return process.execPath
-    return process.argv[1] ?? UNKNOWN_MARKER
-  } catch {
-    return UNKNOWN_MARKER
-  }
-}
-
-export async function getCurrentInstallationType(): Promise<InstallationType> {
-  return resolveInstallProvenance().kind
-}
-
-function detectLinuxGlobPatternWarnings(): Array<{ issue: string; fix: string }> {
+export function detectLinuxGlobPatternWarnings(): ManagedPolicyWarning[] {
   if (getPlatform() !== 'linux') return []
   const patterns = SandboxManager.getLinuxGlobPatternWarnings()
   if (patterns.length === 0) return []
@@ -58,8 +23,20 @@ function detectLinuxGlobPatternWarnings(): Array<{ issue: string; fix: string }>
   ]
 }
 
-export function detectManagedSettingsWarnings(): Array<{ issue: string; fix: string }> {
-  const policyPath = join(getManagedFilePath(), 'managed-settings.json')
+export function managedPolicyPath(): string {
+  return join(getManagedFilePath(), 'managed-settings.json')
+}
+
+export function managedPolicyPresent(): boolean {
+  try {
+    return getFsImplementation().existsSync(managedPolicyPath())
+  } catch {
+    return false
+  }
+}
+
+export function detectManagedSettingsWarnings(): ManagedPolicyWarning[] {
+  const policyPath = managedPolicyPath()
   let raw: string
   try {
     raw = getFsImplementation().readFileSync(policyPath, { encoding: 'utf8' })
@@ -102,32 +79,5 @@ export function detectManagedSettingsWarnings(): Array<{ issue: string; fix: str
     return []
   } catch {
     return []
-  }
-}
-
-export async function getHealthDiagnostic(): Promise<DiagnosticInfo> {
-  const provenance = resolveInstallProvenance()
-
-  const warnings: Array<{ issue: string; fix: string }> = [
-    ...detectManagedSettingsWarnings(),
-    ...detectLinuxGlobPatternWarnings(),
-  ]
-
-  await warmRipgrepStatus()
-  const ripgrep = getRipgrepStatus()
-  const ripgrepStatus: DiagnosticInfo['ripgrepStatus'] = {
-    working: ripgrep.working === true,
-    mode: ripgrep.mode,
-    ...(ripgrep.mode === 'system' ? { systemPath: ripgrep.path } : {}),
-  }
-
-  return {
-    installationType: provenance.kind,
-    version: typeof MERCURY_VERSION === 'string' && MERCURY_VERSION ? MERCURY_VERSION : UNKNOWN_MARKER,
-    installationPath: provenance.activeRoot || getCwd(),
-    invokedBinary: getInvokedBinary(),
-    configInstallMethod: provenance.updateOwner,
-    warnings,
-    ripgrepStatus,
   }
 }

@@ -2250,6 +2250,21 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
       title: 'SETTINGS & FLAGS',
       checks: [
         {
+          id: 'managed-policy',
+          label: 'Managed policy',
+          run: async () => {
+            const { detectLinuxGlobPatternWarnings, detectManagedSettingsWarnings, managedPolicyPath, managedPolicyPresent } = await import('./healthDiagnostic.js')
+            const warnings = [...detectManagedSettingsWarnings(), ...detectLinuxGlobPatternWarnings()]
+            if (warnings.length > 0) {
+              return { status: 'warn', evidence: warnings.map(w => w.issue).join(' · '), fix: warnings.map(w => w.fix).join('\n') }
+            }
+            const policy = managedPolicyPath()
+            return managedPolicyPresent()
+              ? { status: 'ok', evidence: `managed policy at ${policy} read clean` }
+              : { status: 'info', evidence: `no managed policy (nothing at ${policy})` }
+          },
+        },
+        {
           id: 'settings',
           label: 'Settings',
           run: () => {
