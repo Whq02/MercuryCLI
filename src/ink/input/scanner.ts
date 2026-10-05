@@ -25,6 +25,7 @@ type ScanState =
   | 'apc'
   | 'resync'
   | 'resync-head'
+  | 'resync-csi'
   | 'resync-x10'
 
 export type ScannerOptions = {
@@ -180,7 +181,21 @@ function scan(
           x10Owed = 3
           state = 'resync-x10'
         } else {
-          state = 'resync'
+          state = code === 0x3c ? 'resync' : 'resync-csi'
+        }
+        break
+
+      case 'resync-csi':
+        if (isCSIParam(code) || isCSIIntermediate(code)) {
+          i++
+          textStart = i
+        } else if (isCSIFinal(code)) {
+          i++
+          textStart = i
+          state = 'ground'
+        } else {
+          state = 'ground'
+          textStart = i
         }
         break
 
@@ -313,7 +328,7 @@ function scan(
     flushText()
     return { tokens, state, carry: '' }
   }
-  if (state === 'resync' || state === 'resync-head') {
+  if (state === 'resync' || state === 'resync-head' || state === 'resync-csi') {
     return { tokens, state, carry: '' }
   }
   if (state === 'resync-x10') {
@@ -342,6 +357,9 @@ function scan(
   }
   if (remaining && state === 'csi' && policy.sealedFlushes === 0 && isResponseHead(remaining)) {
     return { tokens, state, carry: remaining, sealed: true }
+  }
+  if (remaining && state === 'csi' && x10Mouse) {
+    return { tokens, state: 'resync-csi', carry: '' }
   }
   if (remaining === DOUBLE_ESC) {
     tokens.push({ kind: 'esc', value: ESC }, { kind: 'esc', value: ESC })

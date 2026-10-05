@@ -411,9 +411,9 @@ export function interpretKey(s: string = ''): ParsedKey {
 
 
 const ORPHAN_MOUSE_PROBE_RE =
-  /^\[(?:<\d+;\d+;\d+[Mm]|M[\x60-\x7f][\x20-￿]{2})|\d+;\d+;\d+[Mm]/
+  /^\[(?:<\d+;\d+;\d+[Mm]|M[\x20-\x7f][\x20-￿]{2})|\d+;\d+;\d+[Mm]/
 const ORPHAN_MOUSE_EVENT_RE =
-  /\[<\d+;\d+;\d+[Mm]|\[M[\x60-\x7f][\x20-￿]{2}|\[?<?\d+;\d+;\d+[Mm]/g
+  /\[<\d+;\d+;\d+[Mm]|\[M[\x20-\x7f][\x20-￿]{2}|\[?<?\d+;\d+;\d+[Mm]/g
 const MOUSE_FRAGMENT_RE = /^(?:<?\d*;?\d*;?\d*[Mm]?|<\d*)$/
 
 export function hasOrphanMouseBytes(text: string): boolean {
