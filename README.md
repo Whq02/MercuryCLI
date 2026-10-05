@@ -435,9 +435,9 @@ The output row types, by their `type` field:
   `message_id` and `block`.
 - `tool_result` — the call's result: `call_id`, `status` (`ok`, `error` or
   `aborted`) and `output`.
-- `tool_update` — progress from a running shell, PowerShell or MCP call:
-  `call_id`, `tick`, `source`, and whichever of `line`, `elapsed_s`, `lines`,
-  `bytes`, `budget_ms`, `progress` and `total` the call reports.
+- `tool_update` — progress from a running shell, PowerShell, MCP or Eval
+  call: `call_id`, `tick`, `source`, and whichever of `line`, `elapsed_s`,
+  `lines`, `bytes`, `budget_ms`, `progress` and `total` the call reports.
 - `step` — one model call of the main thread: `message_id`, `model`, `usage`,
   and `stop` when the model said why it stopped.
 - `outcome` — the turn's result, described below.

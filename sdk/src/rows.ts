@@ -141,7 +141,7 @@ export interface ToolUpdateRow {
   parent_call_id?: string
   call_id: string
   tick: number
-  source: 'shell' | 'powershell' | 'mcp'
+  source: 'shell' | 'powershell' | 'mcp' | 'eval'
   line?: string
   elapsed_s?: number
   lines?: number
@@ -875,7 +875,8 @@ export const ROW_SCHEMAS: Readonly<Record<RowType | PartialRowType, JsonSchema>>
         "enum": [
           "shell",
           "powershell",
-          "mcp"
+          "mcp",
+          "eval"
         ]
       },
       "line": {

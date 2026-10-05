@@ -110,6 +110,15 @@ export type EvalToolProgress =
     }
   | {
       type: 'eval_progress'
+      kind: 'running'
+      elapsedSeconds: number
+      budgetMs?: number
+      tail?: string
+      language?: string
+      title?: string
+    }
+  | {
+      type: 'eval_progress'
       kind: 'nested'
       message: AssistantMessage | NormalizedUserMessage
     }
