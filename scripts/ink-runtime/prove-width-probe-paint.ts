@@ -58,7 +58,7 @@ const queryWrite = stdout.writes.find(value => value.includes('\x1b[6n'))
 assert.ok(queryWrite, 'FAIL the mounted input owner must queue the width probe in its real startup batch')
 assert.equal((queryWrite.match(/\x1b\[6n/g) ?? []).length, 8)
 assert.equal((queryWrite.match(/\x1b\[c/g) ?? []).length, 1)
-assert.ok(queryWrite.indexOf('\x1b[?u') < queryWrite.indexOf('\x1b[6n'))
+assert.ok(queryWrite.indexOf('\x1b[?u') >= 0 && queryWrite.indexOf('\x1b[?u') < queryWrite.indexOf('\x1b[6n'), `FAIL the kitty query rode before the samples — kitty at ${queryWrite.indexOf('\x1b[?u')}, first CPR at ${queryWrite.indexOf('\x1b[6n')}`)
 const cells = new AnsiEmulator(120, 40, false)
 for (const sample of queryWrite.matchAll(/\x1b7([\s\S]*?)\x1b8/g)) {
   cells.feed(sample[1]!.replaceAll('\x1b[6n', ''))
