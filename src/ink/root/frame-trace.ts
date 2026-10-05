@@ -1,4 +1,6 @@
 
+import type { FramePhases } from '../frame.js'
+
 export interface FrameTraceRow {
   schema: 1
   seq: number
@@ -34,15 +36,7 @@ export function traceKeyResolved(actionId: string | null, contexts: readonly str
 
 export interface FrameTraceInput {
   durationMs: number
-  phases?: {
-    renderer: number
-    diff: number
-    optimize: number
-    write: number
-    patches: number
-    yoga: number
-    commit: number
-  }
+  phases?: Pick<FramePhases, 'renderer' | 'diff' | 'optimize' | 'write' | 'patches' | 'yoga' | 'commit'>
   flickers: Array<{ reason: string }>
 }
 

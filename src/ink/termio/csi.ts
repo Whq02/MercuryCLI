@@ -80,17 +80,19 @@ export const CURSOR_STYLES: ReadonlyArray<{ style: CursorStyle; blinking: boolea
 ]
 
 
+const counted = (n: number, final: string): string => (n === 0 ? '' : csi(n, final))
+
 export function cursorUp(n = 1): string {
-  return n === 0 ? '' : csi(n, 'A')
+  return counted(n, 'A')
 }
 export function cursorDown(n = 1): string {
-  return n === 0 ? '' : csi(n, 'B')
+  return counted(n, 'B')
 }
 export function cursorForward(n = 1): string {
-  return n === 0 ? '' : csi(n, 'C')
+  return counted(n, 'C')
 }
 export function cursorBack(n = 1): string {
-  return n === 0 ? '' : csi(n, 'D')
+  return counted(n, 'D')
 }
 
 export function cursorTo(col: number): string {
@@ -142,10 +144,10 @@ export function eraseLines(n: number): string {
 
 
 export function scrollUp(n = 1): string {
-  return n === 0 ? '' : csi(n, 'S')
+  return counted(n, 'S')
 }
 export function scrollDown(n = 1): string {
-  return n === 0 ? '' : csi(n, 'T')
+  return counted(n, 'T')
 }
 export function setScrollRegion(top: number, bottom: number): string {
   return csi(top, bottom, 'r')
