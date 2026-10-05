@@ -270,6 +270,7 @@ function spawnWithArgv0(
   args: string[],
   abortSignal: AbortSignal | undefined,
   timeoutMs: number,
+  cwd?: string,
 ): Promise<SpawnOutcome> {
   return new Promise(resolvePromise => {
     const child = track(
@@ -277,6 +278,7 @@ function spawnWithArgv0(
         argv0: config.argv0,
         windowsHide: true,
         env: { ...subprocessEnv() },
+        ...(cwd !== undefined ? { cwd } : {}),
         ...(abortSignal ? { signal: abortSignal } : {}),
       }),
     )
@@ -348,6 +350,7 @@ function spawnExecFile(
   args: string[],
   abortSignal: AbortSignal | undefined,
   timeoutMs: number,
+  cwd?: string,
 ): Promise<SpawnOutcome> {
   return new Promise(resolvePromise => {
     track(
@@ -360,6 +363,7 @@ function spawnExecFile(
           windowsHide: true,
           env: { ...subprocessEnv() },
           killSignal: process.platform === 'win32' ? undefined : 'SIGKILL',
+          ...(cwd !== undefined ? { cwd } : {}),
           ...(abortSignal ? { signal: abortSignal } : {}),
         },
         (error, stdout, stderr) => {
@@ -375,8 +379,8 @@ function spawnExecFile(
   })
 }
 
-function runSpawn(config: RipgrepConfig, args: string[], abortSignal: AbortSignal | undefined, timeoutMs: number): Promise<SpawnOutcome> {
-  return config.argv0 !== undefined ? spawnWithArgv0(config, args, abortSignal, timeoutMs) : spawnExecFile(config, args, abortSignal, timeoutMs)
+function runSpawn(config: RipgrepConfig, args: string[], abortSignal: AbortSignal | undefined, timeoutMs: number, cwd?: string): Promise<SpawnOutcome> {
+  return config.argv0 !== undefined ? spawnWithArgv0(config, args, abortSignal, timeoutMs, cwd) : spawnExecFile(config, args, abortSignal, timeoutMs, cwd)
 }
 
 function splitOutput(raw: string): string[] {
@@ -398,6 +402,7 @@ export interface RipgrepAnswer {
 
 export interface RipgrepOptions {
   timeoutMs?: number
+  cwd?: string
 }
 
 export async function ripGrepAnswer(
@@ -415,9 +420,11 @@ export async function ripGrepAnswer(
   )
   const timeoutMs = options.timeoutMs ?? timeoutSeconds() * 1000
   const timeoutS = timeoutMs / 1000
-  const runOnce = (singleThreaded: boolean): Promise<SpawnOutcome> => {
+  const runOnce = async (singleThreaded: boolean): Promise<SpawnOutcome> => {
     const { config } = resolveRipgrep()
     const vector = [...config.rgArgs, ...(singleThreaded ? ['-j', '1'] : []), ...args, target]
+    const rooted = await runSpawn(config, vector, abortSignal, timeoutMs, options.cwd)
+    if (options.cwd === undefined || rooted.error?.code !== 'ENOENT') return rooted
     return runSpawn(config, vector, abortSignal, timeoutMs)
   }
   let outcome = await runOnce(false)
