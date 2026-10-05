@@ -32,6 +32,19 @@ type Options = {
 
 const CARRIAGE_RETURN = { type: 'carriageReturn' } as const
 const NEWLINE = { type: 'stdout', content: '\n' } as const
+const BRIDGED_GAP = 4
+
+let openRun: { type: 'stdout'; content: string } | null = null
+
+function appendText(out: Diff, text: string): void {
+  const run = openRun
+  if (run !== null && out[out.length - 1] === run) {
+    run.content += text
+    return
+  }
+  openRun = { type: 'stdout', content: text }
+  out.push(openRun)
+}
 
 class CursorModel {
   x: number
@@ -98,6 +111,10 @@ class CursorModel {
     this.x = x
     this.y = y
     this.exact = true
+  }
+
+  sitsAt(x: number, y: number): boolean {
+    return this.exact && this.x === x && this.y === y && !this.pendingWrap()
   }
 
   wrote(cellWidth: number, agreed: boolean): void {
@@ -180,7 +197,7 @@ function emitCell(
     out.push({ type: 'stdout', content: ' ' })
     out.push({ type: 'cursorTo', col: px + 1 })
   }
-  out.push({ type: 'stdout', content: cell.char })
+  appendText(out, cell.char)
   if (compensate) {
     out.push({ type: 'cursorTo', col: px + cellWidth + 1 })
   }
@@ -205,10 +222,22 @@ function paintRows(
     if (alt) cursor.moveTo(out, 0, y)
     else cursor.lineFeedTo(out, y)
     lastStyleOnLine = -1
+    let gapStart = -1
     let index = y * width
     for (let x = 0; x < columnEnd; x++, index++) {
       const cell = visibleCellAtIndex(cells, charPool, hyperlinkPool, index, lastStyleOnLine)
-      if (!cell) continue
+      if (!cell) {
+        if (gapStart < 0 && cursor.sitsAt(x, y)) gapStart = x
+        continue
+      }
+      if (gapStart >= 0) {
+        const gap = x - gapStart
+        if (gap <= BRIDGED_GAP && (lastStyleOnLine === -1 || (lastStyleOnLine & 1) === 0) && cursor.sitsAt(gapStart, y)) {
+          appendText(out, ' '.repeat(gap))
+          cursor.wrote(gap, true)
+        }
+        gapStart = -1
+      }
       cursor.anchorTo(out, x, y)
       if (emitCell(out, cursor, attrs, cell, frame.viewport.width)) {
         lastStyleOnLine = cell.styleId
@@ -292,7 +321,7 @@ function emitDirtyCells(
       emitCell(out, cursor, attrs, added, next.viewport.width)
     } else if (removed) {
       attrs.resetAll(out)
-      out.push({ type: 'stdout', content: ' ' })
+      appendText(out, ' ')
       cursor.wrote(1, true)
     }
   })
@@ -307,7 +336,7 @@ function emitDirtyCells(
       cursor.anchorTo(out, x, y)
       if (isEmptyCellAt(next.screen, x, y)) {
         attrs.resetAll(out)
-        out.push({ type: 'stdout', content: ' ' })
+        appendText(out, ' ')
         cursor.wrote(1, true)
       } else {
         emitCell(out, cursor, attrs, cell, next.viewport.width)

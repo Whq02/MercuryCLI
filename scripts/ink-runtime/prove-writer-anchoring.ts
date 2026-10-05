@@ -60,7 +60,7 @@ for (const [label, value] of [['printable ASCII', 'abcdefghijk'], ['box drawing'
 }
 {
   const { bytes, terminal } = paint(text('a b c d e'), 'gaps')
-  check('a blank cell is never written to bridge a gap: one column move to the first cell and one per gap', moves(bytes) === 5 && terminal.rowText(0).trimEnd() === 'a b c d e', `${moves(bytes)} moves, ${JSON.stringify(terminal.rowText(0))}`)
+  check('a full repaint bridges a short gap of blank cells with spaces instead of a column move: one move to the first cell, none per gap', moves(bytes) === 1 && terminal.rowText(0).trimEnd() === 'a b c d e', `${moves(bytes)} moves, ${JSON.stringify(terminal.rowText(0))}`)
 }
 {
   const { bytes, terminal } = paint(row(text('ab', { color: 'red' }), text('cd', { color: 'blue' }), text('ef', { bold: true })), 'styled run')
