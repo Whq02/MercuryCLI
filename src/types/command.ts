@@ -28,7 +28,7 @@ type LoadedFromLabel =
   | 'bundled'
   | 'mcp'
 
-export type CommandAvailability = 'claude-ai' | 'console' | 'any-provider-credential'
+type CommandAvailability = 'claude-ai' | 'console' | 'any-provider-credential'
 
 export type UiRouteAliasKind = 'concourse'
 
@@ -110,7 +110,7 @@ export type LocalCommandCall = (
   context: LocalJSXCommandContext,
 ) => Promise<LocalCommandResult>
 
-export type LocalCommandModule = {
+type LocalCommandModule = {
   call: LocalCommandCall
 }
 
@@ -168,7 +168,7 @@ export type LocalJSXCommandCall = (
   invokedAs?: string,
 ) => Promise<React.ReactNode | null>
 
-export type LocalJSXCommandModule = {
+type LocalJSXCommandModule = {
   call: LocalJSXCommandCall
 }
 

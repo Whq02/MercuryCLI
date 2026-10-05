@@ -4,7 +4,7 @@ import { Box, Text } from '../../ink.js'
 import { isTaskAssignment, type TaskAssignmentMessage as TaskAssignmentPayload } from '../../services/crew/liveMessages.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 
-export function TaskAssignmentDisplay({
+function TaskAssignmentDisplay({
   assignment,
   senderName,
 }: {

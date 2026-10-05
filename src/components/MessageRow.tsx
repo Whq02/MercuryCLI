@@ -28,7 +28,7 @@ import { OffscreenFreeze } from './OffscreenFreeze.js'
 const EMPTY_PROGRESS: ProgressMessage[] = []
 const EMPTY_IDS = new Set<string>()
 
-export function isMessageStreaming(
+function isMessageStreaming(
   msg: RenderableMessage,
   streamingToolUseIDs: Set<string>,
 ): boolean {

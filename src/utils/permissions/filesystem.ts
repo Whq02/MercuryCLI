@@ -27,7 +27,7 @@ import { createEditRuleSuggestion, createReadRuleSuggestion } from './Permission
 import { refusalWithReason, ruleSentence, withRuleReason } from './ruleReason.js'
 
 
-export const DANGEROUS_FILES: string[] = [
+const DANGEROUS_FILES: string[] = [
   '.gitconfig',
   '.gitmodules',
   '.bashrc',
@@ -52,7 +52,7 @@ export function normalizeCaseForComparison(path: string): string {
   return path.toLowerCase()
 }
 
-export function toPosixPath(path: string): string {
+function toPosixPath(path: string): string {
   return getPlatform() === 'windows' ? windowsPathToPosixPath(path) : path
 }
 
@@ -227,7 +227,7 @@ export function scratchpadDirFor(cwd: string, sessionId: string): string {
   return joinWithSep(joinWithSep(ensureTrailingSep(joinWithSep(getMercuryTempDir(), sanitizePath(cwd))), sessionId), 'scratchpad')
 }
 
-export function getSessionMemoryDir(): string {
+function getSessionMemoryDir(): string {
   const projectDir = joinWithSep(getProjectTempDir(), getSessionId())
   return ensureTrailingSep(joinWithSep(projectDir, 'session-memory'))
 }

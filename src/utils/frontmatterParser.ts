@@ -25,7 +25,7 @@ export type FrontmatterData = {
   [key: string]: unknown
 }
 
-export type ParsedMarkdown = {
+type ParsedMarkdown = {
   frontmatter: FrontmatterData
   content: string
   parseError?: { message: string }

@@ -1,9 +1,9 @@
 
 import { ESC, SEP } from './ansi.js'
 
-export const CSI_PREFIX = `${ESC}[`
+const CSI_PREFIX = `${ESC}[`
 
-export const CSI_RANGE = {
+const CSI_RANGE = {
   PARAM_MIN: 0x30,
   PARAM_MAX: 0x3f,
   INTERMEDIATE_MIN: 0x20,
@@ -67,7 +67,7 @@ export function csi(...args: (string | number)[]): string {
 export const ERASE_DISPLAY = ['toEnd', 'toStart', 'all', 'scrollback'] as const
 export const ERASE_LINE_REGION = ['toEnd', 'toStart', 'all'] as const
 
-export type CursorStyle = 'block' | 'underline' | 'bar'
+type CursorStyle = 'block' | 'underline' | 'bar'
 
 export const CURSOR_STYLES: ReadonlyArray<{ style: CursorStyle; blinking: boolean }> = [
   { style: 'block', blinking: true },
@@ -98,7 +98,7 @@ export function cursorBack(n = 1): string {
 export function cursorTo(col: number): string {
   return csi(col, 'G')
 }
-export const CURSOR_LEFT = csi('G')
+const CURSOR_LEFT = csi('G')
 
 export function cursorPosition(row: number, col: number): string {
   return csi(row, col, 'H')
@@ -118,15 +118,15 @@ export function cursorMove(x: number, y: number): string {
 export function eraseToEndOfLine(): string {
   return csi('K')
 }
-export function eraseLine(): string {
+function eraseLine(): string {
   return csi(2, 'K')
 }
-export const ERASE_LINE = eraseLine()
+const ERASE_LINE = eraseLine()
 
 export function eraseToEndOfScreen(): string {
   return csi('J')
 }
-export function eraseScreen(): string {
+function eraseScreen(): string {
   return csi(2, 'J')
 }
 export const ERASE_SCREEN = eraseScreen()

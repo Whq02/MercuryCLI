@@ -2,18 +2,18 @@
 import { useCallback, useRef, useState } from 'react'
 import type { PastedContent } from '../utils/config.js'
 
-export type BufferEntry = {
+type BufferEntry = {
   text: string
   cursorOffset: number
   pastedContents: Record<number, PastedContent>
 }
 
-export type UseInputBufferProps = {
+type UseInputBufferProps = {
   maxBufferSize: number
   debounceMs: number
 }
 
-export type UseInputBufferResult = {
+type UseInputBufferResult = {
   pushToBuffer: (
     text: string,
     cursorOffset: number,

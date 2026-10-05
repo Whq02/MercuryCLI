@@ -13,7 +13,7 @@ export type CompletionBoundary = {
   [key: string]: unknown
 }
 
-export type ActiveSpeculationState = {
+type ActiveSpeculationState = {
   id: string
   abort: () => void
   startTime: number

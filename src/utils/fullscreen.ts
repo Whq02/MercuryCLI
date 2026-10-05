@@ -19,7 +19,7 @@ function tmuxControlModeHeuristic(): boolean {
 let controlModeCache: boolean | undefined
 let controlModeLogged = false
 
-export function isTmuxControlMode(): boolean {
+function isTmuxControlMode(): boolean {
   if (controlModeCache !== undefined) return controlModeCache
   controlModeCache = tmuxControlModeHeuristic()
   if (controlModeCache) return true

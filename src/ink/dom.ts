@@ -11,7 +11,7 @@ import wrapText from './wrap-text.js'
 
 export type DOMNodeAttribute = boolean | string | number
 
-export type TextName = '#text'
+type TextName = '#text'
 export type ElementNames =
   | 'ink-root'
   | 'ink-box'

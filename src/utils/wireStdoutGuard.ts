@@ -2,7 +2,7 @@ import { registerCleanup } from './cleanupRegistry.js'
 import { logForDebugging } from './debug.js'
 
 
-export const STDOUT_GUARD_MARKER = '[stdout-guard]'
+const STDOUT_GUARD_MARKER = '[stdout-guard]'
 
 let installed = false
 let originalWrite: typeof process.stdout.write | null = null

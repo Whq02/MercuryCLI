@@ -15,9 +15,9 @@ import { deferralWireFormFor, type DeferralWireForm } from '../services/provider
 import { zodToJsonSchema } from './zodToJsonSchema.js'
 
 
-export type ToolSearchMode = 'tst' | 'tst-auto' | 'standard'
+type ToolSearchMode = 'tst' | 'tst-auto' | 'standard'
 
-export type DeferredToolsDelta = {
+type DeferredToolsDelta = {
   addedNames: string[]
   addedLines: string[]
   removedNames: string[]
@@ -71,7 +71,7 @@ function getAutoTokenThreshold(model: string): number {
   return Math.floor((contextWindow * getAutoPercent()) / 100)
 }
 
-export function getAutoToolSearchCharThreshold(model: string): number {
+function getAutoToolSearchCharThreshold(model: string): number {
   return Math.floor(getAutoTokenThreshold(model) * 2.5)
 }
 

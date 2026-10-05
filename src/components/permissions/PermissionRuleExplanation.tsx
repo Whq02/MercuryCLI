@@ -6,7 +6,7 @@ import { permissionRuleValueToString } from '../../utils/permissions/permissionR
 import type { PermissionDecision } from '../../utils/permissions/PermissionResult.js'
 import { reasonForRule, ruleSourceWords } from '../../utils/permissions/ruleReason.js'
 
-export type PermissionRuleExplanationProps = {
+type PermissionRuleExplanationProps = {
   permissionResult: PermissionDecision
   toolType: 'tool' | 'command' | 'edit' | 'read'
 }

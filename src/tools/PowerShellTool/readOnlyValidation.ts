@@ -76,7 +76,7 @@ function routeRequiresPrint(_command: string, element?: ParsedCommandElement): b
   return (firstPositional ?? '').toLowerCase() !== 'print'
 }
 
-export const CMDLET_ALLOWLIST: Record<string, CommandConfig> = Object.assign(Object.create(null), {
+const CMDLET_ALLOWLIST: Record<string, CommandConfig> = Object.assign(Object.create(null), {
   'get-childitem': { safeFlags: flags('-Path -LiteralPath -Filter -Include -Exclude -Recurse -Depth -Name -Force -Attributes -Directory -File -Hidden -ReadOnly -System') },
   'get-content': { safeFlags: flags('-Path -LiteralPath -TotalCount -Head -Tail -Raw -Encoding -Delimiter -ReadCount') },
   'get-item': { safeFlags: flags('-Path -LiteralPath -Force -Stream') },

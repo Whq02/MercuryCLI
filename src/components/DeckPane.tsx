@@ -13,7 +13,7 @@ import { useDisplayedSessionModel, useFocusedServedModel } from '../hooks/useDis
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { useProviderUsageOnShow } from '../hooks/useProviderUsageOnShow.js'
 import { Box, Text } from '../ink.js'
-import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
+
 import { useTelemetry } from '../state/telemetryBus.js'
 import { LAYOUT_BREAKPOINTS } from '../hooks/useLayoutTier.js'
 import { getGitState, type GitRepoState } from '../utils/git.js'
@@ -62,7 +62,7 @@ export function deckPaintsDock(cols: number): boolean {
 
 export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
   const tok = useMercuryTokens()
-  const { accent: TERRA, accentDeep: CLAW } = useSessionAccent()
+  const { accent: TERRA } = useSessionAccent()
   const cols = useTerminalSize().columns
   const compact = deckPaintsDock(cols)
   const servedModel = useFocusedServedModel()
@@ -95,12 +95,6 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
       : { state: (vitals.trace?.state ?? 'off') as SnapshotState, total: 0, highRisk: 0, killed: 0 }
   const daemon = daemonSnapshot()
   const daemonUpSec = daemon.state === 'live' ? Number(daemon.reason?.match(/up (\d+)s/)?.[1]) : NaN
-  const effortValue = useAppStateMaybeOutsideOfProvider(
-    (s: { effortValue?: EffortValue } | undefined) => s?.effortValue,
-  ) as EffortValue | undefined
-  const effortLevel = modelSupportsEffort(rawModel)
-    ? getDisplayedEffortLabel(rawModel, effortValue)
-    : null
   const killCount = Object.values(listCapabilityKills()).reduce((n, arr) => n + arr.length, 0)
   useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
   useProviderUsageOnShow(true)

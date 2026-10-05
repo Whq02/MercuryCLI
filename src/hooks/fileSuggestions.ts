@@ -76,7 +76,7 @@ export function clearFileSuggestionCaches(): void {
   generation++
 }
 
-export function pathListSignature(paths: string[]): string {
+function pathListSignature(paths: string[]): string {
   const parts: string[] = [String(paths.length)]
   if (paths.length > 0) {
     const stride = Math.max(1, Math.floor(paths.length / SIGNATURE_SAMPLES))

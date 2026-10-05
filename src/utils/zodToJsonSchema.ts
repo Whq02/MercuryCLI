@@ -1,7 +1,7 @@
 import { z, type ZodTypeAny } from 'zod/v4'
 
 
-export type JsonSchema7Type = Record<string, unknown>
+type JsonSchema7Type = Record<string, unknown>
 
 export type SchemaSide = 'input' | 'output'
 

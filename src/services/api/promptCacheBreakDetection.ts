@@ -17,7 +17,7 @@ import {
 } from './prefixFingerprint.js'
 
 
-export const CACHE_TTL_1HOUR_MS = 60 * 60 * 1000
+const CACHE_TTL_1HOUR_MS = 60 * 60 * 1000
 const CACHE_TTL_5MIN_MS = 5 * 60 * 1000
 
 export type NeutralSystemBlock = {
@@ -46,7 +46,7 @@ export type CacheLane =
   | 'huggingface'
   | 'local'
 
-export type PromptStateSnapshot = {
+type PromptStateSnapshot = {
   system: NeutralSystemBlock[]
   toolSchemas: NeutralToolSchema[]
   querySource: string

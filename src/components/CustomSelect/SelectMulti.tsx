@@ -14,7 +14,7 @@ import { SelectInputOption } from './select-input-option.js'
 import { SelectOption } from './select-option.js'
 import { useMultiSelectState } from './use-multi-select-state.js'
 
-export type SelectMultiProps<T = string> = {
+type SelectMultiProps<T = string> = {
   isDisabled?: boolean
   hideIndexes?: boolean
   visibleOptionCount?: number

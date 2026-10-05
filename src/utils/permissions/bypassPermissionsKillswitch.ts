@@ -59,11 +59,11 @@ export function useKickOffCheckAndDisableBypassPermissionsIfNeeded(): void {
 
 let autoModeGateCheckRan = false
 
-export function resetAutoModeGateCheck(): void {
+function resetAutoModeGateCheck(): void {
   autoModeGateCheckRan = false
 }
 
-export async function checkAndDisableAutoModeIfNeeded(
+async function checkAndDisableAutoModeIfNeeded(
   _context: ToolPermissionContext,
   _setAppState: SetAppState,
 ): Promise<void> {

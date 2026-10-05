@@ -156,6 +156,3 @@ export function describeInvalidArgTypeError(error: unknown): string | null {
   const location = frame.replace(/^at\s+/, '')
   return `${err.message} ${note} — thrown at ${location}`
 }
-
-
-export type AxiosErrorKind = 'auth' | 'timeout' | 'network' | 'http' | 'other'

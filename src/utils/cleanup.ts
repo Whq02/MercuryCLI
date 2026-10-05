@@ -23,16 +23,16 @@ export function retentionWindowDays(): number {
   return getInitialSettings().records?.retentionDays ?? DEFAULT_CLEANUP_PERIOD_DAYS
 }
 
-export type CleanupResult = {
+type CleanupResult = {
   messages: number
   errors: number
 }
 
-export function addCleanupResults(a: CleanupResult, b: CleanupResult): CleanupResult {
+function addCleanupResults(a: CleanupResult, b: CleanupResult): CleanupResult {
   return { messages: a.messages + b.messages, errors: a.errors + b.errors }
 }
 
-export function convertFileNameToDate(filename: string): Date {
+function convertFileNameToDate(filename: string): Date {
   const segment = filename.split('.')[0] ?? ''
   const iso = segment.replace(/T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z/, 'T$1:$2:$3.$4Z')
   return new Date(iso)
@@ -42,7 +42,7 @@ function computeCutoffDate(): Date {
   return new Date(Date.now() - retentionWindowDays() * 24 * 60 * 60 * 1000)
 }
 
-export async function cleanupOldMessageFiles(): Promise<CleanupResult> {
+async function cleanupOldMessageFiles(): Promise<CleanupResult> {
   const result: CleanupResult = { messages: 0, errors: 0 }
   const fs = getFsImplementation()
   const cutoff = computeCutoffDate()
@@ -328,15 +328,15 @@ async function cleanupAgedDirectoryTree(root: string, concurrent: boolean): Prom
   return result
 }
 
-export async function cleanupOldFileHistoryBackups(): Promise<CleanupResult> {
+async function cleanupOldFileHistoryBackups(): Promise<CleanupResult> {
   return cleanupAgedDirectoryTree(join(getMercuryHome(), 'file-history'), true)
 }
 
-export async function cleanupOldSessionEnvDirs(): Promise<CleanupResult> {
+async function cleanupOldSessionEnvDirs(): Promise<CleanupResult> {
   return cleanupAgedDirectoryTree(join(getMercuryHome(), 'session-env'), false)
 }
 
-export async function cleanupOldDebugLogs(): Promise<CleanupResult> {
+async function cleanupOldDebugLogs(): Promise<CleanupResult> {
   const result: CleanupResult = { messages: 0, errors: 0 }
   const fs = getFsImplementation()
   const cutoff = computeCutoffDate()

@@ -30,7 +30,7 @@ function splitPath(path: string): { dir: string; base: string } {
   return { dir: path.slice(0, lastSlash), base: path.slice(lastSlash + 1) }
 }
 
-export function pickDiverseCoreFiles(sortedPaths: string[], want: number): string[] {
+function pickDiverseCoreFiles(sortedPaths: string[], want: number): string[] {
   const picked: string[] = []
   const pickedNames = new Set<string>()
   const perDirectory = new Map<string, number>()

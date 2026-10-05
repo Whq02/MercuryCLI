@@ -2,8 +2,7 @@ import React from 'react'
 
 import { Text } from '../ink.js'
 import { getAccountInformation } from './auth.js'
-import { getHealthDiagnostic } from './healthDiagnostic.js'
-import { getSettingsWithErrors } from './settings/settings.js'
+
 import { getMTLSConfig } from './mtls.js'
 import { extraCaCertsStatusLine } from './caCerts.js'
 import { getProxyUrl } from './proxy.js'
@@ -39,24 +38,6 @@ function nodeText(value: React.ReactNode): string {
     return nodeText(children)
   }
   return ''
-}
-
-export async function buildInstallationHealthDiagnostics(): Promise<Diagnostic[]> {
-  const diagnostics: Diagnostic[] = []
-  const { errors } = getSettingsWithErrors()
-  if (errors.length > 0) {
-    const invalidFiles = [...new Set(errors.map(error => error.file).filter((file): file is string => file !== undefined))]
-    diagnostics.push(
-      <Text key="invalid-settings">
-        Invalid settings files will be ignored: {invalidFiles.join(', ')}
-      </Text>,
-    )
-  }
-  const health = await getHealthDiagnostic()
-  for (const warning of health.warnings) {
-    diagnostics.push(<Text key={warning.issue}>{warning.issue}</Text>)
-  }
-  return diagnostics
 }
 
 export function buildProviderAccountBlocks(

@@ -208,7 +208,7 @@ export async function* runPreToolUseHooks(
   }
 }
 
-export type PostToolUseHooksResult<Output> =
+type PostToolUseHooksResult<Output> =
   | { kind: 'message'; message: Message }
   | { kind: 'updatedOutput'; output: Output }
 

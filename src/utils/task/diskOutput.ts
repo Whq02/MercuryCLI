@@ -75,7 +75,7 @@ async function createTaskOutputFile(taskId: string): Promise<string> {
   return path
 }
 
-export function initTaskOutput(taskId: string): Promise<string> {
+function initTaskOutput(taskId: string): Promise<string> {
   return track(createTaskOutputFile(taskId))
 }
 

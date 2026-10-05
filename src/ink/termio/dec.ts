@@ -17,11 +17,11 @@ export const DEC = {
 
 const MOUSE_TRACKING_MODES = [DEC.MOUSE_NORMAL, DEC.MOUSE_BUTTON, DEC.MOUSE_ANY, DEC.MOUSE_SGR] as const
 
-export function decset(mode: number): string {
+function decset(mode: number): string {
   return csi(`?${mode}h`)
 }
 
-export function decreset(mode: number): string {
+function decreset(mode: number): string {
   return csi(`?${mode}l`)
 }
 

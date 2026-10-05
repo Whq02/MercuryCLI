@@ -2,7 +2,7 @@ import { getHistory } from '../../history.js'
 import { logForDebugging } from '../debug.js'
 
 
-export type ShellHistoryMatch = {
+type ShellHistoryMatch = {
   fullCommand: string
   suffix: string
 }

@@ -18,7 +18,7 @@ import {
 } from './use-select-navigation.js'
 import { letterOrdinalOf } from './use-select-input.js'
 
-export type UseMultiSelectStateProps<T> = {
+type UseMultiSelectStateProps<T> = {
   visibleOptionCount?: number
   options: OptionWithDescription<T>[]
   defaultValue?: T[]
@@ -38,7 +38,7 @@ export type UseMultiSelectStateProps<T> = {
   onSubmitFocusChange?: (focused: boolean) => void
 }
 
-export type MultiSelectState<T> = SelectNavigation<T> & {
+type MultiSelectState<T> = SelectNavigation<T> & {
   selectedValues: T[]
   inputValues: Map<T, string>
   isSubmitFocused: boolean

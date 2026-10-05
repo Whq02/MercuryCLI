@@ -169,7 +169,7 @@ export function computeWheelStep(
 }
 
 
-export function jumpBy(handle: ScrollBoxHandle, delta: number): boolean {
+function jumpBy(handle: ScrollBoxHandle, delta: number): boolean {
   const max = Math.max(
     0,
     handle.getScrollHeight() - handle.getViewportHeight(),

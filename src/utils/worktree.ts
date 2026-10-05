@@ -271,7 +271,7 @@ async function createOrResumeWorktreeNow(
 }
 
 
-export async function copyWorktreeIncludeFiles(repoRoot: string, worktreePath: string): Promise<string[]> {
+async function copyWorktreeIncludeFiles(repoRoot: string, worktreePath: string): Promise<string[]> {
   let patternText: string
   try {
     patternText = await readFile(join(repoRoot, '.worktreeinclude'), 'utf8')
@@ -751,7 +751,7 @@ export async function unlockAgentWorktree(worktreePath: string, gitRoot: string)
   await runGit(['worktree', 'unlock', worktreePath], gitRoot)
 }
 
-export async function removeAgentWorktree(
+async function removeAgentWorktree(
   worktreePath: string,
   worktreeBranch?: string,
   gitRoot?: string,
@@ -1158,7 +1158,7 @@ export async function createBaselineWorktree(
 }
 
 
-export function parsePRReference(input: string): number | null {
+function parsePRReference(input: string): number | null {
   const urlMatch = input.match(/^https?:\/\/[^/]+\/[^/]+\/[^/]+\/pull\/(\d+)\/?(?:[?#].*)?$/)
   if (urlMatch) return parseInt(urlMatch[1] as string, 10)
   const shortMatch = input.match(/^#(\d+)$/)

@@ -11,7 +11,7 @@ export type TextSpan = {
 
 export type ParsedLine = TextSpan[]
 
-export const DEFAULT_FG: AnsiColor = { r: 229, g: 229, b: 229 }
+const DEFAULT_FG: AnsiColor = { r: 229, g: 229, b: 229 }
 export const DEFAULT_BG: AnsiColor = { r: 30, g: 30, b: 30 }
 
 const PALETTE: Record<number, AnsiColor> = {
@@ -145,7 +145,7 @@ export function parseAnsi(text: string): ParsedLine[] {
   })
 }
 
-export type AnsiToSvgOptions = {
+type AnsiToSvgOptions = {
   fontFamily?: string
   fontSize?: number
   lineHeight?: number

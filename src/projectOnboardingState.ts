@@ -46,7 +46,7 @@ export function getSteps(): Step[] {
   return steps
 }
 
-export function isProjectOnboardingComplete(): boolean {
+function isProjectOnboardingComplete(): boolean {
   return getSteps()
     .filter(step => step.isCompletable && step.isEnabled)
     .every(step => step.isComplete)

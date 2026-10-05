@@ -1,16 +1,4 @@
 
-export async function lastX<A>(gen: AsyncGenerator<A, unknown, unknown>): Promise<A> {
-  let last: A | undefined
-  let yielded = false
-  for await (const value of gen) {
-    last = value
-    yielded = true
-  }
-  if (!yielded) {
-    throw new Error('lastX: the generator yielded no values')
-  }
-  return last as A
-}
 
 export async function returnValue<A>(gen: AsyncGenerator<unknown, A, unknown>): Promise<A> {
   let next = await gen.next()

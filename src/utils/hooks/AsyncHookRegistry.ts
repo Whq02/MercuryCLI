@@ -10,7 +10,7 @@ import { emitHookResponse, hookProgressReporter } from './hookEvents.js'
 
 export type PendingAsyncHookEvent = HookEvent | 'FileSuggestion'
 
-export type PendingAsyncHook = {
+type PendingAsyncHook = {
   processId: string
   hookId: string
   hookName: string

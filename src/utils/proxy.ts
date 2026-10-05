@@ -16,7 +16,7 @@ export function getProxyUrl(env: EnvLike = process.env): string | undefined {
   return env.https_proxy || env.HTTPS_PROXY || env.http_proxy || env.HTTP_PROXY || undefined
 }
 
-export function getNoProxy(env: EnvLike = process.env): string | undefined {
+function getNoProxy(env: EnvLike = process.env): string | undefined {
   return env.no_proxy || env.NO_PROXY || undefined
 }
 

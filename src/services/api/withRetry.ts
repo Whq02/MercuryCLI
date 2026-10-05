@@ -33,7 +33,7 @@ import { APIConnectionError, APIError, APIUserAbortError } from './sdkErrors.js'
 import { deepestErrorDetail, isStaleSocketCode, transportCutOf, transportCutWords } from './transportEvidence.js'
 
 
-export const BASE_DELAY_MS = 500
+const BASE_DELAY_MS = 500
 
 const MAX_DELAY_MS = 32_000
 const MAX_RETRY_AFTER_MS = 6 * 60 * 60 * 1000
@@ -95,7 +95,7 @@ export class FallbackTriggeredError extends Error {
   }
 }
 
-export function getDefaultMaxRetries(): number {
+function getDefaultMaxRetries(): number {
   const env = process.env.MERCURY_MAX_RETRIES
   if (env !== undefined && env !== '') {
     return Number.parseInt(env, 10)
@@ -165,7 +165,7 @@ const OVERFLOW_SUBSTRING = 'input length and `max_tokens` exceed context limit'
 const OVERFLOW_PATTERN =
   /input length and `max_tokens` exceed context limit: (\d+) \+ (\d+) > (\d+)/
 
-export function parseMaxTokensContextOverflowError(
+function parseMaxTokensContextOverflowError(
   error: unknown,
 ): { inputTokens: number; maxTokens: number; contextLimit: number } | undefined {
   if (statusOf(error) !== 400) return undefined

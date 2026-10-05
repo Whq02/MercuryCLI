@@ -6,7 +6,7 @@ import { isENOENT } from './errors.js'
 export const CHUNK_SIZE = 8 * 1024
 export const MAX_SCAN_BYTES = 10 * 1024 * 1024
 
-export type EditContext = {
+type EditContext = {
   content: string
   lineOffset: number
   truncated: boolean

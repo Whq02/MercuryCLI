@@ -18,7 +18,7 @@ const FETCH_TIMEOUT_MS = 60_000
 const MAX_REDIRECT_HOPS = 10
 export const MAX_MARKDOWN_LENGTH = 100_000
 
-export type FetchedContent = {
+type FetchedContent = {
   bytes: number
   code: number
   codeText: string
@@ -61,7 +61,7 @@ export class EgressBlockedError extends Error {
   }
 }
 
-export function validateURL(url: string): boolean {
+function validateURL(url: string): boolean {
   if (url.length > MAX_URL_LENGTH) return false
   let parsed: URL
   try {
@@ -83,7 +83,7 @@ export function isPreapprovedUrl(url: string): boolean {
   }
 }
 
-export function isPermittedRedirect(originalUrl: string, redirectUrl: string): boolean {
+function isPermittedRedirect(originalUrl: string, redirectUrl: string): boolean {
   let original: URL
   let redirect: URL
   try {
@@ -103,7 +103,7 @@ const REDIRECT_STATUSES = new Set([301, 302, 307, 308])
 
 type RawResponse = { status: number; statusText: string; headers: Record<string, unknown>; data: ArrayBuffer }
 
-export async function getWithPermittedRedirects(
+async function getWithPermittedRedirects(
   url: string,
   signal: AbortSignal | undefined,
   redirectChecker: (from: string, to: string) => boolean,

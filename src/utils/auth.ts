@@ -272,7 +272,7 @@ export function getConfiguredApiKeyHelper(): string | undefined {
 
 const DEFAULT_HELPER_TTL_MS = 5 * 60 * 1000
 
-export function calculateApiKeyHelperTTL(): number {
+function calculateApiKeyHelperTTL(): number {
   const raw = process.env.MERCURY_API_KEY_HELPER_TTL_MS
   if (!raw) return DEFAULT_HELPER_TTL_MS
   const value = parseInt(raw, 10)
@@ -953,7 +953,7 @@ export function getOauthAccountInfo() {
   return getGlobalConfig().oauthAccount
 }
 
-export type UserAccountInfo = {
+type UserAccountInfo = {
   tokenSource?: string
   subscription?: string
   apiKeySource?: string
@@ -1000,7 +1000,7 @@ function anthropicSignInEmailLazily(): string | undefined {
 }
 
 
-export type OrgValidationResult = { valid: true } | { valid: false; message: string }
+type OrgValidationResult = { valid: true } | { valid: false; message: string }
 
 export async function validateForceLoginOrg(): Promise<OrgValidationResult> {
   if (process.env.MERCURY_API_UNIX_SOCKET) return { valid: true }

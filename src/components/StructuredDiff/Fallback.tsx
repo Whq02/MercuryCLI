@@ -11,7 +11,7 @@ import { stringWidth } from '../../ink/stringWidth.js'
 const wrapLines = (text: string, width: number): string[] =>
   wrapText(text, width, 'wrap').split('\n')
 
-export type LineObject = {
+type LineObject = {
   code: string
   type: 'add' | 'remove' | 'nochange'
   originalCode: string
@@ -27,7 +27,7 @@ export type DiffPart = {
   removed?: boolean
 }
 
-export function transformLinesToObjects(lines: string[]): LineObject[] {
+function transformLinesToObjects(lines: string[]): LineObject[] {
   return lines.map(line => {
     const type: LineObject['type'] = line.startsWith('+')
       ? 'add'
@@ -43,7 +43,7 @@ export function transformLinesToObjects(lines: string[]): LineObject[] {
   })
 }
 
-export function processAdjacentLines(lines: LineObject[]): LineObject[] {
+function processAdjacentLines(lines: LineObject[]): LineObject[] {
   const result: LineObject[] = []
   let i = 0
   while (i < lines.length) {
@@ -74,7 +74,7 @@ export function processAdjacentLines(lines: LineObject[]): LineObject[] {
   return result
 }
 
-export function calculateWordDiffs(
+function calculateWordDiffs(
   oldText: string,
   newText: string,
 ): DiffPart[] {
@@ -138,7 +138,7 @@ export function calculateWordDiffs(
   return parts
 }
 
-export function numberDiffLines(
+function numberDiffLines(
   lines: LineObject[],
   startLine: number,
 ): DiffLine[] {

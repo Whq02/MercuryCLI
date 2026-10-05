@@ -37,7 +37,7 @@ import {
 import { logError } from '../utils/log.js'
 import type { UUID } from 'crypto'
 
-export type LogSelectorProps = {
+type LogSelectorProps = {
   logs: LogOption[]
   maxHeight?: number
   forceWidth?: number

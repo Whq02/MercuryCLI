@@ -1,10 +1,9 @@
 
-import { GLYPH } from '../components/mercury-ui/glyphs.js'
 import { chordToString } from './parser.js'
 import { getReservedShortcuts, normalizeKeyForComparison } from './reservedShortcuts.js'
 import type { KeybindingBlock, ParsedBinding } from './types.js'
 
-export type KeybindingWarningType =
+type KeybindingWarningType =
   | 'parse_error'
   | 'duplicate'
   | 'reserved'
@@ -250,7 +249,7 @@ export function checkDuplicateKeysInJson(jsonString: string): KeybindingWarning[
   return warnings
 }
 
-export function checkDuplicates(blocks: KeybindingBlock[]): KeybindingWarning[] {
+function checkDuplicates(blocks: KeybindingBlock[]): KeybindingWarning[] {
   const warnings: KeybindingWarning[] = []
   const seen = new Map<string, Map<string, string>>()
   for (const block of blocks) {
@@ -351,11 +350,4 @@ export function validateBindings(userBlocks: unknown, parsedBindings: ParsedBind
     seen.add(id)
     return true
   })
-}
-
-
-export function formatWarning(w: KeybindingWarning): string {
-  const glyph = w.severity === 'error' ? GLYPH.fail : GLYPH.warn
-  const head = `${glyph} Keybinding ${w.severity}: ${w.message}`
-  return w.suggestion ? `${head}\n    ${w.suggestion}` : head
 }

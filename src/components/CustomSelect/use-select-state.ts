@@ -6,7 +6,7 @@ import {
   type SelectNavigation,
 } from './use-select-navigation.js'
 
-export type UseSelectStateProps<T> = {
+type UseSelectStateProps<T> = {
   visibleOptionCount?: number
   options: OptionWithDescription<T>[]
   defaultValue?: T

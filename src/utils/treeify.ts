@@ -5,7 +5,7 @@ import type { Theme, ThemeName } from './theme.js'
 
 export type TreeNode = { [key: string]: unknown }
 
-export type TreeifyOptions = {
+type TreeifyOptions = {
   showValues?: boolean
   hideFunctions?: boolean
   themeName?: ThemeName

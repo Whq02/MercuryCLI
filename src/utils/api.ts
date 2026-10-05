@@ -30,7 +30,7 @@ import type { ApiTool, ApiToolUnion, ToolInputSchema } from '../types/wire.js'
 import type { Message } from '../types/message.js'
 
 
-export type SystemPromptBlock = { text: string; cached: boolean }
+type SystemPromptBlock = { text: string; cached: boolean }
 
 const BILLING_HEADER_PREFIX = 'x-anthropic-billing-header'
 

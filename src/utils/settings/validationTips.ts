@@ -1,6 +1,6 @@
 import { PERMISSION_MODES } from '../permissions/PermissionMode.js'
 
-export type ValidationTip = {
+type ValidationTip = {
   suggestion?: string
   docLink?: string
 }

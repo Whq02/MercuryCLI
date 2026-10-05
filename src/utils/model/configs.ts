@@ -98,7 +98,7 @@ export function previousGenerationKeys(family: ModelFamily): readonly ModelKey[]
   return FAMILY_GENERATIONS[family].slice(1)
 }
 
-export type CanonicalModelId = (typeof ALL_MODEL_CONFIGS)[ModelKey]['firstParty']
+type CanonicalModelId = (typeof ALL_MODEL_CONFIGS)[ModelKey]['firstParty']
 
 export const CANONICAL_MODEL_IDS: CanonicalModelId[] = Object.values(ALL_MODEL_CONFIGS).map(
   config => config.firstParty,

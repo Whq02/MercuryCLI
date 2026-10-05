@@ -1,5 +1,5 @@
 
-export type ModelCapability = {
+type ModelCapability = {
   id: string
   max_input_tokens?: number
   max_tokens?: number

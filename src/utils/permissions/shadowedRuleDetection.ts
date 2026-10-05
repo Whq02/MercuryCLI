@@ -3,7 +3,7 @@ import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import type { PermissionRule, PermissionRuleSource } from '../../types/permissions.js'
 import { getAllowRules, getAskRules, getDenyRules, permissionRuleSourceDisplayString } from './permissions.js'
 
-export type ShadowType = 'ask' | 'deny'
+type ShadowType = 'ask' | 'deny'
 
 export type UnreachableRule = {
   rule: PermissionRule
@@ -13,7 +13,7 @@ export type UnreachableRule = {
   fix: string
 }
 
-export type DetectUnreachableRulesOptions = {
+type DetectUnreachableRulesOptions = {
   sandboxAutoAllowEnabled: boolean
 }
 
@@ -23,7 +23,7 @@ const SHARED_SOURCES: ReadonlySet<PermissionRuleSource> = new Set<PermissionRule
   'command',
 ])
 
-export function isSharedSettingSource(source: PermissionRuleSource): boolean {
+function isSharedSettingSource(source: PermissionRuleSource): boolean {
   return SHARED_SOURCES.has(source)
 }
 

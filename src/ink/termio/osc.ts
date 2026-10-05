@@ -5,7 +5,7 @@ import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
 import { BEL, ESC, SEP } from './ansi.js'
 import type { Action, Color, TabStatusAction } from './display-types.js'
 
-export const OSC_PREFIX = `${ESC}]`
+const OSC_PREFIX = `${ESC}]`
 export const ST = `${ESC}\\`
 
 function terminator(): string {
@@ -66,7 +66,7 @@ export const CLEAR_ITERM2_PROGRESS = `${OSC_PREFIX}${OSC.ITERM2};${ITERM2.PROGRE
 export const CLEAR_TERMINAL_TITLE = `${OSC_PREFIX}${OSC.SET_TITLE_AND_ICON};${BEL}`
 
 
-export type ClipboardPath = 'native' | 'tmux-buffer' | 'osc52'
+type ClipboardPath = 'native' | 'tmux-buffer' | 'osc52'
 
 export function getClipboardPath(): ClipboardPath {
   if (process.platform === 'darwin' && !process.env.SSH_CONNECTION) return 'native'
@@ -94,7 +94,7 @@ export function copyReceipt(path: ClipboardPath | 'unsettled'): CopyReceipt {
 
 const SUBPROCESS_TIMEOUT_MS = 2000
 
-export async function tmuxLoadBuffer(text: string): Promise<boolean> {
+async function tmuxLoadBuffer(text: string): Promise<boolean> {
   if (!process.env.TMUX) return false
   const args = process.env.LC_TERMINAL === 'iTerm2' ? ['load-buffer', '-'] : ['load-buffer', '-w', '-']
   const result = await execFileNoThrow('tmux', args, {

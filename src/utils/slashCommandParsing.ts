@@ -1,5 +1,5 @@
 
-export type ParsedSlashCommand = {
+type ParsedSlashCommand = {
   commandName: string
   args: string
   isMcp: boolean

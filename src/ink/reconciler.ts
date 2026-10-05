@@ -63,7 +63,7 @@ type FiberLike = {
   _debugOwner?: FiberLike | null
 }
 
-export function getOwnerChain(fiber: unknown): string[] {
+function getOwnerChain(fiber: unknown): string[] {
   const chain: string[] = []
   const seen = new Set<FiberLike>()
   let current = fiber as FiberLike | null | undefined

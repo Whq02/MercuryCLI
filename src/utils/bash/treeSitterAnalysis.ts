@@ -14,13 +14,13 @@ function asNode(value: unknown): Node | null {
   return null
 }
 
-export type QuoteContext = {
+type QuoteContext = {
   withDoubleQuotes: string
   fullyUnquoted: string
   unquotedKeepQuoteChars: string
 }
 
-export type CompoundStructure = {
+type CompoundStructure = {
   hasCompoundOperators: boolean
   hasPipeline: boolean
   hasSubshell: boolean
@@ -29,7 +29,7 @@ export type CompoundStructure = {
   segments: string[]
 }
 
-export type DangerousPatterns = {
+type DangerousPatterns = {
   hasCommandSubstitution: boolean
   hasProcessSubstitution: boolean
   hasParameterExpansion: boolean
@@ -93,7 +93,7 @@ function dropContainedSpans(spans: QuotedSpan[]): QuotedSpan[] {
   )
 }
 
-export function extractQuoteContext(rootNode: unknown, command: string): QuoteContext {
+function extractQuoteContext(rootNode: unknown, command: string): QuoteContext {
   const root = asNode(rootNode)
   if (!root) {
     return { withDoubleQuotes: command, fullyUnquoted: command, unquotedKeepQuoteChars: command }
@@ -138,7 +138,7 @@ export function extractQuoteContext(rootNode: unknown, command: string): QuoteCo
 
 const OPERATOR_TYPES: ReadonlySet<string> = new Set([';', '&&', '||'])
 
-export function extractCompoundStructure(rootNode: unknown, command: string): CompoundStructure {
+function extractCompoundStructure(rootNode: unknown, command: string): CompoundStructure {
   const root = asNode(rootNode)
   const operators: string[] = []
   const segments: string[] = []
@@ -241,7 +241,7 @@ export function extractCompoundStructure(rootNode: unknown, command: string): Co
   }
 }
 
-export function hasActualOperatorNodes(rootNode: unknown): boolean {
+function hasActualOperatorNodes(rootNode: unknown): boolean {
   const root = asNode(rootNode)
   if (!root) return false
   const stack: Node[] = [root]
@@ -253,7 +253,7 @@ export function hasActualOperatorNodes(rootNode: unknown): boolean {
   return false
 }
 
-export function extractDangerousPatterns(rootNode: unknown): DangerousPatterns {
+function extractDangerousPatterns(rootNode: unknown): DangerousPatterns {
   const root = asNode(rootNode)
   const result: DangerousPatterns = {
     hasCommandSubstitution: false,

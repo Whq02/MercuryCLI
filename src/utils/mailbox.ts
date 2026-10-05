@@ -1,7 +1,7 @@
 import { createSignal } from './signal.js'
 
 
-export type MessageSource = 'user' | 'crewmate' | 'system' | 'tick' | 'task'
+type MessageSource = 'user' | 'crewmate' | 'system' | 'tick' | 'task'
 
 export type Message = {
   id: string

@@ -232,10 +232,6 @@ export function Tabs({
   )
 }
 
-export function useTabsWidth(): number | undefined {
-  return useContext(TabsContext)?.contentWidth
-}
-
 export function useTabHeaderFocus(): {
   headerFocused: boolean
   focusHeader: () => void

@@ -8,7 +8,7 @@ export type CommandSubcommandPrefixResult = CommandPrefixResult & {
   subcommandPrefixes: Map<string, CommandPrefixResult>
 }
 
-export type PrefixExtractorConfig = {
+type PrefixExtractorConfig = {
   toolName: string
   policySpec: string
   querySource: string

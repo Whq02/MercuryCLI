@@ -7,7 +7,7 @@ import type { DOMElement } from './dom.js'
 import sliceAnsi from '../utils/sliceAnsi.js'
 import { stringWidth } from './stringWidth.js'
 
-export type BorderTextOptions = {
+type BorderTextOptions = {
   content: string
   position: 'top' | 'bottom'
   align: 'start' | 'end' | 'center'
@@ -16,7 +16,7 @@ export type BorderTextOptions = {
 
 export type BorderStyle = keyof typeof cliBoxes | 'dashed' | BoxStyle
 
-export const CUSTOM_BORDER_STYLES: Record<string, BoxStyle> = {
+const CUSTOM_BORDER_STYLES: Record<string, BoxStyle> = {
   dashed: {
     topLeft: ' ',
     top: '╌',

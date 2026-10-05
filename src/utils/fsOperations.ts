@@ -55,7 +55,7 @@ function withSlowLog<T>(label: string, fn: () => T): T {
   }
 }
 
-export const NodeFsOperations: FsOperations = {
+const NodeFsOperations: FsOperations = {
   cwd: () => process.cwd(),
   existsSync: path => withSlowLog(`existsSync ${path}`, () => fs.existsSync(path)),
   stat: path => fs.promises.stat(path),
@@ -202,7 +202,7 @@ export function safeResolvePath(
 }
 
 
-export function resolveDeepestExistingAncestorSync(fsImpl: FsOperations, absolutePath: string): string | undefined {
+function resolveDeepestExistingAncestorSync(fsImpl: FsOperations, absolutePath: string): string | undefined {
   const tail: string[] = []
   let current = absolutePath
   for (;;) {

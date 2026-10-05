@@ -4,7 +4,7 @@ import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { gitExe, getRemoteUrl, redactGitRemoteCredentials } from './git.js'
 import { logError } from './log.js'
 
-export type ParsedRepository = {
+type ParsedRepository = {
   host: string
   owner: string
   name: string
@@ -46,23 +46,7 @@ export function parseGitRemote(input: string): ParsedRepository | null {
   return null
 }
 
-export function parseGitHubRepository(input: string): string | null {
-  const parsed = parseGitRemote(input)
-  if (parsed) {
-    if (parsed.host === PUBLIC_GIT_HOST) return `${parsed.owner}/${parsed.name}`
-    return null
-  }
-  if (!input.includes('://') && !input.includes('@') && input.includes('/')) {
-    const parts = input.split('/')
-    if (parts.length === 2 && parts[0] && parts[1]) {
-      return `${parts[0]}/${(parts[1] as string).replace(/\.git$/, '')}`
-    }
-  }
-  logForDebugging(`detectRepository: could not parse repository string: ${input}`)
-  return null
-}
-
-export async function detectCurrentRepositoryWithHost(cwd?: string): Promise<ParsedRepository | null> {
+async function detectCurrentRepositoryWithHost(cwd?: string): Promise<ParsedRepository | null> {
   try {
     const directory = cwd ?? getCwd()
     const cached = repositoryCache.get(directory)
@@ -103,10 +87,4 @@ export async function detectCurrentRepository(): Promise<string | null> {
   const parsed = await detectCurrentRepositoryWithHost()
   if (!parsed || parsed.host !== PUBLIC_GIT_HOST) return null
   return `${parsed.owner}/${parsed.name}`
-}
-
-export function getCachedRepository(): string | null {
-  const cached = repositoryCache.get(getCwd())
-  if (!cached || cached.host !== PUBLIC_GIT_HOST) return null
-  return `${cached.owner}/${cached.name}`
 }

@@ -1,16 +1,7 @@
 
-import type { PromptInputMode } from '../../types/textInputTypes.js'
 import type { HistoryMode } from '../../hooks/useArrowKeyHistory.js'
 
 export const BASH_MODE_CHARACTER = '!'
-
-export function prependModeCharacterToInput(
-  text: string,
-  mode: PromptInputMode,
-): string {
-  if (mode === 'bash') return `${BASH_MODE_CHARACTER}${text}`
-  return text
-}
 
 export function getModeFromInput(text: string): HistoryMode {
   if (text.startsWith(BASH_MODE_CHARACTER)) return 'bash'

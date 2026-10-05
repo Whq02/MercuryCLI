@@ -27,7 +27,7 @@ const SLOW_TICK_MS = WORK_TICK_MS * 2
 const THINKING_SHIMMER_SUPPRESS_MS = 3000
 const THINKING_SHIMMER_PERIOD_MS = 2000
 
-export type SpinnerAnimationRowProps = {
+type SpinnerAnimationRowProps = {
   mode: SpinnerMode
   reducedMotion: boolean
   activeToolCount: number

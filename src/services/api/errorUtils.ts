@@ -1,7 +1,7 @@
 import { APIError } from '@anthropic-ai/sdk'
 
 
-export type ConnectionErrorDetails = {
+type ConnectionErrorDetails = {
   code: string
   message: string
   isSSLError: boolean
@@ -51,7 +51,7 @@ export function extractConnectionErrorDetails(error: unknown): ConnectionErrorDe
   return null
 }
 
-export function sanitizeAPIError(apiError: string | undefined | null): string {
+function sanitizeAPIError(apiError: string | undefined | null): string {
   if (apiError === undefined || apiError === null) return ''
   const lower = apiError.toLowerCase()
   if (!lower.includes('<!doctype') && !lower.includes('<html')) return apiError

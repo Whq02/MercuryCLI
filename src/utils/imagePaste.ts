@@ -19,7 +19,7 @@ export const PASTE_THRESHOLD = 800
 
 export const IMAGE_EXTENSION_REGEX = /\.(png|jpe?g|gif|webp)$/i
 
-export type ImageWithDimensions = {
+type ImageWithDimensions = {
   base64: string
   mediaType: string
   dimensions?: ImageDimensions
@@ -214,7 +214,7 @@ export async function getImageFromClipboard(): Promise<ImageWithDimensions | nul
   }
 }
 
-export async function getImagePathFromClipboard(): Promise<string | null> {
+async function getImagePathFromClipboard(): Promise<string | null> {
   return readClipboardPathText(clipboardPlatform())
 }
 

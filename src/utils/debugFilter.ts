@@ -37,7 +37,7 @@ const FIRST_PARTY_MARKER = '1p event:'
 
 const SECONDARY_PATTERN = /:\s*(.+?)(?:\s+(?:type|mode|status|event))?:/
 
-export function extractDebugCategories(message: string): string[] {
+function extractDebugCategories(message: string): string[] {
   const categories = new Set<string>()
   const mcpMatch = MCP_SERVER_PATTERN.exec(message)
   if (mcpMatch) {
@@ -66,7 +66,7 @@ export function extractDebugCategories(message: string): string[] {
   return [...categories]
 }
 
-export function shouldShowDebugCategories(
+function shouldShowDebugCategories(
   categories: string[],
   filter: DebugFilter | null,
 ): boolean {

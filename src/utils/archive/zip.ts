@@ -11,7 +11,7 @@ const MAX_COMPRESSION_RATIO = 50
 const MIN_COMPRESSION_RATIO = 0.5
 void MIN_COMPRESSION_RATIO
 
-export function isPathSafe(filePath: string): boolean {
+function isPathSafe(filePath: string): boolean {
   if (containsPathTraversal(filePath)) return false
   return !isAbsolute(normalize(filePath))
 }
@@ -23,7 +23,7 @@ export type ZipValidationState = {
   errors: string[]
 }
 
-export function validateZipFile(
+function validateZipFile(
   file: { name: string; originalSize?: number },
   state: ZipValidationState,
 ): { isValid: boolean; error?: string } {

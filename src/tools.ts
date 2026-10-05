@@ -123,9 +123,6 @@ import './services/resources/adapters/workbench.js'
 export { ALL_AGENT_DISALLOWED_TOOLS, ASYNC_AGENT_ALLOWED_TOOLS, CUSTOM_AGENT_DISALLOWED_TOOLS }
 
 
-export const TOOL_PRESETS = ['default'] as const
-export type ToolPreset = (typeof TOOL_PRESETS)[number]
-
 function cycleTolerant<T>(get: () => T): T | undefined {
   try {
     return get()

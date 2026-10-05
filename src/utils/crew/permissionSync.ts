@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, rm, unlink, writeFile } from 'node:fs/promises'
+import { readFile, rm, unlink } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { z } from 'zod/v4'
@@ -7,12 +7,12 @@ import { logForDebugging } from '../debug.js'
 import { getCrewsDir } from '../envUtils.js'
 import { errorMessage, isENOENT } from '../errors.js'
 import { lazySchema } from '../lazySchema.js'
-import * as lockfile from '../lockfile.js'
+
 import { logError } from '../log.js'
-import { jsonStringify } from '../slowOperations.js'
+
 import { getAgentId, getAgentName, getCrewName, getCrewmateColor } from '../crewmate.js'
 import { sendLiveMessage } from '../../services/crew/liveComms.js'
-import { createPermissionRequestMessage, createSandboxPermissionRequestMessage } from '../../services/crew/liveMessages.js'
+import { createPermissionRequestMessage } from '../../services/crew/liveMessages.js'
 import { CREW_LEAD_NAME } from './constants.js'
 import { readCrewFileAsync, sanitizeName } from './crewHelpers.js'
 
@@ -35,21 +35,13 @@ export const CrewPermissionRequestSchema = lazySchema(() =>
     feedback: z.string().optional(),
     updatedInput: z.record(z.string(), z.unknown()).optional(),
     permissionUpdates: z.array(z.unknown()).optional(),
-    createdAt: z.number(),
+    createdAt: z.number()
   }),
 )
 
 export type CrewPermissionRequest = z.infer<ReturnType<typeof CrewPermissionRequestSchema>>
 
-export type PermissionResolution = {
-  decision: 'approved' | 'rejected'
-  resolvedBy: 'worker' | 'leader'
-  feedback?: string
-  updatedInput?: Record<string, unknown>
-  permissionUpdates?: unknown[]
-}
-
-export type PermissionResponse = {
+type PermissionResponse = {
   requestId: string
   decision: 'approved' | 'denied'
   timestamp: string
@@ -59,12 +51,8 @@ export type PermissionResponse = {
 }
 
 
-export function getPermissionDir(crewName: string): string {
+function getPermissionDir(crewName: string): string {
   return join(getCrewsDir(), sanitizeName(crewName), 'permissions')
-}
-
-function getPendingDir(crewName: string): string {
-  return join(getPermissionDir(crewName), 'pending')
 }
 
 function getResolvedDir(crewName: string): string {
@@ -77,10 +65,6 @@ function randomSuffix(): string {
 
 export function generateRequestId(): string {
   return `perm-${Date.now()}-${randomSuffix()}`
-}
-
-export function generateSandboxRequestId(): string {
-  return `sandbox-${Date.now()}-${randomSuffix()}`
 }
 
 function resolveCrew(crewName: string | undefined): string | undefined {
@@ -124,80 +108,11 @@ export function createPermissionRequest(params: {
     input: params.input,
     permissionSuggestions: params.permissionSuggestions ?? [],
     status: 'pending',
-    createdAt: Date.now(),
+    createdAt: Date.now()
   }
 }
 
-async function ensurePermissionDirs(crewName: string): Promise<void> {
-  await mkdir(getPendingDir(crewName), { recursive: true })
-  await mkdir(getResolvedDir(crewName), { recursive: true })
-}
-
-async function withPendingLock<R>(crewName: string, fn: () => Promise<R>): Promise<R> {
-  const lockPath = join(getPendingDir(crewName), '.lock')
-  await writeFile(lockPath, '')
-  const release = await lockfile.lock(lockPath)
-  try {
-    return await fn()
-  } finally {
-    await release()
-  }
-}
-
-export async function writePermissionRequest(
-  request: CrewPermissionRequest,
-): Promise<CrewPermissionRequest> {
-  try {
-    await ensurePermissionDirs(request.crewName)
-    await withPendingLock(request.crewName, async () => {
-      await writeFile(
-        join(getPendingDir(request.crewName), `${request.id}.json`),
-        jsonStringify(request, null, 2),
-      )
-    })
-    return request
-  } catch (error) {
-    logError(error)
-    throw error
-  }
-}
-
-export const submitPermissionRequest = writePermissionRequest
-
-export async function readPendingPermissions(crewName?: string): Promise<CrewPermissionRequest[]> {
-  const crew = resolveCrew(crewName)
-  if (!crew) {
-    logForDebugging('permission sync: no crew — pending read answers empty')
-    return []
-  }
-  let entries: string[]
-  try {
-    entries = await readdir(getPendingDir(crew))
-  } catch (error) {
-    if (!isENOENT(error)) {
-      logForDebugging(`permission sync: pending read failed: ${errorMessage(error)}`)
-    }
-    return []
-  }
-  const requests: CrewPermissionRequest[] = []
-  for (const entry of entries) {
-    if (!entry.endsWith('.json') || entry === '.lock') continue
-    try {
-      const raw = await readFile(join(getPendingDir(crew), entry), 'utf-8')
-      const parsed = CrewPermissionRequestSchema().safeParse(JSON.parse(raw))
-      if (!parsed.success) {
-        logForDebugging(`permission sync: dropping invalid pending record ${entry}`)
-        continue
-      }
-      requests.push(parsed.data)
-    } catch (error) {
-      logForDebugging(`permission sync: dropping unreadable pending record ${entry}: ${errorMessage(error)}`)
-    }
-  }
-  return requests.sort((a, b) => a.createdAt - b.createdAt)
-}
-
-export async function readResolvedPermission(
+async function readResolvedPermission(
   requestId: string,
   crewName?: string,
 ): Promise<CrewPermissionRequest | null> {
@@ -219,49 +134,7 @@ export async function readResolvedPermission(
   }
 }
 
-export async function resolvePermission(
-  requestId: string,
-  resolution: PermissionResolution,
-  crewName?: string,
-): Promise<boolean> {
-  const crew = resolveCrew(crewName)
-  if (!crew) return false
-  try {
-    await ensurePermissionDirs(crew)
-    return await withPendingLock(crew, async () => {
-      const pendingPath = join(getPendingDir(crew), `${requestId}.json`)
-      let pending: CrewPermissionRequest
-      try {
-        const parsed = CrewPermissionRequestSchema().safeParse(
-          JSON.parse(await readFile(pendingPath, 'utf-8')),
-        )
-        if (!parsed.success) return false
-        pending = parsed.data
-      } catch {
-        return false
-      }
-      const resolved: CrewPermissionRequest = {
-        ...pending,
-        status: resolution.decision,
-        resolvedBy: resolution.resolvedBy,
-        resolvedAt: Date.now(),
-        ...(resolution.feedback !== undefined ? { feedback: resolution.feedback } : {}),
-        ...(resolution.updatedInput !== undefined ? { updatedInput: resolution.updatedInput } : {}),
-        ...(resolution.permissionUpdates !== undefined
-          ? { permissionUpdates: resolution.permissionUpdates }
-          : {}),
-      }
-      await writeFile(join(getResolvedDir(crew), `${requestId}.json`), jsonStringify(resolved, null, 2))
-      await unlink(pendingPath)
-      return true
-    })
-  } catch (error) {
-    logForDebugging(`permission sync: resolve of ${requestId} failed: ${errorMessage(error)}`)
-    return false
-  }
-}
-
-export async function deleteResolvedPermission(requestId: string, crewName?: string): Promise<boolean> {
+async function deleteResolvedPermission(requestId: string, crewName?: string): Promise<boolean> {
   const crew = resolveCrew(crewName)
   if (!crew) return false
   try {
@@ -272,42 +145,6 @@ export async function deleteResolvedPermission(requestId: string, crewName?: str
     logForDebugging(`permission sync: delete of ${requestId} failed: ${errorMessage(error)}`)
     return false
   }
-}
-
-export async function cleanupOldResolutions(crewName?: string, maxAgeMs = 3_600_000): Promise<number> {
-  const crew = resolveCrew(crewName)
-  if (!crew) return 0
-  let entries: string[]
-  try {
-    entries = await readdir(getResolvedDir(crew))
-  } catch {
-    return 0
-  }
-  const now = Date.now()
-  let deleted = 0
-  for (const entry of entries) {
-    if (!entry.endsWith('.json')) continue
-    const path = join(getResolvedDir(crew), entry)
-    let shouldDelete = false
-    try {
-      const parsed = CrewPermissionRequestSchema().safeParse(JSON.parse(await readFile(path, 'utf-8')))
-      if (!parsed.success) {
-        shouldDelete = true
-      } else {
-        const age = now - (parsed.data.resolvedAt ?? parsed.data.createdAt)
-        shouldDelete = age >= maxAgeMs
-      }
-    } catch {
-      shouldDelete = true
-    }
-    if (!shouldDelete) continue
-    try {
-      await unlink(path)
-      deleted += 1
-    } catch {
-    }
-  }
-  return deleted
 }
 
 export async function pollForResponse(
@@ -325,7 +162,7 @@ export async function pollForResponse(
     ...(resolved.updatedInput !== undefined ? { updatedInput: resolved.updatedInput } : {}),
     ...(resolved.permissionUpdates !== undefined
       ? { permissionUpdates: resolved.permissionUpdates }
-      : {}),
+      : {})
   }
 }
 
@@ -351,7 +188,7 @@ export function isCrewmateWorker(): boolean {
   return Boolean(crew) && agentId !== undefined && !isCrewLeader()
 }
 
-export async function getLeaderName(crewName?: string): Promise<string | null> {
+async function getLeaderName(crewName?: string): Promise<string | null> {
   const crew = resolveCrew(crewName)
   if (!crew) return null
   const roster = await readCrewFileAsync(crew)
@@ -379,61 +216,14 @@ export async function sendPermissionRequestViaMailbox(
       tool_use_id: request.toolUseId,
       description: request.description,
       input: request.input,
-      permission_suggestions: request.permissionSuggestions,
+      permission_suggestions: request.permissionSuggestions
     })
     return await sendLiveMessage(request.crewName, {
       to: leaderName,
       from: request.workerName,
       text: JSON.stringify(message),
       timestamp: new Date().toISOString(),
-      ...(request.workerColor !== undefined ? { color: request.workerColor } : {}),
-    })
-  } catch (error) {
-    logError(error)
-    return false
-  }
-}
-
-export async function sendSandboxPermissionRequestViaMailbox(
-  host: string,
-  requestId: string,
-  crewName?: string,
-): Promise<boolean> {
-  try {
-    const crew = resolveCrew(crewName)
-    if (!crew) {
-      logForDebugging('permission sync: no crew — sandbox request not sent')
-      return false
-    }
-    const leaderName = await getLeaderName(crew)
-    if (leaderName === null) {
-      logForDebugging(`permission sync: no leader for ${crew} — sandbox request not sent`)
-      return false
-    }
-    const workerId = getAgentId()
-    if (!workerId) {
-      logForDebugging('permission sync: no worker id — sandbox request not sent')
-      return false
-    }
-    const workerName = getAgentName()
-    if (!workerName) {
-      logForDebugging('permission sync: no worker name — sandbox request not sent')
-      return false
-    }
-    const workerColor = getCrewmateColor()
-    const message = createSandboxPermissionRequestMessage({
-      requestId,
-      workerId,
-      workerName,
-      ...(workerColor !== undefined ? { workerColor } : {}),
-      host,
-    })
-    return await sendLiveMessage(crew, {
-      to: leaderName,
-      from: workerName,
-      text: JSON.stringify(message),
-      timestamp: new Date().toISOString(),
-      ...(workerColor !== undefined ? { color: workerColor } : {}),
+      ...(request.workerColor !== undefined ? { color: request.workerColor } : {})
     })
   } catch (error) {
     logError(error)

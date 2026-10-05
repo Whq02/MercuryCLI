@@ -2,7 +2,7 @@ import { resolveModelCapabilities } from './model/capabilities.js'
 import { getEngineModel } from './model/model.js'
 
 
-export const DOCUMENT_EXTENSIONS: Set<string> = new Set(['pdf'])
+const DOCUMENT_EXTENSIONS: Set<string> = new Set(['pdf'])
 
 function leadingInt(component: string): number | null {
   if (!/^[+-]?\d/.test(component)) return null

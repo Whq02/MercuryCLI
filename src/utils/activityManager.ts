@@ -10,7 +10,7 @@ type ActivityManagerOptions = {
 
 const INACTIVITY_TIMEOUT_MS = 5000
 
-export class ActivityManager {
+class ActivityManager {
   private static instance: ActivityManager | undefined
 
   static getInstance(): ActivityManager {

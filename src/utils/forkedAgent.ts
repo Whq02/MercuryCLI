@@ -39,7 +39,7 @@ export type CacheSafeParams = {
   forkContextMessages: Message[]
 }
 
-export type SubagentContextOverrides = {
+type SubagentContextOverrides = {
   readFileState?: FileStateCache
   contentReplacementState?: ContentReplacementState
   abortController?: AbortController
@@ -73,12 +73,12 @@ export type ForkedAgentParams = {
   effortMessage?: EffortValue
 }
 
-export type ForkedAgentResult = {
+type ForkedAgentResult = {
   messages: Message[]
   totalUsage: NonNullableUsage
 }
 
-export type PreparedForkedContext = {
+type PreparedForkedContext = {
   skillContent: string
   modifiedGetAppState: () => AppState
   baseAgent: AgentDefinition

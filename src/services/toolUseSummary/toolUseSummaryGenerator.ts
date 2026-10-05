@@ -8,7 +8,7 @@ import { asSystemPrompt } from '../../utils/systemPromptType.js'
 const INPUT_OUTPUT_LIMIT = 300
 const INTENT_LIMIT = 200
 
-export type GenerateToolUseSummaryParams = {
+type GenerateToolUseSummaryParams = {
   tools: Array<{ name: string; input: unknown; output: unknown }>
   signal: AbortSignal
   isNonInteractiveSession: boolean

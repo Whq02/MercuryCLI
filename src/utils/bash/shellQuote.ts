@@ -5,11 +5,11 @@ import { jsonStringify } from '../slowOperations.js'
 
 export type { ParseEntry } from 'shell-quote'
 
-export type ShellParseResult =
+type ShellParseResult =
   | { success: true; tokens: ParseEntry[] }
   | { success: false; error: string }
 
-export type ShellQuoteResult =
+type ShellQuoteResult =
   | { success: true; quoted: string }
   | { success: false; error: string }
 
@@ -33,7 +33,7 @@ export function tryParseShellCommand(
   }
 }
 
-export function tryQuoteShellArgs(args: unknown[]): ShellQuoteResult {
+function tryQuoteShellArgs(args: unknown[]): ShellQuoteResult {
   const prepared: string[] = []
   for (let i = 0; i < args.length; i++) {
     const value = args[i]

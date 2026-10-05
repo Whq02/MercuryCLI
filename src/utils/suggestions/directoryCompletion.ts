@@ -8,7 +8,7 @@ import { logForDebugging } from '../debug.js'
 import { expandPath } from '../path.js'
 
 
-export type DirectoryEntry = {
+type DirectoryEntry = {
   name: string
   path: string
 }
@@ -19,12 +19,12 @@ export type PathEntry = {
   kind: 'file' | 'directory'
 }
 
-export type CompletionOptions = {
+type CompletionOptions = {
   basePath?: string
   maxResults?: number
 }
 
-export type PathCompletionOptions = CompletionOptions & {
+type PathCompletionOptions = CompletionOptions & {
   includeFiles?: boolean
   includeHidden?: boolean
 }
@@ -43,7 +43,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000
 const directoryCache = new LRUCache<string, DirectoryEntry[]>({ max: 500, ttl: CACHE_TTL_MS })
 const pathCache = new LRUCache<string, PathEntry[]>({ max: 500, ttl: CACHE_TTL_MS })
 
-export function parsePartialPath(partialPath: string, basePath?: string): { directory: string; prefix: string } {
+function parsePartialPath(partialPath: string, basePath?: string): { directory: string; prefix: string } {
   const base = basePath ?? getCwd()
   if (partialPath === '') {
     return { directory: base, prefix: '' }
@@ -57,7 +57,7 @@ export function parsePartialPath(partialPath: string, basePath?: string): { dire
   return { directory: dirname(expanded), prefix }
 }
 
-export async function scanDirectory(dirPath: string): Promise<DirectoryEntry[]> {
+async function scanDirectory(dirPath: string): Promise<DirectoryEntry[]> {
   const cached = directoryCache.get(dirPath)
   if (cached !== undefined) return cached
   let entries: DirectoryEntry[] = []
@@ -75,7 +75,7 @@ export async function scanDirectory(dirPath: string): Promise<DirectoryEntry[]> 
   return entries
 }
 
-export async function scanDirectoryForPaths(dirPath: string, includeHidden: boolean = false): Promise<PathEntry[]> {
+async function scanDirectoryForPaths(dirPath: string, includeHidden: boolean = false): Promise<PathEntry[]> {
   const cacheKey = `${dirPath}|${includeHidden ? 'hidden' : 'visible'}`
   const cached = pathCache.get(cacheKey)
   if (cached !== undefined) return cached

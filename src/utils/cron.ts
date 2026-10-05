@@ -1,5 +1,5 @@
 
-export type CronFields = {
+type CronFields = {
   minute: number[]
   hour: number[]
   dayOfMonth: number[]

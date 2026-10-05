@@ -36,7 +36,7 @@ const PRIORITY_RANK: Record<Priority, number> = {
   low: 3,
 }
 
-export function getNext(queue: Notification[]): Notification | undefined {
+function getNext(queue: Notification[]): Notification | undefined {
   if (queue.length === 0) return undefined
   return queue.reduce((best, candidate) =>
     PRIORITY_RANK[candidate.priority] < PRIORITY_RANK[best.priority]

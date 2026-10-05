@@ -55,7 +55,7 @@ export type Props = {
   streamFaultRecovered?: boolean
 }
 
-export function hasThinkingContent(m: RenderableMessage): boolean {
+function hasThinkingContent(m: RenderableMessage): boolean {
   if (m.type !== 'assistant') return false
   const content = m.message.content
   if (!Array.isArray(content)) return false
@@ -359,7 +359,7 @@ function MessageInner({
   )
 }
 
-export function areMessagePropsEqual(prev: Props, next: Props): boolean {
+function areMessagePropsEqual(prev: Props, next: Props): boolean {
   if (prev.message.uuid !== next.message.uuid) return false
   if ((prev.message as { queued?: true }).queued !== (next.message as { queued?: true }).queued) return false
   if ((prev.message as { heldFor?: 'compaction' }).heldFor !== (next.message as { heldFor?: 'compaction' }).heldFor) return false

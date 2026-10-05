@@ -9,7 +9,7 @@ function formatTruncatedTextRef(id: number, numLines: number): string {
   return `[...Truncated text #${id} +${numLines} lines...]`
 }
 
-export function maybeTruncateMessageForInput(
+function maybeTruncateMessageForInput(
   text: string,
   nextPasteId: number,
 ): { truncatedText: string; placeholderContent: string } {

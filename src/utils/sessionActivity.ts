@@ -2,7 +2,7 @@ import { logForDiagnosticsNoPII } from './diagLogs.js'
 import { registerCleanup } from './cleanupRegistry.js'
 
 
-export type SessionActivityReason = 'api_call' | 'tool_exec'
+type SessionActivityReason = 'api_call' | 'tool_exec'
 
 const keepAliveCallback: (() => void) | null = null
 

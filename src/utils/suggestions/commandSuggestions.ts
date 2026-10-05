@@ -6,7 +6,7 @@ import { requiresArgument } from '../../skills/argumentHint.js'
 import { getSkillUsageScore } from './skillUsageTracking.js'
 
 
-export type MidInputSlashCommand = {
+type MidInputSlashCommand = {
   token: string
   startPos: number
   partialCommand: string
@@ -21,7 +21,7 @@ export type CommandSuggestionItem = {
   metadata?: unknown
 }
 
-export function isCommandInput(input: string): boolean {
+function isCommandInput(input: string): boolean {
   return input.startsWith('/')
 }
 
@@ -32,7 +32,7 @@ export function hasCommandArgs(input: string): boolean {
   return spaceIndex !== input.length - 1 || input.trimEnd().includes(' ')
 }
 
-export function formatCommand(name: string): string {
+function formatCommand(name: string): string {
   return `/${name} `
 }
 

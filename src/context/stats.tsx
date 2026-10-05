@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useEffect } from 'react'
+import React, { createContext, useEffect } from 'react'
 import { sessionSawUsage } from '../cost-tracker.js'
 import { saveCurrentProjectConfig } from '../utils/config.js'
 
@@ -90,7 +90,7 @@ export function createStatsStore(): StatsStore {
   }
 }
 
-export const StatsContext = createContext<StatsStore | null>(null)
+const StatsContext = createContext<StatsStore | null>(null)
 
 export function StatsProvider({
   store,
@@ -127,12 +127,4 @@ export function StatsProvider({
   }, [live])
 
   return <StatsContext.Provider value={live}>{children}</StatsContext.Provider>
-}
-
-export function useStats(): StatsStore {
-  const store = useContext(StatsContext)
-  if (store === null) {
-    throw new Error('useStats must be used within a StatsProvider')
-  }
-  return store
 }

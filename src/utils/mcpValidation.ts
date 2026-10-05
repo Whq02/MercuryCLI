@@ -5,8 +5,8 @@ import { compressImageBlock } from './imageResizer.js'
 import { logError } from './log.js'
 
 
-export const MCP_TOKEN_COUNT_THRESHOLD_FACTOR = 0.5
-export const IMAGE_TOKEN_ESTIMATE = 1600
+const MCP_TOKEN_COUNT_THRESHOLD_FACTOR = 0.5
+const IMAGE_TOKEN_ESTIMATE = 1600
 
 const DEFAULT_MAX_MCP_OUTPUT_TOKENS = 25_000
 

@@ -21,7 +21,7 @@ import { useSelectState } from './use-select-state.js'
 
 export type { OptionWithDescription } from './option-map.js'
 
-export type SelectProps<T = string> = {
+type SelectProps<T = string> = {
   isDisabled?: boolean
   disableSelection?: boolean | 'numeric'
   hideIndexes?: boolean

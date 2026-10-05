@@ -5,7 +5,7 @@ import { logError } from './log.js'
 import { gt } from './semver.js'
 
 
-export function getStoredChangelogFromMemory(): string {
+function getStoredChangelogFromMemory(): string {
   return MERCURY_CHANGELOG
 }
 

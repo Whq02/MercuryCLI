@@ -15,7 +15,7 @@ import { writeToStderr } from './process.js'
 import { jsonStringify } from './slowOperations.js'
 
 
-export type DebugLogLevel = 'verbose' | 'debug' | 'info' | 'warn' | 'error'
+type DebugLogLevel = 'verbose' | 'debug' | 'info' | 'warn' | 'error'
 
 const LEVEL_ORDER: readonly DebugLogLevel[] = ['verbose', 'debug', 'info', 'warn', 'error']
 

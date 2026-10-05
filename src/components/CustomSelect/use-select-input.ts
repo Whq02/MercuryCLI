@@ -27,7 +27,7 @@ export function letterOrdinalOf(option: {
   return /^[A-Z]$/.test(core) ? core : undefined
 }
 
-export type UseSelectProps<T> = {
+type UseSelectProps<T> = {
   state: SelectState<T>
   isDisabled?: boolean
   disableSelection?: boolean | 'numeric'

@@ -57,7 +57,7 @@ async function isExecutableShell(path: string): Promise<boolean> {
   }
 }
 
-export async function findSuitableShell(): Promise<string> {
+async function findSuitableShell(): Promise<string> {
   const loginShell = process.env.SHELL
   const prefersBash = loginShell !== undefined && loginShell.includes('bash')
   const preferredName = prefersBash ? 'bash' : 'zsh'
@@ -92,7 +92,7 @@ export async function findSuitableShell(): Promise<string> {
 }
 
 
-export type ShellConfig = {
+type ShellConfig = {
   provider: ShellProvider
 }
 

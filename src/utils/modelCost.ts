@@ -41,8 +41,8 @@ function tierFromInputOutput(input: number, output: number): ModelCosts {
 }
 
 export const COST_TIER_2_10: ModelCosts = tierFromInputOutput(2, 10)
-export const COST_TIER_3_15: ModelCosts = tierFromInputOutput(3, 15)
-export const COST_TIER_15_75: ModelCosts = tierFromInputOutput(15, 75)
+const COST_TIER_3_15: ModelCosts = tierFromInputOutput(3, 15)
+const COST_TIER_15_75: ModelCosts = tierFromInputOutput(15, 75)
 export const COST_TIER_5_25: ModelCosts = tierFromInputOutput(5, 25)
 export const COST_TIER_10_50: ModelCosts = tierFromInputOutput(10, 50)
 export const COST_FABLE_5_1: ModelCosts = {
@@ -53,14 +53,14 @@ export const COST_OPUS_5_5: ModelCosts = {
   ...tierFromInputOutput(4, 20),
   promptCacheReadTokens: 0.2,
 }
-export const COST_HAIKU_35: ModelCosts = {
+const COST_HAIKU_35: ModelCosts = {
   inputTokens: 0.8,
   outputTokens: 4,
   promptCacheWriteTokens: 1,
   promptCacheReadTokens: 0.08,
   webSearchRequests: WEB_SEARCH_PER_REQUEST,
 }
-export const COST_HAIKU_45: ModelCosts = tierFromInputOutput(1, 5)
+const COST_HAIKU_45: ModelCosts = tierFromInputOutput(1, 5)
 
 export const COST_LOCAL_SERVER: ModelCosts = {
   inputTokens: 0,

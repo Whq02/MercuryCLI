@@ -83,7 +83,7 @@ function candidateText(output: MCPToolResult): string | undefined {
   return typeof firstText?.text === 'string' ? firstText.text : undefined
 }
 
-export function trySlackSendCompact(
+function trySlackSendCompact(
   output: MCPToolResult,
   input: unknown,
 ): { channel: string; url: string } | null {

@@ -14,7 +14,7 @@ import { fileHistoryCanRestore, fileHistoryEnabled, fileHistoryRestore, type Res
 import { holdModeTransition, type ModeTransitionRoad, recordModeTransition } from 'src/utils/permissions/modeTransitions.js'
 import { isBypassPermissionsModeDisabled, transitionPermissionMode } from 'src/utils/permissions/permissionSetup.js'
 
-export type RewindFilesResult = {
+type RewindFilesResult = {
   can_rewind?: boolean
   files_changed?: string[]
   insertions?: number

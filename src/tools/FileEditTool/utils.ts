@@ -28,7 +28,7 @@ export function normalizeQuotes(s: string): string {
 }
 
 
-export function stripTrailingWhitespace(s: string): string {
+function stripTrailingWhitespace(s: string): string {
   return s.replace(/[^\S\r\n]+(?=\r\n|\r|\n|$)/g, '')
 }
 
@@ -544,7 +544,7 @@ function applyAll(edits: FileEdit[], originalContent: string): string {
   return content
 }
 
-export function areFileEditsEquivalent(
+function areFileEditsEquivalent(
   edits1: FileEdit[],
   edits2: FileEdit[],
   originalContent: string,

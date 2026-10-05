@@ -9,8 +9,8 @@ import { wrapAnsi } from '../ink/wrapAnsi.js'
 import { CHIP_PATTERN } from './inputRange.js'
 
 
-export const VIM_WORD_CHAR_REGEX = /[\p{L}\p{N}\p{M}_]/u
-export const WHITESPACE_REGEX = /\s/
+const VIM_WORD_CHAR_REGEX = /[\p{L}\p{N}\p{M}_]/u
+const WHITESPACE_REGEX = /\s/
 
 export function isVimWordChar(ch: string): boolean {
   return VIM_WORD_CHAR_REGEX.test(ch)

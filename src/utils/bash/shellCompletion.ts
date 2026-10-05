@@ -11,7 +11,7 @@ const COMPLETION_TIMEOUT_MS = 1000
 
 const COMMAND_OPERATORS: ReadonlySet<string> = new Set(['|', '||', '&&', ';'])
 
-export function getShellType(): string {
+function getShellType(): string {
   const shell = process.env.SHELL ?? ''
   if (shell.includes('zsh')) return 'zsh'
   if (shell.includes('bash')) return 'bash'

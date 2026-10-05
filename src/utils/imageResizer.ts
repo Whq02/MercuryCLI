@@ -27,13 +27,13 @@ export type ImageDimensions = {
   displayHeight?: number
 }
 
-export type ResizeResult = {
+type ResizeResult = {
   buffer: Buffer
   mediaType: string
   dimensions?: ImageDimensions
 }
 
-export type ImageBlockWithDimensions = { block: ImageBlockParam; dimensions?: ImageDimensions }
+type ImageBlockWithDimensions = { block: ImageBlockParam; dimensions?: ImageDimensions }
 
 type DetectedFormat = 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp'
 
@@ -581,7 +581,7 @@ export async function fitImagesToRequestCap<M extends RequestRow>(
 }
 
 
-export async function compressImageBuffer(
+async function compressImageBuffer(
   imageBuffer: Buffer,
   maxBytes: number,
   originalMediaType?: string,

@@ -1,7 +1,6 @@
 import {
   chmodSync,
   closeSync,
-  existsSync,
   fsyncSync,
   ftruncateSync,
   lstatSync,
@@ -27,7 +26,6 @@ import { detectEncodingForResolvedPath, detectLineEndingsForString, type LineEnd
 import { fileReadCache } from './fileReadCache.js'
 import { logError } from './log.js'
 import { expandPath } from './path.js'
-import { getPlatform } from './platform.js'
 
 
 export type File = {
@@ -425,32 +423,4 @@ export function isFileWithinReadSizeLimit(filePath: string, maxSizeBytes: number
   } catch {
     return false
   }
-}
-
-const WINDOWS_SYSTEM_USER_DIRS = new Set(['Public', 'Default', 'Default User', 'All Users'])
-
-export function getDesktopPath(): string {
-  const platform = getPlatform()
-  if (platform === 'macos') {
-    return join(homedir(), 'Desktop')
-  }
-  if (platform === 'windows') {
-    const userProfile = process.env.USERPROFILE
-    if (userProfile) {
-      const withoutDrive = userProfile.replace(/\\/g, '/').replace(/^[A-Z]:/, '')
-      const candidate = join(`/mnt/c${withoutDrive}`, 'Desktop')
-      if (existsSync(candidate)) return candidate
-    }
-    try {
-      for (const entry of readdirSync('/mnt/c/Users')) {
-        if (WINDOWS_SYSTEM_USER_DIRS.has(entry)) continue
-        const candidate = join('/mnt/c/Users', entry, 'Desktop')
-        if (existsSync(candidate)) return candidate
-      }
-    } catch (err) {
-      logError(err)
-    }
-  }
-  const fallback = join(homedir(), 'Desktop')
-  return existsSync(fallback) ? fallback : homedir()
 }

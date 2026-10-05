@@ -8,7 +8,7 @@ import { useExpandShellOutput } from './ExpandShellOutputContext.js'
 
 const JSON_PASS_MAX_CHARS = 10_000
 
-export function tryFormatJson(line: string): string {
+function tryFormatJson(line: string): string {
   if (line.length > JSON_PASS_MAX_CHARS) return line
   const trimmed = line.trim()
   if (trimmed === '') return line
@@ -27,7 +27,7 @@ export function tryFormatJson(line: string): string {
   }
 }
 
-export function tryJsonFormatContent(content: string): string {
+function tryJsonFormatContent(content: string): string {
   if (content.length > JSON_PASS_MAX_CHARS) return content
   return content
     .split('\n')
@@ -35,7 +35,7 @@ export function tryJsonFormatContent(content: string): string {
     .join('\n')
 }
 
-export function linkifyUrlsInText(content: string): string {
+function linkifyUrlsInText(content: string): string {
   return content.replace(
     /https?:\/\/[^\s"'<>\\]+/g,
     url => `\u001b]8;;${url}\u0007${url}\u001b]8;;\u0007`,

@@ -3,12 +3,12 @@ import type { RateLimitType } from './anthropicLimits.js'
 import { FIRST_WARNING_PCT } from './providers/usageTiers.js'
 
 
-export type MockHeaderKey =
+type MockHeaderKey =
   | 'status' | 'reset' | 'claim' | 'fallback' | 'fallback-percentage' | 'retry-after'
   | `overage-${'status' | 'reset' | 'disabled-reason'}`
   | `${'5h' | '7d'}-${'utilization' | 'reset' | 'surpassed-threshold'}`
 
-export type MockScenario =
+type MockScenario =
   | 'normal' | 'approaching-weekly-limit' | 'out-of-credits'
   | 'org-spend-cap-hit' | 'extra-usage-required' | 'clear'
   | `${'session' | 'weekly'}-limit-reached`
@@ -27,7 +27,7 @@ type ScenarioPools = Partial<Record<'seven_day_opus' | 'seven_day_sonnet', Scena
 
 let mockHeaders: MockHeaders = {}
 let enabled = false
-let headerless429Message: string | null = null
+
 let exceededLimits: ExceededLimit[] = []
 let scenarioPools: ScenarioPools = {}
 const mockSubscriptionType: string | null = null
@@ -136,15 +136,6 @@ export function setMockHeader(key: MockHeaderKey, value: string | undefined): vo
   }
 }
 
-export function addExceededLimit(type: RateLimitType, hoursFromNow: number): void {
-  if (!isArmed()) return
-  enabled = true
-  exceededLimits = exceededLimits.filter(entry => entry.type !== type)
-  exceededLimits.push({ type, resetsAt: hoursFromNowEpoch(hoursFromNow) })
-  mockHeaders[`${HEADER_PREFIX}status`] = 'rejected'
-  deriveRepresentativeClaim()
-}
-
 const WARNING_HEADER_KEYS = [
   '5h-utilization',
   '5h-reset',
@@ -178,12 +169,6 @@ export function setMockEarlyWarning(
   mockHeaders[`${HEADER_PREFIX}${abbrev}-surpassed-threshold`] = String(utilization)
   if (mockHeaders[`${HEADER_PREFIX}status`] === undefined) {
     mockHeaders[`${HEADER_PREFIX}status`] = 'allowed'
-  }
-}
-
-export function clearMockEarlyWarning(): void {
-  for (const key of WARNING_HEADER_KEYS) {
-    delete mockHeaders[`${HEADER_PREFIX}${key}`]
   }
 }
 
@@ -234,14 +219,12 @@ export function setMockRateLimitScenario(scenario: MockScenario): void {
   scenarioPools = {}
   if (scenario === 'clear') {
     mockHeaders = {}
-    headerless429Message = null
     enabled = false
     if (hadPools) foldScenarioPools()
     return
   }
   enabled = true
   mockHeaders = {}
-  headerless429Message = null
   if (scenario !== 'overage-active' && scenario !== 'overage-warning' && scenario !== 'overage-exhausted') {
     exceededLimits = []
   }
@@ -317,9 +300,6 @@ export function setMockRateLimitScenario(scenario: MockScenario): void {
       mockHeaders[`${HEADER_PREFIX}representative-claim`] = 'seven_day_sonnet'
       scenarioPools.seven_day_sonnet = weeklyPool(FIRST_WARNING_PCT)
       break
-    case 'extra-usage-required':
-      headerless429Message = 'Extra usage is required for long-context requests'
-      break
   }
   if (hadPools || Object.keys(scenarioPools).length > 0) foldScenarioPools()
 }
@@ -390,12 +370,6 @@ export function getMockHeaders(): MockHeaders | null {
   return mockHeaders
 }
 
-export function getMockHeaderless429Message(): string | null {
-  if (!isArmed()) return null
-  return headerless429Message
-}
-
-
 export function shouldProcessMockLimits(): boolean {
   if (!isArmed()) return false
   return enabled
@@ -424,9 +398,4 @@ export function mockUtilizationPayload(): import('./api/usage.js').Utilization |
   }
   if (Object.keys(scenarioPools).length === 0) return payload
   return { ...(payload ?? {}), ...scenarioPools }
-}
-
-
-export function setMockSubscriptionType(type: string | null): void {
-  void type
 }

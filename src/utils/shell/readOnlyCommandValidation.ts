@@ -9,7 +9,7 @@ export type ExternalCommandConfig = {
   respectsDoubleDash?: boolean
 }
 
-export function validateFlagArgument(value: string, argType: FlagArgType): boolean {
+function validateFlagArgument(value: string, argType: FlagArgType): boolean {
   switch (argType) {
     case 'number':
       return /^\d+$/.test(value)
@@ -309,118 +309,6 @@ export const GIT_READ_ONLY_COMMANDS: Record<string, ExternalCommandConfig> = {
     },
     additionalCommandIsDangerousCallback: branchCreationDangerous,
   },
-}
-
-
-function ghGuard(_raw: string, tokens: string[]): boolean {
-  for (const token of tokens) {
-    if (token === '') continue
-    let value: string
-    if (token.startsWith('-')) {
-      const eq = token.indexOf('=')
-      if (eq === -1) continue
-      value = token.slice(eq + 1)
-      if (value === '') continue
-    } else {
-      value = token
-    }
-    if (!value.includes('/') && !value.includes('://') && !value.includes('@')) continue
-    if (value.includes('://')) return true
-    if (value.includes('@')) return true
-    if ((value.match(/\//g) ?? []).length >= 2) return true
-  }
-  return false
-}
-
-function ghConfig(safeFlags: Record<string, FlagArgType>, guard = true): ExternalCommandConfig {
-  return guard ? { safeFlags, additionalCommandIsDangerousCallback: ghGuard } : { safeFlags }
-}
-
-const repoFlags: Record<string, FlagArgType> = { '--repo': 'string', '-R': 'string' }
-
-export const GH_READ_ONLY_COMMANDS: Record<string, ExternalCommandConfig> = {
-  'gh pr view': ghConfig(g({ '--json': 'string', '--comments': 'none' }, repoFlags)),
-  'gh pr list': ghConfig(g({
-    '--state': 'string', '-s': 'string', '--author': 'string', '--assignee': 'string', '--label': 'string',
-    '--limit': 'number', '-L': 'number', '--base': 'string', '--head': 'string', '--search': 'string',
-    '--json': 'string', '--draft': 'none', '--app': 'string',
-  }, repoFlags)),
-  'gh pr diff': ghConfig(g({ '--color': 'string', '--name-only': 'none', '--patch': 'none' }, repoFlags)),
-  'gh pr checks': ghConfig(g({
-    '--watch': 'none', '--required': 'none', '--fail-fast': 'none', '--json': 'string', '--interval': 'number',
-  }, repoFlags)),
-  'gh issue view': ghConfig(g({ '--json': 'string', '--comments': 'none' }, repoFlags)),
-  'gh issue list': ghConfig(g({
-    '--state': 'string', '-s': 'string', '--assignee': 'string', '--author': 'string', '--label': 'string',
-    '--limit': 'number', '-L': 'number', '--milestone': 'string', '--search': 'string', '--json': 'string',
-    '--app': 'string',
-  }, repoFlags)),
-  'gh repo view': ghConfig({ '--json': 'string' }),
-  'gh run list': ghConfig(g({
-    '--branch': 'string', '-b': 'string', '--status': 'string', '-s': 'string', '--workflow': 'string',
-    '-w': 'string', '--limit': 'number', '-L': 'number', '--json': 'string', '--event': 'string', '-e': 'string',
-    '--user': 'string', '-u': 'string', '--created': 'string', '--commit': 'string', '-c': 'string',
-  }, repoFlags)),
-  'gh run view': ghConfig(g({
-    '--log': 'none', '--log-failed': 'none', '--exit-status': 'none', '--verbose': 'none', '-v': 'none',
-    '--json': 'string', '--job': 'string', '-j': 'string', '--attempt': 'number', '-a': 'number',
-  }, repoFlags)),
-  'gh auth status': ghConfig({ '--active': 'none', '-a': 'none', '--hostname': 'string', '-h': 'string', '--json': 'string' }),
-  'gh pr status': ghConfig(g({ '--conflict-status': 'none', '-c': 'none', '--json': 'string' }, repoFlags)),
-  'gh issue status': ghConfig(g({ '--json': 'string' }, repoFlags)),
-  'gh release list': ghConfig(g({
-    '--exclude-drafts': 'none', '--exclude-pre-releases': 'none', '--json': 'string', '--limit': 'number',
-    '-L': 'number', '--order': 'string', '-O': 'string',
-  }, repoFlags)),
-  'gh release view': ghConfig(g({ '--json': 'string' }, repoFlags)),
-  'gh workflow list': ghConfig(g({ '--all': 'none', '-a': 'none', '--json': 'string', '--limit': 'number', '-L': 'number' }, repoFlags)),
-  'gh workflow view': ghConfig(g({ '--ref': 'string', '-r': 'string', '--yaml': 'none', '-y': 'none' }, repoFlags)),
-  'gh label list': ghConfig(g({
-    '--json': 'string', '--limit': 'number', '-L': 'number', '--order': 'string', '--search': 'string',
-    '-S': 'string', '--sort': 'string',
-  }, repoFlags)),
-  'gh search repos': ghConfig({
-    '--archived': 'none', '--created': 'string', '--followers': 'string', '--forks': 'string',
-    '--good-first-issues': 'string', '--help-wanted-issues': 'string', '--include-forks': 'string',
-    '--json': 'string', '--language': 'string', '--license': 'string', '--limit': 'number', '-L': 'number',
-    '--match': 'string', '--number-topics': 'string', '--order': 'string', '--owner': 'string', '--size': 'string',
-    '--sort': 'string', '--stars': 'string', '--topic': 'string', '--updated': 'string', '--visibility': 'string',
-  }, false),
-  'gh search issues': ghConfig(searchIssuesFlags(), false),
-  'gh search prs': ghConfig(g(withoutKey(searchIssuesFlags(), '--include-prs'), {
-    '--base': 'string', '-B': 'string', '--checks': 'string', '--draft': 'none', '--head': 'string',
-    '-H': 'string', '--merged': 'none', '--merged-at': 'string', '--review': 'string',
-    '--review-requested': 'string', '--reviewed-by': 'string',
-  }), false),
-  'gh search commits': ghConfig(g({
-    '--author': 'string', '--author-date': 'string', '--author-email': 'string', '--author-name': 'string',
-    '--committer': 'string', '--committer-date': 'string', '--committer-email': 'string', '--committer-name': 'string',
-    '--hash': 'string', '--json': 'string', '--limit': 'number', '-L': 'number', '--merge': 'none',
-    '--order': 'string', '--owner': 'string', '--parent': 'string', '--sort': 'string', '--tree': 'string',
-    '--visibility': 'string',
-  }, repoFlags), false),
-  'gh search code': ghConfig(g({
-    '--extension': 'string', '--filename': 'string', '--json': 'string', '--language': 'string',
-    '--limit': 'number', '-L': 'number', '--match': 'string', '--owner': 'string', '--size': 'string',
-  }, repoFlags), false),
-}
-
-function searchIssuesFlags(): Record<string, FlagArgType> {
-  return g({
-    '--app': 'string', '--assignee': 'string', '--author': 'string', '--closed': 'string', '--commenter': 'string',
-    '--comments': 'string', '--created': 'string', '--include-prs': 'none', '--interactions': 'string',
-    '--involves': 'string', '--json': 'string', '--label': 'string', '--language': 'string', '--limit': 'number',
-    '-L': 'number', '--locked': 'none', '--match': 'string', '--mentions': 'string', '--milestone': 'string',
-    '--no-assignee': 'none', '--no-label': 'none', '--no-milestone': 'none', '--no-project': 'none',
-    '--order': 'string', '--owner': 'string', '--project': 'string', '--reactions': 'string', '--sort': 'string',
-    '--state': 'string', '--crew-mentions': 'string', '--updated': 'string', '--visibility': 'string',
-  }, repoFlags)
-}
-
-function withoutKey(record: Record<string, FlagArgType>, key: string): Record<string, FlagArgType> {
-  const copy = { ...record }
-  delete copy[key]
-  return copy
 }
 
 

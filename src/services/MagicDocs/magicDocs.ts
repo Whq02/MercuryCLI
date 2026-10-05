@@ -7,11 +7,5 @@ void registerFileReadListener
 void registerPostSamplingHook
 void buildMagicDocsUpdatePrompt
 
-const trackedDocs = new Map<string, { path: string }>()
-
-
-export function clearTrackedMagicDocs(): void {
-  trackedDocs.clear()
-}
 
 export async function initMagicDocs(): Promise<void> {}

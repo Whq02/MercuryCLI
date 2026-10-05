@@ -3,7 +3,7 @@ export type SearchResult = { path: string; score: number }
 
 export const CHUNK_MS = 4
 
-export function yieldToEventLoop(): Promise<void> {
+function yieldToEventLoop(): Promise<void> {
   return new Promise(resolve => {
     setTimeout(resolve, 0)
   })

@@ -57,7 +57,7 @@ export function defaultStyle(): TextStyle {
   }
 }
 
-export function colorsEqual(a: Color, b: Color): boolean {
+function colorsEqual(a: Color, b: Color): boolean {
   if (a.type !== b.type) return false
   switch (a.type) {
     case 'named':
@@ -90,9 +90,9 @@ export function stylesEqual(a: TextStyle, b: TextStyle): boolean {
   )
 }
 
-export type CursorDirection = 'up' | 'down' | 'forward' | 'back'
+type CursorDirection = 'up' | 'down' | 'forward' | 'back'
 
-export type CursorAction =
+type CursorAction =
   | { type: 'move'; direction: CursorDirection; count: number }
   | { type: 'position'; row: number; col: number }
   | { type: 'column'; col: number }
@@ -105,27 +105,27 @@ export type CursorAction =
   | { type: 'nextLine'; count: number }
   | { type: 'prevLine'; count: number }
 
-export type EraseAction =
+type EraseAction =
   | { type: 'display'; region: 'toEnd' | 'toStart' | 'all' | 'scrollback' }
   | { type: 'line'; region: 'toEnd' | 'toStart' | 'all' }
   | { type: 'chars'; count: number }
 
-export type ScrollAction =
+type ScrollAction =
   | { type: 'up'; count: number }
   | { type: 'down'; count: number }
   | { type: 'setRegion'; top: number; bottom: number }
 
-export type ModeAction =
+type ModeAction =
   | { type: 'alternateScreen'; enabled: boolean }
   | { type: 'bracketedPaste'; enabled: boolean }
   | { type: 'mouseTracking'; mode: 'off' | 'normal' | 'button' | 'any' }
   | { type: 'focusEvents'; enabled: boolean }
 
-export type LinkAction =
+type LinkAction =
   | { type: 'start'; url: string; params?: Record<string, string> }
   | { type: 'end' }
 
-export type TitleAction =
+type TitleAction =
   | { type: 'windowTitle'; title: string }
   | { type: 'iconName'; name: string }
   | { type: 'both'; title: string }

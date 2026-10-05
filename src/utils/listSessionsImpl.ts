@@ -17,7 +17,7 @@ import {
 } from './sessionStoragePortable.js'
 
 
-export type SessionInfo = {
+type SessionInfo = {
   sessionId: string
   summary: string
   lastModified: number
@@ -30,7 +30,7 @@ export type SessionInfo = {
   createdAt?: number
 }
 
-export type ListSessionsOptions = {
+type ListSessionsOptions = {
   dir?: string
   limit?: number
   offset?: number
@@ -100,7 +100,7 @@ function parseSessionInfoFromLite(sessionId: string, lite: LiteSessionFile, proj
   }
 }
 
-export async function listCandidates(projectDir: string, doStat: boolean, projectPath?: string): Promise<Candidate[]> {
+async function listCandidates(projectDir: string, doStat: boolean, projectPath?: string): Promise<Candidate[]> {
   const files = await sessionFiles(projectDir, { stat: doStat })
   return files.map(file => ({ sessionId: file.sessionId, filePath: file.path, mtime: file.mtime, ...(projectPath ? { projectPath } : {}) }))
 }

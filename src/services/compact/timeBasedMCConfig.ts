@@ -2,7 +2,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { isMercurySubstrateProfileOn } from '../../utils/config/derived.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 
-export type TimeBasedMCConfig = {
+type TimeBasedMCConfig = {
   enabled: boolean
   thresholdMinutes: number
   keepRecent: number

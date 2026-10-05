@@ -2,7 +2,7 @@
 import React from 'react'
 import { ListItem } from '../design-system/ListItem.js'
 
-export type SelectOptionProps = {
+type SelectOptionProps = {
   isFocused: boolean
   isSelected: boolean
   children?: React.ReactNode

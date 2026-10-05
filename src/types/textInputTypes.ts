@@ -64,7 +64,7 @@ export type BaseTextInputProps = {
 
 export type VimMode = 'INSERT' | 'NORMAL'
 
-export type BaseInputState = {
+type BaseInputState = {
   onInput: (input: string, key: Key) => void
   renderedValue: string
   offset: number

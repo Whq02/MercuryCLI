@@ -331,7 +331,7 @@ export type SystemPermissionRetryMessage = {
   timestamp: string
 }
 
-export type SystemBridgeStatusMessage = {
+type SystemBridgeStatusMessage = {
   type: 'system'
   subtype: 'bridge_status'
   content: string
@@ -530,7 +530,7 @@ export type SystemAPIErrorMessage = {
   timestamp: string
 }
 
-export type SystemFileSnapshotMessage = {
+type SystemFileSnapshotMessage = {
   type: 'system'
   subtype: 'file_snapshot'
   content: string
@@ -545,7 +545,7 @@ export type SystemFileSnapshotMessage = {
   }>
 }
 
-export type SystemThinkingMessage = {
+type SystemThinkingMessage = {
   type: 'system'
   subtype: 'thinking'
   content: string

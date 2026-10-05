@@ -52,7 +52,7 @@ export type TurnInterruptionState =
 
 type InternalInterruptionState = TurnInterruptionState | { kind: 'interrupted_turn' }
 
-export type DeserializeResult = {
+type DeserializeResult = {
   messages: Message[]
   turnInterruptionState: TurnInterruptionState
 }
@@ -322,7 +322,7 @@ export function liveTurnStateOf(messages: Message[]): LiveTurnState {
 }
 
 
-export function restoreSkillStateFromMessages(messages: Message[]): void {
+function restoreSkillStateFromMessages(messages: Message[]): void {
   let sawListing = false
   for (const message of messages) {
     if (message.type !== 'attachment') continue

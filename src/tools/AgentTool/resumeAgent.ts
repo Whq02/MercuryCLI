@@ -52,7 +52,7 @@ import { isBuiltInAgent } from './loadAgentsDir.js'
 import { runAgent } from './runAgent.js'
 import { continuationDirectoryNote } from './continuationNote.js'
 
-export type ResumeAgentResult = {
+type ResumeAgentResult = {
   agentId: string
   description: string
   outputFile: string

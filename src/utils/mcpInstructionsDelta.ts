@@ -2,13 +2,13 @@ import type { MCPServerConnection } from '../services/mcp/types.js'
 import type { Message } from '../types/message.js'
 
 
-export type McpInstructionsDelta = {
+type McpInstructionsDelta = {
   addedNames: string[]
   addedBlocks: string[]
   removedNames: string[]
 }
 
-export type ClientSideInstruction = { serverName: string; block: string }
+type ClientSideInstruction = { serverName: string; block: string }
 
 export function isMcpInstructionsDeltaEnabled(): boolean {
   return true

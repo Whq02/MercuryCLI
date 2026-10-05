@@ -20,7 +20,7 @@ export type ParseForSecurityResult =
   | { kind: 'too-complex'; reason: string; nodeType?: string }
   | { kind: 'parse-unavailable' }
 
-export type SemanticCheckResult = { ok: true } | { ok: false; reason: string }
+type SemanticCheckResult = { ok: true } | { ok: false; reason: string }
 
 
 class TooComplexError extends Error {

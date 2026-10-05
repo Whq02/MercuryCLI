@@ -17,9 +17,9 @@ import { getManagedFilePath } from './settings/managedPath.js'
 
 const UNKNOWN_MARKER = 'unknown'
 
-export type InstallationType = InstallProvenanceKind
+type InstallationType = InstallProvenanceKind
 
-export type DiagnosticInfo = {
+type DiagnosticInfo = {
   installationType: InstallationType
   version: string
   installationPath: string
@@ -30,7 +30,7 @@ export type DiagnosticInfo = {
   ripgrepStatus: { working: boolean; mode: string; systemPath?: string }
 }
 
-export function getInvokedBinary(): string {
+function getInvokedBinary(): string {
   try {
     if (isInBundledMode()) return process.execPath
     return process.argv[1] ?? UNKNOWN_MARKER
@@ -43,7 +43,7 @@ export async function getCurrentInstallationType(): Promise<InstallationType> {
   return resolveInstallProvenance().kind
 }
 
-export function detectLinuxGlobPatternWarnings(): Array<{ issue: string; fix: string }> {
+function detectLinuxGlobPatternWarnings(): Array<{ issue: string; fix: string }> {
   if (getPlatform() !== 'linux') return []
   const patterns = SandboxManager.getLinuxGlobPatternWarnings()
   if (patterns.length === 0) return []

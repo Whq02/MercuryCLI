@@ -8,7 +8,7 @@ import React, {
 } from 'react'
 import type { SuggestionItem } from '../components/PromptInput/PromptInputFooterSuggestions.js'
 
-export type PromptOverlayData = {
+type PromptOverlayData = {
   suggestions: SuggestionItem[]
   onPick?: (index: number) => void
   onHover?: (index: number) => void
@@ -58,13 +58,4 @@ export function useSetPromptOverlay(data: PromptOverlayData | null): void {
     set(data)
     return () => set(null)
   }, [set, data])
-}
-
-export function useSetPromptOverlayDialog(node: ReactNode): void {
-  const set = useContext(SetDialogContext)
-  useEffect(() => {
-    if (!set) return
-    set(node)
-    return () => set(null)
-  }, [set, node])
 }

@@ -3,7 +3,7 @@ import { realpathSync } from 'node:fs'
 import { getPlatform } from '../platform.js'
 import { which } from '../which.js'
 
-export type PowerShellEdition = 'core' | 'desktop'
+type PowerShellEdition = 'core' | 'desktop'
 
 const LINUX_NON_SNAP_CANDIDATES = ['/opt/microsoft/powershell/7/pwsh', '/usr/bin/pwsh']
 
@@ -19,7 +19,7 @@ function isUnderSnap(path: string): boolean {
   return path.startsWith('/snap/') || resolveSymlink(path).startsWith('/snap/')
 }
 
-export async function findPowerShell(): Promise<string | null> {
+async function findPowerShell(): Promise<string | null> {
   const pwsh = await which('pwsh')
   if (pwsh) {
     if (getPlatform() === 'linux' && isUnderSnap(pwsh)) {

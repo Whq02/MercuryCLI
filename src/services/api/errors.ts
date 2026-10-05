@@ -1,5 +1,4 @@
 import { APIConnectionError, APIConnectionTimeoutError, APIError } from '@anthropic-ai/sdk'
-import type { BetaMessage } from '@anthropic-ai/sdk/resources/beta/messages/messages'
 
 import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import { API_PDF_MAX_PAGES, PDF_TARGET_RAW_SIZE } from '../../constants/apiLimits.js'
@@ -140,9 +139,6 @@ export const CUSTOM_OFF_SWITCH_MESSAGE =
 export const API_TIMEOUT_ERROR_MESSAGE =
   'Request timed out. Check your internet connection and proxy settings.'
 
-export const OAUTH_ORG_NOT_ALLOWED_ERROR_MESSAGE =
-  'Your organization does not have access to Mercury. Log in again, or contact your administrator.'
-
 const SDK_REQUEST_ABORTED_MESSAGE = 'Request was aborted.'
 
 const OVERLOADED_TYPE_MARKER = '"type":"overloaded_error"'
@@ -175,10 +171,6 @@ function isConnectionError(error: unknown): boolean {
 function isTimeoutError(error: unknown): boolean {
   if (error instanceof APIConnectionTimeoutError) return true
   return isConnectionError(error) && messageOf(error).toLowerCase().includes('timeout')
-}
-
-function isHostedRemoteBackend(): boolean {
-  return false
 }
 
 function headerValue(headers: unknown, name: string): string | undefined {
@@ -334,21 +326,7 @@ export function endsWithEmptyReplyRecoveryNudge(messages: readonly Message[]): b
   return tail !== undefined && tail.type === 'text' && isEmptyReplyRecoveryNudgeText(tail.text)
 }
 
-
-export function isPromptTooLongMessage(msg: Message): boolean {
-  if (msg.type !== 'assistant') return false
-  if ((msg as AssistantMessage).isApiErrorMessage !== true) return false
-  const content = (msg as AssistantMessage).message.content
-  if (!Array.isArray(content)) return false
-  return content.some(
-    block =>
-      (block as { type?: string }).type === 'text' &&
-      typeof (block as { text?: unknown }).text === 'string' &&
-      (block as { text: string }).text.startsWith(PROMPT_TOO_LONG_ERROR_MESSAGE),
-  )
-}
-
-export function parsePromptTooLongTokenCounts(raw: string): {
+function parsePromptTooLongTokenCounts(raw: string): {
   actualTokens: number | undefined
   limitTokens: number | undefined
 } {
@@ -393,25 +371,6 @@ export function isMediaSizeError(raw: string): boolean {
   if (raw.includes('image dimensions exceed') && isManyImageRefusal(raw)) return true
   if (raw.includes('image dimensions exceed') && raw.includes('max allowed size')) return true
   return PDF_PAGES_PATTERN.test(raw)
-}
-
-export function isMediaSizeErrorMessage(msg: Message): boolean {
-  if (msg.type !== 'assistant') return false
-  if ((msg as AssistantMessage).isApiErrorMessage !== true) return false
-  const details = (msg as AssistantMessage).errorDetails
-  return typeof details === 'string' && isMediaSizeError(details)
-}
-
-
-export function isValidAPIMessage(value: unknown): value is BetaMessage {
-  if (typeof value !== 'object' || value === null) return false
-  const record = value as { content?: unknown; model?: unknown; usage?: unknown }
-  return (
-    Array.isArray(record.content) &&
-    typeof record.model === 'string' &&
-    typeof record.usage === 'object' &&
-    record.usage !== null
-  )
 }
 
 

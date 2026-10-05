@@ -2,8 +2,8 @@ import chalk from 'chalk'
 
 import { supportsHyperlinks } from '../ink/session/capabilities.js'
 
-export const OSC8_START = '\u001b]8;;'
-export const OSC8_END = '\u0007'
+const OSC8_START = '\u001b]8;;'
+const OSC8_END = '\u0007'
 
 export function createHyperlink(
   url: string,

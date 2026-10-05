@@ -1,4 +1,4 @@
-export type HorizontalScrollWindow = {
+type HorizontalScrollWindow = {
   startIndex: number
   endIndex: number
   showLeftArrow: boolean

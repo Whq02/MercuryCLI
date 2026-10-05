@@ -1,4 +1,4 @@
-export type SecretMatch = { kind: string; redacted: string }
+type SecretMatch = { kind: string; redacted: string }
 
 const SECRET_PATTERNS: ReadonlyArray<{ kind: string; re: RegExp }> = [
   { kind: 'aws-access-key-id', re: /\bAKIA[0-9A-Z]{16}\b/ },

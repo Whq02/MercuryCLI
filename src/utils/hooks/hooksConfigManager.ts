@@ -16,12 +16,12 @@ import {
 } from './hooksSettings.js'
 
 
-export type MatcherMetadata = {
+type MatcherMetadata = {
   field: string
   values?: string[]
 }
 
-export type HookEventMetadata = {
+type HookEventMetadata = {
   summary: string
   description: string
   matcherMetadata?: MatcherMetadata

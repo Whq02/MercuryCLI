@@ -39,7 +39,7 @@ import {
 } from './memoryFileDetection.js'
 
 
-export type SearchOrReadResult = {
+type SearchOrReadResult = {
   isCollapsible: boolean
   isSearch: boolean
   isRead: boolean

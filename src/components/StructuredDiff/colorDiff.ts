@@ -6,7 +6,7 @@ import {
   type SyntaxTheme,
 } from 'color-diff-napi'
 
-export type ColorModuleUnavailableReason = 'env'
+type ColorModuleUnavailableReason = 'env'
 
 export function getColorModuleUnavailableReason(): ColorModuleUnavailableReason | null {
   return null

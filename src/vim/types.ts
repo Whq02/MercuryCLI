@@ -35,10 +35,6 @@ export type PersistentState = {
   registerIsLinewise: boolean
 }
 
-export type VimState =
-  | { mode: 'INSERT'; insertedText: string }
-  | { mode: 'NORMAL'; commandState: CommandState }
-
 
 export const OPERATORS = {
   d: 'delete',
@@ -71,10 +67,6 @@ export function isTextObjScopeKey(key: string): key is keyof typeof TEXT_OBJ_SCO
   return Object.prototype.hasOwnProperty.call(TEXT_OBJ_SCOPES, key)
 }
 
-export function createInitialVimState(): VimState {
-  return { mode: 'INSERT', insertedText: '' }
-}
-
 let sessionPersistentState: PersistentState | null = null
 
 export function getSessionVimPersistentState(): PersistentState {
@@ -86,7 +78,7 @@ export function _resetSessionVimPersistentStateForTesting(): void {
   sessionPersistentState = null
 }
 
-export function createInitialPersistentState(): PersistentState {
+function createInitialPersistentState(): PersistentState {
   return {
     lastChange: null,
     lastFind: null,

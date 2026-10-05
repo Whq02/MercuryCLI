@@ -173,7 +173,7 @@ export function regionScrollTrustedNow(): boolean {
 }
 
 
-export const ADDITIONAL_HYPERLINK_TERMINALS = [
+const ADDITIONAL_HYPERLINK_TERMINALS = [
   'ghostty',
   'Hyper',
   'kitty',

@@ -10,7 +10,7 @@ import type { ToolUseBlock } from '../types/wire.js'
 
 export type MessageWithoutProgress = Exclude<NormalizedMessage, { type: 'progress' }>
 
-export type GroupingResult = {
+type GroupingResult = {
   messages: Array<MessageWithoutProgress | GroupedToolUseMessage>
 }
 

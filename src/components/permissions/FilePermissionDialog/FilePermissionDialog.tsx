@@ -14,7 +14,7 @@ import type { WorkerBadgeProps } from '../WorkerBadge.js'
 import type { FileOperationType, ToolInput } from './permissionOptions.js'
 import { useFilePermissionDialog } from './useFilePermissionDialog.js'
 
-export type FilePermissionDialogProps<T extends ToolInput> = {
+type FilePermissionDialogProps<T extends ToolInput> = {
   toolUseConfirm: ToolUseConfirm
   onDone: () => void
   onReject: () => void

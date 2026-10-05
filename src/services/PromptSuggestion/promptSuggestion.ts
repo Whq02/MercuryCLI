@@ -29,7 +29,7 @@ type SuppressReason =
   | 'cache_cold'
   | 'empty'
 
-export function getSuggestionSuppressReason(appState: AppState): SuppressReason | undefined {
+function getSuggestionSuppressReason(appState: AppState): SuppressReason | undefined {
   if (!appState.promptSuggestionEnabled) return 'disabled'
   if (appState.pendingWorkerRequest) {
     return 'pending_permission'
@@ -39,7 +39,7 @@ export function getSuggestionSuppressReason(appState: AppState): SuppressReason 
   return undefined
 }
 
-export function getParentCacheSuppressReason(
+function getParentCacheSuppressReason(
   lastAssistantMessage: {
     message?: {
       usage?: {
@@ -77,7 +77,7 @@ Examples:
 - The user said "run the linter" and it finished clean. -> looks done, ship it`
 
 
-export async function generateSuggestion(
+async function generateSuggestion(
   abortController: AbortController,
   promptId: PromptVariant,
   cacheSafeParams: CacheSafeParams,
@@ -254,7 +254,7 @@ function filterReasonFor(suggestion: string): FilterReason | undefined {
   return undefined
 }
 
-export function shouldFilterSuggestion(
+function shouldFilterSuggestion(
   suggestion: string,
   promptId?: string | null,
   source?: string,
@@ -267,7 +267,7 @@ export function shouldFilterSuggestion(
 }
 
 
-export async function tryGenerateSuggestion(
+async function tryGenerateSuggestion(
   abortController: AbortController,
   messages: unknown[],
   getAppState: () => AppState,
@@ -378,7 +378,7 @@ export async function executePromptSuggestion(context: ChatHookContext): Promise
 }
 
 
-export function logSuggestionSuppressed(
+function logSuggestionSuppressed(
   reason: string,
   promptId?: string | null,
   source?: string,

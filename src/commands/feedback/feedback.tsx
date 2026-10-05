@@ -11,7 +11,7 @@ export type FeedbackBackgroundTasks = {
   [taskId: string]: { type: string; identity?: { agentId: string }; messages?: Message[] }
 }
 
-export function renderFeedbackComponent(
+function renderFeedbackComponent(
   onDone: LocalJSXCommandOnDone,
   abortSignal: AbortSignal,
   messages: Message[],

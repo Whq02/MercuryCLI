@@ -4,7 +4,7 @@ import { extractTextContent } from '../messages.js'
 import { asSystemPrompt } from '../systemPromptType.js'
 
 
-export type DateTimeParseResult = { success: true; value: string } | { success: false; error: string }
+type DateTimeParseResult = { success: true; value: string } | { success: false; error: string }
 
 export function looksLikeISO8601(input: string): boolean {
   return /^\d{4}-\d{2}-\d{2}(?:T|$)/.test(input.trim())
