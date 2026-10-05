@@ -94,19 +94,10 @@ console.log('native-core T15 — launch-graph boot contract')
 
 {
   const profilerSrc = readFileSync(join(SRC, 'utils/startupProfiler.ts'), 'utf8')
-  const phaseBlock = /PHASE_DEFINITIONS = \{[\s\S]*?\} as const/.exec(profilerSrc)?.[0] ?? ''
-  const phases: Array<[string, string, string]> = [
-    ['import_time', 'cli_entry', 'main_tsx_imports_loaded'],
-    ['init_time', 'init_function_start', 'init_function_end'],
-    ['settings_time', 'eagerLoadSettings_start', 'eagerLoadSettings_end'],
-    ['total_time', 'cli_entry', 'main_after_run'],
-  ]
-  for (const [phase, start, end] of phases) {
-    check(
-      `phase-names: ${phase} = [${start}, ${end}]`,
-      phaseBlock.includes(`${phase}: ['${start}', '${end}']`),
-    )
-  }
+  check(
+    'phase-names: no unused phase table is allocated',
+    !/\bPHASE_DEFINITIONS\b/.test(profilerSrc),
+  )
   const cliSrc = readFileSync(join(SRC, 'entrypoints/cli.tsx'), 'utf8')
   const mainSrc = readFileSync(join(SRC, 'main.tsx'), 'utf8')
   const initSrc = readFileSync(join(SRC, 'entrypoints/init.ts'), 'utf8')
