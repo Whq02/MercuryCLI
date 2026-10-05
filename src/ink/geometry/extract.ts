@@ -8,58 +8,44 @@ export function extractRowText(
   colStart: number,
   colEnd: number,
 ): string {
-  const noSelect = screen.noSelect
-  const rowOff = row * screen.width
-  const contentEnd = row + 1 < screen.height ? screen.softWrap[row + 1]! : 0
-  const lastCol = contentEnd > 0 ? Math.min(colEnd, contentEnd - 1) : colEnd
-  let line = ''
-  for (let col = colStart; col <= lastCol; col++) {
-    if (noSelect[rowOff + col] === 1) continue
-    const cell = cellAt(screen, col, row)
-    if (!cell) continue
-    if (cell.width === CellWidth.SpacerTail || cell.width === CellWidth.SpacerHead) {
-      continue
-    }
-    line += cell.char
+  const continuation = row + 1 < screen.height ? screen.softWrap[row + 1]! : 0
+  const end = continuation > 0 ? Math.min(colEnd, continuation - 1) : colEnd
+  const offset = row * screen.width
+  let text = ''
+  for (let column = colStart; column <= end; column++) {
+    if (screen.noSelect[offset + column] === 1) continue
+    const cell = cellAt(screen, column, row)
+    if (cell && cell.width !== CellWidth.SpacerHead && cell.width !== CellWidth.SpacerTail) text += cell.char
   }
-  return contentEnd > 0 ? line : line.replace(/\s+$/, '')
+  return continuation > 0 ? text : text.replace(/\s+$/, '')
 }
 
 export function joinRows(lines: string[], text: string, sw: boolean | undefined): void {
-  if (sw && lines.length > 0) {
-    lines[lines.length - 1] += text
-  } else {
-    lines.push(text)
-  }
+  const previous = lines.length - 1
+  if (!sw || previous < 0) lines.push(text)
+  else lines[previous] += text
+}
+
+function appendCaptured(lines: string[], rows: readonly string[], joins: readonly boolean[]): void {
+  for (let index = 0; index < rows.length; index++) joinRows(lines, rows[index]!, joins[index])
 }
 
 export function getSelectedText(s: SelectionState, screen: Screen): string {
-  const b = selectionBounds(s)
-  if (!b) return ''
-  const { start, end } = b
-  const sw = screen.softWrap
+  const bounds = selectionBounds(s)
+  if (!bounds) return ''
   const lines: string[] = []
-
-  for (let i = 0; i < s.scrolledOffAbove.length; i++) {
-    joinRows(lines, s.scrolledOffAbove[i]!, s.scrolledOffAboveSW[i])
+  appendCaptured(lines, s.scrolledOffAbove, s.scrolledOffAboveSW)
+  const { start, end } = bounds
+  const firstRow = Math.max(start.row, s.clipTop ?? 0)
+  const lastRow = Math.min(end.row, s.clipBottom ?? screen.height - 1)
+  for (let row = firstRow; row <= lastRow; row++) {
+    const firstColumn = Math.max(row === start.row ? start.col : 0, s.clipLo ?? 0)
+    const lastColumn = Math.min(row === end.row ? end.col : screen.width - 1, s.clipHi ?? screen.width - 1)
+    if (lastColumn < firstColumn) continue
+    const continuation = screen.softWrap[row]!
+    const joins = continuation > 0 || (continuation < 0 && row === start.row && lines.length > 0)
+    joinRows(lines, extractRowText(screen, row, firstColumn, lastColumn), joins)
   }
-
-  const lo = s.clipLo ?? 0
-  const hi = s.clipHi ?? screen.width - 1
-  const rowLo = Math.max(start.row, s.clipTop ?? 0)
-  const rowHi = Math.min(end.row, s.clipBottom ?? screen.height - 1)
-  for (let row = rowLo; row <= rowHi; row++) {
-    const rowStart = Math.max(row === start.row ? start.col : 0, lo)
-    const rowEnd = Math.min(row === end.row ? end.col : screen.width - 1, hi)
-    if (rowEnd < rowStart) continue
-    const swVal = sw[row]!
-    const joins = swVal > 0 || (swVal < 0 && row === start.row && lines.length > 0)
-    joinRows(lines, extractRowText(screen, row, rowStart, rowEnd), joins)
-  }
-
-  for (let i = 0; i < s.scrolledOffBelow.length; i++) {
-    joinRows(lines, s.scrolledOffBelow[i]!, s.scrolledOffBelowSW[i])
-  }
-
+  appendCaptured(lines, s.scrolledOffBelow, s.scrolledOffBelowSW)
   return lines.join('\n')
 }
