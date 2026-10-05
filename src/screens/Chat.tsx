@@ -2110,14 +2110,7 @@ export function Chat({
         leaderIsIdle={!isLoading}
       />
     ) : spinnerSlotReserved ? <StreamingHoldRow loadingStartTimeRef={seatStartTimeRef} totalPausedMsRef={seatPausedMsRef} pauseStartTimeRef={seatPauseStartRef} responseLengthRef={responseLengthRef} outputTokensRef={outputTokensRef} liveTurnFactsRef={liveTurnFactsRef} /> : null}
-    {!isCompact ? <MercuryTurnRollup
-      messages={messages}
-      tools={mergedTools}
-      model={focusedEffectiveModel}
-      isLoading={isLoading}
-      streamingThinking={null}
-      isThinking={viewStreamMode === 'thinking'}
-    /> : null}
+    {!isCompact ? <MercuryTurnRollup messages={messages} /> : null}
   </Box>;
 
   const permissionOverlay =
