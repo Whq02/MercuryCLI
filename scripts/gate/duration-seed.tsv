@@ -42,6 +42,7 @@ cockpit-interaction	700
 diffws	1100
 prompts-panel	460
 render-migration	1200
+engine-pass	680
 # The journey estate on the hosted runner, one row per split suite: the
 # measured hosted wall where a run measured it, else the members' whole
 # stretched capture windows (every measured member of the same family ran
