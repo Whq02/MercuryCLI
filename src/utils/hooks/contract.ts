@@ -449,8 +449,6 @@ export type HookEventRow = {
   matchField?: HookMatchField
   timeoutMs?: number
   noHttp?: boolean
-  promptOutsideChat?: string
-  agentOutsideChat?: string
   feedback?: (text: string, hookName?: string) => string
   reduceSpecific?: HookSpecificReducer
 }
@@ -623,6 +621,24 @@ type HookEventOrder = readonly [
 ]
 export const HOOK_EVENTS = Object.keys(hookEventTableRows) as unknown as HookEventOrder
 export type HookEvent = (typeof HOOK_EVENTS)[number]
+
+export const HOOK_LIFECYCLE_EVENTS: ReadonlySet<HookEvent> = new Set<HookEvent>([
+  'Notification',
+  'StopFailure',
+  'SessionStart',
+  'SessionEnd',
+  'PreCompact',
+  'PostCompact',
+  'Interrupt',
+  'ConfigChange',
+  'CwdChanged',
+  'FileChanged',
+  'InstructionsLoaded',
+  'Elicitation',
+  'ElicitationResult',
+  'WorktreeCreate',
+  'WorktreeRemove',
+])
 
 export const hookEventTable = Object.fromEntries(
   HOOK_EVENTS.map(event => [event, { ...hookEventTableRows[event], reduceSpecific: hookSpecificReducers[event] }]),
