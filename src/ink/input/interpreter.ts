@@ -160,6 +160,21 @@ const KEY_NAME: Record<string, string> = {
   '[Z': 'tab',
 }
 
+const LITERAL_KEYS: Record<string, Partial<ParsedKey>> = {
+  '\r': { name: 'return', raw: undefined },
+  '\n': { name: 'enter' },
+  '\t': { name: 'tab' },
+  '\b': { name: 'backspace' },
+  '\x7f': { name: 'backspace' },
+  '\x1b\b': { name: 'backspace', meta: true },
+  '\x1b\x7f': { name: 'backspace', meta: true },
+  '\x1b': { name: 'escape' },
+  '\x1b\x1b': { name: 'escape', meta: true },
+  ' ': { name: 'space' },
+  '\x1b ': { name: 'space', meta: true },
+  '\x1f': { name: '_', ctrl: true },
+}
+
 const CSI_P = '[P'
 
 function csiPName(): string {
@@ -360,38 +375,22 @@ export function interpretKey(s: string = ''): ParsedKey {
   key.sequence = key.sequence || s || key.name
 
   let parts: RegExpExecArray | null
-  if (s === '\r') {
-    key.raw = undefined
-    key.name = 'return'
-  } else if (s === '\n') {
-    key.name = 'enter'
-  } else if (s === '\t') {
-    key.name = 'tab'
-  } else if (s === '\b' || s === '\x1b\b') {
-    key.name = 'backspace'
-    key.meta = s.charAt(0) === '\x1b'
-  } else if (s === '\x7f' || s === '\x1b\x7f') {
-    key.name = 'backspace'
-    key.meta = s.charAt(0) === '\x1b'
-  } else if (s === '\x1b' || s === '\x1b\x1b') {
-    key.name = 'escape'
-    key.meta = s.length === 2
-  } else if (s === ' ' || s === '\x1b ') {
-    key.name = 'space'
-    key.meta = s.length === 2
-  } else if (s === '\x1f') {
-    key.name = '_'
-    key.ctrl = true
-  } else if (s <= '\x1a' && s.length === 1) {
-    key.name = String.fromCharCode(s.charCodeAt(0) + 'a'.charCodeAt(0) - 1)
-    key.ctrl = true
-  } else if (s.length === 1 && s >= '0' && s <= '9') {
-    key.name = 'number'
-  } else if (s.length === 1 && s >= 'a' && s <= 'z') {
-    key.name = s
-  } else if (s.length === 1 && s >= 'A' && s <= 'Z') {
-    key.name = s.toLowerCase()
-    key.shift = true
+  const literal = Object.hasOwn(LITERAL_KEYS, s) ? LITERAL_KEYS[s] : undefined
+  if (literal) {
+    Object.assign(key, literal)
+  } else if (s.length === 1) {
+    const code = s.charCodeAt(0)
+    if (code <= 0x1a) {
+      key.name = String.fromCharCode(code + 0x60)
+      key.ctrl = true
+    } else if (code >= 0x30 && code <= 0x39) {
+      key.name = 'number'
+    } else if (code >= 0x41 && code <= 0x5a) {
+      key.name = s.toLowerCase()
+      key.shift = true
+    } else if (code >= 0x61 && code <= 0x7a) {
+      key.name = s
+    }
   } else if ((parts = META_KEY_CODE_RE.exec(s))) {
     key.meta = true
     key.shift = /^[A-Z]$/.test(parts[1]!)
