@@ -5,6 +5,15 @@ import { isFullscreenEnvEnabled } from '../utils/fullscreen.js'
 import { keyHintLabel } from '../components/mercury-ui/keyHintLabel.js'
 import { concourseEnabled } from '../services/concourse/concourseEnabled.js'
 
+function stampRouteReady(): void {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { recordLaunchMilestone } = require('../substrate/launchMilestones.js') as typeof import('../substrate/launchMilestones.js')
+    recordLaunchMilestone('route-ready')
+  } catch {
+  }
+}
+
 export type SurfaceKind = 'repl' | 'boot-settings' | 'concourse' | 'session'
 
 export type SurfaceTransitionVerb = 'PUSH' | 'RETURN' | 'HOME' | 'INIT'
@@ -401,16 +410,12 @@ export async function resolveInitialSurface(
     const { isFullscreenEnvEnabled } = await import('../utils/fullscreen.js')
     const intent = handover.consumeBootSurfaceIntent()
     if (intent === 'repl') {
-      void import('../substrate/launchMilestones.js')
-        .then(m => m.recordLaunchMilestone('route-ready'))
-        .catch(() => {})
+      stampRouteReady()
       return { requested: ROOT_CHAT_ROUTE, effective: ROOT_CHAT_ROUTE, policy, reason: 'splash-intent' }
     }
     if (intent === 'concourse' && isFullscreenEnvEnabled()) {
       const requested: SurfaceRoute = { kind: 'concourse' }
-      void import('../substrate/launchMilestones.js')
-        .then(m => m.recordLaunchMilestone('route-ready'))
-        .catch(() => {})
+      stampRouteReady()
       if (!routeSurfaceRegistered('concourse')) {
         return { requested, effective: ROOT_CHAT_ROUTE, policy, reason: 'concourse-surface-unregistered' }
       }
@@ -418,9 +423,7 @@ export async function resolveInitialSurface(
     }
     if (handover.peekFaceDoorDeepLink() !== null && isFullscreenEnvEnabled() && routeSurfaceRegistered('boot-settings')) {
       const requested: SurfaceRoute = { kind: 'boot-settings' }
-      void import('../substrate/launchMilestones.js')
-        .then(m => m.recordLaunchMilestone('route-ready'))
-        .catch(() => {})
+      stampRouteReady()
       return { requested, effective: requested, policy, reason: 'face-door-intent' }
     }
     bootMenuArmed = !handover.bootJourneyIsExplicit() && isFullscreenEnvEnabled() && routeSurfaceRegistered('boot-settings')
@@ -428,20 +431,17 @@ export async function resolveInitialSurface(
   }
   const bootMenuLanding = (): InitialSurfaceResolution => {
     const requested: SurfaceRoute = { kind: 'boot-settings' }
-    void import('../substrate/launchMilestones.js')
-      .then(m => m.recordLaunchMilestone('route-ready'))
-      .catch(() => {})
+    stampRouteReady()
     return { requested, effective: requested, policy, reason: 'boot-menu-landing' }
   }
   if (policy === 'off') {
     if (bootMenuArmed) return bootMenuLanding()
+    stampRouteReady()
     return { requested: ROOT_CHAT_ROUTE, effective: ROOT_CHAT_ROUTE, policy, reason: 'concourse-off' }
   }
   const concourse: SurfaceRoute = { kind: 'concourse' }
   const settle = (requested: SurfaceRoute, reason: InitialSurfaceResolution['reason'], liveWorkers?: number): InitialSurfaceResolution => {
-    void import('../substrate/launchMilestones.js')
-      .then(m => m.recordLaunchMilestone('route-ready'))
-      .catch(() => {})
+    stampRouteReady()
     if (requested.kind !== 'repl' && !routeSurfaceRegistered(requested.kind)) {
       return {
         requested,

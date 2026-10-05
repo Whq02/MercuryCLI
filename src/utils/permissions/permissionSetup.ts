@@ -8,7 +8,8 @@ import {
   setAutoModeCircuitBroken,
   getAutoModeFlagCli,
 } from './autoModeState.js'
-import { setNeedsAutoModeExitAttachment } from '../../bootstrap/state.js'
+import { setNeedsAutoModeExitAttachment, setSessionPermissionModeResolution } from '../../bootstrap/state.js'
+import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../debug.js'
 import { holdModeTransition, recordModeTransition, type ModeTransitionRoad } from './modeTransitions.js'
 import { getEngineModel } from '../model/model.js'
@@ -19,7 +20,7 @@ import {
   hasAutoModeOptIn,
 } from '../settings/settings.js'
 import { DANGEROUS_BASH_PATTERNS, CROSS_PLATFORM_CODE_EXEC } from './dangerousPatterns.js'
-import { modeBypassesPermissions, permissionModeFromString } from './PermissionMode.js'
+import { modeBypassesPermissions, permissionModeTitle, permissionModeFromString } from './PermissionMode.js'
 import { permissionRuleValueFromString, permissionRuleValueToString } from './permissionRuleParser.js'
 import type {
   PermissionMode,
@@ -436,24 +437,87 @@ export function initialPermissionModeFromCLI({
   permissionModeCli?: string
   dangerouslySkipPermissions: boolean
 }): { mode: PermissionMode; notification?: string } {
+  const resolution = resolveSessionPermissionMode({
+    permissionModeCli,
+    dangerouslySkipPermissions,
+    envBypassArmed: flagEnabled('MERCURY_SKIP_PERMISSIONS'),
+  })
+  setSessionPermissionModeResolution(resolution)
+  return resolution.notification === undefined
+    ? { mode: resolution.mode }
+    : { mode: resolution.mode, notification: resolution.notification }
+}
+
+export type SessionPermissionModeSource =
+  | 'launch-flag'
+  | 'mode-argument'
+  | 'saved-settings'
+  | 'session-birth'
+  | 'session-choice'
+  | 'default'
+
+export type SessionPermissionModeResolution = {
+  mode: PermissionMode
+  source: SessionPermissionModeSource
+  notification?: string
+}
+
+export function sessionPermissionModeSourceWords(source: SessionPermissionModeSource): string {
+  switch (source) {
+    case 'launch-flag':
+      return 'the launch flag'
+    case 'mode-argument':
+      return 'the mode argument'
+    case 'saved-settings':
+      return 'your settings'
+    case 'session-birth':
+      return "the session's birth"
+    case 'session-choice':
+      return "the session's own choice"
+    case 'default':
+      return 'the default'
+  }
+}
+
+export function describeSessionPermissionMode(resolution: {
+  mode: PermissionMode
+  source: SessionPermissionModeSource
+}): string {
+  return `${permissionModeTitle(resolution.mode)} · from ${sessionPermissionModeSourceWords(resolution.source)}`
+}
+
+export function resolveSessionPermissionMode({
+  permissionModeCli,
+  dangerouslySkipPermissions,
+  envBypassArmed,
+  sessionMode,
+}: {
+  permissionModeCli?: string
+  dangerouslySkipPermissions: boolean
+  envBypassArmed?: boolean
+  sessionMode?: PermissionMode
+}): SessionPermissionModeResolution {
   const requested = permissionModeCli ? permissionModeFromString(permissionModeCli) : undefined
-  const candidates: PermissionMode[] = []
+  const candidates: Array<{ mode: PermissionMode; source: SessionPermissionModeSource }> = []
 
   if (dangerouslySkipPermissions) {
-    candidates.push('sovereign')
+    candidates.push({ mode: 'sovereign', source: envBypassArmed === true ? 'session-birth' : 'launch-flag' })
   }
-  if (requested) candidates.push(requested)
+  if (requested) candidates.push({ mode: requested, source: 'mode-argument' })
   const settingsMode = savedPermissionModeCandidate()
-  if (settingsMode) candidates.push(settingsMode)
+  if (settingsMode) candidates.push({ mode: settingsMode, source: 'saved-settings' })
+  if (sessionMode !== undefined) candidates.push({ mode: sessionMode, source: 'session-birth' })
 
-  const result = resolvePermissionModeCandidates(candidates, { dangerouslySkipPermissions })
+  const ordered: PermissionMode[] = candidates.map(c => c.mode)
+  const result = resolvePermissionModeCandidates(ordered, { dangerouslySkipPermissions })
+  const winner = candidates.find(c => c.mode === result.mode) ?? { mode: result.mode as PermissionMode, source: 'default' as SessionPermissionModeSource }
 
   if (
     result.mode === 'flow'
   ) {
     autoModeStateModule?.setAutoModeActive(true)
   }
-  return result
+  return { ...result, source: winner.source }
 }
 
 export function resolvePermissionModeCandidates(

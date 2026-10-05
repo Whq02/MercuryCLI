@@ -149,6 +149,7 @@ const OBSERVABLES: Array<{
   { key: 'questionPreviewFormat', family: 'posture', scope: 'session', read: () => state.getQuestionPreviewFormat() },
   { key: 'isRemoteMode', family: 'posture', scope: 'session', read: () => state.getIsRemoteMode() },
   { key: 'sessionBypassPermissionsMode', family: 'posture', scope: 'session', read: () => state.getSessionBypassPermissionsMode() },
+  { key: 'permissionModeResolution', family: 'posture', scope: 'session', read: () => state.getSessionPermissionModeResolution() },
   { key: 'sessionTrustAccepted', family: 'posture', scope: 'session', read: () => state.getSessionTrustAccepted() },
   { key: 'sessionPersistenceDisabled', family: 'posture', scope: 'session', read: () => state.isSessionPersistenceDisabled() },
   { key: 'flagSettingsPath', family: 'boot', scope: 'process', read: () => state.getFlagSettingsPath() },
@@ -280,7 +281,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'getSdkAgentProgressSummariesEnabled', 'getSdkBetas', 'getSessionBypassPermissionsMode',
     'getSessionCreatedCrews', 'getSessionId',
     'getSessionIngressToken', 'getSessionProjectDir', 'getSessionSource',
-    'getSessionTrustAccepted', 'getStatsStore',
+    'getSessionTrustAccepted', 'getStatsStore', 'getSessionPermissionModeResolution',
     'getStrictToolResultPairing', 'getSystemPromptSectionCache',
     'getTotalAPIDuration',
     'getTotalAPIDurationWithoutRetries', 'getTotalCacheCreationInputTokens',
@@ -314,7 +315,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'setOauthTokenFromFd', 'setOriginalCwd', 'setProjectRoot',
     'setPromptCache1hEligible', 'setPromptId', 'setQuestionPreviewFormat',
     'setSdkAgentProgressSummariesEnabled', 'setSdkBetas',
-    'setSessionBypassPermissionsMode', 'setSessionIngressToken',
+    'setSessionBypassPermissionsMode', 'setSessionIngressToken', 'setSessionPermissionModeResolution',
     'setSessionPersistenceDisabled', 'setSessionSource', 'setSessionTrustAccepted',
     'setStatsStore', 'setStrictToolResultPairing', 'setSystemPromptSectionCacheEntry',
     'snapshotOutputTokensForTurn', 'subscribeCwdState', 'subscribeEngineModelOverride', 'switchSession',
@@ -1105,6 +1106,7 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
     state.setQuestionPreviewFormat('markdown')
     state.setIsRemoteMode(true)
     state.setSessionBypassPermissionsMode(true)
+    state.setSessionPermissionModeResolution({ mode: 'sovereign', source: 'launch-flag' })
     state.setSessionTrustAccepted(true)
     state.setSessionPersistenceDisabled(true)
     state.setFlagSettingsPath('/tmp/t17-flag-settings.json')

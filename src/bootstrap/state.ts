@@ -5,6 +5,7 @@ export type { ModelUsage, WorkloadUnpricedTurns, WorkloadUsage } from './runtime
 import type { SessionId } from '../types/ids.js'
 import type { ApiRequestParams } from '../types/wire.js'
 import type { ModelSetting } from '../utils/model/model.js'
+import type { SessionPermissionModeResolution } from '../utils/permissions/permissionSetup.js'
 import type { ModelStrings } from '../utils/model/modelStrings.js'
 import type { SettingSource } from '../utils/settings/constants.js'
 import type { AgentColorName } from '../tools/AgentTool/agentColorManager.js'
@@ -498,6 +499,14 @@ export function setSessionBypassPermissionsMode(value: boolean): void {
 
 export function getSessionBypassPermissionsMode(): boolean {
   return posture.sessionBypassPermissionsMode
+}
+
+export function getSessionPermissionModeResolution(): Readonly<SessionPermissionModeResolution> | null {
+  return posture.permissionModeResolution
+}
+
+export function setSessionPermissionModeResolution(resolution: SessionPermissionModeResolution): void {
+  posture.permissionModeResolution = Object.freeze({ ...resolution })
 }
 
 export function setSessionTrustAccepted(value: boolean): void {
