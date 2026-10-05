@@ -10,6 +10,7 @@
 # gate-watch: src/history.ts src/keybindings/loadUserBindings.ts src/main.tsx src/services/counsel/counsel.ts
 # gate-watch: src/services/instructions/contracts.ts src/services/instructions/engine.ts src/services/instructions/adapters/index.ts
 # gate-watch: src/services/privateChannel/installProvenance.ts
+# gate-watch: src/cli/run.ts src/services/engine-connector/daemonConnector.ts src/services/engine-connector/focusedConnector.ts src/services/engine-connector/seatProjections.ts src/services/engine-connector/seatWire.ts
 # gate-watch: src/services/providers/anthropic/anthropicCatalogue.ts
 # gate-watch: src/services/providers/anthropic/modelRefusal.ts
 # gate-watch: src/services/providers/credentialEnvSpellings.ts

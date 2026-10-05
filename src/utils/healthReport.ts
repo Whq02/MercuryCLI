@@ -550,9 +550,15 @@ function editOutcomeHealthChecks(): CheckSpec[] {
       id: 'edit-outcomes',
       label: 'Edit outcomes',
       run: async () => {
-        const { editOutcomeHealthRows } = await import('../services/changeTransaction/editOutcomeLedger.js')
+        const { editOutcomeHealthRows, editOutcomeHealthRowsOf } = await import('../services/changeTransaction/editOutcomeLedger.js')
         const { processMainOwner } = await import('../services/run/resolveOwner.js')
-        const rows = editOutcomeHealthRows(processMainOwner())
+        const { getFocusedSessionConnector, hasFocusedSession } = await import('../services/engine-connector/focusedConnector.js')
+        const { hasSeatLive } = await import('../services/engine-connector/seatLive.js')
+        const focused = hasFocusedSession() ? getFocusedSessionConnector() : null
+        const seat = focused !== null && hasSeatLive(focused) ? focused : null
+        const sessionRows = seat?.editOutcomes?.()
+        if (seat !== null && sessionRows === null) return { status: 'off', evidence: "the session's runner reports no edit ledger (an older runner)" }
+        const rows = sessionRows !== undefined && sessionRows !== null ? editOutcomeHealthRowsOf(sessionRows) : editOutcomeHealthRows(processMainOwner())
         if (rows.length === 0) return { status: 'ok', evidence: 'no edit attempts this session' }
         return {
           status: 'info',

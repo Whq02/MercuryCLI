@@ -63,8 +63,12 @@ export interface EditOutcomeHealthRow {
 }
 
 export function editOutcomeHealthRows(owner: OwnerKey): EditOutcomeHealthRow[] {
+  return editOutcomeHealthRowsOf(editOutcomeRows(owner))
+}
+
+export function editOutcomeHealthRowsOf(ledger: readonly Pick<EditOutcomeRow, 'model' | 'outcome' | 'count'>[]): EditOutcomeHealthRow[] {
   const byModel = new Map<string, { attempts: number; applied: number; failures: Map<string, number> }>()
-  for (const row of editOutcomeRows(owner)) {
+  for (const row of ledger) {
     let agg = byModel.get(row.model)
     if (!agg) {
       agg = { attempts: 0, applied: 0, failures: new Map() }

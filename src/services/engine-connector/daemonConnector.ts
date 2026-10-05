@@ -71,6 +71,7 @@ import type {
   AskAnswerV1,
   AskReceiptV1,
   CheckpointFactsV1,
+  EditOutcomeRowV1,
   EngineConnectorV1,
   KitDialReceiptV1,
   SpawnSwitchReceiptV1,
@@ -2107,6 +2108,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   identity(): SeatIdentityV1 {
     return this.facts?.identity ?? { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null }
+  }
+
+  editOutcomes(): EditOutcomeRowV1[] | null {
+    return this.facts?.editOutcomes ?? null
   }
 
   skillsRoster(): SkillsRosterV1 {

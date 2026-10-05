@@ -1,4 +1,4 @@
-import type { EngineConnectorV1 } from './types.js'
+import type { EditOutcomeRowV1, EngineConnectorV1 } from './types.js'
 import type { WorkCountsV1 } from './workCounts.js'
 import type { StreamingTailStore } from '../../utils/messages/streamingTailStore.js'
 import type { RequestWaitV1 } from '../providers/streamIdleBudget.js'
@@ -60,6 +60,7 @@ export interface SeatLiveExtensionV1 {
   fold?(): FoldStatusV1 | null
   subscribeFold?(listener: () => void): () => void
   lostLine?(): LostLineV1 | null
+  editOutcomes?(): EditOutcomeRowV1[] | null
 }
 
 export function hasSeatLive(
