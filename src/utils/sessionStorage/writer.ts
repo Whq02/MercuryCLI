@@ -31,6 +31,7 @@ import type { AttributionSnapshotMessage } from '../../types/logs.js'
 import type { Message } from '../../types/message.js'
 import { storageRowPolicy } from '../../rows/storage.js'
 import { SessionMeta, SESSION_META_COMPAT_FIELDS } from './sessionMeta.js'
+import { promptLabel } from './sessionIndex.js'
 import { readTranscriptTailSync } from './transcriptReader.js'
 import type { QueueOperationMessage } from '../../types/messageQueueTypes.js'
 import { registerCleanup } from '../cleanupRegistry.js'
@@ -206,6 +207,20 @@ export function getTranscriptMessagesVisited(): number {
   return transcriptMessagesVisited
 }
 
+function partitionUnwritten(
+  messages: Transcript,
+  onDisk: ReadonlySet<UUID>,
+  parentHint: UUID | undefined,
+): { unwritten: Transcript; parent: UUID | undefined } {
+  const unwritten: Transcript = []
+  let parent = parentHint
+  for (const m of messages) {
+    if (!onDisk.has(m.uuid as UUID)) unwritten.push(m)
+    else if (unwritten.length === 0 && isChainParticipant(m)) parent = m.uuid as UUID
+  }
+  return { unwritten, parent }
+}
+
 export async function recordTranscript(
   messages: Message[],
   crewInfo?: CrewInfo,
@@ -214,21 +229,8 @@ export async function recordTranscript(
 ): Promise<UUID | null> {
   transcriptMessagesVisited += messages.length
   const cleanedMessages = cleanMessagesForLogging(messages, allMessages)
-  const sessionId = getSessionId() as UUID
-  const messageSet = await getSessionMessages(sessionId)
-  const newMessages: typeof cleanedMessages = []
-  let startingParentUuid: UUID | undefined = startingParentUuidHint
-  let seenNewMessage = false
-  for (const m of cleanedMessages) {
-    if (messageSet.has(m.uuid as UUID)) {
-      if (!seenNewMessage && isChainParticipant(m)) {
-        startingParentUuid = m.uuid as UUID
-      }
-    } else {
-      newMessages.push(m)
-      seenNewMessage = true
-    }
-  }
+  const messageSet = await getSessionMessages(getSessionId() as UUID)
+  const { unwritten: newMessages, parent: startingParentUuid } = partitionUnwritten(cleanedMessages, messageSet, startingParentUuidHint)
   const preferLiveLeaf = messageSet.size > 0
   if (newMessages.length > 0) {
     await getProject().insertMessageChain(
@@ -272,6 +274,13 @@ export async function recordQueueOperation(queueOp: QueueOperationMessage) {
 
 export async function removeTranscriptMessage(targetUuid: UUID): Promise<void> {
   await getProject().removeMessageByUuid(targetUuid)
+}
+
+function lineAround(tail: Buffer, matchIdx: number, matchLength: number, bytesRead: number, windowAtFileStart: boolean): { start: number; end: number } | null {
+  const prevNl = tail.lastIndexOf(0x0a, matchIdx)
+  if (prevNl < 0 && !windowAtFileStart) return null
+  const nextNl = tail.indexOf(0x0a, matchIdx + matchLength)
+  return { start: prevNl + 1, end: nextNl >= 0 ? nextNl + 1 : bytesRead }
 }
 
 function storedLineUuid(parsed: Record<string, unknown>): unknown {
@@ -323,6 +332,12 @@ export function adoptResumedSessionFile(): void {
   project.currentSessionChainLeaf = undefined
 }
 
+async function recordSessionRow(row: (sessionId: UUID) => Entry): Promise<void> {
+  const sessionId = getSessionId() as UUID
+  if (!sessionId) return
+  await getProject().appendEntry(row(sessionId))
+}
+
 export async function recordContextCollapseCommit(commit: {
   collapseId: string
   summaryUuid: string
@@ -331,13 +346,7 @@ export async function recordContextCollapseCommit(commit: {
   firstArchivedUuid: string
   lastArchivedUuid: string
 }): Promise<void> {
-  const sessionId = getSessionId() as UUID
-  if (!sessionId) return
-  await getProject().appendEntry({
-    type: 'context-collapse-commit',
-    sessionId,
-    ...commit,
-  })
+  await recordSessionRow(sessionId => ({ type: 'context-collapse-commit', sessionId, ...commit }))
 }
 
 export async function recordContextCollapseSnapshot(snapshot: {
@@ -351,13 +360,7 @@ export async function recordContextCollapseSnapshot(snapshot: {
   armed: boolean
   lastSpawnTokens: number
 }): Promise<void> {
-  const sessionId = getSessionId() as UUID
-  if (!sessionId) return
-  await getProject().appendEntry({
-    type: 'context-collapse-snapshot',
-    sessionId,
-    ...snapshot,
-  })
+  await recordSessionRow(sessionId => ({ type: 'context-collapse-snapshot', sessionId, ...snapshot }))
 }
 
 export async function flushSessionStorage(): Promise<void> {
@@ -434,26 +437,16 @@ class Project {
     this.writeQueues = new Map()
   }
 
-  private incrementPendingWrites(): void {
-    this.pendingWriteCount++
-  }
-
-  private decrementPendingWrites(): void {
-    this.pendingWriteCount--
-    if (this.pendingWriteCount === 0) {
-      for (const resolve of this.flushResolvers) {
-        resolve()
-      }
-      this.flushResolvers = []
-    }
+  private settleFlushWaiters(): void {
+    for (const resolve of this.flushResolvers.splice(0)) resolve()
   }
 
   private async trackWrite<T>(fn: () => Promise<T>): Promise<T> {
-    this.incrementPendingWrites()
+    this.pendingWriteCount++
     try {
       return await fn()
     } finally {
-      this.decrementPendingWrites()
+      if (--this.pendingWriteCount === 0) this.settleFlushWaiters()
     }
   }
 
@@ -664,22 +657,14 @@ class Project {
 
             const needle = `"uuid":"${targetUuid}"`
             const matchIdx = tail.lastIndexOf(needle)
-
-            if (matchIdx >= 0) {
-              const prevNl = tail.lastIndexOf(0x0a, matchIdx)
-              if (prevNl >= 0 || tailStart === 0) {
-                const lineStart = prevNl + 1
-                const nextNl = tail.indexOf(0x0a, matchIdx + needle.length)
-                const lineEnd = nextNl >= 0 ? nextNl + 1 : bytesRead
-
-                const absLineStart = tailStart + lineStart
-                const afterLen = bytesRead - lineEnd
-                ftruncateSync(fd, absLineStart)
-                if (afterLen > 0) {
-                  writeSync(fd, tail, lineEnd, afterLen, absLineStart)
-                }
-                return
-              }
+            const line = matchIdx >= 0 ? lineAround(tail, matchIdx, needle.length, bytesRead, tailStart === 0) : null
+            if (line) {
+              const { start: lineStart, end: lineEnd } = line
+              const absLineStart = tailStart + lineStart
+              const afterLen = bytesRead - lineEnd
+              ftruncateSync(fd, absLineStart)
+              if (afterLen > 0) writeSync(fd, tail, lineEnd, afterLen, absLineStart)
+              return
             }
           } finally {
             closeSync(fd)
@@ -723,13 +708,7 @@ class Project {
     if (this.shouldSkipPersistence()) return
     this.ensureCurrentSessionFile()
     this.reAppendSessionMetadata()
-    if (this.pendingEntries.length > 0) {
-      const buffered = this.pendingEntries
-      this.pendingEntries = []
-      for (const entry of buffered) {
-        await this.appendEntry(entry)
-      }
-    }
+    for (const entry of this.pendingEntries.splice(0)) await this.appendEntry(entry)
   }
 
   async insertMessageChain(
@@ -806,13 +785,13 @@ class Project {
 
       if (!isSidechain) {
         const text = getFirstMeaningfulUserMessageTextContent(messages)
-        if (text) {
-          const flat = text.replace(/\n/g, ' ').trim()
-          this.currentSessionLastPrompt =
-            flat.length > 200 ? flat.slice(0, 200).trim() + '…' : flat
-        }
+        if (text) this.metadata.cache('lastPrompt', promptLabel(text))
       }
     }))
+  }
+
+  private insertTracked(entry: Entry): Promise<void> {
+    return this.trackWrite(() => this.appendEntry(entry))
   }
 
   async insertFileHistorySnapshot(
@@ -820,71 +799,50 @@ class Project {
     snapshot: FileHistorySnapshot,
     isSnapshotUpdate: boolean,
   ) {
-    return this.trackWrite(async () => {
-      const fileHistoryMessage: FileHistorySnapshotMessage = {
-        type: 'file-history-snapshot',
-        messageId,
-        snapshot,
-        isSnapshotUpdate,
-      }
-      await this.appendEntry(fileHistoryMessage)
-    })
+    const fileHistoryMessage: FileHistorySnapshotMessage = { type: 'file-history-snapshot', messageId, snapshot, isSnapshotUpdate }
+    return this.insertTracked(fileHistoryMessage)
   }
 
   async insertQueueOperation(queueOp: QueueOperationMessage) {
-    return this.trackWrite(async () => {
-      await this.appendEntry(queueOp)
-    })
+    return this.insertTracked(queueOp)
   }
 
   async insertAttributionSnapshot(snapshot: AttributionSnapshotMessage) {
-    return this.trackWrite(async () => {
-      await this.appendEntry(snapshot)
-    })
+    return this.insertTracked(snapshot)
   }
 
   async insertContentReplacement(
     replacements: ContentReplacementRecord[],
     agentId?: AgentId,
   ) {
-    return this.trackWrite(async () => {
-      const entry: ContentReplacementEntry = {
-        type: 'content-replacement',
-        sessionId: getSessionId() as UUID,
-        agentId,
-        replacements,
-      }
-      await this.appendEntry(entry)
-    })
+    const entry: ContentReplacementEntry = { type: 'content-replacement', sessionId: getSessionId() as UUID, agentId, replacements }
+    return this.insertTracked(entry)
+  }
+
+  private async sessionFileFor(sessionId: UUID, entry: Entry): Promise<string | null> {
+    if (sessionId === (getSessionId() as UUID)) {
+      if (this.sessionFile !== null) return this.sessionFile
+      this.pendingEntries.push(entry)
+      return null
+    }
+    const existing = await this.getExistingSessionFile(sessionId)
+    if (!existing) {
+      logError(
+        new Error(
+          `appendEntry: session file not found for other session ${sessionId}`,
+        ),
+      )
+      return null
+    }
+    return existing
   }
 
   async appendEntry(entry: Entry, sessionId: UUID = getSessionId() as UUID) {
     if (this.shouldSkipPersistence()) {
       return
     }
-
-    const currentSessionId = getSessionId() as UUID
-    const isCurrentSession = sessionId === currentSessionId
-
-    let sessionFile: string
-    if (isCurrentSession) {
-      if (this.sessionFile === null) {
-        this.pendingEntries.push(entry)
-        return
-      }
-      sessionFile = this.sessionFile
-    } else {
-      const existing = await this.getExistingSessionFile(sessionId)
-      if (!existing) {
-        logError(
-          new Error(
-            `appendEntry: session file not found for other session ${sessionId}`,
-          ),
-        )
-        return
-      }
-      sessionFile = existing
-    }
+    const sessionFile = await this.sessionFileFor(sessionId, entry)
+    if (sessionFile === null) return
 
     if (storageRowPolicy(entry.type)?.write === 'append') {
       void this.enqueueWrite(sessionFile, entry)
