@@ -6,6 +6,7 @@
 # gate-watch: src/context/modalContext.tsx src/services/providers/credentialEnvSpellings.ts
 # gate-watch: src/services/providers/patience.ts
 # gate-watch: src/bootstrap/state* src/bootstrap/runtime/posture.ts
+# gate-watch: src/state/AppStateStore.ts
 # gate-watch: src/utils/settings/** src/utils/config/** src/utils/config.ts
 # gate-watch: src/utils/fileRead* scripts/lib/scratchSeat.ts src/mneme/paths.ts
 # gate-watch: src/migrations/**

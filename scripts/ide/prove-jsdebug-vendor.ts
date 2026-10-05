@@ -168,8 +168,7 @@ if (existsSync(join(EXTRACT, '.vendor-manifest.json'))) {
   const scratch = mkdtempSync(join(tmpdir(), 'jsdebug-poison-build-'))
   const mirror = mkdtempSync(join(tmpdir(), 'jsdebug-poison-root-'))
   try {
-    for (const entry of readdirSync(ROOT)) {
-      if (entry === 'vendor' || entry === 'build.ts' || entry === 'dist' || entry === '.git') continue
+    for (const entry of ['src', 'scripts', 'assets', 'node_modules', 'package.json', 'tsconfig.json']) {
       symlinkSync(join(ROOT, entry), join(mirror, entry))
     }
     copyFileSync(join(ROOT, 'build.ts'), join(mirror, 'build.ts'))
