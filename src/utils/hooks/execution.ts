@@ -77,6 +77,7 @@ export function executeInBackground({
   command,
   wake,
   extensionId,
+  subscribeProgress,
 }: {
   processId: string
   hookId: string
@@ -87,6 +88,7 @@ export function executeInBackground({
   command: string
   wake?: boolean
   extensionId?: string
+  subscribeProgress?: (observer: (snapshot: { stdout: string; stderr: string; output: string }) => void) => () => void
 }): boolean {
   if (wake) {
     void shellCommand.result.then(async result => {
@@ -129,6 +131,7 @@ export function executeInBackground({
     command,
     shellCommand,
     extensionId,
+    subscribeProgress,
   })
 
   return true
@@ -328,6 +331,50 @@ export async function execCommandHook(
   let shellCommandTransferred = false
   let stdinWritten = false
 
+  let progressStdout = ''
+  let progressStderr = ''
+  let progressOutput = ''
+  const progressObservers = new Set<(snapshot: { stdout: string; stderr: string; output: string }) => void>()
+  const chunkReporter = hookProgressReporter({ hookId, hookName, hookEvent })
+  const snapshot = () => ({ stdout: progressStdout, stderr: progressStderr, output: progressOutput })
+  const reportChunk = (): void => {
+    if (progressObservers.size === 0) chunkReporter(snapshot())
+    else for (const observer of progressObservers) observer(snapshot())
+  }
+  const onStdoutChunk = (data: Buffer | string): void => {
+    if (progressStdout.length < HOOK_OUTPUT_MAX_BYTES) {
+      progressStdout += String(data)
+      progressOutput += String(data)
+      if (progressStdout.length >= HOOK_OUTPUT_MAX_BYTES) {
+        progressStdout = progressStdout.slice(0, HOOK_OUTPUT_MAX_BYTES) + TRUNCATION_NOTE
+        progressOutput = progressOutput.slice(0, HOOK_OUTPUT_MAX_BYTES) + TRUNCATION_NOTE
+      }
+    }
+    reportChunk()
+  }
+  const onStderrChunk = (data: Buffer | string): void => {
+    if (progressStderr.length < HOOK_OUTPUT_MAX_BYTES) {
+      progressStderr += String(data)
+      progressOutput += String(data)
+      if (progressStderr.length >= HOOK_OUTPUT_MAX_BYTES) progressStderr = progressStderr.slice(0, HOOK_OUTPUT_MAX_BYTES) + TRUNCATION_NOTE
+    }
+    reportChunk()
+  }
+  child.stdout.setEncoding('utf8')
+  child.stderr.setEncoding('utf8')
+  child.stdout.on('data', onStdoutChunk)
+  child.stderr.on('data', onStderrChunk)
+  const subscribeProgress = (observer: (value: { stdout: string; stderr: string; output: string }) => void): (() => void) => {
+    progressObservers.add(observer)
+    if (progressStdout || progressStderr) observer(snapshot())
+    return () => { progressObservers.delete(observer) }
+  }
+  void shellCommand.result.finally(() => {
+    child.stdout.removeListener('data', onStdoutChunk)
+    child.stderr.removeListener('data', onStderrChunk)
+    progressObservers.clear()
+  })
+
   if ((hook.async || hook.wake) && !forceSyncExecution) {
     const processId = `async_hook_${child.pid}`
     logForDebugging(
@@ -348,6 +395,7 @@ export async function execCommandHook(
       command: hook.command,
       wake: hook.wake,
       extensionId,
+      subscribeProgress,
     })
     if (backgrounded) {
       return {
@@ -400,7 +448,6 @@ export async function execCommandHook(
         output = output.slice(0, HOOK_OUTPUT_MAX_BYTES) + TRUNCATION_NOTE
       }
     }
-    reportProgress({ stdout, stderr, output })
 
     if (requestPrompt) {
       lineBuffer += data
@@ -462,6 +509,7 @@ export async function execCommandHook(
             hookName,
             command: hook.command,
             extensionId,
+            subscribeProgress,
           })
           if (backgrounded) {
             shellCommandTransferred = true
@@ -495,11 +543,8 @@ export async function execCommandHook(
         stderr = stderr.slice(0, HOOK_OUTPUT_MAX_BYTES) + TRUNCATION_NOTE
       }
     }
-    reportProgress({ stdout, stderr, output })
   })
 
-  const reportProgress = hookProgressReporter({ hookId, hookName, hookEvent })
-  const stopProgressInterval = () => {}
 
   const stdoutEndPromise = new Promise<void>(resolve => {
     child.stdout.on('end', () => resolve())
@@ -658,7 +703,6 @@ export async function execCommandHook(
         aborted: diagAborted,
       })
     }
-    stopProgressInterval()
     if (!shellCommandTransferred) {
       shellCommand.cleanup()
     }
