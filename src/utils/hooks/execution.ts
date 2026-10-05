@@ -10,6 +10,7 @@ import {
   getSessionId,
 } from '../../bootstrap/state.js'
 import type { AsyncHookJSONOutput, HookEvent } from './contract.js'
+import { hookEventTable } from './contract.js'
 
 import { formatShellPrefixCommand } from '../bash/shellPrefix.js'
 import { checkHasTrustDialogAccepted } from '../config.js'
@@ -49,7 +50,8 @@ import {
 import { jsonParse, jsonStringify } from '../slowOperations.js'
 import {
   emitHookResponse,
-  startHookProgressInterval,
+  getHookRunContext,
+  hookProgressReporter,
 } from './hookEvents.js'
 import { isAsyncHookJSONOutput } from '../../types/hooks.js'
 import { logForDiagnosticsNoPII } from '../diagLogs.js'
@@ -61,9 +63,8 @@ export const HOOK_OUTPUT_MAX_BYTES = 10 * 1024 * 1024
 const HOOK_STREAM_SETTLE_GRACE_MS = 2_000
 const TRUNCATION_NOTE = '\n[hook output truncated at 10MB]'
 
-const SESSION_END_HOOK_TIMEOUT_MS_DEFAULT = 1500
 export function getSessionEndHookTimeoutMs(): number {
-  return SESSION_END_HOOK_TIMEOUT_MS_DEFAULT
+  return hookEventTable.SessionEnd.timeoutMs ?? TOOL_HOOK_EXECUTION_TIMEOUT_MS
 }
 
 export function executeInBackground({
@@ -76,6 +77,7 @@ export function executeInBackground({
   command,
   wake,
   extensionId,
+  subscribeProgress,
 }: {
   processId: string
   hookId: string
@@ -86,6 +88,7 @@ export function executeInBackground({
   command: string
   wake?: boolean
   extensionId?: string
+  subscribeProgress?: (observer: (snapshot: { stdout: string; stderr: string; output: string }) => void) => () => void
 }): boolean {
   if (wake) {
     void shellCommand.result.then(async result => {
@@ -128,6 +131,7 @@ export function executeInBackground({
     command,
     shellCommand,
     extensionId,
+    subscribeProgress,
   })
 
   return true
@@ -173,7 +177,7 @@ export function createBaseHookInput(
   return {
     session_id: resolvedSessionId,
     transcript_path: getTranscriptPathForSession(resolvedSessionId),
-    cwd: getCwd(),
+    cwd: getHookRunContext()?.cwd ?? getCwd(),
     permission_mode: permissionMode,
     agent_id: agentInfo?.agentId,
     agent_type: resolvedAgentType,
@@ -288,7 +292,7 @@ export async function execCommandHook(
     envVars.MERCURY_ENV_FILE = await getHookEnvFilePath(hookEvent, hookIndex)
   }
 
-  const hookCwd = getCwd()
+  const hookCwd = getHookRunContext()?.cwd ?? getCwd()
   const safeCwd = (await pathExists(hookCwd)) ? hookCwd : getOriginalCwd()
   if (safeCwd !== hookCwd) {
     logForDebugging(
@@ -327,6 +331,50 @@ export async function execCommandHook(
   let shellCommandTransferred = false
   let stdinWritten = false
 
+  let progressStdout = ''
+  let progressStderr = ''
+  let progressOutput = ''
+  const progressObservers = new Set<(snapshot: { stdout: string; stderr: string; output: string }) => void>()
+  const chunkReporter = hookProgressReporter({ hookId, hookName, hookEvent })
+  const snapshot = () => ({ stdout: progressStdout, stderr: progressStderr, output: progressOutput })
+  const reportChunk = (): void => {
+    if (progressObservers.size === 0) chunkReporter(snapshot())
+    else for (const observer of progressObservers) observer(snapshot())
+  }
+  const onStdoutChunk = (data: Buffer | string): void => {
+    if (progressStdout.length < HOOK_OUTPUT_MAX_BYTES) {
+      progressStdout += String(data)
+      progressOutput += String(data)
+      if (progressStdout.length >= HOOK_OUTPUT_MAX_BYTES) {
+        progressStdout = progressStdout.slice(0, HOOK_OUTPUT_MAX_BYTES) + TRUNCATION_NOTE
+        progressOutput = progressOutput.slice(0, HOOK_OUTPUT_MAX_BYTES) + TRUNCATION_NOTE
+      }
+    }
+    reportChunk()
+  }
+  const onStderrChunk = (data: Buffer | string): void => {
+    if (progressStderr.length < HOOK_OUTPUT_MAX_BYTES) {
+      progressStderr += String(data)
+      progressOutput += String(data)
+      if (progressStderr.length >= HOOK_OUTPUT_MAX_BYTES) progressStderr = progressStderr.slice(0, HOOK_OUTPUT_MAX_BYTES) + TRUNCATION_NOTE
+    }
+    reportChunk()
+  }
+  child.stdout.setEncoding('utf8')
+  child.stderr.setEncoding('utf8')
+  child.stdout.on('data', onStdoutChunk)
+  child.stderr.on('data', onStderrChunk)
+  const subscribeProgress = (observer: (value: { stdout: string; stderr: string; output: string }) => void): (() => void) => {
+    progressObservers.add(observer)
+    if (progressStdout || progressStderr) observer(snapshot())
+    return () => { progressObservers.delete(observer) }
+  }
+  void shellCommand.result.finally(() => {
+    child.stdout.removeListener('data', onStdoutChunk)
+    child.stderr.removeListener('data', onStderrChunk)
+    progressObservers.clear()
+  })
+
   if ((hook.async || hook.wake) && !forceSyncExecution) {
     const processId = `async_hook_${child.pid}`
     logForDebugging(
@@ -347,6 +395,7 @@ export async function execCommandHook(
       command: hook.command,
       wake: hook.wake,
       extensionId,
+      subscribeProgress,
     })
     if (backgrounded) {
       return {
@@ -460,6 +509,7 @@ export async function execCommandHook(
             hookName,
             command: hook.command,
             extensionId,
+            subscribeProgress,
           })
           if (backgrounded) {
             shellCommandTransferred = true
@@ -495,12 +545,6 @@ export async function execCommandHook(
     }
   })
 
-  const stopProgressInterval = startHookProgressInterval({
-    hookId,
-    hookName,
-    hookEvent,
-    getOutput: async () => ({ stdout, stderr, output }),
-  })
 
   const stdoutEndPromise = new Promise<void>(resolve => {
     child.stdout.on('end', () => resolve())
@@ -659,7 +703,6 @@ export async function execCommandHook(
         aborted: diagAborted,
       })
     }
-    stopProgressInterval()
     if (!shellCommandTransferred) {
       shellCommand.cleanup()
     }

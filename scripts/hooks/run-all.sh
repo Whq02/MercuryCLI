@@ -10,6 +10,7 @@
 # gate-watch: src/utils/hooks/contract.ts
 # gate-watch: src/utils/messages/turnCut.ts src/utils/settings/settings.ts src/utils/settings/types.ts
 # gate-watch: src/services/tools/toolHooks.ts
+# gate-watch: src/rows/vocabulary.ts src/rows/project.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -22,6 +23,15 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-pipe-se
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-timeout-not-cancelled.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-timeout-not-cancelled.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-detail-fields.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hook-detail-fields.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-input-contract.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hook-input-contract.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-event-table.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hook-event-table.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-stdin-order.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hook-stdin-order.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-progress-marks.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hook-progress-marks.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-daemon-hook-road.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-hook-road.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-lifecycle-hook-contract.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-lifecycle-hook-contract.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-lifecycle-off-event-refusal.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-lifecycle-off-event-refusal.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-row-road.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hook-row-road.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-run-door-hook-rows.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-run-door-hook-rows.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-async-hook-progress-marks.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-async-hook-progress-marks.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-nonzero-report.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hook-nonzero-report.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-once-hook-retires.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-once-hook-retires.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-if-event-honesty.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-if-event-honesty.ts" "$__t" "$__rc"
