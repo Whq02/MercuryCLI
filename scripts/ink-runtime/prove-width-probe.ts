@@ -18,12 +18,32 @@ console.log('PASS late CPR is not input and the row-1 modified F3 key remains a 
 const { queueTerminalWidthProbe, readTerminalWidthMeasurements, WIDTH_PROBE_SAMPLES } = await import('../../src/ink/session/widthProbe.ts')
 let written = ''
 const stdout = { isTTY: true, rows: 40, columns: 120, write: (s: string) => { written += s; return true } } as unknown as NodeJS.WriteStream
+let inlineWritten = ''
+const inlineOut = { isTTY: true, rows: 40, columns: 120, write: (s: string) => { inlineWritten += s; return true } } as unknown as NodeJS.WriteStream
+const inlineQuerier = new TerminalQuerier(inlineOut)
+const inlineClose = queueTerminalWidthProbe(inlineQuerier, inlineOut, () => { throw new Error('an inline arm must never repaint for the probe') }, false)
+assert.equal(inlineClose, null)
+assert.equal(inlineWritten, '', 'FAIL an inline arm must send no sample bytes')
+assert.deepEqual(readTerminalWidthMeasurements(), {})
+void inlineQuerier.flush()
+await new Promise(resolve => setTimeout(resolve, 20))
+assert.equal((inlineWritten.match(/\x1b\[6n/g) ?? []).length, 0, 'FAIL no CPR sample rode the inline arm')
+assert.ok(!inlineWritten.includes('\x1b7'), 'FAIL no sample touched the primary screen')
+assert.equal(interpretResponse('\x1b[2;5R'), null)
+console.log('PASS an inline (primary-screen) arm sends no sample bytes, repaints nothing and leaves the fallbacks standing')
+const lateAlt = queueTerminalWidthProbe(inlineQuerier, inlineOut, () => {}, true)
+assert.ok(lateAlt, 'FAIL a later arm on the alternate screen must still measure once')
+const inlineSix = inlineWritten
+void inlineQuerier.flush()
+await new Promise(resolve => setTimeout(resolve, 20))
+assert.equal((inlineWritten.slice(inlineSix.length).match(/\x1b\[6n/g) ?? []).length, 8, 'the later alt-screen arm rides its own batch with all eight samples')
+lateAlt()
 const querier = new TerminalQuerier(stdout)
 let redraws = 0
 const version = querier.send(xtversion())
 const sync = querier.send(decrqm(2026))
 const keyboard = querier.send(kittyKeyboard())
-const finish = queueTerminalWidthProbe(querier, stdout, () => { redraws++ })
+const finish = queueTerminalWidthProbe(querier, stdout, () => { redraws++ }, true)
 assert.ok(finish)
 assert.deepEqual(decode('\x1b[1;2R')[0], f3)
 assert.equal(interpretResponse('\x1b[52;5R'), null)
@@ -64,14 +84,14 @@ assert.equal((await sync)?.status, 2)
 assert.equal((await keyboard)?.flags, 1)
 assert.equal(interpretResponse('\x1b[2;2R'), null)
 assert.equal(typed(decode('\x1b[2;2Rok')), 'ok')
-assert.equal(queueTerminalWidthProbe(querier, stdout, () => { redraws++ }), null)
+assert.equal(queueTerminalWidthProbe(querier, stdout, () => { redraws++ }, true), null)
 assert.equal((written.match(/\x1b\[6n/g) ?? []).length, 8)
 console.log('PASS complete samples publish by class, close once and never re-probe the same stream')
 
 const silentOut = { isTTY: true, rows: 40, columns: 120, write: () => true } as unknown as NodeJS.WriteStream
 const silent = new TerminalQuerier(silentOut)
 let silentRedraws = 0
-const closeSilent = queueTerminalWidthProbe(silent, silentOut, () => { silentRedraws++ })
+const closeSilent = queueTerminalWidthProbe(silent, silentOut, () => { silentRedraws++ }, true)
 assert.ok(closeSilent)
 void silent.flush()
 await new Promise(resolve => setTimeout(resolve, 300))
@@ -85,7 +105,7 @@ console.log('PASS a missing fence closes the plain-CPR window and repaints once 
 
 const unorderedOut = { isTTY: true, rows: 40, columns: 120, write: () => true } as unknown as NodeJS.WriteStream
 const unordered = new TerminalQuerier(unorderedOut)
-const closeUnordered = queueTerminalWidthProbe(unordered, unorderedOut, () => {})!
+const closeUnordered = queueTerminalWidthProbe(unordered, unorderedOut, () => {}, true)!
 void unordered.flush()
 unordered.onResponse({ type: 'cursorPosition', row: 3, col: 5 })
 unordered.onResponse({ type: 'cursorPosition', row: 2, col: 2 })
@@ -96,6 +116,6 @@ closeUnordered()
 console.log('PASS out-of-order or absent samples leave their classes unmeasured')
 
 const smallOut = { isTTY: true, rows: 5, columns: 10, write: () => { throw new Error('small terminals must not be painted by the probe') } } as unknown as NodeJS.WriteStream
-assert.equal(queueTerminalWidthProbe(new TerminalQuerier(smallOut), smallOut, () => {}), null)
+assert.equal(queueTerminalWidthProbe(new TerminalQuerier(smallOut), smallOut, () => {}, true), null)
 console.log('PASS a viewport that cannot hold the samples stays unmeasured and unmodified')
 console.log('WIDTH PROBE WIRE HOLDS')

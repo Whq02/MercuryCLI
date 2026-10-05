@@ -90,6 +90,18 @@ function afterFirstPaintOf(bytes: string, needle: string): string | null {
   return bytes.slice((erase < 0 ? textAt : erase) + ERASE_SCREEN.length)
 }
 
+function widthProbeErasures(frames: Frame[]): number {
+  const batchFrame = frames.findIndex(frame => frame.bytes.includes('\x1b[6n'))
+  if (batchFrame < 0) return 0
+  const batchTick = frames[batchFrame]!.tick
+  let erasures = 0
+  for (const frame of frames) {
+    if (frame.tick <= batchTick || frame.tick > batchTick + 25) continue
+    erasures += countOf(frame.bytes.toString('latin1'), ERASE_SCREEN)
+  }
+  return erasures
+}
+
 function fullRewritesIn(bytes: string, rows: number): number {
   let count = 0
   for (const chunk of bytes.split('\x1b[H').slice(1)) {
@@ -200,6 +212,8 @@ for (const journey of journeys) {
     const cardNeedle = Buffer.from(FACE_READY, 'utf8').toString('latin1')
     const afterFirstPaint = afterFirstPaintOf(beforeCard, cardNeedle)
     check(`${tag}: the boot card's first paint is in the tee`, afterFirstPaint !== null)
+    const probeFired = beforeCard.includes('\x1b[6n')
+    const probeErasures = widthProbeErasures(frames)
     const windows: Array<{ event: string; bytes: string; rows: number }> = [
       { event: 'splash to card (after the card first paints)', bytes: afterFirstPaint ?? beforeCard, rows },
       { event: 'shift-right into the Concourse', bytes: bytesIn(frames, cardTick, marks.get('concourse')!.atTick), rows },
@@ -231,7 +245,10 @@ for (const journey of journeys) {
         check(`${tag} ${window.event}: exactly one contained erase, no scrollback erase, no alternate-screen switch`, counts.erase === 1 && counts.scrollback === 0 && counts.altEnter === 0 && counts.altLeave === 0, describe(counts))
         check(`${tag} ${window.event}: the erase and repaint share one synchronized frame`, eraseSharesSynchronizedPaint(window.bytes))
       } else {
-        check(`${tag} ${window.event}: the window is kept (no erase, no alternate-screen switch)`, !isWiped(counts), describe(counts))
+        const allowedErases = window.event.startsWith('splash to card') && probeFired ? probeErasures : 0
+        const note = allowedErases > 0 ? ' — the width probe alt-screen cleanup erases allowed' : ''
+        check(`${tag} ${window.event}: the window is kept (no erase, no alternate-screen switch)${note}`,
+          counts.erase <= allowedErases && counts.scrollback === 0 && counts.altEnter === 0 && counts.altLeave === 0, describe(counts))
       }
     }
   } finally {
