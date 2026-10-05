@@ -1,0 +1,35 @@
+import assert from 'node:assert/strict'
+import { costRows, fiveRunMedians, timingNoise, trimmedSpread } from './cost-comparison.ts'
+
+const runs = [5, 1, 4, 2, 3].map(ms => ({ metrics: { timeMs: ms, bytes: 100 } }))
+assert.deepEqual(fiveRunMedians(runs), { bytes: 100, timeMs: 3 })
+assert.throws(() => fiveRunMedians(runs.slice(1)), /five complete/)
+assert.throws(() => fiveRunMedians([...runs, runs[0]!]), /five complete/)
+assert.throws(() => fiveRunMedians(runs.map(() => ({ metrics: {} }))), /metric set/)
+assert.throws(() => fiveRunMedians(runs.map((run, index) => index ? run : { metrics: { bytes: 100 } })), /every metric/)
+for (const value of [NaN, Infinity, -1]) {
+  assert.throws(() => fiveRunMedians(runs.map((run, index) => index ? run : { metrics: { timeMs: value, bytes: 100 } })), /invalid measured/)
+}
+assert.ok(costRows({ bytes: 100, timeMs: 3 }, { bytes: 100, timeMs: 3 }).every(row => row.pass))
+assert.ok(costRows({ bytes: 100, timeMs: 3 }, { bytes: 99, timeMs: 2 }).every(row => row.pass))
+assert.equal(costRows({ bytes: 100 }, { bytes: 101 })[0]!.pass, false)
+assert.equal(costRows({ timeMs: 3 }, { timeMs: 3.0000001 })[0]!.pass, false)
+assert.throws(() => costRows({ bytes: 100, timeMs: 3 }, { bytes: 100 }), /same metrics/)
+assert.throws(() => costRows({}, {}), /empty/)
+assert.throws(() => costRows({ bytes: 100 }, { bytes: NaN }), /invalid comparison/)
+
+assert.equal(trimmedSpread([5, 1, 4, 2, 3]), 2)
+assert.equal(trimmedSpread([3, 3, 3, 3, 3]), 0)
+assert.equal(trimmedSpread([1, 2, 3, 4, 100]), 2)
+assert.throws(() => trimmedSpread([1, 2, 3]), /five runs/)
+const steady = [3, 3, 3, 3, 3].map(ms => ({ metrics: { timeMs: ms, bytes: 100 } }))
+assert.deepEqual(timingNoise(steady, steady), { timeMs: 0 })
+assert.deepEqual(timingNoise(runs, steady), { timeMs: 2 })
+assert.deepEqual(timingNoise(steady, runs), { timeMs: 2 })
+assert.equal(costRows({ timeMs: 3 }, { timeMs: 3.0000001 }, timingNoise(steady, steady))[0]!.pass, false)
+assert.equal(costRows({ timeMs: 3 }, { timeMs: 5 }, { timeMs: 2 })[0]!.pass, true)
+assert.equal(costRows({ timeMs: 3 }, { timeMs: 5.0000001 }, { timeMs: 2 })[0]!.pass, false)
+assert.equal(costRows({ bytes: 100 }, { bytes: 101 }, { bytes: 50 })[0]!.pass, false)
+assert.equal(costRows({ bytes: 100 }, { bytes: 101 }, { bytes: 50 })[0]!.floor, 0)
+assert.throws(() => costRows({ timeMs: 3 }, { timeMs: 3 }, { timeMs: -1 }), /noise floor/)
+console.log('[PASS] judge teeth: five complete runs, equal metric sets, finite readings; a byte count never gets a floor and refuses a one-byte increase; a time is refused beyond the larger side\'s five-run trimmed spread (the instrument\'s own measured noise, 0 when the runs agree) and an arbitrarily small increase refuses at a zero floor')

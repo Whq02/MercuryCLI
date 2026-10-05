@@ -1,0 +1,4452 @@
+{
+ "base": "59a987410603024225009f4dd483b0cfe024fe02",
+ "exports": {
+  "src/ink.ts:render": {
+   "value": {
+    "text": "(node: ReactNode, options?: WriteStream | RenderOptions | undefined) => Promise<Instance>",
+    "calls": [
+     "(node: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined, options?: WriteStream | RenderOptions | undefined): Promise<Instance>"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:createRoot": {
+   "value": {
+    "text": "(options?: RenderOptions | undefined) => Promise<Root>",
+    "calls": [
+     "(options?: RenderOptions | undefined): Promise<Root>"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:Instance": {
+   "value": null,
+   "type": {
+    "text": "{ rerender: (node: ReactNode) => void; unmount: (error?: number | Error | null | undefined) => void; waitUntilExit: () => Promise<void>; cleanup: () => void; lastFrame: () => string; }",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "cleanup",
+      false,
+      "() => void"
+     ],
+     [
+      "lastFrame",
+      false,
+      "() => string"
+     ],
+     [
+      "rerender",
+      false,
+      "(node: ReactNode) => void"
+     ],
+     [
+      "unmount",
+      false,
+      "(error?: number | Error | null | undefined) => void"
+     ],
+     [
+      "waitUntilExit",
+      false,
+      "() => Promise<void>"
+     ]
+    ]
+   }
+  },
+  "src/ink.ts:RenderOptions": {
+   "value": null,
+   "type": {
+    "text": "{ stdout?: WriteStream | undefined; stdin?: ReadStream | undefined; stderr?: WriteStream | undefined; exitOnCtrlC?: boolean | undefined; patchConsole?: boolean | undefined; onFrame?: ((event: FrameEvent) => void) | undefined; }",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "exitOnCtrlC",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "onFrame",
+      true,
+      "((event: FrameEvent) => void) | undefined"
+     ],
+     [
+      "patchConsole",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "stderr",
+      true,
+      "WriteStream | undefined"
+     ],
+     [
+      "stdin",
+      true,
+      "ReadStream | undefined"
+     ],
+     [
+      "stdout",
+      true,
+      "WriteStream | undefined"
+     ]
+    ]
+   }
+  },
+  "src/ink.ts:Root": {
+   "value": null,
+   "type": {
+    "text": "{ render: (node: ReactNode) => void; unmount: (error?: number | Error | null | undefined) => void; waitUntilExit: () => Promise<void>; }",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "render",
+      false,
+      "(node: ReactNode) => void"
+     ],
+     [
+      "unmount",
+      false,
+      "(error?: number | Error | null | undefined) => void"
+     ],
+     [
+      "waitUntilExit",
+      false,
+      "() => Promise<void>"
+     ]
+    ]
+   }
+  },
+  "src/ink.ts:flushPendingSyncWork": {
+   "value": {
+    "text": "() => void",
+    "calls": [
+     "(): void"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:color": {
+   "value": {
+    "text": "(colorKeyOrValue: keyof Theme | (string & {}) | undefined, themeName: ThemeName, type?: ColorType) => (text: string) => string",
+    "calls": [
+     "(colorKeyOrValue: keyof Theme | (string & {}) | undefined, themeName: (string & {}) | \"dark\" | \"true-black\" | \"light\" | \"light-daltonized\" | \"dark-daltonized\" | \"light-ansi\" | \"dark-ansi\", type?: \"background\" | \"foreground\"): (text: string) => string"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:ThemeProvider": {
+   "value": {
+    "text": "({ children, initialState, onThemeSave, }: { children?: ReactNode; initialState?: ThemeSetting | undefined; onThemeSave?: ((setting: ThemeSetting) => void) | undefined; }) => ReactNode",
+    "calls": [
+     "({ children, initialState, onThemeSave, }: { children?: ReactNode; initialState?: ThemeSetting | undefined; onThemeSave?: ((setting: ThemeSetting) => void) | undefined; }): string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:usePreviewTheme": {
+   "value": {
+    "text": "() => { setPreviewTheme: (setting: ThemeSetting) => void; savePreview: () => void; cancelPreview: () => void; }",
+    "calls": [
+     "(): { setPreviewTheme: (setting: ThemeSetting) => void; savePreview: () => void; cancelPreview: () => void; }"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:useTheme": {
+   "value": {
+    "text": "() => readonly [ThemeName, (setting: ThemeSetting) => void]",
+    "calls": [
+     "(): readonly [ThemeName, (setting: ThemeSetting) => void]"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:useThemeSetting": {
+   "value": {
+    "text": "() => ThemeSetting",
+    "calls": [
+     "(): (string & {}) | \"dark\" | \"true-black\" | \"light\" | \"light-daltonized\" | \"dark-daltonized\" | \"light-ansi\" | \"dark-ansi\" | \"auto\""
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:Box": {
+   "value": {
+    "text": "({ borderColor, borderTopColor, borderBottomColor, borderLeftColor, borderRightColor, backgroundColor, children, ...rest }: PropsWithChildren<Props>) => ReactNode",
+    "calls": [
+     "({ borderColor, borderTopColor, borderBottomColor, borderLeftColor, borderRightColor, backgroundColor, children, ...rest }: Omit<Props, ThemedColorProp | \"ref\" | \"tabIndex\" | \"autoFocus\" | \"onClick\" | \"onFocus\" | \"onFocusCapture\" | \"onBlur\" | \"onBlurCapture\" | \"onKeyDown\" | \"onKeyDownCapture\" | \"onMouseEnter\" | \"onMouseLeave\"> & { readonly borderColor?: ThemeColor | undefined; readonly borderTopColor?: ThemeColor | undefined; readonly borderBottomColor?: ThemeColor | undefined; readonly borderLeftColor?: ThemeColor | undefined; readonly borderRightColor?: ThemeColor | undefined; readonly backgroundColor?: ThemeColor | undefined; readonly ref?: Ref<DOMElement> | undefined; readonly tabIndex?: number | undefined; readonly autoFocus?: boolean | undefined; readonly onClick?: ((event: ClickEvent) => void) | undefined; readonly onFocus?: ((event: FocusEvent) => void) | undefined; readonly onFocusCapture?: ((event: FocusEvent) => void) | undefined; readonly onBlur?: ((event: FocusEvent) => void) | undefined; readonly onBlurCapture?: ((event: FocusEvent) => void) | undefined; readonly onKeyDown?: ((event: KeyboardEvent) => void) | undefined; readonly onKeyDownCapture?: ((event: KeyboardEvent) => void) | undefined; readonly onMouseEnter?: (() => void) | undefined; readonly onMouseLeave?: (() => void) | undefined; } & { children?: ReactNode; }): string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:BoxProps": {
+   "value": null,
+   "type": {
+    "text": "Omit<Props, ThemedColorProp | \"ref\" | \"tabIndex\" | \"autoFocus\" | \"onClick\" | \"onFocus\" | \"onFocusCapture\" | \"onBlur\" | \"onBlurCapture\" | \"onKeyDown\" | \"onKeyDownCapture\" | \"onMouseEnter\" | \"onMouseLeave\"> & { readonly borderColor?: ThemeColor | undefined; readonly borderTopColor?: ThemeColor | undefined; readonly borderBottomColor?: ThemeColor | undefined; readonly borderLeftColor?: ThemeColor | undefined; readonly borderRightColor?: ThemeColor | undefined; readonly backgroundColor?: ThemeColor | undefined; readonly ref?: Ref<DOMElement> | undefined; readonly tabIndex?: number | undefined; readonly autoFocus?: boolean | undefined; readonly onClick?: ((event: ClickEvent) => void) | undefined; readonly onFocus?: ((event: FocusEvent) => void) | undefined; readonly onFocusCapture?: ((event: FocusEvent) => void) | undefined; readonly onBlur?: ((event: FocusEvent) => void) | undefined; readonly onBlurCapture?: ((event: FocusEvent) => void) | undefined; readonly onKeyDown?: ((event: KeyboardEvent) => void) | undefined; readonly onKeyDownCapture?: ((event: KeyboardEvent) => void) | undefined; readonly onMouseEnter?: (() => void) | undefined; readonly onMouseLeave?: (() => void) | undefined; }",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "alignItems",
+      true,
+      "\"flex-start\" | \"center\" | \"flex-end\" | \"stretch\" | undefined"
+     ],
+     [
+      "alignSelf",
+      true,
+      "\"auto\" | \"flex-start\" | \"center\" | \"flex-end\" | undefined"
+     ],
+     [
+      "autoFocus",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "backgroundColor",
+      true,
+      "ThemeColor | undefined"
+     ],
+     [
+      "borderBottom",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderBottomColor",
+      true,
+      "ThemeColor | undefined"
+     ],
+     [
+      "borderBottomDimColor",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderColor",
+      true,
+      "ThemeColor | undefined"
+     ],
+     [
+      "borderDimColor",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderLeft",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderLeftColor",
+      true,
+      "ThemeColor | undefined"
+     ],
+     [
+      "borderLeftDimColor",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderRight",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderRightColor",
+      true,
+      "ThemeColor | undefined"
+     ],
+     [
+      "borderRightDimColor",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderRowBg",
+      true,
+      "((row: number) => string | undefined) | undefined"
+     ],
+     [
+      "borderStyle",
+      true,
+      "BorderStyle | undefined"
+     ],
+     [
+      "borderText",
+      true,
+      "{ content: string; position: \"top\" | \"bottom\"; align: \"center\" | \"start\" | \"end\"; offset?: number | undefined; } | undefined"
+     ],
+     [
+      "borderTop",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderTopColor",
+      true,
+      "ThemeColor | undefined"
+     ],
+     [
+      "borderTopDimColor",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "bottom",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "columnGap",
+      true,
+      "number | undefined"
+     ],
+     [
+      "display",
+      true,
+      "\"flex\" | \"none\" | undefined"
+     ],
+     [
+      "fillRowBg",
+      true,
+      "((row: number) => string | undefined) | undefined"
+     ],
+     [
+      "flexBasis",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "flexDirection",
+      true,
+      "\"row\" | \"column\" | \"row-reverse\" | \"column-reverse\" | undefined"
+     ],
+     [
+      "flexGrow",
+      true,
+      "number | undefined"
+     ],
+     [
+      "flexShrink",
+      true,
+      "number | undefined"
+     ],
+     [
+      "flexWrap",
+      true,
+      "\"nowrap\" | \"wrap\" | \"wrap-reverse\" | undefined"
+     ],
+     [
+      "gap",
+      true,
+      "number | undefined"
+     ],
+     [
+      "height",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "justifyContent",
+      true,
+      "\"flex-start\" | \"center\" | \"flex-end\" | \"space-between\" | \"space-around\" | \"space-evenly\" | undefined"
+     ],
+     [
+      "left",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "margin",
+      true,
+      "number | undefined"
+     ],
+     [
+      "marginBottom",
+      true,
+      "number | undefined"
+     ],
+     [
+      "marginLeft",
+      true,
+      "number | undefined"
+     ],
+     [
+      "marginRight",
+      true,
+      "number | undefined"
+     ],
+     [
+      "marginTop",
+      true,
+      "number | undefined"
+     ],
+     [
+      "marginX",
+      true,
+      "number | undefined"
+     ],
+     [
+      "marginY",
+      true,
+      "number | undefined"
+     ],
+     [
+      "maxHeight",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "maxWidth",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "minHeight",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "minWidth",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "noSelect",
+      true,
+      "boolean | \"from-left-edge\" | undefined"
+     ],
+     [
+      "onBlur",
+      true,
+      "((event: FocusEvent) => void) | undefined"
+     ],
+     [
+      "onBlurCapture",
+      true,
+      "((event: FocusEvent) => void) | undefined"
+     ],
+     [
+      "onClick",
+      true,
+      "((event: ClickEvent) => void) | undefined"
+     ],
+     [
+      "onFocus",
+      true,
+      "((event: FocusEvent) => void) | undefined"
+     ],
+     [
+      "onFocusCapture",
+      true,
+      "((event: FocusEvent) => void) | undefined"
+     ],
+     [
+      "onKeyDown",
+      true,
+      "((event: KeyboardEvent) => void) | undefined"
+     ],
+     [
+      "onKeyDownCapture",
+      true,
+      "((event: KeyboardEvent) => void) | undefined"
+     ],
+     [
+      "onMouseEnter",
+      true,
+      "(() => void) | undefined"
+     ],
+     [
+      "onMouseLeave",
+      true,
+      "(() => void) | undefined"
+     ],
+     [
+      "onTextGesture",
+      true,
+      "TextGestureHandler | undefined"
+     ],
+     [
+      "opaque",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "overflow",
+      true,
+      "\"visible\" | \"hidden\" | \"scroll\" | undefined"
+     ],
+     [
+      "overflowX",
+      true,
+      "\"visible\" | \"hidden\" | \"scroll\" | undefined"
+     ],
+     [
+      "overflowY",
+      true,
+      "\"visible\" | \"hidden\" | \"scroll\" | undefined"
+     ],
+     [
+      "padding",
+      true,
+      "number | undefined"
+     ],
+     [
+      "paddingBottom",
+      true,
+      "number | undefined"
+     ],
+     [
+      "paddingLeft",
+      true,
+      "number | undefined"
+     ],
+     [
+      "paddingRight",
+      true,
+      "number | undefined"
+     ],
+     [
+      "paddingTop",
+      true,
+      "number | undefined"
+     ],
+     [
+      "paddingX",
+      true,
+      "number | undefined"
+     ],
+     [
+      "paddingY",
+      true,
+      "number | undefined"
+     ],
+     [
+      "position",
+      true,
+      "\"absolute\" | \"relative\" | undefined"
+     ],
+     [
+      "ref",
+      true,
+      "Ref<DOMElement> | undefined"
+     ],
+     [
+      "right",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "rowGap",
+      true,
+      "number | undefined"
+     ],
+     [
+      "tabIndex",
+      true,
+      "number | undefined"
+     ],
+     [
+      "top",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "width",
+      true,
+      "string | number | undefined"
+     ]
+    ]
+   }
+  },
+  "src/ink.ts:Text": {
+   "value": {
+    "text": "({ color, backgroundColor, dimColor, bold, italic, underline, strikethrough, inverse, wrap, children, }: Props) => ReactNode",
+    "calls": [
+     "({ color, backgroundColor, dimColor, bold, italic, underline, strikethrough, inverse, wrap, children, }: { readonly color?: keyof Theme | (string & {}) | undefined; readonly backgroundColor?: keyof Theme | (string & {}) | undefined; readonly dimColor?: boolean | undefined; readonly bold?: boolean | undefined; readonly italic?: boolean | undefined; readonly underline?: boolean | undefined; readonly strikethrough?: boolean | undefined; readonly inverse?: boolean | undefined; readonly wrap?: NonNullable<\"wrap\" | \"end\" | \"wrap-trim\" | \"middle\" | \"truncate-end\" | \"truncate\" | \"truncate-middle\" | \"truncate-start\" | undefined> | undefined; readonly children?: ReactNode; }): string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:TextProps": {
+   "value": null,
+   "type": {
+    "text": "{ readonly color?: keyof Theme | (string & {}) | undefined; readonly backgroundColor?: keyof Theme | (string & {}) | undefined; readonly dimColor?: boolean | undefined; readonly bold?: boolean | undefined; readonly italic?: boolean | undefined; readonly underline?: boolean | undefined; readonly strikethrough?: boolean | undefined; readonly inverse?: boolean | undefined; readonly wrap?: NonNullable<\"wrap\" | \"end\" | \"wrap-trim\" | \"middle\" | \"truncate-end\" | \"truncate\" | \"truncate-middle\" | \"truncate-start\" | undefined> | undefined; readonly children?: ReactNode; }",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "backgroundColor",
+      true,
+      "keyof Theme | (string & {}) | undefined"
+     ],
+     [
+      "bold",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "children",
+      true,
+      "string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined"
+     ],
+     [
+      "color",
+      true,
+      "keyof Theme | (string & {}) | undefined"
+     ],
+     [
+      "dimColor",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "inverse",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "italic",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "strikethrough",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "underline",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "wrap",
+      true,
+      "NonNullable<\"wrap\" | \"end\" | \"wrap-trim\" | \"middle\" | \"truncate-end\" | \"truncate\" | \"truncate-middle\" | \"truncate-start\" | undefined> | undefined"
+     ]
+    ]
+   }
+  },
+  "src/ink.ts:Ansi": {
+   "value": {
+    "text": "NamedExoticComponent<Props> & { readonly type: ({ children, dimColor, }: Props) => ReactNode; }",
+    "calls": [
+     "(props: { readonly children: string; readonly dimColor?: boolean | undefined; }): string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined"
+    ],
+    "constructs": [],
+    "members": [
+     [
+      "$$typeof",
+      false,
+      "symbol"
+     ],
+     [
+      "displayName",
+      true,
+      "string | undefined"
+     ],
+     [
+      "type",
+      false,
+      "({ children, dimColor, }: Props) => ReactNode"
+     ]
+    ]
+   },
+   "type": null
+  },
+  "src/ink.ts:BaseBox": {
+   "value": {
+    "text": "ForwardRefExoticComponent<Omit<PropsWithChildren<Props>, \"ref\"> & RefAttributes<DOMElement>>",
+    "calls": [
+     "(props: Omit<PropsWithChildren<Props>, \"ref\"> & RefAttributes<DOMElement>): string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined"
+    ],
+    "constructs": [],
+    "members": [
+     [
+      "$$typeof",
+      false,
+      "symbol"
+     ],
+     [
+      "displayName",
+      true,
+      "string | undefined"
+     ],
+     [
+      "propTypes",
+      true,
+      "any"
+     ]
+    ]
+   },
+   "type": null
+  },
+  "src/ink.ts:BaseBoxProps": {
+   "value": null,
+   "type": {
+    "text": "Omit<Styles, \"textWrap\"> & { readonly ref?: Ref<DOMElement> | undefined; readonly tabIndex?: number | undefined; readonly autoFocus?: boolean | undefined; readonly onClick?: ((event: ClickEvent) => void) | undefined; readonly onFocus?: ((event: FocusEvent) => void) | undefined; readonly onFocusCapture?: ((event: FocusEvent) => void) | undefined; readonly onBlur?: ((event: FocusEvent) => void) | undefined; readonly onBlurCapture?: ((event: FocusEvent) => void) | undefined; readonly onKeyDown?: ((event: KeyboardEvent) => void) | undefined; readonly onKeyDownCapture?: ((event: KeyboardEvent) => void) | undefined; readonly onMouseEnter?: (() => void) | undefined; readonly onMouseLeave?: (() => void) | undefined; readonly onTextGesture?: TextGestureHandler | undefined; }",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "alignItems",
+      true,
+      "\"flex-start\" | \"center\" | \"flex-end\" | \"stretch\" | undefined"
+     ],
+     [
+      "alignSelf",
+      true,
+      "\"auto\" | \"flex-start\" | \"center\" | \"flex-end\" | undefined"
+     ],
+     [
+      "autoFocus",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "backgroundColor",
+      true,
+      "Color | undefined"
+     ],
+     [
+      "borderBottom",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderBottomColor",
+      true,
+      "Color | undefined"
+     ],
+     [
+      "borderBottomDimColor",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderColor",
+      true,
+      "Color | undefined"
+     ],
+     [
+      "borderDimColor",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderLeft",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderLeftColor",
+      true,
+      "Color | undefined"
+     ],
+     [
+      "borderLeftDimColor",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderRight",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderRightColor",
+      true,
+      "Color | undefined"
+     ],
+     [
+      "borderRightDimColor",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderRowBg",
+      true,
+      "((row: number) => string | undefined) | undefined"
+     ],
+     [
+      "borderStyle",
+      true,
+      "BorderStyle | undefined"
+     ],
+     [
+      "borderText",
+      true,
+      "{ content: string; position: \"top\" | \"bottom\"; align: \"center\" | \"start\" | \"end\"; offset?: number | undefined; } | undefined"
+     ],
+     [
+      "borderTop",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderTopColor",
+      true,
+      "Color | undefined"
+     ],
+     [
+      "borderTopDimColor",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "bottom",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "columnGap",
+      true,
+      "number | undefined"
+     ],
+     [
+      "display",
+      true,
+      "\"flex\" | \"none\" | undefined"
+     ],
+     [
+      "fillRowBg",
+      true,
+      "((row: number) => string | undefined) | undefined"
+     ],
+     [
+      "flexBasis",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "flexDirection",
+      true,
+      "\"row\" | \"column\" | \"row-reverse\" | \"column-reverse\" | undefined"
+     ],
+     [
+      "flexGrow",
+      true,
+      "number | undefined"
+     ],
+     [
+      "flexShrink",
+      true,
+      "number | undefined"
+     ],
+     [
+      "flexWrap",
+      true,
+      "\"nowrap\" | \"wrap\" | \"wrap-reverse\" | undefined"
+     ],
+     [
+      "gap",
+      true,
+      "number | undefined"
+     ],
+     [
+      "height",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "justifyContent",
+      true,
+      "\"flex-start\" | \"center\" | \"flex-end\" | \"space-between\" | \"space-around\" | \"space-evenly\" | undefined"
+     ],
+     [
+      "left",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "margin",
+      true,
+      "number | undefined"
+     ],
+     [
+      "marginBottom",
+      true,
+      "number | undefined"
+     ],
+     [
+      "marginLeft",
+      true,
+      "number | undefined"
+     ],
+     [
+      "marginRight",
+      true,
+      "number | undefined"
+     ],
+     [
+      "marginTop",
+      true,
+      "number | undefined"
+     ],
+     [
+      "marginX",
+      true,
+      "number | undefined"
+     ],
+     [
+      "marginY",
+      true,
+      "number | undefined"
+     ],
+     [
+      "maxHeight",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "maxWidth",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "minHeight",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "minWidth",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "noSelect",
+      true,
+      "boolean | \"from-left-edge\" | undefined"
+     ],
+     [
+      "onBlur",
+      true,
+      "((event: FocusEvent) => void) | undefined"
+     ],
+     [
+      "onBlurCapture",
+      true,
+      "((event: FocusEvent) => void) | undefined"
+     ],
+     [
+      "onClick",
+      true,
+      "((event: ClickEvent) => void) | undefined"
+     ],
+     [
+      "onFocus",
+      true,
+      "((event: FocusEvent) => void) | undefined"
+     ],
+     [
+      "onFocusCapture",
+      true,
+      "((event: FocusEvent) => void) | undefined"
+     ],
+     [
+      "onKeyDown",
+      true,
+      "((event: KeyboardEvent) => void) | undefined"
+     ],
+     [
+      "onKeyDownCapture",
+      true,
+      "((event: KeyboardEvent) => void) | undefined"
+     ],
+     [
+      "onMouseEnter",
+      true,
+      "(() => void) | undefined"
+     ],
+     [
+      "onMouseLeave",
+      true,
+      "(() => void) | undefined"
+     ],
+     [
+      "onTextGesture",
+      true,
+      "TextGestureHandler | undefined"
+     ],
+     [
+      "opaque",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "overflow",
+      true,
+      "\"visible\" | \"hidden\" | \"scroll\" | undefined"
+     ],
+     [
+      "overflowX",
+      true,
+      "\"visible\" | \"hidden\" | \"scroll\" | undefined"
+     ],
+     [
+      "overflowY",
+      true,
+      "\"visible\" | \"hidden\" | \"scroll\" | undefined"
+     ],
+     [
+      "padding",
+      true,
+      "number | undefined"
+     ],
+     [
+      "paddingBottom",
+      true,
+      "number | undefined"
+     ],
+     [
+      "paddingLeft",
+      true,
+      "number | undefined"
+     ],
+     [
+      "paddingRight",
+      true,
+      "number | undefined"
+     ],
+     [
+      "paddingTop",
+      true,
+      "number | undefined"
+     ],
+     [
+      "paddingX",
+      true,
+      "number | undefined"
+     ],
+     [
+      "paddingY",
+      true,
+      "number | undefined"
+     ],
+     [
+      "position",
+      true,
+      "\"absolute\" | \"relative\" | undefined"
+     ],
+     [
+      "ref",
+      true,
+      "Ref<DOMElement> | undefined"
+     ],
+     [
+      "right",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "rowGap",
+      true,
+      "number | undefined"
+     ],
+     [
+      "tabIndex",
+      true,
+      "number | undefined"
+     ],
+     [
+      "top",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "width",
+      true,
+      "string | number | undefined"
+     ]
+    ]
+   }
+  },
+  "src/ink.ts:BaseText": {
+   "value": {
+    "text": "({ color, backgroundColor, dim, bold, italic, underline, strikethrough, inverse, wrap, children, }: Props) => ReactNode",
+    "calls": [
+     "({ color, backgroundColor, dim, bold, italic, underline, strikethrough, inverse, wrap, children, }: (BaseProps & { readonly bold?: boolean | undefined; readonly dim?: undefined; }) | (BaseProps & { readonly dim?: boolean | undefined; readonly bold?: undefined; })): string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:BaseTextProps": {
+   "value": null,
+   "type": {
+    "text": "(BaseProps & { readonly bold?: boolean | undefined; readonly dim?: undefined; }) | (BaseProps & { readonly dim?: boolean | undefined; readonly bold?: undefined; })",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "backgroundColor",
+      true,
+      "Color | undefined"
+     ],
+     [
+      "bold",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "children",
+      true,
+      "string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined"
+     ],
+     [
+      "color",
+      true,
+      "Color | undefined"
+     ],
+     [
+      "dim",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "inverse",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "italic",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "strikethrough",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "underline",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "wrap",
+      true,
+      "WrapMode | undefined"
+     ]
+    ]
+   }
+  },
+  "src/ink.ts:Button": {
+   "value": {
+    "text": "ForwardRefExoticComponent<Omit<Props, \"ref\"> & RefAttributes<DOMElement>>",
+    "calls": [
+     "(props: Omit<Props, \"ref\"> & RefAttributes<DOMElement>): string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined"
+    ],
+    "constructs": [],
+    "members": [
+     [
+      "$$typeof",
+      false,
+      "symbol"
+     ],
+     [
+      "displayName",
+      true,
+      "string | undefined"
+     ],
+     [
+      "propTypes",
+      true,
+      "any"
+     ]
+    ]
+   },
+   "type": null
+  },
+  "src/ink.ts:ButtonState": {
+   "value": null,
+   "type": {
+    "text": "{ readonly focused: boolean; readonly hovered: boolean; readonly active: boolean; }",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "active",
+      false,
+      "boolean"
+     ],
+     [
+      "focused",
+      false,
+      "boolean"
+     ],
+     [
+      "hovered",
+      false,
+      "boolean"
+     ]
+    ]
+   }
+  },
+  "src/ink.ts:ButtonProps": {
+   "value": null,
+   "type": {
+    "text": "Omit<Styles, \"textWrap\"> & { readonly ref?: Ref<DOMElement> | undefined; readonly onActivate: () => void; readonly tabIndex?: number | undefined; readonly autoFocus?: boolean | undefined; readonly children?: ReactNode | ((state: ButtonState) => ReactNode); }",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "alignItems",
+      true,
+      "\"flex-start\" | \"center\" | \"flex-end\" | \"stretch\" | undefined"
+     ],
+     [
+      "alignSelf",
+      true,
+      "\"auto\" | \"flex-start\" | \"center\" | \"flex-end\" | undefined"
+     ],
+     [
+      "autoFocus",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "backgroundColor",
+      true,
+      "Color | undefined"
+     ],
+     [
+      "borderBottom",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderBottomColor",
+      true,
+      "Color | undefined"
+     ],
+     [
+      "borderBottomDimColor",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderColor",
+      true,
+      "Color | undefined"
+     ],
+     [
+      "borderDimColor",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderLeft",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderLeftColor",
+      true,
+      "Color | undefined"
+     ],
+     [
+      "borderLeftDimColor",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderRight",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderRightColor",
+      true,
+      "Color | undefined"
+     ],
+     [
+      "borderRightDimColor",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderRowBg",
+      true,
+      "((row: number) => string | undefined) | undefined"
+     ],
+     [
+      "borderStyle",
+      true,
+      "BorderStyle | undefined"
+     ],
+     [
+      "borderText",
+      true,
+      "{ content: string; position: \"top\" | \"bottom\"; align: \"center\" | \"start\" | \"end\"; offset?: number | undefined; } | undefined"
+     ],
+     [
+      "borderTop",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderTopColor",
+      true,
+      "Color | undefined"
+     ],
+     [
+      "borderTopDimColor",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "bottom",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "children",
+      true,
+      "ReactNode | ((state: ButtonState) => ReactNode)"
+     ],
+     [
+      "columnGap",
+      true,
+      "number | undefined"
+     ],
+     [
+      "display",
+      true,
+      "\"flex\" | \"none\" | undefined"
+     ],
+     [
+      "fillRowBg",
+      true,
+      "((row: number) => string | undefined) | undefined"
+     ],
+     [
+      "flexBasis",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "flexDirection",
+      true,
+      "\"row\" | \"column\" | \"row-reverse\" | \"column-reverse\" | undefined"
+     ],
+     [
+      "flexGrow",
+      true,
+      "number | undefined"
+     ],
+     [
+      "flexShrink",
+      true,
+      "number | undefined"
+     ],
+     [
+      "flexWrap",
+      true,
+      "\"nowrap\" | \"wrap\" | \"wrap-reverse\" | undefined"
+     ],
+     [
+      "gap",
+      true,
+      "number | undefined"
+     ],
+     [
+      "height",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "justifyContent",
+      true,
+      "\"flex-start\" | \"center\" | \"flex-end\" | \"space-between\" | \"space-around\" | \"space-evenly\" | undefined"
+     ],
+     [
+      "left",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "margin",
+      true,
+      "number | undefined"
+     ],
+     [
+      "marginBottom",
+      true,
+      "number | undefined"
+     ],
+     [
+      "marginLeft",
+      true,
+      "number | undefined"
+     ],
+     [
+      "marginRight",
+      true,
+      "number | undefined"
+     ],
+     [
+      "marginTop",
+      true,
+      "number | undefined"
+     ],
+     [
+      "marginX",
+      true,
+      "number | undefined"
+     ],
+     [
+      "marginY",
+      true,
+      "number | undefined"
+     ],
+     [
+      "maxHeight",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "maxWidth",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "minHeight",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "minWidth",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "noSelect",
+      true,
+      "boolean | \"from-left-edge\" | undefined"
+     ],
+     [
+      "onActivate",
+      false,
+      "() => void"
+     ],
+     [
+      "opaque",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "overflow",
+      true,
+      "\"visible\" | \"hidden\" | \"scroll\" | undefined"
+     ],
+     [
+      "overflowX",
+      true,
+      "\"visible\" | \"hidden\" | \"scroll\" | undefined"
+     ],
+     [
+      "overflowY",
+      true,
+      "\"visible\" | \"hidden\" | \"scroll\" | undefined"
+     ],
+     [
+      "padding",
+      true,
+      "number | undefined"
+     ],
+     [
+      "paddingBottom",
+      true,
+      "number | undefined"
+     ],
+     [
+      "paddingLeft",
+      true,
+      "number | undefined"
+     ],
+     [
+      "paddingRight",
+      true,
+      "number | undefined"
+     ],
+     [
+      "paddingTop",
+      true,
+      "number | undefined"
+     ],
+     [
+      "paddingX",
+      true,
+      "number | undefined"
+     ],
+     [
+      "paddingY",
+      true,
+      "number | undefined"
+     ],
+     [
+      "position",
+      true,
+      "\"absolute\" | \"relative\" | undefined"
+     ],
+     [
+      "ref",
+      true,
+      "Ref<DOMElement> | undefined"
+     ],
+     [
+      "right",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "rowGap",
+      true,
+      "number | undefined"
+     ],
+     [
+      "tabIndex",
+      true,
+      "number | undefined"
+     ],
+     [
+      "top",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "width",
+      true,
+      "string | number | undefined"
+     ]
+    ]
+   }
+  },
+  "src/ink.ts:Link": {
+   "value": {
+    "text": "({ children, url, fallback }: Props) => ReactNode",
+    "calls": [
+     "({ children, url, fallback }: { readonly children?: ReactNode; readonly url: string; readonly fallback?: ReactNode; }): string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:LinkProps": {
+   "value": null,
+   "type": {
+    "text": "{ readonly children?: ReactNode; readonly url: string; readonly fallback?: ReactNode; }",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "children",
+      true,
+      "string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined"
+     ],
+     [
+      "fallback",
+      true,
+      "string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined"
+     ],
+     [
+      "url",
+      false,
+      "string"
+     ]
+    ]
+   }
+  },
+  "src/ink.ts:MotionParkContext": {
+   "value": {
+    "text": "Context<boolean>",
+    "calls": [
+     "(props: ProviderProps<boolean>): string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined"
+    ],
+    "constructs": [],
+    "members": [
+     [
+      "$$typeof",
+      false,
+      "symbol"
+     ],
+     [
+      "Consumer",
+      false,
+      "ExoticComponent<ConsumerProps<boolean>>"
+     ],
+     [
+      "displayName",
+      true,
+      "string | undefined"
+     ],
+     [
+      "Provider",
+      false,
+      "ProviderExoticComponent<ProviderProps<boolean>>"
+     ]
+    ]
+   },
+   "type": null
+  },
+  "src/ink.ts:Newline": {
+   "value": {
+    "text": "({ count }: Props) => ReactNode",
+    "calls": [
+     "({ count }: { readonly count?: number | undefined; }): string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:NewlineProps": {
+   "value": null,
+   "type": {
+    "text": "{ readonly count?: number | undefined; }",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "count",
+      true,
+      "number | undefined"
+     ]
+    ]
+   }
+  },
+  "src/ink.ts:NoSelect": {
+   "value": {
+    "text": "({ children, fromLeftEdge, ...boxProps }: Props) => ReactNode",
+    "calls": [
+     "({ children, fromLeftEdge, ...boxProps }: Omit<Props, \"noSelect\"> & { readonly fromLeftEdge?: boolean | undefined; } & { children?: ReactNode; }): string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:RawAnsi": {
+   "value": {
+    "text": "({ lines, width }: Props) => ReactNode",
+    "calls": [
+     "({ lines, width }: { readonly lines: readonly string[]; readonly width: number; }): string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:Spacer": {
+   "value": {
+    "text": "() => ReactNode",
+    "calls": [
+     "(): string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:AppProps": {
+   "value": null,
+   "type": {
+    "text": "{ readonly exit: (error?: Error | undefined) => void; }",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "exit",
+      false,
+      "(error?: Error | undefined) => void"
+     ]
+    ]
+   }
+  },
+  "src/ink.ts:StdinProps": {
+   "value": null,
+   "type": {
+    "text": "{ readonly stdin: ReadStream; readonly setRawMode: (value: boolean) => void; readonly isRawModeSupported: boolean; readonly internal_exitOnCtrlC: boolean; readonly internal_eventEmitter: EventEmitter; readonly internal_querier: TerminalQuerier | null; }",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "internal_eventEmitter",
+      false,
+      "EventEmitter"
+     ],
+     [
+      "internal_exitOnCtrlC",
+      false,
+      "boolean"
+     ],
+     [
+      "internal_querier",
+      false,
+      "TerminalQuerier | null"
+     ],
+     [
+      "isRawModeSupported",
+      false,
+      "boolean"
+     ],
+     [
+      "setRawMode",
+      false,
+      "(value: boolean) => void"
+     ],
+     [
+      "stdin",
+      false,
+      "ReadStream"
+     ]
+    ]
+   }
+  },
+  "src/ink.ts:ClickEvent": {
+   "value": {
+    "text": "typeof ClickEvent",
+    "calls": [],
+    "constructs": [
+     "(col: number, row: number, cellIsBlank: boolean): ClickEvent"
+    ],
+    "members": [
+     [
+      "prototype",
+      false,
+      "ClickEvent"
+     ]
+    ]
+   },
+   "type": {
+    "text": "ClickEvent",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "cellIsBlank",
+      false,
+      "boolean"
+     ],
+     [
+      "col",
+      false,
+      "number"
+     ],
+     [
+      "didStopImmediatePropagation",
+      false,
+      "() => boolean"
+     ],
+     [
+      "halted",
+      false,
+      "boolean"
+     ],
+     [
+      "localCol",
+      false,
+      "number"
+     ],
+     [
+      "localRow",
+      false,
+      "number"
+     ],
+     [
+      "row",
+      false,
+      "number"
+     ],
+     [
+      "stopImmediatePropagation",
+      false,
+      "() => void"
+     ]
+    ]
+   }
+  },
+  "src/ink.ts:EventEmitter": {
+   "value": {
+    "text": "typeof EventEmitter",
+    "calls": [],
+    "constructs": [
+     "(): EventEmitter"
+    ],
+    "members": [
+     [
+      "addAbortListener",
+      false,
+      "(signal: AbortSignal, resource: (event: Event) => void) => Disposable"
+     ],
+     [
+      "captureRejections",
+      false,
+      "boolean"
+     ],
+     [
+      "captureRejectionSymbol",
+      false,
+      "typeof captureRejectionSymbol"
+     ],
+     [
+      "defaultMaxListeners",
+      false,
+      "number"
+     ],
+     [
+      "errorMonitor",
+      false,
+      "typeof errorMonitor"
+     ],
+     [
+      "EventEmitter",
+      false,
+      "typeof EventEmitter"
+     ],
+     [
+      "EventEmitterAsyncResource",
+      false,
+      "typeof EventEmitterAsyncResource"
+     ],
+     [
+      "getEventListeners",
+      false,
+      "(emitter: EventEmitter<DefaultEventMap> | EventTarget, name: string | symbol) => Function[]"
+     ],
+     [
+      "getMaxListeners",
+      false,
+      "(emitter: EventEmitter<DefaultEventMap> | EventTarget) => number"
+     ],
+     [
+      "listenerCount",
+      false,
+      "(emitter: EventEmitter<DefaultEventMap>, eventName: string | symbol) => number"
+     ],
+     [
+      "on",
+      false,
+      "{ (emitter: EventEmitter<DefaultEventMap>, eventName: string | symbol, options?: StaticEventEmitterIteratorOptions | undefined): AsyncIterator<any[], undefined, any>; (emitter: EventTarget, eventName: string, options?: StaticEventEmitterIteratorOptions | undefined): AsyncIterator<any[], undefined, any>; }"
+     ],
+     [
+      "once",
+      false,
+      "{ (emitter: EventEmitter<DefaultEventMap>, eventName: string | symbol, options?: StaticEventEmitterOptions | undefined): Promise<any[]>; (emitter: EventTarget, eventName: string, options?: StaticEventEmitterOptions | undefined): Promise<any[]>; }"
+     ],
+     [
+      "prototype",
+      false,
+      "EventEmitter"
+     ],
+     [
+      "setMaxListeners",
+      false,
+      "(n?: number | undefined, ...eventTargets: (EventEmitter<DefaultEventMap> | EventTarget)[]) => void"
+     ]
+    ]
+   },
+   "type": {
+    "text": "EventEmitter",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "__@captureRejectionSymbol",
+      true,
+      "(<K>(error: Error, event: string | symbol, ...args: AnyRest) => void) | undefined"
+     ],
+     [
+      "addListener",
+      false,
+      "<K>(eventName: string | symbol, listener: (...args: any[]) => void) => EventEmitter"
+     ],
+     [
+      "emit",
+      false,
+      "(type: string | symbol, ...args: unknown[]) => boolean"
+     ],
+     [
+      "eventNames",
+      false,
+      "() => (string | symbol)[]"
+     ],
+     [
+      "getMaxListeners",
+      false,
+      "() => number"
+     ],
+     [
+      "listenerCount",
+      false,
+      "<K>(eventName: string | symbol, listener?: Function | undefined) => number"
+     ],
+     [
+      "listeners",
+      false,
+      "<K>(eventName: string | symbol) => Function[]"
+     ],
+     [
+      "off",
+      false,
+      "<K>(eventName: string | symbol, listener: (...args: any[]) => void) => EventEmitter"
+     ],
+     [
+      "on",
+      false,
+      "<K>(eventName: string | symbol, listener: (...args: any[]) => void) => EventEmitter"
+     ],
+     [
+      "once",
+      false,
+      "<K>(eventName: string | symbol, listener: (...args: any[]) => void) => EventEmitter"
+     ],
+     [
+      "prependListener",
+      false,
+      "<K>(eventName: string | symbol, listener: (...args: any[]) => void) => EventEmitter"
+     ],
+     [
+      "prependOnceListener",
+      false,
+      "<K>(eventName: string | symbol, listener: (...args: any[]) => void) => EventEmitter"
+     ],
+     [
+      "rawListeners",
+      false,
+      "<K>(eventName: string | symbol) => Function[]"
+     ],
+     [
+      "removeAllListeners",
+      false,
+      "(eventName?: string | symbol | undefined) => EventEmitter"
+     ],
+     [
+      "removeListener",
+      false,
+      "<K>(eventName: string | symbol, listener: (...args: any[]) => void) => EventEmitter"
+     ],
+     [
+      "setMaxListeners",
+      false,
+      "(n: number) => EventEmitter"
+     ]
+    ]
+   }
+  },
+  "src/ink.ts:Event": {
+   "value": {
+    "text": "typeof Event",
+    "calls": [],
+    "constructs": [
+     "(): Event"
+    ],
+    "members": [
+     [
+      "prototype",
+      false,
+      "Event"
+     ]
+    ]
+   },
+   "type": {
+    "text": "Event",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "didStopImmediatePropagation",
+      false,
+      "() => boolean"
+     ],
+     [
+      "halted",
+      false,
+      "boolean"
+     ],
+     [
+      "stopImmediatePropagation",
+      false,
+      "() => void"
+     ]
+    ]
+   }
+  },
+  "src/ink.ts:InputEvent": {
+   "value": {
+    "text": "typeof InputEvent",
+    "calls": [],
+    "constructs": [
+     "(keypress: { kind: \"key\"; fn: boolean; name: string | undefined; ctrl: boolean; meta: boolean; shift: boolean; option: boolean; super: boolean; sequence: string | undefined; raw: string | undefined; code?: string | undefined; isPasted: boolean; x?: number | undefined; y?: number | undefined; }): InputEvent"
+    ],
+    "members": [
+     [
+      "prototype",
+      false,
+      "InputEvent"
+     ]
+    ]
+   },
+   "type": {
+    "text": "InputEvent",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "didStopImmediatePropagation",
+      false,
+      "() => boolean"
+     ],
+     [
+      "halted",
+      false,
+      "boolean"
+     ],
+     [
+      "input",
+      false,
+      "string"
+     ],
+     [
+      "key",
+      false,
+      "{ upArrow: boolean; downArrow: boolean; leftArrow: boolean; rightArrow: boolean; pageDown: boolean; pageUp: boolean; wheelUp: boolean; wheelDown: boolean; home: boolean; end: boolean; return: boolean; escape: boolean; ctrl: boolean; shift: boolean; fn: boolean; tab: boolean; backspace: boolean; delete: boolean; meta: boolean; super: boolean; isPasted: boolean; }"
+     ],
+     [
+      "keypress",
+      false,
+      "{ kind: \"key\"; fn: boolean; name: string | undefined; ctrl: boolean; meta: boolean; shift: boolean; option: boolean; super: boolean; sequence: string | undefined; raw: string | undefined; code?: string | undefined; isPasted: boolean; x?: number | undefined; y?: number | undefined; }"
+     ],
+     [
+      "seq",
+      false,
+      "number"
+     ],
+     [
+      "stopImmediatePropagation",
+      false,
+      "() => void"
+     ]
+    ]
+   }
+  },
+  "src/ink.ts:Key": {
+   "value": null,
+   "type": {
+    "text": "{ upArrow: boolean; downArrow: boolean; leftArrow: boolean; rightArrow: boolean; pageDown: boolean; pageUp: boolean; wheelUp: boolean; wheelDown: boolean; home: boolean; end: boolean; return: boolean; escape: boolean; ctrl: boolean; shift: boolean; fn: boolean; tab: boolean; backspace: boolean; delete: boolean; meta: boolean; super: boolean; isPasted: boolean; }",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "backspace",
+      false,
+      "boolean"
+     ],
+     [
+      "ctrl",
+      false,
+      "boolean"
+     ],
+     [
+      "delete",
+      false,
+      "boolean"
+     ],
+     [
+      "downArrow",
+      false,
+      "boolean"
+     ],
+     [
+      "end",
+      false,
+      "boolean"
+     ],
+     [
+      "escape",
+      false,
+      "boolean"
+     ],
+     [
+      "fn",
+      false,
+      "boolean"
+     ],
+     [
+      "home",
+      false,
+      "boolean"
+     ],
+     [
+      "isPasted",
+      false,
+      "boolean"
+     ],
+     [
+      "leftArrow",
+      false,
+      "boolean"
+     ],
+     [
+      "meta",
+      false,
+      "boolean"
+     ],
+     [
+      "pageDown",
+      false,
+      "boolean"
+     ],
+     [
+      "pageUp",
+      false,
+      "boolean"
+     ],
+     [
+      "return",
+      false,
+      "boolean"
+     ],
+     [
+      "rightArrow",
+      false,
+      "boolean"
+     ],
+     [
+      "shift",
+      false,
+      "boolean"
+     ],
+     [
+      "super",
+      false,
+      "boolean"
+     ],
+     [
+      "tab",
+      false,
+      "boolean"
+     ],
+     [
+      "upArrow",
+      false,
+      "boolean"
+     ],
+     [
+      "wheelDown",
+      false,
+      "boolean"
+     ],
+     [
+      "wheelUp",
+      false,
+      "boolean"
+     ]
+    ]
+   }
+  },
+  "src/ink.ts:TerminalFocusEvent": {
+   "value": {
+    "text": "typeof TerminalFocusEvent",
+    "calls": [],
+    "constructs": [
+     "(type: \"terminalfocus\" | \"terminalblur\"): TerminalFocusEvent"
+    ],
+    "members": [
+     [
+      "prototype",
+      false,
+      "TerminalFocusEvent"
+     ]
+    ]
+   },
+   "type": {
+    "text": "TerminalFocusEvent",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "didStopImmediatePropagation",
+      false,
+      "() => boolean"
+     ],
+     [
+      "halted",
+      false,
+      "boolean"
+     ],
+     [
+      "stopImmediatePropagation",
+      false,
+      "() => void"
+     ],
+     [
+      "type",
+      false,
+      "\"terminalfocus\" | \"terminalblur\""
+     ]
+    ]
+   }
+  },
+  "src/ink.ts:TerminalFocusEventType": {
+   "value": null,
+   "type": {
+    "text": "\"terminalfocus\" | \"terminalblur\"",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "__@iterator",
+      false,
+      "() => StringIterator<string>"
+     ],
+     [
+      "anchor",
+      false,
+      "(name: string) => string"
+     ],
+     [
+      "at",
+      false,
+      "(index: number) => string | undefined"
+     ],
+     [
+      "big",
+      false,
+      "() => string"
+     ],
+     [
+      "blink",
+      false,
+      "() => string"
+     ],
+     [
+      "bold",
+      false,
+      "() => string"
+     ],
+     [
+      "charAt",
+      false,
+      "(pos: number) => string"
+     ],
+     [
+      "charCodeAt",
+      false,
+      "(index: number) => number"
+     ],
+     [
+      "codePointAt",
+      false,
+      "(pos: number) => number | undefined"
+     ],
+     [
+      "concat",
+      false,
+      "(...strings: string[]) => string"
+     ],
+     [
+      "endsWith",
+      false,
+      "(searchString: string, endPosition?: number | undefined) => boolean"
+     ],
+     [
+      "fixed",
+      false,
+      "() => string"
+     ],
+     [
+      "fontcolor",
+      false,
+      "(color: string) => string"
+     ],
+     [
+      "fontsize",
+      false,
+      "{ (size: number): string; (size: string): string; }"
+     ],
+     [
+      "includes",
+      false,
+      "(searchString: string, position?: number | undefined) => boolean"
+     ],
+     [
+      "indexOf",
+      false,
+      "(searchString: string, position?: number | undefined) => number"
+     ],
+     [
+      "isWellFormed",
+      false,
+      "() => boolean"
+     ],
+     [
+      "italics",
+      false,
+      "() => string"
+     ],
+     [
+      "lastIndexOf",
+      false,
+      "(searchString: string, position?: number | undefined) => number"
+     ],
+     [
+      "length",
+      false,
+      "number"
+     ],
+     [
+      "link",
+      false,
+      "(url: string) => string"
+     ],
+     [
+      "localeCompare",
+      false,
+      "{ (that: string): number; (that: string, locales?: string | string[] | undefined, options?: CollatorOptions | undefined): number; (that: string, locales?: LocalesArgument, options?: CollatorOptions | undefined): number; }"
+     ],
+     [
+      "match",
+      false,
+      "{ (regexp: string | RegExp): RegExpMatchArray | null; (matcher: { [Symbol.match](string: string): RegExpMatchArray | null; }): RegExpMatchArray | null; }"
+     ],
+     [
+      "matchAll",
+      false,
+      "(regexp: RegExp) => RegExpStringIterator<RegExpExecArray>"
+     ],
+     [
+      "normalize",
+      false,
+      "{ (form: \"NFC\" | \"NFD\" | \"NFKC\" | \"NFKD\"): string; (form?: string | undefined): string; }"
+     ],
+     [
+      "padEnd",
+      false,
+      "(maxLength: number, fillString?: string | undefined) => string"
+     ],
+     [
+      "padStart",
+      false,
+      "(maxLength: number, fillString?: string | undefined) => string"
+     ],
+     [
+      "repeat",
+      false,
+      "(count: number) => string"
+     ],
+     [
+      "replace",
+      false,
+      "{ (searchValue: string | RegExp, replaceValue: string): string; (searchValue: string | RegExp, replacer: (substring: string, ...args: any[]) => string): string; (searchValue: { [Symbol.replace](string: string, replaceValue: string): string; }, replaceValue: string): string; (searchValue: { [Symbol.replace](string: string, replacer: (substring: string, ...args: any[]) => string): string; }, replacer: (substring: string, ...args: any[]) => string): string; }"
+     ],
+     [
+      "replaceAll",
+      false,
+      "{ (searchValue: string | RegExp, replaceValue: string): string; (searchValue: string | RegExp, replacer: (substring: string, ...args: any[]) => string): string; }"
+     ],
+     [
+      "search",
+      false,
+      "{ (regexp: string | RegExp): number; (searcher: { [Symbol.search](string: string): number; }): number; }"
+     ],
+     [
+      "slice",
+      false,
+      "(start?: number | undefined, end?: number | undefined) => string"
+     ],
+     [
+      "small",
+      false,
+      "() => string"
+     ],
+     [
+      "split",
+      false,
+      "{ (separator: string | RegExp, limit?: number | undefined): string[]; (splitter: { [Symbol.split](string: string, limit?: number | undefined): string[]; }, limit?: number | undefined): string[]; }"
+     ],
+     [
+      "startsWith",
+      false,
+      "(searchString: string, position?: number | undefined) => boolean"
+     ],
+     [
+      "strike",
+      false,
+      "() => string"
+     ],
+     [
+      "sub",
+      false,
+      "() => string"
+     ],
+     [
+      "substr",
+      false,
+      "(from: number, length?: number | undefined) => string"
+     ],
+     [
+      "substring",
+      false,
+      "(start: number, end?: number | undefined) => string"
+     ],
+     [
+      "sup",
+      false,
+      "() => string"
+     ],
+     [
+      "toLocaleLowerCase",
+      false,
+      "{ (locales?: string | string[] | undefined): string; (locales?: LocalesArgument): string; }"
+     ],
+     [
+      "toLocaleUpperCase",
+      false,
+      "{ (locales?: string | string[] | undefined): string; (locales?: LocalesArgument): string; }"
+     ],
+     [
+      "toLowerCase",
+      false,
+      "() => string"
+     ],
+     [
+      "toString",
+      false,
+      "() => string"
+     ],
+     [
+      "toUpperCase",
+      false,
+      "() => string"
+     ],
+     [
+      "toWellFormed",
+      false,
+      "() => string"
+     ],
+     [
+      "trim",
+      false,
+      "() => string"
+     ],
+     [
+      "trimEnd",
+      false,
+      "() => string"
+     ],
+     [
+      "trimLeft",
+      false,
+      "() => string"
+     ],
+     [
+      "trimRight",
+      false,
+      "() => string"
+     ],
+     [
+      "trimStart",
+      false,
+      "() => string"
+     ],
+     [
+      "valueOf",
+      false,
+      "() => string"
+     ]
+    ]
+   }
+  },
+  "src/ink.ts:FocusManager": {
+   "value": {
+    "text": "typeof FocusManager",
+    "calls": [],
+    "constructs": [
+     "(dispatchFocusEvent: (target: DOMElement, event: FocusEvent) => void): FocusManager"
+    ],
+    "members": [
+     [
+      "prototype",
+      false,
+      "FocusManager"
+     ]
+    ]
+   },
+   "type": {
+    "text": "FocusManager",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "activeElement",
+      false,
+      "DOMElement | null"
+     ],
+     [
+      "blur",
+      false,
+      "() => void"
+     ],
+     [
+      "collectTabbable",
+      false,
+      "(root: DOMElement) => DOMElement[]"
+     ],
+     [
+      "disable",
+      false,
+      "() => void"
+     ],
+     [
+      "dispatchFocusEvent",
+      false,
+      "(target: DOMElement, event: FocusEvent) => void"
+     ],
+     [
+      "enable",
+      false,
+      "() => void"
+     ],
+     [
+      "enabled",
+      false,
+      "boolean"
+     ],
+     [
+      "focus",
+      false,
+      "(node: DOMElement) => void"
+     ],
+     [
+      "focusNext",
+      false,
+      "(root: DOMElement) => void"
+     ],
+     [
+      "focusPrevious",
+      false,
+      "(root: DOMElement) => void"
+     ],
+     [
+      "handleAutoFocus",
+      false,
+      "(node: DOMElement) => void"
+     ],
+     [
+      "handleClickFocus",
+      false,
+      "(node: DOMElement) => void"
+     ],
+     [
+      "handleNodeRemoved",
+      false,
+      "(node: DOMElement, _root: DOMElement) => void"
+     ],
+     [
+      "moveFocus",
+      false,
+      "(root: DOMElement, direction: 1 | -1) => void"
+     ],
+     [
+      "stack",
+      false,
+      "DOMElement[]"
+     ]
+    ]
+   }
+  },
+  "src/ink.ts:paletteCollapsed": {
+   "value": {
+    "text": "() => boolean",
+    "calls": [
+     "(): boolean"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:truecolorActive": {
+   "value": {
+    "text": "() => boolean",
+    "calls": [
+     "(): boolean"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:measureElement": {
+   "value": {
+    "text": "(node: DOMElement) => { width: number; height: number; }",
+    "calls": [
+     "(node: { nodeName: ElementNames; parentNode: DOMElement | undefined; childNodes: DOMNode[]; attributes: Record<string, DOMNodeAttribute>; style: Styles; textStyles?: TextStyles | undefined; layoutNode?: LayoutNode | undefined; dirty: boolean; isHidden?: boolean | undefined; scroll?: ScrollState | undefined; _eventHandlers?: Record<string, unknown> | undefined; debugOwnerChain?: string[] | undefined; onRender?: (() => void) | undefined; onImmediateRender?: (() => void) | undefined; onComputeLayout?: (() => void) | undefined; focusManager?: FocusManager | undefined; hasRenderedContent?: boolean | undefined; }): { width: number; height: number; }"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:elementScreenLeft": {
+   "value": {
+    "text": "(node: DOMElement) => number",
+    "calls": [
+     "(node: { nodeName: ElementNames; parentNode: DOMElement | undefined; childNodes: DOMNode[]; attributes: Record<string, DOMNodeAttribute>; style: Styles; textStyles?: TextStyles | undefined; layoutNode?: LayoutNode | undefined; dirty: boolean; isHidden?: boolean | undefined; scroll?: ScrollState | undefined; _eventHandlers?: Record<string, unknown> | undefined; debugOwnerChain?: string[] | undefined; onRender?: (() => void) | undefined; onImmediateRender?: (() => void) | undefined; onComputeLayout?: (() => void) | undefined; focusManager?: FocusManager | undefined; hasRenderedContent?: boolean | undefined; }): number"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:elementScreenTop": {
+   "value": {
+    "text": "(node: DOMElement) => number",
+    "calls": [
+     "(node: { nodeName: ElementNames; parentNode: DOMElement | undefined; childNodes: DOMNode[]; attributes: Record<string, DOMNodeAttribute>; style: Styles; textStyles?: TextStyles | undefined; layoutNode?: LayoutNode | undefined; dirty: boolean; isHidden?: boolean | undefined; scroll?: ScrollState | undefined; _eventHandlers?: Record<string, unknown> | undefined; debugOwnerChain?: string[] | undefined; onRender?: (() => void) | undefined; onImmediateRender?: (() => void) | undefined; onComputeLayout?: (() => void) | undefined; focusManager?: FocusManager | undefined; hasRenderedContent?: boolean | undefined; }): number"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:supportsTabStatus": {
+   "value": {
+    "text": "() => boolean",
+    "calls": [
+     "(): boolean"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:wrapText": {
+   "value": {
+    "text": "(text: string, maxWidth: number, wrapType: string) => string",
+    "calls": [
+     "(text: string, maxWidth: number, wrapType: string): string"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:DOMElement": {
+   "value": null,
+   "type": {
+    "text": "{ nodeName: ElementNames; parentNode: DOMElement | undefined; childNodes: DOMNode[]; attributes: Record<string, DOMNodeAttribute>; style: Styles; textStyles?: TextStyles | undefined; layoutNode?: LayoutNode | undefined; dirty: boolean; isHidden?: boolean | undefined; scroll?: ScrollState | undefined; _eventHandlers?: Record<string, unknown> | undefined; debugOwnerChain?: string[] | undefined; onRender?: (() => void) | undefined; onImmediateRender?: (() => void) | undefined; onComputeLayout?: (() => void) | undefined; focusManager?: FocusManager | undefined; hasRenderedContent?: boolean | undefined; }",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "_eventHandlers",
+      true,
+      "Record<string, unknown> | undefined"
+     ],
+     [
+      "attributes",
+      false,
+      "{ [x: string]: DOMNodeAttribute; }"
+     ],
+     [
+      "childNodes",
+      false,
+      "DOMNode[]"
+     ],
+     [
+      "debugOwnerChain",
+      true,
+      "string[] | undefined"
+     ],
+     [
+      "dirty",
+      false,
+      "boolean"
+     ],
+     [
+      "focusManager",
+      true,
+      "FocusManager | undefined"
+     ],
+     [
+      "hasRenderedContent",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "isHidden",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "layoutNode",
+      true,
+      "LayoutNode | undefined"
+     ],
+     [
+      "nodeName",
+      false,
+      "\"ink-root\" | \"ink-box\" | \"ink-text\" | \"ink-virtual-text\" | \"ink-link\" | \"ink-progress\" | \"ink-raw-ansi\""
+     ],
+     [
+      "onComputeLayout",
+      true,
+      "(() => void) | undefined"
+     ],
+     [
+      "onImmediateRender",
+      true,
+      "(() => void) | undefined"
+     ],
+     [
+      "onRender",
+      true,
+      "(() => void) | undefined"
+     ],
+     [
+      "parentNode",
+      false,
+      "DOMElement | undefined"
+     ],
+     [
+      "scroll",
+      true,
+      "ScrollState | undefined"
+     ],
+     [
+      "style",
+      false,
+      "{ readonly textWrap?: \"wrap\" | \"end\" | \"wrap-trim\" | \"middle\" | \"truncate-end\" | \"truncate\" | \"truncate-middle\" | \"truncate-start\" | undefined; readonly position?: \"absolute\" | \"relative\" | undefined; readonly top?: string | number | undefined; readonly bottom?: string | number | undefined; readonly left?: string | number | undefined; readonly right?: string | number | undefined; readonly gap?: number | undefined; readonly columnGap?: number | undefined; readonly rowGap?: number | undefined; readonly margin?: number | undefined; readonly marginX?: number | undefined; readonly marginY?: number | undefined; readonly marginTop?: number | undefined; readonly marginBottom?: number | undefined; readonly marginLeft?: number | undefined; readonly marginRight?: number | undefined; readonly padding?: number | undefined; readonly paddingX?: number | undefined; readonly paddingY?: number | undefined; readonly paddingTop?: number | undefined; readonly paddingBottom?: number | undefined; readonly paddingLeft?: number | undefined; readonly paddingRight?: number | undefined; readonly flexGrow?: number | undefined; readonly flexShrink?: number | undefined; readonly flexDirection?: \"row\" | \"column\" | \"row-reverse\" | \"column-reverse\" | undefined; readonly flexBasis?: string | number | undefined; readonly flexWrap?: \"nowrap\" | \"wrap\" | \"wrap-reverse\" | undefined; readonly alignItems?: \"flex-start\" | \"center\" | \"flex-end\" | \"stretch\" | undefined; readonly alignSelf?: \"auto\" | \"flex-start\" | \"center\" | \"flex-end\" | undefined; readonly justifyContent?: \"flex-start\" | \"center\" | \"flex-end\" | \"space-between\" | \"space-around\" | \"space-evenly\" | undefined; readonly width?: string | number | undefined; readonly height?: string | number | undefined; readonly minWidth?: string | number | undefined; readonly minHeight?: string | number | undefined; readonly maxWidth?: string | number | undefined; readonly maxHeight?: string | number | undefined; readonly display?: \"flex\" | \"none\" | undefined; readonly borderStyle?: BorderStyle | undefined; readonly borderTop?: boolean | undefined; readonly borderBottom?: boolean | undefined; readonly borderLeft?: boolean | undefined; readonly borderRight?: boolean | undefined; readonly borderColor?: Color | undefined; readonly borderTopColor?: Color | undefined; readonly borderBottomColor?: Color | undefined; readonly borderLeftColor?: Color | undefined; readonly borderRightColor?: Color | undefined; readonly borderDimColor?: boolean | undefined; readonly borderTopDimColor?: boolean | undefined; readonly borderBottomDimColor?: boolean | undefined; readonly borderLeftDimColor?: boolean | undefined; readonly borderRightDimColor?: boolean | undefined; readonly borderText?: { content: string; position: \"top\" | \"bottom\"; align: \"center\" | \"start\" | \"end\"; offset?: number | undefined; } | undefined; readonly borderRowBg?: ((row: number) => string | undefined) | undefined; readonly backgroundColor?: Color | undefined; readonly fillRowBg?: ((row: number) => string | undefined) | undefined; readonly opaque?: boolean | undefined; readonly overflow?: \"visible\" | \"hidden\" | \"scroll\" | undefined; readonly overflowX?: \"visible\" | \"hidden\" | \"scroll\" | undefined; readonly overflowY?: \"visible\" | \"hidden\" | \"scroll\" | undefined; readonly noSelect?: boolean | \"from-left-edge\" | undefined; }"
+     ],
+     [
+      "textStyles",
+      true,
+      "TextStyles | undefined"
+     ]
+    ]
+   }
+  },
+  "src/ink.ts:FlickerReason": {
+   "value": null,
+   "type": {
+    "text": "\"resize\" | \"offscreen\" | \"clear\"",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "__@iterator",
+      false,
+      "() => StringIterator<string>"
+     ],
+     [
+      "anchor",
+      false,
+      "(name: string) => string"
+     ],
+     [
+      "at",
+      false,
+      "(index: number) => string | undefined"
+     ],
+     [
+      "big",
+      false,
+      "() => string"
+     ],
+     [
+      "blink",
+      false,
+      "() => string"
+     ],
+     [
+      "bold",
+      false,
+      "() => string"
+     ],
+     [
+      "charAt",
+      false,
+      "(pos: number) => string"
+     ],
+     [
+      "charCodeAt",
+      false,
+      "(index: number) => number"
+     ],
+     [
+      "codePointAt",
+      false,
+      "(pos: number) => number | undefined"
+     ],
+     [
+      "concat",
+      false,
+      "(...strings: string[]) => string"
+     ],
+     [
+      "endsWith",
+      false,
+      "(searchString: string, endPosition?: number | undefined) => boolean"
+     ],
+     [
+      "fixed",
+      false,
+      "() => string"
+     ],
+     [
+      "fontcolor",
+      false,
+      "(color: string) => string"
+     ],
+     [
+      "fontsize",
+      false,
+      "{ (size: number): string; (size: string): string; }"
+     ],
+     [
+      "includes",
+      false,
+      "(searchString: string, position?: number | undefined) => boolean"
+     ],
+     [
+      "indexOf",
+      false,
+      "(searchString: string, position?: number | undefined) => number"
+     ],
+     [
+      "isWellFormed",
+      false,
+      "() => boolean"
+     ],
+     [
+      "italics",
+      false,
+      "() => string"
+     ],
+     [
+      "lastIndexOf",
+      false,
+      "(searchString: string, position?: number | undefined) => number"
+     ],
+     [
+      "length",
+      false,
+      "number"
+     ],
+     [
+      "link",
+      false,
+      "(url: string) => string"
+     ],
+     [
+      "localeCompare",
+      false,
+      "{ (that: string): number; (that: string, locales?: string | string[] | undefined, options?: CollatorOptions | undefined): number; (that: string, locales?: LocalesArgument, options?: CollatorOptions | undefined): number; }"
+     ],
+     [
+      "match",
+      false,
+      "{ (regexp: string | RegExp): RegExpMatchArray | null; (matcher: { [Symbol.match](string: string): RegExpMatchArray | null; }): RegExpMatchArray | null; }"
+     ],
+     [
+      "matchAll",
+      false,
+      "(regexp: RegExp) => RegExpStringIterator<RegExpExecArray>"
+     ],
+     [
+      "normalize",
+      false,
+      "{ (form: \"NFC\" | \"NFD\" | \"NFKC\" | \"NFKD\"): string; (form?: string | undefined): string; }"
+     ],
+     [
+      "padEnd",
+      false,
+      "(maxLength: number, fillString?: string | undefined) => string"
+     ],
+     [
+      "padStart",
+      false,
+      "(maxLength: number, fillString?: string | undefined) => string"
+     ],
+     [
+      "repeat",
+      false,
+      "(count: number) => string"
+     ],
+     [
+      "replace",
+      false,
+      "{ (searchValue: string | RegExp, replaceValue: string): string; (searchValue: string | RegExp, replacer: (substring: string, ...args: any[]) => string): string; (searchValue: { [Symbol.replace](string: string, replaceValue: string): string; }, replaceValue: string): string; (searchValue: { [Symbol.replace](string: string, replacer: (substring: string, ...args: any[]) => string): string; }, replacer: (substring: string, ...args: any[]) => string): string; }"
+     ],
+     [
+      "replaceAll",
+      false,
+      "{ (searchValue: string | RegExp, replaceValue: string): string; (searchValue: string | RegExp, replacer: (substring: string, ...args: any[]) => string): string; }"
+     ],
+     [
+      "search",
+      false,
+      "{ (regexp: string | RegExp): number; (searcher: { [Symbol.search](string: string): number; }): number; }"
+     ],
+     [
+      "slice",
+      false,
+      "(start?: number | undefined, end?: number | undefined) => string"
+     ],
+     [
+      "small",
+      false,
+      "() => string"
+     ],
+     [
+      "split",
+      false,
+      "{ (separator: string | RegExp, limit?: number | undefined): string[]; (splitter: { [Symbol.split](string: string, limit?: number | undefined): string[]; }, limit?: number | undefined): string[]; }"
+     ],
+     [
+      "startsWith",
+      false,
+      "(searchString: string, position?: number | undefined) => boolean"
+     ],
+     [
+      "strike",
+      false,
+      "() => string"
+     ],
+     [
+      "sub",
+      false,
+      "() => string"
+     ],
+     [
+      "substr",
+      false,
+      "(from: number, length?: number | undefined) => string"
+     ],
+     [
+      "substring",
+      false,
+      "(start: number, end?: number | undefined) => string"
+     ],
+     [
+      "sup",
+      false,
+      "() => string"
+     ],
+     [
+      "toLocaleLowerCase",
+      false,
+      "{ (locales?: string | string[] | undefined): string; (locales?: LocalesArgument): string; }"
+     ],
+     [
+      "toLocaleUpperCase",
+      false,
+      "{ (locales?: string | string[] | undefined): string; (locales?: LocalesArgument): string; }"
+     ],
+     [
+      "toLowerCase",
+      false,
+      "() => string"
+     ],
+     [
+      "toString",
+      false,
+      "() => string"
+     ],
+     [
+      "toUpperCase",
+      false,
+      "() => string"
+     ],
+     [
+      "toWellFormed",
+      false,
+      "() => string"
+     ],
+     [
+      "trim",
+      false,
+      "() => string"
+     ],
+     [
+      "trimEnd",
+      false,
+      "() => string"
+     ],
+     [
+      "trimLeft",
+      false,
+      "() => string"
+     ],
+     [
+      "trimRight",
+      false,
+      "() => string"
+     ],
+     [
+      "trimStart",
+      false,
+      "() => string"
+     ],
+     [
+      "valueOf",
+      false,
+      "() => string"
+     ]
+    ]
+   }
+  },
+  "src/ink.ts:useAnimationFrame": {
+   "value": {
+    "text": "(intervalMs?: number | null) => [ref: (el: DOMElement | null) => void, time: number]",
+    "calls": [
+     "(intervalMs?: number | null): [ref: (el: DOMElement | null) => void, time: number]"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:useAnimationValue": {
+   "value": {
+    "text": "<T extends string | number | boolean>(intervalMs: number | null, derive: (timeMs: number) => T) => [ref: (element: DOMElement | null) => void, value: T]",
+    "calls": [
+     "<T extends string | number | boolean>(intervalMs: number | null, derive: (timeMs: number) => T): [ref: (element: DOMElement | null) => void, value: T]"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:useApp": {
+   "value": {
+    "text": "() => Props",
+    "calls": [
+     "(): { readonly exit: (error?: Error | undefined) => void; }"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:useInput": {
+   "value": {
+    "text": "(handler: InputHandler, options?: Options) => void",
+    "calls": [
+     "(handler: (input: string, key: Key, event: InputEvent) => void, options?: { isActive?: boolean | undefined; }): void"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:useAnimationTimer": {
+   "value": {
+    "text": "(intervalMs: number) => number",
+    "calls": [
+     "(intervalMs: number): number"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:useInterval": {
+   "value": {
+    "text": "(callback: () => void, intervalMs: number | null) => void",
+    "calls": [
+     "(callback: () => void, intervalMs: number | null): void"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:useSelection": {
+   "value": {
+    "text": "() => SelectionApi",
+    "calls": [
+     "(): { copySelection: () => string; copySelectionNoClear: () => string; copyText: (text: string) => void; clearSelection: () => void; hasSelection: () => boolean; getState: () => SelectionState | null; subscribe: (callback: () => void) => () => void; moveFocus: (move: FocusMove) => void; setSelectionBgColor: (color: string) => void; }"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:useStdin": {
+   "value": {
+    "text": "() => Props",
+    "calls": [
+     "(): { readonly stdin: ReadStream; readonly setRawMode: (value: boolean) => void; readonly isRawModeSupported: boolean; readonly internal_exitOnCtrlC: boolean; readonly internal_eventEmitter: EventEmitter; readonly internal_querier: TerminalQuerier | null; }"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:useTerminalFocus": {
+   "value": {
+    "text": "() => boolean",
+    "calls": [
+     "(): boolean"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:useTerminalTitle": {
+   "value": {
+    "text": "(title: string | null) => void",
+    "calls": [
+     "(title: string | null): void"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink.ts:useTerminalViewport": {
+   "value": {
+    "text": "() => [ref: (el: DOMElement | null) => void, entry: ViewportEntry]",
+    "calls": [
+     "(): [ref: (el: DOMElement | null) => void, entry: ViewportEntry]"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink/ink.tsx:renderFaultRecoveryPlan": {
+   "value": {
+    "text": "(streak: number, budget?: number) => \"repaint\" | \"loud\"",
+    "calls": [
+     "(streak: number, budget?: number): \"repaint\" | \"loud\""
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink/ink.tsx:drainStdin": {
+   "value": {
+    "text": "(stdin?: ReadStream) => void",
+    "calls": [
+     "(stdin?: ReadStream): void"
+    ],
+    "constructs": [],
+    "members": []
+   },
+   "type": null
+  },
+  "src/ink/ink.tsx:RENDER_FAULT_RETRY_BUDGET": {
+   "value": {
+    "text": "3",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "toExponential",
+      false,
+      "(fractionDigits?: number | undefined) => string"
+     ],
+     [
+      "toFixed",
+      false,
+      "(fractionDigits?: number | undefined) => string"
+     ],
+     [
+      "toLocaleString",
+      false,
+      "{ (locales?: string | string[] | undefined, options?: NumberFormatOptions | undefined): string; (locales?: LocalesArgument, options?: NumberFormatOptions | undefined): string; }"
+     ],
+     [
+      "toPrecision",
+      false,
+      "(precision?: number | undefined) => string"
+     ],
+     [
+      "toString",
+      false,
+      "(radix?: number | undefined) => string"
+     ],
+     [
+      "valueOf",
+      false,
+      "() => number"
+     ]
+    ]
+   },
+   "type": null
+  },
+  "src/ink/ink.tsx:Options": {
+   "value": null,
+   "type": {
+    "text": "{ stdout: WriteStream; stdin: ReadStream; stderr: WriteStream; exitOnCtrlC: boolean; patchConsole: boolean; waitUntilExit?: (() => Promise<void>) | undefined; onFrame?: ((event: FrameEvent) => void) | undefined; }",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "exitOnCtrlC",
+      false,
+      "boolean"
+     ],
+     [
+      "onFrame",
+      true,
+      "((event: FrameEvent) => void) | undefined"
+     ],
+     [
+      "patchConsole",
+      false,
+      "boolean"
+     ],
+     [
+      "stderr",
+      false,
+      "WriteStream"
+     ],
+     [
+      "stdin",
+      false,
+      "ReadStream"
+     ],
+     [
+      "stdout",
+      false,
+      "WriteStream"
+     ],
+     [
+      "waitUntilExit",
+      true,
+      "(() => Promise<void>) | undefined"
+     ]
+    ]
+   }
+  },
+  "src/ink/ink.tsx:default": {
+   "value": {
+    "text": "typeof Ink",
+    "calls": [],
+    "constructs": [
+     "(options: { stdout: WriteStream; stdin: ReadStream; stderr: WriteStream; exitOnCtrlC: boolean; patchConsole: boolean; waitUntilExit?: (() => Promise<void>) | undefined; onFrame?: ((event: FrameEvent) => void) | undefined; }): Ink"
+    ],
+    "members": [
+     [
+      "prototype",
+      false,
+      "Ink"
+     ]
+    ]
+   },
+   "type": {
+    "text": "Ink",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "altScreenActive",
+      false,
+      "boolean"
+     ],
+     [
+      "applySelectionClipBand",
+      false,
+      "(col: number, row: number) => void"
+     ],
+     [
+      "applySettledResize",
+      false,
+      "() => void"
+     ],
+     [
+      "applySize",
+      false,
+      "(columns: number, rows: number) => void"
+     ],
+     [
+      "armAltScreenEntry",
+      false,
+      "(bytes: string) => void"
+     ],
+     [
+      "armAltScreenTakeover",
+      false,
+      "() => void"
+     ],
+     [
+      "armScreenWatchdog",
+      false,
+      "() => void"
+     ],
+     [
+      "attachStopListeners",
+      false,
+      "() => void"
+     ],
+     [
+      "awaitTerminalQueries",
+      false,
+      "() => Promise<void>"
+     ],
+     [
+      "backFrame",
+      false,
+      "{ readonly screen: Screen; readonly viewport: { readonly width: number; readonly height: number; }; readonly cursor: any; readonly scrollHint?: ScrollHint | null | undefined; readonly scrollDrainPending?: boolean | undefined; }"
+     ],
+     [
+      "buildParkPatch",
+      false,
+      "() => Patch"
+     ],
+     [
+      "cachedColumns",
+      false,
+      "number"
+     ],
+     [
+      "cachedRows",
+      false,
+      "number"
+     ],
+     [
+      "calculateLayout",
+      false,
+      "() => void"
+     ],
+     [
+      "charPool",
+      false,
+      "CharPool"
+     ],
+     [
+      "clearResizeSettle",
+      false,
+      "() => void"
+     ],
+     [
+      "clearTextSelection",
+      false,
+      "() => void"
+     ],
+     [
+      "container",
+      false,
+      "unknown"
+     ],
+     [
+      "copySelection",
+      false,
+      "() => string"
+     ],
+     [
+      "copySelectionNoClear",
+      false,
+      "() => string"
+     ],
+     [
+      "copyText",
+      false,
+      "(text: string) => void"
+     ],
+     [
+      "currentTree",
+      false,
+      "string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined"
+     ],
+     [
+      "cursorDeclaration",
+      false,
+      "CursorDeclaration | null"
+     ],
+     [
+      "detachForShutdown",
+      false,
+      "() => void"
+     ],
+     [
+      "detachStopListeners",
+      false,
+      "() => void"
+     ],
+     [
+      "dispatchClick",
+      false,
+      "(col: number, row: number) => boolean"
+     ],
+     [
+      "dispatchHover",
+      false,
+      "(col: number, row: number) => void"
+     ],
+     [
+      "dispatchKeyboardEvent",
+      false,
+      "(parsedKey: ParsedKey) => void"
+     ],
+     [
+      "displayCursor",
+      false,
+      "CursorPoint | null"
+     ],
+     [
+      "drainStdin",
+      false,
+      "() => void"
+     ],
+     [
+      "drainUnsettledQueries",
+      false,
+      "() => void"
+     ],
+     [
+      "dumpTree",
+      false,
+      "(reason: string | null) => void"
+     ],
+     [
+      "editorHandoverDepth",
+      false,
+      "number"
+     ],
+     [
+      "engine",
+      false,
+      "CockpitEngine | null"
+     ],
+     [
+      "enterAlternateScreen",
+      false,
+      "() => void"
+     ],
+     [
+      "exitAlternateScreen",
+      false,
+      "() => void"
+     ],
+     [
+      "exitOutcome",
+      false,
+      "ExitOutcome | null"
+     ],
+     [
+      "exitOutcomeLatch",
+      false,
+      "ExitOutcome | null"
+     ],
+     [
+      "exitPromise",
+      false,
+      "Promise<void> | null"
+     ],
+     [
+      "firstFrameStamped",
+      false,
+      "boolean"
+     ],
+     [
+      "focusManager",
+      false,
+      "FocusManager"
+     ],
+     [
+      "forceRedraw",
+      false,
+      "() => void"
+     ],
+     [
+      "frontFrame",
+      false,
+      "{ readonly screen: Screen; readonly viewport: { readonly width: number; readonly height: number; }; readonly cursor: any; readonly scrollHint?: ScrollHint | null | undefined; readonly scrollDrainPending?: boolean | undefined; }"
+     ],
+     [
+      "getHyperlinkAt",
+      false,
+      "(col: number, row: number) => string | undefined"
+     ],
+     [
+      "glassOverlay",
+      false,
+      "OverlayRecord | null"
+     ],
+     [
+      "handleMultiClick",
+      false,
+      "(col: number, row: number, count: 2 | 3) => void"
+     ],
+     [
+      "handleResize",
+      false,
+      "() => void"
+     ],
+     [
+      "handleSelectionDrag",
+      false,
+      "(col: number, row: number) => void"
+     ],
+     [
+      "handleSelectionRelease",
+      false,
+      "(col: number, row: number) => boolean"
+     ],
+     [
+      "handleSelectionStart",
+      false,
+      "(col: number, row: number, pressHadAlt?: boolean) => void"
+     ],
+     [
+      "hasTextSelection",
+      false,
+      "() => boolean"
+     ],
+     [
+      "hoveredNodes",
+      false,
+      "Set<DOMElement>"
+     ],
+     [
+      "hyperlinkPool",
+      false,
+      "HyperlinkPool"
+     ],
+     [
+      "interceptStderr",
+      false,
+      "() => () => void"
+     ],
+     [
+      "invalidatePrevFrame",
+      false,
+      "() => void"
+     ],
+     [
+      "isAltScreenActive",
+      false,
+      "boolean"
+     ],
+     [
+      "isMouseTrackingEnabled",
+      false,
+      "() => boolean"
+     ],
+     [
+      "isMouseTrackingPreferred",
+      false,
+      "() => boolean"
+     ],
+     [
+      "isPaused",
+      false,
+      "boolean"
+     ],
+     [
+      "isRendering",
+      false,
+      "boolean"
+     ],
+     [
+      "isTTY",
+      false,
+      "boolean"
+     ],
+     [
+      "isUnmounted",
+      false,
+      "boolean"
+     ],
+     [
+      "lastAssignedMaxHeight",
+      false,
+      "number | null"
+     ],
+     [
+      "lastAssignedWidth",
+      false,
+      "number | null"
+     ],
+     [
+      "lastFrameText",
+      false,
+      "() => string"
+     ],
+     [
+      "lastPoolReset",
+      false,
+      "number"
+     ],
+     [
+      "lastRenderTime",
+      false,
+      "number | null"
+     ],
+     [
+      "layoutCounters",
+      false,
+      "{ visited: number; measured: number; cacheHits: number; live: number; }"
+     ],
+     [
+      "ledger",
+      false,
+      "FrameLedger"
+     ],
+     [
+      "liveSize",
+      false,
+      "() => { columns: number; rows: number; }"
+     ],
+     [
+      "mouseTracking",
+      false,
+      "boolean"
+     ],
+     [
+      "mouseTrackingPref",
+      false,
+      "boolean"
+     ],
+     [
+      "moveSelectionFocus",
+      false,
+      "(move: FocusMove) => void"
+     ],
+     [
+      "needsEraseBeforePaint",
+      false,
+      "boolean"
+     ],
+     [
+      "newEmptyFrame",
+      false,
+      "() => Frame"
+     ],
+     [
+      "notifySelectionChange",
+      false,
+      "() => void"
+     ],
+     [
+      "offerTextGesture",
+      false,
+      "(col: number, row: number, clickCount: 2 | 1 | 3) => boolean"
+     ],
+     [
+      "onHyperlinkClick",
+      false,
+      "((url: string) => void) | undefined"
+     ],
+     [
+      "onRender",
+      false,
+      "() => void"
+     ],
+     [
+      "onStdinResume",
+      false,
+      "() => void"
+     ],
+     [
+      "openHyperlink",
+      false,
+      "(url: string) => void"
+     ],
+     [
+      "options",
+      false,
+      "{ stdout: WriteStream; stdin: ReadStream; stderr: WriteStream; exitOnCtrlC: boolean; patchConsole: boolean; waitUntilExit?: (() => Promise<void>) | undefined; onFrame?: ((event: FrameEvent) => void) | undefined; }"
+     ],
+     [
+      "paintResizeHold",
+      false,
+      "(columns: number, rows: number) => void"
+     ],
+     [
+      "parkPatch",
+      false,
+      "{ type: \"stdout\"; content: string; } | { type: \"clear\"; count: number; } | { type: \"clearTerminal\"; reason: FlickerReason; debug?: { triggerY: number; prevLine: string; nextLine: string; } | undefined; } | { type: \"cursorHide\"; } | { type: \"cursorShow\"; } | { type: \"cursorMove\"; x: number; y: number; } | { type: \"cursorTo\"; col: number; } | { type: \"carriageReturn\"; } | { type: \"hyperlink\"; uri: string; } | { type: \"styleStr\"; str: string; }"
+     ],
+     [
+      "patchConsole",
+      false,
+      "() => () => void"
+     ],
+     [
+      "pause",
+      false,
+      "() => void"
+     ],
+     [
+      "pendingAltEntry",
+      false,
+      "string | null"
+     ],
+     [
+      "rawModeOffForStop",
+      false,
+      "boolean"
+     ],
+     [
+      "reassertScreenState",
+      false,
+      "(reason: string, opts?: { repaint?: boolean | undefined; }) => void"
+     ],
+     [
+      "reassertTerminalModes",
+      false,
+      "(includeAltScreen?: boolean) => void"
+     ],
+     [
+      "reconcileSize",
+      false,
+      "() => void"
+     ],
+     [
+      "recoverFromRenderFault",
+      false,
+      "(error: unknown) => void"
+     ],
+     [
+      "reenterAltScreen",
+      false,
+      "() => void"
+     ],
+     [
+      "rejectExitPromise",
+      false,
+      "(reason?: Error | undefined) => void"
+     ],
+     [
+      "removeTtySubscriptions",
+      false,
+      "(() => void) | null"
+     ],
+     [
+      "render",
+      false,
+      "(node: ReactNode) => void"
+     ],
+     [
+      "renderer",
+      false,
+      "(options: RenderOptions) => RenderResult"
+     ],
+     [
+      "renderFaultStreak",
+      false,
+      "number"
+     ],
+     [
+      "renderFrame",
+      false,
+      "() => void"
+     ],
+     [
+      "repaint",
+      false,
+      "() => void"
+     ],
+     [
+      "repaintAfterNestedAltScreenClose",
+      false,
+      "() => void"
+     ],
+     [
+      "repaintAltScreen",
+      false,
+      "() => void"
+     ],
+     [
+      "repaintMainScreen",
+      false,
+      "() => void"
+     ],
+     [
+      "resetFramesForAltScreen",
+      false,
+      "() => void"
+     ],
+     [
+      "resetLineCount",
+      false,
+      "() => void"
+     ],
+     [
+      "resetPools",
+      false,
+      "() => void"
+     ],
+     [
+      "resizeSettleTimer",
+      false,
+      "Timeout | null"
+     ],
+     [
+      "resolveCursorTarget",
+      false,
+      "() => CursorPoint | null"
+     ],
+     [
+      "resolveExitPromise",
+      false,
+      "() => void"
+     ],
+     [
+      "restoreConsole",
+      false,
+      "(() => void) | null"
+     ],
+     [
+      "resume",
+      false,
+      "() => void"
+     ],
+     [
+      "resumeAfterContinue",
+      false,
+      "() => void"
+     ],
+     [
+      "resumeStdin",
+      false,
+      "() => void"
+     ],
+     [
+      "rootNode",
+      false,
+      "{ nodeName: ElementNames; parentNode: DOMElement | undefined; childNodes: DOMNode[]; attributes: Record<string, DOMNodeAttribute>; style: Styles; textStyles?: TextStyles | undefined; layoutNode?: LayoutNode | undefined; dirty: boolean; isHidden?: boolean | undefined; scroll?: ScrollState | undefined; _eventHandlers?: Record<string, unknown> | undefined; debugOwnerChain?: string[] | undefined; onRender?: (() => void) | undefined; onImmediateRender?: (() => void) | undefined; onComputeLayout?: (() => void) | undefined; focusManager?: FocusManager | undefined; hasRenderedContent?: boolean | undefined; }"
+     ],
+     [
+      "rowText",
+      false,
+      "(screen: Screen, y: number) => string"
+     ],
+     [
+      "scanElementSubtree",
+      false,
+      "(el: DOMElement) => MatchPosition[]"
+     ],
+     [
+      "scheduler",
+      false,
+      "RenderScheduler"
+     ],
+     [
+      "scheduleRender",
+      false,
+      "() => void"
+     ],
+     [
+      "screenReassertCount",
+      false,
+      "number"
+     ],
+     [
+      "searchPositions",
+      false,
+      "SearchPositions | null"
+     ],
+     [
+      "searchQuery",
+      false,
+      "string"
+     ],
+     [
+      "selection",
+      false,
+      "{ anchor: Point | null; clipLo?: number | undefined; clipHi?: number | undefined; clipTop?: number | undefined; clipBottom?: number | undefined; focus: Point | null; isDragging: boolean; anchorSpan: { lo: Point; hi: Point; kind: \"word\" | \"line\"; } | null; scrolledOffAbove: string[]; scrolledOffBelow: string[]; scrolledOffAboveSW: boolean[]; scrolledOffBelowSW: boolean[]; virtualAnchorRow?: number | undefined; virtualFocusRow?: number | undefined; lastPressHadAlt: boolean; }"
+     ],
+     [
+      "selectionListeners",
+      false,
+      "Set<() => void>"
+     ],
+     [
+      "setAltScreenActive",
+      false,
+      "(active: boolean, mouseTracking?: boolean) => void"
+     ],
+     [
+      "setCursorDeclaration",
+      false,
+      "(declaration: CursorDeclaration | null, clearIfNode?: DOMElement | null | undefined) => void"
+     ],
+     [
+      "setMouseTrackingEnabled",
+      false,
+      "(on: boolean) => void"
+     ],
+     [
+      "setSearchHighlight",
+      false,
+      "(query: string) => void"
+     ],
+     [
+      "setSearchPositions",
+      false,
+      "(state: SearchPositions | null) => void"
+     ],
+     [
+      "setSelectionBgColor",
+      false,
+      "(color: string) => void"
+     ],
+     [
+      "stopForSignal",
+      false,
+      "(signal: Signals) => void"
+     ],
+     [
+      "stopListenersAttached",
+      false,
+      "boolean"
+     ],
+     [
+      "storedReadableListeners",
+      false,
+      "((...args: unknown[]) => void)[] | null"
+     ],
+     [
+      "stylePool",
+      false,
+      "StylePool"
+     ],
+     [
+      "subscribeToSelectionChange",
+      false,
+      "(callback: () => void) => () => void"
+     ],
+     [
+      "suspendStdin",
+      false,
+      "() => void"
+     ],
+     [
+      "teardownHost",
+      false,
+      "() => TeardownHost"
+     ],
+     [
+      "teeAfterDiff",
+      false,
+      "(patches: Patch[]) => void"
+     ],
+     [
+      "teeBeforeDiff",
+      false,
+      "(base: Frame, next: Frame) => void"
+     ],
+     [
+      "teeCommitGeometry",
+      false,
+      "(layoutMs: number) => void"
+     ],
+     [
+      "textGesture",
+      false,
+      "{ handler: TextGestureHandler; rect: CachedLayout; } | null"
+     ],
+     [
+      "textGestureTookPress",
+      false,
+      "() => void"
+     ],
+     [
+      "treeDumpBudget",
+      false,
+      "number"
+     ],
+     [
+      "unmount",
+      false,
+      "(error?: number | Error | null | undefined) => void"
+     ],
+     [
+      "unsubscribeExit",
+      false,
+      "() => void"
+     ],
+     [
+      "waitUntilExit",
+      false,
+      "() => Promise<void>"
+     ],
+     [
+      "wasRawMode",
+      false,
+      "boolean"
+     ],
+     [
+      "watchdogCommitsRemaining",
+      false,
+      "number"
+     ],
+     [
+      "writer",
+      false,
+      "FrameWriter"
+     ],
+     [
+      "writeRaw",
+      false,
+      "(data: string) => void"
+     ],
+     [
+      "zeroByteRenderStreak",
+      false,
+      "number"
+     ]
+    ]
+   }
+  },
+  "src/ink/components/ScrollBox.tsx:ScrollBoxProps": {
+   "value": null,
+   "type": {
+    "text": "Omit<Styles, \"textWrap\" | \"overflow\" | \"overflowX\" | \"overflowY\"> & { readonly ref?: Ref<ScrollBoxHandle> | undefined; readonly stickyScroll?: boolean | undefined; } & { children?: ReactNode; }",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "alignItems",
+      true,
+      "\"flex-start\" | \"center\" | \"flex-end\" | \"stretch\" | undefined"
+     ],
+     [
+      "alignSelf",
+      true,
+      "\"auto\" | \"flex-start\" | \"center\" | \"flex-end\" | undefined"
+     ],
+     [
+      "backgroundColor",
+      true,
+      "Color | undefined"
+     ],
+     [
+      "borderBottom",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderBottomColor",
+      true,
+      "Color | undefined"
+     ],
+     [
+      "borderBottomDimColor",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderColor",
+      true,
+      "Color | undefined"
+     ],
+     [
+      "borderDimColor",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderLeft",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderLeftColor",
+      true,
+      "Color | undefined"
+     ],
+     [
+      "borderLeftDimColor",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderRight",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderRightColor",
+      true,
+      "Color | undefined"
+     ],
+     [
+      "borderRightDimColor",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderRowBg",
+      true,
+      "((row: number) => string | undefined) | undefined"
+     ],
+     [
+      "borderStyle",
+      true,
+      "BorderStyle | undefined"
+     ],
+     [
+      "borderText",
+      true,
+      "{ content: string; position: \"top\" | \"bottom\"; align: \"center\" | \"start\" | \"end\"; offset?: number | undefined; } | undefined"
+     ],
+     [
+      "borderTop",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "borderTopColor",
+      true,
+      "Color | undefined"
+     ],
+     [
+      "borderTopDimColor",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "bottom",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "children",
+      true,
+      "string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined"
+     ],
+     [
+      "columnGap",
+      true,
+      "number | undefined"
+     ],
+     [
+      "display",
+      true,
+      "\"flex\" | \"none\" | undefined"
+     ],
+     [
+      "fillRowBg",
+      true,
+      "((row: number) => string | undefined) | undefined"
+     ],
+     [
+      "flexBasis",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "flexDirection",
+      true,
+      "\"row\" | \"column\" | \"row-reverse\" | \"column-reverse\" | undefined"
+     ],
+     [
+      "flexGrow",
+      true,
+      "number | undefined"
+     ],
+     [
+      "flexShrink",
+      true,
+      "number | undefined"
+     ],
+     [
+      "flexWrap",
+      true,
+      "\"nowrap\" | \"wrap\" | \"wrap-reverse\" | undefined"
+     ],
+     [
+      "gap",
+      true,
+      "number | undefined"
+     ],
+     [
+      "height",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "justifyContent",
+      true,
+      "\"flex-start\" | \"center\" | \"flex-end\" | \"space-between\" | \"space-around\" | \"space-evenly\" | undefined"
+     ],
+     [
+      "left",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "margin",
+      true,
+      "number | undefined"
+     ],
+     [
+      "marginBottom",
+      true,
+      "number | undefined"
+     ],
+     [
+      "marginLeft",
+      true,
+      "number | undefined"
+     ],
+     [
+      "marginRight",
+      true,
+      "number | undefined"
+     ],
+     [
+      "marginTop",
+      true,
+      "number | undefined"
+     ],
+     [
+      "marginX",
+      true,
+      "number | undefined"
+     ],
+     [
+      "marginY",
+      true,
+      "number | undefined"
+     ],
+     [
+      "maxHeight",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "maxWidth",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "minHeight",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "minWidth",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "noSelect",
+      true,
+      "boolean | \"from-left-edge\" | undefined"
+     ],
+     [
+      "opaque",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "padding",
+      true,
+      "number | undefined"
+     ],
+     [
+      "paddingBottom",
+      true,
+      "number | undefined"
+     ],
+     [
+      "paddingLeft",
+      true,
+      "number | undefined"
+     ],
+     [
+      "paddingRight",
+      true,
+      "number | undefined"
+     ],
+     [
+      "paddingTop",
+      true,
+      "number | undefined"
+     ],
+     [
+      "paddingX",
+      true,
+      "number | undefined"
+     ],
+     [
+      "paddingY",
+      true,
+      "number | undefined"
+     ],
+     [
+      "position",
+      true,
+      "\"absolute\" | \"relative\" | undefined"
+     ],
+     [
+      "ref",
+      true,
+      "Ref<ScrollBoxHandle> | undefined"
+     ],
+     [
+      "right",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "rowGap",
+      true,
+      "number | undefined"
+     ],
+     [
+      "stickyScroll",
+      true,
+      "boolean | undefined"
+     ],
+     [
+      "top",
+      true,
+      "string | number | undefined"
+     ],
+     [
+      "width",
+      true,
+      "string | number | undefined"
+     ]
+    ]
+   }
+  },
+  "src/ink/components/ScrollBox.tsx:ScrollBoxHandle": {
+   "value": null,
+   "type": {
+    "text": "{ scrollTo: (y: number) => void; scrollToElement: (el: DOMElement, offset?: number | undefined) => void; scrollBy: (dy: number) => void; scrollToBottom: () => void; getScrollTop: () => number; getPendingDelta: () => number; getScrollHeight: () => number; getFreshScrollHeight: () => number; getViewportHeight: () => number; getViewportTop: () => number; isSticky: () => boolean; subscribe: (listener: () => void) => () => void; setClampBounds: (min: number | undefined, max: number | undefined) => void; pinScrollTop: (y: number) => void; }",
+    "calls": [],
+    "constructs": [],
+    "members": [
+     [
+      "getFreshScrollHeight",
+      false,
+      "() => number"
+     ],
+     [
+      "getPendingDelta",
+      false,
+      "() => number"
+     ],
+     [
+      "getScrollHeight",
+      false,
+      "() => number"
+     ],
+     [
+      "getScrollTop",
+      false,
+      "() => number"
+     ],
+     [
+      "getViewportHeight",
+      false,
+      "() => number"
+     ],
+     [
+      "getViewportTop",
+      false,
+      "() => number"
+     ],
+     [
+      "isSticky",
+      false,
+      "() => boolean"
+     ],
+     [
+      "pinScrollTop",
+      false,
+      "(y: number) => void"
+     ],
+     [
+      "scrollBy",
+      false,
+      "(dy: number) => void"
+     ],
+     [
+      "scrollTo",
+      false,
+      "(y: number) => void"
+     ],
+     [
+      "scrollToBottom",
+      false,
+      "() => void"
+     ],
+     [
+      "scrollToElement",
+      false,
+      "(el: DOMElement, offset?: number | undefined) => void"
+     ],
+     [
+      "setClampBounds",
+      false,
+      "(min: number | undefined, max: number | undefined) => void"
+     ],
+     [
+      "subscribe",
+      false,
+      "(listener: () => void) => () => void"
+     ]
+    ]
+   }
+  },
+  "src/ink/components/ScrollBox.tsx:default": {
+   "value": {
+    "text": "ForwardRefExoticComponent<Omit<ScrollBoxProps, \"ref\"> & RefAttributes<ScrollBoxHandle>>",
+    "calls": [
+     "(props: Omit<ScrollBoxProps, \"ref\"> & RefAttributes<ScrollBoxHandle>): string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<AwaitedReactNode> | null | undefined"
+    ],
+    "constructs": [],
+    "members": [
+     [
+      "$$typeof",
+      false,
+      "symbol"
+     ],
+     [
+      "displayName",
+      true,
+      "string | undefined"
+     ],
+     [
+      "propTypes",
+      true,
+      "any"
+     ]
+    ]
+   },
+   "type": null
+  }
+ }
+}
