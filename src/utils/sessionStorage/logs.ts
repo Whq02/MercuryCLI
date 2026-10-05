@@ -9,8 +9,6 @@ import {
   getSessionProjectDir,
 } from '../../bootstrap/state.js'
 import { builtInCommandNames } from '../../commands.js'
-import { COMMAND_NAME_TAG } from '../../constants/xml.js'
-import { GROUND_NOTE_MARK, stripGroundNote } from '../../daemon/isolationNote.js'
 import {
   type AgentId,
   asAgentId,
@@ -34,20 +32,9 @@ import { updateSessionName } from '../concurrentSessions.js'
 import { logForDebugging } from '../debug.js'
 import type { FileHistorySnapshot } from '../fileHistory.js'
 import { getWorktreePaths } from '../getWorktreePaths.js'
-import { jsonParse } from '../slowOperations.js'
-import { extractTag } from '../messages.js'
 import { sanitizePath } from '../path.js'
-import {
-  extractJsonStringField,
-  extractLastJsonStringField,
-  LITE_READ_BUF_SIZE,
-  readHeadAndTail,
-  readSessionLite,
-  scanTailForEndedOnError,
-  unescapeJsonString,
-} from '../sessionStoragePortable.js'
+import { LITE_READ_BUF_SIZE, readSessionLite } from '../sessionStoragePortable.js'
 import type { ContentReplacementRecord } from '../toolResultStorage.js'
-import { validateUuid } from '../uuid.js'
 import {
   buildAttributionSnapshotChain,
   buildConversationChain,
@@ -65,9 +52,7 @@ import {
   getTranscriptPathForSession,
 } from './paths.js'
 import { appendEntryToFile, getProject, getSessionMessages } from './writer.js'
-
-const SKIP_FIRST_PROMPT_PATTERN =
-  /^(?:\s*<[a-z][\w-]*[\s>]|\[Request interrupted by user[^\]]*\])/
+import { readSessionLabelFacts, sessionFiles, sessionPromptFromWindow } from './sessionIndex.js'
 
 export async function loadTranscriptFromFile(
   filePath: string,
@@ -989,43 +974,11 @@ export async function getSessionFilesWithMtime(
 ): Promise<
   Map<string, { path: string; mtime: number; ctime: number; size: number }>
 > {
-  const sessionFilesMap = new Map<
-    string,
-    { path: string; mtime: number; ctime: number; size: number }
-  >()
-
-  let dirents: Dirent[]
-  try {
-    dirents = await readdir(projectDir, { withFileTypes: true })
-  } catch {
-    return sessionFilesMap
-  }
-
-  const candidates: Array<{ sessionId: string; filePath: string }> = []
-  for (const dirent of dirents) {
-    if (!dirent.isFile() || !dirent.name.endsWith('.jsonl')) continue
-    const sessionId = validateUuid(basename(dirent.name, '.jsonl'))
-    if (!sessionId) continue
-    candidates.push({ sessionId, filePath: join(projectDir, dirent.name) })
-  }
-
-  const rows = await mapWithConcurrency(candidates, discoveryPoolWidth(), async ({ sessionId, filePath }) => {
-    try {
-      const st = await stat(filePath)
-      return {
-        sessionId,
-        row: { path: filePath, mtime: st.mtime.getTime(), ctime: st.birthtime.getTime(), size: st.size },
-      }
-    } catch {
-      logForDebugging(`Failed to stat session file: ${filePath}`)
-      return null
-    }
+  const rows = await sessionFiles(projectDir, {
+    concurrency: discoveryPoolWidth(),
+    failed: path => logForDebugging(`Failed to stat session file: ${path}`),
   })
-  for (const entry of rows) {
-    if (entry !== null) sessionFilesMap.set(entry.sessionId, entry.row)
-  }
-
-  return sessionFilesMap
+  return new Map(rows.map(({ sessionId, ...row }) => [sessionId, row]))
 }
 
 export async function transcriptCensus(): Promise<{
@@ -1171,207 +1124,16 @@ async function getLogsWithoutIndex(
   return logs
 }
 
-function firstMessageField(head: string, field: string): unknown {
-  const needle = `"${field}"`
-  let start = 0
-  for (let scanned = 0; scanned < 80 && start <= head.length; scanned++) {
-    const nl = head.indexOf('\n', start)
-    const line = nl === -1 ? head.slice(start) : head.slice(start, nl)
-    if (line.includes(needle)) {
-      try {
-        const o = JSON.parse(line) as Record<string, unknown>
-        if (o && typeof o === 'object' && field in o) return o[field]
-      } catch {
-      }
-    }
-    if (nl === -1) break
-    start = nl + 1
-  }
-  return undefined
-}
-
 async function readLiteMetadata(
   filePath: string,
   fileSize: number,
   buf: Buffer,
 ): Promise<LiteMetadata> {
-  const { head, tail } = await readHeadAndTail(filePath, fileSize, buf)
-  if (!head) return { firstPrompt: '', isSidechain: false }
-
-  const isSidechain = firstMessageField(head, 'isSidechain') === true
-  const cwdField = firstMessageField(head, 'cwd')
-  const projectPath =
-    typeof cwdField === 'string' && cwdField
-      ? cwdField
-      : extractJsonStringField(head, 'cwd')
-  const crewName = extractJsonStringField(head, 'crewName')
-  const agentSetting = extractJsonStringField(head, 'agentSetting')
-
-  const firstPrompt =
-    extractLastJsonStringField(tail, 'lastPrompt') ||
-    extractFirstPromptFromChunk(head) ||
-    extractJsonStringFieldPrefix(head, 'content', 200) ||
-    extractJsonStringFieldPrefix(head, 'text', 200) ||
-    ''
-
-  const customTitle =
-    extractLastJsonStringField(tail, 'customTitle') ??
-    extractLastJsonStringField(head, 'customTitle') ??
-    extractLastJsonStringField(tail, 'aiTitle') ??
-    extractLastJsonStringField(head, 'aiTitle')
-  const summary = extractLastJsonStringField(tail, 'summary')
-  const tag = extractLastJsonStringField(tail, 'tag')
-  const gitBranch =
-    extractLastJsonStringField(tail, 'gitBranch') ??
-    extractJsonStringField(head, 'gitBranch')
-
-  const prUrl = extractLastJsonStringField(tail, 'prUrl')
-  const prRepository = extractLastJsonStringField(tail, 'prRepository')
-  let prNumber: number | undefined
-  const prNumStr = extractLastJsonStringField(tail, 'prNumber')
-  if (prNumStr) {
-    prNumber = parseInt(prNumStr, 10) || undefined
-  }
-  if (!prNumber) {
-    const prNumMatch = tail.lastIndexOf('"prNumber":')
-    if (prNumMatch >= 0) {
-      const afterColon = tail.slice(prNumMatch + 11, prNumMatch + 25)
-      const num = parseInt(afterColon.trim(), 10)
-      if (num > 0) prNumber = num
-    }
-  }
-
-  const endedOnError = scanTailForEndedOnError(tail)
-
-  return {
-    firstPrompt,
-    gitBranch,
-    isSidechain,
-    projectPath,
-    crewName,
-    customTitle,
-    summary,
-    tag,
-    agentSetting,
-    prNumber,
-    prUrl,
-    prRepository,
-    endedOnError,
-  }
+  return readSessionLabelFacts(filePath, fileSize, buf, name => builtInCommandNames().has(name))
 }
 
 export function extractFirstPromptFromChunk(chunk: string): string {
-  let start = 0
-  let firstCommandFallback = ''
-  while (start < chunk.length) {
-    const newlineIdx = chunk.indexOf('\n', start)
-    const line =
-      newlineIdx >= 0 ? chunk.slice(start, newlineIdx) : chunk.slice(start)
-    start = newlineIdx >= 0 ? newlineIdx + 1 : chunk.length
-
-    if (!(line.includes('"kind":"input"') || line.includes('"kind": "input"'))) {
-      continue
-    }
-    if (line.includes('"tool_result"')) continue
-    if (line.includes('"isMeta":true') || line.includes('"isMeta": true'))
-      continue
-
-    try {
-      const entry = jsonParse(line) as Record<string, unknown>
-
-      const payload = entry.payload as Record<string, unknown> | undefined
-      if (!payload || payload.kind !== 'input') continue
-      const meta = (payload.meta ?? {}) as Record<string, unknown>
-      if (
-        meta.hiddenFromTranscript === true ||
-        meta.isVirtual === true ||
-        meta.isCompactSummary === true ||
-        meta.toolUseResult !== undefined
-      ) {
-        continue
-      }
-      const content: unknown = payload.content
-      const texts: string[] = []
-      if (typeof content === 'string') {
-        texts.push(stripGroundNote(content))
-      } else if (Array.isArray(content)) {
-        for (const block of content) {
-          const b = block as Record<string, unknown>
-          if (b.kind === 'text' && typeof b.text === 'string' && !(b.text as string).startsWith(GROUND_NOTE_MARK)) {
-            texts.push(b.text as string)
-          }
-        }
-      }
-
-      for (const text of texts) {
-        if (!text) continue
-
-        let result = text.replace(/\n/g, ' ').trim()
-
-        const commandNameTag = extractTag(result, COMMAND_NAME_TAG)
-        if (commandNameTag) {
-          if (!firstCommandFallback) {
-            firstCommandFallback = commandNameTag
-          }
-          const name = commandNameTag.replace(/^\//, '')
-          const commandArgs = extractTag(result, 'command-args')?.trim() || ''
-          if (builtInCommandNames().has(name) || !commandArgs) {
-            continue
-          }
-          return commandArgs
-            ? `${commandNameTag} ${commandArgs}`
-            : commandNameTag
-        }
-
-        const bashInput = extractTag(result, 'bash-input')
-        if (bashInput) return `! ${bashInput}`
-
-        if (SKIP_FIRST_PROMPT_PATTERN.test(result)) {
-          continue
-        }
-        if (result.length > 200) {
-          result = result.slice(0, 200).trim() + '…'
-        }
-        return result
-      }
-    } catch {
-      continue
-    }
-  }
-  if (firstCommandFallback) return firstCommandFallback
-  return ''
-}
-
-function extractJsonStringFieldPrefix(
-  text: string,
-  key: string,
-  maxLen: number,
-): string {
-  const patterns = [`"${key}":"`, `"${key}": "`]
-  for (const pattern of patterns) {
-    const idx = text.indexOf(pattern)
-    if (idx < 0) continue
-
-    const valueStart = idx + pattern.length
-    let i = valueStart
-    let collected = 0
-    while (i < text.length && collected < maxLen) {
-      if (text[i] === '\\') {
-        i += 2
-        collected++
-        continue
-      }
-      if (text[i] === '"') break
-      i++
-      collected++
-    }
-    const raw = text.slice(valueStart, i)
-    const decoded = unescapeJsonString(raw)
-    return Array.from(decoded, ch => (ch.charCodeAt(0) < 0x20 ? ' ' : ch))
-      .join('')
-      .trim()
-  }
-  return ''
+  return sessionPromptFromWindow(chunk, name => builtInCommandNames().has(name))
 }
 
 function deduplicateLogsBySessionId(logs: LogOption[]): LogOption[] {

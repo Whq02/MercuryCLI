@@ -2,9 +2,9 @@ import { readdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { getWorktreePathsPortable } from './getWorktreePathsPortable.js'
+import { sessionFiles, sessionPromptFromWindow } from './sessionStorage/sessionIndex.js'
 import {
   canonicalizePath,
-  extractFirstPromptFromHead,
   extractJsonStringField,
   extractLastJsonStringField,
   findProjectDir,
@@ -57,7 +57,7 @@ function parseSessionInfoFromLite(sessionId: string, lite: LiteSessionFile, proj
     extractLastJsonStringField(lite.tail, 'aiTitle') ??
     extractLastJsonStringField(lite.head, 'aiTitle')
 
-  const firstPrompt = extractFirstPromptFromHead(lite.head) || undefined
+  const firstPrompt = sessionPromptFromWindow(lite.head, undefined, true) || undefined
 
   let createdAt: number | undefined
   const firstTimestamp = extractJsonStringField(lite.head, 'timestamp')
@@ -101,28 +101,8 @@ function parseSessionInfoFromLite(sessionId: string, lite: LiteSessionFile, proj
 }
 
 export async function listCandidates(projectDir: string, doStat: boolean, projectPath?: string): Promise<Candidate[]> {
-  let entries: string[]
-  try {
-    entries = await readdir(projectDir)
-  } catch {
-    return []
-  }
-  const jsonl = entries.filter(name => name.endsWith('.jsonl'))
-  const results = await Promise.all(
-    jsonl.map(async (name): Promise<Candidate | null> => {
-      const stem = name.slice(0, -'.jsonl'.length)
-      if (!validateUuid(stem)) return null
-      const filePath = join(projectDir, name)
-      if (!doStat) return { sessionId: stem, filePath, mtime: 0, ...(projectPath ? { projectPath } : {}) }
-      try {
-        const stats = await stat(filePath)
-        return { sessionId: stem, filePath, mtime: stats.mtimeMs, ...(projectPath ? { projectPath } : {}) }
-      } catch {
-        return null
-      }
-    }),
-  )
-  return results.filter((candidate): candidate is Candidate => candidate !== null)
+  const files = await sessionFiles(projectDir, { stat: doStat })
+  return files.map(file => ({ sessionId: file.sessionId, filePath: file.path, mtime: file.mtime, ...(projectPath ? { projectPath } : {}) }))
 }
 
 function byMtimeThenIdDesc(a: Candidate, b: Candidate): number {
