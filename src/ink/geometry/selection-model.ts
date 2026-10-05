@@ -34,21 +34,13 @@ export function createSelectionState(): SelectionState {
 }
 
 export function startSelection(s: SelectionState, col: number, row: number): void {
-  s.anchor = { col, row }
   s.clipLo = undefined
   s.clipHi = undefined
   s.clipTop = undefined
   s.clipBottom = undefined
-  s.focus = null
+  clearSelection(s)
+  s.anchor = { col, row }
   s.isDragging = true
-  s.anchorSpan = null
-  s.scrolledOffAbove = []
-  s.scrolledOffBelow = []
-  s.scrolledOffAboveSW = []
-  s.scrolledOffBelowSW = []
-  s.virtualAnchorRow = undefined
-  s.virtualFocusRow = undefined
-  s.lastPressHadAlt = false
 }
 
 export function updateSelection(s: SelectionState, col: number, row: number): void {
@@ -62,17 +54,9 @@ export function finishSelection(s: SelectionState): void {
 }
 
 export function clearSelection(s: SelectionState): void {
-  s.anchor = null
-  s.focus = null
-  s.isDragging = false
-  s.anchorSpan = null
-  s.scrolledOffAbove = []
-  s.scrolledOffBelow = []
-  s.scrolledOffAboveSW = []
-  s.scrolledOffBelowSW = []
+  Object.assign(s, createSelectionState())
   s.virtualAnchorRow = undefined
   s.virtualFocusRow = undefined
-  s.lastPressHadAlt = false
 }
 
 export type FocusMove = 'left' | 'right' | 'up' | 'down' | 'lineStart' | 'lineEnd'
