@@ -54,7 +54,7 @@ export function AlternateScreen({
       ink?.setAltScreenActive(true, effectiveMouse);
       if (launcherHolds) ink?.armAltScreenTakeover();
     } else {
-      writeRaw(RESET_SCROLL_REGION);
+      if (!ink?.isAltEntryPending?.()) writeRaw(RESET_SCROLL_REGION);
       ink?.repaintAfterNestedAltScreenClose?.();
     }
 
