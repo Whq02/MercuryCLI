@@ -478,6 +478,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private liveTurnChars = 0
   private liveTurnOutputTokens: number | null = null
   private liveTurnThinkingChars = 0
+  private liveTurnThinkingBlocks = 0
   private liveFirstByteAtMs: number | null = null
   private liveStateWord: 'compacting' | 'waiting-on-agents' | null = null
   private liveAgentsWaiting = 0
@@ -603,6 +604,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       this.liveTurnChars = 0
       this.liveTurnOutputTokens = null
       this.liveTurnThinkingChars = 0
+      this.liveTurnThinkingBlocks = 0
       this.liveFirstByteAtMs = null
       this.setLiveStateWord(null)
       this.setLiveFold(null)
@@ -614,6 +616,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.liveTurnChars = tail.turnChars ?? 0
     this.liveTurnOutputTokens = typeof tail.turnOutputTokens === 'number' ? tail.turnOutputTokens : null
     this.liveTurnThinkingChars = typeof tail.turnThinkingChars === 'number' && Number.isFinite(tail.turnThinkingChars) ? Math.max(0, tail.turnThinkingChars) : 0
+    this.liveTurnThinkingBlocks = typeof tail.turnThinkingBlocks === 'number' && Number.isFinite(tail.turnThinkingBlocks) ? Math.max(0, Math.floor(tail.turnThinkingBlocks)) : 0
     this.liveFirstByteAtMs = typeof tail.firstByteAtMs === 'number' && Number.isFinite(tail.firstByteAtMs) ? tail.firstByteAtMs : null
     this.setLiveStateWord(
       tail.stateWord === 'compacting' ? 'compacting' : tail.stateWord === 'waiting-on-agents' ? 'waiting-on-agents' : null,
@@ -707,8 +710,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     return {
       replyChars: Math.max(0, this.liveTurnChars - this.liveTurnThinkingChars),
       thinkingChars: this.liveTurnThinkingChars,
+      thinkingBlocks: this.liveTurnThinkingBlocks,
       wireOutputTokens: this.liveTurnOutputTokens,
       firstByteAtMs: this.liveFirstByteAtMs,
+      lastByteAtMs: this.effectiveLive.inFlight ? this.lastEventAtMs : null,
       wait: this.liveWait,
     }
   }

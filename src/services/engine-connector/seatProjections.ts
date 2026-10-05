@@ -119,6 +119,7 @@ export interface SessionTailV1 {
   turnChars?: number
   turnOutputTokens?: number
   turnThinkingChars?: number
+  turnThinkingBlocks?: number
   firstByteAtMs?: number
   messageId?: string
   phase?: TextPhase

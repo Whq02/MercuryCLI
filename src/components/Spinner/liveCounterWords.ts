@@ -2,6 +2,7 @@ import type { RequestWaitV1 } from '../../services/providers/streamIdleBudget.js
 import type { LiveTurnFactsV1 } from '../../services/engine-connector/seatLive.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import { formatDuration, formatTokens } from '../../utils/format.js'
+import { formatQuietAge } from '../../tools/WorkflowTool/livePulse.js'
 
 export type LiveCounterPhase = 'thinking' | 'writing' | 'working' | 'waiting'
 
@@ -24,6 +25,7 @@ export interface LiveCounterWords {
   reading: boolean
   phase: string
   clock: string
+  pulse: string | null
   promise: string | null
 }
 
@@ -45,12 +47,18 @@ export function liveCounterFigure(facts: Pick<LiveTurnFactsV1, 'replyChars' | 't
   return { total: estimate, thinking, reply, estimated: true }
 }
 
-export function liveCountWords(figure: LiveCounterFigure): { long: string; short: string } | null {
-  if (figure.total <= 0) return null
+export function liveCountWords(figure: LiveCounterFigure, thinkingBlocks = 0): { long: string; short: string } | null {
+  const blocks = figure.thinking === 0 && thinkingBlocks > 0 ? `${thinkingBlocks} thinking ${thinkingBlocks === 1 ? 'block' : 'blocks'}` : null
+  if (figure.total <= 0) return blocks === null ? null : { long: `↓ ${blocks}`, short: `↓ ${blocks}` }
   const short = `↓ ${figure.estimated ? '~' : ''}${formatTokens(figure.total)} ${tokenWord(figure.total)}`
-  if (!figure.estimated || figure.thinking === 0) return { long: short, short }
+  if (!figure.estimated || figure.thinking === 0) return { long: blocks === null ? short : `${short} · ${blocks}`, short }
   if (figure.reply === 0) return { long: `↓ ~${formatTokens(figure.thinking)} thinking ${tokenWord(figure.thinking)}`, short }
   return { long: `↓ ~${formatTokens(figure.thinking)} thinking · ${formatTokens(figure.reply)} ${tokenWord(figure.reply)}`, short }
+}
+
+export function liveCounterPulse(facts: Pick<LiveTurnFactsV1, 'lastByteAtMs'>, phase: string, nowMs: number): string | null {
+  if (phase !== 'thinking' || typeof facts.lastByteAtMs !== 'number' || !Number.isFinite(facts.lastByteAtMs)) return null
+  return `↻${formatQuietAge(Math.max(0, nowMs - facts.lastByteAtMs))}`
 }
 
 export function liveCounterPromise(wait: RequestWaitV1 | null, nowMs: number): string | null {
@@ -69,7 +77,6 @@ export function liveCounterPromise(wait: RequestWaitV1 | null, nowMs: number): s
 
 export function liveCounterWords(facts: LiveCounterFacts, nowMs: number): LiveCounterWords {
   const figure = liveCounterFigure(facts)
-  const count = liveCountWords(figure)
   const wait = facts.wait
   const reading = wait !== null && wait.kind === 'first-byte' && facts.firstByteAtMs === null
   const phase = reading
@@ -79,6 +86,7 @@ export function liveCounterWords(facts: LiveCounterFacts, nowMs: number): LiveCo
     : wait !== null && wait.kind === 'retry'
       ? RETRY_PHASE_WORD
       : facts.phase
+  const count = liveCountWords(figure, phase === 'thinking' ? (facts.thinkingBlocks ?? 0) : 0)
   const clock = facts.sentAtMs === null ? '' : formatDuration(Math.max(0, nowMs - facts.sentAtMs))
   return {
     figure,
@@ -87,18 +95,20 @@ export function liveCounterWords(facts: LiveCounterFacts, nowMs: number): LiveCo
     reading,
     phase,
     clock,
+    pulse: liveCounterPulse(facts, phase, nowMs),
     promise: liveCounterPromise(wait, nowMs),
   }
 }
 
 export function liveCounterSegments(words: LiveCounterWords, count: string | null = words.count): string[] {
-  return [count ?? '', words.phase, words.clock, words.promise ?? ''].filter(segment => segment !== '')
+  return [count ?? '', words.pulse ?? '', words.phase, words.clock, words.promise ?? ''].filter(segment => segment !== '')
 }
 
 export function liveCounterLine(words: LiveCounterWords, budget: number, separator = ' · '): string {
   const ladder: string[][] = [
     liveCounterSegments(words),
-    [words.count ?? '', words.phase, words.clock],
+    [words.count ?? '', words.pulse ?? '', words.phase, words.clock],
+    [words.countShort ?? '', words.pulse ?? '', words.phase, words.clock],
     [words.countShort ?? '', words.phase, words.clock],
     [words.countShort ?? '', words.clock],
     [words.phase, words.clock],
