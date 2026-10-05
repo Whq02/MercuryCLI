@@ -16,32 +16,19 @@ export function isSynchronizedOutputSupported(): boolean {
   return sniffSynchronizedOutput()
 }
 
-function sniffSynchronizedOutput(): boolean {
-  if (process.env.TMUX) return false
-  if (isEnvTruthy(process.env.MERCURY_FORCE_SYNC_OUTPUT)) return true
+const SYNC_PROGRAMS = new Set([
+  'iTerm.app', 'WezTerm', 'WarpTerminal', 'ghostty', 'contour', 'vscode', 'alacritty',
+])
 
-  const termProgram = process.env.TERM_PROGRAM
-  const term = process.env.TERM
-  if (
-    termProgram === 'iTerm.app' ||
-    termProgram === 'WezTerm' ||
-    termProgram === 'WarpTerminal' ||
-    termProgram === 'ghostty' ||
-    termProgram === 'contour' ||
-    termProgram === 'vscode' ||
-    termProgram === 'alacritty'
-  ) {
-    return true
-  }
-  if (term?.includes('kitty') || process.env.KITTY_WINDOW_ID) return true
-  if (term === 'xterm-ghostty') return true
-  if (term?.startsWith('foot')) return true
-  if (term?.includes('alacritty')) return true
-  if (process.env.ZED_TERM) return true
-  if (process.env.WT_SESSION) return true
-  const vte = process.env.VTE_VERSION
-  if (vte && parseInt(vte, 10) >= 6800) return true
-  return false
+function sniffSynchronizedOutput(): boolean {
+  const env = process.env
+  if (env.TMUX) return false
+  if (isEnvTruthy(env.MERCURY_FORCE_SYNC_OUTPUT)) return true
+  if (SYNC_PROGRAMS.has(env.TERM_PROGRAM ?? '')) return true
+  const term = env.TERM ?? ''
+  const namedTerm = term.includes('kitty') || term === 'xterm-ghostty' || term.startsWith('foot') || term.includes('alacritty')
+  const hostMarker = env.KITTY_WINDOW_ID || env.ZED_TERM || env.WT_SESSION
+  return namedTerm || Boolean(hostMarker) || parseInt(env.VTE_VERSION ?? '', 10) >= 6800
 }
 
 export function isDecrqmProbeSafe(): boolean {
