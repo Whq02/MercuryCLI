@@ -1,10 +1,11 @@
 
 import type { HookEvent, HookInput } from './contract.js'
+import { randomUUID } from 'crypto'
 
 import type { AppState } from '../../state/AppState.js'
 import { logForDebugging } from '../debug.js'
 import { isEnvTruthy } from '../envUtils.js'
-import { runHookEvent } from './engine.js'
+import { executeHooksPerHook } from './engine.js'
 import type { HookCommand } from '../settings/types.js'
 import type { HookLifecycleResult, HookResult } from './types.js'
 
@@ -25,34 +26,17 @@ export async function executeLifecycleHooks({
     return []
   }
 
-  void timeoutMs
-
   const event = hookInput.hook_event_name
-  const {
-    hook_event_name: _eventName,
-    session_id: _sessionId,
-    transcript_path: _transcriptPath,
-    cwd: _cwd,
-    ...fields
-  } = hookInput as Record<string, unknown>
-  void _eventName
-  void _sessionId
-  void _transcriptPath
-  void _cwd
 
   const rows: HookLifecycleResult[] = []
-  for await (const result of runHookEvent({
-    event,
-    fields: fields as never,
+  for await (const result of executeHooksPerHook({
+    hookInput,
+    toolUseID: randomUUID(),
     matchQuery,
     signal,
     timeoutMs,
     getAppState,
-    sessionId: hookInput.session_id,
-    cwd: hookInput.cwd,
-    transcriptPath: hookInput.transcript_path,
-    perHook: true,
-  })) {
+  } as Parameters<typeof executeHooksPerHook>[0])) {
     rows.push(lifecycleRowOf(event, result as HookResult))
   }
   return rows

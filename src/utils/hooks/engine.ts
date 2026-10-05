@@ -249,7 +249,7 @@ function permissionAfter(prior: PermissionResult['behavior'] | undefined, next: 
 }
 
 export async function* executeHooksPerHook(options: Parameters<typeof executeHooks>[0] & { perHook?: boolean }): AsyncGenerator<HookResult> {
-  for await (const result of executeHooks({ ...options, perHook: true })) yield result as HookResult
+  yield* withHookRunContext({ sessionId: options.hookInput.session_id, cwd: options.hookInput.cwd }, executeHooks({ ...options, perHook: true }) as AsyncGenerator<HookResult>)
 }
 
 export async function* executeHooks({
