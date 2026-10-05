@@ -71,9 +71,6 @@ export {
   resetProjectFlushStateForTesting,
   resetProjectForTesting,
   resetSessionFilePointer,
-  setInternalEventReader,
-  setInternalEventWriter,
-  setRemoteIngressUrlForTesting,
   setSessionFileForTesting,
 } from './sessionStorage/writer.js'
 
