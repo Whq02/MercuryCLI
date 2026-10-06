@@ -49,8 +49,8 @@ section('§1 THE COMPOSED HINT, BY GROUND')
   writeFileSync(join(plain, 'notes.txt'), 'x\n')
   const plainHint = hintAt(plain)
   check(
-    'a non-empty directory without MERCURY.md gets the /init step',
-    plainHint !== undefined && plainHint.includes('/init'),
+    'a non-empty directory without MERCURY.md gets the /orient step',
+    plainHint !== undefined && plainHint.includes('/orient'),
     String(plainHint),
   )
   const done = realpathSync(mkdtempSync(join(tmpdir(), 'onb-done-')))

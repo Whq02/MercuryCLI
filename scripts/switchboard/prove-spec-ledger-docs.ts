@@ -22,7 +22,7 @@ console.log('============================================================')
   check('…and says ↵ unfolds the list in place on the board', doc.includes('unfolds that very list in place on the board'))
   check('…with esc folding it back to the line', doc.includes('folds it back to the line'))
   check('…through the same door a parked row rides', doc.includes('the same door a parked row rides'))
-  check('…with the honest tail arithmetic', doc.includes('+N more — /resume'))
+  check('…with the honest tail arithmetic', doc.includes('+N more — /sessions'))
 }
 
 {

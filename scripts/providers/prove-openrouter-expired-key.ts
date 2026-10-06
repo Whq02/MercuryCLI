@@ -119,20 +119,19 @@ try {
   await stub('../../src/components/mercury-ui/components.js', { useNowTick: () => Date.now() })
   const { Usage } = await import('../../src/components/Settings/Usage.js')
   const { HelmTelemetryRail } = await import('../../src/components/HelmTelemetryRail.js')
-  const { Deck } = await import('../../src/components/Deck.js')
   const { railPlanAt } = await import('../../src/utils/helmGeometry.js')
   const ink = await import('../../src/ink.js')
   const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
   async function renderRefusal(message: string | undefined, tag: string) {
     for (const size of message ? [[178, 51], [80, 21]] : [[120, 51], [80, 51]]) {
       ;[columns, rows] = size as [number, number]
-      for (const surface of message ? ['rail', 'usage'] : ['rail', 'usage', 'deck']) {
+      for (const surface of ['rail', 'usage']) {
         const stdin = Object.assign(new NodeEventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return null }, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } }) as unknown as NodeJS.ReadStream
         const stream = new PassThrough()
         stream.resume()
         const stdout = Object.assign(stream, { columns, rows }) as unknown as NodeJS.WriteStream
         const context = { stdin, setRawMode() {}, isRawModeSupported: true, internal_exitOnCtrlC: false, internal_eventEmitter: new ink.EventEmitter(), internal_querier: null }
-        const child = surface === 'rail' ? React.createElement(HelmTelemetryRail, { width: railPlanAt(columns, true).telemetryW, availRows: rows }) : surface === 'deck' ? React.createElement(Deck, { onClose() {} }) : React.createElement(Usage, { width: Math.min(146, columns - 4), rowBudget: rows === 51 ? 29 : 21, openToken: columns })
+        const child = surface === 'rail' ? React.createElement(HelmTelemetryRail, { width: railPlanAt(columns, true).telemetryW, availRows: rows }) : React.createElement(Usage, { width: Math.min(146, columns - 4), rowBudget: rows === 51 ? 29 : 21, openToken: columns })
         const node = React.createElement(StdinContext.Provider, { value: context }, React.createElement(ink.Box, { flexDirection: 'column', width: columns }, child))
         let painted = () => {}
         const firstFrame = new Promise<void>(resolve => { painted = resolve })
@@ -144,7 +143,7 @@ try {
         if (frames) { writeFileSync(join(frames, name), frame); index.push(name) }
         const text = compact(frame)
         if (message === undefined) {
-          check(`${name}: the OAuth source credits paint within the source-render budgets`, frame.split('\n').length <= rows && frame.split('\n').every(line => stringWidth(line) <= columns) && text.includes('37.50') && text.includes('credits') && (surface === 'deck' || text.includes('OAuth-minted key')), frame)
+          check(`${name}: the OAuth source credits paint within the source-render budgets`, frame.split('\n').length <= rows && frame.split('\n').every(line => stringWidth(line) <= columns) && text.includes('37.50') && text.includes('credits') && text.includes('OAuth-minted key'), frame)
           instance.unmount(); instance.cleanup(); stream.destroy()
           continue
         }

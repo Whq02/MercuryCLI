@@ -27,7 +27,6 @@ const { traceSnapshot } = traceModule
 const sessionTraceSnapshot = (traceModule as { sessionTraceSnapshot?: (s: unknown, id: string | null) => { state: string; data?: { total: number; highRisk: number; killed: number; errors: number; records: Array<{ sessionId?: string }> } } }).sessionTraceSnapshot ?? ((s: unknown) => s as never)
 const { noSessionConnector } = await import(join(ROOT, 'src/services/engine-connector/noSessionConnector.ts'))
 const { setFocusedSessionConnector, conversationIdHere, _resetFocusedSessionConnectorForTesting } = await import(join(ROOT, 'src/services/engine-connector/focusedConnector.ts'))
-const { fixtureReads, buildFacts, model } = await import('../cockpit-interaction/status-popup-fixture.ts')
 const { pokeTelemetry, getTelemetry } = await import(join(ROOT, 'src/state/telemetryBus.ts'))
 const { TraceView } = await import(join(ROOT, 'src/components/TraceView.tsx'))
 const h = React.createElement
@@ -82,24 +81,7 @@ section('§1 THE ONE NARROWING — a live trace snapshot narrowed to a session k
   check('a snapshot that is not live passes through untouched', off.state === 'off')
 }
 
-section('§2 /status — the trace count is the focused session\'s own, and the repo word is gone')
-{
-  const box = await traceSnapshot()
-  const facts = (conversationId: string) =>
-    buildFacts([], model, {
-      ...fixtureReads,
-      telemetry: () => ({ ...(fixtureReads.telemetry!() as object), trace: box }) as never,
-      conversationId: () => conversationId,
-    } as never)
-  const ownRow = facts(OWN).facts.find(f => f.k === 'workflow')?.v ?? ''
-  check(`RED ON THE BASE: /status counts the focused session's own calls (${ownRow.trim()})`, /· trace 2$/.test(ownRow) && !ownRow.includes('repo'), ownRow)
-  const otherRow = facts(OTHER).facts.find(f => f.k === 'workflow')?.v ?? ''
-  check(`a hop to the other session counts that session's (${otherRow.trim()})`, /· trace 3$/.test(otherRow), otherRow)
-  const live = read('src/commands/status/mercuryStatus.tsx')
-  check('the live reads name the one conversation reader (conversationIdHere) and the one narrowing', live.includes('conversationId: conversationIdHere') && live.includes('sessionTraceSnapshot(telemetry.trace, read(reads.conversationId) ?? null)'))
-}
-
-section('§3 /trace — the view reads the focused session\'s own records through the same narrowing')
+section('§2 /trace — the view reads the focused session\'s own records through the same narrowing')
 {
   focusOn(OWN)
   check('the conversation reader answers the focused session', conversationIdHere() === OWN)
@@ -124,13 +106,11 @@ section('§3 /trace — the view reads the focused session\'s own records throug
   check('the view narrows the bus\'s snapshot with the one conversation reader', view.includes('sessionTraceSnapshot(bus, conversationIdHere())'))
 }
 
-section('§4 /deck — both deck paints narrow the same way and name no repo tail')
+section('§3 the deck pane narrows the same way and names no repo tail')
 {
-  const deck = read('src/components/Deck.tsx')
   const pane = read('src/components/DeckPane.tsx')
-  check('Deck narrows its trace snapshot to the conversation here', deck.includes('setTrace(sessionTraceSnapshot(s, conversationIdHere()))'))
   check('the deck pane narrows the bus\'s trace the same way', pane.includes('sessionTraceSnapshot(vitals.trace, conversationIdHere())'))
-  check('RED ON THE BASE: neither paints a repo tail after the count', !deck.includes("· repo") && !pane.includes("' · repo'"))
+  check('RED ON THE BASE: the deck pane paints no repo tail after the count', !pane.includes("' · repo'"))
 }
 
 _resetFocusedSessionConnectorForTesting()
@@ -139,5 +119,5 @@ if (failures > 0) {
   console.log(`❌ prove-trace-readers-session-own: ${failures} failure(s)`)
   process.exit(1)
 }
-console.log('✅ prove-trace-readers-session-own: /status, /deck and /trace read the focused session\'s own tool calls, as the rail does')
+console.log('✅ prove-trace-readers-session-own: /trace and the deck pane read the focused session\'s own tool calls, as the rail does')
 process.exit(0)
