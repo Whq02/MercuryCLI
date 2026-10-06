@@ -10,7 +10,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 console.log('============================================================')
-console.log(' /accent — session accent override (explicit beats derived)')
+console.log(' /appearance accent — session accent override (explicit beats derived)')
 console.log('============================================================')
 
 const sa = (await import('../../src/components/mercury-ui/sessionAccent.js')) as typeof import('../../src/components/mercury-ui/sessionAccent.js')
@@ -52,11 +52,11 @@ check('snapshot key reverts on clear', !sa.getSessionAccentSnapshotKey().include
 }
 
 const ROOT = join(import.meta.dir, '..', '..')
-const cmd = readFileSync(join(ROOT, 'src', 'commands', 'accent', 'accent.ts'), 'utf-8')
+const cmd = readFileSync(join(ROOT, 'src', 'commands', 'appearance', 'appearance.tsx'), 'utf-8')
 check('command: named swatches import tokens (no raw hex literals)', !/'#[0-9a-fA-F]{3,6}'/.test(cmd))
 check('command: reset path present', /reset/.test(cmd) && /setSessionAccentOverride\(null\)/.test(cmd))
 const reg = readFileSync(join(ROOT, 'src', 'commands.ts'), 'utf-8')
-check('registered in the Mercury surface array (unconditional)', /\n  accent,\n  authority,\n/.test(reg))
+check('registered in the Mercury surface array (unconditional)', /\n  appearance,\n/.test(reg))
 
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log('✅ ALL ACCENT-OVERRIDE PROOFS PASS')

@@ -121,79 +121,69 @@ t.section('§3 — a source that read once degrades to STALE, not to nothing')
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
   enableConfigs()
 
-  let sid: string | null = null
-  try {
-    sid = bootstrap.getSessionId()
-  } catch {
-    sid = null
-  }
+  const workspace = join(ROOT, 'workspace')
+  mkdirSync(guardWrite(ROOT, workspace), { recursive: true })
+  bootstrap.setOriginalCwd(workspace)
+  bootstrap.setCwdState(workspace)
 
+  const store = await import('../../src/utils/artifacts/reviewStore.ts')
   const projection = await import('../../src/services/workbench/projection.ts')
-  const lanesRoot = join(ROOT, 'lanes')
+  const artifactsRoot = guardWrite(ROOT, store.reviewArtifactsRoot())
 
-  mkdirSync(guardWrite(ROOT, lanesRoot), { recursive: true })
-  writeFileSync(
-    guardWrite(ROOT, join(lanesRoot, 'lane-keel.json')),
-    JSON.stringify({
-      schema: 1,
-      id: 'lane-keel',
-      parentSessionId: sid ?? 'parent',
-      childSessionId: 'child',
-      goal: 'prove the stale path',
-      selectedContextRefs: [],
-      excludedState: [],
-      createdAt: 1,
-      status: 'active',
-      boundaryRevision: 1,
-      updatedAt: 1,
-    }),
-  )
+  const made = store.createReviewArtifact({
+    kind: 'plan',
+    title: 'prove the stale path',
+    producer: { sessionId: 'source-vocabulary' },
+    workspace: { roots: [workspace] },
+    body: { kind: 'plan', markdown: '# plan\n\nprove the stale path' },
+  })
+  t.check('one real artifact for this workspace lands in the store', made.ok, made.ok ? '' : made.reason)
 
   const lastGood = new Map<string, unknown>()
 
   const first = await projection.gatherWorkbenchInputs({ lastGood })
   t.check(
-    'a readable lanes store reports ready',
-    first.sources.contextLanes.state === 'ready',
-    `state=${first.sources.contextLanes.state}`,
+    'a readable artifacts store reports ready',
+    first.sources.artifacts.state === 'ready',
+    `state=${first.sources.artifacts.state}`,
   )
 
-  rmSync(lanesRoot, { recursive: true, force: true })
-  writeFileSync(guardWrite(ROOT, lanesRoot), 'not a directory')
+  rmSync(artifactsRoot, { recursive: true, force: true })
+  writeFileSync(artifactsRoot, 'not a directory')
 
   const second = await projection.gatherWorkbenchInputs({ lastGood })
   t.check(
     'the failed re-read degrades to STALE, not unavailable',
-    second.sources.contextLanes.state === 'stale',
-    `state=${second.sources.contextLanes.state}`,
+    second.sources.artifacts.state === 'stale',
+    `state=${second.sources.artifacts.state}`,
   )
   t.check(
-    'the last-known-good lane is still carried, not erased',
-    second.contextLanes.length === 1 && second.contextLanes[0]?.id === 'lane-keel',
-    `lanes=${JSON.stringify(second.contextLanes)}`,
+    'the last-known-good artifact is still carried, not erased',
+    second.artifacts.length === 1 && second.artifacts[0]?.title === 'prove the stale path',
+    `artifacts=${JSON.stringify(second.artifacts)}`,
   )
   t.check(
     'the stale row still names WHY it went stale',
-    (reasonOf(second.sources.contextLanes) ?? '').includes('ENOTDIR'),
-    reasonOf(second.sources.contextLanes) ?? '(none)',
+    (reasonOf(second.sources.artifacts) ?? '').includes('ENOTDIR'),
+    reasonOf(second.sources.artifacts) ?? '(none)',
   )
 
-  rmSync(lanesRoot, { recursive: true, force: true })
-  mkdirSync(guardWrite(ROOT, lanesRoot), { recursive: true })
+  rmSync(artifactsRoot, { recursive: true, force: true })
+  mkdirSync(artifactsRoot, { recursive: true })
   const third = await projection.gatherWorkbenchInputs({ lastGood })
   t.check(
     'an empty-but-readable store reports empty',
-    third.sources.contextLanes.state === 'empty',
-    `state=${third.sources.contextLanes.state}`,
+    third.sources.artifacts.state === 'empty',
+    `state=${third.sources.artifacts.state}`,
   )
 
-  rmSync(lanesRoot, { recursive: true, force: true })
-  writeFileSync(guardWrite(ROOT, lanesRoot), 'not a directory')
+  rmSync(artifactsRoot, { recursive: true, force: true })
+  writeFileSync(artifactsRoot, 'not a directory')
   const fourth = await projection.gatherWorkbenchInputs({ lastGood })
   t.check(
     'after an honest empty, a later failure is unavailable — the retired memory does not return',
-    fourth.sources.contextLanes.state === 'unavailable',
-    `state=${fourth.sources.contextLanes.state}`,
+    fourth.sources.artifacts.state === 'unavailable',
+    `state=${fourth.sources.artifacts.state}`,
   )
 }
 

@@ -19,7 +19,6 @@ import { buildEffectiveSystemPrompt } from '../../utils/systemPrompt.js'
 import { agentFanoutCap, buildSubagentMercurySections } from '../../constants/subagentDoctrine.js'
 import type { MercuryAgentSeat } from '../../prompt/mercuryContract.js'
 import { evaluateLaunchAuthority } from '../../services/switchboard/launchAuthority.js'
-import { harnessEffortFact, noteHarnessBoundary } from '../../services/mission/harnessApplication.js'
 import {
   registerAgentName,
   registerAsyncAgent,
@@ -628,20 +627,6 @@ export const AgentTool = buildTool({
     await waitForRequiredMcpServers(agentDef, context)
 
     if (agentDef.color) setAgentColor(agentDef.agentType, agentDef.color)
-
-    noteHarnessBoundary(
-      'subagent-spawn',
-      plan.model,
-      harnessEffortFact(
-        plan.model,
-        resolveAgentEffort({
-          effortOverride: input.effort,
-          useExactTools: undefined,
-          definitionEffort: agentDef.effort,
-          defaultEffort: subagentDefaultEffort(),
-        }),
-      ),
-    )
 
     const isFork = plan.isForkPath
     let promptMessages: Message[]

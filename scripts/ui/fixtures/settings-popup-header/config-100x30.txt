@@ -2,22 +2,22 @@
 WORKBENCH           │                                                                              │
   no prompts sent y…│ ╭──────────────────────────────────────────────────────────────────────────╮ │
                     │ │ ▖▟▆▙▗ Mercury · config                                                   │ │
-NEXT                │ │ orchard · 59 settings · 0 set by you                                     │ │
+NEXT                │ │ orchard · 60 settings · 0 set by you                                     │ │
   · /workflows — ag…│ │                                                                          │ │
                     │ │ / Search settings…                                                       │ │
 FILES · orchard     │ │                                                                          │ │
   ↵ or click · brow…│ │ › Auto-compact                      on                                   │ │
-                    │ │   Session concourse                 on                                   │ │
-TELEMETRY           │ │   Seats                             17 · this machine's reading          │ │
-  · spend —         │ │   Tips                              on                                   │ │
-  · ctx — · —       │ │   Reduced motion                    off                                  │ │
-  · health — run /h…│ │   Ping                              on                                   │ │
+                    │ │   Auto-compact window               auto                                 │ │
+TELEMETRY           │ │   Session concourse                 on                                   │ │
+  · spend —         │ │   Seats                             17 · this machine's reading          │ │
+  · ctx — · —       │ │   Tips                              on                                   │ │
+  · health — run /h…│ │   Reduced motion                    off                                  │ │
+                    │ │   Ping                              on                                   │ │
                     │ │   Account identity                  shown                                │ │
                     │ │   Motion                            auto · off                           │ │
                     │ │   JEV                               off · official                       │ │
                     │ │   Instruction profile               auto                                 │ │
-                    │ │   Shell engine                      system                               │ │
-                    │ │ ↓ 48 more                                                                │ │
+                    │ │ ↓ 49 more                                                                │ │
                     │ │                                                                          │ │
                     │ │ ↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes │ │
                     │ ╰──────────────────────────────────────────────────────────────────────────╯ │

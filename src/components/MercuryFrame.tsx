@@ -70,7 +70,6 @@ import { useViewedCrewmate } from './tasks/useCrewmateView.js'
 import { useCrewmateModel } from './tasks/useCrewmateModel.js'
 import { FailoverMark } from './mercury-ui/FailoverMark.js'
 import { TrimChip } from './mercury-ui/TrimChip.js'
-import { HarnessChip } from './mercury-ui/HarnessChip.js'
 import { GLYPH, truncateToWidth, branchChip } from './mercury-ui/glyphs.js'
 import { ValueGlow } from './mercury-ui/LiveGlyphs.js'
 import { fluxMark } from '../utils/flux/fluxProbe.js'
@@ -436,7 +435,6 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
               <>
                 <FailoverMark model={model} />
                 <EffortChip model={model} />
-                <HarnessChip model={model} show={showBehavior} />
               </>
             ) : <RecordedEffortChip effort={crewmateModel.effort} />}
           </Text>

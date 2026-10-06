@@ -120,7 +120,7 @@ export type WhisperModelCheck =
   | { state: 'broken'; note: string }
 
 export function whisperDownloadDoor(row: WhisperModelRow = whisperDefaultModel(), home: string = getMercuryHome()): string {
-  return `on-device transcription needs a one-time ${mbWords(row.bytes)} download — ${row.words} (${WHISPER_MODEL_CATALOGUE.license}) into ${whisperModelsDir(home)} — /speak download starts it; until then the cloud road serves`
+  return `on-device transcription needs a one-time ${mbWords(row.bytes)} download — ${row.words} (${WHISPER_MODEL_CATALOGUE.license}) into ${whisperModelsDir(home)} — /voice download starts it; until then the cloud road serves`
 }
 
 export function checkWhisperModel(pin: WhisperModelPin = resolveWhisperModelPin(), opts: { home?: string; dir?: string; digest?: boolean } = {}): WhisperModelCheck {
@@ -138,16 +138,16 @@ export function checkWhisperModel(pin: WhisperModelPin = resolveWhisperModelPin(
   const row = pin.row
   const path = join(opts.dir ?? whisperModelsDir(opts.home ?? getMercuryHome()), row.file)
   if (!existsSync(path)) {
-    return { state: 'absent', path, row, note: `pack present, model missing — /speak download fetches ${row.file} (${mbWords(row.bytes)})` }
+    return { state: 'absent', path, row, note: `pack present, model missing — /voice download fetches ${row.file} (${mbWords(row.bytes)})` }
   }
   const size = statSync(path).size
   if (size !== row.bytes) {
-    return { state: 'mismatch', path, note: `${row.file} is ${size} bytes on disk, the lock pins ${row.bytes} — /speak download fetches it again` }
+    return { state: 'mismatch', path, note: `${row.file} is ${size} bytes on disk, the lock pins ${row.bytes} — /voice download fetches it again` }
   }
   if (opts.digest) {
     const actual = createHash('sha256').update(readFileSync(path)).digest('hex')
     if (actual !== row.sha256) {
-      return { state: 'mismatch', path, note: `${row.file} does not match the lock digest (expected ${row.sha256.slice(0, 12)}…, got ${actual.slice(0, 12)}…) — /speak download fetches it again` }
+      return { state: 'mismatch', path, note: `${row.file} does not match the lock digest (expected ${row.sha256.slice(0, 12)}…, got ${actual.slice(0, 12)}…) — /voice download fetches it again` }
     }
   }
   return { state: 'present', path, name: row.name, bytes: size, language: row.language, pinned: pin.pinned }

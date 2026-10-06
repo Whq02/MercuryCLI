@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, readdirSync, existsSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -17,7 +17,6 @@ import {
   healthFixEnabled,
   runHeadlessFix,
 } from '../../src/utils/healthFix.js'
-import { defaultEvolutionLedgerDir } from '../../src/utils/evolution/evolutionLedger.js'
 import { getCwd } from '../../src/utils/cwd.js'
 
 let failures = 0
@@ -108,9 +107,6 @@ await (async () => {
   )
   check('throwing apply ⇒ failed outcome, verify skipped', !thrown.applied.ok && thrown.verified === null && thrown.applied.note.includes('exploded'))
 
-  const ledgerDir = defaultEvolutionLedgerDir(getCwd())
-  const files = existsSync(ledgerDir) ? readdirSync(ledgerDir).filter(f => f.includes('health-fix')) : []
-  check('evolution-ledger rows written under program health-fix', files.length > 0, ledgerDir)
   delete process.env.MERCURY_EVOLUTION_LEDGER
 })()
 

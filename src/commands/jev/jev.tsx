@@ -28,5 +28,8 @@ export const call = async (args: string, _context: LocalJSXCommandContext): Prom
     return { type: 'skip' }
   }
   if (words === 'on' || words === 'off') return { type: 'text', value: jevReceiptWords(setJevEnabled(words === 'on', 'official')) }
-  return { type: 'text', value: 'Use /jev on or /jev off for the official road. Bare /jev opens the card; /jevor on selects OpenRouter.' }
+  if (words === 'or on' || words === 'or off' || words === 'openrouter on' || words === 'openrouter off') {
+    return { type: 'text', value: jevReceiptWords(setJevEnabled(words.endsWith('on'), 'openrouter')) }
+  }
+  return { type: 'text', value: 'Use /jev on or /jev off for the official road; /jev or on (or /jev openrouter on) for the OpenRouter road. Bare /jev opens the card — both roads\' spend and allowance live there.' }
 }

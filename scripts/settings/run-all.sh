@@ -7,7 +7,7 @@
 # gate-watch: src/services/providers/patience.ts
 # gate-watch: src/bootstrap/state* src/bootstrap/runtime/posture.ts
 # gate-watch: src/state/AppStateStore.ts
-# gate-watch: src/utils/settings/** src/utils/config/** src/utils/config.ts
+# gate-watch: src/utils/settings/** src/utils/config/** src/utils/config.ts src/services/compact/autoCompact.ts src/components/Settings/Config.tsx
 # gate-watch: src/utils/fileRead* scripts/lib/scratchSeat.ts src/mneme/paths.ts
 # gate-watch: src/migrations/**
 # gate-watch: src/components/BootSettingsScreen* src/services/switchboard/capacityCheck*

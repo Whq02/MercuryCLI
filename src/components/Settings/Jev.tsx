@@ -189,7 +189,7 @@ export function jevRowNote(id: JevRowId, road: JevRoad = readJevSettings().road)
     case 'switch':
       return '↵, space or ←/→ flip the one switch — the same switch as the JEV row of /config and the JEV row of the Boot Menu; JevEval joins or leaves the roster at the next turn boundary and never answers a permission request'
     case 'road':
-      return '↵ or ←/→ selects official · OpenRouter, without changing the switch; each road keeps its own key, spend and cap. /jev on selects official; /jevor on selects OpenRouter. No automatic fallback.'
+      return '↵ or ←/→ selects official · OpenRouter, without changing the switch; each road keeps its own key, spend and cap. /jev on selects official; /jev or on selects OpenRouter. No automatic fallback.'
     case 'key':
       if (road === 'openrouter') return 'OpenRouter uses the existing sign-in or pasted key from /logins; OPENROUTER_API_KEY outranks the store. Manage it at /logins; this card never stores an OpenRouter key as a TypeSafe key.'
       return `↵ pastes a TypeSafe API key (masked; the value never enters the transcript, receipts or logs) · ⌫ clears the stored key · ${JEV_KEY_ENV} in the environment outranks the store · Mercury ships no key`

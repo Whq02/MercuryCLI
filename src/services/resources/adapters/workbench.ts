@@ -44,9 +44,7 @@ function snapshotSummaryLines(snap: WorkbenchSnapshot): string[] {
     lines.push(`lanes (${snap.lanes.length}):`)
     for (const l of snap.lanes) {
       lines.push(
-        `  [${l.source}] ${l.laneId} — ${l.status}` +
-          (l.goal ? ` · ${l.goal}` : '') +
-          (l.handoffReady ? ' · HANDOFF READY' : ''),
+        `  [${l.source}] ${l.laneId} — ${l.status}`,
       )
     }
   }
@@ -213,9 +211,7 @@ export const workbenchAdapter = {
       }
       const lines = [
         `${lane.laneId} — [${lane.source}] ${lane.status}`,
-        ...(lane.goal ? [`goal: ${lane.goal}`] : []),
         ...(lane.worktreePath ? [`worktree ${lane.worktreePath}`] : []),
-        ...(lane.handoffReady ? ['HANDOFF READY — adopt or return'] : []),
       ]
       const view = boundedTextView(lines.join('\n'), ref.selectors)
       return {

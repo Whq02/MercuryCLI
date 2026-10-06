@@ -39,11 +39,6 @@ import {
 } from '../../bootstrap/state.js'
 import { getCwd, runWithCwdOverride } from '../../utils/cwd.js'
 import { findCanonicalGitRoot } from '../../utils/git.js'
-import {
-  defaultEvolutionLedgerDir,
-  evolutionLedgerEnabled,
-  makeWorkflowLedgerHost,
-} from '../../utils/evolution/evolutionLedger.js'
 import { getWorkflowTranscriptDir } from '../../utils/sessionStorage.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { makeWorkflowCanUseTool } from './workflowPermissionChannel.js'
@@ -934,12 +929,6 @@ const WorkflowToolDef = {
             getCwd,
             resolveWorkflow: resolveWorkflowName,
             getAllWorkflows: listWorkflows,
-            evolutionLedger: evolutionLedgerEnabled()
-              ? makeWorkflowLedgerHost(
-                  defaultEvolutionLedgerDir(getCwd()),
-                  `workflow-run:${runId} · traces: ${runDir}`,
-                )
-              : undefined,
           },
         )
         batcher.drain()
@@ -974,9 +963,6 @@ const WorkflowToolDef = {
               scriptPath,
               workflowRunId: runId,
               args: input.args,
-              agents: evolutionLedgerEnabled()
-                ? buildAgentSummaries(live?.workflowProgress ?? [])
-                : undefined,
             })
           }
           return
@@ -1025,9 +1011,6 @@ const WorkflowToolDef = {
             scriptPath,
             workflowRunId: runId,
             args: input.args,
-            agents: evolutionLedgerEnabled()
-              ? buildAgentSummaries(live?.workflowProgress ?? [])
-              : undefined,
           },
         )
       } catch (e) {

@@ -880,7 +880,7 @@ export function ConcourseScreen({
         return
       }
       if (callbacks.resumeOlderChat === undefined) {
-        setNote({ tone: 'muted', text: 'no resume door on this stage — /resume from the boot face lists everything' })
+        setNote({ tone: 'muted', text: 'no resume door on this stage — /sessions from the boot face lists everything' })
         return
       }
       setOlderList(null)
@@ -2155,7 +2155,7 @@ export function ConcourseScreen({
             const tailParts = [
               ...(win.above > 0 ? [`↑ ${win.above}`] : []),
               ...(win.below > 0 ? [`↓ ${win.below}`] : []),
-              ...(beyond > 0 ? [`+${beyond} more — /resume lists everything`] : []),
+              ...(beyond > 0 ? [`+${beyond} more — /sessions lists everything`] : []),
               '↵ brings it back',
               'esc folds',
             ]

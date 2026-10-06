@@ -38,19 +38,6 @@ console.log('§1 the snapshot states')
   delete process.env.MERCURY_TRACE
 }
 
-console.log('§2 the chip words')
-{
-  const deck = readFileSync(join(ROOT, 'src', 'components', 'Deck.tsx'), 'utf8')
-  check(
-    "the chip forks three ways and says 'recording (no events yet)' for armed-but-empty",
-    deck.includes("traceState === 'unavailable' ? 'recording (no events yet)' : 'off'"),
-  )
-  check(
-    'the binary collapse is gone (no bare traceOn on/off ternary on the chip)',
-    !deck.includes("{traceOn ? 'on' : 'off'}"),
-  )
-}
-
 rmSync(HOME, { recursive: true, force: true })
 console.log(failures === 0 ? '\nprove-trace-chip-states: all green' : `\nprove-trace-chip-states: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

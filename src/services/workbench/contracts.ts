@@ -8,7 +8,6 @@ export const WORKBENCH_SOURCES_SCHEMA = 1 as const
 export interface WorkbenchSources {
   schema: typeof WORKBENCH_SOURCES_SCHEMA
   artifacts: SourceHealth
-  contextLanes: SourceHealth
   gitWorktrees: SourceHealth
 }
 
@@ -47,7 +46,6 @@ export interface WorkbenchThreadRow {
 }
 
 export type WorkbenchLaneSource =
-  | 'context-lane'
   | 'agent-worktree'
   | 'worktree'
 
@@ -57,13 +55,11 @@ export interface WorkbenchLaneRow {
   source: WorkbenchLaneSource
   status: string
   worktreePath?: string
-  goal?: string
   ownerThreadId?: string
   branch?: string
   baseSha?: string
   headSha?: string
   dirty?: boolean
-  handoffReady?: boolean
   refs: string[]
 }
 

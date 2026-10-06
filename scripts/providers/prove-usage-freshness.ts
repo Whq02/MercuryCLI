@@ -271,7 +271,6 @@ section('§3 one owner: the door routes through the reader · the freshest obser
     ['src/components/MercuryFrame.tsx', 'usageAgeTail(first, usageNow)'],
     ['src/components/DeckPane.tsx', 'usageAgeTail(stripFirst, now)'],
     ['src/utils/cockpit/helmLanesModel.ts', 'usageAgeTail(lead, nowMs)'],
-    ['src/components/Deck.tsx', 'usageSourceWords(freshest, now)'],
     ['src/components/Settings/Usage.tsx', 'usageSourceWords(w)'],
   ] as const
   for (const [file, call] of painters) {
@@ -281,8 +280,6 @@ section('§3 one owner: the door routes through the reader · the freshest obser
   }
   const rail = src('src/utils/cockpit/helmTelemetryModel.ts')
   check('the rail paints the reader\'s compact note under the meters', rail.includes('usage.readerNoteCompact') && rail.includes("key: 'usage:reader'"))
-  const deck = src('src/components/Deck.tsx')
-  check('/deck paints the reader\'s note', deck.includes('usage.readerNote') && deck.includes('key="reader"'))
   check('isServerWait is the reader\'s one exported predicate (a 429 with Retry-After; never a bare 429 or a 500)', reader.isServerWait({ kind: 'http', status: 429, retryAfterMs: 5000 }) && reader.isServerWait({ status: 429, retryAfterMs: 1 }) && !reader.isServerWait({ kind: 'http', status: 429 }) && !reader.isServerWait({ kind: 'http', status: 500, retryAfterMs: 5000 }) && !reader.isServerWait(undefined))
   check('the operator\'s hold has a ceiling (the usage poll\'s horizon) and is admitted once past it', typeof reader.SERVER_WAIT_CEILING_MS === 'number' && reader.SERVER_WAIT_CEILING_MS === 15 * 60_000 && src('src/services/providers/anthropic/anthropicUsageState.ts').includes('if (heldFor < SERVER_WAIT_CEILING_MS || operatorAdmitted)'))
   const usageDoor = src('src/services/providers/providerUsage.ts')
@@ -295,7 +292,7 @@ section('§3 one owner: the door routes through the reader · the freshest obser
   const boot = src('src/main.tsx')
   check('the interactive boot arms no usage clock, and nothing headless shows a meter', !boot.includes("'usage-poll'") && !boot.includes('armProviderUsagePoll') && !src('src/cli/run.ts').includes('watchProviderUsageWhileShown'))
   check('the owner keeps no timer', !usageDoor.includes('setInterval'))
-  for (const surface of ['src/components/HelmTelemetryRail.tsx', 'src/components/DeckPane.tsx', 'src/components/Deck.tsx', 'src/components/HelmLanesRail.tsx']) {
+  for (const surface of ['src/components/HelmTelemetryRail.tsx', 'src/components/DeckPane.tsx', 'src/components/HelmLanesRail.tsx']) {
     check(`${surface} reads its meter on show through the one hook`, src(surface).includes('useProviderUsageOnShow('))
   }
   process.env.MERCURY_USAGE_POLL_MS = '3000'

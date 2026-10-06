@@ -69,9 +69,9 @@ const liveGetters = all
   })
   .map(c => c.name)
   .sort()
-const JUDGED_GETTERS = ['concourse', 'init', 'logins']
+const JUDGED_GETTERS = ['concourse', 'orient', 'logins']
 check(
-  'the live description getters are the judged set (concourse: the boot shape · init: a constant · logins: which sentence, no account word)',
+  'the live description getters are the judged set (concourse: the boot shape · orient: a constant · logins: which sentence, no account word)',
   liveGetters.every(n => JUDGED_GETTERS.includes(n)),
   liveGetters.join(','),
 )
@@ -100,7 +100,7 @@ check('the screen\'s own default is the Fable row (the poison word)', screenLabe
 focusedSlot._resetFocusedSessionConnectorForTesting()
 check('no session holds the slot ⇒ the /model column is blank (never the process default)', value('model') === undefined, String(value('model')))
 check('no session ⇒ the /effort column is blank', value('effort') === undefined, String(value('effort')))
-check('no session ⇒ the /authority and /permissions columns are blank', value('authority') === undefined && value('permissions') === undefined)
+check('no session ⇒ the /permissions column is blank', value('permissions') === undefined)
 
 const opusFacts: Facts = { effective: 'claude-opus-5', effectiveSource: 'live', main: 'claude-opus-5', setting: 'claude-opus-5', sessionPin: 'claude-opus-5', effort: 'xhigh', pendingSwitch: null }
 focusedSlot.setFocusedSessionConnector(seatStub(opusFacts))
@@ -111,7 +111,7 @@ check("⇒ with the runner's sent word on the facts the column is that word", va
 focusedSlot.setFocusedSessionConnector(seatStub({ ...opusFacts, effortSent: null }))
 check("⇒ with the runner's no-key word the column is the seat's word resolved without this process's env pin", value('effort') === resolveStampedEffortTruth('claude-opus-5', 'xhigh').label && value('effort') === 'xhigh', String(value('effort')))
 focusedSlot.setFocusedSessionConnector(seatStub(opusFacts))
-check("⇒ the mode columns read the seat's own mode door", value('authority') === permissionModeTitle('implement') && value('permissions') === permissionModeTitle('implement'), String(value('authority')))
+check("⇒ the mode column reads the seat's own mode door", value('permissions') === permissionModeTitle('implement'), String(value('permissions')))
 
 const gptFacts: Facts = { effective: 'gpt-5.5', effectiveSource: 'record', main: 'gpt-5.5', setting: 'gpt-5.5', sessionPin: 'gpt-5.5', effort: null, pendingSwitch: null }
 focusedSlot.setFocusedSessionConnector(seatStub(gptFacts))
@@ -129,11 +129,9 @@ const has = (rel: string, needle: string | RegExp): boolean => (typeof needle ==
 const censusRows: Array<[string, string, boolean]> = [
   ['src/commands/model/index.ts', 'the value column reads focusedSessionModelFacts; no process-default or screen-slice read', has('src/commands/model/index.ts', 'focusedSessionModelFacts()') && !has('src/commands/model/index.ts', 'getEngineModel') && !has('src/commands/model/index.ts', 'engineModelForSession')],
   ['src/commands/effort/index.ts', "the seat's word through the stamped resolve (no env pin)", has('src/commands/effort/index.ts', 'resolveStampedEffortTruth(facts.effective') && !has('src/commands/effort/index.ts', 'getEngineModel')],
-  ['src/commands/authority/index.ts', "the seat's mode door", has('src/commands/authority/index.ts', 'getFocusedSessionConnector().permissionMode()')],
   ['src/commands/permissions/index.ts', "the seat's mode door", has('src/commands/permissions/index.ts', 'getFocusedSessionConnector().permissionMode()')],
   ['src/types/command.ts', 'the screen-scoped menu slice is gone; currentValue takes no argument', !has('src/types/command.ts', 'MenuLiveState') && has('src/types/command.ts', 'currentValue?: () => string | undefined')],
   ['src/hooks/useTypeahead.tsx', 'the palette hands no app-state snapshot to the rows', !has('src/hooks/useTypeahead.tsx', 'engineModelForSession') && has('src/hooks/useTypeahead.tsx', 'generateCommandSuggestions(input, commands)')],
-  ['src/commands/status/mercuryStatus.tsx', "the snapshot reads the served model and effort, never the screen default", has('src/commands/status/mercuryStatus.tsx', 'context.options.engineModel') && has('src/commands/status/mercuryStatus.tsx', 'connector?.modelFacts()') && has('src/commands/status/mercuryStatus.tsx', 'modelFacts?.effortSent') && !has('src/commands/status/mercuryStatus.tsx', 'getEngineModel()')],
   ['src/commands/model/mercuryModel.tsx', 'the effort ladder, the window and the kept-model lines read the served model; the dead pin read is gone', has('src/commands/model/mercuryModel.tsx', 'const servedModel = focusedSeat !== null ? focusedSeat.effective') && has('src/commands/model/mercuryModel.tsx', 'contextFillView(messages, servedModel)') && !has('src/commands/model/mercuryModel.tsx', 'sessionPin ??')],
   ['src/components/mercury-ui/EffortChip.tsx', "the standing chip reads the seat's word first", has('src/components/mercury-ui/EffortChip.tsx', 'useFocusedServedEffort()')],
   ['src/components/DeckPane.tsx', "the deck's effort chip is fed the served model", has('src/components/DeckPane.tsx', 'useFocusedServedModel()')],

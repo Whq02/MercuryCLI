@@ -51,7 +51,6 @@ function realConsumersOf(symbol: string): string[] {
 const WIRING: Array<{ cap: string; symbol: string }> = [
   { cap: 'MercuryFrame statusbar', symbol: 'MercuryFrame' },
   { cap: 'FullscreenLayout / no-flicker', symbol: 'FullscreenLayout' },
-  { cap: '/cockpit (CockpitView)', symbol: 'CockpitView' },
   { cap: 'Warm background paint', symbol: 'applyWarmBackground' },
   { cap: 'LiveComms tool', symbol: 'LiveCommsTool' },
   { cap: 'SendMessage governance', symbol: 'canDirect' },
@@ -60,7 +59,7 @@ const WIRING: Array<{ cap: string; symbol: string }> = [
   { cap: 'render_tui MCP render-verify tool', symbol: 'renderTui' },
 ]
 
-const COMMANDS = ['cockpit', 'help', 'verify', 'workflows']
+const COMMANDS = ['help', 'verify', 'workflows']
 
 let fail = 0
 const commandsTs = readFileSync(resolve(REPO, 'src/commands.ts'), 'utf8')
@@ -89,7 +88,6 @@ for (const name of COMMANDS) {
 }
 
 const commandFiles = [
-  'src/commands/cockpit/index.ts',
   'src/commands/help/index.ts',
   'src/commands/verify.ts',
   'src/commands/workflows/index.ts',

@@ -112,7 +112,7 @@ export async function fleetGauge(): Promise<Snapshot<{ data: FleetData }>> {
   const crewName = getCrewName() ?? null
   if (!crewName) {
     const roster = await rosterRows(nowMs, [])
-    return withState('off', empty(null, roster), 'not in an agent group — /fleet reads a shared group', 'getCrewName')
+    return withState('off', empty(null, roster), 'not in an agent group', 'getCrewName')
   }
   try {
     const [tasks, statuses, leases] = await Promise.all([

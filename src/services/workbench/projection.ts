@@ -12,7 +12,6 @@ import { asAgentId } from '../../types/ids.js'
 import { lastActionWasLeadHandoff } from '../../utils/crew/crewPhases.js'
 import { computeWorkingTreeDigestAsync } from '../../utils/verification/verificationState.js'
 import { listReviewArtifactHeadsSource } from '../../utils/artifacts/reviewStore.js'
-import { lanesEnabled, listLanesSource } from '../contextLanes/lanes.js'
 import {
   classifyReadFailure,
   healthOf,
@@ -238,11 +237,6 @@ export async function gatherWorkbenchInputs(opts?: {
   }
 
   const artifactsSrc = remember(opts?.lastGood, 'artifacts', listArtifactHeadFacts(cwd))
-  const contextLanesSrc = remember(
-    opts?.lastGood,
-    'contextLanes',
-    listContextLaneFacts(sessionId),
-  )
   const gitWorktreesSrc = remember(opts?.lastGood, 'gitWorktrees', await listGitWorktreeLanes())
 
   let git: Awaited<ReturnType<typeof getGitState>> = null
@@ -267,7 +261,6 @@ export async function gatherWorkbenchInputs(opts?: {
     richTasks,
     agentMeta,
     laneRuns,
-    contextLanes: valueOr(contextLanesSrc, []),
     workflowsDisk: telemetry.workflowsDisk.map(w => ({
       runId: w.runId,
       status: w.status,
@@ -280,7 +273,6 @@ export async function gatherWorkbenchInputs(opts?: {
     sources: {
       schema: WORKBENCH_SOURCES_SCHEMA,
       artifacts: healthOf(artifactsSrc),
-      contextLanes: healthOf(contextLanesSrc),
       gitWorktrees: healthOf(gitWorktreesSrc),
     },
   }
@@ -336,26 +328,6 @@ function listArtifactHeadFacts(cwd: string): SourceState<WorkbenchSourceInputs['
       openComments: h.openComments,
       updatedAt: h.updatedAt,
     })),
-  )
-}
-
-function listContextLaneFacts(
-  sessionId: string | null,
-): SourceState<WorkbenchSourceInputs['contextLanes']> {
-  if (!lanesEnabled()) {
-    return sourceUnavailable('context lanes are disabled (MERCURY_LANES=0)', false)
-  }
-  return mapSourceValue(
-    listLanesSource(sessionId ? { parentSessionId: sessionId } : undefined),
-    lanes =>
-      lanes.map(l => ({
-        id: l.id,
-        goal: l.goal,
-        status: l.status,
-        childSessionId: l.childSessionId,
-        ...(l.handoff !== undefined && { handoffPromoted: l.handoff.promoted }),
-        ...(l.handoff !== undefined && { handoffReturnedAt: l.handoff.returnedAt }),
-      })),
   )
 }
 

@@ -371,7 +371,7 @@ row stays, wearing stopped and the next step); on a stopped row it
 archives — the row parks; on a parked row a first chord says the next one
 deletes, and that next chord (or a chord straight after the archive)
 deletes the record — the transcript survives on disk, and the Boot face and
-`/resume` still offer the chat. A chat that was never messaged has nothing
+`/sessions` still offer the chat. A chat that was never messaged has nothing
 to park: on its stopped row the hint reads "ctrl+x again removes it (the chat
 held no message)", its archive rung releases it with the receipt "removed from
 the board — the chat held no message", the row leaves the board, and when it
@@ -383,7 +383,7 @@ browse": ↵ unfolds that very list in place on the board — this project's
 older chats, newest first, each wearing its name and age — ↑↓ or a click
 chooses inside it, ↵ on one brings it back through the same door a parked
 row rides, esc (or moving off the line) folds it back to the line, and a
-list longer than the window ends in honest arithmetic ("+N more — /resume
+list longer than the window ends in honest arithmetic ("+N more — /sessions
 lists everything"); the board keeps the frame throughout, and the close
 chord on that line clears nothing. The project's whole history
 is also a command away: `/sessions` in the chat (project-scoped; `a` widens
@@ -411,7 +411,7 @@ so a plain `x` lands in the composer like any other letter. The board's REPO pic
 changes the folder new sessions launch in, the whole harness follows, and
 the board follows with it — it renders the same list of projects the Boot
 face's Projects rows do.
-`/halt` is the screen's brake — it fires interrupt-first, acting while a
+`/daemon halt` is the screen's brake — it fires interrupt-first, acting while a
 turn runs, and never rides into a session runner. The status strip's ⚑
 badge counts what needs you. A session that finishes a run while you are elsewhere
 is not a question: its row wears its state glyph and word in amber until
@@ -495,7 +495,7 @@ Continue Last Session, the face's Sessions · Projects screen (your sessions
 above, your repositories beneath, one highlight — ⇥ jumps containers,
 highlighting a repository filters the sessions to it, ↵ on a session brings
 it back and ↵ on a repository opens its most recent chat; a repo with no
-history opens a new session there instead), `/resume`, `-c`/`--continue`,
+history opens a new session there instead), `/sessions`, `-c`/`--continue`,
 `-r`/`--resume <id|title>`, and ↵ on a parked row of the board all come back
 through one door. A
 session live on the board is simply entered. Otherwise its transcript paints

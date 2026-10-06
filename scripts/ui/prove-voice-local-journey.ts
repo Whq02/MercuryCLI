@@ -242,7 +242,7 @@ const seededHome = (name: string, withModel = true): string => {
 const ADMITTED = '← back'
 const OPENING: unknown[] = [
   { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-  { atTick: 110, data: '/speak on', awaitText: ADMITTED, minTick: 5, awaitStableTicks: 2 },
+  { atTick: 110, data: '/voice on', awaitText: ADMITTED, minTick: 5, awaitStableTicks: 2 },
   { afterPrevTicks: 3, data: '\r' },
 ]
 const gridLines = (text: string, needle: string): string => text.split('\n').filter(l => l.includes(needle)).join(' · ')
@@ -297,7 +297,7 @@ console.log('[0] poison control — the tripwire trips on a non-loopback fetch')
   check('control: a poison-host fetch trips and logs', tripped && netlines(netlog).some(l => l.startsWith('fetch ')), netlines(netlog).join(' · '))
 }
 
-console.log('[A] no key at all — /speak on names the on-device road; a hold, its release; the words land; nothing leaves')
+console.log('[A] no key at all — /voice on names the on-device road; a hold, its release; the words land; nothing leaves')
 {
   const netlog = join(scratch, 'keyless-net.log')
   const res = drive(
@@ -314,7 +314,7 @@ console.log('[A] no key at all — /speak on names the on-device road; a hold, i
     {},
   )
   check('the drive delivered every send (a real boot)', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
-  check('/speak on names the on-device transcriber, the engine, the model and the pack', (res.marks.on ?? '').includes(`transcriber: on-device — whisper.cpp ${MODEL.name} (pack `) && (res.marks.on ?? '').includes('beside the'), gridLines(res.marks.on ?? '', 'transcriber'))
+  check('/voice on names the on-device transcriber, the engine, the model and the pack', (res.marks.on ?? '').includes(`transcriber: on-device — whisper.cpp ${MODEL.name} (pack `) && (res.marks.on ?? '').includes('beside the'), gridLines(res.marks.on ?? '', 'transcriber'))
   check('the hold past the threshold: the footer paints ● recording · release space to stop · esc cancels', (res.marks.recording ?? '').includes(`● ${RECORDING_LINE}`), gridLines(res.marks.recording ?? '', 'recording'))
   check('the fixture\'s words land in the composer, decoded on this machine', SPOKEN.test(res.marks.landed ?? ''), gridLines(res.marks.landed ?? '', '❯'))
   check('the cursor sat at the END: a typed character lands after the words', /breakfast\.? z/.test(res.marks['typed-after'] ?? ''), gridLines(res.marks['typed-after'] ?? '', '❯'))
@@ -344,7 +344,7 @@ console.log('[B] an OpenAI key AND the pack — the order law on the bundle: sti
   )
   fx.child.kill('SIGTERM')
   check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
-  check('/speak on still names the on-device transcriber beside the signed-in key', (res.marks.on ?? '').includes('transcriber: on-device — whisper.cpp'), gridLines(res.marks.on ?? '', 'transcriber'))
+  check('/voice on still names the on-device transcriber beside the signed-in key', (res.marks.on ?? '').includes('transcriber: on-device — whisper.cpp'), gridLines(res.marks.on ?? '', 'transcriber'))
   check('the words land on this machine', SPOKEN.test(res.marks.landed ?? '') && (res.marks.landed ?? '').includes('transcribed on this machine'), gridLines(res.marks.landed ?? '', '❯'))
   check('the loopback transcriber served NOTHING', ledgerPosts(fx.ledger).length === 0, ledgerPosts(fx.ledger).join(' | '))
   const lines = netlines(netlog)
@@ -371,7 +371,7 @@ console.log('[C] the pin openai — the cloud road serves: exactly one loopback 
   )
   fx.child.kill('SIGTERM')
   check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
-  check('/speak on names OpenAI and says the on-device road is held back by the pin', (res.marks.on ?? '').includes('transcriber: OpenAI') && (res.marks.on ?? '').includes('held back by MERCURY_VOICE_TRANSCRIBER'), gridLines(res.marks.on ?? '', 'transcriber'))
+  check('/voice on names OpenAI and says the on-device road is held back by the pin', (res.marks.on ?? '').includes('transcriber: OpenAI') && (res.marks.on ?? '').includes('held back by MERCURY_VOICE_TRANSCRIBER'), gridLines(res.marks.on ?? '', 'transcriber'))
   check('the canned cloud words land, the receipt names the family', (res.marks.landed ?? '').includes(CLOUD_TRANSCRIPT) && (res.marks.landed ?? '').includes('transcribed by OpenAI ('), gridLines(res.marks.landed ?? '', '❯'))
   const served = ledgerPosts(fx.ledger)
   check('the loopback transcriber served exactly ONE take', served.length === 1 && served[0]!.includes('/audio/transcriptions') && served[0]!.includes('wav=yes'), served.join(' | '))
@@ -379,7 +379,7 @@ console.log('[C] the pin openai — the cloud road serves: exactly one loopback 
   check('nothing left loopback', stray.length === 0, stray.join(' · '))
 }
 
-console.log('[D] the pack present, the model absent — the download door at /speak on; a hold answers the receipt before any take')
+console.log('[D] the pack present, the model absent — the download door at /voice on; a hold answers the receipt before any take')
 {
   const netlog = join(scratch, 'nomodel-net.log')
   const res = drive(
@@ -389,7 +389,7 @@ console.log('[D] the pack present, the model absent — the download door at /sp
     [
       ...OPENING,
       ...hold({ requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on' }),
-      { requireAwait: true, awaitText: '\nnothing transcribes yet — on-device model: /speak download; or /logins openai (API key) or /logins gemini', awaitStableTicks: 2, mark: 'receipt', data: '' },
+      { requireAwait: true, awaitText: '\nnothing transcribes yet — on-device model: /voice download; or /logins openai (API key) or /logins gemini', awaitStableTicks: 2, mark: 'receipt', data: '' },
       { afterPrevTicks: 3, data: '' },
     ],
     170,
@@ -398,13 +398,13 @@ console.log('[D] the pack present, the model absent — the download door at /sp
   check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
   const on = res.marks.on ?? ''
   const door = paneFlow(on)
-  check('/speak on carries the download door: the size, the model, the licence, the verb (read from the pane flowed whole, wherever the rows wrap)', door.includes('one-time 60 MB download') && door.includes('Whisper base.en') && door.includes('(MIT)') && door.includes('/speak download starts it'), gridLines(on, 'download'))
-  check('the receipt names the download door then the cloud doors, before any take', (res.marks.receipt ?? '').includes('nothing transcribes yet — on-device model: /speak download; or /logins openai (API key) or /logins gemini') && !(res.marks.receipt ?? '').includes('recording ·'), gridLines(res.marks.receipt ?? '', 'transcribes'))
+  check('/voice on carries the download door: the size, the model, the licence, the verb (read from the pane flowed whole, wherever the rows wrap)', door.includes('one-time 60 MB download') && door.includes('Whisper base.en') && door.includes('(MIT)') && door.includes('/voice download starts it'), gridLines(on, 'download'))
+  check('the receipt names the download door then the cloud doors, before any take', (res.marks.receipt ?? '').includes('nothing transcribes yet — on-device model: /voice download; or /logins openai (API key) or /logins gemini') && !(res.marks.receipt ?? '').includes('recording ·'), gridLines(res.marks.receipt ?? '', 'transcribes'))
   const lines = netlines(netlog)
   check('nothing left loopback, and no download was attempted', nonLoopback(lines).length === 0 && !lines.some(l => l.includes('huggingface')), lines.join(' · '))
 }
 
-console.log('[E] /speak options — the rows, the switch, the take through the saved family; a second boot names the saved choice gone and serves on-device')
+console.log('[E] /voice options — the rows, the switch, the take through the saved family; a second boot names the saved choice gone and serves on-device')
 {
   const home = seededHome('home-e')
   const netlog1 = join(scratch, 'options-1-net.log')
@@ -415,9 +415,9 @@ console.log('[E] /speak options — the rows, the switch, the take through the s
     netlog1,
     [
       ...OPENING,
-      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, data: '/speak options' },
+      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, data: '/voice options' },
       { afterPrevTicks: 3, data: '\r' },
-      { requireAwait: true, awaitText: 'the shipped default', awaitStableTicks: 2, mark: 'rows', data: '/speak options openai' },
+      { requireAwait: true, awaitText: 'the shipped default', awaitStableTicks: 2, mark: 'rows', data: '/voice options openai' },
       { afterPrevTicks: 3, data: '\r' },
       ...hold({ requireAwait: true, awaitText: 'default transcriber: openai (saved)', awaitStableTicks: 2, mark: 'switched' }, { mark: 'recording' }),
       { requireAwait: true, awaitText: 'lazy dog', awaitStableTicks: 2, mark: 'landed', data: '' },
@@ -429,8 +429,8 @@ console.log('[E] /speak options — the rows, the switch, the take through the s
   fx.child.kill('SIGTERM')
   check('the first boot delivered every send', first.status === 0, `vshot ${first.status}: ${first.stderr.slice(-300)}`)
   const rows = first.marks.rows ?? ''
-  check('/speak options lists on-device (serves now, the shipped default), OpenAI signed in, Gemini not signed in', rows.includes('● on-device — whisper.cpp') && rows.includes('(serves now, the shipped default)') && rows.includes('○ openai — OpenAI: OpenAI API key (env)') && rows.includes('○ gemini — Gemini: not signed in'), gridLines(rows, '— '))
-  check('/speak options openai saves the choice and marks the row', (first.marks.switched ?? '').includes('default transcriber: openai (saved)') && (first.marks.switched ?? '').includes('● openai — OpenAI: OpenAI API key (env) (serves now, your saved choice)'), gridLines(first.marks.switched ?? '', 'openai'))
+  check('/voice options lists on-device (serves now, the shipped default), OpenAI signed in, Gemini not signed in', rows.includes('● on-device — whisper.cpp') && rows.includes('(serves now, the shipped default)') && rows.includes('○ openai — OpenAI: OpenAI API key (env)') && rows.includes('○ gemini — Gemini: not signed in'), gridLines(rows, '— '))
+  check('/voice options openai saves the choice and marks the row', (first.marks.switched ?? '').includes('default transcriber: openai (saved)') && (first.marks.switched ?? '').includes('● openai — OpenAI: OpenAI API key (env) (serves now, your saved choice)'), gridLines(first.marks.switched ?? '', 'openai'))
   check('the take goes to the saved family: the cloud words land, the receipt names OpenAI', (first.marks.landed ?? '').includes(CLOUD_TRANSCRIPT) && (first.marks.landed ?? '').includes('transcribed by OpenAI ('), gridLines(first.marks.landed ?? '', '❯'))
   const served = ledgerPosts(fx.ledger)
   check('the loopback transcriber served exactly ONE take', served.length === 1, served.join(' | '))
@@ -445,7 +445,7 @@ console.log('[E] /speak options — the rows, the switch, the take through the s
       ...OPENING,
       ...hold({ requireAwait: true, awaitText: 'cannot serve: not signed in', awaitStableTicks: 2, mark: 'status' }, { mark: 'recording' }),
       { requireAwait: true, awaitText: 'seven ships', awaitStableTicks: 2, mark: 'landed', data: '\x15' },
-      { afterPrevTicks: 2, data: '/speak options default' },
+      { afterPrevTicks: 2, data: '/voice options default' },
       { afterPrevTicks: 3, data: '\r' },
       { requireAwait: true, awaitText: 'the shipped default (saved choice cleared)', awaitStableTicks: 2, mark: 'cleared', data: '' },
       { afterPrevTicks: 2, data: '' },
@@ -457,7 +457,7 @@ console.log('[E] /speak options — the rows, the switch, the take through the s
   check('the saved choice persisted and is named as not signed in; the on-device road serves', (second.marks.status ?? '').includes('your saved choice (OpenAI) cannot serve: not signed in') && (second.marks.status ?? '').includes('on-device serves'), gridLines(second.marks.status ?? '', 'saved'))
   check('a hold opens a take: the footer paints ● recording', (second.marks.recording ?? '').includes(`● ${RECORDING_LINE}`), gridLines(second.marks.recording ?? '', 'recording'))
   check('the words land on this machine', SPOKEN.test(second.marks.landed ?? '') && (second.marks.landed ?? '').includes('transcribed on this machine'), gridLines(second.marks.landed ?? '', '❯'))
-  check('/speak options default restores the shipped default', (second.marks.cleared ?? '').includes('default transcriber: the shipped default (saved choice cleared)') && (second.marks.cleared ?? '').includes('(serves now, the shipped default)'), gridLines(second.marks.cleared ?? '', 'default'))
+  check('/voice options default restores the shipped default', (second.marks.cleared ?? '').includes('default transcriber: the shipped default (saved choice cleared)') && (second.marks.cleared ?? '').includes('(serves now, the shipped default)'), gridLines(second.marks.cleared ?? '', 'default'))
   const lines = netlines(netlog2)
   check('the second boot made no request of any kind', voiceWires(lines).length === 0 && nonLoopback(lines).length === 0 && !lines.some(l => l.startsWith('fetch')), lines.filter(l => !l.startsWith('tcp-local')).join(' · '))
 }

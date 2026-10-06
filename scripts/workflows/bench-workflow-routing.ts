@@ -251,28 +251,6 @@ async function main(): Promise<void> {
   console.log(`report: ${join(outDir, `${runId}-report.md`)}`)
   if (arm === 'both' && fullPool) console.log(`verdict: ${green ? 'GREEN' : 'RED'} → scripts/workflows/fixtures/verdict.json`)
 
-  try {
-    if (typeof (globalThis as { MACRO?: unknown }).MACRO === 'undefined') {
-      ;(globalThis as { MACRO?: { VERSION: string } }).MACRO = { VERSION: 'bench' }
-    }
-    const { writeEvolutionRow, defaultEvolutionLedgerDir } = await import('../../src/utils/evolution/evolutionLedger.ts')
-    const res = await writeEvolutionRow(defaultEvolutionLedgerDir(repoRoot), {
-      program: 'workflow-routing:benchmark',
-      subject: `${runId} · ${arm} · ${tasks.length}/${pool.length} tasks`,
-      outcome: arm === 'both' && fullPool ? (green ? 'improved' : 'regressed') : 'baseline',
-      hypothesis: 'tier-routed executor stages (sonnet-5) match unrouted (opus) quality on well-specified mechanical work at lower cost',
-      mechanism: 'MERCURY_WORKFLOW_ROUTING=1 as the single variable over a fixed workflow script',
-      score: { dev: runs.reduce((a, r) => a + r.checksOk, 0), unit: 'arm-tasks-ok' },
-      ...(routed?.costUsd !== undefined && unrouted?.costUsd !== undefined
-        ? { delta: Math.round((unrouted.costUsd - routed.costUsd) * 100) / 100 }
-        : {}),
-      evidenceRefs: [join(outDir, `${runId}-report.md`), rawPath, ...(arm === 'both' && fullPool ? [join(outDir, 'verdict.json')] : [])],
-      notes: runs.map(r => `${r.arm}: ${r.checksOk}/${tasks.length} ok $${r.costUsd?.toFixed(2) ?? '—'} ${Math.round(r.wallMs / 1000)}s`).join(' · '),
-    })
-    console.log(res.ok ? `ledger row appended (${res.path})` : `ledger row skipped: ${res.reason}`)
-  } catch (e) {
-    console.error(`[bench] ledger row write failed (run unaffected): ${e}`)
-  }
 }
 
 if (import.meta.main) {

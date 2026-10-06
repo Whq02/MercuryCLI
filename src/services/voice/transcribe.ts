@@ -298,8 +298,8 @@ export function localTranscriberRead(): LocalTranscriberRead {
   }
   const model = checkWhisperModel()
   if (model.state === 'broken') return { state: 'absent', reason: 'pin', note: model.note, short: 'on-device model pin broken' }
-  if (model.state === 'absent') return { state: 'absent', reason: 'model', note: model.note, short: 'on-device model: /speak download', download: model.row }
-  if (model.state === 'mismatch') return { state: 'absent', reason: 'model', note: `pack present, model damaged: ${model.note}`, short: 'damaged model: /speak download' }
+  if (model.state === 'absent') return { state: 'absent', reason: 'model', note: model.note, short: 'on-device model: /voice download', download: model.row }
+  if (model.state === 'mismatch') return { state: 'absent', reason: 'model', note: `pack present, model damaged: ${model.note}`, short: 'damaged model: /voice download' }
   const where = pack.source === 'workspace' ? 'the checkout' : pack.source === 'override' ? 'MERCURY_WHISPER_PACK_DIR' : 'beside the bundle'
   return {
     state: 'ok',

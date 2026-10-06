@@ -143,11 +143,7 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
       `after:poise pro… · running:1000:${sgrClick(10, 4)}`,
       `after:x stop · p pause:2000:${sgrClick(10, 3)}`,
       'after:x stop · p pause:4600:/frobnicate\\r',
-      `after:/frobnicate:2400:${ESC}[D`,
-      `after:Mercury — surfaces:2600:${ESC}`,
-      `after:Mercury — surfaces:4000:x`,
-      `after:Mercury — surfaces:4500:${String.fromCharCode(127)}`,
-      'after:Mercury — surfaces:5400:/auto-compact-window\\r',
+      'after:/frobnicate:2400:/vim\\r',
     ],
     seconds: 40,
     cols: 120,
@@ -155,9 +151,9 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
     keep: true,
   })
   t.check(
-    'every send became due (each witness painted; the send log carries the 9 after the face ↵, which it files as the arena\'s own)',
-    run.sendLog.length === 9 && !run.driverOut.includes('UNFIRED-SENDS'),
-    `${run.sendLog.length}/9 · ${run.driverOut.split('\n').filter(l => l.includes('UNFIRED')).join(' ').slice(0, 300)}`,
+    'every send became due (each witness painted; the send log carries the 5 after the face ↵, which it files as the arena\'s own)',
+    run.sendLog.length === 5 && !run.driverOut.includes('UNFIRED-SENDS'),
+    `${run.sendLog.length}/5 · ${run.driverOut.split('\n').filter(l => l.includes('UNFIRED')).join(' ').slice(0, 300)}`,
   )
 
   const offsets: string[] = []
@@ -234,14 +230,6 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
       iClosed >= 0 && iNotify > iClosed,
       iNotify > iClosed ? undefined : forensics(iClosed),
     )
-    const iManager = idxOf(iNotify + 1, f => has(f, 'Mercury — surfaces'))
-    t.check(
-      'main-view ← opens the surface index (the classified funnel, never words)',
-      iNotify >= 0 && iManager > iNotify,
-      iManager > iNotify ? undefined : forensics(iNotify),
-    )
-    const iMgrClosed = idxOf(iManager + 1, f => !has(f, 'Mercury — surfaces'))
-    t.check('esc closes the surface index', iManager >= 0 && iMgrClosed > iManager)
 
     type Msg = { role: string; content: unknown }
     const bodies = run.fixture.requests
@@ -267,8 +255,7 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
         ),
       )
     t.check('no /frobnicate in any model call', !userTextIncludes('/frobnicate'))
-    t.check('no /manager in any model call', !userTextIncludes('/manager'))
-    t.check('no /auto-compact-window in any model call', !userTextIncludes('/auto-compact-window'))
+    t.check('no /vim in any model call', !userTextIncludes('/vim'))
 
     const { mkdirSync, writeFileSync } = await import('node:fs')
     const framesArg = process.argv.indexOf('--frames')

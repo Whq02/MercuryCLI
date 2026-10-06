@@ -2100,11 +2100,10 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               return {
                 status: 'warn',
                 evidence,
-                fix: 'Resolve the conflicting leases in /fleet before the agents collide.',
-                link: '/fleet',
+                fix: 'Resolve the conflicting leases before the agents collide.',
               }
             }
-            return { status: 'ok', evidence, link: '/fleet' }
+            return { status: 'ok', evidence }
           },
         },
         {
@@ -2504,7 +2503,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                 evidence:
                   `no composition recorded yet this session · instructions ` +
                   `${bundle.entries.length} source(s) · ${instructionChars} chars`,
-                link: '/provenance',
               }
             }
             const OVERSIZED_SECTION_CHARS = 20_000
@@ -2539,7 +2537,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                 `(digest ${provenance.digest}) · instructions ${instructionChars} chars / ` +
                 `${bundle.entries.length} source(s) · top: ${top}` +
                 (notes.length > 0 ? ` · ${notes.join(' · ')}` : ''),
-              link: '/provenance',
             }
           },
         },
@@ -2573,7 +2570,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               status: 'info',
               evidence: `${overrides.length} flag(s) overridden in env: ${show}${overrides.length > 4 ? ` … +${overrides.length - 4} more` : ''}${stampNote}`,
               detail: overrides.map(f => `${f.env}=${String(flagEnv(f.env)).slice(0, 40)} (${f.kind})`).join(' · '),
-              link: '/substrate',
+              link: '/capabilities',
             }
           },
         },
@@ -3351,7 +3348,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             return {
               status: 'info',
               evidence: `${s.data.active}/${s.data.total} capabilities on · trace ${trace ? 'recording' : 'off'}`,
-              link: trace ? '/trace' : '/substrate',
+              link: trace ? '/trace' : '/capabilities',
             }
           },
         },
@@ -3829,47 +3826,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             return {
               status: 'ok' as const,
               evidence: `${records.length} record(s), ${live.length} live after reconciliation${live.length > 0 ? `: ${live.map(r => r.spec.name).join(', ')}` : ''}`,
-            }
-          },
-        },
-        {
-          id: 'lanes-fast',
-          label: 'Side lanes',
-          run: async () => {
-            const { lanesEnabled, listLanes } = await import('../services/contextLanes/lanes.js')
-            if (!lanesEnabled()) {
-              return { status: 'off' as const, evidence: 'MERCURY_LANES=0' }
-            }
-            const lanes = listLanes()
-            const active = lanes.filter(l => l.status === 'active')
-            const unpromoted = lanes.filter(l => l.handoff && !l.handoff.promoted)
-            return {
-              status: 'ok' as const,
-              evidence: `${lanes.length} lane(s) · ${active.length} active${unpromoted.length > 0 ? ` · ${unpromoted.length} handoff(s) awaiting /branch promote` : ''}`,
-            }
-          },
-        },
-        {
-          id: 'counsel-fast',
-          label: 'Counsel',
-          run: async () => {
-            const { counselMode, counselStatus, counselConfigProblem } = await import('../services/counsel/counsel.js')
-            const mode = counselMode()
-            if (mode === 'off') {
-              const problem = counselConfigProblem()
-              if (problem !== null) {
-                return { status: 'warn' as const, evidence: problem }
-              }
-              return {
-                status: 'off' as const,
-                evidence: 'MERCURY_COUNSEL unset — arm with =manual or =auto (reviews cost model calls)',
-              }
-            }
-            const { processMainOwner } = await import('../services/run/resolveOwner.js')
-            const status = counselStatus(processMainOwner())
-            return {
-              status: 'ok' as const,
-              evidence: `mode ${mode} · ${status.pendingReceipts} un-reviewed receipt(s)${status.lastResult ? ` · last: ${status.lastResult.disposition}` : ''}`,
             }
           },
         },
@@ -4377,22 +4333,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             probe: 'functional',
             timeoutMs: 25_000,
             run: () => probes.probeServiceLifecycle(),
-          },
-          {
-            id: 'lane-journey',
-            label: 'Side lanes',
-            depth: 'deep',
-            probe: 'functional',
-            timeoutMs: 15_000,
-            run: () => probes.probeLaneJourney(),
-          },
-          {
-            id: 'counsel-loop',
-            label: 'Counsel',
-            depth: 'deep',
-            probe: 'functional',
-            timeoutMs: 15_000,
-            run: () => probes.probeCounsel(),
           },
           {
             id: 'agent-envelope',

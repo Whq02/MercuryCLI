@@ -49,17 +49,6 @@ const READY_FLAG_RE = /setTimeout\s*\(\s*\(\)\s*=>\s*set\w*(Ready|Buffer|Armed)/
 }
 
 {
-  const src = read('src/components/MercuryPermissionsPanel.tsx')
-  t('MercuryPermissionsPanel: useOpenEventGate (the one seam)', src.includes('useOpenEventGate('))
-  t('MercuryPermissionsPanel: no setTimeout ready-flag', !READY_FLAG_RE.test(src))
-  t(
-    'MercuryPermissionsPanel: arrows immediate, ↵/space behind the gate',
-    src.indexOf('key.downArrow') !== -1 && src.indexOf('key.downArrow') < src.indexOf('pastOpenEvent()') &&
-      src.indexOf('key.return') !== -1 && src.indexOf('key.return') < src.indexOf('pastOpenEvent()'),
-  )
-}
-
-{
   const src = read('src/components/mercury-ui/NavigablePanes.tsx')
   t(
     'NavigablePanes: action hints derive from when(selectedRow)',

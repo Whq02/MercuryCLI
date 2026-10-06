@@ -129,7 +129,6 @@ src/services/anthropicLimits.ts :: ownerCache :: ttl-bounded
 src/services/concourse/concourseSnapshot.ts :: olderFactCache :: keyed-by-truth
 src/services/concourse/coordinatorIdentity.ts :: cached :: static-for-process
 src/services/concourse/coordinatorTools.ts :: knownDirsCache :: ttl-bounded
-src/services/contextLanes/lanes.ts :: laneScanMemo :: keyed-by-truth
 src/services/crew/projection.ts :: snapshot :: subscription-fed
 src/services/dap/dapClient.ts :: darwinDebuggerAuthMemo :: static-for-process
 src/services/dap/dapClient.ts :: gdbProbeCache :: ttl-bounded
@@ -164,8 +163,6 @@ src/services/mcp/client.ts :: fetchResourcesForClient :: invalidator=transport.o
 src/services/mcp/client.ts :: fetchToolsForClientMemo :: invalidator=transport.onclose
 src/services/mcp/client.ts :: needsAuthReadMemo :: invalidator=clearMcpAuthCache
 src/services/mcp/eraVerdictCache.ts :: readMemo :: invalidator=resetEraVerdictMemo
-src/services/mission/harnessApplication.ts :: liveEpochMemo :: keyed-by-truth
-src/services/mission/harnessProfiles.ts :: resolutionCache :: keyed-by-truth
 src/services/privateChannel/installProvenance.ts :: memoized :: static-for-process
 src/services/providers/anthropic/anthropicCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/anthropic/modelRefusal.ts :: modelRefusalCache :: keyed-by-truth
@@ -233,7 +230,6 @@ src/utils/bootCardFacts.ts :: currentCache :: ttl-bounded
 src/utils/caCerts.ts :: cachedResult :: static-for-process
 src/utils/cockpit/deviceHeadroom.ts :: cached :: ttl-bounded
 src/utils/cockpit/harnessMap.ts :: memo :: static-for-process
-src/utils/cockpit/repoSurfaceMap.ts :: orientationDocMemo :: static-for-process
 src/utils/cockpit/runProtocol.ts :: memo :: keyed-by-truth
 src/utils/cockpit/runtimePosture.ts :: memo :: static-for-process
 src/utils/config/globalConfig.ts :: cacheListeners :: static-for-process

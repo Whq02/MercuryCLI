@@ -628,7 +628,7 @@ console.log('§44 exit heals — ?2026l first; the splash cancel disarms ?1007')
 console.log('§45 /help shortcuts — the rows resolve through the real registry')
 {
   const tab = read('src/components/HelpV2/ShortcutsTab.tsx')
-  for (const action of ['app:commandPalette', 'history:search', 'app:fileOpen', 'app:contentSearch', 'command:sessions', 'command:surfaces']) {
+  for (const action of ['app:commandPalette', 'history:search', 'app:fileOpen', 'app:contentSearch', 'command:sessions']) {
     check(`${action} asks the Global context`, tab.includes(`{ action: '${action}', context: 'Global',`) && !tab.includes(`{ action: '${action}', context: 'Chat',`))
   }
   const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
@@ -636,7 +636,7 @@ console.log('§45 /help shortcuts — the rows resolve through the real registry
   const { getBindingDisplayText } = await import('../../src/keybindings/resolver.ts')
   const parsed = parseBindings(DEFAULT_BINDINGS)
   const norm = (s: string | undefined): string => (s ?? '').toLowerCase().replace(/\s+/g, '')
-  const expected: Array<[string, string]> = [['app:commandPalette', 'ctrl+x p'], ['history:search', 'ctrl+r'], ['app:fileOpen', 'ctrl+x f'], ['app:contentSearch', 'ctrl+x g'], ['command:sessions', 'ctrl+x s'], ['command:surfaces', 'ctrl+x m']]
+  const expected: Array<[string, string]> = [['app:commandPalette', 'ctrl+x p'], ['history:search', 'ctrl+r'], ['app:fileOpen', 'ctrl+x f'], ['app:contentSearch', 'ctrl+x g'], ['command:sessions', 'ctrl+x s']]
   for (const [action, chord] of expected) {
     const shown = getBindingDisplayText(action, 'Global', parsed)
     check(`${action} resolves under Global to its default ${chord} through the real resolver`, norm(shown) === norm(chord), String(shown))

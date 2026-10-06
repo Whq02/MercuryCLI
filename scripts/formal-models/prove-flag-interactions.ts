@@ -31,8 +31,6 @@ const DOMAINS: Record<string, string[]> = {
   MERCURY_EDIT_HUNKS: ['', '0'],
   MERCURY_LINE_ANCHORS: ['', '0'],
   MERCURY_LSP: ['', '0'],
-  MERCURY_HARNESS_PROFILE: ['', '1'],
-  MERCURY_HARNESS_PROFILE_PIN: ['', 'anthropic-default'],
   MERCURY_CONTEXT_SELECTION: ['', 'preserve-all', 'bounded-optional'],
   MERCURY_COMPACT: ['', '0'],
   MERCURY_AUTO_COMPACT: ['', '0'],
@@ -110,7 +108,6 @@ const DOMAINS: Record<string, string[]> = {
 const CLUSTERS: Record<string, string[]> = {
   'durable-kernel': ['MERCURY_GROUP_COMMIT', 'MERCURY_DURABLE_FSYNC'],
   changeset: ['MERCURY_CHANGESET', 'MERCURY_CHANGE_RECEIPTS', 'MERCURY_EDIT_HUNKS', 'MERCURY_LSP'],
-  'model-harness': ['MERCURY_HARNESS_PROFILE', 'MERCURY_HARNESS_PROFILE_PIN'],
   continuum: ['MERCURY_CONTEXT_SELECTION', 'MERCURY_SELECTION_BUDGET', 'MERCURY_CAP_FAILOVER', 'MERCURY_MOCK_LIMITS', 'MERCURY_SCRIPTED_STREAM'],
   'terminal-appearance': ['MERCURY_THEME_PIN', 'MERCURY_OASIS_BG', 'MERCURY_LIVE_GLYPHS', 'MERCURY_CRITTER_GAZE'],
   'splash-motion': ['MERCURY_LAUNCH_RIPPLE', 'MERCURY_REDUCED_MOTION'],

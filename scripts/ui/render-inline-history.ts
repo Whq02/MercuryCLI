@@ -12,7 +12,7 @@ try { rmSync(tee) } catch {  }
 const sends = [
   { atTick: 40, data: '/help\r' },
   { atTick: 62, data: '\x1b' },
-  { atTick: 72, data: '/status\r' },
+  { atTick: 72, data: '/usage\r' },
   { atTick: 95, data: '\x1b' },
   { atTick: 105, data: 'hello inline world' },
 ]

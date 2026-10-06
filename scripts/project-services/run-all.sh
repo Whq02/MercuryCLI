@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-watch: src/Task* src/Tool* src/commands/branch/branch* src/constants/subagentDoctrine*
+# gate-watch: src/Task* src/Tool* src/constants/subagentDoctrine*
 # gate-watch: src/ink/** src/services/agentResults/** src/services/changeTransaction/**
-# gate-watch: src/services/contextLanes/lanes* src/services/counsel/counsel*
-# gate-watch: src/services/projectServices/serviceManager* src/services/resources/adapters/lane*
+# gate-watch: src/services/projectServices/serviceManager*
 # gate-watch: src/services/resources/contracts* src/services/resources/registry*
 # gate-watch: src/services/run/** src/services/tools/toolExecution*
 # gate-watch: src/services/workshop/pythonRuntime* src/services/workshop/runtime*

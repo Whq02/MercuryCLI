@@ -57,15 +57,6 @@ export interface AgentMetaFact {
   effortOverride?: string
 }
 
-export interface ContextLaneFact {
-  id: string
-  goal: string
-  status: 'active' | 'returned' | 'dropped'
-  childSessionId: string
-  handoffPromoted?: boolean
-  handoffReturnedAt?: number
-}
-
 export interface WorkflowDiskFact {
   runId: string
   title?: string
@@ -107,7 +98,6 @@ export interface WorkbenchSourceInputs {
   richTasks: Map<string, RichTaskFact>
   agentMeta: Map<string, AgentMetaFact>
   laneRuns: Map<string, RunFacts>
-  contextLanes: ContextLaneFact[]
   workflowsDisk: WorkflowDiskFact[]
   crew: CrewFact[] | null
   artifacts: ArtifactHeadFact[]
@@ -254,18 +244,6 @@ export function laneDisplayName(args: {
 
 export function deriveLaneRows(inputs: WorkbenchSourceInputs): WorkbenchLaneRow[] {
   const rows: WorkbenchLaneRow[] = []
-  for (const lane of inputs.contextLanes) {
-    if (lane.status === 'dropped') continue
-    rows.push({
-      laneId: lane.id,
-      displayName: laneDisplayName({ goal: lane.goal, laneId: lane.id }),
-      source: 'context-lane',
-      status: lane.status,
-      goal: lane.goal,
-      handoffReady: lane.status === 'returned' && lane.handoffPromoted === false,
-      refs: [`mercury://lane/${lane.id}`],
-    })
-  }
   const seen = new Set<string>()
   const threadLike: Array<{ id: string; worktreePath?: string; state: string }> = []
   for (const exec of inputs.executions) {
@@ -318,8 +296,6 @@ export function deriveNextAction(args: {
   if (review) return `review: ${review.note}`
   const blocked = args.threads.find(t => t.blocker && t.state === 'running')
   if (blocked) return `answer ${blocked.title}: ${blocked.blocker}`
-  const handoff = args.lanes.find(l => l.handoffReady)
-  if (handoff) return `adopt lane ${handoff.laneId}${handoff.goal ? ` (${handoff.goal})` : ''}`
   const ready = args.threads.find(t => t.phase === 'handoff-ready')
   if (ready) return `collect handoff from ${ready.title}`
   const failed = args.threads.find(t => t.state === 'failed')

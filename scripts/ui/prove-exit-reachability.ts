@@ -282,14 +282,13 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
     'src/components/SurfaceExitChord.tsx': { reason: 'renders nothing' },
     'src/components/concourse/CoordinatorPane.tsx': { reason: 'the board’s key atlas prints the way out', witness: 'src/components/concourse/ConcourseScreen.tsx' },
     'src/components/concourse/SessionMirror.tsx': { reason: 'the board’s key atlas prints the way out', witness: 'src/components/concourse/ConcourseScreen.tsx' },
-    'src/components/permissions/rules/RecentDenialsTab.tsx': { reason: 'the permissions dialog prints the way out', witness: 'src/components/MercuryPermissionsPanel.tsx' },
+    'src/components/permissions/rules/RecentDenialsTab.tsx': { reason: 'the permissions dialog prints the way out', witness: 'src/components/permissions/rules/PermissionRuleList.tsx' },
     'src/components/CustomSelect/use-multi-select-state.ts': { reason: 'the Select engine; the hosting dialog prints', witness: 'src/components/design-system/Dialog.tsx' },
     'src/components/CustomSelect/use-select-input.ts': { reason: 'the Select engine; the hosting dialog prints', witness: 'src/components/design-system/Dialog.tsx' },
     'src/components/PopupForm.tsx': { reason: 'the settings shell prints the request\'s hint; its words come from the popup owner', witness: 'src/utils/cockpit/settingsPopup.ts' },
     'src/components/mercury-ui/useFlatList.ts': { reason: 'a list engine; its host prints the composed hints' },
     'src/components/mercury-ui/useInteractiveList.ts': { reason: 'a list engine; its host prints the composed hints' },
     'src/components/mercury-ui/useNavigablePanes.ts': { reason: 'the panes engine; NavigablePanes prints the footer', witness: 'src/components/mercury-ui/NavigablePanes.tsx' },
-    'src/components/mercury-ui/screens/SettingsStatusView.tsx': { reason: 'the status popup body; the settings shell prints the hint row its command composes', witness: 'src/commands/status/mercuryStatus.tsx' },
   }
 
   const routeMissing: string[] = []

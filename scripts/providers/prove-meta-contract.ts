@@ -22,12 +22,6 @@ let count = 0
 const check = (name: string, value: unknown): void => { assert.ok(value, name); count++; console.log(`[PASS] ${name}`) }
 try {
   check('Meta is a primary provider, with a signed-out usage and readiness truth', buildRouterModelSnapshot().providers.some(provider => provider.id === 'meta') && usageForProvider('meta').sourceKind === 'none' && !resolveProviderUsability().meta.usable)
-  const { buildFacts } = await import('../../src/commands/status/mercuryStatus.tsx')
-  const status = buildFacts([], 'muse', {
-    families: () => ['zai', 'moonshot', 'deepseek', 'xai', 'meta'].map(id => ({ id, credentialed: false })) as never,
-    accountUsage: () => ({ windows: [], shape: 'none' }) as never,
-  })
-  check('the grouped status row separates Meta from its account state', status.facts.find(row => row.k === 'keys')?.v === '  Z.AI · Moonshot · DeepSeek · xAI · Meta     not configured')
   check('both family words focus the same sign-in and default-provider doors', ['meta', 'muse'].every(word => parseFamilyFocus(word) === 'meta' && parseDefaultProviderWord(word) === 'meta'))
   const row = loginFamilyRows({ engineLegs: true }).find(row => row.value === 'meta')
   check('the sign-in row names Meta, Muse and the API-key road', row?.label === 'Meta — API key (Muse)' && keyPageLine('meta').includes('dev.meta.ai'))

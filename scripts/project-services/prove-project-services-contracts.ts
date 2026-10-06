@@ -15,7 +15,6 @@ const {
   subscribeToolTerminal,
 } = await import('../../src/services/run/effectObserver.ts')
 const { generateTaskId, isTerminalTaskStatus } = await import('../../src/Task.ts')
-const { deriveFirstPrompt } = await import('../../src/commands/branch/branch.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 let failures = 0
@@ -274,21 +273,6 @@ section('D. Task substrate floors')
     isTerminalTaskStatus('completed') && isTerminalTaskStatus('failed') &&
     isTerminalTaskStatus('killed') && !isTerminalTaskStatus('running') &&
     !isTerminalTaskStatus('pending'))
-}
-
-section('E. /branch title derivation law')
-{
-  const multiline = deriveFirstPrompt({
-    type: 'user',
-    message: { content: [{ type: 'text', text: '  fix\n\nthe   thing\t\tnow  ' }] },
-  } as never)
-  check('E1 whitespace collapses to single spaces', multiline === 'fix the thing now')
-  const long = deriveFirstPrompt({
-    type: 'user',
-    message: { content: 'x'.repeat(300) },
-  } as never)
-  check('E2 title caps at 100 chars', long.length === 100)
-  check('E3 absent content falls back', deriveFirstPrompt(undefined) === 'Branched conversation')
 }
 
 console.log('\n' + '═'.repeat(76))

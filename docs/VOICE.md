@@ -7,10 +7,10 @@ capture is the composer.
 
 ## The keys
 
-- `/speak on` turns voice input on for this machine; `/speak off` turns it
-  off (the default); bare `/speak` shows the status, the transcriber the
+- `/voice on` turns voice input on for this machine; `/voice off` turns it
+  off (the default); bare `/voice` shows the status, the transcriber the
   next take would use and your default, the capture backend.
-  `/speak options` chooses the transcriber; `/speak download` fetches the
+  `/voice options` chooses the transcriber; `/voice download` fetches the
   on-device model.
 - With voice input on, hold space for 1 s to speak: the take opens at the
   threshold, holding keeps it recording, releasing the key stops it and
@@ -41,7 +41,7 @@ capture is the composer.
 A take is 16 kHz mono 16-bit audio held in memory. It is never written to
 disk unless the debug directory in the flag registry
 (`src/substrate/flagRegistry.ts`, `MERCURY_VOICE_DEBUG_WAV_DIR`) asks for a
-copy. The backend is chosen in this order; `/speak` and the health check name the
+copy. The backend is chosen in this order; `/voice` and the health check name the
 one that is live:
 
 1. **The voice pack**: Mercury's own native addon over the platform's audio
@@ -75,15 +75,15 @@ A finished take goes to the first transcriber that can serve, in this order:
    the bundle by `bun run scripts/vendor/build-whisper.ts` (which
    `bun run setup` runs; it needs cargo and cmake), with a Whisper speech
    model in the config home. Nothing leaves the machine. The model is a
-   one-time download: with the pack present and no model, `/speak on` and
-   bare `/speak` name the door — a 60 MB download, Whisper base.en
+   one-time download: with the pack present and no model, `/voice on` and
+   bare `/voice` name the door — a 60 MB download, Whisper base.en
    (English, MIT) into `<config-home>/models/whisper` — and
-   `/speak download` fetches it from the pinned address, verifying the size
+   `/voice download` fetches it from the pinned address, verifying the size
    and the digest before the file takes its name; until then a cloud
    family serves. The other models — `tiny.en-q5_1` (smaller, faster, less
    accurate), `small.en-q5_1` (more accurate, three times the size) and the
    multilingual `base-q5_1` for speech that is not English — are listed in
-   `vendor/whisper-models.lock.json`; `/speak download <name>` fetches one,
+   `vendor/whisper-models.lock.json`; `/voice download <name>` fetches one,
    and `MERCURY_WHISPER_MODEL` picks it for a session, by name or by the
    path of a ggml file. Release archives carry the pack for their platform
    when the packaging host could build it. The x86-64 pack is compiled for
@@ -104,19 +104,19 @@ A finished take goes to the first transcriber that can serve, in this order:
      sign-in does not transcribe here.
    - **Anthropic** offers no speech-to-text endpoint.
 
-`/speak options` lists the transcribers this install can use — the
+`/voice options` lists the transcribers this install can use — the
 on-device one with its model and pack, and each family with a
 speech-to-text slot, signed in or not — marks the one that would serve now,
-and `/speak options <name>` (`on-device`, `openai`, `gemini`) makes one
+and `/voice options <name>` (`on-device`, `openai`, `gemini`) makes one
 your default: the choice is saved in the config home and survives a
-restart; `/speak options default` restores the shipped default. A saved
+restart; `/voice options default` restores the shipped default. A saved
 choice that cannot serve — a family no longer signed in, a pack or model
-gone — is named in `/speak`, in the recording receipt and in the health check
+gone — is named in `/voice`, in the recording receipt and in the health check
 row, and the shipped default serves; nothing is replaced silently.
 
 `MERCURY_VOICE_TRANSCRIBER` overrides the saved choice for one session:
 `on-device`, `cloud` (the ledger walk), or a family id such as `openai`; a
-pin that cannot serve says so in the receipt, in `/speak` and in the health check
+pin that cannot serve says so in the receipt, in `/voice` and in the health check
 row, and never falls back silently. With nothing to transcribe with, pressing space
 answers "nothing transcribes yet — <the on-device reason>; or /logins openai
 (API key) or /logins gemini" before any audio is captured. The health check's

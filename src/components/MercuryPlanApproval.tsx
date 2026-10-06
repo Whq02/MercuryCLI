@@ -3,7 +3,7 @@ import { Box, Text } from '../ink.js'
 import { AMBER, CLAW, CRIMSON, FAINT, IVORY, OASIS, SAND, TEAL, TERRA } from './mercuryPalette.js'
 import { CRAB_GLYPHS as CRAB } from './mercury-ui/assets.js';
 
-const PLAN=['read the gate helpers','add a Substrate section to /deck','wire each capability with an honest ON/OFF']
+const PLAN=['read the gate helpers','add a Substrate section to /capabilities','wire each capability with an honest ON/OFF']
 export function MercuryPlanApproval(){return (
   <Box flexDirection="column" borderStyle="round" borderColor={TERRA} paddingX={1}>
     <Text bold color={TERRA}>{CRAB} plan</Text>

@@ -1359,7 +1359,7 @@ export function Chat({
   const refuseSessionRewrite = useCallback((what: string): void => {
     addNotification({
       key: 'session-rewrite',
-      text: `${what} acts on the session's own conversation — not available for a managed session yet (a named follow-up); /resume opens another session, /clear starts fresh`,
+      text: `${what} acts on the session's own conversation — not available for a managed session yet (a named follow-up); /sessions opens another session, /clear starts fresh`,
       priority: 'high',
       timeoutMs: RECEIPT_TIMEOUT_MS,
     });

@@ -70,9 +70,6 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
   const sessionsShortcut = formatShortcut(
     useShortcutDisplay('command:sessions', 'Global', 'ctrl+x s'),
   )
-  const managerShortcut = formatShortcut(
-    useShortcutDisplay('command:surfaces', 'Global', 'ctrl+x m'),
-  )
   const { columns, rows: termRows } = useTerminalSize()
   const availCols = (availableColumns ?? columns) - 2 * (paddingX ?? 0)
 
@@ -104,7 +101,6 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
     { key: 'file', text: `${fileOpenShortcut} to open a file` },
     { key: 'search', text: `${contentSearchShortcut} to search contents` },
     { key: 'sessions', text: `${sessionsShortcut} to switch session` },
-    { key: 'surfaces', text: `${managerShortcut} for the surface index` },
     { key: 'undo', text: `${undoShortcut} to undo` },
     { key: 'redo', text: `${redoShortcut} to redo` },
     ...(getPlatform() !== 'windows' ? [{ key: 'susp', text: 'ctrl + z to suspend' }] : []),

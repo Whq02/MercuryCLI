@@ -73,7 +73,7 @@ export function SessionManagerView({
       <Box marginTop={1}>
         <EmptyState
           title="Session switching needs the interactive chat wiring"
-          hint="run /sessions (project scope) or /resume (full history) from the prompt"
+          hint="run /sessions from the prompt"
         />
       </Box>
     </CommandCenter>
