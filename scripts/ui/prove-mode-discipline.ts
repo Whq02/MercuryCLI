@@ -56,7 +56,7 @@ const cfg2 = {
   out: join(tmpdir(), `mode-pane-grid-${process.pid}.json`),
 }
 ;(cfg2 as { sends: Array<{ atTick: number; data: string }> }).sends = [
-  { atTick: 30, data: '/ledger' },
+  { atTick: 30, data: '/router' },
   { atTick: 36, data: '\r' },
   { atTick: 46, data: String.fromCharCode(27) },
 ]

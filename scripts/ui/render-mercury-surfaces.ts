@@ -53,31 +53,17 @@ function expect(label: string, cond: boolean): void {
 }
 
 console.log('============================================================')
-console.log(' /fullscreen + /model render-verify (vshot, 80 & 120)')
+console.log(' /model render-verify (vshot, 80 & 120)')
 console.log('============================================================')
 
 const model80 = shoot('/model', 80)
 const model120 = shoot('/model', 120)
-const fs80 = shoot('/fullscreen', 80)
-const fs120 = shoot('/fullscreen', 120)
 
 console.log('\n── /model (responsive: stack < 110 cols · footer + rows intact, not shrink-wrapped) ──')
 expect('@80  footer tail intact on one line (stacked, no wrap)', /\/ filter · esc or click outside closes/.test(model80))
 expect('@120 footer tail intact on one line (side-by-side, no wrap)', /↑↓ select · ↵ switch · c context · → ← fold · \/ filter · esc or click outside closes/.test(model120))
 expect('@80  longest rail row intact (not shrink-wrapped)', /current\s+\S+ ctx/.test(model80))
 expect('@80  the model header renders as the plain title line and a provider heading', /Mercury · model/.test(model80) && /[▾▸❯] [A-Z.]+ · /.test(model80))
-
-console.log('\n── /fullscreen (WI3: drop right rail <100 · WI2: no duplicate fleet) ──')
-expect('@120 RIGHT telemetry rail PRESENT (usage/trace panel)', /usage/.test(fs120))
-expect('@80  RIGHT telemetry rail DROPPED (no usage panel)', !/usage/.test(fs80))
-expect('@80  center fleet chat honest-empty renders', /no named agents yet/.test(fs80))
-expect('@120 center fleet chat honest-empty renders', /no named agents yet/.test(fs120))
-
-console.log('\n── /fullscreen onSend wired (WI1 source smoke) ──')
-const fsSrc = readFileSync(join(REPO, 'src', 'commands', 'fullscreen', 'fullscreen.tsx'), 'utf-8')
-expect('fullscreen passes onSend to MercuryFleetChat', /onSend=\{handleSend\}/.test(fsSrc))
-expect('handleSend delivers via sendLiveMessage (the SendMessage transport)', /sendLiveMessage\(/.test(fsSrc))
-
-console.log('\nHTML written to /tmp/mercury-surface-{model,fullscreen}-{80,120}.html')
+console.log('\nHTML written to /tmp/mercury-surface-model-{80,120}.html')
 console.log(failures === 0 ? '\n✅ MERCURY-SURFACES RENDER-VERIFY PASS' : `\n❌ ${failures} CHECK(S) FAILED`)
 process.exit(failures === 0 ? 0 : 1)

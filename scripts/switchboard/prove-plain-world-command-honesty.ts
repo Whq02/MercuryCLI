@@ -49,7 +49,7 @@ const sends = [
   'after:↑↓ choose:1500:\r',
   'after:↑↓ choose:4500:hello plain world',
   'after:↑↓ choose:5700:\r',
-  'after:↑↓ choose:10500:/fleet',
+  'after:↑↓ choose:10500:/crew',
   'after:↑↓ choose:11700:\r',
 ]
 const WALL_S = driveWallSeconds(sends)
@@ -143,16 +143,16 @@ if (existsSync(projectsDir)) {
 check('§3 a transcript exists (the seeded turn persisted)', transcriptBytes.includes('hello plain world'))
 check(
   '§3 NO transcript byte carries the gated command or a refusal sentence',
-  !transcriptBytes.includes('/fleet') && !transcriptBytes.includes('no headless form') && !transcriptBytes.includes('Session Concourse surface'),
+  !transcriptBytes.includes('/crew') && !transcriptBytes.includes('no headless form') && !transcriptBytes.includes('Session Concourse surface'),
 )
 const doubled = /· ready · [^\n·]+ · ready/
 check('§3b the status row never repeats "· <project> · ready" twice', !doubled.test(joined), joined.split('\n').filter(r => doubled.test(r)).map(r => r.trim().slice(0, 110)).join(' | ') || 'clean')
 const titleRows = joined.split('\n').filter(r => /✶ VIEW/.test(r))
 const statusRows = joined.split('\n').filter(r => /^ ?ready · |· thinking|· running a tool|· replying|esc interrupts/.test(r))
 check('§3c after the first words the title row names them (stage 2), never "new session"; the status row leads with the project while a turn runs and rests on ready · the model · the effort', titleRows.length > 0 && titleRows.every(r => /hello plain world/.test(r)) && !/new session/.test(joined) && statusRows.length > 0 && statusRows.every(r => r.trimStart().startsWith(`${basename(cwd)} · `) || r.trimStart().startsWith('ready · ')) && statusRows.some(r => /^ ?ready · Opus 5\.5 · \S+ {2,}/.test(r)) && !statusRows.some(r => r.includes(`${basename(cwd)} · ready`)), [...titleRows.slice(0, 1), ...statusRows.slice(0, 1)].map(r => r.trim().slice(0, 100)).join(' | ') || 'no title or status row')
-const typedNeedle = /(?<![:/\w])\/fleet\b/
+const typedNeedle = /(?<![:/\w])\/crew\b/
 const wireHits = api.requests.filter((r: { raw: string }) => typedNeedle.test(r.raw))
-check('§4 the wire never saw /fleet', wireHits.length === 0, `${wireHits.length} of ${api.requests.length}`)
+check('§4 the wire never saw /crew', wireHits.length === 0, `${wireHits.length} of ${api.requests.length}`)
 for (const hit of wireHits.slice(0, 2)) {
   const raw = (hit as { raw: string }).raw
   const idx = raw.search(typedNeedle)

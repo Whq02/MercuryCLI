@@ -91,7 +91,7 @@ const byName = new Map(surfaces.map(s => [s.name, s]))
   check("'chronicle' is a /memory alias in the artifact", byName.get('memory')?.aliases.includes('chronicle') === true)
   check("'tasks' is a /runs alias in the artifact", byName.get('runs')?.aliases.includes('tasks') === true)
 
-  const LIVE = ['sessions', 'surfaces', 'crewmates', 'memory', 'model', 'help', 'palette', 'status', 'usage', 'health', 'capabilities', 'runs', 'workflows', 'agents', 'resume', 'diff']
+  const LIVE = ['sessions', 'crewmates', 'memory', 'model', 'help', 'palette', 'usage', 'health', 'capabilities', 'runs', 'workflows', 'agents', 'diff']
   const missing = LIVE.filter(n => {
     const s = byName.get(n)
     return !s || !s.enabled || s.visibility !== 'normal'
@@ -129,7 +129,7 @@ const { writeSyntheticSession, SID, RUNTIME_CWD } = scenarios
 type PtyLeg = { name: string; cmd: string; markers: string[]; anyOf?: string[] }
 const LEGS: PtyLeg[] = [
   { name: 'sessions', cmd: '/sessions', markers: ['— sessions'] },
-  { name: 'surfaces', cmd: '/surfaces', markers: ['— surfaces', 'type to filter'] },
+  { name: 'palette', cmd: '/palette', markers: ['— command palette', 'run a command'] },
 ]
 
 function runLeg(leg: PtyLeg, withEsc: boolean): string | null {
