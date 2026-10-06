@@ -37,8 +37,6 @@ const SIZES: Array<[number, number]> = [
 ]
 const CORE_AT_EVERY_SIZE = ['frame', 'resume-2turn']
 const WIDE_BOARDS = ['cockpit-wide', 'sessions', 'help', 'tool-cards']
-const THEME_FAMILIES = ['light', 'light-daltonized', 'dark-daltonized', 'light-ansi', 'dark-ansi']
-const THEME_SCREENS = ['frame', 'resume-2turn', 'sessions']
 
 export function matrix(): CaptureSpec[] {
   const specs: CaptureSpec[] = []
@@ -49,11 +47,6 @@ export function matrix(): CaptureSpec[] {
   }
   for (const s of WIDE_BOARDS) {
     specs.push({ scenario: s, cols: 120, rows: 40, theme: 'dark', colorMode: 'truecolor', motion: 'full' })
-  }
-  for (const theme of THEME_FAMILIES) {
-    for (const s of THEME_SCREENS) {
-      specs.push({ scenario: s, cols: 120, rows: 40, theme, colorMode: 'truecolor', motion: 'full' })
-    }
   }
   for (const colorMode of ['256', 'ansi', 'none'] as const) {
     for (const s of CORE_AT_EVERY_SIZE) {
@@ -190,7 +183,6 @@ function captureSpec(
           ...process.env,
           MERCURY_CONFIG_DIR: home,
           MERCURY_AWAY_SUMMARY: '0',
-          COLORFGBG: spec.theme.startsWith('light') ? '0;15' : '15;0',
           MERCURY_THEME_PIN: spec.theme,
           TERM_PROGRAM: 'kitty',
           MERCURY_CRITTER: DEFAULT_CRITTER_KEY,
@@ -348,6 +340,21 @@ async function main(): Promise<number> {
     }
     writeFileSync(live.manifestPath, JSON.stringify(manifest, null, 2))
     console.log(`✅ re-digested ${manifest.entries.length} entries with the current mask set`)
+    return 0
+  }
+
+  if (argv.includes('--prune')) {
+    const manifest = readManifest(live.liveDir)
+    if (!manifest) { console.error('no manifest — generate first'); return 1 }
+    const named = new Set(matrix().map(entryId))
+    const gone = manifest.entries.filter(e => !named.has(e.id))
+    for (const e of gone) {
+      rmSync(join(live.liveDir, e.gridPath), { force: true })
+      console.log(`- ${e.id}`)
+    }
+    manifest.entries = manifest.entries.filter(e => named.has(e.id))
+    writeFileSync(live.manifestPath, JSON.stringify(manifest, null, 2))
+    console.log(`✅ pruned ${gone.length} entries the matrix no longer names; ${manifest.entries.length} stand`)
     return 0
   }
 

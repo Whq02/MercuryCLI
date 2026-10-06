@@ -9,7 +9,7 @@ const GENERATOR = join(ROOT, 'scripts/ui/generate-visual-baseline.ts')
 const RED_GRIDS = [
   'help--120x40--dark--truecolor--full',
   'frame--120x40--dark--none--full',
-  'sessions--120x40--dark-ansi--truecolor--full',
+  'sessions--120x40--dark--truecolor--full',
 ]
 
 let failures = 0

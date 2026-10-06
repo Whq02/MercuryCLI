@@ -6,9 +6,9 @@ import { spawnSync } from 'node:child_process'
 
 const FULL = process.env.UI_RENDER === '1'
 const SPOTS = [
-  'frame--120x40--light--truecolor--full',
-  'frame--120x40--light-daltonized--truecolor--full',
+  'frame--120x40--dark--256--full',
   'frame--120x40--dark--ansi--full',
+  'frame--120x40--dark--none--full',
 ]
 
 let fail = 0
