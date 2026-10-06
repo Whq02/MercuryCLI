@@ -4,7 +4,7 @@ import { CockpitActiveContext } from '../../context/cockpitActiveContext.js'
 import type { Theme } from '../../utils/theme.js'
 import { useAppState, useAppStateStore } from '../../state/AppState.js'
 import type { AppState } from '../../state/AppStateStore.js'
-import { getViewedAgent, getViewedCrewmateTask } from '../../state/selectors.js'
+import { getViewedAgent } from '../../state/selectors.js'
 import {
   AGENT_COLORS,
   AGENT_COLOR_TO_THEME_COLOR,
@@ -27,7 +27,6 @@ function themeColorOf(
 export function useCrewBanner(): { text: string; bgColor: keyof Theme } | null {
   const cockpit = useContext(CockpitActiveContext)
   const store = useAppStateStore()
-  const crewContext = useAppState((state: AppState) => state.crewContext)
   const standalone = useAppState(
     (state: AppState) => state.standaloneAgentContext,
   )
@@ -37,24 +36,6 @@ export function useCrewBanner(): { text: string; bgColor: keyof Theme } | null {
   void viewingAgentTaskId
 
   const state = store.getState()
-
-  if (
-    crewContext &&
-    crewContext.crewName &&
-    Object.keys(crewContext.crewmates).length > 0
-  ) {
-    const viewedCrewmate = getViewedCrewmateTask(state)
-    const viewedColor = themeColorOf(
-      (viewedCrewmate as { identity?: { color?: string } } | undefined)
-        ?.identity?.color,
-    )
-    if (viewedCrewmate) {
-      const name =
-        (viewedCrewmate as { identity?: { agentName?: string } }).identity
-          ?.agentName ?? ''
-      if (name !== '') return { text: name, bgColor: viewedColor }
-    }
-  }
 
   const viewedAgent = getViewedAgent(state)
   if (viewedAgent) {

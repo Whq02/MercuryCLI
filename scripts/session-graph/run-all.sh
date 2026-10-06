@@ -16,7 +16,7 @@
 # gate-watch: src/components/messages/ShutdownMessage.tsx src/components/messages/TaskAssignmentMessage.tsx
 # gate-watch: src/components/mercury-ui/screens/CrewView.tsx src/services/coordination/coordinationService.ts
 # gate-watch: src/tools/SendMessageTool/SendMessageTool.ts src/utils/messages/attachmentText.ts
-# gate-watch: src/utils/attachments/crewmates.ts src/utils/crew/crewClient.ts src/utils/tasks.ts
+# gate-watch: src/utils/crew/crewClient.ts src/utils/tasks.ts
 # gate-watch: src/utils/crew/crewmateInit.ts
 # gate-watch: src/utils/crew/leaseGuard.ts src/substrate/durableOperationMatrix.ts
 # gate-watch: src/rows/* src/runner/wire/*

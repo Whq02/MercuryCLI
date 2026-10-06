@@ -103,15 +103,6 @@ export const EXECUTION_DOMAIN_CENSUS: readonly ExecutionDomainCensusEntry[] = [
     notes: 'Remote transport stays out of scope; only the local task row projects.',
   },
   {
-    domain: 'task:in_process_crewmate',
-    classification: 'external-projection',
-    kind: 'agent',
-    adapter: 'src/utils/task/framework.ts',
-    owner: 'processMainOwner()',
-    resourceKind: 'task',
-    notes: 'Crewmate governance (roster, bus) stays domain-owned.',
-  },
-  {
     domain: 'task:local_workflow',
     classification: 'external-projection',
     kind: 'workflow-worker',

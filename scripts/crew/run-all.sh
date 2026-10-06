@@ -38,7 +38,7 @@
 # gate-watch: src/utils/model/configs.ts src/utils/sessionStorage/logs.ts src/utils/sessionStorage/paths.ts
 # gate-watch: src/utils/crew/busEnvelopes.ts src/utils/task/*
 # gate-watch: src/components/PromptInput/PromptInput.tsx src/components/tasks/crewmateInterrupt.ts src/state/selectors.ts src/state/crewmateViewHelpers.ts src/utils/attachments/queuedCommands.ts src/utils/cockpit/crewmateWords.ts src/components/PromptInput/useComposerSubmit.ts
-# gate-watch: src/components/tasks/useCrewmateTranscript.ts src/tasks/InProcessCrewmateTask/types.ts
+# gate-watch: src/components/tasks/useCrewmateTranscript.ts
 # gate-watch: src/services/coordination/coordinationService.ts src/utils/crew/roomHealth.ts
 # gate-watch: src/utils/crew/crewBirth.ts src/utils/crew/crewConvert.ts package.json scripts/builtin-tools/fixtures/tool-census.json scripts/builtin-tools/fixtures/tool-census.md scripts/project-services/fixtures/inventory.json
 # gate-watch: src/components/mercury-ui/toolGlyphs.ts src/components/messages/AssistantToolUseMessage.tsx src/state/AppState.tsx src/substrate/durableOperationMatrix.ts src/tools.ts src/tools/MCPTool/absentToolShim.ts

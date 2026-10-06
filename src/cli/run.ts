@@ -1389,9 +1389,8 @@ export async function runHeadless(
         if (next && isMainThreadCommand(next) && driver.hasDueQueued()) return 'reenter'
         if ((await deliverLeadMail()) === 'queued') return 'reenter'
         const current = getAppState()
-        const inProcessActive = getRunningTasks(current).some(task => task.type === 'in_process_crewmate')
         const listed = Boolean(Object.keys(current.crewContext?.crewmates ?? {}).length)
-        if (!inProcessActive && !listed) break
+        if (!listed) break
         if (inputClosed && !crewShutdownPromptInjected.value) {
           injectCrewShutdownPrompt()
           return 'reenter'
@@ -1402,20 +1401,8 @@ export async function runHeadless(
       }
     }
     if (inputClosed) {
-      for (;;) {
-        const changed = leadEvent(null)
-        try {
-          const running = getRunningTasks(getAppState()).some(task => task.type === 'in_process_crewmate' && !task.isIdle)
-          if (!running) break
-          await changed
-        } finally {
-          leadSettle.wake?.()
-        }
-      }
       const current = getAppState()
-      const crewRemains =
-        Boolean(Object.keys(current.crewContext?.crewmates ?? {}).length) ||
-        getRunningTasks(current).some(task => task.type === 'in_process_crewmate')
+      const crewRemains = Boolean(Object.keys(current.crewContext?.crewmates ?? {}).length)
       if (crewRemains) {
         injectCrewShutdownPrompt()
         return 'reenter'
@@ -1432,7 +1419,7 @@ export async function runHeadless(
     refusal: () => {
       if (driver.isRunning()) return 'a turn is running'
       if (getCommandQueue().some(isMainThreadCommand)) return 'a prompt is queued'
-      const busy = getRunningTasks(getAppState()).filter(task => task.type !== 'in_process_crewmate')
+      const busy = getRunningTasks(getAppState())
       if (busy.length > 0) return `${busy.length} background task(s) still running`
       return capabilityHoldWords(runnerCapabilityHolds(asks))
     },
@@ -1567,13 +1554,13 @@ export async function runHeadless(
       void advisorMainTurnSettled(String(getSessionId()), command, messages, advisorRoad)
     },
     hasWaitableBackgroundTasks: () =>
-      getRunningTasks(getAppState()).some(task => task.type !== 'in_process_crewmate' && !(inputClosed && isLocalShellTask(task))),
+      getRunningTasks(getAppState()).some(task => !(inputClosed && isLocalShellTask(task))),
     hasHoldableBackgroundAgents: () =>
       getRunningTasks(getAppState()).some(
         task => task.type === 'local_agent' || task.type === 'local_workflow',
       ),
     waitableBackgroundTaskCount: () =>
-      getRunningTasks(getAppState()).filter(task => task.type !== 'in_process_crewmate' && !(inputClosed && isLocalShellTask(task))).length,
+      getRunningTasks(getAppState()).filter(task => !(inputClosed && isLocalShellTask(task))).length,
     onAgentWait: (count, turnId) => {
       enqueueRow(turnWaitingRow({ session_id: getSessionId(), turn: turnsRun }, { turnId, agents: count }))
     },

@@ -153,18 +153,6 @@ section('P1 the projector: the runner\'s task store → wire rows')
       outputOffset: 0,
       notified: false,
     },
-    tm1: {
-      id: 'tm1',
-      type: 'in_process_crewmate',
-      status: 'running',
-      description: 'crewmate',
-      identity: { agentId: 'scout@crew', agentName: 'scout', crewName: 'crew' },
-      prompt: 'p',
-      startTime: t0 + 3,
-      outputFile: '/nowhere',
-      outputOffset: 0,
-      notified: false,
-    },
     sh1: {
       id: 'sh1',
       type: 'local_bash',
@@ -182,7 +170,7 @@ section('P1 the projector: the runner\'s task store → wire rows')
     },
   } as never
   const rows = projectWorkRoster(store)
-  check('P1 every kind projects, the main-session row excluded', rows.length === 4 && !rows.some(r => r.id === 'main1'), JSON.stringify(rows.map(r => r.id)))
+  check('P1 every kind projects, the main-session row excluded', rows.length === 3 && !rows.some(r => r.id === 'main1'), JSON.stringify(rows.map(r => r.id)))
   const wf = rows.find(r => r.id === 'wf1')
   check('P1 the workflow row carries its run facts', wf !== undefined && wf.kind === 'workflow' && wf.workflowRunId === 'run-1' && wf.agentCount === 2 && wf.totalTokens === 1234 && wf.pendingAsks === 1)
   check(
@@ -195,8 +183,6 @@ section('P1 the projector: the runner\'s task store → wire rows')
     wf?.pulse !== undefined && wf.pulse.running === 1 && wf.pulse.settled === 1 && wf.pulse.maxAttempt === 0 && wf.pulse.lastEventAt === t0 && wf.pulse.phaseTitle === 'Probe',
     JSON.stringify(wf?.pulse),
   )
-  const tm = rows.find(r => r.id === 'tm1')
-  check('P1 the crewmate row names its crew', tm?.kind === 'crewmate' && tm.name === 'scout' && tm.crew === 'crew')
 
   const { focusedWorkRows, runningWorkflowRows } = await import('../../src/components/tasks/useFocusedWork.ts')
   const hosted = {
@@ -209,7 +195,7 @@ section('P1 the projector: the runner\'s task store → wire rows')
     mission: [],
   } as const
   const union = focusedWorkRows(store, hosted as never)
-  check('P6 the union carries every local row and every hosted row once', union.length === 4 + 3, JSON.stringify(union.map(r => r.id)))
+  check('P6 the union carries every local row and every hosted row once', union.length === 3 + 3, JSON.stringify(union.map(r => r.id)))
   check('P6 a row held locally keeps its local projection (the hosted copy never wins)', union.find(r => r.id === 'wf1')?.name === 'scope-probe' && union.find(r => r.id === 'wf1')?.status === 'running')
   check('P6 the running workflows are the local run and the hosted run — never the paused one, never the shell', runningWorkflowRows(union).map(r => r.id).sort().join(',') === 'wf1,wf9')
   check('P6 a blank store still lists the hosted rows', focusedWorkRows(undefined, hosted as never).length === 4)

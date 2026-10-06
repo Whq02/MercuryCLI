@@ -8,7 +8,6 @@ import { getHarnessMapDelta } from '../cockpit/harnessMap.js'
 import { getRunProtocolDelta } from '../cockpit/runProtocol.js'
 import type { QuerySource } from '../../constants/querySource.js'
 import { createAbortController } from '../abortController.js'
-import { isCrewEnabled } from '../crewEnabled.js'
 import { isEnvTruthy } from '../envUtils.js'
 import { logError } from '../log.js'
 import { getLSPDiagnosticAttachments } from './diagnostics.js'
@@ -53,10 +52,6 @@ import {
   getAsyncHookResponseAttachments,
   getUnifiedTaskAttachments,
 } from './taskStatus.js'
-import {
-  getCrewContextAttachment,
-  getCrewmateMailboxAttachments,
-} from './crewmates.js'
 import type { Attachment } from './types.js'
 import { rosterOwnerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { getUserContextAttachment } from './userContext.js'
@@ -192,22 +187,6 @@ export async function getAttachments(
     maybe('contract_reminder', () =>
       getContractReminderAttachments(messages, toolUseContext),
     ),
-    ...(isCrewEnabled()
-      ? [
-          ...(querySource === 'session_memory'
-            ? []
-            : [
-                maybe(
-                  'crew_messages',
-                  async () => getCrewmateMailboxAttachments(toolUseContext),
-                  { priority: true },
-                ),
-              ]),
-          maybe('crew_context', async () =>
-            getCrewContextAttachment(messages ?? []),
-          ),
-        ]
-      : []),
     maybe(
       'agent_pending_messages',
       async () => getAgentPendingMessageAttachments(toolUseContext),

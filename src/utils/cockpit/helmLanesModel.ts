@@ -2,7 +2,6 @@ import { basename } from 'node:path'
 import type { TaskStatus } from '../../Task.js'
 import { isTerminalTaskStatus } from '../../Task.js'
 import type { TaskState } from '../../tasks/types.js'
-import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isLocalShellTask } from '../../tasks/LocalShellTask/guards.js'
 import type { SessionListing } from '../../types/logs.js'
@@ -143,7 +142,7 @@ export function orderDaemonCrew(members: readonly DaemonCrewMember[]): DaemonCre
 
 export function runsOf(tasks: Record<string, TaskState>, roster: Pick<WorkRosterV1, 'rows'>): RunRow[] {
   const localRuns: RunRow[] = Object.values(tasks)
-    .filter(t => !isLocalAgentTask(t) && !isInProcessCrewmateTask(t))
+    .filter(t => !isLocalAgentTask(t))
     .filter(t => !isTerminalTaskStatus(t.status))
     .map(t => ({
       id: t.id,

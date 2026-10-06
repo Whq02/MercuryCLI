@@ -52,7 +52,7 @@ function baseInputs(): WorkbenchSourceInputs {
         label: 'crewmate bob',
         state: 'running',
         updatedAt: now - 2000,
-        metadata: { taskType: 'in_process_crewmate' },
+        metadata: { taskType: 'local_agent' },
         outputRef: 'mercury://task/task-mate',
       },
       {
@@ -98,7 +98,7 @@ function baseInputs(): WorkbenchSourceInputs {
         'task-mate',
         {
           id: 'task-mate',
-          taskType: 'in_process_crewmate',
+          taskType: 'local_agent',
           description: 'crewmate bob',
           status: 'running',
           isIdle: false,
@@ -140,7 +140,7 @@ section('(1) pure derivation — one root + three live children, owner-true rows
     agent?.changedPaths.length === 2 && agent?.verification === 'verified',
   )
   const mate = snap.threads.find(t => t.id === 'task-mate')
-  check('crewmate phase from crewPhases (working, not invented)', mate?.kind === 'crewmate' && mate?.phase === 'working')
+  check('the agent thread keeps its agent kind', mate?.kind === 'agent')
   check('crewmate blocker surfaces from the run kernel', mate?.blocker === 'a question is waiting')
   const wf = snap.threads.find(t => t.id === 'task-wf')
   check('workflow row: kind workflow', wf?.kind === 'workflow')

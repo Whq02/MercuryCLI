@@ -150,19 +150,6 @@ const store = {
     endTime: t0 + 9000,
   }),
   main1: agentTask('main1', 'the session itself', { agentType: 'main-session', startTime: t0 + 5 }),
-  tm1: {
-    id: 'tm1',
-    type: 'in_process_crewmate',
-    status: 'running',
-    description: 't',
-    identity: { agentId: 'scout@crew', agentName: 'scout', crewName: 'crew' },
-    prompt: 'p',
-    progress: fold(ANTHROPIC_ID, 800, 100),
-    startTime: t0 + 4,
-    outputFile: '/n',
-    outputOffset: 0,
-    notified: false,
-  },
 } as never
 const rows: WorkRowV1[] = projectWorkRoster(store)
 const byId = new Map(rows.map(r => [r.id, r]))
@@ -170,7 +157,6 @@ const byId = new Map(rows.map(r => [r.id, r]))
   const ag1 = byId.get('ag1')!
   const ag2 = byId.get('ag2')!
   const ag3 = byId.get('ag3')!
-  const tm1 = byId.get('tm1')!
   check(
     'T2 the OpenAI-served agent row carries its served model and counters',
     ag1.model === OPENAI_ID && ag1.inputTokens === 1200 && ag1.outputTokens === 300 && ag1.totalTokens === 1500,
@@ -193,11 +179,6 @@ const byId = new Map(rows.map(r => [r.id, r]))
     ag3.model === ANTHROPIC_ID && ag3.inputTokens === undefined && ag3.totalTokens === undefined && ag3.costUSD === undefined && ag3.unpricedTurns === undefined,
     JSON.stringify(ag3),
   )
-  check(
-    'T2 a named agent rides the same counters under its crew',
-    tm1.kind === 'crewmate' && tm1.model === ANTHROPIC_ID && tm1.inputTokens === 800 && tm1.totalTokens === 900 && tm1.crew === 'crew',
-    JSON.stringify(tm1),
-  )
   check("T2 the session's own main-thread row never rides the roster", !byId.has('main1'))
   const projector = src('src/utils/task/workRoster.ts')
   const family = new RegExp(['anth', 'ropic'].join('') + '|' + ['open', 'ai\\b'].join(''), 'i')
@@ -208,13 +189,13 @@ console.log('— T3 one record, every surface —')
 const agents = crew.crewAgentsOf(rows, 'fx-session')
 {
   check(
-    'T3 the crew = the agent + named rows (never the main thread)',
-    agents.map(a => a.id).sort().join(',') === 'ag1,ag2,ag3,ag4,tm1',
+    'T3 the crew = the agent rows (never the main thread)',
+    agents.map(a => a.id).sort().join(',') === 'ag1,ag2,ag3,ag4',
     agents.map(a => a.id).join(','),
   )
   check(
     'T3 running first, newest first — the /tasks board\'s own order',
-    agents.map(a => a.id).join(',') === 'tm1,ag3,ag2,ag1,ag4',
+    agents.map(a => a.id).join(',') === 'ag3,ag2,ag1,ag4',
     agents.map(a => a.id).join(','),
   )
   const boardFacts = [...rosterRowsOf(rows, 'agent'), ...rosterRowsOf(rows, 'crewmate')].map(w =>
@@ -225,10 +206,10 @@ const agents = crew.crewAgentsOf(rows, 'fx-session')
     boardFacts.length === agents.length &&
       boardFacts.every(f => f !== null && JSON.stringify(f) === JSON.stringify(agents.find(a => a.id === f.id))),
   )
-  check('T3 the count label carries the running count of the rows (the list header carries the total)', crew.crewCountLabel(agents) === '4 running', crew.crewCountLabel(agents))
+  check('T3 the count label carries the running count of the rows (the list header carries the total)', crew.crewCountLabel(agents) === '3 running', crew.crewCountLabel(agents))
   check(
     'T3 the rail lists exactly the running ones',
-    crew.crewRunning(agents).map(a => a.id).join(',') === 'tm1,ag3,ag2,ag1',
+    crew.crewRunning(agents).map(a => a.id).join(',') === 'ag3,ag2,ag1',
   )
   const ag1 = agents.find(a => a.id === 'ag1')!
   const line = crew.crewRowLine(ag1, t0 + 61_001)
@@ -326,7 +307,7 @@ console.log('— T5 the usage attribution —')
   const counted = agents.filter(a => a.tokens !== null)
   check(
     'T5 the line sums the crew\'s tokens over the agents that settled any, live ones counted',
-    line !== null && line.startsWith(`sub-agents ${formatTokens(crew.crewTokenSum(counted))} spent · 4 agents · 3 live`),
+    line !== null && line.startsWith(`sub-agents ${formatTokens(crew.crewTokenSum(counted))} spent · 3 agents · 2 live`),
     String(line),
   )
   check('T5 no settled response ⇒ no line (never a zero that reads as fact)', crew.crewUsageLine([agents.find(a => a.id === 'ag3')!]) === null)
@@ -407,7 +388,7 @@ console.log('— T7 the status vocabulary and the transcript card —')
       crew.crewStateOf({ status: 'killed', stopReason: crew.CREW_INTERRUPTED_BY_OPERATOR_WORDS }) === 'interrupted' &&
       crew.crewStateOf({ status: 'killed', stopReason: 'stopped from the crew view' }) === 'stopped',
   )
-  check('T7 the waiting line counts the running crew', crew.crewWaitingLine(agents) === 'waiting on 4 agents' && crew.crewWaitingLine([]) === null)
+  check('T7 the waiting line counts the running crew', crew.crewWaitingLine(agents) === 'waiting on 3 agents' && crew.crewWaitingLine([]) === null)
   const ag1 = agents.find(a => a.id === 'ag1')!
   check(
     "T7 the wire carries the launch's tool-use id, its tool-use count and its activity",
@@ -415,8 +396,8 @@ console.log('— T7 the status vocabulary and the transcript card —')
     JSON.stringify({ toolUseId: ag1.toolUseId, toolUses: ag1.toolUses, activity: ag1.activity }),
   )
   check(
-    'T7 the join finds an agent by its tool-use id and a named agent by name',
-    crew.crewAgentByToolUse(agents, 'tu-ag1')?.id === 'ag1' && crew.crewAgentByToolUse(agents, 'tu-none') === null && crew.crewAgentByName(agents, '@scout')?.id === 'tm1',
+    'T7 the join finds an agent by its tool-use id',
+    crew.crewAgentByToolUse(agents, 'tu-ag1')?.id === 'ag1' && crew.crewAgentByToolUse(agents, 'tu-none') === null,
   )
   check('T7 the row line speaks the vocabulary', crew.crewRowLine(agents.find(a => a.id === 'ag4')!, t0).includes(' · landed · '))
   const React = (await import('react')).default

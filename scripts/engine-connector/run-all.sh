@@ -8,8 +8,7 @@
 # gate-watch: src/components/permissions/** src/hooks/useCancelRequest.ts src/hooks/useDisplayedSessionModel.ts
 # gate-watch: scripts/lib/* src/bootstrap/state.ts src/cli/run.ts src/commands/crew/index.ts
 # gate-watch: src/commands/crew/index.ts src/commands/crewmates/index.ts src/commands/crewmates/crewmates.tsx
-# gate-watch: src/components/* src/components/Spinner/CrewmateSpinnerLine.tsx
-# gate-watch: src/components/Spinner/CrewmateSpinnerTree.tsx
+# gate-watch: src/components/*
 # gate-watch: src/components/mercury-ui/keyHintLabel.ts src/components/mercury-ui/screens/*
 # gate-watch: src/components/messages/** src/components/tasks/* src/cost-tracker.ts src/daemon/*
 # gate-watch: src/hooks/useArrowKeyHistory.tsx src/ink/session/capabilities.ts src/ink/stringWidth.ts

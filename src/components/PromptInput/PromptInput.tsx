@@ -83,7 +83,6 @@ import { MercuryContentSearch } from '../MercuryContentSearch.js'
 import { BackgroundTasksDialog } from '../tasks/BackgroundTasksDialog.js'
 import { isManageableTask } from '../tasks/taskStatusUtils.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
-import { getViewedCrewmateTask } from '../../state/selectors.js'
 import { isCrewEnabled } from '../../utils/crewEnabled.js'
 import { getTheme, type Theme } from '../../utils/theme.js'
 import { useFocusedTranscript } from '../../hooks/useFocusedTranscript.js'
@@ -375,9 +374,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   })
   const { capLaneLine, capLaneCut } = doors
 
-  const viewedCrewmateTask = getViewedCrewmateTask(
-    appStateStore.getState(),
-  )
   const composerCrewmate = useComposerCrewmate()
   const composerCrewmateRef = useRef(composerCrewmate)
   composerCrewmateRef.current = composerCrewmate
@@ -386,13 +382,12 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   viewedCrewmateRef.current = viewedCrewmate
   const viewedAgentName =
     composerCrewmate?.name ??
-    viewedCrewmateTask?.identity?.agentName ??
     (viewedTask !== undefined && isLocalAgentTask(viewedTask)
       ? viewedTask.description !== ''
         ? viewedTask.description
         : viewedTask.agentType
       : undefined)
-  const viewedAgentColor = viewedCrewmateTask?.identity?.color
+  const viewedAgentColor = undefined
 
 
   const suggestionApi = usePromptSuggestion({

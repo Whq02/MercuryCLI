@@ -15,7 +15,7 @@ check('§A the classifier takes no session-kind parameter (kind-invariant by con
 const prompt = read('src/components/PromptInput/useComposerSubmit.ts')
 const consumerCount = (prompt.match(/classifyAgentViewSubmission\(/g) ?? []).length
 check('§A exactly ONE composer consumer routes on the classifier', consumerCount === 1, String(consumerCount))
-check('§A the consumer routes on the typed task classifiers', prompt.includes('isInProcessCrewmateTask(task)') && prompt.includes('isLocalAgentTask(task)'))
+check('§A the consumer routes on the typed task classifier', prompt.includes('isLocalAgentTask(task)'))
 
 const selectors = read('src/state/selectors.ts')
 check('§B ActiveAgentForInput is the ONE typed destination union', selectors.includes('export type ActiveAgentForInput'))

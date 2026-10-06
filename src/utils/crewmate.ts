@@ -1,5 +1,3 @@
-import type { AppState } from '../state/AppStateStore.js'
-import { isInProcessCrewmateTask } from '../tasks/InProcessCrewmateTask/types.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { getAgentContext, isSubagentContext } from './agentContext.js'
 import { CREW_LEAD_NAME } from './crew/constants.js'
@@ -111,16 +109,4 @@ export function isCrewLead(crewContext: { leadAgentId: string } | undefined): bo
   const agentId = getAgentId()
   if (agentId === undefined) return true
   return agentId === crewContext.leadAgentId
-}
-
-export function hasActiveInProcessCrewmates(appState: AppState): boolean {
-  return Object.values(appState.tasks).some(
-    task => isInProcessCrewmateTask(task) && task.status === 'running',
-  )
-}
-
-export function hasWorkingInProcessCrewmates(appState: AppState): boolean {
-  return Object.values(appState.tasks).some(
-    task => isInProcessCrewmateTask(task) && task.status === 'running' && !task.isIdle,
-  )
 }

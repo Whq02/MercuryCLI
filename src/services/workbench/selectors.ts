@@ -110,8 +110,6 @@ const EXECUTION_THREAD_KINDS = new Set(['agent', 'workflow-worker', 'background-
 function threadKindOf(exec: ExecutionFact, rich: RichTaskFact | undefined): WorkbenchThreadKind {
   const taskType = rich?.taskType ?? (exec.metadata?.taskType as string | undefined)
   switch (taskType) {
-    case 'in_process_crewmate':
-      return 'crewmate'
     case 'local_workflow':
       return 'workflow'
     case 'local_agent':

@@ -6,7 +6,6 @@ import {
   type WorkflowProgressEvent,
 } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
-import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types.js'
 import { isLocalShellTask } from '../../tasks/LocalShellTask/guards.js'
 import {
   buildAgentSummaries,
@@ -184,27 +183,6 @@ export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
         ...unreadNoticesOf(task.id, String(task.agentId)),
         ...(typeof task.wait === 'string' && task.wait !== '' ? { wait: task.wait } : {}),
         ...(typeof task.pendingAsks === 'number' && task.pendingAsks > 0 ? { pendingAsks: task.pendingAsks } : {}),
-        ...(task.paused !== undefined
-          ? {
-              paused: {
-                why: task.paused.why,
-                words: clip(task.paused.words, MAX_ERROR),
-                ...(task.paused.resumesAtMs !== undefined ? { resumesAtMs: task.paused.resumesAtMs } : {}),
-              },
-            }
-          : {}),
-      })
-    } else if (isInProcessCrewmateTask(task)) {
-      rows.push({
-        ...plainRow(task, 'crewmate', task.identity.agentName),
-        agentId: task.identity.agentId,
-        crew: clip(task.identity.crewName, MAX_NAME),
-        ...(typeof task.effort === 'string' && task.effort !== '' ? { effort: task.effort } : {}),
-        ...(typeof task.transcriptAgentId === 'string' && task.transcriptAgentId !== '' ? { transcriptAgentId: task.transcriptAgentId } : {}),
-        ...(task.status === 'running' && task.isIdle === true ? { idle: true } : {}),
-        ...startFoldersOf(task),
-        ...agentCounters(task),
-        ...unreadNoticesOf(task.id, task.identity.agentId),
         ...(task.paused !== undefined
           ? {
               paused: {

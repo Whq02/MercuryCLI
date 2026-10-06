@@ -11,7 +11,6 @@ import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js'
 import { isDefaultMode } from '../../utils/permissions/PermissionMode.js'
 import { getGlobalConfig, isCopyOnSelectEnabled } from '../../utils/config.js'
 import { isFullscreenActive } from '../../utils/fullscreen.js'
-import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { useSelection } from '../../ink.js'
 import { useHasSelection } from '../../ink/hooks/use-selection.js'
@@ -31,7 +30,7 @@ import { useFocusedShellRunning } from '../../services/engine-connector/shellRun
 import { keyHintLabel } from '../mercury-ui/keyHintLabel.js'
 import { settingsChangeDetector } from '../../utils/settings/changeDetector.js'
 import { getSettingsSnapshot, settingsRevision } from '../../utils/settings/snapshot.js'
-import { isManageableTask, shouldHideTasksFooter } from '../tasks/taskStatusUtils.js'
+import { isManageableTask } from '../tasks/taskStatusUtils.js'
 import { BASH_MODE_CHARACTER } from './inputModes.js'
 import { ExitChordNotice } from './ExitChordNotice.js'
 import { noticeBlockRows, noticeRowBlock, noticeRowDetail, noticeRowText } from './Notifications.js'
@@ -171,7 +170,7 @@ export function PromptInputFooterLeftSide({
     viewingAgentTaskId !== undefined ? tasks[viewingAgentTaskId] : undefined
   const viewedCrewmateCompleted =
     (viewedTask !== undefined &&
-      (isInProcessCrewmateTask(viewedTask) || isLocalAgentTask(viewedTask)) &&
+      isLocalAgentTask(viewedTask) &&
       viewedTask.status !== 'running' &&
       viewedTask.status !== 'pending') ||
     (viewingCrewmate && !crewmateLive(viewedCrewmate))
@@ -188,13 +187,9 @@ export function PromptInputFooterLeftSide({
     prStatus.url !== null &&
     getGlobalConfig().prStatusFooterEnabled !== false
 
-  const pillHidden = shouldHideTasksFooter(taskList, treeShowing)
-  const showTasksPill = tasksPresent && !pillHidden
+  const showTasksPill = tasksPresent
 
-  const inProcessCrewmates = taskList.filter(isInProcessCrewmateTask)
-  const crewmatePillsPresent =
-    (inProcessCrewmates.some(isManageableTask) && !treeShowing) ||
-    (viewingCrewmate && !treeShowing)
+  const crewmatePillsPresent = viewingCrewmate && !treeShowing
 
   const parts: React.ReactNode[] = []
   if (mode === 'bash') {
@@ -233,19 +228,6 @@ export function PromptInputFooterLeftSide({
     } else if (runningAgents.length > 0 && !killConfirmShowing) {
       parts.push(
         <KeyboardShortcutHint key="stop-agents" shortcut={killChord} action="stop agents" />,
-      )
-    }
-    const runningCrewmates = inProcessCrewmates.filter(
-      task => task.status === 'running',
-    )
-    if (inProcessCrewmates.length > 0) {
-      const action = runningCrewmates.length > 0
-        ? 'cycle tasks'
-        : treeShowing
-          ? 'hide tasks'
-          : 'show tasks'
-      parts.push(
-        <KeyboardShortcutHint key="toggle" shortcut={tasksChord} action={action} />,
       )
     }
   }
