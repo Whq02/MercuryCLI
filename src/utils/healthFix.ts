@@ -1,6 +1,4 @@
 
-import { getCwd } from './cwd.js'
-import { logForDebugging } from './debug.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import {
   isFixable,
@@ -10,10 +8,6 @@ import {
   type RemedyOutcome,
   flattenChecks,
 } from './healthCertCore.js'
-import {
-  defaultEvolutionLedgerDir,
-  writeEvolutionRow,
-} from './evolution/evolutionLedger.js'
 
 export function healthFixEnabled(): boolean {
   return flagEnv('MERCURY_HEALTH_FIX') !== '0'
@@ -57,20 +51,6 @@ export async function applyRemedy(check: HealthCheck): Promise<AppliedFix> {
     remedyClass: remedy.class,
     applied,
     verified,
-  }
-  try {
-    await writeEvolutionRow(defaultEvolutionLedgerDir(getCwd()), {
-      program: 'health-fix',
-      subject: check.id,
-      outcome: verified?.ok ? 'accepted' : 'regressed',
-      mechanism: remedy.plan,
-      evidenceRefs: [
-        `apply: ${applied.note.slice(0, 120)}`,
-        ...(verified ? [`verify: ${verified.note.slice(0, 120)}`] : []),
-      ],
-    })
-  } catch (e) {
-    logForDebugging(`[health-fix] ledger row skipped (non-fatal): ${e}`)
   }
   return outcome
 }

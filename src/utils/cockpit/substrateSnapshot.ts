@@ -13,7 +13,6 @@ import { daemonSnapshot } from './daemonSnapshot.js'
 import { listCapabilityKills, getAgentCapParseRejects } from '../permissions/capabilityGate.js'
 import { ctxForecastEnabled } from './ctxForecast.js'
 import { carryForwardEnabled } from '../../daemon/carryForward.js'
-import { evolutionLedgerEnabled } from '../evolution/evolutionLedger.js'
 import { thisMercuryCommand } from '../../services/privateChannel/installPath.js'
 import { type Snapshot } from './types.js'
 
@@ -100,11 +99,6 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
         name: 'Carry-forward handoff',
         on: carryForwardEnabled(),
         hint: carryForwardEnabled() ? 'auto-clear seeds a handoff note (opt out =0)' : 'MERCURY_CARRY_FORWARD=0 set',
-      },
-      {
-        name: 'Evolution ledger',
-        on: evolutionLedgerEnabled(),
-        hint: evolutionLedgerEnabled() ? 'program rows → .mercury/evolution/ (opt out =0)' : 'MERCURY_EVOLUTION_LEDGER=0 set',
       },
     ],
   }

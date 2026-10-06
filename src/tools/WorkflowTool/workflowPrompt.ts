@@ -1,6 +1,5 @@
 
 import { EFFORT_LEVELS } from '../../utils/effortLadder.js'
-import { evolutionLedgerEnabled } from '../../utils/evolution/evolutionLedger.js'
 
 export const WORKFLOW_TOOL_PROMPT: string = `Run a JavaScript orchestration script that coordinates a fleet of subagents with deterministic control flow. The launch detaches immediately: this tool answers with a task ID while the run continues in the background, a <task-notification> arrives at completion, and /workflows shows live progress.
 
@@ -142,15 +141,6 @@ const AUTHORING_DOCTRINE_SECTION = `
 - Model choice belongs to the operator, and their standing rule overrides the "leave opts.model out" default above: name an explicit catalog alias, or a declared tier, for each dispatch — the operator directs models per dispatch. Do not lean on the inherited session model (project-level settings sometimes pin a tier the live session is not using), and never pick an agentType whose definition pins a small-tier model — when you need read-only scoping, put it in the prompt, not in a downgraded engine.
 - A verify stage belongs to the workflow's shape itself, never bolted on after: any workflow that performs real implementation (edits, fixes, migrations) carries one — refute-to-survive from the pattern list, or one dedicated checker per changed unit — before it returns success. A fixer agent asserting its own success is an assertion, not evidence.`
 
-const LEDGER_GLOBAL_SECTION = `
-
-## The ledger global (evolution rows)
-
-- ledger: {record(row): Promise<{ok, path?, deduped?, reason?}>, read(program): Promise<row[]>, report(program): Promise<string>} — an append-only record of ITERATED improvement work (patch loops, hardening rounds, audit campaigns). record() accepts {program, subject, outcome, iteration?, hypothesis?, mechanism?, lineage?, score?: {dev?, holdout?, unit?}, delta?, evidenceRefs?, notes?}; outcome is one of 'baseline'|'improved'|'regressed'|'tie'|'accepted'|'refused'|'error'. A row whose outcome is 'improved' or 'accepted' must name at least one evidenceRef (a gate log, judge rulings, a transcript path) — claims without evidence are refused by construction. read(program) hands back that program's earlier rows; report(program) renders frontier, drift, and the recent tail. The loop contract: open with report() plus the earlier rows before proposing; a 'baseline' row goes in before anything changes; every candidate gets a row, failed ones too; and roughly three straight iterations that never log an 'improved' row mean the loop converged — stop there. (Method detail: the harness-evolution skill, plus docs/workflows/patch-loop.workflow.js.) One-shot work — a review, a migration, a research sweep — has no business writing rows.`
-
 export function getWorkflowToolPrompt(): string {
-  let text = WORKFLOW_TOOL_PROMPT
-  text += AUTHORING_DOCTRINE_SECTION
-  if (evolutionLedgerEnabled()) text += LEDGER_GLOBAL_SECTION
-  return text
+  return WORKFLOW_TOOL_PROMPT + AUTHORING_DOCTRINE_SECTION
 }
