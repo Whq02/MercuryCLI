@@ -232,7 +232,7 @@ restart never mints a duplicate.
 
 `/runs` opens the work board (`/tasks` opens the same board), including
 workflow runs and background shells. `/crewmates` is the Crew view:
-the session's sub-agents live, and the named crewmates' chats; each sub-agent
+the session's sub-agents live; each sub-agent
 row carries the count of notices delivered to it that no turn of its own has
 read yet ([SESSIONS.md](SESSIONS.md), "A notice an agent has not read"). A
 command a sub-agent runs in the background is a shell task of the session

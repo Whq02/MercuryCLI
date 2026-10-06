@@ -650,18 +650,6 @@
     "type:CrewCharter",
     "type:CrewRolePacket",
     "type:DeriveCharterInputs"
-   ],
-   "src/utils/crew/handoff.ts": [
-    "HANDOFF_STATUSES",
-    "isSuccessClaim",
-    "listAllOpenHandoffs",
-    "listIncomingHandoffs",
-    "recordHandoff",
-    "type:EvidenceRef",
-    "type:Handoff",
-    "type:HandoffStatus",
-    "type:HandoffVerdict",
-    "validateHandoff"
    ]
   },
   "turnEngine": {

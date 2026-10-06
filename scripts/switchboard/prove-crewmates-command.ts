@@ -54,7 +54,7 @@ check('the command speaks of the crew, not the team', crewmates !== undefined &&
 const registered = registry.filter(c => c.name === 'crewmates' || c.name === 'teammates')
 check('exactly one registry row, and it is named crewmates', registered.length === 1 && registered[0]?.name === 'crewmates', registered.map(c => c.name).join(', '))
 const commandSource = readFileSync(join(ROOT, 'src', 'commands', 'crewmates', 'crewmates.tsx'), 'utf8')
-check('/crewmates opens the crew view (the bare command opens it; a name opens that crewmate\'s chat)', /openCrewView\(\)/.test(commandSource) && /<CrewView/.test(commandSource))
+check('/crewmates opens the crew view and takes no argument (no named chat, no spawn door)', /openCrewView\(\)/.test(commandSource) && !/<CrewView/.test(commandSource) && !commandSource.includes('args'))
 
 console.log('\n the doors the crew words print name /crewmates')
 const doors = [
