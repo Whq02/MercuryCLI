@@ -34,6 +34,7 @@ import {
 import { rateLimitWindowName } from '../rateLimitMessages.js'
 import { subscribeSignInEpoch } from '../../utils/accounts/signInLedger.js'
 import { activeWalletEntry, anthropicCredentialAccount, walletEntries, type WalletEntry } from '../wallet/wallet.js'
+import { accountIdentityShown, familyAccountWord } from '../wallet/identityWords.js'
 import { providerDisplayName } from './routeLaw.js'
 import { declaredRouteOf, PROVIDER_ID_SPACES } from './callModelRouter.js'
 import {
@@ -130,10 +131,12 @@ export interface ProviderFamilyReads {
 }
 
 export function presenceIdentityWords(
-  presence: Pick<ProviderFamilyPresence, 'credentialed' | 'credentialLabel' | 'identity'>,
+  presence: Pick<ProviderFamilyPresence, 'credentialed' | 'credentialLabel' | 'identity'> & { id: string },
+  shown: boolean = accountIdentityShown(),
 ): string | undefined {
   if (!presence.credentialed) return undefined
-  return presence.identity ?? presence.credentialLabel
+  if (shown || presence.identity === undefined) return presence.identity ?? presence.credentialLabel
+  return familyAccountWord(presence.id) ?? 'signed in'
 }
 
 function engineIdentityLive(id: RouterProviderId): string | undefined {

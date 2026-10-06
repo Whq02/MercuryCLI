@@ -13,7 +13,7 @@
 # gate-watch: src/components/BootSettingsScreen* src/services/switchboard/capacityCheck*
 # gate-watch: src/components/Settings/** src/services/providers/providerUsage* src/commands/usage/**
 # gate-watch: src/services/providers/accountSlots* src/components/mercury-ui/parity/AccountView*
-# gate-watch: src/components/HelmTelemetryRail* src/components/BootLoginsScreen* src/components/BootSplashScreen* src/services/wallet/** src/utils/accounts/** src/utils/auth.ts
+# gate-watch: src/components/HelmTelemetryRail* src/components/BootLoginsScreen* src/components/BootSplashScreen* src/services/wallet/** src/utils/accounts/** src/utils/auth.ts src/services/oauth/**
 # gate-watch: src/cli/handlers/auth.ts src/utils/status.tsx src/state/AppState.tsx src/cli/sessionArgs.ts
 # gate-watch: src/cli/run.ts src/cli/headless/controlHandlers.ts src/daemon/sessionSeat.ts src/daemon/concourseWorkers.ts src/services/engine-connector/** src/screens/Chat.tsx src/components/MercuryFrame.tsx src/components/tasks/BackgroundTasksDialog.tsx src/components/mercury-ui/screens/CrewView.tsx
 # gate-watch: scripts/lib/codeText.ts scripts/lib/settingsPopupHarness.ts
@@ -39,6 +39,7 @@
 # gate-watch: src/rows/* src/runner/wire/* scripts/lib/rows.ts
 # gate-watch: docs/SETTINGS.md docs/SESSIONS.md scripts/lib/fixtureApi.ts src/utils/sessionStorage/paths.ts src/utils/cleanup.ts
 # gate-watch: src/schemas/hooks.ts src/utils/hooks/matching.ts src/utils/hooks/matcherGrammar.ts
+# gate-watch: src/services/api/errors.ts src/services/providers/anthropicRefusal.ts scripts/ui/saturn-screen-stills.ts scripts/ui/fixtures/settings-popup-header/* src/commands/model/mercuryModel.tsx src/commands/router/router.tsx
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

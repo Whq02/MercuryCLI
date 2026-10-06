@@ -1,4 +1,5 @@
 import type { KimiRegion } from '../providers/moonshot/moonshotAccounts.js'
+import { getInitialSettings } from '../../utils/settings/settings.js'
 import type { WalletAuthKind, WalletProvider } from './wallet.js'
 
 export type IdentityKind = 'device-code' | 'subscription' | 'oauth' | 'api-key'
@@ -12,6 +13,8 @@ const ACCOUNT_WORDS: Record<WalletProvider, string> = {
   openrouter: 'OpenRouter account',
 }
 
+const FAMILY_ACCOUNT_WORDS: Readonly<Record<string, string>> = { ...ACCOUNT_WORDS, xai: 'Grok account' }
+
 const DEVICE_CODE_SIGN_INS: ReadonlySet<WalletProvider> = new Set<WalletProvider>(['moonshot', 'huggingface'])
 
 const KIMI_HOST_WORDS: Record<KimiRegion, string> = { global: 'global', 'mainland-cn': 'mainland China' }
@@ -22,6 +25,14 @@ export function isWalletProvider(id: string): id is WalletProvider {
 
 export function accountWordOf(provider: WalletProvider): string {
   return ACCOUNT_WORDS[provider]
+}
+
+export function familyAccountWord(family: string): string | undefined {
+  return Object.prototype.hasOwnProperty.call(FAMILY_ACCOUNT_WORDS, family) ? FAMILY_ACCOUNT_WORDS[family] : undefined
+}
+
+export function accountIdentityShown(): boolean {
+  return getInitialSettings().view?.accountIdentity !== false
 }
 
 export function identityKindOf(entry: { provider: WalletProvider; kind: WalletAuthKind }): IdentityKind {

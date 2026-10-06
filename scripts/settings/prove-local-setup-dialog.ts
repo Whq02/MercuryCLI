@@ -149,7 +149,7 @@ await stub('../../src/services/providers/providerUsage.js', () => ({
   anthropicWindowViews: () => [],
   anthropicPoolWindowViews: () => [],
   openaiObservedWindowViews: () => [],
-  activeSourceUsage: () => ({ tier: 'fixture · no metering' }),
+  activeSourceUsage: () => ({ provider: 'local', sourceKind: 'keyless', label: 'Local models usage', shape: 'none', windows: [], pools: [], spend, tier: 'fixture · no metering' }),
 }))
 await stub('../../src/utils/auth.js', () => ({ isClaudeAISubscriber: () => false }))
 await stub('../../src/utils/model/computedDefault.js', () => ({ recentSignIns: () => ids.map(family => ({ family })) }))

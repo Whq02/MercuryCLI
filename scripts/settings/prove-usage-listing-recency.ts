@@ -91,9 +91,9 @@ section('§3 nothing signed in: every section is absent and catalogue order stan
 section('§4 the shape: one ledger owner, no rank-by-name, both layouts follow the order')
 {
   const tab = readFileSync(join(ROOT, 'src/components/Settings/Usage.tsx'), 'utf8')
-  check('the tab reads the recency through the computed default\'s owner (recentSignIns), never a ledger copy', tab.includes("import { recentSignIns } from '../../utils/model/computedDefault.js'") && !tab.includes('readSignInLedger') && !tab.includes('sign-ins.json'))
+  check('the tab reads the recency through the computed default\'s owner (recentSignIns), never a ledger copy', tab.includes("from '../../utils/model/computedDefault.js'") && tab.includes('recentSignIns') && !tab.includes('readSignInLedger') && !tab.includes('sign-ins.json'))
   check('the first-party-first rank is gone', !tab.includes("section.kind === 'anthropic' ? 0") && !/rank\(a\) - rank\(b\)/.test(tab))
-  check('the listing order is applied once, over the catalogue-ordered plan', tab.includes('orderUsageSections(usageSectionPlan(providerFamilyPresences()), liveSignInRecency())'))
+  check('the listing order is applied once, over the catalogue-ordered plan, with the session lead', tab.includes('orderUsageSections(usageSectionPlan(providerFamilyPresences()), liveSignInRecency(), liveSessionFamily())'))
   check('the stacked layout bands the ordered plan one provider at a time', usageColumns(116, 10).perRow === 1 && tab.includes('bands.push(plan.slice(start, start + perRow))'))
   check('the wide layout bands the same ordered plan three providers at a time', usageColumns(146, 10).perRow === 3 && tab.includes('bands.push(plan.slice(start, start + perRow))'))
   const ledgerSrc = readFileSync(join(ROOT, 'src/utils/accounts/signInLedger.ts'), 'utf8')

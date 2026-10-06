@@ -4,7 +4,7 @@ WORKBENCH               │ transcript row 48 · · · · · · · · · · · �
                         │                                                                                              │
 NEXT                    │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
   · /workflows — agent …│ │ ▖▟▆▙▗ Mercury · usage                                                                    │ │
-  · /health — health ce…│ │ 12 providers · 0 subscriptions signed in                                                 │ │
+  · /health — health ce…│ │ API usage session on · 0 subscriptions signed in                                         │ │
   · /memory — memory    │ │                                                                                          │ │
   · /mission — set a mi…│ │ Anthropic usage                                                                          │ │
                         │ │ API key · …-key                                                                          │ │

@@ -398,6 +398,10 @@
         "reasoning": {
           "type": "boolean"
         },
+        "usageNotice": {
+          "description": "Usage notice to the model — with it on, the model is told when the session's usage window or spending limit is near (80% and 90%); off, the model is told nothing and only you see the meters",
+          "type": "boolean"
+        },
         "agent": {
           "type": "string"
         }
@@ -941,6 +945,10 @@
         },
         "ping": {
           "description": "Ping the terminal once when a chat finishes its turn while you are away (an iTerm2 notification there, the bell elsewhere); on unless set to false",
+          "type": "boolean"
+        },
+        "accountIdentity": {
+          "description": "Account identity on the screens: shown unless set to false; hidden takes every signed-in address, username and key tail off the screens (for a recording) and leaves the account word, while the Logins screen, /accounts and the health report still name the account",
           "type": "boolean"
         }
       },

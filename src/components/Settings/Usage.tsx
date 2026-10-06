@@ -10,8 +10,9 @@ import {
   type Utilization,
 } from '../../services/api/usage.js'
 import { isClaudeAISubscriber } from '../../utils/auth.js'
-import { recentSignIns } from '../../utils/model/computedDefault.js'
-import { renderModelName } from '../../utils/model/model.js'
+import { recentSignIns, mostRecentSignInFamily } from '../../utils/model/computedDefault.js'
+import { renderModelName, getUserSpecifiedModelSetting, parseUserSpecifiedModel } from '../../utils/model/model.js'
+import { declaredRouteOf } from '../../services/providers/callModelRouter.js'
 import type { RouterProviderId } from '../../utils/router/providers/types.js'
 import {
   CREDITS_UNREPORTED_WORDS,
@@ -35,7 +36,7 @@ import {
   type UsageWindowView,
 } from '../../services/providers/providerUsage.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
-import { providerIdentityLine, providerIdentitySentence } from '../../services/providers/providerIdentityLine.js'
+import { providerIdentityLine, providerIdentitySentence, shownIdentityWords } from '../../services/providers/providerIdentityLine.js'
 import { openrouterSlots } from '../../services/providers/accountSlots.js'
 import { jevRoadWords, jevUsdLabel } from '../../services/jev/jevContract.js'
 import { jevCreditsWords } from './Jev.js'
@@ -388,13 +389,25 @@ export interface UsageSection {
   family: ProviderFamilyPresence
 }
 
-export function orderUsageSections(plan: UsageSection[], recency: readonly string[]): UsageSection[] {
+export function orderUsageSections(plan: UsageSection[], recency: readonly string[], sessionFamily?: string): UsageSection[] {
   const rank = new Map<string, number>(recency.map((family, index) => [family, index]))
   const byRecency = (a: UsageSection, b: UsageSection): number =>
     (rank.get(a.id) ?? Number.POSITIVE_INFINITY) - (rank.get(b.id) ?? Number.POSITIVE_INFINITY)
   const signedIn = plan.filter(section => section.family.credentialed).sort(byRecency)
+  const lead = signedIn.findIndex(section => sessionFamily !== undefined && section.id === sessionFamily)
+  if (lead > 0) signedIn.unshift(...signedIn.splice(lead, 1))
   const absent = plan.filter(section => !section.family.credentialed)
   return [...signedIn, ...absent]
+}
+
+function liveSessionFamily(): string | undefined {
+  const setting = getUserSpecifiedModelSetting()
+  if (setting !== null) return declaredRouteOf(parseUserSpecifiedModel(setting)) ?? undefined
+  try {
+    return mostRecentSignInFamily()
+  } catch {
+    return undefined
+  }
 }
 
 function liveSignInRecency(): string[] {
@@ -517,7 +530,7 @@ function OpenrouterUsageSection({ width }: { width?: number }): React.ReactNode 
           <Text dimColor>{absentSlotLine('/logins openrouter mints a scoped key through the OpenRouter OAuth flow')}</Text>
         ) : (
           <Box flexDirection="column">
-            <Text dimColor>{oauth.identity}</Text>
+            <Text dimColor>{shownIdentityWords('openrouter', oauth.identity)}</Text>
             {oauth.stateNote !== undefined ? <Text dimColor>{oauth.stateNote}</Text> : null}
             <SlotSpend active={oauth.active} route="openrouter" spend={spend} withCost />
           </Box>
@@ -526,7 +539,7 @@ function OpenrouterUsageSection({ width }: { width?: number }): React.ReactNode 
       {keys.length === 0 ? <ApiKeySlot isActive={false} route="openrouter" spend={spend} /> : keys.map(key => (
         <Box key={key.id} flexDirection="column" marginTop={1}>
           <SlotHeading text={`${key.kindLabel}${key.active ? ' · active' : ''}`} />
-          <Text dimColor>{key.identity}</Text>
+          <Text dimColor>{shownIdentityWords('openrouter', key.identity)}</Text>
           {key.stateNote !== undefined ? <Text dimColor>{key.stateNote}</Text> : null}
           <SlotSpend active={key.active} route="openrouter" spend={spend} withCost />
         </Box>
@@ -607,7 +620,7 @@ function HuggingfaceUsageSection(): React.ReactNode {
         <SlotHeading text="Sign-in" />
         {account?.kind === 'oauth' ? (
           <Box flexDirection="column">
-            <Text dimColor>{account.label}</Text>
+            <Text dimColor>{shownIdentityWords('huggingface', account.label)}</Text>
             <SlotSpend active route="huggingface" spend={spend} withCost={false} />
           </Box>
         ) : (
@@ -615,7 +628,7 @@ function HuggingfaceUsageSection(): React.ReactNode {
         )}
       </Box>
       <ApiKeySlot
-        presentLabel={account?.kind === 'api-key' ? account.label : undefined}
+        presentLabel={account?.kind === 'api-key' ? shownIdentityWords('huggingface', account.label) : undefined}
         isActive={account?.kind === 'api-key'}
         route="huggingface"
         spend={spend}
@@ -1167,7 +1180,7 @@ function UsageCompact({ openToken, width, rowBudget }: { openToken?: number; wid
   const tokens = useMercuryTokens()
   useCatalogueEpoch()
   useSyncExternalStore(subscribeJevSessionFacts, jevSessionFactsStamp, jevSessionFactsStamp)
-  const plan = orderUsageSections(usageSectionPlan(providerFamilyPresences()), liveSignInRecency())
+  const plan = orderUsageSections(usageSectionPlan(providerFamilyPresences()), liveSignInRecency(), liveSessionFamily())
   const [, setSample] = useState(0)
   const asks = plan.filter(section => section.family.credentialed).map(section => section.id).join('|')
   useEffect(() => {
@@ -1228,7 +1241,7 @@ export function Usage({ openToken, width = 146, rowBudget = 22, compact = false 
 }
 
 function UsageFull({ openToken, width, rowBudget }: { openToken?: number; width: number; rowBudget: number }): React.ReactNode {
-  const plan = orderUsageSections(usageSectionPlan(providerFamilyPresences()), liveSignInRecency())
+  const plan = orderUsageSections(usageSectionPlan(providerFamilyPresences()), liveSignInRecency(), liveSessionFamily())
   const { perRow, colW, meterW, gap } = usageColumns(width, plan.length)
   const bands: UsageSection[][] = []
   for (let start = 0; start < plan.length; start += perRow) bands.push(plan.slice(start, start + perRow))

@@ -187,6 +187,19 @@ const presence = (
       JSON.stringify(refused),
     )
   }
+
+  const thinking = config.thinkingRowApplicability as (model: string, reads?: { locked?: (id: string) => boolean; routeOf?: (id: string) => string | null }) => { applies: boolean; naText?: string; refuseNote?: string }
+  check('RED ON THE BASE: the Thinking row applies on the Anthropic road', thinking('claude-fable-5-1').applies === true)
+  check('RED ON THE BASE: it applies on a GLM id whose thinking the dial moves', thinking('glm-5.2').applies === true)
+  check('RED ON THE BASE: it applies on a DeepSeek id (the compat chat road)', thinking('deepseek-chat').applies === true)
+  check('RED ON THE BASE: it applies on a Kimi id', thinking('kimi-k2').applies === true)
+  check('it applies on a local id', thinking('qwen3.5:9b').applies === true)
+  const locked = thinking('glm-5.3-flash')
+  check('RED ON THE BASE: a thinking-locked GLM reads the lock, not a refusal', locked.applies === false && locked.naText === 'n/a — glm-5.3-flash keeps thinking on' && locked.refuseNote!.includes('locks thinking on'), JSON.stringify(locked))
+  const gpt = thinking('gpt-5.6-sol')
+  check('RED ON THE BASE: a GPT id reads the effort-dial note', gpt.applies === false && gpt.naText === 'n/a — GPT models take the effort dial (gpt-5.6-sol is active)' && gpt.refuseNote!.includes('/effort'), JSON.stringify(gpt))
+  const injected = thinking('glm-5.3', { locked: () => true, routeOf: () => 'zai' })
+  check('the reads stay injectable for a prover', injected.applies === false && injected.naText!.includes('glm-5.3'))
 }
 
 {

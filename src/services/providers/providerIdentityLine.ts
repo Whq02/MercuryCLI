@@ -1,5 +1,6 @@
 import { signInLedgerEpoch } from '../../utils/accounts/signInLedger.js'
 import { credentialEnvNames } from '../../utils/router/providerSecrets.js'
+import { accountIdentityShown, familyAccountWord } from '../wallet/identityWords.js'
 import { catalogueEpoch } from './catalogueEpoch.js'
 import { deriveFamilySlotGroups, type AccountSlot, type AccountSlotReads, type FamilySlotGroup } from './accountSlots.js'
 import { presenceIdentityWords, providerFamilyPresences, type ProviderFamilyPresence } from './providerUsage.js'
@@ -28,19 +29,30 @@ function isKeySlot(slot: AccountSlot): boolean {
 }
 
 export function providerIdentityLineOf(
-  family: Pick<ProviderFamilyPresence, 'credentialed' | 'credentialLabel' | 'identity'>,
+  family: Pick<ProviderFamilyPresence, 'credentialed' | 'credentialLabel' | 'identity'> & { id: string },
   slots: readonly AccountSlot[],
+  shown: boolean = accountIdentityShown(),
 ): ProviderIdentityLine {
   if (!family.credentialed) return { kind: 'none', text: NO_ACCOUNT_WORDS }
   const identity = family.identity?.trim()
-  if (identity !== undefined && identity !== '') return { kind: 'account', text: identity }
+  if (identity !== undefined && identity !== '') {
+    return shown ? { kind: 'account', text: identity } : { kind: 'label', text: familyAccountWord(family.id) ?? 'signed in' }
+  }
   const signedIn = slots.filter(slot => slot.signedIn)
   const active = signedIn.find(slot => slot.active) ?? signedIn[0]
   if (active !== undefined && isKeySlot(active)) {
     const tail = keyTailOf(active)
-    if (tail !== undefined) return { kind: 'label', text: `${doorWordOf(active)} · ${tail}` }
+    if (tail !== undefined) return { kind: 'label', text: shown ? `${doorWordOf(active)} · ${tail}` : doorWordOf(active) }
   }
-  return { kind: 'label', text: presenceIdentityWords(family) ?? active?.identity ?? active?.kindLabel ?? 'signed in' }
+  return { kind: 'label', text: presenceIdentityWords(family, shown) ?? (shown ? active?.identity : undefined) ?? active?.kindLabel ?? 'signed in' }
+}
+
+export function providerDoorAccount(slot: AccountSlot, identity?: string, shown: boolean = accountIdentityShown()): string | undefined {
+  if (!shown) return undefined
+  if (slot.kind !== 'api-key' && identity !== undefined) return identity
+  if (slot.signInEmail !== undefined) return slot.signInEmail
+  if (slot.identity.includes('@')) return slot.identity
+  return keyTailOf(slot)
 }
 
 export function providerIdentitySentence(line: ProviderIdentityLine): string {
@@ -83,4 +95,12 @@ export function providerIdentityLine(family: string, reads?: AccountSlotReads): 
   const group = familyGroups(reads).find(candidate => candidate.family.id === family)
   if (group === undefined) return { kind: 'none', text: NO_ACCOUNT_WORDS }
   return providerIdentityLineOf(group.family, group.slots)
+}
+
+export function shownIdentityWords(family: string, words: string, shown: boolean = accountIdentityShown(), reads?: AccountSlotReads): string {
+  if (shown) return words
+  const bare = words.replace(/\s*…\S+$/, '')
+  const identity = familyGroups(reads).find(candidate => candidate.family.id === family)?.family.identity?.trim()
+  const carries = bare.includes('@') || (identity !== undefined && identity !== '' && bare.includes(identity))
+  return carries ? (familyAccountWord(family) ?? 'signed in') : bare
 }

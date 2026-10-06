@@ -73,13 +73,14 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
     )
     await Promise.all([refreshProviderDiscovery('openai'), refreshProviderDiscovery('zai')])
     const { buildRouterModelSnapshot } = await import('../../utils/router/modelRegistry.js')
+    const { shownIdentityWords } = await import('../../services/providers/providerIdentityLine.js')
     const snapshot = buildRouterModelSnapshot()
     const lines: string[] = ['engines — every provider lane beside the home lane; roster seats stay Anthropic (the ruled crew fence)']
     for (const p of snapshot.providers.filter(x => x.id !== 'anthropic')) {
       const d = p.description
       const models = d.catalogue.map(c => c.id).join(', ') || '—'
       lines.push(
-        `${p.id}: ${p.available ? 'available (credential present)' : p.reason} · ${d.account.label} · ${d.transport} · models: ${models} (${d.catalogueSource})`,
+        `${p.id}: ${p.available ? 'available (credential present)' : p.reason} · ${shownIdentityWords(p.id, d.account.label)} · ${d.transport} · models: ${models} (${d.catalogueSource})`,
       )
     }
     const openaiRow = snapshot.providers.find(x => x.id === 'openai')

@@ -382,7 +382,7 @@ export function mainLoopIdentity(input: MainLoopIdentityInput): MainLoopIdentity
   if (presence === undefined || !presence.credentialed) return notSignedIn()
   const label = presence.credentialLabel ?? 'credential present'
   if (route !== 'anthropic') {
-    const words = presenceIdentityWords(presence) ?? label
+    const words = presenceIdentityWords(presence, true) ?? label
     return route === 'local'
       ? { route, family, text: `${words} · discovered live`, basis: 'discovered-live' }
       : { route, family, text: `${words} · credential present`, basis: 'credential-present' }

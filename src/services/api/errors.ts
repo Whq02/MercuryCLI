@@ -13,6 +13,7 @@ import { jsonStringify } from '../../utils/slowOperations.js'
 import { anthropicCarryWords, classifyAnthropicRefusal } from '../providers/anthropicRefusal.js'
 import { clientContractGateText, modelRefusalFromError, noteModelRefusal, type ModelRefusalRequest } from '../providers/anthropic/modelRefusal.js'
 import { classifyCredentialWall, credentialWallLine, isRevokedSignInText } from '../providers/credentialWall.js'
+import { accountIdentityShown } from '../wallet/identityWords.js'
 import { classifyOverflowFault, type OverflowFamily } from './overflowSignal.js'
 import type { AnthropicLimits, OverageDisabledReason, QuotaStatus } from '../anthropicLimits.js'
 import { getRateLimitErrorMessage } from '../anthropicLimits.js'
@@ -402,7 +403,7 @@ export function getAssistantMessageFromError(
 }
 
 function signInWallAccount(model: string): string | undefined {
-  if (!['anthropic', 'gateway'].includes(routeOfModel(model)) || !isClaudeAISubscriber()) return undefined
+  if (!['anthropic', 'gateway'].includes(routeOfModel(model)) || !isClaudeAISubscriber() || !accountIdentityShown()) return undefined
   try {
     return getOauthAccountInfo()?.emailAddress
   } catch {

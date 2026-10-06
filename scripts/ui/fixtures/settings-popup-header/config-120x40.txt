@@ -2,7 +2,7 @@
 WORKBENCH               │                                                                                              │
   no prompts sent yet   │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
                         │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
-NEXT                    │ │ orchard · 57 settings · 0 set by you                                                     │ │
+NEXT                    │ │ orchard · 59 settings · 0 set by you                                                     │ │
   · /workflows — agent …│ │                                                                                          │ │
   · /health — health ce…│ │ / Search settings…                                                                       │ │
   · /memory — memory    │ │                                                                                          │ │
@@ -12,22 +12,22 @@ FILES · orchard         │ │   Seats                             17 · this 
   ↵ or click · browse   │ │   Tips                              on                                                   │ │
                         │ │   Reduced motion                    off                                                  │ │
 TELEMETRY               │ │   Ping                              on                                                   │ │
-  · spend —             │ │   Motion                            auto · off                                           │ │
-  · ctx — · —           │ │   JEV                               off · official                                       │ │
-  · health — run /health│ │   Instruction profile               auto                                                 │ │
+  · spend —             │ │   Account identity                  shown                                                │ │
+  · ctx — · —           │ │   Motion                            auto · off                                           │ │
+  · health — run /health│ │   JEV                               off · official                                       │ │
+                        │ │   Instruction profile               auto                                                 │ │
                         │ │   Shell engine                      system                                               │ │
                         │ │   Patience with a quiet model       normal · idle 6m (quiet 15m) · fallback 15m · retry  │ │
                         │ │   OpenRouter routing policy         n/a — applies to OpenRouter models (Anthropic is     │ │
                         │ │   Shell engine sessions             8 · the conversation + 7 sub-agents                  │ │
-                        │ │   Thinking mode                     off                                                  │ │
+                        │ │   Thinking                          off                                                  │ │
+                        │ │   Usage notice to the model         off                                                  │ │
                         │ │   Tool output                       compact                                              │ │
                         │ │   Terminal progress bar             on                                                   │ │
                         │ │   Turn duration                     on                                                   │ │
                         │ │   Default permission mode           Default                                              │ │
                         │ │   Pinned memory limit               0 of 8k                                              │ │
-                        │ │   Respect .gitignore in file picker on                                                   │ │
-                        │ │   Always copy full response         off                                                  │ │
-                        │ │ ↓ 36 more                                                                                │ │
+                        │ │ ↓ 38 more                                                                                │ │
                         │ │                                                                                          │ │
                         │ │ ↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes                 │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
