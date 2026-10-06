@@ -327,7 +327,6 @@ section('(7) workbench projection surfaces artifacts + review queue')
     richTasks: new Map(),
     agentMeta: new Map(),
     laneRuns: new Map(),
-    contextLanes: [],
     partySeats: null,
     collab: null,
     workflowsDisk: [],

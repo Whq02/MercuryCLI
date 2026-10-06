@@ -457,12 +457,6 @@ export type Attachment =
       removed: string[]
     }
   | {
-      type: 'lane_boundary'
-      laneId: string
-      goal: string
-      boundary: string
-    }
-  | {
       type: 'bagel_console'
       errorCount: number
       warningCount: number

@@ -26,7 +26,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     label: 'session & context',
     names: [
       'clear', 'compact', 'context', 'resume',
-      'rewind', 'sessions', 'sessiontab', 'concourse', 'branches',
+      'rewind', 'sessions', 'sessiontab', 'concourse',
       'export', 'usage',
       'rename', 'title', 'contract',
       'copy',
@@ -54,7 +54,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     key: 'git',
     label: 'git & review',
     names: [
-      'branch', 'review',
+      'review',
       'audit',
     ],
   },

@@ -783,39 +783,6 @@ export async function probeServiceLifecycle(): Promise<CheckResult> {
   }
 }
 
-export async function probeLaneJourney(): Promise<CheckResult> {
-  const { lanesEnabled } = await import('../services/contextLanes/lanes.js')
-  if (!lanesEnabled()) {
-    return { status: 'off', evidence: 'side lanes disabled (MERCURY_LANES=0)' }
-  }
-  const lanesMod = await import('../services/contextLanes/lanes.js')
-  const ownerMod = await import('../services/run/ownerKey.js')
-  const { disposeOwner } = await import('../services/run/ownerLifecycle.js')
-  const owner = fixtureOwnerKey(ownerMod, 'lane')
-  const childSessionId = `health-lane-child-${process.pid}-${Date.now()}`
-  const lane = lanesMod.createLane({
-    parentSessionId: `health-lane-parent-${process.pid}`,
-    childSessionId,
-    goal: 'health probe side goal',
-  })
-  try {
-    const boundary = lanesMod.laneBoundaryAttachmentFor(childSessionId)
-    if (!boundary || !boundary.boundary.includes('health probe side goal')) {
-      return { status: 'fail', evidence: 'the boundary attachment did not carry the goal' }
-    }
-    lanesMod.returnLane({ lane, answer: 'probe answer', owner })
-    const p1 = lanesMod.promoteHandoff(lane.id)
-    const p2 = lanesMod.promoteHandoff(lane.id)
-    if (!('handoffText' in p1) || !('alreadyPromoted' in p2)) {
-      return { status: 'fail', evidence: 'promotion was not exactly-once' }
-    }
-    return { status: 'ok', evidence: 'boundary → return → promote exactly-once, on a disposable lane' }
-  } finally {
-    lanesMod.dropLane(lane.id)
-    disposeOwner(owner)
-  }
-}
-
 export async function probeAgentEnvelope(): Promise<CheckResult> {
   const { buildAgentResultEnvelope } = await import('../services/agentResults/normalize.js')
   const { observeToolTerminal } = await import('../services/run/effectObserver.js')

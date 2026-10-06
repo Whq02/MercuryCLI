@@ -33,7 +33,6 @@ function baseInputs(): WorkbenchSourceInputs {
     sources: {
       schema: WORKBENCH_SOURCES_SCHEMA,
       artifacts: healthOf(sourceReady(null)),
-      contextLanes: healthOf(sourceReady(null)),
       gitWorktrees: healthOf(sourceReady(null)),
     },
     generation: { treeDigest: 'digest-abc', headSha: 'aaaabbbb', branch: 'main', clean: true },
@@ -118,16 +117,6 @@ function baseInputs(): WorkbenchSourceInputs {
       ],
       ['task-mate', { blocker: 'a question is waiting' }],
     ]),
-    contextLanes: [
-      {
-        id: 'lane-abc',
-        goal: 'explore the flaky test',
-        status: 'returned',
-        childSessionId: 'sess-child',
-        handoffPromoted: false,
-        handoffReturnedAt: now - 60_000,
-      },
-    ],
     workflowsDisk: [{ runId: 'wf-9', status: 'running', agentCount: 3 }],
     crew: null,
     artifacts: [],
@@ -158,12 +147,10 @@ section('(1) pure derivation — one root + three live children, owner-true rows
   check('no seat threads derive post-room (ratchet)', snap.threads.every(t => t.kind !== 'seat'))
   const sources = snap.lanes.map(l => l.source).sort()
   check(
-    'two live lane sources derived',
-    JSON.stringify(sources) === JSON.stringify(['agent-worktree', 'context-lane']),
+    'the live lane source derives',
+    JSON.stringify(sources) === JSON.stringify(['agent-worktree']),
     JSON.stringify(sources),
   )
-  const ctxLane = snap.lanes.find(l => l.source === 'context-lane')
-  check('returned-unpromoted context lane reads handoff-ready', ctxLane?.handoffReady === true)
   check('missions stay empty post-room (ratchet)', snap.missions.length === 0)
   check('generation carries the tree digest', snap.generation.treeDigest === 'digest-abc')
   check('S2 surfaces present and empty', snap.artifactHeads.length === 0 && snap.reviewQueue.length === 0)
@@ -173,29 +160,21 @@ section('(2) the next-action ladder')
 {
   const inputs = baseInputs()
   const snap = composeWorkbenchSnapshot(inputs, null)
-  check('blocked thread outranks handoff', snap.nextAction?.startsWith('answer crewmate bob') === true, snap.nextAction ?? 'null')
+  check('blocked thread outranks the kernel', snap.nextAction?.startsWith('answer crewmate bob') === true, snap.nextAction ?? 'null')
 
   const noBlock = baseInputs()
   noBlock.laneRuns.delete('task-mate')
   const snap2 = composeWorkbenchSnapshot(noBlock, null)
-  check('handoff-ready lane next', snap2.nextAction?.startsWith('adopt lane lane-abc') === true, snap2.nextAction ?? 'null')
-
-  const noLane = baseInputs()
-  noLane.laneRuns.delete('task-mate')
-  noLane.contextLanes = []
-  const snap3 = composeWorkbenchSnapshot(noLane, null)
-  check('falls through to the run-kernel nextAction', snap3.nextAction === 'run the focused prover', snap3.nextAction ?? 'null')
+  check('falls through to the run-kernel nextAction', snap2.nextAction === 'run the focused prover', snap2.nextAction ?? 'null')
 
   const failed = baseInputs()
   failed.laneRuns.delete('task-mate')
-  failed.contextLanes = []
   failed.executions[0]!.state = 'failed'
   const snap4 = composeWorkbenchSnapshot(failed, null)
   check('failed thread inspection next', snap4.nextAction?.startsWith('inspect failure') === true, snap4.nextAction ?? 'null')
 
   const quiet = baseInputs()
   quiet.laneRuns.delete('task-mate')
-  quiet.contextLanes = []
   quiet.mainRun = { objective: 'x', lifecycle: 'active', phase: 'idle' }
   const snap5 = composeWorkbenchSnapshot(quiet, null)
   check('quiet workbench has null next action', snap5.nextAction === null, String(snap5.nextAction))

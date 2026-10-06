@@ -3832,23 +3832,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             }
           },
         },
-        {
-          id: 'lanes-fast',
-          label: 'Side lanes',
-          run: async () => {
-            const { lanesEnabled, listLanes } = await import('../services/contextLanes/lanes.js')
-            if (!lanesEnabled()) {
-              return { status: 'off' as const, evidence: 'MERCURY_LANES=0' }
-            }
-            const lanes = listLanes()
-            const active = lanes.filter(l => l.status === 'active')
-            const unpromoted = lanes.filter(l => l.handoff && !l.handoff.promoted)
-            return {
-              status: 'ok' as const,
-              evidence: `${lanes.length} lane(s) · ${active.length} active${unpromoted.length > 0 ? ` · ${unpromoted.length} handoff(s) awaiting /branch promote` : ''}`,
-            }
-          },
-        },
       ],
     },
     {
@@ -4353,14 +4336,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             probe: 'functional',
             timeoutMs: 25_000,
             run: () => probes.probeServiceLifecycle(),
-          },
-          {
-            id: 'lane-journey',
-            label: 'Side lanes',
-            depth: 'deep',
-            probe: 'functional',
-            timeoutMs: 15_000,
-            run: () => probes.probeLaneJourney(),
           },
           {
             id: 'agent-envelope',
