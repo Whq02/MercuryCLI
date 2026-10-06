@@ -5,11 +5,10 @@ import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
-import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { type AvailableCaptureDriver, captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const REPO = path.resolve(import.meta.dir, '../..')
 const DIST = path.join(REPO, 'dist/mercury.mjs')
-const VSHOT = path.join(REPO, 'scripts/ui/vshot.py')
 const FIXTURE = path.join(import.meta.dir, 'turn-end-fixture-server.ts')
 const BUN = process.env.BUN ?? path.join(process.env.HOME ?? '', '.bun/bin/bun')
 
@@ -236,7 +235,7 @@ const clockOf = (iso: string): string => {
   return `${two(d.getHours())}:${two(d.getMinutes())}:${two(d.getSeconds())}`
 }
 
-async function driveScene(route: 'openai' | 'anthropic'): Promise<void> {
+async function driveScene(route: 'openai' | 'anthropic', driver: AvailableCaptureDriver): Promise<void> {
   const RUN_HOME = path.join(realpathSync(tmpdir()), `mercury-interrupt-tail-${route}-${process.pid}`)
   const FIXTURE_CWD = path.join(RUN_HOME, 'fixture-repo')
   const PROBE_KEY = 'sk-ant-tail-probe-key'
@@ -325,7 +324,7 @@ async function driveScene(route: 'openai' | 'anthropic'): Promise<void> {
   delete childEnv.NODE_ENV
   delete childEnv.ANTHROPIC_AUTH_TOKEN
 
-  const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
+  const res = spawnSync(driver.python, [captureEngineEntry(driver, REPO), cfgPath], {
     encoding: 'utf-8',
     timeout: vshotBudgetMs(150_000),
     cwd: FIXTURE_CWD,
@@ -441,8 +440,13 @@ if (wants('openai') || wants('anthropic')) {
     console.log('FAIL dist/mercury.mjs missing — run `bun run build.ts` first (the drive proves the BUILT binary)')
     process.exit(1)
   }
-  if (wants('openai')) await driveScene('openai')
-  if (wants('anthropic')) await driveScene('anthropic')
+  const driver = resolveCaptureDriver()
+  if (driver.kind === 'unavailable') {
+    console.log(`FAIL no capture driver: ${driver.reason} — ${driver.remedy}`)
+    process.exit(1)
+  }
+  if (wants('openai')) await driveScene('openai', driver)
+  if (wants('anthropic')) await driveScene('anthropic', driver)
 }
 console.log(`\n ${checks} checks, ${failures} failures`)
 process.exit(failures === 0 ? 0 : 1)
