@@ -3004,13 +3004,15 @@ function scenarioInner(name: string, cols: number, rows: number) {
   if (name === 'sessions-manager' || name === 'resume-full-history') {
     writeSyntheticSession('tools')
     writeSyntheticSession('short', SID_ERRORED)
+    const full = name === 'resume-full-history'
     return {
       argv: ['node', BIN, '--resume', SID],
       sends: [
         { atTick: 30, data: '/sessions' },
         { atTick: 36, data: '\r' },
+        ...(full ? [{ atTick: 46, data: 'a' }] : []),
       ],
-      readyText: 'Full history',
+      readyText: full ? 'Full history' : 'Switch to',
       stableTicks: 4,
       total: 64, cols, rows,
     }
