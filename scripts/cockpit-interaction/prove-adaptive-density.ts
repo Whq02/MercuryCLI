@@ -234,11 +234,12 @@ t.section('§4 — REAL BINARY: the named boundaries, both directions, one boot'
       `${stages.length} of ${WIDTHS.length}`,
     )
 
+    const cockpitOpen = (lines: string[]): boolean => /\blanes\b/.test(lines[0] ?? '') && (lines[0] ?? '').includes('╭')
     const hex = (h: string): string => h.replace('#', '').toLowerCase()
     const octopusHues = new Set([hex(critterDefForKey('octopus').hue), hex(critterDefForKey('octopus').hueDeep)])
     const crabHues = new Set([hex(critterDefForKey('crab').hue), hex(critterDefForKey('crab').hueDeep)])
     const boxSprite = (grid: Cell[][], lines: string[]): { octopus: number; crab: number; cells: number } => {
-      const header = lines.findIndex(l => l.includes('✶ VIEW'))
+      const header = cockpitOpen(lines) ? 0 : -1
       const tally = { octopus: 0, crab: 0, cells: 0 }
       if (header < 0) return tally
       const left = (lines[header + 1] ?? '').indexOf('╭')
@@ -277,7 +278,7 @@ t.section('§4 — REAL BINARY: the named boundaries, both directions, one boot'
       const lines = stage.grid.map(row => row.map(c => c.c).join(''))
       const text = lines.join('\n')
       const label = `${stage.cols}x${stage.rows}`
-      const compactTier = !lines.some(l => l.includes('✶ VIEW'))
+      const compactTier = !cockpitOpen(lines)
       t.check(
         `${label}: not a blank or half-painted frame`,
         lines.filter(l => l.trim().length > 0).length >= 8,

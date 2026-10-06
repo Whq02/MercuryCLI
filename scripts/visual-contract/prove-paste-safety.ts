@@ -103,7 +103,7 @@ t.section('§1 — composer echo: a control-sequence paste renders printables on
   )
   t.check(
     'the frame survived the paste (the 2J inside the paste never executed)',
-    r.lines.some(l => l.includes('✶ VIEW')) && r.lines.some(l => l.includes('↵ sends')),
+    r.lines.some(l => /\blanes\b[^\n]*╭/.test(l)) && r.lines.some(l => l.includes('↵ sends')),
     'chrome rows present',
   )
   t.check('tee captured child output', r.tee.length > 0, `${r.tee.length} bytes`)
@@ -191,16 +191,16 @@ t.section('§2 — resumed history: persisted control bytes replay inert')
     all.includes('REPLYD4') && all.includes('REPLYE5'),
     r.lines.find(l => l.includes('REPLYD4'))?.trim() ?? '(reply line missing)',
   )
-  const header = r.lines.find(l => l.includes('✶ VIEW')) ?? ''
+  const remains = r.lines.filter(l => l.includes(']0;PWNED-HIST') || l.includes('[2J') || l.includes('[31m'))
   t.check(
-    "the VIEW header's session title strips whole control sequences, as the user line does (never the sequences' printable remains)",
-    header.includes('HISTA1HISTB2HISTC3') && !header.includes(']0;PWNED-HIST') && !header.includes('[2J') && !header.includes('[31m'),
-    header.trim() || '(header missing)',
+    "no row of the frame carries the sequences' printable remains (the chat paints no title row; the user line strips whole sequences)",
+    remains.length === 0 && !r.lines.some(l => l.includes('✶ VIEW')),
+    remains[0]?.trim() ?? '',
   )
   t.check(
     'the frame survived the replay (history 2J never executed)',
-    r.lines.some(l => l.includes('✶ VIEW')) && r.lines.some(l => l.includes('? for shortcuts')),
-    '✶ VIEW header + shortcuts footer present after replay',
+    r.lines.some(l => /\blanes\b[^\n]*╭/.test(l)) && r.lines.some(l => l.includes('? for shortcuts')),
+    'the lanes label + pane border and the shortcuts footer present after replay',
   )
   t.check(
     'the historical OSC title is never written to the terminal',

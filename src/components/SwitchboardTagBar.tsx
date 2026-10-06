@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useSyncExternalStore } from 'react'
-import { UNNAMED_SESSION_WORD } from '../services/concourse/sessionNaming.js'
 import { Box, Text } from '../ink.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
@@ -17,7 +16,7 @@ import { requestWaitLine } from '../services/providers/streamIdleBudget.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { stringWidth } from '../ink/stringWidth.js'
 import { truncateKeepingTail } from '../utils/truncate.js'
-import { GLYPH, branchChip, branchChipWidth } from './mercury-ui/glyphs.js'
+import { GLYPH, branchChip } from './mercury-ui/glyphs.js'
 import { keyHintLabel } from './mercury-ui/keyHintLabel.js'
 import { useNowTick } from './mercury-ui/components.js'
 import { focusedWorkflowRows, useFocusedSamples, useFocusedWorkRows } from './tasks/useFocusedWork.js'
@@ -27,6 +26,9 @@ import { getSettingsSnapshot, settingsRevision } from '../utils/settings/snapsho
 import { AttachedAttributionContext } from './messages/TranscriptNameplate.js'
 import { useCoordinatorAttribution } from './concourse/workerTranscriptFold.js'
 import { useDisplayedSessionModel, useFocusedBornEffort, useFocusedSentEffort, useFocusedServedEffort } from '../hooks/useDisplayedSessionModel.js'
+import { useFocusedWorkspaceBranch } from '../hooks/useFocusedWorkspaceBranch.js'
+import { useCrewmateModel } from './tasks/useCrewmateModel.js'
+import { renderModelChip } from '../utils/model/model.js'
 import { focusedEffortLabelOf } from './mercury-ui/EffortChip.js'
 import { modelSupportsEffort } from '../utils/effort.js'
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
@@ -80,11 +82,54 @@ export function statusRowReceipt(): string {
   return receiptText ?? ''
 }
 
-export function restingStatusWords(modelLabel: string, effortLabel: string | null): string {
+export function modelStatusWords(modelLabel: string, effortLabel: string | null): string {
   const model = modelLabel.trim()
-  if (model === '') return 'ready'
+  if (model === '') return ''
   const effort = effortLabel === null ? '' : effortLabel.trim()
-  return effort === '' ? `ready · ${model}` : `ready · ${model} · ${effort}`
+  return effort === '' ? model : `${model} · ${effort}`
+}
+
+export function restingStatusWords(modelLabel: string, effortLabel: string | null): string {
+  const words = modelStatusWords(modelLabel, effortLabel)
+  return words === '' ? 'ready' : `ready · ${words}`
+}
+
+export const STATUS_ROW_MIN_WORDS = 24
+export const STATUS_ROW_WORDS_FLOOR = 12
+
+export type StatusRowPlanV1 = { rest: string; right: string; folderShown: boolean; branchShown: boolean; fixedWidth: number }
+
+export function statusRowPlan(input: {
+  columns: number
+  head: string
+  rest: string
+  samples: readonly SampleRowV1[]
+  folder: string
+  branch: string | null
+  backHint: string
+}): StatusRowPlanV1 {
+  const { columns, head, rest, samples, folder, branch, backHint } = input
+  const rightWords = (folderShown: boolean, branchShown: boolean): string => {
+    const chip = branchShown && branch !== null ? branchChip(branch) : ''
+    const name = folderShown ? folder : ''
+    return name !== '' && chip !== '' ? `${name} ${chip}` : name !== '' ? name : chip
+  }
+  const spoken = withSampleWords(rest, samples)
+  const clause = rest.includes(' — ') ? rest.slice(rest.lastIndexOf(' — ')) : ''
+  const restFloor = spoken === '' ? 0 : Math.min(stringWidth(spoken), Math.max(STATUS_ROW_MIN_WORDS, stringWidth(clause) + 1))
+  const fixed = (right: string): number => 1 + stringWidth(head) + (restFloor > 0 && head !== '' ? 3 : 0) + (right !== '' ? 1 + stringWidth(right) + 1 : 0) + 2 + stringWidth(backHint)
+  const shapes: Array<[boolean, boolean]> = [[true, true], [false, true], [false, false]]
+  let chosen: [boolean, boolean] = [false, false]
+  for (const shape of shapes) {
+    if (fixed(rightWords(shape[0], shape[1])) + restFloor <= columns) {
+      chosen = shape
+      break
+    }
+  }
+  const right = rightWords(chosen[0], chosen[1])
+  const fixedWidth = fixed(right)
+  const fitted = columns - fixedWidth < STATUS_ROW_WORDS_FLOOR ? '' : fitStatusWords(rest, samples, columns, fixedWidth)
+  return { rest: fitted, right, folderShown: chosen[0] && right !== '', branchShown: chosen[1] && branch !== null && right !== '', fixedWidth }
 }
 
 export function statusRowWarns(live: SessionLiveV1, s: Pick<SeatStatusV1, 'interrupting' | 'hardStopping' | 'wait' | 'stuck'>): boolean {
@@ -93,12 +138,6 @@ export function statusRowWarns(live: SessionLiveV1, s: Pick<SeatStatusV1, 'inter
 export function statusDuration(ms: number): string {
   if (ms < 60_000) return `${Math.floor(ms / 1000)}s`
   return `${Math.floor(ms / 60_000)}m`
-}
-
-export function seatDisplayTitle(status: Pick<SeatStatusV1, 'title' | 'projectLabel'>): string {
-  const stageOneTail = ` · ${status.projectLabel} · ready`
-  const title = status.title.endsWith(stageOneTail) ? status.title.slice(0, -stageOneTail.length) : status.title
-  return title.trim() === '' ? UNNAMED_SESSION_WORD : title
 }
 
 export type CrewClockV1 = {
@@ -246,6 +285,8 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const receipt = useSyncExternalStore(subscribeStatusRowReceipt, statusRowReceipt, statusRowReceipt)
   const crewmate = useViewedCrewmate()
   const composerCrewmate = useComposerCrewmate()
+  const crewmateModel = useCrewmateModel(crewmate)
+  const { folder, branch } = useFocusedWorkspaceBranch()
   const c = getFocusedSessionConnector()
   const painting = hasSeatLive(c)
   useEffect(() => {
@@ -258,56 +299,50 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   if (!painting) return null
   const status: SeatStatusV1 = c.status()
   const line = composerCrewmate !== null ? crewmateStatusWords(crewmate, composerCrewmate, composerCrewmate.running) : statusLine(live, status, crew)
-  const worktree = status.isolation === 'worktree-isolated' && status.branchLabel !== undefined ? status.branchLabel : null
   const backHint =
     crewmate !== null && !crewmate.pinned
       ? `${crewmateStatusRightHint(false, crewmateLive(crewmate))} · ${keyHintLabel('⇧← back')}`
       : escBackHint(live, status, shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false)
   const effortLabel = modelSupportsEffort(effectiveModel) ? focusedEffortLabelOf(effectiveModel, seatEffort, sentEffort, effortValue, bornEffort, false) : null
-  const resting = line === 'ready' ? restingStatusWords(modelName, effortLabel) : null
+  const shownModel = crewmate !== null && crewmateModel !== null ? (crewmateModel.model === null ? 'model unreported' : renderModelChip(crewmateModel.model)) : modelName
+  const shownEffort = crewmate !== null && crewmateModel !== null ? crewmateModel.effort : effortLabel
+  const modelWords = modelStatusWords(shownModel, shownEffort)
   const held = receipt !== '' && !statusRowWarns(live, status) ? receipt : null
-  const words = held ?? resting
-  const spoken = withSampleWords(words ?? line, samples)
-  const fixedWidth =
-    (words !== null ? 1 : 1 + stringWidth(status.projectLabel) + (spoken !== '' ? 3 : 0)) +
-    (worktree !== null ? stringWidth(' · ') + branchChipWidth(worktree) : 0) +
-    2 +
-    stringWidth(backHint)
-  const fitted = fitStatusWords(words ?? line, samples, columns, fixedWidth)
+  const resting = held === null && line === 'ready'
+  const head = resting ? restingStatusWords(shownModel, shownEffort) : modelWords
+  const rest = held ?? (resting ? '' : line)
+  const plan = statusRowPlan({ columns, head, rest, samples, folder, branch, backHint })
+  const fitted = plan.rest
   return (
     <Box height={1} flexShrink={0} overflow="hidden" flexDirection="row">
       {
 }
       <Text wrap="truncate-end">
-        {words !== null ? (
-          held !== null ? (
-            <Text color={t.textMuted}> {fitted}</Text>
-          ) : (
-            <Text>
-              <Text color={t.textInstruction}> ready</Text>
-              <Text color={t.textMuted}>{fitted.slice('ready'.length)}</Text>
-            </Text>
-          )
-        ) : (
+        {resting ? (
           <Text>
-            <Text color={t.textMuted}> {status.projectLabel}</Text>
-            {fitted !== '' ? (
-              <Text>
-                <Text color={t.textMuted}> · </Text>
-                <Text color={t.textInstruction}>{fitted}</Text>
-              </Text>
-            ) : null}
+            <Text color={t.textInstruction}> ready</Text>
+            <Text color={t.textMuted}>{head.slice('ready'.length)}</Text>
           </Text>
+        ) : (
+          <Text color={t.textMuted}> {head}</Text>
         )}
-        {worktree !== null ? (
+        {fitted !== '' ? (
           <Text>
-            <Text color={t.textMuted}> · </Text>
-            <Text color={t.info}>{branchChip('')}</Text>
-            <Text color={t.infoText}>{worktree}</Text>
+            {head !== '' ? <Text color={t.textMuted}> · </Text> : null}
+            <Text color={held !== null || resting ? t.textMuted : t.textInstruction}>{fitted}</Text>
           </Text>
         ) : null}
       </Text>
       <Box flexGrow={1} />
+      {plan.right !== '' ? (
+        <Box flexShrink={0}>
+          <Text>
+            {plan.folderShown ? <Text color={t.textMuted}> {folder}</Text> : null}
+            {plan.branchShown && branch !== null ? <Text color={t.textSecondary}> {branchChip(branch)}</Text> : null}
+            <Text> </Text>
+          </Text>
+        </Box>
+      ) : null}
       <Box flexShrink={0}>
         <InteractiveRow id="switchboard:status:back" directActivate hoverStyle="chrome-ink" onActivate={() => enterConcourse()}>
           {hover => (

@@ -177,8 +177,8 @@ session yourself — a typed name outranks and outlives the mint — and a
 bare `/title` asks the model again, an explicit spend; `r` on a board row
 renames it there. The worker id is a fact of the detail column and never a
 session's title, in any world. `/rename <words>` names the session from the
-chat. In the cockpit the name stays on the `✶ VIEW` header and the composer
-keeps its rounded box.
+chat. The name lives in the terminal's title, on the concourse and in
+`/sessions`; the chat itself paints no title row.
 
 ## The focused chat
 
@@ -249,7 +249,7 @@ attached file's image, that image leaves every later request of the
 session, a resumed one included, on the OpenAI route as on the Anthropic
 one.
 
-The session box under the `✶ VIEW` header holds the critter and, while
+The session box at the top of the view holds the critter and, while
 a turn runs, the working row in its own capsule beside it: a slim box of
 five rows, the sprite at its left and the capsule to its right, the capsule
 taking the rest of the box's width. The sprite sits level with the
@@ -257,25 +257,24 @@ capsule's middle however tall the capsule grows (the lower of the two
 middle rows when the capsule has an even number of rows): a status that
 stacks or wraps onto more lines lengthens the capsule downwards and the
 sprite follows its middle. The same small sprite is the critter everywhere
-it appears — the box, the SESSIONS bar's glyph, the compact layout's band,
-the header above the chat outside the cockpit — and a click on it, or
-`/critter`, chooses the creature.
+it appears — the box, the compact layout's band, the header above the chat
+outside the cockpit — and a click on it, or `/critter`, chooses the
+creature. The view runs from the top of the screen down to the status row
+above the composer; the rails beside it run the same height.
 
-The SESSIONS bar along the bottom of the chat — the session tabs, the
-critter's glyph, the model and its effort, the folder and branch, the
-context mark — is off unless you turn it on, so a tall window gives the
-chat its rows. `/view on` shows it and `/view off` hides it, a click on
-`✶ VIEW` flips it the same way, and `/view` alone says which it is; the
-choice is kept in the settings store (`view.sessionsBar`) across resizes,
-layouts and boots.
-
-The status row above the composer rests on `ready · <model> · <effort>` —
-the session's model and the effort word its chip paints — while the session
-is idle with no crew. Otherwise it carries the project and the CREW's
-clock — the sub-agents and workflow agents the session's runner hosts —
-past tense, by kind: "agents thought for 28m", "workflow thought for 12m",
-both when both stand (the larger first). The row wears no glyph, and the
-session's name paints on the title row alone. The main agent is narrated
+The status row above the composer keeps the session's model and the
+effort word its chip paints in every state: it rests on
+`ready · <model> · <effort>` while the session is idle with no crew, and
+otherwise reads `<model> · <effort>` followed by what the session is doing
+— the wait on agents, a request wait, a held receipt, a warning, or the
+CREW's clock — the sub-agents and workflow agents the session's runner
+hosts — past tense, by kind: "agents thought for 28m", "workflow thought
+for 12m", both when both stand (the larger first). At its right end, before
+the way back, the row names the folder and the branch the session works on
+(`mercury ⌥ main`; the folder alone where there is no branch). When the
+row is too narrow for everything, the state words shorten first, then the
+folder leaves, then the branch — the model and its effort stay. The row
+wears no glyph and paints no session name. The main agent is narrated
 once, by the transcript's thinking row and the card under the critter, and
 never repeated here; a session with no crew paints no clock while its main
 agent works. A `/effort` pick's receipt — the daemon's own sentence — stands
@@ -322,8 +321,7 @@ minutes, the row names what it saw from seven and a half: "no stream events
 for 8m — the session may be stuck (the watchdog aborts at 15m)". Every
 wait, warning and reissue line spells a minute or more in minutes ("within
 2m", "within 2m of dispatch") and anything shorter in seconds. A
-running tool is never called stuck. The chat pane's title row reads
-"SESSION" on the left and the session's name on the right — no clock: every
+running tool is never called stuck. The chat pane carries no clock: every
 row of the chat carries its own timestamp, and a clock that ticks is a
 repaint a second on an idle screen.
 

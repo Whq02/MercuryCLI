@@ -36,8 +36,8 @@ const has = (f: Frame, needle: string | RegExp): boolean =>
   f.rows.some(r => (typeof needle === 'string' ? r.includes(needle) : needle.test(r)))
 const viewOf = (f: Frame): string | undefined => {
   for (const r of f.rows) {
-    const m = /VIEW · ([a-z]+ probe) · viewing/.exec(r)
-    if (m) return m[1]
+    const m = /↵ sends to ([a-z]+) probe/.exec(r)
+    if (m) return `${m[1]} probe`
   }
   return undefined
 }
@@ -122,9 +122,9 @@ t.section("§2 words typed at main while a crewmate runs are the session's own t
       '2000:\\r',
       '6000:spawn the probe\\r',
       `after:poise pro… · running:800:${sgrClick(10, FIRST_CHILD_ROW)}`,
-      `after:poise probe · viewing:1500:${sgrClick(10, LEAD_ROW)}`,
-      'after:poise probe · viewing:3500:steer the count gently',
-      'after:poise probe · viewing:5000:\\r',
+      `after:x stop · p pause:1500:${sgrClick(10, LEAD_ROW)}`,
+      'after:x stop · p pause:3500:steer the count gently',
+      'after:x stop · p pause:5000:\\r',
     ],
     seconds: 24,
     cols: 120,
@@ -148,7 +148,7 @@ t.section("§2 words typed at main while a crewmate runs are the session's own t
     const childRunning = (f: Frame): boolean => f.rows.some(r => r.includes('poise pro') && r.includes('running'))
     const iView = timed.findIndex(f => viewOf(f) === 'poise probe' && has(f, 'sends to poise probe'))
     t.check(
-      "one click on the running crewmate's CREW row opens it in the view (the header names it viewing, ↵ addresses it)",
+      "one click on the running crewmate's CREW row opens it in the view (the composer addresses it, ↵ sends to it)",
       iView >= 0,
       iView >= 0 ? `frame @${timed[iView]!.atMs}` : 'no view frame in the series',
     )
@@ -243,9 +243,9 @@ t.section('§3 one composer, one draft: the draft rides the view swap into eithe
       '6000:spawn both probes\\r',
       'after:beta probe · running:1000:draft-main-text',
       `after:beta probe · running:3000:${sgrClick(10, FIRST_CHILD_ROW)}`,
-      `after:alpha probe · viewing:1500:${sgrClick(10, LEAD_ROW)}`,
-      `after:beta probe · viewing:1500:${sgrClick(10, LEAD_ROW)}`,
-      `after:probe · viewing:4000:${sgrClick(10, SECOND_CHILD_ROW)}`,
+      `after:sends to alpha:1500:${sgrClick(10, LEAD_ROW)}`,
+      `after:sends to beta:1500:${sgrClick(10, LEAD_ROW)}`,
+      `after:sends to beta:4000:${sgrClick(10, SECOND_CHILD_ROW)}`,
     ],
     seconds: 26,
     cols: 120,

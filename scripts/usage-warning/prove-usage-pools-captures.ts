@@ -256,7 +256,7 @@ console.log('============================================================')
   const closed = marks.closed ?? ''
   const openRows = open.split('\n')
   const titleRow = (rows: string[]): number => rows.findIndex(l => l.includes('Mercury · usage'))
-  check('the panel stood under the cockpit: its title row below row 5, the session box title above it', titleRow(openRows) > 5 && openRows.slice(0, 5).some(l => l.includes('✶ VIEW')), `title at row ${titleRow(openRows)}`)
+  check('the panel stood under the cockpit: its title row below row 5, the pane\'s top border and the lanes label above it', titleRow(openRows) > 5 && openRows.slice(0, 5).some(l => /\blanes\b[^\n]*╭/.test(l)), `title at row ${titleRow(openRows)}`)
   check('the click on the cockpit above the panel closed it: the title and the meters are gone, the hints are back', titleRow(closed.split('\n')) === -1 && !closed.includes('Current week (Opus)') && closed.includes('? for shortcuts'), closed.split('\n').filter(l => l.includes('usage') || l.includes('Current week')).join(' | ') || '(no such rows)')
 }
 

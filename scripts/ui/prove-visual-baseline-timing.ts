@@ -113,7 +113,7 @@ if (typeof stands === 'function') {
 section('§5 whole-frame drive comparisons use the stored masks')
 const critterDrive = readFileSync(join(import.meta.dir, '../critters/prove-critter-mini-drive.ts'), 'utf8')
 check('the critter drive compares compacted captures through the default masks', /firstDivergence\(compact\(a\), compact\(b\), DEFAULT_MASKS\)/.test(critterDrive))
-check('the sprite cell checks remain exact', critterDrive.includes('!sameCell(boot[3 + r]'))
+check('the sprite cell checks remain exact (the sprite from the pane\'s first interior row, under its top border)', critterDrive.includes('!sameCell(boot[2 + r]'))
 
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '  ALL PASS' : `  ${failures} FAILURE(S)`)

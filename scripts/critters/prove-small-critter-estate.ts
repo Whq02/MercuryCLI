@@ -30,9 +30,9 @@ t.check('the turn-signal seam is the sleep reader\'s one source, named for what 
 t.section('§2 — the big critter is gone: no size setting, no hero art reader, one small sprite')
 t.check('no src file reads critterSize or HERO_ART', readersOf(/critterSize|HERO_ART/).length === 0, readersOf(/critterSize|HERO_ART/).join(', '))
 const types = read('src/utils/settings/types.ts')
-t.check('the settings schema declares view.sessionsBar and no critterSize', /view: z\.object\(\{[\s\S]{0,600}sessionsBar: z\.boolean\(\)/.test(types) && !types.includes('critterSize'))
+t.check('the settings schema declares no sessionsBar and no critterSize', !types.includes('sessionsBar') && !types.includes('critterSize'))
 const schema = JSON.parse(read('scripts/settings/settings-schema.json')) as { properties?: Record<string, { properties?: Record<string, unknown> }> }
-t.check('the generated settings schema carries view.sessionsBar and no critterSize', schema.properties !== undefined && 'sessionsBar' in (schema.properties['view']?.properties ?? {}) && !('critterSize' in schema.properties) && !('critterSize' in (schema.properties['view']?.properties ?? {})))
+t.check('the generated settings schema carries neither sessionsBar nor critterSize', schema.properties !== undefined && !('sessionsBar' in (schema.properties['view']?.properties ?? {})) && !('critterSize' in schema.properties) && !('critterSize' in (schema.properties['view']?.properties ?? {})))
 const cd = await import('../../src/utils/cockpit/critterData.ts')
 for (const def of cd.CRITTERS) {
   const record = def as unknown as Record<string, unknown>
@@ -43,23 +43,18 @@ t.check('critterData exports no accessor for the deleted grids', !('squareArtFor
 t.check('the two painters read the dock grid as the square form\'s base', read('src/components/mercury-ui/CritterArt.tsx').includes('pose ? pose.art : usingSquare ? def.squareDock : def.art') && read('src/components/mercury-ui/AnimatedCritterArt.tsx').includes("const gazeGrid = form === 'square' ? def.squareDock : null"))
 t.check('no mount binds another grid over the def\'s square field', readersOf(/square:\s*squareDockArtFor|square:\s*squareArtFor/).length === 0, readersOf(/square:\s*squareDockArtFor|square:\s*squareArtFor/).join(', '))
 
-t.section('§3 — the command table: /view and /critter stand, /companion does not')
+t.section('§3 — the command table: /critter stands, /view and /companion do not')
 const { builtinCommands, builtInCommandNames } = await import('../../src/commands.ts')
 const names = builtInCommandNames()
-t.check('/view is a built-in command', names.has('view'))
+t.check('/view is no built-in command or alias', !names.has('view') && builtinCommands().every(c => !(c.aliases ?? []).includes('view')))
 t.check('/critter is a built-in command', names.has('critter'))
 t.check('/companion is no built-in command or alias', !names.has('companion'))
-const view = builtinCommands().find(c => c.name === 'view')
-t.check('/view takes on|off and sits at the screen seat', view !== undefined && view.type === 'local' && view.argumentHint === '[on|off]' && (view as { seat?: string }).seat === 'screen', JSON.stringify(view && { type: view.type, hint: view.argumentHint }))
 const critter = builtinCommands().find(c => c.name === 'critter')
 t.check('/critter opens a surface (local-jsx) with no arguments', critter !== undefined && critter.type === 'local-jsx' && critter.argumentHint === undefined)
 
-t.section('§4 — the SESSIONS bar has one switch, read by the tabs and the title\'s click')
-const bar = read('src/utils/cockpit/sessionsBar.ts')
-t.check('the bar owner exposes isSessionsBarOn, setSessionsBar and subscribeSessionsBar', bar.includes('export function isSessionsBarOn') && bar.includes('export function setSessionsBar') && bar.includes('export function subscribeSessionsBar'))
-t.check('the VIEW title\'s click toggles the same switch', /setSessionsBar\(!isSessionsBarOn\(\)\)/.test(read('src/components/HelmCenterHeader.tsx')))
-t.check('the command writes the same switch', /setSessionsBar\(/.test(read('src/commands/view/view.ts')))
-t.check('the tabs read the switch and no size setting', /useSessionsBar\(\)/.test(read('src/components/mercury-ui/SessionTabs.tsx')) && !/critterSize/.test(read('src/components/mercury-ui/SessionTabs.tsx')))
+t.section('§4 — the SESSIONS bar is gone: no switch, no strip, no title row, no reader')
+t.check('the bar owner, the strip and the title row are gone from the tree', !existsSync(join(REPO, 'src/utils/cockpit/sessionsBar.ts')) && !existsSync(join(REPO, 'src/components/mercury-ui/SessionTabs.tsx')) && !existsSync(join(REPO, 'src/components/HelmCenterHeader.tsx')) && !existsSync(join(REPO, 'src/commands/view')))
+t.check('no src file reads the bar switch or the strip', readersOf(/sessionsBar|SessionsBar|SessionTabs|HelmCenterHeader/).length === 0, readersOf(/sessionsBar|SessionsBar|SessionTabs|HelmCenterHeader/).join(', '))
 
 rmSync(SCRATCH, { recursive: true, force: true })
 t.finish('prove-small-critter-estate')

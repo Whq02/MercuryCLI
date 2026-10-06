@@ -113,13 +113,10 @@ function drive(tag: string, sends: Send[], total: number, cols = 120, rows = 40)
   return lines
 }
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
-const { GLYPH } = await import('../../src/components/mercury-ui/glyphs.ts')
-const { SESSION_LABEL } = await import('../../src/components/HelmCenterHeader.tsx')
 const ARCHIVE_LEGEND = keyHintLabel('⌃x ⌃x archive · delete')
 const DELETE_LEGEND = keyHintLabel('⌃x ⌃x delete')
 const TAG = keyHintLabel('⇧← back')
 const tagLine = (lines: string[]): string | undefined => lines.find(l => l.includes(TAG))
-const titleRow = (lines: string[]): string | undefined => lines.find(l => l.includes(`${GLYPH.spark} ${SESSION_LABEL}`))
 const has = (lines: string[], needle: string): boolean => lines.some(l => l.includes(needle))
 const isBoard = (lines: string[]): boolean => has(lines, 'SESSIONS') && has(lines, 'STATUS & TITLE')
 const isFace = (lines: string[]): boolean => has(lines, 'New Session') && has(lines, '↵ start')
@@ -226,9 +223,8 @@ try {
     160,
   )
   const tag1 = tagLine(r1)
-  const title1 = titleRow(r1)
-  check('R1 the focused chat opened onto a live session (tag bar present)', tag1 !== undefined && title1 !== undefined, r1.filter(l => l.trim()).slice(0, 6).join(' | '))
-  check(`R1 …and it is the SURVIVOR (${otherTitle}), never the reaped ${firstTitle}`, title1 !== undefined && title1.includes(otherTitle) && !title1.includes(firstTitle), title1 ?? '')
+  check('R1 the focused chat opened onto a live session (tag bar present)', tag1 !== undefined, r1.filter(l => l.trim()).slice(0, 6).join(' | '))
+  check(`R1 …and it is the SURVIVOR (${otherTitle}) — its own words on the chat, never the reaped ${firstTitle}`, has(r1, otherTitle) && !has(r1, firstTitle), r1.filter(l => l.includes('probe')).join(' | '))
   check('R1 the reaped session left the roster', await untilAsync(() => liveIds().length === 1, 15_000), liveIds().join(','))
   const survivorId = liveIds()[0] ?? ''
   check('R1 the roster survivor is the other session', survivorId === (firstTitle === 'alpha probe' ? sidB : sidA))

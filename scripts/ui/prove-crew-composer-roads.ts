@@ -179,7 +179,11 @@ const h = React.createElement
 
 const resting = noSessionConnector() as unknown as Record<string, unknown>
 const tailStore = createStreamingTailStore()
+const WORKSPACE = join(HOME, 'mercury')
+mkdirSync(join(WORKSPACE, '.git'), { recursive: true })
+writeFileSync(join(WORKSPACE, '.git', 'HEAD'), 'ref: refs/heads/main\n')
 const overrides: Record<string, unknown> = {
+  workspace: () => ({ cwd: WORKSPACE, originalCwd: WORKSPACE, projectRoot: WORKSPACE }),
   sessionId: () => SESSION_ID,
   workRoster: () => roster,
   subscribeWork: (listener: () => void) => { workListeners.add(listener); return () => { workListeners.delete(listener) } },
@@ -354,7 +358,8 @@ const statusRowOf = (lines: string[]): string => {
   const row = lines.findIndex(line => /proof · |main chat: |viewing Lane|composer → | ready/.test(line) && !/^│[❯›]/.test(line))
   return row < 0 ? '' : lines[row]!.trim()
 }
-const headerOf = (lines: string[], railCols: number): string => (lines.find(line => /VIEW/.test(cells(line).slice(railCols, -railCols).join(''))) ?? '').trim()
+const statusOf = (lines: string[], railCols: number): string => (lines.find(line => line.includes('← back')) ?? '').trim()
+const viewedName = (lines: string[], railCols: number): string => (/viewing (.+?) · composer|main chat: (.+?) · /.exec(statusOf(lines, railCols)) ?? [])[1] ?? (/main chat: (.+?) · /.exec(statusOf(lines, railCols)) ?? [])[1] ?? ''
 const centreOf = (lines: string[], railCols: number): string[] => lines.map(line => cells(line).slice(railCols, -railCols).join(''))
 const save = (name: string, cols: number, rows: number, lines: string[]): void => {
   if (frameDir === undefined) return
@@ -468,7 +473,7 @@ async function run(cols: number, rows: number): Promise<void> {
     const frame = scene.lines()
     save('03-pinned-atlas-viewing-birch', cols, rows, frame)
     check('birch is viewed while atlas stays pinned', click.row >= 0 && click.landed && scene.state().viewingAgentTaskId === BIRCH.id && scene.state().mainChatTaskId === ATLAS.id, `row ${click.row} · viewing=${String(scene.state().viewingAgentTaskId)} pinned=${String(scene.state().mainChatTaskId)} · the rail rows read: ${click.rows.map(line => line.trim()).join(' ↵ ')}`)
-    check('the header says birch is viewed', /VIEW · Lane birch · viewing/.test(headerOf(frame, railCols)), headerOf(frame, railCols))
+    check('the status row says birch is viewed', viewedName(frame, railCols) === 'Lane birch', statusOf(frame, railCols))
     check('the composer placeholder names the pinned target: message Lane atlas', composerText(frame).includes(`message ${ATLAS.name}`), composerText(frame).slice(0, 80))
     const footer = footerOf(frame).replace(/\s+/g, ' ')
     check('the footer says ↵ sends to Lane atlas', /sends to Lane atlas/.test(footer), footer.slice(0, 260))
@@ -525,7 +530,7 @@ async function run(cols: number, rows: number): Promise<void> {
     await until(() => scene.state().viewingAgentTaskId === CEDAR.id, 4000)
     await until(() => centreOf(scene.lines(), railCols).some(line => line.includes('CEDAR-ROW')), 6000)
     await sleep(300)
-    check('cedar (completed on the roster, opened from the crew pop-up\'s road) is viewed', scene.state().viewingAgentTaskId === CEDAR.id && headerOf(scene.lines(), railCols).includes(CEDAR.name), `viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)} · header ${headerOf(scene.lines(), railCols)}`)
+    check('cedar (completed on the roster, opened from the crew pop-up\'s road) is viewed', scene.state().viewingAgentTaskId === CEDAR.id && viewedName(scene.lines(), railCols) === CEDAR.name, `viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)} · status row ${statusOf(scene.lines(), railCols)}`)
     const idleFooter = footerOf(scene.lines()).replace(/\s+/g, ' ')
     check('the footer on the landed crewmate says esc goes back to Mercury Lead, never esc interrupts Lane cedar', /esc[^·]*back[^·]*Mercury Lead/.test(idleFooter) && !/esc interrupts? Lane cedar/.test(idleFooter), idleFooter.slice(0, 260))
     check('the footer says ↵ resumes Lane cedar with your line (the runner resumes a landed hosted crewmate from its transcript), never "↵ sends to Lane cedar"', /↵ resumes Lane cedar with your line/.test(idleFooter) && !/↵ sends to Lane cedar/.test(idleFooter), idleFooter.slice(0, 260))

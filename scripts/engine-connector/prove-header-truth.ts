@@ -18,7 +18,6 @@ const section = (t: string): void => {
 }
 
 const bar = await import('../../src/components/SwitchboardTagBar.tsx')
-const header = await import('../../src/components/HelmCenterHeader.tsx')
 const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
 const { stringWidth } = await import('../../src/ink/stringWidth.ts')
 type SessionLiveV1 = import('../../src/services/engine-connector/seatLive.ts').SessionLiveV1
@@ -102,46 +101,32 @@ section('§2 the row\'s words per state, with and without a crew, at three width
   }
 }
 
-section('§3 the title row\'s name')
+section('§3 the title row is gone: the pane opens on the berth card')
 {
-  check('the stage-1 title reads the unnamed word', bar.seatDisplayTitle({ title: 'new session · proj · ready', projectLabel: 'proj' }) === 'new session')
-  check('a stored name reads verbatim', bar.seatDisplayTitle({ title: 'fix-auth-tests', projectLabel: 'proj' }) === 'fix-auth-tests')
-  check('the chat\'s first words read verbatim', bar.seatDisplayTitle({ title: 'hello plain world', projectLabel: 'proj' }) === 'hello plain world')
-  check('an empty title is never blank', bar.seatDisplayTitle({ title: '', projectLabel: 'proj' }) === 'new session')
+  check('the header module is gone from the tree', !existsSync('src/components/HelmCenterHeader.tsx'))
+  const fsl = readFileSync('src/components/FullscreenLayout.tsx', 'utf8')
+  check('the layout mounts no header: the centre pane\'s first interior row is the berth card, then the transcript', !fsl.includes('HelmCenterHeader') && /borderColor=\{centerFrame \? t\.borderStrong : undefined\}\s*>\s*(?:\{\/\*[^]*?\*\/\}\s*)?<TerminalSizeContext\.Provider value=\{sizeVal\}>\s*\{isCompact \? <CompactIdentityBand \/> : null\}\s*\{centerFrame && statusBand \? \(/.test(fsl))
+  check('the bar keeps no title reader for a row that no longer paints', !('seatDisplayTitle' in bar) && !readFileSync('src/components/SwitchboardTagBar.tsx', 'utf8').includes('seatDisplayTitle'))
   const naming = await import('../../src/services/concourse/sessionNaming.ts')
-  check('the header\'s unnamed word IS the naming owner\'s stage-1 word (one export, read by the header and the tag bar)', header.UNNAMED_SESSION === naming.UNNAMED_SESSION_WORD && header.headerSessionName('', 40) === naming.UNNAMED_SESSION_WORD && bar.seatDisplayTitle({ title: '', projectLabel: 'proj' }) === naming.UNNAMED_SESSION_WORD && naming.newSessionTitle('/tmp/proj').startsWith(`${naming.UNNAMED_SESSION_WORD} · `))
-  const long = 'a session name long enough to outrun the row at every cockpit width, and then some more words so the cut is real at one hundred and twenty columns'
-  for (const cols of [100, 110, 120]) {
-    const budget = header.headerNameBudget(cols, false)
-    const shown = header.headerSessionName(long, budget)
-    check(`${cols} columns: the name is end-cut to its budget (${budget})`, stringWidth(shown) <= budget && shown.endsWith('…'), shown)
-    const beside = header.headerNameBudget(cols, true)
-    check(`${cols} columns: beside a mission the name keeps half the free cells (${beside})`, beside === Math.max(12, Math.floor(budget / 2)) && stringWidth(header.headerSessionName(long, beside)) <= beside)
-  }
-  check('a short name is never cut', header.headerSessionName('hdr: launch', header.headerNameBudget(100, false)) === 'hdr: launch')
-  check('the budget clears the padding, the SESSION label and one cell of air', header.headerNameBudget(120, false) === 120 - 2 - (2 + header.SESSION_LABEL.length) - 1)
+  check('the unnamed word has one owner, the naming owner', naming.UNNAMED_SESSION_WORD === 'new session' && naming.newSessionTitle('/tmp/proj').startsWith(`${naming.UNNAMED_SESSION_WORD} · `))
 }
 
-section('§4 structure: no timer feeds the title row; the clock is gone; the glyph reads the crew')
+section('§4 structure: the clock is gone; the glyph reads the crew')
 {
-  const hch = readFileSync('src/components/HelmCenterHeader.tsx', 'utf8')
-  check('the title row keeps no timer (no setInterval, no shared clock, no now tick)', !/setInterval|subscribeUiClock|useNowTick|liveClock/.test(hch))
-  check('the title row reads the seat\'s name through the same owner the bottom row paints (seatDisplayTitle)', hch.includes('seatDisplayTitle(c.status())'))
-  check('the title row paints the name where the clock stood, in the accent and bold', /<Text color=\{accent\} bold>\s*\{name\}\s*<\/Text>/.test(hch))
   check('the clock module is gone', !existsSync('src/utils/cockpit/liveClock.ts'))
   const registry = readFileSync('src/substrate/flagRegistry.ts', 'utf8')
   check('the clock\'s flag left the registry with its reader', !registry.includes('MERCURY_LIVE_CLOCK'))
   const tag = readFileSync('src/components/SwitchboardTagBar.tsx', 'utf8')
   check('the bottom row paints no glyph and no session name (the title row alone names the session)', !tag.includes('<WorkingGlyph') && !tag.includes('{title}') && !/seatDisplayTitle\(status\)/.test(tag))
-  check('the project leads the bottom row while the session is not ready', tag.includes('<Text color={t.textMuted}> {status.projectLabel}</Text>') && tag.includes("const resting = line === 'ready' ? restingStatusWords(modelName, effortLabel) : null"))
+  check('the model and its effort lead the bottom row in every state; the state words follow them; the project never leads', !tag.includes('{status.projectLabel}') && tag.includes("const resting = held === null && line === 'ready'") && tag.includes('const head = resting ? restingStatusWords(shownModel, shownEffort) : modelWords') && tag.includes("const rest = held ?? (resting ? '' : line)"))
   check('the resting row reads ready · the model · the effort (the one display-label owner, the chip\'s own effort word, no asked mark)', bar.restingStatusWords('Opus 5', 'high') === 'ready · Opus 5 · high' && bar.restingStatusWords('GLM-5.3', null) === 'ready · GLM-5.3' && bar.restingStatusWords('', 'high') === 'ready' && tag.includes('useDisplayedSessionModel().compact') && tag.includes('focusedEffortLabelOf(effectiveModel, seatEffort, sentEffort, effortValue, bornEffort, false)'))
-  check('the resting row paints ready in the state ink and the pair in the muted ink the project wore', tag.includes('<Text color={t.textInstruction}> ready</Text>') && tag.includes("<Text color={t.textMuted}>{fitted.slice('ready'.length)}</Text>"))
-  check('a seat receipt takes the row while it stands, in the muted ink, and yields to the warning arms', tag.includes('const held = receipt !== \'\' && !statusRowWarns(live, status) ? receipt : null') && tag.includes('<Text color={t.textMuted}> {fitted}</Text>') && bar.statusRowWarns({ ...IDLE_LIVE, inFlight: true }, { interrupting: true, hardStopping: false, wait: null, stuck: false }) && !bar.statusRowWarns(IDLE_LIVE, { interrupting: false, hardStopping: false, wait: null, stuck: false }))
+  check('the resting row paints ready in the state ink and the pair in the muted ink the project wore', tag.includes('<Text color={t.textInstruction}> ready</Text>') && tag.includes("<Text color={t.textMuted}>{head.slice('ready'.length)}</Text>"))
+  check('a seat receipt takes the row while it stands, in the muted ink, and yields to the warning arms', tag.includes('const held = receipt !== \'\' && !statusRowWarns(live, status) ? receipt : null') && tag.includes('<Text color={held !== null || resting ? t.textMuted : t.textInstruction}>{fitted}</Text>') && bar.statusRowWarns({ ...IDLE_LIVE, inFlight: true }, { interrupting: true, hardStopping: false, wait: null, stuck: false }) && !bar.statusRowWarns(IDLE_LIVE, { interrupting: false, hardStopping: false, wait: null, stuck: false }))
   check('the receipt slot paints only while a row paints, stands for the composer receipt\'s eight seconds, and clears itself', bar.paintStatusRowReceipt('Effort set to medium for this session') === false && bar.statusRowReceipt() === '' && bar.STATUS_ROW_RECEIPT_MS === 8000 && tag.includes('rowsPainting += 1'))
   check('the row\'s words are statusLine over the crew\'s clock', tag.includes('statusLine(live, status, crew)'))
   check('the crew tick is armed only while a sub-agent runs', tag.includes('useNowTick(crewActive ? 1000 : null)'))
   check('the crew\'s clock reads the one work-row list and the crew facts owner', tag.includes('useFocusedWorkRows()') && tag.includes('crewAgentsOf(rows, null)') && tag.includes('focusedWorkflowRows(rows)'))
-  check('the row omits the words\' separator when there are no words', tag.includes("fitted !== '' ? (") && tag.includes("(spoken !== '' ? 3 : 0)"))
+  check('the row omits the words\' separator when there are no words', tag.includes("{fitted !== '' ? (") && tag.includes("(restFloor > 0 && head !== '' ? 3 : 0)"))
 }
 
 console.log(`\n ${checks} checks, ${failures} failures`)

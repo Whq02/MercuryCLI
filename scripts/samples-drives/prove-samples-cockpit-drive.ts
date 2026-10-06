@@ -25,8 +25,8 @@ const TURNS = [
 ]
 const MARKS = { version: 1, pins: [{ x: 0.2, y: 0.1, target: 'h1 "Pricing"', text: 'make it bigger' }], note: 'keep it to three plans', verdict: 'changes-needed' }
 const ADDRESS = /http:\/\/127\.0\.0\.1:\d+\/s\/[a-z0-9]{6,32}\?t=[0-9a-f]{32}/
-const BAR_TODAY = /^│ ⊞ SESSIONS › │  ▣ this session  │   \/sessions\s+│$/
-const BAR_WITH_SAMPLE = /^│ ⊞ SESSIONS › │  ▣ this session  │  ⧉ pricing table · v1  │   \/sessions\s+│$/
+const ROW_TODAY = /^ ready · [^·]+(?: · [^·]+)?\s{2,}/
+const ROW_WITH_SAMPLE = /^ ready · [^·]+(?: · [^·]+)? · 1 sample\s{2,}/
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 const BOOT_FACE_HINT = keyHintLabel('⇧← boot face').replace(/\+/g, '\\+')
 const LINE_TODAY = new RegExp(`^\\d+ sessions? on · 0 monitors here · 0 agents here\\s+${BOOT_FACE_HINT}$`)
@@ -96,11 +96,11 @@ async function drive(cols: number, rows: number): Promise<void> {
   const sends = [
     { atTick: 40, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
     { atTick: 100, awaitText: ADMITTED, minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '' },
-    { atTick: 999, awaitText: full ? '? for shortcuts' : '0 agents here', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: full ? '/view on\r' : '', mark: 'design' },
-    { atTick: 999, awaitText: full ? '⊞ SESSIONS' : '0 agents here', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: '', mark: 'idle' },
+    { atTick: 999, awaitText: full ? '? for shortcuts' : '0 agents here', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: '', mark: 'design' },
+    { atTick: 999, awaitText: full ? 'ready · ' : '0 agents here', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: '', mark: 'idle' },
     { afterPrevTicks: 3, data: 'show me a pricing table\r' },
     { atTick: 999, awaitText: 'Here it is.', minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '' },
-    { atTick: 999, awaitText: full ? 'pricing table · v1' : '1 sample', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: '', mark: 'sample' },
+    { atTick: 999, awaitText: '1 sample', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: '', mark: 'sample' },
     { atTick: 999, awaitText: 'Marks on pricing table v1', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: '', mark: 'marks' },
     { atTick: 999, awaitText: 'the heading grows', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: '' },
     { afterPrevTicks: 3, data: '/samples\r' },
@@ -150,10 +150,10 @@ async function drive(cols: number, rows: number): Promise<void> {
   const back = at('back') ?? []
   const last = (text: string[]): string => text[text.length - 1] ?? ''
   if (full) {
-    check(`${tag}: with the small critter (the default) the SESSIONS bar is not painted`, design.length > 0 && !design.some(row => row.includes('⊞ SESSIONS')), JSON.stringify(design.find(row => row.includes('SESSIONS')) ?? ''))
-    check(`${tag}: with no sample the SESSIONS bar is the bar of today`, idle.some(row => BAR_TODAY.test(row)), JSON.stringify(idle.find(row => row.includes('SESSIONS')) ?? ''))
-    check(`${tag}: the sample takes a berth beside this session: its glyph, its name, its version`, sample.some(row => BAR_WITH_SAMPLE.test(row)), JSON.stringify(sample.find(row => row.includes('SESSIONS')) ?? ''))
-    check(`${tag}: the bar keeps one row and the screen its height`, idle.length === sample.length && sample.filter(row => row.includes('⊞ SESSIONS')).length === 1, `${idle.length} vs ${sample.length} rows, ${sample.filter(row => row.includes('⊞ SESSIONS')).length} bar rows`)
+    check(`${tag}: no sessions bar paints under the view at any mark`, design.length > 0 && ![design, idle, sample].some(text => text.some(row => row.includes('⊞ SESSIONS'))), JSON.stringify([design, idle, sample].flat().find(row => row.includes('SESSIONS')) ?? ''))
+    check(`${tag}: with no sample the status row is the row of today: ready · the model · the effort`, idle.some(row => ROW_TODAY.test(row) && !row.includes('sample')), JSON.stringify(idle.find(row => row.startsWith(' ready')) ?? ''))
+    check(`${tag}: the sample rides the status row: · 1 sample after the model and effort`, sample.some(row => ROW_WITH_SAMPLE.test(row)), JSON.stringify(sample.find(row => row.startsWith(' ready')) ?? ''))
+    check(`${tag}: the row keeps one line and the screen its height`, idle.length === sample.length && sample.filter(row => row.includes('1 sample')).length === 1, `${idle.length} vs ${sample.length} rows, ${sample.filter(row => row.includes('1 sample')).length} sample rows`)
   } else {
     check(`${tag}: with no sample the count line is the line of today`, LINE_TODAY.test(last(idle)), JSON.stringify(last(idle)))
     check(`${tag}: the count line gains · 1 sample`, LINE_WITH_SAMPLE.test(last(sample)), JSON.stringify(last(sample)))
@@ -171,7 +171,7 @@ async function drive(cols: number, rows: number): Promise<void> {
   check(`${tag}: the drive stayed on loopback`, nonLoopback(netlines(leg.netlog)).length === 0, nonLoopback(netlines(leg.netlog)).slice(0, 3).join(' | '))
   console.log(`\n${tag}: the poison — the comparators bite on the frame without a sample`)
   if (full) {
-    check(`${tag}: P the berth law fails on the bar of today`, !idle.some(row => BAR_WITH_SAMPLE.test(row)))
+    check(`${tag}: P the sample law fails on the row of today`, !idle.some(row => ROW_WITH_SAMPLE.test(row)))
   } else {
     check(`${tag}: P the count law fails on the line of today`, !LINE_WITH_SAMPLE.test(last(idle)))
   }

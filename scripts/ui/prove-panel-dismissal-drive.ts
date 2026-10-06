@@ -105,10 +105,10 @@ try {
       }
       if (code !== 0) continue
       const marks = Object.fromEntries(capture.marks.map(mark => [mark.label, mark.grid]))
-      const viewBefore = inkOfRow(marks.chat!, '✶ VIEW')
-      const viewOpen = inkOfRow(marks.open!, '✶ VIEW')
-      if (noDim) check(`${tag}: with the recess off the cockpit stays around the window with its ink untouched (the view header row reads as before the open)`, viewBefore !== null && viewOpen === viewBefore, `before ${viewBefore?.slice(0, 120)} · open ${viewOpen?.slice(0, 120)}`)
-      else if (panel === 'crewmates') check(`${tag}: the cockpit stays around the window, dimmed by the elevated registration (the view header row's ink moved)`, viewBefore !== null && viewOpen !== null && viewOpen !== viewBefore, `before ${viewBefore?.slice(0, 120)} · open ${viewOpen?.slice(0, 120)}`)
+      const viewBefore = inkOfRow(marks.chat!, 'lanes')
+      const viewOpen = inkOfRow(marks.open!, 'lanes')
+      if (noDim) check(`${tag}: with the recess off the cockpit stays around the window with its ink untouched (the lanes label row reads as before the open)`, viewBefore !== null && viewOpen === viewBefore, `before ${viewBefore?.slice(0, 120)} · open ${viewOpen?.slice(0, 120)}`)
+      else if (panel === 'crewmates') check(`${tag}: the cockpit stays around the window, dimmed by the elevated registration (the lanes label row's ink moved)`, viewBefore !== null && viewOpen !== null && viewOpen !== viewBefore, `before ${viewBefore?.slice(0, 120)} · open ${viewOpen?.slice(0, 120)}`)
       check(`${tag}: clicking the frame edge does not close`, text(marks.edge!).includes(needle))
       check(`${tag}: the outside press closes the panel`, !text(marks.pressed!).includes(needle))
       check(`${tag}: its release is consumed`, text(marks.pressed!) === text(marks.clicked!))

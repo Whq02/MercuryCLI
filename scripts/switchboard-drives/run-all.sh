@@ -7,7 +7,7 @@
 # gate-watch: src/components/SwitchboardTagBar.tsx src/context/surfaceRoute.ts
 # gate-watch: src/prompt/engineIdentity.ts src/constants/prompts.ts
 # gate-watch: scripts/lib/* scripts/notifications/concourseReferenceSeed.ts scripts/streaming/artifactArena.ts
-# gate-watch: scripts/ui/vshot.py src/components/BootSplashScreen.tsx src/components/HelmCenterHeader.tsx
+# gate-watch: scripts/ui/vshot.py src/components/BootSplashScreen.tsx
 # gate-watch: src/components/mercury-ui/glyphs.ts src/components/mercury-ui/keyHintLabel.ts
 # gate-watch: src/daemon/controlServer.ts src/daemon/controlSocket.ts src/keybindings/*
 # gate-watch: src/screens/ResumeConversation.tsx src/services/crew/obligations.ts

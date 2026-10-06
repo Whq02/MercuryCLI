@@ -130,11 +130,7 @@ for (const c of COLS) {
   }
 
 
-  if (c >= 70) {
-    expect(`@${c}: the session tab-strip renders (this session, cols >= 70)`, /this session/.test(full))
-  } else {
-    expect(`@${c}: the session tab-strip is shed (cols < 70)`, !/this session/.test(full))
-  }
+  expect(`@${c}: no session tab-strip paints above the statusbar at any width`, !/this session|⊞ SESSIONS/.test(full))
 }
 
 {

@@ -10,7 +10,7 @@ const ASSET = {
   assets: 'scripts/ui/fixtures/settings-popup-header/*.txt',
   generator: 'bun scripts/ui/prove-settings-popup-header.ts --write',
   check: 'bun scripts/ui/prove-settings-popup-header.ts',
-  sources: 'scripts/ui/prove-settings-popup-header.ts scripts/cockpit-interaction/status-popup-fixture.ts src/components/SettingsPopupSlot.tsx src/components/PopupGutter.tsx src/components/FullscreenLayout.tsx src/components/HelmCenterHeader.tsx src/components/Settings/** src/components/ConsoleOAuthFlow.tsx src/components/mercury-ui/screens/SettingsStatusView.tsx src/commands/config/config.tsx src/commands/status/mercuryStatus.tsx src/commands/login/login.tsx src/commands/usage/usage.tsx',
+  sources: 'scripts/ui/prove-settings-popup-header.ts scripts/cockpit-interaction/status-popup-fixture.ts src/components/SettingsPopupSlot.tsx src/components/PopupGutter.tsx src/components/FullscreenLayout.tsx src/components/Settings/** src/components/ConsoleOAuthFlow.tsx src/components/mercury-ui/screens/SettingsStatusView.tsx src/commands/config/config.tsx src/commands/status/mercuryStatus.tsx src/commands/login/login.tsx src/commands/usage/usage.tsx',
 }
 if (registerOnlyRequested(ASSET)) process.exit(0)
 pinSourceRef()
@@ -133,7 +133,7 @@ const surfaces = [
   { view: 'logins', open: () => logins.call(() => {}, context) },
 ]
 const cell = (lines: string[], x: number, y: number): string => Array.from(lines[y] ?? '')[x] ?? ' '
-const header = 'VIEW · cedar · viewing'
+const header = /^\s*(?:❯ )?lanes\b.*╭/
 for (const [columns, rows] of [[120, 40], [100, 30]] as const) {
   for (const surface of surfaces) {
     initializeSurfaceRoute(ROOT_CHAT_ROUTE)
@@ -144,12 +144,12 @@ for (const [columns, rows] of [[120, 40], [100, 30]] as const) {
     let baselineStill = 0
     check(`${columns}x${rows} ${surface.view}: the real centre header and scaffold settle before opening`, await waitFor(() => {
       const now = scene.screen()
-      baselineStill = now === baseline && [header, 'transcript row', 'WORKBENCH', 'FILES · orchard', 'Type a prompt'].every(mark => now.includes(mark)) ? baselineStill + 1 : 0
+      baselineStill = now === baseline && header.test(now) && ['transcript row', 'WORKBENCH', 'FILES · orchard', 'Type a prompt'].every(mark => now.includes(mark)) ? baselineStill + 1 : 0
       baseline = now
       return baselineStill >= 3
     }, 8000))
     const before = scene.lines()
-    const headerRow = before.findIndex(line => line.includes(header))
+    const headerRow = before.findIndex(line => header.test(line))
     const plan = railPlanAt(columns, true)
     const centreBottom = before.findIndex((line, y) => y > headerRow && cell(before, plan.lanesW, y) === '╰')
     await surface.open()
@@ -170,13 +170,13 @@ for (const [columns, rows] of [[120, 40], [100, 30]] as const) {
     const popupBottom = after.findIndex((line, y) => y > titleRow && cell(after, popupLeft, y) === '╰')
     const gutter = popupTop - 1
     const label = `${columns}x${rows} /${surface.view}`
-    check(`${label}: the header words stay visible above the top gutter`, headerRow >= 0 && after[headerRow]?.includes(header) === true && gutter > headerRow, `header row ${headerRow + 1}, gutter row ${gutter + 1}, border row ${popupTop + 1}`)
-    check(`${label}: the entire header row is unchanged`, after[headerRow] === before[headerRow], after[headerRow] === before[headerRow] ? '' : JSON.stringify({ before: before[headerRow], after: after[headerRow] }))
+    check(`${label}: the pane's top border stays visible above the top gutter`, headerRow >= 0 && header.test(after[headerRow] ?? '') && gutter > headerRow, `border row ${headerRow + 1}, gutter row ${gutter + 1}, popup border row ${popupTop + 1}`)
+    check(`${label}: the entire top border row is unchanged`, after[headerRow] === before[headerRow], after[headerRow] === before[headerRow] ? '' : JSON.stringify({ before: before[headerRow], after: after[headerRow] }))
     check(`${label}: all four corners and the bottom gutter fit the measured centre`, popupLeft > plan.lanesW && popupRight > popupLeft && popupBottom > popupTop && popupBottom + 1 < centreBottom, `centre bottom ${centreBottom + 1}, popup ${popupTop + 1}..${popupBottom + 1}`)
     check(`${label}: the top gutter is an opaque blank row`, popupLeft >= 0 && Array.from({ length: popupRight - popupLeft + 3 }, (_, i) => cell(after, popupLeft - 1 + i, gutter)).every(c => c === ' '))
     check(`${label}: the footer stays visible`, after.some(line => line.includes('esc or click outside')))
     if (surface.view === 'status' || surface.view === 'config') {
-      check(`${label}: a full-height popup starts its gutter immediately below the header`, gutter === headerRow + 1)
+      check(`${label}: a full-height popup starts its gutter on the pane's first interior row, immediately below the top border`, gutter === headerRow + 1)
     }
     const frame = after.join('\n') + '\n'
     const name = `${surface.view}-${columns}x${rows}.txt`
@@ -188,10 +188,10 @@ for (const [columns, rows] of [[120, 40], [100, 30]] as const) {
     else if (!frames && !arg('--source-ref') && process.platform === 'darwin') check(`${label}: the stored frame matches the source render`, readFileSync(join(stills, name), 'utf8') === frame)
     if (surface.view === 'status') {
       for (let step = 0; step < 80; step++) scene.push('\x1b[B')
-      check(`${label}: the last status fact remains reachable with its header and close hint`, await waitFor(() => scene.screen().includes('workflow idle · trace 3') && scene.screen().includes(header) && scene.screen().includes('esc or click outside'), 4000))
+      check(`${label}: the last status fact remains reachable with the pane's top border and the close hint`, await waitFor(() => scene.screen().includes('workflow idle · trace 3') && header.test(scene.screen()) && scene.screen().includes('esc or click outside'), 4000))
     }
     store.closeSettingsPopup()
-    check(`${label}: closing restores the header and transcript`, await waitFor(() => !scene.screen().includes(title) && scene.lines()[headerRow] === before[headerRow], 4000))
+    check(`${label}: closing restores the top border and transcript`, await waitFor(() => !scene.screen().includes(title) && scene.lines()[headerRow] === before[headerRow], 4000))
     scene.unmount()
     resetOverlayStackForTests()
   }
@@ -202,9 +202,9 @@ for (const framed of [true, false]) {
     const scene = await mountOffscreen(h(Box, { width: 80, height: 40 }, h(Box, { ref, width: 60, height, ...(framed ? { borderStyle: 'round' } : {}) })), 80, 40)
     check(`${height}-row host: the measured element settled`, await waitFor(() => ref.current !== null && measureElement(ref.current).height === height, 4000))
     const band = ref.current === null ? null : settingsPopupHost(ref.current, framed)
-    const top = framed ? 2 : 0
-    const available = Math.max(0, height - (framed ? 3 : 0))
-    check(`${height}-row ${framed ? 'framed' : 'unframed'} host: measured band clears only the header that exists`, band?.top === top && band?.rows === available, JSON.stringify(band))
+    const top = framed ? 1 : 0
+    const available = Math.max(0, height - (framed ? 2 : 0))
+    check(`${height}-row ${framed ? 'framed' : 'unframed'} host: the measured band is the whole interior (the border alone, no header row reserved)`, band?.top === top && band?.rows === available, JSON.stringify(band))
     if (band?.top !== undefined && band.rows !== undefined) {
       const geometry = settingsPopupGeometry({ width: 110, rows: 44 }, band.columns, 40, band.left, { top: band.top, rows: band.rows })
       const expected = Math.max(0, available - 2)
@@ -215,7 +215,7 @@ for (const framed of [true, false]) {
   }
 }
 const layout = readFileSync(join(ROOT, 'src/components/FullscreenLayout.tsx'), 'utf8')
-check('the framed centre owns the header and is the settings slot host', /ref=\{centreBoxRef\}[\s\S]*?\{centerFrame \? <HelmCenterHeader/.test(layout) && layout.includes('<SettingsPopupSlot overlay={true} hostRef={centreBoxRef} framed={centerFrame} />'))
+check('the framed centre carries no title row and is the settings slot host', !layout.includes('HelmCenterHeader') && /ref=\{centreBoxRef\}[\s\S]*?<TerminalSizeContext\.Provider value=\{sizeVal\}>/.test(layout) && layout.includes('<SettingsPopupSlot overlay={true} hostRef={centreBoxRef} framed={centerFrame} />'))
 check('no fixture fetch was needed', fetches.length === 0, `${fetches.length} attempts`)
 await releaseScratchHome(HOME)
 if (write && failures === 0) registerGeneratedAsset(ASSET)

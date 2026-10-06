@@ -10,7 +10,6 @@ import { useInputBuffer } from '../../hooks/useInputBuffer.js'
 import { getShortcutDisplay } from '../../keybindings/shortcutFormat.js'
 import { getGlobalConfig } from '../../utils/config.js'
 import { parseReferences } from '../../history.js'
-import { setPromptEmpty } from '../../utils/cockpit/helmFocus.js'
 import { abortSpeculation } from '../../services/PromptSuggestion/speculation.js'
 import { getModeFromInput, getValueFromInput } from './inputModes.js'
 import { expandTabs, stripControls } from './composerText.js'
@@ -148,10 +147,6 @@ export function useComposerDraft({
   const deferredSpaceShiftRef = useRef(0)
 
   const stashPeakRef = useRef(0)
-
-  useEffect(() => {
-    setPromptEmpty(input.trim() === '')
-  }, [input])
 
   const onChange = useCallback(
     (raw: string): void => {

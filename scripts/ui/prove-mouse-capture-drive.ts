@@ -55,7 +55,6 @@ type Capture = { text: string; lines: string[]; status: number; tail: string; wi
 function freshHome(id: string, mouseCapture: boolean | null): string {
   const home = join(SCRATCH, `home-${id}`)
   cpSync(TEMPLATE, home, { recursive: true })
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ view: { sessionsBar: true } }))
   if (mouseCapture !== null) {
     const cfgPath = join(home, '.mercury.json')
     const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
@@ -172,7 +171,7 @@ console.log('M1 — mouseCapture: false boots the face and the chat with no mous
   check('M1 the chat is on screen', c.text.includes(COMPOSER), c.tail.slice(-200))
   check('M1 the wire carries bytes', c.wire.length > 0, `${c.wire.length} bytes`)
   check('M1 zero mouse-tracking DECSET bytes on the wire (1000 · 1002 · 1003 · 1006)', setsOn(c.wire).length === 0, setsOn(c.wire).join(' '))
-  check('M1 the status bar paints the amber chip', c.text.includes(CHIP), c.lines.filter(l => l.includes('mouse')).join(' | ').slice(0, 200))
+  check('M1 the cockpit paints no chip: the status row under the view carries the model, the state words, the folder and the way back, and no row says mouse', !c.text.includes(CHIP) && !c.lines.some(l => /\bmouse\b/.test(l)) && c.lines.some(l => /ready · \S.* · \S.*(?:⇧|shift\+)← back/.test(l)), c.lines.filter(l => /mouse|← back/.test(l)).join(' | ').slice(0, 200))
 }
 
 console.log('\nM2 — the same boot without the key arms tracking (the control)')
@@ -181,7 +180,7 @@ console.log('\nM2 — the same boot without the key arms tracking (the control)'
   printFrame('m2 (the chat, the default)', c.lines)
   check('M2 the chat is on screen', c.text.includes(COMPOSER), c.tail.slice(-200))
   check('M2 every mouse-tracking DECSET rides the wire', setsOn(c.wire).length === MOUSE_SETS.length, setsOn(c.wire).join(' '))
-  check('M2 no chip on the status bar', !c.text.includes(CHIP))
+  check('M2 no chip on the cockpit either', !c.text.includes(CHIP))
 }
 
 try {

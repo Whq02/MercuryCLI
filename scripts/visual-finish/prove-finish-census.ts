@@ -35,7 +35,6 @@ t.section('§1 — the branch glyph is vocabulary (D13)')
       const trimmed = line.trim()
       const comment = trimmed.startsWith('//') || trimmed.startsWith('*')
       const chordHint =
-        (rel.endsWith('mercury-ui/SessionTabs.tsx') && line.includes('⌥←→')) ||
         (rel.endsWith('concourse/AttachedSessionScreen.tsx') && line.includes('⌥ drag')) ||
         rel.endsWith('mercury-ui/keyHintLabel.ts')
       if (!comment && !chordHint) offenders.push(`${rel}:${i + 1}`)

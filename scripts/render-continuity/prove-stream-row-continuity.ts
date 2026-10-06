@@ -206,7 +206,7 @@ const COMPACT_STRIP_RE = /^(✶|✸|✹|✺|✷) \S.* · /
 const compactStripRowOf = (f: Frame): number => f.rows.findIndex(r => COMPACT_STRIP_RE.test(r))
 const composerRowOf = (f: Frame): number => f.rows.findIndex(r => /^╭─+╮$/.test(r))
 const userRowOf = (f: Frame): number => f.rows.findIndex(r => r.includes('anatomy probe') && r.includes('❯'))
-const paneStart = (f: Frame): number => Math.max(0, (f.rows.find(r => r.includes('✶ VIEW')) ?? '').indexOf('│'))
+const paneStart = (f: Frame): number => Math.max(0, (f.rows.find(r => r.includes('╭')) ?? '').indexOf('╭'))
 const paneRows = (f: Frame): string[] => {
   const start = paneStart(f)
   return start === 0 ? f.rows : f.rows.map(r => r.slice(start))

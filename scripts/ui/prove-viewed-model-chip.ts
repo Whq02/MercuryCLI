@@ -27,7 +27,6 @@ Object.assign(process.env, {
 for (const key of ['MERCURY_MODEL', 'MERCURY_EFFORT_LEVEL', 'MERCURY_RECESS', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'NODE_ENV']) delete process.env[key]
 for (const key of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OPENAI_CHATGPT_BASE', 'MERCURY_OPENAI_AUTH_BASE', 'MERCURY_OPENROUTER_API_BASE', 'MERCURY_GEMINI_API_BASE', 'MERCURY_MOONSHOT_API_BASE', 'MERCURY_MOONSHOT_CODING_BASE', 'MERCURY_DEEPSEEK_API_BASE', 'MERCURY_HUGGINGFACE_HUB_BASE', 'MERCURY_HUGGINGFACE_API_BASE', 'MERCURY_ZAI_API_BASE']) process.env[key] = 'http://127.0.0.1:1'
 
-writeFileSync(join(home, 'settings.json'), JSON.stringify({ view: { sessionsBar: true } }))
 
 const arg = process.argv.indexOf('--frames')
 const frameDir = arg < 0 ? undefined : process.argv[arg + 1]
@@ -71,7 +70,8 @@ const { enterCrewmateView, exitCrewmateView, setMainChat } = await import('../..
 const { useViewedCrewmate } = await import('../../src/components/tasks/useCrewmateView.ts')
 const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
 const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
-const { MercuryFrame } = await import('../../src/components/MercuryFrame.tsx')
+const { FocusedSessionStatusRow } = await import('../../src/components/SwitchboardTagBar.tsx')
+const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
 const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
 const { initializeSurfaceRoute, registerRouteSurface, ROOT_CHAT_ROUTE } = await import('../../src/context/surfaceRoute.ts')
 registerRouteSurface('concourse', { render: () => null })
@@ -102,6 +102,10 @@ const overrides: Record<string, unknown> = {
   modelFacts: () => ({ main: leadModel, effective: leadModel, sessionPin: null, effort: 'high', effortSent: 'high', pendingSwitch: null }),
   workRoster: () => roster,
   subscribeWork: (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener) } },
+  live: () => IDLE_LIVE,
+  subscribeLive: () => () => {},
+  status: () => ({ title: 'a chat', projectLabel: 'proof', interrupting: false, hardStopping: false, wait: null, quietMs: null, watchdogMs: null, phaseMs: null, toolBudgetMs: null, stuck: false }),
+  tail: () => ({ subscribe: () => () => {}, getSnapshot: () => null, read: () => null }),
 }
 const connector = new Proxy(noSessionConnector(), {
   get(target, key) {
@@ -134,7 +138,7 @@ function Harness(): React.ReactNode {
   return h(KeybindingSetup, null, h(FullscreenLayout, {
     scrollable: h(Text, null, viewed === null ? '[Mercury] the lead transcript' : `[${viewed.name}] the crewmate transcript`),
     bottom: h(Box, { flexDirection: 'column' },
-      h(MercuryFrame, { model: leadModel }),
+      h(FocusedSessionStatusRow),
       h(Box, { borderStyle: 'round' }, h(Text, null, viewed === null ? '› message Mercury Lead' : `› message ${viewed.name}`)),
     ),
   }))
@@ -157,25 +161,20 @@ for (const [cols, rows] of [[178, 51], [120, 40]] as const) {
   const state = { ...getDefaultAppState(), effortValue: 'high' } as AppState
   ink.render(h(App, { initialState: state, getFpsMetrics: () => undefined }, h(Harness)))
   const lines = (): string[] => stripAnsi(ink.lastFrameText()).replace(/\n$/, '').split('\n')
-  const strip = (): string => {
-    const frame = lines()
-    const title = frame.findIndex(line => line.includes('SESSIONS'))
-    return title < 0 ? '' : frame[title + 1] ?? ''
-  }
+  const strip = (): string => lines().find(line => line.includes('← back')) ?? ''
   const snapshot = (name: string): void => {
     if (frameDir !== undefined) writeFileSync(join(frameDir, `${size}-${name}.txt`), lines().join('\n') + '\n')
   }
   const geometry = (name: string): void => {
-    const frame = lines()
-    const title = frame.findIndex(line => line.includes('SESSIONS'))
-    const band = frame.slice(title - 1, title + 3)
-    check(`${size} ${name}: the strip keeps its four rows and whole borders`, title > 0 && band.length === 4 && band[0]!.startsWith('╭') && band[0]!.endsWith('╮') && band[3]!.startsWith('╰') && band[3]!.endsWith('╯') && band.slice(1, 3).every(line => line.startsWith('│') && line.endsWith('│')) && band.every(line => stringWidth(line) === cols), band.join(' | '))
+    const frame = lines().map(line => line.trimEnd())
+    const title = frame.findIndex(line => line.includes('← back'))
+    check(`${size} ${name}: the status row stands as one line directly under the view's bottom border, the composer under it`, title > 0 && /╰─+╯$/.test(frame[title - 1] ?? '') && (frame[title + 1] ?? '').startsWith('╭') && stringWidth(frame[title] ?? '') <= cols, `${frame[title - 1]} | ${frame[title]} | ${frame[title + 1]}`)
     check(`${size} ${name}: the frame fits the terminal`, frame.length <= rows && frame.every(line => stringWidth(line) <= cols), `${frame.length}/${rows} rows`)
   }
   check(`${size}: lead chip starts with the lead model and effort`, await until(() => strip().includes(leadLabel) && /\bhigh\b/.test(strip())), strip())
   snapshot('lead')
   enterCrewmateView(taskId, store!.setState)
-  check(`${size}: the real view transition opens the crewmate`, await until(() => lines().some(line => line.includes('VIEW · atlas · viewing'))), lines().find(line => line.includes('VIEW')))
+  check(`${size}: the real view transition opens the crewmate (the status row names its model; at 178 its viewing words too)`, await until(() => strip().includes(agentLabel) && (cols < 178 || /viewing/.test(strip()))), strip())
   const agentPainted = await until(() => strip().includes(agentLabel) && /\bmax\b/.test(strip()))
   snapshot('viewing')
   check(`${size}: viewed chip names the crewmate model, not the lead`, strip().includes(agentLabel) && !strip().includes(leadLabel), strip())
@@ -204,7 +203,7 @@ for (const [cols, rows] of [[178, 51], [120, 40]] as const) {
   focusedId = 'chip-missing-parent'
   for (const listener of listeners) listener()
   enterCrewmateView(taskId, store!.setState)
-  check(`${size}: missing launch effort stays unreported and never borrows the lead or previous crewmate`, await until(() => strip().includes(agentLabel) && strip().includes('effort unreported')) && !/\bhigh\b|\blow\b|\bmax\b|\bmedium\b/.test(strip()), strip())
+  check(`${size}: a missing launch effort paints no effort word and never borrows the lead or previous crewmate`, await until(() => strip().includes(agentLabel) && !/\bhigh\b|\blow\b|\bmax\b|\bmedium\b|unreported/.test(strip())), strip())
   snapshot('unreported')
   ink.unmount()
   await ink.waitUntilExit()

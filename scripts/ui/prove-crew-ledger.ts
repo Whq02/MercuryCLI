@@ -192,7 +192,11 @@ const h = React.createElement
 
 const resting = noSessionConnector() as unknown as Record<string, unknown>
 const tailStore = createStreamingTailStore()
+const WORKSPACE = join(HOME, 'mercury')
+mkdirSync(join(WORKSPACE, '.git'), { recursive: true })
+writeFileSync(join(WORKSPACE, '.git', 'HEAD'), 'ref: refs/heads/main\n')
 const overrides: Record<string, unknown> = {
+  workspace: () => ({ cwd: WORKSPACE, originalCwd: WORKSPACE, projectRoot: WORKSPACE }),
   sessionId: () => SESSION_ID,
   workRoster: () => roster,
   subscribeWork: (listener: () => void) => { workListeners.add(listener); return () => { workListeners.delete(listener) } },
@@ -360,7 +364,8 @@ const footerOf = (lines: string[]): string => {
   const row = composerRowAt(lines)
   return row < 0 ? '' : lines.slice(row + 1, row + 8).map(line => line.trim()).filter(line => line !== '' && !/^[╰─╯╭╮]+$/.test(line)).join('\n')
 }
-const headerOf = (lines: string[], railCols: number): string => (lines.find(line => /VIEW/.test(cells(line).slice(railCols, -railCols).join(''))) ?? '').trim()
+const statusOf = (lines: string[], railCols: number): string => (lines.find(line => line.includes('← back')) ?? '').trim()
+const viewedName = (lines: string[], railCols: number): string => (/viewing (.+?) · composer|main chat: (.+?) · /.exec(statusOf(lines, railCols)) ?? [])[1] ?? (/main chat: (.+?) · /.exec(statusOf(lines, railCols)) ?? [])[1] ?? ''
 const centreOf = (lines: string[], railCols: number): string[] => lines.map(line => cells(line).slice(railCols, -railCols).join(''))
 const cardOf = (lines: string[], railCols: number): string => centreOf(lines, railCols).slice(1, 6).join(' ').replace(/\s+/g, ' ')
 const save = (name: string, cols: number, rows: number, lines: string[]): void => {
@@ -444,7 +449,7 @@ async function run(cols: number, rows: number): Promise<void> {
     await until(() => centreOf(scene.lines(), railCols).some(line => line.includes('DELTA-ROW')), 6000)
     await sleep(400)
     save('01b-delta-viewed', cols, rows, scene.lines())
-    check('delta (landed, still on the roster) is viewed with its transcript', scene.state().viewingAgentTaskId === DELTA.id && headerOf(scene.lines(), railCols).includes(DELTA.name), `viewing=${String(scene.state().viewingAgentTaskId)} · header ${headerOf(scene.lines(), railCols)}`)
+    check('delta (landed, still on the roster) is viewed with its transcript', scene.state().viewingAgentTaskId === DELTA.id && viewedName(scene.lines(), railCols) === DELTA.name, `viewing=${String(scene.state().viewingAgentTaskId)} · status row ${statusOf(scene.lines(), railCols)}`)
     const landedFooter = footerOf(scene.lines()).replace(/\s+/g, ' ')
     console.log(`the footer on the landed crewmate: ${landedFooter.slice(0, 200)}`)
     check('the footer says what ↵ does to a landed hosted crewmate — ↵ resumes delta with your line — never "↵ sends to delta"', /↵ resumes delta with your line/.test(landedFooter) && !/↵ sends to delta/.test(landedFooter), landedFooter.slice(0, 240))
@@ -468,8 +473,8 @@ async function run(cols: number, rows: number): Promise<void> {
     scene.push(ESC)
     await sleep(600)
     save('01b-esc-on-delta', cols, rows, scene.lines())
-    console.log(`after esc on delta: viewing=${String(scene.state().viewingAgentTaskId)} · header "${headerOf(scene.lines(), railCols)}" · ${footerOf(scene.lines()).replace(/\s+/g, ' ').slice(0, 200)}`)
-    check('esc on the landed crewmate goes back to Mercury Lead (no crewmate viewed, the lead\'s rows back)', scene.state().viewingAgentTaskId === undefined && centreOf(scene.lines(), railCols).some(line => line.includes('LEAD-ROW')), `viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)} · header "${headerOf(scene.lines(), railCols)}"`)
+    console.log(`after esc on delta: viewing=${String(scene.state().viewingAgentTaskId)} · status row "${statusOf(scene.lines(), railCols)}" · ${footerOf(scene.lines()).replace(/\s+/g, ' ').slice(0, 200)}`)
+    check('esc on the landed crewmate goes back to Mercury Lead (no crewmate viewed, the lead\'s rows back)', scene.state().viewingAgentTaskId === undefined && centreOf(scene.lines(), railCols).some(line => line.includes('LEAD-ROW')), `viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)} · status row "${statusOf(scene.lines(), railCols)}"`)
     check('no stop was sent for the landed crewmate', stops().length === stopsBefore, JSON.stringify(stops().slice(stopsBefore)))
     check('the receipt says delta is landed and the view is back on Mercury Lead — never "between turns — nothing to interrupt"', scene.lines().some(line => line.includes(`${DELTA.name} is landed`) && line.includes(LEAD_ROW)) && !scene.lines().some(line => line.includes('nothing to interrupt')), footerOf(scene.lines()).replace(/\s+/g, ' ').slice(0, 240))
   }
@@ -540,7 +545,7 @@ async function run(cols: number, rows: number): Promise<void> {
     await until(() => centreOf(scene.lines(), railCols).some(line => line.includes('BIRCH-ROW')), 6000)
     await sleep(400)
     save('04-birch-viewed', cols, rows, scene.lines())
-    check('birch (interrupted, evicted by the runner) opens in the view with its transcript', scene.state().viewingAgentTaskId === BIRCH.id && headerOf(scene.lines(), railCols).includes(BIRCH.name) && centreOf(scene.lines(), railCols).some(line => line.includes('BIRCH-ROW')), `viewing=${String(scene.state().viewingAgentTaskId)} · header ${headerOf(scene.lines(), railCols)}`)
+    check('birch (interrupted, evicted by the runner) opens in the view with its transcript', scene.state().viewingAgentTaskId === BIRCH.id && viewedName(scene.lines(), railCols) === BIRCH.name && centreOf(scene.lines(), railCols).some(line => line.includes('BIRCH-ROW')), `viewing=${String(scene.state().viewingAgentTaskId)} · status row ${statusOf(scene.lines(), railCols)}`)
     const card = cardOf(scene.lines(), railCols)
     console.log(`birch's card: ${card.slice(0, 240)}`)
     check('the card says birch is interrupted (its state word), greyed, and does not promise esc interrupts or x stop', card.includes('interrupted') && !card.includes('esc interrupts') && !card.includes('x stop'), card.slice(0, 240))
@@ -551,7 +556,7 @@ async function run(cols: number, rows: number): Promise<void> {
     scene.push(ESC)
     await sleep(600)
     save('04-esc-on-birch', cols, rows, scene.lines())
-    check('esc on the crewmate that is not running goes back to Mercury Lead (no crewmate viewed)', scene.state().viewingAgentTaskId === undefined, `viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)} · header "${headerOf(scene.lines(), railCols)}"`)
+    check('esc on the crewmate that is not running goes back to Mercury Lead (no crewmate viewed)', scene.state().viewingAgentTaskId === undefined, `viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)} · status row "${statusOf(scene.lines(), railCols)}"`)
     check('the lead\'s rows are back in the centre', centreOf(scene.lines(), railCols).some(line => line.includes('LEAD-ROW')) && !centreOf(scene.lines(), railCols).some(line => line.includes('BIRCH-ROW')))
     check('no stop was sent for the crewmate that was not running', stops().length === stopsBefore, JSON.stringify(stops().slice(stopsBefore)))
     check('the receipt says birch is interrupted and the view is back on Mercury Lead', scene.lines().some(line => line.includes(`${BIRCH.name} is interrupted`) && line.includes(LEAD_ROW)), footerOf(scene.lines()).replace(/\s+/g, ' ').slice(0, 240))
@@ -705,7 +710,7 @@ async function run(cols: number, rows: number): Promise<void> {
     await sleep(400)
     save('07-local-landed-viewed', cols, rows, scene.lines())
     const localFooter = footerOf(scene.lines()).replace(/\s+/g, ' ')
-    console.log(`the footer on the landed local crewmate: ${localFooter.slice(0, 200)} · composer row "${composerText(scene.lines()).slice(0, 80)}" · header "${headerOf(scene.lines(), railCols).slice(0, 80)}"`)
+    console.log(`the footer on the landed local crewmate: ${localFooter.slice(0, 200)} · composer row "${composerText(scene.lines()).slice(0, 80)}" · status row "${statusOf(scene.lines(), railCols).slice(0, 80)}"`)
     check('the footer on a landed LOCAL crewmate says ↵ is refused and names the resume door — never "↵ sends to local"', /↵ refused — r in \/crewmates resumes local/.test(localFooter) && !/↵ sends to local/.test(localFooter) && /esc back to Mercury Lead/.test(localFooter), localFooter.slice(0, 240))
     await clickRail(scene, LEAD_ROW, railCols)
     await until(() => scene.state().viewingAgentTaskId === undefined, 4000)

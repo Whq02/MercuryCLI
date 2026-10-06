@@ -28,6 +28,7 @@ let fail = 0
   if (!kept) fail = 1
 
   const { canonicalizeCheckoutRows } = await import('./visualBaseline.ts')
+  type StoredGrid = import('./visualBaseline.ts').StoredGrid
   const band = '│ ▚▛▀▜▞ │ Opus 5 · ● high │ some-worktree ⌥fix/some-lane │ ⤳2' + ' '.repeat(56) + '│'
   const tag = '◐ first task · some-worktree · ready' + ' '.repeat(76) + '⇧← back '
   const grid = { schema: 1, cols: band.length, rows: 2, text: [band, tag], styles: [[], []] }
@@ -58,16 +59,9 @@ let fail = 0
   console.log(`  [${sameNow ? 'PASS' : 'FAIL'}] the session tag bar as painted today canonicalizes across checkout basenames`)
   if (!sameNow) fail = 1
 
-  const cardMac = '│ ⊞ SESSIONS › │  ▣ this session  │  ▢ first task   ⌥←→ flip · /sessions' + ' '.repeat(47) + '│'
-  const cardLinux = '│ ⊞ SESSIONS › │  ▣ this session  │  ▢ first task   alt+←→ flip · /sessions' + ' '.repeat(44) + '│'
-  const cardSame = neutralizeGrid(oneRow(cardMac), DEFAULT_MASKS).text[0] === neutralizeGrid(oneRow(cardLinux), DEFAULT_MASKS).text[0]
-  const cardKeepsTabs = neutralizeGrid(oneRow(cardMac), DEFAULT_MASKS).text[0].includes('▣ this session  │  ▢ first task')
-  console.log(`  [${cardSame && cardKeepsTabs ? 'PASS' : 'FAIL'}] the SESSIONS card row canonicalizes across the flip hint's host spellings (⌥←→ · alt+←→) and keeps its tabs — ${JSON.stringify(neutralizeGrid(oneRow(cardLinux), DEFAULT_MASKS).text[0])}`)
-  if (!(cardSame && cardKeepsTabs)) fail = 1
-  const withoutHintMask = DEFAULT_MASKS.filter(m => !m.includes('←→ flip'))
-  const oldVocabularyDiverged = neutralizeGrid(oneRow(cardMac), withoutHintMask).text[0] !== neutralizeGrid(oneRow(cardLinux), withoutHintMask).text[0]
-  console.log(`  [${oldVocabularyDiverged ? 'PASS' : 'FAIL'}] without the hint's mask the two hosts diverge on that row (the branch mask ate the Mac glyph alone) — the reason the old vocabulary was false`)
-  if (!oldVocabularyDiverged) fail = 1
+  const noFlipMask = !DEFAULT_MASKS.some(m => m.includes('←→ flip'))
+  console.log(`  [${noFlipMask ? 'PASS' : 'FAIL'}] no mask names the sessions strip's flip hint (the strip is gone; a mask for a row that never paints is a dead tooth)`)
+  if (!noFlipMask) fail = 1
 
   const tagMac = ' mercury · ready' + ' '.repeat(96) + '⇧← back '
   const tagLinux = ' mercury · ready' + ' '.repeat(92) + 'shift+← back '
@@ -90,6 +84,36 @@ let fail = 0
   console.log(`  [${restingDiverged ? 'PASS' : 'FAIL'}] without the back hint's masks the two hosts diverge on the resting row — the reason the resting row has a mask of its own`)
   if (!restingDiverged) fail = 1
   const restingNamed = canonicalizeCheckoutRows(oneRow(restingMac), { basename: 'some-worktree', branch: 'x' }).text[0] === restingMac
+  const clippedChip = '✶ Mercury · ● ready · Opus 5.5 · effort high · ctx — · some…'
+  const clippedCanon = canonicalizeCheckoutRows(oneRow(clippedChip), { basename: 'some-worktree', branch: 'x' }).text[0]
+  const clippedOk =
+    clippedCanon === '✶ Mercury · ● ready · Opus 5.5 · effort high · ctx — · merc…' &&
+    canonicalizeCheckoutRows(oneRow(clippedChip), { basename: 'mercury', branch: 'x' }).text[0] === clippedChip &&
+    canonicalizeCheckoutRows(oneRow('│  · /workflows — some…││'), { basename: 'some-worktree', branch: 'x' }).text[0] === '│  · /workflows — some…││' &&
+    canonicalizeCheckoutRows(oneRow('✶ Mercury · ctx — · some-worktree-…'), { basename: 'some-worktree-name', branch: 'x' }).text[0] === '✶ Mercury · ctx — · some-worktree-…'
+  const recorded = (name: string, branch: string) => {
+    const popup = `│ │ ${name} ▸` + ' '.repeat(28 - name.length) + '│'
+    const status = ` ready · Opus 5 · high` + ' '.repeat(60 - name.length - branch.length) + `${name} ⌥ ${branch}  ⇧← back `
+    const styles: StoredGrid['styles'] = [
+      [[0, 1, '5e6e68', 'default', 0], [2, 1, 'dd4444', 'default', 0], [4, name.length, 'dd4444', 'default', 1], [4 + name.length + 1, 1, '3fbfa0', 'default', 0], [popup.length - 1, 1, 'dd4444', 'default', 0]],
+      [[1, 5, 'b0c4c8', 'default', 0], [82 - name.length - branch.length, name.length, '71807b', 'default', 0], [83 - branch.length, branch.length + 2, '9fb3b8', 'default', 0], [status.length - 9, 9, '71807b', 'default', 0]],
+    ]
+    return canonicalizeCheckoutRows({ schema: 1, cols: popup.length, rows: 2, text: [popup, status], styles }, { basename: name, branch })
+  }
+  const inlineBand = (name: string, branch: string) => canonicalizeCheckoutRows(oneRow(`  ▄▄▄▄▄▄▄▄▄   ${name} ⌥ ${branch} · ⤳2` + ' '.repeat(60 - name.length - branch.length)), { basename: name, branch }).text[0]
+  const inlineKept = inlineBand('agent-ayc8z8g2', 'lane/beta28-rail') === inlineBand('mercury-28', 'working-28') && inlineBand('mercury-28', 'working-28')!.startsWith('  ▄▄▄▄▄▄▄▄▄   mercury ⌥ main · ⤳2   ')
+  console.log(`  [${inlineKept ? 'PASS' : 'FAIL'}] the inline band's left chip stays where it paints (the freed cells go to the trailing run, not the gap after the sprite) — ${JSON.stringify(inlineBand('agent-ayc8z8g2', 'lane/beta28-rail'))}`)
+  if (!inlineKept) fail = 1
+  const fromLong = recorded('agent-ayc8z8g2', 'lane/beta28-rail')
+  const fromShort = recorded('mercury-28', 'working-28')
+  const stylesSame = JSON.stringify(fromLong) === JSON.stringify(fromShort)
+  const nameRun = fromLong.styles[0]!.some(([startCol, len, , , flags]) => startCol === 4 && len === 'mercury'.length && flags === 1)
+  const statusRuns = JSON.stringify(fromLong.styles[1]) === JSON.stringify([[1, 5, 'b0c4c8', 'default', 0], [71, 7, '71807b', 'default', 0], [79, 6, '9fb3b8', 'default', 0], [86, 9, '71807b', 'default', 0]])
+  const widthsKept = fromLong.text[0]!.length === 35 && fromLong.text[1]!.length === recorded('mercury-28', 'working-28').text[1]!.length && fromLong.text[0]!.startsWith('│ │ mercury ▸') && fromLong.text[1]!.includes('mercury ⌥ main  ⇧← back')
+  console.log(`  [${stylesSame && nameRun && statusRuns && widthsKept ? 'PASS' : 'FAIL'}] two checkouts of different name lengths store byte-identical rows, styles included: the checkout words' runs take the fixed spelling's widths (the folder's dim run, the branch's run) and the freed cells join the longer neighbouring padding run, so a right-aligned chip stays right-aligned — ${JSON.stringify(fromLong.styles)}`)
+  if (!(stylesSame && nameRun && statusRuns && widthsKept)) fail = 1
+  console.log(`  [${clippedOk ? 'PASS' : 'FAIL'}] the narrow statusline's clipped checkout chip (ctx — · some…) stores the fixed spelling's prefix at the same width; a clipped word elsewhere and a clip longer than the fixed spelling are left as captured — ${JSON.stringify(clippedCanon)}`)
+  if (!clippedOk) fail = 1
   console.log(`  [${restingNamed ? 'PASS' : 'FAIL'}] the resting row names no checkout, so the canonical spelling leaves it as captured`)
   if (!restingNamed) fail = 1
 

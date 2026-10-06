@@ -78,7 +78,7 @@ function recentRows(rail: string[]): string[] {
 }
 
 function stripRow(frame: string[]): string {
-  return frame.find(line => line.includes('SESSIONS')) ?? ''
+  return frame.find(line => line.includes('⊞ SESSIONS')) ?? ''
 }
 
 function saveFrame(name: string, frame: string[]): void {
@@ -86,7 +86,7 @@ function saveFrame(name: string, frame: string[]): void {
 }
 
 console.log('='.repeat(60))
-console.log(' the RECENT lane and the SESSIONS strip never name the conversation open in the view')
+console.log(' the RECENT lane never names the conversation open in the view')
 console.log('='.repeat(60))
 
 console.log('\n§1 the list roads exclude the conversation in the view, not the bootstrap identity')
@@ -96,8 +96,6 @@ const rail = src('src/components/HelmLanesRail.tsx')
 check('the RECENT scan follows the focused slot', rail.includes(`const conversationId = ${FOLLOWS_SLOT}`))
 check('the RECENT scan keys its scope on the conversation in the view', rail.includes('const recentScopeKey = `${getProjectRoot() || \'\'}::${conversationId}`'))
 check('the RECENT scan excludes the conversation in the view', rail.includes('filterResumableSessions(all, conversationId)') && !rail.includes('getSessionId()'))
-const strip = src('src/components/mercury-ui/SessionTabs.tsx')
-check('the SESSIONS strip follows the focused slot and keys its scope on it', strip.includes(`const sessionId = ${FOLLOWS_SLOT}`) && !strip.includes('getSessionId()'))
 check('the /sessions picker model excludes the conversation in the view', src('src/components/mercury-ui/screens/sessionPickerModel.ts').includes('resumableNewestFirst(all, conversationIdHere())'))
 check('the /sessiontab flip excludes the conversation in the view', src('src/commands/sessiontab/sessiontab.tsx').includes('filterResumableSessions(all, conversationIdHere())'))
 check('the /resume picker excludes the conversation in the view', src('src/commands/resume/resume.tsx').includes('filterResumableSessions(loaded, conversationIdHere())'))
@@ -110,16 +108,14 @@ const SESSIONS_SEND: Send[] = [
   { minTick: 4, requireAwait: true, awaitText: 'Switch to', awaitStableTicks: 3, data: '', mark: 'picker' },
 ]
 try {
-  const direct = capture('direct', 'resume-2turn', 120, 44, SESSIONS_SEND, 120, { view: { sessionsBar: true } })
+  const direct = capture('direct', 'resume-2turn', 120, 44, SESSIONS_SEND, 120)
   const home = direct.marks.direct ?? direct.frame
   saveFrame('120x44-direct', home)
   const homeRail = railLines(home)
   const recent = recentRows(homeRail)
   check('R5 the RECENT lane never lists the conversation open in the view', !recent.some(row => row.includes(OPEN_TITLE)), `RECENT rows ${JSON.stringify(recent)}`)
   check('R5b the RECENT lane lists the older session of the project', recent.some(row => row.includes(OTHER_TITLE)), `RECENT rows ${JSON.stringify(recent)}`)
-  const berths = stripRow(home)
-  check('R7 the SESSIONS strip never berths the conversation open in the view', berths !== '' && !berths.includes(`▢ ${OPEN_TITLE}`), berths)
-  check('R7b the SESSIONS strip berths the older session', berths.includes('▢ apply the'), berths)
+  check('R7 no sessions strip paints under the view (the RECENT lane and /sessions are the roads)', stripRow(home) === '', stripRow(home))
   const picker = direct.marks.picker ?? direct.frame
   saveFrame('120x44-sessions', picker)
   const switchAt = picker.findIndex(line => line.includes('Switch to ('))

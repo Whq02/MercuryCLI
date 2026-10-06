@@ -99,6 +99,10 @@ async function main(): Promise<void> {
     }
   }
   type Seat = { setLive(next: SessionLiveV1): void; setStatus(next: SeatStatusV1): void }
+  const WS = join(mkdtempSync(join(tmpdir(), 'status-notice-ws-')), 'mercury')
+  mkdirSync(join(WS, '.git'), { recursive: true })
+  writeFileSync(join(WS, '.git', 'HEAD'), 'ref: refs/heads/main\n')
+  let HEAD = 'fixture-model'
   function seatFixture(sessionId: string, initial: { live: SessionLiveV1; status: SeatStatusV1 }): Seat {
     const liveListeners = new Set<() => void>()
     const roster = { rows: [], mission: [], samples: [], reported: true }
@@ -110,6 +114,7 @@ async function main(): Promise<void> {
       subscribeRecords: () => () => {},
       modelFacts: () => ({ effective: 'fixture-model', effectiveSource: 'live', main: 'fixture-model', setting: null, sessionPin: null, effort: null, effortSent: null, pendingSwitch: null }),
       subscribeModel: () => () => {},
+      workspace: () => ({ cwd: WS, originalCwd: WS, projectRoot: WS }),
       workRoster: () => roster,
       subscribeWork: () => () => {},
       live: () => live,
@@ -168,6 +173,7 @@ async function main(): Promise<void> {
     const mounted = await mount(columns, rows, React.createElement(bar.FocusedSessionStatusRow))
     const out = new Map<string, Painted>()
     const rested = mounted.frame()
+    HEAD = /^ ready · (fixture-model(?: · \S+)?)(?:\s{2,}|$)/.exec(rested)?.[1] ?? HEAD
     check(`${columns}: the row rests before the turn (the drive's own starting frame)`, rested.trimStart().startsWith('ready') && !rested.includes(PROJECT), quote(rested))
     for (const [label, live, s] of scenes) {
       seat.setLive(live)
@@ -189,38 +195,41 @@ async function main(): Promise<void> {
     return trimmed.endsWith(painted.hint) && stringWidth(trimmed) === columns - 1 && !painted.row.includes('\n')
   }
   const cutBare = (painted: Painted): boolean => {
-    const shown = painted.row.slice(` ${PROJECT} · `.length).split(/ {3,}/)[0] ?? ''
+    const shown = painted.row.slice(` ${HEAD} · `.length).split(/ {3,}/)[0] ?? ''
     return shown.length < painted.words.length && painted.words.startsWith(shown) && !shown.includes(ELLIPSIS)
   }
-  const fixedOf = (painted: Painted): number => 1 + stringWidth(PROJECT) + 3 + 2 + stringWidth(painted.hint)
+  const planOf = (painted: Painted, columns: number) => bar.statusRowPlan({ columns, head: HEAD, rest: painted.words, samples: [], folder: 'mercury', branch: 'main', backHint: painted.hint })
+  const fixedOf = (painted: Painted, columns: number): number => planOf(painted, columns).fixedWidth
   const lawful = (label: string, painted: Painted, columns: number): void => {
-    const fixed = fixedOf(painted)
-    const fitted = bar.fitStatusLine(painted.words, columns, fixed)
+    const plan = planOf(painted, columns)
+    const fixed = plan.fixedWidth
+    const fitted = plan.rest
     const whole = stringWidth(painted.words) <= bar.statusLineBudget(columns, fixed)
     const room = fixed + stringWidth(fitted) <= columns
-    const detail = `${quote(painted.row)} fitted=${JSON.stringify(fitted)}`
-    if (whole) check(`${label} @${columns}: the words paint whole, the way back at the right edge`, painted.row.startsWith(` ${PROJECT} · ${painted.words}`) && !painted.row.includes(ELLIPSIS) && rightEdge(painted, columns), detail)
-    else if (room) check(`${label} @${columns}: the rule's own cut (an ellipsis, the tail clause kept), the way back at the right edge`, painted.row.startsWith(` ${PROJECT} · ${fitted}`) && fitted.includes(ELLIPSIS) && fitted.endsWith(painted.words.slice(-4)) && rightEdge(painted, columns), detail)
-    else check(`${label} @${columns}: no room beside the fixed cells — the row's own end cut marks the cut and keeps the way back`, painted.row.startsWith(` ${PROJECT.slice(0, 3)}`) && painted.row.includes(ELLIPSIS) && rightEdge(painted, columns), detail)
-    check(`${label} @${columns}: never a bare cut, within the width, one line`, !cutBare(painted) && stringWidth(painted.row) <= columns && !painted.row.includes('\n'), quote(painted.row))
+    const detail = `${quote(painted.row)} fitted=${JSON.stringify(fitted)} right=${JSON.stringify(plan.right)}`
+    if (fitted === '') check(`${label} @${columns}: no room for the words under the floor — they leave; the model leads and the way back stands`, painted.row.startsWith(` ${HEAD.slice(0, 3)}`) && !painted.row.includes(` · ${painted.words.slice(0, 6)}`) && rightEdge(painted, columns), detail)
+    else if (whole) check(`${label} @${columns}: the words paint whole after the model and effort, the way back at the right edge`, painted.row.startsWith(` ${HEAD} · ${painted.words}`) && !painted.row.includes(ELLIPSIS) && rightEdge(painted, columns), detail)
+    else if (room) check(`${label} @${columns}: the rule's own cut (an ellipsis, the tail clause kept), the way back at the right edge`, painted.row.startsWith(` ${HEAD} · ${fitted}`) && fitted.includes(ELLIPSIS) && fitted.endsWith(painted.words.slice(-4)) && rightEdge(painted, columns), detail)
+    else check(`${label} @${columns}: no room beside the fixed cells — the row's own end cut marks the cut and keeps the way back`, painted.row.startsWith(` ${HEAD.slice(0, 3)}`) && painted.row.includes(ELLIPSIS) && rightEdge(painted, columns), detail)
+    check(`${label} @${columns}: never a bare cut, within the width, one line`, (fitted === '' || !cutBare(painted)) && stringWidth(painted.row) <= columns && !painted.row.includes('\n'), quote(painted.row))
   }
 
   section('S2 at 150 columns the cold ingest sentence paints whole after the resting row, the way back at the right edge')
   const wide = await paint(150, 34, 'status-row', notices)
   {
     const cold = wide.get('cold ingest')!
-    check('the row reads the project, the separator and the whole sentence', cold.row.startsWith(` ${PROJECT} · ${SENTENCE}`), quote(cold.row))
+    check('the row reads the model and effort, the separator, the whole sentence, then the folder and branch', cold.row.startsWith(` ${HEAD} · ${SENTENCE}`) && cold.row.includes(' mercury ⌥ main  '), quote(cold.row))
     check('no bare cut: the words are never followed by blank columns before the way back', !cutBare(cold), quote(cold.row))
     check("the way back carries the esc clause and stands at the right edge", cold.hint === keyHintLabel('esc interrupts · ⇧← back') && rightEdge(cold, 150), quote(cold.row))
     for (const [label] of notices) lawful(label, wide.get(label)!, 150)
   }
 
-  section("S3 at 60 columns every notice is cut by the fit rule (an ellipsis, the tail clause kept) or the row's own end cut — never a bare cut")
+  section('S3 at 60 columns the words leave under the floor — the model and effort and the way back stand, never a bare cut')
   const tight = await paint(60, 21, 'status-row', notices)
   {
     const cold = tight.get('cold ingest')!
-    const fitted = bar.fitStatusLine(SENTENCE, 60, fixedOf(cold))
-    check("the cold ingest sentence takes the rule's cut: an ellipsis, the budget's tail kept", cold.row.startsWith(` ${PROJECT} · ${fitted}`) && fitted !== SENTENCE && fitted.includes(ELLIPSIS) && fitted.endsWith('1m 18s'), `${quote(cold.row)} fitted=${JSON.stringify(fitted)}`)
+    const fitted = planOf(cold, 60).rest
+    check('at 60 the words leave under the floor: the model and effort stand, the folder and branch gone, the way back at the right edge', fitted === '' && cold.row.startsWith(` ${HEAD}`) && !cold.row.includes('ingesting') && !cold.row.includes('mercury') && rightEdge(cold, 60), `${quote(cold.row)} fitted=${JSON.stringify(fitted)}`)
     for (const [label] of notices) lawful(label, tight.get(label)!, 60)
   }
 
@@ -228,11 +237,10 @@ async function main(): Promise<void> {
   {
     const cold = notices.slice(0, 1)
     const roomy = (await paint(178, 51, 'status-row', cold)).get('cold ingest')!
-    check('178: the sentence whole, the way back at the right edge', roomy.row.startsWith(` ${PROJECT} · ${SENTENCE}`) && rightEdge(roomy, 178), quote(roomy.row))
+    check('178: the sentence whole after the model and effort, the folder and branch, the way back at the right edge', roomy.row.startsWith(` ${HEAD} · ${SENTENCE}`) && roomy.row.includes(' mercury ⌥ main  ') && rightEdge(roomy, 178), quote(roomy.row))
     const small = (await paint(80, 21, 'status-row', cold)).get('cold ingest')!
-    const fixed = 1 + stringWidth(PROJECT) + 3 + 2 + stringWidth(small.hint)
-    const fitted = bar.fitStatusLine(SENTENCE, 80, fixed)
-    check("80: the rule's cut (the ellipsis, the budget kept), the way back at the right edge", small.row.startsWith(` ${PROJECT} · ${fitted}`) && fitted.includes(ELLIPSIS) && fitted.endsWith('1m 18s') && rightEdge(small, 80), `${quote(small.row)} fitted=${JSON.stringify(fitted)}`)
+    const fitted = planOf(small, 80).rest
+    check("80: the rule's cut (the ellipsis, the budget kept), the way back at the right edge", small.row.startsWith(` ${HEAD} · ${fitted}`) && fitted.includes(ELLIPSIS) && fitted.endsWith('1m 18s') && rightEdge(small, 80), `${quote(small.row)} fitted=${JSON.stringify(fitted)}`)
   }
 }
 
