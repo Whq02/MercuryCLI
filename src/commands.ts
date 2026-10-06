@@ -71,7 +71,6 @@ import accent from './commands/accent/index.js'
 import mouse from './commands/mouse/index.js'
 import showcase from './commands/showcase/index.js'
 import capabilities from './commands/capabilities/index.js'
-import harness from './commands/harness/index.js'
 import workbench from './commands/workbench/index.js'
 import router from './commands/router/index.js'
 import daemon from './commands/daemon/index.js'
@@ -210,7 +209,6 @@ const COMMANDS = memoize((): Command[] => [
   mouse,
   showcase,
   capabilities,
-  harness,
   caching,
   workbench,
   router,

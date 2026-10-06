@@ -152,7 +152,6 @@ export type GlobalConfig = {
     lastKind: string
     lastAt: number
   }
-  harnessProfilePin?: string
   theme: ThemeSetting
   hasCompletedOnboarding?: boolean
   lastOnboardingVersion?: string
@@ -351,7 +350,6 @@ export const GLOBAL_CONFIG_KEYS = [
   'prStatusFooterEnabled',
   'remoteControlAtStartup',
   'remoteDialogSeen',
-  'harnessProfilePin',
   'agents',
 ] as const satisfies readonly (keyof GlobalConfig)[]
 
