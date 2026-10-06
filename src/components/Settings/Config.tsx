@@ -37,6 +37,7 @@ import type { SettingsJson } from '../../utils/settings/types.js'
 import { readPinnedStatus } from '../../mneme/mnemeFrontPage.js'
 import { runDueMaintenance } from '../../mneme/mnemeMaintenance.js'
 import { formatTextSize, PINNED_TEXT_LIMIT_MIN, PINNED_TEXT_LIMIT_STEP, pinnedTextLimit } from '../../mneme/mnemeUsage.js'
+import { formatTokens } from '../../utils/format.js'
 import {
   clearInstructionFileCaches,
 } from '../../services/instructions/engine.js'
@@ -456,6 +457,24 @@ export function Config({
     change: () => {
       writeGlobal(c => ({ ...c, autoCompactEnabled: c.autoCompactEnabled === false }))
       recordToggle('autoCompact', `set auto-compact to ${config.autoCompactEnabled === false ? 'on' : 'off'}`)
+    },
+  })
+  const WINDOW_RUNGS: ReadonlyArray<number | undefined> = [undefined, 100_000, 200_000, 500_000, 1_000_000]
+  const windowIdx = Math.max(0, WINDOW_RUNGS.findIndex(rung => rung === config.autoCompactWindow))
+  const windowWords = (rung: number | undefined): string => (rung === undefined ? 'auto' : formatTokens(rung))
+  items.push({
+    id: 'autoCompactWindow',
+    label: 'Auto-compact window',
+    searchText: 'auto compact window context tokens condense threshold',
+    kind: 'enum',
+    value: <Text>{windowWords(WINDOW_RUNGS[windowIdx])}</Text>,
+    warning: `the window auto-compact aims for; ${windowIdx === 0 ? 'auto picks one tuned to the model' : 'a manual override can cost more tokens on long sessions'}`,
+    change: direction => {
+      const nextIdx = Math.min(WINDOW_RUNGS.length - 1, Math.max(0, windowIdx + (direction > 0 ? 1 : -1)))
+      if (nextIdx === windowIdx) return
+      const next = WINDOW_RUNGS[nextIdx]
+      writeGlobal(c => ({ ...c, autoCompactWindow: next }))
+      recordSet('autoCompactWindow', `set the auto-compact window to ${windowWords(next)}`)
     },
   })
   const world = stripFacts()
