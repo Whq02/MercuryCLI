@@ -141,8 +141,8 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
       'after:↑↓ choose:900:\\r',
       '7400:spawn the probe\\r',
       `after:poise pro… · running:1000:${sgrClick(10, 4)}`,
-      `after:poise probe · viewing:2000:${sgrClick(10, 3)}`,
-      'after:poise probe · viewing:4600:/frobnicate\\r',
+      `after:x stop · p pause:2000:${sgrClick(10, 3)}`,
+      'after:x stop · p pause:4600:/frobnicate\\r',
       `after:/frobnicate:2400:${ESC}[D`,
       `after:Mercury — surfaces:2600:${ESC}`,
       `after:Mercury — surfaces:4000:x`,
@@ -205,11 +205,11 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
             `@${f.atMs} rail=${JSON.stringify(f.rows.slice(1, 8).map(r => r.slice(0, 24).trim()).filter(Boolean).join(' | '))}` +
             ` composer=${JSON.stringify(composerOf(f).slice(0, 32))}` +
             `${has(f, 'Mercury — surfaces') ? ' MGR' : ''}` +
-            `${has(f, /VIEW · poise probe · viewing/) ? ' VIEW' : ''}`,
+            `${has(f, /❯ message poise probe/) ? ' VIEW' : ''}`,
         )
         .join(' ↵ ')
     const crewRow = (f: Fr): boolean => f.rows.some(r => r.includes('poise pro') && r.includes('running'))
-    const inView = (f: Fr): boolean => has(f, /VIEW · poise probe · viewing/)
+    const inView = (f: Fr): boolean => has(f, /❯ message poise probe/)
     const iCrew = idxOf(0, crewRow)
     t.check(
       "the hosted agent lists in the CREW lane (the runner's roster over the connector)",

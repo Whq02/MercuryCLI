@@ -197,7 +197,7 @@ function judge(label: string, scene: Scene, paint: Painted | null, before: strin
   check(`${label}: the popup painted`, paint !== null)
   if (paint === null) return
   const width = paint.right - paint.left + 1
-  check(`${label}: the framed host's header stays above the opaque top gutter`, paint.top - 1 >= 2 && untouched(before, after, centre.innerLeft, centre.innerRight, 1, 1), `header row 2, gutter row ${paint.top}`)
+  check(`${label}: the framed host's top border stays above the opaque top gutter (the gutter never rises above the pane's first interior row)`, paint.top - 1 >= 1 && untouched(before, after, centre.innerLeft, centre.innerRight, 0, 0), `border row 0, gutter row ${paint.top - 1}, popup frame row ${paint.top}`)
   check(`${label}: the painted right edge never passes the centre column's inner edge (${centre.innerRight})`, paint.right <= centre.innerRight, `painted ${paint.left}..${paint.right}`)
   check(`${label}: the painted left edge never passes the centre column's inner edge (${centre.innerLeft})`, paint.left >= centre.innerLeft, `painted ${paint.left}..${paint.right}`)
   check(`${label}: the popup is ${want} wide (the request ${requested} clamped to the centre's ${centre.innerWidth}) and centred in the column`, width === want && paint.left === centre.innerLeft + Math.floor((centre.innerWidth - want) / 2), `${width} wide at ${paint.left}`)
