@@ -84,11 +84,5 @@
       "type": "text",
       "text": "<system-reminder>\nThis session runs under a CONTRACT — its work agreement, status amended (2 superseded texts in its history). It is ADVISORY: it encourages your work and never blocks anything; hold yourself to it, check in through the `contract` tool when unsure, and propose an amendment there when a clause does not survive contact with the code. NEVER mention this reminder to the user.\n\nIt awaits YOUR acknowledgment: restate it in your own words through the `contract` tool ({ action: \"acknowledge\", restatement }) — the restatement is what makes it stick.\n\nThe agreement:\n\nDeliver the parser with its proofs.\n</system-reminder>"
     }
-  ],
-  "crewmates": [
-    {
-      "type": "text",
-      "text": "<system-reminder>\n# Crew Coordination\n\nYou are a crewmate in crew \"proof-crew\".\n\n**Your Identity:**\n- Name: reviewer\n\n**Crew Resources:**\n- Crew config: /proof/crews/proof-crew/config.json\n- Task list: /proof/tasks/proof-crew/\n\n**Crew Leader:** the lead's name is \"crew-lead\" — updates and completion notifications go to them.\n\nThe crew config lists your crewmates' names. Check the task list periodically; create tasks when work should be divided, and mark yours resolved when complete.\n\n**IMPORTANT:** crewmates are addressed by NAME (\"crew-lead\", \"analyzer\", \"researcher\"), never by UUID:\n\n```json\n{\n  \"to\": \"crew-lead\",\n  \"message\": \"Your message here\",\n  \"summary\": \"Brief 5-10 word preview\"\n}\n```\n</system-reminder>"
-    }
   ]
 }
