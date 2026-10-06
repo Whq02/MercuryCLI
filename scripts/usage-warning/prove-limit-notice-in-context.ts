@@ -84,6 +84,21 @@ const saved = auth.saveOAuthTokensIfNeeded({
 if (!saved.success) throw new Error(`the credential store refused the sign-in: ${saved.warning ?? '?'}`)
 auth.clearOAuthTokenCache()
 recordSignIn('anthropic', 'oauth')
+process.env.MERCURY_CONFIG_DIR = quietHome
+storeOAuthAccountInfo({ accountUuid: '00000000-0000-4000-8000-0000000000bb', emailAddress: 'quiet@example.com' })
+const quietSaved = auth.saveOAuthTokensIfNeeded({
+  accessToken: 'fixture-access-token-quiet',
+  refreshToken: 'fixture-refresh-token-quiet',
+  expiresAt: Date.now() + 3_600_000,
+  scopes: ['user:inference', 'user:profile'],
+  subscriptionType: 'max',
+  rateLimitTier: 'default_claude_max_20x',
+})
+if (!quietSaved.success) throw new Error(`the quiet home refused the sign-in: ${quietSaved.warning ?? '?'}`)
+auth.clearOAuthTokenCache()
+recordSignIn('anthropic', 'oauth')
+process.env.MERCURY_CONFIG_DIR = subscriberHome
+enableConfigs()
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -97,6 +112,7 @@ const NOTICE_MARK = 'Usage limit near'
 const ROAD_ASK = 'NOTICE-ROAD: list the readme'
 const AFTER_ASK = 'AFTER-ROAD: say the road is behind us'
 const KEY_ASK = 'KEY-ROAD: list the readme'
+const QUIET_ASK = 'QUIET-ROAD: list the readme'
 const MODEL_WORD = 'claude-opus-4-8'
 const nowSeconds = Math.floor(Date.now() / 1000)
 const RESET_ONE = nowSeconds + 2 * 3600
@@ -163,6 +179,7 @@ function answerGlob(res: ServerResponse, n: number, model: string, headers: Reco
 }
 let roadStep = 0
 let keyStep = 0
+let quietStep = 0
 const server = createServer((req: IncomingMessage, res: ServerResponse) => {
   const chunks: Buffer[] = []
   req.on('data', c => chunks.push(c as Buffer))
@@ -182,6 +199,13 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       const texts = [...raw.matchAll(/Usage limit near [^"\\]{0,500}/g)].map(m => m[0])
       const n = hits.length + 1
       hits.push({ n, ask: ask.slice(0, 60), notices, texts, model })
+      if (ask.includes('QUIET-ROAD')) {
+        quietStep += 1
+        if (quietStep === 1 || quietStep === 2) return answerGlob(res, n, model, unifiedHeaders('0.80', RESET_ONE, true))
+        if (quietStep === 3) return answerGlob(res, n, model, unifiedHeaders('0.85', RESET_ONE, true))
+        if (quietStep === 4) return answerGlob(res, n, model, unifiedHeaders('0.90', RESET_ONE, true))
+        return answerText(res, n, model, 'the quiet road is walked', unifiedHeaders('0.95', RESET_ONE, true))
+      }
       if (ask.includes('NOTICE-ROAD')) {
         roadStep += 1
         if (roadStep === 1 || roadStep === 2) return answerGlob(res, n, model, unifiedHeaders('0.80', RESET_ONE, true))
@@ -298,7 +322,7 @@ try {
 
   section('§4 the setting off: the same 80/90 wire never reaches the model')
   const beforeQuiet = hits.length
-  const quietRun = await runPrint(quietHome, [ROAD_ASK], {})
+  const quietRun = await runPrint(quietHome, [QUIET_ASK], {})
   check('the quiet seat ran to its end', quietRun.rc === 0, `rc=${quietRun.rc} ${quietRun.err.slice(-300)}`)
   const quietHits = hits.slice(beforeQuiet)
   check('the quiet seat walked the same road', quietHits.length >= 5, brief())
