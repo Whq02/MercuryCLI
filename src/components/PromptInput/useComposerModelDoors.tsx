@@ -56,7 +56,7 @@ import { usageCarryWords, usageForProvider } from '../../services/providers/prov
 import { slotSeatView, slotSwitchTransient, switchActiveSlot } from '../../services/providers/slotSwitch.js'
 import { paintSlotSwitchReceipt } from '../../utils/model/slotSwitchReceipt.js'
 import { getOpenaiObservedVersion, openaiLimitWindow, subscribeOpenaiObserved } from '../../services/providers/openai/openaiLimitState.js'
-import { getUsageRecordVersion, subscribeUsageRecord } from '../../services/anthropicLimits.js'
+import { anthropicWindowClosed, getUsageRecordVersion, subscribeUsageRecord } from '../../services/anthropicLimits.js'
 import { useAnthropicLimits } from '../../services/anthropicLimitsHook.js'
 import { formatResetTime } from '../../utils/format.js'
 import { familyDisplayName } from '../../services/providers/accountSlots.js'
@@ -293,7 +293,7 @@ export function useComposerModelDoors({
         const view = slotSeatView(family)
         const activeWall = ((): { walled: boolean; resetsAtMs?: number } => {
           if (family === 'anthropic') {
-            return limits.status === 'rejected'
+            return anthropicWindowClosed(limits)
               ? { walled: true, ...(limits.resetsAt !== undefined ? { resetsAtMs: limits.resetsAt * 1000 } : {}) }
               : { walled: false }
           }

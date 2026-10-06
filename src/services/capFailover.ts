@@ -295,7 +295,7 @@ function liveFamilyWindowReads(): Required<FamilyWindowReads> {
       const limits = require('./anthropicLimits.js') as typeof import('./anthropicLimits.js')
       const current = limits.currentLimits
       return {
-        status: current.status,
+        status: limits.laneQuotaStatus(current),
         observed: limits.anthropicWindowObserved(),
         ...(current.rateLimitType !== 'overage' && current.utilization !== undefined ? { usedPct: current.utilization * 100 } : {}),
         ...(current.resetsAt !== undefined ? { resetsAtMs: current.resetsAt * 1000 } : {}),
