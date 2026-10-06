@@ -529,7 +529,44 @@ section('§6 the other mints: the Saturn trail, the window refusal and the sign-
   setIdentity('absent')
 }
 
-section('§7 the fixture never left the loopback box')
+section('§7 the model picker header and /router engines read the owners')
+{
+  const { AppStateProvider } = await import(join(ROOT, 'src/state/AppState.tsx'))
+  const model = await import(join(ROOT, 'src/commands/model/mercuryModel.tsx'))
+  const router = await import(join(ROOT, 'src/commands/router/router.tsx'))
+  const picker = async (leg: Leg): Promise<string> => {
+    setIdentity(leg)
+    ledger.noteCredentialChange()
+    const frame = (await paint(React.createElement(AppStateProvider, null, React.createElement(model.MercuryModelChoicePicker, { current: MODEL, onSelect: () => {}, onClose: () => {} })), COLS, ROWS))[0]!
+    save(`${leg}-picker`, frame)
+    return frame
+  }
+  const shownPicker = await picker('absent')
+  const truePicker = await picker('shown')
+  const hiddenPicker = await picker('hidden')
+  const heading = (frame: string): string => frame.split('\n').find(line => /\bANTHROPIC\b/.test(line)) ?? ''
+  check('absent: the picker header names the Claude sign-in beside its door (the check below has teeth)', heading(shownPicker).includes(ANTHROPIC_EMAIL), heading(shownPicker).trim())
+  check('true: the picker frame is byte-identical to absent', truePicker === shownPicker)
+  check('hidden: the picker header keeps the door and drops the account', heading(hiddenPicker) !== '' && !heading(hiddenPicker).includes('@') && heading(hiddenPicker).includes('login'), heading(hiddenPicker).trim())
+  check('hidden: no line of the picker carries an address, a username or a key tail', leaks(hiddenPicker).length === 0, JSON.stringify(leaks(hiddenPicker)))
+  const source = readFileSync(join(ROOT, 'src/commands/model/mercuryModel.tsx'), 'utf8')
+  check('the picker composes the door account through the owner, no copy of its own', source.includes('const account = providerDoorAccount(slot, identity)') && !source.includes('function accountOfSlot('))
+  const engines = async (leg: Leg): Promise<string> => {
+    setIdentity(leg)
+    let text = ''
+    await router.call((value?: string) => { text = value ?? '' }, {} as never, 'engines')
+    return text
+  }
+  const hfLine = (text: string): string => text.split('\n').find(line => line.startsWith('huggingface:')) ?? ''
+  const shownEngines = await engines('absent')
+  const hiddenEngines = await engines('hidden')
+  check('absent: /router engines names the Hub account on the Hugging Face lane', hfLine(shownEngines).includes(`Hugging Face account (${HF_USERNAME})`), hfLine(shownEngines))
+  check('hidden: the Hugging Face lane names the account by its word, no username', hfLine(hiddenEngines).includes('· Hugging Face account ·') && !hfLine(hiddenEngines).includes(HF_USERNAME), hfLine(hiddenEngines))
+  check('hidden: every other lane reads as it did', shownEngines.split('\n').filter(line => !line.startsWith('huggingface:')).join('\n') === hiddenEngines.split('\n').filter(line => !line.startsWith('huggingface:')).join('\n'))
+  setIdentity('absent')
+}
+
+section('§8 the fixture never left the loopback box')
 {
   check('the Anthropic usage endpoint was read with the fixture bearer', requests.includes('GET /api/oauth/usage'), JSON.stringify(requests.slice(0, 12)))
   check('no request reached an OAuth profile endpoint while painting', !requests.some(path => path.includes('/api/oauth/profile')), JSON.stringify(requests))
