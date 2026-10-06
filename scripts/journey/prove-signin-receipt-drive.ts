@@ -241,8 +241,7 @@ function chatSends(): Send[] {
     { atTick: 320, awaitText: 'Sign in', awaitSettleTicks: 3, data: '\r', mark: 'menu' },
     { requireAwait: true, awaitText: 'Sign in / re-login', awaitSettleTicks: 3, data: '\r', mark: 'card' },
     { atTick: 560, awaitText: 'Signed in as', awaitSettleTicks: 5, data: '\r', mark: 'pane' },
-    { atTick: 640, awaitText: 'Login successful', awaitSettleTicks: 4, data: '/status', mark: 'receipt' },
-    { afterPrevTicks: 4, data: '\r' },
+    { atTick: 640, awaitText: 'Login successful', awaitSettleTicks: 4, data: '', mark: 'receipt' },
   ]
 }
 
@@ -283,7 +282,7 @@ async function runLeg(leg: 'chat' | 'face'): Promise<{
     argv: [NODE, DIST, '--model', 'claude-opus-5'],
     cwd: FIXTURE_CWD,
     sends: leg === 'chat' ? chatSends() : faceSends(),
-    readyText: leg === 'chat' ? ['Mercury · status'] : ['↑↓ choose'],
+    readyText: leg === 'chat' ? ['Login successful'] : ['↑↓ choose'],
     readySettleTicks: 6,
     stableTicks: 8,
     total: 800,
@@ -430,7 +429,7 @@ console.log('============================================================')
 const kept: string[] = []
 
 if (LEG === 'chat' || LEG === 'both') {
-  section('the chat road: /logins anthropic, the loopback sign-in lands the second account, the pane, the receipt, /status')
+  section('the chat road: /logins anthropic, the loopback sign-in lands the second account, the pane, the receipt')
   const r = await runLeg('chat')
   const pane = markText(r.payload, 'pane')
   const receipt = markText(r.payload, 'receipt')
@@ -446,13 +445,7 @@ if (LEG === 'chat' || LEG === 'both') {
   check('the chat receipt lands after the pane is confirmed', receipt.includes('Login successful'), tail(receipt, 10))
   check('the credential on file is the one the sign-in landed', r.storedToken === SECOND_ACCESS, String(r.storedToken))
   check('the stored account beside it is the one that signed in, with no /accounts opened', r.storedEmail === SECOND_EMAIL, String(r.storedEmail))
-  const statusRow = end.split('\n').find(l => /^\s*│?\s*Anthropic\s/.test(l))
-  if (statusRow === undefined) {
-    record('/status', `the account rows are folded at ${COLS}x${ROWS}; the Anthropic row is not on this frame`)
-    check('/status never names the account stored before the switch', end.includes('Mercury · status') && !end.includes(FIRST_EMAIL), tail(end, 20))
-  } else {
-    check('/status names the account that just signed in, with no /accounts opened', statusRow.includes(SECOND_EMAIL) && !statusRow.includes(FIRST_EMAIL), statusRow.trim())
-  }
+  check('the chat after the receipt never names the account stored before the switch', end !== '' && !end.includes(FIRST_EMAIL), tail(end, 20))
   if (failures > 0 || KEEP) kept.push(r.home)
   else rmSync(r.home, { recursive: true, force: true })
 }

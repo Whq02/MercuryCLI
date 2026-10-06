@@ -231,10 +231,9 @@ await o.upsertObligation({ ref: 'tap-live-1', sessionId: '${SID}', question: 'Ma
     )
     const settleTick = c.payload.sendReceipts?.[0]?.atTick ?? -1
     check('the drive settled and ran its sends', settleTick >= 0 && (c.payload.sendReceipts?.length ?? 0) >= 5, `receipts=${c.payload.sendReceipts?.length}`)
-    check('before the tap: no badge', !(c.marks['before'] ?? '').includes('⚑'), '(⚑ present early)')
-    check('the tap paints the badge (⚑ 1 needs you)', (c.marks['tapped'] ?? '').includes('⚑ 1 needs you'), (c.marks['tapped'] ?? '').split('\n').find(l => l.includes('⚑')) ?? '(no ⚑ row)')
+    check('the tap leaves the chat at rest (the cockpit paints no badge since the sessions box left; the board below lists the need)', /ready · /.test(c.marks['tapped'] ?? ''), (c.marks['tapped'] ?? '').split('\n').find(l => l.includes('ready')) ?? '(no status row)')
     check(
-      'NO bell byte after the settle (a need paints the badge; only a finished turn pings)',
+      'NO bell byte after the settle (a need is silent; only a finished turn pings)',
       loneBellFrames(c.teePath, settleTick + 10) === 0,
       `lone-bell frames=${loneBellFrames(c.teePath, settleTick + 10)}`,
     )

@@ -64,7 +64,7 @@ try {
     capture(
       'after',
       [
-        { atTick: 95, data: `/sessiontab ${SID_ERRORED}`, awaitText: '❯', minTick: 8, awaitSettleTicks: 3 },
+        { atTick: 95, data: `/sessions ${SID_ERRORED}`, awaitText: '❯', minTick: 8, awaitSettleTicks: 3 },
         { atTick: 100, data: '\r', afterPrevTicks: 3 },
       ],
       130,
@@ -72,7 +72,7 @@ try {
   )
   const switched =
     after.includes('apply the manifest edit') || after.includes('API Error')
-  t('after /sessiontab <id>: fixture B transcript is on screen', switched)
+  t('after /sessions <id>: fixture B transcript is on screen', switched)
   if (!switched) {
     console.log(`  … sendReceipts: ${JSON.stringify(lastReceipts)}`)
     console.log('  … final grid rows 0-24 (first 80 cols):')

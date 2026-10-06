@@ -242,7 +242,7 @@ t.section('§4 — REAL BINARY: the named boundaries, both directions, one boot'
       const header = cockpitOpen(lines) ? 0 : -1
       const tally = { octopus: 0, crab: 0, cells: 0 }
       if (header < 0) return tally
-      const left = (lines[header + 1] ?? '').indexOf('╭')
+      const left = (lines[header] ?? '').indexOf('╭') + 1
       for (let r = header + 2; r < Math.min(lines.length, header + 12); r++) {
         if ((lines[r] ?? '')[left] === '╰') break
         for (const cell of grid[r] ?? []) {

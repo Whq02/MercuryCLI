@@ -50,16 +50,26 @@ const motion = (x: number, y: number): string => `\x1b[<35;${x};${y}M`
 const click = (x: number, y: number): string => `\x1b[<0;${x};${y}M\x1b[<0;${x};${y}m`
 
 type Anchors = { ctxRow: number; ctxCol: number; wfHdrRow: number; wfHdrCol: number; usageHdrRow: number }
-function deriveAnchors(lines: string[]): Anchors | null {
+function columnOf(row: Cell[], needle: string, from: number): number {
+  let text = ''
+  const starts: number[] = []
+  for (const cell of row) {
+    starts.push(text.length)
+    text += cell.c
+  }
+  const at = text.indexOf(needle, starts[from] ?? from)
+  return at < 0 ? -1 : starts.indexOf(at)
+}
+function deriveAnchors(lines: string[], grid: Cell[][]): Anchors | null {
   const ctxRow = lines.findIndex(l => l.slice(RAIL_FROM).includes('ctx '))
   const wfHdrRow = lines.findIndex(l => l.slice(RAIL_FROM).includes('WORKFLOW'))
   const usageHdrRow = lines.findIndex(l => l.slice(RAIL_FROM).includes('USAGE'))
   if (ctxRow < 0 || wfHdrRow < 0 || usageHdrRow < 0) return null
   return {
     ctxRow,
-    ctxCol: RAIL_FROM + lines[ctxRow]!.slice(RAIL_FROM).indexOf('ctx '),
+    ctxCol: columnOf(grid[ctxRow]!, 'ctx ', RAIL_FROM),
     wfHdrRow,
-    wfHdrCol: RAIL_FROM + lines[wfHdrRow]!.slice(RAIL_FROM).indexOf('WORKFLOW'),
+    wfHdrCol: columnOf(grid[wfHdrRow]!, 'WORKFLOW', RAIL_FROM),
     usageHdrRow,
   }
 }
@@ -75,7 +85,7 @@ function leg(
   const SETTLE = 40
   for (let attempt = 0; attempt < 3; attempt++) {
     const base = capture(`${tag}-base${attempt}`, [], 52 + SETTLE)
-    const a = base ? deriveAnchors(base.lines) : null
+    const a = base ? deriveAnchors(base.lines, base.grid) : null
     if (!a) continue
     const sends = build(a).map(s => ({ ...s, atTick: s.atTick + SETTLE }))
     const r = capture(`${tag}-${attempt}`, sends, total + SETTLE)
@@ -96,7 +106,7 @@ console.log('\n── warm-up + baseline sanity ──────────�
 capture('warm', [], 52)
 {
   const base = capture('sanity', [], 52)
-  const a = base ? deriveAnchors(base.lines) : null
+  const a = base ? deriveAnchors(base.lines, base.grid) : null
   check('telemetry anchors present (ctx row + WORKFLOW header)', !!a, a ? `ctx=${a.ctxRow} wf=${a.wfHdrRow}` : '')
   if (base) check('rail is unfocused at rest (no ❯ telemetry banner)', !base.lines.some(l => l.includes('❯ telemetry')))
 }
@@ -145,12 +155,10 @@ leg(
   r =>
     r.lines.some(
       l =>
-        l.includes('— cockpit') ||
-        l.includes('— deck') ||
-        (l.includes('Deck') && l.includes('Fleet') && l.includes('Trace')) ||
-        (l.includes('Status') && l.includes('Config') && l.includes('Usage')),
+        l.includes('what the next request would send') ||
+        l.includes('Mercury · usage'),
     ),
-  'second click on the selected row opens its surface (/deck — same as ↵)',
+  'second click on the selected row opens its surface (/context — same as ↵)',
   r => r.lines.filter(l => l.trim()).slice(0, 2).join(' | '),
 )
 
@@ -159,7 +167,7 @@ leg(
   'header',
   a => [{ atTick: 44, data: click(a.wfHdrCol + 1, a.wfHdrRow + 1) }],
   74,
-  r => r.lines.some(l => l.includes('— workflows')),
+  r => r.lines.some(l => l.includes('No workflow runs')),
   'one click on the WORKFLOW header opens the /workflows board',
   r => r.lines.filter(l => l.trim()).slice(0, 2).join(' | '),
 )

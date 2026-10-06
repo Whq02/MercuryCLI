@@ -36,8 +36,6 @@ const TARGET_CHIP = 'Fable 5.1 ·'
 const HOME_CHIP = 'GPT-5.6 Sol ·'
 const OFFER_TITLE = 'OpenAI usage window'
 const LANE_LINE = /on the anthropic failover lane · (Fable 5\.1|Sonnet 5\.5) · OpenAI window resets [^·]+ · \/model to return/
-const LANE_MARK_FABLE = 'Fable 5.1 · failover'
-const LANE_MARK_SONNET = 'Sonnet 5.5 · failover'
 const LANE_LINE_MS = 4000
 const LANE_LINE_TICKS = 30
 
@@ -295,18 +293,18 @@ const legSettle = drive(
   section("L7 — the failover lane's sentence stands its window after the switch, then the strip's mark carries the fact; a change of state brings the sentence back")
   const lineRow = (grid: string): string => grid.split('\n').find(l => l.includes('failover lane')) ?? ''
   check('at the switch the sentence stands above the composer, in its own words (the lane, the served model, the home window\'s stated reset, the way home)', t0Tick > 0 && LANE_LINE.test(lineRow(t0)) && lineRow(t0).includes('Fable 5.1'), lineRow(t0) || `(no sentence; line-t0 at tick ${t0Tick}; endReason=${p?.endReason ?? '?'})`)
-  check('the strip carries the mark beside the served model while the session runs on the lane', t0.includes(LANE_MARK_FABLE), t0.split('\n').filter(l => l.includes('Fable 5.1')).join(' | '))
+  check('the status row keeps the served model in view while the session runs on the lane (the sessions box that wore the failover mark left the cockpit)', /ready · Fable 5\.1/.test(t0), t0.split('\n').filter(l => l.includes('Fable 5.1')).join(' | '))
   const later = markGrid(p, 'line-later')
   const laterTick = receiptTick(p, 5)
   check(`past its window (${LANE_LINE_MS} ms here; two minutes unset) the sentence has left the composer`, laterTick >= t0Tick + LANE_LINE_TICKS - 1 && !later.includes('failover lane'), lineRow(later) || `(line-later at tick ${laterTick})`)
-  check('…and the strip\'s mark still says where the session runs (Fable 5.1 · failover)', later.includes(LANE_MARK_FABLE), later.split('\n').filter(l => l.includes('Fable 5.1')).join(' | '))
+  check('…and the status row still names the served model (Fable 5.1)', /ready · Fable 5\.1/.test(later), later.split('\n').filter(l => l.includes('Fable 5.1')).join(' | '))
   const sonnetGrid = markGrid(p, 'sonnet-switch')
   check('a lossless switch on the lane (/model sonnet) settles at once too: the chip flips with no preview card', receiptTick(p, 8) > 0 && sonnetGrid.includes('Sonnet 5.5 ·') && !sonnetGrid.includes('Model switch preview'), sonnetGrid === '' ? `(no frame; endReason=${p?.endReason ?? '?'})` : sonnetGrid.split('\n').filter(l => l.includes('Sonnet 5') || l.includes('Model switch')).join(' | '))
   const again = markGrid(p, 'line-again')
   check('that switch is a change of state: the sentence returns for its window, naming the new served model', receiptTick(p, 9) > 0 && LANE_LINE.test(lineRow(again)) && lineRow(again).includes('Sonnet 5.5'), lineRow(again) || `(no sentence; endReason=${p?.endReason ?? '?'})`)
-  check('the mark follows the served model (Sonnet 5.5 · failover)', again.includes(LANE_MARK_SONNET), again.split('\n').filter(l => l.includes('Sonnet 5.5')).join(' | '))
+  check('the status row follows the served model (Sonnet 5.5)', /ready · Sonnet 5\.5/.test(again), again.split('\n').filter(l => l.includes('Sonnet 5.5')).join(' | '))
   const probeGrid = markGrid(p, 'probe')
-  check('by the probe the sentence has left again and the mark stands', !probeGrid.includes('failover lane') && probeGrid.includes(LANE_MARK_SONNET), probeGrid.split('\n').filter(l => l.includes('failover')).join(' | '))
+  check('by the probe the sentence has left again and the status row still names the served model', !probeGrid.includes('failover lane') && /ready · Sonnet 5\.5/.test(probeGrid), probeGrid.split('\n').filter(l => l.includes('Sonnet 5.5')).join(' | '))
   if (failures > 0) forensics('settle', p, ['offer', 'line-t0', 'settled', 'line-later', 'switched', 'pickup', 'sonnet-switch', 'line-again', 'probe'])
 }
 

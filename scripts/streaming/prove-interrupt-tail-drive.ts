@@ -76,7 +76,7 @@ async function connectorScenes(): Promise<void> {
   }
   const press = async (): Promise<boolean> => {
     const took = connector.interrupt()
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await new Promise<void>(settle => setImmediate(settle))
     return took
   }
   const escaped = (text: string): string => JSON.stringify(text).slice(1, -1)
@@ -282,7 +282,7 @@ async function driveScene(route: 'openai' | 'anthropic', driver: AvailableCaptur
   const model = route === 'openai' ? 'gpt-5.6-sol' : 'claude-opus-4-8'
   const out = path.join(RUN_HOME, 'grid.json')
   const sends: Array<Record<string, unknown>> = [
-    { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: `${ASK}\r` },
     { requireAwait: true, minTick: 5, awaitText: FIRST_WORDS, awaitSettleTicks: 1, data: '\x1b', mark: 'first-delta' },
     { requireAwait: true, minTick: 3, awaitText: INTERRUPT_ROW, awaitSettleTicks: 3, data: `${SECOND_ASK}\r`, mark: 'interrupted' },
@@ -290,8 +290,8 @@ async function driveScene(route: 'openai' | 'anthropic', driver: AvailableCaptur
     { requireAwait: true, minTick: 3, awaitText: THIRD_WORDS, awaitSettleTicks: 1, data: '', mark: 'third-streaming' },
     { requireAwait: true, minTick: 3, awaitText: THIRD_FULL, awaitSettleTicks: 5, data: '', mark: 'third-landed' },
   ]
-  for (let n = 1; n <= 6; n++) sends.push({ afterPrevTicks: 5, data: '', mark: `t+${n}` })
-  const cfg = { argv: ['node', DIST, '--model', model], cwd: FIXTURE_CWD, sends, total: 220, cols: 120, rows: 40, out }
+  for (let n = 1; n <= 6; n++) sends.push({ requireAwait: true, awaitText: THIRD_FULL, awaitSettleTicks: 5, data: '', mark: `t+${n}` })
+  const cfg = { argv: ['node', DIST, '--model', model], cwd: FIXTURE_CWD, sends, readyText: THIRD_FULL, total: 220, cols: 120, rows: 40, out }
   const cfgPath = path.join(RUN_HOME, 'cfg.json')
   writeFileSync(cfgPath, JSON.stringify(cfg))
 

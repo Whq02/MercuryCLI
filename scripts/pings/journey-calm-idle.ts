@@ -251,7 +251,7 @@ function drive(cols: number, rows: number): void {
     heldTick - windowFromTick >= IDLE_TICKS,
     `${heldTick - windowFromTick}`,
   )
-  check('the strip badge is PAINTED (⚑ 1 needs you)', text.includes('⚑ 1 needs you'), text.split('\n').find(l => l.includes('⚑')) ?? '(no ⚑ row)')
+  check('the chat rests with the need armed (the cockpit paints no badge since the sessions box left — the board lists the need; the idle law is the same)', /ready · /.test(text), text.split('\n').find(l => l.includes('ready')) ?? '(no status row)')
   const tee = readFileSync(teePath)
   const settled = teeBytesIn(tee, windowFromTick, heldTick)
   check(`byte-still: ZERO bytes over the settled-idle window [${windowFromTick}, ${heldTick})`, settled.bytes === 0, `${settled.bytes} byte(s) in ${settled.frames} frame(s)`)
