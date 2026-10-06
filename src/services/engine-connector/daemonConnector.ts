@@ -484,6 +484,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private readonly tailFeed: ProjectionFeed
   private readonly tailStore: StreamingTailStore = createStreamingTailStore()
   private tailAtMs = -1
+  private tailMessageId: string | null = null
+  private interruptedMessageId: string | null = null
   private liveTurnChars = 0
   private liveTurnOutputTokens: number | null = null
   private liveTurnThinkingChars = 0
@@ -643,6 +645,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (tail.atMs === this.tailAtMs && tail.text === this.tailStore.read()) return
     this.tailAtMs = tail.atMs
     const id = typeof tail.messageId === 'string' && tail.messageId !== '' ? tail.messageId : null
+    this.tailMessageId = id
+    if (id !== null && id === this.interruptedMessageId) return
     const landed = id !== null && tail.text !== null && computeTailRelease(this.rawRecords, { current: id, settled: null }).publishedShown
     const text = landed ? null : tail.text
     if (text !== null && this.tailStore.read() === null) {
@@ -663,15 +667,20 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const held = this.tailStore.read()
     const verdict = held === null || held === '' ? 'nothing' : this.commitHeldText(held, atMs)
     if (held !== null) this.tailStore.update(() => null)
-    if (verdict === 'committed' || verdict === 'standing') {
+    if (verdict === 'committed' || verdict === 'standing' || verdict === 'dropped') {
       this.tailStore.dropSettled()
       this.paint()
     }
   }
 
-  private commitHeldText(text: string, atMs: number): 'committed' | 'standing' | 'unidentified' {
+  private commitHeldText(text: string, atMs: number): 'committed' | 'standing' | 'dropped' | 'unidentified' {
     const id = this.tailStore.readIds().current
     if (id === null) return 'unidentified'
+    if (id === this.interruptedMessageId) {
+      this.tailSeq = null
+      connectorTrace({ ev: 'interrupted-text-dropped', sid: this.record.sessionId, chars: text.length })
+      return 'dropped'
+    }
     if (computeTailRelease(this.rawRecords, { current: id, settled: null }).publishedShown) {
       this.tailSeq = null
       return 'standing'
@@ -1825,6 +1834,15 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     else {
       this.interrupting = true
       this.interruptPressedAtMs = Date.now()
+      this.interruptedMessageId = this.tailStore.readIds().current ?? this.tailMessageId
+      if (this.interruptedMessageId !== null) {
+        if (this.textRows.length > 0) {
+          connectorTrace({ ev: 'interrupted-rows-dropped', sid: this.record.sessionId, count: this.textRows.length })
+          this.textRows = []
+          this.paint()
+        }
+        this.clearTail(this.interruptPressedAtMs)
+      }
     }
     emitAll(this.liveListeners, 'live')
     connectorTrace({ ev: 'interrupt', sid: this.record.sessionId, hard, turnStartedAtMs: this.liveState.turnStartedAtMs })
@@ -1833,6 +1851,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       else {
         this.interrupting = false
         this.interruptPressedAtMs = null
+        this.interruptedMessageId = null
       }
       emitAll(this.liveListeners, 'live')
     }
