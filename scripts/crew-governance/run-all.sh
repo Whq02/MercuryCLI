@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/tools/LiveCommsTool/LiveCommsTool* src/services/crew/liveComms.ts src/utils/**
+# gate-watch: src/utils/**
 # gate-watch: src/tools/SendMessageTool/SendMessageTool.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

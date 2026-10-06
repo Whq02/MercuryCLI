@@ -6,7 +6,7 @@
 # gate-watch: src/tools.ts src/tools/MemoryTools/MemoryTools.ts src/utils/attachments/memorySurfacing.ts
 # gate-watch: src/utils/attachments/orchestrator.ts src/constants/prompts.ts src/constants/subagentDoctrine.ts
 # gate-watch: src/utils/statusNoticeDefinitions.tsx src/substrate/flagRegistry.ts src/substrate/startupMenu.ts
-# gate-watch: src/services/mcp/coordinationServer.ts src/utils/capability/declarations.ts src/query/stopHooks.ts
+# gate-watch: src/utils/capability/declarations.ts src/query/stopHooks.ts
 # gate-watch: src/commands.ts src/utils/memory/types.ts src/tools/AgentTool/agentMemory.ts
 # gate-watch: src/utils/config/globalConfig.ts scripts/lib/settingsPopupHarness.ts
 # gate-watch: scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/lib/rows.ts
