@@ -663,7 +663,7 @@ the live list can also include skills and extension commands.
 | current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
 | crew & delegation | `/agents` `/subagents` `/crewmates` `/crew` `/workflows` `/router` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` |
-| memory & goals | `/memory` `/console` `/orient` |
+| memory & goals | `/memory` `/console` |
 | model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` |

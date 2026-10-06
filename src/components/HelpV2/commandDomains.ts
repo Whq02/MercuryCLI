@@ -39,7 +39,6 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     names: [
       'memory',
       'console',
-      'orient',
     ],
   },
   {
