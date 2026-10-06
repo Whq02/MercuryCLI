@@ -1963,20 +1963,6 @@
       "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
     },
     {
-      "file": "scripts/ui/probe-authority-helm.ts",
-      "mechanism": "hardcoded-tmp",
-      "excerpt": "writeFileSync(`/tmp/probe-cfg-${run}.json`, JSON.stringify(cfg))",
-      "cls": "platform-owner",
-      "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
-    },
-    {
-      "file": "scripts/ui/probe-authority-helm.ts",
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, `/tmp/probe-cfg-${run}.json`], {",
-      "cls": "platform-owner",
-      "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
-    },
-    {
       "file": "scripts/ui/prove-agent-dispatch-engines-journey.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "execFileSync('/usr/bin/python3', [join(ROOT, 'scripts', 'ui', 'vshot.py'), cfgPath], {",
