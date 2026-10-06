@@ -1,5 +1,6 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { isMcpPolicyActive, describeMcpPolicy } from '../../services/mcp/toolPolicy.js'
+import { isMercuryServerEnabled } from '../../services/mcp/mercuryServer.js'
 import { isSaturnSchedulingEnabled } from '../../tools/ScheduleCronTool/prompt.js'
 import { isMercurySubstrateProfileOn } from '../config.js'
 import { isEnvDefinedFalsy, isEnvTruthy } from '../envUtils.js'
@@ -49,6 +50,7 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
       { name: 'MCP policy gate', on: mcpPolicyOn, hint: mcpPolicyOn ? mcpPolicyHint : 'MERCURY_MCP_MAX_RISK=low|medium' },
       { name: 'MCP trust cards', on: true, hint: trustedHint },
       { name: 'Capability manifest', on: true, hint: 'always-on · ToolSearch' },
+      { name: 'In-process MCP server (mercury)', on: isMercuryServerEnabled(), hint: isMercuryServerEnabled() ? 'live (opt out =0) · the lease verbs + render_tui' : 'MERCURY_COORDINATION_MCP=0 set' },
       {
         name: 'Agent-cap posture',
         on: !!agentCapPosture,
