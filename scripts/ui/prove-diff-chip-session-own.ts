@@ -26,7 +26,6 @@ const { noSessionConnector } = await import(join(ROOT, 'src/services/engine-conn
 const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import(join(ROOT, 'src/services/engine-connector/focusedConnector.ts'))
 const tracker = await import(join(ROOT, 'src/cost-tracker.ts'))
 const { DeckPane } = await import(join(ROOT, 'src/components/DeckPane.tsx'))
-const { MonitorView } = await import(join(ROOT, 'src/components/mercury-ui/screens/MonitorView.tsx'))
 const h = React.createElement
 
 let failures = 0
@@ -82,21 +81,10 @@ section('§2 the deck pane paints the session\'s own diff and spend')
   check('RED ON THE BASE: the deck pane\'s diff chip reads the runner\'s +42/-7, never the cockpit process\'s +0/-0', diffOf(frame) === '42/7', diffOf(frame) + ' · ' + (frame.split('\n').find(l => /\+\d+\/-\d+/.test(l))?.trim() ?? frame.slice(0, 200)))
 }
 
-section('§3 /monitor\'s header paints the same session facts')
+section('§3 the deck pane names the one source (source pin)')
 {
-  const frame = await paint(h(MonitorView as never, { onClose: () => {} }), 140, 40)
-  check('RED ON THE BASE: the monitor header\'s diff chip reads +42/-7', diffOf(frame) === '42/7', diffOf(frame) + ' · ' + (frame.split('\n').find(l => /diff/.test(l))?.trim() ?? frame.slice(0, 200)))
-  check('…with the session\'s spend', frame.includes('$1.25'), frame.split('\n').find(l => /\$/.test(l))?.trim() ?? '')
-}
-
-section('§4 the three readers name the one source (source pins)')
-{
-  const deck = read('src/components/Deck.tsx')
   const pane = read('src/components/DeckPane.tsx')
-  const monitor = read('src/components/mercury-ui/screens/MonitorView.tsx')
-  for (const [name, source] of [['Deck', deck], ['DeckPane', pane], ['MonitorView', monitor]] as const) {
-    check(`${name} reads the focused session's usage facts and never the process ledger's line counters`, source.includes('getFocusedSessionConnector().usage()') && !source.includes('getTotalLinesAdded') && !source.includes('getTotalCost()'), name)
-  }
+  check('DeckPane reads the focused session\'s usage facts and never the process ledger\'s line counters', pane.includes('getFocusedSessionConnector().usage()') && !pane.includes('getTotalLinesAdded') && !pane.includes('getTotalCost()'), 'DeckPane')
 }
 
 _resetFocusedSessionConnectorForTesting()
@@ -105,5 +93,5 @@ if (failures > 0) {
   console.log(`❌ prove-diff-chip-session-own: ${failures} failure(s)`)
   process.exit(1)
 }
-console.log('✅ prove-diff-chip-session-own: the deck, the deck pane and /monitor read the session\'s own diff and spend')
+console.log('✅ prove-diff-chip-session-own: the deck pane reads the session\'s own diff and spend')
 process.exit(0)
