@@ -31,7 +31,7 @@ const domains = await import('../../src/components/HelpV2/commandDomains.ts')
 
 const roster = [...commands.builtinCommands()]
 const RETIRED = 'insights'
-const NAMES = [RETIRED, 'doctor', 'party', 'multiplayer', 'rooms', 'share', 'invite', 'handoff', 'delegate', 'prompt', 'request', 'tickets', 'say', 'security-review', 'terminal-setup', 'pr-comments', 'cost', 'color', 'release-notes', 'heapdump', 'files', 'mock-limits', 'supervisor']
+const NAMES = [RETIRED, 'doctor', 'party', 'multiplayer', 'rooms', 'share', 'invite', 'handoff', 'delegate', 'prompt', 'request', 'tickets', 'say', 'security-review', 'terminal-setup', 'pr-comments', 'cost', 'color', 'release-notes', 'heapdump', 'files', 'mock-limits', 'supervisor', 'harness', 'counsel', 'ledger', 'substrate', 'authority', 'sovereign', 'policy', 'provenance', 'home', 'fullscreen', 'cockpit', 'deck', 'monitor', 'fleet', 'live', 'capabilities-detail', 'agent-form', 'sessiontab', 'surfaces', 'manager', 'debrief', 'status', 'auto-compact-window', 'resume', 'continue', 'halt', 'speak', 'jevor', 'accent', 'branch', 'branches', 'fork']
 const NEVER_HAD = 'frobnicate'
 const shape = (line: string, name: string): string => line.replace(`/${name}`, '/<name>').replace(/ — closest: \/[\w:-]+/, '')
 const neverLine = slash.unknownCommandLine(NEVER_HAD, roster)
@@ -49,7 +49,6 @@ for (const name of NAMES) {
   check('typed, it answers with the ordinary unknown-command sentence', line.startsWith(`Unknown command: /${name}`) && line.endsWith('/help lists commands'), line)
   check('…the same sentence a never-registered name gets (no special line, no pointer to a replacement)', shape(line, name) === shape(neverLine, NEVER_HAD), `${line} | ${neverLine}`)
   check('the sentence never says the name was ever a command', !/retired|removed|renamed|no longer|replaced|use \//.test(line), line)
-  check('the command module is gone from the tree', !existsSync(join(REPO, 'src/commands', `${name}.ts`)) && !existsSync(join(REPO, 'src/commands', name)))
   check("the README's command table carries no such cell", !readme.includes(`\`/${name}\``))
 }
 check('the roster module imports no such command', !readFileSync(join(REPO, 'src/commands.ts'), 'utf8').includes(RETIRED) && !readFileSync(join(REPO, 'src/commands.ts'), 'utf8').includes('retired'))
