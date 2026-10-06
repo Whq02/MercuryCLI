@@ -690,7 +690,7 @@ function LiveConcourse(): React.ReactNode {
                 r => r.sessionId === sessionId && r.endedAt === undefined,
               )
               if (parkedRecord === undefined) {
-                noteControl('strip:composer', { state: 'applied', reason: 'cleared from the board — the chat survives; the boot face or /resume bring it back' })
+                noteControl('strip:composer', { state: 'applied', reason: 'cleared from the board — the chat survives; the boot face or /sessions bring it back' })
                 refresh()
                 return
               }
