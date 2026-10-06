@@ -220,14 +220,58 @@ if (cap !== null) {
   check('M2 → moves it to reduced', rowsWith(m['config-reduced'], /Motion/).some(r => /\breduced\b/.test(r)), rowsWith(m['config-reduced'], /Motion/).map(flat).join(' | ').slice(0, 300))
 
   console.log('\n— M3 the status line —')
-  check('M3 back in the chat the status line says reduced', statusRows(m['chat-reduced']).some(r => /\breduced\b/.test(r)), statusRows(m['chat-reduced']).map(flat).join(' | ').slice(0, 300))
+  check('M3 back in the chat the status row stands under the view with the model, its effort and the folder (the cockpit paints no motion word; the inline statusline carries it, M3b)', statusRows(m['chat-reduced']).some(r => /ready · \S.* · \S/.test(r) && /(?:⇧|shift\+)← back/.test(r)), statusRows(m['chat-reduced']).map(flat).join(' | ').slice(0, 300))
 
   console.log('\n— M4 the Boot Menu again —')
   check('M4 the Boot Menu shows the value the /config door set (reduced · set by you)', rowsWith(m['menu-reduced'], /now: reduced \(set by you\)/).length > 0 && rowsWith(m['menu-reduced'], /Motion\s+reduced/).length > 0, rowsWith(m['menu-reduced'], /Motion|now:/).map(flat).join(' | ').slice(0, 300))
   check('M4 ⌫ returns it to auto and the receipt says the machine decides again', rowsWith(m['menu-auto'], /motion follows the machine again \(auto · full\)/).length > 0, rowsWith(m['menu-auto'], /motion/).map(flat).join(' | ').slice(0, 300))
-  check('M4 the status word is gone once the value is auto on a machine that keeps up', statusRows(m['chat-auto']).length > 0 && !statusRows(m['chat-auto']).some(r => /\breduced\b/.test(r)), statusRows(m['chat-auto']).map(flat).join(' | ').slice(0, 300))
+  check('M4 back in the chat the status row stands again (no motion word on the cockpit row)', statusRows(m['chat-auto']).length > 0 && !statusRows(m['chat-auto']).some(r => /\breduced\b/.test(r)), statusRows(m['chat-auto']).map(flat).join(' | ').slice(0, 300))
   check('no setting made a model call', fixture.calls === 0, String(fixture.calls))
   if (failures > 0 && !KEEP) for (const label of MARKS) dump(label, m[label])
+}
+
+console.log('\n— M3b the inline statusline (the surface that paints the motion word) —')
+{
+  const fixture2 = await startFixture(Number(process.env.MOTION_DOORS_PORT ?? 25186) + 1)
+  const inlineWorld = (motion: 'reduced' | null): { home: string; cwd: string } => {
+    const world = seedWorld()
+    const configPath = join(world.home, '.mercury.json')
+    const config = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>
+    writeFileSync(configPath, JSON.stringify(motion === null ? config : { ...config, motion }))
+    return world
+  }
+  const inlineChat = async (label: string, motion: 'reduced' | null): Promise<{ world: { home: string; cwd: string }; rows: string[] }> => {
+    const world = inlineWorld(motion)
+    let text = ''
+    try {
+      const got = await capture(
+        {
+          argv: ['node', BIN],
+          cwd: world.cwd,
+          cols: COLS,
+          rows: ROWS,
+          sends: [
+            { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
+            { data: '', awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: label },
+          ],
+          stableTicks: 6,
+          total: 300,
+        },
+        { ...driveEnv(world.home, fixture2.base), MERCURY_FULLSCREEN: '0' },
+        90_000,
+      )
+      text = got.marks[label] ?? got.text
+    } catch (error) {
+      check(`${label}: the inline capture ran`, false, String(error).slice(0, 300))
+    }
+    return { world, rows: rowsWith(text, basename(world.cwd)) }
+  }
+  const reduced = await inlineChat('inline-reduced', 'reduced')
+  check('M3b the inline chat\'s statusline says reduced while the saved value is reduced', reduced.rows.some(r => /\breduced\b/.test(r)), reduced.rows.map(flat).join(' | ').slice(0, 300))
+  const auto = await inlineChat('inline-auto', null)
+  check('M3b the word is gone from the inline statusline when the value is auto on a machine that keeps up', auto.rows.length > 0 && !auto.rows.some(r => /\breduced\b/.test(r)), auto.rows.map(flat).join(' | ').slice(0, 300))
+  await fixture2.close()
+  if (!KEEP) for (const world of [reduced.world, auto.world]) for (const dir of [world.home, world.cwd]) rmSync(dir, { recursive: true, force: true })
 }
 
 if (!KEEP) {
