@@ -385,8 +385,11 @@ const transcriptOf = (lines: string[], cockpit: Cockpit): string[] => {
 const cardOf = (lines: string[], cockpit: Cockpit): string => lines.slice(1, 5).map(line => centre(line, cockpit)).join(' ').replace(/\s+/g, ' ')
 const flat = (s: string): string => s.replace(/\s+/g, ' ').trim()
 
-for (const [cols, rows] of sizes) {
-  const size = `${cols}x${rows}`
+const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+const chordDelta = keyHintLabel('⇧← back').length - '⇧← back'.length
+for (const [nominal, rows] of sizes) {
+  const cols = nominal + chordDelta
+  const size = `${nominal}x${rows}`
   const save = (name: string, lines: string[]): void => {
     if (frameDir === undefined) return
     writeFileSync(join(frameDir, `${size}-${name}.txt`), `${lines.join('\n')}\n`)
@@ -531,7 +534,7 @@ for (const [cols, rows] of sizes) {
   console.log(`${size}: harbour's card after it landed: "${landedCard.slice(0, 160)}"`)
   const landedWay = /esc back to Mercury Lead · m main chat in \/crewmates · Mercury Lead in the rail goes back · (?:⇧|shift\+)← back$/.test(headerRow(frame))
   check(`${size}: the view stays on harbour and the card reads landed`, scene.state().viewingAgentTaskId === 'a-harbour' && landedCard.includes('landed') && landedWay && headerRow(frame).startsWith('Opus 5.5'), `${headerRow(frame)} · ${landedCard.slice(0, 120)}`)
-  check(`${size}: the status row names harbour beside the model where the row has room; at 120 columns the landed crewmate's way back leaves no room and the words leave (the rail's marked row and the composer name it)`, cols >= 178 ? /viewing harbour ·/.test(headerRow(frame)) : !/viewing harbour/.test(headerRow(frame)), headerRow(frame))
+  check(`${size}: the status row names harbour beside the model where the row has room; at 120 columns the landed crewmate's way back leaves no room and the words leave (the rail's marked row and the composer name it)`, nominal >= 178 ? /viewing harbour ·/.test(headerRow(frame)) : !/viewing harbour/.test(headerRow(frame)), headerRow(frame))
   check(`${size}: the card carries no stale running activity for the landed crewmate`, !landedCard.includes('Sleeping'), landedCard.slice(0, 160))
   const landedRailRow = railRow(frame, cockpit, '◉ harbo')
   check(`${size}: the rail keeps the landed crewmate's row in the CREW lane, marked ◉ and › (it settles under the running rows)`, landedRailRow >= 0 && /›/.test(railText(frame[landedRailRow] ?? '', cockpit)), frame.map(line => railText(line, cockpit)).filter(line => /CREW|◉|◐|★|✶/.test(line)).map(flat).join(' | '))
