@@ -76,7 +76,7 @@ section('§4 no agent ever carries the tool')
   const runAgent = sourceText('src/tools/AgentTool/runAgent.ts')
   check('runAgent filters the name out of every worker\'s pool (the workflow road never passes the agent filter)', runAgent.includes('COMPUTER_TOOL_NAME'))
   const asAgent = await ComputerTool.validateInput!({ action: 'screenshot' } as never, toolContext({ agentId: 'agent-x' }))
-  check('a context carrying an agent id is refused with the sub-agent text', asAgent.result === false && asAgent.message === 'the Computer tool drives the operator\'s own screen; a sub-agent never carries it in this release — the main session does', JSON.stringify(asAgent))
+  check('a context carrying an agent id is refused with the crewmate text', asAgent.result === false && asAgent.message === 'the Computer tool drives the operator\'s own screen; a crewmate never carries it in this release — the main session does', JSON.stringify(asAgent))
 }
 
 section('§5 the MCP serve surface filters the tool in both handlers')
