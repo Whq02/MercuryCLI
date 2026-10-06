@@ -31,6 +31,7 @@ import {
   CompactionRefusedForHistoryError,
   type CompactionResult,
   ERROR_MESSAGE_USER_ABORT,
+  foldRemedyIsHeadless,
   type RecompactionInfo,
   withFoldStatus,
 } from './compact.js'
@@ -58,6 +59,14 @@ const RAPID_REFILL_LIMIT = 3
 const SUMMARY_RESERVE_MAX_WINDOW_DIVISOR = 4
 const WARNING_MIN_CEILING_NUMERATOR = 4
 const WARNING_MIN_CEILING_DENOMINATOR = 5
+
+export const COMPACTION_PAUSED_KEY = 'automatic compaction failed'
+
+export function compactionBreakerText(opts: { nonInteractive: boolean }): string {
+  const byHand = opts.nonInteractive ? 'The' : '/compact folds the conversation by hand; the'
+  const next = opts.nonInteractive ? 'prompt' : 'message'
+  return `${COMPACTION_PAUSED_KEY} ${MAX_CONSECUTIVE_FAILURES} times in a row and is paused for the rest of this run. ${byHand} next ${next} makes a fresh automatic attempt.`
+}
 
 export const AUTOCOMPACT_THRASH_MESSAGE =
   `Auto-compaction is looping: the context refilled within ${RAPID_REFILL_TURN_WINDOW} turns ` +
@@ -298,12 +307,13 @@ export async function autoCompactIfNeeded(
     return forced ? { ...notCompacted, refusal: 'compaction is disabled (MERCURY_COMPACT=0)' } : notCompacted
   }
   const failures = tracking?.consecutiveFailures ?? 0
+  const nonInteractive = foldRemedyIsHeadless(toolUseContext.options.isNonInteractiveSession)
   if (failures >= MAX_CONSECUTIVE_FAILURES) {
-    return forced ? { ...notCompacted, refusal: 'compaction has failed repeatedly and is paused for this session' } : notCompacted
+    return forced ? { ...notCompacted, refusal: compactionBreakerText({ nonInteractive }) } : notCompacted
   }
   if (suppressBreakerEnabled() && !compactionBreakerAllows(failures)) {
     logForDebugging('autoCompact: Mercury breaker suppressed a doomed retry')
-    return forced ? { ...notCompacted, refusal: 'compaction has failed repeatedly and is paused for this session' } : notCompacted
+    return forced ? { ...notCompacted, refusal: compactionBreakerText({ nonInteractive }) } : notCompacted
   }
 
   const model = toolUseContext.options.engineModel
@@ -457,7 +467,7 @@ export async function autoCompactIfNeeded(
     const nextFailures = failures + 1
     if (nextFailures >= MAX_CONSECUTIVE_FAILURES) {
       logForDebugging(
-        `autoCompact: ${nextFailures} consecutive failures — circuit breaker tripped for this session`,
+        `autoCompact: ${nextFailures} consecutive failures — circuit breaker tripped for the rest of this run`,
         { level: 'warn' },
       )
     }
