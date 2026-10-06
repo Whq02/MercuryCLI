@@ -52,8 +52,8 @@ console.log("§4 C4 — the tool row's tails price themselves against the row")
 {
   const row = read('src/components/messages/AssistantToolUseMessage.tsx')
   check(
-    'the head floor is derived (dot + mark + name floor + readable target + gutter)',
-    row.includes('const ROW_HEAD_FLOOR = 2 + 2 + NAME_MIN_COLUMNS + 20 + 4'),
+    'the head floor is derived (mark + name floor + readable target + gutter)',
+    row.includes('const ROW_HEAD_FLOOR = 2 + NAME_MIN_COLUMNS + 20 + 4'),
   )
   check('the summary tail pays its own width', row.includes('tailFits(1 + stringWidth(summary))'))
   check('the edit tail pays its exact rendered width', row.includes('tailFits(stringWidth(` · +${editMetaRaw.added}/-${editMetaRaw.removed}`))'))
