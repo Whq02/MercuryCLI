@@ -56,8 +56,7 @@ const SATURN_RECORDS = () => {
     },
   }
 }
-function seedSchedules(): void {
-  const daemonDir = SCRATCH('daemon')
+function seedSchedules(daemonDir: string): void {
   mkdirSync(daemonDir, { recursive: true })
   writeFileSync(join(daemonDir, 'concourse-workers.json'), JSON.stringify(SATURN_RECORDS()))
 }
@@ -159,7 +158,6 @@ function buildFixture(): void {
   multi[37] = 'CHANGED line 38'
   writeFileSync(join(FIX, 'a-multi.ts'), multi.join('\n') + '\n')
   writeFileSync(join(FIX, 'file-1.ts'), 'export const v1 = 10\nexport const w1 = 1\n')
-  seedSchedules()
   writeSessions()
   purgeDrafts()
 }
@@ -170,13 +168,15 @@ const SCRATCH = (name: string) => join(tmpdir(), `mercury-journey-${name}-${proc
 const READY = '❯'
 const READY_TICK = 5
 const SLACK = 30
-type Timeline = Array<{ atTick: number; data: string; awaitText?: string; targetText?: string; targetDx?: number }>
+type Timeline = Array<{ atTick: number; data: string; awaitText?: string; awaitSettleTicks?: number; targetText?: string; targetDx?: number }>
 function anchored(sends: Timeline, total: number, ready: string | null): Record<string, unknown> {
   let prev = 0
   const out = sends.map((s, i) => {
     const send = i === 0
       ? { awaitText: s.awaitText ?? READY, requireAwait: true, minTick: 1, awaitSettleTicks: Math.max(0, s.atTick - READY_TICK), data: s.data }
-      : { afterPrevTicks: Math.max(1, s.atTick - prev), data: s.data, ...(s.targetText !== undefined ? { targetText: s.targetText, targetDx: s.targetDx ?? 0 } : {}) }
+      : s.awaitText !== undefined
+        ? { awaitText: s.awaitText, requireAwait: true, minTick: 2, awaitSettleTicks: s.awaitSettleTicks ?? 4, data: s.data }
+        : { afterPrevTicks: Math.max(1, s.atTick - prev), data: s.data, ...(s.targetText !== undefined ? { targetText: s.targetText, targetDx: s.targetDx ?? 0 } : {}) }
     prev = s.atTick
     return send
   })
@@ -192,6 +192,8 @@ function capture(
   opts: { cols?: number; rows?: number; sid?: string; ready?: string | null } = {},
 ): string[] | null {
   const { cols = 120, rows = 50, sid = SID_A, ready = READY } = opts
+  const daemonDir = SCRATCH(`daemon-${tag}`)
+  seedSchedules(daemonDir)
   const gridPath = `/tmp/journey-${tag}-${process.pid}.json`
   const cfgPath = `/tmp/journey-${tag}-cfg-${process.pid}.json`
   writeFileSync(cfgPath, JSON.stringify({
@@ -207,7 +209,7 @@ function capture(
       MERCURY_CRITTER_GAZE: '0',
       MERCURY_TURN_RECEIPT: '0',
       MERCURY_CONFIG_DIR: CONFIG_HOME,
-      MERCURY_DAEMON_DIR: SCRATCH('daemon'),
+      MERCURY_DAEMON_DIR: daemonDir,
       MERCURY_CREWS_DIR: SCRATCH('crews'),
       MERCURY_HOME: SCRATCH('home'),
       VISUAL: '',
@@ -375,7 +377,6 @@ if (j5d && j1) {
 
 console.log('\n── J6 · /saturn board: rows painted · verbs armed · close ─')
 purgeDrafts()
-seedSchedules()
 const SATURN_OPEN = [
   { atTick: 36, data: '/saturn' },
   { atTick: 42, data: '\r' },
@@ -406,7 +407,7 @@ const DRAFT7 = [
 const CLICK_AT = '\x1b[<0;{X};{Y}M\x1b[<0;{X};{Y}m'
 const HOP_TO_B = [
   { atTick: 64, data: '\x1b[1;2D' },
-  { atTick: 80, targetText: 'session bravo standby', targetDx: 2, data: CLICK_AT },
+  { atTick: 80, targetText: 'session bravo', targetDx: 2, data: CLICK_AT },
   { atTick: 86, data: '\r' },
   { atTick: 90, data: '\r' },
 ]
@@ -430,7 +431,7 @@ if (flipOut?.some(l => l.includes('standing by in bravo'))) {
   const j7c = capture('j7-flip-back', [
     ...DRAFT7,
     ...HOP_TO_B,
-    { atTick: 118, data: '\x1b[1;3D' },
+    { atTick: 118, awaitText: '✓ resumed clean', awaitSettleTicks: 6, data: '\x1b[1;3D' },
   ], 158, { ready: 'file-1 bumped' })
   if (j7c) {
     check('flip back: session A transcript restored', rowOf(j7c, 'file-1 bumped') >= 0)
