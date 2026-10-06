@@ -48,8 +48,6 @@ export const DEFAULT_BINDINGS: KeybindingBlock[] = [
       [MODE_CYCLE_KEY]: 'chat:cycleMode',
       'meta+p': 'chat:modelPicker',
       'meta+t': 'chat:thinkingToggle',
-      'meta+left': 'chat:flipSessionBack',
-      'meta+right': 'chat:flipSessionForward',
       'ctrl+_': 'chat:undo',
       'ctrl+shift+-': 'chat:undo',
       'ctrl+x ctrl+r': 'chat:redo',

@@ -12,9 +12,9 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
-const { scenario, cleanupScenario, SID, SID_ERRORED, RUNTIME_CWD, CONFIG_HOME } = await import('./renderScenarios.ts')
+const { scenario, cleanupScenario, SID, SID_ERRORED, RUNTIME_CWD } = await import('./renderScenarios.ts')
 const { getProjectDir, extractFirstPromptFromHead } = await import('../../src/utils/sessionStoragePortable.ts')
-const { tabLabel } = await import('../../src/components/mercury-ui/SessionTabs.tsx')
+const { recentLaneLabel } = await import('../../src/utils/cockpit/helmLanesModel.ts')
 const { rowLabel } = await import('../../src/components/mercury-ui/screens/sessionPickerModel.ts')
 const { createSyntheticUserCaveatMessage, createUserMessage, formatCommandInputTags } = await import('../../src/utils/messages/factories.ts')
 const title = 'after command'
@@ -34,9 +34,9 @@ const entries = [
 ].map((row, index, rows) => ({ ...row, sessionId: SID_ERRORED, cwd: RUNTIME_CWD, parentUuid: index === 0 ? null : rows[index - 1]!.uuid }))
 const bytes = encodeSeedTranscript(entries, SID_ERRORED)
 const log = { firstPrompt: extractFirstPromptFromHead(bytes), sessionId: SID_ERRORED } as import('../../src/types/logs.ts').SessionListing
-check('the strip and /sessions name the same first real prompt', tabLabel(log) === title && rowLabel(log) === title, `${tabLabel(log)} / ${rowLabel(log)}`)
+check('the RECENT lane and /sessions name the same first real prompt', recentLaneLabel(log) === title && rowLabel(log) === title, `${recentLaneLabel(log)} / ${rowLabel(log)}`)
 const tagged = { ...log, firstPrompt: '<local-command-caveat>synthetic words</local-command-caveat>', summary: title }
-check('the strip and /sessions share the summary and markup cleanup', tabLabel(tagged) === rowLabel(tagged) && rowLabel(tagged) === title, `${tabLabel(tagged)} / ${rowLabel(tagged)}`)
+check('the RECENT lane and /sessions share the summary and markup cleanup', recentLaneLabel(tagged) === rowLabel(tagged) && rowLabel(tagged) === title, `${recentLaneLabel(tagged)} / ${rowLabel(tagged)}`)
 type Mark = { label: string; grid: { c: string }[][] }
 type Capture = { grid: { c: string }[][]; marks?: Mark[] }
 const rowsOf = (grid: { c: string }[][]): string[] => grid.map(row => row.map(cell => cell.c || ' ').join('').trimEnd())
@@ -47,7 +47,6 @@ try {
       const commandId = crypto.randomUUID()
       const commandPath = join(getProjectDir(RUNTIME_CWD), `${commandId}.jsonl`)
       writeFileSync(commandPath, encodeSeedTranscript(entries.map(row => ({ ...row, sessionId: commandId })), commandId))
-      writeFileSync(join(CONFIG_HOME, 'settings.json'), JSON.stringify({ view: { sessionsBar: true } }))
       const argv = cfg.argv.map(value => value === SID && road === 'header' ? commandId : value)
       const sends: Record<string, unknown>[] = [
         { awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 5, data: '', mark: 'home' },
@@ -72,15 +71,10 @@ try {
       }
       const homeRows = marks.home ?? []
       if (road === 'header') {
-        if (band.cols >= 100) {
-          const header = homeRows.find(row => row.includes('VIEW')) ?? ''
-          check(`${band.cols}: the view header names the first prompt, never command markup`, header.includes(title) && !header.includes('<'), header)
-        }
+        if (band.cols >= 100) check(`${band.cols}: the chat paints no title row above the view`, homeRows.length > 0 && !homeRows.some(row => row.includes('✶ VIEW')), homeRows.filter(row => row.includes('VIEW')).join(' | '))
         check(`${band.cols}: no row of the resumed command-first session carries command markup`, homeRows.length > 0 && !homeRows.some(row => row.includes('<local-command')), homeRows.filter(row => row.includes('<local-command')).join(' | '))
       }
       if (road === 'lists') {
-        const strip = homeRows.find(row => row.includes('SESSIONS')) ?? ''
-        if (band.cols >= 100) check(`${band.cols}: the sessions strip paints the same clean name`, strip.includes(title) && !strip.includes('<local-command'), strip)
         if (band.cols >= 100) check(`${band.cols}: the rail's RECENT lane paints the same clean name`, homeRows.some(row => row.includes(`○ ${title}`)) && !homeRows.some(row => row.includes('<local-command')), homeRows.filter(row => row.includes('○ ')).join(' | '))
         const pickerRows = marks.sessions ?? []
         const switchAt = pickerRows.findIndex(row => row.includes('Switch to'))

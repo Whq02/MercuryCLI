@@ -112,16 +112,15 @@ async function main(): Promise<void> {
     check('waiting → idle → thinking → waiting: the count rides every phase, once', rowWords(waiting, 1) === OWNER && tail(bar.restingStatusWords('', null), 1) === 'ready · 1 sample' && rowWords(thinking, 1) === '1 sample' && rowWords(waiting, 1).split('sample').length === 2)
   }
 
-  section('S4 one truth: the seat projection the rail reads')
+  section('S4 one truth: the seat projection the row reads')
   {
     const tagBar = read('src/components/SwitchboardTagBar.tsx')
     const repl = read('src/screens/Chat.tsx')
     const hook = read('src/components/tasks/useFocusedWork.ts')
-    const tabs = read('src/components/mercury-ui/SessionTabs.tsx')
     const connector = read('src/services/engine-connector/daemonConnector.ts')
     check('the row reads the samples through the one roster reader', tagBar.includes('const samples = useFocusedSamples()'))
     check('the working strip reads no samples of its own', !repl.includes('useFocusedSamples') && !repl.includes('focusedSamples'))
-    check("the reader is the focused connector's work roster — the projection the rail reads", hook.includes('export function useFocusedSamples(): readonly SampleRowV1[]') && hook.includes('getFocusedSessionConnector().workRoster().samples ?? []') && tabs.includes('useFocusedWorkRoster().samples ?? []'))
+    check("the reader is the focused connector's work roster — the one projection", hook.includes('export function useFocusedSamples(): readonly SampleRowV1[]') && hook.includes('getFocusedSessionConnector().workRoster().samples ?? []'))
     check("the roster's samples are the seat facts' samples", connector.includes('const samples = this.facts?.samples ?? []'))
     check('neither road reads a samples store or directory of its own', !tagBar.includes('services/samples/') && !repl.includes('services/samples/') && !hook.includes('services/samples/') && !tagBar.includes('readdirSync'))
   }

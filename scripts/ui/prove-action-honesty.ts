@@ -1,7 +1,6 @@
 process.env.NODE_ENV = 'test';
 
-import { readFileSync } from 'node:fs';
-import { codeOnlyText } from '../lib/codeText.ts';
+import { existsSync, readFileSync } from 'node:fs';
 
 let fail = 0;
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -53,22 +52,9 @@ check(
   /if \(!gh\.authed\) return gh\.note/.test(realms),
 );
 
-const tabs = readFileSync('src/components/mercury-ui/SessionTabs.tsx', 'utf8');
 check(
-  'SessionTabs seeds from a scope-keyed last-known cache',
-  tabs.includes('const lastKnownTabs = new Map<string, SessionListing[]>()') &&
-    tabs.includes('rows: lastKnownTabs.get(scopeKey) ?? null'),
-);
-check(
-  'SessionTabs swaps scopes in the SAME render (no cross-scope flash)',
-  /if \(tabs\.key !== scopeKey\) \{\s*\n\s*setTabs\(\{ key: scopeKey/.test(tabs),
-);
-const tabsErrorArm = codeOnlyText('SessionTabs.tsx', tabs)
-  .match(/\}\s*catch\s*\{([\s\S]*?)\}\s*\}\)\(\)/)?.[1] ?? '';
-check(
-  'SessionTabs never caches errors',
-  /if\s*\(alive\)\s*setTabs\(\{\s*key:\s*scopeKey,\s*rows:\s*\[\]\s*\}\)/.test(tabsErrorArm) &&
-    !/\blastKnownTabs\b/.test(tabsErrorArm),
+  'the sessions strip is gone: no module under src seeds a tabs cache',
+  !existsSync('src/components/mercury-ui/SessionTabs.tsx'),
 );
 check(
   'rail RECENT lane seeds from its scope-keyed cache',

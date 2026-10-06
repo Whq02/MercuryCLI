@@ -18,7 +18,6 @@ const section = (t: string): void => {
 }
 
 const bar = await import('../../src/components/SwitchboardTagBar.tsx')
-const header = await import('../../src/components/HelmCenterHeader.tsx')
 const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
 const { stringWidth } = await import('../../src/ink/stringWidth.ts')
 type SessionLiveV1 = import('../../src/services/engine-connector/seatLive.ts').SessionLiveV1
@@ -102,32 +101,18 @@ section('§2 the row\'s words per state, with and without a crew, at three width
   }
 }
 
-section('§3 the title row\'s name')
+section('§3 the title row is gone: the pane opens on the berth card')
 {
-  check('the stage-1 title reads the unnamed word', bar.seatDisplayTitle({ title: 'new session · proj · ready', projectLabel: 'proj' }) === 'new session')
-  check('a stored name reads verbatim', bar.seatDisplayTitle({ title: 'fix-auth-tests', projectLabel: 'proj' }) === 'fix-auth-tests')
-  check('the chat\'s first words read verbatim', bar.seatDisplayTitle({ title: 'hello plain world', projectLabel: 'proj' }) === 'hello plain world')
-  check('an empty title is never blank', bar.seatDisplayTitle({ title: '', projectLabel: 'proj' }) === 'new session')
+  check('the header module is gone from the tree', !existsSync('src/components/HelmCenterHeader.tsx'))
+  const fsl = readFileSync('src/components/FullscreenLayout.tsx', 'utf8')
+  check('the layout mounts no header: the centre pane\'s first interior row is the berth card, then the transcript', !fsl.includes('HelmCenterHeader') && /borderColor=\{centerFrame \? t\.borderStrong : undefined\}\s*>\s*(?:\{\/\*[^]*?\*\/\}\s*)?<TerminalSizeContext\.Provider value=\{sizeVal\}>\s*\{isCompact \? <CompactIdentityBand \/> : null\}\s*\{centerFrame && statusBand \? \(/.test(fsl))
+  check('the bar keeps no title reader for a row that no longer paints', !('seatDisplayTitle' in bar) && !readFileSync('src/components/SwitchboardTagBar.tsx', 'utf8').includes('seatDisplayTitle'))
   const naming = await import('../../src/services/concourse/sessionNaming.ts')
-  check('the header\'s unnamed word IS the naming owner\'s stage-1 word (one export, read by the header and the tag bar)', header.UNNAMED_SESSION === naming.UNNAMED_SESSION_WORD && header.headerSessionName('', 40) === naming.UNNAMED_SESSION_WORD && bar.seatDisplayTitle({ title: '', projectLabel: 'proj' }) === naming.UNNAMED_SESSION_WORD && naming.newSessionTitle('/tmp/proj').startsWith(`${naming.UNNAMED_SESSION_WORD} · `))
-  const long = 'a session name long enough to outrun the row at every cockpit width, and then some more words so the cut is real at one hundred and twenty columns'
-  for (const cols of [100, 110, 120]) {
-    const budget = header.headerNameBudget(cols, false)
-    const shown = header.headerSessionName(long, budget)
-    check(`${cols} columns: the name is end-cut to its budget (${budget})`, stringWidth(shown) <= budget && shown.endsWith('…'), shown)
-    const beside = header.headerNameBudget(cols, true)
-    check(`${cols} columns: beside a mission the name keeps half the free cells (${beside})`, beside === Math.max(12, Math.floor(budget / 2)) && stringWidth(header.headerSessionName(long, beside)) <= beside)
-  }
-  check('a short name is never cut', header.headerSessionName('hdr: launch', header.headerNameBudget(100, false)) === 'hdr: launch')
-  check('the budget clears the padding, the SESSION label and one cell of air', header.headerNameBudget(120, false) === 120 - 2 - (2 + header.SESSION_LABEL.length) - 1)
+  check('the unnamed word has one owner, the naming owner', naming.UNNAMED_SESSION_WORD === 'new session' && naming.newSessionTitle('/tmp/proj').startsWith(`${naming.UNNAMED_SESSION_WORD} · `))
 }
 
-section('§4 structure: no timer feeds the title row; the clock is gone; the glyph reads the crew')
+section('§4 structure: the clock is gone; the glyph reads the crew')
 {
-  const hch = readFileSync('src/components/HelmCenterHeader.tsx', 'utf8')
-  check('the title row keeps no timer (no setInterval, no shared clock, no now tick)', !/setInterval|subscribeUiClock|useNowTick|liveClock/.test(hch))
-  check('the title row reads the seat\'s name through the same owner the bottom row paints (seatDisplayTitle)', hch.includes('seatDisplayTitle(c.status())'))
-  check('the title row paints the name where the clock stood, in the accent and bold', /<Text color=\{accent\} bold>\s*\{name\}\s*<\/Text>/.test(hch))
   check('the clock module is gone', !existsSync('src/utils/cockpit/liveClock.ts'))
   const registry = readFileSync('src/substrate/flagRegistry.ts', 'utf8')
   check('the clock\'s flag left the registry with its reader', !registry.includes('MERCURY_LIVE_CLOCK'))

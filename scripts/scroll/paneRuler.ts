@@ -10,11 +10,11 @@ const rowText = (cells: Array<{ c: string }>): string =>
 
 export function paneRows(grid: Grid): PaneRow[] {
   const rows = grid.map(rowText)
-  const head = rows.findIndex(r => r.includes('✶ VIEW'))
+  const head = rows.findIndex(r => /^\s*(?:❯ )?lanes\b.*╭/.test(r))
   if (head >= 0) {
     const line = rows[head]!
-    const x0 = line.indexOf('│')
-    const x1 = line.lastIndexOf('│')
+    const x0 = line.indexOf('╭')
+    const x1 = line.lastIndexOf('╮')
     const inner: PaneRow[] = []
     for (let y = head + 1; y < rows.length; y++) {
       const r = rows[y]!

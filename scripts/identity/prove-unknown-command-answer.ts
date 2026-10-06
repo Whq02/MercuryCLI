@@ -31,7 +31,7 @@ const domains = await import('../../src/components/HelpV2/commandDomains.ts')
 
 const roster = [...commands.builtinCommands()]
 const RETIRED = 'insights'
-const NAMES = [RETIRED, 'doctor', 'party', 'multiplayer', 'rooms', 'share', 'invite', 'handoff', 'delegate', 'prompt', 'request', 'tickets', 'say', 'security-review', 'terminal-setup', 'pr-comments', 'cost', 'color', 'release-notes', 'heapdump', 'files', 'mock-limits', 'supervisor']
+const NAMES = [RETIRED, 'doctor', 'party', 'multiplayer', 'rooms', 'share', 'invite', 'handoff', 'delegate', 'prompt', 'request', 'tickets', 'say', 'security-review', 'terminal-setup', 'pr-comments', 'cost', 'color', 'release-notes', 'heapdump', 'files', 'mock-limits', 'supervisor', 'view']
 const NEVER_HAD = 'frobnicate'
 const shape = (line: string, name: string): string => line.replace(`/${name}`, '/<name>').replace(/ — closest: \/[\w:-]+/, '')
 const neverLine = slash.unknownCommandLine(NEVER_HAD, roster)

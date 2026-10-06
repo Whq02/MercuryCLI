@@ -366,9 +366,9 @@ const j5d = capture('j5-close', [
   { atTick: 60, data: ']' },
   { atTick: 66, data: '\x1b' },
   { atTick: 72, data: '\x1b' },
-], 92, { ready: '✶ VIEW' })
+], 92, { ready: 'Type a prompt' })
 if (j5d && j1) {
-  check('diff close: home restored (the session header back)', rowOf(j5d, '✶ VIEW') >= 0)
+  check('diff close: home restored (the composer back)', rowOf(j5d, 'Type a prompt') >= 0)
   check('diff close: no workspace residue', rowOf(j5d, 'hunk ') === -1)
   check('diff close: prompt row back at its baseline position', promptRow(j5d) === promptY0, `row ${promptRow(j5d)} vs ${promptY0}`)
 }
@@ -390,54 +390,48 @@ if (j6a) {
   const j6b = capture('j6-close', [
     ...SATURN_OPEN,
     { atTick: 52, data: '\x1b' },
-  ], 76, { cols: 140, ready: '✶ VIEW' })
+  ], 76, { cols: 140, ready: 'Type a prompt' })
   if (j6b) {
-    check('board close: home restored after esc', rowOf(j6b, '✶ VIEW') >= 0)
+    check('board close: home restored after esc', rowOf(j6b, 'Type a prompt') >= 0)
   }
 }
 
-console.log('\n── J7 · session flip out (tab click) + back (⌥← chord) ─────')
+console.log('\n── J7 · session flip out (the concourse) + back (⌥← chord) ─────')
 writeSessions()
 const DRAFT7 = [
   { atTick: 36, data: 'session alpha draft line one' },
   { atTick: 42, data: '\x1b\r' },
   { atTick: 44, data: 'line two of the draft' },
 ]
-const FULL_THEN_DRAFT7 = [{ atTick: 28, data: '/view on\r' }, ...DRAFT7]
+const CLICK_AT = '\x1b[<0;{X};{Y}M\x1b[<0;{X};{Y}m'
+const HOP_TO_B = [
+  { atTick: 64, data: '\x1b[1;2D' },
+  { atTick: 80, targetText: 'session bravo standby', targetDx: 2, data: CLICK_AT },
+  { atTick: 86, data: '\r' },
+  { atTick: 90, data: '\r' },
+]
 let flipOut: string[] | null = null
-let tab7X = -1
-let tab7Y = -1
-for (let attempt = 0; attempt < 2 && !flipOut?.some(l => l.includes('standing by in bravo')); attempt++) {
+purgeDrafts()
+const base7 = capture('j7-draft', DRAFT7, 66, { ready: 'session alpha draft line one' })
+if (base7) {
+  check('flip: the multiline draft is live', rowOf(base7, 'session alpha draft line one') >= 0 && rowOf(base7, 'line two of the draft') >= 0)
+  check('flip: no sessions strip to click — the concourse is the door', rowOf(base7, '⊞ SESSIONS') === -1)
   purgeDrafts()
-  const base = capture(`j7-draft${attempt ? '-r' : ''}`, FULL_THEN_DRAFT7, 66, { ready: 'session alpha draft line one' })
-  if (!base) break
-  if (attempt === 0) {
-    check('flip: the multiline draft is live', rowOf(base, 'session alpha draft line one') >= 0 && rowOf(base, 'line two of the draft') >= 0)
-  }
-  const sessY = rowOf(base, '⊞ SESSIONS')
-  const x = sessY >= 0 ? base[sessY]!.indexOf('bravo') : -1
-  if (x < 0) continue
-  tab7X = x + 1
-  tab7Y = sessY + 1
-  purgeDrafts()
-  flipOut = capture(`j7-flip-out${attempt ? '-r' : ''}`, [
-    ...DRAFT7,
-    { atTick: 64, data: click(tab7X, tab7Y) },
-  ], 100, { ready: 'standing by in bravo' })
+  flipOut = capture('j7-flip-out', [...DRAFT7, ...HOP_TO_B], 110, { ready: 'standing by in bravo' })
 }
-check('flip: session-B tab located in the settled frame', tab7X > 0)
+check('flip: the hop through the concourse reached session B', flipOut !== null && flipOut.some(l => l.includes('standing by in bravo')))
 if (flipOut) {
   check('flip out: session B transcript live', rowOf(flipOut, 'standing by in bravo') >= 0)
   check('flip out: the A draft did NOT leak into B', rowOf(flipOut, 'session alpha draft line one') === -1)
 }
-if (tab7X > 0) {
+if (flipOut?.some(l => l.includes('standing by in bravo'))) {
   purgeDrafts()
   writeSessions()
   const j7c = capture('j7-flip-back', [
     ...DRAFT7,
-    { atTick: 64, data: click(tab7X, tab7Y) },
-    { atTick: 96, data: '\x1b[1;3D' },
-  ], 136, { ready: 'file-1 bumped' })
+    ...HOP_TO_B,
+    { atTick: 118, data: '\x1b[1;3D' },
+  ], 158, { ready: 'file-1 bumped' })
   if (j7c) {
     check('flip back: session A transcript restored', rowOf(j7c, 'file-1 bumped') >= 0)
     check('flip back: the multiline draft RESTORED into the composer', rowOf(j7c, 'session alpha draft line one') >= 0 && rowOf(j7c, 'line two of the draft') >= 0)

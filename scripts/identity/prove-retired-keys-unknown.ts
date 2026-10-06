@@ -113,7 +113,7 @@ const NONSENSE = 'notASetting'
 type Loaded = { errors: number; words: string; sibling: unknown; carried: boolean; bytesAfter: string }
 const settingsPath = join(HOME, 'settings.json')
 function load(key: string, value: unknown): Loaded {
-  const file = { [key]: value, view: { sessionsBar: true } }
+  const file = { [key]: value, view: { reducedMotion: true } }
   const bytes = JSON.stringify(file, null, 2)
   writeFileSync(settingsPath, bytes)
   resetSettingsCache()
@@ -123,7 +123,7 @@ function load(key: string, value: unknown): Loaded {
   return {
     errors: loaded.errors.length,
     words: loaded.errors.map(error => `${error.path} ${error.message} ${error.severity ?? ''} ${error.suggestion ?? ''}`).join(' | '),
-    sibling: (raw.view as { sessionsBar?: unknown } | undefined)?.sessionsBar,
+    sibling: (raw.view as { reducedMotion?: unknown } | undefined)?.reducedMotion,
     carried: j(raw[key]) === j(value),
     bytesAfter: readFileSync(settingsPath, 'utf8'),
   }
@@ -142,9 +142,44 @@ section('§1 every retired settings root is an unknown key: the loader carries i
   for (const [key, value] of Object.entries({ ...RETIRED_SETTINGS_ROOTS, ...RETIRED_ADOPTION_FIELDS })) {
     const loaded = load(key, value)
     const same = loaded.errors === control.errors && loaded.words === control.words.replace(NONSENSE, key) && loaded.carried && loaded.sibling === true
-    check(`${key}: loads as the nonsense key does (the same one generic warning, carried, view.sessionsBar read)`, same, j(loaded))
+    check(`${key}: loads as the nonsense key does (the same one generic warning, carried, view.reducedMotion read)`, same, j(loaded))
     check(`${key}: the warning names no grouped path and no replacement`, !NEW_PATHS.test(loaded.words.replace(key, '')) && !/instead|use |rename|was|formerly/i.test(loaded.words), loaded.words)
-    check(`${key}: the file is not rewritten`, loaded.bytesAfter === JSON.stringify({ [key]: value, view: { sessionsBar: true } }, null, 2))
+    check(`${key}: the file is not rewritten`, loaded.bytesAfter === JSON.stringify({ [key]: value, view: { reducedMotion: true } }, null, 2))
+  }
+}
+
+const REPO = join(import.meta.dir, '..', '..')
+const srcFiles: string[] = []
+for await (const file of new Bun.Glob('src/**/*.{ts,tsx}').scan(REPO)) srcFiles.push(file)
+
+section('§1b a retired leaf inside a kept group is an unknown leaf like any other: carried, read by nothing, no warning that names it, no byte written')
+{
+  const RETIRED_VIEW_LEAVES: Record<string, unknown> = { sessionsBar: true }
+  const loadView = (leaf: string, value: unknown): Loaded & { leaf: unknown } => {
+    const file = { view: { reducedMotion: true, [leaf]: value } }
+    const bytes = JSON.stringify(file, null, 2)
+    writeFileSync(settingsPath, bytes)
+    resetSettingsCache()
+    resetHooksConfigSnapshot()
+    const loaded = getSettingsWithErrors()
+    const view = (loaded.settings as { view?: Record<string, unknown> }).view ?? {}
+    return {
+      errors: loaded.errors.length,
+      words: loaded.errors.map(error => `${error.path} ${error.message} ${error.severity ?? ''} ${error.suggestion ?? ''}`).join(' | '),
+      sibling: view.reducedMotion,
+      carried: j(view[leaf]) === j(value),
+      leaf: view[leaf],
+      bytesAfter: readFileSync(settingsPath, 'utf8'),
+    }
+  }
+  const control = loadView(NONSENSE, 'x')
+  for (const [leaf, value] of Object.entries(RETIRED_VIEW_LEAVES)) {
+    const loaded = loadView(leaf, value)
+    check(`view.${leaf}: loads exactly as view.${NONSENSE} does (the same warnings, carried, the sibling applies)`, loaded.errors === control.errors && loaded.words === control.words.replace(NONSENSE, leaf) && loaded.carried && loaded.sibling === true, j(loaded))
+    check(`view.${leaf}: no warning names a replacement`, !/instead|use |rename|was|formerly/i.test(loaded.words), loaded.words)
+    check(`view.${leaf}: the file is not rewritten`, loaded.bytesAfter === JSON.stringify({ view: { reducedMotion: true, [leaf]: value } }, null, 2))
+    const readers = srcFiles.filter(file => readFileSync(join(REPO, file), 'utf8').includes(leaf))
+    check(`view.${leaf}: no module under src reads it`, readers.length === 0, readers.join(', '))
   }
 }
 

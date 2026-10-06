@@ -33,7 +33,7 @@ type Cell = { c: string; fg: string; bg: string; bold: boolean; rev: boolean }
 type Grid = Cell[][]
 type Payload = { grid: Grid; marks?: Array<{ label: string; grid: Grid }>; endReason: string }
 const gridText = (grid: Grid): string[] => grid.map(row => row.map(cell => cell.c).join(''))
-const headerRow = (grid: Grid): string => gridText(grid).find(row => row.includes('✶ VIEW')) ?? ''
+const titleRow = (grid: Grid): string => gridText(grid).find(row => row.includes('✶ VIEW')) ?? ''
 const composer = (grid: Grid): Grid => grid.slice(grid.length - 5, grid.length - 2)
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b)
 const scratch = mkdtempSync(join(realpathSync(tmpdir()), 'rename-hosted-'))
@@ -142,12 +142,12 @@ try {
   for (const [cols, rows] of [[178, 51], [120, 40]] as const) {
     const marks = await capture(cols, rows)
     const idle = marks.idle!
-    check(`${cols}×${rows}: R1 the idle title reads new session`, headerRow(idle).includes('new session'))
+    check(`${cols}×${rows}: R1 the idle chat paints no title row (the name lives in the terminal title, the concourse and /sessions)`, titleRow(idle) === '')
     const frame = composer(idle)
     check(`${cols}×${rows}: the initial composer is rounded`, frame[0]?.[0]?.c === '╭' && frame[2]?.[0]?.c === '╰' && frame[1]?.[0]?.c === '│')
     for (const [mark, name] of [['renamed', 'roomie'], ['long-title', 'a-longer-session-title'], ['short-title', 'x']] as const) {
       const grid = marks[mark]!
-      check(`${cols}×${rows}: R2 the VIEW header carries ${name}`, headerRow(grid).split('✶ VIEW')[1]?.split('│')[0]?.trim() === name)
+      check(`${cols}×${rows}: R2 the rename paints no title row either`, titleRow(grid) === '')
       check(`${cols}×${rows}: R3 the receipt carries ${name}`, gridText(grid).some(row => row.includes(`Renamed this session to ${name}`)))
       check(`${cols}×${rows}: all three composer rows stay cell-identical after ${mark}`, same(composer(grid), frame))
     }

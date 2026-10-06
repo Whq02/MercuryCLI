@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { DIST, FRAMES, argAfter, makeTally } from '../daemon/dupline-world.ts'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
+import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
 
 const VSHOT = join(import.meta.dir, 'vshot.py')
 const tally = makeTally('prove-composer-draft-survives-click-drive')
@@ -25,6 +26,7 @@ const DRAFT = 'the quick brown fox'
 const DRAFT_ROW = `│❯ ${DRAFT}`
 const CARET_BACK = 4
 const PLACEHOLDER = 'Type a prompt'
+const BACK_HINT = keyHintLabel('⇧← back')
 const COLS = 178
 const ROWS = 51
 
@@ -225,13 +227,13 @@ async function doorsLeg(): Promise<void> {
 }
 
 async function concourseLeg(): Promise<void> {
-  const { home, cwd } = seedWorld('concourse', { sessionsBar: true })
-  const door: Door = { name: 'concourse-chip', road: 'SESSIONS bar concourse chip → /concourse (⇧→ returns to the chat)', open: [clickOn('SESSIONS ›', 2)], needle: 'SESSION CONCOURSE', close: after(SHIFT_RIGHT, 1) }
+  const { home, cwd } = seedWorld('concourse', {})
+  const door: Door = { name: 'way-back', road: 'the status row\'s way back → /concourse (⇧→ returns to the chat)', open: [clickOn(BACK_HINT, 2)], needle: 'SESSION CONCOURSE', close: after(SHIFT_RIGHT, 1) }
   const cap = await capture('concourse-178x51', cfgFor(cwd, [...boot(), ...doorSends(door)], 500), driveEnv(home))
   const m = cap.marks
-  tally.section('concourse 178x51 · the SESSIONS bar chip over a typed draft')
+  tally.section('concourse 178x51 · the status row\'s way back over a typed draft')
   tally.check('concourse C1 every send became due', cap.receipts === cap.sends && cap.status === 0, dueDetail(cap))
-  tally.check('concourse C2 the SESSIONS bar is on the chat', has(m.land, 'SESSIONS ›'), rowsOf(m.land).filter(r => r.includes('SESSIONS')).join(' | '))
+  tally.check('concourse C2 the status row with its way back is on the chat, no sessions bar above it', has(m.land, BACK_HINT) && !has(m.land, 'SESSIONS ›'), rowsOf(m.land).filter(r => r.includes(BACK_HINT) || r.includes('SESSIONS')).join(' | '))
   judge('concourse 178x51', door, m)
   if (KEEP) console.log(`world kept: ${home} ${cwd}`)
 }

@@ -35,36 +35,6 @@ export function setHelmTelemetryAvailable(on: boolean): void {
   telemetryAvailable = on
 }
 
-let promptEmpty = true
-const promptEmptyListeners = new Set<() => void>()
-export function setPromptEmpty(empty: boolean): void {
-  if (promptEmpty === empty) return
-  promptEmpty = empty
-  for (const l of promptEmptyListeners) l()
-}
-export function isPromptEmpty(): boolean {
-  return promptEmpty
-}
-export function subscribePromptEmpty(listener: () => void): () => void {
-  promptEmptyListeners.add(listener)
-  return () => promptEmptyListeners.delete(listener)
-}
-
-let sessionRailRows = 0
-const sessionRailRowsListeners = new Set<() => void>()
-export function setSessionRailRows(rows: number): void {
-  if (sessionRailRows === rows) return
-  sessionRailRows = rows
-  for (const l of sessionRailRowsListeners) l()
-}
-export function getSessionRailRows(): number {
-  return sessionRailRows
-}
-export function subscribeSessionRailRows(listener: () => void): () => void {
-  sessionRailRowsListeners.add(listener)
-  return () => sessionRailRowsListeners.delete(listener)
-}
-
 export function nextHelmPane(p: HelmPane): HelmPane {
   if (p === 'prompt') return 'lanes'
   if (p === 'lanes') return telemetryAvailable ? 'telemetry' : 'prompt'
@@ -300,7 +270,6 @@ export function resetHelmFocusForTest(): void {
   pendingCommand = null
   pendingPrefill = null
   telemetryAvailable = true
-  promptEmpty = true
   railEnteredAt = 0
   version = 0
   paneVersion.lanes = 0

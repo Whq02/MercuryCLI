@@ -143,11 +143,6 @@ async function capture(tag: string, world: { configHome: string; cwd: string }, 
 }
 
 const text = (g: Grid): string[] => g.map(row => row.map(c => c.c).join(''))
-const savedBarOf = (configHome: string): boolean | undefined => {
-  const path = join(configHome, 'settings.json')
-  if (!existsSync(path)) return undefined
-  return (JSON.parse(readFileSync(path, 'utf8')) as { view?: { sessionsBar?: boolean } }).view?.sessionsBar
-}
 const rowWith = (g: Grid, needle: string): number => text(g).findIndex(line => line.includes(needle))
 const sameCell = (a: Cell, b: Cell): boolean => a.c === b.c && a.fg === b.fg && a.bg === b.bg && a.bold === b.bold && a.rev === b.rev
 const compact = (grid: Grid): StoredGrid => compactGrid({ cols: grid[0]?.length ?? 0, rows: grid.length, grid })
@@ -157,7 +152,7 @@ function sameFrame(label: string, a: Grid, b: Grid): void {
 }
 function sameLook(label: string, a: Grid, b: Grid): void {
   const bottom = paneBottom(b, 30, 147)
-  const regions: Array<[number, number, number, number]> = [[0, 7, 30, 178], [7, bottom, 148, 178], [bottom, 51, 0, 178], [9, 19, 30, 148]]
+  const regions: Array<[number, number, number, number]> = [[0, 6, 30, 178], [6, bottom, 148, 178], [bottom, 51, 0, 178], [8, 18, 30, 148]]
   let off = 0
   let first = ''
   for (const [r0, r1, c0, c1] of regions) for (let r = r0; r < r1; r++) for (let c = c0; c < c1; c++) {
@@ -169,23 +164,21 @@ function sameLook(label: string, a: Grid, b: Grid): void {
 }
 function boxRows(g: Grid, left: number): { top: number; bottom: number } {
   const t = text(g)
-  const header = rowWith(g, '✶ VIEW')
   let top = -1
   let bottom = -1
-  for (let r = header + 1; r < t.length && r < header + 3; r++) if (t[r]![left] === '╭') { top = r; break }
+  for (let r = 1; r < t.length && r < 4; r++) if (t[r]![left] === '╭') { top = r; break }
   for (let r = top + 1; r < t.length && top >= 0; r++) if (t[r]![left] === '╰') { bottom = r; break }
   return { top, bottom }
 }
 function slotLeft(g: Grid): number {
-  const header = rowWith(g, '✶ VIEW')
-  const border = text(g)[header + 1] ?? ''
+  const border = text(g)[1] ?? ''
   return border.indexOf('╭') + 3
 }
 
 type Berth = { left: number; right: number; top: number; bottom: number; cardTop: number; cardBottom: number; cardLeft: number; x: number; y: number; cells: number }
 function berthOf(g: Grid): Berth {
   const t = text(g)
-  const border = t[rowWith(g, '✶ VIEW') + 1] ?? ''
+  const border = t[1] ?? ''
   const left = border.indexOf('╭')
   const right = border.lastIndexOf('╮')
   const { top, bottom } = boxRows(g, left)
@@ -239,152 +232,97 @@ function paneBottom(g: Grid, left: number, right: number): number {
   for (let r = t.length - 1; r > 0; r--) if (t[r]![left] === '╰' && t[r]![right] === '╯') return r
   return -1
 }
-function stripBottom(g: Grid): number {
-  const t = text(g)
-  const strip = rowWith(g, '⊞ SESSIONS')
-  if (strip < 0) return -1
-  for (let r = strip + 1; r < t.length; r++) if (t[r]![0] === '╰') return r
-  return -1
-}
 
 console.log('============================================================')
-console.log(' the small critter in the slim session box and the SESSIONS bar — driven')
+console.log(' the small critter in the slim session box, the view reaching the status row — driven')
 console.log('============================================================')
 
 try {
   if (!mountsOnly) {
   const wide = homeFor('wide')
-  const a = await capture('wide-a', wide, 178, 51, [onReported('/view on\r', 'boot'), onReady('/view off\r', 'bar'), onReady('/view\r', 'bar-off'), onReady('/view on\r', 'state')], '← back')
+  const a = await capture('wide-a', wide, 178, 51, [onReported('/view on\r', 'boot')], 'Unknown command')
   const boot = a.marks['boot']!
-  const bar = a.marks['bar']!
-  const barOff = a.marks['bar-off']!
-  const state = a.marks['state']!
-  const barAgain = a.grid
-  const b = await capture('wide-b', wide, 178, 51, [onReported('/view off\r', 'second-boot')], '← back')
-  const secondBoot = b.marks['second-boot']!
-  const offAfterSecondBoot = b.grid
+  const typed = a.grid
   const band = await capture('band', homeFor('band'), 80, 21, [], '1 session on')
   const mid = homeFor('mid')
-  const c = await capture('mid', mid, 120, 40, [onReady('/view on\r', 'boot')], '← back')
+  const c = await capture('mid', mid, 120, 40, [onReady('', 'boot')], '← back')
   const midBoot = c.marks['boot']!
-  const midBar = c.grid
-  const tripHome = homeFor('trip')
-  writeFileSync(join(tripHome.configHome, 'settings.json'), JSON.stringify({ view: { sessionsBar: true } }))
-  const trip = await capture('trip', tripHome, 178, 51, [onReady('', 'wide')], '← back', [{ atTick: 70, cols: 80, rows: 21 }, { atTick: 85, cols: 178, rows: 51 }])
+  const trip = await capture('trip', homeFor('trip'), 178, 51, [onReady('', 'wide')], '← back', [{ atTick: 70, cols: 80, rows: 21 }, { atTick: 85, cols: 178, rows: 51 }])
   const tripWide = trip.marks['wide']!
   const tripNarrow = trip.marks['stage1:80x21']!
   const tripBack = trip.grid
-  const tallHome = homeFor('tall')
-  const tall = await capture('tall', tallHome, 80, 30, [{ requireAwait: true, awaitText: '1 session on', awaitSettleTicks: 6, data: '/view on\r', mark: 'boot' }], '1 session on')
+  const tall = await capture('tall', homeFor('tall'), 80, 30, [{ requireAwait: true, awaitText: '1 session on', awaitSettleTicks: 6, data: '', mark: 'boot' }], '1 session on')
   const tallBoot = tall.marks['boot']!
-  const tallBar = tall.grid
-  const CLICK_VIEW = '\x1b[<0;35;2M\x1b[<0;35;2m'
-  const clickWorld = homeFor('click')
-  const clicked = await capture('click', clickWorld, 178, 51, [
-    onReady(CLICK_VIEW, 'boot'),
-    { requireAwait: true, awaitText: '⊞ SESSIONS', awaitSettleTicks: 4, data: CLICK_VIEW, mark: 'click-bar' },
-    { afterPrevTicks: 10, data: '', mark: 'click-off' },
-  ], '← back')
 
-  console.log('§1 the slim box at 178×51 (the one look; no setting)')
+  console.log('§1 the slim box at 178×51 (the one look; no setting), the pane\'s first interior row')
   const bx = boxRows(boot, 31)
-  check('the header row ✶ VIEW stays at row 1', rowWith(boot, '✶ VIEW') === 1, `row ${rowWith(boot, '✶ VIEW')}`)
-  check('the session box is five rows: border at row 2, border at row 6', bx.top === 2 && bx.bottom === 6, `top ${bx.top} bottom ${bx.bottom}`)
+  check('no title row paints above the box: the pane\'s top border is row 0 and nothing reads ✶ VIEW', rowWith(boot, '✶ VIEW') === -1 && text(boot)[0]!.includes('╭') , `row ${rowWith(boot, '✶ VIEW')}`)
+  check('the session box is five rows under the pane\'s top border: border at row 1, border at row 5', bx.top === 1 && bx.bottom === 5, `top ${bx.top} bottom ${bx.bottom}`)
   let spriteDiff = 0
   const bootLeft = slotLeft(boot)
-  for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(boot[3 + r]![bootLeft + col]!, band.grid[r]![2 + col]!)) spriteDiff++
+  for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(boot[2 + r]![bootLeft + col]!, band.grid[r]![2 + col]!)) spriteDiff++
   check('the three inner rows carry the band sprite at the slot\'s left (27 cells)', spriteDiff === 0, `${spriteDiff} cells differ, expected column ${bootLeft}`)
-  check('the sprite cells at the slot\'s left are half-block glyphs', boot.slice(3, 6).every(row => row.slice(bootLeft, bootLeft + 9).every(cell => cell.c === '▀' || cell.c === '▄')))
-  const ground = boot[7]![33]!.bg
+  check('the sprite cells at the slot\'s left are half-block glyphs', boot.slice(2, 5).every(row => row.slice(bootLeft, bootLeft + 9).every(cell => cell.c === '▀' || cell.c === '▄')))
+  const ground = boot[6]![33]!.bg
   let tintOff = 0
-  for (let r = 3; r <= 5; r++) for (let col = 32; col <= 145; col++) { if (col >= bootLeft && col < bootLeft + 9) continue; const cell = boot[r]![col]!; if (cell.c !== ' ' || cell.bg !== ground) tintOff++ }
+  for (let r = 2; r <= 4; r++) for (let col = 32; col <= 145; col++) { if (col >= bootLeft && col < bootLeft + 9) continue; const cell = boot[r]![col]!; if (cell.c !== ' ' || cell.bg !== ground) tintOff++ }
   check('the rest of the three rows is the box’s own tint (blank cells on the pane ground)', tintOff === 0, `${tintOff} cells off`)
-  check('nothing paints beside the idle sprite (no border glyph on its rows)', boot.slice(3, 6).every(row => !row.slice(43, 146).some(cell => cell.c === '╭' || cell.c === '│')))
+  check('nothing paints beside the idle sprite (no border glyph on its rows)', boot.slice(2, 5).every(row => !row.slice(43, 146).some(cell => cell.c === '╭' || cell.c === '│')))
 
-  console.log('§2 the SESSIONS bar is not painted by default; its rows belong to the chat')
+  console.log('§2 no SESSIONS bar paints under the view; the view reaches the status row')
   check('no row of the frame reads ⊞ SESSIONS', rowWith(boot, '⊞ SESSIONS') === -1, `row ${rowWith(boot, '⊞ SESSIONS')}`)
   check('no row of the frame reads ▣ this session', rowWith(boot, '▣ this session') === -1)
   const paneOff = paneBottom(boot, 30, 147)
-  const paneOn = paneBottom(bar, 30, 147)
-  const stripOn = stripBottom(bar)
-  check('the pane’s bottom border sits on the row the bar’s bottom border holds when it is on', paneOff === stripOn && stripOn === 44, `pane ${paneOff} strip ${stripOn}`)
-  check('the ready row, the composer and the two hint rows stay where they are', text(boot).slice(45, 51).join('\n') === text(bar).slice(45, 51).join('\n'))
-  check('the chat has four more inner rows with the bar off (37 for 33)', paneOff - paneOn === 4 && paneOff - bx.bottom - 1 === 37, `${paneOff} vs ${paneOn}`)
+  check('the pane’s bottom border sits on row 44, directly above the status row', paneOff === 44 && text(boot)[45]!.includes('ready ·'), `pane ${paneOff}`)
+  check('the chat has thirty-eight inner rows under the box', paneOff - bx.bottom - 1 === 38, `${paneOff} vs ${bx.bottom}`)
 
-  console.log('§3 the landing form sits where the after frame shows it')
-  check('the wordmark starts at row 9', text(boot)[9]!.includes('█▄▄▄█'))
-  check('● ready at row 12', text(boot)[12]!.includes('● ready · type a prompt, or / for commands'))
-  check('model · theme · dir at rows 14, 15, 16', text(boot)[14]!.includes('model') && text(boot)[15]!.includes('theme') && text(boot)[16]!.includes('dir'))
-  check('the ↵ sends row at row 18', text(boot)[18]!.includes('❯ ↵ sends'))
-  check('nothing is reworded: the landing rows read the same with the bar on, rows unmoved', text(boot).slice(9, 19).map(l => l.slice(30, 148)).join('\n') === text(bar).slice(9, 19).map(l => l.slice(30, 148)).join('\n'))
+  console.log('§3 the landing form sits under the box')
+  check('the wordmark starts three rows under the box', text(boot)[bx.bottom + 3]!.includes('█▄▄▄█'))
+  check('● ready six rows under the box', text(boot)[bx.bottom + 6]!.includes('● ready · type a prompt, or / for commands'))
+  check('model · theme · dir eight, nine and ten rows under the box', text(boot)[bx.bottom + 8]!.includes('model') && text(boot)[bx.bottom + 9]!.includes('theme') && text(boot)[bx.bottom + 10]!.includes('dir'))
+  check('the ↵ sends row twelve rows under the box', text(boot)[bx.bottom + 12]!.includes('❯ ↵ sends'))
 
-  console.log('§4 /view on paints the bar, /view off hides it, and bare /view answers the state')
-  check('with the bar on the box stays five rows (border at 2, border at 6)', boxRows(bar, 31).top === 2 && boxRows(bar, 31).bottom === 6, `top ${boxRows(bar, 31).top} bottom ${boxRows(bar, 31).bottom}`)
-  check('with the bar on the strip sits at row 42 and the pane’s bottom border at row 40', rowWith(bar, '⊞ SESSIONS') === 42 && paneOn === 40, `strip ${rowWith(bar, '⊞ SESSIONS')} pane ${paneOn}`)
-  check('the bar carries the critter’s glyph, the model and the effort on its second row', /▗.*▖ │ Opus 5\.5 · ● high/.test(text(bar)[43] ?? ''), JSON.stringify(text(bar)[43]))
-  check('the sprite stays the band sprite with the bar on (27 cells at the slot’s left)', bar.slice(3, 6).every(row => row.slice(slotLeft(bar), slotLeft(bar) + 9).every(cell => cell.c === '▀' || cell.c === '▄')))
-  sameLook('/view off after /view on repaints the default look outside the chat’s own rows (the command receipts and the prompt list are the chat’s)', barOff, boot)
-  check('bare /view answers the state in one line under the composer', text(state).some(line => line.includes('SESSIONS bar off — /view on shows it')))
-  check('bare /view changes nothing: the bar stays off', rowWith(state, '⊞ SESSIONS') === -1)
-  check('/view on again paints the bar at the same rows', rowWith(barAgain, '⊞ SESSIONS') === 42 && paneBottom(barAgain, 30, 147) === 40)
+  console.log('§4 /view is an unknown command like any other')
+  check('typed, /view on answers the ordinary unknown-command line', rowWith(typed, 'Unknown command: /view') >= 0)
+  check('…and paints no bar, the box stays five rows and the pane keeps its bottom border', rowWith(typed, '⊞ SESSIONS') === -1 && boxRows(typed, 31).top === 1 && boxRows(typed, 31).bottom === 5 && paneBottom(typed, 30, 147) === 44)
+  sameLook('the answer repaints nothing outside the chat’s own rows', typed, boot)
 
-  console.log('§5 the choice is kept across boots')
-  check('a second boot of the same home lands with the saved bar on', rowWith(secondBoot, '⊞ SESSIONS') === 42 && paneBottom(secondBoot, 30, 147) === 40)
-  sameLook('/view off on the second boot repaints the default look outside the chat’s own rows', offAfterSecondBoot, boot)
-
-  console.log('§6 the same slim box and the same bar at 120×40')
-  const midHeader = rowWith(midBoot, '✶ VIEW')
-  const midLeft = text(midBoot)[midHeader + 1]!.indexOf('╭')
+  console.log('§6 the same slim box at 120×40')
+  const midLeft = text(midBoot)[1]!.indexOf('╭')
   const mx = boxRows(midBoot, midLeft)
-  check('the box is five rows under the header', mx.top === midHeader + 1 && mx.bottom === midHeader + 5, `top ${mx.top} bottom ${mx.bottom}`)
-  check('no row reads ⊞ SESSIONS by default', rowWith(midBoot, '⊞ SESSIONS') === -1)
+  check('the box is five rows under the pane’s top border', mx.top === 1 && mx.bottom === 5, `top ${mx.top} bottom ${mx.bottom}`)
+  check('no row reads ⊞ SESSIONS or ✶ VIEW', rowWith(midBoot, '⊞ SESSIONS') === -1 && rowWith(midBoot, '✶ VIEW') === -1)
   let midSprite = 0
   for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(midBoot[mx.top + 1 + r]![slotLeft(midBoot) + col]!, band.grid[r]![2 + col]!)) midSprite++
   check('the sprite cells equal the band’s (27 cells)', midSprite === 0, `${midSprite} cells differ`)
-  const mbx = boxRows(midBar, midLeft)
-  check('/view on at 120×40 paints the bar and leaves the box five rows', mbx.bottom === midHeader + 5 && rowWith(midBar, '⊞ SESSIONS') >= 0, `bottom ${mbx.bottom} strip ${rowWith(midBar, '⊞ SESSIONS')}`)
-  check('the bar’s bottom border row with the bar on is the pane’s bottom border row with it off', stripBottom(midBar) === paneBottom(midBoot, midLeft - 1, text(midBoot)[mx.top]!.lastIndexOf('╮') + 1), `${stripBottom(midBar)} vs ${paneBottom(midBoot, midLeft - 1, text(midBoot)[mx.top]!.lastIndexOf('╮') + 1)}`)
+  const midBottom = paneBottom(midBoot, midLeft - 1, text(midBoot)[mx.top]!.lastIndexOf('╮') + 1)
+  check('the pane’s bottom border sits directly above the status row', midBottom >= 0 && text(midBoot)[midBottom + 1]!.includes('ready ·'), `pane ${midBottom}`)
 
-  console.log('§7 a resize from wide to narrow and back keeps the one sprite and the bar')
+  console.log('§7 a resize from wide to narrow and back keeps the one sprite')
   let tripDiff = 0
-  for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(tripWide[3 + r]![slotLeft(tripWide) + col]!, band.grid[r]![2 + col]!)) tripDiff++
+  for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(tripWide[2 + r]![slotLeft(tripWide) + col]!, band.grid[r]![2 + col]!)) tripDiff++
   check('wide before the resize: the box carries the band’s sprite cells', tripDiff === 0, `${tripDiff} cells differ`)
-  check('wide before the resize: the saved bar is on', rowWith(tripWide, '⊞ SESSIONS') === 42)
+  check('wide before the resize: no bar', rowWith(tripWide, '⊞ SESSIONS') === -1)
   let narrowDiff = 0
   for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(tripNarrow[r]![2 + col]!, band.grid[r]![2 + col]!)) narrowDiff++
   check('narrow: the 80×21 band paints the same sprite cells', narrowDiff === 0, `${narrowDiff} cells differ`)
-  check('narrow: the compact layout paints no bar (it has no mount there)', rowWith(tripNarrow, '⊞ SESSIONS') === -1)
-  sameFrame('wide again: the frame is the wide frame cell for cell, the bar back', tripBack, tripWide)
+  check('narrow: the compact layout paints no bar', rowWith(tripNarrow, '⊞ SESSIONS') === -1)
+  sameFrame('wide again: the frame is the wide frame cell for cell', tripBack, tripWide)
 
-  console.log('§8 a compact window paints the one sprite; /view on holds without a bar to paint')
+  console.log('§8 a compact window paints the one sprite')
   let tallDiff = 0
   for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(tallBoot[r]![2 + col]!, band.grid[r]![2 + col]!)) tallDiff++
   check('80×30: the band’s rows 0–2 carry the 80×21 sprite cells (27 cells)', tallDiff === 0, `${tallDiff} cells differ`)
   check('80×30: no half-block art below the three sprite rows', !tallBoot.slice(3, 7).some(row => row.slice(0, 16).some(cell => cell.c === '▀' || cell.c === '▄')))
-  check('80×30 after /view on: the band and the sprite are unchanged and no bar row appears', tallBar.slice(0, 4).every((row, r) => row.every((cell, c) => sameCell(cell, tallBoot[r]![c]!))) && rowWith(tallBar, '⊞ SESSIONS') === -1)
-  const tallSaved = savedBarOf(tallHome.configHome)
-  check('80×30 after /view on: the choice is saved for the wide layout', tallSaved === true, `sessionsBar ${String(tallSaved)}`)
 
   console.log('§9 the 80×21 band is untouched')
   check('the 80×21 band paints the dock sprite at rows 0–2, columns 2–10', band.grid.slice(0, 3).every(row => row.slice(2, 11).every(cell => cell.c === '▀' || cell.c === '▄')))
   check('the band’s status row reads 1 session on', rowWith(band.grid, '1 session on') === 20, `row ${rowWith(band.grid, '1 session on')}`)
 
-  console.log('§10 the title reads ✶ VIEW, and a click on it shows and hides the bar and saves the choice')
-  const clickBoot = clicked.marks['boot']!
-  const clickBar = clicked.marks['click-bar']!
-  const clickOff = clicked.marks['click-off']!
-  check('every frame of the drive reads ✶ VIEW on row 1 and none reads ✶ SESSION', [boot, bar, midBoot, clickBoot, clickBar, clickOff].every(g => rowWith(g, '✶ VIEW') >= 0 && rowWith(g, '✶ SESSION') === -1) && rowWith(clickBoot, '✶ VIEW') === 1, `row ${rowWith(clickBoot, '✶ VIEW')}`)
-  check('a click on VIEW paints the bar at row 42 and leaves the box five rows', rowWith(clickBar, '⊞ SESSIONS') === 42 && boxRows(clickBar, 31).top === 2 && boxRows(clickBar, 31).bottom === 6, `strip ${rowWith(clickBar, '⊞ SESSIONS')} top ${boxRows(clickBar, 31).top} bottom ${boxRows(clickBar, 31).bottom}`)
-  check('a second click hides the bar again and the box stays five rows', rowWith(clickOff, '⊞ SESSIONS') === -1 && boxRows(clickOff, 31).top === 2 && boxRows(clickOff, 31).bottom === 6)
-  let clickSprite = 0
-  for (let r = 0; r < 3; r++) for (let col = 0; col < 9; col++) if (!sameCell(clickOff[3 + r]![slotLeft(clickOff) + col]!, band.grid[r]![2 + col]!)) clickSprite++
-  check('the box carries the band’s sprite cells throughout (27 cells)', clickSprite === 0, `${clickSprite} cells differ`)
-  const savedBar = savedBarOf(clickWorld.configHome)
-  check('the click saved the choice to the settings store (sessionsBar false after the second click)', savedBar === false, `sessionsBar ${String(savedBar)}`)
   console.log('§11 the small critter keeps the slot\'s left and the working card keeps its column')
   for (const [cols, rows] of [[178, 51], [120, 40], [100, 30]] as const) {
     const idle = cols === 178 ? boot : cols === 120 ? midBoot : (await capture('floor', homeFor('floor'), cols, rows, [], 'ready ·')).grid
-    const border = text(idle)[rowWith(idle, '✶ VIEW') + 1]!
+    const border = text(idle)[1]!
     const left = border.indexOf('╭')
     const bounds = boxRows(idle, left)
     const at = slotLeft(idle)
@@ -431,7 +369,7 @@ try {
   }
   const companion = await capture('companion-178x51', homeFor('companion-178'), 178, 51, [onReady('/companion tip\r', 'landing'), { requireAwait: true, awaitText: 'Unknown command', awaitSettleTicks: 6, data: '', mark: 'answer' }], 'Unknown command')
   check('/companion is no command: the chat answers Unknown command and no tip line paints', rowWith(companion.grid, 'Unknown command: /companion') >= 0 && rowWith(companion.grid, 'tip —') === -1, `row ${rowWith(companion.grid, 'Unknown command: /companion')}`)
-  check('/companion leaves the box five rows with the sprite alone', boxRows(companion.grid, 31).top === 2 && boxRows(companion.grid, 31).bottom === 6 && companion.grid.slice(3, 6).every(row => row.slice(slotLeft(companion.grid), slotLeft(companion.grid) + 9).every(cell => cell.c === '▀' || cell.c === '▄')))
+  check('/companion leaves the box five rows with the sprite alone', boxRows(companion.grid, 31).top === 1 && boxRows(companion.grid, 31).bottom === 5 && companion.grid.slice(2, 5).every(row => row.slice(slotLeft(companion.grid), slotLeft(companion.grid) + 9).every(cell => cell.c === '▀' || cell.c === '▄')))
   }
   console.log('§13 the small critter outside the cockpit keeps its neighbours in place')
   for (const cols of [178, 120]) {

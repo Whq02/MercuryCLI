@@ -13,7 +13,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 const src = (p: string) => readFileSync(p, 'utf8')
 
 console.log('============================================================')
-console.log(' cockpit text-overflow — HelmCenterHeader MISSION + generic tips')
+console.log(' cockpit text-overflow — the standing mission + generic tips')
 console.log('============================================================')
 
 console.log('\n(A) render — cockpit-mission at 120 (real dist binary, PTY)')
@@ -42,30 +42,25 @@ function capture(): Grid | null {
 const g = capture()
 if (g) {
   const rows = g.grid.map(r => r.map(c => c.c))
-  const my = rows.findIndex(r => r.join('').includes('MISSION:'))
-  check('MISSION band present', my >= 0)
-  if (my >= 0) {
-    const line = rows[my]!
-    const text = line.join('')
-    check('mission text is truncated (carries …)', text.includes('…'))
-    const afterEllipsis = text.slice(text.indexOf('…') + 1)
-    const rightName = afterEllipsis.replace(/[│╮╯├┤╭╰].*$/, '').trim()
-    check('the session\'s name sits on the mission row (never a clock)', rightName !== '' && !/\d\d:\d\d:\d\d/.test(text), `right segment: "${rightName}"`)
+  const text = rows.map(r => r.join(''))
+  check('no MISSION: row paints inside the centre pane (the pane opens on its border, then the berth card)', !text.some(t => t.includes('MISSION:')))
+  const label = text.findIndex(t => /\bMISSION\b/.test(t))
+  check('the standing mission lives in the lanes rail (its MISSION box)', label >= 0)
+  const spilled: number[] = []
+  rows.forEach((line, y) => {
+    if (!/Run a targeted|bug audit|hardening pass|workflow engine/.test(text[y]!)) return
     let border = -1
     for (let x = g.cols - 1; x >= 0; x--) {
       if ('│╮╯├┤╭╰'.includes(line[x]!)) { border = x; break }
     }
-    let bleed = false
     for (let x = border + 1; x < g.cols; x++) {
-      if (line[x] && line[x] !== ' ') { bleed = true; break }
+      if (line[x] && line[x] !== ' ') { spilled.push(y); break }
     }
-    check('nothing bleeds past the panel border on the mission row', border >= 0 && !bleed)
-    const nameX = rightName === '' ? -1 : text.lastIndexOf(rightName)
-    const ellipsisX = text.indexOf('…')
-    check('… precedes the name (mission yields, the name is pinned)',
-      ellipsisX >= 0 && nameX > ellipsisX)
-    check('the name sits inside the panel border', nameX >= 0 && border > nameX)
-  }
+  })
+  check('nothing bleeds past a panel border on the rows that carry the mission\'s words', spilled.length === 0, `rows ${spilled.join(',')}`)
+  const paneTop = text.findIndex(t => /╭─+╮/.test(t))
+  const paneFirst = text[paneTop + 1] ?? ''
+  check('the centre pane\'s first interior row is the berth card\'s top edge or the transcript, never a title row', paneTop >= 0 && !/VIEW|MISSION:/.test(paneFirst))
   cleanupScenario('cockpit-mission')
 }
 

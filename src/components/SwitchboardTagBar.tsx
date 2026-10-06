@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useSyncExternalStore } from 'react'
-import { UNNAMED_SESSION_WORD } from '../services/concourse/sessionNaming.js'
 import { Box, Text } from '../ink.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
@@ -93,12 +92,6 @@ export function statusRowWarns(live: SessionLiveV1, s: Pick<SeatStatusV1, 'inter
 export function statusDuration(ms: number): string {
   if (ms < 60_000) return `${Math.floor(ms / 1000)}s`
   return `${Math.floor(ms / 60_000)}m`
-}
-
-export function seatDisplayTitle(status: Pick<SeatStatusV1, 'title' | 'projectLabel'>): string {
-  const stageOneTail = ` · ${status.projectLabel} · ready`
-  const title = status.title.endsWith(stageOneTail) ? status.title.slice(0, -stageOneTail.length) : status.title
-  return title.trim() === '' ? UNNAMED_SESSION_WORD : title
 }
 
 export type CrewClockV1 = {
