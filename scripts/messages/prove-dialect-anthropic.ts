@@ -36,6 +36,7 @@ const { queryModelWithStreaming } = await import('../../src/services/providers/a
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { DIALECT_CONVERSATION, TWO_MODEL_COMPACTION, VIRTUAL_ROW, STRUCTURED_OUTPUT_ASK, canonicalJson, eq } = await import('./dialectFixture.ts')
+const { ANTHROPIC_CLIENT_CONTRACT_VERSION } = await import('../../src/constants/oauth.ts')
 import type { AssistantMessage } from '../../src/types/message.ts'
 
 const SENTINEL = new Error('request-captured')
@@ -89,7 +90,7 @@ function pinnedBody(body: Record<string, unknown>): Record<string, unknown> {
 }
 
 function pinWire(wire: string): string {
-  return wire.replace(/cc_version=([0-9.]+)\.[0-9a-f]{3}/g, 'cc_version=$1.<fp>')
+  return wire.replace(/cc_version=[0-9.]+\.[0-9a-f]{3}/g, 'cc_version=<cc>.<fp>')
 }
 
 section('the fixture conversation request — byte-pinned (canonical JSON)')
@@ -112,7 +113,11 @@ section('the fixture conversation request — byte-pinned (canonical JSON)')
   )
   check('the image rides as a base64 source block', wire.includes('aWF0dG9rZW4='))
   check('both tool calls and both results ride, paired', wire.includes('"toolu_A"') && wire.includes('"toolu_B"'))
-  const GOLDEN_BODY = `{"max_tokens":128000,"messages":[{"content":[{"text":"Count the words in my notes file.","type":"text"}],"role":"user"},{"content":[{"text":"I will read the file first.","type":"text"}],"role":"assistant"},{"content":[{"text":"here is the screenshot of the file too","type":"text"},{"source":{"data":"aWF0dG9rZW4=","media_type":"image/png","type":"base64"},"type":"image"}],"role":"user"},{"content":[{"text":"Reading and counting now.","type":"text"},{"id":"toolu_A","input":{"file_path":"/proj/notes.txt"},"name":"Read","type":"tool_use"},{"id":"toolu_B","input":{"command":"wc -w /proj/notes.txt"},"name":"Bash","type":"tool_use"}],"role":"assistant"},{"content":[{"content":[{"text":"the quick brown fox jumps over the lazy dog","type":"text"}],"tool_use_id":"toolu_A","type":"tool_result"},{"content":[{"text":"9 words","type":"text"}],"is_error":false,"tool_use_id":"toolu_B","type":"tool_result"}],"role":"user"},{"content":[{"text":"The file holds nine words.","type":"text"}],"role":"assistant"},{"content":[{"cache_control":{"type":"ephemeral"},"text":"Summarise what you found in one sentence.","type":"text"}],"role":"user"}],"metadata":"<id>","model":"claude-sonnet-5","output_config":{"effort":"high"},"stream":true,"system":[{"text":"x-anthropic-billing-header: cc_version=2.1.289.<fp>;cc_entrypoint=unknown;","type":"text"},{"cache_control":{"type":"ephemeral"},"text":"You are a Mercury agent.","type":"text"},{"cache_control":{"type":"ephemeral"},"text":"You are the dialect fixture.","type":"text"}],"tools":[]}`
+  check(
+    `the billing header names the client-contract version the constant carries (${ANTHROPIC_CLIENT_CONTRACT_VERSION})`,
+    canonicalJson(body).includes(`cc_version=${ANTHROPIC_CLIENT_CONTRACT_VERSION}.`),
+  )
+  const GOLDEN_BODY = `{"max_tokens":128000,"messages":[{"content":[{"text":"Count the words in my notes file.","type":"text"}],"role":"user"},{"content":[{"text":"I will read the file first.","type":"text"}],"role":"assistant"},{"content":[{"text":"here is the screenshot of the file too","type":"text"},{"source":{"data":"aWF0dG9rZW4=","media_type":"image/png","type":"base64"},"type":"image"}],"role":"user"},{"content":[{"text":"Reading and counting now.","type":"text"},{"id":"toolu_A","input":{"file_path":"/proj/notes.txt"},"name":"Read","type":"tool_use"},{"id":"toolu_B","input":{"command":"wc -w /proj/notes.txt"},"name":"Bash","type":"tool_use"}],"role":"assistant"},{"content":[{"content":[{"text":"the quick brown fox jumps over the lazy dog","type":"text"}],"tool_use_id":"toolu_A","type":"tool_result"},{"content":[{"text":"9 words","type":"text"}],"is_error":false,"tool_use_id":"toolu_B","type":"tool_result"}],"role":"user"},{"content":[{"text":"The file holds nine words.","type":"text"}],"role":"assistant"},{"content":[{"cache_control":{"type":"ephemeral"},"text":"Summarise what you found in one sentence.","type":"text"}],"role":"user"}],"metadata":"<id>","model":"claude-sonnet-5","output_config":{"effort":"high"},"stream":true,"system":[{"text":"x-anthropic-billing-header: cc_version=<cc>.<fp>;cc_entrypoint=unknown;","type":"text"},{"cache_control":{"type":"ephemeral"},"text":"You are a Mercury agent.","type":"text"},{"cache_control":{"type":"ephemeral"},"text":"You are the dialect fixture.","type":"text"}],"tools":[]}`
   check('the composed body is byte-identical to the base golden', wire === GOLDEN_BODY, `first divergence near ${firstDivergence(wire, GOLDEN_BODY)}`)
 }
 
