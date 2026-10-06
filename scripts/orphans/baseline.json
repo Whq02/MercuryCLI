@@ -94,11 +94,6 @@
       "reason": "The shipped verify-artifact entrypoint: packaged as its own standalone file by the release packager and executed offline by installers (`verify-artifact.mjs --deep`); reached from the packaged artifact, not the runtime graph."
     },
     {
-      "file": "src/services/visual/spriteToAnsi.ts",
-      "class": "proof-or-fixture-only",
-      "reason": "The sprite → ANSI painter whose one product consumer was the /forge estate, deleted by operator ruling. Its painter laws stay locked by scripts/language-sidecars/prove-sprite-painter.ts + prove-sprite-white-spots.ts and the isolated-artifact proof; kept for the retire-or-adopt decision on the retire-or-adopt line."
-    },
-    {
       "file": "src/services/vulcan/godotProviders.ts",
       "class": "proof-or-fixture-only",
       "reason": "The Godot provider inventory is read by three vulcan proofs (discovery, providers, instance readiness) and by no product module since the readiness rows took their data from the shared presence probe; it moves under scripts/vulcan in 1.0.0-beta.10 or is retired with its proofs."
