@@ -12,7 +12,7 @@ const argAfter = (flag: string): string | undefined => {
 }
 const DIST = path.resolve(argAfter('--dist') ?? path.join(REPO, 'dist/mercury.mjs'))
 const FRAMES = argAfter('--frames')
-const LABEL = argAfter('--label') ?? 'status-card'
+const LABEL = argAfter('--label') ?? 'usage-popup'
 const SIZE = argAfter('--size') ?? '120x40'
 const WORLD_ROOT = argAfter('--world') ?? realpathSync(tmpdir())
 const KEEP = process.argv.includes('--keep')
@@ -23,7 +23,7 @@ const EMAIL = 'first@fixture.example'
 const ORGANISATION = 'First Org'
 const DEAD = 'http://127.0.0.1:9'
 const FULL_LAYOUT = COLS >= 100 && ROWS >= 26
-const CARD_TITLE = 'Mercury · status'
+const CARD_TITLE = 'Mercury · usage'
 const PLAN_LABEL = 'Claude subscription (max)'
 const REFUSAL = 'No credential found'
 const KEY_VARIABLES = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR']
@@ -152,7 +152,7 @@ function sends(fixtureCwd: string): Send[] {
   const down = (): Send => ({ afterPrevTicks: 2, data: '\x1b[B' })
   return [
     { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r', mark: 'face' },
-    { requireAwait: true, awaitText: born, minTick: 10, awaitSettleTicks: 6, data: '/status', mark: 'composer' },
+    { requireAwait: true, awaitText: born, minTick: 10, awaitSettleTicks: 6, data: '/usage', mark: 'composer' },
     { afterPrevTicks: 4, data: '\r' },
     ...(FULL_LAYOUT
       ? []
@@ -297,27 +297,30 @@ async function run(): Promise<{
 }
 
 console.log('============================================================')
-console.log(' the status card paints under CI with no key variable — the real binary, a stored claude.ai sign-in, CI=true, /status')
+console.log(' the usage popup paints under CI with no key variable — the real binary, a stored claude.ai sign-in, CI=true, /usage')
 console.log(`   dist: ${DIST}`)
 console.log(`   size: ${COLS}x${ROWS} (${FULL_LAYOUT ? 'full' : 'compact'} layout)`)
 console.log('============================================================')
 
 const r = await run()
 const end = r.payload === null ? '' : gridText(r.payload.grid)
-const statusRow = end.split('\n').find(l => /\bAnthropic {2,}\S/.test(l) && !l.includes('ANTHROPIC_'))
+const rows = end.split('\n')
+const sectionStart = rows.findIndex(l => l.includes('Anthropic usage'))
+const sectionEnd = sectionStart < 0 ? -1 : rows.findIndex((l, i) => i > sectionStart && l.includes('API key'))
+const section = sectionStart < 0 || sectionEnd < 0 ? undefined : rows.slice(sectionStart, sectionEnd)
 record('capture', `vshot=${r.status} end=${r.payload?.endReason ?? '?'} · ${r.daemon}`)
 record('the child environment', `CI=true · key variables present: ${r.childKeys.length === 0 ? 'none' : r.childKeys.join(',')}`)
-record('the Anthropic row', JSON.stringify(statusRow?.trim() ?? null))
+record('the Anthropic section', JSON.stringify(section?.map(l => l.replace(/^\s*│\s*│\s*/, '').trim()).filter(Boolean) ?? null))
 check('the product ran with CI set and no key variable in its environment', r.childKeys.length === 0, r.childKeys.join(','))
-check('the status card paints and the capture ends on it, not on an exit', end.includes(CARD_TITLE) && r.payload?.endReason !== 'eof', tail(end, 16) || r.stderr.slice(-600))
+check('the usage popup paints and the capture ends on it, not on an exit', end.includes(CARD_TITLE) && r.payload?.endReason !== 'eof', tail(end, 16) || r.stderr.slice(-600))
 check('no render error closes the view and no credential refusal reaches the screen', end !== '' && !/RENDER.ERROR/.test(end) && !end.includes(REFUSAL) && !end.includes('exited on an error'), tail(end, 16))
 check('no crash report is written', r.crashReports.length === 0, r.crashReports.join(','))
-if (statusRow === undefined) {
-  record('/status', `the Anthropic row is not on this frame at ${COLS}x${ROWS}`)
-  check('the card paints with its rows folded and no refusal on it', end.includes(CARD_TITLE) && !end.includes(REFUSAL), tail(end, 16))
+if (section === undefined) {
+  record('/usage', `the Anthropic section is not on this frame at ${COLS}x${ROWS}`)
+  check('the popup paints with its sections folded and no refusal on it', end.includes(CARD_TITLE) && !end.includes(REFUSAL), tail(end, 16))
 } else {
-  check("the Anthropic row paints the stored subscription's plan label, read through the presence owner", statusRow.includes(PLAN_LABEL), statusRow.trim())
-  check('the row invents no percent while nothing was read (every provider base dead)', !/\d+%/.test(statusRow) && /session not read · week not read/.test(statusRow), statusRow.trim())
+  check("the Anthropic section paints the stored subscription's plan label, read through the presence owner", section.some(l => l.includes(PLAN_LABEL)), section.join(' | ').trim())
+  check('the section invents no percent while nothing was read (every provider base dead)', !section.some(l => /\d+%/.test(l)) && section.some(l => /not read yet|unreachable/.test(l)), section.join(' | ').trim())
 }
 if (failures > 0 || KEEP) console.log(`[forensics] world kept: ${r.home}`)
 else rmSync(r.home, { recursive: true, force: true })

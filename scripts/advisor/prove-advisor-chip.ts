@@ -123,8 +123,9 @@ section("§1 the runner's own facts: advisorFacts() reads the effective test, th
   check("the /advise row of the slash menu reads the focused chat's value from the same facts", src('src/commands/advise/index.ts').includes('getFocusedSessionConnector().advisorFacts()'))
 }
 
-section('§2 the status row, rendered from source: the chip stands after the vitals while the chat is on, says off in settings when the settings are off, and is absent when the chat is off')
+section("§2 the inline chat's statusline, rendered from source (the one surface that paints the frame's chips since the cockpit's sessions box left): the chip stands after the vitals while the chat is on, says off in settings when the settings are off, and is absent when the chat is off")
 {
+  process.env.MERCURY_FULLSCREEN = '0'
   let facts: AdvisorFacts | null = null
   const listeners = new Set<() => void>()
   const overrides: Record<string, unknown> = {
@@ -167,11 +168,7 @@ section('§2 the status row, rendered from source: the chip stands after the vit
     const state = { ...getDefaultAppState(), effortValue: 'high' } as AppState
     ink.render(h(App, { initialState: state, getFpsMetrics: () => undefined }, h(Harness)))
     const lines = (): string[] => stripAnsi(ink.lastFrameText()).replace(/\n$/, '').split('\n')
-    const statusRow = (): string => {
-      const frame = lines()
-      const title = frame.findIndex(line => line.includes('SESSIONS'))
-      return title < 0 ? '' : frame[title + 1] ?? ''
-    }
+    const statusRow = (): string => lines().find(line => line.includes('Fable')) ?? ''
     const snapshot = (name: string): void => {
       if (frameDir !== undefined) writeFileSync(join(frameDir, `advisor-chip-${size}-${name}.txt`), lines().join('\n') + '\n')
     }
@@ -179,7 +176,7 @@ section('§2 the status row, rendered from source: the chip stands after the vit
     snapshot('unspoken')
     pulse({ on: true, chat: true, settings: true, minutes: 10, model: MODEL })
     check(`${size}: /advise on lands the chip on the status row — 'advisor · every 10 minutes' after the vitals (red on the base: no chip)`, await until(() => statusRow().includes('advisor · every 10 minutes')), statusRow())
-    check(`${size}: the chip stands right of the model and the folder, behind the row's own separator`, /│ advisor · every 10 minutes/.test(statusRow()) && statusRow().indexOf('advisor · every') > statusRow().indexOf('Fable'), statusRow())
+    check(`${size}: the chip stands right of the model and the folder, behind the row's own separator`, / \S advisor · every 10 minutes/.test(statusRow()) && statusRow().indexOf('advisor · every') > statusRow().indexOf('Fable'), statusRow())
     snapshot('on')
     console.log(`    ${statusRow().trim()}`)
     pulse({ on: false, chat: true, settings: false, minutes: 10, model: MODEL })

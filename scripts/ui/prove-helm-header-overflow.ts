@@ -53,6 +53,7 @@ if (g) {
     for (let x = g.cols - 1; x >= 0; x--) {
       if ('│╮╯├┤╭╰'.includes(line[x]!)) { border = x; break }
     }
+    if (border < 0) return
     for (let x = border + 1; x < g.cols; x++) {
       if (line[x] && line[x] !== ' ') { spilled.push(y); break }
     }

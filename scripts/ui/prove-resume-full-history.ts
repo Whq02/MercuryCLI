@@ -40,7 +40,7 @@ console.log('============================================================')
   const view = src('src', 'components', 'mercury-ui', 'screens', 'SessionManagerView.tsx')
   const model = src('src', 'components', 'mercury-ui', 'screens', 'sessionPickerModel.ts')
   const sessions = src('src', 'commands', 'sessions', 'sessions.tsx')
-  check('/sessions opens the FULL-history scope (the merged door: every session /resume listed)', sessions.includes('initialScope="all"'))
+  check("a bare /sessions opens THIS PROJECT's switcher (the manager's own default scope); `a` widens it to every session /resume listed", sessions.includes('<SessionManagerView') && !sessions.includes('initialScope='))
   check(
     "the core keeps cleared sessions in 'all' scope",
     /facts\.scope === 'project'\s*\?\s*partitionByProject\(/.test(model) &&

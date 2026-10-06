@@ -131,7 +131,7 @@ section('§D the roads: the runner reads the account again on the word, and the 
   check('reading the account again notes both sources, drops departed memos and reads the pending catalogue bounded', againBody.includes('noteOpenaiSourceIdentity(') && againBody.includes('forgetDepartedOpenaiCatalogues(') && againBody.includes('readOpenaiCatalogueIfPending('), againBody.slice(0, 300))
   const runAgent = src('src/tools/AgentTool/runAgent.ts')
   const read = runAgent.indexOf("readCatalogueIfPending('openai')")
-  const gate = runAgent.indexOf('delegationDispatchBlocker(agentRouteVerdict.route)')
+  const gate = runAgent.indexOf('delegationDispatchBlocker(agentRouteVerdict.route, undefined, resolvedAgentModel)')
   check('runAgent reads the OpenAI catalogue (bounded) before the dispatch verdict, and only for the OpenAI route', read !== -1 && gate !== -1 && read < gate && runAgent.slice(read - 200, read).includes("route === 'openai'"), `read=${read} gate=${gate}`)
   const call = src('src/services/providers/openai/openaiCallModel.ts')
   const noteAt = call.indexOf('noteOpenaiSourceIdentity(auth.account.kind')
