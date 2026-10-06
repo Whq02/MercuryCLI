@@ -307,17 +307,21 @@ for (const budget of [0, 1, 2, 3, 7, 13, 22]) {
 const math = [8, 4, 4, 5].map((height, index) => ({ height, count: index === 3 ? 1 : 3 }))
 check('the six-provider window advances and retreats symmetrically', usageWindow(math, 21, 0).next === 9 && usageWindow(math, 21, 9).next === 14 && usageWindow(math, 21, 14).previous === 9 && usageWindow(math, 21, 14).next === 14)
 {
-  const plan = usageSectionPlan(families() as never)
+  const savedRich = rich
+  rich = true
+  subscriber = false
+  const zaiPlan = usageSectionPlan(ids.map(id => ({ id, available: false, credentialed: ['anthropic', 'openai', 'gemini', 'deepseek', 'zai'].includes(id), credentialLabel: `${id} fixture key` })) as never)
   const recency = ['openai', 'gemini', 'deepseek', 'anthropic']
-  const credentialed = plan.filter(section => section.family.credentialed).map(section => section.id)
-  const glmOrder = orderUsageSections(plan, recency, 'zai')
+  const credentialed = zaiPlan.filter(section => section.family.credentialed).map(section => section.id)
+  const glmOrder = orderUsageSections(zaiPlan, recency, 'zai')
   check('RED ON THE BASE: a GLM session leads the listing even when Anthropic signed in last', glmOrder[0]!.id === 'zai', glmOrder.map(section => section.id).join(','))
   check('the session lead keeps the recency order behind it', glmOrder.slice(1, credentialed.length).map(section => section.id).join(',') === recency.filter(id => id !== 'zai' && credentialed.includes(id)).join(','), glmOrder.map(section => section.id).join(','))
   check('the absent families still close the listing', glmOrder.slice(credentialed.length).every(section => !section.family.credentialed))
-  const plainOrder = orderUsageSections(plan, recency)
-  check('no session lead falls back to the recency order byte for byte', plainOrder.map(section => section.id).join(',') === orderUsageSections(plan, recency, undefined).map(section => section.id).join(','))
-  const unknownSession = orderUsageSections(plan, recency, 'moonshot')
+  const plainOrder = orderUsageSections(zaiPlan, recency)
+  check('no session lead falls back to the recency order byte for byte', plainOrder.map(section => section.id).join(',') === orderUsageSections(zaiPlan, recency, undefined).map(section => section.id).join(','))
+  const unknownSession = orderUsageSections(zaiPlan, recency, 'moonshot')
   check('an uncredentialed session family leads nothing (the listing keeps the recency order)', unknownSession.map(section => section.id).join(',') === plainOrder.map(section => section.id).join(','))
+  rich = savedRich
 }
 const command = (await import('../../src/commands/usage/index.js')).default
 check('/usage is ungated, private, screen-local and unavailable non-interactively', command.type === 'local' && command.seat === 'screen' && command.userPrivate === true && command.supportsNonInteractive === false && !('availability' in command))
