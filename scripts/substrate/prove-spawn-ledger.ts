@@ -102,8 +102,6 @@ check('headlessRun ledgers per-fire headless runs',
   src('src/daemon/headlessRun.ts').includes("recordSpawn({ kind: 'headless'"))
 check('BashTool records the autonomous command audit',
   src('src/tools/BashTool/BashTool.tsx').includes('recordBashAudit(input.command'))
-check('health carries the crew-rosters dead-cwd check',
-  src('src/utils/healthReport.ts').includes("id: 'crew-rosters'"))
 check('headless one-shot runs gate on assertSpawnCwd (dead scheduled cwd ⇒ loud refusal)',
   src('src/daemon/headlessRun.ts').includes('assertSpawnCwd(dir)'))
 check('headless refusal is ledgered as headless-refused',

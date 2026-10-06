@@ -11,7 +11,6 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { spawnSync } from 'node:child_process'
 
 let failures = 0
 const ok = (cond: boolean, label: string) => {
@@ -21,25 +20,16 @@ const ok = (cond: boolean, label: string) => {
 
 const tmp = mkdtempSync(join(tmpdir(), 'mercury-orch-'))
 const home = join(tmp, 'home')
-const crews = join(tmp, 'crews')
 const daemon = join(tmp, 'daemon')
 mkdirSync(home, { recursive: true })
-mkdirSync(crews, { recursive: true })
 mkdirSync(daemon, { recursive: true })
 
 process.env.MERCURY_CONFIG_DIR = home
-process.env.MERCURY_CREWS_DIR = crews
 process.env.MERCURY_DAEMON_DIR = daemon
 delete process.env.MERCURY_TASK_LIST_ID
 
 const orch = await import('../../src/substrate/recoveryOrchestrator.ts')
-const helpers = await import('../../src/utils/crew/crewHelpers.ts')
-const { getTaskListId } = await import('../../src/utils/tasks.ts')
-const { getLeadCrewFallback } = await import('../../src/utils/crewmate.ts')
-const { listJournalOperations } = await import('../../src/substrate/operationJournal.ts')
 const { buildBootRecoveryRow } = await import('../../src/commands/run/runInspectorModel.ts')
-
-const deadPid = spawnSync(process.execPath, ['-e', ''], { timeout: 10_000 }).pid ?? 999_999
 
 const TEN_MIN = 10 * 60_000
 const backdate = (path: string, ms: number) => {
@@ -49,63 +39,12 @@ const backdate = (path: string, ms: number) => {
 
 console.log('— seeding damage —')
 
-const staleTemp = join(crews, '.config.json.12345.deadbeef.tmp')
-const freshTemp = join(crews, '.config.json.12346.cafebabe.tmp')
+const staleTemp = join(home, 'recovery', '.ledger.json.12345.deadbeef.tmp')
+const freshTemp = join(home, 'recovery', '.ledger.json.12346.cafebabe.tmp')
+mkdirSync(join(home, 'recovery'), { recursive: true })
 writeFileSync(staleTemp, 'stale', 'utf8')
 writeFileSync(freshTemp, 'fresh', 'utf8')
 backdate(staleTemp, TEN_MIN + 60_000)
-
-const deadCrew = 'orch-dead'
-await helpers.writeCrewFileAsync(deadCrew, {
-  name: deadCrew,
-  createdAt: Date.now(),
-  leadAgentId: `crew-lead@${deadCrew}`,
-  leadSessionId: 'dead-owner-session',
-  members: [],
-})
-const journalDir = join(crews, '.journal')
-mkdirSync(journalDir, { recursive: true })
-const opFile = (id: string, kind: string, key: string, owner: string) =>
-  JSON.stringify({
-    schema: 1,
-    operationId: id,
-    ownerKey: owner,
-    kind,
-    idempotencyKey: key,
-    state: 'applying',
-    steps: [
-      { id: 'crew-file', target: 'x', state: 'applied' },
-      { id: 'task-epoch', target: 'y', state: 'pending' },
-    ],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    writerPid: deadPid,
-  })
-writeFileSync(join(journalDir, 'op-dead1.json'), opFile('dead1', 'crew-create', `crew-create:${deadCrew}`, 'dead-owner-session'), 'utf8')
-
-const foreignCrew = 'orch-foreign'
-await helpers.writeCrewFileAsync(foreignCrew, {
-  name: foreignCrew,
-  createdAt: Date.now(),
-  leadAgentId: `crew-lead@${foreignCrew}`,
-  leadSessionId: 'somebody-else-entirely',
-  members: [],
-})
-writeFileSync(join(journalDir, 'op-dead2.json'), opFile('dead2', 'crew-create', `crew-create:${foreignCrew}`, 'dead-owner-session'), 'utf8')
-
-const undecodableName = 'op-undecodable.json'
-const undecodableBytes = JSON.stringify({
-  schema: 1,
-  operationId: 'undecodable',
-  ownerKey: 'dead-owner-session',
-  kind: 'crew-create',
-  idempotencyKey: 'crew-create:orch-ghost',
-  state: 'applying',
-  steps: [{ id: 'crew-file', target: 'x', state: 'applied' }],
-  updatedAt: new Date().toISOString(),
-  writerPid: deadPid,
-})
-writeFileSync(join(journalDir, undecodableName), undecodableBytes, 'utf8')
 
 const list = 'orch-list'
 const listDir = join(home, 'tasks', list)
@@ -134,38 +73,19 @@ console.log('— boot 1: reconciliation over seeded damage —')
   ok(!existsSync(staleTemp), 'stale orphan temp swept')
   ok(existsSync(freshTemp), 'fresh temp PRESERVED (live-writer guard)')
   ok(report.orphanTemps.removed >= 1, `orphan sweep counted (${report.orphanTemps.removed} across ${report.orphanTemps.dirsSwept} dirs)`)
-  ok(report.crewJournal !== null && report.crewJournal.compensated.length === 2, `both dead ops compensated (${report.crewJournal?.compensated.length})`)
-  ok(
-    report.crewJournal !== null && report.crewJournal.unrecoverable.length === 1 && report.crewJournal.unrecoverable[0] === undecodableName,
-    `the undecodable journal file is named by file beside the reconciled ops (${JSON.stringify(report.crewJournal?.unrecoverable ?? report.errors)})`,
-  )
-  ok(readFileSync(join(journalDir, undecodableName), 'utf8') === undecodableBytes, 'the undecodable file is left in place, byte for byte')
-  ok(existsSync(join(crews, deadCrew, 'config.json')), 'the older build\'s half-created crew is LEFT IN PLACE (nothing is removed by itself)')
-  ok(existsSync(join(crews, foreignCrew, 'config.json')), 'foreign crew UNTOUCHED (guarded unwind)')
-  const ops = await listJournalOperations(journalDir)
-  ok(ops.every(o => o.state === 'aborted' || o.state === 'committed'), 'journal fully terminal after recovery')
   ok(!existsSync(join(listDir, '1.json')), 'dead-epoch task body reclaimed')
   ok(existsSync(join(listDir, '2.json')), 'current-epoch task body preserved')
   ok(report.deadEpochTasks.removed === 1, `dead-epoch GC counted (${report.deadEpochTasks.removed})`)
-  ok(report.quarantine.recent === 2 && report.quarantine.total === 2, `quarantine ledger counted: the seeded row plus the undecodable journal file named as refused (${report.quarantine.recent} recent, ${report.quarantine.total} total)`)
-  const ledgerLines = readFileSync(ledger, 'utf8').split('\n').filter(Boolean)
-  const seededLine = JSON.stringify({ ts: seededTs, store: 'proof-store', path: '/x', reason: 'seeded', quarantinePath: '/x.damaged', resumedFrom: 'empty' })
-  const refusedLine = ledgerLines[1] === undefined ? null : (JSON.parse(ledgerLines[1]) as { kind?: string; store?: string; path?: string; quarantinePath?: string | null })
-  ok(ledgerLines.length === 2 && ledgerLines[0] === seededLine, 'the seeded quarantine row is byte-identical; exactly one row was appended')
-  ok(refusedLine !== null && refusedLine.kind === 'refused' && refusedLine.store === 'operation-journal' && refusedLine.path === join(journalDir, undecodableName) && refusedLine.quarantinePath === null, `the appended row names the undecodable journal file as refused, bytes left in place (${JSON.stringify(refusedLine)})`)
-  ok(report.leaderProjection === null, 'no leader projection for an unrelated session')
+  ok(report.quarantine.recent === 1 && report.quarantine.total === 1, `quarantine ledger counted (${report.quarantine.recent} recent, ${report.quarantine.total} total)`)
+  ok(readFileSync(ledger, 'utf8').split('\n').filter(Boolean).length === 1, 'the quarantine ledger is read, never mutated')
   ok(report.errors.length === 0, `no recovery errors (${report.errors.join(' | ') || 'clean'})`)
   ok(report.notes.length === 0, `no coverage notes on a small home (${report.notes.join(' | ') || 'clean'})`)
   ok(orch.getBootRecovery().phase === 'done', 'state lands done')
 
   const line = orch.bootRecoveryStatusLine(orch.getBootRecovery())
-  ok(line !== null && line.text.includes('2 interrupted op(s) reconciled'), `status line reports the work (${line?.text})`)
-  ok(
-    line !== null && line.text.includes('1 op(s) NEED ATTENTION (journal preserved)') && line.tone === 'warn',
-    'status tone warn: the undecodable file needs attention, in the grammar the line already has',
-  )
+  ok(line !== null && line.text.includes('1 dead task file(s) reclaimed'), `status line reports the work (${line?.text})`)
   const row = buildBootRecoveryRow(orch.getBootRecovery())
-  ok(row !== null && row.section === 'RECOVERY' && row.detail.length >= 4, '/run RECOVERY row carries the evidence detail')
+  ok(row !== null && row.section === 'RECOVERY' && row.detail.length >= 3, '/run RECOVERY row carries the evidence detail')
 
   const again = await orch.runBootRecovery({ scope: 'session', sessionId: 'unrelated-session' })
   ok(again === report, 'per-process memo returns the identical report')
@@ -176,65 +96,14 @@ console.log('— boot 2: idempotent re-run —')
   orch._resetBootRecoveryForTests()
   const report = await orch.runBootRecovery({ scope: 'session', sessionId: 'unrelated-session' })
   ok(report.orphanTemps.removed === 0, 'no temps left to sweep')
-  ok(report.crewJournal !== null && report.crewJournal.compensated.length === 0 && report.crewJournal.rolledForward.length === 0, 'journal recovery is a no-op')
   ok(report.deadEpochTasks.removed === 0, 'dead-epoch GC is a no-op')
   ok(report.errors.length === 0, 'still no errors')
-  const named = orch.bootRecoveryStatusLine(orch.getBootRecovery())
-  ok(
-    report.crewJournal !== null && report.crewJournal.unrecoverable[0] === undecodableName && named !== null && named.tone === 'warn',
-    `the undecodable file is named on every boot until it is removed (${named?.text})`,
-  )
-  ok(report.quarantine.total === 2 && readFileSync(ledger, 'utf8').split('\n').filter(Boolean).length === 2, 'the second boot in the same process appends no second refused row for the same file (the per-process latch); the count still reads 2')
-  rmSync(join(journalDir, undecodableName))
-  orch._resetBootRecoveryForTests()
-  const quiet = await orch.runBootRecovery({ scope: 'session', sessionId: 'unrelated-session' })
-  ok(quiet.crewJournal !== null && quiet.crewJournal.unrecoverable.length === 0 && quiet.errors.length === 0, 'once the file is removed nothing is left to name')
+  ok(report.quarantine.total === 1 && readFileSync(ledger, 'utf8').split('\n').filter(Boolean).length === 1, 'the second boot appends nothing to the ledger')
   ok(orch.bootRecoveryStatusLine(orch.getBootRecovery()) === null, 'a quiet boot earns NO status line')
   ok(buildBootRecoveryRow(orch.getBootRecovery()) === null, 'a quiet boot earns NO /run row')
 }
 
-console.log('— boot 3: leader projection rebuild —')
-{
-  const ledCrew = 'orch-led'
-  await helpers.writeCrewFileAsync(ledCrew, {
-    name: ledCrew,
-    createdAt: Date.now(),
-    leadAgentId: `crew-lead@${ledCrew}`,
-    leadSessionId: 'lead-session-S',
-    members: [
-      {
-        agentId: `crew-lead@${ledCrew}`,
-        name: 'crew-lead',
-        joinedAt: 111,
-        tmuxPaneId: '',
-        cwd: '/w',
-        subscriptions: [],
-      },
-      {
-        agentId: `scout@${ledCrew}`,
-        name: 'scout',
-        agentType: 'mercury-crew',
-        color: 'blue',
-        joinedAt: 222,
-        tmuxPaneId: '',
-        cwd: '/w',
-        subscriptions: [],
-      },
-    ],
-  })
-  orch._resetBootRecoveryForTests()
-  const report = await orch.runBootRecovery({ scope: 'session', sessionId: 'lead-session-S' })
-  const led = report.leaderProjection
-  ok(led !== null && led.crewName === ledCrew, 'led crew found on disk for the resumed session')
-  ok(led !== null && Object.keys(led.crewmates).length === 2, 'AppState seed carries the full roster')
-  ok(led !== null && led.crewmates[`scout@${ledCrew}`]?.spawnedAt === 222, 'roster fields mapped (joinedAt → spawnedAt)')
-  ok(getTaskListId() === helpers.sanitizeName(ledCrew), 'leader task-list registration rebuilt (getTaskListId → crew)')
-  ok(getLeadCrewFallback() === ledCrew, 'lead-aware tool identity rebuilt (leadCrewFallback)')
-  const line = orch.bootRecoveryStatusLine(orch.getBootRecovery())
-  ok(line !== null && line.text.includes(`crew "${ledCrew}" projection rebuilt`), 'status line reports the rebuild')
-}
-
-console.log('— boot 4: bounded epoch GC stays quiet —')
+console.log('— boot 3: bounded epoch GC stays quiet —')
 {
   for (let i = 0; i < 80; i++) {
     mkdirSync(join(home, 'tasks', `plain-${i}`), { recursive: true })

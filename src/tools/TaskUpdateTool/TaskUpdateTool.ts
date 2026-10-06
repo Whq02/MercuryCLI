@@ -118,8 +118,6 @@ async function runUpdate(input: Input, context: ToolUseContext): Promise<Output>
         task.subject,
         task.description,
         undefined,
-        undefined,
-        undefined,
         context.abortController.signal,
         undefined,
         context,

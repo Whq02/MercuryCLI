@@ -13,11 +13,6 @@ import { GLOB_TOOL_NAME } from '../tools/GlobTool/prompt.js'
 import { GREP_TOOL_NAME } from '../tools/GrepTool/prompt.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from '../tools/NotebookEditTool/constants.js'
 import { POWERSHELL_TOOL_NAME } from '../tools/PowerShellTool/toolName.js'
-import {
-  CRON_CREATE_TOOL_NAME,
-  CRON_DELETE_TOOL_NAME,
-  CRON_LIST_TOOL_NAME,
-} from '../tools/ScheduleCronTool/prompt.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../tools/SendMessageTool/constants.js'
 import { SLEEP_TOOL_NAME } from '../tools/SleepTool/prompt.js'
 import { SKILL_TOOL_NAME } from '../tools/SkillTool/constants.js'
@@ -67,15 +62,4 @@ export const ASYNC_AGENT_ALLOWED_TOOLS: Set<string> = new Set([
   SEND_MESSAGE_TOOL_NAME,
   CONTEXT_LEFT_TOOL_NAME,
   JEV_TOOL_NAME,
-])
-
-export const IN_PROCESS_CREWMATE_ALLOWED_TOOLS: Set<string> = new Set([
-  TASK_CREATE_TOOL_NAME,
-  TASK_UPDATE_TOOL_NAME,
-  TASK_LIST_TOOL_NAME,
-  TASK_GET_TOOL_NAME,
-  SEND_MESSAGE_TOOL_NAME,
-  CRON_CREATE_TOOL_NAME,
-  CRON_DELETE_TOOL_NAME,
-  CRON_LIST_TOOL_NAME,
 ])

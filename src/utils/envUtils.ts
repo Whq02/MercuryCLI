@@ -69,12 +69,6 @@ export function ensurePrivateConfigHome(): void {
   }
 }
 
-export function getCrewsDir(): string {
-  const override = flagEnv('MERCURY_CREWS_DIR')
-  if (override !== undefined && override.trim() !== '') return override
-  return join(getMercuryHome(), 'crews')
-}
-
 export function displayConfigHome(): string {
   const home = getMercuryHome()
   const userHome = homedir()

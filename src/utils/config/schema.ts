@@ -213,9 +213,7 @@ export type GlobalConfig = {
   hasSeenTasksHint?: boolean
   hasUsedStash?: boolean
   hasUsedBackgroundTask?: boolean
-  expandedView?: 'none' | 'tasks' | 'crewmates'
-  iterm2SetupInProgress?: boolean
-  iterm2BackupPath?: string
+  expandedView?: 'none' | 'tasks'
   appleTerminalBackupPath?: string
   appleTerminalSetupInProgress?: boolean
 
@@ -239,7 +237,6 @@ export type GlobalConfig = {
 
 
   showExpandedTasks?: boolean
-  showSpinnerTree?: boolean
 
   firstStartTime?: string
 
@@ -260,15 +257,11 @@ export type GlobalConfig = {
 
   githubRepoPaths?: Record<string, string[]>
 
-  iterm2It2SetupComplete?: boolean
-
   skillUsage?: Record<string, { usageCount: number; lastUsedAt: number }>
 
   lspRecommendationIgnoredCount?: number
 
   permissionExplainerEnabled?: boolean
-
-  crewmateDefaultModel?: string | null
 
   agents?: {
     defaultEffort?: EffortLevel

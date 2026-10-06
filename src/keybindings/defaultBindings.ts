@@ -33,8 +33,6 @@ export const DEFAULT_BINDINGS: KeybindingBlock[] = [
       'ctrl+x c': 'app:openSurfaceSwitcher',
       'ctrl+x ctrl+x': 'concourse:closeSession',
       'ctrl+o': 'app:toggleTranscript',
-      'ctrl+shift+o': 'app:toggleCrewmatePreview',
-      'ctrl+x o': 'app:toggleCrewmatePreview',
       'ctrl+r': 'history:search',
     },
   },

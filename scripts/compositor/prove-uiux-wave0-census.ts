@@ -385,15 +385,19 @@ section('UI-061..064 — authored chords classified through the live protocol; c
   const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.js')
   const { classifyChordDelivery } = await import('../../src/keybindings/delivery.js')
   const defaults = parseBindings(DEFAULT_BINDINGS as never)
-  const legacy = buildAtlas(defaults, { defaultCount: defaults.length, platform: 'linux', extendedKeys: false })
-  const extended = buildAtlas(defaults, { defaultCount: defaults.length, platform: 'linux', extendedKeys: true })
+  const authored = parseBindings([
+    ...(DEFAULT_BINDINGS as never[]),
+    { context: 'Global', bindings: { 'ctrl+shift+o': 'app:toggleTerminal', 'ctrl+x o': 'app:toggleTerminal' } },
+  ] as never)
+  const legacy = buildAtlas(authored, { defaultCount: defaults.length, platform: 'linux', extendedKeys: false })
+  const extended = buildAtlas(authored, { defaultCount: defaults.length, platform: 'linux', extendedKeys: true })
   const shiftRow = (rows: typeof legacy) =>
     rows.find(
-      r => r.context === 'Global' && r.action === 'app:toggleCrewmatePreview' && /shift/i.test(r.chord),
+      r => r.context === 'Global' && r.action === 'app:toggleTerminal' && /shift/i.test(r.chord),
     )
   const legacyShift = shiftRow(legacy)
   check(
-    'UI-063: on a LEGACY wire the authored Ctrl+Shift+O is marked aliases-to AND carries its collision (toggleTranscript) — never silent',
+    'UI-063: on a LEGACY wire a user-authored Ctrl+Shift+O is marked aliases-to AND carries its collision (toggleTranscript) — never silent',
     legacyShift?.delivery?.status === 'aliases-to' &&
       legacyShift?.collidesWith?.action === 'app:toggleTranscript',
     JSON.stringify({ delivery: legacyShift?.delivery, collides: legacyShift?.collidesWith }),
@@ -404,10 +408,10 @@ section('UI-061..064 — authored chords classified through the live protocol; c
       shiftRow(extended)?.collidesWith === undefined,
   )
   const fallbackRow = legacy.find(
-    r => r.action === 'app:toggleCrewmatePreview' && /ctrl\+x/i.test(r.chord),
+    r => r.action === 'app:toggleTerminal' && /ctrl\+x/i.test(r.chord),
   )
   check(
-    'UI-064: the PORTABLE fallback (ctrl+x o) is authored and deliverable on every protocol',
+    'UI-064: a PORTABLE fallback (ctrl+x o) authored beside it is deliverable on every protocol',
     fallbackRow?.delivery?.status === 'deliverable',
   )
   check(

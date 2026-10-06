@@ -56,33 +56,6 @@ const runChild = (
 }
 
 {
-  const crewOut = join(tmp, 'fc1-crew.txt')
-  const before = runChild('crewFoundingKillChild.ts', {
-    RELIA_OUT: crewOut,
-    MERCURY_FAULT_INJECT: 'rename@config.json:kill',
-  })
-  const crewBefore = readFileSync(crewOut, 'utf8').trim()
-  ok(before.signal === 'SIGKILL', 'FC1 child died abruptly before the roster rename')
-  ok(!existsSync(join(crews, crewBefore, 'config.json')), 'FC1: no roster is visible — the founding is all or nothing, never a half-made crew file')
-  ok(!existsSync(join(crews, '.journal')), 'FC1: no journal record — there is no create step to track')
-  const after = runChild('crewFoundingKillChild.ts', {
-    RELIA_OUT: crewOut,
-    MERCURY_FAULT_INJECT: 'flush-dir@config.json:kill',
-  })
-  const crewAfter = readFileSync(crewOut, 'utf8').trim()
-  const rosterPath = join(crews, crewAfter, 'config.json')
-  let members: string[] = []
-  try {
-    members = (JSON.parse(readFileSync(rosterPath, 'utf8')) as { members: Array<{ name: string }> }).members.map(m => m.name)
-  } catch {
-    members = []
-  }
-  ok(after.signal === 'SIGKILL' && members.join(',') === 'crew-lead,alpha', `FC1: a kill after the rename leaves the WHOLE roster — the lead and the member (${members.join(',') || 'none'})`)
-  const rec = runChild('crewRecoverChild.ts', {})
-  ok(rec.status === 0 && existsSync(rosterPath), 'FC1: recovery has nothing to do and removes nothing')
-}
-
-{
   const res = runChild('sidecarCollideChild.ts')
   let parsed: { rounds?: number; anomalies?: number; orphanTmps?: number } = {}
   try {

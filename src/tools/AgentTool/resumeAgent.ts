@@ -338,7 +338,6 @@ export async function resumeAgentBackground(args: {
   const resumeContext: SubagentContext = {
     agentType: 'subagent',
     agentId: agentId as AgentId,
-    parentSessionId: undefined,
     subagentName: definition.agentType,
     isBuiltIn: isBuiltInAgent(definition),
     invokingRequestId: args.invokingRequestId,

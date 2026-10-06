@@ -289,12 +289,6 @@ async function daemonRun(args: string[]): Promise<void> {
   {
     const { runBootRecovery } = await import('../substrate/recoveryOrchestrator.js')
     const rec = await runBootRecovery({ scope: 'daemon', projectDir: dir })
-    const crew = rec.crewJournal
-    if (crew && crew.rolledForward.length + crew.compensated.length > 0) {
-      logForDebugging(
-        `[daemon] crew journal recovery: ${crew.rolledForward.length} rolled forward, ${crew.compensated.length} compensated`,
-      )
-    }
     for (const err of rec.errors) logForDebugging(`[daemon] boot recovery: ${err}`)
   }
   try {

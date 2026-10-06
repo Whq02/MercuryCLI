@@ -1,4 +1,4 @@
-import { env } from '../../env.js'
+import { env } from './env.js'
 
 const capturedTmux = process.env.TMUX
 

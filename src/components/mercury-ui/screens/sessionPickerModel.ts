@@ -5,7 +5,6 @@ import { filterResumableSessions } from '../../../utils/sessionResumeFilter.js'
 import type { SessionListing } from '../../../types/logs.js'
 import { getLogDisplayTitle } from '../../../utils/log.js'
 import { formatRelativeTimeAgo } from '../../../utils/format.js'
-import { crewTagOf, isCrewSession } from '../../../utils/sessionClass.js'
 import { boardHomedSessionIds } from '../../../daemon/concourseWorkers.js'
 import { isSubstantiveSession, partitionByProject } from '../../../utils/sessionFilter.js'
 import { isSessionCleared } from '../../../utils/sessionStorage/clearedSessions.js'
@@ -27,7 +26,6 @@ export type SessionPickerRow = {
   cleared?: boolean
 }
 export type SessionPickerFlatRow = { project: string; head: boolean; row: SessionPickerRow }
-export type SessionPickerCrewRow = { tag: string; label: string; seen: string; log: SessionListing }
 
 export function rowLabel(log: SessionListing): string {
   return getLogDisplayTitle(log, '(untitled session)')
@@ -56,13 +54,11 @@ export interface SessionPickerFacts {
 export function projectSessionPickerRows(
   logs: SessionListing[],
   facts: SessionPickerFacts,
-): { flat: SessionPickerFlatRow[]; crew: SessionPickerCrewRow[]; elsewhereCount: number } {
+): { flat: SessionPickerFlatRow[]; elsewhereCount: number } {
   const now = facts.nowMs !== undefined ? new Date(facts.nowMs) : undefined
   const seenOf = (log: SessionListing): string =>
     formatRelativeTimeAgo(new Date(log.modified), { style: 'short', ...(now !== undefined ? { now } : {}) })
-  const operatorLogs = logs.filter(
-    l => !isCrewSession(l) && !facts.boardHomed.has(sessionIdOfListing(l) ?? ''),
-  )
+  const operatorLogs = logs.filter(l => !facts.boardHomed.has(sessionIdOfListing(l) ?? ''))
   const scoped =
     facts.scope === 'project'
       ? partitionByProject(
@@ -74,7 +70,6 @@ export function projectSessionPickerRows(
     facts.filterDir !== undefined
       ? partitionByProject(scoped.inProject, facts.filterDir).inProject
       : scoped.inProject
-  const crewLogs = logs.filter(l => isCrewSession(l))
   const rows: SessionPickerRow[] = viewed.map(log => ({
     project: rowProject(log),
     label: rowLabel(log),
@@ -87,13 +82,7 @@ export function projectSessionPickerRows(
     head: i === 0 || rows[i - 1]!.project !== row.project,
     row,
   }))
-  const crew: SessionPickerCrewRow[] = crewLogs.map(log => ({
-    tag: crewTagOf(log),
-    label: rowLabel(log),
-    seen: seenOf(log),
-    log,
-  }))
-  return { flat, crew, elsewhereCount: scoped.elsewhere.length }
+  return { flat, elsewhereCount: scoped.elsewhere.length }
 }
 
 const ENRICH_BATCH = 50
@@ -151,17 +140,16 @@ export function useSessionPickerModel(
   pendingMore: number
   projectKey: string
   flat: SessionPickerFlatRow[]
-  crew: SessionPickerCrewRow[]
   elsewhereCount: number
   dropSessions: (sessionIds: ReadonlySet<string>) => void
 } {
   const { logs, pendingMore, dropSessions } = useResumableSessionLogs(opts)
   const projectKey = useSyncExternalStore(subscribeCurrentProject, () => currentProject().key, () => currentProject().key)
   const nowTick = useNowTick(30_000)
-  const { flat, crew, elsewhereCount } = useMemo(
+  const { flat, elsewhereCount } = useMemo(
     () =>
       logs === null
-        ? { flat: [] as SessionPickerFlatRow[], crew: [] as SessionPickerCrewRow[], elsewhereCount: 0 }
+        ? { flat: [] as SessionPickerFlatRow[], elsewhereCount: 0 }
         : projectSessionPickerRows(logs, {
             scope,
             projectDir: currentProject().dir,
@@ -172,5 +160,5 @@ export function useSessionPickerModel(
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [logs, nowTick, scope, projectKey, opts.filterDir],
   )
-  return { logs, pendingMore, projectKey, flat, crew, elsewhereCount, dropSessions }
+  return { logs, pendingMore, projectKey, flat, elsewhereCount, dropSessions }
 }

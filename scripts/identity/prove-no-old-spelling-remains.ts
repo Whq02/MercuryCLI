@@ -23,10 +23,8 @@ const EXCLUDED_AREAS: Array<[string, string]> = [
 const ALIAS_TABLES: Array<[string, string]> = []
 
 const ALIAS_PINS: Array<[string, string]> = [
-  ['scripts/substrate/prove-old-env-spellings-unread.ts', 'sets the old env spellings to prove them unread'],
   ['scripts/sessionStorage/prove-old-transcript-kinds-parse.ts', 'holds old transcript rows, records and files by design'],
   ['scripts/switchboard/prove-crewmates-command.ts', 'pins that the old command name is no command and no alias: the palette answers it unknown'],
-  ['scripts/crew/prove-saved-crews-convert.ts', 'converts saved rosters an older build wrote, in their old shape'],
   ['scripts/crew/prove-crew-tools-removed.ts', 'holds an old transcript row of a removed tool'],
   ['scripts/ui/prove-old-transcript-rows.ts', 'holds old transcript rows by design'],
   ['scripts/ui/prove-crew-screens-unchanged.ts', 'reads the stored frames of the earlier screens through a table of the old words'],

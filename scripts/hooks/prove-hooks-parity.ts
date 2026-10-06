@@ -46,9 +46,6 @@ add('getPreToolHookBlockingMessage', 'shape', () =>
   H.getPreToolHookBlockingMessage('MyHook', BLOCKING),
 )
 add('getStopHookMessage', 'shape', () => H.getStopHookMessage(BLOCKING))
-add('getCrewmateIdleHookMessage', 'shape', () =>
-  H.getCrewmateIdleHookMessage(BLOCKING),
-)
 add('getTaskCreatedHookMessage', 'shape', () =>
   H.getTaskCreatedHookMessage(BLOCKING),
 )
@@ -345,7 +342,7 @@ const SKIPPED: Record<string, string> = Object.fromEntries(
     'executeSessionEndHooks', 'executeSessionStartHooks', 'executeSetupHooks',
     'executeStopFailureHooks', 'executeStopHooks',
     'executeSubagentStartHooks', 'executeTaskCompletedHooks', 'executeTaskCreatedHooks',
-    'executeCrewmateIdleHooks', 'executeUserPromptExpansionHooks', 'executeUserPromptSubmitHooks',
+    'executeUserPromptExpansionHooks', 'executeUserPromptSubmitHooks',
     'executeWorktreeCreateHook', 'executeWorktreeRemoveHook',
   ].map(k => [k, SPAWNER]),
 )

@@ -45,7 +45,6 @@ import {
   setSessionInstructionProfile,
   isInstructionProfile,
 } from '../../services/instructions/profile.js'
-import { isCrewEnabled } from '../../utils/crewEnabled.js'
 import { isFullscreenActive } from '../../utils/fullscreen.js'
 import inkInstances from '../../ink/instances.js'
 import { stripFacts } from '../../context/surfaceRoute.js'
@@ -145,15 +144,12 @@ export function configListWindow(selected: number, offset: number, total: number
 
 type SubMenu =
   | 'theme'
-  | 'crewmate-model'
   | 'agent-model'
   | 'external-includes'
   | 'language'
   | typeof LOCAL_SERVER_APPLY_MENU
 
 const AGENT_INHERIT_ROW: ModelChoice = { id: 'inherit', name: 'Inherit', tag: "the parent's model", ctx: '', group: 'Sub-agent', choice: "a choice, not a model — the spawned agent runs its parent's model" }
-const CREWMATE_DEFAULT_ROW: ModelChoice = { id: 'default', name: 'Default', tag: 'the session default model', ctx: '', group: 'Crewmate', choice: 'a choice, not a model — a crewmate runs the session default model' }
-const CREWMATE_LEADER_ROW: ModelChoice = { id: 'leader', name: "Leader's model", tag: "the leader's own model at spawn", ctx: '', group: 'Crewmate', choice: "a choice, not a model — a crewmate runs the lead's model" }
 
 type ItemKind = 'boolean' | 'enum' | 'managed-enum' | 'info'
 
@@ -1093,24 +1089,6 @@ export function Config({
       },
     })
   }
-  if (isCrewEnabled()) {
-    items.push({
-      id: 'defaultCrewmateModel',
-      label: 'Default crewmate model',
-      kind: 'managed-enum',
-      value: (
-        <Text>
-          {(() => {
-            const value = config.crewmateDefaultModel
-            if (value === undefined || value === CREWMATE_DEFAULT_ROW.id) return CREWMATE_DEFAULT_ROW.name
-            if (value === null || value === CREWMATE_LEADER_ROW.id) return CREWMATE_LEADER_ROW.name
-            return modelChoiceLabel(value)
-          })()}
-        </Text>
-      ),
-      open: 'crewmate-model',
-    })
-  }
   const externalIncludes = (
     appState as { externalIncludes?: ExternalInstructionInclude[] }
   ).externalIncludes
@@ -1458,32 +1436,6 @@ export function Config({
         }}
         onCancel={() => setSubMenu(null)}
       />
-    )
-  }
-  if (subMenu === 'crewmate-model') {
-    const current = config.crewmateDefaultModel
-    return (
-      <ModalContext.Provider value={{ rows: contentHeight, columns: width, scrollRef: null }}>
-      <MercuryModelChoicePicker
-        leading={[CREWMATE_DEFAULT_ROW, CREWMATE_LEADER_ROW]}
-        current={current === undefined || current === CREWMATE_DEFAULT_ROW.id ? CREWMATE_DEFAULT_ROW.id : current === null || current === CREWMATE_LEADER_ROW.id ? CREWMATE_LEADER_ROW.id : modelChoiceRow(current)}
-        onSelect={id => {
-          if (id === CREWMATE_DEFAULT_ROW.id && current === undefined) {
-            setSubMenu(null)
-            return
-          }
-          const next = id === CREWMATE_LEADER_ROW.id ? null : id === CREWMATE_DEFAULT_ROW.id ? undefined : parseUserSpecifiedModel(id)
-          writeGlobal(c => ({ ...c, crewmateDefaultModel: next }))
-          recordSet(
-            'crewmateDefaultModel',
-            `set default crewmate model to ${next === null ? CREWMATE_LEADER_ROW.name : next === undefined ? CREWMATE_DEFAULT_ROW.name : modelChoiceLabel(next)}`,
-          )
-          setSubMenu(null)
-        }}
-        onSignIn={signInFromDoor}
-        onClose={() => setSubMenu(null)}
-      />
-      </ModalContext.Provider>
     )
   }
   if (subMenu === 'agent-model') {

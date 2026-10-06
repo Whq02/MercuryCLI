@@ -3,7 +3,7 @@ import type { QueuedCommand } from '../../types/textInputTypes.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { advisorClock, advisorContextOptions, advisorNoteDue, composeAdvisorNote, type AdvisorNote, type AdvisorRoad } from './advisorNote.js'
 import { loadAdvisorContext } from './advisorContext.js'
-import { advisorSeatRefusal, advisorSessionSeat, readAdvisorSettings } from './advisorSettings.js'
+import { advisorSeatRefusal, readAdvisorSettings } from './advisorSettings.js'
 
 const inFlight = new Set<string>()
 const pendingNotes = new Map<string, AdvisorNote[]>()
@@ -23,7 +23,7 @@ export async function advisorRound(
   road: AdvisorRoad = {},
 ): Promise<AdvisorRoundVerdict> {
   const settings = road.settings ?? readAdvisorSettings()
-  if (advisorSeatRefusal(road.seat ?? advisorSessionSeat(), settings, road.chat) !== undefined) return 'off'
+  if (advisorSeatRefusal(road.seat ?? 'main', settings, road.chat) !== undefined) return 'off'
   const context = await loadAdvisorContext(agentId, advisorContextOptions(road))
   if (!advisorNoteDue(context, settings.minutes, advisorClock(road)())) return 'waiting'
   if (inFlight.has(agentId)) {

@@ -2,6 +2,7 @@ import type { Tool, Tools } from '../../Tool.js'
 import { BASH_TOOL_NAME } from '../BashTool/toolName.js'
 import { ENTER_WORKTREE_TOOL_NAME } from '../EnterWorktreeTool/constants.js'
 import { EXIT_WORKTREE_TOOL_NAME } from '../ExitWorktreeTool/constants.js'
+import { SEND_MESSAGE_TOOL_NAME } from '../SendMessageTool/constants.js'
 import { SKILL_TOOL_NAME } from '../SkillTool/constants.js'
 import { AGENT_TOOL_NAME, MERCURY_SCOUT_AGENT_TYPE } from './constants.js'
 
@@ -9,7 +10,7 @@ export const SCOUT_SHELL_REFUSAL = `${MERCURY_SCOUT_AGENT_TYPE} is read-only: it
 
 export const SCOUT_TOOLS_DESCRIPTION = 'read-only — Read, Glob, Grep, a read-only shell, and every other tool only in the form that reads'
 
-const SCOUT_DENIED_TOOLS: ReadonlySet<string> = new Set([AGENT_TOOL_NAME, ENTER_WORKTREE_TOOL_NAME, EXIT_WORKTREE_TOOL_NAME])
+const SCOUT_DENIED_TOOLS: ReadonlySet<string> = new Set([AGENT_TOOL_NAME, SEND_MESSAGE_TOOL_NAME, ENTER_WORKTREE_TOOL_NAME, EXIT_WORKTREE_TOOL_NAME])
 
 export function scoutToolRefusal(toolName: string): string {
   return `${MERCURY_SCOUT_AGENT_TYPE} is read-only: ${toolName} would write or change state here, so the call is refused.`

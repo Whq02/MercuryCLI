@@ -4,7 +4,6 @@ import { getSessionId } from '../../bootstrap/state.js'
 import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
 import { getTranscriptPath, saveAgentName, saveCustomTitle } from '../../utils/sessionStorage.js'
 import { isCompactBoundaryMessage } from '../../utils/messages.js'
-import { getCrewmateContext } from '../../utils/crewmate.js'
 import { generateSessionName } from './generateSessionName.js'
 
 export async function call(
@@ -12,13 +11,6 @@ export async function call(
   context: LocalJSXCommandContext,
   args?: string,
 ): Promise<null> {
-  if (getCrewmateContext() !== undefined) {
-    onDone('This session cannot be renamed — crewmate names are set by the lead.', {
-      display: 'system',
-    })
-    return null
-  }
-
   let name = (args ?? '').trim()
   if (name === '') {
     const messages = context.messages ?? []

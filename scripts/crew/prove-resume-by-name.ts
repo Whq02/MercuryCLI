@@ -67,9 +67,9 @@ function makeStore(): Store {
   let st: AppState = getDefaultAppState()
   return { get: () => st, set: u => { st = u(st) } }
 }
-function makeCtx(store: Store, messages: Message[], crewCtx?: { crewName: string; leadAgentId: string }): never {
+function makeCtx(store: Store, messages: Message[]): never {
   return {
-    getAppState: () => (crewCtx ? { ...store.get(), crewContext: crewCtx } : store.get()),
+    getAppState: () => store.get(),
     setAppState: store.set,
     setAppStateForTasks: store.set,
     options: { tools: [] },
@@ -77,7 +77,7 @@ function makeCtx(store: Store, messages: Message[], crewCtx?: { crewName: string
     messages,
   } as never
 }
-const TODAY = (to: string): string => `Cannot deliver to "${to}": this session is not in a crew and no in-process agent by that name exists, so the message would land in a default inbox nobody reads. Spawn a crew first, or address a live subagent by name.`
+const TODAY = (to: string): string => `Cannot deliver to "${to}": no crewmate by that name or id exists in this session. Address a crewmate by the id its launch receipt names or by the name the launch gave it.`
 
 let n = 0
 const stamp = (): string => new Date(1_700_000_000_000 + ++n * 1000).toISOString()
@@ -255,11 +255,11 @@ check('…names the running agent by name', /running agents are: [^;—]*lantern
 check('…and points at an id or one of those names, never at a crew', /send to an id or one of those names/.test(nobody.data.message) && !/spawn a crew/i.test(nobody.data.message), nobody.data.message)
 check('the running launch is still reached by its name, as today (the live road is untouched)', (await send(ctx, 'lantern-index', 'keep going', 'req_live')).data.message.includes('Message delivered to agent lantern-index'))
 
-section('§5 NOTHING LAUNCHED, NO CREW — today\'s words stand (the one case that keeps them)')
+section('§5 NOTHING LAUNCHED — the refusal names the two addresses, verbatim')
 {
   const bare = makeStore()
   const nothing = await send(makeCtx(bare, []), 'nobody-here', 'anyone there', 'req_nothing')
-  check('a session that never launched a named agent and is in no crew keeps the refusal it has today, verbatim', nothing.data.success === false && nothing.data.message === TODAY('nobody-here'), nothing.data.message)
+  check('a session that never launched a named agent refuses naming the id and the name roads, verbatim', nothing.data.success === false && nothing.data.message === TODAY('nobody-here'), nothing.data.message)
 }
 
 section('§6 TWO FINISHED LAUNCHES WITH ONE NAME — the newest is resumed, and the answer says so (RED on the base)')
@@ -282,40 +282,13 @@ section('§6 TWO FINISHED LAUNCHES WITH ONE NAME — the newest is resumed, and 
   settleResumed(twin, newer)
 }
 
-section('§7 A STRUCTURED MESSAGE to a finished agent\'s name outside a crew — the refusal names the id and the plain-message resume, never "spawn a crew" (RED on the base)')
+section('§7 THE MESSAGE IS ONE STRING — the schema admits no structured message')
 {
-  const question = await send(ctx, 'harbour-count', { type: 'question', content: 'still there?' }, 'req_q')
-  console.log(`  the answer: ${JSON.stringify(question.data)}`)
-  check('the question is refused: structured messages reach crewmates only', question.data.success === false)
-  check('…the refusal names the id and says a plain message to the name or the id resumes it', question.data.message.includes(harbour) && /plain message/.test(question.data.message) && /resume/.test(question.data.message) && !/spawn a crew/i.test(question.data.message), question.data.message)
-  const toId = await send(ctx, harbour, { type: 'question', content: 'still there?' }, 'req_q_id')
-  check('…and the same words answer the id', toId.data.success === false && toId.data.message.includes(harbour) && !/spawn a crew/i.test(toId.data.message), toId.data.message)
-}
-
-section('§8 THE CREW ROAD UNTOUCHED — in a crew the roster keeps its rules: a roster name is delivered to its inbox even when a finished launch carried it, a name nobody carried keeps the roster refusal, and only a finished launch no roster row names is resumed')
-{
-  const CREW = 'resume-fixture-crew'
-  const crewDir = join(home, 'crews', CREW)
-  mkdirSync(crewDir, { recursive: true })
-  writeFileSync(join(crewDir, 'config.json'), JSON.stringify({ name: CREW, createdAt: Date.now(), leadAgentId: 'lead-fixture', members: [
-    { agentId: 'lead-fixture', name: 'crew-lead', joinedAt: 1, tmuxPaneId: '', cwd: home, subscriptions: [] },
-    { agentId: 'seat-1', name: 'harbour-count', joinedAt: 1, tmuxPaneId: '', cwd: home, subscriptions: [] },
-  ] }))
-  const crew = makeStore()
-  const crewTranscript: Message[] = []
-  const crewCtx = makeCtx(crew, crewTranscript, { crewName: CREW, leadAgentId: 'lead-fixture' })
-  const seat = launchNamed(crew, crewTranscript, 'harbour-count', 'count the harbour for the crew')
-  finishAndEvict(crew, seat, 'count the harbour for the crew')
-  const lone = launchNamed(crew, crewTranscript, 'lone-scout', 'scout alone')
-  finishAndEvict(crew, lone, 'scout alone')
-  const toSeat = await send(crewCtx, 'harbour-count', 'a crew word', 'req_crew_seat')
-  check('a roster name goes to its inbox by the roster rules, even though a finished launch carried the same name', toSeat.data.success === true && /delivered to harbour-count's inbox/.test(toSeat.data.message) && crew.get().tasks[seat] === undefined, toSeat.data.message)
-  const toNobody = await send(crewCtx, 'nobody-here', 'anyone there', 'req_crew_nobody')
-  check('a name no launch carried keeps the roster refusal in the roster\'s own words', toNobody.data.success === false && /no such member on crew "resume-fixture-crew"/.test(toNobody.data.message), toNobody.data.message)
-  const toLone = await send(crewCtx, 'lone-scout', 'a crew word for the scout', 'req_crew_lone')
-  console.log(`  the answer: ${JSON.stringify(toLone.data)}`)
-  check('a finished launch no roster row names is resumed from inside the crew (RED on the base: the roster refusal)', toLone.data.success === true && /resumed in the background/.test(toLone.data.message) && rowOf(crew, lone)?.status === 'running', toLone.data.message)
-  settleResumed(crew, lone)
+  const { SendMessageTool } = await import('../../src/tools/SendMessageTool/SendMessageTool.ts')
+  const structured = SendMessageTool.inputSchema.safeParse({ to: 'harbour-count', message: { type: 'question', content: 'still there?' } })
+  check('a structured message fails the input schema — the message is a string', structured.success === false)
+  const plain = SendMessageTool.inputSchema.safeParse({ to: 'harbour-count', message: 'still there?' })
+  check('a plain string passes it', plain.success === true)
 }
 
 section('§9 THE READER — the launch receipts by name, read-only, in transcript order')
@@ -351,7 +324,7 @@ section('§9 THE READER — the launch receipts by name, read-only, in transcrip
 section('§10 THE WORDS — the prompt tells the model a finished agent\'s name still reaches it (RED on the base)')
 {
   const prompt = getPrompt()
-  check('the prompt keeps the two-address sentence the receipts proof pins', prompt.includes('addressed by the id its launch receipt names, or by the name the launch gave it'))
+  check('the prompt keeps the two-address sentence the receipts proof pins', prompt.includes("the id a crewmate's launch receipt names, or the name its launch gave it"))
   check('…and says the name reaches the agent after it has finished, the newest launch when two carried it', /running or finished/.test(prompt) && /newest/.test(prompt), prompt.split('\n').find(line => line.includes('launch receipt')) ?? '')
 }
 
@@ -362,8 +335,7 @@ section('§11 THE SEAMS IN SOURCE')
   const lookupAt = sendSrc.indexOf('launchesNamed(context.messages', roadAt)
   const giveUpAt = sendSrc.indexOf('if (agentId === undefined) return undefined', roadAt)
   check('the local-agent road reads the launch receipts by name before it gives up', roadAt > 0 && lookupAt > roadAt && giveUpAt > lookupAt)
-  const noCrew = sendSrc.indexOf('if (!crewName) {')
-  check('the no-crew refusal is minted only after the session\'s launched agents are read', noCrew > 0 && /noCrewRefusal\(rawTo, context\)/.test(sendSrc.slice(noCrew, noCrew + 200)) && /function noCrewRefusal[\s\S]{0,200}knownLaunchedAgents\(context\)/.test(sendSrc))
+  check('the unknown-address refusal is minted only after the session\'s launched agents are read, and no crew road exists', /async function unknownAgentRefusal[\s\S]{0,200}knownLaunchedAgents\(context\)/.test(sendSrc) && !sendSrc.includes('crewName') && !sendSrc.includes('noCrewRefusal'))
   const receipts = src('src/tasks/LocalAgentTask/launchReceipts.ts')
   const helperAt = receipts.indexOf('export interface NamedLaunchReceipt')
   const helperEnd = receipts.indexOf('export function settledLaunchIds')
@@ -447,9 +419,6 @@ section('§15 TWO LAUNCHES, ONE NAME, THE RECEIPTS GONE — the newest by its la
   const cased = await send(twinFold, 'SCOUT', 'which of you, loudly', 'req_fold_scout_cased')
   check('a differently-cased spelling reaches the same launch when no exact name matches', cased.data.success === true && rowOf(twin, newer.id)?.status === 'running', cased.data.message)
   settleResumed(twin, newer.id)
-  const question = await send(twinFold, 'scout', { type: 'question', content: 'still there?' }, 'req_fold_q')
-  console.log(`  the answer: ${JSON.stringify(question.data)}`)
-  check('a structured message after the fold is refused with the id and the plain-message door, never "spawn a crew"', question.data.success === false && question.data.message.includes(newer.id) && /plain message/.test(question.data.message) && !/spawn a crew/i.test(question.data.message), question.data.message)
 }
 
 section('§16 THE RECEIPTS ROAD FIRST — a receipt still in the messages answers before any record on disk, unchanged; the resolver reads the records only after the receipts')

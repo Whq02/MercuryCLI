@@ -46,8 +46,6 @@ import {
   getSlackChannelSuggestions,
   hasSlackMcpServer,
 } from '../utils/suggestions/slackChannelSuggestions.js'
-import { isCrewEnabled } from '../utils/crewEnabled.js'
-import { CREW_LEAD_NAME } from '../utils/crew/constants.js'
 import {
   findLongestCommonPrefix,
   generateFileSuggestions,
@@ -490,19 +488,6 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
         const state = appStateStore.getState()
         const members: Suggestion[] = []
         const seen = new Set<string>()
-        if (isCrewEnabled() && state.crewContext) {
-          for (const name of Object.keys(state.crewContext.crewmates ?? {})) {
-            if (name === CREW_LEAD_NAME) continue
-            if (!name.toLowerCase().startsWith(fragment)) continue
-            if (seen.has(name)) continue
-            seen.add(name)
-            members.push({
-              id: `dm-${name}`,
-              displayText: `@${name}`,
-              description: describeAgent(state, name),
-            })
-          }
-        }
         for (const name of state.agentNameRegistry.keys()) {
           if (seen.has(name)) continue
           if (!name.toLowerCase().startsWith(fragment)) continue

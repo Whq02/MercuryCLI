@@ -4,7 +4,6 @@ import { getSessionId, onSessionSwitch } from '../../../bootstrap/state.js'
 import { registerCleanup } from '../../../utils/cleanupRegistry.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { procStartToken } from '../../../utils/genericProcessUtils.js'
-import { getAgentId } from '../../../utils/crewmate.js'
 import { MERCURY_PROJECT_DIR } from '../../../utils/projectConfig.js'
 import { holderAlive } from '../../../substrate/pidLock.js'
 import { getProcessStartTokenAsync } from '../../../daemon/ownerWatch.js'
@@ -40,7 +39,7 @@ function holderKey(root: string, holder: LeaseHolder): string {
 }
 
 export function projectLeaseHolder(agentId?: string): LeaseHolder {
-  return { sessionId: getSessionId(), agentId: agentId ?? getAgentId() ?? 'main', pid: process.pid, procStart: procStartToken(process.pid) }
+  return { sessionId: getSessionId(), agentId: agentId ?? 'main', pid: process.pid, procStart: procStartToken(process.pid) }
 }
 
 function validateHolder(holder: LeaseHolder): void {

@@ -9,7 +9,6 @@ import {
 import { getCommands } from './commands.js'
 import { MERCURY_VERSION } from './constants/product.js'
 import type { SessionId } from './types/ids.js'
-import { isCrewEnabled } from './utils/crewEnabled.js'
 import { checkAndRestoreTerminalBackup } from './utils/appleTerminalBackup.js'
 import {
   checkHasTrustDialogAccepted,
@@ -22,7 +21,6 @@ import { findCanonicalGitRoot, getIsGit } from './utils/git.js'
 import { hasWorktreeCreateHook } from './utils/hooks.js'
 import { captureHooksConfigSnapshot } from './utils/hooks/hooksConfigSnapshot.js'
 import { initializeFileChangedWatcher } from './utils/hooks/fileChangedWatcher.js'
-import { checkAndRestoreITerm2Backup } from './utils/iTermBackup.js'
 import { logError } from './utils/log.js'
 import { getRecentActivity } from './utils/logoV2Utils.js'
 import type { PermissionMode } from './utils/permissions/PermissionMode.js'
@@ -87,13 +85,6 @@ export async function setup(
   }
 
   if (getIsInteractive()) {
-    if (isCrewEnabled()) {
-      reportBackupRestore(
-        await checkAndRestoreITerm2Backup(),
-        'iTerm2',
-        'com.googlecode.iterm2',
-      )
-    }
     try {
       reportBackupRestore(
         await checkAndRestoreTerminalBackup(),

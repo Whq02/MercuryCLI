@@ -3,7 +3,7 @@ import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { mapWithConcurrency } from '../utils/concurrency.js'
 import { logForDebugging } from '../utils/debug.js'
-import { getMercuryHome, getCrewsDir } from '../utils/envUtils.js'
+import { getMercuryHome } from '../utils/envUtils.js'
 import { cleanupOrphanDurableTemps } from './durablePublish.js'
 import type { JournalRecoverySummary } from './operationJournal.js'
 import { readStoreRecoveryEvents } from './storeRecovery.js'
@@ -16,37 +16,16 @@ const RECENT_QUARANTINE_WINDOW_MS = 24 * 60 * 60_000
 export type BootRecoveryScope = 'session' | 'daemon'
 export type BootRecoveryPhase = 'pending' | 'running' | 'done'
 
-export interface LeaderProjectionSeed {
-  crewName: string
-  crewFilePath: string
-  leadAgentId: string
-  crewmates: Record<
-    string,
-    {
-      name: string
-      agentType?: string
-      color?: string
-      tmuxSessionName: string
-      tmuxPaneId: string
-      cwd: string
-      worktreePath?: string
-      spawnedAt: number
-    }
-  >
-}
-
 export interface BootRecoveryReport {
   schema: 1
   scope: BootRecoveryScope
   startedAt: string
   durationMs: number
   orphanTemps: { dirsSwept: number; removed: number }
-  crewJournal: JournalRecoverySummary | null
   runJournal: JournalRecoverySummary | null
   changeSetJournal: JournalRecoverySummary | null
   deadEpochTasks: { listsChecked: number; removed: number }
   daemonRecords: { state: 'live' | 'clean' | 'reconciled'; cleaned: string[] } | null
-  leaderProjection: LeaderProjectionSeed | null
   quarantine: { total: number; recent: number }
   errors: string[]
   notes: string[]
@@ -89,13 +68,11 @@ export function bootRecoveryStatusLine(
   if (s.phase !== 'done' || !s.report) return null
   const r = s.report
   const journalWork =
-    (r.crewJournal ? r.crewJournal.rolledForward.length + r.crewJournal.compensated.length : 0) +
     (r.runJournal ? r.runJournal.rolledForward.length + r.runJournal.compensated.length : 0) +
     (r.changeSetJournal
       ? r.changeSetJournal.rolledForward.length + r.changeSetJournal.compensated.length
       : 0)
   const unrecoverable =
-    (r.crewJournal?.unrecoverable.length ?? 0) +
     (r.runJournal?.unrecoverable.length ?? 0) +
     (r.changeSetJournal?.unrecoverable.length ?? 0)
   const parts: string[] = []
@@ -105,7 +82,6 @@ export function bootRecoveryStatusLine(
   if (r.daemonRecords?.state === 'reconciled' && r.daemonRecords.cleaned.length > 0) {
     parts.push(`${r.daemonRecords.cleaned.length} stale daemon record(s) reconciled`)
   }
-  if (r.leaderProjection) parts.push(`crew "${r.leaderProjection.crewName}" projection rebuilt`)
   if (unrecoverable > 0) parts.push(`${unrecoverable} op(s) NEED ATTENTION (journal preserved)`)
   if (r.errors.length > 0) parts.push(`${r.errors.length} recovery error(s)`)
   if (parts.length === 0) return null
@@ -127,27 +103,13 @@ async function collectSweepDirs(
     if (dirs.length < SWEEP_DIR_CAP) dirs.push(d)
   }
   const home = getMercuryHome()
-  const crews = getCrewsDir()
   push(home)
   push(join(home, 'recovery'))
-  push(crews)
-  push(join(crews, '.journal'))
   try {
     const { changeSetJournalDir } = await import(
       '../services/changeTransaction/changeSetContracts.js'
     )
     push(changeSetJournalDir())
-  } catch {
-  }
-  try {
-    for (const name of await readdir(crews)) {
-      if (name.startsWith('.')) continue
-      const crewDir = join(crews, name)
-      push(crewDir)
-      push(join(crewDir, 'inboxes'))
-      push(join(crewDir, 'dedup'))
-      push(join(crewDir, 'leases'))
-    }
   } catch {
   }
   const tasksRoot = join(home, 'tasks')
@@ -232,44 +194,6 @@ async function sweepTaskEpochs(
   return out
 }
 
-async function rebuildLeaderProjection(
-  sessionId: string,
-  errors: string[],
-): Promise<LeaderProjectionSeed | null> {
-  try {
-    const { rebuildCrewProjection } = await import('../utils/crew/crewOperations.js')
-    const led = await rebuildCrewProjection(sessionId)
-    if (!led) return null
-    const helpers = await import('../utils/crew/crewHelpers.js')
-    const { setLeadCrewFallback } = await import('../utils/crewmate.js')
-    setLeadCrewFallback(led.crewName)
-    helpers.registerCrewForSessionCleanup(led.crewName)
-    const crewmates: LeaderProjectionSeed['crewmates'] = {}
-    const tf = await helpers.readCrewFileAsync(led.crewName)
-    for (const m of tf?.members ?? []) {
-      crewmates[m.agentId] = {
-        name: m.name,
-        agentType: m.agentType,
-        color: m.color,
-        tmuxSessionName: '',
-        tmuxPaneId: m.tmuxPaneId,
-        cwd: m.cwd,
-        worktreePath: m.worktreePath,
-        spawnedAt: m.joinedAt,
-      }
-    }
-    return {
-      crewName: led.crewName,
-      crewFilePath: led.crewFilePath,
-      leadAgentId: led.leadAgentId,
-      crewmates,
-    }
-  } catch (e) {
-    errors.push(`leader projection rebuild failed: ${e instanceof Error ? e.message : String(e)}`)
-    return null
-  }
-}
-
 export async function runBootRecovery(opts: {
   scope: BootRecoveryScope
   sessionId?: string
@@ -286,12 +210,10 @@ export async function runBootRecovery(opts: {
       startedAt: new Date(startedMs).toISOString(),
       durationMs: 0,
       orphanTemps: { dirsSwept: 0, removed: 0 },
-      crewJournal: null,
       runJournal: null,
       changeSetJournal: null,
       deadEpochTasks: { listsChecked: 0, removed: 0 },
       daemonRecords: null,
-      leaderProjection: null,
       quarantine: { total: 0, recent: 0 },
       errors,
       notes,
@@ -305,12 +227,9 @@ export async function runBootRecovery(opts: {
     }
 
     const describe = (reason: unknown): string => (reason instanceof Error ? reason.message : String(reason))
-    const [crewSettled, changeSetSettled] = await Promise.allSettled([
-      import('../utils/crew/crewOperations.js').then(m => m.recoverCrewJournal()),
+    const [changeSetSettled] = await Promise.allSettled([
       import('../services/changeTransaction/changeSetCommit.js').then(m => m.recoverChangeSetJournal()),
     ])
-    if (crewSettled.status === 'fulfilled') report.crewJournal = crewSettled.value
-    else errors.push(`crew journal recovery failed: ${describe(crewSettled.reason)}`)
     if (changeSetSettled.status === 'fulfilled') report.changeSetJournal = changeSetSettled.value
     else errors.push(`change-set journal recovery failed: ${describe(changeSetSettled.reason)}`)
 
@@ -328,10 +247,6 @@ export async function runBootRecovery(opts: {
       errors.push(
         `daemon-records reconcile failed: ${e instanceof Error ? e.message : String(e)}`,
       )
-    }
-
-    if (opts.scope === 'session' && opts.sessionId) {
-      report.leaderProjection = await rebuildLeaderProjection(opts.sessionId, errors)
     }
 
     try {

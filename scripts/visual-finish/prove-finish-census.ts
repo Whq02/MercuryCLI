@@ -100,8 +100,8 @@ t.section('§3 — the crew estate adds no raw animation clocks')
     }
   }
   t.check(
-    "exactly the ONE allowlisted interval (CrewmateChatsView's enabled-gated 2s data poll)",
-    found.length === 1 && (found[0] ?? '').includes('CrewmateChatsView'),
+    'no raw interval in the estate',
+    found.length === 0,
     found.join(', ') || 'none',
   )
 }

@@ -8,7 +8,6 @@ export {
   getStopHookMessage,
   getTaskCompletedHookMessage,
   getTaskCreatedHookMessage,
-  getCrewmateIdleHookMessage,
   getUserPromptSubmitHookBlockingMessage,
 } from './hooks/messages.js'
 
@@ -43,7 +42,6 @@ export {
   executeSubagentStartHooks,
   executeTaskCompletedHooks,
   executeTaskCreatedHooks,
-  executeCrewmateIdleHooks,
   executeUserPromptExpansionHooks,
   executeUserPromptSubmitHooks,
   executeWorktreeCreateHook,

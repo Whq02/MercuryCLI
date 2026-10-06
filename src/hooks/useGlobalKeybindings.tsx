@@ -79,12 +79,6 @@ export function GlobalKeybindingHandlers({
           onEnterTranscript?.()
         }
       },
-      'app:toggleCrewmatePreview': () => {
-        setAppState(prev => ({
-          ...prev,
-          showCrewmateMessagePreview: prev.showCrewmateMessagePreview !== true,
-        }))
-      },
       'app:redraw': () => {
         instances.get(process.stdout)?.repaintAltScreen()
         void store

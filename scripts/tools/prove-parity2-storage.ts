@@ -24,8 +24,6 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   saveGlobalConfig(current => ({ ...current, expandedView: 'tasks' }))
   t('the saved panel is read back', getGlobalConfig().expandedView === 'tasks')
   t('a relaunch seeds the default state from the remembered panel', getDefaultAppState().expandedView === 'tasks')
-  saveGlobalConfig(current => ({ ...current, expandedView: 'crewmates' }))
-  t('the crewmates board is remembered too', getDefaultAppState().expandedView === 'crewmates')
   const configPath = join(home, '.mercury.json')
   let raw: Record<string, unknown> = {}
   try {
@@ -37,7 +35,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   if (junkPath !== null) {
     writeFileSync(junkPath, JSON.stringify({ ...raw, expandedView: 'sideways' }))
   }
-  t('junk in the config reads as no panel (structural fallback pinned)', /remembered === 'tasks' \|\| remembered === 'crewmates' \? remembered : 'none'/.test(readFileSync('src/state/AppStateStore.ts', 'utf8')))
+  t('junk in the config reads as no panel (structural fallback pinned)', /remembered === 'tasks' \? remembered : 'none'/.test(readFileSync('src/state/AppStateStore.ts', 'utf8')))
   const keybindings = readFileSync('src/hooks/useGlobalKeybindings.tsx', 'utf8')
   t('the toggle persists the panel it lands on (structural)', /saveGlobalConfig\(current => \(\{ \.\.\.current, expandedView: remembered \}\)\)/.test(keybindings))
 }

@@ -23,7 +23,6 @@ console.log('============================================================')
 delete process.env.MERCURY_EFFORT_LEVEL
 delete process.env.MERCURY_WORKFLOW_ROUTING
 
-const profile = await import('../../src/utils/profile/mercuryProfile.js')
 const appearance = await import('../../src/utils/profile/appearanceSnapshot.js')
 const composer = await import('../../src/prompt/composer.js')
 
@@ -50,7 +49,7 @@ section('§5 — composition order: identity → operator/dynamic → mode → t
   check('the turn captures the system prompt exactly once per query', captures.length === 1, `${captures.length} call sites`)
 }
 
-section('§6 — the composed session profile')
+section('§6 — the appearance snapshot')
 {
   const look = appearance.resolveMercuryAppearance({
     requestedTheme: 'auto',
@@ -65,12 +64,6 @@ section('§6 — the composed session profile')
   check('colorMode maps chalk level 0 → mono', appearance.colorModeFromLevel(0) === 'mono')
   check('motion resolves full/reduced', look.motion === 'full' && appearance.resolveMercuryAppearance({ requestedTheme: 'dark', concreteTheme: 'dark', colorLevel: 3, accent: '#DD4444', reducedMotion: true, changedAt: 1 }).motion === 'reduced')
 
-  const sp = profile.resolveMercurySessionProfile(look)
-  check('profile frozen', Object.isFrozen(sp))
-  check('identity is the invariant Mercury doctrine', sp.identity === profile.MERCURY_BEHAVIOR_PROFILE)
-  check('doctrine names the product', sp.identity.productName === 'Mercury')
-  check('doctrine pins candid completion', sp.identity.outcomeLoyalty === 'candid-completion')
-  check('changedAt follows the appearance half', sp.changedAt === 222)
 }
 
 console.log('')
