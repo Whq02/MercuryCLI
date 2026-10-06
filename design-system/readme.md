@@ -88,7 +88,7 @@ deep teal-navy **OASIS ground**:
 - **Ground ladder:** Night `#0D181B` → Night-soft `#101D21` → Ash `#142327` →
   Ash-raised `#1A2C31`; hairlines Dune-faint `#233A40`; borders/selection Dune
   `#2F4B52`. The terminal ground itself is painted via OSC 11 (window padding
-  included) and **follows the theme** — light families keep the profile ground.
+  included) and **follows the theme**.
 - **Default appearance: True Black** — the same palette on the pure-black
   ground family: `#000000` → `#080F11` → `#0B1315` → `#0E181B`; hairlines
   `#132023`; borders/selection `#1A292D`. The oasis ladder above is the
@@ -110,8 +110,7 @@ deep teal-navy **OASIS ground**:
   sigil center.
 - **Zero new hex outside `mercuryPalette`/`sessionAccent`.** Import the token,
   never a literal. Contrast-sensitive chrome consumes `useMercuryTokens` roles
-  (dark IS the brand mapping; light/daltonized/ansi map from their OWN
-  palettes; the ANSI collapse is intentional — names carry meaning).
+  (both appearances ARE the brand mapping).
   `accentSoft` — the bloom tone for sparkles, glints, typed composer text and
   user nameplates — is DERIVED from the live accent (`deriveAccentSoft`; crab
   dark = the authored BELLY byte-equal;) — never re-derive
