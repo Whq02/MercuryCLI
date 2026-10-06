@@ -5,7 +5,6 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Added GLM 5.3 Flash to the model picker, with its window, its dial and its price
 - Added a run with --format rows reporting lifecycle hooks as task rows
 - Added a /health row for the managed policy: an invalid lock value, an unknown surface name or an unreadable policy file warns with its fix
-- Changed the GLM model list: it is read from Z.AI when the picker opens and when a GLM model is named, so every model the account serves appears under GLM and new ones need no update; the account view says whether its rows are live
 - Changed the automatic motion setting over a slow terminal link (ssh, a console host, a slow pipe): idle motion drops to reduced the way it does on a slow machine, with the same patience before dropping and before coming back, and the status line says reduced · slow link while the link is the reason
 - Changed the launch animation: it sends about a fifth of the bytes it did, frame for frame the same
 - Changed the frame band while the model thinks: it shows how long the think has stood and when the stream last spoke (◐ thinking 4m · ↻3s)
