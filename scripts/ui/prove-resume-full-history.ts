@@ -39,10 +39,8 @@ console.log('============================================================')
 {
   const view = src('src', 'components', 'mercury-ui', 'screens', 'SessionManagerView.tsx')
   const model = src('src', 'components', 'mercury-ui', 'screens', 'sessionPickerModel.ts')
-  const resume = src('src', 'commands', 'resume', 'resume.tsx')
   const sessions = src('src', 'commands', 'sessions', 'sessions.tsx')
-  check('argless /resume mounts the FULL-history scope', resume.includes('initialScope="all"'))
-  check('/sessions stays the quick project scope (no all override)', !sessions.includes('initialScope'))
+  check('/sessions opens the FULL-history scope (the merged door: every session /resume listed)', sessions.includes('initialScope="all"'))
   check(
     "the core keeps cleared sessions in 'all' scope",
     /facts\.scope === 'project'\s*\?\s*partitionByProject\(/.test(model) &&
@@ -70,7 +68,7 @@ console.log('============================================================')
 }
 
 {
-  const flip = src('src', 'commands', 'sessiontab', 'sessiontab.tsx')
+  const flip = src('src', 'utils', 'sessionFlip.ts')
   check(
     'a stale/vanished id produces an explicit notice',
     flip.includes("no longer in this project's flip ring"),

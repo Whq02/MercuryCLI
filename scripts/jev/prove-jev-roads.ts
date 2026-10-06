@@ -38,10 +38,8 @@ function check(name: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok || !detail ? '' : ` — ${detail}`}`)
 }
-const routerCommandPath = '../../src/commands/jevor/jevor.ts'
-const routerCommand = await import(routerCommandPath).catch(() => ({ call: async () => ({ type: 'text', value: '/jevor is not registered' }) }))
 async function select(words: string): Promise<void> {
-  await (words.startsWith('/jevor ') ? routerCommand.call(words.slice(7), {} as never) : command.call(words, {} as never))
+  await command.call(words.replace('/jev ', '').replace('/jevor ', 'or '), {} as never)
   popup.closeSettingsPopup()
 }
 try {
@@ -49,8 +47,8 @@ try {
   secrets.writeStoredOpenrouterApiKey(OR_KEY)
   const off = await tool.jevEvalCall(input)
   check('OpenRouter sign-in alone neither lights the roster nor sends a request', !tool.jevEvalEnabled() && off.status === 'off' && router.received.length + official.received.length === 0)
-  await select('/jevor on')
-  check('/jevor on stores the explicit road and turns on', road() === 'openrouter' && setting.jevEnabled(), JSON.stringify(setting.readJevSettings()))
+  await select('/jev or on')
+  check('/jev or on stores the explicit road and turns on', road() === 'openrouter' && setting.jevEnabled(), JSON.stringify(setting.readJevSettings()))
   key.storeJevApiKey(TS_KEY)
   const answered = await tool.jevEvalCall(input)
   const sent = router.received[0]
@@ -111,7 +109,7 @@ try {
   check('/jev on selects official, retaining its independent default cap and untouched meter', road() === 'official' && setting.readJevSettings().allowanceUsd === 20 && ledger.jevLedgerSnapshot().spendUsd === 0)
   const officialAnswer = await tool.jevEvalCall(input)
   check('official sends only its own key and model, without OpenRouter provider preferences', officialAnswer.status === 'ok' && official.received.at(-1)?.headers.authorization === `Bearer ${TS_KEY}` && (official.received.at(-1)?.body as { model?: string })?.model === 'jev-1.13.0' && !('provider' in (official.received.at(-1)?.body as object)))
-  await select('/jevor on')
+  await select('/jev or on')
   check('returning to OpenRouter restores its cap, spend and hold', setting.readJevSettings().allowanceUsd === 0.002 && ledger.jevLedgerSnapshot().spendUsd === 0.0007319 && status.jevStatus().kind === 'allowance-hit')
   ledger.resetJevLedger()
   router.next({ status: 200, delayMs: 40, headers: { 'x-generation-id': 'gen-dec-road-switch' }, body: { model: 'typesafe/jev-1.13-20260917', answers: { yes: { type: 'noul', noul: 0.8 } }, usage: { input_tokens: 12, output_tokens: 1, cost: 0.0003 } } })
@@ -120,7 +118,7 @@ try {
   const switchedAnswer = await pendingRoad
   const snapshotFor = ledger.jevLedgerSnapshot as (now: number, road: 'official' | 'openrouter') => ReturnType<typeof ledger.jevLedgerSnapshot>
   check('switching roads while an answer is in flight settles only the attempted road', switchedAnswer.status === 'ok' && ledger.jevLedgerSnapshot().spendUsd === 0 && snapshotFor(Date.now(), 'openrouter').spendUsd === 0.0003)
-  await select('/jevor on')
+  await select('/jev or on')
   ledger.resetJevLedger()
   secrets.writeStoredOpenrouterApiKey(null)
   const beforeMissing = official.received.length + router.received.length
@@ -134,9 +132,9 @@ try {
   check('the same 36k batched request fits official and is refused before OpenRouter', assemble(large, 'official').ok && !assemble(large, 'openrouter').ok)
   const beforeBad = JSON.stringify(setting.readJevSettings())
   const bad = await command.call('on other', {} as never)
-  const badRouter = await routerCommand.call('unknown', {} as never)
-  check('unknown command grammar prints each command\'s two forms and changes nothing', JSON.stringify(bad).includes('/jev on') && JSON.stringify(bad).includes('/jev off') && JSON.stringify(badRouter).includes('/jevor on') && JSON.stringify(badRouter).includes('/jevor off') && beforeBad === JSON.stringify(setting.readJevSettings()))
-  await select('/jevor off')
+  const badRouter = await command.call('or unknown', {} as never)
+  check('unknown command grammar prints the forms and changes nothing', JSON.stringify(bad).includes('/jev or on') && JSON.stringify(bad).includes('/jev openrouter on') && beforeBad === JSON.stringify(setting.readJevSettings()))
+  await select('/jev or off')
   check('/jevor off stores its road but neither lights nor sends', road() === 'openrouter' && !setting.jevEnabled() && !tool.jevEvalEnabled())
   await select('off')
   check('/jev off stops both the roster and all traffic', !setting.jevEnabled() && !tool.jevEvalEnabled() && (await tool.jevEvalCall(input)).status === 'off')

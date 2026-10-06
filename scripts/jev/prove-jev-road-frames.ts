@@ -28,8 +28,6 @@ const config = await import('../../src/utils/config.js')
 config.enableConfigs()
 const setting = await import('../../src/services/jev/jevSetting.ts')
 const command = await import('../../src/commands/jev/jev.tsx')
-const routerCommandPath = '../../src/commands/jevor/jevor.ts'
-const routerCommand = await import(routerCommandPath).catch(() => ({ call: async () => ({ type: 'text', value: '/jevor is not registered' }) }))
 const key = await import('../../src/services/jev/jevKey.ts')
 const ledger = await import('../../src/services/jev/jevLedger.ts')
 const status = await import('../../src/services/jev/jevStatus.ts')
@@ -93,7 +91,7 @@ try {
   for (const [cols, rows] of [[178, 51], [80, 21]] as const) {
     for (const road of ['official', 'openrouter'] as const) {
       for (const enabled of [false, true]) for (const present of [false, true]) {
-        await (road === 'official' ? command : routerCommand).call('on', {} as never)
+        await command.call(road === 'official' ? 'on' : 'or on', {} as never)
         popup.closeSettingsPopup()
         setting.setJevEnabled(enabled)
         key.storeJevApiKey(road === 'official' && present ? 'proof-jev-road-frame-key-official' : null)
@@ -109,7 +107,7 @@ try {
         popup.closeSettingsPopup()
         m.unmount()
       }
-      await (road === 'official' ? command : routerCommand).call('on', {} as never)
+      await command.call(road === 'official' ? 'on' : 'or on', {} as never)
       popup.closeSettingsPopup()
       if (road === 'openrouter') {
         reportedCredits = { limitRemaining: 12.5, observedAtMs: 1000 }

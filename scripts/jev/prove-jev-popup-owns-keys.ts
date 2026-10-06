@@ -309,7 +309,7 @@ await settle(120)
 
 section('§6 after the popups close the composer owns its keys again')
 await press(m, KEY.left, 300)
-check('with the popup closed and the prompt empty, ← is the manager funnel again', sent.length === 1 && sent[0] === '/manager', JSON.stringify(sent))
+check('with the popup closed and the prompt empty, ← submits nothing (the manager funnel is retired)', sent.length === 0, JSON.stringify(sent))
 m.unmount()
 await settle(80)
 

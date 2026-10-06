@@ -68,9 +68,9 @@ const ON_B_TAIL = 'missing-manifest.ts'
 
 try {
   const v0 = capture('v0', [
-    { atTick: 40, data: `/sessiontab ${SID_ERRORED}`, minTick: 10, awaitRaw: '\u001b[?2004h' },
+    { atTick: 40, data: `/sessions ${SID_ERRORED}`, minTick: 10, awaitRaw: '\u001b[?2004h' },
     { atTick: 44, data: '\r', afterPrevTicks: 3 },
-    { atTick: 95, data: `/sessiontab ${SID_C}`, afterPrevTicks: 45 },
+    { atTick: 95, data: `/sessions ${SID_C}`, afterPrevTicks: 45 },
     { atTick: 100, data: '\r', afterPrevTicks: 3 },
   ], 135)
   t('V0 serial switches land on the last target (C)', paneHas(v0.rows, ON_C) && !paneHas(v0.rows, ON_B),
@@ -79,9 +79,9 @@ try {
     v0.fires.includes(SID_ERRORED) && v0.fires.includes(SID_C), JSON.stringify(v0.fires))
 
   const v1 = capture('v1', [
-    { atTick: 40, data: `/sessiontab ${SID_ERRORED}`, minTick: 10, awaitRaw: '\u001b[?2004h' },
+    { atTick: 40, data: `/sessions ${SID_ERRORED}`, minTick: 10, awaitRaw: '\u001b[?2004h' },
     { atTick: 44, data: '\r', afterPrevTicks: 3 },
-    { atTick: 50, data: `/sessiontab ${SID_C}`, afterPrevTicks: 5 },
+    { atTick: 50, data: `/sessions ${SID_C}`, afterPrevTicks: 5 },
     { atTick: 54, data: '\r', afterPrevTicks: 3 },
   ], 135)
   t('V1 rapid switches: the LAST-CHOSEN session (C) owns the commit', paneHas(v1.rows, ON_C) && !paneHas(v1.rows, ON_B),
@@ -90,14 +90,14 @@ try {
     v1.fires.includes(SID_ERRORED) && v1.fires.includes(SID_C), JSON.stringify(v1.fires))
 
   const v1c = capture('v1-control', [
-    { atTick: 40, data: `/sessiontab ${SID_ERRORED}`, minTick: 10, awaitRaw: '\u001b[?2004h' },
+    { atTick: 40, data: `/sessions ${SID_ERRORED}`, minTick: 10, awaitRaw: '\u001b[?2004h' },
     { atTick: 44, data: '\r', afterPrevTicks: 3 },
   ], 135)
   t('V1 control: a B-only capture fires B and never C (earlier captures cannot lend their markers)',
     v1c.fires.includes(SID_ERRORED) && !v1c.fires.includes(SID_C), JSON.stringify(v1c.fires))
 
   const v3 = capture('v3', [
-    { atTick: 40, data: `/sessiontab ${SID_ERRORED}`, minTick: 10, awaitRaw: '\u001b[?2004h' },
+    { atTick: 40, data: `/sessions ${SID_ERRORED}`, minTick: 10, awaitRaw: '\u001b[?2004h' },
     { atTick: 44, data: '\r', afterPrevTicks: 3 },
     { atTick: 70, data: 'hello mid switch', awaitText: ON_B, requireAwait: true },
   ], 130)
