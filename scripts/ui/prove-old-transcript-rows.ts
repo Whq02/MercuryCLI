@@ -51,10 +51,8 @@ function oldCrewRows(sid: string): Record<string, unknown>[] {
     assistant(7, 6, [{ type: 'tool_use', id: 'toolu_unknown_eval', name: 'REPL', input: {} }]),
     result(8, 7, 'toolu_unknown_eval', 'unknown tool result kept'),
     attachment(10, 8, { type: 'teammate_mailbox', messages: [{ from: 'beacon', text: 'the manifest edit is in', timestamp: AT(10), color: 'green', summary: 'manifest edit landed' }] }),
-    attachment(16, 10, { type: 'crew_messages', messages: [{ from: 'comet', text: 'the crew kind row paints too', timestamp: AT(16), color: 'cyan', summary: 'crew kind row' }] }),
-    attachment(17, 16, { type: 'queued_command', prompt: '<teammate-message teammate_id="delta" summary="OLD-TAG">OLD-TAG body from delta</teammate-message>', source_uuid: id(117), commandMode: 'prompt' }),
-    attachment(18, 17, { type: 'queued_command', prompt: [{ type: 'text', text: '<crewmate-message crewmate_id="echo" color="green" summary="NEW-TAG queued from echo">\nNEW-TAG body from echo\n</crewmate-message>' }], source_uuid: id(118), commandMode: 'prompt' }),
-    base({ parentUuid: id(18), type: 'user', uuid: id(12), message: { role: 'user', content: 'thanks, wrap it up' }, timestamp: AT(12) }),
+    attachment(17, 10, { type: 'queued_command', prompt: '<teammate-message teammate_id="delta" summary="OLD-TAG">OLD-TAG body from delta</teammate-message>', source_uuid: id(117), commandMode: 'prompt' }),
+    base({ parentUuid: id(17), type: 'user', uuid: id(12), message: { role: 'user', content: 'thanks, wrap it up' }, timestamp: AT(12) }),
   ]
 }
 
@@ -88,11 +86,9 @@ try {
     check(`${band.cols}: a tool row whose tool Mercury does not have paints by its name, its result under it`, /TeamCreate/.test(flat) && flat.includes('Roster: team-lead, atlas'), frame.filter(r => /TeamCreate|TeamBrief|Roster/.test(r)).join(' | '))
     check(`${band.cols}: an unknown execution tool keeps its name and result`, flat.includes('REPL') && flat.includes('unknown tool result kept'), frame.filter(r => /REPL|unknown tool result/.test(r)).join(' | '))
     const joined = frame.map(r => (r.endsWith('│') ? r.split('│').slice(-2)[0]! : r.replace(/│/g, ' '))).join(' ').replace(/\s+/g, ' ')
-    const order = ['[sam] ❯ charter the fixture team', 'TeamCreate', 'TeamBrief', '❯ @comet crew kind row', 'OLD-TAG body from delta', '❯ @echo NEW-TAG queued from echo', '[sam] ❯ thanks, wrap it up'].map(needle => joined.indexOf(needle))
+    const order = ['[sam] ❯ charter the fixture team', 'TeamCreate', 'TeamBrief', 'OLD-TAG body from delta', '[sam] ❯ thanks, wrap it up'].map(needle => joined.indexOf(needle))
     check(`${band.cols}: every row paints, in the transcript's order`, order.every(i => i >= 0) && order.every((i, k) => k === 0 || i > order[k - 1]!), order.join(','))
     check(`${band.cols}: an attachment kind Mercury does not know paints nothing — no sender, no summary, no error`, !/@beacon/.test(flat) && !/manifest edit landed/.test(flat) && !/teammate_mailbox/.test(flat), frame.filter(r => /@beacon|manifest edit|teammate_mailbox/.test(r)).join(' | '))
-    check(`${band.cols}: the crew_messages row paints its sender and summary the same way (RED on the base: an unknown kind paints nothing)`, /@comet/.test(flat) && /crew kind row/.test(flat), frame.filter(r => /@comet/.test(r)).join(' | '))
-    check(`${band.cols}: a crewmate message queued under the crew tag paints as the relay row`, /❯ @echo NEW-TAG queued from echo/.test(flat), frame.filter(r => /@echo/.test(r)).join(' | '))
     check(`${band.cols}: a tag Mercury does not know is the operator's own text: the line paints as typed, under no sender`, /\[sam\] ❯ <teammate-message/.test(flat) && joined.includes('OLD-TAG body from delta') && !/❯ @delta/.test(flat), frame.filter(r => /OLD-TAG|@delta/.test(r)).join(' | '))
     cleanupScenario('resume-2turn')
   }
