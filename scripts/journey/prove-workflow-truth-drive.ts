@@ -441,10 +441,10 @@ if (cap !== null) {
     check(`W2 [${label}] the launch line names the phase and the last-event age`, live.some(r => r.includes(PHASE) && /last event \d+[smh]/.test(r)), live.map(flat).join(' | ').slice(0, 300))
   }
 
-  console.log('\n— W3 the heartbeat chip —')
+  console.log('\n— W3 the heartbeat —')
   for (const label of ['cockpit-busy', 'cockpit-again'] as const) {
-    const chip = rowsWith(m[label], /◐ wf(\s|×)/)
-    check(`W3 [${label}] the frame's wf chip stands while the run lives, naming the phase and the age`, chip.some(r => new RegExp(`◐ wf ${PHASE} \\d+[smh]`).test(r)), chip.map(flat).join(' | ').slice(0, 200))
+    const beat = rowsWith(m[label], /◐ .*· workflow \d+[smh]/)
+    check(`W3 [${label}] the RUNS panel's live row stands while the run lives, naming the run, its kind and its age`, beat.some(r => r.includes(WF_NAME.slice(0, 5))), beat.map(flat).join(' | ').slice(0, 200))
   }
 
   console.log('\n— W8 the first frames on disk —')
