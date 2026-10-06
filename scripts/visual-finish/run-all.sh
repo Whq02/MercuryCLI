@@ -3,7 +3,7 @@
 # gate-watch: scripts/visual-finish/**
 # gate-watch: assets/splash/** src/components/mercury-ui/** src/components/mercuryPalette.ts
 # gate-watch: src/utils/mercuryTokens.ts src/ink/colorize.ts src/ink/frame-writer.ts
-# gate-watch: src/components/MercuryHome.tsx
+# gate-watch: src/components/MercuryHome.tsx src/commands/sessions/sessions.tsx
 # gate-watch: scripts/engine-durability/harness.ts scripts/ui/render-tui.ts src/components/** src/utils/**
 # gate-watch: scripts/lib/captureDriver.ts scripts/ui/renderScenarios.ts scripts/ui/vshot.py
 set -uo pipefail
