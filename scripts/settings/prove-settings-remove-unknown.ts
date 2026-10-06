@@ -166,22 +166,60 @@ try {
     dialog.m.unmount()
   }
 
-  section('§5 a typo inside a group is not a top-level key: alone it is not offered; beside a root key only the root key is removed')
+  section('§5 a field inside a group is offered like a root key and removed where it sits: its siblings and the rest of the file keep every byte')
   {
-    seed(`${JSON.stringify({ $schema: settingsSchemaLocalPath(), engine: { modell: 'x', effort: 'high' } }, null, 2)}\n`)
+    const NESTED = 'zzNestedUnknownKey'
+    const nestedFile = [
+      '{',
+      `  "$schema": ${JSON.stringify(settingsSchemaLocalPath())},`,
+      '  "view": {',
+      `    "${NESTED}": true,`,
+      '    "reducedMotion": true',
+      '  },',
+      '  "engine": {',
+      '    "effort": "high"',
+      '  }',
+      '}',
+      '',
+    ].join('\n')
+    seed(nestedFile)
     const nested = loadErrors()
-    check('the nested unknown key is one warning at its group path', nested.length === 1 && nested[0]?.path === 'engine' && JSON.stringify(nested[0]?.unknownKeys) === JSON.stringify(['modell']), JSON.stringify(nested))
-    check('nothing is offered for it', removal !== null && removal.removableUnknownKeys(nested).length === 0)
+    check('the nested unknown key is one warning at its group path', nested.length === 1 && nested[0]?.severity === 'warning' && nested[0]?.path === 'view' && JSON.stringify(nested[0]?.unknownKeys) === JSON.stringify([NESTED]), JSON.stringify(nested))
+    check('the removal module offers it under its group path', removal !== null && JSON.stringify(removal.removableUnknownKeys(nested)) === JSON.stringify([{ source: 'userSettings', file: userFile, keys: [`view.${NESTED}`] }]), removal === null ? 'module absent' : JSON.stringify(removal.removableUnknownKeys(nested)))
+    const dialog = await open(nested, 100, 32, 'Settings Warning')
+    const rowsSeen = optionRows(dialog.m)
+    check('the list reads remove, continue, exit with the focus on remove', JSON.stringify(labelsOf(rowsSeen)) === JSON.stringify([REMOVE, CONTINUE, EXIT]) && focusedOf(rowsSeen) === REMOVE, JSON.stringify(rowsSeen))
+    check('the footer says what removing does', dialog.m.lines().map(body).join(' ').replace(/\s+/g, ' ').includes(REMOVE_WORDS))
+    keep('nested-key-100x32', dialog.m, 100, 32)
+    dialog.m.push(KEY.enter)
+    check('Enter continues the session without exiting', (await settledOutcome(dialog)) === 'continued' && dialog.exits() === 0)
+    const after = readFileSync(userFile, 'utf8')
+    check('exactly the nested field is gone; its sibling and every other byte stay (indent, order, trailing newline)', after === nestedFile.split('\n').filter(line => !line.startsWith(`    "${NESTED}": `)).join('\n'), JSON.stringify({ before: nestedFile, after }))
+    resetSettingsCache()
+    const reloaded = getSettingsWithErrors()
+    check('the file now loads clean and its other settings apply', reloaded.errors.length === 0 && getInitialSettings().view?.reducedMotion === true && getInitialSettings().engine?.effort === 'high', JSON.stringify(reloaded.errors))
+    dialog.m.unmount()
+
     seed(`${JSON.stringify({ $schema: settingsSchemaLocalPath(), [ONE]: 'x', engine: { modell: 'x', effort: 'high' } }, null, 2)}\n`)
     const mixed = loadErrors()
-    check('beside a root key, only the root key is offered', removal !== null && JSON.stringify(removal.removableUnknownKeys(mixed).map(r => r.keys)) === JSON.stringify([[ONE]]), JSON.stringify(mixed))
-    const dialog = await open(mixed, 100, 32, 'Settings Warning')
-    check('the list leads with remove', focusedOf(optionRows(dialog.m)) === REMOVE)
-    dialog.m.push(KEY.enter)
-    check('Enter continues', (await settledOutcome(dialog)) === 'continued')
-    const after = JSON.parse(readFileSync(userFile, 'utf8')) as Record<string, unknown>
-    check('the root key is gone; engine.modell and engine.effort stay as written', after[ONE] === undefined && JSON.stringify(after.engine) === JSON.stringify({ modell: 'x', effort: 'high' }), readFileSync(userFile, 'utf8'))
-    dialog.m.unmount()
+    check('a root key and a nested typo are offered together, each under its own path', removal !== null && JSON.stringify(removal.removableUnknownKeys(mixed).map(r => [...r.keys].sort())) === JSON.stringify([['engine.modell', ONE]]), JSON.stringify(mixed))
+    const both = await open(mixed, 100, 32, 'Settings Warning')
+    check('the list leads with remove', focusedOf(optionRows(both.m)) === REMOVE)
+    both.m.push(KEY.enter)
+    check('Enter continues', (await settledOutcome(both)) === 'continued')
+    const afterBoth = JSON.parse(readFileSync(userFile, 'utf8')) as Record<string, unknown>
+    check('the root key and engine.modell are gone; engine.effort stays as written', afterBoth[ONE] === undefined && JSON.stringify(afterBoth.engine) === JSON.stringify({ effort: 'high' }), readFileSync(userFile, 'utf8'))
+    both.m.unmount()
+
+    seed(`${JSON.stringify({ $schema: settingsSchemaLocalPath(), view: { [NESTED]: true }, engine: { effort: 'high' } }, null, 2)}\n`)
+    const only = loadErrors()
+    check('a group holding only the unknown field is offered the same way', removal !== null && JSON.stringify(removal.removableUnknownKeys(only).map(r => r.keys)) === JSON.stringify([[`view.${NESTED}`]]))
+    check('removing it writes clean', removal !== null && removal.removeUnknownKeys(removal.removableUnknownKeys(only)) === null)
+    const afterOnly = JSON.parse(readFileSync(userFile, 'utf8')) as Record<string, unknown>
+    check('the field is gone and the emptied group leaves with it; engine stays as written', afterOnly.view === undefined && JSON.stringify(afterOnly.engine) === JSON.stringify({ effort: 'high' }), readFileSync(userFile, 'utf8'))
+
+    const arrayPath = [{ file: userFile, path: 'hooks.PreToolUse.0', message: 'Unrecognized field: extra', unknownKeys: ['extra'], severity: 'warning' as const }]
+    check('a field under an array element is not offered (the writer replaces arrays whole)', removal !== null && removal.removableUnknownKeys(arrayPath).length === 0)
   }
 
   section('§6 a hard error elsewhere: recovery still leads and esc exits; remove is offered for the file that only warns and leaves the broken file alone')
@@ -211,7 +249,7 @@ try {
     again.m.unmount()
   }
 } finally {
-  if (framesDir) writeFileSync(join(framesDir, 'index.txt'), ['Source renders of the settings dialog (no PTY): the warning for two unknown top-level keys with remove first, the invalid-value-only dialog that offers no removal, and the hard-error dialog beside a file that only warns.', ...frames].join('\n') + '\n')
+  if (framesDir) writeFileSync(join(framesDir, 'index.txt'), ['Source renders of the settings dialog (no PTY): the warning for two unknown top-level keys with remove first, the invalid-value-only dialog that offers no removal, a field inside a group offered the same way, and the hard-error dialog beside a file that only warns.', ...frames].join('\n') + '\n')
   process.chdir(launchDir)
   await releaseScratchHome(pinnedHome)
   rmSync(project, { recursive: true, force: true })

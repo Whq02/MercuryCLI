@@ -49,7 +49,7 @@ export function getTaskListId(): string {
 }
 
 export async function listSessionMission(): Promise<Task[]> {
-  const own = String(getSessionId())
+  const own = getTaskListId()
   const seen = new Set<string>()
   const rows: Task[] = []
   let tasks: Task[] = []

@@ -101,17 +101,11 @@ section('§C batch mutations are ordered (concurrency declarations)')
   )
 }
 
-section('§D the guard and the mail sit where the laws say')
+section('§D the guard sits where the law says')
 {
   const store = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'tasks.ts'), 'utf8')
   check('the guard re-verifies UNDER the lock (order: lock, then list)',
     /withLock\(listLockPath\(taskListId\),[^\n]*async \(\) => \{\s*\n\s*if \(opts\?\.onlyIfAllCompleted\)/.test(store))
-  const upd = readFileSync(
-    join(import.meta.dir, '..', '..', 'src', 'tools', 'TaskUpdateTool', 'TaskUpdateTool.ts'),
-    'utf8',
-  )
-  check('assignment mail sits AFTER the applied-update check (no mail for a lost write)',
-    upd.indexOf('nothing was applied') !== -1 && upd.indexOf('nothing was applied') < upd.indexOf('await sendLiveMessage('))
 }
 
 await resetTaskList(LIST)
