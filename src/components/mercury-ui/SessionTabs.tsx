@@ -7,7 +7,7 @@ import { chatOnlyBoot, concourseWayBack, routeSurfaceRegistered } from '../../co
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
 import { getProjectRoot } from '../../bootstrap/state.js'
 import { conversationIdHere, subscribeFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
-import { filterResumableSessions } from '../../commands/resume/resume.js'
+import { filterResumableSessions } from '../../utils/sessionResumeFilter.js'
 import { Box, Text } from '../../ink.js'
 import type { SessionListing } from '../../types/logs.js'
 import { formatRelativeTimeAgo } from '../../utils/format.js'

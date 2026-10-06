@@ -25,8 +25,8 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     key: 'session',
     label: 'session & context',
     names: [
-      'clear', 'compact', 'context', 'resume',
-      'rewind', 'sessions', 'sessiontab', 'concourse',
+      'clear', 'compact', 'context',
+      'rewind', 'sessions', 'concourse',
       'export', 'usage',
       'rename', 'title', 'contract',
       'copy',
