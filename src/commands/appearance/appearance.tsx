@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { useState } from 'react'
 import type { CommandResultDisplay } from '../../commands.js'
+import { LOCAL_COMMAND_STDOUT_TAG } from '../../constants/xml.js'
 import { AMBER, CRIMSON, OASIS, TEAL, TERRA } from '../../components/mercuryPalette.js'
 import { CommandCenter } from '../../components/mercury-ui/components.js'
 import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
@@ -9,7 +10,11 @@ import { ThemePicker } from '../../components/ThemePicker.js'
 // eslint-disable-next-line custom-rules/prefer-use-keybindings -- 'm' (motion toggle) is center-specific and not in the keybinding schema
 import { Box, Text, useInput } from '../../ink.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
+import type { Message } from '../../types/message.js'
 import { useSettings } from '../../hooks/useSettings.js'
+import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
+import { createCommandInputMessage, createUserMessage } from '../../utils/messages.js'
+import { formatCommandLoadingMetadata } from '../../utils/processUserInput/processSlashCommand.js'
 import { updateSettingsForSource } from '../../utils/settings/settings.js'
 import type { ThemeSetting } from '../../utils/theme.js'
 
@@ -78,7 +83,7 @@ function AppearanceCenter({ onDone }: Props): React.ReactNode {
             <Text color={accent.accent}>{'● '}</Text>
             <Text color={tokens.textPrimary}>{accent.accent}</Text>
             <Text color={tokens.textMuted}>
-              {' — /critter picks the creature · /accent overrides (name, #hex, reset)'}
+              {' — /critter picks the creature · /appearance accent overrides (name, #hex, reset)'}
             </Text>
           </Text>
         </Box>
@@ -135,14 +140,21 @@ function accentReceipt(rawArg: string): string {
   if (!ok) {
     return `not a colour I can use: '${rawArg.trim()}' — try a name (${Object.keys(ACCENT_NAMED).join(' · ')}) or #RRGGBB`
   }
-  return `accent → ${getSessionAccent().accent}${ACCENT_NAMED[arg] ? ` (${arg})` : ''} — session-only · /appearance accent reset restores the derived chain`
+  return `accent → ${getSessionAccent().accent}${ACCENT_NAMED[arg] ? ` (${arg})` : ''} — session-only · /appearance accent reset restores the critter accent`
 }
 
 export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
   const words = args.trim().split(/\s+/)
   if (words[0] === 'accent') {
-    const rest = words.slice(1).join(' ')
-    onDone(accentReceipt(rest), rest === '' ? { display: 'system' } : undefined)
+    const receipt = accentReceipt(words.slice(1).join(' '))
+    const chat = getFocusedSessionConnector() as { addDisplayRow?: (row: Message) => void }
+    if (typeof chat.addDisplayRow !== 'function') {
+      onDone(receipt, { display: 'system' })
+      return null
+    }
+    chat.addDisplayRow(createUserMessage({ content: formatCommandLoadingMetadata('appearance', args.trim()) }))
+    chat.addDisplayRow(createCommandInputMessage(`<${LOCAL_COMMAND_STDOUT_TAG}>${receipt}</${LOCAL_COMMAND_STDOUT_TAG}>`))
+    onDone(undefined, { display: 'skip' })
     return null
   }
   return <AppearanceCenter onDone={onDone} />

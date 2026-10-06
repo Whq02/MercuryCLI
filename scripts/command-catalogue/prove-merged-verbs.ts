@@ -74,6 +74,41 @@ let named: string | undefined
 await appearance.call(r => { named = r }, {}, 'accent')
 check('/appearance accent (bare) shows the status + names', named !== undefined && named.includes('accent '), named?.slice(0, 50))
 
+console.log('\non a chat with a turn running, the merged verbs act as the commands they absorbed did')
+
+const focusedSlot = await import('../../src/services/engine-connector/focusedConnector.ts')
+const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
+const events: string[] = []
+const rows: string[] = []
+const runningChat: Record<string, unknown> = {
+  turnActive: () => true,
+  interrupt: () => { events.push('interrupt'); return true },
+  addDisplayRow: (row: unknown) => { rows.push(JSON.stringify(row)) },
+}
+const resting = noSessionConnector()
+focusedSlot.setFocusedSessionConnector(new Proxy(resting, {
+  get(target, key) {
+    if (typeof key === 'string' && key in runningChat) return runningChat[key]
+    const value = Reflect.get(target, key, target)
+    return typeof value === 'function' ? value.bind(target) : value
+  },
+}) as never)
+type Done = (result?: string, options?: { display?: string }) => void
+const callWithOptions = (module: unknown) => (module as { call: (onDone: Done, context: unknown, args: string) => Promise<unknown> }).call
+let haltDone: { result?: string; display?: string } | undefined
+const orderedContext = { getAppState: () => { events.push('halt'); return { tasks: {} } }, setAppState: (f: (p: unknown) => unknown) => f({}) }
+await callWithOptions(daemonModule)((result, options) => { haltDone = { result, display: options?.display } }, orderedContext, 'halt')
+check("/daemon halt fires the focused chat's interrupt BEFORE the hard stop (the brake acts while the turn runs, as /halt did)", events[0] === 'interrupt' && events.includes('halt'), events.join(','))
+check('…and its receipt lands on the chat as the two rows /halt painted: the echoed command, then its words', rows.length === 2 && rows[0]!.includes('/daemon') && rows[0]!.includes('halt') && rows[1]!.includes('⊘ Hard stop'), rows.map(r => r.slice(0, 90)).join(' | '))
+check('…never doubled as a passing notification', haltDone?.display === 'skip' && haltDone?.result === undefined, JSON.stringify(haltDone))
+rows.length = 0
+let accentDone: { result?: string; display?: string } | undefined
+await callWithOptions(appearance)((result, options) => { accentDone = { result, display: options?.display } }, {}, 'accent teal')
+check('/appearance accent teal lands its receipt on the chat as the two rows /accent painted', rows.length === 2 && rows[0]!.includes('/appearance') && rows[0]!.includes('accent teal') && rows[1]!.includes('accent →'), rows.map(r => r.slice(0, 90)).join(' | '))
+check('…never doubled as a passing notification', accentDone?.display === 'skip' && accentDone?.result === undefined, JSON.stringify(accentDone))
+await callWithOptions(appearance)(() => {}, {}, 'accent reset')
+focusedSlot._resetFocusedSessionConnectorForTesting()
+
 console.log('\n============================================================')
 if (failures === 0) {
   console.log(' ✅ MERGED VERBS GREEN')
