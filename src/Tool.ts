@@ -177,13 +177,7 @@ export type SearchOrReadClassification = {
 
 type MaybePromise<T> = T | Promise<T>
 
-export type ToolRenderTheme =
-  | 'light'
-  | 'dark'
-  | 'light-daltonized'
-  | 'dark-daltonized'
-  | 'light-ansi'
-  | 'dark-ansi'
+export type ToolRenderTheme = 'dark' | 'true-black'
 
 export type ToolRenderOptions = {
   theme: ToolRenderTheme
