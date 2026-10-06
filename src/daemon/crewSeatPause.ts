@@ -7,9 +7,9 @@ export type CrewSeatWindow = { rejected: boolean; resetsAtMs?: number; claim?: s
 
 export function crewSeatWindowOf(row: LooseRow | null): CrewSeatWindow | null {
   if (row === null || row.type !== 'rate_limit') return null
-  const { status, resets_at: resetsAt, window: claim } = row as { status?: unknown; resets_at?: unknown; window?: unknown }
+  const { status, resets_at: resetsAt, window: claim, using_overage: usingOverage } = row as { status?: unknown; resets_at?: unknown; window?: unknown; using_overage?: unknown }
   const resetsAtMs = typeof resetsAt === 'number' && Number.isFinite(resetsAt) && resetsAt > 0 ? resetsAt * 1000 : undefined
-  return { rejected: status === 'rejected', ...(resetsAtMs !== undefined ? { resetsAtMs } : {}), ...(typeof claim === 'string' ? { claim } : {}) }
+  return { rejected: status === 'rejected' && usingOverage !== true, ...(resetsAtMs !== undefined ? { resetsAtMs } : {}), ...(typeof claim === 'string' ? { claim } : {}) }
 }
 
 const LIMIT_WORDS = /rate limit|usage limit|usage window|limit is (reached|spent)|\b429\b/i

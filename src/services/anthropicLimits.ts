@@ -51,6 +51,14 @@ const DEFAULT_LIMITS: AnthropicLimits = {
   isUsingOverage: false,
 }
 
+export function anthropicWindowClosed(limits: Pick<AnthropicLimits, 'status' | 'isUsingOverage'>): boolean {
+  return limits.status === 'rejected' && !limits.isUsingOverage
+}
+
+export function laneQuotaStatus(limits: Pick<AnthropicLimits, 'status' | 'isUsingOverage'>): QuotaStatus {
+  return limits.status === 'rejected' && limits.isUsingOverage ? 'allowed' : limits.status
+}
+
 export let currentLimits: AnthropicLimits = { ...DEFAULT_LIMITS }
 
 export const statusListeners: Set<(limits: AnthropicLimits) => void> = new Set()
@@ -487,12 +495,12 @@ function statedResetMs(resetsAt: number | undefined): number | undefined {
 
 export function anthropicLimitVerdict(nowMs: number = Date.now()): AnthropicLimitVerdict {
   if (!verdictOwnerStands()) return { status: 'unknown' }
-  if (verdictObservedAtMs === null) return { status: currentLimits.status }
+  if (verdictObservedAtMs === null) return { status: laneQuotaStatus(currentLimits) }
   const resetsAtMs = statedResetMs(currentLimits.resetsAt)
   const lapsesAtMs = resetsAtMs ?? verdictObservedAtMs + SEED_DEFAULT_TTL_SECONDS * 1000
   if (lapsesAtMs <= nowMs) return { status: 'unknown' }
   return {
-    status: currentLimits.status,
+    status: laneQuotaStatus(currentLimits),
     observedAtMs: verdictObservedAtMs,
     account: currentAnthropicAccountName(),
     lapsesAtMs,
@@ -506,6 +514,7 @@ export type AnthropicWindowFact = {
   owner: string
   resetsAtMs?: number
   claim?: RateLimitType
+  onExtraUsage?: boolean
 }
 
 export function anthropicWindowFact(): AnthropicWindowFact | undefined {
@@ -517,11 +526,12 @@ export function anthropicWindowFact(): AnthropicWindowFact | undefined {
     owner: verdictOwner,
     ...(resetsAtMs !== undefined ? { resetsAtMs } : {}),
     ...(currentLimits.rateLimitType !== undefined ? { claim: currentLimits.rateLimitType } : {}),
+    ...(currentLimits.isUsingOverage ? { onExtraUsage: true } : {}),
   }
 }
 
-export function anthropicWindowClosedUntil(fact: { status: string; observedAtMs: number; resetsAtMs?: number } | undefined, nowMs: number): number | undefined {
-  if (fact === undefined || fact.status !== 'rejected') return undefined
+export function anthropicWindowClosedUntil(fact: { status: string; observedAtMs: number; resetsAtMs?: number; onExtraUsage?: boolean } | undefined, nowMs: number): number | undefined {
+  if (fact === undefined || fact.status !== 'rejected' || fact.onExtraUsage === true) return undefined
   const stated = fact.resetsAtMs !== undefined && Number.isFinite(fact.resetsAtMs) && fact.resetsAtMs > 0 ? fact.resetsAtMs : undefined
   const until = stated ?? fact.observedAtMs + SEED_DEFAULT_TTL_SECONDS * 1000
   return until > nowMs ? until : undefined
@@ -536,11 +546,13 @@ export function adoptAnthropicWindowFact(fact: unknown): boolean {
   if (f.owner !== resolveOwner()) return false
   if (verdictObservedAtMs !== null && f.observedAtMs <= verdictObservedAtMs) return false
   const resetsAtMs = typeof f.resetsAtMs === 'number' && Number.isFinite(f.resetsAtMs) && f.resetsAtMs > 0 ? f.resetsAtMs : undefined
+  const onExtraUsage = f.status === 'rejected' && (fact as { onExtraUsage?: unknown }).onExtraUsage === true
   const next: AnthropicLimits = {
     status: f.status,
     unifiedRateLimitFallbackAvailable: false,
     resetsAt: resetsAtMs !== undefined ? resetsAtMs / 1000 : undefined,
-    isUsingOverage: false,
+    isUsingOverage: onExtraUsage,
+    ...(onExtraUsage ? { overageStatus: 'allowed' as const } : {}),
   }
   const claim = (fact as { claim?: unknown }).claim
   if (typeof claim === 'string' && claim !== '') next.rateLimitType = claim as RateLimitType

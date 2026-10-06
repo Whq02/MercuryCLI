@@ -77,8 +77,8 @@ function liveReads(): Required<SlotSwitchReads> {
       return plan ? `Claude subscription (${plan})` : 'Claude subscription'
     },
     anthropicWall: () => {
-      const { currentLimits } = require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
-      return currentLimits.status === 'rejected'
+      const { anthropicWindowClosed, currentLimits } = require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
+      return anthropicWindowClosed(currentLimits)
         ? { walled: true, ...(currentLimits.resetsAt !== undefined ? { resetsAtMs: currentLimits.resetsAt * 1000 } : {}) }
         : { walled: false }
     },
