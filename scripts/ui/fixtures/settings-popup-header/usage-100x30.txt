@@ -1,21 +1,21 @@
   lanes             ╭──────────────────────────────────────────────────────────────────────────────╮
-WORKBENCH           │ ✶ VIEW · cedar · viewing                                        popup review │
-  no prompts sent y…│                                                                              │
-                    │ ╭──────────────────────────────────────────────────────────────────────────╮ │
-NEXT                │ │ ▖▟▆▙▗ Mercury · usage                                                    │ │
-  · /workflows — ag…│ │ 12 providers · 0 subscriptions signed in                                 │ │
+WORKBENCH           │                                                                              │
+  no prompts sent y…│ ╭──────────────────────────────────────────────────────────────────────────╮ │
+                    │ │ ▖▟▆▙▗ Mercury · usage                                                    │ │
+NEXT                │ │ 12 providers · 0 subscriptions signed in                                 │ │
+  · /workflows — ag…│ │                                                                          │ │
+                    │ │ Anthropic usage                                                          │ │
+FILES · orchard     │ │ API key · …-key                                                          │ │
+  ↵ or click · brow…│ │ credits: not reported by the provider                                    │ │
                     │ │                                                                          │ │
-FILES · orchard     │ │ Anthropic usage                                                          │ │
-  ↵ or click · brow…│ │ API key · …-key                                                          │ │
-                    │ │ credits: not reported by the provider                                    │ │
-TELEMETRY           │ │                                                                          │ │
-  · spend —         │ │ Subscription                                                             │ │
-  · ctx — · —       │ │ none — /logins anthropic connects a subscription account · n/a           │ │
-  · health — run /h…│ │                                                                          │ │
-                    │ │ API key                                                                  │ │
+TELEMETRY           │ │ Subscription                                                             │ │
+  · spend —         │ │ none — /logins anthropic connects a subscription account · n/a           │ │
+  · ctx — · —       │ │                                                                          │ │
+  · health — run /h…│ │ API key                                                                  │ │
                     │ │ Anthropic API key (ANTHROPIC_API_KEY)                                    │ │
                     │ │ no usage endpoint is read for an API key on this lane — the provider     │ │
                     │ │ console is the view                                                      │ │
+                    │ │                                                                          │ │
                     │ │ JEV official · Mercury's count: no chat open · allowance $20.00 · off ·… │ │
                     │ │ ↓ 11 more · OpenAI · Z.AI · OpenRouter · Gemini · Moonshot · DeepSeek ·… │ │
                     │ │                                                                          │ │

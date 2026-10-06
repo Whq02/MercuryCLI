@@ -1,21 +1,20 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
-WORKBENCH               │ ✶ VIEW · cedar · viewing                                                        popup review │
-  no prompts sent yet   │                                                                                              │
-                        │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
-NEXT                    │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
-  · /workflows — agent …│ │ orchard · 57 settings · 0 set by you                                                     │ │
-  · /health — health ce…│ │                                                                                          │ │
-  · /memory — memory    │ │ / Search settings…                                                                       │ │
-  · /mission — set a mi…│ │                                                                                          │ │
-                        │ │ › Auto-compact                      on                                                   │ │
-FILES · orchard         │ │   Session concourse                 on                                                   │ │
-  ↵ or click · browse   │ │   Seats                             17 · this machine's reading                          │ │
-                        │ │   Tips                              on                                                   │ │
-TELEMETRY               │ │   Reduced motion                    off                                                  │ │
-  · spend —             │ │   Ping                              on                                                   │ │
-  · ctx — · —           │ │   Motion                            auto · off                                           │ │
-  · health — run /health│ │   JEV                               off · official                                       │ │
-                        │ │   Instruction profile               auto                                                 │ │
+WORKBENCH               │                                                                                              │
+  no prompts sent yet   │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
+                        │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
+NEXT                    │ │ orchard · 57 settings · 0 set by you                                                     │ │
+  · /workflows — agent …│ │                                                                                          │ │
+  · /health — health ce…│ │ / Search settings…                                                                       │ │
+  · /memory — memory    │ │                                                                                          │ │
+  · /mission — set a mi…│ │ › Auto-compact                      on                                                   │ │
+                        │ │   Session concourse                 on                                                   │ │
+FILES · orchard         │ │   Seats                             17 · this machine's reading                          │ │
+  ↵ or click · browse   │ │   Tips                              on                                                   │ │
+                        │ │   Reduced motion                    off                                                  │ │
+TELEMETRY               │ │   Ping                              on                                                   │ │
+  · spend —             │ │   Motion                            auto · off                                           │ │
+  · ctx — · —           │ │   JEV                               off · official                                       │ │
+  · health — run /health│ │   Instruction profile               auto                                                 │ │
                         │ │   Shell engine                      system                                               │ │
                         │ │   Patience with a quiet model       normal · idle 6m (quiet 15m) · fallback 15m · retry  │ │
                         │ │   OpenRouter routing policy         n/a — applies to OpenRouter models (Anthropic is     │ │
@@ -27,7 +26,8 @@ TELEMETRY               │ │   Reduced motion                    off         
                         │ │   Default permission mode           Default                                              │ │
                         │ │   Pinned memory limit               0 of 8k                                              │ │
                         │ │   Respect .gitignore in file picker on                                                   │ │
-                        │ │ ↓ 37 more                                                                                │ │
+                        │ │   Always copy full response         off                                                  │ │
+                        │ │ ↓ 36 more                                                                                │ │
                         │ │                                                                                          │ │
                         │ │ ↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes                 │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
