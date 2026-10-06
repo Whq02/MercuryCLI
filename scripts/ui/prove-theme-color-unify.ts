@@ -64,7 +64,7 @@ const oldChartEsc = (themeColor: string): string => {
   return '\x1b[35m'
 }
 
-const THEMES = ['dark', 'dark-ansi', 'light', 'light-ansi']
+const THEMES = ['dark', 'true-black', 'not-a-theme']
 const FIELDS = ['suggestion', 'success', 'warning']
 let agree = 0
 let total = 0
@@ -79,7 +79,7 @@ for (const name of THEMES) {
 }
 check(`FIXED chart series === legend bullet for ALL ${total} (theme × field) cells`, agree === total, `${agree}/${total}`)
 
-const ansiCases = [theme.getTheme('dark-ansi').suggestion!, theme.getTheme('light-ansi').suggestion!]
+const ansiCases = ['ansi:red', 'ansi:blueBright']
 let oldDesynced = 0
 let newAgreed = 0
 for (const c of ansiCases) {

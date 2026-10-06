@@ -823,14 +823,14 @@ const git = (cwd: string, cmd: string): string => execSync(`git ${cmd}`, { cwd, 
   const declaredRoles = (src('src/utils/theme.ts').match(/^export type Theme = \{\n([\s\S]*?)\n\}/m)?.[1] ?? '')
     .split('\n')
     .filter(line => /^  [A-Za-z0-9_]+: string$/.test(line)).length
-  check('52. getTheme: every role for all six names + unrecognised', complete && declaredRoles > 0 && roleKeys.length === declaredRoles, `roles=${roleKeys.length} declared=${declaredRoles}`)
+  check('52. getTheme: every role for both appearances + unrecognised', complete && declaredRoles > 0 && roleKeys.length === declaredRoles, `roles=${roleKeys.length} declared=${declaredRoles}`)
 }
 
 {
   const withOverlay = getTheme('dark')
   process.env.MERCURY_WARM_INK = '0'
   const base = getTheme('dark')
-  const baseAgain = getTheme('light-ansi')
+  const baseAgain = getTheme('true-black')
   delete process.env.MERCURY_WARM_INK
   const overlayDiffers = JSON.stringify(withOverlay) !== JSON.stringify(base)
   const stable = JSON.stringify(base) === JSON.stringify((() => {
@@ -863,22 +863,22 @@ const git = (cwd: string, cmd: string): string => execSync(`git ${cmd}`, { cwd, 
     return `#${[m[1], m[2], m[3]].map(x => Number(x).toString(16).padStart(2, '0')).join('')}`
   }
   const dark = getTheme('dark')
-  const darkDalt = getTheme('dark-daltonized')
-  const light = getTheme('light')
+  const trueBlack = getTheme('true-black')
   const eq = (a: string, b: string): boolean => rgbToHex(a).toLowerCase() === rgbToHex(b).toLowerCase()
   const spineShared =
-    eq(dark.success, MERCURY_TEAL) && eq(dark.error, MERCURY_CRIMSON) && eq(dark.warning, MERCURY_AMBER) && !eq(darkDalt.success, MERCURY_TEAL)
+    eq(dark.success, MERCURY_TEAL) && eq(dark.error, MERCURY_CRIMSON) && eq(dark.warning, MERCURY_AMBER) && eq(trueBlack.success, MERCURY_TEAL)
   const pairsLighter = (t: Theme): boolean =>
     lum(rgbToHex(t.infoShimmer)) > lum(rgbToHex(t.info)) && lum(rgbToHex(t.brandShimmer)) > lum(rgbToHex(t.brand))
   const dimsDesaturated = (t: Theme): boolean =>
     sat(rgbToHex(t.diffAddedDimmed)) < sat(rgbToHex(t.diffAdded)) && sat(rgbToHex(t.diffRemovedDimmed)) < sat(rgbToHex(t.diffRemoved))
-  const ansiDark = getTheme('dark-ansi')
-  const ansiAllNamed = Object.values(ansiDark).every(v => typeof v === 'string')
-  const equalityAllowed = ansiDark.info === ansiDark.infoShimmer || ansiDark.info !== ansiDark.infoShimmer
+  const dimsDarker = (t: Theme): boolean =>
+    lum(rgbToHex(t.diffAddedDimmed)) < lum(rgbToHex(t.diffAdded)) && lum(rgbToHex(t.diffRemovedDimmed)) < lum(rgbToHex(t.diffRemoved))
+  const unknown = getTheme('not-a-theme')
+  const unknownShaped = Object.values(unknown).every(v => typeof v === 'string')
   check(
-    '54. family-scoped: shimmers lighter + dims desaturated in colour families; restricted families named-ANSI with equal-pairs allowed',
-    pairsLighter(dark) && pairsLighter(darkDalt) && pairsLighter(light) && dimsDesaturated(dark) && dimsDesaturated(darkDalt) && ansiAllNamed && ansiDark.info.startsWith('ansi') && equalityAllowed && spineShared,
-    JSON.stringify({ info: dark.info, shimmer: dark.infoShimmer, ansiInfo: ansiDark.info }),
+    '54. appearance-scoped: shimmers lighter + dims desaturated in dark; True Black dims darker toward its black ground; the unknown name keeps the same role shape and spine',
+    pairsLighter(dark) && pairsLighter(trueBlack) && dimsDesaturated(dark) && dimsDarker(trueBlack) && unknownShaped && spineShared,
+    JSON.stringify({ info: dark.info, shimmer: dark.infoShimmer, unknownInfo: unknown.info }),
   )
 }
 

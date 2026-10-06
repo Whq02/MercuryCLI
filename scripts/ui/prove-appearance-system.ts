@@ -54,19 +54,9 @@ section('§2 — deliberate expressions, not dark leftovers')
   check('dark = the oasis brand mapping (status spine)', dark.success === brand.TEAL && dark.warning === brand.AMBER && dark.failure === brand.CRIMSON)
   check('dark diff spine = the brand diff tints', dark.diffAddRow === brand.DIFF_ADD_BG && dark.diffRemoveWord === brand.DIFF_DEL_WORD)
 
-  const light = tokensMod.resolveMercuryTokens('light', ACCENT)
-  const lightTheme = themeMod.getTheme('light')
-  check('light ink comes from the LIGHT palette, never IVORY', light.textPrimary === lightTheme.text && light.textPrimary !== brand.IVORY)
-  check('light status spine comes from the light palette', light.success === lightTheme.success && light.failure === lightTheme.error)
-  check('light diff colors come from the light palette', light.diffAddRow === lightTheme.diffAdded)
-
-  const daltonized = tokensMod.resolveMercuryTokens('dark-daltonized', ACCENT)
-  const daltTheme = themeMod.getTheme('dark-daltonized')
-  check('daltonized palettes stay authoritative (success/failure)', daltonized.success === daltTheme.success && daltonized.failure === daltTheme.error)
-
-  const ansi = tokensMod.resolveMercuryTokens('light-ansi', ACCENT)
-  check('ansi family quantizes through its own named colors', ansi.success.startsWith('ansi:'))
-  check('the identity accent rides every family', light.accent === ACCENT && daltonized.accent === ACCENT && ansi.accent === ACCENT)
+  const trueBlack = tokensMod.resolveMercuryTokens('true-black', ACCENT)
+  check('true-black keeps the oasis ink on the black-anchored ground', trueBlack.textPrimary === brand.IVORY && trueBlack.surface1 !== dark.surface1)
+  check('the identity accent rides every family', dark.accent === ACCENT && trueBlack.accent === ACCENT)
 }
 
 section('§3 — agent accents')
@@ -76,12 +66,8 @@ section('§3 — agent accents')
     check(`${family}: 8 agent accents`, t.agentAccents.length === 8)
     const colors = t.agentAccents.map(a => a.color)
     const names = t.agentAccents.map(a => a.name)
-    if (family.endsWith('-ansi')) {
-      check(`${family}: ≥6 distinct after intentional quantization`, new Set(colors).size >= 6, `${new Set(colors).size}`)
-      check(`${family}: names stay pairwise distinct (meaning never rides color alone)`, new Set(names).size === 8)
-    } else {
-      check(`${family}: pairwise distinct`, new Set(colors).size === colors.length)
-    }
+    check(`${family}: pairwise distinct`, new Set(colors).size === colors.length)
+    check(`${family}: names stay pairwise distinct (meaning never rides color alone)`, new Set(names).size === 8)
   }
   const a = tokensMod.resolveMercuryTokens('dark', ACCENT)
   const b = tokensMod.resolveMercuryTokens('dark', ACCENT)
@@ -94,9 +80,8 @@ section('§4 — the ground follows the theme')
   delete process.env.MERCURY_OASIS_BG
   process.env.TERM = 'xterm-256color'
   check('dark family + TTY ⇒ ground enabled', oasis.oasisBgEnabled(true, 'dark') === true)
-  check('dark-daltonized ⇒ ground enabled', oasis.oasisBgEnabled(true, 'dark-daltonized') === true)
-  check('light family ⇒ ground NEVER painted', oasis.oasisBgEnabled(true, 'light') === false)
-  check('light-ansi ⇒ ground NEVER painted', oasis.oasisBgEnabled(true, 'light-ansi') === false)
+  check('true-black ⇒ ground enabled', oasis.oasisBgEnabled(true, 'true-black') === true)
+  check('an unknown name ⇒ ground NEVER painted', oasis.oasisBgEnabled(true, 'not-a-theme') === false)
   check('MERCURY_OASIS_BG=0 still kills it', (process.env.MERCURY_OASIS_BG = '0', oasis.oasisBgEnabled(true, 'dark') === false))
   delete process.env.MERCURY_OASIS_BG
 
@@ -105,12 +90,12 @@ section('§4 — the ground follows the theme')
   const out: string[] = []
   oasis.syncOasisBgToTheme('dark', s => out.push(s))
   const painted = out.some(s => s.includes(']11;'))
-  oasis.syncOasisBgToTheme('light', s => out.push(s))
+  oasis.syncOasisBgToTheme('not-a-theme', s => out.push(s))
   const restored = out.some(s => s.includes(']111'))
   check('sync dark ⇒ paints once', painted)
-  check('sync to light ⇒ hands the profile ground back', restored)
+  check('sync to an unknown name ⇒ hands the profile ground back', restored)
   const before = out.length
-  oasis.syncOasisBgToTheme('light', s => out.push(s))
+  oasis.syncOasisBgToTheme('not-a-theme', s => out.push(s))
   check('sync is idempotent (no repeat restore)', out.length === before)
   Object.defineProperty(process.stdout, 'isTTY', { value: realIsTTY, configurable: true })
 
@@ -281,9 +266,9 @@ section('§7 — the default appearance: True Black, and a saved choice wins')
   check('…and the health row reports it', darkSnap.requestedTheme === 'dark' && darkSnap.concreteTheme === 'dark')
   cfg.saveGlobalConfig(c => ({ ...c, theme: 'true-black' }))
   check('a saved True Black choice stays True Black', provider.currentStoredThemeSetting() === 'true-black')
-  cfg.saveGlobalConfig(c => ({ ...c, theme: 'light' }))
+  cfg.saveGlobalConfig(c => ({ ...c, theme: 'not-a-theme' }))
   check(
-    'a stored dormant family collapses onto the default at the resolution owner',
+    'a stored unknown name collapses onto the default at the resolution owner',
     provider.currentStoredThemeSetting() === DEFAULT_THEME_SETTING,
   )
   cfg.saveGlobalConfig(c => ({ ...c, theme: 'auto' }))

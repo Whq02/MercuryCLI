@@ -8,11 +8,7 @@ import React, {
 } from 'react'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
-import {
-  DEFAULT_THEME_SETTING,
-  getSystemThemeName,
-  type SystemTheme,
-} from '../../utils/systemTheme.js'
+import { DEFAULT_THEME_SETTING, resolveThemeSetting } from '../../utils/systemTheme.js'
 import { syncOasisBgToTheme } from '../../utils/cockpit/oasisBg.js'
 import {
   REACHABLE_THEME_SETTINGS,
@@ -72,13 +68,9 @@ export function ThemeProvider({
   const [previewSetting, setPreviewSettingState] = useState<
     ThemeSetting | undefined
   >(undefined)
-  const [systemTheme, setSystemTheme] = useState<SystemTheme>(() =>
-    (previewSetting ?? savedSetting) === 'auto' ? getSystemThemeName() : 'dark',
-  )
 
   const effectiveSetting = previewSetting ?? savedSetting
-  const resolvedTheme: ThemeName =
-    effectiveSetting === 'auto' ? systemTheme : effectiveSetting
+  const resolvedTheme: ThemeName = resolveThemeSetting(effectiveSetting)
 
   useEffect(() => {
     syncOasisBgToTheme(resolvedTheme)
@@ -99,11 +91,9 @@ export function ThemeProvider({
         setSavedSetting(setting)
         setPreviewSettingState(undefined)
         persist(setting)
-        if (setting === 'auto') setSystemTheme(getSystemThemeName())
       },
       setPreviewTheme: (setting: ThemeSetting): void => {
         setPreviewSettingState(setting)
-        if (setting === 'auto') setSystemTheme(getSystemThemeName())
       },
       savePreview: (): void => {
         if (previewSetting === undefined) return

@@ -140,8 +140,8 @@ section('§4 — policy gates')
   const darkTokens = tokensMod.resolveMercuryTokens('dark', '#DD4444')
   const target = policy.recessTargetFor(darkTokens)
   check('dark family resolves a target toward NIGHT', target !== null && target.canvas.join(',') === '13,24,27')
-  const ansiTokens = tokensMod.resolveMercuryTokens('dark-ansi', '#DD4444')
-  check('16-color family resolves NULL (no derived dim on names)', policy.recessTargetFor(ansiTokens) === null)
+  const namedInkTokens = { ...darkTokens, textPrimary: 'ansi:white' } as typeof darkTokens
+  check('unparseable ink resolves NULL (no derived dim on names — every resolved theme is hex now, the guard stays)', policy.recessTargetFor(namedInkTokens) === null)
 
   const policySrc = readFileSync(join(ROOT, 'src/utils/cockpit/recessBackdrop.ts'), 'utf-8')
   check('policy consults the boot-latched NO_COLOR verdict', /CHALK_DISABLED_FOR_NO_COLOR/.test(policySrc))

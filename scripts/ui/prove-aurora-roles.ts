@@ -78,7 +78,7 @@ section('§3 — the mode ladder: fixed, pairwise-distinct semantics (dark)')
 
 section('§4 — ACCENT BLOOM: derived per accent, per family')
 {
-  const t = (name: (typeof FAMILIES)[number], accent: string) => tokensMod.resolveMercuryTokens(name, accent)
+  const t = (name: string, accent: string) => tokensMod.resolveMercuryTokens(name, accent)
   check('crab (TERRA) keeps the authored BELLY byte-equal',
     t('dark', brand.TERRA).accentSoft === brand.BELLY)
   const others: Array<[string, string]> = [
@@ -91,13 +91,13 @@ section('§4 — ACCENT BLOOM: derived per accent, per family')
     check(`${name} blooms from its OWN hue (≠ crab coral, = derived)`,
       soft !== brand.BELLY && soft === tokensMod.deriveAccentSoft(hue, brand.IVORY), soft)
   }
-  const lightTheme = themeMod.getTheme('light')
-  check('light family blooms toward its OWN primary ink',
-    t('light', brand.TERRA).accentSoft === tokensMod.deriveAccentSoft(brand.TERRA, lightTheme.text))
-  check('ansi family collapses the bloom onto the accent (16-color reality)',
-    t('dark-ansi', brand.TERRA).accentSoft === brand.TERRA)
-  check('non-dark info comes from theme.info (never the accent-circular permission)',
-    t('light', brand.TERRA).info === lightTheme.info)
+  const unknownTheme = themeMod.getTheme('not-a-theme')
+  check('the unknown name blooms toward the resolved primary ink',
+    t('not-a-theme', brand.TERRA).accentSoft === tokensMod.deriveAccentSoft(brand.TERRA, unknownTheme.text))
+  check('an unparseable role collapses the bloom onto the accent',
+    t('not-a-theme', 'ansi:red').accentSoft === 'ansi:red')
+  check('unknown-name info comes from theme.info (never the accent-circular permission)',
+    t('not-a-theme', brand.TERRA).info === unknownTheme.info)
   check('dark tokens.info = OASIS', t('dark', brand.TERRA).info === brand.OASIS)
 }
 

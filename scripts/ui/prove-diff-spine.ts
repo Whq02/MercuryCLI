@@ -47,12 +47,11 @@ check(`color-diff addWord == DIFF_ADD_WORD (${hexToRgb(DIFF_ADD_WORD)})`, cd.inc
 check(`color-diff deleteLine == DIFF_DEL_BG (${hexToRgb(DIFF_DEL_BG)})`, cd.includes(`deleteLine: ${hexToRgb(DIFF_DEL_BG)}`))
 check(`color-diff deleteWord == DIFF_DEL_WORD (${hexToRgb(DIFF_DEL_WORD)})`, cd.includes(`deleteWord: ${hexToRgb(DIFF_DEL_WORD)}`))
 
-section('accessibility / light themes are NOT remapped (fix is inside shouldWarmInk)')
-const ansi = getTheme('dark-ansi')
-check('dark-ansi keeps ansi diff colors (colorblind-safe)', String(ansi.diffAdded).startsWith('ansi:'), String(ansi.diffAdded))
-const light = getTheme('light')
-check('light keeps its own light-green diffAdded', String(light.diffAdded).startsWith('rgb('), String(light.diffAdded))
-check('light diffAdded is NOT the dark brand tint', light.diffAdded !== DIFF_ADD_BG)
+section('an unknown name resolves onto the brand spine, exactly as the appearances do')
+const unknown = getTheme('not-a-theme')
+const darkT = getTheme('dark')
+check('the unknown name rides the same brand diffAdded as dark', unknown.diffAdded === darkT.diffAdded, String(unknown.diffAdded))
+check('the unknown name rides the same brand diffRemovedWord as dark', unknown.diffRemovedWord === darkT.diffRemovedWord)
 
 section('HB-0220: CRLF in a diff input is normalized → no \\r in hunk lines (Windows)')
 const crlfHunks = getPatchForDisplay({

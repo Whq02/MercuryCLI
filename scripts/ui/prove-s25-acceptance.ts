@@ -271,8 +271,8 @@ pin('ground sync on every resolved value (5)', 'components/design-system/ThemePr
   'syncOasisBgToTheme(resolvedTheme)',
   '}, [resolvedTheme])',
 ])
-pin('auto re-seed on apply and preview (3)', 'components/design-system/ThemeProvider.tsx', [
-  "if (setting === 'auto') setSystemTheme(getSystemThemeName())",
+pin('auto resolves through the one owner on every read (3)', 'components/design-system/ThemeProvider.tsx', [
+  "resolveThemeSetting(effectiveSetting)",
 ])
 pin('text primitive: hover>dim>explicit + alias map (6, §8-1/2)', 'components/design-system/ThemedText.tsx', [
   'if (!color && hoverColor) {',
