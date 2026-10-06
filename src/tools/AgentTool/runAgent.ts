@@ -72,6 +72,8 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { createChildAbortController } from '../../utils/abortController.js'
 import { AbortError, errorMessage } from '../../utils/errors.js'
 import { createUserMessage } from '../../utils/messages.js'
+import { isCompactBoundaryMessage } from '../../utils/messages/systemMessages.js'
+import { refusalRetryRowOf } from './refusalRetry.js'
 import { getAgentModel } from '../../utils/model/agent.js'
 import { readCatalogueIfPending } from '../../services/providers/catalogueOnDemand.js'
 import { delegationDispatchBlocker } from '../../services/providers/providerUsability.js'
@@ -1066,8 +1068,10 @@ export async function* runAgent(
       }
       onQueryProgress?.(message as Message)
     }
+    const retriedRefusals = new Set<string>()
+    let runMessages: Message[] = messages
     const pausableQuery = async function* (): AsyncGenerator<LegacyQueryYield, void> {
-      const stream = settledSidechainMessages(query(queryParams), observeProgress)
+      const stream = settledSidechainMessages(query({ ...queryParams, messages: runMessages }), observeProgress)
       let atRequestBoundary = true
       try {
         for (;;) {
@@ -1097,6 +1101,10 @@ export async function* runAgent(
       }
     }
 
+    for (;;) {
+    const streamedRows: Message[] = []
+    let lastAssistantRow: Message | undefined
+    let stoppedEarly = false
     for await (const message of pausableQuery()) {
       const anyMessage = message as Message & {
         subtype?: string
@@ -1104,6 +1112,7 @@ export async function* runAgent(
       }
       if (anyMessage.type === 'stream_event' as never) continue
       if (anyMessage.type === 'attachment') {
+        streamedRows.push(message as Message)
         await landAgentTranscriptRows(
           [message as Message],
           agentId,
@@ -1117,6 +1126,7 @@ export async function* runAgent(
           logForDebugging(
             `runAgent: ${agentId} hit its max-turns limit — stopping`,
           )
+          stoppedEarly = true
           yield message as Message
           break
         }
@@ -1127,6 +1137,7 @@ export async function* runAgent(
           logForDebugging(
             `runAgent: ${agentId} was ended by the loop guard — stopping`,
           )
+          stoppedEarly = true
           yield message as Message
           break
         }
@@ -1149,8 +1160,31 @@ export async function* runAgent(
       )
       if (anyMessage.type !== 'progress') {
         lastRecordedUuid = (message as { uuid?: string }).uuid
+        streamedRows.push(message as Message)
+        if (anyMessage.type === 'assistant') lastAssistantRow = message as Message
       }
       yield message as Message
+    }
+
+    const refusalRetry =
+      stoppedEarly || watchdog.fired || throttled !== null || abortController.signal.aborted
+        ? null
+        : refusalRetryRowOf(lastAssistantRow, retriedRefusals, resolvedAgentModel)
+    if (refusalRetry === null) break
+    retriedRefusals.add(refusalRetry.refusalClass)
+    logForDebugging(
+      `runAgent: ${agentId} ended on a refused ${refusalRetry.refusalClass} — one retry from its transcript`,
+    )
+    await landAgentTranscriptRows(
+      [refusalRetry.row],
+      agentId,
+      lastRecordedUuid as never,
+    )
+    lastRecordedUuid = refusalRetry.row.uuid
+    yield refusalRetry.row
+    const carried = [...runMessages, ...streamedRows]
+    const boundaryAt = carried.findLastIndex(row => isCompactBoundaryMessage(row))
+    runMessages = [...(boundaryAt >= 0 ? carried.slice(boundaryAt) : carried), refusalRetry.row]
     }
 
     if (watchdog.fired) {
