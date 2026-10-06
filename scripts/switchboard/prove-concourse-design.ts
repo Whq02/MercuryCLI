@@ -160,7 +160,7 @@ console.log('§2 — the older-chats drop-down: unfolds on the board, ↵ reacti
   check('the entries come from THE CENSUS at the unfold, bounded by the week-tier budget (the count stays unbounded)', screen.includes('olderChatsCensus(projectDir, excluded, Date.now(), { entryCap: PARKED_CAP })'))
   check('the drop-down rides the peek\'s granted-rows channel in BOTH geometry call sites (one owner)', screen.includes('rowPeekOpen ? ROW_PEEK_DESIRED_ROWS : olderRows > 0 ? olderRows : chipRows') && layout.includes('rowPeekOpen ? ROW_PEEK_DESIRED_ROWS : olderRows > 0 ? olderRows : rowChipRows'))
   check('esc folds the list BEFORE the peek layer and the exit (one layer at a time)', ordered(screen, 'setOlderList(null)\n        return', 'setRowPeekOpen(false)\n        return') && ordered(screen, "if (ctx.kind !== 'chat') {", 'if (olderListRef.current !== null) {'))
-  check('the tail is the honest arithmetic: window overflow + the census rest + the fold hint', screen.includes('+${beyond} more — /resume lists everything') && screen.includes("'esc folds'"))
+  check('the tail is the honest arithmetic: window overflow + the census rest + the fold hint', screen.includes('+${beyond} more — /sessions lists everything') && screen.includes("'esc folds'"))
   const win = paneWindow(10, 7, 5)
   check('the cursor window keeps the pick visible with exact overflow counts (10 entries · cursor 7 · span 5)', win.start <= 7 && 7 < win.end && win.above === win.start && win.below === 10 - win.end)
 }
