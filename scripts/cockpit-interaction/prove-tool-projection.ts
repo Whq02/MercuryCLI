@@ -352,10 +352,11 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
       'no raw-query highlight remains',
     )
     const row = readFileSync('src/components/messages/AssistantToolUseMessage.tsx', 'utf8')
-    t.check('the tool row wears the family mark', row.includes('toolMarkFor(param.name)'), 'marked')
+    const lead = readFileSync('src/components/messages/ToolRowLead.tsx', 'utf8')
+    t.check('the tool row wears the family mark through its lead', row.includes('toolFamilyFor(param.name)') && row.includes('<ToolRowLead family={family}'), 'marked')
     t.check(
       'toned through the registry, never a literal colour',
-      row.includes('toolToneFor(param.name, tokens)'),
+      lead.includes('TOOL_FAMILY_MARKS[family]') && lead.includes('tokens[mark.tone]') && !/color=["']#/.test(lead),
       'registry-toned',
     )
   }
