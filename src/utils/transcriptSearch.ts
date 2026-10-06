@@ -151,7 +151,6 @@ export function renderableSearchText(msg: RenderableMessage): string {
 
 export const NON_INDEXING_TOOLS: ReadonlySet<string> = new Set([
   'ApolloReview',
-  'ArtifactsList',
   'Checkpoint',
   'Correct',
   'CronCreate',
@@ -179,7 +178,6 @@ export const NON_INDEXING_TOOLS: ReadonlySet<string> = new Set([
   'TaskList',
   'TaskStop',
   'TaskUpdate',
-  'LiveComms',
   'ToolSearch',
   'Workflow',
   'Contract',
