@@ -25,10 +25,10 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     key: 'session',
     label: 'session & context',
     names: [
-      'clear', 'compact', 'context', 'auto-compact-window', 'resume',
+      'clear', 'compact', 'context', 'resume',
       'rewind', 'sessions', 'sessiontab', 'concourse', 'branches',
       'export', 'usage',
-      'debrief', 'rename', 'title', 'contract',
+      'rename', 'title', 'contract',
       'copy',
       'realms',
     ],
@@ -82,7 +82,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     key: 'appearance',
     label: 'appearance & cockpit',
     names: [
-      'cockpit', 'home', 'palette', 'critter', 'view', 'showcase',
+      'cockpit', 'palette', 'critter', 'view', 'showcase',
       'accent', 'fullscreen',
       'appearance',
     ],
