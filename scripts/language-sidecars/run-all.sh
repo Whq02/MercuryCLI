@@ -5,7 +5,7 @@
 # gate-watch: vendor/grammars.lock.json scripts/vendor/fetch-grammars.ts
 # gate-watch: src/services/lsp/webSidecar/** src/services/lsp/sidecarFraming.ts src/services/lsp/serverCatalogue.ts
 # gate-watch: src/services/browser/** src/tools/BrowserTool/** src/commands/browser/**
-# gate-watch: src/services/visual/** src/services/lsp/builtinServers.ts src/services/lsp/pyrightLane.ts
+# gate-watch: src/services/visual/** src/services/lsp/builtinServers.ts src/services/lsp/pyrightLane.ts src/utils/cockpit/oasisBg.ts
 # gate-watch: scripts/language-sidecars/**
 # gate-watch: scripts/lib/executionProfile.ts src/ink/cell-grid.ts src/services/lsp/tsSidecar/entry.ts
 # gate-watch: src/utils/cwd.ts src/utils/healthReport.ts

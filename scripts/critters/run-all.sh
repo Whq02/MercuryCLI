@@ -75,6 +75,11 @@ __t=$SECONDS; __rc=0; if ! { "$BUN" run scripts/critters/prove-critter-four-eyes
 fi
 prover_mark scripts/critters/prove-critter-four-eyes.ts "$__t" "$__rc"
 
+__t=$SECONDS; __rc=0; if ! { "$BUN" run scripts/critters/prove-critter-eye-ground.ts; __rc=$?; [ "$__rc" -eq 0 ]; }; then
+  fail=1
+fi
+prover_mark scripts/critters/prove-critter-eye-ground.ts "$__t" "$__rc"
+
 __t=$SECONDS; __rc=0; if ! { "$BUN" run scripts/critters/prove-square-berths.ts; __rc=$?; [ "$__rc" -eq 0 ]; }; then
   fail=1
 fi

@@ -19,14 +19,14 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
 const React = (await import('react')).default
 const { renderToString, renderToAnsiString } = await import('../../src/utils/staticRender.tsx')
-const { CritterArt, critterFrameCacheStatsForProofs } = await import('../../src/components/mercury-ui/CritterArt.js')
+const { CritterArt, paintCritterArt, critterFrameCacheStatsForProofs } = await import('../../src/components/mercury-ui/CritterArt.js')
 
 type Def = (typeof cd.CRITTERS)[number]
 type Form = 'square' | 'art' | 'mini'
 type Props = Record<string, unknown>
 type El = { type: unknown; props: { children?: unknown } }
 
-const paint = (CritterArt as unknown as { type: (p: Props) => El }).type
+const paint = paintCritterArt as unknown as (p: Props) => El
 const linesOf = (root: El): El[] => (root.props.children as El[]) ?? []
 const defFor = (def: Def, form: Form): Def => (form === 'mini' ? { ...def, art: cd.miniArtFor(def.name) } : form === 'square' ? { ...def } : def)
 const formProps = (form: Form): Props => ({ square: form === 'square', mini: form === 'mini' })
@@ -296,7 +296,7 @@ t.section('§7 — source locks')
   const painter = await Bun.file('src/components/mercury-ui/CritterArt.tsx').text()
   t.check('the painter keys its frame cache by the def object (the def-identity rule)', /new WeakMap<CritterDef, Map<string, FrameCache>>/.test(painter))
   t.check('the painter hands back a cached root before building lines', painter.indexOf('cache.roots.get(frameKey)') > 0 && painter.indexOf('cache.roots.get(frameKey)') < painter.indexOf('cache.lines.get(lineKey)'))
-  t.check('the painter runs no hooks (callable as a pure function)', !/\buse[A-Z]\w*\(/.test(painter.slice(painter.indexOf('function CritterArtImpl'), painter.indexOf('export const CritterArt'))))
+  t.check('the painter runs no hooks (callable as a pure function)', painter.indexOf('export function paintCritterArt') > 0 && !/\buse[A-Z]\w*\(/.test(painter.slice(painter.indexOf('export function paintCritterArt'), painter.indexOf('export const CritterArt'))))
 }
 
 t.finish('CRITTER-FRAME-CACHE')

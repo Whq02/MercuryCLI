@@ -4,6 +4,7 @@ import * as path from 'node:path'
 import { rgbToXterm256 } from '../../ink/cell-grid.js'
 import { truecolorActive } from '../../ink/colorize.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { groundRgb } from './spriteToAnsi.js'
 
 export type ImageProtocol = 'iterm' | 'kitty' | 'sixel' | 'cells' | 'link'
 
@@ -161,6 +162,7 @@ export async function imageToCells(png: Buffer, maxCols = 76, maxRows = 22): Pro
     .raw()
     .toBuffer({ resolveWithObject: true })
   const { width, height } = info
+  const ground = groundRgb()
   const lines: string[] = []
   for (let y = 0; y < height; y += 2) {
     let line = ''
@@ -178,6 +180,11 @@ export async function imageToCells(png: Buffer, maxCols = 76, maxRows = 22): Pro
         line += truecolorActive()
           ? `${ESC}[48;2;${tr};${tg};${tb}m${ESC}[38;2;${br};${bg};${bb}m▄`
           : `${ESC}[48;5;${rgbToXterm256(tr, tg, tb)}m${ESC}[38;5;${rgbToXterm256(br, bg, bb)}m▄`
+      } else if (ground) {
+        const [gr, gg, gb] = ground
+        line += truecolorActive()
+          ? `${ESC}[48;2;${tr};${tg};${tb}m${ESC}[38;2;${gr};${gg};${gb}m▄`
+          : `${ESC}[48;5;${rgbToXterm256(tr, tg, tb)}m${ESC}[38;5;${rgbToXterm256(gr, gg, gb)}m▄`
       } else {
         line += truecolorActive()
           ? `${ESC}[38;2;${tr};${tg};${tb}m▀`

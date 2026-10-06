@@ -1,6 +1,8 @@
+import chalk from 'chalk'
 import * as React from 'react'
 import { Box, Text } from '../../ink.js'
 import { applyGazeKey } from '../../utils/cockpit/critterGaze.js'
+import { subscribeTerminalGround, terminalGround } from '../../utils/cockpit/oasisBg.js'
 import {
   cellColor,
   CR_COLS,
@@ -77,12 +79,18 @@ function paintContextKey(
   glowToward: string | undefined,
   chunky: boolean,
   gridCols: number,
+  ground: string,
 ): string {
   let legend = ''
   if (legendOverride !== undefined) {
     for (const k of Object.keys(legendOverride)) legend += `${k}=${legendOverride[k]},`
   }
-  return `${def.hue}|${def.hueDeep}|${sleepGlyphsFor(def)}|${legend}|${glowToward ?? ''}|${chunky ? 'k' : 'p'}|${gridCols}`
+  return `${def.hue}|${def.hueDeep}|${sleepGlyphsFor(def)}|${legend}|${glowToward ?? ''}|${chunky ? 'k' : 'p'}|${gridCols}|${ground}`
+}
+
+function groundSnapshot(): string {
+  const ground = terminalGround()
+  return ground.state === 'unknown' ? '' : ground.color
 }
 
 function lineExtras(top: string, bot: string, pupil: string, sleepSlots: readonly number[]): string {
@@ -125,19 +133,7 @@ export function composeCritterFrame(def: CritterDef, opts: CritterFrameOpts): { 
   return { art, sleepSlots }
 }
 
-function CritterArtImpl({
-  def,
-  pupil = '●',
-  gazeKey = '',
-  swayPhase = 0,
-  sleepPhase = null,
-  mini = false,
-  square = false,
-  chunky = false,
-  legendOverride,
-  glowToward,
-  lineBg,
-}: {
+export type CritterArtProps = {
   def: CritterDef
   pupil?: string
   gazeKey?: string
@@ -149,8 +145,29 @@ function CritterArtImpl({
   legendOverride?: Readonly<Record<string, string>>
   glowToward?: string
   lineBg?: (line: number) => string | undefined
-}): React.ReactNode {
+}
+
+function CritterArtLive(props: CritterArtProps): React.ReactNode {
+  const ground = React.useSyncExternalStore(subscribeTerminalGround, groundSnapshot, groundSnapshot)
+  return paintCritterArt({ ...props, ground })
+}
+
+export function paintCritterArt({
+  def,
+  pupil = '●',
+  gazeKey = '',
+  swayPhase = 0,
+  sleepPhase = null,
+  mini = false,
+  square = false,
+  chunky = false,
+  legendOverride,
+  glowToward,
+  lineBg,
+  ground,
+}: CritterArtProps & { ground?: string }): React.ReactNode {
   const { art, sleepSlots } = composeCritterFrame(def, { mini, square, pupil, gazeKey, swayPhase, sleepPhase })
+  const groundInk = chalk.level > 0 ? (ground ?? groundSnapshot()) : ''
   const colorOf = (ch: string | undefined): string | undefined =>
     (ch !== undefined && legendOverride?.[ch]) || cellColor(def, ch)
 
@@ -166,7 +183,7 @@ function CritterArtImpl({
   const lineCount = chunky ? art.length : Math.ceil(art.length / 2)
   const grounds: string[] = []
   for (let i = 0; i < lineCount; i++) grounds.push(lineBg?.(i) ?? '')
-  const context = paintContextKey(def, legendOverride, glowToward, chunky, gridCols)
+  const context = paintContextKey(def, legendOverride, glowToward, chunky, gridCols, groundInk)
   const cache = frameCacheFor(def, context)
   const frameKey = `${pupil}|${sleepSlots.join(',')}\n${grounds.join('|')}\n${art.join('\n')}`
   const cachedRoot = cache.roots.get(frameKey)
@@ -232,6 +249,7 @@ function CritterArtImpl({
   const lines: React.ReactNode[] = []
   for (let r = 0; r < art.length; r += 2) {
     const bg = grounds[r >> 1]!
+    const ground = bg !== '' ? bg : groundInk
     const topRow = art[r]!
     const botRow = art[r + 1] ?? ''
     const lineKey = `${r}|${topRow}|${botRow}|${bg}${lineExtras(topRow, botRow, pupil, sleepSlots)}`
@@ -273,15 +291,27 @@ function CritterArtImpl({
         )
       } else if (tc) {
         cells.push(
-          <Text key={c} color={tc}>
-            ▀
-          </Text>,
+          ground !== '' ? (
+            <Text key={c} color={ground} backgroundColor={tc}>
+              ▄
+            </Text>
+          ) : (
+            <Text key={c} color={tc}>
+              ▀
+            </Text>
+          ),
         )
       } else {
         cells.push(
-          <Text key={c} color={bc}>
-            ▄
-          </Text>,
+          ground !== '' ? (
+            <Text key={c} color={bc} backgroundColor={ground}>
+              ▄
+            </Text>
+          ) : (
+            <Text key={c} color={bc}>
+              ▄
+            </Text>
+          ),
         )
       }
     }
@@ -302,7 +332,7 @@ function CritterArtImpl({
   return root
 }
 
-export const CritterArt = React.memo(CritterArtImpl)
+export const CritterArt = React.memo(CritterArtLive)
 
 export function critterFrameCacheStatsForProofs(def: CritterDef): {
   contexts: number
