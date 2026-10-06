@@ -220,7 +220,8 @@ function dump(label: string, frame: string | undefined): void {
 
 function stripModel(frame: string): string | null {
   for (const line of frame.split('\n')) {
-    const m = line.match(/│ ([A-Za-z][^│]*?) · ● (?:low|medium|high|max)/)
+    if (!/(?:⇧|shift\+)← back/.test(line)) continue
+    const m = line.match(/^ (?:ready · )?([A-Za-z][^·]*?) · (?:low|medium|high|max)\b/)
     if (m) return m[1]!.trim()
   }
   return null
@@ -298,7 +299,7 @@ async function leg(name: 'law' | 'tight'): Promise<void> {
   check(`${tag}: both dialogs completed with an applied receipt (the first's model, then the second's)`, dones.length === 2 && /Model set to Sonnet/.test(dones[0]!) && dones[1]!.includes(`Model set to ${SECOND_LABEL}`), dones.join(' ‖ ') || 'no done rows')
   const settled = marks['settled'] ?? ''
   const model = stripModel(settled)
-  check(`${tag}: the session strip names the SECOND model once both settled — the second row was applied, after the first`, model === SECOND_LABEL, `strip reads ${model ?? '∅'} · done: ${dones.join(' ‖ ')}`)
+  check(`${tag}: the status row names the SECOND model once both settled — the second row was applied, after the first`, model === SECOND_LABEL, `the row reads ${model ?? '∅'} · done: ${dones.join(' ‖ ')}`)
   if (failures > 0 && process.env.FIELD_KEEP !== '1') for (const [label, frame] of Object.entries(marks)) dump(`${tag} · ${label}`, frame)
   if (failures > 0 || process.env.FIELD_KEEP === '1') dump(`${tag} · final grid`, cap.text)
   rmSync(home, { recursive: true, force: true })
