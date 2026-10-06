@@ -29,7 +29,6 @@ const FILES = [
   'src/components/HelmLanesRail.tsx',
   'src/components/HelmTelemetryRail.tsx',
   'src/components/tasks/BackgroundTasksDialog.tsx',
-  'src/components/tasks/InProcessCrewmateDetailDialog.tsx',
   'src/components/tasks/AsyncAgentDetailDialog.tsx',
   'src/components/tasks/taskStatusUtils.tsx',
   'src/components/TaskListV2.tsx',

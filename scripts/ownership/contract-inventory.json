@@ -219,10 +219,10 @@
     "initialPermissionModeFromCLI",
     "initializeToolPermissionContext",
     "isAutoModeGateEnabled",
-    "isSovereignDisabled",
     "isDangerousBashPermission",
     "isDangerousPowerShellPermission",
     "isDangerousTaskPermission",
+    "isSovereignDisabled",
     "parseToolListFromCLI",
     "resolvePermissionModeCandidates",
     "resolveSavedPermissionMode",
@@ -632,15 +632,6 @@
     "type:AgentToolInput",
     "type:AgentToolOutput",
     "type:Progress"
-   ],
-   "src/utils/crew/inProcessRunner.ts": [
-    "cancelCrewmatePauseResume",
-    "crewmatePausedWords",
-    "runInProcessCrewmate",
-    "startInProcessCrewmate",
-    "type:FirstDispatchOutcome",
-    "type:InProcessRunnerConfig",
-    "type:InProcessRunnerResult"
    ],
    "src/utils/crew/roleResolver.ts": [
     "deriveRolePacket",

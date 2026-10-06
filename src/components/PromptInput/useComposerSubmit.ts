@@ -11,8 +11,6 @@ import { CREWMATE_BETWEEN_TURNS_DETAIL, crewmateQueuedWords, crewmateRefusedWord
 import { queueCrewmateLine, refuseCrewmateLine } from '../tasks/crewmateQueue.js'
 import { classifyAgentViewSubmission } from './promptIntent.js'
 import { isManageableTask } from '../tasks/taskStatusUtils.js'
-import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types.js'
-import { injectUserMessageToCrewmate } from '../../tasks/InProcessCrewmateTask/InProcessCrewmateTask.js'
 import { appendMessageToLocalAgent, isLocalAgentTask, queueOperatorMessage } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { sendLiveMessage } from '../../services/crew/liveComms.js'
 import { isCrewEnabled } from '../../utils/crewEnabled.js'
@@ -242,10 +240,6 @@ export function useComposerSubmit({
             return true
           }
           const task = fresh.tasks[targetId]
-          if (task !== undefined && isInProcessCrewmateTask(task)) {
-            injectUserMessageToCrewmate(task.id, text, setAppState)
-            return true
-          }
           if (task !== undefined && isLocalAgentTask(task)) {
             if (task.status !== 'running') {
               sendReceipt(crewmateRefusedWords(targetName, CREWMATE_BETWEEN_TURNS_DETAIL), 'warning')

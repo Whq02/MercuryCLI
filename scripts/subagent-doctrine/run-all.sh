@@ -2,7 +2,6 @@
 # gate-class: pure
 # gate-watch: src/constants/** src/tools/AgentTool/built-in/** src/tools/AgentTool/loadAgentsDir*
 # gate-watch: src/tools/WorkflowTool/agentHooks*
-# gate-watch: src/utils/crew/crewmatePromptAddendum*
 # gate-watch: src/prompt/mercuryContract.ts
 # gate-watch: src/mneme/mnemeFrontPage.ts
 set -u

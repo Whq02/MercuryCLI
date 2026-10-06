@@ -2,7 +2,7 @@
 # gate-class: pure
 # gate-watch: src/Tool* src/services/compact/** src/services/lsp/manager* src/services/run/**
 # gate-watch: src/utils/config/** src/utils/messages/** src/utils/cockpit/contextUsageLive*
-# gate-watch: src/utils/cockpit/ctxForecast* src/utils/crew/inProcessRunner.ts src/utils/toolResultStorage.ts
+# gate-watch: src/utils/cockpit/ctxForecast* src/utils/toolResultStorage.ts
 # gate-watch: scripts/lib/fixtureApi.ts
 # gate-watch: src/rows/turn.ts src/bootstrap/state.ts src/commands/context/context-noninteractive.ts src/utils/model/model.ts
 # gate-watch: src/commands/model/mercuryModel.tsx src/components/* src/constants/prompts.ts

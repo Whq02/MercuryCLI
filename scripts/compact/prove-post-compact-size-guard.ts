@@ -277,8 +277,6 @@ section('G6 wiring pins')
   check('the refusal hands the read ledger back first', /for \(const \[path, state\] of ledgerBeforeFold\) context\.readFileState\.set\(path, state\)\s*throw new Error\(postCompactOverThresholdMessage/.test(compactSrc))
   const manual = readFileSync(join(ROOT, 'src/commands/compact/compact.ts'), 'utf8')
   check('the manual /compact passes the auto-compact threshold as its ceiling', manual.includes('autoCompactThreshold: getAutoCompactThreshold(context.options.engineModel)'))
-  const crewRunner = readFileSync(join(ROOT, 'src/utils/crew/inProcessRunner.ts'), 'utf8')
-  check('the crew runner passes the threshold it compares against', crewRunner.includes('autoCompactThreshold: compactThreshold'))
   const notes = readFileSync(join(ROOT, 'src/services/compact/sessionMemoryCompact.ts'), 'utf8')
   check('the notes path measures its result with the whole-context estimator', notes.includes('estimateContextTokens(buildPostCompactMessages(result))') && notes.includes('estimateContextTokens([summaryMessage])'))
 }

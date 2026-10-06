@@ -14,7 +14,7 @@
 # gate-watch: src/skills/bundled/mercuryDocs.ts src/skills/bundled/verifier.ts src/commands/verify.ts src/tools/SkillTool/constants.ts src/skills/bundled/provider-apis/SKILL.md
 # gate-watch: src/services/providers/openai/openaiCatalogue.ts src/services/resources/adapters/agent.ts
 # gate-watch: src/services/resources/adapters/transcript.ts src/state/AppStateStore.ts src/components/BootAgentsScreen.tsx src/services/agents/resolver.ts
-# gate-watch: src/tasks/InProcessCrewmateTask/InProcessCrewmateTask.tsx src/tasks/stopTask.ts
+# gate-watch: src/tasks/stopTask.ts
 # gate-watch: src/tools/AgentTool/* src/tools/BashTool/BashTool.tsx src/tools/FileEditTool/FileEditTool.ts
 # gate-watch: src/tools/SendMessageTool/SendMessageTool.ts src/tools/TaskStopTool/TaskStopTool.ts
 # gate-watch: src/tools/WorkflowTool/agentTranscriptReader.ts src/tools/WorkflowTool/structuredOutputTool.ts

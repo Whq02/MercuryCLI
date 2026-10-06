@@ -6,7 +6,7 @@ import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { AssistantMessage } from '../../types/message.js'
 import { asAgentId, toAgentId } from '../../types/ids.js'
 import { agentStatusWord } from '../../services/resources/adapters/agentStatusWord.js'
-import { getAgentTranscriptPath, listAgentMetadata } from '../../utils/sessionStorage/paths.js'
+import { getAgentTranscriptPath } from '../../utils/sessionStorage/paths.js'
 import { readAgentTranscript, transcriptEndWords } from '../WorkflowTool/agentTranscriptReader.js'
 import { requestWorkflowControl, workflowControlBy } from '../WorkflowTool/runControl.js'
 import { listWorkflowRunsDetailed, runLiveness } from '../WorkflowTool/runManifest.js'
@@ -14,7 +14,6 @@ import { getSessionId } from '../../bootstrap/state.js'
 import { getCwd } from '../../utils/cwd.js'
 import { pidAlive } from '../../utils/pidAlive.js'
 import { daemonControlRpc } from '../../daemon/controlSocket.js'
-import { findCrewmateTaskByAgentId, getAllInProcessCrewmateTasks } from '../../tasks/InProcessCrewmateTask/InProcessCrewmateTask.js'
 import {
   agentMessageNotice,
   agentMessageSummary,
@@ -70,7 +69,7 @@ import {
   type CrewFileWithGovernance,
 } from '../../utils/crew/sendMessageGovernance.js'
 import { HANDOFF_STATUSES, recordHandoff, type EvidenceRef } from '../../utils/crew/handoff.js'
-import { crewmateStopped, readCrewFileAsync, type CrewFile } from '../../utils/crew/crewHelpers.js'
+import { readCrewFileAsync, type CrewFile } from '../../utils/crew/crewHelpers.js'
 import { assignCrewmateColor } from '../../utils/crew/crewmateColors.js'
 import {
   getAgentId,
@@ -80,9 +79,8 @@ import {
   isCrewLead,
   isCrewmate,
 } from '../../utils/crewmate.js'
-import { isInProcessCrewmate } from '../../utils/crewmateContext.js'
 import { liveMessagesFor, sendLiveMessage } from '../../services/crew/liveComms.js'
-import { createShutdownApprovedMessage, createShutdownRejectedMessage, createShutdownRequestMessage, formatCrewmateMessages, isIdleNotification } from '../../services/crew/liveMessages.js'
+import { createShutdownApprovedMessage, createShutdownRejectedMessage, createShutdownRequestMessage, isIdleNotification } from '../../services/crew/liveMessages.js'
 import { SEND_MESSAGE_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
 import { plainMessageSummary } from './summary.js'
@@ -313,82 +311,6 @@ function crewContextOf(context: ToolUseContext): { crewName: string; leadAgentId
     | undefined
 }
 
-function deadInProcessSeat(rawTo: string, crewName: string, context: ToolUseContext): string | null {
-  const seats = getAllInProcessCrewmateTasks(context.getAppState().tasks ?? {}).filter(
-    task => task.identity.crewName === crewName && task.identity.agentName.toLowerCase() === rawTo.toLowerCase(),
-  )
-  if (seats.length === 0 || seats.some(task => task.status === 'running')) return null
-  const last = seats.reduce((newest, task) => ((task.endTime ?? 0) >= (newest.endTime ?? 0) ? task : newest))
-  if (last.paused !== undefined) return null
-  if (last.status === 'failed') return `failed${last.error ? ` (${last.error})` : ''}`
-  if (last.status === 'completed') return 'completed'
-  return `was ${agentStatusWord(last.status)}`
-}
-
-export const PAUSED_SEAT_ENDED_WORDS = 'was paused on a usage limit'
-
-type EndedCrewmateSeat = { taskId: string; name: string; ended: string }
-
-async function endedCrewmateSeat(rawTo: string, crewName: string, context: ToolUseContext): Promise<EndedCrewmateSeat | null> {
-  const wanted = rawTo.toLowerCase()
-  if (wanted === CREW_LEAD_NAME.toLowerCase()) return null
-  const seats = getAllInProcessCrewmateTasks(context.getAppState().tasks ?? {}).filter(
-    task => task.identity.crewName === crewName && task.identity.agentName.toLowerCase() === wanted,
-  )
-  if (seats.some(task => task.status === 'running')) return null
-  const roster = await readRoster(crewName)
-  const member = roster?.members.find(candidate => candidate.name.toLowerCase() === wanted)
-  if (member !== undefined && member.backendType !== 'in-process') return null
-  if (seats.length > 0) {
-    const last = seats.reduce((newest, task) => ((task.endTime ?? 0) >= (newest.endTime ?? 0) ? task : newest))
-    if (last.paused !== undefined) return { taskId: last.id, name: last.identity.agentName, ended: PAUSED_SEAT_ENDED_WORDS }
-    if (last.status === 'failed') return null
-    const ended = last.status === 'completed' ? 'had completed' : `was ${agentStatusWord(last.status)}`
-    return { taskId: last.id, name: last.identity.agentName, ended }
-  }
-  if ((await failedSeatNotice(rawTo, crewName)) !== null) return null
-  let newest: { taskId: string; name: string; launchedAt: number } | undefined
-  for (const { agentId, metadata } of await listAgentMetadata().catch(() => [])) {
-    if (metadata.crewmate?.crewName !== crewName || metadata.name?.toLowerCase() !== wanted) continue
-    const launchedAt = metadata.launchedAt ?? 0
-    if (newest === undefined || launchedAt >= newest.launchedAt) newest = { taskId: agentId, name: metadata.name, launchedAt }
-  }
-  if (newest === undefined) return null
-  const ended = member !== undefined && crewmateStopped(member) ? 'was stopped' : 'had ended and its row had left the list'
-  return { taskId: newest.taskId, name: newest.name, ended }
-}
-
-async function resumeEndedCrewmate(
-  seat: EndedCrewmateSeat,
-  content: string,
-  summary: string | undefined,
-  context: ToolUseContext,
-): Promise<MessageOutput> {
-  const from = senderName()
-  const color = senderColor(from)
-  const prompt = formatCrewmateMessages([
-    { from, text: content, timestamp: nowIso(), ...(color ? { color } : {}), ...(summary !== undefined ? { summary } : {}) },
-  ])
-  const { resumeCrewmateFromTranscript } = await import('../../services/agents/operatorResume.js')
-  const resumed = await resumeCrewmateFromTranscript(seat.taskId, { getAppState: context.getAppState, toolUseContext: context, prompt })
-  if (resumed.outcome === 'refused') {
-    return { success: false, message: `Crewmate ${seat.name} ${seat.ended} and could not be resumed with your message: ${resumed.reason}` }
-  }
-  return {
-    success: true,
-    message:
-      `Crewmate ${seat.name} ${seat.ended}; it was resumed from its transcript with your message as its next turn ` +
-      `and runs on under a new row (task ${resumed.taskId}) — it answers by SendMessage as before.`,
-    routing: {
-      sender: from,
-      ...(color ? { senderColor: color } : {}),
-      target: `@${seat.name}`,
-      ...(summary !== undefined ? { summary } : {}),
-      content,
-    },
-  }
-}
-
 async function failedSeatNotice(rawTo: string, crewName: string): Promise<string | null> {
   let rows: Awaited<ReturnType<typeof liveMessagesFor>>
   try {
@@ -500,7 +422,7 @@ async function resolveDeliverableRecipient(
   }
   const roster = await readRoster(crewName)
   const member = roster?.members.find(candidate => candidate.name.toLowerCase() === rawTo.toLowerCase())
-  const deadSeat = deadInProcessSeat(rawTo, crewName, context) ?? (member ? null : await failedSeatNotice(rawTo, crewName))
+  const deadSeat = member ? null : await failedSeatNotice(rawTo, crewName)
   if (deadSeat !== null) {
     return {
       ok: false,
@@ -842,8 +764,6 @@ async function sendDirectedPlainMessage(
   context: ToolUseContext,
 ): Promise<MessageOutput> {
   const crewName = getCrewName(crewContextOf(context))
-  const ended = crewName ? await endedCrewmateSeat(rawTo, crewName, context) : null
-  if (ended !== null) return resumeEndedCrewmate(ended, content, summary, context)
   const resolution = await resolveDeliverableRecipient(rawTo, context)
   if (!resolution.ok) return { success: false, message: resolution.refusal }
 
@@ -1061,32 +981,6 @@ async function sendShutdownResponse(
     timestamp: nowIso(),
   }))
 
-  const abortOwnTask = (): boolean => {
-    const task = findCrewmateTaskByAgentId(agentId, context.getAppState().tasks ?? {})
-    if (task?.abortController) {
-      task.abortController.abort()
-      return true
-    }
-    logForDebugging(`shutdown_response: no in-process task/controller for ${agentId ?? '(no agent id)'}`)
-    return false
-  }
-
-  if (isInProcessCrewmate()) {
-    abortOwnTask()
-    return {
-      success: true,
-      message: 'Shutdown approved — confirmation sent to the lead; this agent is exiting.',
-      request_id: message.request_id,
-    }
-  }
-  if (abortOwnTask()) {
-    return {
-      success: true,
-      message:
-        'Shutdown approved — confirmation sent to the lead; the in-process task was aborted (fallback path).',
-      request_id: message.request_id,
-    }
-  }
   setImmediate(() => gracefulShutdownSync(0))
   return {
     success: true,

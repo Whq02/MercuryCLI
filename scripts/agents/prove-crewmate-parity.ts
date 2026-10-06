@@ -65,48 +65,6 @@ section('§1 — one resolver for built-in + custom + legacy ids')
   check('behavior doctrine rides every resolution', scout.behavior.productName === 'Mercury')
 }
 
-section('§2 — every preparation path consumes the resolver')
-{
-  const spawn = src('tools', 'shared', 'spawnMultiAgent.ts')
-  const resolveCalls = spawn.match(/resolveCrewmateRole\(\{/g) ?? []
-  check('the one spawn strategy (in-process) resolves through the shared resolver', resolveCalls.length === 1, `${resolveCalls.length} call sites`)
-  check('the isCustomAgent-only filter is GONE', !spawn.includes('isCustomAgent'))
-  const boot = src('main.tsx')
-  check('the pane-child boot resolves through the shared resolver', boot.includes('findRoleDefinition(agentTypeOpt') && boot.includes('getRoleSystemPrompt(roleDefinition)'))
-  check('the built-in-skipped-at-boot gap is gone', !boot.includes('skipping custom prompt (not supported)'))
-  const runner = src('utils', 'crew', 'inProcessRunner.ts')
-  check('the runner composes the role prompt via the resolver helper', runner.includes('getRoleSystemPrompt(agentDefinition, {'))
-  check('the runner composes charter + role packet after the role contract', runner.includes('formatCharterForContext(role.charter)') && runner.includes('formatRolePacketForContext(role.rolePacket)'))
-}
-
-section('§3 — canonical role identity')
-{
-  const launchPlan = src('utils', 'crew', 'agentLaunchPlan.ts')
-  check('runner identity: canonical agentType, display name only as last resort', launchPlan.includes('i.role?.agentType ?? i.agentDefinition?.agentType ?? i.displayName'))
-  check('the runner consumes the shared definition product', src('utils', 'crew', 'inProcessRunner.ts').includes('deriveRunnerAgentDefinition({'))
-  const spawn = src('tools', 'shared', 'spawnMultiAgent.ts')
-  check('the in-process crewmate is registered under the CANONICAL agent type', spawn.includes('agentType: canonicalAgentType ?? crewmateName'))
-}
-
-section('§7 — one shared doctrine: role discipline + the handoff packet')
-{
-  const { buildCrewmateAddendum } = await import('../../src/utils/crew/crewmatePromptAddendum.js')
-  const addendum = buildCrewmateAddendum()
-  for (const line of [
-    'Outcome: what changed or what was learned',
-    'Owned surface: files, symbols, or subsystem',
-    'Evidence: checks and concrete results',
-    'Decisions: choices the lead must preserve',
-    'Blockers: only if real, with the clearing action',
-    'Next: the single best follow-up',
-  ]) {
-    check(`handoff packet carries "${line.split(':')[0]}"`, addendum.includes(line))
-  }
-  check('lead owns synthesis (conclusions + evidence, never transcripts)', addendum.includes('The lead owns synthesis'))
-  check('role specialization stays real (scout/architect/implementer/verifier)', addendum.includes('a scout maps evidence'))
-  check('loyalty defined as outcome-faithful candor', addendum.includes("faithful to the operator's intended OUTCOME"))
-}
-
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log('✅ ALL CREWMATE-PARITY PROOFS PASS')
 else {
