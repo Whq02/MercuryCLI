@@ -1,9 +1,7 @@
 
 export const FAILURE_CLASSES = [
-  'FC1-crewcreate-partial',
   'FC2-sidecar-temp-collision',
   'FC3-runrecord-surface-split',
-  'FC4-mailbox-act-before-ack',
   'FC5-corrupt-store-empty-overwrite',
   'FC6-task-epoch-resurrection',
   'FC8-subscriber-revision-blind',
@@ -18,9 +16,7 @@ export interface DurableOperationRow {
   id: string
   domain:
     | 'filestore'
-    | 'crews'
     | 'tasks'
-    | 'mailbox'
     | 'runs'
     | 'daemon'
     | 'cron'
@@ -91,34 +87,6 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     ],
     failureClass: ['FC8-subscriber-revision-blind'],
     source: ['src/substrate/fileStore.ts:317', 'src/substrate/fileStore.ts:420'],
-  },
-  {
-    id: 'crew-spawn-member',
-    schemaOrEpoch: 'the same roster v1 shape; the spawn ledger rows are an append-only v1 audit trail',
-    domain: 'crews',
-    stateClass: 'authority',
-    migrated: true,
-    authorityArtifact: '<crews>/<crew>/config.json (roster; the spawn ledger beside it is an append-only audit trail)',
-    operation: 'Crewmate spawn — roster append + pane/worktree + mailbox + spawn ledger',
-    ownerKey: 'crew name + agent id',
-    files: [
-      '<crews>/<crew>/config.json (locked append via appendCrewMember)',
-      '<config home>/crew/livecomms/<crew>.json (first write)',
-      '<config>/daemon/spawn-ledger.jsonl (append)',
-    ],
-    projections: ['AppState.crewContext.crewmates', 'roster handles (daemon)'],
-    lockOwner: 'withLockedCrewFile (proper-lockfile, durable publish)',
-    writeOrder: 'spawn backend → roster append → ledger row → AppState',
-    idempotencyKey: 'the AGENT ID is the operation id: appends are name-deduped upstream, removes key by agentId and are idempotent (remove-twice = no-op)',
-    publication: 'roster file rename; the spawn ledger row is the audit record',
-    recovery:
-      'an exit between backend spawn and roster append orphans the spawned process — ownerWatch/workerParentWatch reap daemon children and assertSpawnCwd refuses poisoned respawns; between append and AppState the UI re-reads the roster (Crew Center). Removes recover cleanly by idempotency.',
-    interruptionWindows: [
-      'W1: after backend spawn, before roster append — running crewmate not in roster',
-      'W2: after roster append, before AppState — roster/UI disagree',
-    ],
-    failureClass: ['FC1-crewcreate-partial'],
-    source: ['src/utils/crew/crewHelpers.ts:353', 'src/tools/shared/spawnMultiAgent.ts'],
   },
   {
     id: 'task-outcome-envelope',
@@ -258,25 +226,6 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     source: ['src/services/run/runCoordinator.ts:323'],
   },
   {
-    id: 'store-leases',
-    schemaOrEpoch: 'leases.json v1 (lease id agent+pattern; TTL expiry IS the contract)',
-    domain: 'stores',
-    stateClass: 'authority',
-    migrated: true,
-    operation: 'file-lease claim/release/list (per-crew leases.json)',
-    ownerKey: 'crew name',
-    files: ['<crews>/<crew>/leases/leases.json (FileStore)'],
-    projections: ['PreToolUse lease guard decisions'],
-    lockOwner: 'FileStore lock',
-    writeOrder: 'single locked mutate',
-    idempotencyKey: 'lease id (agent+pattern)',
-    publication: 'store rename',
-    recovery: 'TTL-bounded (30m) so lost updates self-heal; a damaged store is quarantined + ledgered (Slice 2) and the guard still fails OPEN (allow) by doctrine.',
-    interruptionWindows: ['W1: kernel windows (W2/W3 closed); a dropped store fails OPEN (allow) by design'],
-    failureClass: ['FC5-corrupt-store-empty-overwrite'],
-    source: ['src/utils/crew/leaseGlob.ts'],
-  },
-  {
     id: 'store-prompt-drafts',
     schemaOrEpoch: 'prompt-draft _v-stamped fileStore shape',
     domain: 'stores',
@@ -296,26 +245,6 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     source: ['src/utils/promptDraft.ts'],
   },
   {
-    id: 'crew-roster-sync-helpers',
-    schemaOrEpoch: 'the same crew config.json roster v1 (one truth, two writers)',
-    domain: 'crews',
-    stateClass: 'authority',
-    migrated: true,
-    authorityArtifact: '<crews>/<crew>/config.json (the same roster file the crew founding owns — two writers, one truth)',
-    operation: 'roster sync helpers (member modes / hidden panes / active flags)',
-    ownerKey: 'crew name',
-    files: ['<crews>/<crew>/config.json (locked tmp+rename)'],
-    projections: ['crew view rows', 'Crew Center phases'],
-    lockOwner: 'withLockedCrewFile / Sync (bounded backoff, degrades to unlocked)',
-    writeOrder: 'single locked RMW → durableAtomicPublish(/Sync)',
-    idempotencyKey: 'none (last-writer-wins per field)',
-    publication: 'roster rename',
-    recovery: 'single-record atomic through the shared durable primitive (Slice 1); sync twin can degrade to UNLOCKED best-effort on lock exhaustion (documented).',
-    interruptionWindows: ['W1 (bounded): crash between tmp write and rename — orphan swept on next publish/boot'],
-    failureClass: ['FC1-crewcreate-partial'],
-    source: ['src/utils/crew/crewHelpers.ts:240', 'src/utils/crew/crewHelpers.ts:304'],
-  },
-  {
     id: 'lifecycle-startup-sweeps',
     schemaOrEpoch: 'n/a — sweeps re-derive from the swept owners\' schemas',
     domain: 'lifecycle',
@@ -333,7 +262,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     interruptionWindows: [
       'W1: exit mid-sweep — next boot converges (per-sweep; the orchestrator itself is idempotent)',
     ],
-    failureClass: ['FC1-crewcreate-partial'],
+    failureClass: ['FC6-task-epoch-resurrection'],
     source: ['src/substrate/recoveryOrchestrator.ts', 'src/chatLauncher.tsx'],
   },
   {
@@ -379,22 +308,21 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     schemaOrEpoch: 'n/a — disposal of in-memory owner keys (no owned durable shape)',
     domain: 'lifecycle',
     stateClass: 'projection',
-    operation: 'session switch / /clear / compaction / shutdown — owner teardown + crewmate pane kill',
+    operation: 'session switch / /clear / compaction / shutdown — owner teardown',
     ownerKey: 'OwnerKey / session id',
-    files: ['run sidecar (flush/delete)', 'crewmate panes (cleanupSessionCrews kills panes; crew dirs stay)', 'cleared-sessions cache'],
+    files: ['run sidecar (flush/delete)', 'cleared-sessions cache'],
     projections: ['ownerLifecycle registries', 'context epochs'],
     lockOwner: 'per-store',
-    writeOrder: 'flush run → dispose owners → (exit) kill the session crews\' panes',
+    writeOrder: 'flush run → dispose owners',
     idempotencyKey: 'owner key disposal is idempotent',
     publication: 'per-store renames',
     recovery:
-      'gracefulShutdown paths are best-effort; SIGKILL skips the pane kill. A crew stays on disk across the lead\'s exits: resuming the leader session rebuilds the crew projection (rebuildCrewProjection at boot) on the interactive and headless roads alike, and nothing removes it by itself.',
+      'gracefulShutdown paths are best-effort; a resume reconciles what an exit left.',
     interruptionWindows: [
-      'W1: SIGKILL before the pane kill — pane crewmates outlive the lead until the next resume+exit cycle',
-      'W2: exit between run flush and owner disposal — benign (resume reconciles)',
+      'W1: exit between run flush and owner disposal — benign (resume reconciles)',
     ],
-    failureClass: ['FC1-crewcreate-partial'],
-    source: ['src/utils/crew/crewHelpers.ts:773', 'src/services/run/ownerLifecycle.ts'],
+    failureClass: ['FC6-task-epoch-resurrection'],
+    source: ['src/services/run/ownerLifecycle.ts'],
   },
   {
     id: 'store-interview-sessions',
@@ -516,15 +444,6 @@ export const RESOURCE_BOUNDS: readonly ResourceBoundRow[] = [
     reaper: 'acquire-time delete',
     preserves: 'nothing (a refuse-to-publish flag)',
     proof: 'scripts/engine-durability/run-all.sh',
-  },
-  {
-    id: 'crew-compromised-locks',
-    structure: 'crewHelpers compromisedCrewLocks Set',
-    writer: 'lane onCompromised',
-    bound: '≤ active crew files; cleared per acquire',
-    reaper: 'acquire-time delete',
-    preserves: 'nothing (a refuse-to-publish flag)',
-    proof: 'scripts/substrate/prove-crew-roster-lock.ts',
   },
   {
     id: 'serialization-lanes',

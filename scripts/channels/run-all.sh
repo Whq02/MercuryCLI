@@ -14,7 +14,6 @@ echo "############################################################"
 echo "# Local channel bus — proof harness"
 echo "############################################################"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-channel-bus.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-channel-bus.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-scoped-markread.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-scoped-markread.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0
 live_out="$(mktemp -d)"
 if "$bun" "$root/scripts/search/lib/bundle-for-node.ts" "$here/prove-channel-bus-live.ts" "$live_out/prove-channel-bus-live.mjs" \

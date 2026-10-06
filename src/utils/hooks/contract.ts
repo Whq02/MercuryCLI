@@ -173,14 +173,6 @@ const PostCompactHookInputSchema = lazySchema(() =>
     compact_summary: z.string().optional().describe('The summary the compaction produced'),
   }),
 )
-export const CrewmateIdleHookInputSchema = lazySchema(() =>
-  z.object({
-    ...baseHookFields,
-    hook_event_name: z.literal('CrewmateIdle'),
-    crewmate_name: z.string().optional().describe('The crewmate about to go idle'),
-    crew_name: z.string().optional().describe('The crew it belongs to'),
-  }),
-)
 const TaskCreatedHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
@@ -188,8 +180,6 @@ const TaskCreatedHookInputSchema = lazySchema(() =>
     task_id: z.string().describe('The new task\'s id'),
     task_subject: z.string().optional().describe('Its one-line subject'),
     task_description: z.string().optional().describe('Its longer body, when given'),
-    crewmate_name: z.string().optional().describe('The crewmate the task concerns'),
-    crew_name: z.string().optional().describe('The owning crew'),
   }),
 )
 const TaskCompletedHookInputSchema = lazySchema(() =>
@@ -199,8 +189,6 @@ const TaskCompletedHookInputSchema = lazySchema(() =>
     task_id: z.string().describe('The finished task\'s id'),
     task_subject: z.string().optional().describe('Its one-line subject'),
     task_description: z.string().optional().describe('Its longer body, when given'),
-    crewmate_name: z.string().optional().describe('The crewmate that worked it'),
-    crew_name: z.string().optional().describe('The owning crew'),
     status: z.enum(['completed', 'failed', 'stopped']).optional().describe('How the task ended'),
   }),
 )
@@ -536,10 +524,6 @@ const hookEventTableRows = {
     matchField: 'trigger' as const,
     noHttp: true,
   },
-  CrewmateIdle: {
-    input: CrewmateIdleHookInputSchema,
-    feedback: (text: string) => `CrewmateIdle hook feedback:\n${text}`,
-  },
   TaskCreated: {
     input: TaskCreatedHookInputSchema,
     feedback: (text: string) => `TaskCreated hook feedback:\n${text}`,
@@ -606,7 +590,6 @@ type HookEventOrder = readonly [
   'PermissionRequest',
   'PermissionDenied',
   'Setup',
-  'CrewmateIdle',
   'TaskCreated',
   'TaskCompleted',
   'Elicitation',
@@ -733,7 +716,6 @@ export type SubagentStartHookInput = z.infer<ReturnType<typeof SubagentStartHook
 export type SubagentStopHookInput = z.infer<ReturnType<typeof SubagentStopHookInputSchema>>
 export type PreCompactHookInput = z.infer<ReturnType<typeof PreCompactHookInputSchema>>
 export type PostCompactHookInput = z.infer<ReturnType<typeof PostCompactHookInputSchema>>
-export type CrewmateIdleHookInput = z.infer<ReturnType<typeof CrewmateIdleHookInputSchema>>
 export type TaskCreatedHookInput = z.infer<ReturnType<typeof TaskCreatedHookInputSchema>>
 export type TaskCompletedHookInput = z.infer<ReturnType<typeof TaskCompletedHookInputSchema>>
 export type ElicitationHookInput = z.infer<ReturnType<typeof ElicitationHookInputSchema>>
@@ -764,7 +746,6 @@ type unionOfInputs =
   | SubagentStopHookInput
   | PreCompactHookInput
   | PostCompactHookInput
-  | CrewmateIdleHookInput
   | TaskCreatedHookInput
   | TaskCompletedHookInput
   | ElicitationHookInput

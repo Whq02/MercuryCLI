@@ -285,7 +285,7 @@ section('§0 the wiring: one road per seat into one drain, the framing, the tool
   const userArm = between(engine, "} else if (kind === 'user') {", '} else if (isBoundary) {')
   check("the engine reports the boundary after every tool round's user row, before the drain and the next request", userArm.includes('config.onToolRoundSettled?.(messages)') && engine.includes('onToolRoundSettled?: (messages: readonly Message[]) => void'), userArm)
   const lander = between(runner, 'const landAdvisorQuiet = (quiet: AdvisorQuiet): void => {', '\n  }')
-  check('the lander pushes the system row into the session list and records it on the transcript at once — the interactive chat paints from that record', lander.includes('const row = createAdvisorQuietMessage(quiet)') && lander.includes('messages.push(row)') && lander.includes('recordTranscript([row], undefined, undefined, messages)'), lander)
+  check('the lander pushes the system row into the session list and records it on the transcript at once — the interactive chat paints from that record', lander.includes('const row = createAdvisorQuietMessage(quiet)') && lander.includes('messages.push(row)') && lander.includes('recordTranscript([row], undefined, messages)'), lander)
   const turnEnd = between(runner, 'if (deferredAdvisorQuiet.length > 0) {', '\n      }')
   const spawnSwitchesAt = runner.indexOf('if (deferredSpawnSwitches.length > 0) {')
   const quietFlushAt = runner.indexOf('if (deferredAdvisorQuiet.length > 0) {')
@@ -298,7 +298,7 @@ section('§0 the wiring: one road per seat into one drain, the framing, the tool
   check('the workflow spawn adapter stamps its launch kind even for custom definitions and keeps the pause seam', spawn.includes('const stream = runAgent({') && spawn.includes("agentKind: 'workflow'") && spawn.includes('beforeQueryStep: args.beforeQueryStep'), spawn.slice(-200))
   const drain = src('src/utils/attachments/queuedCommands.ts')
   const noteDrain = between(drain, 'export function getAdvisorNoteAttachments(', '\n}')
-  check("ONE drain, the main chat's: the advisor's note drain takes the session's stashed notes on the main chat's own model-bound collection as queued_command attachments with the advisor origin and no isMeta, drops them once the advisor is switched off, and takes nothing for any agent seat (red on the base: a crewmate drain by agent id)", noteDrain.includes('const notes = takeAdvisorNotes(String(getSessionId()))') && noteDrain.includes('if (!isMainChatAdvisorDrain({ agentId, querySource: drain.querySource, localSubmission: drain.localSubmission })) return []') && noteDrain.includes('advisorSeatRefusal(advisorSessionSeat())') && noteDrain.includes('origin: note.origin,') && !noteDrain.includes('agentKind') && !between(noteDrain, 'return notes.map', '}))').includes('isMeta'), noteDrain)
+  check("ONE drain, the main chat's: the advisor's note drain takes the session's stashed notes on the main chat's own model-bound collection as queued_command attachments with the advisor origin and no isMeta, drops them once the advisor is switched off, and takes nothing for any agent seat (red on the base: a crewmate drain by agent id)", noteDrain.includes('const notes = takeAdvisorNotes(String(getSessionId()))') && noteDrain.includes('if (!isMainChatAdvisorDrain({ agentId, querySource: drain.querySource, localSubmission: drain.localSubmission })) return []') && noteDrain.includes("advisorSeatRefusal('main')") && !noteDrain.includes('advisorSessionSeat') && noteDrain.includes('origin: note.origin,') && !noteDrain.includes('agentKind') && !between(noteDrain, 'return notes.map', '}))').includes('isMeta'), noteDrain)
   check("the crewmate mailbox drain no longer carries advisor notes of its own (red on the base: two roads)", !between(drain, 'export function getAgentPendingMessageAttachments(', '\n}').includes('takeAdvisorNotes'))
   const orchestrator = src('src/utils/attachments/orchestrator.ts')
   const producer = between(orchestrator, "'advisor_notes',", '{ priority: true }')
@@ -310,7 +310,7 @@ section('§0 the wiring: one road per seat into one drain, the framing, the tool
   check('the attachment painter hands the advisor origin to the row painter, so the crewmate transcript shows the muted row', painter.includes('isAdvisorOrigin(attachment.origin) ? { origin: attachment.origin } : {}'))
   const catalogue = src('src/tools.ts')
   check('the tool is in the catalogue only while the advisor is on (the JevEval gate precedent)', catalogue.includes('...(advisorEnabled() ? [AskAdvisorTool] : []),'))
-  check('the tool is enrolled for no agent: neither the async allow-set nor the in-process crewmate allow-set names it (red on the base: both did)', !toolsConstants.ASYNC_AGENT_ALLOWED_TOOLS.has(ASK_ADVISOR_TOOL_NAME) && !toolsConstants.IN_PROCESS_CREWMATE_ALLOWED_TOOLS.has(ASK_ADVISOR_TOOL_NAME))
+  check('the tool is enrolled for no agent: the async allow-set never names it, and no second allow-set exists (red on the base: both did)', !toolsConstants.ASYNC_AGENT_ALLOWED_TOOLS.has(ASK_ADVISOR_TOOL_NAME) && !('IN_PROCESS_CREWMATE_ALLOWED_TOOLS' in toolsConstants))
   check("the tool's own words say the main chat alone, never crewmates or workflow agents", (await AskAdvisorTool.prompt()).includes('never available to crewmates or workflow agents') && !(await AskAdvisorTool.prompt()).includes('Advisor for crewmates') && (AskAdvisorTool.capability?.conditions ?? []).some(c => c.includes('the main chat alone, never crewmates or workflow agents')), await AskAdvisorTool.prompt())
   const census = JSON.parse(src('scripts/builtin-tools/fixtures/tool-census.json')) as { rows: Array<{ name: string; proof?: string; declared?: { conditions?: string[] } }> }
   const row = census.rows.find(r => r.name === ASK_ADVISOR_TOOL_NAME)
@@ -475,14 +475,14 @@ section("§1b THE QUIET ROUND on the main chat: the advisor answers thinking onl
   for (let turn = 1; turn <= 6; turn++) {
     check(`turn ${turn}: nothing queued for the agent`, queue.getCommandQueue().length === 0)
     await mainTurn(`operator line ${turn}`, messages)
-    await recordTranscript(messages as never, undefined, undefined, messages as never)
+    await recordTranscript(messages as never, undefined, messages as never)
     tick(1)
     const verdict = await advisor.advisorMainTurnSettled(SESSION, { mode: 'prompt' } as never, messages as never, {
       onQuiet: quiet => {
         const row = advisor.createAdvisorQuietMessage(quiet)
         messages.push(row as unknown as AnyMsg)
         quietRows.push(row as unknown as AnyMsg)
-        void recordTranscript([row] as never, undefined, undefined, messages as never)
+        void recordTranscript([row] as never, undefined, messages as never)
       },
     })
     verdicts.push(verdict)
@@ -573,7 +573,7 @@ section("§2c THE SWITCH ON THE SESSION'S OWN RECORD: /advise on writes an advis
   agentScript = Array.from({ length: 6 }, (_, i) => ({ text: `reply ${i + 1}` }))
   const messages: AnyMsg[] = []
   await mainTurn('a line to materialize the file', messages)
-  await recordTranscript(messages as never, undefined, undefined, messages as never)
+  await recordTranscript(messages as never, undefined, messages as never)
   await flushSessionStorage()
   const { loadConversationForResume } = await import(join(ROOT, 'src/utils/conversationRecovery.ts'))
   const { SNAPSHOT_SCHEMA } = await import(join(ROOT, 'src/utils/sessionStorage/resumeSnapshot.ts'))
@@ -711,30 +711,6 @@ section("§5 a crewmate's direct ask is refused with the settings on; a stashed 
   check('a workflow context fork retains the workflow exclusion', fork.agentKind === 'workflow')
   const forkDenied = await AskAdvisorTool.call({ question: QUESTION }, fork) as { data: { status: string; text: string } }
   check('a workflow fork cannot call AskAdvisor through a stale tool', forkDenied.data.status === 'refused' && wire.length === before && forkDenied.data.text.includes(advisor.ADVISOR_WORKFLOW_REFUSAL), j(forkDenied))
-}
-
-section('§6 a crew identity on the session runner reads as a crewmate and is never served — the settings on change nothing')
-{
-  const { setDynamicCrewContext, clearDynamicCrewContext } = await import(join(ROOT, 'src/utils/crewmate.ts'))
-  const { getAllBaseTools } = await import(join(ROOT, 'src/tools.ts'))
-  try {
-    for (const identity of ['dynamic']) {
-      resetRig()
-      advisorOn(1)
-      clearDynamicCrewContext()
-      setDynamicCrewContext({ agentId: 'session-crew-id', agentName: 'session-crew', crewName: 'advisor-proof' })
-      check(`${identity}: the session runner is recognized as a crewmate`, advisor.advisorSessionSeat() === 'crewmate')
-      const id = `session-${identity}`
-      const messages = [createUserMessage({ content: 'crew prompt' })]
-      const opened = await advisor.advisorMainTurnSettled(id, { mode: 'prompt' } as never, messages as never)
-      tick(1)
-      const later = await advisor.advisorMainTurnSettled(id, { mode: 'prompt' } as never, messages as never)
-      const refused = await AskAdvisorTool.call({ question: QUESTION }, makeCtx() as never) as { data: { status: string; text: string } }
-      check(`${identity}: with the settings on, every boundary reads off, a direct ask is refused naming crewmates, no context opens, no request leaves, and AskAdvisor is out of the catalogue`, opened === 'off' && later === 'off' && refused.data.status === 'refused' && refused.data.text.includes(advisor.ADVISOR_CREWMATE_REFUSAL) && wire.length === 0 && advisor.peekAdvisorNotes(id).length === 0 && advisor.peekAdvisorContext(id) === undefined && !AskAdvisorTool.isEnabled() && !getAllBaseTools().some(t => t.name === ASK_ADVISOR_TOOL_NAME), j({ opened, later, refused, wire: wire.length }))
-    }
-  } finally {
-    clearDynamicCrewContext()
-  }
 }
 
 server.close()

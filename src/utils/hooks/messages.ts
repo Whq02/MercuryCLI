@@ -9,9 +9,6 @@ export function getStopHookMessage(blockingError: HookBlockingError): string {
   return hookEventTable.Stop.feedback!(blockingError.blockingError)
 }
 
-export function getCrewmateIdleHookMessage(blockingError: HookBlockingError): string {
-  return hookEventTable.CrewmateIdle.feedback!(blockingError.blockingError)
-}
 
 export function getTaskCreatedHookMessage(blockingError: HookBlockingError): string {
   return hookEventTable.TaskCreated.feedback!(blockingError.blockingError)

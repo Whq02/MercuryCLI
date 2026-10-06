@@ -5,7 +5,7 @@
 # gate-class: cpu
 # gate-watch: src/tools/SendMessageTool/**
 # gate-watch: scripts/ui/vshot.py src/daemon/**
-# gate-watch: src/utils/daemonBreaker* src/utils/crew/crewHelpers*
+# gate-watch: src/utils/daemonBreaker*
 # gate-watch: src/fabric/transcriptDecode.ts src/utils/sessionStorage/settledSidechainMessages.ts src/run-core/project-legacy.ts
 # gate-watch: src/tasks/LocalAgentTask/launchReceipts* src/tools/AgentTool/resumeAgent*
 # gate-watch: docs/SESSIONS.md scripts/daemon/dupline-world.ts scripts/lib/firstRunSeed.ts
@@ -37,11 +37,11 @@
 # gate-watch: src/utils/task/*
 # gate-watch: src/components/PromptInput/PromptInput.tsx src/components/tasks/crewmateInterrupt.ts src/state/selectors.ts src/state/crewmateViewHelpers.ts src/utils/attachments/queuedCommands.ts src/utils/cockpit/crewmateWords.ts src/components/PromptInput/useComposerSubmit.ts
 # gate-watch: src/components/tasks/useCrewmateTranscript.ts
-# gate-watch: src/utils/crew/crewBirth.ts src/utils/crew/crewConvert.ts package.json scripts/builtin-tools/fixtures/tool-census.json scripts/builtin-tools/fixtures/tool-census.md scripts/project-services/fixtures/inventory.json
+# gate-watch: package.json scripts/builtin-tools/fixtures/tool-census.json scripts/builtin-tools/fixtures/tool-census.md scripts/project-services/fixtures/inventory.json
 # gate-watch: src/components/mercury-ui/toolGlyphs.ts src/components/messages/AssistantToolUseMessage.tsx src/state/AppState.tsx src/substrate/durableOperationMatrix.ts src/tools.ts src/tools/MCPTool/absentToolShim.ts
-# gate-watch: src/utils/capability/declarations.ts src/utils/permissions/classifierDecision.ts src/utils/crew/agentLaunchPlan.ts src/utils/crew/crewOperations.ts
-# gate-watch: src/utils/hooks/events.ts src/utils/crew/constants.ts src/services/oauth/client.ts
-# gate-watch: src/utils/crew/roleResolver.ts src/utils/crew/crewCharter.ts src/utils/tasks.ts src/utils/crewmate.ts src/utils/agentContext.ts
+# gate-watch: src/utils/capability/declarations.ts src/utils/permissions/classifierDecision.ts src/utils/crew/agentLaunchPlan.ts
+# gate-watch: src/utils/hooks/events.ts src/services/oauth/client.ts
+# gate-watch: src/utils/tasks.ts src/utils/agentContext.ts
 # gate-watch: src/commands/tasks/index.ts src/components/tasks/BackgroundTasksDialog.tsx src/services/crew/identity.ts
 # gate-watch: scripts/lib/scriptedTurn.ts src/utils/crew/crewStart.ts src/utils/crew/crewWorktreeReminder.ts
 # gate-watch: src/utils/crew/crewAccountChange.ts

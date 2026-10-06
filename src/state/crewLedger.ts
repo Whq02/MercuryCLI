@@ -131,13 +131,11 @@ export function clearCrewLedgerRow(ledger: CrewLedger, id: string): CrewLedger {
 
 export function clearCrewmate(id: string, setAppState: SetAppState): boolean {
   let cleared = false
-  let record: { crew: string; agentId: string } | null = null
   setAppState(prev => {
     const row = prev.crewLedger[id]
     const task = prev.tasks[id]
     if ((task !== undefined && task.status === 'running') || !crewLedgerClearable(row)) return prev
     cleared = true
-    if (row !== undefined && row.facts.crew !== null) record = { crew: row.facts.crew, agentId: formatAgentId(row.facts.name, row.facts.crew) }
     const tasks = task !== undefined && task.type === 'local_agent' ? { ...prev.tasks, [id]: { ...task, retain: false, evictAfter: 0 } } : prev.tasks
     return {
       ...prev,
@@ -147,9 +145,5 @@ export function clearCrewmate(id: string, setAppState: SetAppState): boolean {
       ...(prev.mainChatTaskId === id ? { mainChatTaskId: undefined } : {}),
     }
   })
-  if (record !== null) {
-    const { crew, agentId } = record
-    void import('../utils/crew/crewHelpers.js').then(helpers => helpers.removeMemberByAgentId(crew, agentId)).catch(() => {})
-  }
   return cleared
 }

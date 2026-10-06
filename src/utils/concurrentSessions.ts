@@ -8,7 +8,6 @@ import { getPlatform } from './platform.js'
 import { getMercuryHome } from './envUtils.js'
 import { isFsInaccessible } from './errors.js'
 import { isProcessRunning } from './genericProcessUtils.js'
-import { getAgentId } from './crewmate.js'
 
 
 type SessionKind = 'interactive' | 'bg' | 'daemon'
@@ -33,7 +32,6 @@ function ownSessionFile(): string {
 }
 
 export async function registerSession(): Promise<boolean> {
-  if (getAgentId() != null) return false
   const filePath = ownSessionFile()
   registerCleanup(async () => {
     try {

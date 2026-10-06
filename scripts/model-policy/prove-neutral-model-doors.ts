@@ -203,9 +203,9 @@ section('§4 the Agent tool: haiku is a dispatch word like any other, and the wo
   check("the dispatch grammar refuses a word no family declares, naming it", (unrecognisedModelWordRefusal('banana') ?? '').includes("'banana'") && unrecognisedModelWordRefusal('haiku') === null && unrecognisedModelWordRefusal('gemini-2.5-pro') === null)
   const config = src('components', 'Settings', 'Config.tsx')
   check('the /config sub-agent default row is a picker door, not an alias walk', !config.includes('AGENT_DISPATCH_MODELS') && /id: 'agentsDefaultModel',[\s\S]{0,400}kind: 'managed-enum'/.test(config))
-  check("the /config crewmate default row's door opens the same picker", /subMenu === 'crewmate-model'[\s\S]{0,1200}MercuryModelChoicePicker/.test(config) && /subMenu === 'agent-model'[\s\S]{0,1200}MercuryModelChoicePicker/.test(config))
+  check("the /config sub-agent row's door opens the picker, and no second model door remains", /subMenu === 'agent-model'[\s\S]{0,1200}MercuryModelChoicePicker/.test(config) && !config.includes("subMenu === 'crewmate-model'"))
   check("the rows' warnings name no alias walk", !/walk the aliases/.test(config))
-  check("each door's leading row is a choice, never painted as a model id", (config.match(/\bchoice: ["']/g) ?? []).length === 3)
+  check("the door's leading row is a choice, never painted as a model id", (config.match(/\bchoice: ["']/g) ?? []).length === 1)
   const picker = src('components', 'MercuryModelPicker.tsx')
   check('a choice row is never a model row: it paints no id column and never counts as live', /row\.action !== true && row\.expand === undefined && row\.choice === undefined/.test(src('utils', 'model/modelPickerGroups.ts')) && /const model = isModelRow\(m\)/.test(picker))
 }

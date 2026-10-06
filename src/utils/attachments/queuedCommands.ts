@@ -4,7 +4,7 @@ import type { ToolUseContext } from '../../Tool.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { drainPendingMessages } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { takeAdvisorNotes } from '../../services/advisor/advisorRoads.js'
-import { advisorSeatRefusal, advisorSessionSeat } from '../../services/advisor/advisorSettings.js'
+import { advisorSeatRefusal } from '../../services/advisor/advisorSettings.js'
 import {
   getImagePasteIds,
   isValidImagePaste,
@@ -33,7 +33,7 @@ export function getAdvisorNoteAttachments(
   if (!isMainChatAdvisorDrain({ agentId, querySource: drain.querySource, localSubmission: drain.localSubmission })) return []
   const notes = takeAdvisorNotes(String(getSessionId()))
   if (notes.length === 0) return []
-  if (advisorSeatRefusal(advisorSessionSeat()) !== undefined) return []
+  if (advisorSeatRefusal('main') !== undefined) return []
   return notes.map(note => ({
     type: 'queued_command' as const,
     prompt: note.text,

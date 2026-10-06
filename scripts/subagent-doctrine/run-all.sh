@@ -18,7 +18,6 @@ echo "# Subagent/agent doctrine — proof harness"
 echo "############################################################"
 
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-subagent-doctrine.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-subagent-doctrine.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-crewmate-addendum.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-crewmate-addendum.ts" "$__t" "$__rc"
 
 echo ""
 echo "── dist-grep: the doctrine ships in the built product (string literals) ──"

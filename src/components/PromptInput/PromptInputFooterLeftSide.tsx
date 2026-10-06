@@ -75,9 +75,6 @@ export function PromptInputFooterLeftSide({
     (state: AppState) => state.viewingAgentTaskId,
   )
   const viewedCrewmate = useViewedCrewmate()
-  const treeShowing = useAppState(
-    (state: AppState) => state.expandedView === 'crewmates',
-  )
   const shellRunning = useFocusedShellRunning()
   useSyncExternalStore(settingsChangeDetector.subscribe, settingsRevision, settingsRevision)
   const permissionMode = useAppState(
@@ -189,7 +186,7 @@ export function PromptInputFooterLeftSide({
 
   const showTasksPill = tasksPresent
 
-  const crewmatePillsPresent = viewingCrewmate && !treeShowing
+  const crewmatePillsPresent = viewingCrewmate
 
   const parts: React.ReactNode[] = []
   if (mode === 'bash') {

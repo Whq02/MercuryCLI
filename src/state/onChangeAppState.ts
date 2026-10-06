@@ -36,16 +36,11 @@ export function onChangeAppState({
 
   if (newState.expandedView !== oldState.expandedView) {
     const showExpandedTasks = newState.expandedView === 'tasks'
-    const showSpinnerTree = newState.expandedView === 'crewmates'
     const config = getGlobalConfig()
-    if (
-      config.showExpandedTasks !== showExpandedTasks ||
-      config.showSpinnerTree !== showSpinnerTree
-    ) {
+    if (config.showExpandedTasks !== showExpandedTasks) {
       saveGlobalConfig(current => ({
         ...current,
         showExpandedTasks,
-        showSpinnerTree,
       }))
     }
   }

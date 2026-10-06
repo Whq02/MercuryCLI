@@ -87,13 +87,10 @@ export function BackgroundTaskStatus({
   const { columns } = useTerminalSize()
   const tokens = useMercuryTokens()
   const tasks = useAppState((state: AppState) => state.tasks)
-  const treeShowing = useAppState(
-    (state: AppState) => state.expandedView === 'crewmates',
-  )
   const setAppState = useSetAppState()
 
   const manageable = Object.values(tasks).filter(isManageableTask)
-  const agentPillMode = isViewingCrewmate && !treeShowing
+  const agentPillMode = isViewingCrewmate
 
   if (agentPillMode) {
     const viewedIndex = 0

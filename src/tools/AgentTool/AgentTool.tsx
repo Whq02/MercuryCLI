@@ -62,7 +62,6 @@ import {
 } from '../../utils/crew/engineDispatch.js'
 import { describeAgentRuntimeRef } from '../../services/providers/primaryBackend.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
-import { getParentSessionId } from '../../utils/crewmate.js'
 import {
   createAgentWorktree,
   preflightWorktreeCapability,
@@ -765,7 +764,6 @@ export const AgentTool = buildTool({
     const agentContext: SubagentContext = {
       agentType: 'subagent',
       agentId: earlyAgentId,
-      parentSessionId: getParentSessionId(),
       subagentName: agentDef.agentType,
       isBuiltIn: isBuiltInAgent(agentDef),
       invocationKind: 'spawn',

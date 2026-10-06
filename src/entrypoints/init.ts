@@ -73,11 +73,6 @@ export const init: () => Promise<void> = memoize(async (): Promise<void> => {
 
     registerCleanup(() => shutdownLspServerManager())
 
-    registerCleanup(async () => {
-      const { cleanupSessionCrews } = await import('../utils/crew/crewHelpers.js')
-      await cleanupSessionCrews()
-    })
-
     profileCheckpoint('init_function_end')
   } catch (error) {
     if (error instanceof ConfigReadError) {

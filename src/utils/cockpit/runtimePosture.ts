@@ -1,5 +1,4 @@
 
-import { isCrewEnabled } from '../crewEnabled.js'
 import { listCapabilityKills } from '../permissions/capabilityGate.js'
 import { isMcpPolicyActive, describeMcpPolicy } from '../../services/mcp/toolPolicy.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
@@ -138,11 +137,7 @@ export function getRuntimePostureSection(): string | null {
       : '- MCP tool-risk policy: permissive (no max-risk cap set).',
   )
 
-  lines.push(
-    isCrewEnabled()
-      ? '- Crew tooling available: file leases guard concurrent edits (a lease denial is coordination, not an error); LiveComms carries the crew\'s live state.'
-      : '- Crew tooling: off for this process.',
-  )
+  lines.push('- File leases guard concurrent edits between agents (a lease denial is coordination, not an error).')
 
   memo = lines.join('\n')
   return memo

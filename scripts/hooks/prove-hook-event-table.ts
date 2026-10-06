@@ -16,7 +16,7 @@ const WIRE_EVENT_ORDER = [
   'PreToolUse', 'PostToolUse', 'PostToolUseFailure', 'Notification', 'UserPromptSubmit',
   'UserPromptExpansion', 'SessionStart', 'SessionEnd', 'Stop', 'StopFailure',
   'SubagentStart', 'SubagentStop', 'PreCompact', 'PostCompact', 'PermissionRequest',
-  'PermissionDenied', 'Setup', 'CrewmateIdle', 'TaskCreated', 'TaskCompleted',
+  'PermissionDenied', 'Setup', 'TaskCreated', 'TaskCompleted',
   'Elicitation', 'ElicitationResult', 'ConfigChange', 'WorktreeCreate', 'WorktreeRemove',
   'InstructionsLoaded', 'CwdChanged', 'FileChanged', 'Interrupt',
 ] as const
@@ -44,7 +44,6 @@ const eventSpecificFields: Record<string, Record<string, unknown>> = {
   PreCompact: { trigger: 'manual', custom_instructions: null },
   PostCompact: { trigger: 'auto' },
   Setup: { trigger: 'init' },
-  CrewmateIdle: {},
   TaskCreated: { task_id: 't1' },
   TaskCompleted: { task_id: 't1' },
   Elicitation: { mcp_server_name: 'srv', message: 'm' },
@@ -114,7 +113,6 @@ const matchExpectations: Array<[string, Record<string, unknown>, string | undefi
   ['InstructionsLoaded', { load_reason: 'compact' }, 'compact'],
   ['FileChanged', { file_path: '/a/b/c.txt' }, 'c.txt'],
   ['FileChanged', { file_path: '/a/b/' }, 'b'],
-  ['CrewmateIdle', {}, undefined],
   ['TaskCreated', {}, undefined],
   ['Stop', {}, undefined],
 ]

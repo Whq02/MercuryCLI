@@ -814,7 +814,7 @@ export async function runHeadless(
   const landAdvisorQuiet = (quiet: AdvisorQuiet): void => {
     const row = createAdvisorQuietMessage(quiet)
     messages.push(row)
-    void recordTranscript([row], undefined, undefined, messages).catch((error: unknown) => {
+    void recordTranscript([row], undefined, messages).catch((error: unknown) => {
       logForDebugging(`advisor: the quiet row was not recorded — ${error instanceof Error ? error.message : String(error)}`)
     })
   }

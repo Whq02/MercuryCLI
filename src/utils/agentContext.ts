@@ -10,22 +10,11 @@ type InvocationEdge = {
 export type SubagentContext = InvocationEdge & {
   agentType: 'subagent'
   agentId: string
-  parentSessionId?: string
   subagentName?: string
   isBuiltIn?: boolean
 }
 
-export type CrewmateAgentContext = InvocationEdge & {
-  agentType: 'crewmate'
-  agentId: string
-  agentName: string
-  crewName: string
-  agentColor?: string
-  parentSessionId: string
-  isCrewLead: boolean
-}
-
-export type AgentContext = SubagentContext | CrewmateAgentContext
+export type AgentContext = SubagentContext
 
 const storage = new AsyncLocalStorage<AgentContext>()
 

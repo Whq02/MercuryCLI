@@ -1,4 +1,3 @@
-import { isCrewEnabled } from '../../utils/crewEnabled.js'
 import { TASK_LIST_TOOL_NAME } from '../TaskListTool/constants.js'
 import { TASK_UPDATE_TOOL_NAME } from '../TaskUpdateTool/constants.js'
 
@@ -6,14 +5,6 @@ import { TASK_UPDATE_TOOL_NAME } from '../TaskUpdateTool/constants.js'
 export const DESCRIPTION = 'Add a task to the shared list.'
 
 export function getPrompt(): string {
-  const crewSection = isCrewEnabled()
-    ? `
-
-## Working in a crew
-- Tasks can be assigned to crewmates. Write the description with enough detail that another agent can pick the task up without your context.
-- Assign a task by setting its owner through ${TASK_UPDATE_TOOL_NAME}'s owner parameter.`
-    : ''
-
   return `Create a task in the shared task list.
 
 ## Why
@@ -43,5 +34,5 @@ Every task is created with status pending.
 ## Tips
 - Keep subjects clear and specific.
 - Set dependencies afterwards with ${TASK_UPDATE_TOOL_NAME} (addBlocks / addBlockedBy).
-- Check ${TASK_LIST_TOOL_NAME} first so you do not create duplicates.${crewSection}`
+- Check ${TASK_LIST_TOOL_NAME} first so you do not create duplicates.`
 }

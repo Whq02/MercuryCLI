@@ -18,7 +18,6 @@ import {
   ADVISOR_MINUTES_FLOOR,
   advisorDispatchEffort,
   advisorSeatRefusal,
-  advisorSessionSeat,
   readAdvisorSettings,
   resolveAdvisorModel,
   type AdvisorSeat,
@@ -208,7 +207,7 @@ export async function composeAdvisorNote(
   road: AdvisorRoad = {},
 ): Promise<AdvisorNote | null> {
   const settings = road.settings ?? readAdvisorSettings()
-  if (advisorSeatRefusal(road.seat ?? advisorSessionSeat(), settings, road.chat) !== undefined) return null
+  if (advisorSeatRefusal(road.seat ?? 'main', settings, road.chat) !== undefined) return null
   const now = advisorClock(road)
   let model = road.model
   if (model === undefined) {
@@ -255,7 +254,7 @@ export async function advisorTurnSettled(
   road: AdvisorRoad = {},
 ): Promise<AdvisorNote | null> {
   const settings = road.settings ?? readAdvisorSettings()
-  if (advisorSeatRefusal(road.seat ?? advisorSessionSeat(), settings, road.chat) !== undefined) return null
+  if (advisorSeatRefusal(road.seat ?? 'main', settings, road.chat) !== undefined) return null
   const context = await loadAdvisorContext(agentId, advisorContextOptions(road))
   if (!advisorNoteDue(context, settings.minutes, advisorClock(road)())) return null
   return composeAdvisorNote(context, messages, { ...road, settings })

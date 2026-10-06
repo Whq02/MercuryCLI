@@ -100,29 +100,6 @@ export type InboxMessage = {
 }
 
 
-export type CrewmateRecord = {
-  name: string
-  agentType?: string
-  color?: string
-  tmuxSessionName: string
-  tmuxPaneId: string
-  cwd: string
-  worktreePath?: string
-  spawnedAt: number
-}
-
-export type CrewContext = {
-  crewName: string
-  crewFilePath: string
-  leadAgentId: string
-  selfAgentId?: string
-  selfAgentName?: string
-  selfAgentColor?: string
-  isLeader?: boolean
-  crewmates: Record<string, CrewmateRecord>
-}
-
-
 export type ExtensionsState = {
   roster: RosterEntry[]
   health: Record<string, Health | null>
@@ -135,9 +112,8 @@ export type ExtensionsState = {
 type AppStateImmutableHalf = {
   settings: Settings
   verbose: boolean
-  expandedView: 'none' | 'tasks' | 'crewmates'
+  expandedView: 'none' | 'tasks'
   spinnerTip?: string
-  showCrewmateMessagePreview?: boolean
   isAssistantMode: boolean
   agent?: string
   footerSelection: FooterItem | null
@@ -179,7 +155,6 @@ type AppStateMutableHalf = {
   crewLedger: CrewLedger
   selectedIPAgentIndex: number
   viewSelectionMode: 'none' | 'selecting-agent' | 'viewing-agent'
-  crewContext?: CrewContext
   standaloneAgentContext?: { name: string; color?: string }
 
   mcp: {
@@ -248,7 +223,7 @@ export type AppStateStore = Store<AppState>
 function rememberedExpandedView(): AppState['expandedView'] {
   try {
     const remembered = getGlobalConfig().expandedView
-    return remembered === 'tasks' || remembered === 'crewmates' ? remembered : 'none'
+    return remembered === 'tasks' ? remembered : 'none'
   } catch {
     return 'none'
   }
@@ -312,7 +287,6 @@ export function getDefaultAppState(): AppState {
     authVersion: 0,
     initialMessage: null,
     thinkingEnabled: shouldEnableThinkingByDefault(),
-    showCrewmateMessagePreview: false,
   }
 }
 

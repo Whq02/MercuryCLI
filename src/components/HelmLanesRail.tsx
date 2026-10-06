@@ -15,7 +15,6 @@ import { readSessionWorkers } from '../daemon/concourseWorkers.js'
 import { getActiveMission, getActiveMissionVersion, subscribeActiveMission } from '../utils/hooks/missionHook.js'
 import { isProjectSession, isSubstantiveSession } from '../utils/sessionFilter.js'
 import { isSessionCleared } from '../utils/sessionStorage/clearedSessions.js'
-import { isCrewSession } from '../utils/sessionClass.js'
 import { boardHomedSessionIds } from '../daemon/concourseWorkers.js'
 import { sessionIdOfListing, listSessionsAcrossProjects } from '../utils/sessionStorage.js'
 import { getHelmCursor, getHelmFocus, getHelmLanesVersion, getHelmRows, helmRowSig, publishHelmRows, requestCommandDispatch, requestHelmRowActivation, requestHelmRowActivationBySig, setHelmCursor, setHelmCursorBySig, subscribeHelmFocus, type HelmRow } from '../utils/cockpit/helmFocus.js'
@@ -285,7 +284,6 @@ function useRecentSessions(solo: boolean): SessionListing[] | null {
         const resumable = filterResumableSessions(all, conversationId)
           .filter(isSubstantiveSession)
           .filter(l => !boardHomed.has(sessionIdOfListing(l) ?? ''))
-          .filter(l => !isCrewSession(l))
           .filter(l => isProjectSession(l, getProjectRoot() || ''))
           .filter(l => !isSessionCleared(sessionIdOfListing(l)))
         resumable.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime())

@@ -2,7 +2,7 @@ import { z } from 'zod/v4'
 
 import { getSessionId } from '../../bootstrap/state.js'
 import { askAdvisor } from '../../services/advisor/askAdvisor.js'
-import { advisorEnabled, advisorSessionSeat } from '../../services/advisor/advisorSettings.js'
+import { advisorEnabled } from '../../services/advisor/advisorSettings.js'
 import { buildTool, type ToolDef, type ToolUseContext } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { ASK_ADVISOR_MAX_RESULT_CHARS, ASK_ADVISOR_SEARCH_HINT, ASK_ADVISOR_TOOL_NAME } from './constants.js'
@@ -30,7 +30,7 @@ export function askAdvisorRefusedText(reason: string): string {
 }
 
 export async function askAdvisorCall(question: string, context: ToolUseContext): Promise<AskAdvisorOutput> {
-  const seat = context.agentKind ?? (context.agentId ? 'crewmate' : advisorSessionSeat())
+  const seat = context.agentKind ?? (context.agentId ? 'crewmate' : 'main')
   const result = await askAdvisor(askAdvisorAgentId(context), question, context.messages, { seat, signal: context.abortController.signal })
   if (!result.ok) return { status: 'refused', text: askAdvisorRefusedText(result.reason) }
   return { status: 'ok', text: result.reply, model: result.model }

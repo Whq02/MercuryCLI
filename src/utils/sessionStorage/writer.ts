@@ -197,7 +197,6 @@ function partitionUnwritten(
 
 export async function recordTranscript(
   messages: Message[],
-  crewInfo?: CrewInfo,
   startingParentUuidHint?: UUID,
   allMessages?: readonly Message[],
 ): Promise<UUID | null> {
@@ -212,7 +211,6 @@ export async function recordTranscript(
       false,
       undefined,
       startingParentUuid,
-      crewInfo,
       preferLiveLeaf,
     )
   }
@@ -690,7 +688,6 @@ class Project {
     isSidechain: boolean = false,
     agentId?: string,
     startingParentUuid?: UUID | null,
-    crewInfo?: { crewName?: string; agentName?: string },
     preferLiveLeaf: boolean = false,
   ) {
     return this.trackWrite(() => this.serializeInsert(async () => {
@@ -735,8 +732,6 @@ class Project {
             ? (parentUuid ?? undefined)
             : undefined,
           isSidechain,
-          crewName: crewInfo?.crewName,
-          agentName: crewInfo?.agentName,
           promptId:
             message.type === 'user' ? (getPromptId() ?? undefined) : undefined,
           workload: message.type === 'assistant' ? getWorkload() : undefined,
@@ -945,11 +940,6 @@ class Project {
     }
   }
 
-}
-
-export type CrewInfo = {
-  crewName?: string
-  agentName?: string
 }
 
 export function appendEntryToFile(

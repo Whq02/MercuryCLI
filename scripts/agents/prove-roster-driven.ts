@@ -196,8 +196,10 @@ section('§2 a scout run: mercury-scout has no writer; its write attempt is refu
   check('the scout seat carries no worktree door, no schedule writer and no memory writer', !['EnterWorktree', 'ExitWorktree', 'CronCreate', 'CronDelete', 'ScheduleWakeup', 'Retain', 'Correct', 'RecordConvention'].some(t => seatTools.includes(t)), seatTools.join(','))
   const { getAllBaseTools } = await import('../../src/tools.ts')
   const baseTools = new Map((getAllBaseTools() as unknown as ClassifiedTool[]).map(t => [t.name, t]))
-  const offered = seatTools.filter(t => t !== 'Bash' && t !== 'Skill')
+  const offered = seatTools.filter(t => t !== 'Bash' && t !== 'Skill' && !t.startsWith('mcp__'))
   const writers = offered.filter(t => !readsOnlyAtRest(baseTools.get(t)))
+  const organTools = seatTools.filter(t => t.startsWith('mcp__'))
+  check("the organ's tools reach the scout only in their reading forms (the lease list and the screen capture; never a lease writer)", organTools.every(t => t === 'mcp__mercury__lease_list' || t === 'mcp__mercury__render_tui'), organTools.join(','))
   check("every tool the scout seat is offered is read-only by the tool's own classification (the shell and the skill door apart)", offered.length > 0 && writers.length === 0, `writers offered: ${writers.join(',') || 'none'}; wire: ${seatTools.join(',')}`)
   check("the scout seat's system prompt is the read-only scout's", systemTextOf(seats[0] ?? {}).includes("You are Mercury's repository scout") && systemTextOf(seats[0] ?? {}).includes('Read-only — absolute prohibitions'))
   const refusal = toolResultsOf(seats[1] ?? {}).find(text => text.includes('No such tool available: Write')) ?? ''
@@ -263,6 +265,7 @@ section("§2e the scout's tool gate itself: the pool is the read-only pool, the 
     tool('Retain', () => false),
     tool('AstEdit', input => input.apply !== true),
     tool('Agent', () => true),
+    tool('SendMessage', () => true),
     tool('EnterWorktree', () => true),
     tool('ExitWorktree', () => true),
     tool('Throws', () => { throw new Error('no input') }),
@@ -271,7 +274,7 @@ section("§2e the scout's tool gate itself: the pool is the read-only pool, the 
   const names = gated.map(t => t.name)
   check('the pool keeps the shell, the skill door, the readers and the input-dependent tools', ['Bash', 'Skill', 'Read', 'AstEdit'].every(n => names.includes(n)), names.join(','))
   check('the pool drops an unconditional writer', !names.includes('Retain'), names.join(','))
-  check('the pool drops the Agent tool and both worktree doors even when they claim to read', !['Agent', 'EnterWorktree', 'ExitWorktree'].some(n => names.includes(n)), names.join(','))
+  check('the pool drops the Agent tool, the message tool and both worktree doors even when they claim to read', !['Agent', 'SendMessage', 'EnterWorktree', 'ExitWorktree'].some(n => names.includes(n)), names.join(','))
   check('a tool whose classification throws is not offered', !names.includes('Throws'), names.join(','))
   const astEdit = gated.find(t => t.name === 'AstEdit')
   const bash = gated.find(t => t.name === 'Bash')

@@ -7,13 +7,9 @@ import {
   type Command,
 } from '../../commands.js'
 import { Box, Text, useInput } from '../../ink.js'
-import {
-  fetchCommandHierarchy,
-  type CommandHierarchy,
-} from '../../utils/commandHierarchy.js'
 import { createFuzzyIndex } from '../../utils/fuzzyMatch.js'
 import { getCwd } from '../../utils/cwd.js'
-import { FAINT, IVORY, SECOND, TEAL, TERRA } from '../mercuryPalette.js'
+import { FAINT, IVORY, SECOND, TERRA } from '../mercuryPalette.js'
 import { CommandCenter, EmptyState, SectionHeader } from './components.js'
 import { GLYPH, truncateToWidth } from './glyphs.js'
 import { stringWidth } from '../../ink/stringWidth.js'
@@ -41,7 +37,6 @@ export function PaletteView({
   const [query, setQuery] = useState('')
   const [sel, setSel] = useState(0)
   const [rows, setRows] = useState<PaletteRow[] | null>(null)
-  const [ladder, setLadder] = useState<CommandHierarchy | null>(null)
 
   const pastOpenEvent = useOpenEventGate()
 
@@ -61,14 +56,6 @@ export function PaletteView({
         setRows(built)
       } catch {
         if (alive) setRows([])
-      }
-    })()
-    void (async () => {
-      try {
-        const h = await fetchCommandHierarchy()
-        if (alive) setLadder(h)
-      } catch {
-        if (alive) setLadder(null)
       }
     })()
     return () => {
@@ -155,9 +142,6 @@ export function PaletteView({
       }
     >
       {}
-      <LadderHeader ladder={ladder} />
-
-      {}
       <Box marginTop={1}>
         <Text color={TERRA}>{GLYPH.prompt} </Text>
         <Text color={IVORY}>{queryDisplay}</Text>
@@ -185,43 +169,5 @@ export function PaletteView({
         })
       )}
     </CommandCenter>
-  )
-}
-
-function LadderHeader({ ladder }: { ladder: CommandHierarchy | null }): React.ReactNode {
-  if (!ladder || ladder.rows.length === 0) {
-    return (
-      <Box marginTop={1}>
-        <Text color={FAINT}>
-          {GLYPH.handoff} command ladder · no active crew — run any command directly
-        </Text>
-      </Box>
-    )
-  }
-  const fc = ladder.rows.find(r => r.role === 'field-commander')
-  const rc = ladder.rows.filter(r => r.role === 'room-commander')
-  return (
-    <Box flexDirection="column" marginTop={1}>
-      <Text color={FAINT}>
-        {GLYPH.handoff} command ladder · {ladder.fcRoom ?? 'crew'}
-      </Text>
-      {fc ? (
-        <Text>
-          <Text color={fc.running ? TEAL : FAINT}>  {GLYPH.done} </Text>
-          <Text color={SECOND}>{fc.name}</Text>
-          <Text color={FAINT}> · field-commander</Text>
-        </Text>
-      ) : null}
-      {rc.slice(0, 4).map(r => (
-        <Text key={r.room}>
-          <Text color={r.running ? TEAL : FAINT}>  {GLYPH.dot} </Text>
-          <Text color={SECOND}>{truncateToWidth(r.name, 24)}</Text>
-          <Text color={FAINT}> · reports to {r.reportsTo ?? ladder.fcRoom ?? 'crew'}</Text>
-        </Text>
-      ))}
-      {rc.length > 4 ? (
-        <Text color={FAINT}>  {GLYPH.dot} +{rc.length - 4} more room-commanders</Text>
-      ) : null}
-    </Box>
   )
 }

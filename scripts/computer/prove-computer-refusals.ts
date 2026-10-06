@@ -6,7 +6,6 @@ const { getAllBaseTools } = await import('../../src/tools.ts')
 const { ComputerTool, COMPUTER_TOOL_NAME } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
 const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../src/services/desktop/resolveDriver.ts')
 const { setIsInteractive, getIsInteractive, setAskChannel, getAskChannel } = await import('../../src/bootstrap/state.ts')
-const crewmate = await import('../../src/utils/crewmate.ts')
 const agents = await import('../../src/tools/AgentTool/agentToolUtils.ts')
 const { ALL_AGENT_DISALLOWED_TOOLS } = await import('../../src/constants/tools.ts')
 
@@ -61,17 +60,6 @@ section('§2 a headless run is refused by name; a seat that can answer asks is n
   setIsInteractive(wasInteractive)
   const back = await ComputerTool.validateInput!({ action: 'screenshot' } as never, toolContext())
   check('an interactive session is accepted again', back.result === true, JSON.stringify(back))
-}
-
-section('§3 a crewmate is refused by name')
-{
-  crewmate.setDynamicCrewContext({ agentId: 'mate-1', crewName: 'crew' } as never)
-  check('the seam reads as a crewmate', crewmate.isCrewmate() === true)
-  const verdict = await ComputerTool.validateInput!({ action: 'screenshot' } as never, toolContext())
-  check('validateInput refuses with the crewmate text', verdict.result === false && verdict.message === 'the Computer tool drives the operator\'s own screen; a crewmate never drives it in this release — the main session does', JSON.stringify(verdict))
-  crewmate.clearDynamicCrewContext()
-  const back = await ComputerTool.validateInput!({ action: 'screenshot' } as never, toolContext())
-  check('the main session is accepted again', back.result === true, JSON.stringify(back))
 }
 
 section('§4 no agent ever carries the tool')

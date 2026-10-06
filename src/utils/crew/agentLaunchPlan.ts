@@ -3,15 +3,7 @@ import type { ToolPermissionContext } from '../../Tool.js'
 import type { EngineDispatch } from './engineDispatch.js'
 import { providerDisplayName } from '../../services/providers/routeLaw.js'
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
-import type {
-  AgentDefinition,
-  CustomAgentDefinition,
-} from '../../tools/AgentTool/loadAgentsDir.js'
-import { SEND_MESSAGE_TOOL_NAME } from '../../tools/SendMessageTool/constants.js'
-import { TASK_CREATE_TOOL_NAME } from '../../tools/TaskCreateTool/constants.js'
-import { TASK_GET_TOOL_NAME } from '../../tools/TaskGetTool/constants.js'
-import { TASK_LIST_TOOL_NAME } from '../../tools/TaskListTool/constants.js'
-import { TASK_UPDATE_TOOL_NAME } from '../../tools/TaskUpdateTool/constants.js'
+import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import { getAgentModel } from '../model/agent.js'
 import type { ModelAlias } from '../model/aliases.js'
 import type { PermissionMode } from '../permissions/PermissionMode.js'
@@ -20,7 +12,6 @@ import {
   getDenyRuleForAgent,
 } from '../permissions/permissions.js'
 import { reasonForRule, refusalWithReason, ruleSentence } from '../permissions/ruleReason.js'
-import type { ResolvedCrewmateRole } from './roleResolver.js'
 
 export type AgentLaunchPlanInput = {
   requestedType?: string
@@ -139,36 +130,5 @@ export function buildAgentLaunchPlan(i: AgentLaunchPlanInput): AgentLaunchPlan {
         i.forceAsync) &&
       !i.backgroundTasksDisabled,
     workerPermissionMode: definition.permissionMode ?? 'implement',
-  }
-}
-
-export const CREW_ESSENTIAL_TOOLS: readonly string[] = [
-  SEND_MESSAGE_TOOL_NAME,
-  TASK_CREATE_TOOL_NAME,
-  TASK_GET_TOOL_NAME,
-  TASK_LIST_TOOL_NAME,
-  TASK_UPDATE_TOOL_NAME,
-]
-
-export function deriveRunnerAgentDefinition(i: {
-  role?: ResolvedCrewmateRole
-  agentDefinition?: AgentDefinition
-  displayName: string
-  systemPrompt: string
-}): CustomAgentDefinition {
-  return {
-    agentType:
-      i.role?.agentType ?? i.agentDefinition?.agentType ?? i.displayName,
-    whenToUse: `In-process crewmate: ${i.displayName}`,
-    getSystemPrompt: () => i.systemPrompt,
-    tools: i.agentDefinition?.tools
-      ? [...new Set([...i.agentDefinition.tools, ...CREW_ESSENTIAL_TOOLS])]
-      : ['*'],
-    source: 'projectSettings',
-    permissionMode: 'default',
-    ...(i.agentDefinition?.disallowedTools
-      ? { disallowedTools: i.agentDefinition.disallowedTools }
-      : {}),
-    ...(i.agentDefinition?.model ? { model: i.agentDefinition.model } : {}),
   }
 }

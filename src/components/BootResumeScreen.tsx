@@ -13,7 +13,6 @@ import { useEngineModel } from '../hooks/useEngineModel.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import {
   useSessionPickerModel,
-  type SessionPickerCrewRow,
   type SessionPickerFlatRow,
   type SessionScope,
 } from './mercury-ui/screens/sessionPickerModel.js';
@@ -38,7 +37,6 @@ import { useSplashCoreAccent } from './mercury-ui/useSplashCoreAccent.js';
 
 export interface BootResumePickerModel {
   flat: SessionPickerFlatRow[];
-  crew: SessionPickerCrewRow[];
   elsewhereCount: number;
   pendingMore: number;
 }
@@ -78,19 +76,6 @@ export function resumeEntryOf(f: SessionPickerFlatRow): ResumeEntry {
   };
 }
 
-export function resumeCrewEntryOf(c: SessionPickerCrewRow): ResumeEntry {
-  return {
-    label: `${c.tag} — ${c.label}`,
-    group: 'router crews',
-    groupTitle: 'router crews',
-    summary: `a router-crew transcript · last seen ${c.seen} — ↵ opens it for inspection`,
-    valueLabel: c.seen,
-    valueIsDefault: true,
-    pinnedVal: null,
-    detail: null,
-  };
-}
-
 export function resumeElsewhereEntry(count: number): ResumeEntry {
   return {
     label: `+${count} in other project${count === 1 ? '' : 's'} — a shows all history`,
@@ -116,16 +101,6 @@ export function resumeDetailLines(f: SessionPickerFlatRow): string[] {
     'this screen and the face stay beneath.',
     '',
     'esc — back to the face, nothing opened',
-  ];
-}
-
-export function resumeCrewDetailLines(c: SessionPickerCrewRow): string[] {
-  return [
-    `crew seat: ${c.tag}`,
-    `last seen: ${c.seen}`,
-    '',
-    'a router-crew transcript — ↵ opens it',
-    'for inspection as a real chat.',
   ];
 }
 
@@ -168,7 +143,6 @@ export function resumeEmptyDetailLines(scope: SessionScope, elsewhereCount: numb
 export function resumeSummaryRows(facts: {
   scope: SessionScope;
   count: number;
-  crewCount: number;
   elsewhereCount: number;
   pendingMore: number;
   projectsCount?: number;
@@ -177,7 +151,7 @@ export function resumeSummaryRows(facts: {
     { key: 'Scope', value: facts.scope === 'all' ? 'all history — every project' : 'this project' },
     {
       key: 'Sessions',
-      value: `${facts.count}${facts.crewCount > 0 ? ` · ${facts.crewCount} crew` : ''}${facts.scope === 'project' && facts.elsewhereCount > 0 ? ` · ${facts.elsewhereCount} elsewhere` : ''}`,
+      value: `${facts.count}${facts.scope === 'project' && facts.elsewhereCount > 0 ? ` · ${facts.elsewhereCount} elsewhere` : ''}`,
     },
     ...(facts.projectsCount !== undefined && facts.projectsCount > 0
       ? [{ key: 'Repos', value: `${facts.projectsCount}` }]
@@ -187,7 +161,7 @@ export function resumeSummaryRows(facts: {
   ];
 }
 
-export function resumeStatusLine(facts: { loading: boolean; count: number; crewCount: number; scope: SessionScope; pendingMore: number; filterBase?: string }): string {
+export function resumeStatusLine(facts: { loading: boolean; count: number; scope: SessionScope; pendingMore: number; filterBase?: string }): string {
   if (facts.loading) return 'reading the session store…';
   const scopeWord =
     facts.filterBase !== undefined
@@ -195,11 +169,10 @@ export function resumeStatusLine(facts: { loading: boolean; count: number; crewC
       : facts.scope === 'all'
         ? 'the full history'
         : 'this project';
-  const crew = facts.crewCount > 0 ? ` · ${facts.crewCount} crew` : '';
   const pending = facts.pendingMore > 0 ? ` · loading ${facts.pendingMore} more…` : '';
   return facts.count === 0
-    ? `no sessions to resume in ${scopeWord}${crew}${pending} — n births one`
-    : `${facts.count} session${facts.count === 1 ? '' : 's'} in ${scopeWord}${crew}${pending} · ↵ opens the real chat`;
+    ? `no sessions to resume in ${scopeWord}${pending} — n births one`
+    : `${facts.count} session${facts.count === 1 ? '' : 's'} in ${scopeWord}${pending} · ↵ opens the real chat`;
 }
 
 export function resumeLegendOf(scope: SessionScope, hasRows: boolean, projectsPresent = false): string {
@@ -267,12 +240,10 @@ export function pruneLegendOf(stage: 'card' | 'deleting' | 'receipt', offered = 
 
 type SelectableRow =
   | { kind: 'session'; flat: SessionPickerFlatRow }
-  | { kind: 'crew'; crew: SessionPickerCrewRow }
   | { kind: 'project'; project: BootProjectFact & { running?: number } };
 
 function selectableIdOf(row: SelectableRow): string {
   if (row.kind === 'session') return `resume:${sessionIdOfListing(row.flat.row.log) ?? row.flat.row.label}`;
-  if (row.kind === 'crew') return `crew:${row.crew.tag}:${row.crew.label}`;
   return `project:${row.project.dir}`;
 }
 
@@ -298,7 +269,6 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
           : given.flat.filter(f => isProjectSession(f.row.log, projectFilter.dir)),
     [given, live.flat, projectFilter],
   );
-  const crew = given?.crew ?? live.crew;
   const elsewhereCount = given?.elsewhereCount ?? live.elsewhereCount;
   const pendingMore = given?.pendingMore ?? live.pendingMore;
   const loading = given === undefined && live.logs === null;
@@ -306,10 +276,9 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
   const selectable: SelectableRow[] = useMemo(
     () => [
       ...flat.map(f => ({ kind: 'session' as const, flat: f })),
-      ...crew.map(c => ({ kind: 'crew' as const, crew: c })),
       ...(projects ?? []).map(project => ({ kind: 'project' as const, project })),
     ],
-    [flat, crew, projects],
+    [flat, projects],
   );
 
   const [prune, setPrune] = useState<
@@ -374,8 +343,8 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
     if (row.kind === 'project') {
       return openProject?.(row.project) ?? null;
     }
-    const log = row.kind === 'session' ? row.flat.row.log : row.crew.log;
-    const title = row.kind === 'session' ? row.flat.row.label : row.crew.label;
+    const log = row.flat.row.log;
+    const title = row.flat.row.label;
     return {
       pending: 'opening…',
       result: (async (): Promise<string | null> => {
@@ -463,7 +432,7 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
     (_input, key, event) => {
       if (!key.tab) return;
       event.stopImmediatePropagation();
-      const projStart = flat.length + crew.length;
+      const projStart = flat.length;
       if (projStart >= selectable.length) return;
       list.moveTo(list.selectedIndex >= projStart ? 0 : projStart);
     },
@@ -499,7 +468,6 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
     const entries: ResumeEntry[] = [
       ...flat.map(resumeEntryOf),
       ...(scope === 'project' && elsewhereCount > 0 ? [resumeElsewhereEntry(elsewhereCount)] : []),
-      ...crew.map(resumeCrewEntryOf),
       ...(projects ?? []).map(resumeProjectEntryOf),
     ];
     const entryIndexOf = (i: number): number =>
@@ -509,7 +477,6 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
       resumeStatusLine({
         loading,
         count: flat.length,
-        crewCount: crew.length,
         scope,
         pendingMore,
         ...(projectFilter !== null ? { filterBase: projectFilter.base } : {}),
@@ -531,7 +498,6 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
       summaryRows: resumeSummaryRows({
         scope,
         count: flat.length,
-        crewCount: crew.length,
         elsewhereCount,
         pendingMore,
         ...(merged ? { projectsCount: projects?.length ?? 0 } : {}),
@@ -546,14 +512,12 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
             detailOverride:
               selected.kind === 'session'
                 ? resumeDetailLines(selected.flat)
-                : selected.kind === 'crew'
-                  ? resumeCrewDetailLines(selected.crew)
-                  : resumeProjectDetailLines(selected.project),
+                : resumeProjectDetailLines(selected.project),
           }),
       ...(pruneOverride ?? {}),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flat, crew, elsewhereCount, pendingMore, loading, scope, selected, selectable.length, list.selectedIndex, list.note, prune, mainModel, wordGlow?.peakCell, wordGlow?.gainLevel]);
+  }, [flat, elsewhereCount, pendingMore, loading, scope, selected, selectable.length, list.selectedIndex, list.note, prune, mainModel, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
   const composition = useMemo(() => {
     const menu = core.composeBootMenu(columns, rows, menuM) as {
@@ -582,7 +546,7 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
         if (row !== undefined) {
           const props = list.rowProps(row, rowIdx);
           const hoverLabel =
-            row.kind === 'session' ? row.flat.row.label : row.kind === 'crew' ? row.crew.label : row.project.base;
+            row.kind === 'session' ? row.flat.row.label : row.project.base;
           return (
             <InteractiveRow
               key={props.id}

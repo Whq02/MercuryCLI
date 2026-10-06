@@ -185,7 +185,6 @@ const defaultsBody = src('src/utils/model/model.ts').match(/export function getD
 check('the four family defaults spell no table key (they read the table)', defaultsBody.length === 4 && defaultsBody.every(b => !/firstPartyString\('/.test(b)))
 check('the picker rows spell no generation (no literal previous-key list, no literal frontier row)', !has('src/utils/model/modelOptions.ts', 'PREVIOUS_LARGE_KEYS') && !has('src/utils/model/modelOptions.ts', 'getFable51Option') && !has('src/utils/model/modelOptions.ts', "strings.fable51"))
 check("the router's class defaults spell no id", !/'claude-[a-z0-9-]+(\[1m\])?'/.test(codeOnly(src('src/utils/router/providers/anthropic.ts')).split('function classDefaultModel')[1]?.split('\n}')[0] ?? "'claude-x'"))
-check('the crew tiers spell no id', !/model: 'claude-/.test(codeOnly(src('src/daemon/crewSpawn.ts'))))
 check('the frontier policy spells no generation in code', !/Fable 5/.test(codeOnly(src('src/utils/model/frontierPolicy.ts'))))
 const DISPLAY_OWNERS = new Set(['src/utils/model/model.ts', 'src/services/providers/openai/gptPins.ts', 'src/substrate/flagRegistry.ts'])
 const strayDisplay = SRC_FILES.filter(f => !DISPLAY_OWNERS.has(f)).filter(f => {

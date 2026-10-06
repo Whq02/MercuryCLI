@@ -634,22 +634,10 @@
     "type:Progress"
    ],
    "src/utils/crew/roleResolver.ts": [
-    "deriveRolePacket",
-    "findRoleDefinition",
-    "getRoleSystemPrompt",
-    "resolveCrewmateRole",
-    "type:CrewmateRoleRecord",
-    "type:ResolvedCrewmateRole"
+    "«missing»"
    ],
    "src/utils/crew/crewCharter.ts": [
-    "CREW_CHARTER_VERSION",
-    "deriveCrewCharter",
-    "formatCharterForContext",
-    "formatRolePacketForContext",
-    "parseCrewCharter",
-    "type:CrewCharter",
-    "type:CrewRolePacket",
-    "type:DeriveCharterInputs"
+    "«missing»"
    ]
   },
   "turnEngine": {

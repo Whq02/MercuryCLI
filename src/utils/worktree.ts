@@ -19,7 +19,7 @@ import { logError } from './log.js'
 import { projectLocalPath } from '../services/projectLocal/paths.js'
 import { getInitialSettings, getRelativeSettingsFilePathForSource } from './settings/settings.js'
 import { sleep } from './sleep.js'
-import { isInITerm2, isInsideTmuxSync } from './crew/backends/detection.js'
+import { isInITerm2, isInsideTmuxSync } from './terminalDetection.js'
 
 
 const MAX_SLUG_LENGTH = 64
