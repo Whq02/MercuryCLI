@@ -249,15 +249,30 @@ async function paint(content: React.ReactNode, columns: number, rows: number, wa
   await settle()
   await new Promise<void>(resolve => setTimeout(resolve, 250))
   await settle()
-  const frames = [plain(instance.lastFrame())]
+  const read = (): string => plain(instance.lastFrame())
+  const quiet = async (): Promise<string> => {
+    let last = read()
+    let still = 0
+    for (let waited = 0; waited < 8000 && still < 300; waited += 25) {
+      await new Promise<void>(resolve => setTimeout(resolve, 25))
+      await settle()
+      const next = read()
+      still = next === last ? still + 25 : 0
+      last = next
+    }
+    return last
+  }
+  const frames = [await quiet()]
   for (let step = 0; step < walk && !done(frames); step++) {
     emitter.emit('input', new InputEvent(interpretKey('\x1b[B')))
-    await settle()
-    await new Promise<void>(resolve => setTimeout(resolve, 60))
-    await settle()
-    const frame = plain(instance.lastFrame())
-    if (frame === frames[frames.length - 1]) break
-    frames.push(frame)
+    let moved = false
+    for (let waited = 0; waited < 3000 && !moved; waited += 20) {
+      await new Promise<void>(resolve => setTimeout(resolve, 20))
+      await settle()
+      moved = read() !== frames[frames.length - 1]
+    }
+    if (!moved) break
+    frames.push(await quiet())
   }
   instance.unmount()
   instance.cleanup()
@@ -397,6 +412,7 @@ section('§2 the owners: the identity line, the presence words and the label own
 }
 
 section('§3 the screens: /usage, the rail and the boot chip hide every identity; the Logins screen names the account; on or absent, today\'s bytes')
+await paintSurfaces('absent')
 const painted = new Map<Leg, Surfaces>()
 for (const leg of ['absent', 'shown', 'hidden'] as Leg[]) painted.set(leg, await paintSurfaces(leg))
 {
