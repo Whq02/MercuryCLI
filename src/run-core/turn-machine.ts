@@ -160,7 +160,6 @@ import { flushSessionStorage, recordContentReplacement } from '../utils/sessionS
 import { handleStopHooks } from '../query/stopHooks.js'
 import { buildRequestContextPlan, reconcileAppliedPlanUsage, type RequestContextPlan } from '../services/run/requestContextPlan.js'
 import { calibrationKeyFor } from '../services/run/contextCalibration.js'
-import { harnessContextPolicyRequest } from '../services/mission/harnessApplication.js'
 import { declaredRouteOf } from '../services/providers/callModelRouter.js'
 import { streamEndReceiptLine } from '../services/providers/streamIdleBudget.js'
 import { interruptedToolsLine, turnCutOf, turnCutResultText, turnCutWhy } from '../utils/messages/rejectionText.js'
@@ -980,12 +979,7 @@ export async function* runEventCore(
             ? calibrationKeyFor(declaredRouteOf(model) ?? 'unrecognised', model)
             : null
         })(),
-        harnessContextPolicy: harnessContextPolicyRequest(
-          typeof toolUseContext.options.engineModel === 'string'
-            ? toolUseContext.options.engineModel
-            : null,
-          toolUseContext.getAppState?.()?.effortValue,
-        ),
+        harnessContextPolicy: null,
         ...(pendingOverflow?.rung === 'prune'
           ? { pressurePrune: true as const }
           : proactivePrune !== undefined

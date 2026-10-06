@@ -1,8 +1,6 @@
-import { harnessEffortFact, resolveActiveHarnessProfile } from '../mission/harnessApplication.js'
-import type { EffortValue } from '../../utils/effort.js'
-import { harnessProfileById } from '../mission/harnessProfiles.js'
 import { seatCeilingFacts, stampedSeats, type SeatCeilingSource } from '../switchboard/capacityCheck.js'
 import { governorCeilings, setGovernorCeilings, type CeilingProvenance, type GovernorCeilings } from './governor.js'
+import type { EffortValue } from '../../utils/effort.js'
 import type { SeatNarrowing } from './seatWords.js'
 
 export interface CeilingFacts {
@@ -36,18 +34,8 @@ export function composeProvenance(facts: CeilingFacts, composed: GovernorCeiling
   return { seats, seatSource: facts.seatSource, narrowing }
 }
 
-function liveDelegationBand(
-  model: string | null | undefined,
-  sessionEffortValue: EffortValue | undefined,
-): { band: 1 | 2 | 3 | null; profileId: string | null } {
-  try {
-    const resolution = resolveActiveHarnessProfile({ model, effortLevel: harnessEffortFact(model, sessionEffortValue) })
-    if (!resolution) return { band: null, profileId: null }
-    const lanes = harnessProfileById(resolution.profileId)?.axes.delegationTopology.maxConcurrentLanes
-    return { band: lanes === 1 || lanes === 2 || lanes === 3 ? lanes : null, profileId: resolution.profileId }
-  } catch {
-    return { band: null, profileId: null }
-  }
+function liveDelegationBand(): { band: 1 | 2 | 3 | null; profileId: string | null } {
+  return { band: null, profileId: null }
 }
 
 export function operatorLanesFromEnv(env: NodeJS.ProcessEnv = process.env): number | null {
@@ -73,8 +61,10 @@ export function seatsForProcess(): { seats: number; source: SeatCeilingSource | 
 let lastApplied: string | null = null
 
 export function liveCeilingFacts(model: string | null | undefined, sessionEffortValue?: EffortValue): CeilingFacts {
+  void model
+  void sessionEffortValue
   const seats = seatsForProcess()
-  const band = liveDelegationBand(model, sessionEffortValue)
+  const band = liveDelegationBand()
   return {
     seats: seats.seats,
     seatSource: seats.source,

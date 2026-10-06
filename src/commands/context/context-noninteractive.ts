@@ -4,7 +4,6 @@ import type { Message } from '../../types/message.js'
 import type { AgentDefinitionsResult } from '../../tools/AgentTool/loadAgentsDir.js'
 import type { ToolUseContext } from '../../Tool.js'
 import type { Tools } from '../../Tool.js'
-import { harnessContextPolicyRequest } from '../../services/mission/harnessApplication.js'
 import type { EffortValue } from '../../utils/effort.js'
 import {
   buildRequestContextPlan,
@@ -47,7 +46,7 @@ export async function buildContextInspectionPlan(params: {
       querySource: params.querySource ?? DEFAULT_QUERY_SOURCE,
       contentReplacementState: params.contentReplacementState,
       skipToolNames: skipToolNamesFor(params.tools),
-      harnessContextPolicy: harnessContextPolicyRequest(params.engineModel, params.effortValue),
+      harnessContextPolicy: null,
     },
     'inspect',
   )
