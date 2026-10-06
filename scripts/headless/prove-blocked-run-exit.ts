@@ -12,7 +12,7 @@ process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'blocked-run-home-
 const vocabulary = await import('../../src/rows/vocabulary.ts')
 const project = await import('../../src/rows/project.ts')
 const grammar = await import('../../src/services/run/blockerDeclaration.ts')
-const sdkRows = await import('../../sdk/src/rows.ts')
+const sdkRows = existsSync(join(ROOT, 'sdk', 'src', 'rows.ts')) ? await import('../../sdk/src/rows.ts') : null
 const dist = join(ROOT, 'dist', 'mercury.mjs')
 if (!existsSync(dist)) {
   console.error(`FAIL run bundle exists: ${dist}`)
@@ -55,7 +55,8 @@ section('§1 THE VOCABULARY — blocked is an outcome status with exit 1, a sent
   check('a blocked outcome exits 1 (never 0)', (vocabulary.exitCodeOf as (s: string) => number)('blocked') === 1)
   check('blocked has a sentence for the text road', typeof (vocabulary.OUTCOME_SENTENCES as Record<string, unknown>).blocked === 'function')
   check('blocked is an error class, so the outcome names its reason', (vocabulary.ERROR_CLASSES as readonly string[]).includes('blocked'))
-  check('the SDK generated table carries blocked with exit 1', (sdkRows.OUTCOME_STATUSES as readonly string[]).includes('blocked') && (sdkRows.OUTCOME_EXIT_CODES as Record<string, number>).blocked === 1, j(sdkRows.OUTCOME_EXIT_CODES))
+  if (sdkRows === null) console.log('  [skip] the SDK is parked and not on this tree (the published lineage carries no sdk/): its generated table is read where it stands')
+  else check('the SDK generated table carries blocked with exit 1', (sdkRows.OUTCOME_STATUSES as readonly string[]).includes('blocked') && (sdkRows.OUTCOME_EXIT_CODES as Record<string, number>).blocked === 1, j(sdkRows.OUTCOME_EXIT_CODES))
   const scope = { session_id: 'sess-1', turn: 1 }
   const usage = { input_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, output_tokens: 1 }
   const row = project.outcomeRow(scope, {

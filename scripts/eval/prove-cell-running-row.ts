@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { EventEmitter } from 'node:events'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { ReactNode } from 'react'
@@ -168,8 +168,8 @@ try {
     const vocabulary = await import('../../src/rows/vocabulary.js')
     const update = vocabulary.ToolUpdateRowSchema().safeParse({ type: 'tool_update', seq: 1, timestamp: 't', session_id: 's', call_id: 'toolu_eval_1', tick: 1, source: 'eval', elapsed_s: 12, budget_ms: 180_000 })
     check('RED ON THE BASE: the rows vocabulary admits source eval on a tool_update row', update.success, update.success ? '' : j(update.error.issues[0]))
-    const sdk = read('sdk/src/rows.ts')
-    check('the generated SDK rows carry the eval source', /'shell' \| 'powershell' \| 'mcp' \| 'eval'/.test(sdk))
+    if (existsSync(join(ROOT, 'sdk', 'src', 'rows.ts'))) check('the generated SDK rows carry the eval source', /'shell' \| 'powershell' \| 'mcp' \| 'eval'/.test(read('sdk/src/rows.ts')))
+    else console.log('  [skip] the SDK is parked and not on this tree (the published lineage carries no sdk/)')
     const turn = read('src/rows/turn.ts')
     check('the runner projects an eval running tick as a tool_update row (source eval, the elapsed and the budget)', turn.includes("source: 'eval'") && turn.includes('elapsedS: evalRunning.elapsedSeconds') && turn.includes('budgetMs: evalRunning.budgetMs'))
     const { onSeatRow } = await import('../../src/daemon/sessionSeat.js')
