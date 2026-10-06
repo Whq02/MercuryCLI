@@ -142,7 +142,7 @@ section('§2 THE LAW OF THE HINT — a required first token <…> answers bare; 
 {
   const byName = new Map(roster.map(command => [command.name, command]))
   const expectRequired = ['update-config', 'debug', 'app-proof', 'mcp-smithy', 'pdf-documents', 'skill-forge', 'slide-decks', 'spreadsheets', 'word-documents', 'needs-thing']
-  const expectBare = ['simplify', 'schedule', 'skillify', 'provider-apis', 'loop', 'extension-maker', 'takes-nothing', 'optional-only', 'verify', 'review', 'init']
+  const expectBare = ['simplify', 'schedule', 'skillify', 'provider-apis', 'loop', 'extension-maker', 'takes-nothing', 'optional-only', 'verify', 'review', 'orient']
   for (const name of expectRequired) {
     const command = byName.get(name)
     check(`/${name} declares a required argument (RED on the base for update-config and debug: no hint / [issue description])`, command !== undefined && requiresArgument(command), `hint=${command === undefined ? 'absent' : argumentHintOf(command) ?? 'none'}`)

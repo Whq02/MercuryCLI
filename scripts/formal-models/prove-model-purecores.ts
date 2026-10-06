@@ -15,9 +15,6 @@ const { emptyInterviewState, foldInterview, rebuildInterview } = await import(
   '../../src/services/interview/contracts.ts'
 )
 const { resolveSelectionBudget } = await import('../../src/services/run/contextSelection.ts')
-const { HARNESS_PROFILE_IDS, harnessEvidenceEpoch, resolveHarnessProfile } = await import(
-  '../../src/services/mission/harnessProfiles.ts'
-)
 
 type Ev = Parameters<typeof rebuildInterview>[0][number]
 
@@ -149,72 +146,6 @@ t.section('§2 — resolveSelectionBudget is total, clamped, and identical-when-
   }
   t.check('200 generated flag values held totality + clamps + the accepted default (seed 20260807)', failure === '', failure.slice(0, 300))
   delete process.env.MERCURY_SELECTION_BUDGET
-}
-
-t.section('§3 — resolveHarnessProfile: pin lattice + closed catalogue on the bound epoch')
-{
-  const baseFacts = {
-    sessionPin: null as string | null,
-    persistedPin: null as string | null,
-    facts: {
-      providerFamily: 'anthropic',
-      modelId: 'claude-fable-5',
-      modelFamily: 'fable',
-      effortLevel: 'xhigh',
-      modelKnown: true,
-      capabilities: [] as string[],
-    },
-    taskFactsDigest: 'tf-model',
-    evidenceEpoch: harnessEvidenceEpoch({
-      architectureEpoch: 'cairn-model-arch',
-      corpusDigest: 'cairn-model-corpus',
-      graderDigest: 'cairn-model-grader',
-    }),
-    history: [] as never[],
-  }
-  const pinArb = fc.option(
-    fc.oneof(fc.constantFrom(...HARNESS_PROFILE_IDS), fc.string({ minLength: 1, maxLength: 16 })),
-    { nil: null },
-  )
-  const valid = new Set<string>(HARNESS_PROFILE_IDS)
-  let failure = ''
-  try {
-    fc.assert(
-      fc.property(pinArb, pinArb, (sessionPin, persistedPin) => {
-        const inputs = { ...baseFacts, sessionPin, persistedPin } as never
-        const r1 = resolveHarnessProfile(inputs)
-        const r2 = resolveHarnessProfile(inputs)
-        if (JSON.stringify(r1) !== JSON.stringify(r2)) throw new Error('nondeterministic resolution')
-        if (!valid.has(r1.profileId)) throw new Error(`resolved outside the closed catalogue: ${r1.profileId}`)
-        if (r1.profileDigest.length < 10) throw new Error(`digest shape broke: ${r1.profileDigest}`)
-        const pinOutcome = (pin: string, origin: 'session-pin' | 'persisted-pin'): void => {
-          const honored = r1.origin === origin && r1.profileId === pin
-          const declined = r1.declined.some(d => d.profileId === pin && d.reason.length > 0)
-          const namedFallthrough = r1.reasonCodes.length > 0
-          if (!honored && !declined && !namedFallthrough) {
-            throw new Error(`valid-id pin ${pin} neither honored nor declined-with-reason`)
-          }
-          if (honored && r1.profileId !== pin) throw new Error('honored pin with wrong identity')
-        }
-        if (sessionPin && valid.has(sessionPin)) {
-          pinOutcome(sessionPin, 'session-pin')
-        } else if (persistedPin && valid.has(persistedPin)) {
-          pinOutcome(persistedPin, 'persisted-pin')
-        } else {
-          if (r1.origin === 'session-pin' || r1.origin === 'persisted-pin') {
-            throw new Error(`no valid pin, but origin claims one (${r1.origin})`)
-          }
-          if (sessionPin && r1.profileId === sessionPin) {
-            throw new Error(`an INVALID pin resolved to itself: ${sessionPin}`)
-          }
-        }
-      }),
-      { numRuns: 200, seed: SEED },
-    )
-  } catch (e) {
-    failure = String(e)
-  }
-  t.check('200 generated pin pairs held the lattice on the bound epoch (seed 20260807)', failure === '', failure.slice(0, 300))
 }
 
 t.finish('prove-model-purecores')

@@ -48,15 +48,11 @@ check('substrateSnapshot uses isMcpPolicyActive() — the canonical bug line is 
 
 section('panels color/warn off the boolean, NOT the displayed === \'high\' string')
 for (const [name, p] of [
-  ['PolicyPanel', ['components', 'PolicyPanel.tsx']],
   ['MercuryMcpList', ['components', 'MercuryMcpList.tsx']],
-  ['Deck', ['components', 'Deck.tsx']],
   ['healthReport', ['utils', 'healthReport.ts']],
 ] as const) {
   check(`${name} keys off mcpPolicyActive`, /mcpPolicyActive/.test(src(...p)))
 }
-
-check('the status snapshot delegates MCP policy detail to /mcp', !src('commands', 'status', 'mercuryStatus.tsx').includes('mcpPolicyActive') && src('commands', 'status', 'mercuryStatus.tsx').includes('— /mcp'))
 
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log('✅ ALL MCP-POLICY-HONEST PROOFS PASS')

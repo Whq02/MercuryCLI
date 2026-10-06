@@ -210,12 +210,6 @@ section('§2 raw-input captures — a closed roster: the guard that scopes the c
       commands: 'none',
       reason: 'one composer that owns the whole card; it advertises no single key',
     },
-    'src/components/mercury-ui/ManagerView.tsx': {
-      guard: ['if (!pastOpenEvent()) return'],
-      legend: ['esc clears the filter'],
-      commands: 'none',
-      reason: 'the surfaces search feeds every printable to the query and advertises no single key',
-    },
   }
   const CAPTURE_NOTES: Record<string, { guardHolds: Array<string | RegExp>; verdict: string }> = {
     'src/components/BootLoginsScreen.tsx': {

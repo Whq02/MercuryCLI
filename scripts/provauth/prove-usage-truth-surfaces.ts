@@ -363,7 +363,6 @@ section('§3 one window decode per family — shared view fns + the anthropic en
 section('§4 signed-out honesty in the meter renderers (source pins)')
 {
   const rail = readFileSync(join(ROOT, 'src/utils/cockpit/helmTelemetryModel.ts'), 'utf8')
-  const deck = readFileSync(join(ROOT, 'src/components/Deck.tsx'), 'utf8')
   check('rail: renders the owner why-not for a none source', rail.includes('usage.whyNot'))
   const railCode = codeOnlyText('helmTelemetryModel.ts', rail)
   const noneBranchAt = railCode.indexOf("usageEmpty && usage.sourceKind === 'none'")
@@ -374,8 +373,6 @@ section('§4 signed-out honesty in the meter renderers (source pins)')
     'rail: the none branch is adjudicated BEFORE the fills-after hint',
     noneBranchAt !== -1 && whyNotHintAt !== -1 && fillsHintAt !== -1 && noneBranchAt < whyNotHintAt && whyNotHintAt < fillsHintAt,
   )
-  check('deck: renders the owner why-not for a none source', deck.includes('usage.whyNot'))
-  check('deck: no hardcoded not-logged-in line survives', !deck.includes('not logged in — /logins connects'))
 }
 
 section('§5 one endpoint, one fold seam (fetchUtilization feeds the window store)')

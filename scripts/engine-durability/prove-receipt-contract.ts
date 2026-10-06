@@ -51,7 +51,6 @@ t.section('§2 — one mint, and the seam consumers are pinned')
     'src/services/changeTransaction/receipts.ts',
     'src/services/changeTransaction/repetitionPolicy.ts',
     'src/services/ide/txAutoCapture.ts',
-    'src/services/counsel/counsel.ts',
     'src/services/run/runCoordinator.ts',
   ]
   const consumers = grepFiles(/subscribeToolTerminal/).filter(
