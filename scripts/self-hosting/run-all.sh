@@ -5,7 +5,7 @@
 # gate-watch: src/utils/config/globalConfig.ts src/utils/config/projectConfig.ts src/utils/settings/types.ts
 # gate-watch: src/Tool.ts src/context.ts src/utils/attachments/nestedMemory.ts src/utils/fileStateCache.ts
 # gate-watch: scripts/lib/firstRunSeed.ts
-# gate-watch: src/commands/init.ts src/projectOnboardingState.ts src/utils/cockpit/repoSurfaceMap.ts src/utils/config/trust.ts
+# gate-watch: src/projectOnboardingState.ts src/utils/cockpit/repoSurfaceMap.ts src/utils/config/trust.ts
 # gate-watch: src/components/mercury-ui/TrimChip.tsx
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

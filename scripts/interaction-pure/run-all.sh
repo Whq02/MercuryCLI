@@ -8,7 +8,7 @@
 # gate-watch: src/components/CustomSelect/** src/components/permissions/AskUserQuestionPermissionRequest/**
 # gate-watch: src/commands/appearance/appearance.tsx src/commands/caching/caching.tsx
 # gate-watch: src/commands/console/console.tsx src/commands/copy/copy.tsx src/commands/effort/EffortSlider.tsx
-# gate-watch: src/commands/health/HealthCertificate.tsx src/commands/home/home.tsx src/commands/run/run.tsx
+# gate-watch: src/commands/health/HealthCertificate.tsx src/commands/run/run.tsx
 # gate-watch: src/components/* src/components/PromptInput/* src/components/Settings/*
 # gate-watch: src/components/agents/studio/AgentStudio.tsx src/components/agents/studio/StudioEditor.tsx
 # gate-watch: src/components/concourse/* src/components/design-system/ThemedBox.tsx

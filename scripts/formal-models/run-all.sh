@@ -4,7 +4,7 @@
 # gate-watch: src/services/interview/** scripts/interview/prove-resume-bounds.ts
 # gate-watch: src/substrate/flagRegistry.ts scripts/orphans/**
 # gate-watch: scripts/engine-durability/harness.ts src/context/surfaceRoute.ts
-# gate-watch: src/services/changeTransaction/changeSetContracts.ts src/services/mission/harnessProfiles.ts
+# gate-watch: src/services/changeTransaction/changeSetContracts.ts
 # gate-watch: src/services/run/contextSelection.ts src/services/run/requestContextPlan.ts
 # gate-watch: src/services/switchboard/spawnSwitches.ts src/substrate/* src/utils/cockpit/liveGlyphs.ts
 # gate-watch: src/utils/tasks.ts src/utils/timeouts.ts

@@ -7,7 +7,7 @@
 # gate-watch: scripts/ui/fixtures/sandbox-paths/platform.cjs scripts/ui/renderScenarios.ts
 # gate-watch: src/bootstrap/state.ts src/cli/handlers/auth.ts src/cli/handlers/util.tsx src/cli/healthPresentation.ts src/cli/update.ts
 # gate-watch: src/commands/health/HealthCertificate.tsx src/commands/health/health.tsx src/daemon/*
-# gate-watch: src/history.ts src/keybindings/loadUserBindings.ts src/main.tsx src/services/counsel/counsel.ts
+# gate-watch: src/history.ts src/keybindings/loadUserBindings.ts src/main.tsx
 # gate-watch: src/services/instructions/contracts.ts src/services/instructions/engine.ts src/services/instructions/adapters/index.ts
 # gate-watch: src/services/privateChannel/installProvenance.ts
 # gate-watch: src/cli/run.ts src/services/engine-connector/daemonConnector.ts src/services/engine-connector/focusedConnector.ts src/services/engine-connector/seatProjections.ts src/services/engine-connector/seatWire.ts
