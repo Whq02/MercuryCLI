@@ -3,7 +3,7 @@ WORKBENCH               │ ✶ VIEW · cedar · viewing                        
   no prompts sent yet   │                                                                                              │
                         │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
 NEXT                    │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
-  · /workflows — agent …│ │ orchard · 58 settings · 0 set by you                                                     │ │
+  · /workflows — agent …│ │ orchard · 59 settings · 0 set by you                                                     │ │
   · /health — health ce…│ │                                                                                          │ │
   · /memory — memory    │ │ / Search settings…                                                                       │ │
   · /mission — set a mi…│ │                                                                                          │ │
@@ -13,8 +13,9 @@ FILES · orchard         │ │   Session concourse                 on         
                         │ │   Tips                              on                                                   │ │
 TELEMETRY               │ │   Reduced motion                    off                                                  │ │
   · spend —             │ │   Ping                              on                                                   │ │
-  · ctx — · —           │ │   Motion                            auto · off                                           │ │
-  · health — run /health│ │   JEV                               off · official                                       │ │
+  · ctx — · —           │ │   Account identity                  shown                                                │ │
+  · health — run /health│ │   Motion                            auto · off                                           │ │
+                        │ │   JEV                               off · official                                       │ │
                         │ │   Instruction profile               auto                                                 │ │
                         │ │   Shell engine                      system                                               │ │
                         │ │   Patience with a quiet model       normal · idle 6m (quiet 15m) · fallback 15m · retry  │ │
@@ -26,8 +27,7 @@ TELEMETRY               │ │   Reduced motion                    off         
                         │ │   Terminal progress bar             on                                                   │ │
                         │ │   Turn duration                     on                                                   │ │
                         │ │   Default permission mode           Default                                              │ │
-                        │ │   Pinned memory limit               0 of 8k                                              │ │
-                        │ │ ↓ 38 more                                                                                │ │
+                        │ │ ↓ 39 more                                                                                │ │
                         │ │                                                                                          │ │
                         │ │ ↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes                 │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │

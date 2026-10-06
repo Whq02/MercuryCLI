@@ -376,7 +376,7 @@ export function Config({
       global: JSON.parse(JSON.stringify(getGlobalConfig())) as GlobalConfig,
       theme: themeSetting,
       local: { activity: { tips: { enabled: local.activity?.tips?.enabled } }, view: { reducedMotion: local.view?.reducedMotion }, briefs: { profile: local.briefs?.profile }, shell: { engine: local.shell?.engine, sessions: local.shell?.sessions } },
-      user: { engine: { reasoning: user.engine?.reasoning, usageNotice: user.engine?.usageNotice }, input: { suggestions: user.input?.suggestions }, voice: { language: user.voice?.language }, view: { syntaxOff: user.view?.syntaxOff, ping: user.view?.ping }, guardrails: user.guardrails, files: { honourGitignore: user.files?.honourGitignore }, memory: { pinnedLimit: user.memory?.pinnedLimit }, patience: user.patience, routing: { openrouter: user.routing?.openrouter }, local: { server: localServerSettingsOf(user) } },
+      user: { engine: { reasoning: user.engine?.reasoning, usageNotice: user.engine?.usageNotice }, input: { suggestions: user.input?.suggestions }, voice: { language: user.voice?.language }, view: { syntaxOff: user.view?.syntaxOff, ping: user.view?.ping, accountIdentity: user.view?.accountIdentity }, guardrails: user.guardrails, files: { honourGitignore: user.files?.honourGitignore }, memory: { pinnedLimit: user.memory?.pinnedLimit }, patience: user.patience, routing: { openrouter: user.routing?.openrouter }, local: { server: localServerSettingsOf(user) } },
       appVerbose: appState.verbose === true,
       dirty: false,
     }
@@ -571,6 +571,26 @@ export function Config({
       if (writeSource('userSettings', { view: { ping: next ? undefined : false } })) {
         snapshots.dirty = true
         recordToggle('ping', `set the ping to ${next ? 'on' : 'off'}`)
+        bump()
+      }
+    },
+  })
+  items.push({
+    id: 'accountIdentity',
+    label: 'Account identity',
+    searchText: 'account identity email address username key tail hide hidden shown recording privacy',
+    kind: 'boolean',
+    value: (
+      <Text color={merged.view?.accountIdentity !== false ? tokens.success : tokens.textSecondary}>
+        {merged.view?.accountIdentity !== false ? 'shown' : 'hidden'}
+      </Text>
+    ),
+    warning: 'hidden takes every signed-in address, username and key tail off the screens (for a recording) and leaves the account word; the Logins screen, /accounts and the health report still name the account · view.accountIdentity in settings',
+    change: () => {
+      const next = merged.view?.accountIdentity === false
+      if (writeSource('userSettings', { view: { accountIdentity: next ? undefined : false } })) {
+        snapshots.dirty = true
+        recordToggle('accountIdentity', `set account identity to ${next ? 'shown' : 'hidden'}`)
         bump()
       }
     },
@@ -1259,7 +1279,7 @@ export function Config({
       if (motionTouched) noteMotionSettingChanged()
     }
     writeSource('localSettings', { activity: { tips: { enabled: snapshots.local.activity?.tips?.enabled } }, view: { reducedMotion: snapshots.local.view?.reducedMotion }, briefs: { profile: snapshots.local.briefs?.profile }, shell: { engine: snapshots.local.shell?.engine, sessions: snapshots.local.shell?.sessions } })
-    writeSource('userSettings', { engine: { reasoning: snapshots.user.engine?.reasoning, usageNotice: snapshots.user.engine?.usageNotice }, input: { suggestions: snapshots.user.input?.suggestions }, voice: { language: snapshots.user.voice?.language }, view: { syntaxOff: snapshots.user.view?.syntaxOff, ping: snapshots.user.view?.ping }, patience: snapshots.user.patience, routing: { openrouter: snapshots.user.routing?.openrouter === undefined ? undefined : {
+    writeSource('userSettings', { engine: { reasoning: snapshots.user.engine?.reasoning, usageNotice: snapshots.user.engine?.usageNotice }, input: { suggestions: snapshots.user.input?.suggestions }, voice: { language: snapshots.user.voice?.language }, view: { syntaxOff: snapshots.user.view?.syntaxOff, ping: snapshots.user.view?.ping, accountIdentity: snapshots.user.view?.accountIdentity }, patience: snapshots.user.patience, routing: { openrouter: snapshots.user.routing?.openrouter === undefined ? undefined : {
         dataCollection: undefined,
         requireParameters: undefined,
         allowFallbacks: undefined,
