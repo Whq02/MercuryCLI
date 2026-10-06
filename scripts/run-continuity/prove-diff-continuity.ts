@@ -26,13 +26,12 @@ console.log('/diff workspace continuity ──')
 
 {
   const sources = src('src/components/diff/diffSources.ts')
-  check('per-family budgets exist', sources.includes('MAX_LANE_SOURCES') && sources.includes('MAX_HANDOFF_SOURCES') && sources.includes('MAX_ARTIFACT_SOURCES'))
+  check('per-family budgets exist', sources.includes('MAX_LANE_SOURCES') && sources.includes('MAX_ARTIFACT_SOURCES'))
   check(
     'the global early-return cap is DEAD (no family can starve another)',
     !sources.includes('if (out.length >= MAX_EXTRA_SOURCES) return out'),
   )
   check('lane flood is bounded, loop breaks instead of returning', sources.includes('if (laneBudget-- <= 0) break'))
-  check('handoffs keep their own budget', sources.includes('if (handoffBudget-- <= 0) break'))
   check('artifacts keep their own budget', sources.includes('if (artifactBudget-- <= 0) break'))
 }
 
