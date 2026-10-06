@@ -663,22 +663,6 @@ export function extractAgentIdsFromMessages(messages: Message[]): string[] {
   }))
 }
 
-export function extractCrewmateTranscriptsFromTasks(tasks: {
-  [taskId: string]: {
-    type: string
-    identity?: { agentId: string }
-    messages?: Message[]
-  }
-}): { [agentId: string]: Message[] } {
-  return Object.fromEntries(
-    Object.values(tasks).flatMap(task =>
-      task.type === 'in_process_crewmate' && task.identity?.agentId && task.messages && task.messages.length > 0
-        ? [[task.identity.agentId, task.messages] as const]
-        : [],
-    ),
-  )
-}
-
 async function subagentMessages(agentId: string): Promise<Message[] | null> {
   try {
     const transcript = await getAgentTranscript(asAgentId(agentId))

@@ -1,22 +1,18 @@
 import type React from 'react'
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import * as pendingInput from '../../input-core/pending-input.js'
 import type { Notification } from '../../context/notifications.js'
 import type { PastedContent } from '../../utils/config.js'
 import type { useInputBuffer } from '../../hooks/useInputBuffer.js'
 import { useKeybinding, useKeybindings } from '../../keybindings/useKeybinding.js'
 import { getShortcutDisplay } from '../../keybindings/shortcutFormat.js'
-import { useAppState, type AppState } from '../../state/AppState.js'
+import type { AppState } from '../../state/AppState.js'
 import type { AppStateStore } from '../../state/AppStateStore.js'
-import { enterCrewmateView, exitCrewmateView } from '../../state/crewmateViewHelpers.js'
-import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types.js'
-import { isCrewEnabled } from '../../utils/crewEnabled.js'
 import { expandPastedTextRefs } from '../../history.js'
 import { getImageFromClipboard } from '../../utils/imagePaste.js'
 import { editPromptInEditor } from '../../utils/promptEditor.js'
-import { cyclePermissionMode, getNextPermissionMode } from '../../utils/permissions/getNextPermissionMode.js'
+import { cyclePermissionMode } from '../../utils/permissions/getNextPermissionMode.js'
 import { syncCrewmateMode } from '../../utils/crew/crewHelpers.js'
-import { getEmptyToolPermissionContext } from '../../Tool.js'
 import { saveGlobalConfig } from '../../utils/config.js'
 import { abortSpeculation } from '../../services/PromptSuggestion/speculation.js'
 import type { OverlaySurface } from './composerOverlay.js'
@@ -165,33 +161,6 @@ export function useComposerKeybindings({
   }, [input, cursorOffset, setCursorOffset])
 
   const cyclePermission = useCallback((): void => {
-    const fresh = appStateStore.getState() as AppState
-    if (
-      isCrewEnabled() &&
-      fresh.viewingAgentTaskId !== undefined &&
-      fresh.tasks[fresh.viewingAgentTaskId] !== undefined &&
-      isInProcessCrewmateTask(fresh.tasks[fresh.viewingAgentTaskId])
-    ) {
-      const taskId = fresh.viewingAgentTaskId
-      setAppState(prev => {
-        const task = prev.tasks[taskId]
-        if (task === undefined || !isInProcessCrewmateTask(task)) return prev
-        const next = getNextPermissionMode({
-          ...getEmptyToolPermissionContext(),
-          mode: task.permissionMode ?? 'default',
-        })
-        if (next === task.permissionMode) return prev
-        return {
-          ...prev,
-          tasks: {
-            ...prev.tasks,
-            [taskId]: { ...task, permissionMode: next },
-          },
-        }
-      })
-      setHelpOpen(false)
-      return
-    }
     const { nextMode, context: nextContext } = cyclePermissionMode(
       toolPermissionContext,
       crewContext,
@@ -294,56 +263,25 @@ export function useComposerKeybindings({
     { context: 'Global', isActive: !isLoading && speculationActive },
   )
 
-  const [crewmateFooterIndex, setCrewmateFooterIndex] = useState(0)
-  const runningCrewmateCount = useAppState(
-    (s: AppState) =>
-      Object.values(s.tasks).filter(
-        task => isInProcessCrewmateTask(task) && task.status === 'running',
-      ).length,
-  )
+  const crewmateFooterIndex = 0
   useKeybindings(
     {
       'footer:up': () => {
         setAppState(prev => ({ ...prev, footerSelection: null }))
       },
       'footer:down': () => {
-        if (footerSelection === 'tasks' && runningCrewmateCount === 0) {
+        if (footerSelection === 'tasks') {
           setOverlay('tasks-dialog')
           setAppState(prev => ({ ...prev, footerSelection: null }))
         }
       },
-      'footer:next': () => {
-        if (runningCrewmateCount > 0 && footerSelection === 'tasks') {
-          setCrewmateFooterIndex(prev => (prev + 1) % (1 + runningCrewmateCount))
-        }
-      },
-      'footer:previous': () => {
-        if (runningCrewmateCount > 0 && footerSelection === 'tasks') {
-          setCrewmateFooterIndex(
-            prev => (prev + runningCrewmateCount) % (1 + runningCrewmateCount),
-          )
-        }
-      },
+      'footer:next': () => {},
+      'footer:previous': () => {},
       'footer:openSelected': () => {
         const fresh = appStateStore.getState() as AppState
         if (fresh.viewSelectionMode === 'selecting-agent') return
         if (footerSelection === 'tasks') {
-          if (runningCrewmateCount > 0) {
-            if (crewmateFooterIndex === 0) exitCrewmateView(setAppState)
-            else {
-              const sorted = Object.values(fresh.tasks)
-                .filter(isInProcessCrewmateTask)
-                .filter(task => task.status === 'running')
-                .sort((a, b) =>
-                  (a.identity.agentName ?? '').localeCompare(b.identity.agentName ?? ''),
-                )
-              const target = sorted[crewmateFooterIndex - 1]
-              if (target !== undefined) enterCrewmateView(target.id, setAppState)
-            }
-            return
-          }
           setOverlay('tasks-dialog')
-          setCrewmateFooterIndex(0)
           setAppState(prev => ({ ...prev, footerSelection: null }))
         }
       },

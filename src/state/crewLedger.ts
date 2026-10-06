@@ -137,8 +137,7 @@ export function clearCrewmate(id: string, setAppState: SetAppState): boolean {
     const task = prev.tasks[id]
     if ((task !== undefined && task.status === 'running') || !crewLedgerClearable(row)) return prev
     cleared = true
-    if (task !== undefined && task.type === 'in_process_crewmate') record = { crew: task.identity.crewName, agentId: task.identity.agentId }
-    else if (row !== undefined && row.facts.crew !== null) record = { crew: row.facts.crew, agentId: formatAgentId(row.facts.name, row.facts.crew) }
+    if (row !== undefined && row.facts.crew !== null) record = { crew: row.facts.crew, agentId: formatAgentId(row.facts.name, row.facts.crew) }
     const tasks = task !== undefined && task.type === 'local_agent' ? { ...prev.tasks, [id]: { ...task, retain: false, evictAfter: 0 } } : prev.tasks
     return {
       ...prev,

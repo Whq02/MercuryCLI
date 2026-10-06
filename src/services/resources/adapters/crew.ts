@@ -1,5 +1,4 @@
 
-import { isInProcessCrewmateTask } from '../../../tasks/InProcessCrewmateTask/types.js'
 import { CREW_LEAD_NAME } from '../../../utils/crew/constants.js'
 import { readCoordinationRoster, resolveCoordinationContext, type CoordinationRosterRow } from '../../coordination/coordinationService.js'
 import { crewDirectoryEnabled, listAgentBindings, type CrewAgentId } from '../../crew/identity.js'
@@ -24,15 +23,12 @@ async function rosterOf(ctx: ResourceContext, directory: readonly CrewMemberV1[]
       byBinding.set(`${binding.bindingKind}:${binding.bindingId}`, member)
     }
   }
-  const tasks = Object.values(app?.tasks ?? {}).filter(isInProcessCrewmateTask)
   const members = roster.map((row): RosterMember => {
-    const task = tasks.find(t => t.identity.agentId === row.agentId && t.status === 'running')
     const projection = byBinding.get(`native:crew:${row.agentId}`)
-      ?? (task ? byBinding.get(`native:subagent:${task.transcriptAgentId ?? task.id}`) : undefined)
       ?? (row.name === CREW_LEAD_NAME ? byBinding.get('principal:agent-mercury') : undefined)
     return {
       ...row,
-      state: row.status === 'stopped' ? 'stopped' : task?.paused ? 'paused' : row.status === 'busy' ? 'running' : 'idle',
+      state: row.status === 'stopped' ? 'stopped' : row.status === 'busy' ? 'running' : 'idle',
       ref: `mercury://crew/member/${encodeURIComponent(row.agentId)}`,
       ...(projection ? { projection } : {}),
     }

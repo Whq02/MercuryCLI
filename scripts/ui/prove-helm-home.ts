@@ -119,7 +119,7 @@ check('S4: the dead selectedCaret/focus path is removed from the rail',
 check('RUNS: kind derives from the task shape (isLocalShellTask + kind monitor)',
   /isLocalShellTask\(t\)/.test(lanes) && /'monitor' \? 'monitor' : 'shell'/.test(lanes))
 check('RUNS: agent tasks are excluded (they live in CREW)',
-  /!isLocalAgentTask\(t\) && !isInProcessCrewmateTask\(t\)/.test(lanes))
+  /!isLocalAgentTask\(t\)/.test(lanes))
 check('RUNS: running rows rotate (glyphLive → WorkingGlyph in RailRow)',
   /glyphLive: live,/.test(lanes) && /glyphLive=\{spec\.glyphLive\}/.test(lanes) && /glyphLive \? \(\s*<WorkingGlyph color=\{glyphColor\} active \/>/m.test(lanes))
 check('RUNS: verb carries kind + live elapsed (formatSpan)',

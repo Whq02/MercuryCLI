@@ -60,12 +60,6 @@ console.log('— C2/C3 one fixture, three surfaces, zero diffs —')
       agentId: 'main1', prompt: 'p', agentType: 'main-session', isBackgrounded: true,
       startTime: t0 + 5, outputFile: '/n', outputOffset: 0, notified: false,
     },
-    tm1: {
-      id: 'tm1', type: 'in_process_crewmate', status: 'running', description: 't',
-      identity: { agentId: 'scout@crew', agentName: 'scout', crewName: 'crew' },
-      prompt: 'p',
-      startTime: t0 + 6, outputFile: '/n', outputOffset: 0, notified: false,
-    },
     sh1: {
       id: 'sh1', type: 'local_bash', status: 'running', description: 'sh',
       command: 'sleep 1', completionStatusSentInAttachment: false, shellCommand: null,
@@ -88,12 +82,12 @@ console.log('— C2/C3 one fixture, three surfaces, zero diffs —')
   check('C2 chip == /tasks (agents)', counts.agents === boardAgentsRunning, `${counts.agents} vs ${boardAgentsRunning}`)
   check('C2 chip == agents view', counts.agents === agentsViewRows.length, `${counts.agents} vs ${agentsViewRows.length}`)
   check('C2 chip == /tasks (workflows) — the paused run never counts', counts.workflows === 1 && counts.workflows === boardWorkflowsRunning, `${counts.workflows} vs ${boardWorkflowsRunning}`)
-  check('C2 chip == /tasks (crewmates)', counts.crewmates === 1 && counts.crewmates === boardCrewmatesRunning, `${counts.crewmates} vs ${boardCrewmatesRunning}`)
+  check('C2 chip == /tasks (named agents)', counts.crewmates === 0 && counts.crewmates === boardCrewmatesRunning, `${counts.crewmates} vs ${boardCrewmatesRunning}`)
   check('C2 the shells count', counts.shells === 1, `shells=${counts.shells}`)
   check('C2 the parked ask rides the counts', counts.asks === 1, `asks=${counts.asks}`)
   check(
     'C2 the chip line speaks the board vocabulary',
-    chip === '1 workflow · 2 agents · 1 named agent · 1 shell · 1 ask',
+    chip === '1 workflow · 2 agents · 1 shell · 1 ask',
     chip ?? 'null',
   )
   check('C3 the settled agent is LISTED by the board but never counted', rosterRowsOf(rows, 'agent').length === 3 && boardAgentsRunning === 2)

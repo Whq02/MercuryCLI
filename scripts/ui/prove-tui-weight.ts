@@ -102,11 +102,9 @@ console.log('============================================================')
   )
   const spinner = src('src', 'components', 'Spinner.tsx')
   check(
-    'Spinner subscribes to primitives + the viewed crewmate object only',
+    'Spinner subscribes to primitives only',
     !/useAppState\(state => state\.tasks\)/.test(spinner) &&
-      !/useAppState\(state => state\)/.test(spinner) &&
-      /const foregroundedCrewmate = useAppState\(state =>\s*getViewedCrewmateTask\(state\),?\s*\)/.test(spinner) &&
-      /const runningCrewmateCount = useAppState\(state =>/.test(spinner),
+      !/useAppState\(state => state\)/.test(spinner),
   )
   const pi = src('src', 'components', 'PromptInput', 'PromptInput.tsx') + src('src', 'components', 'PromptInput', 'useComposerSubmit.ts') + src('src', 'components', 'PromptInput', 'useComposerKeybindings.ts')
   check(

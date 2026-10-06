@@ -1,4 +1,3 @@
-import type { InProcessCrewmateTaskState } from './InProcessCrewmateTask/types.js'
 import type { LocalAgentTaskState } from './LocalAgentTask/LocalAgentTask.js'
 import type { LocalShellTaskState } from './LocalShellTask/guards.js'
 import type { LocalWorkflowTaskState } from './LocalWorkflowTask/LocalWorkflowTask.js'
@@ -8,14 +7,12 @@ import type { MonitorMcpTaskState } from './MonitorMcpTask/MonitorMcpTask.js'
 export type TaskState =
   | LocalShellTaskState
   | LocalAgentTaskState
-  | InProcessCrewmateTaskState
   | LocalWorkflowTaskState
   | MonitorMcpTaskState
 
 export type BackgroundTaskState =
   | LocalShellTaskState
   | LocalAgentTaskState
-  | InProcessCrewmateTaskState
   | LocalWorkflowTaskState
   | MonitorMcpTaskState
 

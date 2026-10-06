@@ -34,8 +34,6 @@ const FILES = [
   'src/components/TaskListV2.tsx',
   'src/components/AgentProgressLine.tsx',
   'src/tools/AgentTool/UI.tsx',
-  'src/components/Spinner/CrewmateSpinnerLine.tsx',
-  'src/components/Spinner/CrewmateSpinnerTree.tsx',
   'src/components/MercuryCrewmateTree.tsx',
   'src/components/MercuryAgents.tsx',
   'src/components/MercuryTasks.tsx',
