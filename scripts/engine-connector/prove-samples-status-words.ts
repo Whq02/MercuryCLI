@@ -246,7 +246,7 @@ async function main(): Promise<void> {
   const hopThree = await scene('6-hop-idle-three-samples', () => slot.setFocusedSessionConnector(seatC))
   const back = await scene(null, () => slot.setFocusedSessionConnector(seatA))
   row.close()
-  const narrow = await mount(64, React.createElement(bar.FocusedSessionStatusRow))
+  const narrow = await mount(64 + chordDelta, React.createElement(bar.FocusedSessionStatusRow))
   const narrowFrame = narrow.frame()
   narrow.close()
   console.log(`  narrow 64: ${JSON.stringify(narrowFrame.trimEnd())}`)
@@ -264,7 +264,7 @@ async function main(): Promise<void> {
     check('a hop to a session with no samples drops the tail', leads(hopZero, TODAY) && !hopZero.includes('sample'), hopZero)
     check('a hop to a session with three samples reads its own count', idleLine('3 samples').test(hopThree), hopThree)
     check("a hop back restores the first session's line", back === one, back)
-    check('narrow: the way back survives and the sample word is the first cut', narrowFrame.trimEnd().endsWith(waitingHint) && stringWidth(narrowFrame) <= 64 && narrowFrame.includes('waiting on') && !narrowFrame.includes('1 sample'), narrowFrame)
+    check('narrow: the way back survives and the sample word is the first cut', narrowFrame.trimEnd().endsWith(waitingHint) && stringWidth(narrowFrame) <= 64 + chordDelta && narrowFrame.includes('waiting on') && !narrowFrame.includes('1 sample'), narrowFrame)
   }
 
   section('S6 the row repaints for the artifact data it consumes, never for a runner tick')

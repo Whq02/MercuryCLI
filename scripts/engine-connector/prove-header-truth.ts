@@ -105,7 +105,7 @@ section('§3 the title row is gone: the pane opens on the berth card')
 {
   check('the header module is gone from the tree', !existsSync('src/components/HelmCenterHeader.tsx'))
   const fsl = readFileSync('src/components/FullscreenLayout.tsx', 'utf8')
-  check('the layout mounts no header: the centre pane\'s first interior row is the berth card, then the transcript', !fsl.includes('HelmCenterHeader') && /borderColor=\{centerFrame \? t\.borderStrong : undefined\}\s*>\s*(?:\{\/\*[^]*?\*\/\}\s*)?<TerminalSizeContext\.Provider value=\{sizeVal\}>\s*\{isCompact \? <CompactIdentityBand \/> : null\}\s*\{centerFrame && statusBand \? \(/.test(fsl))
+  check('the layout mounts no header: the centre pane\'s first interior row is the berth card, then the transcript', !fsl.includes('HelmCenterHeader') && /borderColor=\{centerFrame \? t\.borderStrong : undefined\}\s*>\s*(?:\{\s*(?:\/\*[^]*?\*\/)?\s*\}\s*)?<TerminalSizeContext\.Provider value=\{sizeVal\}>\s*\{isCompact \? <CompactIdentityBand \/> : null\}\s*\{centerFrame && statusBand \? \(/.test(fsl))
   check('the bar keeps no title reader for a row that no longer paints', !('seatDisplayTitle' in bar) && !readFileSync('src/components/SwitchboardTagBar.tsx', 'utf8').includes('seatDisplayTitle'))
   const naming = await import('../../src/services/concourse/sessionNaming.ts')
   check('the unnamed word has one owner, the naming owner', naming.UNNAMED_SESSION_WORD === 'new session' && naming.newSessionTitle('/tmp/proj').startsWith(`${naming.UNNAMED_SESSION_WORD} · `))
