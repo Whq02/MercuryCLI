@@ -55,7 +55,6 @@ import type { CompactWorkControls } from '../tasks/CompactWorkSummary.js'
 import type { SuggestionsState } from '../../hooks/useTypeahead.js'
 import type { ComposerSubmit } from './useComposerSubmit.js'
 
-const MANAGER_COMMAND = '/manager'
 const SESSION_TAB_COMMAND = '/sessiontab'
 const KEYSETUP_COMMAND = '/keysetup'
 
@@ -345,12 +344,6 @@ export function useComposerRawKeys({
       ) {
         event.stopImmediatePropagation()
         void submitRef.current(SESSION_TAB_COMMAND, { fromKeybinding: true })
-        return
-      }
-
-      if (emptyPlainPrompt && key.leftArrow && !key.ctrl && !key.meta) {
-        event.stopImmediatePropagation()
-        void submitRef.current(MANAGER_COMMAND, { fromKeybinding: true })
         return
       }
 

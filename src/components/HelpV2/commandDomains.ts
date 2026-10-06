@@ -15,10 +15,10 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     key: 'crew',
     label: 'crew & delegation',
     names: [
-      'workflows', 'agents', 'subagents', 'fleet',
-      'crewmates', 'crew', 'monitor', 'surfaces',
+      'workflows', 'agents', 'subagents',
+      'crewmates', 'crew',
       'daemon', 'saturn', 'seats', 'halt', 'kill', 'unkill',
-      'live', 'router',
+      'router',
     ],
   },
   {
@@ -62,8 +62,8 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     key: 'health',
     label: 'health & introspection',
     names: [
-      'health', 'verify', 'ledger', 'trace', 'substrate', 'status',
-      'capabilities', 'provenance',
+      'health', 'verify', 'trace',
+      'capabilities',
     ],
   },
   {
@@ -71,7 +71,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     label: 'config & setup',
     names: [
       'config', 'jev', 'jevor', 'localsetup', 'bootmenu', 'permissions', 'hooks', 'mcp', 'extensions', 'skills',
-      'policy', 'authority', 'sovereign', 'sandbox',
+      'sandbox',
       'keysetup', 'keybindings', 'keys',
       'vim', 'mouse', 'browser',
       'init',
@@ -82,8 +82,8 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     key: 'appearance',
     label: 'appearance & cockpit',
     names: [
-      'cockpit', 'palette', 'critter', 'view', 'showcase',
-      'accent', 'fullscreen',
+      'palette', 'critter', 'view', 'showcase',
+      'accent',
       'appearance',
     ],
   },

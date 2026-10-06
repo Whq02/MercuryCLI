@@ -23,19 +23,11 @@ import halt from './commands/halt/index.js'
 import view from './commands/view/index.js'
 import bootmenu from './commands/bootmenu/index.js'
 import concourse from './commands/concourse/index.js'
-import cockpit from './commands/cockpit/index.js'
-import ledger from './commands/ledger/index.js'
 import run from './commands/run/index.js'
-import fleet from './commands/fleet/index.js'
-import monitor from './commands/monitor/index.js'
-import manager from './commands/manager/index.js'
-import policy from './commands/policy/index.js'
 import browser from './commands/browser/index.js'
-import provenance from './commands/provenance/index.js'
 import samples from './commands/samples/index.js'
 import sessions from './commands/sessions/index.js'
 import sessiontab from './commands/sessiontab/index.js'
-import substrate from './commands/substrate/index.js'
 import trace from './commands/trace/index.js'
 import { kill, unkill } from './commands/kill/index.js'
 import diff from './commands/diff/index.js'
@@ -55,7 +47,6 @@ import rename from './commands/rename/index.js'
 import title from './commands/title/index.js'
 import resume from './commands/resume/index.js'
 import skills from './commands/skills/index.js'
-import status from './commands/status/index.js'
 import feedback from './commands/feedback/index.js'
 import review from './commands/review.js'
 import rewind from './commands/rewind/index.js'
@@ -78,10 +69,8 @@ import appearance from './commands/appearance/index.js'
 import workflows from './commands/workflows/index.js'
 import subagents from './commands/subagents/index.js'
 import accent from './commands/accent/index.js'
-import authority from './commands/authority/index.js'
 import mouse from './commands/mouse/index.js'
 import showcase from './commands/showcase/index.js'
-import fullscreen from './commands/fullscreen/index.js'
 import capabilities from './commands/capabilities/index.js'
 import harness from './commands/harness/index.js'
 import workbench from './commands/workbench/index.js'
@@ -96,8 +85,6 @@ import consoleCommand from './commands/console/index.js'
 import submodels from './commands/submodels/index.js'
 import palette from './commands/palette/index.js'
 import orient from './commands/orient/index.js'
-import live from './commands/live/index.js'
-import sovereign from './commands/sovereign/index.js'
 import speak from './commands/speak/index.js'
 import voice from './commands/voice/index.js'
 import { getBundledSkills } from './skills/bundledSkills.js'
@@ -175,19 +162,11 @@ const COMMANDS = memoize((): Command[] => [
   view,
   bootmenu,
   concourse,
-  cockpit,
-  ledger,
   run,
-  fleet,
-  monitor,
-  manager,
-  policy,
   browser,
-  provenance,
   samples,
   sessions,
   sessiontab,
-  substrate,
   trace,
   kill,
   unkill,
@@ -207,7 +186,6 @@ const COMMANDS = memoize((): Command[] => [
   rename,
   resume,
   skills,
-  status,
   title,
   feedback,
   review,
@@ -231,10 +209,8 @@ const COMMANDS = memoize((): Command[] => [
   workflows,
   subagents,
   accent,
-  authority,
   mouse,
   showcase,
-  fullscreen,
   capabilities,
   harness,
   caching,
@@ -250,8 +226,6 @@ const COMMANDS = memoize((): Command[] => [
   submodels,
   palette,
   orient,
-  live,
-  sovereign,
   speak,
   voice,
 ])

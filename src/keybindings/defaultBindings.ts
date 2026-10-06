@@ -21,7 +21,6 @@ export const DEFAULT_BINDINGS: KeybindingBlock[] = [
       'ctrl+d': 'app:exit',
       'ctrl+l': 'app:redraw',
       'ctrl+t': 'app:toggleTasks',
-      'ctrl+x m': 'command:surfaces',
       'ctrl+pagedown': 'app:cycleSurfaceForward',
       'ctrl+pageup': 'app:cycleSurfaceBack',
       'shift+right': 'app:surfaceRight',
