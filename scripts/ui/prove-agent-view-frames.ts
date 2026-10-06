@@ -163,6 +163,7 @@ const { useAppStateStore } = await import('../../src/state/AppState.tsx')
 const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
 const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
 const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
+const { FocusedSessionStatusRow } = await import('../../src/components/SwitchboardTagBar.tsx')
 const { useCompactWorkControls } = await import('../../src/components/tasks/CompactWorkSummary.tsx')
 const { GlobalKeybindingHandlers } = await import('../../src/hooks/useGlobalKeybindings.tsx')
 const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
@@ -175,6 +176,7 @@ const pending = await import('../../src/input-core/pending-input.ts')
 const { default: instances } = await import('../../src/ink/instances.ts')
 const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
 const { setFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
+const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
 const { resetHelmFocusForTest } = await import('../../src/utils/cockpit/helmFocus.ts')
 const crewmatesCommand = await import('../../src/commands/crewmates/crewmates.tsx')
 const swapModule = (await import('../../src/components/CrewmateTranscript.tsx').catch(() => null)) as null | { TranscriptSwap: React.ComponentType<Record<string, unknown>> }
@@ -193,6 +195,10 @@ const overrides: Record<string, unknown> = {
   stopAgent: async (agentId: string, note?: string) => { agentCalls.push({ verb: 'stop', agentId, note }); return { outcome: 'applied' } },
   resumeAgent: async (agentId: string, note?: string) => { agentCalls.push({ verb: 'resume', agentId, note }); return { outcome: 'applied', detail: '{"queued":true}' } },
   interrupt: () => { leadInterrupts += 1; return false },
+  live: () => IDLE_LIVE,
+  subscribeLive: () => () => {},
+  status: () => ({ title: 'a chat', projectLabel: 'orchard', interrupting: false, hardStopping: false, wait: null, quietMs: null, watchdogMs: null, phaseMs: null, toolBudgetMs: null, stuck: false }),
+  tail: () => ({ subscribe: () => () => {}, getSnapshot: () => null, read: () => null }),
 }
 let leadInterrupts = 0
 const fake = new Proxy(resting, {
@@ -256,7 +262,7 @@ function Harness(): React.ReactNode {
       statusBandActive: true,
       modal: modal === null ? undefined : h(Box, { width: '100%', flexDirection: 'column' }, modal),
       modalScrollRef,
-      bottom: h(PromptInput, {
+      bottom: h(Box, { flexDirection: 'column', flexShrink: 0 }, h(FocusedSessionStatusRow), h(PromptInput, {
         compactWork: controls, compactFocus: focus,
         debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
         setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [],
@@ -266,7 +272,7 @@ function Harness(): React.ReactNode {
         onSubmit: async (text: string) => { submits.push(text) },
         isSearchingHistory: searching, setIsSearchingHistory: setSearching, helpOpen: help, setHelpOpen: setHelp,
         hasSuppressedDialogs: false, isLocalJSXCommandActive: modal !== null, insertTextRef: insertRef,
-      } as never),
+      } as never)),
     } as never),
   )
 }
@@ -307,7 +313,7 @@ const cells = (line: string): string[] => Array.from(line)
 const RAIL_COLS = 32
 const railText = (line: string): string => cells(line).slice(0, RAIL_COLS).join('')
 const railRow = (lines: string[], needle: string): number => lines.findIndex(line => railText(line).includes(needle))
-const headerRow = (lines: string[]): string => (lines.find(line => /VIEW/.test(cells(line).slice(RAIL_COLS, COLS - RAIL_COLS).join(''))) ?? '').trim()
+const headerRow = (lines: string[]): string => (lines.find(line => line.includes('← back')) ?? '').trim()
 const centre = (line: string): string => cells(line).slice(RAIL_COLS, COLS - RAIL_COLS).join('')
 const composerRow = (lines: string[]): number => lines.findIndex(line => /^│[❯›]/.test(line))
 
@@ -411,8 +417,8 @@ const leadRowViewing = railText(frame[crewHeader + 1] ?? '').trim()
 check('Mercury Lead lost the view mark', leadRowViewing.includes(LEAD_ROW) && !/›/.test(leadRowViewing), `the lead's row reads "${leadRowViewing}"`)
 const header2 = headerRow(frame)
 console.log(`the view header: "${header2}"`)
-check('the view header names the crewmate and says viewing', /VIEW · Lane atlas · viewing/.test(header2), `the header reads "${header2}"`)
-const cardRows = frame.slice(2, 6).map(centre).join(' ')
+check('the status row names the crewmate and says viewing', /viewing Lane atlas ·/.test(header2), `the status row reads "${header2}"`)
+const cardRows = frame.slice(1, 5).map(centre).join(' ')
 check('the card carries the crewmate\'s facts (its name, its model)', cardRows.includes('Lane atlas') && cardRows.includes('claude-fable-5-1'), cardRows.trim().slice(0, 200))
 check('the card names the keys: esc interrupts · m main chat · Mercury Lead in the rail goes back', cardRows.includes('esc interrupts') && cardRows.includes('m main chat') && cardRows.includes('Mercury Lead in the rail goes back'), cardRows.trim().slice(0, 200))
 const centreRows = frame.map(centre)
@@ -452,7 +458,7 @@ save('screen-2-back', frame)
 const scrollAfter = { top: scrollRef.current?.getScrollTop() ?? -1, sticky: scrollRef.current?.isSticky() ?? true }
 console.log(`the lead's transcript after the return: scrollTop ${scrollAfter.top} · sticky ${scrollAfter.sticky}`)
 check('one click on Mercury Lead goes back (no crewmate viewed)', scene.state().viewingAgentTaskId === undefined, `viewingAgentTaskId=${String(scene.state().viewingAgentTaskId)}`)
-check('the header reads the plain view again', /VIEW/.test(headerRow(frame)) && !/viewing/.test(headerRow(frame)), headerRow(frame))
+check('the status row reads the plain view again (no crewmate words)', headerRow(frame) !== '' && !/viewing|main chat/.test(headerRow(frame)), headerRow(frame))
 check('the lead\'s rows are back in the centre and the crewmate\'s are gone', frame.some(line => centre(line).includes(TRANSCRIPT_NEEDLE)) && !frame.some(line => centre(line).includes(ATLAS_NEEDLE)))
 check('the lead\'s scroll state is restored exactly (top and stickiness)', scrollAfter.top === scrollBefore.top && scrollAfter.sticky === scrollBefore.sticky, `${JSON.stringify(scrollBefore)} → ${JSON.stringify(scrollAfter)}`)
 check('the composer target went back to the lead (no main chat pinned)', scene.state().mainChatTaskId === undefined)
@@ -506,8 +512,8 @@ console.log(`the ★ row: "${starText}"`)
 check('the rail marks the main chat row ★', starRow >= 0 && starText.includes('154.2k'), starRow >= 0 ? starText : 'no ★ row in the rail')
 const header4 = headerRow(frame)
 console.log(`the view header: "${header4}"`)
-check('the view header says main chat for the crewmate', /★ VIEW · Lane fjord · main chat/.test(header4), `the header reads "${header4}"`)
-const card4 = frame.slice(2, 6).map(centre).join(' ')
+check('the status row says main chat for the crewmate', /main chat: Lane fjord ·/.test(header4), `the status row reads "${header4}"`)
+const card4 = frame.slice(1, 5).map(centre).join(' ')
 check('the card says THE MAIN CHAT in the crewmate\'s row', card4.includes('THE MAIN CHAT') && card4.includes('Lane fjord'), card4.trim().slice(0, 200))
 const composer4 = composerRow(frame)
 const composerText = composer4 >= 0 ? frame[composer4]!.trim() : ''
@@ -541,7 +547,7 @@ check('no ★ row remains in the rail', railRow(frame, '★') < 0)
 scene.push(press(8, crewHeader + 1) + release(8, crewHeader + 1))
 await sleep(400)
 frame = scene.lines()
-check('Mercury Lead in the rail goes back from the handed-back crewmate\'s screen', scene.state().viewingAgentTaskId === undefined && /VIEW/.test(headerRow(frame)) && !/viewing|main chat/.test(headerRow(frame)), headerRow(frame))
+check('Mercury Lead in the rail goes back from the handed-back crewmate\'s screen', scene.state().viewingAgentTaskId === undefined && headerRow(frame) !== '' && !/viewing|main chat/.test(headerRow(frame)), headerRow(frame))
 
 section(`§6 the crew pop-up's height at ${COLS}x${ROWS}: a roster past the budget fills the window, the window fills the view's budget and paints whole inside the view`)
 swellRoster(SWOLLEN)

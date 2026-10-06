@@ -251,7 +251,6 @@ function seedWorld(): { home: string; cwd: string } {
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'wf-truth-cwd-')))
   writeFileSync(join(cwd, NOTES_FILE), 'the survey notes\n')
   seedFirstRun(home, [cwd])
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ view: { sessionsBar: true } }))
   return { home, cwd }
 }
 

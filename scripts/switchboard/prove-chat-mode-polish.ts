@@ -2,7 +2,7 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
@@ -31,13 +31,11 @@ t.section('§A — the ⚑ badge\'s jump per world')
   t.check('the frame reads the world from the router and the jump from the one helper; the count stays (a need is a need)', frame.includes('plain: chatOnlyBoot(),') && frame.includes("bucketItems(attentionView.attention, 'needs-you').every(item => item.owner === 'command-queue')") && frame.includes('{FLAG_ICON} {needsYouCount(attentionView.needsYou)}') && frame.includes('· {needsJump}') && !frame.includes('{boardChord} board'))
 }
 
-t.section('§B — the rail: the door stays, its words follow the world')
+t.section('§B — the rail is gone: the concourse door is the status row\'s way back and /concourse')
 {
-  const rail = read('src/components/mercury-ui/SessionTabs.tsx')
-  t.check('the rail reads the world from the router', rail.includes('const plainWorld = chatOnlyBoot()'))
-  t.check('the chip is still the explicit door (/concourse dispatch) in both worlds', (rail.match(/requestCommandDispatch\('\/concourse'\)/g) ?? []).length === 2)
-  t.check('the inline chip says "live view" in the plain world, "concourse" in the fleet world', rail.includes("{plainWorld ? 'live view' : 'concourse'}"))
-  t.check('the hover names what the door opens and the way back in the plain world — never "one board" there', rail.includes('live view of your sessions \\u2014 the concourse is off in this boot; ${concourseWayBack()}') && rail.includes("? plainWorld\n      ? `   \\u21b3 live view") && rail.includes("'   \\u21b3 Session Concourse \\u2014 every session, one board \\u00b7 click to open'"))
+  t.check('no sessions strip module stands under src', !existsSync(join(REPO, 'src/components/mercury-ui/SessionTabs.tsx')))
+  const bar = read('src/components/SwitchboardTagBar.tsx')
+  t.check('the status row\'s way back is the one chrome door to the concourse', bar.includes('onActivate={() => enterConcourse()}'))
 }
 
 t.section('§C — the shortcuts tab: ctrl+x c\'s label per world, the triple untouched')
@@ -103,7 +101,7 @@ t.section('§F — the sweep: board vocabulary follows the world or falls silent
   t.check('a refused resume names no concourse (the daemon resumes it; the sentence is the same in both worlds)', connector.includes('`the session could not resume — ${refusal} · ↵ again retries`') && !connector.includes('could not resume on the concourse'))
   t.check('/tasks\' workflow pointers to the run board fall silent in the plain world', read('src/components/tasks/BackgroundTasksDialog.tsx').includes("work.kind === 'workflow' && !chatOnlyBoot() ? '; /workflows opens the run board' : ''") && read('src/components/tasks/RunDetailPane.tsx').includes("nothing to ${verb}${chatOnlyBoot() ? '' : '; R on the board resumes it'}`") && read('src/components/tasks/RunDetailPane.tsx').includes("nothing to ${verb}${chatOnlyBoot() ? '' : '; R on the board resumes it from disk'}`"))
   t.check('the substrate catalogue lists /deck and /fleet as off in the plain world (/trace stays)', read('src/utils/cockpit/substrateSnapshot.ts').includes("{ name: '/trace', on: true, hint: 'always-on · /deck and /fleet are off in this boot — the concourse is off' }"))
-  const gatedFiles = ['src/components/MercuryFrame.tsx', 'src/components/mercury-ui/SessionTabs.tsx', 'src/components/HelpV2/ShortcutsTab.tsx', 'src/components/BootSplashScreen.tsx', 'src/components/BootSettingsScreen.tsx']
+  const gatedFiles = ['src/components/MercuryFrame.tsx', 'src/components/HelpV2/ShortcutsTab.tsx', 'src/components/BootSplashScreen.tsx', 'src/components/BootSettingsScreen.tsx']
   for (const f of gatedFiles) {
     const src = read(f)
     const lines = src.split('\n')

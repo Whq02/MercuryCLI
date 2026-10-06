@@ -108,7 +108,7 @@ const cells = (line: string): string[] => Array.from(line)
 const RAIL_COLS = 32
 const railText = (line: string): string => cells(line).slice(0, RAIL_COLS).join('')
 const railRow = (text: string, needle: string): string | undefined => text.split('\n').map(railText).find(line => line.includes(needle))
-const headerRow = (text: string): string => text.split('\n').find(line => /VIEW/.test(cells(line).slice(RAIL_COLS).join(''))) ?? ''
+const headerRow = (text: string): string => text.split('\n').find(line => line.includes('← back')) ?? ''
 const centreText = (line: string): string => cells(line).slice(RAIL_COLS, RAIL_COLS + 205).join('')
 function sessionRecords(home: string): string[] {
   const out: string[] = []
@@ -218,7 +218,7 @@ async function leg(cols: number, rows: number): Promise<void> {
   check(`${tag}: m marks the sleeper ★ in the rail`, starRow !== undefined && starRow.includes(SEAT_NAME), starRow ?? 'no ★ row')
   const header = headerRow(main)
   console.log(`  the view header: "${flat(header).slice(0, 120)}"`)
-  check(`${tag}: the view header says main chat for the sleeper`, /★ VIEW · sleeper · main chat/.test(header), flat(header).slice(0, 160))
+  check(`${tag}: the status row says main chat for the sleeper`, /main chat: sleeper ·/.test(header), flat(header).slice(0, 160))
   check(`${tag}: the composer placeholder reads "message sleeper"`, (composerRow(main) ?? '').includes('message sleeper'), (composerRow(main) ?? '').slice(0, 80))
   check(`${tag}: the footer says ↵ sends to sleeper · m on Mercury Lead returns the main chat`, main.includes('sends to sleeper') && main.includes('m on Mercury Lead returns the main chat'), flat(main).slice(-400))
   const handed = marks['handed-back'] ?? ''
@@ -226,13 +226,13 @@ async function leg(cols: number, rows: number): Promise<void> {
   const view = marks['view'] ?? ''
   const viewHeader = headerRow(view)
   console.log(`  the view header after the hand-back: "${flat(viewHeader).slice(0, 120)}"`)
-  check(`${tag}: the sleeper's own transcript takes the centre (its prompt wears the [you → sleeper] plate, the lead's rows are gone)`, /VIEW · sleeper · viewing/.test(viewHeader) && view.split('\n').some(line => centreText(line).includes('[you → sleeper]')) && !view.split('\n').some(line => centreText(line).includes('launching the sleeper')), flat(view).slice(0, 300))
+  check(`${tag}: the sleeper's own transcript takes the centre (its prompt wears the [you → sleeper] plate, the lead's rows are gone)`, /viewing sleeper ·/.test(viewHeader) && view.split('\n').some(line => centreText(line).includes('[you → sleeper]')) && !view.split('\n').some(line => centreText(line).includes('launching the sleeper')), flat(view).slice(0, 300))
   const cut = marks['cut-row'] ?? ''
   const cutRow = cut.split('\n').map(centreText).find(line => line.includes('the interrupt ended') || line.includes('Interrupted ·'))
   console.log(`  the cut row in the sleeper's transcript: "${(cutRow ?? '').trim().slice(0, 120)}"`)
   check(`${tag}: esc interrupts the sleeper alone — its transcript shows the interrupt row (the tool-phase cut names the tool it ended)`, cutRow !== undefined && /the interrupt ended Sleep — the turn is over|Interrupted · What should Mercury do instead\?/.test(cutRow), cutRow ?? 'no cut row in the centre')
   check(`${tag}: the sleeper's card reads interrupted (the operator's own kind, never a bare stopped) and the lead's own turn is untouched (the status row still names the session)`, cut.split('\n').some(line => centreText(line).includes('◉ sleeper') && centreText(line).includes('interrupted')), flat(cut).slice(0, 200))
-  check(`${tag}: the view stays on the sleeper after the interrupt`, /VIEW · sleeper/.test(headerRow(cut)), flat(headerRow(cut)).slice(0, 120))
+  check(`${tag}: the view stays on the sleeper after the interrupt`, /(?:viewing|main chat:) sleeper ·/.test(headerRow(cut)), flat(headerRow(cut)).slice(0, 120))
   const back = marks['back'] ?? ''
   const backHeader = headerRow(back)
   check(`${tag}: Mercury Lead in the rail goes back (the header reads the plain view, the lead's rows return)`, /VIEW/.test(backHeader) && !/viewing|main chat/.test(backHeader) && back.split('\n').some(line => centreText(line).includes('launching the sleeper')), flat(backHeader).slice(0, 160))

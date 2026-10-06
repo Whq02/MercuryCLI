@@ -139,7 +139,7 @@ function sessionFiles(dir: string): string[] {
 const rowsHaving = (rows: string[], needle: string): boolean => rows.some(r => r.includes(needle))
 const optionsRow = (rows: string[]): boolean => rows.some(r => /(?:❯\s*)?1\. Yes/.test(r))
 const tailRow = (rows: string[]): boolean => rows.some(r => r.includes('more line') && r.includes('ctrl+f expands'))
-const bandRow = (rows: string[]): boolean => rows.some(r => r.includes('this session') || r.includes('SESSIONS'))
+const bandRow = (rows: string[]): boolean => rows.some(r => /(?:⇧|shift\+)← back/.test(r))
 
 function dump(id: string, label: string, rows: string[]): void {
   if (!CAPTURE_DIR) return
@@ -162,7 +162,6 @@ for (const scene of SCENES) {
     rows: 30,
     turns: scene.turns,
     seedHome: (configDir, cwd) => {
-      writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ view: { sessionsBar: true } }))
       scene.seed?.(configDir, cwd)
     },
     sends: [
@@ -197,12 +196,12 @@ for (const scene of SCENES) {
         check(`${scene.id} ${label}: the card title is on the frame`, rowsHaving(rows, scene.title))
         check(`${scene.id} ${label}: the options row is ON the frame`, optionsRow(rows))
         check(`${scene.id} ${label}: no tail — the body fits whole`, !tailRow(rows))
-        check(`${scene.id} ${label}: the frame band beneath the card is still on the pane`, bandRow(rows))
+        check(`${scene.id} ${label}: the status row beneath the card is still on the pane`, bandRow(rows))
       } else if (state === 'collapsed') {
         check(`${scene.id} ${label}: the card title is on the frame`, rowsHaving(rows, scene.title))
         check(`${scene.id} ${label}: the options row is ON the frame`, optionsRow(rows))
         check(`${scene.id} ${label}: the tail names the cut and the chord`, tailRow(rows))
-        check(`${scene.id} ${label}: the frame band beneath the card is still on the pane`, bandRow(rows))
+        check(`${scene.id} ${label}: the status row beneath the card is still on the pane`, bandRow(rows))
         check(`${scene.id} ${label}: the body beyond the cut (${beyond}) is not painted`, !rowsHaving(rows, beyond))
       } else {
         check(`${scene.id} ${label}: the collapsed tail is gone`, !tailRow(rows))

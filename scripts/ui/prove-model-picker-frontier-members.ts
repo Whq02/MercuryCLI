@@ -177,7 +177,7 @@ if (driver.kind !== 'posix-pty') {
       const p = previousRow(ls)
       check("reopened: the newest row reads 'current' (the exact-generation alias set the row the family word resolves to)", n >= 0 && /\bcurrent\b/.test(ls[n] ?? ''), (ls[n] ?? '').trim())
       check("reopened: the previous row still carries no state word", p >= 0 && !/\bcurrent\b/.test(ls[p] ?? ''), (ls[p] ?? '').trim())
-      const paneStart = Math.max(0, (ls.find(l => l.includes('✶ VIEW')) ?? '').indexOf('│'))
+      const paneStart = Math.max(0, (ls.find(l => l.includes('╭')) ?? '').indexOf('╭'))
       const under = (ls[n + 1] ?? '').slice(paneStart).replace(/[╭╮╰╯─│┃┏┓┗┛━\s]/g, '')
       check('reopened: no description line under the selected newest row (a blank, then the previous row)', n >= 0 && under === '' && (p === n + 1 || p === n + 2), `"${(ls[n + 1] ?? '').trim()}" ${n} / ${p}`)
       check('reopened: both moments belong to one product run (the picker header is back)', ls.join('\n').includes('Mercury · model') && reopened.atTick > (picker?.atTick ?? 0))

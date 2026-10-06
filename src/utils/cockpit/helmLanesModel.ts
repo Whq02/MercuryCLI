@@ -23,7 +23,7 @@ import { helmRowSig, type HelmRow } from './helmFocus.js'
 import { densityPlan, hintBudget, HELM_DENSITY_FLOOR, type DensityPlan } from '../helmDensity.js'
 import type { ActivityState } from './cockpitActivity.js'
 import { GLYPH, displayWidth, truncateToWidth } from '../../components/mercury-ui/glyphs.js'
-import { tabLabel } from '../../components/mercury-ui/SessionTabs.js'
+import { getLogDisplayTitle } from '../log.js'
 import { lerpHex } from '../theme.js'
 import { LEAD_ROW_NAME, crewChatDoor } from './crewmateWords.js'
 import { railPanelInnerWidth } from '../../components/mercury-ui/RailPanel.js'
@@ -31,6 +31,14 @@ import type { MercuryThemeTokens } from '../mercuryTokens.js'
 
 export const CREW_ROWS = 6
 export const RUNS_ROWS = 4
+
+export function recentLaneLabel(log: SessionListing): string {
+  const cleaned = Array.from(getLogDisplayTitle(log, 'untitled'), ch => (ch.charCodeAt(0) < 0x20 ? ' ' : ch))
+    .join('')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return cleaned || 'untitled'
+}
 
 export function formatSpan(ms: number): string {
   const s = Math.max(0, Math.round(ms / 1000))
@@ -497,7 +505,7 @@ export function buildLanesModel(input: LanesInput): LanesModel {
     if (!solo) return null
     const rows: LanesRowSpec[] = []
     for (const log of input.recent ?? []) {
-      const label = tabLabel(log)
+      const label = recentLaneLabel(log)
       rows.push({
         kind: 'rail',
         key: `recent:${log.value}`,

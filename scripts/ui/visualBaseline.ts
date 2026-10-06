@@ -64,11 +64,11 @@ export const DEFAULT_MASKS = [
   'row:\\S+ ⌥ ?[^…\\s]\\S*',
   'row:│ \\S+ │ ⤳',
   'FILES · [^│]*',
-  '(?:⌥|alt\\+)←→ flip · /sessions *',
   '⌥ ?\\S+ *',
   'row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back',
   'row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back',
   'row:^ ready · .+ {2,}(?:⇧|shift\\+)← back',
+  'row: {2,}\\S+(?: ⌥ \\S+)? {2}(?:[^·]+ · )?(?:⇧|shift\\+)← back',
   ' *(?:⇧|shift\\+)← concourse *',
   'row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$',
   '(?<= · effort [^·]+ · ctx \\S+ · )\\S.*',
@@ -118,31 +118,92 @@ export function canonicalizeCheckoutRows(
     [` · ${checkout.basename} · `, ' · mercury · '],
     [` ${checkout.basename} · `, ' mercury · '],
     [`FILES · ${checkout.basename}`, 'FILES · mercury'],
+    [`  ${checkout.basename}  `, '  mercury  '],
     [`│ ${checkout.basename} ▸`, '│ mercury ▸'],
   ]
   const clipped = new RegExp(`FILES · (${[...checkout.basename].map((_, i, all) => all.slice(0, i + 1).join('').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).reverse().join('|')})…`)
-  const restore = (row: string, at: number, delta: number): string => {
-    if (/^(?: {2,}|│)/.test(row.slice(at))) return row.slice(0, at) + ' '.repeat(delta) + row.slice(at)
+  const restoreAt = (row: string, start: number, end: number): number => {
+    const before = / {2,}$/.exec(row.slice(0, start))
+    const after = /^(?: {2,}|│)/.exec(row.slice(end))
+    if (after && before && before[0].length > after[0].length) return start
+    if (after) return end
     const runs = [...row.matchAll(/ {2,}/g)]
     const last = runs[runs.length - 1]
-    if (!last || last.index === undefined) return row + ' '.repeat(delta)
-    return row.slice(0, last.index) + ' '.repeat(delta) + row.slice(last.index)
+    return last?.index ?? row.length
   }
-  const text = grid.text.map(row => {
+  type Cell = [string, string, number] | null
+  const same = (a: Cell, b: Cell): boolean => (a === null && b === null) || (a !== null && b !== null && a[0] === b[0] && a[1] === b[1] && a[2] === b[2])
+  const expand = (spans: StoredGrid['styles'][number], width: number): Cell[] => {
+    const cells: Cell[] = Array.from({ length: width }, () => null)
+    for (const [startCol, len, fg, bg, flags] of spans) for (let x = startCol; x < startCol + len && x < width; x++) cells[x] = [fg, bg, flags]
+    return cells
+  }
+  const compress = (cells: Cell[]): StoredGrid['styles'][number] => {
+    const spans: StoredGrid['styles'][number] = []
+    let x = 0
+    while (x < cells.length) {
+      let len = 1
+      while (x + len < cells.length && same(cells[x + len]!, cells[x]!)) len++
+      const cell = cells[x]!
+      if (cell !== null) spans.push([x, len, cell[0], cell[1], cell[2]])
+      x += len
+    }
+    return spans
+  }
+  const spellCells = (fromCells: Cell[], from: string, to: string): Cell[] => {
+    const fromTokens = from.split(/(\s+)/)
+    const toTokens = to.split(/(\s+)/)
+    const shaped = fromTokens.length === toTokens.length && fromTokens.every((token, i) => /^\s+$/.test(token) === /^\s+$/.test(toTokens[i]!) && (!/^\s+$/.test(token) || token.length === toTokens[i]!.length))
+    if (!shaped) return Array.from({ length: to.length }, () => fromCells[0] ?? null)
+    const out: Cell[] = []
+    let offset = 0
+    fromTokens.forEach((token, i) => {
+      const target = toTokens[i]!
+      if (/^\s+$/.test(token)) out.push(...fromCells.slice(offset, offset + token.length))
+      else for (let k = 0; k < target.length; k++) out.push(fromCells[offset] ?? null)
+      offset += token.length
+    })
+    return out
+  }
+  const respell = (row: string, cells: Cell[], at: number, from: string, to: string): { row: string; cells: Cell[] } => {
+    const replaced = row.slice(0, at) + to + row.slice(at + from.length)
+    const delta = from.length - to.length
+    const ins = restoreAt(replaced, at, at + to.length)
+    const text = replaced.slice(0, ins) + ' '.repeat(delta) + replaced.slice(ins)
+    const spelled = [...cells.slice(0, at), ...spellCells(cells.slice(at, at + from.length), from, to), ...cells.slice(at + from.length)]
+    const pad: Cell = ins === at ? (spelled[at - 1] ?? null) : ins < spelled.length ? spelled[ins]! : spelled.length > 0 ? spelled[spelled.length - 1]! : null
+    return { row: text, cells: [...spelled.slice(0, ins), ...Array.from({ length: delta }, () => pad), ...spelled.slice(ins)] }
+  }
+  const text: string[] = []
+  const styles: StoredGrid['styles'] = []
+  grid.text.forEach((row, y) => {
+    const cells = expand(grid.styles[y] ?? [], row.length)
+    const keep = (): void => {
+      text.push(row)
+      styles.push(grid.styles[y] ?? [])
+    }
+    const take = (next: { row: string; cells: Cell[] }): void => {
+      text.push(next.row)
+      styles.push(compress(next.cells))
+    }
     for (const [from, to] of swaps) {
       const at = row.indexOf(from)
       if (at === -1) continue
-      if (to.length > from.length) return row
-      return restore(row.replace(from, to), at + to.length, from.length - to.length)
+      if (to.length > from.length) return keep()
+      return take(respell(row, cells, at, from, to))
+    }
+    const dirClip = /(ctx [^·]*· )([^·… ]+)…\s*$/.exec(row)
+    if (dirClip && dirClip.index !== undefined && dirClip[2]!.length <= 'mercury'.length && checkout.basename.startsWith(dirClip[2]!)) {
+      const at = dirClip.index + dirClip[1]!.length
+      text.push(row.slice(0, at) + 'mercury'.slice(0, dirClip[2]!.length) + row.slice(at + dirClip[2]!.length))
+      styles.push(grid.styles[y] ?? [])
+      return
     }
     const cut = clipped.exec(row)
-    if (cut && cut.index !== undefined && cut[0].length >= 'FILES · mercury'.length) {
-      const to = 'FILES · mercury'
-      return restore(row.slice(0, cut.index) + to + row.slice(cut.index + cut[0].length), cut.index + to.length, cut[0].length - to.length)
-    }
-    return row
+    if (cut && cut.index !== undefined && cut[0].length >= 'FILES · mercury'.length) return take(respell(row, cells, cut.index, cut[0], 'FILES · mercury'))
+    keep()
   })
-  return { ...grid, text }
+  return { ...grid, text, styles }
 }
 
 export function compactGrid(raw: RawGrid): StoredGrid {

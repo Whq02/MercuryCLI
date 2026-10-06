@@ -53,7 +53,10 @@ for (const file of MUST_RIDE_THE_BEAT) {
     /useSyncExternalStore\(\s*subscribeFocusedWorkspace,\s*getFocusedWorkspaceCwd/.test(feed),
   );
   const frame = readFileSync('src/components/MercuryFrame.tsx', 'utf8');
-  check('MercuryFrame rides the shared feed hook', frame.includes('useFocusedWorkspaceCwd()'));
+  const branchFeed = readFileSync('src/hooks/useFocusedWorkspaceBranch.ts', 'utf8');
+  check('the folder-and-branch hook rides the shared feed hook (one owner of the cwd under it)', branchFeed.includes('useFocusedWorkspaceCwd()') && !branchFeed.includes('subscribeCwdState(') && !branchFeed.includes('getCwd('));
+  check('MercuryFrame rides the shared feed through the folder-and-branch hook', frame.includes('useFocusedWorkspaceBranch()') && !frame.includes('useFocusedWorkspaceCwd('));
+  check('the status row rides the same folder-and-branch hook', readFileSync('src/components/SwitchboardTagBar.tsx', 'utf8').includes('useFocusedWorkspaceBranch()'));
   check(
     'MercuryFrame has no plain unsubscribed cwd sample',
     !/const cwd = getFocusedSessionConnector\(\)\.workspace\(\)\.cwd/.test(frame),

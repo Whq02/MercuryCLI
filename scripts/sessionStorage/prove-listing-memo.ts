@@ -95,7 +95,7 @@ section('L5 the public door rides the memo; callers get fresh rows')
   const servedBefore = census.served
   const all = await logs.listSessionsAcrossProjects()
   const again = await logs.listSessionsAcrossProjects()
-  check('listSessionsAcrossProjects (the strip, the rail, /resume, /sessiontab) is served by the memo', census.sweeps === sweepsBefore && census.served === servedBefore + 2, JSON.stringify(census))
+  check('listSessionsAcrossProjects (the rail, /resume, /sessiontab) is served by the memo', census.sweeps === sweepsBefore && census.served === servedBefore + 2, JSON.stringify(census))
   check('the two answers agree row for row', all.length > 0 && all.length === again.length && all.every((l, i) => l.sessionId === again[i]!.sessionId && l.modified.getTime() === again[i]!.modified.getTime()), `${all.length}`)
   if (all.length > 0) {
     all[0]!.value = 999

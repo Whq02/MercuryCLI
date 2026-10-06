@@ -187,7 +187,6 @@ the server definitions themselves.
 | `view.syntaxOff` | Disables syntax colouring. |
 | `view.reducedMotion` | Suppresses authored animation. |
 | `view.backgroundKey` | Enables the key that backgrounds a running shell command. |
-| `view.sessionsBar` | Shows the bottom SESSIONS bar; off unless enabled. |
 | `view.firstRunCards` | First-run card placement: `centred` or `top-left`. |
 | `view.ping` | Pings the terminal when a chat finishes while you are away; on unless `false`. |
 | `context.wayBack` | Shows the way-back hint beside a notice. |

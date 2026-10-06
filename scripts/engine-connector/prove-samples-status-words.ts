@@ -95,9 +95,9 @@ async function main(): Promise<void> {
     check('a parked ask keeps its place; the artifact word is the tail', composer && tail(bar.waitingStatusWords({ ...waiting, waitingOn: { ...counts.workCounts(rows), asks: 1 } }), 1) === 'waiting on 4 agents · 1 shell · 1 ask · 1 sample')
     const tagBar = read('src/components/SwitchboardTagBar.tsx')
     const repl = read('src/screens/Chat.tsx')
-    const spokenAt = tagBar.indexOf('const spoken = withSampleWords(words ?? line, samples)')
+    const planAt = tagBar.indexOf('const plan = statusRowPlan({ columns, head, rest, samples, folder, branch, backHint })')
     const heldAt = tagBar.indexOf('const held = receipt')
-    check('the row composes the tail once, after every state decision, through the fit that protects the state words', tagBar.includes('const fitted = fitStatusWords(words ?? line, samples, columns, fixedWidth)') && spokenAt >= 0 && heldAt >= 0 && spokenAt > heldAt && !tagBar.includes('fitStatusLine(spoken'))
+    check('the row composes the tail once, after every state decision, through the fit that protects the state words', tagBar.includes("const fitted = columns - fixedWidth < STATUS_ROW_WORDS_FLOOR ? '' : fitStatusWords(rest, samples, columns, fixedWidth)") && planAt >= 0 && heldAt >= 0 && planAt > heldAt && !tagBar.includes('fitStatusLine(spoken'))
     check('the working strip speaks the shared wait composer and no sample of its own — the row under it is the owner', repl.includes("seatLive.phase === 'waiting' ? waitingStatusWords(seatLive) : null") && !repl.includes('withSampleWords(') && !repl.includes('useFocusedSamples'))
     check('statusLine and the wait composer carry no sample of their own', /export function statusLine\(live: SessionLiveV1, s: SeatStatusV1, crew: CrewClockV1 \| null = null, compact = false\): string/.test(tagBar) && /export function waitingStatusWords\(live: SessionLiveV1\): string/.test(tagBar))
   }
@@ -112,16 +112,15 @@ async function main(): Promise<void> {
     check('waiting → idle → thinking → waiting: the count rides every phase, once', rowWords(waiting, 1) === OWNER && tail(bar.restingStatusWords('', null), 1) === 'ready · 1 sample' && rowWords(thinking, 1) === '1 sample' && rowWords(waiting, 1).split('sample').length === 2)
   }
 
-  section('S4 one truth: the seat projection the rail reads')
+  section('S4 one truth: the seat projection the row reads')
   {
     const tagBar = read('src/components/SwitchboardTagBar.tsx')
     const repl = read('src/screens/Chat.tsx')
     const hook = read('src/components/tasks/useFocusedWork.ts')
-    const tabs = read('src/components/mercury-ui/SessionTabs.tsx')
     const connector = read('src/services/engine-connector/daemonConnector.ts')
     check('the row reads the samples through the one roster reader', tagBar.includes('const samples = useFocusedSamples()'))
     check('the working strip reads no samples of its own', !repl.includes('useFocusedSamples') && !repl.includes('focusedSamples'))
-    check("the reader is the focused connector's work roster — the projection the rail reads", hook.includes('export function useFocusedSamples(): readonly SampleRowV1[]') && hook.includes('getFocusedSessionConnector().workRoster().samples ?? []') && tabs.includes('useFocusedWorkRoster().samples ?? []'))
+    check("the reader is the focused connector's work roster — the one projection", hook.includes('export function useFocusedSamples(): readonly SampleRowV1[]') && hook.includes('getFocusedSessionConnector().workRoster().samples ?? []'))
     check("the roster's samples are the seat facts' samples", connector.includes('const samples = this.facts?.samples ?? []'))
     check('neither road reads a samples store or directory of its own', !tagBar.includes('services/samples/') && !repl.includes('services/samples/') && !hook.includes('services/samples/') && !tagBar.includes('readdirSync'))
   }
@@ -138,6 +137,10 @@ async function main(): Promise<void> {
     setLive(next: SessionLiveV1): void
     setStatus(next: SeatStatusV1): void
   }
+  const WS = join(scratchHome ?? mkdtempSync(join(tmpdir(), 'samples-status-ws-')), 'mercury')
+  mkdirSync(join(WS, '.git'), { recursive: true })
+  writeFileSync(join(WS, '.git', 'HEAD'), 'ref: refs/heads/main\n')
+  const RIGHT = 'mercury ⌥ main'
   function seatFixture(sessionId: string, initial: { live: SessionLiveV1; rows: WorkRowV1[]; samples: SampleRowV1[] }): Seat {
     const workListeners = new Set<() => void>()
     const liveListeners = new Set<() => void>()
@@ -150,6 +153,7 @@ async function main(): Promise<void> {
       subscribeRecords: () => () => {},
       modelFacts: () => ({ effective: 'fixture-model', effectiveSource: 'live', main: 'fixture-model', setting: null, sessionPin: null, effort: null, effortSent: null, pendingSwitch: null }),
       subscribeModel: () => () => {},
+      workspace: () => ({ cwd: WS, originalCwd: WS, projectRoot: WS }),
       workRoster: () => roster,
       subscribeWork: (listener: () => void) => {
         workListeners.add(listener)
@@ -216,7 +220,8 @@ async function main(): Promise<void> {
   const waitingHint = bar.escBackHint(waiting, status)
   const idleHint = bar.escBackHint(IDLE_LIVE, status)
   const escaped = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const idleLine = (count: string): RegExp => new RegExp(`^ ready · fixture-model(?: · [^·]+)? · ${count}\\s+${escaped(idleHint)}\\s*$`)
+  const idleLine = (count: string): RegExp => new RegExp(`^ ready · fixture-model(?: · [^·]+)? · ${count}\\s+(?:\\S+ )?(?:⌥ \\S+ )?\\s*${escaped(idleHint)}\\s*$`)
+  const leads = (frame: string, words: string): boolean => new RegExp(`^ fixture-model(?: · [^·]+)? · ${escaped(words)}`).test(frame)
   slot.setFocusedSessionConnector(seatA)
   const row = await mount(178, React.createElement(bar.FocusedSessionStatusRow))
   const scene = async (name: string | null, act: () => void): Promise<string> => {
@@ -249,14 +254,14 @@ async function main(): Promise<void> {
     const all = [zero, one, idle, think, again, hopZero, hopThree, back]
     const squeeze = (frame: string): string => frame.trimEnd().replace(/ {2,}/g, ' ')
     check('every scene is one line within 178 columns and no render error', all.every(frame => frame !== '' && !frame.includes('\n') && stringWidth(frame) <= 178 && !frame.includes('ERROR')))
-    check("waiting, one sample: the project, the owner's words, the way back", one.includes(` mercury · ${OWNER}`) && one.trimEnd().endsWith(waitingHint), one)
-    check('waiting, zero samples: the row of today', zero.includes(` mercury · ${TODAY}`) && !zero.includes('sample') && zero.trimEnd().endsWith(waitingHint), zero)
+    check("waiting, one sample: the model and its effort, the owner's words, the way back", leads(one, OWNER) && one.trimEnd().endsWith(waitingHint), one)
+    check('waiting, zero samples: the row of today', leads(zero, TODAY) && !zero.includes('sample') && zero.trimEnd().endsWith(waitingHint), zero)
     check('the sample word is the only difference; the way back keeps its column', squeeze(one.replace(' · 1 sample', '')) === squeeze(zero) && one.indexOf(waitingHint) === zero.indexOf(waitingHint), `${one.indexOf(waitingHint)} vs ${zero.indexOf(waitingHint)}`)
     check('a sample arriving repaints the mounted row through the roster feed', zero !== one)
     check('waiting → idle (the agents finished, their rows evicted): ready · … · 1 sample', idleLine('1 sample').test(idle), idle)
-    check('idle → thinking: the count stands beside the project, no invented state word', think.includes(' mercury · 1 sample') && !/thinking|waiting|ready/.test(think) && think.trimEnd().endsWith(waitingHint), think)
+    check('idle → thinking: the count stands beside the model, no invented state word', leads(think, '1 sample') && !/thinking|waiting|ready/.test(think) && think.trimEnd().endsWith(waitingHint), think)
     check("thinking → waiting: the owner's line again, the count once", again === one && again.split('sample').length === 2, again)
-    check('a hop to a session with no samples drops the tail', hopZero.includes(` mercury · ${TODAY}`) && !hopZero.includes('sample'), hopZero)
+    check('a hop to a session with no samples drops the tail', leads(hopZero, TODAY) && !hopZero.includes('sample'), hopZero)
     check('a hop to a session with three samples reads its own count', idleLine('3 samples').test(hopThree), hopThree)
     check("a hop back restores the first session's line", back === one, back)
     check('narrow: the way back survives and the sample word is the first cut', narrowFrame.trimEnd().endsWith(waitingHint) && stringWidth(narrowFrame) <= 64 && narrowFrame.includes('waiting on') && !narrowFrame.includes('1 sample'), narrowFrame)
@@ -377,10 +382,12 @@ async function main(): Promise<void> {
     const lateHint = bar.escBackHint(thinking, arms[0]![2])
     const secondHint = bar.escBackHint(thinking, arms[3]![2])
     check('every warning scene is one line within its width', [lateFrame, receiptFrame].every(frame => !frame.includes('\n') && stringWidth(frame) <= 178 + chordDelta) && [stuckFrame, secondFrame].every(frame => !frame.includes('\n') && stringWidth(frame) <= 100 + chordDelta))
-    check('178, late first byte, one sample: the warning stands whole and the count yields', lateFrame.startsWith(` mercury · ${late}`) && !lateFrame.includes('sample') && lateFrame.trimEnd().endsWith(lateHint), lateFrame)
-    check('178, a held receipt, one sample: the receipt whole, the count after its full stop', receiptPainted && receiptFrame.startsWith(` ${receipts[0]![1]} · 1 sample`) && receiptFrame.trimEnd().endsWith(idleHint), receiptFrame)
-    check('100, stuck, one sample: the row reads exactly as it does without samples', stuckFrame.startsWith(` mercury · ${bar.fitStatusLine(stuck, 100 + chordDelta, cases[1]![2])}`) && !stuckFrame.includes('sample') && stuckFrame.includes('the session may be stuck'), stuckFrame)
-    check('100, the second esc, one sample: the row reads exactly as it does without samples', secondFrame.startsWith(` mercury · ${bar.fitStatusLine(second, 100 + chordDelta, cases[3]![2])}`) && !secondFrame.includes('sample') && secondFrame.trimEnd().endsWith(secondHint), secondFrame)
+    const HEAD = /^ (fixture-model(?: · [^·]+)?) · /.exec(zero)?.[1] ?? 'fixture-model'
+    const planned = (line: string, columns: number, live: SessionLiveV1, s: SeatStatusV1): string => bar.statusRowPlan({ columns, head: HEAD, rest: line, samples: samples(1), folder: 'mercury', branch: 'main', backHint: bar.escBackHint(live, s) }).rest
+    check('178, late first byte, one sample: the warning keeps its tail clause (the budget verdict) and the count yields; the folder and branch stand', lateFrame.startsWith(` ${HEAD} · `) && !lateFrame.includes('sample') && lateFrame.includes(' — the budget is up; the lane reissues or aborts now') && lateFrame.includes(` ${RIGHT}  `) && lateFrame.trimEnd().endsWith(lateHint), lateFrame)
+    check('178, a held receipt, one sample: the model and effort, the receipt whole, the count after its full stop', receiptPainted && receiptFrame.startsWith(` ${HEAD} · ${receipts[0]![1]} · 1 sample`) && receiptFrame.includes(` ${RIGHT}  `) && receiptFrame.trimEnd().endsWith(idleHint), receiptFrame)
+    check('100, stuck, one sample: the row reads exactly as it does without samples (the plan\'s own cut), the count dropped', stuckFrame.startsWith(` ${HEAD} · ${planned(stuck, 100 + chordDelta, thinking, arms[1]![2])}`) && !stuckFrame.includes('sample') && stuckFrame.includes('the watchdog aborts at 1m'), stuckFrame)
+    check('100, the second esc, one sample: the row reads exactly as it does without samples, the count dropped', secondFrame.startsWith(` ${HEAD} · ${planned(second, 100 + chordDelta, thinking, arms[3]![2])}`) && !secondFrame.includes('sample') && secondFrame.trimEnd().endsWith(secondHint), secondFrame)
   }
   slot._resetFocusedSessionConnectorForTesting()
 }

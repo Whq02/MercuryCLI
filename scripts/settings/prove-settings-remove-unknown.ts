@@ -54,7 +54,7 @@ const twoUnknownFile = (): string =>
     '    "effort": "high"',
     '  },',
     '  "view": {',
-    '    "sessionsBar": true',
+    '    "reducedMotion": true',
     '  }',
     '}',
     '',
@@ -134,7 +134,7 @@ try {
     check(`${tag}: the two keys are gone and every other byte stays (indent, order, trailing newline)`, after === withoutUnknown(before), JSON.stringify({ before, after }))
     resetSettingsCache()
     const reloaded = getSettingsWithErrors()
-    check(`${tag}: the file now loads clean and its other settings apply`, reloaded.errors.length === 0 && getInitialSettings().engine?.effort === 'high' && getInitialSettings().view?.sessionsBar === true, JSON.stringify(reloaded.errors))
+    check(`${tag}: the file now loads clean and its other settings apply`, reloaded.errors.length === 0 && getInitialSettings().engine?.effort === 'high' && getInitialSettings().view?.reducedMotion === true, JSON.stringify(reloaded.errors))
     dialog.m.unmount()
   }
 
@@ -152,7 +152,7 @@ try {
 
   section('§4 not offered: an invalid value with no unknown key keeps the three choices, continue first')
   {
-    seed(`${JSON.stringify({ $schema: settingsSchemaLocalPath(), records: { retentionDays: '30' }, view: { sessionsBar: true } }, null, 2)}\n`)
+    seed(`${JSON.stringify({ $schema: settingsSchemaLocalPath(), records: { retentionDays: '30' }, view: { reducedMotion: true } }, null, 2)}\n`)
     const errors = loadErrors()
     check('the invalid value is one warning with no key list', errors.length === 1 && errors[0]?.severity === 'warning' && errors[0]?.unknownKeys === undefined, JSON.stringify(errors))
     check('the removal module offers nothing', removal !== null && removal.removableUnknownKeys(errors).length === 0)

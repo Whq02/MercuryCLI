@@ -168,6 +168,7 @@ const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProvid
 const { FullscreenLayout, useUnseenDivider } = await import('../../src/components/FullscreenLayout.tsx')
 const { ScrollKeybindingHandler } = await import('../../src/components/ScrollKeybindingHandler.tsx')
 const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
+const { FocusedSessionStatusRow } = await import('../../src/components/SwitchboardTagBar.tsx')
 const { useCompactWorkControls } = await import('../../src/components/tasks/CompactWorkSummary.tsx')
 const { GlobalKeybindingHandlers } = await import('../../src/hooks/useGlobalKeybindings.tsx')
 const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
@@ -180,6 +181,7 @@ const pending = await import('../../src/input-core/pending-input.ts')
 const { default: instances } = await import('../../src/ink/instances.ts')
 const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
 const { setFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
+const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
 const { resetHelmFocusForTest } = await import('../../src/utils/cockpit/helmFocus.ts')
 const { closeSettingsPopup, isSettingsPopupOpen } = await import('../../src/utils/cockpit/settingsPopup.ts')
 const crewmatesCommand = await import('../../src/commands/crewmates/crewmates.tsx')
@@ -200,6 +202,10 @@ const overrides: Record<string, unknown> = {
   stopAgent: async (agentId: string, note?: string) => { agentCalls.push({ verb: 'stop', agentId, note }); return { outcome: 'applied' } },
   resumeAgent: async (agentId: string, note?: string) => { agentCalls.push({ verb: 'resume', agentId, note }); return { outcome: 'applied', detail: '{"queued":true}' } },
   interrupt: () => false,
+  live: () => IDLE_LIVE,
+  subscribeLive: () => () => {},
+  status: () => ({ title: 'a chat', projectLabel: 'orchard', interrupting: false, hardStopping: false, wait: null, quietMs: null, watchdogMs: null, phaseMs: null, toolBudgetMs: null, stuck: false }),
+  tail: () => ({ subscribe: () => () => {}, getSnapshot: () => null, read: () => null }),
 }
 const fake = new Proxy(resting, {
   get(target, key) {
@@ -269,7 +275,7 @@ function Harness({ scrollRef }: { scrollRef: React.RefObject<ScrollBoxHandle | n
       statusBandActive: true,
       modal: modal === null ? undefined : h(Box, { width: '100%', flexDirection: 'column' }, modal),
       modalScrollRef,
-      bottom: h(PromptInput, {
+      bottom: h(Box, { flexDirection: 'column', flexShrink: 0 }, h(FocusedSessionStatusRow), h(PromptInput, {
         compactWork: controls, compactFocus: focus,
         debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
         setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [],
@@ -279,7 +285,7 @@ function Harness({ scrollRef }: { scrollRef: React.RefObject<ScrollBoxHandle | n
         onSubmit: async () => {},
         isSearchingHistory: searching, setIsSearchingHistory: setSearching, helpOpen: help, setHelpOpen: setHelp,
         hasSuppressedDialogs: false, isLocalJSXCommandActive: modal !== null, insertTextRef: insertRef,
-      } as never),
+      } as never)),
     } as never),
   )
 }
@@ -367,7 +373,7 @@ function windowOf(lines: string[], title: string): Window | null {
 const describe = (window: Window | null): string => (window === null ? 'no closed window' : `left ${window.left} · top ${window.top} · width ${window.width} · height ${window.height} (rows ${window.top}..${window.bottom})`)
 const railText = (line: string, cockpit: Cockpit): string => cells(line).slice(0, cockpit.railRight + 1).join('')
 const railRow = (lines: string[], cockpit: Cockpit, needle: string): number => lines.findIndex(line => railText(line, cockpit).includes(needle))
-const headerRow = (lines: string[]): string => (lines.find(line => /VIEW/.test(line)) ?? '').trim()
+const headerRow = (lines: string[]): string => (lines.find(line => line.includes('← back')) ?? '').trim()
 const centre = (line: string, cockpit: Cockpit): string => cells(line).slice(cockpit.left + 1, cockpit.right).join('')
 const crewOrder = (lines: string[], cockpit: Cockpit): string => lines.map(line => railText(line, cockpit)).filter(line => /[◐◉★●] (atlas|fjord|harbo)/.test(line)).map(line => /(atlas|fjord|harbo)/.exec(line)![1]!).join(',')
 const transcriptOf = (lines: string[], cockpit: Cockpit): string[] => {
@@ -376,7 +382,7 @@ const transcriptOf = (lines: string[], cockpit: Cockpit): string[] => {
   for (let y = 2; y < 12; y++) if (centreLines[y]!.startsWith('╰')) { cardBottom = y; break }
   return centreLines.slice(cardBottom + 1, cockpit.bottom).map(line => line.trimEnd())
 }
-const cardOf = (lines: string[], cockpit: Cockpit): string => lines.slice(2, 6).map(line => centre(line, cockpit)).join(' ').replace(/\s+/g, ' ')
+const cardOf = (lines: string[], cockpit: Cockpit): string => lines.slice(1, 5).map(line => centre(line, cockpit)).join(' ').replace(/\s+/g, ' ')
 const flat = (s: string): string => s.replace(/\s+/g, ' ').trim()
 
 for (const [cols, rows] of sizes) {
@@ -405,25 +411,25 @@ for (const [cols, rows] of sizes) {
   await sleep(200)
   const fjordRow = rowOf('fjord')
   await click(scene, 8, fjordRow)
-  await until(() => /VIEW · fjord/.test(headerRow(scene.lines())), 6000)
+  await until(() => /(?:viewing|main chat:) fjord ·/.test(headerRow(scene.lines())), 6000)
   await until(() => scene.lines().some(line => line.includes('[fjord]')), 6000)
   await sleep(300)
   frame = scene.lines()
   save('2-view-fjord', frame)
   const orderFjord = crewOrder(frame, cockpit)
-  check(`${size}: fjord's row opens fjord in the view (the header, its own rows)`, /VIEW · fjord · viewing/.test(headerRow(frame)) && frame.some(line => centre(line, cockpit).includes('[fjord]')), headerRow(frame))
+  check(`${size}: fjord's row opens fjord in the view (the header, its own rows)`, /viewing fjord ·/.test(headerRow(frame)) && frame.some(line => centre(line, cockpit).includes('[fjord]')), headerRow(frame))
   check(`${size}: the CREW rows keep their order with fjord viewed (the ◉ mark lands on the row where it stood)`, orderFjord === orderAtRest && railRow(frame, cockpit, '◉ fjord') === fjordRow, `${orderAtRest} → ${orderFjord} · ◉ fjord at row ${railRow(frame, cockpit, '◉ fjord')} (was ${fjordRow})`)
   check(`${size}: fjord's view paints whole`, integrity(frame).length === 0, integrity(frame).slice(0, 3).join(' · '))
   check(`${size}: the first visit of a short transcript stands at its top with no jump pill`, !frame.some(line => line.includes(PILL)), 'the pill stands')
   const atlasRow = rowOf('atlas')
   await click(scene, 8, atlasRow)
-  await until(() => /VIEW · atlas/.test(headerRow(scene.lines())), 6000)
+  await until(() => /(?:viewing|main chat:) atlas ·/.test(headerRow(scene.lines())), 6000)
   await until(() => scene.lines().some(line => line.includes('holding the line')), 6000)
   await sleep(300)
   frame = scene.lines()
   save('3-view-atlas', frame)
   const orderAtlas = crewOrder(frame, cockpit)
-  check(`${size}: atlas's row opens atlas in the view at the bottom of its transcript (its last row on screen, no pill)`, /VIEW · atlas · viewing/.test(headerRow(frame)) && frame.some(line => centre(line, cockpit).includes('holding the line')) && !frame.some(line => line.includes(PILL)), `${headerRow(frame)}${frame.some(line => line.includes(PILL)) ? ' · the pill stands' : ''}`)
+  check(`${size}: atlas's row opens atlas in the view at the bottom of its transcript (its last row on screen, no pill)`, /viewing atlas ·/.test(headerRow(frame)) && frame.some(line => centre(line, cockpit).includes('holding the line')) && !frame.some(line => line.includes(PILL)), `${headerRow(frame)}${frame.some(line => line.includes(PILL)) ? ' · the pill stands' : ''}`)
   check(`${size}: the CREW rows keep their order with atlas viewed`, orderAtlas === orderAtRest && railRow(frame, cockpit, '◉ atlas') === atlasRow, `${orderAtRest} → ${orderAtlas}`)
   check(`${size}: atlas's view paints whole (no character past the right border)`, integrity(frame).length === 0, integrity(frame).slice(0, 3).join(' · '))
 
@@ -438,7 +444,7 @@ for (const [cols, rows] of sizes) {
   console.log(`${size}: atlas after PgUp — scrollTop ${scrolledTop} · pending ${handle?.getPendingDelta()} · height ${handle?.getFreshScrollHeight()} · viewport ${handle?.getViewportHeight()}`)
   check(`${size}: PgUp scrolls atlas's transcript a page up and the pill stands`, scrolledTop > 0 && frame.some(line => line.includes(PILL)), `scrollTop ${scrolledTop}${frame.some(line => line.includes(PILL)) ? '' : ' · no pill'}`)
   await click(scene, 8, fjordRow)
-  await until(() => /VIEW · fjord/.test(headerRow(scene.lines())), 6000)
+  await until(() => /(?:viewing|main chat:) fjord ·/.test(headerRow(scene.lines())), 6000)
   await until(() => scene.lines().some(line => line.includes('[fjord]')), 6000)
   await sleep(400)
   frame = scene.lines()
@@ -454,7 +460,7 @@ for (const [cols, rows] of sizes) {
   readHeld = false
   heldRead = new Promise<void>(resolve => { releaseRead = resolve })
   await click(scene, 8, atlasRow)
-  await until(() => /VIEW · atlas/.test(headerRow(scene.lines())), 6000)
+  await until(() => /(?:viewing|main chat:) atlas ·/.test(headerRow(scene.lines())), 6000)
   await until(() => readHeld && scene.lines().some(line => line.includes('reading the crewmate')), 6000)
   save('6-atlas-reading', scene.lines())
   check(`${size}: the return waits on a real pending transcript read`, readHeld && scene.lines().some(line => line.includes('reading the crewmate')))
@@ -514,7 +520,7 @@ for (const [cols, rows] of sizes) {
   section(`§4 ${size}: the crewmate on screen lands — its rail row and the way back stay`)
   const harbourRow = rowOf('harbo')
   await click(scene, 8, harbourRow)
-  await until(() => /VIEW · harbour/.test(headerRow(scene.lines())), 6000)
+  await until(() => /(?:viewing|main chat:) harbour ·/.test(headerRow(scene.lines())), 6000)
   await sleep(300)
   publishRoster(rowsNow => land(rowsNow, 'harbour'))
   await until(() => cardOf(scene.lines(), cockpit).includes('landed'), 6000)
@@ -523,7 +529,9 @@ for (const [cols, rows] of sizes) {
   save('10-harbour-landed', frame)
   const landedCard = cardOf(frame, cockpit)
   console.log(`${size}: harbour's card after it landed: "${landedCard.slice(0, 160)}"`)
-  check(`${size}: the view stays on harbour and the card reads landed`, /VIEW · harbour · viewing/.test(headerRow(frame)) && landedCard.includes('landed'), `${headerRow(frame)} · ${landedCard.slice(0, 120)}`)
+  const landedWay = /esc back to Mercury Lead · m main chat in \/crewmates · Mercury Lead in the rail goes back · (?:⇧|shift\+)← back$/.test(headerRow(frame))
+  check(`${size}: the view stays on harbour and the card reads landed`, scene.state().viewingAgentTaskId === 'a-harbour' && landedCard.includes('landed') && landedWay && headerRow(frame).startsWith('Opus 5.5'), `${headerRow(frame)} · ${landedCard.slice(0, 120)}`)
+  check(`${size}: the status row names harbour beside the model where the row has room; at 120 columns the landed crewmate's way back leaves no room and the words leave (the rail's marked row and the composer name it)`, cols >= 178 ? /viewing harbour ·/.test(headerRow(frame)) : !/viewing harbour/.test(headerRow(frame)), headerRow(frame))
   check(`${size}: the card carries no stale running activity for the landed crewmate`, !landedCard.includes('Sleeping'), landedCard.slice(0, 160))
   const landedRailRow = railRow(frame, cockpit, '◉ harbo')
   check(`${size}: the rail keeps the landed crewmate's row in the CREW lane, marked ◉ and › (it settles under the running rows)`, landedRailRow >= 0 && /›/.test(railText(frame[landedRailRow] ?? '', cockpit)), frame.map(line => railText(line, cockpit)).filter(line => /CREW|◉|◐|★|✶/.test(line)).map(flat).join(' | '))
@@ -555,12 +563,12 @@ for (const [cols, rows] of sizes) {
   console.log(`${size}: the crew pop-up ${describe(crewWindow)} · rows ${crewRowsInPopup.join(',')} · m on ${target}`)
   scene.push('m')
   await until(() => scene.state().mainChatTaskId !== undefined, 4000)
-  await until(() => new RegExp(`★ VIEW · ${target}`).test(headerRow(scene.lines())), 6000)
+  await until(() => new RegExp(`main chat: ${target} ·`).test(headerRow(scene.lines())), 6000)
   await sleep(400)
   frame = scene.lines()
   save('13-pinned-landed', frame)
   const starRow = railRow(frame, cockpit, '★')
-  check(`${size}: m pins the landed crewmate — its ★ row stands in the rail, the header says main chat`, starRow >= 0 && railText(frame[starRow]!, cockpit).includes(target.slice(0, 5)) && new RegExp(`★ VIEW · ${target} · main chat`).test(headerRow(frame)), `${headerRow(frame)} · ${starRow >= 0 ? flat(railText(frame[starRow]!, cockpit)) : 'no ★ row'}`)
+  check(`${size}: m pins the landed crewmate — its ★ row stands in the rail, the status row says main chat`, starRow >= 0 && railText(frame[starRow]!, cockpit).includes(target.slice(0, 5)) && new RegExp(`main chat: ${target} ·`).test(headerRow(frame)), `${headerRow(frame)} · ${starRow >= 0 ? flat(railText(frame[starRow]!, cockpit)) : 'no ★ row'}`)
   const pinnedRows = transcriptOf(frame, cockpit)
   const pinnedHeader = headerRow(frame)
   const crewAgain = await crewmatesCommand.call(() => {}, { messages: [], options: {} } as never, '')

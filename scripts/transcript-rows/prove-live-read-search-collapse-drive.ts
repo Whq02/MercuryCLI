@@ -55,13 +55,13 @@ const sse = (event: string, data: unknown): string => `event: ${event}\ndata: ${
 const finish = (reason: string): string => sse('message_delta', { type: 'message_delta', delta: { stop_reason: reason, stop_sequence: null }, usage: { output_tokens: 20 } }) + sse('message_stop', { type: 'message_stop' })
 const linesOf = (p: Grid): string[] => p.grid.map(row => row.map(c => c.c).join(''))
 function pane(lines: string[]): string[] {
-  const title = lines.findIndex(l => l.includes('✶ VIEW'))
-  if (title < 1) return []
-  const left = lines[title]!.indexOf('✶ VIEW') - 2
-  const right = lines[title - 1]!.indexOf('╮', left)
+  const top = lines.findIndex(l => /^\s*(?:❯ )?lanes\b.*╭/.test(l))
+  if (top < 0) return []
+  const left = lines[top]!.indexOf('╭')
+  const right = lines[top]!.lastIndexOf('╮')
   const bottom = lines.findLastIndex(l => l[left] === '╰' && l[right] === '╯')
-  if (right <= left || bottom <= title) return []
-  const inner = lines.slice(title + 1, bottom).map(l => l.slice(left + 1, right))
+  if (right <= left || bottom <= top) return []
+  const inner = lines.slice(top + 1, bottom).map(l => l.slice(left + 1, right))
   const hero = inner.findIndex(l => /^\s*╰─+╯\s*$/.test(l))
   return inner.slice(hero + 1)
 }

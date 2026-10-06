@@ -1,21 +1,20 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
-WORKBENCH               │ ✶ VIEW · cedar · viewing                                                        popup review │
-  no prompts sent yet   │                                                                                              │
-                        │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
-NEXT                    │ │ ▖▟▆▙▗ Mercury · status                                                                   │ │
-  · /workflows — agent …│ │ session snapshot · 12:00 · orchard · main                                                │ │
-  · /health — health ce…│ │                                                                                          │ │
-  · /memory — memory    │ │ Session & environment                                                                    │ │
-  · /mission — set a mi…│ │   Mercury 1.0.0 · runtime tree 12345678 · daemon running · 1 session on                  │ │
-                        │ │   model Fable 5.1 · max effort · context 12% of 1000k · sovereign mode on                │ │
-FILES · orchard         │ │   seats 17 · shell engine system · checkpoints capturing · 0 restore points              │ │
-  ↵ or click · browse   │ │                                                                                          │ │
-                        │ │ Accounts                                                                                 │ │
-TELEMETRY               │ │   Anthropic     Claude subscription (max) · session 52% · week 49%                       │ │
-  · spend —             │ │   OpenAI        ChatGPT pro subscription · usage limit reached · resets 30 Sep           │ │
-  · ctx — · —           │ │   Z.AI  GLM Coding Plan key (stored, auth-scoped) · Window (5h) 17% · Current week (7d)  │ │
-  · health — run /health│ │ 3% · Moonshot  Kimi account (device-code sign-in · Global — kimi.ai) · Window (5h) 25% · │ │
-                        │ │ Current week (7d) 41% · DeepSeek  API key (stored, auth-scoped) · credits: USD 12.00     │ │
+WORKBENCH               │                                                                                              │
+  no prompts sent yet   │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
+                        │ │ ▖▟▆▙▗ Mercury · status                                                                   │ │
+NEXT                    │ │ session snapshot · 12:00 · orchard · main                                                │ │
+  · /workflows — agent …│ │                                                                                          │ │
+  · /health — health ce…│ │ Session & environment                                                                    │ │
+  · /memory — memory    │ │   Mercury 1.0.0 · runtime tree 12345678 · daemon running · 1 session on                  │ │
+  · /mission — set a mi…│ │   model Fable 5.1 · max effort · context 12% of 1000k · sovereign mode on                │ │
+                        │ │   seats 17 · shell engine system · checkpoints capturing · 0 restore points              │ │
+FILES · orchard         │ │                                                                                          │ │
+  ↵ or click · browse   │ │ Accounts                                                                                 │ │
+                        │ │   Anthropic     Claude subscription (max) · session 52% · week 49%                       │ │
+TELEMETRY               │ │   OpenAI        ChatGPT pro subscription · usage limit reached · resets 30 Sep           │ │
+  · spend —             │ │   Z.AI  GLM Coding Plan key (stored, auth-scoped) · Window (5h) 17% · Current week (7d)  │ │
+  · ctx — · —           │ │ 3% · Moonshot  Kimi account (device-code sign-in · Global — kimi.ai) · Window (5h) 25% · │ │
+  · health — run /health│ │ Current week (7d) 41% · DeepSeek  API key (stored, auth-scoped) · credits: USD 12.00     │ │
                         │ │ available · granted USD 2.00 · topped-up USD 10.00 (balance read) · xAI  API key         │ │
                         │ │ (stored, auth-scoped) · credits: USD 18.00 available · voucher USD 3.00 · cash USD 15.00 │ │
                         │ │ · month spend USD 2.00 (management API) · Meta  API key (stored, auth-scoped) ·          │ │
@@ -27,7 +26,8 @@ TELEMETRY               │ │   Anthropic     Claude subscription (max) · ses
                         │ │ localhost:1234                                                                           │ │
                         │ │                                                                                          │ │
                         │ │ Connectivity & tools                                                                     │ │
-                        │ │ ↓ 2 more                                                                                 │ │
+                        │ │   health: no cert — /health · MCP servers 2 — /mcp · skills 3 — /skills                  │ │
+                        │ │   workflow idle · trace 3                                                                │ │
                         │ │                                                                                          │ │
                         │ │ esc or click outside closes · /accounts · /usage · /health                               │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │

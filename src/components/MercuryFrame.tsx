@@ -1,8 +1,5 @@
-import { execFile } from 'child_process'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import * as React from 'react'
-import { useContext, useEffect, useState, useSyncExternalStore } from 'react'
+import { useContext, useEffect, useSyncExternalStore } from 'react'
 import { buildRunCapsuleLine } from '../commands/run/runInspectorModel.js'
 import { formatSessionCost } from '../utils/spendSpelling.js'
 import { processMainOwner } from '../services/run/resolveOwner.js'
@@ -58,10 +55,10 @@ import {
   permissionModeSymbol,
   permissionModeTitle,
 } from '../utils/permissions/PermissionMode.js'
-import { useSessionAccent, useSessionsBar } from './mercury-ui/sessionAccent.js'
+import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
 import { useFocusedTranscript } from '../hooks/useFocusedTranscript.js'
-import { useFocusedWorkspaceCwd } from '../hooks/useFocusedWorkspaceCwd.js'
+import { useFocusedWorkspaceBranch } from '../hooks/useFocusedWorkspaceBranch.js'
 import { formatQuietAge, workflowPulseAt } from '../tools/WorkflowTool/livePulse.js'
 import { focusedWorkRows, runningWorkflowRows, useFocusedWorkRoster } from './tasks/useFocusedWork.js'
 import { hasSeatLive } from '../services/engine-connector/seatLive.js'
@@ -76,23 +73,12 @@ import { TrimChip } from './mercury-ui/TrimChip.js'
 import { HarnessChip } from './mercury-ui/HarnessChip.js'
 import { GLYPH, truncateToWidth, branchChip } from './mercury-ui/glyphs.js'
 import { ValueGlow } from './mercury-ui/LiveGlyphs.js'
-import { SessionTabs } from './mercury-ui/SessionTabs.js'
 import { fluxMark } from '../utils/flux/fluxProbe.js'
 
 
 type Props = {
   model: ModelName
   routeSurface?: boolean
-}
-
-function readBranchSync(cwd: string): string | null {
-  try {
-    const head = readFileSync(join(cwd, '.git', 'HEAD'), 'utf8').trim()
-    const m = /^ref:\s*refs\/heads\/(.+)$/.exec(head)
-    return m && m[1] ? m[1] : null
-  } catch {
-    return null
-  }
 }
 
 export const MercuryFrame = React.memo(MercuryFrameImpl)
@@ -119,33 +105,13 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   fluxMark('render:frame')
   const tok = useMercuryTokens()
   const messages = useFocusedTranscript()
-  const cwd = useFocusedWorkspaceCwd()
-  const [branch, setBranch] = useState<string | null>(() => readBranchSync(cwd))
-
-  useEffect(() => {
-    let alive = true
-    setBranch(readBranchSync(cwd))
-    execFile(
-      'git',
-      ['rev-parse', '--abbrev-ref', 'HEAD'],
-      { windowsHide: true, cwd, timeout: 500 },
-      (err, stdout) => {
-        if (!alive || err) return
-        const b = stdout.trim()
-        if (b && b !== 'HEAD') setBranch(b)
-      },
-    )
-    return () => {
-      alive = false
-    }
-  }, [cwd])
+  const { cwd, folder: dir, branch } = useFocusedWorkspaceBranch()
 
   const tier = useLayoutTier()
   const { isCompact } = useLayoutChrome()
   const compactBudget = useContext(CompactFrameBudgetContext)
   const cols = tier.columns
 
-  const dir = cwd.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || cwd
   const sessionModelName = useDisplayedSessionModel().compact
   const viewedCrewmate = useViewedCrewmate()
   const crewmateModel = useCrewmateModel(routeSurface ? null : viewedCrewmate)
@@ -153,7 +119,6 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   const showBehavior = tier.showBehaviorChips
   const branchMax = tier.branchMax
   useSessionAccent()
-  const sessionsBar = useSessionsBar()
   const helmActive = useContext(CockpitActiveContext) && !routeSurface
   useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
   const deckPresent = !routeSurface && isDeckPaneActive() && !helmActive
@@ -460,7 +425,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   ) : null
 
   const statusRow = (
-    <Box paddingX={helmActive ? 0 : 1}>
+    <Box paddingX={1}>
       <Text wrap="truncate-end">
         <SessionMark />
         {!deckOwnsVitals ? (
@@ -556,31 +521,8 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
 
   return (
     <Box flexShrink={0} width="100%" flexDirection="column">
-      {helmActive ? (
-        <>
-          {modeBand}
-          {sessionsBar ? (
-          <Box
-            width="100%"
-            flexDirection="column"
-            borderStyle="round"
-            borderColor={tok.borderStrong}
-            paddingX={1}
-          >
-            {routeSurface ? null : <SessionTabs cols={cols} framed />}
-            {statusRow}
-          </Box>
-          ) : null}
-        </>
-      ) : (
-        <>
-          {
-}
-          {routeSurface ? null : <SessionTabs cols={cols} />}
-          {modeBand}
-          {statusRow}
-        </>
-      )}
+      {modeBand}
+      {helmActive ? null : statusRow}
     </Box>
   )
 }
