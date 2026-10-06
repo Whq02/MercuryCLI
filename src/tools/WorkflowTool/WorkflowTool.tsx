@@ -963,7 +963,6 @@ const WorkflowToolDef = {
               scriptPath,
               workflowRunId: runId,
               args: input.args,
-              agents: buildAgentSummaries(live?.workflowProgress ?? []),
             })
           }
           return
@@ -1012,7 +1011,6 @@ const WorkflowToolDef = {
             scriptPath,
             workflowRunId: runId,
             args: input.args,
-            agents: buildAgentSummaries(live?.workflowProgress ?? []),
           },
         )
       } catch (e) {

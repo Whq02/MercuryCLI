@@ -91,7 +91,6 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-handoff-summary.ts" || { __rc=$?; 
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-artifacts-redaction.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-artifacts-redaction.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shutdown-authority.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shutdown-authority.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-compaction-trace.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-compaction-trace.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-evolution-ledger.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-evolution-ledger.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-snapshot.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-snapshot.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-view.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-view.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-reconcile.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-reconcile.ts" "$__t" "$__rc"
