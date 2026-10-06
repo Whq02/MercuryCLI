@@ -612,7 +612,7 @@ export async function* runAgent(
     await readCatalogueIfPending('openai')
   }
   const dispatchBlocker =
-    agentRouteVerdict.kind === 'route' ? delegationDispatchBlocker(agentRouteVerdict.route) : null
+    agentRouteVerdict.kind === 'route' ? delegationDispatchBlocker(agentRouteVerdict.route, undefined, resolvedAgentModel) : null
   if (dispatchBlocker) {
     throw new Error(`Agent dispatch refused: ${dispatchBlocker}`)
   }

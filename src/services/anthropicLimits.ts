@@ -487,6 +487,12 @@ export type AnthropicLimitVerdict = {
   account?: string
   resetsAtMs?: number
   lapsesAtMs?: number
+  claim?: RateLimitType
+}
+
+export function windowClaimBindsModel(claim: RateLimitType | undefined, model: string | undefined): boolean {
+  if (claim === undefined || model === undefined || !(WEEKLY_POOL_CLAIMS as readonly string[]).includes(claim)) return true
+  return weeklyPoolClaimForModel(model) === claim
 }
 
 function statedResetMs(resetsAt: number | undefined): number | undefined {
@@ -505,6 +511,7 @@ export function anthropicLimitVerdict(nowMs: number = Date.now()): AnthropicLimi
     account: currentAnthropicAccountName(),
     lapsesAtMs,
     ...(resetsAtMs !== undefined ? { resetsAtMs } : {}),
+    ...(currentLimits.rateLimitType !== undefined ? { claim: currentLimits.rateLimitType } : {}),
   }
 }
 

@@ -1,5 +1,5 @@
 import { getAnthropicApiKey, isClaudeAISubscriber } from '../../utils/auth.js'
-import { anthropicLimitVerdict } from '../anthropicLimits.js'
+import { anthropicLimitVerdict, windowClaimBindsModel, type RateLimitType } from '../anthropicLimits.js'
 import { anthropicSignInWords, anthropicWindowWords, type AnthropicWindowObservation } from './anthropicRefusal.js'
 import { getGptSeatAvailability } from './openai/openaiCatalogue.js'
 import { providerDisplayName } from './routeLaw.js'
@@ -26,6 +26,7 @@ export interface ProviderUsability {
   blockers: string[]
   limitBlocker?: string
   delegationCapped?: boolean
+  limitClaim?: RateLimitType
   signInExpired?: boolean
 }
 
@@ -73,6 +74,7 @@ export function anthropicLimitReads(
         observedAtMs: verdict.observedAtMs,
         ...(verdict.resetsAtMs !== undefined ? { resetsAtMs: verdict.resetsAtMs } : {}),
         ...(verdict.lapsesAtMs !== undefined ? { lapsesAtMs: verdict.lapsesAtMs } : {}),
+        ...(verdict.claim !== undefined ? { claim: verdict.claim } : {}),
       }
     },
   }
@@ -246,7 +248,8 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
   if (anthropicCredential === 'none') {
     anthropicBlockers.push('no Anthropic credential — /logins (or ANTHROPIC_API_KEY)')
   }
-  const anthropicWindowBlocker = limit === 'rejected' ? anthropicWindowWords(reads.anthropicLimitObservation?.(), reads.carryWords?.('anthropic')) : undefined
+  const anthropicObservation = limit === 'rejected' ? reads.anthropicLimitObservation?.() : undefined
+  const anthropicWindowBlocker = limit === 'rejected' ? anthropicWindowWords(anthropicObservation, reads.carryWords?.('anthropic')) : undefined
   if (anthropicWindowBlocker !== undefined) {
     anthropicBlockers.push(anthropicWindowBlocker)
   }
@@ -258,6 +261,7 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
     blockers: anthropicBlockers,
     ...(anthropicWindowBlocker !== undefined ? { limitBlocker: anthropicWindowBlocker } : {}),
     delegationCapped: limit === 'rejected',
+    ...(anthropicObservation?.claim !== undefined ? { limitClaim: anthropicObservation.claim } : {}),
     ...(anthropicCredential !== 'none' && reads.anthropicSignInExpired?.() === true ? { signInExpired: true } : {}),
   }
 
@@ -447,13 +451,14 @@ export function usabilityForRoute(
 export function delegationDispatchBlocker(
   route: ProviderId,
   map: Record<ProviderId, ProviderUsability> = resolveProviderUsability(),
+  model?: string,
 ): string | null {
   const lane = map[route]
   const signInExpired = route === 'anthropic' && lane.signInExpired === true
   const blocked =
     signInExpired ||
     (route === 'anthropic'
-      ? lane.delegationCapped === true
+      ? lane.delegationCapped === true && windowClaimBindsModel(lane.limitClaim, model)
       : lane.limit === 'rejected')
   if (!blocked) return null
   const usableAlternatives = (Object.values(map) as ProviderUsability[])
