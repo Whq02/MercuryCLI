@@ -41,7 +41,9 @@ function unionMembers(path: string, typeName: string): string[] {
 console.log('census completeness (the unclassified-domain gate)')
 {
   const taskTypes = unionMembers('src/Task.ts', 'TaskType')
-  check('TaskType union read from live source', taskTypes.length >= 6)
+  check('TaskType union read from live source',
+    taskTypes.join(',') === 'local_bash,local_agent,remote_agent,local_workflow,monitor_mcp',
+    taskTypes.join(','))
   const missingTasks = taskTypes.filter(t => !censusEntry(`task:${t}`))
   check('every TaskType is census-classified', missingTasks.length === 0,
     missingTasks.map(t => `task:${t}`).join(', '))

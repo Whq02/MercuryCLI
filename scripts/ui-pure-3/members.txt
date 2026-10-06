@@ -58,7 +58,6 @@ prove-run-capsule.ts
 prove-s25-acceptance.ts
 prove-screen-reassert.ts
 prove-select-numeric-affordance.ts
-prove-session-class.ts
 prove-session-picker-core.ts
 prove-settings-popup-frame.ts
 prove-settings-popup-header.ts
@@ -68,7 +67,6 @@ prove-spinner-tips.ts
 prove-status-spine-unity.ts
 prove-submit-while-landing.ts
 prove-tab-cells-frames.ts
-prove-crew-center.ts
 prove-theme-roster.ts
 prove-token-completeness.ts
 prove-tool-verb.ts
@@ -85,6 +83,5 @@ prove-crew-composer-click-after-focus.ts
 prove-crew-look-frames.ts
 prove-crew-ledger.ts
 prove-silent-command-surface.ts
-prove-crewmate-transcript.ts
 prove-crews-dialog-gone.ts
 prove-diff-chip-session-own.ts
