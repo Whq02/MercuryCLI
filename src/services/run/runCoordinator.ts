@@ -1,7 +1,6 @@
 
 import { randomUUID } from 'node:crypto'
 import '../changeTransaction/receipts.js'
-import '../counsel/counsel.js'
 import { logError } from '../../utils/log.js'
 import { getTaskListId, listTasks } from '../../utils/tasks.js'
 import { verificationSummary } from '../../utils/verification/verificationState.js'

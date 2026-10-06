@@ -59,13 +59,6 @@ function lanesEnabledSafe(): boolean {
     return false
   }
 }
-function counselArmedSafe(): boolean {
-  try {
-    return (require('../../services/counsel/counsel.js') as typeof import('../../services/counsel/counsel.js')).counselEnabled()
-  } catch {
-    return false
-  }
-}
 function lspConnectedSafe(): boolean {
   try {
     return (require('../../services/lsp/manager.js') as typeof import('../../services/lsp/manager.js')).isLspToolMounted()
@@ -111,9 +104,6 @@ export function computeHarnessMapLines(): string[] {
       : null,
     lanesEnabledSafe()
       ? '- Bounded side questions: /branch <goal> forks a side lane with an explicit boundary; /branch return <answer> records a typed handoff and flips back; /branches lists. Prefer a lane over derailing the main thread for a genuine tangent.'
-      : null,
-    counselArmedSafe()
-      ? '- Counsel is ARMED: a bounded second look reviews observed change receipts (/counsel run — manual; auto delivery lands cards at turn boundaries). Treat its findings as evidence review, not authority.'
       : null,
     mercuryGodotEnabled()
       ? "- Godot lanes are ARMED: in a Godot project (project.godot at the root), the editor GDScript LSP and the Debug tool's `godot` DAP adapter are live over the loopback bridge — use them for GDScript symbol and runtime work."

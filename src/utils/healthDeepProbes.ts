@@ -816,47 +816,6 @@ export async function probeLaneJourney(): Promise<CheckResult> {
   }
 }
 
-export async function probeCounsel(): Promise<CheckResult> {
-  const counselMod = await import('../services/counsel/counsel.js')
-  const mode = counselMod.counselMode()
-  const ownerMod = await import('../services/run/ownerKey.js')
-  const { disposeOwner } = await import('../services/run/ownerLifecycle.js')
-  const { observeToolTerminal } = await import('../services/run/effectObserver.js')
-  const owner = fixtureOwnerKey(ownerMod, 'counsel')
-  try {
-    observeToolTerminal({
-      owner,
-      toolName: 'Edit',
-      toolUseId: 'health-counsel',
-      input: { file_path: '/tmp/health-counsel.ts' },
-      ok: true,
-      durationMs: 1,
-      cwd: '/tmp',
-      effect: {
-        outcome: 'succeeded',
-        operation: 'file.edit',
-        changedPaths: ['/tmp/health-counsel.ts'],
-        evidence: 'health counsel fixture',
-        startedAt: Date.now(),
-        completedAt: Date.now(),
-      },
-    } as never)
-    const result = await counselMod.runCounsel(owner, '/tmp', async () => ({
-      text: '{"disposition":"approve","findings":[]}',
-      model: 'health-fixture',
-    }))
-    if (result.disposition !== 'approve' || result.reviewedSeqs.length !== 1) {
-      return { status: 'fail', evidence: `deterministic review read ${result.disposition} over ${result.reviewedSeqs.length} receipt(s), wanted approve over 1` }
-    }
-    return {
-      status: 'ok',
-      evidence: `deterministic review loop green (window of 1, disposition approve) — live mode: ${mode}`,
-    }
-  } finally {
-    disposeOwner(owner)
-  }
-}
-
 export async function probeAgentEnvelope(): Promise<CheckResult> {
   const { buildAgentResultEnvelope } = await import('../services/agentResults/normalize.js')
   const { observeToolTerminal } = await import('../services/run/effectObserver.js')

@@ -3849,30 +3849,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             }
           },
         },
-        {
-          id: 'counsel-fast',
-          label: 'Counsel',
-          run: async () => {
-            const { counselMode, counselStatus, counselConfigProblem } = await import('../services/counsel/counsel.js')
-            const mode = counselMode()
-            if (mode === 'off') {
-              const problem = counselConfigProblem()
-              if (problem !== null) {
-                return { status: 'warn' as const, evidence: problem }
-              }
-              return {
-                status: 'off' as const,
-                evidence: 'MERCURY_COUNSEL unset — arm with =manual or =auto (reviews cost model calls)',
-              }
-            }
-            const { processMainOwner } = await import('../services/run/resolveOwner.js')
-            const status = counselStatus(processMainOwner())
-            return {
-              status: 'ok' as const,
-              evidence: `mode ${mode} · ${status.pendingReceipts} un-reviewed receipt(s)${status.lastResult ? ` · last: ${status.lastResult.disposition}` : ''}`,
-            }
-          },
-        },
       ],
     },
     {
@@ -4385,14 +4361,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             probe: 'functional',
             timeoutMs: 15_000,
             run: () => probes.probeLaneJourney(),
-          },
-          {
-            id: 'counsel-loop',
-            label: 'Counsel',
-            depth: 'deep',
-            probe: 'functional',
-            timeoutMs: 15_000,
-            run: () => probes.probeCounsel(),
           },
           {
             id: 'agent-envelope',

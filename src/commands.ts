@@ -8,7 +8,6 @@ import advise from './commands/advise/index.js'
 import agents from './commands/agents/index.js'
 import branch from './commands/branch/index.js'
 import branches from './commands/branches/index.js'
-import counsel from './commands/counsel/index.js'
 import clear from './commands/clear/index.js'
 import caching from './commands/caching/index.js'
 import compact from './commands/compact/index.js'
@@ -146,7 +145,6 @@ const COMMANDS = memoize((): Command[] => [
   agents,
   branch,
   branches,
-  counsel,
   clear,
   compact,
   config,
