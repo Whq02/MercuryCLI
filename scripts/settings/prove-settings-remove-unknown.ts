@@ -168,7 +168,7 @@ try {
 
   section('§5 a field inside a group is offered like a root key and removed where it sits: its siblings and the rest of the file keep every byte')
   {
-    const NESTED = 'sessionsBar'
+    const NESTED = 'zzNestedUnknownKey'
     const nestedFile = [
       '{',
       `  "$schema": ${JSON.stringify(settingsSchemaLocalPath())},`,
