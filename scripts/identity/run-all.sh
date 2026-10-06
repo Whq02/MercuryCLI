@@ -27,6 +27,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$root/scripts/substrate/prove-no-telemetry-egr
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-crew-words.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-crew-words.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-no-old-spelling-remains.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-no-old-spelling-remains.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-retired-keys-unknown.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-retired-keys-unknown.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-view-words-gone.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-view-words-gone.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-crew-docs-words.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-crew-docs-words.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-tree-hygiene.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-tree-hygiene.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-docs-altitude.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-docs-altitude.ts" "$__t" "$__rc"
