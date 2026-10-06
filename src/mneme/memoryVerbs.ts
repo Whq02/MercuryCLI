@@ -9,7 +9,6 @@ import { correctFact, retireFact, userAskedRuleMessage, type MnemeCorrectResult 
 import { ARCHIVE_PREFIX, isArchiveDoc, parseEntryLine, liveSeqs, serializeSignature, type MnemeTopicDoc } from './mnemeTopicDocs.js'
 import { bumpUsage, readPins, readUsage } from './mnemeUsage.js'
 import { candidates, rankCandidates } from './mnemeLookup.js'
-import { isCrewRole } from '../utils/workerRole.js'
 
 function allDocs(dir: string): MnemeTopicDoc[] {
   return [...listTopicDocs(dir), ...listArchiveDocs(dir)]
@@ -72,7 +71,7 @@ export function retainItems(
 ): RetainItemOutcome[] {
   const outcomes: RetainItemOutcome[] = []
   const sourceBase = provenance.source ?? `tool:Retain s:${provenance.session.slice(0, 8)}${provenance.agent ? ` a:${provenance.agent.slice(0, 12)}` : ''}`
-  const usersOwnChat = provenance.agent === undefined && !isCrewRole()
+  const usersOwnChat = provenance.agent === undefined
   items.forEach((item, index) => {
     const content = (item.content ?? '').trim()
     if (!content) {

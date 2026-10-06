@@ -62,6 +62,7 @@ import { elicitationPausedClock, runElicitationHooks, runElicitationResultHooks 
 import { getMcpServerHeaders } from './headersHelper.js'
 import { buildMcpToolName, wireSafeMcpToolName } from './mcpStringUtils.js'
 import { normalizeNameForMCP } from './normalization.js'
+import { isMercuryServerEnabled, isMercuryServer, withMercuryLeaseHolder } from './mercuryServer.js'
 import { withMcpToolCardHeader } from './toolCard.js'
 import { mcpPolicyDenyReason, mcpToolAllowed, type McpToolAnnotations } from './toolPolicy.js'
 import type {
@@ -533,8 +534,10 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
   const type = config.type ?? 'stdio'
   const startedAt = Date.now()
   let transport: Transport
+  let inProcessServer: { close: () => Promise<void> } | null = null
   let stdioTransport: StdioClientTransport | null = null
   let stderrBuffer = ''
+  let inProcess = false
   const buildStdioTransport = (): StdioClientTransport => {
     const stdioConfig = config as { command: string; args?: string[]; env?: Record<string, string> }
     const prefix = flagEnv('MERCURY_SHELL_PREFIX')
@@ -599,6 +602,17 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
         fetch: wrapFetchWithTimeout(createAnthropicProxyFetch(fetch as FetchLike)) as never,
         requestInit: { headers: { 'User-Agent': getMCPUserAgent(), 'X-Mcp-Client-Session-Id': getSessionId() } },
       })
+    } else if ((type === 'stdio' || config.type === undefined) && isMercuryServer(name) && isMercuryServerEnabled()) {
+      const [{ createMercuryServer }, { createLinkedTransportPair }] = await Promise.all([
+        import('./mercuryServer.js'),
+        import('./InProcessTransport.js'),
+      ])
+      const server = await createMercuryServer()
+      const [clientSide, serverSide] = createLinkedTransportPair()
+      await server.connect(serverSide)
+      inProcessServer = server
+      transport = clientSide
+      inProcess = true
     } else if (type === 'stdio') {
       stdioTransport = buildStdioTransport()
       transport = stdioTransport
@@ -667,7 +681,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
   let timer: NodeJS.Timeout | null = null
   const timeoutPromise = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
-      const transportLabel = type
+      const transportLabel = inProcess ? 'in-process' : type
       reject(
         new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
           `MCP server "${name}" (${transportLabel}) did not answer in ${deadlineSecondsLabel(connectTimeoutMs())} — retry from /mcp`,
@@ -675,6 +689,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
         ),
       )
       void endStdioTree().finally(() => {
+        void inProcessServer?.close().catch(() => {})
         void transport.close().catch(() => {})
       })
     }, connectTimeoutMs())
@@ -699,6 +714,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     if ((type === 'sse' || type === 'http') && unauthorized) return handleRemoteAuthFailure(name, serverRef, type.toUpperCase())
     if (type === 'claudeai-proxy' && (err as { code?: unknown } | null)?.code === 401) return handleRemoteAuthFailure(name, serverRef, 'claude.ai proxy')
     await endStdioTree()
+    await inProcessServer?.close().catch(() => {})
     await transport.close().catch(() => {})
     if (stderrBuffer) logMCPError(name, `stderr: ${stderrBuffer}`)
     if (type === 'stdio' || type === 'sse' || type === 'http') {
@@ -779,6 +795,11 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
 
   const cleanup = async (): Promise<void> => {
     unregister()
+    if (inProcess) {
+      await inProcessServer?.close().catch(err => logMCPError(name, err))
+      await client.close().catch(err => logMCPError(name, err))
+      return
+    }
     if (type === 'stdio' || config.type === undefined) {
       stdioTransport?.stderr?.off('data', onStderr)
       await endStdioTree()
@@ -907,7 +928,9 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
                 ?.action as 'accept' | 'decline' | 'cancel'
           : undefined,
       })
-      const result = await invoke()
+      const result = await (isMercuryServer(client.name)
+        ? withMercuryLeaseHolder(context.agentId, invoke)
+        : invoke())
       return { data: result.content }
     },
     userFacingName: () => displayName,

@@ -50,17 +50,12 @@ export type SendMessageToolOutput = MessageOutput
 
 export type Input = {
   to: string
-  summary?: string
   message: string
 }
 
 const inputSchema = lazySchema(() => {
   return z.object({
     to: z.string().describe('The crewmate to send to: the id its launch receipt names or the name its launch gave it; "main" from a background crewmate reaches the agent that launched it'),
-    summary: z
-      .string()
-      .optional()
-      .describe('A 5-10 word preview of the message; optional — a plain message without one is previewed by its first line'),
     message: z.string().describe('The message'),
   })
 })

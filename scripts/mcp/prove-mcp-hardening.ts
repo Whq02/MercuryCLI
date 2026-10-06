@@ -12,7 +12,7 @@ import { McpServer } from '@modelcontextprotocol/server'
 import { urlElicitationVerdict } from '../../src/services/mcp/toolPolicy.js'
 import { registerElicitationHandler, type ElicitationRequestEvent } from '../../src/services/mcp/elicitationHandler.js'
 import { createLinkedTransportPair } from '../../src/services/mcp/InProcessTransport.js'
-import { createCoordinationServer } from '../../src/services/mcp/coordinationServer.js'
+import { createMercuryServer } from '../../src/services/mcp/mercuryServer.js'
 import { summarizeMcpAuthCurrency } from '../../src/services/mcp/auth.js'
 import {
   isEnumSchema,
@@ -34,7 +34,7 @@ const SRC = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 
 console.log('============================================================')
 console.log(' MCP hardening — phishing gate · structured output ·')
-console.log(' coordination verbs · health currency · consent surfaces')
+console.log(' lease verbs · health currency · consent surfaces')
 console.log('============================================================')
 
 section('(1) urlElicitationVerdict — the SEP-1036 policy matrix')
@@ -164,20 +164,21 @@ await (async () => {
   )
 })()
 
-section('(4) coordination verbs — outputSchema declared + conforming structured results')
+section('(4) the lease verbs — outputSchema declared + conforming structured results')
 await (async () => {
-  const { connect, close } = await createCoordinationServer()
+  const { connect, close } = await createMercuryServer()
   const client = new Client({ name: 'mercury-proof', version: '0' })
   const [a, b] = createLinkedTransportPair()
   await Promise.all([connect(a), client.connect(b)])
   const { tools } = await client.listTools()
   const byName = new Map(tools.map(t => [t.name, t]))
-  for (const verb of ['lease_claim', 'lease_release', 'lease_list']) {
+  for (const verb of ['lease_release', 'lease_list']) {
     check(`${verb} declares outputSchema`, byName.get(verb)?.outputSchema !== undefined)
   }
+  check('the server serves the project lease verbs and render_tui, and no crew verb', ['lease_take', 'lease_release', 'lease_list', 'render_tui'].every(v => byName.has(v)) && !byName.has('lease_claim') && !byName.has('brief') && !byName.has('coord_say'), [...byName.keys()].join(','))
   const r = await client.callTool({ name: 'lease_list', arguments: {} })
   const sc = r.structuredContent as { ok?: boolean; reason?: string } | undefined
-  check('solo lease_list answers structured {ok:true, leases:[]} — leases work without a crew', !!sc && sc.ok === true && Array.isArray(sc.leases) && sc.leases.length === 0)
+  check('lease_list answers structured {ok:true, leases:[]} on a fresh project', !!sc && sc.ok === true && Array.isArray(sc.leases) && sc.leases.length === 0)
   await close()
 })()
 

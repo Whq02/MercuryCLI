@@ -28,7 +28,6 @@ const refusal = await import('../../src/services/providers/anthropicRefusal.ts')
 const messages = await import('../../src/services/rateLimitMessages.ts')
 const warning = await import('../../src/services/providers/limitWarning.ts')
 const failover = await import('../../src/services/capFailover.ts')
-const crew = await import('../../src/daemon/crewSeatPause.ts')
 type Reads = import('../../src/services/providers/providerUsability.ts').ProviderUsabilityReads
 type Limits = import('../../src/services/anthropicLimits.ts').AnthropicLimits
 
@@ -103,8 +102,6 @@ section('§2 the screen side adopts the relayed fact and reads the same open win
   check("the composer's slot-offer wall reads through anthropicWindowClosed (source)", readFileSync(join(ROOT, 'src/components/PromptInput/useComposerModelDoors.tsx'), 'utf8').includes('anthropicWindowClosed(limits)'))
   check("the slot-switch seat view's wall reads through anthropicWindowClosed (source)", readFileSync(join(ROOT, 'src/services/providers/slotSwitch.ts'), 'utf8').includes('anthropicWindowClosed(currentLimits)'))
   check("the cap-failover family read takes the lane-level status (source)", readFileSync(join(ROOT, 'src/services/capFailover.ts'), 'utf8').includes('laneQuotaStatus(current)'))
-  const window = crew.crewSeatWindowOf({ type: 'rate_limit', status: 'rejected', resets_at: Math.floor(Date.now() / 1000) + 3600, window: 'five_hour', using_overage: true } as never)
-  check('a crew seat whose rate_limit row rides extra usage is not read as a spent window', window !== null && window.rejected === false, JSON.stringify(window))
 }
 
 section('§3 a rejected status with NO overage keeps every tooth (the real wall)')
@@ -123,8 +120,6 @@ section('§3 a rejected status with NO overage keeps every tooth (the real wall)
   const fact = limits.anthropicWindowFact()
   check('the relayed fact carries no extra-usage flag', fact !== undefined && (fact as { onExtraUsage?: boolean }).onExtraUsage === undefined, JSON.stringify(fact))
   check('the hold reads the closed window until its reset', fact !== undefined && limits.anthropicWindowClosedUntil(fact, Date.now()) === fact.resetsAtMs, JSON.stringify(fact))
-  const window = crew.crewSeatWindowOf({ type: 'rate_limit', status: 'rejected', resets_at: Math.floor(Date.now() / 1000) + 3600, window: 'seven_day' } as never)
-  check('a crew seat with a plain rejected row is read as a spent window', window !== null && window.rejected === true, JSON.stringify(window))
   mock.setMockRateLimitScenario('clear')
 }
 

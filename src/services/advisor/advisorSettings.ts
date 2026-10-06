@@ -9,7 +9,6 @@ import type { EffortLevel } from '../../utils/effort.js'
 import { isCrewmate } from '../../utils/crewmate.js'
 import { advisorMinutesWords } from '../../utils/messages/noticeRows.js'
 import { advisorSwitchOfSession } from '../../utils/sessionStorage/writer.js'
-import { isCrewRole } from '../../utils/workerRole.js'
 
 export type AdvisorSeat = 'main' | 'crewmate' | 'workflow'
 
@@ -55,7 +54,7 @@ export function readAdvisorSettings(): AdvisorSettings {
 }
 
 export function advisorSessionSeat(): AdvisorSeat {
-  return isCrewRole() || isCrewmate() ? 'crewmate' : 'main'
+  return isCrewmate() ? 'crewmate' : 'main'
 }
 
 export function advisorChatSwitch(): boolean {

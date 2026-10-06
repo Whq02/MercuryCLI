@@ -203,7 +203,7 @@ export function sessionActivityOf(
 ): NonNullable<ConcourseWorkerRecordV1['activity']> {
   const running = (work ?? []).filter(workRowRuns)
   const subagents = running.reduce((count, row) => count + (
-    row.kind === 'agent' || row.kind === 'crewmate' ? 1 :
+    row.kind === 'agent' ? 1 :
       row.kind === 'workflow' ? row.pulse?.running ?? 0 : 0
   ), 0)
   const count = work === undefined ? waitingOnAgents : subagents
@@ -542,7 +542,6 @@ export function buildConcourseWorkerSpec(args: {
     role: 'MERCURY_CONCOURSE_WORKER',
     agentName: args.runnerId,
     agentId: `${args.runnerId}@concourse`,
-    plainIdentity: true,
     cwd: args.cwd ?? args.workspaceId,
     extraEnv: {
       MERCURY_SESSION_HOME: getProjectDir(args.workspaceId),

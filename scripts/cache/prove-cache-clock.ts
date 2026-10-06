@@ -21,7 +21,6 @@ for (const k of [
   'MERCURY_CACHE_TTL',
   'MERCURY_TANK',
   'MERCURY_HEALER',
-  'MERCURY_CREW_AGENT',
   'MERCURY_DAEMON_PERMISSION_MODE',
 ]) {
   delete process.env[k]
@@ -244,14 +243,14 @@ check(
 )
 delete process.env.MERCURY_CACHE_TTL
 
-process.env.MERCURY_CREW_AGENT = 'proof-worker'
+process.env.MERCURY_DAEMON_PERMISSION_MODE = 'flow'
 resetCacheClockForTesting()
 check(
   "worker classing from daemon child env ⇒ upfront '1h'",
   cacheClockTtlDecision({ eligible: true, lastCompletionAt: null, now: NOW }) === '1h' &&
     cacheClockSnapshot().cls === 'worker',
 )
-delete process.env.MERCURY_CREW_AGENT
+delete process.env.MERCURY_DAEMON_PERMISSION_MODE
 
 section('§3 SHELL — rollup persistence (the cadence prior on disk)')
 {

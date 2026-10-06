@@ -681,7 +681,7 @@ async function routeControlRequest(
       let seatModel: string | undefined
       if (model !== undefined && model.trim() !== '') {
         const { validateWorkerModelChoice } = await import('../services/concourse/workerModels.js')
-        const validated = await validateWorkerModelChoice(model.trim(), 'crew')
+        const validated = await validateWorkerModelChoice(model.trim(), 'session')
         if (!validated.ok) {
           return answer(sock, {
             ok: false,

@@ -246,8 +246,6 @@ const AUTH_STAMPED_OPS: ReadonlySet<string> = new Set([
   'reply',
   'kill',
   'reconfigure',
-  'envelope',
-  'crewSpawn',
   'sessionAdmit',
   'sessionDispatch',
   'sessionList',

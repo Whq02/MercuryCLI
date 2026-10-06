@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
-import { LEAD_ASK_MATE, LEAD_ASK_SLEEPER, MATE_NAME, SEAT_NAME, startCrewStopFixture, type Fixture } from '../crew/crew-stop-fixture.ts'
+import { LEAD_ASK_SLEEPER, SEAT_NAME, startCrewStopFixture, type Fixture } from '../crew/crew-stop-fixture.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const argAfter = (flag: string): string | undefined => {
@@ -14,7 +14,7 @@ const argAfter = (flag: string): string | undefined => {
 }
 const DIST = argAfter('--dist') ?? join(ROOT, 'dist', 'mercury.mjs')
 const FRAMES = argAfter('--frames')
-const LEGS = (argAfter('--legs') ?? 'mate,card,sleeper').split(',')
+const LEGS = (argAfter('--legs') ?? 'card,sleeper').split(',')
 const SIZES = (argAfter('--sizes') ?? '120x40').split(',').map(s => s.split('x').map(Number) as [number, number])
 const KEEP = process.argv.includes('--keep')
 const VSHOT = join(ROOT, 'scripts', 'ui', 'vshot.py')
@@ -129,11 +129,10 @@ async function leg(name: string, cols: number, rows: number): Promise<void> {
   const tag = `${name} ${cols}x${rows}`
   console.log(`\n— ${tag} —`)
   const before = failures
-  const seat = name === 'sleeper'
   const fixture: Fixture = await startCrewStopFixture({ seatTool: 'sleep' })
   const { home, cwd } = seedWorld()
-  const target = seat ? SEAT_NAME : MATE_NAME
-  const ask = seat ? LEAD_ASK_SLEEPER : LEAD_ASK_MATE
+  const target = SEAT_NAME
+  const ask = LEAD_ASK_SLEEPER
   const openView = name === 'tasks' ? '/tasks' : '/crewmates'
   const listGate = name === 'tasks' ? target : '1 running'
   const sends: Array<Record<string, unknown>> = [

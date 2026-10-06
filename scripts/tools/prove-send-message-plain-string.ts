@@ -28,78 +28,74 @@ const guard = setTimeout(() => {
 guard.unref?.()
 
 const { SendMessageTool } = await import('../../src/tools/SendMessageTool/SendMessageTool.ts')
-const { DERIVED_SUMMARY_MAX_CHARS, derivedMessageSummary, plainMessageSummary } = await import('../../src/tools/SendMessageTool/summary.ts')
-const { getPrompt } = await import('../../src/tools/SendMessageTool/prompt.ts')
-const { liveMessagesFor } = await import('../../src/services/crew/liveComms.ts')
-const { setDynamicCrewContext } = await import('../../src/utils/crewmate.ts')
-const { CREW_LEAD_NAME } = await import('../../src/utils/crew/constants.ts')
+const { DESCRIPTION, getPrompt } = await import('../../src/tools/SendMessageTool/prompt.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
+const { registerAsyncAgent, registerAgentName } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
+const { generateTaskId } = await import('../../src/Task.ts')
+await import('../../src/tasks.ts')
+const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
+type AppState = import('../../src/state/AppStateStore.ts').AppState
 
 type Verdict = { result: boolean; message?: string; errorCode?: number }
+type Answer = { data: { success: boolean; message: string } }
 const validate = (input: Record<string, unknown>): Promise<Verdict> => (SendMessageTool as { validateInput: (i: unknown) => Promise<Verdict> }).validateInput(input)
-const CREW = 'plain-string-fixture-crew'
-const makeContext = (): unknown => ({
+let state: AppState = { ...getDefaultAppState(), toolPermissionContext: getEmptyToolPermissionContext() } as AppState
+const setState = (u: (prev: AppState) => AppState): void => {
+  state = u(state)
+}
+const makeContext = (agentId?: string): unknown => ({
   options: { tools: [], commands: [], mcpClients: [], engineModel: 'fixture-model' },
   abortController: new AbortController(),
   readFileState: new Map(),
   messages: [],
-  getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext(), tasks: {}, crewContext: { crewName: CREW, leadAgentId: 'lead-fixture' } }),
-  setAppState: () => {},
+  getAppState: () => state,
+  setAppState: setState,
+  setAppStateForTasks: setState,
+  agentId,
 })
-const LONG_WORDS = 'A decision that changes the second and the fourth part of the plan — read the new last section of the notes before you cut the size switch; in short the switch stays and gains a slash form and the pictures add two states'
+const call = (input: Record<string, unknown>, ctx: unknown, requestId: string): Promise<Answer> =>
+  (SendMessageTool as unknown as { call: (i: unknown, c: unknown, u: unknown, m: unknown) => Promise<Answer> }).call(input, ctx, undefined, { requestId })
 const THREE_LINES = 'first line of the message\nsecond line with more detail\nthird line'
 
-section('§1 VALIDATION — a plain string without a summary is accepted (RED on the base: "A summary is required for plain string messages.")')
+section('§1 VALIDATION — a plain string is the whole message; no summary is asked for')
 {
-  const bare = await validate({ to: 'critter', message: THREE_LINES })
-  check('a plain string message with no summary validates', bare.result === true, `${bare.message ?? ''} (errorCode ${bare.errorCode ?? '-'})`)
-  const blank = await validate({ to: 'critter', message: THREE_LINES, summary: '   ' })
-  check('a blank summary validates too', blank.result === true, blank.message ?? '')
-  const given = await validate({ to: 'critter', message: THREE_LINES, summary: 'the owner ruling' })
-  check('an explicit summary validates as before', given.result === true, given.message ?? '')
-  const empty = await validate({ to: '', message: 'x' })
-  check('the recipient law is untouched: an empty "to" still refuses', empty.result === false && /must not be empty/.test(empty.message ?? ''), empty.message ?? '')
-  const suffixed = await validate({ to: 'critter@crew', message: 'x' })
-  check('the @crew suffix still refuses', suffixed.result === false, suffixed.message ?? '')
-  const broadcastEnvelope = await validate({ to: '*', message: { type: 'question', content: 'x' } })
-  check('a structured broadcast still refuses', broadcastEnvelope.result === false && /cannot be broadcast/.test(broadcastEnvelope.message ?? ''), broadcastEnvelope.message ?? '')
+  const bare = await validate({ to: 'researcher', message: THREE_LINES })
+  check('a plain string message validates', bare.result === true, `${bare.message ?? ''} (errorCode ${bare.errorCode ?? '-'})`)
+  const empty = await validate({ to: '  ', message: THREE_LINES })
+  check('the recipient law stands: an empty "to" refuses', empty.result === false && /must not be empty/.test(empty.message ?? ''), empty.message ?? '')
+  const schema = JSON.stringify(zodToJsonSchema(SendMessageTool.inputSchema as never))
+  check('the schema the model sees has to and message, and no summary field', schema.includes('"to"') && schema.includes('"message"') && !schema.includes('summary'), schema)
 }
 
-section('§2 THE DERIVED SUMMARY — the first non-empty line, cut at the preview bound; an explicit summary wins')
+section('§2 DELIVERY — a plain string to a running crewmate of this session is queued for its next tool boundary')
 {
-  check('the first line is the summary', derivedMessageSummary(THREE_LINES) === 'first line of the message', derivedMessageSummary(THREE_LINES))
-  check('leading blank lines and inner runs of space are skipped and folded', derivedMessageSummary('\n\n   a   spaced   line  \nnext') === 'a spaced line', derivedMessageSummary('\n\n   a   spaced   line  \nnext'))
-  const long = derivedMessageSummary(LONG_WORDS) ?? ''
-  check(`a long first line is cut at ${DERIVED_SUMMARY_MAX_CHARS} characters on a word boundary with an ellipsis`, long.length <= DERIVED_SUMMARY_MAX_CHARS && long.endsWith('…') && LONG_WORDS.startsWith(long.slice(0, -1)) && !long.slice(0, -1).endsWith(' '), long)
-  check('an empty message derives no summary', derivedMessageSummary('') === undefined && derivedMessageSummary(' \n ') === undefined)
-  check('an explicit summary wins over the derivation', plainMessageSummary('given words', THREE_LINES) === 'given words' && plainMessageSummary('  ', THREE_LINES) === 'first line of the message' && plainMessageSummary(undefined, THREE_LINES) === 'first line of the message')
+  const id = generateTaskId('local_agent')
+  registerAsyncAgent({ agentId: id, description: 'the researcher', prompt: 'map the auth flow', setAppState: setState as never })
+  registerAgentName('researcher', id, setState as never)
+  const byName = await call({ to: 'researcher', message: THREE_LINES }, makeContext(), 'req_name')
+  check('the message to the name is delivered', byName.data.success === true && /delivered to agent researcher/.test(byName.data.message), byName.data.message)
+  const task = state.tasks[id] as { pendingMessages?: unknown[] } | undefined
+  check('the message waits on the running task for its next tool boundary', Array.isArray(task?.pendingMessages) && task.pendingMessages.length === 1, JSON.stringify(task?.pendingMessages).slice(0, 200))
+  const byId = await call({ to: id, message: 'a second line' }, makeContext(), 'req_id')
+  check('the id reaches the same agent', byId.data.success === true && byId.data.message.includes(id), byId.data.message)
+  const self = await call({ to: 'researcher', message: 'to myself' }, makeContext(id), 'req_self')
+  check('a crewmate addressing its own name is refused as its own address', self.data.success === false && /own address/.test(self.data.message), self.data.message)
+  const selfById = await call({ to: id, message: 'to myself' }, makeContext(id), 'req_self_id')
+  check('…and its own id the same', selfById.data.success === false && /own address/.test(selfById.data.message), selfById.data.message)
+  const unknown = await call({ to: 'nobody-here', message: 'hello' }, makeContext(), 'req_unknown')
+  check('an unknown name is refused naming the agents this session has', unknown.data.success === false && /no agent named nobody-here/.test(unknown.data.message) && unknown.data.message.includes('researcher'), unknown.data.message)
+  const toMain = await call({ to: 'main', message: 'done' }, makeContext(), 'req_main')
+  check('"main" from the main agent itself is refused with the reason', toMain.data.success === false && /only a background crewmate reaches its main agent/.test(toMain.data.message), toMain.data.message)
 }
 
-section('§3 DELIVERY — a plain string to a crewmate lands in the mailbox with the derived summary (RED on the base: validation refused it first)')
+section('§3 THE WORDS — the description and the prompt say a plain message, by id or name, and name no summary')
 {
-  setDynamicCrewContext({ agentId: 'critter-fixture', agentName: 'critter', crewName: CREW })
-  const ctx = makeContext()
-  const verdict = await validate({ to: CREW_LEAD_NAME, message: THREE_LINES })
-  check('the send validates', verdict.result === true, verdict.message ?? '')
-  const call = (SendMessageTool as { call: (i: unknown, c: unknown, u: unknown, m: unknown) => Promise<{ data: { success: boolean; message: string; routing?: { summary?: string; content?: string } } }> }).call
-  const sent = await call({ to: CREW_LEAD_NAME, message: THREE_LINES }, ctx, undefined, { requestId: 'req_plain' })
-  check('the message is delivered to the crew lead inbox', sent.data.success === true && /delivered/.test(sent.data.message), sent.data.message)
-  check('the routing receipt carries the derived summary', sent.data.routing?.summary === 'first line of the message' && sent.data.routing?.content === THREE_LINES, JSON.stringify(sent.data.routing))
-  const inbox = await liveMessagesFor(CREW, CREW_LEAD_NAME)
-  const landed = inbox.find(message => message.text === THREE_LINES)
-  check('the mailbox row carries the derived summary', landed !== undefined && landed.summary === 'first line of the message', JSON.stringify(landed))
-  const explicit = await call({ to: CREW_LEAD_NAME, message: THREE_LINES, summary: 'the owner ruling' }, ctx, undefined, { requestId: 'req_explicit' })
-  check('an explicit summary still rides as given', explicit.data.success === true && explicit.data.routing?.summary === 'the owner ruling', JSON.stringify(explicit.data.routing))
-}
-
-section('§4 THE WORDS — the description and the prompt name the summary as optional and derived')
-{
-  const schema = (SendMessageTool as { inputSchema: { shape: { summary: { description?: string } } } }).inputSchema
-  const description = schema.shape.summary.description ?? ''
-  check('the summary field says optional and names the derivation', /optional/.test(description) && /first line/.test(description) && !/required/.test(description), description)
+  check('the description names a crewmate by id or name', /crewmate/.test(DESCRIPTION) && /id or name/.test(DESCRIPTION), DESCRIPTION)
   const prompt = getPrompt()
-  check('the prompt says the summary is optional and previewed by the first line', /summary: optional/.test(prompt) && /first line/.test(prompt), prompt.split('\n').find(line => line.startsWith('- summary')) ?? '')
+  check('the prompt example is to + message alone', /"to": "researcher", "message":/.test(prompt) && !/summary/.test(prompt), prompt.split('\n').find(line => line.startsWith('Example')) ?? '')
+  check('the prompt says a running crewmate reads at its next tool boundary and an ended one is resumed', /next tool boundary/.test(prompt) && /resumed from its transcript/.test(prompt))
 }
 
-console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)
+console.log(`\nprove-send-message-plain-string: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

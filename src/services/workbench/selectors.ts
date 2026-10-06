@@ -1,8 +1,4 @@
 
-import {
-  deriveCrewmatePhase,
-  type CrewmatePhaseInputs,
-} from '../../utils/crew/crewPhases.js'
 import type {
   WorkbenchLaneRow,
   WorkbenchMissionRow,
@@ -33,10 +29,6 @@ export interface RichTaskFact {
   agentType?: string
   model?: string
   crewmateName?: string
-  isIdle?: boolean
-  shutdownRequested?: boolean
-  hasProgress?: boolean
-  lastActionWasLeadHandoff?: boolean
 }
 
 export interface RunFacts {
@@ -118,19 +110,6 @@ function threadKindOf(exec: ExecutionFact, rich: RichTaskFact | undefined): Work
   return 'job'
 }
 
-function crewmatePhaseFrom(rich: RichTaskFact): string {
-  const inputs: CrewmatePhaseInputs = {
-    status: (rich.status ?? 'running') as CrewmatePhaseInputs['status'],
-    isIdle: rich.isIdle === true,
-    shutdownRequested: rich.shutdownRequested === true,
-    hasProgress: rich.hasProgress === true,
-    ...(rich.lastActionWasLeadHandoff !== undefined && {
-      lastActionWasLeadHandoff: rich.lastActionWasLeadHandoff,
-    }),
-  }
-  return deriveCrewmatePhase(inputs)
-}
-
 export function deriveThreadRows(inputs: WorkbenchSourceInputs): WorkbenchThreadRow[] {
   const rows: WorkbenchThreadRow[] = []
   for (const exec of inputs.executions) {
@@ -139,10 +118,7 @@ export function deriveThreadRows(inputs: WorkbenchSourceInputs): WorkbenchThread
     const kind = threadKindOf(exec, rich)
     const meta = rich?.agentId ? inputs.agentMeta.get(rich.agentId) : undefined
     const run = inputs.laneRuns.get(exec.id)
-    const phase =
-      kind === 'crewmate' && rich
-        ? crewmatePhaseFrom(rich)
-        : (run?.phase ?? exec.state)
+    const phase = run?.phase ?? exec.state
     const refs: string[] = []
     if (exec.outputRef) refs.push(exec.outputRef)
     if (rich?.agentId) refs.push(`mercury://agent/${rich.agentId}`)

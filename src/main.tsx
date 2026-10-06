@@ -48,6 +48,7 @@ import {
   parseMcpConfig,
   parseMcpConfigFromFilePath,
 } from './services/mcp/config.js'
+import { isMercuryServerEnabled, mercuryServerConfig, MERCURY_SERVER_NAME } from './services/mcp/mercuryServer.js'
 import { clearBootAttempts } from './substrate/bootBeacon.js'
 import { addBootNote, collectLauncherNotes } from './substrate/bootNotes.js'
 import { flagEnv, setFlagEnv } from './substrate/flagRegistry.js'
@@ -1409,6 +1410,13 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   }
   let dynamicMcpConfig = dynamicConfigResult.servers
 
+  if (isMercuryServerEnabled() && Object.keys(dynamicMcpConfig).includes(MERCURY_SERVER_NAME)) {
+    writeErr(
+      `The MCP server name '${MERCURY_SERVER_NAME}' is reserved while Mercury's in-process MCP server is enabled (MERCURY_COORDINATION_MCP).`,
+    )
+    process.exit(1)
+  }
+
   const policyFiltered = filterMcpServersByPolicy(dynamicMcpConfig)
   const blockedNames = Object.keys(dynamicMcpConfig).filter(name => !(name in policyFiltered.allowed))
   if (blockedNames.length > 0) {
@@ -1425,6 +1433,17 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     const allowedCheck = areMcpConfigsAllowedWithEnterpriseMcpConfig(dynamicMcpConfig)
     if (allowedCheck !== true) {
       failCli('Dynamic MCP servers are not allowed when an enterprise MCP configuration exists', 1)
+    }
+  }
+  if (isMercuryServerEnabled()) {
+    dynamicMcpConfig = {
+      ...dynamicMcpConfig,
+      ...Object.fromEntries(
+        Object.entries(mercuryServerConfig()).map(([name, config]) => [
+          name,
+          { ...config, scope: 'dynamic' as const },
+        ]),
+      ),
     }
   }
   const strictOrBare = Boolean(opts.onlyMcp) || isBareMode()

@@ -18,7 +18,6 @@ export function workbenchEnabled(): boolean {
 export type WorkbenchThreadKind =
   | 'root'
   | 'agent'
-  | 'crewmate'
   | 'workflow'
   | 'seat'
   | 'job'

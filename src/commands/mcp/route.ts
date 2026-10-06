@@ -11,6 +11,9 @@ export function mcpRouteArm(roster: McpRosterV1, screenClientCount: number): Mcp
 export const MCP_EMPTY_ROSTER_LINE =
   "No MCP servers in this session. The boot menu's MCPs & Skills sets the next session's; .mercury/mcp.json, settings.json or mercury mcp add add new ones."
 
+export const MCP_ORGAN_LINE = (name: string): string =>
+  `MCP server "${name}" is Mercury's own organ — never dialed.`
+
 export function kitDialLine(receipt: KitDialReceiptV1, asked: string): string {
   switch (receipt.outcome) {
     case 'applied':

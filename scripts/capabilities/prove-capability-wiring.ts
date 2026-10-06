@@ -52,9 +52,6 @@ const WIRING: Array<{ cap: string; symbol: string }> = [
   { cap: 'MercuryFrame statusbar', symbol: 'MercuryFrame' },
   { cap: 'FullscreenLayout / no-flicker', symbol: 'FullscreenLayout' },
   { cap: 'Warm background paint', symbol: 'applyWarmBackground' },
-  { cap: 'LiveComms tool', symbol: 'LiveCommsTool' },
-  { cap: 'SendMessage governance', symbol: 'canDirect' },
-  { cap: 'Honesty-gated handoff', symbol: 'recordHandoff' },
   { cap: 'Skill discovery (getSkillToolCommands)', symbol: 'getSkillToolCommands' },
   { cap: 'render_tui MCP render-verify tool', symbol: 'renderTui' },
 ]
