@@ -1,7 +1,7 @@
 import type { Command } from '../../commands.js'
 import { isKitMcpName, isKitExtensionName, isKitSkillName, type SessionKitV1 } from '../../daemon/sessionKit.js'
 import { isKitGovernedSkillCommand } from '../../skills/kitGovernance.js'
-import { kitMembership } from './membership.js'
+import { isMcpOrgan, kitMembership } from './membership.js'
 
 export interface KitCompletionRoster {
   mcpNames: readonly string[]
@@ -20,6 +20,7 @@ export function completeSessionKitFromRoster(unresolved: SessionKitV1, roster: K
   for (const name of roster.mcpNames) {
     if (mcp.includes(name)) continue
     if (!isKitMcpName(name)) continue
+    if (isMcpOrgan(name)) continue
     if (!kitMembership(unresolved, name)) continue
     const owner = extensionOwnerOf(name)
     if (owner !== null && deltas.extensionsOff.includes(owner)) continue

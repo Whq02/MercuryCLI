@@ -713,19 +713,16 @@ section("§5 a crewmate's direct ask is refused with the settings on; a stashed 
   check('a workflow fork cannot call AskAdvisor through a stale tool', forkDenied.data.status === 'refused' && wire.length === before && forkDenied.data.text.includes(advisor.ADVISOR_WORKFLOW_REFUSAL), j(forkDenied))
 }
 
-section('§6 crewmates on the session runner: the daemon role and the dynamic identity both read as a crewmate, and neither is ever served — the settings on change nothing (red on the base: a crewmate opt-in served them)')
+section('§6 a crew identity on the session runner reads as a crewmate and is never served — the settings on change nothing')
 {
   const { setDynamicCrewContext, clearDynamicCrewContext } = await import(join(ROOT, 'src/utils/crewmate.ts'))
   const { getAllBaseTools } = await import(join(ROOT, 'src/tools.ts'))
-  const savedRole = process.env.MERCURY_CREW
   try {
-    for (const identity of ['daemon', 'dynamic']) {
+    for (const identity of ['dynamic']) {
       resetRig()
       advisorOn(1)
-      delete process.env.MERCURY_CREW
       clearDynamicCrewContext()
-      if (identity === 'daemon') process.env.MERCURY_CREW = '1'
-      else setDynamicCrewContext({ agentId: 'session-crew-id', agentName: 'session-crew', crewName: 'advisor-proof' })
+      setDynamicCrewContext({ agentId: 'session-crew-id', agentName: 'session-crew', crewName: 'advisor-proof' })
       check(`${identity}: the session runner is recognized as a crewmate`, advisor.advisorSessionSeat() === 'crewmate')
       const id = `session-${identity}`
       const messages = [createUserMessage({ content: 'crew prompt' })]
@@ -737,8 +734,6 @@ section('§6 crewmates on the session runner: the daemon role and the dynamic id
     }
   } finally {
     clearDynamicCrewContext()
-    if (savedRole === undefined) delete process.env.MERCURY_CREW
-    else process.env.MERCURY_CREW = savedRole
   }
 }
 

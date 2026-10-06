@@ -1,5 +1,4 @@
 import { isCrewSession, crewTagOf } from '../../src/utils/sessionClass.ts'
-import { DISPATCH_REPORT_BACK_FRAMING } from '../../src/daemon/dispatchDrain.ts'
 import type { SessionListing } from '../../src/types/logs.ts'
 
 let failures = 0
@@ -26,10 +25,6 @@ check(isCrewSession(base({ crewName: 'crew', agentName: 'scout' })), 'crew seat 
 check(isCrewSession(base({ crewName: 'crew' })), 'crewName stamp alone')
 check(isCrewSession(base({ isCrewmate: true })), 'isCrewmate stamp alone')
 
-check(
-  isCrewSession(base({ firstPrompt: `${DISPATCH_REPORT_BACK_FRAMING}\n\nsmoke: count files` })),
-  'framed-dispatch first prompt (the daemon-seat stdin shape)',
-)
 check(isCrewSession(base({ firstPrompt: '[control ack] settled' })), '[control …] first prompt')
 check(isCrewSession(base({ firstPrompt: '[progress done] lane green (ref d-1)' })), '[progress …] first prompt')
 check(isCrewSession(base({ firstPrompt: '[operator note] context for the crew' })), 'operator-note first prompt')

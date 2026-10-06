@@ -4,7 +4,7 @@ import { formatAgentId } from '../agentId.js'
 import { getCwd } from '../cwd.js'
 import { CREW_LEAD_NAME } from './constants.js'
 import { getCrewFilePath, type CrewFile } from './crewHelpers.js'
-import { crewChildName, getLeadCrewFallback, getCrewName, isCrewmate, setLeadCrewFallback } from '../crewmate.js'
+import { getLeadCrewFallback, getCrewName, isCrewmate, setLeadCrewFallback } from '../crewmate.js'
 
 export type CrewContext = NonNullable<AppState['crewContext']>
 
@@ -75,7 +75,7 @@ export function isBornCrewWithoutCrewmates(crewContext: AppState['crewContext'])
 }
 
 export function birthSessionCrew(sessionId: string, setAppState?: SetAppState): string | null {
-  if (isCrewmate() || crewChildName() !== undefined) return null
+  if (isCrewmate()) return null
   if (getLeadCrewFallback() === null) setLeadCrewFallback(sessionCrewName(sessionId))
   setAppState?.(prev => (prev.crewContext !== undefined ? prev : { ...prev, crewContext: bornCrewContext(sessionId) }))
   void import('./crewConvert.js').then(convert => convert.bootCrewConversion())

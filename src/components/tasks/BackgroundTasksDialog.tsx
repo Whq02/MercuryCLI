@@ -83,7 +83,6 @@ const MISSION_PENDING_CAP = 6
 const WORKFLOW_DETAIL_GRACE_MS = 5000
 
 type RowKind =
-  | 'crewmate'
   | 'shell'
   | 'monitor'
   | 'agent'
@@ -323,7 +322,6 @@ export function BackgroundTasksDialog({
       (w): BoardItem => ({ id: w.id, kind, work: w }),
     )
   const flat: BoardItem[] = [
-    ...rosterOf('crewmate'),
     ...shellTasks.map((task): BoardItem => ({ id: task.id, kind: 'shell', task })),
     ...rosterOf('shell'),
     ...monitorTasks.map((task): BoardItem => ({ id: task.id, kind: 'monitor', task })),
@@ -636,13 +634,6 @@ export function BackgroundTasksDialog({
     )
   }
 
-  const crewmateItems = flat.filter(item => item.kind === 'crewmate')
-  const rosterCrewGroups = new Map<string, BoardItem[]>()
-  for (const item of crewmateItems) {
-    if (item.work === undefined) continue
-    const group = item.work.crew ?? 'crew'
-    rosterCrewGroups.set(group, [...(rosterCrewGroups.get(group) ?? []), item])
-  }
   const shellItems = flat.filter(item => item.kind === 'shell')
   const monitorItems = flat.filter(item => item.kind === 'monitor')
   const agentItems = flat.filter(item => item.kind === 'agent')
@@ -734,21 +725,6 @@ export function BackgroundTasksDialog({
             </Box>
             {winStart > 0 ? (
               <Text dimColor>↑ {winStart} more above</Text>
-            ) : null}
-            {crewmateItems.length > 0 ? (
-              <Box flexDirection="column">
-                <SectionHeader count={crewmateItems.length}>
-                  Named agents
-                </SectionHeader>
-                {[...rosterCrewGroups.entries()].map(([group, items]) => (
-                  <Box key={`roster-${group}`} flexDirection="column">
-                    <Text dimColor>
-                      {group} · {items.length} named
-                    </Text>
-                    {items.filter(inWin).map(rowFor)}
-                  </Box>
-                ))}
-              </Box>
             ) : null}
             {shellItems.length > 0 ? (
               <Box flexDirection="column">

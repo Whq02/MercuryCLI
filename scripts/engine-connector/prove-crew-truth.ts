@@ -265,10 +265,10 @@ console.log('— T4 the Crew view painted off-screen —')
     live.includes('tide-gauges') && live.includes(OPENAI_ID) && live.includes(crew.crewTokensLabel(ag1)!) &&
       live.includes('reef-survey') && live.includes(ANTHROPIC_ID) && live.includes(crew.crewTokensLabel(ag2)!),
   )
-  check('T4 while running: the status word and the named agent', live.includes('running') && live.includes('scout'))
+  check('T4 while running: the status word', live.includes('running'))
   check('T4 the count label on the view', live.includes(crew.crewCountLabel(agents)))
   check('T4 the fresh launch shows its model and no fabricated token count', live.includes('fresh-launch') && live.includes(ANTHROPIC_ID))
-  check('T4 the spawn door stands on the one list (the footer names n; no second section)', live.includes('n new named agent') && !live.includes('Named agents'))
+  check('T4 one list, no spawn door and no second section', !live.includes('n new') && !live.includes('Named agents'))
   const landedRows: WorkRowV1[] = rows.map(r => ({ ...r, status: 'completed', endTime: r.startTime + 60_000 }))
   const landed = await paint(landedRows)
   const landedFacts = crew.crewAgentsOf(landedRows, 'fx-session')
@@ -279,7 +279,7 @@ console.log('— T4 the Crew view painted off-screen —')
   )
   check('T4 after landing: the count label reads none running', landed.includes(crew.crewCountLabel(landedFacts)) && crew.crewCountLabel(landedFacts).startsWith('0 running'))
   const empty = await paint([])
-  check('T4 the empty state says so and names the door', empty.includes(crew.CREW_EMPTY_LINE) && empty.includes('press n'))
+  check('T4 the empty state says so and names the door (the chat delegates; no spawn key)', empty.includes(crew.CREW_EMPTY_LINE) && empty.includes(crew.CREW_EMPTY_DOOR) && !empty.includes('press n'))
   setFocusedSessionConnector(fakeConnector({ rows, mission: [] }))
   let card = ''
   try {
@@ -368,8 +368,8 @@ console.log('— T6 the source pins —')
     view.includes('useSessionCrew()') && view.includes('<RosterWorkDetail'),
   )
   check(
-    'T6 /crewmates mounts the Crew view',
-    src('src/commands/crewmates/crewmates.tsx').includes('<CrewView'),
+    'T6 /crewmates opens the Crew view through its one door',
+    src('src/commands/crewmates/crewmates.tsx').includes('openCrewView()'),
   )
 }
 

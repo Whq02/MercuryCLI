@@ -56,7 +56,7 @@ export interface CrewAgentFacts {
 }
 
 export function isCrewRow(row: WorkRowV1): boolean {
-  return row.kind === 'agent' || row.kind === 'crewmate'
+  return row.kind === 'agent'
 }
 
 const positive = (v: unknown): number | null =>
@@ -175,7 +175,7 @@ export function crewSpendOf(agents: readonly CrewAgentFacts[]): { costUSD: numbe
 
 
 export const CREW_EMPTY_LINE = 'no sub-agents running'
-export const CREW_EMPTY_DOOR = 'ask the chat to delegate work, or press n to spawn a named agent'
+export const CREW_EMPTY_DOOR = 'ask the chat to delegate work'
 export const CREW_MODEL_UNKNOWN = '—'
 
 export function crewModelLabel(facts: CrewAgentFacts): string {
@@ -256,9 +256,9 @@ export function crewWaitingLine(agents: readonly CrewAgentFacts[]): string | nul
 }
 
 export function crewStillRunningLine(
-  running: number | Pick<WorkCountsV1, 'agents' | 'crewmates' | 'workflows'>,
+  running: number | Pick<WorkCountsV1, 'agents' | 'workflows'>,
 ): string | null {
-  const agents = typeof running === 'number' ? running : running.agents + running.crewmates
+  const agents = typeof running === 'number' ? running : running.agents
   const workflows = typeof running === 'number' ? 0 : running.workflows
   const parts: string[] = []
   if (agents > 0) parts.push(`${agents} sub-agent${agents === 1 ? '' : 's'} still running — open the crew view (${CREW_VIEW_DOOR}) and press x twice on its row to stop one`)
@@ -269,7 +269,7 @@ export function crewStillRunningLine(
 export type InterruptPressFacts = { interrupting: boolean } | null
 
 export function interruptReceiptLine(
-  running: number | Pick<WorkCountsV1, 'agents' | 'crewmates' | 'workflows'>,
+  running: number | Pick<WorkCountsV1, 'agents' | 'workflows'>,
   press: InterruptPressFacts,
 ): string | null {
   if (press?.interrupting === true) return null

@@ -37,8 +37,6 @@ section('§1 the crew\'s clock')
   check('one running agent: "agent thought for 5s", active', bar.crewClockOf(one, NOW).line === 'agent thought for 5s' && bar.crewClockOf(one, NOW).active, bar.crewClockOf(one, NOW).line ?? 'null')
   const two = [row({ id: 'a1', kind: 'agent', status: 'running', startTime: NOW - 28 * M }), row({ id: 'a2', kind: 'agent', status: 'running', startTime: NOW - 20 * M })]
   check('two running agents: the clock counts from the earliest start — "agents thought for 28m"', bar.crewClockOf(two, NOW).line === 'agents thought for 28m', bar.crewClockOf(two, NOW).line ?? 'null')
-  const named = [row({ id: 'n1', kind: 'crewmate', status: 'running', startTime: NOW - 3 * M })]
-  check('a named agent is crew (the crew facts\' law)', bar.crewClockOf(named, NOW).line === 'agent thought for 3m' && bar.crewActiveIn(named))
   const pending = [row({ id: 'a1', kind: 'agent', status: 'pending', startTime: NOW - 2_000 })]
   check('a pending agent runs (the counting law)', bar.crewActiveIn(pending) && bar.crewClockOf(pending, NOW).line === 'agent thought for 2s')
   const wf = [row({ id: 'w1', kind: 'workflow', status: 'running', startTime: NOW - 12 * M })]
@@ -86,7 +84,7 @@ section('§2 the row\'s words per state, with and without a crew, at three width
   const wait: SeatStatusV1['wait'] = { kind: 'first-byte', cold: false, promptTokens: 900, model: 'Opus 5', budgetMs: 120_000, sinceMs: NOW - 3_000, attempt: 1 }
   check('the first-byte wait outranks the crew\'s clock, and speaks its budget in minutes', bar.statusLine(live('thinking'), status({ wait }), crew) === 'waiting for the first byte from Opus 5 — within 2m', bar.statusLine(live('thinking'), status({ wait }), crew))
   check('the wait on agents outranks the crew\'s clock (the runner\'s own count words)', bar.statusLine(live('waiting', true, 2), status(), crew) === 'waiting on 2 agents')
-  check('the wait on agents by kind outranks the crew\'s clock', bar.statusLine({ ...live('waiting', true, 3), waitingOn: { workflows: 1, agents: 2, crewmates: 0, shells: 0, asks: 0 } }, status(), crew) === 'waiting on 1 workflow · 2 agents')
+  check('the wait on agents by kind outranks the crew\'s clock', bar.statusLine({ ...live('waiting', true, 3), waitingOn: { workflows: 1, agents: 2, shells: 0, asks: 0 } }, status(), crew) === 'waiting on 1 workflow · 2 agents')
   check('the stuck verdict outranks the crew\'s clock', bar.statusLine(live('thinking'), status({ stuck: true, quietMs: 120_000 }), crew) === 'no stream events for 2m — the session may be stuck (the watchdog aborts at 2m)', bar.statusLine(live('thinking'), status({ stuck: true, quietMs: 120_000 }), crew))
   check('the interrupt outranks the crew\'s clock', bar.statusLine(live('thinking'), status({ interrupting: true }), crew) === 'interrupting — the request is torn down')
   check('the second press outranks everything', bar.statusLine(live('thinking'), status({ interrupting: true, hardStopping: true }), crew) === 'interrupting again — the request is torn down once more; x on its row stops the runner')

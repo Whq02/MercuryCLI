@@ -83,7 +83,7 @@ function rowFor(
   const running = workRowRuns(row)
   const outputFilePath = getTaskOutputPath(row.id)
   const description = task?.description ?? row.description ?? row.name
-  if (row.kind === 'agent' || row.kind === 'crewmate') {
+  if (row.kind === 'agent') {
     const facts = crewAgentFactsOf(row, null)
     if (facts === null) return null
     return {

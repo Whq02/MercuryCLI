@@ -1,8 +1,4 @@
-import { flagEnv } from '../substrate/flagRegistry.js'
-import { getAgentContext, isSubagentContext } from './agentContext.js'
-import { CREW_LEAD_NAME } from './crew/constants.js'
 import { getCrewmateContext } from './crewmateContext.js'
-import { isCrewRole } from './workerRole.js'
 
 
 export {
@@ -57,20 +53,6 @@ export function getCrewmateColor(): string | undefined {
   const context = getCrewmateContext()
   if (context) return context.color
   return dynamicCrewContext?.color
-}
-
-const MAIN_SESSION_SIDECHAIN = 'main-session'
-
-export function crewChildName(): string | undefined {
-  if (!isCrewRole()) return undefined
-  const name = flagEnv('MERCURY_CREW_AGENT')
-  return name !== undefined && name.trim() !== '' ? name.trim() : undefined
-}
-
-export function resolveCoordAgentId(): string {
-  const context = getAgentContext()
-  if (isSubagentContext(context) && context.subagentName !== MAIN_SESSION_SIDECHAIN) return context.agentId
-  return getAgentName() ?? crewChildName() ?? CREW_LEAD_NAME
 }
 
 export function getCrewName(crewContext?: { crewName: string }): string | undefined {

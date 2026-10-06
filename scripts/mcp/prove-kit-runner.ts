@@ -149,7 +149,10 @@ section('§S the swap: every membership road answers the process kit through the
 
   latch({ schema: 1, mcp: [], skills: [], invocable: [] })
   t('S4 the EMPTY resolved kit admits NOTHING configured (empty ≠ absent — L24(1) "absent from that session\'s process")', membership.isMcpCatalogueMember('alpha') === false && membership.isMcpCatalogueMember('beta') === false)
-  t("S5 no organ: 'mercury' is an ordinary name — the kit governs it", membership.isMcpCatalogueMember('mercury') === false)
+  t("S5 ORGANS OUTSIDE (Q1): the EMPTY kit still mounts the enabled in-process server ('mercury')", membership.isMcpCatalogueMember('mercury') === true && membership.isMcpOrgan('mercury'))
+  process.env.MERCURY_COORDINATION_MCP = '0'
+  t("S6 with the in-process server OFF, 'mercury' is an ordinary name — the kit governs it (no organ hole for a user server that borrowed the name)", membership.isMcpCatalogueMember('mercury') === false && !membership.isMcpOrgan('mercury'))
+  delete process.env.MERCURY_COORDINATION_MCP
 
   latch({ schema: 1, mcp: ['ghost-list'], skills: [], invocable: [], resolved: false, deltas: { mcpOff: ['beta'], skillStates: {}, extensionsOff: [] } })
   t("S7 an UNRESOLVED latch is deltas-only at the owner: 'beta' (delta-off) out; 'alpha' in; 'srv-off' in (the record ignored); its provisional list is NEVER membership ('ghost-list' grants nothing beyond delta absence)", membership.isMcpCatalogueMember('beta') === false && membership.isMcpCatalogueMember('alpha') === true && membership.isMcpCatalogueMember('srv-off') === true)
@@ -162,6 +165,8 @@ section('§S the swap: every membership road answers the process kit through the
   t("S8 the runner batch partition follows the owner (excluded entries become truthful 'disabled' rows and are never dialed — the landed semantics under the kit)", split.members.length === 1 && split.members[0]?.[0] === 'alpha' && split.excluded.length === 1 && split.excluded[0]?.[0] === 'beta')
 
   const owner = readFileSync(join(REPO, 'src', 'services', 'mcp', 'membership.ts'), 'utf8')
+  const organ = readFileSync(join(REPO, 'src', 'services', 'mcp', 'mercuryServer.ts'), 'utf8')
+  t('S9 the organ spelling is pinned equal to its owner (server name + env + the =0-only off-switch)', owner.includes("MERCURY_ORGAN_NAME = 'mercury'") && organ.includes("MERCURY_SERVER_NAME = 'mercury'") && organ.includes("'MERCURY_COORDINATION_MCP'") && organ.includes("=== '0'") && owner.includes("flagEnv('MERCURY_COORDINATION_MCP') !== '0'"))
   const kitFiles = ['src/services/mcp/sessionKitPin.ts', 'src/services/mcp/membership.ts', 'src/skills/kitGovernance.ts']
   const worldDirty = kitFiles.filter(f => /chatOnlyBoot|chatBoot\(|MERCURY_SPLASH_CHAT/.test(readFileSync(join(REPO, f), 'utf8')))
   t('S10 no world check anywhere in the kit path (the L24(6-SUPERSEDED) law): the kit modules read no world predicate', worldDirty.length === 0, worldDirty.join(','))
@@ -196,8 +201,8 @@ section('§C the completion (poison: a second road to resolved; a resolved recor
   }
   const R = completeSessionKitFromRoster(UNRESOLVED as never, ROSTER as never)
   t(
-    'C1 the composer applies the DELTAS to the runner\'s own roster: delta-off and off-master servers out, wire-illegal spellings out; a server named mercury is an ordinary name the roster lists; the provisional list grants NOTHING',
-    deepEq(R.mcp, ['alpha', 'mercury', 'ext:loud-ext:tool']) && !R.mcp.includes('ghost'),
+    'C1 the composer applies the DELTAS to the runner\'s own roster: delta-off and off-master servers out, wire-illegal spellings out; the provisional list grants NOTHING',
+    deepEq(R.mcp, ['alpha', 'ext:loud-ext:tool']) && !R.mcp.includes('ghost') && !R.mcp.includes('mercury'),
     JSON.stringify(R.mcp),
   )
   t("C2 the skills halves follow the overlay's own product (kit-on unmarked; kit-invocable marked; an off-master extension skill contributes nothing; builtins never)", deepEq(R.skills, ['s:on']) && deepEq(R.invocable, ['s:inv']))

@@ -258,11 +258,6 @@ const rowOf = (dir: string, text: string) => readBuffer(dir).find(r => r.text ==
 retainItems([{ content: 'crew rule: always deploy on Fridays', pin: true }], { session: 'sess-lead-0001', agent: 'agent_crewmate_77' }, crewDir)
 const crewRow = rowOf(crewDir, 'crew rule: always deploy on Fridays')
 check("a crewmate's Retain with pin: true pins the rule and mints no asked mark", crewRow !== undefined && crewRow.pin === true && crewRow.asked === undefined && /a:agent_crewma/.test(crewRow.source), JSON.stringify(crewRow))
-process.env.MERCURY_CREW = '1'
-retainItems([{ content: 'seat rule: always deploy on Mondays', pin: true }], { session: 'sess-seat-0001' }, crewDir)
-delete process.env.MERCURY_CREW
-const seatRow = rowOf(crewDir, 'seat rule: always deploy on Mondays')
-check("a daemon crew seat's own chat is a crewmate's chat too: pinned, no asked mark", seatRow !== undefined && seatRow.pin === true && seatRow.asked === undefined, JSON.stringify(seatRow))
 retainItems([{ content: 'user rule: always deploy on Tuesdays', pin: true }], { session: 'sess-user-0001' }, crewDir)
 const userRow = rowOf(crewDir, 'user rule: always deploy on Tuesdays')
 check("the user's own chat mints the asked mark", userRow !== undefined && userRow.pin === true && userRow.asked === true, JSON.stringify(userRow))
@@ -270,7 +265,7 @@ appendObservation({ text: 'handover rule: deploy on Wednesdays', source: 'handov
 maybeConsolidate({ force: true, dir: crewDir, now: T0 })
 const crewPins = readPins(crewDir)
 const seqIn = (text: string): number => listTopicDocs(crewDir).flatMap(d => d.sections.flatMap(s => s.entries)).find(e => e.text === text)?.seq ?? -1
-check('on the shelf, only the user-asked rule carries the mark; the crew and seat rules are plain pins', crewPins.length === 4 && crewPins.find(p => p.seq === seqIn('user rule: always deploy on Tuesdays'))?.asked === true && crewPins.find(p => p.seq === seqIn('crew rule: always deploy on Fridays'))?.asked === undefined && crewPins.find(p => p.seq === seqIn('seat rule: always deploy on Mondays'))?.asked === undefined, JSON.stringify(crewPins))
+check('on the shelf, only the user-asked rule carries the mark; the crew rule is a plain pin', crewPins.length === 3 && crewPins.find(p => p.seq === seqIn('user rule: always deploy on Tuesdays'))?.asked === true && crewPins.find(p => p.seq === seqIn('crew rule: always deploy on Fridays'))?.asked === undefined, JSON.stringify(crewPins))
 const crewPage = readFrontPage(crewDir) ?? ''
 check('the front page shows the plain pins without the asked words and the asked rule with them', crewPage.includes(`- crew rule: always deploy on Fridays <seq=${seqIn('crew rule: always deploy on Fridays')}>`) && crewPage.includes(`- user rule: always deploy on Tuesdays <seq=${seqIn('user rule: always deploy on Tuesdays')}, asked for by the user>`))
 const crewCorrect = correctMemory({ op: 'supersede', id: `seq:${seqIn('crew rule: always deploy on Fridays')}`, content: 'crew rule: deploy on Thursdays', reason: 'the lead revised the crew rule', session: 'lead-session' }, crewDir)

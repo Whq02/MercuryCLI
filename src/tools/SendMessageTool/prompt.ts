@@ -7,11 +7,10 @@ export function getPrompt(offered: ReadonlySet<string> = new Set([TASK_UPDATE_TO
   const statusLine = offered.has(TASK_UPDATE_TOOL_NAME) ? `\n- Structured status updates belong in ${TASK_UPDATE_TOOL_NAME}, not in a ${SEND_MESSAGE_TOOL_NAME} message.` : ''
   return `Deliver a message to a crewmate of this session.
 
-Example: { "to": "researcher", "summary": "auth findings ready", "message": "I finished mapping the auth flow; notes are in docs/auth.md." }
+Example: { "to": "researcher", "message": "I finished mapping the auth flow; notes are in docs/auth.md." }
 
 ## Addressing
 - to: the id a crewmate's launch receipt names, or the name its launch gave it — both reach the same agent, running or finished (a name two launches carried reaches the newest).
-- summary: optional, a 5-10 word preview (the first line of the message when omitted).
 
 ## How communication works
 - Plain output reaches no crewmate — words travel ONLY through this tool.

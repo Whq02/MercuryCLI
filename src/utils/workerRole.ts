@@ -15,12 +15,8 @@ export const ALL_ROLE_ENV_VARS: readonly string[] = [
   ...RETIRED_SEAT_ENV_VARS,
 ]
 
-export function isCrewRole(): boolean {
-  return flagEnv('MERCURY_CREW') === '1'
-}
-
 export function assertSingleRole(): void {
-  const liveSet = ['MERCURY_CREW', ...LIVE_ROLE_ENV_VARS].filter(v => flagEnv(v) === '1')
+  const liveSet = LIVE_ROLE_ENV_VARS.filter(v => flagEnv(v) === '1')
   const retiredSet = RETIRED_SEAT_ENV_VARS.filter(v => process.env[v] === '1')
   const set = [...liveSet, ...retiredSet]
   if (set.length > 1) {

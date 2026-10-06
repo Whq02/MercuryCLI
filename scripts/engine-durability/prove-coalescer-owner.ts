@@ -69,9 +69,7 @@ t.section('§2 — the snapshot names the trigger generation it observed')
 
 t.section('§3 — one owner: the inline-copy ratchet')
 {
-  const PINNED = [
-    'src/daemon/dispatchDrain.ts',
-  ]
+  const PINNED: string[] = []
 
   const found: string[] = []
   const walk = (dir: string): void => {

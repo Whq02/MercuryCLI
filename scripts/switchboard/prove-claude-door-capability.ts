@@ -68,11 +68,6 @@ section(`§1 the session and crew doors: '${UNKNOWN_CLAUDE_ID}' (no catalogue kn
   const session = await wm.validateWorkerModelChoice(UNKNOWN_CLAUDE_ID, 'session')
   check('the SESSION door admits it — dispatched to the Anthropic lane, the wire decides', session.ok && session.entry.modelId === UNKNOWN_CLAUDE_ID && session.entry.session.availability === 'available', text(session))
   check('…with the ratified effort convention on the row', session.ok && session.entry.effort === 'high', text(session))
-  const crew = await wm.validateWorkerModelChoice(UNKNOWN_CLAUDE_ID, 'crew')
-  check('the CREW door admits it the same way (no door refuses what the account can run)', crew.ok && crew.entry.modelId === UNKNOWN_CLAUDE_ID, text(crew))
-  const { resolveCrewSeatModel } = await import('../../src/daemon/crewSpawn.ts')
-  const seat = await resolveCrewSeatModel(UNKNOWN_CLAUDE_ID)
-  check("the crew seat resolver (the crew spawn's one door) seats it", seat.ok && seat.model === UNKNOWN_CLAUDE_ID, text(seat))
   const { preflightConcourseDispatch } = await import('../../src/daemon/concourseDispatch.ts')
   const preflight = await preflightConcourseDispatch({ workspaceDir: work, modelKey: UNKNOWN_CLAUDE_ID })
   check("the birth door's preflight (the boot face's New Session road) is CLEAN on it", preflight.ok === true, text(preflight))
@@ -129,7 +124,6 @@ const FUTURE_IDS = [UNKNOWN_CLAUDE_ID, 'claude-sonnet-7-3']
 section('§4 the guarantee — a future Claude id starts from EVERY door, the wire deciding')
 {
   process.env.MERCURY_WORKFLOW_ROUTING = '1'
-  const { resolveCrewSeatModel } = await import('../../src/daemon/crewSpawn.ts')
   const { preflightConcourseDispatch } = await import('../../src/daemon/concourseDispatch.ts')
   const { resolveWorkflowRoutedModel } = await import('../../src/tools/WorkflowTool/workflowRouting.ts')
   const { setSubModel, resolveSubModel } = await import('../../src/utils/model/subModelSlots.ts')
@@ -148,10 +142,6 @@ section('§4 the guarantee — a future Claude id starts from EVERY door, the wi
     check("door · the daemon's session admission (the boot face's New Session, /clear, --model and a saved setting all reach it through bornSession)", admission.ok && admission.entry.modelId === id, text(admission))
     const preflight = await preflightConcourseDispatch({ workspaceDir: work, modelKey: id })
     check("door · the birth door's preflight", preflight.ok === true, text(preflight))
-    const seat = await resolveCrewSeatModel(id)
-    check('door · the crew and crewmate seats', seat.ok && seat.model === id, text(seat))
-    const crewArm = await wm.validateWorkerModelChoice(id, 'crew')
-    check("door · the crew arm of the one validator", crewArm.ok && crewArm.entry.modelId === id, text(crewArm))
     check('door · the workflow seats: an explicit model stands (routing never substitutes it)', resolveWorkflowRoutedModel({ tier: 'executor', model: id }) === undefined)
     const picked = setSubModel('advisor', id)
     const advisor = resolveAdvisorModel()
@@ -191,7 +181,6 @@ section('§5 the road census — every door reaches a capability owner; a new ju
     ['src/services/switchboard/bornSession.ts', 'the birth door reaches the daemon admission', "op: 'sessionAdmit'"],
     ['src/daemon/concourseWorkers.ts', 'the daemon admission', 'validateWorkerModelChoice('],
     ['src/daemon/concourseDispatch.ts', 'the birth preflight', 'validateWorkerModelChoice('],
-    ['src/daemon/crewSpawn.ts', 'the crew seat', 'validateWorkerModelChoice('],
     ['src/daemon/controlServer.ts', 'the seat reconfigure', 'validateWorkerModelChoice('],
     ['src/daemon/sessionSeat.ts', 'the switch on a gone runner', 'validateWorkerModelChoice('],
     ['src/commands/model/model.tsx', "the Chat's /model <id>", 'validateModel('],

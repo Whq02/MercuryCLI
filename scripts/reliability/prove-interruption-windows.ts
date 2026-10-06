@@ -98,53 +98,6 @@ const runChild = (
 
 
 {
-  const crewName = 'relia-fc4'
-  const actLog = join(tmp, 'fc4-acts.log')
-  writeFileSync(actLog, '')
-  const reqA = 'relia-req-fc4-a'
-  const sentA = runChild('mailboxSendChild.ts', { RELIA_CREWNAME: crewName, RELIA_REQ: reqA })
-  const lifeA1 = runChild('mailboxDrainChild.ts', {
-    RELIA_CREWNAME: crewName,
-    RELIA_ACT_LOG: actLog,
-    MERCURY_FAULT_INJECT: `bridge-after-complete@${reqA}:kill`,
-  })
-  const lifeA2 = runChild('mailboxDrainChild.ts', {
-    RELIA_CREWNAME: crewName,
-    RELIA_ACT_LOG: actLog,
-  })
-  const actsA = readFileSync(actLog, 'utf8').split('\n').filter(l => l.startsWith(reqA))
-  ok(
-    sentA.status === 0 && lifeA1.signal === 'SIGKILL' && lifeA2.status === 0,
-    'FC4-A lifecycle ran (send · act+complete+die-before-ack · restart)',
-  )
-  ok(
-    actsA.length === 1,
-    `FC4-A FIXED: acted-on dispatch executed EXACTLY once across the restart (${actsA.length}×) — the durable 'delivered' record consumed the redelivery`,
-  )
-  writeFileSync(actLog, '')
-  const reqB = 'relia-req-fc4-b'
-  const sentB = runChild('mailboxSendChild.ts', { RELIA_CREWNAME: crewName, RELIA_REQ: reqB })
-  const lifeB1 = runChild('mailboxDrainChild.ts', {
-    RELIA_CREWNAME: crewName,
-    RELIA_ACT_LOG: actLog,
-    RELIA_DIE_AFTER_ACT: '1',
-  })
-  const lifeB2 = runChild('mailboxDrainChild.ts', {
-    RELIA_CREWNAME: crewName,
-    RELIA_ACT_LOG: actLog,
-  })
-  const actsB = readFileSync(actLog, 'utf8').split('\n').filter(l => l.startsWith(reqB))
-  ok(
-    sentB.status === 0 && lifeB1.signal === 'SIGKILL' && lifeB2.status === 0,
-    'FC4-B lifecycle ran (send · die-mid-act · restart)',
-  )
-  ok(
-    actsB.length === 2 && !actsB[0]!.includes('REPLAY') && actsB[1]!.includes('REPLAY'),
-    `FC4-B FIXED: a mid-act death redelivers WITH the honest replay marker (${JSON.stringify(actsB)})`,
-  )
-}
-
-{
   const storePath = join(tmp, 'fc5-inbox.json')
   const DAMAGED = '{"this is": the only damaged copy — NOT JSON'
   writeFileSync(storePath, DAMAGED)

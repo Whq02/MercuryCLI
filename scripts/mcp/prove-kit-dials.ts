@@ -116,7 +116,7 @@ section('§E the delta (a dial is a delta, never a heal)')
 {
   const empty = { schema: 1, mcp: [], skills: [], invocable: [] }
   const delta = dial.kitEditMcpDelta(undefined, empty as never, dial.kitDialCandidates(undefined, empty as never, ['mercury', 'alpha']))
-  t('E3 the organ is skipped whole (the coordination server); the catalogue row flips', !delta.disconnect.includes('mercury') && delta.disconnect.includes('alpha'))
+  t('E3 the organ is skipped whole (the in-process mercury server); the catalogue row flips', !delta.disconnect.includes('mercury') && delta.disconnect.includes('alpha'))
 }
 {
   const cfg = { type: 'stdio', command: 'x', scope: 'dynamic' } as never

@@ -148,7 +148,7 @@ export function runsOf(tasks: Record<string, TaskState>, roster: Pick<WorkRoster
     }))
   const localRunIds = new Set(localRuns.map(r => r.id))
   const hostedRuns: RunRow[] = roster.rows
-    .filter(row => !localRunIds.has(row.id) && row.kind !== 'agent' && row.kind !== 'crewmate' && workRowRuns(row))
+    .filter(row => !localRunIds.has(row.id) && row.kind !== 'agent' && workRowRuns(row))
     .map(row => ({
       id: row.id,
       title: row.name,
