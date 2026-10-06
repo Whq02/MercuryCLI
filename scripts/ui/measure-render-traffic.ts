@@ -115,20 +115,16 @@ if (process.env.MEASURE_CHILD) {
     }
     live = scene === 'stream-cockpit' ? cockpitWrap(h(Streamer as never, {})) : h(Streamer as never, {})
   } else if (scene === 'turn-tools') {
-    const { ToolUseLoader } = await import('../../src/components/ToolUseLoader.js')
+    const { ToolRowLead } = await import('../../src/components/messages/ToolRowLead.js')
     live = h(
       Box as never,
       { flexDirection: 'column' },
       ...[0, 1, 2].map(i =>
         h(
-          Box as never,
-          { key: `t${i}`, flexDirection: 'row' },
-          h(ToolUseLoader as never, {
-            isError: false,
-            isUnresolved: true,
-            shouldAnimate: true,
-          }),
-          h(Text as never, {}, `Bash(sleep ${i + 1}) — running`),
+          Text as never,
+          { key: `t${i}` },
+          h(ToolRowLead as never, { family: 'shell', state: 'pending' }),
+          `Bash(sleep ${i + 1}) — running`,
         ),
       ),
     )

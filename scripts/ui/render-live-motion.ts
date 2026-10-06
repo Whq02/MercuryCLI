@@ -68,41 +68,29 @@ const grid = JSON.parse(readFileSync('/tmp/live-motion-grid.json', 'utf8')) as {
 const lines = grid.grid.map(row => row.map(c => c.c).join(''))
 
 const WORK = ['◐', '◓', '◑', '◒']
+let markCell: Cell | null = null
 let workCell: Cell | null = null
 let workLine = ''
 for (let r = 0; r < grid.grid.length; r++) {
   const line = lines[r] ?? ''
-  if (/running|bash/i.test(line)) {
-    for (const cell of grid.grid[r]!) {
-      if (WORK.includes(cell.c)) {
-        workCell = cell
-        workLine = line.trim()
-        break
-      }
-    }
+  if (/running \d+ bash|bash command/i.test(line)) {
+    workLine = line.trim()
+    markCell = grid.grid[r]!.find(cell => cell.c === '▰') ?? null
+    workCell = grid.grid[r]!.find(cell => WORK.includes(cell.c)) ?? null
+    break
   }
-  if (workCell) break
 }
 check(
-  'a Bash tool row leads with a WORK frame (◐◓◑◒) mid-run',
-  workCell !== null,
-  workCell ? `'${workCell.c}' on: ${workLine.slice(0, 60)}` : 'no running Bash row in capture window',
+  'a running Bash row leads with the ▰ shell mark mid-run',
+  markCell !== null,
+  markCell ? `'${markCell.c}' on: ${workLine.slice(0, 60)}` : 'no running Bash row in capture window',
 )
-if (workCell) {
-  if (workCell.c !== '◐') {
-    check('the frame is beyond frame 0 — the transcript mark ROTATES', true, `caught '${workCell.c}'`)
-  } else {
-    note('caught frame 0 (◐) — a valid frame; rotation evidenced 3/4 of instants, re-run to catch another')
-  }
-  note('running-mark breath shade', `fg #${workCell.fg}`)
-}
-
-const sparkRow = grid.grid.flat().find(c => c.c === '✶' && c.bold)
-if (sparkRow) note('caught the ember-settle ✶ live', `fg #${sparkRow.fg}`)
+check('no WORK frame (◐◓◑◒) stands on the running row — the row is still', workLine !== '' && workCell === null, workCell ? `caught '${workCell.c}'` : '')
+if (markCell) note('running-mark ink', `fg #${markCell.fg}`)
 
 console.log('\n' + '='.repeat(60))
 if (failures > 0) {
   console.log(' ❌ render-live-motion: failure(s) — see above')
   process.exit(1)
 }
-console.log(' ✅ live motion — the real binary animates (rotation + shades read from the grid)')
+console.log(' ✅ live motion — the real binary animates where it should (the caret breath) and holds the tool row still')

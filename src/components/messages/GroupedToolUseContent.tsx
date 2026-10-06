@@ -56,6 +56,7 @@ export function GroupedToolUseContent({
       toolUse,
       isResolved: lookups.resolvedToolUseIDs.has(id),
       isErrored: lookups.erroredToolUseIDs.has(id),
+      isDenied: lookups.deniedToolUseIDs.has(id),
       isInProgress: inProgressToolUseIDs.has(id),
       progressMessages,
       resultMessage,
