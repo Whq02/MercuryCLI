@@ -1,4 +1,4 @@
-import type { AnthropicLimits } from '../anthropicLimits.js'
+import type { AnthropicLimits, RateLimitType } from '../anthropicLimits.js'
 import { credentialWallLine, isRevokedSignInText, observedCredentialWall } from './credentialWall.js'
 
 export type AnthropicRefusalKind = 'window' | 'sign-in' | 'other'
@@ -15,6 +15,7 @@ export interface AnthropicWindowObservation {
   observedAtMs: number
   resetsAtMs?: number
   lapsesAtMs?: number
+  claim?: RateLimitType
 }
 
 export type StandingAnthropicRefusal = { kind: 'window' | 'sign-in'; words: string }
