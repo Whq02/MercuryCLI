@@ -49,7 +49,7 @@ console.log('§3 absent-only: an existing config file is never touched')
 {
   const home = mkdtempSync(join(tmpdir(), 'first-run-seed-'))
   mkdirSync(home, { recursive: true })
-  const before = JSON.stringify({ theme: 'light', operator: true })
+  const before = JSON.stringify({ theme: 'not-a-theme', operator: true })
   writeFileSync(join(home, '.mercury.json'), before)
   seedFirstRun(home, [home])
   check('the operator-shaped file is byte-identical after the seed', readFileSync(join(home, '.mercury.json'), 'utf8') === before)

@@ -82,9 +82,9 @@ section('absent-only stands')
 {
   const homeKept = join(SCRATCH, 'home-kept')
   mkdirSync(homeKept, { recursive: true })
-  writeFileSync(join(homeKept, '.mercury.json'), '{"theme":"light","projects":{}}\n')
+  writeFileSync(join(homeKept, '.mercury.json'), '{"theme":"not-a-theme","projects":{}}\n')
   seedFirstRun(homeKept, [lane])
-  check('an existing config file is never rewritten', readFileSync(join(homeKept, '.mercury.json'), 'utf8') === '{"theme":"light","projects":{}}\n')
+  check('an existing config file is never rewritten', readFileSync(join(homeKept, '.mercury.json'), 'utf8') === '{"theme":"not-a-theme","projects":{}}\n')
   check('the seeder created no home beside it', !existsSync(join(SCRATCH, 'unused-home', '.mercury.json')))
 }
 

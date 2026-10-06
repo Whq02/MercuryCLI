@@ -77,7 +77,7 @@ section('D2 a save in between folds the pending update into its own write')
     g.saveGlobalConfigDeferred(bump)
     // A NON-default value: the store persists only non-default fields, so a
     // default theme would never reach the disk and prove nothing.
-    g.saveGlobalConfig(c => ({ ...c, theme: 'light' }))
+    g.saveGlobalConfig(c => ({ ...c, theme: 'not-a-theme' }))
     const disk = readDisk()
     out.diskTheme = disk?.theme
     out.diskCount = disk?.numStartups
@@ -88,7 +88,7 @@ section('D2 a save in between folds the pending update into its own write')
     out.writesAfterFlush = g.getGlobalConfigWriteCount()
     out.diskCountAfterFlush = readDisk()?.numStartups
   `)
-  check('the intermediate save carried the increment with its own field (disk: light, 5)', r.diskTheme === 'light' && r.diskCount === 5, `theme=${String(r.diskTheme)} count=${String(r.diskCount)}`)
+  check('the intermediate save carried the increment with its own field (disk: not-a-theme, 5)', r.diskTheme === 'not-a-theme' && r.diskCount === 5, `theme=${String(r.diskTheme)} count=${String(r.diskCount)}`)
   check('the cache agrees', r.cacheCount === 5, `cache=${String(r.cacheCount)}`)
   check('two writes in total (seed + the intermediate save) and nothing left pending', r.writes === 2 && r.pending === false, `writes=${String(r.writes)} pending=${String(r.pending)}`)
   check('the flush afterwards writes nothing (the increment is not applied twice)', r.writesAfterFlush === 2 && r.diskCountAfterFlush === 5, `writes=${String(r.writesAfterFlush)} disk=${String(r.diskCountAfterFlush)}`)
@@ -112,7 +112,7 @@ section('D4 two deferred updates stack — both apply once, one write')
   const r = runIn(`
     g.saveGlobalConfig(c => ({ ...c, numStartups: 4 }))
     g.saveGlobalConfigDeferred(bump)
-    g.saveGlobalConfigDeferred(c => ({ ...c, theme: 'light' }))
+    g.saveGlobalConfigDeferred(c => ({ ...c, theme: 'not-a-theme' }))
     out.cacheCount = g.getGlobalConfig().numStartups
     out.cacheTheme = g.getGlobalConfig().theme
     await g.flushDeferredGlobalConfigSaves()
@@ -121,8 +121,8 @@ section('D4 two deferred updates stack — both apply once, one write')
     out.diskTheme = disk?.theme
     out.writes = g.getGlobalConfigWriteCount()
   `)
-  check('the cache carries both at once', r.cacheCount === 5 && r.cacheTheme === 'light', `count=${String(r.cacheCount)} theme=${String(r.cacheTheme)}`)
-  check('one flush publishes both in one write (5, light)', r.diskCount === 5 && r.diskTheme === 'light' && r.writes === 2, `count=${String(r.diskCount)} theme=${String(r.diskTheme)} writes=${String(r.writes)}`)
+  check('the cache carries both at once', r.cacheCount === 5 && r.cacheTheme === 'not-a-theme', `count=${String(r.cacheCount)} theme=${String(r.cacheTheme)}`)
+  check('one flush publishes both in one write (5, not-a-theme)', r.diskCount === 5 && r.diskTheme === 'not-a-theme' && r.writes === 2, `count=${String(r.diskCount)} theme=${String(r.diskTheme)} writes=${String(r.writes)}`)
 }
 
 section('pending global changes survive a project-config save')
@@ -160,7 +160,7 @@ section('another process refresh preserves the pending cached view')
     g.getGlobalConfig()
     g.saveGlobalConfig(c => ({ ...c, numStartups: 4 }))
     g.saveGlobalConfigDeferred(bump)
-    const external = { ...readDisk(), theme: 'light' }
+    const external = { ...readDisk(), theme: 'not-a-theme' }
     fs.writeFileSync(file, JSON.stringify(external))
     const implementation = io.getFsImplementation()
     io.setFsImplementation({ ...implementation, readFile: async () => JSON.stringify(external) })
@@ -180,8 +180,8 @@ section('another process refresh preserves the pending cached view')
     let refreshConfig
     mock.module('fs', () => ({ ...fs, watchFile: (_file, _options, callback) => { refreshConfig = callback }, unwatchFile: () => {} }))
   `)
-  check('a fresh disk view includes the pending update for cache readers', r.theme === 'light' && r.cacheCount === 5 && r.pending === true && r.writes === 1, JSON.stringify(r))
-  check('the later flush applies it once to the external write', r.diskCount === 5 && r.diskTheme === 'light' && r.writesAfterFlush === 2, JSON.stringify(r))
+  check('a fresh disk view includes the pending update for cache readers', r.theme === 'not-a-theme' && r.cacheCount === 5 && r.pending === true && r.writes === 1, JSON.stringify(r))
+  check('the later flush applies it once to the external write', r.diskCount === 5 && r.diskTheme === 'not-a-theme' && r.writesAfterFlush === 2, JSON.stringify(r))
 }
 
 section('deferred flush carries an undeclared project key as written')
@@ -269,7 +269,7 @@ section('exhausted background retries preserve pending data for a later save')
       globalThis.setTimeout = schedule
       release()
     }
-    fs.writeFileSync(file, JSON.stringify({ ...readDisk(), theme: 'light' }))
+    fs.writeFileSync(file, JSON.stringify({ ...readDisk(), theme: 'not-a-theme' }))
     await Promise.all([g.flushDeferredGlobalConfigSaves(), g.flushDeferredGlobalConfigSaves()])
     out.after = readDisk()
     out.pendingAfter = g.hasPendingDeferredGlobalConfigSaves()
@@ -277,7 +277,7 @@ section('exhausted background retries preserve pending data for a later save')
   `)
   const after = r.after as Record<string, unknown>
   check('exhaustion records a refusal without publishing or discarding the update', r.refusals === 1 && Number(r.callbacks) > 0 && r.pending === true && r.cache === 5 && r.disk === 4 && r.writes === 1, JSON.stringify(r))
-  check('later flushes publish once and retain an intervening external change', after.numStartups === 5 && after.theme === 'light' && r.pendingAfter === false && r.writesAfter === 2, JSON.stringify(r))
+  check('later flushes publish once and retain an intervening external change', after.numStartups === 5 && after.theme === 'not-a-theme' && r.pendingAfter === false && r.writesAfter === 2, JSON.stringify(r))
 }
 
 section('process exit publishes startup metadata without the background task')
