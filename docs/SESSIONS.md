@@ -262,13 +262,19 @@ outside the cockpit — and a click on it, or `/critter`, chooses the
 creature. The view runs from the top of the screen down to the status row
 above the composer; the rails beside it run the same height.
 
-The status row above the composer rests on `ready · <model> · <effort>` —
-the session's model and the effort word its chip paints — while the session
-is idle with no crew. Otherwise it carries the project and the CREW's
-clock — the sub-agents and workflow agents the session's runner hosts —
-past tense, by kind: "agents thought for 28m", "workflow thought for 12m",
-both when both stand (the larger first). The row wears no glyph, and the
-session's name paints on the title row alone. The main agent is narrated
+The status row above the composer keeps the session's model and the
+effort word its chip paints in every state: it rests on
+`ready · <model> · <effort>` while the session is idle with no crew, and
+otherwise reads `<model> · <effort>` followed by what the session is doing
+— the wait on agents, a request wait, a held receipt, a warning, or the
+CREW's clock — the sub-agents and workflow agents the session's runner
+hosts — past tense, by kind: "agents thought for 28m", "workflow thought
+for 12m", both when both stand (the larger first). At its right end, before
+the way back, the row names the folder and the branch the session works on
+(`mercury ⌥ main`; the folder alone where there is no branch). When the
+row is too narrow for everything, the state words shorten first, then the
+folder leaves, then the branch — the model and its effort stay. The row
+wears no glyph and paints no session name. The main agent is narrated
 once, by the transcript's thinking row and the card under the critter, and
 never repeated here; a session with no crew paints no clock while its main
 agent works. A `/effort` pick's receipt — the daemon's own sentence — stands

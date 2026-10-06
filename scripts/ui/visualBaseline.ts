@@ -68,6 +68,7 @@ export const DEFAULT_MASKS = [
   'row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back',
   'row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back',
   'row:^ ready · .+ {2,}(?:⇧|shift\\+)← back',
+  'row: {2,}\\S+(?: ⌥ \\S+)? {2}(?:[^·]+ · )?(?:⇧|shift\\+)← back',
   ' *(?:⇧|shift\\+)← concourse *',
   'row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$',
   '(?<= · effort [^·]+ · ctx \\S+ · )\\S.*',
@@ -117,6 +118,7 @@ export function canonicalizeCheckoutRows(
     [` · ${checkout.basename} · `, ' · mercury · '],
     [` ${checkout.basename} · `, ' mercury · '],
     [`FILES · ${checkout.basename}`, 'FILES · mercury'],
+    [`  ${checkout.basename}  `, '  mercury  '],
     [`│ ${checkout.basename} ▸`, '│ mercury ▸'],
   ]
   const clipped = new RegExp(`FILES · (${[...checkout.basename].map((_, i, all) => all.slice(0, i + 1).join('').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).reverse().join('|')})…`)

@@ -26,11 +26,11 @@ const SOVEREIGN_ARGV = ['--sovereign']
 const SOVEREIGN_SETTINGS = { guardrails: { sovereignConsentSeen: true } }
 const HINT_TEXTS = ['? for shortcuts', 'for commands + files', 'ctrl+t activity', 'for a new line', 'shift + ↵']
 const STATUS_ROW = '← back'
-const RESTING_STATUS_ROW = /^ ready · Opus 5\.5 · high {2,}(?:⇧|shift\+)← back$/
+const RESTING_STATUS_ROW = /^ ready · Opus 5\.5 · high {2,}\S+(?: ⌥ \S+)? {2}(?:⇧|shift\+)← back$/
 const restingRowCheck = (tag: string, text: string[]): void => {
   const row = text.find(l => l.includes(STATUS_ROW)) ?? ''
-  check(`${tag}: the row above the composer reads ready · Opus 5.5 · high with the way back at the right`, RESTING_STATUS_ROW.test(row), JSON.stringify(row))
-  check(`${tag}: the project name left the resting row`, !row.includes(tree), JSON.stringify(row))
+  check(`${tag}: the row above the composer reads ready · Opus 5.5 · high, the folder and branch at its right end, then the way back`, RESTING_STATUS_ROW.test(row), JSON.stringify(row))
+  check(`${tag}: the folder sits at the right end of the resting row, never beside ready`, new RegExp(` {2,}${tree.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?: ⌥ \\S+)? {2}`).test(row) && !row.includes(`${tree} · ready`), JSON.stringify(row))
 }
 const SHIFT_RIGHT = '\x1b[1;2C'
 const BOARD_NEW_DOOR = 'new session'
