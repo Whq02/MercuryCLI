@@ -28,6 +28,7 @@ import {
 import {
   glmDisplayPin,
   glmEffortsFor,
+  glmTakesImages,
   isGlmModelId,
 } from '../../services/providers/zai/glmPins.js'
 import {
@@ -985,6 +986,8 @@ function catalogueDeclaresImages(model: string, route: CallModelRoute): boolean 
       return xaiModelFacts(model)?.images === true
     case 'meta':
       return metaDisplayPin(model)?.images === true
+    case 'zai':
+      return glmTakesImages(model)
     case 'openrouter':
       return modalitiesAdmitImages(openrouterListedModel(model)?.inputModalities)
     case 'huggingface':

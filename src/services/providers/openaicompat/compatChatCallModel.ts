@@ -70,6 +70,7 @@ import { imageRefusalWords, mapMessagesToZai, mapToolsToZai, toolDeclarationRowA
 import type { ZaiWireMessage } from '../zai/zaiClient.js'
 import { effortVocabularyFor, modelReceivesImageBlocks } from '../../../utils/model/capabilities.js'
 import { imageRefusalOf, noteImageRefusal } from '../../desktop/desktopSession.js'
+import type { MediaRefusal } from '../../api/mediaRefusal.js'
 import {
   streamCompatChat,
   type CompatChatRequest,
@@ -171,6 +172,7 @@ function apiErrorMessage(
   errorDetails?: string,
   overflow?: OverflowSignal | null,
   busyRefusal?: BusyRefusalV1 | null,
+  mediaRefusal?: MediaRefusal | null,
 ): AssistantMessage {
   return createAssistantAPIErrorMessage({
     content,
@@ -178,6 +180,7 @@ function apiErrorMessage(
     ...(errorDetails !== undefined ? { errorDetails } : {}),
     ...(overflow !== undefined ? { overflow } : {}),
     ...(busyRefusal !== undefined ? { busyRefusal } : {}),
+    ...(mediaRefusal !== undefined ? { mediaRefusal } : {}),
   })
 }
 
@@ -665,6 +668,8 @@ export async function* compatChatCallModel(
         typed,
         outcome.fault.code,
         overflowOf(profile.lane, outcome.fault),
+        null,
+        { blockTypes: ['image'], detail: refusedImage },
       ))
       return
     }

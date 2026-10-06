@@ -19,6 +19,12 @@ export function isGlmModelId(model: string): boolean {
   return m === 'glm' || m.startsWith('glm-')
 }
 
+const GLM_VISION_ID = /^glm-\d+(?:\.\d+)?v(?:-|\[|$)/
+
+export function glmTakesImages(model: string): boolean {
+  return GLM_VISION_ID.test(model.trim().toLowerCase())
+}
+
 export function glmAcceptsEffort(model: string, effort: string): boolean {
   return glmEffortsFor(model)?.has(effort) === true
 }

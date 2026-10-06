@@ -171,7 +171,8 @@ section('§d the route matrix of modelReceivesImageBlocks')
     ['gemini', 'gemini-2.5-pro', true],
     ['deepseek', 'deepseek-chat', true],
     ['moonshot', 'kimi-k2', true],
-    ['zai', 'glm-4.5', true],
+    ['zai', 'glm-4.5', false],
+    ['zai', 'glm-4.6v', true],
     ['openai-compat', 'compat/fixture', null],
     ['openrouter', 'openrouter/org/model', null],
     ['huggingface', 'huggingface/org/model', null],
@@ -200,15 +201,15 @@ section('§f the latch: a provider refusal of the image parks the model until an
 {
   const { noteImageRefusal, imageRefusedFor, clearImageRefusal } = await import('../../src/services/desktop/desktopSession.ts')
   clearImageRefusal()
-  check('nothing is latched at the start', imageRefusedFor('glm-4.5') === null)
-  noteImageRefusal('glm-4.5', 'images are not supported by this model')
-  check('the latched model reads its words back', imageRefusedFor('glm-4.5') === 'images are not supported by this model')
-  const verdict = await ComputerTool.validateInput!({ action: 'screenshot' } as never, toolContext({ model: 'glm-4.5' }))
+  check('nothing is latched at the start', imageRefusedFor('glm-4.6v') === null)
+  noteImageRefusal('glm-4.6v', 'images are not supported by this model')
+  check('the latched model reads its words back', imageRefusedFor('glm-4.6v') === 'images are not supported by this model')
+  const verdict = await ComputerTool.validateInput!({ action: 'screenshot' } as never, toolContext({ model: 'glm-4.6v' }))
   check('validateInput refuses the latched model naming the route, the words and /model', verdict.result === false && verdict.message.includes('refused the image') && verdict.message.includes(providerDisplayName('zai')) && verdict.message.includes('images are not supported by this model') && verdict.message.includes('/model'), JSON.stringify(verdict))
-  const decorated = await ComputerTool.validateInput!({ action: 'screenshot' } as never, toolContext({ model: 'glm-4.5[1m]' }))
+  const decorated = await ComputerTool.validateInput!({ action: 'screenshot' } as never, toolContext({ model: 'glm-4.6v[1m]' }))
   check('context-window decoration cannot evade the same model refusal', decorated.result === false && decorated.message.includes('refused the image'), JSON.stringify(decorated))
-  check('asking about another model clears the latch', imageRefusedFor('claude-opus-5') === null && imageRefusedFor('glm-4.5') === null)
-  const cleared = await ComputerTool.validateInput!({ action: 'screenshot' } as never, toolContext({ model: 'glm-4.5' }))
+  check('asking about another model clears the latch', imageRefusedFor('claude-opus-5') === null && imageRefusedFor('glm-4.6v') === null)
+  const cleared = await ComputerTool.validateInput!({ action: 'screenshot' } as never, toolContext({ model: 'glm-4.6v' }))
   check('the model drives again once the latch is cleared', cleared.result === true, JSON.stringify(cleared))
   clearImageRefusal()
 }
