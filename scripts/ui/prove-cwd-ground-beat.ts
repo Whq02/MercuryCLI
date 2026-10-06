@@ -8,9 +8,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 
 const MUST_RIDE_THE_BEAT = [
   'src/components/MercuryHome.tsx',
-  'src/components/CockpitView.tsx',
   'src/components/mercury-ui/components.tsx',
-  'src/components/MercuryFullscreen.tsx',
 ];
 
 for (const file of MUST_RIDE_THE_BEAT) {

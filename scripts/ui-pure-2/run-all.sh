@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: scripts/ui/** scripts/ui-pure-2/** src/bootstrap/state*
-# gate-watch: src/commands/appearance/index* src/commands/health/HealthCertificate*
+# gate-watch: src/commands/appearance/index* src/commands/appearance/appearance* src/commands/health/HealthCertificate*
 # gate-watch: src/commands/run/runInspectorModel*
 # gate-watch: src/commands/crew/index* src/components/** src/context/overlayContext*
 # gate-watch: src/context/overlayStack* src/daemon/** src/hooks/useLayoutTier* src/hooks/useCwdState* src/hooks/useFocusedWorkspaceCwd* src/ink/**

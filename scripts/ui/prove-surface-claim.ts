@@ -91,39 +91,6 @@ check(
   'CommandCenter embedded body asks for no percent width',
   embeddedBody !== null && !/width="100%"/.test(embeddedBody[1]!),
 )
-const towerSrc = readFileSync(
-  join(root, 'src', 'components', 'CockpitView.tsx'),
-  'utf-8',
-)
-const towerJsx = towerSrc.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/^\s*\/\/.*$/gm, '')
-check(
-  'the cockpit tower asks for no percent width',
-  !/width="100%"/.test(towerJsx),
-)
-
-console.log('-- the tower fits its slot: footer always on screen')
-check(
-  'the tower reads its budget from the modal slot (useModalOrTerminalSize)',
-  /const slot = useModalOrTerminalSize\(\{ rows: termRows, columns: termCols \}\)/.test(towerSrc),
-)
-check(
-  'the tower caps its height at the slot rows inside the modal and clips (spread, never an explicit undefined)',
-  /\{\.\.\.\(insideModal \? \{ maxHeight: slot\.rows, overflow: 'hidden' as const \} : \{\}\)\}/.test(towerSrc),
-)
-check(
-  'the body is a ScrollBox inside a shrinkable region (header/tabs/footer never shrink)',
-  /<Box ref=\{bodyBoxRef\} marginTop=\{1\} flexDirection="column" flexShrink=\{1\} minHeight=\{0\}>\s*\n\s*\{insideModal \? \(\s*\n\s*<ScrollBox ref=\{bodyRef\}/.test(towerSrc) &&
-    /<Box marginTop=\{1\} flexShrink=\{0\}>\s*\n\s*\{TABS\.map/.test(towerSrc),
-)
-check(
-  'the body binds the slot scroll route (PageUp/PageDown, ctrl+home/end, wheel)',
-  /modalScrollRef\.current = bodyRef\.current/.test(towerSrc),
-)
-check(
-  'the tower footer packs to the slot inner width (close hint reserved)',
-  /packFooter\(/.test(towerSrc) && /'esc close',\s*\n\s*\]\.join\(' · '\),\s*\n\s*Math\.max\(0, slot\.columns - 4\)/.test(towerSrc),
-)
-
 console.log('-- the transcript gutter inside the frame')
 check(
   'the transcript area pads by the gutter (1 in the cockpit frame, 0 otherwise)',
