@@ -105,6 +105,7 @@ import { anthropicCredentialPresence, providerFamilyPresences } from '../../serv
 import { slotSeatView, switchActiveSlot, type SwitchableFamily } from '../../services/providers/slotSwitch.js'
 import { paintSlotSwitchReceipt } from '../../utils/model/slotSwitchReceipt.js'
 import { deriveFamilySlotGroups, type AccountSlot } from '../../services/providers/accountSlots.js'
+import { providerDoorAccount } from '../../services/providers/providerIdentityLine.js'
 import { providerDisplayName } from '../../services/providers/routeLaw.js'
 import { catalogueEpoch } from '../../services/providers/catalogueEpoch.js'
 import { signInLedgerEpoch } from '../../utils/accounts/signInLedger.js'
@@ -514,12 +515,6 @@ function doorLabelOfSlot(family: string, slot: AccountSlot): string {
   return slot.kindLabel.replace(/ · (env|helper)$/, '')
 }
 
-function accountOfSlot(slot: AccountSlot): string | undefined {
-  if (slot.signInEmail !== undefined) return slot.signInEmail
-  if (slot.identity.includes('@')) return slot.identity
-  return /…\S+$/.exec(slot.identity)?.[0]
-}
-
 function signedInDoorsOf(family: string, slots: readonly AccountSlot[], identity?: string): ProviderHeading['doors'] {
   const signedIn = slots.filter(slot => slot.signedIn)
   const ordered = [...signedIn.filter(slot => slot.active), ...signedIn.filter(slot => !slot.active)]
@@ -527,7 +522,7 @@ function signedInDoorsOf(family: string, slots: readonly AccountSlot[], identity
   for (const slot of ordered) {
     const door = doorLabelOfSlot(family, slot)
     if (doors.some(candidate => candidate.door === door)) continue
-    const account = slot.kind !== 'api-key' && identity !== undefined ? identity : accountOfSlot(slot)
+    const account = providerDoorAccount(slot, identity)
     doors.push({ door, ...(account !== undefined ? { account } : {}), ...(slot.active ? { active: true } : {}) })
   }
   return doors
