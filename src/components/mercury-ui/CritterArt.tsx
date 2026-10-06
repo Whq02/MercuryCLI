@@ -133,19 +133,7 @@ export function composeCritterFrame(def: CritterDef, opts: CritterFrameOpts): { 
   return { art, sleepSlots }
 }
 
-function CritterArtImpl({
-  def,
-  pupil = '●',
-  gazeKey = '',
-  swayPhase = 0,
-  sleepPhase = null,
-  mini = false,
-  square = false,
-  chunky = false,
-  legendOverride,
-  glowToward,
-  lineBg,
-}: {
+export type CritterArtProps = {
   def: CritterDef
   pupil?: string
   gazeKey?: string
@@ -157,10 +145,29 @@ function CritterArtImpl({
   legendOverride?: Readonly<Record<string, string>>
   glowToward?: string
   lineBg?: (line: number) => string | undefined
-}): React.ReactNode {
+}
+
+function CritterArtLive(props: CritterArtProps): React.ReactNode {
+  const ground = React.useSyncExternalStore(subscribeTerminalGround, groundSnapshot, groundSnapshot)
+  return paintCritterArt({ ...props, ground })
+}
+
+export function paintCritterArt({
+  def,
+  pupil = '●',
+  gazeKey = '',
+  swayPhase = 0,
+  sleepPhase = null,
+  mini = false,
+  square = false,
+  chunky = false,
+  legendOverride,
+  glowToward,
+  lineBg,
+  ground,
+}: CritterArtProps & { ground?: string }): React.ReactNode {
   const { art, sleepSlots } = composeCritterFrame(def, { mini, square, pupil, gazeKey, swayPhase, sleepPhase })
-  const knownGround = React.useSyncExternalStore(subscribeTerminalGround, groundSnapshot, groundSnapshot)
-  const groundInk = chalk.level > 0 ? knownGround : ''
+  const groundInk = chalk.level > 0 ? (ground ?? groundSnapshot()) : ''
   const colorOf = (ch: string | undefined): string | undefined =>
     (ch !== undefined && legendOverride?.[ch]) || cellColor(def, ch)
 
@@ -325,7 +332,7 @@ function CritterArtImpl({
   return root
 }
 
-export const CritterArt = React.memo(CritterArtImpl)
+export const CritterArt = React.memo(CritterArtLive)
 
 export function critterFrameCacheStatsForProofs(def: CritterDef): {
   contexts: number
