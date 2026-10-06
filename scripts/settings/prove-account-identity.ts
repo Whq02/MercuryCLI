@@ -465,7 +465,55 @@ section('§5 /config carries the one row in the view group: Account identity · 
   check('the stored /config still paints the row with its default word', /Account identity\s+shown/.test(still), still.split('\n').find(line => line.includes('Account identity')) ?? 'no row in the still')
 }
 
-section('§6 the fixture never left the loopback box')
+section('§6 the other mints: the Saturn trail, the window refusal and the sign-in wall row drop the address when hidden')
+{
+  const saturn = await import(join(ROOT, 'src/components/BootSaturnScreen.tsx'))
+  const stills = await import(join(ROOT, 'scripts/ui/saturn-screen-stills.ts'))
+  const row = (stills.FIXTURE_FACTS.rows as Array<{ schedule: { account: { family: string; source: string; identity?: string } } }>).find(candidate => candidate.schedule.account.identity !== undefined)
+  check('the Saturn fixture carries a schedule with a captured identity', row !== undefined)
+  if (row !== undefined) {
+    const { family, source, identity } = row.schedule.account
+    const trail = (leg: Leg): string => {
+      setIdentity(leg)
+      return (saturn.saturnDetailLines(row, stills.FIXED_NOW, []) as string[]).join('\n')
+    }
+    check('shown: the Saturn trail names the captured account', trail('absent').split('\n').join(' ').includes(`account: ${family}/${source} · ${identity}`), trail('absent').split('\n').find(line => line.startsWith('account:')))
+    const hiddenTrail = trail('hidden')
+    check('hidden: the Saturn trail keeps the family and source and drops the address', hiddenTrail.split('\n').some(line => line === `account: ${family}/${source}`) && !hiddenTrail.includes(identity!), hiddenTrail.split('\n').find(line => line.startsWith('account:')))
+  }
+  const limits = await import(join(ROOT, 'src/services/anthropicLimits.ts'))
+  const refusal = await import(join(ROOT, 'src/services/providers/anthropicRefusal.ts'))
+  const OWNER = 'anthropic:oauth:primary:00000000-0000-4000-8000-0000000000aa'
+  limits.resetLimitsForCredentialSwitch()
+  limits.__setAnthropicOwnerResolverForTest(() => OWNER, () => ANTHROPIC_EMAIL)
+  const adopted = limits.adoptAnthropicWindowFact({ status: 'rejected', observedAtMs: NOW - 10_000, owner: OWNER, resetsAtMs: NOW + 5 * DAY, claim: 'seven_day' })
+  check('a rejected weekly window is seated for the refusal', adopted === true)
+  setIdentity('absent')
+  const shownWords = refusal.standingAnthropicRefusal()?.words ?? ''
+  setIdentity('hidden')
+  const hiddenWords = refusal.standingAnthropicRefusal()?.words ?? ''
+  check('shown: the window refusal names the account', shownWords.includes(`reached for ${ANTHROPIC_EMAIL}`), shownWords)
+  check('hidden: the window refusal names the signed-in account, no address', hiddenWords.includes('reached for the signed-in account') && !hiddenWords.includes('@'), hiddenWords)
+  limits.__setAnthropicOwnerResolverForTest(null)
+  limits.resetLimitsForCredentialSwitch()
+  const { APIError } = await import('@anthropic-ai/sdk')
+  const errors = await import(join(ROOT, 'src/services/api/errors.ts'))
+  const RECORD = 'record@example.com'
+  config.saveGlobalConfig((current: Record<string, unknown>) => ({ ...current, oauthAccount: { accountUuid: 'uuid-record-fixture', emailAddress: RECORD, organizationUuid: 'org-record-fixture' } }))
+  const wallRow = (leg: Leg): string => {
+    setIdentity(leg)
+    const error = new APIError(401, { type: 'error', error: { type: 'authentication_error', message: 'OAuth token has expired' } }, 'OAuth token has expired', new Headers())
+    return JSON.stringify(errors.getAssistantMessageFromError(error, MODEL).message.content)
+  }
+  const shownRow = wallRow('absent')
+  const hiddenRow = wallRow('hidden')
+  check('shown: the sign-in wall row names the account', shownRow.includes(`account ${RECORD}`), shownRow.slice(0, 240))
+  check('hidden: the sign-in wall row carries no address, the rest of its words kept', !hiddenRow.includes('@') && hiddenRow === shownRow.replace(` · account ${RECORD}`, ''), hiddenRow.slice(0, 240))
+  config.saveGlobalConfig((current: Record<string, unknown>) => ({ ...current, oauthAccount: undefined }))
+  setIdentity('absent')
+}
+
+section('§7 the fixture never left the loopback box')
 {
   check('the Anthropic usage endpoint was read with the fixture bearer', requests.includes('GET /api/oauth/usage'), JSON.stringify(requests.slice(0, 12)))
   check('no request reached an OAuth profile endpoint while painting', !requests.some(path => path.includes('/api/oauth/profile')), JSON.stringify(requests))

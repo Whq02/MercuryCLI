@@ -3,6 +3,7 @@ import { isClaudeAISubscriber } from '../utils/auth.js'
 import { logForDebugging } from '../utils/debug.js'
 import { logError } from '../utils/log.js'
 import { anthropicRefusalFactsOf, classifyAnthropicRefusal } from './providers/anthropicRefusal.js'
+import { accountIdentityShown } from './wallet/identityWords.js'
 import type { UsageFeed } from './providers/usageFreshness.js'
 import { processRateLimitHeaders, shouldProcessRateLimits } from './rateLimitMocking.js'
 
@@ -143,6 +144,7 @@ function resolveOwner(): string {
   return ownerOverrideForTest !== null ? ownerOverrideForTest() : currentAnthropicOwner()
 }
 function currentAnthropicAccountName(): string {
+  if (!accountIdentityShown()) return 'the signed-in account'
   if (accountNameOverrideForTest !== null) return accountNameOverrideForTest()
   try {
     const { activeWalletEntry } = require('./wallet/wallet.js') as typeof import('./wallet/wallet.js')
