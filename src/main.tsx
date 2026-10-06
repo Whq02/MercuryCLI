@@ -2120,6 +2120,9 @@ async function runLaunch(args: {
           if (command.type === 'local') {
             return command.supportsNonInteractive === true
           }
+          if (command.type === 'local-jsx') {
+            return (command.headlessVerbs ?? []).length > 0
+          }
           return false
         })
 
