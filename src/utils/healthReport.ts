@@ -2100,11 +2100,10 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               return {
                 status: 'warn',
                 evidence,
-                fix: 'Resolve the conflicting leases in /fleet before the agents collide.',
-                link: '/fleet',
+                fix: 'Resolve the conflicting leases before the agents collide.',
               }
             }
-            return { status: 'ok', evidence, link: '/fleet' }
+            return { status: 'ok', evidence }
           },
         },
         {
@@ -2504,7 +2503,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                 evidence:
                   `no composition recorded yet this session · instructions ` +
                   `${bundle.entries.length} source(s) · ${instructionChars} chars`,
-                link: '/provenance',
               }
             }
             const OVERSIZED_SECTION_CHARS = 20_000
@@ -2539,7 +2537,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                 `(digest ${provenance.digest}) · instructions ${instructionChars} chars / ` +
                 `${bundle.entries.length} source(s) · top: ${top}` +
                 (notes.length > 0 ? ` · ${notes.join(' · ')}` : ''),
-              link: '/provenance',
             }
           },
         },
@@ -2573,7 +2570,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               status: 'info',
               evidence: `${overrides.length} flag(s) overridden in env: ${show}${overrides.length > 4 ? ` … +${overrides.length - 4} more` : ''}${stampNote}`,
               detail: overrides.map(f => `${f.env}=${String(flagEnv(f.env)).slice(0, 40)} (${f.kind})`).join(' · '),
-              link: '/substrate',
+              link: '/capabilities',
             }
           },
         },
@@ -3351,7 +3348,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             return {
               status: 'info',
               evidence: `${s.data.active}/${s.data.total} capabilities on · trace ${trace ? 'recording' : 'off'}`,
-              link: trace ? '/trace' : '/substrate',
+              link: trace ? '/trace' : '/capabilities',
             }
           },
         },

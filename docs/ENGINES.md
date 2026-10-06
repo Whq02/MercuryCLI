@@ -793,7 +793,7 @@ fits, an ellipsis closing the cut, and keeps its `/model to return` tail.
 `MERCURY_FAILOVER_LINE_MS` sets the sentence's window in milliseconds
 (1000 or more; the default is two minutes).
 
-Every meter surface — the telemetry rail's USAGE panel, `/deck`, the frame
+Every meter surface — the telemetry rail's USAGE panel, the frame
 band, `/usage` and the health check's per-family usage rows — reads one owner and
 paints one grammar: a family's shared windows first, then every per-model
 weekly pool it reports beside them (the first-party subscription's Fable,
@@ -915,7 +915,7 @@ page.
 A Kimi sign-in shows its Extra Usage balance in the stated currency beside its plan windows, or says when the managed-usage endpoint reports no balance.
 OpenRouter OAuth-minted keys show the same remaining credit under the key cap as API keys, with the read's age and any refusal under the affected account. Below Mercury's $10 floor, `/usage` names the remaining amount and the credits page; an uncapped key has no balance notice. This is the key's remaining allowance, not the account balance.
 
-The ChatGPT sign-in shows OpenAI's credit balance or unlimited credits beside its usage windows, with the last read's age, in `/usage`, the rail, `/deck` and its account row.
+The ChatGPT sign-in shows OpenAI's credit balance or unlimited credits beside its usage windows, with the last read's age, in `/usage`, the rail and its account row.
 
 A window that reads reached — 100%, or a refused request — says what carries the requests from there, from the vendor's own statement: a Claude subscription on extra usage names its figure ("on extra usage · USD 12.40 of 50.00 this month") or says "extra usage off — nothing carries requests until the reset" with the reason Anthropic gives, a ChatGPT sign-in says "on credits · 62,500 left" or "no credits — nothing carries requests until the reset", a Kimi sign-in names its Extra Usage balance, and a family that states nothing about it says so in one clause; the words ride the rail's and `/deck`'s reached line, the `/usage` tab's reached sentence, the strip warning at 100%, the account-slot offer, the handoff notice, the refusal rows and blockers, and the health check's usage row.
 

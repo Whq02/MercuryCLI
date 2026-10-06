@@ -37,7 +37,7 @@ export function getSteps(): Step[] {
 
   steps.push({
     key: 'mercurymd',
-    text: 'Run /init to create a MERCURY.md file with standing orders for this project',
+    text: 'Run /orient to create a MERCURY.md file with standing orders for this project',
     isComplete: composedGuideFilesAt(getCwd()).length > 0,
     isCompletable: true,
     isEnabled: !emptyDir,

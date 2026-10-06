@@ -183,7 +183,7 @@ function MercuryHomeBody(): React.ReactNode {
         )}
         {
 }
-        <InteractiveRow {...rowClick('standing-by', '/deck')}>
+        <InteractiveRow {...rowClick('standing-by', '/palette')}>
           <BreathingDot />
           <Text color={tok.success}> ready</Text>
           <Text color={tok.textMuted}>
@@ -225,7 +225,7 @@ function MercuryHomeBody(): React.ReactNode {
         {
 }
         {!helmHome && !deckPresent ? (
-          <InteractiveRow {...rowClick('fleet', '/fleet')}>
+          <InteractiveRow {...rowClick('fleet', '/crewmates')}>
           <Text wrap="truncate-end">
             <Text color={tok.textMuted}>{'  fleet   '}</Text>
             {agents > 0 ? (
@@ -250,10 +250,10 @@ function MercuryHomeBody(): React.ReactNode {
         {
 }
         {projectScopeEmpty && isProjectCwd ? (
-          <InteractiveRow {...rowClick('init-signpost', '/init')}>
+          <InteractiveRow {...rowClick('init-signpost', '/orient')}>
             <Text wrap="truncate-end">
               <Text color={tok.textMuted}>{'  no MERCURY.md here · '}</Text>
-              <Text color={tok.info}>/init</Text>
+              <Text color={tok.info}>/orient</Text>
               <Text color={tok.textMuted}> studies the repo and writes it</Text>
             </Text>
           </InteractiveRow>
@@ -271,7 +271,7 @@ function MercuryHomeBody(): React.ReactNode {
           <Text color={tok.textSecondary}> sends</Text>
           {
 }
-          <Text color={tok.textMuted}>{`  ·  /workflows ${CREW_VIEW_DOOR} /saturn /health /cockpit /trace`}</Text>
+          <Text color={tok.textMuted}>{`  ·  /workflows ${CREW_VIEW_DOOR} /saturn /health /trace`}</Text>
         </Text>
       </Box>
     </Box>

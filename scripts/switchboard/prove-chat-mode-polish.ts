@@ -24,7 +24,7 @@ t.section('§A — the ⚑ badge\'s jump per world')
   t.check('the fleet world names the board and its chord', needsYouJump({ plain: false, ownOnly: false, boardChord: chord }) === 'ctrl+x c board')
   t.check('the fleet world names the board even when every ask is the chat\'s own (the board lists it too)', needsYouJump({ plain: false, ownOnly: true, boardChord: chord }) === 'ctrl+x c board')
   t.check('the plain world, every ask the focused chat\'s own: "this chat"', needsYouJump({ plain: true, ownOnly: true, boardChord: chord }) === 'this chat')
-  t.check('the plain world, another session\'s ask: the estate\'s resume door (/resume — the face\'s Continue/Resume from inside the chat)', needsYouJump({ plain: true, ownOnly: false, boardChord: chord }) === '/resume')
+  t.check('the plain world, another session\'s ask: the estate\'s resume door (/sessions — the face\'s Continue/Resume from inside the chat)', needsYouJump({ plain: true, ownOnly: false, boardChord: chord }) === '/sessions')
   t.check('POISON absent: the plain world never says "board" and never names the chord', [true, false].every(own => { const j = needsYouJump({ plain: true, ownOnly: own, boardChord: chord }); return !j.includes('board') && !j.includes(chord) }))
   t.check('the jump follows a rebind in the fleet world (the resolver\'s display, never a copied string)', needsYouJump({ plain: false, ownOnly: false, boardChord: 'alt+b' }) === 'alt+b board')
   const frame = read('src/components/MercuryFrame.tsx')
@@ -102,7 +102,7 @@ t.section('§F — the sweep: board vocabulary follows the world or falls silent
   const connector = read('src/services/engine-connector/daemonConnector.ts')
   t.check('a refused resume names no concourse (the daemon resumes it; the sentence is the same in both worlds)', connector.includes('`the session could not resume — ${refusal} · ↵ again retries`') && !connector.includes('could not resume on the concourse'))
   t.check('/tasks\' workflow pointers to the run board fall silent in the plain world', read('src/components/tasks/BackgroundTasksDialog.tsx').includes("work.kind === 'workflow' && !chatOnlyBoot() ? '; /workflows opens the run board' : ''") && read('src/components/tasks/RunDetailPane.tsx').includes("nothing to ${verb}${chatOnlyBoot() ? '' : '; R on the board resumes it'}`") && read('src/components/tasks/RunDetailPane.tsx').includes("nothing to ${verb}${chatOnlyBoot() ? '' : '; R on the board resumes it from disk'}`"))
-  t.check('the substrate catalogue lists /deck and /fleet as off in the plain world (/trace stays)', read('src/utils/cockpit/substrateSnapshot.ts').includes("{ name: '/trace', on: true, hint: 'always-on · /deck and /fleet are off in this boot — the concourse is off' }"))
+  t.check('the substrate catalogue lists /trace always-on in every world and names no concourse-only door', read('src/utils/cockpit/substrateSnapshot.ts').includes("{ name: '/trace', on: true, hint: 'always-on' }") && !/name: '[^']*\/(deck|fleet)/.test(read('src/utils/cockpit/substrateSnapshot.ts')))
   const gatedFiles = ['src/components/MercuryFrame.tsx', 'src/components/mercury-ui/SessionTabs.tsx', 'src/components/HelpV2/ShortcutsTab.tsx', 'src/components/BootSplashScreen.tsx', 'src/components/BootSettingsScreen.tsx']
   for (const f of gatedFiles) {
     const src = read(f)

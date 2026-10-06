@@ -102,7 +102,6 @@ export const getExampleCommandFromCache = memoize((): string => {
     `edit ${file} to...`,
     `write a test for ${file}`,
     'create a util logging.py that...',
-    'open /cockpit',
     'check /trace for recent runs',
     `walk me through ${file}`,
     'what is the substrate status?',
