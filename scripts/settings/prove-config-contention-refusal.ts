@@ -54,7 +54,7 @@ console.log('L1 the held lock — the save refuses, the file stands')
     await new Promise(resolve => holder.stdout.on('data', chunk => { if (String(chunk).includes('HELD')) resolve() }))
     const before = raw()
     const refusalsBefore = g.getConfigContentionRefusalCount?.() ?? 'absent'
-    g.saveGlobalConfig(c => ({ ...c, theme: 'light' }))
+    g.saveGlobalConfig(c => ({ ...c, theme: 'not-a-theme' }))
     out.same = raw() === before
     out.refusals = g.getConfigContentionRefusalCount?.() ?? 'absent'
     out.refusalsBefore = refusalsBefore
@@ -71,13 +71,13 @@ console.log('L2 control — an uncontended save lands')
   mkdirSync(home, { recursive: true })
   const r = runIn(home, `
     fs.writeFileSync(file, JSON.stringify(${JSON.stringify(REAL_STATE)}))
-    g.saveGlobalConfig(c => ({ ...c, theme: 'light' }))
+    g.saveGlobalConfig(c => ({ ...c, theme: 'not-a-theme' }))
     const parsed = JSON.parse(raw())
     out.theme = parsed.theme
     out.keeper = parsed.mcpServers?.keeper !== undefined
     out.refusals = g.getConfigContentionRefusalCount?.() ?? 'absent'
   `)
-  check('the save lands and keeps the rest of the monolith', r.theme === 'light' && r.keeper === true, JSON.stringify(r))
+  check('the save lands and keeps the rest of the monolith', r.theme === 'not-a-theme' && r.keeper === true, JSON.stringify(r))
   check('no refusal is counted', r.refusals === 0 || r.refusals === 'absent', `refusals=${JSON.stringify(r.refusals)}`)
 }
 
@@ -95,7 +95,7 @@ console.log('L3 the backup runs outside the locked section')
   mkdirSync(home, { recursive: true })
   const r = runIn(home, `
     fs.writeFileSync(file, JSON.stringify(${JSON.stringify(REAL_STATE)}))
-    g.saveGlobalConfig(c => ({ ...c, theme: 'light' }))
+    g.saveGlobalConfig(c => ({ ...c, theme: 'not-a-theme' }))
     const backups = (() => { try { return fs.readdirSync(g.getConfigBackupDir()).filter(n => n.includes('.backup.')) } catch { return [] } })()
     out.backups = backups.length
   `)

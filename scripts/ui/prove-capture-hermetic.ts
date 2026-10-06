@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const REPO = join(import.meta.dir, '..', '..')
-const ENTRY = 'frame--120x40--light--truecolor--full'
+const ENTRY = 'frame--120x40--dark--truecolor--full'
 const OWNER_MODEL = 'local/qwen3.5:27b'
 const PROOF_KEY = 'proof-key-ci-gate-not-a-real-key'
 const KEEP = process.argv.includes('--keep')

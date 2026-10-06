@@ -166,7 +166,7 @@ t.section('§2 — the role derivation (mercuryTokens)')
     nonCrab.focalRamp.join(' '),
   )
 
-  for (const family of ['light', 'dark-ansi', 'dark-daltonized', 'light-daltonized'] as const) {
+  for (const family of ['not-a-theme'] as const) {
     const tk = resolveMercuryTokens(family, TERRA)
     t.check(
       `${family}: the ramp collapses to the plain accent`,

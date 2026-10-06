@@ -14,7 +14,6 @@ import {
   FAINT,
   groundFamilyFor,
   IVORY,
-  NIGHT,
   OASIS,
   SECOND,
   TEAL,
@@ -252,12 +251,7 @@ function agentAccentsOf(theme: Theme): AgentAccent[] {
 }
 
 export function isDarkThemeFamily(name: ThemeName): boolean {
-  return (
-    name === 'dark' ||
-    name === 'true-black' ||
-    name === 'dark-daltonized' ||
-    name === 'dark-ansi'
-  )
+  return name === 'dark' || name === 'true-black'
 }
 
 export function listUnresolvedTokenRoles(tokens: MercuryThemeTokens): string[] {
@@ -346,9 +340,7 @@ export function resolveMercuryTokens(
       agentAccents: agentAccentsOf(theme),
     }
   } else {
-    const dark = isDarkThemeFamily(themeName)
     tokens = {
-      ...(dark ? { canvas: NIGHT } : {}),
       surface0: theme.userMessageBackground,
       surface1: theme.userMessageBackground,
       surface2: theme.userMessageBackgroundHover,

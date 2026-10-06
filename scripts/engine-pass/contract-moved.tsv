@@ -32,3 +32,5 @@ unexported	TitleAction	no reader outside its own file: the export keyword leaves
 unexported	OSC_PREFIX	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
 unexported	ClipboardPath	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
 unexported	tmuxLoadBuffer	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
+shape	src/ink.ts:color	the theme name it takes is one of the two appearances (dark, true-black) or any other name: the other theme families left the code with their palettes	themes	e04b433a4
+shape	src/ink.ts:useThemeSetting	the setting it returns is auto, one of the two appearances (dark, true-black) or any other name: the other theme families left the code with their palettes	themes	e04b433a4

@@ -22,10 +22,9 @@ function paletteIndex(index: number): Color {
 
 const TERMINAL_DEFAULT: Color = { r: 0, g: 0, b: 0, a: 1 }
 
-type ColorMode = 'ansi' | 'truecolor' | 'color256'
+type ColorMode = 'truecolor' | 'color256'
 
-function detectColorMode(themeName: string): ColorMode {
-  if (themeName.includes('ansi')) return 'ansi'
+function detectColorMode(): ColorMode {
   return truecolorActive() ? 'truecolor' : 'color256'
 }
 
@@ -172,21 +171,6 @@ const LIGHT_SCOPES: Record<string, Color> = {
   subst: rgb(51, 51, 51),
 }
 
-const ANSI_SCOPES: Record<string, Color> = {
-  keyword: paletteIndex(13),
-  storage: paletteIndex(14),
-  'built_in': paletteIndex(14),
-  type: paletteIndex(14),
-  literal: paletteIndex(12),
-  number: paletteIndex(12),
-  string: paletteIndex(10),
-  title: paletteIndex(11),
-  'title.function': paletteIndex(11),
-  'title.class': paletteIndex(11),
-  comment: paletteIndex(8),
-  meta: paletteIndex(8),
-}
-
 const MERCURY_BRAND_DIFF = {
   addLine: rgb(8, 38, 32),
   addWord: rgb(14, 64, 54),
@@ -195,14 +179,10 @@ const MERCURY_BRAND_DIFF = {
 }
 
 function buildDiffTheme(themeName: string): DiffTheme {
-  const mode = detectColorMode(themeName)
-  const isAnsi = themeName.includes('ansi')
-  const isDaltonized = themeName.includes('daltonized')
-  const isDarkish =
-    themeName.includes('dark') ||
-    themeName.includes('black')
+  const mode = detectColorMode()
+  const isDarkish = themeName === 'dark' || themeName === 'true-black'
 
-  if (mode === 'truecolor' && !isAnsi && !isDaltonized && isDarkish) {
+  if (mode === 'truecolor' && isDarkish) {
     return {
       addedLineBg: MERCURY_BRAND_DIFF.addLine,
       addedWordBg: MERCURY_BRAND_DIFF.addWord,
@@ -215,37 +195,11 @@ function buildDiffTheme(themeName: string): DiffTheme {
       scopes: DARK_SCOPES,
     }
   }
-  if (isAnsi) {
+  if (isDarkish) {
     return {
-      addedLineBg: TERMINAL_DEFAULT,
-      addedWordBg: TERMINAL_DEFAULT,
-      addedDecoration: paletteIndex(10),
-      deletedLineBg: TERMINAL_DEFAULT,
-      deletedWordBg: TERMINAL_DEFAULT,
-      deletedDecoration: paletteIndex(9),
-      foreground: paletteIndex(7),
-      background: TERMINAL_DEFAULT,
-      scopes: ANSI_SCOPES,
-    }
-  }
-  if (themeName.includes('dark') || themeName.includes('black')) {
-    const truecolor = mode === 'truecolor'
-    return {
-      addedLineBg: isDaltonized
-        ? truecolor
-          ? rgb(0, 27, 41)
-          : paletteIndex(17)
-        : truecolor
-          ? rgb(2, 40, 0)
-          : paletteIndex(22),
-      addedWordBg: isDaltonized
-        ? truecolor
-          ? rgb(0, 48, 71)
-          : paletteIndex(24)
-        : truecolor
-          ? rgb(4, 71, 0)
-          : paletteIndex(28),
-      addedDecoration: isDaltonized ? rgb(81, 160, 200) : rgb(80, 200, 80),
+      addedLineBg: paletteIndex(22),
+      addedWordBg: paletteIndex(28),
+      addedDecoration: rgb(80, 200, 80),
       deletedLineBg: rgb(61, 1, 0),
       deletedWordBg: rgb(92, 2, 0),
       deletedDecoration: rgb(220, 90, 90),
@@ -255,9 +209,9 @@ function buildDiffTheme(themeName: string): DiffTheme {
     }
   }
   return {
-    addedLineBg: isDaltonized ? rgb(219, 237, 255) : rgb(220, 255, 220),
-    addedWordBg: isDaltonized ? rgb(179, 217, 255) : rgb(178, 255, 178),
-    addedDecoration: isDaltonized ? rgb(36, 87, 138) : rgb(36, 138, 61),
+    addedLineBg: rgb(220, 255, 220),
+    addedWordBg: rgb(178, 255, 178),
+    addedDecoration: rgb(36, 138, 61),
     deletedLineBg: rgb(255, 220, 220),
     deletedWordBg: rgb(255, 199, 199),
     deletedDecoration: rgb(207, 34, 46),
@@ -624,7 +578,7 @@ function renderLines(
   hasMarkers: boolean,
   wordRanges: Map<number, CharRange[]>,
 ): string[] {
-  const mode = detectColorMode(themeName)
+  const mode = detectColorMode()
   const theme = buildDiffTheme(themeName)
   const language = detectLanguage(filePath, firstLine)
   const effectiveWidth = Math.max(1, width - gutterWidth - 2 - (hasMarkers ? 1 : 0))
@@ -660,18 +614,6 @@ function renderLines(
           return [...row, { text: ' '.repeat(effectiveWidth - rowWidth), fg: theme.foreground, bg: lineBg }]
         }
         return row
-      })
-    }
-
-    if (mode === 'ansi' && line.marker === '-') {
-      rows = rows.map(row => {
-        if (row.length === 0) return row
-        const first = { ...row[0]!, text: DIM + row[0]!.text }
-        const last =
-          row.length === 1
-            ? { ...first, text: `${first.text}${UNDIM}` }
-            : { ...row[row.length - 1]!, text: row[row.length - 1]!.text + UNDIM }
-        return row.length === 1 ? [last] : [first, ...row.slice(1, -1), last]
       })
     }
 
@@ -806,11 +748,8 @@ export type ColorFileClass = typeof ColorFile
 export type SyntaxTheme = { theme: string; source: string | null }
 
 export function getSyntaxTheme(uiTheme: string): SyntaxTheme {
-  const theme = uiTheme.includes('ansi')
-    ? 'ansi'
-    : uiTheme.includes('dark') || uiTheme.includes('black')
-      ? 'Monokai Extended'
-      : 'GitHub'
+  const theme =
+    uiTheme === 'dark' || uiTheme === 'true-black' ? 'Monokai Extended' : 'GitHub'
   return { theme, source: null }
 }
 
@@ -835,6 +774,5 @@ export const __test = {
   wordDiff,
   quantizeToAnsi256,
   emitBlocks,
-  detectColorMode,
   detectLanguage,
 }

@@ -9,10 +9,11 @@ import {
   getSettingsFilePathForSource,
 } from '../../utils/settings/settings.js'
 import { getGlobalConfig } from '../../utils/config.js'
+import { DEFAULT_THEME_SETTING } from '../../utils/systemTheme.js'
 import { getTheme } from '../../utils/theme.js'
 
 function themeColors(): { error: (text: string) => string; success: (text: string) => string } {
-  const theme = getTheme(getGlobalConfig().theme ?? 'light')
+  const theme = getTheme(getGlobalConfig().theme ?? DEFAULT_THEME_SETTING)
   return {
     error: (text: string) => colorize(text, theme.error, 'foreground'),
     success: (text: string) => colorize(text, theme.success, 'foreground'),
