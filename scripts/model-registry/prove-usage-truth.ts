@@ -338,11 +338,11 @@ section('4 · structural — two slots, honest absences, one owner, both seams')
   const facade = codeOnlyText('src/services/providers/providerUsage.ts', src('src/services/providers/providerUsage.ts'))
   const dispatch = codeOnlyText('src/services/providers/slotSwitch.ts', src('src/services/providers/slotSwitch.ts'))
   check(
-    'facade: the anthropic windows read the SAME anthropicLimits store the dispatch-side wall check reads (currentLimits.status)',
+    'facade: the anthropic windows read the SAME anthropicLimits store the dispatch-side wall check reads (currentLimits through anthropicWindowClosed)',
     facade.includes("from '../anthropicLimits.js'") &&
       facade.includes('status: currentLimits.status, raw: getRawUtilization()') &&
       dispatch.includes("require('../anthropicLimits.js')") &&
-      dispatch.includes("currentLimits.status === 'rejected'"),
+      dispatch.includes('anthropicWindowClosed(currentLimits)'),
   )
   check(
     'facade: the openai bands read the SAME openaiLimitState module the dispatch-side pause reads (openaiLimitWindow)',
