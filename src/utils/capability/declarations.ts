@@ -11,14 +11,6 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     cancellation: 'cooperative',
     latency: 'long-running',
   },
-  ArtifactsList: {
-    intents: ['list durable artifacts', 'find a stored artifact'],
-    units: ['resource-inspection'],
-    class: 'observation',
-    resources: ['artifact'],
-    cancellation: 'not-applicable',
-    latency: 'fast',
-  },
   ApolloReview: {
     intents: ['present the closing review of an Apollo pre-flight spec', 'ask the operator to approve or revise an Apollo spec', 'close an Apollo interview'],
     units: ['operator-io'],
@@ -294,10 +286,10 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     latency: 'fast',
   },
   SendMessage: {
-    intents: ['message a crewmate or the crew', 'relay work between agents'],
+    intents: ['message a crewmate of this session by its id or name', 'reach the main agent from a background crewmate'],
     units: ['task-coordination'],
     class: 'coordination',
-    resources: ['crew'],
+    resources: ['agent'],
     cancellation: 'not-applicable',
     latency: 'fast',
     proof: 'scripts/crew/run-all.sh',
@@ -389,14 +381,6 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     latency: 'fast',
     gate: 'MERCURY_TASKS',
     conditions: ['an interactive session (a headless run needs MERCURY_TASKS=1)'],
-  },
-  LiveComms: {
-    intents: ['read and write the crew\'s live state'],
-    units: ['task-coordination'],
-    class: 'coordination',
-    resources: ['crew'],
-    cancellation: 'not-applicable',
-    latency: 'fast',
   },
   Test: {
     intents: [
