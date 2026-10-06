@@ -366,7 +366,7 @@ function paneRows(lines: string[]): string[] {
 
 const GUTTER = /^│\s*/
 const DRESS = /^(\d\d:\d\d:\d\d\s+|queued\s+|\[(?!Monitor\])[^\]]+\]\s*|[◐◑◒◓●⏺✶✷✸✹✺✻]\s*)+/
-const HEAD = /^(❯|▰|▶|■|◆|✶|Ran \d|Read \d|Searched)/
+const HEAD = /^(❯|[▰▤▽▨▣◧◵△▦▧▱▥▷]|▶|■|◆|✶|Ran \d|Read \d|Searched)/
 function runsOf(rows: string[]): string[] {
   const out: string[] = []
   let open = false
