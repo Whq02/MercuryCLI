@@ -97,7 +97,6 @@ import { daemonDir } from '../daemon/controlSocket.js'
 import type { DaemonSignInViewV1 } from '../daemon/protocol.js'
 import { getGlobalMercuryFile } from './env.js'
 import { getMacOsKeychainStorageServiceName } from './secureStorage/macOsKeychainHelpers.js'
-import { fleetGauge } from './cockpit/fleetGauge.js'
 import { gitSnapshot } from './cockpit/gitSnapshot.js'
 import { mcpGauge } from './cockpit/mcpGauge.js'
 import { substrateSnapshot } from './cockpit/substrateSnapshot.js'
@@ -2080,30 +2079,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               evidence: `${dead.length} roster member(s) point at a DEAD cwd: ${dead.slice(0, 3).join(' · ')}${dead.length > 3 ? ' · …' : ''}`,
               fix: 'Fix the cwd or archive the crew directory — spawn paths refuse dead-cwd rosters.',
             }
-          },
-        },
-        {
-          id: 'fleet',
-          label: 'Coordination',
-          run: async () => {
-            const fleet = await fleetGauge()
-            if (fleet.state === 'off') {
-              return { status: 'off', evidence: fleet.reason ?? 'not in a crew — solo session' }
-            }
-            if (fleet.state !== 'live') {
-              return { status: 'unknown', evidence: fleet.reason ?? 'coordination read failed' }
-            }
-            const live = fleet.data.health.filter(a => a.state !== 'idle').length
-            const conflicts = fleet.data.conflicts.length
-            const evidence = `crew "${fleet.data.crewName}" · ${fleet.data.health.length} agents · ${live} active · ${fleet.data.leases.length} leases · ${conflicts} conflicts`
-            if (conflicts > 0) {
-              return {
-                status: 'warn',
-                evidence,
-                fix: 'Resolve the conflicting leases before the agents collide.',
-              }
-            }
-            return { status: 'ok', evidence }
           },
         },
         {

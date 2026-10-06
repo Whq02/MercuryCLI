@@ -7,7 +7,7 @@ import type {
   LocalJSXCommandContext,
   LocalJSXCommandOnDone,
 } from '../../types/command.js'
-import { kitDialLine, mcpRosterLine, mcpRouteArm, MCP_ORGAN_LINE } from './route.js'
+import { kitDialLine, mcpRosterLine, mcpRouteArm } from './route.js'
 
 function McpToggle({
   action,
@@ -24,7 +24,6 @@ function McpToggle({
     ranRef.current = true
     void (async () => {
       const { getFocusedSessionConnector } = await import('../../services/engine-connector/focusedConnector.js')
-      const { isMcpOrgan } = await import('../../services/mcp/membership.js')
       const connector = getFocusedSessionConnector()
       const roster = connector.mcpRoster()
       const on = action === 'enable'
@@ -32,7 +31,6 @@ function McpToggle({
       let asked: string
       if (target === 'all') {
         dials = roster.clients
-          .filter(client => !isMcpOrgan(client.name))
           .filter(client => (on ? client.type === 'disabled' : client.type !== 'disabled'))
           .map(client => ({ name: client.name, on }))
         if (dials.length === 0) {
@@ -41,10 +39,6 @@ function McpToggle({
         }
         asked = `${on ? 'Enabled' : 'Disabled'} ${dials.length} MCP server${dials.length === 1 ? '' : 's'}`
       } else {
-        if (isMcpOrgan(target)) {
-          onDone(MCP_ORGAN_LINE(target))
-          return
-        }
         if (!roster.clients.some(client => client.name === target)) {
           onDone(`MCP server "${target}" not found.`)
           return

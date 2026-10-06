@@ -267,7 +267,6 @@ export async function gatherWorkbenchInputs(opts?: {
       ...(w.title !== undefined && { title: w.title }),
       agentCount: w.agentCount,
     })),
-    crew: telemetry.crew,
     artifacts: valueOr(artifactsSrc, []),
     gitWorktreeLanes: valueOr(gitWorktreesSrc, []),
     sources: {

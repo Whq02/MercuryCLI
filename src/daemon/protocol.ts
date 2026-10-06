@@ -66,8 +66,6 @@ export type DaemonOp =
   | 'reply'
   | 'kill'
   | 'reconfigure'
-  | 'envelope'
-  | 'crewSpawn'
   | 'concourseAdmit'
   | 'concourseDispatch'
   | 'concourseList'
@@ -151,30 +149,12 @@ export type DaemonRequest =
       signal?: NodeJS.Signals
     }
   | {
-      op: 'envelope'
-      proto: number
-      auth?: string
-      to: string
-      crew?: string
-      env: unknown
-      color?: string
-    }
-  | {
       op: 'reconfigure'
       proto: number
       auth?: string
       short: string
       model?: string
       effort?: string
-    }
-  | {
-      op: 'crewSpawn'
-      proto: number
-      auth?: string
-      name: string
-      model: string
-      cwd?: string
-      worktree?: true | { at?: string }
     }
   | {
       op: 'sessionAdmit'
@@ -405,10 +385,8 @@ export type DaemonReply =
   | { ok: true; op: 'status'; status: WireStatus }
   | { ok: true; op: 'dispatch'; short: string; pid?: number; via?: string }
   | { ok: true; op: 'reply' }
-  | { ok: true; op: 'envelope'; journaled: boolean }
   | { ok: true; op: 'kill' }
   | { ok: true; op: 'reconfigure'; respawned: boolean; pending: boolean; note?: string }
-  | { ok: true; op: 'crewSpawn'; pid?: number }
   | {
       ok: true
       op: 'sessionAdmit' | 'concourseAdmit'

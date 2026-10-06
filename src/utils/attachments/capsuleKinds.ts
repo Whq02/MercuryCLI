@@ -20,7 +20,6 @@ export const capsuleKinds = {
   diagnostics: { section: 'Diagnostics', cadence: 'event' },
   task_reminder: { section: 'Reminders', cadence: 'event' },
   contract_reminder: { section: 'Reminders', cadence: 'event' },
-  crew_context: { section: 'Crew', cadence: 'state' },
   date_change: { section: 'Date', cadence: 'state' },
 } as const satisfies Partial<Record<Attachment['type'], { section: CapsuleSectionName; cadence: 'state' | 'event' }>>
 

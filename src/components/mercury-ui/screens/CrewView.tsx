@@ -1,8 +1,7 @@
 import * as React from 'react'
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
 import { Box, Text, useInput } from '../../../ink.js'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
-import { crewEnabled } from '../../../daemon/crewSpawn.js'
 import {
   CREW_EMPTY_DOOR,
   CREW_EMPTY_LINE,
@@ -27,8 +26,6 @@ import {
   getFocusedSessionConnector,
   hasFocusedSession,
 } from '../../../services/engine-connector/focusedConnector.js'
-import { spawnSwitchOffReceipt } from '../../../services/switchboard/spawnSwitches.js'
-import { pokeTelemetry, useTelemetry, type CrewGlanceMember } from '../../../state/telemetryBus.js'
 import { RosterWorkDetail } from '../../tasks/BackgroundTasksDialog.js'
 import {
   focusedRunnerPresence,
@@ -44,30 +41,22 @@ import { useOpenEventGate } from '../useOpenEventGate.js'
 import { useStableSelection } from '../useStableSelection.js'
 import { CREW_RESUME_HINT, crewStopArmed, crewStopHint, pressCrewStop, type CrewStopArm } from './crewStopChord.js'
 import { crewPauseDoorKey, crewPauseDoorNote, pressCrewPause } from './crewPauseDoor.js'
-import { CrewmateChatsView } from './CrewmateChatsView.js'
 import { useAppStateMaybeOutsideOfProvider, useSetAppStateMaybe, type AppState } from '../../../state/AppState.js'
 import { enterCrewmateView, setMainChat } from '../../../state/crewmateViewHelpers.js'
-import { requestCommandDispatch } from '../../../utils/cockpit/helmFocus.js'
-import { CREW_CLEAR_KEY, CREW_MAIN_CHAT_KEY, CREW_OPEN_IN_VIEW_KEY, CREW_SPAWN_DOOR, crewChatDoor, crewClearedWords, crewClearRefusedWords } from '../../../utils/cockpit/crewmateWords.js'
+import { CREW_CLEAR_KEY, CREW_MAIN_CHAT_KEY, CREW_OPEN_IN_VIEW_KEY, crewClearedWords, crewClearRefusedWords } from '../../../utils/cockpit/crewmateWords.js'
 import { clearCrewmate } from '../../../state/crewLedger.js'
 import { useSessionCrew } from '../../tasks/useCrewLedger.js'
-import { crewRosterOf } from '../../../services/crew/roster.js'
 import { crewWorktreeLeftWords } from '../../../utils/crew/crewWorktreeReminder.js'
-import { CREW_SEAT_ID_PREFIX, crewResumedWords, crewResumeRefusedWords, crewResumingWords, resumeCrewmate } from '../../../utils/crew/crewClient.js'
 import { getCwd } from '../../../utils/cwd.js'
 import { pauseStatusWords } from '../../../tasks/LocalAgentTask/agentPause.js'
 
 
-type Row =
-  | { kind: 'agent'; id: string; facts: CrewAgentFacts }
-  | { kind: 'named'; id: string; member: CrewGlanceMember; facts: CrewAgentFacts }
+type Row = { kind: 'agent'; id: string; facts: CrewAgentFacts }
 
 type Mode =
   | { view: 'list' }
   | { view: 'card'; id: string }
-  | { view: 'chat'; name?: string; spawn?: boolean; fromDoor: boolean }
 
-const EMPTY_NAMED: readonly CrewGlanceMember[] = []
 const OPEN_GATE = { paused: false, parked: 0 } as const
 
 const NAME_W = 20
@@ -79,13 +68,9 @@ function crewRowWidths(width: number, status: string): { name: number; status: n
 
 export function CrewView({
   onClose,
-  initialChat,
-  initialSpawn = false,
   popup = false,
 }: {
   onClose: () => void
-  initialChat?: string
-  initialSpawn?: boolean
   popup?: boolean
 }): React.ReactNode {
   const tokens = useMercuryTokens()
@@ -98,33 +83,15 @@ export function CrewView({
   const sessionCrew = useSessionCrew()
   const agents = useMemo(() => sessionCrew.map(row => row.facts), [sessionCrew])
   const workById = useMemo(() => new Map(roster.rows.map(r => [r.id, r] as const)), [roster])
-  const named = useTelemetry(s => s.crew) ?? EMPTY_NAMED
-  const namedOn = crewEnabled()
   const billed = hasFocusedSession() && getFocusedSessionConnector().identity().consoleBilling
   const rows = useMemo<Row[]>(
-    () =>
-      crewRosterOf(agents, named).map((record): Row => {
-        if (record.kind === 'seat') {
-          const member = named.find(m => m.name === record.name) ?? { name: record.name, online: false, unread: 0 }
-          return { kind: 'named', id: `n:${record.name}`, member, facts: record.facts }
-        }
-        return { kind: 'agent', id: `a:${record.id}`, facts: record.facts }
-      }),
-    [agents, named],
+    () => agents.map((facts): Row => ({ kind: 'agent', id: `a:${facts.id}`, facts })),
+    [agents],
   )
   const crewmates = useMemo(() => rows.map(row => row.facts), [rows])
   const cursor = useStableSelection(rows, r => r.id)
   const sel = cursor.index
-  const spawnGate = (): string | null =>
-    getFocusedSessionConnector().spawnSwitches().subagents.on ? null : spawnSwitchOffReceipt('subagents')
-  const [spawnNote, setSpawnNote] = useState<string | null>(() => (initialSpawn ? spawnGate() : null))
-  const [mode, setMode] = useState<Mode>(() =>
-    initialChat !== undefined
-      ? { view: 'chat', name: initialChat, fromDoor: true }
-      : initialSpawn && spawnGate() === null
-        ? { view: 'chat', spawn: true, fromDoor: false }
-        : { view: 'list' },
-  )
+  const [mode, setMode] = useState<Mode>(() => ({ view: 'list' }))
   const pastMount = useOpenEventGate()
   const listMode = mode.view === 'list' || (mode.view === 'card' && !workById.has(mode.id))
   const [stopArm, setStopArm] = useState<CrewStopArm | null>(null)
@@ -136,12 +103,7 @@ export function CrewView({
   const pauseChip = crewPauseChipWords(agents, carrier === 'in-process' ? gateState : hostedGate)
   const pauseDoor = crewPauseDoorKey(pauseChip !== null)
 
-  useEffect(() => {
-    if (listMode) pokeTelemetry()
-  }, [listMode])
-
   useInput((input, key) => {
-    if (mode.view === 'chat') return
     const selected = rows[sel]
     const target: CrewAgentFacts | null =
       mode.view === 'card' && !listMode
@@ -182,16 +144,6 @@ export function CrewView({
       setDoorNote(cleared ? { tone: 'muted', text: crewClearedWords(target.name) } : { tone: 'warning', text: crewClearRefusedWords(target) })
       return
     }
-    if (input === 'r' && target !== null && !target.running && target.id.startsWith(CREW_SEAT_ID_PREFIX)) {
-      const name = target.id.slice(CREW_SEAT_ID_PREFIX.length)
-      setStopArm(null)
-      setDoorNote({ tone: 'muted', text: crewResumingWords(name) })
-      void resumeCrewmate(name, target.model ?? undefined, getCwd()).then(receipt => {
-        setDoorNote(receipt.ok ? { tone: 'muted', text: crewResumedWords(name) } : { tone: 'warning', text: crewResumeRefusedWords(name, receipt.error) })
-        pokeTelemetry()
-      })
-      return
-    }
     if (input === 'r' && target !== null && !target.running) {
       setDoorNote({ tone: 'muted', text: `resuming ${target.name} from its transcript…` })
       void getFocusedSessionConnector()
@@ -199,20 +151,10 @@ export function CrewView({
         .then(receipt => {
           setDoorNote(
             receipt.outcome === 'applied'
-              ? { tone: 'muted', text: target.kind === 'named' ? `${target.name} resumed from its transcript — it continues under a new row` : `${target.name} resumed from its transcript — it runs on under the same id` }
+              ? { tone: 'muted', text: `${target.name} resumed from its transcript — it runs on under the same id` }
               : { tone: 'warning', text: `the resume of ${target.name} was refused: ${receipt.detail ?? 'no reason given'}` },
           )
         })
-      return
-    }
-    if (input === 'r' && target === null && selected?.kind === 'named' && !selected.member.online) {
-      const member = selected.member
-      setStopArm(null)
-      setDoorNote({ tone: 'muted', text: crewResumingWords(member.name) })
-      void resumeCrewmate(member.name, member.model, getCwd()).then(receipt => {
-        setDoorNote(receipt.ok ? { tone: 'muted', text: crewResumedWords(member.name) } : { tone: 'warning', text: crewResumeRefusedWords(member.name, receipt.error) })
-        pokeTelemetry()
-      })
       return
     }
     if (!listMode) return
@@ -233,21 +175,12 @@ export function CrewView({
       if (!pastMount()) return
       const row = rows[sel]
       if (row === undefined) return
-      if (row.kind === 'agent') {
-        if (!popup || setAppState === null) {
-          setMode({ view: 'card', id: row.facts.id })
-          return
-        }
-        enterCrewmateView(row.facts.id, setAppState)
-        onClose()
+      if (!popup || setAppState === null) {
+        setMode({ view: 'card', id: row.facts.id })
         return
       }
-      if (!popup) {
-        setMode({ view: 'chat', name: row.member.name, fromDoor: false })
-        return
-      }
+      enterCrewmateView(row.facts.id, setAppState)
       onClose()
-      requestCommandDispatch(crewChatDoor(row.member.name))
       return
     }
     if (input === 'm' && selected?.kind === 'agent' && setAppState !== null) {
@@ -257,33 +190,10 @@ export function CrewView({
       onClose()
       return
     }
-    if (input === 'n' && namedOn) {
-      const gate = spawnGate()
-      if (gate !== null) {
-        setSpawnNote(gate)
-        return
-      }
-      if (popup) {
-        onClose()
-        requestCommandDispatch(CREW_SPAWN_DOOR)
-        return
-      }
-      setMode({ view: 'chat', spawn: true, fromDoor: false })
-    }
   })
 
-  if (mode.view === 'chat') {
-    return (
-      <CrewmateChatsView
-        onClose={mode.fromDoor ? onClose : () => setMode({ view: 'list' })}
-        {...(mode.name !== undefined ? { initialName: mode.name } : {})}
-        {...(mode.spawn === true ? { initialSpawn: true } : {})}
-      />
-    )
-  }
-
-  const doorKeys = (target: CrewAgentFacts | null, offlineNamed = false): string[] =>
-    armedTarget !== null ? [crewStopHint(armedTarget.name)] : [...(target === null ? (offlineNamed ? ['r resume'] : []) : target.running ? ['x x stop'] : crewSettled(target) ? ['r resume', CREW_CLEAR_KEY] : ['r resume']), pauseDoor]
+  const doorKeys = (target: CrewAgentFacts | null): string[] =>
+    armedTarget !== null ? [crewStopHint(armedTarget.name)] : [...(target === null ? [] : target.running ? ['x x stop'] : crewSettled(target) ? ['r resume', CREW_CLEAR_KEY] : ['r resume']), pauseDoor]
 
   if (mode.view === 'card' && !listMode) {
     const work = workById.get(mode.id)!
@@ -310,8 +220,7 @@ export function CrewView({
         '↑↓ move',
         rows.length > 0 ? (popup ? CREW_OPEN_IN_VIEW_KEY : '↵ open') : undefined,
         selectedRow?.kind === 'agent' ? (mainChatTaskId === selectedRow.facts.id ? `${CREW_MAIN_CHAT_KEY} (this one)` : CREW_MAIN_CHAT_KEY) : undefined,
-        ...doorKeys(selectedRow?.kind === 'agent' ? selectedRow.facts : null, selectedRow?.kind === 'named' && !selectedRow.member.online),
-        namedOn ? 'n new named agent' : undefined,
+        ...doorKeys(selectedRow?.kind === 'agent' ? selectedRow.facts : null),
         'esc close',
       ])
     .filter(Boolean)
@@ -345,19 +254,11 @@ export function CrewView({
           const on = gi === sel
           return (
             <React.Fragment key={row.id}>
-              {row.kind === 'agent' ? (
-                <AgentRow facts={row.facts} on={on} now={now} width={width} billed={billed} />
-              ) : (
-                <NamedRow member={row.member} facts={row.facts} on={on} now={now} width={width} />
-              )}
+              <AgentRow facts={row.facts} on={on} now={now} width={width} billed={billed} />
             </React.Fragment>
           )
         })}
         {win.below > 0 ? <Text color={tokens.textMuted}>  ↓ {win.below} later</Text> : null}
-        {!namedOn ? (
-          <Text color={tokens.textMuted}>· crew is disabled (MERCURY_CREW=0) — no named agents can spawn</Text>
-        ) : null}
-        {spawnNote !== null ? <Text color={tokens.warning} wrap="truncate-middle">· {spawnNote}</Text> : null}
         {doorNote !== null ? <Text color={doorNote.tone === 'warning' ? tokens.warning : tokens.textMuted} wrap="truncate-middle">· {doorNote.text}</Text> : null}
       </Box>
     </CommandCenter>
@@ -418,46 +319,6 @@ function AgentRow({
         </Text>
         {unread !== null ? <Text color={tokens.warning}> · {unread}</Text> : null}
         {holders !== null ? <Text color={tokens.warning}> · {holders}</Text> : null}
-      </Text>
-    </Box>
-  )
-}
-
-function NamedRow({
-  member,
-  facts,
-  on,
-  now,
-  width,
-}: {
-  member: CrewGlanceMember
-  facts: CrewAgentFacts
-  on: boolean
-  now: number
-  width: number
-}): React.ReactNode {
-  const tokens = useMercuryTokens()
-  const paused = facts.state === 'paused'
-  return (
-    <Box width={width}>
-      <Text wrap="truncate-end">
-        <Text color={on ? tokens.textPrimary : tokens.textMuted}>{on ? `${GLYPH.cursor} ` : '  '}</Text>
-        <Text color={paused ? tokens.warning : member.online ? tokens.success : tokens.textMuted}>{paused ? GLYPH.pending : member.online ? GLYPH.busy : GLYPH.idle}</Text>
-        <Text bold={on} color={on ? tokens.textPrimary : tokens.textSecondary}>
-          {' '}
-          {padTo(truncateToWidth(`@${member.name}`, NAME_W), NAME_W)}
-        </Text>
-        <Text color={tokens.textSecondary}> {padTo(truncateToWidth(crewModelLabel(facts), MODEL_W), MODEL_W)}</Text>
-        <Text color={paused ? tokens.warning : member.online ? tokens.success : tokens.textMuted}>
-          {' '}
-          {padTo(truncateToWidth(paused && facts.paused !== null ? pauseStatusWords(facts.paused, now) : facts.status, STATUS_W), STATUS_W)}
-        </Text>
-        <Text color={tokens.textPrimary}> {crewTokensSummary(facts)}</Text>
-        <Text color={tokens.textMuted}> {member.online ? crewElapsedLabel(facts, now) : CREW_MODEL_UNKNOWN}</Text>
-        <Text color={member.unread > 0 ? tokens.warning : tokens.textMuted}>
-          {' · '}
-          {member.unread > 0 ? `${member.unread} new` : 'chat'}
-        </Text>
       </Text>
     </Box>
   )

@@ -1,5 +1,4 @@
 
-import { crewEnabled } from '../../daemon/crewSpawn.js'
 import { mnemeEnabled } from '../../mneme/mnemeGates.js'
 import { isMnemeEnabled } from '../../mneme/paths.js'
 import { dapAdapterProbePending, isDapToolCatalogEnabled, mercuryDapEnabled, reachableDapAdapterKeys } from '../../services/dap/dapClient.js'
@@ -14,7 +13,6 @@ import { getVulcanHarnessMapLine } from '../vulcan/vulcanGates.js'
 import { isSessionMarkedNonInteractive } from './runtimePosture.js'
 import { healthCertEnabled } from '../healthReport.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { CREW_VIEW_DOOR } from './crewmateWords.js'
 
 export function harnessMapEnabled(): boolean {
   if (flagEnv('MERCURY_HARNESS_MAP') === '0') return false
@@ -111,7 +109,6 @@ export function computeHarnessMapLines(): string[] {
     mnemeEnabled()
       ? '- Memory: Retain saves a durable fact (findable at once through Recall, before it is consolidated into a topic page); when a fact CHANGES, Correct supersedes it by id — never record a contradicting duplicate; retract marks a fact no longer current. /memory is the front door.'
       : null,
-    crewEnabled() ? `- Crews: ${CREW_VIEW_DOOR} manages named crew workers.` : null,
   ]
   return lines.filter((l): l is string => l !== null)
 }

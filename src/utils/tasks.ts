@@ -17,11 +17,6 @@ import { logError } from './log.js'
 import { getErrnoCode } from './errors.js'
 import { createSignal } from './signal.js'
 import { jsonParse, jsonStringify } from './slowOperations.js'
-import { listLiveCommsTasks, subscribeLiveCommsTasks, type LiveCommsTaskV1 } from '../services/crew/liveTasks.js'
-import { getCrewName } from './crewmate.js'
-import { getCrewmateContext, isInProcessCrewmate } from './crewmateContext.js'
-import { CREW_LEAD_NAME } from './crew/constants.js'
-import { crewmateStopped, readCrewFileAsync } from './crew/crewHelpers.js'
 
 
 export const TASK_STATUSES = ['pending', 'in_progress', 'completed'] as const
@@ -49,88 +44,21 @@ export function isTaskToolsEnabled(): boolean {
   return isEnvTruthy(process.env.MERCURY_TASKS) || !getIsNonInteractiveSession()
 }
 
-let leaderCrewName: string | undefined
-
 export function getTaskListId(): string {
-  return sharedBoardId() ?? getSessionId()
-}
-
-function sharedBoardId(): string | undefined {
-  const override = process.env.MERCURY_TASK_LIST_ID
-  if (override) return override
-  if (isInProcessCrewmate()) {
-    const crewName = getCrewmateContext()?.crewName
-    if (crewName) return crewName
-  }
-  return getCrewName() || leaderCrewName || undefined
-}
-
-const liveLedgerWatched = new Set<string>()
-
-function watchLiveLedger(crew: string): void {
-  if (liveLedgerWatched.has(crew)) return
-  liveLedgerWatched.add(crew)
-  try {
-    subscribeLiveCommsTasks(crew, () => notifyTasksUpdated())
-  } catch (error) {
-    liveLedgerWatched.delete(crew)
-    logForDebugging(`the live comms ledger watch for ${crew} could not start: ${String(error)}`)
-  }
-}
-
-const LIVE_LEDGER_PREFIX = 'livecomms:'
-
-async function listLiveLedger(crew: string): Promise<Task[]> {
-  watchLiveLedger(crew)
-  let live: LiveCommsTaskV1[] = []
-  try {
-    live = await listLiveCommsTasks(crew)
-  } catch (error) {
-    logForDebugging(`the live comms ledger for ${crew} could not be read: ${String(error)}`)
-    return []
-  }
-  const keyed = (taskId: string): string => `${LIVE_LEDGER_PREFIX}${taskId}`
-  const ids = new Set(live.map(t => t.id))
-  return live.map(t => ({
-    id: keyed(t.id),
-    subject: t.subject,
-    description: t.detail ?? '',
-    ...(t.owner !== undefined ? { owner: t.owner } : {}),
-    status: t.status,
-    blocks: live.filter(other => other.blockedBy.includes(t.id)).map(other => keyed(other.id)),
-    blockedBy: t.blockedBy.filter(id => ids.has(id)).map(keyed),
-  }))
+  return process.env.MERCURY_TASK_LIST_ID || getSessionId()
 }
 
 export async function listSessionMission(): Promise<Task[]> {
   const own = String(getSessionId())
-  const board = sharedBoardId()
-  const lists = board === undefined || board === own ? [own] : [own, board]
   const seen = new Set<string>()
   const rows: Task[] = []
-  for (const listId of lists) {
-    let tasks: Task[] = []
-    try {
-      tasks = await listTasks(listId)
-    } catch {
-      tasks = []
-    }
-    for (const task of tasks) {
-      if (listId === own) {
-        if (seen.has(task.id)) continue
-        seen.add(task.id)
-        rows.push(task)
-        continue
-      }
-      const keyed = (taskId: string): string => `${listId}:${taskId}`
-      const id = keyed(task.id)
-      if (seen.has(id)) continue
-      seen.add(id)
-      rows.push({ ...task, id, blocks: task.blocks.map(keyed), blockedBy: task.blockedBy.map(keyed) })
-    }
+  let tasks: Task[] = []
+  try {
+    tasks = await listTasks(own)
+  } catch {
+    tasks = []
   }
-  if (board === undefined) return rows
-  for (const task of await listLiveLedger(board)) {
+  for (const task of tasks) {
     if (seen.has(task.id)) continue
     seen.add(task.id)
     rows.push(task)
@@ -138,25 +66,10 @@ export async function listSessionMission(): Promise<Task[]> {
   return rows
 }
 
-export function setLeaderCrewName(crewName: string): void {
-  if (leaderCrewName === crewName) return
-  leaderCrewName = crewName
-  notifyTasksUpdated()
-}
-
-export function clearLeaderCrewName(): void {
-  if (leaderCrewName === undefined) return
-  leaderCrewName = undefined
-  notifyTasksUpdated()
-}
-
 export function sanitizePathComponent(input: string): string {
   return input.replace(/[^A-Za-z0-9_-]/g, '-')
 }
 
-function sanitizeCrewNameForListId(crewName: string): string {
-  return crewName.replace(/[^A-Za-z0-9]/g, '-').toLowerCase()
-}
 
 export function getTasksDir(taskListId: string): string {
   return join(getMercuryHome(), 'tasks', sanitizePathComponent(taskListId))
@@ -547,83 +460,4 @@ export async function claimTask(
     logError(error)
     return { success: false, reason: 'task_not_found' }
   }
-}
-
-
-export type CrewMember = { agentId: string; name: string; agentType?: string }
-
-export type AgentStatus = {
-  agentId: string
-  name: string
-  agentType?: string
-  status: 'busy' | 'idle' | 'stopped'
-  currentTasks: string[]
-  cwd?: string
-  worktree?: string
-  model?: string
-}
-
-export async function getAgentStatuses(crewName: string): Promise<AgentStatus[] | null> {
-  const crewFile = await readCrewFileAsync(crewName)
-  if (!crewFile) return null
-  const members = (crewFile.members ?? []).map(member => ({
-    agentId: String(member.agentId),
-    name: String(member.name),
-    agentType: member.agentType,
-    cwd: member.cwd,
-    worktree: member.worktreePath,
-    model: member.model,
-  }))
-  const stopped = new Set((crewFile.members ?? []).filter(crewmateStopped).map(member => String(member.agentId)))
-  const working = new Set(
-    (crewFile.members ?? [])
-      .filter(member => member.agentId !== crewFile.leadAgentId && member.name !== CREW_LEAD_NAME && member.isActive !== false && !crewmateStopped(member))
-      .map(member => String(member.agentId)),
-  )
-  const tasks = await listTasks(sanitizeCrewNameForListId(crewName))
-  const open = tasks.filter(task => task.status !== 'completed' && task.owner)
-  return members.map(member => {
-    const ownedIds = uniq(
-      open.filter(task => task.owner === member.name || task.owner === member.agentId).map(task => task.id),
-    )
-    return {
-      ...member,
-      status: stopped.has(member.agentId) ? ('stopped' as const) : ownedIds.length > 0 || working.has(member.agentId) ? ('busy' as const) : ('idle' as const),
-      currentTasks: ownedIds,
-    }
-  })
-}
-
-type UnassignTasksResult = {
-  unassignedTasks: Array<{ id: string; subject: string }>
-  notificationMessage: string
-}
-
-export async function unassignCrewmateTasks(
-  crewName: string,
-  crewmateId: string,
-  crewmateName: string,
-  reason: 'terminated' | 'shutdown',
-): Promise<UnassignTasksResult> {
-  const tasks = await listTasks(crewName)
-  const owned = tasks.filter(
-    task => task.status !== 'completed' && (task.owner === crewmateId || task.owner === crewmateName),
-  )
-  const unassignedTasks: Array<{ id: string; subject: string }> = []
-  for (const task of owned) {
-    await updateTask(crewName, task.id, { owner: undefined, status: 'pending' })
-    unassignedTasks.push({ id: task.id, subject: task.subject })
-  }
-  if (unassignedTasks.length > 0) {
-    logForDebugging(`unassigned ${unassignedTasks.length} task(s) from ${crewmateName} (${reason})`)
-  }
-  const departed =
-    reason === 'terminated' ? `${crewmateName} was terminated.` : `${crewmateName} has shut down.`
-  const notificationMessage =
-    unassignedTasks.length === 0
-      ? departed
-      : `${departed} ${unassignedTasks.length} task(s) were unassigned: ${unassignedTasks
-          .map(task => `#${task.id} "${task.subject}"`)
-          .join(', ')}. Use ${TASK_LIST_TOOL_NAME} to check availability and ${TASK_UPDATE_TOOL_NAME} with owner to reassign them to idle crewmates.`
-  return { unassignedTasks, notificationMessage }
 }

@@ -12,11 +12,8 @@ import { queueCrewmateLine, refuseCrewmateLine } from '../tasks/crewmateQueue.js
 import { classifyAgentViewSubmission } from './promptIntent.js'
 import { isManageableTask } from '../tasks/taskStatusUtils.js'
 import { appendMessageToLocalAgent, isLocalAgentTask, queueOperatorMessage } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
-import { sendLiveMessage } from '../../services/crew/liveComms.js'
-import { isCrewEnabled } from '../../utils/crewEnabled.js'
 import { createUserMessage } from '../../utils/messages/factories.js'
 import { danglingReferences, pasteUnavailableLine } from '../../history.js'
-import { parseDirectMemberMessage, sendDirectMemberMessage } from '../../utils/directMemberMessage.js'
 import { handleSpeculationAccept } from '../../services/PromptSuggestion/speculation.js'
 import type { PromptInputHelpers } from '../../types/promptInputHelpers.js'
 import type { SuggestionsState } from '../../hooks/useTypeahead.js'
@@ -36,7 +33,6 @@ export type ComposerSubmitInput = {
   compactWork: CompactWorkControls | undefined
   appStateStore: AppStateStore
   suggestionApi: ReturnType<typeof usePromptSuggestion>
-  crewContext: AppState['crewContext']
   commands: Command[]
   helpers: PromptInputHelpers
   buffer: ReturnType<typeof useInputBuffer>
@@ -65,7 +61,6 @@ export function useComposerSubmit({
   compactWork,
   appStateStore,
   suggestionApi,
-  crewContext,
   commands,
   helpers,
   buffer,
@@ -159,29 +154,6 @@ export function useComposerSubmit({
         queueMicrotask(() => {
           sameDispatchSubmitRef.current = false
         })
-      }
-
-      if (isCrewEnabled() && crewContext !== undefined && submitted.startsWith('@')) {
-        const parsed = parseDirectMemberMessage(submitted)
-        if (parsed !== null) {
-          const result = await sendDirectMemberMessage(
-            parsed.recipientName,
-            parsed.message,
-            crewContext,
-            sendLiveMessage,
-          )
-          if (result.success) {
-            takeLine()
-            addNotification({
-              key: 'direct-message-sent',
-              text: `sent to @${result.recipientName}`,
-              priority: 'medium',
-              timeoutMs: 3000,
-              fold: (_accumulated, incoming) => incoming,
-            })
-            return
-          }
-        }
       }
 
       if (submitted === '' && !hasImages) return
@@ -294,7 +266,7 @@ export function useComposerSubmit({
         fromKeybinding: options.fromKeybinding === true,
       })
     },
-    [compactWork, appStateStore, suggestionApi, crewContext, commands, helpers, buffer, history, onSubmit, onAgentSubmit, setAppState, setCursorOffset, addNotification, removeNotification, writeDraft],
+    [compactWork, appStateStore, suggestionApi, commands, helpers, buffer, history, onSubmit, onAgentSubmit, setAppState, setCursorOffset, addNotification, removeNotification, writeDraft],
   )
 
   return submit

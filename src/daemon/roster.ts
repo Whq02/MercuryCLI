@@ -39,12 +39,6 @@ import {
   type LongLivedRespawnConfig,
 } from './longLivedRespawn.js'
 import { calculateContextPercentages, getContextWindowForModel } from '../utils/context.js'
-import {
-  buildCarryForwardNote,
-  carryForwardEnabled,
-  lastSeenDispatchId,
-} from './carryForward.js'
-import { sendLiveMessage } from '../services/crew/liveComms.js'
 
 export const AUTO_CLEAR_CONTEXT_PCT = 85
 import { currentVersion } from './controlSocket.js'
@@ -400,14 +394,6 @@ export class TaskRoster {
     logForDebugging(
       `[daemon] auto-clear: ${short} ctx ${ll.contextPct}% >= ${AUTO_CLEAR_CONTEXT_PCT}% + idle — respawning (fresh transcript)`,
     )
-    const crew = ll.spec.crewName ?? 'default'
-    if (carryForwardEnabled()) {
-      const note = buildCarryForwardNote(ll.contextPct, lastSeenDispatchId(ll.seenDispatchIds))
-      void sendLiveMessage(crew, { to: short, from: 'daemon', text: JSON.stringify(note), timestamp: new Date().toISOString() })
-        .catch(() => {})
-        .finally(() => this.reconfigureLongLived(short, {}))
-      return true
-    }
     this.reconfigureLongLived(short, {})
     return true
   }
@@ -789,16 +775,6 @@ export class TaskRoster {
       console.error(
         `[daemon] long-lived ${short} crashed (code=${code} sig=${signal}); ${decision.action} (${ll.respawns}/${ll.cfg.maxRespawns})${keptText ? ` — ${keptText}` : ''}`,
       )
-      const composeStormNote = (phase: 'forming' | 'degraded'): string =>
-        `${GLYPH.warn} ${short} ${phase === 'degraded' ? 'DEGRADED — respawn ceiling hit' : 'respawn loop forming'}: ` +
-        `${ll.respawns} fast exit(s) on ${ll.spec.model}@${ll.spec.effort} (exit code ${code ?? 'none'}${signal ? `, signal ${signal}` : ''}). ` +
-        (keptText ? `Last error: ${keptText}` : 'No output before exit.') +
-        (phase === 'degraded'
-          ? ' No further respawns — fix the cause, then re-engage.'
-          : ' Still retrying with backoff.')
-      const postStormNote = (phase: 'forming' | 'degraded'): void => {
-        void sendLiveMessage(ll.spec.crewName ?? 'default', { to: 'crew-lead', from: 'daemon', text: composeStormNote(phase), timestamp: new Date().toISOString() }).catch(() => {})
-      }
       const stampCrash = (respawning: boolean, detail?: string): void => {
         if (!short.startsWith('concourse-w')) return
         const exitWords = `exit ${code ?? 'none'}${signal ? ` · signal ${signal}` : ''}`
@@ -816,7 +792,6 @@ export class TaskRoster {
         ledgerExit('degraded', decision.reason)
         stampCrash(false, `crashed — respawns exhausted (${decision.reason})`)
         logForDebugging(`[daemon] ${GLYPH.warn} DEGRADED — ${this.degradedState.reason}`)
-        postStormNote('degraded')
         try {
           this.opts.onDegraded?.(this.degradedState.reason, short)
         } catch {
@@ -825,7 +800,6 @@ export class TaskRoster {
       }
       if (ll.respawns === 2 && !ll.stormNotified) {
         ll.stormNotified = true
-        postStormNote('forming')
       }
       ledgerExit('crash-respawn')
       stampCrash(true)

@@ -8,10 +8,8 @@ import {
   FORK_BOILERPLATE_TAG,
   LOCAL_COMMAND_CAVEAT_TAG,
   TASK_NOTIFICATION_TAG,
-  CREWMATE_MESSAGE_TAG,
   TICK_TAG,
 } from '../../constants/xml.js'
-import { isCrewEnabled } from '../../utils/crewEnabled.js'
 import {
   turnCutOfText,
   turnCutWhy,
@@ -30,7 +28,6 @@ import { UserMemoryInputMessage } from './UserMemoryInputMessage.js'
 import { UserNoticeMessage } from './UserNoticeMessage.js'
 import { UserPromptMessage } from './UserPromptMessage.js'
 import { UserResourceUpdateMessage } from './UserResourceUpdateMessage.js'
-import { UserCrewmateMessage } from './UserCrewmateMessage.js'
 import { formatClock, useMessageMeta } from './TranscriptNameplate.js'
 
 function noticeDeliveryClock(sentAt?: string, deliveredAt?: string): string | null {
@@ -124,19 +121,6 @@ export function UserTextMessage({
 
   if (head.startsWith('<user-memory-input>')) {
     return <UserMemoryInputMessage addMargin={addMargin} text={param.text} />
-  }
-
-  if (
-    isCrewEnabled() &&
-    head.startsWith(`<${CREWMATE_MESSAGE_TAG}`)
-  ) {
-    return (
-      <UserCrewmateMessage
-        addMargin={addMargin}
-        param={param}
-        isTranscriptMode={isTranscriptMode}
-      />
-    )
   }
 
   if (head.startsWith(`<${TASK_NOTIFICATION_TAG}`)) {

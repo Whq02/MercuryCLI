@@ -66,7 +66,6 @@ import { laneWindowFact } from '../services/providers/laneWindowFact.js'
 import { jevLedgerSnapshot } from '../services/jev/jevLedger.js'
 import { jevFactsOf } from '../services/jev/jevSessionFacts.js'
 import { jevStatus } from '../services/jev/jevStatus.js'
-import { AsyncLocalStorage } from 'node:async_hooks'
 import { ask, sessionFactsOf } from '../rows/turn.js'
 import { commandOutputRow, compactionClearedRow, compactionRow, heartbeatRow, missionUpdatedRow, modeRow, noticeRow, outcomeRow, rateLimitRow, samplesUpdatedRow, sessionRow, taskRow, turnStartedRow, turnWaitingRow, waitRow, type RowDraft, type RowScope, type Unstamped } from '../rows/project.js'
 import { exitCodeOf, OUTCOME_SENTENCES, type CompactionRow, type InputRow, type OutcomeRow, type Row } from '../rows/vocabulary.js'
@@ -268,11 +267,6 @@ function missionLedgerOf(metadata: Record<string, unknown> | undefined): string 
 import type { ThinkingConfig } from '../utils/thinking.js'
 import { createSyntheticOutputTool, isSyntheticOutputToolEnabled } from '../tools/SyntheticOutputTool/SyntheticOutputTool.js'
 import { filterToolsByDenyRules, getAllBaseTools, getTools } from '../tools.js'
-import { getCrewName, isCrewLead, isCrewmate } from '../utils/crewmate.js'
-import { acknowledgeLiveDelivery, subscribeLiveMessagesFor, prepareLiveDelivery, wasLiveDeliveryHandled, type LiveDelivery, type LiveCommsMessageV1 } from '../services/crew/liveComms.js'
-import { formatCrewmateMessages, isShutdownApproved, resolveShutdownApprovedVictim } from '../services/crew/liveMessages.js'
-import { CREW_LEAD_NAME } from '../utils/crew/constants.js'
-import { removeCrewmateFromCrewFile } from '../utils/crew/crewHelpers.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { expandPath } from '../utils/path.js'
 import { getCwd } from '../utils/cwd.js'
@@ -623,12 +617,6 @@ export async function runHeadless(
     void sessionWiringModules().catch(() => {})
   }
 
-  try {
-    const { initializeCrewSession } = await import('../utils/crew/crewmateInit.js')
-    initializeCrewSession(setAppState, String(getSessionId()), messages as ReadonlyArray<{ crewName?: string; agentName?: string }>)
-  } catch (error) {
-    logForDebugging(`[session-runner] crew init failed (non-blocking): ${error}`)
-  }
 
   const hookInitialMessage = takeInitialUserMessage()
   if (hookInitialMessage) {
@@ -646,27 +634,11 @@ export async function runHeadless(
     if (messages.length === 0) return
     try {
       const { runBootRecovery } = await import('../substrate/recoveryOrchestrator.js')
-      const recovered = await runBootRecovery({
+      await runBootRecovery({
         scope: 'session',
         sessionId: getSessionId(),
         projectDir: getCwd(),
       })
-      const led = recovered.leaderProjection
-      if (led) {
-        setAppState(prev =>
-          prev.crewContext
-            ? prev
-            : {
-                ...prev,
-                crewContext: {
-                  crewName: led.crewName,
-                  crewFilePath: led.crewFilePath,
-                  leadAgentId: led.leadAgentId,
-                  crewmates: led.crewmates,
-                },
-              },
-        )
-      }
     } catch (error) {
       logError(error)
     }
@@ -738,7 +710,6 @@ export async function runHeadless(
     }
   }
   if (options.continue || options.resume) await hydrateResumedRun()
-  if (!awaitingSessionClaim) (await import('../utils/crew/crewBirth.js')).birthSessionCrew(String(getSessionId()), setAppState)
 
   if (!options.agent && !getMainThreadAgentType() && loaded.agentSetting) {
     const restored = restoreAgentFromSession(loaded.agentSetting, undefined, {
@@ -1241,17 +1212,6 @@ export async function runHeadless(
     return minutesKnobToMs(flagEnv('MERCURY_HEADLESS_IDLE_MINUTES'), DEFAULT_HEADLESS_IDLE_MINUTES)
   }
 
-  const crewShutdownPromptInjected = { value: false }
-  const injectCrewShutdownPrompt = (): void => {
-    if (crewShutdownPromptInjected.value) return
-    crewShutdownPromptInjected.value = true
-    enqueue({
-      value: `<system-reminder>You are running non-interactively and your final answer is blocked while a crewmate is still running. Ask each crewmate to shut down gracefully and wait for their shutdown approvals. Only after every crewmate has shut down may you produce your final answer.</system-reminder>\nShut your crewmates down now and prepare your final answer.`,
-      mode: 'prompt',
-      uuid: randomUUID(),
-    })
-  }
-
   const stopShellsForClose = async (): Promise<void> => {
     const shells = getRunningTasks(getAppState()).filter(task => isLocalShellTask(task))
     if (shells.length === 0) return
@@ -1259,154 +1219,8 @@ export async function runHeadless(
     await Promise.all(shells.map(task => killTask(task.id, setAppState).catch(() => undefined)))
   }
 
-  const leadCrewName = (): string | null => {
-    const crewContext = getAppState().crewContext
-    if (!crewContext || !isCrewLead(crewContext) || isCrewmate()) return null
-    return crewContext.crewName
-  }
-
-  const applyShutdownApprovals = (crewName: string, unread: LiveCommsMessageV1[]): void => {
-    for (const message of unread) {
-      const approval = isShutdownApproved(message.text)
-      if (!approval) continue
-      const victim = resolveShutdownApprovedVictim(message.from, approval)
-      if (!victim) continue
-      const roster = getAppState().crewContext?.crewmates ?? {}
-      const victimId = Object.entries(roster).find(
-        ([, crewmate]) => crewmate.name === victim,
-      )?.[0]
-      removeCrewmateFromCrewFile(crewName, { agentId: victimId, name: victim })
-      setAppState(previous => {
-        const crewmates = previous.crewContext?.crewmates
-        if (!previous.crewContext || !crewmates) return previous
-        const remaining = Object.fromEntries(
-          Object.entries(crewmates).filter(
-            ([id, crewmate]) => id !== victimId && crewmate.name !== victim,
-          ),
-        )
-        return {
-          ...previous,
-          crewContext: { ...previous.crewContext, crewmates: remaining },
-        }
-      })
-    }
-  }
-
-  let refusedAcknowledgements = 0
-  let enqueuedLeadDelivery: string | null = null
-  const deliverLeadMailOnce = async (): Promise<'queued' | 'none'> => {
-    for (;;) {
-      const crewName = leadCrewName()
-      if (crewName === null) return 'none'
-      let delivery: LiveDelivery | null
-      try {
-        delivery = await prepareLiveDelivery(crewName, CREW_LEAD_NAME, getSessionId())
-        if (delivery !== null && await wasLiveDeliveryHandled(delivery, messages)) {
-          await flushSessionStorage()
-          await acknowledgeLiveDelivery(crewName, CREW_LEAD_NAME, delivery.id)
-          refusedAcknowledgements = 0
-          if (enqueuedLeadDelivery === delivery.id) enqueuedLeadDelivery = null
-          continue
-        }
-      } catch (error) {
-        refusedAcknowledgements += 1
-        logForDebugging(`mailbox: delivery awaits durable state: ${errorMessage(error)}`)
-        if (refusedAcknowledgements === MAILBOX_REFUSAL_NOTICE_AFTER) {
-          logError(new Error(`mailbox: ${refusedAcknowledgements} consecutive acknowledgements refused — later crewmate reports wait until the crew state can be written (${errorMessage(error)})`))
-        }
-        return 'none'
-      }
-      if (delivery === null) return 'none'
-      if (enqueuedLeadDelivery === delivery.id || getCommandQueue().some(command => command.uuid === delivery.id)) return 'queued'
-      applyShutdownApprovals(crewName, delivery.messages)
-      enqueuedLeadDelivery = delivery.id
-      enqueue({ value: formatCrewmateMessages(delivery.messages), mode: 'prompt', uuid: delivery.id as UUID })
-      return 'queued'
-    }
-  }
-
-  let leadMailDelivery: Promise<'queued' | 'none'> | null = null
-  let leadMailAgain = false
-  const deliverLeadMail = (): Promise<'queued' | 'none'> => {
-    if (leadMailDelivery !== null) {
-      leadMailAgain = true
-      return leadMailDelivery
-    }
-    const run = (async (): Promise<'queued' | 'none'> => {
-      let verdict: 'queued' | 'none' = 'none'
-      do {
-        leadMailAgain = false
-        verdict = await deliverLeadMailOnce()
-      } while (leadMailAgain && verdict === 'none')
-      return verdict
-    })()
-    leadMailDelivery = run
-    void run.finally(() => {
-      leadMailDelivery = null
-    })
-    return run
-  }
-
-  const leadContext = AsyncLocalStorage.snapshot()
-  let leadMailboxWake: { crewName: string; unsubscribe: () => void } | null = null
-  const syncLeadMailboxWake = (): void => leadContext(() => {
-    const crewName = Object.keys(getAppState().crewContext?.crewmates ?? {}).length === 0 ? null : leadCrewName()
-    if (crewName === (leadMailboxWake?.crewName ?? null)) return
-    leadMailboxWake?.unsubscribe()
-    leadMailboxWake = null
-    if (crewName === null) return
-    const unsubscribe = subscribeLiveMessagesFor(crewName, CREW_LEAD_NAME, () => {
-      void leadContext(deliverLeadMail)
-    }, { immediate: true })
-    leadMailboxWake = { crewName, unsubscribe }
-  })
-  const stopLeadStateWake = options.subscribeAppState?.(syncLeadMailboxWake)
-  syncLeadMailboxWake()
-
-  const leadSettle: { wake: (() => void) | null } = { wake: null }
-  const leadEvent = (crewName: string | null): Promise<void> =>
-    new Promise<void>(resolve => {
-      let settled = false
-      const unsubscribes: Array<() => void> = []
-      const done = (): void => {
-        if (settled) return
-        settled = true
-        leadSettle.wake = null
-        for (const unsubscribe of unsubscribes) unsubscribe()
-        resolve()
-      }
-      leadSettle.wake = done
-      if (crewName !== null) unsubscribes.push(subscribeLiveMessagesFor(crewName, CREW_LEAD_NAME, done, { immediate: false }))
-      if (options.subscribeAppState) unsubscribes.push(options.subscribeAppState(done))
-      unsubscribes.push(subscribeToCommandQueue(done), onTasksUpdated(done))
-    })
-
   const settleIdle = async (): Promise<'reenter' | 'close' | 'stay'> => {
-    for (let crewName = leadCrewName(); crewName !== null; crewName = leadCrewName()) {
-      const changed = leadEvent(crewName)
-      try {
-        const next = peek()
-        if (next && isMainThreadCommand(next) && driver.hasDueQueued()) return 'reenter'
-        if ((await deliverLeadMail()) === 'queued') return 'reenter'
-        const current = getAppState()
-        const listed = Boolean(Object.keys(current.crewContext?.crewmates ?? {}).length)
-        if (!listed) break
-        if (inputClosed && !crewShutdownPromptInjected.value) {
-          injectCrewShutdownPrompt()
-          return 'reenter'
-        }
-        await changed
-      } finally {
-        leadSettle.wake?.()
-      }
-    }
     if (inputClosed) {
-      const current = getAppState()
-      const crewRemains = Boolean(Object.keys(current.crewContext?.crewmates ?? {}).length)
-      if (crewRemains) {
-        injectCrewShutdownPrompt()
-        return 'reenter'
-      }
       await stopShellsForClose()
       return 'close'
     }
@@ -1548,7 +1362,6 @@ export async function runHeadless(
         onMessage(message)
       }, initialNotices),
     onTurnSettled: command => {
-      void deliverLeadMail()
       logHeadlessProfilerTurn()
       headlessProfilerStartTurn()
       void advisorMainTurnSettled(String(getSessionId()), command, messages, advisorRoad)
@@ -1565,14 +1378,11 @@ export async function runHeadless(
       enqueueRow(turnWaitingRow({ session_id: getSessionId(), turn: turnsRun }, { turnId, agents: count }))
     },
     settleIdle,
-    wakeSettle: () => leadSettle.wake?.(),
+    wakeSettle: () => {},
     closeOutput: async () => {
       const { finalizePendingAsyncHooks } = await import('../utils/hooks/AsyncHookRegistry.js')
       await finalizePendingAsyncHooks().catch(() => {})
       skillChangeDetector.dispose()
-      stopLeadStateWake?.()
-      leadMailboxWake?.unsubscribe()
-      leadSettle.wake?.()
       disarmAgentFreshness()
       stopDrainedNotificationFrames()
       stopSdkDrain()
@@ -1942,7 +1752,6 @@ export async function runHeadless(
       await armSessionRunnerWiring(sid)
       if (typeof params.restart_reason === 'string') runnerRestartReason = params.restart_reason
       if (params.resume === true) await hydrateResumedRun()
-      ;(await import('../utils/crew/crewBirth.js')).birthSessionCrew(sid, setAppState)
       awaitingSessionClaim = false
       sessionFactsHoldSpent = false
       sessionFactsHold = null
@@ -2284,7 +2093,6 @@ export async function runHeadless(
       }
     } finally {
       inputClosed = true
-      leadSettle.wake?.()
       if (!driver.isRunning()) {
         await stopShellsForClose()
         await driver.closeOutputOnce()

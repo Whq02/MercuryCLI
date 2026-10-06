@@ -29,9 +29,6 @@ export function renderToolResultMessage(
     output = content
   }
   if (!output) return null
-  const record = output as unknown as Record<string, unknown>
-  if (record.routing) return null
-  if ('request_id' in record && 'target' in record) return null
   return (
     <MessageResponse>
       <Text dimColor>{output.message}</Text>

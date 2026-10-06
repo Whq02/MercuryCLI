@@ -32,7 +32,6 @@ import type {
   PromptResponse,
 } from '../../types/hooks.js'
 import type { AggregatedHookResult, HookBlockingError } from './types.js'
-import { checkLeaseGuard } from '../crew/leaseGuard.js'
 import { runHookInput } from './rows.js'
 import { executeLifecycleHooks } from './lifecycleHooks.js'
 import { hasHookForEvent } from './matching.js'
@@ -75,19 +74,6 @@ export async function* executePreToolHooks<ToolInput>(
 ): AsyncGenerator<AggregatedHookResult> {
   const appState = toolUseContext.getAppState()
   const sessionId = toolUseContext.agentId ?? getSessionId()
-
-  const leaseDenial = await checkLeaseGuard(
-    toolName,
-    toolInput as Record<string, unknown>,
-  )
-  if (leaseDenial) {
-    yield {
-      permissionBehavior: 'deny',
-      hookPermissionDecisionReason: leaseDenial,
-      hookSource: 'lease-guard',
-    }
-    return
-  }
 
   if (!hasHookForEvent('PreToolUse', appState, sessionId)) {
     return

@@ -773,12 +773,6 @@ export async function addMcpConfig(
     )
   }
 
-  const coordination = await import('./coordinationServer.js')
-  if (coordination.isCoordinationServerEnabled() && coordination.isCoordinationServer(name)) {
-    throw new Error(
-      `"${name}" is reserved for Mercury's in-process coordination MCP server (disable with MERCURY_COORDINATION_MCP=0)`,
-    )
-  }
 
   if (doesEnterpriseMcpConfigExist()) {
     throw new Error(

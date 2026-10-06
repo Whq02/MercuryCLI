@@ -48,11 +48,6 @@ import {
   parseMcpConfig,
   parseMcpConfigFromFilePath,
 } from './services/mcp/config.js'
-import {
-  coordinationServerConfig,
-  isCoordinationServerEnabled,
-  COORDINATION_SERVER_NAME,
-} from './services/mcp/coordinationServer.js'
 import { clearBootAttempts } from './substrate/bootBeacon.js'
 import { addBootNote, collectLauncherNotes } from './substrate/bootNotes.js'
 import { flagEnv, setFlagEnv } from './substrate/flagRegistry.js'
@@ -1414,18 +1409,6 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   }
   let dynamicMcpConfig = dynamicConfigResult.servers
 
-  if (isCoordinationServerEnabled()) {
-    const reserved = Object.entries(dynamicMcpConfig).find(
-      ([name]) => name === COORDINATION_SERVER_NAME,
-    )
-    if (reserved) {
-      writeErr(
-        `The MCP server name '${COORDINATION_SERVER_NAME}' is reserved while Mercury's in-process coordination server is enabled (MERCURY_COORDINATION_MCP).`,
-      )
-      process.exit(1)
-    }
-  }
-
   const policyFiltered = filterMcpServersByPolicy(dynamicMcpConfig)
   const blockedNames = Object.keys(dynamicMcpConfig).filter(name => !(name in policyFiltered.allowed))
   if (blockedNames.length > 0) {
@@ -1444,23 +1427,6 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
       failCli('Dynamic MCP servers are not allowed when an enterprise MCP configuration exists', 1)
     }
   }
-  if (isCoordinationServerEnabled()) {
-    logForDebugging('merging the in-process coordination server into the dynamic MCP config')
-    try {
-      dynamicMcpConfig = {
-        ...dynamicMcpConfig,
-        ...Object.fromEntries(
-          Object.entries(coordinationServerConfig()).map(([name, config]) => [
-            name,
-            { ...config, scope: 'dynamic' as const },
-          ]),
-        ),
-      }
-    } catch (error) {
-      logForDebugging(`coordination server setup failed: ${error instanceof Error ? error.message : String(error)}`)
-    }
-  }
-
   const strictOrBare = Boolean(opts.onlyMcp) || isBareMode()
   const mcpResolutionStartedAt = Date.now()
   const discoveredMcpPromise: Promise<Record<string, ScopedMcpServerConfig>> = strictOrBare
