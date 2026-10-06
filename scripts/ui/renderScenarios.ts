@@ -1481,19 +1481,6 @@ function scenarioInner(name: string, cols: number, rows: number) {
     writeSyntheticSession('channel')
     return { argv: ['node', BIN, '--resume', SID], sends: [], total: 45, cols, rows }
   }
-  if (name === 'harness-chip' || name === 'harness-view') {
-    process.env.MERCURY_HARNESS_PROFILE = 'on'
-    writeSyntheticSession('short')
-    return name === 'harness-chip'
-      ? { argv: ['node', BIN, '--resume', SID], sends: [], total: 45, cols, rows }
-      : {
-          argv: ['node', BIN, '--resume', SID],
-          sends: [{ atTick: 30, data: '/harness\r' }],
-          total: 60,
-          cols,
-          rows,
-        }
-  }
   if (name === 'model-switch-home') {
     writeSyntheticSession('model-noise')
     return { argv: ['node', BIN, '--resume', SID], sends: [], total: 45, cols, rows }
@@ -2929,14 +2916,6 @@ function scenarioInner(name: string, cols: number, rows: number) {
     )
     return { argv: ['node', BIN], sends: [{ atTick: 30, data: '/accounts' }, { atTick: 36, data: '\r' }], total: 70, cols, rows }
   }
-  if (name === 'status-facts') {
-    writeSyntheticSession('short')
-    return {
-      argv: ['node', BIN, '--resume', SID],
-      sends: [{ atTick: 30, data: '/status' }, { atTick: 38, data: '\r' }],
-      total: 60, cols, rows,
-    }
-  }
   if (name === 'cockpit-short') {
     writeSyntheticSession('short')
     return {
@@ -3022,29 +3001,16 @@ function scenarioInner(name: string, cols: number, rows: number) {
       total: 48, cols, rows,
     }
   }
-  if (name === 'cockpit-policy') {
-    writeSyntheticSession('short')
-    return {
-      argv: ['node', BIN, '--resume', SID],
-      sends: [
-        { atTick: 30, data: '/cockpit' },
-        { atTick: 36, data: '\r' },
-        { atTick: 44, data: '5' },
-      ],
-      total: 60, cols, rows,
-    }
-  }
   if (name === 'sessions-manager' || name === 'resume-full-history') {
     writeSyntheticSession('tools')
     writeSyntheticSession('short', SID_ERRORED)
-    const cmd = name === 'sessions-manager' ? '/sessions' : '/resume'
     return {
       argv: ['node', BIN, '--resume', SID],
       sends: [
-        { atTick: 30, data: cmd },
+        { atTick: 30, data: '/sessions' },
         { atTick: 36, data: '\r' },
       ],
-      readyText: name === 'sessions-manager' ? 'Switch to' : 'Full history',
+      readyText: 'Full history',
       stableTicks: 4,
       total: 64, cols, rows,
     }
@@ -3111,20 +3077,6 @@ function scenarioInner(name: string, cols: number, rows: number) {
       argv: ['node', BIN, '--resume', SID],
       sends: [{ atTick: 30, data: cmd }, { atTick: 36, data: '\r' }],
       total: 52, cols, rows,
-    }
-  }
-  if (name === 'authority') {
-    writeSyntheticSession('short')
-    return {
-      argv: ['node', BIN, '--resume', SID],
-      sends: [
-        { atTick: 30, data: '/authority' },
-        { atTick: 36, data: '\r' },
-        { atTick: 44, data: '\u001b[B' },
-        { atTick: 48, data: '\u001b[B' },
-        { atTick: 54, data: '\r' },
-      ],
-      total: 70, cols, rows,
     }
   }
   if (name === 'saturn') {
@@ -3237,40 +3189,6 @@ function scenarioInner(name: string, cols: number, rows: number) {
       sends: [...base, { atTick: 48, data: 'N' }],
       readyText: 'where should this agent live', stableTicks: 4,
       total: 110, cols, rows,
-    }
-  }
-  if (name === 'manager-follow') {
-    writeSyntheticSession('short')
-    const down = '\u001b[B'
-    return {
-      argv: ['node', BIN, '--resume', SID],
-      sends: [
-        { atTick: 30, data: '/manager' },
-        { atTick: 36, data: '\r' },
-        ...Array.from({ length: 14 }, (_, k) => ({ atTick: 42 + k * 2, data: down })),
-      ],
-      readyText: '↑ ', stableTicks: 4,
-      total: 110, cols, rows,
-    }
-  }
-  if (name === 'manager-filter' || name === 'manager-nomatch') {
-    writeSyntheticSession('short')
-    return {
-      argv: ['node', BIN, '--resume', SID],
-      sends: [
-        { atTick: 30, data: '/manager' },
-        { atTick: 36, data: '\r' },
-        {
-          atTick: 120,
-          minTick: 10,
-          awaitText: 'opens for real',
-          awaitSettleTicks: 3,
-          data: name === 'manager-filter' ? 'agent' : 'zzzz',
-        },
-      ],
-      readyText: name === 'manager-filter' ? 'match · ↵' : 'No surfaces match',
-      stableTicks: 4,
-      total: 170, cols, rows,
     }
   }
   if (['critter', 'workflows', 'crewmates', 'deck', 'sessions', 'substrate', 'trace', 'fleet', 'ledger', 'cards', 'ide', 'config', 'permissions', 'hooks', 'agents', 'diff', 'tickets', 'memory', 'workbench', 'surfaces', 'palette', 'realms', 'status'].includes(name)) {
@@ -3477,62 +3395,6 @@ function scenarioInner(name: string, cols: number, rows: number) {
       chromeMarkers: ['Mercury · usage'],
     }
   }
-  if (name === 'settings-status-signedin') {
-    const scratch = mkdtempSync(join(tmpdir(), 'mercury-render-status-signedin-'))
-    seedFirstRun(scratch, [RUNTIME_CWD])
-    applyRenderTheme(scratch)
-    writeFileSync(
-      join(scratch, '.openai-auth.json'),
-      JSON.stringify({
-        version: 1,
-        tokens: {
-          idToken: '',
-          accessToken: 'fixture-access',
-          refreshToken: 'fixture-refresh',
-          accountId: 'acct_fixture',
-          planType: 'plus',
-        },
-      }),
-    )
-    writeFileSync(
-      join(scratch, '.openrouter-auth.json'),
-      JSON.stringify({
-        version: 1,
-        minted: { key: 'sk-or-v1-renderfixture000000', mintedAtMs: 1755772800000, label: 'Mercury' },
-      }),
-    )
-    writeFileSync(
-      join(scratch, '.provider-secrets.json'),
-      JSON.stringify({ version: 1, geminiApiKey: 'AIza-render-fixture-key0000' }),
-    )
-    for (const key of [
-      'ANTHROPIC_API_KEY',
-      'OPENAI_API_KEY',
-      'OPENROUTER_API_KEY',
-      'GOOGLE_API_KEY',
-      'GEMINI_API_KEY',
-      'ZAI_API_KEY',
-    ]) {
-      delete process.env[key]
-    }
-    const dead = 'http://127.0.0.1:9'
-    process.env.MERCURY_OPENAI_API_BASE = dead
-    process.env.MERCURY_OPENAI_CHATGPT_BASE = dead
-    process.env.MERCURY_OPENAI_AUTH_BASE = dead
-    process.env.MERCURY_OPENROUTER_API_BASE = dead
-    process.env.MERCURY_OPENROUTER_AUTH_BASE = dead
-    process.env.MERCURY_GEMINI_API_BASE = dead
-    process.env.MERCURY_GEMINI_OAUTH_AUTH_BASE = dead
-    process.env.MERCURY_GEMINI_OAUTH_TOKEN_BASE = dead
-    process.env.MERCURY_CONFIG_DIR = scratch
-    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
-    return {
-      argv: ['node', BIN],
-      sends: [{ atTick: 30, data: '/status\r' }],
-      total: 105, cols, rows,
-      chromeMarkers: ['Mercury · status'],
-    }
-  }
   if (
     name === 'model-picker-hf' ||
     name === 'model-picker-local' ||
@@ -3673,14 +3535,6 @@ function scenarioInner(name: string, cols: number, rows: number) {
       argv: ['node', BIN, '--resume', SID],
       sends,
       total: name === 'health-detail' ? 105 : 80, cols, rows,
-    }
-  }
-  if (name === 'provenance') {
-    writeSyntheticSession('short')
-    return {
-      argv: ['node', BIN, '--resume', SID],
-      sends: [{ atTick: 30, data: '/provenance' }, { atTick: 36, data: '\r' }],
-      total: 60, cols, rows,
     }
   }
   if (name === 'critter-home') {
