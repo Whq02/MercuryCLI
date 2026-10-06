@@ -3,7 +3,7 @@ WORKBENCH           │ ✶ VIEW · cedar · viewing                            
   no prompts sent y…│                                                                              │
                     │ ╭──────────────────────────────────────────────────────────────────────────╮ │
 NEXT                │ │ ▖▟▆▙▗ Mercury · config                                                   │ │
-  · /workflows — ag…│ │ orchard · 58 settings · 0 set by you                                     │ │
+  · /workflows — ag…│ │ orchard · 59 settings · 0 set by you                                     │ │
                     │ │                                                                          │ │
 FILES · orchard     │ │ / Search settings…                                                       │ │
   ↵ or click · brow…│ │                                                                          │ │
@@ -13,11 +13,11 @@ TELEMETRY           │ │   Session concourse                 on              
   · ctx — · —       │ │   Tips                              on                                   │ │
   · health — run /h…│ │   Reduced motion                    off                                  │ │
                     │ │   Ping                              on                                   │ │
+                    │ │   Account identity                  shown                                │ │
                     │ │   Motion                            auto · off                           │ │
                     │ │   JEV                               off · official                       │ │
                     │ │   Instruction profile               auto                                 │ │
-                    │ │   Shell engine                      system                               │ │
-                    │ │ ↓ 48 more                                                                │ │
+                    │ │ ↓ 49 more                                                                │ │
                     │ │                                                                          │ │
                     │ │ ↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes │ │
                     │ ╰──────────────────────────────────────────────────────────────────────────╯ │
