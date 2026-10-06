@@ -26,6 +26,7 @@ import { compileWhenSpelling, WHEN_SPELLING_EXAMPLES } from '../services/saturn/
 import { listKitPresets } from '../services/mcp/presetStore.js';
 import { getModelOptions, KEY_CONNECT_PREFIX } from '../utils/model/modelOptions.js';
 import { readSessionReceipts, type SessionReceiptEntry } from '../services/switchboard/sessionReceipts.js';
+import { accountIdentityShown } from '../services/wallet/identityWords.js';
 import { getProjectDir } from '../utils/sessionStorage/paths.js';
 import { projectDisplayName, workedInProjects } from '../utils/bootCardFacts.js';
 import { useEngineModel } from '../hooks/useEngineModel.js';
@@ -180,7 +181,7 @@ export function saturnDetailLines(row: SaturnScreenRowV1, nowMs: number, receipt
   lines.push(`next: ${saturnRowFireWords(row, nowMs)}`);
   lines.push(`last: ${s.lastFiredAt !== undefined ? formatRelativeTimeAgo(new Date(s.lastFiredAt), { style: 'short', now: new Date(nowMs) }) : 'never'}`);
   lines.push(`model: ${s.modelKey}${s.effort !== undefined ? ` · ${s.effort}` : ''}`);
-  lines.push(...wrapPlain(`account: ${s.account.family}/${s.account.source}${s.account.identity !== undefined ? ` · ${s.account.identity}` : ''}`, DETAIL_W));
+  lines.push(...wrapPlain(`account: ${s.account.family}/${s.account.source}${s.account.identity !== undefined && accountIdentityShown() ? ` · ${s.account.identity}` : ''}`, DETAIL_W));
   lines.push(`preflight at write: ${s.preflightAtWrite !== undefined ? s.preflightAtWrite.state : 'not computed'}`);
   if (s.action.kind === 'birth') {
     const b = s.action.birth;
