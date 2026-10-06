@@ -46,8 +46,11 @@ const tracked = new Set(
 const untrackedAssets: string[] = []
 const deadScripts: string[] = []
 const deadSources: string[] = []
+const sdkParked = ![...tracked].some(t => t.startsWith('sdk/'))
+if (sdkParked) console.log('  [skip] the SDK is parked and not on this tree (the published lineage carries no sdk/): its asset row is read where it stands')
 for (const row of map.rows) {
   for (const asset of row.assets) {
+    if (sdkParked && asset.startsWith('sdk/')) continue
     const hit = /[*?{]/.test(asset) ? [...tracked].some(t => new Bun.Glob(asset).match(t)) : tracked.has(asset)
     if (!hit) untrackedAssets.push(asset)
   }

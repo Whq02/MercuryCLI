@@ -13,6 +13,7 @@ fail=0
 echo "############################################################"
 echo "# sdk — the parked package: build, drift, the run door through it"
 echo "############################################################"
+[ -d "$here/../../sdk/src" ] || { echo "the SDK is parked and not on this tree (the published lineage carries no sdk/): nothing to prove here"; exit 0; }
 for f in "$here"/prove-*.ts; do
   [ -e "$f" ] || continue
   echo

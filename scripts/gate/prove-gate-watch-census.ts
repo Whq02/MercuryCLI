@@ -415,7 +415,12 @@ export function census(root: string, tracked: string[], manifest: ImpactManifest
     const lines = readFileSync(join(root, runner), 'utf8').split('\n')
     const declared = manifest.watches[suite] ?? []
     globCount += declared.length
-    for (const g of declared) if (!tree.list.some(t => globOf(g).match(t))) misses.push({ suite, law: 1, text: `${runner}: gate-watch ${g} matches no tracked path` })
+    for (const g of declared) {
+      if (tree.list.some(t => globOf(g).match(t))) continue
+      const top = g.split('/')[0] ?? g
+      if (top === 'sdk' && !tree.list.some(t => t.startsWith('sdk/'))) continue
+      misses.push({ suite, law: 1, text: `${runner}: gate-watch ${g} matches no tracked path` })
+    }
     let header = true
     lines.forEach((line, i) => {
       if (header && line !== '' && !line.startsWith('#')) header = false

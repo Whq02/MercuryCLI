@@ -392,8 +392,11 @@ async function main(): Promise<void> {
     check(`the table's bundled-module row names exactly the ${folders.size} skill folders under ${BUNDLED} (no missing name, no stale name)`, tabled.length > 0 && tabled.join(' ') === [...folders].sort().join(' '), `table: ${tabled.join(' ') || '(no row)'} | folders: ${[...folders].sort().join(' ')}`)
     check('the bundled-module row names the generator, the source and the gate as the folder row does', modulesRow?.generator === 'bun scripts/skills/gen-bundled.ts' && modulesRow.sources === 'mercury-skills/**' && modulesRow.check === null, JSON.stringify(modulesRow))
     let assetsSeen = 0
+    const sdkParked = !tracked.some(rel => rel.startsWith('sdk/'))
+    if (sdkParked) console.log('  [skip] the SDK is parked and not on this tree (the published lineage carries no sdk/): its asset row is read where it stands')
     for (const row of rows) {
       for (const asset of row.assets) {
+        if (sdkParked && asset.startsWith('sdk/')) continue
         const files = tracked.filter(rel => matches(rel, asset))
         check(`row ${row.line} asset ${asset} names ${files.length} tracked file(s)`, files.length > 0)
         for (const rel of files) {
