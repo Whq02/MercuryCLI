@@ -18,7 +18,6 @@ import {
 } from '../../src/components/BootHealthScreen.js'
 import { HEALTH_STATUS_META, type HealthCheck, type HealthStatus } from '../../src/utils/healthReport.js'
 import {
-  resumeCrewEntryOf,
   resumeDetailLines,
   resumeElsewhereEntry,
   resumeEmptyDetailLines,
@@ -209,26 +208,24 @@ t.section('§7 — THE REAL MOUNT (staticRender with an injected certificate)')
 
 t.section('§8 — THE RESUME SKIN (one core, the face grammar; the real journey named)')
 {
-  const { flat, crew, elsewhereCount } = resumeModelOf('all')
-  t.check('the fixture store projects through the REAL C2 pipeline (4 sessions · 1 crew)', flat.length === 4 && crew.length === 1 && elsewhereCount === 0, `${flat.length}/${crew.length}/${elsewhereCount}`)
+  const { flat, elsewhereCount } = resumeModelOf('all')
+  t.check('the fixture store projects through the REAL C2 pipeline (4 sessions)', flat.length === 4 && elsewhereCount === 0, `${flat.length}/${elsewhereCount}`)
   const entry = resumeEntryOf(flat[0]!)
   t.check('a session row groups under its PROJECT with the seen age as the value', entry.group === entry.groupTitle && entry.group.length > 0 && entry.valueLabel === flat[0]!.row.seen)
   const clearedRow = flat.find(f => f.row.cleared === true)
   t.check("the cleared session wears '· cleared' beside its age and stands out", clearedRow !== undefined && resumeEntryOf(clearedRow!).valueLabel.endsWith(' · cleared') && resumeEntryOf(clearedRow!).valueIsDefault === false)
-  const crewEntry = resumeCrewEntryOf(crew[0]!)
-  t.check("crew transcripts class apart under 'router crews' and stay selectable", crewEntry.groupTitle === 'router crews' && crewEntry.inert !== true && crewEntry.label.startsWith('party · dps1 — '))
   const elsewhere = resumeElsewhereEntry(3)
   t.check('the other-repos line is inert and names the a reach', elsewhere.inert === true && elsewhere.label === '+3 in other projects — a shows all history')
   t.check('the detail trail names the REAL journey (the chat stop appears; esc opens nothing)', resumeDetailLines(flat[0]!).join('\n').includes('the chat stop appears on the strip') && resumeDetailLines(flat[0]!).join('\n').includes('esc — back to the face, nothing opened'))
   t.check('a cleared row’s trail says resuming reopens it', clearedRow !== undefined && resumeDetailLines(clearedRow!).join('\n').includes('resuming reopens it'))
   t.check('the empty worlds teach n (births here) in both scopes', resumeEmptyDetailLines('all', 0).join('\n').includes('n births a fresh session here') && resumeEmptyDetailLines('project', 3).join('\n').includes('a shows'))
-  t.check('the status line counts sessions · crew · scope and names ↵', resumeStatusLine({ loading: false, count: 4, crewCount: 1, scope: 'all', pendingMore: 0 }) === '4 sessions in the full history · 1 crew · ↵ opens the real chat')
-  t.check('the loading and empty status lines stay honest', resumeStatusLine({ loading: true, count: 0, crewCount: 0, scope: 'all', pendingMore: 0 }) === 'reading the session store…' && resumeStatusLine({ loading: false, count: 0, crewCount: 0, scope: 'project', pendingMore: 0 }).includes('n births one'))
+  t.check('the status line counts sessions · scope and names ↵', resumeStatusLine({ loading: false, count: 4, scope: 'all', pendingMore: 0 }) === '4 sessions in the full history · ↵ opens the real chat')
+  t.check('the loading and empty status lines stay honest', resumeStatusLine({ loading: true, count: 0, scope: 'all', pendingMore: 0 }) === 'reading the session store…' && resumeStatusLine({ loading: false, count: 0, scope: 'project', pendingMore: 0 }).includes('n births one'))
   t.check('the legend flips the scope key with the scope and drops moves that do not exist', resumeLegendOf('all', true).includes('a this project') && resumeLegendOf('project', true).includes('a all history') && !resumeLegendOf('all', false).includes('↵ open'))
-  t.check('the summary panel says what ↵ opens (a real chat, in place)', resumeSummaryRows({ scope: 'all', count: 4, crewCount: 1, elsewhereCount: 0, pendingMore: 0 }).some(r => r.value.includes('a real chat, in place') && r.tone === 'teal'))
+  t.check('the summary panel says what ↵ opens (a real chat, in place)', resumeSummaryRows({ scope: 'all', count: 4, elsewhereCount: 0, pendingMore: 0 }).some(r => r.value.includes('a real chat, in place') && r.tone === 'teal'))
 
   const wide = composeResume(120, 40, { scope: 'all', sel: 1 }).join('\n')
-  t.check('the wide frame carries the sessions panel, the projects as section titles and the crew section', ['SESSIONS', 'router crews', 'orchard-src', 'moodle'].every(s => wide.includes(s)))
+  t.check('the wide frame carries the sessions panel and the projects as section titles, and no second section', ['SESSIONS', 'orchard-src', 'moodle'].every(s => wide.includes(s)) && !wide.includes('router crews'))
   const floor = composeResume(64, 12, { scope: 'all', sel: 1 }).join('\n')
   t.check('the 64×12 floor frame WARNS and keeps the way out (never a wall)', floor.includes('wants at least') && floor.includes('esc back'))
   const project = composeResume(120, 40, { scope: 'project', sel: 0 }).join('\n')
@@ -246,7 +243,7 @@ t.section('§9 — THE RESUME MOUNT (staticRender with an injected model; the la
     120,
   )
   t.check('the mounted screen presents the session rows and their projects', frame.includes('the tool-loop fold') && frame.includes('moodle groundwork') && frame.includes('orchard-src'))
-  t.check('the mounted screen presents the crew section and the legend', frame.includes('router crews') && frame.includes('↵ open · n new session'))
+  t.check('the mounted screen presents the legend and no crew section', !frame.includes('router crews') && frame.includes('↵ open · n new session'))
 
   const resumeSrc = read('src/components/BootResumeScreen.tsx')
   const armedTokens = ['armedRootCommand', 'armRootCommand', 'initialMessage', 'settleAbsentChat']
