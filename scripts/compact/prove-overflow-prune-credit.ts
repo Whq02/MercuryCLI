@@ -8,7 +8,6 @@ import { z } from 'zod/v4'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'overflow-prune-credit-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'overflow-prune-credit-daemon-'))
-process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'overflow-prune-credit-crews-'))
 for (const k of [
   'MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOKENS', 'MERCURY_BLOCKING_LIMIT_OVERRIDE',
   'MERCURY_AUTOCOMPACT_PCT_OVERRIDE', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_TIME_BASED_MC', 'NODE_ENV',
