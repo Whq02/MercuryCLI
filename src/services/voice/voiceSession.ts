@@ -364,7 +364,7 @@ export function describeVoiceStatus(env: NodeJS.ProcessEnv = process.env): strin
   const onDevice = onDeviceWords(transcriber)
   const door = downloadDoorWords(transcriber)
   return [
-    `voice input ${on ? `ON — ${HOLD_WORDS}` : 'OFF — /speak on turns it on'}`,
+    `voice input ${on ? `ON — ${HOLD_WORDS}` : 'OFF — /voice on turns it on'}`,
     ...(on ? [NO_REPEAT_WORDS] : []),
     `transcriber: ${transcriber.state === 'ok' ? (transcriber.choice.kind === 'local' ? transcriberWords(transcriber) : `${choiceDisplayName(transcriber.choice)} · ${transcriber.choice.label}`) : `none — ${transcriber.note}`}`,
     defaultWords(transcriber),
