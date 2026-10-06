@@ -347,7 +347,7 @@ if (process.env.IROW_CHILD) {
       }
       return v.replace(/^#/, '').toLowerCase()
     }
-    for (const family of ['light', 'dark-ansi'] as const) {
+    for (const family of ['dark', 'true-black'] as const) {
       const expected = gridForm(resolveMercuryTokens(family, '#DD4444').surface2)
       const base = capture(`e-${family}-0`, 'rows', [], 24, 80, 22, { IROW_THEME: family })
       const aRow = base ? base.lines.findIndex(l => l.includes('ROW-alpha')) : -1

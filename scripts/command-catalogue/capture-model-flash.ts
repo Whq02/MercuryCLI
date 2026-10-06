@@ -40,8 +40,8 @@ type Case = { theme: string; cols: number; rows: number }
 const MATRIX: Case[] = [
   { theme: 'dark', cols: 80, rows: 24 },
   { theme: 'dark', cols: 120, rows: 40 },
-  { theme: 'light', cols: 80, rows: 24 },
-  { theme: 'light', cols: 120, rows: 40 },
+  { theme: 'true-black', cols: 80, rows: 24 },
+  { theme: 'true-black', cols: 120, rows: 40 },
 ]
 
 const SENDS = [
