@@ -19,7 +19,7 @@
 # gate-watch: src/components/mercury-ui/parity/DaemonView.tsx
 # gate-watch: src/components/messages/SystemTextMessage.tsx src/context/stats.tsx src/entrypoints/mcp.ts
 # gate-watch: src/prompt/behaviourContract.ts src/prompt/mercuryContract.ts
-# gate-watch: src/screens/Chat.tsx src/services/compact/* src/services/coordination/coordinationService.ts
+# gate-watch: src/screens/Chat.tsx src/services/compact/*
 # gate-watch: src/services/gitGraph/observe.ts src/services/primitives/executionPlane.ts
 # gate-watch: src/services/projectIntel/snapshot.ts src/services/providers/anthropic/requestParams.ts
 # gate-watch: src/services/providers/deferralWire.ts src/services/providers/routeLaw.ts
@@ -27,9 +27,8 @@
 # gate-watch: src/services/workbench/projection.ts src/state/telemetryBus.ts
 # gate-watch: src/tasks/LocalWorkflowTask/LocalWorkflowTask.tsx src/tools/BashTool/BashTool.tsx
 # gate-watch: src/tools/LSPTool/LSPTool.ts src/tools/ScheduleWakeupTool/prompt.ts
-# gate-watch: src/tools/SendMessageTool/SendMessageTool.ts src/tools/LiveCommsTool/LiveCommsTool.ts
+# gate-watch: src/tools/SendMessageTool/SendMessageTool.ts
 # gate-watch: src/utils/crew/crewBirth.ts src/chatLauncher.tsx
-# gate-watch: src/services/crew/liveComms* src/services/crew/liveMessages*
 # gate-watch: src/types/command.ts src/services/privateChannel/installPath.ts
 # gate-watch: src/utils/timeouts.ts src/utils/shell/outputLimits.ts src/utils/managedEnvConstants.ts
 # gate-watch: src/utils/subprocessEnv.ts src/tools/AgentTool/reviewerPolicy.ts

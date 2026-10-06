@@ -111,8 +111,8 @@ check('no TASKS card: the rail builds no ledger section or rows of its own',
   !/section\('tasks'/.test(lanes) && !/missionNodes/.test(lanes) && !/'TASKS'/.test(lanes) && !/no open tasks/.test(lanes))
 check('RUNS is the one rail door to the /runs board (header opens /runs)',
   /key: 'runs', glyph: GLYPH\.turns, label: 'RUNS', count: `\$\{runsLive\} live`, open: '\/runs', rows/.test(lanes))
-check('a ledger alone never forces the busy layout (the solo gate reads crew, the viewed or pinned crewmate, runs and daemon crew only — no peers term)',
-  /return input\.sessionCrew\.length === 0 && keptIds\.length === 0 && runsOf\(input\.tasks, input\.roster\)\.length === 0 && input\.daemonCrew\.length === 0/.test(lanes) && !/ledgerOpen/.test(lanes) && !/peers\.length/.test(lanes))
+check('a ledger alone never forces the busy layout (the solo gate reads crew, the viewed or pinned crewmate and runs only — no peers term)',
+  /return input\.sessionCrew\.length === 0 && keptIds\.length === 0 && runsOf\(input\.tasks, input\.roster\)\.length === 0/.test(lanes) && !/ledgerOpen/.test(lanes) && !/peers\.length/.test(lanes))
 check('S4: the dead selectedCaret/focus path is removed from the rail',
   !/selectedCaret/.test(lanes) && !/onCursorMax/.test(lanes))
 
@@ -133,7 +133,7 @@ check('RUNS: elapsed floors on a stamped start (never an epoch span)',
 check('MoreRow has click parity (requestHelmRowActivation on click)',
   /function MoreRow\([\s\S]{0,900}requestHelmRowActivation\('lanes', rowIndex\)/.test(lanes))
 check('RUNS: a live run is never "solo" (runsAll gates the empty-state)',
-  /runsOf\(input\.tasks, input\.roster\)\.length === 0 &&/.test(lanes))
+  /runsOf\(input\.tasks, input\.roster\)\.length === 0/.test(lanes))
 check('RUNS: elapsed stays honest while runs live (the 15s tick arms on runsLive)',
   /useNowTick\(\s*mergedTelemetry \|\| model\.runsLive > 0 \? 15_000 : null,?\s*\)/.test(lanes))
 check('CREW: running agent rows rotate too (one liveness grammar; an idle crewmate, the viewed ◉ and main-chat ★ marks stand still)',

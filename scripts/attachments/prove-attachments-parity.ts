@@ -77,15 +77,12 @@ add('getContextEfficiencyAttachment', 'fold-dead', () =>
   (A as Record<string, CallableFunction>).getContextEfficiencyAttachment([]),
 )
 
-add('CREW_MESSAGES_KIND', 'value', () => A.CREW_MESSAGES_KIND)
-const KIND_SAMPLES = [A.CREW_MESSAGES_KIND, 'crew_context', 'queued_command', 'no_such_kind']
-add('isCrewMessagesAttachment', 'samples', () => KIND_SAMPLES.map(type => A.isCrewMessagesAttachment({ type })))
 
 const SKIPPED: Record<string, string> = {
   getAttachments: 'per-turn orchestrator over ToolUseContext/appState — pinned by substrate suites (cache-stability, ctx-forecast, away-summary); gains fixture cases as R3 extraction reaches it',
   getAttachmentMessages: 'async generator over the same ToolUseContext orchestration (the streaming wrapper of getAttachments)',
   getQueuedCommandAttachments: 'reads AppState queuedCommands',
-  getAgentPendingMessageAttachments: 'reads crewmate mailbox state',
+  getAgentPendingMessageAttachments: 'reads the crewmates\' pending-message state',
   getDateChangeAttachments: 'reads session clock state',
   getDeferredToolsDeltaAttachment: 'reads MCP registry state',
   getMcpInstructionsDeltaAttachment: 'reads MCP connection state',

@@ -11,7 +11,7 @@
 # gate-watch: scripts/lib/platformPath.ts
 # gate-watch: src/utils/conversationRecovery.ts src/cli/headless/resume.ts
 # gate-watch: src/utils/sessionClass.ts src/utils/messages/attachmentText.ts src/components/messages/nullRenderingAttachments.ts src/utils/sessionStorage/vnext.ts
-# gate-watch: src/utils/attachments/types.ts src/keybindings/loadUserBindings.ts src/fabric/transcriptDecode.ts src/components/mercury-ui/toolGlyphs.ts src/daemon/crewSpawn.ts src/commands/crewmates/index.ts src/keybindings/actionGraph.ts src/keybindings/parser.ts src/main.tsx src/state/AppStateStore.ts src/substrate/operationJournal.ts src/tools/AgentTool/AgentTool.tsx src/utils/crew/crewConvert.ts src/utils/crew/constants.ts src/utils/crew/crewHelpers.ts src/utils/crew/crewOperations.ts src/utils/envUtils.ts src/utils/crewEnabled.ts src/utils/zodToJsonSchema.ts
+# gate-watch: src/utils/attachments/types.ts src/keybindings/loadUserBindings.ts src/fabric/transcriptDecode.ts src/components/mercury-ui/toolGlyphs.ts src/commands/crewmates/index.ts src/keybindings/actionGraph.ts src/keybindings/parser.ts src/main.tsx src/state/AppStateStore.ts src/substrate/operationJournal.ts src/tools/AgentTool/AgentTool.tsx src/utils/crew/crewConvert.ts src/utils/crew/constants.ts src/utils/crew/crewHelpers.ts src/utils/crew/crewOperations.ts src/utils/envUtils.ts src/utils/crewEnabled.ts src/utils/zodToJsonSchema.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

@@ -115,9 +115,6 @@ section('§3 the crew wire: a crewmate spawns in the ordinary posture and no mes
   check('the SendMessage tool rides the wire', sendMessage !== undefined)
   check('no SendMessage variant approves or rejects a plan', !JSON.stringify(sendMessage?.input_schema ?? {}).includes('plan_approval'))
 
-  const live = await import('../../src/services/crew/liveMessages.ts')
-  check('the live-message protocol recognises no plan-approval kind', !live.isStructuredProtocolMessage(JSON.stringify({ type: 'plan_approval_request', from: 'a', timestamp: 't', planFilePath: 'p', planContent: 'c', requestId: 'r' })) && !live.isStructuredProtocolMessage(JSON.stringify({ type: 'plan_approval_response', requestId: 'r', approved: true, timestamp: 't' })))
-  check('control: a shutdown request is still a protocol message', live.isStructuredProtocolMessage(JSON.stringify({ type: 'shutdown_request', from: 'a', requestId: 'r', timestamp: 't' })))
 }
 
 section('§4 the mode word: --mode strategy is an unknown value, the lists and schemas carry Apollo as the planning mode')

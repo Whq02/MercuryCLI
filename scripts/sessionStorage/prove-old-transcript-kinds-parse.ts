@@ -179,7 +179,7 @@ const mailboxRow = messages.find(m => m.type === 'attachment' && (m.attachment a
 check('a terminated notice inside an old message row reads as written', mailboxRow !== undefined && mailboxRow.messages[1]!.text.includes('"teammate_terminated"') && !mailboxRow.messages[1]!.text.includes('crewmate_terminated'), JSON.stringify(mailboxRow?.messages[1]))
 const crewMessagesRow = messages.find(m => m.type === 'attachment' && (m.attachment as { type: string }).type === 'crew_messages')?.attachment
 const crewMessagesText = crewMessagesRow === undefined ? [] : attachmentText.normalizeAttachmentForAPI(crewMessagesRow as never)
-check('the crew kind written now composes its envelope', crewMessagesText.length === 1 && JSON.stringify(crewMessagesText[0]).includes('a note under the crew kind'))
+check('a crew_messages row composes nothing for the model — an unknown kind like the old one', crewMessagesText.length === 0)
 check('the old shutdown kind composes nothing for the model and does not throw', Array.isArray(attachmentText.normalizeAttachmentForAPI({ type: 'teammate_shutdown_batch', count: 2 } as never)) && attachmentText.normalizeAttachmentForAPI({ type: 'teammate_shutdown_batch', count: 2 } as never).length === 0)
 const createRow = messages.find(m => m.type === 'assistant' && JSON.stringify(m).includes('toolu_teamcreate'))
 const createInput = ((createRow?.message as { content: Array<{ input?: Record<string, unknown> }> }).content[0]?.input ?? {}) as Record<string, unknown>
@@ -255,8 +255,6 @@ console.log('§5 a roster saved in the old folder, under the old lead name, is n
   const convert = await import('../../src/utils/crew/crewConvert.ts')
   const outcome = await convert.convertSavedCrews({ crewDir: join(HOME, 'crew-store') })
   check('the conversion of saved rosters reads the crews folder alone', !outcome.converted.includes('oldcrew') && !outcome.unchanged.includes('oldcrew') && outcome.crewsDir === join(HOME, 'crews'), JSON.stringify(outcome))
-  const spawn = await import('../../src/daemon/crewSpawn.ts')
-  check('the old lead name is an ordinary crewmate name — nothing reserves it', spawn.isValidCrewName('team-lead') === spawn.isValidCrewName('frobnicate') && spawn.isValidCrewName('crew-lead') === false)
 }
 
 console.log('§6 the Agent tool reads its input as declared — an old field name is an unknown field')

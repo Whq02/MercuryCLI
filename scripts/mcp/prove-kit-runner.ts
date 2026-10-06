@@ -149,10 +149,7 @@ section('§S the swap: every membership road answers the process kit through the
 
   latch({ schema: 1, mcp: [], skills: [], invocable: [] })
   t('S4 the EMPTY resolved kit admits NOTHING configured (empty ≠ absent — L24(1) "absent from that session\'s process")', membership.isMcpCatalogueMember('alpha') === false && membership.isMcpCatalogueMember('beta') === false)
-  t("S5 ORGANS OUTSIDE (Q1): the EMPTY kit still mounts the enabled coordination server ('mercury')", membership.isMcpCatalogueMember('mercury') === true && membership.isMcpOrgan('mercury'))
-  process.env.MERCURY_COORDINATION_MCP = '0'
-  t("S6 with the coordination server OFF, 'mercury' is an ordinary name — the kit governs it (no organ hole for a user server that borrowed the name)", membership.isMcpCatalogueMember('mercury') === false && !membership.isMcpOrgan('mercury'))
-  delete process.env.MERCURY_COORDINATION_MCP
+  t("S5 no organ: 'mercury' is an ordinary name — the kit governs it", membership.isMcpCatalogueMember('mercury') === false)
 
   latch({ schema: 1, mcp: ['ghost-list'], skills: [], invocable: [], resolved: false, deltas: { mcpOff: ['beta'], skillStates: {}, extensionsOff: [] } })
   t("S7 an UNRESOLVED latch is deltas-only at the owner: 'beta' (delta-off) out; 'alpha' in; 'srv-off' in (the record ignored); its provisional list is NEVER membership ('ghost-list' grants nothing beyond delta absence)", membership.isMcpCatalogueMember('beta') === false && membership.isMcpCatalogueMember('alpha') === true && membership.isMcpCatalogueMember('srv-off') === true)
@@ -165,8 +162,6 @@ section('§S the swap: every membership road answers the process kit through the
   t("S8 the runner batch partition follows the owner (excluded entries become truthful 'disabled' rows and are never dialed — the landed semantics under the kit)", split.members.length === 1 && split.members[0]?.[0] === 'alpha' && split.excluded.length === 1 && split.excluded[0]?.[0] === 'beta')
 
   const owner = readFileSync(join(REPO, 'src', 'services', 'mcp', 'membership.ts'), 'utf8')
-  const coord = readFileSync(join(REPO, 'src', 'services', 'mcp', 'coordinationServer.ts'), 'utf8')
-  t('S9 the organ spelling is pinned equal to its owner (coordination name + env + the =0-only off-switch)', owner.includes("COORDINATION_ORGAN_NAME = 'mercury'") && coord.includes("COORDINATION_SERVER_NAME = 'mercury'") && coord.includes("'MERCURY_COORDINATION_MCP'") && coord.includes("=== '0'") && owner.includes("flagEnv('MERCURY_COORDINATION_MCP') !== '0'"))
   const kitFiles = ['src/services/mcp/sessionKitPin.ts', 'src/services/mcp/membership.ts', 'src/skills/kitGovernance.ts']
   const worldDirty = kitFiles.filter(f => /chatOnlyBoot|chatBoot\(|MERCURY_SPLASH_CHAT/.test(readFileSync(join(REPO, f), 'utf8')))
   t('S10 no world check anywhere in the kit path (the L24(6-SUPERSEDED) law): the kit modules read no world predicate', worldDirty.length === 0, worldDirty.join(','))
@@ -201,8 +196,8 @@ section('§C the completion (poison: a second road to resolved; a resolved recor
   }
   const R = completeSessionKitFromRoster(UNRESOLVED as never, ROSTER as never)
   t(
-    'C1 the composer applies the DELTAS to the runner\'s own roster: delta-off and off-master servers out, organs out, wire-illegal spellings out; the provisional list grants NOTHING',
-    deepEq(R.mcp, ['alpha', 'ext:loud-ext:tool']) && !R.mcp.includes('ghost') && !R.mcp.includes('mercury'),
+    'C1 the composer applies the DELTAS to the runner\'s own roster: delta-off and off-master servers out, wire-illegal spellings out; a server named mercury is an ordinary name the roster lists; the provisional list grants NOTHING',
+    deepEq(R.mcp, ['alpha', 'mercury', 'ext:loud-ext:tool']) && !R.mcp.includes('ghost'),
     JSON.stringify(R.mcp),
   )
   t("C2 the skills halves follow the overlay's own product (kit-on unmarked; kit-invocable marked; an off-master extension skill contributes nothing; builtins never)", deepEq(R.skills, ['s:on']) && deepEq(R.invocable, ['s:inv']))
@@ -372,11 +367,10 @@ section('§I the inline agent-def door (poison: the byte-identical cache-hit tea
   t('I6 the gates stand in source, in order (host → managed policy → enterprise exclusivity → the excluded-name refusal), and the nonce is minted ONCE per dispatch and spread into every inline dial', ['not a server configuration the one validator accepts', 'blocked by managed policy', 'an enterprise MCP configuration exists', "the session's catalogue excludes this name"].every(n => agentSrc.includes(n)) && agentSrc.includes('const dispatchNonce = randomUUID()') && agentSrc.includes('inlineDispatchId: dispatchNonce'))
 }
 
-section('§N non-session insulation (poison: a kit env appearing on a warm/crew/utility spec)')
+section('§N non-session insulation (poison: a kit env appearing on a warm/utility spec)')
 {
   const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.ts')
   const { buildRunnerInvocation } = await import('../../src/daemon/headlessRun.ts')
-  const { buildCrewSpec } = await import('../../src/daemon/crewSpawn.ts')
   const base = { runnerId: 'w-ins', sessionId: '33333333-4444-4555-8666-777777777777', workspaceId: PROJECT, modelKey: 'test-model' }
 
   process.env.MERCURY_SESSION_KIT = JSON.stringify({ schema: 1, mcp: ['stray'], skills: [], invocable: [] })
@@ -384,16 +378,13 @@ section('§N non-session insulation (poison: a kit env appearing on a warm/crew/
   t("N1 a SESSION worker's child env carries ITS SPEC's stamp — never the spawning process's stray (the strip runs before the overlay; the deliberate stamp lands)", workerEnv.MERCURY_SESSION_KIT === JSON.stringify(K_RESOLVED))
   const warmEnv = buildRunnerInvocation(buildConcourseWorkerSpec({ runnerId: 'w-ins-warm', workspaceId: PROJECT, modelKey: 'test-model', warm: true, kit: K_RESOLVED as never })).env
   t("N2 POISON armed: a WARM child env carries ITS SPEC's kit and never the stray beside it (the ensure's stamp is the only speaker; a spec-less warm build still stamps nothing — K10)", warmEnv.MERCURY_SESSION_KIT === JSON.stringify(K_RESOLVED))
-  const crewEnv = buildRunnerInvocation(buildCrewSpec('helper', 'fable', PROJECT)).env
-  t('N3 POISON armed: a CREW crewmate (a non-session child) never inherits a kit spelling — the kit narrows only the session it was stamped on', !('MERCURY_SESSION_KIT' in crewEnv))
   delete process.env.MERCURY_SESSION_KIT
 
   const { spawnSync } = await import('node:child_process')
   const consumers = spawnSync('grep', ['-rln', 'consumeSessionKitPin(', join(REPO, 'src')], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean).map(p => p.slice(REPO.length + 1)).sort()
   t('N4 the pin has exactly TWO speakers and no daemon road: sessionKitPin.ts (the owner) and main.tsx (the one consumption) — the daemon/coordinator kernel can never latch a kit', deepEq(consumers, ['src/main.tsx', 'src/services/mcp/sessionKitPin.ts']), consumers.join(','))
   const supSrc = readFileSync(join(REPO, 'src', 'daemon', 'concourseWorkers.ts'), 'utf8')
-  const crewSrc = readFileSync(join(REPO, 'src', 'daemon', 'crewSpawn.ts'), 'utf8')
-  t("N5 the insulation is structural in source: the worker strip list and the crew spec's stripEnv both name the spelling", supSrc.includes("'MERCURY_SESSION_KIT',") && crewSrc.includes("stripEnv: flagSpellings('MERCURY_SESSION_KIT')"))
+  t("N5 the insulation is structural in source: the worker strip list names the spelling", supSrc.includes("'MERCURY_SESSION_KIT',"))
 }
 
 section('§KR a refused pin lands on the session receipt too — once, the same typed sentence')

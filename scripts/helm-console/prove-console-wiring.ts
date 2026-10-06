@@ -117,13 +117,7 @@ check('fallback prefix builders are DYNAMIC imports (cycle rule)', ask.includes(
 
 section('telemetryBus crew channel + lanes rail')
 const bus = read('src/state/telemetryBus.ts')
-check('crew leg gated on crewEnabled()', bus.includes('crewEnabled()'))
-check('crew default-clears each refresh (no stale retention)', bus.includes('next.crew = null'))
 const lanes = read('src/components/HelmLanesRail.tsx') + read('src/utils/cockpit/helmLanesModel.ts')
-check('daemon-crew rows render in CREW', lanes.includes("entry.kind === 'daemon'"))
-check('daemon rows open the named agent\'s chat', lanes.includes("command: crewChatDoor(entry.name), label: `crew:d:${entry.name}`"))
-check('unread breathes (AttentionPulse via verbPulse)', lanes.includes('verbPulse: entry.unread > 0,') && lanes.includes('verbPulse={spec.verbPulse}'))
-check('solo gate counts daemon crew', lanes.includes('input.daemonCrew.length === 0'))
 
 section('workflow lead-run detail (telemetry rail)')
 check('phase + agent progress derived from the one work-row owner', rail.includes('useFocusedWorkRows()') && rail.includes('focusedWorkflowRows(workRows)') && rail.includes('const leadDetail = workflowRowDetail(runningWf[0]!)'))
