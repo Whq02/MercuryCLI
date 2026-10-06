@@ -528,7 +528,7 @@ returns to the picker that opened it, which lists the new family's models.
 A claude.ai sign-in stores the account it landed, taken from the profile the
 token exchange returned, beside the credential the moment the credential
 lands. The sign-in's own receipt names that account, and every surface that
-names the account (the face's account chip and its Logins roster, `/status`,
+names the account (the face's account chip and its Logins roster,
 `/accounts`, the `/usage` popup's Anthropic block, the cockpit's usage
 card and the `auth status` verb) reads the email stored beside the token
 itself — the profile, else the exchange's receipt — never a recorded copy or
@@ -953,8 +953,8 @@ priced at another family's rates.
 
 JevEval is a second opinion from TypeSafe's Jev, not the model running the
 chat. Bare `/jev` opens its card. `/jev on` selects the official road with
-its own TypeSafe key; `/jevor on` selects the OpenRouter road using the
-credential already connected through `/logins`. `/jev off` and `/jevor off`
+its own TypeSafe key; `/jev or on` selects the OpenRouter road using the
+credential already connected through `/logins`. `/jev off` and `/jev or off`
 turn JEV off. The card's Road row shows the selected road, and the JEV
 switches in `/config` and the Boot face preserve that choice. A sign-in
 never switches JEV on, and a missing key never falls through to the other
