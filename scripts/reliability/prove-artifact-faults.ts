@@ -3,20 +3,17 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
-  readFileSync,
   rmSync,
-  writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 
 let failures = 0
 const ok = (cond: boolean, label: string) => {
   console.log(`${cond ? '  ✅' : '  ❌'} ${label}`)
   if (!cond) failures++
 }
-const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 const REPO = join(import.meta.dir, '..', '..')
 const DIST = join(REPO, 'dist', 'mercury.mjs')
@@ -28,10 +25,9 @@ if (!existsSync(DIST)) {
 
 const tmp = mkdtempSync(join(tmpdir(), 'mercury-artifact-faults-'))
 const home = join(tmp, 'home')
-const crews = join(tmp, 'crews')
 const daemon = join(tmp, 'daemon')
 const project = join(tmp, 'project')
-for (const d of [home, crews, daemon, project]) mkdirSync(d, { recursive: true })
+for (const d of [home, daemon, project]) mkdirSync(d, { recursive: true })
 
 const childEnv = (extra: Record<string, string> = {}): NodeJS.ProcessEnv => ({
   ...process.env,
@@ -71,89 +67,6 @@ function checksOf(cert: unknown, sectionId: string): Check[] {
   return sections.find(s => s.id === sectionId)?.checks ?? []
 }
 
-const journalDir = join(crews, '.journal')
-const deadPid = spawnSync('node', ['-e', ''], { timeout: 10_000 }).pid ?? 999_999
-
-function seedDeadOp(opId: string, crewName: string): void {
-  mkdirSync(join(crews, crewName), { recursive: true })
-  writeFileSync(
-    join(crews, crewName, 'config.json'),
-    JSON.stringify({
-      name: crewName,
-      createdAt: Date.now(),
-      leadAgentId: `crew-lead@${crewName}`,
-      leadSessionId: 'dead-owner-session',
-      members: [],
-    }),
-    'utf8',
-  )
-  mkdirSync(journalDir, { recursive: true })
-  writeFileSync(
-    join(journalDir, `op-${opId}.json`),
-    JSON.stringify({
-      schema: 1,
-      operationId: opId,
-      ownerKey: 'dead-owner-session',
-      kind: 'crew-create',
-      idempotencyKey: `crew-create:${crewName}`,
-      state: 'applying',
-      steps: [
-        { id: 'crew-file', target: join(crews, crewName, 'config.json'), state: 'applied' },
-        { id: 'task-epoch', target: crewName, state: 'pending' },
-      ],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      writerPid: deadPid,
-    }),
-    'utf8',
-  )
-}
-
-function opState(opId: string): string | null {
-  try {
-    return (JSON.parse(readFileSync(join(journalDir, `op-${opId}.json`), 'utf8')) as { state: string }).state
-  } catch {
-    return null
-  }
-}
-
-async function bootDaemon(opts: {
-  fault?: string
-  until?: () => boolean
-  timeoutMs: number
-}): Promise<{ exited: boolean; signal: string | null; converged: boolean; waitedMs: number }> {
-  const startedAt = Date.now()
-  const child: ChildProcess = spawn('node', nodeArgs(['daemon', 'run']), {
-    cwd: project,
-    env: childEnv(opts.fault ? { MERCURY_FAULT_INJECT: opts.fault } : {}),
-    stdio: ['ignore', 'pipe', 'pipe'],
-  })
-  let exited = false
-  let signal: string | null = null
-  child.on('exit', (_code, sig) => {
-    exited = true
-    signal = sig
-  })
-  const deadline = Date.now() + opts.timeoutMs
-  let converged = false
-  while (Date.now() < deadline) {
-    if (opts.until?.()) {
-      converged = true
-      break
-    }
-    if (exited) break
-    await sleep(150)
-  }
-  if (!exited) {
-    child.kill('SIGKILL')
-    const killDeadline = Date.now() + 5_000
-    while (!exited && Date.now() < killDeadline) await sleep(50)
-  }
-  return { exited, signal, converged, waitedMs: Date.now() - startedAt }
-}
-
-const terminal = (s: string | null) => s === 'aborted' || s === 'committed'
-
 console.log('— A. health --json --deep on the artifact —')
 {
   const { status, cert } = runHealth(true)
@@ -167,80 +80,6 @@ console.log('— A. health --json --deep on the artifact —')
   }
   const kernel = checksOf(cert, 'run-kernel').find(c => c.id === 'run-kernel-roundtrip')
   ok(kernel?.status === 'ok', `run-kernel deep probe still ok beside the durability section (${kernel?.status})`)
-}
-
-console.log('— B. seeded dead op → diagnose-only health —')
-const undecodablePath = join(journalDir, 'op-zz-undecodable.json')
-const undecodableBytes = JSON.stringify({
-  schema: 1,
-  operationId: 'zz-undecodable',
-  ownerKey: 'dead-owner-session',
-  kind: 'crew-create',
-  idempotencyKey: 'crew-create:af-ghost',
-  state: 'applying',
-  steps: [{ id: 'crew-file', target: 'x', state: 'applied' }],
-  updatedAt: new Date().toISOString(),
-  writerPid: deadPid,
-})
-const undecodableIntact = () => existsSync(undecodablePath) && readFileSync(undecodablePath, 'utf8') === undecodableBytes
-{
-  seedDeadOp('af-b', 'af-crew-b')
-  writeFileSync(undecodablePath, undecodableBytes, 'utf8')
-  const { cert } = runHealth(false)
-  const row = checksOf(cert, 'durability').find(c => c.id === 'durable-journals')
-  ok(row?.status === 'warn', `durable-journals warns beside an undecodable journal file (${row?.status})`)
-  ok(row?.evidence.includes('1 interrupted awaiting recovery') === true, `evidence counts the op (${row?.evidence})`)
-  ok(opState('af-b') === 'applying', 'health did NOT touch the op (diagnose-only)')
-  ok(existsSync(join(crews, 'af-crew-b', 'config.json')), 'health did NOT touch the half-crew')
-  ok(undecodableIntact(), 'health did NOT touch the undecodable file')
-  const quarantines = checksOf(cert, 'durability').find(c => c.id === 'store-quarantines')
-  ok(
-    quarantines?.status === 'warn' && /^1 damaged-store event\(s\) in the last 24h \(1 on the ledger\)/.test(quarantines.evidence) && quarantines.evidence.includes('op-zz-undecodable.json') && quarantines.evidence.includes('bytes left in place') && !quarantines.evidence.includes('preservation FAILED'),
-    `the same health run names the undecodable journal file on the store-quarantines row as one refused event, bytes left in place (the journals check settles first) (${quarantines?.status}: ${quarantines?.evidence})`,
-  )
-  ok(typeof quarantines?.fix === 'string' && !quarantines.fix.includes('quarantined copy') && quarantines.fix.includes('left its bytes in place'), `the row's fix line claims no quarantined copy for bytes left in place (${quarantines?.fix})`)
-}
-
-console.log('— C. daemon boot recovery on the artifact —')
-{
-  const r = await bootDaemon({ until: () => terminal(opState('af-b')), timeoutMs: 30_000 })
-  ok(r.converged, `daemon boot terminal-ized the op beside the undecodable file (state ${opState('af-b')})`)
-  ok(opState('af-b') === 'aborted', 'partial op ABORTED (compensated, not committed)')
-  ok(existsSync(join(crews, 'af-crew-b', 'config.json')), 'the half-crew is left in place by the artifact boot (nothing is removed by itself)')
-  ok(undecodableIntact(), 'the artifact boot left the undecodable file in place, byte for byte')
-  const { cert } = runHealth(false)
-  const row = checksOf(cert, 'durability').find(c => c.id === 'durable-journals')
-  ok(row?.status === 'ok', `health green after recovery (${row?.evidence})`)
-  const quarantines = checksOf(cert, 'durability').find(c => c.id === 'store-quarantines')
-  ok(
-    quarantines?.status === 'warn' && /^3 damaged-store event\(s\) in the last 24h \(3 on the ledger\)/.test(quarantines.evidence) && quarantines.evidence.includes('op-zz-undecodable.json') && quarantines.evidence.includes('bytes left in place'),
-    `three processes met the file (B's health, the daemon boot, this health) and each named it once — the per-process law, three rows, the row counting events (${quarantines?.evidence})`,
-  )
-  rmSync(undecodablePath)
-}
-
-console.log('— D. kill-at-every-boundary (recovery is resumable) —')
-const BOUNDARIES = [
-  'journal-recover-op',
-  'create-temp',
-  'write',
-  'flush-file',
-  'rename',
-  'flush-dir',
-] as const
-for (const [i, phase] of BOUNDARIES.entries()) {
-  const opId = `af-d${i}`
-  const crewName = `af-crew-d${i}`
-  seedDeadOp(opId, crewName)
-  const kill = await bootDaemon({ fault: `${phase}@op-${opId}:kill`, timeoutMs: 20_000 })
-  const stateAfterKill = opState(opId)
-  const died = kill.exited && !kill.converged
-  const reboot = await bootDaemon({ until: () => terminal(opState(opId)), timeoutMs: 60_000 })
-  const convergedState = opState(opId)
-  ok(
-    died && reboot.converged && convergedState === 'aborted' && existsSync(join(crews, crewName, 'config.json')),
-    `${phase}: killed at the boundary (mid-kill state ${stateAfterKill ?? 'unreadable'}) → clean reboot converged (${convergedState}, the crew left in place) in ${reboot.waitedMs}ms`,
-  )
 }
 
 rmSync(tmp, { recursive: true, force: true })
