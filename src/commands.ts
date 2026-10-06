@@ -32,7 +32,6 @@ import health from './commands/health/index.js'
 import effort from './commands/effort/index.js'
 import exit from './commands/exit/index.js'
 import help from './commands/help/index.js'
-import init from './commands/init.js'
 import keybindings from './commands/keybindings/index.js'
 import keys from './commands/keys/index.js'
 import mcp from './commands/mcp/index.js'
@@ -168,7 +167,6 @@ const COMMANDS = memoize((): Command[] => [
   effort,
   exit,
   help,
-  init,
   keybindings,
   keys,
   mcp,

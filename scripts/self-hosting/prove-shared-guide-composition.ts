@@ -21,7 +21,7 @@ const { getUserContext } = await import(${JSON.stringify(join(repo, 'src/context
 const { getNestedMemoryAttachmentsForFile } = await import(${JSON.stringify(join(repo, 'src/utils/attachments/nestedMemory.ts'))})
 const { createFileStateCacheWithSizeLimit } = await import(${JSON.stringify(join(repo, 'src/utils/fileStateCache.ts'))})
 const { getSteps } = await import(${JSON.stringify(join(repo, 'src/projectOnboardingState.ts'))})
-const { hasOrientationDoc } = await import(${JSON.stringify(join(repo, 'src/utils/cockpit/repoSurfaceMap.ts'))})
+const { composedGuideFilesAt } = await import(${JSON.stringify(join(repo, 'src/services/instructions/adapters/index.ts'))})
 const cwd = process.cwd()
 const files = await getInstructionFiles()
 const composed = composeInstructionPrompt(files)
@@ -38,7 +38,7 @@ writeFileSync(process.argv[2]!, JSON.stringify({
   user: (await getUserContext()).instructions ?? '',
   touched: touched.map(a => a.path),
   guideStepComplete: getSteps().find(s => s.key === 'mercurymd')?.isComplete ?? null,
-  oriented: hasOrientationDoc(cwd),
+  oriented: composedGuideFilesAt(cwd).length > 0,
   classified: isInstructionFilePath(join(cwd, 'AGENTS.md')),
 }))
 `)

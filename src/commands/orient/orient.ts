@@ -1,99 +1,52 @@
-import type { LocalCommandCall } from '../../types/command.js'
-import { getOriginalCwd } from '../../bootstrap/state.js'
-import { buildRepoSurfaceMap } from '../../utils/cockpit/repoSurfaceMap.js'
+import { maybeMarkProjectOnboardingComplete } from '../../projectOnboardingState.js'
+import type { Command } from '../../commands.js'
+import type { ContentBlockParam } from '../../types/wire.js'
 
+const ORIENT_PROMPT = `Study this repository and write MERCURY.md — the project instruction file
+Mercury loads into every session here (its gitignored sibling is MERCURY.local.md). Mercury
+loads MERCURY.md first; when a project has no MERCURY.md it loads AGENTS.md instead; when both
+exist only MERCURY.md loads.
 
-function intelSection(): string | null {
-  try {
-    const { projectIntelEnabled } =
-      require('../../services/projectIntel/contracts.js') as typeof import('../../services/projectIntel/contracts.js')
-    if (!projectIntelEnabled()) return null
-    const { getProjectSnapshot } =
-      require('../../services/projectIntel/snapshot.js') as typeof import('../../services/projectIntel/snapshot.js')
-    const { getContextMarks } =
-      require('../../services/projectIntel/pins.js') as typeof import('../../services/projectIntel/pins.js')
-    const { processOwnerForLane } =
-      require('../../services/run/resolveOwner.js') as typeof import('../../services/run/resolveOwner.js')
-    const read = getProjectSnapshot(getOriginalCwd())
-    if (!read) return null
-    const { snapshot, from } = read
-    const gen = snapshot.generation
-    const marks = getContextMarks(processOwnerForLane(null))
-    const lines: string[] = ['', '## Project intelligence']
-    lines.push(
-      `- generation \`${gen.treeDigest?.slice(0, 12) ?? 'no-digest'}\` · ${from} · base build ${gen.buildMs}ms${gen.branch ? ` · ${gen.branch}` : ''}`,
-    )
-    lines.push(
-      snapshot.git.state === 'ok'
-        ? `- changes: ${snapshot.git.changed.length}${snapshot.git.changedTruncated ? '+' : ''} path(s) · ahead ${snapshot.git.ahead} / behind ${snapshot.git.behind}`
-        : `- changes: ${snapshot.git.note ?? 'git unavailable'}`,
-    )
-    if (marks.pins.length > 0) lines.push(`- pinned: ${marks.pins.join(', ')}`)
-    if (marks.drops.length > 0) lines.push(`- dropped: ${marks.drops.join(', ')}`)
-    if (snapshot.caps.omissions.length > 0)
-      lines.push(`- omissions: ${snapshot.caps.omissions.join(' · ')}`)
-    lines.push(
-      '- inspect: `mercury://project/current` (modules · changes · knowledge · checks · context&q=<task> · impact&q=<path> · split&q=<a> || <b>)',
-    )
-    lines.push('- correct the working set: `/orient pin <path>` · `/orient drop <path>` · `/orient clear <path>`')
-    return lines.join('\n')
-  } catch {
-    return null
-  }
-}
+Put in it:
+1. The commands a developer actually runs: build, lint, and test — including how to run one
+   single test, not just the whole suite.
+2. The practices and relationships someone could only learn by reading several files together:
+   the non-obvious conventions, not a tour of the tree. Skip anything obvious from a directory
+   listing.
 
-function markVerb(verb: 'pin' | 'drop' | 'clear', path: string): string {
-  try {
-    const { projectIntelEnabled } =
-      require('../../services/projectIntel/contracts.js') as typeof import('../../services/projectIntel/contracts.js')
-    if (!projectIntelEnabled()) {
-      return 'Project intelligence is disabled (MERCURY_PROJECT_INTEL=0) — no working set to mark.'
-    }
-    const pins =
-      require('../../services/projectIntel/pins.js') as typeof import('../../services/projectIntel/pins.js')
-    const { processOwnerForLane } =
-      require('../../services/run/resolveOwner.js') as typeof import('../../services/run/resolveOwner.js')
-    const owner = processOwnerForLane(null)
-    const workspace = getOriginalCwd()
-    const result =
-      verb === 'pin'
-        ? pins.pinContextItem(owner, path, workspace)
-        : verb === 'drop'
-          ? pins.dropContextItem(owner, path, workspace)
-          : pins.clearContextMark(owner, path, workspace)
-    return result.note
-  } catch (err) {
-    return `mark failed: ${err instanceof Error ? err.message : String(err)}`
-  }
-}
+Ground rules while writing:
+- If MERCURY.md already exists, propose improvements to it and show the proposed change before
+  touching it — never overwrite silently.
+- If AGENTS.md exists, open MERCURY.md with the one line @AGENTS.md so that guide keeps
+  loading, and keep only what is Mercury-specific below it — never duplicate its content.
+- Say each thing once. Leave out generic engineering advice, and instructions nobody needs
+  ("write tests", "handle errors", "follow best practices").
+- Do not catalogue every file or component that a reader could discover with a glance.
+- Read the README and any other agent instruction files the repository already holds; carry
+  what is worth keeping into the guide in your own words.
+- Claim nothing you did not verify in files you actually read.
+- Open the file with a two-line header naming MERCURY.md and stating that it guides the
+  Mercury harness when working in this repository.
 
-export const call: LocalCommandCall = async args => {
-  const trimmed = args.trim()
-  const [verb, ...rest] = trimmed.split(/\s+/)
-  if (verb === 'pin' || verb === 'drop' || verb === 'clear') {
-    return { type: 'text', value: markVerb(verb, rest.join(' ')) }
-  }
-  if (verb === 'pins') {
-    try {
-      const { getContextMarks } =
-        require('../../services/projectIntel/pins.js') as typeof import('../../services/projectIntel/pins.js')
-      const { processOwnerForLane } =
-        require('../../services/run/resolveOwner.js') as typeof import('../../services/run/resolveOwner.js')
-      const marks = getContextMarks(processOwnerForLane(null))
-      return {
-        type: 'text',
-        value:
-          marks.pins.length === 0 && marks.drops.length === 0
-            ? 'No context marks this session.'
-            : `pinned: ${marks.pins.join(', ') || '(none)'}\ndropped: ${marks.drops.join(', ') || '(none)'}`,
-      }
-    } catch {
-      return { type: 'text', value: 'No context marks available.' }
-    }
-  }
+The explicit-import law (this is load-bearing): Mercury loads MERCURY.md and AGENTS.md as
+described above and no other instruction file on its own. If another agent instruction file
+exists here: never copy its content into MERCURY.md, and never load it silently. Read it, show
+the operator a short preview of what it covers, and OFFER a one-line explicit import (@<file>)
+— add that import only if the operator says yes; otherwise write native guidance from your own
+analysis. Why: an explicit import composes that file deliberately, with source and digest
+provenance, visible in the health surface.`
 
-  const map = buildRepoSurfaceMap(getOriginalCwd())
-  const base = map ?? 'No surface to map here — the directory has no scannable files.'
-  const intel = intelSection()
-  return { type: 'text', value: intel ? `${base}\n${intel}` : base }
-}
+export default {
+  type: 'prompt',
+  name: 'orient',
+  get description(): string {
+    return 'Analyze the codebase and create (or improve) MERCURY.md'
+  },
+  progressMessage: 'analyzing your codebase',
+  contentLength: ORIENT_PROMPT.length,
+  source: 'builtin',
+  async getPromptForCommand(): Promise<ContentBlockParam[]> {
+    maybeMarkProjectOnboardingComplete()
+    return [{ type: 'text', text: ORIENT_PROMPT }]
+  },
+} satisfies Command

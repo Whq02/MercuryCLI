@@ -281,10 +281,6 @@ export type Attachment =
       reason?: string
     }
   | {
-      type: 'repo_surface_map'
-      markdown: string
-    }
-  | {
       type: 'context_capsule'
       markdown: string
       digest: string

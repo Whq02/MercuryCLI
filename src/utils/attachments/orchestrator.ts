@@ -16,7 +16,6 @@ import { getChangedFiles } from './fileAttachments.js'
 import {
   getCapsuleDateChange,
   getModePackAttachments,
-  getRepoSurfaceMapAttachment,
 } from './modeLifecycles.js'
 import { foldAttachmentsIntoCapsule, getContextCapsuleAttachment } from './contextCapsule.js'
 import { getNestedMemoryAttachments } from './nestedMemory.js'
@@ -184,9 +183,6 @@ export async function getAttachments(
     maybe('dynamic_skill', () => getDynamicSkillAttachments(context)),
     maybe('skill_listing', () => getSkillListingAttachments(context)),
     maybe('mode_pack', () => Promise.resolve(getModePackAttachments(messages, toolUseContext))),
-    maybe('repo_surface_map', () =>
-      Promise.resolve(getRepoSurfaceMapAttachment(messages, toolUseContext)),
-    ),
     maybe('context_capsule', () =>
       options?.localSubmission
         ? Promise.resolve([])
