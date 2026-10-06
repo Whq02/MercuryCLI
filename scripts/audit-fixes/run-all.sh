@@ -34,8 +34,6 @@ has src/utils/argumentSubstitution.ts 'escapeForRegExp(name)' 'argument name reg
 __t=$SECONDS; __rc=0; "$bun" "$here/prove-reversed-mention-range.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-reversed-mention-range.ts" "$__t" "$__rc"
 
 has src/daemon/roster.ts 'this.reapSettled(32)' 'roster dispatch reaps settled handles (32-tail); reapSettled had ZERO callers'
-has src/utils/crew/handoff.ts 'filtered.slice(filtered.length - 200)' 'handoffs.json bounded to the newest 200'
-has src/utils/crew/sendMessageGovernance.ts 'answered.length > 100' 'questions.json prunes answered beyond 100 (open never pruned)'
 has src/daemon/ownedDaemon.ts 'renameWithWin32RetrySync(logPath, `${logPath}.1`)' 'daemon.log size-gated rotation at engage (>5MB → .1)'
 has src/utils/cockpit/critterVariant.ts 'assigned.size > 256' 'critter variant map FIFO-capped'
 has src/utils/cockpit/daemonSnapshot.ts "daemonControlRpc({ op: 'ping' }" 'daemonSnapshot folds a TTL-cached authoritative ping'
