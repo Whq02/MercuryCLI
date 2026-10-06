@@ -52,7 +52,7 @@ import { API_ERROR_MESSAGE_PREFIX, PROMPT_TOO_LONG_ERROR_MESSAGE, getPromptTooLo
 import { type OverflowSignal, overflowGapTokens, overflowSignalOf } from '../api/overflowSignal.js'
 import { LOCAL_WINDOW_REMEDY, localFitRefusalFacts } from '../providers/local/localCatalogue.js'
 import { routedCallModel } from '../providers/callModelRouter.js'
-import { COLD_INGEST_MS_PER_1K_TOKENS } from '../providers/streamIdleBudget.js'
+import { COLD_INGEST_MS_PER_1K_TOKENS, streamIdleTimeoutMsForRoute } from '../providers/streamIdleBudget.js'
 import { markPostCompaction } from '../api/logging.js'
 import { notifyCompaction } from '../api/promptCacheBreakDetection.js'
 import { recordWireFoldRow, type WireFoldRow } from '../api/dumpPrompts.js'
@@ -244,6 +244,15 @@ function foldBounds(): FoldBounds {
   }
 }
 
+export function foldStallMsFor(model: string, floorMs: number = FOLD_STALL_MS): number {
+  const verdict = classifyModelRoute(model)
+  return Math.max(floorMs, streamIdleTimeoutMsForRoute(verdict.kind === 'route' ? verdict.route : null))
+}
+
+function foldStallAfterFirstEventMs(model: string): number {
+  return foldBoundsOverride === null ? foldStallMsFor(model) : foldBoundsOverride.stallMs
+}
+
 export function foldFirstByteAllowanceMs(estTokens: number, bounds: FoldBounds = foldBounds()): number {
   const tokens = Number.isFinite(estTokens) && estTokens > 0 ? estTokens : 0
   return Math.min(bounds.deadlineMs, bounds.stallMs + Math.round((tokens / 1000) * bounds.ingestMsPer1kTokens))
@@ -262,8 +271,9 @@ type FoldBound = {
   dispose(): void
 }
 
-function armFoldBound(parent: AbortSignal, road: WireFoldRow['road'], estTokens: number): FoldBound {
-  const { deadlineMs, stallMs } = foldBounds()
+function armFoldBound(parent: AbortSignal, road: WireFoldRow['road'], estTokens: number, model: string): FoldBound {
+  const { deadlineMs } = foldBounds()
+  const stallMs = foldStallAfterFirstEventMs(model)
   const firstByteMs = foldFirstByteAllowanceMs(estTokens)
   const controller = new AbortController()
   let timedOut = false
@@ -718,9 +728,9 @@ async function summarizeViaCacheSharingFork(
   promptMessage: UserMessage,
   context: ToolUseContext,
 ): Promise<AssistantMessage | null> {
-  const bound = armFoldBound(context.abortController.signal, 'fork', tokenCountWithEstimation(messages))
-  const startedAt = Date.now()
   const model = context.options.engineModel
+  const bound = armFoldBound(context.abortController.signal, 'fork', tokenCountWithEstimation(messages), model)
+  const startedAt = Date.now()
   try {
     context.setResponseLength?.(() => 0)
     const result = await runForkedAgent({
@@ -819,9 +829,9 @@ async function summarizeViaStreamingFallback(
   promptMessage: UserMessage,
   context: ToolUseContext,
 ): Promise<AssistantMessage> {
-  const bound = armFoldBound(context.abortController.signal, 'direct', tokenCountWithEstimation(messages))
-  const startedAt = Date.now()
   const model = context.options.engineModel
+  const bound = armFoldBound(context.abortController.signal, 'direct', tokenCountWithEstimation(messages), model)
+  const startedAt = Date.now()
   try {
     const settled = await streamingFallbackAttempts(messages, cacheSafeParams, promptMessage, context, bound)
     recordFoldRoad(model, 'direct', startedAt, settled.isApiErrorMessage === true ? 'refused' : 'summary')
