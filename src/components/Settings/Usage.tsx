@@ -36,7 +36,7 @@ import {
   type UsageWindowView,
 } from '../../services/providers/providerUsage.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
-import { providerIdentityLine, providerIdentitySentence } from '../../services/providers/providerIdentityLine.js'
+import { providerIdentityLine, providerIdentitySentence, shownIdentityWords } from '../../services/providers/providerIdentityLine.js'
 import { openrouterSlots } from '../../services/providers/accountSlots.js'
 import { jevRoadWords, jevUsdLabel } from '../../services/jev/jevContract.js'
 import { jevCreditsWords } from './Jev.js'
@@ -530,7 +530,7 @@ function OpenrouterUsageSection({ width }: { width?: number }): React.ReactNode 
           <Text dimColor>{absentSlotLine('/logins openrouter mints a scoped key through the OpenRouter OAuth flow')}</Text>
         ) : (
           <Box flexDirection="column">
-            <Text dimColor>{oauth.identity}</Text>
+            <Text dimColor>{shownIdentityWords('openrouter', oauth.identity)}</Text>
             {oauth.stateNote !== undefined ? <Text dimColor>{oauth.stateNote}</Text> : null}
             <SlotSpend active={oauth.active} route="openrouter" spend={spend} withCost />
           </Box>
@@ -539,7 +539,7 @@ function OpenrouterUsageSection({ width }: { width?: number }): React.ReactNode 
       {keys.length === 0 ? <ApiKeySlot isActive={false} route="openrouter" spend={spend} /> : keys.map(key => (
         <Box key={key.id} flexDirection="column" marginTop={1}>
           <SlotHeading text={`${key.kindLabel}${key.active ? ' · active' : ''}`} />
-          <Text dimColor>{key.identity}</Text>
+          <Text dimColor>{shownIdentityWords('openrouter', key.identity)}</Text>
           {key.stateNote !== undefined ? <Text dimColor>{key.stateNote}</Text> : null}
           <SlotSpend active={key.active} route="openrouter" spend={spend} withCost />
         </Box>
@@ -620,7 +620,7 @@ function HuggingfaceUsageSection(): React.ReactNode {
         <SlotHeading text="Sign-in" />
         {account?.kind === 'oauth' ? (
           <Box flexDirection="column">
-            <Text dimColor>{account.label}</Text>
+            <Text dimColor>{shownIdentityWords('huggingface', account.label)}</Text>
             <SlotSpend active route="huggingface" spend={spend} withCost={false} />
           </Box>
         ) : (
@@ -628,7 +628,7 @@ function HuggingfaceUsageSection(): React.ReactNode {
         )}
       </Box>
       <ApiKeySlot
-        presentLabel={account?.kind === 'api-key' ? account.label : undefined}
+        presentLabel={account?.kind === 'api-key' ? shownIdentityWords('huggingface', account.label) : undefined}
         isActive={account?.kind === 'api-key'}
         route="huggingface"
         spend={spend}

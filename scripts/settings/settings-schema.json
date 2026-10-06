@@ -950,6 +950,10 @@
         "ping": {
           "description": "Ping the terminal once when a chat finishes its turn while you are away (an iTerm2 notification there, the bell elsewhere); on unless set to false",
           "type": "boolean"
+        },
+        "accountIdentity": {
+          "description": "Account identity on the screens: shown unless set to false; hidden takes every signed-in address, username and key tail off the screens (for a recording) and leaves the account word, while the Logins screen, /accounts and the health report still name the account",
+          "type": "boolean"
         }
       },
       "additionalProperties": {}
