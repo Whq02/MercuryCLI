@@ -17,7 +17,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     names: [
       'workflows', 'agents', 'subagents',
       'crewmates', 'crew',
-      'daemon', 'saturn', 'seats', 'halt', 'kill', 'unkill',
+      'daemon', 'saturn', 'seats', 'kill', 'unkill',
       'router',
     ],
   },
@@ -70,12 +70,12 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     key: 'config',
     label: 'config & setup',
     names: [
-      'config', 'jev', 'jevor', 'localsetup', 'bootmenu', 'permissions', 'hooks', 'mcp', 'extensions', 'skills',
+      'config', 'jev', 'localsetup', 'bootmenu', 'permissions', 'hooks', 'mcp', 'extensions', 'skills',
       'sandbox',
       'keysetup', 'keybindings', 'keys',
       'vim', 'mouse', 'browser',
-      'init',
-      'speak', 'voice',
+      'orient',
+      'voice',
     ],
   },
   {
@@ -83,7 +83,6 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     label: 'appearance & cockpit',
     names: [
       'palette', 'critter', 'view', 'showcase',
-      'accent',
       'appearance',
     ],
   },

@@ -16,7 +16,6 @@ import { context, contextNonInteractive } from './commands/context/index.js'
 import { mission, missionNonInteractive } from './commands/mission/index.js'
 import crew from './commands/crew/index.js'
 import critter from './commands/critter/index.js'
-import halt from './commands/halt/index.js'
 import view from './commands/view/index.js'
 import bootmenu from './commands/bootmenu/index.js'
 import concourse from './commands/concourse/index.js'
@@ -48,7 +47,6 @@ import audit from './commands/audit/index.js'
 import keysetup from './commands/keysetup/index.js'
 import usage from './commands/usage/index.js'
 import jev from './commands/jev/index.js'
-import jevor from './commands/jevor/index.js'
 import localsetup from './commands/localsetup/index.js'
 import defaultprovider from './commands/defaultprovider/index.js'
 import vim from './commands/vim/index.js'
@@ -62,7 +60,6 @@ import tasks from './commands/tasks/index.js'
 import appearance from './commands/appearance/index.js'
 import workflows from './commands/workflows/index.js'
 import subagents from './commands/subagents/index.js'
-import accent from './commands/accent/index.js'
 import mouse from './commands/mouse/index.js'
 import showcase from './commands/showcase/index.js'
 import capabilities from './commands/capabilities/index.js'
@@ -78,7 +75,6 @@ import consoleCommand from './commands/console/index.js'
 import submodels from './commands/submodels/index.js'
 import palette from './commands/palette/index.js'
 import orient from './commands/orient/index.js'
-import speak from './commands/speak/index.js'
 import voice from './commands/voice/index.js'
 import { getBundledSkills } from './skills/bundledSkills.js'
 import { isKitGovernedSkillCommand, kitDropsCommand, noteBootSkillRoster, withKitSkillMark } from './skills/kitGovernance.js'
@@ -147,7 +143,6 @@ const COMMANDS = memoize((): Command[] => [
   mission,
   missionNonInteractive,
   crew,
-  halt,
   critter,
   view,
   bootmenu,
@@ -181,7 +176,6 @@ const COMMANDS = memoize((): Command[] => [
   keysetup,
   usage,
   jev,
-  jevor,
   localsetup,
   defaultprovider,
   vim,
@@ -195,7 +189,6 @@ const COMMANDS = memoize((): Command[] => [
   appearance,
   workflows,
   subagents,
-  accent,
   mouse,
   showcase,
   capabilities,
@@ -212,7 +205,6 @@ const COMMANDS = memoize((): Command[] => [
   submodels,
   palette,
   orient,
-  speak,
   voice,
 ])
 
