@@ -11,7 +11,7 @@ import {
   overflowWhoClause,
 } from '../api/overflowSignal.js'
 import { tokenCountWithEstimation } from '../../utils/tokens.js'
-import { autoCompactDisabledReason, compactionSettingsText, getAutoCompactThreshold, resolveAutoCompactWindow, type AutoCompactTrackingState } from './autoCompact.js'
+import { autoCompactDisabledReason, COMPACTION_PAUSED_KEY, compactionBreakerText, compactionSettingsText, getAutoCompactThreshold, resolveAutoCompactWindow, type AutoCompactTrackingState } from './autoCompact.js'
 import { FOLD_WINDOW_REFUSAL_KEY } from './compact.js'
 import { compactionBreakerAllows } from './compactionPolicy.js'
 
@@ -181,9 +181,10 @@ export function overflowRefusalText(
       case 'compaction-off':
         return 'compaction is disabled (MERCURY_COMPACT=0), so nothing could fold.'
       case 'breaker':
-        return 'compaction has failed repeatedly and is paused for this session.'
+        return compactionBreakerText({ nonInteractive: opts.nonInteractive })
       case 'fold-failed': {
         const detail = plainDetail(opts.detail)
+        if (detail.startsWith(COMPACTION_PAUSED_KEY)) return detail
         if (detail.startsWith(FOLD_WINDOW_REFUSAL_KEY)) return `${detail}${byHand}`
         return `the fold failed${detail !== '' ? ` (${detail})` : ''}.${byHand}`
       }

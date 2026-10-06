@@ -56,7 +56,6 @@ const { createContentReplacementState } = await import('../../src/utils/toolResu
 const { tokenCountWithEstimation } = await import('../../src/utils/tokens.ts')
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
 const { MC_DIGEST_PREFIX, MC_CLEARED_PLACEHOLDER } = await import('../../src/services/compact/microCompactDigest.ts')
-const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/services/api/errors.ts')
 const { autoCompactIfNeeded } = await import('../../src/services/compact/autoCompact.ts')
 const { call: compactCommand } = await import('../../src/commands/compact/compact.ts')
 
@@ -458,15 +457,14 @@ section('C1 a summariser refused for a malformed history — one attempt, a type
   process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = String(count - 800)
   fixture.script([
     { error: { status: 400, body: MALFORMED_HISTORY_REFUSAL } },
-    { error: { status: 400, body: MALFORMED_HISTORY_REFUSAL } },
-    { text: 'never reached' },
+    { text: 'the retry after the prune' },
   ])
   const r = await drive(ctxD, seed)
   delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
   const summariserRequests = r.wire.filter(w => isSummariserRequest(w.body))
   check('the run never threw', r.threw === undefined, `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)}`)
   check('exactly ONE summary request reached the wire — the refusal is not retried as a size problem', summariserRequests.length === 1, `${summariserRequests.length} of ${r.wire.length} requests were summary requests`)
-  check('no other request reached the wire (the model is never called on a request known not to fit)', r.wire.length === 1, String(r.wire.length))
+  check('one other request reached the wire: the retry after the prune rung, whose credited estimate fits the window', r.wire.length === 2 && r.wire[1] !== undefined && !isSummariserRequest(r.wire[1].body), String(r.wire.length))
   const notices = noticeTexts(r.yields)
   const line = notices.find(t => /malformed history/i.test(t))
   check('a typed line names the class', line !== undefined, JSON.stringify(notices))
@@ -474,9 +472,9 @@ section('C1 a summariser refused for a malformed history — one attempt, a type
   check('…and the remedies: /compact after the heal, /clear, a larger-window model', line !== undefined && line.includes('/compact') && line.includes('/clear') && line.includes('/model'), line ?? '')
   check('…and the pause it applies is the run\'s, never the session\'s (the failure count starts fresh at every query entry)', line !== undefined && line.includes('paused for the rest of this run') && !/for this session/.test(line), line ?? '')
   const errs = errorTexts(r.yields)
-  check('the turn ends on one typed refusal that names the breaker', errs.length === 1 && errs[0]!.startsWith(PROMPT_TOO_LONG_ERROR_MESSAGE) && /compaction has failed repeatedly/.test(errs[0]!), JSON.stringify(errs))
+  check('no refusal row ends the turn — the pruned retry fit and answered', errs.length === 0 && lastAssistantText(r.yields) === 'the retry after the prune', JSON.stringify(errs))
   check('the prune rung still answered the estimate (the notice speaks)', notices.some(t => t.startsWith('context overflowed (estimated ') && /pruned \d+ superseded tool results/.test(t)), JSON.stringify(notices))
-  check("terminal blocking_limit", r.terminal.reason === 'blocking_limit', JSON.stringify(r.terminal))
+  check('terminal completed', r.terminal.reason === 'completed', JSON.stringify(r.terminal))
 
   section('C2 a manual /compact after that pause still makes its request, and reports the reason and the remedies without claiming a pause')
   {
