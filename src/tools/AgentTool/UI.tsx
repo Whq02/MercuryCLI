@@ -10,7 +10,7 @@ import { Message as MessageComponent } from '../../components/Message.js'
 import { MessageResponse } from '../../components/MessageResponse.js'
 import { FallbackToolUseErrorMessage } from '../../components/FallbackToolUseErrorMessage.js'
 import { FallbackToolUseRejectedMessage } from '../../components/FallbackToolUseRejectedMessage.js'
-import { ToolUseLoader } from '../../components/ToolUseLoader.js'
+import { ToolRowLead, toolRowStateOf } from '../../components/messages/ToolRowLead.js'
 import type {
   AssistantMessage,
   NormalizedUserMessage,
@@ -522,6 +522,7 @@ type GroupedToolUse = {
   rawResult?: unknown
   isResolved?: boolean
   isErrored?: boolean
+  isDenied?: boolean
 }
 
 function groupToolUseId(entry: GroupedToolUse): string | undefined {
@@ -759,12 +760,14 @@ export function renderGroupedAgentToolUse(
       isBackground,
       resolved,
       isErrored: entry.isErrored === true || status === 'failed',
+      isDenied: entry.isDenied === true,
     }
   })
 
   const allResolved = entries.every(entry => entry.resolved)
   const allBackground = entries.length > 0 && entries.every(entry => entry.isBackground)
   const anyErrored = entries.some(entry => entry.isErrored)
+  const anyDenied = entries.some(entry => entry.isDenied)
   const types = entries.map(entry => userFacingName(entry.input))
   const commonType =
     types.length > 0 &&
@@ -792,12 +795,11 @@ export function renderGroupedAgentToolUse(
   return (
     <Box flexDirection="column">
       <Box>
-        <ToolUseLoader
-          shouldAnimate={animate}
-          isUnresolved={!allResolved}
-          isError={anyErrored}
-        />
         <Text>
+          <ToolRowLead
+            family="agent"
+            state={toolRowStateOf({ resolved: allResolved, errored: anyErrored, denied: anyDenied })}
+          />
           {header}
           {allResolved && allBackground ? (
             <Text dimColor>
