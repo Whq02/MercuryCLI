@@ -388,7 +388,7 @@ section('R6 the failure breaker — a tripped compaction breaker refuses typed')
   const r = await run({ seed: seedPlain(), script: [[ping(), overflowError()]], compact })
   const text = textOf(errorYields(r.yields)[0])
   check('terminal prompt_too_long after one call', r.terminal.reason === 'prompt_too_long' && r.calls.length === 1, JSON.stringify(r.terminal))
-  check('the refusal names the paused compaction', text.includes('compaction has failed repeatedly and is paused for this session'), text)
+  check('the refusal names the paused compaction, the run it pauses, and the two roads that still work (the next prompt, a fresh run)', text.includes('automatic compaction failed 3 times in a row and is paused for the rest of this run. The next prompt makes a fresh automatic attempt. Start a fresh run') && !/for this session/.test(text), text)
   check('no fold was forced past the breaker', r.compact.every(c => c.forced === undefined))
 }
 
