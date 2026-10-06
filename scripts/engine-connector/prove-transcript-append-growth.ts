@@ -45,7 +45,14 @@ function transcriptLines(sessionId: string, cwd: string, turns: number, textByte
   return encodeSeedTranscript(rows, sessionId).split('\n').filter(Boolean)
 }
 
-async function appendPass(label: string, turns: number): Promise<{ ms: number; ok: boolean; cadences: ReturnType<Seam['feedCadencesForProofs']> }> {
+type LoadRow = { ev?: string; sid?: string; rawLen?: number; prevLen?: number; since?: number; rewound?: boolean }
+function lastLoadRow(sessionId: string): LoadRow | null {
+  if (!existsSync(TRACE)) return null
+  const rows = readFileSync(TRACE, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line) as LoadRow)
+  return rows.filter(row => row.ev === 'load' && row.sid === sessionId).at(-1) ?? null
+}
+
+async function appendPass(label: string, turns: number): Promise<{ ms: number; ok: boolean; load: LoadRow | null; cadences: ReturnType<Seam['feedCadencesForProofs']> }> {
   const home = mkdtempSync(join(tmpdir(), `append-growth-${label}-`))
   mkdirSync(home, { recursive: true })
   const sessionId = '12345678-1234-4123-8123-123456789abc'
@@ -66,17 +73,25 @@ async function appendPass(label: string, turns: number): Promise<{ ms: number; o
   const after = conn.rawRecords.length
   const ok = after === before + 1 && conn.rawRecords[0] === first
   check(`${label}: the append landed as one row (${before} → ${after}) and the first row kept its object`, ok)
+  const load = lastLoadRow(sessionId)
   conn.detach()
-  return { ms, ok, cadences }
+  return { ms, ok, load, cadences }
 }
 
 const small = await appendPass('six-rows', 3)
 const large = await appendPass('twenty-four-hundred-rows', 1200)
 console.log(`  append pass: ${small.ms.toFixed(2)} ms at 6 rows · ${large.ms.toFixed(2)} ms at ${1200 * 2} rows`)
+const tookAppendRoad = (pass: { load: LoadRow | null }, seeded: number): boolean =>
+  pass.load !== null && pass.load.prevLen === seeded && pass.load.since === seeded && pass.load.rawLen === seeded + 1 && pass.load.rewound === false
 check(
-  '§1 a 2,400-row append pass costs about a 6-row one (never the chain)',
-  large.ms <= Math.max(small.ms * 8, 15),
-  `small=${small.ms.toFixed(2)}ms large=${large.ms.toFixed(2)}ms`,
+  '§1 the 6-row append took the append road (the merge started at the previous length, only the tail deserialised)',
+  tookAppendRoad(small, 6),
+  JSON.stringify(small.load),
+)
+check(
+  '§1 the 2,400-row append took the append road too — never the chain',
+  tookAppendRoad(large, 2400),
+  JSON.stringify(large.load),
 )
 
 check('§2 at rest the transcript heartbeat is its idle floor (2 s) behind a live watch', large.cadences.transcript === 2000, JSON.stringify(large.cadences))
