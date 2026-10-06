@@ -794,13 +794,6 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
-      "file": "scripts/interaction/prove-manager-filter.ts",
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
-      "cls": "platform-owner",
-      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
-    },
-    {
       "file": "scripts/interaction/prove-question-card-journeys.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const PYTHON_USER_SITE = spawnSync('/usr/bin/python3', ['-c', 'import site; print(site.getusersitepackages())'], {",
