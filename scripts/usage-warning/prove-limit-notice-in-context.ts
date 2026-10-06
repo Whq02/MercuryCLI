@@ -60,6 +60,13 @@ for (const k of [
 const { seedFirstRun, FIXTURE_API_KEY } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(subscriberHome, [work])
 seedFirstRun(keyHome, [work])
+{
+  const settingsPath = join(subscriberHome, 'settings.json')
+  const prior = existsSync(settingsPath) ? JSON.parse(readFileSync(settingsPath, 'utf8')) as Record<string, unknown> : {}
+  writeFileSync(settingsPath, JSON.stringify({ ...prior, engine: { ...((prior.engine as Record<string, unknown>) ?? {}), usageNotice: true } }))
+}
+const quietHome = join(SCRATCH, 'quiet-home')
+mkdirSync(quietHome, { recursive: true })
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const auth = await import('../../src/utils/auth.ts')
@@ -288,6 +295,15 @@ try {
   const keyHits = hits.slice(beforeKey)
   check('the keyed seat made its three requests', keyHits.length >= 3, brief())
   check('no request of the keyed seat carries a notice', keyHits.every(h => h.notices === 0), brief())
+
+  section('§4 the setting off: the same 80/90 wire never reaches the model')
+  const beforeQuiet = hits.length
+  const quietRun = await runPrint(quietHome, [ROAD_ASK], {})
+  check('the quiet seat ran to its end', quietRun.rc === 0, `rc=${quietRun.rc} ${quietRun.err.slice(-300)}`)
+  const quietHits = hits.slice(beforeQuiet)
+  check('the quiet seat walked the same road', quietHits.length >= 5, brief())
+  check('no request of the quiet seat carries a notice at 80% or 90%', quietHits.every(h => h.notices === 0), brief())
+  check('the quiet transcript keeps no notice row', transcriptNoticeRows(quietHome) === 0, String(transcriptNoticeRows(quietHome)))
 } finally {
   server.close()
   if (failures === 0) rmSync(SCRATCH, { recursive: true, force: true })
