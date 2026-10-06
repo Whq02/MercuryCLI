@@ -44,7 +44,6 @@ import {
   runWithAgentContext,
   type SubagentContext,
 } from '../../utils/agentContext.js'
-import { isCrewEnabled } from '../../utils/crewEnabled.js'
 import { getCwd, runWithCwdOverride } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
@@ -63,12 +62,7 @@ import {
 } from '../../utils/crew/engineDispatch.js'
 import { describeAgentRuntimeRef } from '../../services/providers/primaryBackend.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
-import {
-  getParentSessionId,
-  getCrewName,
-  isCrewmate,
-} from '../../utils/crewmate.js'
-import { isInProcessCrewmate } from '../../utils/crewmateContext.js'
+import { getParentSessionId } from '../../utils/crewmate.js'
 import {
   createAgentWorktree,
   preflightWorktreeCapability,
@@ -79,7 +73,6 @@ import { createUserMessage } from '../../utils/messages.js'
 import { BASH_TOOL_NAME } from '../BashTool/toolName.js'
 import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../SendMessageTool/constants.js'
-import { spawnCrewmate } from '../shared/spawnMultiAgent.js'
 import { recordCrewStart } from '../../utils/crew/crewStart.js'
 import {
   runForegroundAgentExecution,
@@ -134,7 +127,6 @@ export type AgentToolInput = {
   effort?: EffortLevel
   run_in_background?: boolean
   name?: string
-  crew_name?: string
   mode?: string
   isolation?: 'worktree'
   worktree_at?: string
@@ -227,7 +219,6 @@ export const inputSchema = lazySchema(() => {
       .describe(
         'Name for a long-lived crewmate: a named agent stays on the roster after its first turn and takes further instructions through SendMessage({to: name}). Omit it for an ordinary sub-agent that works its prompt once and returns its report.',
       ),
-    crew_name: z.string().optional().describe('The crew a named crewmate joins — a group of long-lived agents, never an agent type (the type is subagent_type). Omit it for an ordinary sub-agent.'),
     isolation: z
       .literal('worktree')
       .optional()
@@ -305,7 +296,6 @@ export const outputSchema = lazySchema(() => {
 export type AgentToolOutput = z.infer<ReturnType<typeof outputSchema>> & {
   isAsync?: true
   agentName?: string
-  crewName?: string
 }
 
 
@@ -382,10 +372,6 @@ export const SUBAGENT_BRIEFING_LEAD =
 
 function seatOf(input: Pick<AgentToolInput, 'name'>): MercuryAgentSeat {
   return input.name ? 'a crewmate' : 'a sub-agent'
-}
-
-function isCrewmateSpawn(input: AgentToolInput, crewName = isCrewEnabled() ? (input.crew_name ?? getCrewName()) : undefined): input is AgentToolInput & { name: string } {
-  return Boolean(crewName && input.name)
 }
 
 export const AgentTool = buildTool({
@@ -482,31 +468,9 @@ export const AgentTool = buildTool({
     const startTime = Date.now()
     const options = context.options
 
-    if (input.crew_name && !isCrewEnabled()) {
-      throw new Error(
-        'The crew_name parameter requires agent crews, which are not available in this session.',
-      )
-    }
-
     const authority = evaluateLaunchAuthority('subagents')
     if (!authority.allowed) {
       throw new Error(authority.reason)
-    }
-
-    const crewName = isCrewEnabled()
-      ? (input.crew_name ?? getCrewName())
-      : undefined
-
-    if (isCrewmate() && crewName && input.name) {
-      throw new Error(
-        'Crewmates cannot spawn crewmates — the roster is flat and has one lead. Omit the name parameter to launch a plain subagent instead.',
-      )
-    }
-
-    if (isInProcessCrewmate() && input.run_in_background && crewName) {
-      throw new Error(
-        'An in-process crewmate cannot spawn a background agent — its lifecycle is bound to the leader process. Launch the agent synchronously instead.',
-      )
     }
 
     const modelParam = input.model ? getAgentModel(undefined, options.engineModel, input.model) : input.model
@@ -514,55 +478,6 @@ export const AgentTool = buildTool({
     if (engineDispatch === null) {
       const unrecognised = unrecognisedModelWordRefusal(input.model)
       if (unrecognised !== null) throw new Error(unrecognised)
-    }
-
-    if (isCrewmateSpawn(input, crewName)) {
-      const crewmateCwd = input.cwd !== undefined ? resolveAgentCwd(input.cwd, context.getAppState().toolPermissionContext, { admit: true }) : undefined
-      if (input.worktree_at !== undefined && input.isolation !== 'worktree') {
-        throw new Error("worktree_at needs isolation: 'worktree' — the pin names the commit a temporary worktree stands at.")
-      }
-      const requestedType = input.subagent_type || undefined
-      if (input.review_receipt !== undefined) throw new Error('A review with review_receipt runs as an isolated sub-agent in a frozen worktree, not as a crewmate')
-      const definitions = options.agentDefinitions?.activeAgents ?? []
-      const crewmateDefinition = definitions.find(
-        agent => agent.agentType === requestedType,
-      )
-      if (crewmateDefinition?.color) {
-        setAgentColor(crewmateDefinition.agentType, crewmateDefinition.color)
-      }
-      const crewmateModel =
-        engineDispatch?.model ?? modelParam ?? crewmateDefinition?.model
-      const spawned = await spawnCrewmate(
-        {
-          name: input.name,
-          prompt: input.prompt,
-          crew_name: crewName,
-          ...(crewmateCwd !== undefined ? { cwd: crewmateCwd } : {}),
-          ...(input.isolation === 'worktree'
-            ? { worktree: { ...(input.worktree_at !== undefined ? { at: input.worktree_at } : {}) } }
-            : {}),
-          ...(input.subagent_type ? { agent_type: input.subagent_type } : {}),
-          ...(crewmateModel ? { model: crewmateModel } : {}),
-          ...(input.effort !== undefined ? { effort: input.effort } : {}),
-          description: input.description,
-          ...(parentAssistantMessage.requestId
-            ? { invokingRequestId: parentAssistantMessage.requestId }
-            : {}),
-        },
-        context,
-      )
-      const record = spawned.data
-      return {
-        data: {
-          ...record,
-          status: 'crewmate_spawned',
-          agentId: record.agent_id,
-          agentName: input.name,
-          crewName: record.crew_name ?? crewName,
-          prompt: input.prompt,
-          description: input.description,
-        } as never,
-      }
     }
 
     const cwdParam = input.cwd !== undefined ? resolveAgentCwd(input.cwd, context.getAppState().toolPermissionContext, { admit: true }) : undefined
@@ -615,12 +530,6 @@ export const AgentTool = buildTool({
       const door = fanout.source === 'env' ? 'MERCURY_AGENT_FANOUT_CAP' : 'Sub-agents at once in /config'
       throw new Error(
         `Agent dispatch refused: ${runningAgents} agent${runningAgents === 1 ? ' is' : 's are'} already running and the cap is ${fanout.cap} (${door}). Wait for one to finish, stop one, or continue the work directly.`,
-      )
-    }
-
-    if (agentDef.background === true && isInProcessCrewmate() && crewName) {
-      throw new Error(
-        `Agent type '${agentDef.agentType}' always runs in the background, and an in-process crewmate cannot spawn background agents.`,
       )
     }
 
@@ -980,22 +889,8 @@ export const AgentTool = buildTool({
       worktreePath?: string
       worktreeBranch?: string
       agentName?: string
-      crewName?: string
     }
     const status = (data as { status?: string }).status
-
-    if (status === 'crewmate_spawned') {
-      return {
-        type: 'tool_result' as const,
-        tool_use_id: toolUseID,
-        content: [
-          {
-            type: 'text' as const,
-            text: `Crewmate spawned. Agent id: ${data.agentId}, name: ${data.agentName}, crew: ${data.crewName}. The agent is running and will receive instructions through its mailbox.`,
-          },
-        ],
-      }
-    }
 
     if (status === 'async_launched') {
       const async = data as unknown as {
