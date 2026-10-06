@@ -168,8 +168,8 @@ section('§E the no-Anthropic boot honesty notice — every family alike')
   const notice = nonAnthropicBootNotice(u({}))
   check('openai-only ⇒ the notice fires, naming OpenAI as the working lane', typeof notice === 'string' && /OpenAI is the working lane/.test(notice ?? ''))
   check(
-    'the notice names the dormant Claude-ACCOUNT surfaces and never claims subagents stay Claude-backed (they ride the session family)',
-    Boolean(notice && /usage windows/.test(notice) && /subagents and workflows run on the session/.test(notice) && !/non-goal/.test(notice)),
+    'the notice names the dormant Claude-ACCOUNT surfaces and never claims crewmates stay Claude-backed (they ride the session family)',
+    Boolean(notice && /usage windows/.test(notice) && /crewmates and workflows run on the session/.test(notice) && !/non-goal/.test(notice)),
     String(notice),
   )
   check(
