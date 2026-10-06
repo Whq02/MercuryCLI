@@ -13,7 +13,7 @@
 # gate-watch: src/components/BootSettingsScreen* src/services/switchboard/capacityCheck*
 # gate-watch: src/components/Settings/** src/services/providers/providerUsage* src/commands/usage/**
 # gate-watch: src/services/providers/accountSlots* src/components/mercury-ui/parity/AccountView*
-# gate-watch: src/components/HelmTelemetryRail* src/components/BootLoginsScreen* src/components/BootSplashScreen* src/services/wallet/** src/utils/accounts/** src/utils/auth.ts
+# gate-watch: src/components/HelmTelemetryRail* src/components/BootLoginsScreen* src/components/BootSplashScreen* src/services/wallet/** src/utils/accounts/** src/utils/auth.ts src/services/oauth/**
 # gate-watch: src/cli/handlers/auth.ts src/utils/status.tsx src/state/AppState.tsx src/cli/sessionArgs.ts
 # gate-watch: src/cli/run.ts src/cli/headless/controlHandlers.ts src/daemon/sessionSeat.ts src/daemon/concourseWorkers.ts src/services/engine-connector/** src/screens/Chat.tsx src/components/MercuryFrame.tsx src/components/tasks/BackgroundTasksDialog.tsx src/components/mercury-ui/screens/CrewView.tsx
 # gate-watch: scripts/lib/codeText.ts scripts/lib/settingsPopupHarness.ts
