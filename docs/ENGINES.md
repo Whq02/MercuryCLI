@@ -168,7 +168,7 @@ of those two; a model the plan does not include is refused with Z.AI's own
 reason after the status, as every chat refusal is.
 
 A retired DeepSeek id resolves to its current one wherever a model id is
-read — a saved setting, `MERCURY_MODEL`, `/model`, a sub-agent's model —
+read — a saved setting, `MERCURY_MODEL`, `/model`, a crewmate's (sub-agent's) model —
 and paints as the current id: `deepseek-v4-flash` is `deepseek-flash`, and
 the wire is sent the current id.
 
@@ -248,7 +248,7 @@ straight twin, since none of those ever wants one; a field that carries
 content or prose — a Write's content, an Edit's new text, a Workshop cell —
 stays exactly as typed, and every other wire carries every byte as typed.
 
-A dispatched sub-agent whose turn ends on the provider's overload — the busy
+A dispatched crewmate whose turn ends on the provider's overload — the busy
 refusal above on any road (the Anthropic wire's 529 or `overloaded_error`,
 another provider's spent busy ladder), with no wait stated — is not
 failed: it pauses, its row says why — `paused — provider overloaded ·
@@ -310,7 +310,7 @@ window outranks that formula) fits the memory usable for models — the
 server's own gpu-memory line when it states one, the same rule
 `/localsetup`'s step 5 uses — at the
 model's first send and holds it for the session on every dispatch — the main
-thread, crewmates and workflow agents alike, so a sub-agent never reloads the
+thread, crewmates and workflow agents alike, so a crewmate never reloads the
 runner (when the machine's memory cannot be read — the server states no
 geometry, or the read fails — the window comes out bigger, not smaller: the
 trained maximum when the model states one, else the served window, else twice
@@ -631,8 +631,8 @@ catalogues, and the local servers' discovery. The `/logins` card asks for the
 lists its readiness rows read when it opens and repaints them as they land,
 so an OpenAI sign-in on a Claude session reads its catalogue's own state
 there within one refresh instead of "not fetched yet" until `/model` opens. The
-sub-agent and crewmate model choices in `/config` refresh the same lists
-when their pickers open. A changed
+crewmate model choice in `/config` refreshes the same lists
+when its picker opens. A changed
 list replaces the rows in place, keeps the highlighted model and adds a notice
 naming the family; an unchanged list stays quiet. A family with no credential,
 or with catalogue traffic switched off, sends nothing. The retry action shares
@@ -736,7 +736,7 @@ reason.
 Two facades separate two questions: "can this provider take work right now,
 and if not, why" — credential + catalogue + live limit state, composed
 strictly over the existing owners (a capped window also caps delegation:
-subagent dispatch is not a failover to another provider) — and "who am I on
+crewmate dispatch is not a failover to another provider) — and "who am I on
 it, what did this session spend, where are its limits" — identity from the
 wallet, limits from each lane's observed state, session spend from the one
 provider-neutral ledger partitioned by the routing law.
@@ -966,11 +966,11 @@ road.
 
 Each road keeps its own session spend meter and allowance cap. `/clear`
 starts a fresh chat with fresh meters; the stored caps stay unchanged.
-The main model's default pace is 100 requests a minute. Sub-agents receive
+The main model's default pace is 100 requests a minute. Crewmates receive
 JevEval by default when JEV is on and its road has a key; the card's
-Sub-agents row turns that off by choice. They share 50 requests a minute
+Crewmates row turns that off by choice. They share 50 requests a minute
 per session on each road, separately from the main pace, with a cap of 200
-calls per sub-agent. An explicitly stored main pace stays as the operator
+calls per crewmate. An explicitly stored main pace stays as the operator
 set it.
 OpenRouter's meter uses the response's `usage.cost` when stated, or the
 published token rate when unstated. Its requests deny data collection and

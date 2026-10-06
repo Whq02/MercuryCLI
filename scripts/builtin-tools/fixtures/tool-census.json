@@ -14,7 +14,7 @@
       "proof": "scripts/tools/prove-tool-contracts.ts",
       "declared": {
         "intents": [
-          "delegate a task to a subagent",
+          "delegate a task to a crewmate (a sub-agent)",
           "run parallel research or implementation",
           "fan out independent work"
         ],
@@ -1059,7 +1059,7 @@
         "cancellation": "cooperative",
         "latency": "interactive",
         "conditions": [
-          "JEV on: official key in /jev or OpenRouter key in /logins; sub-agents on by default, off by choice in /jev"
+          "JEV on: official key in /jev or OpenRouter key in /logins; crewmates on by default, off by choice in /jev"
         ],
         "proof": "scripts/jev/run-all.sh"
       }

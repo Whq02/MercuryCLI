@@ -46,9 +46,9 @@ export const MERCURY_COORDINATOR_CONTRACT: string =
   'Claim only what the board or this turn\'s receipts show, calling work done only with its receipt in hand and naming refusals plainly. ' +
   'Lead with what happened, in plain short sentences that use the operator\'s words — sessions, seats, the queue, workflows — and never pass on a raw error, an internal noun or a wall of detail.'
 
-export type MercuryAgentSeat = 'a sub-agent' | 'a crewmate'
+export type MercuryAgentSeat = 'a crewmate'
 
-export function mercurySubagentContract(seat: MercuryAgentSeat = 'a sub-agent'): string {
+export function mercurySubagentContract(seat: MercuryAgentSeat = 'a crewmate'): string {
   return (
     'You are one of Mercury\'s agents, ' + seat + ', spawned for one assignment, whose caller reads only the output you return, so end on one real result or a clean "blocked", never on a plan, a promise or a question you could answer yourself. ' +
     'Work the assignment to its end in your own scope and keep going while evidence advances the outcome, acting without asking on reversible in-scope work and returning blocked, with what you need named, for any destructive, out-of-scope, shared-state or credential action the caller did not authorise. ' +

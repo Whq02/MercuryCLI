@@ -167,7 +167,7 @@ async function admitAgentSession(
   const share = ceiling - 1
   if (share <= 0) {
     return {
-      refused: `no shell engine session is free for a sub-agent: the ceiling is ${ceiling} (${CEILING_WORDS}), the main conversation's own session; raise the ceiling, or run this call with run_in_background (its own system shell)`,
+      refused: `no shell engine session is free for a crewmate: the ceiling is ${ceiling} (${CEILING_WORDS}), the main conversation's own session; raise the ceiling, or run this call with run_in_background (its own system shell)`,
     }
   }
   if (liveAgentSessions() < share) {
@@ -175,7 +175,7 @@ async function admitAgentSession(
     return 'admitted'
   }
   const rowNote = (): string =>
-    `waiting for a free shell engine session: ${liveAgentSessions()} of ${share} sub-agent sessions are in use (the ceiling is ${ceiling}; a session frees when an agent ends)`
+    `waiting for a free shell engine session: ${liveAgentSessions()} of ${share} crewmate sessions are in use (the ceiling is ${ceiling}; a session frees when an agent ends)`
   waitingOwners.add(owned.owner)
   taskOutput.setLiveNotice(rowNote())
   taskOutput.emitLiveView()
@@ -194,7 +194,7 @@ async function admitAgentSession(
       if (woke === 'aborted') return 'aborted'
       if (woke === 'timed out') {
         return {
-          refused: `no shell engine session was free within ${Math.round(options.timeout / 1000)}s: ${liveAgentSessions()} of ${share} sub-agent sessions stayed in use (the ceiling is ${ceiling}, ${CEILING_WORDS}); the command did not run`,
+          refused: `no shell engine session was free within ${Math.round(options.timeout / 1000)}s: ${liveAgentSessions()} of ${share} crewmate sessions stayed in use (the ceiling is ${ceiling}, ${CEILING_WORDS}); the command did not run`,
         }
       }
       if (liveAgentSessions() < share) {

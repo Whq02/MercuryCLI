@@ -86,7 +86,7 @@ const openai: ModelChoice[] = [row('gpt-6-astra', 'GPT-6 Astra', '872k ctx', OPE
 const gemini: ModelChoice[] = Array.from({ length: 14 }, (_, k) => row(`gemini-3.${k}-pro`, `Gemini 3.${k} Pro`, '1M ctx', GEMINI))
 const hfDoor: ModelChoice = { id: '__mercury_huggingface_expand__', name: 'Hugging Face — 3 models live', tag: '', ctx: '', group: HF, action: true, expand: { group: HF, family: 'Hugging Face', total: 3 } }
 const hfFull: ModelChoice[] = Array.from({ length: 3 }, (_, k) => row(`huggingface/org/model-${k}`, `HF ${k}`, '32k ctx', HF))
-const INHERIT: ModelChoice = { id: 'inherit', name: 'Inherit', tag: "the parent's model", ctx: '', group: 'Sub-agent', choice: "a choice, not a model — the spawned agent runs its parent's model" }
+const INHERIT: ModelChoice = { id: 'inherit', name: 'Inherit', tag: "the parent's model", ctx: '', group: 'Crewmate', choice: "a choice, not a model — the spawned agent runs its parent's model" }
 const headings = {
   [ANTHROPIC]: { name: 'ANTHROPIC', doors: [{ door: LOGIN, account: EMAIL40, active: true }, { door: KEY, account: '…6f2a' }] },
   [OPENROUTER]: { name: 'OPENROUTER', doors: [{ door: 'OAuth key', account: '…9c1d', active: true }] },
@@ -337,7 +337,7 @@ section('§4 the two-door split: current and next sit on the row under the wire\
 
 section('§5 c never dies silent: a heading, a choice row and a sign-in row answer in the notice slot')
 {
-  const board = await mount({ models: [INHERIT, ...estate], current: 'inherit', top: 'Sub-agent', columns: 120, height: 40 })
+  const board = await mount({ models: [INHERIT, ...estate], current: 'inherit', top: 'Crewmate', columns: 120, height: 40 })
   await board.key('c', 'c')
   check('c on a choice row speaks the choice', board.frame().includes("a choice, not a model — the spawned agent runs its parent's model"), board.lines().filter(l => l.includes('choice')).map(inner).join(' | '))
   await board.key('left')
@@ -354,10 +354,10 @@ section('§5 c never dies silent: a heading, a choice row and a sign-in row answ
 
 section('§6 a heading with no provider entry: a choice group reads its name alone; a provider with rows keeps N live')
 {
-  const board = await mount({ models: [INHERIT, ...estate], current: 'inherit', top: 'Sub-agent', columns: 120, height: 40, withHeadings: false })
-  check('the choice group heading is its name, never "0 live"', inner(lineWith(board.lines(), 'SUB-AGENT')).trim() === '❯ SUB-AGENT' || inner(lineWith(board.lines(), 'SUB-AGENT')).trim() === '▾ SUB-AGENT', inner(lineWith(board.lines(), 'SUB-AGENT')).trim())
+  const board = await mount({ models: [INHERIT, ...estate], current: 'inherit', top: 'Crewmate', columns: 120, height: 40, withHeadings: false })
+  check('the choice group heading is its name, never "0 live"', inner(lineWith(board.lines(), 'CREWMATE')).trim() === '❯ CREWMATE' || inner(lineWith(board.lines(), 'CREWMATE')).trim() === '▾ CREWMATE', inner(lineWith(board.lines(), 'CREWMATE')).trim())
   check('a provider group without an entry still counts its live rows', inner(lineWith(board.lines(), 'ANTHROPIC')).trim() === '▾ ANTHROPIC · 3 live', inner(lineWith(board.lines(), 'ANTHROPIC')).trim())
-  check('the pure words agree', pure.headingWords(undefined, 'Sub-agent', { live: 0 }) === 'SUB-AGENT' && pure.headingWords(undefined, 'Mercury — Gemini models', { live: 14 }) === 'GEMINI · 14 live' && pure.headingWords({ name: 'OPENROUTER', doors: [], reason: 'live catalogue not fetched yet — retry shortly' }, OPENROUTER, { live: 0 }) === 'OPENROUTER · live catalogue not fetched yet — retry shortly')
+  check('the pure words agree', pure.headingWords(undefined, 'Crewmate', { live: 0 }) === 'CREWMATE' && pure.headingWords(undefined, 'Mercury — Gemini models', { live: 14 }) === 'GEMINI · 14 live' && pure.headingWords({ name: 'OPENROUTER', doors: [], reason: 'live catalogue not fetched yet — retry shortly' }, OPENROUTER, { live: 0 }) === 'OPENROUTER · live catalogue not fetched yet — retry shortly')
   const reachTotal = (pure as { pickerReachTotal?: (groups: unknown, fullRows: unknown) => number }).pickerReachTotal
   check('the reach total is the pure module\'s and counts every door\'s full list', reachTotal !== undefined && reachTotal(pure.groupPickerRows(estate), expandRows) === REACH, reachTotal === undefined ? 'no pickerReachTotal export' : String(reachTotal(pure.groupPickerRows(estate), expandRows)))
   board.close()
@@ -422,7 +422,7 @@ section('§9 a host narrower than the terminal: the picker follows the host\'s c
   const lines = stripAnsi(instance.lastFrame()).replace(/\n$/, '').split('\n')
   const widest = Math.max(...lines.map(line => [...line].length))
   check('inside a 90-column host on a 120-column terminal the picker paints no wider than the host (88 with the reserve), the title whole', widest <= 90 && lines.some(line => inner(line).trim() === 'Mercury · model') && auditBox('host', lines, 90).length === 0, `widest ${widest} · ${lines[1] ?? ''}`)
-  check('the choice row leads inside the host and a provider heading follows', lines.some(line => inner(line).trim().startsWith('▾ SUB-AGENT') || inner(line).trim().startsWith('❯ SUB-AGENT')) && lines.some(line => line.includes('ANTHROPIC ·')))
+  check('the choice row leads inside the host and a provider heading follows', lines.some(line => inner(line).trim().startsWith('▾ CREWMATE') || inner(line).trim().startsWith('❯ CREWMATE')) && lines.some(line => line.includes('ANTHROPIC ·')))
   instance.unmount()
   instance.cleanup()
   stream.destroy()
@@ -464,7 +464,7 @@ section('§8 the seams in source')
   check('the use record carries the door on the /model road too', (apply.match(/noteModelUse\(value, pick\.door\)/g) ?? []).length === 2)
   check('the preview card carries the pick to the apply road', wrapper.includes('applySelection(held.value, held.id, held.pick)') && wrapper.includes('setTransitionConfirm({ value, id, plan: gatePlan, refreshed: false, pick })'))
   const config = readFileSync(join(import.meta.dir, '..', '..', 'src', 'components', 'Settings', 'Config.tsx'), 'utf8')
-  check('the picker sizes its panel from the slot it is mounted in, and both config doors hand the popup\'s inner width and rows through the modal context', picker.includes('const slot = useModalOrTerminalSize({ rows: termRows, columns: cols })') && picker.includes('const panelWidth = Math.min(popup?.width ?? slot.columns, panelWidthFor(slot.columns, MODEL_PICKER_PANEL))') && (config.match(/<ModalContext\.Provider value=\{\{ rows: contentHeight, columns: width, scrollRef: null \}\}>/g) ?? []).length === 2)
+  check('the picker sizes its panel from the slot it is mounted in, and the config door hands the popup\'s inner width and rows through the modal context', picker.includes('const slot = useModalOrTerminalSize({ rows: termRows, columns: cols })') && picker.includes('const panelWidth = Math.min(popup?.width ?? slot.columns, panelWidthFor(slot.columns, MODEL_PICKER_PANEL))') && (config.match(/<ModalContext\.Provider value=\{\{ rows: contentHeight, columns: width, scrollRef: null \}\}>/g) ?? []).length === 1)
 }
 
 rmSync(scratch, { recursive: true, force: true })

@@ -43,7 +43,7 @@ export const MISSION_PROFILES: readonly MissionPolicyProfile[] = [
   },
   {
     id: 'solo-reviewer',
-    description: 'solo plus the verification red-team subagent before completion',
+    description: 'solo plus the verification red-team crewmate before completion',
     execution: 'solo',
     plannerClass: 'opus',
     executorClass: 'opus',

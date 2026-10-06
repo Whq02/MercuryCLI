@@ -61,7 +61,7 @@ export function formatDelegatedCost(usd: number): string {
 
 export function delegatedSpendLine(c: TurnReceiptCounts): string | null {
   if (c.agents === 0 && c.delegatedTokens === 0) return null
-  const parts = [`${c.agents} sub-agent${c.agents === 1 ? '' : 's'}`]
+  const parts = [`${c.agents} crewmate${c.agents === 1 ? '' : 's'}`]
   if (c.delegatedTokens > 0) parts.push(`${formatDelegatedTokens(c.delegatedTokens)} tokens`)
   if (c.delegatedCostUSD > 0) parts.push(formatDelegatedCost(c.delegatedCostUSD))
   const unpriced = c.delegatedUnpriced > 0 ? ` (${c.delegatedUnpriced} unpriced)` : ''

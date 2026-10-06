@@ -60,12 +60,6 @@ export const RUN_OPTIONS = [
   { flag: '--no-commands', value: 'none', hidden: false },
   { flag: '--version', short: '-v', value: 'none', hidden: false },
   { flag: '--worktree', short: '-w', value: 'optional', hidden: false },
-  { flag: '--seat-id', value: 'required', hidden: true },
-  { flag: '--seat', value: 'required', hidden: true },
-  { flag: '--crew', value: 'required', hidden: true },
-  { flag: '--seat-color', value: 'required', hidden: true },
-  { flag: '--parent', value: 'required', hidden: true },
-  { flag: '--role', value: 'required', hidden: true },
   { flag: '-V', value: 'none', hidden: true },
 ] as const satisfies readonly RunOption[]
 export type RunOptionFlag = (typeof RUN_OPTIONS)[number]['flag']

@@ -174,7 +174,7 @@ export function crewSpendOf(agents: readonly CrewAgentFacts[]): { costUSD: numbe
 }
 
 
-export const CREW_EMPTY_LINE = 'no sub-agents running'
+export const CREW_EMPTY_LINE = 'no crewmates running'
 export const CREW_EMPTY_DOOR = 'ask the chat to delegate work'
 export const CREW_MODEL_UNKNOWN = '—'
 
@@ -261,7 +261,7 @@ export function crewStillRunningLine(
   const agents = typeof running === 'number' ? running : running.agents
   const workflows = typeof running === 'number' ? 0 : running.workflows
   const parts: string[] = []
-  if (agents > 0) parts.push(`${agents} sub-agent${agents === 1 ? '' : 's'} still running — open the crew view (${CREW_VIEW_DOOR}) and press x twice on its row to stop one`)
+  if (agents > 0) parts.push(`${agents} crewmate${agents === 1 ? '' : 's'} still running — open the crew view (${CREW_VIEW_DOOR}) and press x twice on its row to stop one`)
   if (workflows > 0) parts.push(`${workflows} workflow run${workflows === 1 ? '' : 's'} still running — see /workflows`)
   return parts.length === 0 ? null : parts.join(' · ')
 }
@@ -323,7 +323,7 @@ export function crewUsageLine(agents: readonly CrewAgentFacts[]): string | null 
   const n = counted.length
   const spend = crewSpendOf(counted)
   const spendPart = spend.costUSD > 0 || spend.unpricedTurns > 0 ? ` · ${formatSessionCost(spend.costUSD, spend.unpricedTurns)}` : ''
-  return `sub-agents ${formatTokens(crewTokenSum(counted))} spent · ${n} agent${n === 1 ? '' : 's'}${running > 0 ? ` · ${running} live` : ''}${spendPart}`
+  return `crewmates ${formatTokens(crewTokenSum(counted))} spent · ${n} agent${n === 1 ? '' : 's'}${running > 0 ? ` · ${running} live` : ''}${spendPart}`
 }
 
 export function crewRowLine(facts: CrewAgentFacts, nowMs: number): string {

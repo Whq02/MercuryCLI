@@ -87,7 +87,7 @@ check('an answer after an outage reads ready', resolveJevStatus({ settings: on, 
 
 section('§3 sub-agents: off until the setting says so, then the same truth as the main model')
 const subOff = resolveJevStatus({ settings: on, key: stored, ledger: emptyLedger(), now: T0, agent: { id: 'a1', subagent: true } })
-check('a sub-agent with the setting off reads off, and the words say why', subOff.kind === 'off' && /sub-agents/.test(subOff.words))
+check('a crewmate with the setting off reads off, and the words say why', subOff.kind === 'off' && /crewmates/.test(subOff.words))
 check('a sub-agent with the setting on reads ready', resolveJevStatus({ settings: { ...on, subagents: true }, key: stored, ledger: emptyLedger(), now: T0, agent: { id: 'a1', subagent: true } }).kind === 'ready')
 check('the main model is never budgeted as a sub-agent', resolveJevStatus({ settings: on, key: stored, ledger: emptyLedger(), now: T0, agent: { id: 'main', subagent: false } }).kind === 'ready')
 

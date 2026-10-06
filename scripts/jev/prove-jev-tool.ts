@@ -218,7 +218,7 @@ const failedShapes: Array<[string, RegExp, RegExp]> = [
 for (const [label, shape, example] of failedShapes) check(`a shape that did not work, named with its example: ${label}`, shape.test(prompt) && example.test(prompt))
 check('for the two that did not: run the proof on the tip and read the source; never ask Jev', /run the proof on the tip and read the source/.test(prompt) && /never ask Jev/.test(prompt))
 check('the two more shapes that held: a question for the lead, ask first', /need the lead's answer\?/.test(prompt) && /asked first\?/.test(prompt))
-check('the pace and the sub-agent budget stay as facts, not as a reason to hold back', /A sub-agent has 200 calls for its whole task; all sub-agents in a session share 50 requests a minute on each road, separately from the main model's pace\./.test(prompt))
+check('the pace and the crewmate budget stay as facts, not as a reason to hold back', /A crewmate has 200 calls for its whole task; all crewmates in a session share 50 requests a minute on each road, separately from the main model's pace\./.test(prompt))
 const exclusions: Array<[string, RegExp]> = [
   ['what code settles exactly is evidence to pass in, not a question', /arithmetic, geometry, resizing, dates, counts/],
   ['a fact already in context is not a question', /already in your context/],
@@ -234,8 +234,8 @@ const exclusions: Array<[string, RegExp]> = [
   ['numbers are opinions, 0 and 1 prove nothing', /0 and 1 prove nothing/],
   ['confidence is concentration, noul has none', /how concentrated the distribution is/],
   ['never attribute a rationale', /never attribute a rationale to it/],
-  ['the sub-agent budget', /A sub-agent has 200 calls/],
-  ['the shared sub-agent session pace', /all sub-agents in a session share 50 requests a minute/],
+  ['the crewmate budget', /A crewmate has 200 calls/],
+  ['the shared crewmate session pace', /all crewmates in a session share 50 requests a minute/],
 ]
 for (const [label, rx] of exclusions) check(label, rx.test(prompt))
 const headwords = JEV_STATUS_KINDS.filter(k => k !== 'ready').map(k => JEV_STATUS_HEADWORDS[k])

@@ -230,7 +230,7 @@ export function CrewView({
     <CommandCenter elevated view="crew" subtitle={crewCountLabel(crewmates)} onClose={onClose} footer={footer} captureInput={false}>
       <Box marginTop={1} flexDirection="column">
         {presence === 'blank' ? (
-          <Text color={tokens.textMuted}>no chat is focused — a session's sub-agents list here</Text>
+          <Text color={tokens.textMuted}>no chat is focused — a session's crewmates list here</Text>
         ) : null}
         {presence === 'dormant' ? (
           <Text color={tokens.textMuted}>the session has no live runner — ↵ in the chat revives it</Text>
@@ -241,7 +241,7 @@ export function CrewView({
           </Text>
         ) : null}
         <SectionHeader marginTop={0} count={rows.length}>
-          Sub-agents
+          Crewmates
         </SectionHeader>
         {rows.length === 0 ? (
           <Text color={tokens.textMuted}>

@@ -205,7 +205,7 @@ exits.
 
 ## Not in this release
 
-Sub-agents, crewmates and clients of the MCP serve surface never carry the
+Crewmates (sub-agents) and clients of the MCP serve surface never carry the
 Computer tool. A bare `mercury run` cannot drive. A hosted session runs in a
 `mercury runner` child whose host answers permission asks; the interactive
 cockpit presents those asks as consent cards. A non-interactive caller needs

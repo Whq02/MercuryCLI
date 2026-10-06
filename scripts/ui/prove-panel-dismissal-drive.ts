@@ -58,7 +58,7 @@ try {
       const out = join(world, 'capture.json')
       const config = join(world, 'capture-config.json')
       const title = panel === 'crewmates' ? 'Mercury — crew' : panel === 'model' ? MODEL_PICKER_TITLE : `Mercury — ${panel}`
-      const needle = panel === 'crewmates' ? 'Sub-agents' : title
+      const needle = panel === 'crewmates' ? 'Crewmates' : title
       const ready = { requireAwait: true, awaitText: 'ready ·', targetText: '⇧← back', awaitSettleTicks: 6 }
       const panelReady = { requireAwait: true, awaitText: needle, awaitSettleTicks: 8 }
       writeFileSync(config, JSON.stringify({ argv: [node, dist], cwd, cols, rows, out, total: 400, stableTicks: 4, sends: [

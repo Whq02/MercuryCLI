@@ -252,7 +252,7 @@ export function knobDetailWords(id: LocalServerKnobId, facts: MemoryFacts, chose
     })
     const total = loads.reduce((sum, load) => sum + load.bytes, 0)
     const together = loads.length > 1 ? ` · all ${loads.length} together ${gibWords(total)} — ${total <= facts.usableBytes ? `fit in ${usable}` : `do not fit in ${usable}`}` : ''
-    return `how many models stay loaded before one is evicted; the box has ${machine}: ${loads.length ? loads.map(load => load.words).join(', ') : 'no model sizes read'}${together} · one loaded copy serves many sessions: seven sub-agents on one model need one copy and seven slots, not seven copies · ←/→ move it`
+    return `how many models stay loaded before one is evicted; the box has ${machine}: ${loads.length ? loads.map(load => load.words).join(', ') : 'no model sizes read'}${together} · one loaded copy serves many sessions: seven crewmates on one model need one copy and seven slots, not seven copies · ←/→ move it`
   }
   if (id === 'parallelSlots') {
     if (!largest) return `how many requests one loaded model answers at once; each slot holds its own window of cache · one slot for a single session; 2–4 slots with a 32k window for a crew · ←/→ move it`

@@ -63,7 +63,7 @@ function capture(cols: number, tag: string, extraEnv: Record<string, string>): s
       { data: '/crewmates', atTick: 999, awaitText: '← back', requireAwait: true, minTick: 5, awaitSettleTicks: 3 },
       { data: '\r', afterPrevTicks: 4 },
     ],
-    readyText: ['Sub-agents'], stableTicks: 5,
+    readyText: ['Crewmates'], stableTicks: 5,
     total: 200, cols, rows: 44, out: grid,
   }))
   const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {

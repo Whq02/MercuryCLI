@@ -355,11 +355,11 @@ function sessionGuidanceSection(
   if (agentEnabled) {
     if (forkSubagentsEnabled) {
       items.push(
-        `Calling the ${AGENT_TOOL_NAME} tool without a subagent type creates a background fork that keeps its tool output out of your context, so you can keep talking to the user while it works. Reach for it for research or multi-step work that would otherwise fill your context with output you will not need again. A fork must execute directly — NEVER re-delegate.`,
+        `Calling the ${AGENT_TOOL_NAME} tool without a \`subagent_type\` creates a background fork that keeps its tool output out of your context, so you can keep talking to the user while it works. Reach for it for research or multi-step work that would otherwise fill your context with output you will not need again. A fork must execute directly — NEVER re-delegate.`,
       )
     } else {
       items.push(
-        `Match tasks to the specialized agent whose description fits. Subagents are valuable for parallelizing independent queries and for protecting your main context; do not use them excessively, and never duplicate work you delegated to one.`,
+        `Match tasks to the specialized agent whose description fits. Crewmates are valuable for parallelizing independent queries and for protecting your main context; do not use them excessively, and never duplicate work you delegated to one.`,
       )
     }
     if (!forkSubagentsEnabled) {

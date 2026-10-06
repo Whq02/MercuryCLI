@@ -20,7 +20,7 @@ const DEAD = 'http://127.0.0.1:9'
 const ESC = '\x1b'
 const DOWN = `${ESC}[B`
 const RIGHT = `${ESC}[C`
-const AGENT_ROW = 'Sub-agent default model'
+const AGENT_ROW = 'Crewmate default model'
 const SIZES: Array<[number, number]> = [[178, 51], [120, 40], [80, 21], [82, 17], [80, 14]]
 
 let failures = 0
@@ -166,7 +166,7 @@ for (const [cols, rows] of SIZES) {
   const home = seededHome(`agent-${cols}x${rows}`)
   const c = capture(`agent-${cols}x${rows}`, home, cols, rows, [
     ...openConfig(cols),
-    { requireAwait: true, awaitText: 'Auto-compact', awaitSettleTicks: 4, data: 'Sub-agent default model' },
+    { requireAwait: true, awaitText: 'Auto-compact', awaitSettleTicks: 4, data: 'Crewmate default model' },
     { requireAwait: true, awaitText: AGENT_ROW, awaitSettleTicks: 3, awaitStableTicks: 3, data: '\r' },
     { afterPrevTicks: 3, data: '', mark: 'row-before' },
     { afterPrevTicks: 1, data: RIGHT },

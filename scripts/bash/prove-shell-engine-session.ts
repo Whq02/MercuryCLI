@@ -254,7 +254,7 @@ section('§11 the ceiling on engine sessions: nine owners against 8 — the nint
   let deadline = Date.now() + 10_000
   while (!engineWaitingOwnersForTest().includes('agent-8') && Date.now() < deadline) await pause()
   check('the ninth owner waits for a free session — never a ninth process', engineWaitingOwnersForTest().includes('agent-8') && engineChildForTest('agent-8') === null && ninth.status === 'running', `waiting=${engineWaitingOwnersForTest().join(',')}`)
-  check("the wait is said on the ninth's row, with the count and the ceiling", /waiting for a free shell engine session: 7 of 7 sub-agent sessions are in use \(the ceiling is 8/.test(rowNote), JSON.stringify(rowNote))
+  check("the wait is said on the ninth's row, with the count and the ceiling", /waiting for a free shell engine session: 7 of 7 crewmate sessions are in use \(the ceiling is 8/.test(rowNote), JSON.stringify(rowNote))
   await endEngineSessionFor('agent-3')
   const ninthResult = (await ninth.result) as Result
   check('when an agent ends, the waiting owner gets a session and its command runs, on a process of its own', ninthResult.code === 0 && ninthResult.stdout.includes('ninth') && pidOf(ninthResult) > 1 && !pids.has(pidOf(ninthResult)), JSON.stringify(ninthResult))

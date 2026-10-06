@@ -10,7 +10,7 @@ const root = resolve(import.meta.dir, '..', '..')
 const dist = join(root, 'dist', 'mercury.mjs')
 const vendoredNode = join(root, 'dist', 'vendor', 'node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
 const node = existsSync(vendoredNode) ? vendoredNode : Bun.which('node') ?? 'node'
-const rare = ['Service', 'Inspect', 'Sleep', 'LiveComms', 'ArtifactsList']
+const rare = ['Service', 'Inspect', 'Sleep']
 const loadedInFull = ['ChangeSet', 'AstSearch', 'AstEdit', 'LSP', 'Test', 'Git', 'Debug', 'Monitor', 'Checkpoint', 'Rewind']
 let failures = 0
 function check(label: string, condition: boolean, detail = ''): void {

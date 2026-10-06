@@ -1,38 +1,34 @@
 # The crew
 
-Every Mercury session has a crew from the moment it starts: the sub-agents it
-delegates to, the named crewmates it starts and chats with, and the daemon's
-named seats, all on one roster. There is no create step and no delete step —
-the crew is born with the session and its helpers are tracked live, not
-through files that must be set up first. Boards show it all; live
-communication carries its messages, tasks, file claims and who is busy.
+Every Mercury session has a crew from the moment it starts: the crewmates
+(sub-agents) it delegates to through the Agent tool. There is no create step
+and no delete step — the crew is born with the session and its crewmates are
+tracked live, not through files that must be set up first. Boards show them
+all; a message to a crewmate reaches it by its id or its name.
 
 ## The crew view
 
-`/crewmates` opens the Crew view:
-the focused session's sub-agents live — name, model, status, tokens,
-elapsed — and the named, long-lived crewmates the daemon keeps for the
-repository, one color-coded chat each, side by side. It is the one roster
-screen: there is no separate members dialog, and no per-member permission
-switch — crewmates follow the lead's permission mode. There is no eager boot
-spawn: every named crewmate is an explicit, billed operator act through the
-spawn wizard. Esc or a click on the chat outside the Crew view closes it; from
-an opened crewmate card, either returns to the list first. The same rule
-closes the `/runs` board. Closing a view never stops its work.
+`/crewmates` opens the Crew view: the focused session's crewmates live —
+name, model, status, tokens, elapsed — one row each. There is no separate
+members dialog and no per-crewmate permission switch — crewmates follow the
+session's permission mode. `↵` opens a crewmate's row in its own view, `m`
+makes a crewmate's chat the main one, `c` clears a settled row. Esc or a
+click on the chat outside the Crew view closes it; from an opened row, either
+returns to the list first. The same rule closes the `/runs` board. Closing a
+view never stops its work.
 
 ## The two spawn switches
 
-Every session carries two switches, Sub-agents and Workflows, set in the boot
+Every session carries two switches, Crewmates and Workflows, set in the boot
 menu's Agents section for the sessions born after the choice and sticky for
-each session. With sub-agents off, the Agent tool is absent from that
+each session. With crewmates off, the Agent tool is absent from that
 session's roster — the model never sees it — and every road that would spawn
 one from inside the session (the tool, a skill that forks, a workflow's agent
-hooks, the fleet tools, the Crew view's spawn key) answers one receipt:
-"sub-agents are off for this session — /subagents on, or the boot menu's
+hooks, the fleet tools) answers one receipt:
+"crewmates are off for this session — /subagents on, or the boot menu's
 Agents section". Workflows off does the same for the Workflow tool and the
 workflow launch roads; the run board stays readable. The concourse itself
-keeps launching sessions and crew seats — the switches are per focused
-session.
+keeps launching sessions — the switches are per focused session.
 
 Inside a session, `/subagents on|off` and `/workflows on|off` (or the boot
 menu opened there) flip a switch at the session's next turn boundary: the tool
@@ -44,149 +40,111 @@ turn's end, before any line waiting for the next turn, so the next turn's
 launches already read it; the session's record follows the runner's own word
 that the switch moved, never a clock. A line sent after the flip, while the
 same turn still runs, waits for the turn's end too and runs with the switched
-roster. Plain `/subagents` reads both
-switches with their sources; the health check's "Sub-agents & workflows" row does
-the same.
+roster. Plain `/subagents` reads both switches with their sources; the health
+check's "Crewmates & workflows" row does the same.
 
 ## Starting a crewmate
 
-Starting a crewmate takes a name, a working folder, an optional git worktree
-and a model, and every door — the Agent tool with a name, the Crew view's
-spawn key, the daemon's seat — goes through the same road. The model is the
-one the operator names; no crewmate's model is chosen for it or changed in a
-resume. A named crewmate is answered only once its first turn has settled. A
-crewmate whose first dispatch fails — a provider refusal, a spent window, an
-error before its first response — is refused by name with the cause and is
-not on the roster; a later message to it is refused with the same cause
-instead of starting it again — a crewmate that failed is started again by
-the Agent tool or resumed with `r`, never by a message. A crewmate that fails
-later leaves the roster the same way, so the Crew view never lists a dead
-seat as running. When an Agent call names the parent's own model family, its
-sub-agent or named crewmate keeps the parent's exact model. Engine models
-still pass their provider's dispatch checks. A different family keeps that
-family's preferred model; an exact model id keeps its explicit choice.
+A crewmate starts through the Agent tool, with a name or without one. A named
+crewmate takes further instructions through SendMessage addressed to its
+name, after its first turn and after it has finished; an unnamed one works
+its prompt once and returns its report, and is reached afterwards by the id
+its launch receipt names. The model is the one the launch names, or the
+configured crewmate default from `/config`; no crewmate's model is chosen for
+it or changed in a resume. When an Agent call names the parent's own model
+family, its crewmate keeps the parent's exact model. Engine models still pass
+their provider's dispatch checks. A different family keeps that family's
+preferred model; an exact model id keeps its explicit choice.
 
-An Agent call may name the directory its sub-agent works in with `cwd`: an
+An Agent call may name the directory its crewmate works in with `cwd`: an
 absolute directory that exists. Starting outside the session's starting
-folder asks for ordinary permission: yes launches the sub-agent there, no
-leaves it unlaunched. Sovereign mode does not ask. The sub-agent's shell,
+folder asks for ordinary permission: yes launches the crewmate there, no
+leaves it unlaunched. Sovereign mode does not ask. The crewmate's shell,
 file tools and environment section start there, and that directory is its
 own single starting folder. A missing directory is
 refused before anything is launched. With `isolation: "worktree"` the
 temporary worktree is cut from that directory's repository at the commit that
 directory's checkout is on — the branch the lead works in, never a remote's
 copy of it, with nothing fetched — or, with `worktree_at`, frozen at the named
-commit; and the sub-agent runs in the worktree. Several sub-agents launched
-together each get their own worktree, cut one after another. A sub-agent's
+commit; and the crewmate runs in the worktree. Several crewmates launched
+together each get their own worktree, cut one after another. A crewmate's
 worktree carries links to its parent
 checkout's `node_modules` and to each `vendor/<pack>` the checkout ignores,
-hidden from git through the clone's exclude file, so the sub-agent builds and
-runs the checks there without an install. A sub-agent continued by a later
+hidden from git through the clone's exclude file, so the crewmate builds and
+runs the checks there without an install. A crewmate continued by a later
 message wakes in the directory it was launched in: the launch records the
 directory beside the transcript and the continuation reads it back; a
 recorded directory that no longer exists puts the continuation in the
 session's own directory, and the message's receipt says so, naming the
-directory that is gone. The same note accompanies an automatic resume, a crew
-resume and queued guidance, and the continued sub-agent receives it in its
-own prompt.
+directory that is gone. The same note accompanies an automatic resume and
+queued guidance, and the continued crewmate receives it in its own prompt.
 
-Nothing is deleted automatically. When crewmates are cleaned up, their
-worktrees and folders stay where they are and the lead gets a reminder
-naming each leftover worktree by its path; what to remove is the lead's
-decision.
-
-Named crewmates spawn on demand over the daemon's authenticated control
-socket. Each seat runs in a `mercury runner` child, with the daemon as its
-host. The spawn request carries a name and a model choice; the daemon
-enforces the policy server-side, where a client bug cannot bypass it:
-
-- a validated model table: every row a session may run on this account, no
-  family and no tier refused;
-- permission mode `flow` — classifier-adjudicated asks — unless the operator's
-  `MERCURY_DAEMON_PERMISSION_MODE` says otherwise;
-- a read-only reconnaissance tool allowlist;
-- child environment that prevents a named crewmate from fanning out workflow
-  DAGs of its own;
-- a name allowlist (`[a-z0-9-]` — the name reaches file paths and env);
-- a spend guard: at most six live named crewmates, enforced at the spawn
-  itself.
+Nothing is deleted automatically. A crewmate's worktree and folder stay where
+they are after it ends, and the session gets a reminder naming each leftover
+worktree by its path; what to remove is the operator's decision.
 
 ## Stop, resume and usage limits
 
 The crew own their stop. Esc in the chat interrupts the chat's own turn and
-nothing else: the sub-agents and workflows the turn launched keep running on
+nothing else: the crewmates and workflows the turn launched keep running on
 their own controllers, and the interrupted turn's receipt says how many. To
 stop one, open the Crew view (or the `/runs` board), select it and press `x`
 twice within two seconds — the first press names the crewmate the second
-press stops. The stop reaches every kind of row the same way: a dispatched
-sub-agent's controller aborts and its running tool ends with it, a named
-crewmate's loop ends, a workflow run is killed. The receipt is the runner's
-own word: applied once the row has left `running`, or refused with the
-reason — an id the registry no longer holds, a row that had already settled,
-a loop that did not end within the runner's settle budget — and a refusal is
-painted under the rows.
+press stops. The stop reaches every kind of row the same way: a crewmate's
+controller aborts and its running tool ends with it, a workflow run is
+killed. The receipt is the runner's own word: applied once the row has left
+`running`, or refused with the reason — an id the registry no longer holds, a
+row that had already settled, a loop that did not end within the runner's
+settle budget — and a refusal is painted under the rows. `p` parks every
+agent and the chat at its next safe point (a stream or a tool in flight
+finishes first) and resumes them.
 
 Stop and resume work the same for every crewmate. A stopped crewmate keeps
 its history: its row reads `stopped` with the reason and its transcript
 stands on disk; `r` on its row continues it from where it was, the work
 before the stop in its context, and the row may be pressed after it has left
 the list. A message to a stopped or finished crewmate takes the same road:
-SendMessage to its name resumes it from its transcript with the message as
-its next turn, and the answer names the new row and how it had ended. Every
-stop, resume and failure reaches the main agent as a notification of its own
-kind, never silently, a stop or resume from the crew view included. The main
-agent's own door is the TaskStop tool, which takes a task id, a named
-crewmate's agent id (the id its spawn receipt gave) or its bare name, or a
-launch name.
+SendMessage to its name or its id resumes it from its transcript with the
+message as its next turn, and the answer names the new row and how it had
+ended. Every stop, resume and failure reaches the main agent as a
+notification of its own kind, never silently, a stop or resume from the crew
+view included. The main agent's own door is the TaskStop tool, which takes a
+task id, a crewmate's agent id (the id its launch receipt gave) or a launch
+name.
 
-A crewmate that hits a usage limit pauses instead of being marked failed: its
-row reads paused with the reset time the provider stated, and it starts again
-by itself at that time, or as soon as the operator logs in on another
-account — with the same model.
+A crewmate whose turn ends on a provider's refusal of an image it was sent
+carries on once on its own: the image goes to it as `[image]` with a line
+saying so, and a second refusal ends the turn as it would have. A crewmate
+that hits a usage limit pauses instead of being marked failed: its row reads paused with the
+reset time the provider stated, and it starts again by itself at that time,
+or as soon as the operator logs in on another account — with the same model.
 
 A workflow that ends with agent failures says so in the first line of its
 notification: the count, then the first failing agent and its cause — an
 error's words, a refusal's stop reason — and its run record carries the
 same failure lines beside the per-agent rows.
 
-## Live communication
+## Messages
 
-SendMessage carries messages between agents: a plain
-message, a question and its answer, a shutdown request, the
-dispatch, escalate, progress and control envelopes, a handoff — addressed by
-name, by id, to `*` for everyone or to `main` for the lead, delivered at the
-receiver's next tool boundary or turn end (a receiver between turns starts a
-turn). Underneath, the crew's messages, its tasks, its file claims and who is
-busy are read and written live through the LiveComms tool: a read returns
-the state as it stands at that moment, and a write is visible to the next
-read by any agent in the crew — a crewmate in the session, a daemon seat, the
-lead — with no restart. The coordination tools every session carries
-(`mcp__mercury__brief`, `mcp__mercury__coord_say` and the lease verbs) read
-and write the same live state.
+SendMessage carries a plain message to a crewmate of this session by the id
+its launch receipt names or by the name its launch gave it, and from a
+background crewmate to `main`, the agent that launched it. A running
+receiver reads it at its next tool boundary, else at the end of its turn; a
+receiver between turns starts a turn for it; a receiver that has finished is
+resumed from its transcript with the message as its next turn. A name two
+launches carried reaches the newest.
 
-Every message rides LiveComms: one file per crew,
-`<config home>/crew/livecomms/<crew>.json`, holding the crew's messages (each
-addressed by name), its tasks and who is busy. There is no file per member.
-Every row is validated on read and unknown fields are tolerated, so a build of
-another vintage reads the same file.
+## File leases
 
-## File claims
-
-A file claim marks a file as one crewmate's, visible live to every crewmate
-and the lead. Crewmates keep off each other's files with the lease verbs
-every session carries: `mcp__mercury__lease_claim`,
-`mcp__mercury__lease_release`, `mcp__mercury__lease_list` and
-`mcp__mercury__lease_take`. The list a lease verb takes is called `paths` on
-every one of them: repo-relative file paths, and for a crew claim a path may
-be a glob, a pattern ending in `/**` that covers a folder and everything
-beneath it. `globs` also accepts the path list. A claim sent with neither
-field is refused with words that name both. A crew claim renews the caller's lease and replaces its set; claiming
-an empty set releases it. `lease_take` and a `lease_release` with a list act
-on exact project files; a `lease_release` with no list drops the caller's
-crew claim. A second crewmate that tries to edit a claimed file is stopped
-before the write and told which crewmate holds it; a lease denial is
-coordination, not an error. A release by the holder, or the holder's end,
-frees the file.
+The in-process `mercury` MCP server every session carries holds exact
+project file leases: `mcp__mercury__lease_take` takes the named
+repo-relative paths for the calling session and agent, `mcp__mercury__lease_release`
+releases the named paths or every lease the caller holds, and
+`mcp__mercury__lease_list` lists the leases with their holders. A path another
+live holder has taken is named and refused; a holder's end frees its leases.
+The Godot engine's file operations respect the leases; elsewhere a lease is
+the crew's own coordination, read before an edit. The same server serves
+`render_tui`, the TUI capture.
 
 ## Roles
 
@@ -204,15 +162,14 @@ model, and `/agents` opens the Agent Studio for building and tuning those
 definitions. The Agent tool's roster and `mercury roster` list the two
 built-ins first, then your own agents.
 
-Crewmate roles resolve through one resolver, whichever way the crewmate
-launches. A role is an agent definition — built-in, custom, or from an
-extension — the same registry the in-session subagent tool loads, so a given
-role is the same agent no matter how it was launched. A saved sub-agent record
-whose type Mercury does not know opens as `mercury-crew`.
+A crewmate's kind is an agent definition — built-in, custom, or from an
+extension — resolved by the Agent tool's `subagent_type`, so a given kind is
+the same agent however it was launched. A saved crewmate record whose type
+Mercury does not know resumes as `mercury-crew`.
 
 Three briefs ride as skills and launch options rather than as agent kinds:
 `/verify` hands the session's work to the `verifier` skill, which red-teams it
-in a sub-agent of its own and ends with a `VERDICT: PASS`, `FAIL` or `PARTIAL`
+in a crewmate of its own and ends with a `VERDICT: PASS`, `FAIL` or `PARTIAL`
 line; an Agent launch with `isolation: "worktree"`, `worktree_at` and
 `review_receipt` is a review of a committed change on a frozen worktree whose
 one permitted write is the receipt's `## Review` section, ending with
@@ -221,34 +178,33 @@ answers how to use Mercury from the documentation that ships with the
 install, with `https://mercury-cli.ai/llms.txt` as its map.
 
 The living-crew directory (`/crew`) is the canonical agent-identity registry:
-it binds agent principals, seat, roster and crew forms, provider identities,
-and external adapter seats into stable crew agent ids with role links.
-Identity derives from the founding binding, so a rename, reconnect, or
-restart never mints a duplicate.
+it binds agent principals, seat and crew forms, provider identities, and
+external adapter seats into stable crew agent ids with role links. Identity
+derives from the founding binding, so a rename, reconnect, or restart never
+mints a duplicate.
 
 ## Boards
 
 `/runs` opens the work board (`/tasks` opens the same board), including
-workflow runs and background shells. `/crewmates` is the Crew view:
-the session's sub-agents live; each sub-agent
-row carries the count of notices delivered to it that no turn of its own has
-read yet ([SESSIONS.md](SESSIONS.md), "A notice an agent has not read"). A
-command a sub-agent runs in the background is a shell task of the session
-like any other: it has its row on the `/runs` board while it runs, the
-session's waiting line counts it, and when it finishes the notice goes to the
-agent that launched it, read at that agent's next turn. A sub-agent with
-nothing to do until then waits with the Sleep tool, which every sub-agent's
-roster carries, in a foreground and a background run alike: the wait names a
-ceiling (at most an hour, the same as the session's own) and ends the moment
-the shells that sub-agent launched settle, so the notice is read at that
-boundary and never after a full timer. `/crew` shows the directory with
-presence and external seat attach/detach. `/sessions` manages this project's
-sessions, including crewmate chats.
+workflow runs and background shells. `/crewmates` is the Crew view: the
+session's crewmates live; each crewmate row carries the count of notices
+delivered to it that no turn of its own has read yet ([SESSIONS.md](SESSIONS.md),
+"A notice an agent has not read"). A command a crewmate runs in the
+background is a shell task of the session like any other: it has its row on
+the `/runs` board while it runs, the session's waiting line counts it, and
+when it finishes the notice goes to the agent that launched it, read at that
+agent's next turn. A crewmate with nothing to do until then waits with the
+Sleep tool, which every crewmate's roster carries, in a foreground and a
+background run alike: the wait names a ceiling (at most an hour, the same as
+the session's own) and ends the moment the shells that crewmate launched
+settle, so the notice is read at that boundary and never after a full timer.
+`/crew` shows the directory with presence and external seat attach/detach.
+`/sessions` manages this project's sessions.
 
 ## Saved conversations
 
-A saved conversation reopens with its recorded crewmate messages and work.
-An unknown stored agent type opens as `mercury-crew`; the two built-in types
+A saved conversation reopens with its recorded crewmate rows and work. An
+unknown stored agent type resumes as `mercury-crew`; the two built-in types
 and your custom definitions are the choices for a fresh launch.
 
 ## The concourse

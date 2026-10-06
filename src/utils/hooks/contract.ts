@@ -19,7 +19,7 @@ const baseHookFields = {
   transcript_path: z.string().describe('Absolute path of the session transcript JSONL'),
   cwd: z.string().describe('The working directory at fire time'),
   permission_mode: z.string().optional().describe('The permission mode in force'),
-  agent_id: z.string().optional().describe('Set when a subagent fired the hook'),
+  agent_id: z.string().optional().describe('Set when a crewmate fired the hook'),
   agent_type: z.string().optional().describe('The firing agent\'s type, when known'),
 }
 const BaseHookInputSchema = lazySchema(() => z.object(baseHookFields))
@@ -144,8 +144,8 @@ const SubagentStartHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
     hook_event_name: z.literal('SubagentStart'),
-    agent_type: z.string().optional().describe('The subagent type being launched'),
-    prompt: z.string().optional().describe('The task prompt the subagent starts with'),
+    agent_type: z.string().optional().describe('The crewmate type being launched'),
+    prompt: z.string().optional().describe('The task prompt the crewmate starts with'),
   }),
 )
 const SubagentStopHookInputSchema = lazySchema(() =>
@@ -153,8 +153,8 @@ const SubagentStopHookInputSchema = lazySchema(() =>
     ...baseHookFields,
     hook_event_name: z.literal('SubagentStop'),
     stop_hook_active: z.boolean().describe('True when this fire is itself a stop-hook continuation'),
-    agent_transcript_path: z.string().optional().describe('Path of the subagent\'s own transcript'),
-    last_assistant_message: z.string().optional().describe('Text of the subagent\'s final assistant message'),
+    agent_transcript_path: z.string().optional().describe('Path of the crewmate\'s own transcript'),
+    last_assistant_message: z.string().optional().describe('Text of the crewmate\'s final assistant message'),
   }),
 )
 const PreCompactHookInputSchema = lazySchema(() =>
@@ -335,7 +335,7 @@ const SetupHookSpecificOutputSchema = lazySchema(() =>
 const SubagentStartHookSpecificOutputSchema = lazySchema(() =>
   z.object({
     hookEventName: z.literal('SubagentStart'),
-    additionalContext: z.string().optional().describe('Extra context injected into the subagent'),
+    additionalContext: z.string().optional().describe('Extra context injected into the crewmate'),
   }),
 )
 const PostToolUseHookSpecificOutputSchema = lazySchema(() =>

@@ -176,7 +176,7 @@ export const transcriptAdapter: ResourceAdapter = {
       }
       const agentFile = join(dirname(sessionFile), sid, 'subagents', `${stem}.jsonl`)
       if (!existsSync(agentFile)) {
-        return { state: 'absent', note: `no subagent transcript '${stem}' under session '${sid.slice(0, 8)}'` }
+        return { state: 'absent', note: `no crewmate transcript '${stem}' under session '${sid.slice(0, 8)}'` }
       }
       const rows = jsonlConciseRows(agentFile)
       const view = boundedTextView(rows.join('\n'), ref.selectors, 100)
@@ -187,7 +187,7 @@ export const transcriptAdapter: ResourceAdapter = {
         resource: {
           ref: `mercury://transcript/agent/${sid}/${stem}`,
           kind: 'transcript',
-          title: `subagent ${stem} — concise transcript`,
+          title: `crewmate ${stem} — concise transcript`,
           summary: `${rows.length} row(s) · ${status}`,
           mutable: false,
           text: view.text,
@@ -222,7 +222,7 @@ export const transcriptAdapter: ResourceAdapter = {
             children.push({
               ref: `mercury://transcript/agent/${sid}/${stem}`,
               title: stem,
-              summary: 'subagent execution',
+              summary: 'crewmate execution',
             })
           }
         }

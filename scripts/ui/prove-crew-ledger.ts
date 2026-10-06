@@ -510,7 +510,7 @@ async function run(cols: number, rows: number): Promise<void> {
     console.log(`the crew view's key row: "${crewViewKeys(window)}"`)
     check('the crew view lists all four crewmates (the runner carries only atlas)', window !== null && ['atlas', 'birch', 'cedar', 'delta'].every(name => window!.rows.some(row => VIEW_ROW(row) && row.includes(name))), window?.rows.filter(row => VIEW_ROW(row) || row.includes('no sub-agents')).map(row => row.trim()).join(' | ').slice(0, 300) ?? 'no window')
     check('the finished rows carry their state words in the view: birch interrupted · cedar stopped · delta landed', crewViewRow(window, 'birch').includes('interrupted') && crewViewRow(window, 'cedar').includes('stopped') && crewViewRow(window, 'delta').includes('landed'), [crewViewRow(window, 'birch'), crewViewRow(window, 'cedar'), crewViewRow(window, 'delta')].join(' | ').slice(0, 300))
-    check('the list header counts the four crewmates, and the title carries the running count alone', window !== null && window.rows.some(row => row.includes('Sub-agents (4)')) && window.rows.some(row => row.includes('1 running') && !row.includes('sub-agent')), window?.rows.slice(0, 4).join(' | ') ?? 'no window')
+    check('the list header counts the four crewmates, and the title carries the running count alone', window !== null && window.rows.some(row => row.includes('Crewmates (4)')) && window.rows.some(row => row.includes('1 running') && !row.includes('sub-agent')), window?.rows.slice(0, 4).join(' | ') ?? 'no window')
     const keysOnRunning = crewViewKeys(window)
     check(`the key row on the running row (atlas, the cursor's rest) does not offer ${CLEAR_KEY}`, keysOnRunning !== '' && !keysOnRunning.includes(CLEAR_KEY), keysOnRunning)
     scene.push('c')
