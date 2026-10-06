@@ -784,7 +784,7 @@ for (const [cols, rows] of [[120, 40]] as const) {
       const markText = (label: string): string => (marks.find(m => m.label === label)?.grid ?? []).map(row => row.map(c => c.c).join('')).join('\n')
       const ask = markText('ask-card')
       const running = [markText('running-1'), markText('running-2'), markText('running-3')]
-      const runningCardOn = running.some(f => /◐\s+Running 1 bash command/.test(f) && f.includes(`sleep ${Math.round(3 * PACE)} && echo bash-round-done`))
+      const runningCardOn = running.some(f => /▰\s+Running 1 bash command/.test(f) && f.includes(`sleep ${Math.round(3 * PACE)} && echo bash-round-done`))
       console.log(`  [ROUND] u12 ${cols}x${rows}: running-card frames ${running.map(f => (/Running 1 bash command/.test(f) ? 'CARD' : '—')).join(' · ')}`)
       check(`u12 ${cols}x${rows}: the RUNNING card is on frame while the tool executes (never a silent gap until the collapse)`, runningCardOn)
       check(`u12 ${cols}x${rows}: the ask card carries the COMMAND TEXT (lifecycle C2/C3)`, /Do you want to/.test(ask) && ask.includes('rm -rf ./round-made-dir'), ask === '' ? 'no mark' : '')

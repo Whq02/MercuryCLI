@@ -27,22 +27,24 @@ import {
 } from '../../services/engine-connector/shellRunning.js'
 import { CtrlOToExpand } from '../CtrlOToExpand.js'
 import { MessageResponse } from '../MessageResponse.js'
-import { ToolUseLoader } from '../ToolUseLoader.js'
+import { toolFamilyFor, type ToolFamily } from '../mercury-ui/toolGlyphs.js'
 import { RunningShellBackgroundHint } from './AssistantToolUseMessage.js'
+import { ToolRowLead, toolRowStateOf } from './ToolRowLead.js'
 import { TranscriptNameplate } from './TranscriptNameplate.js'
 import { useSelectedMessageBg } from '../messageActions.js'
 
 const HINT_MIN_DISPLAY_MS = 700
 
-type Fragment = { verb: string; rest: React.ReactNode }
+type Fragment = { verb: string; rest: React.ReactNode; family: ToolFamily }
 
 function bold(n: number): React.ReactNode {
   return <Text bold>{n}</Text>
 }
 
-function counted(verb: string, n: number, noun: string): Fragment {
+function counted(verb: string, n: number, noun: string, family: ToolFamily): Fragment {
   return {
     verb,
+    family,
     rest: (
       <>
         {' '}
@@ -128,15 +130,6 @@ export function CollapsedReadSearchContent({
     }
   }
   const hint = useMinDisplayTime(rawHint, HINT_MIN_DISPLAY_MS)
-  const pureRead =
-    latch.read > 0 &&
-    latch.search === 0 &&
-    latch.list === 0 &&
-    latch.mcp === 0 &&
-    bashCount === 0 &&
-    gitOps === 0 &&
-    memoryReads === 0 &&
-    memoryWrites === 0
 
   const past = !active
   const fragments: Fragment[] = []
@@ -156,6 +149,7 @@ export function CollapsedReadSearchContent({
               : 'committing'
       fragments.push({
         verb,
+        family: 'shell',
         rest: (
           <>
             {' '}
@@ -167,6 +161,7 @@ export function CollapsedReadSearchContent({
     for (const push of message.pushes ?? []) {
       fragments.push({
         verb: past ? 'pushed' : 'pushing',
+        family: 'shell',
         rest: (
           <>
             {' '}
@@ -186,6 +181,7 @@ export function CollapsedReadSearchContent({
             : 'merging'
       fragments.push({
         verb,
+        family: 'shell',
         rest: (
           <>
             {' '}
@@ -202,6 +198,7 @@ export function CollapsedReadSearchContent({
         : `${pr.action === 'created' ? 'opening' : `${pr.action.replace(/ed$/, '')}ing`}`
       fragments.push({
         verb: `${verb} PR`,
+        family: 'shell',
         rest: (
           <>
             {' '}
@@ -212,13 +209,13 @@ export function CollapsedReadSearchContent({
     }
   }
   if (latch.search > 0) {
-    fragments.push(counted(past ? 'searched for' : 'searching for', latch.search, 'pattern'))
+    fragments.push(counted(past ? 'searched for' : 'searching for', latch.search, 'pattern', 'search'))
   }
   if (latch.read > 0) {
-    fragments.push(counted(past ? 'read' : 'reading', latch.read, 'file'))
+    fragments.push(counted(past ? 'read' : 'reading', latch.read, 'file', 'read'))
   }
   if (latch.list > 0) {
-    fragments.push(counted(past ? 'listed' : 'listing', latch.list, 'directory'))
+    fragments.push(counted(past ? 'listed' : 'listing', latch.list, 'directory', 'search'))
   }
   if (latch.mcp > 0) {
     const servers = (message.mcpServerNames ?? []).map(name =>
@@ -229,6 +226,7 @@ export function CollapsedReadSearchContent({
     void countPart
     fragments.push({
       verb: past ? 'queried' : 'querying',
+      family: 'external',
       rest: (
         <>
           {' '}
@@ -239,21 +237,22 @@ export function CollapsedReadSearchContent({
     })
   }
   if (bashCount > 0) {
-    fragments.push(counted(past ? 'ran' : 'running', bashCount, 'bash command'))
+    fragments.push(counted(past ? 'ran' : 'running', bashCount, 'bash command', 'shell'))
   }
   const hadNonMemory = fragments.length > 0
   if (memoryReads > 0) {
-    fragments.push(counted(past ? 'recalled' : 'recalling', memoryReads, 'memory'))
+    fragments.push(counted(past ? 'recalled' : 'recalling', memoryReads, 'memory', 'memory'))
   }
   if (memorySearches > 0) {
     fragments.push({
       verb: past ? 'searched memory' : 'searching memory',
+      family: 'memory',
       rest: null,
     })
   }
   if (memoryWrites > 0) {
     fragments.push(
-      counted(past ? 'noted' : 'noting', memoryWrites, 'memory update'),
+      counted(past ? 'noted' : 'noting', memoryWrites, 'memory update', 'memory'),
     )
   }
   void hadNonMemory
@@ -325,15 +324,15 @@ export function CollapsedReadSearchContent({
       blocks.push(
         <Box key={entry.id} flexDirection="column">
           <Box>
-            {}
-            <ToolUseLoader
-              isError={erroredMember}
-              isUnresolved={!resolvedMember}
-              shouldAnimate={false}
-              isDenied={lookups.deniedToolUseIDs.has(entry.id)}
-            />
             <Text wrap="truncate-middle">
-              {' '}
+              <ToolRowLead
+                family={toolFamilyFor(entry.name)}
+                state={toolRowStateOf({
+                  resolved: resolvedMember,
+                  errored: erroredMember,
+                  denied: lookups.deniedToolUseIDs.has(entry.id),
+                })}
+              />
               <Text bold>{safeUserFacingName(tool, entry.input, entry.name)}</Text>
               {target ? <Text dimColor> {target}</Text> : null}
             </Text>
@@ -431,16 +430,11 @@ export function CollapsedReadSearchContent({
         <Box flexShrink={0}>
           <TranscriptNameplate />
         </Box>
-        {}
-        <ToolUseLoader
-          isError={anyErrored || anyDenied}
-          isUnresolved={active}
-          shouldAnimate={shouldAnimate && active}
-          isRead={pureRead && !active && !anyErrored}
-          isDenied={anyDenied}
-        />
         <Text wrap="truncate-end">
-          {' '}
+          <ToolRowLead
+            family={fragments[0]?.family ?? 'shell'}
+            state={toolRowStateOf({ resolved: !active, errored: anyErrored, denied: anyDenied })}
+          />
           <Text color={active ? undefined : 'subtle'}>
             {sentence}
             {active ? '…' : ''}

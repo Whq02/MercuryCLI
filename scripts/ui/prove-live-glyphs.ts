@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import {
   ATTENTION_BUCKETS,
   ATTENTION_PERIOD,
@@ -212,25 +212,18 @@ section('adoption + hygiene pins (source greps)')
   )
 }
 
-section('adoption — the alive-Chat pass (ember-settle · breath · glint · nudge)')
+section('adoption — the alive-Chat pass (breath · glint · nudge; the tool row stays still)')
 {
-  const loader = readFileSync('src/components/ToolUseLoader.tsx', 'utf8')
+  const lead = readFileSync('src/components/messages/ToolRowLead.tsx', 'utf8')
   check(
-    'ToolUseLoader rotates via the SHARED schedule (workGlyphForTime) while running',
-    loader.includes('workGlyphForTime(breathTime)'),
+    'the tool row\'s lead is the family mark alone — no rotation, no settle spark, no breath clock',
+    !/workGlyphForTime|useSettleFlash|GLYPH\.spark|useAnimationValue/.test(lead),
   )
   check(
-    'ToolUseLoader blooms GLYPH.spark on the live resolve edge (useSettleFlash)',
-    loader.includes('useSettleFlash(') && loader.includes('GLYPH.spark'),
+    'the lead\'s settled tone is the family\'s token, its failure tone the failure token — never a status hue of its own',
+    lead.includes('color={tokens[mark.tone]}') && lead.includes('color={tokens.failure}'),
   )
-  check(
-    'the spark is accentSoft-toned (the derived bloom) — never a status hue',
-    loader.includes('color={accentSoft}'),
-  )
-  check(
-    'reads stay quiet — the spark branch excludes isRead',
-    /!isRead && settleFlash/.test(loader),
-  )
+  check('nothing in the product mounts the retired loader', !existsSync('src/components/ToolUseLoader.tsx'))
   const caret = readFileSync('src/components/PromptInput/PromptInputModeIndicator.tsx', 'utf8')
   check(
     'the prompt caret wears ReadyBreath, armed only when idle AND empty',

@@ -7,7 +7,6 @@ import type { ToolUseBlockParam } from '../../types/wire.js'
 import type { Tools } from '../../Tool.js'
 import { filterToolProgressMessages, safeUserFacingName } from '../../Tool.js'
 import { findToolForRender } from '../../tools/MCPTool/absentToolShim.js'
-import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { useAppStateMaybeOutsideOfProvider } from '../../state/AppState.js'
 import { logError } from '../../utils/log.js'
@@ -27,11 +26,10 @@ import {
 } from '../../services/engine-connector/shellRunning.js'
 import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
 import { useNowTick } from '../mercury-ui/components.js'
-import { toolMarkFor, toolToneFor } from '../mercury-ui/toolGlyphs.js'
-import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
-import { ToolUseLoader } from '../ToolUseLoader.js'
+import { toolFamilyFor } from '../mercury-ui/toolGlyphs.js'
 import { MessageResponse } from '../MessageResponse.js'
 import { HookProgressMessage } from './HookProgressMessage.js'
+import { ToolRowLead, toolRowStateOf } from './ToolRowLead.js'
 import { TranscriptNameplate } from './TranscriptNameplate.js'
 import { useSelectedMessageBg } from '../messageActions.js'
 
@@ -162,7 +160,6 @@ export function AssistantToolUseMessage({
   startedAtMs?: number | null
 }): React.ReactNode {
   const { columns, rows } = useTerminalSize()
-  const tokens = useMercuryTokens()
   const selectedBg = useSelectedMessageBg()
   useFluxMountMark(`tool-row:${param.id}`)
 
@@ -204,9 +201,8 @@ export function AssistantToolUseMessage({
   }
   if (useMessage === null) return null
 
-  const mark = toolMarkFor(param.name)
-  const tone = toolToneFor(param.name, tokens)
-  const isReadTool = param.name === FILE_READ_TOOL_NAME
+  const family = toolFamilyFor(param.name)
+  const leadState = toolRowStateOf({ resolved, errored, denied })
 
   const rawResult = resolved
     ? (
@@ -219,7 +215,7 @@ export function AssistantToolUseMessage({
     resolved && !errored && !verbose && !isTranscriptMode && rawResult !== undefined
       ? summarizeToolResult(param.name, rawResult)
       : null
-  const ROW_HEAD_FLOOR = 2 + 2 + NAME_MIN_COLUMNS + 20 + 4
+  const ROW_HEAD_FLOOR = 2 + NAME_MIN_COLUMNS + 20 + 4
   const tailFits = (tailCells: number): boolean => columns >= ROW_HEAD_FLOOR + tailCells
   const summaryInline =
     summary !== null &&
@@ -322,21 +318,8 @@ export function AssistantToolUseMessage({
         ) : null}
         {
 }
-        {shouldShowDot && !queued ? (
-          <ToolUseLoader
-            isError={errored}
-            isUnresolved={!resolved}
-            shouldAnimate={shouldAnimate && running}
-            isRead={isReadTool && resolved && !errored}
-            isDenied={denied}
-          />
-        ) : null}
-        {
-}
         <Text wrap="truncate-middle">
-          {shouldShowDot && !queued ? ' ' : null}
-          {shouldShowDot && queued ? <Text dimColor>● </Text> : null}
-          <Text color={tone}>{mark.glyph} </Text>
+          <ToolRowLead family={family} state={leadState} />
           {nameBackground ? (
             <Text backgroundColor={nameBackground} color="inverseText" bold>
               {userFacingName}
