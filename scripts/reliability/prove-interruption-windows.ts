@@ -30,13 +30,11 @@ mkdirSync(home, { recursive: true })
 mkdirSync(crews, { recursive: true })
 mkdirSync(daemon, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = home
-process.env.MERCURY_CREWS_DIR = crews
 process.env.MERCURY_DAEMON_DIR = daemon
 
 const childEnv = (extra: Record<string, string> = {}): NodeJS.ProcessEnv => ({
   ...process.env,
   MERCURY_CONFIG_DIR: home,
-  MERCURY_CREWS_DIR: crews,
   MERCURY_DAEMON_DIR: daemon,
   MERCURY_SESSION_ROOM: '',
   MERCURY_ROOM_TOKEN: '',

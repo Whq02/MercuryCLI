@@ -28,7 +28,7 @@ const SPEC = {
   model: 'claude-opus-4-8',
   effort: 'max',
   appendSystemPrompt: 'pack',
-  role: 'MERCURY_CREW' as const,
+  role: 'MERCURY_CONCOURSE_WORKER' as const,
   agentName: 'scout',
   agentId: 'scout-1',
 }

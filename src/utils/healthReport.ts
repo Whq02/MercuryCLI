@@ -2183,7 +2183,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               compactionSettingsText(),
               `keep-tail ${isMercuryCompactKeepTailEnabled() ? 'on' : 'off'}`,
               `away-summary ${isAwaySummaryEnabled() ? 'on' : 'off'}`,
-              `carry-forward ${flagEnabled('MERCURY_CARRY_FORWARD') ? 'on' : 'off'}`,
               `forecast ${ctxForecastEnabled() ? 'on' : 'off'}`,
             ].join(' · ')
             if (usage.usedPct === null) {

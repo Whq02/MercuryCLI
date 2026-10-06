@@ -373,7 +373,6 @@ if (!existsSync(DIST)) {
         ANTHROPIC_BASE_URL: baseUrl,
         ANTHROPIC_API_KEY: 'fixture-key-000',
         MERCURY_DAEMON_DIR: join(home, 'daemon'),
-        MERCURY_CREWS_DIR: join(home, 'crews'),
         MERCURY_THINKING_BINDING: 'drop_block',
         ...extraEnv,
       },

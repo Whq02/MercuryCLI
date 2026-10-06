@@ -33,7 +33,6 @@ async function openWorld(name: string): Promise<World> {
   seedHome(home, cwd)
   const fx = await startCrewStopFixture({ seatTool: 'bash' })
   const env = childEnv(home, fx.port)
-  delete env.MERCURY_CREWMATES
   delete env.MERCURY_DAEMON_PERMISSION_MODE
   delete env.MERCURY_SKIP_PERMISSIONS
   const runner = bootRunner({ cwd, env })

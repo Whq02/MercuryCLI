@@ -1,9 +1,8 @@
 {
-  "note": "legacy write-route ratchet — may only SHRINK",
+  "note": "legacy write-route ratchet \u2014 may only SHRINK",
   "publish": [
     "src/components/Feedback.tsx",
     "src/daemon/concourseWorkers.ts",
-    "src/daemon/dispatchDrain.ts",
     "src/daemon/ownedDaemon.ts",
     "src/daemon/processSweepRun.ts",
     "src/extensions/records.ts",
@@ -48,7 +47,6 @@
     "src/utils/artifacts/store.ts",
     "src/utils/bootCardFacts.ts",
     "src/utils/cache/cacheClock.ts",
-    "src/utils/crew/crewHelpers.ts",
     "src/utils/debug.ts",
     "src/utils/file.ts",
     "src/utils/healthDeepProbes.ts",
@@ -72,9 +70,6 @@
     "src/tools/WorkflowTool/runManifest.ts",
     "src/utils/auth.ts",
     "src/utils/config/globalConfig.ts",
-    "src/utils/crew/crewHelpers.ts",
-    "src/utils/crew/handoff.ts",
-    "src/utils/crew/sendMessageGovernance.ts",
     "src/utils/settings/settings.ts"
   ]
 }

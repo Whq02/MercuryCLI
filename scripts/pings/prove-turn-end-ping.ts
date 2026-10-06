@@ -137,7 +137,6 @@ function envFor(w: World, fixtureUrl: string, terminal: string | null, nodeBin: 
     ANTHROPIC_BASE_URL: fixtureUrl,
     ANTHROPIC_API_KEY: API_KEY,
     MERCURY_DAEMON_DIR: join(w.home, 'daemon'),
-    MERCURY_CREWS_DIR: join(w.home, 'crews'),
     MERCURY_TERMINAL_TITLE: '0',
     MERCURY_OPERATOR: 'sam',
     MERCURY_CRITTER_IDLE: '0',

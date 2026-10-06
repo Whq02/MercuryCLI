@@ -58,7 +58,6 @@ t.section('§1 — IDENTITY, BOTH DIRECTIONS (one owner; the skin consumes the h
     'isSubstantiveSession',
     'listSessionsAcrossProjectsProgressive',
     'enrichSessionListings',
-    'isCrewSession',
     'getLogDisplayTitle',
     'filterResumableSessions',
     'isSessionCleared',
@@ -86,7 +85,7 @@ t.section('§2 — THE RESUMABLE PROJECTION (drop · keep · order)')
   t.check('the current session and sidechains drop; small command-only junk drops; a LARGE command-first session is real work and stays', JSON.stringify(got) === JSON.stringify(['new', 'big-command', 'old']), got.join(','))
 }
 
-t.section('§3 — SCOPE SEMANTICS (project · all · board-homed · crew · heads)')
+t.section('§3 — SCOPE SEMANTICS (project · all · board-homed · heads)')
 {
   const logs: SessionListing[] = [
     log({ sessionId: 'a1', modifiedMs: 9_000, projectPath: '/repo/alpha' }),
@@ -94,7 +93,6 @@ t.section('§3 — SCOPE SEMANTICS (project · all · board-homed · crew · hea
     log({ sessionId: 'a2', modifiedMs: 7_000, projectPath: '/repo/alpha' }),
     log({ sessionId: 'a-cleared', modifiedMs: 6_000, projectPath: '/repo/alpha' }),
     log({ sessionId: 'homed', modifiedMs: 5_500, projectPath: '/repo/alpha' }),
-    log({ sessionId: 'crew1', modifiedMs: 5_000, projectPath: '/repo/alpha', isCrewmate: true, crewName: 'party', agentName: 'dps1' }),
   ]
   const facts = (scope: SessionPickerFacts['scope']): SessionPickerFacts => ({
     scope,
@@ -113,8 +111,8 @@ t.section('§3 — SCOPE SEMANTICS (project · all · board-homed · crew · hea
   t.check('all scope is the FULL history — every project, cleared included, board-homed still excluded', JSON.stringify(all.flat.map(f => f.row.log.sessionId)) === JSON.stringify(['a1', 'b1', 'a2', 'a-cleared']), all.flat.map(f => f.row.log.sessionId).join(','))
   t.check('the cleared session wears its mark; the others read false', all.flat.find(f => f.row.log.sessionId === 'a-cleared')?.row.cleared === true && all.flat.filter(f => f.row.log.sessionId !== 'a-cleared').every(f => f.row.cleared === false))
   t.check('head marks each project-group boundary (all scope interleaves chronologically)', JSON.stringify(all.flat.map(f => f.head)) === JSON.stringify([true, true, true, false]), all.flat.map(f => f.head).join(','))
-  t.check('crew rows are unscoped and classed apart in BOTH scopes', project.crew.length === 1 && all.crew.length === 1 && project.crew[0]!.tag === 'party · dps1', project.crew[0]?.tag)
-  t.check('the board-homed session appears in neither list (it lives on the board)', !all.flat.some(f => f.row.log.sessionId === 'homed') && !all.crew.some(c => c.log.sessionId === 'homed'))
+  t.check('the rows carry no second section: every listing is a session row or excluded', !('crew' in project) && !('crew' in all))
+  t.check('the board-homed session appears in no list (it lives on the board)', !all.flat.some(f => f.row.log.sessionId === 'homed'))
   t.check('rows wear the canonical label and the project basename', all.flat[0]!.row.label === 'chat a1' && all.flat[0]!.project === 'alpha' && all.flat[1]!.project === 'beta')
   t.check('rowProject splits win32 paths too', rowProject(log({ sessionId: 'w', modifiedMs: 1, projectPath: 'C:\\code\\gamma' })) === 'gamma')
   t.check('rowLabel falls back honestly on an untitled row', rowLabel(log({ sessionId: 'u', modifiedMs: 1, customTitle: undefined, firstPrompt: '', messageCount: 0 })) !== '')
@@ -143,7 +141,6 @@ t.section('§5 — THE VIEW FILTER (act two: filterDir — identity both directi
     log({ sessionId: 'a1', modifiedMs: 9_000, projectPath: '/repo/alpha' }),
     log({ sessionId: 'b1', modifiedMs: 8_000, projectPath: '/repo/beta' }),
     log({ sessionId: 'a2', modifiedMs: 7_000, projectPath: '/repo/alpha/nested' }),
-    log({ sessionId: 'crew1', modifiedMs: 5_000, projectPath: '/repo/beta', isCrewmate: true, crewName: 'party', agentName: 'dps1' }),
   ]
   const base: SessionPickerFacts = {
     scope: 'all',
@@ -157,7 +154,6 @@ t.section('§5 — THE VIEW FILTER (act two: filterDir — identity both directi
   t.check('ABSENT filterDir is byte-identical (the in-chat skin can never drift)', JSON.stringify(bare) === JSON.stringify(withAbsent))
   const filtered = projectSessionPickerRows(logs, { ...base, filterDir: '/repo/alpha' })
   t.check('PRESENT filterDir keeps exactly that dir’s subset (nested dirs included — the landed matcher)', JSON.stringify(filtered.flat.map(f => f.row.log.sessionId)) === JSON.stringify(['a1', 'a2']), filtered.flat.map(f => f.row.log.sessionId).join(','))
-  t.check('the crew section stays UNSCOPED under a filter', filtered.crew.length === 1 && filtered.crew[0]!.log.sessionId === 'crew1')
   const filteredProject = projectSessionPickerRows(logs, { ...base, scope: 'project', filterDir: '/repo/beta' })
   t.check('the filter composes OVER the scope partition (a beta filter under alpha scope is honestly empty)', filteredProject.flat.length === 0 && filteredProject.elsewhereCount === 1)
   t.check('the elsewhere count stays the SCOPE’s own fact (a view filter never rewrites it)', projectSessionPickerRows(logs, { ...base, scope: 'project', filterDir: '/repo/alpha' }).elsewhereCount === 1)

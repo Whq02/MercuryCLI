@@ -64,7 +64,7 @@ async function attempt(n: number): Promise<Outcome> {
   }
   const child: ChildProcess = spawn(node, [dist, 'run', '--input', 'rows', '--format', 'rows', '--model', model, '--allowed-tools', 'Agent', 'SendMessage', 'Workflow', '--session-id', sessionId], {
     cwd: project,
-    env: { HOME: world, PATH: '/usr/bin:/bin:' + dirname(node), TERM: 'dumb', MERCURY_CONFIG_DIR: config, MERCURY_CREWS_DIR: crews, MERCURY_DAEMON_DIR: join(world, 'daemon'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', BROWSER: '/usr/bin/true', ANTHROPIC_API_KEY: FIXTURE_API_KEY, ANTHROPIC_BASE_URL: fixture.url },
+    env: { HOME: world, PATH: '/usr/bin:/bin:' + dirname(node), TERM: 'dumb', MERCURY_CONFIG_DIR: config, MERCURY_DAEMON_DIR: join(world, 'daemon'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', BROWSER: '/usr/bin/true', ANTHROPIC_API_KEY: FIXTURE_API_KEY, ANTHROPIC_BASE_URL: fixture.url },
     stdio: ['pipe', 'pipe', 'pipe'],
   })
   let stdout = ''

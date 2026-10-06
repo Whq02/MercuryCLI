@@ -111,8 +111,6 @@ enforces the policy server-side, where a client bug cannot bypass it:
 - a spend guard: at most six live named crewmates, enforced at the spawn
   itself.
 
-`MERCURY_CREW=0` disables the board and refuses the spawn RPC.
-
 ## Stop, resume and usage limits
 
 The crew own their stop. Esc in the chat interrupts the chat's own turn and

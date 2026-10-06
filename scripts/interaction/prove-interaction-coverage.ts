@@ -198,7 +198,6 @@ reg(
     'src/components/mercury-ui/SpecimenGallery.tsx',
     'src/components/mercury-ui/parity/CapabilityManagerView.tsx',
     'src/components/mercury-ui/parity/DaemonView.tsx',
-    'src/components/mercury-ui/screens/CrewmateChatsView.tsx',
     'src/components/mercury-ui/screens/CrewView.tsx',
     'src/components/RouterKeyEntry.tsx',
     'src/components/RouterOpenaiConnect.tsx',

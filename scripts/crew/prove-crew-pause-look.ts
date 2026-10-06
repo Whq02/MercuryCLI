@@ -22,7 +22,6 @@ mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 for (const k of ['MERCURY_CRITTER_IDLE', 'MERCURY_CRITTER_GAZE', 'MERCURY_CRITTER_SLEEP', 'MERCURY_LIVE_CLOCK', 'MERCURY_LIVE_GLYPHS']) process.env[k] = '0'
-delete process.env.MERCURY_CREW
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0

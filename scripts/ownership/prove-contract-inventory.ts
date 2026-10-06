@@ -86,8 +86,6 @@ const MODULES: Record<string, string[]> = {
   ],
   agents: [
     'src/tools/AgentTool/AgentTool.tsx',
-    'src/utils/crew/roleResolver.ts',
-    'src/utils/crew/crewCharter.ts',
   ],
   turnEngine: [
     'src/query.ts',

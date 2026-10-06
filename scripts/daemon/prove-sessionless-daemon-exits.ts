@@ -222,7 +222,7 @@ try {
     const main = read(join(REPO, 'src/daemon/main.ts'))
     check('the daemon beats the sessionless decision and shuts down on its verdict', main.includes('decideSessionlessExit(sessionless, {') && main.includes("requestShutdown('sessionless')"))
     check('the beat runs no subprocess (an in-memory live count, the plane owner the heal already read, one record read only when a candidate)', /const live = liveWorkers\(\)\.live\n\s+const superseded = planeServedByOther !== null && isProcessAlive\(planeServedByOther\.pid\)/.test(main))
-    check('every birth door counts as in flight while it admits', main.includes('crewSpawn: (...args) => countBirth(() => crewSpawnHandler(...args))') && main.includes('concourseAdmit: (...args) => countBirth(() => concourseAdmitHandler(...args))') && main.includes('concourseDispatch: (...args) => countBirth(() => concourseDispatchHandler(...args))'))
+    check('every birth door counts as in flight while it admits', main.includes('concourseAdmit: (...args) => countBirth(() => concourseAdmitHandler(...args))') && main.includes('concourseDispatch: (...args) => countBirth(() => concourseDispatchHandler(...args))'))
     check('a spawned session marks the daemon as hosting', (main.match(/noteHosted\(\)/g) ?? []).length >= 3)
   }
 } finally {

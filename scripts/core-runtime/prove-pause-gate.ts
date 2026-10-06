@@ -11,7 +11,6 @@ const ROOT = join(import.meta.dir, '..', '..')
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'pause-gate-laws-'))
 const daemonDir = mkdtempSync(join(tmpdir(), 'pause-gate-daemon-'))
 process.env.MERCURY_DAEMON_DIR = daemonDir
-process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'pause-gate-crews-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 for (const k of ['MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOKENS', 'MERCURY_BLOCKING_LIMIT_OVERRIDE', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'NODE_ENV', 'MERCURY_SCRIPTED_STREAM']) {

@@ -8,7 +8,6 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'stream-cut-continuation-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'stream-cut-continuation-daemon-'))
-process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'stream-cut-continuation-crews-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 for (const k of ['MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOKENS', 'MERCURY_TIME_BASED_MC', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_LOCAL_API_KEY', 'MERCURY_LOCAL_BASE_URL', 'NODE_ENV']) {
   delete process.env[k]

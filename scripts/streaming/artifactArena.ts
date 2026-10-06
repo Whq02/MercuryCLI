@@ -210,7 +210,6 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
         ANTHROPIC_BASE_URL: fixture.url,
         ANTHROPIC_API_KEY: API_KEY,
         MERCURY_DAEMON_DIR: join(home, 'daemon'),
-        MERCURY_CREWS_DIR: join(home, 'crews'),
         INK_WRITE_TEE: tee,
         INK_WRITE_TEE_FULL: '1',
         MERCURY_TERMINAL_TITLE: '0',

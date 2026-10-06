@@ -11,7 +11,6 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
-delete process.env.MERCURY_CREWMATES
 const { scenario, cleanupScenario, encodeFixtureTranscript, RUNTIME_CWD, SID } = await import('./renderScenarios.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
 const frameIndex = process.argv.indexOf('--frames')

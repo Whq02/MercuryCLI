@@ -63,7 +63,6 @@ function makeArena(): Arena {
       MERCURY_LOCAL_PROBE_TARGETS: 'none',
       ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key',
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
-      MERCURY_CREWS_DIR: join(home, 'crews'),
       MERCURY_THINKING_BINDING: 'drop_block',
       MERCURY_TOOL_SEARCH: '0',
     },

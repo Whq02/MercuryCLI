@@ -80,7 +80,7 @@ try {
       PATH: [dirname(node), '/usr/bin', '/bin', '/usr/sbin', '/sbin'].join(process.platform === 'win32' ? ';' : ':'),
       TERM: 'dumb', NO_COLOR: '1', LANG: 'en_US.UTF-8',
       MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file',
-      MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_CREWS_DIR: join(home, 'crews'),
+      MERCURY_DAEMON_DIR: join(home, 'daemon'),
       MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_BOOT_PREFLIGHT: '0',
       MERCURY_DAP_ADAPTERS: JSON.stringify({ fixture: { command: 'true', args: [], connect: 'stdio' } }),
       ANTHROPIC_BASE_URL: base,
