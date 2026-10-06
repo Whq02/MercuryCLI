@@ -9,12 +9,15 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Changed the launch animation: it sends about a fifth of the bytes it did, frame for frame the same
 - Changed the frame band while the model thinks: it shows how long the think has stood and when the stream last spoke (◐ thinking 4m · ↻3s)
 - Changed the ? sheet's deck-chip legend: the trace count is this session's, not repo-wide
-- Changed /health's prompt row: it names the session, coordinator and sub-agent contracts with their sizes
+- Changed /health's prompt row: it names the session, coordinator and crewmate contracts with their sizes
+- Changed the transcript's tool rows: each starts with its tool's mark, which takes the tool's colour when the call settles, turns red on an error and reads ✕ when denied; notices keep their dot
 - Fixed the critter showing a second, thinner pupil at the top of each eye in Terminal.app, and the enter screen's head showing a thin line of the lower pixel's colour above its two-colour cells
 - Fixed an image or sprite shown in Terminal.app carrying a thin line of the lower pixel's colour above each two-colour cell
 - Fixed a crewmate's view showing the lead's "compacting context" row under the crewmate's transcript while the lead compacts
+- Fixed a long conversation stopping for good after its automatic compaction failed three times: the summary call is given the wire's own patience instead of a two-minute cut, the recovery's prune step counts what it cleared so its retry goes out, and the pause message says what works — /compact by hand, and the next message makes a fresh automatic attempt
+- Fixed a GLM session or agent stopping on a Z.AI error the moment its conversation carried an image (a screenshot, a picture read from disk): the image reaches a text-only GLM model as an [image] note, and Z.AI's wording for an image it refuses is understood, so the next request goes out without the image instead of failing again
 - Fixed the chat repainting rows that had not moved: settled tool groups, the per-turn cost rows and the session roll-up line stay put on every landed record and thinking tick
-- Fixed the crew rail showing a sub-agent only after its first reply; it shows it from the moment it is launched
+- Fixed the crew rail showing a crewmate only after its first reply; it shows it from the moment it is launched
 - Fixed Tab into the left rail on an idle cockpit showing no caret until the first ↓
 - Fixed the single-rail cockpit dropping the last-prompt card one row before it had to
 - Fixed a new session's TRACE panel listing every tool call on the machine under a "repo" count; it starts empty and lists this session's own
