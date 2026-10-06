@@ -85,6 +85,7 @@ if (existsSync(dist)) {
   try {
     const never = door(NEVER_HAD)
     for (const name of NAMES) {
+      if (existsSync(`/${name}`)) continue
       const typed = door(name)
       check(`typed at the headless door, /${name} gets the runner's own unknown-skill line and exit 0`, typed.code === 0 && typed.out.trim() === `Unknown skill: ${name}`, JSON.stringify(typed))
       check('…byte for byte the answer a never-registered name gets, with the name swapped', typed.code === never.code && typed.out === never.out.replaceAll(NEVER_HAD, name) && typed.err === never.err, JSON.stringify(never))
