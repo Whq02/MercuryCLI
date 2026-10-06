@@ -40,7 +40,6 @@ const GLOBAL_ROWS = [
   'to open a file',
   'to search contents',
   'to switch session',
-  'for the surface index',
   'to undo',
   'to redo',
   'to suspend',
