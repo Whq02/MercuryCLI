@@ -2047,13 +2047,6 @@
       "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
     },
     {
-      "file": "scripts/ui/prove-crew-runs-board-drive.ts",
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], { env: { ...process.env, ...env }, stdio: ['ignore', 'ignore', 'pipe'] })",
-      "cls": "platform-owner",
-      "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
-    },
-    {
       "file": "scripts/ui/prove-crew-seats-drive.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], {",
@@ -2185,20 +2178,6 @@
       "excerpt": "const rippleRefs = execSync(`grep -rn \"${RIPPLE}\" \"${join(root, 'src')}\" || true`, {",
       "cls": "intentional-shell",
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
-      "file": "scripts/ui/prove-lead-turn-crewmate-message-drive.ts",
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "const PYTHON_USER_SITE = spawnSync('/usr/bin/python3', ['-c', 'import site; print(site.getusersitepackages())'], { encoding: 'utf8' }).stdou",
-      "cls": "platform-owner",
-      "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
-    },
-    {
-      "file": "scripts/ui/prove-lead-turn-crewmate-message-drive.ts",
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], { cwd: project, env, stdio: ['ignore', 'pipe', 'pipe'] })",
-      "cls": "platform-owner",
-      "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
     },
     {
       "file": "scripts/ui/prove-message-actions.ts",
