@@ -129,7 +129,7 @@ const { writeSyntheticSession, SID, RUNTIME_CWD } = scenarios
 type PtyLeg = { name: string; cmd: string; markers: string[]; anyOf?: string[] }
 const LEGS: PtyLeg[] = [
   { name: 'sessions', cmd: '/sessions', markers: ['— sessions'] },
-  { name: 'palette', cmd: '/palette', markers: ['— command palette', 'run a command'] },
+  { name: 'palette', cmd: '/palette', markers: ['type to fuzzy-match', '↑↓ select · ↵ run'] },
 ]
 
 function runLeg(leg: PtyLeg, withEsc: boolean): string | null {

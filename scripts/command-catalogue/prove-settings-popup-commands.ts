@@ -20,9 +20,9 @@ const store = await import('../../src/utils/cockpit/settingsPopup.js')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
 
-const VIEWS = ['config', 'usage', 'status'] as const
+const VIEWS = ['config', 'usage'] as const
 
-section('§1 the three commands are local screen-seat commands that open the one popup store')
+section('§1 the two commands are local screen-seat commands that open the one popup store')
 for (const view of VIEWS) {
   const index = (await import(`../../src/commands/${view}/index.js`)).default as Record<string, unknown>
   check(`/${view} is a local command`, index.type === 'local', String(index.type))
@@ -77,9 +77,9 @@ section('§2 no local-jsx command mounts the settings shell any more')
   check('no command file renders <Settings …> (the shell is the popup slot\'s)', mounts.length === 0, mounts.map(f => relative(REPO, f)).join(', '))
   const jsxSettings = files.filter(file => {
     const text = readFileSync(file, 'utf8')
-    return /type: 'local-jsx'/.test(text) && /name: '(config|usage|status)'/.test(text)
+    return /type: 'local-jsx'/.test(text) && /name: '(config|usage)'/.test(text)
   })
-  check('none of the three is a local-jsx command', jsxSettings.length === 0, jsxSettings.map(f => relative(REPO, f)).join(', '))
+  check('neither is a local-jsx command', jsxSettings.length === 0, jsxSettings.map(f => relative(REPO, f)).join(', '))
   const shell = readFileSync(join(REPO, 'src/components/Settings/Settings.tsx'), 'utf8')
   check('the shell imports neither ./Status.js nor ./Usage.js (the bodies arrive through the store)', !shell.includes("from './Status.js'") && !shell.includes("from './Usage.js'"))
   check('the shell keeps its exports (Settings, nextSettingsOpen)', shell.includes('export function Settings(') && shell.includes('export function nextSettingsOpen('))
@@ -119,7 +119,7 @@ section('§3 nothing under src/ or scripts/ reads the retired road (the two dele
   check('the shell itself mounts no Tabs and takes no defaultTab', !shell.includes('Tabs') && !shell.includes('defaultTab'))
   const scenarios = readFileSync(join(REPO, 'scripts/ui/renderScenarios.ts'), 'utf8')
   check("no render scenario pins the tab strip as its chrome markers (['Config', 'Usage'])", !scenarios.includes("chromeMarkers: ['Config', 'Usage']"))
-  check('the settings scenarios pin the popup lockup of their own view', ["chromeMarkers: ['Mercury · config']", "chromeMarkers: ['Mercury · usage']", "chromeMarkers: ['Mercury · status']", 'chromeMarkers: [`Mercury · ${view}`]'].every(marker => scenarios.includes(marker)))
+  check('the settings scenarios pin the popup lockup of their own view', ["chromeMarkers: ['Mercury · config']", "chromeMarkers: ['Mercury · usage']", 'chromeMarkers: [`Mercury · ${view}`]'].every(marker => scenarios.includes(marker)))
   check('no scenario walks the retired tab road (a /usage send followed by ← to reach a tab, a settings-status-tab name)', !scenarios.includes('settings-status-tab') && !/data: '\/usage\\r' \},\s*\{ atTick: \d+, data: '\\u001b\[D'/.test(scenarios))
   const self = join(import.meta.dir, 'prove-settings-popup-commands.ts')
   const stale = files.filter(file => file !== self && /settings-status-tab/.test(readFileSync(file, 'utf8'))).map(file => relative(REPO, file))
