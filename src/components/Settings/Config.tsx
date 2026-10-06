@@ -55,6 +55,7 @@ import {
   type PermissionMode,
 } from '../../utils/permissions/PermissionMode.js'
 import { getEngineModel, modelDisplayString } from '../../utils/model/model.js'
+import { glmThinkingLocked } from '../../services/providers/zai/glmPins.js'
 import { useFocusedServedModel } from '../../hooks/useDisplayedSessionModel.js'
 import { customPatienceSetting, patienceEnvPins, patienceOf, patienceWords } from '../../services/providers/patience.js'
 import {
@@ -210,6 +211,28 @@ export function configRowApplicability(
     naText: `n/a — applies to ${laneLabel} models (${activeLabel} is active)`,
     refuseNote: `This setting only affects the ${laneLabel} lane; the session runs on ${activeLabel} — /model switches provider.`,
   }
+}
+
+export function thinkingRowApplicability(
+  model: string,
+  reads?: { locked?: (id: string) => boolean; routeOf?: (id: string) => string | null },
+): { applies: true } | { applies: false; naText: string; refuseNote: string } {
+  const route = reads?.routeOf?.(model) ?? declaredRouteOf(model)
+  if (route === 'openai') {
+    return {
+      applies: false,
+      naText: `n/a — GPT models take the effort dial (${model} is active)`,
+      refuseNote: 'GPT reasoning is the effort level; /effort sets it, and /model switches provider.',
+    }
+  }
+  if (route === 'zai' && (reads?.locked ?? glmThinkingLocked)(model)) {
+    return {
+      applies: false,
+      naText: `n/a — ${model} keeps thinking on`,
+      refuseNote: 'This model locks thinking on at the provider; the setting cannot turn it off.',
+    }
+  }
+  return { applies: true }
 }
 
 export function mainLoopPointerText(
@@ -725,28 +748,34 @@ export function Config({
       },
     })
   }
-  items.push(providerScoped({
-    id: 'thinking',
-    label: 'Thinking mode',
-    kind: 'boolean',
-    value: boolValue(thinkingOn),
-    warning:
-      thinkingWarning && conversationHasAssistantTurn
-        ? 'Thinking raises latency and can reduce quality mid-conversation.'
-        : undefined,
-    change: () => {
-      const next = !thinkingOn
-      if (writeSource('userSettings', { engine: { reasoning: next ? undefined : false } })) {
-        snapshots.dirty = true
-        recordToggle('thinking', `set thinking mode to ${next ? 'on' : 'off'}`)
-        if (conversationHasAssistantTurn) {
-          const initial = snapshots.user.engine?.reasoning === true
-          setThinkingWarning(next !== initial)
+  {
+    const thinkingApplicability = thinkingRowApplicability(servedModel ?? appState.engineModelForSession ?? appState.engineModel ?? getEngineModel())
+    items.push({
+      id: 'thinking',
+      label: 'Thinking',
+      kind: 'boolean',
+      value: thinkingApplicability.applies ? boolValue(thinkingOn) : <Text color={tokens.textSecondary}>{thinkingApplicability.naText}</Text>,
+      warning:
+        !thinkingApplicability.applies
+          ? thinkingApplicability.refuseNote
+          : thinkingWarning && conversationHasAssistantTurn
+            ? 'Thinking raises latency and can reduce quality mid-conversation.'
+            : undefined,
+      change: () => {
+        if (!thinkingApplicability.applies) return
+        const next = !thinkingOn
+        if (writeSource('userSettings', { engine: { reasoning: next ? undefined : false } })) {
+          snapshots.dirty = true
+          recordToggle('thinking', `set thinking to ${next ? 'on' : 'off'}`)
+          if (conversationHasAssistantTurn) {
+            const initial = snapshots.user.engine?.reasoning === true
+            setThinkingWarning(next !== initial)
+          }
+          bump()
         }
-        bump()
-      }
-    },
-  }, 'anthropic'))
+      },
+    })
+  }
   items.push({
     id: 'usageNotice',
     label: 'Usage notice to the model',

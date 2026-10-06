@@ -57,11 +57,12 @@ For example:
 | --- | --- |
 | `engine.model` | The model id or family word saved by `/model`. Choose from the live catalogue; `--model` and `MERCURY_MODEL` can override the saved default. |
 | `engine.effort` | `low`, `medium`, `high`, `xhigh` or `max`, also saved by `/effort`. Each model uses the levels its provider supports. |
-| `engine.reasoning` | Whether thinking is requested. A model that always reasons keeps its own rule. |
+| `engine.reasoning` | Whether thinking is requested, on every provider that reads it (Anthropic, Z.AI — its thinking-locked models keep it on — and the OpenAI-compatible chat roads; GPT models take the effort dial instead). A model that always reasons keeps its own rule. |
 | `engine.agent` | The agent definition used for the session; `--agent` chooses one for a launch. |
 | `engine.roster` | A list limiting which models can be selected. |
 | `engine.pins` | An object mapping known canonical Anthropic model ids to the ids your endpoint serves. |
 | `engine.sessionDefaults` | Whether the Boot face and board offer the model-default key; on unless set to `false`. |
+| `engine.usageNotice` | Usage notice to the model — with it on, the model is told when the session's usage window or spending limit is near (80% and 90%); off, the model is told nothing and only you see the meters. |
 
 A resumed chat keeps its model and effort unless the launch explicitly
 chooses them. [ENGINES.md](ENGINES.md) describes provider routing;

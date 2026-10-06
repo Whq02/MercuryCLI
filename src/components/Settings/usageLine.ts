@@ -1,16 +1,23 @@
+import { activeSourceUsage } from '../../services/providers/providerUsage.js'
 import { resolveMoonshotAccount } from '../../services/providers/moonshot/moonshotAccounts.js'
-import { anthropicWindowViews, providerFamilyPresences } from '../../services/providers/providerUsage.js'
 import { walletEntries } from '../../services/wallet/wallet.js'
+
+export function sessionFamilyLabel(label: string): string {
+  return label.endsWith(' usage') && label !== 'API usage'
+    ? label.slice(0, -' usage'.length)
+    : label
+}
 
 export function usagePopupLine(): string {
   const subscriptions = walletEntries().filter(entry => entry.kind === 'subscription-oauth').length
     + (resolveMoonshotAccount()?.kind === 'kimi-oauth' ? 1 : 0)
-  const windows = anthropicWindowViews().filter(window => window.state === 'live' && window.usedPct !== undefined)
-  const session = windows.find(window => window.key === '5h')
-  const week = windows.find(window => window.key === '7d')
-  const meters = [
-    ...(session ? [`session ${Math.floor(session.usedPct!)}%`] : []),
-    ...(week ? [`week ${Math.floor(week.usedPct!)}%`] : []),
-  ]
-  return `${providerFamilyPresences().length} providers · ${subscriptions} subscriptions signed in${meters.length ? ` · Anthropic ${meters.join(' · ')}` : ''}`
+  const usage = activeSourceUsage()
+  const family = sessionFamilyLabel(usage.label)
+  const meters = usage.windows
+    .filter(window => window.state === 'live' && window.usedPct !== undefined)
+    .map(window => {
+      const word = window.key === '5h' ? 'session' : window.key === '7d' ? 'week' : window.label
+      return `${word} ${Math.floor(window.usedPct!)}%`
+    })
+  return `${family} session on · ${subscriptions} subscription${subscriptions === 1 ? '' : 's'} signed in${meters.length ? ` · ${meters.join(' · ')}` : ''}`
 }
