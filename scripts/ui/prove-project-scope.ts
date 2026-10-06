@@ -74,7 +74,7 @@ section('3. the /clear'.concat("'ed-session cache (operator model: cleared = clo
     for (const [label, path] of [
       ['/sessiontab flip', ['commands', 'sessiontab', 'sessiontab.tsx']],
       ['RECENT lane', ['components', 'HelmLanesRail.tsx']],
-      ['⊞ SESSIONS board (the picker core)', ['components', 'mercury-ui', 'screens', 'sessionPickerModel.ts']],
+      ['/sessions board (the picker core)', ['components', 'mercury-ui', 'screens', 'sessionPickerModel.ts']],
     ] as const) {
       check(`${label} filters cleared sessions`, /isSessionCleared\(/.test(src(...path)))
     }
@@ -94,7 +94,7 @@ section('4. every switcher surface applies the scope (source)')
 {
   const pickerCore = src('components', 'mercury-ui', 'screens', 'sessionPickerModel.ts')
   const manager = src('components', 'mercury-ui', 'screens', 'SessionManagerView.tsx')
-  check('⊞ SESSIONS manager partitions by project (through the picker core)', /partitionByProject\(/.test(pickerCore))
+  check('/sessions manager partitions by project (through the picker core)', /partitionByProject\(/.test(pickerCore))
   check('manager surfaces the elsewhere count honestly', /in other projects/.test(manager))
   const flip = src('commands', 'sessiontab', 'sessiontab.tsx')
   check('/sessiontab flip scopes', /isProjectSession\(l, getProjectRoot\(\)/.test(flip))

@@ -100,7 +100,7 @@ t.section('§4 — the product lockup stays the true crab')
   }
 }
 
-t.section('§5 — REAL BINARY: an octopus session anchors with the octopus mark')
+t.section('§5 — REAL BINARY: an octopus session anchors its inline statusline with the octopus mark')
 {
   const BIN = 'dist/mercury.mjs'
   if (!existsSync(BIN)) {
@@ -118,7 +118,7 @@ t.section('§5 — REAL BINARY: an octopus session anchors with the octopus mark
       argv: ['node', BIN], out, cwd: process.cwd(),
       sends: [
         { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-        { atTick: 999, requireAwait: true, awaitText: '← back', minTick: 5, awaitSettleTicks: 4, data: '/view on\r' },
+        { atTick: 999, requireAwait: true, awaitText: '← back', minTick: 5, awaitSettleTicks: 4, data: '' },
       ],
       readyText: ['❯', '? for shortcuts'], readySettleTicks: 3,
     }
@@ -133,6 +133,7 @@ t.section('§5 — REAL BINARY: an octopus session anchors with the octopus mark
         MERCURY_BOOT_PREFLIGHT: '0',
         MERCURY_LIVE_GLYPHS: '0',
         MERCURY_CRITTER: 'octopus',
+        MERCURY_FULLSCREEN: '0',
         MERCURY_HEALTH_STATE_DIR: join(scratch, 'health'),
         MERCURY_DAEMON_DIR: join(scratch, 'daemon'),
       },
@@ -148,7 +149,7 @@ t.section('§5 — REAL BINARY: an octopus session anchors with the octopus mark
     const octo = critterDefForKey('octopus').mark
     const octoMark = octo.pre + octo.core + octo.post
     t.check('the capture settled', r.status === 0, `exit=${r.status}`)
-    t.check(`the statusrow anchors with the octopus mark ${octoMark}`, text.includes(octoMark), 'found')
+    t.check(`the inline statusline anchors with the octopus mark ${octoMark}`, text.includes(octoMark), 'found')
     const crabCount = text.split(CRAB_GLYPHS).length - 1
     t.check(
       'zero crab marks anywhere in an octopus session (any appearance is a reverted slot)',
