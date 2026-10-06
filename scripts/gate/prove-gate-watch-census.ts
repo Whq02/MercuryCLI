@@ -15,7 +15,6 @@ export const WHOLE_TREE: Record<string, string> = {
   bash: 'prove-shell-engine-census walks scripts (the shell-engine compatibility census)',
   build: 'prove-boot-crash-surface and prove-win32-seam-ratchet walk src (boot modules, win32 seams)',
   cache: 'prove-cache-clock-benchmark lists every suite dir under scripts (the benchmark corpus)',
-  'cockpit-interaction': 'prove-status-single-face censuses src (one status face)',
   'command-catalogue': 'prove-no-literal-disabled-branches, prove-settings-popup-commands and prove-surface-truth walk src and scripts (command surfaces)',
   compositor: 'prove-uiux-wave0-census walks scripts (its proof roster)',
   'consistency-census': 'prove-ordering-pin-teeth walks scripts; a whole-tree ratchet owed by every fold',
