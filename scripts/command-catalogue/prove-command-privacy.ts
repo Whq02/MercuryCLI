@@ -26,16 +26,15 @@ setOriginalCwd(cwd)
 console.log('the command-privacy law: screen-seat commands never enter a model turn')
 const all = [...builtinCommands()]
 const byName = (name: string) => all.find(command => command.name === name)
-const privateNames = ['status', 'usage', 'config', 'localsetup', 'jev', 'jevor'] as const
-for (const name of [...privateNames, 'halt', 'crew']) {
+const privateNames = ['usage', 'config', 'localsetup', 'jev'] as const
+for (const name of [...privateNames, 'crew']) {
   const command = byName(name)
   check(`/${name} is registered and SCREEN-seat`, command !== undefined && commandSeat(command) === 'screen')
 }
 check('the private set carries the userPrivate mark', privateNames.every(name => (byName(name) as { userPrivate?: boolean } | undefined)?.userPrivate === true))
-check('/halt is stop-class (interruptFirst)', (byName('halt') as { interruptFirst?: boolean } | undefined)?.interruptFirst === true)
 const runnerTable = sessionSeatCommandTable(all)
-check('the runner table excludes every private and screen-estate command', [...privateNames, 'halt', 'crew'].every(name => !runnerTable.some(command => command.name === name)))
-check('ordinary session locals keep their seat', ['compact', 'debrief'].every(name => {
+check('the runner table excludes every private and screen-estate command', [...privateNames, 'crew'].every(name => !runnerTable.some(command => command.name === name)))
+check('ordinary session locals keep their seat', ['compact'].every(name => {
   const command = byName(name)
   return command !== undefined && commandSeat(command) === 'session'
 }))
@@ -49,15 +48,14 @@ const context = {
 }
 const dispatch = (input: string) => processUserInput({ input, mode: 'prompt', setToolJSX: () => {}, context: context as never, messages: [], querySource: 'sdk' })
 try {
-  for (const name of ['status', 'usage', 'config']) {
+  for (const name of ['usage', 'config']) {
     const result = await dispatch(`/${name}`)
     check(`a stray /${name} creates zero conversation rows`, result.messages.length === 0, String(result.messages.length))
     check(`…and starts no query`, result.shouldQuery === false)
     check(`…its receipt rides resultText alone and names the command's one seat`, new RegExp(`The /${name} command is an interactive surface`).test(result.resultText ?? '') && (result as { commandRefused?: boolean }).commandRefused === true, result.resultText ?? '(none)')
   }
   const halt = await dispatch('/halt')
-  check('a stray /halt refuses before its body loads', /interactive surface|foreground session/.test(halt.resultText ?? ''), halt.resultText ?? '(none)')
-  check('no query or hard-stop receipt exists at the runner', halt.shouldQuery === false && !/Hard stop/.test(JSON.stringify(halt.messages)))
+  check('a stray /halt answers as an unknown skill', /Unknown skill: halt/.test(halt.resultText ?? '') && halt.shouldQuery === false, halt.resultText ?? '(none)')
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }

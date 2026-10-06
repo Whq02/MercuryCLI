@@ -22,11 +22,11 @@ check('resume() fires no session-end hooks of its own (the runner owns its hooks
 check('resume() never flushes or rewrites the composer draft', !resumeBody.includes('flushDrafts(') && !resumeBody.includes('readDraftFor('))
 check('resume() never gates on the query guard (a running turn is never a refusal)', !resumeBody.includes('queryGuard'))
 
-const sessiontab = read('src/commands/sessiontab/sessiontab.tsx')
+const sessionFlip = read('src/utils/sessionFlip.ts')
 check(
-  '/sessiontab routes through context.resume (chokepoint intact)',
-  sessiontab.includes('context.resume!(') &&
-    !sessiontab.includes('switchSession('),
+  'the flip helper routes through the threaded resume (chokepoint intact)',
+  sessionFlip.includes('resume(') &&
+    !sessionFlip.includes('switchSession('),
 )
 
 const sessionsView = read(

@@ -53,11 +53,11 @@ export const NO_REPEAT_WORDS = '/voice starts and stops a take without the key �
 export const RECORDING_FOOTER = 'recording · release space to stop · esc cancels'
 export const TRANSCRIBING_FOOTER = 'transcribing…'
 
-export const VOICE_OFF_RECEIPT = `voice input is off — /speak on turns it on; then ${HOLD_WORDS}`
+export const VOICE_OFF_RECEIPT = `voice input is off — /voice on turns it on; then ${HOLD_WORDS}`
 export const ALREADY_RECORDING_RECEIPT = 'already recording — /voice again or esc ends the take'
 export const CANCELLED_RECEIPT = 'capture cancelled — nothing sent'
 export const BUSY_RECEIPT = 'transcribing the last take — a moment'
-export const ENGINE_BUSY_RECEIPT = 'the on-device transcriber is still decoding the previous take — try again in a moment, or /speak options <family> chooses a cloud transcriber'
+export const ENGINE_BUSY_RECEIPT = 'the on-device transcriber is still decoding the previous take — try again in a moment, or /voice options <family> chooses a cloud transcriber'
 
 const listeners = new Set<() => void>()
 let snapshot: VoiceSnapshot = { enabled: false, phase: 'idle', startedAt: null, backend: null, receipt: null }
@@ -332,10 +332,10 @@ function onDeviceWords(transcriber: TranscriberResolution): string | null {
 function defaultWords(transcriber: TranscriberResolution): string {
   const saved = transcriber.saved
   const serving = transcriber.state === 'ok' ? choiceDisplayName(transcriber.choice) : 'nothing'
-  if (saved === null) return `default: the shipped one — ${ON_DEVICE_NAME} when the pack and a model are present, else the most recent signed-in family (/speak options chooses another)`
-  if (saved.state === 'serving') return `default: your saved choice — ${saved.display} (/speak options default restores the shipped default)`
+  if (saved === null) return `default: the shipped one — ${ON_DEVICE_NAME} when the pack and a model are present, else the most recent signed-in family (/voice options chooses another)`
+  if (saved.state === 'serving') return `default: your saved choice — ${saved.display} (/voice options default restores the shipped default)`
   if (saved.state === 'overridden') return `default: ${saved.note ?? `the pin overrides your saved choice (${saved.display})`}`
-  return `your saved choice (${saved.display}) cannot serve: ${saved.note ?? 'unusable'} — ${serving} serves (/speak options chooses another)`
+  return `your saved choice (${saved.display}) cannot serve: ${saved.note ?? 'unusable'} — ${serving} serves (/voice options chooses another)`
 }
 
 function downloadDoorWords(transcriber: TranscriberResolution): string | null {
@@ -381,7 +381,7 @@ export function describeVoiceOptions(env: NodeJS.ProcessEnv = process.env): stri
   const saved = parseSavedTranscriber(voiceTranscriberChoice())
   const savedName = saved.kind === 'unset' ? null : saved.kind === 'family' ? saved.family : saved.kind === 'unknown' ? saved.raw : ON_DEVICE_NAME
   const servingName = transcriber.state === 'ok' ? (transcriber.choice.kind === 'local' ? ON_DEVICE_NAME : transcriber.choice.family) : null
-  const lines = [`transcribers this install can use — /speak options <name> makes one your default; /speak options default restores the shipped default`]
+  const lines = [`transcribers this install can use — /voice options <name> makes one your default; /voice options default restores the shipped default`]
   for (const row of rows) {
     const mark = row.name === servingName ? '●' : '○'
     const tags = [
@@ -410,7 +410,7 @@ export function describeVoiceReadiness(env: NodeJS.ProcessEnv = process.env): Vo
     process.platform === 'darwin'
       ? 'microphone permission: macOS asks for the terminal on the first capture — not knowable before it'
       : 'microphone permission: the operating system decides at the first capture'
-  const line = `backend: ${backendWords(backend)} · transcriber: ${transcriberWords(transcriber)} · /speak ${on ? 'on' : 'off'}`
+  const line = `backend: ${backendWords(backend)} · transcriber: ${transcriberWords(transcriber)} · /voice ${on ? 'on' : 'off'}`
   const anthropicNamed = transcriber.skipped.some(s => s.startsWith('Anthropic'))
   const debugDir = voiceDebugWavDir()
   const onDevice = transcriber.state === 'ok' && transcriber.choice.kind === 'local'

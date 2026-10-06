@@ -30,7 +30,7 @@ const { effectiveCatalogue, normalSurfaces } = await import(
 )
 const registry = builtinCommands()
 const catalogue = effectiveCatalogue()
-check('registry loads (>100 built-ins)', registry.length > 100, String(registry.length))
+check('registry loads (the excised roster, >70 built-ins)', registry.length > 70, String(registry.length))
 check('catalogue rows = registry rows', catalogue.length === registry.length)
 
 {
@@ -178,12 +178,6 @@ check('catalogue rows = registry rows', catalogue.length === registry.length)
   check('PaletteView filters isHidden', /!cmd\.isHidden/.test(palette))
   const typeahead = readFileSync(path.join(repo, 'src/utils/suggestions/commandSuggestions.ts'), 'utf8')
   check('typeahead filters isHidden', /!cmd\.isHidden/.test(typeahead))
-}
-
-{
-  const mgr = readFileSync(path.join(repo, 'src/components/mercury-ui/ManagerView.tsx'), 'utf8')
-  check('/manager projects groupedNormalSurfaces()', /groupedNormalSurfaces\(\)/.test(mgr))
-  check('/manager has no hand-written surface array', !/buildSections|Component:\s/.test(mgr))
 }
 
 {

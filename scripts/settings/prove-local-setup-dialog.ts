@@ -222,7 +222,7 @@ check('/localsetup is registered as a private screen-seat local command', regist
 const roster = readFileSync(join(ROOT, 'src/commands.ts'), 'utf8')
 check('the roster imports and lists /localsetup', roster.includes("import localsetup from './commands/localsetup/index.js'") && /\n  localsetup,\n/.test(roster))
 const domains = readFileSync(join(ROOT, 'src/components/HelpV2/commandDomains.ts'), 'utf8')
-check('/help files /localsetup under config & setup', /'jevor', 'localsetup'/.test(domains))
+check('/help files /localsetup under config & setup', /'jev', 'localsetup'/.test(domains))
 check('the dialog module exists with the keys line the spec names; the step titles name no model tag', dialog !== null && dialog.LOCAL_SETUP_KEYS === KEYS && dialog.LOCAL_SETUP_STEP_TITLES['4'] === 'choose the model' && dialog.LOCAL_SETUP_STEP_TITLES['4b'] === 'pull the model' && !Object.values(dialog.LOCAL_SETUP_STEP_TITLES).some(title => /qwen/i.test(title)))
 check('the words module names no model tag: the choice is the road\'s, never a hard-wired model', words !== null && !Object.values(words).some(value => typeof value === 'string' && /qwen|local\//i.test(value)), JSON.stringify(words))
 
