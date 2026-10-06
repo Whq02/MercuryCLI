@@ -369,9 +369,7 @@ function continuationHint(agentId: string, name?: string): string {
 export const SUBAGENT_BRIEFING_LEAD =
   'delegates to a separate crewmate with this briefing (its rules bind that crewmate alone, never this session):'
 
-function seatOf(input: Pick<AgentToolInput, 'name'>): MercuryAgentSeat {
-  return 'a crewmate'
-}
+const CREWMATE_SEAT: MercuryAgentSeat = 'a crewmate'
 
 export const AgentTool = buildTool({
   name: AGENT_TOOL_NAME,
@@ -595,7 +593,7 @@ export const AgentTool = buildTool({
           plan.model,
           earlyAgentId,
           new Set(workerTools.map(tool => tool.name)),
-          seatOf(input),
+          CREWMATE_SEAT,
         )
       } catch (error) {
         logForDebugging(
@@ -730,7 +728,7 @@ export const AgentTool = buildTool({
 
     const runAgentParams: RunAgentParams = {
       agentDefinition: agentDef,
-      seat: seatOf(input),
+      seat: CREWMATE_SEAT,
       promptMessages,
       toolUseContext: context,
       canUseTool,
