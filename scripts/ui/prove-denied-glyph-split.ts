@@ -65,22 +65,22 @@ console.log('\n(B) source contract — the split threads through every surface')
   const lk = src('src/utils/messages/lookups.ts')
   check('lookups builds deniedToolUseIDs from isDenialResultText',
     lk.includes('deniedToolUseIDs') && lk.includes('isDenialResultText('))
-  const tul = src('src/components/ToolUseLoader.tsx')
-  check('ToolUseLoader branches glyph+tone on isDenied',
-    tul.includes('isDenied') &&
-      tul.includes("color={isDenied ? 'error' : 'warning'}") &&
-      tul.includes('isDenied ? GLYPH.fail : GLYPH.warn'))
+  const lead = src('src/components/messages/ToolRowLead.tsx')
+  check('ToolRowLead paints ✕ in the failure tone for a denial and the family mark in the failure tone for an error',
+    lead.includes("if (state === 'denied') return <Text color={tokens.failure}>{GLYPH.fail} </Text>") &&
+      lead.includes("if (state === 'error') return <Text color={tokens.failure}>{mark.glyph} </Text>") &&
+      lead.includes("if (flags.denied) return 'denied'"))
   const fb = src('src/components/FallbackToolUseErrorMessage.tsx')
   check('FallbackToolUseErrorMessage headline honors the denial split',
     fb.includes('isDenialResultText(rawText)') &&
       fb.includes('isDenied ? tokens.failure : tokens.warning') &&
       fb.includes("isDenied ? 'error' : 'warning'"))
   const atu = src('src/components/messages/AssistantToolUseMessage.tsx')
-  check('AssistantToolUseMessage feeds isDenied from the lookup',
-    atu.includes('lookups.deniedToolUseIDs.has(param.id)') && atu.includes('isDenied={denied}'))
+  check('AssistantToolUseMessage feeds denied from the lookup into the lead\'s state',
+    atu.includes('lookups.deniedToolUseIDs.has(param.id)') && atu.includes('toolRowStateOf({ resolved, errored, denied })'))
   const cr = src('src/components/messages/CollapsedReadSearchContent.tsx')
   check('CollapsedReadSearchContent folds anyDenied through',
-    cr.includes('anyDenied') && cr.includes('isDenied={anyDenied}'))
+    cr.includes('anyDenied') && cr.includes('denied: anyDenied'))
 }
 
 console.log('\n(C) render — denied-transcript at 80 (real dist binary, PTY)')
@@ -111,7 +111,7 @@ if (grid) {
   const lineOf = (needle: string) =>
     grid.findIndex(r => r.map(c => c.c).join('').includes(needle))
   const leadOf = (y: number): Cell | undefined =>
-    y >= 0 ? grid[y]!.find(c => c.c === '✕' || c.c === '▲') : undefined
+    y >= 0 ? grid[y]!.find(c => c.c === '✕' || c.c === '▲' || c.c === '▨') : undefined
 
   const denyY = lineOf('prod-rollout.ts')
   const denyLead = leadOf(denyY)
@@ -124,10 +124,10 @@ if (grid) {
   const errY = lineOf('missing-manifest.ts')
   const errLead = leadOf(errY)
   check('errored Edit status row present', errY >= 0)
-  check('errored Edit leads with ▲ (not ✕)', errLead?.c === '▲',
+  check('errored Edit leads with its ▨ mark (not ✕)', errLead?.c === '▨',
     errLead ? `saw '${errLead.c}'` : 'no glyph')
-  check('errored ▲ is AMBER', hexEq(errLead?.fg, AMBER),
-    `fg=${errLead?.fg} want=${AMBER}`)
+  check('errored ▨ is CRIMSON', hexEq(errLead?.fg, CRIMSON),
+    `fg=${errLead?.fg} want=${CRIMSON}`)
 
   const bodyY = lineOf('Error: ENOENT')
   const bodyLead = leadOf(bodyY)
@@ -137,7 +137,7 @@ if (grid) {
   check('body headline ▲ is AMBER', hexEq(bodyLead?.fg, AMBER),
     `fg=${bodyLead?.fg} want=${AMBER}`)
 
-  if (denyLead?.c !== '✕' || errLead?.c !== '▲') {
+  if (denyLead?.c !== '✕' || errLead?.c !== '▨') {
     console.log('  … transcript rows around the needles (first 78 cols):')
     for (const y of [denyY, errY]) {
       if (y < 0) continue

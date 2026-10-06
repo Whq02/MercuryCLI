@@ -23,6 +23,7 @@ const { AppStateProvider } = await import('../../src/state/AppState.js')
 const { WORK_FRAMES } = await import('../../src/utils/cockpit/liveGlyphs.js')
 const { GLYPH } = await import('../../src/components/mercury-ui/glyphs.js')
 const { BLACK_CIRCLE } = await import('../../src/constants/figures.js')
+const { TOOL_FAMILY_MARKS } = await import('../../src/components/mercury-ui/toolGlyphs.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -135,6 +136,9 @@ async function renderRow(opts: {
   return renderToString(node as never, 100)
 }
 const workFamily = (s: string): boolean => WORK_FRAMES.some(f => s.includes(f))
+const SHELL = TOOL_FAMILY_MARKS.shell.glyph
+const READ = TOOL_FAMILY_MARKS.read.glyph
+const leadsWith = (row: string, lead: string, name: string): boolean => row.replace(/^\d\d:\d\d:\d\d \[Mercury\] /, '').startsWith(`${lead} ${name}`)
 
 const runningRow = await renderRow({
   tool: BashTool,
@@ -144,8 +148,8 @@ const runningRow = await renderRow({
   lookups: baseLookups(),
 })
 check(
-  'the RUNNING row wears the work glyph (the ◐ family — the breathing cell)',
-  workFamily(runningRow),
+  'the RUNNING row leads with the shell mark and no work glyph',
+  leadsWith(runningRow, SHELL, 'Bash') && !workFamily(runningRow),
   JSON.stringify(runningRow),
 )
 check(
@@ -163,8 +167,8 @@ const settledRow = await renderRow({
   lookups: baseLookups({ resolvedToolUseIDs: new Set([TOOL_ID]) }),
 })
 check(
-  'the SETTLED row wears the fixed done-dot — the pulse stopped',
-  settledRow.includes(BLACK_CIRCLE) && !workFamily(settledRow),
+  'the SETTLED row leads with the shell mark alone — no dot, no work glyph',
+  leadsWith(settledRow, SHELL, 'Bash') && !settledRow.includes(BLACK_CIRCLE) && !workFamily(settledRow),
   JSON.stringify(settledRow),
 )
 check('…and the progress body is gone at settle', !settledRow.includes('running…'))
@@ -180,8 +184,8 @@ const erroredRow = await renderRow({
   }),
 })
 check(
-  'an ERRORED row wears the warn lead, never the pulse',
-  erroredRow.includes(GLYPH.warn) && !workFamily(erroredRow),
+  'an ERRORED row leads with the shell mark, never a warn glyph or the pulse',
+  leadsWith(erroredRow, SHELL, 'Bash') && !erroredRow.includes(GLYPH.warn) && !workFamily(erroredRow),
   JSON.stringify(erroredRow),
 )
 
@@ -196,7 +200,7 @@ const deniedRow = await renderRow({
     deniedToolUseIDs: new Set([TOOL_ID]),
   }),
 })
-check('a DENIED row wears the ✕ lead', deniedRow.includes(GLYPH.fail) && !workFamily(deniedRow))
+check('a DENIED row leads with ✕ in the mark\'s place', leadsWith(deniedRow, GLYPH.fail, 'Bash') && !deniedRow.includes(SHELL) && !workFamily(deniedRow), JSON.stringify(deniedRow))
 
 const readRow = await renderRow({
   tool: FileReadTool,
@@ -205,24 +209,24 @@ const readRow = await renderRow({
   inProgress: new Set<string>(),
   lookups: baseLookups({ resolvedToolUseIDs: new Set([TOOL_ID]) }),
 })
-check('a resolved READ wears the ◌ scanned ring', readRow.includes(GLYPH.read) && !workFamily(readRow))
+check('a resolved READ leads with the read mark, never a ring', leadsWith(readRow, READ, 'Read') && !readRow.includes(GLYPH.read) && !workFamily(readRow), JSON.stringify(readRow))
 
 section('§C the daemon-hosted feed seams (source locks, call-shaped)')
 {
   const root = join(import.meta.dir, '../../src')
-  const loader = readFileSync(join(root, 'components/ToolUseLoader.tsx'), 'utf8')
+  const lead = readFileSync(join(root, 'components/messages/ToolRowLead.tsx'), 'utf8')
   check(
-    'ToolUseLoader breathes only while unresolved+animating (the gate line)',
-    loader.includes('isUnresolved && !isError && shouldAnimate && !reducedMotion && focused'),
+    'the lead derives its state in ONE place: denied, then errored, then resolved or pending',
+    lead.includes("if (flags.denied) return 'denied'") &&
+      lead.includes("if (flags.errored) return 'error'") &&
+      lead.includes("return flags.resolved ? 'done' : 'pending'"),
   )
-  check(
-    'the work rotation rides the breath clock in ONE place (the running branch)',
-    (loader.match(/workGlyphForTime\(/g) ?? []).length === 1,
-  )
+  check('the lead carries no clock, no animation value and no settle latch', !/useAnimationValue|useSettleFlash|useBlink|useNowTick/.test(lead))
   const row = readFileSync(join(root, 'components/messages/AssistantToolUseMessage.tsx'), 'utf8')
   check(
-    'the row animates exactly while running (shouldAnimate && running)',
-    row.includes('shouldAnimate={shouldAnimate && running}') &&
+    'the row feeds the lead from the lookups and counts exactly while running (running && shouldAnimate)',
+    row.includes('toolRowStateOf({ resolved, errored, denied })') &&
+      row.includes('running={running && shouldAnimate}') &&
       row.includes('const running = inProgress && !resolved'),
   )
   const messageRow = readFileSync(join(root, 'components/MessageRow.tsx'), 'utf8')

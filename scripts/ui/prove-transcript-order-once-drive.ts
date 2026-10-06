@@ -418,7 +418,7 @@ export function paneRows(lines: string[]): string[] {
 
 const GUTTER = /^│\s*/
 const DRESS = /^(\d\d:\d\d:\d\d\s+|queued\s+|\[[^\]]+\]\s*|[◐◑◒◓●⏺✶✷✸✹✺✻]\s*)+/
-const HEAD = /^(❯|▰|▶|■|◆|✶|Ran \d|Read \d|Searched)/
+const HEAD = /^(❯|[▰▤▽▨▣◧◵△▦▧▱▥▷]|▶|■|◆|✶|Ran \d|Read \d|Searched)/
 function normalizeRow(row: string): { text: string; starts: boolean } {
   const bare = row.replace(/▍/g, '').replace(GUTTER, '')
   const undressed = bare.replace(DRESS, '').replace(/^\[?Mercury\]\s*/, '')

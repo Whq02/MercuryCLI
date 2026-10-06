@@ -129,8 +129,8 @@ section('§6 — consumer-QoL source invariants')
     /composerBorderRole\(input === ''\)/.test(promptInput))
   check('the composer text tint is the CENTRAL accentSoft (no local lerp)',
     /userTextColor: composerBloom/.test(promptInput))
-  const loader = src('components', 'ToolUseLoader.tsx')
-  check('the ember-settle spark consumes the DERIVED accentSoft', /color=\{accentSoft\}>\{GLYPH\.spark\}/.test(loader))
+  const lead = src('components', 'messages', 'ToolRowLead.tsx')
+  check('the tool row\'s lead paints the family tone through the token layer and the failure tone through tokens.failure', /color=\{tokens\[mark\.tone\]\}/.test(lead) && /color=\{tokens\.failure\}/.test(lead))
   const glyphs = src('components', 'mercury-ui', 'LiveGlyphs.tsx')
   check('TwinkleSpark glints the DERIVED accentSoft (no pinned BELLY)',
     /accentSoft : color/.test(glyphs) && !/\bBELLY\b/.test(glyphs))

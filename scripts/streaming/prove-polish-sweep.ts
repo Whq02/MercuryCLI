@@ -47,7 +47,7 @@ const fin = screens.find(s => s.atMs === -1)!
 const flat = fin.rows.join('\n')
 
 check('P3a settled prose painted', flat.includes('settled prose after the tool.'))
-check('P3b resolved read wears ◌', flat.includes('◌'))
+check('P3b the resolved Read row leads with its ▤ mark', fin.rows.some(r => /▤ Read\b/.test(r) && !r.includes('◌')))
 check('P3c composer usable', /type a prompt|↵ sends|\? for shortcuts/.test(flat) || flat.includes('ΛΘ'))
 
 const sweepRows = fin.rows.filter(r => !r.includes('← back') && !r.includes('esc interrupts'))
