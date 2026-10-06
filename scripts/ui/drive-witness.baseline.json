@@ -64,7 +64,6 @@
     "scripts/interaction/prove-exit-copy-journeys.ts": 12,
     "scripts/interaction/prove-interactive-row.ts": 14,
     "scripts/interaction/prove-keyless-ci-boot.ts": 2,
-    "scripts/interaction/prove-manager-filter.ts": 5,
     "scripts/interaction/prove-question-card-journeys.ts": 2,
     "scripts/interaction/prove-rewind-escape-journeys.ts": 10,
     "scripts/interaction/prove-selection-delete.ts": 3,

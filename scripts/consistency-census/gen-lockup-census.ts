@@ -77,10 +77,6 @@ const ROLE_BY_FILE: Record<string, { role: string; why: string }> = {
     role: 'mission-focal-title',
     why: 'home/boot composition — the splash-adjacent focal surface',
   },
-  'src/components/CockpitView.tsx': {
-    role: 'product-identity-header',
-    why: 'cockpit shell header — shared lockup grammar',
-  },
   'src/components/CompactIdentityBand.tsx': {
     role: 'product-identity-header',
     why: "the compact chat's identity band — the cockpit header's small-terminal form: the Wordmark primitive on one line beside the session critter",

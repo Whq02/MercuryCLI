@@ -73,7 +73,6 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-trace-rotation.ts" || { __rc=$?; f
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-capability-kill.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-capability-kill.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-kill-command.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-kill-command.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-breaker.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-breaker.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-feature-toggles.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-feature-toggles.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-breaker-timeout.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-breaker-timeout.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-mcp-policy.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-mcp-policy.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-mcp-instr-delta.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-mcp-instr-delta.ts" "$__t" "$__rc"
