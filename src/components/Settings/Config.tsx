@@ -353,7 +353,7 @@ export function Config({
       global: JSON.parse(JSON.stringify(getGlobalConfig())) as GlobalConfig,
       theme: themeSetting,
       local: { activity: { tips: { enabled: local.activity?.tips?.enabled } }, view: { reducedMotion: local.view?.reducedMotion }, briefs: { profile: local.briefs?.profile }, shell: { engine: local.shell?.engine, sessions: local.shell?.sessions } },
-      user: { engine: { reasoning: user.engine?.reasoning }, input: { suggestions: user.input?.suggestions }, voice: { language: user.voice?.language }, view: { syntaxOff: user.view?.syntaxOff, ping: user.view?.ping }, guardrails: user.guardrails, files: { honourGitignore: user.files?.honourGitignore }, memory: { pinnedLimit: user.memory?.pinnedLimit }, patience: user.patience, routing: { openrouter: user.routing?.openrouter }, local: { server: localServerSettingsOf(user) } },
+      user: { engine: { reasoning: user.engine?.reasoning, usageNotice: user.engine?.usageNotice }, input: { suggestions: user.input?.suggestions }, voice: { language: user.voice?.language }, view: { syntaxOff: user.view?.syntaxOff, ping: user.view?.ping }, guardrails: user.guardrails, files: { honourGitignore: user.files?.honourGitignore }, memory: { pinnedLimit: user.memory?.pinnedLimit }, patience: user.patience, routing: { openrouter: user.routing?.openrouter }, local: { server: localServerSettingsOf(user) } },
       appVerbose: appState.verbose === true,
       dirty: false,
     }
@@ -747,6 +747,22 @@ export function Config({
       }
     },
   }, 'anthropic'))
+  items.push({
+    id: 'usageNotice',
+    label: 'Usage notice to the model',
+    searchText: 'usage notice model told limit warning window spend 80 90 tokens awareness',
+    kind: 'boolean',
+    value: boolValue(merged.engine?.usageNotice === true),
+    warning: "with it on, the model is told when the session's usage window or spending limit is near (80% and 90%); off, the model is told nothing and only you see the meters · engine.usageNotice in settings",
+    change: () => {
+      const next = merged.engine?.usageNotice !== true
+      if (writeSource('userSettings', { engine: { usageNotice: next ? true : undefined } })) {
+        snapshots.dirty = true
+        recordToggle('usageNotice', `set usage notice to the model to ${next ? 'on' : 'off'}`)
+        bump()
+      }
+    },
+  })
   items.push({
     id: 'toolOutput',
     label: 'Tool output',
@@ -1214,7 +1230,7 @@ export function Config({
       if (motionTouched) noteMotionSettingChanged()
     }
     writeSource('localSettings', { activity: { tips: { enabled: snapshots.local.activity?.tips?.enabled } }, view: { reducedMotion: snapshots.local.view?.reducedMotion }, briefs: { profile: snapshots.local.briefs?.profile }, shell: { engine: snapshots.local.shell?.engine, sessions: snapshots.local.shell?.sessions } })
-    writeSource('userSettings', { engine: { reasoning: snapshots.user.engine?.reasoning }, input: { suggestions: snapshots.user.input?.suggestions }, voice: { language: snapshots.user.voice?.language }, view: { syntaxOff: snapshots.user.view?.syntaxOff, ping: snapshots.user.view?.ping }, patience: snapshots.user.patience, routing: { openrouter: snapshots.user.routing?.openrouter === undefined ? undefined : {
+    writeSource('userSettings', { engine: { reasoning: snapshots.user.engine?.reasoning, usageNotice: snapshots.user.engine?.usageNotice }, input: { suggestions: snapshots.user.input?.suggestions }, voice: { language: snapshots.user.voice?.language }, view: { syntaxOff: snapshots.user.view?.syntaxOff, ping: snapshots.user.view?.ping }, patience: snapshots.user.patience, routing: { openrouter: snapshots.user.routing?.openrouter === undefined ? undefined : {
         dataCollection: undefined,
         requireParameters: undefined,
         allowFallbacks: undefined,
