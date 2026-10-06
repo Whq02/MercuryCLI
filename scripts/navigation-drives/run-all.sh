@@ -4,7 +4,7 @@
 # gate-watch: src/components/mercury-ui/** src/context/overlayStack* src/ink/events/input-event*
 # gate-watch: src/ink/input/input-decoder* src/ink/stringWidth*
 # gate-watch: src/components/Mercury*.tsx src/components/ScrollKeybindingHandler.tsx src/components/LogSelector.tsx
-# gate-watch: src/components/CritterSelect.tsx src/components/FleetMonitor.tsx src/components/BaseTextInput.tsx src/components/FullscreenLayout.tsx
+# gate-watch: src/components/CritterSelect.tsx src/components/BaseTextInput.tsx src/components/FullscreenLayout.tsx
 # gate-watch: src/components/prompts-panel/PromptsPanel.tsx src/components/tasks/RunDetailPane.tsx
 # gate-watch: src/components/CustomSelect/use-select-navigation.ts src/components/permissions/AskUserQuestionPermissionRequest/QuestionView.tsx
 # gate-watch: src/commands/console/console.tsx src/commands/effort/effort.tsx src/hooks/useTextInput.ts

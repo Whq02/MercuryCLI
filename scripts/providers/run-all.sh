@@ -3,7 +3,7 @@
 # gate-watch: src/services/providers/temporaryStreamError.ts src/services/providers/busyRetry.ts src/services/providers/openai/openaiWire.ts src/services/api/retryJitter.ts
 # gate-watch: scripts/gate/ci-shard.sh scripts/lib/hermetic.ts
 # gate-watch: scripts/provider-compat/fixtures/gemini-usage-roads-2026-09-30.json scripts/provider-compat/fixtures/huggingface-whoami-v2-documented.json
-# gate-watch: src/commands/defaultprovider/defaultprovider.tsx src/commands/status/mercuryStatus.tsx src/state/AppState.tsx
+# gate-watch: src/commands/defaultprovider/defaultprovider.tsx src/state/AppState.tsx
 # gate-watch: src/utils/router/modelRegistry.ts src/utils/router/providerDiscovery.ts
 # gate-watch: src/utils/router/providers/deepseek.ts src/utils/router/providers/xai.ts
 # gate-watch: src/utils/router/providers/zai.ts src/services/providers/zai/zaiCatalogue.ts src/utils/crew/engineDispatch.ts scripts/providers/fixtures/zai-models-2026-10-05.json

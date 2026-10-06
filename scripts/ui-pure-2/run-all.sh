@@ -14,7 +14,7 @@
 # gate-watch: docs/ENGINES.md scripts/critters/prove-critter-mini-drive.ts
 # gate-watch: scripts/engine-durability/harness.ts scripts/ink-runtime/ansiEmulator.ts
 # gate-watch: scripts/ink-runtime/prove-viewport-clamp.ts scripts/lib/* scripts/search/lib/bundle-for-node.ts
-# gate-watch: src/* src/commands/accent/accent.ts src/commands/config/config.tsx
+# gate-watch: src/* src/commands/config/config.tsx
 # gate-watch: src/commands/console/console.tsx src/commands/feedback/issueForms.ts
 # gate-watch: src/commands/model/mercuryModel.tsx src/constants/figures.ts src/context/modalContext.tsx
 # gate-watch: src/context/surfaceRoute.ts src/hooks/useCancelRequest.ts src/keybindings/*

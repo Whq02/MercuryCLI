@@ -231,7 +231,6 @@ src/utils/bootCardFacts.ts :: currentCache :: ttl-bounded
 src/utils/caCerts.ts :: cachedResult :: static-for-process
 src/utils/cockpit/deviceHeadroom.ts :: cached :: ttl-bounded
 src/utils/cockpit/harnessMap.ts :: memo :: static-for-process
-src/utils/cockpit/repoSurfaceMap.ts :: orientationDocMemo :: static-for-process
 src/utils/cockpit/runProtocol.ts :: memo :: keyed-by-truth
 src/utils/cockpit/runtimePosture.ts :: memo :: static-for-process
 src/utils/config/globalConfig.ts :: cacheListeners :: static-for-process
