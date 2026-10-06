@@ -53,9 +53,9 @@ t.section('eligible families derive + walk continuously')
   }
 }
 
-t.section('reduced families collapse flat-identical across equivalent surfaces')
+t.section('the reduced resolution collapses flat-identical across equivalent surfaces')
 {
-  for (const family of ['light', 'dark-ansi', 'dark-daltonized', 'light-daltonized'] as const) {
+  for (const family of ['not-a-theme'] as const) {
     const tok = resolveMercuryTokens(family, TERRA)
     t.check(`${family}: one-stop ramp`, tok.focalRamp.length === 1, tok.focalRamp.join(' '))
     const word = rampSegments('Mercury', tok.focalRamp)

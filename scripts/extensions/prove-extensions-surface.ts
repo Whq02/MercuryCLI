@@ -180,7 +180,7 @@ type Drive = {
   id: string
   cols: number
   rows: number
-  theme?: 'light'
+  theme?: 'dark'
   freshHome?: boolean
   prepare?: (home: string) => void
   sends: Send[]
@@ -242,7 +242,7 @@ function runDrive(drive: Drive): Promise<{ text: string; lines: string[]; status
         ...process.env,
         MERCURY_CONFIG_DIR: home,
         MERCURY_LIVE_GLYPHS: '0',
-        ...(drive.theme === 'light' ? { MERCURY_THEME_PIN: 'light' } : {}),
+        ...(drive.theme === 'dark' ? { MERCURY_THEME_PIN: 'dark' } : {}),
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
@@ -273,7 +273,7 @@ async function runAll(all: Drive[], concurrency: number): Promise<void> {
       const started = Date.now()
       const result = await runDrive(drive)
       const seconds = ((Date.now() - started) / 1000).toFixed(0)
-      console.log(`\n── ${drive.id} (${drive.cols}x${drive.rows}${drive.theme ? ' · light' : ''}) ${seconds}s`)
+      console.log(`\n── ${drive.id} (${drive.cols}x${drive.rows}${drive.theme ? ' · dark' : ''}) ${seconds}s`)
       if (result.status !== 0 || result.text === '') {
         check(`${drive.id}: capture ran`, false, result.tail.slice(-260).replace(/\n/g, ' '))
         continue
@@ -662,7 +662,7 @@ for (const [cols, rows] of [
 
 for (const anchor of ['installed-seven-states', 'card-plain'] as const) {
   const base = drives.find(d => d.id === `${anchor}-120x40`)!
-  drives.push({ ...base, id: `${anchor}-120x40-light`, theme: 'light' })
+  drives.push({ ...base, id: `${anchor}-120x40-dark`, theme: 'dark' })
 }
 
 drives.push({
