@@ -12,7 +12,6 @@ import { expandPastedTextRefs } from '../../history.js'
 import { getImageFromClipboard } from '../../utils/imagePaste.js'
 import { editPromptInEditor } from '../../utils/promptEditor.js'
 import { cyclePermissionMode } from '../../utils/permissions/getNextPermissionMode.js'
-import { syncCrewmateMode } from '../../utils/crew/crewHelpers.js'
 import { saveGlobalConfig } from '../../utils/config.js'
 import { abortSpeculation } from '../../services/PromptSuggestion/speculation.js'
 import type { OverlaySurface } from './composerOverlay.js'
@@ -43,7 +42,6 @@ export type ComposerKeybindingsInput = {
     context: AppState['toolPermissionContext'],
     options?: { preserveMode?: boolean },
   ) => void
-  crewContext: AppState['crewContext']
   footerSelection: AppState['footerSelection']
   insertAtCursor: ComposerAttachments['insertAtCursor']
   handleImagePaste: ComposerAttachments['handleImagePaste']
@@ -80,7 +78,6 @@ export function useComposerKeybindings({
   setAppState,
   toolPermissionContext,
   setToolPermissionContext,
-  crewContext,
   footerSelection,
   insertAtCursor,
   handleImagePaste,
@@ -161,14 +158,10 @@ export function useComposerKeybindings({
   }, [input, cursorOffset, setCursorOffset])
 
   const cyclePermission = useCallback((): void => {
-    const { nextMode, context: nextContext } = cyclePermissionMode(
-      toolPermissionContext,
-      crewContext,
-    )
+    const { nextMode, context: nextContext } = cyclePermissionMode(toolPermissionContext)
     setToolPermissionContext({ ...nextContext, mode: nextMode })
-    syncCrewmateMode(nextMode, crewContext?.crewName)
     setHelpOpen(false)
-  }, [appStateStore, toolPermissionContext, crewContext, setToolPermissionContext, setAppState, setHelpOpen])
+  }, [appStateStore, toolPermissionContext, setToolPermissionContext, setAppState, setHelpOpen])
 
   useKeybindings(
     {

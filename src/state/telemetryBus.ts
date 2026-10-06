@@ -1,14 +1,11 @@
 
 import { useSyncExternalStore } from 'react'
 import { fluxMark } from '../utils/flux/fluxProbe.js'
-import { crewEnabled } from '../daemon/crewSpawn.js'
 import { serialCoalescer, type SerialCoalescer } from '../services/workbench/serialCoalescer.js'
 import {
   listWorkflowRuns,
   type WorkflowRunManifest,
 } from '../tools/WorkflowTool/runManifest.js'
-import { crewSeatGlances } from '../utils/crew/crewClient.js'
-import type { CrewSeatGlanceV1 } from '../services/crew/roster.js'
 import { getOriginalCwd } from '../bootstrap/state.js'
 import { logForDebugging } from '../utils/debug.js'
 import { jsonStringify } from '../utils/slowOperations.js'
@@ -30,8 +27,6 @@ const HEARTBEAT_MS = 15_000
 const subscribeFocusedWork = subscribeThroughFocused((connector, listener) => connector.subscribeWork(listener))
 const WORKFLOWS_DISK_MAX = 10
 
-export type CrewGlanceMember = CrewSeatGlanceV1
-
 export type SessionGlanceSnapshot =
   | { state: 'unavailable' }
   | { state: 'known'; rows: Array<{ sessionId: string; live: boolean; paused: boolean; parked: boolean; stopped: boolean }> }
@@ -44,7 +39,6 @@ export interface TelemetrySnapshots {
   fleetFull: Awaited<ReturnType<typeof fleetGauge>> | null
   trace: Awaited<ReturnType<typeof traceSnapshot>> | null
   workflowsDisk: Array<WorkflowRunManifest & { mtimeMs: number }>
-  crew: CrewGlanceMember[] | null
   refreshedAt: number
   version: number
 }
@@ -57,7 +51,6 @@ let snapshots: TelemetrySnapshots = {
   fleetFull: null,
   trace: null,
   workflowsDisk: [],
-  crew: null,
   refreshedAt: 0,
   version: 0,
 }
@@ -89,7 +82,6 @@ async function gitStateForRefresh(): Promise<GitRepoState | null> {
 
 async function refreshOnce(): Promise<void> {
   const next: Partial<TelemetrySnapshots> = {}
-  next.crew = null
   if (sessionConsumers > 0) {
     const sessions = readSessionWorkersSnapshot()
     const sessionRows = sessions.state === 'known' ? Object.values(sessions.workers) : null
@@ -113,12 +105,7 @@ async function refreshOnce(): Promise<void> {
     fleetGauge()
       .then(s => {
         next.fleetFull = s
-        next.fleet = {
-          state: s.state,
-          crew: s.data.crewName,
-          conflicts: s.data.conflicts.length,
-          drifting: s.data.health.filter(h => h.state === 'drifting').length,
-        }
+        next.fleet = { state: s.state, crew: null, conflicts: 0, drifting: 0 }
       })
       .catch(() => {}),
     listWorkflowRuns(getOriginalCwd(), { limit: WORKFLOWS_DISK_MAX * 5 })
@@ -133,13 +120,6 @@ async function refreshOnce(): Promise<void> {
         next.trace = s
       })
       .catch(() => {}),
-    crewEnabled()
-      ? (async () => {
-          const seats = await crewSeatGlances()
-          if (seats.length === 0) return
-          next.crew = seats
-        })().catch(() => {})
-      : Promise.resolve(),
   ])
   const kept: Partial<TelemetrySnapshots> = {}
   for (const key of Object.keys(next) as Array<keyof TelemetrySnapshots>) {

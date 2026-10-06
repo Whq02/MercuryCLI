@@ -1,5 +1,5 @@
 
-import { boundHookContext, boundSeamContext } from '../hooks/contextBound.js'
+import { boundHookContext } from '../hooks/contextBound.js'
 import type { ContentBlockParam, TextBlockParam } from '../../types/wire.js'
 
 import { BashTool } from 'src/tools/BashTool/BashTool.js'
@@ -18,11 +18,8 @@ import { TASK_CREATE_TOOL_NAME } from '../../tools/TaskCreateTool/constants.js'
 import { TASK_STOP_TOOL_NAME } from '../../tools/TaskStopTool/prompt.js'
 import { TASK_UPDATE_TOOL_NAME } from '../../tools/TaskUpdateTool/constants.js'
 import type { MessageOrigin, UserMessage } from '../../types/message.js'
-import { isCrewEnabled } from '../crewEnabled.js'
 import { type Attachment, memoryHeader } from '../attachments.js'
 import { stoppedContinuationMessage } from '../attachments/stoppedContinuation.js'
-import { isCrewMessagesAttachment } from '../attachments/types.js'
-import { formatCrewmateMessages } from '../../services/crew/liveMessages.js'
 import { quote } from '../bash/shellQuote.js'
 import { formatFileSize, formatNumber } from '../format.js'
 import { logMCPDebug } from '../log.js'
@@ -76,55 +73,7 @@ export function normalizeAttachmentForAPI(
   attachment: Attachment,
 ): UserMessage[] {
   if (attachment.capsuleReceipt) return []
-  if (isCrewEnabled()) {
-    if (isCrewMessagesAttachment(attachment)) {
-      const boundedMessages = attachment.messages.map(message => ({
-        ...message,
-        text: boundSeamContext(message.text, `crewmate-${message.from}`).text,
-      }))
-      return [
-        createUserMessage({
-          content: formatCrewmateMessages(boundedMessages),
-          isMeta: true,
-        }),
-      ]
-    }
-    if (attachment.type === 'crew_context') {
-      return [
-        createUserMessage({
-          content: `<system-reminder>
-# Crew Coordination
-
-You are a crewmate in crew "${attachment.crewName}".
-
-**Your Identity:**
-- Name: ${attachment.agentName}
-
-**Crew Resources:**
-- Crew config: ${attachment.crewConfigPath}
-- Task list: ${attachment.taskListPath}
-
-**Crew Leader:** the lead's name is "crew-lead" — updates and completion notifications go to them.
-
-The crew config lists your crewmates' names. Check the task list periodically; create tasks when work should be divided, and mark yours resolved when complete.
-
-**IMPORTANT:** crewmates are addressed by NAME ("crew-lead", "analyzer", "researcher"), never by UUID:
-
-\`\`\`json
-{
-  "to": "crew-lead",
-  "message": "Your message here",
-  "summary": "Brief 5-10 word preview"
-}
-\`\`\`
-</system-reminder>`,
-          isMeta: true,
-        }),
-      ]
-    }
-  }
-
-  // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check -- crew_messages/crew_context are handled above the switch (their literals stay inside the isCrewEnabled() guard); retired types fall through to the legacy sink below
+  // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check -- retired types fall through to the legacy sink below
   switch (attachment.type) {
     case 'directory': {
       return wrapMessagesInSystemReminder([

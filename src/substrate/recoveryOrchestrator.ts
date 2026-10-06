@@ -241,9 +241,7 @@ async function rebuildLeaderProjection(
     const led = await rebuildCrewProjection(sessionId)
     if (!led) return null
     const helpers = await import('../utils/crew/crewHelpers.js')
-    const { setLeaderCrewName } = await import('../utils/tasks.js')
     const { setLeadCrewFallback } = await import('../utils/crewmate.js')
-    setLeaderCrewName(helpers.sanitizeName(led.crewName))
     setLeadCrewFallback(led.crewName)
     helpers.registerCrewForSessionCleanup(led.crewName)
     const crewmates: LeaderProjectionSeed['crewmates'] = {}

@@ -1,7 +1,7 @@
 import type { AppState } from '../../state/AppStateStore.js'
 import type { SessionKitV1 } from '../../daemon/sessionKit.js'
 import { getMcpPrefix } from './mcpStringUtils.js'
-import { isMcpOrgan, kitMembership } from './membership.js'
+import { kitMembership } from './membership.js'
 import type { ScopedMcpServerConfig } from './types.js'
 
 function kitSpokenMcpNames(kit: SessionKitV1 | undefined): readonly string[] {
@@ -30,7 +30,6 @@ export function kitEditMcpDelta(
   const connect: string[] = []
   const disconnect: string[] = []
   for (const name of candidates) {
-    if (isMcpOrgan(name)) continue
     const was = kitMembership(before, name)
     const is = kitMembership(after, name)
     if (was === is) continue

@@ -1,12 +1,10 @@
 
 import { ASK_USER_QUESTION_TOOL_NAME } from '../../tools/AskUserQuestionTool/prompt.js'
-import { LIVE_COMMS_TOOL_NAME } from '../../tools/LiveCommsTool/constants.js'
 import { TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/constants.js'
 
 export const PROTECTED_TOOL_NAMES: ReadonlySet<string> = new Set([
   'Skill',
   ASK_USER_QUESTION_TOOL_NAME,
-  LIVE_COMMS_TOOL_NAME,
   TOOL_SEARCH_TOOL_NAME,
 ])
 

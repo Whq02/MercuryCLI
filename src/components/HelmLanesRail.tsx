@@ -390,8 +390,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const filesFolder = basename(useFocusedWorkspaceCwd())
   const mission = getActiveMission()
   const wakeGlance = useWakeGlance()
-  const daemonCrew = telemetry.crew ?? []
-  const solo = soloOf({ sessionCrew, daemonCrew, viewingAgentTaskId, mainChatTaskId, tasks, roster })
+  const solo = soloOf({ sessionCrew, viewingAgentTaskId, mainChatTaskId, tasks, roster })
   const recent = useRecentSessions(solo)
   const railWhyRef = React.useRef<Record<string, unknown> | null>(null)
   fluxWhy('rail-lanes', railWhyRef, () => ({
@@ -422,7 +421,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     activity,
     cursorRow: published[getHelmCursor('lanes')],
     sessionCrew,
-    daemonCrew,
     viewingAgentTaskId,
     mainChatTaskId,
     tasks,

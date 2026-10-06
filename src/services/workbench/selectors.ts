@@ -64,13 +64,6 @@ export interface WorkflowDiskFact {
   agentCount?: number
 }
 
-export interface CrewFact {
-  name: string
-  model?: string
-  online: boolean
-  unread: number
-}
-
 export interface ArtifactHeadFact {
   id: string
   kind: string
@@ -99,7 +92,6 @@ export interface WorkbenchSourceInputs {
   agentMeta: Map<string, AgentMetaFact>
   laneRuns: Map<string, RunFacts>
   workflowsDisk: WorkflowDiskFact[]
-  crew: CrewFact[] | null
   artifacts: ArtifactHeadFact[]
   gitWorktreeLanes: Array<{ path: string; branch?: string; head?: string }>
 }
@@ -178,22 +170,6 @@ export function deriveThreadRows(inputs: WorkbenchSourceInputs): WorkbenchThread
     if (run?.verificationState) row.verification = run.verificationState
     const blocker = run?.blocker
     if (blocker) row.blocker = blocker
-    rows.push(row)
-  }
-  for (const member of inputs.crew ?? []) {
-    const row: WorkbenchThreadRow = {
-      id: `crew:${member.name}`,
-      kind: 'crewmate',
-      title: member.name,
-      parentId: 'root',
-      phase: member.online ? 'working' : 'stopped',
-      state: member.online ? 'running' : 'stopped',
-      updatedAt: inputs.now,
-      changedPaths: [],
-      refs: [`mercury://crew/${member.name}`],
-    }
-    if (member.model) row.model = member.model
-    if (member.unread > 0) row.blocker = `${member.unread} unread message${member.unread === 1 ? '' : 's'}`
     rows.push(row)
   }
   const terminal = new Set(['succeeded', 'failed', 'stopped', 'cancelled'])

@@ -32,8 +32,6 @@ import { predecessorSockPidOf } from './handover.js'
 import { clientPresenceKindOf, noteClientPresence } from './clientPresence.js'
 import { validateSessionKit, validateSessionKitEdit, type SessionKitEditV1, type SessionKitV1 } from './sessionKit.js'
 import { validateSaturnSubmission, SATURN_ID_PATTERN, type ScheduleOpRequestV1 } from './saturn.js'
-import { parseBusEnvelope } from '../utils/crew/busEnvelopes.js'
-import { sendLiveMessage } from '../services/crew/liveComms.js'
 import type { TaskRoster } from './roster.js'
 import { attachToJobPty } from './runPtyHost.js'
 import type { ProcessSweepEntry } from './processSweep.js'
@@ -71,8 +69,6 @@ export interface ControlServerDeps {
     roadOf: (op: string, raw: Record<string, unknown>) => 'here' | 'predecessor'
     forward: (line: string) => Promise<DaemonReply>
   }
-  nudgeAgent?: (agentName: string) => void
-  crewSpawn?: (name: string, modelKey: string, start?: { cwd?: string; worktree?: { at?: string } }) => Promise<{ ok: boolean; pid?: number; error?: string }>
   concourseAdmit?: (req: {
     effort?: string
     workspaceDir: string
@@ -281,15 +277,11 @@ type ReconfigureResult = ReturnType<TaskRoster['reconfigureLongLived']>
 const RECONFIGURE_WIRE_KEYS = ['respawned', 'pending', 'note'] as const satisfies readonly (keyof ReconfigureResult)[]
 const reconfigureWhole: Whole<Omit<ReconfigureResult, 'ok' | 'error'>, (typeof RECONFIGURE_WIRE_KEYS)[number]> = true
 
-type CrewSpawnResult = Awaited<ReturnType<NonNullable<ControlServerDeps['crewSpawn']>>>
-const CREW_SPAWN_WIRE_KEYS = ['pid'] as const satisfies readonly (keyof CrewSpawnResult)[]
-const crewSpawnWhole: Whole<Omit<CrewSpawnResult, 'ok' | 'error'>, (typeof CREW_SPAWN_WIRE_KEYS)[number]> = true
-
 type WorkerDispatchResult = Awaited<ReturnType<TaskRoster['dispatch']>>
 const WORKER_DISPATCH_WIRE_KEYS = ['short', 'pid', 'via'] as const satisfies readonly (keyof WorkerDispatchResult)[]
 const workerDispatchWhole: Whole<Omit<WorkerDispatchResult, 'ok' | 'code' | 'error'>, (typeof WORKER_DISPATCH_WIRE_KEYS)[number]> = true
 
-void [admitWhole, dispatchWhole, controlWhole, warmWhole, releaseWhole, reconfigureWhole, crewSpawnWhole, workerDispatchWhole]
+void [admitWhole, dispatchWhole, controlWhole, warmWhole, releaseWhole, reconfigureWhole, workerDispatchWhole]
 
 function peerUidRejection(_sock: net.Socket): string | null {
   return null
@@ -673,44 +665,6 @@ async function routeControlRequest(
       return answer(sock, { ok: true, op: 'kill' })
     }
 
-    case 'envelope': {
-      if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
-      const rawTo = String(raw.to ?? '')
-      const crew = typeof raw.crew === 'string' && raw.crew ? raw.crew : 'default'
-      const to = rawTo.trim()
-      let env: ReturnType<typeof parseBusEnvelope> = null
-      try {
-        env = parseBusEnvelope(JSON.stringify(raw.env))
-      } catch {
-        env = null
-      }
-      if (!to || !env) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'envelope requires { to, env: <bus envelope> }' })
-      }
-      if (
-        (env.kind === 'dispatch' || env.kind === 'control' || env.kind === 'note') &&
-        (!env.from || env.from === to)
-      ) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: `a ${env.kind} envelope must carry a dispatcher 'from', never the recipient itself` })
-      }
-      const journaled = await sendLiveMessage(crew, {
-        to: to,
-        from: env.from,
-        text: JSON.stringify(env),
-        timestamp: new Date().toISOString(),
-        ...(typeof raw.color === 'string' && raw.color ? { color: raw.color } : {}),
-      })
-      if (!journaled) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'envelope journal write failed' })
-      }
-      try {
-        deps.nudgeAgent?.(to)
-      } catch (e) {
-        logForDebugging(`[daemon] envelope nudge for ${to} threw (ignored): ${e}`)
-      }
-      return answer(sock, { ok: true, op: 'envelope', journaled })
-    }
-
     case 'reconfigure': {
       if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
       const short = String(raw.short ?? '')
@@ -746,34 +700,6 @@ async function routeControlRequest(
         })
       }
       return answer(sock, { ok: true, op: 'reconfigure', ...pickDefined(r, RECONFIGURE_WIRE_KEYS) })
-    }
-
-    case 'crewSpawn': {
-      if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
-      if (!deps.crewSpawn) {
-        return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon does not host crewmates' })
-      }
-      const name = String(raw.name ?? '')
-      const modelKey = String(raw.model ?? '')
-      if (!name || !modelKey) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'crewSpawn requires { name, model }' })
-      }
-      const cwd = typeof raw.cwd === 'string' && raw.cwd !== '' ? raw.cwd : undefined
-      const worktreeAsk = raw.worktree
-      const worktree =
-        worktreeAsk === true
-          ? {}
-          : typeof worktreeAsk === 'object' && worktreeAsk !== null
-            ? { ...(typeof (worktreeAsk as { at?: unknown }).at === 'string' ? { at: (worktreeAsk as { at: string }).at } : {}) }
-            : undefined
-      const r = await deps.crewSpawn(name, modelKey, {
-        ...(cwd !== undefined ? { cwd } : {}),
-        ...(worktree !== undefined ? { worktree } : {}),
-      })
-      if (!r.ok) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: r.error ?? 'crew spawn refused' })
-      }
-      return answer(sock, { ok: true, op: 'crewSpawn', ...pickDefined(r, CREW_SPAWN_WIRE_KEYS) })
     }
 
     case 'sessionAdmit': {
