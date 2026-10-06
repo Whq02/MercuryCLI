@@ -17,8 +17,8 @@ t('no stray direct SpinnerWithVerb render outside the strip', (repl.match(/<Spin
 const fsl = readFileSync('src/components/FullscreenLayout.tsx', 'utf8')
 t('layout renders the band only with the center frame (cockpit)', fsl.includes('{centerFrame && statusBand ? ('))
 t(
-  'berth card sits under HelmCenterHeader, inside the size override',
-  /HelmCenterHeader width=\{sizeVal\.columns\} \/> : null\}\s*<TerminalSizeContext\.Provider value=\{sizeVal\}>[\s\S]{0,900}\{centerFrame && statusBand \? \([\s\S]{0,3000}\{transcriptArea\}/.test(fsl),
+  'berth card is the first interior row of the centre pane, inside the size override (no title row above it)',
+  !fsl.includes('HelmCenterHeader') && /borderColor=\{centerFrame \? t\.borderStrong : undefined\}\s*>\s*(?:\{\/\*[^]*?\*\/\}\s*)?<TerminalSizeContext\.Provider value=\{sizeVal\}>[\s\S]{0,900}\{centerFrame && statusBand \? \([\s\S]{0,3000}\{transcriptArea\}/.test(fsl),
 )
 const card = fsl.slice(fsl.indexOf('{centerFrame && statusBand ? ('), fsl.indexOf('{transcriptArea}'))
 t('berth card is a rounded strong-bordered pin (token role)', card.includes('borderStyle="round"') && card.includes('borderColor={t.borderStrong}') && card.includes('flexShrink={0}'))

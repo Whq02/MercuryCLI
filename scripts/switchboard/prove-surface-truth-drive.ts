@@ -103,7 +103,7 @@ const run = await runArtifactArena({
   rows: 40,
   keep: true,
   seedHome: async (configDir, cwd) => {
-    writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ engine: { model: SCREEN_MODEL_SETTING }, view: { sessionsBar: true } }))
+    writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ engine: { model: SCREEN_MODEL_SETTING } }))
     seedFirstRun(configDir, [cwd, work])
     spawnDaemon(configDir)
     check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' } as never)).ok === true, 60_000))
@@ -164,13 +164,12 @@ try {
   const effortRow = effortRows[effortRows.length - 1] ?? ''
   check('P2 the palette painted an /effort row', effortRows.length > 0)
   check(`P2 the /effort value column is the SESSION's effort word (${SEAT_EFFORT})`, effortRows.length > 0 && effortRows.every(r => new RegExp(`\\b${SEAT_EFFORT}\\b`).test(r)), effortRow)
-  const stripRows = allRows(`${SEAT_MODEL_LABEL} ·`).filter(r => r.includes('▚▛▀▜▞'))
-  check(`P2 the strip's effort chip is the SESSION's word (${SEAT_MODEL_LABEL} · … ${SEAT_EFFORT})`, stripRows.length > 0 && stripRows.every(r => new RegExp(`\\b${SEAT_EFFORT}\\b`).test(r)), stripRows[0] ?? '')
+  const statusRowsOfSeat = allRows(`${SEAT_MODEL_LABEL} ·`).filter(r => r.includes('← back'))
+  check(`P2 the status row's effort word is the SESSION's (${SEAT_MODEL_LABEL} · ${SEAT_EFFORT})`, statusRowsOfSeat.length > 0 && statusRowsOfSeat.every(r => new RegExp(`\\b${SEAT_EFFORT}\\b`).test(r)), statusRowsOfSeat[0] ?? '')
 
   const statusFrames = distinct.filter(f => f.text.includes('Mercury · status'))
   check('P3 the status card painted', statusFrames.length > 0)
-  const sessionRows = distinct.flatMap(f => f.text.split('\n').filter(r => r.includes('✶ VIEW')))
-  check(`P3 every view box header painted around the status card names the focused seat (${SEAT_TITLE}), never the screen's own session`, sessionRows.length > 0 && sessionRows.every(r => r.includes(SEAT_TITLE) && !r.includes('unnamed')), sessionRows.join(' | ').slice(0, 300))
+  check('P3 no frame paints a title row above the view', !distinct.some(f => f.text.includes('✶ VIEW')))
   check('P3 no status frame names an unnamed session', statusFrames.every(f => !f.text.includes('unnamed')), statusFrames.map(f => rowsWith(f.text, 'unnamed').join(' | ')).join(' ‖ ').slice(0, 300))
   check('P3 the card opens on the session snapshot line', statusFrames.every(f => f.text.includes('session snapshot ·')), statusFrames.map(f => rowsWith(f.text, 'snapshot').join(' | ')).join(' ‖ ').slice(0, 300))
   const statusModelRows = statusFrames.flatMap(f => f.text.split('\n').filter(r => (r.includes(SEAT_MODEL_LABEL) || r.includes('Fable 5')) && !r.includes('▚▛▀▜▞')))

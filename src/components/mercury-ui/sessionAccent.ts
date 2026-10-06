@@ -13,9 +13,6 @@ import {
   LEGACY_CRITTER_KEYS,
 } from '../../utils/cockpit/critterData.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
-import { settingsChangeDetector } from '../../utils/settings/changeDetector.js'
-import { isSessionsBarOn, subscribeSessionsBar } from '../../utils/cockpit/sessionsBar.js'
-
 
 export type Critter = {
   key: string
@@ -196,17 +193,4 @@ export function useSessionAccent(): Critter {
     getSessionAccentSnapshotKey,
   )
   return getSessionAccent()
-}
-
-function subscribeSessionsBarLive(onChange: () => void): () => void {
-  const offOwn = subscribeSessionsBar(onChange)
-  const offSettings = settingsChangeDetector.subscribe(onChange)
-  return () => {
-    offOwn()
-    offSettings()
-  }
-}
-
-export function useSessionsBar(): boolean {
-  return useSyncExternalStore(subscribeSessionsBarLive, isSessionsBarOn, isSessionsBarOn)
 }

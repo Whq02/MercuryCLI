@@ -162,7 +162,6 @@ for (const scene of SCENES) {
     rows: 30,
     turns: scene.turns,
     seedHome: (configDir, cwd) => {
-      writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ view: { sessionsBar: true } }))
       scene.seed?.(configDir, cwd)
     },
     sends: [

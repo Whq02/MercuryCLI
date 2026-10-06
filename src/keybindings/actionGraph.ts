@@ -33,8 +33,6 @@ export const ACTION_GRAPH = {
   'chat:cycleMode': { description: 'Cycle the permission mode', contexts: ['Chat'] },
   'chat:modelPicker': { description: 'Open the model picker', contexts: ['Chat'] },
   'chat:thinkingToggle': { description: 'Toggle extended thinking', contexts: ['Chat'] },
-  'chat:flipSessionBack': { description: 'Flip to the previous session on the ⊞ SESSIONS strip (recency ring backward)', contexts: ['Chat'] },
-  'chat:flipSessionForward': { description: 'Flip to the next session on the ⊞ SESSIONS strip (the most recent other)', contexts: ['Chat'] },
   'chat:newline': {
     description: 'Insert a newline in the composer',
     contexts: ['Chat'],

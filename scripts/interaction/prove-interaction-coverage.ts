@@ -103,7 +103,6 @@ reg(
   [
     'src/components/BootSplashScreen.tsx',
     'src/components/diff/DiffFileList.tsx',
-    'src/components/HelmCenterHeader.tsx',
     'src/components/HelmTelemetryRail.tsx',
     'src/components/MercuryCommandPalette.tsx',
     'src/components/MercuryModelPicker.tsx',
@@ -113,7 +112,6 @@ reg(
     'src/components/mercury-ui/parity/AccountView.tsx',
     'src/components/mercury-ui/parity/HarnessView.tsx',
     'src/components/mercury-ui/parity/RealmsView.tsx',
-    'src/components/mercury-ui/SessionTabs.tsx',
     'src/components/samples/SamplesListView.tsx',
   ],
   'shared-list',

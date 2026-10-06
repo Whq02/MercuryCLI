@@ -410,11 +410,9 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
 const rows = (frame: string | undefined): string[] => (frame ?? '').split('\n')
 const flat = (s: string): string => s.replace(/\s+/g, ' ').trim()
 const GLYPHS = /[◐◓◑◒]/
-const CLOCK = /\b\d\d:\d\d:\d\d\b/
 const PHASE_WORDS = /\b(thinking|running a tool|replying|compacting)\b/
 const CREW_CLOCK = /\b(agents?|workflows?) thought for \d+[sm]\b/
-const headerIndex = (frame: string | undefined): number => rows(frame).findIndex(r => r.includes('✶ VIEW'))
-const headerRow = (frame: string | undefined): string => rows(frame)[headerIndex(frame)] ?? ''
+const titleRowIndex = (frame: string | undefined): number => rows(frame).findIndex(r => r.includes('✶ VIEW'))
 const statusIndex = (frame: string | undefined): number => rows(frame).findIndex(r => r.includes(BACK_HINT))
 const statusRow = (frame: string | undefined): string => rows(frame)[statusIndex(frame)] ?? ''
 const crewClock = (frame: string | undefined): string => (/\b(?:agents?|workflows?) thought for (\d+[sm])\b/.exec(statusRow(frame)) ?? ['', ''])[1]!
@@ -422,12 +420,7 @@ const crewClockAdvances = (a: string | undefined, b: string | undefined): boolea
 const crewClockStands = (a: string | undefined, b: string | undefined): boolean => crewClock(a) !== '' && crewClock(a) === crewClock(b)
 const noGlyph = (frame: string | undefined): boolean => statusGlyph(frame) === ''
 const statusGlyph = (frame: string | undefined): string => (GLYPHS.exec(statusRow(frame)) ?? [''])[0]!
-const berth = (frame: string | undefined): string => rows(frame).slice(2, 13).join('\n')
-function headerRight(frame: string | undefined): string {
-  const row = headerRow(frame).replace(/│/g, ' ')
-  const at = row.indexOf('✶ VIEW')
-  return at < 0 ? '' : row.slice(at + '✶ VIEW'.length).trim()
-}
+const berth = (frame: string | undefined): string => rows(frame).slice(1, 12).join('\n')
 function dump(label: string, frame: string | undefined): void {
   console.log(`\n── ${label} ──`)
   if (frame === undefined) {
@@ -519,25 +512,22 @@ if (cap !== null) {
   const scenes = ['idle', 'thinking', 'esc', 'interrupting', 'after-esc', 'crew', 'x2', 'x4', 'crew-done', 'waiting', 'after-esc-2', 'crew-landed', 'first-byte', 'idle-2', 'tool', 'fore', 'stuck', 'end']
   for (const label of scenes) dump(label, m[label])
 
-  console.log('\n— H1 the title row —')
-  const chatFrames = scenes.filter(s => m[s] !== undefined && headerIndex(m[s]) >= 0)
-  check(`the title row (✶ VIEW) stands in every chat frame (${chatFrames.length} frames)`, chatFrames.length >= 12, chatFrames.join(','))
-  const clocked = chatFrames.filter(s => CLOCK.test(headerRow(m[s])))
-  check('H1 no chat frame carries a clock-shaped string on the title row', clocked.length === 0, `clock on: ${clocked.join(',')} — ${flat(headerRight(m[clocked[0] ?? '']))}`)
+  console.log('\n— H1 no title row —')
+  const chatFrames = scenes.filter(s => m[s] !== undefined && statusIndex(m[s]) >= 0)
+  check(`the bottom row stands in every chat frame (${chatFrames.length} frames)`, chatFrames.length >= 12, chatFrames.join(','))
+  const titled = chatFrames.filter(s => titleRowIndex(m[s]) >= 0)
+  check('H1 no chat frame carries a title row above the view', titled.length === 0, `title row on: ${titled.join(',')}`)
+  const paneTops = chatFrames.filter(s => !/╭─+╮/.test(rows(m[s])[0] ?? ''))
+  check('H1 the pane opens on its top border in every chat frame (row 0)', paneTops.length === 0, `no border on row 0: ${paneTops.join(',')}`)
   const EXPECTED_NAME: Record<string, string> = { idle: 'new session', thinking: 'hdr: launch', 'after-esc': 'hdr: launch', 'first-byte': 'hdr: launch', stuck: 'hdr: launch' }
   for (const s of ['idle', 'thinking', 'after-esc', 'first-byte', 'stuck']) {
     if (m[s] === undefined) continue
     const title = EXPECTED_NAME[s]!
-    const right = headerRight(m[s])
-    check(`H1 ${s}: the title row's right side is the session's name ("${title}")`, right.endsWith(title), `right: "${flat(right)}"`)
-    check(`H1 ${s}: the bottom row carries neither the name nor a glyph`, !statusRow(m[s]).includes(title) && noGlyph(m[s]), flat(statusRow(m[s])))
+    check(`H1 ${s}: the bottom row carries neither the name ("${title}") nor a glyph`, !statusRow(m[s]).includes(title) && noGlyph(m[s]), flat(statusRow(m[s])))
   }
-  check('H1 the idle chat names itself with the product\'s own unnamed word ("new session"), never blank', headerRight(m['idle']).endsWith('new session'), `right "${flat(headerRight(m['idle']))}"`)
 
   console.log('\n— H6 no row of the frame moves —')
-  const headerRows = new Set(chatFrames.map(s => headerIndex(m[s])))
-  const statusRows = new Set(chatFrames.filter(s => statusIndex(m[s]) >= 0).map(s => statusIndex(m[s])))
-  check(`H6 the title row keeps one row index across every frame (row ${[...headerRows].join('/')})`, headerRows.size === 1)
+  const statusRows = new Set(chatFrames.map(s => statusIndex(m[s])))
   check(`H6 the bottom row keeps one row index across every frame (row ${[...statusRows].join('/')})`, statusRows.size === 1)
 
   console.log('\n— thinking, two agents running —')

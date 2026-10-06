@@ -93,7 +93,6 @@ src/components/Spinner/utils.ts :: parseCache :: keyed-by-truth
 src/components/StructuredDiff.tsx :: hunkCache :: keyed-by-truth
 src/components/VirtualMessageList.tsx :: realPromptCache :: keyed-by-truth
 src/components/concourse/ConcourseRoute.tsx :: lastCoherentSnapshot :: subscription-fed
-src/components/mercury-ui/SessionTabs.tsx :: lastKnownTabs :: subscription-fed
 src/components/mercury-ui/sessionAccent.ts :: snapshotMemo :: keyed-by-truth
 src/components/messages/TranscriptNameplate.tsx :: cachedHandle :: static-for-process
 src/components/messages/transcriptMemory.ts :: memories :: keyed-by-truth

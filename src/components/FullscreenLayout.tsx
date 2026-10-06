@@ -45,7 +45,6 @@ import { setRecessTarget } from '../ink/recessLayer.js'
 import { useElevatedSurface } from './mercury-ui/useElevatedSurface.js'
 import { recessTargetFor } from '../utils/cockpit/recessBackdrop.js'
 import { DeckPane } from './DeckPane.js'
-import { HelmCenterHeader } from './HelmCenterHeader.js'
 import { HelmLanesRail } from './HelmLanesRail.js'
 import { HelmTelemetryRail } from './HelmTelemetryRail.js'
 import { FilesMenuSlot } from './FilesMenuSlot.js'
@@ -624,7 +623,6 @@ export function FullscreenLayout({
                 >
                   {
 }
-                  {centerFrame ? <HelmCenterHeader width={sizeVal.columns} /> : null}
                   <TerminalSizeContext.Provider value={sizeVal}>
                     {isCompact ? <CompactIdentityBand /> : null}
                     {centerFrame && statusBand ? (

@@ -10,7 +10,7 @@ const ASSET = {
   assets: 'scripts/ui/fixtures/settings-popup-header/*.txt',
   generator: 'bun scripts/ui/prove-settings-popup-header.ts --write',
   check: 'bun scripts/ui/prove-settings-popup-header.ts',
-  sources: 'scripts/ui/prove-settings-popup-header.ts scripts/cockpit-interaction/status-popup-fixture.ts src/components/SettingsPopupSlot.tsx src/components/PopupGutter.tsx src/components/FullscreenLayout.tsx src/components/HelmCenterHeader.tsx src/components/Settings/** src/components/ConsoleOAuthFlow.tsx src/components/mercury-ui/screens/SettingsStatusView.tsx src/commands/config/config.tsx src/commands/status/mercuryStatus.tsx src/commands/login/login.tsx src/commands/usage/usage.tsx',
+  sources: 'scripts/ui/prove-settings-popup-header.ts scripts/cockpit-interaction/status-popup-fixture.ts src/components/SettingsPopupSlot.tsx src/components/PopupGutter.tsx src/components/FullscreenLayout.tsx src/components/Settings/** src/components/ConsoleOAuthFlow.tsx src/components/mercury-ui/screens/SettingsStatusView.tsx src/commands/config/config.tsx src/commands/status/mercuryStatus.tsx src/commands/login/login.tsx src/commands/usage/usage.tsx',
 }
 if (registerOnlyRequested(ASSET)) process.exit(0)
 pinSourceRef()
@@ -215,7 +215,7 @@ for (const framed of [true, false]) {
   }
 }
 const layout = readFileSync(join(ROOT, 'src/components/FullscreenLayout.tsx'), 'utf8')
-check('the framed centre owns the header and is the settings slot host', /ref=\{centreBoxRef\}[\s\S]*?\{centerFrame \? <HelmCenterHeader/.test(layout) && layout.includes('<SettingsPopupSlot overlay={true} hostRef={centreBoxRef} framed={centerFrame} />'))
+check('the framed centre carries no title row and is the settings slot host', !layout.includes('HelmCenterHeader') && /ref=\{centreBoxRef\}[\s\S]*?<TerminalSizeContext\.Provider value=\{sizeVal\}>/.test(layout) && layout.includes('<SettingsPopupSlot overlay={true} hostRef={centreBoxRef} framed={centerFrame} />'))
 check('no fixture fetch was needed', fetches.length === 0, `${fetches.length} attempts`)
 await releaseScratchHome(HOME)
 if (write && failures === 0) registerGeneratedAsset(ASSET)

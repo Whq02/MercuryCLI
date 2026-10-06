@@ -58,7 +58,7 @@ import {
   permissionModeSymbol,
   permissionModeTitle,
 } from '../utils/permissions/PermissionMode.js'
-import { useSessionAccent, useSessionsBar } from './mercury-ui/sessionAccent.js'
+import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
 import { useFocusedTranscript } from '../hooks/useFocusedTranscript.js'
 import { useFocusedWorkspaceCwd } from '../hooks/useFocusedWorkspaceCwd.js'
@@ -76,7 +76,6 @@ import { TrimChip } from './mercury-ui/TrimChip.js'
 import { HarnessChip } from './mercury-ui/HarnessChip.js'
 import { GLYPH, truncateToWidth, branchChip } from './mercury-ui/glyphs.js'
 import { ValueGlow } from './mercury-ui/LiveGlyphs.js'
-import { SessionTabs } from './mercury-ui/SessionTabs.js'
 import { fluxMark } from '../utils/flux/fluxProbe.js'
 
 
@@ -153,7 +152,6 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   const showBehavior = tier.showBehaviorChips
   const branchMax = tier.branchMax
   useSessionAccent()
-  const sessionsBar = useSessionsBar()
   const helmActive = useContext(CockpitActiveContext) && !routeSurface
   useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
   const deckPresent = !routeSurface && isDeckPaneActive() && !helmActive
@@ -460,7 +458,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   ) : null
 
   const statusRow = (
-    <Box paddingX={helmActive ? 0 : 1}>
+    <Box paddingX={1}>
       <Text wrap="truncate-end">
         <SessionMark />
         {!deckOwnsVitals ? (
@@ -556,31 +554,8 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
 
   return (
     <Box flexShrink={0} width="100%" flexDirection="column">
-      {helmActive ? (
-        <>
-          {modeBand}
-          {sessionsBar ? (
-          <Box
-            width="100%"
-            flexDirection="column"
-            borderStyle="round"
-            borderColor={tok.borderStrong}
-            paddingX={1}
-          >
-            {routeSurface ? null : <SessionTabs cols={cols} framed />}
-            {statusRow}
-          </Box>
-          ) : null}
-        </>
-      ) : (
-        <>
-          {
-}
-          {routeSurface ? null : <SessionTabs cols={cols} />}
-          {modeBand}
-          {statusRow}
-        </>
-      )}
+      {modeBand}
+      {helmActive ? null : statusRow}
     </Box>
   )
 }

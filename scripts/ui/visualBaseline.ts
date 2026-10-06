@@ -64,7 +64,6 @@ export const DEFAULT_MASKS = [
   'row:\\S+ ⌥ ?[^…\\s]\\S*',
   'row:│ \\S+ │ ⤳',
   'FILES · [^│]*',
-  '(?:⌥|alt\\+)←→ flip · /sessions *',
   '⌥ ?\\S+ *',
   'row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back',
   'row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back',

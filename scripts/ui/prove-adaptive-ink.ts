@@ -30,7 +30,6 @@ const REGISTRY: Entry[] = [
   { file: 'src/components/mercury-ui/components.tsx' },
   { file: 'src/components/MercuryFrame.tsx' },
   { file: 'src/components/MercuryHome.tsx' },
-  { file: 'src/components/HelmCenterHeader.tsx' },
   { file: 'src/components/HelmTelemetryRail.tsx' },
   { file: 'src/components/HelmLanesRail.tsx' },
   { file: 'src/components/FullscreenLayout.tsx' },

@@ -70,7 +70,6 @@ const rows: Row[] = [
   ['view.reducedMotion', [true, false], [0, '']],
   ['context.wayBack', [true, false], [0, '']],
   ['view.backgroundKey', [true, false], [0, '']],
-  ['view.sessionsBar', [true, false], [0, '']],
   ['view.firstRunCards', ['centred', 'top-left'], [false, 0, '']],
   ['activity.progress', [true, false], [0, '']],
   ['input.suggestions', [true, false], [0, '']],

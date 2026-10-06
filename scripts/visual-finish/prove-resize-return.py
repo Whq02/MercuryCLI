@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-HEADER = '✶ VIEW'
+HEADER = re.compile(r'^\s*(?:❯ )?lanes\b.*╭')
 SPAN = 60
 failures = 0
 
@@ -34,14 +35,14 @@ def render(scenario):
 
 
 def furniture_rows(g):
-    """[(y, x, text, [fg...])] for the SESSION header row and the three
-    berth rows under it, clipped to SPAN columns from the header's x."""
+    """[(y, x, text, [fg...])] for the pane's top border row and the four
+    rows under it (the berth card), clipped to SPAN columns from the corner."""
     out = []
     for y, row in enumerate(g['grid']):
         text = cell_text(row)
-        if HEADER in text:
-            x = text.index(HEADER)
-            for dy in range(4):
+        if HEADER.search(text):
+            x = text.index('╭')
+            for dy in range(5):
                 r2 = g['grid'][y + dy]
                 t2 = cell_text(r2)[x:x + SPAN]
                 fgs = [c['fg'] for c in r2[x:x + SPAN]]
@@ -69,20 +70,20 @@ if direct and journey:
           f"{journey['cols']}x{journey['rows']}")
     bd = furniture_rows(direct)
     bj = furniture_rows(journey)
-    check('R1 form: the SESSION header present in BOTH final frames',
-          len(bd) == 4 and len(bj) == 4, f'direct={len(bd)} journey={len(bj)}')
-    if len(bd) == 4 and len(bj) == 4:
-        check('R1 form: the header at the SAME rows and column',
+    check('R1 form: the pane border and the berth rows present in BOTH final frames',
+          len(bd) == 5 and len(bj) == 5, f'direct={len(bd)} journey={len(bj)}')
+    if len(bd) == 5 and len(bj) == 5:
+        check('R1 form: the furniture at the SAME rows and column',
               [(r[0], r[1]) for r in bd] == [(r[0], r[1]) for r in bj],
               f'{[(r[0], r[1]) for r in bj]} vs {[(r[0], r[1]) for r in bd]}')
-        check('R2 art: header + berth rows byte-identical across journeys',
+        check('R2 art: border + berth rows byte-identical across journeys',
               [r[2] for r in bd] == [r[2] for r in bj],
               next((f'y{bd[i][0]}: {bj[i][2]!r} vs {bd[i][2]!r}'
-                    for i in range(4) if bd[i][2] != bj[i][2]), 'rows'))
+                    for i in range(5) if bd[i][2] != bj[i][2]), 'rows'))
         check('R3 colour: per-cell fg identical at every furniture x (stable colour coordinates)',
               [r[3] for r in bd] == [r[3] for r in bj],
               next((f'y{bd[i][0]} x{j}: {bj[i][3][j]} vs {bd[i][3][j]}'
-                    for i in range(4) for j in range(SPAN)
+                    for i in range(5) for j in range(SPAN)
                     if bd[i][3][j] != bj[i][3][j]), 'all equal'))
     def has_critter(g):
         lines = [cell_text(row) for row in g['grid']]

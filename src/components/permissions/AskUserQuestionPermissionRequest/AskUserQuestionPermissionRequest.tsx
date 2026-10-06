@@ -2,10 +2,6 @@ import type { ContentBlockParam } from '../../../types/wire.js'
 import React, { Suspense, use, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useSettings } from '../../../hooks/useSettings.js'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
-import {
-  getSessionRailRows,
-  subscribeSessionRailRows,
-} from '../../../utils/cockpit/helmFocus.js'
 import { stringWidth } from '../../../ink/stringWidth.js'
 import { useTheme } from '../../../ink.js'
 import { useKeybindings } from '../../../keybindings/useKeybinding.js'
@@ -119,14 +115,9 @@ function AskUserQuestionPermissionRequestBody(
   const { rows: terminalRows, columns: terminalColumns } = useTerminalSize()
   const [theme] = useTheme()
 
-  const railRows = useSyncExternalStore(
-    subscribeSessionRailRows,
-    getSessionRailRows,
-    getSessionRailRows,
-  )
   const maxAllowedHeight = Math.max(
     MIN_CONTENT_HEIGHT,
-    terminalRows - CONTENT_CHROME_OVERHEAD - railRows,
+    terminalRows - CONTENT_CHROME_OVERHEAD,
   )
   const { globalContentHeight, globalContentWidth } = React.useMemo(() => {
     let maxHeight = 0
