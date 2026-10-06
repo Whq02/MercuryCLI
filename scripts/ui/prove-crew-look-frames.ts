@@ -168,6 +168,7 @@ const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProvid
 const { FullscreenLayout, useUnseenDivider } = await import('../../src/components/FullscreenLayout.tsx')
 const { ScrollKeybindingHandler } = await import('../../src/components/ScrollKeybindingHandler.tsx')
 const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
+const { FocusedSessionStatusRow } = await import('../../src/components/SwitchboardTagBar.tsx')
 const { useCompactWorkControls } = await import('../../src/components/tasks/CompactWorkSummary.tsx')
 const { GlobalKeybindingHandlers } = await import('../../src/hooks/useGlobalKeybindings.tsx')
 const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
@@ -180,6 +181,7 @@ const pending = await import('../../src/input-core/pending-input.ts')
 const { default: instances } = await import('../../src/ink/instances.ts')
 const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
 const { setFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
+const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
 const { resetHelmFocusForTest } = await import('../../src/utils/cockpit/helmFocus.ts')
 const { closeSettingsPopup, isSettingsPopupOpen } = await import('../../src/utils/cockpit/settingsPopup.ts')
 const crewmatesCommand = await import('../../src/commands/crewmates/crewmates.tsx')
@@ -200,6 +202,10 @@ const overrides: Record<string, unknown> = {
   stopAgent: async (agentId: string, note?: string) => { agentCalls.push({ verb: 'stop', agentId, note }); return { outcome: 'applied' } },
   resumeAgent: async (agentId: string, note?: string) => { agentCalls.push({ verb: 'resume', agentId, note }); return { outcome: 'applied', detail: '{"queued":true}' } },
   interrupt: () => false,
+  live: () => IDLE_LIVE,
+  subscribeLive: () => () => {},
+  status: () => ({ title: 'a chat', projectLabel: 'orchard', interrupting: false, hardStopping: false, wait: null, quietMs: null, watchdogMs: null, phaseMs: null, toolBudgetMs: null, stuck: false }),
+  tail: () => ({ subscribe: () => () => {}, getSnapshot: () => null, read: () => null }),
 }
 const fake = new Proxy(resting, {
   get(target, key) {
@@ -269,7 +275,7 @@ function Harness({ scrollRef }: { scrollRef: React.RefObject<ScrollBoxHandle | n
       statusBandActive: true,
       modal: modal === null ? undefined : h(Box, { width: '100%', flexDirection: 'column' }, modal),
       modalScrollRef,
-      bottom: h(PromptInput, {
+      bottom: h(Box, { flexDirection: 'column', flexShrink: 0 }, h(FocusedSessionStatusRow), h(PromptInput, {
         compactWork: controls, compactFocus: focus,
         debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
         setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [],
@@ -279,7 +285,7 @@ function Harness({ scrollRef }: { scrollRef: React.RefObject<ScrollBoxHandle | n
         onSubmit: async () => {},
         isSearchingHistory: searching, setIsSearchingHistory: setSearching, helpOpen: help, setHelpOpen: setHelp,
         hasSuppressedDialogs: false, isLocalJSXCommandActive: modal !== null, insertTextRef: insertRef,
-      } as never),
+      } as never)),
     } as never),
   )
 }
@@ -523,7 +529,9 @@ for (const [cols, rows] of sizes) {
   save('10-harbour-landed', frame)
   const landedCard = cardOf(frame, cockpit)
   console.log(`${size}: harbour's card after it landed: "${landedCard.slice(0, 160)}"`)
-  check(`${size}: the view stays on harbour and the card reads landed`, /viewing harbour ·/.test(headerRow(frame)) && landedCard.includes('landed'), `${headerRow(frame)} · ${landedCard.slice(0, 120)}`)
+  const landedWay = /esc back to Mercury Lead · m main chat in \/crewmates · Mercury Lead in the rail goes back · (?:⇧|shift\+)← back$/.test(headerRow(frame))
+  check(`${size}: the view stays on harbour and the card reads landed`, scene.state().viewingAgentTaskId === 'a-harbour' && landedCard.includes('landed') && landedWay && headerRow(frame).startsWith('Opus 5.5'), `${headerRow(frame)} · ${landedCard.slice(0, 120)}`)
+  check(`${size}: the status row names harbour beside the model where the row has room; at 120 columns the landed crewmate's way back leaves no room and the words leave (the rail's marked row and the composer name it)`, cols >= 178 ? /viewing harbour ·/.test(headerRow(frame)) : !/viewing harbour/.test(headerRow(frame)), headerRow(frame))
   check(`${size}: the card carries no stale running activity for the landed crewmate`, !landedCard.includes('Sleeping'), landedCard.slice(0, 160))
   const landedRailRow = railRow(frame, cockpit, '◉ harbo')
   check(`${size}: the rail keeps the landed crewmate's row in the CREW lane, marked ◉ and › (it settles under the running rows)`, landedRailRow >= 0 && /›/.test(railText(frame[landedRailRow] ?? '', cockpit)), frame.map(line => railText(line, cockpit)).filter(line => /CREW|◉|◐|★|✶/.test(line)).map(flat).join(' | '))
