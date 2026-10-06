@@ -310,7 +310,7 @@ async function main(): Promise<void> {
 
     const launcherSrc = readFileSync(join(import.meta.dir, '../../src/chatLauncher.tsx'), 'utf8')
     const recoveryCallAt = launcherSrc.search(/const recovery = runBootRecovery\(\{/)
-    const recoveryRaceAt = launcherSrc.search(/const report = await Promise\.race\(\[\s*recovery,/)
+    const recoveryRaceAt = launcherSrc.search(/await Promise\.race\(\[\s*recovery,/)
     const foldCallAt = launcherSrc.search(/foldResumedRunForBoot\(processMainOwner\(\), getCwd\(\)\)/)
     const foldRaceAt = launcherSrc.search(/await Promise\.race\(\[\s*foldResumedRunForBoot\(processMainOwner\(\), getCwd\(\)\),/)
     check('chatLauncher awaits foldResumedRunForBoot inside its own bounded race', foldCallAt !== -1 && foldRaceAt !== -1 && foldRaceAt < foldCallAt && launcherSrc.slice(foldRaceAt, foldCallAt + 400).includes('BOOT_RECOVERY_BUDGET_MS'))
