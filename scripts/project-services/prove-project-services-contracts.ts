@@ -212,7 +212,7 @@ section('B. Agent parent-boundary shape (mapToolResultToToolResultBlockParam)')
   const empty = map({ ...base, content: [] }, 'toolu_fixture')
   const emptyTexts = (empty.content as { text: string }[]).map(b => b.text)
   check('B3 empty completion carries the explicit no-output marker',
-    emptyTexts[0]?.includes('The subagent finished without producing any output'))
+    emptyTexts[0]?.includes('The crewmate finished without producing any output'))
 
   const oneShot = map({ ...base, agentType: 'mercury-scout' }, 'toolu_fixture')
   check('B4 one-shot builtin drops the agentId/usage trailer',
@@ -265,7 +265,7 @@ section('D. Task substrate floors')
 {
   const prefixes: Record<string, string> = {
     local_bash: 'b', local_agent: 'a', remote_agent: 'r',
-    in_process_crewmate: 't', local_workflow: 'w', monitor_mcp: 'm',
+    local_workflow: 'w', monitor_mcp: 'm',
   }
   check('D1 task id prefixes stable',
     Object.entries(prefixes).every(([t, p]) => generateTaskId(t as never).startsWith(p)))

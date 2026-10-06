@@ -3,7 +3,6 @@ import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js'
 import { useNotifications } from '../context/notifications.js'
 import { useKeybinding, useKeybindings } from '../keybindings/useKeybinding.js'
 import { useAppStateStore, useSetAppState, type AppState } from '../state/AppState.js'
-import { isInProcessCrewmateTask } from '../tasks/InProcessCrewmateTask/types.js'
 import { cycleSurface, enterConcourse } from '../context/surfaceRoute.js'
 import { invokeConcourseCloseChord } from '../services/concourse/closeChordSlot.js'
 import { useLayoutChrome } from '../context/layoutChromeContext.js'
@@ -59,18 +58,6 @@ export function GlobalKeybindingHandlers({
           return
         }
         setAppState(prev => {
-          const crewmatesPresent = Object.values(prev.tasks).some(
-            task => isInProcessCrewmateTask(task) && task.status === 'running',
-          )
-          if (crewmatesPresent) {
-            const next: AppState['expandedView'] =
-              prev.expandedView === 'none'
-                ? 'tasks'
-                : prev.expandedView === 'tasks'
-                  ? 'crewmates'
-                  : 'none'
-            return { ...prev, expandedView: next }
-          }
           return {
             ...prev,
             expandedView: prev.expandedView === 'tasks' ? ('none' as const) : ('tasks' as const),
@@ -91,12 +78,6 @@ export function GlobalKeybindingHandlers({
           setScreen('transcript' as Screen)
           onEnterTranscript?.()
         }
-      },
-      'app:toggleCrewmatePreview': () => {
-        setAppState(prev => ({
-          ...prev,
-          showCrewmateMessagePreview: prev.showCrewmateMessagePreview !== true,
-        }))
       },
       'app:redraw': () => {
         instances.get(process.stdout)?.repaintAltScreen()

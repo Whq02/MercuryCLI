@@ -1,7 +1,6 @@
 import React, { useRef } from 'react'
 import { Box, Text } from '../../ink.js'
 import { useAnimationValue } from '../../ink/hooks/use-animation-value.js'
-import type { InProcessCrewmateTaskState } from '../../tasks/InProcessCrewmateTask/types.js'
 import type { Theme } from '../../utils/theme.js'
 import { getTheme } from '../../utils/theme.js'
 import { useTheme } from '../design-system/ThemeProvider.js'
@@ -17,7 +16,6 @@ import { useStalledAnimation } from './useStalledAnimation.js'
 import { THINKING_COLOR, THINKING_WORD } from '../messages/thinkingGrammar.js'
 import { isQuicksilverLine } from '../../constants/spinnerVerbs.js'
 import type { SpinnerMode } from './types.js'
-import { crewmateRole } from '../tasks/taskStatusUtils.js'
 import type { LiveTurnFactsV1 } from '../../services/engine-connector/seatLive.js'
 import { liveCounterPhaseOf, liveCounterWords, turnFactsOfRefs } from './liveCounterWords.js'
 import { turnStripLines } from './stripHeight.js'
@@ -44,9 +42,6 @@ type SpinnerAnimationRowProps = {
   spinnerSuffix?: string | null
   verbose: boolean
   columns: number
-  hasRunningCrewmates: boolean
-  crewmateTokens: number
-  foregroundedCrewmate: InProcessCrewmateTaskState | undefined
   effortSuffix?: string
   inWorkCapsule?: boolean
   still?: boolean
@@ -70,9 +65,6 @@ export function SpinnerAnimationRow(props: SpinnerAnimationRowProps): React.Reac
     spinnerSuffix,
     verbose,
     columns,
-    hasRunningCrewmates,
-    crewmateTokens,
-    foregroundedCrewmate,
     effortSuffix,
     inWorkCapsule = false,
     still = false,
@@ -108,20 +100,10 @@ export function SpinnerAnimationRow(props: SpinnerAnimationRowProps): React.Reac
 
   const currentResponseLength = responseLengthRef.current ?? 0
   useAnimationValue(reducedMotion ? null : FOCAL_TICK_MS, () => responseLengthRef.current ?? 0)
-  const foregroundedActive =
-    foregroundedCrewmate !== undefined &&
-    (foregroundedCrewmate as { status?: string }).status === 'running' &&
-    foregroundedCrewmate.isIdle !== true
-  const crewmateOnlyTokens = foregroundedActive
-    ? ((foregroundedCrewmate.progress as { totalTokens?: number } | undefined)?.totalTokens ?? 0)
-    : null
   const liveWords = liveCounterWords(
     { ...(liveTurnFactsRef?.current ?? turnFactsOfRefs(currentResponseLength, outputTokensRef?.current ?? null)), phase: liveCounterPhaseOf(mode), sentAtMs: now - effectiveElapsedMs },
     now,
   )
-  const liveFigure = liveWords.figure
-  const displayedTokens = crewmateOnlyTokens !== null ? crewmateOnlyTokens : liveFigure.total + crewmateTokens
-  const tokensEstimated = crewmateOnlyTokens === null && liveFigure.estimated
 
   const rateSampleRef = useRef({ at: 0, len: 0 })
   const smoothedOtpsRef = useRef(0)
@@ -141,8 +123,6 @@ export function SpinnerAnimationRow(props: SpinnerAnimationRowProps): React.Reac
   }
   const otps = Math.round(smoothedOtpsRef.current)
 
-  const interruptHint = foregroundedActive ? `esc interrupts @${foregroundedCrewmate.identity.agentName}` : null
-  const foregroundedIdleQuiet = foregroundedCrewmate !== undefined && !foregroundedActive
   const ctxPctRaw = getLiveContextUsage().usedPct
   const ctxPct = ctxPctRaw != null ? Math.round(ctxPctRaw) : null
   const suffixText = spinnerSuffix ?? ''
@@ -160,15 +140,9 @@ export function SpinnerAnimationRow(props: SpinnerAnimationRowProps): React.Reac
       liveWords,
       livePhase: liveCounterPhaseOf(mode),
       effectiveElapsedMs,
-      hasRunningCrewmates,
-      displayedTokens,
-      tokensEstimated,
-      crewmateOnlyTokens,
       ctxPct,
       activeToolCount,
       otps,
-      interruptHint,
-      foregroundedIdleQuiet,
       wasStacked: stackedLatchRef.current,
     },
     wanted => turnStripLines(loadingStartTimeRef.current, wanted),
@@ -255,14 +229,7 @@ export function SpinnerAnimationRow(props: SpinnerAnimationRowProps): React.Reac
       {')'}
     </Text>
   )
-  const segBTail =
-    interruptHint !== null ? (
-      <Text color={crewmateRole(foregroundedCrewmate?.identity.color)}>
-        ({interruptHint})
-      </Text>
-    ) : foregroundedIdleQuiet ? null : (
-      metaGroup
-    )
+  const segBTail = metaGroup
   const segBVisible = plan.segBVisible
 
   return (

@@ -77,7 +77,7 @@ export const outputSchema = lazySchema(() =>
     z.object({
       success: z.boolean().describe('Whether the skill run completed'),
       commandName: z.string().describe('The resolved skill command name'),
-      status: z.literal('forked').describe('The skill ran in a forked subagent'),
+      status: z.literal('forked').describe('The skill ran in a forked crewmate'),
       agentId: z.string().describe('The forked runner\'s agent id'),
       result: z.string().describe('The forked run\'s result text'),
     }),

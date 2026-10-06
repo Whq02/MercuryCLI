@@ -56,8 +56,8 @@ section("§1 a child's briefing is context — never this session's rules")
 {
   const agentLine = transcript.split('\n').find(l => l.startsWith('Agent ')) ?? ''
   check('the Agent call projects into the transcript', agentLine !== '', transcript)
-  check("the line leads with the sub-agent briefing words BEFORE the child's prompt", /separate sub-agent/.test(agentLine) && agentLine.includes('sub-agent') && agentLine.indexOf('sub-agent') < agentLine.indexOf('No code changes'), agentLine)
-  check('the words say the briefing binds that sub-agent alone, never this session', /bind(s)? that sub-agent (alone|only)/.test(agentLine) && /never this session/.test(agentLine), agentLine)
+  check("the line leads with the crewmate briefing words BEFORE the child's prompt", /separate crewmate/.test(agentLine) && agentLine.includes('crewmate') && agentLine.indexOf('crewmate') < agentLine.indexOf('No code changes'), agentLine)
+  check('the words say the briefing binds that crewmate alone, never this session', /bind(s)? that crewmate (alone|only)/.test(agentLine) && /never this session/.test(agentLine), agentLine)
   check("the child's prompt still rides as context (the judge can see what was delegated)", agentLine.includes('No code changes or runtime invocations'), agentLine)
   check('the agent type still rides the line', agentLine.includes('Explore'), agentLine)
 }
@@ -79,10 +79,10 @@ section('§3 the system prompt tells the judge both laws')
 {
   const asset = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'permissions', 'auto-mode-classifier-prompts', 'auto_mode_system_prompt.txt'), 'utf8')
   check('the prompt says the latest request is the task the agent works on now', /latest request/.test(asset) && /(task|work)[^.\n]*(now|current)/.test(asset), asset.slice(0, 300))
-  check("the prompt says a sub-agent's briefing binds that sub-agent alone — not this session", /sub-agent/.test(asset) && /bind/.test(asset) && /alone|only/.test(asset), asset.slice(0, 300))
+  check("the prompt says a crewmate's briefing binds that crewmate alone — not this session", /crewmate/.test(asset) && /bind/.test(asset) && /alone|only/.test(asset), asset.slice(0, 300))
   check('the prompt weighs an action against what the latest request asks for', /latest request/.test(asset.split('## Classification process')[1] ?? ''), asset.split('## Classification process')[1]?.slice(0, 400) ?? '')
   const assembled = flow.buildDefaultExternalSystemPrompt()
-  check('the assembled prompt carries both (the asset is what ships)', /latest request/.test(assembled) && /sub-agent/.test(assembled))
+  check('the assembled prompt carries both (the asset is what ships)', /latest request/.test(assembled) && /crewmate/.test(assembled))
   check('the tool-reporting sentinel stays exactly once (the XML path replaces it)', assembled.split('Use the classify_result tool to report your classification.').length === 2)
 }
 

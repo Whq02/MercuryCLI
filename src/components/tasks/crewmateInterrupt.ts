@@ -2,10 +2,9 @@ import { getFocusedSessionConnector } from '../../services/engine-connector/focu
 import type { SetAppState } from '../../Task.js'
 import type { AppState } from '../../state/AppStateStore.js'
 import { stopOrDismissAgent } from '../../state/crewmateViewHelpers.js'
-import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types.js'
 import { AGENT_INTERRUPT_BY_OPERATOR, isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 
-export type CrewmateInterruptRoad = 'local' | 'crewmate' | 'hosted' | 'idle'
+export type CrewmateInterruptRoad = 'local' | 'hosted' | 'idle'
 
 export type CrewmateInterruptOptions = {
   facts?: { running: boolean } | null
@@ -24,12 +23,6 @@ export function interruptCrewmate(
     if (task.status !== 'running') return 'idle'
     stopOrDismissAgent(taskId, setAppState, AGENT_INTERRUPT_BY_OPERATOR)
     return 'local'
-  }
-  if (task !== undefined && isInProcessCrewmateTask(task)) {
-    const controller = task.currentWorkAbortController
-    if (task.status !== 'running' || controller === undefined) return 'idle'
-    controller.abort(AGENT_INTERRUPT_BY_OPERATOR)
-    return 'crewmate'
   }
   if (options.facts !== undefined && options.facts !== null && !options.facts.running) return 'idle'
   void stopAgent(taskId, AGENT_INTERRUPT_BY_OPERATOR).then(receipt => {

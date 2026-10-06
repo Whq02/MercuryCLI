@@ -133,7 +133,6 @@ console.log('A every relayed result crosses the control socket whole')
     concourseControl: (req: Record<string, unknown>) => { controlRequests.push(req); return { outcome: 'applied' as const, detail: 'focused' } },
     concourseWarm: async () => ({ state: 'refused' as const, detail: 'no free slot' }),
     concourseRelease: () => ({ settled: true, killed: false }),
-    crewSpawn: async () => ({ ok: true, pid: 77 }),
   }
   const handle = await server.startControlServer(deps as unknown as Parameters<typeof server.startControlServer>[0])
   const path = sock.controlSockPath()
@@ -192,9 +191,6 @@ console.log('A every relayed result crosses the control socket whole')
     const reconfigure = await rawRequest(path, { ...base, op: 'reconfigure', short: 'w-1', effort: 'xhigh' })
     crosses('reconfigure', reconfigure, { ok: true, op: 'reconfigure', respawned: true, pending: false, note: 'effort adjusted to the seat floor' })
 
-    const crew = await rawRequest(path, { ...base, op: 'crewSpawn', name: 'scout', model: 'model-x' })
-    crosses('crew spawn', crew, { ok: true, op: 'crewSpawn', pid: 77 })
-
     const worker = await rawRequest(path, { ...base, op: 'dispatch', d: { prompt: 'go' } })
     crosses('worker dispatch', worker, { ok: true, op: 'dispatch', short: 'w-1', pid: 99, via: 'stub' })
   } finally {
@@ -206,9 +202,9 @@ console.log('B the owners spell the law')
 {
   const serverSrc = read('src/daemon/controlServer.ts')
   const protocolSrc = read('src/daemon/protocol.ts')
-  check('the key lists exist, one per relayed result', ['ADMIT_WIRE_KEYS', 'DISPATCH_WIRE_KEYS', 'DISPATCH_REFUSAL_WIRE_KEYS', 'CONTROL_WIRE_KEYS', 'WARM_WIRE_KEYS', 'RELEASE_WIRE_KEYS', 'RECONFIGURE_WIRE_KEYS', 'CREW_SPAWN_WIRE_KEYS', 'WORKER_DISPATCH_WIRE_KEYS'].every(k => serverSrc.includes(`const ${k} = [`)))
-  check('every key list satisfies the result it picks from (a typo is a red line)', (serverSrc.match(/\] as const satisfies readonly \(keyof \w+\)\[\]/g) ?? []).length >= 9)
-  check('a Whole law stands for every relayed result (a forgotten key names itself at typecheck)', (serverSrc.match(/const \w+Whole: Whole</g) ?? []).length === 8)
+  check('the key lists exist, one per relayed result', ['ADMIT_WIRE_KEYS', 'DISPATCH_WIRE_KEYS', 'DISPATCH_REFUSAL_WIRE_KEYS', 'CONTROL_WIRE_KEYS', 'WARM_WIRE_KEYS', 'RELEASE_WIRE_KEYS', 'RECONFIGURE_WIRE_KEYS', 'WORKER_DISPATCH_WIRE_KEYS'].every(k => serverSrc.includes(`const ${k} = [`)))
+  check('every key list satisfies the result it picks from (a typo is a red line)', (serverSrc.match(/\] as const satisfies readonly \(keyof \w+\)\[\]/g) ?? []).length >= 8)
+  check('a Whole law stands for every relayed result (a forgotten key names itself at typecheck)', (serverSrc.match(/const \w+Whole: Whole</g) ?? []).length === 7)
   const relayed = [
     "...pickDefined(r, ADMIT_WIRE_KEYS)",
     "...pickDefined(r, DISPATCH_WIRE_KEYS)",
@@ -217,7 +213,6 @@ console.log('B the owners spell the law')
     "...pickDefined(warm, WARM_WIRE_KEYS)",
     "...pickDefined(r, RELEASE_WIRE_KEYS)",
     "...pickDefined(r, RECONFIGURE_WIRE_KEYS)",
-    "...pickDefined(r, CREW_SPAWN_WIRE_KEYS)",
     "...pickDefined(out, WORKER_DISPATCH_WIRE_KEYS)",
   ]
   for (const needle of relayed) check(`the answer rides the list: ${needle}`, serverSrc.includes(needle))

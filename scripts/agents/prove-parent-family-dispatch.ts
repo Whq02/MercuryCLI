@@ -17,13 +17,11 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
 await refreshProviderDiscovery('openai', { force: true })
 await refreshOpenaiCatalogue('api-key', { force: true, fetchImpl: (async () => new Response(JSON.stringify({ models: ['gpt-5.6-sol', 'gpt-5.6-terra'].map((id, i) => ({ slug: id, display_name: id, priority: i + 1, supported_reasoning_levels: ['high'], supported_in_api: true, visibility: 'public' })) }), { headers: { 'content-type': 'application/json' } })) as typeof fetch })
 const source = readFileSync(join(import.meta.dir, '../../src/tools/AgentTool/AgentTool.tsx'), 'utf8')
-const step = source.slice(source.indexOf('    const modelParam = input.model'), source.indexOf('    if (isCrewmateSpawn(input, crewName)) {'))
+const step = source.slice(source.indexOf('    const modelParam = input.model'), source.indexOf('    const cwdParam = '))
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
 const resolve = new AsyncFunction('input', 'options', 'getAgentModel', 'resolveEngineDispatch', 'unrecognisedModelWordRefusal', `${step}\nreturn { engineDispatch, modelParam: typeof modelParam === 'undefined' ? input.model : modelParam }`) as (...args: unknown[]) => Promise<{ engineDispatch: { backend: string; model: string } | null; modelParam?: string }>
-const crewmate = /const crewmateModel =([\s\S]*?)\n\s*const spawned/.exec(source)?.[1]
 const parameter = /modelParam:([^\n]*)/.exec(source)?.[1].replace(/,\s*$/, '').replace(' as never', '')
-if (!crewmate || !parameter) throw new Error('the Agent tool model handoff was not found')
-const crewmateModel = new Function('engineDispatch', 'input', 'modelParam', 'crewmateDefinition', `return ${crewmate.trim()}`)
+if (!parameter) throw new Error('the Agent tool model handoff was not found')
 const planParameter = new Function('engineDispatch', 'input', 'modelParam', `return ${parameter}`)
 const resolvedParameter = /resolvedModel:([^\n]*)/.exec(source)?.[1].replace(/,\s*$/, '')
 const planResolved = new Function('modelParam', `return ${resolvedParameter ?? 'undefined'}`)
@@ -38,10 +36,9 @@ try {
     const input = { model: word }
     const resolved = await resolve(input, { engineModel: parent }, getAgentModel, resolveEngineDispatch, unrecognisedModelWordRefusal)
     const plan = buildAgentLaunchPlan({ requestedType: 'mercury-crew', activeAgents: [definition], toolPermissionContext: getEmptyToolPermissionContext(), forkGateOn: false, forkAgent: definition, defaultAgentType: 'mercury-crew', engineModel: parent, modelParam: planParameter(resolved.engineDispatch, input, resolved.modelParam), resolvedModel: planResolved(resolved.modelParam), backgroundTasksDisabled: false, forceAsync: false, ...(resolved.engineDispatch ? { engineDispatch: resolved.engineDispatch } : {}) } as never)
-    const spawnModel = crewmateModel(resolved.engineDispatch, input, resolved.modelParam, undefined)
     check(`${parent} + ${word}: the plan retains the resolved model`, plan.model === expected, plan.model)
-    check(`${parent} + ${word}: the crewmate receives the same exact model`, spawnModel === expected, spawnModel)
   }
+  check('the launch has one spawn road: no second model handoff beside the plan', !/const crewmateModel =/.test(source) && !source.includes('spawnCrewmate('), 'one road')
   let refusal = ''
   try { await resolve({ model: 'plainword' }, { engineModel: 'gpt-5.6-terra' }, getAgentModel, resolveEngineDispatch, unrecognisedModelWordRefusal) } catch (error) { refusal = String((error as Error).message) }
   check('an unknown word keeps its refusal unchanged', refusal === unrecognisedModelWordRefusal('plainword'), refusal)

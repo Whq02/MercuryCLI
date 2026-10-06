@@ -368,7 +368,6 @@ function driveEnv(home: string, fixtureBase: string, openai = false): Record<str
   return {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_CREDENTIAL_STORE: 'file',
     ANTHROPIC_BASE_URL: fixtureBase,
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
@@ -530,7 +529,7 @@ const PTY_LEGS: Record<string, PtyLeg> = {
       cardSend('card'),
       { data: '/crewmates', afterPrevTicks: 6 },
       { data: '\r', afterPrevTicks: 4 },
-      { data: '\x1b', atTick: 999, awaitText: 'crew · 0 running', requireAwait: true, minTick: 2, awaitSettleTicks: 3, awaitPattern: 'Sub-agents \\(1\\)', mark: 'crew-landed' },
+      { data: '\x1b', atTick: 999, awaitText: 'crew · 0 running', requireAwait: true, minTick: 2, awaitSettleTicks: 3, awaitPattern: 'Crewmates \\(1\\)', mark: 'crew-landed' },
       { data: FOLLOW_UP, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
       { data: '\r', afterPrevTicks: 4 },
     ],
@@ -555,7 +554,7 @@ const PTY_LEGS: Record<string, PtyLeg> = {
       cardSend('card'),
       { data: '/crewmates', afterPrevTicks: 6 },
       { data: '\r', afterPrevTicks: 4 },
-      { data: '\x1b', atTick: 999, awaitText: 'crew · 0 running', requireAwait: true, minTick: 2, awaitSettleTicks: 3, awaitPattern: 'Sub-agents \\(1\\)', mark: 'crew-landed' },
+      { data: '\x1b', atTick: 999, awaitText: 'crew · 0 running', requireAwait: true, minTick: 2, awaitSettleTicks: 3, awaitPattern: 'Crewmates \\(1\\)', mark: 'crew-landed' },
       { data: FOLLOW_UP, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
       { data: '\r', afterPrevTicks: 4 },
     ],
@@ -615,7 +614,7 @@ async function runPtyLeg(leg: PtyLeg): Promise<void> {
   }
   if (leg.name === 'default-bg' || leg.name === 'flow-bg') {
     const landed = cap.marks['crew-landed'] ?? ''
-    check(`${leg.name}: the Crew view read the background agent landed`, landed.includes('crew · 0 running') && landed.includes('Sub-agents (1)'))
+    check(`${leg.name}: the Crew view read the background agent landed`, landed.includes('crew · 0 running') && landed.includes('Crewmates (1)'))
   }
   if (leg.name === 'openai-fg') {
     const seat = fixture.hits.find(h => h.route === 'seat-1')

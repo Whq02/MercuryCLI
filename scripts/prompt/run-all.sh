@@ -2,7 +2,7 @@
 # gate-class: pure
 # gate-watch: src/prompt/composer* src/services/analytics/** src/tools/AgentTool/builtInAgents*
 # gate-watch: src/utils/effort*
-# gate-watch: src/utils/profile/appearanceSnapshot* src/utils/profile/mercuryProfile*
+# gate-watch: src/utils/profile/appearanceSnapshot*
 # gate-watch: src/utils/cockpit/promptProvenance* src/utils/cockpit/runProtocol*
 # gate-watch: src/constants/prompts.ts src/constants/systemPromptSections.ts src/tools/**
 # gate-watch: scripts/agent-experience/baselines/mechanical/prompts/anthropic.system.txt

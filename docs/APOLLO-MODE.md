@@ -32,7 +32,7 @@ The Apollo instructions join the system prompt only while the live mode is
 seam:
 
 - a mid-session switch into Apollo takes effect at the next turn's prompt build;
-- the interview drives the main agent only (subagents never compose the appendix).
+- the interview drives the main agent only (crewmates — sub-agents — never compose the appendix).
 
 The appendix interpolates two values: the spec directory for the project root and the
 poll budget.
@@ -75,7 +75,7 @@ nothing blocks), the spec file paths, and a run note; the call renders the closi
 review card.
 
 Wrong-context calls are refused at validation, so the consent dialog can never appear
-outside a main-session Apollo interview: an agent context (subagent) is refused, and a
+outside a main-session Apollo interview: an agent context (a crewmate) is refused, and a
 session not in mode `apollo` is refused.
 
 Permission behaviour splits on the blocker list:

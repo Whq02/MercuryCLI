@@ -20,7 +20,7 @@ export const SPAWN_SWITCH_ENV: Record<SpawnSwitchKind, string> = {
 }
 
 export const SPAWN_SWITCH_LABEL: Record<SpawnSwitchKind, string> = {
-  subagents: 'sub-agents',
+  subagents: 'crewmates',
   workflows: 'workflows',
 }
 

@@ -32,7 +32,7 @@ function gates(): { trace: boolean; ctx: boolean; deck: boolean; umbrella: boole
     trace: by('Invocation trace'),
     ctx: by('Compact advance + breaker'),
     deck: by('Persistent deck pane'),
-    mcp: by('Coordination MCP server (mercury)'),
+    mcp: by('In-process MCP server (mercury)'),
     umbrella: substrateSnapshot().data.substrateOn,
   }
 }
@@ -101,15 +101,15 @@ check('isInvocationTraceEnabled() TRUE: MERCURY_TRACE=1 overrides umbrella =0', 
   check('substrate catalog: ctx-compaction on via its own flag despite umbrella off', g2.ctx === true)
 }
 
-section('PROOF 5 — the coordination server live (stamp-independent), independent of the umbrella')
+section('PROOF 5 — the in-process server live (stamp-independent), independent of the umbrella')
 setStamp(false)
 clearEnv()
-check('bare stamp ⇒ the coordination server STILL on (stamp-independence)', gates().mcp === true)
+check('bare stamp ⇒ the in-process server STILL on (stamp-independence)', gates().mcp === true)
 setStamp(true)
 clearEnv()
-check('stamped build default ⇒ the coordination server LIVE (coordination verbs ready for mid-session crews)', gates().mcp === true)
+check('stamped build default ⇒ the in-process server LIVE (the lease verbs and render_tui ready)', gates().mcp === true)
 process.env.MERCURY_SUBSTRATE = '0'
-check('the coordination server stays on under MERCURY_SUBSTRATE=0 (NOT part of the umbrella)', gates().mcp === true)
+check('the in-process server stays on under MERCURY_SUBSTRATE=0 (NOT part of the umbrella)', gates().mcp === true)
 clearEnv()
 process.env.MERCURY_COORDINATION_MCP = '0'
 check('MERCURY_COORDINATION_MCP=0 ⇒ the coordination server off (its own opt-out)', gates().mcp === false)

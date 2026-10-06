@@ -28,7 +28,7 @@ import {
   resetEraVerdictMemo,
 } from '../../src/services/mcp/eraVerdictCache.js'
 import { createLinkedTransportPair } from '../../src/services/mcp/InProcessTransport.js'
-import { createCoordinationServer } from '../../src/services/mcp/coordinationServer.js'
+import { createMercuryServer } from '../../src/services/mcp/mercuryServer.js'
 import type { JSONRPCMessage, Transport } from '../../src/services/mcp/sdk.js'
 import { getMercuryHome } from '../../src/utils/envUtils.js'
 
@@ -210,20 +210,20 @@ section('(5) the health row reading')
   check('the health row reads its line from the owner', health.includes('describeMcpProtocolCurrency()') && !health.includes('KNOWN_NEXT_MCP_REV'))
 }
 
-section('(6) the coordination server negotiates the current era the way production serves it')
+section('(6) the in-process mercury server negotiates the current era the way production serves it')
 await (async () => {
-  const { connect, close } = await createCoordinationServer()
+  const { connect, close } = await createMercuryServer()
   const [clientSide, serverSide] = createLinkedTransportPair()
   await connect(serverSide)
   const client = new Client({ name: 'era-proof-client', version: '0' }, { versionNegotiation: { mode: 'auto' } })
   await client.connect(clientSide)
-  check('the coordination server lands on the current era', client.getProtocolEra() === 'modern', String(client.getProtocolEra()))
+  check('the mercury server lands on the current era', client.getProtocolEra() === 'modern', String(client.getProtocolEra()))
   const listed = await client.listTools()
   check('its verbs are listed on the current era', listed.tools.some(t => t.name === 'lease_list'), listed.tools.map(t => t.name).join(','))
   const r = await client.callTool({ name: 'lease_list', arguments: {} })
   const sc = r.structuredContent as { ok?: boolean; reason?: string } | undefined
   check(
-    'solo lease_list answers structured {ok:true, leases:[]} on the current era — leases work without a crew',
+    'lease_list answers structured {ok:true, leases:[]} on the current era',
     !!sc && sc.ok === true && Array.isArray(sc.leases) && sc.leases.length === 0,
     JSON.stringify(sc ?? null),
   )

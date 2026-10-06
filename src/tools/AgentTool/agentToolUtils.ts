@@ -4,7 +4,6 @@ import {
   ALL_AGENT_DISALLOWED_TOOLS,
   ASYNC_AGENT_ALLOWED_TOOLS,
   CUSTOM_AGENT_DISALLOWED_TOOLS,
-  IN_PROCESS_CREWMATE_ALLOWED_TOOLS,
 } from '../../constants/tools.js'
 import type { Message } from '../../types/message.js'
 import type { SetAppState } from '../../Task.js'
@@ -83,8 +82,6 @@ import {
 import { isSyntheticApiErrorMessage } from '../../utils/messages/factories.js'
 import { emitTaskProgress as emitSdkTaskProgress } from '../../utils/task/sdkProgress.js'
 import { emitBackgroundAgentRows } from '../../utils/task/sdkAgentFrames.js'
-import { isCrewEnabled } from '../../utils/crewEnabled.js'
-import { isInProcessCrewmate } from '../../utils/crewmateContext.js'
 import { permissionRuleValueFromString } from '../../utils/permissions/permissionRuleParser.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { AGENT_TOOL_NAME, MERCURY_SCOUT_AGENT_TYPE } from './constants.js'
@@ -99,8 +96,6 @@ export function filterToolsForAgent(args: {
   isAsync?: boolean
 }): Tools {
   const { tools, isBuiltIn, isAsync } = args
-  const crewmateKeeps =
-    isInProcessCrewmate() && isCrewEnabled()
   return tools.filter(tool => {
     if (tool.name.startsWith(MCP_TOOL_PREFIX)) return true
     if (ALL_AGENT_DISALLOWED_TOOLS.has(tool.name)) return false
@@ -109,15 +104,7 @@ export function filterToolsForAgent(args: {
       return false
     }
     if (isAsync) {
-      if (ASYNC_AGENT_ALLOWED_TOOLS.has(tool.name)) return true
-      if (
-        crewmateKeeps &&
-        (tool.name === AGENT_TOOL_NAME ||
-          IN_PROCESS_CREWMATE_ALLOWED_TOOLS.has(tool.name))
-      ) {
-        return true
-      }
-      return false
+      return ASYNC_AGENT_ALLOWED_TOOLS.has(tool.name)
     }
     return true
   })

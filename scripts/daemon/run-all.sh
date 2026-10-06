@@ -42,7 +42,6 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-headless-permission-mode.ts" || { 
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-run-workers.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-run-workers.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-dir-seam.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-dir-seam.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-worker-census.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-worker-census.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-halt-roster.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-halt-roster.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-worker-recon.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-worker-recon.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-warm-runner.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-warm-runner.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-warm-consent-boot.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-warm-consent-boot.ts" "$__t" "$__rc"

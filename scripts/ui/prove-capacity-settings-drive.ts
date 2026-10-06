@@ -62,7 +62,7 @@ try {
     writeFileSync(config, JSON.stringify({ argv: [node, dist, '--model', 'claude-fable-5-1'], cwd, cols, rows: 40, out: output, total: 600, sends }))
     const env = {
       HOME: home, PATH: `${dirname(node)}:/usr/bin:/bin:/usr/sbin:/sbin`, TERM: 'xterm-256color',
-      MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_CREWS_DIR: join(home, 'crews'),
+      MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_DAEMON_DIR: join(home, 'daemon'),
       MERCURY_VSHOT_BUDGET_SCALE: String(vshotBudgetScale()), MERCURY_LOCAL_PROBE_TARGETS: 'none',
       ANTHROPIC_API_KEY: 'fixture-key-000', ANTHROPIC_BASE_URL: fixture.url,
     }

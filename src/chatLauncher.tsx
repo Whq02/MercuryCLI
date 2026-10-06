@@ -29,32 +29,13 @@ export async function launchChat(root: Root, appProps: AppWrapperProps, chatProp
       projectDir: getProjectRoot(),
     });
     let budgetTimer: ReturnType<typeof setTimeout> | undefined;
-    const report = await Promise.race([
+    await Promise.race([
       recovery,
       new Promise<null>(r => {
         budgetTimer = setTimeout(() => r(null), BOOT_RECOVERY_BUDGET_MS);
       }),
     ]);
     if (budgetTimer !== undefined) clearTimeout(budgetTimer);
-    if (report?.leaderProjection && !appProps.initialState.crewContext) {
-      const led = report.leaderProjection;
-      appProps = {
-        ...appProps,
-        initialState: {
-          ...appProps.initialState,
-          crewContext: {
-            crewName: led.crewName,
-            crewFilePath: led.crewFilePath,
-            leadAgentId: led.leadAgentId,
-            crewmates: led.crewmates,
-          },
-        },
-      };
-    }
-    const { birthSessionCrew } = await import('./utils/crew/crewBirth.js');
-    birthSessionCrew(String(getSessionId()), update => {
-      appProps = { ...appProps, initialState: update(appProps.initialState) };
-    });
   } catch {
   }
   try {

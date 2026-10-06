@@ -470,10 +470,10 @@ export const SEATS_MENU_ROW = {
   options: [],
   defaultLabel: 'auto',
   applicationClass: 'live',
-  summary: 'how many model calls may be in flight at once across your sessions, sub-agents and workflow agents — the machine reads it; you can set it',
+  summary: 'how many model calls may be in flight at once across your sessions, crewmates and workflow agents — the machine reads it; you can set it',
   detail: {
     controls:
-      "Sessions, sub-agents and workflow agents share this one number: how many model calls may be in flight at once. A seat is held only while a call is in flight. → raises it by one, ← lowers it, ⌫ returns to the machine's reading. Applies to the next admission at once.",
+      "Sessions, crewmates and workflow agents share this one number: how many model calls may be in flight at once. A seat is held only while a call is in flight. → raises it by one, ← lowers it, ⌫ returns to the machine's reading. Applies to the next admission at once.",
     on: ['every seat runs a model call; past the machine\'s reading each seat may cost a runner process of memory the machine does not have'],
     off: ["the machine's own reading decides — it rises as memory frees and never falls under the seats already sitting"],
   },

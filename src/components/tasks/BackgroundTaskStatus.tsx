@@ -3,13 +3,8 @@ import React from 'react'
 import { Box, Text } from '../../ink.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useAppState, useSetAppState, type AppState } from '../../state/AppState.js'
-import {
-  enterCrewmateView,
-  exitCrewmateView,
-} from '../../state/crewmateViewHelpers.js'
-import { isInProcessCrewmateTask, type InProcessCrewmateTaskState } from '../../tasks/InProcessCrewmateTask/types.js'
+import { exitCrewmateView } from '../../state/crewmateViewHelpers.js'
 import { getPillLabel } from '../../tasks/pillLabel.js'
-import { AGENT_COLOR_TO_THEME_COLOR } from '../../tools/AgentTool/agentColorManager.js'
 import { calculateHorizontalScrollWindow } from '../../utils/horizontalScroll.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import type { Theme } from '../../utils/theme.js'
@@ -18,19 +13,12 @@ import { GLYPH } from '../mercury-ui/glyphs.js'
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js'
 import { WorkingGlyph } from '../mercury-ui/LiveGlyphs.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
-import { isManageableTask, shouldHideTasksFooter } from './taskStatusUtils.js'
+import { isManageableTask } from './taskStatusUtils.js'
 
 const MAIN_PILL_LABEL = 'main'
 const EXPAND_CHORD = 'shift + ↓'
 const ARROW_WIDTH = 2
 
-function themeColorOf(
-  crewmate: InProcessCrewmateTaskState,
-): keyof Theme | undefined {
-  const raw = crewmate.identity.color
-  if (raw === undefined) return undefined
-  return (AGENT_COLOR_TO_THEME_COLOR as Record<string, keyof Theme>)[raw]
-}
 
 function Pill({
   id,
@@ -99,39 +87,14 @@ export function BackgroundTaskStatus({
   const { columns } = useTerminalSize()
   const tokens = useMercuryTokens()
   const tasks = useAppState((state: AppState) => state.tasks)
-  const treeShowing = useAppState(
-    (state: AppState) => state.expandedView === 'crewmates',
-  )
-  const viewingAgentTaskId = useAppState(
-    (state: AppState) => state.viewingAgentTaskId,
-  )
   const setAppState = useSetAppState()
 
   const manageable = Object.values(tasks).filter(isManageableTask)
-  const allCrewmates =
-    manageable.length > 0 && manageable.every(isInProcessCrewmateTask)
-  const agentPillMode =
-    (allCrewmates && !treeShowing) || (isViewingCrewmate && !treeShowing)
+  const agentPillMode = isViewingCrewmate
 
   if (agentPillMode) {
-    const crewmates = Object.values(tasks)
-      .filter(isInProcessCrewmateTask)
-      .filter(isManageableTask)
-      .sort((a, b) =>
-        (a.identity.agentName ?? '').localeCompare(b.identity.agentName ?? ''),
-      )
-    const displayed = tasksSelected
-      ? crewmates
-      : [...crewmates].sort(
-          (a, b) => Number(a.isIdle === true) - Number(b.isIdle === true),
-        )
-    const viewedIndex =
-      viewingAgentTaskId !== undefined
-        ? displayed.findIndex(t => t.id === viewingAgentTaskId) + 1
-        : 0
-    const selectedIndex = tasksSelected
-      ? (crewmateFooterIndex ?? 0)
-      : Math.max(0, viewedIndex)
+    const viewedIndex = 0
+    const selectedIndex = tasksSelected ? (crewmateFooterIndex ?? 0) : 0
 
     type PillModel = {
       id: string
@@ -150,14 +113,6 @@ export function BackgroundTaskStatus({
         idle: isLeaderIdle,
         onActivate: () => exitCrewmateView(setAppState),
       },
-      ...displayed.map(crewmate => ({
-        id: `footer:tasks:pill:${crewmate.id}`,
-        label: `@${crewmate.identity.agentName}`,
-        color: themeColorOf(crewmate),
-        busy: crewmate.status === 'running' && crewmate.isIdle !== true,
-        idle: crewmate.isIdle === true,
-        onActivate: () => enterCrewmateView(crewmate.id, setAppState),
-      })),
     ]
 
     const widths = pills.map(pill => stringWidth(pill.label) + 2 + 1)
@@ -199,7 +154,6 @@ export function BackgroundTaskStatus({
     )
   }
 
-  if (shouldHideTasksFooter(Object.values(tasks), treeShowing)) return null
   if (manageable.length === 0) return null
 
   const label = getPillLabel(manageable)

@@ -107,15 +107,15 @@ function buildHookEventMetadata(toolNames: string[]): Record<HookEvent, HookEven
       },
     },
     SubagentStart: {
-      summary: 'Runs when a subagent starts',
+      summary: 'Runs when a crewmate starts',
       description:
-        'Payload: agent id and agent type. Stdout is shown to the subagent; blocking errors are ignored.',
+        'Payload: agent id and agent type. Stdout is shown to the crewmate; blocking errors are ignored.',
       matcherMetadata: { field: 'agent_type' },
     },
     SubagentStop: {
-      summary: 'Runs when a subagent finishes',
+      summary: 'Runs when a crewmate finishes',
       description:
-        "Payload: agent id, agent type, and the agent's transcript path. Exit 2 shows stderr to the subagent and keeps it running.",
+        "Payload: agent id, agent type, and the agent's transcript path. Exit 2 shows stderr to the crewmate and keeps it running.",
       matcherMetadata: { field: 'agent_type' },
     },
     PreCompact: {
@@ -140,20 +140,15 @@ function buildHookEventMetadata(toolNames: string[]): Record<HookEvent, HookEven
       description:
         'Payload: a trigger of init or maintenance. Stdout is shown to Mercury; blocking errors are ignored.',
     },
-    CrewmateIdle: {
-      summary: 'Runs when a crewmate is about to go idle',
-      description:
-        'Payload: the crewmate name and crew name. Exit 2 shows stderr to the crewmate and prevents it going idle.',
-    },
     TaskCreated: {
       summary: 'Runs when a task is created',
       description:
-        'Payload: task id, subject, description, crewmate name, crew name. Exit 2 shows stderr to the model and prevents the creation.',
+        'Payload: task id, subject, and description. Exit 2 shows stderr to the model and prevents the creation.',
     },
     TaskCompleted: {
       summary: 'Runs when a task is completed',
       description:
-        'Payload: task id, subject, description, crewmate name, crew name. Exit 2 shows stderr to the model and prevents the completion.',
+        'Payload: task id, subject, and description. Exit 2 shows stderr to the model and prevents the completion.',
     },
     Elicitation: {
       summary: 'Runs when an MCP server requests user input',

@@ -4,8 +4,6 @@ import {
   isEnvDefinedFalsy,
   isEnvTruthy,
 } from '../../utils/envUtils.js'
-import { isInProcessCrewmate } from '../../utils/crewmateContext.js'
-import { isCrewmate } from '../../utils/crewmate.js'
 import { searchToolsAvailability } from '../../utils/ripgrep.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../SendMessageTool/constants.js'
 import { EFFORT_LEVELS } from '../../utils/effort.js'
@@ -63,7 +61,7 @@ export async function getPrompt(
     ? 'Specify `subagent_type` for a specialist, or omit it to fork yourself — the fork inherits your full conversation context.'
     : `Specify \`subagent_type\` to select an agent; omitting it gives ${MERCURY_CREW_AGENT_TYPE}.`
 
-  const core = `Launch a new agent to work through a complicated, multi-step job on its own. The available agents are specialised — each has its own capabilities and tool access:
+  const core = `Launch a crewmate (a sub-agent) to work through a complicated, multi-step job on its own. The available agents are specialised — each has its own capabilities and tool access:
 
 ${listing}
 
@@ -82,7 +80,6 @@ ${typeSelection}`
   }
 
   const backgroundEnabled = true
-  const inProcess = isInProcessCrewmate()
   const usage: string[] = [
     'Always include a short (3–5 word) `description` of the task.',
   ]
@@ -94,7 +91,7 @@ ${typeSelection}`
   usage.push(
     "The agent returns a single message that the user cannot see — relay a concise summary of its result.",
   )
-  if (backgroundEnabled && !inProcess && !forkOn) {
+  if (backgroundEnabled && !forkOn) {
     usage.push(
       'With `run_in_background: true` the agent runs detached: completion returns to you as a notification — never sleep, poll, or proactively check on it. Run in the background when the work is long and independent; run in the foreground when your next step depends on the report.',
     )
@@ -106,17 +103,8 @@ ${typeSelection}`
     'When an agent description says to use it proactively, honour that cue without waiting to be asked.',
     `Genuinely parallel launches are ONE message with multiple ${AGENT_TOOL_NAME} tool-use blocks (for example: three review agents launched together in a single message, one block each) — separate messages run serially.`,
     'Passing `isolation: "worktree"` hands the agent a temporary git worktree of its own. It requires a git repository (or a configured worktree-create hook); outside one, omit the parameter. A worktree the agent left untouched cleans itself up; one with changes survives, its path and branch riding back in the result.',
-    `The \`effort\` parameter sets the agent's reasoning effort (${EFFORT_LEVELS.join(' | ')}). Omitted, the agent runs at the configured sub-agent default (high unless the operator changed it in /config) — never at your own level. Spend the top tiers on the hardest judge and verify work; a level the agent's model does not serve runs the nearest one it does.`,
+    `The \`effort\` parameter sets the agent's reasoning effort (${EFFORT_LEVELS.join(' | ')}). Omitted, the agent runs at the configured crewmate default (high unless the operator changed it in /config) — never at your own level. Spend the top tiers on the hardest judge and verify work; a level the agent's model does not serve runs the nearest one it does.`,
   )
-  if (inProcess) {
-    usage.push(
-      'Inside this in-process crewmate session the `run_in_background`, `name`, `crew_name`, and `mode` parameters do not exist — subagents run synchronously only.',
-    )
-  } else if (isCrewmate()) {
-    usage.push(
-      'In this crewmate session the `name`, `crew_name`, and `mode` parameters are unavailable — crewmates cannot spawn crewmates.',
-    )
-  }
   sections.push(`## Usage notes
 ${usage.map(note => `- ${note}`).join('\n')}`)
 

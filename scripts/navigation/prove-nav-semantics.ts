@@ -150,12 +150,9 @@ console.log('== source pins: the kernel derives from the vocabulary ==')
   check('QuestionView: no raw footer arrow comparisons left', !/e\.key === "up" \|\| e\.ctrl && e\.key === "p"/.test(qview))
 
   const smv = readFileSync(join(root, 'src/components/mercury-ui/screens/SessionManagerView.tsx'), 'utf8')
-  const tcv = readFileSync(join(root, 'src/components/mercury-ui/screens/CrewmateChatsView.tsx'), 'utf8')
   const rdp = readFileSync(join(root, 'src/components/tasks/RunDetailPane.tsx'), 'utf8')
   check('SessionManagerView: identity-stable card cursor', smv.includes('useStableSelection(navKeys'))
   check('SessionManagerView: the switch confirm is armed by IDENTITY (never a retarget)', smv.includes('setConfirmingKey(navKeys[') && smv.includes("useState<string | null>(null)"))
-  check('CrewmateChatsView: the roster cursor follows the crewmate name', tcv.includes('useStableSelection(rows, r => r.member.name)'))
-  check('CrewmateChatsView: the model picker is HORIZONTAL (no ↑↓ alias)', tcv.includes("decodeNavKey(input, key, { orientation: 'horizontal' })") && !/key\.leftArrow \|\| key\.upArrow/.test(tcv))
   check('RunDetailPane: identity-stable agent cursor + drill hierarchy', rdp.includes('useStableSelection(agents') && rdp.includes("hierarchy: true"))
 
   const irow = readFileSync(join(root, 'src/components/mercury-ui/InteractiveRow.tsx'), 'utf8')

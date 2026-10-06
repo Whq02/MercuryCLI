@@ -220,7 +220,6 @@ function driveEnv(home: string, fixtureBase: string): NodeJS.ProcessEnv {
     ...process.env,
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'teams'),
     MERCURY_HOME: join(home, 'proof-home'),
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
@@ -244,7 +243,7 @@ function driveEnv(home: string, fixtureBase: string): NodeJS.ProcessEnv {
     TERM_PROGRAM: 'kitty',
     BROWSER: '/usr/bin/true',
   }
-  for (const stamp of ['MERCURY_CREWMATES', 'MERCURY_DAEMON_PERMISSION_MODE', 'MERCURY_DAEMON_CREW', 'MERCURY_CREW', 'NODE_ENV', 'CI', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'HF_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_DEMO', 'TERMINAL_EMULATOR', '__CFBundleIdentifier', 'MERCURY_MODEL', 'MERCURY_DEFAULT_FABLE_MODEL', 'MERCURY_DEFAULT_OPUS_MODEL', 'MERCURY_DEFAULT_SONNET_MODEL']) delete env[stamp]
+  for (const stamp of ['MERCURY_DAEMON_PERMISSION_MODE','NODE_ENV', 'CI', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'HF_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_DEMO', 'TERMINAL_EMULATOR', '__CFBundleIdentifier', 'MERCURY_MODEL', 'MERCURY_DEFAULT_FABLE_MODEL', 'MERCURY_DEFAULT_OPUS_MODEL', 'MERCURY_DEFAULT_SONNET_MODEL']) delete env[stamp]
   return env
 }
 

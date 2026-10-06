@@ -67,7 +67,6 @@ const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
     MERCURY_TURN_RECEIPT: '0',
     MERCURY_CONFIG_DIR: CONFIG_HOME,
     MERCURY_DAEMON_DIR: join(tmpdir(), `midtool-drill-daemon-${process.pid}`),
-    MERCURY_CREWS_DIR: join(tmpdir(), `midtool-drill-crews-${process.pid}`),
     MERCURY_HOME: join(tmpdir(), `midtool-drill-home2-${process.pid}`),
     VISUAL: '',
     EDITOR: '',

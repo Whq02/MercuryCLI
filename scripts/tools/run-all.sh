@@ -26,7 +26,7 @@
 # gate-watch: src/query/stopHooks.ts src/run-core/model-lane.ts src/run-core/turn-machine.ts
 # gate-watch: src/screens/Chat.tsx src/screens/toolJsxArbitration.ts src/services/agents/watch.ts
 # gate-watch: src/services/concourse/concourseSnapshot.ts src/services/concourse/workerTranscript.ts
-# gate-watch: src/services/coordination/coordinationService.ts src/services/dap/dapClient.ts
+# gate-watch: src/services/dap/dapClient.ts
 # gate-watch: src/services/lsp/LSPDiagnosticRegistry.ts src/services/lsp/manager.ts src/services/mcp/client.ts
 # gate-watch: src/services/mcp/useManageMCPConnections.ts
 # gate-watch: src/services/privateChannel/quietUpdateNotice.ts src/services/providers/*
@@ -40,7 +40,6 @@
 # gate-watch: src/cli/headless/runnerAsks.ts
 # gate-watch: docs/HOOKS.md src/utils/hooks/contract.ts
 # gate-watch: bunfig.toml
-# gate-watch: src/services/crew/liveComms* src/services/crew/liveMessages*
 # gate-watch: src/rows/* src/runner/wire/* scripts/lib/mcpInProcess.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

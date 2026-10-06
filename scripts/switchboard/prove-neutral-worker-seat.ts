@@ -62,7 +62,6 @@ console.log('============================================================')
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const wm = await import('../../src/services/concourse/workerModels.ts')
-const crew = await import('../../src/daemon/crewSpawn.ts')
 const wr = await import('../../src/tools/WorkflowTool/workflowRouting.ts')
 const { resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.ts')
 const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
@@ -91,14 +90,7 @@ section('§2 — a keyless home: no neutral default, no roster, the two-door sen
   resetComputedDefaultMemo()
   check('neutralSeatDefault() is null with no usable sign-in', wm.neutralSeatDefault() === null, text(wm.neutralSeatDefault()))
   check('seatFamilyChoices() is empty', wm.seatFamilyChoices().length === 0, text(wm.seatFamilyChoices()))
-  check('crewModelChoices() offers nothing — no favoured family, no Claude key on a keyless home', crew.crewModelChoices().length === 0, text(crew.crewModelChoices()))
-  const unnamed = await crew.resolveCrewSeatModel(undefined)
-  check(
-    'an unnamed crew seat refuses with the two-door sentence (no family named)',
-    !unnamed.ok && unnamed.error.includes(wm.NO_ACCOUNT_REFUSAL) && unnamed.error.includes('/logins to choose an account'),
-    text(unnamed),
-  )
-  const word = await wm.validateWorkerModelChoice('openai', 'crew')
+  const word = await wm.validateWorkerModelChoice('openai', 'session')
   check(
     "the family word 'openai' with no sign-in refuses that family's own door (no-credential:openai), never an 'unrecognised' about the word",
     !word.ok && word.reason === 'no-credential:openai' && String(word.action).includes('/logins openai'),
@@ -150,31 +142,7 @@ try {
   check('…its newest usable row is a GPT id', /gpt/i.test(gptRow), gptRow)
   const registry = await wm.composeWorkerModelRegistry()
   const seedSession = wm.defaultWorkerModelId(registry, 'session')
-  const seedCrew = wm.defaultWorkerModelId(registry, 'crew')
-  check('the registry seeds BOTH arms on the GPT row', /gpt/i.test(seedSession) && /gpt/i.test(seedCrew), text({ seedSession, seedCrew }))
-  const unnamedCrew = await wm.validateWorkerModelChoice(undefined, 'crew')
-  check('an UNNAMED crew seat validates ok on the GPT row (the operator’s screenshot, closed)', unnamedCrew.ok && /gpt/i.test(unnamedCrew.entry.modelId), text(unnamedCrew))
-  const word = await wm.validateWorkerModelChoice('openai', 'crew')
-  check("the family word 'openai' resolves to that family's newest row", word.ok && /gpt/i.test(word.entry.modelId), text(word))
-  const spawn = await crew.resolveCrewSeatModel(undefined)
-  check('crew spawn, nothing named ⇒ the GPT row at the convention effort', spawn.ok && /gpt/i.test(spawn.model) && spawn.effort === 'high', text(spawn))
-  const spawnWord = await crew.resolveCrewSeatModel('openai')
-  check('crew spawn by family word ⇒ the GPT row', spawnWord.ok && /gpt/i.test(spawnWord.model), text(spawnWord))
-  const roster = crew.crewModelChoices()
-  check(
-    'the roster offers exactly the signed-in family — OpenAI — and no Claude key',
-    roster.length === 1 && roster[0]?.key === 'openai' && /gpt/i.test(roster[0]?.model ?? '') && !roster.some(c => /claude|opus|sonnet|fable/i.test(c.key + c.model)),
-    text(roster),
-  )
-  for (const named of ['opus', 'claude-opus-5']) {
-    const refused = await crew.resolveCrewSeatModel(named)
-    check(`a NAMED Claude choice '${named}' refuses no-credential:anthropic`, !refused.ok && refused.error.includes('no-credential:anthropic'), text(refused))
-    check(
-      `…naming /logins anthropic AND OpenAI as the way out`,
-      !refused.ok && refused.error.includes('/logins anthropic') && /openai/i.test(refused.error) && refused.error.includes("name 'openai'"),
-      text(refused),
-    )
-  }
+  check('the registry seeds the session arm on the GPT row', /gpt/i.test(seedSession), text({ seedSession }))
   process.env.MERCURY_WORKFLOW_ROUTING = '1'
   check('the workflow executor routes to the same GPT row (one resolver)', wr.resolveWorkflowRoutedModel({ tier: 'executor' }) === gptRow, text({ routed: wr.resolveWorkflowRoutedModel({ tier: 'executor' }), gptRow }))
   const facts3 = await import('../../src/services/switchboard/bootBirthFacts.ts')
@@ -188,13 +156,7 @@ try {
   resetComputedDefaultMemo()
   const later = wm.neutralSeatDefault()
   check('the neutral default is now the Anthropic family (the most recent sign-in)', later !== null && later.family === 'anthropic', text(later))
-  const both = crew.crewModelChoices()
-  check(
-    'the roster offers both families, the most recent first, and no generation key',
-    both[0]?.key === 'anthropic' && both.some(c => c.key === 'openai') && !both.some(c => ['opus', 'sonnet', 'fable', 'fable51'].includes(c.key)),
-    text(both.map(c => c.key)),
-  )
-  const stillWord = await wm.validateWorkerModelChoice('openai', 'crew')
+  const stillWord = await wm.validateWorkerModelChoice('openai', 'session')
   check("the family word 'openai' still picks the GPT row beside it", stillWord.ok && /gpt/i.test(stillWord.entry.modelId), text(stillWord))
 } finally {
   await fixture.close()

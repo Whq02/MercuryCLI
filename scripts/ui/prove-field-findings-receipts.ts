@@ -222,7 +222,6 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
   return {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_CREDENTIAL_STORE: 'file',
     ANTHROPIC_BASE_URL: fixtureBase,
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
@@ -263,7 +262,7 @@ function dump(label: string, frame: string | undefined): void {
 }
 
 const namesSeat = (frame: string): boolean => frame.includes(SEAT_ONE) || frame.includes(SEAT_TWO)
-const attributesCrew = (frame: string): boolean => /sub-agents \d[\d.,]*k? (tokens|spent)/.test(flat(frame))
+const attributesCrew = (frame: string): boolean => /crewmates \d[\d.,]*k? (tokens|spent)/.test(flat(frame))
 
 console.log('— a crew lands, then a fresh session is born in place —')
 const fixture = await startCrewFixture(3)
@@ -281,18 +280,18 @@ try {
         ...bootSends(ASK),
         { data: '/crewmates', atTick: 999, awaitText: 'agents finished', requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'landed' },
         { data: '\r', afterPrevTicks: 4 },
-        { data: '\x1b', atTick: 999, awaitText: 'Sub-agents', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-landed' },
+        { data: '\x1b', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-landed' },
         { data: '/clear', afterPrevTicks: 4 },
         { data: '\r', afterPrevTicks: 3 },
         { data: '/crewmates', atTick: 999, awaitText: SPLASH_READY, requireAwait: true, minTick: 2, awaitSettleTicks: 8, mark: 'fresh' },
         { data: '\r', afterPrevTicks: 4 },
-        { data: '\x1b', atTick: 999, awaitText: 'Sub-agents', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'fresh-crew' },
+        { data: '\x1b', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'fresh-crew' },
         { data: SHIFT_LEFT, afterPrevTicks: 4, mark: 'fresh-after' },
         { data: SHIFT_LEFT, atTick: 999, awaitText: BOARD, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'board' },
         { data: '\r', atTick: 999, awaitText: FACE_READY, requireAwait: true, minTick: 2, awaitStableTicks: 4, awaitSettleTicks: 3, mark: 'face' },
         { data: '/crewmates', atTick: 999, awaitText: SPLASH_READY, requireAwait: true, minTick: 2, awaitSettleTicks: 8, mark: 'fresh-b' },
         { data: '\r', afterPrevTicks: 4 },
-        { data: '\x1b', atTick: 999, awaitText: 'Sub-agents', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'fresh-crew-b' },
+        { data: '\x1b', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'fresh-crew-b' },
         { data: '', afterPrevTicks: 4, mark: 'fresh-after-b' },
       ],
       stableTicks: 6,
@@ -309,7 +308,7 @@ check('the crew ran and landed on the wire (parent → two seats → the ack)', 
 const landed = marks['landed'] ?? ''
 check('the previous session\'s crew was on every surface: the card names both seats and the usage line attributes the crew', namesSeat(landed) && landed.includes('agents finished') && attributesCrew(landed))
 const crewLanded = marks['crew-landed'] ?? ''
-check('the previous session\'s Crew view listed both, landed', namesSeat(crewLanded) && crewLanded.includes('0 running') && crewLanded.includes('Sub-agents (2)'))
+check('the previous session\'s Crew view listed both, landed', namesSeat(crewLanded) && crewLanded.includes('0 running') && crewLanded.includes('Crewmates (2)'))
 const fresh = marks['fresh'] ?? ''
 check('the born session is a fresh chat (its splash is up, no card)', fresh.includes(SPLASH_READY) && !fresh.includes('agents finished'))
 check('the born session names no seat of the previous session (the CREW lane, the transcript)', !namesSeat(fresh), fresh.split('\n').filter(l => namesSeat(l)).join(' | '))

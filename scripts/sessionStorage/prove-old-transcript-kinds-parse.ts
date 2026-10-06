@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -10,13 +10,11 @@ process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
-delete process.env.MERCURY_CREWS_DIR
 
 const ROOT = join(import.meta.dir, '..', '..')
 const vnext = await import('../../src/utils/sessionStorage/vnext.ts')
 const logs = await import('../../src/utils/sessionStorage/logs.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
-const sessionClass = await import('../../src/utils/sessionClass.ts')
 const attachmentText = await import('../../src/utils/messages/attachmentText.ts')
 const nullRendering = await import('../../src/components/messages/nullRenderingAttachments.ts')
 const decode = await import('../../src/fabric/transcriptDecode.ts')
@@ -179,7 +177,7 @@ const mailboxRow = messages.find(m => m.type === 'attachment' && (m.attachment a
 check('a terminated notice inside an old message row reads as written', mailboxRow !== undefined && mailboxRow.messages[1]!.text.includes('"teammate_terminated"') && !mailboxRow.messages[1]!.text.includes('crewmate_terminated'), JSON.stringify(mailboxRow?.messages[1]))
 const crewMessagesRow = messages.find(m => m.type === 'attachment' && (m.attachment as { type: string }).type === 'crew_messages')?.attachment
 const crewMessagesText = crewMessagesRow === undefined ? [] : attachmentText.normalizeAttachmentForAPI(crewMessagesRow as never)
-check('the crew kind written now composes its envelope', crewMessagesText.length === 1 && JSON.stringify(crewMessagesText[0]).includes('a note under the crew kind'))
+check('a crew_messages row composes nothing for the model — an unknown kind like the old one', crewMessagesText.length === 0)
 check('the old shutdown kind composes nothing for the model and does not throw', Array.isArray(attachmentText.normalizeAttachmentForAPI({ type: 'teammate_shutdown_batch', count: 2 } as never)) && attachmentText.normalizeAttachmentForAPI({ type: 'teammate_shutdown_batch', count: 2 } as never).length === 0)
 const createRow = messages.find(m => m.type === 'assistant' && JSON.stringify(m).includes('toolu_teamcreate'))
 const createInput = ((createRow?.message as { content: Array<{ input?: Record<string, unknown> }> }).content[0]?.input ?? {}) as Record<string, unknown>
@@ -197,8 +195,7 @@ const decodedTwice = decode.decodeTranscriptBuffer<Record<string, unknown>>(read
 check('the decode point itself renames nothing (every reader shares it)', decodedTwice.every(e => !('crewName' in e)) && decodedTwice.some(e => e.teamName === TEAM))
 
 console.log('§2 the session record reads no crew stamp from the old words')
-check('the log carries no crewName stamp', log.crewName === undefined, String(log.crewName))
-check('the picker does not class the transcript as a crew session', sessionClass.isCrewSession(log) === false)
+check('the log carries no crewName stamp', !('crewName' in log), JSON.stringify(Object.keys(log)))
 const PLAIN_SID = '00000000-bbbb-4000-8000-0000000c0ffee'
 const plainFile = join(dir, `${PLAIN_SID}.jsonl`)
 const p1 = uid()
@@ -211,10 +208,6 @@ check('the lite session listing reads no crew stamp from the old head line: the 
 
 console.log('§3 the old opt-in words on the command line enable nothing')
 {
-  process.env.MERCURY_CREWMATES = '0'
-  process.argv.push('--agent-teams', '--agent-crews')
-  check('with the crew surfaces off, the old words in argv turn nothing on', (await import('../../src/utils/crewEnabled.ts')).isCrewEnabled() === false)
-  delete process.env.MERCURY_CREWMATES
   check('the command table declares neither word', !src('src/main.tsx').includes('--agent-crews') && !src('src/main.tsx').includes('--agent-teams'))
 }
 
@@ -234,29 +227,11 @@ console.log('§4 an agent sidecar written under the old keys reads as written �
 console.log('§5 a roster saved in the old folder, under the old lead name, is not a crew Mercury knows')
 {
   const envUtils = await import('../../src/utils/envUtils.ts')
-  const helpers = await import('../../src/utils/crew/crewHelpers.ts')
-  const constants = await import('../../src/utils/crew/constants.ts')
   const oldDir = join(HOME, 'teams', 'oldcrew')
   mkdirSync(oldDir, { recursive: true })
-  writeFileSync(join(oldDir, 'config.json'), JSON.stringify({
-    name: 'oldcrew',
-    createdAt: 1,
-    leadAgentId: 'team-lead@oldcrew',
-    members: [
-      { agentId: 'team-lead@oldcrew', name: 'team-lead', joinedAt: 1, tmuxPaneId: '', cwd: SCRATCH, subscriptions: [] },
-      { agentId: 'water@oldcrew', name: 'water', role: 'teammate', joinedAt: 2, tmuxPaneId: '', cwd: SCRATCH, subscriptions: [] },
-    ],
-  }, null, 2))
-  check('the crews home is the crews folder', envUtils.getCrewsDir() === join(HOME, 'crews'), envUtils.getCrewsDir())
-  check('the home has one crews folder — no other folder is read for rosters', !('getRetiredCrewsDir' in envUtils))
-  const read = await helpers.readCrewFileAsync('oldcrew')
-  check('a roster under the old folder is not found', read === null, JSON.stringify(read))
-  check('the lead name is the crew word', constants.CREW_LEAD_NAME === 'crew-lead', constants.CREW_LEAD_NAME)
-  const convert = await import('../../src/utils/crew/crewConvert.ts')
-  const outcome = await convert.convertSavedCrews({ crewDir: join(HOME, 'crew-store') })
-  check('the conversion of saved rosters reads the crews folder alone', !outcome.converted.includes('oldcrew') && !outcome.unchanged.includes('oldcrew') && outcome.crewsDir === join(HOME, 'crews'), JSON.stringify(outcome))
-  const spawn = await import('../../src/daemon/crewSpawn.ts')
-  check('the old lead name is an ordinary crewmate name — nothing reserves it', spawn.isValidCrewName('team-lead') === spawn.isValidCrewName('frobnicate') && spawn.isValidCrewName('crew-lead') === false)
+  writeFileSync(join(oldDir, 'config.json'), JSON.stringify({ name: 'oldcrew', createdAt: 1, leadAgentId: 'team-lead@oldcrew', members: [] }, null, 2))
+  check('the home has no crews folder reader — no folder is read for rosters', !('getCrewsDir' in envUtils) && !('getRetiredCrewsDir' in envUtils))
+  check('no crew module remains to read a roster', !existsSync(join(ROOT, 'src/utils/crew/crewHelpers.ts')) && !existsSync(join(ROOT, 'src/utils/crew/crewConvert.ts')))
 }
 
 console.log('§6 the Agent tool reads its input as declared — an old field name is an unknown field')
@@ -267,8 +242,8 @@ console.log('§6 the Agent tool reads its input as declared — an old field nam
   check('an input carrying team_name parses as an input carrying an unknown field', parsed.success === true, parsed.success ? '' : JSON.stringify(parsed.error.issues.slice(0, 2)))
   check('and lands no crew_name', !('crew_name' in data) && !('team_name' in data), JSON.stringify(data))
   const jsonSchema = JSON.stringify((await import('../../src/utils/zodToJsonSchema.ts')).zodToJsonSchema(agentTool.AgentTool.inputSchema as never))
-  check('the schema the model sees names crew_name and not the old field', jsonSchema.includes('crew_name') && !jsonSchema.includes('team_name'))
-  check('the schema keeps its shape for every reader of its words', 'crew_name' in ((agentTool.AgentTool.inputSchema as unknown as { shape: Record<string, unknown> }).shape ?? {}) && 'crew_name' in ((agentTool.inputSchema() as unknown as { shape: Record<string, unknown> }).shape ?? {}))
+  check('the schema the model sees names neither the old field nor a crew name', !jsonSchema.includes('crew_name') && !jsonSchema.includes('team_name'))
+  check('the schema keeps its shape for every reader of its words', 'name' in ((agentTool.AgentTool.inputSchema as unknown as { shape: Record<string, unknown> }).shape ?? {}) && 'name' in ((agentTool.inputSchema() as unknown as { shape: Record<string, unknown> }).shape ?? {}))
 }
 
 console.log('§7 a saved keybinding under the old action id binds nothing Mercury knows')
@@ -276,28 +251,26 @@ console.log('§7 a saved keybinding under the old action id binds nothing Mercur
   const parser = await import('../../src/keybindings/parser.ts')
   const bindings = parser.parseBindings([{ context: 'Global', bindings: { 'ctrl+shift+o': 'app:toggleTeammatePreview' } }] as never)
   check('the old id reads as written — no id is rewritten', bindings[0]?.action === 'app:toggleTeammatePreview', String(bindings[0]?.action))
-  check('the crew id is the registered action and the old id is not', src('src/keybindings/actionGraph.ts').includes("'app:toggleCrewmatePreview'") && !src('src/keybindings/actionGraph.ts').includes("'app:toggleTeammatePreview'"))
+  check('neither the old id nor a crew preview id is a registered action', !src('src/keybindings/actionGraph.ts').includes("'app:toggleCrewmatePreview'") && !src('src/keybindings/actionGraph.ts').includes("'app:toggleTeammatePreview'"))
   const loader = await import('../../src/keybindings/loadUserBindings.ts')
   writeFileSync(loader.getKeybindingsPath(), JSON.stringify({ bindings: [{ context: 'Global', bindings: { 'ctrl+shift+u': 'app:toggleTeammatePreview' } }] }))
   loader.invalidateKeybindingsCache()
   const loaded = await loader.loadKeybindings()
   const saved = loaded.bindings.filter(b => b.context === 'Global' && JSON.stringify(b.chord).includes('"u"')).map(b => b.action)
-  check('a saved keybindings file under the old id loads through the product\'s own loader with the id as written and never as the crew action', saved.includes('app:toggleTeammatePreview') && !saved.includes('app:toggleCrewmatePreview'), JSON.stringify({ warnings: loaded.warnings, actions: saved }))
+  check('a saved keybindings file under the old id loads through the product\'s own loader with the id as written', saved.includes('app:toggleTeammatePreview'), JSON.stringify({ warnings: loaded.warnings, actions: saved }))
 }
 
-console.log('§8 the command line knows one crew spelling')
+console.log('§8 the command line knows no crew spelling')
 {
   const main = src('src/main.tsx')
-  check('the crew flag is the one the launcher declares', main.includes("'--crew <name>'") && !main.includes("'--crew-name <name>'") && !main.includes("'--team-name <name>'"))
+  check('the launcher declares no crew identity flag at all', !main.includes("'--crew <name>'") && !main.includes("'--crew-name <name>'") && !main.includes("'--team-name <name>'"))
   check('the launcher reads the command line through no alias table', !main.includes('readRetiredCliFlags'))
 }
 
-console.log('§9 the journal knows the crew kinds alone')
+console.log('§9 the journal knows no crew kind')
 {
-  const ops = await optional('src/utils/crew/crewOperations.ts')
-  const handlers = ops !== null && typeof ops.crewJournalRecoveryHandlers === 'function' ? (ops.crewJournalRecoveryHandlers as () => Record<string, unknown>)() : {}
-  check('the crew kinds have handlers and the old kinds have none', 'crew-create' in handlers && 'crew-delete' in handlers && !('team-create' in handlers) && !('team-delete' in handlers), Object.keys(handlers).join(','))
   check('the journal dispatch reads the kind as written', src('src/substrate/operationJournal.ts').includes('handlers[op.kind]') && !src('src/substrate/operationJournal.ts').includes('readRetiredJournalKind'))
+  check('no crew journal handlers exist', !existsSync(join(ROOT, 'src/utils/crew/crewOperations.ts')))
 }
 
 console.log('§10 the old command name is not carried: /crewmates has no alias')

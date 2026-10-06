@@ -80,7 +80,6 @@ export async function loadTranscriptFromFile(
     const sessionId = leafMessage.sessionId as UUID
     return {
       ...chainLogOption(transcript, transcript.at(-1)!, filePath),
-      crewName: transcript[0]!.crewName,
       summary: summaries.get(leafMessage.uuid),
       ...resumeFactsOf(fold, sessionId, transcript),
     }
@@ -335,7 +334,6 @@ export async function fillSessionListing(log: SessionListing): Promise<SessionLi
         : log.summary,
       gitBranch: mostRecentLeaf?.gitBranch ?? log.gitBranch,
       isSidechain: transcript[0]?.isSidechain ?? log.isSidechain,
-      crewName: transcript[0]?.crewName ?? log.crewName,
       leafUuid: mostRecentLeaf?.uuid ?? log.leafUuid,
       ...resumeFactsOf(fold, sessionId, transcript),
     }
@@ -437,7 +435,6 @@ export async function lastSession(
   const chain = buildConversationChain(messages, leaf)
   return {
     ...chainLogOption(chain, chain.at(-1)!, getTranscriptPathForSession(sessionId)),
-    crewName: chain[0]!.crewName,
     summary: summaries.get(leaf.uuid),
     ...resumeFactsOf(fold, sessionId, chain),
   }
@@ -663,22 +660,6 @@ export function extractAgentIdsFromMessages(messages: Message[]): string[] {
   }))
 }
 
-export function extractCrewmateTranscriptsFromTasks(tasks: {
-  [taskId: string]: {
-    type: string
-    identity?: { agentId: string }
-    messages?: Message[]
-  }
-}): { [agentId: string]: Message[] } {
-  return Object.fromEntries(
-    Object.values(tasks).flatMap(task =>
-      task.type === 'in_process_crewmate' && task.identity?.agentId && task.messages && task.messages.length > 0
-        ? [[task.identity.agentId, task.messages] as const]
-        : [],
-    ),
-  )
-}
-
 async function subagentMessages(agentId: string): Promise<Message[] | null> {
   try {
     const transcript = await getAgentTranscript(asAgentId(agentId))
@@ -815,7 +796,6 @@ type LiteMetadata = {
   gitBranch?: string
   isSidechain: boolean
   projectPath?: string
-  crewName?: string
   customTitle?: string
   summary?: string
   tag?: string
@@ -922,7 +902,6 @@ async function enrichLog(
     firstPrompt: meta.firstPrompt || (meta.customTitle ? '' : '(session)'),
     gitBranch: meta.gitBranch,
     isSidechain: meta.isSidechain,
-    crewName: meta.crewName,
     customTitle: meta.customTitle,
     summary: meta.summary,
     tag: meta.tag,
@@ -933,7 +912,7 @@ async function enrichLog(
     endedOnError: meta.endedOnError,
     projectPath: meta.projectPath ?? log.projectPath,
   }
-  const hidden = enriched.isSidechain ? 'isSidechain=true' : enriched.crewName ? `crewName=${enriched.crewName}` : undefined
+  const hidden = enriched.isSidechain ? 'isSidechain=true' : undefined
   if (hidden) {
     logForDebugging(`Session ${log.sessionId} filtered from /sessions: ${hidden}`)
     return null

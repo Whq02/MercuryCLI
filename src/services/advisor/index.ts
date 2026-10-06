@@ -23,7 +23,6 @@ export {
   advisorIntervalWords,
   advisorReceiptWords,
   advisorSeatRefusal,
-  advisorSessionSeat,
   advisorSettingsFromStored,
   advisorValueWords,
   readAdvisorSettings,

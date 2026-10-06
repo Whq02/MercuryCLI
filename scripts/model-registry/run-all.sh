@@ -6,7 +6,7 @@
 # gate-watch: src/commands/submodels/submodels.tsx src/components/* src/components/PromptInput/PromptInput.tsx src/components/PromptInput/useComposerModelDoors.tsx
 # gate-watch: src/components/Settings/Usage.tsx src/components/agents/studio/StudioEditor.tsx
 # gate-watch: src/components/mercury-ui/EffortStrip.tsx src/constants/betas.ts src/constants/prompts.ts
-# gate-watch: src/daemon/crewSpawn.ts src/ink.ts
+# gate-watch: src/ink.ts
 # gate-watch: src/services/concourse/coordinatorModels.ts src/services/concourse/workerModels.ts
 # gate-watch: src/services/providers/* src/services/providers/anthropic/*
 # gate-watch: src/services/tokenEstimation.ts src/services/vcr.ts src/services/api/client.ts

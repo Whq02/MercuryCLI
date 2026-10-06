@@ -187,19 +187,19 @@ section('§1b the tool roster freeze (pure) — a latched decision holds; a join
   const p4 = await plan([search, readTool, mcpTool], { pending: false, key: 'conv-b' })
   check('another conversation decides for itself (its first request sees the joiner)', p4.deferredNames.has('mcp__srv__late') && names(p4) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'mcp__srv__late']), names(p4))
 
-  const liveComms = fakeTool('LiveComms', { shouldDefer: true })
-  const m1 = await plan([search, readTool, liveComms], { pending: false, key: 'conv-marks' })
+  const deferred = fakeTool('Deferred', { shouldDefer: true })
+  const m1 = await plan([search, readTool, deferred], { pending: false, key: 'conv-marks' })
   const m2 = await plan([search, readTool], { pending: false, key: 'conv-marks' })
-  check('THE MARKS ARE FROZEN: a deferrable tool the pool drops (a toggle) still rides the array AND keeps its deferral mark', m1.enabled && names(m2) === names(m1) && m1.deferredNames.has('LiveComms') && m2.deferredNames.has('LiveComms'), `${names(m2)} deferred=${j([...m2.deferredNames])}`)
+  check('THE MARKS ARE FROZEN: a deferrable tool the pool drops (a toggle) still rides the array AND keeps its deferral mark', m1.enabled && names(m2) === names(m1) && m1.deferredNames.has('Deferred') && m2.deferredNames.has('Deferred'), `${names(m2)} deferred=${j([...m2.deferredNames])}`)
   const lsp = fakeTool('LspTool')
   const lspPlan = (rule: (t: { name: string }) => boolean) =>
-    planToolPayload({ model: 'claude-opus-4-8', tools: [search, readTool, liveComms, lsp] as never, messages: [], getToolPermissionContext: async () => ({ ...getEmptyToolPermissionContext(), mode: 'default' as never }), agents: [], hasPendingMcpServers: false, source: 'prove', latchKey: 'conv-lsp', alsoDefer: rule as never })
+    planToolPayload({ model: 'claude-opus-4-8', tools: [search, readTool, deferred, lsp] as never, messages: [], getToolPermissionContext: async () => ({ ...getEmptyToolPermissionContext(), mode: 'default' as never }), agents: [], hasPendingMcpServers: false, source: 'prove', latchKey: 'conv-lsp', alsoDefer: rule as never })
   const l1 = await lspPlan(t => t.name === 'LspTool')
   const l2 = await lspPlan(() => false)
   check("a lane's own deferral rule is judged once: the tool it deferred at the first request stays deferred when the rule later says no", l1.deferredNames.has('LspTool') && l2.deferredNames.has('LspTool') && names(l2) === names(l1), j([...l2.deferredNames]))
-  const j1 = await plan([search, readTool, liveComms, mcpTool], { pending: false, key: 'conv-marks' })
+  const j1 = await plan([search, readTool, deferred, mcpTool], { pending: false, key: 'conv-marks' })
   const j2 = await plan([search, readTool], { pending: false, key: 'conv-marks' })
-  check('a joiner appended once keeps its position and its mark for good — even after it leaves the pool again', names(j1) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'LiveComms', 'mcp__srv__late']) && names(j2) === names(j1) && j2.deferredNames.has('mcp__srv__late'), `${names(j2)} deferred=${j([...j2.deferredNames])}`)
+  check('a joiner appended once keeps its position and its mark for good — even after it leaves the pool again', names(j1) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'Deferred', 'mcp__srv__late']) && names(j2) === names(j1) && j2.deferredNames.has('mcp__srv__late'), `${names(j2)} deferred=${j([...j2.deferredNames])}`)
   const sumPlan = await plan([readTool, search], { pending: false, key: 'conv-marks' })
   check("the summariser's plan under the conversation's key — from its own two-tool pool — yields the conversation's array and marks, byte for byte", names(sumPlan) === names(j1) && j([...sumPlan.deferredNames].sort()) === j([...j1.deferredNames].sort()), names(sumPlan))
   const forkSrc = readFileSync(join(ROOT, 'src', 'utils', 'forkedAgent.ts'), 'utf8')
@@ -467,7 +467,6 @@ if (!existsSync(DIST)) {
           ANTHROPIC_BASE_URL: fixture.url,
           ANTHROPIC_API_KEY: 'fixture-key-000',
           MERCURY_DAEMON_DIR: join(home, 'daemon'),
-          MERCURY_CREWS_DIR: join(home, 'crews'),
           MERCURY_THINKING_BINDING: 'drop_block',
           ...extraEnv,
         },

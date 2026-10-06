@@ -34,7 +34,7 @@ const repo = join(import.meta.dir, '..', '..')
   }
   ok(unique, '§1 row ids are unique')
   ok(complete, '§1 every row has windows + failure classes + sources + recovery')
-  ok(DURABLE_OPERATION_MATRIX.length >= 18, `§1 matrix covers the load-bearing surface (${DURABLE_OPERATION_MATRIX.length} rows)`)
+  ok(DURABLE_OPERATION_MATRIX.length >= 13, `§1 matrix covers the load-bearing surface (${DURABLE_OPERATION_MATRIX.length} rows)`)
   ok(
     DURABLE_OPERATION_MATRIX.every(r => r.schemaOrEpoch.trim().length > 0),
     '§1b every row names its schema/epoch identity',
@@ -61,7 +61,7 @@ const repo = join(import.meta.dir, '..', '..')
   ok(unique, '§1c resource row ids are unique')
   ok(complete, '§1c every resource row declares writer + bound + reaper + preserves')
   ok(proofsExist, '§1c every resource proof file exists')
-  ok(RESOURCE_BOUNDS.length >= 12, `§1c the resource table covers the estate (${RESOURCE_BOUNDS.length} rows)`)
+  ok(RESOURCE_BOUNDS.length >= 11, `§1c the resource table covers the estate (${RESOURCE_BOUNDS.length} rows)`)
 }
 
 {

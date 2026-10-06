@@ -9,16 +9,14 @@
 # gate-watch: src/components/concourse/ConcourseRoute.tsx src/components/prompts-panel/PromptsPanel.tsx
 # gate-watch: src/components/prompts-panel/rows.ts src/ink/stringWidth.ts
 # gate-watch: src/keybindings/defaultBindings.ts src/services/concourse/concourseSnapshot.ts
-# gate-watch: src/services/crew/** src/services/resources/adapters/crew.ts
-# gate-watch: src/daemon/permissionAsks.ts src/daemon/controlServer.ts src/daemon/dispatchDrain.ts
+# gate-watch: src/services/crew/**
+# gate-watch: src/daemon/permissionAsks.ts src/daemon/controlServer.ts
 # gate-watch: src/services/resources/registry.ts src/utils/cockpit/helmConsole.ts
-# gate-watch: src/components/messages/AttachmentMessage.tsx src/components/messages/UserCrewmateMessage.tsx
-# gate-watch: src/components/messages/ShutdownMessage.tsx src/components/messages/TaskAssignmentMessage.tsx
-# gate-watch: src/components/mercury-ui/screens/CrewView.tsx src/services/coordination/coordinationService.ts
+# gate-watch: src/components/messages/AttachmentMessage.tsx
+# gate-watch: src/components/mercury-ui/screens/CrewView.tsx
 # gate-watch: src/tools/SendMessageTool/SendMessageTool.ts src/utils/messages/attachmentText.ts
-# gate-watch: src/utils/attachments/crewmates.ts src/utils/crew/crewClient.ts src/utils/tasks.ts
-# gate-watch: src/utils/crew/crewmateInit.ts src/utils/crew/inProcessRunner.ts
-# gate-watch: src/utils/crew/permissionSync.ts src/utils/crew/leaseGuard.ts
+# gate-watch: src/utils/tasks.ts
+# gate-watch: src/substrate/durableOperationMatrix.ts
 # gate-watch: src/rows/* src/runner/wire/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

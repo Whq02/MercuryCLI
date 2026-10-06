@@ -8,7 +8,6 @@ process.chdir(ROOT)
 const scratch = mkdtempSync(join(tmpdir(), 'description-offer-parity-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'config')
 process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
-process.env.MERCURY_CREWS_DIR = join(scratch, 'crews')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.BROWSER = '/usr/bin/true'
 delete process.env.MERCURY_HOME
@@ -52,7 +51,7 @@ for (const file of sources) {
 }
 for (const match of readFileSync(join(ROOT, 'src', 'tools', 'BrowserTool', 'BrowserTool.ts'), 'utf8').matchAll(/^  name: '([A-Za-z_]+)',$/gm)) universe.add(match[1]!)
 universe.delete('Chat')
-check('the wire-name universe was read from the tool constants', universe.size >= 60 && universe.has('TaskUpdate') && universe.has('Browser') && universe.has('LSP'), String(universe.size))
+check('the wire-name universe was read from the tool constants', universe.size >= 58 && universe.has('TaskUpdate') && universe.has('Browser') && universe.has('LSP'), String(universe.size))
 const multiWord = [...universe].filter(name => /[a-z][A-Z]/.test(name))
 const singleWord = [...universe].filter(name => !/[a-z][A-Z]/.test(name))
 const listTail = /^(?:\s*,\s*|\s+(?:or|and)\s+)((?:[A-Z][A-Za-z]+)(?:\s*,\s*[A-Z][A-Za-z]+)*(?:\s+(?:or|and)\s+[A-Z][A-Za-z]+)?)\s+tools?\b/

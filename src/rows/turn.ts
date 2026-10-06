@@ -295,7 +295,7 @@ export class Conversation {
     this.recordCursor = turnMessages.length
     if (pending.length === 0) return this.recordChain
     this.recordChain = this.recordChain.then(hint =>
-      recordTranscript(pending, undefined, (hint ?? undefined) as Parameters<typeof recordTranscript>[2], turnMessages).catch((error: unknown) => {
+      recordTranscript(pending, (hint ?? undefined) as Parameters<typeof recordTranscript>[1], turnMessages).catch((error: unknown) => {
         logError(error)
         return null
       }),

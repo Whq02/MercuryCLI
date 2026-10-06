@@ -15,15 +15,8 @@ import { logForDebugging } from '../utils/debug.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { flagEnv, flagPair } from '../substrate/flagRegistry.js'
 import { stampSpawnReceipt } from '../substrate/envStamps.js'
-import { isCrewDaemon } from './daemonFeatureGates.js'
 import { installStampedDaemonLog, stampDaemonLogLine } from './daemonLogStamp.js'
 import { runTaskHeadless, buildHeadlessPrompt, getRunTimeoutMs, scrubDaemonRoleEnv } from './headlessRun.js'
-import { CREW, crewEnabled, crewMemberModel, makeCrewSpawnHandler, makeCrewWakeRoster } from './crewSpawn.js'
-import { crewSeatPausedLine, crewSeatPauseOf, crewSeatResumedLine, crewSeatResumeRow, crewSeatWindowOf, type CrewSeatWindow } from './crewSeatPause.js'
-import { isOutcomeRow } from './longLivedRespawn.js'
-import type { LooseRow } from '../rows/read.js'
-import { CREW_LEAD_NAME } from '../utils/crew/constants.js'
-import { readCrewFileAsync } from '../utils/crew/crewHelpers.js'
 import {
   concourseWorkersPath,
   listConcourseWorkers,
@@ -103,7 +96,6 @@ import {
   type OwnerPipeHandleV1,
   type OwnerWatchHandleV1,
 } from './ownerWatch.js'
-import { armDispatchDrain, type DispatchDrainHandle } from './dispatchDrain.js'
 import { startControlServer, type ControlServerHandle } from './controlServer.js'
 import { tokenBinding, type ProcessSweepDaemonAnswer, type ProcessSweepRunnerRecord } from './processSweep.js'
 import { recordProcessCensusAtBoot, sweepRunnerRecord } from './processSweepRun.js'
@@ -290,9 +282,6 @@ async function daemonRun(args: string[]): Promise<void> {
   if (scrubbed.length > 0) {
     logForDebugging(`[daemon] scrubbed inherited role env (daemon runs role-free): ${scrubbed.join(', ')}`)
   }
-  if (isCrewDaemon()) {
-    logForDebugging('[daemon] crew-host posture (MERCURY_DAEMON_CREW=1 — spawned by a /crewmates engage)')
-  }
   const lockIdentity = `daemon-${randomUUID()}`
 
   const breaker = new DaemonBreaker()
@@ -300,12 +289,6 @@ async function daemonRun(args: string[]): Promise<void> {
   {
     const { runBootRecovery } = await import('../substrate/recoveryOrchestrator.js')
     const rec = await runBootRecovery({ scope: 'daemon', projectDir: dir })
-    const crew = rec.crewJournal
-    if (crew && crew.rolledForward.length + crew.compensated.length > 0) {
-      logForDebugging(
-        `[daemon] crew journal recovery: ${crew.rolledForward.length} rolled forward, ${crew.compensated.length} compensated`,
-      )
-    }
     for (const err of rec.errors) logForDebugging(`[daemon] boot recovery: ${err}`)
   }
   try {
@@ -352,8 +335,6 @@ async function daemonRun(args: string[]): Promise<void> {
   let stopSessionlessBeat: (() => void) | null = null
   let stopSaturnTicker: (() => void) | null = null
   let roster: TaskRoster | null = null
-  const dispatchDrains: DispatchDrainHandle[] = []
-  const idleNudges = new Map<string, () => void>()
   let ownerWatch: OwnerWatchHandleV1 | undefined
   let ownerPipe: OwnerPipeHandleV1 | undefined
   let currentOwnerPid = parseOwnerPid()
@@ -423,7 +404,6 @@ async function daemonRun(args: string[]): Promise<void> {
         maxInflight: MAX_INFLIGHT,
         onAsk: (short, params) => holdWorkerAsk(short, params),
         onRow: (short, row) => {
-          if (roster !== null && crewDrains.has(short)) onCrewSeatRow(short, row)
           if (!short.startsWith('concourse-w') || roster === null) return
           onSeatRow(short, row, roster)
         },
@@ -432,7 +412,6 @@ async function daemonRun(args: string[]): Promise<void> {
           onSeatApplied(short, params, roster)
         },
         onChildRelaunched: short => {
-          if (crewDrains.has(short)) liftCrewSeatPause(short)
           if (!short.startsWith('concourse-w') || roster === null) return
           onSeatSpawned(short, roster)
         },
@@ -451,7 +430,6 @@ async function daemonRun(args: string[]): Promise<void> {
           }
         },
         onIdle: short => {
-          idleNudges.get(short)?.()
           if (short.startsWith('concourse-w') && roster !== null) {
             if (completeRequestedPark(short, roster)) {
               // eslint-disable-next-line no-console
@@ -507,91 +485,6 @@ async function daemonRun(args: string[]): Promise<void> {
             : { ok: false, error: out.detail ?? out.reason, reason: out.reason }
         },
       })
-      const crewDrains = new Map<string, DispatchDrainHandle>()
-      const crewWindows = new Map<string, CrewSeatWindow>()
-      const crewPauseTimers = new Map<string, ReturnType<typeof setTimeout>>()
-      const liftCrewSeatPause = (short: string): void => {
-        const timer = crewPauseTimers.get(short)
-        if (timer !== undefined) clearTimeout(timer)
-        crewPauseTimers.delete(short)
-        crewWindows.delete(short)
-        roster?.setSeatPause(short, undefined)
-      }
-      const resumeCrewSeat = async (short: string, accountChanged: boolean): Promise<void> => {
-        const r = roster
-        if (!r || r.seatPause(short) === undefined) return
-        liftCrewSeatPause(short)
-        const delivered = await r.reply(short, crewSeatResumeRow(accountChanged))
-        if (delivered) logForDebugging(crewSeatResumedLine(short, accountChanged))
-        else logForDebugging(`[daemon] crew seat @${short} was paused but is not live — nothing to resume`)
-      }
-      const onCrewSeatRow = (short: string, frame: LooseRow): void => {
-        const r = roster
-        if (!r) return
-        const window = crewSeatWindowOf(frame)
-        if (window !== null) {
-          if (window.rejected) crewWindows.set(short, window)
-          else crewWindows.delete(short)
-          return
-        }
-        if (!isOutcomeRow(frame)) return
-        const pause = crewSeatPauseOf(frame, crewWindows.get(short), r.currentLongLivedModel(short) ?? 'the seat')
-        crewWindows.delete(short)
-        if (pause === null) return
-        liftCrewSeatPause(short)
-        r.setSeatPause(short, pause)
-        logForDebugging(crewSeatPausedLine(short, pause))
-        if (pause.resumesAtMs !== undefined) {
-          const timer = setTimeout(() => {
-            void resumeCrewSeat(short, false)
-          }, Math.max(1_000, pause.resumesAtMs - Date.now() + 1_000))
-          timer.unref?.()
-          crewPauseTimers.set(short, timer)
-        }
-      }
-      const resumePausedCrewSeatsOnSignIn = (): void => {
-        const r = roster
-        if (!r) return
-        for (const job of r.list()) {
-          if (job.outcome === undefined && crewDrains.has(job.short) && r.seatPause(job.short) !== undefined) void resumeCrewSeat(job.short, true)
-        }
-      }
-      const armCrewDrain = (name: string): void => {
-        const r = roster
-        if (!r || crewDrains.has(name)) return
-        const handle = armDispatchDrain(
-          makeCrewWakeRoster(r, { port: () => roster ?? undefined, spawn: (short, modelKey) => crewSpawnHandler(short, modelKey), modelOf: crewMemberModel }),
-          {
-            short: name,
-            agentName: name,
-            crewName: CREW,
-            hasSeen: id => r.hasSeenDispatch(name, id),
-            markSeen: id => r.markSeenDispatch(name, id),
-          },
-        )
-        crewDrains.set(name, handle)
-        dispatchDrains.push(handle)
-        idleNudges.set(name, () => handle.drain())
-      }
-      const crewSpawnHandler = makeCrewSpawnHandler({
-        roster: () => roster ?? undefined,
-        dir,
-        onSpawned: (name, spec, pid) => {
-          armCrewDrain(name)
-          crewDrains.get(name)?.drain()
-          // eslint-disable-next-line no-console
-          console.error(`[daemon] crew crewmate spawned: @${name} (pid ${pid}) — ${spec.model}@${spec.effort}, crew crew, auto+recon posture`)
-        },
-      })
-      const armOfflineCrewDrains = async (): Promise<void> => {
-        const r = roster
-        if (!r || !crewEnabled()) return
-        const crew = await readCrewFileAsync(CREW).catch(() => null)
-        for (const member of crew?.members ?? []) {
-          if (member.name === CREW_LEAD_NAME || crewDrains.has(member.name) || r.has(member.name).alive) continue
-          armCrewDrain(member.name)
-        }
-      }
       const liveWorkers = (): { live: number; liveSessions: number } => {
         if (!roster) return { live: 0, liveSessions: 0 }
         const warm = new Set(warmRunnerShorts())
@@ -673,8 +566,6 @@ async function daemonRun(args: string[]): Promise<void> {
         controlKey,
         isReady: () => ready,
         whenReady: () => readyPromise,
-        nudgeAgent: agentName => idleNudges.get(agentName)?.(),
-        crewSpawn: (...args) => countBirth(() => crewSpawnHandler(...args)),
         concourseAdmit: (...args) => countBirth(() => concourseAdmitHandler(...args)),
         concourseDispatch: (...args) => countBirth(() => concourseDispatchHandler(...args)),
         concourseWithdraw: clientMessageId => concourseDispatchHandler.withdraw(clientMessageId),
@@ -949,7 +840,7 @@ async function daemonRun(args: string[]): Promise<void> {
             if (action === 'grant-workflows' && out.outcome === 'applied' && roster !== null) {
               const r = roster
               void buildConcoursePromptRow(
-                '[switchboard notice] The workflows-allowed tag just landed on this session — delegation tools (subagents and workflows) are available from your next turn. Automated notice; no reply needed.',
+                '[switchboard notice] The workflows-allowed tag just landed on this session — delegation tools (crewmates and workflows) are available from your next turn. Automated notice; no reply needed.',
               )
                 .then(row => r.reply(rec.runnerId, row))
                 .catch(() => {})
@@ -1043,7 +934,6 @@ async function daemonRun(args: string[]): Promise<void> {
             const told = relayCredentialChange(roster)
             for (const short of told) requestSessionFacts(short, roster, { immediate: true })
             if (told.length > 0) logForDebugging(`[daemon] a credential moved in the screen: told ${told.length} runner(s) to read the account again — ${told.join(', ')}`)
-            resumePausedCrewSeatsOnSignIn()
           }
           return view
         },
@@ -1358,7 +1248,6 @@ async function daemonRun(args: string[]): Promise<void> {
       }
       ready = true
       wakeReady()
-      void armOfflineCrewDrains()
       // eslint-disable-next-line no-console
       console.error('[daemon] control socket up — RPC: list/has/status/dispatch/reply/kill/shutdown')
       stopSaturnTicker = startSaturnTicker(
@@ -1498,14 +1387,6 @@ async function daemonRun(args: string[]): Promise<void> {
       logForDebugging(`[daemon] received ${signal}, shutting down`)
       // eslint-disable-next-line no-console
       console.error(`[daemon] ${signal} — shutting down`)
-      for (const d of dispatchDrains.splice(0)) {
-        try {
-          d.dispose()
-        } catch (e) {
-          logForDebugging(`[daemon] drain dispose failed (ignored): ${e}`)
-        }
-      }
-      idleNudges.clear()
       ownerWatch?.stop()
       ownerWatch = undefined
       ownerPipe?.close()

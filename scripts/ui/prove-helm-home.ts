@@ -100,7 +100,7 @@ check('S8: CREW sources the projected roster through the crew predicate (the pro
   /useSessionCrew\(\)/.test(lanes) &&
     /crewAgentsOf\(projectWorkRoster\(kept\), sessionId\)/.test(crewLedgerSrc) &&
     workRosterSrc.includes("if (task.agentType === 'main-session') continue") &&
-    /return row\.kind === 'agent' \|\| row\.kind === 'crewmate'/.test(crewFactsSrc))
+    /return row\.kind === 'agent'$/m.test(crewFactsSrc))
 check("CREW joins the focused session's hosted agents from the work roster (one owner; the counting law's predicate), keeps every crewmate the session has had — never filtered to the running ones — and pulls the viewed or pinned row into the cap",
   /crewAgentsOf\(roster\.rows, sessionId\)/.test(crewLedgerSrc) && !/\.filter\(f => f\.running/.test(lanes) && /keptIds\.includes\(c\.id\)/.test(lanes) && /running: workRowRuns\(row\)/.test(crewFactsSrc))
 check('a hosted CREW row opens the agent in the view (the crewmate road), never a /runs command',
@@ -111,15 +111,15 @@ check('no TASKS card: the rail builds no ledger section or rows of its own',
   !/section\('tasks'/.test(lanes) && !/missionNodes/.test(lanes) && !/'TASKS'/.test(lanes) && !/no open tasks/.test(lanes))
 check('RUNS is the one rail door to the /runs board (header opens /runs)',
   /key: 'runs', glyph: GLYPH\.turns, label: 'RUNS', count: `\$\{runsLive\} live`, open: '\/runs', rows/.test(lanes))
-check('a ledger alone never forces the busy layout (the solo gate reads crew, the viewed or pinned crewmate, runs and daemon crew only — no peers term)',
-  /return input\.sessionCrew\.length === 0 && keptIds\.length === 0 && runsOf\(input\.tasks, input\.roster\)\.length === 0 && input\.daemonCrew\.length === 0/.test(lanes) && !/ledgerOpen/.test(lanes) && !/peers\.length/.test(lanes))
+check('a ledger alone never forces the busy layout (the solo gate reads crew, the viewed or pinned crewmate and runs only — no peers term)',
+  /return input\.sessionCrew\.length === 0 && keptIds\.length === 0 && runsOf\(input\.tasks, input\.roster\)\.length === 0/.test(lanes) && !/ledgerOpen/.test(lanes) && !/peers\.length/.test(lanes))
 check('S4: the dead selectedCaret/focus path is removed from the rail',
   !/selectedCaret/.test(lanes) && !/onCursorMax/.test(lanes))
 
 check('RUNS: kind derives from the task shape (isLocalShellTask + kind monitor)',
   /isLocalShellTask\(t\)/.test(lanes) && /'monitor' \? 'monitor' : 'shell'/.test(lanes))
 check('RUNS: agent tasks are excluded (they live in CREW)',
-  /!isLocalAgentTask\(t\) && !isInProcessCrewmateTask\(t\)/.test(lanes))
+  /!isLocalAgentTask\(t\)/.test(lanes))
 check('RUNS: running rows rotate (glyphLive → WorkingGlyph in RailRow)',
   /glyphLive: live,/.test(lanes) && /glyphLive=\{spec\.glyphLive\}/.test(lanes) && /glyphLive \? \(\s*<WorkingGlyph color=\{glyphColor\} active \/>/m.test(lanes))
 check('RUNS: verb carries kind + live elapsed (formatSpan)',
@@ -133,7 +133,7 @@ check('RUNS: elapsed floors on a stamped start (never an epoch span)',
 check('MoreRow has click parity (requestHelmRowActivation on click)',
   /function MoreRow\([\s\S]{0,900}requestHelmRowActivation\('lanes', rowIndex\)/.test(lanes))
 check('RUNS: a live run is never "solo" (runsAll gates the empty-state)',
-  /runsOf\(input\.tasks, input\.roster\)\.length === 0 &&/.test(lanes))
+  /runsOf\(input\.tasks, input\.roster\)\.length === 0/.test(lanes))
 check('RUNS: elapsed stays honest while runs live (the 15s tick arms on runsLive)',
   /useNowTick\(\s*mergedTelemetry \|\| model\.runsLive > 0 \? 15_000 : null,?\s*\)/.test(lanes))
 check('CREW: running agent rows rotate too (one liveness grammar; an idle crewmate, the viewed ◉ and main-chat ★ marks stand still)',

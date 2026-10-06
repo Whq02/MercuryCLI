@@ -140,7 +140,6 @@ async function runProduct(road: Road, emptyTries: number, mode: Mode): Promise<R
     TERM: 'xterm-256color',
     MERCURY_CONFIG_DIR: config,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_HOME: join(home, 'product-home'),
     MERCURY_HEALTH_STATE_DIR: join(home, 'health-state'),
     MERCURY_CREDENTIAL_STORE: 'file',

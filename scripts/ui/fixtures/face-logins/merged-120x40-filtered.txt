@@ -12,19 +12,19 @@
    │ moodle                                                         │  │ ❯ moodle                                   │
    │   moodle groundwork                                  1 day ago │  │                                            │
    │                                                                │  │ repo: moodle                               │
-   │ router crews                                                   │  │ dir: /repo/moodle                          │
-   │   party · dps1 — dps1                           40 minutes ago │  │ last session: 26h ago                      │
-   │                                                                │  │                                            │
-   │ projects                                                       │  │ highlighted: the sessions above show       │
-   │   orchard-src                                   2m · 2 running │  │ this repo alone (↑ walks back out)         │
+   │ projects                                                       │  │ dir: /repo/moodle                          │
+   │   orchard-src                                   2m · 2 running │  │ last session: 26h ago                      │
    │ ❯ moodle                                                   26h │  │                                            │
-   ╰────────────────────────────────────────────────────────────────╯  │ ↵ opens the newest chat there as the       │
+   ╰────────────────────────────────────────────────────────────────╯  │ highlighted: the sessions above show       │
+                                                                       │ this repo alone (↑ walks back out)         │
+                                                                       │                                            │
+                                                                       │ ↵ opens the newest chat there as the       │
                                                                        │ … (the trail continues — a taller termina… │
                                                                        ╰────────────────────────────────────────────╯
                                                                        ╭────────────────────────────────────────────╮
                                                                        │ SESSIONS · PROJECTS                        │
                                                                        │ Scope      all history — every project     │
-                                                                       │ Sessions   1 · 1 crew                      │
+                                                                       │ Sessions   1                               │
                                                                        │ Repos      2                               │
                                                                        │ Opens      ● a real chat, in place         │
                                                                        ╰────────────────────────────────────────────╯
@@ -35,6 +35,6 @@
                                                                        │ Dir        orchard-src                     │
                                                                        ╰────────────────────────────────────────────╯
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  1 session in 'moodle' (filtered) · 1 crew · ↵ opens the real chat                           │
+   │ ● System ready  │  1 session in 'moodle' (filtered) · ↵ opens the real chat                                    │
    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
                     ↑↓ move · ↵ open · n new session · d prune · a this project · ⇥ repos · esc back

@@ -14,7 +14,6 @@ const HERMETIC = mkdtempSync(join(tmpdir(), 'native-core-boot-'))
 process.env.MERCURY_PROFILE_STARTUP = '1'
 process.env.MERCURY_CONFIG_DIR = join(HERMETIC, 'config')
 process.env.MERCURY_DAEMON_DIR = join(HERMETIC, 'daemon')
-process.env.MERCURY_CREWS_DIR = join(HERMETIC, 'crews')
 for (const k of ['MERCURY_HOME', 'MERCURY_ENTER_MENU']) {
   delete process.env[k]
 }
@@ -621,7 +620,7 @@ function staticImports(src: string): {
     calls.push({ root, element })
   }
 
-  const initialState = { crewContext: undefined, __t15: 'state-1' }
+  const initialState = { __t15: 'state-1' }
   const root = { __t15root: true }
   const chatProps = { __t15repl: true }
   const realSetTimeout = globalThis.setTimeout
@@ -669,25 +668,12 @@ function staticImports(src: string): {
     (routed?.children?.props as { __t15repl?: boolean })?.__t15repl === true,
   )
   check('launch: root forwarded untouched', (calls[0]?.root as { __t15root?: boolean })?.__t15root === true)
-  const forwarded = (el?.props?.initialState ?? {}) as Record<string, unknown> & { crewContext?: { crewName?: string; isLeader?: boolean; crewmates?: Record<string, unknown> } }
+  const forwarded = (el?.props?.initialState ?? {}) as Record<string, unknown>
   check(
-    'launch: empty home ⇒ every field of initialState is forwarded by REFERENCE and no led-crew projection is fabricated — only the session\'s born crew (no crewmates) is added',
-    Object.keys(initialState as Record<string, unknown>).every(key => key === 'crewContext' || forwarded[key] === (initialState as Record<string, unknown>)[key]) &&
-      forwarded.crewContext?.isLeader === true &&
-      Object.keys(forwarded.crewContext?.crewmates ?? { x: 1 }).length === 0,
-  )
-
-  const preset = { crewContext: { crewName: '__t15-preset' }, __t15: 'state-2' }
-  await launchChat(
-    root as never,
-    { getFpsMetrics: () => undefined, initialState: preset as never },
-    chatProps as never,
-    fakeRender as never,
-  )
-  const el2 = calls[1]?.element as never as { props: { initialState?: { crewContext?: { crewName?: string } } } }
-  check(
-    'launch: a pre-set crewContext is forwarded unchanged',
-    el2?.props?.initialState?.crewContext?.crewName === '__t15-preset',
+    'launch: empty home ⇒ every field of initialState is forwarded by REFERENCE and nothing is added — no crew projection, no born crew',
+    Object.keys(initialState as Record<string, unknown>).every(key => forwarded[key] === (initialState as Record<string, unknown>)[key]) &&
+      Object.keys(forwarded).every(key => key in (initialState as Record<string, unknown>)),
+    JSON.stringify(Object.keys(forwarded)),
   )
 }
 
@@ -708,23 +694,8 @@ function staticImports(src: string): {
       launcherSrc.indexOf('await renderAndRun(') > launcherSrc.indexOf('} catch {'),
   )
   check(
-    'recovery: the projection seed never overrides an existing crewContext',
-    launcherSrc.includes('report?.leaderProjection && !appProps.initialState.crewContext'),
-  )
-  const appSrc = readFileSync(join(SRC, 'components/App.tsx'), 'utf8')
-  check(
-    'recovery: App mounts the late-projection seed inside AppStateProvider',
-    /<AppStateProvider[^>]*><LateBootProjectionSeed \/>/.test(appSrc),
-  )
-  check(
-    'recovery: the late seed subscribes to the boot-recovery store and applies on done',
-    appSrc.includes('subscribeBootRecovery(') &&
-      appSrc.includes('getBootRecovery()') &&
-      appSrc.includes("if (s.phase !== 'done') return false"),
-  )
-  check(
-    'recovery: the late seed keeps the never-override guard — only a born crew with no crewmates yields to a late led-crew projection',
-    appSrc.includes('prev.crewContext && !isBornCrewWithoutCrewmates(prev.crewContext) ? prev :'),
+    'recovery: no projection seed — the launcher reads no leaderProjection and App mounts no late seed',
+    !launcherSrc.includes('leaderProjection') && !readFileSync(join(SRC, 'components/App.tsx'), 'utf8').includes('LateBootProjectionSeed'),
   )
 }
 

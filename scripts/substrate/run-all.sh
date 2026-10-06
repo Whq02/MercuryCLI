@@ -10,7 +10,7 @@
 # gate-watch: src/tools/FileEditTool/constants* src/tools/FileReadTool/prompt*
 # gate-watch: src/tools/FileWriteTool/prompt* src/tools/NotebookEditTool/constants*
 # gate-watch: src/tools/ScheduleCronTool/prompt* src/tools/ToolSearchTool/prompt*
-# gate-watch: src/tools/WorkflowTool/** src/tools/shared/spawnMultiAgent* src/utils/**
+# gate-watch: src/tools/WorkflowTool/** src/utils/**
 # gate-watch: assets/splash/mercury-splash.mjs assets/splash/splash-core.mjs package.json src/* src/*.ts
 # gate-watch: src/bootstrap/runtime/posture.ts src/cli/run.ts src/cli/update.ts src/commands/daemon/index.ts
 # gate-watch: src/commands/effectiveCatalogue.ts src/commands/feedback/index.ts src/commands/health/index.ts
@@ -19,7 +19,7 @@
 # gate-watch: src/components/mercury-ui/parity/DaemonView.tsx
 # gate-watch: src/components/messages/SystemTextMessage.tsx src/context/stats.tsx src/entrypoints/mcp.ts
 # gate-watch: src/prompt/behaviourContract.ts src/prompt/mercuryContract.ts
-# gate-watch: src/screens/Chat.tsx src/services/compact/* src/services/coordination/coordinationService.ts
+# gate-watch: src/screens/Chat.tsx src/services/compact/*
 # gate-watch: src/services/gitGraph/observe.ts src/services/primitives/executionPlane.ts
 # gate-watch: src/services/projectIntel/snapshot.ts src/services/providers/anthropic/requestParams.ts
 # gate-watch: src/services/providers/deferralWire.ts src/services/providers/routeLaw.ts
@@ -27,9 +27,8 @@
 # gate-watch: src/services/workbench/projection.ts src/state/telemetryBus.ts
 # gate-watch: src/tasks/LocalWorkflowTask/LocalWorkflowTask.tsx src/tools/BashTool/BashTool.tsx
 # gate-watch: src/tools/LSPTool/LSPTool.ts src/tools/ScheduleWakeupTool/prompt.ts
-# gate-watch: src/tools/SendMessageTool/SendMessageTool.ts src/tools/LiveCommsTool/LiveCommsTool.ts
-# gate-watch: src/utils/crew/crewBirth.ts src/chatLauncher.tsx
-# gate-watch: src/services/crew/liveComms* src/services/crew/liveMessages*
+# gate-watch: src/tools/SendMessageTool/SendMessageTool.ts
+# gate-watch: src/chatLauncher.tsx
 # gate-watch: src/types/command.ts src/services/privateChannel/installPath.ts
 # gate-watch: src/utils/timeouts.ts src/utils/shell/outputLimits.ts src/utils/managedEnvConstants.ts
 # gate-watch: src/utils/subprocessEnv.ts src/tools/AgentTool/reviewerPolicy.ts
@@ -49,18 +48,12 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-filestore.ts" || { __rc=$?; fail=1
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-filestore-ordering.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-filestore-ordering.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-trace-chip-states.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-trace-chip-states.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-prompt-draft.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-prompt-draft.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-lead-crew-identity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-lead-crew-identity.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-classifier-prompt.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-classifier-prompt.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-filestore-subscribe.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-filestore-subscribe.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-filestore-stat-gate.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-filestore-stat-gate.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-gauge-owners.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-gauge-owners.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-coordination-service.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-coordination-service.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-coordination-livecomms.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-coordination-livecomms.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-coordination-solo.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-coordination-solo.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-pidlock.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-pidlock.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-mailbox-reaper.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-mailbox-reaper.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-flag-registry.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-flag-registry.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-old-env-spellings-unread.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-old-env-spellings-unread.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-env-names.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-env-names.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-env-switches.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-env-switches.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-prompt-provenance.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-prompt-provenance.ts" "$__t" "$__rc"
@@ -76,9 +69,6 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-breaker.ts" || { __rc=$?; f
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-breaker-timeout.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-breaker-timeout.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-mcp-policy.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-mcp-policy.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-mcp-instr-delta.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-mcp-instr-delta.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-coordination-server.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-coordination-server.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-lease-guard.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-lease-guard.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-crew-roster-lock.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-crew-roster-lock.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-mc-digest.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-mc-digest.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-fgts-carve.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-fgts-carve.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-glob-env-toggles.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-glob-env-toggles.ts" "$__t" "$__rc"
@@ -86,9 +76,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-tool-defer-carve.ts" || { __rc=$?;
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-verbatim-tail.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-verbatim-tail.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-away-summary.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-away-summary.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-cache-stability.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-cache-stability.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-handoff-summary.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-handoff-summary.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-artifacts-redaction.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-artifacts-redaction.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-shutdown-authority.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shutdown-authority.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-compaction-trace.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-compaction-trace.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-snapshot.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-snapshot.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-view.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-view.ts" "$__t" "$__rc"
@@ -112,7 +100,6 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-live-e2e-hermetic.ts" || { __rc=$?
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-friction-stopwatch.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-friction-stopwatch.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-health-self-recognition.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-health-self-recognition.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-headless-one-shot-roster.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-headless-one-shot-roster.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-bus-envelopes.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-bus-envelopes.ts" "$__t" "$__rc"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL SUBSTRATE PROOFS PASS"; else echo "# ❌ SOME SUBSTRATE PROOFS FAILED"; fi
 echo "############################################################"

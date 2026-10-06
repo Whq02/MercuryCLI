@@ -55,7 +55,7 @@ export function buildSubagentMercurySections(args: {
   seat?: MercuryAgentSeat
 }): string[] {
 
-  const { agentDefinition, seat = 'a sub-agent' } = args
+  const { agentDefinition, seat = 'a crewmate' } = args
 
   const exempt = isFixedOutputAgent(agentDefinition)
 

@@ -413,7 +413,6 @@ function driveEnv(home: string, base: string): Record<string, string> {
   return {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_CREDENTIAL_STORE: 'file',
     ANTHROPIC_BASE_URL: base,
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,

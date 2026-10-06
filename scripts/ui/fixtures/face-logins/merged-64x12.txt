@@ -5,7 +5,7 @@
   the tool-loop fold   2 minutes ago
 ❯ concourse polish     3 hours ago · cleared
 moodle
-↓ 8 more
+↓ 6 more
 
 sessions · projects wants at least 64×13 · this window is 6…
 ↑↓ move · ↵ open · n new session · d prune · a this project · ⇥ repos · esc back

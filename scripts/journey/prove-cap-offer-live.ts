@@ -157,7 +157,6 @@ const childEnv: NodeJS.ProcessEnv = {
   MERCURY_VERIFY_EVIDENCE: '0',
   MERCURY_HEALTH_STATE_DIR: path.join(RUN_HOME, 'health-state'),
   MERCURY_DAEMON_DIR: path.join(RUN_HOME, 'daemon'),
-  MERCURY_CREWS_DIR: path.join(RUN_HOME, 'crews'),
   MERCURY_HOME: path.join(RUN_HOME, 'proof-home'),
   MERCURY_FAILOVER_LINE_MS: String(LANE_LINE_MS),
   MERCURY_CONNECTOR_TRACE: path.join(RUN_HOME, 'connector-trace.jsonl'),

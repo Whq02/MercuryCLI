@@ -118,7 +118,7 @@ function LiveSessionManager({
   const [switching, setSwitching] = useState<'swapping' | null>(null)
   const switchGenRef = useRef(0)
   const [scope, setScope] = useState<SessionScope>(initialScope)
-  const { logs, pendingMore, flat, crew, elsewhereCount, dropSessions } = useSessionPickerModel(scope)
+  const { logs, pendingMore, flat, elsewhereCount, dropSessions } = useSessionPickerModel(scope)
   const [confirmingKey, setConfirmingKey] = useState<string | null>(null)
   const [prune, setPrune] = useState<
     | { stage: 'card'; offer: PruneOffer; answer: 'no' | 'yes' }
@@ -130,31 +130,23 @@ function LiveSessionManager({
   const pastOpenEvent = useOpenEventGate()
 
   const WINDOW = 8
-  const CREW_CAP = 4
-  const crewShown = crew.slice(0, CREW_CAP)
-  const crewHidden = crew.length - crewShown.length
   const navKeys = useMemo(
     () => [
       ...flat.map(f => `s:${sessionIdOfListing(f.row.log) ?? `${f.project}:${f.row.label}`}`),
-      ...crewShown.map(c => `c:${c.tag}:${c.label}`),
     ],
-    [flat, crewShown],
+    [flat],
   )
   const stable = useStableSelection(navKeys, k => k)
   const sel = stable.index
-  const navLen = flat.length + crewShown.length
+  const navLen = flat.length
   const confirmingResolved = confirmingKey === null ? -1 : navKeys.indexOf(confirmingKey)
   const confirming: number | null = confirmingResolved >= 0 ? confirmingResolved : null
   const { start: winStart, end: winEnd } = computeSessionWindow(sel, flat.length, WINDOW)
   const shown = flat.slice(winStart, winEnd)
   const newerHidden = winStart
   const olderHidden = flat.length - winEnd
-  const targetAt = (i: number): SessionListing | null =>
-    i < flat.length ? (flat[i]?.row.log ?? null) : (crewShown[i - flat.length]?.log ?? null)
-  const targetLabel = (i: number): string =>
-    i < flat.length
-      ? (flat[i]?.row.label ?? '')
-      : `${crewShown[i - flat.length]?.tag ?? ''} — ${crewShown[i - flat.length]?.label ?? ''}`
+  const targetAt = (i: number): SessionListing | null => flat[i]?.row.log ?? null
+  const targetLabel = (i: number): string => flat[i]?.row.label ?? ''
   const moveTo = (i: number): void => {
     stable.select(Math.max(0, Math.min(i, Math.max(0, navLen - 1))))
     setConfirmingKey(null)
@@ -476,9 +468,7 @@ function LiveSessionManager({
           hint={
             scope === 'project' && elsewhereCount > 0
               ? `n starts a fresh session in-place · ${elsewhereCount} in other projects — a shows them`
-              : crewShown.length > 0
-                ? 'n starts a fresh session in-place · ↑↓ reaches the router-crew transcripts below'
-                : 'n starts a fresh session in-place · this is the only open session'
+              : 'n starts a fresh session in-place · this is the only open session'
           }
         />
       ) : (
@@ -543,42 +533,6 @@ function LiveSessionManager({
 }
       {scope === 'project' && flat.length > 0 && elsewhereCount > 0 ? (
         <Text color={FAINT}>  +{elsewhereCount} in other projects — a shows all history</Text>
-      ) : null}
-
-      {
-}
-      {crewShown.length > 0 ? (
-        <>
-          <SectionHeader count={crew.length}>Router crews</SectionHeader>
-          {crewShown.map((c, ci) => {
-            const i = flat.length + ci
-            const on = i === sel
-            const crewKey = navKeys[i] ?? `crew-${ci}`
-            return (
-              <InteractiveRow
-                key={crewKey}
-                id={`sessions-live:crew:${crewKey}`}
-                selected={on}
-                onSelect={() => moveTo(i)}
-                onActivate={() => setConfirmingKey(navKeys[i] ?? null)}
-              >
-              {hover => (
-              <Box backgroundColor={on ? tokens.selectionBand : hover ? tokens.surface2 : undefined}>
-                <Text wrap="truncate-end">
-                  <Text color={on ? tokens.success : tokens.textMuted}>{on ? ' ▸ ' : '   '}</Text>
-                  <Text color={on ? tokens.textPrimary : tokens.textSecondary}>{padTo(c.tag, 22)}</Text>
-                  <Text color={tokens.textMuted}>{truncateToWidth(c.label, 34)}</Text>
-                  <Text color={tokens.textMuted}> · {c.seen}</Text>
-                </Text>
-              </Box>
-              )}
-              </InteractiveRow>
-            )
-          })}
-          {crewHidden > 0 ? (
-            <Text color={FAINT}>  +{crewHidden} more crew transcripts (newest {CREW_CAP} shown)</Text>
-          ) : null}
-        </>
       ) : null}
 
       {}

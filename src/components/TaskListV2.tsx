@@ -6,13 +6,6 @@ import { Box, Text } from '../ink.js'
 import { stringWidth } from '../ink/stringWidth.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { useAppState } from '../state/AppState.js'
-import {
-  isInProcessCrewmateTask,
-  type InProcessCrewmateTaskState,
-} from '../tasks/InProcessCrewmateTask/types.js'
-import { describeCrewmateActivity } from './tasks/taskStatusUtils.js'
-import { isCrewEnabled } from '../utils/crewEnabled.js'
-import { toInkColor } from '../utils/ink.js'
 import { isTaskToolsEnabled } from '../utils/tasks.js'
 
 export type TaskRowV2 = { id: string; status: 'pending' | 'in_progress' | 'completed'; subject: string; blockedBy?: readonly string[]; owner?: string }
@@ -35,7 +28,6 @@ export function TaskListV2({
   isStandalone?: boolean
 }): React.ReactNode {
   const { rows, columns } = useTerminalSize()
-  const appTasks = useAppState(state => state.tasks)
   const [, forceRender] = useState(0)
 
   const completedAtRef = useRef(new Map<string, number>())
@@ -90,26 +82,9 @@ export function TaskListV2({
 
   if (!isTaskToolsEnabled() || tasks.length === 0) return null
 
-  const crewOn = isCrewEnabled()
   const ownerColors = new Map<string, string>()
   const ownerActivities = new Map<string, string>()
   const runningOwners = new Set<string>()
-  const crewmateTasks = Object.values(appTasks ?? {}).filter(
-    isInProcessCrewmateTask,
-  ) as InProcessCrewmateTaskState[]
-  for (const crewmate of crewmateTasks) {
-    const name = crewmate.identity.agentName
-    if (crewOn && crewmate.identity.color) {
-      ownerColors.set(name, toInkColor(crewmate.identity.color) as string)
-    }
-    if (!crewmate.isIdle) {
-      const activity = describeCrewmateActivity(crewmate)
-      ownerActivities.set(name, activity)
-      ownerActivities.set(crewmate.identity.agentId, activity)
-      runningOwners.add(name)
-      runningOwners.add(crewmate.identity.agentId)
-    }
-  }
 
   const byStatus = (task: TaskRowV2): 'completed' | 'in_progress' | 'pending' =>
     task.status

@@ -13,7 +13,6 @@ const home = join(root, 'home')
 mkdirSync(join(home, 'projects', 'proof'), { recursive: true })
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_DAEMON_DIR = join(home, 'daemon')
-process.env.MERCURY_CREWS_DIR = join(home, 'crews')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }

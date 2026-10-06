@@ -161,7 +161,7 @@ function MercuryHomeBody(): React.ReactNode {
   const branch = git?.data.git?.branchName
   const gitState = git == null ? '…' : git.data.git == null ? 'no git' : git.data.git.isClean ? 'clean' : 'uncommitted'
 
-  const agents = fleet?.state === 'live' ? fleet.data.health.length : 0
+  const agents = 0
   const traceCount = trace?.state === 'live' ? trace.data.total : 0
 
   return (

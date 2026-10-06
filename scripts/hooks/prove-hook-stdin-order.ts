@@ -34,7 +34,6 @@ const families: Array<{ event: string; fields: Record<string, unknown>; expected
   { event: 'FileChanged', fields: { file_path: '/a/b/c.txt', event: 'change' }, expected: [...baseOrder, 'hook_event_name', 'file_path', 'event'] },
   { event: 'Interrupt', fields: { turn_id: 't1', reason: 'cut' }, expected: [...baseOrder, 'hook_event_name', 'turn_id', 'reason'] },
   { event: 'WorktreeCreate', fields: { name: 'wt' }, expected: [...baseOrder, 'hook_event_name', 'name'] },
-  { event: 'CrewmateIdle', fields: {}, expected: [...baseOrder, 'hook_event_name'] },
 ]
 
 writeFileSync(join(home, 'settings.json'), JSON.stringify({ events: { hooks: Object.fromEntries(families.map(family => [family.event, [{ hooks: [{ type: 'command', command }] }]])) } }))

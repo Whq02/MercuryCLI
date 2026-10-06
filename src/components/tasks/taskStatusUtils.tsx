@@ -5,13 +5,6 @@ import {
   isLocalAgentTask,
   isPanelAgentTask,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
-import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types.js'
-import { summarizeRecentActivities } from '../../utils/collapseReadSearch.js'
-import {
-  deriveCrewmatePhase,
-  lastActionWasLeadHandoff,
-  crewmatePhaseLabel,
-} from '../../utils/crew/crewPhases.js'
 import { GLYPH } from '../mercury-ui/glyphs.js'
 import {
   deriveAgentLifecycle,
@@ -78,52 +71,6 @@ export function getTaskStatusColor(
   return 'background'
 }
 
-export function describeCrewmateActivity(task: TaskState): string {
-  if (!isInProcessCrewmateTask(task)) return ''
-  const progress = task.progress as
-    | {
-        recentActivitySummary?: string
-        lastActivity?: { description?: string }
-        recentActivities?: Array<{
-          activityDescription?: string
-          isSearch?: boolean
-          isRead?: boolean
-        }>
-      }
-    | undefined
-  const phase = deriveCrewmatePhase({
-    status: task.status,
-    isIdle: task.isIdle === true,
-    shutdownRequested: task.shutdownRequested === true,
-    hasProgress: progress !== undefined,
-    ...(task.isIdle === true
-      ? {
-          lastActionWasLeadHandoff: lastActionWasLeadHandoff(
-            task.messages as ReadonlyArray<unknown> | undefined,
-          ),
-        }
-      : {}),
-  })
-  if (phase === 'working') {
-    return (
-      summarizeRecentActivities(progress?.recentActivities ?? []) ??
-      progress?.recentActivitySummary ??
-      progress?.lastActivity?.description ??
-      'working'
-    )
-  }
-  return crewmatePhaseLabel(phase)
-}
-
-export function shouldHideTasksFooter(
-  tasks: TaskState[],
-  spinnerTreeShowing: boolean,
-): boolean {
-  if (!spinnerTreeShowing) return false
-  const manageable = tasks.filter(task => isManageableTask(task))
-  if (manageable.length === 0) return false
-  return manageable.every(task => isInProcessCrewmateTask(task))
-}
 
 export function agentLifecycleOf(task: TaskState): AgentLifecycle | undefined {
   if (!isLocalAgentTask(task)) return undefined

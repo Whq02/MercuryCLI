@@ -109,7 +109,7 @@ export const ApolloReviewTool = buildTool({
       return {
         result: false as const,
         message:
-          'Apollo Mode is a session-level concept — a subagent cannot close its review.',
+          'Apollo Mode is a session-level concept — a crewmate cannot close its review.',
         errorCode: 1,
       }
     }

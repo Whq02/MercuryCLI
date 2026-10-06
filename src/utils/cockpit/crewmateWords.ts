@@ -11,13 +11,7 @@ export const ESC_INTERRUPT_HINT = 'esc interrupts'
 export const ESC_BACK_HINT = `esc back to ${LEAD_ROW_NAME}`
 export const CREW_CLEAR_KEY = 'c clear'
 export const CREW_VIEW_DOOR = '/crewmates'
-export const CREW_SPAWN_DOOR = `${CREW_VIEW_DOOR} +new`
-export const CREW_CHATS_HINT = `${CREW_VIEW_DOOR} · n new`
 export const CREW_CLEAR_DOOR = `${CREW_CLEAR_KEY} in ${CREW_VIEW_DOOR}`
-
-export function crewChatDoor(name: string): string {
-  return `${CREW_VIEW_DOOR} ${name}`
-}
 
 export type CrewmateWordsState = { name: string; pinned: boolean; live?: boolean; local?: boolean }
 

@@ -427,7 +427,7 @@ export function nonAnthropicBootNotice(
   if (usable.length === 0) return null
   return (
     `${usable.join(', ')} ${usable.length === 1 ? 'is' : 'are'} the working lane${usable.length === 1 ? '' : 's'}: ` +
-    'tools, subagents and workflows run on the session\'s own family. ' +
+    'tools, crewmates and workflows run on the session\'s own family. ' +
     'No Anthropic credential — the Claude-account surfaces (the Anthropic usage windows) stay dormant; /logins adds one any time.'
   )
 }

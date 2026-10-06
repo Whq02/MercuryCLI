@@ -96,7 +96,6 @@ function baseEnv(home: string): Record<string, string> {
   return {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_LIVE_GLYPHS: '0',
     MERCURY_CRITTER_GAZE: '0',
     OPENAI_API_KEY: '',

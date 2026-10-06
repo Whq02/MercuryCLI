@@ -12,7 +12,6 @@ import {
   createPermissionQueueOps,
 } from './toolPermission/PermissionContext.js'
 import { handleCoordinatorPermission } from './toolPermission/handlers/coordinatorHandler.js'
-import { handleCrewmatePermission } from './toolPermission/handlers/crewWorkerHandler.js'
 import { handleInteractivePermission } from './toolPermission/handlers/interactiveHandler.js'
 
 export type CanUseToolFn<
@@ -102,19 +101,6 @@ export default function useCanUseTool(
               }
               if (ctx.resolveIfAborted(resolve)) return
             }
-
-            const workerDecision = await handleCrewmatePermission({
-              ctx,
-              description,
-              ...{},
-              updatedInput: result.updatedInput,
-              suggestions: result.suggestions,
-            })
-            if (workerDecision) {
-              resolve(workerDecision)
-              return
-            }
-            if (ctx.resolveIfAborted(resolve)) return
 
             handleInteractivePermission(
               {

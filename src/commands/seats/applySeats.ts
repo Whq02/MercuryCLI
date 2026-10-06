@@ -36,7 +36,7 @@ export function seatsStatus(facts: SeatCeilingFacts = seatCeilingFacts()): strin
   const warning = seatCostWarning(facts)
   if (warning !== null) lines.push(`Note: ${warning}.`)
   lines.push(
-    'Sessions, sub-agents and workflow agents run under this one number. A seat is held only while a model call is in flight — an idle agent holds none — and a call past the ceiling waits with its row saying so.',
+    'Sessions, crewmates and workflow agents run under this one number. A seat is held only while a model call is in flight — an idle agent holds none — and a call past the ceiling waits with its row saying so.',
     `/seats N sets the ceiling (a whole number, no upper clamp; above the reading each seat may cost a runner process of about ${RUNNER_MB} MB) · /seats auto returns to the machine's reading · the same setting is the Seats row of the Boot Menu and of /config.`,
   )
   return lines.join('\n')

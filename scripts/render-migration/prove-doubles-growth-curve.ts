@@ -42,7 +42,6 @@ for (const ambient of [
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'doubles-curve-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'doubles-curve-daemon-'))
-process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'doubles-curve-crews-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -200,7 +199,6 @@ const { reorderMessagesInUI } = await import('../../src/utils/messages/uiOrder.t
 const { applyGrouping } = await import('../../src/utils/groupToolUses.ts')
 const { injectTurnReceipts, isTurnBoundary } = await import('../../src/utils/cockpit/turnReceipt.ts')
 const { collapseReadSearchGroups } = await import('../../src/utils/collapseReadSearch.ts')
-const { collapseCrewmateShutdowns } = await import('../../src/utils/collapseCrewmateShutdowns.ts')
 const { collapseHookSummaries } = await import('../../src/utils/collapseHookSummaries.ts')
 const { collapseBackgroundBashNotifications } = await import('../../src/utils/collapseBackgroundBashNotifications.ts')
 const { renderableSearchText } = await import('../../src/utils/transcriptSearch.ts')
@@ -341,7 +339,6 @@ function projectRenderables(transcript: AnyMsg[]): AnyMsg[] {
   let collapsed = applyGrouping(working as never, TOOLS as never, false).messages as AnyMsg[]
   collapsed = injectTurnReceipts(collapsed as never) as AnyMsg[]
   collapsed = collapseReadSearchGroups(collapsed as never, TOOLS as never) as AnyMsg[]
-  collapsed = collapseCrewmateShutdowns(collapsed as never) as AnyMsg[]
   collapsed = collapseHookSummaries(collapsed as never) as AnyMsg[]
   collapsed = collapseBackgroundBashNotifications(collapsed as never, false) as AnyMsg[]
   return collapsed

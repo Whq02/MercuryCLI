@@ -440,11 +440,6 @@ console.log('F — the ground note: composed at dispatch from the REAL isolation
     'F3 the redirect leg composes NONE (an existing session was briefed at its birth)',
     dispatchSrc.includes('attemptRedirectDelivery(rec, dispatches, req.targetSessionId, req.prompt, promptExtrasOf(req))'),
   )
-  const { buildCrewPack, buildCrewSpec } = await import('../../src/daemon/crewSpawn.ts')
-  const pack = buildCrewPack('scout', '/x/repo')
-  check('F4 the crew pack OPENS with the shared-folder shape (a crewmate always shares the repo)', pack.startsWith('[ground] You work directly in the shared folder repo'))
-  check('F4 the spawn spec carries it (respawns keep the note verbatim)', buildCrewSpec('scout', 'fable', '/x/repo').appendSystemPrompt?.startsWith('[ground]') === true)
-  check('F4 without a dir the pack stands unchanged (no fabricated ground)', buildCrewPack('scout').startsWith('You are @scout'))
   const { stripGroundNote, GROUND_NOTE_MARK } = await import('../../src/daemon/isolationNote.ts')
   check(
     'F5 stripGroundNote: framed words yield the words, bare words pass through, a lone note yields nothing',

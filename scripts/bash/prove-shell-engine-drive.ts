@@ -248,7 +248,6 @@ function driveEnv(home: string, fixtureBase: string, engine: Engine): Record<str
   const env: Record<string, string> = {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_SKIP_PERMISSIONS: '1',
     ANTHROPIC_BASE_URL: fixtureBase,

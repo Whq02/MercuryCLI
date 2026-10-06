@@ -47,7 +47,6 @@ const env = {
   MERCURY_CONFIG_DIR: configDir,
   MERCURY_CREDENTIAL_STORE: 'file',
   MERCURY_DAEMON_DIR: join(home, 'daemon'),
-  MERCURY_CREWS_DIR: join(home, 'crews'),
   MERCURY_LOCAL_PROBE_TARGETS: 'none',
   ANTHROPIC_BASE_URL: fixture.url,
   ANTHROPIC_API_KEY: API_KEY,

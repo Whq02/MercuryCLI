@@ -54,13 +54,11 @@ console.log('\n§3 the CSV extension')
 console.log('\n§4 every daemon worker kind reads the one resolver')
 {
   const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
-  const crew = read('src/daemon/crewSpawn.ts')
   const roster = read('src/daemon/roster.ts')
   const main = read('src/daemon/main.ts')
-  check('the crew spawn floor rides resolveWorkerReconAllow', crew.includes("from './workerRecon.js'") && crew.includes('allowedTools: resolveWorkerReconAllow()'))
   check("the roster's one-shots ride it", roster.includes("from './workerRecon.js'") && roster.includes('allowedTools: resolveWorkerReconAllow()'))
-  check('the daemon main carries no recon read of its own (the two spawn seams are the readers)', !main.includes("from './workerRecon.js'") && !/allowedTools: resolveWorkerReconAllow\(\)/.test(main))
-  check('no worker builder carries a second recon table', !/SEAT_RECON_ALLOW\s*[:=]/.test(crew + roster + main))
+  check('the daemon main carries no recon read of its own (the roster seam is the reader)', !main.includes("from './workerRecon.js'") && !/allowedTools: resolveWorkerReconAllow\(\)/.test(main))
+  check('no worker builder carries a second recon table', !/SEAT_RECON_ALLOW\s*[:=]/.test(roster + main))
 }
 
 if (saved !== undefined) process.env.MERCURY_WORKER_RECON_ALLOW = saved

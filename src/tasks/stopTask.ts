@@ -8,7 +8,6 @@ import { asAgentId } from '../types/ids.js'
 import { getAgentTranscriptPath } from '../utils/sessionStorage/paths.js'
 import { emitTaskEnded } from '../utils/sdkEventQueue.js'
 import { updateTaskState } from '../utils/task/framework.js'
-import { isInProcessCrewmateTask } from './InProcessCrewmateTask/types.js'
 import { isLocalShellTask, type LocalShellTaskState } from './LocalShellTask/guards.js'
 import { findTaskOutcome, type TaskOutcomeEnvelope, type TaskOutcomeState } from './taskOutcomeEnvelope.js'
 
@@ -16,14 +15,6 @@ import { findTaskOutcome, type TaskOutcomeEnvelope, type TaskOutcomeState } from
 export function resolveStopTargetId(raw: string, state: Pick<AppState, 'tasks' | 'agentNameRegistry'>): string {
   const tasks = state.tasks ?? {}
   if (tasks[raw] !== undefined) return raw
-  let settled: string | undefined
-  for (const task of Object.values(tasks)) {
-    if (!isInProcessCrewmateTask(task)) continue
-    if (task.identity.agentId !== raw && task.identity.agentName !== raw) continue
-    if (task.status === 'running') return task.id
-    settled ??= task.id
-  }
-  if (settled !== undefined) return settled
   const registered = (state.agentNameRegistry as ReadonlyMap<string, string> | undefined)?.get(raw)
   if (registered !== undefined && tasks[String(registered)] !== undefined) return String(registered)
   return raw

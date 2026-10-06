@@ -132,7 +132,7 @@ export function jevSettingLines(settings: JevSettings = readJevSettings()): stri
     `session allowance: ${jevUsdLabel(settings.allowanceUsd)} — a runaway stop, not a budget; ${jevRoadWords(settings.road)} road only, reset by /clear`,
     `pace: ${settings.pacePerMinute} requests a minute`,
     `request ceiling: ${jevCeilingWords(settings)}`,
-    `sub-agents: ${settings.subagents ? `on — ${JEV_SUBAGENT_CALL_BUDGET} calls each; ${JEV_SUBAGENT_PACE_PER_MINUTE} a minute per session, on the same allowance` : 'off'}`,
+    `crewmates: ${settings.subagents ? `on — ${JEV_SUBAGENT_CALL_BUDGET} calls each; ${JEV_SUBAGENT_PACE_PER_MINUTE} a minute per session, on the same allowance` : 'off'}`,
     `doors: ${JEV_DOORS}`,
   ]
 }
@@ -146,7 +146,7 @@ export const JEV_MENU_ROW = {
   defaultLabel: 'off',
   applicationClass: 'live',
   summary:
-    "a second opinion from TypeSafe's Jev, never an approval; JEV off by default; once on, sub-agents get it by default, off by choice; /jev chooses official or OpenRouter, each with its own key, spend and cap",
+    "a second opinion from TypeSafe's Jev, never an approval; JEV off by default; once on, crewmates get it by default, off by choice; /jev chooses official or OpenRouter, each with its own key, spend and cap",
   detail: {
     controls:
       'Whether JevEval is in the roster on the road saved in /jev. Official needs a TypeSafe key in /jev; OpenRouter uses its sign-in from /logins. It never answers a permission request. Applies at the next turn boundary.',

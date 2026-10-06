@@ -63,7 +63,7 @@ Long-running work is fenced by registered ceilings — the in-code registry
 (`src/substrate/flagRegistry.ts`; rendered on demand to an untracked path) is
 the complete index; the load-bearing ones:
 
-- **Sub-agent inactivity** (`MERCURY_AGENT_IDLE_MINUTES`, default 15 minutes,
+- **Crewmate (sub-agent) inactivity** (`MERCURY_AGENT_IDLE_MINUTES`, default 15 minutes,
   `0` disables): a dispatched agent that produces no event at all — no stream
   delta, no tool use, no provider recovery notice — is stopped and settles as
   a typed stall naming its tool-use count, instead of a forever spinner.
@@ -129,7 +129,7 @@ same cycle of two to five calls ends the turn after the round it landed in
 has settled: the model's context carries a `loop_stopped` note naming the
 cycle in the order the calls were issued, the operator sees a warning row, a
 headless run settles with an `outcome` whose status is `loop_stopped`, and
-a sub-agent so ended reports a typed failure to its parent. A run of one identical
+a crewmate so ended reports a typed failure to its parent. A run of one identical
 successful call is advisory on both roads, and the key is read live from the
 settings files.
 
@@ -149,7 +149,7 @@ dividers left out — is answered once with the same kind of reminder and the
 model is asked to continue past it, whether the reply ended on its own or at
 the output cap; a second chant lets the reply stand by default, and ends
 the turn the same typed way under the key, with no chant handed on as a
-sub-agent's report.
+crewmate's report.
 When a provider answers a request with no content at all, the chat says so
 in a note and the request is sent again once, carrying a one-line note that
 asks for the answer or the tool call, before the note stands as the turn's

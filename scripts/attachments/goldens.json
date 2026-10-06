@@ -113,12 +113,5 @@
    "/repo/src/deep"
   ]
  },
- "getContextEfficiencyAttachment/fold-dead": [],
- "CREW_MESSAGES_KIND/value": "crew_messages",
- "isCrewMessagesAttachment/samples": [
-  true,
-  false,
-  false,
-  false
- ]
+ "getContextEfficiencyAttachment/fold-dead": []
 }

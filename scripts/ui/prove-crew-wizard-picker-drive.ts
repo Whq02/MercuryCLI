@@ -43,7 +43,6 @@ function childEnv(home: string): NodeJS.ProcessEnv {
     ANTHROPIC_API_KEY: KEY,
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_HOME: join(home, 'proof-home'),
     MERCURY_HEALTH_STATE_DIR: join(home, 'health-state'),
     MERCURY_CREDENTIAL_STORE: 'file',

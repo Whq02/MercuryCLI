@@ -15,7 +15,6 @@ process.env.MERCURY_IMAGE_PROCESSOR = 'javascript'
 const HOMES = [
   (process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'e004-sizer-home-'))),
   (process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'e004-sizer-daemon-'))),
-  (process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'e004-sizer-crews-'))),
 ]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
@@ -464,7 +463,6 @@ section('§5 driven: a real run paints the notice and writes its mark once; a re
       MERCURY_CREDENTIAL_STORE: 'file',
       MERCURY_LOCAL_PROBE_TARGETS: 'none',
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
-      MERCURY_CREWS_DIR: join(home, 'crews'),
       MERCURY_DAP: '0',
       ...(road === 'javascript' ? { MERCURY_IMAGE_PROCESSOR: 'javascript' } : {}),
     }

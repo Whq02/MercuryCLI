@@ -16,7 +16,7 @@
    │   Samples                                        default (off) │  │ blink and breath, the live glyphs, and     │
    │                                                                │  │ the clock that paces them. Applies now.    │
    │ AGENTS                                                         │  │                                            │
-   │   Sub-agents                                      default (on) │  │ Current value                              │
+   │   Crewmates                                       default (on) │  │ Current value                              │
    │   Workflows                                       default (on) │  │ reduced                                    │
    │                                                                │  │ now: reduced (set by you)                  │
    │ MISCELLANEOUS                                                  │  │ reduced cadence: 250 ms a tick (250 ms fl… │

@@ -120,8 +120,8 @@ const RAW_ENV_SITES: readonly RegisteredRawEnvSite[] = [
   {
     file: 'src/daemon/headlessRun.ts',
     code: 'const env: NodeJS.ProcessEnv = { ...process.env }',
-    witness: 'stripCrewRolePair(env)',
-    why: "a headless worker IS Mercury running on the session's own auth; the role sweeps curate the clone",
+    witness: 'for (const v of sweptRoleSpellings()) {',
+    why: "a headless worker IS Mercury running on the session's own auth; the role sweep curates the clone",
   },
   {
     file: 'src/daemon/headlessRun.ts',

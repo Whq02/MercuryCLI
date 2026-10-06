@@ -28,7 +28,7 @@ for (const cols of [80, 100, 120, 160, 200]) {
 section('footer discipline: sheds on narrow, never wraps, keeps the nav+exit floor')
 const innerOf = (cols: number): number => panelWidth(cols) - 4
 const FLOOR = '↑↓ select · esc closes'.length
-const stress = { gated: true, enableFlag: 'MERCURY_CREWMATES' }
+const stress = { gated: true, enableFlag: 'MERCURY_ASEPRITE' }
 for (const cols of [50, 56, 64, 80, 100, 120]) {
   const inner = innerOf(cols)
   const f = modelPickerFooter(stress, inner)

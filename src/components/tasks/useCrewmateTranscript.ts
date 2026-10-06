@@ -4,7 +4,6 @@ import { dirname, join } from 'node:path'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import { crewmateQueuedRows, crewmateQueueSize, crewmateQueueVersion, pruneLandedCrewmateLines, subscribeCrewmateQueue } from './crewmateQueue.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
-import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types.js'
 import type { TaskState } from '../../tasks/types.js'
 import { agentTranscriptFile, resolveAgentTranscriptFile } from '../../tools/WorkflowTool/agentTranscriptReader.js'
 import { asAgentId } from '../../types/ids.js'
@@ -28,7 +27,6 @@ export function crewmateTranscriptAgentId(crewmate: CrewmateTranscriptSource): s
   const local = crewmate.local
   if (local !== undefined && isLocalAgentTask(local)) return local.agentId
   const carried = crewmate.facts?.transcriptAgentId ?? null
-  if (local !== undefined && isInProcessCrewmateTask(local)) return local.transcriptAgentId ?? carried
   return carried ?? crewmate.taskId
 }
 
@@ -44,7 +42,7 @@ export function crewmateTranscriptFile(crewmate: CrewmateTranscriptSource, hoste
   const agentId = crewmateTranscriptAgentId(crewmate)
   if (agentId === null) return null
   const local = crewmate.local
-  const own = local !== undefined && (isLocalAgentTask(local) || isInProcessCrewmateTask(local)) ? ownTranscriptDir(agentId) : null
+  const own = local !== undefined && isLocalAgentTask(local) ? ownTranscriptDir(agentId) : null
   const carried = hosted.sessionId === '' || hosted.originalCwd === '' ? null : join(getProjectDir(hosted.originalCwd), hosted.sessionId, 'subagents')
   const dirs = [own, carried].filter((dir, index, all): dir is string => dir !== null && all.indexOf(dir) === index)
   const primary = dirs[0]
@@ -55,7 +53,7 @@ export function crewmateTranscriptFile(crewmate: CrewmateTranscriptSource, hoste
 
 export function liveTailOf(local: TaskState | undefined): readonly Message[] {
   if (local === undefined) return EMPTY
-  if (isLocalAgentTask(local) || isInProcessCrewmateTask(local)) return (local.messages ?? EMPTY) as readonly Message[]
+  if (isLocalAgentTask(local)) return (local.messages ?? EMPTY) as readonly Message[]
   return EMPTY
 }
 

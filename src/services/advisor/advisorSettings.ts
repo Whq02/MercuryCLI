@@ -6,10 +6,8 @@ import {
   type SubModelResolution,
 } from '../../utils/model/subModelSlots.js'
 import type { EffortLevel } from '../../utils/effort.js'
-import { isCrewmate } from '../../utils/crewmate.js'
 import { advisorMinutesWords } from '../../utils/messages/noticeRows.js'
 import { advisorSwitchOfSession } from '../../utils/sessionStorage/writer.js'
-import { isCrewRole } from '../../utils/workerRole.js'
 
 export type AdvisorSeat = 'main' | 'crewmate' | 'workflow'
 
@@ -54,16 +52,12 @@ export function readAdvisorSettings(): AdvisorSettings {
   return advisorSettingsFromStored(getGlobalConfig().advisor)
 }
 
-export function advisorSessionSeat(): AdvisorSeat {
-  return isCrewRole() || isCrewmate() ? 'crewmate' : 'main'
-}
-
 export function advisorChatSwitch(): boolean {
   return advisorSwitchOfSession()
 }
 
 export function advisorEnabled(): boolean {
-  return advisorSeatRefusal(advisorSessionSeat()) === undefined
+  return advisorSeatRefusal('main') === undefined
 }
 
 export function advisorSeatRefusal(
@@ -90,7 +84,7 @@ export function advisorFacts(): AdvisorFacts {
   const settings = readAdvisorSettings()
   const model = resolveAdvisorModel()
   return {
-    on: advisorSeatRefusal(advisorSessionSeat(), settings) === undefined,
+    on: advisorSeatRefusal('main', settings) === undefined,
     chat: advisorChatSwitch(),
     settings: settings.enabled,
     minutes: settings.minutes,

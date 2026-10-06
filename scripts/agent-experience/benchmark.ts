@@ -207,7 +207,6 @@ function baseEnv(home: string, nodeBin: string): Record<string, string> {
     LANG: 'en_US.UTF-8',
     MERCURY_CONFIG_DIR: join(home, '.mercury'),
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'crews'),
     ...(process.env.MERCURY_BROWSER_PATH?.trim() ? { MERCURY_BROWSER_PATH: process.env.MERCURY_BROWSER_PATH.trim() } : {}),
   }
 }

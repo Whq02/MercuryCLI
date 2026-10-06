@@ -19,13 +19,13 @@
    │ orchard-src                                                    │  │ the chat stop appears on the strip;        │
    │   splash ripple study                               2 days ago │  │ this screen and the face stay beneath.     │
    │                                                                │  │                                            │
-   │ router crews                                                   │  │ esc — back to the face, nothing opened     │
-   │   party · dps1 — dps1                           40 minutes ago │  ╰────────────────────────────────────────────╯
-   │                                                                │  ╭────────────────────────────────────────────╮
-   │ projects                                                       │  │ SESSIONS · PROJECTS                        │
-   │   orchard-src                                   2m · 2 running │  │ Scope      all history — every project     │
-   │   moodle                                                   26h │  │ Sessions   4 · 1 crew                      │
-   ╰────────────────────────────────────────────────────────────────╯  │ Repos      2                               │
+   │ projects                                                       │  │ esc — back to the face, nothing opened     │
+   │   orchard-src                                   2m · 2 running │  ╰────────────────────────────────────────────╯
+   │   moodle                                                   26h │  ╭────────────────────────────────────────────╮
+   ╰────────────────────────────────────────────────────────────────╯  │ SESSIONS · PROJECTS                        │
+                                                                       │ Scope      all history — every project     │
+                                                                       │ Sessions   4                               │
+                                                                       │ Repos      2                               │
                                                                        │ Opens      ● a real chat, in place         │
                                                                        ╰────────────────────────────────────────────╯
                                                                        ╭────────────────────────────────────────────╮
@@ -35,6 +35,6 @@
                                                                        │ Dir        orchard-src                     │
                                                                        ╰────────────────────────────────────────────╯
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  4 sessions in the full history · 1 crew · ↵ opens the real chat                             │
+   │ ● System ready  │  4 sessions in the full history · ↵ opens the real chat                                      │
    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
                     ↑↓ move · ↵ open · n new session · d prune · a this project · ⇥ repos · esc back

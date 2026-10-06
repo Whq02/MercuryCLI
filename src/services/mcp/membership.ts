@@ -4,10 +4,10 @@ import { isMcpServerDisabled } from './config.js'
 import { sessionKitOf } from './sessionKitPin.js'
 import type { ScopedMcpServerConfig } from './types.js'
 
-const COORDINATION_ORGAN_NAME = 'mercury'
+const MERCURY_ORGAN_NAME = 'mercury'
 
 export function isMcpOrgan(name: string): boolean {
-  return name === COORDINATION_ORGAN_NAME && flagEnv('MERCURY_COORDINATION_MCP') !== '0'
+  return name === MERCURY_ORGAN_NAME && flagEnv('MERCURY_COORDINATION_MCP') !== '0'
 }
 
 function recordMembership(name: string): boolean {

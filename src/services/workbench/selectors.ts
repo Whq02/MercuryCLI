@@ -1,8 +1,4 @@
 
-import {
-  deriveCrewmatePhase,
-  type CrewmatePhaseInputs,
-} from '../../utils/crew/crewPhases.js'
 import type {
   WorkbenchLaneRow,
   WorkbenchMissionRow,
@@ -33,10 +29,6 @@ export interface RichTaskFact {
   agentType?: string
   model?: string
   crewmateName?: string
-  isIdle?: boolean
-  shutdownRequested?: boolean
-  hasProgress?: boolean
-  lastActionWasLeadHandoff?: boolean
 }
 
 export interface RunFacts {
@@ -62,13 +54,6 @@ export interface WorkflowDiskFact {
   title?: string
   status: string
   agentCount?: number
-}
-
-export interface CrewFact {
-  name: string
-  model?: string
-  online: boolean
-  unread: number
 }
 
 export interface ArtifactHeadFact {
@@ -99,7 +84,6 @@ export interface WorkbenchSourceInputs {
   agentMeta: Map<string, AgentMetaFact>
   laneRuns: Map<string, RunFacts>
   workflowsDisk: WorkflowDiskFact[]
-  crew: CrewFact[] | null
   artifacts: ArtifactHeadFact[]
   gitWorktreeLanes: Array<{ path: string; branch?: string; head?: string }>
 }
@@ -110,8 +94,6 @@ const EXECUTION_THREAD_KINDS = new Set(['agent', 'workflow-worker', 'background-
 function threadKindOf(exec: ExecutionFact, rich: RichTaskFact | undefined): WorkbenchThreadKind {
   const taskType = rich?.taskType ?? (exec.metadata?.taskType as string | undefined)
   switch (taskType) {
-    case 'in_process_crewmate':
-      return 'crewmate'
     case 'local_workflow':
       return 'workflow'
     case 'local_agent':
@@ -128,19 +110,6 @@ function threadKindOf(exec: ExecutionFact, rich: RichTaskFact | undefined): Work
   return 'job'
 }
 
-function crewmatePhaseFrom(rich: RichTaskFact): string {
-  const inputs: CrewmatePhaseInputs = {
-    status: (rich.status ?? 'running') as CrewmatePhaseInputs['status'],
-    isIdle: rich.isIdle === true,
-    shutdownRequested: rich.shutdownRequested === true,
-    hasProgress: rich.hasProgress === true,
-    ...(rich.lastActionWasLeadHandoff !== undefined && {
-      lastActionWasLeadHandoff: rich.lastActionWasLeadHandoff,
-    }),
-  }
-  return deriveCrewmatePhase(inputs)
-}
-
 export function deriveThreadRows(inputs: WorkbenchSourceInputs): WorkbenchThreadRow[] {
   const rows: WorkbenchThreadRow[] = []
   for (const exec of inputs.executions) {
@@ -149,10 +118,7 @@ export function deriveThreadRows(inputs: WorkbenchSourceInputs): WorkbenchThread
     const kind = threadKindOf(exec, rich)
     const meta = rich?.agentId ? inputs.agentMeta.get(rich.agentId) : undefined
     const run = inputs.laneRuns.get(exec.id)
-    const phase =
-      kind === 'crewmate' && rich
-        ? crewmatePhaseFrom(rich)
-        : (run?.phase ?? exec.state)
+    const phase = run?.phase ?? exec.state
     const refs: string[] = []
     if (exec.outputRef) refs.push(exec.outputRef)
     if (rich?.agentId) refs.push(`mercury://agent/${rich.agentId}`)
@@ -180,22 +146,6 @@ export function deriveThreadRows(inputs: WorkbenchSourceInputs): WorkbenchThread
     if (run?.verificationState) row.verification = run.verificationState
     const blocker = run?.blocker
     if (blocker) row.blocker = blocker
-    rows.push(row)
-  }
-  for (const member of inputs.crew ?? []) {
-    const row: WorkbenchThreadRow = {
-      id: `crew:${member.name}`,
-      kind: 'crewmate',
-      title: member.name,
-      parentId: 'root',
-      phase: member.online ? 'working' : 'stopped',
-      state: member.online ? 'running' : 'stopped',
-      updatedAt: inputs.now,
-      changedPaths: [],
-      refs: [`mercury://crew/${member.name}`],
-    }
-    if (member.model) row.model = member.model
-    if (member.unread > 0) row.blocker = `${member.unread} unread message${member.unread === 1 ? '' : 's'}`
     rows.push(row)
   }
   const terminal = new Set(['succeeded', 'failed', 'stopped', 'cancelled'])

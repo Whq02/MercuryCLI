@@ -55,7 +55,6 @@ export function scratchHome(prefix = 'runner-host-'): { home: string; cwd: strin
       TERM: 'dumb',
       MERCURY_CONFIG_DIR: join(home, '.mercury'),
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
-      MERCURY_CREWS_DIR: join(home, 'crews'),
       MERCURY_LOCAL_PROBE_TARGETS: 'none',
     },
   }

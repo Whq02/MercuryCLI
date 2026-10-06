@@ -195,7 +195,7 @@ const subagent = { agentType: 'subagent' as const, agentId: 'batch-agent' }
 for (let i = 0; i < JEV_SUBAGENT_CALL_BUDGET - 1; i++) noteJevAttempt(Date.now() - 120_000 + i, subagent.agentId)
 const capped = await runWithAgentContext(subagent, () => jevEvalCall(call()))
 const cappedLines = capped.text.split('\n')
-check('a sub-agent with one call left: one item sent, two rows not sent under the budget words, the table stands', capped.status === 'ok' && standin.received.length === 1 && cappedLines.filter(line => / \| not sent — sub-agent budget hit — this agent has used its 200 JEV calls; carry on unaided$/.test(line)).length === 2 && /\| ok 1 of 3$/.test(cappedLines[0]!), capped.text)
+check('a crewmate with one call left: one item sent, two rows not sent under the budget words, the table stands', capped.status === 'ok' && standin.received.length === 1 && cappedLines.filter(line => / \| not sent — crewmate budget hit — this agent has used its 200 JEV calls; carry on unaided$/.test(line)).length === 2 && /\| ok 1 of 3$/.test(cappedLines[0]!), capped.text)
 check('the budget end is said once with the final notice', cappedLines.filter(line => line.startsWith('JEV — | status=subagent-budget-hit | ')).length === 1 && /\nnotice: no further call will succeed this session for this reason; do not retry; carry on unaided$/.test(capped.text), capped.text)
 check('the ledger: the agent stands at its 200', jevLedgerSnapshot().subagentAttempts[subagent.agentId] === JEV_SUBAGENT_CALL_BUDGET)
 

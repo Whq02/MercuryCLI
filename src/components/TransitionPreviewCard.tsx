@@ -106,7 +106,7 @@ export function TransitionPreviewCard({
         ) : null}
         {targetUsability?.delegationCapped ? (
           <Text color={FAINT}>
-            {GLYPH.dot} the capped window also caps Claude-backed delegation (subagents are
+            {GLYPH.dot} the capped window also caps Claude-backed delegation (crewmates are
             not failover candidates)
           </Text>
         ) : null}

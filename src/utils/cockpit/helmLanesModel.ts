@@ -2,7 +2,6 @@ import { basename } from 'node:path'
 import type { TaskStatus } from '../../Task.js'
 import { isTerminalTaskStatus } from '../../Task.js'
 import type { TaskState } from '../../tasks/types.js'
-import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isLocalShellTask } from '../../tasks/LocalShellTask/guards.js'
 import type { SessionListing } from '../../types/logs.js'
@@ -25,7 +24,7 @@ import type { ActivityState } from './cockpitActivity.js'
 import { GLYPH, displayWidth, truncateToWidth } from '../../components/mercury-ui/glyphs.js'
 import { getLogDisplayTitle } from '../log.js'
 import { lerpHex } from '../theme.js'
-import { LEAD_ROW_NAME, crewChatDoor } from './crewmateWords.js'
+import { LEAD_ROW_NAME } from './crewmateWords.js'
 import { railPanelInnerWidth } from '../../components/mercury-ui/RailPanel.js'
 import type { MercuryThemeTokens } from '../mercuryTokens.js'
 
@@ -115,8 +114,7 @@ export function statusTone(status: TaskStatus, tok: MercuryThemeTokens): { label
 }
 
 export type CrewRow = { id: string; label: string; status: TaskStatus; hosted?: boolean; facts?: CrewAgentFacts }
-export type DaemonCrewMember = { name: string; online: boolean; unread: number; model?: string }
-export type CrewEntry = { kind: 'task'; row: CrewRow } | { kind: 'daemon'; name: string; online: boolean; unread: number; model?: string }
+export type CrewEntry = { kind: 'task'; row: CrewRow }
 
 export function crewRowsOf(sessionCrew: readonly CrewLedgerRow[]): CrewRow[] {
   return sessionCrew.map(row => ({
@@ -137,13 +135,9 @@ export function orderCrew(crewRows: readonly CrewRow[], keptIds: readonly string
   return rest
 }
 
-export function orderDaemonCrew(members: readonly DaemonCrewMember[]): DaemonCrewMember[] {
-  return [...members].sort((a, b) => b.unread - a.unread || Number(b.online) - Number(a.online) || a.name.localeCompare(b.name))
-}
-
 export function runsOf(tasks: Record<string, TaskState>, roster: Pick<WorkRosterV1, 'rows'>): RunRow[] {
   const localRuns: RunRow[] = Object.values(tasks)
-    .filter(t => !isLocalAgentTask(t) && !isInProcessCrewmateTask(t))
+    .filter(t => !isLocalAgentTask(t))
     .filter(t => !isTerminalTaskStatus(t.status))
     .map(t => ({
       id: t.id,
@@ -154,7 +148,7 @@ export function runsOf(tasks: Record<string, TaskState>, roster: Pick<WorkRoster
     }))
   const localRunIds = new Set(localRuns.map(r => r.id))
   const hostedRuns: RunRow[] = roster.rows
-    .filter(row => !localRunIds.has(row.id) && row.kind !== 'agent' && row.kind !== 'crewmate' && workRowRuns(row))
+    .filter(row => !localRunIds.has(row.id) && row.kind !== 'agent' && workRowRuns(row))
     .map(row => ({
       id: row.id,
       title: row.name,
@@ -315,7 +309,6 @@ export type LanesInput = {
   activity: ActivityState
   cursorRow: HelmRow | undefined
   sessionCrew: readonly CrewLedgerRow[]
-  daemonCrew: readonly DaemonCrewMember[]
   viewingAgentTaskId: string | undefined
   mainChatTaskId: string | undefined
   tasks: Record<string, TaskState>
@@ -347,9 +340,9 @@ export type LanesModel = {
   runsLive: number
 }
 
-export function soloOf(input: Pick<LanesInput, 'sessionCrew' | 'daemonCrew' | 'viewingAgentTaskId' | 'mainChatTaskId' | 'tasks' | 'roster'>): boolean {
+export function soloOf(input: Pick<LanesInput, 'sessionCrew' | 'viewingAgentTaskId' | 'mainChatTaskId' | 'tasks' | 'roster'>): boolean {
   const keptIds = [input.viewingAgentTaskId, input.mainChatTaskId].filter((id): id is string => id != null)
-  return input.sessionCrew.length === 0 && keptIds.length === 0 && runsOf(input.tasks, input.roster).length === 0 && input.daemonCrew.length === 0
+  return input.sessionCrew.length === 0 && keptIds.length === 0 && runsOf(input.tasks, input.roster).length === 0
 }
 
 export function cursorSectionOf(sections: readonly LanesSectionSpec[], cursorRow: HelmRow | undefined): string | null {
@@ -374,11 +367,7 @@ export function buildLanesModel(input: LanesInput): LanesModel {
 
   const keptIds = [input.viewingAgentTaskId, input.mainChatTaskId].filter((id): id is string => id != null)
   const crewAll = orderCrew(crewRowsOf(input.sessionCrew), keptIds)
-  const daemonCrew = orderDaemonCrew(input.daemonCrew)
-  const crewEntries: CrewEntry[] = [
-    ...crewAll.map(row => ({ kind: 'task' as const, row })),
-    ...daemonCrew.map(m => ({ kind: 'daemon' as const, ...m })),
-  ]
+  const crewEntries: CrewEntry[] = crewAll.map(row => ({ kind: 'task' as const, row }))
   const crewShown = crewEntries.slice(0, CREW_ROWS)
   const crewMore = crewEntries.length - crewShown.length
 
@@ -419,22 +408,6 @@ export function buildLanesModel(input: LanesInput): LanesModel {
       row: { kind: 'main', label: 'crew:root' },
     })
     for (const entry of crewShown) {
-      if (entry.kind === 'daemon') {
-        const unreadVerb = entry.unread > 0 ? `${entry.unread} new` : entry.online ? 'online' : 'offline'
-        rows.push({
-          kind: 'rail',
-          key: `crewd:${entry.name}`,
-          glyph: entry.online ? GLYPH.busy : GLYPH.idle,
-          glyphColor: entry.online ? tok.success : tok.textMuted,
-          name: `@${entry.name}`,
-          nameColor: tok.textPrimary,
-          verb: unreadVerb,
-          verbColor: entry.unread > 0 ? tok.warning : entry.online ? tok.textSecondary : tok.textMuted,
-          verbPulse: entry.unread > 0,
-          row: { kind: 'command', command: crewChatDoor(entry.name), label: `crew:d:${entry.name}` },
-        })
-        continue
-      }
       const c = entry.row
       const isViewing = input.viewingAgentTaskId != null && c.id === input.viewingAgentTaskId
       const isMainChat = input.mainChatTaskId != null && c.id === input.mainChatTaskId
