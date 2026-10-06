@@ -52,7 +52,7 @@ for (const [kind, original] of Object.entries(capsuleFixtures)) {
 }
 const all = Object.values(capsuleFixtures).flat()
 const first = fold(all, [], 'Prove the attachment facts')
-check('all eight areas share one capsule', first.filter((row: any) => row.type === 'context_capsule').length === 1)
+check(`all ${Object.keys(capsuleFixtures).length} areas share one capsule`, first.filter((row: any) => row.type === 'context_capsule').length === 1)
 const capsule = first.find((row: any) => row.type === 'context_capsule')
 if (capsule) {
   const history = [{ type: 'attachment', attachment: capsule, uuid: 'capsule-proof', timestamp: '2026-10-04T12:00:00.000Z' }]
