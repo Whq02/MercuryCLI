@@ -191,6 +191,7 @@ the server definitions themselves.
 | `view.sessionsBar` | Shows the bottom SESSIONS bar; off unless enabled. |
 | `view.firstRunCards` | First-run card placement: `centred` or `top-left`. |
 | `view.ping` | Pings the terminal when a chat finishes while you are away; on unless `false`. |
+| `view.accountIdentity` | Shows the signed-in account on the screens; `false` takes every address, username and key tail off them (for a recording) and leaves the account word. The Logins screen, `/accounts` and the health report still name the account. On unless `false`. |
 | `context.wayBack` | Shows the way-back hint beside a notice. |
 | `input.suggestions` | Enables prompt suggestions. |
 | `apollo.preflightQuestions` | Apollo's interview budget, 1–20 questions, 7 by default. |
