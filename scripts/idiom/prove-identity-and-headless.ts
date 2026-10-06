@@ -56,7 +56,6 @@ function runHeadless(fixtureUrl: string, home: string, cwd: string, mode: string
           ANTHROPIC_BASE_URL: fixtureUrl,
           ANTHROPIC_API_KEY: 'fixture-key-000',
           MERCURY_DAEMON_DIR: join(home, 'daemon'),
-          MERCURY_CREWS_DIR: join(home, 'crews'),
           MERCURY_VERIFY_EVIDENCE: '0',
           MERCURY_LOCAL_PROBE_TARGETS: 'none',
         },

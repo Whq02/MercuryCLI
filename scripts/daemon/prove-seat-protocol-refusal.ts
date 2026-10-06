@@ -11,7 +11,6 @@ mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 const daemonDir = join(home, 'daemon')
 mkdirSync(daemonDir, { recursive: true })
 process.env.MERCURY_DAEMON_DIR = daemonDir
-process.env.MERCURY_CREWS_DIR = join(home, 'crews')
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '9.9.9' }
 
 let failures = 0

@@ -102,7 +102,7 @@ console.log('— §0 the scanner bites (poison control) —')
     "const c = 'no teammates yet'",
     "const d = 'a party seat'",
     '// a comment saying teammate never counts',
-    "import x from './CrewmateChatsView.js'",
+    "import x from './CrewView.js'",
     "const e = '/teammates · n new'",
     "const f = 'third-party seat'",
     "const g = kind === 'teammate'",

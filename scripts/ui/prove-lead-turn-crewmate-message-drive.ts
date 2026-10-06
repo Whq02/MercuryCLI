@@ -82,7 +82,6 @@ const env: NodeJS.ProcessEnv = {
   PYTHONPATH: PYTHON_USER_SITE,
   TERM: 'xterm-256color',
   MERCURY_CONFIG_DIR: config,
-  MERCURY_CREWS_DIR: join(dir, 'crews'),
   MERCURY_DAEMON_DIR: join(dir, 'daemon'),
   MERCURY_CREDENTIAL_STORE: 'file',
   MERCURY_LOCAL_PROBE_TARGETS: 'none',

@@ -36,10 +36,8 @@ for (const d of [home, crews, daemon, project]) mkdirSync(d, { recursive: true }
 const childEnv = (extra: Record<string, string> = {}): NodeJS.ProcessEnv => ({
   ...process.env,
   MERCURY_CONFIG_DIR: home,
-  MERCURY_CREWS_DIR: crews,
   MERCURY_DAEMON_DIR: daemon,
   MERCURY_PARTY: '0',
-  MERCURY_CREW: '0',
   MERCURY_SESSION_ROOM: '',
   MERCURY_ROOM_TOKEN: '',
   MERCURY_FAULT_INJECT: '',

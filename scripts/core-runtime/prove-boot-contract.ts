@@ -14,7 +14,6 @@ const HERMETIC = mkdtempSync(join(tmpdir(), 'native-core-boot-'))
 process.env.MERCURY_PROFILE_STARTUP = '1'
 process.env.MERCURY_CONFIG_DIR = join(HERMETIC, 'config')
 process.env.MERCURY_DAEMON_DIR = join(HERMETIC, 'daemon')
-process.env.MERCURY_CREWS_DIR = join(HERMETIC, 'crews')
 for (const k of ['MERCURY_HOME', 'MERCURY_ENTER_MENU']) {
   delete process.env[k]
 }

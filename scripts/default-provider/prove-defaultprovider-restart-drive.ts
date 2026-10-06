@@ -72,7 +72,6 @@ writeFileSync(
 const env: Record<string, string> = {
   MERCURY_CONFIG_DIR: home,
   MERCURY_DAEMON_DIR: join(home, 'daemon'),
-  MERCURY_CREWS_DIR: join(home, 'crews'),
   MERCURY_CREDENTIAL_STORE: 'file',
   MERCURY_LOCAL_PROBE_TARGETS: 'none',
   MERCURY_LIVE_GLYPHS: '0',

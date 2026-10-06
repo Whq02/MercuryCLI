@@ -50,7 +50,6 @@ function runHeadless(world: World, fixture: FixtureApi, prompt: string): Promise
       TERM: 'dumb',
       MERCURY_CONFIG_DIR: world.home,
       MERCURY_DAEMON_DIR: join(world.home, 'daemon'),
-      MERCURY_CREWS_DIR: join(world.home, 'crews'),
       MERCURY_CREDENTIAL_STORE: 'file',
       ANTHROPIC_BASE_URL: fixture.url,
       ANTHROPIC_API_KEY: FIXTURE_KEY,

@@ -297,7 +297,6 @@ function driveEnv(home: string, fixtureBase: string, dialect: Dialect): Record<s
   return {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_CREDENTIAL_STORE: 'file',
     ANTHROPIC_BASE_URL: fixtureBase,
     ANTHROPIC_API_KEY: dialect === 'anthropic' ? FIXTURE_API_KEY : '',

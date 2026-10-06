@@ -8,7 +8,6 @@ import { z } from 'zod/v4'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'silent-thinking-continuation-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'silent-thinking-continuation-daemon-'))
-process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'silent-thinking-continuation-crews-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'sk-ant-fixture-not-a-real-key'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'

@@ -1343,7 +1343,6 @@ function scenarioInner(name: string, cols: number, rows: number) {
   process.env.MERCURY_HEALTH_STATE_DIR = join(tmpdir(), `mercury-render-health-${process.pid}`)
   process.env.MERCURY_DAEMON_DIR = join(tmpdir(), `mercury-render-daemon-${process.pid}`)
   process.env.MERCURY_LOCAL_PROBE_TARGETS = process.env.MERCURY_LOCAL_PROBE_TARGETS ?? 'none'
-  process.env.MERCURY_CREWS_DIR = join(tmpdir(), `mercury-render-crews-${process.pid}`)
   process.env.MERCURY_CREW_DIR = join(tmpdir(), `mercury-render-crew-${process.pid}`)
   process.env.MERCURY_TURN_RECEIPT = '0'
   process.env.MERCURY_VERIFY_EVIDENCE = process.env.MERCURY_VERIFY_EVIDENCE ?? '0'

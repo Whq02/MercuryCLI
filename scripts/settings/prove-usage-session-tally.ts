@@ -312,7 +312,6 @@ section("§5 THE RUNNER (the Air's shape on the built bundle): a turn answered b
       ANTHROPIC_API_KEY: 'fixture-key-000',
       ANTHROPIC_BASE_URL: fx.url,
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
-      MERCURY_CREWS_DIR: join(home, 'crews'),
     }
     let outcomes = 0
     const waiters: Array<() => void> = []

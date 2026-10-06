@@ -79,7 +79,7 @@ try {
         ...deadProviders,
         TERM: 'xterm-256color', TERM_PROGRAM: 'vscode', BROWSER: '/usr/bin/true',
         MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', ANTHROPIC_API_KEY: 'fixture-key-000',
-        MERCURY_DAEMON_DIR: join(world, 'daemon'), MERCURY_CREWS_DIR: join(world, 'crews'), MERCURY_CREW_DIR: join(world, 'crew'),
+        MERCURY_DAEMON_DIR: join(world, 'daemon'), MERCURY_CREW_DIR: join(world, 'crew'),
         MERCURY_HOME: join(world, 'home'), MERCURY_HEALTH_STATE_DIR: join(world, 'health'),
         MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_BOOT_PREFLIGHT: '0',
         MERCURY_LIVE_GLYPHS: '0', MERCURY_LIVE_CLOCK: '0', MERCURY_CRITTER_GAZE: '0', MERCURY_CRITTER_IDLE: '0', MERCURY_CRITTER_SLEEP: '0',

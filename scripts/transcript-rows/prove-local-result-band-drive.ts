@@ -122,7 +122,6 @@ async function drive(cols: number, rows: number): Promise<{ marks: Mark[]; exit:
     TERM: 'xterm-256color',
     MERCURY_CONFIG_DIR: config,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_HOME: join(home, 'product-home'),
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',

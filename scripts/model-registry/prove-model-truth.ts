@@ -94,7 +94,7 @@ section('6. router class mirrors — every first-party generation classifies to 
 section('7. code-side model default census — literals resolve live, tiers track owners')
 {
   const censusFiles: string[] = []
-  for (const rel of ['src/components/agents/studio/StudioEditor.tsx', 'src/daemon/crewSpawn.ts']) {
+  for (const rel of ['src/components/agents/studio/StudioEditor.tsx']) {
     check(
       `${rel} — carries NO model literal (the catalogue resolves live)`,
       !/[=:]\s*'claude-[a-z0-9-]+(?:\[1m\])?'/.test(src(rel)),

@@ -101,7 +101,6 @@ async function runCase(
     MERCURY_SCRIPTED_STREAM: script,
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'crews'),
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
     EXIT_CENSUS_OUT: censusPath,
     VISUAL: '',

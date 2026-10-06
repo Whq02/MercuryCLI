@@ -632,12 +632,6 @@
     "type:AgentToolInput",
     "type:AgentToolOutput",
     "type:Progress"
-   ],
-   "src/utils/crew/roleResolver.ts": [
-    "«missing»"
-   ],
-   "src/utils/crew/crewCharter.ts": [
-    "«missing»"
    ]
   },
   "turnEngine": {

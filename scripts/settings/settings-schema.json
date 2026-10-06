@@ -503,7 +503,6 @@
               "PermissionRequest",
               "PermissionDenied",
               "Setup",
-              "CrewmateIdle",
               "TaskCreated",
               "TaskCompleted",
               "Elicitation",

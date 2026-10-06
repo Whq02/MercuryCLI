@@ -42,7 +42,6 @@ for (const ambient of [
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'doubles-curve-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'doubles-curve-daemon-'))
-process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'doubles-curve-crews-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 

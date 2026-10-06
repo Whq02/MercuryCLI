@@ -320,7 +320,6 @@ t.section('§6 — REAL BINARY, REAL AGENT: the same-block dispatch-then-wait pa
           MERCURY_BOOT_PREFLIGHT: '0',
           MERCURY_HEALTH_STATE_DIR: join(scratch, 'health'),
           MERCURY_DAEMON_DIR: join(scratch, 'daemon'),
-          MERCURY_CREWS_DIR: join(scratch, 'crews'),
         },
       },
     )

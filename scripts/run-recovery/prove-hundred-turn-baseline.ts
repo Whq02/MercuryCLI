@@ -7,7 +7,6 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'convergence-s28-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'convergence-s28-daemon-'))
-process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'convergence-s28-crews-'))
 for (const k of [
   'MERCURY_BARE',
   'MERCURY_EFFORT_LEVEL',

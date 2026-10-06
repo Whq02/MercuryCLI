@@ -220,7 +220,6 @@ if (process.env.MEASURE_CHILD) {
           INK_WRITE_TEE: tee,
           MERCURY_CONFIG_DIR: join(dir, 'config'),
           MERCURY_DAEMON_DIR: join(dir, 'daemon'),
-          MERCURY_CREWS_DIR: join(dir, 'crews'),
         },
         encoding: 'utf8',
         timeout: (SECONDS + 30) * 1000,

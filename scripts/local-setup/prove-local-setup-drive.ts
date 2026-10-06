@@ -191,7 +191,6 @@ function childEnv(world: World): NodeJS.ProcessEnv {
     MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: '1',
     MERCURY_HEALTH_STATE_DIR: join(world.home, 'health-state'),
     MERCURY_DAEMON_DIR: join(world.home, 'daemon'),
-    MERCURY_CREWS_DIR: join(world.home, 'crews'),
     MERCURY_HOME: join(world.home, 'proof-home'),
     BROWSER: 'true',
     ANTHROPIC_BASE_URL: DEAD,

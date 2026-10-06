@@ -47,7 +47,6 @@ export async function makeWorld(label: string, script: ScriptedTurn[]): Promise<
     PATH: '/usr/bin:/bin:' + dirname(NODE),
     TERM: 'dumb',
     MERCURY_CONFIG_DIR: config,
-    MERCURY_CREWS_DIR: crews,
     MERCURY_DAEMON_DIR: join(dir, 'daemon'),
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',

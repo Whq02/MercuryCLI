@@ -72,7 +72,7 @@ for (const [cols, rows] of SIZES) {
       ANTHROPIC_API_KEY: FIXTURE_API_KEY, ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
       MERCURY_OPENAI_CHATGPT_BASE: `${base}/chatgpt`, MERCURY_OPENAI_API_BASE: `${base}/openai/v1`,
       MERCURY_OPENAI_AUTH_BASE: 'http://127.0.0.1:9',
-      MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_CREWS_DIR: join(home, 'crews'),
+      MERCURY_DAEMON_DIR: join(home, 'daemon'),
       MERCURY_HOME: join(home, 'proof-home'),
       MERCURY_HEALTH_STATE_DIR: join(home, 'health-state'), MERCURY_LOCAL_PROBE_TARGETS: 'none',
       MERCURY_BOOT_PREFLIGHT: '0', MERCURY_LIVE_GLYPHS: '0', MERCURY_LIVE_CLOCK: '0',

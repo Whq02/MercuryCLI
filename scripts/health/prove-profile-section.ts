@@ -16,7 +16,6 @@ console.log(' Health PROFILE section — typed facts, no display scraping')
 console.log('============================================================')
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'health-profile-'))
-process.env.MERCURY_CREWS_DIR = join(SCRATCH, 'crews')
 process.env.MERCURY_DAEMON_DIR = join(SCRATCH, 'daemon')
 process.env.MERCURY_HOME = join(SCRATCH, 'home')
 

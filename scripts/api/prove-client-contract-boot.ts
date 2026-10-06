@@ -119,7 +119,6 @@ function arena(name: string, extra: Record<string, string> = {}): Arena {
       ANTHROPIC_API_KEY: 'fixture-key-000',
       MERCURY_ANTHROPIC_OAUTH_BASE: 'http://127.0.0.1:1',
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
-      MERCURY_CREWS_DIR: join(home, 'crews'),
       MERCURY_THINKING_BINDING: 'drop_block',
       MERCURY_NPM_REGISTRY_BASE: REGISTRY,
       ...extra,

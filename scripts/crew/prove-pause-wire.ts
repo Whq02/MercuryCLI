@@ -14,8 +14,6 @@ mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 const daemonDir = join(scratch, 'daemon')
 mkdirSync(daemonDir, { recursive: true })
 process.env.MERCURY_DAEMON_DIR = daemonDir
-process.env.MERCURY_CREWS_DIR = join(scratch, 'crews')
-mkdirSync(process.env.MERCURY_CREWS_DIR, { recursive: true })
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 delete process.env.MERCURY_HOME

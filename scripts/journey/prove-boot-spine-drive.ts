@@ -58,7 +58,6 @@ seedFirstRun(home, [cwd])
 const env: Record<string, string> = {
   MERCURY_CONFIG_DIR: home,
   MERCURY_DAEMON_DIR: join(home, 'daemon'),
-  MERCURY_CREWS_DIR: join(home, 'crews'),
   MERCURY_CREDENTIAL_STORE: 'file',
   ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
   ANTHROPIC_API_KEY: FIXTURE_API_KEY,

@@ -8,7 +8,6 @@ process.chdir(ROOT)
 const scratch = mkdtempSync(join(tmpdir(), 'description-offer-parity-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'config')
 process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
-process.env.MERCURY_CREWS_DIR = join(scratch, 'crews')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.BROWSER = '/usr/bin/true'
 delete process.env.MERCURY_HOME

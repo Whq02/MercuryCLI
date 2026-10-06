@@ -10,7 +10,6 @@ process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
-delete process.env.MERCURY_CREWS_DIR
 
 const ROOT = join(import.meta.dir, '..', '..')
 const vnext = await import('../../src/utils/sessionStorage/vnext.ts')

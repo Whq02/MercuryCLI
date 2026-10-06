@@ -91,7 +91,6 @@ if (!existsSync(DIST)) {
       ANTHROPIC_BASE_URL: fixture.url,
       ANTHROPIC_API_KEY: 'fixture-key-000',
       MERCURY_DAEMON_DIR: join(scratch, 'daemon'),
-      MERCURY_CREWS_DIR: join(scratch, 'crews'),
       MERCURY_DAP: '0',
       MERCURY_AUTOPILOT: '1',
     }
