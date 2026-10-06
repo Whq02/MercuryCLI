@@ -2,7 +2,8 @@ import { activeSourceUsage } from '../../services/providers/providerUsage.js'
 import { resolveMoonshotAccount } from '../../services/providers/moonshot/moonshotAccounts.js'
 import { walletEntries } from '../../services/wallet/wallet.js'
 
-export function sessionFamilyLabel(label: string): string {
+export function sessionFamilyLabel(label: string | undefined): string {
+  if (label === undefined) return 'Unrecognised model'
   return label.endsWith(' usage') && label !== 'API usage'
     ? label.slice(0, -' usage'.length)
     : label
