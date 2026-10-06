@@ -259,8 +259,6 @@ export const STILLS: ReadonlyArray<{ id: string; compose: () => string[] }> = [
 
 
 import {
-  resumeCrewDetailLines,
-  resumeCrewEntryOf,
   resumeDetailLines,
   resumeEntryOf,
   resumeLegendOf,
@@ -305,14 +303,12 @@ export function composeMerged(
 ): string[] {
   const model = resumeModelOf('all')
   const flat = opts.filterDir !== undefined ? model.flat.filter(f => isProjectSession(f.row.log, opts.filterDir!)) : model.flat
-  const crew = model.crew
   const projects = MERGED_FIXTURE_PROJECTS
   const entries: ResumeEntry[] = [
     ...flat.map(resumeEntryOf),
-    ...crew.map(resumeCrewEntryOf),
     ...projects.map(resumeProjectEntryOf),
   ]
-  const selectable = flat.length + crew.length + projects.length
+  const selectable = flat.length + projects.length
   const sel = Math.min(opts.sel ?? 0, selectable - 1)
   const filterBase = opts.filterDir !== undefined ? projects.find(p => p.dir === opts.filterDir)?.base : undefined
   const m = {
@@ -320,16 +316,14 @@ export function composeMerged(
     selIdx: sel,
     title: 'sessions · projects',
     summaryTitle: 'SESSIONS · PROJECTS',
-    summaryRows: resumeSummaryRows({ scope: 'all', count: flat.length, crewCount: crew.length, elsewhereCount: 0, pendingMore: 0, projectsCount: projects.length }),
+    summaryRows: resumeSummaryRows({ scope: 'all', count: flat.length, elsewhereCount: 0, pendingMore: 0, projectsCount: projects.length }),
     environment: STILL_ENVIRONMENT,
-    statusRight: resumeStatusLine({ loading: false, count: flat.length, crewCount: crew.length, scope: 'all', pendingMore: 0, ...(filterBase !== undefined ? { filterBase } : {}) }),
+    statusRight: resumeStatusLine({ loading: false, count: flat.length, scope: 'all', pendingMore: 0, ...(filterBase !== undefined ? { filterBase } : {}) }),
     legend: resumeLegendOf('all', selectable > 0, true),
     detailOverride:
       sel < flat.length
         ? resumeDetailLines(flat[sel]!)
-        : sel < flat.length + crew.length
-          ? resumeCrewDetailLines(crew[sel - flat.length]!)
-          : resumeProjectDetailLines(projects[sel - flat.length - crew.length]!),
+        : resumeProjectDetailLines(projects[sel - flat.length]!),
   }
   const menu = core.composeBootMenu(cols, rows, m) as { lines: string[] }
   const { placed } = core.placeBlock(menu.lines, rows) as { placed: string[] }

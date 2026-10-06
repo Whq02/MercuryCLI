@@ -2,7 +2,7 @@
 │ ▖▟▆▙▗ Mercury — crew · 0 running                                                                                     │
 │                                                                                                                      │
 │ the session has no live runner — ↵ in the chat revives it                                                            │
-│ Sub-agents (1) ───────────────────────────────────────────────────────────────────────────────────────────────────── │
+│ Crewmates (1) ────────────────────────────────────────────────────────────────────────────────────────────────────── │
 │ ▸ ● scout                fixture/crew       landed   14.3k context · 9.8k in · 2.5k out · 42k cached 1m 0s           │
 │                                                                                                                      │
 │ ↑↓ move · ↵ open · m main chat · r resume · c clear · p pause · esc close                                            │

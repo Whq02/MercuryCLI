@@ -908,9 +908,9 @@ t.section('§11 — THE MERGED SESSIONS·PROJECTS SCREEN (B2, dark: the containe
 
   t.check('two-arg legend output is the landed bytes', resumeLegendOf('all', true) === '↑↓ move · ↵ open · n new session · d prune · a this project · esc back')
   t.check('the merged legend adds ONLY the container jump', resumeLegendOf('all', true, true) === '↑↓ move · ↵ open · n new session · d prune · a this project · ⇥ repos · esc back')
-  t.check('the panel without projectsCount is the landed rows', JSON.stringify(resumeSummaryRows({ scope: 'all', count: 4, crewCount: 1, elsewhereCount: 0, pendingMore: 0 }).map(r => r.key)) === JSON.stringify(['Scope', 'Sessions', 'Opens']))
-  t.check('the panel with projects carries the Repos row', resumeSummaryRows({ scope: 'all', count: 4, crewCount: 1, elsewhereCount: 0, pendingMore: 0, projectsCount: 2 }).some(r => r.key === 'Repos' && r.value === '2'))
-  t.check('the status names a live filter and stays landed without one', resumeStatusLine({ loading: false, count: 1, crewCount: 0, scope: 'all', pendingMore: 0, filterBase: 'moodle' }) === "1 session in 'moodle' (filtered) · ↵ opens the real chat" && resumeStatusLine({ loading: false, count: 4, crewCount: 1, scope: 'all', pendingMore: 0 }) === '4 sessions in the full history · 1 crew · ↵ opens the real chat')
+  t.check('the panel without projectsCount is the landed rows', JSON.stringify(resumeSummaryRows({ scope: 'all', count: 4, elsewhereCount: 0, pendingMore: 0 }).map(r => r.key)) === JSON.stringify(['Scope', 'Sessions', 'Opens']))
+  t.check('the panel with projects carries the Repos row', resumeSummaryRows({ scope: 'all', count: 4, elsewhereCount: 0, pendingMore: 0, projectsCount: 2 }).some(r => r.key === 'Repos' && r.value === '2'))
+  t.check('the status names a live filter and stays landed without one', resumeStatusLine({ loading: false, count: 1, scope: 'all', pendingMore: 0, filterBase: 'moodle' }) === "1 session in 'moodle' (filtered) · ↵ opens the real chat" && resumeStatusLine({ loading: false, count: 4, scope: 'all', pendingMore: 0 }) === '4 sessions in the full history · ↵ opens the real chat')
 
   for (const still of MERGED_STILLS) {
     const written = readStill(still.id)
