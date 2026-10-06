@@ -96,11 +96,9 @@ const rail = src('src/components/HelmLanesRail.tsx')
 check('the RECENT scan follows the focused slot', rail.includes(`const conversationId = ${FOLLOWS_SLOT}`))
 check('the RECENT scan keys its scope on the conversation in the view', rail.includes('const recentScopeKey = `${getProjectRoot() || \'\'}::${conversationId}`'))
 check('the RECENT scan excludes the conversation in the view', rail.includes('filterResumableSessions(all, conversationId)') && !rail.includes('getSessionId()'))
-const strip = src('src/components/mercury-ui/SessionTabs.tsx')
-check('the SESSIONS strip follows the focused slot and keys its scope on it', strip.includes(`const sessionId = ${FOLLOWS_SLOT}`) && !strip.includes('getSessionId()'))
 check('the /sessions picker model excludes the conversation in the view', src('src/components/mercury-ui/screens/sessionPickerModel.ts').includes('resumableNewestFirst(all, conversationIdHere())'))
-check('the /sessiontab flip excludes the conversation in the view', src('src/commands/sessiontab/sessiontab.tsx').includes('filterResumableSessions(all, conversationIdHere())'))
-check('the /resume picker excludes the conversation in the view', src('src/commands/resume/resume.tsx').includes('filterResumableSessions(loaded, conversationIdHere())'))
+check('the ⌥←/→ session flip excludes the conversation in the view', src('src/utils/sessionFlip.ts').includes('filterResumableSessions(all, conversationIdHere())'))
+check('the /sessions argument road excludes the conversation in the view', src('src/commands/sessions/sessions.tsx').includes('filterResumableSessions(loaded, conversationIdHere())'))
 
 console.log('\n§2 a direct --resume boot beside an older session of the same project')
 const SESSIONS_SEND: Send[] = [

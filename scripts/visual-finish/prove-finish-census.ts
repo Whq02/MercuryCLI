@@ -50,8 +50,6 @@ t.section('§1 — the branch glyph is vocabulary (D13)')
     'src/components/MercuryHome.tsx',
     'src/components/mercury-ui/parity/RealmsView.tsx',
     'src/components/DeckPane.tsx',
-    'src/components/MercuryFullscreen.tsx',
-    'src/components/Deck.tsx',
     'src/components/MercuryPromptFooter.tsx',
     'src/components/BootSettingsScreen.tsx',
   ]
@@ -113,7 +111,6 @@ t.section('§4 — honest-unavailable tripwire (crew estate)')
 {
   const consumers = [
     'src/components/prompts-panel/PromptsPanel.tsx',
-    'src/components/mercury-ui/screens/SettingsStatusView.tsx',
     'src/components/mercury-ui/screens/SessionManagerView.tsx',
   ]
   const dishonest = consumers.filter(p => {

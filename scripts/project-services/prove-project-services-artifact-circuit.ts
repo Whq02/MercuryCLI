@@ -67,8 +67,6 @@ try {
     'resource-plane-fast',
     'workshop-fast',
     'services-fast',
-    'lanes-fast',
-    'counsel-fast',
   ]) {
     const row = findCheck(fast, id)
     check(`fast: ${id} present + non-fault`, row !== undefined && row.status !== 'fail' && row.status !== 'unknown',
@@ -83,8 +81,6 @@ try {
     { id: 'workshop-js', allow: ['ok'] },
     { id: 'workshop-py', allow: ['ok', 'info'] },
     { id: 'service-lifecycle', allow: ['ok'] },
-    { id: 'lane-journey', allow: ['ok'] },
-    { id: 'counsel-loop', allow: ['ok'] },
     { id: 'agent-envelope', allow: ['ok'] },
   ]
   for (const e of expectations) {
