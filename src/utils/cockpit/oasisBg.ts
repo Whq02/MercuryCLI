@@ -7,6 +7,7 @@ import { DEFAULT_THEME_SETTING, resolveThemeSetting } from '../systemTheme.js'
 import type { ThemeName } from '../theme.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { truecolorFingerprint } from '../../ink/colorize.js'
+import { parseOscColor } from '../../ink/termio/osc.js'
 import { isEnvTruthy } from '../envUtils.js'
 
 function concreteTheme(): ThemeName {
@@ -48,6 +49,43 @@ let paintedAtQuerySend: boolean | undefined
 let exitRestored = false
 let channelHealed = false
 
+export type TerminalGround =
+  | { state: 'painted'; color: string }
+  | { state: 'original'; color: string }
+  | { state: 'unknown' }
+
+const groundListeners = new Set<() => void>()
+
+function groundChanged(): void {
+  for (const listener of groundListeners) listener()
+}
+
+export function subscribeTerminalGround(listener: () => void): () => void {
+  groundListeners.add(listener)
+  return () => {
+    groundListeners.delete(listener)
+  }
+}
+
+function groundHex(spec: string): string | null {
+  const color = parseOscColor(spec)
+  if (color === null || color.type !== 'rgb') return null
+  const channel = (value: number): string => value.toString(16).padStart(2, '0')
+  return `#${channel(color.r)}${channel(color.g)}${channel(color.b)}`
+}
+
+export function terminalGround(): TerminalGround {
+  if (painted && paintedSpec !== undefined) {
+    const color = groundHex(paintedSpec)
+    return color === null ? { state: 'unknown' } : { state: 'painted', color }
+  }
+  if (!painted && exactOriginal !== undefined) {
+    const color = groundHex(exactOriginal)
+    return color === null ? { state: 'unknown' } : { state: 'original', color }
+  }
+  return { state: 'unknown' }
+}
+
 export function markOriginalGroundQuerySent(): void {
   paintedAtQuerySend = painted
 }
@@ -67,6 +105,7 @@ export function noteOriginalGroundReply(
     paintedSpec = NIGHT
     write(oasisBgSet(NIGHT))
   }
+  groundChanged()
 }
 
 export function syncOasisBgToTheme(
@@ -81,9 +120,11 @@ export function syncOasisBgToTheme(
       paintedBy = 'oasis'
       paintedSpec = spec
       write(oasisBgSet(spec))
+      groundChanged()
     } else if (paintedBy === 'oasis' && paintedSpec !== spec) {
       paintedSpec = spec
       write(oasisBgSet(spec))
+      groundChanged()
     }
   } else if (painted && paintedBy === 'oasis') {
     painted = false
@@ -91,6 +132,7 @@ export function syncOasisBgToTheme(
     paintedSpec = undefined
     channelHealed = true
     write(exactOriginal !== undefined ? oasisBgSet(exactOriginal) : oasisBgExit())
+    groundChanged()
   }
 }
 
@@ -112,6 +154,7 @@ export function exitOasisBg(write?: (s: string) => void): void {
     paintedSpec = undefined
     channelHealed = true
     w(exactOriginal !== undefined ? oasisBgSet(exactOriginal) : oasisBgExit())
+    groundChanged()
   } else if (launcherHeldAtBoot() && !channelHealed && splashCouldHaveRecoloured()) {
     exitRestored = true
     w(oasisBgExit())
@@ -137,4 +180,5 @@ export function _resetGroundForTest(): void {
   paintedAtQuerySend = undefined
   exitRestored = false
   channelHealed = false
+  groundChanged()
 }
