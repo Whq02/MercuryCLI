@@ -210,7 +210,6 @@ function capture(
       MERCURY_TURN_RECEIPT: '0',
       MERCURY_CONFIG_DIR: CONFIG_HOME,
       MERCURY_DAEMON_DIR: daemonDir,
-      MERCURY_CREWS_DIR: SCRATCH('crews'),
       MERCURY_HOME: SCRATCH('home'),
       VISUAL: '',
       EDITOR: '',

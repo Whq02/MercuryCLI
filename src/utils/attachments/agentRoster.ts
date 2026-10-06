@@ -4,7 +4,6 @@ import type { TaskState } from '../../tasks/types.js'
 import type { WorkRowV1 } from '../../services/engine-connector/types.js'
 import { crewAgentFactsOf, crewStateLabel, crewWaitLine } from '../../services/engine-connector/crewFacts.js'
 import { workRowRuns } from '../../services/engine-connector/workCounts.js'
-import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import {
   buildResumePrompt,
@@ -57,10 +56,6 @@ function pendingFor(task: TaskState | undefined): string | null {
     const n = task.pendingMessages?.length ?? 0
     return n > 0 ? `${plural(n, 'message')} queued for its next tool round` : null
   }
-  if (isInProcessCrewmateTask(task)) {
-    const n = task.pendingUserMessages?.length ?? 0
-    return n > 0 ? `${plural(n, 'message')} pending delivery` : null
-  }
   return null
 }
 
@@ -88,12 +83,12 @@ function rowFor(
   const running = workRowRuns(row)
   const outputFilePath = getTaskOutputPath(row.id)
   const description = task?.description ?? row.description ?? row.name
-  if (row.kind === 'agent' || row.kind === 'crewmate') {
+  if (row.kind === 'agent') {
     const facts = crewAgentFactsOf(row, null)
     if (facts === null) return null
     return {
       taskId: row.id,
-      taskType: row.kind === 'agent' ? 'local_agent' : 'in_process_crewmate',
+      taskType: 'local_agent',
       name: facts.name,
       address: row.kind === 'agent' ? (nameOfId.get(row.id) ?? row.id) : facts.name,
       status: crewStateLabel(facts),

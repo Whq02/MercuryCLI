@@ -131,7 +131,6 @@ export function sessionLabelFacts(head: string, tail: string, builtIn: (name: st
     gitBranch: last('gitBranch') ?? first('gitBranch'),
     isSidechain: firstField(head, 'isSidechain') === true,
     projectPath: typeof cwd === 'string' && cwd ? cwd : first('cwd'),
-    crewName: first('crewName'),
     customTitle: last('customTitle') ?? extractLastJsonStringField(head, 'customTitle') ?? last('aiTitle') ?? extractLastJsonStringField(head, 'aiTitle'),
     summary: last('summary'),
     tag: last('tag'),

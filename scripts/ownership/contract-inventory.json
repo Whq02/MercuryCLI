@@ -635,45 +635,6 @@
     "type:AgentToolInput",
     "type:AgentToolOutput",
     "type:Progress"
-   ],
-   "src/utils/crew/inProcessRunner.ts": [
-    "cancelCrewmatePauseResume",
-    "crewmatePausedWords",
-    "runInProcessCrewmate",
-    "startInProcessCrewmate",
-    "type:FirstDispatchOutcome",
-    "type:InProcessRunnerConfig",
-    "type:InProcessRunnerResult"
-   ],
-   "src/utils/crew/roleResolver.ts": [
-    "deriveRolePacket",
-    "findRoleDefinition",
-    "getRoleSystemPrompt",
-    "resolveCrewmateRole",
-    "type:CrewmateRoleRecord",
-    "type:ResolvedCrewmateRole"
-   ],
-   "src/utils/crew/crewCharter.ts": [
-    "CREW_CHARTER_VERSION",
-    "deriveCrewCharter",
-    "formatCharterForContext",
-    "formatRolePacketForContext",
-    "parseCrewCharter",
-    "type:CrewCharter",
-    "type:CrewRolePacket",
-    "type:DeriveCharterInputs"
-   ],
-   "src/utils/crew/handoff.ts": [
-    "HANDOFF_STATUSES",
-    "isSuccessClaim",
-    "listAllOpenHandoffs",
-    "listIncomingHandoffs",
-    "recordHandoff",
-    "type:EvidenceRef",
-    "type:Handoff",
-    "type:HandoffStatus",
-    "type:HandoffVerdict",
-    "validateHandoff"
    ]
   },
   "turnEngine": {

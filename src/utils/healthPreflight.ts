@@ -60,7 +60,7 @@ export async function runPreflight(): Promise<PreflightSummary> {
       return {
         id: 'wrapper',
         status: 'ok' as const,
-        evidence: `Mercury contracts on — repo-owned source, session ${MERCURY_SESSION_CONTRACT.length} · coordinator ${MERCURY_COORDINATOR_CONTRACT.length} · sub-agent ${MERCURY_SUBAGENT_CONTRACT.length} chars`,
+        evidence: `Mercury contracts on — repo-owned source, session ${MERCURY_SESSION_CONTRACT.length} · coordinator ${MERCURY_COORDINATOR_CONTRACT.length} · crewmate ${MERCURY_SUBAGENT_CONTRACT.length} chars`,
       }
     }),
     wrapped('gate', async () => {

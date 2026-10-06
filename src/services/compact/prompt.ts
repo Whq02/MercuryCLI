@@ -14,7 +14,7 @@ function analysisInstruction(scope: 'conversation' | 'recent'): string {
 Then double-check your analysis for technical accuracy and completeness.`
 }
 
-const AGENTS_IN_FLIGHT_SECTION = `10. Agents in flight: every agent still running or owed a result at the turnover — sub-agents, workflow runs and their agents, background shells — with the name or id a message reaches it by (the SendMessage address), what it was asked, and what is owed back (a result not yet retrieved, a notification pending). A running agent is never re-spawned; a pending result is collected, not re-derived. Write "none" when nothing runs.`
+const AGENTS_IN_FLIGHT_SECTION = `10. Agents in flight: every agent still running or owed a result at the turnover — crewmates, workflow runs and their agents, background shells — with the name or id a message reaches it by (the SendMessage address), what it was asked, and what is owed back (a result not yet retrieved, a notification pending). A running agent is never re-spawned; a pending result is collected, not re-derived. Write "none" when nothing runs.`
 
 const SUMMARY_SECTIONS = `Your summary must contain these ten numbered sections:
 1. Operator Intent: every explicit request, in detail.

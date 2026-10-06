@@ -157,7 +157,7 @@ withEnv('1', () => {
   check('two Agent launches are counted', c['agents'] === 2)
   check('the settled results\' tokens are summed (a failed run\'s spend is spend)', c['delegatedTokens'] === 84_200)
   check('the list prices are summed and nothing was unpriced', Math.abs((c['delegatedCostUSD'] ?? 0) - 0.91) < 1e-9 && c['delegatedUnpriced'] === 0)
-  check('the line reads `2 sub-agents · 84.2k tokens · $0.91`', delegatedSpendLine(c as never) === '2 sub-agents · 84.2k tokens · $0.91', String(delegatedSpendLine(c as never)))
+  check('the line reads `2 crewmates · 84.2k tokens · $0.91`', delegatedSpendLine(c as never) === '2 crewmates · 84.2k tokens · $0.91', String(delegatedSpendLine(c as never)))
   const unpriced = inject([
     prompt('one agent, no price', 'p1'),
     toolUse('Agent', { description: 'no price', prompt: 'x' }, 'a1'),
@@ -165,7 +165,7 @@ withEnv('1', () => {
   ])
   const lc = receipts(unpriced)[0]!.counts
   check('a result without a price is unpriced, never free', lc['agents'] === 1 && lc['delegatedTokens'] === 900 && lc['delegatedCostUSD'] === 0 && lc['delegatedUnpriced'] === 1)
-  check('the line says so: `1 sub-agent · 900 tokens (1 unpriced)`', delegatedSpendLine(lc as never) === '1 sub-agent · 900 tokens (1 unpriced)', String(delegatedSpendLine(lc as never)))
+  check('the line says so: `1 crewmate · 900 tokens (1 unpriced)`', delegatedSpendLine(lc as never) === '1 crewmate · 900 tokens (1 unpriced)', String(delegatedSpendLine(lc as never)))
   const solo = inject([prompt('no delegation', 'p1'), toolUse('Bash', { command: 'ls' }, 'a1')])
   check('a turn that delegated nothing carries no spend line (null) and its counts stay zero', delegatedSpendLine(receipts(solo)[0]!.counts as never) === null && receipts(solo)[0]!.counts['agents'] === 0)
   check('an Agent launch alone is activity (a receipt exists even with no other tool)', receipts(inject([prompt('just launch', 'p1'), toolUse('Agent', {}, 'a1')])).length === 1)
@@ -186,13 +186,13 @@ withEnv('1', () => {
     launchResult({ isAsync: true, status: 'async_launched', agentId: 'agent-bg', description: 'later', prompt: 'x', outputFile: '/x', canReadOutputFile: true }, 'r1'),
   ])
   const bc = receipts(background)[0]!.counts
-  check('a background launch is a launch with no spend yet (its report lands in a later turn): `1 sub-agent`, no tokens', bc['agents'] === 1 && bc['delegatedTokens'] === 0 && bc['delegatedUnpriced'] === 0 && delegatedSpendLine(bc as never) === '1 sub-agent')
+  check('a background launch is a launch with no spend yet (its report lands in a later turn): `1 crewmate`, no tokens', bc['agents'] === 1 && bc['delegatedTokens'] === 0 && bc['delegatedUnpriced'] === 0 && delegatedSpendLine(bc as never) === '1 crewmate')
   const workflow = inject([
     prompt('a workflow', 'p1'),
     toolUse('Workflow', { script: 'x' }, 'a1'),
     launchResult({ status: 'async_launched', taskId: 'w1', taskType: 'local_workflow', runId: 'run-1' }, 'r1'),
   ])
-  check('a workflow launch is not a sub-agent and carries no spend at launch: no line', receipts(workflow).length === 0 || delegatedSpendLine(receipts(workflow)[0]!.counts as never) === null)
+  check('a workflow launch is not a crewmate and carries no spend at launch: no line', receipts(workflow).length === 0 || delegatedSpendLine(receipts(workflow)[0]!.counts as never) === null)
   const agentResultSrc = src('tools', 'AgentTool', 'agentToolUtils.ts')
   check('the Agent tool\'s result carries the ledger\'s list price beside its token total (the row the receipt reads)', /costUSD: ledger\.costUSD,\s*unpricedTurns: ledger\.unpricedTurns,/.test(agentResultSrc) && /costUSD: z\.number\(\)\.optional\(\)/.test(agentResultSrc))
   check('the receipt reads the record by the fields the schema declares (agentId beside totalTokens), never a status the record does not carry at its top', /agentId: z\.string\(\)/.test(agentResultSrc) && /totalTokens: z\.number\(\)/.test(agentResultSrc) && /typeof r\.agentId !== 'string' \|\| typeof r\.totalTokens !== 'number'/.test(src('utils', 'cockpit', 'turnReceipt.ts')))

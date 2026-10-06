@@ -77,7 +77,7 @@ command's one interleaved capture — the same text the Bash tool returns —
 and `stderr` is always empty because the Bash tool keeps one stream; a
 non-zero exit never stops the cell, the cell's own code decides what it
 means. `agent(…)` runs
-one sub-agent, `parallel(…)` and `pipeline(…)` fan work out, `completion(…)`
+one crewmate (a sub-agent), `parallel(…)` and `pipeline(…)` fan work out, `completion(…)`
 makes a tool-free model call, `display(…)` and its markdown, JSON and image
 forms put rich output beside stdout, and `read_file` / `write_file` are the
 Read and Write tools. Provider credentials never reach a kernel's

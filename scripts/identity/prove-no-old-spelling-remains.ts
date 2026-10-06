@@ -23,10 +23,8 @@ const EXCLUDED_AREAS: Array<[string, string]> = [
 const ALIAS_TABLES: Array<[string, string]> = []
 
 const ALIAS_PINS: Array<[string, string]> = [
-  ['scripts/substrate/prove-old-env-spellings-unread.ts', 'sets the old env spellings to prove them unread'],
   ['scripts/sessionStorage/prove-old-transcript-kinds-parse.ts', 'holds old transcript rows, records and files by design'],
   ['scripts/switchboard/prove-crewmates-command.ts', 'pins that the old command name is no command and no alias: the palette answers it unknown'],
-  ['scripts/crew/prove-saved-crews-convert.ts', 'converts saved rosters an older build wrote, in their old shape'],
   ['scripts/crew/prove-crew-tools-removed.ts', 'holds an old transcript row of a removed tool'],
   ['scripts/ui/prove-old-transcript-rows.ts', 'holds old transcript rows by design'],
   ['scripts/ui/prove-crew-screens-unchanged.ts', 'reads the stored frames of the earlier screens through a table of the old words'],
@@ -96,17 +94,17 @@ console.log('============================================================')
 
 check('the xAI billing vocabulary is excused only on its named surfaces',
   !OLD.test(crewRemainder('src/services/providers/xai/xaiUsageState.ts', 'team_id teamId /teams/ team usage')) &&
-    OLD.test(crewRemainder('src/daemon/crewSpawn.ts', 'team usage')))
+    OLD.test(crewRemainder('src/utils/crew/agentLaunchPlan.ts', 'team usage')))
 check('a crew spelling beside xAI billing words still trips',
   OLD.test(crewRemainder('src/services/providers/xai/xaiUsageState.ts', 'team usage; ask a teammate')))
 check('the xAI spending refusal stays literal only on its recorded billing surfaces',
   ['scripts/providers/fixtures/xai-subscription-contract.json', 'src/substrate/flagRegistry.ts'].every(rel =>
     !OLD.test(crewRemainder(rel, 'personal-team-blocked:spending-limit')) &&
       OLD.test(crewRemainder(rel, 'personal-team-blocked:spending-limit; ask a teammate'))) &&
-    OLD.test(crewRemainder('src/daemon/crewSpawn.ts', 'personal-team-blocked:spending-limit')))
+    OLD.test(crewRemainder('src/utils/crew/agentLaunchPlan.ts', 'personal-team-blocked:spending-limit')))
 check('the API billing possessive stays scoped to its documented account',
   !OLD.test(crewRemainder('docs/ENGINES.md', "an optional management key for the API team's")) &&
-    OLD.test(crewRemainder('src/daemon/crewSpawn.ts', "an optional management key for the API team's")) &&
+    OLD.test(crewRemainder('src/utils/crew/agentLaunchPlan.ts', "an optional management key for the API team's")) &&
     OLD.test(crewRemainder('docs/ENGINES.md', 'an optional management key for the API teammate')))
 
 const files = execFileSync('git', ['-C', ROOT, 'ls-files', '-z'], { encoding: 'utf8', maxBuffer: 1 << 28 }).split('\0').filter(Boolean)

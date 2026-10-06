@@ -123,7 +123,7 @@ export function compactWorkCounts(input: {
   const monitors = new Set<string>()
   const topAgents = new Map<string, WorkRowV1>()
   for (const row of byId.values()) {
-    if (row.kind === 'agent' || row.kind === 'crewmate') topAgents.set(row.agentId ?? row.id, row)
+    if (row.kind === 'agent') topAgents.set(row.agentId ?? row.id, row)
     if (row.kind === 'monitor' && workRowRuns(row)) monitors.add(row.id)
   }
   for (const [id, row] of topAgents) {

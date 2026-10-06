@@ -62,7 +62,7 @@ import { elicitationPausedClock, runElicitationHooks, runElicitationResultHooks 
 import { getMcpServerHeaders } from './headersHelper.js'
 import { buildMcpToolName, wireSafeMcpToolName } from './mcpStringUtils.js'
 import { normalizeNameForMCP } from './normalization.js'
-import { isCoordinationServerEnabled, isCoordinationServer, withCoordinationLeaseHolder } from './coordinationServer.js'
+import { isMercuryServerEnabled, isMercuryServer, withMercuryLeaseHolder } from './mercuryServer.js'
 import { withMcpToolCardHeader } from './toolCard.js'
 import { mcpPolicyDenyReason, mcpToolAllowed, type McpToolAnnotations } from './toolPolicy.js'
 import type {
@@ -602,12 +602,12 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
         fetch: wrapFetchWithTimeout(createAnthropicProxyFetch(fetch as FetchLike)) as never,
         requestInit: { headers: { 'User-Agent': getMCPUserAgent(), 'X-Mcp-Client-Session-Id': getSessionId() } },
       })
-    } else if ((type === 'stdio' || config.type === undefined) && isCoordinationServer(name) && isCoordinationServerEnabled()) {
-      const [{ createCoordinationServer }, { createLinkedTransportPair }] = await Promise.all([
-        import('./coordinationServer.js'),
+    } else if ((type === 'stdio' || config.type === undefined) && isMercuryServer(name) && isMercuryServerEnabled()) {
+      const [{ createMercuryServer }, { createLinkedTransportPair }] = await Promise.all([
+        import('./mercuryServer.js'),
         import('./InProcessTransport.js'),
       ])
-      const server = await createCoordinationServer()
+      const server = await createMercuryServer()
       const [clientSide, serverSide] = createLinkedTransportPair()
       await server.connect(serverSide)
       inProcessServer = server
@@ -928,8 +928,8 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
                 ?.action as 'accept' | 'decline' | 'cancel'
           : undefined,
       })
-      const result = await (isCoordinationServer(client.name)
-        ? withCoordinationLeaseHolder(context.agentId, invoke)
+      const result = await (isMercuryServer(client.name)
+        ? withMercuryLeaseHolder(context.agentId, invoke)
         : invoke())
       return { data: result.content }
     },

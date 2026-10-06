@@ -7,7 +7,7 @@ import type {
   LocalJSXCommandContext,
   LocalJSXCommandOnDone,
 } from '../../types/command.js'
-import { kitDialLine, mcpRosterLine, mcpRouteArm, MCP_ORGAN_LINE } from './route.js'
+import { kitDialLine, MCP_ORGAN_LINE, mcpRosterLine, mcpRouteArm } from './route.js'
 
 function McpToggle({
   action,

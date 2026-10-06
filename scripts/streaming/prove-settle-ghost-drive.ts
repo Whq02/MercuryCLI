@@ -132,7 +132,6 @@ async function driveScene(route: 'openai' | 'anthropic', arm: 'plain' | 'note'):
     MERCURY_OPERATOR: 'sam',
     MERCURY_HEALTH_STATE_DIR: path.join(RUN_HOME, 'health-state'),
     MERCURY_DAEMON_DIR: path.join(RUN_HOME, 'daemon'),
-    MERCURY_CREWS_DIR: path.join(RUN_HOME, 'crews'),
     MERCURY_HOME: path.join(RUN_HOME, 'proof-home'),
   }
   delete childEnv.NODE_ENV

@@ -2,7 +2,7 @@
 WORKBENCH           │                                                                              │
   no prompts sent y…│ ╭──────────────────────────────────────────────────────────────────────────╮ │
                     │ │ ▖▟▆▙▗ Mercury · config                                                   │ │
-NEXT                │ │ orchard · 60 settings · 0 set by you                                     │ │
+NEXT                │ │ orchard · 59 settings · 0 set by you                                     │ │
   · /workflows — ag…│ │                                                                          │ │
                     │ │ / Search settings…                                                       │ │
 FILES · orchard     │ │                                                                          │ │
@@ -17,7 +17,7 @@ TELEMETRY           │ │   Session concourse                 on              
                     │ │   Motion                            auto · off                           │ │
                     │ │   JEV                               off · official                       │ │
                     │ │   Instruction profile               auto                                 │ │
-                    │ │ ↓ 49 more                                                                │ │
+                    │ │ ↓ 48 more                                                                │ │
                     │ │                                                                          │ │
                     │ │ ↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes │ │
                     │ ╰──────────────────────────────────────────────────────────────────────────╯ │

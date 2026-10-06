@@ -18,7 +18,6 @@ process.env.NODE_ENV = 'test'
 const hermeticHome = mkdtempSync(join(tmpdir(), 't17-state-home-'))
 process.env.MERCURY_CONFIG_DIR = join(hermeticHome, 'config')
 process.env.MERCURY_DAEMON_DIR = join(hermeticHome, 'daemon')
-process.env.MERCURY_CREWS_DIR = join(hermeticHome, 'crews')
 delete process.env.MERCURY_ASSISTANT_DISABLE
 
 import * as state from '../../src/bootstrap/state.js'

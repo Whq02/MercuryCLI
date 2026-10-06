@@ -3,7 +3,6 @@ import { isEnvTruthy } from './utils/envUtils.js'
 import { flagEnv } from './substrate/flagRegistry.js'
 import { getDenyRuleForTool } from './utils/permissions/permissions.js'
 import { searchToolsAvailability } from './utils/ripgrep.js'
-import { isCrewEnabled } from './utils/crewEnabled.js'
 import { isTaskToolsEnabled } from './utils/tasks.js'
 import { isWorktreeModeEnabled } from './utils/worktreeModeEnabled.js'
 import { vulcanToolCatalogEnabled } from './utils/vulcan/vulcanGates.js'
@@ -36,7 +35,6 @@ import {
   CUSTOM_AGENT_DISALLOWED_TOOLS,
 } from './constants/tools.js'
 import { ApolloReviewTool } from './tools/ApolloReviewTool/ApolloReviewTool.js'
-import { ArtifactsListTool } from './tools/ArtifactsListTool/ArtifactsListTool.js'
 import { AskUserQuestionTool } from './tools/AskUserQuestionTool/AskUserQuestionTool.js'
 import { BashTool } from './tools/BashTool/BashTool.js'
 import { ChangeSetTool } from './tools/ChangeSetTool/ChangeSetTool.js'
@@ -92,7 +90,6 @@ import { SyntheticOutputTool } from './tools/SyntheticOutputTool/SyntheticOutput
 import { TaskCreateTool } from './tools/TaskCreateTool/TaskCreateTool.js'
 import { TaskGetTool } from './tools/TaskGetTool/TaskGetTool.js'
 import { TaskListTool } from './tools/TaskListTool/TaskListTool.js'
-import { LiveCommsTool } from './tools/LiveCommsTool/LiveCommsTool.js'
 import { TaskStopTool } from './tools/TaskStopTool/TaskStopTool.js'
 import { TaskUpdateTool } from './tools/TaskUpdateTool/TaskUpdateTool.js'
 import { TestingPermissionTool } from './tools/testing/TestingPermissionTool.js'
@@ -147,8 +144,6 @@ export function getAllBaseTools(): Tools {
   const search = searchToolsAvailability()
   const includeSearchTools = search.available && search.mode !== 'embedded'
 
-  const liveComms = cycleTolerant(() => LiveCommsTool)
-  const artifactsList = cycleTolerant(() => ArtifactsListTool)
   const sendMessage = cycleTolerant(() => SendMessageTool)
   const powerShell = cycleTolerant(() => PowerShellTool)
 
@@ -193,9 +188,6 @@ export function getAllBaseTools(): Tools {
     ...(isWorktreeModeEnabled() ? [EnterWorktreeTool, ExitWorktreeTool] : []),
     ...(checkpointRewindEnabled() ? [CheckpointTool, RewindTool] : []),
     sendMessage,
-    ...(isCrewEnabled() && liveComms
-      ? [liveComms, ...(artifactsList ? [artifactsList] : [])]
-      : []),
     WORKFLOW_TOOL,
     SLEEP_TOOL,
     ...(SCHEDULING_ENABLED_AT_LOAD

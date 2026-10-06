@@ -63,7 +63,7 @@ function capture(cols: number, tag: string, extraEnv: Record<string, string>): s
       { data: '/crewmates', atTick: 999, awaitText: '← back', requireAwait: true, minTick: 5, awaitSettleTicks: 3 },
       { data: '\r', afterPrevTicks: 4 },
     ],
-    readyText: ['Sub-agents'], stableTicks: 5,
+    readyText: ['Crewmates'], stableTicks: 5,
     total: 200, cols, rows: 44, out: grid,
   }))
   const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
@@ -72,7 +72,6 @@ function capture(cols: number, tag: string, extraEnv: Record<string, string>): s
       ...process.env,
       MERCURY_CONFIG_DIR: home,
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
-      MERCURY_CREWS_DIR: join(home, 'crews'),
       MERCURY_CREDENTIAL_STORE: 'file',
       MERCURY_OPERATOR: 'sam',
       MERCURY_TERMINAL_TITLE: '0',
@@ -108,14 +107,8 @@ for (const cols of [120, 80]) {
     [/no named agents yet/, true, "honest empty state ('no named agents yet')"],
     [/@atlas/, false, 'retired stub chip @atlas ABSENT (no fabricated instances)'],
     [/@beacon/, false, 'retired stub chip @beacon ABSENT'],
-    [/crew is disabled/, false, 'not showing the disabled line while enabled'],
   ])
 }
-assertBoard(120, 'disabled', { MERCURY_CREW: '0' }, [
-  [/crew is disabled \(MERCURY_CREW=0/, true, 'honest disabled line naming the kill'],
-  [/no named agents yet/, false, 'empty-state hint suppressed while disabled'],
-])
-
 rmSync(home, { recursive: true, force: true })
 console.log(failures === 0 ? '✅ crew board render GREEN' : `❌ crew board render RED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

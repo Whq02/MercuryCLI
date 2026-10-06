@@ -1,5 +1,5 @@
 import { stringWidth } from '../../ink/stringWidth.js'
-import { formatDuration, formatNumber } from '../../utils/format.js'
+import { formatDuration } from '../../utils/format.js'
 import { GLYPH, SPARK } from '../mercury-ui/glyphs.js'
 import { THINKING_WORD } from '../messages/thinkingGrammar.js'
 import type { LiveCounterWords } from './liveCounterWords.js'
@@ -37,15 +37,9 @@ export type HudFacts = {
   liveWords: LiveCounterWords
   livePhase: string
   effectiveElapsedMs: number
-  hasRunningCrewmates: boolean
-  displayedTokens: number
-  tokensEstimated: boolean
-  crewmateOnlyTokens: number | null
   ctxPct: number | null
   activeToolCount: number
   otps: number
-  interruptHint: string | null
-  foregroundedIdleQuiet: boolean
   wasStacked: boolean
 }
 
@@ -66,10 +60,7 @@ export type HudPlan = {
   segBVisible: boolean
 }
 
-export function hudTokensText(facts: Pick<HudFacts, 'crewmateOnlyTokens' | 'hasRunningCrewmates' | 'displayedTokens' | 'tokensEstimated' | 'liveWords'>): string | null {
-  if (facts.crewmateOnlyTokens !== null || facts.hasRunningCrewmates) {
-    return facts.displayedTokens > 0 ? `${facts.tokensEstimated ? '~' : ''}${formatNumber(facts.displayedTokens)} tokens` : null
-  }
+export function hudTokensText(facts: Pick<HudFacts, 'liveWords'>): string | null {
   return facts.liveWords.count
 }
 
@@ -85,7 +76,7 @@ export function planSpinnerHud(facts: HudFacts, stripLines: (wanted: number) => 
   const thinkingText = mode === 'thinking' && waitPhaseText === null ? facts.thinkingLabel : null
   const promiseText = liveWords.promise
   const timerText = formatDuration(effectiveElapsedMs, { mostSignificantOnly: true })
-  const metaGate = facts.verbose || facts.hasRunningCrewmates || effectiveElapsedMs > 0
+  const metaGate = facts.verbose || effectiveElapsedMs > 0
   const tokensText = hudTokensText(facts)
   const pulseText = liveWords.pulse
   const ctxPct = facts.ctxPct
@@ -110,12 +101,7 @@ export function planSpinnerHud(facts: HudFacts, stripLines: (wanted: number) => 
   if (metaGate && otpsText !== '') fullSegmentTexts.push(otpsText)
   if (promiseText !== null) fullSegmentTexts.push(promiseText)
   const fullMetaCost = fullSegmentTexts.reduce((sum, text) => sum + stringWidth(text) + SEPARATOR_WIDTH, 0)
-  const segBFullCost =
-    facts.interruptHint !== null
-      ? stringWidth(facts.interruptHint) + 2 + SEPARATOR_WIDTH
-      : facts.foregroundedIdleQuiet
-        ? 0
-        : fullMetaCost
+  const segBFullCost = fullMetaCost
   const railSpace = columns - RAIL_INSET
   const oneLineSpace = railSpace - messageWidth - suffixWidth - 5
   const stacked = spinnerStackDecision({
@@ -163,7 +149,7 @@ export function planSpinnerHud(facts: HudFacts, stripLines: (wanted: number) => 
   const onlyThinking = ordered.length === 1 && ordered[0]!.kind === 'thinking'
   const gaugesVisible = showCtx || showWif || showOtps
   const metaVisible = ordered.length > 0 || gaugesVisible
-  const segBTailPresent = facts.interruptHint !== null || (!facts.foregroundedIdleQuiet && metaVisible)
+  const segBTailPresent = metaVisible
   const segBVisible = !facts.still && (suffixText !== '' || segBTailPresent)
   return { stacked, secondRow, ordered, showCtx, showWif, showOtps, ctxPct, ctxSpark, wifText, otpsText, metaVisible, onlyThinking, gaugesVisible, segBVisible }
 }

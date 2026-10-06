@@ -71,7 +71,6 @@ async function runDist(
     MERCURY_CONFIG_DIR: join(home, '.claude'),
     ANTHROPIC_API_KEY: 'fixture-key-000',
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'crews'),
     ...opts.extraEnv,
   }
   if (opts.baseUrl) env.ANTHROPIC_BASE_URL = opts.baseUrl
@@ -247,7 +246,6 @@ async function driveDist(
     ANTHROPIC_API_KEY: 'fixture-key-000',
     ANTHROPIC_BASE_URL: baseUrl,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'crews'),
   }
   const frames: Record<string, unknown>[] = []
   const lines: string[] = []

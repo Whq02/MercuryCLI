@@ -6,8 +6,6 @@ import type { SystemPrompt } from '../utils/systemPromptType.js'
 import type { ChatHookContext } from '../utils/hooks/postSamplingHooks.js'
 import {
   executeStopHooks,
-  executeTaskCompletedHooks,
-  executeCrewmateIdleHooks,
 } from '../utils/hooks/events.js'
 import {
   createCacheSafeParams,
@@ -22,7 +20,7 @@ import {
 import { createAttachmentMessage } from '../utils/attachments.js'
 import { createUserInterruptionMessage } from '../utils/messages/factories.js'
 import { extractTextContent } from '../utils/messages/text.js'
-import { getSessionId, getParentSessionId } from '../bootstrap/state.js'
+import { getSessionId } from '../bootstrap/state.js'
 import { logForDebugging } from '../utils/debug.js'
 import { errorMessage } from '../utils/errors.js'
 import { runTurnSettlementEffects } from './settlementEffects.js'
@@ -44,7 +42,7 @@ async function* consumeHookStream(
   options: {
     formatBlockingError: (error: { blockingError: string; command: string }) => string
     defaultStopReason: string
-    attachmentEvent: 'Stop' | 'TaskCompleted' | 'CrewmateIdle'
+    attachmentEvent: 'Stop'
     yieldInterruptionOnAbort: boolean
     signal: AbortSignal | undefined
     track: {
@@ -276,91 +274,6 @@ export async function* handleStopHooks(
       return {
         blockingErrors: [...settlementBlocks, ...stopOutcome.blockingErrors],
         preventContinuation: false,
-      }
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const crewmate = require('../utils/crewmate.js') as {
-      isCrewmate: () => boolean
-      getAgentName: () => string | undefined
-      getCrewName: () => string | undefined
-    }
-    if (crewmate.isCrewmate()) {
-      const crewmateName = crewmate.getAgentName() ?? ''
-      const crewName = crewmate.getCrewName() ?? ''
-      const crewmateToolUseID = { value: undefined as string | undefined }
-      const crewmateBlockingErrors: UserMessage[] = []
-
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const taskList = require('../utils/tasks.js') as {
-        listTasks: (listId: string) => Promise<Array<{ id: string; subject: string; description?: string; status: string; owner?: string }>>
-      }
-      const taskListId = getParentSessionId() ?? String(getSessionId())
-      const tasks = await taskList.listTasks(taskListId).catch(() => [])
-      const mine = tasks.filter(
-        task => task.status === 'in_progress' && task.owner === crewmateName,
-      )
-      for (const task of mine) {
-        const outcome = yield* consumeHookStream(
-          executeTaskCompletedHooks(
-            task.id,
-            task.subject,
-            task.description,
-            crewmateName,
-            crewName,
-            permissionMode,
-            signal,
-            undefined,
-            toolUseContext,
-          ),
-          {
-            formatBlockingError: error => `Task-completed hook feedback:\n- ${error.blockingError}`,
-            defaultStopReason: 'A task-completed hook prevented continuation',
-            attachmentEvent: 'TaskCompleted',
-            yieldInterruptionOnAbort: false,
-            signal,
-            track: {
-              hookCount: { value: 0 },
-              hookInfos: [],
-              hookErrors: [],
-              hasOutput: { value: false },
-              toolUseID: crewmateToolUseID,
-            },
-          },
-        )
-        if (outcome?.preventContinuation) {
-          return { blockingErrors: [], preventContinuation: true }
-        }
-        if (outcome) crewmateBlockingErrors.push(...outcome.blockingErrors)
-      }
-
-      const idleOutcome = yield* consumeHookStream(
-        executeCrewmateIdleHooks(crewmateName, crewName, permissionMode, signal),
-        {
-          formatBlockingError: error => `Crewmate-idle hook feedback:\n- ${error.blockingError}`,
-          defaultStopReason: 'A crewmate-idle hook prevented continuation',
-          attachmentEvent: 'CrewmateIdle',
-          yieldInterruptionOnAbort: false,
-          signal,
-          track: {
-            hookCount: { value: 0 },
-            hookInfos: [],
-            hookErrors: [],
-            hasOutput: { value: false },
-            toolUseID: crewmateToolUseID,
-          },
-        },
-      )
-      if (idleOutcome?.preventContinuation) {
-        return { blockingErrors: [], preventContinuation: true }
-      }
-      if (idleOutcome) crewmateBlockingErrors.push(...idleOutcome.blockingErrors)
-
-      if (crewmateBlockingErrors.length > 0) {
-        return {
-          blockingErrors: [...settlementBlocks, ...crewmateBlockingErrors],
-          preventContinuation: false,
-        }
       }
     }
   } catch (error) {

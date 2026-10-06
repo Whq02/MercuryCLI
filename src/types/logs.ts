@@ -18,7 +18,6 @@ export type TranscriptMessage = SerializedMessage & {
   logicalParentUuid?: UUID
   isSidechain: boolean
   agentId?: string
-  crewName?: string
   agentName?: string
   agentColor?: string
   promptId?: string
@@ -77,11 +76,9 @@ export type SessionListing = {
   isSidechain: boolean
   isLite?: boolean
   sessionId?: string
-  crewName?: string
   agentName?: string
   agentColor?: string
   agentSetting?: string
-  isCrewmate?: boolean
   leafUuid?: UUID
   summary?: string
   customTitle?: string

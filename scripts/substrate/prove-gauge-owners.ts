@@ -13,7 +13,6 @@ writeFileSync(
 )
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_DAEMON_DIR = join(home, 'daemon')
-process.env.MERCURY_CREWS_DIR = join(home, 'crews')
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 let failures = 0
@@ -123,7 +122,7 @@ section('§3 fleetGauge — solo reads off; the roster still lists a live execut
   const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
   const owner = processMainOwner()
   const solo = await f.fleetGauge()
-  check('solo session reads off with the crew reason', solo.state === 'off' && /not in an agent group/.test(solo.reason ?? ''), `${solo.state} · ${solo.reason}`)
+  check('solo session reads off with the no-fleet reason', solo.state === 'off' && /no fleet/.test(solo.reason ?? ''), `${solo.state} · ${solo.reason}`)
   check('the off arm carries a roster array', Array.isArray(solo.data.roster))
   const beforeCount = solo.data.roster.filter(r => r.source === 'execution').length
   plane.registerExecution({ owner, id: 'proof-agent', kind: 'agent', label: 'proof agent', lifecycle: 'session', initialState: 'running' })

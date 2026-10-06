@@ -47,7 +47,6 @@ export async function makeWorld(label: string, script: ScriptedTurn[]): Promise<
     PATH: '/usr/bin:/bin:' + dirname(NODE),
     TERM: 'dumb',
     MERCURY_CONFIG_DIR: config,
-    MERCURY_CREWS_DIR: crews,
     MERCURY_DAEMON_DIR: join(dir, 'daemon'),
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
@@ -256,17 +255,6 @@ export function userTextsOf(world: World, model = LEAD_MODEL): string[] {
     }
   }
   return out
-}
-
-export type CrewMessageRow = { to: string; from: string; text: string; timestamp: string; read?: boolean; delivery?: { id: string } }
-
-export function crewStoreFile(world: World, crew: string): string {
-  return join(world.config, 'crew', 'livecomms', `${crew.replace(/[^A-Za-z0-9]/g, '-').toLowerCase()}.json`)
-}
-
-export function crewMessagesTo(world: World, crew: string, name: string): CrewMessageRow[] {
-  const file = readJson<{ messages?: CrewMessageRow[] }>(crewStoreFile(world, crew))
-  return (file?.messages ?? []).filter(row => row.to === name)
 }
 
 export function readJson<T>(path: string): T | null {

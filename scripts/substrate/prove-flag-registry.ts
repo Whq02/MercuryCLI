@@ -104,7 +104,7 @@ check(
 )
 
 section('§3 gate behavior matrix under stamp-sim (LIVE env re-reads)')
-const optOutSample = ['MERCURY_DAEMON_BUS', 'MERCURY_CARRY_FORWARD', 'MERCURY_DAEMON_CATCHUP', 'MERCURY_ROUTER']
+const optOutSample = ['MERCURY_DAEMON_CATCHUP', 'MERCURY_ROUTER']
 for (const env of optOutSample) {
   delete process.env[env]
   const on = flagEnabled(env)
@@ -368,7 +368,7 @@ section('§7 swept-spelling totality — swept spellings never ride a registry r
     ['point-free map', `const BAD = [${sweptLiteral}]\nconst vals = BAD.map(flagEnv)`, true],
     ['for-of, reader on the loop variable', `const BAD = [${sweptLiteral}]\nfor (const v of BAD) if (flagEnv(v) === '1') n++`, true],
     ['for-of, the name as a LATER argument', `const BAD = [${sweptLiteral}]\nfor (const v of BAD) {\n  stampFlagOnEnv(env, v, '1')\n}`, true],
-    ['spread into a fed array (transitive)', `const RET = [${sweptLiteral}]\nconst LIVE = ['MERCURY_CREW']\nconst ALL = [...LIVE, ...RET]\nconst sp = ALL.flatMap(flagSpellings)`, true],
+    ['spread into a fed array (transitive)', `const RET = [${sweptLiteral}]\nconst LIVE = ['MERCURY_CONCOURSE_WORKER']\nconst ALL = [...LIVE, ...RET]\nconst sp = ALL.flatMap(flagSpellings)`, true],
     ['clean: a RAW process.env sweep', `const RET = [${sweptLiteral}]\nconst set = RET.filter(v => process.env[v] === '1')\nfor (const v of RET) delete env[v]`, false],
   ]
   for (const [label, text, expectFed] of shapes) {

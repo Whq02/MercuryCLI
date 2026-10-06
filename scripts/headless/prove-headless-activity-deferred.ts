@@ -119,7 +119,6 @@ section("§3 the built artifact: a -p run's note is on disk after the process ex
       MERCURY_CREDENTIAL_STORE: 'file',
       BROWSER: '/usr/bin/true',
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
-      MERCURY_CREWS_DIR: join(home, 'crews'),
       ANTHROPIC_BASE_URL: api.url,
       ANTHROPIC_API_KEY: API_KEY,
     }

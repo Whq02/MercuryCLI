@@ -338,7 +338,6 @@ export async function resumeAgentBackground(args: {
   const resumeContext: SubagentContext = {
     agentType: 'subagent',
     agentId: agentId as AgentId,
-    parentSessionId: undefined,
     subagentName: definition.agentType,
     isBuiltIn: isBuiltInAgent(definition),
     invokingRequestId: args.invokingRequestId,
@@ -358,4 +357,8 @@ export async function resumeAgentBackground(args: {
     ...directoryFacts,
     ...(note ? { note } : {}),
   }
+}
+
+export function operatorResumeWords(description: string): string {
+  return `Agent "${description}" resumed from the crew view · it runs on under the same id`
 }

@@ -8,8 +8,7 @@
 # gate-watch: src/components/permissions/** src/hooks/useCancelRequest.ts src/hooks/useDisplayedSessionModel.ts
 # gate-watch: scripts/lib/* src/bootstrap/state.ts src/cli/run.ts src/commands/crew/index.ts
 # gate-watch: src/commands/crew/index.ts src/commands/crewmates/index.ts src/commands/crewmates/crewmates.tsx
-# gate-watch: src/components/* src/components/Spinner/CrewmateSpinnerLine.tsx
-# gate-watch: src/components/Spinner/CrewmateSpinnerTree.tsx
+# gate-watch: src/components/*
 # gate-watch: src/components/mercury-ui/keyHintLabel.ts src/components/mercury-ui/screens/*
 # gate-watch: src/components/messages/** src/components/tasks/* src/cost-tracker.ts src/daemon/*
 # gate-watch: src/hooks/useArrowKeyHistory.tsx src/ink/session/capabilities.ts src/ink/stringWidth.ts
@@ -22,7 +21,7 @@
 # gate-watch: src/tasks/LocalAgentTask/LocalAgentTask.tsx src/tools/AgentTool/*
 # gate-watch: src/tools/BashTool/BashTool.tsx src/tools/BashTool/backgroundRequest.ts
 # gate-watch: src/tools/WorkflowTool/runManifest.ts src/utils/* src/utils/attachments/orchestrator.ts
-# gate-watch: src/utils/cockpit/fleetGauge.ts src/utils/config/globalConfig.ts src/utils/crew/crewClient.ts
+# gate-watch: src/utils/cockpit/fleetGauge.ts src/utils/config/globalConfig.ts
 # gate-watch: src/utils/messages/factories.ts src/utils/model/capabilities.ts src/utils/model/configs.ts
 # gate-watch: src/utils/sessionStorage/paths.ts src/utils/settings/types.ts src/utils/task/workRoster.ts
 # gate-watch: src/state/crewLedger.ts

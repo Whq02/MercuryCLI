@@ -466,7 +466,7 @@ async function runForkedPromptCommand(
       setToolJSX({
         jsx: (
           <Box flexDirection="column">
-            <Text dimColor>{`/${commandName} running in a subagent (${emitted} message${emitted === 1 ? '' : 's'}, ${responseLength} chars)`}</Text>
+            <Text dimColor>{`/${commandName} running in a crewmate (${emitted} message${emitted === 1 ? '' : 's'}, ${responseLength} chars)`}</Text>
           </Box>
         ),
         shouldHidePromptInput: true,

@@ -3,7 +3,7 @@
 # gate-watch: README.md docs/ENGINES.md src/commands/model/mercuryModel.tsx
 # gate-watch: src/utils/model/agent.ts src/utils/model/bareFamilyWords.ts src/utils/model/model.ts
 # gate-watch: src/utils/model/modelOptions.ts src/utils/model/validateModel.ts
-# gate-watch: src/utils/router/** src/utils/crew/agentLaunchPlan* src/utils/crew/roleResolver*
+# gate-watch: src/utils/router/** src/utils/crew/agentLaunchPlan*
 # gate-watch: src/services/providers/**
 # gate-watch: src/query/deps* src/utils/crew/engineDispatch* src/tools/AgentTool/AgentTool*
 # gate-watch: src/Tool.ts src/bootstrap/state.ts src/cost-tracker.ts src/services/api/errors.ts

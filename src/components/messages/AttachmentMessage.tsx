@@ -2,20 +2,15 @@
 import React from 'react'
 import { Ansi, Box, Text } from '../../ink.js'
 import Link from '../../ink/components/Link.js'
-import { isCrewMessagesAttachment, type Attachment } from '../../utils/attachments/types.js'
+import type { Attachment } from '../../utils/attachments/types.js'
 import { stoppedContinuationMessage } from '../../utils/attachments/stoppedContinuation.js'
 import { formatFileSize } from '../../utils/format.js'
 import { plural } from '../../utils/stringUtils.js'
-import { isCrewEnabled } from '../../utils/crewEnabled.js'
-import { isIdleNotification, isShutdownApproved } from '../../services/crew/liveMessages.js'
-import { toInkColor } from '../../utils/ink.js'
 import { permissionModeTitle } from '../../utils/permissions/PermissionMode.js'
 import { CtrlOToExpand } from '../CtrlOToExpand.js'
 import { DiagnosticsDisplay } from '../DiagnosticsDisplay.js'
 import { MessageResponse } from '../MessageResponse.js'
 import type { NullRenderingAttachmentType } from './nullRenderingAttachments.js'
-import { CrewmateMessageContent } from './UserCrewmateMessage.js'
-import { tryRenderTaskAssignmentMessage } from './TaskAssignmentMessage.js'
 import { UserImageMessage } from './UserImageMessage.js'
 import { UserTextMessage } from './UserTextMessage.js'
 import { isAdvisorOrigin } from '../../utils/messages/noticeRows.js'
@@ -87,50 +82,6 @@ export function AttachmentMessage({
   isTranscriptMode?: boolean
 }): React.ReactNode {
   const selectedBg = useSelectedMessageBg()
-  if (isCrewMessagesAttachment(attachment)) {
-    if (!isCrewEnabled()) return null
-    const surviving = attachment.messages.filter(message => {
-      if (isIdleNotification(message.text)) return false
-      if (isShutdownApproved(message.text)) return false
-      try {
-        const parsed = JSON.parse(message.text) as { type?: string }
-        if (parsed?.type === 'crewmate_terminated') return false
-      } catch {
-      }
-      return true
-    })
-    if (surviving.length === 0) return null
-    return (
-      <Box
-        flexDirection="column"
-        marginTop={addMargin ? 1 : 0}
-        backgroundColor={selectedBg}
-      >
-        {surviving.map((message, index) => {
-          const senderName = message.from
-          const assignment = tryRenderTaskAssignmentMessage(
-            message.text,
-            senderName,
-          )
-          if (assignment) {
-            return <React.Fragment key={index}>{assignment}</React.Fragment>
-          }
-          return (
-            <CrewmateMessageContent
-              key={index}
-              message={{
-                crewmateId: message.from,
-                color: message.color,
-                summary: message.summary,
-                content: message.text,
-              }}
-              isTranscriptMode={isTranscriptMode}
-            />
-          )
-        })}
-      </Box>
-    )
-  }
   if (attachment.type === 'skill_discovery') return null
 
   switch (attachment.type) {
@@ -431,20 +382,6 @@ export function AttachmentMessage({
       )
 
     case 'task_status': {
-      const isCrewmate =
-        isCrewEnabled() &&
-        (attachment.taskType as string) === 'in_process_crewmate'
-      if (isCrewmate) {
-        const color = toInkColor(undefined)
-        return (
-          <AttachmentLine>
-            <Text color={color}>@{attachment.description}</Text>{' '}
-            {attachment.status === 'completed'
-              ? 'shut down cleanly'
-              : String(attachment.status)}
-          </AttachmentLine>
-        )
-      }
       const description = `"${attachment.description}"`
       switch (String(attachment.status)) {
         case 'completed':
@@ -469,14 +406,6 @@ export function AttachmentMessage({
           )
       }
     }
-
-    case 'crewmate_shutdown_batch':
-      return (
-        <AttachmentLine>
-          {attachment.count} {plural(attachment.count, 'crewmate')} shut down
-          cleanly
-        </AttachmentLine>
-      )
 
     default: {
       const nullRendering: NullRenderingAttachmentType = attachment.type

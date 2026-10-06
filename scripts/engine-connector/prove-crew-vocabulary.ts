@@ -25,18 +25,14 @@ const HOLES = /\$\{[^}]*\}/g
 
 const FILES = [
   'src/components/mercury-ui/screens/CrewView.tsx',
-  'src/components/mercury-ui/screens/CrewmateChatsView.tsx',
   'src/components/HelmLanesRail.tsx',
   'src/components/HelmTelemetryRail.tsx',
   'src/components/tasks/BackgroundTasksDialog.tsx',
-  'src/components/tasks/InProcessCrewmateDetailDialog.tsx',
   'src/components/tasks/AsyncAgentDetailDialog.tsx',
   'src/components/tasks/taskStatusUtils.tsx',
   'src/components/TaskListV2.tsx',
   'src/components/AgentProgressLine.tsx',
   'src/tools/AgentTool/UI.tsx',
-  'src/components/Spinner/CrewmateSpinnerLine.tsx',
-  'src/components/Spinner/CrewmateSpinnerTree.tsx',
   'src/components/MercuryCrewmateTree.tsx',
   'src/components/MercuryAgents.tsx',
   'src/components/MercuryTasks.tsx',
@@ -49,8 +45,6 @@ const FILES = [
   'src/services/engine-connector/crewFacts.ts',
   'src/utils/cockpit/fleetGauge.ts',
   'src/state/telemetryBus.ts',
-  'src/utils/crew/crewClient.ts',
-  'src/daemon/crewSpawn.ts',
   'src/utils/healthReport.ts',
 ]
 
@@ -108,7 +102,7 @@ console.log('— §0 the scanner bites (poison control) —')
     "const c = 'no teammates yet'",
     "const d = 'a party seat'",
     '// a comment saying teammate never counts',
-    "import x from './CrewmateChatsView.js'",
+    "import x from './CrewView.js'",
     "const e = '/teammates · n new'",
     "const f = 'third-party seat'",
     "const g = kind === 'teammate'",

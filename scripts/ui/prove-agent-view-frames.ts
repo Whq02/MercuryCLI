@@ -482,7 +482,7 @@ if (crewWindow !== null) {
   const keyRow = crewWindow.rows.map(row => row.trim()).find(row => row.includes('esc close')) ?? ''
   console.log(`the crew view's key row: "${keyRow}"`)
   check(`the key row carries "${MAIN_CHAT_KEY}"`, keyRow.includes(MAIN_CHAT_KEY), `the key row reads "${keyRow}"`)
-  check('the key row keeps x stop · p pause · n new named agent · esc close', /x x stop|x stop/.test(keyRow) && keyRow.includes('p pause') && keyRow.includes('n new named agent') && keyRow.includes('esc close'), keyRow)
+  check('the key row keeps x stop · p pause · esc close and carries no spawn key', /x x stop|x stop/.test(keyRow) && keyRow.includes('p pause') && !keyRow.includes('n new') && keyRow.includes('esc close'), keyRow)
   check('the rows are the crew\'s own (fifteen sub-agents, the count in the title)', crewWindow.rows.some(row => row.includes('15 running')) && crewWindow.rows.filter(row => row.includes('Lane ')).length === 15, crewWindow.rows.slice(1, 6).join(' | '))
   const bleed = crewWindow.rows.filter(row => row.includes(TRANSCRIPT_NEEDLE))
   check('the window is opaque: no transcript row shows through it', bleed.length === 0, bleed.slice(0, 2).join(' | '))

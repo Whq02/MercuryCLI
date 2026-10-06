@@ -61,7 +61,7 @@ export function registerVerifierSkill(): void {
   registerBundledSkill({
     name: VERIFIER_SKILL_NAME,
     description:
-      'Adversarial verification of completed work: a sub-agent tries to break the implementation and ends with one VERDICT: PASS, FAIL or PARTIAL line. Pass the original task, the changed files, the approach taken and any plan path as the argument. Use when correctness was left to you — vague requirements, expensive mistakes (servers, infrastructure, security, money, user data), or sizeable work without its own checks; when the task supplies runnable acceptance checks, run those instead.',
+      'Adversarial verification of completed work: a crewmate tries to break the implementation and ends with one VERDICT: PASS, FAIL or PARTIAL line. Pass the original task, the changed files, the approach taken and any plan path as the argument. Use when correctness was left to you — vague requirements, expensive mistakes (servers, infrastructure, security, money, user data), or sizeable work without its own checks; when the task supplies runnable acceptance checks, run those instead.',
     argumentHint: '<the task, the changed files, the approach>',
     userInvocable: false,
     context: 'fork',

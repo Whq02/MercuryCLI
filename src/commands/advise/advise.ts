@@ -1,8 +1,6 @@
 import {
   ADVISOR_COMMAND,
-  ADVISOR_CREWMATE_REFUSAL,
   advisorChatLine,
-  advisorSessionSeat,
 } from '../../services/advisor/advisorSettings.js'
 import type { LocalCommandResult, LocalJSXCommandContext } from '../../types/command.js'
 import { saveAdvisorSwitch } from '../../utils/sessionStorage.js'
@@ -19,7 +17,6 @@ export function parseAdviseArg(rawArg: string): 'on' | 'off' | 'show' | 'unknown
 export function runAdviseCommand(rawArg: string): string {
   const op = parseAdviseArg(rawArg)
   if (op === 'unknown') return ADVISE_USAGE
-  if (advisorSessionSeat() !== 'main') return ADVISOR_CREWMATE_REFUSAL
   if (op !== 'show') saveAdvisorSwitch(op === 'on')
   return advisorChatLine()
 }

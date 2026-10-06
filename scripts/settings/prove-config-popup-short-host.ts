@@ -38,7 +38,7 @@ const SCENES: Scene[] = [
   { columns: 80, rows: 14, bottom: 2 },
   { columns: 80, rows: 21, bottom: 4 },
 ]
-const ROW = 'Sub-agent default model'
+const ROW = 'Crewmate default model'
 const TITLE = 'Mercury · config'
 const HINT_TAIL = CONFIG_POPUP_HINT.slice(-26)
 

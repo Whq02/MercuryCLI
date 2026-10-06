@@ -1,16 +1,13 @@
 #!/usr/bin/env bun
 import { getEmptyToolPermissionContext } from '../../src/Tool.js'
-import type { AgentDefinition, CustomAgentDefinition } from '../../src/tools/AgentTool/loadAgentsDir.js'
+import type { CustomAgentDefinition } from '../../src/tools/AgentTool/loadAgentsDir.js'
 import { anthropicProviderAdapter } from '../../src/utils/router/providers/anthropic.js'
 import { openaiProviderAdapter } from '../../src/utils/router/providers/openai.js'
 import { zaiProviderAdapter } from '../../src/utils/router/providers/zai.js'
 import {
   buildAgentLaunchPlan,
-  deriveRunnerAgentDefinition,
-  CREW_ESSENTIAL_TOOLS,
   type AgentLaunchPlanInput,
 } from '../../src/utils/crew/agentLaunchPlan.js'
-import { findRoleDefinition } from '../../src/utils/crew/roleResolver.js'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -96,9 +93,6 @@ section('2 · buildAgentLaunchPlan — decision laws')
   )
 
   const roster = [mkDef({ agentType: 'mercury-scout' })]
-  check('the role resolver reads a registered id as written', findRoleDefinition('mercury-scout', roster)?.agentType === 'mercury-scout')
-  check('the role resolver finds nothing for an unknown id — no alias table', findRoleDefinition('orbit-probe', roster) === undefined)
-  check('the role resolver reads no type from an empty request', findRoleDefinition(undefined, roster) === undefined && findRoleDefinition('', roster) === undefined)
   const seamPlan = buildAgentLaunchPlan(
     base({
       requestedType: 'mercury-scout',
@@ -149,35 +143,6 @@ section('2 · buildAgentLaunchPlan — decision laws')
 
   const forkPlan = buildAgentLaunchPlan(base({ requestedType: undefined, forkGateOn: true }))
   check('fork path resolves the injected fork definition', forkPlan.isForkPath && forkPlan.agentType === 'orbit-fork')
-}
-
-section('3 · deriveRunnerAgentDefinition — crewmate product laws')
-{
-  const baseDef: AgentDefinition = {
-    agentType: 'orbit-role-def',
-    whenToUse: 'probe',
-    getSystemPrompt: () => 'probe',
-    source: 'projectSettings',
-    tools: ['Read'],
-    model: 'claude-sonnet-5',
-  }
-  const derived = deriveRunnerAgentDefinition({
-    agentDefinition: baseDef,
-    displayName: 'Probe',
-    systemPrompt: 'composed prompt',
-  })
-  check('agentType prefers the definition over displayName', derived.agentType === 'orbit-role-def')
-  check(
-    'explicit tools gain every CREW_ESSENTIAL_TOOL',
-    CREW_ESSENTIAL_TOOLS.every(t => derived.tools!.includes(t)) && derived.tools!.includes('Read'),
-    derived.tools!.join(','),
-  )
-  check("permissionMode is 'default' (runner overlays live mode per turn)", derived.permissionMode === 'default')
-  check('model pin propagates', derived.model === 'claude-sonnet-5')
-
-  const bare = deriveRunnerAgentDefinition({ displayName: 'Bare', systemPrompt: 'p' })
-  check('no definition ⇒ displayName is identity of last resort', bare.agentType === 'Bare')
-  check("no explicit tools ⇒ ['*']", JSON.stringify(bare.tools) === JSON.stringify(['*']))
 }
 
 console.log('\n' + '═'.repeat(76))

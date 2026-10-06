@@ -65,21 +65,20 @@ console.log('§4 the Scroll copy chord is platform-forked (no more super+c on Wi
   check('ctrl+shift+c copy stays on every platform', scroll['ctrl+shift+c'] === 'selection:copy')
 }
 
-console.log('§5 every display surface teaches the PORTABLE crewmate-preview chord')
+console.log('§5 the display walk teaches the chord declared last — the portable one when a shift chord and a prefix chord are authored for one action')
 {
-  const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
   const { parseBindings } = await import('../../src/keybindings/parser.ts')
   const { getBindingDisplayText } = await import('../../src/keybindings/resolver.ts')
-  const parsed = parseBindings(DEFAULT_BINDINGS)
-  const display = getBindingDisplayText('app:toggleCrewmatePreview', 'Global', parsed, 'windows')
+  const parsed = parseBindings([{ context: 'Global', bindings: { 'ctrl+shift+o': 'app:toggleTerminal', 'ctrl+x o': 'app:toggleTerminal' } }] as never)
+  const display = getBindingDisplayText('app:toggleTerminal', 'Global', parsed, 'windows')
   check(
-    "the display walk teaches the prefix chord, never the shift one (`help-advertises-the-non-portable-crewmate-chord`)",
+    "the display walk teaches the prefix chord declared last, never the shift one conhost collapses onto ctrl+o (`help-advertises-the-non-portable-crewmate-chord`)",
     display !== undefined && /x\s*o/i.test(display) && !/shift/i.test(display) && !/⇧/.test(display),
     String(display),
   )
   check(
-    'both chords still fire (the swap is display precedence, not a rebind)',
-    parsed.filter(b => b.action === 'app:toggleCrewmatePreview' && b.context === 'Global').length === 2,
+    'both chords still fire (the precedence is display order, not a rebind)',
+    parsed.filter(b => b.action === 'app:toggleTerminal' && b.context === 'Global').length === 2,
   )
 }
 

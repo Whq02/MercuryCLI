@@ -61,22 +61,6 @@ check(
   'concourse argv still pins the session id',
   inv.argv.includes('--session-id') && inv.argv.includes(sessionId),
 )
-const crewInv = buildRunnerInvocation({
-  model: 'claude-fable-5',
-  effort: 'high',
-  appendSystemPrompt: '',
-  role: 'MERCURY_CREW',
-  agentName: 'probe',
-  agentId: 'probe@crew',
-  crewName: 'crew',
-})
-check(
-  'crew-shaped spec still carries the triplet (control)',
-  crewInv.argv.includes('--crew') &&
-    crewInv.argv.includes('--seat') &&
-    crewInv.argv.includes('--seat-id'),
-)
-
 console.log('LAW 3 — capacity role intact:')
 check('MERCURY_CONCOURSE_WORKER stamps 1 on the child env', inv.env.MERCURY_CONCOURSE_WORKER === '1')
 

@@ -43,30 +43,6 @@ section('§A the derivation: child threshold ≠ parent threshold when windows d
   )
 }
 
-section('§B the runner wires the threshold to the effective crewmate model')
-{
-  const src = readFileSync(
-    join(import.meta.dir, '..', '..', 'src', 'utils', 'crew', 'inProcessRunner.ts'),
-    'utf8',
-  )
-  check(
-    'the effective model is resolved ONCE through getAgentModel',
-    src.includes('const effectiveModel = getAgentModel('),
-  )
-  check(
-    'the compaction threshold reads the effective model',
-    src.includes('getAutoCompactThreshold(effectiveModel)'),
-  )
-  check(
-    'no compaction threshold reads the parent model anymore',
-    !src.includes('getAutoCompactThreshold(toolUseContext.options.engineModel)'),
-  )
-  check(
-    'the resolution feeds from the same inputs the dispatch uses (definition + parent + override)',
-    /getAgentModel\(derivedDefinition\.model, options\.engineModel, config\.model\)/.test(src),
-  )
-}
-
 rmSync(process.env.MERCURY_CONFIG_DIR!, { recursive: true, force: true })
 console.log('\n' + '═'.repeat(76))
 if (failures > 0) {

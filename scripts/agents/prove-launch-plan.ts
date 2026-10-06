@@ -16,9 +16,7 @@ function section(t: string): void {
 const ROOT = join(import.meta.dir, '..', '..')
 const src = (...p: string[]) => readFileSync(join(ROOT, 'src', ...p), 'utf-8')
 
-const { buildAgentLaunchPlan, deriveRunnerAgentDefinition, CREW_ESSENTIAL_TOOLS } =
-  await import('../../src/utils/crew/agentLaunchPlan.ts')
-const { resolveCrewmateRole } = await import('../../src/utils/crew/roleResolver.ts')
+const { buildAgentLaunchPlan } = await import('../../src/utils/crew/agentLaunchPlan.ts')
 const { getBuiltInAgents } = await import('../../src/tools/AgentTool/builtInAgents.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
@@ -80,17 +78,10 @@ console.log('============================================================')
 console.log(' Agent launch plan — one typed resolution for every dispatch')
 console.log('============================================================')
 
-section('§1 — canonical decode: ONE truth with the crewmate resolver')
+section('§1 — canonical decode: ONE truth')
 {
   const plan = buildAgentLaunchPlan(base({ requestedType: 'mercury-scout' }))
   check('a registered id resolves to itself through the one seam', plan.agentType === 'mercury-scout', plan.agentType)
-  const crewmate = resolveCrewmateRole({
-    crewmateName: 'x',
-    requestedAgentType: 'mercury-scout',
-    agents: getBuiltInAgents() as never,
-    prompt: 'p',
-  })
-  check('the subagent plan and the crewmate resolver agree on the decode', plan.agentType === crewmate.agentType)
   check('explicit canonical type resolves to its definition', buildAgentLaunchPlan(base({ requestedType: 'mercury-scout' })).definition === (SCOUT as never))
 }
 
@@ -189,51 +180,14 @@ section('§4 — isolation · the async decision law · worker permission mode')
   check("no definition mode → the 'implement' worker default", buildAgentLaunchPlan(base({ requestedType: 'mercury-crew' })).workerPermissionMode === 'implement')
 }
 
-section("§5 — the runner's definition product")
-{
-  const role = resolveCrewmateRole({
-    crewmateName: 'scout-7',
-    requestedAgentType: 'mercury-scout',
-    agents: getBuiltInAgents() as never,
-    prompt: 'p',
-  })
-  const def = deriveRunnerAgentDefinition({
-    role,
-    agentDefinition: role.definition,
-    displayName: 'scout-7',
-    systemPrompt: 'COMPOSED PROMPT',
-  })
-  check('canonical role id, never the display name', def.agentType === 'mercury-scout', def.agentType)
-  check('the composed prompt is the definition prompt', def.getSystemPrompt() === 'COMPOSED PROMPT')
-  check('a denial-only role keeps the all-tools list', Array.isArray(def.tools) && def.tools[0] === '*')
-  check('role tool DENIALS survive in-process', Array.isArray(def.disallowedTools) && def.disallowedTools.includes('Edit'))
-  const explicitDef = deriveRunnerAgentDefinition({
-    agentDefinition: SCOUT as never,
-    displayName: 'listed',
-    systemPrompt: 's',
-  })
-  check('crew-essential tools ride explicit role tool lists', CREW_ESSENTIAL_TOOLS.every(t => explicitDef.tools?.includes(t)))
-  check('the role tool contract survives beside them', ['Read', 'Grep'].every(t => explicitDef.tools?.includes(t)))
-  check("the base permission mode is 'default' (full tool access; live task mode overlays per turn)", def.permissionMode === 'default')
-  check("the role's model pin propagates", typeof def.model === 'string' && def.model !== 'haiku')
-
-  const bare = deriveRunnerAgentDefinition({ displayName: 'freeform', systemPrompt: 's' })
-  check('no role/definition → display-name identity + all tools', bare.agentType === 'freeform' && Array.isArray(bare.tools) && bare.tools[0] === '*')
-}
-
 section('§6 — seam ratchets: the consumers consume the plan')
 {
   const agentTool = src('tools', 'AgentTool', 'AgentTool.tsx')
   check('AgentTool resolves through buildAgentLaunchPlan', agentTool.includes('buildAgentLaunchPlan({'))
   check('AgentTool keeps NO alias-map copy (decode has ONE home)', !agentTool.includes('LEGACY_SUBAGENT_ALIASES'))
   check('AgentTool resolves the explicit model through the model owner before engine validation', agentTool.includes('getAgentModel(undefined, options.engineModel, input.model)') && agentTool.indexOf('getAgentModel(undefined, options.engineModel, input.model)') < agentTool.indexOf('resolveEngineDispatch(modelParam)'))
-  const runner = src('utils', 'crew', 'inProcessRunner.ts')
-  check('the runner consumes deriveRunnerAgentDefinition', runner.includes('deriveRunnerAgentDefinition({'))
-  check('the runner keeps NO inline definition literal', !runner.includes("whenToUse: `In-process crewmate"))
   const planSrc = src('utils', 'crew', 'agentLaunchPlan.ts')
   check('the plan builder reads the requested type as written — no decode seam, no alias table', planSrc.includes('const requestedType = i.requestedType || undefined') && !/decodeAgentType|Record<string, string>/.test(planSrc))
-  const resolverSrc = src('utils', 'crew', 'roleResolver.ts')
-  check('the role resolver finds a definition by the requested id itself', resolverSrc.includes('agents.find(a => a.agentType === requested)') && !resolverSrc.includes('decodeAgentType'))
 
   const fg = src('tools', 'AgentTool', 'foregroundExecution.tsx')
   check('AgentTool dispatches foreground runs to the execution module', agentTool.includes('runForegroundAgentExecution({'))

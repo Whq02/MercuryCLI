@@ -362,7 +362,7 @@ function stopHookSuffix(messages: readonly Message[], isLoading: boolean): strin
   const custom = ofExecution.find(p => p.statusMessage)?.statusMessage;
   if (custom) return total > 1 ? `${custom} · ${completed}/${total}` : custom;
   if (total === 1) {
-    return latest.hookEvent === 'SubagentStop' ? 'running subagent stop hook' : 'running stop hook';
+    return latest.hookEvent === 'SubagentStop' ? 'running crewmate stop hook' : 'running stop hook';
   }
   return `running stop hooks · ${completed}/${total}`;
 }

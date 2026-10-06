@@ -32,7 +32,6 @@ for (const ambient of [
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'pruned-history-wire-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'pruned-history-wire-daemon-'))
-process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'pruned-history-wire-crews-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 const { startOverflowFixture } = await import('./overflowFixture.ts')

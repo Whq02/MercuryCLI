@@ -138,7 +138,6 @@ try {
   const execution = readFileSync(join(import.meta.dir, '../../src/tools/AgentTool/runAgent.ts'), 'utf8')
   check('the run loop applies the guard before permission and at tool execution', execution.includes('reviewerRefusal(args[0], args[1], reviewReceipt, worktreePath!)') && execution.includes('tools = restrictReviewerTools(tools, reviewReceipt, worktreePath!)'))
   const dispatch = readFileSync(join(import.meta.dir, '../../src/tools/AgentTool/AgentTool.tsx'), 'utf8')
-  check('a crewmate spawn cannot carry a review receipt', dispatch.includes('if (input.review_receipt !== undefined) throw new Error(') && dispatch.includes('not as a crewmate'))
   check('a receipt without worktree_at, worktree isolation or with a cwd override is refused at the call', dispatch.includes("if (input.review_receipt !== undefined && (!input.worktree_at || plan.isolation !== 'worktree' || input.cwd !== undefined))"))
   check('the receipt reaches the run from the launch, whatever the agent type', dispatch.includes('...(input.review_receipt !== undefined ? { reviewReceipt: input.review_receipt } : {}),'))
   console.log(`Reviewer write scope: ${checks} checks passed`)

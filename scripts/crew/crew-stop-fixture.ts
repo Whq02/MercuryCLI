@@ -1,20 +1,15 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 
-export const LEAD_ASK_MATE = 'crew-stop: spawn the ping mate'
 export const LEAD_ASK_SLEEPER = 'crew-stop: launch the sleeper'
 export const LEAD_ASK_HELD = 'crew-stop: hold on the sleeper'
 export const LEAD_DONE = 'crew-stop: done.'
-export const MATE_NAME = 'sonnet-ping'
-export const MATE_CREW = 'ping-crew'
-export const MATE_PROMPT = 'crew-mate: reply with the word ping and nothing else'
-export const MATE_REPLY = 'ping'
 export const SEAT_NAME = 'sleeper'
 export const SEAT_PROMPT = 'crew-seat: run the long sleep'
 export const SEAT_SLEEP_SECONDS = 287
 export const SEAT_ACK = 'crew-seat: the sleep ended'
 export const SIDE_REPLY = 'ok'
 
-export type Route = 'lead' | 'lead-ack' | 'mate' | 'mate-ack' | 'seat' | 'seat-ack' | 'side'
+export type Route = 'lead' | 'lead-ack' | 'seat' | 'seat-ack' | 'side'
 export type Hit = { route: Route; model: string; ask: string; at: number; toolNames: string[]; step: number }
 export type Fixture = { base: string; port: number; hits: Hit[]; close: () => Promise<void> }
 export type SeatTool = 'bash' | 'sleep'
@@ -82,7 +77,6 @@ export function routeOf(body: unknown): { route: Route; ask: string; step: numbe
   const ack = lastIsToolResult(body)
   const step = stepOf(body)
   const offersAgent = toolNamesOf(body).includes('Agent')
-  if (ask.includes('crew-mate:')) return { route: ack ? 'mate-ack' : 'mate', ask, step }
   if (ask.includes('crew-seat:')) return { route: ack ? 'seat-ack' : 'seat', ask, step }
   if (offersAgent && ask.includes('crew-stop:')) {
     return { route: ack ? 'lead-ack' : 'lead', ask, step }
@@ -120,15 +114,6 @@ function answer(model: string, blocks: Block[], usage: { input: number; output: 
 export function blocksFor(route: Route, ask: string, seatTool: SeatTool, step = 0): { blocks: Block[]; usage: { input: number; output: number } } {
   switch (route) {
     case 'lead': {
-      if (ask.includes(LEAD_ASK_MATE)) {
-        return {
-          blocks: [
-            { type: 'text', text: 'spawning the ping mate' },
-            { type: 'tool_use', name: 'Agent', input: { name: MATE_NAME, crew_name: MATE_CREW, description: MATE_NAME, prompt: MATE_PROMPT, subagent_type: 'mercury-crew' } },
-          ],
-          usage: { input: 1200, output: 80 },
-        }
-      }
       const background = !ask.includes(LEAD_ASK_HELD)
       return {
         blocks: [
@@ -140,10 +125,6 @@ export function blocksFor(route: Route, ask: string, seatTool: SeatTool, step = 
     }
     case 'lead-ack':
       return { blocks: [{ type: 'text', text: LEAD_DONE }], usage: { input: 1500, output: 30 } }
-    case 'mate':
-      return { blocks: [{ type: 'text', text: MATE_REPLY }], usage: { input: 31_600, output: 5 } }
-    case 'mate-ack':
-      return { blocks: [{ type: 'text', text: MATE_REPLY }], usage: { input: 31_700, output: 5 } }
     case 'seat':
       return {
         blocks: [

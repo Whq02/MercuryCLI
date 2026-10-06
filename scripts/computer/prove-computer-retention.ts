@@ -137,9 +137,9 @@ section('§6 a real session file: the writer records the stub, never the bytes')
   const pair = [toolUseTurn(id, 'Computer', { action: 'screenshot' }), toolResultTurn(screenshotResult(id, pathOf(9)))]
   let recorded: string | null = null
   try {
-    await writer.recordTranscript([pair[0]!], undefined, undefined, [pair[0]!])
+    await writer.recordTranscript([pair[0]!], undefined, [pair[0]!])
     session.resetDesktopSessionForTest()
-    await writer.recordTranscript([pair[1]!], undefined, undefined, pair)
+    await writer.recordTranscript([pair[1]!], undefined, pair)
     await writer.flushSessionStorage()
   } catch (error) {
     recorded = String(error)

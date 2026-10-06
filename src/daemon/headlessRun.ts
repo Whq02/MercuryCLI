@@ -15,33 +15,13 @@ import {
 import { WORKER_PARENT_PID_ENV } from './workerParentWatch.js'
 import { selfScriptPath } from './daemonBuild.js'
 import type { Capabilities } from '../runner/wire/methods.js'
-import { flagEnv, flagPair, flagSpellings, stampFlagOnEnv } from '../substrate/flagRegistry.js'
+import { flagEnv, flagSpellings, stampFlagOnEnv } from '../substrate/flagRegistry.js'
 import { stampSpawnReceipt } from '../substrate/envStamps.js'
 import { LIVE_ROLE_ENV_VARS, RETIRED_SEAT_ENV_VARS } from '../utils/workerRole.js'
 
 export { ALL_ROLE_ENV_VARS } from '../utils/workerRole.js'
 function sweptRoleSpellings(): string[] {
   return [...LIVE_ROLE_ENV_VARS.flatMap(flagSpellings), ...RETIRED_SEAT_ENV_VARS]
-}
-
-export function stripCrewRolePair(env: NodeJS.ProcessEnv): string[] {
-  const removed: string[] = []
-  const crewSpellings = flagSpellings('MERCURY_CREW')
-  if (crewSpellings.some(v => env[v] === '1')) {
-    for (const v of crewSpellings) {
-      if (env[v] === '1') {
-        delete env[v]
-        removed.push(v)
-      }
-    }
-  }
-  for (const v of flagSpellings('MERCURY_CREW_AGENT')) {
-    if (env[v] !== undefined) {
-      delete env[v]
-      removed.push(v)
-    }
-  }
-  return removed
 }
 
 export function scrubDaemonRoleEnv(env: NodeJS.ProcessEnv = process.env): string[] {
@@ -52,7 +32,6 @@ export function scrubDaemonRoleEnv(env: NodeJS.ProcessEnv = process.env): string
       removed.push(v)
     }
   }
-  removed.push(...stripCrewRolePair(env))
   return removed
 }
 
@@ -127,7 +106,6 @@ function cloneEnvWithoutRoles(): NodeJS.ProcessEnv {
   for (const v of sweptRoleSpellings()) {
     delete env[v]
   }
-  stripCrewRolePair(env)
   return env
 }
 
@@ -167,12 +145,9 @@ export interface RunnerChildSpec {
   keyless?: true
   effort: string
   appendSystemPrompt: string
-  role:
-    | 'MERCURY_CREW'
-    | 'MERCURY_CONCOURSE_WORKER'
+  role: 'MERCURY_CONCOURSE_WORKER'
   agentName: string
   agentId: string
-  crewName?: string
   cwd?: string
   extraEnv?: Readonly<Record<string, string>>
   permissionMode?: SeatPermissionMode
@@ -180,7 +155,6 @@ export interface RunnerChildSpec {
   allowedTools?: readonly string[]
   extraArgv?: readonly string[]
   respawnExtraArgv?: readonly string[]
-  plainIdentity?: boolean
   stripEnv?: readonly string[]
   sessionPin?: { sessionId: string; cwd: string }
   partialRows?: true
@@ -190,13 +164,13 @@ export function daemonCapabilities(spec: Pick<RunnerChildSpec, 'partialRows'>): 
   return { holds_asks: true, elicitation: false, partial_rows: spec.partialRows === true }
 }
 
-export function crewSeatTranscriptPath(pin: { sessionId: string; cwd: string }): string {
+export function sessionPinTranscriptPath(pin: { sessionId: string; cwd: string }): string {
   return join(getProjectDir(pin.cwd), `${pin.sessionId}.jsonl`)
 }
 
 export function sessionPinArgv(pin: { sessionId: string; cwd: string } | undefined): string[] {
   if (pin === undefined) return []
-  return existsSync(crewSeatTranscriptPath(pin)) ? ['--resume', pin.sessionId] : ['--session-id', pin.sessionId]
+  return existsSync(sessionPinTranscriptPath(pin)) ? ['--resume', pin.sessionId] : ['--session-id', pin.sessionId]
 }
 
 export function buildRunnerInvocation(
@@ -211,7 +185,6 @@ export function buildRunnerInvocation(
 } {
   const { node, script } = getSelfInvocation()
   const model = spec.model
-  const crewName = spec.crewName ?? 'default'
   const argv = [
     script,
     'runner',
@@ -222,16 +195,6 @@ export function buildRunnerInvocation(
     ...(spec.keyless ? [] : ['--model', model]),
     '--brief-add',
     spec.appendSystemPrompt,
-    ...(spec.plainIdentity
-      ? []
-      : [
-          '--crew',
-          crewName,
-          '--seat',
-          spec.agentName,
-          '--seat-id',
-          spec.agentId,
-        ]),
     ...((opts?.respawn ? (spec.respawnExtraArgv ?? spec.extraArgv) : spec.extraArgv) ?? []),
     ...sessionPinArgv(spec.sessionPin),
   ]
@@ -244,20 +207,15 @@ export function buildRunnerInvocation(
     ...(spec.extraEnv ?? {}),
     MERCURY_MODEL: model,
     MERCURY_EFFORT_LEVEL: spec.effort,
-    ...flagPair('MERCURY_CREWMATES', '1'),
   }
   for (const v of sweptRoleSpellings()) {
     delete env[v]
-  }
-  if (spec.role !== 'MERCURY_CREW') {
-    stripCrewRolePair(env)
   }
   stampFlagOnEnv(env, spec.role, '1')
   stampSpawnReceipt(env, [
     ...Object.keys(spec.extraEnv ?? {}),
     'MERCURY_MODEL',
     'MERCURY_EFFORT_LEVEL',
-    ...flagSpellings('MERCURY_CREWMATES'),
     ...flagSpellings(spec.role),
   ])
   return { node, script, argv, env, capabilities: daemonCapabilities(spec) }

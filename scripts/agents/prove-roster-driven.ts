@@ -50,7 +50,6 @@ function runHeadless(world: World, fixture: FixtureApi, prompt: string): Promise
       TERM: 'dumb',
       MERCURY_CONFIG_DIR: world.home,
       MERCURY_DAEMON_DIR: join(world.home, 'daemon'),
-      MERCURY_CREWS_DIR: join(world.home, 'crews'),
       MERCURY_CREDENTIAL_STORE: 'file',
       ANTHROPIC_BASE_URL: fixture.url,
       ANTHROPIC_API_KEY: FIXTURE_KEY,
@@ -193,18 +192,14 @@ section('§2 a scout run: mercury-scout has no writer; its write attempt is refu
   const seatTools = toolNamesOf(seats[0] ?? {})
   check('the scout seat carries no Write, Edit, NotebookEdit or Agent tool', !['Write', 'Edit', 'NotebookEdit', 'Agent'].some(t => seatTools.includes(t)), seatTools.join(','))
   check('the scout seat keeps Read, Grep and Glob', ['Read', 'Grep', 'Glob'].every(t => seatTools.includes(t)), seatTools.join(','))
-  check('the scout seat carries no worktree door, no mail, no schedule writer and no memory writer', !['EnterWorktree', 'ExitWorktree', 'SendMessage', 'CronCreate', 'CronDelete', 'ScheduleWakeup', 'Retain', 'Correct', 'RecordConvention'].some(t => seatTools.includes(t)), seatTools.join(','))
+  check('the scout seat carries no worktree door, no schedule writer and no memory writer', !['EnterWorktree', 'ExitWorktree', 'CronCreate', 'CronDelete', 'ScheduleWakeup', 'Retain', 'Correct', 'RecordConvention'].some(t => seatTools.includes(t)), seatTools.join(','))
   const { getAllBaseTools } = await import('../../src/tools.ts')
   const baseTools = new Map((getAllBaseTools() as unknown as ClassifiedTool[]).map(t => [t.name, t]))
-  const coordination = readFileSync(join(ROOT, 'src/services/mcp/coordinationServer.ts'), 'utf8')
-  const coordinationHints = new Map<string, boolean>()
-  for (const m of coordination.matchAll(/registerTool\(\s*'([a-z_]+)',[\s\S]*?annotations: \{([^}]*)\}/g)) coordinationHints.set(`mcp__mercury__${m[1]}`, /readOnlyHint: true/.test(m[2] ?? ''))
-  check('the coordination server declares a read-only hint on every tool it registers (the classification the scout gate reads)', coordinationHints.size >= 7 && [...coordinationHints.values()].some(Boolean) && [...coordinationHints.values()].some(v => !v), `${coordinationHints.size} tools`)
-  const offered = seatTools.filter(t => t !== 'Bash' && t !== 'Skill')
-  const writers = offered.filter(t => t.startsWith('mcp__') ? coordinationHints.get(t) !== true : !readsOnlyAtRest(baseTools.get(t)))
-  check("every tool the scout seat is offered is read-only by the tool's own classification (the shell and the skill door apart; an MCP tool by its read-only hint)", offered.length > 0 && writers.length === 0, `writers offered: ${writers.join(',') || 'none'}; wire: ${seatTools.join(',')}`)
-  const coordinationWriters = [...coordinationHints].filter(([, readsOnly]) => !readsOnly).map(([name]) => name)
-  check('the coordination tools that write (leases, crew mail) are not offered to the scout', coordinationWriters.length > 0 && !coordinationWriters.some(t => seatTools.includes(t)), coordinationWriters.join(','))
+  const offered = seatTools.filter(t => t !== 'Bash' && t !== 'Skill' && !t.startsWith('mcp__'))
+  const writers = offered.filter(t => !readsOnlyAtRest(baseTools.get(t)))
+  const organTools = seatTools.filter(t => t.startsWith('mcp__'))
+  check("the organ's tools reach the scout only in their reading forms (the lease list and the screen capture; never a lease writer)", organTools.every(t => t === 'mcp__mercury__lease_list' || t === 'mcp__mercury__render_tui'), organTools.join(','))
+  check("every tool the scout seat is offered is read-only by the tool's own classification (the shell and the skill door apart)", offered.length > 0 && writers.length === 0, `writers offered: ${writers.join(',') || 'none'}; wire: ${seatTools.join(',')}`)
   check("the scout seat's system prompt is the read-only scout's", systemTextOf(seats[0] ?? {}).includes("You are Mercury's repository scout") && systemTextOf(seats[0] ?? {}).includes('Read-only — absolute prohibitions'))
   const refusal = toolResultsOf(seats[1] ?? {}).find(text => text.includes('No such tool available: Write')) ?? ''
   check('the Write attempt came back to the scout as a refusal naming the missing tool', refusal.includes('No such tool available: Write'), toolResultsOf(seats[1] ?? {}).join(' | ').slice(0, 300))
@@ -269,6 +264,7 @@ section("§2e the scout's tool gate itself: the pool is the read-only pool, the 
     tool('Retain', () => false),
     tool('AstEdit', input => input.apply !== true),
     tool('Agent', () => true),
+    tool('SendMessage', () => true),
     tool('EnterWorktree', () => true),
     tool('ExitWorktree', () => true),
     tool('Throws', () => { throw new Error('no input') }),
@@ -277,7 +273,7 @@ section("§2e the scout's tool gate itself: the pool is the read-only pool, the 
   const names = gated.map(t => t.name)
   check('the pool keeps the shell, the skill door, the readers and the input-dependent tools', ['Bash', 'Skill', 'Read', 'AstEdit'].every(n => names.includes(n)), names.join(','))
   check('the pool drops an unconditional writer', !names.includes('Retain'), names.join(','))
-  check('the pool drops the Agent tool and both worktree doors even when they claim to read', !['Agent', 'EnterWorktree', 'ExitWorktree'].some(n => names.includes(n)), names.join(','))
+  check('the pool drops the Agent tool, the message tool and both worktree doors even when they claim to read', !['Agent', 'SendMessage', 'EnterWorktree', 'ExitWorktree'].some(n => names.includes(n)), names.join(','))
   check('a tool whose classification throws is not offered', !names.includes('Throws'), names.join(','))
   const astEdit = gated.find(t => t.name === 'AstEdit')
   const bash = gated.find(t => t.name === 'Bash')

@@ -2,7 +2,6 @@ import { z } from 'zod'
 
 import { buildTool, type ToolUseContext } from '../../Tool.js'
 import { executeTaskCompletedHooks, getTaskCompletedHookMessage } from '../../utils/hooks.js'
-import { isCrewEnabled } from '../../utils/crewEnabled.js'
 import { logForDebugging } from '../../utils/debug.js'
 import {
   blockTask,
@@ -16,10 +15,6 @@ import {
   type TaskStatus,
   TASK_STATUSES,
 } from '../../utils/tasks.js'
-import { getAgentName, getCrewName, getCrewmateColor, isCrewmate } from '../../utils/crewmate.js'
-import { sendLiveMessage } from '../../services/crew/liveComms.js'
-import { CREW_LEAD_NAME } from '../../utils/crew/constants.js'
-import { TASK_LIST_TOOL_NAME } from '../TaskListTool/constants.js'
 import { DESCRIPTION, getPrompt, getVerificationNudgeNote, TASK_UPDATE_TOOL_NAME } from './prompt.js'
 
 
@@ -91,19 +86,6 @@ async function runUpdate(input: Input, context: ToolUseContext): Promise<Output>
   stage('activeForm', input.activeForm)
   stage('owner', input.owner)
 
-  if (
-    isCrewEnabled() &&
-    input.status === 'in_progress' &&
-    input.owner === undefined &&
-    !task.owner
-  ) {
-    const agentName = getAgentName()
-    if (agentName) {
-      updates.owner = agentName
-      updatedFields.push('owner')
-    }
-  }
-
   if (input.metadata !== undefined) {
     const merged: Record<string, unknown> = { ...(task.metadata ?? {}) }
     for (const [key, value] of Object.entries(input.metadata)) {
@@ -135,8 +117,6 @@ async function runUpdate(input: Input, context: ToolUseContext): Promise<Output>
         input.taskId,
         task.subject,
         task.description,
-        getAgentName(),
-        getCrewName(),
         undefined,
         context.abortController.signal,
         undefined,
@@ -163,24 +143,6 @@ async function runUpdate(input: Input, context: ToolUseContext): Promise<Output>
         `Task ${input.taskId} disappeared before the update landed (deleted or list reset concurrently); nothing was applied`,
       )
     }
-  }
-
-  if (updates.owner && isCrewEnabled()) {
-    const sender = getAgentName() || CREW_LEAD_NAME
-    await sendLiveMessage(taskListId, {
-      to: updates.owner,
-      from: sender,
-      timestamp: new Date().toISOString(),
-      text: JSON.stringify({
-        type: 'task_assignment',
-        taskId: input.taskId,
-        subject: task.subject,
-        description: task.description,
-        assignedBy: sender,
-        timestamp: new Date().toISOString(),
-      }),
-      color: getCrewmateColor(),
-    })
   }
 
   const failedEdges: string[] = []
@@ -259,9 +221,6 @@ export const TaskUpdateTool = buildTool({
       }
     }
     let text = `Updated task ${output.taskId} (${output.updatedFields.join(', ')})`
-    if (output.statusChange?.to === 'completed' && isCrewmate() && isCrewEnabled()) {
-      text += `\nCall ${TASK_LIST_TOOL_NAME} now to find your next available task or see whether your work unblocked others.`
-    }
     if (output.verificationNudgeNeeded) {
       text += `\n${getVerificationNudgeNote()}`
     }

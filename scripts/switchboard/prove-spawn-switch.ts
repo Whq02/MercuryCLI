@@ -44,14 +44,14 @@ const { evaluateLaunchAuthority } = await import('../../src/services/switchboard
 
 const SUB = 'MERCURY_SESSION_SUBAGENTS'
 const WF = 'MERCURY_SESSION_WORKFLOWS'
-const OFF_SUB = "sub-agents are off for this session — /subagents on, or the boot menu's Agents section"
+const OFF_SUB = "crewmates are off for this session — /subagents on, or the boot menu's Agents section"
 const OFF_WF = "workflows are off for this session — /workflows on, or the boot menu's Agents section"
 
 section('§1 the rows — live-class toggles over registered flags, through the boot-env road')
 {
   const rows = menu.STARTUP_MENU.filter(r => r.group === 'agents')
   check('the Agents section holds exactly the two rows, sub-agents then workflows', rows.length === 2 && rows[0]?.env === SUB && rows[1]?.env === WF, rows.map(r => r.env).join(','))
-  check('both rows read "Sub-agents" and "Workflows"', rows[0]?.label === 'Sub-agents' && rows[1]?.label === 'Workflows')
+  check('both rows read "Crewmates" and "Workflows"', rows[0]?.label === 'Crewmates' && rows[1]?.label === 'Workflows')
   check("both are toggles whose one choice is '0' (off) with the default on", rows.every(r => r.kind === 'toggle' && r.options.length === 1 && r.options[0] === '0' && r.defaultLabel === 'on'))
   check('both are the live class', rows.every(r => r.applicationClass === 'live'))
   check('every other row keeps the new-session class (absent = new-session)', menu.STARTUP_MENU.filter(r => r.group !== 'agents').every(r => r.applicationClass === undefined || r.applicationClass === 'new-session'))
@@ -189,11 +189,10 @@ section('§4 the spawn roads — every road answers the receipt, and nothing out
   const adapterAt = hooks.indexOf('async function* adapterSpawnStream(')
   check("the workflow's agent hooks ask the valve before runAgent", adapterAt !== -1 && hooks.indexOf("evaluateLaunchAuthority('subagents')", adapterAt) !== -1 && hooks.indexOf("evaluateLaunchAuthority('subagents')", adapterAt) < hooks.indexOf('runAgent({', adapterAt))
   const crew = src('src/components/mercury-ui/screens/CrewView.tsx')
-  check("the Crew view's spawn key reads the focused session's switch and answers the receipt", crew.includes("getFocusedSessionConnector().spawnSwitches().subagents.on") && crew.includes("spawnSwitchOffReceipt('subagents')") && crew.includes("if (input === 'n' && namedOn) {") && crew.includes('setSpawnNote(gate)'))
+  check('the Crew view has no spawn key of its own (launches come through the Agent tool, which asks the valve)', !crew.includes('spawnSwitches()') && !crew.includes("input === 'n'"))
   const boot = src('src/components/BootSettingsScreen.tsx')
   check("the boot menu opened in-session flips a live row through the connector's one verb", boot.includes("row.applicationClass === 'live'") && boot.includes('.setSpawnSwitch(kind, spawnSwitchOnFromValue(value))') && boot.includes("action: 'set-spawn-switch'"))
   check('the concourse coordinator never reads the switch (its launches are the estate\'s, not a session\'s)', !src('src/services/concourse/coordinatorTools.ts').includes('spawnSwitch') && !src('src/services/concourse/coordinatorTools.ts').includes('launchAuthority'))
-  check("the daemon's crew seats never read the switch (the concourse keeps launching crew)", !src('src/daemon/crewSpawn.ts').includes('spawnSwitch') && !src('src/daemon/crewSpawn.ts').includes('launchAuthority'))
   const owner = src('src/services/switchboard/spawnSwitches.ts')
   check('the owner attributes through realEnvPin (the one boot-env attribution owner)', owner.includes('realEnvPin(row, env) !== null'))
   const srcWalk = (dir: string): string[] => readdirSync(join(ROOT, dir), { withFileTypes: true }).flatMap(e => (e.isDirectory() ? srcWalk(join(dir, e.name)) : /\.(ts|tsx)$/.test(e.name) ? [join(dir, e.name)] : []))
@@ -210,7 +209,7 @@ section("§5 the record's view — the admission snapshot's rows and the in-sess
   check('a record without a snapshot reads on (a pre-switch record)', j(sw.spawnSwitchOfRecord({}, 'workflows')) === j({ on: true, source: 'default' }) && j(sw.spawnSwitchOfRecord(undefined, 'subagents')) === j({ on: true, source: 'default' }))
   check('an in-session toggle on the record outranks the snapshot', j(sw.spawnSwitchOfRecord({ ...rows('0', 'profile'), spawnSwitches: { subagents: 'on' } }, 'subagents')) === j({ on: true, source: 'in-session' }))
   check('the facts of a record carry both', j(sw.spawnSwitchFactsOfRecord({ spawnSwitches: { workflows: 'off' } })) === j({ subagents: { on: true, source: 'default' }, workflows: { on: false, source: 'in-session' } }))
-  check('the lines read as the operator sees them', sw.spawnSwitchLine('subagents', { on: false, source: 'boot-menu' }) === 'sub-agents off (boot menu)' && sw.spawnSwitchLine('workflows', { on: true, source: 'in-session' }) === 'workflows on (in-session)' && sw.spawnSwitchLine('workflows', { on: false, source: 'env' }) === 'workflows off (environment)')
+  check('the lines read as the operator sees them', sw.spawnSwitchLine('subagents', { on: false, source: 'boot-menu' }) === 'crewmates off (boot menu)' && sw.spawnSwitchLine('workflows', { on: true, source: 'in-session' }) === 'workflows on (in-session)' && sw.spawnSwitchLine('workflows', { on: false, source: 'env' }) === 'workflows off (environment)')
 }
 
 section("§6 the seat verb — idle applies, busy parks and forwards, the runner's frame lands it, the respawn re-forwards")
@@ -268,7 +267,7 @@ section("§6 the seat verb — idle applies, busy parks and forwards, the runner
   const facts = readSessionFacts(sid, recDir)
   check("…the facts projection carries the record's view (off, in-session) and no parked toggle", facts?.spawnSwitches?.subagents.on === false && facts.spawnSwitches.subagents.source === 'in-session' && facts.spawnSwitches.workflows.on === true && facts.pendingSpawnSwitches === undefined, j(facts?.spawnSwitches))
   const same = await seat.setSessionSpawnSwitch(sid, { kind: 'subagents', on: false }, 'operator', roster, recDir)
-  check('the same state no-ops', same.outcome === 'noop' && same.detail === 'sub-agents already off for this session', j(same))
+  check('the same state no-ops', same.outcome === 'noop' && same.detail === 'crewmates already off for this session', j(same))
 
   busy = true
   const queuedCall = seat.setSessionSpawnSwitch(sid, { kind: 'subagents', on: true }, 'operator', roster, recDir)
@@ -330,16 +329,16 @@ section('§7 the preserved-thinking seam — a roster transition is a lawful pre
   const mark0 = tb.prefixMarkOf(history as never, 'claude-fable-5-1')
   check('no roster transition ⇒ the mark carries none', mark0.rosterTransition === null && mark0.rosterChange === null)
   const row = createRosterTransitionMessage('subagents', false, sw.spawnSwitchTransitionLine('subagents', false))
-  check("the row's sentence names the operator's toggle and the boundary", row.content.includes('the operator toggled sub-agents off for this session') && row.content.includes('reasoning restarts on the next turn') && row.subtype === 'roster_transition' && row.toggle === 'subagents' && row.on === false)
+  check("the row's sentence names the operator's toggle and the boundary", row.content.includes('the operator toggled crewmates off for this session') && row.content.includes('reasoning restarts on the next turn') && row.subtype === 'roster_transition' && row.toggle === 'subagents' && row.on === false)
   const mark1 = tb.prefixMarkOf([...history, row] as never, 'claude-fable-5-1')
-  check("the newest roster transition marks the prefix with the toggle's word", mark1.rosterTransition === row.uuid && mark1.rosterChange === 'sub-agents off' && mark1.firstRow === mark0.firstRow && mark1.model === mark0.model)
+  check("the newest roster transition marks the prefix with the toggle's word", mark1.rosterTransition === row.uuid && mark1.rosterChange === 'crewmates off' && mark1.firstRow === mark0.firstRow && mark1.model === mark0.model)
   tb.resetThinkingDropStates()
   const none = tb.classifyThinkingDrops('owner', [], mark0)
   check('a no-drop response records the mark', none.kind === 'none' && none.rosterChange === null)
   const lawful = tb.classifyThinkingDrops('owner', [DROP], mark1)
-  check("a drop after the toggle reads LAWFUL as a roster switch", lawful.kind === 'lawful' && lawful.lawful === 'roster-switch' && lawful.rosterChange === 'sub-agents off' && lawful.consecutive === 1, j(lawful))
+  check("a drop after the toggle reads LAWFUL as a roster switch", lawful.kind === 'lawful' && lawful.lawful === 'roster-switch' && lawful.rosterChange === 'crewmates off' && lawful.consecutive === 1, j(lawful))
   const notice = tb.describeThinkingDrops([DROP], lawful) ?? ''
-  check('…the notice names the toggle, expected once — never a client-side edit, never a Mercury defect', notice.includes('after the operator toggled sub-agents off') && notice.includes('the tool roster changed with it') && notice.includes('(expected once)') && !notice.includes('client-side') && !notice.includes('Mercury defect'), notice)
+  check('…the notice names the toggle, expected once — never a client-side edit, never a Mercury defect', notice.includes('after the operator toggled crewmates off') && notice.includes('the tool roster changed with it') && notice.includes('(expected once)') && !notice.includes('client-side') && !notice.includes('Mercury defect'), notice)
   const after = tb.classifyThinkingDrops('owner', [DROP], mark1)
   check('a lawful drop never seeds a run: the next drop with the same marks is a first drop', after.kind === 'first' && after.consecutive === 1, j(after))
   const health = tb.preservedThinkingHealth({ last: { at: '2026-01-01T00:00:00.000Z', kind: 'lawful', lawful: 'roster-switch', reason: DROP.reason, path: DROP.path, count: 3, consecutive: 1, model: 'claude-fable-5-1' }, longestRun: 0 })
@@ -374,7 +373,6 @@ if (!existsSync(DIST)) {
         ANTHROPIC_BASE_URL: baseUrl,
         ANTHROPIC_API_KEY: 'fixture-key-000',
         MERCURY_DAEMON_DIR: join(home, 'daemon'),
-        MERCURY_CREWS_DIR: join(home, 'crews'),
         MERCURY_THINKING_BINDING: 'drop_block',
         ...extraEnv,
       },
@@ -471,7 +469,7 @@ if (!existsSync(DIST)) {
     const notices = transcriptNotices(arena, SID)
     check('the scripted drop writes exactly one receipt (kept in the transcript, never painted)', notices.length === 1, `${notices.length} ${notices[0]?.slice(0, 200) ?? ''}`)
     const notice = notices[0] ?? ''
-    check("…the receipt names the operator's toggle, expected once — never a client-side edit, never Mercury", notice.includes('after the operator toggled sub-agents off') && notice.includes('(expected once)') && !notice.includes('client-side') && !notice.includes('Mercury defect'), notice.slice(0, 300))
+    check("…the receipt names the operator's toggle, expected once — never a client-side edit, never Mercury", notice.includes('after the operator toggled crewmates off') && notice.includes('(expected once)') && !notice.includes('client-side') && !notice.includes('Mercury defect'), notice.slice(0, 300))
     await fixture.close()
   }
 
@@ -514,9 +512,9 @@ if (!existsSync(DIST)) {
       }
     }
     const clean = health({})
-    check('a clean process: both on, the defaults, ok', clean !== null && clean.status === 'ok' && String(clean.evidence).includes('sub-agents on (default)') && String(clean.evidence).includes('workflows on (default)') && String(clean.evidence).includes('the next session is born with these'), j(clean))
+    check('a clean process: both on, the defaults, ok', clean !== null && clean.status === 'ok' && String(clean.evidence).includes('crewmates on (default)') && String(clean.evidence).includes('workflows on (default)') && String(clean.evidence).includes('the next session is born with these'), j(clean))
     const off = health({ [SUB]: '0' })
-    check("sub-agents off in the environment: the row says so with its source, info, and names the commands and the menu", off !== null && off.status === 'info' && String(off.evidence).includes('sub-agents off (environment)') && String(off.evidence).includes('workflows on (default)') && String(off.detail ?? '').includes('/subagents on|off') && String(off.detail ?? '').includes("boot menu's Agents section") && off.label === 'Sub-agents & workflows', j(off))
+    check("sub-agents off in the environment: the row says so with its source, info, and names the commands and the menu", off !== null && off.status === 'info' && String(off.evidence).includes('crewmates off (environment)') && String(off.evidence).includes('workflows on (default)') && String(off.detail ?? '').includes('/subagents on|off') && String(off.detail ?? '').includes("boot menu's Agents section") && off.label === 'Crewmates & workflows', j(off))
   }
 }
 

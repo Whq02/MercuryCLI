@@ -76,7 +76,6 @@ const env = {
   MERCURY_CONFIG_DIR: configDir,
   MERCURY_CREDENTIAL_STORE: 'file',
   MERCURY_DAEMON_DIR: join(home, 'daemon'),
-  MERCURY_CREWS_DIR: join(home, 'crews'),
   MERCURY_LOCAL_PROBE_TARGETS: 'none',
   MERCURY_BROWSER_NO_DISCOVERY: '1',
   MERCURY_BROWSER_CACHE_DIR: join(home, 'browser-cache'),

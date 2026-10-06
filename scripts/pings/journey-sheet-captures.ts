@@ -107,7 +107,6 @@ function baseEnv(w: World, extra: Record<string, string | undefined> = {}): Node
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
     MERCURY_HEALTH_STATE_DIR: join(w.aux, 'health'),
     MERCURY_DAEMON_DIR: join(w.aux, 'daemon'),
-    MERCURY_CREWS_DIR: join(w.aux, 'crews'),
     ...extra,
   }
   for (const k of ['ANTHROPIC_API_KEY', 'CI', 'NODE_ENV', 'OPENROUTER_API_KEY']) {

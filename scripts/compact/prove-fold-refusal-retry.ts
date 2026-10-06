@@ -32,7 +32,6 @@ for (const ambient of [
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'fold-refusal-retry-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'fold-refusal-retry-daemon-'))
-process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'fold-refusal-retry-crews-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 const ROOT = join(import.meta.dir, '..', '..')

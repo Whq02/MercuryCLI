@@ -20,8 +20,7 @@ const DEAD = 'http://127.0.0.1:9'
 const ESC = '\x1b'
 const DOWN = `${ESC}[B`
 const RIGHT = `${ESC}[C`
-const AGENT_ROW = 'Sub-agent default model'
-const CREWMATE_ROW = 'Default crewmate model'
+const AGENT_ROW = 'Crewmate default model'
 const SIZES: Array<[number, number]> = [[178, 51], [120, 40], [80, 21], [82, 17], [80, 14]]
 
 let failures = 0
@@ -59,7 +58,6 @@ function childEnv(home: string): NodeJS.ProcessEnv {
     MERCURY_CRITTER_SLEEP: '0',
     MERCURY_HEALTH_STATE_DIR: join(home, 'health-state'),
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_HOME: join(home, 'proof-home'),
     ANTHROPIC_BASE_URL: DEAD,
     MERCURY_OPENAI_API_BASE: DEAD,
@@ -140,8 +138,8 @@ const valueOf = (lines: string[], label: string): string => {
   const border = rest.indexOf('│')
   return (border < 0 ? rest : rest.slice(0, border)).trim()
 }
-const configOf = (home: string): { agents?: { defaultModel?: string }; crewmateDefaultModel?: string | null } =>
-  JSON.parse(readFileSync(join(home, '.mercury.json'), 'utf8')) as { agents?: { defaultModel?: string }; crewmateDefaultModel?: string | null }
+const configOf = (home: string): { agents?: { defaultModel?: string } } =>
+  JSON.parse(readFileSync(join(home, '.mercury.json'), 'utf8')) as { agents?: { defaultModel?: string } }
 
 console.log('============================================================')
 console.log(' the two /config model doors open the live-list picker')
@@ -168,7 +166,7 @@ for (const [cols, rows] of SIZES) {
   const home = seededHome(`agent-${cols}x${rows}`)
   const c = capture(`agent-${cols}x${rows}`, home, cols, rows, [
     ...openConfig(cols),
-    { requireAwait: true, awaitText: 'Auto-compact', awaitSettleTicks: 4, data: 'Sub-agent default model' },
+    { requireAwait: true, awaitText: 'Auto-compact', awaitSettleTicks: 4, data: 'Crewmate default model' },
     { requireAwait: true, awaitText: AGENT_ROW, awaitSettleTicks: 3, awaitStableTicks: 3, data: '\r' },
     { afterPrevTicks: 3, data: '', mark: 'row-before' },
     { afterPrevTicks: 1, data: RIGHT },
@@ -201,47 +199,12 @@ for (const [cols, rows] of SIZES) {
   writeFileSync(join(ROOT, `frame-agent-${cols}x${rows}-after.txt`), after.join('\n'))
 }
 
-for (const [cols, rows] of SIZES.slice(0, 1)) {
-  section(`§2 ${cols}×${rows} · the crewmate default model row: Default and Leader's model lead, every family after, a named model written`)
-  const home = seededHome(`crewmate-${cols}x${rows}`)
-  const c = capture(`crewmate-${cols}x${rows}`, home, cols, rows, [
-    ...openConfig(cols),
-    { requireAwait: true, awaitText: 'Auto-compact', awaitSettleTicks: 4, data: 'Default crewmate model' },
-    { requireAwait: true, awaitText: CREWMATE_ROW, awaitSettleTicks: 3, awaitStableTicks: 3, data: '\r' },
-    { afterPrevTicks: 3, data: '', mark: 'row-before' },
-    { afterPrevTicks: 1, data: RIGHT },
-    { requireAwait: true, awaitText: "Leader's model", awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'picker', data: DOWN },
-    { afterPrevTicks: 2, data: DOWN },
-    { afterPrevTicks: 2, data: DOWN },
-    { afterPrevTicks: 2, data: DOWN },
-    { afterPrevTicks: 2, data: DOWN },
-    { afterPrevTicks: 3, data: '', mark: 'focused' },
-    { afterPrevTicks: 1, data: '\r' },
-    { requireAwait: true, awaitText: CREWMATE_ROW, awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'row-after', data: '' },
-  ], { total: 420, ready: readyFor(rows) })
-  check('the drive delivered every send (exit 0)', c.status === 0, `exit ${c.status}`)
-  const before = c.marks.get('row-before') ?? []
-  const picker = c.marks.get('picker') ?? []
-  const after = c.marks.get('row-after') ?? []
-  check('the row reads Default before any pick', valueOf(before, CREWMATE_ROW).startsWith('Default'), valueOf(before, CREWMATE_ROW))
-  check("the door opens the model picker with Default and Leader's model leading", rowWith(picker, 'Default') !== '' && rowWith(picker, "Leader's model") !== '' && rowWith(picker, 'Mercury · model') !== '', picker.slice(0, 12).join(' | '))
-  check('the picker lists more than one provider group', picker.filter(l => /[▾▸❯] [A-Z][A-Z0-9. ]* · /.test(l)).length >= 2, picker.filter(l => /[▾▸❯] [A-Z]/.test(l)).join(' | '))
-  const saved = configOf(home)
-  check("a pick writes crewmateDefaultModel as the picked row's exact id, never a family word", typeof saved.crewmateDefaultModel === 'string' && /[-/]/.test(saved.crewmateDefaultModel) && !['default', 'leader', 'fable', 'opus', 'sonnet', 'haiku', 'fable51'].includes(saved.crewmateDefaultModel), JSON.stringify(saved.crewmateDefaultModel))
-  const label = valueOf(after, CREWMATE_ROW)
-  const focused = c.marks.get('focused') ?? []
-  check("the row's value words are the picker's own row name for the pick (the row focused when ↵ was pressed)", label.length > 0 && !label.startsWith('Default') && !label.startsWith("Leader") && !/^claude-/.test(label) && focused.some(l => l.includes(label)), label)
-  writeFileSync(join(ROOT, `frame-crewmate-${cols}x${rows}-focused.txt`), (c.marks.get('focused') ?? []).join('\n'))
-  writeFileSync(join(ROOT, `frame-crewmate-${cols}x${rows}-before.txt`), before.join('\n'))
-  writeFileSync(join(ROOT, `frame-crewmate-${cols}x${rows}-picker.txt`), picker.join('\n'))
-  writeFileSync(join(ROOT, `frame-crewmate-${cols}x${rows}-after.txt`), after.join('\n'))
-}
 
 }
 
 if (CASE === undefined || CASE === 'cold-catalogue') {
   section('a cold Config model door requests its live GPT list without a model turn')
-  for (const [tag, rowLabel, leading] of [['agent', AGENT_ROW, 'Inherit'], ['crewmate', CREWMATE_ROW, "Leader's model"]]) {
+  for (const [tag, rowLabel, leading] of [['agent', AGENT_ROW, 'Inherit']]) {
     const home = seededHome(`cold-${tag}`)
     writeFileSync(join(home, 'settings.json'), JSON.stringify({ engine: { model: 'opus' }, view: { reducedMotion: true }, activity: { tips: { enabled: false } } }))
     writeFileSync(join(home, '.openai-auth.json'), JSON.stringify({ version: 1, tokens: { idToken: 'fixture-id', accessToken: 'fixture-access', refreshToken: 'fixture-refresh', accountId: 'acct_fixture', planType: 'plus', email: 'sam@example.test', accessTokenExpiresAtMs: Date.now() + 86_400_000 } }), { mode: 0o600 })

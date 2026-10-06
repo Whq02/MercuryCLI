@@ -53,7 +53,6 @@ async function chat(prompt: string, turns: ScriptedTurn[]): Promise<Run> {
     TERM: 'dumb',
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_CREDENTIAL_STORE: 'file',
     ANTHROPIC_BASE_URL: fixture.url,
     ANTHROPIC_API_KEY: 'fixture-key-000',

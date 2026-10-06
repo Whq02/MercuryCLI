@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
-import { LEAD_ASK_MATE, LEAD_ASK_SLEEPER, MATE_NAME, SEAT_NAME, startCrewStopFixture, type Fixture } from '../crew/crew-stop-fixture.ts'
+import { LEAD_ASK_SLEEPER, SEAT_NAME, startCrewStopFixture, type Fixture } from '../crew/crew-stop-fixture.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const argAfter = (flag: string): string | undefined => {
@@ -14,7 +14,7 @@ const argAfter = (flag: string): string | undefined => {
 }
 const DIST = argAfter('--dist') ?? join(ROOT, 'dist', 'mercury.mjs')
 const FRAMES = argAfter('--frames')
-const LEGS = (argAfter('--legs') ?? 'mate,card,sleeper').split(',')
+const LEGS = (argAfter('--legs') ?? 'card,sleeper').split(',')
 const SIZES = (argAfter('--sizes') ?? '120x40').split(',').map(s => s.split('x').map(Number) as [number, number])
 const KEEP = process.argv.includes('--keep')
 const VSHOT = join(ROOT, 'scripts', 'ui', 'vshot.py')
@@ -69,7 +69,6 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
   const env: Record<string, string> = {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
     MERCURY_BOOT_PREFLIGHT: '0',
@@ -88,7 +87,7 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
     MERCURY_OASIS_BG: '0',
     BROWSER: '/usr/bin/true',
   }
-  for (const stamp of ['MERCURY_CREWMATES', 'MERCURY_DAEMON_PERMISSION_MODE', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_DAEMON_CREW', 'MERCURY_CREW', 'NODE_ENV', 'CI']) delete process.env[stamp]
+  for (const stamp of ['MERCURY_DAEMON_PERMISSION_MODE', 'MERCURY_SKIP_PERMISSIONS','NODE_ENV', 'CI']) delete process.env[stamp]
   return env
 }
 
@@ -129,11 +128,10 @@ async function leg(name: string, cols: number, rows: number): Promise<void> {
   const tag = `${name} ${cols}x${rows}`
   console.log(`\n— ${tag} —`)
   const before = failures
-  const seat = name === 'sleeper'
   const fixture: Fixture = await startCrewStopFixture({ seatTool: 'sleep' })
   const { home, cwd } = seedWorld()
-  const target = seat ? SEAT_NAME : MATE_NAME
-  const ask = seat ? LEAD_ASK_SLEEPER : LEAD_ASK_MATE
+  const target = SEAT_NAME
+  const ask = LEAD_ASK_SLEEPER
   const openView = name === 'tasks' ? '/tasks' : '/crewmates'
   const listGate = name === 'tasks' ? target : '1 running'
   const sends: Array<Record<string, unknown>> = [
@@ -158,7 +156,7 @@ async function leg(name: string, cols: number, rows: number): Promise<void> {
       : []),
     { data: openView, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
     { data: '\r', afterPrevTicks: 4 },
-    { data: '\x1b', atTick: 999, awaitText: name === 'tasks' ? 'esc' : 'Sub-agents', requireAwait: true, minTick: 2, awaitSettleTicks: 12, mark: 'crew-later' },
+    { data: '\x1b', atTick: 999, awaitText: name === 'tasks' ? 'esc' : 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 12, mark: 'crew-later' },
   ]
   let cap: Capture | null = null
   try {
@@ -180,11 +178,11 @@ async function leg(name: string, cols: number, rows: number): Promise<void> {
   const after = marks['crew-after'] ?? ''
   const afterRow = rowOf(after, target)
   check(`${tag}: after x x the row reads stopped, never running`, afterRow !== undefined && /\bstopped\b/.test(afterRow) && !/\brunning\b/.test(afterRow), afterRow ?? '(no row)')
-  if (name === 'card') check(`${tag}: ↵ on the row opens the agent in the view (the status row names it as viewing) and the pop-up closes`, /viewing [^\n]*· composer/.test(marks['view-open'] ?? '') && !(marks['view-open'] ?? '').includes('Sub-agents'), flat(marks['view-open'] ?? '').slice(0, 200))
+  if (name === 'card') check(`${tag}: ↵ on the row opens the agent in the view (its card leads with the agent, the composer addresses it) and the pop-up closes`, flat(marks['view-open'] ?? '').includes(`◉ ${target}`) && flat(marks['view-open'] ?? '').includes(`message ${target}`) && !(marks['view-open'] ?? '').includes('Crewmates'), flat(marks['view-open'] ?? '').slice(0, 200))
   if (name === 'card') {
     const stoppedView = marks['stopped-view'] ?? ''
     const stoppedFlat = flat(stoppedView)
-    check(`${tag}: after the stop and the pop-up's close the view stays on the stopped crewmate — its card reads stopped, the composer still addresses it`, /viewing [^\n]*· composer/.test(stoppedView) && !stoppedView.includes('Sub-agents') && stoppedFlat.includes(`◉ ${target}`) && stoppedFlat.includes('stopped') && stoppedFlat.includes(`message ${target}`), stoppedFlat.slice(0, 300))
+    check(`${tag}: after the stop and the pop-up's close the view stays on the stopped crewmate — its card reads stopped, the composer still addresses it`, !stoppedView.includes('Crewmates') && stoppedFlat.includes(`◉ ${target}`) && stoppedFlat.includes('stopped') && stoppedFlat.includes(`message ${target}`), stoppedFlat.slice(0, 300))
     check(`${tag}: the footer says what the keys do on a stopped crewmate — ↵ resumes it with your line, esc goes back to Mercury Lead — never ↵ sends to / esc interrupts`, stoppedFlat.includes(`↵ resumes ${target} with your line`) && stoppedFlat.includes('esc back to Mercury Lead') && !stoppedFlat.includes(`↵ sends to ${target}`) && !stoppedFlat.includes(`esc interrupts ${target}`), stoppedFlat.slice(-400))
     const stoppedRail = stoppedView.split('\n').find(line => new RegExp(`[◉◐·] ${target.slice(0, 8)}[^\\n]*· stopped`).test(line))
     check(`${tag}: the stopped crewmate keeps its CREW row, reading stopped, while it is viewed`, stoppedRail !== undefined, stoppedView.split('\n').filter(line => line.includes(target.slice(0, 8))).map(flat).join(' | ').slice(0, 200) || '(no row)')

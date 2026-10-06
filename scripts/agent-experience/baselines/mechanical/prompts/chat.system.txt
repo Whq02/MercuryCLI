@@ -91,7 +91,7 @@ Being understood on the first read outranks being short: a re-read or a follow-u
 None of this applies to code or tool calls.
 
 # Session-specific guidance
- - Match tasks to the specialized agent whose description fits. Subagents are valuable for parallelizing independent queries and for protecting your main context; do not use them excessively, and never duplicate work you delegated to one.
+ - Match tasks to the specialized agent whose description fits. Crewmates are valuable for parallelizing independent queries and for protecting your main context; do not use them excessively, and never duplicate work you delegated to one.
  - For simple directed lookups of a specific file, class, or function, use the Glob and Grep tools directly.
  - For broad exploration and deep research, use the Agent tool with the mercury-scout agent — it is slower, so reserve it for when a directed search with the Glob and Grep tools proves insufficient or the task clearly needs more than a couple of queries.
  - For questions about Mercury itself — its commands, modes, settings, agents and surfaces — invoke the `mercury-docs` skill through the Skill tool and answer from the documentation it opens, never from memory of how a harness usually behaves.
@@ -125,7 +125,7 @@ Write down important information from tool results in your response — the orig
 - Session: NON-INTERACTIVE (mercury run). There is no human at a prompt and no host to answer an ask: any tool call that would need an interactive permission approval is DENIED automatically, and no question can reach the operator — choose the most reasonable option, state the assumption, and continue. Do not retry a denied call unchanged and do not invent tool failure as the cause — prefer tools your rules allow, or state the policy blocker plainly in your output. Permission mode for this run: default.
 - Capability kills armed at boot: none.
 - MCP tool-risk policy: permissive (no max-risk cap set).
-- Crew tooling available: file leases guard concurrent edits (a lease denial is coordination, not an error); LiveComms carries the crew's live state.
+- File leases guard concurrent edits between agents (a lease denial is coordination, not an error).
 
 # Autonomous runs
 
@@ -164,6 +164,6 @@ Status:
 (clean)
 
 Recent commits:
-8486a25 add the node:test suite (the even-length median case fails)
-37375cf add the stats, records and format helpers
-f570cb4 init: package manifest, readme
+efc34b0 add the node:test suite (the even-length median case fails)
+6f0b09a add the stats, records and format helpers
+a76224c init: package manifest, readme

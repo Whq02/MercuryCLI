@@ -94,7 +94,6 @@ if (!existsSync(DIST)) {
       ANTHROPIC_BASE_URL: 'http://127.0.0.1:1',
       ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key',
       MERCURY_DAEMON_DIR: join(scratch, 'daemon'),
-      MERCURY_CREWS_DIR: join(scratch, 'crews'),
     }
     mkdirSync(env.MERCURY_CONFIG_DIR!, { recursive: true })
     const run = (prompt: string) => spawnSync(nodeBin, [DIST, 'run', prompt, '--format', 'text', '--model', 'claude-opus-4-8'], { cwd, env, encoding: 'utf8', timeout: 90_000 })

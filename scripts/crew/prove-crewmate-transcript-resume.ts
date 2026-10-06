@@ -11,7 +11,7 @@ const peerModel = 'claude-opus-4-6'
 const lead = (turn: Record<string, unknown>): ScriptedTurn => ({ ...turn, model: LEAD_MODEL, whenModel: LEAD_GATE }) as ScriptedTurn
 const peer = (turn: Record<string, unknown>): ScriptedTurn => ({ ...turn, model: peerModel, whenModel: 'opus-4-6' }) as ScriptedTurn
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', name: 'Agent', input: { name: 'worker', crew_name: 'crew', model: peerModel, subagent_type: 'mercury-crew', description: 'Retain the conversation', prompt: 'Run pwd and retain HISTORY-WITNESS in your reasoning.' } }),
+  lead({ kind: 'tool_use', name: 'Agent', input: { name: 'worker', run_in_background: true, model: peerModel, subagent_type: 'mercury-crew', description: 'Retain the conversation', prompt: 'Run pwd and retain HISTORY-WITNESS in your reasoning.' } }),
   lead({ kind: 'text', text: 'LEAD-PARKED' }),
   ...Array.from({ length: 12 }, () => lead({ kind: 'text', text: 'LEAD-ACK' })),
   peer({ kind: 'tool_use', name: 'Bash', input: { command: 'printf HISTORY-WITNESS', description: 'Record the history witness' } }),
@@ -87,12 +87,12 @@ const continuationAfter = (from: number): Request | undefined => requests().slic
 try {
   session.submit('Spawn the worker and park.')
   await session.waitFor('the worker did not start its second request', () => requests().length >= 2 && session.stdout().includes('LEAD-PARKED'), TURN_MS)
-  const started = session.frames.find(frame => frame.type === 'task' && frame.state === 'started' && frame.task_type === 'in_process_crewmate')
+  const started = session.frames.find(frame => frame.type === 'task' && frame.state === 'started' && frame.task_type === 'local_agent')
   const taskId = started?.task_id
-  tally.check('the fixture starts a real in-process crewmate with a history-bearing tool result', typeof taskId === 'string' && JSON.stringify(requests()[1]?.body.messages).includes('HISTORY-WITNESS'))
+  tally.check('the fixture starts a real background crewmate with a history-bearing tool result', typeof taskId === 'string' && JSON.stringify(requests()[1]?.body.messages).includes('HISTORY-WITNESS'))
   if (typeof taskId !== 'string') throw new Error('the fixture has no crewmate task id')
   const stopped = await stopAgent(taskId)
-  tally.check('the crew stop road stops the working crewmate', stopped.receipt === 'applied', JSON.stringify(stopped))
+  tally.check('the crew view\'s stop road stops the working crewmate', stopped.receipt === 'applied', JSON.stringify(stopped))
   await sleep(3500)
   const before = transcripts()
   tally.check('the stopped crewmate\'s transcript stands on disk after the stop and the eviction', before.length === 1 && readFileSync(join(projects, before[0]!), 'utf8').includes('HISTORY-WITNESS'), JSON.stringify(before))

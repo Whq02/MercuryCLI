@@ -41,7 +41,7 @@ try {
     const decision = await decideToolPermission(AgentTool, input, seat as never)
     const bypass = mode === 'sovereign'
     check(`${mode}: outside launch ${bypass ? 'proceeds' : 'asks'}`, decision.decision.behavior === (bypass ? 'allow' : 'ask'), decision.decision.behavior)
-    const crewmate = await AgentTool.checkPermissions({ ...input, name: 'mate', crew_name: 'crew' }, seat as never)
+    const crewmate = await AgentTool.checkPermissions({ ...input, name: 'mate' }, seat as never)
     check(`${mode}: named crewmate follows the same law`, crewmate.behavior === (bypass ? 'allow' : 'ask'))
   }
   const words = inputSchema().shape.cwd.description ?? ''

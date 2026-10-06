@@ -4,7 +4,7 @@ const command = {
   type: 'local-jsx',
   name: 'crewmates',
   needsConcourse: true,
-  description: "Crew — the session's sub-agents live, and the named crewmates' chats",
+  description: "Crew — the session's crewmates live",
   isEnabled: () => true,
   isHidden: false,
   load: () => import('../crewmates/crewmates.js'),

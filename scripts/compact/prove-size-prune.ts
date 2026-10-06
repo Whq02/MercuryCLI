@@ -7,7 +7,6 @@ import { join } from 'node:path'
 const home = mkdtempSync(join(tmpdir(), 'size-prune-law-'))
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_DAEMON_DIR = join(home, 'daemon')
-process.env.MERCURY_CREWS_DIR = join(home, 'crews')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_TIME_BASED_MC = '0'

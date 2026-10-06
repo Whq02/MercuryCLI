@@ -7,7 +7,6 @@ import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs, resolveCaptureDriver } from '../lib/captureDriver.ts'
 import { childEnv, startFixture } from '../daemon/dupline-world.ts'
 import { AGENT_COLORS, AGENT_COLOR_TO_THEME_COLOR } from '../../src/tools/AgentTool/agentColorManager.ts'
-import type { CrewContext } from '../../src/state/AppStateStore.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const argAfter = (flag: string): string | undefined => {
@@ -105,7 +104,6 @@ function bannerLaws(): void {
       useAppStateStore: () => ({ getState: () => state }),
       useAppState: (select: (value: unknown) => unknown) => select(state),
       getViewedAgent: () => state.viewedAgent,
-      getViewedCrewmateTask: () => state.viewedCrewmate,
       AGENT_COLORS, AGENT_COLOR_TO_THEME_COLOR,
       getAgentColor: () => AGENT_COLOR_TO_THEME_COLOR.green,
     }
@@ -115,22 +113,7 @@ function bannerLaws(): void {
   check('a renamed cockpit has no destination banner', run(renamed, true) === null)
   check('a renamed inline session keeps its name and custom colour', same(run(renamed, false), { text: 'roomie', bgColor: AGENT_COLOR_TO_THEME_COLOR.blue }))
   check('a renamed inline session without a colour keeps its fallback', same(run({ standaloneAgentContext: { name: 'roomie' } }, false), { text: 'roomie', bgColor: 'suggestion' }))
-  const crewContext = {
-    crewName: 'project', crewFilePath: '', leadAgentId: 'lead',
-    isLeader: false, selfAgentName: 'helper', selfAgentColor: 'blue', crewmates: {},
-  } satisfies CrewContext
-  const leaderContext = {
-    ...crewContext, isLeader: true,
-    crewmates: { helper: { name: 'helper', color: 'blue', tmuxSessionName: '', tmuxPaneId: '', cwd: REPO, spawnedAt: 0 } },
-  } satisfies CrewContext
-  const crewmate = { ...renamed, crewContext }
-  const leader = { ...renamed, crewContext: leaderContext, viewedCrewmate: { identity: { agentName: 'helper', color: 'blue' } } }
   for (const cockpit of [false, true]) {
-    const renamedBanner = cockpit ? null : { text: 'roomie', bgColor: AGENT_COLOR_TO_THEME_COLOR.blue }
-    check(`an empty crew keeps the renamed-session fallback with cockpit=${cockpit}`, same(run(crewmate, cockpit), renamedBanner))
-    check(`a leader without a viewed crewmate keeps the renamed-session fallback with cockpit=${cockpit}`, same(run({ ...renamed, crewContext: leaderContext }, cockpit), renamedBanner))
-    check(`an empty crew cannot invent a viewed-crewmate banner with cockpit=${cockpit}`, same(run({ ...leader, crewContext }, cockpit), renamedBanner))
-    check(`in-process viewed-crewmate banner survives with cockpit=${cockpit}`, same(run(leader, cockpit), { text: 'helper', bgColor: AGENT_COLOR_TO_THEME_COLOR.blue }))
     check(`viewed local agent banner survives with cockpit=${cockpit}`, same(run({ ...renamed, viewedAgent: { name: 'helper', agentType: 'fixture' } }, cockpit), { text: '@helper', bgColor: AGENT_COLOR_TO_THEME_COLOR.green }))
     check(`CLI agent banner survives with cockpit=${cockpit}`, same(run({ mainThreadAgentDefinition: { name: 'helper' } }, cockpit), { text: 'helper', bgColor: 'promptBorder' }))
   }

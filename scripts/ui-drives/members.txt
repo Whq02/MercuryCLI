@@ -33,5 +33,3 @@ prove-model-picker-popup-drive.ts
 prove-agent-view-drive.ts
 prove-crew-look-drive.ts
 prove-crew-screens-unchanged.ts
-prove-crew-runs-board-drive.ts
-prove-lead-turn-crewmate-message-drive.ts

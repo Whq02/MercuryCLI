@@ -9,7 +9,6 @@ import {
   readAgentMetadata,
 } from '../../utils/sessionStorage/paths.js'
 import { asAgentId } from '../../types/ids.js'
-import { lastActionWasLeadHandoff } from '../../utils/crew/crewPhases.js'
 import { computeWorkingTreeDigestAsync } from '../../utils/verification/verificationState.js'
 import { listReviewArtifactHeadsSource } from '../../utils/artifacts/reviewStore.js'
 import {
@@ -88,14 +87,6 @@ function pickRichTasks(state: unknown): Map<string, RichTaskFact> {
     if (model !== undefined) fact.model = model
     const crewmateName = str(t.name)
     if (crewmateName !== undefined) fact.crewmateName = crewmateName
-    const isIdle = bool(t.isIdle)
-    if (isIdle !== undefined) fact.isIdle = isIdle
-    const shutdownRequested = bool(t.shutdownRequested)
-    if (shutdownRequested !== undefined) fact.shutdownRequested = shutdownRequested
-    fact.hasProgress = t.progress !== undefined && t.progress !== null
-    if (Array.isArray(t.messages)) {
-      fact.lastActionWasLeadHandoff = lastActionWasLeadHandoff(t.messages)
-    }
     out.set(id, fact)
   }
   return out
@@ -267,7 +258,6 @@ export async function gatherWorkbenchInputs(opts?: {
       ...(w.title !== undefined && { title: w.title }),
       agentCount: w.agentCount,
     })),
-    crew: telemetry.crew,
     artifacts: valueOr(artifactsSrc, []),
     gitWorktreeLanes: valueOr(gitWorktreesSrc, []),
     sources: {

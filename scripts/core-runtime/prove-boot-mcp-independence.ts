@@ -86,7 +86,6 @@ function bootEnv(home: string, extra: Record<string, string> = {}): NodeJS.Proce
     ...process.env,
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'crews'),
     ANTHROPIC_API_KEY: PROOF_KEY,
     ANTHROPIC_BASE_URL: 'http://127.0.0.1:1',
     TERM: 'xterm-256color',

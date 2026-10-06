@@ -352,8 +352,6 @@ export type Attachment =
       type: 'structured_output'
       data: unknown
     }
-  | CrewMessagesAttachment
-  | CrewContextAttachment
   | HookAttachment
   | BypassedAskAttachment
   | {
@@ -383,10 +381,6 @@ export type Attachment =
       content: string
       path: string
       tokenCount: number
-    }
-  | {
-      type: 'crewmate_shutdown_batch'
-      count: number
     }
   | {
       type: 'compaction_reminder'
@@ -480,35 +474,6 @@ export type CapsuleWorkingRef = {
   path: string
   reason: 'read' | 'mentioned' | 'edited' | 'instructions' | 'memory'
 }
-
-export const CREW_MESSAGES_KIND = 'crew_messages' as const
-
-export type CrewMessageRow = {
-  from: string
-  text: string
-  timestamp: string
-  color?: string
-  summary?: string
-}
-
-export type CrewMessagesAttachment = {
-  type: 'crew_messages'
-  messages: CrewMessageRow[]
-}
-
-export function isCrewMessagesAttachment(attachment: { type: string }): attachment is CrewMessagesAttachment {
-  return attachment.type === CREW_MESSAGES_KIND
-}
-
-export type CrewContextAttachment = {
-  type: 'crew_context'
-  agentId: string
-  agentName: string
-  crewName: string
-  crewConfigPath: string
-  taskListPath: string
-}
-
 
 export type AgentRosterRow = {
   taskId: string

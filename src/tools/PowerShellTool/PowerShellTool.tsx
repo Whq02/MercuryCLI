@@ -441,7 +441,7 @@ function backgroundNoticeFor(output: Out): string {
   const id = output.backgroundTaskId as string
   const outputPath = getTaskOutputPath(id)
   if (output.assistantAutoBackgrounded) {
-    return `Command exceeded the assistant-mode blocking budget (${ASSISTANT_BLOCKING_BUDGET_MS / 1000}s) and was moved to the background with ID: ${id}. It is still running — you will be notified when it completes. Output: ${outputPath}. Delegate long-running work to a sub-agent, or use run_in_background, to keep the conversation responsive.`
+    return `Command exceeded the assistant-mode blocking budget (${ASSISTANT_BLOCKING_BUDGET_MS / 1000}s) and was moved to the background with ID: ${id}. It is still running — you will be notified when it completes. Output: ${outputPath}. Delegate long-running work to a crewmate, or use run_in_background, to keep the conversation responsive.`
   }
   if (output.backgroundedByUser) return `You moved this command to the background (ID: ${id}). Output: ${outputPath}.`
   return `Running in the background (ID: ${id}). Output: ${outputPath}.`

@@ -83,12 +83,9 @@ import { MercuryContentSearch } from '../MercuryContentSearch.js'
 import { BackgroundTasksDialog } from '../tasks/BackgroundTasksDialog.js'
 import { isManageableTask } from '../tasks/taskStatusUtils.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
-import { getViewedCrewmateTask } from '../../state/selectors.js'
-import { isCrewEnabled } from '../../utils/crewEnabled.js'
 import { getTheme, type Theme } from '../../utils/theme.js'
 import { useFocusedTranscript } from '../../hooks/useFocusedTranscript.js'
 import { useTheme } from '../design-system/ThemeProvider.js'
-import { AGENT_COLOR_TO_THEME_COLOR } from '../../tools/AgentTool/agentColorManager.js'
 import { findSlashCommandPositions } from '../../utils/suggestions/commandSuggestions.js'
 import { findSlackChannelPositions } from '../../utils/suggestions/slackChannelSuggestions.js'
 import { findTokenBudgetPositions } from '../../utils/tokenBudget.js'
@@ -233,7 +230,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const footerSelection = useAppState((s: AppState) => s.footerSelection)
   const viewSelectionMode = useAppState((s: AppState) => s.viewSelectionMode)
   const viewingAgentTaskId = useAppState((s: AppState) => s.viewingAgentTaskId)
-  const crewContext = useAppState((s: AppState) => s.crewContext)
   const promptSuggestionEnabled = useAppState(
     (s: AppState) => s.promptSuggestionEnabled,
   )
@@ -314,7 +310,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     footerSelection,
     viewSelectionMode,
     viewingAgentTaskId,
-    crewContext,
     promptSuggestionEnabled,
     speculationActive,
     cockpitActive,
@@ -375,9 +370,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   })
   const { capLaneLine, capLaneCut } = doors
 
-  const viewedCrewmateTask = getViewedCrewmateTask(
-    appStateStore.getState(),
-  )
   const composerCrewmate = useComposerCrewmate()
   const composerCrewmateRef = useRef(composerCrewmate)
   composerCrewmateRef.current = composerCrewmate
@@ -386,13 +378,12 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   viewedCrewmateRef.current = viewedCrewmate
   const viewedAgentName =
     composerCrewmate?.name ??
-    viewedCrewmateTask?.identity?.agentName ??
     (viewedTask !== undefined && isLocalAgentTask(viewedTask)
       ? viewedTask.description !== ''
         ? viewedTask.description
         : viewedTask.agentType
       : undefined)
-  const viewedAgentColor = viewedCrewmateTask?.identity?.color
+  const viewedAgentColor = undefined
 
 
   const suggestionApi = usePromptSuggestion({
@@ -555,7 +546,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     compactWork,
     appStateStore,
     suggestionApi,
-    crewContext,
     commands,
     helpers,
     buffer,
@@ -645,7 +635,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     setAppState,
     toolPermissionContext,
     setToolPermissionContext,
-    crewContext,
     footerSelection,
     insertAtCursor,
     handleImagePaste,
@@ -722,22 +711,8 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         spans.push({ start: position.start, end: position.end, color: 'suggestion', priority: 5 })
       }
     }
-    if (isCrewEnabled() && crewContext !== undefined) {
-      const memberPattern = /(^|\s)@([\w-]+)/g
-      for (const match of displayedValue.matchAll(memberPattern)) {
-        const name = match[2] as string
-        const member = Object.values(crewContext.crewmates).find(entry => entry.name === name)
-        const mapped = member?.color !== undefined
-          ? (AGENT_COLOR_TO_THEME_COLOR as Record<string, keyof Theme>)[member.color]
-          : undefined
-        if (mapped !== undefined) {
-          const start = (match.index ?? 0) + (match[1] as string).length
-          spans.push({ start, end: start + 1 + name.length, color: mapped, priority: 5 })
-        }
-      }
-    }
     return spans
-  }, [displayedValue, isSearchingHistory, historySearch.historyMatch, historySearch.historyFailedMatch, historySearch.historyQuery, cursorOffset, commands, mcpClients, crewContext])
+  }, [displayedValue, isSearchingHistory, historySearch.historyMatch, historySearch.historyFailedMatch, historySearch.historyQuery, cursorOffset, commands, mcpClients])
 
   const effortText = composerEffortNotice({
     model: focusedEffectiveModel !== '' ? focusedEffectiveModel : (engineModel ?? focusedMainModel),

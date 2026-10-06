@@ -275,7 +275,7 @@ binary per platform at `dist/vendor/brush/<platform>/` and verified against
 `vendor/brush.lock.json` (on Windows, where upstream publishes no binary,
 built from the published crate at the same version). With it on, one
 long-lived brush process serves the whole conversation and one more serves
-each sub-agent: variables, functions, aliases and options persist between
+each crewmate (sub-agent): variables, functions, aliases and options persist between
 calls for their owner — state set by one agent is never seen by another or
 by the main conversation, and an agent's session ends with the agent — and
 the same shell runs on every OS with no Git-for-Windows dependency. Two
@@ -288,10 +288,10 @@ The sessions have a ceiling: the `shell.sessions` setting (a whole
 number, 8 by default — the conversation plus seven agents), the
 `MERCURY_SHELL_ENGINE_SESSIONS` env pin over it, and the `/config` row
 **Shell engine sessions** beside **Shell engine**. The main conversation
-never waits for a session; a sub-agent that needs one while the agents'
+never waits for a session; a crewmate that needs one while the agents'
 share is full waits for a release (an agent ending releases its own), the
 wait shown on its row and bounded by the call's timeout, and never shares
-another's. A ceiling of 1 leaves no session for sub-agents: their engine
+another's. A ceiling of 1 leaves no session for crewmates: their engine
 calls are refused at once with the reason, and a `run_in_background` call
 still runs, in its own system shell.
 

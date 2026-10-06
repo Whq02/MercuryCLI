@@ -2,7 +2,7 @@
 WORKBENCH               │                                                                                              │
   no prompts sent yet   │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
                         │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
-NEXT                    │ │ orchard · 60 settings · 0 set by you                                                     │ │
+NEXT                    │ │ orchard · 59 settings · 0 set by you                                                     │ │
   · /workflows — agent …│ │                                                                                          │ │
   · /health — health ce…│ │ / Search settings…                                                                       │ │
   · /memory — memory    │ │                                                                                          │ │
@@ -20,14 +20,14 @@ TELEMETRY               │ │   Reduced motion                    off         
                         │ │   Shell engine                      system                                               │ │
                         │ │   Patience with a quiet model       normal · idle 6m (quiet 15m) · fallback 15m · retry  │ │
                         │ │   OpenRouter routing policy         n/a — applies to OpenRouter models (Anthropic is     │ │
-                        │ │   Shell engine sessions             8 · the conversation + 7 sub-agents                  │ │
+                        │ │   Shell engine sessions             8 · the conversation + 7 crewmates                   │ │
                         │ │   Thinking                          off                                                  │ │
                         │ │   Usage notice to the model         off                                                  │ │
                         │ │   Tool output                       compact                                              │ │
                         │ │   Terminal progress bar             on                                                   │ │
                         │ │   Turn duration                     on                                                   │ │
                         │ │   Default permission mode           Default                                              │ │
-                        │ │ ↓ 39 more                                                                                │ │
+                        │ │ ↓ 38 more                                                                                │ │
                         │ │                                                                                          │ │
                         │ │ ↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes                 │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │

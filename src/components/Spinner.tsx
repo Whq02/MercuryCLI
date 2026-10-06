@@ -11,11 +11,8 @@ import { Box, Text } from '../ink.js'
 import { stringWidth } from '../ink/stringWidth.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { useAppState } from '../state/AppState.js'
-import { getViewedCrewmateTask } from '../state/selectors.js'
-import type { InProcessCrewmateTaskState } from '../tasks/InProcessCrewmateTask/types.js'
 import { activityManager } from '../utils/activityManager.js'
 import { getEffortSuffix } from '../utils/effort.js'
-import { formatDuration } from '../utils/format.js'
 import { truncateKeepingTail } from '../utils/truncate.js'
 import {
   getFocusedSessionConnector,
@@ -23,7 +20,6 @@ import {
 } from '../services/engine-connector/focusedConnector.js'
 import type { Theme } from '../utils/theme.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
-import { plural } from '../utils/stringUtils.js'
 import { GLYPH, truncateToWidth } from './mercury-ui/glyphs.js'
 import { sampleSpinnerVerb } from '../constants/spinnerVerbs.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
@@ -32,7 +28,6 @@ import { useNowTick } from './mercury-ui/components.js'
 import { SpinnerAnimationRow } from './Spinner/SpinnerAnimationRow.js'
 import { liveCounterLine, liveCounterPhaseOf, liveCounterWords, turnFactsOfRefs } from './Spinner/liveCounterWords.js'
 import type { LiveTurnFactsV1 } from '../services/engine-connector/seatLive.js'
-import { CrewmateSpinnerTree } from './Spinner/CrewmateSpinnerTree.js'
 import { TaskListV2 } from './TaskListV2.js'
 import type { SpinnerMode } from './Spinner/types.js'
 import { useFocusedMission } from './tasks/useFocusedWork.js'
@@ -102,7 +97,6 @@ export function SpinnerWithVerb({
   hasActiveTools,
   activeToolCount,
   activeToolLabel,
-  leaderIsIdle,
 }: SpinnerWithVerbProps): React.ReactNode {
   const { columns } = useTerminalSize()
   const inCockpit = useContext(CockpitActiveContext)
@@ -117,30 +111,6 @@ export function SpinnerWithVerb({
 
   const effectiveMode: SpinnerMode = mode
 
-  const runningCrewmateCount = useAppState(state =>
-    Object.values(state.tasks).filter(
-      task =>
-        (task as { type?: string }).type === 'in_process_crewmate' &&
-        (task as { status?: string }).status === 'running',
-    ).length,
-  )
-  const hasRunningCrewmates = runningCrewmateCount > 0
-  const crewmateTokens = useAppState(state =>
-    Object.values(state.tasks).reduce(
-      (sum, task) =>
-        (task as { type?: string }).type === 'in_process_crewmate'
-          ? sum + ((task as { tokens?: number }).tokens ?? 0)
-          : sum,
-      0,
-    ),
-  )
-  const foregroundedCrewmate = useAppState(state =>
-    getViewedCrewmateTask(state),
-  ) as InProcessCrewmateTaskState | undefined
-  const foregroundedIdle =
-    foregroundedCrewmate !== undefined &&
-    (foregroundedCrewmate as { status?: string }).status !== 'running'
-
   const [whimsyVerb, setWhimsyVerb] = useState(() => sampleSpinnerVerb())
   useEffect(() => {
     const timer = setInterval(
@@ -150,18 +120,8 @@ export function SpinnerWithVerb({
     return () => clearInterval(timer)
   }, [])
 
-  const crewmateVerbRaw = foregroundedCrewmate
-    ? (foregroundedCrewmate as Record<string, unknown>)['verb']
-    : undefined
-  const crewmateVerb =
-    typeof crewmateVerbRaw === 'string' && crewmateVerbRaw !== ''
-      ? crewmateVerbRaw
-      : null
-
   let chosenVerb: string
-  if (foregroundedCrewmate && !foregroundedIdle) {
-    chosenVerb = crewmateVerb ?? whimsyVerb
-  } else if (overrideMessage != null && overrideMessage !== '') {
+  if (overrideMessage != null && overrideMessage !== '') {
     chosenVerb = overrideMessage
   } else if (hasActiveTools && activeToolLabel) {
     chosenVerb = activeToolLabel
@@ -206,12 +166,9 @@ export function SpinnerWithVerb({
       ? 'This turn has been running a while — esc interrupts it, not its agents.'
       : (spinnerTip ?? null)
 
-  const treeExpanded = expandedView === 'crewmates'
   const ledgerExpanded = expandedView === 'tasks'
   const tail =
-    treeExpanded && hasRunningCrewmates ? (
-      <CrewmateSpinnerTree />
-    ) : ledgerExpanded && mission.length > 0 ? (
+    ledgerExpanded && mission.length > 0 ? (
       <TaskListV2 tasks={mission} />
     ) : pendingNext ? (
       <Text dimColor wrap="truncate-end">
@@ -234,40 +191,6 @@ export function SpinnerWithVerb({
     return <Box height={1} width="100%" overflow="hidden"><Text wrap="truncate-end"><Text color={messageColor}>{GLYPH.spark} {head}</Text><Text dimColor>{detail ? `${head ? ' · ' : ''}${detail}` : ''}</Text></Text></Box>
   }
 
-  if (leaderIsIdle && hasRunningCrewmates && !foregroundedCrewmate) {
-    const allIdle = runningCrewmateCount === 0
-    return (
-      <Box flexDirection="column" width="100%">
-        <Box width="100%">
-          <Text dimColor>
-            ✶ idle
-            {!allIdle
-              ? ` · ${runningCrewmateCount} ${plural(runningCrewmateCount, 'crewmate')} running`
-              : ''}
-          </Text>
-        </Box>
-        {treeExpanded ? <CrewmateSpinnerTree /> : null}
-      </Box>
-    )
-  }
-  if (foregroundedCrewmate && foregroundedIdle) {
-    const startedAt = (foregroundedCrewmate as { startedAt?: number }).startedAt
-    const everythingIdle = leaderIsIdle && runningCrewmateCount === 0
-    return (
-      <Box flexDirection="column" width="100%">
-        <Box width="100%">
-          <Text dimColor>
-            {'✶ '}
-            {everythingIdle && startedAt
-              ? `worked for ${formatDuration(Date.now() - startedAt)}`
-              : 'idle'}
-          </Text>
-        </Box>
-        {treeExpanded && hasRunningCrewmates ? <CrewmateSpinnerTree /> : null}
-      </Box>
-    )
-  }
-
   const row = (
     <SpinnerAnimationRow
       mode={effectiveMode}
@@ -286,9 +209,6 @@ export function SpinnerWithVerb({
       spinnerSuffix={spinnerSuffix}
       verbose={verbose}
       columns={columns}
-      hasRunningCrewmates={hasRunningCrewmates}
-      crewmateTokens={crewmateTokens}
-      foregroundedCrewmate={foregroundedCrewmate}
       effortSuffix={getEffortSuffix(engineModel, appEffort)}
       inWorkCapsule={inWorkCapsule}
       still={still}

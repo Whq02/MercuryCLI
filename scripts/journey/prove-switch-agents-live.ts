@@ -301,7 +301,6 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
   return {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_CREDENTIAL_STORE: 'file',
     ANTHROPIC_BASE_URL: fixtureBase,
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
@@ -376,15 +375,15 @@ async function switchLeg(): Promise<void> {
           ...bootSends(ASK),
           { data: '/crewmates', atTick: 999, awaitText: 'launched two in the background', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'launched' },
           { data: '\r', afterPrevTicks: 4 },
-          { data: '\x1b', atTick: 999, awaitText: 'Sub-agents', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-launched' },
+          { data: '\x1b', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-launched' },
           ...switchSends(OPUS, 'Opus 5 ·', 'opus-set'),
           { data: '/crewmates', atTick: 999, awaitText: 'check 1:', requireAwait: true, minTick: 4, awaitSettleTicks: 6, mark: 'after-opus' },
           { data: '\r', afterPrevTicks: 4 },
-          { data: '\x1b', atTick: 999, awaitText: 'Sub-agents', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-opus' },
+          { data: '\x1b', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-opus' },
           ...switchSends(FABLE, 'Fable 5.1 ·', 'fable-set'),
           { data: '/crewmates', atTick: 999, awaitText: 'check 2:', requireAwait: true, minTick: 4, awaitSettleTicks: 6, mark: 'after-fable' },
           { data: '\r', afterPrevTicks: 4 },
-          { data: '\x1b', atTick: 999, awaitText: 'Sub-agents', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-fable' },
+          { data: '\x1b', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-fable' },
         ],
         stableTicks: 6,
       },
@@ -416,7 +415,7 @@ async function switchLeg(): Promise<void> {
   }
   for (const label of ['crew-launched', 'crew-opus', 'crew-fable']) {
     const frame = marks[label] ?? ''
-    check(`${tag}: the Crew view at '${label}' — both rows running, the count label`, agentRow(frame, SEAT_ONE, /\bRunning\b/) && agentRow(frame, SEAT_TWO, /\bRunning\b/) && frame.includes('crew · 2 running') && frame.includes('Sub-agents (2)'))
+    check(`${tag}: the Crew view at '${label}' — both rows running, the count label`, agentRow(frame, SEAT_ONE, /\bRunning\b/) && agentRow(frame, SEAT_TWO, /\bRunning\b/) && frame.includes('crew · 2 running') && frame.includes('Crewmates (2)'))
   }
   check(`${tag}: the transcript carries the registry's own words after each switch`, (marks['after-opus'] ?? '').includes('check 1: registry says 2 task(s) · 2 running') && (marks['after-fable'] ?? '').includes('check 2: registry says 2 task(s) · 2 running'))
   if (failures > before && !KEEP) for (const [label, frame] of Object.entries(marks)) dump(`${tag} · ${label}`, frame, COLS)
@@ -449,7 +448,7 @@ async function restartLeg(): Promise<void> {
           { data: `${CONTINUE}\r`, atTick: 999, awaitText: 'launched two in the background', requireAwait: true, minTick: 2, awaitSettleTicks: 45, mark: 'launched' },
           { data: '/crewmates', atTick: 999, awaitText: 'check 1:', requireAwait: true, minTick: 4, awaitSettleTicks: 6, mark: 'after-restart' },
           { data: '\r', afterPrevTicks: 4 },
-          { data: '\x1b', atTick: 999, awaitText: 'Sub-agents', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-restart' },
+          { data: '\x1b', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-restart' },
         ],
         stableTicks: 6,
       },
@@ -477,7 +476,7 @@ async function restartLeg(): Promise<void> {
   check(`${tag}: the Inspect answer landed within ${INSPECT_BOUND_MS} ms at ${COLS}×${ROWS}`, ack !== undefined && (ack.inspectMs ?? Infinity) < INSPECT_BOUND_MS, `${ack?.inspectMs}ms`)
   const crew = marks['crew-restart'] ?? ''
   const crewRows = crew.split('\n').filter(line => line.includes(SEAT_ONE) || line.includes(SEAT_TWO) || line.includes('sub-agents'))
-  check(`${tag}: the Crew view reads both agents running again — never stopped, never the store's word`, agentRow(crew, SEAT_ONE, /\bRunning\b/) && agentRow(crew, SEAT_TWO, /\bRunning\b/) && !crewRows.some(line => /\b(killed|stopped)\b/.test(line)) && crew.includes('crew · 2 running') && crew.includes('Sub-agents (2)'), crewRows.map(flat).join(' | ').slice(0, 300))
+  check(`${tag}: the Crew view reads both agents running again — never stopped, never the store's word`, agentRow(crew, SEAT_ONE, /\bRunning\b/) && agentRow(crew, SEAT_TWO, /\bRunning\b/) && !crewRows.some(line => /\b(killed|stopped)\b/.test(line)) && crew.includes('crew · 2 running') && crew.includes('Crewmates (2)'), crewRows.map(flat).join(' | ').slice(0, 300))
   check(`${tag}: the registry's own rows read running, never the store's word`, /\(running · harbour/.test(flat(marks['after-restart'] ?? '')) && /\(running · lantern/.test(flat(marks['after-restart'] ?? '')) && !(marks['after-restart'] ?? '').includes('killed'), flat(marks['after-restart'] ?? '').slice(0, 300))
   const afterRestart = flat((marks['after-restart'] ?? '').replace(/^│ ?/gm, ''))
   check(`${tag}: the transcript carries the registry's words and the notice count`, afterRestart.includes('check 1: registry says 2 task(s) · 2 running') && afterRestart.includes('notices 0'), afterRestart.slice(0, 300))

@@ -48,11 +48,7 @@ import {
   parseMcpConfig,
   parseMcpConfigFromFilePath,
 } from './services/mcp/config.js'
-import {
-  coordinationServerConfig,
-  isCoordinationServerEnabled,
-  COORDINATION_SERVER_NAME,
-} from './services/mcp/coordinationServer.js'
+import { isMercuryServerEnabled, mercuryServerConfig, MERCURY_SERVER_NAME } from './services/mcp/mercuryServer.js'
 import { clearBootAttempts } from './substrate/bootBeacon.js'
 import { addBootNote, collectLauncherNotes } from './substrate/bootNotes.js'
 import { flagEnv, setFlagEnv } from './substrate/flagRegistry.js'
@@ -112,8 +108,6 @@ import { ensureKeychainPrefetchCompleted, startKeychainPrefetch } from './utils/
 import { lastSession, sessionAtIndex, searchSessionsByCustomTitle, listSessions, sessionIdExists } from './utils/sessionStorage.js'
 import { sessionIdOfListing } from './utils/sessionStorage/logs.js'
 import { armProvisionalSessionReconcile } from './utils/provisionalSessionReconcile.js'
-import { computeInitialCrewContext } from './utils/crew/reconnection.js'
-import { findRoleDefinition, getRoleSystemPrompt } from './utils/crew/roleResolver.js'
 import { getTipToShowOnSpinner } from './services/tips/tipScheduler.js'
 import { getSlashCommandToolSkills } from './commands.js'
 import { countFilesRoundedRg } from './utils/ripgrep.js'
@@ -493,17 +487,6 @@ async function run(): Promise<void> {
     .option('-v, --version', 'Print the version')
     .option('-w, --worktree [name]', 'Run inside a managed worktree')
     .option('--multiplex', 'Create a tmux session for the worktree')
-
-  for (const [flags, description] of [
-    ['--seat-id <id>', 'Crewmate agent id'],
-    ['--seat <name>', 'Crewmate agent name'],
-    ['--crew <name>', 'Crewmate crew name'],
-    ['--seat-color <color>', 'Crewmate color'],
-    ['--parent <id>', 'Parent session id'],
-    ['--role <type>', 'Crewmate agent type'],
-  ] as const) {
-    program.addOption(new Option(flags, description).hideHelp())
-  }
 
   program.addOption(new Option('-V', 'Print the version').hideHelp())
   program.on('option:V', () => {
@@ -1111,20 +1094,6 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     }
   }
 
-  const agentId = typedString(opts.seatId)
-  const agentName = typedString(opts.seat)
-  const crewName = typedString(opts.crew)
-  const agentColor = typedString(opts.seatColor)
-  const parentSessionId = typedString(opts.parent)
-  const agentTypeOpt = typedString(opts.role)
-  const { isCrewEnabled } = await import('./utils/crewEnabled.js')
-  if (isCrewEnabled()) {
-    const identityCount = [agentId, agentName, crewName].filter(Boolean).length
-    if (identityCount > 0 && identityCount < 3) {
-      failCli('--seat-id, --seat and --crew must be provided together')
-    }
-  }
-
   if (opts.continue && opts.resume) {
     failCli('--continue and --resume name two different sessions — give exactly one')
   }
@@ -1306,23 +1275,6 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   }
   const resolvedInitialModel = getEngineModel()
 
-  if (agentId && agentName && crewName && agentTypeOpt) {
-    let rolePrompt: string | undefined
-    const roleDefinition = findRoleDefinition(agentTypeOpt, activeAgents)
-    if (!roleDefinition) {
-      logForDebugging(`unknown crewmate role '${agentTypeOpt}'; nothing appended`)
-    } else {
-      rolePrompt = getRoleSystemPrompt(roleDefinition) || undefined
-    }
-    if (rolePrompt) {
-      appendSystemPrompt = [appendSystemPrompt, `# Role contract: ${agentTypeOpt}\n${rolePrompt}`]
-        .filter(Boolean)
-        .join('\n\n')
-    } else {
-      logForDebugging(`no boot-time role prompt for agent type '${agentTypeOpt}'; nothing appended`)
-    }
-  }
-
   const sessionTitle = typedString(opts.title)?.trim() || undefined
 
   let prompt: string | AsyncIterable<string> | undefined = inputPrompt
@@ -1414,16 +1366,11 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   }
   let dynamicMcpConfig = dynamicConfigResult.servers
 
-  if (isCoordinationServerEnabled()) {
-    const reserved = Object.entries(dynamicMcpConfig).find(
-      ([name]) => name === COORDINATION_SERVER_NAME,
+  if (isMercuryServerEnabled() && Object.keys(dynamicMcpConfig).includes(MERCURY_SERVER_NAME)) {
+    writeErr(
+      `The MCP server name '${MERCURY_SERVER_NAME}' is reserved while Mercury's in-process MCP server is enabled (MERCURY_COORDINATION_MCP).`,
     )
-    if (reserved) {
-      writeErr(
-        `The MCP server name '${COORDINATION_SERVER_NAME}' is reserved while Mercury's in-process coordination server is enabled (MERCURY_COORDINATION_MCP).`,
-      )
-      process.exit(1)
-    }
+    process.exit(1)
   }
 
   const policyFiltered = filterMcpServersByPolicy(dynamicMcpConfig)
@@ -1444,23 +1391,17 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
       failCli('Dynamic MCP servers are not allowed when an enterprise MCP configuration exists', 1)
     }
   }
-  if (isCoordinationServerEnabled()) {
-    logForDebugging('merging the in-process coordination server into the dynamic MCP config')
-    try {
-      dynamicMcpConfig = {
-        ...dynamicMcpConfig,
-        ...Object.fromEntries(
-          Object.entries(coordinationServerConfig()).map(([name, config]) => [
-            name,
-            { ...config, scope: 'dynamic' as const },
-          ]),
-        ),
-      }
-    } catch (error) {
-      logForDebugging(`coordination server setup failed: ${error instanceof Error ? error.message : String(error)}`)
+  if (isMercuryServerEnabled()) {
+    dynamicMcpConfig = {
+      ...dynamicMcpConfig,
+      ...Object.fromEntries(
+        Object.entries(mercuryServerConfig()).map(([name, config]) => [
+          name,
+          { ...config, scope: 'dynamic' as const },
+        ]),
+      ),
     }
   }
-
   const strictOrBare = Boolean(opts.onlyMcp) || isBareMode()
   const mcpResolutionStartedAt = Date.now()
   const discoveredMcpPromise: Promise<Record<string, ScopedMcpServerConfig>> = strictOrBare
@@ -1549,7 +1490,6 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
       allAgents,
       sessionTitle,
       setupTrigger,
-      crewmateContext: { agentId, agentName, crewName, agentColor, parentSessionId },
     })
     return
   }
@@ -1650,13 +1590,6 @@ async function interactiveLaunch(args: {
   allAgents: AgentDefinition[]
   sessionTitle: string | undefined
   setupTrigger: 'init' | 'maintenance' | undefined
-  crewmateContext: {
-    agentId?: string
-    agentName?: string
-    crewName?: string
-    agentColor?: string
-    parentSessionId?: string
-  }
 }): Promise<void> {
   const { opts, commands } = args
   let inputPrompt = args.prompt
@@ -1784,30 +1717,14 @@ async function interactiveLaunch(args: {
   const effortLevel = (opts.effort as EffortLevel | undefined) ?? getInitialSettings().engine?.effort
   const effortEnv = describeEffortEnvOverride()
   if (effortEnv.state === 'ignored') addBootNote('warn', effortEnv.sentence)
-  const { setDynamicCrewContext } = await import('./utils/crewmate.js')
-  const hasCrewmateIdentity = Boolean(
-    args.crewmateContext.agentId && args.crewmateContext.agentName && args.crewmateContext.crewName,
-  )
-  const crewContext = hasCrewmateIdentity
-    ? {
-        agentId: args.crewmateContext.agentId!,
-        agentName: args.crewmateContext.agentName!,
-        crewName: args.crewmateContext.crewName!,
-        color: args.crewmateContext.agentColor,
-        parentSessionId: args.crewmateContext.parentSessionId,
-      }
-    : undefined
-  if (crewContext) setDynamicCrewContext(crewContext)
-  const initialCrewContext = computeInitialCrewContext()
   const initialState: AppState = {
     ...getDefaultAppState(),
     toolPermissionContext: effectiveContext,
     verbose: config.toolOutput === 'full',
-    expandedView: config.showSpinnerTree ? 'crewmates' : config.showExpandedTasks ? 'tasks' : 'none',
+    expandedView: config.showExpandedTasks ? 'tasks' : 'none',
     ...(effortLevel !== undefined ? { effortValue: effortLevel } : {}),
     agent: args.mainThreadAgentDefinition?.agentType,
     agentDefinitions: { activeAgents: args.activeAgents, allAgents: args.allAgents },
-    ...(initialCrewContext ? { crewContext: initialCrewContext } : {}),
     remoteControlEnabled: getRemoteControlAtStartup() || assistantBridgeSeed(),
     promptSuggestionEnabled: false,
     ...(inputPrompt

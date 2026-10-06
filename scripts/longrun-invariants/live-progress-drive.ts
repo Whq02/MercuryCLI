@@ -60,7 +60,6 @@ const child = spawn(
       ...(process.env as Record<string, string>),
       MERCURY_CONFIG_DIR: CHILD_HOME,
       MERCURY_DAEMON_DIR: join(CHILD_HOME, 'daemon'),
-      MERCURY_CREWS_DIR: join(CHILD_HOME, 'crews'),
       MERCURY_SCRIPTED_STREAM: CHATTY_BASH_SCRIPT,
       ANTHROPIC_API_KEY: FIXTURE_API_KEY,
       VISUAL: '',

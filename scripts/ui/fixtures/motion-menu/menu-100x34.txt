@@ -13,7 +13,7 @@
   samples
     Samples                         default (off)
   agents
-    Sub-agents                      default (on)
+    Crewmates                       default (on)
     Workflows                       default (on)
   miscellaneous
     Launch animation                default (on)

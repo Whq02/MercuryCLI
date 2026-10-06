@@ -30,13 +30,11 @@ mkdirSync(home, { recursive: true })
 mkdirSync(crews, { recursive: true })
 mkdirSync(daemon, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = home
-process.env.MERCURY_CREWS_DIR = crews
 process.env.MERCURY_DAEMON_DIR = daemon
 
 const childEnv = (extra: Record<string, string> = {}): NodeJS.ProcessEnv => ({
   ...process.env,
   MERCURY_CONFIG_DIR: home,
-  MERCURY_CREWS_DIR: crews,
   MERCURY_DAEMON_DIR: daemon,
   MERCURY_SESSION_ROOM: '',
   MERCURY_ROOM_TOKEN: '',
@@ -56,33 +54,6 @@ const runChild = (
 }
 
 {
-  const crewOut = join(tmp, 'fc1-crew.txt')
-  const before = runChild('crewFoundingKillChild.ts', {
-    RELIA_OUT: crewOut,
-    MERCURY_FAULT_INJECT: 'rename@config.json:kill',
-  })
-  const crewBefore = readFileSync(crewOut, 'utf8').trim()
-  ok(before.signal === 'SIGKILL', 'FC1 child died abruptly before the roster rename')
-  ok(!existsSync(join(crews, crewBefore, 'config.json')), 'FC1: no roster is visible — the founding is all or nothing, never a half-made crew file')
-  ok(!existsSync(join(crews, '.journal')), 'FC1: no journal record — there is no create step to track')
-  const after = runChild('crewFoundingKillChild.ts', {
-    RELIA_OUT: crewOut,
-    MERCURY_FAULT_INJECT: 'flush-dir@config.json:kill',
-  })
-  const crewAfter = readFileSync(crewOut, 'utf8').trim()
-  const rosterPath = join(crews, crewAfter, 'config.json')
-  let members: string[] = []
-  try {
-    members = (JSON.parse(readFileSync(rosterPath, 'utf8')) as { members: Array<{ name: string }> }).members.map(m => m.name)
-  } catch {
-    members = []
-  }
-  ok(after.signal === 'SIGKILL' && members.join(',') === 'crew-lead,alpha', `FC1: a kill after the rename leaves the WHOLE roster — the lead and the member (${members.join(',') || 'none'})`)
-  const rec = runChild('crewRecoverChild.ts', {})
-  ok(rec.status === 0 && existsSync(rosterPath), 'FC1: recovery has nothing to do and removes nothing')
-}
-
-{
   const res = runChild('sidecarCollideChild.ts')
   let parsed: { rounds?: number; anomalies?: number; orphanTmps?: number } = {}
   try {
@@ -96,53 +67,6 @@ const runChild = (
   )
 }
 
-
-{
-  const crewName = 'relia-fc4'
-  const actLog = join(tmp, 'fc4-acts.log')
-  writeFileSync(actLog, '')
-  const reqA = 'relia-req-fc4-a'
-  const sentA = runChild('mailboxSendChild.ts', { RELIA_CREWNAME: crewName, RELIA_REQ: reqA })
-  const lifeA1 = runChild('mailboxDrainChild.ts', {
-    RELIA_CREWNAME: crewName,
-    RELIA_ACT_LOG: actLog,
-    MERCURY_FAULT_INJECT: `bridge-after-complete@${reqA}:kill`,
-  })
-  const lifeA2 = runChild('mailboxDrainChild.ts', {
-    RELIA_CREWNAME: crewName,
-    RELIA_ACT_LOG: actLog,
-  })
-  const actsA = readFileSync(actLog, 'utf8').split('\n').filter(l => l.startsWith(reqA))
-  ok(
-    sentA.status === 0 && lifeA1.signal === 'SIGKILL' && lifeA2.status === 0,
-    'FC4-A lifecycle ran (send · act+complete+die-before-ack · restart)',
-  )
-  ok(
-    actsA.length === 1,
-    `FC4-A FIXED: acted-on dispatch executed EXACTLY once across the restart (${actsA.length}×) — the durable 'delivered' record consumed the redelivery`,
-  )
-  writeFileSync(actLog, '')
-  const reqB = 'relia-req-fc4-b'
-  const sentB = runChild('mailboxSendChild.ts', { RELIA_CREWNAME: crewName, RELIA_REQ: reqB })
-  const lifeB1 = runChild('mailboxDrainChild.ts', {
-    RELIA_CREWNAME: crewName,
-    RELIA_ACT_LOG: actLog,
-    RELIA_DIE_AFTER_ACT: '1',
-  })
-  const lifeB2 = runChild('mailboxDrainChild.ts', {
-    RELIA_CREWNAME: crewName,
-    RELIA_ACT_LOG: actLog,
-  })
-  const actsB = readFileSync(actLog, 'utf8').split('\n').filter(l => l.startsWith(reqB))
-  ok(
-    sentB.status === 0 && lifeB1.signal === 'SIGKILL' && lifeB2.status === 0,
-    'FC4-B lifecycle ran (send · die-mid-act · restart)',
-  )
-  ok(
-    actsB.length === 2 && !actsB[0]!.includes('REPLAY') && actsB[1]!.includes('REPLAY'),
-    `FC4-B FIXED: a mid-act death redelivers WITH the honest replay marker (${JSON.stringify(actsB)})`,
-  )
-}
 
 {
   const storePath = join(tmp, 'fc5-inbox.json')

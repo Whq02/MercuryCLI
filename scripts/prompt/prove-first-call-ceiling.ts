@@ -10,7 +10,7 @@ const root = resolve(import.meta.dir, '..', '..')
 const dist = join(root, 'dist', 'mercury.mjs')
 const vendoredNode = join(root, 'dist', 'vendor', 'node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
 const node = existsSync(vendoredNode) ? vendoredNode : Bun.which('node') ?? 'node'
-const rare = ['Service', 'Inspect', 'Sleep', 'LiveComms', 'ArtifactsList']
+const rare = ['Service', 'Inspect', 'Sleep']
 const loadedInFull = ['ChangeSet', 'AstSearch', 'AstEdit', 'LSP', 'Test', 'Git', 'Debug', 'Monitor', 'Checkpoint', 'Rewind']
 let failures = 0
 function check(label: string, condition: boolean, detail = ''): void {
@@ -80,7 +80,7 @@ try {
       PATH: [dirname(node), '/usr/bin', '/bin', '/usr/sbin', '/sbin'].join(process.platform === 'win32' ? ';' : ':'),
       TERM: 'dumb', NO_COLOR: '1', LANG: 'en_US.UTF-8',
       MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file',
-      MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_CREWS_DIR: join(home, 'crews'),
+      MERCURY_DAEMON_DIR: join(home, 'daemon'),
       MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_BOOT_PREFLIGHT: '0',
       MERCURY_DAP_ADAPTERS: JSON.stringify({ fixture: { command: 'true', args: [], connect: 'stdio' } }),
       ANTHROPIC_BASE_URL: base,

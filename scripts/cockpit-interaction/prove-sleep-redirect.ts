@@ -49,7 +49,7 @@ t.section('§1 — what counts as harness-tracked, TOTAL over the TaskType union
   const taskSrc = readFileSync('src/Task.ts', 'utf8')
   const unionMatch = taskSrc.match(/export type TaskType =\n((?:\s*\|\s*'[a-z_]+'\n)+)/)
   const union = [...(unionMatch?.[1] ?? '').matchAll(/'([a-z_]+)'/g)].map(m => m[1]!)
-  t.check('the TaskType union was read from src/Task.ts', union.length >= 6, union.join(','))
+  t.check('the TaskType union was read from src/Task.ts', union.length >= 5, union.join(','))
   t.check(
     'every union member is TRACKED or a DOCUMENTED exclusion — no silent misses',
     union.every(ty => TRACKED_AGENT_TASK_TYPES.has(ty) || UNTRACKED_TASK_TYPES.has(ty)),
@@ -72,7 +72,7 @@ t.section('§1 — what counts as harness-tracked, TOTAL over the TaskType union
     [...TERMINAL_TASK_STATUSES].join(','),
   )
 
-  for (const ty of ['local_agent', 'in_process_crewmate', 'remote_agent', 'local_workflow']) {
+  for (const ty of ['local_agent', 'remote_agent', 'local_workflow']) {
     t.check(
       `a running ${ty} counts`,
       countTrackedRunningAgents(stateWith({ a: { id: 'x', type: ty, status: 'running' } })) === 1,
@@ -320,7 +320,6 @@ t.section('§6 — REAL BINARY, REAL AGENT: the same-block dispatch-then-wait pa
           MERCURY_BOOT_PREFLIGHT: '0',
           MERCURY_HEALTH_STATE_DIR: join(scratch, 'health'),
           MERCURY_DAEMON_DIR: join(scratch, 'daemon'),
-          MERCURY_CREWS_DIR: join(scratch, 'crews'),
         },
       },
     )

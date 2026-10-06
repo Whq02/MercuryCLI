@@ -1,8 +1,7 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { isCoordinationServerEnabled } from '../../services/mcp/coordinationServer.js'
 import { isMcpPolicyActive, describeMcpPolicy } from '../../services/mcp/toolPolicy.js'
+import { isMercuryServerEnabled } from '../../services/mcp/mercuryServer.js'
 import { isSaturnSchedulingEnabled } from '../../tools/ScheduleCronTool/prompt.js'
-import { isCrewEnabled } from '../crewEnabled.js'
 import { isMercurySubstrateProfileOn } from '../config.js'
 import { isEnvDefinedFalsy, isEnvTruthy } from '../envUtils.js'
 import { truncateToWidth } from '../truncate.js'
@@ -11,7 +10,6 @@ import { isInvocationTraceEnabled } from '../observability/invocationTrace.js'
 import { daemonSnapshot } from './daemonSnapshot.js'
 import { listCapabilityKills, getAgentCapParseRejects } from '../permissions/capabilityGate.js'
 import { ctxForecastEnabled } from './ctxForecast.js'
-import { carryForwardEnabled } from '../../daemon/carryForward.js'
 import { thisMercuryCommand } from '../../services/privateChannel/installPath.js'
 import { type Snapshot } from './types.js'
 
@@ -27,7 +25,6 @@ export type SubstrateData = {
 
 function buildSections(): { sections: SubstrateSection[]; activeKills: string[] } {
   const substrate = isMercurySubstrateProfileOn()
-  const crew = isCrewEnabled()
 
   const kills = listCapabilityKills()
   const activeKills: string[] = []
@@ -53,6 +50,7 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
       { name: 'MCP policy gate', on: mcpPolicyOn, hint: mcpPolicyOn ? mcpPolicyHint : 'MERCURY_MCP_MAX_RISK=low|medium' },
       { name: 'MCP trust cards', on: true, hint: trustedHint },
       { name: 'Capability manifest', on: true, hint: 'always-on · ToolSearch' },
+      { name: 'In-process MCP server (mercury)', on: isMercuryServerEnabled(), hint: isMercuryServerEnabled() ? 'live (opt out =0) · the lease verbs + render_tui' : 'MERCURY_COORDINATION_MCP=0 set' },
       {
         name: 'Agent-cap posture',
         on: !!agentCapPosture,
@@ -73,16 +71,6 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
     ],
   }
 
-  const crewHint = 'in a crew'
-  const coordination: SubstrateSection = {
-    title: 'Coordination',
-    rows: [
-      { name: 'File leases + lease-guard', on: crew, hint: crewHint },
-      { name: 'LiveComms', on: crew, hint: crewHint },
-      { name: 'SendMessage governance', on: crew, hint: crewHint },
-      { name: 'Coordination MCP server (mercury)', on: isCoordinationServerEnabled(), hint: isCoordinationServerEnabled() ? 'live (opt out =0) · mcp__mercury__* coord verbs' : 'MERCURY_COORDINATION_MCP=0 set' },
-    ],
-  }
 
   const cronOn = isSaturnSchedulingEnabled()
   const breakerFails = (flagEnv('MERCURY_DAEMON_BREAKER_FAILS') ?? '').trim() || '5'
@@ -94,11 +82,6 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
       { name: 'Saturn scheduling', on: cronOn, hint: cronOn ? 'enabled' : 'MERCURY_SATURN_DISABLE set' },
       { name: 'Scheduler daemon', on: daemonLive, hint: daemonLive ? (daemon.reason ?? 'live') : `opt-in: ${thisMercuryCommand()} daemon` },
       { name: 'Daemon circuit-breaker', on: cronOn, hint: `daemon · trips at ${breakerFails} fails` },
-      {
-        name: 'Carry-forward handoff',
-        on: carryForwardEnabled(),
-        hint: carryForwardEnabled() ? 'auto-clear seeds a handoff note (opt out =0)' : 'MERCURY_CARRY_FORWARD=0 set',
-      },
     ],
   }
 
@@ -143,7 +126,7 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
     ],
   }
 
-  return { sections: [security, coordination, autonomy, observability, ui], activeKills }
+  return { sections: [security, autonomy, observability, ui], activeKills }
 }
 
 export function substrateSnapshot(): Snapshot<{ data: SubstrateData }> {

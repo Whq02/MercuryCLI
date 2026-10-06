@@ -20,12 +20,12 @@
    │   splash ripple study                               2 days ago │  │                                            │
    │   forty-day spike                                  1 month ago │  │ would delete: 2 transcripts · total 164.1… │
    │   ninety-day archive                              3 months ago │  │ age range: 3 months ago → 1 month ago      │
-   │                                                                │  │ … (the trail continues — a taller termina… │
-   │ router crews                                                   │  ╰────────────────────────────────────────────╯
-   │   party · dps1 — dps1                           40 minutes ago │  ╭────────────────────────────────────────────╮
-   ╰────────────────────────────────────────────────────────────────╯  │ SESSIONS                                   │
+   ╰────────────────────────────────────────────────────────────────╯  │ … (the trail continues — a taller termina… │
+                                                                       ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ SESSIONS                                   │
                                                                        │ Scope      all history — every project     │
-                                                                       │ Sessions   6 · 1 crew                      │
+                                                                       │ Sessions   6                               │
                                                                        │ Opens      ● a real chat, in place         │
                                                                        ╰────────────────────────────────────────────╯
                                                                        ╭────────────────────────────────────────────╮
@@ -35,6 +35,6 @@
                                                                        │ Dir        orchard-src                     │
                                                                        ╰────────────────────────────────────────────╯
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  6 sessions in the full history · 1 crew · ↵ opens the real chat                             │
+   │ ● System ready  │  6 sessions in the full history · ↵ opens the real chat                                      │
    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
                            ↑↓ choose · ↵ commit (No is the default) · esc / n keep everything

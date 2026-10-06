@@ -315,7 +315,6 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
   return {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_CREDENTIAL_STORE: 'file',
     ANTHROPIC_BASE_URL: fixtureBase,
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
@@ -393,10 +392,10 @@ async function leg(mainDialect: Dialect): Promise<void> {
           ...bootSends(ASK),
           { data: '/crewmates', atTick: 999, awaitText: 'Running 4 agents', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'running' },
           { data: '\r', afterPrevTicks: 3 },
-          { data: '\x1b', atTick: 999, awaitText: 'Sub-agents', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-mid' },
+          { data: '\x1b', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-mid' },
           { data: '/crewmates', atTick: 999, awaitText: 'agents finished', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'landed' },
           { data: '\r', afterPrevTicks: 3 },
-          { data: '\x1b', atTick: 999, awaitText: 'Sub-agents', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-landed' },
+          { data: '\x1b', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-landed' },
           { data: '', afterPrevTicks: 3 },
         ],
         stableTicks: 6,
@@ -435,7 +434,7 @@ async function leg(mainDialect: Dialect): Promise<void> {
   check(`${tag}: S3 the Crew view rows name the seats' model`, SEATS.every(s => (rowOf(mid, s) ?? '').includes(seatModel)), flat(mid).slice(0, 400))
 
   const landed = marks['crew-landed'] ?? ''
-  check(`${tag}: S4 all four landed with their model kept`, SEATS.every(s => /\blanded\b/.test(rowOf(landed, s) ?? '') && (rowOf(landed, s) ?? '').includes(seatModel)) && landed.includes('crew · 0 running') && landed.includes('Sub-agents (4)'), flat(landed).slice(0, 400))
+  check(`${tag}: S4 all four landed with their model kept`, SEATS.every(s => /\blanded\b/.test(rowOf(landed, s) ?? '') && (rowOf(landed, s) ?? '').includes(seatModel)) && landed.includes('crew · 0 running') && landed.includes('Crewmates (4)'), flat(landed).slice(0, 400))
 
   if (failures > before && process.env.CREW_SEATS_KEEP !== '1') for (const [label, frame] of Object.entries(marks)) dump(`${tag} · ${label}`, frame)
   if (failures > before || process.env.CREW_SEATS_KEEP === '1') dump(`${tag} · final grid`, cap.text)

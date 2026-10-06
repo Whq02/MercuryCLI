@@ -1,52 +1,11 @@
 
-import React, { useEffect, useRef } from 'react'
+import React from 'react'
 import { FpsMetricsProvider } from '../context/fpsMetrics.js'
 import { StatsProvider, type StatsStore } from '../context/stats.js'
-import { AppStateProvider, useAppStateStore } from '../state/AppState.js'
+import { AppStateProvider } from '../state/AppState.js'
 import type { AppState } from '../state/AppStateStore.js'
 import { onChangeAppState } from '../state/onChangeAppState.js'
 import type { FpsMetrics } from '../utils/fpsTracker.js'
-import {
-  getBootRecovery,
-  subscribeBootRecovery,
-} from '../substrate/recoveryOrchestrator.js'
-import { isBornCrewWithoutCrewmates } from '../utils/crew/crewBirth.js'
-
-function LateBootProjectionSeed(): React.ReactNode {
-  const store = useAppStateStore()
-  const appliedRef = useRef(false)
-
-  useEffect(() => {
-    const applyIfSettled = (): boolean => {
-      const s = getBootRecovery()
-      if (s.phase !== 'done') return false
-      const projection = s.report?.leaderProjection ?? null
-      if (projection && !appliedRef.current) {
-        appliedRef.current = true
-        store.setState((prev: AppState) =>
-          prev.crewContext && !isBornCrewWithoutCrewmates(prev.crewContext) ? prev : {
-            ...prev,
-            crewContext: {
-              crewName: projection.crewName,
-              crewFilePath: projection.crewFilePath,
-              leadAgentId: projection.leadAgentId,
-              crewmates: projection.crewmates,
-            },
-          },
-        )
-      }
-      return true
-    }
-
-    if (applyIfSettled()) return
-    const unsubscribe = subscribeBootRecovery(() => {
-      if (applyIfSettled()) unsubscribe()
-    })
-    return unsubscribe
-  }, [store])
-
-  return null
-}
 
 export function App({
   getFpsMetrics,
@@ -65,7 +24,7 @@ export function App({
         <AppStateProvider
           initialState={initialState}
           onChangeAppState={onChangeAppState}
-        ><LateBootProjectionSeed />
+        >
           {children}
         </AppStateProvider>
       </StatsProvider>

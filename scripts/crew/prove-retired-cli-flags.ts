@@ -9,9 +9,8 @@ import { answerOf, frameLines, isCompleted } from '../lib/rows.ts'
 
 const tally = makeTally('prove-retired-cli-flags')
 const root = mkdtempSync(join(tmpdir(), 'retired-cli-flags-'))
-const expected = 'Unknown skill: nosuchcommandxyz'
 const nonsense = '--frobnicate'
-const former = [['--t', 'eam-name'].join(''), ['--crew', '-name'].join(''), ['--agent', '-name'].join(''), ['--agent', '-id'].join('')]
+const former = [['--t', 'eam-name'].join(''), ['--crew', '-name'].join(''), ['--agent', '-name'].join(''), ['--agent', '-id'].join(''), ['--seat', '-id'].join(''), '--seat', '--crew', ['--seat', '-color'].join(''), '--parent', '--role']
 let run = 0
 
 function launch(flag: string, format: string | null, inline: boolean) {
@@ -20,7 +19,7 @@ function launch(flag: string, format: string | null, inline: boolean) {
   mkdirSync(cwd, { recursive: true })
   seedFirstRun(home, [cwd])
   const env = { ...childEnv(home, 1), HOME: home, ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key' }
-  const result = spawnSync(NODE, [DIST, 'run', '/nosuchcommandxyz', '--seat-id', 'x@y', '--seat', 'x', ...(inline ? [`${flag}=y`] : [flag, 'y']), ...(format === null ? [] : ['--format', format])], {
+  const result = spawnSync(NODE, [DIST, 'run', '/nosuchcommandxyz', ...(flag === '' ? [] : inline ? [`${flag}=y`] : [flag, 'y']), ...(format === null ? [] : ['--format', format])], {
     cwd, env, encoding: 'utf8', timeout: 45_000, stdio: ['ignore', 'pipe', 'pipe'],
   })
   let words = (result.stdout ?? '').trim()
@@ -32,10 +31,8 @@ function launch(flag: string, format: string | null, inline: boolean) {
 try {
   for (const format of [null, 'json', 'rows']) {
     const label = format ?? 'text'
-    const current = launch('--crew', format, false)
-    console.log(`${label} current: ${JSON.stringify(current)}`)
-    tally.check(`${label}: the crew flag exits zero`, current.code === 0, JSON.stringify(current))
-    tally.check(`${label}: the crew flag reaches the unknown skill`, current.words === expected, current.words)
+    const bare = launch('', format, false)
+    tally.check(`${label}: with no identity flag at all the run reaches the unknown skill`, bare.code === 0 && bare.words === 'Unknown skill: nosuchcommandxyz', JSON.stringify(bare))
     for (const inline of [false, true]) {
       const shape = inline ? 'equals' : 'separate'
       const control = launch(nonsense, format, inline)

@@ -41,15 +41,9 @@ function facts(over: Partial<HudFacts> = {}): HudFacts {
     liveWords,
     livePhase: liveWords.phase,
     effectiveElapsedMs: elapsed,
-    hasRunningCrewmates: false,
-    displayedTokens: liveWords.figure.total,
-    tokensEstimated: liveWords.figure.estimated,
-    crewmateOnlyTokens: null,
     ctxPct: null,
     activeToolCount: 0,
     otps: 0,
-    interruptHint: null,
-    foregroundedIdleQuiet: false,
     wasStacked: false,
     ...over,
   }
@@ -106,16 +100,11 @@ section('§3 the stack hysteresis: stacking engages when the cost exceeds the sp
 
 section('§4 segment B and the crewmate shapes')
 {
-  const hint = planSpinnerHud(facts({ interruptHint: 'esc interrupts @kilo', columns: 40 }), oneLine)
-  check('a foregrounded running crewmate shows the interrupt hint; the row is eligible to stack on its width', hint.segBVisible && hint.stacked === (stringWidth('esc interrupts @kilo') + 5 > 40 - 2 - stringWidth('Pondering…') - 2 - 5))
-  const quiet = planSpinnerHud(facts({ foregroundedIdleQuiet: true }), oneLine)
-  check('a foregrounded idle crewmate keeps segment B quiet', !quiet.segBVisible && !quiet.stacked)
   const stillRow = planSpinnerHud(facts({ still: true, suffixText: 'hook: lint' }), oneLine)
   check('a still row (a fold) shows no segment B at all', !stillRow.segBVisible)
   const suffixOnly = planSpinnerHud(facts({ suffixText: 'hook: lint', effectiveElapsedMs: 0, liveWords: words(0, 'responding', 0) }), oneLine)
   check('a hook suffix alone makes segment B visible', suffixOnly.segBVisible && suffixOnly.ordered.length === 0)
-  check('crewmate token words: the summed figure with the ~ estimate mark, none at zero', hudTokensText({ crewmateOnlyTokens: null, hasRunningCrewmates: true, displayedTokens: 1234, tokensEstimated: true, liveWords: words(0, 'responding', 0) }) === '~1.2k tokens' && hudTokensText({ crewmateOnlyTokens: null, hasRunningCrewmates: true, displayedTokens: 0, tokensEstimated: true, liveWords: words(0, 'responding', 0) }) === null)
-  check('without crewmates the count is the live counter\'s own words', hudTokensText({ crewmateOnlyTokens: null, hasRunningCrewmates: false, displayedTokens: 0, tokensEstimated: true, liveWords: words(4000, 'responding', 0) }) === '↓ ~1k tokens', String(hudTokensText({ crewmateOnlyTokens: null, hasRunningCrewmates: false, displayedTokens: 0, tokensEstimated: true, liveWords: words(4000, 'responding', 0) })))
+  check('the count is the live counter\'s own words', hudTokensText({ liveWords: words(4000, 'responding', 0) }) === '↓ ~1k tokens', String(hudTokensText({ liveWords: words(4000, 'responding', 0) })))
 }
 
 section('§5 the plan is pure: the same facts give the same plan, and no input is mutated')

@@ -21,8 +21,6 @@ import {
   pruneLegendOf,
   pruneReceiptLines,
   pruneScopeLabelOf,
-  resumeCrewDetailLines,
-  resumeCrewEntryOf,
   resumeDetailLines,
   resumeElsewhereEntry,
   resumeEmptyDetailLines,
@@ -187,14 +185,6 @@ export const RESUME_FIXTURE_LOGS: SessionListing[] = [
   fixtureLog({ sessionId: 'a2', modifiedMs: FIXED_NOW - 3 * 60 * MIN, title: 'concourse polish' }),
   fixtureLog({ sessionId: 'b1', modifiedMs: FIXED_NOW - 26 * 60 * MIN, title: 'moodle groundwork', projectPath: '/repo/moodle' }),
   fixtureLog({ sessionId: 'a3', modifiedMs: FIXED_NOW - 2 * 24 * 60 * MIN, title: 'splash ripple study' }),
-  fixtureLog({
-    sessionId: 'crew1',
-    modifiedMs: FIXED_NOW - 40 * MIN,
-    title: 'lane KITDOOR census',
-    isCrewmate: true,
-    crewName: 'party',
-    agentName: 'dps1',
-  } as Partial<SessionListing> & { sessionId: string; modifiedMs: number; title: string }),
 ]
 
 export function resumeModelOf(scope: SessionScope, opts: { cleared?: string[]; logs?: SessionListing[] } = {}): ReturnType<typeof projectSessionPickerRows> {
@@ -226,14 +216,13 @@ export function composeResume(
   } = {},
 ): string[] {
   const scope = opts.scope ?? 'all'
-  const { flat, crew, elsewhereCount } = resumeModelOf(scope, opts)
+  const { flat, elsewhereCount } = resumeModelOf(scope, opts)
   const pendingMore = opts.pendingMore ?? 0
   const entries: ResumeEntry[] = [
     ...flat.map(resumeEntryOf),
     ...(scope === 'project' && elsewhereCount > 0 ? [resumeElsewhereEntry(elsewhereCount)] : []),
-    ...crew.map(resumeCrewEntryOf),
   ]
-  const selectable = flat.length + crew.length
+  const selectable = flat.length
   const sel = selectable > 0 ? Math.min(opts.sel ?? 0, selectable - 1) : -1
   const entryIndexOf = (i: number): number =>
     i < flat.length ? i : i + (scope === 'project' && elsewhereCount > 0 ? 1 : 0)
@@ -257,16 +246,14 @@ export function composeResume(
     selIdx: sel >= 0 ? entryIndexOf(sel) : -1,
     title: 'resume session',
     summaryTitle: 'SESSIONS',
-    summaryRows: resumeSummaryRows({ scope, count: flat.length, crewCount: crew.length, elsewhereCount, pendingMore }),
+    summaryRows: resumeSummaryRows({ scope, count: flat.length, elsewhereCount, pendingMore }),
     environment: STILL_ENVIRONMENT,
-    statusRight: resumeStatusLine({ loading: false, count: flat.length, crewCount: crew.length, scope, pendingMore }),
+    statusRight: resumeStatusLine({ loading: false, count: flat.length, scope, pendingMore }),
     legend: resumeLegendOf(scope, selectable > 0),
     detailOverride:
       sel < 0
         ? resumeEmptyDetailLines(scope, elsewhereCount)
-        : sel < flat.length
-          ? resumeDetailLines(flat[sel]!)
-          : resumeCrewDetailLines(crew[sel - flat.length]!),
+        : resumeDetailLines(flat[sel]!),
     ...(pruneView ?? {}),
   }
   const menu = core.composeBootMenu(cols, rows, m) as { lines: string[] }

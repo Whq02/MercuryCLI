@@ -111,7 +111,7 @@ Each cell: { language: "js"|"ts"|"py", code, title?, timeoutMs?, reset? }. ts ne
 The bridge (inside cells):
 · await mercury.tool(name, input) — run any normal tool through the standard permission path (nested Workshop calls are refused); the call throws only when the tool refused to run (an unknown tool, the kill switch, a permission, a ward)
 · await mercury.tool('Bash', { command }) — a command that RAN returns { code, stdout, stderr } whatever it exited: code is the exit code (null while a command runs in the background), stdout is the command's one interleaved capture, stderr is always '' because the Bash tool keeps one stream; a non-zero exit is a value, never a throw — the cell decides what it means
-· await mercury.agent(input) — delegate to a sub-agent (the same input shape as a direct launch); the result includes the structured envelope
+· await mercury.agent(input) — delegate to a crewmate (a sub-agent; the same input shape as a direct launch); the result includes the structured envelope
 · await mercury.inspect(ref) — read a mercury:// resource
 · mercury.display(value) — structured display (text/markdown/json/table/ref detected by shape)${sampleLine}
 · mercury.parallel(thunks) / mercury.pipeline(items, ...stages) — in-cell composition helpers

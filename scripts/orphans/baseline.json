@@ -164,11 +164,6 @@
       "reason": "The frame-cadence stream batcher — the connector's file-tail projection (400ms heartbeat + deduped watch reads) bounds repaint cadence by construction; five cadence pins (stream-commit-throttle, hotpath-cadence, stream-contract, doubles-growth-curve, tui-weight) drive this unit as the cadence spec; per-prover re-point owed, then delete (a named deferral)."
     },
     {
-      "file": "src/utils/crew/handoffSummary.ts",
-      "class": "proof-or-fixture-only",
-      "reason": "Consumed only by scripts/substrate/prove-handoff-summary.ts — the summary shape is pinned there while no product surface renders it yet."
-    },
-    {
       "file": "src/utils/terminalPanel.ts",
       "class": "superseded-unreachable",
       "reason": "Holds only getTerminalPanelSocket, the per-instance multiplexer socket name; no product module and no proof imports it, and no panel mounts on it."

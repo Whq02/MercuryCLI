@@ -97,7 +97,6 @@ import { daemonDir } from '../daemon/controlSocket.js'
 import type { DaemonSignInViewV1 } from '../daemon/protocol.js'
 import { getGlobalMercuryFile } from './env.js'
 import { getMacOsKeychainStorageServiceName } from './secureStorage/macOsKeychainHelpers.js'
-import { fleetGauge } from './cockpit/fleetGauge.js'
 import { gitSnapshot } from './cockpit/gitSnapshot.js'
 import { mcpGauge } from './cockpit/mcpGauge.js'
 import { substrateSnapshot } from './cockpit/substrateSnapshot.js'
@@ -114,10 +113,6 @@ import { getMercuryAppearanceSnapshot } from './profile/appearanceSnapshot.js'
 import { isDarkThemeFamily, listUnresolvedTokenRoles, resolveMercuryTokens } from './mercuryTokens.js'
 import { oasisBgEnabled } from './cockpit/oasisBg.js'
 import { getBuiltInAgents } from '../tools/AgentTool/builtInAgents.js'
-import {
-  findRoleDefinition,
-  getRoleSystemPrompt,
-} from './crew/roleResolver.js'
 import { recognizeModelId, unrecognisedModelIdReason } from '../services/providers/idSpaces.js'
 
 const treeScratchDirs = new Set<string>()
@@ -1011,7 +1006,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             }
             return {
               status: 'ok',
-              evidence: `contracts on — built-in source, session ${MERCURY_SESSION_CONTRACT.length} · coordinator ${MERCURY_COORDINATOR_CONTRACT.length} · sub-agent ${MERCURY_SUBAGENT_CONTRACT.length} chars`,
+              evidence: `contracts on — built-in source, session ${MERCURY_SESSION_CONTRACT.length} · coordinator ${MERCURY_COORDINATOR_CONTRACT.length} · crewmate ${MERCURY_SUBAGENT_CONTRACT.length} chars`,
             }
           },
         },
@@ -2042,71 +2037,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
-          id: 'crew-rosters',
-          label: 'Agent group roster cwds',
-          run: async () => {
-            const { existsSync, readdirSync, readFileSync } = await import('node:fs')
-            const { join } = await import('node:path')
-            const { getMercuryHome } = await import('./envUtils.js')
-            const crewsDir = join(getMercuryHome(), 'crews')
-            if (!existsSync(crewsDir)) {
-              return { status: 'off' as const, evidence: 'no crew home — nothing spawns' }
-            }
-            const dead: string[] = []
-            let crews = 0
-            for (const crew of readdirSync(crewsDir)) {
-              const cfg = join(crewsDir, crew, 'config.json')
-              if (!existsSync(cfg)) continue
-              crews++
-              try {
-                const parsed = JSON.parse(readFileSync(cfg, 'utf8')) as {
-                  members?: { agentId?: string; cwd?: string }[]
-                }
-                for (const m of parsed.members ?? []) {
-                  if (m.cwd && !existsSync(m.cwd)) dead.push(`${crew}/${m.agentId ?? '?'} → ${m.cwd}`)
-                }
-              } catch {
-                dead.push(`${crew}: config.json unreadable`)
-              }
-            }
-            if (dead.length === 0) {
-              return {
-                status: 'ok' as const,
-                evidence: `${crews} crew roster(s) — every member cwd exists`,
-              }
-            }
-            return {
-              status: 'warn' as const,
-              evidence: `${dead.length} roster member(s) point at a DEAD cwd: ${dead.slice(0, 3).join(' · ')}${dead.length > 3 ? ' · …' : ''}`,
-              fix: 'Fix the cwd or archive the crew directory — spawn paths refuse dead-cwd rosters.',
-            }
-          },
-        },
-        {
-          id: 'fleet',
-          label: 'Coordination',
-          run: async () => {
-            const fleet = await fleetGauge()
-            if (fleet.state === 'off') {
-              return { status: 'off', evidence: fleet.reason ?? 'not in a crew — solo session' }
-            }
-            if (fleet.state !== 'live') {
-              return { status: 'unknown', evidence: fleet.reason ?? 'coordination read failed' }
-            }
-            const live = fleet.data.health.filter(a => a.state !== 'idle').length
-            const conflicts = fleet.data.conflicts.length
-            const evidence = `crew "${fleet.data.crewName}" · ${fleet.data.health.length} agents · ${live} active · ${fleet.data.leases.length} leases · ${conflicts} conflicts`
-            if (conflicts > 0) {
-              return {
-                status: 'warn',
-                evidence,
-                fix: 'Resolve the conflicting leases before the agents collide.',
-              }
-            }
-            return { status: 'ok', evidence }
-          },
-        },
-        {
           id: 'seats',
           label: 'Seats',
           run: async () => {
@@ -2123,13 +2053,13 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             return {
               status: narrowed !== null || warning !== null ? 'info' : 'ok',
               evidence: `${seatCeilingValueWords(facts)} · ${facts.readingSentence} · ${lanes}${narrowed !== null ? ` — ${narrowed}` : ' (the seats)'}`,
-              detail: `Sessions, sub-agents and workflow agents all run under this one number; a seat is held only while a model call is in flight, and a call past the ceiling waits with its row saying so.${warning !== null ? ` ${warning}.` : ''} Setting: ${facts.lever}.`,
+              detail: `Sessions, crewmates and workflow agents all run under this one number; a seat is held only while a model call is in flight, and a call past the ceiling waits with its row saying so.${warning !== null ? ` ${warning}.` : ''} Setting: ${facts.lever}.`,
             }
           },
         },
         {
           id: 'spawn-switches',
-          label: 'Sub-agents & workflows',
+          label: 'Crewmates & workflows',
           run: async () => {
             const { spawnSwitchFacts, spawnSwitchLine } = await import('../services/switchboard/spawnSwitches.js')
             const { getFocusedSessionConnector, hasFocusedSession } = await import('../services/engine-connector/focusedConnector.js')
@@ -2253,7 +2183,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               compactionSettingsText(),
               `keep-tail ${isMercuryCompactKeepTailEnabled() ? 'on' : 'off'}`,
               `away-summary ${isAwaySummaryEnabled() ? 'on' : 'off'}`,
-              `carry-forward ${flagEnabled('MERCURY_CARRY_FORWARD') ? 'on' : 'off'}`,
               `forecast ${ctxForecastEnabled() ? 'on' : 'off'}`,
             ].join(' · ')
             if (usage.usedPct === null) {
@@ -2855,7 +2784,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               const armed = resolved.arm === 'no-bash' ? 'armed by itself: no bash.exe was found on this machine, so the bundled engine serves the Bash tool' : `armed by ${shellEngineArmWords(resolved.arm)}`
               return {
                 status: 'ok' as const,
-                evidence: `brush ${resolved.version} (${resolved.platform}, ${resolved.source}) — ${armed} — one persistent process per conversation and one per sub-agent, up to ${ceiling} at once; shell state persists between calls; a stop while a command runs resets the session`,
+                evidence: `brush ${resolved.version} (${resolved.platform}, ${resolved.source}) — ${armed} — one persistent process per conversation and one per crewmate, up to ${ceiling} at once; shell state persists between calls; a stop while a command runs resets the session`,
                 detail: `setting: ${setting}${process.env.MERCURY_SHELL_ENGINE ? ` · env pin MERCURY_SHELL_ENGINE=${process.env.MERCURY_SHELL_ENGINE}` : ''} · sessions ceiling ${ceiling} (${engineSessionCeilingPinned() ? 'the env pin MERCURY_SHELL_ENGINE_SESSIONS' : 'the shell.sessions setting'})`,
               }
             }
@@ -3401,7 +3330,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           label: 'Operation journals',
           run: async () => {
             const { listJournalOperations } = await import('../substrate/operationJournal.js')
-            const { crewJournalDir } = await import('./crew/crewOperations.js')
+            const { changeSetJournalDir } = await import('../services/changeTransaction/changeSetContracts.js')
             const alive = (pid: number): boolean => {
               try {
                 process.kill(pid, 0)
@@ -3413,14 +3342,14 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             let terminal = 0
             let inFlight = 0
             let awaitingRecovery = 0
-            for (const dir of [crewJournalDir()]) {
+            for (const dir of [changeSetJournalDir()]) {
               for (const op of await listJournalOperations(dir)) {
                 if (op.state === 'committed' || op.state === 'aborted') terminal++
                 else if (alive(op.writerPid)) inFlight++
                 else awaitingRecovery++
               }
             }
-            const evidence = `${terminal} terminal · ${inFlight} in flight (live writers) · ${awaitingRecovery} interrupted awaiting recovery (crews + daemon journals)`
+            const evidence = `${terminal} terminal · ${inFlight} in flight (live writers) · ${awaitingRecovery} interrupted awaiting recovery (the change-set journal)`
             if (awaitingRecovery > 0) {
               return {
                 status: 'warn' as const,
@@ -3556,7 +3485,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               status: line?.tone === 'warn' ? ('warn' as const) : ('ok' as const),
               evidence: line
                 ? `${line.text} (${r.durationMs}ms)${notes}`
-                : `clean boot — nothing to reconcile (${r.orphanTemps.dirsSwept} dir(s) swept, ${r.crewJournal?.scanned ?? 0} journal op(s) scanned, ${r.durationMs}ms)${notes}`,
+                : `clean boot — nothing to reconcile (${r.orphanTemps.dirsSwept} dir(s) swept, ${r.changeSetJournal?.scanned ?? 0} journal op(s) scanned, ${r.durationMs}ms)${notes}`,
             }
           },
         },
@@ -3624,24 +3553,15 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           label: 'Agent roster',
           run: () => {
             const agents = getBuiltInAgents()
-            const unresolved = agents.filter(a => findRoleDefinition(a.agentType, agents)?.agentType !== a.agentType)
-            const composable = agents.filter(a => getRoleSystemPrompt(a) !== undefined)
-            const evidence = `${agents.length} built-in roles resolve · role prompts compose ${composable.length}/${agents.length} without live context`
-            if (unresolved.length > 0) {
-              return {
-                status: 'fail' as const,
-                evidence: `${evidence} — unresolved: ${unresolved.map(a => a.agentType).join(',') || 'none'}`,
-                fix: 'A built-in agent role fails normalization — sub-agents spawned with it would degrade to generic agents. Report this.',
-              }
-            }
+            const evidence = `${agents.length} built-in roles ship`
             return { status: 'ok' as const, evidence }
           },
         },
         {
           id: 'crew-launch',
-          label: 'Sub-agent launch',
+          label: 'Crewmate launch',
           run: () => {
-            return { status: 'info' as const, evidence: "in-process — named sub-agents run inside this session's runner", link: '/crewmates' }
+            return { status: 'info' as const, evidence: "in-process — crewmates run inside this session's runner", link: '/crewmates' }
           },
         },
       ],

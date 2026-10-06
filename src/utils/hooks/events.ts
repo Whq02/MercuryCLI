@@ -1,6 +1,6 @@
 
 import { randomUUID } from 'crypto'
-import type { ConfigChangeHookInput, CwdChangedHookInput, ElicitationHookInput, ElicitationResultHookInput, ExitReason, FileChangedHookInput, HookInput, InstructionsLoadedHookInput, InterruptHookInput, NotificationHookInput, PermissionDeniedHookInput, PermissionRequestHookInput, PostCompactHookInput, PostToolUseFailureHookInput, PostToolUseHookInput, PreCompactHookInput, PreToolUseHookInput, SessionEndHookInput, SessionStartHookInput, SetupHookInput, StopFailureHookInput, StopHookInput, SubagentStartHookInput, SubagentStopHookInput, TaskCompletedHookInput, TaskCreatedHookInput, CrewmateIdleHookInput, UserPromptExpansionHookInput, UserPromptSubmitHookInput } from './contract.js'
+import type { ConfigChangeHookInput, CwdChangedHookInput, ElicitationHookInput, ElicitationResultHookInput, ExitReason, FileChangedHookInput, HookInput, InstructionsLoadedHookInput, InterruptHookInput, NotificationHookInput, PermissionDeniedHookInput, PermissionRequestHookInput, PostCompactHookInput, PostToolUseFailureHookInput, PostToolUseHookInput, PreCompactHookInput, PreToolUseHookInput, SessionEndHookInput, SessionStartHookInput, SetupHookInput, StopFailureHookInput, StopHookInput, SubagentStartHookInput, SubagentStopHookInput, TaskCompletedHookInput, TaskCreatedHookInput, UserPromptExpansionHookInput, UserPromptSubmitHookInput } from './contract.js'
 
 import type { PermissionUpdate } from '../../types/permissions.js'
 import type { FileSuggestionCommandInput } from '../../types/fileSuggestion.js'
@@ -32,7 +32,6 @@ import type {
   PromptResponse,
 } from '../../types/hooks.js'
 import type { AggregatedHookResult, HookBlockingError } from './types.js'
-import { checkLeaseGuard } from '../crew/leaseGuard.js'
 import { runHookInput } from './rows.js'
 import { executeLifecycleHooks } from './lifecycleHooks.js'
 import { hasHookForEvent } from './matching.js'
@@ -75,19 +74,6 @@ export async function* executePreToolHooks<ToolInput>(
 ): AsyncGenerator<AggregatedHookResult> {
   const appState = toolUseContext.getAppState()
   const sessionId = toolUseContext.agentId ?? getSessionId()
-
-  const leaseDenial = await checkLeaseGuard(
-    toolName,
-    toolInput as Record<string, unknown>,
-  )
-  if (leaseDenial) {
-    yield {
-      permissionBehavior: 'deny',
-      hookPermissionDecisionReason: leaseDenial,
-      hookSource: 'lease-guard',
-    }
-    return
-  }
 
   if (!hasHookForEvent('PreToolUse', appState, sessionId)) {
     return
@@ -329,34 +315,10 @@ export async function* executeStopHooks(
   })
 }
 
-export async function* executeCrewmateIdleHooks(
-  crewmateName: string,
-  crewName: string,
-  permissionMode?: string,
-  signal?: AbortSignal,
-  timeoutMs: number = TOOL_HOOK_EXECUTION_TIMEOUT_MS,
-): AsyncGenerator<AggregatedHookResult> {
-  const hookInput: CrewmateIdleHookInput = {
-    ...createBaseHookInput(permissionMode),
-    hook_event_name: 'CrewmateIdle',
-    crewmate_name: crewmateName,
-    crew_name: crewName,
-  }
-
-  yield* runHookInput({
-    hookInput,
-    toolUseID: randomUUID(),
-    signal,
-    timeoutMs,
-  })
-}
-
 export async function* executeTaskCreatedHooks(
   taskId: string,
   taskSubject: string,
   taskDescription?: string,
-  crewmateName?: string,
-  crewName?: string,
   permissionMode?: string,
   signal?: AbortSignal,
   timeoutMs: number = TOOL_HOOK_EXECUTION_TIMEOUT_MS,
@@ -368,8 +330,6 @@ export async function* executeTaskCreatedHooks(
     task_id: taskId,
     task_subject: taskSubject,
     task_description: taskDescription,
-    crewmate_name: crewmateName,
-    crew_name: crewName,
   }
 
   yield* runHookInput({
@@ -385,8 +345,6 @@ export async function* executeTaskCompletedHooks(
   taskId: string,
   taskSubject: string,
   taskDescription?: string,
-  crewmateName?: string,
-  crewName?: string,
   permissionMode?: string,
   signal?: AbortSignal,
   timeoutMs: number = TOOL_HOOK_EXECUTION_TIMEOUT_MS,
@@ -398,8 +356,6 @@ export async function* executeTaskCompletedHooks(
     task_id: taskId,
     task_subject: taskSubject,
     task_description: taskDescription,
-    crewmate_name: crewmateName,
-    crew_name: crewName,
   }
 
   yield* runHookInput({

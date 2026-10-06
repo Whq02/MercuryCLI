@@ -128,11 +128,6 @@ console.log('\n§4 picker: pin row + fallback row + dedup law')
 
 console.log('\n§6 role-boundary repairs (recon findings)')
 {
-  const crewmate = src('src/utils/crew/crewmateModel.ts')
-  check(
-    'crewmate fallback follows the foreground default, never a fixed Opus row',
-    crewmate.includes('getDefaultEngineModel()') && !crewmate.includes('CLAUDE_OPUS_4_6_CONFIG'),
-  )
   const caps = src('src/utils/model/capabilities.ts')
   check(
     'the auto-mode gate keys on the routing law (a declared route), never a tier name',

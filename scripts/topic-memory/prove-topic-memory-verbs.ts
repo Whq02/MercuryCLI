@@ -8,7 +8,7 @@ const memoryDir = mkdtempSync(join(tmpdir(), 'mneme-verbs-mem-'))
 process.env.MERCURY_CONFIG_DIR = memoryDir
 process.env.MERCURY_COORDINATION_MCP = '1'
 
-const { createCoordinationServer } = await import('../../src/services/mcp/coordinationServer.ts')
+const { createMercuryServer } = await import('../../src/services/mcp/mercuryServer.ts')
 const { Client, InMemoryTransport } = await import('@modelcontextprotocol/client')
 
 let failures = 0
@@ -19,7 +19,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
 async function connectedClient(): Promise<{ client: InstanceType<typeof Client>; close: () => Promise<void> }> {
-  const server = await createCoordinationServer()
+  const server = await createMercuryServer()
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
   const client = new Client({ name: 'mneme-proof', version: '0' })
   await server.connect(serverTransport)
@@ -29,12 +29,12 @@ async function connectedClient(): Promise<{ client: InstanceType<typeof Client>;
 
 const TOOLS = ['Retain', 'Recall', 'Reflect', 'Correct']
 
-section('§1 the coordination server carries no memory verb (real tools/list)')
+section('§1 the mercury server carries no memory verb (real tools/list)')
 {
   const { client, close } = await connectedClient()
   const names = (await client.listTools()).tools.map(t => t.name)
   check('no memory verb in the catalog', names.every(n => !n.startsWith('mneme')), names.filter(n => n.startsWith('mneme')).join(','))
-  check('control verbs still present', names.includes('lease_claim') && names.includes('render_tui'))
+  check('the lease verbs and render_tui still present', names.includes('lease_take') && names.includes('lease_list') && names.includes('render_tui'))
   await close()
 }
 

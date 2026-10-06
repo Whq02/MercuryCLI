@@ -1,5 +1,5 @@
 
-import { boundHookContext, boundSeamContext } from '../hooks/contextBound.js'
+import { boundHookContext } from '../hooks/contextBound.js'
 import type { ContentBlockParam, TextBlockParam } from '../../types/wire.js'
 
 import { BashTool } from 'src/tools/BashTool/BashTool.js'
@@ -18,11 +18,8 @@ import { TASK_CREATE_TOOL_NAME } from '../../tools/TaskCreateTool/constants.js'
 import { TASK_STOP_TOOL_NAME } from '../../tools/TaskStopTool/prompt.js'
 import { TASK_UPDATE_TOOL_NAME } from '../../tools/TaskUpdateTool/constants.js'
 import type { MessageOrigin, UserMessage } from '../../types/message.js'
-import { isCrewEnabled } from '../crewEnabled.js'
 import { type Attachment, memoryHeader } from '../attachments.js'
 import { stoppedContinuationMessage } from '../attachments/stoppedContinuation.js'
-import { isCrewMessagesAttachment } from '../attachments/types.js'
-import { formatCrewmateMessages } from '../../services/crew/liveMessages.js'
 import { quote } from '../bash/shellQuote.js'
 import { formatFileSize, formatNumber } from '../format.js'
 import { logMCPDebug } from '../log.js'
@@ -76,55 +73,7 @@ export function normalizeAttachmentForAPI(
   attachment: Attachment,
 ): UserMessage[] {
   if (attachment.capsuleReceipt) return []
-  if (isCrewEnabled()) {
-    if (isCrewMessagesAttachment(attachment)) {
-      const boundedMessages = attachment.messages.map(message => ({
-        ...message,
-        text: boundSeamContext(message.text, `crewmate-${message.from}`).text,
-      }))
-      return [
-        createUserMessage({
-          content: formatCrewmateMessages(boundedMessages),
-          isMeta: true,
-        }),
-      ]
-    }
-    if (attachment.type === 'crew_context') {
-      return [
-        createUserMessage({
-          content: `<system-reminder>
-# Crew Coordination
-
-You are a crewmate in crew "${attachment.crewName}".
-
-**Your Identity:**
-- Name: ${attachment.agentName}
-
-**Crew Resources:**
-- Crew config: ${attachment.crewConfigPath}
-- Task list: ${attachment.taskListPath}
-
-**Crew Leader:** the lead's name is "crew-lead" — updates and completion notifications go to them.
-
-The crew config lists your crewmates' names. Check the task list periodically; create tasks when work should be divided, and mark yours resolved when complete.
-
-**IMPORTANT:** crewmates are addressed by NAME ("crew-lead", "analyzer", "researcher"), never by UUID:
-
-\`\`\`json
-{
-  "to": "crew-lead",
-  "message": "Your message here",
-  "summary": "Brief 5-10 word preview"
-}
-\`\`\`
-</system-reminder>`,
-          isMeta: true,
-        }),
-      ]
-    }
-  }
-
-  // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check -- crew_messages/crew_context are handled above the switch (their literals stay inside the isCrewEnabled() guard); retired types fall through to the legacy sink below
+  // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check -- retired types fall through to the legacy sink below
   switch (attachment.type) {
     case 'directory': {
       return wrapMessagesInSystemReminder([
@@ -588,7 +537,7 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
         'Agents in flight at the context turnover — every agent this session is running or owes a result from, one line each (kind "name" [id]: status · what it was asked · what is owed · how to reach it · output file):',
         countLine,
         lines.join('\n'),
-        `A running agent is never re-spawned — its completion reaches you as a task notification on its own. A result that is owed is collected from that notification or from the output file, never re-derived. ${SEND_MESSAGE_TOOL_NAME} reaches a sub-agent by the id or name shown; a task's output is read from the output file shown with ${FILE_READ_TOOL_NAME}; ${TASK_STOP_TOOL_NAME} stops one.`,
+        `A running agent is never re-spawned — its completion reaches you as a task notification on its own. A result that is owed is collected from that notification or from the output file, never re-derived. ${SEND_MESSAGE_TOOL_NAME} reaches a crewmate by the id or name shown; a task's output is read from the output file shown with ${FILE_READ_TOOL_NAME}; ${TASK_STOP_TOOL_NAME} stops one.`,
       ].join('\n')
       return [createUserMessage({ content: wrapInSystemReminder(text), isMeta: true })]
     }

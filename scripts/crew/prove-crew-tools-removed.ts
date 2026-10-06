@@ -7,7 +7,6 @@ import type { ScriptedTurn } from '../lib/fixtureApi.ts'
 import { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, record, ROOT, TURN_MS } from './crew-world.ts'
 
 process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'team-tools-removed-home-'))
-process.env.MERCURY_CREWS_DIR ??= join(process.env.MERCURY_CONFIG_DIR, 'teams')
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
 
 const tally = makeTally('prove-crew-tools-removed')
@@ -25,7 +24,6 @@ for (const rel of [
   'src/utils/capability/declarations.ts',
   'src/substrate/durableOperationMatrix.ts',
   'src/utils/messages/attachmentText.ts',
-  'src/utils/crew/crewOperations.ts',
   'scripts/builtin-tools/fixtures/tool-census.json',
   'scripts/builtin-tools/fixtures/tool-census.md',
   'scripts/project-services/fixtures/inventory.json',
@@ -33,10 +31,6 @@ for (const rel of [
   const hits = names(src(rel))
   tally.check(`${rel} names neither tool`, hits.length === 0, hits.join(', '))
 }
-const helpers = src('src/utils/crew/crewHelpers.ts')
-tally.check('the team-directory removal road (cleanupCrewDirectories · destroyWorktree) left with the tools — nothing removes a folder or a worktree', !helpers.includes('cleanupCrewDirectories') && !helpers.includes('destroyWorktree') && !helpers.includes("'worktree', 'remove'"))
-const operations = src('src/utils/crew/crewOperations.ts')
-tally.check('the journal recovery reads every kind as written and the crew kinds alone have handlers — nothing deletes', src('src/substrate/operationJournal.ts').includes('handlers[op.kind]') && operations.includes("'crew-create'") && operations.includes("'crew-delete'") && !operations.includes('cleanupCrewDirectories') && !/rm\(/.test(operations))
 const runner = src('src/cli/run.ts')
 tally.check('the headless lead\'s end-of-input words no longer send the model to a team cleanup step', !runner.includes('team cleanup operation'))
 const glyphs = src('src/components/mercury-ui/toolGlyphs.ts')
@@ -45,7 +39,7 @@ tally.check('the transcript renderer paints a recorded row of a tool no build sh
 const { getAllBaseTools } = await import('../../src/tools.ts')
 const listed = getAllBaseTools().map(tool => tool.name)
 tally.check('the tool list of a booted session names neither TeamCreate nor TeamDelete', !listed.includes('TeamCreate') && !listed.includes('TeamDelete'), listed.filter(name => /^Team/.test(name)).join(', '))
-tally.check('the crew tools that stay are still listed (SendMessage · the crew brief · Agent)', listed.includes('SendMessage') && (listed.includes('TeamBrief') || listed.includes('LiveComms')) && listed.includes('Agent'), listed.join(', '))
+tally.check('the tools that stay are still listed (SendMessage · Agent)', listed.includes('SendMessage') && listed.includes('Agent'))
 const { findToolForRender } = await import('../../src/tools/MCPTool/absentToolShim.ts')
 const tools = getAllBaseTools()
 const shim = findToolForRender(tools, 'TeamCreate')
@@ -71,7 +65,7 @@ try {
   const first = toolNamesOf(requests()[0])
   record('fresh-first-request-tools.txt', first.join('\n') + '\n')
   tally.check('the first request names neither TeamCreate nor TeamDelete', first.length > 0 && !first.includes('TeamCreate') && !first.includes('TeamDelete'), first.filter(name => /^Team/.test(name)).join(', ') || `(${first.length} tools)`)
-  tally.check('the first request still names SendMessage and the crew brief', first.includes('SendMessage') && (first.includes('TeamBrief') || first.includes('LiveComms')))
+  tally.check('the first request still names SendMessage and Agent', first.includes('SendMessage') && first.includes('Agent'))
 } catch (error) {
   tally.check('the fresh session ran', false, error instanceof Error ? error.message : String(error))
 } finally {

@@ -3,7 +3,6 @@ import { crewAgentsOf, crewRunning, type CrewAgentFacts } from '../../services/e
 import type { WorkRowV1 } from '../../services/engine-connector/types.js'
 import { useAppStateMaybeOutsideOfProvider, type AppState } from '../../state/AppState.js'
 import { composerTargetTaskId } from '../../state/selectors.js'
-import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import type { TaskState } from '../../tasks/types.js'
 import { projectWorkRoster } from '../../utils/task/workRoster.js'
@@ -46,7 +45,6 @@ export function targetWords(crewmate: CrewmateInView): { name: string; pinned: b
 
 export function crewmateName(taskId: string, local: TaskState | undefined, facts: CrewAgentFacts | null): string {
   if (facts !== null) return facts.name
-  if (local !== undefined && isInProcessCrewmateTask(local)) return local.identity.agentName
   if (local !== undefined && isLocalAgentTask(local)) return local.description !== '' ? local.description : local.agentType
   return taskId
 }

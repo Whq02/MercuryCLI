@@ -63,7 +63,7 @@ console.log('============================================================')
   )
   check(
     'the cursor space is the FULL list, not the visible slice',
-    view.includes('const navLen = flat.length + crewShown.length'),
+    view.includes('const navLen = flat.length'),
   )
 }
 

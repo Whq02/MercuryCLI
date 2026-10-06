@@ -8,7 +8,6 @@ process.chdir(ROOT)
 const HOME = mkdtempSync(join(tmpdir(), 'queue-pop-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_DAEMON_DIR = join(HOME, 'daemon')
-process.env.MERCURY_CREWS_DIR = join(HOME, 'crews')
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const q = await import('../../src/input-core/command-queue.ts')

@@ -223,7 +223,7 @@ section('§6 the doors spread the one carry; the dispatch door never does')
 
 section('§7 the floors: crew seats, cron one-shots and the runner claim door')
 {
-  const crew = buildRunnerInvocation({ model: 'claude-opus-5', effort: 'max', appendSystemPrompt: 'pack', role: 'MERCURY_CREW', agentName: 'scout', agentId: 'scout-1', permissionMode: 'flow' }).argv
+  const crew = buildRunnerInvocation({ model: 'claude-opus-5', effort: 'max', appendSystemPrompt: 'pack', role: 'MERCURY_CONCOURSE_WORKER', agentName: 'scout', agentId: 'scout-1', permissionMode: 'flow' }).argv
   check('a crew seat (no consent on its spec) carries no bypass word', !crew.includes(ALLOW) && !crew.includes(SKIP))
   const headless = src('daemon', 'headlessRun.ts')
   check('the cron one-shot threads the posture alone (no consent argument)', headless.includes('...headlessPermissionArgv(getHeadlessPermissionMode(spec.permissionMode)),'))

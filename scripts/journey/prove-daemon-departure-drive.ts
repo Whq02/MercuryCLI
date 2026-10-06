@@ -107,7 +107,6 @@ const env: NodeJS.ProcessEnv = {
   MERCURY_TURN_RECEIPT: '0',
   MERCURY_VERIFY_EVIDENCE: '0',
   MERCURY_HEALTH_STATE_DIR: join(HOME, 'health-state'),
-  MERCURY_CREWS_DIR: join(HOME, 'crews'),
 }
 for (const key of [
   'NODE_ENV',

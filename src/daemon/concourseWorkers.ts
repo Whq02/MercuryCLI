@@ -13,7 +13,6 @@ import { getProcessStartToken, getProcessStartTokenCachedOrRefresh, isProcessAli
 import { daemonDir } from './controlSocket.js'
 import { decideTransition, type ConcourseSessionState } from './concourseLifecycle.js'
 import { ensureWorkerWorktree, reapWorkerWorktree, workspaceKindOf } from './concourseWorktrees.js'
-import type { CrewRosterPort } from './crewSpawn.js'
 import { foldLegacyWorkerModelKey, validateWorkerModelChoice } from '../services/concourse/workerModels.js'
 import { describeSignInRead, refreshSignInReads } from './signInView.js'
 import { describeSeatReading, resolveSeatCeiling } from '../services/switchboard/capacityCheck.js'
@@ -22,6 +21,19 @@ import { scratchpadDirFor, sweepScratchpadDir } from '../utils/scratchpad.js'
 import { workRowRuns } from '../services/engine-connector/workCounts.js'
 import type { WorkRowV1 } from '../services/engine-connector/types.js'
 import type { RunnerChildSpec } from './headlessRun.js'
+import type { LongLivedRespawnConfig } from './longLivedRespawn.js'
+
+export interface WorkerRosterPort {
+  has(short: string): { present: boolean; alive?: boolean }
+  list(): ReadonlyArray<{ short: string; outcome?: unknown }>
+  registerLongLived(
+    short: string,
+    spec: RunnerChildSpec,
+    opts?: Partial<LongLivedRespawnConfig>,
+    start?: { cwd: string; worktree?: string },
+  ): { ok: boolean; pid?: number; error?: string }
+  currentLongLivedModel?(short: string): string | undefined
+}
 import { HEADLESS_PERMISSION_MODES, getHeadlessPermissionMode, type HeadlessPermissionMode, type SeatPermissionMode } from './headlessRun.js'
 import type { PermissionMode } from '../types/permissions.js'
 import { resolveSavedPermissionMode } from '../utils/permissions/permissionSetup.js'
@@ -191,7 +203,7 @@ export function sessionActivityOf(
 ): NonNullable<ConcourseWorkerRecordV1['activity']> {
   const running = (work ?? []).filter(workRowRuns)
   const subagents = running.reduce((count, row) => count + (
-    row.kind === 'agent' || row.kind === 'crewmate' ? 1 :
+    row.kind === 'agent' ? 1 :
       row.kind === 'workflow' ? row.pulse?.running ?? 0 : 0
   ), 0)
   const count = work === undefined ? waitingOnAgents : subagents
@@ -530,7 +542,6 @@ export function buildConcourseWorkerSpec(args: {
     role: 'MERCURY_CONCOURSE_WORKER',
     agentName: args.runnerId,
     agentId: `${args.runnerId}@concourse`,
-    plainIdentity: true,
     cwd: args.cwd ?? args.workspaceId,
     extraEnv: {
       MERCURY_SESSION_HOME: getProjectDir(args.workspaceId),
@@ -571,7 +582,7 @@ export function stampSpawnPosture(rec: ConcourseWorkerRecordV1, posture: { permi
 
 
 export interface ConcourseAdmitDeps {
-  roster: () => (CrewRosterPort & { kill?(short: string): boolean }) | undefined
+  roster: () => (WorkerRosterPort & { kill?(short: string): boolean }) | undefined
   dir?: string
   onSpawned?: (runnerId: string, spec: RunnerChildSpec, pid: number | undefined) => void
   claimWarm?: (args: {
