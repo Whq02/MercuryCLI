@@ -15,7 +15,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     key: 'crew',
     label: 'crew & delegation',
     names: [
-      'workflows', 'agents', 'subagents', 'agent-form', 'fleet',
+      'workflows', 'agents', 'subagents', 'fleet',
       'crewmates', 'crew', 'monitor', 'surfaces',
       'daemon', 'saturn', 'seats', 'halt', 'kill', 'unkill',
       'live', 'router',
@@ -63,7 +63,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     label: 'health & introspection',
     names: [
       'health', 'verify', 'ledger', 'trace', 'substrate', 'status',
-      'capabilities', 'capabilities-detail', 'provenance',
+      'capabilities', 'provenance',
     ],
   },
   {
