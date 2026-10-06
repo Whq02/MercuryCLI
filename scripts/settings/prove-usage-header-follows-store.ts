@@ -59,6 +59,21 @@ const records = await import('../../src/services/anthropicLimits.js')
 const { call } = await import('../../src/commands/usage/usage.js')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
+const auth = await import('../../src/utils/auth.js')
+const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.js')
+const { storeOAuthAccountInfo } = await import('../../src/services/oauth/client.js')
+storeOAuthAccountInfo({ accountUuid: '00000000-0000-4000-8000-0000000000dd', emailAddress: 'follows@example.com' })
+const saved = auth.saveOAuthTokensIfNeeded({
+  accessToken: 'fixture-access-token-follows',
+  refreshToken: 'fixture-refresh-token-follows',
+  expiresAt: Date.now() + 3_600_000,
+  scopes: ['user:inference', 'user:profile'],
+  subscriptionType: 'max',
+  rateLimitTier: 'default_claude_max_20x',
+})
+if (!saved.success) throw new Error(`the credential store refused the sign-in: ${saved.warning ?? '?'}`)
+auth.clearOAuthTokenCache()
+recordSignIn('anthropic', 'oauth')
 
 const COLS = 178
 const ROWS = 51
@@ -70,12 +85,12 @@ const fold = (session: number, week: number): void =>
     seven_day: { utilization: week, resets_at: RESET_7D },
   })
 
-const HEADER = /\d+ providers · \d+ subscriptions signed in/
+const HEADER = /session on · \d+ subscription/
 const headerRow = (m: Mounted): string => m.lines().find(line => HEADER.test(line)) ?? ''
 const figure = (text: string, pattern: RegExp): string | undefined => pattern.exec(text)?.[1]
 const headerFigures = (m: Mounted): { session?: string; week?: string } => {
   const row = headerRow(m)
-  return { session: figure(row, /Anthropic session (\d+)%/), week: figure(row, /· week (\d+)%/) }
+  return { session: figure(row, /session (\d+)%/), week: figure(row, /(?:week|7d) (\d+)%/) }
 }
 const blockFigures = (m: Mounted): { session?: string; week?: string } => {
   const screen = m.screen()
@@ -102,10 +117,10 @@ const shell = await mountOffscreen(
 await call('', {} as never)
 const request = store.settingsPopupRequest()
 const body = request?.body
-const lead = (request?.line ?? '').replace(/ · Anthropic .*$/, '')
+const lead = (request?.line ?? '').replace(/ · session .*$/, '').replace(/ · (?:5h|week) .*$/, '')
 check('the popup paints its header and the block is waiting on the first read', await waitFor(() => HEADER.test(headerRow(shell)) && shell.screen().includes('loading usage…'), 8000), shell.screen())
 check('the header opens on the stored figures: session 5% · week 53%', headerFigures(shell).session === '5' && headerFigures(shell).week === '53', seen(shell))
-check('the request line is the words it always was: providers, subscriptions, Anthropic session 5% · week 53%', /^\d+ providers · \d+ subscriptions signed in · Anthropic session 5% · week 53%$/.test(request?.line ?? ''), request?.line ?? 'no request')
+check('the request line is the session lead with the stored figures', /^.* session on · \d+ subscriptions? signed in · session 5% · week 53%$/.test(request?.line ?? ''), request?.line ?? 'no request')
 check('with no read landed, the painted header carries the request line byte for byte', headerRow(shell).includes(request?.line ?? '\0'), headerRow(shell))
 const askedAtOpen = asks
 
@@ -115,7 +130,7 @@ release()
 check('the block reads Current session · 6%', await waitFor(() => blockFigures(shell).session === '6', 6000), seen(shell))
 check('the header reads the same session figure as the block (6%)', await waitFor(() => headerFigures(shell).session === '6', 4000), seen(shell))
 check('the header and the block read the same week figure (53%)', headerFigures(shell).week === '53' && blockFigures(shell).week === '53', seen(shell))
-check('the header keeps its other words: the same providers and subscriptions, then the new figures', headerRow(shell).includes(`${lead} · Anthropic session 6% · week 53%`), headerRow(shell))
+check('the header keeps its other words: the same lead and subscriptions, then the new figures', headerRow(shell).includes(`${lead} · session 6% · week 53%`), headerRow(shell))
 
 section('§3 a later read moves both windows; the floor of the figure is what both surfaces say')
 fold(7.9, 54.9)
@@ -130,13 +145,13 @@ check('header and block still read the same figures', sameFigures(shell, '7', '5
 
 section('§5 the window clears: no live Anthropic figure left to show')
 records.resetLimitsForCredentialSwitch()
-check('the header carries no Anthropic figures and keeps its providers and subscriptions words', await waitFor(() => headerRow(shell).includes(lead) && !headerRow(shell).includes('Anthropic'), 4000), headerRow(shell))
+check('the header carries no window figures and keeps its lead and subscriptions words', await waitFor(() => headerRow(shell).includes(lead) && !/\d+%/.test(headerRow(shell)), 4000), headerRow(shell))
 check('following the store never reopened the read: one Anthropic ask for the one open', asks === askedAtOpen && asks === 1, `asks ${asks}`)
 
 section('§6 a command opened on an empty store keeps the plain opening line')
 await call('', {} as never)
-check('the opening line is the providers and subscriptions words alone, byte for byte', store.settingsPopupRequest()?.line === lead, store.settingsPopupRequest()?.line ?? 'no request')
-check('the painted header is that line, with no Anthropic words', await waitFor(() => headerRow(shell).includes(lead) && !headerRow(shell).includes('Anthropic'), 4000), headerRow(shell))
+check('the opening line is the lead and subscriptions words alone, byte for byte', store.settingsPopupRequest()?.line === lead, store.settingsPopupRequest()?.line ?? 'no request')
+check('the painted header is that line, with no window figures', await waitFor(() => headerRow(shell).includes(lead) && !/\d+%/.test(headerRow(shell)), 4000), headerRow(shell))
 
 section('§7 the body still stands on its own, with no popup frame around it')
 store.closeSettingsPopup()

@@ -3,7 +3,7 @@ WORKBENCH               │ ✶ VIEW · cedar · viewing                        
   no prompts sent yet   │                                                                                              │
                         │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
 NEXT                    │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
-  · /workflows — agent …│ │ orchard · 57 settings · 0 set by you                                                     │ │
+  · /workflows — agent …│ │ orchard · 58 settings · 0 set by you                                                     │ │
   · /health — health ce…│ │                                                                                          │ │
   · /memory — memory    │ │ / Search settings…                                                                       │ │
   · /mission — set a mi…│ │                                                                                          │ │
@@ -20,14 +20,14 @@ TELEMETRY               │ │   Reduced motion                    off         
                         │ │   Patience with a quiet model       normal · idle 6m (quiet 15m) · fallback 15m · retry  │ │
                         │ │   OpenRouter routing policy         n/a — applies to OpenRouter models (Anthropic is     │ │
                         │ │   Shell engine sessions             8 · the conversation + 7 sub-agents                  │ │
-                        │ │   Thinking mode                     off                                                  │ │
+                        │ │   Thinking                          off                                                  │ │
+                        │ │   Usage notice to the model         off                                                  │ │
                         │ │   Tool output                       compact                                              │ │
                         │ │   Terminal progress bar             on                                                   │ │
                         │ │   Turn duration                     on                                                   │ │
                         │ │   Default permission mode           Default                                              │ │
                         │ │   Pinned memory limit               0 of 8k                                              │ │
-                        │ │   Respect .gitignore in file picker on                                                   │ │
-                        │ │ ↓ 37 more                                                                                │ │
+                        │ │ ↓ 38 more                                                                                │ │
                         │ │                                                                                          │ │
                         │ │ ↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes                 │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
