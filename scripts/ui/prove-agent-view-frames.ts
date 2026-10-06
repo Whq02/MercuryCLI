@@ -163,6 +163,7 @@ const { useAppStateStore } = await import('../../src/state/AppState.tsx')
 const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
 const { FullscreenLayout } = await import('../../src/components/FullscreenLayout.tsx')
 const { default: PromptInput } = await import('../../src/components/PromptInput/PromptInput.tsx')
+const { FocusedSessionStatusRow } = await import('../../src/components/SwitchboardTagBar.tsx')
 const { useCompactWorkControls } = await import('../../src/components/tasks/CompactWorkSummary.tsx')
 const { GlobalKeybindingHandlers } = await import('../../src/hooks/useGlobalKeybindings.tsx')
 const { resetChromeModeLatchForTests } = await import('../../src/hooks/useLayoutTier.ts')
@@ -175,6 +176,7 @@ const pending = await import('../../src/input-core/pending-input.ts')
 const { default: instances } = await import('../../src/ink/instances.ts')
 const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
 const { setFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
+const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')
 const { resetHelmFocusForTest } = await import('../../src/utils/cockpit/helmFocus.ts')
 const crewmatesCommand = await import('../../src/commands/crewmates/crewmates.tsx')
 const swapModule = (await import('../../src/components/CrewmateTranscript.tsx').catch(() => null)) as null | { TranscriptSwap: React.ComponentType<Record<string, unknown>> }
@@ -193,6 +195,10 @@ const overrides: Record<string, unknown> = {
   stopAgent: async (agentId: string, note?: string) => { agentCalls.push({ verb: 'stop', agentId, note }); return { outcome: 'applied' } },
   resumeAgent: async (agentId: string, note?: string) => { agentCalls.push({ verb: 'resume', agentId, note }); return { outcome: 'applied', detail: '{"queued":true}' } },
   interrupt: () => { leadInterrupts += 1; return false },
+  live: () => IDLE_LIVE,
+  subscribeLive: () => () => {},
+  status: () => ({ title: 'a chat', projectLabel: 'orchard', interrupting: false, hardStopping: false, wait: null, quietMs: null, watchdogMs: null, phaseMs: null, toolBudgetMs: null, stuck: false }),
+  tail: () => ({ subscribe: () => () => {}, getSnapshot: () => null, read: () => null }),
 }
 let leadInterrupts = 0
 const fake = new Proxy(resting, {
@@ -256,7 +262,7 @@ function Harness(): React.ReactNode {
       statusBandActive: true,
       modal: modal === null ? undefined : h(Box, { width: '100%', flexDirection: 'column' }, modal),
       modalScrollRef,
-      bottom: h(PromptInput, {
+      bottom: h(Box, { flexDirection: 'column', flexShrink: 0 }, h(FocusedSessionStatusRow), h(PromptInput, {
         compactWork: controls, compactFocus: focus,
         debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
         setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [],
@@ -266,7 +272,7 @@ function Harness(): React.ReactNode {
         onSubmit: async (text: string) => { submits.push(text) },
         isSearchingHistory: searching, setIsSearchingHistory: setSearching, helpOpen: help, setHelpOpen: setHelp,
         hasSuppressedDialogs: false, isLocalJSXCommandActive: modal !== null, insertTextRef: insertRef,
-      } as never),
+      } as never)),
     } as never),
   )
 }
