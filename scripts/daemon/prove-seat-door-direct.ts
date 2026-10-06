@@ -275,7 +275,7 @@ section('§6 the roster: a turn that settles inside the delivery\'s answer leave
   sup.updateConcourseWorkers(ws => {
     ws['concourse-w6'] = { schema: 1, runnerId: 'concourse-w6', sessionId: 'session-6', workspaceId: home, isolation: 'exclusive', modelKey: 'm', spawnedAt: 1, lastLiveAt: Date.now() }
   }, daemonDir)
-  const delivered = await roster.reply('concourse-w6', { type: 'prompt', content: '/counsel', id: '0b5c2d0a-6e9e-4c4b-8a2c-3f1d2e5b7a96' })
+  const delivered = await roster.reply('concourse-w6', { type: 'prompt', content: '/seats', id: '0b5c2d0a-6e9e-4c4b-8a2c-3f1d2e5b7a96' })
   await tick()
   await tick()
   const row = roster.list().find(e => e.short === 'concourse-w6')

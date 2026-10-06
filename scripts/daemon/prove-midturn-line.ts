@@ -50,7 +50,7 @@ const LINE2 = 'the second mid-turn line'
 const LINE3 = 'the third mid-turn line'
 const LINE4 = 'the line before the escape'
 const LINE5 = 'the line during the fold'
-const SLASH = '/auto-compact-window'
+const SLASH = '/seats'
 
 section('W the words the model reads (the source)')
 {
