@@ -25,7 +25,6 @@ export const NULL_RENDERING_ATTACHMENT_TYPES = [
   'harness_map_delta',
   'run_protocol_delta',
   'token_usage',
-  'repo_surface_map',
   'context_capsule',
   'bagel_console',
   'max_turns_reached',
