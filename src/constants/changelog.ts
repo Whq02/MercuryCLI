@@ -2,8 +2,6 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.28
-- Added GLM 5.3 Flash to the model picker, with its window, its dial and its price
-- Added a run with --format rows reporting lifecycle hooks as task rows
 - Added a /health row for the managed policy: an invalid lock value, an unknown surface name or an unreadable policy file warns with its fix
 - Changed the automatic motion setting over a slow terminal link (ssh, a console host, a slow pipe): idle motion drops to reduced the way it does on a slow machine, with the same patience before dropping and before coming back, and the status line says reduced · slow link while the link is the reason
 - Changed the launch animation: it sends about a fifth of the bytes it did, frame for frame the same
@@ -36,7 +34,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed a display-only row riding a GPT, GLM, Gemini or local request as if the model had said it
 - Fixed the coordinator on Claude forgetting its own earlier replies between turns
 - Fixed resuming a session whose saved assistant text arrived as plain text failing the next GPT, GLM, Gemini or local request outright
-- Fixed a GLM 5.3 Flash turn with thinking off being sent in a shape Z.AI refuses; GLM prices follow Z.AI's current page
+- Fixed a GLM turn with thinking off being sent in a shape Z.AI refuses; GLM prices follow Z.AI's current page
 - Fixed a lifecycle "run once" hook running again on every firing; it retires after its first run, like a tool hook
 - Fixed a lifecycle hook answering with another event's output shape being accepted in silence; it is refused with a loud error naming both events
 - Fixed the SessionStart hook input carrying no model on a startup or a resume
