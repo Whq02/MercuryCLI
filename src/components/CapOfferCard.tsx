@@ -177,7 +177,7 @@ export function CapOfferCard({
         ) : null}
         {trigger === 'rejected' && homeRoute === 'anthropic' ? (
           <Text color={FAINT}>
-            {GLYPH.dot} a capped window also caps Claude-backed delegation (subagents are not
+            {GLYPH.dot} a capped window also caps Claude-backed delegation (crewmates are not
             failover candidates)
           </Text>
         ) : null}

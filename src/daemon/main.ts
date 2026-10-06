@@ -840,7 +840,7 @@ async function daemonRun(args: string[]): Promise<void> {
             if (action === 'grant-workflows' && out.outcome === 'applied' && roster !== null) {
               const r = roster
               void buildConcoursePromptRow(
-                '[switchboard notice] The workflows-allowed tag just landed on this session — delegation tools (subagents and workflows) are available from your next turn. Automated notice; no reply needed.',
+                '[switchboard notice] The workflows-allowed tag just landed on this session — delegation tools (crewmates and workflows) are available from your next turn. Automated notice; no reply needed.',
               )
                 .then(row => r.reply(rec.runnerId, row))
                 .catch(() => {})

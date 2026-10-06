@@ -280,8 +280,8 @@ have session history:
 
 - **New Session in \<folder\>** starts a new session in the current folder.
 - **Continue Last Session** returns to your most recent chat.
-- **Boot Menu** configures future sessions, including motion, sub-agents and
-  workflows.
+- **Boot Menu** configures future sessions, including motion, crewmates
+  (sub-agents) and workflows.
 - **MCPs & Skills** chooses what the next session loads. See
   [docs/KIT.md](docs/KIT.md).
 - **Agents** creates and edits agents.
@@ -297,13 +297,13 @@ selected. The session list opens on a separate screen, also available with
 `Shift+→`. A prompt argument, `--continue` or `--resume` takes you directly
 to the chat.
 
-### Motion, sub-agents and workflows
+### Motion, crewmates and workflows
 
 The Boot Menu's Performance section includes a Motion setting:
 `auto`, `full`, `reduced` or `off`. It controls idle animation in the
 interface and is also available in `/config`.
 
-Under Agents, the Sub-agents and Workflows switches determine whether new
+Under Agents, the Crewmates and Workflows switches determine whether new
 sessions receive the Agent and Workflow tools. Turning a switch off removes
 the corresponding tool; attempts to spawn that type of work return the same
 explanation. Within a session, `/subagents on|off` and `/workflows on|off`
@@ -564,8 +564,8 @@ Available commands include:
   and `scaffold`.
 - **`mercury roster`**: list the agent inventory.
 - **`mercury daemon run|status|stop|restart`**: run, inspect, stop or restart
-  the background daemon. Its session seats and named crewmates are `mercury runner`
-  children; the daemon sends their prompts and hosts their permission asks.
+  the background daemon. Its session seats are `mercury runner` children; the
+  daemon sends their prompts and hosts their permission asks.
 - **`mercury acp`**: serve an editor over the Agent Client Protocol, with a
   runner child for each session. `mercury bridge install` installs the
   VS Code extension; `mercury bridge status` checks it.
@@ -595,10 +595,9 @@ Available commands include:
   [docs/KIT.md](docs/KIT.md).
 - **Agents and the crew.** Two built-in agents — `mercury-crew` for delegated
   work of every kind and `mercury-scout` for read-only reconnaissance — plus
-  the agent definitions you create in the agent studio. The daemon hosts
-  named crewmates in their own runners; delegated sub-agents belong to the
-  session that launched them. Follow both, and workflow runs, in their
-  status views. See
+  the agent definitions you create in the agent studio. A crewmate belongs
+  to the session that launched it; a named one takes further instructions by
+  its name. Follow crewmates, and workflow runs, in their status views. See
   [docs/CREW.md](docs/CREW.md).
 - **Saturn.** Schedule a prompt for an existing session or start a new
   session at a set time. Schedules can run once or recur. See

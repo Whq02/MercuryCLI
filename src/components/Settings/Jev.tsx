@@ -117,7 +117,7 @@ export const JEV_ROW_LABELS: Readonly<Record<JevRowId, string>> = {
   allowance: 'Allowance',
   pace: 'Pace',
   ceiling: 'Request ceiling',
-  subagents: 'Sub-agents',
+  subagents: 'Crewmates',
 }
 
 export type JevFacts = { settings: JevSettings; key: JevKeyPresence; session: JevSessionFacts; status: JevStatus }
@@ -202,7 +202,7 @@ export function jevRowNote(id: JevRowId, road: JevRoad = readJevSettings().road)
     case 'ceiling':
       return `an optional cap on requests a session, off by default; the count resets with the cost ledger on /clear · ←/→ walk off · ${JEV_CEILING_RUNGS.join(' · ')} · ↵ types a count or off · ⌫ returns to off`
     case 'subagents':
-      return `on by default, off by choice: JevEval is offered to sub-agents unless you turn this row off · on: each sub-agent may make ${JEV_SUBAGENT_CALL_BUDGET} calls; all sub-agents share ${JEV_SUBAGENT_PACE_PER_MINUTE} a minute per session, separate from the main pace, counted on the same allowance · ↵, space or ←/→ flip it`
+      return `on by default, off by choice: JevEval is offered to crewmates unless you turn this row off · on: each crewmate may make ${JEV_SUBAGENT_CALL_BUDGET} calls; all crewmates share ${JEV_SUBAGENT_PACE_PER_MINUTE} a minute per session, separate from the main pace, counted on the same allowance · ↵, space or ←/→ flip it`
   }
 }
 
@@ -310,7 +310,7 @@ export function Jev({
   const moveTo = (next: number): void => setSelected(Math.max(0, Math.min(next, JEV_ROWS.length - 1)))
   const openEntry = (kind: JevEntryKind): void => setEntry({ kind, value: '', cursor: 0 })
   const toggleSwitch = (): void => settle(() => jevReceiptWords(setJevEnabled(!facts.settings.enabled)))
-  const toggleSubagents = (): void => settle(() => `sub-agents ${jevRowValues(setJevSubagents(!facts.settings.subagents)).subagents}`)
+  const toggleSubagents = (): void => settle(() => `crewmates ${jevRowValues(setJevSubagents(!facts.settings.subagents)).subagents}`)
   const toggleRoad = (): void => settle(() => {
     const settings = setJevRoad(facts.settings.road === 'official' ? 'openrouter' : 'official')
     return `${jevRoadWords(settings.road)} road selected — ${settings.enabled ? 'on' : 'off'}; its own key, spend and allowance; no fallback`
@@ -350,7 +350,7 @@ export function Jev({
     else if (id === 'allowance') settle(() => jevSettingLines(setJevAllowanceUsd(JEV_DEFAULT_ALLOWANCE_USD))[0] ?? '')
     else if (id === 'pace') settle(() => jevSettingLines(setJevPacePerMinute(JEV_DEFAULT_PACE_PER_MINUTE))[1] ?? '')
     else if (id === 'ceiling') settle(() => jevSettingLines(setJevRequestCeiling(null))[2] ?? '')
-    else if (id === 'subagents') settle(() => `sub-agents ${jevRowValues(setJevSubagents(true)).subagents}`)
+    else if (id === 'subagents') settle(() => `crewmates ${jevRowValues(setJevSubagents(true)).subagents}`)
   }
 
   const cancelEntry = (): void => {

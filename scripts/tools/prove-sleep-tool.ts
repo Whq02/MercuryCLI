@@ -53,8 +53,8 @@ check('explicit (unmarked) classifier opt-out — toAutoClassifierInput → ""',
 
 check("a sub-agent's roster: Sleep is not in the deny set every agent loses",
   !blockOf(ROSTER, 'ALL_AGENT_DISALLOWED_TOOLS').includes('SLEEP_TOOL_NAME'))
-check("a BACKGROUND sub-agent's roster keeps the async allow-set alone, and Sleep is in it",
-  AGENT_FILTER.includes('if (isAsync) {\n      if (ASYNC_AGENT_ALLOWED_TOOLS.has(tool.name)) return true') && blockOf(ROSTER, 'ASYNC_AGENT_ALLOWED_TOOLS').includes('SLEEP_TOOL_NAME,'))
+check("a BACKGROUND crewmate's roster keeps the async allow-set alone, and Sleep is in it",
+  AGENT_FILTER.includes('if (isAsync) {\n      return ASYNC_AGENT_ALLOWED_TOOLS.has(tool.name)') && blockOf(ROSTER, 'ASYNC_AGENT_ALLOWED_TOOLS').includes('SLEEP_TOOL_NAME,'))
 check("a sub-agent's wait shadows the background shells it owns, by the spawning agent's id",
   /SUBAGENT_TRACKED_TASK_TYPES[\s\S]*?\['local_bash',/.test(SLEEP) && /SUBAGENT_TRACKED_TASK_TYPES\.has\(t\.type\) && t\.agentId === selfTaskId/.test(SLEEP))
 check("the sub-agent's ceiling is the same one (one MAX_SLEEP_SECONDS)",

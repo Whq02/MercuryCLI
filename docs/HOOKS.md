@@ -84,8 +84,8 @@ adds its own fields; context-dependent fields can be absent:
 | `Setup` | when Mercury is started with `--prepare`, `--prepare-only` or `--upkeep` | `trigger` (`init` or `maintenance`) |
 | `Stop` | when the model ends its turn | `stop_hook_active`, `last_assistant_message` |
 | `StopFailure` | when a turn ends in an error | `error`, `error_details`, `last_assistant_message` |
-| `SubagentStart` | when a sub-agent starts | `agent_id`, `agent_type` |
-| `SubagentStop` | when a sub-agent ends its turn | `stop_hook_active`, `agent_id`, `agent_transcript_path`, `agent_type`, `last_assistant_message` |
+| `SubagentStart` | when a crewmate (sub-agent) starts | `agent_id`, `agent_type` |
+| `SubagentStop` | when a crewmate ends its turn | `stop_hook_active`, `agent_id`, `agent_transcript_path`, `agent_type`, `last_assistant_message` |
 | `PreCompact` | before a compaction | `trigger`, `custom_instructions` |
 | `PostCompact` | after a compaction | `trigger`, `compact_summary` |
 | `TaskCreated` | when a task is created | `task_id`, `task_subject`, `task_description` |

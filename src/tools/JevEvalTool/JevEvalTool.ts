@@ -134,7 +134,7 @@ export const JevEvalTool = buildTool({
     class: 'observation',
     cancellation: 'cooperative',
     latency: 'interactive',
-    conditions: ['JEV on: official key in /jev or OpenRouter key in /logins; sub-agents on by default, off by choice in /jev'],
+    conditions: ['JEV on: official key in /jev or OpenRouter key in /logins; crewmates on by default, off by choice in /jev'],
     proof: 'scripts/jev/run-all.sh',
   },
   get inputSchema(): JevEvalInputSchema {

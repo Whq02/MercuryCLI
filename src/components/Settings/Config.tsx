@@ -149,7 +149,7 @@ type SubMenu =
   | 'language'
   | typeof LOCAL_SERVER_APPLY_MENU
 
-const AGENT_INHERIT_ROW: ModelChoice = { id: 'inherit', name: 'Inherit', tag: "the parent's model", ctx: '', group: 'Sub-agent', choice: "a choice, not a model — the spawned agent runs its parent's model" }
+const AGENT_INHERIT_ROW: ModelChoice = { id: 'inherit', name: 'Inherit', tag: "the parent's model", ctx: '', group: 'Crewmate', choice: "a choice, not a model — the spawned agent runs its parent's model" }
 
 type ItemKind = 'boolean' | 'enum' | 'managed-enum' | 'info'
 
@@ -527,7 +527,7 @@ export function Config({
   items.push({
     id: 'seats',
     label: 'Seats',
-    searchText: 'seats seat ceiling capacity concurrency sessions sub-agents workflow agents in flight',
+    searchText: 'seats seat ceiling capacity concurrency sessions crewmates sub-agents workflow agents in flight',
     kind: 'enum',
     value: <Text>{seatFacts === null ? 'reading capacity…' : seatCeilingValueWords(seatFacts)}</Text>,
     setByYou: seatFacts !== null && seatFacts.source === 'operator',
@@ -628,7 +628,7 @@ export function Config({
     items.push({
       id: 'jev',
       label: 'JEV',
-      searchText: 'jev typesafe official openrouter road second opinion jeveval eval tool key allowance pace ceiling sub-agents',
+      searchText: 'jev typesafe official openrouter road second opinion jeveval eval tool key allowance pace ceiling crewmates sub-agents',
       kind: 'boolean',
       value: <Text color={jevSettings.enabled ? tokens.success : tokens.textSecondary}>{jevValueWords(jevSettings)}</Text>,
       warning: [jevStatusLine(jevSessionStatus(jevSessionFacts(), jevSettings)), ...jevSettingLines(jevSettings)].join(' · '),
@@ -757,7 +757,7 @@ export function Config({
   {
     const ceiling = resolveEngineSessionCeiling(merged.shell?.sessions)
     const pinned = engineSessionCeilingPinned()
-    const share = ceiling === 1 ? 'no session for sub-agents' : `the conversation + ${ceiling - 1} sub-agent${ceiling === 2 ? '' : 's'}`
+    const share = ceiling === 1 ? 'no session for crewmates' : `the conversation + ${ceiling - 1} crewmate${ceiling === 2 ? '' : 's'}`
     items.push({
       id: 'shell.sessions',
       label: 'Shell engine sessions',
@@ -766,7 +766,7 @@ export function Config({
       warning: pinned
         ? 'The env pin MERCURY_SHELL_ENGINE_SESSIONS decides the ceiling for this process; a value written here applies once the pin is gone.'
         : ceiling === 1
-          ? "A ceiling of 1 keeps the main conversation's session only: a sub-agent's engine call is refused with the reason (a run_in_background call still runs, in its own system shell)."
+          ? "A ceiling of 1 keeps the main conversation's session only: a crewmate's engine call is refused with the reason (a run_in_background call still runs, in its own system shell)."
           : undefined,
       change: direction => {
         const next = nextSessionCeiling(merged.shell?.sessions ?? ENGINE_SESSION_CEILING_DEFAULT, direction)
@@ -1140,8 +1140,8 @@ export function Config({
   }
   items.push({
     id: 'agentsDefaultEffort',
-    label: 'Sub-agent default effort',
-    searchText: 'sub-agent subagent agent default effort delegate workflow',
+    label: 'Crewmate default effort',
+    searchText: 'crewmate sub-agent subagent agent default effort delegate workflow',
     kind: 'enum',
     value: (
       <Text>
@@ -1153,13 +1153,13 @@ export function Config({
     change: direction => {
       const next = cycleIn(EFFORT_LEVELS, agentDefaults.effort, direction)
       writeAgents({ defaultEffort: next })
-      recordSet('agentsDefaultEffort', `set the sub-agent default effort to ${next}`)
+      recordSet('agentsDefaultEffort', `set the crewmate default effort to ${next}`)
     },
   })
   items.push({
     id: 'agentsDefaultModel',
-    label: 'Sub-agent default model',
-    searchText: 'sub-agent subagent agent default model inherit parent',
+    label: 'Crewmate default model',
+    searchText: 'crewmate sub-agent subagent agent default model inherit parent',
     kind: 'managed-enum',
     value: (
       <Text>
@@ -1172,8 +1172,8 @@ export function Config({
   const envFanoutCap = agentFanoutCap()
   items.push({
     id: 'agentsMaxConcurrent',
-    label: 'Sub-agents at once',
-    searchText: 'sub-agent subagent agents at once concurrent cap fan-out maximum',
+    label: 'Crewmates at once',
+    searchText: 'crewmate sub-agent subagent agents at once concurrent cap fan-out maximum',
     kind: 'enum',
     value: (
       <Text>
@@ -1184,11 +1184,11 @@ export function Config({
         ) : null}
       </Text>
     ),
-    warning: 'how many Agent-tool sub-agents may run at once; a spawn past the cap is refused with the live count (workflows keep their own ceiling) · ←/→ move it by one',
+    warning: 'how many Agent-tool crewmates may run at once; a spawn past the cap is refused with the live count (workflows keep their own ceiling) · ←/→ move it by one',
     change: direction => {
       const next = Math.max(1, agentDefaults.maxConcurrent + direction)
       writeAgents({ maxConcurrent: next })
-      recordSet('agentsMaxConcurrent', `set sub-agents at once to ${next}`)
+      recordSet('agentsMaxConcurrent', `set crewmates at once to ${next}`)
     },
   })
 
@@ -1447,7 +1447,7 @@ export function Config({
         onSelect={id => {
           const next = id === AGENT_INHERIT_ROW.id ? undefined : parseUserSpecifiedModel(id)
           writeAgents({ defaultModel: next })
-          recordSet('agentsDefaultModel', `set the sub-agent default model to ${next === undefined ? AGENT_INHERIT_ROW.name : modelChoiceLabel(next)}`)
+          recordSet('agentsDefaultModel', `set the crewmate default model to ${next === undefined ? AGENT_INHERIT_ROW.name : modelChoiceLabel(next)}`)
           setSubMenu(null)
         }}
         onSignIn={signInFromDoor}

@@ -267,7 +267,7 @@ effort word its chip paints in every state: it rests on
 `ready · <model> · <effort>` while the session is idle with no crew, and
 otherwise reads `<model> · <effort>` followed by what the session is doing
 — the wait on agents, a request wait, a held receipt, a warning, or the
-CREW's clock — the sub-agents and workflow agents the session's runner
+CREW's clock — the crewmates (sub-agents) and workflow agents the session's runner
 hosts — past tense, by kind: "agents thought for 28m", "workflow thought
 for 12m", both when both stand (the larger first). At its right end, before
 the way back, the row names the folder and the branch the session works on
@@ -289,9 +289,9 @@ words, and one that cannot — a browser whose process is gone, a call waiting
 on something that will never answer — is left behind, its result replaced by
 the interrupt's own, and its late answer, if one ever comes, is dropped. A
 second esc while the first is still on its way delivers the interrupt again
-and nothing more: the runner is never signalled, its sub-agents run on, and a
+and nothing more: the runner is never signalled, its crewmates run on, and a
 runner that cannot answer stays busy until you stop it by hand — x on its row
-stops the session, the crew view stops one sub-agent. A stop you ask for is
+stops the session, the crew view stops one crewmate. A stop you ask for is
 recorded on the session as your stop, never as a crash, and a resume after it
 brings the runner back saying so. A turn that fails inside the runner's
 own machinery before it has answered ends in a failed `outcome`:
@@ -551,7 +551,7 @@ exists goes, and so does one older than `MERCURY_PREFIX_RECORD_RETENTION_DAYS`
 A thinking drop after a long idle is named by the part of the request that
 moved. Idle time alone does not ask the server to clear earlier reasoning.
 
-A sub-agent keeps the same kind of record on its own transcript: one brought
+A crewmate keeps the same kind of record on its own transcript: one brought
 back after its run ended (a message sent to it, the crew view's resume) sends
 the tool list it first sent, whatever the session's tools are by then.
 
@@ -744,12 +744,12 @@ command sent at any point of the turn, and so does a line sent after a
 turns run as one turn, each its own row under its own identity, in the
 order sent; esc interrupts the turn and anything still queued runs as the
 next turn.
-The line always reaches the session's own model. A sub-agent the model is
+The line always reaches the session's own model. A crewmate the model is
 running (an Agent tool call) has tool boundaries of its own; those read only
 the notes addressed to that agent, never the operator's lines, so a line sent
-while a sub-agent works waits for the session's next boundary, the Agent
+while a crewmate works waits for the session's next boundary, the Agent
 tool's return included, and lands in the session's transcript, not the
-sub-agent's.
+crewmate's.
 
 ## A line sent while the session compacts
 
@@ -784,13 +784,13 @@ the whole row instead. The composer never moves for a notice.
 
 ## A notice an agent has not read
 
-Every notice delivered to an agent of a session — a sub-agent's completion,
+Every notice delivered to an agent of a session — a crewmate's completion,
 a workflow's or a shell's, a monitor's tick, a message queued for a
-sub-agent, a schedule's wake — is a row of the session's unread-notice
+crewmate, a schedule's wake — is a row of the session's unread-notice
 ledger from the moment it is delivered until a turn of that agent takes it.
 The runner's `session/facts` answer carries the ledger (`notices`: each
 entry names its agent, its kind, the notice in a line, the clock it arrived
-at and what became of it), and every sub-agent's work row carries the count
+at and what became of it), and every crewmate's work row carries the count
 of its own unread notices;
 the Crew view (`/crewmates`) paints that count on the agent's row — "2
 unread" — and nothing when there is none.
@@ -805,7 +805,7 @@ background shell with the seat, persistent or not: neither outlives the
 session that started it.
 
 Every other notice bound for the session's own thread waits the same way
-while the window is closed — a sub-agent's or a shell's completion — and
+while the window is closed — a crewmate's or a shell's completion — and
 the first turn after the window reopens carries them together; a self-paced
 wake due meanwhile fires after the reopen instead. The window is the
 provider's own: an Anthropic, OpenAI, Gemini, OpenRouter or Hugging Face
@@ -870,11 +870,11 @@ past one turn of yours. The chat paints the carried message as one counted
 row, exactly as it paints a run of separate notices.
 
 A message one agent sends another takes the completion's road. A background
-sub-agent reaches the agent that launched it at `main`; the main agent reaches
-a sub-agent by the id its launch receipt names or by its name. The message
+crewmate reaches the agent that launched it at `main`; the main agent reaches
+a crewmate by the id its launch receipt names or by its name. The message
 reaches the receiver at its next tool boundary while its turn runs, else at
 the end of its turn; a receiver between turns starts a turn for it, and a
-sub-agent whose run has ended is resumed with it. It arrives as a task
+crewmate whose run has ended is resumed with it. It arrives as a task
 notification whose status is `message`, naming the sender. On the wire the
 runner emits a `task` row with `state: "progress"` and no `status`:
 a message ends nothing.

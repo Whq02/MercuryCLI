@@ -143,7 +143,7 @@ export function jevAdmission(settings: JevSettings, now: number = Date.now(), ag
     }
   }
   if (agentId !== undefined && (state.subagentAttempts.get(agentId) ?? 0) >= JEV_SUBAGENT_CALL_BUDGET) {
-    return { ok: false, kind: 'subagent-budget-hit', words: `sub-agent budget hit — this agent has used its ${JEV_SUBAGENT_CALL_BUDGET} JEV calls; carry on unaided` }
+    return { ok: false, kind: 'subagent-budget-hit', words: `crewmate budget hit — this agent has used its ${JEV_SUBAGENT_CALL_BUDGET} JEV calls; carry on unaided` }
   }
   const times = agentId === undefined ? state.attemptTimes : state.subagentAttemptTimes
   const pace = agentId === undefined ? settings.pacePerMinute : JEV_SUBAGENT_PACE_PER_MINUTE
@@ -154,7 +154,7 @@ export function jevAdmission(settings: JevSettings, now: number = Date.now(), ag
       kind: agentId === undefined ? 'pace-hit' : 'subagent-pace-hit',
       words: agentId === undefined
         ? `pace hit — ${times.length} requests in the last minute is the pace set in /jev (${pace} a minute); the next is admitted in ${jevWaitLabel(retryInMs)}`
-        : `sub-agent pace hit — ${times.length} requests in the last minute is the shared sub-agent pace (${pace} a minute per session); the next is admitted in ${jevWaitLabel(retryInMs)}`,
+        : `crewmate pace hit — ${times.length} requests in the last minute is the shared crewmate pace (${pace} a minute per session); the next is admitted in ${jevWaitLabel(retryInMs)}`,
       retryInMs,
     }
   }

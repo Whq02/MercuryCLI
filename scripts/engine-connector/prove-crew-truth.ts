@@ -307,7 +307,7 @@ console.log('— T5 the usage attribution —')
   const counted = agents.filter(a => a.tokens !== null)
   check(
     'T5 the line sums the crew\'s tokens over the agents that settled any, live ones counted',
-    line !== null && line.startsWith(`sub-agents ${formatTokens(crew.crewTokenSum(counted))} spent · 3 agents · 2 live`),
+    line !== null && line.startsWith(`crewmates ${formatTokens(crew.crewTokenSum(counted))} spent · 3 agents · 2 live`),
     String(line),
   )
   check('T5 no settled response ⇒ no line (never a zero that reads as fact)', crew.crewUsageLine([agents.find(a => a.id === 'ag3')!]) === null)

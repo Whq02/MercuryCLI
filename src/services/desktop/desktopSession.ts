@@ -300,7 +300,7 @@ export function publishDesktopIdle(): void {
 }
 
 export const AGENT_COMPUTER_REFUSAL =
-  "the Computer tool drives the operator's own screen; a sub-agent never carries it in this release — the main session does"
+  "the Computer tool drives the operator's own screen; a crewmate never carries it in this release — the main session does"
 export const HEADLESS_COMPUTER_REFUSAL =
   'the Computer tool drives the screen of an interactive session; this headless run has no operator at the screen'
 

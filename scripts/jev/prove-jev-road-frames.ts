@@ -121,7 +121,7 @@ try {
           await waitFor(() => last.screen().includes('Mercury · jev'), 4000)
           await settle(80)
           keep(`jev-last-${failed ? 'refusal' : 'answer'}-${cols}x${rows}`, last, cols, rows)
-          check('the last-call line leaves every control visible', flat(last).includes('Sub-agents') && flat(last).includes('Request ceiling'), `missing ${missingControls(last).join(', ') || 'nothing by label'} — ${framed(`jev-last-${failed ? 'refusal' : 'answer'}`, last, cols, rows)}`)
+          check('the last-call line leaves every control visible', flat(last).includes('Crewmates') && flat(last).includes('Request ceiling'), `missing ${missingControls(last).join(', ') || 'nothing by label'} — ${framed(`jev-last-${failed ? 'refusal' : 'answer'}`, last, cols, rows)}`)
           controls(`jev-last-${failed ? 'refusal' : 'answer'}`, last, cols, rows)
           check('known OpenRouter key credits are labelled as observed, not a live balance', flat(last).includes('$12.50 under key cap') && flat(last).includes('(read '))
           check('last call reports actual id and cost or failure words', failed ? flat(last).includes('HTTP 403') && flat(last).includes('fixture access refused') && flat(last).includes('gen-dec-frame-refusal') : flat(last).includes('typesafe/jev-1.13-20260917') && flat(last).includes('stated $0.000019992') && flat(last).includes('gen-dec-frame-answer'))

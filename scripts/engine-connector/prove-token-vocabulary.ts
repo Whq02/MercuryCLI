@@ -167,7 +167,7 @@ const ag1 = agents.find(a => a.id === 'ag1')!
   check('§3 the breakdown is the spend\'s halves, the fresh input and the output', crew.crewTokensBreakdown(ag1) === '3k in · 500 out · 500 cached', String(crew.crewTokensBreakdown(ag1)))
   check('§3 the row line spells the context', crew.crewRowLine(ag1, t0 + 61_001).includes(' · 2.6k context · '), crew.crewRowLine(ag1, t0 + 61_001))
   const line = crew.crewUsageLine(agents)
-  check('§3 the attribution line is the crew\'s SPEND, with the word', line !== null && line.startsWith('sub-agents 3.5k spent · 1 agent'), String(line))
+  check('§3 the attribution line is the crew\'s SPEND, with the word', line !== null && line.startsWith('crewmates 3.5k spent · 1 agent'), String(line))
   const older: WorkRowV1 = { ...row }
   delete (older as { contextTokens?: number }).contextTokens
   const olderFacts = crew.crewAgentFactsOf(older, 'fx-session')!

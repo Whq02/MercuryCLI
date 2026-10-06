@@ -473,7 +473,7 @@ section('R8e · every non-terminal row has a live owner; the exit card counts wh
   check('the card says what is alive by kind and where to see it', confirmSrc.includes('{liveWords} still running') && confirmSrc.includes('see them with /runs'))
 }
 
-section("R8f · the interrupt receipt counts what the crew view lists: a running workflow is not a 'sub-agent', and a settled agent is not counted")
+section("R8f · the interrupt receipt counts what the crew view lists: a running workflow is not a 'crewmate', and a settled agent is not counted")
 {
   const crew = (await import('../../src/services/engine-connector/crewFacts.ts')) as { crewStillRunningLine: Function }
   const { projectWorkRoster } = await import('../../src/utils/task/workRoster.ts')
@@ -488,12 +488,12 @@ section("R8f · the interrupt receipt counts what the crew view lists: a running
   const roster = projectWorkRoster(store.get().tasks ?? {})
   const crewViewRows = roster.filter(r => workRowRuns(r) && (r.kind === 'agent' || r.kind === 'named')).length
   const receiptBefore = roster.filter(r => workRowRuns(r) && (r.kind === 'agent' || r.kind === 'workflow')).length
-  check('the roster holds one running workflow and no running sub-agent — the crew view lists nothing', crewViewRows === 0 && receiptBefore === 1)
+  check('the roster holds one running workflow and no running crewmate — the crew view lists nothing', crewViewRows === 0 && receiptBefore === 1)
   const counts = workCounts(roster)
   const line = crew.crewStillRunningLine(counts) as string | null
-  check('the receipt counts by kind: a running workflow is named as one, with its own door, never as a sub-agent', line !== null && /1 workflow run still running/.test(line) && /\/workflows/.test(line) && !/sub-agent/.test(line), String(line))
+  check('the receipt counts by kind: a running workflow is named as one, with its own door, never as a crewmate', line !== null && /1 workflow run still running/.test(line) && /\/workflows/.test(line) && !/crewmate/.test(line), String(line))
   const both = crew.crewStillRunningLine({ ...counts, agents: 2 }) as string | null
-  check('…and sub-agents keep their words and the crew-view door', both !== null && /2 sub-agents still running/.test(both) && /crew view \(\/crewmates\)/.test(both) && /1 workflow run/.test(both), String(both))
+  check('…and crewmates keep their words and the crew-view door', both !== null && /2 crewmates still running/.test(both) && /crew view \(\/crewmates\)/.test(both) && /1 workflow run/.test(both), String(both))
   check('…nothing running, no line', crew.crewStillRunningLine({ workflows: 0, agents: 0, shells: 0, asks: 0 }) === null)
   const cancel = src('src/hooks/useCancelRequest.ts')
   check('the interrupt receipt reads the one counting law (workCounts over the roster), never its own filter', /const running = workCounts\(focused\.workRoster\(\)\.rows\)/.test(cancel) && /crewStillRunningLine\(running\)/.test(cancel) && !/row\.kind === 'agent' \|\| row\.kind === 'workflow'/.test(cancel))

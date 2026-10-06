@@ -56,7 +56,7 @@ check("no source registers the 'crews-dialog' overlay", registrants.length === 0
 
 console.log('\n§4 the crew view is the one screen: it lists the crewmates the dialog listed')
 const crewView = read('src/components/mercury-ui/screens/CrewView.tsx')
-check('the crew view exists and lists the sub-agents in ONE list, with no second kind of row', crewView.includes('Sub-agents') && !crewView.includes("kind === 'seat'") && !crewView.includes('crewRosterOf'), 'CrewView.tsx does not build its one list')
+check('the crew view exists and lists the crewmates in ONE list, with no second kind of row', crewView.includes('Crewmates') && !crewView.includes("kind === 'seat'") && !crewView.includes('crewRosterOf'), 'CrewView.tsx does not build its one list')
 check('its rows carry the model the dialog showed', crewView.includes('crewModelLabel(facts)'), 'no model on the rows')
 
 console.log(`\nprove-crews-dialog-gone: ${failures === 0 ? 'green' : `${failures} failed`}`)

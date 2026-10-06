@@ -3,7 +3,7 @@ import type { ToolCapability } from './contract.js'
 
 export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
   Agent: {
-    intents: ['delegate a task to a subagent', 'run parallel research or implementation', 'fan out independent work'],
+    intents: ['delegate a task to a crewmate (a sub-agent)', 'run parallel research or implementation', 'fan out independent work'],
     units: ['task-coordination'],
     class: 'coordination',
     execution: { kind: 'agent', representation: 'external-projection' },

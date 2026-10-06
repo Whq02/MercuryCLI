@@ -65,7 +65,7 @@ how many rules it holds. The limit is yours: `memory.pinnedLimit` in settings
 limit every rule still loads, and a chat you are in opens with one line that
 says so — how much is pinned, the limit, that all of it is loaded, and where
 to trim. The line never appears in a crewmate's chat or in `mercury run`
-output. Crewmates and sub-agents receive the front page with the pinned rules.
+output. Crewmates receive the front page with the pinned rules.
 
 A rule you asked for is yours alone: the model cannot correct, replace or
 unpin it. Consolidation leaves it as said; you change or unpin it in

@@ -1006,7 +1006,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             }
             return {
               status: 'ok',
-              evidence: `contracts on — built-in source, session ${MERCURY_SESSION_CONTRACT.length} · coordinator ${MERCURY_COORDINATOR_CONTRACT.length} · sub-agent ${MERCURY_SUBAGENT_CONTRACT.length} chars`,
+              evidence: `contracts on — built-in source, session ${MERCURY_SESSION_CONTRACT.length} · coordinator ${MERCURY_COORDINATOR_CONTRACT.length} · crewmate ${MERCURY_SUBAGENT_CONTRACT.length} chars`,
             }
           },
         },
@@ -2053,13 +2053,13 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             return {
               status: narrowed !== null || warning !== null ? 'info' : 'ok',
               evidence: `${seatCeilingValueWords(facts)} · ${facts.readingSentence} · ${lanes}${narrowed !== null ? ` — ${narrowed}` : ' (the seats)'}`,
-              detail: `Sessions, sub-agents and workflow agents all run under this one number; a seat is held only while a model call is in flight, and a call past the ceiling waits with its row saying so.${warning !== null ? ` ${warning}.` : ''} Setting: ${facts.lever}.`,
+              detail: `Sessions, crewmates and workflow agents all run under this one number; a seat is held only while a model call is in flight, and a call past the ceiling waits with its row saying so.${warning !== null ? ` ${warning}.` : ''} Setting: ${facts.lever}.`,
             }
           },
         },
         {
           id: 'spawn-switches',
-          label: 'Sub-agents & workflows',
+          label: 'Crewmates & workflows',
           run: async () => {
             const { spawnSwitchFacts, spawnSwitchLine } = await import('../services/switchboard/spawnSwitches.js')
             const { getFocusedSessionConnector, hasFocusedSession } = await import('../services/engine-connector/focusedConnector.js')
@@ -2784,7 +2784,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               const armed = resolved.arm === 'no-bash' ? 'armed by itself: no bash.exe was found on this machine, so the bundled engine serves the Bash tool' : `armed by ${shellEngineArmWords(resolved.arm)}`
               return {
                 status: 'ok' as const,
-                evidence: `brush ${resolved.version} (${resolved.platform}, ${resolved.source}) — ${armed} — one persistent process per conversation and one per sub-agent, up to ${ceiling} at once; shell state persists between calls; a stop while a command runs resets the session`,
+                evidence: `brush ${resolved.version} (${resolved.platform}, ${resolved.source}) — ${armed} — one persistent process per conversation and one per crewmate, up to ${ceiling} at once; shell state persists between calls; a stop while a command runs resets the session`,
                 detail: `setting: ${setting}${process.env.MERCURY_SHELL_ENGINE ? ` · env pin MERCURY_SHELL_ENGINE=${process.env.MERCURY_SHELL_ENGINE}` : ''} · sessions ceiling ${ceiling} (${engineSessionCeilingPinned() ? 'the env pin MERCURY_SHELL_ENGINE_SESSIONS' : 'the shell.sessions setting'})`,
               }
             }

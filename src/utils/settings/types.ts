@@ -179,7 +179,7 @@ export const SettingsSchema = lazySchema(() => {
     shell: z.object({
       kind: z.enum(['bash', 'powershell']).optional(),
       engine: z.enum(['system', 'brush']).optional(),
-      sessions: z.number().int().min(1).max(64).optional().describe("The ceiling on live shell-engine sessions Mercury keeps at once: the main conversation's own plus that many minus one for sub-agents (default 8). A sub-agent past the ceiling waits for a free session, never sharing another owner's; a ceiling of 1 leaves no session for sub-agents"),
+      sessions: z.number().int().min(1).max(64).optional().describe("The ceiling on live shell-engine sessions Mercury keeps at once: the main conversation's own plus that many minus one for crewmates (default 8). A crewmate past the ceiling waits for a free session, never sharing another owner's; a ceiling of 1 leaves no session for crewmates"),
     }).passthrough().optional(),
     patience: z.union([
       z.enum(['normal', 'patient']),

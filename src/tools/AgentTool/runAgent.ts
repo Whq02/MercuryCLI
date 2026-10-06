@@ -507,7 +507,7 @@ export function declaredRecoveryWaitMs(message: unknown): number {
 
 export function agentStalledError(args: { agentType: string; agentId: string; limitMs: number; elapsedMs: number; events: number; toolUses: number }): DeadlineExceededError {
   return new DeadlineExceededError(
-    `sub-agent ${args.agentType} (${args.agentId})`,
+    `crewmate ${args.agentType} (${args.agentId})`,
     args.limitMs,
     args.elapsedMs,
     args.events,
@@ -558,7 +558,7 @@ export async function* runAgent(
     canUseTool,
     isAsync,
     agentKind = 'crewmate',
-    seat = 'a sub-agent',
+    seat = 'a crewmate',
     canShowPermissionPrompts,
     forkContextMessages,
     querySource,
@@ -630,7 +630,7 @@ export async function* runAgent(
   let deferredTouch: ReturnType<typeof setTimeout> | null = null
   const idleLimitMs = agentIdleLimitMs()
   const watchdog = armInactivityDeadline({
-    seam: `sub-agent ${agentDefinition.agentType} (${agentId})`,
+    seam: `crewmate ${agentDefinition.agentType} (${agentId})`,
     limitMs: idleLimitMs,
     onExpire: error => {
       logForDebugging(`runAgent: ${agentId} stalled — ${error.message}`)

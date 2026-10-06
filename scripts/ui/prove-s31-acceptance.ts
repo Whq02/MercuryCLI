@@ -465,7 +465,7 @@ check(
 
   check(
     '29. a single stop hook names its event, no counter',
-    repl.includes("latest.hookEvent === 'SubagentStop' ? 'running subagent stop hook' : 'running stop hook'"),
+    repl.includes("latest.hookEvent === 'SubagentStop' ? 'running crewmate stop hook' : 'running stop hook'"),
   )
   check(
     '29. several stop hooks use the generic plural line with completed/total',
