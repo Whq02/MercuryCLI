@@ -9,7 +9,7 @@ export type MediaRefusal = {
 
 const DETAIL_MAX_CHARS = 240
 
-const IMAGE_REFUSAL_NEEDLE = /\b(images?|image_url|input_image|vision|multimodal|modalit(?:y|ies))\b/i
+const IMAGE_REFUSAL_NEEDLE = /\b(images?|image_url|input_image|vision|multimodal|modalit(?:y|ies))\b|\bcontent\.type\b[^\n]*\ballowed values?\b[^\n]*\btext\b/i
 
 export function providerRefusedImage(faultMessage: string): boolean {
   return IMAGE_REFUSAL_NEEDLE.test(faultMessage)

@@ -54,7 +54,8 @@ const ROWS: RouteRow[] = [
   { route: 'gemini', model: 'gemini-2.5-pro', callModel: 'src/services/providers/gemini/geminiCallModel.ts', images: true },
   { route: 'deepseek', model: 'deepseek-chat', callModel: 'src/services/providers/deepseek/deepseekCallModel.ts', images: true },
   { route: 'moonshot', model: 'kimi-k2', callModel: 'src/services/providers/moonshot/moonshotCallModel.ts', images: true },
-  { route: 'zai', model: 'glm-4.5', callModel: 'src/services/providers/zai/zaiCallModel.ts', images: true },
+  { route: 'zai', model: 'glm-4.5', callModel: 'src/services/providers/zai/zaiCallModel.ts', images: false },
+  { route: 'zai', model: 'glm-4.6v', callModel: 'src/services/providers/zai/zaiCallModel.ts', images: true },
   { route: 'huggingface', model: 'huggingface/org/model', callModel: 'src/services/providers/huggingface/huggingfaceCallModel.ts', images: null },
   { route: 'local', model: 'local/model', callModel: 'src/services/providers/local/localCallModel.ts', images: null },
 ]

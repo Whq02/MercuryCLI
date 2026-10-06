@@ -60,6 +60,7 @@ import type { SystemPrompt } from '../../../utils/systemPromptType.js'
 import type { ThinkingConfig } from '../../../utils/thinking.js'
 import { imagesSupportedForCompatModel } from '../openaicompat/compatChatCallModel.js'
 import { noteImageRefusal } from '../../desktop/desktopSession.js'
+import type { MediaRefusal } from '../../api/mediaRefusal.js'
 import { retireOlderScreenshots } from '../../desktop/screenshotRetention.js'
 import { fitImagesToRequestCap } from '../../../utils/imageResizer.js'
 import { stripThinkingFromIndex } from '../../../utils/messages/apiFilters.js'
@@ -117,6 +118,7 @@ function apiErrorMessage(
   errorDetails?: string,
   overflow?: OverflowSignal | null,
   busyRefusal?: BusyRefusalV1 | null,
+  mediaRefusal?: MediaRefusal | null,
 ): AssistantMessage {
   return createAssistantAPIErrorMessage({
     content,
@@ -124,6 +126,7 @@ function apiErrorMessage(
     ...(errorDetails !== undefined ? { errorDetails } : {}),
     ...(overflow !== undefined ? { overflow } : {}),
     ...(busyRefusal !== undefined ? { busyRefusal } : {}),
+    ...(mediaRefusal !== undefined ? { mediaRefusal } : {}),
   })
 }
 
@@ -421,6 +424,8 @@ export async function* zaiCallModel(
         typed,
         outcome.fault.code,
         overflowOf(outcome.fault),
+        null,
+        { blockTypes: ['image'], detail: refusedImage },
       ))
       return
     }
