@@ -128,7 +128,17 @@ for (const family of FAMILIES) {
         continue
       }
       const runPrintMatrix = async (): Promise<void> => {
-        const cases = family === 'zai' ? [{ name: 'provider-reason', model: retired, refused: true }] : [
+        const cases = family === 'zai' ? [
+          { name: 'default', expected: next },
+          { name: 'explicit', model: kept, expected: kept },
+          { name: 'saved', saved: kept, expected: kept },
+          { name: 'environment', envModel: kept, expected: kept },
+          { name: 'retired', model: retired, providerReason: true },
+          { name: 'empty', model: next, list: 'empty', expected: next },
+          { name: 'unreachable', model: next, list: 'unreachable', expected: next },
+          { name: 'unread-default', list: 'unreachable', oldServed: true, expected: retired },
+          { name: 'traffic-off', model: next, dark: true, expected: next },
+        ] : [
           { name: 'default', expected: next },
           { name: 'explicit', model: kept, expected: kept },
           { name: 'saved', saved: kept, expected: kept },
@@ -139,7 +149,7 @@ for (const family of FAMILIES) {
           { name: 'unread-default', list: 'unreachable', oldServed: true, unreadDefault: true },
           { name: 'traffic-off', model: next, dark: true, expected: next, degraded: true },
         ]
-        for (const test of cases as Array<{ name: string; model?: string; expected?: string; saved?: string; envModel?: string; list?: string; oldServed?: boolean; refused?: boolean; degraded?: boolean; dark?: boolean; unreadDefault?: boolean }>) {
+        for (const test of cases as Array<{ name: string; model?: string; expected?: string; saved?: string; envModel?: string; list?: string; oldServed?: boolean; refused?: boolean; degraded?: boolean; dark?: boolean; unreadDefault?: boolean; providerReason?: boolean }>) {
           wire.splice(0)
           listMode = test.list ?? 'live'
           serveRetired = test.oldServed ?? false
@@ -150,9 +160,9 @@ for (const family of FAMILIES) {
           })
           writeFileSync(join(OUT ?? home, `${tag}-${test.name}.json`), JSON.stringify({ test, ...result, wire }, null, 2))
           const chats = wire.filter(hit => hit.url.endsWith('/chat/completions'))
-          if (family === 'zai') {
+          if (test.providerReason) {
             const words = result.stdout
-            check(`${tag}: the Z.AI reason follows the status`, words.includes('http-404') && words.includes('fixture refuses retired model') && words.indexOf('http-404') < words.indexOf('fixture refuses retired model'), words)
+            check(`${tag} ${test.name}: a typed id the list lacks reaches the wire and Z.AI's own refusal follows the status (Mercury refuses nothing before Z.AI does)`, chats.some(hit => hit.model === retired && hit.status === 404) && words.includes('http-404') && words.includes('fixture refuses retired model') && words.indexOf('http-404') < words.indexOf('fixture refuses retired model'), JSON.stringify({ chats, stdout: words.slice(-400) }))
           } else if (test.unreadDefault) {
             check(`${tag} ${test.name}: a signed-in account whose list cannot be read never defaults onto a typed id (no chat on ${retired}, no fixture answer)`, !chats.some(hit => hit.model === retired) && !result.stdout.includes('fixture catalogue answer'), JSON.stringify({ chats, stdout: result.stdout }))
           } else if (test.refused) {
@@ -200,12 +210,6 @@ for (const family of FAMILIES) {
       const picker = marks.get('picker') ?? text(payload.grid)
       const liveName = family === 'zai' ? 'GLM Fixture Next' : 'Kimi Fixture Next'
       check(`${tag}: the drive reached every state`, status === 0 && payload.sendReceipts?.length === sends.length, `${payload.sendReceipts?.length}/${sends.length}; ${payload.endReason}`)
-      if (family === 'zai') {
-        const words = marks.get('chat') ?? ''
-        check(`${tag}: Z.AI paints its static rows under the key and asks no endpoint`, !wire.some(hit => hit.url.endsWith('/models')) && chat?.model === retired && (!picker.includes('Mercury · model') || (/[▾▸❯] Z\.AI · (?:Coding Plan key|API key) · …\S+ · \d+ live/.test(picker) && picker.includes('GLM-5.3') && (picker.includes('GLM-5.2') || /↓ \d+ more/.test(picker)) && !picker.includes(liveName) && !picker.includes(next))))
-        check(`${tag}: Z.AI preserves the provider reason after the status`, words.includes('http-404') && words.includes('fixture refuses retired model') && words.indexOf('http-404') < words.indexOf('fixture refuses retired model'))
-        continue
-      }
       check(`${tag}: the provider list was fetched`, wire.some(hit => hit.url.endsWith('/models') && hit.status === 200), JSON.stringify(wire))
       check(`${tag}: the fresh default requests the newest served id`, chat?.model === next, JSON.stringify(chat))
       check(`${tag}: the first chat succeeds`, marks.get('chat')?.includes('fixture catalogue answer') === true)
