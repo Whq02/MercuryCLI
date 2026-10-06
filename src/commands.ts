@@ -24,7 +24,6 @@ import run from './commands/run/index.js'
 import browser from './commands/browser/index.js'
 import samples from './commands/samples/index.js'
 import sessions from './commands/sessions/index.js'
-import sessiontab from './commands/sessiontab/index.js'
 import trace from './commands/trace/index.js'
 import { kill, unkill } from './commands/kill/index.js'
 import diff from './commands/diff/index.js'
@@ -41,7 +40,6 @@ import extensions from './commands/extensions/index.js'
 import updateNotes from './commands/update-notes/index.js'
 import rename from './commands/rename/index.js'
 import title from './commands/title/index.js'
-import resume from './commands/resume/index.js'
 import skills from './commands/skills/index.js'
 import feedback from './commands/feedback/index.js'
 import review from './commands/review.js'
@@ -158,7 +156,6 @@ const COMMANDS = memoize((): Command[] => [
   browser,
   samples,
   sessions,
-  sessiontab,
   trace,
   kill,
   unkill,
@@ -175,7 +172,6 @@ const COMMANDS = memoize((): Command[] => [
   extensions,
   updateNotes,
   rename,
-  resume,
   skills,
   title,
   feedback,
