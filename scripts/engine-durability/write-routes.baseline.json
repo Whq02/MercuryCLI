@@ -14,7 +14,6 @@
     "src/services/agents/overrides.ts",
     "src/services/agents/store.ts",
     "src/services/changeTransaction/changeSetCommit.ts",
-    "src/services/contextLanes/lanes.ts",
     "src/services/desktop/computerGrant.ts",
     "src/services/ide/ideTransaction.ts",
     "src/services/ide/pythonTests.ts",

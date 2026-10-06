@@ -179,23 +179,6 @@ export async function getAttachments(
         })(),
       ),
     ),
-    maybe('lane_boundary', () =>
-      Promise.resolve(
-        (() => {
-          if (!isMainThread) return []
-          try {
-            const { laneBoundaryAttachmentFor } =
-              require('../../services/contextLanes/lanes.js') as typeof import('../../services/contextLanes/lanes.js')
-            const { getSessionId } =
-              require('../../bootstrap/state.js') as typeof import('../../bootstrap/state.js')
-            const a = laneBoundaryAttachmentFor(String(getSessionId()))
-            return a ? [a] : []
-          } catch {
-            return []
-          }
-        })(),
-      ),
-    ),
     maybe('changed_files', () => getChangedFiles(context)),
     maybe('nested_memory', () => getNestedMemoryAttachments(context)),
     maybe('dynamic_skill', () => getDynamicSkillAttachments(context)),

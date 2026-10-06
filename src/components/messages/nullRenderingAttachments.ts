@@ -24,7 +24,6 @@ export const NULL_RENDERING_ATTACHMENT_TYPES = [
   'mcp_instructions_delta',
   'harness_map_delta',
   'run_protocol_delta',
-  'lane_boundary',
   'token_usage',
   'repo_surface_map',
   'context_capsule',

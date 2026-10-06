@@ -822,11 +822,6 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
         createUserMessage({ content: parts.join('\n\n'), isMeta: true }),
       ])
     }
-    case 'lane_boundary': {
-      return wrapMessagesInSystemReminder([
-        createUserMessage({ content: attachment.boundary, isMeta: true }),
-      ])
-    }
     case 'verify_plan_reminder': {
       return []
     }

@@ -36,14 +36,12 @@ console.log('lane identity legibility ──')
     agentMeta: new Map(),
     partySeats: [],
     collab: { zoneLanes: [{ sliceId: 'sl1', worktreePath: '/w/zones/zone-a', title: 'zone work', phase: 'ready' }] },
-    contextLanes: [{ id: 'cl1', status: 'active', goal: 'side quest', handoffPromoted: false }],
     gitWorktreeLanes: [{ path: '/w/.mercury/worktrees/parcel-decafbad', branch: 'wt-b', head: 'abc' }],
     laneRuns: new Map(),
   } as never
   const rows = (deriveLaneRows as (i: never) => Array<{ laneId: string; displayName: string }>)(inputs)
-  check('every derived lane row carries displayName', rows.length === 2 && rows.every(r => r.displayName.length > 0))
+  check('every derived lane row carries displayName', rows.length === 1 && rows.every(r => r.displayName.length > 0))
   const byId = new Map(rows.map(r => [r.laneId, r.displayName]))
-  check('context lane shows its goal', byId.get('cl1') === 'side quest')
   check(
     'the poison zone fixture revives NO row (session-room retirement)',
     ![...byId.keys()].some(k => k.startsWith('zone:')),

@@ -85,7 +85,6 @@ function wb(over: Partial<WorkbenchSnapshot>): WorkbenchSnapshot {
     sources: {
       schema: WORKBENCH_SOURCES_SCHEMA,
       artifacts: readOk(),
-      contextLanes: readOk(),
       gitWorktrees: readOk(),
     },
     ...over,
@@ -192,7 +191,6 @@ console.log('prove-current-work — the M1 projection laws')
         sources: {
           schema: WORKBENCH_SOURCES_SCHEMA,
           artifacts: healthOf(sourceUnavailable('ENOTDIR: store root is a file')),
-          contextLanes: readOk(),
           gitWorktrees: readOk(),
         },
       }),

@@ -65,11 +65,6 @@ const inventory = {
     healthCert: '<config home>/projects/<slug>/health/last-cert.json (utils/healthReport.ts; the project folder keeps only a leftover .mercury/health/)',
     gateVerdict: '.mercury/gate/verdict.json (scripts/run-all-suites.sh)',
   },
-  sessionBranching: {
-    command: '/branch (aliases: /fork)',
-    mechanism: 'transcript copy + forkedFrom lineage + in-place resume (src/commands/branch/branch.ts)',
-    boundary: 'NONE at slice 0 — the fork inherits the full parent state',
-  },
   agentResultBoundary: {
     shape: 'prose text + agentId hint + <usage> trailer (AgentTool.tsx mapToolResultToToolResultBlockParam)',
     fields: ['totalTokens', 'tool_uses', 'duration_ms'],

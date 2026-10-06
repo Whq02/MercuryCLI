@@ -11,7 +11,6 @@ import {
   readReviewArtifactState,
 } from '../../utils/artifacts/reviewStore.js'
 import type { ReviewArtifactVersion } from '../../utils/artifacts/reviewContracts.js'
-import { lanesEnabled, listLanes } from '../../services/contextLanes/lanes.js'
 import { gitWorktrees } from '../../services/gitGraph/observe.js'
 import { laneDisplayName } from '../../services/workbench/selectors.js'
 import { getCwd } from '../../utils/cwd.js'
@@ -22,7 +21,6 @@ export type WorkspaceDiffSource =
   | { type: 'staged' }
   | { type: 'branch'; base: string; spec: GitDiffSpec }
   | { type: 'lane'; label: string; worktreePath: string }
-  | { type: 'handoff'; laneId: string; label: string; paths: string[] }
   | { type: 'artifact'; artifactId: string; label: string }
   | { type: 'turn'; turn: TurnDiff }
 
@@ -38,8 +36,6 @@ export function sourceKey(s: WorkspaceDiffSource): string {
       return `branch:${s.base}`
     case 'lane':
       return `lane:${s.worktreePath}`
-    case 'handoff':
-      return `handoff:${s.laneId}`
     case 'artifact':
       return `artifact:${s.artifactId}`
     case 'turn':
@@ -59,8 +55,6 @@ export function sourceLabel(s: WorkspaceDiffSource): string {
       return `Branch~${s.base}`
     case 'lane':
       return `wt:${s.label}`
-    case 'handoff':
-      return `H:${s.label}`
     case 'artifact':
       return `A:${s.label}`
     case 'turn':
@@ -80,8 +74,6 @@ export function sourceTitle(s: WorkspaceDiffSource): { title: string; subtitle: 
       return { title: 'Branch vs base', subtitle: `(merge-base ${s.base}…HEAD)` }
     case 'lane':
       return { title: `Lane ${s.label}`, subtitle: s.worktreePath }
-    case 'handoff':
-      return { title: `Handoff ${s.label}`, subtitle: `${s.paths.length} observed path(s)` }
     case 'artifact':
       return { title: `Artifact ${s.label}`, subtitle: 'stored versions' }
     case 'turn':
@@ -106,8 +98,6 @@ export function sourceSummaryValue(s: WorkspaceDiffSource): string {
       return `vs base ${s.base}`
     case 'lane':
       return `worktree ${s.label}`
-    case 'handoff':
-      return `handoff ${s.label}`
     case 'artifact':
       return `artifact ${s.label}`
   }
@@ -125,8 +115,6 @@ export function sourceGitSpec(s: WorkspaceDiffSource): GitDiffSpec | null {
       return s.spec
     case 'lane':
       return { args: ['HEAD'], cwd: s.worktreePath, includeUntracked: true }
-    case 'handoff':
-      return { args: ['HEAD', '--', ...s.paths] }
     default:
       return null
   }
@@ -212,7 +200,6 @@ export function artifactDiffData(artifactId: string): DiffData {
 
 
 const MAX_LANE_SOURCES = 4
-const MAX_HANDOFF_SOURCES = 3
 const MAX_ARTIFACT_SOURCES = 3
 
 export async function enumerateExtraSources(sessionId: string | null): Promise<WorkspaceDiffSource[]> {
@@ -235,23 +222,6 @@ export async function enumerateExtraSources(sessionId: string | null): Promise<W
           type: 'lane',
           label: laneDisplayName({ worktreePath: wt.path }).slice(0, 14),
           worktreePath: wt.path,
-        })
-      }
-    }
-  } catch {
-  }
-
-  try {
-    if (lanesEnabled()) {
-      let handoffBudget = MAX_HANDOFF_SOURCES
-      for (const lane of listLanes(sessionId ? { parentSessionId: sessionId } : undefined)) {
-        if (!lane.handoff || lane.handoff.changedPaths.length === 0) continue
-        if (handoffBudget-- <= 0) break
-        out.push({
-          type: 'handoff',
-          laneId: lane.id,
-          label: lane.goal.slice(0, 12),
-          paths: lane.handoff.changedPaths.slice(0, 50),
         })
       }
     }
