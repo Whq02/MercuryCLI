@@ -106,8 +106,13 @@ section('R3 · the wiring reads the carried count first (source pins)')
   )
   const tm = readFileSync(join(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
   check(
-    'the blocking preempt reuses the carried count and recounts only as fallback',
-    /const estimatedTokens =\s*compactionResult\?\.truePostCompactTokenCount \?\?\s*measuredRawTokenCount \?\?\s*tokenCountWithEstimation\(messagesForQuery, toolUseContext\.options\.engineModel\)[\s\S]{0,80}calculateTokenWarningState\(\s*estimatedTokens,/.test(tm),
+    'the blocking preempt reuses the carried count, recounts only as fallback, and credits the prune receipt of this iteration against either (never below zero)',
+    /const estimatedTokens =\s*compactionResult\?\.truePostCompactTokenCount \?\?\s*Math\.max\(\s*0,\s*\(measuredRawTokenCount \?\? tokenCountWithEstimation\(messagesForQuery, toolUseContext\.options\.engineModel\)\) -\s*prunedTokensFreed,\s*\)[\s\S]{0,80}calculateTokenWarningState\(\s*estimatedTokens,/.test(tm),
+  )
+  check(
+    'the credit is the plan\'s own pressure-prune receipt, bound once per iteration beside the request plan and handed to the compaction gate as its freed count',
+    /const prunedTokensFreed = Math\.max\(0, requestPlan\.reductions\.pressurePruned\?\.tokensSaved \?\? 0\)/.test(tm) &&
+      /querySource,\s*tracking,\s*prunedTokensFreed,\s*forcedFold,\s*\)/.test(tm),
   )
   check(
     'the preempt stays gated on the just-compacted exemption (a compaction-changed view never reuses a stale number; the exemption holds only under the limit)',

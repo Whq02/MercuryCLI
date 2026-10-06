@@ -989,6 +989,7 @@ export async function* runEventCore(
       'apply',
     )
     let messagesForQuery = requestPlan.messages
+    const prunedTokensFreed = Math.max(0, requestPlan.reductions.pressurePruned?.tokensSaved ?? 0)
     const deadThinkingRecords: AttachmentMessage[] = []
     {
       const known = deadThinkingMarks(messages)
@@ -1052,7 +1053,7 @@ export async function* runEventCore(
       },
       querySource,
       tracking,
-      0,
+      prunedTokensFreed,
       forcedFold,
     )
 
@@ -1156,8 +1157,11 @@ export async function* runEventCore(
     ) {
       const estimatedTokens =
         compactionResult?.truePostCompactTokenCount ??
-        measuredRawTokenCount ??
-        tokenCountWithEstimation(messagesForQuery, toolUseContext.options.engineModel)
+        Math.max(
+          0,
+          (measuredRawTokenCount ?? tokenCountWithEstimation(messagesForQuery, toolUseContext.options.engineModel)) -
+            prunedTokensFreed,
+        )
       const { level } = calculateTokenWarningState(
         estimatedTokens,
         toolUseContext.options.engineModel,
