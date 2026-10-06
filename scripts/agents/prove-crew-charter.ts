@@ -108,7 +108,7 @@ section('§4 — the crew is born with the session and founded in ONE publish: n
 section('§5 — the model-facing text names the crewmate road, not a create step')
 {
   const agentTool = src('tools', 'AgentTool', 'AgentTool.tsx')
-  check('the Agent tool names the crewmate road (a name beside a crew_name), apart from an agent type', agentTool.includes("crew_name: z.string().optional().describe('The crew a named crewmate joins") && agentTool.includes('Name for a long-lived crewmate') && agentTool.includes('never an agent type (the type is subagent_type)'))
+  check('the Agent tool names the crewmate road (a name), apart from an agent type', !agentTool.includes('crew_name') && agentTool.includes('Name for a long-lived crewmate'))
   const doctrine = src('utils', 'messages', 'attachmentText.ts')
   check('neither the Agent tool nor the attachment text names a CrewCreate tool', !doctrine.includes('TeamCreate') && !agentTool.includes('TeamCreate'))
 }

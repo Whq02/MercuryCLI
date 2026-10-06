@@ -267,8 +267,8 @@ console.log('§6 the Agent tool reads its input as declared — an old field nam
   check('an input carrying team_name parses as an input carrying an unknown field', parsed.success === true, parsed.success ? '' : JSON.stringify(parsed.error.issues.slice(0, 2)))
   check('and lands no crew_name', !('crew_name' in data) && !('team_name' in data), JSON.stringify(data))
   const jsonSchema = JSON.stringify((await import('../../src/utils/zodToJsonSchema.ts')).zodToJsonSchema(agentTool.AgentTool.inputSchema as never))
-  check('the schema the model sees names crew_name and not the old field', jsonSchema.includes('crew_name') && !jsonSchema.includes('team_name'))
-  check('the schema keeps its shape for every reader of its words', 'crew_name' in ((agentTool.AgentTool.inputSchema as unknown as { shape: Record<string, unknown> }).shape ?? {}) && 'crew_name' in ((agentTool.inputSchema() as unknown as { shape: Record<string, unknown> }).shape ?? {}))
+  check('the schema the model sees names neither the old field nor a crew name', !jsonSchema.includes('crew_name') && !jsonSchema.includes('team_name'))
+  check('the schema keeps its shape for every reader of its words', 'name' in ((agentTool.AgentTool.inputSchema as unknown as { shape: Record<string, unknown> }).shape ?? {}) && 'name' in ((agentTool.inputSchema() as unknown as { shape: Record<string, unknown> }).shape ?? {}))
 }
 
 console.log('§7 a saved keybinding under the old action id binds nothing Mercury knows')
