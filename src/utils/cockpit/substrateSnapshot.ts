@@ -1,5 +1,4 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { chatOnlyBoot } from '../../context/surfaceRoute.js'
 import { isCoordinationServerEnabled } from '../../services/mcp/coordinationServer.js'
 import { isMcpPolicyActive, describeMcpPolicy } from '../../services/mcp/toolPolicy.js'
 import { isSaturnSchedulingEnabled } from '../../tools/ScheduleCronTool/prompt.js'
@@ -13,7 +12,6 @@ import { daemonSnapshot } from './daemonSnapshot.js'
 import { listCapabilityKills, getAgentCapParseRejects } from '../permissions/capabilityGate.js'
 import { ctxForecastEnabled } from './ctxForecast.js'
 import { carryForwardEnabled } from '../../daemon/carryForward.js'
-import { evolutionLedgerEnabled } from '../evolution/evolutionLedger.js'
 import { thisMercuryCommand } from '../../services/privateChannel/installPath.js'
 import { type Snapshot } from './types.js'
 
@@ -101,11 +99,6 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
         on: carryForwardEnabled(),
         hint: carryForwardEnabled() ? 'auto-clear seeds a handoff note (opt out =0)' : 'MERCURY_CARRY_FORWARD=0 set',
       },
-      {
-        name: 'Evolution ledger',
-        on: evolutionLedgerEnabled(),
-        hint: evolutionLedgerEnabled() ? 'program rows → .mercury/evolution/ (opt out =0)' : 'MERCURY_EVOLUTION_LEDGER=0 set',
-      },
     ],
   }
 
@@ -140,9 +133,7 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
     title: 'UI',
     rows: [
       { name: 'MercuryFrame statusbar', on: true, hint: 'always-on' },
-      chatOnlyBoot()
-        ? { name: '/trace', on: true, hint: 'always-on · /deck and /fleet are off in this boot — the concourse is off' }
-        : { name: '/deck · /trace · /fleet', on: true, hint: 'always-on' },
+      { name: '/trace', on: true, hint: 'always-on' },
       { name: 'Persistent deck pane', on: deckPaneOn, hint: deckPaneOn ? 'live · fullscreen (opt out MERCURY_SUBSTRATE=0)' : 'MERCURY_DECK_PANE=1 · fullscreen' },
       {
         name: 'Warm terminal background',

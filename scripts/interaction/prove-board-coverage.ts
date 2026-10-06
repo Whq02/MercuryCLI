@@ -12,12 +12,10 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 }
 
 const BOARDS = [
-  'src/components/LedgerView.tsx',
   'src/components/RouterBoard.tsx',
   'src/components/extensions/ExtensionsBoard.tsx',
   'src/components/extensions/SourceView.tsx',
   'src/components/tasks/WorkflowsBoard.tsx',
-  'src/components/mercury-ui/screens/MonitorView.tsx',
   'src/components/prompts-panel/PromptsPanel.tsx',
 ].sort()
 

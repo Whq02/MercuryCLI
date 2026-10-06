@@ -11,32 +11,8 @@ import {
 import { getLocalISODate } from '../../constants/common.js'
 import { capsuleStateFor } from './capsuleState.js'
 import {
-  buildRepoSurfaceMap,
-  hasOrientationDoc,
-  repoSurfaceMapEnabled,
-} from '../cockpit/repoSurfaceMap.js'
-import {
   type Attachment,
 } from './types.js'
-
-export function getRepoSurfaceMapAttachment(
-  messages: Message[] | undefined,
-  toolUseContext: ToolUseContext,
-): Attachment[] {
-  if (!repoSurfaceMapEnabled()) return []
-  if (toolUseContext.agentId) return []
-  if (getIsNonInteractiveSession()) return []
-  const root = getOriginalCwd()
-  if (hasOrientationDoc(root)) return []
-  if (messages && messages.length > 0) {
-    for (const m of messages) {
-      if (m.type === 'attachment' && m.attachment.type === 'repo_surface_map') return []
-    }
-  }
-  const markdown = buildRepoSurfaceMap(root)
-  if (!markdown) return []
-  return [{ type: 'repo_surface_map', markdown }]
-}
 
 export function getDateChangeAttachments(
   messages: Message[] | undefined,

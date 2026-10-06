@@ -281,10 +281,6 @@ export type Attachment =
       reason?: string
     }
   | {
-      type: 'repo_surface_map'
-      markdown: string
-    }
-  | {
       type: 'context_capsule'
       markdown: string
       digest: string
@@ -455,12 +451,6 @@ export type Attachment =
       type: 'harness_map_delta'
       added: string[]
       removed: string[]
-    }
-  | {
-      type: 'lane_boundary'
-      laneId: string
-      goal: string
-      boundary: string
     }
   | {
       type: 'bagel_console'

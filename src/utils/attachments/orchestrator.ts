@@ -16,7 +16,6 @@ import { getChangedFiles } from './fileAttachments.js'
 import {
   getCapsuleDateChange,
   getModePackAttachments,
-  getRepoSurfaceMapAttachment,
 } from './modeLifecycles.js'
 import { foldAttachmentsIntoCapsule, getContextCapsuleAttachment } from './contextCapsule.js'
 import { getNestedMemoryAttachments } from './nestedMemory.js'
@@ -179,31 +178,11 @@ export async function getAttachments(
         })(),
       ),
     ),
-    maybe('lane_boundary', () =>
-      Promise.resolve(
-        (() => {
-          if (!isMainThread) return []
-          try {
-            const { laneBoundaryAttachmentFor } =
-              require('../../services/contextLanes/lanes.js') as typeof import('../../services/contextLanes/lanes.js')
-            const { getSessionId } =
-              require('../../bootstrap/state.js') as typeof import('../../bootstrap/state.js')
-            const a = laneBoundaryAttachmentFor(String(getSessionId()))
-            return a ? [a] : []
-          } catch {
-            return []
-          }
-        })(),
-      ),
-    ),
     maybe('changed_files', () => getChangedFiles(context)),
     maybe('nested_memory', () => getNestedMemoryAttachments(context)),
     maybe('dynamic_skill', () => getDynamicSkillAttachments(context)),
     maybe('skill_listing', () => getSkillListingAttachments(context)),
     maybe('mode_pack', () => Promise.resolve(getModePackAttachments(messages, toolUseContext))),
-    maybe('repo_surface_map', () =>
-      Promise.resolve(getRepoSurfaceMapAttachment(messages, toolUseContext)),
-    ),
     maybe('context_capsule', () =>
       options?.localSubmission
         ? Promise.resolve([])

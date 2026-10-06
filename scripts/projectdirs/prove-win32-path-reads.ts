@@ -89,15 +89,15 @@ section("§2 the leftover census names each store in git's spelling on every pla
   const REPO = realpathSync(mkdtempSync(join(SCRATCH, 'repo-')))
   const git = (...args: string[]): string => execFileSync('git', args, { cwd: REPO, encoding: 'utf8' })
   git('init', '-q')
-  mkdirSync(join(REPO, '.mercury', 'evolution'), { recursive: true })
+  mkdirSync(join(REPO, '.mercury', 'router'), { recursive: true })
   mkdirSync(join(REPO, '.mercury', 'workflows', 'runs'), { recursive: true })
-  writeFileSync(join(REPO, '.mercury', 'evolution', 'the-program-abc.jsonl'), '{"ts":"t","program":"the-program","outcome":"ok"}\n')
+  writeFileSync(join(REPO, '.mercury', 'router', 'routes.json'), '{}\n')
   writeFileSync(join(REPO, '.mercury', 'workflows', 'runs', 'run.json'), '{}\n')
   git('add', '.')
   git('-c', 'user.email=p@p', '-c', 'user.name=proof', 'commit', '-q', '-m', 'seed with two local stores')
   const { PROJECT_HOME_STORES, projectHomeLeftovers } = await import('../../src/utils/projectHomeStores.ts')
   const rows = projectHomeLeftovers(REPO).sort()
-  check('the census names .mercury/evolution and .mercury/workflows/runs', JSON.stringify(rows) === JSON.stringify(['.mercury/evolution', '.mercury/workflows/runs']), JSON.stringify(rows))
+  check('the census names .mercury/router and .mercury/workflows/runs', JSON.stringify(rows) === JSON.stringify(['.mercury/router', '.mercury/workflows/runs']), JSON.stringify(rows))
   const bySegments = new Set(PROJECT_HOME_STORES.map(s => ['.mercury', ...s].join('/')))
   check('every row is the /-joined spelling of its store and carries no win32 separator', rows.every(r => bySegments.has(r) && !r.includes('\\')), JSON.stringify(rows))
   const listed = git('ls-files', '-z', '--', ...rows).split('\0').filter(f => f !== '')
@@ -106,7 +106,7 @@ section("§2 the leftover census names each store in git's spelling on every pla
   check(
     'the census spells its rows with posix.join, never the host join',
     /out\.push\(posix\.join\(MERCURY_PROJECT_DIR, \.\.\.segments\)\)/.test(store) && !/out\.push\(join\(MERCURY_PROJECT_DIR/.test(store),
-    `the host join spells ${win32.join('.mercury', 'evolution')} on win32 — git lists .mercury/evolution/…, /health's prefix compare never matches, and the row answers "not tracked by git"`,
+    `the host join spells ${win32.join('.mercury', 'workflows', 'runs')} on win32 — git lists .mercury/workflows/runs/…, /health's prefix compare never matches, and the row answers "not tracked by git"`,
   )
   rmSync(REPO, { recursive: true, force: true })
 }

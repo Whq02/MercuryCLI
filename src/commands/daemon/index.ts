@@ -4,7 +4,9 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 const command = {
   type: 'local-jsx',
   name: 'daemon',
-  description: 'The daemon and its workers · `restart` re-runs it as the deployed build',
+  description: 'The daemon and its workers · `restart` re-runs it as the deployed build · `halt` hard-stops every daemon and sub-agent',
+  argumentHint: '[restart | halt]',
+  headlessVerbs: ['halt'],
   isEnabled: () => (flagEnv('MERCURY_DAEMON_UI') === '0' ? false : true),
   isHidden: false,
   load: () => import('./daemon.js'),

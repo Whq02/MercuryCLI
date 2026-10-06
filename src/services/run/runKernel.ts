@@ -118,12 +118,6 @@ export type RunEvent =
         boundary: string
         crossProvider: boolean
       }
-      harnessProfile?: {
-        profileId: string
-        profileDigest: string
-        origin: string
-        reasonCode: string
-      }
     }
 
 export interface RunSnapshot {
@@ -165,12 +159,6 @@ export interface RunSnapshot {
       resolution: string
       boundary: string
       crossProvider: boolean
-    }
-    harnessProfile?: {
-      profileId: string
-      profileDigest: string
-      origin: string
-      reasonCode: string
     }
   }
 }
@@ -362,7 +350,6 @@ function foldRunEvent(prev: RunSnapshot, event: RunEvent): RunSnapshot {
             : prev.modelState?.last
               ? { last: prev.modelState.last }
               : {}),
-          ...(event.harnessProfile ? { harnessProfile: event.harnessProfile } : {}),
         },
       }
     case 'paused':

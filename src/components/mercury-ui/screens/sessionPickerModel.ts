@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { conversationIdHere } from '../../../services/engine-connector/focusedConnector.js'
 import { currentProject, subscribeCurrentProject } from '../../../utils/bootCardFacts.js'
-import { filterResumableSessions } from '../../../commands/resume/resume.js'
+import { filterResumableSessions } from '../../../utils/sessionResumeFilter.js'
 import type { SessionListing } from '../../../types/logs.js'
 import { getLogDisplayTitle } from '../../../utils/log.js'
 import { formatRelativeTimeAgo } from '../../../utils/format.js'

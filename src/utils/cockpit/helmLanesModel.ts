@@ -635,8 +635,8 @@ export function buildLanesModel(input: LanesInput): LanesModel {
       label: 'TELEMETRY',
       marginAlways: true,
       rows: [
-        muted(labels.usage, 'tel:usage', '/deck'),
-        muted(labels.ctx, 'tel:ctx', '/deck'),
+        muted(labels.usage, 'tel:usage', '/usage'),
+        muted(labels.ctx, 'tel:ctx', '/context'),
         {
           kind: 'rail',
           key: 'tel:health',

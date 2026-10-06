@@ -183,10 +183,6 @@ async function main(): Promise<void> {
 
   section('§4 the paid + standing debt sites (the census register stays honest)')
   {
-    const away = srcText('services', 'awaySummary.ts')
-    check('awaySummary rides the routed seam', away.includes('routedCallModelSettled'))
-    check('awaySummary rides the family resolver', away.includes('sessionSmallFastModel()'))
-    check('awaySummary carries no getSmallFastModel residue', !away.includes('getSmallFastModel'))
     const classifier = srcText('services', 'agentStateClassifier.ts')
     check('agentStateClassifier rides the routed seam', classifier.includes('routedCallModelSettled'))
     check('agentStateClassifier rides the family resolver', classifier.includes('sessionSmallFastModel()'))

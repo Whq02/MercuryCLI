@@ -50,13 +50,12 @@ import {
 import { runConsoleAsk } from '../../utils/cockpit/helmConsoleAsk.js'
 import { popupOwnsKeys } from '../../utils/cockpit/popupOwnsKeys.js'
 import { abortSpeculation } from '../../services/PromptSuggestion/speculation.js'
+import { flipToSession } from '../../utils/sessionFlip.js'
 import { getPlatform } from '../../utils/platform.js'
 import type { CompactWorkControls } from '../tasks/CompactWorkSummary.js'
 import type { SuggestionsState } from '../../hooks/useTypeahead.js'
 import type { ComposerSubmit } from './useComposerSubmit.js'
 
-const MANAGER_COMMAND = '/manager'
-const SESSION_TAB_COMMAND = '/sessiontab'
 const KEYSETUP_COMMAND = '/keysetup'
 
 export type ComposerRawKeysInput = {
@@ -344,13 +343,20 @@ export function useComposerRawKeys({
         (key.leftArrow || key.rightArrow)
       ) {
         event.stopImmediatePropagation()
-        void submitRef.current(SESSION_TAB_COMMAND, { fromKeybinding: true })
-        return
-      }
-
-      if (emptyPlainPrompt && key.leftArrow && !key.ctrl && !key.meta) {
-        event.stopImmediatePropagation()
-        void submitRef.current(MANAGER_COMMAND, { fromKeybinding: true })
+        const context = getToolUseContext(
+          messages,
+          [],
+          new AbortController(),
+          engineModel ?? '',
+        )
+        const resume = context.resume
+        if (resume) {
+          void flipToSession(resume).then(outcome => {
+            if (!outcome.flipped && outcome.note) {
+              addNotification({ key: 'session-flip', text: outcome.note, priority: 'medium', timeoutMs: 5000, fold: (_accumulated, incoming) => incoming })
+            }
+          })
+        }
         return
       }
 

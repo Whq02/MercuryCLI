@@ -15,20 +15,20 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     key: 'crew',
     label: 'crew & delegation',
     names: [
-      'workflows', 'agents', 'subagents', 'agent-form', 'fleet',
-      'crewmates', 'crew', 'monitor', 'surfaces',
-      'daemon', 'saturn', 'seats', 'halt', 'kill', 'unkill',
-      'live', 'router',
+      'workflows', 'agents', 'subagents',
+      'crewmates', 'crew',
+      'daemon', 'saturn', 'seats', 'kill', 'unkill',
+      'router',
     ],
   },
   {
     key: 'session',
     label: 'session & context',
     names: [
-      'clear', 'compact', 'context', 'auto-compact-window', 'resume',
-      'rewind', 'sessions', 'sessiontab', 'concourse', 'branches',
+      'clear', 'compact', 'context',
+      'rewind', 'sessions', 'concourse',
       'export', 'usage',
-      'debrief', 'rename', 'title', 'contract',
+      'rename', 'title', 'contract',
       'copy',
       'realms',
     ],
@@ -39,7 +39,6 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     names: [
       'memory',
       'console',
-      'orient',
     ],
   },
   {
@@ -47,14 +46,14 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     label: 'model & effort',
     names: [
       'model', 'effort', 'submodels', 'advise',
-      'counsel', 'harness', 'caching',
+      'caching',
     ],
   },
   {
     key: 'git',
     label: 'git & review',
     names: [
-      'branch', 'review',
+      'review',
       'audit',
     ],
   },
@@ -62,28 +61,27 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     key: 'health',
     label: 'health & introspection',
     names: [
-      'health', 'verify', 'ledger', 'trace', 'substrate', 'status',
-      'capabilities', 'capabilities-detail', 'provenance',
+      'health', 'verify', 'trace',
+      'capabilities',
     ],
   },
   {
     key: 'config',
     label: 'config & setup',
     names: [
-      'config', 'jev', 'jevor', 'localsetup', 'bootmenu', 'permissions', 'hooks', 'mcp', 'extensions', 'skills',
-      'policy', 'authority', 'sovereign', 'sandbox',
+      'config', 'jev', 'localsetup', 'bootmenu', 'permissions', 'hooks', 'mcp', 'extensions', 'skills',
+      'sandbox',
       'keysetup', 'keybindings', 'keys',
       'vim', 'mouse', 'browser',
-      'init',
-      'speak', 'voice',
+      'orient',
+      'voice',
     ],
   },
   {
     key: 'appearance',
     label: 'appearance & cockpit',
     names: [
-      'cockpit', 'home', 'palette', 'critter', 'showcase',
-      'accent', 'fullscreen',
+      'palette', 'critter', 'showcase',
       'appearance',
     ],
   },

@@ -128,8 +128,8 @@ export function getRuntimePostureSection(): string | null {
   )
   lines.push(
     killList.length > 0
-      ? `- Capability kills armed at boot: ${killList.join(', ')} (MERCURY_KILL — absolute; no mode, including bypass, overrides a kill).${nonInteractive ? '' : ' Live state: /substrate.'}`
-      : `- Capability kills armed at boot: none.${nonInteractive ? '' : ' (Kills can be armed mid-session via /kill; live state: /substrate.)'}`,
+      ? `- Capability kills armed at boot: ${killList.join(', ')} (MERCURY_KILL — absolute; no mode, including bypass, overrides a kill).${nonInteractive ? '' : ' Live state: /kill.'}`
+      : `- Capability kills armed at boot: none.${nonInteractive ? '' : ' (Kills can be armed mid-session via /kill; live state: /kill.)'}`,
   )
 
   lines.push(

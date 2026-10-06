@@ -190,7 +190,7 @@ export function buildTelemetryModel(input: TelemetryInput): TelemetryModel {
   } else if (usageEmpty) {
     usageRows.push({ kind: 'empty', key: 'usage:none', text: `${NO_USAGE_READ_WORDS} · fills after first reply` })
   } else {
-    meterRowsOf(usage, 'usage:', usage.provider === 'anthropic' ? '/deck' : '/usage')
+    meterRowsOf(usage, 'usage:', '/usage')
   }
   creditsOf(usage, 'usage:credits')
   if (usage.provider === 'openrouter' && usage.readerNoteCompact !== undefined) {
@@ -220,7 +220,7 @@ export function buildTelemetryModel(input: TelemetryInput): TelemetryModel {
     muted(`usage:other:${other.provider}`, other.label)
     identityLine(other, `usage:other:${other.provider}:account`)
     appendOpenrouterSlots(other, `usage:other:${other.provider}:slots`)
-    meterRowsOf(other, `usage:${other.provider}:`, other.provider === 'anthropic' ? '/deck' : '/usage')
+    meterRowsOf(other, `usage:${other.provider}:`, '/usage')
     creditsOf(other, `usage:other:${other.provider}:credits`)
   }
   if (input.activity.pulses >= 2) usageRows.push({ kind: 'spark', key: 'usage:activity', label: '  1h ', values: input.activity.perBin })
@@ -242,7 +242,7 @@ export function buildTelemetryModel(input: TelemetryInput): TelemetryModel {
           ? ` · ${contextWindowLabel(ctx.window, ctx.windowSource, ctx.windowPinned)}${ctxReason !== undefined ? ` ${ctxReason}` : ''}`
           : ` · ≈${turns} turns`,
       tailColor: turns != null && turns <= 2 ? ctxColor : tok.textMuted,
-      row: { kind: 'command', command: '/deck', label: 'ctx' },
+      row: { kind: 'command', command: '/context', label: 'ctx' },
     })
     if (input.ctxGrowth.length >= 2) usageRows.push({ kind: 'spark', key: 'usage:ctx:trend', label: '  /turn ', values: [...input.ctxGrowth] })
   }

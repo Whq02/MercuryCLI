@@ -281,7 +281,7 @@ export const LIFECYCLE_MANIFEST: readonly LifecycleClassDecl[] = [
     root: '<config-home>/concourse-draft.json',
     kind: 'semantic',
     liveReference:
-      "the concourse's own view state — the new-session strip draft (survives navigation/resize/restart; cleared ONLY by the positive dispatch receipt), the per-session composer drafts and carets, the held and queued dispatch identities, and the parkedCleared marks: the double-x on a PARKED row hides that chat from the board — a view preference, never session truth (the transcript stays; the boot face and /resume still offer it)",
+      "the concourse's own view state — the new-session strip draft (survives navigation/resize/restart; cleared ONLY by the positive dispatch receipt), the per-session composer drafts and carets, the held and queued dispatch identities, and the parkedCleared marks: the double-x on a PARKED row hides that chat from the board — a view preference, never session truth (the transcript stays; the boot face and /sessions still offer it)",
     terminal:
       'the draft clears on the positive concourseDispatch receipt (one bounded string, 4000 chars); a parkedCleared mark stands until the bound sheds it (a chat that runs again paints live regardless)',
     retention: 'ONE bounded JSON (write-through): the draft string, ≤24 session drafts, ≤256 parkedCleared marks — oldest shed at write',

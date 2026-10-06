@@ -175,6 +175,7 @@ type LocalJSXCommandModule = {
 type LocalJSXCommand = CommandBase & {
   type: 'local-jsx'
   load: () => Promise<LocalJSXCommandModule>
+  headlessVerbs?: readonly string[]
 }
 
 export type Command = PromptCommand | LocalCommand | LocalJSXCommand

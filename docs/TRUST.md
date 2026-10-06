@@ -87,7 +87,7 @@ call that still needs approval after its rules and mode are applied.
 A user-private command runs on the screen alone, on every seat — it never
 enters the session's conversation, never starts a turn, and never rides the
 wire of a later turn. The dispatch rule folds a user-private command into the
-screen seat, so a session runner's table never carries it. `/halt` sits on the
+screen seat, so a session runner's table never carries it. `/daemon halt` sits on the
 same seat: the screen's brake fires interrupt-first, acting while a turn runs,
 and never rides into a session runner.
 

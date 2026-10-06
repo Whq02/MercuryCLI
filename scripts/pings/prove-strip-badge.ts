@@ -68,7 +68,7 @@ check(
 )
 check(
   'the plain chat names the resume door for another waiting session',
-  needsYouJump({ plain: true, ownOnly: false, boardChord: 'alt+g' }) === '/resume',
+  needsYouJump({ plain: true, ownOnly: false, boardChord: 'alt+g' }) === '/sessions',
 )
 
 section('§3 the advertised action is real and reaches the board')

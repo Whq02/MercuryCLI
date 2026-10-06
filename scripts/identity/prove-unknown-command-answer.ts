@@ -3,9 +3,10 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execFileSync, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join, relative, resolve } from 'node:path'
+import ts from 'typescript'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'unknown-command-home-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
@@ -31,8 +32,33 @@ const domains = await import('../../src/components/HelpV2/commandDomains.ts')
 
 const roster = [...commands.builtinCommands()]
 const RETIRED = 'insights'
-const NAMES = [RETIRED, 'doctor', 'party', 'multiplayer', 'rooms', 'share', 'invite', 'handoff', 'delegate', 'prompt', 'request', 'tickets', 'say', 'security-review', 'terminal-setup', 'pr-comments', 'cost', 'color', 'release-notes', 'heapdump', 'files', 'mock-limits', 'supervisor', 'view']
+const NAMES = [RETIRED, 'doctor', 'party', 'multiplayer', 'rooms', 'share', 'invite', 'handoff', 'delegate', 'prompt', 'request', 'tickets', 'say', 'security-review', 'terminal-setup', 'pr-comments', 'cost', 'color', 'release-notes', 'heapdump', 'files', 'mock-limits', 'supervisor', 'view', 'harness', 'counsel', 'ledger', 'substrate', 'authority', 'sovereign', 'policy', 'provenance', 'home', 'fullscreen', 'cockpit', 'deck', 'monitor', 'fleet', 'live', 'capabilities-detail', 'agent-form', 'sessiontab', 'surfaces', 'manager', 'debrief', 'status', 'auto-compact-window', 'resume', 'continue', 'halt', 'speak', 'jevor', 'accent', 'branch', 'branches', 'fork', 'init']
 const NEVER_HAD = 'frobnicate'
+const NOT_A_COMMAND: Record<string, string> = {
+  'src/constants/changelog.ts': 'the release history: each release names what it shipped',
+  'src/tools/GitTool/GitTool.ts /branch': 'the mercury://repo/branch resource address',
+}
+const roadPattern = new RegExp('(?<![\\w./\\\\<:-])/(' + NAMES.map(name => name.replace(/-/g, '\\-')).join('|') + ')(?![\\w/\\\\-])', 'g')
+const productFiles = (dir: string): string[] => readdirSync(dir).flatMap(entry => {
+  const path = join(dir, entry)
+  if (statSync(path).isDirectory()) return productFiles(path)
+  return /\.tsx?$/.test(entry) && !entry.endsWith('.d.ts') ? [path] : []
+})
+const roads = new Map<string, string[]>()
+for (const path of productFiles(join(REPO, 'src'))) {
+  const rel = relative(REPO, path)
+  if (NOT_A_COMMAND[rel] !== undefined) continue
+  const source = ts.createSourceFile(path, readFileSync(path, 'utf8'), ts.ScriptTarget.Latest, true, path.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
+  const visit = (node: ts.Node): void => {
+    const words = ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node) || ts.isJsxText(node) ? node.text : undefined
+    for (const match of words === undefined ? [] : words.matchAll(roadPattern)) {
+      if (NOT_A_COMMAND[`${rel} /${match[1]}`] !== undefined) continue
+      roads.set(match[1]!, [...(roads.get(match[1]!) ?? []), `${rel}:${source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1}`])
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(source)
+}
 const shape = (line: string, name: string): string => line.replace(`/${name}`, '/<name>').replace(/ — closest: \/[\w:-]+/, '')
 const neverLine = slash.unknownCommandLine(NEVER_HAD, roster)
 const surfaces = catalogue.effectiveCatalogue()
@@ -49,8 +75,8 @@ for (const name of NAMES) {
   check('typed, it answers with the ordinary unknown-command sentence', line.startsWith(`Unknown command: /${name}`) && line.endsWith('/help lists commands'), line)
   check('…the same sentence a never-registered name gets (no special line, no pointer to a replacement)', shape(line, name) === shape(neverLine, NEVER_HAD), `${line} | ${neverLine}`)
   check('the sentence never says the name was ever a command', !/retired|removed|renamed|no longer|replaced|use \//.test(line), line)
-  check('the command module is gone from the tree', !existsSync(join(REPO, 'src/commands', `${name}.ts`)) && !existsSync(join(REPO, 'src/commands', name)))
   check("the README's command table carries no such cell", !readme.includes(`\`/${name}\``))
+  check('no product string names it — no link, click, hint, tip or receipt leads a user to an unknown command', !roads.has(name), (roads.get(name) ?? []).join(' · '))
 }
 check('the roster module imports no such command', !readFileSync(join(REPO, 'src/commands.ts'), 'utf8').includes(RETIRED) && !readFileSync(join(REPO, 'src/commands.ts'), 'utf8').includes('retired'))
 check('the query sources name no such caller', !readFileSync(join(REPO, 'src/constants/querySource.ts'), 'utf8').includes(RETIRED))
@@ -86,6 +112,7 @@ if (existsSync(dist)) {
   try {
     const never = door(NEVER_HAD)
     for (const name of NAMES) {
+      if (existsSync(`/${name}`)) continue
       const typed = door(name)
       check(`typed at the headless door, /${name} gets the runner's own unknown-skill line and exit 0`, typed.code === 0 && typed.out.trim() === `Unknown skill: ${name}`, JSON.stringify(typed))
       check('…byte for byte the answer a never-registered name gets, with the name swapped', typed.code === never.code && typed.out === never.out.replaceAll(NEVER_HAD, name) && typed.err === never.err, JSON.stringify(never))

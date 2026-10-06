@@ -33,7 +33,6 @@ try {
   const hook = await import(world.path('src/hooks/useProviderUsageOnShow.ts'))
   mock.module(world.path('src/hooks/useProviderUsageOnShow.ts'), () => ({ ...hook, useProviderUsageOnShow: () => {} }))
   const { Usage } = await import(world.path('src/components/Settings/Usage.tsx'))
-  const { Deck } = await import(world.path('src/components/Deck.tsx'))
   const { AccountView } = await import(world.path('src/components/mercury-ui/parity/AccountView.tsx'))
   const { AppStateProvider } = await import(world.path('src/state/AppState.tsx'))
   const { HelmTelemetryRail } = await import(world.path('src/components/HelmTelemetryRail.tsx'))
@@ -42,7 +41,6 @@ try {
     const at = { columns, rows: 70 }
     for (const [name, node] of [
       ['usage', React.createElement(Usage, { width: columns - 4, rowBudget: 60 })],
-      ['deck', React.createElement(Deck, { onClose() {} })],
       ['accounts', React.createElement(AppStateProvider, { children: React.createElement(AccountView, { onClose() {} }) })],
     ] as const) {
       const board = await world.mount(node, at)
@@ -71,7 +69,7 @@ try {
   world.save('credits-usage-unreported', board.frame(), { columns: 80, rows: 70 })
   board.close()
 
-  const shapes: Array<{ name: string; shape: Partial<ActiveSourceUsage>; tab?: string; deck: string; rail: string[] }> = [
+  const shapes: Array<{ name: string; shape: Partial<ActiveSourceUsage>; tab?: string; rail: string[] }> = [
     {
       name: 'openai-full-on-credits',
       shape: {
@@ -81,7 +79,6 @@ try {
         carry: { state: 'carries', display: 'on credits · 62,500 left', compact: 'on credits 62.5k', source: 'endpoint', observedAtMs: world.now() },
       },
       tab: 'A usage window reads 100% · on credits · 62,500 left.',
-      deck: '100% · on credits · 62,500 left',
       rail: ['100% · on credits 62.5k'],
     },
     {
@@ -94,7 +91,6 @@ try {
         limited: { resetsAtMs: world.now() + 30 * 60_000 },
       },
       tab: 'A usage window is reached — resets ',
-      deck: 'limit reached · resets 30m · no credits — nothing carries requests until the reset',
       rail: ['limit reached · resets', 'no credits'],
     },
     {
@@ -106,7 +102,6 @@ try {
         carry: { state: 'nothing', display: 'extra usage off — nothing carries requests until the reset', compact: 'extra usage off', source: 'endpoint', observedAtMs: world.now() },
         limited: { resetsAtMs: world.now() + 3_600_000 },
       },
-      deck: 'limit reached · resets 1h · extra usage off — nothing carries requests until the reset',
       rail: ['limit reached · resets', 'extra usage off'],
     },
     {
@@ -117,11 +112,10 @@ try {
         credits: { state: 'reported', display: 'CNY 12.34 Extra Usage balance', compact: 'CNY 12.34 extra', source: 'endpoint', observedAtMs: world.now() },
         carry: { state: 'carries', display: 'on Extra Usage · CNY 12.34 left', compact: 'on Extra Usage CNY 12.34', source: 'endpoint', observedAtMs: world.now() },
       },
-      deck: '100% · on Extra Usage · CNY 12.34 left',
       rail: ['100% · on Extra Usage CNY 12.34'],
     },
   ]
-  for (const { name, shape, tab, deck, rail } of shapes) {
+  for (const { name, shape, tab, rail } of shapes) {
     delete view.limited
     Object.assign(view, { sourceKind: 'subscription-oauth', shape: 'subscription-windows', pools: [] }, shape)
     for (const columns of [80, 120]) {
@@ -133,11 +127,6 @@ try {
         check(`${name}: the /usage tab at ${columns} says what carries the requests after its reached sentence`, usageFrame.includes(tab) && (view.limited === undefined || usageFrame.includes(view.carry!.display)) && world.inBounds(usageBoard.frame(), at) && !usageBoard.frame().includes('RENDER ERROR'), usageBoard.frame())
         usageBoard.close()
       }
-      const deckBoard = await world.mount(React.createElement(Deck, { onClose() {} }), at)
-      world.save(`carry-${name}-deck`, deckBoard.frame(), at)
-      const deckFlat = deckBoard.frame().replace(/[│╭╮╰╯─]/g, ' ').replace(/\s+/g, ' ')
-      check(`${name}: /deck at ${columns} carries the words on its reached line`, deckFlat.includes(deck) && world.inBounds(deckBoard.frame(), at) && !deckBoard.frame().includes('RENDER ERROR'), deckBoard.frame())
-      deckBoard.close()
       const railBoard = await world.mount(React.createElement(HelmTelemetryRail, { width: 30, availRows: 65 }), at)
       world.save(`carry-${name}-rail`, railBoard.frame(), at)
       const railFlat = railBoard.frame().split('\n').map(line => line.replace(/[│╭╮╰╯─]/g, '').trim()).join(' ').replace(/\s+/g, ' ')

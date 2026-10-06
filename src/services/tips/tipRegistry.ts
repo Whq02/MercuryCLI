@@ -147,7 +147,7 @@ const GENERAL_TIPS: Tip[] = [
     id: 'resume-session',
     cooldownSessions: 10,
     async content() {
-      return '/resume reopens an earlier session — pick one and keep working.'
+      return '/sessions reopens an earlier session — pick one and keep working.'
     },
     async isRelevant() {
       return true

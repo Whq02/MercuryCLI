@@ -34,13 +34,6 @@ section('§2 the fill owner: the absent state is the em dash')
 
 section('§3 the shape')
 {
-  const fullscreen = read('src/commands/fullscreen/fullscreen.tsx')
-  check('/fullscreen reads the five-hour QUOTA window for its "5h" row (the base read the context gauge)', /const fiveHour = quotaWindows\(\)\.fiveHour/.test(fullscreen) && !/contextGauge\(/.test(fullscreen))
-  check('…and passes unknown through as null (never `?? 0`)', /usagePct=\{fiveHour\.usedPct === null \? null : Math\.round\(fiveHour\.usedPct\)\}/.test(fullscreen) && !/usedPct \?\? 0/.test(fullscreen))
-  const rail = read('src/components/MercuryFullscreen.tsx')
-  check('the rail component accepts the absent state', /usagePct\?: number \| null/.test(rail))
-  check('…and paints the em dash for it, the ramp only for a number', /usagePct === null \? <Text color=\{FAINT\}>—<\/Text> : <Text color=\{usagePct < 80/.test(rail))
-
   const picker = read('src/commands/model/mercuryModel.tsx')
   check("/model's gauge reads the served model (the focused seat's effective row, the session override, then the global model)", /const servedModel = focusedSeat !== null \? focusedSeat\.effective : \(engineModelForSession \?\? getEngineModel\(\)\)/.test(picker) && /contextFillView\(messages, servedModel\)/.test(picker))
   check('…and never the global model alone', !/contextFillView\(messages, getEngineModel\(\)\)/.test(picker))

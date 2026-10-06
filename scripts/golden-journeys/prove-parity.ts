@@ -160,7 +160,6 @@ check('identity is the durable run', work.identity.runId === kernel?.runId && wo
     richTasks: new Map(),
     agentMeta: new Map(),
     laneRuns: new Map(),
-    contextLanes: [],
     partySeats: null,
     collab: null,
     workflowsDisk: [],
@@ -169,7 +168,6 @@ check('identity is the durable run', work.identity.runId === kernel?.runId && wo
     sources: {
       schema: WORKBENCH_SOURCES_SCHEMA,
       artifacts: healthOf(sourceReady(null)),
-      contextLanes: healthOf(sourceReady(null)),
       gitWorktrees: healthOf(sourceReady(null)),
     },
   }

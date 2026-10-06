@@ -121,7 +121,7 @@ export function formatCommandLoadingMetadata(fullName: string, args: string): st
   return `<${COMMAND_MESSAGE_TAG}>${fullName}</${COMMAND_MESSAGE_TAG}><${COMMAND_NAME_TAG}>/${fullName}</${COMMAND_NAME_TAG}>${argsTag}`
 }
 
-export function unavailableCommandLine(real: Command): string {
+export function unavailableCommandLine(real: Command, args = ''): string {
   const name = getCommandName(real)
   if (commandOffInPlainWorld(real)) {
     return `The /${name} command opens a Session Concourse surface — ${concourseOffSentence() ?? 'the Session Concourse is off in this boot'}.`
@@ -131,7 +131,15 @@ export function unavailableCommandLine(real: Command): string {
   }
   if (getIsNonInteractiveSession()) {
     if (real.type === 'local-jsx' || commandSeat(real) === 'screen') {
-      return `The /${name} command is an interactive surface — it needs the foreground session and has no headless form.`
+      const verbs = real.type === 'local-jsx' ? real.headlessVerbs : undefined
+      if (verbs === undefined || verbs.length === 0) {
+        return `The /${name} command is an interactive surface — it needs the foreground session and has no headless form.`
+      }
+      const typed = args.trim().split(/\s+/)[0] ?? ''
+      if (!verbs.includes(typed)) {
+        const offered = verbs.map(verb => `/${name} ${verb}`).join(' · ')
+        return `The /${name} command is interactive in this form — headless it answers only ${offered}.`
+      }
     }
     if (real.type === 'local' && real.supportsNonInteractive !== true) {
       return `The /${name} command is interactive-only — run it in the foreground session.`
@@ -543,7 +551,7 @@ export async function processSlashCommand(
   const command = findCommand(commands, commandName)
 
   if (command && !isCommandEnabled(command)) {
-    const line = unavailableCommandLine(command)
+    const line = unavailableCommandLine(command, args)
     return {
       messages: [caveat, ...attachmentMessages, createUserMessage({ content: line })],
       shouldQuery: false,

@@ -308,7 +308,7 @@ console.log('P3 — --concourse-off at 100×30: the face keeps the row as its li
   reapHome(home)
 }
 
-console.log('P4 — --chat: /party answers the sentence, /sessions opens, /status says the world')
+console.log('P4 — --chat: /crewmates answers the sentence, /sessions opens, /config says the world')
 {
   const home = freshHome('commands')
   const c = await capture({
@@ -318,17 +318,13 @@ console.log('P4 — --chat: /party answers the sentence, /sessions opens, /statu
     sends: [
       g(CHAT_READY_LINE, ''),
       { afterPrevTicks: WARM_TICKS, data: '\r' },
-      g(COMPOSER, '/fleet', { awaitSettleTicks: 4 }),
+      g(COMPOSER, '/crewmates', { awaitSettleTicks: 4 }),
       { afterPrevTicks: 3, data: '\r' },
       { afterPrevTicks: 2, data: '\r' },
       g('opens a Session Concourse surface', '', { mark: 'party', awaitSettleTicks: 3 }),
       { afterPrevTicks: 3, data: '/sessions' },
       { afterPrevTicks: 3, data: '\r' },
       g(MANAGER_FOOTER, '', { mark: 'sessions', awaitSettleTicks: 3 }),
-      { afterPrevTicks: 2, data: ESC },
-      { afterPrevTicks: 4, data: '/status' },
-      { afterPrevTicks: 3, data: '\r' },
-      g('Mercury · status', '', { mark: 'status', awaitSettleTicks: 3 }),
       { afterPrevTicks: 2, data: ESC },
       { afterPrevTicks: 4, data: '/config' },
       { afterPrevTicks: 3, data: '\r' },
@@ -341,13 +337,12 @@ console.log('P4 — --chat: /party answers the sentence, /sessions opens, /statu
     stableTicks: 6,
     total: 360,
   })
-  printFrame('p4 (after the four commands)', c.lines)
+  printFrame('p4 (after the three commands)', c.lines)
   const party = markText(c, 'party')
   const partyFlat = paneFlat(party)
-  check('P4 /fleet typed in the plain world answers the router\'s sentence (off in this boot (--chat), a plain boot has it)', partyFlat.includes('The /fleet command opens a Session Concourse surface') && partyFlat.includes('the Session Concourse is off in this boot (--chat)') && partyFlat.includes('a plain mercury boot has it.'), party.split('\n').filter(l => /party|Concourse|this boot/i.test(l)).join(' | ').slice(0, 300))
+  check('P4 /crewmates typed in the plain world answers the router\'s sentence (off in this boot (--chat), a plain boot has it)', partyFlat.includes('The /crewmates command opens a Session Concourse surface') && partyFlat.includes('the Session Concourse is off in this boot (--chat)') && partyFlat.includes('a plain mercury boot has it.'), party.split('\n').filter(l => /crewmates|Concourse|this boot/i.test(l)).join(' | ').slice(0, 300))
   check('P4 POISON absent: never "Unknown skill", never the generic enablement line, no crash', !c.text.includes('Unknown skill') && !c.text.includes('exists but is not enabled') && !c.text.includes('Mercury exited on an error'))
   check('P4 /sessions opens the session manager (the plain CLI\'s own — not gated with the concourse)', markText(c, 'sessions').includes(MANAGER_FOOTER), firstRows(markText(c, 'sessions')))
-  check('P4 /status opens the status card (the session snapshot line and its environment rows)', markText(c, 'status').includes('session snapshot') && markText(c, 'status').includes('Session & environment'), firstRows(markText(c, 'status')))
   const configFlat = paneFlat(markText(c, 'config'))
   check('P4 /config carries the Session concourse row saying "off this boot (--chat)", and its note names the next plain boot', configFlat.includes('Session concourse') && configFlat.includes('off this boot (--chat)') && configFlat.includes('the switch governs the next plain `mercury` boot'), markText(c, 'config').split('\n').filter(l => /concourse|this boot/i.test(l)).join(' | ').slice(0, 300))
   check('P4 the chat is still the frame after the dialogs close (the composer is live on the post-esc frame itself)', markText(c, 'closed').includes(COMPOSER), firstRows(markText(c, 'closed')))

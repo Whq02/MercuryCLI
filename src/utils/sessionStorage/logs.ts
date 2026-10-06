@@ -586,10 +586,10 @@ export async function listRepoSessionsProgressive(
   initialEnrichCount: number = INITIAL_ENRICH_COUNT,
 ): Promise<SessionPage> {
   logForDebugging(
-    `/resume: loading sessions for cwd=${getOriginalCwd()}, worktrees=[${worktreePaths.join(', ')}]`,
+    `/sessions: loading sessions for cwd=${getOriginalCwd()}, worktrees=[${worktreePaths.join(', ')}]`,
   )
   const allStatLogs = await getStatOnlyLogsForWorktrees(worktreePaths, limit)
-  logForDebugging(`/resume: found ${allStatLogs.length} session files on disk`)
+  logForDebugging(`/sessions: found ${allStatLogs.length} session files on disk`)
   return progressivePage(allStatLogs, initialEnrichCount)
 }
 
@@ -935,7 +935,7 @@ async function enrichLog(
   }
   const hidden = enriched.isSidechain ? 'isSidechain=true' : enriched.crewName ? `crewName=${enriched.crewName}` : undefined
   if (hidden) {
-    logForDebugging(`Session ${log.sessionId} filtered from /resume: ${hidden}`)
+    logForDebugging(`Session ${log.sessionId} filtered from /sessions: ${hidden}`)
     return null
   }
   return enriched
@@ -957,7 +957,7 @@ export async function enrichSessionListings(
   const filtered = scanned - logs.length
   if (filtered > 0) {
     logForDebugging(
-      `/resume: enriched ${scanned} sessions, ${filtered} filtered out, ${logs.length} visible (${allLogs.length - nextIndex} remaining on disk)`,
+      `/sessions: enriched ${scanned} sessions, ${filtered} filtered out, ${logs.length} visible (${allLogs.length - nextIndex} remaining on disk)`,
     )
   }
   return { logs, nextIndex }

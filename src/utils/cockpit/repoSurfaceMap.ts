@@ -2,13 +2,6 @@
 import { closeSync, lstatSync, openSync, readSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { composedGuideFilesAt } from '../../services/instructions/adapters/index.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
-
-export function repoSurfaceMapEnabled(): boolean {
-  if (flagEnv('MERCURY_ONBOARDING') === '0') return false
-  return true
-}
 
 const MAX_DEPTH = 5
 const MAX_ENTRIES = 4000
@@ -163,16 +156,6 @@ function packageFacts(root: string): PkgFacts | null {
   }
 }
 
-const orientationDocMemo = new Map<string, boolean>()
-
-export function hasOrientationDoc(root: string): boolean {
-  const memoized = orientationDocMemo.get(root)
-  if (memoized !== undefined) return memoized
-  const found = composedGuideFilesAt(root).length > 0
-  orientationDocMemo.set(root, found)
-  return found
-}
-
 export interface RepoSurfaceFacts {
   headline: string | null
   pkg: PkgFacts | null
@@ -312,9 +295,4 @@ export function renderRepoSurfaceMap(facts: RepoSurfaceFacts): string {
 
   const md = lines.join('\n')
   return md.length > MAX_MAP_CHARS ? md.slice(0, MAX_MAP_CHARS - 1) + '…' : md
-}
-
-export function buildRepoSurfaceMap(root: string): string | null {
-  const facts = scanRepoSurface(root)
-  return facts ? renderRepoSurfaceMap(facts) : null
 }

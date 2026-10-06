@@ -274,7 +274,7 @@ async function settle(): Promise<void> {
 }
 const phase = (): string => session.voiceSnapshot().phase
 
-section('§0 the rig — the fixture microphone, a loopback transcriber that answers "world", /speak on, the composer stand-in')
+section('§0 the rig — the fixture microphone, a loopback transcriber that answers "world", /voice on, the composer stand-in')
 const fx = await startFixture()
 process.env.MERCURY_OPENAI_API_BASE = `http://127.0.0.1:${fx.port}/v1`
 process.env.OPENAI_API_KEY = 'sk-fixture-voice-000000000000000000000000'
@@ -452,7 +452,7 @@ if (hold !== null) {
   composer.press(' ')
   clock.advance(30)
   composer.press(' ')
-  check('with /speak off every space types at once — no hold, no hold-back', composer.text() === 'off   ' && hold.holdToTalkSnapshot() === null, JSON.stringify(composer.text()))
+  check('with /voice off every space types at once — no hold, no hold-back', composer.text() === 'off   ' && hold.holdToTalkSnapshot() === null, JSON.stringify(composer.text()))
   session.setVoiceInputEnabled(true)
 } else {
   check('the hold reader module exists (src/services/voice/holdToTalk.ts)', false, 'absent on this tree')
@@ -463,15 +463,15 @@ section('§7 the words say the new law: hold space to speak, release to stop, es
   const status = session.describeVoiceStatus({ ...process.env, PATH: EMPTY_BIN })
   check('RECORDING_FOOTER: release to stop, esc cancels', /release/.test(session.RECORDING_FOOTER) && /esc/.test(session.RECORDING_FOOTER) && !/space or esc to stop/.test(session.RECORDING_FOOTER), session.RECORDING_FOOTER)
   check('VOICE_OFF_RECEIPT teaches the hold, not the empty composer', /hold space/.test(session.VOICE_OFF_RECEIPT) && !/empty composer/.test(session.VOICE_OFF_RECEIPT), session.VOICE_OFF_RECEIPT)
-  check('/speak status ON line: hold space, release to stop, esc cancels', /hold space/.test(status) && /release/.test(status) && /esc/.test(status) && !/empty composer/.test(status), status.split('\n')[0] ?? '')
-  check('/speak status names /voice as the road for a terminal whose key repeat is off', /\/voice/.test(status) && /repeat/.test(status), status.split('\n').filter(l => l.includes('/voice')).join(' · '))
-  const speak = await import('../../src/commands/speak/speak.js')
+  check('/voice status ON line: hold space, release to stop, esc cancels', /hold space/.test(status) && /release/.test(status) && /esc/.test(status) && !/empty composer/.test(status), status.split('\n')[0] ?? '')
+  check('/voice status names /voice as the road for a terminal whose key repeat is off', /\/voice/.test(status) && /repeat/.test(status), status.split('\n').filter(l => l.includes('/voice')).join(' · '))
+  const speak = await import('../../src/commands/voice/voice.js')
   session.setVoiceInputEnabled(false)
   const on = await speak.call('on', {} as never)
   const onText = on.type === 'text' ? on.value : ''
-  check('/speak on teaches the hold (the threshold in seconds), the release, esc, and /voice for a key that never repeats', /hold space/.test(onText) && /1 s|1 second|one second/.test(onText) && /release/.test(onText) && /esc/.test(onText) && /\/voice/.test(onText) && /repeat/.test(onText) && !/empty composer/.test(onText), onText.split('\n')[0] ?? '')
+  check('/voice on teaches the hold (the threshold in seconds), the release, esc, and /voice for a key that never repeats', /hold space/.test(onText) && /1 s|1 second|one second/.test(onText) && /release/.test(onText) && /esc/.test(onText) && /\/voice/.test(onText) && /repeat/.test(onText) && !/empty composer/.test(onText), onText.split('\n')[0] ?? '')
   const off = await speak.call('off', {} as never)
-  check('/speak off says OFF and that space is a space again', off.type === 'text' && /OFF/.test(off.value) && /space is a space/.test(off.value), off.type === 'text' ? off.value : off.type)
+  check('/voice off says OFF and that space is a space again', off.type === 'text' && /OFF/.test(off.value) && /space is a space/.test(off.value), off.type === 'text' ? off.value : off.type)
   session.setVoiceInputEnabled(true)
   const voice = await import('../../src/commands/voice/voice.js')
   fresh('')

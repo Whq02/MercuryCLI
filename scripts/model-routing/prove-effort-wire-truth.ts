@@ -67,8 +67,6 @@ const localDiscovery = await import('../../src/services/providers/local/localDis
 const localCatalogue = await import('../../src/services/providers/local/localCatalogue.ts')
 const localCallModel = await import('../../src/services/providers/local/localCallModel.ts')
 const routerAnthropic = await import('../../src/utils/router/providers/anthropic.ts')
-const harness = await import('../../src/services/mission/harnessApplication.ts')
-const harnessProfiles = await import('../../src/services/mission/harnessProfiles.ts')
 const coordinatorModels = await import('../../src/services/concourse/coordinatorModels.ts')
 const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(false)
@@ -456,28 +454,6 @@ section('§8 the two effort doors say what they do')
   process.env.MERCURY_EFFORT_LEVEL = '3'
   check('getEffortEnvOverride ignores the integer (resolves as unset)', effort.getEffortEnvOverride() === undefined && effort.resolveEffortTruth('claude-opus-5', 'low').wire === 'low')
   delete process.env.MERCURY_EFFORT_LEVEL
-}
-
-section('§9 the harness effort fact is the owner\'s applied tier')
-{
-  check('kimi-k3 · medium ⇒ the fact is low (the tier the request carries)', harness.harnessEffortFact('kimi-k3', 'medium') === 'low')
-  check('opus-5 · max ⇒ max', harness.harnessEffortFact('claude-opus-5', 'max') === 'max')
-  check('a no-dial model ⇒ null', harness.harnessEffortFact('huggingface/openai/gpt-oss-120b', 'high') === null)
-  check('an absent model ⇒ null', harness.harnessEffortFact(null, 'high') === null && harness.harnessEffortFact('', 'high') === null)
-  check("the reason codes carry 'effort-fact-absent' beside 'effort-incompatible'", (harnessProfiles.HARNESS_REASON_CODES as readonly string[]).includes('effort-fact-absent') && (harnessProfiles.HARNESS_REASON_CODES as readonly string[]).includes('effort-incompatible'))
-  const profilesSrc = src('src/services/mission/harnessProfiles.ts')
-  check('an absent fact declines under its own code; a mismatch under the other', profilesSrc.includes("if (facts.effortLevel === null) return 'effort-fact-absent'") && profilesSrc.includes("if (!profile.compatibility.effortLevels.includes(facts.effortLevel)) return 'effort-incompatible'"))
-  const boundaries = [
-    ['src/components/mercury-ui/HarnessChip.tsx', 'harnessEffortFact(model, effortValue)'],
-    ['src/components/mercury-ui/parity/HarnessView.tsx', 'harnessEffortFact(mainModel, effortValue)'],
-    ['src/run-core/turn-machine.ts', 'refreshGovernorCeilings(iter.currentModel, iter.appState.effortValue)'],
-    ['src/run-core/turn-machine.ts', 'toolUseContext.getAppState?.()?.effortValue'],
-    ['src/commands/context/context-noninteractive.ts', 'harnessContextPolicyRequest(params.engineModel, params.effortValue)'],
-    ['src/tools/AgentTool/AgentTool.tsx', 'harnessEffortFact('],
-  ] as const
-  for (const [file, needle] of boundaries) {
-    check(`${file.split('/').pop()} threads the fact`, src(file).includes(needle))
-  }
 }
 
 section('§10 the shape: one vocabulary owner, the predicates its projections')

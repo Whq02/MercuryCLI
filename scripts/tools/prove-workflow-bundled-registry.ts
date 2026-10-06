@@ -71,8 +71,8 @@ section('the tool, the consent dialog and the prompt carry no per-workflow speci
   const consent = code(read('src/tools/WorkflowTool/WorkflowPermissionRequest.tsx'))
   check('the consent facts branch on no workflow name (source · phases · args · resume only)', !/workflowName\s*===/.test(consent) && consent.includes("{ k: 'args'") && consent.includes("{ k: 'resume'"))
   const prompt = code(read('src/tools/WorkflowTool/workflowPrompt.ts'))
-  check('the prompt module reads no flag (its gated addendum is the ledger global alone)', !prompt.includes('flagRegistry') && !/flagEnabled\(|flagEnv\(/.test(prompt))
-  check('the prompt composes exactly the base text, the doctrine and the one gated global', /text \+= AUTHORING_DOCTRINE_SECTION\s*\n\s*if \(evolutionLedgerEnabled\(\)\) text \+= LEDGER_GLOBAL_SECTION\s*\n\s*return text/.test(prompt))
+  check('the prompt module reads no flag (the gates are gone with the ledger)', !prompt.includes('flagRegistry') && !/flagEnabled\(|flagEnv\(/.test(prompt))
+  check('the prompt composes exactly the base text and the doctrine', /return WORKFLOW_TOOL_PROMPT \+ AUTHORING_DOCTRINE_SECTION/.test(prompt))
 }
 
 rmSync(scratch, { recursive: true, force: true })

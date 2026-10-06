@@ -172,7 +172,7 @@ function receiptOf(batch: string[]): string {
   check('C5 the screen dispatches on commandSeat and runs screen-seat locals against the focused connector', repl.includes("const seat = seatCommand === undefined ? 'session' : commandSeat(seatCommand)") && repl.includes('paintScreenCommandReceipt(getCommandName(seatCommand), args, result.value)'))
   const clear = read('src/commands/clear/clear.ts')
   check('C5 /clear acts on the screen: the old session released, a fresh session born (the one-door law)', clear.includes('clearFocusedSession()'))
-  for (const name of ['accent', 'bootmenu', 'clear', 'keybindings', 'mouse', 'rewind', 'vim']) {
+  for (const name of ['bootmenu', 'clear', 'keybindings', 'mouse', 'rewind', 'vim']) {
     check(`C5 /${name} is marked a screen-seat command`, read(`src/commands/${name}/index.ts`).includes("seat: 'screen'"))
   }
 }
@@ -188,8 +188,8 @@ console.log('C6 — the plain world: the concourse-only commands, one predicate,
   const registry = [...builtinCommands()]
   const concourseOnly = registry.filter(c => c.needsConcourse === true)
   const byName = (name: string) => registry.find(c => c.name === name)
-  check('C6 the concourse-only set is declared: cockpit · crew · crewmates · fleet · live · monitor · workflows', JSON.stringify(concourseOnly.map(c => c.name).sort()) === JSON.stringify(['cockpit', 'crew', 'crewmates', 'fleet', 'live', 'monitor', 'workflows']), concourseOnly.map(c => c.name).sort().join(' '))
-  check("C6 the plain CLI's own commands are not gated with them (/sessions · /runs · /resume) and /concourse stays the explicit door", ['sessions', 'runs', 'resume', 'concourse'].every(n => byName(n) !== undefined && byName(n)!.needsConcourse !== true), ['sessions', 'runs', 'resume', 'concourse'].map(n => `${n}:${byName(n) === undefined ? 'absent' : String(byName(n)!.needsConcourse === true)}`).join(' '))
+  check('C6 the concourse-only set is declared: crew · crewmates · workflows', JSON.stringify(concourseOnly.map(c => c.name).sort()) === JSON.stringify(['crew', 'crewmates', 'workflows']), concourseOnly.map(c => c.name).sort().join(' '))
+  check("C6 the plain CLI's own commands are not gated with them (/sessions · /runs) and /concourse stays the explicit door", ['sessions', 'runs', 'concourse'].every(n => byName(n) !== undefined && byName(n)!.needsConcourse !== true), ['sessions', 'runs', 'concourse'].map(n => `${n}:${byName(n) === undefined ? 'absent' : String(byName(n)!.needsConcourse === true)}`).join(' '))
   const { findCommand, builtInCommandNames } = await import('../../src/commands.ts')
   const oldBoard = ['te', 'am'].join('')
   check('C6 the old board command is gone, not gated: the retired name is no command (its board is /runs) and /crew is the concourse-only crew directory', byName(oldBoard) === undefined && findCommand(oldBoard, registry) === undefined && byName('crew')?.needsConcourse === true, `/${oldBoard}: ${byName(oldBoard) === undefined ? 'absent' : 'present'} · /crew needsConcourse ${String(byName('crew')?.needsConcourse)}`)
@@ -202,13 +202,13 @@ console.log('C6 — the plain world: the concourse-only commands, one predicate,
   route.markChatBoot()
   check('C6 --chat: exactly the concourse-only commands are off by the world', registry.every(c => commandOffInPlainWorld(c) === (c.needsConcourse === true)))
   check('C6 --chat: the one enablement read drops them from the table', concourseOnly.every(c => !isCommandEnabled(c)))
-  const chatLine = unavailableCommandLine(byName('fleet')!)
-  check('C6 --chat: /fleet typed answers the sentence — off in this boot (--chat), a plain boot has it', chatLine.includes('The /fleet command opens a Session Concourse surface — the Session Concourse is off in this boot (--chat) — a plain `mercury` boot has it.'), chatLine)
+  const chatLine = unavailableCommandLine(byName('crewmates')!)
+  check('C6 --chat: /crewmates typed answers the sentence — off in this boot (--chat), a plain boot has it', chatLine.includes('The /crewmates command opens a Session Concourse surface — the Session Concourse is off in this boot (--chat) — a plain `mercury` boot has it.'), chatLine)
   check('C6 POISON absent: no concourse-only command answers the generic enablement line or "Unknown skill" in the plain world', concourseOnly.every(c => { const l = unavailableCommandLine(c); return !l.includes('exists but is not enabled') && !l.includes('Unknown skill') }))
   check('C6 --chat over a saved switch off is no contradiction: both = the plain world, the sentence names both and the way back', (() => { setConcourseEnabled(false); const l = unavailableCommandLine(byName('workflows')!); setConcourseEnabled(true); return l.includes('(--chat · concourse off)') && l.includes('`mercury --concourse-on` or /config turns it back') })())
   route._resetSurfaceRouteForTesting()
   setConcourseEnabled(false)
-  check('C6 the switch off: the same set is off; the sentence names the way back (--concourse-on or /config)', concourseOnly.every(c => commandOffInPlainWorld(c)) && unavailableCommandLine(byName('cockpit')!).includes('the Session Concourse is off in this boot (concourse off) — `mercury --concourse-on` or /config turns it back'))
+  check('C6 the switch off: the same set is off; the sentence names the way back (--concourse-on or /config)', concourseOnly.every(c => commandOffInPlainWorld(c)) && unavailableCommandLine(byName('crewmates')!).includes('the Session Concourse is off in this boot (concourse off) — `mercury --concourse-on` or /config turns it back'))
   setConcourseEnabled(true)
   check('C6 the switch back on: the fleet world again (off is never a one-way door)', registry.every(c => !commandOffInPlainWorld(c)))
   check('C6 the sentence has one owner (surfaceRoute.concourseOffSentence) and the dispatcher reads it first', read('src/utils/processUserInput/processSlashCommand.tsx').includes('if (commandOffInPlainWorld(real)) {') && read('src/commands/enablement.ts').includes('command.needsConcourse === true && chatOnlyBoot()'))

@@ -329,9 +329,7 @@ as compact cards or with full output. Choose the display in `/config` under
 Tool output; the setting is saved for later launches.
 
 Use `/model` and `/effort` to adjust the session. `/permissions` controls what
-can run without approval and what must ask first. `/policy` is a read-only
-view of the current permission mode, sandbox settings and other permission
-controls.
+can run without approval and what must ask first.
 
 Review changes with `/diff`, by source, file and hunk. `/runs` shows running
 shells and agents (`/tasks` still opens the same board). When no turn is
@@ -626,10 +624,10 @@ Available commands include:
   chat, and looks facts
   up on every message; `/memory` is the front door. See
   [docs/MNEME.md](docs/MNEME.md).
-- **Voice input.** Run `/speak on`, then hold space for 1 s to dictate and
+- **Voice input.** Run `/voice on`, then hold space for 1 s to dictate and
   release it to stop. Transcription can run on-device or through your chosen cloud
   provider. The on-device option uses a 60 MB English model, downloaded once
-  with `/speak download`. Audio leaves the machine only after you stop
+  with `/voice download`. Audio leaves the machine only after you stop
   recording, and only when using a cloud provider. See
   [docs/VOICE.md](docs/VOICE.md).
 - **Computer use.** Enabled by default when the desktop driver is available.
@@ -656,21 +654,21 @@ documentation index is [docs/README.md](docs/README.md).
 ## Slash commands
 
 `/help` lists the available interactive commands. Use `/palette` for fuzzy
-command search and `/surfaces` to find the available interfaces. The table
+command search. The table
 below groups the main built-in commands by the categories used in `/help`;
 the live list can also include skills and extension commands.
 
 | Domain | Commands |
 | --- | --- |
 | current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
-| crew & delegation | `/agents` `/subagents` `/crewmates` `/crew` `/workflows` `/fleet` `/monitor` `/router` `/daemon` `/saturn` `/seats` `/live` `/halt` `/kill` `/unkill` `/surfaces` |
-| session & context | `/clear` `/compact` `/context` `/auto-compact-window` `/resume` `/rewind` `/sessions` `/concourse` `/branches` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/debrief` `/realms` |
-| memory & goals | `/memory` `/console` `/orient` |
-| model & effort | `/model` `/effort` `/submodels` `/advise` `/counsel` `/harness` `/caching` |
-| git & review | `/branch` `/review` `/audit` |
-| health & introspection | `/health` `/verify` `/status` `/trace` `/substrate` `/capabilities` `/capabilities-detail` `/ledger` `/provenance` |
-| config & setup | `/config` `/jev` `/jevor` `/localsetup` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/policy` `/authority` `/sovereign` `/sandbox` `/browser` `/init` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/speak` `/voice` |
-| appearance & cockpit | `/cockpit` `/home` `/appearance` `/accent` `/critter` `/palette` `/fullscreen` |
+| crew & delegation | `/agents` `/subagents` `/crewmates` `/crew` `/workflows` `/router` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
+| session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` |
+| memory & goals | `/memory` `/console` |
+| model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |
+| git & review | `/review` `/audit` |
+| health & introspection | `/health` `/verify` `/trace` `/capabilities` |
+| config & setup | `/config` `/jev` `/localsetup` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/sandbox` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
+| appearance & cockpit | `/appearance` `/critter` `/palette` |
 | account & app | `/logins` `/logout` `/accounts` `/defaultprovider` `/update-notes` `/feedback` `/help` `/exit` |
 
 `/mouse off` returns the pointer to the terminal for native text selection

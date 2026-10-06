@@ -29,7 +29,7 @@
 | Chat cockpit (direct boot / --continue / --resume <id>) | `src/screens/Chat.tsx → src/ink/components/AlternateScreen.tsx` | claims the held screen (outermost mount consumes + arms the takeover erase) |
 | non-takeover argv paths (run · --help · subcommands · piped stdout) | `src/entrypoints/cli.tsx` | releases the hold before any output |
 
-## Slash routes — modal-slot views (local-jsx: 67)
+## Slash routes — modal-slot views (local-jsx: 48)
 
 Host: the FullscreenLayout modal slot (opaque claim; SURFACE-CLAIM
 INVARIANT forces height = terminalRows at peek 0). Kernel signals name
@@ -38,15 +38,10 @@ the interaction primitives the view actually mounts (1-hop join).
 | route | kernel signals | unit |
 |---|---|---|
 | /accounts | ilist irow | `src/commands/accounts` |
-| /agent-form | flat | `src/commands/agent-form` |
 | /agents | flat | `src/commands/agents` |
 | /appearance | irow | `src/commands/appearance` |
-| /authority | irow | `src/commands/authority` |
-| /branch | — | `src/commands/branch` |
 | /caching | irow | `src/commands/caching` |
 | /capabilities | — | `src/commands/capabilities` |
-| /capabilities-detail | — | `src/commands/capabilities-detail` |
-| /cockpit | irow | `src/commands/cockpit` |
 | /console | irow | `src/commands/console` |
 | /context | — | `src/commands/context` |
 | /contract | — | `src/commands/contract` |
@@ -61,31 +56,21 @@ the interaction primitives the view actually mounts (1-hop join).
 | /export | — | `src/commands/export` |
 | /extensions | panes | `src/commands/extensions` |
 | /feedback | — | `src/commands/feedback` |
-| /fleet | — | `src/commands/fleet` |
-| /fullscreen | — | `src/commands/fullscreen` |
-| /harness | ilist irow | `src/commands/harness` |
 | /health | irow | `src/commands/health` |
 | /help | — | `src/commands/help` |
-| /home | irow | `src/commands/home` |
 | /hooks | — | `src/commands/hooks` |
 | /keys | irow | `src/commands/keys` |
 | /keysetup | — | `src/commands/keysetup` |
-| /ledger | panes | `src/commands/ledger` |
-| /live | — | `src/commands/live` |
 | /logins | ilist irow | `src/commands/login` |
 | /logout | — | `src/commands/logout` |
 | /mcp | ilist irow | `src/commands/mcp` |
 | /memory | flat irow | `src/commands/memory` |
 | /mission | — | `src/commands/mission` |
 | /model | irow | `src/commands/model` |
-| /monitor | panes | `src/commands/monitor` |
 | /palette | — | `src/commands/palette` |
 | /permissions | — | `src/commands/permissions` |
-| /policy | — | `src/commands/policy` |
-| /provenance | — | `src/commands/provenance` |
 | /realms | ilist irow | `src/commands/realms` |
 | /rename | — | `src/commands/rename` |
-| /resume | irow | `src/commands/resume` |
 | /router | panes | `src/commands/router` |
 | /run | irow | `src/commands/run` |
 | /runs | — | `src/commands/tasks` |
@@ -93,25 +78,21 @@ the interaction primitives the view actually mounts (1-hop join).
 | /sandbox | — | `src/commands/sandbox-toggle` |
 | /saturn | ilist irow | `src/commands/saturn` |
 | /sessions | irow | `src/commands/sessions` |
-| /sessiontab | — | `src/commands/sessiontab` |
 | /showcase | — | `src/commands/showcase` |
 | /skills | ilist irow | `src/commands/skills` |
-| /sovereign | — | `src/commands/sovereign` |
 | /submodels | ilist irow | `src/commands/submodels` |
-| /substrate | — | `src/commands/substrate` |
-| /surfaces | ilist irow | `src/commands/manager` |
 | /title | — | `src/commands/title` |
 | /trace | — | `src/commands/trace` |
 | /workbench | panes | `src/commands/workbench` |
 | /workflows | panes | `src/commands/workflows` |
 
-## Slash routes — transcript prints (local: 29)
+## Slash routes — transcript prints (local: 19)
 
-`/accent` · `/advise` · `/auto-compact-window` · `/bootmenu` · `/branches` · `/browser` · `/clear` · `/compact` · `/concourse` · `/config` · `/counsel` · `/debrief` · `/halt` · `/jev` · `/jevor` · `/keybindings` · `/kill` · `/localsetup` · `/mouse` · `/orient` · `/rewind` · `/seats` · `/speak` · `/status` · `/subagents` · `/update-notes` · `/usage` · `/vim` · `/voice`
+`/advise` · `/bootmenu` · `/browser` · `/clear` · `/compact` · `/concourse` · `/config` · `/jev` · `/keybindings` · `/kill` · `/localsetup` · `/mouse` · `/rewind` · `/seats` · `/subagents` · `/update-notes` · `/usage` · `/vim` · `/voice`
 
-## Slash routes — model turns (prompt: 3)
+## Slash routes — model turns (prompt: 2)
 
-`/init` · `/review` · `/verify`
+`/review` · `/verify`
 
 ## Other route types (2)
 

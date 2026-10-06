@@ -6,9 +6,6 @@ import { isCommandEnabled } from './commands/enablement.js'
 import verify from './commands/verify.js'
 import advise from './commands/advise/index.js'
 import agents from './commands/agents/index.js'
-import branch from './commands/branch/index.js'
-import branches from './commands/branches/index.js'
-import counsel from './commands/counsel/index.js'
 import clear from './commands/clear/index.js'
 import caching from './commands/caching/index.js'
 import compact from './commands/compact/index.js'
@@ -17,27 +14,14 @@ import contractCommand from './commands/contract/index.js'
 import copy from './commands/copy/index.js'
 import { context, contextNonInteractive } from './commands/context/index.js'
 import { mission, missionNonInteractive } from './commands/mission/index.js'
-import autoCompactWindow from './commands/auto-compact-window/index.js'
 import crew from './commands/crew/index.js'
-import debrief from './commands/debrief/index.js'
-import halt from './commands/halt/index.js'
 import critter from './commands/critter/index.js'
 import bootmenu from './commands/bootmenu/index.js'
 import concourse from './commands/concourse/index.js'
-import cockpit from './commands/cockpit/index.js'
-import ledger from './commands/ledger/index.js'
 import run from './commands/run/index.js'
-import fleet from './commands/fleet/index.js'
-import monitor from './commands/monitor/index.js'
-import home from './commands/home/index.js'
-import manager from './commands/manager/index.js'
-import policy from './commands/policy/index.js'
 import browser from './commands/browser/index.js'
-import provenance from './commands/provenance/index.js'
 import samples from './commands/samples/index.js'
 import sessions from './commands/sessions/index.js'
-import sessiontab from './commands/sessiontab/index.js'
-import substrate from './commands/substrate/index.js'
 import trace from './commands/trace/index.js'
 import { kill, unkill } from './commands/kill/index.js'
 import diff from './commands/diff/index.js'
@@ -45,7 +29,6 @@ import health from './commands/health/index.js'
 import effort from './commands/effort/index.js'
 import exit from './commands/exit/index.js'
 import help from './commands/help/index.js'
-import init from './commands/init.js'
 import keybindings from './commands/keybindings/index.js'
 import keys from './commands/keys/index.js'
 import mcp from './commands/mcp/index.js'
@@ -55,9 +38,7 @@ import extensions from './commands/extensions/index.js'
 import updateNotes from './commands/update-notes/index.js'
 import rename from './commands/rename/index.js'
 import title from './commands/title/index.js'
-import resume from './commands/resume/index.js'
 import skills from './commands/skills/index.js'
-import status from './commands/status/index.js'
 import feedback from './commands/feedback/index.js'
 import review from './commands/review.js'
 import rewind from './commands/rewind/index.js'
@@ -65,7 +46,6 @@ import audit from './commands/audit/index.js'
 import keysetup from './commands/keysetup/index.js'
 import usage from './commands/usage/index.js'
 import jev from './commands/jev/index.js'
-import jevor from './commands/jevor/index.js'
 import localsetup from './commands/localsetup/index.js'
 import defaultprovider from './commands/defaultprovider/index.js'
 import vim from './commands/vim/index.js'
@@ -79,13 +59,9 @@ import tasks from './commands/tasks/index.js'
 import appearance from './commands/appearance/index.js'
 import workflows from './commands/workflows/index.js'
 import subagents from './commands/subagents/index.js'
-import accent from './commands/accent/index.js'
-import authority from './commands/authority/index.js'
 import mouse from './commands/mouse/index.js'
 import showcase from './commands/showcase/index.js'
-import fullscreen from './commands/fullscreen/index.js'
 import capabilities from './commands/capabilities/index.js'
-import harness from './commands/harness/index.js'
 import workbench from './commands/workbench/index.js'
 import router from './commands/router/index.js'
 import daemon from './commands/daemon/index.js'
@@ -93,16 +69,11 @@ import saturn from './commands/saturn/index.js'
 import seats from './commands/seats/index.js'
 import realms from './commands/realms/index.js'
 import accounts from './commands/accounts/index.js'
-import agentForm from './commands/agent-form/index.js'
 import crewmates from './commands/crewmates/index.js'
 import consoleCommand from './commands/console/index.js'
 import submodels from './commands/submodels/index.js'
 import palette from './commands/palette/index.js'
-import capabilitiesDetail from './commands/capabilities-detail/index.js'
 import orient from './commands/orient/index.js'
-import live from './commands/live/index.js'
-import sovereign from './commands/sovereign/index.js'
-import speak from './commands/speak/index.js'
 import voice from './commands/voice/index.js'
 import { getBundledSkills } from './skills/bundledSkills.js'
 import { isKitGovernedSkillCommand, kitDropsCommand, noteBootSkillRoster, withKitSkillMark } from './skills/kitGovernance.js'
@@ -161,9 +132,6 @@ const COMMANDS = memoize((): Command[] => [
   verify,
   advise,
   agents,
-  branch,
-  branches,
-  counsel,
   clear,
   compact,
   config,
@@ -173,27 +141,14 @@ const COMMANDS = memoize((): Command[] => [
   contextNonInteractive,
   mission,
   missionNonInteractive,
-  autoCompactWindow,
   crew,
-  debrief,
-  halt,
   critter,
   bootmenu,
   concourse,
-  cockpit,
-  ledger,
   run,
-  fleet,
-  monitor,
-  home,
-  manager,
-  policy,
   browser,
-  provenance,
   samples,
   sessions,
-  sessiontab,
-  substrate,
   trace,
   kill,
   unkill,
@@ -202,7 +157,6 @@ const COMMANDS = memoize((): Command[] => [
   effort,
   exit,
   help,
-  init,
   keybindings,
   keys,
   mcp,
@@ -211,9 +165,7 @@ const COMMANDS = memoize((): Command[] => [
   extensions,
   updateNotes,
   rename,
-  resume,
   skills,
-  status,
   title,
   feedback,
   review,
@@ -222,7 +174,6 @@ const COMMANDS = memoize((): Command[] => [
   keysetup,
   usage,
   jev,
-  jevor,
   localsetup,
   defaultprovider,
   vim,
@@ -236,13 +187,9 @@ const COMMANDS = memoize((): Command[] => [
   appearance,
   workflows,
   subagents,
-  accent,
-  authority,
   mouse,
   showcase,
-  fullscreen,
   capabilities,
-  harness,
   caching,
   workbench,
   router,
@@ -251,16 +198,11 @@ const COMMANDS = memoize((): Command[] => [
   seats,
   realms,
   accounts,
-  agentForm,
   crewmates,
   consoleCommand,
   submodels,
   palette,
-  capabilitiesDetail,
   orient,
-  live,
-  sovereign,
-  speak,
   voice,
 ])
 

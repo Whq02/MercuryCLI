@@ -42,7 +42,6 @@ t.section('§3–§5 — unreadable workbench sources are not rendered as empty'
   const workspace = join(ROOT, 'workspace')
   mkdirSync(workspace, { recursive: true })
   writeFileSync(guardWrite(ROOT, join(ROOT, 'review-artifacts')), 'not a directory')
-  writeFileSync(guardWrite(ROOT, join(ROOT, 'lanes')), 'not a directory')
 
   const bootstrap = await import('../../src/bootstrap/state.ts')
   bootstrap.setOriginalCwd(workspace)
@@ -62,7 +61,7 @@ t.section('§3–§5 — unreadable workbench sources are not rendered as empty'
     sources !== null,
     sources === null ? 'no `sources` on WorkbenchSnapshot' : '',
   )
-  for (const id of ['artifacts', 'contextLanes', 'gitWorktrees'] as const) {
+  for (const id of ['artifacts', 'gitWorktrees'] as const) {
     t.check(
       `source "${id}" reports unavailable rather than empty`,
       sources?.[id]?.state === 'unavailable',

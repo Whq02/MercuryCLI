@@ -116,10 +116,8 @@ section('§D typed reconstruction — visible, once-per-thread, honest')
   check('the lane surfaces the reconstruction receipt note once per thread', lane.includes('reconstructed continuation') && lane.includes('reconstructionNoted'))
 }
 
-section('§E lineage continuation ratified (fork/branch carry rows whole)')
+section('§E lineage continuation ratified (fork-context carries rows whole)')
 {
-  const branch = readFileSync(join(ROOT, 'src/commands/branch/branch.ts'), 'utf8')
-  check('copy-fork stamps lineage per entry (forkedFrom) — rows carry whole', branch.includes('forkedFrom'))
   const agent = readFileSync(join(ROOT, 'src/tools/AgentTool/runAgent.ts'), 'utf8')
   check('fork-context agents receive parent MESSAGES (receipts travel only inside shared ancestry)', agent.includes('forkContextMessages'))
 }

@@ -136,7 +136,6 @@ const ATTACHMENTS: Record<string, Fixture> = {
   auto_mode_exit: { good: {}, bad: [] },
   mode_pack: { good: { mode: 'apollo', text: 't' }, bad: [{ label: 'text is a list', field: 'text', fields: { mode: 'apollo', text: ['t'] } }] },
   mode_pack_exit: { good: { mode: 'apollo', reason: 'r' }, bad: [{ label: 'mode is missing', field: 'mode', fields: { reason: 'r' } }] },
-  repo_surface_map: { good: { markdown: '# m' }, bad: [{ label: 'markdown is an object', field: 'markdown', fields: { markdown: {} } }] },
   context_capsule: {
     good: { markdown: '# c', digest: 'd', semDigest: 's', refs: ['src/a.ts'], delta: null },
     bad: [
@@ -208,7 +207,6 @@ const ATTACHMENTS: Record<string, Fixture> = {
   dead_thinking: { good: { dead: [{ messageId: 'm', blockIndex: 0 }] }, bad: [{ label: 'dead is text', field: 'dead', fields: { dead: 'm' } }] },
   images_left_out: { good: { count: 1, images: 21, sidePx: 1568 }, bad: [{ label: 'count is text', field: 'count', fields: { count: 'one', images: 21, sidePx: 1568 } }] },
   run_protocol_delta: { good: { tools: ['Run'], body: 'b' }, bad: [{ label: 'tools is text', field: 'tools', fields: { tools: 'Run', body: 'b' } }] },
-  lane_boundary: { good: { laneId: 'l', goal: 'g', boundary: 'b' }, bad: [{ label: 'boundary is missing', field: 'boundary', fields: { laneId: 'l', goal: 'g' } }] },
   bagel_console: { good: { errorCount: 1, warningCount: 0, sample: 's' }, bad: [{ label: 'errorCount is text', field: 'errorCount', fields: { errorCount: 'one', warningCount: 0, sample: 's' } }] },
   user_context: { good: { body: 'b' }, bad: [{ label: 'body is a list', field: 'body', fields: { body: ['b'] } }] },
   compact_operator_messages: {

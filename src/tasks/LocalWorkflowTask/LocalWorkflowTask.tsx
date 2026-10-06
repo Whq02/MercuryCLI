@@ -483,15 +483,6 @@ export type WorkflowNotificationArgs = {
   workflowRunId?: string
   args?: unknown
   outputWriteError?: string
-  agents?: ReadonlyArray<{
-    index: number
-    label: string
-    state: string
-    agentId?: string
-    model?: string
-    tokens?: number
-    error?: string
-  }>
 }
 
 const WORKFLOW_RESULT_MAX_CHARS = 8000
@@ -504,8 +495,6 @@ export function firstFailureWords(failures: readonly string[] | undefined): stri
   const oneLine = first.replace(/\s+/g, ' ').trim()
   return oneLine.length > FIRST_FAILURE_MAX_CHARS ? `${oneLine.slice(0, FIRST_FAILURE_MAX_CHARS)}…` : oneLine
 }
-
-const AGENT_INDEX_MAX_ROWS = 24
 
 export function enqueueWorkflowNotification(args: WorkflowNotificationArgs): void {
   const { taskId, status, setAppState } = args
@@ -574,27 +563,6 @@ export function enqueueWorkflowNotification(args: WorkflowNotificationArgs): voi
     ? `\n<failures>${escapeXml(args.failures.join('\n'))}</failures>`
     : ''
 
-  let agentsSection = ''
-  const roster = args.agents
-  if (roster?.length && args.transcriptDir) {
-    const rows = roster.slice(0, AGENT_INDEX_MAX_ROWS).map(agent => {
-      const bits: string[] = [`#${agent.index} ${agent.label}`, agent.state]
-      if (agent.model) bits.push(agent.model)
-      if (typeof agent.tokens === 'number' && agent.tokens > 0) {
-        bits.push(`${agent.tokens} tok`)
-      }
-      bits.push(
-        agent.agentId ? `agent-${agent.agentId}.jsonl` : '(no transcript id)',
-      )
-      if (agent.error) bits.push(`error: ${agent.error.slice(0, 120)}`)
-      return escapeXml(bits.join(' · '))
-    })
-    const hidden = roster.length - AGENT_INDEX_MAX_ROWS
-    const overflow =
-      hidden > 0 ? `\n(+${hidden} more — full list in run.json)` : ''
-    agentsSection = `\n<agents>\ntranscripts: ${escapeXml(args.transcriptDir)}\n${rows.join('\n')}${overflow}\n</agents>`
-  }
-
   const spendSection = args.usage
     ? `<subagent_spend tokens="${workflowUsageSpend(args.usage)}" input="${args.usage.inputTokens}" cache_read="${args.usage.cacheReadTokens}" cache_creation="${args.usage.cacheCreationTokens}" output="${args.usage.outputTokens}" api_turns="${args.usage.apiTurns}" unsettled_turns="${args.usage.unsettledTurns}" agents_reporting="${args.usage.agentsReporting}" agents_unreported="${args.usage.agentsUnreported}"/>`
     : ''
@@ -608,7 +576,7 @@ export function enqueueWorkflowNotification(args: WorkflowNotificationArgs): voi
 <${TASK_ID_TAG}>${taskId}</${TASK_ID_TAG}>${toolUseIdLine}
 <${OUTPUT_FILE_TAG}>${outputFile}</${OUTPUT_FILE_TAG}>
 <${STATUS_TAG}>${status}</${STATUS_TAG}>
-<${SUMMARY_TAG}>${escapeXml(summaryText)}</${SUMMARY_TAG}>${recoverySection}${resultSection}${failuresSection}${agentsSection}${usageSection}
+<${SUMMARY_TAG}>${escapeXml(summaryText)}</${SUMMARY_TAG}>${recoverySection}${resultSection}${failuresSection}${usageSection}
 </${TASK_NOTIFICATION_TAG}>`
 
   enqueuePendingNotification({

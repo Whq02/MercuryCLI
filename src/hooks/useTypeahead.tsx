@@ -552,7 +552,7 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
     }
 
     if (mode === 'prompt') {
-      const resume = input.match(/^\/resume\s+(.*)$/)
+      const resume = input.match(/^\/sessions\s+(.*)$/)
       if (resume) {
         void searchSessionsByCustomTitle(resume[1]!, { limit: RESUME_TITLE_LIMIT })
           .then(sessions => {
@@ -810,7 +810,7 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
             const sessionRef =
               (suggestion.metadata as string | undefined) ??
               suggestion.displayText
-            const rebuilt = `/resume ${sessionRef}`
+            const rebuilt = `/sessions ${sessionRef}`
             setInput(rebuilt)
             setCursorOffset(rebuilt.length)
             if (viaEnter) onSubmit?.(rebuilt, true)

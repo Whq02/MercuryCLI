@@ -23,7 +23,7 @@ export const WATCHED_WORDS = [
   'the third mid-turn line',
   'the line before the escape',
   'the line during the fold',
-  '/auto-compact-window',
+  '/seats',
 ] as const
 const FOLD_DELTAS = [
   '<analysis>the walk</analysis>',

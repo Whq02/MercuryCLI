@@ -6,7 +6,6 @@ import { getProjectDir } from './sessionStoragePortable.js'
 
 export const PROJECT_HOME_STORES: ReadonlyArray<readonly string[]> = Object.freeze([
   ['workflows', 'runs'],
-  ['evolution'],
   ['test-runs'],
   ['agent-memory-local'],
   ['router'],
