@@ -258,7 +258,6 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
       }
       return (
         <SessionManagerView
-          initialScope="all"
           onClose={close}
           onCloseAll={() => onDone(undefined, { display: 'skip' })}
           onResume={(sessionId, log, entrypoint) => context.resume!(sessionId, log, entrypoint)}
