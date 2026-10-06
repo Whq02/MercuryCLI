@@ -3609,7 +3609,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               ? 'oasis ground painted'
               : isDarkThemeFamily(a.concreteTheme)
                 ? 'ground off (env/TTY gate)'
-                : 'profile ground (light family)'
+                : 'profile ground'
             const evidence = `theme ${a.requestedTheme}${a.requestedTheme === 'auto' ? `→${a.concreteTheme}` : ''} · ${a.colorMode} · accent ${a.accent} · motion ${a.motion} · ${ground}`
             if (missing.length > 0) {
               return {
