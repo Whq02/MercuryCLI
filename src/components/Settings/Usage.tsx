@@ -10,8 +10,8 @@ import {
   type Utilization,
 } from '../../services/api/usage.js'
 import { isClaudeAISubscriber } from '../../utils/auth.js'
-import { recentSignIns } from '../../utils/model/computedDefault.js'
-import { renderModelName, getEngineModel } from '../../utils/model/model.js'
+import { recentSignIns, mostRecentSignInFamily } from '../../utils/model/computedDefault.js'
+import { renderModelName, getUserSpecifiedModelSetting, parseUserSpecifiedModel } from '../../utils/model/model.js'
 import { declaredRouteOf } from '../../services/providers/callModelRouter.js'
 import type { RouterProviderId } from '../../utils/router/providers/types.js'
 import {
@@ -401,8 +401,13 @@ export function orderUsageSections(plan: UsageSection[], recency: readonly strin
 }
 
 function liveSessionFamily(): string | undefined {
-  const route = declaredRouteOf(getEngineModel())
-  return route ?? undefined
+  const setting = getUserSpecifiedModelSetting()
+  if (setting !== null) return declaredRouteOf(parseUserSpecifiedModel(setting)) ?? undefined
+  try {
+    return mostRecentSignInFamily()
+  } catch {
+    return undefined
+  }
 }
 
 function liveSignInRecency(): string[] {

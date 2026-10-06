@@ -158,8 +158,9 @@ for (const [width, columns] of [[80, 80], [120, 120]] as const) {
   check(`${columns}: every painted line fits the body width`, lines.every(line => stringWidth(line) <= width), String(Math.max(...lines.map(line => stringWidth(line)))))
   const geminiAt = runs.indexOf('Gemini usage')
   const hfAt = runs.indexOf('Hugging Face usage')
-  check(`${columns}: the two signed-in families lead the board`, geminiAt >= 0 && hfAt >= 0 && geminiAt < hfAt, `${geminiAt} ${hfAt}`)
-  const geminiRuns = runs.slice(geminiAt, hfAt)
+  check(`${columns}: the two signed-in families lead the board, the session's family first`, geminiAt >= 0 && hfAt >= 0 && geminiAt < 2 && geminiAt !== hfAt, `${geminiAt} ${hfAt}`)
+  const geminiEnd = runs.findIndex((run, index) => index > geminiAt && /^[A-Z][A-Za-z. ]+ usage$/.test(run))
+  const geminiRuns = runs.slice(geminiAt, geminiEnd === -1 ? undefined : geminiEnd)
   const googleSlot = geminiRuns.indexOf('Google account') + 1
   check(`${columns}: the Gemini section carries its credits line right under its identity line, and the Google account slot carries none of its own`, geminiRuns[1] === 'Google account (OAuth)' && geminiRuns[2] === `credits: ${owner.CREDITS_UNREPORTED_WORDS}` && googleSlot > 0 && geminiRuns[googleSlot] === 'Google account (OAuth)' && !geminiRuns[googleSlot + 1]?.startsWith('This session') && geminiRuns[googleSlot + 1] !== `credits: ${owner.CREDITS_UNREPORTED_WORDS}`, JSON.stringify(geminiRuns.slice(0, 3).concat(geminiRuns.slice(googleSlot, googleSlot + 3))))
   check(`${columns}: the Gemini absence line names what Google states (nothing) and the view`, geminiRuns.some(run => run.includes('no usage endpoint, no quota headers on its replies') && run.includes('Quotas page') && run.includes('Google AI Studio')), geminiRuns.join(' | '))

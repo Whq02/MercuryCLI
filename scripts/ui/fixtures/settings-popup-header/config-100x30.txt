@@ -3,7 +3,7 @@ WORKBENCH           │ ✶ VIEW · cedar · viewing                            
   no prompts sent y…│                                                                              │
                     │ ╭──────────────────────────────────────────────────────────────────────────╮ │
 NEXT                │ │ ▖▟▆▙▗ Mercury · config                                                   │ │
-  · /workflows — ag…│ │ orchard · 57 settings · 0 set by you                                     │ │
+  · /workflows — ag…│ │ orchard · 58 settings · 0 set by you                                     │ │
                     │ │                                                                          │ │
 FILES · orchard     │ │ / Search settings…                                                       │ │
   ↵ or click · brow…│ │                                                                          │ │
@@ -17,7 +17,7 @@ TELEMETRY           │ │   Session concourse                 on              
                     │ │   JEV                               off · official                       │ │
                     │ │   Instruction profile               auto                                 │ │
                     │ │   Shell engine                      system                               │ │
-                    │ │ ↓ 47 more                                                                │ │
+                    │ │ ↓ 48 more                                                                │ │
                     │ │                                                                          │ │
                     │ │ ↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes │ │
                     │ ╰──────────────────────────────────────────────────────────────────────────╯ │

@@ -3,7 +3,7 @@ WORKBENCH           │ ✶ VIEW · cedar · viewing                            
   no prompts sent y…│                                                                              │
                     │ ╭──────────────────────────────────────────────────────────────────────────╮ │
 NEXT                │ │ ▖▟▆▙▗ Mercury · usage                                                    │ │
-  · /workflows — ag…│ │ 12 providers · 0 subscriptions signed in                                 │ │
+  · /workflows — ag…│ │ API usage session on · 0 subscriptions signed in                         │ │
                     │ │                                                                          │ │
 FILES · orchard     │ │ Anthropic usage                                                          │ │
   ↵ or click · brow…│ │ API key · …-key                                                          │ │
