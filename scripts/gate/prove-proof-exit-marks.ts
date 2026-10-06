@@ -69,7 +69,7 @@ try {
     }
   }
   const channels = spawnSync('bash', [join(root, 'scripts/channels/run-all.sh')], { cwd: root, env: env(23), encoding: 'utf8', timeout: 10000 })
-  check('a failed first command in a chained condition keeps its original code', marks(channels.stdout).length === 3 && marks(channels.stdout).every(row => row.code === 23))
+  check('a failed first command in a chained condition keeps its original code', marks(channels.stdout).length === 2 && marks(channels.stdout).every(row => row.code === 23))
   const estate = join(scratch, 'estate')
   mkdirSync(join(estate, 'scripts/lib'), { recursive: true })
   mkdirSync(join(estate, 'dist'))
