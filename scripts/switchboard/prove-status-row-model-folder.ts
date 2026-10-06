@@ -60,6 +60,7 @@ async function main(): Promise<void> {
   const MODEL = renderModelChip(MODEL_ID)
   const EFFORT = 'high'
   const BACK = keyHintLabel('⇧← back')
+  const chordDelta = stringWidth(BACK) - stringWidth('⇧← back')
   const t0 = 1_700_000_000_000
   const rows: WorkRowV1[] = [
     ...[1, 2, 3].map((n): WorkRowV1 => ({ id: `agent-${n}`, agentId: `agent-${n}`, kind: 'agent', name: `helper ${n}`, status: 'running', startTime: t0 + n, agentType: 'mercury-crew' })),
@@ -201,7 +202,8 @@ async function main(): Promise<void> {
     seat.setLive(waiting)
     seat.setWork({ rows, samples: [sample] })
     const shapes: Array<[number, string]> = []
-    for (const columns of [178, 120, 100, 90, 80, 72, 64, 56, 48]) {
+    for (const nominal of [178, 120, 100, 90, 80, 72, 64, 56, 48]) {
+      const columns = nominal + chordDelta
       const row = await mount(columns)
       const frame = record(columns, 'busy-width', row.frame())
       row.close()
@@ -209,7 +211,7 @@ async function main(): Promise<void> {
       const trimmed = frame.trimEnd()
       check(`${columns}: one line within the width, the model and effort first, the way back last`, !frame.includes('\n') && stringWidth(trimmed) <= columns && trimmed.startsWith(` ${MODEL} · ${EFFORT}`) && trimmed.endsWith(BACK), frame)
     }
-    const at = (columns: number): string => shapes.find(s => s[0] === columns)![1].trimEnd()
+    const at = (nominal: number): string => shapes.find(s => s[0] === nominal + chordDelta)![1].trimEnd()
     check('178: everything fits — the full activity words, the sample, the folder and the branch', at(178).includes('waiting on 3 agents · 3 shells · 1 sample') && endsRight(at(178), RIGHT))
     check('120: everything still fits whole', at(120).includes('waiting on 3 agents · 3 shells · 1 sample') && endsRight(at(120), RIGHT), at(120))
     check('100: the activity words lose their sample word and cut first; the folder and branch stand', !at(100).includes('sample') && at(100).includes('…') && endsRight(at(100), RIGHT), at(100))
