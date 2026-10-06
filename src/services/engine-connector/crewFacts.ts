@@ -152,11 +152,6 @@ export function crewAgentByToolUse(agents: readonly CrewAgentFacts[], toolUseId:
   return agents.find(a => a.toolUseId === toolUseId) ?? null
 }
 
-export function crewAgentByName(agents: readonly CrewAgentFacts[], name: string): CrewAgentFacts | null {
-  const bare = name.replace(/^@/, '')
-  return agents.find(a => a.kind === 'named' && a.name === bare) ?? null
-}
-
 export function crewTokenSum(agents: readonly CrewAgentFacts[]): number {
   let sum = 0
   for (const a of agents) sum += a.tokens?.total ?? 0

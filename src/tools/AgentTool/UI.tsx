@@ -28,7 +28,6 @@ import { getAgentColor } from './agentColorManager.js'
 import { useNowTick } from '../../components/mercury-ui/components.js'
 import { useFocusedWorkRoster } from '../../components/tasks/useFocusedWork.js'
 import {
-  crewAgentByName,
   crewAgentByToolUse,
   crewAgentsOf,
   crewElapsedLabel,
@@ -69,7 +68,6 @@ type AgentUiInput = {
   model?: string
   run_in_background?: boolean
   name?: string
-  crew_name?: string
 }
 
 
@@ -624,18 +622,13 @@ type GroupedEntry = {
   tokens: number
   lastTool: string | null
   output?: { totalToolUseCount?: number; totalTokens?: number }
-  isCrewmateSpawn: boolean
   resolved: boolean
   isErrored: boolean
 }
 
 function factsForEntry(agents: readonly CrewAgentFacts[], entry: GroupedEntry): CrewAgentFacts | null {
-  if (entry.toolUseID !== undefined) {
-    const byId = crewAgentByToolUse(agents, entry.toolUseID)
-    if (byId !== null) return byId
-  }
-  if (entry.isCrewmateSpawn && entry.input.name) return crewAgentByName(agents, entry.input.name)
-  return null
+  if (entry.toolUseID === undefined) return null
+  return crewAgentByToolUse(agents, entry.toolUseID)
 }
 
 function factsStatusLine(facts: CrewAgentFacts, nowMs: number): string {
@@ -668,7 +661,6 @@ function CrewAgentRows({ entries, animate }: { entries: GroupedEntry[]; animate:
           <AgentProgressLine
             key={entry.toolUseID ?? index}
             agentType={userFacingName(entry.input)}
-            {...(entry.isCrewmateSpawn && entry.input.name ? { name: `@${entry.input.name}` } : {})}
             {...(entry.input.description !== undefined ? { description: entry.input.description } : {})}
             {...(entry.input.subagent_type ? { color: getAgentColor(entry.input.subagent_type) } : {})}
             {...(facts !== null ? { model: crewModelLabel(facts) } : {})}
@@ -742,11 +734,7 @@ export function renderGroupedAgentToolUse(
     const lastTool = extractLastToolInfo(progress, tools)
     const output = groupOutput(entry) as { status?: string; totalToolUseCount?: number; totalTokens?: number } | undefined
     const status = output?.status
-    const isCrewmateSpawn = Boolean(input.name && input.crew_name)
-    const isBackground =
-      input.run_in_background === true ||
-      status === 'async_launched' ||
-      isCrewmateSpawn
+    const isBackground = input.run_in_background === true || status === 'async_launched'
     const resolved = entry.isResolved === true || status !== undefined
     return {
       toolUseID: groupToolUseId(entry),
@@ -756,7 +744,6 @@ export function renderGroupedAgentToolUse(
       lastTool,
       ...(output !== undefined ? { output } : {}),
       status,
-      isCrewmateSpawn,
       isBackground,
       resolved,
       isErrored: entry.isErrored === true || status === 'failed',
