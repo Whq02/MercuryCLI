@@ -1,5 +1,6 @@
 import { rgbToXterm256 } from '../../ink/cell-grid.js'
 import { truecolorActive } from '../../ink/colorize.js'
+import { terminalGround } from '../../utils/cockpit/oasisBg.js'
 
 type Sharp = typeof import('sharp').default
 let sharpLoad: Promise<Sharp> | null = null
@@ -15,6 +16,12 @@ const fgSgr = (r: number, g: number, b: number): string =>
   truecolorActive() ? `${ESC}[38;2;${r};${g};${b}m` : `${ESC}[38;5;${rgbToXterm256(r, g, b)}m`
 const bgSgr = (r: number, g: number, b: number): string =>
   truecolorActive() ? `${ESC}[48;2;${r};${g};${b}m` : `${ESC}[48;5;${rgbToXterm256(r, g, b)}m`
+export function groundRgb(): readonly [number, number, number] | null {
+  const ground = terminalGround()
+  if (ground.state === 'unknown') return null
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(ground.color)
+  return m ? [parseInt(m[1]!, 16), parseInt(m[2]!, 16), parseInt(m[3]!, 16)] : null
+}
 const isTransparent = (a: number): boolean => a < 40
 const isNearWhite = (r: number, g: number, b: number): boolean => {
   const mn = Math.min(r, g, b)
@@ -105,6 +112,7 @@ export async function spriteToAnsi(
   const isBg = (x: number, y: number, a: number): boolean =>
     isTransparent(a) || outside[y * info.width + x] === 1
 
+  const ground = groundRgb()
   const lines: string[] = []
   for (let y = 0; y < rows; y++) {
     let row = ''
@@ -115,11 +123,11 @@ export async function spriteToAnsi(
       const botBg = isBg(x, y * 2 + 1, ba)
       if (topBg && botBg) { row += `${ESC}[0m ` ; continue }
       if (topBg) {
-        row += `${ESC}[49m${fgSgr(br, bg2, bb)}▄`
+        row += `${ground ? bgSgr(...ground) : `${ESC}[49m`}${fgSgr(br, bg2, bb)}▄`
         continue
       }
       if (botBg) {
-        row += `${fgSgr(tr, tg, tb)}${ESC}[49m▀`
+        row += ground ? `${bgSgr(tr, tg, tb)}${fgSgr(...ground)}▄` : `${fgSgr(tr, tg, tb)}${ESC}[49m▀`
         continue
       }
       row += `${bgSgr(tr, tg, tb)}${fgSgr(br, bg2, bb)}▄`
