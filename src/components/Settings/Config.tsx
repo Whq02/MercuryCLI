@@ -169,14 +169,9 @@ type SettingsItem = {
 }
 
 const THEME_LABELS: Record<string, string> = {
-  auto: 'auto (match terminal)',
+  auto: 'auto',
   dark: 'Dark',
   'true-black': 'True Black',
-  light: 'Light',
-  'dark-daltonized': 'Dark (colourblind-friendly)',
-  'light-daltonized': 'Light (colourblind-friendly)',
-  'dark-ansi': 'Dark (ANSI only)',
-  'light-ansi': 'Light (ANSI only)',
 }
 
 

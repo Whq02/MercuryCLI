@@ -69,23 +69,31 @@ for (const line of historicalLines) {
 assert.deepEqual(tracked.filter(path => path.startsWith('scripts/visual-contract/baselines/') && path.endsWith('.json') && !historical.has(path)), [], 'unclassified historical captures')
 console.log(`HISTORICAL FRAMES (${historical.size}; declarations verified, never regenerated)`)
 for (const path of historical) console.log(`[HISTORICAL] ${path}`)
-const currentFrames = tracked.filter(path => !historical.has(path)).filter(path =>
+const isFramePath = (path: string): boolean =>
   /^design-system\/live\/grids\/.*\.json$/.test(path) ||
   /^scripts\/ui\/fixtures\/[^/]+\/.*\.txt$/.test(path) ||
   /^scripts\/engine-connector\/fixtures\/crew-tokens\/.*\.txt$/.test(path) ||
-  /(?:^|\/)\S+-frames(?:-[^/]+)?\.json$/.test(path),
-)
+  /(?:^|\/)\S+-frames(?:-[^/]+)?\.json$/.test(path)
+const currentFrames = tracked.filter(path => !historical.has(path)).filter(isFramePath)
 const allowed = new Map<string, string>()
+const removed = new Map<string, string>()
 const lines = readFileSync(join(import.meta.dir, 'frames-moved.tsv'), 'utf8').trimEnd().split('\n')
 assert.equal(lines.shift(), 'path\tbug\tlane\tcommit')
 for (const line of lines) {
   const [path, bug, lane, commit, extra] = line.split('\t')
   assert.ok(path && bug && lane && commit && extra === undefined, `incomplete movement record: ${line}`)
-  assert.ok(currentFrames.includes(path), `unknown frame in movement record: ${path}`)
-  assert.ok(!allowed.has(path), `duplicate movement record: ${path}`)
+  assert.ok(!allowed.has(path) && !removed.has(path), `duplicate movement record: ${path}`)
   assert.ok(!/[?*{}]/.test(path), 'movement records name individual files, never globs')
+  if (bug.startsWith('removed with the family')) {
+    assert.ok(isFramePath(path) && !tracked.includes(path), `a removal record names a tracked or non-frame path: ${path}`)
+    removed.set(path, `${bug} (${lane}, ${commit})`)
+    continue
+  }
+  assert.ok(currentFrames.includes(path), `unknown frame in movement record: ${path}`)
   allowed.set(path, `${bug} (${lane}, ${commit})`)
 }
+console.log(`REMOVED FRAMES (${removed.size}; recorded, no longer tracked, never re-rendered)`)
+for (const path of removed.keys()) console.log(`[REMOVED] ${path}`)
 const work = argument('--work-dir') ?? scratch('engine-frames-')
 mkdirSync(work, { recursive: true })
 const families: Family[] = []

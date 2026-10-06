@@ -69,6 +69,7 @@ prove-status-spine-unity.ts
 prove-submit-while-landing.ts
 prove-tab-cells-frames.ts
 prove-crew-center.ts
+prove-theme-roster.ts
 prove-token-completeness.ts
 prove-tool-verb.ts
 prove-tui-weight.ts

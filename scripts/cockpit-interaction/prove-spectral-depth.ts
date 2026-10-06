@@ -94,14 +94,7 @@ if (process.env.SPECTRAL_RENDER_CHILD) {
 
   t.section('§2 — every family, every capability')
   {
-    const FAMILIES: ThemeName[] = [
-      'dark',
-      'light',
-      'dark-daltonized',
-      'light-daltonized',
-      'dark-ansi',
-      'light-ansi',
-    ]
+    const FAMILIES: ThemeName[] = ['dark', 'true-black']
     const ROLES = ['oasis', 'terra', 'dune', 'amber', 'crimson'] as const
     for (const family of FAMILIES) {
       const tokens = resolveMercuryTokens(family, '#DD4444')
@@ -111,7 +104,7 @@ if (process.env.SPECTRAL_RENDER_CHILD) {
         const ramp = tokens.spectral[role]
         const floor = role === 'dune' ? SPECTRAL_STRUCTURE_FLOOR : SPECTRAL_STATE_FLOOR
         t.check(
-          `${family}/${role}: every stop clears its OWN floor (${floor}) on this family's ground`,
+          `${family}/${role}: every stop clears its OWN floor (${floor}) on this appearance's ground`,
           ramp.length === 1 ||
             ramp.every(stop => (contrastRatio(stop, ground) ?? -1) >= floor),
           `${ramp.length} stops`,
@@ -127,14 +120,6 @@ if (process.env.SPECTRAL_RENDER_CHILD) {
           ramp.map(s => (contrastRatio(s, ground) ?? 0).toFixed(2)).join(' · '),
         )
       }
-      const ansi = family.endsWith('-ansi')
-      if (ansi) {
-        t.check(
-          `${family}: every ramp collapses — a 16-colour profile is told, not approximated`,
-          ROLES.every(r => tokens.spectral[r].length === 1),
-          ROLES.map(r => tokens.spectral[r].length).join(','),
-        )
-      }
       t.check(
         `${family}: the identity ramp follows the SESSION accent, not a fixed brand hue`,
         resolveMercuryTokens(family, '#33AACC').spectral.terra.at(-1) !== tokens.spectral.terra.at(-1) ||
@@ -143,7 +128,7 @@ if (process.env.SPECTRAL_RENDER_CHILD) {
       )
       t.check(
         `${family}: dark-family classification is consistent`,
-        typeof isDarkThemeFamily(family) === 'boolean',
+        isDarkThemeFamily(family) === true,
         String(isDarkThemeFamily(family)),
       )
     }
@@ -182,7 +167,7 @@ if (process.env.SPECTRAL_RENDER_CHILD) {
     )
   }
 
-  t.section('§4 — REAL RENDER: depth in truecolor, one flat tone at 16 colours')
+  t.section('§4 — REAL RENDER: depth in truecolor, the same fill at 16 colours')
   {
     const capture = (theme: string, label: string): string[] => {
       const out = join(scratch, `${label}.json`)
@@ -206,6 +191,7 @@ if (process.env.SPECTRAL_RENDER_CHILD) {
           TERM: 'xterm-256color',
           MERCURY_THEME_PIN: theme,
           SPECTRAL_RENDER_CHILD: '1',
+          ...(label === 'ansi' ? { MERCURY_TRUECOLOR: '0', FORCE_COLOR: '1' } : {}),
         },
       })
       if (r.status !== 0) return []
@@ -232,15 +218,10 @@ if (process.env.SPECTRAL_RENDER_CHILD) {
       `${new Set(tcFull).size} distinct inks: ${[...new Set(tcFull)].join(' ')}`,
     )
 
-    const ansi = capture('dark-ansi', 'ansi')
+    const ansi = capture('dark', 'ansi')
     const anFull = ansi[0] ?? []
     const anPartial = ansi[1] ?? []
     t.check('the 16-colour gauge rendered (both bars)', anFull.length >= 8 && anPartial.length >= 2, `${anFull.length}/${anPartial.length} filled cells`)
-    t.check(
-      'and paints ONE flat tone — the fallback, not an approximated ramp',
-      new Set(anFull).size === 1,
-      `${new Set(anFull).size} distinct inks: ${[...new Set(anFull)].join(' ')}`,
-    )
     t.check(
       'the FULL fill length is identical either way',
       tcFull.length === anFull.length,

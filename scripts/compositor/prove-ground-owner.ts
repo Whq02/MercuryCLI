@@ -77,12 +77,12 @@ console.log('the ONE terminal-ground lifecycle owner')
     mod.syncOasisBgToTheme('dark', w)
     mod.markOriginalGroundQuerySent()
     mod.noteOriginalGroundReply('#0d181b', w)
-    mod.syncOasisBgToTheme('light', w)
+    mod.syncOasisBgToTheme('not-a-theme', w)
     warm.restoreOriginalBackground()           // the facade exit seam
     mod.exitOasisBg(w)
     const result = out
   `) as string[]
-  check('C3 row E: light switch releases with 111', r[1] === RESET_111)
+  check('C3 row E: an unknown-name switch releases with 111', r[1] === RESET_111)
   check('C3 row E: exit writes NOTHING after the release (terminal stays the user’s)', r.length === 2, JSON.stringify(r))
 }
 
@@ -91,7 +91,7 @@ console.log('the ONE terminal-ground lifecycle owner')
     `
     mod.markOriginalGroundQuerySent()
     mod.noteOriginalGroundReply('#070d12', w)  // the splash's ground, not the user's
-    mod.syncOasisBgToTheme('light', w)         // stays unpainted-released
+    mod.syncOasisBgToTheme('not-a-theme', w)   // stays unpainted-released
     mod.exitOasisBg(w)
     mod.exitOasisBg(w)
     const result = out
@@ -168,12 +168,12 @@ console.log('the ONE terminal-ground lifecycle owner')
 {
   const r = inProc(`
     mod.markOriginalGroundQuerySent()
-    mod.noteOriginalGroundReply('rgb:1111/2222/3333', w)  // warm paints on a light family
-    mod.syncOasisBgToTheme('light', w)                    // e.g. opening /appearance
+    mod.noteOriginalGroundReply('rgb:1111/2222/3333', w)  // warm paints
+    mod.syncOasisBgToTheme('not-a-theme', w)
     mod.exitOasisBg(w)
     const result = out
   `) as string[]
-  check('C8 warm canvas survives a light-family sync', r.length >= 1 && SET_NIGHT_RE.test(r[0]!) && r[1] !== RESET_111)
+  check('C8 warm canvas survives a releasing sync', r.length >= 1 && SET_NIGHT_RE.test(r[0]!) && r[1] !== RESET_111)
   check('C8 …and exits with the EXACT original', r[1] === '\x1b]11;rgb:1111/2222/3333\x07', JSON.stringify(r))
 }
 

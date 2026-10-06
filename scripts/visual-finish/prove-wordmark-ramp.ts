@@ -55,7 +55,7 @@ t.section('§2 — one shared art-space material')
     new Set(painted[0]).size > 3,
     `${new Set(painted[0]).size} distinct`,
   )
-  const flat = resolveMercuryTokens('dark-ansi', TERRA).focalRamp
+  const flat = resolveMercuryTokens('not-a-theme', TERRA).focalRamp
   const flatPainted = rows.map(r => rampSegments(r, flat))
   t.check(
     'a reduced family collapses every row to ONE flat segment',
@@ -114,7 +114,7 @@ t.section('§4 — R5: a non-crab warm-red accent derives its own ramp')
     warm.focalRamp[1] === warm.accentSoft && warm.focalRamp[1] !== resolveMercuryTokens('dark', TERRA).focalRamp[1],
     warm.focalRamp.join(' '),
   )
-  const reduced = resolveMercuryTokens('dark-ansi', WARM_RED_SAMPLE)
+  const reduced = resolveMercuryTokens('not-a-theme', WARM_RED_SAMPLE)
   t.check(
     'reduced families still collapse the warm-red ramp flat',
     reduced.focalRamp.length === 1 && reduced.focalRamp[0] === WARM_RED_SAMPLE,

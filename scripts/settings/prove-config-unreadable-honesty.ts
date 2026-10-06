@@ -104,7 +104,7 @@ console.log('L3 save — saveGlobalConfig refuses on a failed read and leaves th
     seam()
     try { g.getGlobalConfig() } catch {}
     const before = readDisk()
-    try { g.saveGlobalConfig(c => ({ ...c, theme: 'light' })); out.saveThrew = null } catch (e) { out.saveThrew = errOf(e) }
+    try { g.saveGlobalConfig(c => ({ ...c, theme: 'not-a-theme' })); out.saveThrew = null } catch (e) { out.saveThrew = errOf(e) }
     const after = readDisk()
     out.same = before === after
     out.afterParsed = (() => { try { return JSON.parse(after) } catch { return null } })()
