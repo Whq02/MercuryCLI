@@ -17,10 +17,7 @@ import contractCommand from './commands/contract/index.js'
 import copy from './commands/copy/index.js'
 import { context, contextNonInteractive } from './commands/context/index.js'
 import { mission, missionNonInteractive } from './commands/mission/index.js'
-import autoCompactWindow from './commands/auto-compact-window/index.js'
 import crew from './commands/crew/index.js'
-import debrief from './commands/debrief/index.js'
-import halt from './commands/halt/index.js'
 import critter from './commands/critter/index.js'
 import view from './commands/view/index.js'
 import bootmenu from './commands/bootmenu/index.js'
@@ -30,7 +27,6 @@ import ledger from './commands/ledger/index.js'
 import run from './commands/run/index.js'
 import fleet from './commands/fleet/index.js'
 import monitor from './commands/monitor/index.js'
-import home from './commands/home/index.js'
 import manager from './commands/manager/index.js'
 import policy from './commands/policy/index.js'
 import browser from './commands/browser/index.js'
@@ -172,9 +168,7 @@ const COMMANDS = memoize((): Command[] => [
   contextNonInteractive,
   mission,
   missionNonInteractive,
-  autoCompactWindow,
   crew,
-  debrief,
   halt,
   critter,
   view,
@@ -185,7 +179,6 @@ const COMMANDS = memoize((): Command[] => [
   run,
   fleet,
   monitor,
-  home,
   manager,
   policy,
   browser,
