@@ -60,9 +60,9 @@ const CENSUS: Record<string, { values: string[]; types: string[] }> = {
 
 const LAZY_SITES: ReadonlyArray<{ file: string; specifier: string; reason: string }> = [
   {
-    file: 'src/services/mcp/coordinationServer.ts',
+    file: 'src/services/mcp/mercuryServer.ts',
     specifier: 'server',
-    reason: 'the coordination server builds its SDK layer only when it is enabled and connected',
+    reason: 'the in-process mercury server builds its SDK layer only when it is enabled and connected',
   },
 ]
 
