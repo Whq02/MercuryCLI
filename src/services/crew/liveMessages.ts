@@ -58,78 +58,6 @@ export function isIdleNotification(text: string): IdleNotificationMessage | null
   return parsed as IdleNotificationMessage
 }
 
-type PermissionRequestMessage = {
-  type: 'permission_request'
-  request_id: string
-  agent_id: string
-  tool_name: string
-  tool_use_id: string
-  description: string
-  input: Record<string, unknown>
-  permission_suggestions: unknown[]
-}
-
-export function createPermissionRequestMessage(params: {
-  request_id: string
-  agent_id: string
-  tool_name: string
-  tool_use_id: string
-  description: string
-  input: Record<string, unknown>
-  permission_suggestions?: unknown[]
-}): PermissionRequestMessage {
-  return { type: 'permission_request', permission_suggestions: [], ...params }
-}
-
-export function isPermissionRequest(text: string): PermissionRequestMessage | null {
-  const parsed = parseStructuredText(text)
-  if (!parsed || parsed.type !== 'permission_request') return null
-  return parsed as PermissionRequestMessage
-}
-
-type PermissionResponseMessage = {
-  type: 'permission_response'
-  request_id: string
-} & (
-  | {
-      subtype: 'success'
-      response?: { updated_input?: Record<string, unknown>; permission_updates?: unknown[] }
-    }
-  | { subtype: 'error'; error: string }
-)
-
-export function createPermissionResponseMessage(params: {
-  request_id: string
-  subtype: 'success' | 'error'
-  error?: string | undefined
-  updated_input?: Record<string, unknown> | undefined
-  permission_updates?: unknown[] | undefined
-}): PermissionResponseMessage {
-  if (params.subtype === 'success') {
-    const response = {
-      ...(params.updated_input !== undefined ? { updated_input: params.updated_input } : {}),
-      ...(params.permission_updates !== undefined ? { permission_updates: params.permission_updates } : {}),
-    }
-    return {
-      type: 'permission_response',
-      request_id: params.request_id,
-      subtype: 'success',
-      ...(Object.keys(response).length > 0 ? { response } : {}),
-    }
-  }
-  return {
-    type: 'permission_response',
-    request_id: params.request_id,
-    subtype: 'error',
-    error: params.error ?? 'Permission denied',
-  }
-}
-
-export function isPermissionResponse(text: string): PermissionResponseMessage | null {
-  const parsed = parseStructuredText(text)
-  if (!parsed || parsed.type !== 'permission_response') return null
-  return parsed as PermissionResponseMessage
-}
 
 const ShutdownRequestMessageSchema = lazySchema(() =>
   z.object({
@@ -309,17 +237,6 @@ export function resolveShutdownApprovedVictim(
   return envelope
 }
 
-export function resolveShutdownRequestSender(
-  envelopeFrom: string | undefined,
-  parsed: ShutdownRequestMessage | null,
-): string | null {
-  if (!parsed) return null
-  const envelope = envelopeFrom?.trim() ?? ''
-  if (envelope === '') return null
-  const inBody = typeof parsed.from === 'string' ? parsed.from.trim() : ''
-  if (inBody !== '' && inBody !== envelope) return null
-  return envelope
-}
 
 const DM_GIST_LENGTH = 80
 const BROADCAST_TARGET = '*'

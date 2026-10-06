@@ -213,7 +213,6 @@ reg(
     'src/components/LocalSetupDialog.tsx',
     'src/components/tasks/AsyncAgentDetailDialog.tsx',
     'src/components/tasks/BackgroundTasksDialog.tsx',
-    'src/components/tasks/InProcessCrewmateDetailDialog.tsx',
     'src/components/tasks/ShellDetailDialog.tsx',
   ],
   'modal-form',

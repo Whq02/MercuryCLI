@@ -359,3 +359,7 @@ export async function resumeAgentBackground(args: {
     ...(note ? { note } : {}),
   }
 }
+
+export function operatorResumeWords(description: string): string {
+  return `Agent "${description}" resumed from the crew view · it runs on under the same id`
+}

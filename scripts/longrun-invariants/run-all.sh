@@ -18,7 +18,7 @@
 # gate-watch: src/tools/TaskUpdateTool/TaskUpdateTool.ts src/tools/WorkflowTool/* src/types/ids.ts src/utils/*
 # gate-watch: src/utils/attachments/* src/utils/config/globalConfig.ts src/utils/hooks/*
 # gate-watch: src/utils/messages/factories.ts src/utils/messages/systemMessages.ts src/utils/model/agent.ts
-# gate-watch: src/utils/sessionStorage/* src/utils/crew/inProcessRunner.ts src/utils/task/workRoster.ts
+# gate-watch: src/utils/sessionStorage/* src/utils/task/workRoster.ts
 # gate-watch: src/utils/verification/verificationState.ts
 # gate-watch: src/rows/* src/runner/wire/*
 set -uo pipefail

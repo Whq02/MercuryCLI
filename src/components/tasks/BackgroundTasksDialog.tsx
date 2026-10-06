@@ -7,10 +7,7 @@ import type { LocalJSXCommandContext } from '../../commands.js'
 import { useKeybindings } from '../../keybindings/useKeybinding.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useAppState, useSetAppState, type AppState } from '../../state/AppState.js'
-import {
-  enterCrewmateView,
-  exitCrewmateView,
-} from '../../state/crewmateViewHelpers.js'
+import { enterCrewmateView } from '../../state/crewmateViewHelpers.js'
 import { useTelemetry } from '../../state/telemetryBus.js'
 import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
 import { useOpenEventGate } from '../mercury-ui/useOpenEventGate.js'
@@ -35,18 +32,12 @@ import {
   killAllRunningAgentTasks,
   type LocalAgentTaskState,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
-import { InProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/InProcessCrewmateTask.js'
-import {
-  isInProcessCrewmateTask,
-  type InProcessCrewmateTaskState,
-} from '../../tasks/InProcessCrewmateTask/types.js'
 import {
   isLocalWorkflowTask,
   killWorkflowTask,
   type LocalWorkflowTaskState,
 } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 import type { TaskState } from '../../tasks/types.js'
-import { CREW_LEAD_NAME } from '../../utils/crew/constants.js'
 import { chatOnlyBoot } from '../../context/surfaceRoute.js'
 import { formatDuration, formatTokens } from '../../utils/format.js'
 import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
@@ -80,21 +71,18 @@ import {
 } from './useFocusedWork.js'
 import { AsyncAgentDetailDialog } from './AsyncAgentDetailDialog.js'
 import { BackgroundTask as BackgroundTaskComponent } from './BackgroundTask.js'
-import { InProcessCrewmateDetailDialog } from './InProcessCrewmateDetailDialog.js'
 import { ShellDetailDialog, shellCardFactsOfRow, shellCardFactsOfTask } from './ShellDetailDialog.js'
 import { cellCardOf } from '../../tools/WorkshopTool/cellCards.js'
 import { WorkshopCellCard } from '../../tools/WorkshopTool/WorkshopCellCard.js'
 import { WorkflowDetailDialog } from './WorkflowDetailDialog.js'
 import { isManageableTask } from './taskStatusUtils.js'
 
-const LEADER_ROW_ID = '__leader__'
 const WINDOW = 10
 const MISSION_IN_PROGRESS_CAP = 4
 const MISSION_PENDING_CAP = 6
 const WORKFLOW_DETAIL_GRACE_MS = 5000
 
 type RowKind =
-  | 'leader'
   | 'crewmate'
   | 'shell'
   | 'monitor'
@@ -126,7 +114,6 @@ function SampleRowLine({ sample }: { sample: SampleRowV1 }): React.ReactNode {
 function kindOf(task: TaskState): RowKind {
   if (isLocalShellTask(task)) return task.kind === 'monitor' ? 'monitor' : 'shell'
   if (isLocalAgentTask(task)) return 'agent'
-  if (isInProcessCrewmateTask(task)) return 'crewmate'
   if (isLocalWorkflowTask(task)) return 'workflow'
   if ((task as { type?: string }).type === 'monitor_mcp') return 'monitor'
   throw new Error(
@@ -296,9 +283,6 @@ export function BackgroundTasksDialog({
   const ownsInputNow = (): boolean => !summaryEntry || (compactControls?.read() === 'detail' && overlayToken !== null && isTopOverlayNow(overlayToken))
   const roster = useFocusedWorkRoster()
   const presence = React.useMemo(() => focusedRunnerPresence(), [roster])
-  const treeShowing = useAppState(
-    (state: AppState) => state.expandedView === 'crewmates',
-  )
   const viewingAgentTaskId = useAppState(
     (state: AppState) => state.viewingAgentTaskId,
   )
@@ -314,7 +298,6 @@ export function BackgroundTasksDialog({
     .filter(isManageableTask)
     .filter(task => {
       if (isLocalAgentTask(task) && task.id === viewingAgentTaskId) return false
-      if (isInProcessCrewmateTask(task) && treeShowing && !summaryEntry) return false
       return true
     })
     .sort((a, b) => {
@@ -329,22 +312,17 @@ export function BackgroundTasksDialog({
     const kind = kindOf(task)
     byKind.set(kind, [...(byKind.get(kind) ?? []), task])
   }
-  const crewmateTasks = (byKind.get('crewmate') ?? []) as InProcessCrewmateTaskState[]
   const shellTasks = byKind.get('shell') ?? []
   const monitorTasks = byKind.get('monitor') ?? []
   const agentTasks = byKind.get('agent') ?? []
   const workflowTasks = byKind.get('workflow') ?? []
 
-  const leaderItem: BoardItem | null =
-    crewmateTasks.length > 0 ? { id: LEADER_ROW_ID, kind: 'leader' } : null
   const screenIds = new Set(manageable.map(task => task.id))
   const rosterOf = (kind: WorkRowV1['kind']): BoardItem[] =>
     rosterRowsOf(roster.rows, kind, screenIds).map(
       (w): BoardItem => ({ id: w.id, kind, work: w }),
     )
   const flat: BoardItem[] = [
-    ...(leaderItem ? [leaderItem] : []),
-    ...crewmateTasks.map((task): BoardItem => ({ id: task.id, kind: 'crewmate', task })),
     ...rosterOf('crewmate'),
     ...shellTasks.map((task): BoardItem => ({ id: task.id, kind: 'shell', task })),
     ...rosterOf('shell'),
@@ -384,7 +362,7 @@ export function BackgroundTasksDialog({
   const [detailTaskId, setDetailTaskId] = useState<string | undefined>(() => {
     if (compactControls?.detailState.detailTaskId !== undefined) return compactControls.detailState.detailTaskId
     if (initialDetailTaskId !== undefined) return initialDetailTaskId
-    if (!summaryEntry && flat.length === 1 && !leaderItem && flat[0]?.kind !== 'sample') {
+    if (!summaryEntry && flat.length === 1 && flat[0]?.kind !== 'sample') {
       skippedListRef.current = true
       return flat[0]?.id
     }
@@ -399,11 +377,6 @@ export function BackgroundTasksDialog({
   const detailCell = detailTaskId !== undefined && detailTask === undefined && detailWork === undefined ? cellCardOf(detailTaskId) : undefined
   const inDetail = detailTaskId !== undefined
   if (compactControls !== undefined) { compactControls.detailState.selectedId = selectedIdRef.current; compactControls.detailState.detailTaskId = detailTaskId }
-
-  const returnToLeader = (): void => {
-    exitCrewmateView(setAppState)
-    onDone()
-  }
 
   const backFromDetail = (): void => {
     if (skippedListRef.current && flat.length <= 1 && ledgerOpenCount === 0) {
@@ -431,10 +404,6 @@ export function BackgroundTasksDialog({
   }, [detailTaskId, tasks, roster, onDone])
 
   const openDetail = (item: BoardItem): void => {
-    if (item.kind === 'leader') {
-      returnToLeader()
-      return
-    }
     if (item.kind === 'sample') {
       if (item.sample?.url !== undefined) void openSampleUrl(item.sample.url)
       return
@@ -467,9 +436,6 @@ export function BackgroundTasksDialog({
         return
       case 'agent':
         killAsyncAgent(task.id, setAppState)
-        return
-      case 'crewmate':
-        void InProcessCrewmateTask.kill(task.id, setAppState)
         return
       case 'workflow':
         killWorkflowTask(task.id, setAppState)
@@ -529,18 +495,9 @@ export function BackgroundTasksDialog({
     if (e.key === 'f' || e.key === 'm') {
       e.stopImmediatePropagation()
       if (selected === undefined) return
-      if (selected.kind === 'leader') {
-        returnToLeader()
-        return
-      }
       const task = selected.task
       if (task === undefined) return
       if (task.type === 'local_agent') {
-        enterCrewmateView(task.id, setAppState)
-        onDone()
-        return
-      }
-      if (isInProcessCrewmateTask(task) && task.status === 'running') {
         enterCrewmateView(task.id, setAppState)
         onDone()
       }
@@ -569,27 +526,6 @@ export function BackgroundTasksDialog({
             onKillAgent={() => killAsyncAgent(agent.id, setAppState)}
             onForeground={() => {
               enterCrewmateView(agent.id, setAppState)
-              onDone()
-            }}
-          />
-        </CommandCenter>
-      )
-    }
-    if (isInProcessCrewmateTask(detailTask)) {
-      const crewmate = detailTask
-      return (
-        <CommandCenter elevated
-          view={`named agent › @${crewmate.identity.agentName}`}
-          onClose={onDone}
-          captureInput={false}
-        >
-          <InProcessCrewmateDetailDialog
-            crewmate={crewmate}
-            onDone={onDone}
-            onBack={backFromDetail}
-            onKill={() => void InProcessCrewmateTask.kill(crewmate.id, setAppState)}
-            onForeground={() => {
-              enterCrewmateView(crewmate.id, setAppState)
               onDone()
             }}
           />
@@ -686,9 +622,7 @@ export function BackgroundTasksDialog({
           {isSelected ? `${figures.pointer} ` : '  '}
         </Text>
         <Box flexGrow={1} minWidth={0}>
-          {item.kind === 'leader' ? (
-            <Text bold={isSelected}>@{CREW_LEAD_NAME}</Text>
-          ) : item.task !== undefined ? (
+          {item.task !== undefined ? (
             <BackgroundTaskComponent
               task={item.task}
               maxActivityWidth={activityWidth}
@@ -702,11 +636,6 @@ export function BackgroundTasksDialog({
     )
   }
 
-  const crewGroups = new Map<string, InProcessCrewmateTaskState[]>()
-  for (const crewmate of crewmateTasks) {
-    const group = crewmate.identity.crewName
-    crewGroups.set(group, [...(crewGroups.get(group) ?? []), crewmate])
-  }
   const crewmateItems = flat.filter(item => item.kind === 'crewmate')
   const rosterCrewGroups = new Map<string, BoardItem[]>()
   for (const item of crewmateItems) {
@@ -721,8 +650,6 @@ export function BackgroundTasksDialog({
   const sampleItems = flat.filter(item => item.kind === 'sample')
   const processItems = flat.filter(item => item.kind !== 'sample')
 
-  const selectedCrewmateRunning =
-    selected?.kind === 'crewmate' && selected.task?.status === 'running'
   const selectedStoppable =
     (selected?.task !== undefined && selected.task.status === 'running') ||
     (selected?.work !== undefined && workRowRuns(selected.work))
@@ -808,27 +735,11 @@ export function BackgroundTasksDialog({
             {winStart > 0 ? (
               <Text dimColor>↑ {winStart} more above</Text>
             ) : null}
-            {crewmateItems.length > 0 || leaderItem !== null ? (
+            {crewmateItems.length > 0 ? (
               <Box flexDirection="column">
                 <SectionHeader count={crewmateItems.length}>
                   Named agents
                 </SectionHeader>
-                {leaderItem !== null && inWin(leaderItem)
-                  ? rowFor(leaderItem)
-                  : null}
-                {[...crewGroups.entries()].map(([group, members]) => (
-                  <Box key={group} flexDirection="column">
-                    <Text dimColor>
-                      {group} · {members.length + 1} named
-                    </Text>
-                    {crewmateItems
-                      .filter(item =>
-                        members.some(member => member.id === item.id),
-                      )
-                      .filter(inWin)
-                      .map(rowFor)}
-                  </Box>
-                ))}
                 {[...rosterCrewGroups.entries()].map(([group, items]) => (
                   <Box key={`roster-${group}`} flexDirection="column">
                     <Text dimColor>
@@ -886,20 +797,6 @@ export function BackgroundTasksDialog({
                 <KeyboardShortcutHint shortcut="↑/↓" action="select" />
                 {' · '}
                 <KeyboardShortcutHint shortcut="Enter" action={selected?.kind === 'sample' ? 'open' : 'view'} />
-                {' · '}
-              </>
-            ) : null}
-            {selected?.kind === 'leader' ? (
-              <>
-                <KeyboardShortcutHint shortcut="Enter" action="leader" />
-                {' · '}
-              </>
-            ) : null}
-            {selectedCrewmateRunning ? (
-              <>
-                <KeyboardShortcutHint shortcut="f" action="foreground" />
-                {' · '}
-                <KeyboardShortcutHint shortcut="m" action="message" />
                 {' · '}
               </>
             ) : null}

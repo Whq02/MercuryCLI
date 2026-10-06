@@ -67,7 +67,6 @@ import { jevLedgerSnapshot } from '../services/jev/jevLedger.js'
 import { jevFactsOf } from '../services/jev/jevSessionFacts.js'
 import { jevStatus } from '../services/jev/jevStatus.js'
 import { AsyncLocalStorage } from 'node:async_hooks'
-import { asAgentId } from '../types/ids.js'
 import { ask, sessionFactsOf } from '../rows/turn.js'
 import { commandOutputRow, compactionClearedRow, compactionRow, heartbeatRow, missionUpdatedRow, modeRow, noticeRow, outcomeRow, rateLimitRow, samplesUpdatedRow, sessionRow, taskRow, turnStartedRow, turnWaitingRow, waitRow, type RowDraft, type RowScope, type Unstamped } from '../rows/project.js'
 import { exitCodeOf, OUTCOME_SENTENCES, type CompactionRow, type InputRow, type OutcomeRow, type Row } from '../rows/vocabulary.js'
@@ -200,10 +199,8 @@ import {
 import type { BatchedPrompt, QueuedCommand } from '../types/textInputTypes.js'
 import { isHeldNotice, isOperatorLine, subscribeQueueConsumption } from '../input-core/command-queue.js'
 import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
-import { agentRecipientState, MAIN_THREAD_AGENT, noticeDeadlineMs, noticeRecipientTask, nudgeWords, startIdleNudge } from '../services/notices/idleNudge.js'
+import { agentRecipientState, MAIN_THREAD_AGENT, noticeDeadlineMs, nudgeWords, startIdleNudge } from '../services/notices/idleNudge.js'
 import { noticeRows, type NoticeRecord } from '../services/notices/unreadLedger.js'
-import { injectUserMessageToCrewmate } from '../tasks/InProcessCrewmateTask/InProcessCrewmateTask.js'
-import { isInProcessCrewmateTask } from '../tasks/InProcessCrewmateTask/types.js'
 import { isLocalShellTask } from '../tasks/LocalShellTask/guards.js'
 import { killTask } from '../tasks/LocalShellTask/killShellTasks.js'
 import {
@@ -1660,13 +1657,7 @@ export async function runHeadless(
         enqueue({ value: nudgeWords(notices, waitedMs), mode: 'prompt', priority: 'later', isMeta: true, uuid: randomUUID() })
         return true
       }
-      const task = noticeRecipientTask(getAppState().tasks, agentId)
-      if (task === undefined) return false
-      const carriers = carriersOf(notices)
-      const bodies = carriers.map(command => (typeof command.value === 'string' ? command.value : '')).filter(body => body !== '')
-      if (!injectUserMessageToCrewmate(task.id, nudgeWords(notices, waitedMs, bodies), setAppState)) return false
-      if (carriers.length > 0) retireQueuedCommands(carriers)
-      return true
+      return false
     },
     discard: notices => {
       const carriers = carriersOf(notices)
@@ -2244,18 +2235,7 @@ export async function runHeadless(
         queueOperatorMessage(params.agent_id, note, setAppState)
         return { queued: true, agent_id: params.agent_id }
       }
-      const { readAgentMetadata } = await import('../utils/sessionStorage.js')
-      if (isInProcessCrewmateTask(target) || (await readAgentMetadata(asAgentId(params.agent_id)))?.crewmate !== undefined) {
-        const { respawnCrewmateByOperator } = await import('../services/agents/operatorResume.js')
-        try {
-          const respawned = await respawnCrewmateByOperator(params.agent_id, { getAppState, toolUseContext: lastParams.toolUseContext, prompt: params.note })
-          if (respawned.outcome !== 'applied') throw refused(respawned.reason, 'agent')
-          return { agent_id: respawned.agentId, task_id: respawned.taskId, output_file: respawned.outputFile }
-        } finally {
-          for (const row of drainRows()) enqueueRow(row)
-        }
-      }
-      const { resumeAgentBackground } = await import('../tools/AgentTool/resumeAgent.js')
+      const { resumeAgentBackground, operatorResumeWords } = await import('../tools/AgentTool/resumeAgent.js')
       const { toolUseId: _staleToolUseId, ...lastContext } = lastParams.toolUseContext
       void _staleToolUseId
       const resumed = await resumeAgentBackground({
@@ -2265,7 +2245,6 @@ export async function runHeadless(
         toolUseContext: { ...lastContext, abortController: new AbortController() } as typeof lastParams.toolUseContext,
         canUseTool,
       })
-      const { operatorResumeWords } = await import('../services/agents/operatorResume.js')
       if (!params.note?.trim()) enqueueAgentReceiptRow({ taskId: resumed.agentId, description: resumed.description, summary: operatorResumeWords(resumed.description) + (resumed.note ?? '') })
       return {
         agent_id: resumed.agentId,

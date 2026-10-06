@@ -20,7 +20,7 @@
 # gate-watch: src/tools/WorkflowTool/runControl.ts src/tools/WorkflowTool/WorkflowTool.tsx
 # gate-watch: src/components/messages/UserAgentNotificationMessage.tsx src/fabric/entryCodec.ts
 # gate-watch: src/fabric/ordinal.ts src/hooks/useCancelRequest.ts src/input-core/command-queue.ts
-# gate-watch: src/services/agentResults/normalize.ts src/services/agents/operatorResume.ts
+# gate-watch: src/services/agentResults/normalize.ts
 # gate-watch: src/services/agents/operatorStop.ts src/services/api/errors.ts src/services/compact/compact.ts
 # gate-watch: src/services/compact/prompt.ts src/services/concourse/workerModels.ts
 # gate-watch: src/services/crew/adapters/ndjsonChild.ts src/services/crew/dispatch.ts
@@ -32,19 +32,19 @@
 # gate-watch: src/tasks.ts src/tasks/LocalAgentTask/* src/tasks/LocalMainSessionTask.ts
 # gate-watch: src/tasks/LocalWorkflowTask/LocalWorkflowTask.tsx src/tasks/stopTask.ts src/tools/AgentTool/*
 # gate-watch: src/tools/AgentTool/built-in/mercuryCrewAgent.ts
-# gate-watch: src/tools/shared/spawnMultiAgent.ts src/types/ids.ts src/utils/*
+# gate-watch: src/types/ids.ts src/utils/*
 # gate-watch: src/utils/accounts/signInLedger.ts src/utils/attachments/orchestrator.ts
 # gate-watch: src/utils/config/globalConfig.ts src/utils/messages/* src/utils/model/computedDefault.ts
 # gate-watch: src/utils/model/configs.ts src/utils/sessionStorage/logs.ts src/utils/sessionStorage/paths.ts
-# gate-watch: src/utils/crew/busEnvelopes.ts src/utils/crew/spawnInProcess.ts src/utils/task/*
+# gate-watch: src/utils/crew/busEnvelopes.ts src/utils/task/*
 # gate-watch: src/components/PromptInput/PromptInput.tsx src/components/tasks/crewmateInterrupt.ts src/state/selectors.ts src/state/crewmateViewHelpers.ts src/utils/attachments/queuedCommands.ts src/utils/cockpit/crewmateWords.ts src/components/PromptInput/useComposerSubmit.ts
-# gate-watch: src/components/tasks/useCrewmateTranscript.ts src/tasks/InProcessCrewmateTask/types.ts src/utils/crew/inProcessRunner.ts
+# gate-watch: src/components/tasks/useCrewmateTranscript.ts src/tasks/InProcessCrewmateTask/types.ts
 # gate-watch: src/services/coordination/coordinationService.ts src/utils/crew/roomHealth.ts
 # gate-watch: src/utils/crew/crewBirth.ts src/utils/crew/crewConvert.ts package.json scripts/builtin-tools/fixtures/tool-census.json scripts/builtin-tools/fixtures/tool-census.md scripts/project-services/fixtures/inventory.json
 # gate-watch: src/components/mercury-ui/toolGlyphs.ts src/components/messages/AssistantToolUseMessage.tsx src/state/AppState.tsx src/substrate/durableOperationMatrix.ts src/tools.ts src/tools/MCPTool/absentToolShim.ts
 # gate-watch: src/utils/capability/declarations.ts src/utils/permissions/classifierDecision.ts src/utils/crew/agentLaunchPlan.ts src/utils/crew/crewOperations.ts
 # gate-watch: src/utils/hooks/events.ts src/utils/crew/constants.ts src/utils/crew/leaseGlob.ts src/utils/crew/leaseGuard.ts src/services/crew/claims.ts src/services/oauth/client.ts
-# gate-watch: src/services/crew/liveTasks.ts src/utils/crew/roleResolver.ts src/utils/crew/crewCharter.ts src/utils/crew/crewmatePromptAddendum.ts src/utils/tasks.ts src/utils/crewmate.ts src/utils/agentContext.ts
+# gate-watch: src/services/crew/liveTasks.ts src/utils/crew/roleResolver.ts src/utils/crew/crewCharter.ts src/utils/tasks.ts src/utils/crewmate.ts src/utils/agentContext.ts
 # gate-watch: src/commands/tasks/index.ts src/components/tasks/BackgroundTasksDialog.tsx src/services/crew/identity.ts
 # gate-watch: scripts/lib/scriptedTurn.ts src/utils/crew/crewStart.ts src/utils/crew/crewWorktreeReminder.ts
 # gate-watch: src/daemon/crewSeatPause.ts src/utils/crew/crewAccountChange.ts src/utils/crew/crewmateColors.ts

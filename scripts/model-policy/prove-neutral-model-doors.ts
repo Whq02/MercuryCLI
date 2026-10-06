@@ -234,14 +234,8 @@ section('§5 the doors store exact ids; the words come from a lookup of the id')
   }
   const { subagentDefaultsOf } = await import('../../src/utils/agentDefaults.ts')
   check("the sub-agent default reader takes the choice word 'inherit' as unset", subagentDefaultsOf({ defaultModel: 'inherit' }).model === undefined && subagentDefaultsOf({ defaultModel: fable }).model === fable)
-  const { resolveCrewmateModel } = await import('../../src/tools/shared/spawnMultiAgent.ts')
-  saveGlobalConfig(c => ({ ...c, crewmateDefaultModel: 'leader' }))
-  check("the crewmate default reader takes the choice word 'leader' as the leader's model", resolveCrewmateModel(undefined, 'claude-opus-5') === 'claude-opus-5')
-  saveGlobalConfig(c => ({ ...c, crewmateDefaultModel: fable }))
-  check('the crewmate default reader runs a stored exact id', resolveCrewmateModel(undefined, 'claude-opus-5') === fable)
-  saveGlobalConfig(c => ({ ...c, crewmateDefaultModel: undefined }))
   const config = src('components', 'Settings', 'Config.tsx')
-  check('both doors resolve the pick through parseUserSpecifiedModel at write time', (config.match(/parseUserSpecifiedModel\(id\)/g) ?? []).length === 2)
+  check('the door resolves the pick through parseUserSpecifiedModel at write time', (config.match(/parseUserSpecifiedModel\(id\)/g) ?? []).length >= 1)
 }
 
 section('§6 auto mode keys on the routing law, never a tier name')
