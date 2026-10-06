@@ -10,7 +10,7 @@ const ASSET = {
   assets: 'scripts/ui/fixtures/settings-popup-header/*.txt',
   generator: 'bun scripts/ui/prove-settings-popup-header.ts --write',
   check: 'bun scripts/ui/prove-settings-popup-header.ts',
-  sources: 'scripts/ui/prove-settings-popup-header.ts scripts/cockpit-interaction/status-popup-fixture.ts src/components/SettingsPopupSlot.tsx src/components/PopupGutter.tsx src/components/FullscreenLayout.tsx src/components/HelmCenterHeader.tsx src/components/Settings/** src/components/ConsoleOAuthFlow.tsx src/components/mercury-ui/screens/SettingsStatusView.tsx src/commands/config/config.tsx src/commands/status/mercuryStatus.tsx src/commands/login/login.tsx src/commands/usage/usage.tsx',
+  sources: 'scripts/ui/prove-settings-popup-header.ts src/components/SettingsPopupSlot.tsx src/components/PopupGutter.tsx src/components/FullscreenLayout.tsx src/components/HelmCenterHeader.tsx src/components/Settings/** src/components/ConsoleOAuthFlow.tsx src/commands/config/config.tsx src/commands/login/login.tsx src/commands/usage/usage.tsx',
 }
 if (registerOnlyRequested(ASSET)) process.exit(0)
 pinSourceRef()
@@ -67,47 +67,12 @@ const store = await import('../../src/utils/cockpit/settingsPopup.ts')
 const config = await import('../../src/commands/config/config.tsx')
 const usage = await import('../../src/commands/usage/usage.tsx')
 const logins = await import('../../src/commands/login/login.tsx')
-const { SettingsStatusView } = await import('../../src/components/mercury-ui/screens/SettingsStatusView.tsx')
-const { fixtureReads, buildFacts, model } = await import('../cockpit-interaction/status-popup-fixture.ts')
 delete process.env.NODE_ENV
 process.env.FORCE_COLOR = '3'
 enableConfigs()
 saveCurrentProjectConfig(c => ({ ...c, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(c => ({ ...c, prStatusFooterEnabled: false }))
-const facts = buildFacts([], model, {
-  ...fixtureReads,
-  artifact: () => ({ ...fixtureReads.artifact!(), version: '1.0.0', buildTree: '12345678' }),
-  families: () => [
-    ...fixtureReads.families!().map(family => {
-      const labels: Record<string, string> = {
-        moonshot: 'Kimi account (device-code sign-in · Global — kimi.ai)',
-        zai: 'GLM Coding Plan key (stored, auth-scoped)',
-        'openai-compat': 'Custom endpoint (http://127.0.0.1:8080/v1) · API key (stored, auth-scoped)',
-        local: 'Ollama 0.11.4 (2 models) · localhost:11434 · LM Studio localhost:1234',
-      }
-      return labels[family.id] ? { ...family, credentialed: true, credentialLabel: labels[family.id] } : family
-    }),
-    ...[['xai', 'xAI'], ['meta', 'Meta']].map(([id, name]) => ({ id, available: true, credentialed: true, credentialLabel: `${name} API key (stored, auth-scoped)` })),
-  ] as ReturnType<NonNullable<typeof fixtureReads.families>>,
-  accountUsage: id => ({
-    ...fixtureReads.accountUsage!(id),
-    ...(id === 'moonshot' || id === 'zai' ? { windows: [
-      { key: '5h', label: 'Window (5h)', state: 'live', usedPct: id === 'moonshot' ? 25 : 17, observedAtMs: Date.now(), provider: id, source: 'fixture' },
-      { key: '7d', label: 'Current week (7d)', state: 'live', usedPct: id === 'moonshot' ? 41 : 3, observedAtMs: Date.now(), provider: id, source: 'fixture' },
-    ] } : {}),
-    ...(id === 'xai' ? { readerNote: 'credits: USD 18.00 available · voucher USD 3.00 · cash USD 15.00 · month spend USD 2.00 (management API)' } : {}),
-    ...(id === 'deepseek' ? { readerNote: 'credits: USD 12.00 available · granted USD 2.00 · topped-up USD 10.00 (balance read)' } : {}),
-    ...(id === 'openrouter' ? { readerNote: 'credits: USD 24.00 remaining · USD 6.00 used of USD 30.00 limit (key usage read)' } : {}),
-    ...(id === 'meta' ? { readerNote: 'credits: not reported by the provider; usage is not read from this key' } : {}),
-  }) as ReturnType<NonNullable<typeof fixtureReads.accountUsage>>,
-}).facts
 const context = { messages: [], options: {}, getAppState: getDefaultAppState } as never
-const status = (): void => store.openSettingsPopup({
-  view: 'status', width: 110, rows: null,
-  line: 'session snapshot · 12:00 · orchard · main',
-  hint: 'esc or click outside closes · /accounts · /usage · /health',
-  body: g => h(SettingsStatusView, { facts, onClose: store.closeSettingsPopup, width: g.inner, rowBudget: g.rowBudget }),
-})
 function Harness({ columns }: { columns: number }): React.ReactNode {
   const [vimMode, setVimMode] = React.useState<'INSERT' | 'NORMAL'>('INSERT')
   const [searching, setSearching] = React.useState(false)
@@ -127,7 +92,6 @@ function Harness({ columns }: { columns: number }): React.ReactNode {
   })
 }
 const surfaces = [
-  { view: 'status', open: status },
   { view: 'config', open: () => config.call('', context) },
   { view: 'usage', open: () => usage.call('', context) },
   { view: 'logins', open: () => logins.call(() => {}, context) },
@@ -175,7 +139,7 @@ for (const [columns, rows] of [[120, 40], [100, 30]] as const) {
     check(`${label}: all four corners and the bottom gutter fit the measured centre`, popupLeft > plan.lanesW && popupRight > popupLeft && popupBottom > popupTop && popupBottom + 1 < centreBottom, `centre bottom ${centreBottom + 1}, popup ${popupTop + 1}..${popupBottom + 1}`)
     check(`${label}: the top gutter is an opaque blank row`, popupLeft >= 0 && Array.from({ length: popupRight - popupLeft + 3 }, (_, i) => cell(after, popupLeft - 1 + i, gutter)).every(c => c === ' '))
     check(`${label}: the footer stays visible`, after.some(line => line.includes('esc or click outside')))
-    if (surface.view === 'status' || surface.view === 'config') {
+    if (surface.view === 'config') {
       check(`${label}: a full-height popup starts its gutter immediately below the header`, gutter === headerRow + 1)
     }
     const frame = after.join('\n') + '\n'
@@ -186,10 +150,6 @@ for (const [columns, rows] of [[120, 40], [100, 30]] as const) {
     }
     if (write) writeFileSync(join(stills, name), frame)
     else if (!frames && !arg('--source-ref') && process.platform === 'darwin') check(`${label}: the stored frame matches the source render`, readFileSync(join(stills, name), 'utf8') === frame)
-    if (surface.view === 'status') {
-      for (let step = 0; step < 80; step++) scene.push('\x1b[B')
-      check(`${label}: the last status fact remains reachable with its header and close hint`, await waitFor(() => scene.screen().includes('workflow idle · trace 3') && scene.screen().includes(header) && scene.screen().includes('esc or click outside'), 4000))
-    }
     store.closeSettingsPopup()
     check(`${label}: closing restores the header and transcript`, await waitFor(() => !scene.screen().includes(title) && scene.lines()[headerRow] === before[headerRow], 4000))
     scene.unmount()

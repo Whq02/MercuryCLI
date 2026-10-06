@@ -3,18 +3,19 @@ WORKBENCH               │ ✶ VIEW · cedar · viewing                        
   no prompts sent yet   │                                                                                              │
                         │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
 NEXT                    │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
-  · /workflows — agent …│ │ orchard · 57 settings · 0 set by you                                                     │ │
+  · /workflows — agent …│ │ orchard · 58 settings · 0 set by you                                                     │ │
   · /health — health ce…│ │                                                                                          │ │
   · /memory — memory    │ │ / Search settings…                                                                       │ │
   · /mission — set a mi…│ │                                                                                          │ │
                         │ │ › Auto-compact                      on                                                   │ │
-FILES · orchard         │ │   Session concourse                 on                                                   │ │
-  ↵ or click · browse   │ │   Seats                             17 · this machine's reading                          │ │
-                        │ │   Tips                              on                                                   │ │
-TELEMETRY               │ │   Reduced motion                    off                                                  │ │
-  · spend —             │ │   Ping                              on                                                   │ │
-  · ctx — · —           │ │   Motion                            auto · off                                           │ │
-  · health — run /health│ │   JEV                               off · official                                       │ │
+FILES · orchard         │ │   Auto-compact window               auto                                                 │ │
+  ↵ or click · browse   │ │   Session concourse                 on                                                   │ │
+                        │ │   Seats                             17 · this machine's reading                          │ │
+TELEMETRY               │ │   Tips                              on                                                   │ │
+  · spend —             │ │   Reduced motion                    off                                                  │ │
+  · ctx — · —           │ │   Ping                              on                                                   │ │
+  · health — run /health│ │   Motion                            auto · off                                           │ │
+                        │ │   JEV                               off · official                                       │ │
                         │ │   Instruction profile               auto                                                 │ │
                         │ │   Shell engine                      system                                               │ │
                         │ │   Patience with a quiet model       normal · idle 6m (quiet 15m) · fallback 15m · retry  │ │
@@ -26,8 +27,7 @@ TELEMETRY               │ │   Reduced motion                    off         
                         │ │   Turn duration                     on                                                   │ │
                         │ │   Default permission mode           Default                                              │ │
                         │ │   Pinned memory limit               0 of 8k                                              │ │
-                        │ │   Respect .gitignore in file picker on                                                   │ │
-                        │ │ ↓ 37 more                                                                                │ │
+                        │ │ ↓ 38 more                                                                                │ │
                         │ │                                                                                          │ │
                         │ │ ↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes                 │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
