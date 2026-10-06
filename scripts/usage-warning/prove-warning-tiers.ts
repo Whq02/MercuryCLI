@@ -55,12 +55,28 @@ for (const posture of ['off', 'offer', 'auto'] as const) {
 
 const { getUsageLimitNoticeAttachment } = await import('../../src/utils/attachments/sessionContext.ts')
 const context = { options: { engineModel: 'fable' } } as Parameters<typeof getUsageLimitNoticeAttachment>[0]
+const { getSettingsForSource, updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
+const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const armNotice = (on: boolean): void => {
+  updateSettingsForSource('userSettings', { engine: { usageNotice: on ? true : undefined } } as never)
+  resetSettingsCache()
+}
+const savedNotice = getSettingsForSource('userSettings')?.engine?.usageNotice
+armNotice(false)
 const messages: unknown[] = []
+for (const pct of [79, 80, 85, 90, 95]) {
+  const notices = getUsageLimitNoticeAttachment(context, messages, reads(pct))
+  assert.equal(notices.length, 0, `pct ${pct} must stay quiet with the setting off`)
+}
+assert.ok(!messages.some(m => JSON.stringify(m).includes('usage_limit_notice')))
+armNotice(true)
 for (const pct of [79, 80, 85, 90, 95]) {
   const notices = getUsageLimitNoticeAttachment(context, messages, reads(pct))
   assert.equal(notices.length, pct === 80 || pct === 90 ? 1 : 0)
   messages.push(...notices.map(attachment => ({ type: 'attachment', attachment })))
 }
+armNotice(savedNotice === undefined ? undefined : savedNotice)
+resetSettingsCache()
 const first = warnings.usageWarningNoticeText('Anthropic: 80% of the weekly limit used', 80)
 assert.equal(first, 'Usage limit near — Anthropic: 80% of the weekly limit used. The provider stops this session only when the window is used up.')
 assert.equal(warnings.usageWarningNoticeText('Anthropic: 90% of the weekly limit used', 90), 'Usage limit near — Anthropic: 90% of the weekly limit used. The provider stops this session only when the window is used up. Keep the work resumable: finish the step in hand; commit what is done and write down where it stands.')

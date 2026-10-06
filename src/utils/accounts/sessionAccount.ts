@@ -33,9 +33,9 @@ export function sessionAccountFamily(mainModel: string, reads: SessionAccountRea
 export function sessionAccountWords(mainModel: string, reads: SessionAccountReads = {}): SessionAccountWords {
   const family = sessionAccountFamily(mainModel, reads)
   if (family === null) return { state: 'none' }
-  const presence: PresenceWords | undefined =
+  const presence: (PresenceWords & { id: string }) | undefined =
     family === 'anthropic'
-      ? (reads.anthropic ?? anthropicCredentialPresence)()
+      ? { id: family, ...(reads.anthropic ?? anthropicCredentialPresence)() }
       : (reads.presences ?? providerFamilyPresences)().find(candidate => candidate.id === family)
   const words = presence === undefined ? undefined : presenceIdentityWords(presence)
   return words !== undefined ? { state: 'email', text: words, family } : { state: 'none' }

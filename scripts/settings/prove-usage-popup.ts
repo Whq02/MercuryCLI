@@ -54,6 +54,7 @@ await stub('../../src/services/providers/providerUsage.js', () => ({
   providerUsageView: (id: string) => ({ entries: entries().filter(entry => entry.provider === id), activeEntry: entries().find(entry => entry.provider === id), sessionSpend: spend, limits: { kind: 'none' } }),
   refreshProviderUsage: async (id: string, options: { reason: string }) => { const key = `${id}:${options.reason}`; counts.set(key, (counts.get(key) ?? 0) + 1); if (id === 'anthropic') await heldRefresh },
   usageForProvider: owner,
+  activeSourceUsage: () => ({ provider: 'anthropic', sourceKind: subscriber ? 'subscription-oauth' : 'none', label: subscriber ? 'Anthropic usage' : 'Anthropic usage', shape: 'subscription-windows', windows: subscriber ? windows : [], pools: [], spend }),
   usageCreditsLine: () => undefined,
   usageCarryWords: () => undefined,
   usageWindowReached: () => null,
@@ -80,7 +81,7 @@ await stub('../../src/cost-tracker.js', () => ({ formatLaneSpend: () => '$0.00' 
 await stub('../../src/components/ConfigurableShortcutHint.js', () => ({ ConfigurableShortcutHint: () => null }))
 await stub('../../src/components/Settings/Settings.js', () => ({ nextSettingsOpen: (() => { let n = 0; return () => ++n })() }))
 
-const { JEV_USAGE_LABEL, Usage, usageBodyRows, usageColumns, usageCompactLines, usageSectionPlan, usageWindow } = await import('../../src/components/Settings/Usage.js')
+const { JEV_USAGE_LABEL, Usage, usageBodyRows, usageColumns, usageCompactLines, usageSectionPlan, usageWindow, orderUsageSections } = await import('../../src/components/Settings/Usage.js')
 const { PopupCompactContext } = await import('../../src/context/popupFormContext.js')
 const { Box, render, flushPendingSyncWork, EventEmitter, InputEvent, elementScreenTop, elementScreenLeft, wrapText } = await import('../../src/ink.js')
 const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
@@ -305,6 +306,23 @@ for (const budget of [0, 1, 2, 3, 7, 13, 22]) {
 }
 const math = [8, 4, 4, 5].map((height, index) => ({ height, count: index === 3 ? 1 : 3 }))
 check('the six-provider window advances and retreats symmetrically', usageWindow(math, 21, 0).next === 9 && usageWindow(math, 21, 9).next === 14 && usageWindow(math, 21, 14).previous === 9 && usageWindow(math, 21, 14).next === 14)
+{
+  const savedRich = rich
+  rich = true
+  subscriber = false
+  const zaiPlan = usageSectionPlan(ids.map(id => ({ id, available: false, credentialed: ['anthropic', 'openai', 'gemini', 'deepseek', 'zai'].includes(id), credentialLabel: `${id} fixture key` })) as never)
+  const recency = ['openai', 'gemini', 'deepseek', 'anthropic']
+  const credentialed = zaiPlan.filter(section => section.family.credentialed).map(section => section.id)
+  const glmOrder = orderUsageSections(zaiPlan, recency, 'zai')
+  check('RED ON THE BASE: a GLM session leads the listing even when Anthropic signed in last', glmOrder[0]!.id === 'zai', glmOrder.map(section => section.id).join(','))
+  check('the session lead keeps the recency order behind it', glmOrder.slice(1, credentialed.length).map(section => section.id).join(',') === recency.filter(id => id !== 'zai' && credentialed.includes(id)).join(','), glmOrder.map(section => section.id).join(','))
+  check('the absent families still close the listing', glmOrder.slice(credentialed.length).every(section => !section.family.credentialed))
+  const plainOrder = orderUsageSections(zaiPlan, recency)
+  check('no session lead falls back to the recency order byte for byte', plainOrder.map(section => section.id).join(',') === orderUsageSections(zaiPlan, recency, undefined).map(section => section.id).join(','))
+  const unknownSession = orderUsageSections(zaiPlan, recency, 'moonshot')
+  check('an uncredentialed session family leads nothing (the listing keeps the recency order)', unknownSession.map(section => section.id).join(',') === plainOrder.map(section => section.id).join(','))
+  rich = savedRich
+}
 const command = (await import('../../src/commands/usage/index.js')).default
 check('/usage is ungated, private, screen-local and unavailable non-interactively', command.type === 'local' && command.seat === 'screen' && command.userPrivate === true && command.supportsNonInteractive === false && !('availability' in command))
 const popup = await import('../../src/utils/cockpit/settingsPopup.js')
@@ -314,7 +332,7 @@ subscriber = true
 const result = await call('', {} as never)
 const request = popup.settingsPopupRequest()
 check('/usage opens only its 150×29 popup and returns skip', result.type === 'skip' && request?.view === 'usage' && typeof request.width === 'function' && request.width(178) === 150 && request.width(98) === 98 && request.rows === 29)
-check('the context carries live figures in the design grammar', request?.line === '10 providers · 2 subscriptions signed in · Anthropic session 52% · week 49%')
+check('the context leads with the session family and carries its live figures', request?.line === 'Anthropic session on · 2 subscriptions signed in · session 52% · week 49%')
 check('the hint is exactly the design\'s words', request?.hint === '↑↓ scroll · esc or click outside closes')
 const body = request?.body({ width: 120, inner: 116, rowBudget: 13 }) as React.ReactElement<{ width: number; rowBudget: number; openToken: number }>
 check('the store geometry reaches the body unchanged', body?.props.width === 116 && body?.props.rowBudget === 13)
@@ -324,7 +342,7 @@ check('each open mints a distinct token', reopened.props.openToken !== body.prop
 rich = false
 subscriber = false
 await call('', {} as never)
-check('no credential invents a subscription or a percentage', popup.settingsPopupRequest()?.line === '10 providers · 0 subscriptions signed in')
+check('no credential invents a subscription or a percentage', popup.settingsPopupRequest()?.line === 'Anthropic session on · 0 subscriptions signed in')
 popup.closeSettingsPopup()
 ids.splice(ids.indexOf('deepseek') + 1, 0, 'xai', 'meta')
 const fullEstate = await mount(146, 22, 178, token++)
@@ -332,7 +350,7 @@ check('the complete estate mounts twelve provider sections including xAI and Met
 await walk(fullEstate, 146, 22, 'complete estate 178x51')
 fullEstate.close()
 await call('', {} as never)
-check('the complete estate context counts twelve providers', popup.settingsPopupRequest()?.line === '12 providers · 0 subscriptions signed in')
+check('the complete estate context keeps the session lead and no invented figure', popup.settingsPopupRequest()?.line === 'Anthropic session on · 0 subscriptions signed in')
 popup.closeSettingsPopup()
 console.log(`usage popup: ${failures} failure(s)`)
 process.exit(failures ? 1 : 0)

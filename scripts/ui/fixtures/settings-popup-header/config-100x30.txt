@@ -2,7 +2,7 @@
 WORKBENCH           │                                                                              │
   no prompts sent y…│ ╭──────────────────────────────────────────────────────────────────────────╮ │
                     │ │ ▖▟▆▙▗ Mercury · config                                                   │ │
-NEXT                │ │ orchard · 57 settings · 0 set by you                                     │ │
+NEXT                │ │ orchard · 59 settings · 0 set by you                                     │ │
   · /workflows — ag…│ │                                                                          │ │
                     │ │ / Search settings…                                                       │ │
 FILES · orchard     │ │                                                                          │ │
@@ -12,12 +12,12 @@ TELEMETRY           │ │   Seats                             17 · this machi
   · spend —         │ │   Tips                              on                                   │ │
   · ctx — · —       │ │   Reduced motion                    off                                  │ │
   · health — run /h…│ │   Ping                              on                                   │ │
+                    │ │   Account identity                  shown                                │ │
                     │ │   Motion                            auto · off                           │ │
                     │ │   JEV                               off · official                       │ │
                     │ │   Instruction profile               auto                                 │ │
                     │ │   Shell engine                      system                               │ │
-                    │ │   Patience with a quiet model       normal · idle 6m (quiet 15m) ·       │ │
-                    │ │ ↓ 46 more                                                                │ │
+                    │ │ ↓ 48 more                                                                │ │
                     │ │                                                                          │ │
                     │ │ ↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes │ │
                     │ ╰──────────────────────────────────────────────────────────────────────────╯ │

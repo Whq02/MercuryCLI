@@ -136,6 +136,7 @@ export const SettingsSchema = lazySchema(() => {
       effort: z.enum(EFFORT_LEVELS).optional().catch(undefined),
       sessionDefaults: z.boolean().optional(),
       reasoning: z.boolean().optional(),
+      usageNotice: z.boolean().optional().describe("Usage notice to the model — with it on, the model is told when the session's usage window or spending limit is near (80% and 90%); off, the model is told nothing and only you see the meters"),
       agent: z.string().optional(),
     }).passthrough().optional(),
     kit: z.object({
@@ -171,6 +172,7 @@ export const SettingsSchema = lazySchema(() => {
       backgroundKey: z.boolean().optional(),
       firstRunCards: z.enum(['centred', 'top-left']).optional().describe('Where the first-run cards sit: centred on the screen with the trust tone in brown (the default), or top-left with the amber tone'),
       ping: z.boolean().optional().describe('Ping the terminal once when a chat finishes its turn while you are away (an iTerm2 notification there, the bell elsewhere); on unless set to false'),
+      accountIdentity: z.boolean().optional().describe('Account identity on the screens: shown unless set to false; hidden takes every signed-in address, username and key tail off the screens (for a recording) and leaves the account word, while the Logins screen, /accounts and the health report still name the account'),
     }).passthrough().optional(),
     context: z.object({ wayBack: z.boolean().optional() }).passthrough().optional(),
     input: z.object({ suggestions: z.boolean().optional() }).passthrough().optional(),

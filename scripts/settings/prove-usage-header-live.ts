@@ -29,6 +29,21 @@ const limits = await import('../../src/services/anthropicLimits.js')
 const owner = await import('../../src/services/providers/providerUsage.js')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
+const auth = await import('../../src/utils/auth.js')
+const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.js')
+const { storeOAuthAccountInfo } = await import('../../src/services/oauth/client.js')
+storeOAuthAccountInfo({ accountUuid: '00000000-0000-4000-8000-0000000000cc', emailAddress: 'header@example.com' })
+const saved = auth.saveOAuthTokensIfNeeded({
+  accessToken: 'fixture-access-token-header',
+  refreshToken: 'fixture-refresh-token-header',
+  expiresAt: Date.now() + 3_600_000,
+  scopes: ['user:inference', 'user:profile'],
+  subscriptionType: 'max',
+  rateLimitTier: 'default_claude_max_20x',
+})
+if (!saved.success) throw new Error(`the credential store refused the sign-in: ${saved.warning ?? '?'}`)
+auth.clearOAuthTokenCache()
+recordSignIn('anthropic', 'oauth')
 const lineModule = await import('../../src/components/Settings/usageLine.ts').catch(() => null) as { usagePopupLine: () => string } | null
 const usagePopupLine = (): string => lineModule?.usagePopupLine() ?? '(no one reader on this tree)'
 const usageCommand = await import('../../src/commands/usage/usage.tsx')
@@ -38,7 +53,7 @@ const fold = (weekPct: number, sessionPct: number): void => {
   const iso = new Date(Date.now() + HOUR).toISOString()
   limits.foldUtilizationFromEndpoint({ five_hour: { utilization: sessionPct, resets_at: iso }, seven_day: { utilization: weekPct, resets_at: iso } }, undefined, Date.now())
 }
-const weekOf = (line: string): string => /week (\d+)%/.exec(line)?.[1] ?? '(no week)'
+const weekOf = (line: string): string => /(?:week|7d) (\d+)%/.exec(line)?.[1] ?? '(no week)'
 const blockWeek = (): string => {
   const w = owner.anthropicWindowViews().find(v => v.key === '7d')
   return w?.usedPct === undefined ? '(none)' : String(Math.floor(w.usedPct))
@@ -72,12 +87,12 @@ section('§2 the open popup: the header follows the body\'s refresh instead of t
   const m = await mountOffscreen(element, COLS, ROWS)
   await usageCommand.call('', {} as never)
   const headerUp = await waitFor(() => /week 56%/.test(m.screen()), 6000)
-  check('the popup opened with the header meters of the record at open time (week 56%)', headerUp, m.lines().find(l => /providers ·/.test(l))?.trim() ?? m.screen().slice(0, 200))
+  check('the popup opened with the header meters of the record at open time (week 56%)', headerUp, m.lines().find(l => /session on ·/.test(l))?.trim() ?? m.screen().slice(0, 200))
   check('the request carried the same line', weekOf(store.settingsPopupRequest()?.line ?? '') === '56')
   fold(57.2, 4.9)
-  const moved = await waitFor(() => /week 57%/.test(m.screen()), 6000)
-  const header = m.lines().find(l => /providers ·/.test(l))?.trim() ?? ''
-  check('RED ON THE BASE: the endpoint answers while the popup stands and the header reads the new week (57%) — the figure the block paints', moved && !/week 56%/.test(m.screen()), header)
+  const moved = await waitFor(() => /(?:week|7d) 57%/.test(m.screen()), 6000)
+  const header = m.lines().find(l => /session on ·/.test(l))?.trim() ?? ''
+  check('RED ON THE BASE: the endpoint answers while the popup stands and the header reads the new week (57%) — the figure the block paints', moved && !/56%/.test(header), header)
   check('the header and the block\'s reader agree', weekOf(header) === blockWeek(), `${weekOf(header)} vs ${blockWeek()}`)
   store.closeSettingsPopup()
   await settle(60)

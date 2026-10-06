@@ -2,7 +2,7 @@
 WORKBENCH           │                                                                              │
   no prompts sent y…│ ╭──────────────────────────────────────────────────────────────────────────╮ │
                     │ │ ▖▟▆▙▗ Mercury · usage                                                    │ │
-NEXT                │ │ 12 providers · 0 subscriptions signed in                                 │ │
+NEXT                │ │ API usage session on · 0 subscriptions signed in                         │ │
   · /workflows — ag…│ │                                                                          │ │
                     │ │ Anthropic usage                                                          │ │
 FILES · orchard     │ │ API key · …-key                                                          │ │
