@@ -187,7 +187,7 @@ t.section('§2 journey: header + CREW lead row + mouse return')
       '2000:\\r',
       '6000:spawn the probe\\r',
       `after:poise pro… · running:1000:${sgrClick(10, CHILD_ROW)}`,
-      `after:poise probe · viewing:2500:${sgrClick(10, ROOT_ROW)}`,
+      `after:x stop · p pause:2500:${sgrClick(10, ROOT_ROW)}`,
     ],
     seconds: 20,
     cols: 120,
@@ -217,9 +217,9 @@ t.section('§2 journey: header + CREW lead row + mouse return')
     const leadMarked = (f: { rows: string[] }): boolean => f.rows.some(r => /›\s*✶ Mercury Lead/.test(r))
     const childMarked = (f: { rows: string[] }): boolean => f.rows.some(r => /›\s*◉ poise pro/.test(r))
     const childRunning = (f: { rows: string[] }): boolean => f.rows.some(r => r.includes('poise pro') && r.includes('running'))
-    const inView = (f: { rows: string[] }): boolean => has(f, /VIEW · poise probe · viewing/)
+    const inView = (f: { rows: string[] }): boolean => has(f, /❯ message poise probe/)
 
-    const iMain = idxOf(0, f => leadMarked(f) && childRunning(f) && !has(f, 'viewing'))
+    const iMain = idxOf(0, f => leadMarked(f) && childRunning(f) && !has(f, '❯ message poise'))
     t.check('at main, the lead row reads Mercury Lead and wears the › mark (its chat is the view)', iMain >= 0)
     const mf = frames[iMain] ?? { rows: [] as string[] }
     const rootIdx = mf.rows.findIndex(r => /✶ Mercury Lead/.test(r))
@@ -235,10 +235,10 @@ t.section('§2 journey: header + CREW lead row + mouse return')
       f => inView(f) && childMarked(f) && !leadMarked(f) && has(f, 'esc interrupts') && has(f, 'sends to poise probe'),
     )
     t.check(
-      'one click on the child opens it in the view: the header names it viewing, the › mark moves to its row, esc interrupts it, ↵ addresses it',
+      'one click on the child opens it in the view: the composer addresses it, the › mark moves to its row, esc interrupts it, ↵ sends to it',
       iMain >= 0 && iView > iMain,
       iView >= 0
-        ? frames[iView]!.rows.find(r => r.includes('VIEW · poise probe'))?.trim().slice(0, 70)
+        ? frames[iView]!.rows.find(r => r.includes('❯ message poise probe'))?.trim().slice(0, 70)
         : 'no such frame after the main frame',
     )
 
