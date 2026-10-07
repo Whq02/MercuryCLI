@@ -163,7 +163,7 @@ section('§4 H-19 · ONE FILESYSTEM PERMISSION ENGINE ACROSS THE THREE TOOLS')
   const lspOps = src('src/tools/LSPTool/mercuryOps.ts')
   check(
     'ChangeSet planning delegates each canonical path to the shared write-permission engine',
-    changeSet.includes("import { checkWritePermissionForTool } from '../../utils/permissions/filesystem.js'") &&
+    /import \{[^}]*\bcheckWritePermissionForTool\b[^}]*\} from '\.\.\/\.\.\/utils\/permissions\/filesystem\.js'/.test(changeSet) &&
       /scopeCheck: \(canonicalPath: string\) => \{\s*const decision = checkWritePermissionForTool\(pathShim, \{ file_path: canonicalPath \}, permCtx\)/.test(changeSet),
   )
   check(

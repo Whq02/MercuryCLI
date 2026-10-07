@@ -1,4 +1,3 @@
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-rg-is-ordinary.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-rg-is-ordinary.ts" "$__t" "$__rc"
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-env: MERCURY_PROOF_POISON_SCRUB MERCURY_SHELL_ENGINE MERCURY_TMPDIR
@@ -92,6 +91,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-progress-elapsed-from-launch.ts" |
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-session-env-notice-short.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-session-env-notice-short.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-bash-schema-words.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-bash-schema-words.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-bash-description-budget.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-bash-description-budget.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-rg-is-ordinary.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-rg-is-ordinary.ts" "$__t" "$__rc"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL BASH PERMISSION PROOFS PASS"; else echo "# ❌ SOME BASH PERMISSION PROOFS FAILED"; fi
 echo "############################################################"
