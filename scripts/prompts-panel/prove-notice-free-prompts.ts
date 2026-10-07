@@ -61,7 +61,7 @@ const reminder = '<system-reminder>background context delivered</system-reminder
 const first = user('check the workbench prompt list')
 const last = user('eta on lanes? and which lanes left?')
 const operator = [first, last]
-const notices = [user(monitor), user([text(monitor)]), user(task), user([text(task)])]
+const notices = [user(monitor), user([text(monitor)]), user(task), user([text(task)]), user([text(task), text(monitor)])]
 const conversation = [first, ...notices, last]
 const untouched = JSON.stringify(conversation)
 const expected = promptRows(operator)
@@ -98,6 +98,10 @@ try {
     ['monitor plus reminder', `${monitor}\n${reminder}`],
     ['reminder-only delivery', reminder],
     ['split notice text blocks', [text(monitor), text(reminder)]],
+    ['task then monitor batch', [text(task), text(monitor)]],
+    ['monitor then task batch', [text(monitor), text(task)]],
+    ['task then reminder batch', [text(task), text(reminder)]],
+    ['task batch with trailing empty block', [text(task), text(monitor), text('')]],
   ] as const) {
     check(`${name} is not an operator prompt`, promptRows([user(value as UserMessage['message']['content'])]).length === 0)
   }
@@ -113,6 +117,9 @@ try {
     user(`${monitor}\nthese are my own words`),
     user([text(monitor), text('my own words in a later block')]),
     user([text('my own words in an earlier block'), text(monitor)]),
+    user([text(`explain this task: ${task}`), text(monitor)]),
+    user([text(task), text('operator followup between notices'), text(monitor)]),
+    user([text(task), text(monitor), { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AA==' } }]),
     user('<monitor task="watch-1" name="build watch">not closed'),
     user('operator with explicit human origin', { origin: { kind: 'human' } }),
     user([text(monitor), { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AA==' } }]),
