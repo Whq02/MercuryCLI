@@ -87,6 +87,7 @@ t.section('§5 — the seams are WIRED product-wide (every painted glyph hint ro
     { file: 'mercury-ui/glyphs.ts', mark: 'branch:' },
     { file: 'ConcourseLayout.tsx', mark: "keys === '⌃g'" },
     { file: 'managerMode.ts', mark: 'coordinator chip or ⌃s picks one' },
+    { file: 'PromptInput/PromptInputFooter.tsx', mark: "'shift + ←'" },
   ]
   const ALLOW_FILES: ReadonlyArray<string> = [
     'src/components/concourse/controlManifest.ts',
