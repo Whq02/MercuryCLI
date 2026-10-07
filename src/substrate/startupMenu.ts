@@ -88,7 +88,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     defaultLabel: 'on',
     summary: 'real C/C++ IDE evidence — diagnostics with clang-tidy, rename, source ⇄ header — through a clangd the harness finds for you',
     detail: {
-      controls: 'The C/C++ language lane of the IDE bridge: finds a clangd (PATH · Xcode · Homebrew llvm), lazy-starts it on the first C/C++ file touched, and answers through the LSP tool. Needs nothing from the project — a compile database sharpens it (evidence on /health). Pairs with the Debug tool: real IDE evidence instead of guesses.',
+      controls: 'The C/C++ language lane of the IDE bridge: finds a clangd (PATH · Xcode · Homebrew llvm), lazy-starts it on the first C/C++ file touched, and answers through LspRead and LspRename. Needs nothing from the project — a compile database sharpens it (evidence on /health). Pairs with the Debug tool: real IDE evidence instead of guesses.',
       on: ['C/C++ files get diagnostics · rename · code actions · source ⇄ header jumps', 'clang-tidy findings ride the diagnostics', 'no clangd installed ⇒ the lane simply stays quiet'],
       off: ['C/C++ files fall back to plain-text editing — no language server'],
     },
@@ -204,7 +204,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     summary: 'GDScript IDE + debugger through your running Godot editor — outline, member search, navigation, breakpoints',
     detail: {
       controls: 'Arms both Godot lanes: the GDScript language server (outline · member search · navigation — it lives INSIDE the Godot editor, reached over a loopback bridge on :6005) and the godot debug adapter (:6006) for the Debug tool. Activates only in a project with a project.godot, and the editor must be open — a closed editor answers with a teaching note, never a hang. Pairs with the Godot control surface (VULCAN) below for full editor control.',
-      on: ['.gd files get the GDScript IDE ops through the LSP tool', "the Debug tool gains the 'godot' adapter (breakpoints in the running editor)", 'no project.godot or no running editor ⇒ an honest teaching note'],
+      on: ['.gd files get the GDScript IDE ops through LspRead and LspRename', "the Debug tool gains the 'godot' adapter (breakpoints in the running editor)", 'no project.godot or no running editor ⇒ an honest teaching note'],
       off: ['no Godot servers are ever dialed — identical to a build without it'],
     },
   },
@@ -217,7 +217,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     defaultLabel: 'off',
     summary: 'full editor control for Godot projects — scenes, nodes, resources, play-testing, runtime inspection, input simulation (163 ops)',
     detail: {
-      controls: "The agent drives your running Godot editor directly: scene and node editing (every change is one Ctrl+Z undo step), scripts, resources, animation, physics, audio, tilemaps, shaders — plus play-testing with live game inspection and input simulation. Arming it also shifts agent behavior: sessions and spawned agents learn to prefer editor state over hand-editing scene files. Needs the bundled mercury_vulcan addon installed in the project (the tool installs it on ask) and the editor open. Local and sandboxed: a token-authed loopback connection only; running code or simulating input always asks permission first. Pairs with the Godot language lanes above (symbols + breakpoints stay with the LSP/Debug tools).",
+      controls: "The agent drives your running Godot editor directly: scene and node editing (every change is one Ctrl+Z undo step), scripts, resources, animation, physics, audio, tilemaps, shaders — plus play-testing with live game inspection and input simulation. Arming it also shifts agent behavior: sessions and spawned agents learn to prefer editor state over hand-editing scene files. Needs the bundled mercury_vulcan addon installed in the project (the tool installs it on ask) and the editor open. Local and sandboxed: a token-authed loopback connection only; running code or simulating input always asks permission first. Pairs with the Godot language lanes above (symbols + breakpoints stay with LspRead and Debug).",
       on: ['the Godot tool joins the catalog for the session (163 editor ops + extras); outside a Godot project it answers with a teaching note, and a project created mid-session is found at once', 'reads are free; edits ask like file edits and are undoable in the editor; play/input/execute always ask', 'agents shift behavior: editor-first workflow, play-test natively, memory keeps project facts'],
       off: ['no Godot tool, no connection, no addon writes — identical to an unarmed build'],
     },
@@ -232,7 +232,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     summary: 'C# IDE + attach-to-editor debugging + editor bridge (play/scenes/tests) + headless test/build profiles for Unity projects — nothing is ever installed or run for you without asking',
     detail: {
       controls: "Arms the Unity lanes in a project with Assets/ + ProjectSettings/: the C# language server lane (your own csharp-ls or OmniSharp from PATH — never auto-installed; /health teaches the install line when absent), the Debug tool's `unity` adapter (attaches to your RUNNING editor via the official Unity VS Code extension's adapter — the editor hosts the debuggee, so every gesture is an attach), the `Unity` tool driving your running editor over a token-authed loopback bridge (play mode, scenes, hierarchy, console, Test Runner — needs the bundled bridge package installed in the project, which the tool does on ask; play/test gestures always ask permission), and headless -batchmode test/build launch profiles the tool hands you to run yourself. Unity's own licensing applies to headless editor runs; if a run fails with Unity's licensing error, activating a license is yours to do (Unity Hub or -serial) — Mercury never checks or manages licenses, and never launches or installs the editor.",
-      on: ['.cs files in Unity projects get IDE ops through the LSP tool (csharp-ls/OmniSharp from PATH)', "the Debug tool gains the 'unity' adapter — breakpoints in your running editor (port from Library/EditorInstance.json)", "the `Unity` tool joins the catalog in Unity projects — play/scenes/hierarchy/console/test runs through your running editor (bridge package installed on ask; reads are free, everything else asks)", 'headless test/build profiles appear; running them stays your act (the exact command is printed, license disclaimer included)'],
+      on: ['.cs files in Unity projects get IDE ops through LspRead and LspRename (csharp-ls/OmniSharp from PATH)', "the Debug tool gains the 'unity' adapter — breakpoints in your running editor (port from Library/EditorInstance.json)", "the `Unity` tool joins the catalog in Unity projects — play/scenes/hierarchy/console/test runs through your running editor (bridge package installed on ask; reads are free, everything else asks)", 'headless test/build profiles appear; running them stays your act (the exact command is printed, license disclaimer included)'],
       off: ['no Unity surface exists — identical to a build without it'],
     },
   },
