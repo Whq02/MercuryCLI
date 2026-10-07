@@ -84,6 +84,27 @@ for (const kind of ['Bash', 'PowerShell', 'background']) {
     input: { command: 'bun test' }, ok: true, durationMs: 1, effect: undefined })
   check(`${kind} shell checks reach the record through the ledger`, (await finish(f)).data.outcome === 'succeeded')
 }
+for (const command of ['python -m unittest discover -s tests', 'python3 -m unittest', 'py -3 -m unittest discover']) {
+  const f = fixture()
+  emit(f)
+  observeToolTerminal({ owner: f.owner, cwd: f.root, toolName: 'Bash', toolUseId: command,
+    input: { command }, ok: true, durationMs: 1, effect: undefined })
+  check(`${command} satisfies the promised shell check`, (await finish(f)).data.outcome === 'succeeded')
+}
+const receiptedRead = fixture(['one.txt', 'two.txt'])
+observeToolTerminal({ owner: receiptedRead.owner, cwd: receiptedRead.root, toolName: 'ChangeSet', toolUseId: 'digest-change',
+  input: {}, ok: true, durationMs: 1,
+  effect: { operation: 'file.changeSet', outcome: 'succeeded', changedPaths: receiptedRead.files,
+    evidence: 'digest verified', startedAt: Date.now(), completedAt: Date.now(), details: { artifactDigest: 'a'.repeat(64) } } })
+check('digest receipts still create no forced read debt', ledger.demandedReadBackPaths(receiptedRead.root, receiptedRead.owner).size === 0)
+for (let i = 0; i < receiptedRead.files.length; i++) {
+  const file = receiptedRead.files[i]!
+  observeToolTerminal({ owner: receiptedRead.owner, cwd: receiptedRead.root, toolName: 'Read', toolUseId: `read-${file}`,
+    input: { file_path: file }, ok: true, durationMs: 1, effect: undefined })
+  if (i === 0) check('one of two files does not settle full read-back', (await finish(receiptedRead)).data.outcome !== 'succeeded')
+}
+check('voluntary full Reads settle a digest-receipted change', (await finish(receiptedRead)).data.outcome === 'succeeded')
+
 const before = fixture()
 evidence(before)
 emit(before, 'git.stage', { paths: [], input: {}, toolName: 'Git' })

@@ -137,6 +137,9 @@ try {
       owner,
       toolName: 'Edit',
       toolUseId: 'fixture-python-fix',
+      cwd: proj,
+      ok: true,
+      durationMs: 3,
       input: { file_path: shopPy },
       effect: {
         outcome: 'succeeded',
@@ -147,6 +150,7 @@ try {
         completedAt: Date.now(),
       },
     } as never)
+    await (await import('../../src/services/ide/txAutoCapture.js'))._drainTxAutoCaptureForTesting()
     const receipt = receiptsFor(owner).at(-1)
     check('the receipt minted', receipt !== undefined)
     const noted = await tx.noteStep({
