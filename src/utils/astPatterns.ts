@@ -144,6 +144,47 @@ function normaliseGlob(glob: string): string {
   return trimmed.includes('/') ? trimmed : `**/${trimmed}`
 }
 
+function expandGlobAlternatives(glob: string): string[] | AstRefusal {
+  const pending = [glob]
+  const expanded: string[] = []
+  while (pending.length > 0) {
+    const current = pending.pop()!
+    let group: { start: number; end: number; parts: string[] } | undefined
+    for (let start = 0; start < current.length && group === undefined; start++) {
+      if (current[start] !== '{') continue
+      let depth = 0
+      let partStart = start + 1
+      const parts: string[] = []
+      for (let end = start + 1; end < current.length; end++) {
+        if (current[end] === '{') depth++
+        else if (current[end] === '}') {
+          if (depth > 0) depth--
+          else {
+            if (parts.length > 0) {
+              parts.push(current.slice(partStart, end))
+              group = { start, end, parts }
+            }
+            break
+          }
+        } else if (current[end] === ',' && depth === 0) {
+          parts.push(current.slice(partStart, end))
+          partStart = end + 1
+        }
+      }
+    }
+    if (group === undefined) expanded.push(current)
+    else {
+      for (let i = group.parts.length - 1; i >= 0; i--) {
+        pending.push(current.slice(0, group.start) + group.parts[i] + current.slice(group.end + 1))
+      }
+    }
+    if (expanded.length + pending.length > 64) {
+      return { refused: `glob "${glob}" expands to more than 64 alternatives — use fewer {a,b} lists or a broader glob.` }
+    }
+  }
+  return expanded
+}
+
 export function resolveAstScope(opts: {
   path?: string
   glob?: string
@@ -199,8 +240,10 @@ export function resolveAstScope(opts: {
   if (!stat.isDirectory()) {
     return { refused: `${display} is neither a file nor a directory.` }
   }
-  const glob = opts.glob !== undefined && opts.glob.trim() !== '' ? normaliseGlob(opts.glob) : undefined
-  const discovered = discoverPolyglotFiles(target, glob !== undefined ? [glob] : undefined, lang ?? null)
+  const glob = opts.glob !== undefined && opts.glob.trim() !== '' ? opts.glob : undefined
+  const alternatives = glob === undefined ? undefined : expandGlobAlternatives(glob)
+  if (isAstRefusal(alternatives)) return alternatives
+  const discovered = discoverPolyglotFiles(target, alternatives?.map(normaliseGlob), lang ?? null)
   let skippedDenied = 0
   const uncarried = new Map<string, number>()
   const files: AstScopeFile[] = []
