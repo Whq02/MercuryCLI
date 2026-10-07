@@ -41,7 +41,7 @@ export function matchesPattern(matchQuery: string, matcher: string): boolean {
     return true
   }
   if (shape === 'names') {
-    const patterns = matcher.split('|').map(p => p.trim())
+    const patterns = matcher.includes('|') ? matcher.split('|').map(p => p.trim()) : [matcher]
     return patterns.some(pattern => pattern === matchQuery || lspFamilyMatches(pattern, matchQuery))
   }
 
