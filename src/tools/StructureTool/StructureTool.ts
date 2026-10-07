@@ -23,10 +23,9 @@ import {
 import { forEachQueryMatch } from '../../services/structure/query.js'
 import { readFileSync } from 'node:fs'
 import * as path from 'node:path'
-import { LSP_TOOL_NAME } from '../LSPTool/prompt.js'
 
 function lspMounted(offered: ReadonlySet<string> | null): boolean {
-  if (offered !== null && !offered.has(LSP_TOOL_NAME)) return false
+  if (offered !== null && !offered.has('LspRename')) return false
   try {
     const { isLspToolMounted } = require('../../services/lsp/manager.js') as typeof import('../../services/lsp/manager.js')
     return isLspToolMounted()
@@ -354,7 +353,7 @@ export const StructureTool = buildTool({
       : edit
         ? 'To rewrite every match of a code shape in any language use AstEdit; use this tool for'
         : 'Use it for'
-    return `Structural queries by node kind, and previewed, stale-safe codemods, over JS/TS/JSX/TSX only, on the TypeScript compiler's syntax tree. ${shape} JS/TS questions by node kind — imports by module, calls by dotted callee, declarations by kind and name, a node inside a named class or function — and for a rename, import swap, callee swap or property value that must land as one previewed change.${lspMounted(offered) ? ' For a true symbol rename, a file move or a language-server fix, prefer the LSP tool.' : ''}
+    return `Structural queries by node kind, and previewed, stale-safe codemods, over JS/TS/JSX/TSX only, on the TypeScript compiler's syntax tree. ${shape} JS/TS questions by node kind — imports by module, calls by dotted callee, declarations by kind and name, a node inside a named class or function — and for a rename, import swap, callee swap or property value that must land as one previewed change.${lspMounted(offered) ? ' For a true symbol rename, a file move or a language-server fix, prefer LspRename, LspMoveFile or LspCodeAction.' : ''}
 
 1. op:"query" (select, filters…) — a bounded AST query. Selects: ${STRUCTURE_SELECTS.join(' · ')}. Filters: name (exact or glob with *), callee ('fs.*'), module, value, within ('class:Name'), files (globs relative to the project root), limit (default 50, max 200). Only .js .jsx .mjs .cjs .ts .mts .cts .tsx files are read. Returns stable match ids (sm-…) and the record mercury://structure/query/<id>.
 2. op:"preview" (action, queryId?, matchIds?) — writes nothing; shows the files, the match count and each edit's first line before and after (8 per file, the rest counted). Actions: replace (replacement; $TEXT is the original node) · rename (to — the name token only) · remove · insert-before/insert-after (replacement — new text on its own line at the node's boundary) · replace-import (newModule) · replace-callee (to) · set-value (newValue).
