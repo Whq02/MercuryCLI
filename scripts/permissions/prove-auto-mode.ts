@@ -70,7 +70,7 @@ section('a session that BOOTS into flow sets its dangerous allow rules aside, as
   const mn = src('main.tsx')
   check(
     'dangerous-rule detection fires on startup permissionMode==="flow"',
-    /permissionMode === 'flow'\n?\s*\) \{\n?\s*dangerousPermissions = findDangerousClassifierPermissions/.test(ps),
+    /permissionMode === 'flow'\n?\s*\) \{\n?\s*dangerousPermissions = findDangerousPermissions/.test(ps),
   )
   check(
     'the isAutoModeAvailable context flag is set from the gate at startup',

@@ -101,7 +101,7 @@ function sourceDisplay(source: PermissionRuleSource): string {
 
 const CLI_SPEC_RE = /^([^(]+)(?:\(([^)]*)\))?$/
 
-export function findDangerousClassifierPermissions(
+export function findDangerousPermissions(
   rules: PermissionRule[],
   cliAllowedTools: string[],
 ): DangerousPermissionInfo[] {
@@ -155,7 +155,7 @@ export function stripDangerousPermissionsForAutoMode(
   context: ToolPermissionContext,
 ): ToolPermissionContext {
   const allowRules = getAllowRulesFromContext(context)
-  const dangerous = findDangerousClassifierPermissions(allowRules, [])
+  const dangerous = findDangerousPermissions(allowRules, [])
   const next = cloneContext(context)
   const maps = next as unknown as MutableRuleMaps
 
@@ -488,7 +488,7 @@ export async function initializeToolPermissionContext(args: {
 
   let dangerousPermissions: DangerousPermissionInfo[] = []
   if (args.permissionMode === 'flow') {
-    dangerousPermissions = findDangerousClassifierPermissions(
+    dangerousPermissions = findDangerousPermissions(
       diskRules,
       allowRules,
     )
