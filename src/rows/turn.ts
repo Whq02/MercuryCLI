@@ -608,6 +608,7 @@ export class Conversation {
       const unpricedNow = getUnpricedTurns()
       const unpricedModels = new Set(Object.keys(unpricedNow).filter(model => (unpricedNow[model] ?? 0) > (unpricedAtStart[model] ?? 0)))
       const apiMs = Math.max(0, getTotalAPIDuration() - apiDurationAtStart)
+      const costUsd = Math.max(0, getTotalCostUSD() - costAtStart)
       const billed = usageSince(getModelUsage(), modelUsageAtStart)
       const usage = Object.values(billed).reduce((sum, row) => ({
         ...sum,
@@ -623,7 +624,7 @@ export class Conversation {
         steps: steps.count,
         wallMs: Date.now() - turnStartedAt,
         ...(apiMs > 0 ? { apiMs } : {}),
-        ...(unpricedModels.size === 0 ? { costUsd: Math.max(0, getTotalCostUSD() - costAtStart) } : {}),
+        ...(unpricedModels.size === 0 || costUsd > 0 ? { costUsd } : {}),
         usage,
         models: modelUsageRows(billed, model => unpricedModels.has(model)),
         denials: this.denials.slice(denialsBefore),
