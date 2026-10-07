@@ -1114,7 +1114,7 @@ function verifyExitPropagates(
   return true
 }
 
-type EvidenceRecordedSubscriber = (owner: OwnerKey, record: EvidenceRecord) => void
+type EvidenceRecordedSubscriber = (owner: OwnerKey, record: EvidenceRecord, cwd: string) => void
 const evidenceSubscribers = new Set<EvidenceRecordedSubscriber>()
 
 export function subscribeEvidenceRecorded(cb: EvidenceRecordedSubscriber): () => void {
@@ -1155,7 +1155,7 @@ export function recordEvidence(
   persist(cwd, state)
   for (const cb of evidenceSubscribers) {
     try {
-      cb(resolvedOwner, record)
+      cb(resolvedOwner, record, cwd)
     } catch {
     }
   }
