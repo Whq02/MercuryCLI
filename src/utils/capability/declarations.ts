@@ -294,14 +294,6 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     latency: 'fast',
     proof: 'scripts/crew/run-all.sh',
   },
-  SendUserFile: {
-    intents: ['send a file to the operator'],
-    units: ['operator-io'],
-    class: 'coordination',
-    cancellation: 'not-applicable',
-    latency: 'fast',
-    conditions: ['a remote-environment delivery channel (none exists in this build, so the tool hides itself)'],
-  },
   Service: {
     intents: [
       'start a named long-lived dev service',
