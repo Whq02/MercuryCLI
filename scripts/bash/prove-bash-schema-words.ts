@@ -27,8 +27,11 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' + t)
 
+const { getSessionSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const cachePrimedBeforeTheTool = getSessionSettingsCache() !== null
 const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { describeTimeout, describeMaxOutputChars } = await import('../../src/tools/BashTool/prompt.ts')
+const cachePrimedByTheTool = getSessionSettingsCache() !== null
+const { describeTimeout, describeMaxOutputChars, getSimplePrompt } = await import('../../src/tools/BashTool/prompt.ts')
 const { resolveShellEngine } = await import('../../src/utils/shell/engineSession.ts')
 const { getDefaultBashTimeoutMs, getMaxBashTimeoutMs } = await import('../../src/utils/timeouts.ts')
 const { getMaxOutputLength, getMinOutputLength } = await import('../../src/utils/shell/outputLimits.ts')
@@ -60,22 +63,26 @@ const defaultMs = getDefaultBashTimeoutMs()
 const maxMs = getMaxBashTimeoutMs()
 check('timeout says what the number is and its default and max from the timeout accessors', field('timeout').startsWith(`Milliseconds the call waits (default ${defaultMs}, max ${maxMs}).`), field('timeout'))
 check('timeout says the command moves to the background when it passes', field('timeout').includes('moves to the background'), field('timeout'))
-check('timeout names the sleep exception', field('timeout').includes('a command whose first word is `sleep` is killed instead'), field('timeout'))
-check('timeout is the exact text', field('timeout') === `Milliseconds the call waits (default ${defaultMs}, max ${maxMs}). When it passes, the command moves to the background and keeps running; a command whose first word is \`sleep\` is killed instead.`, field('timeout'))
+check('timeout names the two exceptions: a sleep-first command, and the shell engine', field('timeout').includes('a `sleep`-first command, or any command under the shell engine, is killed instead'), field('timeout'))
+check('timeout is the exact text', field('timeout') === `Milliseconds the call waits (default ${defaultMs}, max ${maxMs}). When it passes, the command moves to the background and keeps running; a \`sleep\`-first command, or any command under the shell engine, is killed instead.`, field('timeout'))
 check('description is the short guide with its example and the two forbidden words', field('description') === 'What the command does, in five to ten words of active voice, shown to the operator: for example "List files in the current directory". Do not use the words "complex" or "risk".', field('description'))
 check('run_in_background does not send the model to a file-reading tool', !field('run_in_background').includes('file-reading tool'), field('run_in_background'))
 check('run_in_background points at the tool description for the lifetime rule', field('run_in_background') === 'Start the command and return at once with a task id and an output file; the tool description says when its end is reported and when it is stopped.', field('run_in_background'))
 check('max_output_chars states the budget, the cap, the floor and the clamp from the output limits', field('max_output_chars') === `Inline character budget: a longer output comes back as its head and tail around a notice of the cut. Default and cap ${getMaxOutputLength()}, floor ${getMinOutputLength()} (a value outside is clamped, and the result says so). Ignored by run_in_background.`, field('max_output_chars'))
 check('the max_output_chars text has one owner the schema reads', field('max_output_chars') === describeMaxOutputChars())
 
-section('§4 the brush variant of the timeout text')
+section('§4 the schema reads no settings when it is built: the engine\'s truth lives in the per-request description')
+check('the settings cache was empty before the Bash tool module was evaluated', !cachePrimedBeforeTheTool)
+check('evaluating the Bash tool module (which builds its schema) primed no settings cache', !cachePrimedByTheTool)
 process.env.MERCURY_SHELL_ENGINE = 'brush'
 const brush = resolveShellEngine()
+check('the timeout text is the same under the brush engine pin (it names both engines, it reads neither)', describeTimeout() === field('timeout'))
 if (brush.engine === 'brush') {
-  check('under the brush engine the timeout text says the command is killed and the session resets', describeTimeout() === `Milliseconds the call waits (default ${defaultMs}, max ${maxMs}). When it passes, the command is killed and the shell session resets.`, describeTimeout())
-  check('…and never says it moves to the background', !describeTimeout().includes('moves to the background'))
+  const brushPrompt = getSimplePrompt(null)
+  check('under the brush engine the DESCRIPTION says the command is killed (exit 143) and the session resets', brushPrompt.includes('When it passes, the command is killed (exit 143) and the shell session resets.'), brushPrompt.slice(0, 600))
+  check('…and never says it moves to the background', !brushPrompt.includes('moves to the background'))
 } else {
-  console.log(`  [INFO] the brush engine does not resolve here (${brush.reason}); the variant is not measured on this box`)
+  console.log(`  [INFO] the brush engine does not resolve here (${brush.reason}); the description's variant is not measured on this box`)
 }
 delete process.env.MERCURY_SHELL_ENGINE
 

@@ -28,11 +28,7 @@ export function describeMaxOutputChars(): string {
 }
 
 export function describeTimeout(): string {
-  const passes =
-    resolveShellEngine(getInitialSettings().shell?.engine).engine === 'brush'
-      ? 'When it passes, the command is killed and the shell session resets.'
-      : 'When it passes, the command moves to the background and keeps running; a command whose first word is `sleep` is killed instead.'
-  return `Milliseconds the call waits (default ${getDefaultBashTimeoutMs()}, max ${getMaxBashTimeoutMs()}). ${passes}`
+  return `Milliseconds the call waits (default ${getDefaultBashTimeoutMs()}, max ${getMaxBashTimeoutMs()}). When it passes, the command moves to the background and keeps running; a \`sleep\`-first command, or any command under the shell engine, is killed instead.`
 }
 
 export function describeCommandDescription(): string {
