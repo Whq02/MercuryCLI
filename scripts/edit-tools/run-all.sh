@@ -3,6 +3,8 @@
 # gate-watch: scripts/edit-tools/fixtures/**
 # gate-watch: src/tools/FileReadTool/** src/tools/FileEditTool/** src/tools/FileWriteTool/**
 # gate-watch: src/services/changeTransaction/** src/services/ide/** src/services/resources/**
+# gate-watch: src/tools/TransactionTool/** src/utils/verification/**
+# gate-watch: scripts/ide/prove-transaction-capture.ts scripts/ide/transactionProof.ts
 # gate-watch: src/services/repoHost/** src/tools/GitTool/** src/tools/TestTool/** src/tools/LaunchTool/** src/utils/healthReport.ts
 # gate-watch: scripts/daemon/dupline-world.ts scripts/lib/scriptedTurn.ts scripts/lib/fixtureApi.ts src/Tool.ts
 # gate-watch: src/native-ts/color-diff/index.ts src/services/gitGraph/observe.ts
