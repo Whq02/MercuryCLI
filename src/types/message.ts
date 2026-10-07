@@ -69,6 +69,7 @@ export type CompactMetadata = {
   work?: {
     receipts: Array<{
       beforeUuid: string
+      blockIndex?: number
       anchorUuid: string
       counts: import('../utils/cockpit/turnReceipt.js').TurnReceiptCounts
     }>
