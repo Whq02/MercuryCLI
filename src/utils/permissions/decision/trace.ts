@@ -62,7 +62,6 @@ export interface DecisionTrace {
 }
 
 export type WrapperStageId =
-  | 'allowDenialReset'
   | 'dontAskConversion'
   | 'autoSafetyImmunity'
   | 'autoUserInteraction'
@@ -71,13 +70,10 @@ export type WrapperStageId =
   | 'fastPathDangerFilter'
   | 'implementFastPath'
   | 'allowlistFastPath'
-  | 'classifier'
-  | 'denialLimit'
   | 'headlessHooks'
   | 'headlessAutoDeny'
 
 export const WRAPPER_STAGE_ORDER: readonly WrapperStageId[] = [
-  'allowDenialReset',
   'dontAskConversion',
   'autoSafetyImmunity',
   'autoUserInteraction',
@@ -86,8 +82,6 @@ export const WRAPPER_STAGE_ORDER: readonly WrapperStageId[] = [
   'fastPathDangerFilter',
   'implementFastPath',
   'allowlistFastPath',
-  'classifier',
-  'denialLimit',
   'headlessHooks',
   'headlessAutoDeny',
 ] as const

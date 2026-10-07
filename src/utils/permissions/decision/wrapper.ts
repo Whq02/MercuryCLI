@@ -1,5 +1,5 @@
 import { APIUserAbortError } from '../../../services/api/sdkErrors.js'
-import type { Tool, ToolPermissionContext, ToolUseContext } from '../../../Tool.js'
+import type { Tool, ToolUseContext } from '../../../Tool.js'
 import { AGENT_TOOL_NAME } from '../../../tools/AgentTool/constants.js'
 import { POWERSHELL_TOOL_NAME } from '../../../tools/PowerShellTool/toolName.js'
 import type { AssistantMessage } from '../../../types/message.js'
@@ -27,32 +27,8 @@ const permissionRuleParserModule =
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   (require('../permissionRuleParser.js') as typeof import('../permissionRuleParser.js'))
 
-import { addToTurnClassifierDuration } from '../../../bootstrap/state.js'
-import {
-  clearClassifierChecking,
-  setClassifierChecking,
-} from '../../classifierApprovals.js'
 import { executePermissionRequestHooks } from '../../hooks.js'
-import {
-  AUTO_REJECT_MESSAGE,
-  buildClassifierUnavailableMessage,
-  buildClassifierUnreadableMessage,
-  buildFlowBlockDeclinedMessage,
-  buildFlowRejectionMessage,
-  DONT_ASK_REJECT_MESSAGE,
-} from '../../messages.js'
-import {
-  createDenialTrackingState,
-  DENIAL_LIMITS,
-  type DenialTrackingState,
-  recordDenial,
-  recordSuccess,
-  shouldFallbackToPrompting,
-} from '../denialTracking.js'
-import {
-  operatorDeclinedFlowBlockThisTurn,
-  writeDenialState,
-} from '../flowBlockReview.js'
+import { AUTO_REJECT_MESSAGE, DONT_ASK_REJECT_MESSAGE } from '../../messages.js'
 import type {
   PermissionAskDecision,
   PermissionDecision,
@@ -65,11 +41,6 @@ import {
   persistPermissionUpdates,
 } from '../PermissionUpdate.js'
 import type { PermissionUpdate } from '../PermissionUpdateSchema.js'
-import {
-  classifyFlowActionWithFallback,
-  formatActionForClassifier,
-  type TranscriptEntry,
-} from '../flowClassifier.js'
 import { decideRuleBasedPermissions, decideToolPermission } from './engine.js'
 import type {
   DecisionTrace,
@@ -216,78 +187,6 @@ async function consultHeadlessPermissionHooks(
 }
 
 
-function ledgerReviewWarning(denialState: DenialTrackingState): string {
-  const hitTotalLimit = denialState.totalDenials >= DENIAL_LIMITS.maxTotal
-  return hitTotalLimit
-    ? `${denialState.totalDenials} actions were blocked this session — review the transcript before continuing.`
-    : `${denialState.consecutiveDenials} consecutive actions were blocked — review the transcript before continuing.`
-}
-
-function settleLedgerAtLimit(
-  denialState: DenialTrackingState,
-  context: ToolUseContext,
-): void {
-  if (denialState.totalDenials >= DENIAL_LIMITS.maxTotal) {
-    writeDenialState(context, {
-      ...denialState,
-      totalDenials: 0,
-      consecutiveDenials: 0,
-    })
-  }
-}
-
-function denialLedgerReview(
-  denialState: DenialTrackingState,
-  context: ToolUseContext,
-): string | null {
-  if (!shouldFallbackToPrompting(denialState)) return null
-  const warning = ledgerReviewWarning(denialState)
-  settleLedgerAtLimit(denialState, context)
-  return warning
-}
-
-function denialCapFallback(
-  denialState: DenialTrackingState,
-  appState: {
-    toolPermissionContext: { shouldAvoidPermissionPrompts?: boolean }
-  },
-  blockedReason: string,
-  engineAsk: PermissionDecision,
-  context: ToolUseContext,
-): PermissionDecision | null {
-  if (!shouldFallbackToPrompting(denialState)) {
-    return null
-  }
-
-  if (appState.toolPermissionContext.shouldAvoidPermissionPrompts) {
-    throw new AbortError(
-      'Run aborted: flow-classifier denial limit reached with no prompt available',
-    )
-  }
-
-  const warning = ledgerReviewWarning(denialState)
-  logForDebugging(
-    `Flow-classifier denial limit tripped — handing the next decision to the operator: ${warning}`,
-    { level: 'warn' },
-  )
-  settleLedgerAtLimit(denialState, context)
-
-  const originalClassifier =
-    engineAsk.decisionReason?.type === 'classifier'
-      ? engineAsk.decisionReason.classifier
-      : 'auto-mode'
-
-  return {
-    ...engineAsk,
-    decisionReason: {
-      type: 'classifier',
-      classifier: originalClassifier,
-      reason: `${warning}\n\nLatest blocked action: ${blockedReason}`,
-    },
-  }
-}
-
-
 function hideDangerousAllowsFromView(context: ToolUseContext): {
   viewContext: ToolUseContext
   hiddenCount: number
@@ -338,10 +237,6 @@ function hideDangerousAllowsFromView(context: ToolUseContext): {
 }
 
 
-export type WrapperClassifierResult = Awaited<
-  ReturnType<typeof classifyFlowActionWithFallback>
->
-
 export interface WrapperPorts {
   isAllowlistedTool(
     toolName: string,
@@ -352,12 +247,6 @@ export interface WrapperPorts {
     input: Record<string, unknown>,
     context: ToolUseContext,
   ): Promise<PermissionResult>
-  classify(
-    context: ToolUseContext,
-    action: TranscriptEntry,
-    permissionContext: ToolPermissionContext,
-    signal: AbortSignal,
-  ): Promise<WrapperClassifierResult>
   runHeadlessHooks(
     tool: Tool,
     input: { [key: string]: unknown },
@@ -388,14 +277,6 @@ export const defaultWrapperPorts: WrapperPorts = {
     }
     return tool.checkPermissions(parsedInput, probeContext)
   },
-  classify: (context, action, permissionContext, signal) =>
-    classifyFlowActionWithFallback(
-      context.messages,
-      action,
-      context.options.tools,
-      permissionContext,
-      signal,
-    ),
   runHeadlessHooks: consultHeadlessPermissionHooks,
 }
 
@@ -442,17 +323,6 @@ export async function decideToolPermissionWithModes(
   })
 
   if (engineDecision.behavior === 'allow') {
-    const appState = context.getAppState()
-    const currentDenialState =
-      context.localDenialTracking ?? appState.denialTracking
-    if (
-      appState.toolPermissionContext.mode === 'flow' &&
-      currentDenialState &&
-      currentDenialState.consecutiveDenials > 0
-    ) {
-      writeDenialState(context, recordSuccess(currentDenialState))
-      recordPass('allowDenialReset', 'denial streak reset on allow')
-    }
     return passThrough(engineDecision)
   }
 
@@ -473,10 +343,6 @@ export async function decideToolPermissionWithModes(
     if (appState.toolPermissionContext.mode === 'flow') {
       const headless =
         appState.toolPermissionContext.shouldAvoidPermissionPrompts
-      const operatorReachable =
-        !headless &&
-        (context.options.isNonInteractiveSession !== true ||
-          context.options.hostHoldsAsks === true)
 
       if (
         engineDecision.decisionReason?.type === 'safetyCheck' &&
@@ -536,11 +402,6 @@ export async function decideToolPermissionWithModes(
       }
       recordPass('autoFloors')
 
-      const denialState =
-        context.localDenialTracking ??
-        appState.denialTracking ??
-        createDenialTrackingState()
-
       if (tool.name === POWERSHELL_TOOL_NAME) {
         if (headless) {
           return decide(
@@ -558,7 +419,7 @@ export async function decideToolPermissionWithModes(
           )
         }
         logForDebugging(
-          `Flow classifier not consulted for ${tool.name}: its asks are reserved for the operator`,
+          `Flow keeps the ask for ${tool.name}: its asks are reserved for the operator`,
         )
         return decide('powershellGuard', engineDecision, 'human ask stands')
       }
@@ -578,7 +439,7 @@ export async function decideToolPermissionWithModes(
         } catch {
           recordPass(
             'fastPathDangerFilter',
-            'danger classifier outage — fail closed; fast-path skipped',
+            'danger filter outage — fail closed; fast-path skipped',
           )
           probeContext = null
         }
@@ -591,9 +452,8 @@ export async function decideToolPermissionWithModes(
               probeContext,
             )
             if (acceptEditsVerdict.behavior === 'allow') {
-              writeDenialState(context, recordSuccess(denialState))
               logForDebugging(
-                `Flow classifier skipped for ${tool.name}: implement mode would allow this outright`,
+                `Flow allows ${tool.name}: implement mode would allow this outright`,
               )
               return decide('implementFastPath', {
                 behavior: 'allow',
@@ -623,9 +483,8 @@ export async function decideToolPermissionWithModes(
           input as { action?: unknown; actions?: unknown } | null,
         )
       ) {
-        writeDenialState(context, recordSuccess(denialState))
         logForDebugging(
-          `Flow classifier skipped for ${tool.name}: always-safe tool set membership`,
+          `Flow allows ${tool.name}: the read-only tool set`,
         )
         return decide('allowlistFastPath', {
           behavior: 'allow',
@@ -637,219 +496,6 @@ export async function decideToolPermissionWithModes(
         })
       }
       recordPass('allowlistFastPath')
-
-      const action = formatActionForClassifier(tool.name, input)
-      setClassifierChecking(toolUseID)
-      let classifierResult
-      try {
-        classifierResult = await ports.classify(
-          context,
-          action,
-          appState.toolPermissionContext,
-          context.abortController.signal,
-        )
-      } finally {
-        clearClassifierChecking(toolUseID)
-      }
-
-      if (classifierResult.durationMs !== undefined) {
-        addToTurnClassifierDuration(classifierResult.durationMs)
-      }
-
-      if (classifierResult.shouldBlock) {
-        if (classifierResult.transcriptTooLong) {
-          if (!operatorReachable) {
-            throw new AbortError(
-              "Run aborted: the flow classifier's transcript outgrew its context window with no prompt available",
-            )
-          }
-          logForDebugging(
-            'Flow classifier transcript over the window — handing the ask back to the operator path',
-            { level: 'warn' },
-          )
-          return decide(
-            'classifier',
-            {
-              ...engineDecision,
-              decisionReason: {
-                type: 'other',
-                reason:
-                  "The flow classifier's transcript outgrew its context window — this approval returns to you",
-              },
-            },
-            'transcript too long — manual fallback',
-          )
-        }
-
-        if (classifierResult.unavailable) {
-          if (operatorReachable) {
-            logForDebugging(
-              'Flow classifier unavailable, falling back to the human ask (an operator is reachable)',
-              { level: 'warn' },
-            )
-            return decide(
-              'classifier',
-              {
-                ...engineDecision,
-                decisionReason: {
-                  type: 'other',
-                  reason:
-                    'Flow classifier unavailable — falling back to manual approval',
-                },
-              },
-              'unavailable — human ask',
-            )
-          }
-          logForDebugging(
-            'Flow classifier unreachable — denying with retry guidance',
-            { level: 'warn' },
-          )
-          return decide(
-            'classifier',
-            {
-              behavior: 'deny',
-              decisionReason: {
-                type: 'classifier',
-                classifier: 'auto-mode',
-                reason: 'Classifier unavailable',
-              },
-              message: buildClassifierUnavailableMessage(
-                tool.name,
-                classifierResult.model,
-              ),
-            },
-            'unavailable — fail closed',
-          )
-        }
-
-        if (classifierResult.unreadable) {
-          const model = classifierResult.model
-          const detail = classifierResult.verdictIssues?.join('; ')
-          if (operatorReachable) {
-            logForDebugging(
-              `Flow classifier verdict unreadable (${model}) — handing the ask to the operator`,
-              { level: 'warn' },
-            )
-            return decide(
-              'classifier',
-              {
-                ...engineDecision,
-                decisionReason: {
-                  type: 'other',
-                  reason: `Flow's safety check could not read its verdict from ${model}${detail ? ` (${detail})` : ''} — this approval returns to you`,
-                },
-              },
-              'unreadable verdict — human ask',
-            )
-          }
-          logForDebugging(
-            `Flow classifier verdict unreadable (${model}) — denying without a policy verdict`,
-            { level: 'warn' },
-          )
-          return decide(
-            'classifier',
-            {
-              behavior: 'deny',
-              decisionReason: {
-                type: 'classifier',
-                classifier: 'auto-mode',
-                reason: `Classifier verdict unreadable (${model})`,
-              },
-              message: buildClassifierUnreadableMessage(tool.name, model, detail),
-            },
-            'unreadable verdict — fail closed',
-          )
-        }
-
-        const afterDenial = recordDenial(denialState)
-        writeDenialState(context, afterDenial)
-
-        logForDebugging(
-          `Flow classifier verdict: blocked — ${classifierResult.reason}`,
-          { level: 'warn' },
-        )
-
-        if (!operatorReachable) {
-          const capFallback = denialCapFallback(
-            afterDenial,
-            appState,
-            classifierResult.reason,
-            engineDecision,
-            context,
-          )
-          if (capFallback) {
-            recordPass('classifier', 'blocked — denial limit reached')
-            return decide('denialLimit', capFallback, 'fall back to prompting')
-          }
-
-          return decide(
-            'classifier',
-            {
-              behavior: 'deny',
-              decisionReason: {
-                type: 'classifier',
-                classifier: 'auto-mode',
-                reason: classifierResult.reason,
-              },
-              message: buildFlowRejectionMessage(classifierResult.reason),
-            },
-            'blocked — no consent card in this session',
-          )
-        }
-
-        if (operatorDeclinedFlowBlockThisTurn(context, tool.name, input)) {
-          return decide(
-            'classifier',
-            {
-              behavior: 'deny',
-              decisionReason: {
-                type: 'classifier',
-                classifier: 'auto-mode',
-                reason: classifierResult.reason,
-              },
-              message: buildFlowBlockDeclinedMessage(classifierResult.reason),
-            },
-            'blocked — the operator declined this action earlier this turn',
-          )
-        }
-
-        const review = denialLedgerReview(afterDenial, context)
-        const askForOperator: PermissionDecision = {
-          ...engineDecision,
-          decisionReason: {
-            type: 'classifier',
-            classifier: 'auto-mode',
-            reason: review
-              ? `${classifierResult.reason}\n\n${review}`
-              : classifierResult.reason,
-          },
-        }
-        if (review) {
-          recordPass('classifier', 'blocked — denial limit reached')
-          return decide(
-            'denialLimit',
-            askForOperator,
-            'the operator is asked, with the review warning',
-          )
-        }
-        return decide('classifier', askForOperator, 'blocked — the operator is asked')
-      }
-
-      writeDenialState(context, recordSuccess(denialState))
-
-      return decide(
-        'classifier',
-        {
-          behavior: 'allow',
-          updatedInput: input,
-          decisionReason: {
-            type: 'classifier',
-            classifier: 'auto-mode',
-            reason: classifierResult.reason,
-          },
-        },
-        'allowed',
-      )
     }
 
     if (appState.toolPermissionContext.shouldAvoidPermissionPrompts) {

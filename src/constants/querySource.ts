@@ -21,10 +21,7 @@ type CompactionSource =
 type HookSource = 'hook_agent' | 'hook_prompt'
 
 type ClassifierSource =
-  | 'auto_mode'
-  | 'auto_mode_critique'
   | 'bash_classifier'
-  | 'flow_classifier'
   | 'agent_classifier'
   | 'permission_explainer'
   | 'model_validation'

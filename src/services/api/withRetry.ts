@@ -52,8 +52,6 @@ const FOREGROUND_QUERY_SOURCES = new Set([
   'hook_prompt',
   'verification_agent',
   'side_question',
-  'auto_mode',
-  ...([] as string[]),
 ])
 
 export function isForegroundQuerySource(source: string): boolean {
