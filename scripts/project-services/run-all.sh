@@ -11,6 +11,7 @@
 # gate-watch: scripts/dap/mock-dap-adapter.mjs scripts/lib/generated-assets-map.mjs scripts/lib/proofHome.ts
 # gate-watch: src/fabric/entryCodec.ts src/fabric/ordinal.ts src/ink.ts
 # gate-watch: src/utils/capability/census.ts src/utils/toolErrors.ts src/bootstrap/state.ts
+# gate-watch: src/utils/crashReport.ts src/utils/gracefulShutdown.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

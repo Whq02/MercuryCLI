@@ -143,6 +143,13 @@
       "why": "shell parsing is the subject under test"
     },
     {
+      "file": "scripts/bash/prove-shell-spawn-failure-not-interrupted.ts",
+      "mechanism": "exec-string",
+      "excerpt": "const pre = await exec('echo never', aborted.signal, 'bash', { timeout: 20_000, shouldUseSandbox: false, shouldAutoBackground: false })",
+      "cls": "test-fixture",
+      "why": "shell parsing is the subject under test"
+    },
+    {
       "file": "scripts/bash/prove-sub-agent-shell-board-drive.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], { env: { ...process.env, ...env }, stdio: ['ignore', 'ignore', 'pipe'] })",
