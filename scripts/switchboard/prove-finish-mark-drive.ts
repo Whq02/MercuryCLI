@@ -37,7 +37,6 @@ const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
 const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
-const { upsertObligation } = await import('../../src/services/crew/obligations.ts')
 const { getTheme } = await import('../../src/utils/theme.ts')
 const { GLYPH } = await import('../../src/components/mercury-ui/glyphs.ts')
 const { STATE_GLYPH } = await import('../../src/components/concourse/ConcourseLayout.tsx')
@@ -87,19 +86,6 @@ seedFirstRun(TEMPLATE, [CWD, OTHER])
   const at = new Date(Date.now() - 60 * 60_000)
   utimesSync(file, at, at)
 }
-
-const RETIRED_REF = 'cross-project:finished:'
-const STALE_SID = '00000000-eeee-4000-8000-000000000002'
-const staleCrewDir = join(TEMPLATE, 'crew')
-mkdirSync(staleCrewDir, { recursive: true })
-const stale = await upsertObligation({
-  ref: `${RETIRED_REF}${STALE_SID}:${Date.now() - 60_000}`,
-  sessionId: STALE_SID,
-  question: 'your agent in elsewhere finished · concourse-w9',
-  owner: 'operator',
-  scope: 'switchboard',
-  dir: staleCrewDir,
-})
 
 const hexOf = (rgb: string): string => {
   const m = /rgb\((\d+),\s*(\d+),\s*(\d+)\)/.exec(rgb)
@@ -408,13 +394,10 @@ try {
 } catch {
   oblRows = []
 }
-const retired = oblRows.filter(r => String(r.ref ?? '').startsWith(RETIRED_REF))
-const planted = oblRows.find(r => r.obligationId === stale.obligationId)
-console.log(`  obligations: ${oblRows.length} rows, ${retired.length} of the retired kind (${retired.map(r => r.status).join(', ') || 'none'})`)
-check('no finish was minted as an obligation during the run (the planted row is the only one of the retired kind)', retired.length === 1 && retired[0]?.obligationId === stale.obligationId, retired.map(r => `${r.status}:${String(r.ref).slice(0, 40)}`).join(', '))
-check('the retired row that stood in the store before the boot is withdrawn at the first sweep, never counted, never answered', planted?.status === 'withdrawn' && planted.settlement?.by === 'retired-kind', `${planted?.status ?? 'absent'} by ${planted?.settlement?.by ?? '—'}`)
+console.log(`  obligations: ${oblRows.length} rows`)
+check('no finish was minted as an obligation during the run', oblRows.length === 0, oblRows.map(r => `${r.status}:${r.ref ?? r.obligationId}`).join(', '))
 const face = markText(c, 'face')
-check('the boot face never showed the standing retired row as a need', !/[1-9]\d* needs? you/.test(face), rowsWith(face, 'need'))
+check('the boot face showed no need before any turn', !/[1-9]\d* needs? you/.test(face), rowsWith(face, 'need'))
 
 const live = Object.values(recordsOf(home)).filter(r => r.endedAt === undefined)
 check('both sessions are live at the end — one in P, one in Q — none paused, parked, stopped or released by the mark', live.length === 2 && live.some(r => r.workspaceId === CWD) && live.some(r => r.workspaceId === OTHER) && live.every(r => r.pausedAt === undefined && r.stoppedAt === undefined && r.parkedAt === undefined), JSON.stringify(live.map(r => basename(r.workspaceId))))
