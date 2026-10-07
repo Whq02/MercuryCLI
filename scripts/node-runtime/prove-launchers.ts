@@ -320,7 +320,8 @@ section('(6) console UTF-8 + enter-screen chain — structural, all three')
         cmdT.indexOf('if "%MERCURY_SA_EXIT%"=="20" goto :sa_handoff') !== -1 && cmdT.indexOf('if "%MERCURY_SA_EXIT%"=="20" goto :sa_handoff') < cmdT.indexOf('?1049l') &&
         cmdT.indexOf('?1049l') < cmdT.indexOf('\r\n:sa_handoff\r\n'),
     )
-    check('CMD probe passes user args behind -- (node must never eat --version/-p/-h)', probeLine.includes('" -- %*'), probeLine)
+    check('CMD probe passes user args behind -- (node must never eat --version/-p/-h)', probeLine.endsWith(' -- %*'), probeLine)
+    check('CMD probe binds its capture before the user argv (a line break in argv ends the cmd line there)', probeLine.indexOf('>"%MERCURY_PROBE_OUT%"') !== -1 && probeLine.indexOf('>"%MERCURY_PROBE_OUT%"') < probeLine.lastIndexOf(' -- %*'), probeLine)
     check('CMD gates the takeover on the probe verdict', cmdT.includes('if not "%NODETTY%"=="1" set "MERCURY_TAKEOVER=0"'))
   }
   check('PS1 gates on console redirection', ps1T.includes('IsInputRedirected') && ps1T.includes('IsOutputRedirected'))
