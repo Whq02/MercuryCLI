@@ -69,7 +69,7 @@ export function checkAnchor(
     return {
       ok: false,
       reason: 'malformed',
-      rereadHint: `expected_anchor '${expectedAnchor}' is not a valid anchor — re-read ${filePath} and use the (anchor: …) value from the result`,
+      rereadHint: `expected_anchor '${expectedAnchor}' is not a valid anchor — re-read ${filePath} and pass the bare fa:… or ra:… value the result shows after "anchor:", without the parentheses or the word anchor`,
     }
   }
   const normalized = normalizeForAnchor(currentFullContent)
@@ -101,7 +101,7 @@ export function formatAnchorFailure(
 ): string {
   const lines = [
     check.reason === 'malformed'
-      ? 'Malformed anchor: expected_anchor is not a valid anchor string.'
+      ? 'Malformed anchor: expected_anchor is not a valid anchor string — it is the bare fa:… or ra:… value, never the (anchor: …) decoration around it.'
       : 'Stale anchor: the file content no longer matches the read that produced this anchor.',
     `expected_anchor: ${expectedAnchor}`,
   ]
