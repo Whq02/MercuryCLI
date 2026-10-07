@@ -69,7 +69,10 @@ const res = spawnSync('/usr/bin/python3', [join(REPO, 'scripts/ui/vshot.py'), cf
 })
 t.check('the drive booted and captured (vshot exit 0)', res.status === 0, (res.stderr ?? '').slice(0, 300))
 
-type Cell = { c: string }
+type Cell = { c: string; fg: string; bg: string }
+type PaintChange = [number, number, Cell, Cell]
+const samePaint = (a: Cell, b: Cell): boolean => a.c === b.c && a.fg === b.fg && a.bg === b.bg
+const emptyCell: Cell = { c: ' ', fg: 'default', bg: 'default' }
 type Grid = { cols: number; rows: number; grid: Cell[][] }
 const payload = JSON.parse(readFileSync(out, 'utf8')) as Grid & { marks?: Array<{ label: string; grid: Cell[][] }>; sendReceipts?: Array<{ atTick: number }> }
 const ART_X0 = 24
@@ -93,16 +96,16 @@ const finalRows = artRows(payload.grid)
 const newTop = finalRows[0] ?? -1
 const HALF = new Set(['▀', '▄', '█'])
 const bleedRowsOf = (glyph: string, y: number): number[] => (glyph === '▀' ? [y - 1] : glyph === '▄' ? [y + 1] : glyph === '█' ? [y - 1, y + 1] : [])
-const departed: Array<[number, number, string, string]> = []
+const departed: PaintChange[] = []
 for (const y of oldRows) {
   for (let x = ART_X0; x < ART_X1; x++) {
-    const before = preclick?.grid[y]?.[x]?.c ?? ' '
-    const after = payload.grid[y]?.[x]?.c ?? ' '
-    if (HALF.has(before) && before !== after) departed.push([x, y, before, after])
+    const before = preclick?.grid[y]?.[x] ?? emptyCell
+    const after = payload.grid[y]?.[x] ?? emptyCell
+    if (HALF.has(before.c) && !samePaint(before, after)) departed.push([x, y, before, after])
   }
 }
-const bleedRowSet = [...new Set(departed.flatMap(([, y, before]) => bleedRowsOf(before, y)))].sort((a, b) => a - b)
-t.check('the click cycles the square berth: half-block glyphs leave their cells in the art', OLD_TOP >= 0 && newTop >= 0 && departed.length > 0, `old ${oldRows.join(',')} → new ${finalRows.join(',')}; departed ${departed.map(([x, y, b, a]) => `${x}:${y} ${b}→${a}`).join(' ')}`)
+const bleedRowSet = [...new Set(departed.flatMap(([, y, before]) => bleedRowsOf(before.c, y)))].sort((a, b) => a - b)
+t.check('the click cycles the square berth: half-block cells change glyph or colour', OLD_TOP >= 0 && newTop >= 0 && departed.length > 0, `old ${oldRows.join(',')} → new ${finalRows.join(',')}; changed ${departed.map(([x, y, b, a]) => `${x}:${y} ${b.c}[${b.fg}/${b.bg}]→${a.c}[${a.fg}/${a.bg}]`).join(' ')}`)
 
 type Paint = {
   startTick: number
@@ -110,10 +113,11 @@ type Paint = {
   rows: Record<string, number>
   written: Array<[number, number]>
   changes: Array<[number, number, string, string]>
+  paintChanges: PaintChange[]
 }
 type Replay = { ticks: Record<string, Record<string, number>>; frames: Paint[] }
 const replayTee = (path: string): { status: number | null; stderr: string; data: Replay } => {
-  const replay = spawnSync('/usr/bin/python3', [join(REPO, 'scripts/ui/critter-touched-rows.py'), path, String(COLS), String(ROWS), '--cells', '--frames-json'], {
+  const replay = spawnSync('/usr/bin/python3', [join(REPO, 'scripts/ui/critter-touched-rows.py'), path, String(COLS), String(ROWS), '--cells', '--frames-json', '--paint-changes'], {
     encoding: 'utf-8',
     timeout: vshotBudgetMs(60_000),
     maxBuffer: 16 * 1024 * 1024,
@@ -121,11 +125,11 @@ const replayTee = (path: string): { status: number | null; stderr: string; data:
   })
   return { status: replay.status, stderr: replay.stderr ?? '', data: replay.status === 0 ? JSON.parse(replay.stdout) as Replay : { ticks: {}, frames: [] } }
 }
-const cyclePaint = (frames: Paint[], releaseTick: number, departed: Paint['changes']): Paint | undefined =>
+const cyclePaint = (frames: Paint[], releaseTick: number, departed: PaintChange[]): Paint | undefined =>
   departed.length === 0 ? undefined : frames.find(frame => frame.startTick >= releaseTick && departed.every(([x, y, before, after]) =>
-    frame.changes.some(([cx, cy, cb, ca]) => cx === x && cy === y && cb === before && ca === after)))
-const wipeCovers = (paint: Paint | undefined, departed: Paint['changes']): boolean =>
-  paint !== undefined && departed.length > 0 && departed.every(([x, y, before]) => bleedRowsOf(before, y).every(by => paint.written.some(([wx, wy]) => wx === x && wy === by)))
+    frame.paintChanges.some(([cx, cy, cb, ca]) => cx === x && cy === y && samePaint(cb, before) && samePaint(ca, after))))
+const wipeCovers = (paint: Paint | undefined, departed: PaintChange[]): boolean =>
+  paint !== undefined && departed.length > 0 && departed.every(([x, y, before]) => bleedRowsOf(before.c, y).every(by => paint.written.some(([wx, wy]) => wx === x && wy === by)))
 const teeChunk = (tick: number, text: string): Buffer => {
   const body = Buffer.from(text)
   const header = Buffer.alloc(8)
@@ -133,23 +137,25 @@ const teeChunk = (tick: number, text: string): Buffer => {
   header.writeUInt32BE(body.length, 4)
   return Buffer.concat([header, body])
 }
-const witnessDepartures: Paint['changes'] = Array.from({ length: 5 }, (_, i) => [30 + i, 3, '▀', '▄'])
-for (const wipe of [true, false]) {
-  const path = join(SCRATCH, wipe ? 'witness.tee' : 'missing-wipe.tee')
+for (const mode of ['glyph', 'colour'] as const) for (const wipe of [true, false]) {
+  const before: Cell = { c: '▀', fg: 'red', bg: 'default' }
+  const after: Cell = mode === 'glyph' ? { ...before, c: '▄' } : { ...before, fg: 'green' }
+  const witnessDepartures: PaintChange[] = Array.from({ length: 5 }, (_, i) => [30 + i, 3, before, after])
+  const path = join(SCRATCH, `${mode}-${wipe ? 'witness' : 'missing-wipe'}.tee`)
   writeFileSync(path, Buffer.concat([
-    teeChunk(1, '\x1b[H\x1b[4;31H▀▀▀▀▀\x1b[40;1H'),
+    teeChunk(1, '\x1b[H\x1b[31m\x1b[4;31H▀▀▀▀▀\x1b[40;1H'),
     teeChunk(36, '\x1b[H\x1b[5;30H▀▀▀▀▀▀\x1b[40;1H'),
     teeChunk(37, '\x1b[H\x1b[31m\x1b[4;31H▀▀▀▀▀\x1b[40;1H'),
-    teeChunk(37, '\x1b[H\x1b[4;31H▄▄▄▄▄'),
+    teeChunk(37, `\x1b[H\x1b[${mode === 'colour' ? 32 : 31}m\x1b[4;31H${after.c.repeat(5)}`),
     teeChunk(38, `${wipe ? '\x1b[3;31H     ' : ''}\x1b[40;1H`),
     teeChunk(39, '\x1b[H\x1b[3;31H     \x1b[40;1H'),
   ]))
   const control = replayTee(path)
   const paint = cyclePaint(control.data.frames, 37, witnessDepartures)
-  t.check(`${wipe ? 'witness' : 'poison'}: only the glyph-changing paint owns the cycle, even across read ticks`, control.status === 0 && paint?.startTick === 37 && paint.endTick === 38 && paint.changes.length === 5)
-  t.check(wipe ? 'the complete paint retains every departing cell and its neighbour write' : 'a missing wipe stays red even when a later paint touches the same neighbours', wipeCovers(paint, witnessDepartures) === wipe)
+  t.check(`${mode} ${wipe ? 'witness' : 'poison'}: only the changing paint owns the cycle, even across read ticks`, control.status === 0 && paint?.startTick === 37 && paint.endTick === 38 && paint.paintChanges.filter(([x, y]) => y === 3 && x >= 30 && x < 35).length === 5 && paint.changes.length === (mode === 'glyph' ? 5 : 0))
+  t.check(`${mode}: ${wipe ? 'the complete paint retains every changed cell and its neighbour write' : 'a missing wipe stays red even when a later paint touches the same neighbours'}`, wipeCovers(paint, witnessDepartures) === wipe)
 }
-const departures: Paint['changes'] = departed
+const departures: PaintChange[] = departed
 const replay = replayTee(tee)
 t.check('the tee replays (python3 + pyte)', replay.status === 0, replay.stderr.slice(0, 300))
 const byTick = new Map(Object.entries(replay.data.ticks).map(([tick, rows]) => [Number(tick), new Map(Object.entries(rows).map(([row, count]) => [Number(row), count]))]))
@@ -163,7 +169,7 @@ const cycle = cyclePaint(replay.data.frames, releaseTick, departures)
 const cycleTick = cycle?.endTick
 t.check('a tick after the click rewrites the vacated rows (the cycle landed in the tee)', cycle !== undefined, `release ${releaseTick}; paint ${cycle?.startTick}..${cycleTick}; ticks ${[...byTick.keys()].join(',')}`)
 const bleedCells = bleedRowSet.reduce((sum, y) => sum + (cycle?.rows[y] ?? 0), 0)
-const bleedWanted = departed.reduce((sum, [, y, before]) => sum + bleedRowsOf(before, y).length, 0)
+const bleedWanted = new Set(departed.flatMap(([x, y, before]) => bleedRowsOf(before.c, y).map(by => `${x},${by}`))).size
 if (POISON) {
   t.check(`POISON: the cycle tick never touches the rows the departed glyphs bled into (rows ${bleedRowSet.join(',')}: ${bleedCells} cells)`, bleedCells === 0)
 } else {
