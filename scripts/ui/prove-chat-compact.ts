@@ -72,7 +72,9 @@ function glyphRows(def: CritterDef, art: string[]): string[] {
       if (t === 'P' && b === 'P') { line += '●'; continue }
       const tc = cellColor(def, t)
       const bc = cellColor(def, b)
-      line += tc !== undefined && bc !== undefined ? '▄' : tc !== undefined ? '▀' : bc !== undefined ? '▄' : ' '
+      const below = cellColor(def, art[r + 2]?.[c]) !== undefined
+      const above = cellColor(def, art[r - 1]?.[c]) !== undefined
+      line += tc !== undefined && bc !== undefined ? (below ? '▄' : '▀') : tc !== undefined ? (above && below ? '▄' : '▀') : bc !== undefined ? '▄' : ' '
     }
     lines.push(line)
   }
