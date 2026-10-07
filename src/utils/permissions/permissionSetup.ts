@@ -1,4 +1,5 @@
 import type { ToolPermissionContext } from '../../Tool.js'
+import { lspPermissionNote, lspCliNote, lspHookNote } from '../../services/lsp/toolFamily.js'
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { POWERSHELL_TOOL_NAME } from '../../tools/PowerShellTool/toolName.js'
@@ -9,7 +10,9 @@ import { holdModeTransition, recordModeTransition, type ModeTransitionRoad } fro
 import {
   getSettings_DEPRECATED,
   getSettingsWithErrors,
+  getSettingsForSource,
 } from '../settings/settings.js'
+import { getEnabledSettingSources } from '../settings/constants.js'
 import { DANGEROUS_BASH_PATTERNS, CROSS_PLATFORM_CODE_EXEC } from './dangerousPatterns.js'
 import { modeBypassesPermissions, permissionModeTitle, permissionModeFromString } from './PermissionMode.js'
 import { permissionRuleValueFromString, permissionRuleValueToString } from './permissionRuleParser.js'
@@ -495,6 +498,29 @@ export async function initializeToolPermissionContext(args: {
   }
 
   const warnings: string[] = []
+  if (allowRules.includes('LSP')) warnings.push(lspCliNote('--allowed-tools'))
+  if (denyRules.includes('LSP')) warnings.push(lspCliNote('--block-tools'))
+  for (const rule of diskRules) {
+    if (rule.ruleValue.toolName === 'LSP' && rule.ruleValue.ruleContent === undefined) {
+      const note = lspPermissionNote(rule.source)
+      if (!warnings.includes(note)) warnings.push(note)
+    }
+  }
+  for (const source of getEnabledSettingSources()) {
+    const hooks = getSettingsForSource(source)?.events?.hooks
+    for (const [event, matchers] of Object.entries(hooks ?? {})) {
+      for (const matcher of matchers ?? []) {
+        const note = lspHookNote(event, matcher.matcher ?? '', source)
+        if (note && !warnings.includes(note)) warnings.push(note)
+        for (const hook of matcher.hooks) {
+          if ('if' in hook && hook.if === 'LSP') {
+            const conditionNote = lspHookNote(event, 'LSP', source)!
+            if (!warnings.includes(conditionNote)) warnings.push(conditionNote)
+          }
+        }
+      }
+    }
+  }
 
   let context = {
     mode: args.permissionMode,
