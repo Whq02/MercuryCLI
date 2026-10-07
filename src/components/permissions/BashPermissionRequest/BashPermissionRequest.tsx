@@ -250,7 +250,6 @@ function BashCommandPermissionRequest(
               {derived.warning ? <Text color="warning">{derived.warning}</Text> : null}
               <PermissionRuleExplanation
                 permissionResult={toolUseConfirm.permissionResult}
-                toolType="command"
               />
               <Text bold>Do you want to proceed?</Text>
               <Select

@@ -250,25 +250,6 @@ add('extractTextContent', 'separator', () =>
 add('getContentText', 'blocks', () =>
   M.getContentText([{ type: 'text', text: 'a' }, { type: 'text', text: 'b' }] as never),
 );
-add('isClassifierDenial', 'yes', () =>
-  M.isClassifierDenial(M.AUTO_REJECT_MESSAGE + ' extra'),
-);
-add('isClassifierDenial', 'no', () => M.isClassifierDenial('benign words'));
-add('buildFlowRejectionMessage', 'basic', () =>
-  M.buildFlowRejectionMessage('Bash', 'rm -rf /' as never),
-);
-add('buildFlowBlockDeclinedMessage', 'basic', () =>
-  M.buildFlowBlockDeclinedMessage('rm -rf /'),
-);
-add('buildClassifierUnreadableMessage', 'basic', () =>
-  M.buildClassifierUnreadableMessage('Bash', 'stub-model', 'shouldBlock: expected boolean, received string'),
-);
-add('buildClassifierUnreadableMessage', 'no-detail', () =>
-  M.buildClassifierUnreadableMessage('Bash', 'stub-model'),
-);
-add('buildClassifierUnavailableMessage', 'basic', () =>
-  M.buildClassifierUnavailableMessage('Bash' as never),
-);
 add('normalizeContentFromAPI', 'blocks', () =>
   M.normalizeContentFromAPI([{ type: 'text', text: 'x' }] as never, TOOLS_FIXTURE as never),
 );

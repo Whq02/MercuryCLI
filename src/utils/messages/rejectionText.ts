@@ -63,7 +63,6 @@ export function isDenialResultText(raw: string): boolean {
     text === SUBAGENT_REJECT_MESSAGE ||
     text.startsWith(SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX) ||
     DENIAL_SENTENCES_ON_DISK.some(sentence => text.startsWith(sentence)) ||
-    text.startsWith(AUTO_MODE_REJECTION_PREFIX) ||
     (text.includes(' has been denied') && text.includes(DENIAL_WORKAROUND_GUIDANCE))
   )
 }
@@ -77,55 +76,3 @@ export const NO_RESPONSE_REQUESTED = 'No response requested.'
 
 export const SYNTHETIC_TOOL_RESULT_PLACEHOLDER =
   '[Tool result missing due to internal error]'
-
-
-const AUTO_MODE_REJECTION_PREFIX =
-  'Permission for this action has been denied. Reason: '
-
-export function isClassifierDenial(content: string): boolean {
-  return content.startsWith(AUTO_MODE_REJECTION_PREFIX)
-}
-
-export function buildFlowRejectionMessage(reason: string): string {
-  return (
-    `${AUTO_MODE_REJECTION_PREFIX}${reason}. ` +
-    `Flow's safety check blocked this action, and this session cannot show the operator a consent card, so it was not run. ` +
-    `The operator can allow it with a permission rule for the action, or by running the session interactively and approving it there. ` +
-    `Work that does not depend on this action can continue. ` +
-    DENIAL_WORKAROUND_GUIDANCE
-  )
-}
-
-export function buildFlowBlockDeclinedMessage(reason: string): string {
-  return (
-    `${AUTO_MODE_REJECTION_PREFIX}${reason}. ` +
-    `The operator was asked about this same action earlier in this turn and declined it, so it was not asked again and was not run. ` +
-    `Follow what the operator said. ` +
-    DENIAL_WORKAROUND_GUIDANCE
-  )
-}
-
-export function buildClassifierUnavailableMessage(
-  toolName: string,
-  classifierModel?: string,
-): string {
-  const modelDetail = classifierModel ? ` (last tried ${classifierModel})` : ''
-  return (
-    `The flow safety check is temporarily unavailable${modelDetail}, so ${toolName} was not run: flow runs nothing its check has not cleared, and this session cannot show the operator a consent card. ` +
-    `The check may recover shortly, and the same action can be tried again then; work that does not need the check can continue. ` +
-    `The built-in read-only tools (file reads, code search, glob listings) never need the check; MCP tools always do.`
-  )
-}
-
-export function buildClassifierUnreadableMessage(
-  toolName: string,
-  classifierModel: string,
-  detail?: string,
-): string {
-  const what = detail ? ` (${detail})` : ''
-  return (
-    `The flow safety check could not read its own verdict, so ${toolName} was not run: ${classifierModel} answered in a shape Mercury could not parse${what}, and this session cannot show the operator a consent card. ` +
-    `This is not a judgement on the action — the check may read its next verdict, the same action can be tried again, and work that does not need the check can continue. ` +
-    `The built-in read-only tools (file reads, code search, glob listings) never need the check; MCP tools always do.`
-  )
-}

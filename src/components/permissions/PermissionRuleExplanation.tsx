@@ -8,7 +8,6 @@ import { reasonForRule, ruleSourceWords } from '../../utils/permissions/ruleReas
 
 type PermissionRuleExplanationProps = {
   permissionResult: PermissionDecision
-  toolType: 'tool' | 'command' | 'edit' | 'read'
 }
 
 const RULES_HINT = 'Rules live in /permissions'
@@ -16,7 +15,6 @@ const HOOKS_HINT = 'Hooks can be changed in /hooks'
 
 export function PermissionRuleExplanation({
   permissionResult,
-  toolType,
 }: PermissionRuleExplanationProps): React.ReactNode {
   const mode = useAppState(state => state.toolPermissionContext.mode)
   const ruleReasons = useAppState(state => state.toolPermissionContext.ruleReasons)
@@ -91,20 +89,6 @@ export function PermissionRuleExplanation({
       )
     }
     case 'classifier': {
-      if (reason.classifier === 'auto-mode') {
-        return (
-          <Box flexDirection="column">
-            <ThemedText color="warning" wrap="truncate-middle">
-              Flow&apos;s safety check blocked this {toolType} — it runs only if you allow it
-            </ThemedText>
-            {reason.reason ? (
-              <Text wrap="truncate-middle">
-                <Ansi>{reason.reason}</Ansi>
-              </Text>
-            ) : null}
-          </Box>
-        )
-      }
       if (!reason.reason) return null
       return (
         <Text wrap="truncate-middle">

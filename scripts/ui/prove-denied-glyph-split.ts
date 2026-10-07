@@ -41,7 +41,6 @@ const DENIALS: Array<[string, string]> = [
   ['subagent-reject', SUBAGENT_REJECT_MESSAGE],
   ['subagent-reject+reason', SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX + 'nope'],
   ['plan-rejection(on disk)', 'The operator declined the proposed plan\n\nDeclined plan:\nthe rejected plan body'],
-  ['auto-mode-classifier', 'Permission for this action has been denied. Reason: unsafe path'],
   ['auto-reject(fn)', AUTO_REJECT_MESSAGE('Bash')],
   ['dont-ask-reject(fn)', DONT_ASK_REJECT_MESSAGE('Write')],
 ]
