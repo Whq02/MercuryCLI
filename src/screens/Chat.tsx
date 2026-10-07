@@ -44,7 +44,6 @@ import { useCompactWorkControls } from '../components/tasks/CompactWorkSummary.j
 import { BackgroundTasksDialog } from '../components/tasks/BackgroundTasksDialog.js';
 import {
   useKickOffCheckAndDisableSovereignIfNeeded,
-  useKickOffCheckAndDisableAutoModeIfNeeded,
 } from '../utils/permissions/bypassPermissionsKillswitch.js';
 import { useExtensions } from '../hooks/useExtensions.js';
 import { useCostSummary } from '../costHook.js';
@@ -1351,7 +1350,6 @@ export function Chat({
   useAgentsChange(getCwd());
   useSkillsChange(getCwd(), () => {});
   useKickOffCheckAndDisableSovereignIfNeeded();
-  useKickOffCheckAndDisableAutoModeIfNeeded();
   useExtensions({ enabled: true });
   useCostSummary(useFpsMetrics());
   const localJsxDialogShowing = toolJSX?.isLocalJSXCommand === true;
