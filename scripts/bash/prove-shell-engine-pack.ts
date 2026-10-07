@@ -164,7 +164,7 @@ section('§4 the built bundle: manifest record, health row, prompt sentence')
     check("the bundle tells the model an operator's stop ends the command and resets the session under the engine", bundle.includes('A stop from the operator while a command runs ends that command and resets the session'))
     check("the bundle carries the health row's word on the stop", bundle.includes('a stop while a command runs resets the session'))
     check('the bundle tells the model the ceiling on engine sessions by its setting', bundle.includes('the shell.sessions setting'))
-    check('the bundle carries the system-shell reset sentence too', bundle.includes('every other piece of shell state (variables, functions, options) resets between calls'))
+    check('the bundle carries the system-shell reset sentence too', bundle.includes('the working directory persists between calls; variables, functions and options do not, and each call starts from your profile'))
     check('the bundle carries the Windows arm of the engine sentence — the two known holes at this version', bundle.includes('os error 193') && bundle.includes('relative program path after a `cd`'))
   }
 }
