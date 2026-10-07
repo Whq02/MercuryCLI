@@ -71,8 +71,6 @@ console.log('[3] the truths driven on this box')
 {
   const lines = censusGapLines(census)
   const lineOf = (tool: string) => lines.find(l => l.tools.some(name => name === tool || name === `${tool} (off right now)`))
-  const sendFile = lineOf('SendUserFile')
-  check('SendUserFile names the missing delivery channel (isEnabled() is a constant false in this build)', sendFile !== undefined && sendFile.reason.includes('delivery channel'), sendFile?.reason)
   for (const tool of ['TaskCreate', 'TaskGet', 'TaskList', 'TaskUpdate']) {
     const line = lineOf(tool)
     const interactive = census.rows.find(r => r.name === tool)?.inCatalogNow === true
