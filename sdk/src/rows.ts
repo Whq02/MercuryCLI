@@ -64,6 +64,7 @@ export interface SessionRow {
   schema: 1
   version: string
   build?: string
+  resume_of?: string
   cwd: string
   model: string
   mode: string
@@ -477,6 +478,9 @@ export const ROW_SCHEMAS: Readonly<Record<RowType | PartialRowType, JsonSchema>>
         "type": "string"
       },
       "build": {
+        "type": "string"
+      },
+      "resume_of": {
         "type": "string"
       },
       "cwd": {
