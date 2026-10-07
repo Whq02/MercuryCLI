@@ -6,9 +6,9 @@
     "backend": "zai-glm",
     "dialect": "chat",
     "mechanical": true,
-    "tree": "ddaeaf379",
+    "tree": "700d47ff8",
     "fold": "unlabelled",
-    "when": "2026-10-06T11:39:49.579Z",
+    "when": "2026-10-07T03:40:31.645Z",
     "promptChars": 20197,
     "promptTokensEst": 5049,
     "toolCount": 49,
@@ -63,7 +63,7 @@
       "mcp__mercury__lease_list",
       "mcp__mercury__render_tui"
     ],
-    "toolSchemaChars": 181502,
+    "toolSchemaChars": 181672,
     "notes": [
       "browser task unmeasured: no browser to launch — no managed browser — your installed apps are never driven; /browser install downloads Chrome for Testing once with your consent"
     ]
@@ -101,7 +101,7 @@
       "probes": 1,
       "unexpectedErrors": 0,
       "duplicates": 0,
-      "toolResultChars": 3155,
+      "toolResultChars": 3157,
       "toolResultTokensEst": 789,
       "imageChars": 0,
       "injectedTokensEst": 0,
@@ -111,12 +111,12 @@
       "errors": [
         {
           "tool": "Bash",
-          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.306084ms)\n✔ median of an odd-length list (0.062833ms)\n✖ median of an even-length list averages the middle pair (0.367292ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 46.205084\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.367292ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file:///private/tmp/mw/mercury-ax-bench-ewQ4T7/chat/tasks/fix-",
+          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.317708ms)\n✔ median of an odd-length list (0.061459ms)\n✖ median of an even-length list averages the middle pair (0.359417ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 51.126667\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.359417ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file:///private/tmp/mw/mercury-ax-bench-Z3wWP8/chat/tasks/fix-",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 1711,
+      "wallMs": 1844,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -168,7 +168,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1281,
+      "wallMs": 1390,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -222,12 +222,12 @@
       "errors": [
         {
           "tool": "Edit",
-          "text": "<tool_use_error>Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). Read ownership/coverage check failed: neither a recorded Read nor the current owner's ledger covers all addressed lines. No lines of /private/tmp/mw/mercury-ax-bench-ewQ4T7/chat/tasks/anchored-edit/project/README.md were read this session; the old_string was not found in the current content, so the lines the edit touches are unknown — a Read of the file shows what stands.</tool_use_error>",
+          "text": "<tool_use_error>Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). Read ownership/coverage check failed: neither a recorded Read nor the current owner's ledger covers all addressed lines. No lines of /private/tmp/mw/mercury-ax-bench-Z3wWP8/chat/tasks/anchored-edit/project/README.md were read this session; the old_string was not found in the current content, so the lines the edit touches are unknown — a Read of the file shows what stands.</tool_use_error>",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 786,
+      "wallMs": 870,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -275,7 +275,7 @@
           "probe": true
         }
       ],
-      "wallMs": 750,
+      "wallMs": 820,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -317,7 +317,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 789,
+      "wallMs": 898,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -364,7 +364,7 @@
           "probe": true
         }
       ],
-      "wallMs": 765,
+      "wallMs": 800,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -404,7 +404,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 851,
+      "wallMs": 871,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -444,7 +444,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1363,
+      "wallMs": 1436,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -516,7 +516,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 760,
+      "wallMs": 812,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -556,7 +556,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 804,
+      "wallMs": 891,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -605,7 +605,7 @@
           "probe": true
         }
       ],
-      "wallMs": 1540,
+      "wallMs": 1666,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -640,7 +640,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 735,
+      "wallMs": 765,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -675,7 +675,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 657,
+      "wallMs": 723,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
