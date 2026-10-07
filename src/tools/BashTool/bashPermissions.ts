@@ -22,6 +22,7 @@ import {
   parseForSecurity,
   PARSE_ABORTED,
   pinnedCommandAnalysis,
+  splitListSegments,
   type Node,
   type SimpleCommand,
   type Redirect,
@@ -39,7 +40,7 @@ import {
 } from './bashCommandHelpers.js'
 import { checkPermissionMode } from './modeValidation.js'
 import { checkPathConstraints } from './pathValidation.js'
-import { checkReadOnlyConstraints } from './readOnlyValidation.js'
+import { checkReadOnlyConstraints, cutPart, notReadOnlyClause, type NotReadOnly } from './readOnlyValidation.js'
 import { checkSedConstraints } from './sedValidation.js'
 import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
 import { shouldUseSandbox } from './shouldUseSandbox.js'
@@ -470,11 +471,18 @@ export function bashToolCheckExactMatchPermission(
   }
 }
 
+function approvalSentence(shown: string, reason: NotReadOnly | undefined): string {
+  const clause = reason === undefined ? '' : `: ${notReadOnlyClause(reason)}`
+  const sentence = `\`${cutPart(shown)}\` requires approval${clause}`
+  return /[.!?]$/.test(sentence) ? sentence : `${sentence}.`
+}
+
 export function bashToolCheckPermission(
   input: BashInput,
   context: ToolPermissionContext,
   compoundHasCd = false,
   astCommand?: SimpleCommand,
+  shown?: string,
 ): PermissionResult {
   const exact = bashToolCheckExactMatchPermission(input, context)
   if (exact.behavior === 'deny' || exact.behavior === 'ask') return exact
@@ -507,14 +515,12 @@ export function bashToolCheckPermission(
   if (sed.behavior !== 'passthrough') return sed
   const mode = checkPermissionMode(input, context)
   if (mode.behavior !== 'passthrough') return mode
-  if (isReadOnly(input.command, compoundHasCd)) {
+  const readOnly = checkReadOnlyConstraints({ command: input.command }, compoundHasCd)
+  if (readOnly.behavior === 'allow') {
     return { behavior: 'allow', updatedInput: input, decisionReason: { type: 'other', reason: 'Read-only command is allowed' } }
   }
-  return { behavior: 'passthrough', message: `${command} requires approval.`, suggestions: suggestionForExactCommand(TOOL_NAME, command) }
-}
-
-function isReadOnly(command: string, compoundHasCd: boolean): boolean {
-  return checkReadOnlyConstraints({ command }, compoundHasCd).behavior === 'allow'
+  const reason = approvalSentence(shown ?? command, readOnly.notReadOnly)
+  return { behavior: 'passthrough', message: reason, decisionReason: { type: 'other', reason }, suggestions: suggestionForExactCommand(TOOL_NAME, command) }
 }
 
 async function checkCommandAndSuggestRules(
@@ -523,10 +529,11 @@ async function checkCommandAndSuggestRules(
   prefixHint: { commandPrefix: string | null } | null | undefined,
   compoundHasCd = false,
   astParseSucceeded = false,
+  shown?: string,
 ): Promise<PermissionResult> {
   const exact = bashToolCheckExactMatchPermission(input, context)
   if (exact.behavior !== 'passthrough') return exact
-  const check = bashToolCheckPermission(input, context, compoundHasCd)
+  const check = bashToolCheckPermission(input, context, compoundHasCd, undefined, shown)
   if (check.behavior === 'deny' || check.behavior === 'ask') return check
   if (!astParseSucceeded && !isInjectionCheckDisabled()) {
     const legacy = await bashCommandIsSafeAsync_DEPRECATED(input.command)
@@ -588,6 +595,13 @@ type PrefixFn = (
 
 function isInjectionCheckDisabled(): boolean {
   return false
+}
+
+function asWrittenSingle(command: string, fallback: string): string {
+  const cwd = getCwd()
+  const posixCwd = getPlatform() === 'windows' ? windowsPathToPosixPath(cwd) : cwd
+  const written = splitListSegments(command).filter(segment => segment !== `cd ${cwd}` && segment !== `cd ${posixCwd}`)
+  return written.length === 1 ? (written[0] as string) : fallback
 }
 
 function filterCwdSubcommands(
@@ -774,6 +788,7 @@ export async function bashToolHasPermission(
       prefixHint,
       compoundHasCd,
       astAvailable,
+      asWrittenSingle(command, subcommands[0] as string),
     )
     return single
   }
