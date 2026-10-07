@@ -8,7 +8,7 @@
 # gate-watch: src/services/capacity/governor.ts src/services/concourse/workerModels.ts
 # gate-watch: src/services/providers/anthropic/streamCore.ts src/services/providers/openai/openaiLimitState.ts
 # gate-watch: src/state/AppStateStore.ts src/tasks.ts src/tools/AgentTool/runAgent.ts
-# gate-watch: src/tools/SendMessageTool/SendMessageTool.ts src/utils/cwd.ts src/utils/task/workRoster.ts
+# gate-watch: src/tools/SendMessageTool/** src/tools/ResumeAgentTool/** src/utils/cwd.ts src/utils/task/workRoster.ts
 # gate-watch: src/components/tasks/WorkflowsBoard.tsx src/ink.ts src/ink/components/StdinContext.ts
 # gate-watch: src/state/AppState.tsx src/utils/config.ts
 # gate-watch: src/rows/* src/runner/wire/*

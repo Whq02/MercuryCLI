@@ -3,6 +3,7 @@ import { rmSync } from 'node:fs'
 import { makeWorld, bootLead, LEAD_MODEL, toolResultOf, userTextsOf } from './crew-world.ts'
 
 const legacy = process.argv.includes('--legacy-base')
+const background = !process.argv.includes('--foreground')
 const verb = legacy ? 'SendMessage' : 'ResumeAgent'
 const schema = { type: 'object', properties: { function_name: { type: 'string' } }, required: ['function_name'] }
 const payload = { function_name: 'compute_201' }
@@ -30,7 +31,7 @@ for (const structured of [true, false]) {
       ]
   const world = await makeWorld(`resume-${label}`, [
     ...childTurns,
-    { kind: 'tool_use', name: 'Agent', id: `p2-${label}-launch`, input: { name: `${label}-child`, description: `${label} child`, prompt: opening, subagent_type: 'mercury-crew', ...(structured ? { output_schema: schema } : {}) }, whenSaid: parent, model: LEAD_MODEL },
+    { kind: 'tool_use', name: 'Agent', id: `p2-${label}-launch`, input: { name: `${label}-child`, description: `${label} child`, prompt: opening, subagent_type: 'mercury-crew', run_in_background: background, ...(structured ? { output_schema: schema } : {}) }, whenSaid: parent, model: LEAD_MODEL },
     { kind: 'text', text: 'PARENT-FIRST-DONE', whenSaid: parent, model: LEAD_MODEL },
     { kind: 'tool_use', name: verb, id: `p2-${label}-resume`, input: { to: `${label}-child`, message: 'submit it again' }, whenSaid: followup, model: LEAD_MODEL },
     { kind: 'text', text: 'PARENT-RESUME-DONE', whenSaid: followup, model: LEAD_MODEL },
@@ -42,9 +43,11 @@ for (const structured of [true, false]) {
   try {
     first = bootLead(world, ['--sovereign', '--session-id', sid], ['Agent', 'SendMessage', 'ResumeAgent'])
     first.submit(parent)
-    await first.waitFor('the foreground launch settled', () => first!.frames.some(row => row.type === 'outcome'))
+    await first.waitFor('the launch turn settled', () => first!.frames.some(row => row.type === 'outcome'))
+    if (background) await first.waitFor('the first child completion reached the main model', () => userTextsOf(world).some(text => text.includes('<status>completed</status>') && text.includes('FIRST-CHILD-DONE')))
     const launch = toolResultOf(world, `p2-${label}-launch`)
-    check(`${label}: the child completed its first turn`, launch !== null && !launch.isError && launch.text.includes('FIRST-CHILD-DONE'), JSON.stringify(launch))
+    const completed = background ? userTextsOf(world).some(text => text.includes('<status>completed</status>') && text.includes('FIRST-CHILD-DONE')) : launch?.text.includes('FIRST-CHILD-DONE')
+    check(`${label}: the child completed its first turn`, launch !== null && !launch.isError && completed === true, JSON.stringify(launch))
     const firstRequests = world.fixture.messageRequests().filter(request => JSON.stringify((request.body as Body).messages).includes(opening))
     const childFirst = firstRequests.find(request => !JSON.stringify((request.body as Body).messages).includes(parent))
     const toolsBefore = (childFirst?.body as Body | undefined)?.tools ?? []
@@ -70,6 +73,11 @@ for (const structured of [true, false]) {
     const afterSchema = toolsAfter.find(tool => tool.name === 'StructuredOutput')?.input_schema
     check(`${label}: StructuredOutput schema stays byte-identical, absent stays absent`, JSON.stringify(beforeSchema) === JSON.stringify(afterSchema) && (structured ? afterSchema !== undefined : !toolsAfter.some(tool => tool.name === 'StructuredOutput')))
     check(`${label}: the whole tool roster stays byte-identical`, JSON.stringify(toolsBefore) === JSON.stringify(toolsAfter))
+    const systemBefore = JSON.stringify((childFirst?.body as Body | undefined)?.system)
+    const systemAfter = JSON.stringify((childResumed?.body as Body | undefined)?.system)
+    let changedAt = 0
+    while (systemBefore?.[changedAt] === systemAfter?.[changedAt] && changedAt < Math.max(systemBefore?.length ?? 0, systemAfter?.length ?? 0)) changedAt++
+    check(`${label}: the system prefix stays byte-identical`, systemBefore === systemAfter, `at ${changedAt}: ${systemBefore?.slice(Math.max(0, changedAt - 100), changedAt + 300)} -> ${systemAfter?.slice(Math.max(0, changedAt - 100), changedAt + 300)}`)
     if (structured) {
       const result = toolResultOf(world, `p2-${label}-second`)
       check('the restored StructuredOutput is callable, not merely advertised', result?.isError === false && result.text === 'Structured output provided successfully', JSON.stringify(result))
