@@ -33,7 +33,7 @@ function fakeDriver(): FakeDesktopDriver {
   return resolution.driver as FakeDesktopDriver
 }
 
-type Verdict = { behavior: string; message?: string; suggestions?: unknown; decisionReason?: { type?: string; classifierApprovable?: boolean } }
+type Verdict = { behavior: string; message?: string; suggestions?: unknown; decisionReason?: { type?: string; operatorOnly?: boolean } }
 const permission = async (input: Record<string, unknown>, context: ToolUseContext): Promise<Verdict> => (await ComputerTool.checkPermissions(input as never, context)) as Verdict
 
 async function refusalOf(input: Record<string, unknown>, context: ToolUseContext): Promise<string | null> {
@@ -73,7 +73,7 @@ section('§2 the first act asks by the application\'s name, the second rides the
   check('the first click asks', first.behavior === 'ask', JSON.stringify(first))
   check('the message names the act, the point and the application, and says it is the first act', (first.message ?? '').includes('Computer click (812, 300)') && (first.message ?? '').includes('first act in this application'), first.message)
   check('the message shows the name with the identity', (first.message ?? '').includes(`in ${TEXTEDIT.name} (${TEXTEDIT.identity})`), first.message)
-  check('the reason is a safety check the classifier may not answer', first.decisionReason?.type === 'safetyCheck' && first.decisionReason.classifierApprovable === false, JSON.stringify(first.decisionReason))
+  check('the reason is a safety check the operator alone answers', first.decisionReason?.type === 'safetyCheck' && first.decisionReason.operatorOnly === true, JSON.stringify(first.decisionReason))
   check('the suggestion is the exact-command rule Computer(app:<identity>)', JSON.stringify(first.suggestions) === JSON.stringify(suggestionForExactCommand('Computer', `app:${TEXTEDIT.identity}`)), JSON.stringify(first.suggestions))
   check('the judged application is on the carry for the card', session.peekCheckedActApp(owner)?.app.identity === TEXTEDIT.identity && session.peekCheckedActApp(owner)?.action === 'click')
   check('no grant yet', session.appApproved(owner, TEXTEDIT.identity) === false && session.approvedAppList(owner).length === 0)

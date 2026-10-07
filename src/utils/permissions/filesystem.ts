@@ -285,7 +285,7 @@ function pathHasSegmentContainment(path: string, base: string): boolean {
 
 type PathSafetyResult =
   | { safe: true }
-  | { safe: false; message: string; classifierApprovable: boolean }
+  | { safe: false; message: string; operatorOnly: boolean }
 
 export function checkPathSafetyForAutoEdit(
   path: string,
@@ -300,7 +300,7 @@ export function checkPathSafetyForAutoEdit(
     if (pattern) {
       return {
         safe: false,
-        classifierApprovable: false,
+        operatorOnly: true,
         message: `Mercury requested permission to write to ${path}, which contains a suspicious Windows path pattern (${pattern}) and requires manual approval.`,
       }
     }
@@ -309,7 +309,7 @@ export function checkPathSafetyForAutoEdit(
     if (isProductConfigPath(expandPath(resolved))) {
       return {
         safe: false,
-        classifierApprovable: true,
+        operatorOnly: false,
         message: `Permission to write to ${path} was requested but not yet granted.`,
       }
     }
@@ -318,7 +318,7 @@ export function checkPathSafetyForAutoEdit(
     if (isDangerousFileOrDirectory(path, expandPath(resolved), uncExempt)) {
       return {
         safe: false,
-        classifierApprovable: true,
+        operatorOnly: false,
         message: `Mercury requested permission to edit ${path}, which is a sensitive file.`,
       }
     }
@@ -762,7 +762,7 @@ export function checkWritePermissionForTool(
       decisionReason: {
         type: 'safetyCheck',
         reason: safety.message,
-        classifierApprovable: safety.classifierApprovable,
+        operatorOnly: safety.operatorOnly,
       },
       suggestions,
     } as unknown as PermissionDecision

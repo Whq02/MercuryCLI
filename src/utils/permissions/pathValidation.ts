@@ -91,7 +91,7 @@ export function isPathAllowed(
         decisionReason: {
           type: 'safetyCheck',
           reason: safety.message,
-          classifierApprovable: safety.classifierApprovable,
+          operatorOnly: safety.operatorOnly,
         },
       }
     }

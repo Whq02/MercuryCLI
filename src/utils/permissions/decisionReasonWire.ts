@@ -58,7 +58,7 @@ export function decodeDecisionReasonFromWire(value: unknown): PermissionDecision
     case 'other':
       return typeof v.reason === 'string' ? (value as PermissionDecisionReason) : undefined
     case 'safetyCheck':
-      return typeof v.reason === 'string' && typeof v.classifierApprovable === 'boolean'
+      return typeof v.reason === 'string' && typeof v.operatorOnly === 'boolean'
         ? (value as PermissionDecisionReason)
         : undefined
     case 'permissionPromptTool':
