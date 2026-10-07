@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { codeOnlyText } from '../lib/codeText.ts'
+import ts from 'typescript'
 import { checker } from '../engine-durability/harness.ts'
 import { configHomeIsReal, guardLoginDriverWrite } from '../lib/loginDriverGuard.ts'
 
@@ -530,6 +531,36 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
   t.check('the summary counts distinct families (10), signed and ready', JSON.stringify(loginsSummaryRows(facts).map(r => `${r.key}=${r.value}`)) === JSON.stringify(['Families=10', 'Signed in=4 of 10', 'Ready=4 lanes']))
   t.check('the status line: signed of total · ready', loginsStatusLine(facts) === '4 of 10 families signed in · 4 ready')
   t.check('the signed-out world says so honestly (lanes can be ready without a sign-in)', loginsStatusLine(signedOutFacts()) === 'no family signed in yet · 0 ready without one')
+  const splashSource = ts.createSourceFile('BootSplashScreen.tsx', read('src/components/BootSplashScreen.tsx'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+  let countExpression = ''
+  const visit = (node: ts.Node): void => {
+    if (ts.isVariableDeclaration(node) && node.name.getText(splashSource) === 'loginsCtx' && node.initializer && ts.isCallExpression(node.initializer)) {
+      countExpression = node.initializer.arguments[0]!.getText(splashSource)
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(splashSource)
+  t.check('the boot face exposes its actual Logins count composer', countExpression !== '')
+  const screenModule = await import('../../src/components/BootLoginsScreen.js')
+  const sharedCount = (screenModule as unknown as Record<string, unknown>).loginsFamilyCounts
+  t.check('the boot face and Logins summary share one count owner', typeof sharedCount === 'function' && countExpression.includes('loginsFamilyCounts'))
+  if (countExpression !== '') {
+    const js = new Bun.Transpiler({ loader: 'tsx' }).transformSync(`const compose = ${countExpression}`)
+    for (const signedExtras of [false, true]) {
+      const extra = ['local', 'openai-compat'].map(id => ({
+        family: { id, available: true, credentialed: signedExtras },
+        slots: [{ signedIn: signedExtras }],
+      }))
+      for (const snapshot of [facts, signedOutFacts()]) {
+        const groups = [...snapshot.groups, ...extra]
+        const compose = new Function('providerFamilyPresences', 'deriveFamilySlotGroups', 'loginsFamilyCounts', `${js}\nreturn compose`)(
+          () => groups.map(group => group.family), () => groups, sharedCount,
+        ) as () => string | null
+        const expected = snapshot === facts ? '4 of 10 signed in' : null
+        t.check(`boot count matches the listed families, extra providers signed=${signedExtras}, listed signed=${snapshot === facts}`, compose() === expected, String(compose()))
+      }
+    }
+  }
   t.check('the legend names only the moves that exist (↵ joined with the first flow)', loginsLegendOf() === '↑↓ move · ↵ sign in · esc back')
 
   const wide = composeLogins(120, 40, { sel: 0 }).join('\n')
