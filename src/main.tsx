@@ -1241,6 +1241,11 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
       logError(error)
     }
   }
+  const { lspAgentNote } = await import('./services/lsp/toolFamily.js')
+  for (const agent of activeAgents) {
+    if (agent.tools?.includes('LSP')) console.error(lspAgentNote(agent.agentType))
+    if (agent.disallowedTools?.includes('LSP')) console.error(lspAgentNote(agent.agentType, true))
+  }
   const requestedAgent = typedString(opts.agent) ?? getInitialSettings().engine?.agent
   let mainThreadAgentDefinition: AgentDefinition | undefined
   if (requestedAgent) {
