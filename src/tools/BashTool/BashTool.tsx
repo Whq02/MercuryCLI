@@ -653,7 +653,7 @@ async function* runBash(
         }
       }
 
-      const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000)
+      const elapsedSeconds = Math.floor((Date.now() - launchedAt) / 1000)
       if (!BACKGROUND_TASKS_DISABLED && backgroundId === undefined && Date.now() - startedAt >= QUIET_WINDOW_MS && setToolJSX) {
         if (foregroundTaskId === null) {
           foregroundTaskId = registerForeground(
