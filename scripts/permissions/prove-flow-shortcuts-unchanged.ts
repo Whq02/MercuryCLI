@@ -166,6 +166,12 @@ const RULE_SETS: Array<{ id: string; allow?: string[]; deny?: string[]; ask?: st
   { id: 'allow-git', allow: ['Bash(git *)'] },
 ]
 type BashRow = { id: string; behavior: string; reasonType: string; message: string }
+const HOME_DIR = process.env.HOME ?? ''
+const portable = (text: string): string => {
+  let out = text.split(process.cwd()).join('<cwd>')
+  if (HOME_DIR !== '') out = out.split(HOME_DIR).join('<home>')
+  return out
+}
 async function bashRows(): Promise<BashRow[]> {
   const rows: BashRow[] = []
   for (const rules of RULE_SETS) {
@@ -180,7 +186,7 @@ async function bashRows(): Promise<BashRow[]> {
           isBypassPermissionsModeAvailable: false,
         }
         const result = (await bashToolHasPermission({ command } as never, context as never)) as { behavior: string; message?: string; decisionReason?: { type?: string } }
-        rows.push({ id: `${rules.id}·${mode}·${command}`, behavior: result.behavior, reasonType: result.decisionReason?.type ?? 'none', message: result.message ?? '' })
+        rows.push({ id: `${rules.id}·${mode}·${command}`, behavior: result.behavior, reasonType: result.decisionReason?.type ?? 'none', message: portable(result.message ?? '') })
       }
     }
   }
