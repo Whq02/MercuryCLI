@@ -28,6 +28,7 @@ const PRODUCT_PHRASES = [
   J('auto_', 'mode'),
   J('bash_class', 'ifier'),
   J('The semantic Bash-rule class', 'ifier'),
+  J('permission_', 'retry'),
 ]
 const STAGE_WORDS = [J("'class", "ifier'"), J("'denial", "Limit'"), J("'allowDenial", "Reset'")]
 
