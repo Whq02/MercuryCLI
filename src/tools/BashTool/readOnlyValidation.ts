@@ -8,7 +8,6 @@ import {
 } from '../../utils/permissions/decision/commandAnalysis.js'
 import {
   validateFlags,
-  containsVulnerableUncPath,
   GIT_READ_ONLY_COMMANDS,
   RIPGREP_READ_ONLY_COMMANDS,
   PYRIGHT_READ_ONLY_COMMANDS,
@@ -27,6 +26,8 @@ import { getCwd } from '../../utils/cwd.js'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import { getPlatform } from '../../utils/platform.js'
 import { binaryName } from '../../utils/config/derived.js'
+import { uncPathRisk, uncPathMessage } from '../../utils/permissions/uncPath.js'
+import { containsWindowsDevicePath, WINDOWS_DEVICE_PATH_MESSAGE } from '../../utils/permissions/windowsPath.js'
 
 
 const none: FlagArgType = 'none'
@@ -359,7 +360,7 @@ function isGitInternalPath(path: string): boolean {
 function isSubcommandReadOnly(subcommand: string): boolean {
   let text = subcommand.trim()
   if (text.endsWith(' 2>&1')) text = text.slice(0, -' 2>&1'.length).trim()
-  if (containsVulnerableUncPath(text)) return false
+  if (uncPathRisk(text).risky || containsWindowsDevicePath(text)) return false
   if (hasUnquotedExpansion(text)) return false
   if (isCommandSafeViaFlagParsing(text)) return true
   if (matchesRegexAllowlist(text)) {
@@ -508,9 +509,9 @@ function readOnlyVerdict(
   if (bashCommandIsSafe_DEPRECATED(command).behavior !== 'passthrough') {
     return { behavior: 'passthrough', message: 'The security screen flagged the command.' }
   }
-  if (containsVulnerableUncPath(command)) {
-    return { behavior: 'ask', message: 'This command contains a Windows UNC path that could be exploited via WebDAV.' }
-  }
+  const remote = uncPathRisk(command)
+  if (remote.risky) return { behavior: 'ask', message: uncPathMessage(command, remote) }
+  if (containsWindowsDevicePath(command)) return { behavior: 'ask', message: WINDOWS_DEVICE_PATH_MESSAGE }
 
   const subcommands = splitCommand_DEPRECATED(command)
 

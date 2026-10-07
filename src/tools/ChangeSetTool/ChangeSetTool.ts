@@ -69,7 +69,7 @@ import {
 } from '../../utils/fileHistory.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { expandPath } from '../../utils/path.js'
-import { checkWritePermissionForTool } from '../../utils/permissions/filesystem.js'
+import { checkWritePermissionForTool, checkUncPathPermission } from '../../utils/permissions/filesystem.js'
 import type { PermissionDecision } from '../../utils/permissions/PermissionResult.js'
 import { reasonForRule, refusalWithReason, ruleWords } from '../../utils/permissions/ruleReason.js'
 import {
@@ -1158,6 +1158,22 @@ NOT this tool (refused by name): file creation (Write) · binary content · note
     return { result: true as const }
   },
   async checkPermissions(input: Input, context): Promise<PermissionDecision> {
+    const remotePaths = input.changes?.map(change => change.file_path) ?? []
+    if (input.patch) {
+      const parsed = parseAnchorPatch(input.patch)
+      if (parsed.ok) for (const section of parsed.sections) {
+        remotePaths.push(section.path)
+        for (const op of section.ops) if (op.kind === 'move-to') remotePaths.push(op.newPath)
+      }
+    }
+    if (input.plan_id) {
+      const plan = getChangeSetPlan(ownerFromToolUseContext(context), input.plan_id)
+      remotePaths.push(...(plan?.changedPaths ?? []))
+    }
+    for (const path of remotePaths) {
+      const remote = checkUncPathPermission(path, context.getAppState().toolPermissionContext, 'edit')
+      if (remote && remote.behavior !== 'allow') return remote
+    }
     if (input.op !== 'apply') {
       return { behavior: 'allow', updatedInput: input }
     }

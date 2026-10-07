@@ -30,6 +30,7 @@ import { readFileSyncWithMetadata } from '../../utils/fileRead.js'
 import { logError } from '../../utils/log.js'
 import { NUL_PATH_MESSAGE, expandPath, hasNulByte } from '../../utils/path.js'
 import { checkWritePermissionForTool, matchingRuleForInput } from '../../utils/permissions/filesystem.js'
+import { windowsPathNeedsPermission } from '../../utils/permissions/windowsPath.js'
 import { ruleSentence } from '../../utils/permissions/ruleReason.js'
 import { memoryWriteRefusal } from '../../utils/memoryFileDetection.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
@@ -124,7 +125,7 @@ export const FileWriteTool = buildTool({
     )
   },
   backfillObservableInput(input: Input): void {
-    if (hasNulByte(input.file_path)) return
+    if (hasNulByte(input.file_path) || windowsPathNeedsPermission(input.file_path)) return
     input.file_path = expandPath(input.file_path)
   },
   async validateInput(input: Input, context: ToolUseContext) {
@@ -145,9 +146,7 @@ export const FileWriteTool = buildTool({
     if (memoryRefusal) {
       return { result: false as const, message: memoryRefusal, errorCode: 3 }
     }
-    if (input.file_path.startsWith('\\\\') || input.file_path.startsWith('//')) {
-      return { result: true as const }
-    }
+    if (windowsPathNeedsPermission(input.file_path)) return { result: true as const }
     let isDirectory = false
     try {
       isDirectory = getFsImplementation().statSync(expandedPath).isDirectory()

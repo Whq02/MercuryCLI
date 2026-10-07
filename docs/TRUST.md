@@ -84,6 +84,8 @@ starting folder.
 - **Apollo and dontAsk** keep their existing permission
   behaviour; a folder does not add a separate refusal.
 
+On Windows, a UNC path can send this machine's login to a remote SMB/WebDAV host: shell and file tools ask before opening it, including a share-hosted workspace, unless an explicit path or command rule grants access.
+
 Sensitive files, such as credentials and Mercury configuration, retain their
 own permission checks. The sandbox is a separate feature and keeps its own
 filesystem restrictions. A hosted runner puts a permission ask to its host;

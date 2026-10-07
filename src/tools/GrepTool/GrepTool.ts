@@ -29,6 +29,7 @@ import {
   normalizePatternsToPath,
 } from '../../utils/permissions/filesystem.js'
 import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
+import { windowsPathNeedsPermission } from '../../utils/permissions/windowsPath.js'
 import { matchWildcardPattern } from '../../utils/permissions/shellRuleMatching.js'
 import { ripGrepAnswer, RipgrepUsageError, type RipgrepAnswer } from '../../utils/ripgrep.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
@@ -415,10 +416,8 @@ export const GrepTool = buildTool({
       if (hasNulByte(input.path)) {
         return { result: false as const, message: NUL_PATH_MESSAGE, errorCode: 1 }
       }
+      if (windowsPathNeedsPermission(input.path)) return { result: true as const }
       const expanded = expandPath(input.path)
-      if (input.path.startsWith('\\\\') || input.path.startsWith('//')) {
-        return { result: true as const }
-      }
       try {
         await stat(expanded)
       } catch (err) {
