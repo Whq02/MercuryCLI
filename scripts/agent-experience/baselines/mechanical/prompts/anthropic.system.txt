@@ -167,9 +167,9 @@ Status:
 (clean)
 
 Recent commits:
-9fdfe5a add the node:test suite (the even-length median case fails)
-921d323 add the stats, records and format helpers
-6f652ff init: package manifest, readme
+0650339 add the node:test suite (the even-length median case fails)
+f3ba35f add the stats, records and format helpers
+398c21e init: package manifest, readme
 gitRules: For git commands: prefer creating a new commit over amending; consider a safer alternative before any destructive operation (`git reset --hard`, `git push --force`, `git checkout --`); never skip hooks (`--no-verify`) or bypass signing (`--no-gpg-sign`, or an inline config disabling gpg signing) unless explicitly asked, and investigate a hook failure rather than working around it.
 
 # Committing changes with git

@@ -6,9 +6,9 @@
     "backend": "openrouter-responses",
     "dialect": "responses",
     "mechanical": true,
-    "tree": "cea58cb77",
+    "tree": "a99ba9374",
     "fold": "unlabelled",
-    "when": "2026-10-07T03:51:38.474Z",
+    "when": "2026-10-07T04:15:25.972Z",
     "promptChars": 24029,
     "promptTokensEst": 6007,
     "toolCount": 49,
@@ -63,7 +63,7 @@
       "mcp__mercury__lease_list",
       "mcp__mercury__render_tui"
     ],
-    "toolSchemaChars": 176267,
+    "toolSchemaChars": 176293,
     "notes": [
       "browser task unmeasured: no browser to launch — no managed browser — your installed apps are never driven; /browser install downloads Chrome for Testing once with your consent"
     ]
@@ -111,12 +111,12 @@
       "errors": [
         {
           "tool": "Bash",
-          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.332958ms)\n✔ median of an odd-length list (0.065667ms)\n✖ median of an even-length list averages the middle pair (0.388916ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 49.715167\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.388916ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file:///private/tmp/mw/mercury-ax-bench-G25A1E/openrouter/task",
+          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.331584ms)\n✔ median of an odd-length list (0.07475ms)\n✖ median of an even-length list averages the middle pair (0.379459ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 52.637083\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.379459ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file:///private/tmp/mw/mercury-ax-bench-WpMIaj/openrouter/tasks",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 2008,
+      "wallMs": 2004,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -168,7 +168,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1595,
+      "wallMs": 1554,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -222,12 +222,12 @@
       "errors": [
         {
           "tool": "Edit",
-          "text": "<tool_use_error>Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). Read ownership/coverage check failed: neither a recorded Read nor the current owner's ledger covers all addressed lines. No lines of /private/tmp/mw/mercury-ax-bench-G25A1E/openrouter/tasks/anchored-edit/project/README.md were read this session; the old_string was not found in the current content, so the lines the edit touches are unknown — a Read of the file shows what stands.</tool_use_error>",
+          "text": "<tool_use_error>Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). Read ownership/coverage check failed: neither a recorded Read nor the current owner's ledger covers all addressed lines. No lines of /private/tmp/mw/mercury-ax-bench-WpMIaj/openrouter/tasks/anchored-edit/project/README.md were read this session; the old_string was not found in the current content, so the lines the edit touches are unknown — a Read of the file shows what stands.</tool_use_error>",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 956,
+      "wallMs": 905,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -275,7 +275,7 @@
           "probe": true
         }
       ],
-      "wallMs": 908,
+      "wallMs": 840,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -317,7 +317,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 931,
+      "wallMs": 876,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -364,7 +364,7 @@
           "probe": true
         }
       ],
-      "wallMs": 877,
+      "wallMs": 866,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -404,7 +404,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 889,
+      "wallMs": 859,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -444,7 +444,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1390,
+      "wallMs": 1294,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -516,7 +516,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 903,
+      "wallMs": 846,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -556,7 +556,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 927,
+      "wallMs": 924,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -605,7 +605,7 @@
           "probe": true
         }
       ],
-      "wallMs": 1719,
+      "wallMs": 1799,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -640,7 +640,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 844,
+      "wallMs": 842,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -675,7 +675,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 786,
+      "wallMs": 730,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
