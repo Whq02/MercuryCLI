@@ -24,7 +24,6 @@ import {
 } from '../../utils/agentContext.js'
 import { runWithCwdOverride } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { errorMessage } from '../../utils/errors.js'
 import {
   filterOrphanedThinkingOnlyMessages,
   filterUnresolvedToolUses,
@@ -43,10 +42,7 @@ import { restoreBoundPrefixFromMessages } from '../../services/providers/anthrop
 import { pendingToolRosterRestore } from '../../services/providers/toolEconomy.js'
 import { getSchemaBoundStructuredOutputTool, STRUCTURED_OUTPUT_TOOL_NAME } from '../WorkflowTool/structuredOutputTool.js'
 import { getCwdState, getSdkAgentProgressSummariesEnabled } from '../../bootstrap/state.js'
-import { getSystemPrompt } from '../../constants/prompts.js'
-import { ensureScratchpadDir } from '../../utils/scratchpad.js'
 import { cancelAutomaticResume, resolveWorkerTools, runAsyncAgentLifecycle } from './agentToolUtils.js'
-import { FORK_AGENT, FORK_SUBAGENT_TYPE, forkSystemPrompt, isForkSubagentEnabled } from './forkSubagent.js'
 import { MERCURY_CREW_AGENT_TYPE } from './constants.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 import { getAgentDefinitionsWithOverrides } from './loadAgentsDir.js'
@@ -185,42 +181,10 @@ export async function resumeAgentBackground(args: {
     createUserMessage({ content: prompt + note }),
   ]
 
-  const isForkResume = meta?.agentType === FORK_SUBAGENT_TYPE
-  let definition: AgentDefinition
-  if (isForkResume) {
-    definition = FORK_AGENT
-  } else {
-    const definitions = await getAgentDefinitionsWithOverrides(getCwdState())
-    definition = definitionForStoredType(meta?.agentType, definitions.activeAgents)
-  }
+  const definitions = await getAgentDefinitionsWithOverrides(getCwdState())
+  const definition: AgentDefinition = definitionForStoredType(meta?.agentType, definitions.activeAgents)
 
   const description = recordedDescription(meta?.description) || RESUMED_AGENT_DESCRIPTION
-
-  let systemPromptOverride: string[] | undefined
-  if (isForkResume) {
-    const rendered = toolUseContext.renderedSystemPrompt
-    if (rendered && rendered.length > 0) {
-      systemPromptOverride = [...rendered]
-    } else {
-      try {
-        systemPromptOverride = await getSystemPrompt(
-          toolUseContext.options.tools,
-          toolUseContext.options.engineModel,
-          toolUseContext.options.mcpClients,
-        )
-      } catch (error) {
-        throw new Error(
-          `Cannot resume a fork agent: the parent system prompt could not be reconstructed (${errorMessage(error)})`,
-        )
-      }
-      if (!systemPromptOverride || systemPromptOverride.length === 0) {
-        throw new Error(
-          'Cannot resume a fork agent: the parent system prompt could not be reconstructed',
-        )
-      }
-    }
-    systemPromptOverride = forkSystemPrompt(systemPromptOverride, ensureScratchpadDir(agentId))
-  }
 
   const restoredModel = meta?.model
   const lifecycleModel = getAgentModel(
@@ -231,9 +195,7 @@ export async function resumeAgentBackground(args: {
   const instructionProfileOverride = meta?.instructionProfile
 
   const workerPermissionMode = (definition.permissionMode ?? 'implement') as NonNullable<AgentDefinition['permissionMode']>
-  const tools = isForkResume
-    ? toolUseContext.options.tools
-    : resolveWorkerTools(
+  const tools = resolveWorkerTools(
         definition,
         workerPermissionMode,
         assembleToolPool(
@@ -307,15 +269,11 @@ export async function resumeAgentBackground(args: {
           override: {
             agentId,
             abortController: task.abortController!,
-            ...(systemPromptOverride
-              ? { systemPrompt: systemPromptOverride }
-              : {}),
           },
           model: restoredModel,
           availableTools: tools,
           ...(structuredOutputSpec ? { structuredOutputSpec } : {}),
           ...(contentReplacementState ? { contentReplacementState } : {}),
-          ...(isForkResume ? { useExactTools: true } : {}),
           ...(worktreePath ? { worktreePath } : {}),
           ...(cwdPath ? { cwd: cwdPath } : {}),
           description,
@@ -342,8 +300,7 @@ export async function resumeAgentBackground(args: {
       agentIdForCleanup: agentId,
       automaticResume: args.automatic === true,
       replyTarget,
-      enableSummarization:
-        isForkSubagentEnabled() || getSdkAgentProgressSummariesEnabled(),
+      enableSummarization: getSdkAgentProgressSummariesEnabled(),
       getWorktreeResult: async () =>
         worktreePath ? { worktreePath } : {},
       canUseTool,

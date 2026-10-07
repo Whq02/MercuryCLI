@@ -20,12 +20,6 @@ const { buildAgentLaunchPlan } = await import('../../src/utils/crew/agentLaunchP
 const { getBuiltInAgents } = await import('../../src/tools/AgentTool/builtInAgents.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
-const FORK_STUB = {
-  agentType: 'fork-stub',
-  whenToUse: 'fork stub',
-  source: 'built-in',
-  getSystemPrompt: () => 'fork',
-} as never
 const SCOUT = {
   agentType: 'mercury-scout',
   whenToUse: 'recon',
@@ -64,8 +58,6 @@ function base(over: Record<string, unknown> = {}): never {
   return {
     activeAgents: ACTIVE,
     toolPermissionContext: getEmptyToolPermissionContext(),
-    forkGateOn: false,
-    forkAgent: FORK_STUB,
     defaultAgentType: 'mercury-crew',
     engineModel: 'claude-opus-4-8',
     backgroundTasksDisabled: false,
@@ -142,13 +134,9 @@ section('§2 — lookup, restriction, and the denial band')
     err?.message,
   )
 
-  check('stamp gate ON + no type → the fork path with the injected definition', (() => {
-    const p = buildAgentLaunchPlan(base({ forkGateOn: true }))
-    return p.isForkPath && p.definition === (FORK_STUB as never)
-  })())
-  check('stamp gate OFF + no type → the default type', (() => {
+  check('no type → the default type; the plan knows no fork', (() => {
     const p = buildAgentLaunchPlan(base({}))
-    return !p.isForkPath && p.agentType === 'mercury-crew'
+    return !('isForkPath' in p) && p.agentType === 'mercury-crew'
   })())
 }
 
@@ -187,7 +175,7 @@ section('§6 — seam ratchets: the consumers consume the plan')
   check('AgentTool keeps NO alias-map copy (decode has ONE home)', !agentTool.includes('LEGACY_SUBAGENT_ALIASES'))
   check('AgentTool resolves the explicit model through the model owner before engine validation', agentTool.includes('getAgentModel(undefined, options.engineModel, input.model)') && agentTool.indexOf('getAgentModel(undefined, options.engineModel, input.model)') < agentTool.indexOf('resolveEngineDispatch(modelParam)'))
   const planSrc = src('utils', 'crew', 'agentLaunchPlan.ts')
-  check('the plan builder reads the requested type as written — no decode seam, no alias table', planSrc.includes('const requestedType = i.requestedType || undefined') && !/decodeAgentType|Record<string, string>/.test(planSrc))
+  check('the plan builder reads the requested type as written — no decode seam, no alias table', planSrc.includes('(i.requestedType || undefined) ?? i.defaultAgentType') && !/decodeAgentType|Record<string, string>/.test(planSrc))
 
   const fg = src('tools', 'AgentTool', 'foregroundExecution.tsx')
   check('AgentTool dispatches foreground runs to the execution module', agentTool.includes('runForegroundAgentExecution({'))

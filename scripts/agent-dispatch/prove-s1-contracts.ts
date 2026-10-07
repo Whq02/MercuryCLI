@@ -59,13 +59,10 @@ section('2 · buildAgentLaunchPlan — decision laws')
     source: 'projectSettings',
     ...over,
   })
-  const forkAgent = mkDef({ agentType: 'orbit-fork' })
   const base = (over: Partial<AgentLaunchPlanInput> = {}): AgentLaunchPlanInput => ({
     requestedType: 'orbit-probe',
     activeAgents: [mkDef()],
     toolPermissionContext: getEmptyToolPermissionContext(),
-    forkGateOn: false,
-    forkAgent,
     defaultAgentType: 'orbit-probe',
     engineModel: 'claude-opus-4-8',
     backgroundTasksDisabled: false,
@@ -75,7 +72,7 @@ section('2 · buildAgentLaunchPlan — decision laws')
 
   const plan = buildAgentLaunchPlan(base())
   check('resolves the requested definition (agentType echoes)', plan.agentType === 'orbit-probe')
-  check('not the fork path when a type is requested', plan.isForkPath === false)
+  check('the plan carries no fork path', !('isForkPath' in plan))
   check("workerPermissionMode defaults to 'implement'", plan.workerPermissionMode === 'implement')
   check('no isolation by default', plan.isolation === undefined)
   check('sync by default', plan.shouldRunAsync === false)
@@ -102,7 +99,7 @@ section('2 · buildAgentLaunchPlan — decision laws')
   check('the plan resolves a registered id as written', seamPlan.agentType === 'mercury-scout')
   let emptyPlan: string | undefined
   try {
-    emptyPlan = buildAgentLaunchPlan(base({ requestedType: '', activeAgents: roster, forkGateOn: false, defaultAgentType: 'mercury-scout' })).agentType
+    emptyPlan = buildAgentLaunchPlan(base({ requestedType: '', activeAgents: roster, defaultAgentType: 'mercury-scout' })).agentType
   } catch (e) {
     emptyPlan = e instanceof Error ? e.message : String(e)
   }
@@ -141,8 +138,8 @@ section('2 · buildAgentLaunchPlan — decision laws')
   check('a haiku definition pin resolves to the haiku row', /haiku/i.test(haikuPlan.model), haikuPlan.model)
   check('no note rides a plain resolution', haikuPlan.modelNote === undefined, haikuPlan.modelNote ?? 'undefined')
 
-  const forkPlan = buildAgentLaunchPlan(base({ requestedType: undefined, forkGateOn: true }))
-  check('fork path resolves the injected fork definition', forkPlan.isForkPath && forkPlan.agentType === 'orbit-fork')
+  const untyped = buildAgentLaunchPlan(base({ requestedType: undefined }))
+  check('no requested type resolves the default type', untyped.agentType === 'orbit-probe')
 }
 
 console.log('\n' + '═'.repeat(76))

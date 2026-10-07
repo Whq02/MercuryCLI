@@ -18,8 +18,6 @@ export type AgentLaunchPlanInput = {
   activeAgents: readonly AgentDefinition[]
   allowedAgentTypes?: readonly string[]
   toolPermissionContext: ToolPermissionContext
-  forkGateOn: boolean
-  forkAgent: AgentDefinition
   defaultAgentType: string
   engineModel: string
   modelParam?: ModelAlias
@@ -38,7 +36,6 @@ export type AgentLaunchPlanInput = {
 export type AgentLaunchPlan = {
   agentType: string
   definition: AgentDefinition
-  isForkPath: boolean
   model: string
   modelNote?: string
   isolation?: string
@@ -48,49 +45,41 @@ export type AgentLaunchPlan = {
 }
 
 export function buildAgentLaunchPlan(i: AgentLaunchPlanInput): AgentLaunchPlan {
-  const requestedType = i.requestedType || undefined
-  const effectiveType =
-    requestedType ?? (i.forkGateOn ? undefined : i.defaultAgentType)
-  const isForkPath = effectiveType === undefined
+  const effectiveType = (i.requestedType || undefined) ?? i.defaultAgentType
 
-  let definition: AgentDefinition
-  if (isForkPath) {
-    definition = i.forkAgent
-  } else {
-    const allAgents = i.activeAgents
-    const agents = filterDeniedAgents(
-      (i.allowedAgentTypes
-        ? allAgents.filter(a => i.allowedAgentTypes!.includes(a.agentType))
-        : allAgents) as AgentDefinition[],
-      i.toolPermissionContext,
-      AGENT_TOOL_NAME,
+  const allAgents = i.activeAgents
+  const agents = filterDeniedAgents(
+    (i.allowedAgentTypes
+      ? allAgents.filter(a => i.allowedAgentTypes!.includes(a.agentType))
+      : allAgents) as AgentDefinition[],
+    i.toolPermissionContext,
+    AGENT_TOOL_NAME,
+  )
+  const found = agents.find(agent => agent.agentType === effectiveType)
+  if (!found) {
+    const agentExistsButDenied = allAgents.find(
+      agent => agent.agentType === effectiveType,
     )
-    const found = agents.find(agent => agent.agentType === effectiveType)
-    if (!found) {
-      const agentExistsButDenied = allAgents.find(
-        agent => agent.agentType === effectiveType,
+    if (agentExistsButDenied) {
+      const denyRule = getDenyRuleForAgent(
+        i.toolPermissionContext,
+        AGENT_TOOL_NAME,
+        effectiveType,
       )
-      if (agentExistsButDenied) {
-        const denyRule = getDenyRuleForAgent(
-          i.toolPermissionContext,
-          AGENT_TOOL_NAME,
-          effectiveType,
-        )
-        throw new Error(
-          refusalWithReason(
-            denyRule
-              ? ruleSentence(`The ${effectiveType} agent`, 'deny', denyRule)
-              : `The ${effectiveType} agent is denied by the rule ${AGENT_TOOL_NAME}(${effectiveType}).`,
-            denyRule ? reasonForRule(i.toolPermissionContext, denyRule) : undefined,
-          ),
-        )
-      }
       throw new Error(
-        `Agent type '${effectiveType}' not found. Available agents: ${agents.map(a => a.agentType).join(', ')}`,
+        refusalWithReason(
+          denyRule
+            ? ruleSentence(`The ${effectiveType} agent`, 'deny', denyRule)
+            : `The ${effectiveType} agent is denied by the rule ${AGENT_TOOL_NAME}(${effectiveType}).`,
+          denyRule ? reasonForRule(i.toolPermissionContext, denyRule) : undefined,
+        ),
       )
     }
-    definition = found
+    throw new Error(
+      `Agent type '${effectiveType}' not found. Available agents: ${agents.map(a => a.agentType).join(', ')}`,
+    )
   }
+  const definition: AgentDefinition = found
 
   if (i.engineDispatch) {
     const backend = i.engineDispatch.backend
@@ -98,7 +87,6 @@ export function buildAgentLaunchPlan(i: AgentLaunchPlanInput): AgentLaunchPlan {
     return {
       agentType: definition.agentType,
       definition,
-      isForkPath,
       model: engineModel,
       modelNote: `engine: ${providerDisplayName(backend)} (${engineModel}) via the native in-process transport`,
       isolation: i.isolationParam ?? definition.isolation,
@@ -112,16 +100,15 @@ export function buildAgentLaunchPlan(i: AgentLaunchPlanInput): AgentLaunchPlan {
     }
   }
 
-  const model = (!isForkPath ? i.resolvedModel : undefined) ?? getAgentModel(
+  const model = i.resolvedModel ?? getAgentModel(
     definition.model,
     i.engineModel,
-    isForkPath ? undefined : i.modelParam,
+    i.modelParam,
   )
 
   return {
     agentType: definition.agentType,
     definition,
-    isForkPath,
     model,
     isolation: i.isolationParam ?? definition.isolation,
     shouldRunAsync:

@@ -399,17 +399,9 @@ section('4 · the launch-plan engine law (role→sandbox · denials · no floor)
     source: 'built-in',
     getSystemPrompt: () => 'general',
   } as never
-  const FORK_STUB = {
-    agentType: 'fork-stub',
-    whenToUse: 'fork stub',
-    source: 'built-in',
-    getSystemPrompt: () => 'fork',
-  } as never
   const base = {
     activeAgents: [GENERAL] as never,
     toolPermissionContext: getEmptyToolPermissionContext(),
-    forkGateOn: false,
-    forkAgent: FORK_STUB,
     defaultAgentType: 'mercury-crew',
     engineModel: 'claude-opus-4-8',
     backgroundTasksDisabled: false,
