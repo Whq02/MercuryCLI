@@ -14,4 +14,3 @@ docs/**
 .github/**
 .gitignore
 design-system/**
-scripts/codemod/**
