@@ -22,7 +22,12 @@ const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts'
 const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
 const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
 const { asSessionId } = await import('../../src/types/ids.ts')
-const { setAutoModeCircuitBroken } = await import('../../src/utils/permissions/autoModeState.ts')
+const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const closeFlow = (closed: boolean): void => {
+  mkdirSync(process.env.MERCURY_CONFIG_DIR!, { recursive: true })
+  writeFileSync(join(process.env.MERCURY_CONFIG_DIR!, 'settings.json'), JSON.stringify(closed ? { guardrails: { disableFlowMode: true } } : {}))
+  resetSettingsCache()
+}
 const { runAcpServer } = await import('../../src/services/acp/acpServer.ts')
 const storage = getProjectDir(project)
 mkdirSync(storage, { recursive: true })
@@ -152,11 +157,11 @@ try {
   await third.close()
   try {
     await load(empty.sessionId, 'flow', 'mode survives before the first model turn')
-    setAutoModeCircuitBroken(true)
+    closeFlow(true)
     try {
       await load(empty.sessionId, 'default', 'unavailable flow falls back to default')
     } finally {
-      setAutoModeCircuitBroken(false)
+      closeFlow(false)
     }
   } catch (error) {
     check('mode survives before the first model turn', String(error), 'successful load')

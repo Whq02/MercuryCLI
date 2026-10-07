@@ -55,7 +55,7 @@ const last = () => modeTransitions()[modeTransitions().length - 1]
 section('the record: the road vocabulary, the announce/audit mechanics, the boot entry')
 {
   const roads = MODE_TRANSITION_ROADS as readonly string[]
-  for (const road of ['boot', 'claim', 'control-door', 'carousel', 'screen-mirror', 'review-approval', 'permission-answer', 'flow-unavailable', 'bypass-disabled', 'crew-lead', 'unnamed']) {
+  for (const road of ['boot', 'claim', 'control-door', 'carousel', 'screen-mirror', 'review-approval', 'permission-answer', 'bypass-disabled', 'crew-lead', 'unnamed']) {
     check(`the vocabulary names the '${road}' road`, roads.includes(road))
   }
   for (const road of roads) {
@@ -141,7 +141,6 @@ try {
   check('the road owners are loadable', false, String(e).split('\n')[0])
 }
 {
-  check("the flow gate's kick-out records 'flow-unavailable'", /recordModeTransition\(\{ from: 'flow', to: 'default', road: 'flow-unavailable' \}\)/.test(src('utils', 'permissions', 'permissionSetup.ts')))
   check("the launch context records the 'boot' entry", /recordModeTransition\(\{ from: null, to: context\.mode, road: 'boot' \}\)/.test(src('utils', 'permissions', 'permissionSetup.ts')))
   check("the warm claim names 'claim'", /resolvePermissionModeTransition\(\n\s*claimedMode as WirePermissionMode,\n\s*getAppState\(\)\.toolPermissionContext,\n\s*'claim',/.test(src('cli', 'run.ts')))
   check("the review card names 'review-approval'", /'review-approval',/.test(src('tools', 'ApolloReviewTool', 'ApolloReviewTool.tsx')))

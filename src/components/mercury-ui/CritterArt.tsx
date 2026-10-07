@@ -252,7 +252,18 @@ export function paintCritterArt({
     const ground = bg !== '' ? bg : groundInk
     const topRow = art[r]!
     const botRow = art[r + 1] ?? ''
-    const lineKey = `${r}|${topRow}|${botRow}|${bg}${lineExtras(topRow, botRow, pupil, sleepSlots)}`
+    const inked = (row: number, c: number): boolean => {
+      const ch = cellAt(art, row, c)
+      return ch !== SLEEP_CELL && Boolean(paint(ch, c))
+    }
+    let shapeMask = ''
+    for (let c = 0; c < gridCols; c++) {
+      const topInk = inked(r, c)
+      const botInk = inked(r + 1, c)
+      const below = inked(r + 2, c)
+      shapeMask += topInk && botInk ? (below ? 'p' : 'e') : topInk ? (below && r > 0 && inked(r - 1, c) ? 'a' : 't') : '-'
+    }
+    const lineKey = `${r}|${shapeMask}|${topRow}|${botRow}|${bg}${lineExtras(topRow, botRow, pupil, sleepSlots)}`
     const hit = cache.lines.get(lineKey)
     if (hit !== undefined) {
       lines.push(hit)
@@ -285,15 +296,25 @@ export function paintCritterArt({
         cells.push(<Text key={c}> </Text>)
       } else if (tc && bc) {
         cells.push(
-          <Text key={c} color={bc} backgroundColor={tc}>
-            ▄
-          </Text>,
+          shapeMask[c] === 'e' ? (
+            <Text key={c} color={tc} backgroundColor={bc}>
+              ▀
+            </Text>
+          ) : (
+            <Text key={c} color={bc} backgroundColor={tc}>
+              ▄
+            </Text>
+          ),
         )
       } else if (tc) {
         cells.push(
-          ground !== '' ? (
+          ground !== '' && shapeMask[c] === 'a' ? (
             <Text key={c} color={ground} backgroundColor={tc}>
               ▄
+            </Text>
+          ) : ground !== '' ? (
+            <Text key={c} color={tc} backgroundColor={ground}>
+              ▀
             </Text>
           ) : (
             <Text key={c} color={tc}>

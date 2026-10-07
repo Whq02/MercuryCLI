@@ -3,12 +3,11 @@ import type {
   PermissionResult,
   PermissionDecisionReason,
 } from '../../utils/permissions/PermissionResult.js'
-import type { PendingClassifierCheck, PermissionRule } from '../../types/permissions.js'
+import type { PermissionRule } from '../../types/permissions.js'
 import { getCwd } from '../../utils/cwd.js'
 import { refusalWithReason, ruleSentence, withRuleReason } from '../../utils/permissions/ruleReason.js'
 import { getPlatform } from '../../utils/platform.js'
 import { windowsPathToPosixPath } from '../../utils/windowsPaths.js'
-import { modeBypassesPermissions } from '../../utils/permissions/PermissionMode.js'
 import { createPermissionRequestMessage } from '../../utils/permissions/decision/requestMessage.js'
 import { getRuleByContentsForToolName } from '../../utils/permissions/decision/rules.js'
 import {
@@ -19,12 +18,6 @@ import {
   suggestionForPrefix,
   type ShellPermissionRule,
 } from '../../utils/permissions/shellRuleMatching.js'
-import {
-  isClassifierPermissionsEnabled,
-  getBashPromptDenyDescriptions,
-  getBashPromptAskDescriptions,
-  classifyBashCommand,
-} from '../../utils/permissions/bashClassifier.js'
 import {
   parseForSecurity,
   PARSE_ABORTED,
@@ -666,29 +659,6 @@ export async function bashToolHasPermission(
   const exact = bashToolCheckExactMatchPermission(input, context)
   if (exact.behavior === 'deny') return exact
 
-  if (isClassifierPermissionsEnabled()) {
-    const denyDescriptions = getBashPromptDenyDescriptions(context)
-    const askDescriptions = getBashPromptAskDescriptions(context)
-    if (denyDescriptions.length > 0 || askDescriptions.length > 0) {
-      const signal = pickSignal(context)
-      const [denyResult, askResult] = await Promise.all([
-        denyDescriptions.length > 0
-          ? classifyBashCommand(command, getCwd(), denyDescriptions, 'deny', signal, false)
-          : Promise.resolve(null),
-        askDescriptions.length > 0
-          ? classifyBashCommand(command, getCwd(), askDescriptions, 'ask', signal, false)
-          : Promise.resolve(null),
-      ])
-      if (signal.aborted) throwAbort()
-      if (denyResult?.matches && denyResult.confidence === 'high') {
-        return { behavior: 'deny', message: `Blocked by a natural-language deny rule: ${denyResult.matchedDescription ?? ''}`, decisionReason: { type: 'classifier', classifier: 'deny', reason: denyResult.reason } }
-      }
-      if (askResult?.matches && askResult.confidence === 'high') {
-        return { behavior: 'ask', message: `Requires approval: ${askResult.matchedDescription ?? ''}`, decisionReason: { type: 'classifier', classifier: 'ask', reason: askResult.reason }, suggestions: suggestionForExactCommand(TOOL_NAME, command) }
-      }
-    }
-  }
-
   const operator = await checkCommandOperatorPermissions(
     input,
     segmentInput => bashToolHasPermission(segmentInput, context, prefixFn),
@@ -805,7 +775,7 @@ export async function bashToolHasPermission(
       compoundHasCd,
       astAvailable,
     )
-    return maybeAttachPendingCheck(single, command, context)
+    return single
   }
 
   const merged = await Promise.all(
@@ -887,56 +857,4 @@ function throwAbort(): never {
   const error = new Error('The operation was aborted')
   error.name = 'AbortError'
   throw error
-}
-
-
-const speculativeChecks = new Map<string, Promise<PermissionResult | undefined>>()
-
-function buildPendingClassifierCheck(
-  command: string,
-  toolPermissionContext: ToolPermissionContext,
-): PendingClassifierCheck | undefined {
-  if (!isClassifierPermissionsEnabled()) return undefined
-  if (modeBypassesPermissions(toolPermissionContext.mode)) return undefined
-  const descriptions = getBashPromptAskDescriptions(toolPermissionContext)
-  if (descriptions.length === 0) return undefined
-  return { command, cwd: getCwd(), descriptions }
-}
-
-export function startSpeculativeClassifierCheck(
-  command: string,
-  toolPermissionContext: ToolPermissionContext,
-  signal: AbortSignal,
-  isNonInteractiveSession: boolean,
-): boolean {
-  if (!isClassifierPermissionsEnabled()) return false
-  if (modeBypassesPermissions(toolPermissionContext.mode)) return false
-  const descriptions = getBashPromptAskDescriptions(toolPermissionContext)
-  if (descriptions.length === 0) return false
-  const promise = runSpeculativeClassification(command, descriptions, signal, isNonInteractiveSession)
-  promise.catch(() => {})
-  speculativeChecks.set(command, promise)
-  return true
-}
-
-async function runSpeculativeClassification(
-  command: string,
-  descriptions: string[],
-  signal: AbortSignal,
-  isNonInteractiveSession: boolean,
-): Promise<PermissionResult | undefined> {
-  await classifyBashCommand(command, getCwd(), descriptions, 'allow', signal, isNonInteractiveSession)
-  return undefined
-}
-
-export function clearSpeculativeChecks(): void {
-  speculativeChecks.clear()
-}
-
-function maybeAttachPendingCheck(result: PermissionResult, command: string, context: ToolPermissionContext): PermissionResult {
-  if (result.behavior === 'ask' || result.behavior === 'passthrough') {
-    const pending = buildPendingClassifierCheck(command, context)
-    if (pending) return { ...result, pendingClassifierCheck: pending }
-  }
-  return result
 }

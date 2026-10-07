@@ -482,14 +482,6 @@ export function hasSkipSovereignConsentPrompt(): boolean {
   return false
 }
 
-export function hasAutoModeOptIn(): boolean {
-  return false
-}
-
-export function getAutoModeConfig(): { allow?: string[]; soft_deny?: string[]; environment?: string } | undefined {
-  return undefined
-}
-
 export function getApolloPreflightQuestions(): number {
   const value = getInitialSettings().apollo?.preflightQuestions
   return typeof value === 'number' && Number.isFinite(value) ? value : 7

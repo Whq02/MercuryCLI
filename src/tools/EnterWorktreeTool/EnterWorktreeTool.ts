@@ -69,9 +69,6 @@ export const EnterWorktreeTool = buildTool({
   userFacingName(): string {
     return 'Creating worktree'
   },
-  toAutoClassifierInput(input: Input): string {
-    return input.name ?? ''
-  },
   async call(input: Input) {
     const existing = getCurrentWorktreeSession()
     if (existing) {

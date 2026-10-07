@@ -125,8 +125,6 @@ const ATTACHMENTS: Record<string, Fixture> = {
     ],
   },
   skill_discovery: { good: { skills: [{ name: 'n', description: 'd' }], signal: { kind: 'k' }, source: 'native' }, bad: [{ label: 'skills is text', field: 'skills', fields: { skills: 'n', signal: null, source: 'native' } }] },
-  auto_mode: { good: { reminderType: 'sparse' }, bad: [{ label: 'reminderType is a number', field: 'reminderType', fields: { reminderType: 1 } }] },
-  auto_mode_exit: { good: {}, bad: [] },
   mode_pack: { good: { mode: 'apollo', text: 't' }, bad: [{ label: 'text is a list', field: 'text', fields: { mode: 'apollo', text: ['t'] } }] },
   mode_pack_exit: { good: { mode: 'apollo', reason: 'r' }, bad: [{ label: 'mode is missing', field: 'mode', fields: { reason: 'r' } }] },
   context_capsule: {
@@ -222,7 +220,6 @@ const NOTICES: Record<string, Fixture> = {
       { label: 'a path that is a number', field: 'writtenPaths', fields: { writtenPaths: [5] } },
     ],
   },
-  permission_retry: { good: { commands: ['ls'] }, bad: [{ label: 'commands is text', field: 'commands', fields: { commands: 'ls' } }] },
 }
 
 section('§A the registry and the fixtures name the same kinds, both ways')

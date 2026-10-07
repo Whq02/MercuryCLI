@@ -144,9 +144,6 @@ export const NotebookEditTool = buildTool({
     return outputSchema()
   },
   userFacingName: () => 'Edit Notebook',
-  toAutoClassifierInput() {
-    return ''
-  },
   async description() {
     return DESCRIPTION
   },

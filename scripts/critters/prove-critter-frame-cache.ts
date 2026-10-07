@@ -71,10 +71,12 @@ t.section('§2 — line reuse: only the cells that move are rebuilt')
   const restLines = linesOf(rest)
   const stepLines = linesOf(step)
   const flowLines = Math.ceil(cd.flowDepthFor(jelly, 'art') / 2)
-  const anchored = restLines.length - flowLines
+  const anchored = restLines.length - flowLines - 1
   const keptAbove = restLines.slice(0, anchored).every((l, i) => l === stepLines[i])
-  const movedBelow = restLines.slice(anchored).some((l, i) => l !== stepLines[anchored + i])
+  const rimFollows = restLines[anchored] !== stepLines[anchored]
+  const movedBelow = restLines.slice(anchored + 1).some((l, i) => l !== stepLines[anchored + 1 + i])
   t.check(`jellyfish/art: a sway step keeps the ${anchored} anchored lines' element identity`, restLines.length === stepLines.length && keptAbove, `${restLines.length} lines`)
+  t.check("jellyfish/art: …rebuilds the rim line above the strands (its cells' bottom edge follows the strands: a cell over a strand keeps ▄, a cell over a gap is ▀)", rimFollows)
   t.check('jellyfish/art: …and rebuilds a moving line (the strands actually move)', movedBelow)
   t.check('jellyfish/art: a sway step is a different root (the frame differs)', rest !== step)
   const jellyDock = pd('jellyfish', 'square')

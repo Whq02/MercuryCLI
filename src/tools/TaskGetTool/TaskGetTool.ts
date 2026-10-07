@@ -47,9 +47,6 @@ export const TaskGetTool = buildTool({
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
   userFacingName: () => 'TaskGet',
-  toAutoClassifierInput(input: Input): string {
-    return input.taskId
-  },
   async description() {
     return DESCRIPTION
   },

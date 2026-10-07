@@ -120,8 +120,6 @@ section('§3 · the permission ladder rides the contract classes')
       !BlenderTool.isReadOnly!({ op: 'blend_open' } as never) &&
       !BlenderTool.isReadOnly!({ op: 'python_run' } as never),
   )
-  const classifier = BlenderTool.toAutoClassifierInput!({ op: 'python_run', args: { source: 'x'.repeat(400) } } as never)
-  check('the classifier sees the python_run head (300 chars)', typeof classifier === 'string' && classifier.includes('blender exec: python_run') && classifier.length < 350)
 }
 
 section('§4 · the Mercury-side path fence — never reaches the wire')

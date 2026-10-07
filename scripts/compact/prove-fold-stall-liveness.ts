@@ -227,7 +227,7 @@ function makeMessages(inputTokens = 100): unknown[] {
 type Run = { result?: Record<string, unknown>; error?: Error; readFileState: { size: number }; ms: number }
 async function runFold(messages: unknown[]): Promise<Run> {
   const toolPermissionContext = { ...getEmptyToolPermissionContext(), mode: 'default' as const }
-  const appState = { toolPermissionContext, sessionHooks: new Map(), denialTracking: undefined, tasks: {}, mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'xhigh' }
+  const appState = { toolPermissionContext, sessionHooks: new Map(), tasks: {}, mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'xhigh' }
   const readFileState = new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024)
   readFileState.set('/tmp/fold-stall-file.ts', { content: 'export const x = 1\n', timestamp: Date.now(), offset: undefined, limit: undefined })
   const ctx = {

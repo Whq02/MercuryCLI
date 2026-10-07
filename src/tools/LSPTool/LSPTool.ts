@@ -874,9 +874,6 @@ export const LSPTool = buildTool({
   getActivityDescription(input?: LooseInput): string {
     return input?.operation ? `Running ${input.operation}` : 'Running a language-server operation'
   },
-  toAutoClassifierInput(input: LooseInput): string {
-    return input.filePath ? `${input.operation ?? ''} ${input.filePath}` : (input.operation ?? '')
-  },
   getPath(input?: LooseInput): string {
     return input?.filePath || getCwd()
   },

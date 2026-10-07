@@ -12,7 +12,6 @@ import type { ModelTransitionReceipt } from '../utils/model/modelTransition.js'
 import type { EffortValue } from '../utils/effort.js'
 import type { FileHistoryState } from '../utils/fileHistory.js'
 import type { SessionHooksState } from '../utils/hooks/sessionHooks.js'
-import type { DenialTrackingState } from '../utils/permissions/denialTracking.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { shouldEnableThinkingByDefault } from '../utils/thinking.js'
 import type { Notification } from '../context/notifications.js'
@@ -211,7 +210,6 @@ type AppStateMutableHalf = {
     bashMode?: boolean
     armedAtLanding?: boolean
   } | null
-  denialTracking?: DenialTrackingState
   thinkingEnabled: boolean
   channelPermissionCallbacks?: Record<string, (result: unknown) => void>
 }

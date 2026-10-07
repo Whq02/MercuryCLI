@@ -1,6 +1,5 @@
 
 import * as React from 'react'
-import { useState } from 'react'
 import { Box, Text } from '../../../ink.js'
 import {
   filterToolProgressMessages,
@@ -13,11 +12,6 @@ import type {
   ProgressMessage,
 } from '../../../types/message.js'
 import type { MessageLookups } from '../../../utils/messages/lookups.js'
-import {
-  deleteClassifierApproval,
-  getClassifierApproval,
-  getFlowClassifierApproval,
-} from '../../../utils/classifierApprovals.js'
 import { summarizeToolResult } from '../../../utils/toolResultSummary.js'
 import { logError } from '../../../utils/log.js'
 import { getTheme } from '../../../utils/theme.js'
@@ -49,12 +43,6 @@ export function UserToolSuccessMessage({
   isTranscriptMode?: boolean
 }): React.ReactNode {
   const [themeName] = useTheme()
-  useState(() => {
-    const captured =
-      getClassifierApproval(toolUseID) ?? getFlowClassifierApproval(toolUseID)
-    deleteClassifierApproval(toolUseID)
-    return captured ?? null
-  })
 
   const result = message.toolUseResult
   if (result === undefined || result === null) return null

@@ -83,9 +83,6 @@ export const ContractTool = buildTool({
   isReadOnly() {
     return false
   },
-  toAutoClassifierInput() {
-    return ''
-  },
   async description() {
     return DESCRIPTION
   },

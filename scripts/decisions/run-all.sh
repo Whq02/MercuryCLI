@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/Tool* src/utils/errors/** src/utils/permissions/decision/**
-# gate-watch: src/utils/permissions/denialTracking* src/utils/permissions/permissions*
+# gate-watch: src/utils/permissions/permissions*
 # gate-watch: src/tools/BashTool/* src/tools/PowerShellTool/* src/utils/errors.ts
 # gate-watch: src/utils/permissions/shellRuleMatching.ts
 set -u

@@ -130,8 +130,8 @@ console.log('\n§6 role-boundary repairs (recon findings)')
 {
   const caps = src('src/utils/model/capabilities.ts')
   check(
-    'the auto-mode gate keys on the routing law (a declared route), never a tier name',
-    caps.includes("classifyModelRoute(model).kind === 'route'") && !caps.includes("m === 'claude-fable-5'"),
+    'no capability keys on a tier name',
+    !caps.includes("m === 'claude-fable-5'"),
   )
 }
 

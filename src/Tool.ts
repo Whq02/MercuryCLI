@@ -8,7 +8,6 @@ import type { PauseGate } from './run-core/pauseGate.js'
 import type { AgentId } from './types/ids.js'
 import type { Command } from './types/command.js'
 import type { ToolCapability } from './utils/capability/contract.js'
-import type { DenialTrackingState } from './utils/permissions/denialTracking.js'
 import type { ContentReplacementState } from './utils/toolResultStorage.js'
 import type { AppState } from './state/AppState.js'
 import type { MCPServerConnection } from './services/mcp/types.js'
@@ -257,7 +256,6 @@ export type ToolUseContext = {
   preserveToolResults?: boolean
   alwaysCallCanUseTool?: boolean
   requireCanUseTool?: boolean
-  localDenialTracking?: DenialTrackingState
   contentReplacementState?: ContentReplacementState
   renderedSystemPrompt?: SystemPrompt
   globLimits?: { maxResults?: number }
@@ -350,7 +348,6 @@ interface ToolMembers<TInput, TOutput, TProgress extends ToolProgressData> {
   isReadOnly?(input: any): boolean
   isDestructive?(input: any): boolean
   checkPermissions?(input: any, context: ToolUseContext): Promise<PermissionResult>
-  toAutoClassifierInput?(input: any): string | undefined
   userFacingName?(input?: any): string
 }
 
@@ -369,7 +366,6 @@ export type ToolDefaults = {
   isReadOnly(input?: any): boolean
   isDestructive(input?: any): boolean
   checkPermissions(input?: any, context?: ToolUseContext): Promise<PermissionResult>
-  toAutoClassifierInput(input?: any): string | undefined
   userFacingName(input?: any): string
   renderToolUseMessage(input?: any, options?: any): React.ReactNode | string | null
   renderToolUseProgressMessage(progress?: any, options?: any): React.ReactNode
@@ -390,7 +386,6 @@ export type Tool<
   isConcurrencySafe(input: any): boolean
   isReadOnly(input: any): boolean
   checkPermissions(input: any, context: ToolUseContext): Promise<PermissionResult>
-  toAutoClassifierInput(input: any): string | undefined
   userFacingName(input?: Partial<TInput>): string
   renderToolUseMessage(input?: any, options?: any): React.ReactNode | string | null
   renderToolUseRejectedMessage(input?: any, options?: any): React.ReactNode
@@ -409,24 +404,6 @@ export type Tools = readonly Tool[]
 
 export type ToolInputOf<T> = T extends ZodType ? ZodOutput<T> : T
 
-export const TOOL_DEFAULT_MARKER = '__mercuryToolDefault'
-
-export function isToolDefaultFn(fn: unknown): boolean {
-  return (
-    typeof fn === 'function' &&
-    (fn as unknown as Record<string, unknown>)[TOOL_DEFAULT_MARKER] === true
-  )
-}
-
-function markDefault<F extends (...args: never[]) => unknown>(fn: F): F {
-  Object.defineProperty(fn, TOOL_DEFAULT_MARKER, {
-    value: true,
-    enumerable: false,
-    configurable: true,
-  })
-  return fn
-}
-
 export function buildTool<D extends ToolDef<any, any, any>>(def: D): D & ToolDefaults {
   const tool = {
     isEnabled: () => true,
@@ -435,7 +412,6 @@ export function buildTool<D extends ToolDef<any, any, any>>(def: D): D & ToolDef
     isDestructive: () => false,
     checkPermissions: async (input: any) =>
       ({ behavior: 'allow', updatedInput: input }) as PermissionResult,
-    toAutoClassifierInput: markDefault(() => ''),
     userFacingName: () => def.name,
     renderToolUseMessage: () => null,
     renderToolUseProgressMessage: () => null,
@@ -572,7 +548,7 @@ export function safeSearchOrReadClassification(
   input: unknown,
 ): SearchOrReadClassification | undefined {
   const classifier = tool?.isSearchOrReadCommand
-  if (!tool || !classifier || isToolDefaultFn(classifier)) return undefined
+  if (!tool || !classifier) return undefined
   try {
     return classifier(input)
   } catch (error) {

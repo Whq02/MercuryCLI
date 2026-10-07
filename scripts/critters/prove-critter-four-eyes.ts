@@ -235,7 +235,9 @@ section('§1b THE FOUR EYES AT REST — a cell\'s background is its UPPER half\'
   const composed = composeCritterFrame(def, { square: true }).art
   const asRgb = (hex: string | undefined): string | undefined => (hex === undefined ? undefined : rgb(hex))
   const faults: string[] = []
+  const edgeFaults: string[] = []
   let twoColour = 0
+  let edge = 0
   for (let r = 0; r + 1 < composed.length; r += 2) {
     const y = ART_TOP + (r >> 1)
     for (let c = 0; c < composed[r]!.length; c++) {
@@ -245,12 +247,18 @@ section('§1b THE FOUR EYES AT REST — a cell\'s background is its UPPER half\'
       const x = ART_LEFT + c
       const st = glass.styleAt(x, y)
       const ch = glass.grid[y]![x]!
+      if (cellColor(def, composed[r + 2]?.[c]) === undefined) {
+        edge++
+        if (ch !== '▀' || st?.fg !== `38;2;${top}` || st?.bg !== `48;2;${bot}`) edgeFaults.push(`${x},${y}: bottom-edge pair reads ${ch} fg=${st?.fg} bg=${st?.bg}, wanted ▀ fg=${top} bg=${bot}`)
+        continue
+      }
       if (st?.bg !== `48;2;${top}`) faults.push(`${x},${y}: bg ${st?.bg} is not the upper half ${top}`)
-      if (ch !== '▄' || st?.fg !== `38;2;${bot}`) faults.push(`${x},${y}: painted pair reads ${ch} fg=${st?.fg}, wanted ▄ fg=${bot} (E5: every pair is ▄ with the colours swapped)`)
+      if (ch !== '▄' || st?.fg !== `38;2;${bot}`) faults.push(`${x},${y}: painted pair reads ${ch} fg=${st?.fg}, wanted ▄ fg=${bot} (E5: every pair with a painted pixel below it is ▄ with the colours swapped)`)
       if (top !== bot) twoColour++
     }
   }
-  check(`every painted pair of the sprite goes out as ▄ with fg = the lower half and bg = the upper half — E5's bytes exactly (${twoColour} two-colour cells among them)`, faults.length === 0 && twoColour > 0, faults.slice(0, 6).join('; '))
+  check(`every painted pair with a painted pixel below it goes out as ▄ with fg = the lower half and bg = the upper half — E5's bytes exactly (${twoColour} two-colour cells among them)`, faults.length === 0 && twoColour > 0, faults.slice(0, 6).join('; '))
+  check(`every painted pair on the sprite's bottom edge goes out as ▀ with fg = the upper half and bg = the lower half — its own colour below it, never the upper half's (${edge} cells)`, edgeFaults.length === 0 && edge > 0, edgeFaults.slice(0, 6).join('; '))
 }
 const belowCells = restCols.map(c => `${ART_LEFT + c},${eyeLine + 1}`)
 const eyeCells = restCols.map(c => `${ART_LEFT + c},${eyeLine}`)

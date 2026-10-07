@@ -16,45 +16,10 @@ const src = (...p: string[]): string =>
   readFileSync(join(import.meta.dir, '..', '..', 'src', ...p), 'utf-8')
 
 console.log('============================================================')
-console.log(' Permission ladder / auto-mode classifier — surface proof')
+console.log(' Permission ladder / flow — surface proof')
 console.log('============================================================')
 
-section('denialTracking (LIVE) — limits + the fall-back-to-prompting threshold')
-{
-  const dt = await import('../../src/utils/permissions/denialTracking.js')
-  const {
-    DENIAL_LIMITS,
-    createDenialTrackingState,
-    recordDenial,
-    recordSuccess,
-    shouldFallbackToPrompting,
-  } = dt
-
-  check('limits are the canonical 3 consecutive / 20 total', DENIAL_LIMITS.maxConsecutive === 3 && DENIAL_LIMITS.maxTotal === 20)
-
-  let s = createDenialTrackingState()
-  check('fresh state does NOT fall back', !shouldFallbackToPrompting(s))
-
-  s = recordDenial(recordDenial(s))
-  check('2 consecutive denials: still classifying (no fallback)', !shouldFallbackToPrompting(s))
-  s = recordDenial(s)
-  check('3 consecutive denials: FALL BACK to prompting (consecutive floor)', shouldFallbackToPrompting(s))
-  check('counters track both consecutive + total', s.consecutiveDenials === 3 && s.totalDenials === 3)
-
-  const after = recordSuccess(s)
-  check('recordSuccess resets the consecutive streak', after.consecutiveDenials === 0)
-  check('recordSuccess preserves the total (it is a session ceiling)', after.totalDenials === 3)
-  check('after a success, no longer falling back on the consecutive floor', !shouldFallbackToPrompting(after))
-  check('recordSuccess is a no-op (same ref) when consecutive is already 0', recordSuccess(after) === after)
-
-  let t = createDenialTrackingState()
-  for (let i = 0; i < 19; i++) t = recordSuccess(recordDenial(t))
-  check('19 total denials, streak broken each time: not yet falling back', !shouldFallbackToPrompting(t) && t.totalDenials === 19)
-  t = recordDenial(t)
-  check('20 total denials: FALL BACK (total floor, independent of streak)', shouldFallbackToPrompting(t) && t.totalDenials === 20)
-}
-
-section('the THREE auto-mode safety floors (decision/wrapper.ts) — force a human ask BEFORE the classifier')
+section('the THREE auto-mode safety floors (decision/wrapper.ts) — force a human ask before the shortcuts')
 {
   const perms = src('utils', 'permissions', 'decision', 'wrapper.ts')
   const has = (needle: string) => perms.includes(needle)
@@ -62,7 +27,7 @@ section('the THREE auto-mode safety floors (decision/wrapper.ts) — force a hum
   check("floor: org/MCP ask-ceiling (effectiveMaxPermission === 'ask')", has("tool.mcpInfo?.effectiveMaxPermission === 'ask'"))
   check('floor: Workflow usage-consent → workflowRequiresConsent', has('function workflowRequiresConsent') && has('workflowRequiresConsent(tool.name)'))
   check(
-    'the three floors converge on ONE guard before the classifier',
+    'the three floors converge on ONE guard before the shortcuts',
     has("floorTags.push('ask-rule')") &&
       has("floorTags.push('org-ceiling')") &&
       has("floorTags.push('workflow-consent')") &&
@@ -75,25 +40,22 @@ section('the THREE auto-mode safety floors (decision/wrapper.ts) — force a hum
   )
 }
 
-section('isAutoModeAllowlistedTool name/action gating (classifierDecision.ts)')
+section('isReadOnlyAllowlistedTool name gating (readOnlyAllowlist.ts)')
 {
-  const cd = src('utils', 'permissions', 'classifierDecision.ts')
+  const cd = src('utils', 'permissions', 'readOnlyAllowlist.ts')
   const has = (needle: string) => cd.includes(needle)
-  check('exists + gates safe-tool names on the allowlist SET', has('export function isAutoModeAllowlistedTool') && has('SAFE_FLOW_ALLOWLISTED_TOOLS.has(toolName)'))
-  const safeSetStart = cd.indexOf('const SAFE_FLOW_ALLOWLISTED_TOOLS: ReadonlySet<string> = new Set([')
+  check('exists + gates read-only tool names on the allowlist SET', has('export function isReadOnlyAllowlistedTool') && has('READ_ONLY_ALLOWLISTED_TOOLS.has(toolName)'))
+  const safeSetStart = cd.indexOf('const READ_ONLY_ALLOWLISTED_TOOLS: ReadonlySet<string> = new Set([')
   const safeSet = safeSetStart === -1 ? '' : cd.slice(safeSetStart, cd.indexOf('])', safeSetStart))
   check('the safe set carries the read-only tools (positive control)', safeSet.includes('FILE_READ_TOOL_NAME,') && safeSet.includes('GREP_TOOL_NAME,') && safeSet.includes('GLOB_TOOL_NAME,'))
   check('write/edit tools are NOT on the safe set (absence, file-wide)', safeSet.length > 0 && !has('FILE_WRITE_TOOL_NAME,') && !has('FILE_EDIT_TOOL_NAME,'))
 }
 
-section('Flow availability uses settings and runtime safety state')
+section('Flow availability is the settings lock alone')
 {
   const ps = src('utils', 'permissions', 'permissionSetup.ts')
-  check('the runtime circuit breaker closes availability', ps.includes('if (isAutoModeCircuitBroken()) return false'))
-  check('settings close availability', ps.includes('if (isAutoModeDisabledBySettings()) return false'))
-  check('verification updates the circuit breaker from settings', ps.includes('const circuitBroken = disabledBySettings') && ps.includes('autoModeStateModule?.setAutoModeCircuitBroken(circuitBroken)'))
-  check('the runtime restriction has an explanatory reason', ps.includes("if (isAutoModeCircuitBroken()) return 'circuit-breaker'"))
-  check('explicit availability still requires a supported model', ps.includes('const explicitAvailable = !disabledBySettings && modelSupported'))
+  check('settings close availability, and nothing else does', ps.includes('return !isAutoModeDisabledBySettings()') && !ps.includes('CircuitBroken') && !ps.includes('getEngineModel'))
+  check('the settings restriction has its reason and its words', ps.includes("if (isAutoModeDisabledBySettings()) return 'settings'") && ps.includes("return 'Flow is closed by your settings.'"))
   const gnpm = src('utils', 'permissions', 'getNextPermissionMode.ts')
   check('the carousel gates auto SOLELY on canCycleToAuto (unconditional)', gnpm.includes('canCycleToAuto(toolPermissionContext)'))
   const apolloBlock = gnpm.slice(gnpm.indexOf("case 'apollo':"), gnpm.indexOf("case 'flow':"))
@@ -102,45 +64,26 @@ section('Flow availability uses settings and runtime safety state')
   check('the cycle reaches flow from apollo, BEFORE sovereign (flow ≠ bypass; flow is the safer step)', autoIdx > 0 && bypassIdx > 0 && autoIdx < bypassIdx && apolloBlock.includes('canCycleToAuto'))
 }
 
-section('STARTUP-AUTO DESYNC fix — a session that BOOTS into auto arms the safety machinery')
+section('a session that BOOTS into flow sets its dangerous allow rules aside, as a runtime entry does')
 {
   const ps = src('utils', 'permissions', 'permissionSetup.ts')
   const mn = src('main.tsx')
-
   check(
-    'site1: setAutoModeActive arming fires on startup mode==="flow"',
-    /result\.mode === 'flow'\n?\s*\) \{\n?\s*autoModeStateModule\?\.setAutoModeActive\(true\)/.test(ps),
+    'dangerous-rule detection fires on startup permissionMode==="flow"',
+    /permissionMode === 'flow'\n?\s*\) \{\n?\s*dangerousPermissions = findDangerousPermissions/.test(ps),
   )
   check(
-    'site1: the arming module require in permissionSetup.ts is real (not null)',
-    /autoModeStateModule =\s*\n?\s*\(require\('\.\/autoModeState\.js'\)/.test(ps),
-  )
-
-  check(
-    'site2: findDangerousClassifierPermissions detection fires on startup permissionMode==="flow"',
-    /permissionMode === 'flow'\n?\s*\) \{\n?\s*dangerousPermissions = findDangerousClassifierPermissions/.test(ps),
-  )
-
-  check(
-    'site3: isAutoModeAvailable context flag is set unconditionally',
+    'the isAutoModeAvailable context flag is set from the gate at startup',
     /\{ isAutoModeAvailable: isAutoModeGateEnabled\(\) \}/.test(ps),
   )
-
   check(
-    'site4: the main.tsx strip call fires on dangerous permissions',
+    'the main.tsx strip call fires on dangerous permissions',
     /dangerousPermissions\.length > 0/.test(mn),
   )
-
-  check(
-    'hazard-guard: main.tsx does NOT call setAutoModeActive at startup (module is null there)',
-    !/setAutoModeActive\(true\)/.test(
-      mn.slice(mn.indexOf('initializeToolPermissionContext'), mn.indexOf('const setupTrigger:')),
-    ),
-  )
-
+  check('no in-process flow state is armed anywhere (the mode on the context is the whole state)', !ps.includes('setAutoModeActive') && !mn.includes('setAutoModeActive'))
 }
 
-section('dist ships the auto-mode decision branches (floors, fast-paths, denial fallback, kill deny)')
+section('dist ships the flow decision branches (floors, fast-paths, kill deny)')
 {
   const dist = join(import.meta.dir, '..', '..', 'dist', 'mercury.mjs')
   if (!existsSync(dist)) {
@@ -151,10 +94,8 @@ section('dist ships the auto-mode decision branches (floors, fast-paths, denial 
     check('safety-floor headless-deny message ships', present('This action needs interactive approval, and this session cannot present a prompt'))
     check('org/MCP ask-ceiling reason ships', present('Your organization requires approval for this tool'))
     check('implement fast-path log ships', present('implement mode would allow this outright'))
-    check('safe-allowlist fast-path log ships', present('always-safe tool set membership'))
-    check('denial-limit total fallback warning ships', present('actions were blocked this session'))
-    check('denial-limit consecutive fallback warning ships', present('consecutive actions were blocked'))
-    check('headless denial-limit hard abort ships', present('denial limit reached with no prompt available'))
+    check('read-only set fast-path log ships', present('the read-only tool set'))
+    check('no denial ledger ships', !present('actions were blocked this session') && !present('consecutive actions were blocked') && !present('denial limit reached'))
     check('capability kill-switch deny message ships', present('capability switched off by operator'))
     check('PowerShell auto-mode interactive-approval floor ships', present('PowerShell runs only with interactive approval'))
   }

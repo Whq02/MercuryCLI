@@ -443,13 +443,6 @@ export const AsepriteTool = buildTool({
         `first line: ${firstSourceLine(input.source) || '(empty)'}`,
     }
   },
-  toAutoClassifierInput(input: Input) {
-    if (input.op === 'status' || input.op === 'info') return ''
-    if (input.op === 'run-script') {
-      return `aseprite exec: run-script ${(input.source ?? '').slice(0, 300)}`
-    }
-    return `aseprite ${input.op}: ${input.file ?? ''} ${input.output ?? ''} ${exportOptionsSummary(input)}`.trim()
-  },
   async validateInput(input: Input) {
     if (!input.op || String(input.op).trim().length === 0) {
       return { result: false as const, message: 'op is required', errorCode: 1 }

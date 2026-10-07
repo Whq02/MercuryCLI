@@ -47,9 +47,6 @@ export const RewindTool = buildTool({
   isReadOnly() {
     return true
   },
-  toAutoClassifierInput() {
-    return ''
-  },
   async description() {
     return DESCRIPTION
   },

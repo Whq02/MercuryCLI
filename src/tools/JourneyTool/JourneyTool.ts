@@ -229,11 +229,6 @@ Everything inspectable: mercury://journey/<id> · mercury://execution/<id> · pe
       message: `Journey run: ${input.objective?.slice(0, 80) ?? ''} (${input.steps?.length ?? 0} step(s): ${kinds} — runs local services/commands, loopback only)`,
     }
   },
-  toAutoClassifierInput(input: Input) {
-    return `journey ${input.op}: ${input.objective ?? input.id ?? ''} steps: ${(input.steps ?? [])
-      .map(s => (s.kind === 'command.run' ? `${s.kind}(${s.command})` : s.kind))
-      .join(', ')}`
-  },
   async validateInput(input: Input) {
     if (!journeysEnabled()) {
       return { result: false as const, message: 'journeys are disabled (MERCURY_JOURNEYS=0)', errorCode: 1 }

@@ -52,15 +52,13 @@ export function decodeDecisionReasonFromWire(value: unknown): PermissionDecision
       return typeof v.mode === 'string' ? (value as PermissionDecisionReason) : undefined
     case 'hook':
       return typeof v.hookName === 'string' ? (value as PermissionDecisionReason) : undefined
-    case 'classifier':
-      return typeof v.classifier === 'string' ? (value as PermissionDecisionReason) : undefined
     case 'asyncAgent':
     case 'sandboxOverride':
     case 'workingDir':
     case 'other':
       return typeof v.reason === 'string' ? (value as PermissionDecisionReason) : undefined
     case 'safetyCheck':
-      return typeof v.reason === 'string' && typeof v.classifierApprovable === 'boolean'
+      return typeof v.reason === 'string' && typeof v.operatorOnly === 'boolean'
         ? (value as PermissionDecisionReason)
         : undefined
     case 'permissionPromptTool':

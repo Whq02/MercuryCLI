@@ -207,7 +207,7 @@ section('§4 THE ENGINE ROAD — a whole-tool deny says the words; the tool-spec
   })
   const useContext = (ctx: Ctx): unknown => ({
     abortController: new AbortController(),
-    getAppState: () => ({ toolPermissionContext: ctx, denialTracking: undefined }),
+    getAppState: () => ({ toolPermissionContext: ctx }),
     setAppState: () => {},
     messages: [],
     agentType: undefined,

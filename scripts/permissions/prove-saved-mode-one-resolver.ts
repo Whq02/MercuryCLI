@@ -93,7 +93,7 @@ for (const word of WORDS) {
 }
 {
   const none = seamIn('none', {})
-  check("nothing saved ⇒ the seat keeps its board posture 'flow' and the direct boot 'default' (the floors stand)", none?.seat === 'flow' && none?.direct.mode === 'default', JSON.stringify(none))
+  check("nothing saved ⇒ the seat and the direct boot both read 'default'", none?.seat === 'default' && none?.direct.mode === 'default', JSON.stringify(none))
   check("the admission's carried posture still crosses as itself (the launch's own resolved word)", none?.carried.sovereign === 'sovereign' && none?.carried.apollo === 'apollo' && none?.carried.implement === 'implement' && none?.carried.flow === 'flow', JSON.stringify(none?.carried))
 }
 

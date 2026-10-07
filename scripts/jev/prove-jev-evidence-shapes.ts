@@ -215,7 +215,7 @@ check('a call without a file item is the default allow: no path, no rule read', 
 const second = await JevEvalTool.checkPermissions(call([{ id: 'ui', tail: 'rc 137' }, { file: { path: MD } }, { file: { path: TSV } }]) as never, ctxWith({ alwaysDenyRules: { session: [`Read(/${TSV})`] } }) as never)
 check('every file item is checked: the second file\'s deny rule denies the call', second.behavior === 'deny' && /reds\.tsv/.test((second as { message?: string }).message ?? ''), JSON.stringify(second))
 const source = readFileSync(join(ROOT, 'src/tools/JevEvalTool/JevEvalTool.ts'), 'utf8')
-check('the only permission call in the tool source is the Read ladder; it answers no permission request itself', /checkReadPermissionForTool/.test(source) && !/validateInput/.test(source) && !/classifierDecision/.test(source))
+check('the only permission call in the tool source is the Read ladder; it answers no permission request itself', /checkReadPermissionForTool/.test(source) && !/validateInput/.test(source) && !/readOnlyAllowlist/.test(source))
 
 section('§7 the wire schema and the prompt say the shapes and the size rule; the inline-only result is unchanged')
 const jsonSchema = JSON.stringify(zodToJsonSchema(schema as never))

@@ -423,7 +423,7 @@ function mapResultToBlock(output: Out, toolUseID: string): ToolResultBlockParam 
   }
   let stdout = output.stdout.replace(/^\s*\n/g, '').trimEnd()
   if (output.persistedOutputPath) {
-    const { preview, hasMore } = generatePreview(stdout, PREVIEW_SIZE_CHARS)
+    const { preview, hasMore } = generatePreview(stdout, PREVIEW_SIZE_CHARS, output.persistedOutputSize)
     stdout = buildLargeToolResultMessage({
       filepath: output.persistedOutputPath, originalSize: output.persistedOutputSize ?? 0,
       isJson: false, preview, hasMore,
@@ -469,7 +469,6 @@ export const PowerShellTool = buildTool({
     const { isSearch, isRead } = isSearchOrRead(command)
     return { isSearch, isRead }
   },
-  toAutoClassifierInput(input: PowerShellToolInput): string { return input.command },
   async validateInput(input: PowerShellToolInput) {
     if (getPlatform() === 'windows' && input.dangerouslyDisableSandbox && !SandboxManager.areUnsandboxedCommandsAllowed()) {
       return { result: false as const, message: 'Unsandboxed commands are not permitted by policy.', errorCode: 11 }

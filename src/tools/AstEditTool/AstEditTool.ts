@@ -211,9 +211,6 @@ export const AstEditTool = buildTool({
     if (!input?.pattern) return 'Structural edit'
     return input.apply ? `Rewriting ${input.pattern}` : `Planning a rewrite of ${input.pattern}`
   },
-  toAutoClassifierInput(input: Input): string {
-    return `${input.apply ? 'apply' : 'dry run'} ${input.pattern} -> ${input.rewrite}${input.path ? ` in ${input.path}` : ''}`
-  },
   getPath(input: Partial<Input> | undefined): string {
     return input?.path || getCwd()
   },

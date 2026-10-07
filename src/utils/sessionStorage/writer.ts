@@ -49,6 +49,7 @@ import { isCompactBoundaryMessage } from '../messages.js'
 import { LITE_READ_BUF_SIZE } from '../sessionStoragePortable.js'
 import { getSettings_DEPRECATED } from '../settings/settings.js'
 import { jsonParse, jsonStringify } from '../slowOperations.js'
+import { linkTaskOutputToTranscript } from '../task/diskOutput.js'
 import type { ContentReplacementRecord } from '../toolResultStorage.js'
 import { getWorkload } from '../workloadContext.js'
 import { effortNotOnWire } from '../effortStamp.js'
@@ -516,6 +517,7 @@ class Project {
         throw describeTranscriptStoreFailure(filePath, error)
       }
     }
+    linkTaskOutputToTranscript(filePath)
   }
 
   private drainWriteQueue(): Promise<void> {

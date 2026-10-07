@@ -88,7 +88,7 @@ function makeTool(over: {
             return {
               behavior: 'ask',
               message: 'safety check',
-              decisionReason: { type: 'safetyCheck', reason: 'protected path', classifierApprovable: false },
+              decisionReason: { type: 'safetyCheck', reason: 'protected path', operatorOnly: true },
             }
           }
           return { behavior: 'ask', message: 'plain ask' }
@@ -116,7 +116,7 @@ function makeContext(opts: {
     isBypassPermissionsModeAvailable: opts.bypassAvailable ?? false,
     ...(opts.avoidPrompts ? { shouldAvoidPermissionPrompts: true } : {}),
   }
-  const appState = { toolPermissionContext, denialTracking: undefined }
+  const appState = { toolPermissionContext }
   return {
     abortController: new AbortController(),
     getAppState: () => appState,

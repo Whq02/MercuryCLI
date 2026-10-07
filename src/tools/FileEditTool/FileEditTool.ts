@@ -640,9 +640,6 @@ export const FileEditTool = buildTool({
   getActivityDescription(input: Partial<FileEditInput> | undefined): string {
     return input?.file_path ? `Editing ${input.file_path}` : 'Editing a file'
   },
-  toAutoClassifierInput(input: FileEditInput): string {
-    return input.file_path
-  },
   getPath(input: Partial<FileEditInput> | undefined): string {
     return input?.file_path || getCwd()
   },

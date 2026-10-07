@@ -62,7 +62,7 @@ section('§3 the tool execution road: the hook row lands after the result on the
   }
   const context = {
     abortController: new AbortController(),
-    getAppState: () => ({ toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' as never }, denialTracking: undefined, sessionHooks: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} } }),
+    getAppState: () => ({ toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' as never }, sessionHooks: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} } }),
     setAppState: () => {},
     messages: [],
     agentType: undefined,

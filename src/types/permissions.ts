@@ -103,9 +103,8 @@ export type PermissionDecisionReason =
   | { type: 'hook'; hookName: string; hookSource?: string; reason?: string }
   | { type: 'asyncAgent'; reason: string }
   | { type: 'sandboxOverride'; reason: 'excludedCommand' | 'sandboxDisabled' }
-  | { type: 'classifier'; classifier: string; reason?: string }
   | { type: 'workingDir'; reason: string }
-  | { type: 'safetyCheck'; reason: string; classifierApprovable: boolean }
+  | { type: 'safetyCheck'; reason: string; operatorOnly: boolean }
   | { type: 'other'; reason: string }
   | { type: 'bypassedAsk'; mode: PermissionMode; road: BypassedAskRoad; reason: PermissionDecisionReason }
 
@@ -117,12 +116,6 @@ export const BYPASSED_ASK_ROAD_WORDS: Readonly<Record<BypassedAskRoad, string>> 
   orgAskCeiling: "the server's ask ceiling",
   safetyCheckAsk: 'the path-safety check',
 })
-
-export type PendingClassifierCheck = {
-  command: string
-  cwd: string
-  descriptions: string[]
-}
 
 export type PermissionAllowDecision<
   ToolInput = Record<string, unknown>,
@@ -147,7 +140,6 @@ export type PermissionAskDecision<
   blockedPath?: string
   metadata?: PermissionMetadata
   isBashSecurityCheckForMisparsing?: boolean
-  pendingClassifierCheck?: PendingClassifierCheck
   contentBlocks?: unknown[]
 }
 
@@ -171,50 +163,7 @@ export type PermissionResult<ToolInput = Record<string, unknown>> =
       decisionReason?: PermissionDecisionReason
       suggestions?: PermissionUpdate[]
       blockedPath?: string
-      pendingClassifierCheck?: PendingClassifierCheck
     }
-
-export type ClassifierResult = {
-  matches: boolean
-  matchedDescription?: string
-  confidence: 'high' | 'medium' | 'low'
-  reason?: string
-}
-
-export type ClassifierBehavior = 'deny' | 'ask' | 'allow'
-
-export type ClassifierUsage = {
-  inputTokens: number
-  outputTokens: number
-  cacheReadInputTokens: number
-  cacheCreationInputTokens: number
-}
-
-export type FlowClassifierStageTelemetry = {
-  usage?: ClassifierUsage
-  durationMs?: number
-  requestId?: string
-  messageId?: string
-}
-
-export type FlowClassifierResult = {
-  shouldBlock: boolean
-  reason: string
-  model: string
-  thinking?: string
-  unavailable?: boolean
-  retryable?: boolean
-  unreadable?: boolean
-  verdictIssues?: string[]
-  transcriptTooLong?: boolean
-  usage?: ClassifierUsage
-  durationMs?: number
-  promptComponentLengths?: Record<string, number>
-  errorDumpPath?: string
-  stage?: 'fast' | 'thinking'
-  fastStage?: FlowClassifierStageTelemetry
-  thinkingStage?: FlowClassifierStageTelemetry
-}
 
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH'
 

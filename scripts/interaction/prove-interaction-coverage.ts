@@ -189,7 +189,6 @@ reg(
     'src/components/memory/MemoryCentreView.tsx',
     'src/components/skills/SessionSkillsDial.tsx',
     'src/components/permissions/AskUserQuestionPermissionRequest/QuestionView.tsx',
-    'src/components/permissions/rules/RecentDenialsTab.tsx',
     'src/components/extensions/ApprovalCardView.tsx',
     'src/components/extensions/ExtensionView.tsx',
     'src/components/tasks/AgentInspectorPane.tsx',

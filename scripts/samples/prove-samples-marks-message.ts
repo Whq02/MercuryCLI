@@ -89,7 +89,6 @@ section('T the Workshop tool lists the sample it kept and its prompt says when')
   const workDir = mkdtempSync(join(tmpdir(), 'mercury-samples-tool-'))
   const appState = {
     toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' },
-    denialTracking: undefined,
     sessionHooks: new Map(),
     mcp: { clients: [], tools: [], commands: [], resources: {} },
     speculation: { status: 'idle' },

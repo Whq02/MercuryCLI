@@ -75,9 +75,6 @@ export const AskAdvisorTool = buildTool({
   async checkPermissions(input) {
     return { behavior: 'allow' as const, updatedInput: input }
   },
-  toAutoClassifierInput() {
-    return ''
-  },
   async description() {
     return ASK_ADVISOR_DESCRIPTION
   },

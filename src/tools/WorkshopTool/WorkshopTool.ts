@@ -139,9 +139,6 @@ Output streams to a bounded tail; large output spills to an artifact ref. The la
       message: `Workshop: run ${input.cells.length} ${input.cells.map(c => c.language).join('/')} cell(s) — ${preview}`,
     }
   },
-  toAutoClassifierInput(input: Input) {
-    return Array.isArray(input.cells) ? input.cells.map(c => c?.code ?? '').join('\n').slice(0, 2000) : ''
-  },
   get inputSchema(): SchemaType {
     return inputSchema()
   },

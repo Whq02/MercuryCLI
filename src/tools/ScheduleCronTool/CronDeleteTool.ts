@@ -46,9 +46,6 @@ export const CronDeleteTool = buildTool({
     return outputSchema()
   },
   isEnabled: () => cronToolsMountable(),
-  toAutoClassifierInput(input: Input): string {
-    return input.id
-  },
   async description() {
     return CRON_DELETE_DESCRIPTION
   },

@@ -190,11 +190,6 @@ section('§3 both Anthropic wire builders ride the one fold and the one thinking
     (side.match(/type:\s*'disabled'/g) ?? []).length === 2,
     `${(side.match(/type:\s*'disabled'/g) ?? []).length} spellings (the type union + the law)`,
   )
-  const classifierPrompt = src('src/utils/permissions/auto-mode-classifier-prompts/auto_mode_system_prompt.txt')
-  check(
-    'the auto-mode classifier prompt names its tool (the forced choice was never load-bearing)',
-    classifierPrompt.includes('Use the classify_result tool to report your classification.'),
-  )
 }
 
 section('§4 Claude Fable 5.1 is recognised everywhere the family is; the family word resolves to the generation table\'s newest')

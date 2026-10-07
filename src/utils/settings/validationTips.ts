@@ -20,7 +20,7 @@ export const MODE_GLOSS: Record<(typeof PERMISSION_MODES)[number], string> = {
   implement: 'file edits inside the project go ahead without asking',
   dontAsk: 'never asks, what would have asked is refused',
   sovereign: 'no prompts at all, a deny rule still refuses',
-  flow: 'a classifier answers the asks for you',
+  flow: 'file edits inside the project and the read-only tools go ahead, the rest asks',
   apollo: 'the pre-flight interview, then one build on its own',
 }
 

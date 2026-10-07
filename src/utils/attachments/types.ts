@@ -264,13 +264,6 @@ export type Attachment =
       isNew: boolean
     }
   | {
-      type: 'auto_mode'
-      reminderType: 'full' | 'sparse'
-    }
-  | {
-      type: 'auto_mode_exit'
-    }
-  | {
       type: 'mode_pack'
       mode: 'apollo'
       text: string

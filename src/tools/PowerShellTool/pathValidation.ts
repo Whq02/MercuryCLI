@@ -220,7 +220,7 @@ function decideResolved(resolved: string, context: ToolPermissionContext, operat
     const editable = checkEditableInternalPath(resolved, {})
     if (editable.behavior === 'allow') return { allowed: true, resolvedPath: resolved, reason: editable.decisionReason }
     const safety = checkPathSafetyForAutoEdit(resolved)
-    if (!safety.safe) return { allowed: false, resolvedPath: resolved, reason: { type: 'safetyCheck', reason: safety.message, classifierApprovable: safety.classifierApprovable } }
+    if (!safety.safe) return { allowed: false, resolvedPath: resolved, reason: { type: 'safetyCheck', reason: safety.message, operatorOnly: safety.operatorOnly } }
   }
   const inside = pathInAllowedWorkingPath(resolved, context)
   if (inside) {

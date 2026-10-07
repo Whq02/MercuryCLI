@@ -325,7 +325,7 @@ section("the seat's initial posture: a carried 'apollo' crosses the admission; t
   check("a carried 'apollo' crosses the admission as apollo", seatInitialPermissionMode('apollo' as never) === 'apollo')
   check("a carried headless posture crosses as itself ('flow', 'implement')", seatInitialPermissionMode('flow' as never) === 'flow' && seatInitialPermissionMode('implement' as never) === 'implement')
   check("a carried word outside the mode list never crosses — the seat falls to a headless posture", headless.includes(seatInitialPermissionMode('frobnicate' as never)))
-  check('nothing carried ⇒ a headless posture (the saved default, else flow)', headless.includes(seatInitialPermissionMode()))
+  check('nothing carried ⇒ a headless posture (the saved default, else default)', headless.includes(seatInitialPermissionMode()))
   const priorEnv = process.env.MERCURY_DAEMON_PERMISSION_MODE
   try {
     delete process.env.MERCURY_DAEMON_PERMISSION_MODE

@@ -53,7 +53,6 @@ function makeTool(name: string, over: Record<string, unknown> = {}): FakeTool {
 function makeContext(tools: FakeTool[], messages: unknown[]): Record<string, unknown> {
   const appState = {
     toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' as never },
-    denialTracking: undefined,
     sessionHooks: new Map(),
     mcp: { clients: [], tools: [], commands: [], resources: {} },
   }

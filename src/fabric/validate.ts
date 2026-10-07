@@ -196,8 +196,6 @@ const ATTACHMENT_BODY_SHAPES: Record<string, z.ZodType> = {
   dynamic_skill: z.looseObject({ skillDir: z.string(), skillNames: strings, displayPath: z.string() }),
   skill_listing: z.looseObject({ content: z.string(), skillCount: z.number(), isInitial: z.boolean(), removedNames: strings.nullish(), truncation: z.looseObject({}).nullish() }),
   skill_discovery: z.looseObject({ skills: objectList, source: z.string() }),
-  auto_mode: z.looseObject({ reminderType: z.string() }),
-  auto_mode_exit: z.looseObject({}),
   mode_pack: z.looseObject({ mode: z.string(), text: z.string() }),
   mode_pack_exit: z.looseObject({ mode: z.string() }),
   context_capsule: z.looseObject({ markdown: z.string(), digest: z.string(), refs: strings, delta: z.string().nullable() }),
@@ -239,7 +237,6 @@ const ATTACHMENT_BODY_SHAPES: Record<string, z.ZodType> = {
 const NOTICE_BODY_SHAPES: Record<string, z.ZodType> = {
   stop_hook_summary: z.looseObject({ hookInfos: list, hookErrors: list }),
   memory_saved: z.looseObject({ writtenPaths: z.array(z.string()) }),
-  permission_retry: z.looseObject({ commands: list }),
 }
 
 export const BODY_SHAPE_KINDS = {

@@ -1,7 +1,5 @@
 import { getGitStatus, getSystemContext, getUserContext } from '../../context.js'
 import { clearSystemPromptSections } from '../../constants/systemPromptSections.js'
-import { clearSpeculativeChecks } from '../../tools/BashTool/bashPermissions.js'
-import { clearClassifierApprovals } from '../../utils/classifierApprovals.js'
 import { clearSessionMessagesCache } from '../../utils/sessionStorage/logs.js'
 import { resetInstructionFilesCache } from '../instructions/engine.js'
 import type { OwnerKey } from '../run/ownerKey.js'
@@ -46,7 +44,5 @@ export function runPostCompactCleanup(scope?: QuerySource | PostCompactScope): v
   getUserContext.cache?.clear?.()
   resetInstructionFilesCache('compact')
   clearSystemPromptSections()
-  clearClassifierApprovals()
-  clearSpeculativeChecks()
   clearSessionMessagesCache()
 }

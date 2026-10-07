@@ -159,10 +159,10 @@ console.log('\n── W1/W5/W8: claim-over-spawn ──')
   if (claims.length === 1 && admitted.ok) {
     const claim = claims[0]!.params
     check(
-      'W5 the claim carries id + model + posture + effort',
+      'W5 the claim carries id + model + posture + effort (a seat with nothing saved is claimed in default)',
       claim.session_id === admitted.sessionId &&
         typeof claim.model === 'string' &&
-        claim.mode === 'flow' &&
+        claim.mode === 'default' &&
         claim.effort === 'max',
     )
     check('W5 the record mints the model the claim applied', rec !== undefined && rec.modelKey === claim.model)

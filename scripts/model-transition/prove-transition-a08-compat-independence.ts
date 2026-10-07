@@ -106,7 +106,6 @@ section('§C behavioral — model truth is byte-identical across every profile s
       thinking: caps.modelSupportsThinking(m),
       effortSupported: caps.modelSupportsEffort(m),
       maxEffort: caps.getMaxSupportedEffortLevel(m),
-      autoMode: caps.modelSupportsAutoMode(m),
       ctx: caps.getContextWindowForModel(m),
     })),
     gptView: caps.gptEffortVocabularyView('gpt-5.2'),
