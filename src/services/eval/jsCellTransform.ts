@@ -343,6 +343,8 @@ export function transformJsCell(source: string): TransformedCell {
       /=>$/.test(prev) ||
       /\b(?:return|typeof|instanceof|in|of|new|await|yield|case|else|do)$/.test(prev)
     )
+  const previousOutline = [...topLevelCodePositions(prev)].map(i => prev[i]).join('').replace(/\s/g, '')
+  const previousBlock = /^(?:(?:for(?:await)?|while|switch)\)\}|if\)\}(?:elseif\)\})*(?:else\})?|try\}(?:catch(?:\))?\})?(?:finally\})?)$/.test(previousOutline)
   let capturesResult = false
   for (let i = 0; i < segments.length; i++) {
     let text = segments[i]!.text
@@ -380,7 +382,7 @@ export function transformJsCell(source: string): TransformedCell {
       out.push(text)
       continue
     }
-    if (i === lastCodeIndex && prevEndsCleanly && !(effective.startsWith('`') && prevCodeIndex >= 0 && !prev.endsWith(';')) && isCapturableExpression(effective, prevCodeIndex < 0 || prev.endsWith(';'))) {
+    if (i === lastCodeIndex && prevEndsCleanly && !(effective.startsWith('`') && prevCodeIndex >= 0 && !prev.endsWith(';')) && isCapturableExpression(effective, prevCodeIndex < 0 || prev.endsWith(';') || previousBlock)) {
       const expr = effective.replace(/;+\s*$/, '')
       out.push(`${leading}globalThis.__mercuryResult = (${expr}\n);`)
       capturesResult = true
