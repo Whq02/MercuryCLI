@@ -227,7 +227,7 @@ section('§5 the agent view: view in (a CREW row), esc out, view in again')
 {
   await freshDraft(m)
   const task = {
-    ...createTaskStateBase(AGENT_ID, 'local_agent', AGENT_NAME),
+    ...createTaskStateBase({ task_id: AGENT_ID, task_type: 'local_agent', description: AGENT_NAME }),
     type: 'local_agent' as const,
     agentId: AGENT_ID,
     prompt: 'work quietly',

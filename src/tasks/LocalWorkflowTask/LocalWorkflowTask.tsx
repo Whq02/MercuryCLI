@@ -164,12 +164,7 @@ export function registerWorkflowTask(opts: {
 }): LocalWorkflowTaskState {
   const description = opts.summary ?? opts.workflowName ?? 'Dynamic workflow'
   const state: LocalWorkflowTaskState = {
-    ...createTaskStateBase(
-      opts.taskId,
-      'local_workflow',
-      description,
-      opts.toolUseId,
-    ),
+    ...createTaskStateBase({ task_id: opts.taskId, task_type: 'local_workflow', description, call_id: opts.toolUseId }),
     type: 'local_workflow',
     status: 'running',
     script: opts.script,

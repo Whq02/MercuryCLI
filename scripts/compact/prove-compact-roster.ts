@@ -48,7 +48,7 @@ const { createAttachmentMessage } = await import('../../src/utils/attachments/or
 type AnyTask = Record<string, unknown>
 const now = Date.now()
 const base = (id: string, type: string, description: string, over: AnyTask = {}): AnyTask => ({
-  ...createTaskStateBase(id, type as never, description),
+  ...createTaskStateBase({ task_id: id, task_type: type as never, description }),
   status: 'running',
   startTime: now - 10_000,
   ...over,

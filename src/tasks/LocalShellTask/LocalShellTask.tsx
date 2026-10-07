@@ -408,7 +408,7 @@ export async function spawnShellTask(
   })
 
   const state: LocalShellTaskState = {
-    ...createTaskStateBase(taskId, 'local_bash', input.description, input.toolUseId),
+    ...createTaskStateBase({ task_id: taskId, task_type: 'local_bash', description: input.description, call_id: input.toolUseId }),
     ...(input.startTime !== undefined ? { startTime: input.startTime } : {}),
     type: 'local_bash',
     status: 'running',
@@ -519,12 +519,7 @@ export function registerForeground(
     await killTask(taskId, setAppState)
   })
   const state: LocalShellTaskState = {
-    ...createTaskStateBase(
-      taskId,
-      'local_bash',
-      input.description,
-      toolUseId ?? input.toolUseId,
-    ),
+    ...createTaskStateBase({ task_id: taskId, task_type: 'local_bash', description: input.description, call_id: toolUseId ?? input.toolUseId }),
     type: 'local_bash',
     status: 'running',
     command: input.command,
