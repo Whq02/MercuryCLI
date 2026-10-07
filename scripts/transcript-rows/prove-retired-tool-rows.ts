@@ -2,6 +2,7 @@
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { FILE_TOOL_SPELLINGS } from '../identity/forbidden-file-tool.ts'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'retired-tool-rows-'))
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -51,11 +52,14 @@ async function renderOldRow(row: OldRow, tools: unknown): Promise<string[]> {
   return out.split('\n').filter(line => line.trim() !== '')
 }
 
+const FILE_ROW: OldRow = { id: 'toolu_old_file', name: FILE_TOOL_SPELLINGS[0], input: { files: ['/proof/report.pdf'], status: 'normal' }, nameShape: new RegExp(FILE_TOOL_SPELLINGS[0]), carries: 'report.pdf' }
 const CATALOGUE_ROWS: OldRow[] = [
+  FILE_ROW,
   { id: 'toolu_old_to', name: 'TaskOutput', input: { task_id: 'b7x2', block: true, timeout: 30000 }, nameShape: /Task ?Output/, carries: 'b7x2' },
   { id: 'toolu_old_bo', name: 'BashOutputTool', spelling: 'alias', input: { task_id: 'b1' }, nameShape: /(?:Task|Bash) ?Output/, carries: 'b1' },
 ]
 const SESSION_POOL_ROWS: OldRow[] = [
+  FILE_ROW,
   { id: 'toolu_old_sum', name: 'SendUserMessage', input: { message: 'the old reply', status: 'normal' }, nameShape: /SendUserMessage/, carries: 'the old reply' },
   { id: 'toolu_old_br', name: 'Brief', spelling: 'alias', input: { message: 'the older reply' }, nameShape: /\bBrief\b/, carries: 'the older reply' },
 ]

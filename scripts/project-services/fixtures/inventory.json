@@ -48,7 +48,6 @@
       "Rewind",
       "ScheduleWakeup",
       "SendMessage",
-      "SendUserFile",
       "Service",
       "Skill",
       "Sleep",

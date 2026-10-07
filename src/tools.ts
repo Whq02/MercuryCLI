@@ -79,7 +79,6 @@ import { CronDeleteTool } from './tools/ScheduleCronTool/CronDeleteTool.js'
 import { CronListTool } from './tools/ScheduleCronTool/CronListTool.js'
 import { ScheduleWakeupTool } from './tools/ScheduleWakeupTool/ScheduleWakeupTool.js'
 import { SendMessageTool } from './tools/SendMessageTool/SendMessageTool.js'
-import { SendUserFileTool } from './tools/SendUserFileTool/SendUserFileTool.js'
 import { ServiceTool } from './tools/ServiceTool/ServiceTool.js'
 import { SkillTool } from './tools/SkillTool/SkillTool.js'
 import { SleepTool } from './tools/SleepTool/SleepTool.js'
@@ -138,7 +137,6 @@ const WORKFLOW_TOOL = cycleTolerant(() => WorkflowTool)
 const SLEEP_TOOL = cycleTolerant(() => SleepTool)
 const MONITOR_TOOL = cycleTolerant(() => MonitorTool)
 const RECORD_CONVENTION_TOOL = cycleTolerant(() => RecordConventionTool)
-const SEND_USER_FILE_TOOL = cycleTolerant(() => SendUserFileTool)
 
 export function getAllBaseTools(): Tools {
   const search = searchToolsAvailability()
@@ -198,7 +196,6 @@ export function getAllBaseTools(): Tools {
     ...(contractToolHosted() ? [ContractTool] : []),
     RECORD_CONVENTION_TOOL,
     ...(memoryVerbsEnabled() ? [RetainTool, RecallTool, ReflectTool, CorrectTool] : []),
-    SEND_USER_FILE_TOOL,
     ...(isPowerShellToolEnabled() && powerShell ? [powerShell] : []),
     ...(process.env.NODE_ENV === 'test' ? [TestingPermissionTool] : []),
     ListMcpResourcesTool,

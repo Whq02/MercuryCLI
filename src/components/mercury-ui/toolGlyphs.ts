@@ -60,7 +60,6 @@ export const TOOL_FAMILY_BY_NAME: Record<string, ToolFamily> = {
   NotebookEdit: 'edit',
   Structure: 'edit',
   Write: 'write',
-  SendUserFile: 'write',
   ApolloReview: 'diff',
   ChangeSet: 'diff',
   Git: 'diff',
