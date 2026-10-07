@@ -69,8 +69,6 @@ export function legalExecutionTransitions(from: ExecutionState): readonly Execut
 export type ExecutionKind =
   | 'process'
   | 'service'
-  | 'workshop-js'
-  | 'workshop-python'
   | 'agent'
   | 'workflow-worker'
   | 'debug-adapter'

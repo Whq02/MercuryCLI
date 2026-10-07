@@ -5,12 +5,11 @@
 # gate-watch: src/services/projectServices/serviceManager*
 # gate-watch: src/services/resources/contracts* src/services/resources/registry*
 # gate-watch: src/services/run/** src/services/tools/toolExecution*
-# gate-watch: src/services/workshop/pythonRuntime* src/services/workshop/runtime*
 # gate-watch: src/tasks/LocalAgentTask/LocalAgentTask* src/tools/** src/utils/artifacts/store*
 # gate-watch: src/utils/messageQueueManager* src/utils/messages/attachmentText* src/utils/tasks*
 # gate-watch: src/utils/verification/verificationState* assets/completions/**
 # gate-watch: scripts/dap/mock-dap-adapter.mjs scripts/lib/generated-assets-map.mjs scripts/lib/proofHome.ts
-# gate-watch: src/fabric/entryCodec.ts src/fabric/ordinal.ts src/ink.ts src/services/workshop/workerSource.ts
+# gate-watch: src/fabric/entryCodec.ts src/fabric/ordinal.ts src/ink.ts
 # gate-watch: src/utils/capability/census.ts src/utils/toolErrors.ts src/bootstrap/state.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

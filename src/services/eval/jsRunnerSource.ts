@@ -3,7 +3,7 @@ export const JS_RUNNER_SOURCE: string = `// Mercury eval kernel runner (generate
 import { createInterface } from 'node:readline'
 import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
-import { resolve as resolvePath, join as joinPath, isAbsolute } from 'node:path'
+import { resolve as resolvePath, join as joinPath, isAbsolute, sep as pathSep } from 'node:path'
 import { createWriteStream } from 'node:fs'
 import { inspect } from 'node:util'
 
@@ -188,6 +188,7 @@ Object.assign(globalThis, {
   display_image: displayImage,
   displayImage,
   tool,
+  sample: spec => bridge('sample', spec),
   agent,
   completion,
   parallel,
@@ -210,6 +211,11 @@ async function runCell(id, code, names) {
   cancelController = new AbortController()
   const signal = cancelController.signal
   try {
+    const require = createRequire(joinPath(process.cwd(), '__mercury_eval__.js'))
+    for (const path of Object.keys(require.cache)) {
+      if (!path.split(pathSep).includes('node_modules')) delete require.cache[path]
+    }
+    globalThis.require = require
     globalThis.__mercuryPersistedNames = []
     const fn = new AsyncFunction(code)
     await Promise.race([

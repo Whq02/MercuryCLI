@@ -830,7 +830,7 @@ section('the gate as a pure function (the exact contract the adapters call)')
     const { ServiceTool } = await import('../../src/tools/ServiceTool/ServiceTool.ts')
     const { MonitorTool } = await import('../../src/tools/MonitorTool/MonitorTool.ts')
     const { AsepriteTool } = await import('../../src/tools/AsepriteTool/AsepriteTool.ts')
-    const { WorkshopTool } = await import('../../src/tools/WorkshopTool/WorkshopTool.ts')
+    const { EvalTool } = await import('../../src/tools/EvalTool/EvalTool.ts')
     const lspQuotes = [['filePath', 'query', 'paths'], ['filePath', 'newName'], ['filePath', 'targetPath'], ['filePath', 'newPath'], ['filePath'], ['filePath'], ['filePath']]
     check('each language-service tool straightens exactly its own symbol and path fields', LSP_TOOLS.every((tool, i) => declared(tool) === JSON.stringify(lspQuotes[i])), LSP_TOOLS.map(declared).join(' '))
     check('the debugger straightens its paths, expressions and symbols: program, file, expression, name, value, text, functions', declared(DebugTool) === JSON.stringify(['program', 'file', 'expression', 'name', 'value', 'text', 'functions']), declared(DebugTool))
@@ -841,7 +841,7 @@ section('the gate as a pure function (the exact contract the adapters call)')
     check('the git tool straightens its path fields: paths, files, path, file, cwd', declared(GitTool) === JSON.stringify(['paths', 'files', 'path', 'file', 'cwd']), declared(GitTool))
     check('the test, launch, service and monitor tools straighten their paths and commands', declared(TestTool) === JSON.stringify(['path', 'file']) && declared(LaunchTool) === JSON.stringify(['file']) && declared(ServiceTool) === JSON.stringify(['command', 'cwd']) && declared(MonitorTool) === JSON.stringify(['command']), [TestTool, LaunchTool, ServiceTool, MonitorTool].map(declared).join(' '))
     check('the Aseprite tool straightens its sprite, output and data-output paths; the Lua source stays as typed', declared(AsepriteTool) === JSON.stringify(['file', 'output', 'dataOutput']), declared(AsepriteTool))
-    check('the Workshop tool declares nothing: a cell is content and arrives as typed', declared(WorkshopTool) === 'null', declared(WorkshopTool))
+    check('the Eval tool declares nothing: a cell is content and arrives as typed', declared(EvalTool) === 'null', declared(EvalTool))
   }
   check('replayableItems keeps the first function_call of a duplicated id and drops the rest', (() => {
     const pure = replayableItems(

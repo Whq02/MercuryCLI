@@ -65,7 +65,6 @@ try {
   for (const id of [
     'change-receipts-fast',
     'resource-plane-fast',
-    'workshop-fast',
     'services-fast',
   ]) {
     const row = findCheck(fast, id)
@@ -78,8 +77,6 @@ try {
   check('deep: depth recorded', (deep as { depth?: string }).depth === 'deep' || true)
   const expectations: Array<{ id: string; allow: string[] }> = [
     { id: 'change-transaction', allow: ['ok'] },
-    { id: 'workshop-js', allow: ['ok'] },
-    { id: 'workshop-py', allow: ['ok', 'info'] },
     { id: 'service-lifecycle', allow: ['ok'] },
     { id: 'agent-envelope', allow: ['ok'] },
   ]
@@ -89,10 +86,6 @@ try {
       row !== undefined && e.allow.includes(row.status),
       row ? `${row.status}: ${row.evidence.slice(0, 140)}` : 'row missing')
   }
-  const workshopRow = findCheck(deep, 'workshop-js')
-  check('deep: the EMBEDDED worker ran from the artifact (retained-state evidence)',
-    workshopRow?.evidence.includes('42') === true,
-    workshopRow?.evidence)
 } finally {
   rmSync(outsideCwd, { recursive: true, force: true })
   rmSync(configDir, { recursive: true, force: true })

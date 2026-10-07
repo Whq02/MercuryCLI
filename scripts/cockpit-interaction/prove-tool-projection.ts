@@ -166,7 +166,7 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
       }
     }
     t.check('some tools own their own extraction', implementers.size > 0, `${implementers.size}`)
-    for (const name of ['Agent', 'Edit', 'PowerShell', 'AskUserQuestion', 'WebFetch', 'LspRead', 'LspRename', 'LspMoveSymbol', 'LspMoveFile', 'LspCodeAction', 'LspFormat', 'LspRequest', 'ChangeSet', 'Workshop', 'Test', 'Git']) {
+    for (const name of ['Agent', 'Edit', 'PowerShell', 'AskUserQuestion', 'WebFetch', 'LspRead', 'LspRename', 'LspMoveSymbol', 'LspMoveFile', 'LspCodeAction', 'LspFormat', 'LspRequest', 'ChangeSet', 'Test', 'Git']) {
       t.check(`${name} owns its extraction — its painted result is findable`, implementers.has(name), 'extracts')
     }
 

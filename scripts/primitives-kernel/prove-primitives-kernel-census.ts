@@ -24,8 +24,6 @@ const { EXECUTION_DOMAIN_CENSUS, censusEntry, censusPlaneKinds } =
   await import('../../src/services/primitives/executionCensus.ts')
 
 await import('../../src/services/projectServices/serviceManager.ts')
-await import('../../src/services/workshop/runtime.ts')
-await import('../../src/services/workshop/pythonRuntime.ts')
 await import('../../src/services/lsp/LSPServerInstance.ts')
 await import('../../src/services/dap/dapClient.ts')
 

@@ -15,7 +15,6 @@ const { disposeOwner } = await import('../../src/services/run/ownerLifecycle.ts'
 const { startService, stopService, waitForReady } =
   await import('../../src/services/projectServices/serviceManager.ts')
 const { serviceExecutionOwner } = await import('../../src/services/projectServices/executionProjection.ts')
-const { runWorkshopCell } = await import('../../src/services/workshop/runtime.ts')
 const { buildAgentResultEnvelope } = await import('../../src/services/agentResults/normalize.ts')
 const { processOwnerForLane } = await import('../../src/services/run/resolveOwner.ts')
 
@@ -109,19 +108,6 @@ console.log('service readiness evidence (real child)')
   check('readiness evidence points at the execution',
     readiness !== undefined && readiness.refs.includes('mercury://execution/service:ev-svc'))
   await stopService(workDir, 'ev-svc')
-}
-
-console.log('workshop cell evidence (real worker)')
-{
-  const bridge = { inspect: async () => 'x', tool: async () => 'x', agent: async () => 'x' }
-  await runWorkshopCell({ owner, cwd: workDir, cell: { language: 'js', code: '2*21' }, bridge })
-  const cellEv = P.evidenceFor(owner).find(
-    r => r.kind === 'execution' && r.claim.includes('workshop js cell'),
-  )
-  check('cell evidence exists with runtime ref + generation',
-    cellEv !== undefined &&
-      cellEv.refs.includes('mercury://execution/workshop:js') &&
-      cellEv.details?.generation === 1)
 }
 
 console.log('origin + integrity laws')

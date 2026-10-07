@@ -51,7 +51,7 @@ for (const file of sources) {
 }
 for (const match of readFileSync(join(ROOT, 'src', 'tools', 'BrowserTool', 'BrowserTool.ts'), 'utf8').matchAll(/^  name: '([A-Za-z_]+)',$/gm)) universe.add(match[1]!)
 universe.delete('Chat')
-check('the wire-name universe was read from the tool constants', universe.size === 57 && universe.has('TaskUpdate') && universe.has('Browser') && universe.has('LSP'), String(universe.size))
+check('the wire-name universe was read from the tool constants', universe.size === 56 && universe.has('TaskUpdate') && universe.has('Browser') && universe.has('LSP'), String(universe.size))
 const multiWord = [...universe].filter(name => /[a-z][A-Z]/.test(name))
 const singleWord = [...universe].filter(name => !/[a-z][A-Z]/.test(name))
 const listTail = /^(?:\s*,\s*|\s+(?:or|and)\s+)((?:[A-Z][A-Za-z]+)(?:\s*,\s*[A-Z][A-Za-z]+)*(?:\s+(?:or|and)\s+[A-Z][A-Za-z]+)?)\s+tools?\b/

@@ -17,9 +17,9 @@ const dist = argOf('--dist') ?? DIST
 const driver = requireCaptureDriver('samples-cockpit')
 const textRows = (grid: Grid): string[] => grid.map(row => row.map(c => c.c).join('').replace(/\s+$/, ''))
 
-const CELL = "const kept = await mercury.sample({ name: 'pricing-table', title: 'pricing table', html: '<!doctype html><html><head><meta charset=\"utf-8\"><title>Pricing</title></head><body><h1>Pricing</h1><p>Three plans. Billed monthly, cancel any time.</p></body></html>', ask: 'show me a pricing table' }); console.log('kept v' + kept.version)"
+const CELL = "const kept = await sample({ name: 'pricing-table', title: 'pricing table', html: '<!doctype html><html><head><meta charset=\"utf-8\"><title>Pricing</title></head><body><h1>Pricing</h1><p>Three plans. Billed monthly, cancel any time.</p></body></html>', ask: 'show me a pricing table' }); console.log('kept v' + kept.version)"
 const TURNS = [
-  { kind: 'tool_use' as const, name: 'Workshop', input: { cells: [{ language: 'js', title: 'pricing table', code: CELL }] } },
+  { kind: 'tool_use' as const, name: 'Eval', input: { language: 'js', title: 'pricing table', code: CELL } },
   { kind: 'text' as const, text: 'Here it is.' },
   { kind: 'text' as const, text: 'Noted: the heading grows in the next version.' },
 ]
@@ -88,7 +88,7 @@ async function drive(cols: number, rows: number): Promise<void> {
   const tag = `samples-${cols}x${rows}`
   const full = cols >= 100 && rows >= 26
   const leg = await startLeg(tag, TURNS, null)
-  writeFileSync(join(leg.home, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Workshop'] } }))
+  writeFileSync(join(leg.home, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Eval'] } }))
   const browserLog = join(scratch, `${tag}-browser.log`)
   const out = join(scratch, `${tag}.json`)
   const cfgPath = join(scratch, `${tag}-config.json`)

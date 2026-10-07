@@ -172,6 +172,14 @@ def agent(prompt, agent_type=None, label=None, schema=None, strict=True, worktre
     })
 
 
+def sample(spec=None, **kwargs):
+    if spec is None:
+        spec = kwargs
+    elif isinstance(spec, dict):
+        spec = {**spec, **kwargs}
+    return _bridge("sample", spec)
+
+
 def completion(prompt, system=None, model=None, tier=None, schema=None):
     return _bridge("completion", {
         "prompt": prompt,
@@ -246,6 +254,7 @@ _NS = {
     "display_json": display_json,
     "display_image": display_image,
     "tool": tool,
+    "sample": sample,
     "agent": agent,
     "completion": completion,
     "parallel": parallel,

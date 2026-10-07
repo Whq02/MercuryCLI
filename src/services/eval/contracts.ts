@@ -1,5 +1,6 @@
 
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
+import type { SampleItem } from '../samples/contracts.js'
 
 export type EvalLanguage = 'py' | 'js'
 
@@ -61,6 +62,7 @@ export interface EvalCellOutcome {
   stdout: EvalStreamCapture
   stderr: EvalStreamCapture
   displays: EvalDisplay[]
+  samples?: SampleItem[]
   resultRepr?: string
   error?: { name: string; value: string; traceback: string }
   spillPath?: string

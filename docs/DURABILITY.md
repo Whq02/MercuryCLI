@@ -116,8 +116,7 @@ of one to five calls repeated five times over with identical results draws a
 stronger reminder on every detection; a call whose answer changed is
 progress and resets the count, so a poll of a growing log is never a loop.
 The response is Mercury's own unit, never an id the provider sent, and a
-call a tool makes from inside its own execution (a Workshop cell, an Eval
-re-entry) joins the response it runs in rather than opening one of its own,
+call a tool makes from inside its own execution (an Eval re-entry) joins the response it runs in rather than opening one of its own,
 taking its place under the call the model issued: the calls of one cell are
 ordered by when each was started, not by when it settled, and a call comes
 after every call made on its behalf, however deep the nesting and however
