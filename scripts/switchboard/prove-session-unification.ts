@@ -381,9 +381,8 @@ for (const [cols, rows] of [
 }
 
 const VIM_RECEIPT = 'Editor mode set to vim'
-const COUNSEL_RECEIPT = 'Counsel is OFF'
-const COUNSEL_RECEIPT_TAIL = 'the prompt cache'
-const COUNSEL_RECEIPT_ANY = /Counsel is OFF|MERCURY_COUNSEL=|the prompt cache/
+const SESSION_RECEIPT = 'No capabilities killed this session.'
+const SESSION_RECEIPT_TAIL = 'restore with'
 for (const [cols, rows] of [
   [120, 40],
   [100, 30],
@@ -398,9 +397,9 @@ for (const [cols, rows] of [
       { afterPrevTicks: 4, data: '\r' },
       g(REPLY_1, '/vim', { awaitSettleTicks: 4 }),
       { afterPrevTicks: 3, data: '\r' },
-      g(VIM_RECEIPT, '/counsel', { awaitSettleTicks: 4, mark: 'after-vim' }),
+      g(VIM_RECEIPT, '/kill', { awaitSettleTicks: 4, mark: 'after-vim' }),
       { afterPrevTicks: 3, data: '\r' },
-      g(COUNSEL_RECEIPT_TAIL, '/clear', { awaitSettleTicks: 4, mark: 'after-counsel' }),
+      g(SESSION_RECEIPT_TAIL, '/clear', { awaitSettleTicks: 4, mark: 'after-session-command' }),
       { afterPrevTicks: 3, data: '\r' },
     ],
     stableTicks: 10,
@@ -411,14 +410,14 @@ for (const [cols, rows] of [
       const marks = (r.payload.marks as Array<{ label: string; grid: Array<Array<{ c: string }>> }> | undefined) ?? []
       const markText = (label: string): string => (marks.find(m => m.label === label)?.grid ?? []).map(row => row.map(c => c.c).join('')).join('\n')
       const afterVim = markText('after-vim')
-      const afterCounsel = markText('after-counsel')
+      const afterSessionCommand = markText('after-session-command')
       check(`u4 ${cols}x${rows}: /vim (a screen command) painted its receipt on the focused chat`, afterVim.includes(VIM_RECEIPT), afterVim === '' ? 'no mark' : '')
       check(`u4 ${cols}x${rows}: /vim never answered "Unknown skill"`, !afterVim.includes('Unknown skill'))
-      check(`u4 ${cols}x${rows}: /counsel (a session command) answered from the runner's own table`, COUNSEL_RECEIPT_ANY.test(afterCounsel), afterCounsel === '' ? 'no mark' : '')
-      check(`u4 ${cols}x${rows}: /counsel never answered "Unknown skill"`, !afterCounsel.includes('Unknown skill'))
+      check(`u4 ${cols}x${rows}: /kill (a session command) answered from the runner's own table`, afterSessionCommand.includes(SESSION_RECEIPT), afterSessionCommand === '' ? 'no mark' : '')
+      check(`u4 ${cols}x${rows}: /kill never answered "Unknown skill"`, !afterSessionCommand.includes('Unknown skill'))
       const transcripts = transcriptsOf(r.home)
       const body = transcripts.map(t => readFileSync(t, 'utf8')).join('\n')
-      check(`u4 ${cols}x${rows}: the runner recorded /counsel's receipt in the session's own transcript`, body.includes(COUNSEL_RECEIPT))
+      check(`u4 ${cols}x${rows}: the runner recorded /kill's receipt in the session's own transcript`, body.includes(SESSION_RECEIPT))
       check(`u4 ${cols}x${rows}: /vim's receipt stayed on the screen (never in the session's transcript)`, !body.includes(VIM_RECEIPT))
       const afterClear = Object.values(liveRecords(r.home)).filter(x => x.parkedAt === undefined)
       const oldRec = Object.values(readSessionWorkers(join(r.home, 'daemon'))).find(x => x.endedAt === undefined && x.parkedAt !== undefined)
