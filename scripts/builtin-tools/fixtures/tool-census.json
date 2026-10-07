@@ -568,7 +568,7 @@
       "units": [
         "scheduling"
       ],
-      "proof": null,
+      "proof": "scripts/daemon/prove-cron-create-answer.ts",
       "declared": {
         "intents": [
           "schedule a recurring run",
@@ -579,7 +579,8 @@
         ],
         "class": "mutation",
         "cancellation": "not-applicable",
-        "latency": "fast"
+        "latency": "fast",
+        "proof": "scripts/daemon/prove-cron-create-answer.ts"
       }
     },
     {
