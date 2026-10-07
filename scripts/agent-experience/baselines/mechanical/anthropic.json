@@ -6,12 +6,12 @@
     "backend": "anthropic-messages",
     "dialect": "anthropic",
     "mechanical": true,
-    "tree": "4786a01c1",
+    "tree": "2f366ec33",
     "fold": "unlabelled",
-    "when": "2026-10-07T05:36:07.949Z",
-    "promptChars": 24178,
-    "promptTokensEst": 6045,
-    "toolCount": 51,
+    "when": "2026-10-07T06:14:29.534Z",
+    "promptChars": 24241,
+    "promptTokensEst": 6060,
+    "toolCount": 57,
     "toolNames": [
       "Agent",
       "Bash",
@@ -28,7 +28,13 @@
       "AskUserQuestion",
       "Skill",
       "ApolloReview",
-      "LSP",
+      "LspRead",
+      "LspRename",
+      "LspMoveSymbol",
+      "LspMoveFile",
+      "LspCodeAction",
+      "LspFormat",
+      "LspRequest",
       "Inspect",
       "Workshop",
       "Service",
@@ -65,7 +71,7 @@
       "mcp__mercury__lease_list",
       "mcp__mercury__render_tui"
     ],
-    "toolSchemaChars": 174050,
+    "toolSchemaChars": 177953,
     "notes": [
       "browser task unmeasured: no browser to launch — no managed browser — your installed apps are never driven; /browser install downloads Chrome for Testing once with your consent"
     ]
@@ -113,12 +119,12 @@
       "errors": [
         {
           "tool": "Bash",
-          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.34425ms)\n✔ median of an odd-length list (0.063459ms)\n✖ median of an even-length list averages the middle pair (0.376708ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 54.877833\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.376708ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file://<fixture>/anthropic/tasks/",
+          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.384917ms)\n✔ median of an odd-length list (0.087167ms)\n✖ median of an even-length list averages the middle pair (0.444667ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 56.317625\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.444667ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file://<fixture>/anthropic/tasks",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 1789,
+      "wallMs": 1870,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -170,7 +176,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1558,
+      "wallMs": 1588,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -229,7 +235,7 @@
           "probe": true
         }
       ],
-      "wallMs": 1239,
+      "wallMs": 1209,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -277,7 +283,7 @@
           "probe": true
         }
       ],
-      "wallMs": 1038,
+      "wallMs": 1071,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -319,7 +325,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 897,
+      "wallMs": 971,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -366,7 +372,7 @@
           "probe": true
         }
       ],
-      "wallMs": 898,
+      "wallMs": 987,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -406,7 +412,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 979,
+      "wallMs": 1005,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -423,15 +429,15 @@
       "title": "open a file in the IDE seam",
       "skipped": null,
       "allowedTools": [
-        "LSP",
+        "LspRead",
         "Read",
         "Grep",
         "Glob"
       ],
-      "finalText": "Opened src/stats.js in the language server; its diagnostics are listed in the LSP result above.",
+      "finalText": "Opened src/stats.js in the language server; its diagnostics are listed in the LspRead result above.",
       "stderrTail": "",
       "success": true,
-      "oracle": "LSP called: true; server answered: true; first result: No diagnostics — src/stats.js is clean. [fresh report (document version 1) — pulled: mercury-ts]",
+      "oracle": "LspRead called: true; server answered: true; first result: No diagnostics — src/stats.js is clean. [fresh report (document version 1) — pulled: mercury-ts]",
       "turns": 2,
       "toolCalls": 1,
       "wasted": 0,
@@ -446,7 +452,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1166,
+      "wallMs": 1285,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -518,7 +524,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 974,
+      "wallMs": 1023,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -558,7 +564,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1004,
+      "wallMs": 1029,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -607,7 +613,7 @@
           "probe": true
         }
       ],
-      "wallMs": 1680,
+      "wallMs": 1664,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -642,7 +648,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 961,
+      "wallMs": 1150,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -677,7 +683,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 934,
+      "wallMs": 923,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",

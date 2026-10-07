@@ -6,11 +6,11 @@
     "backend": "openai-responses",
     "dialect": "responses",
     "mechanical": true,
-    "tree": "4786a01c1",
+    "tree": "2f366ec33",
     "fold": "unlabelled",
-    "when": "2026-10-07T05:36:07.949Z",
-    "promptChars": 24019,
-    "promptTokensEst": 6005,
+    "when": "2026-10-07T06:14:29.534Z",
+    "promptChars": 24082,
+    "promptTokensEst": 6021,
     "toolCount": 13,
     "toolNames": [
       "Agent",
@@ -21,13 +21,13 @@
       "Edit",
       "Write",
       "Skill",
-      "LSP",
+      "LspRead",
       "Eval",
       "AstSearch",
       "ChangeSet",
       "ToolSearch"
     ],
-    "toolSchemaChars": 50553,
+    "toolSchemaChars": 45307,
     "notes": [
       "browser task unmeasured: no browser to launch — no managed browser — your installed apps are never driven; /browser install downloads Chrome for Testing once with your consent"
     ]
@@ -75,12 +75,12 @@
       "errors": [
         {
           "tool": "Bash",
-          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.379917ms)\n✔ median of an odd-length list (0.067209ms)\n✖ median of an even-length list averages the middle pair (0.479834ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 55.378375\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.479834ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file://<fixture>/openai/tasks/fi",
+          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.351792ms)\n✔ median of an odd-length list (0.069041ms)\n✖ median of an even-length list averages the middle pair (0.400292ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 53.149292\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.400292ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file://<fixture>/openai/tasks/fi",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 1890,
+      "wallMs": 1981,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -132,7 +132,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1663,
+      "wallMs": 1556,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -191,7 +191,7 @@
           "probe": true
         }
       ],
-      "wallMs": 1108,
+      "wallMs": 1116,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -239,7 +239,7 @@
           "probe": true
         }
       ],
-      "wallMs": 1045,
+      "wallMs": 1027,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -281,7 +281,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 893,
+      "wallMs": 982,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -328,7 +328,7 @@
           "probe": true
         }
       ],
-      "wallMs": 877,
+      "wallMs": 965,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -368,7 +368,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1011,
+      "wallMs": 1049,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -385,15 +385,15 @@
       "title": "open a file in the IDE seam",
       "skipped": null,
       "allowedTools": [
-        "LSP",
+        "LspRead",
         "Read",
         "Grep",
         "Glob"
       ],
-      "finalText": "Opened src/stats.js in the language server; its diagnostics are listed in the LSP result above.",
+      "finalText": "Opened src/stats.js in the language server; its diagnostics are listed in the LspRead result above.",
       "stderrTail": "",
       "success": true,
-      "oracle": "LSP called: true; server answered: true; first result: No diagnostics — src/stats.js is clean. [fresh report (document version 1) — pulled: mercury-ts]",
+      "oracle": "LspRead called: true; server answered: true; first result: No diagnostics — src/stats.js is clean. [fresh report (document version 1) — pulled: mercury-ts]",
       "turns": 2,
       "toolCalls": 1,
       "wasted": 0,
@@ -408,7 +408,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1229,
+      "wallMs": 1380,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -480,7 +480,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 855,
+      "wallMs": 949,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -520,7 +520,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1090,
+      "wallMs": 1052,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -569,7 +569,7 @@
           "probe": true
         }
       ],
-      "wallMs": 1920,
+      "wallMs": 1743,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -639,7 +639,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 904,
+      "wallMs": 899,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
