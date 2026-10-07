@@ -171,7 +171,7 @@ function harness(wall: WatchWall) {
   const monitorDeadline = (monitorModule as { monitorDeadline?: Deadline }).monitorDeadline
   const source = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'MonitorTool', 'MonitorTool.ts'), 'utf8')
   const base = { description: 'watch', command: 'echo hi' }
-  const refusal = (r: { success: boolean; error?: unknown }): string => (r.success ? '' : `InputValidationError: ${formatZodValidationError('Monitor', r.error as never).replace(/\n/g, ' ')}`)
+  const refusal = (r: { success: boolean; error?: unknown }): string => (r.success ? '' : `${formatZodValidationError('Monitor', r.error as never).replace(/\n/g, ' ')}`)
   const above = MonitorTool.inputSchema.safeParse({ ...base, timeout_ms: 7_200_000 })
   check('a timeout_ms above the ceiling passes the schema — no round trip lost to a refusal', above.success === true, refusal(above))
   const under = MonitorTool.inputSchema.safeParse({ ...base, timeout_ms: 500 })

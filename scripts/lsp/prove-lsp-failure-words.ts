@@ -124,7 +124,7 @@ section('§8 the screen: the collapsed line shows the cause, and a failed result
   const collapsed = await renderToString(React.createElement(React.Fragment, null, renderToolUseErrorMessage(tagged, { verbose: false })), 160)
   check('the collapsed error line names the cause', /LspRead: diagnostics reads paths/.test(collapsed), collapsed)
   check('…and no longer says the bare "LSP operation failed"', !/LSP operation failed/.test(collapsed), collapsed)
-  const executorError = '<tool_use_error>InputValidationError: The LSP tool failed due to the following issue:\nThe parameter `frobnicate` was not expected</tool_use_error>'
+  const executorError = '<tool_use_error>The LSP tool failed due to the following issue:\nThe parameter `frobnicate` was not expected</tool_use_error>'
   const unknownKey = await renderToString(React.createElement(React.Fragment, null, renderToolUseErrorMessage(executorError, { verbose: false })), 200)
   check('an unknown-key refusal shows the key on one line', /frobnicate/.test(unknownKey) && !/\n\s*\n/.test(unknownKey.trim()), unknownKey)
   const failed = { operation: 'diagnostics', result: '0 of 2 file(s) checked — 0 error(s), 0 warning(s) in 0 file(s), 2 not checked\n  not checked: lib.ts — the TypeScript language server (env:fixture-ts) did not start: no resolvable typescript', filePath: '', resultCount: 0, fileCount: 2, outcome: 'failed' as const }

@@ -60,7 +60,7 @@ check("the sub-agent's ceiling is the same one (one MAX_SLEEP_SECONDS)",
 {
   const { formatZodValidationError } = await import('../../src/utils/toolErrors.ts')
   const { SleepTool } = await import('../../src/tools/SleepTool/SleepTool.tsx')
-  const refusal = (r: { success: boolean; error?: unknown }): string => (r.success ? '' : `InputValidationError: ${formatZodValidationError('Sleep', r.error as never).replace(/\n/g, ' ')}`)
+  const refusal = (r: { success: boolean; error?: unknown }): string => (r.success ? '' : `${formatZodValidationError('Sleep', r.error as never).replace(/\n/g, ' ')}`)
   const above = SleepTool.inputSchema.safeParse({ seconds: 4000 })
   check('a wait of 4000 s passes the schema — no round trip lost to a refusal', above.success === true, refusal(above))
   const negative = SleepTool.inputSchema.safeParse({ seconds: -5 })

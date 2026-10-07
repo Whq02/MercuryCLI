@@ -178,7 +178,7 @@ section('the refusal band — no start, no terminal observation, error results')
 
   resetTaps()
   out = await run(makeTool({ strictSchema: true }), { wrong: 'field' }, ALLOW)
-  check('schema-invalid → InputValidationError', resultText(out).includes('InputValidationError'), resultText(out))
+  check('schema-invalid names the missing field', resultText(out).includes('The required parameter `must` is missing'), resultText(out))
   check('schema-invalid → no observations', starts.length === 0 && terminals.length === 0)
 
   resetTaps()
