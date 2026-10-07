@@ -1,13 +1,15 @@
+import { headerValue, retryAfterHeaderMs } from '../api/retryAfter.js'
 import type { AnthropicLimits, RateLimitType } from '../anthropicLimits.js'
 import { credentialWallLine, isRevokedSignInText, observedCredentialWall } from './credentialWall.js'
 
-export type AnthropicRefusalKind = 'window' | 'sign-in' | 'other'
+export type AnthropicRefusalKind = 'window' | 'rate-limit' | 'sign-in' | 'other'
 
 export interface AnthropicRefusalFacts {
   status?: number | undefined
   wireText?: string | undefined
   oauthErrorType?: string | undefined
   signInExpired?: boolean | undefined
+  headers?: unknown
 }
 
 export interface AnthropicWindowObservation {
@@ -25,16 +27,21 @@ const INVALID_GRANT = /\binvalid_grant\b/
 export function classifyAnthropicRefusal(facts: AnthropicRefusalFacts): AnthropicRefusalKind {
   const text = facts.wireText ?? ''
   if (facts.oauthErrorType === 'invalid_grant' || INVALID_GRANT.test(text)) return 'sign-in'
-  if (facts.status === 429) return 'window'
+  if (facts.status === 429) {
+    if (retryAfterHeaderMs(headerValue(facts.headers, 'retry-after')) !== undefined) return 'rate-limit'
+    const statedWindow = headerValue(facts.headers, 'anthropic-ratelimit-unified-status') === 'rejected' || Boolean(headerValue(facts.headers, 'anthropic-ratelimit-unified-representative-claim'))
+    return statedWindow || /usage_limit_reached|(?:usage|weekly|session|plan) limit (?:is |was |has been )?reached/i.test(text) ? 'window' : 'rate-limit'
+  }
   if ((facts.status === 401 || facts.status === 403) && isRevokedSignInText(text)) return 'sign-in'
   if (facts.status === 401 && facts.signInExpired === true) return 'sign-in'
   return 'other'
 }
 
 export function anthropicRefusalFactsOf(error: unknown, signInExpired?: boolean): AnthropicRefusalFacts {
-  const record = error as { status?: unknown; message?: unknown; oauthErrorType?: unknown } | null
+  const record = error as { status?: unknown; message?: unknown; oauthErrorType?: unknown; headers?: unknown } | null
   return {
     ...(typeof record?.status === 'number' ? { status: record.status } : {}),
+    ...(record?.headers !== undefined ? { headers: record.headers } : {}),
     ...(typeof record?.message === 'string' ? { wireText: record.message } : {}),
     ...(typeof record?.oauthErrorType === 'string' ? { oauthErrorType: record.oauthErrorType } : {}),
     ...(signInExpired !== undefined ? { signInExpired } : {}),
