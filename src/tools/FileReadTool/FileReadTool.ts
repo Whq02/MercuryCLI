@@ -291,8 +291,24 @@ function numberedReadContent(content: string, startLine: number, anchored: boole
   }).join('\n')
 }
 
+function realLineTotal(range: ReadFileRangeResult): number {
+  if (range.endsWithNewline) return range.totalLines - 1
+  return range.totalBytes === 0 ? 0 : range.totalLines
+}
+
+function phantomPieceInWindow(range: ReadFileRangeResult, lineOffset: number): boolean {
+  return range.endsWithNewline && range.lineCount > 0 && lineOffset + range.lineCount === range.totalLines
+}
+
+function shownWindow(range: ReadFileRangeResult, lineOffset: number): { content: string; count: number } {
+  if (!phantomPieceInWindow(range, lineOffset)) return { content: range.content, count: range.lineCount }
+  return { content: range.content.slice(0, -1), count: range.lineCount - 1 }
+}
+
 function firstWindowUnderCap(
   whole: ReadFileRangeResult,
+  shownCount: number,
+  totalLines: number,
   rendered: string,
   lineOffset: number,
   resolvedPath: string,
@@ -305,7 +321,7 @@ function firstWindowUnderCap(
   const first = lineOffset + 1
   const plan = planReadThrough(
     rendered,
-    [{ start: first, end: first + whole.lineCount - 1 }],
+    [{ start: first, end: first + shownCount - 1 }],
     resolvedPath,
     { maxLines: MAX_LINES_TO_READ, maxTokens: Math.floor(limits.maxTokens / density) },
     first,
@@ -313,8 +329,8 @@ function firstWindowUnderCap(
   const window = plan.windows[0]
   if (window === undefined || window.start !== first) return null
   const count = window.end - window.start + 1
-  if (count >= whole.lineCount) return null
-  const remaining = Math.max(1, whole.totalLines - window.end)
+  if (count >= shownCount) return null
+  const remaining = Math.max(1, totalLines - window.end)
   const content = whole.content.split('\n').slice(0, count).join('\n')
   return {
     shown: { ...whole, content, lineCount: count, readBytes: Buffer.byteLength(content) },
@@ -687,20 +703,23 @@ async function readTextLane(
     context.abortController.signal,
   )
   let overCap: OverCapNote | undefined
-  const rendered = numberedReadContent(range.content, lineOffset + 1, lineAnchorsEnabled() && input.line_anchors === true)
+  const totalLines = realLineTotal(range)
+  let shown = shownWindow(range, lineOffset)
+  const rendered = numberedReadContent(shown.content, lineOffset + 1, lineAnchorsEnabled() && input.line_anchors === true)
   const tokens = await tokensOverCap(rendered, ext, limits.maxTokens)
   if (tokens !== undefined) {
-    const window = firstWindowUnderCap(range, rendered, lineOffset, resolvedPath, ext, limits, tokens)
+    const window = firstWindowUnderCap(range, shown.count, totalLines, rendered, lineOffset, resolvedPath, ext, limits, tokens)
     if (!ownRead || window === null) {
       const next = { offset: lineOffset + 1, limit: window?.shown.lineCount ?? 1 }
       throw new MaxFileReadTokenExceededError(
         tokens,
         limits.maxTokens,
-        `no lines were returned; ${overCapNextWords(next)}${window === null ? ' A single line exceeds the cap; offset and limit cannot split it, so search for the needed content instead of repeating that Read.' : ''}`,
+        `no lines were returned (the file has ${totalLines} ${totalLines === 1 ? 'line' : 'lines'}); ${overCapNextWords(next)}${window === null ? ' A single line exceeds the cap; offset and limit cannot split it, so search for the needed content instead of repeating that Read.' : ''}`,
         next,
       )
     }
     range = window.shown
+    shown = { content: range.content, count: range.lineCount }
     overCap = window.note
   }
 
@@ -717,23 +736,25 @@ async function readTextLane(
 
   const memoryUpdatedAt = isMnemeFile(resolvedPath) ? Math.floor(range.mtimeMs) : undefined
   let anchor: string | undefined
-  if (changeTransactionEnabled() && range.content.length > 0) {
+  let anchored = range.content
+  if (changeTransactionEnabled() && range.content.length > 0 && shown.count > 0) {
     const wholeFile =
       lineOffset === 0 &&
       range.lineCount === range.totalLines &&
       range.readBytes === range.totalBytes
+    if (!wholeFile) anchored = shown.content
     anchor = wholeFile
       ? mintFileAnchor(range.content)
-      : mintRangeAnchor(range.content, lineOffset + 1, range.lineCount)
+      : mintRangeAnchor(shown.content, lineOffset + 1, shown.count)
   }
   const data: Output = {
     type: 'text',
     file: {
       filePath: resolvedPath,
       content: range.content,
-      numLines: range.lineCount,
+      numLines: shown.count,
       startLine: lineOffset + 1,
-      totalLines: range.totalLines,
+      totalLines,
       ...(anchor !== undefined ? { anchor } : {}),
       ...(memoryUpdatedAt !== undefined ? { memoryUpdatedAt } : {}),
       ...(overCap !== undefined ? { overCap } : {}),
@@ -747,10 +768,10 @@ async function readTextLane(
     if (anchorPatchEnabled() || staleEditRecoveryEnabled()) {
       try {
         const owner = ownerFromToolUseContext(context)
-        rememberAnchoredSnapshot(owner, anchor, range.content, resolvedPath)
+        rememberAnchoredSnapshot(owner, anchor, anchored, resolvedPath)
         const generation = fileGeneration(resolvedPath)
         if (generation !== null) {
-          recordSeenLines(owner, resolvedPath, generation, lineOffset + 1, range.lineCount)
+          recordSeenLines(owner, resolvedPath, generation, lineOffset + 1, shown.count)
         }
       } catch {
       }
@@ -761,10 +782,18 @@ async function readTextLane(
 }
 
 
-function serializeTextResult(file: Extract<Output, { type: 'text' }>['file'], data: object): string {
+type TextFile = Extract<Output, { type: 'text' }>['file']
+
+function numberedWindow(file: TextFile, anchored: boolean): string {
+  const numbered = numberedReadContent(file.content, file.startLine, anchored)
+  const phantomPiece = file.content.endsWith('\n') && file.content.split('\n').length === file.numLines + 1
+  return phantomPiece ? numbered.slice(0, numbered.lastIndexOf('\n')) : numbered
+}
+
+function serializeTextResult(file: TextFile, data: object): string {
   if (file.content === '') {
     if (file.totalLines > 0 && file.startLine > file.totalLines) {
-      return `<system-reminder>Warning: the file exists but is shorter than the requested offset. Read was requested to start at line ${file.startLine}, but the file has only ${file.totalLines} lines.</system-reminder>`
+      return `<system-reminder>Warning: the file exists but is shorter than the requested offset. Read was requested to start at line ${file.startLine}, but the file has only ${file.totalLines} ${file.totalLines === 1 ? 'line' : 'lines'}.</system-reminder>`
     }
     return '<system-reminder>Warning: the file exists but has empty contents.</system-reminder>'
   }
@@ -773,15 +802,27 @@ function serializeTextResult(file: Extract<Output, { type: 'text' }>['file'], da
       ? `(memory file — last updated ${new Date(file.memoryUpdatedAt).toISOString()})\n`
       : ''
   const capNote = file.overCap === undefined ? '' : `${overCapWords(file)}\n`
-  const numbered = numberedReadContent(file.content, file.startLine, resultLineAnchors.has(data))
+  const numbered = numberedWindow(file, resultLineAnchors.has(data))
   const anchorSuffix = file.anchor !== undefined ? `\n(anchor: ${file.anchor})` : ''
-  return `${prefix}${capNote}${numbered}${anchorSuffix}`
+  return `${prefix}${capNote}${numbered}${cutMark(file)}${anchorSuffix}`
 }
 
-function overCapWords(file: Extract<Output, { type: 'text' }>['file']): string {
-  const note = file.overCap!
+function windowSpan(file: TextFile): string {
   const last = file.startLine + file.numLines - 1
-  const shown = file.numLines === 1 ? `line ${file.startLine} is below and counts as read` : `lines ${file.startLine}-${last} are below and count as read`
+  return file.numLines === 1 ? `line ${file.startLine}` : `lines ${file.startLine}-${last}`
+}
+
+function cutMark(file: TextFile): string {
+  const last = file.startLine + file.numLines - 1
+  if (file.startLine <= 1 && last >= file.totalLines) return ''
+  if (last >= file.totalLines) return `\n[${windowSpan(file)} of ${file.totalLines} — the end of the file]`
+  const limit = Math.min(file.numLines, file.totalLines - last)
+  return `\n[${windowSpan(file)} of ${file.totalLines} — Read(offset: ${last + 1}, limit: ${limit}) continues from there]`
+}
+
+function overCapWords(file: TextFile): string {
+  const note = file.overCap!
+  const shown = `${windowSpan(file)} of ${file.totalLines} ${file.numLines === 1 ? 'is below and counts as read' : 'are below and count as read'}`
   return (
     `File content (${note.tokens} tokens) exceeds maximum allowed tokens (${note.maxTokens}): ${shown}; ` +
     overCapNextWords(note.next)

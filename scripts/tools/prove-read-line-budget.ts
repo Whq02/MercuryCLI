@@ -52,7 +52,7 @@ try {
     const detail = JSON.stringify({ error: result?.isError, chars: result?.text.length, rowLengths: content.slice(0, 3).map(line => line.length), lead: result?.text.slice(0, 240) })
     tally.check(`${entry.label}: text rows are returned`, result !== undefined && !result.isError && rows.length > 0, detail)
     tally.check(`${entry.label}: oversized rows are clipped and marked`, content.length > 0 && content.every(line => line.length <= 2050) && content[0]!.includes('truncated') && !(result?.text.includes('sixty-end') || result?.text.includes('two-hundred-end')), detail)
-    tally.check(`${entry.label}: the returned text stays within the output budget`, result !== undefined && result.text.length <= 101_000, detail)
+    tally.check(`${entry.label}: the returned text stays within the output budget`, result !== undefined && result.text.length <= 101_100, detail)
     if (entry.line_anchors) {
       const raw = entry.offset === 2 ? twoHundred : sixty
       const hash = createHash('sha256').update(raw).digest('hex').slice(0, 4)
