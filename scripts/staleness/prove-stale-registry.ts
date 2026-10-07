@@ -200,8 +200,6 @@ src/state/telemetryBus.ts :: snapshots :: subscription-fed
 src/substrate/startupMenu.ts :: admissionSnapshot :: static-for-process
 src/tasks/taskOutcomeEnvelope.ts :: cacheBySession :: invalidator=recordTaskOutcome
 src/tools/AgentTool/loadAgentsDir.ts :: definitionsCache :: invalidator=clearAgentDefinitionsCache
-src/tools/BashTool/readOnlyValidation.ts :: allowlistCache :: static-for-process
-src/tools/BashTool/readOnlyValidation.ts :: listedWordsCache :: keyed-by-truth
 src/tools/FileReadTool/limits.ts :: getDefaultFileReadingLimits :: static-for-process
 src/tools/SkillTool/prompt.ts :: promptForRoot :: keyed-by-truth
 src/tools/SyntheticOutputTool/SyntheticOutputTool.ts :: schemaBoundCache :: keyed-by-truth
