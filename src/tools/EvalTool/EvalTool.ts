@@ -23,12 +23,8 @@ import {
 } from './UI.js'
 
 const inputSchema = () => {
-  const available = evalAvailability(getCwd())
-    .filter(a => a.available)
-    .map(a => a.language)
-  const languages = (available.length > 0 ? available : ['py', 'js']) as [EvalLanguage, ...EvalLanguage[]]
   return z.strictObject({
-    language: z.enum(languages).describe('The retained runtime this cell runs in.'),
+    language: z.enum(['py', 'js']).describe('The retained runtime this cell runs in.'),
     code: z.string().min(1).describe('The cell source. State persists to your next cell in this language.'),
     title: z.string().optional().describe('Short human title for the cell card.'),
     timeoutSeconds: z

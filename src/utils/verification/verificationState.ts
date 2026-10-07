@@ -62,6 +62,7 @@ interface OwnerVerificationState {
   sessionRecords: EvidenceRecord[]
   persistedLoaded: boolean
   pendingReadBack: Set<string>
+  unreadChanges: Set<string>
   pendingUnknownMutation: boolean
   evidenceDemands: number
 }
@@ -74,6 +75,7 @@ const ownerStates = new OwnerScopedStore<OwnerVerificationState>({
     sessionRecords: [],
     persistedLoaded: false,
     pendingReadBack: new Set(),
+    unreadChanges: new Set(),
     pendingUnknownMutation: false,
     evidenceDemands: 0,
   }),
@@ -755,6 +757,7 @@ export function markMutation(
   state.mutationSeq++
   state.lastMutationAt = Date.now()
   if (changedPaths && changedPaths.length > 0) {
+    for (const p of changedPaths) state.unreadChanges.add(canonicalEvidencePath(p))
     if (!opts?.digestReceipted) {
       for (const p of changedPaths) state.pendingReadBack.add(canonicalEvidencePath(p))
     }
@@ -868,9 +871,10 @@ export function workspaceVerifiable(cwd: string, owner?: OwnerKey): boolean {
 function noteReadBack(cwd: string, filePath: string, owner?: OwnerKey): void {
   const state = ownerStates.get(effectiveOwner(owner))
   const abs = canonicalEvidencePath(filePath)
-  if (!state.pendingReadBack.delete(abs)) return
+  state.pendingReadBack.delete(abs)
+  if (!state.unreadChanges.delete(abs)) return
   if (
-    state.pendingReadBack.size === 0 &&
+    state.unreadChanges.size === 0 &&
     !state.pendingUnknownMutation &&
     state.mutationSeq > (state.sessionRecords.at(-1)?.seq ?? 0) &&
     !workspaceVerifiable(cwd, owner)
@@ -1026,6 +1030,7 @@ export function classifyVerifySegment(
     return { scope: verbScope(npm[2]), coverage: `${npm[1].toLowerCase()} ${npm[2].toLowerCase()}` }
   }
   if (/\bpytest\b/i.test(c)) return { scope: 'test', coverage: 'pytest' }
+  if (/(?:^|\s)(?:python(?:3(?:\.\d+)?)?|py)(?:\.exe)?\s+(?:-3(?:\.\d+)?\s+)?-m\s+unittest(?:\s|$)/i.test(c)) return { scope: 'test', coverage: 'python unittest' }
   if (/\bpython3?\s+\S*test/i.test(c)) return { scope: 'test', coverage: 'python test run' }
   if (/\bgo\s+test\b/i.test(c)) return { scope: 'test', coverage: 'go test' }
   const cargo = c.match(/\bcargo\s+(test|build|check)\b/i)
@@ -1147,6 +1152,7 @@ export function recordEvidence(
   }
   if (e.ok) state.evidenceDemands = 0
   state.pendingReadBack.clear()
+  state.unreadChanges.clear()
   state.pendingUnknownMutation = false
   state.sessionRecords.push(record)
   if (state.sessionRecords.length > MAX_RECORDS) {

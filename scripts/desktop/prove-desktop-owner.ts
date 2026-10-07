@@ -36,6 +36,7 @@ interface StubAnswers {
   throws?: Record<string, string>
   abort?: string[]
   ownedWindowFile?: string
+  frontmostFile?: string
 }
 
 type Calls = Record<string, number>
@@ -55,7 +56,9 @@ function stubSource(answers: StubAnswers, exports: readonly string[]): string {
     `  requestPermissions: () => { count('requestPermissions'); return ${permissions} },`,
     "  displays: () => { count('displays'); return { displays: [{ index: 0, id: 'fixture-1', originX: 0, originY: 0, width: 1440, height: 900, scale: 2, primary: true }, { index: 1, id: 'fixture-2', originX: -1920, originY: 0, width: 1920, height: 1080, scale: 1, primary: false }], reason: null } },",
     "  capture: async () => { count('capture'); return { png: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]), width: 2880, height: 1800, scale: 2, display: 0, displayId: 'fixture-1', originX: 0, originY: 0, capturedAt: 1 } },",
-    "  frontmostApplication: () => { count('frontmostApplication'); return { identity: 'com.example.editor', name: 'Editor', pid: 4242, title: 'Untitled', bounds: { x: 100, y: 100, width: 800, height: 600 }, reason: null } },",
+    answers.frontmostFile === undefined
+      ? "  frontmostApplication: () => { count('frontmostApplication'); return { identity: 'com.example.editor', name: 'Editor', pid: 4242, title: 'Untitled', bounds: { x: 100, y: 100, width: 800, height: 600 }, reason: null } },"
+      : `  frontmostApplication: () => { count('frontmostApplication'); return globalThis.__frontmostCache ??= JSON.parse(require('node:fs').readFileSync(${JSON.stringify(answers.frontmostFile)}, 'utf8')) },`,
     answers.ownedWindowFile === undefined
       ? "  ownTerminalApplication: () => { count('ownTerminalApplication'); return { identity: null, name: null, pid: null, title: null, bounds: null, reason: 'fixture: no terminal' } },"
       : `  ownTerminalApplication: (identity, tty) => { count('ownTerminalApplication'); if (!identity || !tty) return { identity: null }; const fs = require('node:fs'); fs.appendFileSync(${JSON.stringify(`${answers.ownedWindowFile}.calls`)}, tty + '\\n'); const answer = JSON.parse(fs.readFileSync(${JSON.stringify(answers.ownedWindowFile)}, 'utf8')); if (answer.delayMs) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, answer.delayMs); return { identity, name: 'Terminal', tty, windowId: answer.windowId, bounds: null } },`,
@@ -397,6 +400,26 @@ console.log('\n[13] a daemon worker reads the cockpit terminal, never the daemon
     if (previousTerm === undefined) delete process.env.TERM_PROGRAM
     else process.env.TERM_PROGRAM = previousTerm
   }
+}
+
+if (process.platform === 'darwin') {
+  const frontFile = join(SCRATCH, 'frontmost.json')
+  const terminal = { identity: 'com.apple.Terminal', name: 'Terminal', bounds: null }
+  writeFileSync(frontFile, JSON.stringify(terminal))
+  usePack(fixturePack({ answers: { frontmostFile: frontFile } }))
+  const resolved = native.resolveNativeDesktopDriver()
+  if (resolved.state !== 'ok') check('the cached application fixture resolves', false, resolved.note)
+  else {
+    const first = await resolved.driver.frontmostApplication()
+    check('the first application is Terminal', first.ok && first.value.identity === terminal.identity, JSON.stringify(first))
+    writeFileSync(frontFile, JSON.stringify({ identity: 'com.apple.calculator', name: 'Calculator', bounds: null }))
+    const next = await resolved.driver.frontmostApplication()
+    check('a changed front application is read afresh despite the worker application cache', next.ok && next.value.identity === 'com.apple.calculator', JSON.stringify(next))
+    writeFileSync(frontFile, 'invalid fixture answer')
+    const broken = await resolved.driver.frontmostApplication()
+    check('a failed fresh query refuses instead of reusing the cached application', !broken.ok, JSON.stringify(broken))
+  }
+  delete (globalThis as Record<string, unknown>).__frontmostCache
 }
 
 process.stderr.write = realWrite

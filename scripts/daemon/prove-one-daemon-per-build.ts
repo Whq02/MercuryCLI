@@ -257,7 +257,8 @@ try {
   check('the pointers now name Y and the X folder is untouched', realpathSync(join(runtime, 'current')) === Y && realpathSync(join(runtime, 'dist')) === Y && existsSync(join(X, 'mercury.mjs')))
   check('A is still alive after the switch', isProcessAlive(Apid))
 
-  section('§3 a session born after the install lands on the daemon of build Y (started by the product road)')
+  section('§3 a newer-version screen moves new sessions to build Y through the product road')
+  ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '9.9.9-beta.1' }
   process.argv[1] = join(Y, 'mercury.mjs')
   const hs = await import('../../src/daemon/handshake.ts')
   hs.resetDaemonHandshakeForTesting()

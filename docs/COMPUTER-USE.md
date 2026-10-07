@@ -172,6 +172,10 @@ separate helper with a 1000 ms deadline. `MERCURY_DESKTOP_OWNER_TIMEOUT_MS`
 accepts 1–5000 ms; an invalid value keeps the default. A failed or timed-out
 lookup keeps the application-wide guard and does not block the event loop.
 
+On macOS, each front-application check runs in a fresh native helper, so a
+long-lived worker does not reuse an application cached before you switched
+apps. A failed query refuses rather than reusing the previous answer.
+
 The front window comes from the Accessibility API, not the first window in
 the screen list, which may be a fullscreen title panel. Mercury resolves
 the private `_AXUIElementGetWindow` symbol at runtime. If it is unavailable,

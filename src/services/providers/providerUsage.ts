@@ -849,6 +849,9 @@ export function anthropicExtraUsageCredits(reads?: ActiveUsageReads): UsageCredi
   const stamp = { source: record.source, observedAtMs: record.observedAtMs, freshForMs: usageStaleAfterMs() }
   if (!record.stated) return { state: 'unreported', reason: EXTRA_USAGE_UNSTATED_WORDS, compact: 'not stated', ...stamp }
   if (!record.enabled) {
+    if (record.disabledReason === 'org_level_disabled_until') {
+      return { state: 'unreported', reason: 'Extra usage is temporarily disabled by your organisation. Included plan usage continues within its limits.', compact: 'extra off', ...stamp }
+    }
     const why = record.disabledReason !== undefined ? ` — ${record.disabledReason.replace(/_/g, ' ')}` : ''
     return { state: 'unreported', reason: `${EXTRA_USAGE_OFF_WORDS}${why}`, compact: 'extra off', ...stamp }
   }
@@ -868,6 +871,7 @@ function extraUsageFigure(record: AnthropicExtraUsageRecord, used: AnthropicMone
 }
 
 function extraUsageReasonWords(reason: string | undefined): string {
+  if (reason === 'org_level_disabled_until') return ' (temporarily disabled by your organisation)'
   return reason !== undefined && reason !== '' ? ` (${reason.replace(/_/g, ' ')})` : ''
 }
 

@@ -303,7 +303,21 @@ class NativeDesktopDriver implements DesktopDriver {
     const closed = this.closedRefusal<DesktopApplication>()
     if (closed !== null) return closed
     try {
-      const raw = this.addon.frontmostApplication()
+      const raw = process.platform === 'darwin'
+        ? await new Promise<DesktopAddonApplication>((resolve, reject) => {
+            const args = ['-e', 'const a=require(process.argv[1]); process.stdout.write(JSON.stringify(a.frontmostApplication()))', this.addonPath]
+            execFile(process.execPath, args, { timeout: 5000, killSignal: 'SIGKILL', windowsHide: true, env: subprocessEnv(), maxBuffer: 64 * 1024, encoding: 'utf8' }, (error, stdout) => {
+              if (error) return reject(new Error('the frontmost application could not be read from macOS — no cached application was used'))
+              try {
+                const answer: unknown = JSON.parse(stdout)
+                if (answer === null || typeof answer !== 'object') return reject(new Error('macOS returned no application record'))
+                resolve(answer as DesktopAddonApplication)
+              } catch {
+                reject(new Error('the frontmost application query returned an unreadable record'))
+              }
+            })
+          })
+        : this.addon.frontmostApplication()
       if (typeof raw.identity !== 'string' || raw.identity === '') return fail({ kind: 'display', note: raw.reason ?? 'no frontmost application' })
       return { ok: true, value: application(raw, raw.identity) }
     } catch (error) {
