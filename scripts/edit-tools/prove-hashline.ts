@@ -707,9 +707,11 @@ section('N. read-free chaining (the success answer)')
     },
     ctxD,
   )
+  const plainClose = 'Checking this edit needs no Read; Read only lines this result does not show.'
   check(
     'N4 plain hunks keep the plain result text exactly, with no fresh-anchor block',
-    n4.ok && n4.ok === true && n4.text === `The file ${fileD} has been updated successfully. ${APPLIED_NO_REREAD_NOTE}` && !n4.text.includes('fresh anchors'),
+    n4.ok && n4.ok === true && n4.text === `The file ${fileD} has been updated successfully: 1 hunk applied; changed line 2 (the file has 2 lines).\nThe whole file as read back right after the write; it counts as read:\n1\tone\n2\tTWO\n(anchor: ${mintFileAnchor('one\nTWO\n')})\n${plainClose}` && !n4.text.includes('fresh anchors') && !n4.text.includes(APPLIED_NO_REREAD_NOTE),
+    n4.ok ? n4.text : JSON.stringify(n4),
   )
 
   const fileE = join(fixtures, 'exact.txt')
@@ -719,7 +721,8 @@ section('N. read-free chaining (the success answer)')
   const n5 = await editViaTool({ file_path: fileE, old_string: 'two', new_string: 'TWO' }, ctxE)
   check(
     'N5 the exact-string result text is byte-identical to the plain surface',
-    n5.ok && n5.ok === true && n5.text === `The file ${fileE} has been updated successfully. ${APPLIED_NO_REREAD_NOTE}`,
+    n5.ok && n5.ok === true && n5.text === `The file ${fileE} has been updated successfully: 1 occurrence replaced; changed line 2 (the file has 2 lines).\nThe whole file as read back right after the write; it counts as read:\n1\tone\n2\tTWO\n(anchor: ${mintFileAnchor('one\nTWO\n')})\n${plainClose}` && !n5.text.includes(APPLIED_NO_REREAD_NOTE),
+    n5.ok ? n5.text : JSON.stringify(n5),
   )
 }
 
