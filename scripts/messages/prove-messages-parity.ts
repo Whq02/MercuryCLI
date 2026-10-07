@@ -377,9 +377,6 @@ add('createToolResultStopMessage', 'basic', () =>
 add('createSystemMessage', 'basic', () =>
   snapSafe(() => M.createSystemMessage('note', 'info')),
 );
-add('createPermissionRetryMessage', 'basic', () =>
-  M.createPermissionRetryMessage(['npm test', 'git status']),
-);
 add('createStreamCutMessage', 'basic', () =>
   M.createStreamCutMessage({ count: 1, content: 'OpenAI ended the stream after partial content — terminated (read-failed); asked the model to continue from where it stopped (continuation 1 of 1)', road: 'OpenAI', sent: 'terminated', code: 'read-failed' }),
 );

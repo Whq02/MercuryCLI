@@ -119,7 +119,6 @@ export {
   createCompactBoundaryMessage,
   createMemorySavedMessage,
   createMicrocompactBoundaryMessage,
-  createPermissionRetryMessage,
   createScheduledTaskFireMessage,
   createStopHookSummaryMessage,
   createSystemAPIErrorMessage,

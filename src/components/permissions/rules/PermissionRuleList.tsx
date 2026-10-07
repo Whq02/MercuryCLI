@@ -12,7 +12,6 @@ import { useExitOnCtrlCDWithKeybindings } from '../../../hooks/useExitOnCtrlCDWi
 import { useSearchInput } from '../../../hooks/useSearchInput.js'
 import { useTerminalFocus } from '../../../ink.js'
 import { useAppState, useSetAppState } from '../../../state/AppState.js'
-import { plural } from '../../../utils/stringUtils.js'
 import {
   getAllowRules,
   getAskRules,
@@ -21,7 +20,6 @@ import {
 } from '../../../utils/permissions/decision/rules.js'
 import { deletePermissionRule } from '../../../utils/permissions/permissions.js'
 import { permissionRuleValueToString } from '../../../utils/permissions/permissionRuleParser.js'
-import { getAutoModeDenials } from '../../../utils/autoModeDenials.js'
 import type { ToolPermissionContext } from '../../../Tool.js'
 import type { LocalJSXCommandOnDone } from '../../../types/command.js'
 import type {
@@ -33,9 +31,8 @@ import type { UnreachableRule } from '../../../utils/permissions/shadowedRuleDet
 import { AddPermissionRules } from './AddPermissionRules.js'
 import { PermissionRuleDescription } from './PermissionRuleDescription.js'
 import { PermissionRuleInput } from './PermissionRuleInput.js'
-import { RecentDenialsTab, type RecentDenialsState } from './RecentDenialsTab.js'
 
-type TabId = 'recent' | 'allow' | 'ask' | 'deny'
+type TabId = 'allow' | 'ask' | 'deny'
 const RULE_TABS: Record<'allow' | 'ask' | 'deny', PermissionBehavior> = {
   allow: 'allow',
   ask: 'ask',
@@ -51,7 +48,6 @@ type SubDialog =
 export type PermissionRuleListProps = {
   onExit: LocalJSXCommandOnDone
   initialTab?: TabId
-  onRetryDenials?: (commands: string[]) => void
 }
 
 const BEHAVIOR_ADJECTIVE: Record<PermissionBehavior, string> = {
@@ -215,23 +211,16 @@ function RuleDetail({
 export function PermissionRuleList({
   onExit,
   initialTab,
-  onRetryDenials,
 }: PermissionRuleListProps): React.ReactNode {
   const setAppState = useSetAppState()
   const toolPermissionContext = useAppState(state => state.toolPermissionContext)
   const isTerminalFocused = useTerminalFocus()
   const pendingExit = useExitOnCtrlCDWithKeybindings()
 
-  const [hasDenials] = useState(() => getAutoModeDenials().length > 0)
-  const defaultTab: TabId = initialTab ?? (hasDenials ? 'recent' : 'allow')
+  const defaultTab: TabId = initialTab ?? 'allow'
   const [selectedTab, setSelectedTab] = useState<TabId>(defaultTab)
   const [subDialog, setSubDialog] = useState<SubDialog | null>(null)
   const [changeLog, setChangeLog] = useState<string[]>([])
-  const [denialsState, setDenialsState] = useState<RecentDenialsState>({
-    approved: new Set(),
-    retryMarked: new Set(),
-    denials: [],
-  })
   const [headerFocused, setHeaderFocused] = useState(false)
   const [listFocusValue, setListFocusValue] = useState<string | undefined>(undefined)
   void listFocusValue
@@ -259,32 +248,8 @@ export function PermissionRuleList({
 
   const exitManager = useCallback(
     (_flavor: 'default') => {
-      const retryDisplays = [...denialsState.retryMarked]
-        .sort((a, b) => a - b)
-        .map(index => denialsState.denials[index]?.display ?? '')
-        .filter(display => display !== '')
-      if (retryDisplays.length > 0) {
-        onRetryDenials?.(retryDisplays)
-        onExit(undefined, {
-          shouldQuery: true,
-          metaMessages: [
-            `Permission was granted for ${plural(retryDisplays.length, 'command')} ${retryDisplays.join(', ')} — retry ${retryDisplays.length === 1 ? 'it' : 'them'} now.`,
-          ],
-        })
-        return
-      }
-      const approvedDisplays = [...denialsState.approved]
-        .sort((a, b) => a - b)
-        .map(index => denialsState.denials[index]?.display ?? '')
-        .filter(display => display !== '')
-      if (approvedDisplays.length > 0 || changeLog.length > 0) {
-        const lines = [
-          ...(approvedDisplays.length > 0
-            ? [`Approved: ${approvedDisplays.map(display => chalk.bold(display)).join(', ')}`]
-            : []),
-          ...changeLog,
-        ]
-        onExit(lines.join('\n'))
+      if (changeLog.length > 0) {
+        onExit(changeLog.join('\n'))
         return
       }
       onExit(
@@ -292,7 +257,7 @@ export function PermissionRuleList({
         { display: 'system' },
       )
     },
-    [denialsState, changeLog, onExit, onRetryDenials],
+    [changeLog, onExit],
   )
 
   useKeybinding('confirm:no', () => exitManager('default'), {
@@ -408,8 +373,6 @@ export function PermissionRuleList({
     footer = '←→ switch tabs · ↓ content · esc cancel'
   } else if (searchMode) {
     footer = 'type to filter · ↵/↓ select · ↑ tabs · esc clear'
-  } else if (defaultTab === 'recent') {
-    footer = '↵ approve · r retry · ↑↓ navigate · ←→ switch · esc cancel'
   } else {
     footer = '↑↓ navigate · ↵ select · type to search · ←→ switch · esc cancel'
   }
@@ -423,15 +386,9 @@ export function PermissionRuleList({
         defaultTab={defaultTab}
         selectedTab={selectedTab}
         onTabChange={id => setSelectedTab(id as TabId)}
-        initialHeaderFocused={!hasDenials}
+        initialHeaderFocused
         navFromContent={!searchMode}
       >
-        <Tab title="Recently denied" id="recent">
-          <RecentDenialsTab
-            onStateChange={setDenialsState}
-            onHeaderFocusChange={setHeaderFocused}
-          />
-        </Tab>
         <Tab title="Allow" id="allow">
           {renderRulesTab('allow')}
         </Tab>
