@@ -3118,7 +3118,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         },
         {
           id: 'lsp',
-          label: 'IDE-hands (LSP)',
+          label: 'IDE-hands (LspRead)',
           run: async () => {
             if (!mercuryLspEnabled()) {
               return {

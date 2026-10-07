@@ -180,7 +180,7 @@ const { createLSPServerInstance } = await import('../../src/services/lsp/LSPServ
 console.log('— O. capabilities + rawRequest —')
 const { runMercuryLspOp } = await import('../../src/tools/LSPTool/mercuryOps.js')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { LSPTool } = await import('../../src/tools/LSPTool/LSPTool.js')
+const { LspReadTool, LspRequestTool } = await import('../../src/tools/LSPTool/LSPTool.js')
 {
   const permCtx = {
     ...getEmptyToolPermissionContext(),
@@ -203,15 +203,15 @@ const { LSPTool } = await import('../../src/tools/LSPTool/LSPTool.js')
   const caps = await runMercuryLspOp(envFor({ operation: 'capabilities', filePath: rsFile }))
   check('capabilities dumps the claimant advertisement', /capabilities for/.test(caps.result) && caps.effect.outcome !== 'failed', caps.result.slice(0, 120))
   const refused = await runMercuryLspOp(envFor({ operation: 'rawRequest', filePath: rsFile, method: 'workspace/executeCommand', params: '{}' }))
-  check('rawRequest refuses the edit-class method by name', refused.effect.outcome === 'failed' && /edit-class/.test(refused.result) && /codeActions/.test(refused.result), refused.result.slice(0, 160))
+  check('rawRequest refuses the edit-class method by name', refused.effect.outcome === 'failed' && /edit-class/.test(refused.result) && /LspCodeAction/.test(refused.result), refused.result.slice(0, 160))
   const renameRefused = await runMercuryLspOp(envFor({ operation: 'rawRequest', filePath: rsFile, method: 'textDocument/rename', params: '{}' }))
-  check('rawRequest points rename at the typed op', renameRefused.effect.outcome === 'failed' && /rename operation/.test(renameRefused.result), renameRefused.result.slice(0, 160))
+  check('rawRequest points rename at the typed op', renameRefused.effect.outcome === 'failed' && /LspRename/.test(renameRefused.result), renameRefused.result.slice(0, 160))
   const raw = await runMercuryLspOp(envFor({ operation: 'rawRequest', filePath: rsFile, method: 'textDocument/documentHighlight', params: JSON.stringify({ textDocument: { uri: 'file://' + rsFile }, position: { line: 0, character: 0 } }) }))
   check('a non-edit method answers raw (nothing applied)', raw.effect.outcome === 'succeeded' && /nothing was applied/.test(raw.result), raw.result.slice(0, 160))
   const badJson = await runMercuryLspOp(envFor({ operation: 'rawRequest', filePath: rsFile, method: 'textDocument/documentHighlight', params: '{nope' }))
   check('malformed params JSON refuses typed', badJson.effect.outcome === 'failed' && /not valid JSON/.test(badJson.result))
-  check('rawRequest is write-classed unconditionally', LSPTool.isReadOnly({ operation: 'rawRequest', filePath: rsFile, method: 'x' } as never) === false)
-  check('capabilities stays read-only', LSPTool.isReadOnly({ operation: 'capabilities', filePath: rsFile } as never) === true)
+  check('rawRequest is write-classed unconditionally', LspRequestTool.isReadOnly({ filePath: rsFile, method: 'x' } as never) === false)
+  check('the serverStatus read stays read-only', LspReadTool.isReadOnly({ operation: 'serverStatus', filePath: rsFile } as never) === true)
 }
 
 await mgrModule.shutdownLspServerManager()

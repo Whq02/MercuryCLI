@@ -3,6 +3,7 @@ import {
   mcpInfoFromString,
 } from '../../../services/mcp/mcpStringUtils.js'
 import type { Tool, ToolPermissionContext } from '../../../Tool.js'
+import { lspFamilyMatches } from '../../../services/lsp/toolFamily.js'
 import {
   getSettingSourceDisplayNameLowercase,
   SETTING_SOURCES,
@@ -128,7 +129,7 @@ function toolMatchesRule(
 
   const nameForRuleMatch = getToolNameForPermissionCheck(tool)
 
-  if (rule.ruleValue.toolName === nameForRuleMatch || RULE_INHERITS[nameForRuleMatch]?.includes(rule.ruleValue.toolName)) {
+  if (rule.ruleValue.toolName === nameForRuleMatch || RULE_INHERITS[nameForRuleMatch]?.includes(rule.ruleValue.toolName) || lspFamilyMatches(rule.ruleValue.toolName, nameForRuleMatch)) {
     return true
   }
 

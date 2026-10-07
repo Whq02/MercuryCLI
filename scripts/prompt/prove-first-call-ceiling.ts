@@ -11,8 +11,8 @@ const dist = join(root, 'dist', 'mercury.mjs')
 const vendoredNode = join(root, 'dist', 'vendor', 'node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
 const node = existsSync(vendoredNode) ? vendoredNode : Bun.which('node') ?? 'node'
 const rare = ['Service', 'Inspect', 'Sleep']
-const loadedInFull = ['ChangeSet', 'AstSearch', 'LSP']
-const deferredNow = ['AstEdit', 'Test', 'Git', 'Debug', 'Monitor', 'Checkpoint', 'Rewind', 'Workshop']
+const loadedInFull = ['ChangeSet', 'AstSearch', 'LspRead']
+const deferredNow = ['AstEdit', 'Test', 'Git', 'Debug', 'Monitor', 'Checkpoint', 'Rewind', 'Workshop', 'LspRename', 'LspMoveSymbol', 'LspMoveFile', 'LspCodeAction', 'LspFormat', 'LspRequest']
 const announces = (text: string, name: string): boolean => text.split('\n').some(line => line === name || line.startsWith(`${name} — `))
 let failures = 0
 function check(label: string, condition: boolean, detail = ''): void {

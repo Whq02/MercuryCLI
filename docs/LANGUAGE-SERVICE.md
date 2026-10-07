@@ -1,150 +1,170 @@
-# The language service — the LSP tool and its refactors
+# The language service — questions and refactors
 
-Mercury's `LSP` tool speaks to the language servers of the workspace: the
-built-in TypeScript and JavaScript sidecar (`mercury-ts`, driving the
-project's own `typescript` package), the built-in Python, C/C++, GDScript
-and C# lanes, and any server an extension or `MERCURY_LSP_SERVERS` adds.
-The read operations answer symbol questions from the compiler's knowledge —
-definitions, references, hover, symbols, call hierarchy, diagnostics. The
-write operations described here refactor with that knowledge instead of
-text search: a rename touches every reference the compiler sees and nothing
-else; a move rewrites every import; a code action lands the exact edit the
-service computed. Every write goes through Mercury's one edit road — the
-same permissions, the same journaled commit walk with drift detection, the
-same file-history snapshot for `/rewind`, the same change receipt, the same
-read-before-edit law as the Edit tool.
+Mercury speaks to the workspace's language servers: the built-in TypeScript
+and JavaScript sidecar (`mercury-ts`, using the project's own `typescript`
+package), the Python, C/C++, GDScript and C# lanes, and any server an extension
+or `MERCURY_LSP_SERVERS` adds.
 
-On cloud models the tool is loaded in full whenever a language server is
-reachable, including one-shot and daemon-hosted sessions. Discovery reads
-local configurations, installed binaries and the bundled TypeScript and
-Python servers; the server processes start lazily when needed.
-`MERCURY_LSP=0` and `--lean` keep it off. Local runners keep their existing
-tool set and do not start this discovery. A server found after a
-conversation's first request joins at the next compaction or `/clear`.
+`LspRead` asks those servers about definitions, references, types,
+documentation, callers, callees, symbols, diagnostics and server status. It
+only reads. On cloud models its definition loads in full when a server is
+configured, even if that server is unhealthy; `serverStatus` can explain the
+failure. Local routes discover it through ToolSearch.
 
-## Diagnostics and failures
+Six other tools are loaded through ToolSearch when needed:
 
-A diagnostics result says whether a server checked the files. A server that
-failed to start, did not answer or cannot claim the file is not a clean
-report: the result names the cause and what to fix. After three failures of
-the same operation with the same arguments, Mercury refuses that call for
-the session. A server that repeatedly fails is held back too. Resolve the
-reported setup problem before asking for the operation again; a failed
-check is not evidence that the project has no diagnostics.
+| Tool | What it does |
+| --- | --- |
+| `LspRename` | Rename a symbol and every reference to it |
+| `LspMoveSymbol` | Move a top-level declaration and rewrite its imports |
+| `LspMoveFile` | Move a file or directory and update its imports |
+| `LspCodeAction` | List, preview and apply fixes, refactors and source actions |
+| `LspFormat` | Format a file or whole-line range, or organize imports |
+| `LspRequest` | Send a raw protocol request; its answer is never applied |
 
-## Two calls, always: the dry run, then the apply
+For example, ToolSearch with `{"query":"select:LspRename"}` loads the rename
+tool's description and schema. The writing tools have no `operation` field;
+their required arguments are part of their own schemas.
 
-Every write operation is a dry run until `apply: true` is passed.
+Discovery reads local configurations, installed binaries and bundled servers;
+server processes start lazily. `MERCURY_LSP=0` and `--lean` leave all seven tools
+out. A configured server that fails remains visible through `LspRead`.
 
-- **The dry run** (apply omitted) returns the edits as data — for each edit
-  the file, the 1-based range (`start` and `end` line and character), the
-  text before and the text after — both as rows in the result text
-  (`file — N edits`, then `:line:col-line:col  before → after`) and as the
-  `edits` field of the tool output. It also prints a **plan token**
-  (`plan: lsp-…`), a digest of the exact edit set over the exact bytes it
-  was computed against. Nothing is written.
-- **The apply** (`apply: true`) recomputes the edits against the current
-  files and writes them through the edit road:
-  - with `plan`, it writes exactly the previewed set and refuses if any
-    touched file changed since that dry run (the token no longer matches);
-  - without `plan`, it writes only files this session has read as they
-    stand now — a full Read whose content matches, a windowed Read covering
-    the touched lines, or lines shown by a content search. A touched file
-    the session has not read refuses the whole apply, names the files and
-    their lines, and points at the dry-run road.
-- After an apply the read state of every written file is refreshed, the
-  editor is notified, the servers are re-synced, and the result names the
-  post-apply diagnostics.
+## Questions and diagnostics
 
-A refused apply writes nothing: the commit walk revalidates every file's
-bytes under a lock before the first rename and aborts on drift.
+Positions use the 1-based `line` and `character` that Read shows.
 
-## rename — a symbol across the workspace
+- `goToDefinition`, `findReferences`, `hover`, `goToImplementation`,
+  `typeDefinition`, `incomingCalls` and `outgoingCalls` take `filePath`, `line`
+  and `character`.
+- `documentSymbol` takes `filePath`.
+- `workspaceSymbol` takes `query`, optionally `limit` (default 50, at most 200)
+  and `filePath` to choose a language server.
+- `diagnostics` takes `filePath` for one file, or `paths` for up to 50 files or
+  directories. Directories expand to files covered by configured servers.
+- `serverStatus` lists each server's state, restarts, last error and capabilities;
+  optional `filePath` marks the server that covers it.
 
-`rename` at a position (`filePath`, `line`, `character`, `newName`) asks the
-service for every rename location: the declaration, imports and re-exports
-(a barrel's `export { x } from`), JSX tags and attributes, JavaScript files in
-the same project. A comment or a string that happens to contain the name is
-never a reference.
+An advertised argument an operation does not read is ignored. Every named
+read path takes the ordinary read-permission check.
 
-Before the edits are offered, the TypeScript sidecar checks the rename with
-the compiler:
+A diagnostics result says whether a server checked the files. A failed start,
+an unanswered request or an uncovered file is not a clean report: the answer
+names the cause and what helps. No symbols found is an answer, not a failure.
 
-- the new name must be an identifier and not a reserved word;
-- the renamed text is applied to overlays and the touched files are
-  re-checked: any new error refuses the rename with the compiler's message
-  and its position (`would collide — src/app.ts:1:25: Import declaration
-  conflicts with local declaration of 'makeBanner'`);
-- a renamed occurrence that would bind to another symbol of the new name,
-  or an existing use of the new name that would rebind to the renamed
-  symbol (`would change what 'loudness' at src/core/greeting.ts:14:71
-  refers to`), refuses it too.
+After three consecutive server faults for the same call in the same situation,
+Mercury pauses that call. A changed named file or server state sends it again
+at once; otherwise the answer gives the retry time. The pause starts at 60
+seconds after the third failure and grows to at most five minutes. Argument,
+path and apply refusals do not count, nor does an interruption. A successful,
+unchanged or indeterminate answer clears the call's fault count.
 
-A rename the service itself refuses (a library symbol, an unresolved
-identifier) is refused with the service's reason.
+A failed server start has its own 15-second to five-minute backoff. Calls during
+that backoff do not count as new starts or extend it. An explicit restart or
+`/extensions reload` allows a fresh start.
 
-Example: `{ "operation": "rename", "filePath": "/repo/src/core/greeting.ts",
-"line": 8, "character": 17, "newName": "craftGreeting" }` returns eleven
-rows across six files and `plan: lsp-ccf119fe9962`; the same call with
-`"apply": true, "plan": "lsp-ccf119fe9962"` writes them.
+## Preview, then apply
 
-## moveSymbol — a declaration to another file
+`LspRename`, `LspMoveSymbol`, `LspMoveFile`, `LspCodeAction` and `LspFormat`
+preview until `apply: true` is passed.
 
-`moveSymbol` (`filePath`, `line`, `character` on the declaration's name,
-`targetPath`) moves a top-level function, class, interface, type, enum or
-variable declaration to another file — created when it does not exist,
-appended to when it does — with every import rewritten by the compiler: the
-source file imports what it still uses, every importer of the moved symbol
-points at the new module. The dry run shows the removal, the new file's
-content (`(new file)` rows start from nothing) and every import edit; the
-apply creates the target inside the same transaction as the edits.
+- The preview writes nothing. It lists each edit's file, 1-based range and
+  before/after text, with up to 40 edits per file and any omitted edits counted.
+  The output also carries the edit rows and a `plan: lsp-…` token for the exact
+  edit set.
+- With `apply: true` and `plan`, the tool writes exactly the previewed edits.
+  A touched file changed since the preview refuses the whole apply.
+- Without `plan`, apply requires current read knowledge covering every touched
+  line of every edited file. A missing or stale read refuses the whole apply
+  and names the files and lines to read.
+- The same permissions, journaled commit walk, drift checks, file-history
+  snapshots and change receipts as Edit protect the writes. After writing,
+  read state is refreshed, servers are synchronized and diagnostics reported.
 
-Refused by name: a position inside a body (point at the declaration's
-name), a statement that is not a declaration, a target that is the source,
-a directory, or a file of another language. TypeScript and JavaScript only;
-another lane's server answers that it does not offer a symbol move.
+A refused apply writes nothing. A file move whose server offers no import
+updates previews that fact; it may then move the path without an edit token.
 
-## pathRename — a file or directory with its imports
+## LspRename — a symbol across the workspace
 
-`pathRename` (`filePath`, `newPath`) asks every server that claims the file
-for the import-updating edits of the move (`workspace/willRenameFiles`),
-previews them with a plan token, and applies the edits and the move as one
-transaction. A directory move claims through the extensions of the files it
-contains.
+Pass `filePath`, `line`, `character` and `newName`, pointing at any occurrence
+of the name. The server includes declarations, imports, re-exports, JSX tags
+and attributes, and JavaScript references in the same project. A comment or
+string containing the name is not a reference.
 
-## codeActions — quickfixes, refactors and source actions by kind
+The TypeScript sidecar checks the proposed name and refuses a reserved word,
+a collision, a captured binding or a rename the language service itself
+rejects. The answer carries the reason and position.
 
-`codeActions` at a position or range lists what the service offers, each
-with a stable id (`ca-…`) derived from what the action is, never from its
-position in the list.
+Example: `LspRename {"filePath":"/repo/src/core/greeting.ts","line":8,
+"character":17,"newName":"craftGreeting"}` previews. Repeat those arguments
+with `"apply":true` and the returned `plan` to write them.
 
-- `kind` filters the list: `quickfix`, `refactor` (or a sub-kind such as
-  `refactor.extract`), and the whole-file source actions
+## LspMoveSymbol — a declaration to another file
+
+Pass `filePath`, `line` and `character` at the declaration's name, plus
+`targetPath`. A top-level function, class, interface, type, enum or variable
+moves to the target, creating it when absent or appending when present.
+Imports are rewritten with it.
+
+A position inside a body, a non-declaration, the source itself as target, a
+directory target or a different-language target is refused. This operation
+is supported by the TypeScript and JavaScript sidecar.
+
+## LspMoveFile — a file or directory with its imports
+
+Pass `filePath` and `newPath`. The destination must not exist. The tool asks
+claiming servers for import updates, previews them and applies the edits and
+move together. Directory moves find claimants from the files they contain.
+A move touching imports in more than 100 files is refused; split it into
+smaller steps.
+
+## LspCodeAction — fixes, refactors and source actions
+
+Pass `filePath`, `line` and `character`, optionally `endLine` and
+`endCharacter`. The list names each action with a stable `actionId`.
+
+- `kind` filters quick fixes, refactors or source actions such as
   `source.organizeImports`, `source.addMissingImports`,
-  `source.removeUnusedImports`, `source.removeUnused`. Source actions are
-  offered only when asked for by kind.
-- `actionId` without `apply` previews that action's edits and plan.
-- `apply: true` with `actionId` writes; with a `kind` that leaves exactly
-  one action, the action is chosen by the kind.
-- A command-only action (one that would run code on the server) is refused;
-  a refactor that would create a file is refused in favour of `moveSymbol`.
+  `source.removeUnusedImports` and `source.removeUnused`.
+- `actionId` without apply previews the action's edits and plan.
+- `apply: true` with an action selector applies it; a kind that leaves exactly
+  one action can select that action itself. `actionIndex` is positional;
+  `actionId` is the safer selector.
+- Command-only actions are refused. A refactor requiring declaration movement
+  belongs to `LspMoveSymbol`.
 
-`organizeImports` and `fixDiagnostic` are the same road with the kind fixed:
-organise imports changes only the import block; `fixDiagnostic` pulls the
-diagnostics at a position, offers the fixes, applies the sole candidate, and
-reports the error count before and after.
+## LspFormat and LspRequest
+
+`LspFormat` takes `filePath`. Give both `line` and `endLine` to format an
+inclusive range of whole lines, or neither for the whole file.
+`organizeImports: true` works on the whole file and cannot be combined with a
+range. Python formatting uses ruff when installed. Already formatted files
+come back unchanged.
+
+`LspRequest` takes `filePath`, `method` and optional JSON-text `params`. Params
+are sent as given; document and position fields are not filled in. The tool
+always takes write permission because an arbitrary method may have effects.
+Known edit-class methods are refused in favor of the typed tools, and nothing
+returned by a raw request is applied.
+
+## Saved tool-family settings
+
+`LSP` is a setting-family selector for all seven language-service tools. A
+tool-wide allow, ask or deny rule, an allowed/blocked CLI tool list, an agent's
+tool list, or a capability kill using that selector covers the whole family.
+Name individual tools to narrow it. Content-qualified rules do not acquire
+family semantics.
+
+Named hook matchers, including pipe-separated lists, and bare `if` conditions
+use the same family selector. Regex hook matchers keep their regex meaning;
+a startup note identifies a regex that matched the family name but matches
+none of its tools. Hook payloads carry the actual tool name and input; only
+`LspRead` takes an input `operation`. Result objects retain the engine operation,
+edits, plan and change-view fields.
 
 ## JavaScript projects
 
-The sidecar finds the nearest `tsconfig.json` or `jsconfig.json` above a
-file; a `jsconfig.json` project is analysed whole, so a rename in one
-JavaScript file reaches the others. A file under neither lands in an
-inferred project that holds only the files the session has opened.
-
-## The checks
-
-Mercury's own checks drive the real sidecar through the real ops on a TypeScript
-project with a barrel, an aliased re-export, a JSX file and a JavaScript file, and
-on a JavaScript project with a `jsconfig.json`: a rename touches every reference
-and nothing else, a move rewrites every import, a colliding rename is refused
-with the reason, a dry run applies nothing, and a stale plan is refused.
+The sidecar finds the nearest `tsconfig.json` or `jsconfig.json`. A
+`jsconfig.json` project is analyzed whole, so a rename reaches references in
+other JavaScript files. A file under neither belongs to an inferred project
+holding the files the session has opened.

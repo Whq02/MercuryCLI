@@ -73,7 +73,7 @@ delete process.env.MERCURY_WORKFLOWS
   const uncovered = getHarnessMapSection()
   check(
     'catalog-on + NOT connected ⇒ the LSP tool is NOT advertised',
-    uncovered !== null && !uncovered.includes('the LSP tool'),
+    uncovered !== null && !uncovered.includes('LspRead'),
   )
   const mapSrc = readFileSync(join(import.meta.dir, '../../src/utils/cockpit/harnessMap.ts'), 'utf8')
   check(
@@ -84,7 +84,7 @@ delete process.env.MERCURY_WORKFLOWS
   const lspToolSrc = readFileSync(join(import.meta.dir, '../../src/tools/LSPTool/LSPTool.ts'), 'utf8')
   check(
     "…and that predicate IS the roster's gate (LSPTool.isEnabled → isLspToolMounted)",
-    /isEnabled\(\): boolean \{\s*return isLspToolMounted\(\)/.test(lspToolSrc),
+    lspToolSrc.includes('isEnabled: isLspToolMounted'),
   )
   resetHarnessMapForTest()
 }

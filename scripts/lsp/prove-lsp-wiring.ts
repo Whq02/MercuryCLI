@@ -18,7 +18,7 @@ function check(name: string, ok: boolean, detail?: string): void {
   const s = read('src/tools.ts')
   check(
     'tools.ts: catalog spread rides isLspToolCatalogEnabled()',
-    s.includes('isLspToolCatalogEnabled() ? [LSPTool] : []'),
+    s.includes('isLspToolCatalogEnabled() ? LSP_TOOLS : []'),
   )
   check(
     'tools.ts: no bare env read decides the LSP catalogue',
@@ -82,8 +82,8 @@ function check(name: string, ok: boolean, detail?: string): void {
 {
   const s = read('src/tools/LSPTool/prompt.ts')
   check(
-    'prompt.ts: getLspToolDescription gates the IDE-hands section',
-    s.includes("Mercury's editor-hands operations") && s.includes('mercuryOpsEnabled'),
+    'prompt.ts: the read description names the six deferred writing tools',
+    s.includes('Changes go through tools loaded with ToolSearch: LspRename') && s.includes('LspRequest (one raw protocol request)'),
   )
 }
 
@@ -91,11 +91,11 @@ function check(name: string, ok: boolean, detail?: string): void {
   const s = read('src/tools/LSPTool/LSPTool.ts')
   check(
     'LSPTool: isReadOnly/isConcurrencySafe are input-aware over apply ops',
-    s.includes('isReadOnly(input: Input)') && s.includes('!isMercuryApplyOp(input)'),
+    s.includes('isReadOnly: (input: LspInput) => !writes(input)') && s.includes("name === 'LspRequest' || (name !== 'LspRead' && input?.apply === true)"),
   )
   check(
     'LSPTool: apply ops route checkWritePermissionForTool',
-    s.includes('checkWritePermissionForTool(') && s.includes('isMercuryApplyOp(input)'),
+    s.includes('if (writes(input)) return checkWritePermissionForTool(tool, input, permissionContext)'),
   )
   check(
     'LSPTool: the Mercury operations dispatch to mercuryOps before the base method mapping',
@@ -172,21 +172,13 @@ function check(name: string, ok: boolean, detail?: string): void {
 {
   const s = read('src/tools/LSPTool/LSPTool.ts')
   check(
-    "LSPTool: switchSourceHeader in MERCURY_BRIDGE_OPERATIONS routing",
-    s.includes("'switchSourceHeader'") &&
-      s.includes('MERCURY_BRIDGE_OPERATIONS.has(input.operation)') &&
-      /MERCURY_BRIDGE_OPERATIONS = new Set\(\[[^\]]*'switchSourceHeader'/s.test(s),
+    'the raw protocol tool still routes to the engine',
+    s.includes("case 'LspRequest': return 'rawRequest'") && s.includes('MERCURY_BRIDGE_OPERATIONS.has(operation)'),
   )
   const schema = read('src/tools/LSPTool/schemas.ts')
-  check(
-    'schemas: switchSourceHeader union member (bridge-gated)',
-    schema.includes("z.literal('switchSourceHeader')"),
-  )
+  check('the read schema carries no removed source/header operation', !schema.includes("'switchSourceHeader'"))
   const prompt = read('src/tools/LSPTool/prompt.ts')
-  check(
-    'prompt: switchSourceHeader documented in the IDE-hands section',
-    prompt.includes('switchSourceHeader: For C/C++ files'),
-  )
+  check('the raw request description takes any protocol method', prompt.includes('any method, params as JSON text'))
   const ui = read('src/tools/LSPTool/UI.tsx')
   check('UI: switchSourceHeader operation label', ui.includes('switchSourceHeader: {'))
   const ops = read('src/tools/LSPTool/mercuryOps.ts')

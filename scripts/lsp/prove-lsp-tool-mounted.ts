@@ -67,15 +67,15 @@ section('§1 the mount predicate')
   await manager?.openFile(target, 'fake\n').catch(() => {})
   check('the server crashed into error (restartOnCrash false)', await until(() => server?.state === 'error', 4_000), server?.state)
   check('the tool stays mounted with its server in error — serverStatus remains callable', mounted?.() === true)
-  const { LSPTool } = await import(path.join(SRC, 'tools/LSPTool/LSPTool.ts'))
-  check('LSPTool.isEnabled agrees', (LSPTool as { isEnabled(): boolean }).isEnabled() === true)
+  const { LSP_TOOLS } = await import(path.join(SRC, 'tools/LSPTool/LSPTool.ts'))
+  check('all seven tools stay mounted with an unhealthy server', LSP_TOOLS.length === 7 && LSP_TOOLS.every((tool: { isEnabled(): boolean }) => tool.isEnabled()))
   await manager?.shutdown().catch(() => {})
 }
 
 section('§2 the readers (source pins)')
 {
   const tool = readFileSync(path.join(SRC, 'tools/LSPTool/LSPTool.ts'), 'utf8')
-  check('the roster gate is the mount predicate', /isEnabled\(\): boolean \{\s*return isLspToolMounted\(\)/.test(tool))
+  check('the roster gate is the mount predicate', tool.includes('isEnabled: isLspToolMounted'))
   const map = readFileSync(path.join(SRC, 'utils/cockpit/harnessMap.ts'), 'utf8')
   check('the harness map keys on the same mount predicate', /lspConnectedSafe[\s\S]{0,600}isLspToolMounted\(\)/.test(map))
   const manager = readFileSync(path.join(SRC, 'services/lsp/manager.ts'), 'utf8')

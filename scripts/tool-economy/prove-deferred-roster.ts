@@ -39,10 +39,11 @@ type Tool = import('../../src/Tool.ts').Tool
 type Message = import('../../src/types/message.ts').Message
 
 const NINE = ['JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Workshop', 'Monitor', 'Checkpoint', 'Rewind']
-const LOADED = ['Agent', 'Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Skill', 'Eval', 'AstSearch', 'ChangeSet', 'LSP', 'ToolSearch']
+const LOADED = ['Agent', 'Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Skill', 'Eval', 'AstSearch', 'ChangeSet', 'LspRead', 'ToolSearch']
 const BENCH_ROSTER = [
   ...LOADED,
   ...NINE,
+  'LspRename', 'LspMoveSymbol', 'LspMoveFile', 'LspCodeAction', 'LspFormat', 'LspRequest',
   'ApolloReview', 'AskUserQuestion', 'Browser', 'Computer', 'ContextLeft', 'Correct', 'EnterWorktree', 'ExitWorktree', 'Inspect', 'Journey', 'Launch', 'NotebookEdit', 'ProviderSearch', 'Recall', 'RecordConvention', 'Reflect', 'Retain', 'SendMessage', 'Service', 'Sleep', 'Structure', 'TaskStop', 'Transaction', 'WebFetch', 'WebSearch', 'Workflow',
 ]
 const MODELS = ['claude-sonnet-5-5', 'claude-opus-5-5']
@@ -72,7 +73,7 @@ for (const model of MODELS) {
   check(`${model}: deferredNames holds all nine (JevEval, Debug, Git, AstEdit, Test, Workshop, Monitor, Checkpoint, Rewind)`, notDeferred.length === 0, `still loaded: ${notDeferred.join(', ')}`)
   const loaded = plan.roster.map(tool => tool.name).filter(name => !plan.deferredNames.has(name)).sort()
   const expected = [...LOADED].sort()
-  check(`${model}: the roster names not in deferredNames are exactly the thirteen (LSP where the specification says LspRead until the split lands)`, loaded.join(',') === expected.join(','), `loaded: ${loaded.join(', ')}`)
+  check(`${model}: the roster names not in deferredNames are exactly the thirteen, with LspRead in full`, loaded.join(',') === expected.join(','), `loaded: ${loaded.join(', ')}`)
   const schemas = await Promise.all(NINE.map(async name => {
     const tool = roster.find(item => item.name === name)!
     const schema = await toolToAPISchema(tool, { getToolPermissionContext: async () => permissionContext, tools: plan.roster, agents: [], model, deferLoading: plan.deferredNames.has(name) }) as { name?: string; defer_loading?: boolean }

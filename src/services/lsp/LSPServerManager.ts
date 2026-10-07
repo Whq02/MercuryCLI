@@ -175,7 +175,7 @@ export function createLSPServerManager(): LSPServerManager {
         `LSP ${operation} failed for ${path}: ${err instanceof Error ? err.message : String(err)}`,
       )
       if (isLspStartFailure(err)) {
-        Object.assign(wrapped, { server: err.server, attempts: err.attempts, lspCause: err.lspCause, ...(err.refused === true ? { refused: true } : {}) })
+        Object.assign(wrapped, { server: err.server, attempts: err.attempts, lspCause: err.lspCause, retryAt: err.retryAt, ...(err.refused === true ? { refused: true } : {}) })
         wrapped.name = err.name
       }
       logError(wrapped)

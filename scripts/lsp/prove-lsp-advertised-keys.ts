@@ -1,145 +1,61 @@
-#!/usr/bin/env bun
-import * as path from 'node:path'
-import { armScratch, check, cleanup, finish, openToolDoor, section, TS_PROBE_FILES, TS_SIDECAR_ENTRY, writeProject } from './lspProofDoor.ts'
-
-console.log('prove-lsp-advertised-keys — every key the LSP tool advertises is accepted by every operation')
-console.log('  the model is handed one flat object schema; an operation that does not read a documented key drops it')
-console.log('  (red on the base: the per-operation validators refused the documented keys as unrecognized)')
+import { join } from 'node:path'
+import { symlinkSync } from 'node:fs'
+import { armScratch, check, cleanup, finish, openToolDoor, REPO, TS_PROBE_FILES, TS_SIDECAR_ENTRY, writeProject } from './lspProofDoor.ts'
 
 const scratch = armScratch('lsp-advertised-keys')
 process.env.MERCURY_LSP_SIDECAR_ENTRY = TS_SIDECAR_ENTRY
 const project = writeProject(scratch, 'project', TS_PROBE_FILES)
+symlinkSync(join(REPO, 'node_modules'), join(project, 'node_modules'), 'dir')
 const door = await openToolDoor(project)
-const { tool } = door
-const here = path.join(project, 'lib.ts')
-
-const samples: Record<string, unknown> = {
-  filePath: here,
-  line: 1,
-  character: 1,
-  query: 'budget',
-  limit: 50,
-  newName: 'spend',
-  newPath: path.join(project, 'moved.ts'),
-  apply: false,
-  actionId: 'quickfix:0',
-  actionIndex: 0,
-  endLine: 1,
-  endCharacter: 2,
-  paths: [here],
-  plan: 'lsp-0000',
-  kind: 'quickfix',
-  targetPath: path.join(project, 'target.ts'),
-  method: 'textDocument/hover',
-  params: '{}',
-}
-const required: Record<string, string[]> = {
-  goToDefinition: ['filePath', 'line', 'character'],
-  findReferences: ['filePath', 'line', 'character'],
-  hover: ['filePath', 'line', 'character'],
-  documentSymbol: ['filePath'],
-  workspaceSymbol: ['query'],
-  goToImplementation: ['filePath', 'line', 'character'],
-  prepareCallHierarchy: ['filePath', 'line', 'character'],
-  incomingCalls: ['filePath', 'line', 'character'],
-  outgoingCalls: ['filePath', 'line', 'character'],
-  diagnostics: ['filePath'],
-  rename: ['filePath', 'line', 'character', 'newName'],
-  codeActions: ['filePath', 'line', 'character'],
-  switchSourceHeader: ['filePath'],
-  typeDefinition: ['filePath', 'line', 'character'],
-  serverStatus: [],
-  workspaceDiagnostics: ['paths'],
-  pathRename: ['filePath', 'newPath'],
-  fixDiagnostic: ['filePath', 'line', 'character'],
-  formatDocument: ['filePath'],
-  formatRange: ['filePath', 'line', 'character', 'endLine', 'endCharacter'],
-  organizeImports: ['filePath'],
-  capabilities: ['filePath'],
-  rawRequest: ['filePath', 'method'],
-  moveSymbol: ['filePath', 'line', 'character', 'targetPath'],
-}
-
-section('§1 the model’s view: the advertised keys, read off the flat schema the model is handed')
-const { zodToJsonSchema } = await import(path.join(import.meta.dir, '../../src/utils/zodToJsonSchema.ts'))
-const advertised = zodToJsonSchema(tool.inputSchema as never) as { type?: string; properties?: Record<string, unknown>; additionalProperties?: unknown }
-const advertisedKeys = Object.keys(advertised.properties ?? {}).filter(k => k !== 'operation')
-check('the wire schema is one object (a union would not be accepted by the providers)', advertised.type === 'object', JSON.stringify(advertised.type))
-check(`the schema advertises ${advertisedKeys.length} optional keys beside operation`, advertisedKeys.length >= 8, advertisedKeys.join(','))
-check('every advertised key has a sample in this proof', advertisedKeys.every(k => k in samples), advertisedKeys.filter(k => !(k in samples)).join(','))
-const operations = ((advertised.properties?.operation as { enum?: string[] } | undefined)?.enum ?? [])
-check('the operation enum lists all 24 operations', operations.length === 24, `${operations.length}: ${operations.join(',')}`)
-const descriptions = Object.entries(advertised.properties ?? {}).map(([key, prop]) => [key, String((prop as { description?: string }).description ?? '')] as const)
-check('no advertised description calls a key legacy', descriptions.every(([, text]) => !/legacy/i.test(text)), descriptions.filter(([, text]) => /legacy/i.test(text)).map(([key]) => key).join(','))
-check('actionIndex is described as the positional selector from a prior listing, with actionId preferred', /positional selector from a prior listing/.test(descriptions.find(([key]) => key === 'actionIndex')?.[1] ?? '') && /actionId is preferred/.test(descriptions.find(([key]) => key === 'actionIndex')?.[1] ?? ''), descriptions.find(([key]) => key === 'actionIndex')?.[1])
-const { getLspToolDescription } = await import(path.join(import.meta.dir, '../../src/tools/LSPTool/prompt.ts'))
-const promptText = String(getLspToolDescription(true))
-check('the tool prompt the model reads names no legacy selector', !/legacy/i.test(promptText), promptText.match(/.{0,60}legacy.{0,60}/i)?.[0])
-const opsSource = await Bun.file(path.join(import.meta.dir, '../../src/tools/LSPTool/mercuryOps.ts')).text()
-check('the codeActions re-run hint calls actionIndex the positional selector from this listing', /actionIndex is the positional selector from this listing/.test(opsSource) && !/legacy positional/.test(opsSource))
-
-section('§2 every operation accepts every advertised key (the keys it does not read are dropped)')
-for (const operation of operations) {
-  const own = required[operation]
-  if (own === undefined) {
-    check(`${operation}: known to this proof`, false, 'add its required keys')
-    continue
+const { LSP_INPUT_JSON_SCHEMAS, readArguments } = await import('../../src/tools/LSPTool/schemas.ts')
+const { LSP_DESCRIPTIONS } = await import('../../src/tools/LSPTool/prompt.ts')
+const here = join(project, 'lib.ts')
+const samples: Record<string, unknown> = { filePath: here, line: 1, character: 1, query: 'budget', limit: 50, newName: 'spend', newPath: join(project, 'moved.ts'), apply: false, actionId: 'ca-12345678', actionIndex: 0, endLine: 1, endCharacter: 2, paths: [here], plan: 'lsp-0000', kind: 'quickfix', targetPath: join(project, 'target.ts'), method: 'textDocument/hover', params: '{}', organizeImports: false }
+try {
+  for (const tool of door.tools) {
+    const wire = tool.inputJSONSchema as { type: string; properties: Record<string, { description?: string }>; required: string[] }
+    check(`${tool.name}: the advertised schema is one object`, wire.type === 'object')
+    const keys = Object.keys(wire.properties)
+    check(`${tool.name}: every field has an independent sample`, keys.every(key => key === 'operation' || key in samples))
+    if (tool.name === 'LspRead') {
+      for (const operation of LSP_INPUT_JSON_SCHEMAS.LspRead.properties.operation.enum) {
+        const input = { ...Object.fromEntries(keys.filter(key => key !== 'operation').map(key => [key, samples[key]])), operation }
+        check(`${operation}: every advertised read key parses`, tool.inputSchema.safeParse(input).success)
+        const verdict = await tool.validateInput!(input, door.prover.ctx as never)
+        check(`${operation}: advertised read keys validate`, verdict.result, verdict.result ? '' : verdict.message)
+        const own = readArguments(input)
+        if (!['workspaceSymbol', 'diagnostics'].includes(operation)) check(`${operation}: unused workspace arguments are dropped`, !('query' in own) && !('limit' in own) && !('paths' in own))
+      }
+    } else {
+      const input = Object.fromEntries(keys.map(key => [key, samples[key]]))
+      check(`${tool.name}: every advertised field parses`, tool.inputSchema.safeParse(input).success)
+      for (const key of wire.required) {
+        const without = { ...input }
+        delete without[key]
+        check(`${tool.name}: required ${key} is enforced`, !tool.inputSchema.safeParse(without).success)
+      }
+    }
+    check(`${tool.name}: genuinely unknown fields are refused`, !tool.inputSchema.safeParse({ ...Object.fromEntries(wire.required.map(key => [key, key === 'operation' ? 'serverStatus' : samples[key]])), frobnicate: true }).success)
+    check(`${tool.name}: the prompt names no legacy selector`, !/legacy/i.test(LSP_DESCRIPTIONS[tool.name as keyof typeof LSP_DESCRIPTIONS]))
   }
-  const everything: Record<string, unknown> = { operation }
-  for (const key of advertisedKeys) everything[key] = samples[key]
-  const verdict = await tool.validateInput!(everything as never, {} as never)
-  check(`${operation} + every advertised key → accepted`, verdict.result === true, verdict.message ?? '')
+  const opsSource = await Bun.file(join(REPO, 'src/tools/LSPTool/mercuryOps.ts')).text()
+  check('the codeActions re-run hint keeps its positional-selector words', /actionIndex is the positional selector from this listing/.test(opsSource) && !/legacy positional/.test(opsSource))
+  const actionIndex = LSP_INPUT_JSON_SCHEMAS.LspCodeAction.properties.actionIndex.description
+  check('actionIndex remains positional and actionId remains preferred', actionIndex.includes('positional selector from a prior listing') && actionIndex.includes('actionId is preferred'))
+  const air = { operation: 'diagnostics', paths: [here, join(project, 'main.ts')], line: 1, character: 1, query: 'unused', limit: 50 }
+  const answer = await door.drive(air)
+  check('the filled read schema answers the reported multi-file diagnostic case', !answer.isError && /2322/.test(answer.text) && /2 of 2 file\(s\) checked/.test(answer.text), answer.text)
+  check('unused positions are not echoed as a filePath', answer.data?.filePath === '')
+  const again = await door.drive(air)
+  check('the same filled read shape answers again without an argument retry', !again.isError && /2322/.test(again.text), again.text)
+  const unknown = await door.drive({ ...air, frobnicate: true })
+  check('the door names the unknown field before server work', unknown.isError && /frobnicate/.test(unknown.text), unknown.text)
+  const missing = await door.drive({ operation: 'diagnostics' })
+  check('the conditional required paths/filePath remain enforced', missing.isError && /neither was given/.test(missing.text), missing.text)
+  const noName = await door.driveNamed('LspRename', { filePath: here, line: 1, character: 14 })
+  check('rename without newName remains refused', noName.isError && /newName/.test(noName.text), noName.text)
+} finally {
+  await door.close()
+  cleanup(scratch)
 }
-
-section('§3 the Air’s exact call: workspaceDiagnostics + paths + the eight advertised keys, through the real tool door')
-const air = { operation: 'workspaceDiagnostics', paths: [path.join(project, 'lib.ts'), path.join(project, 'main.ts')], filePath: project, line: 1, character: 1, limit: 50, apply: false, actionIndex: 0, endLine: 1, endCharacter: 1 }
-const verdict = await tool.validateInput!(air as never, {} as never)
-check('validateInput accepts the call', verdict.result === true, verdict.message ?? '')
-const answer = await door.drive(air)
-check('the call is not an error', answer.isError === false, answer.text.slice(0, 300))
-check('…and answers with the TypeScript diagnostic (TS2322) from the real sidecar', /2322/.test(answer.text), answer.text.slice(0, 300))
-check('the operation received only its own keys (no stray filePath echoed)', (answer.data as { filePath?: string } | null)?.filePath === '', JSON.stringify(answer.data?.filePath))
-const again = await door.drive(air)
-check('the same call answers the same way a second time (nothing to retry)', again.isError === false && /2322/.test(again.text), again.text.slice(0, 200))
-
-section('§4 a genuinely unknown key is still refused, in detail, before the tool runs')
-const frob = tool.inputSchema.safeParse({ ...air, frobnicate: true })
-check('the flat schema refuses frobnicate', frob.success === false)
-check('…naming the key', JSON.stringify(frob.error?.issues ?? []).includes('frobnicate'), JSON.stringify(frob.error?.issues ?? []).slice(0, 200))
-const frobbed = await door.drive({ operation: 'workspaceDiagnostics', paths: [here], frobnicate: true })
-check('through the door it is an error', frobbed.isError === true)
-check('…whose text names frobnicate', /frobnicate/.test(frobbed.text), frobbed.text.slice(0, 200))
-
-section('§6 the Air report’s regression: each payload against the advertised AND the runtime schema, and they agree')
-const skin = path.join(project, 'lib.ts')
-const airExact = { operation: 'workspaceDiagnostics', filePath: skin, line: 1, character: 1, limit: 30, apply: false, actionIndex: 0, endLine: 1, endCharacter: 1, paths: [skin] }
-const airRetry = { operation: 'workspaceDiagnostics', line: 1, character: 1, limit: 30, apply: false, actionIndex: 0, endLine: 1, endCharacter: 1, paths: [skin] }
-const payloads: Array<[string, Record<string, unknown>]> = [
-  ['workspaceDiagnostics with paths', { operation: 'workspaceDiagnostics', paths: [skin] }],
-  ['workspaceDiagnostics with paths and an irrelevant known field (line)', { operation: 'workspaceDiagnostics', paths: [skin], line: 1 }],
-  ['serverStatus with only operation', { operation: 'serverStatus' }],
-  ['the Air’s exact first call (eight keys, filePath included)', airExact],
-  ['the Air’s retries (seven keys, no filePath)', airRetry],
-]
-for (const [label, payload] of payloads) {
-  const advertisedOk = tool.inputSchema.safeParse(payload).success
-  const runtime = await tool.validateInput!(payload as never, {} as never)
-  check(`${label}: advertised ${advertisedOk ? 'accepts' : 'refuses'}, runtime ${runtime.result ? 'accepts' : 'refuses'} — they agree`, advertisedOk === true && runtime.result === true, runtime.message ?? '')
-}
-const exact = await door.drive(airExact)
-check('the Air’s exact first call now answers with diagnostics', exact.isError === false && /1 file\(s\) checked/.test(exact.text), exact.text.slice(0, 200))
-const retry = await door.drive(airRetry)
-check('…and so does its retry shape', retry.isError === false && /1 file\(s\) checked/.test(retry.text), retry.text.slice(0, 200))
-const status = await door.drive({ operation: 'serverStatus' })
-check('serverStatus with only operation answers (no error)', status.isError === false && /mercury-ts/.test(status.text), status.text.slice(0, 200))
-
-section('§5 a missing required key is still refused in detail')
-const missing = await tool.validateInput!({ operation: 'workspaceDiagnostics', filePath: project, line: 1, character: 1 } as never, {} as never)
-check('workspaceDiagnostics without paths is refused', missing.result === false)
-check('…and the refusal names paths', /paths/.test(missing.message ?? ''), missing.message ?? '')
-const noName = await tool.validateInput!({ operation: 'rename', filePath: here, line: 1, character: 14 } as never, {} as never)
-check('rename without newName is refused', noName.result === false && /newName/.test(noName.message ?? ''), noName.message ?? '')
-
-await door.close()
-cleanup(scratch)
 finish('prove-lsp-advertised-keys')

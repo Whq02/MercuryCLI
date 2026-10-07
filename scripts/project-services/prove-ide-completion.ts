@@ -11,7 +11,7 @@ delete process.env.MERCURY_LSP
 delete process.env.MERCURY_DAP
 
 const { runMercuryLspOp, actionIdentity } = await import('../../src/tools/LSPTool/mercuryOps.ts')
-const { LSPTool } = await import('../../src/tools/LSPTool/LSPTool.ts')
+const { LspCodeActionTool } = await import('../../src/tools/LSPTool/LSPTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 let failures = 0
@@ -141,7 +141,7 @@ function env(input: Record<string, unknown>, absolutePath: string) {
     absolutePath,
     cwd: dir,
     manager,
-    tool: LSPTool as never,
+    tool: LspCodeActionTool as never,
     context,
   }
 }
