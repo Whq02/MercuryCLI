@@ -1,5 +1,5 @@
 
-import type { RenderableMessage, TurnReceiptMessage } from '../../types/message.js'
+import type { CompactMetadata, Message, RenderableMessage, TurnReceiptMessage } from '../../types/message.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
 export function isTurnReceiptEnabled(): boolean {
@@ -78,6 +78,8 @@ export function isScratchpadPath(p: string, tempRoot: string): boolean {
 
 type LooseMessage = {
   type?: string
+  subtype?: string
+  compactMetadata?: CompactMetadata
   isMeta?: boolean
   uuid?: string
   message?: { content?: unknown }
@@ -146,28 +148,78 @@ function makeReceipt(counts: TurnReceiptCounts, anchorUuid: string): TurnReceipt
 export function injectTurnReceipts(messages: RenderableMessage[], tempRoot: string): RenderableMessage[] {
   if (!isTurnReceiptEnabled()) return messages
   const out: RenderableMessage[] = []
+  let start = 0
+  walkTurnReceipts(messages, tempRoot, (counts, anchorUuid, end) => {
+    for (let index = start; index < end; index++) out.push(messages[index]!)
+    if (hasActivity(counts)) out.push(makeReceipt(counts, anchorUuid))
+    start = end
+  })
+  return out
+}
+
+export function compactWorkOf(messages: readonly LooseMessage[]): CompactMetadata['work'] {
+  return messages.find(m => m.type === 'system' && m.subtype === 'compact_boundary')?.compactMetadata?.work
+}
+
+function countMessage(m: LooseMessage, counts: TurnReceiptCounts, tempRoot: string): void {
+  if (m.type === 'assistant') countToolUses(m, counts)
+  else if (m.type === 'user') {
+    countEditResult(m, counts, tempRoot)
+    countDelegatedResult(m, counts)
+  } else if (m.type === 'grouped_tool_use') {
+    for (const inner of m.messages ?? []) countToolUses(inner, counts)
+    for (const res of m.results ?? []) {
+      countEditResult(res, counts, tempRoot)
+      countDelegatedResult(res, counts)
+    }
+  }
+}
+
+function walkTurnReceipts(
+  messages: readonly LooseMessage[],
+  tempRoot: string,
+  visit: (counts: TurnReceiptCounts, anchorUuid: string, end: number) => void,
+): void {
+  const pending = new Map((compactWorkOf(messages)?.receipts ?? []).map(receipt => [receipt.beforeUuid, receipt]))
   let counts = emptyCounts()
   let anchorUuid = 'turn-0'
-  for (const raw of messages) {
-    const m = raw as unknown as LooseMessage
+  for (let index = 0; index < messages.length; index++) {
+    const m = messages[index]!
     if (isTurnBoundary(m)) {
-      if (hasActivity(counts)) out.push(makeReceipt(counts, anchorUuid) as unknown as RenderableMessage)
+      visit(counts, anchorUuid, index)
       counts = emptyCounts()
       if (typeof m.uuid === 'string') anchorUuid = m.uuid
     }
-    out.push(raw)
-    if (m.type === 'assistant') countToolUses(m, counts)
-    else if (m.type === 'user') {
-      countEditResult(m, counts, tempRoot)
-      countDelegatedResult(m, counts)
-    } else if (m.type === 'grouped_tool_use') {
-      for (const inner of m.messages ?? []) countToolUses(inner, counts)
-      for (const res of m.results ?? []) {
-        countEditResult(res, counts, tempRoot)
-        countDelegatedResult(res, counts)
-      }
+    for (const row of [m, ...(m.messages ?? []), ...(m.results ?? [])]) {
+      const carry = row.uuid === undefined ? undefined : pending.get(row.uuid)
+      if (!carry) continue
+      for (const key of Object.keys(counts) as Array<keyof TurnReceiptCounts>) counts[key] += carry.counts[key]
+      anchorUuid = carry.anchorUuid
+      pending.delete(carry.beforeUuid)
     }
+    countMessage(m, counts, tempRoot)
   }
-  if (hasActivity(counts)) out.push(makeReceipt(counts, anchorUuid) as unknown as RenderableMessage)
-  return out
+  visit(counts, anchorUuid, messages.length)
+}
+
+export function foldedTurnReceipts(
+  messages: Message[],
+  kept: Message[],
+  summaryUuid: string,
+  tempRoot: string,
+): NonNullable<CompactMetadata['work']>['receipts'] {
+  const keptIds = new Set(kept.map(m => m.uuid))
+  const receipts: NonNullable<CompactMetadata['work']>['receipts'] = []
+  let start = 0
+  walkTurnReceipts(messages, tempRoot, (counts, anchorUuid, end) => {
+    const surviving = messages.slice(start, end).filter(m => keptIds.has(m.uuid))
+    start = end
+    if (surviving.length === 0 && !(kept.length === 0 && end === messages.length)) return
+    const retained = emptyCounts()
+    for (const m of surviving) countMessage(m, retained, tempRoot)
+    const missing = { ...counts }
+    for (const key of Object.keys(missing) as Array<keyof TurnReceiptCounts>) missing[key] -= retained[key]
+    receipts.push({ beforeUuid: surviving[0]?.uuid ?? summaryUuid, anchorUuid, counts: missing })
+  })
+  return receipts
 }
