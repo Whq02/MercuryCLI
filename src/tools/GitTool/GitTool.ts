@@ -540,7 +540,7 @@ export const GitTool = buildTool({
     return 'Typed local Git work graph: bounded observation + preview-first atomic commit plans; repository-host PR/checks/issue context and the typed review record. Runs in the session folder or a given cwd: the repository containing that folder, or the one repository directly below it'
   },
   async prompt() {
-    return `Use this over git in Bash for local status, diffs, staging and preview-first commit plans.
+    return `An optional typed surface for local status, diffs, staging and explicitly requested preview-first commit plans. The repository commit workflow uses Bash.
 
 The typed LOCAL Git work-graph surface — structured observation and preview-first, stale-safe commit transactions. It never pushes, never fetches, never rewrites history, never discards uncommitted content. (Plain Bash git remains available; use this surface when the work should be inspectable and verifiable.)
 
