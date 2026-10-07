@@ -270,7 +270,7 @@ section('(14) a deep probe\'s scratch sweep never outranks its verdict')
     .replace(/remover: \(path: string\) => void = path => rmSync\(path, \{ recursive: true, force: true \}\)/, '')
     .replace(/import \{ mkdtempSync, rmSync \} from 'node:fs'/, '')
   check('no rmSync call survives anywhere in the probe file outside the sweep owner', !/\brmSync\(/.test(outsideOwner))
-  check('every scratch finally rides sweepProbeDir (both scratch spellings)', (probes.match(/sweepProbeDir\(dir\)/g) ?? []).length >= 8 && (probes.match(/sweepProbeDir\(root\)/g) ?? []).length >= 3)
+  check('every scratch finally rides sweepProbeDir (both scratch spellings)', (probes.match(/sweepProbeDir\(dir\)/g) ?? []).length === (probes.match(/const dir = mkdtempSync\(/g) ?? []).length && (probes.match(/sweepProbeDir\(root\)/g) ?? []).length === (probes.match(/const root = fs\.mkdtempSync\(/g) ?? []).length && (probes.match(/const dir = mkdtempSync\(/g) ?? []).length + (probes.match(/const root = fs\.mkdtempSync\(/g) ?? []).length === (probes.match(/mkdtempSync\(/g) ?? []).length)
   check('the structure probes dispose their owner BEFORE the sweep (a held handle is the sweep\'s own enemy)', (probes.match(/await disposeOwner\(owner\)\n\s*sweepProbeDir\(root\)/g) ?? []).length >= 3)
 }
 

@@ -1,5 +1,6 @@
 prove-accent-override.ts
 prove-accent-subscriptions.ts
+prove-account-identity-frames.ts
 prove-agent-face.ts
 prove-agent-fold-click.ts
 prove-appearance-system.ts
@@ -28,7 +29,6 @@ prove-key-hint-labels.ts
 prove-lanes-shed.ts
 prove-launchripple-deletion.ts
 prove-live-counter.ts
-prove-thinking-shimmer-quiet.ts
 prove-live-glyphs.ts
 prove-logins-key-lines.ts
 prove-logins-popup.ts
@@ -53,12 +53,13 @@ prove-selection-pointer.ts
 prove-session-pulse.ts
 prove-settings-popup-mouse-report.ts
 prove-size-ladder.ts
-prove-spinner-hud.ts
 prove-spinner-hud-plan.ts
+prove-spinner-hud.ts
 prove-streaming-nameplate.ts
 prove-surface-claim.ts
 prove-text-emission-paints-once.ts
 prove-thinking-disclosure.ts
+prove-thinking-shimmer-quiet.ts
 prove-trust-telemetry.ts
 prove-uncaused-claims.ts
 prove-usage-family-meters.ts
