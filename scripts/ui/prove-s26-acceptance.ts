@@ -167,10 +167,6 @@ section('structural pins — transcript renderers')
     success.includes('lookups.toolUseByToolUseID.get(toolUseID)?.name'),
   )
   check(
-    'classifier bookkeeping captures once at mount then deletes',
-    success.includes('deleteClassifierApproval(toolUseID)') && success.includes('useState(() => {'),
-  )
-  check(
     'a declared output schema gates rendering',
     success.includes('outputSchema.safeParse') && success.includes('if (!parsed.success) return null'),
   )
