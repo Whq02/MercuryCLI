@@ -1,6 +1,7 @@
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { MERCURY_PROJECT_DIR } from '../../utils/projectConfig.js'
 import type { ToolEffect } from '../../Tool.js'
 import { receiptsFor } from '../changeTransaction/receipts.js'
 import { isReceiptShaped } from '../changeTransaction/contracts.js'
@@ -104,7 +105,7 @@ async function captureStep(root: string, owner: OwnerKey, step: TxStep, paths: s
 function relativeInRoot(root: string, cwd: string, file: string): string | null {
   const local = relative(root, resolve(cwd, file))
   if (isAbsolute(local) || local === '..' || local.startsWith(`..${sep}`)) return null
-  if (local.split(sep)[0] === '.mercury') return null
+  if (local.split(sep)[0] === MERCURY_PROJECT_DIR) return null
   return local || '.'
 }
 
