@@ -5,14 +5,24 @@ import { FallbackToolUseErrorMessage } from '../../components/FallbackToolUseErr
 import { FAINT } from '../../components/mercuryPalette.js';
 import { WithCardTone } from '../../components/mercury-ui/toolCardGrammar.js';
 import { Box, Text } from '../../ink.js';
-import type { Input, Output } from './TransactionTool.js';
+import type { Output } from './TransactionTool.js';
+
+type RecordedInput = {
+  op?: string;
+  intent?: string;
+  kind?: string;
+  outcome?: string;
+  verdict?: string;
+  id?: string;
+};
+type RecordedOutput = Omit<Output, 'op'> & { op: string };
 
 export function userFacingName(): string {
   return 'Transaction';
 }
 
 export function renderToolUseMessage(
-  input: Partial<Input>,
+  input: RecordedInput,
   _opts: { verbose: boolean },
 ): React.ReactNode {
   if (!input.op) return null;
@@ -32,7 +42,7 @@ export function renderToolUseErrorMessage(
 }
 
 export function renderToolResultMessage(
-  output: Output,
+  output: RecordedOutput,
   _progressMessages: unknown[],
   { verbose }: { verbose: boolean },
 ): React.ReactNode {
