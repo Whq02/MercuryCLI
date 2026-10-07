@@ -34,7 +34,7 @@ const STEERING = '\n- Semantic shortcut: cross-file renames belong to the LSP re
 
 section('W1. the two bullets, byte for byte, in place of .28\'s non-unique bullet')
 const description = getEditToolDescription(null)
-check('W1 the description carries the non-unique bullet and the landed-edit bullet, in that order, each once', description.split(NOT_UNIQUE_BULLET).length === 2 && description.split(LANDED_BULLET).length === 2 && description.indexOf(NOT_UNIQUE_BULLET) < description.indexOf(LANDED_BULLET) && description.includes(`${NOT_UNIQUE_BULLET}\n${LANDED_BULLET}\n- \`append\` adds text`), description)
+check('W1 the description carries the non-unique bullet and the landed-edit bullet, in that order, each once', description.split(NOT_UNIQUE_BULLET).length === 2 && description.split(LANDED_BULLET).length === 2 && description.includes(`${NOT_UNIQUE_BULLET}\n${LANDED_BULLET}\n- \`append\` adds text`), description)
 check('W1b .28\'s non-unique bullet is gone', !description.includes(OLD_BULLET) && !description.includes('makes the edit fail outright'), description)
 check('W1c every other line stands: the opener, the four usage bullets before, the append and carry bullets after', description.startsWith('Swap one exact string for another inside a file.\n\nUsage:\n- An edit lands only after `Read` has read the file somewhere in this conversation — editing unread files errors.\n') && description.includes('\n- Keep emoji out of file content unless the user has specifically asked for them.\n') && description.includes('\n- An edit that touches lines you have not read still lands in one call'), description)
 
