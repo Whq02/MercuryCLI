@@ -151,7 +151,7 @@ console.log('§2 the debug channel prefers stderr on error (call-shaped)')
 console.log('§3 the interactive road keeps its renderer (call-shaped)')
 {
   const engine = readFileSync(join(ROOT, 'src', 'utils', 'hooks', 'engine.ts'), 'utf8')
-  check('the engine writes the headless report line', /getIsNonInteractiveSession\(\)/.test(engine) && /failed with exit/.test(engine))
+  check('the engine writes the headless report line from the one writer of hook endings', /getIsNonInteractiveSession\(\)/.test(engine) && /class: 'exit'/.test(engine) && /hookEndingSentence\(/.test(engine))
   const renderer = readFileSync(join(ROOT, 'src', 'components', 'messages', 'AttachmentMessage.tsx'), 'utf8')
   check(
     'the attachment renderer still names the error interactively',
