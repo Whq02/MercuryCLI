@@ -2,6 +2,7 @@ import type { ToolPermissionContext } from '../../Tool.js'
 import type { PermissionResult } from '../../utils/permissions/PermissionResult.js'
 import {
   splitCommand_DEPRECATED,
+  splitListSegments,
   tryParseShellCommand,
   extractOutputRedirections,
 } from '../../utils/permissions/decision/commandAnalysis.js'
@@ -374,7 +375,128 @@ function isSubcommandReadOnly(subcommand: string): boolean {
 const BARE_REPO_GIT_GUARD_MESSAGE =
   'This directory has bare-repository structure, so git commands here go through the permission gate'
 
+const CD_GIT_GUARD_MESSAGE = 'A cd combined with git is not auto-allowed.'
+const GIT_INTERNAL_WRITE_GUARD_MESSAGE = 'A git command combined with a git-internal write is not auto-allowed.'
+const SANDBOXED_GIT_GUARD_MESSAGE = 'A sandboxed git command outside the original directory is not auto-allowed.'
+
+function gitGuardMessage(command: string, subcommands: string[], compoundCommandHasCd: boolean): string | null {
+  if (!subcommands.some(sub => isNormalizedGitCommand(sub.trim()))) return null
+  if (compoundCommandHasCd) return CD_GIT_GUARD_MESSAGE
+  if (isCurrentDirectoryBareGitRepo()) return BARE_REPO_GIT_GUARD_MESSAGE
+  if (writesToGitInternalPath(command)) return GIT_INTERNAL_WRITE_GUARD_MESSAGE
+  if (SandboxManager.isSandboxingEnabled() && getCwd() !== getOriginalCwd()) return SANDBOXED_GIT_GUARD_MESSAGE
+  return null
+}
+
+export type NotReadOnly = {
+  kind: 'unparseable' | 'sandbox' | 'not-on-list' | 'form' | 'writes' | 'screen' | 'git-guard'
+  part: string
+  word?: string
+  target?: string
+  detail?: string
+}
+
+export type ReadOnlyVerdict = PermissionResult & { notReadOnly?: NotReadOnly }
+
+const PART_WIDTH = 120
+
+export function cutPart(text: string): string {
+  const firstLine = text.split('\n')[0] ?? ''
+  const line = firstLine.length > PART_WIDTH ? firstLine.slice(0, PART_WIDTH) : firstLine
+  return line.length < text.length ? `${line}…` : line
+}
+
+const HAND_WRITTEN_WORDS = ['pwd', 'whoami', 'alias', 'arch', 'ip', 'ifconfig', 'history', 'uniq', 'echo', 'jq', 'cd', 'ls', 'find']
+
+let listedWordsCache: Set<string> | null = null
+let listedWordsPlatform: string | null = null
+function listedCommandWords(): Set<string> {
+  const platform = getPlatform()
+  if (listedWordsCache === null || listedWordsPlatform !== platform) {
+    listedWordsCache = new Set<string>([
+      ...[...effectiveAllowlist().keys()].map(key => key.split(' ')[0] as string),
+      ...EXTERNAL_READONLY_COMMANDS.map(c => c.split(' ')[0] as string),
+      ...SIMPLE_COMMAND_NAMES,
+      ...HAND_WRITTEN_WORDS,
+      binaryName(),
+    ])
+    listedWordsPlatform = platform
+  }
+  return listedWordsCache
+}
+
+function commandWordOf(subcommand: string): string {
+  const parse = tryParseShellCommand(subcommand)
+  const tokens = parse.success ? parse.tokens.filter((token): token is string => typeof token === 'string') : subcommand.trim().split(/\s+/)
+  return tokens.find(token => token !== '' && !/^[A-Za-z_]\w*=/.test(token)) ?? tokens[0] ?? ''
+}
+
+function describeNotReadOnly(command: string, compoundCommandHasCd: boolean, verdictMessage: string): NotReadOnly {
+  if (!tryParseShellCommand(command).success) return { kind: 'unparseable', part: cutPart(command) }
+  const subcommands = splitCommand_DEPRECATED(command).map(sub => sub.trim()).filter(sub => sub !== '')
+  const written = splitListSegments(command)
+  const partOf = (index: number, word: string): string => {
+    const asWritten = written.length === subcommands.length ? written[index] : written.find(segment => commandWordOf(segment) === word)
+    return cutPart(asWritten ?? (subcommands[index] as string))
+  }
+  const words = subcommands.map(commandWordOf)
+  const listed = listedCommandWords()
+  for (const [index, word] of words.entries()) {
+    if (!listed.has(word)) return { kind: 'not-on-list', part: partOf(index, word), word }
+  }
+  for (const [index, sub] of subcommands.entries()) {
+    if (!isSubcommandReadOnly(sub)) return { kind: 'form', part: partOf(index, words[index] as string), word: words[index] as string }
+  }
+  const target = extractOutputRedirections(command).redirections.find(r => r.target !== '/dev/null')?.target
+  if (target !== undefined) return { kind: 'writes', part: cutPart(command), target }
+  const screened = bashCommandIsSafe_DEPRECATED(command)
+  if (screened.behavior === 'ask') return { kind: 'screen', part: cutPart(command), detail: screened.message }
+  for (const [index, sub] of subcommands.entries()) {
+    const screenedSub = bashCommandIsSafe_DEPRECATED(sub)
+    if (screenedSub.behavior === 'ask') return { kind: 'screen', part: partOf(index, words[index] as string), detail: screenedSub.message }
+  }
+  const guard = gitGuardMessage(command, subcommands, compoundCommandHasCd)
+  if (guard !== null) return { kind: 'git-guard', part: cutPart(command), detail: guard }
+  return { kind: 'screen', part: cutPart(command), detail: verdictMessage }
+}
+
+export function notReadOnlyClause(reason: NotReadOnly): string {
+  switch (reason.kind) {
+    case 'not-on-list':
+      return `\`${reason.word}\` is not a command Mercury can verify as read-only`
+    case 'form':
+      return `it is not a read-only form of \`${reason.word}\``
+    case 'writes':
+      return `it writes to \`${reason.target}\``
+    case 'screen':
+      return `the command could not be verified as read-only — ${reason.detail ?? ''}`
+    case 'git-guard':
+      return reason.detail ?? ''
+    case 'sandbox':
+      return 'it leaves the sandbox or carries a simulated sed edit'
+    case 'unparseable':
+      return 'the command could not be parsed, so it cannot be verified as read-only'
+  }
+}
+
+function commandChangesDirectory(command: string): boolean {
+  return splitCommand_DEPRECATED(command).some(sub => /^\s*(?:cd|pushd|popd)\b/.test(sub))
+}
+
+export function describeBashNotReadOnly(command: string): NotReadOnly | null {
+  return checkReadOnlyConstraints({ command }, commandChangesDirectory(command)).notReadOnly ?? null
+}
+
 export function checkReadOnlyConstraints(
+  input: { command: string },
+  compoundCommandHasCd: boolean,
+): ReadOnlyVerdict {
+  const verdict = readOnlyVerdict(input, compoundCommandHasCd)
+  if (verdict.behavior === 'allow') return verdict
+  return { ...verdict, notReadOnly: describeNotReadOnly(input.command, compoundCommandHasCd, verdict.message) }
+}
+
+function readOnlyVerdict(
   input: { command: string },
   compoundCommandHasCd: boolean,
 ): PermissionResult {
@@ -391,21 +513,10 @@ export function checkReadOnlyConstraints(
   }
 
   const subcommands = splitCommand_DEPRECATED(command)
-  const hasGitCommand = subcommands.some(sub => isNormalizedGitCommand(sub.trim()))
 
-  if (hasGitCommand) {
-    if (compoundCommandHasCd) {
-      return { behavior: 'passthrough', message: 'A cd combined with git is not auto-allowed.' }
-    }
-    if (isCurrentDirectoryBareGitRepo()) {
-      return { behavior: 'passthrough', message: BARE_REPO_GIT_GUARD_MESSAGE }
-    }
-    if (writesToGitInternalPath(command)) {
-      return { behavior: 'passthrough', message: 'A git command combined with a git-internal write is not auto-allowed.' }
-    }
-    if (SandboxManager.isSandboxingEnabled() && getCwd() !== getOriginalCwd()) {
-      return { behavior: 'passthrough', message: 'A sandboxed git command outside the original directory is not auto-allowed.' }
-    }
+  const guard = gitGuardMessage(command, subcommands, compoundCommandHasCd)
+  if (guard !== null) {
+    return { behavior: 'passthrough', message: guard }
   }
 
   for (const raw of subcommands) {
