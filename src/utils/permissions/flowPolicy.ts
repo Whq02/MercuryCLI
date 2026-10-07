@@ -3,7 +3,8 @@ import type { PermissionUpdate } from '../../types/permissions.js'
 import { getDestructiveCommandWarning } from '../../tools/BashTool/destructiveCommandWarning.js'
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { POWERSHELL_TOOL_NAME } from '../../tools/PowerShellTool/toolName.js'
-import { resolve } from 'node:path'
+import { basename, resolve } from 'node:path'
+import { pinnedCommandAnalysis } from './decision/commandAnalysis.js'
 import { getCwd } from '../cwd.js'
 import { hasWildcards, suggestionForExactCommand } from './shellRuleMatching.js'
 
@@ -17,6 +18,28 @@ export function flowRequiresFreshApproval(tool: Tool, input: Record<string, unkn
   } catch {
     return true
   }
+}
+
+export function flowPushOrInstall(tool: Tool, input: Record<string, unknown>): boolean {
+  if (tool.name !== BASH_TOOL_NAME || typeof input.command !== 'string') return false
+  const { stripSafeWrappers, stripAllLeadingEnvVars } = require('../../tools/BashTool/bashPermissions.js') as typeof import('../../tools/BashTool/bashPermissions.js')
+  for (const segment of pinnedCommandAnalysis.splitCommand(input.command)) {
+    const parsed = pinnedCommandAnalysis.tryParseShellCommand(stripSafeWrappers(stripAllLeadingEnvVars(segment)))
+    if (!parsed.success || parsed.tokens.some(token => typeof token !== 'string')) return true
+    const words = parsed.tokens as string[]
+    while (words.length > 0 && (/^[A-Za-z_]\w*=/.test(words[0]!) || ['env', 'command', 'sudo', 'doas'].includes(words[0]!) || words[0]!.startsWith('-'))) words.shift()
+    let command = basename(words.shift() ?? '').replace(/\.exe$/i, '')
+    if (command === 'git' && words.includes('push')) return true
+    if (/^python[\d.]*$/.test(command) && words[0] === '-m' && /^pip[\d.]*$/.test(words[1] ?? '')) {
+      command = 'pip'
+      words.splice(0, 2)
+    }
+    if (/^(?:npm|pnpm|yarn|bun|pip[\d.]*|pipx|uv|brew|apt(?:-get)?|cargo|gem|conda|mamba|poetry|pdm|composer|dnf|yum|apk|pacman|zypper)$/.test(command)) {
+      if (command === 'yarn' && words.length === 0) return true
+      if (words.some(word => /^(?:install|add|i|ci|sync|update|upgrade|reinstall|--sync|-S\w*)$/.test(word))) return true
+    }
+  }
+  return false
 }
 
 export function flowUserAllowUpdates(

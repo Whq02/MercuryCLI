@@ -481,9 +481,9 @@ async function runLeg(leg: Leg): Promise<void> {
     check(`${leg.name}: no denial anywhere on the wire`, !wireJson.includes('has been denied') && !wireJson.includes('auto-denied'), wireJson.slice(0, 400))
   } else {
     check(`${leg.name}: no ask left the run (no host)`, asks.length === 0, `${asks.length} ask(s)`)
-    check(`${leg.name}: the shell did not run (one commit, the sha unchanged)`, commits === '1' && after === world.sha, `head ${after} · commits ${commits}`)
-    check(`${leg.name}: the refusal is the standard headless one (auto-denied; --allowed-tools and --mode named as the roads)`, HEADLESS_REFUSAL_WORDS.every(w => (shellResult ?? '').includes(w)), j(quoted(shellResult)))
-    check(`${leg.name}: the refusal wears no verdict words`, VERDICT_WORDS.every(w => !(shellResult ?? '').includes(w)), j(quoted(shellResult)))
+    check(`${leg.name}: the safe residual ran without a host (the new commit and its sha came back)`, commits === '2' && after !== world.sha && isSha(firstLine(shellResult)) && firstLine(shellResult) === after, `head ${after} · commits ${commits} · ${j(quoted(shellResult))}`)
+    check(`${leg.name}: no headless refusal is returned for the safe residual`, HEADLESS_REFUSAL_WORDS.every(w => !(shellResult ?? '').includes(w)), j(quoted(shellResult)))
+    check(`${leg.name}: the result wears no verdict words`, VERDICT_WORDS.every(w => !(shellResult ?? '').includes(w)), j(quoted(shellResult)))
   }
 
   if (failures > before || KEEP) console.log(`  stderr tail: ${run.stderr.slice(-800)}`)
