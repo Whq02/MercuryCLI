@@ -18,16 +18,19 @@ function check(name: string, ok: boolean, detail?: string): void {
 console.log('prove-lsp-contract')
 
 console.log(' §1 schemas — meaningful parameters only')
-const { lspToolInputSchema } = await import('../../src/tools/LSPTool/schemas.js')
-const schema = lspToolInputSchema()
+const { lspInputSchema, readArgumentError, readArguments } = await import('../../src/tools/LSPTool/schemas.js')
+const schema = lspInputSchema('LspRead')
 {
-  const ok = (v: unknown): boolean => schema.safeParse(v).success
-  const kept = (v: Record<string, unknown>): string[] => Object.keys((schema.safeParse(v) as { data?: Record<string, unknown> }).data ?? {})
+  const ok = (v: unknown): boolean => {
+    const parsed = schema.safeParse(v)
+    return parsed.success && readArgumentError(parsed.data) === undefined
+  }
+  const kept = (v: Record<string, unknown>): string[] => Object.keys(readArguments((schema.safeParse(v) as { data?: Record<string, unknown> }).data ?? {}))
   check('documentSymbol: filePath alone is valid', ok({ operation: 'documentSymbol', filePath: 'a.ts' }))
   check('documentSymbol: unread line/character are dropped, not refused', ok({ operation: 'documentSymbol', filePath: 'a.ts', line: 1, character: 1 }) && !kept({ operation: 'documentSymbol', filePath: 'a.ts', line: 1, character: 1 }).includes('line'))
   check('diagnostics: filePath alone is valid', ok({ operation: 'diagnostics', filePath: 'a.ts' }))
   check('diagnostics: unread positions are dropped, not refused', ok({ operation: 'diagnostics', filePath: 'a.ts', line: 1, character: 1 }) && !kept({ operation: 'diagnostics', filePath: 'a.ts', line: 1, character: 1 }).includes('character'))
-  check('switchSourceHeader: filePath alone is valid', ok({ operation: 'switchSourceHeader', filePath: 'a.cpp' }))
+  check('a retired read operation takes the same unknown road', !ok({ operation: 'switchSourceHeader', filePath: 'a.cpp' }) && !ok({ operation: 'nonsense', filePath: 'a.cpp' }))
   check('workspaceSymbol: query required (bare shape REJECTED)', !ok({ operation: 'workspaceSymbol' }))
   check('workspaceSymbol: filePath+positions without query is still REJECTED (query is read and required)', !ok({ operation: 'workspaceSymbol', filePath: 'a.ts', line: 1, character: 1 }))
   check('workspaceSymbol: query alone is valid (workspace-scoped)', ok({ operation: 'workspaceSymbol', query: 'makeGreeting' }))
@@ -35,7 +38,7 @@ const schema = lspToolInputSchema()
   check('workspaceSymbol: limit within cap valid', ok({ operation: 'workspaceSymbol', query: 'x', limit: 200 }))
   check('workspaceSymbol: limit above cap REJECTED', !ok({ operation: 'workspaceSymbol', query: 'x', limit: 201 }))
   check('goToDefinition: positions still required', !ok({ operation: 'goToDefinition', filePath: 'a.ts' }))
-  check('rename: positions + newName still required', ok({ operation: 'rename', filePath: 'a.ts', line: 2, character: 3, newName: 'y' }))
+  check('rename: its own schema requires positions and newName', lspInputSchema('LspRename').safeParse({ filePath: 'a.ts', line: 2, character: 3, newName: 'y' }).success && !lspInputSchema('LspRename').safeParse({ filePath: 'a.ts', line: 2, character: 3 }).success)
 }
 
 console.log(' §2 boundWorkspaceSymbols — dedupe · sort · cap · honest totals')

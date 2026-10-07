@@ -7,6 +7,8 @@
 # gate-watch: src/entrypoints/cli.tsx src/services/changeTransaction/changeSetCommit.ts
 # gate-watch: src/services/changeTransaction/contracts.ts src/tools.ts src/tools/DebugTool/DebugTool.ts
 # gate-watch: scripts/ast-tools/lib/harness.ts
+# gate-watch: src/services/providers/toolEconomy.ts src/services/providers/toolCallGate.ts src/services/providers/anthropic/boundPrefixRecord.ts
+# gate-watch: src/tools/AgentTool/agentToolUtils.ts src/tools/ToolSearchTool/** src/fabric/** src/tools/MCPTool/absentToolShim.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

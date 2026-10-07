@@ -1,12 +1,21 @@
 import { createHash } from 'node:crypto'
+import { stat } from 'node:fs/promises'
+import type { LSPServerManager } from './LSPServerManager.js'
 
 export const LSP_TRIES_BEFORE_REFUSAL = 3
 
-type CallEntry = { count: number; summary: string; servers: Set<string> }
-type ServerEntry = { count: number; cause: string }
+type CallEntry = { count: number; summary: string; situation: string; lastFailureAt: number }
 
 const calls = new Map<string, CallEntry>()
-const servers = new Map<string, ServerEntry>()
+let clock: () => number = Date.now
+
+export function lspLedgerNow(): number {
+  return clock()
+}
+
+export function _setLspLedgerClockForTesting(now?: () => number): void {
+  clock = now ?? Date.now
+}
 
 function sortKeysDeep(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(sortKeysDeep)
@@ -21,59 +30,50 @@ function sortKeysDeep(value: unknown): unknown {
   return value
 }
 
-export function lspCallKey(operation: string, args: unknown): string {
+export function lspCallKey(name: string, args: unknown): string {
   const canonical = JSON.stringify(sortKeysDeep(args)) ?? 'undefined'
-  return `${operation}\u0000${createHash('sha256').update(canonical).digest('hex').slice(0, 16)}`
+  return `${name}\u0000${createHash('sha256').update(canonical).digest('hex').slice(0, 16)}`
 }
 
-export function recordLspCallFailure(key: string, summary: string, failedServers: string[] = []): number {
-  const entry = calls.get(key) ?? { count: 0, summary, servers: new Set<string>() }
-  entry.count++
-  entry.summary = summary
-  for (const server of failedServers) entry.servers.add(server)
-  calls.set(key, entry)
-  return entry.count
+export async function lspCallSituation(namedPaths: string[], manager: LSPServerManager | undefined): Promise<string> {
+  const paths = await Promise.all([...new Set(namedPaths)].sort().map(async path => {
+    try {
+      const value = await stat(path)
+      return [path, value.isDirectory() ? 'dir' : 'file', value.size, Math.floor(value.mtimeMs)]
+    } catch {
+      return [path, 'absent']
+    }
+  }))
+  const servers = [...(manager?.getAllServers().values() ?? [])].map(server => [server.name, server.state, server.generation]).sort()
+  return createHash('sha256').update(JSON.stringify({ paths, servers })).digest('hex').slice(0, 16)
 }
 
-export function recordLspServerFailure(server: string, cause: string): number {
-  const entry = servers.get(server) ?? { count: 0, cause }
-  entry.count++
-  entry.cause = cause
-  servers.set(server, entry)
-  return entry.count
+export function lspRefusalWindowMs(count: number): number {
+  return Math.min(15_000 * 2 ** (count - 1), 300_000)
 }
 
-export function lspCallRefusal(key: string): { count: number; summary: string } | undefined {
+export function recordLspServerFault(key: string, summary: string, situation: string, now = lspLedgerNow()): number {
+  const prior = calls.get(key)
+  const count = prior?.situation === situation ? prior.count + 1 : 1
+  calls.set(key, { count, summary, situation, lastFailureAt: now })
+  return count
+}
+
+export function lspCallRefusal(key: string, situation: string, now = lspLedgerNow()): { count: number; summary: string; retryAt: number } | undefined {
   const entry = calls.get(key)
-  if (entry === undefined || entry.count < LSP_TRIES_BEFORE_REFUSAL) return undefined
-  return { count: entry.count, summary: entry.summary }
-}
-
-export function lspServerRefusal(server: string): { count: number; cause: string } | undefined {
-  const entry = servers.get(server)
-  if (entry === undefined || entry.count < LSP_TRIES_BEFORE_REFUSAL) return undefined
-  return { count: entry.count, cause: entry.cause }
+  if (!entry || entry.situation !== situation || entry.count < LSP_TRIES_BEFORE_REFUSAL) return undefined
+  const retryAt = entry.lastFailureAt + lspRefusalWindowMs(entry.count)
+  return now < retryAt ? { count: entry.count, summary: entry.summary, retryAt } : undefined
 }
 
 export function clearLspCall(key: string): void {
   calls.delete(key)
 }
 
-export function clearLspServer(server: string): void {
-  servers.delete(server)
-  for (const [key, entry] of calls) {
-    if (entry.servers.has(server)) calls.delete(key)
-  }
-}
-
 export function resetLspFailureLedger(): void {
   calls.clear()
-  servers.clear()
 }
 
-export function _lspFailureLedgerForTesting(): { calls: Array<{ key: string; count: number }>; servers: Array<{ server: string; count: number }> } {
-  return {
-    calls: [...calls.entries()].map(([key, entry]) => ({ key, count: entry.count })),
-    servers: [...servers.entries()].map(([server, entry]) => ({ server, count: entry.count })),
-  }
+export function _lspFailureLedgerForTesting(): Array<{ key: string } & CallEntry> {
+  return [...calls].map(([key, entry]) => ({ key, ...entry }))
 }

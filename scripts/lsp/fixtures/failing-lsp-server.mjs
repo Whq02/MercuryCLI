@@ -36,6 +36,7 @@ process.stdin.on('data', chunk => {
     buffer = buffer.subarray(end + 4 + size)
     if (row.method === 'exit') process.exit(0)
     if (row.id === undefined) continue
+    if (process.env.FAILING_LSP_REQUEST_LOG) appendFileSync(process.env.FAILING_LSP_REQUEST_LOG, `${JSON.stringify({ method: row.method, params: row.params })}\n`)
     if (row.method === 'initialize') {
       if (mode === 'never-initialize') continue
       if (refuseInitialize) send({ id: row.id, error: { code: -32603, message: "no resolvable 'typescript' package from workspace root /fixture-project" } })
