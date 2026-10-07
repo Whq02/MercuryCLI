@@ -118,6 +118,11 @@ const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boole
     why: 'the env-less compile-cache fallback mirrors the three-rung home ladder (projectdirs prover pins it)',
   },
   {
+    test: (f, _n, excerpt) => f === 'src/services/privateChannel/installLayout.ts' && /\$env:MERCURY_CONFIG_DIR/.test(excerpt),
+    cls: 'owner-internal',
+    why: 'the managed PowerShell entry is a template string that mirrors the three-rung home ladder (MERCURY_CONFIG_DIR, MERCURY_HOME, the home) as the .cmd does — the shell reads it, src never does',
+  },
+  {
     test: (f, n) => f === 'src/utils/cockpit/repoSurfaceMap.ts' && (n === 'MERCURY.md' || n === 'AGENTS.md'),
     cls: 'guide-probe',
     why: 'the surface map lists the guides present at the root by name — existence only, never a content load',
