@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
 
 import type { AppState } from './state/AppState.js'
+import type { TaskRow } from './rows/vocabulary.js'
 import { TASK_ID_ALPHABET, TASK_ID_SUFFIX_LENGTH } from './types/ids.js'
 import { getTaskOutputPath } from './utils/task/diskOutput.js'
 
@@ -88,20 +89,17 @@ export function generateTaskId(type: TaskType): string {
   return prefix + suffix
 }
 
-export function createTaskStateBase(
-  id: string,
-  type: TaskType,
-  description: string,
-  toolUseId?: string,
-): TaskStateBase {
+export type TaskStart = Pick<TaskRow, 'task_id' | 'call_id'> & { task_type: TaskType; description: string }
+
+export function createTaskStateBase(start: TaskStart): TaskStateBase {
   return {
-    id,
-    type,
+    id: start.task_id,
+    type: start.task_type,
     status: 'pending',
-    description,
-    toolUseId,
+    description: start.description,
+    toolUseId: start.call_id,
     startTime: Date.now(),
-    outputFile: getTaskOutputPath(id),
+    outputFile: getTaskOutputPath(start.task_id),
     outputOffset: 0,
     notified: false,
   }

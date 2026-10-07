@@ -40,7 +40,7 @@ const T0 = 1_700_000_000_000
 
 function agentTask(id: string, description: string, status: string): Record<string, unknown> {
   return {
-    ...createTaskStateBase(id, 'local_agent', description, `toolu_${id}`),
+    ...createTaskStateBase({ task_id: id, task_type: 'local_agent', description, call_id: `toolu_${id}` }),
     type: 'local_agent',
     status,
     agentId: id,
@@ -54,7 +54,7 @@ function agentTask(id: string, description: string, status: string): Record<stri
 }
 function shellTask(id: string, command: string): Record<string, unknown> {
   return {
-    ...createTaskStateBase(id, 'local_bash', '', `toolu_${id}`),
+    ...createTaskStateBase({ task_id: id, task_type: 'local_bash', description: '', call_id: `toolu_${id}` }),
     type: 'local_bash',
     status: 'running',
     command,

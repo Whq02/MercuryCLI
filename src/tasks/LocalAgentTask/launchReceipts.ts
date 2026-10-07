@@ -250,7 +250,7 @@ export function orphanedBackgroundLaunches(
 
 export function stoppedRecordFor(receipt: BackgroundLaunchReceipt, now: number = Date.now()): LocalAgentTaskState {
   return {
-    ...createTaskStateBase(receipt.agentId, 'local_agent', receipt.description, receipt.toolUseId),
+    ...createTaskStateBase({ task_id: receipt.agentId, task_type: 'local_agent', description: receipt.description, call_id: receipt.toolUseId }),
     type: 'local_agent',
     agentId: receipt.agentId,
     prompt: receipt.prompt,

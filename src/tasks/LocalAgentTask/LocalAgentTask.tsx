@@ -536,7 +536,7 @@ export function registerAsyncAgent(args: {
     killAsyncAgent(taskId, args.setAppState)
   })
   const state: LocalAgentTaskState = {
-    ...createTaskStateBase(taskId, 'local_agent', args.description, args.toolUseId),
+    ...createTaskStateBase({ task_id: taskId, task_type: 'local_agent', description: args.description, call_id: args.toolUseId }),
     type: 'local_agent',
     status: 'running',
     agentId: args.agentId,
@@ -576,7 +576,7 @@ export function registerAgentForeground(args: {
     killAsyncAgent(taskId, args.setAppState)
   })
   const state: LocalAgentTaskState = {
-    ...createTaskStateBase(taskId, 'local_agent', args.description, args.toolUseId),
+    ...createTaskStateBase({ task_id: taskId, task_type: 'local_agent', description: args.description, call_id: args.toolUseId }),
     type: 'local_agent',
     status: 'running',
     agentId: args.agentId,

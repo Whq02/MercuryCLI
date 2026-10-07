@@ -10,7 +10,7 @@
 # gate-watch: src/utils/hooks/contract.ts
 # gate-watch: src/utils/messages/turnCut.ts src/utils/settings/settings.ts src/utils/settings/types.ts
 # gate-watch: src/services/tools/toolHooks.ts
-# gate-watch: src/rows/vocabulary.ts src/rows/project.ts
+# gate-watch: src/rows/vocabulary.ts src/rows/project.ts docs/HOOKS.md sdk/src/rows.ts
 # gate-watch: src/cli/headless/resume.ts src/utils/model/model.ts src/utils/sessionStorage/vnext.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
