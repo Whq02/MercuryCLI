@@ -47,9 +47,11 @@ export type ActualMatch = {
   feedback: string | null
 }
 
+export type MatchLines = { start: number; end: number }
+
 export type ActualMatchOutcome =
   | ActualMatch
-  | { kind: 'ambiguous'; road: ForgivingRoad; count: number }
+  | { kind: 'ambiguous'; road: ForgivingRoad; count: number; matches: MatchLines[] }
   | { kind: 'none' }
 
 const LEADING_WHITESPACE = /^\s*/
@@ -91,10 +93,14 @@ function forgivenessFeedback(road: ForgivingRoad, actual: string, search: string
   return `Matched with the file's indentation${also} at ${span}: the file ${file} where old_string used ${describeIndentation(typedIndent)}.`
 }
 
+function linesAt(fileContent: string, index: number, text: string): MatchLines {
+  let start = 1
+  for (let at = fileContent.indexOf('\n'); at !== -1 && at < index; at = fileContent.indexOf('\n', at + 1)) start++
+  return { start, end: start + text.replace(/\n$/, '').split('\n').length - 1 }
+}
+
 function foundAt(fileContent: string, actual: string, index: number, road: ForgivingRoad, search: string): ActualMatch {
-  let startLine = 1
-  for (let at = fileContent.indexOf('\n'); at !== -1 && at < index; at = fileContent.indexOf('\n', at + 1)) startLine++
-  const endLine = startLine + actual.replace(/\n$/, '').split('\n').length - 1
+  const { start: startLine, end: endLine } = linesAt(fileContent, index, actual)
   return { kind: 'found', actual, index, road, startLine, endLine, feedback: forgivenessFeedback(road, actual, search, startLine, endLine) }
 }
 
@@ -104,13 +110,15 @@ function locateByCharacters(fileContent: string, searchString: string): ActualMa
   const first = plainContent.indexOf(plainSearch)
   if (first === -1) return null
   const actual = fileContent.slice(first, first + searchString.length)
-  let count = 1
+  const positions = [first]
   let differing = false
   for (let at = plainContent.indexOf(plainSearch, first + plainSearch.length); at !== -1; at = plainContent.indexOf(plainSearch, at + plainSearch.length)) {
-    count++
+    positions.push(at)
     if (fileContent.slice(at, at + searchString.length) !== actual) differing = true
   }
-  if (differing) return { kind: 'ambiguous', road: 'characters', count }
+  if (differing) {
+    return { kind: 'ambiguous', road: 'characters', count: positions.length, matches: positions.map(at => linesAt(fileContent, at, searchString)) }
+  }
   return foundAt(fileContent, actual, first, 'characters', searchString)
 }
 
@@ -155,7 +163,9 @@ function locateByLines(fileContent: string, searchString: string): ActualMatchOu
       return fileContent.slice(offsets[start] as number, end)
     }
     const actual = sliceAt(windows[0] as number)
-    if (windows.some(start => sliceAt(start) !== actual)) return { kind: 'ambiguous', road, count: windows.length }
+    if (windows.some(start => sliceAt(start) !== actual)) {
+      return { kind: 'ambiguous', road, count: windows.length, matches: windows.map(start => ({ start: start + 1, end: start + searchLines.length })) }
+    }
     return foundAt(fileContent, actual, offsets[windows[0] as number] as number, road, searchString)
   }
   return { kind: 'none' }

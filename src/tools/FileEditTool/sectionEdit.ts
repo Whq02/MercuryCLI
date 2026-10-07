@@ -43,8 +43,12 @@ export function planAppend(content: string, text: string): string {
   return content.endsWith('\n') ? content + text : content + '\n' + text
 }
 
+export function sectionHeadingOf(heading: string): string {
+  return heading.trim().replace(/[\t ]+#+[\t ]*$/, '')
+}
+
 export function findSection(content: string, heading: string): { ok: true; start: number; end: number } | { ok: false; message: string } {
-  const wanted = heading.trim().replace(/[\t ]+#+[\t ]*$/, '')
+  const wanted = sectionHeadingOf(heading)
   const level = HEADING.exec(wanted)
   if (!level) {
     return { ok: false, message: `section must be a Markdown heading line (\"## Name\", up to six #), got: ${JSON.stringify(heading)}` }

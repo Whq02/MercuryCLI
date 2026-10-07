@@ -46,6 +46,7 @@ const MINUS = '\u2212'
 const RS = '\u2019'
 const NOT_FOUND = 'The old_string was not found in the file.'
 const AMBIGUOUS = /^Found (\d+) matches of the string to replace, but replace_all is false/
+const DIFFERING_SPELLINGS = /^Found (\d+) matches of the string to replace, but they differ from each other in whitespace or characters; nothing was written\./
 const locate = (content: string, search: string): Outcome =>
   typeof utils.locateActualString === 'function' ? utils.locateActualString(content, search) : { kind: 'none' }
 const found = (outcome: Outcome): outcome is Extract<Outcome, { kind: 'found' }> => outcome.kind === 'found'
@@ -169,7 +170,7 @@ section('C. through the tool: a two-space old_string against a four-space file l
   check('C1 the edit lands', r.ok, detail(r))
   check('C2 the new line landed at the file\'s 12 spaces and every other byte stands', r.after === FOUR_AFTER, JSON.stringify(r.after))
   const SENTENCE = "Matched with the file's indentation at lines 3-7: the file indents with 4 spaces where old_string used 2 spaces."
-  check('C2b the result text carries the feedback sentence right after the success clause, once', r.ok && r.text.startsWith(`The file ${r.path} has been updated successfully. ${SENTENCE}`) && r.text.split(SENTENCE).length === 2, r.ok ? r.text.slice(0, 260) : detail(r))
+  check('C2b the result text carries the feedback sentence right after the success head, once', r.ok && r.text.startsWith(`The file ${r.path} has been updated successfully: 1 occurrence replaced; added line 6 (the file has 10 lines). ${SENTENCE}`) && r.text.split(SENTENCE).length === 2, r.ok ? r.text.slice(0, 260) : detail(r))
   const wrapped = await edit('wrap.ts', FOUR, { old_string: '  let total = 0', new_string: '  let total = 0\n  let count = 0' })
   check('C3 guard: a one-line old_string that is an exact substring (shallower indentation) still takes the exact road and lands as typed', wrapped.ok && wrapped.after === FOUR.replace('    let total = 0\n', '    let total = 0\n  let count = 0\n'), detail(wrapped) + ' ' + JSON.stringify(wrapped.after))
   check('C3b guard: an exact-road result carries no matched-with sentence', wrapped.ok && !wrapped.text.includes('Matched with the file'), wrapped.ok ? wrapped.text.slice(0, 200) : detail(wrapped))
@@ -195,11 +196,11 @@ section('D. through the tool: the same old_string matching two blocks refuses as
   check('D2 nothing was written', r.after === twin)
   const all = await edit('twin-all.ts', twin, { old_string: TWO_OLD, new_string: TWO_NEW, replace_all: true })
   check('D3 with replace_all both blocks land with the file\'s indentation', all.ok && all.after === `${FOUR_AFTER}\n${FOUR_AFTER}`, detail(all))
-  check('D3b the replace_all result carries the sentence after its own clause', all.ok && all.text.startsWith(`The file ${all.path} has been updated. All occurrences of the string were replaced. Matched with the file's indentation at lines 3-7:`), all.ok ? all.text.slice(0, 260) : detail(all))
+  check('D3b the replace_all result carries the sentence after its own head', all.ok && all.text.startsWith(`The file ${all.path} has been updated successfully: all 2 occurrences replaced; added lines 6, 17 (the file has 21 lines). Matched with the file's indentation at lines 3-7:`), all.ok ? all.text.slice(0, 260) : detail(all))
   const differing = `${FOUR}\nfunction again(items: string[]): number {\n  let total = 0\n  for (const item of items) {\n    if (item.length > 0) {\n      total += item.length\n    }\n  }\n  return total\n}\n`
   const typedWithTabs = await edit('differing.ts', differing, { old_string: '\tfor (const item of items) {\n\t\tif (item.length > 0) {\n\t\t\ttotal += item.length\n\t\t}\n\t}', new_string: '\tfor (const item of items) {\n\t\ttotal += 1\n\t}' })
   check('D4 two candidate blocks with different indentation refuse and write nothing', !typedWithTabs.ok && typedWithTabs.after === differing, detail(typedWithTabs))
-  check('D4b that refusal is today\'s ambiguity wording with the count, not the not-found wording', !typedWithTabs.ok && AMBIGUOUS.test(typedWithTabs.error) && typedWithTabs.error.includes('Found 2 matches') && !typedWithTabs.error.startsWith(NOT_FOUND), detail(typedWithTabs))
+  check('D4b that refusal says the spellings differ, names both blocks\' lines and never advises replace_all', !typedWithTabs.ok && DIFFERING_SPELLINGS.test(typedWithTabs.error) && typedWithTabs.error.includes('(found after ignoring indentation) are at lines 3-7, 13-17;') && !typedWithTabs.error.includes('set replace_all to true') && !typedWithTabs.error.startsWith(NOT_FOUND), detail(typedWithTabs))
   const differingAll = await edit('differing-all.ts', differing, { old_string: '\tfor (const item of items) {\n\t\tif (item.length > 0) {\n\t\t\ttotal += item.length\n\t\t}\n\t}', new_string: '\tfor (const item of items) {\n\t\ttotal += 1\n\t}', replace_all: true })
   check('D4c with replace_all the differing candidates still refuse, say why in plain words, and write nothing', !differingAll.ok && differingAll.error.startsWith('Found 2 matches of the string to replace, but they differ from each other in whitespace or characters') && differingAll.after === differing, detail(differingAll))
 }
@@ -218,7 +219,7 @@ section('F. through the tool: en dash, em dash and no-break space in the file, A
   const enFile = `# Range\n\nThe pages 10${EN}20 cover the setup.\nThe pages 30${EN}40 cover the run.\n`
   const en = await edit('en.md', enFile, { old_string: 'The pages 10-20 cover the setup.', new_string: 'The pages 10-20 cover the setup and the teardown.' })
   check('F1 an en dash line is found from ASCII and the edit lands', en.ok, detail(en))
-  check('F1b the result text carries the characters sentence after the success clause', en.ok && en.text.startsWith(`The file ${en.path} has been updated successfully. Matched with the file's dash/space characters at line 3.`), en.ok ? en.text.slice(0, 260) : detail(en))
+  check('F1b the result text carries the characters sentence after the success head', en.ok && en.text.startsWith(`The file ${en.path} has been updated successfully: 1 occurrence replaced; changed line 3 (the file has 4 lines). Matched with the file's dash/space characters at line 3.`), en.ok ? en.text.slice(0, 260) : detail(en))
   check('F2 the untouched part of the line keeps the en dash and the second line stands', en.after === `# Range\n\nThe pages 10${EN}20 cover the setup and the teardown.\nThe pages 30${EN}40 cover the run.\n`, JSON.stringify(en.after))
   const emFile = `notes${EM}first draft\nnotes${EM}second draft\n`
   const em = await edit('em.txt', emFile, { old_string: 'notes-second draft', new_string: 'notes-final draft' })

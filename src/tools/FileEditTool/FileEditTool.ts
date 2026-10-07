@@ -85,8 +85,20 @@ import {
   getPatchForEdit,
   locateActualString,
   preserveQuoteStyleForFile,
+  type ActualMatchOutcome,
 } from './utils.js'
-import { findSection, planAppend, planSectionEdit } from './sectionEdit.js'
+import { findSection, planAppend, planSectionEdit, sectionHeadingOf } from './sectionEdit.js'
+import {
+  EDIT_RESULT_CLOSE,
+  anchorShownWindows,
+  buildEditedLines,
+  editResultHead,
+  matchRangesOf,
+  notUniqueMessage,
+  planShownWindows,
+  renderShownWindows,
+  spellNamedRanges,
+} from './editResult.js'
 import {
   READ_THROUGH_MARGIN,
   coalesceLineRanges,
@@ -379,15 +391,60 @@ function stampOwnEditAsSeen(
   }
 }
 
-function sameCallReadThrough(gaps: readonly LineRange[], before: string, after: string, patch: readonly StructuredPatchHunk[], expandedPath: string): string {
+type SameCallReadThrough = { text: string; sentence: string; ranges: LineRange[] }
+
+function sameCallReadThrough(gaps: readonly LineRange[], before: string, after: string, patch: readonly StructuredPatchHunk[], expandedPath: string): SameCallReadThrough {
   const oneGap = gaps.length === 1 && gaps[0]!.start === gaps[0]!.end
   const unread = `${oneGap ? 'Line' : 'Lines'} ${spellLineRanges(gaps)} did not count as read before this edit`
   const mapped = after === before ? [...gaps] : mapRangesThroughPatch(gaps, patch, Math.max(1, lineCountOf(after)))
   const plan = planCarry(after, expandedPath, mapped)
-  if (plan.windows.length === 0) return `${unread}.`
+  if (plan.windows.length === 0) return { text: `${unread}.`, sentence: `${unread}.`, ranges: [] }
   const shown = plan.windows.map(window => ({ start: window.start, end: window.end }))
   const one = shown.length === 1 && shown[0]!.start === shown[0]!.end
-  return `${unread}; ${one ? 'line' : 'lines'} ${spellLineRanges(shown)} as ${one ? 'it stands' : 'they stand'} now ${one ? 'is' : 'are'} below, numbered with ${one ? 'its' : 'their'} anchor, and ${one ? 'counts' : 'count'} as read:\n\n${renderCarriedWindows(plan.windows)}`
+  const sentence = `${unread}; ${one ? 'line' : 'lines'} ${spellLineRanges(shown)} as ${one ? 'it stands' : 'they stand'} now ${one ? 'is' : 'are'} below, numbered with ${one ? 'its' : 'their'} anchor, and ${one ? 'counts' : 'count'} as read:`
+  return { text: `${sentence}\n\n${renderCarriedWindows(plan.windows)}`, sentence, ranges: shown }
+}
+
+type NotUniqueRefusal = { result: false; behavior: 'ask'; message: string; errorCode: 9; meta: Record<string, string> }
+
+function notUniqueRefusal(
+  context: ToolUseContext,
+  expandedPath: string,
+  currentContent: string,
+  oldString: string,
+  replaceAll: boolean,
+  located: Exclude<ActualMatchOutcome, { kind: 'none' }>,
+  generationAtStat: string | null,
+): NotUniqueRefusal | null {
+  let matches: LineRange[]
+  let spelling: 'same' | 'differs'
+  if (located.kind === 'ambiguous') {
+    matches = located.matches
+    spelling = 'differs'
+  } else {
+    matches = matchRangesOf(currentContent, located.actual)
+    if (matches.length < 2 || replaceAll) return null
+    spelling = 'same'
+  }
+  const lineCount = lineCountOf(currentContent)
+  const planned = planShownWindows(currentContent, widenLineRanges(matches, READ_THROUGH_MARGIN, lineCount), expandedPath)
+  const recorded = generationAtStat !== null && fileGeneration(expandedPath) === generationAtStat
+  if (recorded) recordCarry(ownerFromToolUseContext(context), expandedPath, generationAtStat, planned)
+  const shownRanges = planned.map(window => ({ start: window.start, end: window.end }))
+  const covered = (match: LineRange): boolean => shownRanges.some(range => range.start <= match.start && match.end <= range.end)
+  let shownMatches = 0
+  while (shownMatches < matches.length && covered(matches[shownMatches]!)) shownMatches++
+  const next = shownMatches < matches.length ? matches[shownMatches]! : null
+  const windows = recorded
+    ? renderShownWindows(anchorShownWindows(planned.map(window => ({ start: window.start, rows: window.content.split('\n') })), { lineCount, text: currentContent }))
+    : ''
+  return {
+    result: false,
+    behavior: 'ask',
+    errorCode: 9,
+    message: notUniqueMessage({ count: matches.length, road: located.road, spelling, replaceAll, matches, lineCount, shownMatches, next, recorded, windows, oldString }),
+    meta: { oldString, ...(located.kind === 'found' ? { actualOldString: located.actual } : {}), matchLines: spellNamedRanges(matches) },
+  }
 }
 
 function linesOfHunks(hunks: readonly EditHunkInput[] | undefined): LineRange[] | null {
@@ -884,6 +941,12 @@ export const FileEditTool = buildTool({
       }
     }
 
+    const located = mode === 'exact' ? locateActualString(currentContent, oldString) : null
+    if (located !== null && located.kind !== 'none') {
+      const notUnique = notUniqueRefusal(context, expandedPath, currentContent, oldString, input.replace_all === true, located, generationAtStat)
+      if (notUnique !== null) return notUnique
+    }
+
     const touched =
       mode === 'exact'
         ? linesOfMatches(currentContent, oldString, input.replace_all === true)
@@ -1004,20 +1067,7 @@ export const FileEditTool = buildTool({
       return { result: true as const }
     }
 
-    const located = locateActualString(currentContent, oldString)
-    if (located.kind === 'ambiguous') {
-      return {
-        result: false as const,
-        behavior: 'ask' as const,
-        message: input.replace_all
-          ? `Found ${located.count} matches of the string to replace, but they differ from each other in whitespace or characters, so replace_all cannot rewrite them as one string. Provide more surrounding context to uniquely identify one instance, or spell old_string as the file does.\nString: ${oldString}`
-          : `Found ${located.count} matches of the string to replace, but replace_all is false. ` +
-            `To replace all occurrences, set replace_all to true. To replace only one occurrence, provide more surrounding context to uniquely identify the instance.\nString: ${oldString}`,
-        errorCode: 9,
-        meta: { oldString },
-      }
-    }
-    const actualOldString = located.kind === 'found' ? located.actual : null
+    const actualOldString = located !== null && located.kind === 'found' ? located.actual : null
     if (actualOldString === null) {
       return {
         result: false as const,
@@ -1025,18 +1075,6 @@ export const FileEditTool = buildTool({
         message: `The old_string was not found in the file.\nString: ${oldString}`,
         errorCode: 8,
         meta: { isPathAbsolute: String(isAbsolute(input.file_path)) },
-      }
-    }
-    const occurrences = currentContent.split(actualOldString).length - 1
-    if (occurrences > 1 && !input.replace_all) {
-      return {
-        result: false as const,
-        behavior: 'ask' as const,
-        message:
-          `Found ${occurrences} matches of the string to replace, but replace_all is false. ` +
-          `To replace all occurrences, set replace_all to true. To replace only one occurrence, provide more surrounding context to uniquely identify the instance.\nString: ${oldString}`,
-        errorCode: 9,
-        meta: { oldString, actualOldString },
       }
     }
 
@@ -1148,6 +1186,8 @@ export const FileEditTool = buildTool({
     let reportedOldString: string
     let reportedNewString: string
     let freshLineAnchors: string | undefined
+    let what: string
+    let occurrences: number | undefined
     if (usingHunks) {
       const { bom, body } = splitLeadingBom(freshContent)
       const plan = planHunks(body, effectiveHunks as EditHunkInput[], effectiveAnchor)
@@ -1176,6 +1216,8 @@ export const FileEditTool = buildTool({
               oldContent: convertLeadingTabsToSpaces(freshContent),
               newContent: convertLeadingTabsToSpaces(updatedFile),
             })
+      const hunkTotal = (effectiveHunks as EditHunkInput[]).length
+      what = `${hunkTotal} ${plural(hunkTotal, 'hunk')} applied`
     } else if (mode === 'append' || mode === 'section') {
       const planned =
         mode === 'append'
@@ -1199,6 +1241,12 @@ export const FileEditTool = buildTool({
               oldContent: convertLeadingTabsToSpaces(freshContent),
               newContent: convertLeadingTabsToSpaces(updatedFile),
             })
+      what =
+        mode === 'append'
+          ? 'appended at the end'
+          : hasText(input.append)
+            ? `appended inside section "${sectionHeadingOf(input.section ?? '')}"`
+            : `section "${sectionHeadingOf(input.section ?? '')}" replaced`
     } else {
       const oldString = input.old_string ?? ''
       const newString = input.new_string ?? ''
@@ -1215,8 +1263,19 @@ export const FileEditTool = buildTool({
       patch = result.patch
       reportedOldString = oldString
       reportedNewString = newString
+      const verb = newString === '' ? 'removed' : 'replaced'
+      if (oldString === '') {
+        what = 'file created'
+      } else if (input.replace_all) {
+        occurrences = freshContent.split(actualOldString).length - 1
+        what = occurrences >= 2 ? `all ${occurrences} occurrences ${verb}` : `1 occurrence ${verb} (the only one)`
+      } else {
+        occurrences = 1
+        what = `1 occurrence ${verb}`
+      }
     }
-    const readThrough = sameCall === null ? undefined : sameCallReadThrough(sameCall.gaps, freshContent, updatedFile, patch, expandedPath)
+    const sameCallParts = sameCall === null ? null : sameCallReadThrough(sameCall.gaps, freshContent, updatedFile, patch, expandedPath)
+    const readThrough = sameCallParts === null ? undefined : sameCallParts.text
 
     const userModified = context.userModifiedInput === true
     const replaceAll = input.replace_all ?? false
@@ -1280,7 +1339,24 @@ export const FileEditTool = buildTool({
       : []
     writeTextContent(expandedPath, reconciled, encoding, fileExists ? 'LF' : lineEndings)
     const writtenAt = getFileModificationTime(expandedPath)
-    stampOwnEditAsSeen(owner, expandedPath, generationOfWrittenBytes(expandedPath, writtenBytesOf(expandedPath, reconciled, encoding)), knownBeforeWrite, patch, updatedFile)
+    const writtenGeneration = generationOfWrittenBytes(expandedPath, writtenBytesOf(expandedPath, reconciled, encoding))
+    stampOwnEditAsSeen(owner, expandedPath, writtenGeneration, knownBeforeWrite, patch, updatedFile)
+    const built = await buildEditedLines({
+      written: updatedFile,
+      patch,
+      what,
+      ...(occurrences !== undefined ? { occurrences } : {}),
+      path: expandedPath,
+      readWindow: async (start, count) => {
+        const range = await readFileInRange(expandedPath, start - 1, count, undefined, context.abortController.signal)
+        return range.lineCount === 0 ? [] : range.content.split('\n')
+      },
+      ...(sameCallParts !== null ? { readThrough: { sentence: sameCallParts.sentence, windows: sameCallParts.ranges } } : {}),
+      ...(freshLineAnchors !== undefined ? { freshAnchors: freshLineAnchors } : {}),
+    })
+    const editedLines = built.editedLines
+    const shownGeneration = editedLines.readBack === 'same' ? writtenGeneration : editedLines.readBack === 'differs' ? fileGeneration(expandedPath) : null
+    if (shownGeneration !== null) recordCarry(owner, expandedPath, shownGeneration, built.windows)
 
     const lspManager = getLspServerManager()
     if (lspManager) {
@@ -1323,6 +1399,7 @@ export const FileEditTool = buildTool({
       ...(freshLineAnchors !== undefined ? { freshLineAnchors } : {}),
       ...(staleRecoveryNote !== undefined ? { staleRecovery: staleRecoveryNote } : {}),
       ...(readThrough !== undefined ? { readThrough } : {}),
+      editedLines,
     }
     return {
       data,
@@ -1358,12 +1435,16 @@ export const FileEditTool = buildTool({
     const modifiedClause = data.userModified ? ' (the user modified the change before accepting it)' : ''
     const located = data.oldString === '' || data.oldString.includes(HUNK_SPAN_ELISION) ? null : locateActualString(data.originalFile, data.oldString)
     const forgivenClause = located !== null && located.kind === 'found' && located.feedback !== null ? ` ${located.feedback}` : ''
-    const closingClause = data.staleRecovery !== undefined ? ` Your hunks were relocated because the file changed since your read (${data.staleRecovery}) — re-read before further anchored edits.` : data.userModified ? '' : ` ${APPLIED_NO_REREAD_NOTE}`
-    const text = data.replaceAll
-      ? `The file ${data.filePath} has been updated${modifiedClause}. All occurrences of the string were replaced.${forgivenClause}${closingClause}`
-      : `The file ${data.filePath} has been updated successfully${modifiedClause}.${forgivenClause}${closingClause}`
-    const anchored = data.freshLineAnchors !== undefined ? `${text}\n\n${data.freshLineAnchors}` : text
-    const content = data.readThrough !== undefined ? `${anchored}\n\n${data.readThrough}` : anchored
+    const relocated = data.staleRecovery !== undefined ? `Your hunks were relocated because the file changed since your read (${data.staleRecovery}) — re-read before further anchored edits.` : null
+    if (data.editedLines === undefined) {
+      const text = `The file ${data.filePath} has been updated successfully${modifiedClause}.${forgivenClause}${relocated === null ? '' : ` ${relocated}`}`
+      const anchored = data.freshLineAnchors !== undefined ? `${text}\n\n${data.freshLineAnchors}` : text
+      const content = data.readThrough !== undefined ? `${anchored}\n\n${data.readThrough}` : anchored
+      return { tool_use_id: toolUseID, type: 'tool_result' as const, content }
+    }
+    const head = `${editResultHead(data.filePath, modifiedClause, data.editedLines)}${forgivenClause}`
+    const close = relocated ?? (data.editedLines.readBack === 'same' ? EDIT_RESULT_CLOSE : null)
+    const content = [head, ...(data.editedLines.body === '' ? [] : [data.editedLines.body]), ...(close === null ? [] : [close])].join('\n')
     return { tool_use_id: toolUseID, type: 'tool_result' as const, content }
   },
   extractSearchText(data: Output): string {
