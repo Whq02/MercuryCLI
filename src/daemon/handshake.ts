@@ -66,8 +66,13 @@ export function versionIsNewer(candidate: string, than: string): boolean {
   return a !== null && b !== null && comparePrivateVersions(a, b) > 0
 }
 
+function isInstalledBuild(tree: string | null, installed: InstalledBuildFacts | null): boolean {
+  return installed !== null && installed.buildTree !== null && tree === installed.buildTree
+}
+
 export function screenIsOlder(daemon: { buildTree: string | null; version: string }, client: ClientVersionFacts, installed: InstalledBuildFacts | null): boolean {
-  return versionIsNewer(daemon.version, client.version)
+  if (versionIsNewer(daemon.version, client.version)) return true
+  return isInstalledBuild(daemon.buildTree, installed) && !isInstalledBuild(client.buildTree, installed)
 }
 
 export type HelloOutcome =
@@ -160,7 +165,7 @@ export function decideHandshake(outcome: HelloOutcome, client: ClientVersionFact
       const v: DaemonHandshakeVerdict = { ...base, state: 'rebuilt', daemon, ...counts, heal: 'reopen', healState: 'none', line: null }
       return { ...v, line: honestLine(v) }
     }
-    const ordered = versionIsNewer(client.version, daemon.version)
+    const ordered = versionIsNewer(client.version, daemon.version) || (isInstalledBuild(client.buildTree, installed) && !isInstalledBuild(daemon.buildTree, installed))
     const v: DaemonHandshakeVerdict = { ...base, state: 'rebuilt', daemon, ...counts, heal: ordered ? 'restart-when-idle' : 'operator', healState: ordered ? healState : 'operator', line: null }
     return { ...v, line: honestLine(v) }
   }
@@ -259,7 +264,7 @@ function rebuiltWho(v: DaemonHandshakeVerdict): string {
 export function reopenLine(v: DaemonHandshakeVerdict): string {
   const d = v.daemon
   if (d !== null && d.version === v.client.version) {
-    return `${REOPEN_WORDS} — a newer Mercury (tree ${d.buildTree ?? '?'}) is installed and the daemon runs it; this Mercury (tree ${v.client.buildTree ?? '?'}) is the older build`
+    return `${REOPEN_WORDS} — the daemon runs the installed build (tree ${d.buildTree ?? '?'}); this Mercury (tree ${v.client.buildTree ?? '?'}) is another build`
   }
   return `${REOPEN_WORDS} — a newer Mercury (v${d?.version ?? '?'}) is installed and the daemon runs it; this Mercury (v${v.client.version}) is the older build`
 }
@@ -285,7 +290,7 @@ export function daemonBuildStatusWords(v: DaemonHandshakeVerdict | null): string
 }
 
 function healWords(v: DaemonHandshakeVerdict): string {
-  if (v.heal === 'reopen') return `this Mercury is the older build — ${REOPEN_WORDS}`
+  if (v.heal === 'reopen') return `this Mercury is not the installed build — ${REOPEN_WORDS}`
   if (v.state === 'rebuilt' && v.heal === 'operator') return `build order unknown; ${REBUILT_UNTIL} · /daemon shows the builds`
   switch (v.healState) {
     case 'restarting':
