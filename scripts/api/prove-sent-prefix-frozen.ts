@@ -638,11 +638,13 @@ if (!existsSync(DIST)) {
         const requests = fixture.messageRequests()
         check('§11 all expected model requests occurred', requests.length === 20, String(requests.length))
         const cleared = requests.slice(14)
-        check('§11 the clearing and all subsequent requests retain three placeholders', cleared.length === 6 && cleared.every(request => {
+        const placeholderCounts = cleared.map(request => {
           const body = request.body as Body
           return ((body.messages ?? []) as Array<{ content?: Block[] }>).flatMap(message => Array.isArray(message.content) ? message.content : [])
-            .filter(block => block.type === 'tool_result' && typeof block.content === 'string' && block.content.startsWith('[stale tool result')).length === 3
-        }))
+            .filter(block => block.type === 'tool_result' && typeof block.content === 'string' && block.content.startsWith('[stale tool result')).length
+        })
+        check('§11 the clearing request carries placeholders and every subsequent request retains the same count', cleared.length === 6 && (placeholderCounts[0] ?? 0) >= 1 && placeholderCounts.every(count => count === placeholderCounts[0]), placeholderCounts.join(','))
+        check('§11 two results are cleared: the newest-40,000-token protection keeps ten of the twelve 15,989-byte Read results (the reminder rides the first only)', placeholderCounts[0] === 2, placeholderCounts.join(','))
         check('§11 the binding checker drops no reasoning on any request', requests.every(request => bindingDropsFor(request.body).length === 0), requests.map(request => bindingDropsFor(request.body).length).join(','))
         census('§11 after clearing', cleared, true)
       } finally {

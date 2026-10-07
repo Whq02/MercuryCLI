@@ -47,17 +47,19 @@ function makeContext(readFileState: Map<string, ReadStamp>) {
   } as never
 }
 
+let readSerial = 0
 async function readViaTool(
   path: string,
   ctx: ReturnType<typeof makeContext>,
   extra: Record<string, unknown> = {},
 ): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
   try {
+    readSerial++
     const result = await (FileReadTool as { call: Function }).call(
       { file_path: path, ...extra },
       ctx,
       null,
-      { uuid: '00000000-0000-0000-0000-000000000001', message: { id: 'msg_fixture' } },
+      { uuid: `00000000-0000-0000-0000-${String(readSerial).padStart(12, '0')}`, message: { id: `msg_fixture_${readSerial}` } },
     )
     const block = (FileReadTool as { mapToolResultToToolResultBlockParam: Function })
       .mapToolResultToToolResultBlockParam(result.data, 'toolu_read')

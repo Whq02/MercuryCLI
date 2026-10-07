@@ -178,17 +178,19 @@ section('R. the anchored read mode (real FileReadTool)')
       }),
     }) as never as { readFileState: Map<string, ReadStamp> }
 
+  let readSerial = 0
   const readViaTool = async (
     path: string,
     ctx: ReturnType<typeof makeReadContext>,
     extra: Record<string, unknown> = {},
   ): Promise<{ ok: true; text: string } | { ok: false; error: string }> => {
     try {
+      readSerial++
       const result = await (FileReadTool as unknown as { call: Function }).call(
         { file_path: path, ...extra },
         ctx,
         null,
-        { uuid: '00000000-0000-0000-0000-000000000001', message: { id: 'msg_fixture' } },
+        { uuid: `00000000-0000-0000-0000-${String(readSerial).padStart(12, '0')}`, message: { id: `msg_fixture_${readSerial}` } },
       )
       const block = (
         FileReadTool as unknown as { mapToolResultToToolResultBlockParam: Function }
@@ -239,19 +241,19 @@ section('R. the anchored read mode (real FileReadTool)')
     .filter(row => /^\d+#/.test(row))
   check(
     'R3 anchored rows mirror the plain rows; content rows self-verify against the recorded content',
-    anchoredRows.length === 6 &&
-      anchoredRows.slice(0, 5).every(row => {
+    anchoredRows.length === 5 &&
+      anchoredRows.every(row => {
         const m = /^(\d+#[0-9a-f]+)\t(.*)$/.exec(row)
         if (!m) return false
         const ref = parseLineRef(m[1]!)
         return ref !== null && verifyLineRef(domain, ref).ok
       }),
   )
-  const phantomRef = parseLineRef(anchoredRows[5]!.split(String.fromCharCode(9))[0]!)
+  const phantomRef = parseLineRef(formatLineAnchor(6, ''))
   const phantomCheck = phantomRef === null ? null : verifyLineRef(domain, phantomRef)
   check(
-    'R3c the phantom after-final-newline row refuses out-of-bounds, never aliases',
-    phantomRef !== null && phantomRef.line === 6 && phantomCheck !== null && !phantomCheck.ok && phantomCheck.ok === false && phantomCheck.currentHash === null,
+    'R3c no row after the final newline is rendered, and an address there refuses out-of-bounds, never aliases',
+    anchoredRead.ok && anchoredRead.ok === true && !anchoredRead.text.includes('\n6#') && phantomRef !== null && phantomRef.line === 6 && phantomCheck !== null && !phantomCheck.ok && phantomCheck.ok === false && phantomCheck.currentHash === null,
   )
   check(
     'R3b the stripper knows the anchored prefix',
