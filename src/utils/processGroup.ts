@@ -1,5 +1,6 @@
 import { execFile } from 'child_process'
 import type { ChildProcess } from 'child_process'
+import { existsSync } from 'node:fs'
 import { win32 as pathWin32 } from 'node:path'
 
 
@@ -10,6 +11,8 @@ export type ProcessTreeKillReceipt = {
 
 const REAP_BOUND_MS = 800
 const REAP_POLL_MS = 40
+const MSYS_TABLE_BOUND_MS = 800
+const MSYS_SWEEP_ROUNDS = 3
 
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -17,6 +20,13 @@ export function win32TaskkillCommand(pid: number): { file: string; args: string[
   return {
     file: pathWin32.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'taskkill.exe'),
     args: ['/PID', String(pid), '/T', '/F'],
+  }
+}
+
+export function win32TaskkillSweepCommand(pids: readonly number[]): { file: string; args: string[] } {
+  return {
+    file: win32TaskkillCommand(0).file,
+    args: [...pids.flatMap(pid => ['/PID', String(pid)]), '/T', '/F'],
   }
 }
 
@@ -165,8 +175,122 @@ async function endPosixTree(pid: number, signal: NodeJS.Signals): Promise<Proces
   return { ended: candidates.length - remaining.length, survivors: remaining }
 }
 
-async function endWin32Tree(pid: number): Promise<ProcessTreeKillReceipt> {
+export type MsysProcessRow = { pid: number; ppid: number; pgid: number; winpid: number }
+
+export type MsysTreeMemory = { pids: Set<number>; groups: Set<number> }
+
+export function parseMsysProcessTable(stdout: string): MsysProcessRow[] {
+  const rows: MsysProcessRow[] = []
+  for (const line of stdout.split(/\r?\n/)) {
+    const match = /^[A-Z ]?\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s/.exec(line)
+    if (!match) continue
+    rows.push({ pid: Number(match[1]), ppid: Number(match[2]), pgid: Number(match[3]), winpid: Number(match[4]) })
+  }
+  return rows
+}
+
+export function msysTreeRows(
+  rows: readonly MsysProcessRow[],
+  memory: MsysTreeMemory,
+  rootWinpids: readonly number[] = [],
+): MsysProcessRow[] {
+  const byPid = new Map<number, MsysProcessRow>()
+  const byParent = new Map<number, MsysProcessRow[]>()
+  const byGroup = new Map<number, MsysProcessRow[]>()
+  for (const row of rows) {
+    byPid.set(row.pid, row)
+    const kids = byParent.get(row.ppid)
+    if (kids) kids.push(row)
+    else byParent.set(row.ppid, [row])
+    const members = byGroup.get(row.pgid)
+    if (members) members.push(row)
+    else byGroup.set(row.pgid, [row])
+  }
+  for (const row of rows) {
+    if (row.pid <= 1 || row.winpid === process.pid || !rootWinpids.includes(row.winpid)) continue
+    memory.pids.add(row.pid)
+    if (row.pgid === row.pid) memory.groups.add(row.pgid)
+  }
+  const found = new Map<number, MsysProcessRow>()
+  const queue: number[] = []
+  const claim = (row: MsysProcessRow): void => {
+    if (row.pid <= 1 || row.winpid === process.pid || found.has(row.pid)) return
+    found.set(row.pid, row)
+    memory.pids.add(row.pid)
+    queue.push(row.pid)
+  }
+  for (const pid of [...memory.pids]) {
+    const row = byPid.get(pid)
+    if (row) claim(row)
+    else queue.push(pid)
+  }
+  for (const group of memory.groups) {
+    for (const row of byGroup.get(group) ?? []) claim(row)
+  }
+  while (queue.length > 0) {
+    const pid = queue.pop()!
+    for (const kid of byParent.get(pid) ?? []) claim(kid)
+  }
+  return [...found.values()].filter(row => row.winpid > 1)
+}
+
+function msysPsBeside(spawnfile: string | undefined): string | undefined {
+  if (typeof spawnfile !== 'string' || !pathWin32.isAbsolute(spawnfile)) return undefined
+  const holder = pathWin32.dirname(spawnfile)
+  for (const dir of [holder, pathWin32.join(holder, '..', 'usr', 'bin')]) {
+    const ps = pathWin32.join(dir, 'ps.exe')
+    if (existsSync(ps) && (existsSync(pathWin32.join(dir, 'msys-2.0.dll')) || existsSync(pathWin32.join(dir, 'cygwin1.dll')))) {
+      return ps
+    }
+  }
+  return undefined
+}
+
+function readMsysTable(ps: string): Promise<MsysProcessRow[]> {
+  return new Promise(resolve => {
+    execFile(
+      ps,
+      ['-e', '-l'],
+      { windowsHide: true, timeout: MSYS_TABLE_BOUND_MS, maxBuffer: 8 * 1024 * 1024 },
+      (error, stdout) => {
+        resolve(error || typeof stdout !== 'string' ? [] : parseMsysProcessTable(stdout))
+      },
+    )
+  })
+}
+
+async function sweepMsysTree(
+  ps: string,
+  before: readonly MsysProcessRow[],
+  rootWinpids: readonly number[],
+): Promise<number[]> {
+  const memory: MsysTreeMemory = { pids: new Set(), groups: new Set() }
+  let found = msysTreeRows(before, memory, rootWinpids)
+  const struck: number[] = []
+  for (let round = 0; round < MSYS_SWEEP_ROUNDS && memory.pids.size > 0; round++) {
+    const live = found.map(row => row.winpid).filter(winpid => !struck.includes(winpid) && isAlivePid(winpid))
+    if (live.length === 0) break
+    const { file, args } = win32TaskkillSweepCommand(live)
+    const [stdout, table] = await Promise.all([
+      new Promise<string>(resolve => {
+        execFile(file, args, { windowsHide: true, maxBuffer: 4 * 1024 * 1024 }, (_error, out) => {
+          resolve(typeof out === 'string' ? out : String(out ?? ''))
+        })
+      }),
+      readMsysTable(ps),
+    ])
+    for (const winpid of [...live, ...taskkillActedPids(stdout)]) {
+      if (!struck.includes(winpid)) struck.push(winpid)
+    }
+    found = msysTreeRows(table, memory)
+  }
+  return struck
+}
+
+async function endWin32Tree(pid: number, spawnfile?: string): Promise<ProcessTreeKillReceipt> {
   if (!Number.isInteger(pid) || pid <= 1 || pid === process.pid) return { ended: 0, survivors: [] }
+  const msysPs = msysPsBeside(spawnfile)
+  const before = msysPs === undefined ? [] : await readMsysTable(msysPs)
   const { file, args } = win32TaskkillCommand(pid)
   const stdout = await new Promise<string>(resolve => {
     execFile(file, args, { windowsHide: true, maxBuffer: 4 * 1024 * 1024 }, (_error, out) => {
@@ -174,6 +298,11 @@ async function endWin32Tree(pid: number): Promise<ProcessTreeKillReceipt> {
     })
   })
   const acted = taskkillActedPids(stdout)
+  if (msysPs !== undefined && before.length > 0) {
+    for (const swept of await sweepMsysTree(msysPs, before, [pid, ...acted])) {
+      if (!acted.includes(swept)) acted.push(swept)
+    }
+  }
   const watched = acted.includes(pid) ? acted : [pid, ...acted]
   let remaining = watched.filter(isAlivePid)
   const deadline = Date.now() + REAP_BOUND_MS
@@ -186,13 +315,14 @@ async function endWin32Tree(pid: number): Promise<ProcessTreeKillReceipt> {
 }
 
 export async function endProcessTree(
-  target: Pick<ChildProcess, 'pid' | 'kill'> | number,
+  target: (Pick<ChildProcess, 'pid' | 'kill'> & { spawnfile?: string }) | number,
   signal: NodeJS.Signals = 'SIGKILL',
 ): Promise<ProcessTreeKillReceipt> {
   const pid = typeof target === 'number' ? target : target.pid
   if (!pid || !Number.isInteger(pid) || pid <= 1 || pid === process.pid) return { ended: 0, survivors: [] }
+  const spawnfile = typeof target === 'number' ? undefined : target.spawnfile
   try {
-    return process.platform === 'win32' ? await endWin32Tree(pid) : await endPosixTree(pid, signal)
+    return process.platform === 'win32' ? await endWin32Tree(pid, spawnfile) : await endPosixTree(pid, signal)
   } catch {
     if (typeof target !== 'number') {
       try {
