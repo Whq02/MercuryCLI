@@ -72,8 +72,6 @@ import {
 import { AsyncAgentDetailDialog } from './AsyncAgentDetailDialog.js'
 import { BackgroundTask as BackgroundTaskComponent } from './BackgroundTask.js'
 import { ShellDetailDialog, shellCardFactsOfRow, shellCardFactsOfTask } from './ShellDetailDialog.js'
-import { cellCardOf } from '../../tools/WorkshopTool/cellCards.js'
-import { WorkshopCellCard } from '../../tools/WorkshopTool/WorkshopCellCard.js'
 import { WorkflowDetailDialog } from './WorkflowDetailDialog.js'
 import { isManageableTask } from './taskStatusUtils.js'
 
@@ -372,7 +370,6 @@ export function BackgroundTasksDialog({
     detailTaskId !== undefined && detailTask === undefined
       ? roster.rows.find(w => w.id === detailTaskId)
       : undefined
-  const detailCell = detailTaskId !== undefined && detailTask === undefined && detailWork === undefined ? cellCardOf(detailTaskId) : undefined
   const inDetail = detailTaskId !== undefined
   if (compactControls !== undefined) { compactControls.detailState.selectedId = selectedIdRef.current; compactControls.detailState.detailTaskId = detailTaskId }
 
@@ -389,7 +386,6 @@ export function BackgroundTasksDialog({
     const task = tasks[detailTaskId]
     if (task !== undefined && isManageableTask(task)) return
     if (task === undefined && roster.rows.some(w => w.id === detailTaskId)) return
-    if (task === undefined && cellCardOf(detailTaskId) !== undefined) return
     if (task !== undefined && isLocalWorkflowTask(task)) {
       const timer = setTimeout(() => {
         if (skippedListRef.current) onDone()
@@ -572,9 +568,6 @@ export function BackgroundTasksDialog({
         <RosterWorkDetail work={detailWork} now={now} onBack={backFromDetail} />
       </CommandCenter>
     )
-  }
-  if (inDetail && detailCell !== undefined) {
-    return <WorkshopCellCard cell={detailCell} onDone={onDone} onBack={backFromDetail} />
   }
 
   const runningCount = flat.filter(item => (item.task ?? item.work)?.status === 'running').length
