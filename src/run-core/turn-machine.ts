@@ -71,7 +71,7 @@ import {
 import { ImageSizeError } from '../utils/imageValidation.js'
 import { ImageResizeError, imagesLeftOutMarked, imagesLeftOutNoticeLine, takeImagesLeftOutReceipt } from '../utils/imageResizer.js'
 import { describeInvalidArgTypeError } from '../utils/errors.js'
-import { findToolByName, type ToolUseContext } from '../Tool.js'
+import { advanceToolCallChain, findToolByName, readToolCallChain, type ToolCallChain, type ToolUseContext } from '../Tool.js'
 import {
   effortAdjustedReceiptLine,
   isTurnOwningQuerySource,
@@ -272,7 +272,7 @@ type IterationState = {
   requestPlan: RequestContextPlan
   messagesForQuery: Message[]
   toolUseContext: ToolUseContext
-  queryTracking: { chainId: string; depth: number }
+  callChain: ToolCallChain
   chainIdForAnalytics: string
   tracking: AutoCompactTrackingState | undefined
   fullSystemPrompt: SystemPrompt
@@ -330,7 +330,7 @@ function fireInterruptHooks(
   const why = turnCutWhy(cut)
   void executeInterruptHooks(
     {
-      turnId: toolUseContext.queryTracking?.chainId ?? '',
+      turnId: readToolCallChain(toolUseContext)?.key ?? '',
       reason: cut.kind,
       ...(why !== null ? { detail: why } : {}),
       tools: toolUseBlocks.map(block => block.name),
@@ -522,7 +522,7 @@ async function* streamModel(
   iter: IterationState,
   emit: EventMint,
 ): AsyncGenerator<RunEvent, StreamOutcome> {
-  const { toolUseContext, queryTracking } = iter
+  const { toolUseContext, callChain } = iter
   let attemptWithFallback = true
 
   try {
@@ -535,7 +535,7 @@ async function* streamModel(
         if (toolUseContext.abortController.signal.aborted) return { kind: 'streamed' }
       }
       const callId = `${iter.turnId}.c${++iter.callOrdinal}`
-      const permitKey = `${iter.queryTracking.chainId}:${callId}`
+      const permitKey = `${iter.callChain.key}:${callId}`
       refreshGovernorCeilings(iter.currentModel, iter.appState.effortValue)
       let permit: Awaited<ReturnType<typeof acquireModelPermit>>
       try {
@@ -630,7 +630,7 @@ async function* streamModel(
               c => c.type === 'pending',
             ),
             callReference,
-            queryTracking,
+            callChain,
             effortValue,
             skipCacheWrite: run.skipCacheWrite,
             effortMessage: run.effortMessage,
@@ -928,22 +928,14 @@ export async function* runEventCore(
       headlessProfilerCheckpoint('query_started')
     }
 
-    const queryTracking = toolUseContext.queryTracking
-      ? {
-          chainId: toolUseContext.queryTracking.chainId,
-          depth: toolUseContext.queryTracking.depth + 1,
-        }
-      : {
-          chainId: deps.uuid(),
-          depth: 0,
-        }
+    const callChain = advanceToolCallChain(toolUseContext, () => deps.uuid())
 
     const chainIdForAnalytics =
-      queryTracking.chainId
+      callChain.key
 
     toolUseContext = {
       ...toolUseContext,
-      queryTracking,
+      callChain,
     }
 
     let tracking = autoCompactTracking
@@ -1253,7 +1245,7 @@ export async function* runEventCore(
       requestPlan,
       messagesForQuery,
       toolUseContext,
-      queryTracking,
+      callChain,
       chainIdForAnalytics,
       tracking,
       fullSystemPrompt,
@@ -1861,7 +1853,7 @@ export async function* runEventCore(
       if (update.newContext) {
         updatedToolUseContext = {
           ...update.newContext,
-          queryTracking,
+          callChain,
         }
       }
     }
@@ -2041,7 +2033,7 @@ export async function* runEventCore(
 
 
     updatedToolUseContext = refreshTurnTools(updatedToolUseContext)
-    const toolUseContextWithQueryTracking = { ...updatedToolUseContext, queryTracking }
+    const contextForNextTurn = { ...updatedToolUseContext, callChain }
 
     const nextTurnCount = turnCount + 1
 
@@ -2064,7 +2056,7 @@ export async function* runEventCore(
 
     const next: TurnState = {
       messages: [...messagesForQuery, ...assistantMessages, ...toolResults],
-      toolUseContext: toolUseContextWithQueryTracking,
+      toolUseContext: contextForNextTurn,
       autoCompactTracking: tracking,
       turnCount: nextTurnCount,
       maxOutputTokensRecoveryCount: 0,

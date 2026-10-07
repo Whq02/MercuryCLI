@@ -62,7 +62,7 @@ import { MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER } from '../../../constants/b
 import { getAttributionHeader } from '../../../constants/system.js'
 import {
   getEmptyToolPermissionContext,
-  type QueryChainTracking,
+  type ToolCallChain,
   type Tool,
   type ToolPermissionContext,
   type Tools,
@@ -254,7 +254,7 @@ export type Options = {
   effortValue?: EffortValue
   mcpTools: Tools
   hasPendingMcpServers?: boolean
-  queryTracking?: QueryChainTracking
+  callChain?: ToolCallChain
   agentId?: AgentId
   ownerKey?: string
   outputFormat?: JsonOutputFormat
@@ -844,7 +844,7 @@ async function* queryModel(
         betas: logBetas,
         permissionMode: permissionContext.mode,
         querySource: options.querySource,
-        queryTracking: options.queryTracking,
+        callChain: options.callChain,
         thinkingType: logThinkingType,
         effortValue: logEffortValue,
         previousRequestId,
@@ -969,7 +969,7 @@ async function* queryModel(
       requestId,
       clientRequestId,
       didFallBackToNonStreaming,
-      queryTracking: options.queryTracking,
+      callChain: options.callChain,
       querySource: options.querySource,
       previousRequestId,
     })

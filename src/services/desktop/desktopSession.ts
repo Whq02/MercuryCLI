@@ -5,6 +5,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { isHumanTurn } from '../../utils/messagePredicates.js'
 import type { Message } from '../../types/message.js'
+import { readToolCallChain, type ToolUseContext } from '../../Tool.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
 import { OwnerScopedStore } from '../run/ownerScopedStore.js'
@@ -99,8 +100,8 @@ export function peekCheckedActApp(owner: OwnerKey): DesktopCheckedAct | null {
   return ownerStates.peek(owner)?.checkedActApp ?? null
 }
 
-export function turnKeyOf(context: { queryTracking?: { chainId: string }; messages?: readonly Message[] } | undefined): string {
-  const chain = context?.queryTracking?.chainId
+export function turnKeyOf(context: (Pick<ToolUseContext, 'callChain'> & { messages?: readonly Message[] }) | undefined): string {
+  const chain = readToolCallChain(context)?.key
   if (typeof chain === 'string' && chain !== '') return `chain:${chain}`
   const messages = context?.messages ?? []
   for (let i = messages.length - 1; i >= 0; i--) {
