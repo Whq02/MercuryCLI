@@ -6,7 +6,7 @@
 > skips regeneration is RED). Live columns (enabled/support) reflect the
 > generating environment and are NOT drift-anchored.
 
-Census version 1 — 63 built-in production tools · 178 operations · 63 with a declared capability contract.
+Census version 1 — 63 built-in production tools · 174 operations · 63 with a declared capability contract.
 
 ## Summary
 
@@ -77,7 +77,7 @@ Census version 1 — 63 built-in production tools · 178 operations · 63 with a
 | TaskUpdate | mutation | task-coordination | — | block | yes | — | — | mercury://task | NAMED GAP |
 | Test | execution | application-verification | 5 | block | yes | — | background-job (external-projection) | mercury://test | scripts/ide/prove-python-tests.ts |
 | ToolSearch | observation | capability-discovery | — | block | no | — | — | — | scripts/builtin-tools/prove-toolsearch-capability.ts |
-| Transaction | coordination | application-verification | 6 | block | yes | — | — | mercury://ide | scripts/ide/prove-closed-loop.ts |
+| Transaction | coordination | application-verification | 2 | block | yes | — | — | mercury://ide | scripts/ide/prove-closed-loop.ts |
 | WebFetch | observation | web-access | — | block | yes | — | — | — | NAMED GAP |
 | WebSearch | observation | web-access | — | block | yes | — | — | — | scripts/search/run-all.sh |
 | Workflow | coordination | task-coordination | — | block | yes | — | workflow-worker (child-execution) | mercury://workflow | scripts/workflows/run-all.sh |
