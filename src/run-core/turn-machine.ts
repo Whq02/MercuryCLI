@@ -1634,6 +1634,17 @@ export async function* runEventCore(
           state = next
           continue
         }
+        const tools = [...new Set(refusedToolCalls.map(r => r.name || 'unnamed'))]
+        yield emit({
+          kind: 'notice',
+          message: createSystemMessage(
+            `Tool call refused before execution (${tools.join(', ')}) — the model was asked to correct it ${toolCallRefusalRecoveryCount} times and could not; the turn ends without an answer.`,
+            'error',
+          ),
+        })
+        const terminal: Terminal = { reason: 'tool_calls_refused', tools, corrections: toolCallRefusalRecoveryCount }
+        yield emit({ kind: 'run_terminal', terminal })
+        return terminal
       }
 
       if (chant !== null) {
