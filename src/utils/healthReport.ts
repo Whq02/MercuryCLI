@@ -813,7 +813,7 @@ function webSearchDoorCheck(): CheckSpec {
     run: () => {
       const { liveSearchDoorReads, resolveSearchDoorPlan, nativeSearchFamilyOf, searchDoorFact } =
         require('../services/search/searchDoor.js') as typeof import('../services/search/searchDoor.js')
-      const model = getEngineModel()
+      const model = unresolvedDefaultRow() ?? getEngineModel()
       const plan = resolveSearchDoorPlan(liveSearchDoorReads())
       if (plan.doors.length === 0 && nativeSearchFamilyOf(model) === undefined) {
         return {
