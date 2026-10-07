@@ -35,7 +35,7 @@ Ops marked [exec] change editor run-state or execute tests and always ask permis
 
 Setup: the bridge package must be installed in the project and the editor open. op:"unity_status" probes everything (flag, package, token, reachability on 127.0.0.1:${unityBridgePort()}); op:"unity_bridge_install" materializes the package into Packages/ (the editor compiles it on focus — first-time compile verification is the Windows-box field drill). A closed editor answers with a teaching error, never a hang.
 
-Routing: C# SYMBOL work (definitions, references, rename) → the LSP tool's mercury-csharp lane. BREAKPOINT debugging → the Debug tool's unity adapter (attach to the running editor). HEADLESS batch-mode test/build commands → the Launch tool's unity profiles (operator-run; the exact command is printed). In-editor play, scenes, hierarchy, console, and Test Runner runs live HERE.
+Routing: C# SYMBOL work (definitions, references, rename) → LspRead (and LspRename for rename) through the mercury-csharp lane. BREAKPOINT debugging → the Debug tool's unity adapter (attach to the running editor). HEADLESS batch-mode test/build commands → the Launch tool's unity profiles (operator-run; the exact command is printed). In-editor play, scenes, hierarchy, console, and Test Runner runs live HERE.
 
 Op catalog (name(args) — ? marks optional):
 ${getUnityVerbCatalog()}`
