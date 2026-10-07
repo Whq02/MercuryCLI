@@ -79,7 +79,7 @@ import {
   type RowScope,
   type SessionFacts,
 } from './project.js'
-import { errorClassOf, statusOfTerminal, toolCallsRefusedSentence, OUTCOME_SENTENCES, TERMINAL_FAILURE_SENTENCES, type Denial, type ErrorClass, type OutcomeStatus } from './vocabulary.js'
+import { errorClassOf, hookEndingSentence, statusOfTerminal, toolCallsRefusedSentence, HOOK_FAILED_CODE, OUTCOME_SENTENCES, TERMINAL_FAILURE_SENTENCES, type Denial, type ErrorClass, type OutcomeStatus } from './vocabulary.js'
 import { childRowsOf } from './child.js'
 
 const DEFAULT_MAX_STRUCTURED_OUTPUT_RETRIES = 5
@@ -802,7 +802,12 @@ export class Conversation {
             } else {
               void recordDelta()
             }
-            if (attachmentType === 'structured_output') {
+            if (attachmentType === 'hook_non_blocking_error') {
+              const failed = attachment as { stderr?: string; stdout?: string; hookName?: string; hookEvent?: string; exitCode?: number }
+              const text = (failed.stderr || failed.stdout || '').trim() || hookEndingSentence({ status: 'failed', class: 'exit', exit_code: failed.exitCode ?? 1 }, { name: failed.hookName ?? '', event: failed.hookEvent ?? '' })
+              notices.push({ level: 'warning', text })
+              yield noticeRow(scope, 'warning', text, HOOK_FAILED_CODE)
+            } else if (attachmentType === 'structured_output') {
               this.structuredOutput = (attachment as { data?: unknown }).data
             } else if (attachmentType === 'max_turns_reached') {
               if (eagerFlush) await flushSessionStorage()
