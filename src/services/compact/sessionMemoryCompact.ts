@@ -22,6 +22,7 @@ import {
 } from '../SessionMemory/sessionMemoryUtils.js'
 import {
   annotateBoundaryWithPreservedSegment,
+  annotateBoundaryWithWork,
   buildPostCompactMessages,
   type CompactionResult,
   createAsyncAgentAttachmentsIfNeeded,
@@ -210,6 +211,7 @@ export async function trySessionMemoryCompaction(
     }
 
     annotateBoundaryWithPreservedSegment(boundary, summaryMessage.uuid, kept)
+    annotateBoundaryWithWork(boundary, messages, kept, summaryMessage.uuid)
 
     const summaryEstimate = estimateContextTokens([summaryMessage])
     const result: CompactionResult = {

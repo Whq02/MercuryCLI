@@ -479,6 +479,7 @@
     "POST_COMPACT_SKILLS_TOKEN_BUDGET",
     "POST_COMPACT_TOKEN_BUDGET",
     "annotateBoundaryWithPreservedSegment",
+    "annotateBoundaryWithWork",
     "buildPostCompactMessages",
     "compactConversation",
     "compactionPausedForHistoryText",
