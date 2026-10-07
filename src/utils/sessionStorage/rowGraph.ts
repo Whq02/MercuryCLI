@@ -256,8 +256,24 @@ export class TranscriptRows {
         seen.add(note.uuid)
         withNotes.push(note)
       }
+      withNotes.push(...this.hookRowsHangingOff(row.uuid, seen))
     }
     return withNotes
+  }
+
+  private hookRowsHangingOff(id: UUID, seen: Set<UUID>): TranscriptMessage[] {
+    const hooks: TranscriptMessage[] = []
+    const pending = [...this.ordered(this.children.get(id) ?? [])]
+    while (pending.length > 0) {
+      const row = pending.shift()!
+      if (row.type !== 'attachment' || seen.has(row.uuid)) continue
+      if (typeof (row.attachment as { hookEvent?: unknown }).hookEvent === 'string' && typeof (row.attachment as { toolUseID?: unknown }).toolUseID === 'string') {
+        seen.add(row.uuid)
+        hooks.push(row)
+      }
+      pending.push(...this.ordered(this.children.get(row.uuid) ?? []))
+    }
+    return hooks
   }
 }
 
