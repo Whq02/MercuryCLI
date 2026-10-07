@@ -6,12 +6,12 @@
     "backend": "zai-glm",
     "dialect": "chat",
     "mechanical": true,
-    "tree": "1a0034246",
+    "tree": "4786a01c1",
     "fold": "unlabelled",
-    "when": "2026-10-07T05:25:45.187Z",
+    "when": "2026-10-07T05:36:07.949Z",
     "promptChars": 24009,
     "promptTokensEst": 6002,
-    "toolCount": 49,
+    "toolCount": 50,
     "toolNames": [
       "Agent",
       "Bash",
@@ -49,6 +49,7 @@
       "Checkpoint",
       "Rewind",
       "SendMessage",
+      "ResumeAgent",
       "Workflow",
       "Sleep",
       "Monitor",
@@ -63,7 +64,7 @@
       "mcp__mercury__lease_list",
       "mcp__mercury__render_tui"
     ],
-    "toolSchemaChars": 172246,
+    "toolSchemaChars": 173543,
     "notes": [
       "browser task unmeasured: no browser to launch — no managed browser — your installed apps are never driven; /browser install downloads Chrome for Testing once with your consent"
     ]
@@ -101,8 +102,8 @@
       "probes": 1,
       "unexpectedErrors": 0,
       "duplicates": 0,
-      "toolResultChars": 3453,
-      "toolResultTokensEst": 863,
+      "toolResultChars": 3455,
+      "toolResultTokensEst": 864,
       "imageChars": 0,
       "injectedTokensEst": 0,
       "subagentResultTokensEst": 0,
@@ -111,12 +112,12 @@
       "errors": [
         {
           "tool": "Bash",
-          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.372791ms)\n✔ median of an odd-length list (0.090708ms)\n✖ median of an even-length list averages the middle pair (0.576625ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 61.295167\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.576625ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file:///private/tmp/mw/mercury-ax-bench-PSmiQj/chat/tasks/fix-",
+          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.47175ms)\n✔ median of an odd-length list (0.073875ms)\n✖ median of an even-length list averages the middle pair (0.555541ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 52.667542\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.555541ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file://<fixture>/chat/tasks/fix-b",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 2091,
+      "wallMs": 1996,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -168,7 +169,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1548,
+      "wallMs": 1820,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -222,12 +223,12 @@
       "errors": [
         {
           "tool": "Edit",
-          "text": "<tool_use_error>Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). Read ownership/coverage check failed: neither a recorded Read nor the current owner's ledger covers all addressed lines. No lines of /private/tmp/mw/mercury-ax-bench-PSmiQj/chat/tasks/anchored-edit/project/README.md were read this session; the old_string was not found in the current content, so the lines the edit touches are unknown — a Read of the file shows what stands.</tool_use_error>",
+          "text": "<tool_use_error>Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). Read ownership/coverage check failed: neither a recorded Read nor the current owner's ledger covers all addressed lines. No lines of <fixture>/chat/tasks/anchored-edit/project/README.md were read this session; the old_string was not found in the current content, so the lines the edit touches are unknown — a Read of the file shows what stands.</tool_use_error>",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 1074,
+      "wallMs": 909,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -275,7 +276,7 @@
           "probe": true
         }
       ],
-      "wallMs": 923,
+      "wallMs": 965,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -317,7 +318,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 944,
+      "wallMs": 860,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -364,7 +365,7 @@
           "probe": true
         }
       ],
-      "wallMs": 913,
+      "wallMs": 855,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -404,7 +405,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1053,
+      "wallMs": 1050,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -444,7 +445,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1478,
+      "wallMs": 1346,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -516,7 +517,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 972,
+      "wallMs": 855,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -556,7 +557,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 949,
+      "wallMs": 1027,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -605,7 +606,7 @@
           "probe": true
         }
       ],
-      "wallMs": 1738,
+      "wallMs": 1891,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -640,7 +641,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 805,
+      "wallMs": 915,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -675,7 +676,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 794,
+      "wallMs": 838,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
