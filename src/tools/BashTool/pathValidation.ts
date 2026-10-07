@@ -6,6 +6,7 @@ import type {
 } from '../../utils/permissions/PermissionResult.js'
 import type { PermissionRule, PermissionUpdate } from '../../types/permissions.js'
 import {
+  extractInputRedirections,
   extractOutputRedirections,
   splitCommand_DEPRECATED,
   tryParseShellCommand,
@@ -546,6 +547,10 @@ export function checkPathConstraints(
   const redirectResult = validateRedirections(redirectionTargets, command, cwd, context, compoundCommandHasCd)
   if (redirectResult.behavior !== 'passthrough') return redirectResult
 
+  const inputTargets = astRedirects !== undefined ? convertAstInputRedirects(astRedirects) : extractInputRedirections(command).targets
+  const inputResult = validateInputRedirections(inputTargets, cwd, context, compoundCommandHasCd)
+  if (inputResult.behavior !== 'passthrough') return inputResult
+
   if (astCommands !== undefined) {
     for (const simple of astCommands) {
       const result = validateAstSimpleCommand(simple, cwd, context, compoundCommandHasCd)
@@ -572,6 +577,51 @@ function convertAstRedirects(redirects: Redirect[]): string[] {
     }
   }
   return targets
+}
+
+function convertAstInputRedirects(redirects: Redirect[]): string[] {
+  const targets: string[] = []
+  for (const redirect of redirects) {
+    if (redirect.op === '<' && (redirect.fd === undefined || redirect.fd === 0)) targets.push(redirect.target)
+  }
+  return targets
+}
+
+function validateInputRedirections(
+  targets: string[],
+  cwd: string,
+  context: ToolPermissionContext,
+  compoundCommandHasCd: boolean,
+): PermissionResult {
+  if (targets.length === 0) return { behavior: 'passthrough', message: 'No input redirections.' }
+  if (compoundCommandHasCd) {
+    return {
+      behavior: 'ask',
+      message: 'This command changes directory and also reads through an input redirect, so the file it reads cannot be determined safely. It needs explicit approval.',
+      decisionReason: { type: 'other', reason: 'A directory change makes an input redirect target unresolvable' },
+    }
+  }
+  for (const target of targets) {
+    if (target === '/dev/null') continue
+    const check = validatePath(target, cwd, context, 'read')
+    if (!check.allowed) {
+      if (check.decisionReason?.type === 'rule') {
+        return ruleDeny(`The input redirect from ${check.resolvedPath}`, check.resolvedPath, 'read', context, check.decisionReason.rule)
+      }
+      const message =
+        check.decisionReason && (check.decisionReason.type === 'other' || check.decisionReason.type === 'safetyCheck')
+          ? check.decisionReason.reason
+          : `Mercury needs permission to read ${check.resolvedPath}, outside the starting folder (${formatDirectoryList([...allWorkingDirectories(context)])}).`
+      return {
+        behavior: 'ask',
+        message,
+        blockedPath: check.resolvedPath,
+        decisionReason: check.decisionReason,
+        suggestions: [createReadRuleSuggestion(getDirectoryForPath(check.resolvedPath))].filter((rule): rule is PermissionUpdate => rule !== undefined),
+      }
+    }
+  }
+  return { behavior: 'passthrough', message: 'All input redirect targets are readable.' }
 }
 
 function composeWriteRefusal(context: ToolPermissionContext, resolvedPath: string, action: string): string {

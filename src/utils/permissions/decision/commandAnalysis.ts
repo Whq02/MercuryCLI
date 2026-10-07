@@ -33,10 +33,13 @@ export type {
 export { PS_TOKENIZER_DASH_CHARS } from '../../powershell/parser.js'
 
 export {
+  extractInputRedirections,
   extractOutputRedirections,
   isUnsafeCompoundCommand_DEPRECATED,
   splitCommand_DEPRECATED,
   splitCommandWithOperators,
+  splitListSegments,
+  type UnsafeCompoundReason_DEPRECATED,
 } from '../../bash/commands.js'
 export { parseForSecurity } from '../../bash/ast.js'
 export type { TreeSitterAnalysis } from '../../bash/treeSitterAnalysis.js'

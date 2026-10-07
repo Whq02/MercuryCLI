@@ -196,8 +196,203 @@ function isStaticRedirectTarget(target: string): boolean {
   return true
 }
 
+export type InputRedirectionResult = {
+  commandWithoutRedirections: string
+  targets: string[]
+}
+
+function isStaticInputTarget(target: string, quoted: boolean): boolean {
+  if (target === '') return false
+  if (quoted) return !hasDangerousExpansion(target)
+  return isStaticRedirectTarget(target) && !hasDangerousExpansion(target)
+}
+
+export function extractInputRedirections(cmd: string): InputRedirectionResult {
+  const markers = makeMarkers()
+  const { processedCommand, heredocs } = extractHeredocs(cmd)
+  const joined = joinLineContinuations(processedCommand)
+  const parseResult = tryParseShellCommand(protect(joined, markers), preserveVariables)
+  if (!parseResult.success) {
+    return { commandWithoutRedirections: cmd, targets: [] }
+  }
+
+  const targets: string[] = []
+  const removals: Array<{ start: number; end: number }> = []
+  let mode: 'none' | 'single' | 'double' = 'none'
+  let substitutionDepth = 0
+  const text = joined
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i] as string
+    if (mode !== 'single' && ch === '\\') {
+      i++
+      continue
+    }
+    if (ch === "'" && mode !== 'double') {
+      mode = mode === 'single' ? 'none' : 'single'
+      continue
+    }
+    if (ch === '"' && mode !== 'single') {
+      mode = mode === 'double' ? 'none' : 'double'
+      continue
+    }
+    if (mode !== 'none') continue
+    if (ch === '$' && text[i + 1] === '(') {
+      substitutionDepth++
+      i++
+      continue
+    }
+    if (ch === ')' && substitutionDepth > 0) {
+      substitutionDepth--
+      continue
+    }
+    if (substitutionDepth > 0) continue
+    if (ch === '#' && (i === 0 || /[\s;|&(]/.test(text[i - 1] as string))) {
+      while (i < text.length && text[i] !== '\n') i++
+      continue
+    }
+    if (ch !== '<') continue
+    const before = text[i - 1]
+    const after = text[i + 1]
+    if (before === '<' || before === '&' || after === '<' || after === '&' || after === '>' || after === '(') continue
+
+    let spanStart = i
+    let digitsStart = i
+    while (digitsStart > 0 && /[0-9]/.test(text[digitsStart - 1] as string)) digitsStart--
+    if (digitsStart < i) {
+      const atBoundary = digitsStart === 0 || /[\s;|&(]/.test(text[digitsStart - 1] as string)
+      if (atBoundary) {
+        if (text.slice(digitsStart, i) !== '0') continue
+        spanStart = digitsStart
+      }
+    }
+
+    let k = i + 1
+    while (text[k] === ' ' || text[k] === '\t') k++
+    let target = ''
+    let quoted = false
+    while (k < text.length) {
+      const c = text[k] as string
+      if (c === "'" || c === '"') {
+        quoted = true
+        k++
+        while (k < text.length && text[k] !== c) {
+          target += text[k]
+          k++
+        }
+        if (k < text.length) k++
+        continue
+      }
+      if (c === '\\' && k + 1 < text.length) {
+        target += c + (text[k + 1] as string)
+        k += 2
+        continue
+      }
+      if (/[\s;|&<>()]/.test(c)) break
+      target += c
+      k++
+    }
+    if (target === '' && !quoted) continue
+    if (!isStaticInputTarget(target, quoted)) {
+      i = k - 1
+      continue
+    }
+    targets.push(target)
+    let ws = spanStart
+    while (ws > 0 && (text[ws - 1] === ' ' || text[ws - 1] === '\t')) ws--
+    removals.push({ start: ws, end: k })
+    i = k - 1
+  }
+
+  let reconstruction = text
+  for (const span of removals.sort((a, b) => b.start - a.start)) {
+    reconstruction = reconstruction.slice(0, span.start) + reconstruction.slice(span.end)
+  }
+  reconstruction = reconstruction.trim()
+  if (reconstruction === '') {
+    reconstruction = joined.trim()
+  }
+  return {
+    commandWithoutRedirections: restoreHeredocs([reconstruction], heredocs)[0] as string,
+    targets,
+  }
+}
+
+function cutAtUnquotedOperators(command: string, pipesOnly: boolean): string[] {
+  const { processedCommand, heredocs } = extractHeredocs(command)
+  const text = joinLineContinuations(processedCommand)
+  const segments: string[] = []
+  let start = 0
+  let mode: 'none' | 'single' | 'double' = 'none'
+  const cut = (at: number, width: number): void => {
+    segments.push(text.slice(start, at))
+    start = at + width
+  }
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i] as string
+    if (mode !== 'single' && ch === '\\') {
+      i++
+      continue
+    }
+    if (ch === "'" && mode !== 'double') {
+      mode = mode === 'single' ? 'none' : 'single'
+      continue
+    }
+    if (ch === '"' && mode !== 'single') {
+      mode = mode === 'double' ? 'none' : 'double'
+      continue
+    }
+    if (mode !== 'none') continue
+    if (ch === '#' && (i === 0 || /[\s;|&(]/.test(text[i - 1] as string))) {
+      while (i < text.length && text[i] !== '\n') i++
+      i--
+      continue
+    }
+    if (ch === '|') {
+      const next = text[i + 1]
+      if (next === '|' || next === '&') {
+        if (!pipesOnly) cut(i, 2)
+        i++
+        continue
+      }
+      if (text[i - 1] === '>') continue
+      cut(i, 1)
+      continue
+    }
+    if (pipesOnly) continue
+    if (ch === ';') {
+      const width = text[i + 1] === ';' ? 2 : 1
+      cut(i, width)
+      i += width - 1
+      continue
+    }
+    if (ch === '&') {
+      if (text[i + 1] === '&') {
+        cut(i, 2)
+        i++
+        continue
+      }
+      if (text[i - 1] === '>' || text[i - 1] === '<' || text[i + 1] === '>') continue
+      cut(i, 1)
+      continue
+    }
+    if (ch === '\n') cut(i, 1)
+  }
+  segments.push(text.slice(start))
+  const trimmed = segments.map(segment => segment.trim()).filter(segment => segment.length > 0)
+  if (trimmed.length === 0) return [command]
+  return restoreHeredocs(trimmed, heredocs)
+}
+
+export function splitPipeSegments(command: string): string[] {
+  return cutAtUnquotedOperators(command, true)
+}
+
+export function splitListSegments(command: string): string[] {
+  return cutAtUnquotedOperators(command, false)
+}
+
 export function splitCommand_DEPRECATED(command: string): string[] {
-  const parts = splitCommandWithOperators(command)
+  const parts = splitCommandWithOperators(extractInputRedirections(command).commandWithoutRedirections)
   const stripped: (string | undefined)[] = []
 
   for (let i = 0; i < parts.length; i++) {
@@ -273,12 +468,25 @@ export function splitCommand_DEPRECATED(command: string): string[] {
 }
 
 
-function isPlainCommandList(command: string): boolean {
+export type UnsafeCompoundReason_DEPRECATED =
+  | { kind: 'unparseable' }
+  | { kind: 'comment' }
+  | { kind: 'operator'; operator: string; target?: string }
+
+function tokenText(entry: ParseEntry | undefined, markers: Markers): string | undefined {
+  if (typeof entry === 'string') return restore(entry, markers)
+  if (typeof entry === 'object' && entry !== null && operatorText(entry) === 'glob') {
+    return (entry as { pattern: string }).pattern
+  }
+  return undefined
+}
+
+function firstRejectedOperator(command: string): UnsafeCompoundReason_DEPRECATED | null {
   const markers = makeMarkers()
-  const { processedCommand } = extractHeredocs(command)
+  const { processedCommand } = extractHeredocs(extractInputRedirections(command).commandWithoutRedirections)
   const protectedText = protectQuotesOnly(processedCommand, markers)
   const parseResult = tryParseShellCommand(protectedText, preserveVariables)
-  if (!parseResult.success) return false
+  if (!parseResult.success) return { kind: 'unparseable' }
 
   const tokens = parseResult.tokens
   for (let i = 0; i < tokens.length; i++) {
@@ -296,11 +504,23 @@ function isPlainCommandList(command: string): boolean {
       ) {
         continue
       }
-      return false
+      return { kind: 'operator', operator: '>&' }
     }
-    return false
+    if (op === '<') {
+      const next = tokens[i + 1]
+      if (typeof next === 'object' && next !== null && operatorText(next) === '>') {
+        return { kind: 'operator', operator: '<>' }
+      }
+      const target = tokenText(next as ParseEntry | undefined, markers)
+      if (target !== undefined && !isStaticInputTarget(target.replace(/^(['"])(.*)\1$/s, '$2'), /^(['"]).*\1$/s.test(target))) {
+        return { kind: 'operator', operator: '<', target }
+      }
+      return { kind: 'operator', operator: '<' }
+    }
+    if (op !== null) return { kind: 'operator', operator: op }
+    return { kind: 'comment' }
   }
-  return true
+  return null
 }
 
 function protectQuotesOnly(text: string, markers: Markers): string {
@@ -313,16 +533,16 @@ function protectQuotesOnly(text: string, markers: Markers): string {
   return out
 }
 
-export function isUnsafeCompoundCommand_DEPRECATED(command: string): boolean {
+export function isUnsafeCompoundCommand_DEPRECATED(command: string): UnsafeCompoundReason_DEPRECATED | null {
   const { processedCommand } = extractHeredocs(command)
   const bareProbe = tryParseShellCommand(processedCommand, preserveVariables)
-  if (!bareProbe.success) return true
+  if (!bareProbe.success) return { kind: 'unparseable' }
 
   const commands = splitCommand_DEPRECATED(command)
-  if (commands.length > 1 && !isPlainCommandList(command)) {
-    return true
+  if (commands.length > 1) {
+    return firstRejectedOperator(command)
   }
-  return false
+  return null
 }
 
 

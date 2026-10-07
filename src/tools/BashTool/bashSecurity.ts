@@ -122,6 +122,7 @@ function stripSafeRedirections(text: string): string {
     .replace(/(?<=\s)2\s*>&\s*1(?=\s|$)/g, ' ')
     .replace(/(?<![\d>])[012]?>(?!>)\s*\/dev\/null(?=\s|$)/g, ' ')
     .replace(/<\s*\/dev\/null(?=\s|$)/g, ' ')
+    .replace(/(?<!\$[A-Za-z_]\w*[ \t]*)(?:(?<=^|[\s;|&(])0|(?<![\d<>&]))<(?![<>&(])[ \t]*(?![#!=&~])[^\s$`*?[{~(<>|;&'"%]+(?=[\s;|&<>()]|$)/g, ' ')
 }
 
 
