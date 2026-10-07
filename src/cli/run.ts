@@ -58,6 +58,7 @@ import {
   openaiCatalogueFromWire,
   rewindOutcomeToWire,
   sessionFactsToWire,
+  scheduleEditToWire,
   sessionKitFromWire,
 } from '../services/engine-connector/seatWire.js'
 import { openaiObservedUsage } from '../services/providers/openai/openaiLimitState.js'
@@ -120,6 +121,7 @@ import {
   latchSessionScheduleRoster,
   markScheduleSeatObserved,
   registerLocalWakeSink,
+  registerScheduleEditDoor,
   takePendingScheduleEdits,
 } from '../services/saturn/sessionScheduleBridge.js'
 import { saturnQueueStamp } from '../utils/messages/noticeRows.js'
@@ -449,6 +451,7 @@ export async function runHeadless(
     : null
   const asks: AskHost = peer !== null ? createRunnerAsks(peer, () => capabilities) : createRuleOnlyAsks()
   if (peer !== null) {
+    registerScheduleEditDoor((edit, signal) => peer.request('schedule/edit', { edit: scheduleEditToWire(edit) }, { signal }))
     peer.onRequest('initialize', async params => {
       checkProtocol(params)
       capabilities = params.capabilities
