@@ -84,7 +84,7 @@ export function rearrangePipeCommand(command: string): string {
 
   const before = rebuildTokens(tokens.slice(0, firstPipe))
   const after = rebuildTokens(tokens.slice(firstPipe))
-  const rebuilt = `${before} < /dev/null ${after}`.replace(/\s+/g, ' ').trim()
+  const rebuilt = `${before} < /dev/null ${after}`.trim()
   return singleQuote(rebuilt)
 }
 
