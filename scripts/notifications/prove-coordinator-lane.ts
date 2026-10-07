@@ -368,9 +368,7 @@ console.log('§14 no invisible half-batch: throwing owners land typed rows')
 {
   lane._resetCoordinatorLaneForTesting()
   const lockedCrew = join(scratch, 'crew-locked')
-  mkdirSync(lockedCrew, { recursive: true })
-  const { chmodSync } = await import('node:fs')
-  chmodSync(lockedCrew, 0o555)
+  writeFileSync(lockedCrew, '')
   const receipt = await lane.runAssistedTurn(
     { kind: 'operator-message', messageId: 'o-a5', text: 'drive this turn' },
     {
@@ -383,7 +381,6 @@ console.log('§14 no invisible half-batch: throwing owners land typed rows')
       }),
     },
   )
-  chmodSync(lockedCrew, 0o755)
   check('the turn completed (no escaped throw)', receipt.outcome === 'executed', receipt.outcome)
   check('BOTH decisions carry visible typed rows', receipt.receipts.length === 2, String(receipt.receipts.length))
   check('the thrown owners read as typed refusals naming the throw', receipt.receipts.every(r => r.outcome === 'refused' && r.detail?.includes('owner threw') === true), JSON.stringify(receipt.receipts.map(r => `${r.outcome}:${r.detail?.slice(0, 30)}`)))
@@ -634,15 +631,12 @@ console.log('§18 the behavior fixtures (§9.3 table)')
       run: async () => {
         lane._resetCoordinatorLaneForTesting()
         const lockedCrew = join(scratch, 'crew-fx-fail')
-        mkdirSync(lockedCrew, { recursive: true })
-        const { chmodSync } = await import('node:fs')
+        writeFileSync(lockedCrew, '')
         const batch = [raiseOf('fx:fail', 's-fx', 'fail?')]
-        chmodSync(lockedCrew, 0o555)
         const first = await lane.runAssistedTurn(
           { kind: 'operator-message', messageId: 'fx-fail-1', text: 'drive this turn' },
           { crewDir: lockedCrew, callModel: async () => ({ decisions: batch }) },
         )
-        chmodSync(lockedCrew, 0o755)
         const second = await lane.runAssistedTurn(
           { kind: 'operator-message', messageId: 'fx-fail-2', text: 'drive this turn' },
           { crewDir, callModel: async () => ({ decisions: batch }) },

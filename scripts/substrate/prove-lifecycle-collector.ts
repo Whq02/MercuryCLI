@@ -137,18 +137,21 @@ section('§3 THE SENTINEL LAW (G07)')
   const jailed = join(jailDir, 'snapshot-zsh-3333-dddddd.sh')
   writeFileSync(jailed, '# stuck')
   backdate(jailed, 45 * DAY)
-  chmodSync(jailDir, 0o555)
-
-  let outcome = await housekeeping.runCleanupCycleStep({ budgetMs: 60_000, now: fakeNow })
+  let outcome = 'continue'
   let guard = 0
-  while (outcome === 'continue' && guard++ < 10) {
+  if (typeof process.getuid === 'function' && process.getuid() === 0) {
+    console.log('  [SKIP] running as root, which removes a file from a read-only directory; the failing-removal law is read under a user')
+  } else {
+    chmodSync(jailDir, 0o555)
     outcome = await housekeeping.runCleanupCycleStep({ budgetMs: 60_000, now: fakeNow })
+    while (outcome === 'continue' && guard++ < 10) {
+      outcome = await housekeeping.runCleanupCycleStep({ budgetMs: 60_000, now: fakeNow })
+    }
+    check('a failing removal settles the cycle FAILED (sentinel withheld)', outcome === 'cycle-failed', `outcome=${outcome}`)
+    check('the sentinel was NOT stamped', !existsSync(join(HOME, '.last-cleanup')))
+    chmodSync(jailDir, 0o755)
+    housekeeping._resetHousekeepingCycleForTesting()
   }
-  check('a failing removal settles the cycle FAILED (sentinel withheld)', outcome === 'cycle-failed', `outcome=${outcome}`)
-  check('the sentinel was NOT stamped', !existsSync(join(HOME, '.last-cleanup')))
-
-  chmodSync(jailDir, 0o755)
-  housekeeping._resetHousekeepingCycleForTesting()
   outcome = await housekeeping.runCleanupCycleStep({ budgetMs: 60_000, now: fakeNow })
   guard = 0
   while (outcome === 'continue' && guard++ < 10) {
