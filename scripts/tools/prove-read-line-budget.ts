@@ -38,7 +38,7 @@ const fixture = await startScriptedFixture(req => {
   const entry = cases[next++]
   if (!entry) return [{ type: 'text', text: 'done' }]
   const { label, ...window } = entry
-  return [{ type: 'tool_use', name: 'Read', input: { file_path: file, ...window } }]
+  return [{ type: 'tool_use', name: 'Read', input: window }]
 })
 console.log(`build under proof: ${DIST}`)
 try {
