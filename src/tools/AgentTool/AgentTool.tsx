@@ -40,6 +40,8 @@ import {
   type SubagentContext,
 } from '../../utils/agentContext.js'
 import { getCwd, runWithCwdOverride } from '../../utils/cwd.js'
+import { getPlatform } from '../../utils/platform.js'
+import { posixPathToWindowsPath } from '../../utils/windowsPaths.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
 import { EFFORT_LEVELS, type EffortLevel } from '../../utils/effort.js'
@@ -129,9 +131,10 @@ function agentDirectoryOf(spelling: string): string {
   if (!isAbsolute(spelling)) {
     throw new Error(`cwd must be an absolute directory: ${spelling} (the session folder is ${getCwd()})`)
   }
+  const onDisk = getPlatform() === 'windows' && /^\/[a-zA-Z]\//.test(spelling) ? posixPathToWindowsPath(spelling) : spelling
   const entry = (() => {
     try {
-      return statSync(spelling)
+      return statSync(onDisk)
     } catch {
       return null
     }
@@ -140,7 +143,7 @@ function agentDirectoryOf(spelling: string): string {
     throw new Error(`cwd does not exist: ${spelling} (the session folder is ${getCwd()})`)
   }
   if (!entry.isDirectory()) throw new Error(`cwd is not a folder: ${spelling}`)
-  return realpathSync(spelling)
+  return realpathSync(onDisk)
 }
 
 export function resolveAgentCwd(spelling: string, _permissionContext: ToolPermissionContext, _options?: { admit?: boolean }): string {
