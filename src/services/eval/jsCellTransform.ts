@@ -330,7 +330,7 @@ export function transformJsCell(source: string): TransformedCell {
   let prevCodeIndex = -1
   for (let i = 0; i < segments.length; i++) {
     const text = segments[i]!.text
-    if (text.trim()) {
+    if (text.replace(LEADING_TRIVIA, '').trim()) {
       prevCodeIndex = lastCodeIndex
       lastCodeIndex = i
     }
