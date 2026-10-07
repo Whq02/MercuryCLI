@@ -86,7 +86,9 @@ export function unavailableLanguageMessage(
   requested: string,
   alternatives: EvalLanguageAvailability[],
 ): string {
-  const usable = alternatives.filter(a => a.available).map(a => a.language)
-  const alt = usable.length > 0 ? ` Available: ${usable.join(', ')}.` : ' No eval language is currently available.'
-  return `Eval language '${requested}' is not available in this session.${alt}`
+  const name = (language: string): string => language === 'py' ? 'Python (py)' : language === 'js' ? 'JavaScript (js)' : language
+  const usable = alternatives.filter(a => a.available).map(a => name(a.language))
+  const alt = usable.length > 0 ? `${usable.join(' and ')} ${usable.length === 1 ? 'is' : 'are'} available.` : 'No eval language is currently available.'
+  const reason = alternatives.find(a => a.language === requested)?.whyNot
+  return `${name(requested)} is unavailable on this machine${reason ? ` — ${reason}` : ''}. ${alt}`
 }

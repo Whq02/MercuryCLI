@@ -9,7 +9,7 @@
 # gate-watch: src/tools/AgentTool/runAgent.ts src/daemon/headlessRun.ts src/utils/fileHistory.ts
 # gate-watch: src/utils/secureStorage/macOsKeychainStorage.ts src/tasks/LocalWorkflowTask/*
 # gate-watch: src/services/tcpBridge/entry.ts src/services/ide/cppBuild.ts src/services/mcp/headersHelper.ts
-# gate-watch: src/utils/collapseBackgroundBashNotifications*
+# gate-watch: src/utils/collapseBackgroundBashNotifications* src/utils/messages/text.ts
 # gate-watch: src/utils/worktree.ts src/services/projectLocal/paths.ts
 # gate-watch: src/utils/bash/ShellSnapshot.ts src/utils/shell/engineSession.ts src/utils/shell/brushPack.ts
 # gate-watch: src/services/lsp/LSPClient.ts src/services/dap/dapClient.ts

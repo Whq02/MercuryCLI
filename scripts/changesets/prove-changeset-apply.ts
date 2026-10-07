@@ -268,5 +268,22 @@ console.log('── A5 concurrency: overlapping serializes, disjoint independent
   check('disjoint commits both land independently', r1.kind === 'committed' && r2.kind === 'committed' && readFileSync(solo1, 'utf8') === 'K1\n' && readFileSync(solo2, 'utf8') === 'L1\n')
 }
 
+{
+  const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+  const empty = writeFixture('empty-notes.txt', '')
+  const other = writeFixture('registered.txt', 'before\n')
+  const ctx = makeContext()
+  const read = await FileReadTool.call({ file_path: empty } as never, ctx as never)
+  const anchor = (read.data as { file?: { anchor?: string } }).file?.anchor
+  const words = JSON.stringify(FileReadTool.mapToolResultToToolResultBlockParam(read.data as never, 'empty-read'))
+  check('Read returns and displays the empty file full-file anchor', anchor === mintFileAnchor('') && words.includes(`anchor: ${anchor}`), words)
+  primeRead(ctx, other)
+  const result = await callTool({ op: 'apply', changes: [
+    member(empty, [{ lines: '1', replace: 'notes', insert: 'before' }], anchor ?? ''),
+    member(other, [{ lines: '1', replace: 'after' }]),
+  ] }, ctx)
+  check('an empty file and its registration join one atomic change set', result.effect.outcome === 'succeeded' && readFileSync(empty, 'utf8') === 'notes' && readFileSync(other, 'utf8') === 'after\n', result.data.result)
+}
+
 console.log(failures === 0 ? '\nprove-changeset-apply: GREEN' : `\nprove-changeset-apply: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

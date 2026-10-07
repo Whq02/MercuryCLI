@@ -239,6 +239,41 @@ async function main(): Promise<void> {
     row.close()
   }
 
+  {
+    const net = await import('node:net')
+    const hs = await import(src('daemon/handshake.ts'))
+    const socket = await import(src('daemon/controlSocket.ts'))
+    const protocol = await import(src('daemon/protocol.ts'))
+    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
+    mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
+    let buildTree = 'aaaaaaaaaaaa'
+    const server = net.createServer(connection => {
+      protocol.readControlFrame(connection, () => connection.end(protocol.encodeFrame({ ok: true, op: 'hello',
+        proto: protocol.MERCURY_DAEMON_PROTO, minProto: 1, ready: true, version: '1.0.0', buildTree,
+        pid: 42, startedAt: 1, ownerPid: null, foreground: false, live: 1, liveSessions: 1, warm: 0, restartArmed: false })), () => connection.destroy())
+    })
+    await new Promise<void>(resolveReady => server.listen(socket.controlSockPath(), resolveReady))
+    seat.setWork({ rows: [], samples: [] })
+    seat.setLive(IDLE_LIVE)
+    await hs.handshakeDaemon({ client: { version: '1.0.0', buildTree: 'bbbbbbbbbbbb' } })
+    for (const columns of [80, 120, 178]) {
+      const row = await mount(columns)
+      const mismatched = record(columns, 'daemon-mismatch', row.frame())
+      check(`${columns}: another daemon build is visible on the existing row`, mismatched.includes('daemon build aaaaaaaaaaaa differs'), mismatched)
+      check(`${columns}: the row remains one line within the terminal`, !mismatched.includes('\n') && stringWidth(mismatched) <= columns, mismatched)
+      row.close()
+    }
+    const row = await mount(120)
+    buildTree = 'bbbbbbbbbbbb'
+    await hs.handshakeDaemon({ client: { version: '1.0.0', buildTree } })
+    await settle()
+    const matched = record(120, 'daemon-matched', row.frame())
+    check('the mismatch disappears when the handshake matches again without hiding the held receipt', !matched.includes('daemon build') && matched.includes('Effort set to medium'), matched)
+    row.close()
+    await new Promise<void>(resolveClosed => server.close(() => resolveClosed()))
+    hs.resetDaemonHandshakeForTesting()
+  }
+
   section('§4 the words are pure and one spelling')
   {
     check('modelStatusWords: the model, the model and its effort, nothing without a model', bar.modelStatusWords('Opus 5.5', 'high') === 'Opus 5.5 · high' && bar.modelStatusWords('GLM-5.3', null) === 'GLM-5.3' && bar.modelStatusWords('', 'high') === '')

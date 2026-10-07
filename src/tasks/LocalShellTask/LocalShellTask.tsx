@@ -131,6 +131,7 @@ export function armForegroundBudget(args: {
 
 function enqueueShellNotification(
   taskId: string,
+  command: string,
   description: string,
   status: 'completed' | 'failed' | 'stopped',
   exitCode: number | undefined,
@@ -162,6 +163,7 @@ function enqueueShellNotification(
     : ''
   const message = `<${TASK_NOTIFICATION_TAG}>
 <${TASK_ID_TAG}>${taskId}</${TASK_ID_TAG}>${toolUseIdLine}
+<command>${escapeXml(command)}</command>
 <${OUTPUT_FILE_TAG}>${getTaskOutputPath(taskId)}</${OUTPUT_FILE_TAG}>
 <${STATUS_TAG}>${status}</${STATUS_TAG}>
 <${SUMMARY_TAG}>${escapeXml(summary)}</${SUMMARY_TAG}>
@@ -379,6 +381,7 @@ async function settleShellTask(args: {
 
   enqueueShellNotification(
     taskId,
+    command,
     description,
     wasKilled ? 'stopped' : result.code === 0 ? 'completed' : 'failed',
     wasKilled ? undefined : result.code,
