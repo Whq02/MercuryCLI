@@ -1,12 +1,12 @@
 {
   "program": "anvil",
-  "section": "\u00a73 frozen missions",
+  "section": "§3 frozen missions",
   "mode": "baseline",
   "fixtures": "disposable (mkdtemp, outside the repo tree); gh = deterministic shim; cargo/node/python = machine toolchain",
   "missions": [
     {
       "id": "m1-ts-defect",
-      "title": "TypeScript defect: locate \u2192 two-hunk edit \u2192 targeted check",
+      "title": "TypeScript defect: locate → two-hunk edit → targeted check",
       "done": true,
       "toolCalls": {
         "Grep": 1,
@@ -32,7 +32,7 @@
     },
     {
       "id": "m2-py-defect",
-      "title": "Python defect: failing test \u2192 patch \u2192 targeted rerun",
+      "title": "Python defect: failing test → patch → targeted rerun",
       "done": true,
       "toolCalls": {
         "Test": 4,
@@ -55,7 +55,7 @@
     },
     {
       "id": "m3-rust-defect",
-      "title": "Rust defect: locate \u2192 edit \u2192 targeted cargo check",
+      "title": "Rust defect: locate → edit → targeted cargo check",
       "done": true,
       "toolCalls": {
         "Bash": 2,
@@ -130,7 +130,7 @@
     },
     {
       "id": "m6-mixed-targets",
-      "title": "Mixed-target reading: file \u00b7 directory \u00b7 notebook \u00b7 resource \u00b7 HTTP doc",
+      "title": "Mixed-target reading: file · directory · notebook · resource · HTTP doc",
       "done": true,
       "toolCalls": {
         "Read": 2,
@@ -153,13 +153,13 @@
       "notes": [
         "fallback shell: ls (Read refuses directories; prompt says use Bash ls)",
         "notebook counted at the Read surface (parser exercised by its own suite)",
-        "mercury://health/latest \u2192 typed state 'absent' (absent-vs-ok both exact)",
+        "mercury://health/latest → typed state 'absent' (absent-vs-ok both exact)",
         "surfaces used: Read + Bash + Inspect + WebFetch (4 distinct for 5 targets)"
       ]
     },
     {
       "id": "m7-repository",
-      "title": "Repository journey: branch/commit \u2192 PR + checks \u2192 located review",
+      "title": "Repository journey: branch/commit → PR + checks → located review",
       "done": true,
       "toolCalls": {
         "Git": 2,
@@ -185,38 +185,40 @@
     },
     {
       "id": "m8-closed-loop",
-      "title": "Closed loop: transaction \u2192 edit \u2192 stabilize \u2192 test \u2192 resume \u2192 truthful finish",
+      "title": "Closed loop: read → edit → test → automatic checked finish",
       "done": true,
       "toolCalls": {
-        "Transaction": 6,
         "Read": 1,
         "Edit": 1,
-        "Test": 1
+        "Test": 1,
+        "Transaction": 1
       },
-      "totalToolCalls": 9,
+      "totalToolCalls": 4,
       "fallbackShellCalls": 0,
       "failedEditAttempts": 0,
       "editFormatRereads": 0,
       "repeatedEditBytes": 12,
-      "explicitTxCalls": 6,
+      "explicitTxCalls": 1,
       "invalidOrUnavailableCalls": 0,
-      "stepsToFirstGreenCheck": 9,
+      "stepsToFirstGreenCheck": 3,
       "falseSuccess": false,
       "unresolvedRefs": 0,
       "duplicateEvidenceRows": 0,
       "operatorInterventions": 0,
-      "notes": []
+      "notes": [
+        "auto rows: apply, test — one explicit finish call"
+      ]
     }
   ],
   "intents": [
     {
       "id": "intent-read-file",
       "want": "Read",
-      "rank": 1,
+      "rank": 2,
       "top": [
-        "Read",
         "ReadMcpResource",
-        "TaskOutput"
+        "Read",
+        "AstSearch"
       ]
     },
     {
@@ -224,9 +226,9 @@
       "want": "Bash",
       "rank": null,
       "top": [
-        "ArtifactsList",
         "CronList",
-        "ListMcpResources"
+        "ListMcpResources",
+        "Browser"
       ]
     },
     {
@@ -245,7 +247,7 @@
       "rank": 1,
       "top": [
         "WebFetch",
-        "Read",
+        "Browser",
         "ReadMcpResource"
       ]
     },
@@ -255,8 +257,8 @@
       "rank": 1,
       "top": [
         "Test",
-        "Launch",
-        "Journey"
+        "Browser",
+        "Launch"
       ]
     },
     {
@@ -266,17 +268,17 @@
       "top": [
         "Test",
         "Launch",
-        "Transaction"
+        "Browser"
       ]
     },
     {
       "id": "intent-pr-context",
       "want": "Git",
-      "rank": null,
+      "rank": 1,
       "top": [
-        "forge",
-        "ExitWorktree",
-        "Structure"
+        "Git",
+        "Test",
+        "Browser"
       ]
     }
   ]

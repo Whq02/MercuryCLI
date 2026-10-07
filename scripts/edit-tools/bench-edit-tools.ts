@@ -43,12 +43,7 @@ const {
   rerunFailedTests,
   latestRun,
 } = await import('../../src/services/ide/pythonTests.ts')
-const {
-  openTransaction,
-  noteStep,
-  finishTransaction,
-  resumeTransaction,
-} = await import('../../src/services/ide/ideTransaction.ts')
+const { latestTransaction } = await import('../../src/services/ide/ideTransaction.ts')
 const { gitStatus, gitDiff } = await import('../../src/services/gitGraph/observe.ts')
 const { resolveResource } = await import('../../src/services/resources/registry.ts')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
@@ -797,187 +792,47 @@ async function m7Repository(mode: Mode): Promise<MissionMetrics> {
   return t.finish(true)
 }
 
-async function m8ClosedLoop(mode: Mode): Promise<MissionMetrics> {
-  const t = new Trace('m8-closed-loop', 'Closed loop: transaction → edit → stabilize → test → resume → truthful finish')
+async function m8ClosedLoop(_mode: Mode): Promise<MissionMetrics> {
+  const t = new Trace('m8-closed-loop', 'Closed loop: read → edit → test → automatic checked finish')
   const dir = buildPyFixture()
   _resetChangeReceiptsForTesting()
   installChangeReceiptObserver()
-
-  if (mode === 'after') {
-    installTxAutoCapture()
-    t.call('Transaction')
-    t.m.explicitTxCalls += 1
-    const tx = await openTransaction({ owner, intent: 'fix clamp01 range defect', from: dir })
-    const core = join(dir, 'mylib', 'core.py')
-    readCounted(t, core)
-    const okEdit = editCounted(t, core, '    return x', '    return min(1.0, max(0.0, x))')
-    const now = Date.now()
-    observeToolTerminal({
-      owner,
-      toolName: 'Edit',
-      toolUseId: 'anvil-m8-after-edit',
-      input: { file_path: core },
-      ok: true,
-      durationMs: 5,
-      effect: {
-        outcome: 'succeeded',
-        operation: 'file.edit',
-        changedPaths: [core],
-        evidence: 'benchmark edit applied through applyEditToFile',
-        startedAt: now - 5,
-        completedAt: now,
-      },
-      cwd: dir,
-    })
-    const stepT = t.call('Test')
-    const run = await runPythonTests({ from: dir })
-    if (!(run.state === 'ok' && run.record.counts.failed === 0)) return t.finish(false)
-    observeToolTerminal({
-      owner,
-      toolName: 'Test',
-      toolUseId: 'anvil-m8-after-test',
-      input: { op: 'run' },
-      ok: true,
-      durationMs: 40,
-      effect: {
-        outcome: 'succeeded',
-        operation: 'test.run',
-        changedPaths: [],
-        evidence: `unittest green (${run.record.id})`,
-        startedAt: now,
-        completedAt: Date.now(),
-      },
-      cwd: dir,
-    })
-    await _drainTxAutoCaptureForTesting()
-    t.call('Transaction')
-    t.m.explicitTxCalls += 1
-    const resume = await runWithCwdOverride(dir, () => resumeTransaction({ id: tx.id, owner, from: dir }))
-    if (!resume || resume.applyRefChecks.some(c => !c.resolves)) {
-      t.m.unresolvedRefs += 1
-      return t.finish(false)
-    }
-    const stepF = t.call('Transaction')
-    t.m.explicitTxCalls += 1
-    const fin = await runWithCwdOverride(dir, () =>
-      finishTransaction({ id: tx.id, owner, verdict: 'completed', from: dir }),
-    )
-    if (fin.state !== 'ok') {
-      t.note(`finish refused: ${fin.state === 'refused' ? fin.reason : ''}`)
-      return t.finish(false)
-    }
-    t.greenCheckAt(stepF)
-    const autoRows = fin.record.steps.filter(s => s.auto)
-    const dup = new Set(autoRows.map(s => `${s.auto!.toolUseId}:${s.kind}`))
-    if (dup.size !== autoRows.length) t.m.duplicateEvidenceRows += autoRows.length - dup.size
-    t.note(`auto rows: ${autoRows.map(s => s.kind).join(', ')} — explicit calls: open/resume/finish only`)
-    void stepT
-    return t.finish(okEdit)
-  }
-  t.call('Transaction')
-  t.m.explicitTxCalls += 1
-  const tx = await openTransaction({ owner, intent: 'fix clamp01 range defect', from: dir })
+  installTxAutoCapture()
   const core = join(dir, 'mylib', 'core.py')
   readCounted(t, core)
   const okEdit = editCounted(t, core, '    return x', '    return min(1.0, max(0.0, x))')
   const now = Date.now()
-  observeToolTerminal({
-    owner,
-    toolName: 'Edit',
-    toolUseId: 'anvil-m8-edit-1',
-    input: { file_path: core },
-    ok: true,
-    durationMs: 5,
-    effect: {
-      outcome: 'succeeded',
-      operation: 'file.edit',
-      changedPaths: [core],
-      evidence: 'benchmark edit applied through applyEditToFile',
-      startedAt: now - 5,
-      completedAt: now,
-    },
-    cwd: dir,
-  })
-  const receipts = receiptsFor(owner)
-  const receipt = receipts[receipts.length - 1]
-  if (!receipt) {
-    t.note('no ChangeReceipt minted from the terminal observation')
-    return t.finish(false)
-  }
-  if (receipts.length !== 1) t.m.duplicateEvidenceRows += receipts.length - 1
-  t.call('Transaction')
-  t.m.explicitTxCalls += 1
-  const s1 = await runWithCwdOverride(dir, () =>
-    noteStep({
-      id: tx.id,
-      owner,
-      kind: 'apply',
-      summary: 'patched clamp01 to clamp into [0,1]',
-      refs: [`mercury://receipt/${receipt.id}`],
-      from: dir,
-    }),
-  )
-  if (s1.state !== 'ok') {
-    t.m.unresolvedRefs += 1
-    t.note(`apply note refused: ${s1.state === 'refused' ? s1.reason : ''}`)
-    return t.finish(false)
-  }
-  t.call('Transaction')
-  t.m.explicitTxCalls += 1
-  const s2 = await noteStep({
-    id: tx.id,
-    owner,
-    kind: 'stabilize',
-    summary: 'no diagnostics provider in fixture — stabilization vacuous',
-    outcome: 'ok',
-    from: dir,
-  })
-  if (s2.state !== 'ok') return t.finish(false)
-  t.call('Test')
+  observeToolTerminal({ owner, toolName: 'Edit', toolUseId: `m8-${dir}-edit`, input: { file_path: core }, ok: okEdit, durationMs: 5,
+    effect: { outcome: okEdit ? 'succeeded' : 'failed', operation: 'file.edit', changedPaths: okEdit ? [core] : [],
+      evidence: 'benchmark edit applied through applyEditToFile', startedAt: now - 5, completedAt: now }, cwd: dir })
+  const stepT = t.call('Test')
   const run = await runPythonTests({ from: dir })
   const green = run.state === 'ok' && run.record.counts.failed === 0
-  if (!green) {
-    t.note('fixture test did not go green after the patch')
-    return t.finish(false)
-  }
+  observeToolTerminal({ owner, toolName: 'Test', toolUseId: `m8-${dir}-test`, input: { op: 'run' }, ok: green, durationMs: 40,
+    effect: { outcome: green ? 'succeeded' : 'failed', operation: 'test.run', changedPaths: [],
+      evidence: run.state === 'ok' ? `unittest ${green ? 'green' : 'failed'} (${run.record.id})` : 'test unavailable',
+      startedAt: now, completedAt: Date.now() }, cwd: dir })
+  if (green) t.greenCheckAt(stepT)
   t.call('Transaction')
   t.m.explicitTxCalls += 1
-  const s3 = await runWithCwdOverride(dir, () =>
-    noteStep({
-      id: tx.id,
-      owner,
-      kind: 'test',
-      summary: 'unittest suite green after patch',
-      refs: [`mercury://test/run/${run.record.id}`],
-      outcome: 'ok',
-      from: dir,
-    }),
-  )
-  if (s3.state !== 'ok') {
-    t.m.unresolvedRefs += 1
+  const { TransactionTool } = await import('../../src/tools/TransactionTool/TransactionTool.js')
+  const fin = await runWithCwdOverride(dir, () => TransactionTool.call({ op: 'finish', verdict: 'completed' }, { owner } as never))
+  if (fin.data.outcome !== 'succeeded') {
+    t.note(fin.data.result)
     return t.finish(false)
   }
-  t.call('Transaction')
-  t.m.explicitTxCalls += 1
-  const resume = await runWithCwdOverride(dir, () =>
-    resumeTransaction({ id: tx.id, owner, from: dir }),
-  )
-  if (!resume || resume.applyRefChecks.some(c => !c.resolves)) {
-    t.m.unresolvedRefs += resume ? resume.applyRefChecks.filter(c => !c.resolves).length : 1
-    t.note('resume found dead apply refs')
-    return t.finish(false)
+  const record = latestTransaction(dir)
+  if (!record) return t.finish(false)
+  const applies = record.steps.filter(s => s.kind === 'apply')
+  if (applies.length !== 1) t.m.duplicateEvidenceRows += Math.abs(applies.length - 1)
+  const autoRows = record.steps.filter(s => s.auto)
+  const unique = new Set(autoRows.map(s => `${s.kind}:${s.auto!.toolUseId}`))
+  t.m.duplicateEvidenceRows += autoRows.length - unique.size
+  for (const ref of applies.flatMap(s => s.refs)) {
+    if ((await resolveResource(ref, { owner, cwd: dir })).state !== 'ok') t.m.unresolvedRefs++
   }
-  const stepCount = t.call('Transaction')
-  t.m.explicitTxCalls += 1
-  const fin = await finishTransaction({ id: tx.id, owner, verdict: 'completed', from: dir })
-  if (fin.state !== 'ok') {
-    t.note(`finish refused: ${fin.state === 'refused' ? fin.reason : ''} — completion law intact but journey incomplete`)
-    return t.finish(false)
-  }
-  t.greenCheckAt(stepCount)
-  const applyRows = fin.record.steps.filter(s => s.kind === 'apply')
-  if (applyRows.length !== 1) t.m.duplicateEvidenceRows += applyRows.length - 1
-  return t.finish(okEdit)
+  t.note(`auto rows: ${autoRows.map(s => s.kind).join(', ')} — one explicit finish call`)
+  return t.finish(okEdit && green)
 }
 
 interface IntentProbe {
