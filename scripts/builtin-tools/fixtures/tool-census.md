@@ -6,13 +6,13 @@
 > skips regeneration is RED). Live columns (enabled/support) reflect the
 > generating environment and are NOT drift-anchored.
 
-Census version 1 — 69 built-in production tools · 184 operations · 69 with a declared capability contract.
+Census version 1 — 69 built-in production tools · 180 operations · 69 with a declared capability contract.
 
 ## Summary
 
-- support (at generation time): 41 available · 18 conditional · 0 degraded · 10 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
+- support (at generation time): 42 available · 17 conditional · 0 degraded · 10 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
 - class: 22 observation · 26 mutation · 11 execution · 10 coordination · 0 unclassified
-- integrations: 14 declare transactions · 13 declare executions · 32 declare mercury:// outputs · 45 name a focused proof
+- integrations: 14 declare transactions · 13 declare executions · 33 declare mercury:// outputs · 47 name a focused proof
 - capability units covered: application-verification · browser-drive · capability-discovery · code-intelligence · debugging · desktop-drive · game-engine · git-inspection · git-transactions · memory · operator-io · persistent-evaluation · pixel-art · process-execution · resource-inspection · scheduling · service-management · source-reading · structural-mutation · task-coordination · text-mutation · web-access
 - every tool is unit-classified
 
@@ -34,7 +34,7 @@ Census version 1 — 69 built-in production tools · 184 operations · 69 with a
 | Computer | execution | desktop-drive | 14 | cancel | yes | — | desktop-session (child-execution) | — | scripts/computer/prove-computer-asks.ts |
 | ContextLeft | observation | resource-inspection | — | block | yes | — | — | — | scripts/tools/prove-context-left-tool.ts |
 | Correct | mutation | memory | 3 | block | yes | — | — | — | scripts/memory/prove-verbs-lifecycle.ts |
-| CronCreate | mutation | scheduling | — | block | yes | — | — | — | NAMED GAP |
+| CronCreate | mutation | scheduling | — | block | yes | — | — | — | scripts/daemon/prove-cron-create-answer.ts |
 | CronDelete | mutation | scheduling | — | block | yes | — | — | — | NAMED GAP |
 | CronList | observation | scheduling | — | block | yes | — | — | — | NAMED GAP |
 | Debug | execution | debugging | 30 | block | yes | — | debug-adapter (external-projection) | — | scripts/ide/prove-native-debug.ts |
@@ -67,11 +67,11 @@ Census version 1 — 69 built-in production tools · 184 operations · 69 with a
 | Recall | observation | memory | — | block | yes | — | — | — | scripts/memory/prove-verbs-lifecycle.ts |
 | RecordConvention | mutation | text-mutation | — | block | yes | file +receipts | — | — | NAMED GAP |
 | Reflect | observation | memory | — | block | yes | — | — | — | scripts/memory/prove-reflect-grounding.ts |
+| ResumeAgent | coordination | task-coordination | — | block | yes | — | — | mercury://agent | scripts/crew/run-all.sh |
 | Retain | mutation | memory | — | block | yes | — | — | — | scripts/memory/prove-retain-honesty.ts |
 | Rewind | mutation | task-coordination | — | block | yes | — | — | — | scripts/run-recovery/run-all.sh |
 | ScheduleWakeup | coordination | scheduling | — | block | yes | — | — | — | NAMED GAP |
 | SendMessage | coordination | task-coordination | — | block | yes | — | — | mercury://agent | scripts/crew/run-all.sh |
-| SendUserFile | coordination | operator-io | — | block | no | — | — | — | NAMED GAP |
 | Service | execution | service-management | 8 | block | yes | — | service (full-execution-owner) | mercury://service, mercury://execution | scripts/project-services/prove-services.ts |
 | Skill | coordination | capability-discovery | — | block | no | — | — | — | NAMED GAP |
 | Sleep | observation | scheduling | — | block | yes | — | — | — | scripts/tools/prove-sleep-tool.ts |
@@ -83,7 +83,7 @@ Census version 1 — 69 built-in production tools · 184 operations · 69 with a
 | TaskUpdate | mutation | task-coordination | — | block | yes | — | — | mercury://task | NAMED GAP |
 | Test | execution | application-verification | 5 | block | yes | — | background-job (external-projection) | mercury://test | scripts/ide/prove-python-tests.ts |
 | ToolSearch | observation | capability-discovery | — | block | no | — | — | — | scripts/builtin-tools/prove-toolsearch-capability.ts |
-| Transaction | coordination | application-verification | 6 | block | yes | — | — | mercury://ide | scripts/ide/prove-closed-loop.ts |
+| Transaction | coordination | application-verification | 2 | block | yes | — | — | mercury://ide | scripts/ide/prove-closed-loop.ts |
 | WebFetch | observation | web-access | — | block | yes | — | — | — | NAMED GAP |
 | WebSearch | observation | web-access | — | block | yes | — | — | — | scripts/search/run-all.sh |
 | Workflow | coordination | task-coordination | — | block | yes | — | workflow-worker (child-execution) | mercury://workflow | scripts/workflows/run-all.sh |
