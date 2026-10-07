@@ -23,7 +23,23 @@ export function getMaxTimeoutMs(): number {
 }
 
 export function describeMaxOutputChars(): string {
-  return `Character budget for this call's inline result: the head and the tail of the output around a notice of what was cut. Default and cap ${getMaxOutputLength()} (a larger value clamps down to it); floor ${getMinOutputLength()} (a smaller value clamps up). Pass a small value for a huge log where only the beginning and the verdict at the end matter; omit it to see everything up to the cap. A run_in_background call ignores it (its output goes to the task's file).`
+  return `Inline character budget: a longer output comes back as its head and tail around a notice of the cut. Default and cap ${getMaxOutputLength()}, floor ${getMinOutputLength()} (a value outside is clamped, and the result says so). Ignored by run_in_background.`
+}
+
+export function describeTimeout(): string {
+  const passes =
+    resolveShellEngine(getInitialSettings().shell?.engine).engine === 'brush'
+      ? 'When it passes, the command is killed and the shell session resets.'
+      : 'When it passes, the command moves to the background and keeps running; a command whose first word is `sleep` is killed instead.'
+  return `Milliseconds the call waits (default ${getDefaultBashTimeoutMs()}, max ${getMaxBashTimeoutMs()}). ${passes}`
+}
+
+export function describeCommandDescription(): string {
+  return 'What the command does, in five to ten words of active voice, shown to the operator: for example "List files in the current directory". Do not use the words "complex" or "risk".'
+}
+
+export function describeRunInBackground(): string {
+  return 'Start the command and return at once with a task id and an output file; the tool description says when its end is reported and when it is stopped.'
 }
 
 export function maxOutputCharsBullet(): string {
