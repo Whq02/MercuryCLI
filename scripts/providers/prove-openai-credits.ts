@@ -18,7 +18,8 @@ const owner = await import('../../src/services/providers/providerUsage.ts')
 const state = await import('../../src/services/providers/openai/openaiLimitState.ts')
 const accounts = await import('../../src/services/providers/openai/openaiAccounts.ts')
 const fixture = JSON.parse(readFileSync(join(import.meta.dir, 'fixtures/openai-chatgpt-usage.json'), 'utf8'))
-let now = Date.now()
+const captured = fixture.body.rate_limit.primary_window
+let now = (captured.reset_at - captured.reset_after_seconds) * 1000
 const seed = (accountId: string) => writeFileSync(join(home, '.openai-auth.json'), JSON.stringify({ version: 1, tokens: { accessToken: 'fixture-access', refreshToken: `fixture-refresh-${accountId}`, idToken: 'fixture-id', accountId, planType: 'pro', accessTokenExpiresAtMs: now + 86_400_000 } }))
 let body: unknown = fixture.body
 let status = 200
