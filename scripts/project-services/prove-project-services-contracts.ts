@@ -60,7 +60,7 @@ section('A. FileEdit staleness + refusal laws (validateInput/call)')
   writeFileSync(filePath, 'const alpha = 1\nconst beta = 2\nconst alpha2 = 1\n')
 
   const unread = await FileEditTool.validateInput!(
-    { file_path: filePath, old_string: 'alpha', new_string: 'gamma' } as never,
+    { file_path: filePath, old_string: 'const beta = 2', new_string: 'const beta = 3' } as never,
     makeContext(new Map()),
   )
   check('A1 read-first law: unread file refuses with errorCode 6',
