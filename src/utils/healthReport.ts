@@ -3704,7 +3704,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const { resolveGrammarEngineDir, POLYGLOT_LANGUAGES } = await import('../services/structure/grammarFacility.js')
             let engineLine: string
             if (!structurePolyglotEnabled()) {
-              engineLine = 'polyglot patterns: OFF (MERCURY_STRUCTURE_POLYGLOT=0)'
+              engineLine = 'AstSearch and AstEdit: OFF (MERCURY_STRUCTURE_POLYGLOT=0)'
             } else {
               const engine = resolveGrammarEngineDir()
               if (engine.state === 'ok') {
