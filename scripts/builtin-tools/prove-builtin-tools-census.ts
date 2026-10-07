@@ -2,6 +2,7 @@
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { FILE_TOOL_SPELLINGS } from '../identity/forbidden-file-tool.ts'
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -112,6 +113,7 @@ check(
 
 type RetiredTool = { name: string; covered: string; aliases: string[]; references: RegExp[] }
 const RETIRED_TOOLS: RetiredTool[] = [
+  { name: FILE_TOOL_SPELLINGS[0], covered: 'the reply names a local file by its path', aliases: [], references: FILE_TOOL_SPELLINGS.map(name => new RegExp(name)) },
   { name: 'RememberLesson', covered: 'plain memory writing and RecordConvention cover it', aliases: [], references: [/RememberLesson/] },
   { name: 'LaunchFleet', covered: 'TaskCreate once per subtask covers it', aliases: [], references: [/LaunchFleet/] },
   {
@@ -152,7 +154,7 @@ const RETIRED_TOOLS: RetiredTool[] = [
 ]
 const RETIRED_SCAN_ROOTS = ['src', 'docs', 'scripts', 'design-system']
 const RETIRED_SCAN_HISTORY =
-  /^(?:src\/constants\/changelog\.ts|docs\/releases\/|scripts\/edit-tools\/fixtures\/baseline\.json|scripts\/builtin-tools\/prove-builtin-tools-census\.ts|scripts\/transcript-rows\/prove-retired-tool-rows\.ts|scripts\/core-runtime\/prove-runloop-contract\.ts)/
+  /^(?:src\/constants\/changelog\.ts|docs\/releases\/|scripts\/edit-tools\/fixtures\/baseline\.json|scripts\/builtin-tools\/prove-builtin-tools-census\.ts|scripts\/identity\/forbidden-file-tool\.ts|scripts\/transcript-rows\/prove-retired-tool-rows\.ts|scripts\/core-runtime\/prove-runloop-contract\.ts)/
 const TEXT_FILE = /\.(ts|tsx|js|mjs|cjs|json|md|txt|sh|ya?ml|tsv|csv)$/
 function walk(dir: string, out: string[]): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -228,8 +230,8 @@ check(
   `offered: ${courierUnderSwitch.join(', ')}`,
 )
 check(
-  'the census counts 63 tools (LiveComms and ArtifactsList left with the crew mailbox)',
-  census.summary.tools === 63,
+  'the census counts 62 production tools',
+  census.summary.tools === 62,
   `live census: ${census.summary.tools} tools`,
 )
 
