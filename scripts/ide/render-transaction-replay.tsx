@@ -44,7 +44,7 @@ if (process.argv[2] === '--child') {
     for (const cols of [120, 80]) {
       const capture = (source: string, label: string) => {
         const config = join(scratch, `${label}-${cols}.json`)
-        writeFileSync(config, JSON.stringify({ argv: [process.execPath, import.meta.path, '--child', source], sends: [], total: 30,
+        writeFileSync(config, JSON.stringify({ argv: [process.execPath, import.meta.path, '--child', source], sends: [], total: 30, readyText: ['TRANSACTION REPLAY END'],
           cols, rows: 35, out: join(scratch, `${label}-${cols}-grid.json`) }))
         return execFileSync(driver.python, [captureEngineEntry(driver, root), config], { encoding: 'utf8', timeout: vshotBudgetMs(120_000), env: process.env })
       }
