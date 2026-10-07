@@ -4,7 +4,7 @@
 # gate-watch: src/components/messages/nullRenderingAttachments* src/constants/** src/daemon/**
 # gate-watch: src/hooks/useAgentStateClassifier*
 # gate-watch: src/services/agentStateClassifier* src/services/agentStateHeuristic*
-# gate-watch: src/services/analytics/config* src/services/compact/microCompactDigest*
+# gate-watch: src/services/compact/microCompactDigest*
 # gate-watch: src/services/compact/verbatimTail* src/services/mcp/**
 # gate-watch: src/utils/secrets/secretScanner* src/substrate/**
 # gate-watch: src/tools/FileEditTool/constants* src/tools/FileReadTool/prompt*

@@ -35,7 +35,7 @@ try {
   for (const [parent, word, expected] of [['gpt-5.6-terra', 'gpt', 'gpt-5.6-terra'], ['claude-sonnet-5', 'gpt', 'gpt-5.6-sol'], ['claude-sonnet-5[1m]', 'sonnet', 'claude-sonnet-5[1m]'], ['gpt-5.6-terra', 'gpt-5.6-sol', 'gpt-5.6-sol']]) {
     const input = { model: word }
     const resolved = await resolve(input, { engineModel: parent }, getAgentModel, resolveEngineDispatch, unrecognisedModelWordRefusal)
-    const plan = buildAgentLaunchPlan({ requestedType: 'mercury-crew', activeAgents: [definition], toolPermissionContext: getEmptyToolPermissionContext(), forkGateOn: false, forkAgent: definition, defaultAgentType: 'mercury-crew', engineModel: parent, modelParam: planParameter(resolved.engineDispatch, input, resolved.modelParam), resolvedModel: planResolved(resolved.modelParam), backgroundTasksDisabled: false, forceAsync: false, ...(resolved.engineDispatch ? { engineDispatch: resolved.engineDispatch } : {}) } as never)
+    const plan = buildAgentLaunchPlan({ requestedType: 'mercury-crew', activeAgents: [definition], toolPermissionContext: getEmptyToolPermissionContext(), defaultAgentType: 'mercury-crew', engineModel: parent, modelParam: planParameter(resolved.engineDispatch, input, resolved.modelParam), resolvedModel: planResolved(resolved.modelParam), backgroundTasksDisabled: false, forceAsync: false, ...(resolved.engineDispatch ? { engineDispatch: resolved.engineDispatch } : {}) } as never)
     check(`${parent} + ${word}: the plan retains the resolved model`, plan.model === expected, plan.model)
   }
   check('the launch has one spawn road: no second model handoff beside the plan', !/const crewmateModel =/.test(source) && !source.includes('spawnCrewmate('), 'one road')

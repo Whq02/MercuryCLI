@@ -12,11 +12,11 @@ import { vshotBudgetMs } from '../lib/captureDriver.ts'
 const t = checker()
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-kb-ga-'))
 
-t.section('§1 — the pre-fork analytics gate is retired')
+t.section('§1 — availability is unconditional; the loader imports nothing but its own modules')
 {
   const src = readFileSync('src/keybindings/loadUserBindings.ts', 'utf8')
-  t.check('no growthbook import remains', !src.includes('growthbook'), 'analytics dependency gone')
-  t.check('no analytics event logging remains', !src.includes('logEvent'), 'telemetry gone')
+  t.check('the loader imports no analytics module', !src.includes('growthbook'), 'no analytics dependency')
+  t.check('the loader logs no event', !src.includes('logEvent'), 'no telemetry')
   t.check(
     'config routes through the project-config seam',
     src.includes("resolveProjectConfigPath") && src.includes("projectConfigDirs"),

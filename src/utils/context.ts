@@ -10,8 +10,6 @@ export {
 
 export const COMPACT_MAX_OUTPUT_TOKENS = 20_000
 
-export const ESCALATED_MAX_TOKENS = 64_000
-
 type ContextUsage = {
   input_tokens: number
   cache_creation_input_tokens: number

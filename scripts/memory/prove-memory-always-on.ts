@@ -66,7 +66,7 @@ for (const dir of ['src/mneme', 'src/tools/MemoryTools', 'src/components/memory'
   walk(join(ROOT, dir), files)
 }
 const carriers = files.filter(p => /MERCURY_MNEME|MERCURY_MEMORY_OBSERVE|mneme_observe|mneme_catalog|mneme_grep|mneme_read|mneme_correct|mneme_retire/.test(readFileSync(p, 'utf8')))
-check('no memory source names the retired gate or the retired verbs', carriers.length === 0, carriers.map(p => p.slice(ROOT.length + 1)).join(', '))
+check('no memory source names a memory gate or the old observe verbs', carriers.length === 0, carriers.map(p => p.slice(ROOT.length + 1)).join(', '))
 
 console.log('\n' + '═'.repeat(76))
 console.log(failures === 0 ? '✅ MEMORY IS ON FOR EVERYONE' : `❌ ${failures} ALWAYS-ON CHECK(S) FAILED`)

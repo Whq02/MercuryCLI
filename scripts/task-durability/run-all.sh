@@ -2,6 +2,7 @@
 # gate-class: cpu
 # gate-watch: scripts/task-durability/**
 # gate-watch: src/substrate/durablePublish.ts src/substrate/fileStore.ts src/utils/tasks.ts
+# gate-watch: src/Task.ts src/rows/vocabulary.ts src/tasks/**
 # gate-watch: src/services/privateChannel/installLayout.ts src/utils/errors/classifyToolError.ts
 # gate-watch: src/services/changeTransaction/changeSetCommit.ts .github/workflows/windows-functional.yml
 # gate-watch: scripts/reliability/helpers/durablePublishKillChild.ts src/daemon/ownedDaemon.ts

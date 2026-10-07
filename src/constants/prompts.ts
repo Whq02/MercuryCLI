@@ -9,7 +9,6 @@ import {
   getMercuryContractSections,
 } from '../prompt/mercuryContract.js'
 import { getAntiSycophancyAlwaysOnSection } from '../utils/antiSycophancy.js'
-import { isForkSubagentEnabled } from '../tools/AgentTool/forkSubagent.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { isMcpInstructionsDeltaEnabled } from '../utils/mcpInstructionsDelta.js'
 import { getVulcanSection } from '../utils/vulcan/vulcanGates.js'
@@ -336,7 +335,6 @@ Go straight to the point. Keep output brief and direct. Lead with the answer, no
 function sessionGuidanceSection(
   toolNames: ReadonlySet<string>,
   hasSkills: boolean,
-  forkSubagentsEnabled: boolean,
   nonInteractive: boolean,
   askable: boolean = !nonInteractive,
 ): string | null {
@@ -353,24 +351,16 @@ function sessionGuidanceSection(
   }
   const agentEnabled = toolNames.has(AGENT_TOOL_NAME)
   if (agentEnabled) {
-    if (forkSubagentsEnabled) {
-      items.push(
-        `Calling the ${AGENT_TOOL_NAME} tool without a \`subagent_type\` creates a background fork that keeps its tool output out of your context, so you can keep talking to the user while it works. Reach for it for research or multi-step work that would otherwise fill your context with output you will not need again. A fork must execute directly — NEVER re-delegate.`,
-      )
-    } else {
-      items.push(
-        `Match tasks to the specialized agent whose description fits. Crewmates are valuable for parallelizing independent queries and for protecting your main context; do not use them excessively, and never duplicate work you delegated to one.`,
-      )
-    }
-    if (!forkSubagentsEnabled) {
-      const searchPhrase = hasEmbeddedSearchTools()
-        ? `the shell find and grep commands through the ${BASH_TOOL_NAME} tool`
-        : `the ${GLOB_TOOL_NAME} and ${GREP_TOOL_NAME} tools`
-      items.push(
-        `For simple directed lookups of a specific file, class, or function, use ${searchPhrase} directly.`,
-        `For broad exploration and deep research, use the ${AGENT_TOOL_NAME} tool with the mercury-scout agent — it is slower, so reserve it for when a directed search with ${searchPhrase} proves insufficient or the task clearly needs more than a couple of queries.`,
-      )
-    }
+    items.push(
+      `Match tasks to the specialized agent whose description fits. Crewmates are valuable for parallelizing independent queries and for protecting your main context; do not use them excessively, and never duplicate work you delegated to one.`,
+    )
+    const searchPhrase = hasEmbeddedSearchTools()
+      ? `the shell find and grep commands through the ${BASH_TOOL_NAME} tool`
+      : `the ${GLOB_TOOL_NAME} and ${GREP_TOOL_NAME} tools`
+    items.push(
+      `For simple directed lookups of a specific file, class, or function, use ${searchPhrase} directly.`,
+      `For broad exploration and deep research, use the ${AGENT_TOOL_NAME} tool with the mercury-scout agent — it is slower, so reserve it for when a directed search with ${searchPhrase} proves insufficient or the task clearly needs more than a couple of queries.`,
+    )
   }
   if (toolNames.has(SKILL_TOOL_NAME)) {
     items.push(
@@ -450,14 +440,13 @@ export async function getSystemPrompt(
     communicationSection(),
   ].map(section => (section === '' ? null : section))
 
-  const forkSubagentsEnabled = toolNames.has(AGENT_TOOL_NAME) && isForkSubagentEnabled()
   const hasSkills = toolNames.has(SKILL_TOOL_NAME)
   const nonInteractive = process.env.MERCURY_ENTRYPOINT === 'headless'
   const askable = !nonInteractive || canAnswerAsks()
 
   const dynamicSpecs = [
     systemPromptSection('session_guidance', () =>
-      sessionGuidanceSection(toolNames, hasSkills, forkSubagentsEnabled, nonInteractive, askable),
+      sessionGuidanceSection(toolNames, hasSkills, nonInteractive, askable),
     ),
     keyedSystemPromptSection(
       'memory',

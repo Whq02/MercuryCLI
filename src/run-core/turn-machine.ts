@@ -149,7 +149,7 @@ import { getModelMaxOutputTokens } from '../utils/model/capabilities.js'
 import {
   tokenCountWithEstimation,
 } from '../utils/tokens.js'
-import { ESCALATED_MAX_TOKENS } from '../utils/context.js'
+import { getTotalCostUSD } from '../bootstrap/state.js'
 import { SLEEP_TOOL_NAME } from '../tools/SleepTool/prompt.js'
 import { executePostSamplingHooks } from '../utils/hooks/postSamplingHooks.js'
 import { executeInterruptHooks, executeStopFailureHooks } from '../utils/hooks.js'
@@ -186,11 +186,22 @@ import { acquireModelPermit, releaseModelPermitByCall } from '../services/capaci
 import { refreshGovernorCeilings } from '../services/capacity/composeCeilings.js'
 import { count } from '../utils/array.js'
 
-const MAX_OUTPUT_TOKENS_RECOVERY_LIMIT = 3
-const OUTPUT_LIMIT_RECOVERY_TEXT = [
-  'Output token limit hit. Resume directly — no apology, no recap of what you were doing. ',
-  'Pick up mid-thought if that is where the cut happened. Break remaining work into smaller pieces.',
-].join('')
+const OUTPUT_LIMIT_RECOVERY_TEXT =
+  'The reply hit the output ceiling. Carry on from exactly where it stopped — no recap, no apology — in smaller pieces.'
+
+const OUTPUT_LIMIT_STOP_WORDS = {
+  repeat: 'the reply hit the output ceiling and the continuation repeated what already stood; the turn ends here',
+  budget: "the reply hit the output ceiling and the run's budget is spent; the turn ends here",
+} as const
+
+export function continuationAdded(previous: string | undefined, next: string): boolean {
+  if (previous === undefined) return true
+  const added = next.trim()
+  if (added === '') return false
+  const stood = previous.trim()
+  if (added === stood) return false
+  return stood.length < 80 || !added.includes(stood.slice(-80))
+}
 
 function refreshTurnTools(context: ToolUseContext): ToolUseContext {
   const { options } = context
@@ -226,6 +237,7 @@ type TurnState = {
   toolUseContext: ToolUseContext
   autoCompactTracking: AutoCompactTrackingState | undefined
   maxOutputTokensRecoveryCount: number
+  lastOutputLimitReply?: string
   maxOutputTokensOverride: number | undefined
   streamFaultRecoveryCount: number
   toolCallRefusalRecoveryCount: number
@@ -366,9 +378,8 @@ async function* runStopHookGate(
 
 
 type MaxOutputTokensDecision =
-  | { kind: 'escalate' }
   | { kind: 'nudge'; attempt: number }
-  | { kind: 'surface' }
+  | { kind: 'surface'; why: keyof typeof OUTPUT_LIMIT_STOP_WORDS }
 
 const STREAM_FAULT_RECOVERY_LIMIT = 1
 
@@ -452,23 +463,14 @@ export function decideStreamFaultRecovery(input: {
   return { kind: 'surface' }
 }
 
-function decideMaxOutputTokensRecovery(input: {
-  capEnabled: boolean
-  envPinned: boolean
-  maxOutputTokensOverride: number | undefined
+export function decideMaxOutputTokensRecovery(input: {
+  added: boolean
+  budgetAllows: boolean
   recoveryCount: number
 }): MaxOutputTokensDecision {
-  if (
-    input.capEnabled &&
-    input.maxOutputTokensOverride === undefined &&
-    !input.envPinned
-  ) {
-    return { kind: 'escalate' }
-  }
-  if (input.recoveryCount < MAX_OUTPUT_TOKENS_RECOVERY_LIMIT) {
-    return { kind: 'nudge', attempt: input.recoveryCount + 1 }
-  }
-  return { kind: 'surface' }
+  if (!input.added) return { kind: 'surface', why: 'repeat' }
+  if (!input.budgetAllows) return { kind: 'surface', why: 'budget' }
+  return { kind: 'nudge', attempt: input.recoveryCount + 1 }
 }
 
 function replyTextOf(messages: readonly AssistantMessage[]): string {
@@ -1198,6 +1200,7 @@ export async function* runEventCore(
               toolUseContext,
               autoCompactTracking: tracking,
               maxOutputTokensRecoveryCount,
+              lastOutputLimitReply: state.lastOutputLimitReply,
               maxOutputTokensOverride,
               streamFaultRecoveryCount,
               toolCallRefusalRecoveryCount,
@@ -1344,6 +1347,7 @@ export async function* runEventCore(
             toolUseContext,
             autoCompactTracking: tracking,
             maxOutputTokensRecoveryCount,
+            lastOutputLimitReply: state.lastOutputLimitReply,
             maxOutputTokensOverride,
             streamFaultRecoveryCount,
             toolCallRefusalRecoveryCount,
@@ -1410,6 +1414,7 @@ export async function* runEventCore(
             toolUseContext,
             autoCompactTracking: tracking,
             maxOutputTokensRecoveryCount,
+            lastOutputLimitReply: state.lastOutputLimitReply,
             maxOutputTokensOverride,
             streamFaultRecoveryCount,
             toolCallRefusalRecoveryCount,
@@ -1440,33 +1445,15 @@ export async function* runEventCore(
       }
 
       if (chant === null && reasoningOnly === null && isWithheldMaxOutputTokens(lastMessage)) {
+        const replyText = replyTextOf(assistantMessages)
+        const maxBudgetUsd = toolUseContext.options.maxBudgetUsd as number | undefined
         const decision = decideMaxOutputTokensRecovery({
-          capEnabled: false,
-          envPinned: !!process.env.MERCURY_MAX_OUTPUT_TOKENS,
-          maxOutputTokensOverride,
+          added: continuationAdded(state.lastOutputLimitReply, replyText),
+          budgetAllows:
+            !toolUseContext.abortController.signal.aborted &&
+            (maxBudgetUsd === undefined || getTotalCostUSD() < maxBudgetUsd),
           recoveryCount: maxOutputTokensRecoveryCount,
         })
-
-        if (decision.kind === 'escalate') {
-          const next: TurnState = {
-            messages: messagesForQuery,
-            toolUseContext,
-            autoCompactTracking: tracking,
-            maxOutputTokensRecoveryCount,
-            maxOutputTokensOverride: ESCALATED_MAX_TOKENS,
-            streamFaultRecoveryCount,
-            toolCallRefusalRecoveryCount,
-            pendingToolUseSummary: undefined,
-            stopHookActive: undefined,
-            turnCount,
-            overflowEpisode,
-            pendingOverflow: undefined,
-            transition: { reason: 'max_output_tokens_escalate' },
-          }
-          yield emit({ kind: 'turn_settled', transition: next.transition! })
-          state = next
-          continue
-        }
 
         if (decision.kind === 'nudge') {
           const recoveryMessage = createUserMessage({
@@ -1483,7 +1470,8 @@ export async function* runEventCore(
             toolUseContext,
             autoCompactTracking: tracking,
             maxOutputTokensRecoveryCount: maxOutputTokensRecoveryCount + 1,
-            maxOutputTokensOverride: undefined,
+            lastOutputLimitReply: replyText,
+            maxOutputTokensOverride,
             streamFaultRecoveryCount,
             toolCallRefusalRecoveryCount,
             pendingToolUseSummary: undefined,
@@ -1501,6 +1489,10 @@ export async function* runEventCore(
           continue
         }
 
+        yield emit({
+          kind: 'notice',
+          message: createSystemMessage(OUTPUT_LIMIT_STOP_WORDS[decision.why], 'warning'),
+        })
         yield emit({ kind: 'withheld_surfaced', message: lastMessage })
       }
 
@@ -1532,6 +1524,7 @@ export async function* runEventCore(
             toolUseContext,
             autoCompactTracking: tracking,
             maxOutputTokensRecoveryCount,
+            lastOutputLimitReply: state.lastOutputLimitReply,
             maxOutputTokensOverride,
             streamFaultRecoveryCount: streamFaultRecoveryCount + 1,
             toolCallRefusalRecoveryCount,
@@ -1578,6 +1571,7 @@ export async function* runEventCore(
             toolUseContext,
             autoCompactTracking: tracking,
             maxOutputTokensRecoveryCount,
+            lastOutputLimitReply: state.lastOutputLimitReply,
             maxOutputTokensOverride,
             streamFaultRecoveryCount,
             toolCallRefusalRecoveryCount,
@@ -1625,6 +1619,7 @@ export async function* runEventCore(
             toolUseContext,
             autoCompactTracking: tracking,
             maxOutputTokensRecoveryCount,
+            lastOutputLimitReply: state.lastOutputLimitReply,
             maxOutputTokensOverride,
             streamFaultRecoveryCount,
             toolCallRefusalRecoveryCount: toolCallRefusalRecoveryCount + 1,
@@ -1659,6 +1654,7 @@ export async function* runEventCore(
             toolUseContext,
             autoCompactTracking: tracking,
             maxOutputTokensRecoveryCount,
+            lastOutputLimitReply: state.lastOutputLimitReply,
             maxOutputTokensOverride,
             streamFaultRecoveryCount,
             toolCallRefusalRecoveryCount,
