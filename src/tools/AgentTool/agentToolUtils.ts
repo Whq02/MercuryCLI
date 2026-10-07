@@ -1188,6 +1188,7 @@ export async function runAsyncAgentLifecycle(args: {
       controller: args.abortController,
       replyTarget: args.replyTarget,
       finalMessage,
+      ...(result.structured !== undefined ? { structuredBlock: structuredResultBlock(result.structured) } : {}),
       usage: {
         totalTokens: getTokenCountFromTracker(tracker),
         toolUses: result.totalToolUseCount,
