@@ -247,7 +247,7 @@ section('T. the Service tool end-to-end')
   check('T2 tool wait reaches READY', t2.data.result.includes('READY'))
   const { formatZodValidationError } = await import('../../src/utils/toolErrors.ts')
   const schema = (ServiceTool as { inputSchema: { safeParse: (v: unknown) => { success: boolean; error?: unknown } } }).inputSchema
-  const refusal = (r: { success: boolean; error?: unknown }): string => (r.success ? '' : `InputValidationError: ${formatZodValidationError('Service', r.error as never).replace(/\n/g, ' ')}`)
+  const refusal = (r: { success: boolean; error?: unknown }): string => (r.success ? '' : `${formatZodValidationError('Service', r.error as never).replace(/\n/g, ' ')}`)
   const above = schema.safeParse({ op: 'wait', name: 'tool-web', timeoutMs: 900_000 })
   check('T2a a wait deadline above the ceiling passes the schema — no round trip lost to a refusal', above.success === true, refusal(above))
   const t2b = await call({ op: 'wait', name: 'tool-web', cwd: workDir, timeoutMs: 900_000 })

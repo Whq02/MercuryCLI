@@ -54,6 +54,7 @@ export function matrix(): CaptureSpec[] {
     }
   }
   specs.push({ scenario: 'frame', cols: 120, rows: 40, theme: 'dark', colorMode: 'truecolor', motion: 'reduced' })
+  specs.push({ scenario: 'frame', cols: 120, rows: 40, theme: 'true-black', colorMode: 'truecolor', motion: 'full' })
   return specs
 }
 
