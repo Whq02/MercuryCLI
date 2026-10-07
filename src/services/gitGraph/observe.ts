@@ -124,7 +124,7 @@ async function classifyAsyncFailure(root: string, failure: string | null, note: 
 
 
 const STATUS_ARGS = (root: string): string[] =>
-  ['-c', 'status.relativePaths=true', 'status', '--porcelain=v2', '--branch', ...projectScopePathspec(root)]
+  ['-c', 'status.relativePaths=true', 'status', '--porcelain=v2', '--branch', '--untracked-files=all', ...projectScopePathspec(root)]
 
 type ParsedStatus = Pick<GitStatus, 'branch' | 'upstream' | 'ahead' | 'behind' | 'files'>
 
@@ -164,6 +164,22 @@ function parseStatusV2(raw: string): ParsedStatus {
     }
   }
   return { branch, upstream, ahead, behind, files }
+}
+
+function configValue(root: string, key: string): string {
+  try {
+    return git(root, ['config', key]).trim()
+  } catch {
+    return ''
+  }
+}
+
+export function commitIdentityLine(root: string): string | undefined {
+  const name = configValue(root, 'user.name')
+  const email = configValue(root, 'user.email')
+  if (name !== '' && email !== '') return undefined
+  const missing = [name === '' ? 'user.name' : '', email === '' ? 'user.email' : ''].filter(Boolean).join(' and ')
+  return `no commit identity here (${missing} unset): apply would commit as git's guessed identity — the operator sets one with git config if the author matters; do not invent one`
 }
 
 function digestFiles(files: GitStatus['files']): GitStatus['files'] {

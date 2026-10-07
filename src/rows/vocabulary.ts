@@ -505,6 +505,8 @@ export function statusOfTerminal(terminal: Terminal, cut: TurnCutKind | null): {
       return { status: 'failed', errorClass: 'context_limit' }
     case 'rapid_refill_breaker':
       return { status: 'failed', errorClass: 'refill_breaker' }
+    case 'tool_calls_refused':
+      return { status: 'failed', errorClass: 'model' }
   }
 }
 
@@ -562,6 +564,11 @@ export const TERMINAL_FAILURE_SENTENCES: Record<Terminal['reason'], string> = {
   stop_hook_prevented: 'The turn ended',
   hook_stopped: 'The turn ended',
   loop_stopped: 'The loop guard ended the turn',
+  tool_calls_refused: 'The turn failed: every tool call the model made was refused before execution and it could not shape a valid call after being corrected',
+}
+
+export function toolCallsRefusedSentence(terminal: Extract<Terminal, { reason: 'tool_calls_refused' }>): string {
+  return `The turn failed: every tool call the model made (${terminal.tools.join(', ')}) was refused before execution, and ${terminal.corrections} correction${terminal.corrections === 1 ? '' : 's'} did not produce a valid call`
 }
 
 export const OUTCOME_SENTENCES: Record<Exclude<OutcomeStatus, 'completed' | 'refused' | 'failed'>, (detail: { maxTurns?: number; maxBudgetUsd?: number; message?: string }) => string> = {

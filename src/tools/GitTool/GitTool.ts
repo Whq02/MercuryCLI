@@ -18,6 +18,7 @@ function repoHostDiscoveryEnabled(): boolean {
   return !isEnvDefinedFalsy(flagEnv('MERCURY_REPO_HOST'))
 }
 import {
+  commitIdentityLine,
   gitCommitMeta,
   gitConflicts,
   gitDiff,
@@ -25,7 +26,7 @@ import {
   gitStatus,
   gitWorktrees,
 } from '../../services/gitGraph/observe.js'
-import { maybeExpandFilePath } from '../../utils/fileHistory.js'
+import { fileHistoryEnabled, maybeExpandFilePath } from '../../utils/fileHistory.js'
 import {
   applyPlan,
   preparePlan,
@@ -216,7 +217,7 @@ async function runOp(
     case 'plan': {
       if (!input.groups?.length) return { result: 'plan needs groups', outcome: 'failed' }
       const fileHistory = context.getAppState().fileHistory
-      const mercuryTouched = fileHistory
+      const mercuryTouched = fileHistory && fileHistoryEnabled()
         ? new Set([...fileHistory.trackedFiles].map(maybeExpandFilePath))
         : undefined
       const plan = preparePlan(owner, root, input.groups as GitPlanGroup[], mercuryTouched)
@@ -231,6 +232,7 @@ async function runOp(
           plan.exclusions.length ? `exclusions (stay uncommitted): ${plan.exclusions.map(mark).join(', ')}` : 'no exclusions',
           externalInGroups.length ? `CAUTION: group(s) include work Mercury did not write this session — ${externalInGroups.join(', ')}; confirm these external edits belong in the commit` : '',
           plan.ambiguous.length ? `ambiguous (staged+unstaged; staging state re-derived, content never lost): ${plan.ambiguous.join(', ')}` : '',
+          commitIdentityLine(root) ?? '',
           `NOTHING committed — apply with op:"apply" planId:"${plan.id}" (stale-safe)`,
           `record: mercury://git/plan/${plan.id}`,
         ].filter(Boolean).join('\n'),

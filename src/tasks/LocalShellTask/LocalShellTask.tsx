@@ -38,7 +38,6 @@ import {
 import { registerTask, updateTaskState } from '../../utils/task/framework.js'
 import { getToolResultPath } from '../../utils/toolResultStorage.js'
 import { recordShellCommandOutcome } from '../../utils/verification/verificationState.js'
-import { escapeXml } from '../../utils/xml.js'
 import type { AgentId } from '../../types/ids.js'
 import type { BashTaskKind, LocalShellTaskState } from './guards.js'
 import { isLocalShellTask } from './guards.js'
@@ -129,6 +128,21 @@ export function armForegroundBudget(args: {
 }
 
 
+export function keepTagClosed(text: string, tag: string): string {
+  return text.split(`</${tag}>`).join(`<\\/${tag}>`)
+}
+
+export function shellNotificationText(facts: { taskId: string; toolUseId: string | undefined; command: string; outputPath: string; status: string; summary: string }): string {
+  const toolUseIdLine = facts.toolUseId ? `\n<${TOOL_USE_ID_TAG}>${facts.toolUseId}</${TOOL_USE_ID_TAG}>` : ''
+  return `<${TASK_NOTIFICATION_TAG}>
+<${TASK_ID_TAG}>${facts.taskId}</${TASK_ID_TAG}>${toolUseIdLine}
+<command>${keepTagClosed(facts.command, 'command')}</command>
+<${OUTPUT_FILE_TAG}>${facts.outputPath}</${OUTPUT_FILE_TAG}>
+<${STATUS_TAG}>${facts.status}</${STATUS_TAG}>
+<${SUMMARY_TAG}>${keepTagClosed(facts.summary, SUMMARY_TAG)}</${SUMMARY_TAG}>
+</${TASK_NOTIFICATION_TAG}>`
+}
+
 function enqueueShellNotification(
   taskId: string,
   command: string,
@@ -158,19 +172,8 @@ function enqueueShellNotification(
         ? `${BACKGROUND_BASH_SUMMARY_PREFIX}"${description}" ended${codePart}`
         : `${BACKGROUND_BASH_SUMMARY_PREFIX}"${description}" was stopped`
 
-  const toolUseIdLine = toolUseId
-    ? `\n<${TOOL_USE_ID_TAG}>${toolUseId}</${TOOL_USE_ID_TAG}>`
-    : ''
-  const message = `<${TASK_NOTIFICATION_TAG}>
-<${TASK_ID_TAG}>${taskId}</${TASK_ID_TAG}>${toolUseIdLine}
-<command>${escapeXml(command)}</command>
-<${OUTPUT_FILE_TAG}>${getTaskOutputPath(taskId)}</${OUTPUT_FILE_TAG}>
-<${STATUS_TAG}>${status}</${STATUS_TAG}>
-<${SUMMARY_TAG}>${escapeXml(summary)}</${SUMMARY_TAG}>
-</${TASK_NOTIFICATION_TAG}>`
-
   enqueuePendingNotification({
-    value: message,
+    value: shellNotificationText({ taskId, toolUseId, command, outputPath: getTaskOutputPath(taskId), status, summary }),
     mode: 'task-notification',
     priority: 'next',
     agentId: agentId as AgentId | undefined,
@@ -230,10 +233,11 @@ function armStallWatchdog(args: {
         const message = `<${TASK_NOTIFICATION_TAG}>
 <${TASK_ID_TAG}>${args.taskId}</${TASK_ID_TAG}>${toolUseIdLine}
 <${OUTPUT_FILE_TAG}>${outputPath}</${OUTPUT_FILE_TAG}>
-<${SUMMARY_TAG}>${escapeXml(
+<${SUMMARY_TAG}>${keepTagClosed(
           `${summary}. Last output:\n${lastOutput}\n` +
             `To proceed: stop the task, then launch the command again with its answers ` +
             `piped into standard input, or with whatever non-interactive option it offers.`,
+          SUMMARY_TAG,
         )}</${SUMMARY_TAG}>
 </${TASK_NOTIFICATION_TAG}>`
         enqueuePendingNotification({

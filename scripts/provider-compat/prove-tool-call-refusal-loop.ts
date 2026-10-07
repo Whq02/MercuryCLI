@@ -241,7 +241,8 @@ section('R2 — the bound: four consecutive refusal-only turns make 1 + 3 calls,
     [y(textTurn('never reached'))],
   ])
   check('exactly four calls — three continuations, the fourth refusal surfaces', r.calls.length === 4, String(r.calls.length))
-  check('terminal completed (the notes stay visible, no fifth billed call)', r.terminal.reason === 'completed', JSON.stringify(r.terminal))
+  check('terminal tool_calls_refused naming the tool and the three spent corrections (never completed; no fifth billed call)', r.terminal.reason === 'tool_calls_refused' && JSON.stringify(r.terminal.tools) === '["Bash"]' && r.terminal.corrections === 3, JSON.stringify(r.terminal))
+  check("an 'error' notice says the turn ends without an answer", systemNotices(r.yields).some(t => t.includes('Tool call refused before execution (Bash)') && t.includes('ends without an answer')), systemNotices(r.yields).join(' | '))
   check('the three corrections each name their own call', ['c2', 'c3', 'c4'].every((_, i) => corrections(r.calls[i + 1]?.messages ?? []).some(t => t.includes(`c${i + 1}`))))
   const d1 = decideToolCallRefusalRecovery({ refusals: 1, recoveryCount: 0 })
   const d4 = decideToolCallRefusalRecovery({ refusals: 1, recoveryCount: 3 })
