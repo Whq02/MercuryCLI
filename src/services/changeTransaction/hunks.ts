@@ -148,7 +148,8 @@ export function planHunks(
       }
     }
     if (drifted) continue
-    if (range.end > totalLines) {
+    const emptyInsert = totalLines === 0 && range.start === 1 && range.end === 1 && h.insert === 'before' && refs === null
+    if (range.end > totalLines && !emptyInsert) {
       refuse(i + 1, h.lines, `hunk ${i + 1}: lines '${h.lines}' out of bounds — the file has ${totalLines} line(s)`)
       continue
     }
