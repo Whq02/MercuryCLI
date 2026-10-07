@@ -24,6 +24,8 @@ import { allWorkingDirectories, matchingRulesForInput, pathInAllowedWorkingPath 
 import { createEditRuleSuggestion, createReadRuleSuggestion } from '../../utils/permissions/PermissionUpdate.js'
 import { refusalWithReason, ruleSentence, withRuleReason } from '../../utils/permissions/ruleReason.js'
 import { getCwd } from '../../utils/cwd.js'
+import { getPlatform } from '../../utils/platform.js'
+import { posixPathToWindowsPath } from '../../utils/windowsPaths.js'
 import { getDirectoryForPath } from '../../utils/path.js'
 import { stripSafeWrappers } from './bashPermissions.js'
 import { sedCommandIsAllowedByAllowlist } from './sedValidation.js'
@@ -509,7 +511,8 @@ function checkDangerousRemoval(command: PathCommand, args: string[], cwd: string
     if (/^['"]/.test(operand)) operand = operand.slice(1)
     if (/['"]$/.test(operand)) operand = operand.slice(0, -1)
     operand = expandTilde(operand)
-    const resolved = operand.startsWith('/') ? operand : joinNoSymlink(cwd, operand)
+    if (getPlatform() === 'windows' && /^\/[a-z](?:\/|$)/i.test(operand)) operand = posixPathToWindowsPath(operand + (operand.length === 2 ? '/' : ''))
+    const resolved = operand.startsWith('/') || (getPlatform() === 'windows' && /^[a-z]:[/\\]/i.test(operand)) ? operand : joinNoSymlink(cwd, operand)
     if (isDangerousRemovalPath(resolved)) {
       return {
         behavior: 'ask',

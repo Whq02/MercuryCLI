@@ -140,7 +140,7 @@ export function isDangerousRemovalPath(resolvedPath: string): boolean {
 
   if (/^[A-Za-z]:$/.test(trimmed) || /^[A-Za-z]:\/?$/.test(collapsed)) return true
   const home = (process.env.HOME || process.env.USERPROFILE || '').replace(/[/\\]+/g, '/')
-  if (home && trimmed === home) return true
+  if (home && (getPlatform() === 'windows' ? trimmed.toLowerCase() === home.toLowerCase() : trimmed === home)) return true
   if (/^\/[^/]+$/.test(trimmed)) return true
   if (/^[A-Za-z]:\/[^/]+$/.test(trimmed)) return true
 
