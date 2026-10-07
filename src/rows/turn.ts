@@ -666,6 +666,10 @@ export class Conversation {
         yield closeTurn(ended.status, { error: { message: ended.status === 'interrupted' ? OUTCOME_SENTENCES.interrupted({}) : cut.kind === 'idle-timeout' ? 'The turn was aborted after a no-progress timeout' : `The turn was cut: ${cut.detail ?? 'the run was aborted'}`, class: ended.errorClass ?? 'interrupt' } })
         return
       }
+      if (inputResult.commandError !== undefined) {
+        yield closeTurn('failed', { error: { message: inputResult.commandError, class: 'command' } })
+        return
+      }
       const refused = inputResult.commandRefused === true || inputResult.hookBlocked === true
       yield closeTurn(refused ? 'refused' : 'completed', {
         ...(refused

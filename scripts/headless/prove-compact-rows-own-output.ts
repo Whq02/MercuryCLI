@@ -14,7 +14,7 @@ if (!existsSync(DIST)) {
 }
 console.log(`build under proof: ${DIST}`)
 
-const SUMMARY_REQUEST = 'Produce the analysis and summary now'
+const SUMMARY_REQUEST = 'Produce the summary now'
 const FAILURE = 'Error during compaction'
 const CONTEXT_HEAD = '## Context Usage'
 const root = realpathSync(mkdtempSync(join(SCRATCH_ROOT, 'compact-own-output-')))

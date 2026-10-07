@@ -1,18 +1,6 @@
-
 const NO_TOOLS_PREAMBLE = `Reply with prose only — no tool calls of any kind. Do not invoke Read, Bash, Grep, Glob, Edit, Write, Task, or any other tool. Any tool call will be refused outright, and because you have exactly one turn, a refused call means this summarisation attempt produces nothing and fails. The conversation below already contains everything you need; there is nothing to look up.`
 
-const NO_TOOLS_TRAILER = `Remember: prose only, no tool calls. Produce the analysis and summary now.`
-
-function analysisInstruction(scope: 'conversation' | 'recent'): string {
-  const subject = scope === 'conversation' ? 'the conversation' : 'the recent messages'
-  return `Before writing the summary, wrap your thinking in an <analysis> block. Inside it, walk ${subject} chronologically and identify, for each section:
-- The operator's explicit requests and intents.
-- The approach taken.
-- Key decisions, technical concepts and code patterns.
-- Specific details: file names, full code snippets, function signatures, file edits.
-- Errors that were hit and how they were fixed — paying particular attention to operator feedback, especially corrections.
-Then double-check your analysis for technical accuracy and completeness.`
-}
+const NO_TOOLS_TRAILER = `Remember: prose only, no tool calls. Produce the summary now.`
 
 const AGENTS_IN_FLIGHT_SECTION = `10. Agents in flight: every agent still running or owed a result at the turnover — crewmates, workflow runs and their agents, background shells — with the name or id a message reaches it by (the SendMessage address), what it was asked, and what is owed back (a result not yet retrieved, a notification pending). A running agent is never re-spawned; a pending result is collected, not re-derived. Write "none" when nothing runs.`
 
@@ -29,9 +17,6 @@ const SUMMARY_SECTIONS = `Your summary must contain these ten numbered sections:
 ${AGENTS_IN_FLIGHT_SECTION}`
 
 const OUTPUT_EXAMPLE = `Structure your output like this:
-<analysis>
-[Your chronological walk and verification]
-</analysis>
 <summary>
 1. Operator Intent:
    [...]
@@ -77,7 +62,7 @@ export function getCompactPrompt(
   customInstructions?: string,
   opts?: { runCapsulePresent?: boolean },
 ): string {
-  const parts = [NO_TOOLS_PREAMBLE, analysisInstruction('conversation'), BASE_TEMPLATE]
+  const parts = [NO_TOOLS_PREAMBLE, BASE_TEMPLATE]
   if (opts?.runCapsulePresent === true) parts.push(RUN_CAPSULE_STEERING)
   return `${withCustomInstructions(parts.join('\n\n'), customInstructions)}\n\n${NO_TOOLS_TRAILER}`
 }
@@ -114,7 +99,6 @@ export function getPartialCompactPrompt(
 ): string {
   const parts = [
     NO_TOOLS_PREAMBLE,
-    analysisInstruction(direction === 'from' ? 'recent' : 'conversation'),
     direction === 'from' ? FROM_TEMPLATE : UP_TO_TEMPLATE,
   ]
   return `${withCustomInstructions(parts.join('\n\n'), customInstructions)}\n\n${NO_TOOLS_TRAILER}`
