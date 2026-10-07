@@ -17,6 +17,10 @@ function check(ok: boolean, what: string): void {
 
 const { missions, intents } = await runCorpus('baseline')
 
+const closedLoop = missions.find(m => m.id === 'm8-closed-loop')
+check(!!closedLoop && closedLoop.done && closedLoop.explicitTxCalls === 1 && closedLoop.totalToolCalls === 4,
+  'T14 the checked coding loop uses one Transaction call in four total calls')
+
 const unavailable = (m: MissionMetrics) => m.notes.some(n => n.startsWith('UNAVAILABLE'))
 
 for (const m of missions) {

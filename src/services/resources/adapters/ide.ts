@@ -57,7 +57,7 @@ const KNOWN: ResourceChild[] = [
   {
     ref: 'mercury://ide/transaction',
     title: 'closed-loop IDE transactions',
-    summary: 'durable evidence-bound coding loops with mechanically-gated verdicts (the Transaction tool writes them)',
+    summary: 'durable evidence records of coding loops — captured automatically, saved by the Transaction tool\'s finish',
   },
 ]
 

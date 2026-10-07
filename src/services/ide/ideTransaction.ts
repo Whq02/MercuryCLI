@@ -1,4 +1,3 @@
-
 import { randomBytes } from 'node:crypto'
 import { readFileSync, readdirSync } from 'node:fs'
 import * as path from 'node:path'
@@ -7,6 +6,7 @@ import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { getCwd } from '../../utils/cwd.js'
 import { projectHomeStore } from '../../utils/projectHomeStores.js'
 import type { OwnerKey } from '../run/ownerKey.js'
+import { workspaceVerifiable } from '../../utils/verification/verificationState.js'
 import { findPythonProjectRoot } from './pythonProject.js'
 
 export function ideLoopEnabled(): boolean {
@@ -58,6 +58,7 @@ export interface TxRecord {
   unresolved: string[]
   openedAt: number
   finishedAt?: number
+  elided?: number
 }
 
 export interface TxListRow {
@@ -86,7 +87,7 @@ function isRecordId(id: string): boolean {
 const rootMemo = new Map<string, string>()
 const ROOT_MEMO_CAP = 256
 
-function resolveRoot(from?: string): string {
+export function resolveRoot(from?: string): string {
   const key = from ?? getCwd()
   const memoized = rootMemo.get(key)
   if (memoized !== undefined) return memoized
@@ -154,6 +155,7 @@ function decodeRecord(raw: unknown): TxRecord | null {
       : [],
     openedAt: typeof r.openedAt === 'number' ? r.openedAt : 0,
     ...(typeof r.finishedAt === 'number' ? { finishedAt: r.finishedAt } : {}),
+    ...(typeof r.elided === 'number' && Number.isSafeInteger(r.elided) && r.elided > 0 ? { elided: r.elided } : {}),
   }
 }
 
@@ -242,6 +244,8 @@ export interface OpenTransactionOptions {
   owner: OwnerKey
   intent: string
   from?: string
+  steps?: TxStep[]
+  elided?: number
 }
 
 export async function openTransaction(opts: OpenTransactionOptions): Promise<TxRecord> {
@@ -254,9 +258,12 @@ export async function openTransaction(opts: OpenTransactionOptions): Promise<TxR
     owner: opts.owner,
     projectRoot: root,
     verdict: 'open',
-    steps: [],
+    steps: (opts.steps ?? []).slice(-STEP_CAP),
     unresolved: [],
     openedAt: now,
+    ...((opts.elided ?? 0) + Math.max(0, (opts.steps?.length ?? 0) - STEP_CAP) > 0
+      ? { elided: (opts.elided ?? 0) + Math.max(0, (opts.steps?.length ?? 0) - STEP_CAP) }
+      : {}),
   }
   await persist(record, root)
   openIndex.set(root, record.id)
@@ -299,12 +306,6 @@ export async function noteStep(opts: NoteStepOptions): Promise<NoteStepResult> {
     )
     if (already) return { state: 'ok', record }
   }
-  if (record.steps.length >= STEP_CAP) {
-    return {
-      state: 'refused',
-      reason: `transaction ${opts.id} is at the ${STEP_CAP}-step cap — finish it (completed/failed/abandoned) and open a new one`,
-    }
-  }
   const refs = opts.refs ?? []
   if (refs.length > 0) {
     const { resolveResource } = await import('../resources/registry.js')
@@ -324,7 +325,7 @@ export async function noteStep(opts: NoteStepOptions): Promise<NoteStepResult> {
       }
     }
   }
-  record.steps.push({
+  appendTransactionStep(record, {
     kind: opts.kind,
     at: Date.now(),
     summary: opts.summary.slice(0, SUMMARY_MAX),
@@ -337,43 +338,54 @@ export async function noteStep(opts: NoteStepOptions): Promise<NoteStepResult> {
 }
 
 
+export function appendTransactionStep(record: Pick<TxRecord, 'steps' | 'elided'>, step: TxStep): boolean {
+  if (step.auto && record.steps.some(row => row.kind === step.kind && row.auto?.toolUseId === step.auto!.toolUseId)) return false
+  record.steps.push(step)
+  const dropped = Math.max(0, record.steps.length - STEP_CAP)
+  if (dropped) {
+    record.steps.splice(0, dropped)
+    record.elided = (record.elided ?? 0) + dropped
+  }
+  return true
+}
+
+export function lastLandedChangeIndex(steps: readonly TxStep[]): number {
+  return steps.findLastIndex(step => step.kind === 'apply' && step.outcome === 'ok')
+}
+
+export function isCheckStep(step: TxStep): boolean {
+  return (step.kind === 'test' || step.kind === 'build' || step.kind === 'verify') &&
+    (step.outcome === 'ok' || step.outcome === 'failed')
+}
+
+function shortStep(step: TxStep): string {
+  const text = step.summary.replace(/^\[auto\] /, '').split(' — ')[0] ?? ''
+  return text.length > 100 ? `${text.slice(0, 99)}…` : text
+}
+
 export function completionGapsFor(record: TxRecord): string[] {
-  const steps = record.steps
-  let lastOkApply = -1
-  for (let i = 0; i < steps.length; i++) {
-    const s = steps[i]
-    if (s !== undefined && s.kind === 'apply' && s.outcome === 'ok') lastOkApply = i
+  const last = lastLandedChangeIndex(record.steps)
+  if (last === -1) {
+    return ['no change has landed on this record — finish it with verdict "abandoned"; the next change starts a new record']
   }
-  if (lastOkApply === -1) {
-    return ["no ok 'apply' step — the loop never landed a change through the executing owners"]
-  }
+  const anchor = record.steps[last]!
+  const after = record.steps.slice(last + 1)
   const gaps: string[] = []
-  const anchor = steps[lastOkApply]
-  const after = steps.slice(lastOkApply + 1)
-  if (anchor !== undefined && !anchor.refs.some(r => r.startsWith(RECEIPT_REF_PREFIX))) {
-    gaps.push(
-      "the last ok 'apply' step carries no mercury://receipt ref — bind the real change receipt",
-    )
+  if (!anchor.refs.some(ref => ref.startsWith(`${RECEIPT_REF_PREFIX}/`))) {
+    gaps.push('the last change carries no mercury://receipt ref (a record from an older build) — finish it with verdict "abandoned"; the next change starts a new record')
   }
-  if (!after.some(s => s.kind === 'stabilize')) {
-    gaps.push(
-      "no 'stabilize' step after the last apply — the post-apply diagnostics barrier is unrecorded",
-    )
+  const check = after.findLast(isCheckStep)
+  if (!check) {
+    const next = workspaceVerifiable(record.projectRoot, record.owner)
+      ? "run the project's tests or build through Bash or Test; the result is recorded here by itself"
+      : 'Mercury finds no test or build setup here, so read each changed file back in full (Read without offset or limit), or run a check through Bash or Test; either is recorded here by itself'
+    gaps.push(`no check has run since the last change (${shortStep(anchor)}) — ${next}`)
+  } else if (check.outcome === 'failed') {
+    gaps.push(`the newest check since the last change failed (${shortStep(check)}) — fix the cause and run it again, or finish with verdict "failed"`)
   }
-  if (
-    !after.some(
-      s => (s.kind === 'test' || s.kind === 'build' || s.kind === 'verify') && s.outcome === 'ok',
-    )
-  ) {
-    gaps.push(
-      "no ok 'test' | 'build' | 'verify' step after the last apply — run the real check and note it",
-    )
-  }
-  const failedKinds = [...new Set(after.filter(s => s.outcome === 'failed').map(s => s.kind))]
-  if (failedKinds.length > 0) {
-    gaps.push(
-      `failed step(s) after the last apply (${failedKinds.join(', ')}) — resolve them or finish as failed/abandoned`,
-    )
+  const failed = after.find(step => step.kind === 'apply' && (step.outcome === 'failed' || step.outcome === 'indeterminate'))
+  if (failed) {
+    gaps.push(`a change after the last landed one ended ${failed.outcome} (${shortStep(failed)}) — re-read the file, then redo or undo that change`)
   }
   return gaps
 }
@@ -423,6 +435,8 @@ export async function finishTransaction(
   record.finishedAt = Date.now()
   await persist(record, root)
   openIndex.set(root, null)
+  const { clearTxJournal } = await import('./txAutoCapture.js')
+  clearTxJournal(root)
   return { state: 'ok', record }
 }
 

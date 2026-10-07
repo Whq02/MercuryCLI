@@ -34,6 +34,7 @@ done
 echo
 echo ">>> render-builtin-tools-cards.tsx (capability cards, real PTY grid)"
 __t=$SECONDS; __rc=0; UI_RENDER=1 "$bun" run "$here"/render-builtin-tools-cards.tsx || { __rc=$?; fail=1; }; prover_mark "$here"/render-builtin-tools-cards.tsx "$__t" "$__rc"
+__t=$SECONDS; __rc=0; UI_RENDER=1 "$bun" run "$here"/../ide/render-transaction-replay.tsx || { __rc=$?; fail=1; }; prover_mark "$here"/../ide/render-transaction-replay.tsx "$__t" "$__rc"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL builtin-tools PROOFS PASS"; else echo "# ❌ SOME builtin-tools PROOFS FAILED"; fi
 echo "############################################################"
