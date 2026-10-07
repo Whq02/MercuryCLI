@@ -63,6 +63,13 @@ try {
   check('a file created after validation refusals is tried again', !created.isError && !/Not tried/.test(created.text), created.text)
   const directory = await door.drive({ operation: 'hover', filePath: project, line: 1, character: 1 })
   check('a directory where a file is needed has R9 words', directory.isError && plain(directory.text) === `${project} is a directory; hover reads one file. Nothing was sent to a language server.`, directory.text)
+  if (process.platform !== 'win32') {
+    const { execFileSync } = await import('node:child_process')
+    const pipe = join(project, 'named-pipe.ts')
+    execFileSync('mkfifo', [pipe], { windowsHide: true })
+    const refusedPipe = await door.drive({ operation: 'diagnostics', filePath: pipe })
+    check('directory support never admits a blocking special file', refusedPipe.isError && /not a regular file/.test(refusedPipe.text), refusedPipe.text)
+  }
   const outside = writeProject(scratch, 'outside', { 'outside.ts': 'export const outside = 1\n' })
   const denied = await door.driveNamed('LspRead', { operation: 'diagnostics', paths: [main, join(outside, 'outside.ts')] }, 'deny')
   check('every paths entry takes read permission, not just the working directory', denied.isError && denied.asks.length > 0, denied.text)

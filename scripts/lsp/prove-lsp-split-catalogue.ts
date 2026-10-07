@@ -5,6 +5,7 @@ const { getAllBaseTools } = await import('../../src/tools.ts')
 const { toolToAPISchema } = await import('../../src/utils/api.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { getEngineModel } = await import('../../src/utils/model/model.js')
+const { isDeferredToolFor } = await import('../../src/tools/ToolSearchTool/prompt.ts')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const names = ['LspRead', 'LspRename', 'LspMoveSymbol', 'LspMoveFile', 'LspCodeAction', 'LspFormat', 'LspRequest']
@@ -26,6 +27,7 @@ for (let i = 0; i < names.length; i++) {
   check(`${tool.name}: the whole required set is advertised`, JSON.stringify(input_schema?.required) === JSON.stringify(required[i]))
   check(`${tool.name}: rejects undocumented keys`, !tool.inputSchema.safeParse({ ...Object.fromEntries(required[i]!.map(k => [k, ['line', 'character'].includes(k) ? 1 : 'value'])), nonsense: true }).success)
   check(`${tool.name}: load policy`, tool.shouldDefer === true && (i === 0 ? tool.loadInFullOnCloud === true : tool.loadInFullOnCloud !== true))
+  check(`${tool.name}: actual cloud/local deferral predicates`, isDeferredToolFor(tool, getEngineModel()) === (i !== 0) && isDeferredToolFor(tool, 'local/qwen3-32b') === true)
   check(`${tool.name}: search hint exists and fits`, typeof tool.searchHint === 'string' && tool.searchHint.length > 0 && tool.searchHint.length <= 100)
   check(`${tool.name}: straight quotes`, JSON.stringify(tool.straightQuoteInputs) === JSON.stringify(quotes[i]))
   for (const input of [{}, { apply: false }, { apply: true }]) {
