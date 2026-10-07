@@ -852,8 +852,8 @@ export function anthropicExtraUsageCredits(reads?: ActiveUsageReads): UsageCredi
     if (record.disabledReason === 'org_level_disabled_until') {
       return { state: 'unreported', reason: 'Extra usage is temporarily disabled by your organisation. Included plan usage continues within its limits.', compact: 'extra off', ...stamp }
     }
-    const why = record.disabledReason !== undefined ? ` — ${record.disabledReason.replace(/_/g, ' ')}` : ''
-    return { state: 'unreported', reason: `${EXTRA_USAGE_OFF_WORDS}${why}`, compact: 'extra off', ...stamp }
+    const reason = record.disabledReason ? `${extraUsageDisabledWords(record.disabledReason)}.` : EXTRA_USAGE_OFF_WORDS
+    return { state: 'unreported', reason, compact: 'extra off', ...stamp }
   }
   if (record.used === undefined) return { state: 'unreported', reason: EXTRA_USAGE_NO_FIGURE_WORDS, compact: 'not stated', ...stamp }
   const figure = extraUsageFigure(record, record.used)
@@ -870,9 +870,10 @@ function extraUsageFigure(record: AnthropicExtraUsageRecord, used: AnthropicMone
     : { display: `${moneyWords(used)}${period}`, compact: moneyFigure(used) }
 }
 
-function extraUsageReasonWords(reason: string | undefined): string {
-  if (reason === 'org_level_disabled_until') return ' (temporarily disabled by your organisation)'
-  return reason !== undefined && reason !== '' ? ` (${reason.replace(/_/g, ' ')})` : ''
+function extraUsageDisabledWords(reason: string | undefined): string {
+  if (reason === 'org_level_disabled_until') return 'Extra usage is temporarily disabled by your organisation'
+  if (reason === 'out_of_credits') return 'Extra usage is out of credits'
+  return reason ? 'Extra usage is disabled' : EXTRA_USAGE_OFF_WORDS
 }
 
 export function anthropicExtraUsageCarry(reads?: ActiveUsageReads): UsageCarryView {
@@ -886,7 +887,7 @@ export function anthropicExtraUsageCarry(reads?: ActiveUsageReads): UsageCarryVi
     const reason = limits.overageDisabledReason
     if (reason === 'out_of_credits') return { state: 'nothing', display: `extra usage out of credits — ${CARRY_NOTHING_TAIL}`, compact: 'extra usage out of credits', source: 'headers' }
     if (reason === undefined) return { state: 'nothing', display: `extra usage refused — ${CARRY_NOTHING_TAIL}`, compact: 'extra usage refused', source: 'headers' }
-    return { state: 'nothing', display: `${EXTRA_USAGE_OFF_WORDS}${extraUsageReasonWords(reason)} — ${CARRY_NOTHING_TAIL}`, compact: EXTRA_USAGE_OFF_WORDS, source: 'headers' }
+    return { state: 'nothing', display: `${extraUsageDisabledWords(reason)} — ${CARRY_NOTHING_TAIL}`, compact: EXTRA_USAGE_OFF_WORDS, source: 'headers' }
   }
   if (record === null) {
     if (limits?.isUsingOverage === true) return { state: 'carries', display: 'on extra usage', compact: 'on extra usage', source: 'headers' }
@@ -894,7 +895,7 @@ export function anthropicExtraUsageCarry(reads?: ActiveUsageReads): UsageCarryVi
   }
   if (!record.stated) return { state: 'unstated', display: `extra usage ${EXTRA_USAGE_UNSTATED_WORDS}`, compact: 'extra usage not stated', ...stamp }
   if (!record.enabled) {
-    return { state: 'nothing', display: `${EXTRA_USAGE_OFF_WORDS}${extraUsageReasonWords(record.disabledReason)} — ${CARRY_NOTHING_TAIL}`, compact: EXTRA_USAGE_OFF_WORDS, ...stamp }
+    return { state: 'nothing', display: `${extraUsageDisabledWords(record.disabledReason)} — ${CARRY_NOTHING_TAIL}`, compact: EXTRA_USAGE_OFF_WORDS, ...stamp }
   }
   if (record.used === undefined) return { state: 'carries', display: 'on extra usage — the endpoint states no figure', compact: 'on extra usage', ...stamp }
   const figure = extraUsageFigure(record, record.used)

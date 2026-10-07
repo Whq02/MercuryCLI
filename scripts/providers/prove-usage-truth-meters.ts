@@ -242,7 +242,7 @@ section('§4 credits: the provider-stated balance with feed + age, or the honest
   const subOff = owner.activeSourceUsage({ model: 'claude-fable-5-1', reads: extra({ enabled: false, used: undefined, limit: undefined, period: undefined, utilizationPct: undefined }) })
   check("extra usage off: 'credits: extra usage off' · 'credits extra off' (unreported, never a zero)", subOff.credits?.state === 'unreported' && line(subOff) === 'credits: extra usage off' && line(subOff, 'compact') === 'credits extra off', line(subOff))
   const subOut = owner.activeSourceUsage({ model: 'claude-fable-5-1', reads: extra({ enabled: false, used: undefined, limit: undefined, period: undefined, disabledReason: 'out_of_credits' }) })
-  check("…with the provider's reason in plain words: 'credits: extra usage off — out of credits'", line(subOut) === 'credits: extra usage off — out of credits', line(subOut))
+  check("…with the provider's reason in plain words: 'credits: Extra usage is out of credits.'", line(subOut) === 'credits: Extra usage is out of credits.', line(subOut))
   const temporaryOff = owner.activeSourceUsage({ model: 'claude-fable-5-1', reads: extra({ enabled: false, disabledReason: 'org_level_disabled_until' }) })
   check('a temporary organisation restriction is a complete sentence, not an unfinished reason code', line(temporaryOff) === 'credits: Extra usage is temporarily disabled by your organisation. Included plan usage continues within its limits.', line(temporaryOff))
   const subOnNoFigure = owner.activeSourceUsage({ model: 'claude-fable-5-1', reads: extra({ used: undefined, limit: undefined, period: undefined }) })
@@ -390,7 +390,7 @@ section('§9 the carry words: a reached window says what carries the requests fr
   const off = sub({ enabled: false, used: undefined, limit: undefined, period: undefined, utilizationPct: undefined })
   check("extra usage off: 'extra usage off — nothing carries requests until the reset' · 'extra usage off'", off.carry?.state === 'nothing' && prose(off) === 'extra usage off — nothing carries requests until the reset' && compact(off) === 'extra usage off', prose(off))
   const offWhy = sub({ enabled: false, used: undefined, limit: undefined, period: undefined, disabledReason: 'out_of_credits' })
-  check("…with the provider's reason: 'extra usage off (out of credits) — nothing carries requests until the reset'", prose(offWhy) === 'extra usage off (out of credits) — nothing carries requests until the reset' && compact(offWhy) === 'extra usage off', prose(offWhy))
+  check("…with the provider's reason: 'Extra usage is out of credits — nothing carries requests until the reset'", prose(offWhy) === 'Extra usage is out of credits — nothing carries requests until the reset' && compact(offWhy) === 'extra usage off', prose(offWhy))
   const unstated = sub({ stated: false, enabled: false, used: undefined, limit: undefined, period: undefined })
   check("an answer without the block: 'extra usage not stated by the endpoint' · 'extra usage not stated'", unstated.carry?.state === 'unstated' && prose(unstated) === 'extra usage not stated by the endpoint' && compact(unstated) === 'extra usage not stated', prose(unstated))
   const unread = sub(null)
@@ -400,7 +400,7 @@ section('§9 the carry words: a reached window says what carries the requests fr
   const headersOut = sub({}, { status: 'rejected', unifiedRateLimitFallbackAvailable: false, isUsingOverage: false, overageStatus: 'rejected', overageDisabledReason: 'out_of_credits', rateLimitType: 'five_hour' })
   check("a wall whose headers reject extra usage for credit: 'extra usage out of credits — nothing carries requests until the reset' (the wall's own fact beats the endpoint's older figure)", headersOut.carry?.state === 'nothing' && prose(headersOut) === 'extra usage out of credits — nothing carries requests until the reset' && compact(headersOut) === 'extra usage out of credits', prose(headersOut))
   const headersRefused = sub({}, { status: 'rejected', unifiedRateLimitFallbackAvailable: false, isUsingOverage: false, overageStatus: 'rejected', overageDisabledReason: 'org_level_disabled', rateLimitType: 'five_hour' })
-  check("…with another stated reason: 'extra usage off (org level disabled) — nothing carries requests until the reset'", prose(headersRefused) === 'extra usage off (org level disabled) — nothing carries requests until the reset' && compact(headersRefused) === 'extra usage off', prose(headersRefused))
+  check("…with another stated reason: 'Extra usage is disabled — nothing carries requests until the reset'", prose(headersRefused) === 'Extra usage is disabled — nothing carries requests until the reset' && compact(headersRefused) === 'extra usage off', prose(headersRefused))
   const headersBare = sub({}, { status: 'rejected', unifiedRateLimitFallbackAvailable: false, isUsingOverage: false, overageStatus: 'rejected', rateLimitType: 'five_hour' })
   check("…and with none stated: 'extra usage refused — nothing carries requests until the reset'", prose(headersBare) === 'extra usage refused — nothing carries requests until the reset' && compact(headersBare) === 'extra usage refused', prose(headersBare))
   const headersAllowedWindow = sub({}, { status: 'allowed', unifiedRateLimitFallbackAvailable: false, isUsingOverage: false, overageStatus: 'rejected', rateLimitType: 'five_hour' })
@@ -471,7 +471,7 @@ section('§9 the carry words: a reached window says what carries the requests fr
   const every = [on, onNoFigure, capHit, off, offWhy, unstated, unread, headersOn, headersOut, headersRefused, headersBare, gpt, gptUnlimited, gptNone, gptNoBalance, gptUnread, gptHeaders, wallet, walletEmpty, noWallet, kimiUnread, ...others.map(([, v]) => v)]
   check('every prose spelling fits an 80-column row (and so a 120-column one); every compact spelling fits the rail (≤ 28 cells)', every.every(v => (prose(v) ?? '').length <= 80 && (compact(v) ?? '').length <= 28), JSON.stringify(every.map(v => [prose(v)?.length, compact(v)?.length])))
   const longestReason = sub({ enabled: false, used: undefined, limit: undefined, period: undefined, disabledReason: 'org_service_zero_credit_limit' })
-  check("the longest wire reason still fits a 120-column row: 'extra usage off (org service zero credit limit) — nothing carries requests until the reset'", prose(longestReason) === 'extra usage off (org service zero credit limit) — nothing carries requests until the reset' && (prose(longestReason) ?? '').length <= 120, prose(longestReason))
+  check("the longest wire reason still fits a 120-column row: 'Extra usage is disabled — nothing carries requests until the reset'", prose(longestReason) === 'Extra usage is disabled — nothing carries requests until the reset' && (prose(longestReason) ?? '').length <= 120, prose(longestReason))
 
   type UsageWindowViewT = import('../../src/services/providers/providerUsage.ts').UsageWindowView
   const wk = (usedPct: number, over: Partial<UsageWindowViewT> = {}): UsageWindowViewT => ({ key: 'wk', label: 'wk', state: 'live', usedPct, resetsAtMs: NOW + 6 * 24 * HOUR, source: 'endpoint', observedAtMs: NOW - 5_000, ...over })
