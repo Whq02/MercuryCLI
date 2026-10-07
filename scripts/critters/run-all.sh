@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/components/mercury-ui/sessionAccent* src/utils/config/**
+# gate-watch: src/components/mercury-ui/sessionAccent* src/components/mercury-ui/CritterArt.tsx src/utils/config/**
 # gate-watch: src/utils/cockpit/**
 # gate-watch: assets/splash/mercury-splash.mjs scripts/engine-durability/harness.ts
 # gate-watch: scripts/ink-runtime/ansiEmulator.ts scripts/settings/settings-schema.json

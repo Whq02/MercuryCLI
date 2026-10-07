@@ -205,7 +205,7 @@ async function awaitGlass(pred: () => boolean, budgetTicks = 150): Promise<boole
   return pred()
 }
 
-type CellRead = { x: number; y: number; c: number; line: number; kind: 'pair' | 'top' | 'bottom' | 'empty'; top: string | undefined; bot: string | undefined; above: boolean; below: boolean; ch: string; fg: string; bg: string }
+type CellRead = { x: number; y: number; c: number; line: number; kind: 'pair' | 'top' | 'bottom' | 'empty'; top: string | undefined; bot: string | undefined; above: boolean; below: boolean; eye: boolean; underEye: boolean; underline: boolean; ch: string; fg: string; bg: string }
 const inkedAt = (def: CritterDef, art: string[], r: number, c: number): boolean => {
   const ch = art[r]?.[c]
   return ch !== undefined && ch !== SLEEP_CELL && Boolean(cellColor(def, ch))
@@ -222,16 +222,16 @@ function readSprite(index: number): CellRead[] {
       const x = lefts[index]! + c
       const st = glass.styleAt(x, y)
       const kind = top && bot ? 'pair' : top ? 'top' : bot ? 'bottom' : 'empty'
-      out.push({ x, y, c, line: r >> 1, kind, top, bot, above: r > 0 && inkedAt(def, art, r - 1, c), below: inkedAt(def, art, r + 2, c), ch: glass.grid[y]![x]!, fg: st?.fg ?? 'default', bg: st?.bg ?? 'default' })
+      out.push({ x, y, c, line: r >> 1, kind, top, bot, above: r > 0 && inkedAt(def, art, r - 1, c), below: inkedAt(def, art, r + 2, c), eye: /[EKP]/.test((art[r]?.[c] ?? '.') + (art[r + 1]?.[c] ?? '.')), underEye: /[EKP]/.test(def.squareDock[r - 1]?.[c] ?? '.'), underline: st?.underline ?? false, ch: glass.grid[y]![x]!, fg: st?.fg ?? 'default', bg: st?.bg ?? 'default' })
     }
   }
   return out
 }
 const show = (cells: CellRead[]): string => cells.map(k => `${DOCKS.findIndex(d => lefts[DOCKS.indexOf(d)] === k.x - k.c)}:${k.c},${k.line}${k.above ? '^' : ''}${k.below ? '' : '_'}:${k.ch}[fg ${k.fg} bg ${k.bg}]`).join(' ')
 const pairShape = (k: CellRead): boolean =>
-  k.below
-    ? k.ch === '▄' && k.fg === `38;2;${rgb(k.bot!)}` && k.bg === `48;2;${rgb(k.top!)}`
-    : k.ch === '▀' && k.fg === `38;2;${rgb(k.top!)}` && k.bg === `48;2;${rgb(k.bot!)}`
+  k.below || k.underEye
+    ? k.ch === '▄' && k.fg === `38;2;${rgb(k.bot!)}` && k.bg === `48;2;${rgb(k.top!)}` && k.underline === k.underEye
+    : k.ch === '▀' && k.fg === `38;2;${rgb(k.top!)}` && k.bg === `48;2;${rgb(k.bot!)}` && !k.underline
 const baseShape = (k: CellRead): boolean =>
   k.kind === 'pair' ? pairShape(k)
   : k.kind === 'top' ? k.ch === '▀' && k.fg === `38;2;${rgb(k.top!)}` && k.bg === 'default'
@@ -240,15 +240,15 @@ const baseShape = (k: CellRead): boolean =>
 const groundShape = (ground: string) => (k: CellRead): boolean =>
   k.kind === 'pair' ? pairShape(k)
   : k.kind === 'top'
-    ? k.above && k.below
-      ? k.ch === '▄' && k.fg === `38;2;${rgb(ground)}` && k.bg === `48;2;${rgb(k.top!)}`
+    ? k.underEye || (k.above && k.below)
+      ? k.ch === '▄' && k.fg === `38;2;${rgb(ground)}` && k.bg === `48;2;${rgb(k.top!)}` && k.underline === k.underEye
       : k.ch === '▀' && k.fg === `38;2;${rgb(k.top!)}` && k.bg === `48;2;${rgb(ground)}`
   : k.kind === 'bottom' ? k.ch === '▄' && k.fg === `38;2;${rgb(k.bot!)}` && k.bg === `48;2;${rgb(ground)}`
   : k.ch === ' '
 const bottomEdge = (k: CellRead): boolean => k.kind !== 'empty' && !k.below
 const wearsTopAsBackground = (k: CellRead): boolean => k.top !== undefined && k.top !== k.bot && k.bg === `48;2;${rgb(k.top)}`
-const eyeLine = (cells: CellRead[]): CellRead[] => cells.filter(k => k.line === 1 && k.kind !== 'empty')
-const snapshot = (cells: CellRead[]): string => cells.map(k => `${k.ch}|${k.fg}|${k.bg}`).join('\n')
+const eyeLine = (cells: CellRead[]): CellRead[] => cells.filter(k => k.eye)
+const snapshot = (cells: CellRead[]): string => cells.map(k => `${k.ch}|${k.fg}|${k.bg}|${k.underline}`).join('\n')
 
 const instance = await render(tree, { stdout, stdin, stderr, exitOnCtrlC: false, patchConsole: false })
 await awaitGlass(() => glass.rowText(0).includes('above the critters') && DOCKS.every((_, i) => readSprite(i).some(k => k.kind === 'pair' && k.ch === '▄')))
@@ -280,19 +280,19 @@ section('§2 the ground becomes KNOWN while the critters stand (the product\'s o
   for (let i = 0; i < DOCKS.length; i++) {
     const cells = readSprite(i)
     const bad = cells.filter(k => !groundShape(GROUND)(k))
-    check(`${DOCKS[i]!.def.name}: every painted-top cell with a painted pixel above and below it is ▄ with bg = the pixel and fg = the ground, every other painted-top cell ▀ with bg = the ground; every painted-bottom cell ▄ with bg = the ground; every pair with something below unchanged, every pair on the bottom edge ▀`, bad.length === 0, show(bad.slice(0, 6)))
+    check(`${DOCKS[i]!.def.name}: the cells beneath the eyes use lower blocks with their bottom row sealed; every other cell keeps the known-ground shape`, bad.length === 0, show(bad.slice(0, 6)))
     const painted = cells.filter(k => k.kind !== 'empty')
-    check(`${DOCKS[i]!.def.name}: no painted cell carries the default background, no cell with a painted pixel below it is ▀, and no cell on the bottom edge carries the top colour as its background`, painted.every(k => k.bg !== 'default' && !(k.below && k.ch === '▀') && !(bottomEdge(k) && wearsTopAsBackground(k))), show(painted.filter(k => k.bg === 'default' || (k.below && k.ch === '▀') || (bottomEdge(k) && wearsTopAsBackground(k))).slice(0, 6)))
+    check(`${DOCKS[i]!.def.name}: no painted cell carries the default background, no cell with a painted pixel below it is ▀, and no cell on the bottom edge carries the top colour as its background`, painted.every(k => k.bg !== 'default' && !(k.below && k.ch === '▀') && !(bottomEdge(k) && wearsTopAsBackground(k) && !k.underline)), show(painted.filter(k => k.bg === 'default' || (k.below && k.ch === '▀') || (bottomEdge(k) && wearsTopAsBackground(k) && !k.underline)).slice(0, 6)))
     check(`${DOCKS[i]!.def.name}: the eye line is byte-identical to the unknown-ground frame (the four-eyes law stands: every eye cell a pair)`, snapshot(eyeLine(cells)) === eyeBefore[i], snapshot(eyeLine(cells)))
   }
   const crab = readSprite(0)
   const underEyes = crab.filter(k => k.line === 2 && k.c % 2 === 0 && k.c >= 2 && k.c <= 8)
-  check('the crab\'s four cells under the eye-whites sit on the bottom edge: ▀ with the body as the glyph and the ground as the background — nothing of the body\'s colour below them', underEyes.every(k => k.ch === '▀' && k.fg === `38;2;${rgb(k.top!)}` && k.bg === `48;2;${rgb(GROUND)}`), show(underEyes))
+  check('the crab\'s four cells under the eye-whites join the body without a notch and seal their lower edge in the ground colour', underEyes.every(k => k.underEye && k.underline && groundShape(GROUND)(k)), show(underEyes))
   const clam = readSprite(3)
   check('the clam (no single-colour half in its dock) is byte-identical in both states', clam.every(k => baseShape(k) && groundShape(GROUND)(k)), show(clam.filter(k => !baseShape(k)).slice(0, 4)))
 }
 
-section('§2b the bottom edge, ground KNOWN: the dock crab\'s last row pair — at a leg column the cell is ▀ with the body as the glyph and the leg as the background, at a gap column ▀ with the body as the glyph and the ground as the background; no cell on any dock\'s bottom edge carries the top colour as its background (the one-pixel line of the top colour under the sprite on Apple Terminal)')
+section('§2b the exact eye cells AND their lower neighbours: no top notch and no bottom fringe; other bottom-edge cells keep their shape')
 {
   const GROUND = terminalGround().color!
   const crab = readSprite(0)
@@ -300,14 +300,17 @@ section('§2b the bottom edge, ground KNOWN: the dock crab\'s last row pair — 
   const legs = last.filter(k => k.kind === 'pair')
   const gaps = last.filter(k => k.kind === 'top')
   check('the crab\'s last line is its bottom edge: five leg pairs at the odd columns and four gaps between them, nothing painted below any of them', legs.map(k => k.c).join(',') === '1,3,5,7,9' && gaps.map(k => k.c).join(',') === '2,4,6,8' && last.every(k => !k.below), show(last))
-  check('each leg cell is ▀ fg = the body, bg = the leg', legs.every(k => k.ch === '▀' && k.fg === `38;2;${rgb(k.top!)}` && k.bg === `48;2;${rgb(k.bot!)}`), show(legs))
-  check('each gap cell is ▀ fg = the body, bg = the ground', gaps.every(k => k.ch === '▀' && k.fg === `38;2;${rgb(k.top!)}` && k.bg === `48;2;${rgb(GROUND)}`), show(gaps))
+  check('the three leg cells outside the eyes stay upper blocks with body foreground and leg background', legs.filter(k => !k.underEye).map(k => k.c).join(',') === '1,5,9' && legs.filter(k => !k.underEye).every(pairShape), show(legs))
+  check('the four gaps beneath the crab eye-whites are lower blocks with body background, ground foreground and a ground underline sealing the bottom row', gaps.every(k => k.underEye && k.underline && groundShape(GROUND)(k)), show(gaps))
   for (let i = 0; i < DOCKS.length; i++) {
-    const edge = readSprite(i).filter(bottomEdge)
-    check(`${DOCKS[i]!.def.name}: ${edge.length} cells on the bottom edge, none with the top colour as its background`, edge.length > 0 && edge.every(k => !wearsTopAsBackground(k)), show(edge.filter(wearsTopAsBackground).slice(0, 6)))
+    const cells = readSprite(i)
+    const edge = cells.filter(k => bottomEdge(k) && !k.underEye)
+    check(`${DOCKS[i]!.def.name}: ${edge.length} other bottom-edge cells keep the top colour out of their background`, edge.length > 0 && edge.every(k => !wearsTopAsBackground(k) && !k.underline), show(edge))
+    const eyes = eyeLine(cells)
+    check(`${DOCKS[i]!.def.name}: all six authored eye cells keep their glyph and both colours, with no underline`, eyes.map(k => `${k.c},${k.line}`).join(' ') === '2,1 3,1 4,1 6,1 7,1 8,1' && eyes.every(k => k.ch === '▄' && pairShape(k) && !k.underline), show(eyes))
+    const under = cells.filter(k => k.underEye)
+    check(`${DOCKS[i]!.def.name}: line 2 beneath the eyes at columns 2,3,4,6,7,8 is lower-block, top-colour background, lower-colour foreground and underline`, under.map(k => `${k.c},${k.line}`).join(' ') === '2,2 3,2 4,2 6,2 7,2 8,2' && under.every(k => k.ch === '▄' && k.bg === `48;2;${rgb(k.top!)}` && k.fg === `38;2;${rgb(k.bot ?? GROUND)}` && k.underline), show(under))
   }
-  const eyes = DOCKS.map((_, i) => readSprite(i).filter(k => k.line === 1 && k.kind !== 'empty'))
-  check('every eye-line cell of every dock has a painted pixel below it and keeps the eyes-fold shape (▄, or the pupil seam)', eyes.every(cells => cells.every(k => k.below && k.ch !== '▀')), show(eyes.flat().filter(k => !k.below || k.ch === '▀').slice(0, 6)))
 }
 
 section('§3 the ground CHANGES: a dark ⇄ true-black switch repaints the half cells with the new canvas; the exit restore hands the painter the terminal\'s original')
@@ -397,7 +400,7 @@ section('§3b the large art, ground KNOWN: a painted-top cell with a painted pix
         const x = bigLefts[index]! + c
         const st = bigGlass.styleAt(x, y)
         const kind = top && bot ? 'pair' : top ? 'top' : bot ? 'bottom' : 'empty'
-        out.push({ x, y, c, line: r >> 1, kind, top, bot, above: r > 0 && inkedAt(def, art, r - 1, c), below: inkedAt(def, art, r + 2, c), ch: bigGlass.grid[y]![x]!, fg: st?.fg ?? 'default', bg: st?.bg ?? 'default', seam: art[r]![c] === 'P' && art[r + 1]![c] === 'P' })
+        out.push({ x, y, c, line: r >> 1, kind, top, bot, above: r > 0 && inkedAt(def, art, r - 1, c), below: inkedAt(def, art, r + 2, c), eye: /[EKP]/.test((art[r]?.[c] ?? '.') + (art[r + 1]?.[c] ?? '.')), underEye: false, underline: st?.underline ?? false, ch: bigGlass.grid[y]![x]!, fg: st?.fg ?? 'default', bg: st?.bg ?? 'default', seam: art[r]![c] === 'P' && art[r + 1]![c] === 'P' })
       }
     }
     return out
@@ -450,7 +453,7 @@ section('§4 colour OFF: the glyph is the only shape left, so a known ground cha
     await settle(400)
     flushGlass()
     check('with chalk at level 0 and the canvas painted, every painted-top cell is still ▀ and every painted-bottom cell still ▄', DOCKS.every((_, i) => readSprite(i).filter(k => k.kind === 'top').every(k => k.ch === '▀') && readSprite(i).filter(k => k.kind === 'bottom').every(k => k.ch === '▄')), show(readSprite(0).filter(k => (k.kind === 'top' && k.ch !== '▀') || (k.kind === 'bottom' && k.ch !== '▄'))))
-    check('…and a pair keeps its glyph by what sits below it: ▄ with a painted pixel below, ▀ on the bottom edge', DOCKS.every((_, i) => readSprite(i).filter(k => k.kind === 'pair').every(k => k.ch === (k.below ? '▄' : '▀'))), show(readSprite(0).filter(k => k.kind === 'pair' && k.ch !== (k.below ? '▄' : '▀'))))
+    check('…and a pair keeps its glyph by what sits below it: ▄ with a painted pixel below, ▀ on the bottom edge', DOCKS.every((_, i) => readSprite(i).filter(k => k.kind === 'pair').every(k => k.ch === (k.below || k.underEye ? '▄' : '▀'))), show(readSprite(0).filter(k => k.kind === 'pair' && k.ch !== (k.below || k.underEye ? '▄' : '▀'))))
   } finally {
     chalk.level = level
     resetGround()
