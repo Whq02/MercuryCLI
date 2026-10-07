@@ -109,11 +109,11 @@ section('§3 a successful response clears a standing rejected at once')
   check('no refusal stands', blocker() === null, String(blocker()))
 }
 
-section('§4 a headerless 429 names no reset: the verdict lives the seed span, and the refusal says so')
+section('§4 a headerless plan-window 429 names no reset: the verdict lives the seed span, and the refusal says so')
 {
   limits.resetLimitsForCredentialSwitch()
   mock.setMockRateLimitScenario('normal')
-  limits.extractQuotaStatusFromError({ status: 429 })
+  limits.extractQuotaStatusFromError({ status: 429, message: 'usage_limit_reached' })
   const verdict = limits.anthropicLimitVerdict() as ReturnType<typeof limits.anthropicLimitVerdict> & { resetsAtMs?: number; lapsesAtMs?: number }
   check('rejected, observed, no stated reset', verdict.status === 'rejected' && typeof verdict.observedAtMs === 'number' && verdict.resetsAtMs === undefined, JSON.stringify(verdict))
   check('the verdict lapses one seed span after the observation', verdict.lapsesAtMs === (verdict.observedAtMs ?? 0) + SEED_SPAN_MS, JSON.stringify(verdict))

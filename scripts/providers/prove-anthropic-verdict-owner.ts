@@ -94,12 +94,12 @@ section('§3 the observing account returns: the same verdict still refuses')
   check('the window counts as observed again', limits.anthropicWindowObserved() === true)
 }
 
-section('§4 a headerless 429 stamps the observing account too')
+section('§4 a headerless plan-window 429 stamps the observing account too')
 {
   limits.resetLimitsForCredentialSwitch()
   mock.setMockRateLimitScenario('normal')
   limits.__setAnthropicOwnerResolverForTest(() => OWNER_A, () => ACCOUNT_A)
-  limits.extractQuotaStatusFromError({ status: 429 })
+  limits.extractQuotaStatusFromError({ status: 429, message: 'usage_limit_reached' })
   const verdict = limits.anthropicLimitVerdict()
   check('the 429 reads rejected with its moment and account', verdict.status === 'rejected' && typeof verdict.observedAtMs === 'number' && verdict.account === ACCOUNT_A, JSON.stringify(verdict))
   check('a delegated dispatch proceeds under A despite its note', blocker() === null && lane().limit === 'rejected')
