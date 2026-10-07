@@ -243,6 +243,8 @@ section('§4 credits: the provider-stated balance with feed + age, or the honest
   check("extra usage off: 'credits: extra usage off' · 'credits extra off' (unreported, never a zero)", subOff.credits?.state === 'unreported' && line(subOff) === 'credits: extra usage off' && line(subOff, 'compact') === 'credits extra off', line(subOff))
   const subOut = owner.activeSourceUsage({ model: 'claude-fable-5-1', reads: extra({ enabled: false, used: undefined, limit: undefined, period: undefined, disabledReason: 'out_of_credits' }) })
   check("…with the provider's reason in plain words: 'credits: extra usage off — out of credits'", line(subOut) === 'credits: extra usage off — out of credits', line(subOut))
+  const temporaryOff = owner.activeSourceUsage({ model: 'claude-fable-5-1', reads: extra({ enabled: false, disabledReason: 'org_level_disabled_until' }) })
+  check('a temporary organisation restriction is a complete sentence, not an unfinished reason code', line(temporaryOff) === 'credits: Extra usage is temporarily disabled by your organisation. Included plan usage continues within its limits.', line(temporaryOff))
   const subOnNoFigure = owner.activeSourceUsage({ model: 'claude-fable-5-1', reads: extra({ used: undefined, limit: undefined, period: undefined }) })
   check("on, but no figure stated: 'credits: extra usage on — the endpoint states no figure' · 'credits not stated'", line(subOnNoFigure) === `credits: ${owner.EXTRA_USAGE_NO_FIGURE_WORDS}` && line(subOnNoFigure, 'compact') === 'credits not stated', line(subOnNoFigure))
   const subUnstated = owner.activeSourceUsage({ model: 'claude-fable-5-1', reads: extra({ stated: false, enabled: false, used: undefined, limit: undefined, period: undefined }) })
