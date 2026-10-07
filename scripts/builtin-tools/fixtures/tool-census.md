@@ -6,13 +6,13 @@
 > skips regeneration is RED). Live columns (enabled/support) reflect the
 > generating environment and are NOT drift-anchored.
 
-Census version 1 — 63 built-in production tools · 178 operations · 63 with a declared capability contract.
+Census version 1 — 64 built-in production tools · 179 operations · 64 with a declared capability contract.
 
 ## Summary
 
-- support (at generation time): 41 available · 12 conditional · 0 degraded · 10 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
-- class: 21 observation · 21 mutation · 11 execution · 10 coordination · 0 unclassified
-- integrations: 10 declare transactions · 13 declare executions · 26 declare mercury:// outputs · 39 name a focused proof
+- support (at generation time): 42 available · 12 conditional · 0 degraded · 10 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
+- class: 21 observation · 21 mutation · 11 execution · 11 coordination · 0 unclassified
+- integrations: 10 declare transactions · 13 declare executions · 27 declare mercury:// outputs · 40 name a focused proof
 - capability units covered: application-verification · browser-drive · capability-discovery · code-intelligence · debugging · desktop-drive · game-engine · git-inspection · git-transactions · memory · operator-io · persistent-evaluation · pixel-art · process-execution · resource-inspection · scheduling · service-management · source-reading · structural-mutation · task-coordination · text-mutation · web-access
 - every tool is unit-classified
 
@@ -61,6 +61,7 @@ Census version 1 — 63 built-in production tools · 178 operations · 63 with a
 | Recall | observation | memory | — | block | yes | — | — | — | scripts/memory/prove-verbs-lifecycle.ts |
 | RecordConvention | mutation | text-mutation | — | block | yes | file +receipts | — | — | NAMED GAP |
 | Reflect | observation | memory | — | block | yes | — | — | — | scripts/memory/prove-reflect-grounding.ts |
+| ResumeAgent | coordination | task-coordination | — | block | yes | — | — | mercury://agent | scripts/crew/run-all.sh |
 | Retain | mutation | memory | — | block | yes | — | — | — | scripts/memory/prove-retain-honesty.ts |
 | Rewind | mutation | task-coordination | — | block | yes | — | — | — | scripts/run-recovery/run-all.sh |
 | ScheduleWakeup | coordination | scheduling | — | block | yes | — | — | — | NAMED GAP |
