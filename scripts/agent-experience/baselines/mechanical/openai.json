@@ -6,9 +6,9 @@
     "backend": "openai-responses",
     "dialect": "responses",
     "mechanical": true,
-    "tree": "1a0034246",
+    "tree": "4786a01c1",
     "fold": "unlabelled",
-    "when": "2026-10-07T05:25:45.187Z",
+    "when": "2026-10-07T05:36:07.949Z",
     "promptChars": 24019,
     "promptTokensEst": 6005,
     "toolCount": 13,
@@ -27,7 +27,7 @@
       "ChangeSet",
       "ToolSearch"
     ],
-    "toolSchemaChars": 50560,
+    "toolSchemaChars": 50553,
     "notes": [
       "browser task unmeasured: no browser to launch — no managed browser — your installed apps are never driven; /browser install downloads Chrome for Testing once with your consent"
     ]
@@ -65,7 +65,7 @@
       "probes": 1,
       "unexpectedErrors": 0,
       "duplicates": 0,
-      "toolResultChars": 3458,
+      "toolResultChars": 3460,
       "toolResultTokensEst": 865,
       "imageChars": 0,
       "injectedTokensEst": 0,
@@ -75,12 +75,12 @@
       "errors": [
         {
           "tool": "Bash",
-          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.35625ms)\n✔ median of an odd-length list (0.067208ms)\n✖ median of an even-length list averages the middle pair (0.40725ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 51.166209\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.40725ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file:///private/tmp/mw/mercury-ax-bench-PSmiQj/openai/tasks/fix-b",
+          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.379917ms)\n✔ median of an odd-length list (0.067209ms)\n✖ median of an even-length list averages the middle pair (0.479834ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 55.378375\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.479834ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file://<fixture>/openai/tasks/fi",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 1992,
+      "wallMs": 1890,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -132,7 +132,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1389,
+      "wallMs": 1663,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -186,12 +186,12 @@
       "errors": [
         {
           "tool": "Edit",
-          "text": "<tool_use_error>Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). Read ownership/coverage check failed: neither a recorded Read nor the current owner's ledger covers all addressed lines. No lines of /private/tmp/mw/mercury-ax-bench-PSmiQj/openai/tasks/anchored-edit/project/README.md were read this session; the old_string was not found in the current content, so the lines the edit touches are unknown — a Read of the file shows what stands.</tool_use_error>",
+          "text": "<tool_use_error>Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). Read ownership/coverage check failed: neither a recorded Read nor the current owner's ledger covers all addressed lines. No lines of <fixture>/openai/tasks/anchored-edit/project/README.md were read this session; the old_string was not found in the current content, so the lines the edit touches are unknown — a Read of the file shows what stands.</tool_use_error>",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 1273,
+      "wallMs": 1108,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -239,7 +239,7 @@
           "probe": true
         }
       ],
-      "wallMs": 994,
+      "wallMs": 1045,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -281,7 +281,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 967,
+      "wallMs": 893,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -328,7 +328,7 @@
           "probe": true
         }
       ],
-      "wallMs": 921,
+      "wallMs": 877,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -368,7 +368,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1052,
+      "wallMs": 1011,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -408,7 +408,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1337,
+      "wallMs": 1229,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -480,7 +480,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1055,
+      "wallMs": 855,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -520,7 +520,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1048,
+      "wallMs": 1090,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -569,7 +569,7 @@
           "probe": true
         }
       ],
-      "wallMs": 1636,
+      "wallMs": 1920,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -604,7 +604,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 796,
+      "wallMs": 911,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -639,7 +639,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 816,
+      "wallMs": 904,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
