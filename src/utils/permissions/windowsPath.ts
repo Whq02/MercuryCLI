@@ -17,7 +17,7 @@ export function suspiciousWindowsPattern(path: string): string | null {
 }
 
 export function containsWindowsDevicePath(input: string): boolean {
-  return getPlatform() === 'windows' && /[\\/]{2}[?.][\\/]/.test(input)
+  return getPlatform() === 'windows' && /[\\/]{2}(?:\?\?|[?.])(?:[\\/]|\s|$)/.test(input)
 }
 
 export function windowsPathNeedsPermission(input: string): boolean {

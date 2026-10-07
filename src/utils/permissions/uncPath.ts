@@ -7,10 +7,10 @@ export function uncPathRisk(input: string): UncPathRisk {
   const decoded = input.replace(/%(?:2f|5c|3a|40)/gi, code => String.fromCharCode(parseInt(code.slice(1), 16)))
   const spelling = decoded.replace(/[`'"]/g, '')
   const text = spelling.replace(/\\/g, '/')
-  const namespace = /\/{1,2}(?:\?\?|[?.])\/(?:UNC\/|GLOBALROOT\/Device\/(?:Mup|LanmanRedirector)\/)([^\s/;|<>()]+)/ig
+  const namespace = /\/{1,2}(?:\?\?|[?.])\/(?:UNC\/|GLOBALROOT\/Device\/(?:Mup|LanmanRedirector)\/)([^\s/]+)/ig
   const extended = namespace.exec(text)
   if (extended) return { risky: true, host: extended[1]!, form: 'namespace-unc' }
-  const paths = /(?:\b(?:file|smb):)?\/{2,}([^\s/;|<>()]+)/ig
+  const paths = /(?:\b(?:file|smb):)?\/{2,}([^\s/]+)/ig
   for (const match of text.matchAll(paths)) {
     const host = match[1]!
     if (host === '?' || host === '.' || host === '??') continue

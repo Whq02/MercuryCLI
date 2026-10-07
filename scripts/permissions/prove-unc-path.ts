@@ -26,7 +26,7 @@ setFsImplementation(new Proxy(fs, { get(target, key) {
 const context = { getAppState: () => ({ toolPermissionContext: { mode: 'default', alwaysAllowRules: {}, alwaysDenyRules: {}, alwaysAskRules: {} } }), options: {}, abortController: new AbortController() } as never
 let failed = 0
 function check(name: string, ok: boolean) { console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`); if (!ok) failed++ }
-const remote = String.raw`\\127.0.0.1\share\file.txt`
+const remote = String.raw`/\127.0.0.1/share/file.txt`
 getPlatform.cache.set(undefined, 'windows')
 const roads = [
   ['Read', FileReadTool, { file_path: remote }],
@@ -67,10 +67,11 @@ try {
 } finally { rmSync(project, { recursive: true, force: true }) }
 if (!process.argv.includes('--file-roads')) {
   for (const mode of ['default', 'implement'] as const) {
-    const ctx = { mode, alwaysAllowRules: {}, alwaysDenyRules: {}, alwaysAskRules: {} }
+    const ctx = { mode, alwaysAllowRules: {}, alwaysDenyRules: {}, alwaysAskRules: {}, isBypassPermissionsModeAvailable: false }
     const shim = { name: 'Read', getPath: () => '//localhost/share/file' }
     const result = runWithCwdOverride('//localhost/share', () => checkReadPermissionForTool(shim, {}, ctx))
     check(`${mode} share workspace has no implicit exemption`, result.behavior === 'ask' && result.message.includes('SMB/WebDAV'))
+    for (const blanket of ['Read(**)', 'Read(//**)', 'Read(//*/share/**)']) check(`${mode} ${blanket} does not name the host, so it still asks`, checkReadPermissionForTool(shim, {}, { ...ctx, alwaysAllowRules: { session: [blanket] } }).behavior === 'ask')
     for (const [operation, decide] of [['Read', checkReadPermissionForTool], ['Edit', checkWritePermissionForTool]] as const) {
       const granted = { ...ctx, alwaysAllowRules: { session: [`${operation}(//localhost/share/**)`] } }
       check(`${mode} explicit ${operation} share grant works`, decide(shim, {}, granted as never).behavior === 'allow')
@@ -88,19 +89,64 @@ if (!process.argv.includes('--file-roads')) {
   check('PowerShell uses the shared warning', ps.behavior === 'ask' && ps.message.includes('SMB/WebDAV'))
   const { uncPathRisk } = await import('../../src/utils/permissions/uncPath.js')
   const forms = [
-    ['backslash', remote], ['slash', '//localhost/share'], ['mixed left', String.raw`\/localhost/share`], ['mixed right', String.raw`/\localhost/share`],
-    ['mixed repeated', String.raw`/\\localhost/share`], ['mixed trailing', String.raw`\\/localhost/share`], ['WebDAV', String.raw`\\localhost@SSL@443\DavWWWRoot\file`],
-    ['port SSL', 'localhost@443@SSL'], ['bare SSL', '@SSL@443'], ['bare root marker', 'DavWWWRoot'], ['marker case', 'davwwwroot'],
-    ['IPv4', '//127.0.0.1/share'], ['IPv6', '//[::1]/share'], ['extended UNC', String.raw`\\?\uNc\localhost\share`], ['NT UNC', String.raw`\??\UNC\localhost\share`],
-    ['device UNC', String.raw`\\.\UNC\localhost\share`], ['MUP', String.raw`\\?\GLOBALROOT\Device\Mup\localhost\share`],
-    ['file URL', 'file://localhost/share'], ['SMB URL', 'smb://localhost/share'], ['file encoded', 'file:%2f%2flocalhost/share'],
-    ['quoted command', `cat '${remote}'`], ['concatenated host', String.raw`cat '\'\'localhost\share'`], ['flag value', '--path=//localhost/share'], ['host alone', '//localhost'],
+    ['backslash', String.raw`\\localhost\share`],
+    ['slash', '//localhost/share'],
+    ['mixed left', String.raw`\/localhost/share`],
+    ['mixed right', remote],
+    ['mixed repeated', String.raw`/\\localhost/share`],
+    ['mixed trailing', String.raw`\\/localhost/share`],
+    ['WebDAV', String.raw`\\localhost@SSL@443\DavWWWRoot\file`],
+    ['port SSL', 'localhost@443@SSL'],
+    ['bare SSL', '@SSL@443'],
+    ['bare root marker', 'DavWWWRoot'],
+    ['marker case', 'davwwwroot'],
+    ['IPv4', '//127.0.0.1/share'],
+    ['IPv6', '//[::1]/share'],
+    ['extended UNC', String.raw`\\?\uNc\localhost\share`],
+    ['NT UNC', String.raw`\??\UNC\localhost\share`],
+    ['device UNC', String.raw`\\.\UNC\localhost\share`],
+    ['MUP', String.raw`\\?\GLOBALROOT\Device\Mup\localhost\share`],
+    ['file URL', 'file://localhost/share'],
+    ['SMB URL', 'smb://localhost/share'],
+    ['file encoded', 'file:%2f%2flocalhost/share'],
+    ['quoted command', `cat '${remote}'`],
+    ['concatenated host', String.raw`cat '\'\'localhost\share'`],
+    ['flag value', '--path=//localhost/share'],
+    ['host alone', '//localhost'],
   ] as const
   for (const [form, input] of forms) check(`Windows ${form}`, uncPathRisk(input).risky)
   for (const input of ['C:\\project\\file.txt', '/usr/local/file', './file', 'https://localhost/page', String.raw`\\?\C:\project\file`, String.raw`\\.\C:\project\file`]) check(`local or web ${input}`, !uncPathRisk(input).risky)
+  const { windowsPathNeedsPermission } = await import('../../src/utils/permissions/windowsPath.js')
+  const inherited = [
+    ['host then separator', String.raw`\\server\share`],
+    ['host at the end', String.raw`\\server`],
+    ['host then whitespace', String.raw`type \\server\share\file.txt`],
+    ['host with a port', String.raw`\\server@443\share`],
+    ['host with ssl', String.raw`\\server@SSL\share`],
+    ['slash host', '//server/share'],
+    ['slash host with ssl', '//server@ssl/share'],
+    ['slash then backslashes', String.raw`/\\server`],
+    ['backslashes then slash', String.raw`\\\/server`],
+    ['ssl then port', '@SSL@443'],
+    ['port then ssl', '@443@SSL'],
+    ['root marker', 'DavWWWRoot'],
+    ['IPv4 host', String.raw`\\127.0.0.1\share`],
+    ['IPv6 host', String.raw`\\[::1]\share`],
+    ['host starting with ;', String.raw`\\;server\share`],
+    ['host in parentheses', String.raw`\\(server)\share`],
+    ['host in angle brackets', String.raw`\\<server>\share`],
+    ['host starting with |', String.raw`\\|server\share`],
+    ['device namespace drive', String.raw`\\?\C:\project\file`],
+    ['device namespace pipe', String.raw`\\.\pipe\x`],
+    ['device namespace slashes', '//?/x/y'],
+    ['bare device prefix', String.raw`\\.`],
+    ['bare long-path prefix', String.raw`\\?`],
+    ['NT object prefix', String.raw`\\??\share`],
+  ] as const
+  for (const [form, input] of inherited) check(`old check refused ${form}, still refused`, windowsPathNeedsPermission(input))
   for (const platform of ['macos', 'linux', 'wsl'] as const) { getPlatform.cache.set(undefined, platform); for (const [form, input] of forms) check(`${platform} does not apply ${form}`, !uncPathRisk(input).risky) }
 }
 setFsImplementation(fs)
-getPlatform.cache.clear()
+getPlatform.cache.delete(undefined)
 console.log(`unc-path: ${failed ? 'FAIL' : 'PASS'} (${failed} failures)`)
 process.exit(failed ? 1 : 0)
