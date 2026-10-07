@@ -40,7 +40,8 @@ for (const [enabled, hash, bytes] of [
   let same = true
   try { deepStrictEqual(definition.input_schema, expected) } catch { same = false }
   check('five-field wire schema matches exactly', same, JSON.stringify(definition.input_schema))
-  check(`samples=${enabled}: compact definition is ${bytes} bytes`, Buffer.byteLength(JSON.stringify(definition)) === bytes, String(Buffer.byteLength(JSON.stringify(definition))))
+  const wire = JSON.stringify({ ...definition, eager_input_streaming: true })
+  check(`samples=${enabled}: compact definition with eager_input_streaming is ${bytes} bytes`, Buffer.byteLength(wire) === bytes, String(Buffer.byteLength(wire)))
 }
 const noInspect = await EvalTool.prompt({ ...options, tools: [EvalTool] })
 check('Inspect is named only when available in the session pool', !noInspect.includes('tool.Inspect({ref})'))
