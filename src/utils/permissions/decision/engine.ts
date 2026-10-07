@@ -286,7 +286,7 @@ async function runDecisionChain(
     toolVerdict?.behavior === 'ask' &&
     toolVerdict.decisionReason?.type === 'safetyCheck'
   ) {
-    if (!shouldBypassPermissions) return decided('safetyCheckAsk', toolVerdict)
+    if (!shouldBypassPermissions || toolVerdict.decisionReason.operatorOnly) return decided('safetyCheckAsk', toolVerdict)
     const stoodDown = roadUnderPosture('safetyCheckAsk', 'safetyCheckAsk', toolVerdict.decisionReason)
     if (stoodDown !== null) return stoodDown
   } else {
