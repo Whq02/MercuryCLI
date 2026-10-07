@@ -237,7 +237,7 @@ console.log('\n[3] the alias: a saved deepseek-v4-flash setting opens on the Fla
   const before = failures
   const ledger = join(scratch, 'alias-ledger.log')
   const fixture = await startFixture('live', ledger)
-  const home = seededHome('home-alias', { model: 'deepseek-v4-flash' })
+  const home = seededHome('home-alias', { engine: { model: 'deepseek-v4-flash' } })
   daemonDirs.push(join(scratch, 'daemon-alias'))
   const res = drive('alias', home, fixture.port, [
     ...openSends,
