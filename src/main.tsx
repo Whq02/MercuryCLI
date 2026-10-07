@@ -53,7 +53,7 @@ import { clearBootAttempts } from './substrate/bootBeacon.js'
 import { addBootNote, collectLauncherNotes } from './substrate/bootNotes.js'
 import { flagEnv, setFlagEnv } from './substrate/flagRegistry.js'
 import { recordInvocation } from './substrate/invocationRecord.js'
-import { recordLaunchMilestone } from './substrate/launchMilestones.js'
+import { markLaunchBegun, recordLaunchMilestone } from './substrate/launchMilestones.js'
 import { markExplicitBootJourney, retractExplicitBootJourney } from './substrate/splashHandover.js'
 import { getCwd } from './utils/cwd.js'
 import { applyBootMenuEnv, recordBootAdmissionSnapshot, resolveEffectiveSettingsSnapshot } from './substrate/startupMenu.js'
@@ -1782,6 +1782,7 @@ async function interactiveLaunch(args: {
   if (!getIsInteractive()) return
 
   armBackgroundDiscovery();
+  markLaunchBegun();
 
   try {
     type ResumeLog = { fullPath?: string; customTitle?: string; agentName?: string }

@@ -22,7 +22,7 @@
 # gate-watch: src/services/providers/moonshot/kimiPins.ts src/services/providers/moonshot/moonshotCatalogue.ts
 # gate-watch: src/services/providers/openai/gptPins.ts src/services/providers/openai/openaiCatalogue.ts
 # gate-watch: src/services/providers/typedModelIds.ts src/substrate/flagRegistry.ts
-# gate-watch: src/substrate/launchMilestones.ts src/context/surfaceRoute.ts
+# gate-watch: src/substrate/launchMilestones.ts src/context/surfaceRoute.ts src/boot/launchGraph.ts
 # gate-watch: src/components/sandbox/SandboxDependenciesTab.tsx scripts/settings/settings-schema.json
 # gate-watch: scripts/lib/hermetic.ts src/services/privateChannel/installPath.ts scripts/daemon/dupline-world.ts
 set -u

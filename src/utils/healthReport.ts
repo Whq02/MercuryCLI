@@ -1779,9 +1779,13 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const reached = lastBootReachedInputLive()
             if (reached === null) return { status: 'off', evidence: 'no interactive boot recorded yet' }
             const RANK: Record<string, number> = { 'runtime-entry': 0, 'route-ready': 1, 'first-frame': 2, 'input-live': 3 }
-            const lastRungs = lastInteractiveBootSpine().map(r => r.milestone).filter(m => m in RANK)
+            const rungRows = lastInteractiveBootSpine().filter(r => r.milestone in RANK)
+            const lastRungs = rungRows.map(r => r.milestone)
             const spine = lastRungs.join(' → ')
-            const ranks = lastRungs.map(m => RANK[m] ?? -1)
+            const setupScreenFirst = rungRows.some(r => r.milestone === 'first-frame' && r.beforeLaunch === true)
+            const routeAt = lastRungs.indexOf('route-ready')
+            const setupRoute = setupScreenFirst && lastRungs[0] === 'runtime-entry' && routeAt > 0 && routeAt === lastRungs.lastIndexOf('route-ready')
+            const ranks = lastRungs.filter((_, i) => !setupRoute || i !== routeAt).map(m => RANK[m] ?? -1)
             const inOrder = ranks.every((r, i) => r >= 0 && (i === 0 || r > ranks[i - 1]!))
             if (reached && !inOrder) {
               return {
