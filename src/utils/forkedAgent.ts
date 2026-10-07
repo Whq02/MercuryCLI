@@ -9,7 +9,7 @@ import { accumulateUsage, updateUsage } from '../services/providers/anthropic/ca
 import { EMPTY_USAGE } from '../services/api/emptyUsage.js'
 import { rosterOwnerFromToolUseContext } from '../services/run/resolveOwner.js'
 import type { AppState } from '../state/AppStateStore.js'
-import type { ToolUseContext } from '../Tool.js'
+import { advanceToolCallChain, type ToolUseContext } from '../Tool.js'
 import { withAllowedCommandRules } from '../tools/AgentTool/agentPermissionPosture.js'
 import { MERCURY_CREW_AGENT } from '../tools/AgentTool/built-in/mercuryCrewAgent.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
@@ -232,10 +232,7 @@ export function createSubagentContext(parentContext: ToolUseContext, overrides: 
     agentId: overrides.agentId ?? createAgentId(),
     agentType: overrides.agentType,
     agentKind: parentContext.agentKind,
-    queryTracking: {
-      chainId: randomUUID(),
-      depth: (parentContext.queryTracking?.depth ?? -1) + 1,
-    },
+    callChain: advanceToolCallChain(parentContext, randomUUID, 'fork'),
     fileReadingLimits: parentContext.fileReadingLimits,
     standingRule: overrides.standingRule,
     requireCanUseTool: overrides.requireCanUseTool,
