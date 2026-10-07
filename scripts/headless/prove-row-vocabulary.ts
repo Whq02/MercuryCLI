@@ -116,7 +116,7 @@ const transitionsSource = readFileSync(join(root, 'src/query/transitions.ts'), '
 const terminalStart = transitionsSource.indexOf('export type Terminal =')
 const terminalBlock = transitionsSource.slice(terminalStart, transitionsSource.indexOf('\nexport ', terminalStart + 1))
 const reasons = [...terminalBlock.matchAll(/\{ reason: '([a-z_]+)'/g)].map(m => m[1]!)
-check(`transitions.ts declares ${reasons.length} terminal reasons (12 read)`, reasons.length === 12, reasons.join(','))
+check(`transitions.ts declares ${reasons.length} terminal reasons (13 read)`, reasons.length === 13, reasons.join(','))
 for (const reason of reasons) {
   const mapped = statusOfTerminal({ reason } as never, null)
   check(`terminal ${reason} → status ${mapped?.status ?? 'undefined'}`, mapped !== undefined && (OUTCOME_STATUSES as readonly string[]).includes(mapped.status))
