@@ -50,7 +50,7 @@ const OUTPUT_SCHEMA_WORDS = 'JSON Schema for the final answer, submitted through
 const SCHEMA_MODE_WORDS = 'With output_schema: \'strict\' fails the call when none passed; \'permissive\' (default) returns the prose under status "missing" or "invalid".'
 const USAGE_NOTE = 'Treat the agent\'s prose as a claim to verify, not a fact: spot-check load-bearing results with a diff, a render, or a test before relying on them. A status="valid" payload passed your schema: use it without re-reading what the agent read, and require evidence as a field when a value needs it.'
 const AGENT_ID = 'acq4kdds9'
-const TRAILER_28 = `agentId: ${AGENT_ID} (internal — do not mention it to the user). To continue this agent, use SendMessage addressed to that id.\n<usage>total_tokens: 867\ntool_uses: 4\nduration_ms: 8928</usage>`
+const TRAILER_CURRENT = `agentId: ${AGENT_ID} (internal — do not mention it to the user). To continue this agent, use ResumeAgent addressed to that id.\n<usage>total_tokens: 867\ntool_uses: 4\nduration_ms: 8928</usage>`
 
 const settled = (over: Record<string, unknown>): Record<string, unknown> => ({
   status: 'completed',
@@ -168,14 +168,14 @@ section('5. the issue words are recorded — the validator\'s words after the un
   check('no call records the unchanged miss sentence', missing.structured?.error === NO_STRUCTURED_YIELD, JSON.stringify(missing.structured))
 }
 
-section('6. nothing invented — without structured, the mapped block is the .28 block')
+section('6. nothing invented — without structured, the mapped block is the current unstructured block')
 {
   const scout = map(settled({}), 't6')
-  check('a scout result without structured is the .28 block (one block, the prose)', JSON.stringify(scout) === JSON.stringify({ type: 'tool_result', tool_use_id: 't6', content: [{ type: 'text', text: PROSE }] }), JSON.stringify(scout).slice(0, 300))
+  check('a scout result without structured is the current unstructured block (one block, the prose)', JSON.stringify(scout) === JSON.stringify({ type: 'tool_result', tool_use_id: 't6', content: [{ type: 'text', text: PROSE }] }), JSON.stringify(scout).slice(0, 300))
   const crew = map(settled({ agentType: 'mercury-crew' }), 't6b')
-  check('a crewmate result without structured is the .28 block (the prose, the trailer)', JSON.stringify(crew) === JSON.stringify({ type: 'tool_result', tool_use_id: 't6b', content: [{ type: 'text', text: PROSE }, { type: 'text', text: TRAILER_28 }] }), JSON.stringify(crew).slice(0, 400))
+  check('a crewmate result without structured is the current unstructured block (the prose, the trailer)', JSON.stringify(crew) === JSON.stringify({ type: 'tool_result', tool_use_id: 't6b', content: [{ type: 'text', text: PROSE }, { type: 'text', text: TRAILER_CURRENT }] }), JSON.stringify(crew).slice(0, 400))
   const failed = map(settled({ status: 'failed', error: 'API Error: 529', outcome: { status: 'failed', reason: 'provider-declined', error: 'API Error: 529' } }), 't6c')
-  check('a failed result without structured is the .28 block (the prose, the failure trailer)', failed.is_error === true && texts(failed).length === 2 && texts(failed)[0] === PROSE && texts(failed)[1]?.startsWith('Agent execution failed: API Error: 529\nAnything above is partial work') === true, JSON.stringify(texts(failed)).slice(0, 300))
+  check('a failed result without structured is the current unstructured block (the prose, the failure trailer)', failed.is_error === true && texts(failed).length === 2 && texts(failed)[0] === PROSE && texts(failed)[1]?.startsWith('Agent execution failed: API Error: 529\nAnything above is partial work') === true, JSON.stringify(texts(failed)).slice(0, 300))
   check('no text in any of them contains <structured', [scout, crew, failed].every(m => texts(m).every(t => !t.includes('<structured'))))
 }
 

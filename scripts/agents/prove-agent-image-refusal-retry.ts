@@ -124,7 +124,7 @@ const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const { getAgentTranscript } = await import('../../src/utils/sessionStorage/logs.ts')
 const { getAgentTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
-const { SendMessageTool } = await import('../../src/tools/SendMessageTool/SendMessageTool.ts')
+const { ResumeAgentTool } = await import('../../src/tools/ResumeAgentTool/ResumeAgentTool.ts')
 const { registerAsyncAgent, failAgentTask, registerAgentName } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
 const { generateTaskId } = await import('../../src/Task.ts')
 await import('../../src/tasks.ts')
@@ -294,7 +294,7 @@ section('§4 the run that ended on the error stays resumable by message: the nex
   failAgentTask(idB, 'API Error: OpenAI stream failed (openai-invalid_image)', storeB.set as never)
   check('the task row reads failed before the message', storeB.get().tasks[idB]?.status === 'failed', String(storeB.get().tasks[idB]?.status))
   const ctx = makeCtx(storeB)
-  const answer = (await SendMessageTool.call({ to: 'picture', message: 'Carry on in words: say what you were asked.' } as never, ctx, undefined as never, { requestId: 'req-1' } as never)) as { data: { success: boolean; message: string } }
+  const answer = (await ResumeAgentTool.call({ to: 'picture', message: 'Carry on in words: say what you were asked.' } as never, ctx, undefined as never, { requestId: 'req-1' } as never)) as { data: { success: boolean; message: string } }
   check('the message is delivered: the agent is resumed with it', answer.data.success === true && answer.data.message.includes('had failed') && answer.data.message.includes('resumed in the background with your message'), answer.data.message)
   const deadline = Date.now() + 60_000
   while (Date.now() < deadline) {

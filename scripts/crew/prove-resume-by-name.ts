@@ -39,7 +39,8 @@ const { registerAsyncAgent, completeAgentTask, enqueueAgentNotification, killAsy
 const { applyTaskOffsetsAndEvictions } = await import('../../src/utils/task/framework.ts')
 const { SendMessageTool } = await import('../../src/tools/SendMessageTool/SendMessageTool.ts')
 const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
-const { getPrompt } = await import('../../src/tools/SendMessageTool/prompt.ts')
+const { getPrompt } = await import('../../src/tools/ResumeAgentTool/prompt.ts')
+const { ResumeAgentTool } = await import('../../src/tools/ResumeAgentTool/ResumeAgentTool.ts')
 const lr = (await import('../../src/tasks/LocalAgentTask/launchReceipts.ts')) as Record<string, unknown> & { BACKGROUND_LAUNCH_LINE: string }
 const queue = await import('../../src/input-core/command-queue.ts')
 const { getAgentTranscriptPath, getAgentMetadataPath, readAgentMetadata } = await import('../../src/utils/sessionStorage/paths.ts')
@@ -145,7 +146,9 @@ const finishAndEvict = (store: Store, id: string, description: string): void => 
   queue.resetCommandQueue()
 }
 const send = (ctx: never, to: string, message: unknown, requestId: string): Promise<SendAnswer> =>
-  SendMessageTool.call({ to, message } as never, ctx, undefined as never, { requestId } as never) as Promise<SendAnswer>
+  ResumeAgentTool.call({ to, message } as never, ctx, undefined as never, { requestId } as never) as Promise<SendAnswer>
+const deliver = (ctx: never, to: string, message: string, requestId: string): Promise<SendAnswer> =>
+  SendMessageTool.call({ to, message }, ctx, undefined as never, { requestId } as never) as Promise<SendAnswer>
 const settleResumed = (store: Store, id: string): void => {
   killAsyncAgent(id, store.set as never)
   store.set(prev => {
@@ -246,19 +249,19 @@ settleResumed(store, harbour)
 
 section('§4 A NAME NOBODY CARRIED, with agents in the session — the refusal names what it found and never says "spawn a crew" (RED on the base)')
 const lantern = launchNamed(store, transcript, 'lantern-index', 'index the lanterns')
-const nobody = await send(ctx, 'nobody-here', 'anyone there', 'req_nobody')
+const nobody = await deliver(ctx, 'nobody-here', 'anyone there', 'req_nobody')
 console.log(`  the answer: ${JSON.stringify(nobody.data)}`)
 check('the send is refused', nobody.data.success === false)
 check('the refusal says no agent by that name is in this session', /no agent named nobody-here in this session/.test(nobody.data.message), nobody.data.message)
 check('…names the finished agent by name', /finished agents are: [^;—]*harbour-count/.test(nobody.data.message), nobody.data.message)
 check('…names the running agent by name', /running agents are: [^;—]*lantern-index/.test(nobody.data.message), nobody.data.message)
 check('…and points at an id or one of those names, never at a crew', /send to an id or one of those names/.test(nobody.data.message) && !/spawn a crew/i.test(nobody.data.message), nobody.data.message)
-check('the running launch is still reached by its name, as today (the live road is untouched)', (await send(ctx, 'lantern-index', 'keep going', 'req_live')).data.message.includes('Message delivered to agent lantern-index'))
+check('the running launch is still reached by its name, as today (the live road is untouched)', (await deliver(ctx, 'lantern-index', 'keep going', 'req_live')).data.message.startsWith('Delivered to lantern-index (id '))
 
 section('§5 NOTHING LAUNCHED — the refusal names the two addresses, verbatim')
 {
   const bare = makeStore()
-  const nothing = await send(makeCtx(bare, []), 'nobody-here', 'anyone there', 'req_nothing')
+  const nothing = await deliver(makeCtx(bare, []), 'nobody-here', 'anyone there', 'req_nothing')
   check('a session that never launched a named agent refuses naming the id and the name roads, verbatim', nothing.data.success === false && nothing.data.message === TODAY('nobody-here'), nothing.data.message)
 }
 
@@ -330,10 +333,10 @@ section('§10 THE WORDS — the prompt tells the model a finished agent\'s name 
 
 section('§11 THE SEAMS IN SOURCE')
 {
-  const sendSrc = src('src/tools/SendMessageTool/SendMessageTool.ts')
-  const roadAt = sendSrc.indexOf('async function routeToLocalAgent(')
+  const sendSrc = src('src/tools/SendMessageTool/crewAddress.ts')
+  const roadAt = sendSrc.indexOf('async function resolveCrewAddress(')
   const lookupAt = sendSrc.indexOf('launchesNamed(context.messages', roadAt)
-  const giveUpAt = sendSrc.indexOf('if (agentId === undefined) return undefined', roadAt)
+  const giveUpAt = sendSrc.indexOf("if (agentId === undefined) return { kind: 'unknown' }", roadAt)
   check('the local-agent road reads the launch receipts by name before it gives up', roadAt > 0 && lookupAt > roadAt && giveUpAt > lookupAt)
   check('the unknown-address refusal is minted only after the session\'s launched agents are read, and no crew road exists', /async function unknownAgentRefusal[\s\S]{0,200}knownLaunchedAgents\(context\)/.test(sendSrc) && !sendSrc.includes('crewName') && !sendSrc.includes('noCrewRefusal'))
   const receipts = src('src/tasks/LocalAgentTask/launchReceipts.ts')
@@ -436,11 +439,11 @@ section('§16 THE RECEIPTS ROAD FIRST — a receipt still in the messages answer
   check('the launch the receipt names is the one resumed, though a newer record on disk carries the same name', toReceipt.data.success === true && toReceipt.data.message.includes(receipted) && !toReceipt.data.message.includes(recorded.id) && rowOf(mixed, receipted)?.status === 'running' && mixed.get().tasks[recorded.id] === undefined, toReceipt.data.message)
   check('…in the receipts road\'s own words: one receipt, no "newest of" count', !/newest of/.test(toReceipt.data.message), toReceipt.data.message)
   settleResumed(mixed, receipted)
-  const sendSrc = src('src/tools/SendMessageTool/SendMessageTool.ts')
-  const roadAt = sendSrc.indexOf('async function routeToLocalAgent(')
+  const sendSrc = src('src/tools/SendMessageTool/crewAddress.ts')
+  const roadAt = sendSrc.indexOf('async function resolveCrewAddress(')
   const receiptsAt = sendSrc.indexOf('launchesNamed(context.messages', roadAt)
   const recordsAt = sendSrc.indexOf('recordedLaunchesNamed(', roadAt)
-  check('the resolver reads the records on disk only after the receipts, inside the local-agent road (RED on the base)', roadAt > 0 && receiptsAt > roadAt && recordsAt > receiptsAt && recordsAt < sendSrc.indexOf('if (agentId === undefined) return undefined', roadAt), JSON.stringify({ roadAt, receiptsAt, recordsAt }))
+  check('the resolver reads the records on disk only after the receipts, inside the local-agent road (RED on the base)', roadAt > 0 && receiptsAt > roadAt && recordsAt > receiptsAt && recordsAt < sendSrc.indexOf("if (agentId === undefined) return { kind: 'unknown' }", roadAt), JSON.stringify({ roadAt, receiptsAt, recordsAt }))
   const receipts = src('src/tasks/LocalAgentTask/launchReceipts.ts')
   const helperAt = receipts.indexOf('export interface NamedLaunchReceipt')
   const helperEnd = receipts.indexOf('export function settledLaunchIds')

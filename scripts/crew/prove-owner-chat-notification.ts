@@ -15,7 +15,7 @@ const script: ScriptedTurn[] = [
   lead({ kind: 'tool_use', id: 'toolu_chat_launch', name: 'Agent', input: { name: 'scribe', model: PEER_MODEL, subagent_type: 'mercury-crew', run_in_background: false, description: 'Answer in the right chat', prompt: 'Report ready.' } }, 'SPAWN-SCRIBE'),
   lead({ kind: 'text', text: 'SCRIBE-READY' }, 'SPAWN-SCRIBE'),
   lead({ kind: 'text', text: 'OWNER-BARRIER-DONE' }, 'OWNER-BARRIER'),
-  lead({ kind: 'tool_use', id: 'toolu_chat_lead', name: 'SendMessage', input: { to: 'scribe', message: 'LEAD-FOLLOW-UP' } }, 'LEAD-SEND'),
+  lead({ kind: 'tool_use', id: 'toolu_chat_lead', name: 'ResumeAgent', input: { to: 'scribe', message: 'LEAD-FOLLOW-UP' } }, 'LEAD-SEND'),
   lead({ kind: 'text', text: 'LEAD-BARRIER-DONE' }, 'LEAD-BARRIER'),
   ...Array.from({ length: 12 }, () => lead({ kind: 'text', text: 'LEAD-ACK' })),
   peer('INITIAL-REPORT'),
@@ -31,7 +31,7 @@ const refusals: string[] = []
 const host = hostRunner({
   node: NODE,
   dist: DIST,
-  argv: ['--model', LEAD_MODEL, '--allowed-tools', 'Agent', 'SendMessage', '--mode', 'sovereign'],
+  argv: ['--model', LEAD_MODEL, '--allowed-tools', 'Agent', 'ResumeAgent', '--mode', 'sovereign'],
   cwd: world.project,
   env: world.env as Record<string, string | undefined>,
   home: world.env.MERCURY_CONFIG_DIR ?? world.project,
@@ -95,7 +95,7 @@ try {
 
   const beforeLead = session.frames.length
   session.submit('LEAD-SEND: ask the scribe for a new lead task.')
-  await session.waitFor('the lead SendMessage did not reach the agent', () => toolResultOf(world, 'toolu_chat_lead') !== null, TURN_MS)
+  await session.waitFor('the lead ResumeAgent did not reach the agent', () => toolResultOf(world, 'toolu_chat_lead') !== null, TURN_MS)
   await session.waitFor('the lead-requested agent turn did not complete', () => notificationFrames(beforeLead, agentId).length > 0, TURN_MS)
   session.submit('LEAD-BARRIER: confirm the next lead task is complete.')
   await session.waitFor('the lead barrier never completed', () => session.stdout().includes('LEAD-BARRIER-DONE'), TURN_MS)
