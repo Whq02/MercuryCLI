@@ -58,6 +58,7 @@ import { asSystemPrompt } from '../utils/systemPromptType.js'
 import { loadMemoryPrompt } from '../mneme/mnemeFrontPage.js'
 import { hasMnemeHomeOverride } from '../mneme/paths.js'
 import { getCwd } from '../utils/cwd.js'
+import { describeArtifactIdentity } from '../utils/artifactIdentity.js'
 import {
   commandOutputRow,
   commandOutputTextOf,
@@ -68,6 +69,7 @@ import {
   noticeRow,
   outcomeRow,
   partialRowsOf,
+  refusedCallRowsOf,
   retractedRow,
   retryWaitRow,
   stepRow,
@@ -184,13 +186,16 @@ function lastTextBlockOf(message: AssistantMessage): string {
   return ''
 }
 
-export async function sessionFactsOf(config: Pick<ConversationConfig, 'cwd' | 'tools' | 'mcpClients' | 'commands' | 'agents'>, model: string, mode: string): Promise<SessionFacts> {
+export async function sessionFactsOf(config: Pick<ConversationConfig, 'cwd' | 'tools' | 'mcpClients' | 'commands' | 'agents'>, model: string, mode: string, resumeOf?: string): Promise<SessionFacts> {
   headlessProfilerCheckpoint('before_skills_extensions')
   const [skills, loaded] = await Promise.all([getSlashCommandToolSkills(config.cwd), ensureExtensionsLoaded({ cwd: config.cwd })])
   headlessProfilerCheckpoint('after_skills_extensions')
   const invocable = (entry: { userInvocable?: boolean }): boolean => entry.userInvocable !== false
+  const build = describeArtifactIdentity(MACRO.VERSION).buildTree
   return {
     version: MACRO.VERSION,
+    ...(build !== null ? { build } : {}),
+    ...(resumeOf !== undefined ? { resumeOf } : {}),
     cwd: getCwd(),
     model,
     mode,
@@ -460,20 +465,26 @@ export class Conversation {
       }
       if (message.type === 'assistant') {
         const assistant = message as AssistantMessage & { isApiErrorMessage?: boolean }
-        if (assistant.isApiErrorMessage === true || !isNotEmptyMessage(message)) return rows
+        if (assistant.isApiErrorMessage === true) return rows
+        const refused = assistant.refusedToolCalls ?? []
+        const hasContent = isNotEmptyMessage(message)
+        if (!hasContent && refused.length === 0) return rows
         const messageId = assistant.message.id ?? (assistant.uuid as string)
         const content = assistant.message.content
         const base = steps.blocks.get(messageId) ?? 0
-        const length = Array.isArray(content) ? content.length : 1
-        steps.blocks.set(messageId, base + length)
+        const length = hasContent ? (Array.isArray(content) ? content.length : 1) : 0
+        steps.blocks.set(messageId, base + length + refused.length)
         let block = base
-        for (const normalized of normalizeMessages([message])) {
-          const pieces = (normalized as AssistantMessage).message.content
-          const items = itemRowsOf(rowScope, messageId, pieces, block)
-          for (const item of items) if (item.type === 'tool_call') callScopes.set(item.call_id, rowScope)
-          rows.push(...items)
-          block += Array.isArray(pieces) ? pieces.length : 1
+        if (hasContent) {
+          for (const normalized of normalizeMessages([message])) {
+            const pieces = (normalized as AssistantMessage).message.content
+            const items = itemRowsOf(rowScope, messageId, pieces, block)
+            for (const item of items) if (item.type === 'tool_call') callScopes.set(item.call_id, rowScope)
+            rows.push(...items)
+            block += Array.isArray(pieces) ? pieces.length : 1
+          }
         }
+        if (refused.length > 0) rows.push(...refusedCallRowsOf(rowScope, messageId, refused, base + length))
         return rows
       }
       if (message.type === 'user') {
@@ -604,6 +615,7 @@ export class Conversation {
       const unpricedNow = getUnpricedTurns()
       const unpricedModels = new Set(Object.keys(unpricedNow).filter(model => (unpricedNow[model] ?? 0) > (unpricedAtStart[model] ?? 0)))
       const apiMs = Math.max(0, getTotalAPIDuration() - apiDurationAtStart)
+      const costUsd = Math.max(0, getTotalCostUSD() - costAtStart)
       const billed = usageSince(getModelUsage(), modelUsageAtStart)
       const usage = Object.values(billed).reduce((sum, row) => ({
         ...sum,
@@ -619,7 +631,7 @@ export class Conversation {
         steps: steps.count,
         wallMs: Date.now() - turnStartedAt,
         ...(apiMs > 0 ? { apiMs } : {}),
-        ...(unpricedModels.size === 0 ? { costUsd: Math.max(0, getTotalCostUSD() - costAtStart) } : {}),
+        ...(unpricedModels.size === 0 || costUsd > 0 ? { costUsd } : {}),
         usage,
         models: modelUsageRows(billed, model => unpricedModels.has(model)),
         denials: this.denials.slice(denialsBefore),

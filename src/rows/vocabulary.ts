@@ -130,6 +130,8 @@ export const SessionRowSchema = lazySchema(() =>
     ...envelopeFields,
     schema: z.literal(ROWS_SCHEMA),
     version: z.string(),
+    build: z.string().optional(),
+    resume_of: z.string().optional(),
     cwd: z.string(),
     model: z.string(),
     mode: z.string(),
@@ -198,7 +200,7 @@ export const ToolResultRowSchema = lazySchema(() =>
     type: z.literal('tool_result'),
     ...envelopeFields,
     call_id: z.string(),
-    status: z.enum(['ok', 'error', 'aborted']),
+    status: z.enum(['ok', 'error', 'aborted', 'refused']),
     output: z.string(),
   }),
 )

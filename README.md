@@ -416,13 +416,20 @@ mercury run "Summarise this repository." --format rows
   `text`, `reasoning`, `tool_call`, `tool_result` and `step` rows, ending in
   `outcome`. Waits, tool progress, background tasks and notices have their
   own rows. Every row carries `seq`, `timestamp` and `session_id`; rows
-  within a turn also carry its `turn` number.
+  within a turn also carry its `turn` number. `seq` and `turn` count from 1
+  in every run: a run that continues a stored conversation (`-c`, `-r`)
+  starts them again, and its `session` row names the conversation it
+  continues in `resume_of`.
 
 The output row types, by their `type` field:
 
-- `session` — the opening row: `version`, `cwd`, `model`, `mode`, and the
-  `tools`, `mcp_servers`, `commands`, `agents`, `skills` and `extensions` the
-  session has.
+- `session` — the opening row: `version`, `build` (the first twelve hex
+  characters of the tree the bundle was built from, as `mercury daemon
+  status` prints it; absent when no manifest sits beside the bundle),
+  `resume_of` (on a continued run, the session id of the conversation it
+  continues; the same id as `session_id` unless the run was forked), `cwd`,
+  `model`, `mode`, and the `tools`, `mcp_servers`, `commands`, `agents`,
+  `skills` and `extensions` the session has.
 - `turn` — a turn `started` or `waiting`, with its `turn_id`; `model`,
   `message_ids` and the `agents` count when known.
 - `text` — a settled text block: `message_id`, `block`, `text`, and its
@@ -431,18 +438,31 @@ The output row types, by their `type` field:
   `redacted: true`.
 - `tool_call` — a tool call: `call_id`, `tool`, `input`, with its
   `message_id` and `block`.
-- `tool_result` — the call's result: `call_id`, `status` (`ok`, `error` or
-  `aborted`) and `output`.
-- `tool_update` — progress from a running shell, PowerShell, MCP or Eval
-  call: `call_id`, `tick`, `source`, and whichever of `line`, `elapsed_s`,
-  `lines`, `bytes`, `budget_ms`, `progress` and `total` the call reports.
+- `tool_result` — the call's result: `call_id`, `status` (`ok`, `error`,
+  `aborted` or `refused`) and `output`. A call the model shaped so badly that
+  it was refused before execution (an unknown tool, arguments that are not
+  valid JSON or do not fit the tool's schema) still gets its pair: a
+  `tool_call` row with the arguments as delivered (`{}` when they were not an
+  object) and a `tool_result` row with status `refused` whose `output` is the
+  reason; the correction `notice` follows. Such a call never ran and is not a
+  denial.
+- `tool_update` — progress from a running tool: `call_id`, `tick`, `source`
+  (`shell`, `powershell`, `mcp` or `eval`), and whichever of `line`,
+  `elapsed_s`, `lines`, `bytes`, `budget_ms`, `progress` and `total` the call
+  reports. A shell or PowerShell call ticks as its output arrives (a command
+  that prints nothing never ticks), an MCP call when its server reports
+  progress, an Eval call while its cell runs; no other tool ticks — a Browser
+  or Agent call is silent until its result.
 - `step` — one model call of the main thread: `message_id`, `model`, `usage`,
   and `stop` when the model said why it stopped.
 - `outcome` — the turn's result, described below.
 - `wait` — a wait on the model: `state` (`first_byte`, `retry`, `silence`,
   `loading` or `done`) with the figures that state carries, such as
   `since_ms`, `attempt` and `of`, `delay_ms`, `reason` and `http_status`.
-- `heartbeat` — the run is alive; the row carries nothing else.
+- `heartbeat` — the model stream showed life after at least a second without
+  a parsed event: bytes arrived that produced no row. The row carries nothing
+  else and comes at most once a second; how often depends on the provider's
+  streaming shape, so a stream that never pauses between events emits none.
 - `compaction` — a compaction `started`, in `progress` or `ended`: `trigger`
   (`manual`, `auto` or `overflow`), `stage`, `fill`, `summary_tokens` and, at
   the end, `exit` (`landed`, `cancelled` or `failed`).
@@ -466,12 +486,22 @@ The settled text or tool row is the complete value.
 
 The outcome carries `schema`, `turn_id`, `status`, `steps`, `wall_ms`,
 `usage`, `models` and `denials`, with `answer` on completion and `error`
-(`message`, `class`, optional `detail`) on failure. `stop`, measured
-`api_ms`, known `cost_usd`, requested `structured` output and `notices` are
-included when available. Usage names `input_tokens` (cached tokens included),
+(`message`, `class`, optional `detail`) on failure. `stop`, `api_ms`,
+`cost_usd`, requested `structured` output and `notices` are included when
+available. `wall_ms` is the turn's elapsed time. `api_ms` is the sum of the
+durations of every model request the turn made — retries, and the
+crewmates' requests that ran alongside the main thread, included — so it
+can exceed `wall_ms` when requests overlapped. `cost_usd` is the USD of the turn's priced
+requests, whatever the status: a request Mercury cannot price (no rate on
+file, no cost stated on the wire) adds nothing to it and leaves its model
+listed in `models` without a `cost_usd` of its own; the field is absent only
+when nothing in the turn was priced. Usage names `input_tokens` (cached tokens included),
 `cached_input_tokens`, `cache_write_input_tokens`, `output_tokens` and,
-when reported, `reasoning_output_tokens`. `models` gives the per-model
-figures; `steps` counts the main thread's model calls.
+when reported, `reasoning_output_tokens`, summed over the main thread and
+the crewmates. `models` gives the per-model figures; `steps` counts the main
+thread's model calls alone — one per `step` row without `parent_call_id`; a
+crewmate's calls are its own `step` rows under its `parent_call_id` and are
+not in the count.
 
 The status is `completed`, `blocked`, `refused`, `failed`, `interrupted`,
 `turn_limit`, `budget_limit`, `schema_unmet` or `loop_stopped`. A completed
