@@ -41,7 +41,7 @@ import {
 } from '../../utils/file.js'
 import { persistToolResult, buildLargeToolResultMessage, generatePreview, PREVIEW_SIZE_CHARS } from '../../utils/toolResultStorage.js'
 import { interpretCommandResult } from './commandSemantics.js'
-import { describeMaxOutputChars, getDefaultTimeoutMs, getMaxTimeoutMs, getSimplePrompt } from './prompt.js'
+import { describeCommandDescription, describeMaxOutputChars, describeRunInBackground, describeTimeout, getDefaultTimeoutMs, getMaxTimeoutMs, getSimplePrompt } from './prompt.js'
 import { shouldUseSandbox } from './shouldUseSandbox.js'
 import { firstCommandWord } from '../../utils/shell/shellToolUtils.js'
 import { isSedInPlaceEdit, parseSedEditCommand, applySedSubstitution } from './sedEditParser.js'
@@ -100,29 +100,12 @@ const NEVER_AUTO_BACKGROUND = new Set(['sleep'])
 const SLEEP_TIMEOUT_WHY = 'A command whose first word is `sleep` is killed at its timeout instead of moving to the background; to wait longer, pass a larger `timeout` or use the Sleep tool.'
 
 
-function bashDescriptionGuide(): string {
-  return [
-    'Describe what the command does, in active voice. Do not use the words "complex" or "risk".',
-    'For an everyday single-tool command, a brief phrase of roughly five to ten words is enough:',
-    '  ls -la → "List files in the current directory"',
-    '  git status → "Show the working-tree status"',
-    'For a command that is harder to read at a glance — a pipeline, an unusual flag — add enough',
-    'context to make the intent clear:',
-    '  find . -name "*.tmp" -delete → "Find and delete every .tmp file recursively"',
-    '  curl -s url | jq ".data[]" → "Fetch JSON and extract each element of its data array"',
-  ].join('\n')
-}
-
 function buildModelSchema() {
   return z.strictObject({
     command: z.string().describe('The command to execute'),
-    timeout: semanticNumber(z.number().optional()).describe(
-      `Optional timeout in milliseconds (max ${getMaxTimeoutMs()})`,
-    ),
-    description: z.string().optional().describe(bashDescriptionGuide()),
-    run_in_background: semanticBoolean(z.boolean().optional()).describe(
-      'Set to true to run the command in the background and read its output later with the file-reading tool.',
-    ),
+    timeout: semanticNumber(z.number().optional()).describe(describeTimeout()),
+    description: z.string().optional().describe(describeCommandDescription()),
+    run_in_background: semanticBoolean(z.boolean().optional()).describe(describeRunInBackground()),
     dangerouslyDisableSandbox: semanticBoolean(z.boolean().optional()).describe(
       'An explicit, dangerous override that runs the command without sandboxing.',
     ),
