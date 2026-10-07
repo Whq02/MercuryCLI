@@ -475,7 +475,7 @@ section('capability mounts append guidance while the real request prefix holds')
     const tools: any[] = [ToolSearchTool, fake('DeferredFixture')]
     const history: any[] = [createUserMessage({ content: 'First question.' })]
     const controller = new AbortController()
-    for (const name of [null, 'LSP', 'Debug']) {
+    for (const name of [null, 'LspRead', 'Debug']) {
       if (name !== null) tools.push(fake(name))
       const systemPrompt = await getSystemPrompt(tools, model)
       const delta = getRunProtocolDelta(tools, history)
