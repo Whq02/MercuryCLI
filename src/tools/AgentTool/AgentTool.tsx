@@ -238,13 +238,13 @@ export const inputSchema = lazySchema(() => {
       .record(z.string(), z.unknown())
       .optional()
       .describe(
-        'JSON Schema for a STRUCTURED final answer: the agent finalizes through a schema-bound tool and the result carries parsed data alongside the prose.',
+        'JSON Schema for the final answer, submitted through a StructuredOutput tool that checks it. The result opens with <structured status="valid"> and the checked JSON; "missing" or "invalid" means none passed.',
       ),
     schema_mode: z
       .enum(['permissive', 'strict'])
       .optional()
       .describe(
-        "With output_schema: 'strict' fails the dispatch when no conforming payload was produced; 'permissive' (default) records the miss and keeps the prose.",
+        "With output_schema: 'strict' fails the call when none passed; 'permissive' (default) returns the prose under status \"missing\" or \"invalid\".",
       ),
   }
   return z.object(base)
