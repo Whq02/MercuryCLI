@@ -1,12 +1,13 @@
-
+import { resolve } from 'node:path'
 import { z } from 'zod/v4'
-import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
+import { buildTool, findToolByName, type ToolCallProgress, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
 import { lazySchema } from '../../utils/lazySchema.js'
-import { expandPath } from '../../utils/path.js'
+import { getCwd } from '../../utils/cwd.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
-import { createDapSession } from '../../services/dap/dapClient.js'
+import { getDenyRuleForTool } from '../../utils/permissions/decision/rules.js'
+import { createDapSession, getDapSession, isDapToolCatalogEnabled } from '../../services/dap/dapClient.js'
 import {
   buildTarget,
   configureConventional,
@@ -19,7 +20,10 @@ import {
   launchProfilesEnabled,
   type LaunchProfile,
 } from '../../services/ide/launchProfiles.js'
-import { runPythonTests } from '../../services/ide/pythonTests.js'
+import { pythonTestsEnabled } from '../../services/ide/pythonTests.js'
+import { DebugTool, runDebugLaunch, type Input as DebugInput, type OpResult as DebugResult } from '../DebugTool/DebugTool.js'
+import { TestTool, runTestOperation, type Input as TestInput } from '../TestTool/TestTool.js'
+import { renderToolUseProgressMessage } from '../TestTool/UI.js'
 import {
   renderToolResultMessage,
   renderToolUseErrorMessage,
@@ -33,7 +37,7 @@ const inputSchema = lazySchema(() =>
   z.strictObject({
     op: z.enum(OPS).describe('The launch-profile operation'),
     profile: z.string().optional().describe('The profile id (lp-…) from op:"list" — required for inspect/debug/run/test/build'),
-    session: z.string().optional().describe('debug/run: the Debug-tool session name to create (default "launch")'),
+    session: z.string().optional().describe('Debug session for debug (default "main") or for a still-running run (default "launch")'),
     file: z.string().optional().describe('debug: source file for breakpoints'),
     lines: z
       .array(semanticNumber(z.number().int().positive()))
@@ -48,9 +52,98 @@ export type Output = {
   op: Input['op']
   result: string
   outcome: ToolEffectOutcome
+  route?: { tool: 'Debug' | 'Test'; input: Record<string, unknown> }
 }
 
+type OwnerTool = 'Debug' | 'Test'
+type Route =
+  | { tool: 'Debug'; input: DebugInput; owners: OwnerTool[]; cwd?: string }
+  | { tool: 'Test'; input: TestInput; owners: OwnerTool[] }
+type OpResult = Pick<Output, 'result' | 'outcome' | 'route'> & { details?: Record<string, unknown> }
+type Resolution = { refuse: OpResult } | { own: 'run' | 'build' } | { route: Route }
+
 const lastActions = new Map<OwnerKey, { at: number; summary: string }>()
+
+function profileOps(p: LaunchProfile): string {
+  return p.debug ? 'op:"debug" or op:"run"' : p.test || (p.runnerRef && p.kind === 'test')
+    ? 'op:"test"' : p.build || (p.runnerRef && p.kind === 'build') ? 'op:"build"' : `op:"${p.kind}"`
+}
+
+function resolveRequest(p: LaunchProfile, input: Input): Resolution {
+  const engineRefusal = operatorRunRefusal(p)
+  if (engineRefusal) return { refuse: engineRefusal }
+  const breakpoints = input.file && input.lines?.length ? { file: input.file, lines: input.lines } : undefined
+  switch (input.op) {
+    case 'debug': {
+      const session = input.session ?? 'main'
+      if (p.debug) {
+        return { route: {
+          tool: 'Debug',
+          input: {
+            op: 'launch', program: p.debug.program, adapter: p.debug.adapter,
+            ...(p.debug.args?.length ? { args: p.debug.args } : {}),
+            ...(breakpoints ?? { stopOnEntry: true }),
+            ...(session !== 'main' ? { session } : {}),
+          },
+          owners: ['Debug'],
+          ...(p.debug.cwd !== undefined ? { cwd: p.debug.cwd } : {}),
+        } }
+      }
+      if (p.source === 'python-tests' && p.test?.selectionLabel === 'rerun-failed' && p.test.selection.length) {
+        return { route: {
+          tool: 'Test',
+          input: { op: 'debug', node: p.test.selection[0], framework: p.test.framework, ...breakpoints, session },
+          owners: ['Test', 'Debug'],
+        } }
+      }
+      if (p.kind === 'test') {
+        return { refuse: {
+          result: `profile ${p.id} runs a whole test suite — debug one test with Test {"op":"debug","node":"<test id>"} (Test {"op":"discover"} lists the ids), or run the suite with op:"test"`,
+          outcome: 'no-change',
+        } }
+      }
+      return { refuse: { result: `profile ${p.id} is a ${p.kind} profile — it has no debug/run payload (use op:"${p.kind}")`, outcome: 'no-change' } }
+    }
+    case 'run':
+      return p.debug ? { own: 'run' } : { refuse: {
+        result: `profile ${p.id} is a ${p.kind} profile — it has no debug/run payload (use op:"${p.kind}")`, outcome: 'no-change',
+      } }
+    case 'test':
+      if (p.runnerRef && p.kind === 'test') {
+        return { route: { tool: 'Test', input: { op: 'run', profile: p.runnerRef.profileId }, owners: ['Test'] } }
+      }
+      if (p.test) {
+        return { route: {
+          tool: 'Test',
+          input: p.test.selectionLabel === 'rerun-failed' ? { op: 'rerunFailed' } : { op: 'run', framework: p.test.framework },
+          owners: ['Test'],
+        } }
+      }
+      return { refuse: { result: `profile ${p.id} is a ${p.kind} profile — it has no test payload (use ${profileOps(p)})`, outcome: 'no-change' } }
+    default:
+      return p.build || (p.runnerRef && p.kind === 'build') ? { own: 'build' } : { refuse: {
+        result: `profile ${p.id} is a ${p.kind} profile — it has no build payload (use ${profileOps(p)})`, outcome: 'no-change',
+      } }
+  }
+}
+
+function ownersOf(request: Resolution): OwnerTool[] {
+  return 'route' in request ? request.route.owners : 'own' in request && request.own === 'run' ? ['Debug'] : []
+}
+
+function ownerBlocked(name: OwnerTool, context: ToolUseContext): boolean {
+  const permissions = context?.getAppState?.()?.toolPermissionContext
+  return permissions !== undefined && getDenyRuleForTool(permissions, { name }) !== null
+}
+
+function ownerAvailable(name: OwnerTool, context: ToolUseContext): boolean {
+  const tools = context?.options?.tools
+  return tools !== undefined ? findToolByName(tools, name) !== undefined : name === 'Debug' ? isDapToolCatalogEnabled() : pythonTestsEnabled()
+}
+
+function ownerRefusal(op: Input['op'], name: OwnerTool, blocked: boolean): string {
+  return `Launch ${op} runs through the ${name} tool, which ${blocked ? 'a deny rule blocks' : 'is not available'} in this session — nothing ran. If the task needs ${name}, say so to the user.`
+}
 
 function describeProfile(p: LaunchProfile): string {
   const payload =
@@ -62,12 +155,25 @@ function describeProfile(p: LaunchProfile): string {
           ? `build → ${p.build.preset ? `preset ${p.build.preset}` : 'conventional configure'}`
           : (p.unityHeadless ?? p.blenderHeadless)
             ? `operator-run → ${(p.unityHeadless ?? p.blenderHeadless)?.commandLine}`
-            : '(no payload)'
+            : p.runnerRef
+              ? `${p.kind} → ${p.runnerRef.runner} runner profile ${p.runnerRef.profileId}`
+              : '(no payload)'
+  const routes: string[] = []
+  for (const op of ['test', 'debug'] as const) {
+    const request = resolveRequest(p, { op, profile: p.id })
+    if ('route' in request) {
+      const r = request.route
+      const cwd = r.tool === 'Debug' && r.cwd !== undefined && resolve(r.cwd) !== resolve(getCwd())
+        ? ` · cwd ${r.cwd} from the profile` : ''
+      routes.push(`  ${op} runs as: ${r.tool} ${JSON.stringify(r.input)}${cwd}`)
+    }
+  }
   const note = p.unityHeadless?.note ?? p.blenderHeadless?.note
   return [
     `${p.id} [${p.kind}/${p.language}] ${p.label}`,
     `  ${payload}`,
     `  from: ${p.provenance}`,
+    ...routes,
     ...(note ? [`  note: ${note}`] : []),
     ...(p.droppedFields?.length ? [`  dropped (unrepresentable): ${p.droppedFields.join(', ')}`] : []),
   ].join('\n')
@@ -91,203 +197,191 @@ export function operatorRunRefusal(p: LaunchProfile): { result: string; outcome:
 
 export const unityHeadlessRefusal = operatorRunRefusal
 
-async function runOp(input: Input, context: ToolUseContext): Promise<{ result: string; outcome: ToolEffectOutcome }> {
+async function routeLine(p: LaunchProfile, route: Route, context: ToolUseContext, replaced: boolean): Promise<string> {
+  let line = `Launch ${p.id} ran as: ${route.tool} ${JSON.stringify(route.input)}`
+  const session = route.input.session ?? 'main'
+  if (route.tool === 'Debug' && route.cwd !== undefined && resolve(route.cwd) !== resolve(getCwd())) {
+    line += `; cwd ${route.cwd} from the profile`
+  }
+  if (replaced) line += `; it replaced the live session '${session}'`
+  if (route.tool === 'Debug' && session !== 'main') line += `; pass session:${JSON.stringify(session)} on every Debug call`
+  if (route.tool === 'Test' && route.input.op === 'debug' && (p.test?.selection.length ?? 0) > 1) {
+    line += `; ${p.test!.selection.length - 1} more failing test(s) — Test ${JSON.stringify({ op: 'debug', node: p.test!.selection[1] })} debugs another`
+  }
+  const tools = context?.options?.tools
+  if (tools && context.messages) {
+    const next = route.tool === 'Debug' || route.input.op === 'debug' ? 'Debug' : 'Test'
+    const tool = findToolByName(tools, next)
+    if (tool) {
+      const { buildSchemaNotSentHint } = await import('../../services/tools/toolExecution.js')
+      if (buildSchemaNotSentHint(tool, context.messages, tools, context.options.engineModel) !== null) {
+        line += `; load ${next} first: ToolSearch "select:${next}"`
+      }
+    }
+  }
+  return line
+}
+
+async function runRoute(p: LaunchProfile, route: Route, context: ToolUseContext, onProgress?: ToolCallProgress): Promise<OpResult> {
+  const owner = ownerFromToolUseContext(context)
+  const session = route.input.session ?? 'main'
+  const debugging = route.tool === 'Debug' || route.input.op === 'debug'
+  const replaced = debugging && getDapSession(owner, session) !== undefined
+  let op: DebugResult & { record?: Awaited<ReturnType<typeof runTestOperation>>['record'] }
+  try {
+    op = route.tool === 'Debug'
+      ? await runDebugLaunch(route.input, owner, { cwd: route.cwd })
+      : await runTestOperation(route.input, context, onProgress)
+  } catch (err) {
+    op = { result: `${route.input.op} failed: ${(err as Error).message}`, outcome: 'failed' }
+  }
+  const summary = route.tool === 'Debug'
+    ? `debug ${p.id} (${p.label}) → Debug session '${session}' — ${op.debuggee ?? 'failed'}`
+    : route.input.op === 'debug'
+      ? `debug ${p.id} (${p.label}) → Test debug of ${route.input.node} in session '${session}' — ${op.outcome}`
+      : op.record
+        ? `test ${p.id} — ${op.record.counts.passed} passed · ${op.record.counts.failed} failed (${op.record.id})`
+        : `test ${p.id} — ${op.outcome}`
+  lastActions.set(owner, { at: Date.now(), summary })
+  const routed = { tool: route.tool, input: route.input }
+  return {
+    result: `${op.result}\n${await routeLine(p, route, context, replaced)}`,
+    outcome: op.outcome,
+    route: routed,
+    details: {
+      route: routed,
+      ...(op.details ?? {}),
+      ...(op.debuggee ? { debuggee: op.debuggee } : {}),
+      ...(op.record ? { testRun: { id: op.record.id, framework: op.record.framework, counts: op.record.counts, failures: op.record.failures.slice(0, 20) } } : {}),
+    },
+  }
+}
+
+async function runOp(input: Input, context: ToolUseContext, onProgress?: ToolCallProgress): Promise<OpResult> {
   const owner = ownerFromToolUseContext(context)
   const note = (summary: string): void => {
     lastActions.set(owner, { at: Date.now(), summary })
   }
-  switch (input.op) {
-    case 'list': {
-      const d = await discoverLaunchProfiles()
-      const lines = d.profiles.map(p => `${p.id} [${p.kind}/${p.language}] ${p.label}`)
-      return {
-        result:
-          (lines.length ? lines.join('\n') : 'no launch profiles discovered in this project') +
-          (d.skipped.length
-            ? `\nskipped launch.json configs:\n${d.skipped.map(s => `  ${s.name}: ${s.reason}`).join('\n')}`
-            : '') +
-          (d.sourceErrors.length
-            ? `\nsource notes:\n${d.sourceErrors.map(e => `  ${e.source}: ${e.error}`).join('\n')}`
-            : ''),
-        outcome: 'no-change',
-      }
+  if (input.op === 'list') {
+    const d = await discoverLaunchProfiles()
+    const lines = d.profiles.map(p => `${p.id} [${p.kind}/${p.language}] ${p.label}`)
+    return {
+      result:
+        (lines.length ? lines.join('\n') : 'no launch profiles discovered in this project') +
+        (d.skipped.length
+          ? `\nskipped launch.json configs:\n${d.skipped.map(s => `  ${s.name}: ${s.reason}`).join('\n')}`
+          : '') +
+        (d.sourceErrors.length
+          ? `\nsource notes:\n${d.sourceErrors.map(e => `  ${e.source}: ${e.error}`).join('\n')}`
+          : ''),
+      outcome: 'no-change',
     }
-    case 'inspect': {
-      if (!input.profile) return { result: 'inspect needs profile (an lp-… id from op:"list")', outcome: 'failed' }
-      const p = await getLaunchProfile(input.profile)
-      if (!p) return { result: `no profile '${input.profile}' in the current discovery — re-run op:"list" (ids are content-stable; a changed source changes the id)`, outcome: 'failed' }
-      return { result: describeProfile(p), outcome: 'no-change' }
+  }
+  if (input.op === 'last') {
+    const last = lastActions.get(owner)
+    return {
+      result: last ? `${new Date(last.at).toISOString()} — ${last.summary}` : 'no launch-profile action this session',
+      outcome: 'no-change',
     }
-    case 'debug':
-    case 'run': {
-      if (!input.profile) return { result: `${input.op} needs profile`, outcome: 'failed' }
-      const p = await getLaunchProfile(input.profile)
-      if (!p) return { result: `no profile '${input.profile}' — re-run op:"list"`, outcome: 'failed' }
-      const engineRefusal = operatorRunRefusal(p)
-      if (engineRefusal) return engineRefusal
-      if (!p.debug) {
-        return {
-          result: `profile ${p.id} is a ${p.kind} profile — it has no debug/run payload (use op:"${p.kind}")`,
-          outcome: 'no-change',
-        }
-      }
-      const sessionId = input.session ?? 'launch'
-      const breakpoints = new Map<string, number[]>()
-      if (input.op === 'debug' && input.file && input.lines?.length) {
-        breakpoints.set(expandPath(input.file), input.lines)
-      }
-      const session = await createDapSession({
-        owner,
-        id: sessionId,
-        adapterKey: p.debug.adapter,
-        program: p.debug.program,
-        args: p.debug.args,
-        cwd: p.debug.cwd ?? process.cwd(),
-        breakpoints: breakpoints.size ? breakpoints : undefined,
-        stopOnEntry: input.op === 'debug' && breakpoints.size === 0,
-        noDebug: input.op === 'run',
-      })
-      if (input.op === 'run') {
-        const outcome = await session.waitForStopOutcome(15_000)
-        if (outcome.state === 'terminated') {
-          await session.drainOutput()
-          const tail = session.output.slice(-12).join('\n')
-          note(`run ${p.id} (${p.label}) — terminated: ${session.exitDetail || 'clean exit'}`)
-          const { removeDapSession } = await import('../../services/dap/dapClient.js')
-          await removeDapSession(owner, sessionId)
-          return {
-            result: `ran ${p.label} — ${session.exitDetail || 'clean exit'}${tail ? `\noutput:\n${tail}` : ''}`,
-            outcome: 'succeeded',
-          }
-        }
-        note(`run ${p.id} (${p.label}) — still running (session '${sessionId}')`)
-        return {
-          result: `${p.label} is RUNNING (session '${sessionId}') — observe with the Debug tool (op:"output"/"status"; finish with op:"disconnect")`,
-          outcome: 'succeeded',
-        }
-      }
-      const stop = await session.waitForStopOutcome(20_000)
-      const state =
-        stop.state === 'stopped'
-          ? `stopped — reason ${stop.info.reason}`
-          : stop.state === 'terminated'
-            ? `terminated before a stop (${session.exitDetail || 'clean exit'})`
-            : 'still running (no stop in 20s)'
-      note(`debug ${p.id} (${p.label}) — ${state}`)
+  }
+  if (!input.profile) return { result: input.op === 'inspect' ? 'inspect needs profile (an lp-… id from op:"list")' : `${input.op} needs profile`, outcome: 'failed' }
+  const p = await getLaunchProfile(input.profile)
+  if (!p) return { result: `no profile '${input.profile}' in the current discovery — re-run op:"list" (ids are content-stable; a changed source changes the id)`, outcome: 'failed' }
+  if (input.op === 'inspect') return { result: describeProfile(p), outcome: 'no-change' }
+  const request = resolveRequest(p, input)
+  const owners = ownersOf(request)
+  const blocked = owners.find(name => ownerBlocked(name, context))
+  if (blocked) return { result: ownerRefusal(input.op, blocked, true), outcome: 'failed' }
+  if ('refuse' in request) return request.refuse
+  const absent = owners.find(name => !ownerAvailable(name, context))
+  if (absent) return { result: ownerRefusal(input.op, absent, false), outcome: 'failed' }
+  if ('route' in request) return runRoute(p, request.route, context, onProgress)
+  if (request.own === 'run') {
+    const sessionId = input.session ?? 'launch'
+    const session = await createDapSession({
+      owner,
+      id: sessionId,
+      adapterKey: p.debug!.adapter,
+      program: p.debug!.program,
+      args: p.debug!.args,
+      cwd: p.debug!.cwd ?? process.cwd(),
+      breakpoints: undefined,
+      stopOnEntry: false,
+      noDebug: true,
+    })
+    const outcome = await session.waitForStopOutcome(15_000)
+    if (outcome.state === 'terminated') {
+      await session.drainOutput()
+      const tail = session.output.slice(-12).join('\n')
+      note(`run ${p.id} (${p.label}) — terminated: ${session.exitDetail || 'clean exit'}`)
+      const { removeDapSession } = await import('../../services/dap/dapClient.js')
+      await removeDapSession(owner, sessionId)
       return {
-        result: `debugging ${p.label} in session '${sessionId}': ${state}\ncontinue with the Debug tool (stack/scopes/variables/continue; disconnect when done)`,
+        result: `ran ${p.label} — ${session.exitDetail || 'clean exit'}${tail ? `\noutput:\n${tail}` : ''}`,
         outcome: 'succeeded',
       }
     }
-    case 'test': {
-      if (!input.profile) return { result: 'test needs profile', outcome: 'failed' }
-      const p = await getLaunchProfile(input.profile)
-      if (!p) return { result: `no profile '${input.profile}' — re-run op:"list"`, outcome: 'failed' }
-      if (p.runnerRef && p.kind === 'test') {
-        const { runRunnerProfile } = await import('../../services/ide/projectRunners.js')
-        const out = await runRunnerProfile(p.runnerRef.profileId, { signal: context.abortController.signal })
-        if (out.state === 'unavailable') {
-          return { result: `test run unavailable: ${out.reason}\nremedy: ${out.remedy}`, outcome: 'failed' }
-        }
-        if (out.state === 'stale-profile') {
-          return { result: `stale runner profile: ${out.reason}\ncurrent: ${out.profiles.map(rp => `${rp.id} ${rp.title}`).join(' · ') || '(none)'}`, outcome: 'failed' }
-        }
-        const rc = out.record.counts
-        note(`test ${p.id} — ${rc.passed} passed · ${rc.failed} failed (${out.record.id})`)
-        return {
-          result: `${p.label}: ${rc.passed} passed · ${rc.failed} failed · ${rc.skipped} skipped · ${rc.errored} errored — record mercury://test/run/${out.record.id}${out.record.verdictNote ? `\nNOTE: ${out.record.verdictNote}` : ''}`,
-          outcome: rc.failed === 0 && rc.errored === 0 && out.record.exitCode === 0 ? 'succeeded' : 'failed',
-        }
-      }
-      const engineTestRefusal = operatorRunRefusal(p)
-      if (engineTestRefusal) return engineTestRefusal
-      if (!p.test) return { result: `profile ${p.id} is a ${p.kind} profile — no test payload`, outcome: 'no-change' }
-      const out = await runPythonTests({
-        framework: p.test.framework,
-        selection: p.test.selection,
-        selectionLabel: p.test.selectionLabel,
-      })
-      if (out.state === 'unavailable') {
-        return { result: `test run unavailable: ${out.reason}\nremedy: ${out.remedy}`, outcome: 'failed' }
-      }
-      const c = out.record.counts
-      note(`test ${p.id} — ${c.passed} passed · ${c.failed} failed (${out.record.id})`)
-      return {
-        result: `${p.label}: ${c.passed} passed · ${c.failed} failed · ${c.skipped} skipped · ${c.errored} errored — record mercury://test/run/${out.record.id}`,
-        outcome: out.record.failures.length === 0 && !out.record.verdictNote ? 'succeeded' : 'failed',
-      }
+    note(`run ${p.id} (${p.label}) — still running (session '${sessionId}')`)
+    return {
+      result: `${p.label} is RUNNING in Debug session '${sessionId}' — read its output with Debug ${JSON.stringify({ op: 'output', session: sessionId })}; stop it with Debug ${JSON.stringify({ op: 'disconnect', session: sessionId })}`,
+      outcome: 'succeeded',
     }
-    case 'build': {
-      if (!input.profile) return { result: 'build needs profile', outcome: 'failed' }
-      const p = await getLaunchProfile(input.profile)
-      if (!p) return { result: `no profile '${input.profile}' — re-run op:"list"`, outcome: 'failed' }
-      if (p.runnerRef && p.kind === 'build') {
-        const { runRunnerProfile } = await import('../../services/ide/projectRunners.js')
-        const out = await runRunnerProfile(p.runnerRef.profileId, { signal: context.abortController.signal })
-        if (out.state === 'unavailable') {
-          return { result: `build unavailable: ${out.reason}\nremedy: ${out.remedy}`, outcome: 'failed' }
-        }
-        if (out.state === 'stale-profile') {
-          return { result: `stale runner profile: ${out.reason}`, outcome: 'failed' }
-        }
-        const ok = out.record.exitCode === 0 && !out.record.verdictNote?.includes('did not exit cleanly')
-        const tail = out.record.outputTail.slice(-8).join('\n')
-        note(`build ${p.id} — ${ok ? 'green' : 'FAILED'}`)
-        return {
-          result: `${p.label}: exit ${out.record.exitCode ?? 'null'} (${out.record.durationMs}ms) — record mercury://test/run/${out.record.id}${tail ? `\n${tail}` : ''}`,
-          outcome: ok ? 'succeeded' : 'failed',
-        }
-      }
-      const engineBuildRefusal = operatorRunRefusal(p)
-      if (engineBuildRefusal) return engineBuildRefusal
-      if (!p.build) return { result: `profile ${p.id} is a ${p.kind} profile — no build payload`, outcome: 'no-change' }
-      const steps: CppBuildRun[] = []
-      const configure = p.build.preset ? await configurePreset(p.build.preset) : await configureConventional()
-      steps.push(configure)
-      if (configure.exitCode === 0) {
-        steps.push(await buildTarget(p.build.preset ? { preset: p.build.preset } : {}))
-      }
-      const summary = steps
-        .map(s => `${s.op} exit ${s.exitCode ?? 'null'} (${s.durationMs}ms)${s.artifactRef ? ` · ${s.artifactRef}` : ''}`)
-        .join('\n')
-      const ok = steps.every(s => s.exitCode === 0)
-      const tail = steps.at(-1)?.outputTail.slice(-8).join('\n') ?? ''
-      note(`build ${p.id} — ${ok ? 'green' : 'FAILED'}`)
-      return {
-        result: `${p.label}:\n${summary}${tail ? `\n${tail}` : ''}`,
-        outcome: ok ? 'succeeded' : 'failed',
-      }
+  }
+  if (p.runnerRef && p.kind === 'build') {
+    const { runRunnerProfile } = await import('../../services/ide/projectRunners.js')
+    const out = await runRunnerProfile(p.runnerRef.profileId, { signal: context.abortController.signal })
+    if (out.state === 'unavailable') {
+      return { result: `build unavailable: ${out.reason}\nremedy: ${out.remedy}`, outcome: 'failed' }
     }
-    case 'last': {
-      const last = lastActions.get(owner)
-      return {
-        result: last ? `${new Date(last.at).toISOString()} — ${last.summary}` : 'no launch-profile action this session',
-        outcome: 'no-change',
-      }
+    if (out.state === 'stale-profile') {
+      return { result: `stale runner profile: ${out.reason}`, outcome: 'failed' }
     }
+    const ok = out.record.exitCode === 0 && !out.record.verdictNote?.includes('did not exit cleanly')
+    const tail = out.record.outputTail.slice(-8).join('\n')
+    note(`build ${p.id} — ${ok ? 'green' : 'FAILED'}`)
+    return {
+      result: `${p.label}: exit ${out.record.exitCode ?? 'null'} (${out.record.durationMs}ms) — record mercury://test/run/${out.record.id}${tail ? `\n${tail}` : ''}`,
+      outcome: ok ? 'succeeded' : 'failed',
+    }
+  }
+  const steps: CppBuildRun[] = []
+  const configure = p.build!.preset ? await configurePreset(p.build!.preset) : await configureConventional()
+  steps.push(configure)
+  if (configure.exitCode === 0) {
+    steps.push(await buildTarget(p.build!.preset ? { preset: p.build!.preset } : {}))
+  }
+  const summary = steps
+    .map(s => `${s.op} exit ${s.exitCode ?? 'null'} (${s.durationMs}ms)${s.artifactRef ? ` · ${s.artifactRef}` : ''}`)
+    .join('\n')
+  const ok = steps.every(s => s.exitCode === 0)
+  const tail = steps.at(-1)?.outputTail.slice(-8).join('\n') ?? ''
+  note(`build ${p.id} — ${ok ? 'green' : 'FAILED'}`)
+  return {
+    result: `${p.label}:\n${summary}${tail ? `\n${tail}` : ''}`,
+    outcome: ok ? 'succeeded' : 'failed',
   }
 }
 
 export const LaunchTool = buildTool({
   name: 'Launch',
   searchHint:
-    'unified launch profiles: list/inspect/debug/run/test/build from .vscode launch.json, python tests, CMake presets, Godot scenes',
+    'launch.json, Python test, CMake, Godot, script profiles: debug via Debug, test via Test, run, build — lp- ids, list/inspect, package.json Cargo.toml go.mod scripts, Unity/Blender recipes',
   maxResultSizeChars: 60_000,
   async description() {
-    return 'Discover and execute unified launch profiles (debug/run/test/build) across Python, C/C++ and Godot'
+    return 'Discover launch profiles and run them — debug through Debug, tests through Test'
   },
   async prompt() {
-    return `Unified launch profiles: ONE discovery over .vscode/launch.json (the safe subset — unrepresentable configs are listed with reasons), detected Python test frameworks, CMake presets and Godot scenes. Execution delegates to the machinery that owns each action (DAP sessions for debug/run — run is the same session with noDebug; the Test transactions; the CMake build primitives).
+    return `One list of the project's launch profiles: .vscode/launch.json configs, the detected Python tests (and a rerun of the last failures), CMake presets, Godot scenes, package.json/Cargo.toml/go.mod test and build scripts, Unity/Blender headless recipes (printed, never run). Ids (lp-…) are content-stable: a changed source gives a new id, so re-list.
 
-1. op:"list" — every profile with its content-stable id (lp-…; a changed source changes the id — never a stale fire).
-2. op:"inspect" (profile) — the full payload + provenance + dropped fields.
-3. op:"debug" (profile, optional file+lines breakpoints) — opens Debug session "launch"; continue with the Debug tool.
-4. op:"run" (profile) — the same adapter path without debugging; quick programs report their output, long-running ones hand you the live session.
-5. op:"test" (profile) — through the Test transactions (durable mercury://test records).
-6. op:"build" (profile) — configure (+build) through the CMake primitives; typed step results with artifact refs.
-7. op:"last" — this session's last launch-profile action.
+1. op:"list" — every profile, and skipped launch.json configs with why.
+2. op:"inspect" (profile) — payload, origin, dropped fields, and the Debug or Test call it runs as.
+3. op:"debug" (profile; file + lines for breakpoints) — runs as a Debug launch in Debug's default session "main" (or session), replacing a live session of that name; the rerun profile runs as Test op:"debug" on its first failure.
+4. op:"run" (profile) — the same without a debugger; a program still running after 15 s stays in Debug session "launch" (or session).
+5. op:"test" (profile) — runs as Test op:"run" (op:"rerunFailed" for the rerun profile).
+6. op:"build" (profile) — CMake configure + build, or the runner's build/check script.
+7. op:"last" — this session's last Launch action.
 
-Conceptual asks this closes: "debug the failing Python test" (the rerun-failed profile), "build the current CMake target" (the preset profile), "run the Godot scene" — no hand-built adapter arguments.`
+debug and test return that tool's own result plus the call they ran as. debug and run need the Debug tool in this session, test the Test tool; without it they refuse.`
   },
   userFacingName,
   shouldDefer: true,
@@ -301,30 +395,51 @@ Conceptual asks this closes: "debug the failing Python test" (the rerun-failed p
   isReadOnly(input: Input) {
     return input?.op === 'list' || input?.op === 'inspect' || input?.op === 'last'
   },
-  async checkPermissions(input: Input) {
+  async checkPermissions(input: Input, context: ToolUseContext) {
     if (input.op === 'list' || input.op === 'inspect' || input.op === 'last') {
       return { behavior: 'allow' as const, updatedInput: input }
     }
-    return {
-      behavior: 'ask' as const,
-      message: `Launch ${input.op}: profile ${input.profile ?? '?'} (executes project code/builds)`,
+    const ask = { behavior: 'ask' as const, message: `Launch ${input.op}: profile ${input.profile ?? '?'} (executes project code/builds)` }
+    const p = input.profile ? await getLaunchProfile(input.profile) : null
+    if (!p) return ask
+    const request = resolveRequest(p, input)
+    const owners = ownersOf(request)
+    const blocked = owners.find(name => ownerBlocked(name, context))
+    if (blocked) {
+      const message = ownerRefusal(input.op, blocked, true)
+      return { behavior: 'deny' as const, message, decisionReason: { type: 'other' as const, reason: message } }
     }
+    if ('refuse' in request || owners.some(name => !ownerAvailable(name, context))) {
+      return { behavior: 'allow' as const, updatedInput: input }
+    }
+    if ('route' in request) {
+      const route = request.route
+      const ownerAsk = route.tool === 'Debug'
+        ? await DebugTool.checkPermissions(route.input, context)
+        : await TestTool.checkPermissions(route.input, context)
+      if (ownerAsk.behavior === 'allow') return { behavior: 'allow' as const, updatedInput: input }
+      return { ...ownerAsk, message: `Launch ${input.op} ${p.id} (${p.label}) → ${ownerAsk.message}` }
+    }
+    return ask
   },
   async validateInput(input: Input) {
     if ((input.op === 'inspect' || input.op === 'debug' || input.op === 'run' || input.op === 'test' || input.op === 'build') && !input.profile) {
-      return { result: false as const, message: `${input.op} requires profile (an lp-… id)`, errorCode: 1 }
+      return { result: false as const, message: `${input.op} requires profile (an lp-… id from op:"list")`, errorCode: 1 }
+    }
+    if (input.op === 'debug' && (input.file !== undefined || input.lines !== undefined) && (!input.file || !input.lines?.length)) {
+      return { result: false as const, message: 'debug breakpoints need file and lines together — pass both, or neither to stop at the program\'s first line', errorCode: 1 }
     }
     return { result: true as const }
   },
-  async call(input: Input, context: ToolUseContext) {
+  async call(input: Input, context: ToolUseContext, _canUseTool, _parentMessage, onProgress) {
     const startedAt = Date.now()
-    let op: { result: string; outcome: ToolEffectOutcome }
+    let op: OpResult
     try {
-      op = await runOp(input, context)
+      op = await runOp(input, context, onProgress)
     } catch (err) {
       op = { result: `${input.op} failed: ${(err as Error).message}`, outcome: 'failed' }
     }
-    const output: Output = { op: input.op, result: op.result, outcome: op.outcome }
+    const output: Output = { op: input.op, result: op.result, outcome: op.outcome, ...(op.route ? { route: op.route } : {}) }
     return {
       data: output,
       effect: {
@@ -334,6 +449,7 @@ Conceptual asks this closes: "debug the failing Python test" (the rerun-failed p
         evidence: op.result.split('\n')[0]?.slice(0, 160) ?? '',
         startedAt,
         completedAt: Date.now(),
+        ...(op.details ? { details: op.details } : {}),
       },
     }
   },
@@ -346,6 +462,7 @@ Conceptual asks this closes: "debug the failing Python test" (the rerun-failed p
   },
   renderToolUseMessage,
   renderToolUseErrorMessage,
+  renderToolUseProgressMessage,
   renderToolResultMessage,
   extractSearchText({ result }) {
     return result
