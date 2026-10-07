@@ -52,8 +52,6 @@ export function decodeDecisionReasonFromWire(value: unknown): PermissionDecision
       return typeof v.mode === 'string' ? (value as PermissionDecisionReason) : undefined
     case 'hook':
       return typeof v.hookName === 'string' ? (value as PermissionDecisionReason) : undefined
-    case 'classifier':
-      return typeof v.classifier === 'string' ? (value as PermissionDecisionReason) : undefined
     case 'asyncAgent':
     case 'sandboxOverride':
     case 'workingDir':

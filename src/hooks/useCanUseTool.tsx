@@ -89,7 +89,6 @@ export default function useCanUseTool(
             if (permissionContext.awaitAutomatedChecksBeforeDialog) {
               const coordinatorDecision = await handleCoordinatorPermission({
                 ctx,
-                ...{},
                 updatedInput: result.updatedInput,
                 suggestions: result.suggestions,
                 permissionMode: permissionContext.mode,

@@ -27,7 +27,6 @@ const plain: Reason[] = [
   rule,
   { type: 'mode', mode: 'default' },
   { type: 'hook', hookName: 'guard', hookSource: 'project', reason: 'the hook says ask' },
-  { type: 'classifier', classifier: 'auto-mode', reason: 'the check said no' },
   { type: 'workingDir', reason: 'outside the workspace' },
   { type: 'safetyCheck', reason: 'a sensitive path', classifierApprovable: true },
   { type: 'other', reason: 'free text' },

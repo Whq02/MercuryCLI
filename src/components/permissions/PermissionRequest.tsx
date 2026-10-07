@@ -6,7 +6,7 @@ import { armPermissionFocus } from '../../utils/permissions/permissionFocus.js'
 import type { Tool } from '../../Tool.js'
 import type { AssistantMessage } from '../../types/message.js'
 import type { ContentBlockParam } from '../../types/wire.js'
-import type { PermissionRule, PermissionUpdate } from '../../types/permissions.js'
+import type { PermissionUpdate } from '../../types/permissions.js'
 import type { PermissionDecision } from '../../utils/permissions/PermissionResult.js'
 import { BashTool } from '../../tools/BashTool/BashTool.js'
 import { PowerShellTool } from '../../tools/PowerShellTool/PowerShellTool.js'
@@ -53,9 +53,6 @@ export type ToolUseConfirm<Input = Record<string, unknown>> = {
   toolUseID: string
   permissionResult: PermissionDecision
   permissionPromptStartTimeMs: number
-  classifierCheckInProgress?: boolean
-  classifierAutoApproved?: boolean
-  classifierMatchedRule?: PermissionRule
   workerBadge?: WorkerBadgeProps
   onUserInteraction: () => void
   onAbort: () => void

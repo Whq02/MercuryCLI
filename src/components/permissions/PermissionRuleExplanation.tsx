@@ -88,14 +88,6 @@ export function PermissionRuleExplanation({
         </Text>
       )
     }
-    case 'classifier': {
-      if (!reason.reason) return null
-      return (
-        <Text wrap="truncate-middle">
-          <Ansi>{reason.reason}</Ansi>
-        </Text>
-      )
-    }
     default:
       return null
   }
