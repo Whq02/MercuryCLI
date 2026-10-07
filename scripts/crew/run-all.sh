@@ -39,7 +39,7 @@
 # gate-watch: src/components/tasks/useCrewmateTranscript.ts
 # gate-watch: package.json scripts/builtin-tools/fixtures/tool-census.json scripts/builtin-tools/fixtures/tool-census.md scripts/project-services/fixtures/inventory.json
 # gate-watch: src/components/mercury-ui/toolGlyphs.ts src/components/messages/AssistantToolUseMessage.tsx src/state/AppState.tsx src/substrate/durableOperationMatrix.ts src/tools.ts src/tools/MCPTool/absentToolShim.ts
-# gate-watch: src/utils/capability/declarations.ts src/utils/permissions/classifierDecision.ts src/utils/crew/agentLaunchPlan.ts
+# gate-watch: src/utils/capability/declarations.ts src/utils/permissions/readOnlyAllowlist.ts src/utils/crew/agentLaunchPlan.ts
 # gate-watch: src/utils/hooks/events.ts src/services/oauth/client.ts
 # gate-watch: src/utils/tasks.ts src/utils/agentContext.ts
 # gate-watch: src/commands/tasks/index.ts src/components/tasks/BackgroundTasksDialog.tsx src/services/crew/identity.ts

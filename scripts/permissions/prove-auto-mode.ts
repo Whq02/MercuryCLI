@@ -16,7 +16,7 @@ const src = (...p: string[]): string =>
   readFileSync(join(import.meta.dir, '..', '..', 'src', ...p), 'utf-8')
 
 console.log('============================================================')
-console.log(' Permission ladder / auto-mode classifier — surface proof')
+console.log(' Permission ladder / flow — surface proof')
 console.log('============================================================')
 
 section('the THREE auto-mode safety floors (decision/wrapper.ts) — force a human ask before the shortcuts')
@@ -40,12 +40,12 @@ section('the THREE auto-mode safety floors (decision/wrapper.ts) — force a hum
   )
 }
 
-section('isAutoModeAllowlistedTool name/action gating (classifierDecision.ts)')
+section('isReadOnlyAllowlistedTool name gating (readOnlyAllowlist.ts)')
 {
-  const cd = src('utils', 'permissions', 'classifierDecision.ts')
+  const cd = src('utils', 'permissions', 'readOnlyAllowlist.ts')
   const has = (needle: string) => cd.includes(needle)
-  check('exists + gates safe-tool names on the allowlist SET', has('export function isAutoModeAllowlistedTool') && has('SAFE_FLOW_ALLOWLISTED_TOOLS.has(toolName)'))
-  const safeSetStart = cd.indexOf('const SAFE_FLOW_ALLOWLISTED_TOOLS: ReadonlySet<string> = new Set([')
+  check('exists + gates read-only tool names on the allowlist SET', has('export function isReadOnlyAllowlistedTool') && has('READ_ONLY_ALLOWLISTED_TOOLS.has(toolName)'))
+  const safeSetStart = cd.indexOf('const READ_ONLY_ALLOWLISTED_TOOLS: ReadonlySet<string> = new Set([')
   const safeSet = safeSetStart === -1 ? '' : cd.slice(safeSetStart, cd.indexOf('])', safeSetStart))
   check('the safe set carries the read-only tools (positive control)', safeSet.includes('FILE_READ_TOOL_NAME,') && safeSet.includes('GREP_TOOL_NAME,') && safeSet.includes('GLOB_TOOL_NAME,'))
   check('write/edit tools are NOT on the safe set (absence, file-wide)', safeSet.length > 0 && !has('FILE_WRITE_TOOL_NAME,') && !has('FILE_EDIT_TOOL_NAME,'))
