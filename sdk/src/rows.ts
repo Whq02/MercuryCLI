@@ -63,6 +63,8 @@ export interface SessionRow {
   parent_call_id?: string
   schema: 1
   version: string
+  build?: string
+  resume_of?: string
   cwd: string
   model: string
   mode: string
@@ -138,7 +140,7 @@ export interface ToolResultRow {
   turn?: number
   parent_call_id?: string
   call_id: string
-  status: 'ok' | 'error' | 'aborted'
+  status: 'ok' | 'error' | 'aborted' | 'refused'
   output: string
 }
 export interface ToolUpdateRow {
@@ -473,6 +475,12 @@ export const ROW_SCHEMAS: Readonly<Record<RowType | PartialRowType, JsonSchema>>
         "const": 1
       },
       "version": {
+        "type": "string"
+      },
+      "build": {
+        "type": "string"
+      },
+      "resume_of": {
         "type": "string"
       },
       "cwd": {
@@ -828,7 +836,8 @@ export const ROW_SCHEMAS: Readonly<Record<RowType | PartialRowType, JsonSchema>>
         "enum": [
           "ok",
           "error",
-          "aborted"
+          "aborted",
+          "refused"
         ]
       },
       "output": {

@@ -59,6 +59,7 @@ type Resumed = NonNullable<Awaited<ReturnType<typeof loadConversationForResume>>
 
 type LoadInitialMessagesResult = {
   messages: Message[]
+  resumedSessionId?: string
   contentReplacements?: ContentReplacementRecord[]
   turnInterruptionState?: TurnInterruptionState
   agentSetting?: string
@@ -103,6 +104,7 @@ export async function loadInitialMessages(
     }
     return {
       messages: result.messages,
+      ...(result.sessionId !== undefined ? { resumedSessionId: String(result.sessionId) } : {}),
       contentReplacements: result.contentReplacements,
       turnInterruptionState: result.turnInterruptionState,
       agentSetting: result.agentSetting,

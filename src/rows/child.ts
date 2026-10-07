@@ -1,7 +1,7 @@
 import type { AssistantMessage, Message } from '../types/message.js'
 import { EMPTY_USAGE } from '../services/api/emptyUsage.js'
 import { updateUsage } from '../services/providers/anthropic/cacheAndUsage.js'
-import { itemRowsOf, stepRow, toolResultRowsOf, type RowDraft, type RowScope } from './project.js'
+import { itemRowsOf, refusedCallRowsOf, stepRow, toolResultRowsOf, type RowDraft, type RowScope } from './project.js'
 
 const messages = new Map<string, { block: number; stepped: boolean; seen: Set<string> }>()
 
@@ -23,6 +23,11 @@ export function childRowsOf(scope: RowScope & { parent_call_id: string }, messag
     cursor.seen.add(assistant.uuid)
     rows.push(...itemRowsOf(scope, messageId, assistant.message.content, cursor.block))
     cursor.block += Array.isArray(assistant.message.content) ? assistant.message.content.length : 1
+    const refused = assistant.refusedToolCalls ?? []
+    if (refused.length > 0) {
+      rows.push(...refusedCallRowsOf(scope, messageId, refused, cursor.block))
+      cursor.block += refused.length
+    }
   }
   if (!cursor.stepped && assistant.message.stop_reason != null) {
     cursor.stepped = true
