@@ -9,6 +9,7 @@ const SPOTS = [
   'frame--120x40--dark--256--full',
   'frame--120x40--dark--ansi--full',
   'frame--120x40--dark--none--full',
+  'frame--120x40--true-black--truecolor--full',
 ]
 
 let fail = 0
