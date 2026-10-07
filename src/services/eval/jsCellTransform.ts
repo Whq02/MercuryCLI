@@ -288,14 +288,15 @@ function hashCode(text: string): number {
   return hash
 }
 
-function isCapturableExpression(segment: string): boolean {
+function isCapturableExpression(segment: string, leadingGroupSafe: boolean): boolean {
   const trimmed = segment.trim().replace(/;+$/, '')
   if (!trimmed) return false
   if (STATEMENT_KEYWORD.test(trimmed)) return false
-  if (/^[.+\-*/%&|^<>?:,)\]}([]/.test(trimmed)) return false
+  if (/^[.+\-*/%&|^<>?:,)\]}]/.test(trimmed)) return false
+  if (!leadingGroupSafe && /^[([]/.test(trimmed)) return false
   try {
     // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
-    new Function(`return (${trimmed});`)
+    new Function(`return async () => (${trimmed}\n);`)
     return true
   } catch {
     return false
@@ -329,7 +330,7 @@ export function transformJsCell(source: string): TransformedCell {
   let prevCodeIndex = -1
   for (let i = 0; i < segments.length; i++) {
     const text = segments[i]!.text
-    if (text.trim()) {
+    if (text.replace(LEADING_TRIVIA, '').trim()) {
       prevCodeIndex = lastCodeIndex
       lastCodeIndex = i
     }
@@ -379,9 +380,9 @@ export function transformJsCell(source: string): TransformedCell {
       out.push(text)
       continue
     }
-    if (i === lastCodeIndex && prevEndsCleanly && !(effective.startsWith('`') && prevCodeIndex >= 0 && !prev.endsWith(';')) && isCapturableExpression(effective)) {
+    if (i === lastCodeIndex && prevEndsCleanly && !(effective.startsWith('`') && prevCodeIndex >= 0 && !prev.endsWith(';')) && isCapturableExpression(effective, prevCodeIndex < 0 || prev.endsWith(';'))) {
       const expr = effective.replace(/;+\s*$/, '')
-      out.push(`${leading}globalThis.__mercuryResult = (${expr});`)
+      out.push(`${leading}globalThis.__mercuryResult = (${expr}\n);`)
       capturesResult = true
       continue
     }

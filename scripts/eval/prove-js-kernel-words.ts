@@ -30,15 +30,15 @@ try {
   section('§1 the description states the environment')
   const prompt = await buildEvalPrompt()
   const dialect = prompt.slice(prompt.indexOf('## Dialect notes'))
-  check('the prompt says the JS kernel is an ES module without require', dialect.includes(MODULE_WORDS) && dialect.includes('`require`'), dialect.slice(0, 400))
-  check('…names the import forms that work', dialect.includes(IMPORT_FIX) && dialect.includes(DYNAMIC_FIX), dialect.slice(0, 400))
-  check("…says the global crypto is the Web Crypto API and where Node's is", dialect.includes(CRYPTO_WORDS) && dialect.includes(CRYPTO_FIX), dialect.slice(0, 600))
+  check('the prompt says require resolves from the working directory', dialect.includes(MODULE_WORDS) && dialect.includes('`require()` resolves from the working directory'), dialect.slice(0, 600))
+  check('the prompt keeps top-level await and persistent imports', /top-level await/i.test(dialect) && dialect.includes('`import`'), dialect.slice(0, 1600))
+  check('the prompt locates Node crypto beside Web Crypto', dialect.includes(CRYPTO_WORDS) && dialect.includes('node:crypto'), dialect.slice(0, 1600))
   check('…and how long an idle kernel is kept before its state is gone', /idle for \d+ minutes/.test(prompt), prompt.slice(prompt.indexOf('## Persistence'), prompt.indexOf('## Persistence') + 500))
 
   section("§2 the kernel: what a failed cell of the record's shapes says")
   const r1 = await run('owner-esm', 'js', "const fs = require('node:fs')\nconst n = 1")
-  check('require fails as a ReferenceError', r1.status === 'error' && r1.error?.name === 'ReferenceError' && r1.error.value === 'require is not defined', JSON.stringify(r1.error))
-  check('…and the note names the ES module fact and both import forms', notes(r1).includes(MODULE_WORDS) && notes(r1).includes(IMPORT_FIX) && notes(r1).includes(DYNAMIC_FIX), notes(r1))
+  check('require resolves in an ES module cell', r1.status === 'ok', JSON.stringify(r1.error))
+  check('a successful require carries no unavailable-environment note', !notes(r1).includes(MODULE_WORDS), notes(r1))
   for (const [code, name] of [
     ['module.exports = 1', 'module'],
     ['exports.x = 1', 'exports'],
@@ -67,8 +67,8 @@ try {
   check('a Python NameError carries no JavaScript note', p1.status === 'error' && !notes(p1).includes(MODULE_WORDS), notes(p1))
 
   section('§3 a failed cell names only the bindings that initialised')
-  const v1 = await run('owner-var', 'js', "var fs = require('node:fs'); var path = require('node:path'); var crypto = require('node:crypto'); var repo = '/x'")
-  check('the var cell failed at its first statement', v1.status === 'error' && v1.error?.value === 'require is not defined', JSON.stringify(v1.error))
+  const v1 = await run('owner-var', 'js', "var fs = absentLoader('node:fs'); var path = require('node:path'); var crypto = require('node:crypto'); var repo = '/x'")
+  check('the var cell failed at its first statement', v1.status === 'error' && v1.error?.value === 'absentLoader is not defined', JSON.stringify(v1.error))
   const survived = v1.annotations.find(a => a.startsWith('bindings that survived') || a.startsWith('no top-level binding'))
   check('nothing is reported as survived', survived !== undefined && survived.startsWith('no top-level binding of this cell survived'), survived ?? notes(v1))
   check('…and the four names are reported as never bound', survived !== undefined && /never bound[^:]*: fs, path, crypto, repo/.test(survived), survived ?? '')
@@ -208,8 +208,8 @@ try {
     check('artifact: a trailing comment preserves both declarations', results[6]?.text.includes('["number","number"]') === true, JSON.stringify(results[6]))
     check('artifact: the regex initializer runs and preserves its bindings', results[7] !== undefined && !results[7].isError && results[8]?.text.includes('["object","number"]') === true, JSON.stringify(results.slice(7)))
     const [req, hash, fix] = results
-    check('artifact: the require cell is an error whose words name the ES module fact and the import fix', req !== undefined && req.isError && req.text.includes('require is not defined') && req.text.includes(MODULE_WORDS) && req.text.includes(IMPORT_FIX), JSON.stringify(req))
-    check('artifact: …and reports fs and repo as never bound, not as survivors', req !== undefined && /never bound[^:]*: fs, repo/.test(req.text) && !/survived this failed cell: fs/.test(req.text), JSON.stringify(req))
+    check('artifact: the require cell succeeds', req !== undefined && !req.isError, JSON.stringify(req))
+    check('artifact: the require cell reports no lost bindings', req !== undefined && !req.text.includes('never bound'), JSON.stringify(req))
     check('artifact: the createHash cell names the Web Crypto fact and the node:crypto import', hash !== undefined && hash.isError && hash.text.includes('crypto.createHash is not a function') && hash.text.includes(CRYPTO_WORDS) && hash.text.includes(CRYPTO_FIX), JSON.stringify(hash))
     check('artifact: the fix cell returns the digest', fix !== undefined && !fix.isError && fix.text.includes(DIGEST), JSON.stringify(fix))
     const [shellExit, attempts, pyExit] = results.slice(9)

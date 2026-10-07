@@ -25,7 +25,6 @@ import { isLspToolCatalogEnabled } from './services/lsp/mercuryLsp.js'
 import { servicesEnabled } from './services/projectServices/contracts.js'
 import { mercuryRefsEnabled } from './services/resources/contracts.js'
 import { structureEnabled, structurePolyglotEnabled } from './services/structure/contracts.js'
-import { workshopEnabled } from './services/workshop/contracts.js'
 import { isToolSearchEnabledOptimistic } from './utils/toolSearch.js'
 
 import { AgentTool } from './tools/AgentTool/AgentTool.js'
@@ -102,7 +101,6 @@ import { WebFetchTool } from './tools/WebFetchTool/WebFetchTool.js'
 import { WebSearchTool } from './tools/WebSearchTool/WebSearchTool.js'
 import { ProviderSearchTool } from './tools/WebSearchTool/ProviderSearchTool.js'
 import { WorkflowTool } from './tools/WorkflowTool/WorkflowTool.js'
-import { WorkshopTool } from './tools/WorkshopTool/WorkshopTool.js'
 import { isPowerShellToolEnabled } from './utils/shell/shellToolUtils.js'
 
 import './services/resources/adapters/git.js'
@@ -166,7 +164,6 @@ export function getAllBaseTools(): Tools {
     ...(isTaskToolsEnabled() ? [TaskCreateTool, TaskGetTool, TaskUpdateTool, TaskListTool] : []),
     ...(isLspToolCatalogEnabled() ? LSP_TOOLS : []),
     ...(mercuryRefsEnabled() ? [InspectTool] : []),
-    ...(workshopEnabled() ? [WorkshopTool] : []),
     ...(servicesEnabled() ? [ServiceTool] : []),
     ...(isDapToolCatalogEnabled() ? [DebugTool] : []),
     ...(pythonTestsEnabled() ? [TestTool] : []),

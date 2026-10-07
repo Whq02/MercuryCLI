@@ -12,7 +12,6 @@ import {
 import { evalAvailability } from '../../services/eval/interpreters.js'
 import { evalKernelManager } from '../../services/eval/kernelManager.js'
 import { makeEvalBridgeServer } from '../../services/eval/evalBridge.js'
-import { capLines } from '../../services/eval/outputSink.js'
 import type { EvalToolProgress } from '../../types/tools.js'
 import { EVAL_TOOL_NAME } from './constants.js'
 import { buildEvalPrompt, EVAL_DESCRIPTION } from './prompt.js'
@@ -37,7 +36,7 @@ const inputSchema = () => {
       .int()
       .min(0)
       .optional()
-      .describe('Runtime budget in seconds (default 30; 0 disables; bridge/permission time never counts).'),
+      .describe('Runtime budget in seconds: default 30, at most 600 (a larger value runs at 600 and the result says so); 0 disables; bridge and permission time never counts.'),
     reset: z.boolean().optional().describe("Recreate this language's kernel first (the other language keeps its state)."),
   })
 }
@@ -55,10 +54,11 @@ function composeResultText(output: EvalToolOutput): string {
   if (output.stdout.text.trim()) parts.push(output.stdout.text)
   if (output.stderr.text.trim()) parts.push(`[stderr]\n${output.stderr.text}`)
   for (const display of output.displays) {
-    if (display.mime === 'text/plain' || display.mime === 'text/markdown') {
-      parts.push(capLines(display.data.slice(0, EVAL_MAX_DISPLAY_CHARS)))
-    } else if (display.mime === 'application/json') {
-      parts.push(`[json]\n${display.data.slice(0, EVAL_MAX_DISPLAY_CHARS)}`)
+    if (display.mime === 'text/plain' || display.mime === 'text/markdown' || display.mime === 'application/json') {
+      const mark = display.data.length > EVAL_MAX_DISPLAY_CHARS
+        ? `\n… [display cut: ${display.data.length} chars, the first ${EVAL_MAX_DISPLAY_CHARS} shown]`
+        : ''
+      parts.push(`${display.mime === 'application/json' ? '[json]\n' : ''}${display.data.slice(0, EVAL_MAX_DISPLAY_CHARS)}${mark}`)
     }
   }
   if (output.resultRepr) parts.push(`⇒ ${output.resultRepr}`)
@@ -67,6 +67,9 @@ function composeResultText(output: EvalToolOutput): string {
       `${output.error.name}: ${output.error.value}${output.error.traceback ? `\n${output.error.traceback}` : ''}`,
     )
   }
+  for (const sample of output.samples ?? []) {
+    parts.push(`[sample] ${sample.title} v${sample.version} → ${sample.url}${sample.ask ? ` · asked: ${sample.ask}` : ''}`)
+  }
   for (const note of output.annotations) parts.push(`[note] ${note}`)
   if (parts.length === 0) parts.push('(the cell produced no output)')
   return parts.join('\n')
@@ -74,7 +77,7 @@ function composeResultText(output: EvalToolOutput): string {
 
 const evalToolDef = buildTool({
   name: EVAL_TOOL_NAME,
-  searchHint: 'run python or javascript in a persistent kernel with tool re-entry',
+  searchHint: 'run python or javascript in a persistent kernel with tool re-entry and samples',
   maxResultSizeChars: 80_000,
   get inputSchema(): InputSchema {
     return inputSchema()
@@ -104,8 +107,8 @@ const evalToolDef = buildTool({
   async description() {
     return EVAL_DESCRIPTION
   },
-  async prompt() {
-    return buildEvalPrompt()
+  async prompt(options) {
+    return buildEvalPrompt(options?.tools)
   },
   getActivityDescription(input?: Partial<EvalToolInput>) {
     return input?.language ? `Running a ${input.language} cell` : 'Running an eval cell'
@@ -123,6 +126,7 @@ const evalToolDef = buildTool({
       onProgress?.({ toolUseID: toolUseId, data })
     }
     const serveBridge = makeEvalBridgeServer({
+      owner: ownerFromToolUseContext(context),
       context,
       canUseTool: canUseTool as never,
       cellAbort,
@@ -215,12 +219,12 @@ const evalToolDef = buildTool({
       d => (d.mime === 'image/png' || d.mime === 'image/jpeg') && d.b64 === true,
     )
     if (images.length === 0) {
-      return { tool_use_id: toolUseID, type: 'tool_result', content: text, ...(output.status === 'error' ? { is_error: true } : {}) }
+      return { tool_use_id: toolUseID, type: 'tool_result', content: text, ...(output.status !== 'ok' ? { is_error: true } : {}) }
     }
     return {
       tool_use_id: toolUseID,
       type: 'tool_result',
-      ...(output.status === 'error' ? { is_error: true } : {}),
+      ...(output.status !== 'ok' ? { is_error: true } : {}),
       content: [
         { type: 'text' as const, text },
         ...images.map(image => ({

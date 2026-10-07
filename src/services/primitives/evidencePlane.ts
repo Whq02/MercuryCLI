@@ -141,9 +141,6 @@ export function installEvidenceProducers(): void {
     try {
       if (event.event.type !== 'transition') return
       const record = event.event.record
-      if (event.event.to === 'stopped' && record.spec.kind.startsWith('workshop')) {
-        return
-      }
       if (!['succeeded', 'failed', 'stopped', 'unavailable', 'indeterminate', 'cancelled'].includes(event.event.to)) {
         return
       }

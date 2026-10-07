@@ -22,7 +22,6 @@ const { CrewView } = await import('../../src/components/mercury-ui/screens/CrewV
 const { BackgroundTasksDialog } = await import('../../src/components/tasks/BackgroundTasksDialog.js')
 const { ShellDetailDialog } = await import('../../src/components/tasks/ShellDetailDialog.js')
 const { WorkflowDetailDialog } = await import('../../src/components/tasks/WorkflowDetailDialog.js')
-const { WorkshopCellCard } = await import('../../src/tools/WorkshopTool/WorkshopCellCard.js')
 const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.js')
 const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
 const { default: instances } = await import('../../src/ink/instances.js')
@@ -43,11 +42,10 @@ const panels = {
   tasks: (close: () => void) => h(BackgroundTasksDialog, { onDone: close, toolUseContext: {} as never }),
   shell: (close: () => void) => h(ShellDetailDialog, { onDone: close, shell: { command: 'fixture command', status: 'completed', startTime: 1, endTime: 2 } }),
   workflow: (close: () => void) => h(WorkflowDetailDialog, { onDone: close, workflow: { status: 'completed', workflowName: 'fixture workflow', startTime: 1, endTime: 2, workflowProgress: [], agentCount: 0, totalTokens: 0, totalToolCalls: 0 } as never }),
-  workshop: (close: () => void) => h(WorkshopCellCard, { onDone: close, cell: { cellId: 'fixture-cell', language: 'python', code: '1 / 0', state: 'failed', error: 'fixture error', outputTail: [], durationMs: 1, generation: 1, runtimeKilled: false } }),
 }
 const settle = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 100))
 try {
-  for (const [kind, recess] of [['crew', '1'], ['tasks', '1'], ['crew', '0'], ['tasks', '0'], ['shell', '0'], ['workflow', '0'], ['workshop', '0']] as const) {
+  for (const [kind, recess] of [['crew', '1'], ['tasks', '1'], ['crew', '0'], ['tasks', '0'], ['shell', '0'], ['workflow', '0']] as const) {
     process.env.MERCURY_RECESS = recess
     let closed = false
     let written = ''
@@ -77,7 +75,7 @@ try {
         await send('\x1b[<0;1;1M\x1b[<0;1;1m')
         check(`${kind} recess=${recess}: one outside click returns from card to list`, !closed && !screenText().includes('› first agent') && screenText().includes('second agent'), screenText())
       } else {
-        const needle = kind === 'workflow' ? 'fixture workflow' : kind === 'workshop' ? 'fixture-cell' : 'fixture command'
+        const needle = kind === 'workflow' ? 'fixture workflow' : 'fixture command'
         check(`${kind} recess=${recess}: the real detail card paints`, screenText().includes(needle), screenText())
       }
       await send('\x1b[<0;1;1M\x1b[<0;1;1m')

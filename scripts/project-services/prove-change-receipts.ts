@@ -65,10 +65,10 @@ function synthEvent(overrides: Record<string, unknown>): void {
 
 section('V. mutation-operation vocabulary')
 {
-  check('V1 file./notebook./lsp-apply/workshop ops are mutations',
+  check('V1 file./notebook./lsp-apply ops are mutations',
     isMutationOperation('file.edit') && isMutationOperation('file.write') &&
     isMutationOperation('notebook.edit') && isMutationOperation('lsp.rename.apply') &&
-    isMutationOperation('lsp.codeAction.apply') && isMutationOperation('workshop.cell'))
+    isMutationOperation('lsp.codeAction.apply'))
   check('V2 read/navigation ops are not',
     !isMutationOperation('lsp.goToDefinition') && !isMutationOperation('debug.stack') &&
     !isMutationOperation('lsp.diagnostics'))

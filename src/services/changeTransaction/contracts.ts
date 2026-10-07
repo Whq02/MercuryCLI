@@ -46,7 +46,6 @@ const MUTATION_OPERATION_PREFIXES = [
   'lsp.formatDocument',
   'lsp.formatRange',
   'lsp.organizeImports',
-  'workshop.',
   'structure.apply',
   'git.commit',
   'git.stage',

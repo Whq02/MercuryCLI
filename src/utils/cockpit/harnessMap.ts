@@ -22,9 +22,9 @@ export function harnessMapEnabled(): boolean {
 
 let memo: string | null | undefined
 
-function workshopEnabledSafe(): boolean {
+function evalEnabledSafe(): boolean {
   try {
-    return (require('../../services/workshop/contracts.js') as typeof import('../../services/workshop/contracts.js')).workshopEnabled()
+    return (require('../../services/eval/contracts.js') as typeof import('../../services/eval/contracts.js')).evalEnabled()
   } catch {
     return false
   }
@@ -81,8 +81,8 @@ export function computeHarnessMapLines(): string[] {
     mercuryDapEnabled() && !dapReachableSafe() && !dapAdapterProbePending()
       ? '- The Debug tool is withheld on this machine: no debug adapter is reachable, so no launch could work. Arm one — Python `pip install debugpy` (or a build carrying the vendored adapter) · native `xcode-select --install` (lldb-dap) or gdb 14+ · JS: unpack js-debug to ~/.js-debug · Go `go install github.com/go-delve/delve/cmd/dlv@latest` — then start a new session or /clear for the tool to join.'
       : null,
-    workshopEnabledSafe()
-      ? '- Persistent analysis cells: the Workshop tool runs js/ts/py cells with RETAINED state across calls (mercury.tool/agent/inspect compose normal tools inside cells) — prefer it for multi-step data work over re-running Bash pipelines.'
+    evalEnabledSafe()
+      ? '- Persistent analysis cells: the Eval tool runs py/js cells with RETAINED state across calls (tool.<Name>/agent/parallel compose normal tools inside cells) — prefer it for multi-step data work over re-running Bash pipelines.'
       : null,
     servicesEnabledSafe()
       ? '- Long-lived project processes: the Service tool (start/wait/logs/stop with readiness conditions + cursored logs) — use it instead of backgrounded Bash for servers, watch builds, and local APIs; services are addressable as mercury://service/<name>.'

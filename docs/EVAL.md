@@ -5,9 +5,9 @@ between calls: a Python kernel or a JavaScript kernel, one of each per agent
 and working directory. Variables, imports, functions and classes defined in
 one cell are there for the next; `reset: true` recreates that language's
 runtime alone. It is the tool the model reaches for when work is stateful,
-iterative or data-shaped; plain shell commands stay on the Bash tool, and
-the Workshop ([WORKSHOP.md](WORKSHOP.md)) is a separate cell surface with a
-runtime and words of its own.
+iterative or data-shaped; plain shell commands stay on the Bash tool.
+For several steps, make several Eval calls; calls in one message run in
+order, each with its own result.
 
 ## What persists, and what a failed cell says
 
@@ -34,7 +34,7 @@ runtime and words of its own.
   cell first.
 - **A cancelled cell.** A timeout or an operator stop interrupts the
   kernel; Python keeps its state, the JavaScript kernel is recreated, and
-  the result says which.
+  the result says which and is marked as an error.
 
 ## The JavaScript kernel's environment
 
@@ -42,11 +42,12 @@ The JavaScript kernel is a child Node process running an ES module, on the
 Node that runs Mercury itself. The result of a cell that trips over the
 difference names the fact and the fix:
 
-- `require`, `module`, `exports`, `__dirname` and `__filename` are not
-  defined. Import instead: `import { readFileSync } from 'node:fs'` at the
-  top level of a cell persists across cells, and
-  `const fs = await import('node:fs')` works anywhere. `process.cwd()` is
-  the working directory.
+- `require()` resolves from the working directory. Local modules are
+  re-read before each cell; entries under `node_modules` stay cached.
+  `module`, `exports`, `__dirname` and `__filename` are not defined.
+  `import { readFileSync } from 'node:fs'` at the top level persists across
+  cells, and `const fs = await import('node:fs')` works anywhere.
+  `process.cwd()` is the working directory.
 - The global `crypto` is the Web Crypto API (`crypto.subtle`,
   `crypto.randomUUID()`, `crypto.getRandomValues()`). Node's `createHash`,
   `createHmac`, `randomBytes` and the rest are in the `node:crypto` module:
@@ -83,6 +84,28 @@ forms put rich output beside stdout, and `read_file` / `write_file` are the
 Read and Write tools. Provider credentials never reach a kernel's
 environment; a cell that needs a secret receives it through an approved
 tool call.
+
+`tool.Inspect({ref})` in JavaScript or `tool.Inspect(ref=ref)` in Python
+reads a `mercury://` reference through the normal tool permission path.
+With samples enabled, `sample({name, title?, html, ask?})` keeps a versioned
+page you asked to see. JavaScript awaits it; Python also accepts keyword
+arguments. The result lists the title, version and address, with your
+request when supplied as `ask`. Use it only when you asked to see something;
+see [Samples](SAMPLES.md).
+
+## Results and budgets
+
+The last expression's value appears after `⇒` in either language. In
+JavaScript, a final expression beginning with `(` or `[` is captured when
+it is the only statement or the preceding statement ends with `;`; a line
+that continues the previous statement is left alone.
+
+`timeoutSeconds` defaults to 30, is clamped to 600 with a note in the result,
+and accepts 0 to disable the runtime budget. Tool, agent and completion
+waits do not consume that budget; permission waits also pause the
+30-minute wall ceiling. A budget stop or cancellation is an error result.
+Output is bounded with a path to the full stream when it spills. A text,
+markdown or JSON display shows its first 10,000 characters and marks any cut.
 
 ## Switches
 

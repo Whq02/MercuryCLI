@@ -20,6 +20,9 @@ import { extractJsonValue } from './jsonExtract.js'
 import type { BridgeServer, CellBudgetHooks } from './kernelManager.js'
 import type { BridgeRequestFrame } from './protocol.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { ownerFromToolUseContext } from '../run/resolveOwner.js'
+import type { OwnerKey } from '../run/ownerKey.js'
+import { handleSampleCall } from '../samples/bridge.js'
 
 const toolPayload = z.object({ name: z.string(), input: z.record(z.string(), z.unknown()).default({}) })
 const agentPayload = z.object({
@@ -39,6 +42,7 @@ const completionPayload = z.object({
 })
 
 export interface EvalBridgeDeps {
+  owner?: OwnerKey
   context: ToolUseContext
   canUseTool: CanUseToolFn
   cellAbort: AbortController
@@ -167,6 +171,9 @@ export function makeEvalBridgeServer(deps: EvalBridgeDeps): BridgeServer {
   return async function serve(frame: BridgeRequestFrame, budget: CellBudgetHooks): Promise<BridgeAnswer> {
     try {
       switch (frame.kind) {
+        case 'sample': {
+          return { ok: true, value: await handleSampleCall(deps.owner ?? ownerFromToolUseContext(context), frame.payload) }
+        }
         case 'width': {
           return { ok: true, value: governorCeilings().delegationLanes }
         }
