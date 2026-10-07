@@ -6,9 +6,9 @@ import type { Message } from '../../types/message.js'
 import { LSP_TOOL_NAME } from '../../tools/LSPTool/prompt.js'
 import { DEBUG_TOOL_NAME } from '../../tools/DebugTool/prompt.js'
 
-const LSP_GUIDANCE = 'prefer LSP for symbol discovery, references, structured rename, and offered code actions; use direct file edits for small local changes where that is clearer. After a code mutation, get current diagnostics when a language server covers the file, then run the smallest real proof that covers the changed behavior.'
+const LSP_GUIDANCE = 'prefer LspRead for symbol discovery and references, LspRename for a structured rename and LspCodeAction for offered fixes; use direct file edits for small local changes where that is clearer. After a code mutation, get current diagnostics (LspRead diagnostics) when a language server covers the file, then run the smallest real proof that covers the changed behavior.'
 const DEBUG_GUIDANCE = 'Use the Debug tool (DAP) when a runtime-state question cannot be resolved from static evidence.'
-const IDE_RESULT_GUIDANCE = 'An LSP/Debug operation that reports failed or indeterminate is exactly that — never treat an unavailable IDE tool as success; fall back honestly and keep the run state current.'
+const IDE_RESULT_GUIDANCE = 'An Lsp tool or Debug operation that reports failed or indeterminate is exactly that — never treat an unavailable IDE tool as success; fall back honestly and keep the run state current.'
 
 export interface RunProtocolRoster {
   lspMounted: boolean
