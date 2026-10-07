@@ -38,6 +38,8 @@ try {
   const floors = [
     'git push origin topic', 'git -C . push origin topic', 'git --git-dir=.git push origin topic',
     'env CI=1 git push origin topic', 'git status && git push origin topic',
+    'sudo -u root git push origin topic', 'env -C / git push origin topic',
+    'bash -c "git push origin topic"', 'sh -c "npm install package"',
     'npm install package', 'npm i package', 'pnpm add package', 'yarn add package', 'yarn',
     'bun install', 'pip3 install package', 'python3 -m pip install package', 'pipx install package',
     'uv pip install package', 'uv add package', 'brew install package', 'apt-get install package',

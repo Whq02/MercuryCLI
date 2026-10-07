@@ -11,10 +11,46 @@ import { hasWildcards, suggestionForExactCommand } from './shellRuleMatching.js'
 export const FLOW_AWAY_TIMEOUT_MS = 5 * 60_000
 export const FLOW_AWAY_MESSAGE = 'the user is away; continue with an allowed tool call instead'
 
+function flowShellCommands(command: string): Array<{ text: string; words: string[]; opaque: boolean }> {
+  const { stripSafeWrappers, stripAllLeadingEnvVars } = require('../../tools/BashTool/bashPermissions.js') as typeof import('../../tools/BashTool/bashPermissions.js')
+  const result: Array<{ text: string; words: string[]; opaque: boolean }> = []
+  const pending = [command]
+  while (pending.length > 0) {
+    for (const segment of pinnedCommandAnalysis.splitCommand(pending.pop()!)) {
+      const text = stripSafeWrappers(stripAllLeadingEnvVars(segment))
+      const parsed = pinnedCommandAnalysis.tryParseShellCommand(text)
+      if (!parsed.success) { result.push({ text, words: [], opaque: true }); continue }
+      const words = parsed.tokens.filter((token): token is string => typeof token === 'string')
+      while (words[0] === 'env' || words[0] === 'command' || /^[A-Za-z_]\w*=/.test(words[0] ?? '')) {
+        const wrapper = words.shift()
+        if ((wrapper === 'env' || wrapper === 'command') && words[0]?.startsWith('-')) break
+      }
+      const name = basename(words[0] ?? '').replace(/\.exe$/i, '')
+      const opaque = parsed.tokens.length === 0 || typeof parsed.tokens[0] !== 'string' ||
+        ['sudo', 'doas', 'env', 'nice', 'timeout', 'time', 'stdbuf', 'nohup', 'command', 'xargs', 'exec', 'eval'].includes(name) || name.startsWith('-') || /[$`]/.test(name)
+      const warningWords = [...words]
+      warningWords[0] = name
+      if (name === 'git') {
+        while (warningWords[1]?.startsWith('-')) {
+          const option = warningWords.splice(1, 1)[0]!
+          if (/^(?:-C|-c|--git-dir|--work-tree|--namespace|--config-env)$/.test(option)) warningWords.splice(1, 1)
+        }
+      }
+      result.push({ text: warningWords.join(' '), words, opaque })
+      if (/^(?:ba|z|da|k|fi)?sh$/.test(name)) {
+        const inline = words.findIndex((word, index) => index > 0 && /^-[^-]*c/.test(word))
+        if (inline >= 0 && words[inline + 1] !== undefined) pending.push(words[inline + 1]!)
+      }
+    }
+  }
+  return result
+}
+
 export function flowRequiresFreshApproval(tool: Tool, input: Record<string, unknown>): boolean {
   try {
     return tool.isDestructive?.(input) === true ||
-      (tool.name === BASH_TOOL_NAME && typeof input.command === 'string' && getDestructiveCommandWarning(input.command) !== null)
+      (tool.name === BASH_TOOL_NAME && typeof input.command === 'string' &&
+        flowShellCommands(input.command).some(command => getDestructiveCommandWarning(command.text) !== null))
   } catch {
     return true
   }
@@ -22,13 +58,10 @@ export function flowRequiresFreshApproval(tool: Tool, input: Record<string, unkn
 
 export function flowPushOrInstall(tool: Tool, input: Record<string, unknown>): boolean {
   if (tool.name !== BASH_TOOL_NAME || typeof input.command !== 'string') return false
-  const { stripSafeWrappers, stripAllLeadingEnvVars } = require('../../tools/BashTool/bashPermissions.js') as typeof import('../../tools/BashTool/bashPermissions.js')
-  for (const segment of pinnedCommandAnalysis.splitCommand(input.command)) {
-    const parsed = pinnedCommandAnalysis.tryParseShellCommand(stripSafeWrappers(stripAllLeadingEnvVars(segment)))
-    if (!parsed.success || parsed.tokens.some(token => typeof token !== 'string')) return true
-    const words = parsed.tokens as string[]
-    while (words.length > 0 && (/^[A-Za-z_]\w*=/.test(words[0]!) || ['env', 'command', 'sudo', 'doas'].includes(words[0]!) || words[0]!.startsWith('-'))) words.shift()
-    let command = basename(words.shift() ?? '').replace(/\.exe$/i, '')
+  for (const part of flowShellCommands(input.command)) {
+    if (part.opaque) return true
+    const words = part.words.slice(1)
+    let command = basename(part.words[0] ?? '').replace(/\.exe$/i, '')
     if (command === 'git' && words.includes('push')) return true
     if (/^python[\d.]*$/.test(command) && words[0] === '-m' && /^pip[\d.]*$/.test(words[1] ?? '')) {
       command = 'pip'
@@ -52,6 +85,7 @@ export function flowUserAllowUpdates(
   if (context.getAppState?.().toolPermissionContext.mode !== 'flow') return updates
   if (flowRequiresFreshApproval(tool, input)) return updates.filter(update => update.type === 'removeRules')
   if (updates.length > 0) return updates
+  if (tool.name === BASH_TOOL_NAME && typeof input.command === 'string' && flowShellCommands(input.command).some(command => command.opaque)) return []
   if (tool.name === BASH_TOOL_NAME || tool.name === POWERSHELL_TOOL_NAME) {
     const command = input.command
     if (typeof command !== 'string' || command.trim() === '' || hasWildcards(command)) return []

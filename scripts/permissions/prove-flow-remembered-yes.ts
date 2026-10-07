@@ -20,6 +20,7 @@ const { applyPermissionUpdates } = await import('../../src/utils/permissions/Per
 const { getSettingsFilePathForSource } = await import('../../src/utils/settings/settings.ts')
 const { permissionRuleValueToString } = await import('../../src/utils/permissions/permissionRuleParser.ts')
 const { getDestructiveCommandWarning } = await import('../../src/tools/BashTool/destructiveCommandWarning.ts')
+const { checkWritePermissionForTool } = await import('../../src/utils/permissions/filesystem.ts')
 
 let failures = 0
 function check(label: string, ok: boolean): void {
@@ -68,6 +69,17 @@ try {
     fresh.set(removed)
     check(`${road}: ordinary rule removal restores the ask`, (await decideToolPermissionWithModes(tool, { command }, fresh.context, assistant, 'removed')).decision.behavior === 'ask')
   }
+  for (const road of ['card', 'host']) {
+    const h = harness()
+    const input = { file_path: join(world, '..', `flow-external-${road}.txt`) }
+    const fileTool = { name: 'Write', getPath: (value: any) => value.file_path } as never
+    check(`${road}: external file starts with an ask`, checkWritePermissionForTool(fileTool, input, (h.context as any).getAppState().toolPermissionContext).behavior === 'ask')
+    if (road === 'host') decisionOfAnswer({ outcome: 'allow' }, fileTool, input, h.context)
+    else await createPermissionContext(fileTool, input, h.context, assistant, 'path', h.set).handleUserAllow(input, [])
+    const fresh = harness('flow', diskRules())
+    check(`${road}: saved exact file rule works after reload`, checkWritePermissionForTool(fileTool, input, (fresh.context as any).getAppState().toolPermissionContext).behavior === 'allow')
+    check(`${road}: file yes does not grant its whole directory`, checkWritePermissionForTool(fileTool, { file_path: input.file_path + '-other' }, (fresh.context as any).getAppState().toolPermissionContext).behavior === 'ask')
+  }
   for (const mode of ['default', 'implement', 'sovereign', 'dontAsk']) {
     const h = harness(mode)
     const before = JSON.stringify(diskRules())
@@ -85,6 +97,14 @@ try {
       check(`${road}: destructive yes cannot write an enduring grant: ${command}`, before === JSON.stringify(diskRules()) && h.rules().length === 0)
       const preallowed = harness('flow', [rule, 'Bash'])
       check(`${road}: destructive call still asks with an existing allow: ${command}`, (await decideToolPermissionWithModes(tool, { command }, preallowed.context, assistant, 'danger')).decision.behavior === 'ask')
+    }
+  }
+  for (const command of ['git -C . push --force origin topic', '/usr/bin/git reset --hard', 'bash -c "rm -rf scratch-output"', 'env CI=1 git push --force origin topic']) {
+    for (const road of ['card', 'host']) {
+      const h = harness()
+      const before = JSON.stringify(diskRules())
+      await yes(h, command, road)
+      check(`${road}: wrapper does not hide a destructive call from approval memory: ${command}`, before === JSON.stringify(diskRules()) && h.rules().length === 0)
     }
   }
   const h = harness()
