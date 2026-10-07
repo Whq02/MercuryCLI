@@ -59,6 +59,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-script-bytes.ts" || { __rc=$
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-watch-root-census.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-watch-root-census.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-snapshot-path.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-snapshot-path.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-teardown-ends-the-tree.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-teardown-ends-the-tree.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-win32-shell-tree-ends.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-win32-shell-tree-ends.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-cwd-record.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-cwd-record.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-bash-tool-seams.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-bash-tool-seams.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-background-exit-code.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-background-exit-code.ts" "$__t" "$__rc"
