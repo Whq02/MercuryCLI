@@ -6,6 +6,7 @@ import type {
 } from '../../utils/permissions/PermissionResult.js'
 import type { PermissionRule, PermissionUpdate } from '../../types/permissions.js'
 import {
+  extractInputRedirections,
   extractOutputRedirections,
   splitCommand_DEPRECATED,
   tryParseShellCommand,
@@ -106,13 +107,57 @@ export const PATH_EXTRACTORS: Record<PathCommand, (args: string[]) => string[]> 
   git: extractGitOperands,
   tee: args => extractBaseline(args).filter(a => a !== '/dev/null'),
   dd: args => args.filter(a => a.startsWith('of=') && a !== 'of=/dev/null').map(a => a.slice(3)),
+  awk: extractAwkOperands,
   mkdir: extractBaseline, touch: extractBaseline, rm: extractBaseline, rmdir: extractBaseline,
   mv: extractBaseline, cp: extractBaseline, cat: extractBaseline, head: extractBaseline,
   tail: extractBaseline, sort: extractBaseline, uniq: extractBaseline, wc: extractBaseline,
   cut: extractBaseline, paste: extractBaseline, column: extractBaseline, file: extractBaseline,
-  stat: extractBaseline, diff: extractBaseline, awk: extractBaseline, strings: extractBaseline,
+  stat: extractBaseline, diff: extractBaseline, strings: extractBaseline,
   hexdump: extractBaseline, od: extractBaseline, base64: extractBaseline, nl: extractBaseline,
   sha256sum: extractBaseline, sha1sum: extractBaseline, md5sum: extractBaseline,
+}
+
+const AWK_READ_OPTIONS = new Set(['-f', '--file', '-E', '--exec', '-i', '--include', '-l', '--load'])
+const AWK_PROGRAM_OPTIONS = new Set(['-f', '--file', '-E', '--exec', '-e', '--source'])
+const AWK_OPTIONS_END = new Set(['-E', '--exec'])
+const AWK_SKIPPED_VALUE_OPTIONS = new Set(['-v', '--assign', '-F', '--field-separator', '-e', '--source'])
+
+function extractAwkOperands(args: string[]): string[] {
+  const operands: string[] = []
+  let programGiven = false
+  let i = 0
+  for (; i < args.length; i++) {
+    const arg = args[i] as string
+    if (arg === '--') {
+      i++
+      break
+    }
+    if (!arg.startsWith('-') || arg === '-') break
+    const fused = arg.match(/^-([fEilvF])(.+)$/)
+    const long = arg.match(/^--(file|exec|include|load|assign|field-separator|source)=(.*)$/s)
+    const option = fused ? `-${fused[1]}` : long ? `--${long[1]}` : arg
+    const value = fused ? (fused[2] as string) : long ? (long[2] as string) : undefined
+    if (AWK_PROGRAM_OPTIONS.has(option)) programGiven = true
+    if (AWK_READ_OPTIONS.has(option)) {
+      const read = value ?? args[i + 1]
+      if (value === undefined && args[i + 1] !== undefined) i++
+      if (read !== undefined) operands.push(read)
+    } else if (AWK_SKIPPED_VALUE_OPTIONS.has(option)) {
+      if (value === undefined && args[i + 1] !== undefined) i++
+    }
+    if (AWK_OPTIONS_END.has(option)) {
+      i++
+      break
+    }
+  }
+  if (!programGiven && i < args.length) i++
+  for (; i < args.length; i++) {
+    const arg = args[i] as string
+    if (arg === '-') continue
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(arg)) continue
+    operands.push(arg)
+  }
+  return operands
 }
 
 function extractFindOperands(args: string[]): string[] {
@@ -546,6 +591,10 @@ export function checkPathConstraints(
   const redirectResult = validateRedirections(redirectionTargets, command, cwd, context, compoundCommandHasCd)
   if (redirectResult.behavior !== 'passthrough') return redirectResult
 
+  const inputTargets = astRedirects !== undefined ? convertAstInputRedirects(astRedirects) : extractInputRedirections(command).targets
+  const inputResult = validateInputRedirections(inputTargets, cwd, context, compoundCommandHasCd)
+  if (inputResult.behavior !== 'passthrough') return inputResult
+
   if (astCommands !== undefined) {
     for (const simple of astCommands) {
       const result = validateAstSimpleCommand(simple, cwd, context, compoundCommandHasCd)
@@ -572,6 +621,51 @@ function convertAstRedirects(redirects: Redirect[]): string[] {
     }
   }
   return targets
+}
+
+function convertAstInputRedirects(redirects: Redirect[]): string[] {
+  const targets: string[] = []
+  for (const redirect of redirects) {
+    if (redirect.op === '<' && (redirect.fd === undefined || redirect.fd === 0)) targets.push(redirect.target)
+  }
+  return targets
+}
+
+function validateInputRedirections(
+  targets: string[],
+  cwd: string,
+  context: ToolPermissionContext,
+  compoundCommandHasCd: boolean,
+): PermissionResult {
+  if (targets.length === 0) return { behavior: 'passthrough', message: 'No input redirections.' }
+  if (compoundCommandHasCd) {
+    return {
+      behavior: 'ask',
+      message: 'This command changes directory and also reads through an input redirect, so the file it reads cannot be determined safely. It needs explicit approval.',
+      decisionReason: { type: 'other', reason: 'A directory change makes an input redirect target unresolvable' },
+    }
+  }
+  for (const target of targets) {
+    if (target === '/dev/null') continue
+    const check = validatePath(target, cwd, context, 'read')
+    if (!check.allowed) {
+      if (check.decisionReason?.type === 'rule') {
+        return ruleDeny(`The input redirect from ${check.resolvedPath}`, check.resolvedPath, 'read', context, check.decisionReason.rule)
+      }
+      const message =
+        check.decisionReason && (check.decisionReason.type === 'other' || check.decisionReason.type === 'safetyCheck')
+          ? check.decisionReason.reason
+          : `Mercury needs permission to read ${check.resolvedPath}, outside the starting folder (${formatDirectoryList([...allWorkingDirectories(context)])}).`
+      return {
+        behavior: 'ask',
+        message,
+        blockedPath: check.resolvedPath,
+        decisionReason: check.decisionReason,
+        suggestions: [createReadRuleSuggestion(getDirectoryForPath(check.resolvedPath))].filter((rule): rule is PermissionUpdate => rule !== undefined),
+      }
+    }
+  }
+  return { behavior: 'passthrough', message: 'All input redirect targets are readable.' }
 }
 
 function composeWriteRefusal(context: ToolPermissionContext, resolvedPath: string, action: string): string {
