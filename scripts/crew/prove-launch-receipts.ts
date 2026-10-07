@@ -226,15 +226,15 @@ function makeCtx(store: ReturnType<typeof makeStore>): never {
   const ctx = makeCtx(store)
   registerAsyncAgent({ agentId: minted, description: 'harbour-count', prompt: 'count the harbour', selectedAgent: FAKE_DEF, setAppState: store.set as never })
   const byId = (await SendMessageTool.call({ to: minted, message: 'a word for the harbour' } as never, ctx, undefined as never, { requestId: 'req_1' } as never)) as SendAnswer
-  check("SendMessage to the receipt's id delivers the message to the running agent, read at its next tool boundary", byId.data.success === true && /Message delivered to agent/.test(byId.data.message) && /next tool boundary/.test(byId.data.message), byId.data.message)
+  check("SendMessage to the receipt's id delivers the message to the running agent, read at its next tool boundary", byId.data.success === true && /^Delivered to /.test(byId.data.message) && /next tool boundary/.test(byId.data.message), byId.data.message)
   const pending = (): string[] => ((store.get().tasks[minted] as { pendingMessages?: string[] } | undefined)?.pendingMessages ?? [])
   check("…and the words sit in that task's pending queue, in the notice's shape that names the sender", pending().some(p => p.includes('a word for the harbour') && p.includes('<status>message</status>') && p.includes('The main agent sent a message')), JSON.stringify(pending()))
   store.set(prev => ({ ...prev, agentNameRegistry: new Map([['harbour', minted]]) }))
   const byName = (await SendMessageTool.call({ to: 'harbour', message: 'a second word' } as never, ctx, undefined as never, { requestId: 'req_2' } as never)) as SendAnswer
-  check("SendMessage to the launch's name routes to the same task", byName.data.success === true && /Message delivered to agent/.test(byName.data.message) && pending().some(p => p.includes('a second word')), byName.data.message)
+  check("SendMessage to the launch's name routes to the same task", byName.data.success === true && /^Delivered to /.test(byName.data.message) && pending().some(p => p.includes('a second word')), byName.data.message)
   const ghost = generateTaskId('local_agent')
   const toGhost = (await SendMessageTool.call({ to: ghost, message: 'anyone there' } as never, ctx, undefined as never, { requestId: 'req_3' } as never)) as SendAnswer
-  check('an id with no running task and no transcript is refused with the facts — no running task, no transcript, which address to use', toGhost.data.success === false && !/is registered/.test(toGhost.data.message) && /no running task/i.test(toGhost.data.message) && /no transcript/i.test(toGhost.data.message), toGhost.data.message)
+  check('an unrecognised id follows the unknown-address road and names the live alternatives', toGhost.data.success === false && toGhost.data.message.includes(`no agent named ${ghost} in this session`) && toGhost.data.message.includes('running agents are: harbour'), toGhost.data.message)
   const agentTool = src('src/tools/AgentTool/AgentTool.tsx')
   check("the receipt's address line names the id and, for a named launch, the name — the two addresses the resolver reads", /continuationHint\(async\.agentId, async\.agentName\)/.test(agentTool) && agentTool.includes('or to its name "${name}"') && agentTool.includes("input.name ? { agentName: input.name } : {}"))
   const prompt = src('src/tools/SendMessageTool/prompt.ts')
@@ -406,7 +406,7 @@ section("R8d · a worker a running workflow owns is never re-created by a messag
   await wf.completeWorkflowTask('wf-task-1', null, 2, [], store.set)
   check('once the workflow settled, nothing owns the child', wf.workflowOwningAgent?.(store.get().tasks, settledChild) === undefined)
   const afterSettle = (await SendMessageTool.call({ to: settledChild, message: 'anyone there' } as never, ctx, undefined as never, { requestId: 'req_wf2' } as never)) as SendAnswer
-  check('a settled child resumes only through the transcript road (no transcript here ⇒ its own precise refusal, not the workflow words)', afterSettle.data.success === false && /no transcript/i.test(afterSettle.data.message) && !afterSettle.data.message.includes('fixture-flow'), afterSettle.data.message.slice(0, 160))
+  check('a settled child with no transcript is an unknown address, not a live workflow worker', afterSettle.data.success === false && /no (?:agent named|crewmate by that name or id)/i.test(afterSettle.data.message) && !afterSettle.data.message.includes('fixture-flow'), afterSettle.data.message.slice(0, 160))
   const twice = generateTaskId('local_agent')
   const first = registerAsyncAgent({ agentId: twice, description: 'twice', prompt: 'count', selectedAgent: FAKE_DEF, setAppState: store.set as never })
   completeAgentTask({ agentId: twice }, store.set as never)
@@ -423,8 +423,9 @@ section("R8d · a worker a running workflow owns is never re-created by a messag
   const registerAt = resumeSrc.indexOf('const task = registerAsyncAgent({', checkAt)
   check('the resume checks the live owner right before it registers, with no await between', checkAt > 0 && registerAt > checkAt && !/\bawait\b/.test(resumeSrc.slice(checkAt, registerAt)))
   const sendSrc = src('src/tools/SendMessageTool/SendMessageTool.ts')
-  const askAt = sendSrc.indexOf('workflowOwningAgent(context.getAppState().tasks')
-  check('the message road asks the workflow owner before it reads a transcript', askAt > 0 && askAt < sendSrc.indexOf('const transcriptPath = agentTranscriptPathOf(String(agentId))'))
+  const askAt = sendSrc.indexOf('await messageWorkflowWorker(address, input.message)')
+  const addressSrc = src('src/tools/SendMessageTool/crewAddress.ts')
+  check('the message road asks the shared workflow owner before reading the transcript end', askAt > 0 && askAt < sendSrc.indexOf('await endedWords(address)') && addressSrc.includes('workflowOwningAgent(context.getAppState().tasks, agentId)'))
   check('no new registration road or permission road was added (one registration, the fallback field and its two values, the one pre-existing permission default)', (resumeSrc.match(/registerAsyncAgent\(/g) ?? []).length === 1 && (resumeSrc.match(/cwdFallback/g) ?? []).length === 3 && (resumeSrc.match(/behavior: 'allow'/g) ?? []).length === 1 && !/process\.env\./.test(resumeSrc))
 }
 
@@ -592,7 +593,7 @@ const EXPECTED: Record<keyof typeof transcripts, RegExp> = {
   const evicted = generateTaskId('local_agent')
   writeTranscript(evicted, [...transcripts.stopped])
   const words = await taskNotFoundWords(evicted)
-  check("TaskStop on an evicted agent names the transcript's end and the resume door", /No running task with id/.test(words) && /ends stopped/.test(words) && /SendMessage/.test(words), words)
+  check("TaskStop on an evicted agent names the transcript's end and the resume door", /No running task with id/.test(words) && /ends stopped/.test(words) && /ResumeAgent/.test(words), words)
   check('TaskStop on an id with nothing behind it keeps the plain miss', (await taskNotFoundWords(generateTaskId('local_agent'))).startsWith('No task found with id'))
 }
 

@@ -2,7 +2,7 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { parseArgs, runBenchmark, HERE } from './benchmark.ts'
+import { parseArgs, recordedErrorExcerpt, runBenchmark, HERE } from './benchmark.ts'
 import { pickTurn, MECHANICAL_FAMILIES } from './lib/fixture.ts'
 import { parseEnvelopes, type RunRecord } from './lib/runner.ts'
 import { scoreRun } from './lib/score.ts'
@@ -26,6 +26,10 @@ guard.unref?.()
 
 section('§1 — dialect readers · step clock · scorer arithmetic')
 {
+  const fixtureRoot = '/fixture/private-recording-root'
+  check('saved error excerpts replace only the measured output root', recordedErrorExcerpt(`Read ${fixtureRoot}/task/file.ts before editing`, fixtureRoot) === 'Read <fixture>/task/file.ts before editing')
+  check('a clipped root at the end of an excerpt is private too', recordedErrorExcerpt('at file:///fixture/private-record', fixtureRoot) === 'at <fixture>')
+  check('unrelated paths and numbers stay untouched', recordedErrorExcerpt('Read /different/file.ts, exit 1 after 17ms', fixtureRoot) === 'Read /different/file.ts, exit 1 after 17ms')
   const anthropic = {
     system: [{ type: 'text', text: 'SYS-A' }],
     tools: [{ name: 'Read', input_schema: {} }],

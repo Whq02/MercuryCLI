@@ -66,8 +66,8 @@ if (noteLeaf !== null) {
   check('an automatic callback names the session directory, not its departed child override', automaticNote.includes(`session's own directory, ${getCwdState()};`), automaticNote)
   check('a gone directory the result did not name is still noted', noteLeaf.continuationDirectoryNote({ cwdFallback: 'parent-directory' }, '/proof/session').includes('its recorded directory is gone'))
 }
-const send = src('tools', 'SendMessageTool', 'SendMessageTool.ts')
-check('BOTH resume arms of the message tool paint the note from its owner', send.split("(resumed.note ?? '')").length - 1 === 2 && resume.includes("from './continuationNote.js'"))
+const send = src('tools', 'ResumeAgentTool', 'ResumeAgentTool.ts')
+check('the unified resume arm paints the note from its owner', send.split("resumed.note ?? ''").length - 1 === 1 && resume.includes("from './continuationNote.js'"))
 check('the resume result names the recorded directory beside the parent-directory fallback', resume.includes("{ cwdFallback: 'parent-directory' as const, recordedCwd: meta.cwd }"))
 check('the crews page says the receipt names the gone directory', crewsDoc.includes('naming the directory that is gone'))
 

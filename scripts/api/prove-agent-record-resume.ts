@@ -151,7 +151,7 @@ let initTools2: string[] = []
 const mainReqs1 = reqs1.filter(q => modelOf(q) === MAIN)
 if (agentId !== null) {
   const turns2: ScriptedTurn[] = [
-    { kind: 'tool_use', name: 'SendMessage', input: { to: agentId, message: 'carry on: reply in one line and finish', summary: 'carry on' }, thinking: 'resume the seat', model: MAIN, whenModel: 'fable' },
+    { kind: 'tool_use', name: 'ResumeAgent', input: { to: agentId, message: 'carry on: reply in one line and finish', summary: 'carry on' }, thinking: 'resume the seat', model: MAIN, whenModel: 'fable' },
     { kind: 'text', text: 'MAIN-RESUMED', thinking: 'resumed', model: MAIN, whenModel: 'fable' },
     { kind: 'text', text: 'MAIN-NOTED-4', thinking: 'noted four', model: MAIN, whenModel: 'fable' },
     { kind: 'text', text: 'MAIN-NOTED-5', thinking: 'noted five', model: MAIN, whenModel: 'fable' },

@@ -14,6 +14,7 @@ import {
   type Output as FileReadToolOutput,
 } from '../../tools/FileReadTool/FileReadTool.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../../tools/SendMessageTool/constants.js'
+import { RESUME_AGENT_TOOL_NAME } from '../../tools/ResumeAgentTool/constants.js'
 import { TASK_CREATE_TOOL_NAME } from '../../tools/TaskCreateTool/constants.js'
 import { TASK_STOP_TOOL_NAME } from '../../tools/TaskStopTool/prompt.js'
 import { TASK_UPDATE_TOOL_NAME } from '../../tools/TaskUpdateTool/constants.js'
@@ -478,7 +479,9 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
         if (row.owed) bits.push(`owed: ${row.owed}`)
         bits.push(
           row.address !== null
-            ? `reach it: ${SEND_MESSAGE_TOOL_NAME} to "${row.address}"`
+            ? row.status === 'running'
+              ? `reach it: ${SEND_MESSAGE_TOOL_NAME} to "${row.address}"`
+              : `resume it: ${RESUME_AGENT_TOOL_NAME} to "${row.address}"`
             : `reach it: ${TASK_STOP_TOOL_NAME} by its id`,
         )
         if (row.outputFilePath) bits.push(`output: ${row.outputFilePath}`)
@@ -491,7 +494,7 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
         'Agents in flight at the context turnover — every agent this session is running or owes a result from, one line each (kind "name" [id]: status · what it was asked · what is owed · how to reach it · output file):',
         countLine,
         lines.join('\n'),
-        `A running agent is never re-spawned — its completion reaches you as a task notification on its own. A result that is owed is collected from that notification or from the output file, never re-derived. ${SEND_MESSAGE_TOOL_NAME} reaches a crewmate by the id or name shown; a task's output is read from the output file shown with ${FILE_READ_TOOL_NAME}; ${TASK_STOP_TOOL_NAME} stops one.`,
+        `A running agent is never re-spawned — its completion reaches you as a task notification on its own. A result that is owed is collected from that notification or from the output file, never re-derived. ${SEND_MESSAGE_TOOL_NAME} reaches a running crewmate and ${RESUME_AGENT_TOOL_NAME} gives any one a new turn, by the id or name shown; a task's output is read from the output file shown with ${FILE_READ_TOOL_NAME}; ${TASK_STOP_TOOL_NAME} stops one.`,
       ].join('\n')
       return [createUserMessage({ content: wrapInSystemReminder(text), isMeta: true })]
     }

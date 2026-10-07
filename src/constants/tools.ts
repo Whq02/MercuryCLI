@@ -14,6 +14,7 @@ import { GREP_TOOL_NAME } from '../tools/GrepTool/prompt.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from '../tools/NotebookEditTool/constants.js'
 import { POWERSHELL_TOOL_NAME } from '../tools/PowerShellTool/toolName.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../tools/SendMessageTool/constants.js'
+import { RESUME_AGENT_TOOL_NAME } from '../tools/ResumeAgentTool/constants.js'
 import { SLEEP_TOOL_NAME } from '../tools/SleepTool/prompt.js'
 import { SKILL_TOOL_NAME } from '../tools/SkillTool/constants.js'
 import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../tools/SyntheticOutputTool/constants.js'
@@ -60,6 +61,10 @@ export const ASYNC_AGENT_ALLOWED_TOOLS: Set<string> = new Set([
   EXIT_WORKTREE_TOOL_NAME,
   SLEEP_TOOL_NAME,
   SEND_MESSAGE_TOOL_NAME,
+  RESUME_AGENT_TOOL_NAME,
   CONTEXT_LEFT_TOOL_NAME,
   JEV_TOOL_NAME,
 ])
+export const RULE_INHERITS: Readonly<Partial<Record<string, readonly string[]>>> = {
+  [RESUME_AGENT_TOOL_NAME]: [SEND_MESSAGE_TOOL_NAME],
+}

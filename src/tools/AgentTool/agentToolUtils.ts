@@ -4,6 +4,7 @@ import {
   ALL_AGENT_DISALLOWED_TOOLS,
   ASYNC_AGENT_ALLOWED_TOOLS,
   CUSTOM_AGENT_DISALLOWED_TOOLS,
+  RULE_INHERITS,
 } from '../../constants/tools.js'
 import type { Message } from '../../types/message.js'
 import type { SetAppState } from '../../Task.js'
@@ -153,8 +154,12 @@ export function resolveAgentTools(
       spec => permissionRuleValueFromString(spec).toolName,
     ),
   )
+  const inheritedDenials = new Set((definition.disallowedTools ?? [])
+    .map(spec => permissionRuleValueFromString(spec))
+    .filter(rule => rule.ruleContent === undefined)
+    .map(rule => rule.toolName))
   const survivors = filtered.filter(
-    tool => !deniedNames.has(tool.name),
+    tool => !deniedNames.has(tool.name) && !RULE_INHERITS[tool.name]?.some(name => inheritedDenials.has(name)),
   )
 
   const declared = definition.tools
@@ -190,12 +195,18 @@ export function resolveAgentTools(
         continue
       }
     }
-    const found = survivors.find(tool => toolMatchesName(tool, rule.toolName))
-    if (found) {
+    const foundByName = survivors.find(tool => toolMatchesName(tool, rule.toolName))
+    const matches = [
+      ...(foundByName ? [foundByName] : []),
+      ...(rule.ruleContent === undefined ? survivors.filter(tool => RULE_INHERITS[tool.name]?.includes(rule.toolName)) : []),
+    ]
+    if (matches.length > 0) {
       if (!validTools.includes(spec)) validTools.push(spec)
-      if (!seenToolNames.has(found.name)) {
-        seenToolNames.add(found.name)
-        resolvedTools.push(found)
+      for (const found of matches) {
+        if (!seenToolNames.has(found.name)) {
+          seenToolNames.add(found.name)
+          resolvedTools.push(found)
+        }
       }
     } else if (!isAgentTypeSpec) {
       invalidTools.push(spec)

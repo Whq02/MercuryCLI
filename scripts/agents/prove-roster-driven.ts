@@ -265,6 +265,7 @@ section("§2e the scout's tool gate itself: the pool is the read-only pool, the 
     tool('AstEdit', input => input.apply !== true),
     tool('Agent', () => true),
     tool('SendMessage', () => true),
+    tool('ResumeAgent', () => true),
     tool('EnterWorktree', () => true),
     tool('ExitWorktree', () => true),
     tool('Throws', () => { throw new Error('no input') }),
@@ -273,7 +274,7 @@ section("§2e the scout's tool gate itself: the pool is the read-only pool, the 
   const names = gated.map(t => t.name)
   check('the pool keeps the shell, the skill door, the readers and the input-dependent tools', ['Bash', 'Skill', 'Read', 'AstEdit'].every(n => names.includes(n)), names.join(','))
   check('the pool drops an unconditional writer', !names.includes('Retain'), names.join(','))
-  check('the pool drops the Agent tool, the message tool and both worktree doors even when they claim to read', !['Agent', 'SendMessage', 'EnterWorktree', 'ExitWorktree'].some(n => names.includes(n)), names.join(','))
+  check('the pool drops the Agent tool, the message tool and both worktree doors even when they claim to read', !['Agent', 'SendMessage', 'ResumeAgent', 'EnterWorktree', 'ExitWorktree'].some(n => names.includes(n)), names.join(','))
   check('a tool whose classification throws is not offered', !names.includes('Throws'), names.join(','))
   const astEdit = gated.find(t => t.name === 'AstEdit')
   const bash = gated.find(t => t.name === 'Bash')

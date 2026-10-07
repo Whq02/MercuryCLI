@@ -37,9 +37,9 @@ export const CREW_START_MODEL_REFUSAL = "a crewmate's model is the operator's wo
 
 export function crewStartName(name: string): string {
   const trimmed = typeof name === 'string' ? name.trim() : ''
-  if (trimmed === '') throw new Error('a crewmate needs a name — the address SendMessage and the crew view use')
+  if (trimmed === '') throw new Error('a crewmate needs a name — the address SendMessage, ResumeAgent and the crew view use')
   if (trimmed.includes('@') || trimmed === '*') {
-    throw new Error(`a crewmate's name must be addressable by SendMessage: "${trimmed}" cannot contain "@" or be "*"`)
+    throw new Error(`a crewmate's name must be addressable by SendMessage and ResumeAgent: "${trimmed}" cannot contain "@" or be "*"`)
   }
   return trimmed
 }

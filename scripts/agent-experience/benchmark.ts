@@ -42,6 +42,13 @@ export interface BenchmarkResult {
   browser: BrowserProbe
 }
 
+export function recordedErrorExcerpt(text: string, outputRoot: string): string {
+  return text.replaceAll(outputRoot, '<fixture>').replace(/(?:file:\/\/)?(?:[A-Za-z]:[\\/]|\/)[^\s<>"']+$/g, candidate => {
+    const path = candidate.replace(/^file:\/\//, '')
+    return path.length > 1 && outputRoot.startsWith(path) ? '<fixture>' : candidate
+  })
+}
+
 export function parseArgs(argv: string[]): BenchmarkOptions {
   const opts: BenchmarkOptions = {
     families: [...MECHANICAL_FAMILIES],
@@ -429,8 +436,11 @@ export async function runBenchmark(opts: BenchmarkOptions): Promise<BenchmarkRes
   if (opts.record) {
     const dir = join(HERE, 'baselines', opts.record)
     mkdirSync(dir, { recursive: true })
-    for (const table of tables) cpSync(join(opts.out, `${table.header.family}.json`), join(dir, `${table.header.family}.json`))
-    cpSync(summaryPath, join(dir, 'summary.md'))
+    const recorded = tables.map(table => ({ ...table, rows: table.rows.map(row => ({
+      ...row, errors: row.errors.map(error => ({ ...error, text: recordedErrorExcerpt(error.text, opts.out) })),
+    })) }))
+    for (const table of recorded) writeFamilyTable(dir, table)
+    writeFileSync(join(dir, 'summary.md'), renderSummary(recorded, `Agent-experience benchmark — ${tree}`))
     const promptsSrc = join(opts.out, 'prompts')
     if (existsSync(promptsSrc)) {
       const promptsDir = join(dir, 'prompts')

@@ -94,6 +94,7 @@ const PROOF_MAP: Record<string, string> = {
   Workflow: 'scripts/workflows/run-all.sh',
   Agent: 'scripts/tools/prove-tool-contracts.ts',
   SendMessage: 'scripts/crew/run-all.sh',
+  ResumeAgent: 'scripts/crew/run-all.sh',
   Sleep: 'scripts/tools/prove-sleep-tool.ts',
   Godot: 'scripts/vulcan/run-all.sh',
 }

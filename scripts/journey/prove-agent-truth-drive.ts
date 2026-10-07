@@ -287,7 +287,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
         if (!offersTool(body, 'Agent')) route = 'side'
         else if (newest !== null) route = newest.route
         else if (lastUserText.includes('task-notification')) route = 'note'
-        else if (answered === 'Agent' || answered === 'SendMessage' || answered === 'Workflow') route = 'ack'
+        else if (answered === 'Agent' || answered === 'SendMessage' || answered === 'ResumeAgent' || answered === 'Workflow') route = 'ack'
         else route = 'side'
         hits.push({ route, seat: null, call: 0, atMs: Date.now(), lastUserText, raw, results })
         let blocks: Answer[]
@@ -305,7 +305,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
             blocks = [{ type: 'tool_use', id: `toolu_truth_send_${++toolSeq}`, name: 'SendMessage', input: { to: 'lantern', summary: 'a word by name', message: LANTERN_WORD_2 } }]
             break
           case 'message-dead':
-            blocks = [{ type: 'tool_use', id: `toolu_truth_send_${++toolSeq}`, name: 'SendMessage', input: { to: receiptIdFor(items, 'foliage') ?? 'foliage-id-unknown', summary: 'a word for the dead', message: DEAD_WORD } }]
+            blocks = [{ type: 'tool_use', id: `toolu_truth_send_${++toolSeq}`, name: 'ResumeAgent', input: { to: receiptIdFor(items, 'foliage') ?? 'foliage-id-unknown', summary: 'a word for the dead', message: DEAD_WORD } }]
             break
           case 'walker-launch':
             blocks = [agentLaunch(`toolu_truth_agent_${++toolSeq}`, 'walker', {})]
@@ -588,10 +588,10 @@ if (cap !== null) {
   console.log('\n— A the receipt\'s id routes, the name routes —')
   const lanternWait = rowsWith(m['lantern-waiting'], 'waiting on 1 agent')
   check('A0 the launch turn held open by its background agent paints the wait words, never the thinking dress', lanternWait.length > 0, rowsWith(m['lantern-waiting'], /waiting on|thinking|thought for/).map(flat).join(' | ').slice(0, 300))
-  const sendResults = acks.flatMap(h => h.results.filter(r => r.name === 'SendMessage').map(r => r.text))
+  const sendResults = acks.flatMap(h => h.results.filter(r => r.name === 'SendMessage' || r.name === 'ResumeAgent').map(r => r.text))
   for (const r of sendResults) console.log(`  send result: ${flat(r).slice(0, 240)}`)
-  check(`A1 SendMessage to the receipt's id (${lanternId ?? 'none'}) delivered the message to the running agent`, lanternId !== null && sendResults.some(r => r.includes(`Message delivered to agent ${lanternId}`) && /"success":true/.test(r)))
-  check("A2 SendMessage to the launch's name delivered the message too", sendResults.some(r => r.includes('Message delivered to agent lantern') && /"success":true/.test(r)))
+  check(`A1 SendMessage to the receipt's id (${lanternId ?? 'none'}) delivered the message to the running agent`, lanternId !== null && sendResults.some(r => r.startsWith(`Delivered to lantern (id ${lanternId})`) && r.includes('it reads it at its next tool boundary.')))
+  check("A2 SendMessage to the launch's name delivered the message too", sendResults.some(r => r.startsWith('Delivered to lantern (id ') && r.includes('it reads it at its next tool boundary.')))
   const lanternCarrying = fixture.hits.filter(h => h.route === 'seat' && h.seat === 'lantern' && h.raw.includes(LANTERN_WORD) && h.raw.includes(LANTERN_WORD_2))
   check("A3 the lantern seat's next request carried both words", lanternCarrying.length >= 1, `${lanternCarrying.length} carrying calls`)
   check("A3 the lantern's transcript on disk holds both words", lanternTranscript !== undefined && lanternTranscript.text.includes(LANTERN_WORD) && lanternTranscript.text.includes(LANTERN_WORD_2))

@@ -105,7 +105,7 @@ tally.check('the stop is an error naming the miss', stops.never !== undefined &&
 
 tally.section('a finished agent past the panel grace — unchanged')
 tally.check('the agent was launched and answered its id', agentId !== null, launches.agent ?? '(no launch)')
-tally.check('the stop is an error naming the transcript end and the resume door', stops.agent !== undefined && stops.agent.isError && /No running task with id/.test(stops.agent.text) && /transcript on disk ends/.test(stops.agent.text) && /SendMessage/.test(stops.agent.text), stops.agent?.text)
+tally.check('the stop is an error naming the transcript end and the resume door', stops.agent !== undefined && stops.agent.isError && /No running task with id/.test(stops.agent.text) && /transcript on disk ends/.test(stops.agent.text) && /ResumeAgent/.test(stops.agent.text), stops.agent?.text)
 
 if (tally.failed() === 0 && !KEEP) rmSync(scratch, { recursive: true, force: true })
 else console.log(`\nworld kept: ${scratch}`)

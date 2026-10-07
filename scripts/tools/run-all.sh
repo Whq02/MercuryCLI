@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/Tool* src/bootstrap/state* src/services/mcp/registry/serverRegistry*
+# gate-watch: src/Tool* src/bootstrap/state* src/services/mcp/registry/serverRegistry* src/types/ids.ts
 # gate-watch: src/services/run/effectObserver* src/services/tools/toolExecution*
 # gate-watch: src/tasks/LocalWorkflowTask/LocalWorkflowTask* src/tools/AgentTool/AgentTool*
 # gate-watch: src/tools/AskUserQuestionTool/AskUserQuestionTool*

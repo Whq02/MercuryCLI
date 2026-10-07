@@ -55,7 +55,7 @@ const fixture = await startScriptedFixture(req => {
       return [{ type: 'tool_use', name: 'Bash', input: { command: 'sleep 6', description: 'a pause while the agent’s run finishes' } }]
     case 2:
       followUpSent = true
-      return [{ type: 'tool_use', name: 'SendMessage', input: { to: agentId ?? 'nobody', message: FOLLOW_UP, summary: 'the follow-up' } }]
+      return [{ type: 'tool_use', name: 'ResumeAgent', input: { to: agentId ?? 'nobody', message: FOLLOW_UP, summary: 'the follow-up' } }]
     case 3:
       return [{ type: 'tool_use', name: 'Bash', input: { command: 'sleep 8', description: 'a pause for the agent’s next turn' } }]
     default:
