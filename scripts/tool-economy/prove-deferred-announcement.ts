@@ -71,7 +71,7 @@ const SPEC_BODY = [
   'SendMessage — send a message to a crewmate of this session',
   'Service — named project services: start/observe/wait/logs/stop long-lived processes (web servers, watch…',
   'Sleep — wait / pause / rest for a duration without a shell',
-  'Structure — structural AST query and codemod: find calls imports declarations by shape or metavariable pattern…',
+  'Structure — JS/TS AST query by node kind, previewed codemod: imports, calls, declarations, renames, import swaps',
   'TaskStop — kill or stop a running background task',
   'Test — structured test runs: discover, run, rerun failed, run the relevant tests for your changes…',
   'Transaction — bind a coding loop into one gated evidence transaction record',
@@ -174,7 +174,7 @@ section('§2 over the bench roster the body is the specification\'s text byte fo
   for (const name of ['lease_list', 'lease_release', 'lease_take', 'render_tui']) roster.push(fixtureTool(name, { mcp: 'mercury' }))
   const row = getDeferredToolsDeltaAttachment(roster, MODEL, [first])[0] as { addedNames: string[]; body: string } | undefined
   check('39 tools are announced', row !== undefined && row.addedNames.length === 39, String(row?.addedNames.length))
-  check('the body equals the specification\'s announcement byte for byte (3,243 bytes; 3,280 wrapped)', row !== undefined && row.body === SPEC_BODY && Buffer.byteLength(row.body, 'utf8') === 3243 && Buffer.byteLength(rendered(row as never), 'utf8') === 3280, row === undefined ? 'no row' : `${Buffer.byteLength(row.body, 'utf8')} bytes; first differing line: ${row.body.split('\n').find((line, i) => line !== SPEC_BODY.split('\n')[i]) ?? 'none'}`)
+  check('the body equals the announcement byte for byte (3,242 bytes; 3,279 wrapped)', row !== undefined && row.body === SPEC_BODY && Buffer.byteLength(row.body, 'utf8') === 3242 && Buffer.byteLength(rendered(row as never), 'utf8') === 3279, row === undefined ? 'no row' : `${Buffer.byteLength(row.body, 'utf8')} bytes; first differing line: ${row.body.split('\n').find((line, i) => line !== SPEC_BODY.split('\n')[i]) ?? 'none'}`)
   if (row !== undefined) {
     for (const name of ['JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Workshop', 'Monitor', 'Checkpoint', 'Rewind']) {
       check(`${name} has its line`, row.body.split('\n').some(line => line.startsWith(`${name} — `)))
