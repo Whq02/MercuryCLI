@@ -92,6 +92,7 @@ export function isPathAllowed(
           type: 'safetyCheck',
           reason: safety.message,
           operatorOnly: safety.operatorOnly,
+          ...(safety.floor === true ? { floor: true as const } : {}),
         },
       }
     }
@@ -162,7 +163,7 @@ export function validatePath(
   if (remote) return {
     allowed: remote.behavior === 'allow', resolvedPath: cleaned,
     decisionReason: remote.behavior === 'ask' && remote.decisionReason?.type === 'rule'
-      ? { type: 'safetyCheck', reason: remote.message, operatorOnly: true } : remote.decisionReason,
+      ? { type: 'safetyCheck', reason: remote.message, operatorOnly: true, floor: true } : remote.decisionReason,
   }
   if (cleaned.startsWith('~')) {
     return {

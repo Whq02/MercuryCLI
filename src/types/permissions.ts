@@ -104,7 +104,7 @@ export type PermissionDecisionReason =
   | { type: 'asyncAgent'; reason: string }
   | { type: 'sandboxOverride'; reason: 'excludedCommand' | 'sandboxDisabled' }
   | { type: 'workingDir'; reason: string }
-  | { type: 'safetyCheck'; reason: string; operatorOnly: boolean }
+  | { type: 'safetyCheck'; reason: string; operatorOnly: boolean; floor?: true }
   | { type: 'other'; reason: string }
   | { type: 'bypassedAsk'; mode: PermissionMode; road: BypassedAskRoad; reason: PermissionDecisionReason }
 
