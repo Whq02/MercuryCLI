@@ -459,9 +459,11 @@ function runPathChecker(
     }
   }
   const operands = PATH_EXTRACTORS[command](args)
+  const flowRead = context.mode === 'flow' && operationType === 'read' && command !== 'cd'
   for (const operand of operands) {
     const check = validatePath(operand, cwd, context, operationType)
     if (!check.allowed) {
+      if (flowRead && check.decisionReason === undefined) continue
       if (check.decisionReason?.type === 'rule') {
         return ruleDeny(denySubject(command, check.resolvedPath), check.resolvedPath, operationType === 'read' ? 'read' : 'edit', context, check.decisionReason.rule)
       }

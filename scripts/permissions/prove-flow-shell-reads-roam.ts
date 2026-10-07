@@ -50,6 +50,8 @@ const changes = [
   `cat ${outside}/notes.txt | tee ${outside}/copy.txt`,
   `touch ${outside}/new.txt`,
   `cat < $(echo ${outside}/notes.txt)`,
+  `cd ${outside} && ls`,
+  `cat < ${outside}/notes.txt`,
 ]
 try {
   console.log('§1 Flow: a read-only shell command reading outside the project goes ahead, hostless headless, hosted and in the cockpit')
