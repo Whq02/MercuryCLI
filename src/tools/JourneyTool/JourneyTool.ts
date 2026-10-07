@@ -194,7 +194,7 @@ op:"run" (objective, steps, cleanup?):
   command.run {command, args?, expect?{exitCode, stdoutIncludes}}
   file.inspect {path, expect?{exists, contains}}
   log.match {service, pattern} — polls the service's cursored logs
-  diagnostic.check {files} — parse-level diagnostics (semantic stays with LspRead)
+  diagnostic.check {files} — parse-level diagnostics (semantic diagnostics belong to the language service when it is mounted)
   value.assert {jsonPath, equals} — into the last http.request's JSON body
   service.stop {name}
 Steps run in order; the first failure marks the rest skipped; cleanup stops journey-started services and is part of the record. Cancellation settles 'cancelled'.
