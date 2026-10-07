@@ -79,7 +79,7 @@ import {
   type RowScope,
   type SessionFacts,
 } from './project.js'
-import { errorClassOf, statusOfTerminal, OUTCOME_SENTENCES, type Denial, type ErrorClass, type OutcomeStatus } from './vocabulary.js'
+import { errorClassOf, statusOfTerminal, OUTCOME_SENTENCES, TERMINAL_FAILURE_SENTENCES, type Denial, type ErrorClass, type OutcomeStatus } from './vocabulary.js'
 import { childRowsOf } from './child.js'
 
 const DEFAULT_MAX_STRUCTURED_OUTPUT_RETRIES = 5
@@ -977,7 +977,7 @@ export class Conversation {
     } else if (terminal.reason === 'loop_stopped') {
       message = OUTCOME_SENTENCES.loop_stopped({})
     } else {
-      message = `The turn failed (${terminal.reason.replace(/_/g, ' ')})`
+      message = TERMINAL_FAILURE_SENTENCES[terminal.reason]
     }
     const finalClass: ErrorClass = (terminal.reason === 'model_error' || endedOnApiError) && apiErrorMessage?.error !== undefined ? errorClassOf(apiErrorMessage.error) : errorClass
     yield closeTurn(settled.status, {

@@ -10,6 +10,7 @@ import { noteCredentialChange } from '../../utils/accounts/signInLedger.js'
 import {
   dropCredentialMemos,
   getAnthropicApiKeyWithSource,
+  isAnthropicOAuthSignInExpired,
   isClaudeAISubscriber,
   removeApiKey,
   type ApiKeySource,
@@ -54,7 +55,7 @@ import {
   readMintedOpenrouterKey,
   type OpenrouterMintedKey,
 } from './openrouter/openrouterAccounts.js'
-import { openrouterObservedKeyUsage } from './openrouter/openrouterUsageState.js'
+import { openrouterKeyRecordedDead, openrouterObservedKeyUsage } from './openrouter/openrouterUsageState.js'
 import {
   disconnectGeminiOauth,
   geminiOauthConnected,
@@ -136,6 +137,7 @@ export interface AccountSlot {
   active: boolean
   envPinned: boolean
   signedIn: boolean
+  expired?: boolean
   scope?: AccountScope
   stateNote?: string
   removal: SlotRemoval
@@ -149,6 +151,7 @@ export interface FamilySlotGroup {
 export interface AccountSlotReads {
   familyReads?: ProviderFamilyReads
   scanScopes?: () => AccountScope[]
+  anthropicSignInExpired?: () => boolean
   anthropicApiKey?: () => { key: string | null; source: ApiKeySource }
   openaiSubscription?: () => OpenaiAccountRef | undefined
   openaiSubscriptionPresence?: () => { state: 'connected' | 'expired' | 'absent'; email?: string; planType?: string }
@@ -235,7 +238,7 @@ export function slotSigninState(slot: AccountSlot, identities: SlotIdentities): 
       : { signedIn: false, basis: 'absent' }
   }
   if (slot.scope.foreignHarness) return { signedIn: false, basis: 'excluded' }
-  if (!slot.signedIn) return { signedIn: false, basis: 'signed-out' }
+  if (!slot.signedIn) return { signedIn: false, basis: slot.expired === true ? 'expired' : 'signed-out' }
   const identity = identities[slot.id]
   switch (identity?.state) {
     case 'verified':
@@ -472,10 +475,13 @@ function anthropicSlots(reads: AccountSlotReads): AccountSlot[] {
   const subscriberSeat = reads.familyReads?.claudeSubscriber?.() ?? isClaudeAISubscriber()
   const signInEmail = (scope: AccountScope): string | undefined =>
     scope.isCurrent ? anthropicSignInEmail(reads.familyReads) : undefined
+  const signInExpired = (scope: AccountScope): boolean =>
+    scope.isCurrent && scope.authed && !scope.foreignHarness && (reads.anthropicSignInExpired ?? isAnthropicOAuthSignInExpired)()
   const slots: AccountSlot[] = scopes
     .filter(scope => scope.authed || scope.email !== undefined || scope.uuid !== undefined || scope.foreignHarness)
     .map((scope): AccountSlot => {
       const own = scope.authed && !scope.foreignHarness ? signInEmail(scope) : undefined
+      const expired = signInExpired(scope)
       return {
         family: 'anthropic',
         id: scope.dir,
@@ -490,7 +496,8 @@ function anthropicSlots(reads: AccountSlotReads): AccountSlot[] {
         ...(own !== undefined ? { signInEmail: own } : {}),
         active: scope.foreignHarness ? scope.isCurrent : scope.isCurrent && subscriberSeat,
         envPinned: false,
-        signedIn: scope.authed,
+        signedIn: scope.authed && !expired,
+        ...(expired ? { expired: true } : {}),
         scope,
         removal: scope.foreignHarness
           ? {
@@ -643,6 +650,7 @@ export function openrouterSlots(reads: AccountSlotReads = {}): AccountSlot[] {
   const usableMinted = minted !== undefined && !minted.expiredMessage
   const observed = openrouterObservedKeyUsage()
   const failure = (source: 'env' | 'stored' | 'oauth') => observed.errorSource === source ? observed.lastError : undefined
+  const dead = (source: 'env' | 'stored' | 'oauth') => openrouterKeyRecordedDead(source)
   const slots: AccountSlot[] = []
   if (envKey) {
     slots.push({
@@ -654,7 +662,7 @@ export function openrouterSlots(reads: AccountSlotReads = {}): AccountSlot[] {
       identity: label(['OPENROUTER_API_KEY (env)', maskedKeyTail(envKey)]),
       active: true,
       envPinned: true,
-      signedIn: true,
+      signedIn: !dead('env'),
       ...(failure('env') ? { stateNote: failure('env')! } : {}),
       removal: { route: 'env', envVar: 'OPENROUTER_API_KEY' },
     })
@@ -672,7 +680,7 @@ export function openrouterSlots(reads: AccountSlotReads = {}): AccountSlot[] {
       ]),
       active: !envKey && usableMinted,
       envPinned: false,
-      signedIn: true,
+      signedIn: usableMinted && !dead('oauth'),
       ...(minted.expiredMessage
         ? { stateNote: `${minted.expiredMessage} · /logins openrouter: ⌫ removes it` }
         : envKey ? { stateNote: 'shadowed — the env pin wins' }
@@ -690,7 +698,7 @@ export function openrouterSlots(reads: AccountSlotReads = {}): AccountSlot[] {
       identity: label(['stored key (auth-scoped)', maskedKeyTail(storedKey)]),
       active: !envKey && !usableMinted,
       envPinned: false,
-      signedIn: true,
+      signedIn: !dead('stored'),
       ...(envKey
         ? { stateNote: 'shadowed — the env pin wins' }
         : usableMinted
