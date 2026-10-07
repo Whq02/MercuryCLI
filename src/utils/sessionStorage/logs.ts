@@ -638,6 +638,12 @@ export async function getAgentTranscript(agentId: AgentId): Promise<{
     const leaf = findLatestMessage(own, msg => !parents.has(msg.uuid))
     if (!leaf) return null
     const chain = buildConversationChain(messages, leaf).filter(msg => msg.agentId === agentId)
+    const first = chain.find(msg => msg.type === 'assistant' || (msg.type === 'user' && msg.isMeta !== true))
+    const prefix = first === undefined ? undefined : findLatestMessage(own, msg =>
+      msg.sessionId === leaf.sessionId && msg.type === 'attachment' && msg.attachment.type === 'bound_prefix' &&
+      msg.attachment.boundKey.split('|').at(-2) === first.uuid,
+    )
+    if (prefix !== undefined && !chain.some(msg => msg.uuid === prefix.uuid)) chain.push(prefix)
     return {
       messages: chain.map(({ isSidechain, parentUuid, ...msg }) => msg),
       contentReplacements: agentContentReplacements.get(agentId) ?? [],
