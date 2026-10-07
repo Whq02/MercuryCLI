@@ -508,7 +508,7 @@ export function seatInitialPermissionMode(override?: PermissionMode): SeatPermis
     }
   } catch {
   }
-  return 'flow'
+  return 'default'
 }
 
 export function buildConcourseWorkerSpec(args: {
