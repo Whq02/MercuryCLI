@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/daemon/** src/substrate/flagRegistry* src/types/permissions*
+# gate-watch: src/daemon/** src/substrate/flagRegistry* src/types/permissions* src/components/SwitchboardTagBar.tsx
 # gate-watch: src/utils/boxLock* src/services/resources/adapters/health*
 # gate-watch: src/services/engine-connector/seatProjections* src/utils/spawnLedger* docs/DURABILITY.md
 # gate-watch: src/tools/MonitorTool/** src/tools/ScheduleCronTool/** src/utils/cron.ts src/services/engine-connector/seatWire.ts
@@ -71,6 +71,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-cap-seat.ts" || { __rc=$?; fail=1;
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-first-byte-drive.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-first-byte-drive.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-reissue-rows-drive.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-reissue-rows-drive.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-handshake.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-handshake.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-build-order-visible.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-build-order-visible.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-home-gone.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-home-gone.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-home-creators.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-home-creators.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-home-seam.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-home-seam.ts" "$__t" "$__rc"

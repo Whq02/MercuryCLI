@@ -34,6 +34,9 @@ import { modelSupportsEffort } from '../utils/effort.js'
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
 import { crewmateLive, useComposerCrewmate, useViewedCrewmate } from './tasks/useCrewmateView.js'
 import { crewmateStatusRightHint, crewmateStatusWords } from '../utils/cockpit/crewmateWords.js'
+import { daemonBuildStatusWords, lastDaemonHandshake, subscribeDaemonHandshake } from '../daemon/handshake.js'
+
+const focusedDaemonBuildWords = (): string => daemonBuildStatusWords(lastDaemonHandshake())
 
 
 const subscribeFocusedSeat = subscribeThroughFocused((connector, listener) =>
@@ -283,6 +286,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const bornEffort = useFocusedBornEffort()
   const effortValue = useAppStateMaybeOutsideOfProvider(s => s.effortValue)
   const receipt = useSyncExternalStore(subscribeStatusRowReceipt, statusRowReceipt, statusRowReceipt)
+  const daemonBuild = useSyncExternalStore(subscribeDaemonHandshake, focusedDaemonBuildWords, focusedDaemonBuildWords)
   const crewmate = useViewedCrewmate()
   const composerCrewmate = useComposerCrewmate()
   const crewmateModel = useCrewmateModel(crewmate)
@@ -306,9 +310,9 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const effortLabel = modelSupportsEffort(effectiveModel) ? focusedEffortLabelOf(effectiveModel, seatEffort, sentEffort, effortValue, bornEffort, false) : null
   const shownModel = crewmate !== null && crewmateModel !== null ? (crewmateModel.model === null ? 'model unreported' : renderModelChip(crewmateModel.model)) : modelName
   const shownEffort = crewmate !== null && crewmateModel !== null ? crewmateModel.effort : effortLabel
-  const modelWords = modelStatusWords(shownModel, shownEffort)
+  const modelWords = [daemonBuild, modelStatusWords(shownModel, shownEffort)].filter(Boolean).join(' · ')
   const held = receipt !== '' && !statusRowWarns(live, status) ? receipt : null
-  const resting = held === null && line === 'ready'
+  const resting = daemonBuild === '' && held === null && line === 'ready'
   const head = resting ? restingStatusWords(shownModel, shownEffort) : modelWords
   const rest = held ?? (resting ? '' : line)
   const plan = statusRowPlan({ columns, head, rest, samples, folder, branch, backHint })

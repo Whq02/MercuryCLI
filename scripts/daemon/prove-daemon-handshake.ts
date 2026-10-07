@@ -398,9 +398,9 @@ section('F · the pure grammar: the newer mirror, the refused line, the evidence
     },
     client,
   )
-  check('F3 same proto, other build ⇒ rebuilt: heal armed silently, NO line (nothing is dead)', rebuilt.state === 'rebuilt' && rebuilt.heal === 'restart-when-idle' && rebuilt.line === null)
+  check('F3 same version, other build stays visible and does not invent chronology', rebuilt.state === 'rebuilt' && rebuilt.heal === 'operator' && rebuilt.line?.includes('build order unknown') === true)
   check('F4 rebuilt evidence names both trees', hsMod.daemonHandshakeEvidence(rebuilt).includes('tree cccc vs aaaa'), hsMod.daemonHandshakeEvidence(rebuilt))
-  const restarting = hsMod.applyHeal(rebuilt, { state: 'restarting', live: 0 })
+  const restarting = hsMod.applyHeal({ ...rebuilt, heal: 'restart-when-idle' }, { state: 'restarting', live: 0 })
   check('F5 the heal status words: idle-restarted', hsMod.daemonHandshakeEvidence(restarting).includes('idle-restarted'))
 }
 
