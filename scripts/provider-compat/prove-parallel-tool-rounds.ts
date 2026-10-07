@@ -461,7 +461,7 @@ for (const { lane, model, dialect } of LANES) {
       check('P1 the typed correction for both refusals rides the same request, after the results', correction !== undefined && correction.includes('call_unknown') && correction.includes('call_badargs'), round.trailingText.join(' | ').slice(0, 200))
     } else {
       check('P1 the unknown tool answered with the no-such-tool error', round.answers.some(a => a.id === 'call_unknown' && a.text.includes('No such tool available')))
-      check('P1 the bad arguments answered with the validation error', round.answers.some(a => a.id === 'call_badargs' && a.text.includes('required parameter')))
+      check('P1 the bad arguments answered with the validation error', round.answers.some(a => a.id === 'call_badargs' && a.text.includes('`text`') && a.text.includes('string')))
     }
     if (dialect === 'chat') check('P1 every tool row directly follows the assistant tool_calls row', second !== undefined && chatToolRowsAdjacent(second.body))
   }
