@@ -3,7 +3,7 @@
 # gate-watch: src/services/changeTransaction/receipts* src/services/dap/dapClient*
 # gate-watch: src/services/dap/debugpyResolver* src/services/ide/** src/services/lsp/**
 # gate-watch: src/services/resources/adapters/ide* src/services/resources/adapters/test*
-# gate-watch: src/services/resources/registry* src/services/run/**
+# gate-watch: src/services/resources/registry* src/services/run/** src/services/tools/toolExecution.ts
 # gate-watch: src/services/vulcan/vulcanClient* src/services/workshop/pythonRuntime*
 # gate-watch: src/tools/DebugTool/DebugTool* src/tools/LSPTool/mercuryOps*
 # gate-watch: src/tools/LaunchTool/LaunchTool* src/tools/TestTool/TestTool* src/utils/**
