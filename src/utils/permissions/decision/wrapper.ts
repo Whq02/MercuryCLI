@@ -395,11 +395,6 @@ export async function decideToolPermissionWithModes(
       if (workflowRequiresConsent(tool.name)) {
         floorTags.push('workflow-consent')
       }
-      let pushOrInstall = true
-      try {
-        pushOrInstall = flowPushOrInstall(tool, input)
-      } catch {}
-      if (pushOrInstall) return decide('autoFloors', engineDecision)
       if (floorTags.length > 0) {
         if (headless) {
           return decide(
@@ -418,6 +413,11 @@ export async function decideToolPermissionWithModes(
         }
         return decide('autoFloors', engineDecision, floorTags.join('+'))
       }
+      let pushOrInstall = true
+      try {
+        pushOrInstall = flowPushOrInstall(tool, input)
+      } catch {}
+      if (pushOrInstall) return decide('autoFloors', engineDecision)
       recordPass('autoFloors')
 
       if (tool.name === POWERSHELL_TOOL_NAME) {
