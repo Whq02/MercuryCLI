@@ -243,29 +243,29 @@ assert.equal(wallCard.windowName, 'weekly window')
 const { mapOpenaiHttpFailure } = await import('../../src/services/providers/openai/openaiWire.ts')
 const stated = mapOpenaiHttpFailure(429, { error: { type: 'usage_limit_reached', message: 'The usage limit has been reached', resets_in_seconds: 604800, plan_type: 'prolite' } }, new Headers({ 'x-codex-primary-reset-after-seconds': '3600' }))
 assert.equal(stated.code, 'openai-usage_limit_reached')
-assert.equal(stated.message, 'The usage limit has been reached (resets in ~7.0 days · plan: prolite)')
+assert.equal(stated.message, 'the prolite window is reached — resets in 604800 s — The usage limit has been reached')
 const weekly = mapOpenaiHttpFailure(429, { error: { type: 'usage_limit_reached', message: 'Weekly usage limit reached', plan_type: 'prolite' } }, new Headers({
   'x-codex-primary-reset-after-seconds': '3600',
   'x-codex-primary-window-minutes': '300',
   'x-codex-secondary-reset-after-seconds': '604800',
   'x-codex-secondary-window-minutes': '10080',
 }))
-assert.ok(weekly.message.includes('x-codex-secondary-reset-after-seconds: 604800') && weekly.message.includes('plan: prolite'))
+assert.ok(weekly.message.includes('the prolite window is reached — resets in 604800 s'))
 assert.ok((weekly.resetsAtMs ?? 0) >= now + 604800000)
 const cappedSecondary = mapOpenaiHttpFailure(429, { error: { type: 'usage_limit_reached', message: 'The usage limit has been reached' } }, new Headers({
   'x-codex-primary-used-percent': '32', 'x-codex-primary-reset-after-seconds': '3600',
   'x-codex-secondary-used-percent': '100', 'x-codex-secondary-reset-after-seconds': '604800',
 }))
-assert.ok(cappedSecondary.message.includes('x-codex-secondary-reset-after-seconds: 604800'))
+assert.ok(cappedSecondary.message.includes('the usage window is reached — resets in 604800 s'))
 console.log('PASS one stale word on both surfaces and reset facts from the body or matching window')
 
 const spendText = 'Anthropic says this account is close to its extra usage spending limit'
 assert.equal(warnings.usageWarningNoticeText(spendText, 0), `Usage limit near — ${spendText}. The provider stops this session when the window is used up. Finish the step in hand, commit what is done, and write down where the work stands before the stop; start nothing that cannot be saved in time.`)
 const unlabelled = mapOpenaiHttpFailure(429, { error: { type: 'usage_limit_reached', message: 'Limit reached' } }, new Headers({ 'x-codex-primary-reset-after-seconds': '3600' }))
-assert.ok(unlabelled.message.includes('x-codex-primary-reset-after-seconds: 3600'))
+assert.ok(unlabelled.message.includes('the usage window is reached — resets in 3600 s'))
 const ambiguous = mapOpenaiHttpFailure(429, { error: { type: 'usage_limit_reached', message: 'Limit reached' } }, new Headers({ 'x-codex-primary-reset-after-seconds': '3600', 'x-codex-secondary-reset-after-seconds': '604800' }))
 assert.equal(ambiguous.resetsAtMs, undefined)
-assert.equal(ambiguous.message, 'Limit reached')
+assert.equal(ambiguous.message, 'the usage window is reached — no reset stated — Limit reached')
 
 console.log('Compatibility: the separate overage signal never becomes a percentage wall')
 const overageReset = String(Math.floor(Date.now() / 1000) + 60)
