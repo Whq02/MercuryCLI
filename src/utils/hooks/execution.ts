@@ -17,6 +17,7 @@ import { checkHasTrustDialogAccepted } from '../config.js'
 import { getCwd } from '../cwd.js'
 import { logForDebugging } from '../debug.js'
 import { errorMessage, getErrnoCode } from '../errors.js'
+import { hookEndingSentence, type HookEnding } from '../../rows/vocabulary.js'
 import { pathExists } from '../file.js'
 import { registerPendingAsyncHook } from '../hooks/AsyncHookRegistry.js'
 import { boundHookContext } from './contextBound.js'
@@ -204,6 +205,7 @@ export async function execCommandHook(
   status: number
   aborted?: boolean
   backgrounded?: boolean
+  ending?: HookEnding
 }> {
   const shouldEmitDiag =
     hookEvent === 'SessionStart' ||
@@ -661,37 +663,21 @@ export async function execCommandHook(
   } catch (error) {
     const code = getErrnoCode(error)
     diagExitCode = 1
-
-    if (code === 'EPIPE') {
-      logForDebugging(
-        'EPIPE error while writing to hook stdin (hook command likely closed early)',
-      )
-      const errMsg =
-        'Hook command closed stdin before hook input was fully written (EPIPE)'
-      return {
-        stdout: '',
-        stderr: errMsg,
-        output: errMsg,
-        status: 1,
-      }
-    } else if (code === 'ABORT_ERR') {
-      diagAborted = true
-      return {
-        stdout: '',
-        stderr: 'Hook cancelled',
-        output: 'Hook cancelled',
-        status: 1,
-        aborted: true,
-      }
-    } else {
-      const errorMsg = errorMessage(error)
-      const errOutput = `Error occurred while executing hook command: ${errorMsg}`
-      return {
-        stdout: '',
-        stderr: errOutput,
-        output: errOutput,
-        status: 1,
-      }
+    const ending: HookEnding =
+      code === 'EPIPE'
+        ? { status: 'failed', class: 'closed_pipe', exit_code: 1 }
+        : code === 'ABORT_ERR'
+          ? { status: 'failed', class: 'cancelled', exit_code: 1 }
+          : { status: 'failed', class: 'spawn', exit_code: 1, detail: errorMessage(error) }
+    const words = hookEndingSentence(ending, { name: hookName, event: hookEvent })
+    if (ending.class === 'cancelled') diagAborted = true
+    return {
+      stdout: '',
+      stderr: words,
+      output: words,
+      status: 1,
+      ending,
+      ...(ending.class === 'cancelled' ? { aborted: true } : {}),
     }
   } finally {
     if (shouldEmitDiag) {

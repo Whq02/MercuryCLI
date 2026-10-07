@@ -8,6 +8,7 @@ import { createCombinedAbortSignal } from '../combinedAbortSignal.js'
 import { logForDebugging } from '../debug.js'
 import { recordHookFailure } from '../../extensions/health.js'
 import { errorMessage } from '../errors.js'
+import { hookEndingSentence } from '../../rows/vocabulary.js'
 import { all } from '../generators.js'
 import { logError } from '../log.js'
 import { jsonStringify } from '../slowOperations.js'
@@ -105,11 +106,11 @@ async function commandTransport(run: Invocation): Promise<HookResult> {
     if (result.backgrounded) return { outcome: 'success', hook, lifecycle: lifecycleOf(run, undefined, '', true, false) }
     if (result.aborted) {
       if (run.signal?.aborted !== true) {
-        const seconds = Math.round(timeoutMs / 1000)
-        const stderr = `hook timed out after ${seconds}s and was killed; the ${run.hookEvent} it guarded proceeded (a blocking guard must answer inside its own timeout)` + (result.stderr ? `\n${result.stderr}` : '')
+        const words = hookEndingSentence({ status: 'failed', class: 'timed_out', exit_code: result.status, detail: `${Math.round(timeoutMs / 1000)}s` }, { name: run.hookName, event: run.hookEvent })
+        const stderr = words + (result.stderr ? `\n${result.stderr}` : '')
         if (run.extensionId) recordHookFailure(run.extensionId, run.command, 'timeout')
         response(run, result.output, result.stdout, stderr, 'error', result.status)
-        reportHeadlessHookFailure(`hook ${run.hookName} (${run.hookEvent}) timed out after ${seconds}s and was killed; the ${run.hookEvent} it guarded proceeded`, run)
+        reportHeadlessHookFailure(words, run)
         return { ...errorOutcome(run, stderr, result.stdout, result.status), lifecycle: { command: hook.command, succeeded: false, output: 'Hook cancelled', blocked: false } }
       }
       response(run, result.output, result.stdout, result.stderr, 'cancelled', result.status)
@@ -137,8 +138,9 @@ async function commandTransport(run: Invocation): Promise<HookResult> {
     if (result.status === 0) return { message: createAttachmentMessage({ type: 'hook_success', hookName: run.hookName, toolUseID: run.toolUseID, hookEvent: run.hookEvent, content: result.stdout.trim(), stdout: result.stdout, stderr: result.stderr, exitCode: result.status, command: run.command, durationMs: Date.now() - run.startedAt }), outcome: 'success', hook, lifecycle }
     if (result.status === 2) return { blockingError: { blockingError: `[${hook.command}]: ${result.stderr || 'No stderr output'}`, command: hook.command }, outcome: 'blocking', hook, lifecycle }
     if (run.extensionId) recordHookFailure(run.extensionId, run.command, `exit ${result.status}`)
-    reportHeadlessHookFailure(`hook ${run.hookName} (${run.hookEvent}) failed with exit ${result.status ?? '?'}: ${result.stderr.trim() || 'no stderr output'}`, run)
-    return { ...errorOutcome(run, `Failed with non-blocking status code: ${result.stderr.trim() || 'No stderr output'}`, result.stdout, result.status), lifecycle }
+    const words = hookEndingSentence(result.ending ?? { status: 'failed', class: 'exit', exit_code: result.status, detail: result.stderr.trim() }, { name: run.hookName, event: run.hookEvent })
+    reportHeadlessHookFailure(words, run)
+    return { ...errorOutcome(run, words, result.stdout, result.status), lifecycle }
   } finally {
     combined.cleanup()
   }

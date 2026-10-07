@@ -29,6 +29,15 @@ export type JsonSchema = {
   minimum?: number
   maximum?: number
 }
+export type HookEnding = {
+  status: 'ok'
+  exit_code: 0
+} | {
+  status: 'failed'
+  class: 'closed_pipe' | 'cancelled' | 'timed_out' | 'exit' | 'spawn'
+  exit_code: number
+  detail?: string
+}
 export interface Usage {
   input_tokens: number
   cached_input_tokens: number

@@ -70,6 +70,31 @@ export const ERROR_CLASSES = [
 ] as const
 export type ErrorClass = (typeof ERROR_CLASSES)[number]
 
+export const HOOK_ENDING_CLASSES = ['closed_pipe', 'cancelled', 'timed_out', 'exit', 'spawn'] as const
+export type HookEndingClass = (typeof HOOK_ENDING_CLASSES)[number]
+
+export const HookEndingSchema = lazySchema(() =>
+  z.discriminatedUnion('status', [
+    z.object({ status: z.literal('ok'), exit_code: z.literal(0) }),
+    z.object({ status: z.literal('failed'), class: z.enum(HOOK_ENDING_CLASSES), exit_code: z.number().int(), detail: z.string().optional() }),
+  ]),
+)
+export type HookEnding = z.infer<ReturnType<typeof HookEndingSchema>>
+
+const HOOK_ENDING_WORDS: Record<HookEndingClass, (ending: Extract<HookEnding, { status: 'failed' }>, event: string) => string> = {
+  closed_pipe: () => 'closed its input before Mercury finished writing it',
+  cancelled: () => 'was cancelled',
+  timed_out: (ending, event) => `timed out${ending.detail ? ` after ${ending.detail}` : ''} and was killed; the ${event} it guarded proceeded`,
+  exit: ending => `failed with exit ${ending.exit_code}: ${ending.detail || 'no stderr output'}`,
+  spawn: ending => `could not run${ending.detail ? `: ${ending.detail}` : ''}`,
+}
+
+export function hookEndingSentence(ending: HookEnding, hook: { name: string; event: string }): string {
+  const who = `hook ${hook.name} (${hook.event})`
+  if (ending.status === 'ok') return `${who} ended with exit 0`
+  return `${who} ${HOOK_ENDING_WORDS[ending.class](ending, hook.event)}`
+}
+
 const envelopeFields = {
   seq: z.number().int().min(1),
   timestamp: z.string(),
