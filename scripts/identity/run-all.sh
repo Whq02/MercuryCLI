@@ -29,6 +29,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-no-old-spelling-remains.ts" || { _
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-no-retired-theme-remains.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-no-retired-theme-remains.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-retired-keys-unknown.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-retired-keys-unknown.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-flow-judge-words-gone.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-flow-judge-words-gone.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-transaction-inputs-gone.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-transaction-inputs-gone.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-view-words-gone.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-view-words-gone.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-crewmate-words-gone.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-crewmate-words-gone.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-crew-docs-words.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-crew-docs-words.ts" "$__t" "$__rc"
