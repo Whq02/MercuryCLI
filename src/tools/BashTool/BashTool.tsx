@@ -6,7 +6,8 @@ import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { getCwd } from '../../utils/cwd.js'
-import { getOriginalCwd } from '../../bootstrap/state.js'
+import { getOriginalCwd, isRunInputClosed } from '../../bootstrap/state.js'
+import { TASK_STOP_TOOL_NAME } from '../TaskStopTool/prompt.js'
 import { exec } from '../../utils/Shell.js'
 import { HARD_CAP_MULTIPLIER } from '../../utils/ShellCommand.js'
 import type { ExecResult } from '../../utils/ShellCommand.js'
@@ -40,7 +41,7 @@ import {
 } from '../../utils/file.js'
 import { persistToolResult, buildLargeToolResultMessage, generatePreview, PREVIEW_SIZE_CHARS } from '../../utils/toolResultStorage.js'
 import { interpretCommandResult } from './commandSemantics.js'
-import { describeMaxOutputChars, getDefaultTimeoutMs, getMaxTimeoutMs, getSimplePrompt } from './prompt.js'
+import { describeCommandDescription, describeMaxOutputChars, describeRunInBackground, describeTimeout, getDefaultTimeoutMs, getMaxTimeoutMs, getSimplePrompt } from './prompt.js'
 import { shouldUseSandbox } from './shouldUseSandbox.js'
 import { firstCommandWord } from '../../utils/shell/shellToolUtils.js'
 import { isSedInPlaceEdit, parseSedEditCommand, applySedSubstitution } from './sedEditParser.js'
@@ -77,6 +78,7 @@ import type { ToolResultBlockParam } from '../../types/wire.js'
 import type { AssistantMessage } from '../../types/message.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { existsSync } from 'node:fs'
+import { tailFile } from '../../utils/fsOperations.js'
 import { copyFile, link, stat, truncate } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
 import { getScratchpadDir } from '../../utils/permissions/filesystem.js'
@@ -95,31 +97,15 @@ const MAX_OUTPUT_BYTES = 64 * 1024 * 1024
 const BACKGROUND_TASKS_DISABLED = false
 
 const NEVER_AUTO_BACKGROUND = new Set(['sleep'])
+const SLEEP_TIMEOUT_WHY = 'A command whose first word is `sleep` is killed at its timeout instead of moving to the background; to wait longer, pass a larger `timeout` or use the Sleep tool.'
 
-
-function bashDescriptionGuide(): string {
-  return [
-    'Describe what the command does, in active voice. Do not use the words "complex" or "risk".',
-    'For an everyday single-tool command, a brief phrase of roughly five to ten words is enough:',
-    '  ls -la → "List files in the current directory"',
-    '  git status → "Show the working-tree status"',
-    'For a command that is harder to read at a glance — a pipeline, an unusual flag — add enough',
-    'context to make the intent clear:',
-    '  find . -name "*.tmp" -delete → "Find and delete every .tmp file recursively"',
-    '  curl -s url | jq ".data[]" → "Fetch JSON and extract each element of its data array"',
-  ].join('\n')
-}
 
 function buildModelSchema() {
   return z.strictObject({
     command: z.string().describe('The command to execute'),
-    timeout: semanticNumber(z.number().optional()).describe(
-      `Optional timeout in milliseconds (max ${getMaxTimeoutMs()})`,
-    ),
-    description: z.string().optional().describe(bashDescriptionGuide()),
-    run_in_background: semanticBoolean(z.boolean().optional()).describe(
-      'Set to true to run the command in the background and read its output later with the file-reading tool.',
-    ),
+    timeout: semanticNumber(z.number().optional()).describe(describeTimeout()),
+    description: z.string().optional().describe(describeCommandDescription()),
+    run_in_background: semanticBoolean(z.boolean().optional()).describe(describeRunInBackground()),
     dangerouslyDisableSandbox: semanticBoolean(z.boolean().optional()).describe(
       'An explicit, dangerous override that runs the command without sandboxing.',
     ),
@@ -138,6 +124,8 @@ export type BashToolInput = ModelInput & {
 }
 
 
+export type BackgroundLifetime = 'session' | 'turn' | 'crewmate'
+
 export type Out = {
   stdout: string
   stderr: string
@@ -145,6 +133,10 @@ export type Out = {
   code?: number
   isImage?: boolean
   backgroundTaskId?: string
+  backgroundPid?: number
+  backgroundLifetime?: BackgroundLifetime
+  stopOffered?: boolean
+  backgroundOutputIsTail?: boolean
   backgroundedByUser?: boolean
   assistantAutoBackgrounded?: boolean
   timeoutAutoBackgroundedAfterMs?: number
@@ -409,6 +401,21 @@ async function* runBash(
   let timeoutAutoBackgroundedAfterMs: number | undefined
   let foregroundTaskId: string | null = null
   let backgroundId: string | undefined
+  const backgroundFacts = (): Pick<Out, 'backgroundPid' | 'backgroundLifetime' | 'stopOffered'> => ({
+    ...(shellCommand.pid !== undefined ? { backgroundPid: shellCommand.pid } : {}),
+    backgroundLifetime: agentId !== undefined ? 'crewmate' : isRunInputClosed() ? 'turn' : 'session',
+    stopOffered: context.options.tools.some(tool => tool.name === TASK_STOP_TOOL_NAME),
+  })
+  const outputSoFar = async (): Promise<{ stdout: string; isTail: boolean }> => {
+    const window = resolveOutputBudget(readMaxOutputChars(input.max_output_chars)).effective
+    const cut = (text: string): string => formatOutput(stripEmptyLines(text), { maxLength: window }).truncatedContent
+    try {
+      const tail = await tailFile(shellCommand.taskOutput.path, window)
+      return { stdout: cut(tail.content), isTail: tail.bytesRead < tail.bytesTotal }
+    } catch {
+      return { stdout: cut(latest.all), isTail: latest.incomplete }
+    }
+  }
   const launchFacts = (): ShellLaunchFacts => ({
     command: input.command,
     description: input.description ?? input.command,
@@ -496,7 +503,7 @@ async function* runBash(
       shellCommand.cleanup()
       return await postProcess(result)
     }
-    return { stdout: '', stderr: '', interrupted: false, backgroundTaskId: handle.taskId, scrubbedSessionEnv: shellCommand.scrubbedSessionEnv }
+    return { stdout: '', stderr: '', interrupted: false, backgroundTaskId: handle.taskId, scrubbedSessionEnv: shellCommand.scrubbedSessionEnv, ...backgroundFacts() }
   }
 
   let backgroundAsked = false
@@ -544,17 +551,21 @@ async function* runBash(
       backgroundTaskId: backgroundId,
       scrubbedSessionEnv: shellCommand.scrubbedSessionEnv,
       backgroundedByUser: true,
+      ...backgroundFacts(),
     }
   }
   if (backgroundId !== undefined) {
+    const soFar = timeoutAutoBackgroundedAfterMs !== undefined ? await outputSoFar() : { stdout: '', isTail: false }
     return {
-      stdout: '',
+      stdout: soFar.stdout,
       stderr: '',
       interrupted: false,
       backgroundTaskId: backgroundId,
       scrubbedSessionEnv: shellCommand.scrubbedSessionEnv,
       assistantAutoBackgrounded,
       timeoutAutoBackgroundedAfterMs,
+      ...backgroundFacts(),
+      ...(soFar.isTail ? { backgroundOutputIsTail: true } : {}),
     }
   }
 
@@ -598,8 +609,9 @@ async function* runBash(
 
       if (backgroundId !== undefined) {
         const fullOutput = latest.all
+        const soFar = timeoutAutoBackgroundedAfterMs !== undefined ? await outputSoFar() : { stdout: '', isTail: false }
         return {
-          stdout: interruptBackgroundingStarted || backgroundAskHandled ? fullOutput : '',
+          stdout: interruptBackgroundingStarted || backgroundAskHandled ? fullOutput : soFar.stdout,
           stderr: '',
           interrupted: false,
           backgroundTaskId: backgroundId,
@@ -607,6 +619,8 @@ async function* runBash(
           assistantAutoBackgrounded,
           timeoutAutoBackgroundedAfterMs,
           ...(backgroundAskHandled ? { backgroundedByUser: true } : {}),
+          ...backgroundFacts(),
+          ...(soFar.isTail ? { backgroundOutputIsTail: true } : {}),
         }
       }
 
@@ -618,10 +632,11 @@ async function* runBash(
           backgroundTaskId: foregroundTaskId,
           scrubbedSessionEnv: shellCommand.scrubbedSessionEnv,
           backgroundedByUser: true,
+          ...backgroundFacts(),
         }
       }
 
-      const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000)
+      const elapsedSeconds = Math.floor((Date.now() - launchedAt) / 1000)
       if (!BACKGROUND_TASKS_DISABLED && backgroundId === undefined && Date.now() - startedAt >= QUIET_WINDOW_MS && setToolJSX) {
         if (foregroundTaskId === null) {
           foregroundTaskId = registerForeground(
@@ -668,6 +683,7 @@ async function* runBash(
     const accumulator = new EndTruncatingAccumulator()
     accumulator.append(result.stdout.trimEnd() + '\n')
     if (result.stderr.trim() !== '') accumulator.append(result.stderr.trimEnd() + '\n')
+    if (!shouldAutoBackground && result.stderr.includes('Command timed out after')) accumulator.append(SLEEP_TIMEOUT_WHY + '\n')
     if (commandNamesBoxLock(input.command)) await refreshBoxReading()
     const boxLine = boxLockLineForCommand(input.command, `${result.stdout}\n${result.stderr}`, { cwd: getCwd() })
     if (boxLine !== null) accumulator.append(boxLine + '\n')
@@ -817,9 +833,32 @@ function backgroundNoticeFor(output: Out): string {
     return `The operator moved this command to the background as task ${id}; it is still running, and its output arrives as a notification when it completes. Output: ${outputPath}.`
   }
   if (output.timeoutAutoBackgroundedAfterMs) {
-    return `Command timed out after ${formatDuration(output.timeoutAutoBackgroundedAfterMs)} and was moved to the background with ID: ${id}. It is still running under an absolute deadline of ${HARD_CAP_MULTIPLIER}× the timeout, after which it will be killed. Output: ${outputPath}. Pass a larger timeout for work that legitimately needs it, or run_in_background for service-style commands.`
+    const deadline = formatDuration(HARD_CAP_MULTIPLIER * output.timeoutAutoBackgroundedAfterMs)
+    const soFar =
+      output.stdout.trim() === ''
+        ? `It has printed nothing yet; its output goes to ${outputPath}.`
+        : `${output.backgroundOutputIsTail ? 'The end of its output so far is above' : 'Its output so far is above'}; the rest goes to ${outputPath}.`
+    const stopNow = output.stopOffered ? ` TaskStop with task_id "${id}" ends it now, with the processes under it.` : ''
+    const until =
+      output.backgroundLifetime === 'turn'
+        ? ' This run ends when your turn ends (unless a crewmate is still running) and stops it then.'
+        : output.backgroundLifetime === 'crewmate'
+          ? ' It is stopped when you finish.'
+          : ' When it ends, a notice reaches you after your next tool result, or in a new turn once yours is over.'
+    return `Command timed out after ${formatDuration(output.timeoutAutoBackgroundedAfterMs)} and was moved to the background with ID: ${id}; it was not stopped. ${soFar} It is still running under an absolute deadline of ${HARD_CAP_MULTIPLIER}× the timeout (${deadline} from now), after which it will be killed.${stopNow}${until} Next time, pass a larger \`timeout\` if it needs longer, or \`run_in_background\` for a command meant to keep running.`
   }
-  return `Running in the background (ID: ${id}). Output: ${outputPath}.`
+  const pid = output.backgroundPid !== undefined ? ` Process id ${output.backgroundPid}.` : ''
+  const wait = output.backgroundPid !== undefined
+    ? ` If you need its result, wait for it before you finish: one Bash call with a \`timeout\` longer than the wait, such as \`while kill -0 ${output.backgroundPid} 2>/dev/null; do sleep 1; done\`.`
+    : ' If you need its result, wait for it before you finish: one Bash call with a `timeout` longer than the wait.'
+  const lifetime =
+    output.backgroundLifetime === 'turn'
+      ? ` This run ends when your turn ends (unless a crewmate is still running) and stops this command then, so its notice reaches you only while you are still working.${wait} Sleep runs its full time for a shell command.`
+      : output.backgroundLifetime === 'crewmate'
+        ? ` It is stopped when you finish, so its notice reaches you only while you are still working.${wait}`
+        : ' When it ends, a notice with its exit code reaches you after your next tool result, or in a new turn once yours is over; do not poll it.'
+  const stop = output.stopOffered ? ` TaskStop with task_id "${id}" ends it.` : ''
+  return `Running in the background (ID: ${id}). Output: ${outputPath}.${pid}${lifetime}${stop}`
 }
 
 

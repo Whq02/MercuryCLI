@@ -14,6 +14,7 @@ import { getCwd } from './utils/cwd.js'
 import { getBranch, getDefaultBranch, getIsGit, gitExe } from './utils/git.js'
 import { projectScopePathspec } from './utils/projectBoundary.js'
 import { shouldIncludeGitInstructions } from './utils/gitSettings.js'
+import { gitRulesText } from './utils/gitRules.js'
 import { logError } from './utils/log.js'
 import { INSTRUCTIONS_CONTEXT_KEY } from './utils/userContextReminder.js'
 
@@ -115,8 +116,10 @@ export const getSystemContext = memoize(
       has_git_status: gitStatus !== null,
       has_injection: false,
     })
+    const gitRules = gitStatus ? gitRulesText() : ''
     return {
       ...(gitStatus ? { gitStatus } : {}),
+      ...(gitRules ? { gitRules } : {}),
     }
   },
 )

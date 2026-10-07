@@ -50,13 +50,21 @@ export default function BashToolResultMessage({
 
   const stdoutEmpty = stdout.trim() === ''
   const stderrBlank = remainingStderr.trim() === ''
-  const showEmptyRow = stdoutEmpty && stderrBlank && !cwdResetNotice
+  const inBackground = Boolean(content.backgroundTaskId)
+  const showEmptyRow = stdoutEmpty && stderrBlank && !cwdResetNotice && !inBackground
 
   return (
     <Box flexDirection="column">
       {!stdoutEmpty && <OutputLine content={stdout} verbose={verbose} />}
       {!stderrBlank && <OutputLine content={remainingStderr} verbose={verbose} isError />}
       {cwdResetNotice && <OutputLine content={cwdResetNotice} verbose={verbose} isWarning />}
+      {inBackground && (
+        <MessageResponse height={1}>
+          <Text color={FAINT} dimColor>
+            Running in the background <KeyboardShortcutHint shortcut="↓" action="manage" parens />
+          </Text>
+        </MessageResponse>
+      )}
       {showEmptyRow && <EmptyRow content={content} />}
       {typeof timeoutMs === 'number' && timeoutMs > 0 && <ShellTimeDisplay timeoutMs={timeoutMs} />}
     </Box>
@@ -64,16 +72,6 @@ export default function BashToolResultMessage({
 }
 
 function EmptyRow({ content }: { content: BashResultContent }): React.ReactNode {
-  if (content.backgroundTaskId) {
-    return (
-      <MessageResponse height={1}>
-        <Text color={FAINT} dimColor>
-          Running in the background <KeyboardShortcutHint shortcut="↓" action="manage" parens />
-        </Text>
-      </MessageResponse>
-    )
-  }
-
   const note = content.returnCodeInterpretation
     ? content.returnCodeInterpretation
     : content.noOutputExpected

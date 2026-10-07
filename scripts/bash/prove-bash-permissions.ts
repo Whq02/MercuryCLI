@@ -96,8 +96,8 @@ section("prose hygiene — BashTool/prompt.ts uses ASCII apostrophes (no curly U
   let curlyCount = 0
   for (const ch of text) if (ch.codePointAt(0) === 0x2019) curlyCount++
   check('BashTool/prompt.ts contains ZERO curly apostrophes (U+2019)', curlyCount === 0, `count=${curlyCount}`)
-  check("the normalized ASCII prose (\"it's the stronger path\") is present", text.includes("it's the stronger path"))
-  const planted = text.replace("it's the stronger", 'it’s the stronger')
+  check("the normalized ASCII prose (\"a crewmate's run\") is present", text.includes("a crewmate's run"))
+  const planted = text.replace("a crewmate's run", 'a crewmate’s run')
   let plantedCurly = 0
   for (const ch of planted) if (ch.codePointAt(0) === 0x2019) plantedCurly++
   check('planted-bad arm: a re-introduced U+2019 IS detected by the scan', plantedCurly === 1, `plantedCount=${plantedCurly}`)
