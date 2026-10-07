@@ -4,6 +4,7 @@ import { dirname, isAbsolute, join, resolve, sep } from 'node:path'
 
 import { getErrnoCode } from './errors.js'
 import { slowLogging } from './slowOperations.js'
+import { uncPathRisk } from './permissions/uncPath.js'
 
 
 export interface FsOperations {
@@ -175,7 +176,7 @@ export function setOriginalFsImplementation(): void {
 
 
 function isUncLikePath(path: string): boolean {
-  return /^(\\\\|\/\/)/.test(path)
+  return uncPathRisk(path).risky || /^(\\\\|\/\/)/.test(path)
 }
 
 function isSpecialFile(stats: fs.Stats): boolean {
