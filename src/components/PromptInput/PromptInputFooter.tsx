@@ -30,6 +30,10 @@ import { getNewlineInstructions } from './utils.js'
 import { crewmateComposerHint } from '../../utils/cockpit/crewmateWords.js'
 import { targetWords, useComposerCrewmate, useViewedCrewmate, viewedWords } from '../tasks/useCrewmateView.js'
 
+export function footerStripHint(hint: string): string {
+  return hint.replace(/^(?:⇧|shift\+)←/, 'shift + ←')
+}
+
 const NARROW_COLUMNS = 80
 
 export function PromptInputFooter({
@@ -150,7 +154,7 @@ export function PromptInputFooter({
         <Text dimColor wrap="truncate-end">
           {getNewlineInstructions()}
           {composerCrewmate !== null ? ` · ${crewmateComposerHint(targetWords(composerCrewmate), viewedWords(viewedCrewmate))}` : ''}
-          {fullscreen && stripHint !== '' ? ` · ${stripHint}` : ''}
+          {fullscreen && stripHint !== '' ? ` · ${footerStripHint(stripHint)}` : ''}
         </Text>
       ) : null}
     </Box>

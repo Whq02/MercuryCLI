@@ -267,7 +267,7 @@ rem there); an ancient node that runs-but-prints-garbage still leaves a\r
 rem file, so the clean version refusal is preserved.\r
 set "MERCURY_PROBE_OUT=%TEMP%\\mercury-probe-%RANDOM%-%TIME::=%.txt"\r
 if not defined TEMP set "MERCURY_PROBE_OUT=%DIR%mercury-probe-%RANDOM%-%TIME::=%.txt"\r
-"%NODEBIN%" -e "${SPLASH_VERSION_TTY_PROBE_JS}" -- %* >"%MERCURY_PROBE_OUT%" 2>nul\r
+"%NODEBIN%" -e "${SPLASH_VERSION_TTY_PROBE_JS}" >"%MERCURY_PROBE_OUT%" 2>nul -- %*\r
 if not exist "%MERCURY_PROBE_OUT%" goto :boot\r
 for /f "usebackq tokens=1,2" %%v in ("%MERCURY_PROBE_OUT%") do (set "NODEV=%%v" & set "NODETTY=%%w")\r
 del /q "%MERCURY_PROBE_OUT%" >nul 2>nul\r
@@ -666,7 +666,13 @@ Run \`mercury install\` from the extracted folder's own launcher (or
 2. smoke-tests the copy (\`--version\` must print this release);
 3. switches the ONE pointer file \`versions/current.txt\` atomically;
 4. writes the stable \`mercury\` command — \`~/.local/bin/mercury\` on
-   macOS/Linux, \`%LOCALAPPDATA%\\Mercury\\bin\\mercury.cmd\` on Windows;
+   macOS/Linux, \`%LOCALAPPDATA%\\Mercury\\bin\\mercury.cmd\` on Windows,
+   with two companions beside it on Windows: \`mercury\` for Git Bash, and
+   \`mercury-powershell.ps1\` — the PowerShell entry for scripts, which hands
+   a \`mercury-powershell run "<prompt>"\` command line to the runtime as
+   PowerShell parsed it (\`%NAME%\` and line breaks arrive as typed, where a
+   \`.cmd\` has them rewritten by cmd.exe first); from cmd.exe a prompt
+   arrives unchanged on standard input: \`mercury run - < prompt.txt\`;
 5. puts that directory on your PATH once, and names exactly what it wrote:
    on macOS/Linux one guarded line in your shell's startup file
    (\`~/.zshrc\` for zsh; \`~/.bashrc\` plus the login profile for bash; a
@@ -699,7 +705,7 @@ Properties you can rely on:
 |---|---|
 | Installed versions | \`<mercury home>/versions/<version>/\` |
 | Active-version pointer | \`<mercury home>/versions/current.txt\` (one line) |
-| Stable command | \`~/.local/bin/mercury\` · \`%LOCALAPPDATA%\\Mercury\\bin\\mercury.cmd\` |
+| Stable command | \`~/.local/bin/mercury\` · \`%LOCALAPPDATA%\\Mercury\\bin\\mercury.cmd\` (beside it: \`mercury\` for Git Bash, \`mercury-powershell.ps1\` for PowerShell scripts) |
 | PATH entry | one \`mercury-managed-path\` line in the shell's startup file · the user PATH (\`HKCU\\Environment\`) |
 | Configuration + sessions | \`<mercury home>\` (\`~/.mercury\`; \`MERCURY_CONFIG_DIR\` overrides) |
 

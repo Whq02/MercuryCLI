@@ -18,7 +18,7 @@ BUN="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
 
 echo "── Node 24 LTS runtime-contract proofs ──"
-for prover in prove-node-policy prove-entry-gate prove-compile-cache prove-win32-console prove-windows-seams prove-spawn-window-discipline prove-copy-truth prove-workflow-toolchain prove-field-findings-exit-writes prove-broken-pipe-uniform prove-session-env-own-stamps; do
+for prover in prove-node-policy prove-entry-gate prove-compile-cache prove-win32-console prove-windows-seams prove-launcher-probe-redirect prove-spawn-window-discipline prove-copy-truth prove-workflow-toolchain prove-field-findings-exit-writes prove-broken-pipe-uniform prove-session-env-own-stamps; do
   echo ""
   echo "▶ $prover"
   __t=$SECONDS; __rc=0; "$BUN" run "$here/$prover.ts" || { __rc=$?; fail=1; }; prover_mark "$here/$prover.ts" "$__t" "$__rc"
