@@ -98,7 +98,10 @@ export function selectableUserMessagesFilter(
     : content.every(block => block.type === 'text')
       ? content.map(block => (block as { text: string }).text).join('\n')
       : undefined
-  if (noticeText !== undefined && wrappedNoticeBlocks(noticeText) !== null) return false
+  if (noticeText !== undefined) {
+    if (wrappedNoticeBlocks(noticeText) !== null) return false
+    if (COMPLETE_TAG_MARKERS.some(marker => noticeText.includes(marker)) && stripDisplayTagsAllowEmpty(noticeText) === '') return false
+  }
   const text = messageText(message)
   if (COMPLETE_TAG_MARKERS.some(marker => text.includes(marker))) return false
   if (text.includes(CREWMATE_PREFIX)) return false
