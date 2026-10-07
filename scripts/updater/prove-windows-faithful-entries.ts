@@ -142,6 +142,21 @@ section('(5) the facade decides for real: a fixture layout with a cmd launcher t
   }
 }
 
+section('(6) the words: the Windows page and the install note name the two roads a script has')
+{
+  const page = readFileSync(join(import.meta.dir, '..', '..', 'docs', 'INSTALL-WINDOWS-FROM-SOURCE.md'), 'utf8')
+  check('the Windows page names the PowerShell entry road', page.includes('mercury-powershell run'))
+  check('the Windows page names the standard-input road for cmd.exe', page.includes('mercury run --format rows - < prompt.txt'))
+  check('the Windows page says what cmd.exe does to a command-line prompt', page.includes('`%NAME%` is expanded and a line break ends the command'))
+  check('the Windows page keeps the bare boot unchanged in words', page.includes('a bare `mercury` opens the enter screen as before'))
+  check('the Windows page names nothing as old or removed', !/\b(old|removed|deprecated|legacy)\b/i.test(page.slice(page.indexOf('### A prompt from a script'), page.indexOf('## 10. Make a'))))
+  // @ts-ignore -- untyped .mjs module
+  const templates = await import('../release/launcherTemplates.mjs')
+  const installing: string = templates.installingDoc(templates.parseEnginesNode('>=24.20.0 <25'), '9.9.9')
+  check('INSTALLING.md names the PowerShell entry beside the stable command', installing.includes('mercury-powershell.ps1') && installing.includes('mercury-powershell run "<prompt>"'))
+  check('INSTALLING.md names the standard-input road', installing.includes('mercury run - < prompt.txt'))
+}
+
 if (failures > 0) {
   console.log(`\nRED: ${failures} check(s) failed — prove-windows-faithful-entries`)
   process.exit(1)

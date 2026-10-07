@@ -386,6 +386,42 @@ install's `mercury` launcher does: the build copies the splash beside
 face. `$env:MERCURY_SPLASH = "off"` skips it on both roads; a start with any
 argument (a prompt, `--continue`, a verb) goes straight to its destination.
 
+### A prompt from a script
+
+A headless run (`mercury run "<prompt>"`, `--format rows` for a machine-
+readable stream) takes its prompt from the command line. A source build
+started as `node dist\mercury.mjs run "<prompt>"` receives the prompt exactly
+as PowerShell holds it. A release install's `mercury` command is a `.cmd`
+file, and anything cmd.exe is handed is rewritten by cmd.exe before Mercury
+starts: `%NAME%` is expanded and a line break ends the command. A Windows
+script therefore has two roads that carry a prompt as typed:
+
+- **From PowerShell:** the install's PowerShell entry, `mercury-powershell`,
+  beside `mercury.cmd` in `%LOCALAPPDATA%\Mercury\bin`. It hands the command
+  line as PowerShell parsed it to the Node runtime, so `%NAME%`, a line break
+  and every other character arrive intact:
+
+  ```powershell
+  mercury-powershell run --format rows "Line one`nLine two with %NAME% kept"
+  ```
+
+  PowerShell's execution policy must allow local scripts
+  (`Get-ExecutionPolicy`); where it does not, the standard-input road below,
+  from cmd.exe, is the one that carries the bytes unchanged.
+
+- **From cmd.exe (or any shell):** give the prompt on standard input with `-`
+  as the prompt — the bytes of the file reach Mercury unchanged:
+
+  ```bat
+  mercury run --format rows - < prompt.txt
+  ```
+
+A bare `mercury`, `mercury health` and the other verbs are unaffected: the
+rewrite only touches a prompt given as a command-line argument to the `.cmd`.
+From Git Bash, `mercury run "<prompt>"` and any argument carrying `%`, `^`,
+`&`, `|`, `<`, `>`, `"` or a line break go to the Node runtime directly and
+arrive as typed; a bare `mercury` opens the enter screen as before.
+
 ---
 
 ## 10. Make a `mercury` command (optional)
