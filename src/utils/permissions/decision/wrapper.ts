@@ -42,6 +42,8 @@ import {
 } from '../PermissionUpdate.js'
 import type { PermissionUpdate } from '../PermissionUpdateSchema.js'
 import { decideRuleBasedPermissions, decideToolPermission } from './engine.js'
+import { flowRequiresFreshApproval } from '../flowPolicy.js'
+import { createPermissionRequestMessage } from './requestMessage.js'
 import type {
   DecisionTrace,
   WrapperStageId,
@@ -321,6 +323,17 @@ export async function decideToolPermissionWithModes(
     engineTrace,
     wrapper: { stages: stageLog, decidedBy: 'engine' },
   })
+
+  if (
+    engineDecision.behavior !== 'deny' &&
+    context.getAppState().toolPermissionContext.mode === 'flow' &&
+    flowRequiresFreshApproval(tool, input)
+  ) {
+    return decide('autoSafetyImmunity', engineDecision.behavior === 'ask' ? engineDecision : {
+      behavior: 'ask',
+      message: createPermissionRequestMessage(tool.name),
+    })
+  }
 
   if (engineDecision.behavior === 'allow') {
     return passThrough(engineDecision)

@@ -100,6 +100,7 @@ export function handleInteractivePermission(
           {
             decisionReason: result.decisionReason,
             promptStartMs: permissionPromptStartTimeMs,
+            suggestions: result.suggestions,
           },
         ),
       )
