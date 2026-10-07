@@ -14,6 +14,8 @@ import { crewAgentsOf, crewWaitingWords } from '../services/engine-connector/cre
 import { withSampleWords, workRowRuns, workWaitingWords } from '../services/engine-connector/workCounts.js'
 import { requestWaitLine } from '../services/providers/streamIdleBudget.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
+import { useIdleMotion } from '../hooks/useIdleMotion.js'
+import { governorTrip, motionPosture } from '../utils/cockpit/motionGovernor.js'
 import { stringWidth } from '../ink/stringWidth.js'
 import { truncateKeepingTail } from '../utils/truncate.js'
 import { GLYPH, branchChip } from './mercury-ui/glyphs.js'
@@ -270,6 +272,10 @@ function SwitchboardAttributionBridge({
 export function FocusedSessionStatusRow(): React.ReactNode {
   const t = useMercuryTokens()
   const { columns } = useTerminalSize()
+  const motionLevel = useIdleMotion('clock')
+  const motionWords = motionLevel === 'reduced'
+    ? motionPosture() === 'auto' && governorTrip() === 'wire' ? 'reduced · slow link' : 'reduced'
+    : ''
   useSyncExternalStore(subscribeFocusedSeat, getFocusedSeatStatusKey, getFocusedSeatStatusKey)
   const live = useSyncExternalStore(subscribeFocusedSeat, getFocusedSeatLive, getFocusedSeatLive)
   const workRows = useFocusedWorkRows()
@@ -313,7 +319,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const modelWords = [modelStatusWords(shownModel, shownEffort), daemonBuild].filter(Boolean).join(' · ')
   const held = receipt !== '' && !statusRowWarns(live, status) ? receipt : null
   const resting = daemonBuild === '' && held === null && line === 'ready'
-  const head = resting ? restingStatusWords(shownModel, shownEffort) : modelWords
+  const head = [resting ? restingStatusWords(shownModel, shownEffort) : modelWords, motionWords].filter(Boolean).join(' · ')
   const rest = held ?? (resting ? '' : line)
   const plan = statusRowPlan({ columns, head, rest, samples, folder, branch, backHint })
   const fitted = plan.rest
