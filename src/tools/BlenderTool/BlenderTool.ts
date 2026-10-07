@@ -202,16 +202,6 @@ export const BlenderTool = buildTool({
       message: `Blender mutate: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} — switches the open .blend (no undo step; unsaved work refuses with BLEND_DIRTY rather than being discarded)`,
     }
   },
-  toAutoClassifierInput(input: Input) {
-    const spec = blenderBridgeVerb(input.op)
-    if (LOCAL_MUTATES.has(input.op)) return `blender mutate: ${input.op}`
-    if (!spec || spec.cls === 'read') return ''
-    if (input.op === 'python_run') {
-      const source = typeof input.args?.source === 'string' ? input.args.source : ''
-      return `blender exec: python_run ${source.slice(0, 300)}`
-    }
-    return `blender ${spec.cls}: ${input.op} ${summarizeArgs(input.args, 300)}`
-  },
   async validateInput(input: Input) {
     if (!input.op || input.op.trim().length === 0) {
       return { result: false as const, message: 'op is required', errorCode: 1 }

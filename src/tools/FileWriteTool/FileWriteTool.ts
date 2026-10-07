@@ -113,9 +113,6 @@ export const FileWriteTool = buildTool({
   getActivityDescription(input: Partial<Input> | undefined): string {
     return input?.file_path ? `Writing ${input.file_path}` : 'Writing a file'
   },
-  toAutoClassifierInput(input: Input): string {
-    return input.file_path
-  },
   getPath(input: Partial<Input> | undefined): string {
     return input?.file_path || getCwd()
   },

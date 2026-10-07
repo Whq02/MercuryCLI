@@ -310,9 +310,6 @@ Conceptual asks this closes: "debug the failing Python test" (the rerun-failed p
       message: `Launch ${input.op}: profile ${input.profile ?? '?'} (executes project code/builds)`,
     }
   },
-  toAutoClassifierInput(input: Input) {
-    return `launch ${input.op}: ${input.profile ?? ''}`
-  },
   async validateInput(input: Input) {
     if ((input.op === 'inspect' || input.op === 'debug' || input.op === 'run' || input.op === 'test' || input.op === 'build') && !input.profile) {
       return { result: false as const, message: `${input.op} requires profile (an lp-… id)`, errorCode: 1 }

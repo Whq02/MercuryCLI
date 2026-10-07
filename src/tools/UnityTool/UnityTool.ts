@@ -202,12 +202,6 @@ export const UnityTool = buildTool({
       message: `Unity mutate: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} — switches the open scene (no undo step; unsaved work refuses with SCENE_DIRTY rather than being discarded)`,
     }
   },
-  toAutoClassifierInput(input: Input) {
-    const spec = unityBridgeVerb(input.op)
-    if (LOCAL_MUTATES.has(input.op)) return `unity mutate: ${input.op}`
-    if (!spec || spec.cls === 'read') return ''
-    return `unity ${spec.cls}: ${input.op} ${summarizeArgs(input.args, 300)}`
-  },
   async validateInput(input: Input) {
     if (!input.op || input.op.trim().length === 0) {
       return { result: false as const, message: 'op is required', errorCode: 1 }

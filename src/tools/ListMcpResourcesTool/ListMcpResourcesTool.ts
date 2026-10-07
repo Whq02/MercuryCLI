@@ -42,9 +42,6 @@ export const ListMcpResourcesTool = buildTool({
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
   userFacingName: () => 'listMcpResources',
-  toAutoClassifierInput(input: Input): string {
-    return input.server ?? ''
-  },
   getToolUseSummary(input?: Partial<Input>): string | null {
     return input?.server ?? 'all servers'
   },

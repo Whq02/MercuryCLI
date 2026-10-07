@@ -99,9 +99,6 @@ export const ReadMcpResourceTool = buildTool({
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
   userFacingName,
-  toAutoClassifierInput(input: Input): string {
-    return `${input.server} ${input.uri}`
-  },
   async description() {
     return DESCRIPTION
   },

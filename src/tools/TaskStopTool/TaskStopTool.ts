@@ -97,9 +97,6 @@ export const TaskStopTool = buildTool({
   },
   isConcurrencySafe: () => false,
   userFacingName: () => 'Stop Task',
-  toAutoClassifierInput(input: Input): string {
-    return taskIdOf(input) ?? ''
-  },
   async description() {
     return DESCRIPTION
   },

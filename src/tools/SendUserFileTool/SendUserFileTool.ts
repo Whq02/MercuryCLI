@@ -75,9 +75,6 @@ export const SendUserFileTool = buildTool({
   isReadOnly() {
     return true
   },
-  toAutoClassifierInput(input) {
-    return input.caption ?? `[${input.files?.length ?? 0} file(s)]`
-  },
   async validateInput({ files }, _context): Promise<ValidationResult> {
     return validateAttachmentPaths(files)
   },

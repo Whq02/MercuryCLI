@@ -163,9 +163,6 @@ export const JevEvalTool = buildTool({
     }
     return { behavior: 'allow', updatedInput: input }
   },
-  toAutoClassifierInput() {
-    return ''
-  },
   async description() {
     return JEV_EVAL_DESCRIPTION
   },

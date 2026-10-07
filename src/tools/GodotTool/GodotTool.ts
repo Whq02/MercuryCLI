@@ -238,11 +238,6 @@ export const GodotTool = buildTool({
       message: `Godot mutate: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} — one undo step in the editor (Ctrl+Z reverts)`,
     }
   },
-  toAutoClassifierInput(input: Input) {
-    const spec = vulcanOp(input.op)
-    if (!spec || spec.cls === 'read') return ''
-    return `godot ${spec.cls}: ${input.op} ${summarizeArgs(input.args, 300)}`
-  },
   async validateInput(input: Input) {
     if (!input.op || input.op.trim().length === 0) {
       return { result: false as const, message: 'op is required', errorCode: 1 }

@@ -103,9 +103,6 @@ export const SleepTool = buildTool({
   isReadOnly() {
     return true
   },
-  toAutoClassifierInput() {
-    return ''
-  },
   async description() {
     return DESCRIPTION
   },

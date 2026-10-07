@@ -1222,16 +1222,6 @@ export const DebugTool = buildTool({
     }
     return { behavior: 'allow' as const, updatedInput: input }
   },
-  toAutoClassifierInput(input: Input) {
-    if (input.op === 'launch') {
-      return `debug launch: ${input.adapter ?? inferAdapter(input.program ?? '')} ${input.program ?? ''} ${(input.args ?? []).join(' ')}`
-    }
-    if (input.op === 'attach') {
-      return `debug attach: ${input.adapter ?? (input.program ? inferAdapter(input.program) : 'lldb')} ${input.program ?? ''} ${input.pid !== undefined ? `pid ${input.pid}` : ''}`
-    }
-    if (input.op === 'evaluate') return `debug evaluate: ${input.expression ?? ''}`
-    return ''
-  },
   async validateInput(input: Input) {
     if (input.op === 'launch' && !input.program) {
       return { result: false as const, message: 'launch requires program', errorCode: 1 }
