@@ -2755,7 +2755,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             return {
               status: on ? ('ok' as const) : ('info' as const),
               evidence: on
-                ? 'samples on — mercury.sample in Workshop cells keeps a page you asked to see; the listener starts on the first sample'
+                ? 'samples on — sample() in Eval cells keeps a page you asked to see; the listener starts on the first sample'
                 : "samples off (the default) — the Boot Menu's Samples row or MERCURY_SAMPLES=1 turns them on for new sessions",
             }
           },
@@ -3610,24 +3610,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
-          id: 'workshop-fast',
-          label: 'Workshop',
-          run: async () => {
-            const { workshopEnabled } = await import('../services/workshop/contracts.js')
-            if (!workshopEnabled()) {
-              return { status: 'off' as const, evidence: 'MERCURY_WORKSHOP=0' }
-            }
-            const { probePythonInterpreter } = await import(
-              '../services/workshop/pythonRuntime.js'
-            )
-            const py = probePythonInterpreter()
-            return {
-              status: 'ok' as const,
-              evidence: `js/ts armed (embedded worker) · py ${'unavailable' in py ? `honestly unavailable (${py.unavailable.split(' — ')[0]})` : py.version}`,
-            }
-          },
-        },
-        {
           id: 'ide-plane-fast',
           label: 'IDE plane',
           run: async () => {
@@ -4229,22 +4211,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             probe: 'functional',
             timeoutMs: 15_000,
             run: () => probes.probeChangeTransaction(),
-          },
-          {
-            id: 'workshop-js',
-            label: 'Workshop js/ts',
-            depth: 'deep',
-            probe: 'functional',
-            timeoutMs: 20_000,
-            run: () => probes.probeWorkshopJs(),
-          },
-          {
-            id: 'workshop-py',
-            label: 'Workshop python',
-            depth: 'deep',
-            probe: 'functional',
-            timeoutMs: 25_000,
-            run: () => probes.probeWorkshopPython(),
           },
           {
             id: 'service-lifecycle',
