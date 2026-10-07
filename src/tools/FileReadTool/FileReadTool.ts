@@ -1098,7 +1098,8 @@ export const FileReadTool = buildTool({
       entry.offset !== undefined &&
       !entry.isPartialView &&
       entry.offset === (input.offset ?? 0) &&
-      entry.limit === input.limit
+      entry.limit === input.limit &&
+      input.line_anchors !== true
     ) {
       try {
         const stats = await stat(fullFilePath)

@@ -72,6 +72,10 @@ export async function getChangedFiles(
         }
 
         const result = await FileReadTool.call(fileInput, toolUseContext)
+        const recorded = toolUseContext.readFileState.get(normalizedPath)
+        if (recorded !== undefined) {
+          toolUseContext.readFileState.set(normalizedPath, { ...recorded, offset: undefined })
+        }
         if (result.data.type === 'text') {
           const snippet = getSnippetForTwoFileDiff(
             fileState.content,
