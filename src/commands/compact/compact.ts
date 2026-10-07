@@ -85,7 +85,7 @@ function buildDisplayText(
   if (kept > 0) facts.push(`last ${kept} message${kept === 1 ? '' : 's'} kept verbatim`)
   const head = facts.length > 0 ? `Compacted — ${facts.join(' · ')}` : 'Compacted'
   const parts: string[] = []
-  if (!context.getAppState().verbose) {
+  if (shouldEnrichForLiveDisplay(context) && !context.getAppState().verbose) {
     const chord =
       getBindingDisplayText('app:toggleTranscript', 'Global', loadKeybindingsSync()) ?? 'ctrl+o'
     parts.push(`(${chord} reads the full summary — what the agent retains)`)

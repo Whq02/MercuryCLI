@@ -171,6 +171,7 @@ delete process.env.MERCURY_CONCOURSE_WORKER
   )
   const plain = (result.displayText ?? '').replace(/\x1b\[[0-9;]*m/g, '')
   check('R3 …and the receipt line still speaks the numbers (scrollback truth)', /context \S+ → \S+ tokens/.test(plain), plain)
+  check('R3 headless receipt never advertises an interactive transcript key', !plain.includes('reads the full summary') && !plain.includes('ctrl+o'), plain)
 }
 
 section('R4 the card and the boundary row (structural)')
