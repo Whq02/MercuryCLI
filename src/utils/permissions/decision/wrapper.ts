@@ -42,7 +42,7 @@ import {
 } from '../PermissionUpdate.js'
 import type { PermissionUpdate } from '../PermissionUpdateSchema.js'
 import { decideRuleBasedPermissions, decideToolPermission } from './engine.js'
-import { flowRequiresFreshApproval } from '../flowPolicy.js'
+import { flowPushOrInstall, flowRequiresFreshApproval } from '../flowPolicy.js'
 import { createPermissionRequestMessage } from './requestMessage.js'
 import type {
   DecisionTrace,
@@ -395,6 +395,11 @@ export async function decideToolPermissionWithModes(
       if (workflowRequiresConsent(tool.name)) {
         floorTags.push('workflow-consent')
       }
+      let pushOrInstall = true
+      try {
+        pushOrInstall = flowPushOrInstall(tool, input)
+      } catch {}
+      if (pushOrInstall) return decide('autoFloors', engineDecision)
       if (floorTags.length > 0) {
         if (headless) {
           return decide(
@@ -438,6 +443,8 @@ export async function decideToolPermissionWithModes(
       }
       recordPass('powershellGuard')
 
+      let residualInput: Record<string, unknown> | undefined
+
       if (tool.name !== AGENT_TOOL_NAME) {
         let probeContext: ToolUseContext | null = context
         try {
@@ -464,6 +471,9 @@ export async function decideToolPermissionWithModes(
               input,
               probeContext,
             )
+            if (acceptEditsVerdict.behavior === 'passthrough') {
+              residualInput = input
+            }
             if (acceptEditsVerdict.behavior === 'allow') {
               logForDebugging(
                 `Flow allows ${tool.name}: implement mode would allow this outright`,
@@ -509,6 +519,17 @@ export async function decideToolPermissionWithModes(
         })
       }
       recordPass('allowlistFastPath')
+      if (
+        residualInput !== undefined &&
+        context.options.isNonInteractiveSession === true &&
+        context.options.hostHoldsAsks !== true
+      ) {
+        return decide('flowHeadless', {
+          behavior: 'allow',
+          updatedInput: residualInput,
+          decisionReason: { type: 'mode', mode: 'flow' },
+        })
+      }
     }
 
     if (appState.toolPermissionContext.shouldAvoidPermissionPrompts) {

@@ -77,8 +77,10 @@ starting folder.
   tools without asking. A yes on a permission card is remembered as a saved
   rule for the project where a rule can name the call; destructive calls
   always ask. A card unanswered for five minutes is withdrawn, and Mercury
-  continues with an allowed tool call instead. Broad dangerous allow rules
-  are set aside while Flow is on.
+  continues with an allowed tool call instead. With no host, calls that pass
+  Flow's floors and safety checks run without a card; unapproved pushes,
+  installs and destructive calls do not. Broad dangerous allow rules are
+  set aside while Flow is on.
 - **Apollo and dontAsk** keep their existing permission
   behaviour; a folder does not add a separate refusal.
 
