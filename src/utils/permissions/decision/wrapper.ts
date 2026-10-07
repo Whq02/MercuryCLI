@@ -42,6 +42,8 @@ import {
 } from '../PermissionUpdate.js'
 import type { PermissionUpdate } from '../PermissionUpdateSchema.js'
 import { decideRuleBasedPermissions, decideToolPermission } from './engine.js'
+import { flowPushOrInstall, flowRequiresFreshApproval } from '../flowPolicy.js'
+import { createPermissionRequestMessage } from './requestMessage.js'
 import type {
   DecisionTrace,
   WrapperStageId,
@@ -322,6 +324,17 @@ export async function decideToolPermissionWithModes(
     wrapper: { stages: stageLog, decidedBy: 'engine' },
   })
 
+  if (
+    engineDecision.behavior !== 'deny' &&
+    context.getAppState().toolPermissionContext.mode === 'flow' &&
+    flowRequiresFreshApproval(tool, input)
+  ) {
+    return decide('autoSafetyImmunity', engineDecision.behavior === 'ask' ? engineDecision : {
+      behavior: 'ask',
+      message: createPermissionRequestMessage(tool.name),
+    })
+  }
+
   if (engineDecision.behavior === 'allow') {
     return passThrough(engineDecision)
   }
@@ -400,6 +413,11 @@ export async function decideToolPermissionWithModes(
         }
         return decide('autoFloors', engineDecision, floorTags.join('+'))
       }
+      let pushOrInstall = true
+      try {
+        pushOrInstall = flowPushOrInstall(tool, input)
+      } catch {}
+      if (pushOrInstall) return decide('autoFloors', engineDecision)
       recordPass('autoFloors')
 
       if (tool.name === POWERSHELL_TOOL_NAME) {
@@ -424,6 +442,8 @@ export async function decideToolPermissionWithModes(
         return decide('powershellGuard', engineDecision, 'human ask stands')
       }
       recordPass('powershellGuard')
+
+      let residualInput: Record<string, unknown> | undefined
 
       if (tool.name !== AGENT_TOOL_NAME) {
         let probeContext: ToolUseContext | null = context
@@ -451,6 +471,9 @@ export async function decideToolPermissionWithModes(
               input,
               probeContext,
             )
+            if (acceptEditsVerdict.behavior === 'passthrough') {
+              residualInput = input
+            }
             if (acceptEditsVerdict.behavior === 'allow') {
               logForDebugging(
                 `Flow allows ${tool.name}: implement mode would allow this outright`,
@@ -496,6 +519,17 @@ export async function decideToolPermissionWithModes(
         })
       }
       recordPass('allowlistFastPath')
+      if (
+        residualInput !== undefined &&
+        context.options.isNonInteractiveSession === true &&
+        context.options.hostHoldsAsks !== true
+      ) {
+        return decide('flowHeadless', {
+          behavior: 'allow',
+          updatedInput: residualInput,
+          decisionReason: { type: 'mode', mode: 'flow' },
+        })
+      }
     }
 
     if (appState.toolPermissionContext.shouldAvoidPermissionPrompts) {

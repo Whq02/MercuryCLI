@@ -7,6 +7,7 @@ import type {
 import { logError } from '../../../utils/log.js'
 import { decideToolPermissionWithModes } from '../../../utils/permissions/decision/wrapper.js'
 import { createResolveOnce, type PermissionContext } from '../PermissionContext.js'
+import { FLOW_AWAY_MESSAGE, FLOW_AWAY_TIMEOUT_MS } from '../../../utils/permissions/flowPolicy.js'
 
 const USER_INTERACTION_GRACE_MS = 200
 
@@ -32,8 +33,11 @@ export function handleInteractivePermission(
   let channelUnsubscribe: (() => void) | null = null
   let checkmarkTimer: ReturnType<typeof setTimeout> | null = null
   let userInteracted = false
+  let awayTimer: ReturnType<typeof setTimeout> | undefined
 
   const releaseResources = (): void => {
+    if (awayTimer !== undefined) clearTimeout(awayTimer)
+    awayTimer = undefined
     signal.removeEventListener('abort', settleOnAbort)
     if (channelUnsubscribe) {
       channelUnsubscribe()
@@ -100,6 +104,7 @@ export function handleInteractivePermission(
           {
             decisionReason: result.decisionReason,
             promptStartMs: permissionPromptStartTimeMs,
+            suggestions: result.suggestions,
           },
         ),
       )
@@ -154,6 +159,14 @@ export function handleInteractivePermission(
     return
   }
   signal.addEventListener('abort', settleOnAbort, { once: true })
+  if (!guard.isResolved() && ctx.toolUseContext.getAppState().toolPermissionContext.mode === 'flow') {
+    awayTimer = setTimeout(() => {
+      if (!guard.claim()) return
+      releaseResources()
+      ctx.removeFromQueue()
+      guard.resolve(ctx.buildDeny(FLOW_AWAY_MESSAGE))
+    }, FLOW_AWAY_TIMEOUT_MS)
+  }
 
   if (!awaitAutomatedChecksBeforeDialog) {
     void (async () => {

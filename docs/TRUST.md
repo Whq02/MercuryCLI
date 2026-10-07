@@ -74,8 +74,13 @@ starting folder.
 - **Sovereign mode** does not ask because of a file's
   location. Capability gates, explicit deny rules and wards still apply.
 - **Flow mode** allows what Implement mode allows and the read-only
-  tools without asking; anything else asks, and a rule that would allow a
-  dangerous command is set aside while Flow is on.
+  tools without asking. A yes on a permission card is remembered as a saved
+  rule for the project where a rule can name the call; destructive calls
+  always ask. A card unanswered for five minutes is withdrawn, and Mercury
+  continues with an allowed tool call instead. With no host, calls that pass
+  Flow's floors and safety checks run without a card; unapproved pushes,
+  installs and destructive calls do not. Broad dangerous allow rules are
+  set aside while Flow is on.
 - **Apollo and dontAsk** keep their existing permission
   behaviour; a folder does not add a separate refusal.
 
@@ -133,7 +138,8 @@ A hosted session — a switchboard seat, an editor session or another
 `mercury runner` — puts a call that needs approval to its host as
 `permission/request`. The host answers allow or deny. A host declaring
 `holds_asks` owns the ask's clock; otherwise the runner's no-progress limit
-applies. A withdrawn ask sends `$/cancel_request`. The daemon declines an
+applies. Flow withdraws an unanswered permission card after five minutes in
+either case. A withdrawn ask sends `$/cancel_request`. The daemon declines an
 ask when no operator is connected; the absence of an operator never grants
 permission.
 
