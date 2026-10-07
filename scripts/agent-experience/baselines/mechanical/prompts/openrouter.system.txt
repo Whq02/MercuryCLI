@@ -164,6 +164,6 @@ Status:
 (clean)
 
 Recent commits:
-efc34b0 add the node:test suite (the even-length median case fails)
-6f0b09a add the stats, records and format helpers
-a76224c init: package manifest, readme
+2ae6650 add the node:test suite (the even-length median case fails)
+48e9873 add the stats, records and format helpers
+0a29926 init: package manifest, readme
