@@ -70,7 +70,13 @@ const RECEIPT = '# Receipt\n\n## Scope\n\n- one\n\n## Checks\n\n- typecheck 0\n-
 
 section('P. the pure planner')
 check('P1 append after a final newline', planAppend('a\n', 'b\n') === 'a\nb\n')
-check('P2 append supplies the missing newline', planAppend('a', 'b') === 'a\nb')
+check('P2 append supplies the separator and final newline', planAppend('a', 'b') === 'a\nb\n')
+for (const before of ['a\n', 'a', '']) {
+  for (const text of ['b', 'b\n']) {
+    const expected = `${before === '' ? '' : 'a\n'}b\n`
+    check(`P2a append terminates exactly once: ${JSON.stringify({ before, text })}`, planAppend(before, text) === expected, JSON.stringify(planAppend(before, text)))
+  }
+}
 check('P3 append to an empty file is the text', planAppend('', 'b\n') === 'b\n')
 const checks = findSection(RECEIPT, '## Checks')
 check('P4 a section runs from its heading to the line before the next peer heading', checks.ok && checks.start === 7 && checks.end === 16, JSON.stringify(checks))
@@ -117,6 +123,16 @@ section('O. the hunks planner judges every hunk')
 
 section('L. append and section through the tool')
 {
+  for (const [index, before] of ['a\n', 'a', ''].entries()) {
+    for (const [ending, text] of ['b', 'b\n'].entries()) {
+      const target = join(fixtures, `append-ending-${index}-${ending}.txt`)
+      writeFileSync(target, before)
+      const result = await edit({ file_path: target, append: text }, makeContext())
+      const expected = `${before === '' ? '' : 'a\n'}b\n`
+      const actual = readFileSync(target, 'utf8')
+      check(`L0 append ends on exactly one newline: ${JSON.stringify({ before, text })}`, result.ok && actual === expected, result.ok ? JSON.stringify(actual) : result.error)
+    }
+  }
   const fresh = join(fixtures, 'new-receipt.md')
   const ctx = makeContext()
   const created = await edit({ file_path: fresh, append: '# Receipt\n' }, ctx)
@@ -278,7 +294,7 @@ section('R. empty optional fields do not select or conflict with an edit mode')
     { name: 'exact deletion', input: { old_string: 'old', new_string: '' }, expected: body.replace('old\n', ''), mode: 'exact' },
     { name: 'section deletion', input: { section: '## Target', new_string: '' }, expected: '# Fixture\n\n## Other\nstay\n', mode: 'section' },
     { name: 'hunk deletion', input: { hunks: [{ lines: '4', replace: '' }], expected_anchor: mintFileAnchor(body) }, expected: '# Fixture\n\n## Target\n\n## Other\nstay\n', mode: 'hunks' },
-    { name: 'whitespace append', input: { append: '  ' }, expected: body + '  ', mode: 'append' },
+    { name: 'whitespace append', input: { append: '  ' }, expected: body + '  \n', mode: 'append' },
   ]
   for (const [index, row] of cases.entries()) {
     const file = join(fixtures, `empty-fields-${index}.md`)
