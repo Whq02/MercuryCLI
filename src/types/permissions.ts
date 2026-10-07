@@ -103,7 +103,6 @@ export type PermissionDecisionReason =
   | { type: 'hook'; hookName: string; hookSource?: string; reason?: string }
   | { type: 'asyncAgent'; reason: string }
   | { type: 'sandboxOverride'; reason: 'excludedCommand' | 'sandboxDisabled' }
-  | { type: 'classifier'; classifier: string; reason?: string }
   | { type: 'workingDir'; reason: string }
   | { type: 'safetyCheck'; reason: string; classifierApprovable: boolean }
   | { type: 'other'; reason: string }
@@ -117,12 +116,6 @@ export const BYPASSED_ASK_ROAD_WORDS: Readonly<Record<BypassedAskRoad, string>> 
   orgAskCeiling: "the server's ask ceiling",
   safetyCheckAsk: 'the path-safety check',
 })
-
-export type PendingClassifierCheck = {
-  command: string
-  cwd: string
-  descriptions: string[]
-}
 
 export type PermissionAllowDecision<
   ToolInput = Record<string, unknown>,
@@ -147,7 +140,6 @@ export type PermissionAskDecision<
   blockedPath?: string
   metadata?: PermissionMetadata
   isBashSecurityCheckForMisparsing?: boolean
-  pendingClassifierCheck?: PendingClassifierCheck
   contentBlocks?: unknown[]
 }
 
@@ -171,17 +163,7 @@ export type PermissionResult<ToolInput = Record<string, unknown>> =
       decisionReason?: PermissionDecisionReason
       suggestions?: PermissionUpdate[]
       blockedPath?: string
-      pendingClassifierCheck?: PendingClassifierCheck
     }
-
-export type ClassifierResult = {
-  matches: boolean
-  matchedDescription?: string
-  confidence: 'high' | 'medium' | 'low'
-  reason?: string
-}
-
-export type ClassifierBehavior = 'deny' | 'ask' | 'allow'
 
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH'
 

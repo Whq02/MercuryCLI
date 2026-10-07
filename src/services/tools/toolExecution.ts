@@ -5,7 +5,6 @@ import type {
   ToolUseContext,
 } from '../../Tool.js'
 import { closestToolByName, findToolByName, toolMatchesName } from '../../Tool.js'
-import { startSpeculativeClassifierCheck } from '../../tools/BashTool/bashPermissions.js'
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { getLoggingSafeMcpBaseUrl } from '../mcp/utils.js'
 import type { McpServerConfig } from '../mcp/types.js'
@@ -515,7 +514,6 @@ async function runTransactionBody(args: {
     }
   }
 
-
   if (
     typeof parsedInput === 'object' &&
     parsedInput !== null &&
@@ -539,18 +537,6 @@ async function runTransactionBody(args: {
     } catch (error) {
       logError(error)
     }
-  }
-
-  if (
-    toolMatchesName(tool, BASH_TOOL_NAME) &&
-    typeof parsedInput['command'] === 'string'
-  ) {
-    startSpeculativeClassifierCheck(
-      parsedInput['command'],
-      toolUseContext.getAppState().toolPermissionContext,
-      toolUseContext.abortController.signal,
-      toolUseContext.options.isNonInteractiveSession,
-    )
   }
 
   const permissionMode = toolUseContext.getAppState().toolPermissionContext.mode

@@ -1,11 +1,10 @@
 
-import type { PendingClassifierCheck, PermissionDecision, PermissionMode, PermissionUpdate } from '../../../types/permissions.js'
+import type { PermissionDecision, PermissionMode, PermissionUpdate } from '../../../types/permissions.js'
 import { logError } from '../../../utils/log.js'
 import type { PermissionContext } from '../PermissionContext.js'
 
 export type CoordinatorPermissionParams = {
   ctx: PermissionContext
-  pendingClassifierCheck?: PendingClassifierCheck
   updatedInput: Record<string, unknown> | undefined
   suggestions: PermissionUpdate[] | undefined
   permissionMode: PermissionMode
