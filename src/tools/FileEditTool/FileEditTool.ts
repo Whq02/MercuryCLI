@@ -85,9 +85,20 @@ import {
   getPatchForEdit,
   locateActualString,
   preserveQuoteStyleForFile,
+  type ActualMatchOutcome,
 } from './utils.js'
 import { findSection, planAppend, planSectionEdit, sectionHeadingOf } from './sectionEdit.js'
-import { EDIT_RESULT_CLOSE, buildEditedLines, editResultHead } from './editResult.js'
+import {
+  EDIT_RESULT_CLOSE,
+  anchorShownWindows,
+  buildEditedLines,
+  editResultHead,
+  matchRangesOf,
+  notUniqueMessage,
+  planShownWindows,
+  renderShownWindows,
+  spellNamedRanges,
+} from './editResult.js'
 import {
   READ_THROUGH_MARGIN,
   coalesceLineRanges,
@@ -392,6 +403,48 @@ function sameCallReadThrough(gaps: readonly LineRange[], before: string, after: 
   const one = shown.length === 1 && shown[0]!.start === shown[0]!.end
   const sentence = `${unread}; ${one ? 'line' : 'lines'} ${spellLineRanges(shown)} as ${one ? 'it stands' : 'they stand'} now ${one ? 'is' : 'are'} below, numbered with ${one ? 'its' : 'their'} anchor, and ${one ? 'counts' : 'count'} as read:`
   return { text: `${sentence}\n\n${renderCarriedWindows(plan.windows)}`, sentence, ranges: shown }
+}
+
+type NotUniqueRefusal = { result: false; behavior: 'ask'; message: string; errorCode: 9; meta: Record<string, string> }
+
+function notUniqueRefusal(
+  context: ToolUseContext,
+  expandedPath: string,
+  currentContent: string,
+  oldString: string,
+  replaceAll: boolean,
+  located: Exclude<ActualMatchOutcome, { kind: 'none' }>,
+  generationAtStat: string | null,
+): NotUniqueRefusal | null {
+  let matches: LineRange[]
+  let spelling: 'same' | 'differs'
+  if (located.kind === 'ambiguous') {
+    matches = located.matches
+    spelling = 'differs'
+  } else {
+    matches = matchRangesOf(currentContent, located.actual)
+    if (matches.length < 2 || replaceAll) return null
+    spelling = 'same'
+  }
+  const lineCount = lineCountOf(currentContent)
+  const planned = planShownWindows(currentContent, widenLineRanges(matches, READ_THROUGH_MARGIN, lineCount), expandedPath)
+  const recorded = generationAtStat !== null && fileGeneration(expandedPath) === generationAtStat
+  if (recorded) recordCarry(ownerFromToolUseContext(context), expandedPath, generationAtStat, planned)
+  const shownRanges = planned.map(window => ({ start: window.start, end: window.end }))
+  const covered = (match: LineRange): boolean => shownRanges.some(range => range.start <= match.start && match.end <= range.end)
+  let shownMatches = 0
+  while (shownMatches < matches.length && covered(matches[shownMatches]!)) shownMatches++
+  const next = shownMatches < matches.length ? matches[shownMatches]! : null
+  const windows = recorded
+    ? renderShownWindows(anchorShownWindows(planned.map(window => ({ start: window.start, rows: window.content.split('\n') })), { lineCount, text: currentContent }))
+    : ''
+  return {
+    result: false,
+    behavior: 'ask',
+    errorCode: 9,
+    message: notUniqueMessage({ count: matches.length, road: located.road, spelling, replaceAll, matches, lineCount, shownMatches, next, recorded, windows, oldString }),
+    meta: { oldString, ...(located.kind === 'found' ? { actualOldString: located.actual } : {}), matchLines: spellNamedRanges(matches) },
+  }
 }
 
 function linesOfHunks(hunks: readonly EditHunkInput[] | undefined): LineRange[] | null {
@@ -888,6 +941,12 @@ export const FileEditTool = buildTool({
       }
     }
 
+    const located = mode === 'exact' ? locateActualString(currentContent, oldString) : null
+    if (located !== null && located.kind !== 'none') {
+      const notUnique = notUniqueRefusal(context, expandedPath, currentContent, oldString, input.replace_all === true, located, generationAtStat)
+      if (notUnique !== null) return notUnique
+    }
+
     const touched =
       mode === 'exact'
         ? linesOfMatches(currentContent, oldString, input.replace_all === true)
@@ -1008,20 +1067,7 @@ export const FileEditTool = buildTool({
       return { result: true as const }
     }
 
-    const located = locateActualString(currentContent, oldString)
-    if (located.kind === 'ambiguous') {
-      return {
-        result: false as const,
-        behavior: 'ask' as const,
-        message: input.replace_all
-          ? `Found ${located.count} matches of the string to replace, but they differ from each other in whitespace or characters, so replace_all cannot rewrite them as one string. Provide more surrounding context to uniquely identify one instance, or spell old_string as the file does.\nString: ${oldString}`
-          : `Found ${located.count} matches of the string to replace, but replace_all is false. ` +
-            `To replace all occurrences, set replace_all to true. To replace only one occurrence, provide more surrounding context to uniquely identify the instance.\nString: ${oldString}`,
-        errorCode: 9,
-        meta: { oldString },
-      }
-    }
-    const actualOldString = located.kind === 'found' ? located.actual : null
+    const actualOldString = located !== null && located.kind === 'found' ? located.actual : null
     if (actualOldString === null) {
       return {
         result: false as const,
@@ -1029,18 +1075,6 @@ export const FileEditTool = buildTool({
         message: `The old_string was not found in the file.\nString: ${oldString}`,
         errorCode: 8,
         meta: { isPathAbsolute: String(isAbsolute(input.file_path)) },
-      }
-    }
-    const occurrences = currentContent.split(actualOldString).length - 1
-    if (occurrences > 1 && !input.replace_all) {
-      return {
-        result: false as const,
-        behavior: 'ask' as const,
-        message:
-          `Found ${occurrences} matches of the string to replace, but replace_all is false. ` +
-          `To replace all occurrences, set replace_all to true. To replace only one occurrence, provide more surrounding context to uniquely identify the instance.\nString: ${oldString}`,
-        errorCode: 9,
-        meta: { oldString, actualOldString },
       }
     }
 

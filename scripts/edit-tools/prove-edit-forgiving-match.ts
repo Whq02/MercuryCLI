@@ -46,6 +46,7 @@ const MINUS = '\u2212'
 const RS = '\u2019'
 const NOT_FOUND = 'The old_string was not found in the file.'
 const AMBIGUOUS = /^Found (\d+) matches of the string to replace, but replace_all is false/
+const DIFFERING_SPELLINGS = /^Found (\d+) matches of the string to replace, but they differ from each other in whitespace or characters; nothing was written\./
 const locate = (content: string, search: string): Outcome =>
   typeof utils.locateActualString === 'function' ? utils.locateActualString(content, search) : { kind: 'none' }
 const found = (outcome: Outcome): outcome is Extract<Outcome, { kind: 'found' }> => outcome.kind === 'found'
@@ -199,7 +200,7 @@ section('D. through the tool: the same old_string matching two blocks refuses as
   const differing = `${FOUR}\nfunction again(items: string[]): number {\n  let total = 0\n  for (const item of items) {\n    if (item.length > 0) {\n      total += item.length\n    }\n  }\n  return total\n}\n`
   const typedWithTabs = await edit('differing.ts', differing, { old_string: '\tfor (const item of items) {\n\t\tif (item.length > 0) {\n\t\t\ttotal += item.length\n\t\t}\n\t}', new_string: '\tfor (const item of items) {\n\t\ttotal += 1\n\t}' })
   check('D4 two candidate blocks with different indentation refuse and write nothing', !typedWithTabs.ok && typedWithTabs.after === differing, detail(typedWithTabs))
-  check('D4b that refusal is today\'s ambiguity wording with the count, not the not-found wording', !typedWithTabs.ok && AMBIGUOUS.test(typedWithTabs.error) && typedWithTabs.error.includes('Found 2 matches') && !typedWithTabs.error.startsWith(NOT_FOUND), detail(typedWithTabs))
+  check('D4b that refusal says the spellings differ, names both blocks\' lines and never advises replace_all', !typedWithTabs.ok && DIFFERING_SPELLINGS.test(typedWithTabs.error) && typedWithTabs.error.includes('(found after ignoring indentation) are at lines 3-7, 13-17;') && !typedWithTabs.error.includes('set replace_all to true') && !typedWithTabs.error.startsWith(NOT_FOUND), detail(typedWithTabs))
   const differingAll = await edit('differing-all.ts', differing, { old_string: '\tfor (const item of items) {\n\t\tif (item.length > 0) {\n\t\t\ttotal += item.length\n\t\t}\n\t}', new_string: '\tfor (const item of items) {\n\t\ttotal += 1\n\t}', replace_all: true })
   check('D4c with replace_all the differing candidates still refuse, say why in plain words, and write nothing', !differingAll.ok && differingAll.error.startsWith('Found 2 matches of the string to replace, but they differ from each other in whitespace or characters') && differingAll.after === differing, detail(differingAll))
 }

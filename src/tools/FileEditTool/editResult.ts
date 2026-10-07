@@ -290,3 +290,70 @@ export function editResultHead(path: string, modifiedClause: string, edited: Edi
   const where = edited.where === '' ? '' : `; ${edited.where}`
   return `The file ${path} has been updated successfully${modifiedClause}: ${edited.what}${where} (${sizeWords(edited.lineCount, edited.endsWithNewline)}).`
 }
+
+export type NotUniqueWords = {
+  count: number
+  road: 'exact' | 'quotes' | 'characters' | 'whitespace' | 'indentation'
+  spelling: 'same' | 'differs'
+  replaceAll: boolean
+  matches: readonly LineRange[]
+  lineCount: number
+  shownMatches: number
+  next: LineRange | null
+  recorded: boolean
+  windows: string
+  oldString: string
+}
+
+export function roadWords(road: NotUniqueWords['road']): string {
+  switch (road) {
+    case 'exact':
+      return ''
+    case 'quotes':
+      return ' (found after straightening quotes)'
+    case 'characters':
+      return ' (found after ignoring dash and space characters)'
+    case 'whitespace':
+      return ' (found after ignoring trailing whitespace)'
+    case 'indentation':
+      return ' (found after ignoring indentation)'
+  }
+}
+
+export function notUniqueMessage(words: NotUniqueWords): string {
+  const opening =
+    words.spelling === 'same'
+      ? `Found ${words.count} matches of the string to replace, but replace_all is false, so nothing was written.`
+      : `Found ${words.count} matches of the string to replace, but they differ from each other in whitespace or characters${words.replaceAll ? ', so replace_all cannot rewrite them as one string' : ''}; nothing was written.`
+  let shown: string
+  if (!words.recorded) {
+    const next = words.next === null ? null : readNext(words.next, words.lineCount)
+    shown = next === null ? 'Read the lines to see them' : `Read(offset: ${next.offset}, limit: ${next.limit}) shows the first`
+  } else if (words.next === null) {
+    shown = 'they are below with their neighbours and count as read'
+  } else {
+    const next = readNext(words.next, words.lineCount)
+    shown = `the first ${words.shownMatches} ${words.shownMatches === 1 ? 'is' : 'are'} below with ${words.shownMatches === 1 ? 'its' : 'their'} neighbours and ${words.shownMatches === 1 ? 'counts' : 'count'} as read, and Read(offset: ${next.offset}, limit: ${next.limit}) shows the next`
+  }
+  const advice =
+    words.spelling === 'same'
+      ? 'To change one, send old_string again with a neighbouring line that differs between them; to change every match, set replace_all to true.'
+      : 'Send old_string spelled as the file spells the one you mean, with a neighbouring line if that spelling occurs more than once.'
+  const head = `${opening} The matches${roadWords(words.road)} are at lines ${spellNamedRanges(words.matches)}; ${shown}. ${advice}`
+  return `${head}${words.windows === '' ? '' : `\n\n${words.windows}`}\n\nString: ${words.oldString}`
+}
+
+export function matchRangesOf(content: string, actual: string): LineRange[] {
+  if (actual === '') return []
+  const ranges: LineRange[] = []
+  const height = actual.replace(/\n$/, '').split('\n').length - 1
+  let from = 0
+  let line = 1
+  for (let at = content.indexOf(actual); at !== -1; at = content.indexOf(actual, from)) {
+    line += content.slice(from, at).split('\n').length - 1
+    ranges.push({ start: line, end: line + height })
+    line += actual.split('\n').length - 1
+    from = at + actual.length
+  }
+  return ranges
+}
