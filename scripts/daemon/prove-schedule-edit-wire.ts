@@ -34,7 +34,7 @@ try {
   if (method && answerEdit) {
     seed()
     let deps: any = { deriveAccount: () => ({ ok: true, account: { family: 'fixture', source: 'api-key' } }), preflight: () => ({ state: 'rate-limited', retryAt: 1791385380000 }) }
-    const stand = standInRunner({ hooks: { onScheduleEdit: params => answerEdit(SHORT, params, stand.roster(), dir, deps) } as never, autoAnswer: { 'session/facts': {} } })
+    const stand = standInRunner({ hooks: { onScheduleEdit: (params: unknown) => answerEdit(SHORT, params, stand.roster(), dir, deps) } as never, autoAnswer: { 'session/facts': {} } })
     try {
       await stand.connection.initialized
       const atMs = Date.now() + 3600000

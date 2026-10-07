@@ -30,7 +30,7 @@ function check(label: string, ok: boolean, detail = ''): void {
 }
 const context = { abortController: new AbortController() }
 const call = async (input: Record<string, unknown>, ctx = context): Promise<Record<string, any>> => (await tool.call(input as never, ctx as never) as { data: Record<string, any> }).data
-const validate = (input: Record<string, unknown>) => tool.validateInput!(input as never, context as never)
+const validate = (input: Record<string, unknown>) => tool.validateInput!(input as never)
 const text = (data: Record<string, any>): string => String(tool.mapToolResultToToolResultBlockParam(data as never, 'cron-proof').content)
 const rejection = async (f: () => Promise<unknown>): Promise<string> => { try { await f(); return '' } catch (error) { return error instanceof Error ? error.message : String(error) } }
 const rows = (): SaturnScheduleV1[] => JSON.parse(readFileSync(concourseWorkersPath(process.env.MERCURY_DAEMON_DIR), 'utf8')).workers[SHORT].schedules ?? []
@@ -84,7 +84,7 @@ try {
   check('delay schema accepts numeric strings and remains strict', tool.inputSchema.safeParse({ delayMinutes: '10', prompt: 'x' }).success && !tool.inputSchema.safeParse({ delayMinutes: 0, prompt: 'x' }).success && !tool.inputSchema.safeParse({ delayMinutes: 525601, prompt: 'x' }).success && !tool.inputSchema.safeParse({ delayMinutes: 'ten', prompt: 'x' }).success && !tool.inputSchema.safeParse({ delayMinutes: 10, prompt: 'x', when: 'later' }).success)
   const old = { submitted: true, humanSchedule: 'Weekdays at 9:00 AM', recurring: true, title: 'morning brief', note: 'Submitted to the session record' }
   check('saved result and cron input remain readable', tool.outputSchema.safeParse(old).success && ui.renderCreateResultMessage(old) !== null && tool.inputSchema.safeParse({ cron: '0 9 * * 1-5', prompt: 'x', recurring: true, onParked: 'queue', title: 't' }).success && ui.renderCreateToolUseMessage({ cron: '0 9 * * 1-5', prompt: 'x' }) === '0 9 * * 1-5: x')
-  check('description teaches one-shots, certainty and interrupt differences', (await tool.prompt({} as never)).includes('ScheduleWakeup') && (await tool.prompt({} as never)).includes('delayMinutes') && (await tool.prompt({} as never)).includes('Queued, not confirmed') && !(await tool.prompt({} as never)).includes('this call answers "submitted"'))
+  check('description teaches one-shots, certainty and interrupt differences', (await tool.prompt()).includes('ScheduleWakeup') && (await tool.prompt()).includes('delayMinutes') && (await tool.prompt()).includes('Queued, not confirmed') && !(await tool.prompt()).includes('this call answers "submitted"'))
   check('direct schedule answer door exists', register !== undefined)
   if (register !== undefined) {
     seed(); bridge.latchSessionScheduleRoster([]); door()
