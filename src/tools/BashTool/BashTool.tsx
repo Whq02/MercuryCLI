@@ -6,7 +6,8 @@ import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { getCwd } from '../../utils/cwd.js'
-import { getOriginalCwd } from '../../bootstrap/state.js'
+import { getOriginalCwd, isRunInputClosed } from '../../bootstrap/state.js'
+import { TASK_STOP_TOOL_NAME } from '../TaskStopTool/prompt.js'
 import { exec } from '../../utils/Shell.js'
 import { HARD_CAP_MULTIPLIER } from '../../utils/ShellCommand.js'
 import type { ExecResult } from '../../utils/ShellCommand.js'
@@ -138,6 +139,8 @@ export type BashToolInput = ModelInput & {
 }
 
 
+export type BackgroundLifetime = 'session' | 'turn' | 'crewmate'
+
 export type Out = {
   stdout: string
   stderr: string
@@ -145,6 +148,9 @@ export type Out = {
   code?: number
   isImage?: boolean
   backgroundTaskId?: string
+  backgroundPid?: number
+  backgroundLifetime?: BackgroundLifetime
+  stopOffered?: boolean
   backgroundedByUser?: boolean
   assistantAutoBackgrounded?: boolean
   timeoutAutoBackgroundedAfterMs?: number
@@ -409,6 +415,11 @@ async function* runBash(
   let timeoutAutoBackgroundedAfterMs: number | undefined
   let foregroundTaskId: string | null = null
   let backgroundId: string | undefined
+  const backgroundFacts = (): Pick<Out, 'backgroundPid' | 'backgroundLifetime' | 'stopOffered'> => ({
+    ...(shellCommand.pid !== undefined ? { backgroundPid: shellCommand.pid } : {}),
+    backgroundLifetime: agentId !== undefined ? 'crewmate' : isRunInputClosed() ? 'turn' : 'session',
+    stopOffered: context.options.tools.some(tool => tool.name === TASK_STOP_TOOL_NAME),
+  })
   const launchFacts = (): ShellLaunchFacts => ({
     command: input.command,
     description: input.description ?? input.command,
@@ -496,7 +507,7 @@ async function* runBash(
       shellCommand.cleanup()
       return await postProcess(result)
     }
-    return { stdout: '', stderr: '', interrupted: false, backgroundTaskId: handle.taskId, scrubbedSessionEnv: shellCommand.scrubbedSessionEnv }
+    return { stdout: '', stderr: '', interrupted: false, backgroundTaskId: handle.taskId, scrubbedSessionEnv: shellCommand.scrubbedSessionEnv, ...backgroundFacts() }
   }
 
   let backgroundAsked = false
@@ -544,6 +555,7 @@ async function* runBash(
       backgroundTaskId: backgroundId,
       scrubbedSessionEnv: shellCommand.scrubbedSessionEnv,
       backgroundedByUser: true,
+      ...backgroundFacts(),
     }
   }
   if (backgroundId !== undefined) {
@@ -555,6 +567,7 @@ async function* runBash(
       scrubbedSessionEnv: shellCommand.scrubbedSessionEnv,
       assistantAutoBackgrounded,
       timeoutAutoBackgroundedAfterMs,
+      ...backgroundFacts(),
     }
   }
 
@@ -607,6 +620,7 @@ async function* runBash(
           assistantAutoBackgrounded,
           timeoutAutoBackgroundedAfterMs,
           ...(backgroundAskHandled ? { backgroundedByUser: true } : {}),
+          ...backgroundFacts(),
         }
       }
 
@@ -618,6 +632,7 @@ async function* runBash(
           backgroundTaskId: foregroundTaskId,
           scrubbedSessionEnv: shellCommand.scrubbedSessionEnv,
           backgroundedByUser: true,
+          ...backgroundFacts(),
         }
       }
 
@@ -819,7 +834,18 @@ function backgroundNoticeFor(output: Out): string {
   if (output.timeoutAutoBackgroundedAfterMs) {
     return `Command timed out after ${formatDuration(output.timeoutAutoBackgroundedAfterMs)} and was moved to the background with ID: ${id}. It is still running under an absolute deadline of ${HARD_CAP_MULTIPLIER}× the timeout, after which it will be killed. Output: ${outputPath}. Pass a larger timeout for work that legitimately needs it, or run_in_background for service-style commands.`
   }
-  return `Running in the background (ID: ${id}). Output: ${outputPath}.`
+  const pid = output.backgroundPid !== undefined ? ` Process id ${output.backgroundPid}.` : ''
+  const wait = output.backgroundPid !== undefined
+    ? ` If you need its result, wait for it before you finish: one Bash call with a \`timeout\` longer than the wait, such as \`while kill -0 ${output.backgroundPid} 2>/dev/null; do sleep 1; done\`.`
+    : ' If you need its result, wait for it before you finish: one Bash call with a `timeout` longer than the wait.'
+  const lifetime =
+    output.backgroundLifetime === 'turn'
+      ? ` This run ends when your turn ends (unless a crewmate is still running) and stops this command then, so its notice reaches you only while you are still working.${wait} Sleep runs its full time for a shell command.`
+      : output.backgroundLifetime === 'crewmate'
+        ? ` It is stopped when you finish, so its notice reaches you only while you are still working.${wait}`
+        : ' When it ends, a notice with its exit code reaches you after your next tool result, or in a new turn once yours is over; do not poll it.'
+  const stop = output.stopOffered ? ` TaskStop with task_id "${id}" ends it.` : ''
+  return `Running in the background (ID: ${id}). Output: ${outputPath}.${pid}${lifetime}${stop}`
 }
 
 
