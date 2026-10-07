@@ -12,7 +12,6 @@ import {
 import { evalAvailability } from '../../services/eval/interpreters.js'
 import { evalKernelManager } from '../../services/eval/kernelManager.js'
 import { makeEvalBridgeServer } from '../../services/eval/evalBridge.js'
-import { capLines } from '../../services/eval/outputSink.js'
 import type { EvalToolProgress } from '../../types/tools.js'
 import { EVAL_TOOL_NAME } from './constants.js'
 import { buildEvalPrompt, EVAL_DESCRIPTION } from './prompt.js'
@@ -55,10 +54,11 @@ function composeResultText(output: EvalToolOutput): string {
   if (output.stdout.text.trim()) parts.push(output.stdout.text)
   if (output.stderr.text.trim()) parts.push(`[stderr]\n${output.stderr.text}`)
   for (const display of output.displays) {
-    if (display.mime === 'text/plain' || display.mime === 'text/markdown') {
-      parts.push(capLines(display.data.slice(0, EVAL_MAX_DISPLAY_CHARS)))
-    } else if (display.mime === 'application/json') {
-      parts.push(`[json]\n${display.data.slice(0, EVAL_MAX_DISPLAY_CHARS)}`)
+    if (display.mime === 'text/plain' || display.mime === 'text/markdown' || display.mime === 'application/json') {
+      const mark = display.data.length > EVAL_MAX_DISPLAY_CHARS
+        ? `\n… [display cut: ${display.data.length} chars, the first ${EVAL_MAX_DISPLAY_CHARS} shown]`
+        : ''
+      parts.push(`${display.mime === 'application/json' ? '[json]\n' : ''}${display.data.slice(0, EVAL_MAX_DISPLAY_CHARS)}${mark}`)
     }
   }
   if (output.resultRepr) parts.push(`⇒ ${output.resultRepr}`)
@@ -219,12 +219,12 @@ const evalToolDef = buildTool({
       d => (d.mime === 'image/png' || d.mime === 'image/jpeg') && d.b64 === true,
     )
     if (images.length === 0) {
-      return { tool_use_id: toolUseID, type: 'tool_result', content: text, ...(output.status === 'error' ? { is_error: true } : {}) }
+      return { tool_use_id: toolUseID, type: 'tool_result', content: text, ...(output.status !== 'ok' ? { is_error: true } : {}) }
     }
     return {
       tool_use_id: toolUseID,
       type: 'tool_result',
-      ...(output.status === 'error' ? { is_error: true } : {}),
+      ...(output.status !== 'ok' ? { is_error: true } : {}),
       content: [
         { type: 'text' as const, text },
         ...images.map(image => ({
