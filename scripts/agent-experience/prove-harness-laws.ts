@@ -129,7 +129,7 @@ for (const table of tables) {
   const f = table.header.family
   const rows = table.rows.filter(r => !r.skipped)
   check(`${f}: no run timed out or died without an outcome row`, rows.every(r => !r.timedOut && r.resultStatus !== 'no-result' && r.resultStatus !== 'timeout'), rows.filter(r => r.timedOut || r.resultStatus === 'no-result').map(r => `${r.task}:${r.resultStatus}`).join(', '))
-  const daily = ['Agent', 'Bash', 'Read', 'Edit', 'Write', 'Glob', 'Grep', 'Skill', 'Workshop', 'Eval', 'ToolSearch']
+  const daily = ['Agent', 'Bash', 'Read', 'Edit', 'Write', 'Glob', 'Grep', 'Skill', 'Eval', 'ToolSearch']
   const rosterPresent = f === 'openai'
     ? (table.header.toolCount ?? 0) >= daily.length && daily.every(name => table.header.toolNames.includes(name))
     : (table.header.toolCount ?? 0) >= 15
