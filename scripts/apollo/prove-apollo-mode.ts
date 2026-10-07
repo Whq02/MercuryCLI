@@ -309,9 +309,11 @@ section('the runner accepts Apollo for every host')
     /permissionMode: appStateSnapshot\.toolPermissionContext\.mode/.test(engine),
   )
   const agentTool = src('tools', 'AgentTool', 'AgentTool.tsx')
+  const promptBuildStart = agentTool.indexOf('async function buildDefaultSystemPrompt(')
+  const promptBuild = agentTool.slice(promptBuildStart, agentTool.indexOf('\n}', promptBuildStart))
   check(
     'the subagent prompt build passes NO permissionMode (main-agent-only holds by construction)',
-    /getSystemPrompt\(\s*options\.tools,\s*options\.engineModel,[\s\S]{0,220}options\.mcpClients,\s*\)/.test(agentTool),
+    promptBuildStart !== -1 && /definition\.getSystemPrompt\(/.test(promptBuild) && /enhanceSystemPromptWithEnvDetails\(/.test(promptBuild) && !/permissionMode/.test(promptBuild),
   )
   const frame = src('components', 'MercuryFrame.tsx')
   check('the mode chip reads the connector facts', /getFocusedSessionConnector\(\)\.permissionMode\(\)/.test(frame))
