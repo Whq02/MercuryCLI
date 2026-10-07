@@ -210,7 +210,7 @@
    "src/utils/permissions/permissionSetup.ts": [
     "createSovereignDisabledContext",
     "describeSessionPermissionMode",
-    "findDangerousClassifierPermissions",
+    "findDangerousPermissions",
     "getAutoModeUnavailableNotification",
     "getAutoModeUnavailableReason",
     "initialPermissionModeFromCLI",
