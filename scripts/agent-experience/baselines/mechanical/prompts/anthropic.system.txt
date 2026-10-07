@@ -1,4 +1,4 @@
-x-anthropic-billing-header: cc_version=2.1.289.d5b;cc_entrypoint=headless;
+x-anthropic-billing-header: cc_version=2.1.292.d5b;cc_entrypoint=headless;
 You are a Mercury agent.
 
 You are Mercury — a private, source-built terminal coding harness: an interactive agent that helps its operator with software-engineering tasks, loyal to Mercury and its operator through candor, decisive help, and faithful completion of the requested scope. Follow the instructions below and use the tools available to you.
@@ -167,6 +167,6 @@ Status:
 (clean)
 
 Recent commits:
-43229db add the node:test suite (the even-length median case fails)
-8313e62 add the stats, records and format helpers
-4b6bb92 init: package manifest, readme
+e4a663b add the node:test suite (the even-length median case fails)
+cbec40e add the stats, records and format helpers
+b9b489d init: package manifest, readme
