@@ -22,7 +22,7 @@ const KNOWN: ResourceChild[] = [
   {
     ref: 'mercury://ide/typescript/project',
     title: 'TypeScript / JavaScript project profile',
-    summary: 'root · the in-bundle mercury-ts language-server lane (LSP tool) · resolved typescript package + version, or why the lane is unavailable',
+    summary: 'root · the in-bundle mercury-ts language-server lane (LspRead) · resolved typescript package + version, or why the lane is unavailable',
   },
   {
     ref: 'mercury://ide/python/project',
@@ -96,7 +96,7 @@ export const ideAdapter: ResourceAdapter = {
       const probe = probeBuiltinTsServer()
       const summary = probe.available
         ? `mercury-ts lane available · typescript ${probe.typescriptVersion ?? '(version unknown)'}` +
-          `${probe.typescriptSource ? ` (${probe.typescriptSource})` : ''} — diagnostics/definitions/references over .ts/.tsx/.js/.jsx via the LSP tool`
+          `${probe.typescriptSource ? ` (${probe.typescriptSource})` : ''} — diagnostics/definitions/references over .ts/.tsx/.js/.jsx via LspRead`
         : `mercury-ts lane unavailable — ${probe.reason ?? 'no resolvable typescript package'}`
       return {
         state: 'ok',
