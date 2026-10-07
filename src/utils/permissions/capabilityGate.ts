@@ -2,6 +2,7 @@
 
 
 import { getMainThreadAgentType } from '../../bootstrap/state.js'
+import { lspFamilyMatches } from '../../services/lsp/toolFamily.js'
 import type { Tool } from '../../Tool.js'
 import { deriveCategory, deriveRisk, type CapabilityCategory } from '../capability/manifest.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
@@ -77,7 +78,7 @@ export function isCapabilityKilled(
 
 function setKillsTool(set: Set<string> | undefined, toolName: string): boolean {
   if (!set || set.size === 0) return false
-  if (set.has(ALL_TOOLS) || set.has(toolName)) return true
+  if (set.has(ALL_TOOLS) || set.has(toolName) || [...set].some(selector => lspFamilyMatches(selector.toUpperCase(), toolName))) return true
   const server = mcpServerOfTool(toolName)
   if (server && (set.has(server) || set.has(MCP_PREFIX + server))) return true
   if (!toolName.startsWith(MCP_PREFIX)) {
@@ -112,6 +113,7 @@ export function capabilityKillReason(
     let matchedTool: string | undefined
     if (set.has(toolName)) matchedTool = toolName
     else if (set.has(ALL_TOOLS)) matchedTool = ALL_TOOLS
+    else if ([...set].some(selector => lspFamilyMatches(selector.toUpperCase(), toolName))) matchedTool = [...set].find(selector => lspFamilyMatches(selector.toUpperCase(), toolName))
     else if (server && set.has(server)) matchedTool = server
     else if (server && set.has(MCP_PREFIX + server)) matchedTool = MCP_PREFIX + server
     else if (!toolName.startsWith(MCP_PREFIX)) {
