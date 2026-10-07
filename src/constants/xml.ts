@@ -30,6 +30,7 @@ export const OUTPUT_FILE_TAG = 'output-file'
 export const STATUS_TAG = 'status'
 export const SUMMARY_TAG = 'summary'
 export const MESSAGE_TAG = 'message'
+export const STRUCTURED_TAG = 'structured'
 
 export const CREWMATE_MESSAGE_TAG = 'crewmate-message'
 export const CHANNEL_TAG = 'channel'
