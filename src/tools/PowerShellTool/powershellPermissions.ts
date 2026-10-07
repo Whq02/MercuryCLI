@@ -20,7 +20,8 @@ import {
   type ParsedCommandElement,
 } from '../../utils/permissions/decision/commandAnalysis.js'
 import { pinnedCommandAnalysis } from '../../utils/permissions/decision/commandAnalysis.js'
-import { containsVulnerableUncPath } from '../../utils/shell/readOnlyCommandValidation.js'
+import { uncPathRisk, uncPathMessage } from '../../utils/permissions/uncPath.js'
+import { containsWindowsDevicePath, WINDOWS_DEVICE_PATH_MESSAGE } from '../../utils/permissions/windowsPath.js'
 import { powershellCommandIsSafe } from './powershellSecurity.js'
 import {
   isReadOnlyCommand,
@@ -147,8 +148,13 @@ export async function powershellToolHasPermission(
   let deferredAsk: PermissionResult | null = null
   const prefixAsk = matchRules(command, toolPermissionContext, 'ask', 'prefix')
   if (prefixAsk) deferredAsk = ruledVerdict(toolPermissionContext, command, prefixAsk, 'ask')
-  if (deferredAsk === null && containsVulnerableUncPath(command)) {
-    deferredAsk = { behavior: 'ask', message: 'The command contains a UNC path that could trigger network requests.' }
+  const remote = uncPathRisk(command)
+  if (deferredAsk === null && remote.risky && !matchRules(command, toolPermissionContext, 'allow', 'exact')) {
+    const message = uncPathMessage(command, remote)
+    deferredAsk = { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: true } }
+  }
+  if (deferredAsk === null && containsWindowsDevicePath(command)) {
+    deferredAsk = { behavior: 'ask', message: WINDOWS_DEVICE_PATH_MESSAGE }
   }
   if (!parsed.valid && deferredAsk === null && exact.behavior === 'allow') {
     const firstToken = command.split(/\s+/)[0] ?? ''
@@ -183,7 +189,7 @@ export async function powershellToolHasPermission(
   }
   if (parsed.hasUsingStatements) push({ behavior: 'ask', message: 'A `using` statement may load external code (a module or an assembly).' })
   if (parsed.hasScriptRequirements) push({ behavior: 'ask', message: 'A `#Requires` directive may trigger module loading.' })
-  push(providerUncScan(parsed))
+  push(providerUncScan(parsed, !!matchRules(command, toolPermissionContext, 'allow', 'exact')))
   for (const command_ of subcommands) push(subcommandRuleVerdict(command_, toolPermissionContext))
   if (totalCommands > 1 && hasCd && hasGit) push({ behavior: 'ask', message: 'A compound that mixes a directory change with a git invocation needs approval, because the pairing is the shape of a bare-repository attack.' })
   if (hasGit) {
@@ -227,7 +233,7 @@ function subcommandRuleVerdict(command: ParsedCommandElement, context: ToolPermi
 }
 
 const PROVIDER_PREFIX = /^(?:[\w.]+\\)?(?:env|hklm|hkcu|function|alias|variable|cert|wsman|registry)(?:::|:)/i
-function providerUncScan(parsed: ParsedPowerShellCommand): PermissionResult | null {
+function providerUncScan(parsed: ParsedPowerShellCommand, uncGranted: boolean): PermissionResult | null {
   for (const statement of getPipelineSegments(parsed)) {
     for (const command of [...statement.commands, ...statement.nestedCommands]) {
       for (const arg of command.args) {
@@ -235,7 +241,11 @@ function providerUncScan(parsed: ParsedPowerShellCommand): PermissionResult | nu
         if (/[-–—―]/.test(a[0] ?? '')) { const colon = a.indexOf(':', 1); if (colon !== -1) a = a.slice(colon + 1) }
         a = a.replace(/`/g, '')
         if (PROVIDER_PREFIX.test(a)) return { behavior: 'ask', message: `The argument "${arg}" uses a non-filesystem provider path requiring approval.` }
-        if (containsVulnerableUncPath(a)) return { behavior: 'ask', message: `The argument "${arg}" is a UNC path that could trigger network requests.` }
+        const remote = uncPathRisk(a)
+        if (remote.risky && !uncGranted) {
+          const message = uncPathMessage(arg, remote)
+          return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: true } }
+        }
       }
     }
   }

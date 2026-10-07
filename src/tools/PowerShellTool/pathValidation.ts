@@ -12,6 +12,7 @@ import {
 } from '../../utils/permissions/decision/commandAnalysis.js'
 import {
   allWorkingDirectories,
+  checkUncPathPermission,
   checkEditableInternalPath,
   checkReadableInternalPath,
   checkPathSafetyForAutoEdit,
@@ -24,6 +25,7 @@ import { getDirectoryForPath } from '../../utils/path.js'
 import { getFsImplementation, safeResolvePath } from '../../utils/fsOperations.js'
 import { getCwd } from '../../utils/cwd.js'
 import { getPlatform } from '../../utils/platform.js'
+import { containsWindowsDevicePath, WINDOWS_DEVICE_PATH_MESSAGE } from '../../utils/permissions/windowsPath.js'
 import { resolveToCanonical } from './readOnlyValidation.js'
 import { COMMON_PARAMETERS } from './commonParameters.js'
 
@@ -189,6 +191,12 @@ function resolveAndDecide(rawPath: string, cwd: string, context: ToolPermissionC
   if (/^['"]/.test(path)) path = path.slice(1)
   if (/['"]$/.test(path)) path = path.slice(0, -1)
   path = expandTilde(path)
+  const remote = checkUncPathPermission(path, context, operation === 'read' ? 'read' : 'edit')
+  if (remote) return {
+    allowed: remote.behavior === 'allow', resolvedPath: path,
+    reason: remote.behavior === 'ask' && remote.decisionReason?.type === 'rule'
+      ? { type: 'safetyCheck', reason: remote.message, operatorOnly: true } : remote.decisionReason,
+  }
   path = path.replace(/\\/g, '/')
 
   if (path.includes('`')) return notAllowed(path, other('A backtick escape cannot be statically validated.'))
@@ -196,7 +204,7 @@ function resolveAndDecide(rawPath: string, cwd: string, context: ToolPermissionC
     const stripped = path.slice(path.indexOf('::') + 2)
     return notAllowed(stripped, other('A module-qualified provider path cannot be statically validated.'))
   }
-  if (path.startsWith('//') || /davwwwroot|@ssl@/i.test(path)) return notAllowed(path, other('A UNC path may trigger network requests and leak credentials.'))
+  if (containsWindowsDevicePath(path)) return notAllowed(path, other(WINDOWS_DEVICE_PATH_MESSAGE))
   if (path.includes('$') || path.includes('%')) return notAllowed(path, other('Variable-expansion syntax requires manual approval.'))
   const drivePrefix = getPlatform() === 'windows' ? /^[A-Za-z0-9]{2,}:/ : /^[A-Za-z0-9]+:/
   if (drivePrefix.test(path)) return notAllowed(path, other(`The path ${path} uses a non-filesystem provider.`))

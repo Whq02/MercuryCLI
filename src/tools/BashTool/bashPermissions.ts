@@ -7,6 +7,7 @@ import type { PermissionRule } from '../../types/permissions.js'
 import { getCwd } from '../../utils/cwd.js'
 import { refusalWithReason, ruleSentence, withRuleReason } from '../../utils/permissions/ruleReason.js'
 import { getPlatform } from '../../utils/platform.js'
+import { uncPathRisk, uncPathMessage } from '../../utils/permissions/uncPath.js'
 import { windowsPathToPosixPath } from '../../utils/windowsPaths.js'
 import { createPermissionRequestMessage } from '../../utils/permissions/decision/requestMessage.js'
 import { getRuleByContentsForToolName } from '../../utils/permissions/decision/rules.js'
@@ -631,6 +632,15 @@ export async function bashToolHasPermission(
   prefixFn: PrefixFn = pinnedCommandAnalysis.getCommandSubcommandPrefix,
 ): Promise<PermissionResult> {
   const command = input.command
+  const remote = uncPathRisk(command)
+  if (remote.risky) {
+    const denied = earlyExitDenyCheck(input, context)
+    if (denied) return denied
+    if (!matchRules(command.trim(), context, 'allow', 'exact', false)) {
+      const message = uncPathMessage(command, remote)
+      return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: true } }
+    }
+  }
   const compoundHasCd = commandHasAnyCd(command)
   const customPrefixFn = prefixFn !== pinnedCommandAnalysis.getCommandSubcommandPrefix
 
