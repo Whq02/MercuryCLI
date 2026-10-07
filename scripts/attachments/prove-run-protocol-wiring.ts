@@ -35,7 +35,7 @@ setOriginalCwd(scratch)
 setCwdState(scratch)
 const model = 'claude-fable-5-1'
 const tools = [{ name: 'Read' }] as never
-const withLsp = [{ name: 'Read' }, { name: 'LSP' }] as never
+const withLsp = [{ name: 'Read' }, { name: 'LspRead' }] as never
 const context = (over: Record<string, unknown> = {}, pool: unknown = withLsp) =>
   ({
     getAppState: () => ({ tasks: {}, toolPermissionContext: getEmptyToolPermissionContext() }),
@@ -50,7 +50,7 @@ console.log('\nrun-protocol wiring — the capability delta reaches the model th
 clearSystemPromptSections()
 await getSystemPrompt(tools, model)
 const expected = getRunProtocolDelta(withLsp, [])
-check('the section cached over [Read] makes an LSP mount a pending delta', expected !== null && j(expected).includes('LSP'), j(expected))
+check('the section cached over [Read] makes an LSP mount a pending delta', expected !== null && j(expected).includes('LspRead'), j(expected))
 const first = await collect(context(), [])
 check('the main thread appends exactly one run_protocol_delta carrying that guidance', first.length === 1 && j(first[0]) === j({ type: 'run_protocol_delta', ...expected }), j(first).slice(0, 300))
 const row = createAttachmentMessage({ type: 'run_protocol_delta', ...(expected as Record<string, unknown>) } as never)
