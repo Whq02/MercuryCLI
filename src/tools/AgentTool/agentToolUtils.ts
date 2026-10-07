@@ -1,5 +1,6 @@
 
 import { z } from 'zod'
+import { expandLspFamily, lspFamilyMatches } from '../../services/lsp/toolFamily.js'
 import {
   ALL_AGENT_DISALLOWED_TOOLS,
   ASYNC_AGENT_ALLOWED_TOOLS,
@@ -148,8 +149,11 @@ export function resolveAgentTools(
       })
 
   const deniedNames = new Set(
-    (definition.disallowedTools ?? []).map(
-      spec => permissionRuleValueFromString(spec).toolName,
+    (definition.disallowedTools ?? []).flatMap(
+      spec => {
+        const rule = permissionRuleValueFromString(spec)
+        return rule.ruleContent === undefined ? expandLspFamily(rule.toolName) : [rule.toolName]
+      },
     ),
   )
   const survivors = filtered.filter(
@@ -189,12 +193,14 @@ export function resolveAgentTools(
         continue
       }
     }
-    const found = survivors.find(tool => toolMatchesName(tool, rule.toolName))
-    if (found) {
+    const found = survivors.filter(tool => toolMatchesName(tool, rule.toolName) || (rule.ruleContent === undefined && lspFamilyMatches(rule.toolName, tool.name)))
+    if (found.length) {
       if (!validTools.includes(spec)) validTools.push(spec)
-      if (!seenToolNames.has(found.name)) {
-        seenToolNames.add(found.name)
-        resolvedTools.push(found)
+      for (const tool of found) {
+        if (!seenToolNames.has(tool.name)) {
+          seenToolNames.add(tool.name)
+          resolvedTools.push(tool)
+        }
       }
     } else if (!isAgentTypeSpec) {
       invalidTools.push(spec)
