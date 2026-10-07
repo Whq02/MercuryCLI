@@ -59,11 +59,6 @@
       "reason": "The render engine core's flat projection (the record → row projection the ledger settles), landed behind MERCURY_RENDER_ENGINE with its law suite (scripts/render-engine) ahead of the cockpit mount; reached from the proofs alone until the mount takes the core."
     },
     {
-      "file": "src/services/analytics/config.ts",
-      "class": "proof-or-fixture-only",
-      "reason": "The analytics-collection switch (isAnalyticsDisabled answers true); no product module imports it, and scripts/substrate/prove-no-telemetry-egress.ts reads it to pin that collection stays off with or without build metadata."
-    },
-    {
       "file": "src/services/channel/frame.ts",
       "class": "living-specimen",
       "reason": "The multiplayer wire kept deliberately at the /say retirement (operator-ruled: \"Retire /say but keep the wire so that it stays for the agents\"); the extracted channel home is maintained estate awaiting the post-release multiplayer consumer."
