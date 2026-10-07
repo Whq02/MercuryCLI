@@ -15,7 +15,7 @@ import { TASK_UPDATE_TOOL_NAME } from '../../tools/TaskUpdateTool/constants.js'
 import { TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/constants.js'
 import { WORKFLOW_TOOL_NAME } from '../../tools/WorkflowTool/constants.js'
 
-const SAFE_FLOW_ALLOWLISTED_TOOLS: ReadonlySet<string> = new Set([
+const READ_ONLY_ALLOWLISTED_TOOLS: ReadonlySet<string> = new Set([
   FILE_READ_TOOL_NAME,
   GREP_TOOL_NAME,
   GLOB_TOOL_NAME,
@@ -34,6 +34,6 @@ const SAFE_FLOW_ALLOWLISTED_TOOLS: ReadonlySet<string> = new Set([
   SLEEP_TOOL_NAME,
 ])
 
-export function isAutoModeAllowlistedTool(toolName: string, _input?: unknown): boolean {
-  return SAFE_FLOW_ALLOWLISTED_TOOLS.has(toolName)
+export function isReadOnlyAllowlistedTool(toolName: string, _input?: unknown): boolean {
+  return READ_ONLY_ALLOWLISTED_TOOLS.has(toolName)
 }

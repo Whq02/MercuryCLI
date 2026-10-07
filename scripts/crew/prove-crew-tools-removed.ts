@@ -19,7 +19,7 @@ tally.check('src/tools/TeamCreateTool/ is deleted', !existsSync(join(ROOT, 'src/
 tally.check('src/tools/TeamDeleteTool/ is deleted', !existsSync(join(ROOT, 'src/tools/TeamDeleteTool')))
 for (const rel of [
   'src/tools.ts',
-  'src/utils/permissions/classifierDecision.ts',
+  'src/utils/permissions/readOnlyAllowlist.ts',
   'src/utils/crew/agentLaunchPlan.ts',
   'src/utils/capability/declarations.ts',
   'src/substrate/durableOperationMatrix.ts',

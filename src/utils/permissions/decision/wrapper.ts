@@ -7,9 +7,9 @@ import { logForDebugging } from '../../debug.js'
 import { AbortError, toError } from '../../errors.js'
 import { logError } from '../../log.js'
 
-const classifierDecisionModule =
+const readOnlyAllowlistModule =
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  (require('../classifierDecision.js') as typeof import('../classifierDecision.js'))
+  (require('../readOnlyAllowlist.js') as typeof import('../readOnlyAllowlist.js'))
 const workflowModule = {
   WORKFLOW_TOOL_NAME: (
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -259,7 +259,7 @@ export interface WrapperPorts {
 
 export const defaultWrapperPorts: WrapperPorts = {
   isAllowlistedTool: (toolName, input) =>
-    classifierDecisionModule!.isAutoModeAllowlistedTool(toolName, input),
+    readOnlyAllowlistModule!.isReadOnlyAllowlistedTool(toolName, input),
   resolveAcceptEditsVerdict: async (tool, input, context) => {
     const parsedInput = tool.inputSchema.parse(input)
     const probeContext: ToolUseContext = {
