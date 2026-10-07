@@ -169,17 +169,20 @@ function boxRows(g: Grid, left: number): { top: number; bottom: number } {
   for (let r = top + 1; r < t.length && top >= 0; r++) if (t[r]![left] === '╰') { bottom = r; break }
   return { top, bottom }
 }
+function berthLeft(g: Grid): number {
+  const paneLeft = (text(g)[0] ?? '').indexOf('╭')
+  return (text(g)[1] ?? '').indexOf('╭', paneLeft + 1)
+}
 function slotLeft(g: Grid): number {
-  const border = text(g)[1] ?? ''
-  return border.indexOf('╭') + 3
+  return berthLeft(g) + 3
 }
 
 type Berth = { left: number; right: number; top: number; bottom: number; cardTop: number; cardBottom: number; cardLeft: number; x: number; y: number; cells: number }
 function berthOf(g: Grid): Berth {
   const t = text(g)
   const border = t[1] ?? ''
-  const left = border.indexOf('╭')
-  const right = border.lastIndexOf('╮')
+  const left = berthLeft(g)
+  const right = border.indexOf('╮', left + 1)
   const { top, bottom } = boxRows(g, left)
   const inner = t.slice(top + 1, bottom)
   const cardTop = inner.findIndex(row => row.indexOf('╭', left + 1) >= 0)
@@ -287,7 +290,7 @@ try {
   sameLook('the answer repaints nothing outside the chat’s own rows', typed, boot)
 
   console.log('§6 the same slim box at 120×40')
-  const midLeft = text(midBoot)[1]!.indexOf('╭')
+  const midLeft = berthLeft(midBoot)
   const mx = boxRows(midBoot, midLeft)
   check('the box is five rows under the pane’s top border', mx.top === 1 && mx.bottom === 5, `top ${mx.top} bottom ${mx.bottom}`)
   check('no row reads ⊞ SESSIONS or ✶ VIEW', rowWith(midBoot, '⊞ SESSIONS') === -1 && rowWith(midBoot, '✶ VIEW') === -1)
@@ -321,8 +324,7 @@ try {
   console.log('§11 the small critter keeps the slot\'s left and the working card keeps its column')
   for (const [cols, rows] of [[178, 51], [120, 40], [100, 30]] as const) {
     const idle = cols === 178 ? boot : cols === 120 ? midBoot : (await capture('floor', homeFor('floor'), cols, rows, [], 'ready ·')).grid
-    const border = text(idle)[1]!
-    const left = border.indexOf('╭')
+    const left = berthLeft(idle)
     const bounds = boxRows(idle, left)
     const at = slotLeft(idle)
     check(`${cols}×${rows}: the idle sprite sits at the slot's left and fills the three inner rows`, bounds.bottom - bounds.top === 4 && idle.slice(bounds.top + 1, bounds.bottom).every(row => row.slice(at, at + 9).every(cell => cell.c === '▀' || cell.c === '▄')), `expected ${at},${bounds.top + 1}`)
