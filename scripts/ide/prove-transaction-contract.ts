@@ -31,6 +31,23 @@ const live = tx.latestTransaction(noCheck.root)
 check('T7 refusal saves an open record and names the missing check', refused.data.outcome === 'failed' &&
   refused.data.result.startsWith('"completed" refused on tx-') && refused.data.result.includes('no check has run since the last change (file.edit: one.txt) — run the project\'s tests or build through Bash or Test; the result is recorded here by itself') && live?.verdict === 'open', refused.data.result)
 check('T7 refusal keeps the effect shape for the generic error mapper', refused.effect?.outcome === 'failed' && refused.effect.operation === 'transaction.finish' && refused.effect.changedPaths.length === 0)
+const { runToolUse } = await import('../../src/services/tools/toolExecution.js')
+const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
+const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
+const wire = await runWithCwdOverride(noCheck.root, async () => {
+  const context = { owner: noCheck.owner, abortController: new AbortController(), messages: [], readFileState: new Map(), toolDecisions: new Map(),
+    getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} } }),
+    setAppState: () => {}, options: { tools: [TransactionTool], mcpClients: [], isNonInteractiveSession: true } }
+  const blocks: Array<{ type: string; content?: unknown; is_error?: boolean }> = []
+  for await (const update of runToolUse({ type: 'tool_use', id: 'transaction-refusal', name: 'Transaction', input: { op: 'finish', verdict: 'completed' } },
+    { uuid: 'tx-proof', requestId: 'tx-proof', message: { id: 'tx-proof' } } as never,
+    (async (_tool: unknown, input: unknown) => ({ behavior: 'allow', updatedInput: input })) as never, context as never)) {
+    const message = update.message as { message?: { content?: typeof blocks } }
+    blocks.push(...(message.message?.content ?? []))
+  }
+  return blocks.find(block => block.type === 'tool_result')
+})
+check('T7 the real tool-call path marks the completion refusal is_error', wire?.is_error === true && String(wire.content).includes('"completed" refused on tx-'), JSON.stringify(wire))
 
 const retry = fixture()
 emit(retry)
