@@ -61,7 +61,7 @@ import { advisorEnabled } from './services/advisor/advisorSettings.js'
 import { JourneyTool } from './tools/JourneyTool/JourneyTool.js'
 import { LaunchTool } from './tools/LaunchTool/LaunchTool.js'
 import { ListMcpResourcesTool } from './tools/ListMcpResourcesTool/ListMcpResourcesTool.js'
-import { LSPTool } from './tools/LSPTool/LSPTool.js'
+import { LSP_TOOLS } from './tools/LSPTool/LSPTool.js'
 import { MonitorTool } from './tools/MonitorTool/MonitorTool.js'
 import { NotebookEditTool } from './tools/NotebookEditTool/NotebookEditTool.js'
 import {
@@ -163,7 +163,7 @@ export function getAllBaseTools(): Tools {
     SkillTool,
     ApolloReviewTool,
     ...(isTaskToolsEnabled() ? [TaskCreateTool, TaskGetTool, TaskUpdateTool, TaskListTool] : []),
-    ...(isLspToolCatalogEnabled() ? [LSPTool] : []),
+    ...(isLspToolCatalogEnabled() ? LSP_TOOLS : []),
     ...(mercuryRefsEnabled() ? [InspectTool] : []),
     ...(workshopEnabled() ? [WorkshopTool] : []),
     ...(servicesEnabled() ? [ServiceTool] : []),
