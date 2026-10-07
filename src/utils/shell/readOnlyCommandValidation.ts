@@ -387,7 +387,7 @@ export const READ_ONLY_RULES: readonly ReadOnlyRule[] = [
 
 const WALKED_RULES = new Map<string, ReadOnlyRule>(READ_ONLY_RULES.filter(rule => rule.flags !== undefined).map(rule => [rule.words.join(' '), rule]))
 const FORM_RULES = new Map<string, ReadOnlyRule>(READ_ONLY_RULES.filter(rule => rule.form !== undefined).map(rule => [rule.words[0] as string, rule]))
-export const LONGEST_RULE = Math.max(...READ_ONLY_RULES.map(rule => rule.words.length))
+const LONGEST_RULE = Math.max(...READ_ONLY_RULES.map(rule => rule.words.length))
 
 export function walkedRuleFor(tokens: readonly string[]): ReadOnlyRule | undefined {
   for (let length = Math.min(LONGEST_RULE, tokens.length); length >= 1; length--) {
