@@ -335,7 +335,7 @@ export function agentStopStatusWordOf(signalReason: unknown): string | undefined
   return signalReason === AGENT_INTERRUPT_BY_OPERATOR ? AGENT_INTERRUPTED_STATUS_WORD : undefined
 }
 
-export const AGENT_RESUME_DOOR = 'resume it from the crew view (r on its row) or by SendMessage to its id'
+export const AGENT_RESUME_DOOR = 'resume it from the crew view (r on its row) or by ResumeAgent to its id'
 
 export const AGENT_RESUME_NOTE =
   'The operator resumed you from the crew view after a stop. Continue from where your transcript ends — the work before the stop stands; do not redo it.'
