@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: scripts/lib/seedTranscript.ts
-# gate-watch: src/ink/** src/utils/cockpit/**
+# gate-watch: src/ink/** src/utils/cockpit/** src/tools/ScheduleCronTool/** src/state/** src/utils/config/** src/bootstrap/state.ts
 # gate-watch: docs/TERMINAL-PROFILE.md scripts/ui/motion-menu-stills.ts
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: scripts/lib/hermetic.ts scripts/lib/rows.ts scripts/lib/scriptedTurn.ts scripts/daemon/dupline-world.ts

@@ -9,8 +9,8 @@ import type { ListOutput } from './CronListTool.js'
 
 const HEADER_PROMPT_CHARS = 60
 
-export function renderCreateToolUseMessage(input?: { cron?: string; prompt?: string }): React.ReactNode {
-  const cron = input?.cron ?? ''
+export function renderCreateToolUseMessage(input?: { cron?: string; at?: string; delayMinutes?: number; prompt?: string }): React.ReactNode {
+  const cron = input?.cron ?? (input?.at !== undefined ? `at ${input.at}` : input?.delayMinutes !== undefined ? `in ${input.delayMinutes} min` : '')
   if (!input?.prompt) return cron
   const prompt =
     input.prompt.length > HEADER_PROMPT_CHARS ? `${input.prompt.slice(0, HEADER_PROMPT_CHARS)}…` : input.prompt
@@ -18,6 +18,16 @@ export function renderCreateToolUseMessage(input?: { cron?: string; prompt?: str
 }
 
 export function renderCreateResultMessage(output: CreateOutput): React.ReactNode {
+  if (output.state === 'scheduled') return (
+    <MessageResponse height={1}>
+      <Text>Scheduled <Text bold>{output.id}</Text>{output.title !== undefined ? ` "${output.title}"` : ''} <Text dimColor>({output.nextFireLocal})</Text></Text>
+    </MessageResponse>
+  )
+  if (output.state === 'queued') return (
+    <MessageResponse height={1}>
+      <Text>Queued, not confirmed <Text dimColor>({output.humanSchedule})</Text></Text>
+    </MessageResponse>
+  )
   return (
     <MessageResponse height={1}>
       <Text>
