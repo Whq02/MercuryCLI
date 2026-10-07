@@ -38,6 +38,7 @@ export type ShellCommand = {
   cleanup: () => void
   onTimeout?: (callback: OnTimeoutCallback) => void
   taskOutput: TaskOutput
+  pid?: number
   treeKillReceipt?: Promise<ProcessTreeKillReceipt>
   scrubbedSessionEnv?: readonly string[]
 }
@@ -302,6 +303,7 @@ export function wrapSpawn(
     },
     cleanup,
     taskOutput,
+    ...(typeof childProcess.pid === 'number' ? { pid: childProcess.pid } : {}),
   }
   if (shouldAutoBackground) {
     command.onTimeout = (callback: OnTimeoutCallback): void => {
