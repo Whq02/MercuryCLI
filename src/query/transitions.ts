@@ -14,6 +14,7 @@ export type Terminal =
   | { reason: 'stop_hook_prevented' }
   | { reason: 'hook_stopped' }
   | { reason: 'loop_stopped'; cycle: string[] }
+  | { reason: 'tool_calls_refused'; tools: string[]; corrections: number }
 
 export type Continue =
   | { reason: 'next_turn' }
