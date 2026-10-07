@@ -24,7 +24,7 @@ const successors = 'LspRead, LspRename, LspMoveSymbol, LspMoveFile, LspCodeActio
 for (const kind of ['allow', 'deny'] as const) {
   const initialized = await initializeToolPermissionContext({ allowedToolsCli: kind === 'allow' ? ['LSP'] : [], disallowedToolsCli: kind === 'deny' ? ['LSP'] : [], permissionMode: 'default', allowDangerouslySkipPermissions: false })
   check(`CLI ${kind} names all seven successors`, LSP_TOOLS.every(tool => (kind === 'allow' ? toolAlwaysAllowedRule : getDenyRuleForTool)(initialized.toolPermissionContext, tool) !== null))
-  check(`CLI ${kind} has the exact startup note`, initialized.warnings.includes(`${kind === 'allow' ? '--allowed-tools' : '--block-tools'} LSP now applies to ${successors}, the tools that replaced LSP in 1.0.0-beta.29.`), JSON.stringify(initialized.warnings))
+  check(`CLI ${kind} has the exact startup note`, initialized.warnings.includes(`${kind === 'allow' ? '--allowed-tools' : '--block-tools'} LSP covers ${successors}.`), JSON.stringify(initialized.warnings))
   check(`saved settings ${kind}: permission and both hook notes are emitted at startup`, initialized.warnings.includes(lspPermissionNote('userSettings')) && initialized.warnings.includes(lspHookNote('PreToolUse', 'LSP', 'userSettings')!) && initialized.warnings.includes(lspHookNote('PreToolUse', '^LSP$', 'userSettings')!), JSON.stringify(initialized.warnings))
 }
 const context = { ...getEmptyToolPermissionContext(), alwaysAskRules: { cliArg: ['LSP'] } }
@@ -50,9 +50,9 @@ const denied = resolveAgentTools({ ...definition, tools: ['*'], disallowedTools:
 check('agent disallowedTools family excludes all seven', denied.resolvedTools.length === 0)
 check('a content-qualified family is not an agent-tool alias', resolveAgentTools({ ...definition, tools: ['LSP(src/**)'] }, LSP_TOOLS, false, true).resolvedTools.length === 0)
 check('the setting family is never a callable alias', findToolByName(LSP_TOOLS, 'LSP') === undefined)
-check('permission note matches N1', lspPermissionNote('projectSettings') === `The permission rule \`LSP\` in projectSettings now applies to ${successors}, the tools that replaced LSP in 1.0.0-beta.29; write those names to narrow it.`)
-check('hook note matches N1', lspHookNote('PreToolUse', 'Edit|LSP', 'projectSettings') === `The PreToolUse hook matcher \`LSP\` in projectSettings now fires for ${successors}, the tools that replaced LSP in 1.0.0-beta.29; only LspRead's tool_input has an operation field.`)
-check('regex hook note matches N1', lspHookNote('PreToolUse', '^LSP$', 'projectSettings') === `The PreToolUse hook matcher \`^LSP$\` in projectSettings matched the LSP tool, which became ${successors} in 1.0.0-beta.29; it matches none of them — add their names to keep it.`)
-check('agent note matches N1', lspAgentNote('fixture') === `The agent fixture lists \`LSP\` in its tools; it now gets ${successors}, the tools that replaced LSP in 1.0.0-beta.29.`)
+check('permission note matches N1', lspPermissionNote('projectSettings') === `The permission rule \`LSP\` in projectSettings covers ${successors}; write those names to narrow it.`)
+check('hook note matches N1', lspHookNote('PreToolUse', 'Edit|LSP', 'projectSettings') === `The PreToolUse hook matcher \`LSP\` in projectSettings fires for ${successors}; only LspRead's tool_input has an operation field.`)
+check('regex hook note matches N1', lspHookNote('PreToolUse', '^LSP$', 'projectSettings') === `The PreToolUse hook matcher \`^LSP$\` in projectSettings matches \`LSP\` but none of ${successors} — add their names to keep it.`)
+check('agent note matches N1', lspAgentNote('fixture') === `The agent fixture lists \`LSP\` in its tools; that gives it ${successors}.`)
 cleanup(scratch)
 finish('prove-lsp-split-settings')
