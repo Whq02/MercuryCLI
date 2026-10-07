@@ -6,13 +6,13 @@
 > skips regeneration is RED). Live columns (enabled/support) reflect the
 > generating environment and are NOT drift-anchored.
 
-Census version 1 — 63 built-in production tools · 178 operations · 63 with a declared capability contract.
+Census version 1 — 62 built-in production tools · 177 operations · 62 with a declared capability contract.
 
 ## Summary
 
-- support (at generation time): 41 available · 12 conditional · 0 degraded · 10 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
-- class: 21 observation · 21 mutation · 11 execution · 10 coordination · 0 unclassified
-- integrations: 10 declare transactions · 13 declare executions · 26 declare mercury:// outputs · 40 name a focused proof
+- support (at generation time): 41 available · 11 conditional · 0 degraded · 10 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
+- class: 21 observation · 21 mutation · 11 execution · 9 coordination · 0 unclassified
+- integrations: 10 declare transactions · 13 declare executions · 26 declare mercury:// outputs · 39 name a focused proof
 - capability units covered: application-verification · browser-drive · capability-discovery · code-intelligence · debugging · desktop-drive · game-engine · git-inspection · git-transactions · memory · operator-io · persistent-evaluation · pixel-art · process-execution · resource-inspection · scheduling · service-management · source-reading · structural-mutation · task-coordination · text-mutation · web-access
 - every tool is unit-classified
 
@@ -34,7 +34,7 @@ Census version 1 — 63 built-in production tools · 178 operations · 63 with a
 | Computer | execution | desktop-drive | 14 | cancel | yes | — | desktop-session (child-execution) | — | scripts/computer/prove-computer-asks.ts |
 | ContextLeft | observation | resource-inspection | — | block | yes | — | — | — | scripts/tools/prove-context-left-tool.ts |
 | Correct | mutation | memory | 3 | block | yes | — | — | — | scripts/memory/prove-verbs-lifecycle.ts |
-| CronCreate | mutation | scheduling | — | block | yes | — | — | — | scripts/daemon/prove-cron-create-answer.ts |
+| CronCreate | mutation | scheduling | — | block | yes | — | — | — | NAMED GAP |
 | CronDelete | mutation | scheduling | — | block | yes | — | — | — | NAMED GAP |
 | CronList | observation | scheduling | — | block | yes | — | — | — | NAMED GAP |
 | Debug | execution | debugging | 30 | block | yes | — | debug-adapter (external-projection) | — | scripts/ide/prove-native-debug.ts |
@@ -65,7 +65,6 @@ Census version 1 — 63 built-in production tools · 178 operations · 63 with a
 | Rewind | mutation | task-coordination | — | block | yes | — | — | — | scripts/run-recovery/run-all.sh |
 | ScheduleWakeup | coordination | scheduling | — | block | yes | — | — | — | NAMED GAP |
 | SendMessage | coordination | task-coordination | — | block | yes | — | — | mercury://agent | scripts/crew/run-all.sh |
-| SendUserFile | coordination | operator-io | — | block | no | — | — | — | NAMED GAP |
 | Service | execution | service-management | 8 | block | yes | — | service (full-execution-owner) | mercury://service, mercury://execution | scripts/project-services/prove-services.ts |
 | Skill | coordination | capability-discovery | — | block | no | — | — | — | NAMED GAP |
 | Sleep | observation | scheduling | — | block | yes | — | — | — | scripts/tools/prove-sleep-tool.ts |

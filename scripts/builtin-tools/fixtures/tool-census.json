@@ -1581,32 +1581,6 @@
       }
     },
     {
-      "name": "SendUserFile",
-      "category": "read",
-      "risk": "low",
-      "cancellation": "block",
-      "deferred": false,
-      "operations": null,
-      "units": [
-        "operator-io"
-      ],
-      "proof": null,
-      "declared": {
-        "intents": [
-          "send a file to the operator"
-        ],
-        "units": [
-          "operator-io"
-        ],
-        "class": "coordination",
-        "cancellation": "not-applicable",
-        "latency": "fast",
-        "conditions": [
-          "a remote-environment delivery channel (none exists in this build, so the tool hides itself)"
-        ]
-      }
-    },
-    {
       "name": "Service",
       "category": "read",
       "risk": "low",

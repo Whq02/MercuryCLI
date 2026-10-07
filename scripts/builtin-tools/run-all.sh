@@ -11,6 +11,10 @@
 # gate-watch: src/utils/config/globalConfig.ts src/utils/messages/** src/utils/model/model.ts
 # gate-watch: src/constants/tools.ts
 # gate-watch: src/rows/* src/runner/wire/*
+# gate-watch: src/components/mercury-ui/toolGlyphs.ts src/utils/hooks/sessionHooks.ts
+# gate-watch: src/utils/permissions/** src/utils/settings/permissionValidation.ts scripts/crew/crew-world.ts
+# gate-watch: package.json scripts/identity/forbidden-file-tool.ts src/services/tools/toolExecution.ts
+# gate-watch: scripts/project-services/fixtures/inventory.json scripts/provider-compat/prove-tool-call-gate.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
