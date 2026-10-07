@@ -62,6 +62,16 @@ function expandField(field: string, range: FieldRange): number[] | null {
   return [...values].sort((a, b) => a - b)
 }
 
+export function cronFieldProblem(expr: string): { kind: 'count'; n: number } | { kind: 'field'; index: number; part: string } | null {
+  const parts = expr.trim().split(/\s+/)
+  if (parts.length !== 5) return { kind: 'count', n: parts.length }
+  for (let index = 0; index < parts.length; index++) {
+    const part = parts[index]!
+    if (expandField(part, FIELD_RANGES[index]!) === null) return { kind: 'field', index, part }
+  }
+  return null
+}
+
 export function parseCronExpression(expr: string): CronFields | null {
   const parts = expr.trim().split(/\s+/)
   if (parts.length !== 5) return null
