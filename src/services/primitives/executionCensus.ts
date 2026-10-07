@@ -27,26 +27,6 @@ export const EXECUTION_DOMAIN_CENSUS: readonly ExecutionDomainCensusEntry[] = [
       'ServiceRecord stays domain truth (readiness, restart, cursors, stop ladder); reconcile = pid+startToken; plane stop drives the real ladder.',
   },
   {
-    domain: 'workshop-js',
-    classification: 'full-execution-owner',
-    kind: 'workshop-js',
-    adapter: 'src/services/workshop/executionProjection.ts (spawn/kill/cell seams)',
-    owner: 'conversation OwnerKey',
-    resourceKind: 'workshop',
-    notes:
-      'Runtime = execution; cells = ready ⇄ running transitions + bounded ring (Δ2); ts cells share the js lane kind.',
-  },
-  {
-    domain: 'workshop-python',
-    classification: 'full-execution-owner',
-    kind: 'workshop-python',
-    adapter: 'src/services/workshop/executionProjection.ts (+ pythonRuntime seams)',
-    owner: 'conversation OwnerKey',
-    resourceKind: 'workshop',
-    notes:
-      'Interrupt-first cancellation stays domain-owned; missing interpreter settles honest unavailable.',
-  },
-  {
     domain: 'eval-kernel',
     classification: 'child-execution',
     kind: 'eval-kernel',
