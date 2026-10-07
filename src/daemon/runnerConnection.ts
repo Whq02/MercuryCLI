@@ -14,6 +14,7 @@ export type RunnerConnectionHooks = {
   onRow: (row: LooseRow) => void
   onAsk: (params: PermissionRequestParams) => HeldAsk
   onApplied: (params: SessionAppliedParams) => void
+  onScheduleEdit?: (params: ParamsOf<'schedule/edit'>) => ResultOf<'schedule/edit'> | Promise<ResultOf<'schedule/edit'>>
   onProtocolError: (error: RpcError) => void
   log: (line: string) => void
 }
@@ -49,6 +50,7 @@ export class RunnerConnection implements RunnerDoor {
       )
       return held.answer
     })
+    if (hooks.onScheduleEdit) this.peer.onRequest('schedule/edit', params => hooks.onScheduleEdit!(params))
     this.initialized = this.peer
       .request('initialize', { protocol: 1, host: { name: 'mercury-daemon', version: MERCURY_VERSION }, capabilities })
       .catch((error: unknown) => {

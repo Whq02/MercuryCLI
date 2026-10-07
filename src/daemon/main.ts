@@ -51,6 +51,7 @@ import {
   onSeatIdle,
   controlSessionAgent,
   onSeatApplied,
+  answerSeatScheduleEdit,
   onSeatRow,
   onSeatSpawned,
   refreshSessionFacts,
@@ -410,6 +411,10 @@ async function daemonRun(args: string[]): Promise<void> {
         onApplied: (short, params) => {
           if (!short.startsWith('concourse-w') || roster === null) return
           onSeatApplied(short, params, roster)
+        },
+        onScheduleEdit: (short, params) => {
+          if (!short.startsWith('concourse-w') || roster === null) return { outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' }
+          return answerSeatScheduleEdit(short, params, roster)
         },
         onChildRelaunched: short => {
           if (!short.startsWith('concourse-w') || roster === null) return

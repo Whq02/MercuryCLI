@@ -68,6 +68,7 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     class: 'mutation',
     cancellation: 'not-applicable',
     latency: 'fast',
+    proof: 'scripts/daemon/prove-cron-create-answer.ts',
   },
   CronDelete: {
     intents: ['delete a scheduled run'],
