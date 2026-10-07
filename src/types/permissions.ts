@@ -183,39 +183,6 @@ export type ClassifierResult = {
 
 export type ClassifierBehavior = 'deny' | 'ask' | 'allow'
 
-export type ClassifierUsage = {
-  inputTokens: number
-  outputTokens: number
-  cacheReadInputTokens: number
-  cacheCreationInputTokens: number
-}
-
-export type FlowClassifierStageTelemetry = {
-  usage?: ClassifierUsage
-  durationMs?: number
-  requestId?: string
-  messageId?: string
-}
-
-export type FlowClassifierResult = {
-  shouldBlock: boolean
-  reason: string
-  model: string
-  thinking?: string
-  unavailable?: boolean
-  retryable?: boolean
-  unreadable?: boolean
-  verdictIssues?: string[]
-  transcriptTooLong?: boolean
-  usage?: ClassifierUsage
-  durationMs?: number
-  promptComponentLengths?: Record<string, number>
-  errorDumpPath?: string
-  stage?: 'fast' | 'thinking'
-  fastStage?: FlowClassifierStageTelemetry
-  thinkingStage?: FlowClassifierStageTelemetry
-}
-
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH'
 
 export type PermissionExplanation = {
