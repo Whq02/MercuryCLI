@@ -4,6 +4,9 @@
 # gate-watch: src/ink/** src/utils/cockpit/** src/tools/ScheduleCronTool/** src/state/** src/utils/config/** src/bootstrap/state.ts
 # gate-watch: docs/TERMINAL-PROFILE.md scripts/ui/motion-menu-stills.ts
 # gate-watch: src/rows/* src/runner/wire/*
+# gate-watch: src/Tool.ts src/tools.ts src/commands.ts src/context.ts src/history.ts src/ink.ts
+# gate-watch: src/components/** src/utils/** src/tools/** src/services/** src/cli/** src/daemon/** src/input-core/** src/tasks/** src/fabric/**
+# gate-watch: src/substrate/flagRegistry.ts src/substrate/startupMenu.ts src/screens/Chat.tsx src/constants/figures.ts
 # gate-watch: scripts/lib/hermetic.ts scripts/lib/rows.ts scripts/lib/scriptedTurn.ts scripts/daemon/dupline-world.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

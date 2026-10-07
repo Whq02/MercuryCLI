@@ -8,7 +8,7 @@
 # gate-watch: src/fabric/entryCodec.ts src/tools/MCPTool/absentToolShim.ts src/tools/AgentTool/agentToolUtils.ts src/utils/artifacts/store.ts
 # gate-watch: src/utils/permissions/** src/utils/toolErrors.ts src/utils/model/model.ts
 # gate-watch: src/utils/router/providerSecrets* src/substrate/flagRegistry*
-# gate-watch: scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts
+# gate-watch: scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/identity/forbidden-code-tool.ts
 # gate-watch: sdk/src/rows.ts src/rows/vocabulary.ts src/rows/turn.ts src/daemon/sessionSeat.ts src/services/engine-connector/daemonConnector.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
