@@ -6,13 +6,13 @@
 > skips regeneration is RED). Live columns (enabled/support) reflect the
 > generating environment and are NOT drift-anchored.
 
-Census version 1 — 62 built-in production tools · 173 operations · 62 with a declared capability contract.
+Census version 1 — 61 built-in production tools · 172 operations · 61 with a declared capability contract.
 
 ## Summary
 
-- support (at generation time): 41 available · 11 conditional · 0 degraded · 10 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
-- class: 21 observation · 21 mutation · 11 execution · 9 coordination · 0 unclassified
-- integrations: 10 declare transactions · 13 declare executions · 26 declare mercury:// outputs · 40 name a focused proof
+- support (at generation time): 40 available · 11 conditional · 0 degraded · 10 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
+- class: 21 observation · 21 mutation · 10 execution · 9 coordination · 0 unclassified
+- integrations: 9 declare transactions · 12 declare executions · 25 declare mercury:// outputs · 39 name a focused proof
 - capability units covered: application-verification · browser-drive · capability-discovery · code-intelligence · debugging · desktop-drive · game-engine · git-inspection · git-transactions · memory · operator-io · persistent-evaluation · pixel-art · process-execution · resource-inspection · scheduling · service-management · source-reading · structural-mutation · task-coordination · text-mutation · web-access
 - every tool is unit-classified
 
@@ -80,7 +80,6 @@ Census version 1 — 62 built-in production tools · 173 operations · 62 with a
 | WebFetch | observation | web-access | — | block | yes | — | — | — | NAMED GAP |
 | WebSearch | observation | web-access | — | block | yes | — | — | — | scripts/search/run-all.sh |
 | Workflow | coordination | task-coordination | — | block | yes | — | workflow-worker (child-execution) | mercury://workflow | scripts/workflows/run-all.sh |
-| Workshop | execution | persistent-evaluation | — | block | yes | workshop +receipts | workshop-js (full-execution-owner) | mercury://execution, mercury://artifact | scripts/project-services/prove-workshop.ts |
 | Write | mutation | text-mutation | — | block | no | file +receipts | — | mercury://file, mercury://receipt | scripts/project-services/prove-change-receipts.ts |
 
 ## Reading notes
@@ -94,5 +93,5 @@ Census version 1 — 62 built-in production tools · 173 operations · 62 with a
   gate (flagRegistry · EXECUTION_DOMAIN_CENSUS · the resource registry ·
   proof paths on disk). `—` = not declared (a named gap, not a denial).
 - Uniform properties not repeated per-row: every catalog tool is reachable
-  from Workshop (`mercury.tool`) and workflow agents unless its contract
+  from Eval (`tool`) and workflow agents unless its contract
   declares otherwise; every tool is available in all permission modes.

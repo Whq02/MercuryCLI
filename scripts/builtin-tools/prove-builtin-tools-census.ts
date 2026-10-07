@@ -230,8 +230,8 @@ check(
   `offered: ${courierUnderSwitch.join(', ')}`,
 )
 check(
-  'the census counts 62 production tools',
-  census.summary.tools === 62,
+  'the census counts 61 production tools',
+  census.summary.tools === 61,
   `live census: ${census.summary.tools} tools`,
 )
 

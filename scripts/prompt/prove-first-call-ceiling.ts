@@ -12,7 +12,7 @@ const vendoredNode = join(root, 'dist', 'vendor', 'node', process.platform === '
 const node = existsSync(vendoredNode) ? vendoredNode : Bun.which('node') ?? 'node'
 const rare = ['Service', 'Inspect', 'Sleep']
 const loadedInFull = ['ChangeSet', 'AstSearch', 'LSP']
-const deferredNow = ['AstEdit', 'Test', 'Git', 'Debug', 'Monitor', 'Checkpoint', 'Rewind', 'Workshop']
+const deferredNow = ['AstEdit', 'Test', 'Git', 'Debug', 'Monitor', 'Checkpoint', 'Rewind']
 const announces = (text: string, name: string): boolean => text.split('\n').some(line => line === name || line.startsWith(`${name} — `))
 let failures = 0
 function check(label: string, condition: boolean, detail = ''): void {
