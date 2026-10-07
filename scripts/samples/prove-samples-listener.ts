@@ -10,9 +10,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'mercury-samples-lis
 process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
 process.env.BROWSER = '/usr/bin/true'
 process.env.MERCURY_SAMPLES = '1'
-delete process.env.MERCURY_WORKSHOP
-
-const { runWorkshopCell } = await import('../../src/services/workshop/runtime.ts')
+const { sampleCellRunner } = await import('./evalCell.js')
 const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
 const { disposeOwner } = await import('../../src/services/run/ownerLifecycle.ts')
 const store = await import('../../src/services/samples/store.ts')
@@ -37,8 +35,7 @@ guard.unref?.()
 const workDir = mkdtempSync(join(tmpdir(), 'mercury-samples-work-'))
 const SESSION = 'samples-session'
 const owner = makeOwnerKey({ workspace: workDir, sessionId: SESSION, lane: 'main' } as never)
-const bridge = { inspect: async () => '', tool: async () => '', agent: async () => '' }
-const run = (code: string) => runWorkshopCell({ owner, cwd: workDir, cell: { language: 'js', code }, bridge })
+const run = await sampleCellRunner(owner, workDir)
 
 interface Reply {
   status: number
@@ -66,12 +63,12 @@ function call(port: number, method: string, path: string, body?: string): Promis
     req.end()
   })
 }
-const firstLine = (cell: { outputTail: string[] }): string => cell.outputTail[0] ?? '{}'
+const firstLine = (cell: { stdout: { text: string } }): string => cell.stdout.text.split('\n')[0] || '{}'
 
 section('B the bridge call keeps the page and answers its address')
 const V1 = '<!doctype html><h1 id="price">Pricing — one</h1>'
-const c1 = await run(`const kept = await mercury.sample({ name: 'Pricing table', html: ${JSON.stringify(V1)}, ask: 'show me the pricing table' })\nconsole.log(JSON.stringify(kept))`)
-check('B1 the cell succeeds', c1.state === 'succeeded', JSON.stringify(c1).slice(0, 400))
+const c1 = await run(`const kept = await sample({ name: 'Pricing table', html: ${JSON.stringify(V1)}, ask: 'show me the pricing table' })\nconsole.log(JSON.stringify(kept))`)
+check('B1 the cell succeeds', c1.status === 'ok', JSON.stringify(c1).slice(0, 400))
 const kept1 = JSON.parse(firstLine(c1)) as { id: string; version: number; url: string }
 check(
   'B2 the call answers { id, version, url }: a short id, version 1, the loopback address with the token',
@@ -92,17 +89,17 @@ check('B4 the sample call counts as one bridge call', c1.nestedCalls === 1)
 const record1 = store.getSample(SESSION, kept1.id)
 check('B5 the record sits under the cell\'s session with the html as written', record1 !== null && record1.latestVersion === 1 && store.readVersion(SESSION, kept1.id, 1) === V1)
 const V2 = '<!doctype html><h1 id="price">Pricing — two</h1>'
-const c2 = await run(`const again = await mercury.sample({ name: 'pricing table', title: 'Pricing', html: ${JSON.stringify(V2)} })\nconsole.log(JSON.stringify(again))`)
+const c2 = await run(`const again = await sample({ name: 'pricing table', title: 'Pricing', html: ${JSON.stringify(V2)} })\nconsole.log(JSON.stringify(again))`)
 const kept2 = JSON.parse(firstLine(c2)) as { id: string; version: number; url: string }
 check(
   'B6 the same name from a later cell is version 2 of the same sample, at the same address',
-  c2.state === 'succeeded' && kept2.id === kept1.id && kept2.version === 2 && kept2.url === kept1.url && c2.samples?.[0]?.title === 'Pricing' && c2.samples?.[0]?.ask === undefined,
+  c2.status === 'ok' && kept2.id === kept1.id && kept2.version === 2 && kept2.url === kept1.url && c2.samples?.[0]?.title === 'Pricing' && c2.samples?.[0]?.ask === undefined,
   JSON.stringify(c2).slice(0, 400),
 )
-const c3 = await run("await mercury.sample({ name: 'no page' })")
-check('B7 a call without html fails the cell with a plain reason and keeps nothing', c3.state === 'failed' && /needs the page as html/.test(c3.error ?? '') && store.listSamples(SESSION).length === 1, c3.error)
-const c3b = await run("await mercury.sample('just a string')")
-check('B7b a call without the object fails the same way', c3b.state === 'failed' && /takes one object/.test(c3b.error ?? ''), c3b.error)
+const c3 = await run("await sample({ name: 'no page' })")
+check('B7 a call without html fails the cell with a plain reason and keeps nothing', c3.status === 'error' && /needs the page as html/.test(c3.error?.value ?? '') && store.listSamples(SESSION).length === 1, c3.error?.value)
+const c3b = await run("await sample('just a string')")
+check('B7b a call without the object fails the same way', c3b.status === 'error' && /takes one object/.test(c3b.error?.value ?? ''), c3b.error?.value)
 
 section('L1 the listener')
 const address = listener.sampleListenerAddress()
@@ -219,12 +216,12 @@ try {
   refused = true
 }
 check('L8b the port no longer answers', refused)
-const c4 = await run("const third = await mercury.sample({ name: 'pricing table', html: '<p>three</p>' })\nconsole.log(JSON.stringify(third))")
+const c4 = await run("const third = await sample({ name: 'pricing table', html: '<p>three</p>' })\nconsole.log(JSON.stringify(third))")
 const kept3 = JSON.parse(firstLine(c4)) as { id: string; version: number; url: string }
 const again = listener.sampleListenerAddress()
 check(
   'L8c the next sample binds again with a NEW token, and the address follows',
-  c4.state === 'succeeded' && again !== null && again.token !== token && kept3.version === 3 && kept3.url === `http://127.0.0.1:${again.port}/s/${id}?t=${again.token}`,
+  c4.status === 'ok' && again !== null && again.token !== token && kept3.version === 3 && kept3.url === `http://127.0.0.1:${again.port}/s/${id}?t=${again.token}`,
   `${JSON.stringify(kept3)} · ${JSON.stringify(again)}`,
 )
 const shellAgain = await call(again!.port, 'GET', `/s/${id}?t=${again!.token}`)
