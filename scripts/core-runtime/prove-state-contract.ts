@@ -265,7 +265,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'getClientType', 'getCurrentTurnTokenBudget', 'getCwdState', 'getDirectConnectServerUrl', 'getFlagSettingsInline', 'getFlagSettingsPath',
     'getHasDevChannels', 'getInitialEngineModel', 'getSessionExtensions',
     'getInvokedSkills', 'getInvokedSkillsForAgent', 'getIsInteractive',
-    'getIsNonInteractiveSession', 'getIsRemoteMode', 'getIsScrollDraining', 'getIsSessionOneShotHeadless', 'isAssistantFamilyAvailable',
+    'getIsNonInteractiveSession', 'getIsRemoteMode', 'getIsScrollDraining', 'getIsSessionOneShotHeadless', 'isAssistantFamilyAvailable', 'isRunInputClosed', 'setRunInputClosed',
     'isAssistantSessionActive', 'getLastAPIRequest', 'getLastAPIRequestMessages',
     'getLastApiCompletionTimestamp', 'getLastEmittedDate',
     'getLastInteractionTime', 'getLastMainRequestId', 'getEngineModelOverride', 'getMainThreadAgentType', 'getModelStrings', 'getModelUsage', 'getOauthTokenFromFd', 'getOriginalCwd',
