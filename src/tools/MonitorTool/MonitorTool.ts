@@ -7,6 +7,7 @@ import { stopTask } from '../../tasks/stopTask.js'
 import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { exec } from '../../utils/Shell.js'
+import { ShellError } from '../../utils/errors.js'
 import { clampWait } from '../../utils/waitCeiling.js'
 import { MONITOR_TOOL_NAME } from './constants.js'
 import { sessionLaneWall } from './laneWall.js'
@@ -223,6 +224,13 @@ export const MonitorTool = buildTool({
       { abortController, getAppState, setAppState },
     )
     taskId = handle.taskId
+    if (!handle.accepted) {
+      const result = await shellCommand.result
+      if (result.preSpawnError) {
+        stopped = true
+        throw new ShellError('', result.preSpawnError, result.code, result.interrupted, false)
+      }
+    }
 
     let timer: ReturnType<typeof setTimeout> | undefined
     if (!persistent) {

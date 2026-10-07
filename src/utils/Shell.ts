@@ -342,7 +342,11 @@ export async function exec(
     }
     taskOutput.clear()
     logForDebugging(`spawn failed for shell command: ${errorMessage(spawnError)}`)
-    return createAbortedCommand(undefined, { code: 126, stderr: errorMessage(spawnError) })
+    const code = (spawnError as NodeJS.ErrnoException).code
+    const message = errorMessage(spawnError)
+    return createFailedCommand(code === 'ENAMETOOLONG' || code === 'E2BIG'
+      ? `The shell command exceeds the platform's command-line limit (${code}). Put the command in a script file and run that file instead. ${message}`
+      : message)
   }
 
   void shellCommand.result.then(result => {
