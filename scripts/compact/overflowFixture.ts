@@ -4,8 +4,8 @@ export type Dialect = 'anthropic' | 'responses' | 'chat'
 export type ScriptedCall = { id: string; name: string; args: string }
 export type ScriptedReasoning = { summary: string; encrypted: string }
 export type Turn =
-  | { text: string; usage?: { input: number; output: number }; finishReason?: string; reasoning?: ScriptedReasoning }
-  | { calls: ScriptedCall[]; usage?: { input: number; output: number }; reasoning?: ScriptedReasoning }
+  | { text: string; usage?: { input: number; output: number; cost?: number }; finishReason?: string; reasoning?: ScriptedReasoning }
+  | { calls: ScriptedCall[]; usage?: { input: number; output: number; cost?: number }; reasoning?: ScriptedReasoning }
   | { error: { status: number; body: unknown } }
   | { cut: { reasoning?: ScriptedReasoning; text?: string; calls?: ScriptedCall[] } }
   | { refusal: true; usage?: { input: number; output: number } }
@@ -100,7 +100,8 @@ function responsesSse(turn: Exclude<Turn, { error: unknown } | { cut: unknown }>
   }
   const input = 'usage' in turn && turn.usage ? turn.usage.input : 8
   const output = 'usage' in turn && turn.usage ? turn.usage.output : 3
-  out.push(sse({ type: 'response.completed', response: { id: `resp_${ordinal}`, usage: { input_tokens: input, output_tokens: output, input_tokens_details: { cached_tokens: 0 } } } }))
+  const cost = 'usage' in turn && turn.usage && typeof turn.usage.cost === 'number' ? { cost: turn.usage.cost } : {}
+  out.push(sse({ type: 'response.completed', response: { id: `resp_${ordinal}`, usage: { input_tokens: input, output_tokens: output, input_tokens_details: { cached_tokens: 0 }, ...cost } } }))
   return out.join('')
 }
 
@@ -108,7 +109,8 @@ function chatSse(turn: Exclude<Turn, { error: unknown } | { cut: unknown }>): st
   const out: string[] = []
   const input = 'usage' in turn && turn.usage ? turn.usage.input : 8
   const output = 'usage' in turn && turn.usage ? turn.usage.output : 3
-  const usage = { prompt_tokens: input, completion_tokens: output, total_tokens: input + output }
+  const cost = 'usage' in turn && turn.usage && typeof turn.usage.cost === 'number' ? { cost: turn.usage.cost } : {}
+  const usage = { prompt_tokens: input, completion_tokens: output, total_tokens: input + output, ...cost }
   if ('calls' in turn) {
     turn.calls.forEach((call, index) => {
       out.push(sse({ id: 'chatcmpl-fixture', object: 'chat.completion.chunk', created: 0, model: 'fixture', choices: [{ index: 0, delta: { ...(index === 0 ? { role: 'assistant' } : {}), tool_calls: [{ index, id: call.id, type: 'function', function: { name: call.name, arguments: call.args } }] }, finish_reason: null }] }))

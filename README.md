@@ -474,8 +474,12 @@ The settled text or tool row is the complete value.
 The outcome carries `schema`, `turn_id`, `status`, `steps`, `wall_ms`,
 `usage`, `models` and `denials`, with `answer` on completion and `error`
 (`message`, `class`, optional `detail`) on failure. `stop`, measured
-`api_ms`, known `cost_usd`, requested `structured` output and `notices` are
-included when available. Usage names `input_tokens` (cached tokens included),
+`api_ms`, `cost_usd`, requested `structured` output and `notices` are
+included when available. `cost_usd` is the USD of the turn's priced
+requests, whatever the status: a request Mercury cannot price (no rate on
+file, no cost stated on the wire) adds nothing to it and leaves its model
+listed in `models` without a `cost_usd` of its own; the field is absent only
+when nothing in the turn was priced. Usage names `input_tokens` (cached tokens included),
 `cached_input_tokens`, `cache_write_input_tokens`, `output_tokens` and,
 when reported, `reasoning_output_tokens`. `models` gives the per-model
 figures; `steps` counts the main thread's model calls.
