@@ -71,6 +71,7 @@ import {
   providerFamilyPresences,
   type ProviderFamilyPresence,
 } from '../../services/providers/providerUsage.js'
+import { shownIdentityWords } from '../../services/providers/providerIdentityLine.js'
 import { REACHABLE_THEME_SETTINGS } from '../../utils/theme.js'
 import { useTheme, useThemeSetting } from '../design-system/ThemeProvider.js'
 import { GLYPH } from '../mercury-ui/glyphs.js'
@@ -290,7 +291,7 @@ export function configProviderRows(families: ProviderFamilyPresence[]): ConfigPr
         id: `account-${family.id}`,
         label: `${meta.label} account`,
         valueText: family.credentialed
-          ? `${family.credentialLabel}${meta.manage ? ` — ${meta.manage}` : ''}`
+          ? `${shownIdentityWords(family.id, String(family.credentialLabel))}${meta.manage ? ` — ${meta.manage}` : ''}`
           : meta.absent,
         credentialed: family.credentialed,
       }

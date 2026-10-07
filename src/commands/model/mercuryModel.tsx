@@ -106,6 +106,7 @@ import { slotSeatView, switchActiveSlot, type SwitchableFamily } from '../../ser
 import { paintSlotSwitchReceipt } from '../../utils/model/slotSwitchReceipt.js'
 import { deriveFamilySlotGroups, type AccountSlot } from '../../services/providers/accountSlots.js'
 import { providerDoorAccount } from '../../services/providers/providerIdentityLine.js'
+import { accountIdentityShown } from '../../services/wallet/identityWords.js'
 import { providerDisplayName } from '../../services/providers/routeLaw.js'
 import { catalogueEpoch } from '../../services/providers/catalogueEpoch.js'
 import { signInLedgerEpoch } from '../../utils/accounts/signInLedger.js'
@@ -531,7 +532,7 @@ function signedInDoorsOf(family: string, slots: readonly AccountSlot[], identity
 let headingsMemo: { key: string; at: number; value: Record<string, ProviderHeading> } | null = null
 
 function providerHeadingsOf(slotVersion: number): Record<string, ProviderHeading> {
-  const key = `${catalogueEpoch()}|${signInLedgerEpoch()}|${slotVersion}`
+  const key = `${catalogueEpoch()}|${signInLedgerEpoch()}|${slotVersion}|${accountIdentityShown()}`
   const now = Date.now()
   if (headingsMemo !== null && headingsMemo.key === key && now - headingsMemo.at < 2_000) return headingsMemo.value
   const value = buildProviderHeadings()

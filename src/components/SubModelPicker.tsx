@@ -13,6 +13,7 @@ import { isTopOverlayNow, useRegisterOverlay } from '../context/overlayContext.j
 import type { EffortLevel } from '../utils/effort.js'
 import { getEngineModel, renderModelName } from '../utils/model/model.js'
 import { focusedSessionModelFacts } from '../services/engine-connector/focusedConnector.js'
+import { shownIdentityWords } from '../services/providers/providerIdentityLine.js'
 import {
   canonicalSubModelId,
   composeSubModelRegistry,
@@ -321,7 +322,7 @@ function ContainerList({
         const props = list.rowProps(row, index)
         if (row.kind === 'header') {
           const signedIn = row.family.credentialed
-            ? (row.family.credentialLabel ?? 'signed in')
+            ? shownIdentityWords(row.family.source, row.family.credentialLabel ?? 'signed in')
             : 'not signed in'
           return (
             <InteractiveRow key={props.id} {...props} width="100%" height={1}>
