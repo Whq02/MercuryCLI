@@ -454,10 +454,8 @@ export type SystemApiMetricsMessage = {
   hookDurationMs?: number
   turnDurationMs?: number
   toolDurationMs?: number
-  classifierDurationMs?: number
   toolCount?: number
   hookCount?: number
-  classifierCount?: number
   configWriteCount?: number
   uuid: UUID
   timestamp: string

@@ -285,22 +285,6 @@ export function getTurnHookCount(): number {
   return turnAccounting.turnHookCount
 }
 
-export function getTurnClassifierDurationMs(): number {
-  return turnAccounting.turnClassifierDurationMs
-}
-
-export function addToTurnClassifierDuration(duration: number): void {
-  turnAccounting.addToTurnClassifierDuration(duration)
-}
-
-export function resetTurnClassifierDuration(): void {
-  turnAccounting.resetTurnClassifierDuration()
-}
-
-export function getTurnClassifierCount(): number {
-  return turnAccounting.turnClassifierCount
-}
-
 export function getTurnOutputTokens(): number {
   return turnAccounting.getTurnOutputTokens()
 }
@@ -671,22 +655,6 @@ export function getLastAPIRequestMessages():
   | ApiRequestParams['messages']
   | null {
   return apiCapture.lastAPIRequestMessages
-}
-
-export function setLastClassifierRequests(requests: unknown[] | null): void {
-  apiCapture.lastClassifierRequests = requests
-}
-
-export function getLastClassifierRequests(): unknown[] | null {
-  return apiCapture.lastClassifierRequests
-}
-
-export function setCachedInstructionPrompt(content: string | null): void {
-  apiCapture.cachedInstructionPrompt = content
-}
-
-export function getCachedInstructionPrompt(): string | null {
-  return apiCapture.cachedInstructionPrompt
 }
 
 export function getPromptId(): string | null {

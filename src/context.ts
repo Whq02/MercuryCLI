@@ -1,6 +1,5 @@
 import { memoize } from 'lodash-es'
 import {
-  setCachedInstructionPrompt,
 } from './bootstrap/state.js'
 import {
   composeInstructionPrompt,
@@ -142,7 +141,6 @@ export const getUserContext = memoize(
         filterInjectedInstructionFiles(files),
       )
       instructionPrompt = composed || null
-      setCachedInstructionPrompt(instructionPrompt)
     }
     const isGit = await getIsGit()
     logForDiagnosticsNoPII('info', 'user_context_completed', {

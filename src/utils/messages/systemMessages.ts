@@ -289,10 +289,8 @@ export function createApiMetricsMessage(metrics: {
   hookDurationMs?: number
   turnDurationMs?: number
   toolDurationMs?: number
-  classifierDurationMs?: number
   toolCount?: number
   hookCount?: number
-  classifierCount?: number
   configWriteCount?: number
 }): SystemApiMetricsMessage {
   return {
@@ -304,10 +302,8 @@ export function createApiMetricsMessage(metrics: {
     hookDurationMs: metrics.hookDurationMs,
     turnDurationMs: metrics.turnDurationMs,
     toolDurationMs: metrics.toolDurationMs,
-    classifierDurationMs: metrics.classifierDurationMs,
     toolCount: metrics.toolCount,
     hookCount: metrics.hookCount,
-    classifierCount: metrics.classifierCount,
     configWriteCount: metrics.configWriteCount,
     ...MESSAGE_STAMPER.mint(),
     isMeta: false,
