@@ -137,6 +137,24 @@ for (const tool of [SendMessageTool, ResumeAgentTool].filter(Boolean) as typeof 
   const absent = await call(tool, 'missing-record')
   check(`${tool.name} names a missing transcript`, !absent.success && absent.message.includes('no transcript on disk'), absent.message)
 }
+const { registerWorkflowTask } = await import('../../src/tasks/LocalWorkflowTask/LocalWorkflowTask.tsx')
+const worker = generateTaskId('local_agent')
+registerWorkflowTask({ taskId: 'split-workflow', script: 'fixture', workflowName: 'fixture-flow', workflowRunId: 'split-run', setAppState: setState as never })
+state = { ...state, tasks: { ...state.tasks, 'split-workflow': { ...state.tasks['split-workflow'], agentControllers: new Map([[worker, new AbortController()]]) } as never } }
+for (const tool of [SendMessageTool, ResumeAgentTool].filter(Boolean) as typeof SendMessageTool[]) {
+  const refusal = await call(tool, worker)
+  check(`${tool.name} refuses a live workflow worker with no folder before any transcript exists`, !refusal.success && refusal.message.includes('workflow owns its run') && refusal.message.endsWith('or resume it with ResumeAgent once the workflow has finished.'), refusal.message)
+}
+for (const status of ['failed', 'killed']) {
+  const finishedId = launch(`ended-${status}`)
+  mark(finishedId, status, status === 'failed' ? 'failure reason' : undefined)
+  const answer = await call(SendMessageTool, `ended-${status}`)
+  check(`SendMessage never resumes a ${status} task`, !answer.success && answer.message.includes(status === 'failed' ? 'has failed (failure reason)' : 'has stopped') && state.tasks[finishedId]?.status === status)
+  if (ResumeAgentTool) {
+    const failedResume = await call(ResumeAgentTool, `ended-${status}`)
+    check('a resume exception is an error with a next step', !failedResume.success && failedResume.message.includes(`No transcript found for agent ${finishedId}`) && failedResume.message.endsWith('Launch a new crewmate with Agent if the work is still wanted.'), failedResume.message)
+  }
+}
 const expectedSend = `Deliver a message to a running crewmate of this session. It never starts work: a crewmate that has finished is refused, and ResumeAgent gives it the message as a new turn.
 
 Example: { "to": "researcher", "message": "The auth notes moved to docs/auth-v2.md; read that one." }
