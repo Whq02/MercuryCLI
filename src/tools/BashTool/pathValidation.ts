@@ -107,13 +107,57 @@ export const PATH_EXTRACTORS: Record<PathCommand, (args: string[]) => string[]> 
   git: extractGitOperands,
   tee: args => extractBaseline(args).filter(a => a !== '/dev/null'),
   dd: args => args.filter(a => a.startsWith('of=') && a !== 'of=/dev/null').map(a => a.slice(3)),
+  awk: extractAwkOperands,
   mkdir: extractBaseline, touch: extractBaseline, rm: extractBaseline, rmdir: extractBaseline,
   mv: extractBaseline, cp: extractBaseline, cat: extractBaseline, head: extractBaseline,
   tail: extractBaseline, sort: extractBaseline, uniq: extractBaseline, wc: extractBaseline,
   cut: extractBaseline, paste: extractBaseline, column: extractBaseline, file: extractBaseline,
-  stat: extractBaseline, diff: extractBaseline, awk: extractBaseline, strings: extractBaseline,
+  stat: extractBaseline, diff: extractBaseline, strings: extractBaseline,
   hexdump: extractBaseline, od: extractBaseline, base64: extractBaseline, nl: extractBaseline,
   sha256sum: extractBaseline, sha1sum: extractBaseline, md5sum: extractBaseline,
+}
+
+const AWK_READ_OPTIONS = new Set(['-f', '--file', '-E', '--exec', '-i', '--include', '-l', '--load'])
+const AWK_PROGRAM_OPTIONS = new Set(['-f', '--file', '-E', '--exec', '-e', '--source'])
+const AWK_OPTIONS_END = new Set(['-E', '--exec'])
+const AWK_SKIPPED_VALUE_OPTIONS = new Set(['-v', '--assign', '-F', '--field-separator', '-e', '--source'])
+
+function extractAwkOperands(args: string[]): string[] {
+  const operands: string[] = []
+  let programGiven = false
+  let i = 0
+  for (; i < args.length; i++) {
+    const arg = args[i] as string
+    if (arg === '--') {
+      i++
+      break
+    }
+    if (!arg.startsWith('-') || arg === '-') break
+    const fused = arg.match(/^-([fEilvF])(.+)$/)
+    const long = arg.match(/^--(file|exec|include|load|assign|field-separator|source)=(.*)$/s)
+    const option = fused ? `-${fused[1]}` : long ? `--${long[1]}` : arg
+    const value = fused ? (fused[2] as string) : long ? (long[2] as string) : undefined
+    if (AWK_PROGRAM_OPTIONS.has(option)) programGiven = true
+    if (AWK_READ_OPTIONS.has(option)) {
+      const read = value ?? args[i + 1]
+      if (value === undefined && args[i + 1] !== undefined) i++
+      if (read !== undefined) operands.push(read)
+    } else if (AWK_SKIPPED_VALUE_OPTIONS.has(option)) {
+      if (value === undefined && args[i + 1] !== undefined) i++
+    }
+    if (AWK_OPTIONS_END.has(option)) {
+      i++
+      break
+    }
+  }
+  if (!programGiven && i < args.length) i++
+  for (; i < args.length; i++) {
+    const arg = args[i] as string
+    if (arg === '-') continue
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(arg)) continue
+    operands.push(arg)
+  }
+  return operands
 }
 
 function extractFindOperands(args: string[]): string[] {
