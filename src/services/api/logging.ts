@@ -81,7 +81,7 @@ export type LogAPIQueryParams = {
   betas?: string[]
   permissionMode?: string
   querySource?: string
-  queryTracking?: unknown
+  callChain?: unknown
   thinkingType?: 'adaptive' | 'enabled' | 'disabled'
   effortValue?: string | null
   previousRequestId?: string | null
@@ -103,7 +103,7 @@ export type LogAPIErrorParams = {
   didFallBackToNonStreaming?: boolean
   promptCategory?: string
   responseHeaders?: HeadersLike
-  queryTracking?: unknown
+  callChain?: unknown
   querySource?: string
   previousRequestId?: string | null
 }
