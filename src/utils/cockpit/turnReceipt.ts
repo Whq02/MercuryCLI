@@ -1,6 +1,7 @@
 
 import type { CompactMetadata, Message, RenderableMessage, TurnReceiptMessage } from '../../types/message.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { deriveUUID } from '../messages/identity.js'
 
 export function isTurnReceiptEnabled(): boolean {
   return flagEnv('MERCURY_TURN_RECEIPT') !== '0'
@@ -180,7 +181,11 @@ function walkTurnReceipts(
   tempRoot: string,
   visit: (counts: TurnReceiptCounts, anchorUuid: string, end: number) => void,
 ): void {
-  const pending = new Map((compactWorkOf(messages)?.receipts ?? []).map(receipt => [receipt.beforeUuid, receipt]))
+  const pending = new Map<string, NonNullable<CompactMetadata['work']>['receipts'][number]>()
+  for (const receipt of compactWorkOf(messages)?.receipts ?? []) {
+    pending.set(receipt.beforeUuid, receipt)
+    pending.set(deriveUUID(receipt.beforeUuid as Message['uuid'], 0), receipt)
+  }
   let counts = emptyCounts()
   let anchorUuid = 'turn-0'
   for (let index = 0; index < messages.length; index++) {
@@ -196,6 +201,7 @@ function walkTurnReceipts(
       for (const key of Object.keys(counts) as Array<keyof TurnReceiptCounts>) counts[key] += carry.counts[key]
       anchorUuid = carry.anchorUuid
       pending.delete(carry.beforeUuid)
+      pending.delete(deriveUUID(carry.beforeUuid as Message['uuid'], 0))
     }
     countMessage(m, counts, tempRoot)
   }
@@ -219,7 +225,8 @@ export function foldedTurnReceipts(
     for (const m of surviving) countMessage(m, retained, tempRoot)
     const missing = { ...counts }
     for (const key of Object.keys(missing) as Array<keyof TurnReceiptCounts>) missing[key] -= retained[key]
-    receipts.push({ beforeUuid: surviving[0]?.uuid ?? summaryUuid, anchorUuid, counts: missing })
+    const first = surviving.find(m => m.type === 'assistant' || (m.type === 'user' && !m.isMeta && !m.isCompactSummary))
+    if (first || kept.length === 0) receipts.push({ beforeUuid: first?.uuid ?? summaryUuid, anchorUuid, counts: missing })
   })
   return receipts
 }
