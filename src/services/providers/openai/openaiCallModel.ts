@@ -890,7 +890,7 @@ export async function* openaiCallModel(
       })()
       yield withEffort(stampProviderWait(
         apiErrorMessage(
-          busyPrefix(`${API_ERROR_MESSAGE_PREFIX}: the ${auth.account.label} usage window is reached (${outcome.fault.code}) — ${outcome.fault.message}${carryClause}. GPT work on this source pauses until it resets; Mercury never reroutes across providers silently, and never changes the account source without your word.${slotAppendix || ' Options: retry later · pick another model via /model · switch the OpenAI source explicitly (/router source).'}${laneRemedy}`, outcome.fault, typed),
+          busyPrefix(`${API_ERROR_MESSAGE_PREFIX}: the ${auth.account.label} request was refused (${outcome.fault.code}) — ${outcome.fault.message}${carryClause}. The next request goes to OpenAI again; resume any time. Mercury never reroutes across providers silently, and never changes the account source without your word.${slotAppendix || ' Options: retry now · pick another model via /model · switch the OpenAI source explicitly (/router source).'}${laneRemedy}`, outcome.fault, typed),
           openaiFaultToTypedError(outcome.fault),
           `${outcome.fault.code}${outcome.fault.resetsAtMs !== undefined ? ` resets_at=${new Date(outcome.fault.resetsAtMs).toISOString()}` : ''}`,
         ),

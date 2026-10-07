@@ -163,6 +163,7 @@ try {
   }
   const pause = usageWindowPauseOf(rows, MODEL)
   const { pauseStatusWords } = await import('../../src/tasks/LocalAgentTask/agentPause.js')
+  check('the refusal row invites the next request on the same provider', pause?.words.includes('The next request goes to OpenAI again; resume any time.') === true)
   check('the pause carries the provider answer and names both retry doors', pause !== null && pause.words.includes('The weekly usage limit was reached.') && pauseStatusWords(pause, Date.now()).includes('retries by itself at') && pauseStatusWords(pause, Date.now()).includes('r retries now'))
   check('the agent reaches a real fixture 429 once and keeps its six-day automatic retry', wire.length === 1 && wire[0]?.status === 429 && pause?.resumesAtMs !== undefined && pause.resumesAtMs > Date.now() + 5 * 24 * 60 * 60 * 1000)
   registerAsyncAgent({ agentId, description: 'provider refusal fixture', prompt: 'Continue the kept work.', selectedAgent: definition, setAppState: setState as never })

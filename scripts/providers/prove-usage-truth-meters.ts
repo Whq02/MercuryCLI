@@ -535,7 +535,7 @@ section('§9 the carry words: a reached window says what carries the requests fr
   const usabilitySrc = src('src/services/providers/providerUsability.ts')
   check('the live usability bundle reads them from the owner, only for a limited lane', usabilitySrc.includes('usageCarryWords(usageForProvider(lane).carry)') && usabilitySrc.includes("reads.carryWords?.(lane.provider)") && usabilitySrc.includes("if (window?.state !== 'limited' || lane.credential === 'none') return lane") && usabilitySrc.indexOf("reads.carryWords?.(lane.provider)") > usabilitySrc.indexOf("if (window?.state !== 'limited' || lane.credential === 'none') return lane"))
   const openaiWall = src('src/services/providers/openai/openaiCallModel.ts')
-  check('the OpenAI wall row carries them after the wire\'s words', openaiWall.includes("usageCarryWords(usageForProvider('openai').carry)") && openaiWall.includes('— ${outcome.fault.message}${carryClause}. GPT work on this source pauses'))
+  check('the OpenAI wall row carries them after the wire\'s words', openaiWall.includes("usageCarryWords(usageForProvider('openai').carry)") && openaiWall.includes('— ${outcome.fault.message}${carryClause}. The next request goes to OpenAI again; resume any time.'))
   const strip = src('src/services/providers/limitWarning.ts')
   check('the strip warning appends them only at 100%', strip.includes('if (facts === null || facts.pct < 100) return facts') && strip.includes('text: `${facts.view.text} · ${carry}`'))
   const health = src('src/utils/healthReport.ts')
