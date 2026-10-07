@@ -129,6 +129,7 @@ export const SessionRowSchema = lazySchema(() =>
     schema: z.literal(ROWS_SCHEMA),
     version: z.string(),
     build: z.string().optional(),
+    resume_of: z.string().optional(),
     cwd: z.string(),
     model: z.string(),
     mode: z.string(),

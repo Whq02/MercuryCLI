@@ -465,6 +465,7 @@ export async function runHeadless(
   let currentTurn: number | null = null
   let currentTurnId: string | null = null
   let sessionRowFor: string | null = null
+  let resumeOf: string | undefined
   const liveScope = (): RowScope => ({ session_id: getSessionId(), ...(currentTurn !== null ? { turn: currentTurn } : {}) })
   const enqueueRow = (row: RowDraft): void => io.outbound.enqueue(row)
   const hookRowsActive = peer !== null || options.outputFormat === 'rows'
@@ -580,6 +581,7 @@ export async function runHeadless(
     sessionStartHooksPromise: options.sessionStartHooksPromise,
   })
   const messages: Message[] = loaded.messages
+  resumeOf = loaded.resumedSessionId
   let contentReplacementState = {
     ...reconstructContentReplacementState(messages, loaded.contentReplacements ?? []),
     budgetChars: Infinity,
@@ -1100,6 +1102,7 @@ export async function runHeadless(
             { cwd: getCwd(), tools: assembledTools, mcpClients: turnClients, commands: dedupedCommands, agents: activeAgents },
             activeModel ?? getEngineModel(),
             state.toolPermissionContext.mode,
+            resumeOf,
           )
           enqueueRow(sessionRow({ session_id: getSessionId() }, facts))
         }
@@ -1724,6 +1727,7 @@ export async function runHeadless(
           throw refused(`claim refused — no conversation found for session ${sid}`, 'claim')
         }
         switchSession(sid as SessionId, resumed.fullPath ? dirname(resumed.fullPath) : claimedHome)
+        resumeOf = String(resumed.sessionId ?? sid)
         if (!isSessionPersistenceDisabled()) await resetSessionFilePointer()
         await restoreSessionStateFromLog(resumed, setAppState)
         restoreSessionMetadata(resumed)

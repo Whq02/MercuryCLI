@@ -416,13 +416,18 @@ mercury run "Summarise this repository." --format rows
   `text`, `reasoning`, `tool_call`, `tool_result` and `step` rows, ending in
   `outcome`. Waits, tool progress, background tasks and notices have their
   own rows. Every row carries `seq`, `timestamp` and `session_id`; rows
-  within a turn also carry its `turn` number.
+  within a turn also carry its `turn` number. `seq` and `turn` count from 1
+  in every run: a run that continues a stored conversation (`-c`, `-r`)
+  starts them again, and its `session` row names the conversation it
+  continues in `resume_of`.
 
 The output row types, by their `type` field:
 
 - `session` — the opening row: `version`, `build` (the first twelve hex
   characters of the tree the bundle was built from, as `mercury daemon
-  status` prints it; absent when no manifest sits beside the bundle), `cwd`,
+  status` prints it; absent when no manifest sits beside the bundle),
+  `resume_of` (on a continued run, the session id of the conversation it
+  continues; the same id as `session_id` unless the run was forked), `cwd`,
   `model`, `mode`, and the `tools`, `mcp_servers`, `commands`, `agents`,
   `skills` and `extensions` the session has.
 - `turn` — a turn `started` or `waiting`, with its `turn_id`; `model`,
