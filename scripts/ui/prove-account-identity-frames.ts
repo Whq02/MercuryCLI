@@ -14,6 +14,7 @@ const argument = (name: string): string | undefined => {
 const ROOT = resolve(argument('--root') ?? join(import.meta.dir, '../..'))
 const framesDir = argument('--frames')
 const compareDir = argument('--compare-shown')
+const surface = argument('--surface')
 if (framesDir !== undefined) mkdirSync(framesDir, { recursive: true })
 const HOME = mkdtempSync(join(tmpdir(), 'identity-frames-'))
 for (const name of Object.keys(process.env)) {
@@ -45,6 +46,7 @@ globalThis.fetch = (async input => {
   throw new Error('identity source renders never contact a provider')
 }) as typeof fetch
 const EMAIL = 'identity-fixture@example.com'
+const USERNAME = 'identity-hub-user'
 const MODEL = 'claude-fable-5-1'
 const json = (file: string, value: unknown): void => writeFileSync(join(HOME, file), JSON.stringify(value) + '\n', { mode: 0o600 })
 json('.credentials.json', { claudeAiOauth: {
@@ -55,6 +57,7 @@ json('.credentials.json', { claudeAiOauth: {
   subscriptionType: 'max',
   tokenAccount: { uuid: 'fixture-identity-account', emailAddress: EMAIL },
 } })
+json('.huggingface-auth.json', { version: 1, tokens: { accessToken: 'fixture-hub-access-token', refreshToken: 'fixture-hub-refresh-token', accessTokenExpiresAtMs: NOW + 86_400_000 }, identity: { username: USERNAME, observedAtMs: NOW } })
 json('settings.json', { engine: { model: MODEL } })
 const config = await import(join(ROOT, 'src/utils/config.ts'))
 config.enableConfigs()
@@ -71,6 +74,7 @@ await stub('src/hooks/useExitOnCtrlCD.ts', { useExitOnCtrlCD: () => undefined })
 await stub('src/keybindings/useKeybinding.ts', { useKeybinding: () => undefined, useKeybindings: () => undefined })
 await stub('src/context/notifications.tsx', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
 await stub('src/services/providers/anthropic/anthropicCatalogue.ts', { refreshAnthropicCatalogue: async () => [] })
+await stub('src/services/providers/huggingface/huggingfaceCatalogue.ts', { refreshHuggingfaceCatalogue: async () => null })
 const ink = await import(join(ROOT, 'src/ink.ts'))
 const { default: StdinContext } = await import(join(ROOT, 'src/ink/components/StdinContext.ts'))
 const { AppStateProvider } = await import(join(ROOT, 'src/state/AppState.tsx'))
@@ -118,25 +122,46 @@ function save(name: string, frame: string): void {
 }
 
 try {
-  const warm = await picker.call(() => {}, { messages: [] } as never, '')
-  await paint(React.createElement(AppStateProvider, null, warm), 178, 51)
-  const snapshots = new Map<string, string>()
-  for (const size of [{ columns: 178, rows: 51 }, { columns: 100, rows: 30 }]) {
-    for (const leg of ['absent', 'shown', 'hidden', 'shown', 'hidden'] as Leg[]) {
+  if (surface === undefined || surface === 'model') {
+    const warm = await picker.call(() => {}, { messages: [] } as never, '')
+    await paint(React.createElement(AppStateProvider, null, warm), 178, 51)
+    const snapshots = new Map<string, string>()
+    for (const size of [{ columns: 178, rows: 51 }, { columns: 100, rows: 30 }]) {
+      for (const leg of ['absent', 'shown', 'hidden', 'shown', 'hidden'] as Leg[]) {
+        setLeg(leg)
+        const before = `${signInLedgerEpoch()}|${catalogueEpoch()}`
+        const body = await picker.call(() => {}, { messages: [] } as never, '')
+        const painted = await paint(React.createElement(AppStateProvider, null, body), size.columns, size.rows)
+        const stamp = `model-${leg}-${size.columns}x${size.rows}`
+        save(stamp, painted.final)
+        check(`${stamp}: credential and catalogue epochs did not change`, before === `${signInLedgerEpoch()}|${catalogueEpoch()}`)
+        check(`${stamp}: real model screen and account door painted`, painted.final.includes('Mercury') && painted.final.includes('model') && painted.final.includes('Claude Max login'), painted.final)
+        if (leg === 'hidden') {
+          check(`${stamp}: no frame retains the signed-in address after hiding`, painted.frames.every(frame => !frame.includes(EMAIL) && !frame.includes('identity-fixture@')), painted.final.split('\n').find(line => line.includes('ANTHROPIC')))
+        } else {
+          check(`${stamp}: the shown address remains on the screen`, painted.final.includes(EMAIL), painted.final.split('\n').find(line => line.includes('ANTHROPIC')))
+          if (leg === 'shown') check(`${stamp}: true is byte-identical to absent`, painted.final === snapshots.get(`${size.columns}`))
+          else snapshots.set(`${size.columns}`, painted.final)
+        }
+      }
+    }
+  }
+  if (surface === undefined || surface === 'submodels') {
+    const { SubModelPicker } = await import(join(ROOT, 'src/components/SubModelPicker.tsx'))
+    const { composeSubModelRegistry } = await import(join(ROOT, 'src/utils/model/subModelSlots.ts'))
+    const model = composeSubModelRegistry().entries.find((entry: { source: string; kind: string }) => entry.source === 'huggingface' && entry.kind === 'model')
+    check('the real submodel registry has a signed-in Hugging Face model', model !== undefined)
+    let absent = ''
+    for (const leg of ['absent', 'shown', 'hidden'] as Leg[]) {
       setLeg(leg)
-      const before = `${signInLedgerEpoch()}|${catalogueEpoch()}`
-      const body = await picker.call(() => {}, { messages: [] } as never, '')
-      const painted = await paint(React.createElement(AppStateProvider, null, body), size.columns, size.rows)
-      const stamp = `model-${leg}-${size.columns}x${size.rows}`
-      save(stamp, painted.final)
-      check(`${stamp}: credential and catalogue epochs did not change`, before === `${signInLedgerEpoch()}|${catalogueEpoch()}`)
-      check(`${stamp}: real model screen and account door painted`, painted.final.includes('Mercury') && painted.final.includes('model') && painted.final.includes('Claude Max login'), painted.final)
-      if (leg === 'hidden') {
-        check(`${stamp}: no frame retains the signed-in address after hiding`, painted.frames.every(frame => !frame.includes(EMAIL) && !frame.includes('identity-fixture@')), painted.final.split('\n').find(line => line.includes('ANTHROPIC')))
-      } else {
-        check(`${stamp}: the shown address remains on the screen`, painted.final.includes(EMAIL), painted.final.split('\n').find(line => line.includes('ANTHROPIC')))
-        if (leg === 'shown') check(`${stamp}: true is byte-identical to absent`, painted.final === snapshots.get(`${size.columns}`))
-        else snapshots.set(`${size.columns}`, painted.final)
+      const painted = await paint(React.createElement(SubModelPicker, { onClose() {}, onRoute() {}, initialModelId: model?.modelId }), 178, 51)
+      save(`submodels-${leg}`, painted.final)
+      check(`submodels-${leg}: the account word stays`, painted.final.includes('Hugging Face account'), painted.final)
+      if (leg === 'hidden') check('submodels-hidden: no frame shows the signed-in username', painted.frames.every(frame => !frame.includes(USERNAME)), painted.final)
+      else {
+        check(`submodels-${leg}: the signed-in username is present`, painted.final.includes(USERNAME), painted.final)
+        if (leg === 'absent') absent = painted.final
+        else check('submodels-shown: true is byte-identical to absent', absent === painted.final)
       }
     }
   }
