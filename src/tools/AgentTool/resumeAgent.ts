@@ -40,6 +40,8 @@ import {
 } from '../../utils/sessionStorage.js'
 import { reconstructForSubagentResume } from '../../utils/toolResultStorage.js'
 import { restoreBoundPrefixFromMessages } from '../../services/providers/anthropic/boundPrefixRecord.js'
+import { pendingToolRosterRestore } from '../../services/providers/toolEconomy.js'
+import { getSchemaBoundStructuredOutputTool, STRUCTURED_OUTPUT_TOOL_NAME } from '../WorkflowTool/structuredOutputTool.js'
 import { getCwdState, getSdkAgentProgressSummariesEnabled } from '../../bootstrap/state.js'
 import { getSystemPrompt } from '../../constants/prompts.js'
 import { ensureScratchpadDir } from '../../utils/scratchpad.js'
@@ -110,7 +112,17 @@ export async function resumeAgentBackground(args: {
   if (!transcript || transcript.messages.length === 0) {
     throw new Error(`No transcript found for agent ${agentId}`)
   }
-  restoreBoundPrefixFromMessages(transcript.messages, { rosterOnly: true })
+  const restoredKey = restoreBoundPrefixFromMessages(transcript.messages, { rosterOnly: true })
+  const restoredRoster = pendingToolRosterRestore()
+  const structuredDefinition = restoredKey !== null && restoredRoster?.key === restoredKey
+    ? restoredRoster.marks.find(mark => mark.name === STRUCTURED_OUTPUT_TOOL_NAME)?.definition
+    : undefined
+  const structuredOutputSpec = structuredDefinition === undefined ? undefined : (() => {
+    const { input_schema: schema } = JSON.parse(structuredDefinition) as { input_schema: Record<string, unknown> }
+    const bound = getSchemaBoundStructuredOutputTool(schema)
+    if (bound.error !== undefined) throw new Error(`output_schema is not a valid JSON Schema: ${bound.error}`)
+    return { schema, mode: 'permissive' as const, source: 'dispatch' as const }
+  })()
 
   const cleaned = filterWhitespaceOnlyAssistantMessages(
     filterOrphanedThinkingOnlyMessages(
@@ -301,6 +313,7 @@ export async function resumeAgentBackground(args: {
           },
           model: restoredModel,
           availableTools: tools,
+          ...(structuredOutputSpec ? { structuredOutputSpec } : {}),
           ...(contentReplacementState ? { contentReplacementState } : {}),
           ...(isForkResume ? { useExactTools: true } : {}),
           ...(worktreePath ? { worktreePath } : {}),
@@ -321,6 +334,7 @@ export async function resumeAgentBackground(args: {
         startTime: Date.now(),
         agentType: definition.agentType,
         isAsync: true,
+        ...(structuredOutputSpec ? { structuredSpec: { mode: structuredOutputSpec.mode, source: structuredOutputSpec.source } } : {}),
       },
       description,
       toolUseContext,
