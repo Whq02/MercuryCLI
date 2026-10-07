@@ -29,7 +29,7 @@ export function getVulcanSection(): string | null {
   if (findGodotProjectRoot() === undefined) return null
   return [
     '# Godot control surface (VULCAN)',
-    'The Godot tool drives the running editor directly over a loopback bridge. Editor state is the source of truth — query first (scene_tree, node_get, editor_state), then mutate; every mutation is one undo step in the editor (Ctrl+Z reverts). Prefer scene/node/resource ops over hand-editing .tscn/.tres text. Play-test natively: scene_play, runtime_* inspection, input simulation, then scene_stop. GDScript SYMBOL work (outline, definitions, rename) stays with the LSP tool; BREAKPOINT debugging stays with the Debug tool\'s godot adapter. Save durable project facts (scene conventions, physics layers, autoload roles) to memory.',
+    'The Godot tool drives the running editor directly over a loopback bridge. Editor state is the source of truth — query first (scene_tree, node_get, editor_state), then mutate; every mutation is one undo step in the editor (Ctrl+Z reverts). Prefer scene/node/resource ops over hand-editing .tscn/.tres text. Play-test natively: scene_play, runtime_* inspection, input simulation, then scene_stop. GDScript SYMBOL work (outline, definitions, rename) stays with LspRead (and LspRename for rename); BREAKPOINT debugging stays with the Debug tool\'s godot adapter. Save durable project facts (scene conventions, physics layers, autoload roles) to memory.',
   ].join('\n')
 }
 
