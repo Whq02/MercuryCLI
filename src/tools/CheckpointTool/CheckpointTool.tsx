@@ -30,7 +30,6 @@ export type Output = z.infer<OutputSchema>
 
 export const CheckpointTool = buildTool({
   shouldDefer: true,
-  loadInFullOnCloud: true,
   name: CHECKPOINT_TOOL_NAME,
   searchHint: 'checkpoint / mark context state before an exploration, rewindable',
   maxResultSizeChars: 10_000,

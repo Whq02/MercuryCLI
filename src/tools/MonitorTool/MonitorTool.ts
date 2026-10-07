@@ -105,7 +105,6 @@ export const MonitorTool = buildTool({
     return outputSchema()
   },
   shouldDefer: true,
-  loadInFullOnCloud: true,
   isEnabled() {
     return true
   },

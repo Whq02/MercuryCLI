@@ -579,7 +579,6 @@ Host observation (read-only, never publishes/pushes; MERCURY_REPO_HOST):
   },
   userFacingName,
   shouldDefer: true,
-  loadInFullOnCloud: true,
   straightQuoteInputs: ['paths', 'files', 'path', 'file', 'cwd'],
   get inputSchema(): SchemaType {
     return inputSchema()

@@ -22,7 +22,7 @@
 # gate-watch: src/tasks/LocalWorkflowTask/LocalWorkflowTask.tsx src/tools/ChangeSetTool/ChangeSetTool.ts
 # gate-watch: src/tools/LSPTool/mercuryOps.ts src/tools/ToolSearchTool/ToolSearchTool.ts
 # gate-watch: src/tools/ToolSearchTool/prompt.ts src/tools/WorkflowTool/* src/utils/*
-# gate-watch: src/utils/attachments/orchestrator.ts src/utils/attachments/userContext.ts
+# gate-watch: src/utils/attachments/orchestrator.ts src/utils/attachments/userContext.ts src/utils/attachments/deltas.ts
 # gate-watch: src/commands/compact/compact.ts src/tools/FileReadTool/FileReadTool.ts src/tools/FileReadTool/imageProcessor.ts src/utils/imageResizer.ts
 # gate-watch: src/utils/cockpit/runProtocol.ts src/utils/config/globalConfig.ts src/utils/messages/*
 # gate-watch: src/utils/model/configs.ts src/utils/permissions/filesystem.ts src/utils/sessionStorage/*
@@ -69,6 +69,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-resume-histo
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-prefix-record-life.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-prefix-record-life.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-resumed-agent-roster.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-resumed-agent-roster.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-agent-record-resume.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-agent-record-resume.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-resumed-roster-marks.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-resumed-roster-marks.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-lawful-change-owners.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-lawful-change-owners.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-recovery-budget.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-recovery-budget.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-reconnect-ladder.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-reconnect-ladder.ts" "$__t" "$__rc"
