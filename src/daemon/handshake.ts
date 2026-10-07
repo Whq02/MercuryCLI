@@ -67,7 +67,6 @@ export function versionIsNewer(candidate: string, than: string): boolean {
 }
 
 export function screenIsOlder(daemon: { buildTree: string | null; version: string }, client: ClientVersionFacts, installed: InstalledBuildFacts | null): boolean {
-  if (installed !== null && installed.buildTree !== null && daemon.buildTree === installed.buildTree) return true
   return versionIsNewer(daemon.version, client.version)
 }
 
@@ -161,7 +160,8 @@ export function decideHandshake(outcome: HelloOutcome, client: ClientVersionFact
       const v: DaemonHandshakeVerdict = { ...base, state: 'rebuilt', daemon, ...counts, heal: 'reopen', healState: 'none', line: null }
       return { ...v, line: honestLine(v) }
     }
-    const v: DaemonHandshakeVerdict = { ...base, state: 'rebuilt', daemon, ...counts, heal: 'restart-when-idle', healState, line: null }
+    const ordered = versionIsNewer(client.version, daemon.version)
+    const v: DaemonHandshakeVerdict = { ...base, state: 'rebuilt', daemon, ...counts, heal: ordered ? 'restart-when-idle' : 'operator', healState: ordered ? healState : 'operator', line: null }
     return { ...v, line: honestLine(v) }
   }
   const v: DaemonHandshakeVerdict = {
@@ -210,6 +210,7 @@ export function honestLine(v: DaemonHandshakeVerdict): string | null {
   if (d === null) return null
   if (v.state === 'rebuilt') {
     if (v.heal === 'reopen') return reopenLine(v)
+    if (v.heal === 'operator') return `${rebuiltWho(v)} — build order unknown; ${REBUILT_UNTIL} · /daemon shows the builds`
     if (v.healState === 'refused') return `${rebuiltWho(v)} — ${REBUILT_UNTIL} · ${v.healDetail ?? 'it cannot restart itself'}`
     if (v.healState === 'armed' && v.live > 0) return `${rebuiltWho(v)} running with ${liveNoun(v)} — ${REBUILT_UNTIL} · /daemon restart when ready`
     return null
@@ -278,8 +279,14 @@ export function daemonBuildBesideScreen(v: DaemonHandshakeVerdict | null): strin
   return `daemon v${d.version}${d.buildTree ? ` · tree ${d.buildTree}` : ''} (another build — new sessions run on it until it restarts)`
 }
 
+export function daemonBuildStatusWords(v: DaemonHandshakeVerdict | null): string {
+  if (v?.daemon == null || !['rebuilt', 'older', 'newer'].includes(v.state)) return ''
+  return `daemon build ${v.daemon.buildTree ?? v.daemon.version} differs`
+}
+
 function healWords(v: DaemonHandshakeVerdict): string {
   if (v.heal === 'reopen') return `this Mercury is the older build — ${REOPEN_WORDS}`
+  if (v.state === 'rebuilt' && v.heal === 'operator') return `build order unknown; ${REBUILT_UNTIL} · /daemon shows the builds`
   switch (v.healState) {
     case 'restarting':
       return 'idle-restarted'
