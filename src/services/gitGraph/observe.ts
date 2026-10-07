@@ -124,7 +124,7 @@ async function classifyAsyncFailure(root: string, failure: string | null, note: 
 
 
 const STATUS_ARGS = (root: string): string[] =>
-  ['-c', 'status.relativePaths=true', 'status', '--porcelain=v2', '--branch', ...projectScopePathspec(root)]
+  ['-c', 'status.relativePaths=true', 'status', '--porcelain=v2', '--branch', '--untracked-files=all', ...projectScopePathspec(root)]
 
 type ParsedStatus = Pick<GitStatus, 'branch' | 'upstream' | 'ahead' | 'behind' | 'files'>
 
