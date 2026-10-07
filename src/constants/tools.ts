@@ -27,6 +27,7 @@ import { TOOL_SEARCH_TOOL_NAME } from '../tools/ToolSearchTool/constants.js'
 import { WEB_FETCH_TOOL_NAME } from '../tools/WebFetchTool/prompt.js'
 import { PROVIDER_SEARCH_TOOL_NAME, WEB_SEARCH_TOOL_NAME } from '../tools/WebSearchTool/prompt.js'
 import { WORKFLOW_TOOL_NAME } from '../tools/WorkflowTool/constants.js'
+import { CORRECT_TOOL_NAME, RECALL_TOOL_NAME, REFLECT_TOOL_NAME, RETAIN_TOOL_NAME } from '../tools/MemoryTools/prompt.js'
 
 export const ALL_AGENT_DISALLOWED_TOOLS: Set<string> = new Set([
   AGENT_TOOL_NAME,
@@ -64,6 +65,10 @@ export const ASYNC_AGENT_ALLOWED_TOOLS: Set<string> = new Set([
   RESUME_AGENT_TOOL_NAME,
   CONTEXT_LEFT_TOOL_NAME,
   JEV_TOOL_NAME,
+  RETAIN_TOOL_NAME,
+  RECALL_TOOL_NAME,
+  REFLECT_TOOL_NAME,
+  CORRECT_TOOL_NAME,
 ])
 export const RULE_INHERITS: Readonly<Partial<Record<string, readonly string[]>>> = {
   [RESUME_AGENT_TOOL_NAME]: [SEND_MESSAGE_TOOL_NAME],
