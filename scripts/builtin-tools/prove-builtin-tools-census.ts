@@ -228,8 +228,8 @@ check(
   `offered: ${courierUnderSwitch.join(', ')}`,
 )
 check(
-  'the census counts 63 tools (LiveComms and ArtifactsList left with the crew mailbox)',
-  census.summary.tools === 63,
+  'the census counts 64 tools, including the separate ResumeAgent verb',
+  census.summary.tools === 64,
   `live census: ${census.summary.tools} tools`,
 )
 
