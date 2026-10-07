@@ -149,8 +149,8 @@ section('conversation guidance stays fixed while capabilities change')
   setOriginalCwd(scratch)
   setCwdState(scratch)
   const tools = [{ name: 'Read' }] as never
-  const withLsp = [{ name: 'Read' }, { name: 'LSP' }] as never
-  const withBoth = [{ name: 'Read' }, { name: 'LSP' }, { name: 'Debug' }] as never
+  const withLsp = [{ name: 'Read' }, { name: 'LspRead' }] as never
+  const withBoth = [{ name: 'Read' }, { name: 'LspRead' }, { name: 'Debug' }] as never
   try {
     clearSystemPromptSections()
     const first = await getSystemPrompt(tools, 'claude-fable-5-1')
@@ -158,7 +158,7 @@ section('conversation guidance stays fixed while capabilities change')
     const both = await getSystemPrompt(withBoth, 'claude-fable-5-1')
     check('LSP and Debug mounts leave every system segment byte-identical', JSON.stringify(first) === JSON.stringify(lsp) && JSON.stringify(first) === JSON.stringify(both))
     const delta = getRunProtocolDelta(withLsp, [])
-    check('the LSP guidance is appended instead of replacing the system segment', delta?.tools.join(',') === 'LSP' && delta.body.includes('symbol discovery') && !delta.body.includes('Use the Debug tool'))
+    check('the LSP guidance is appended instead of replacing the system segment', delta?.tools.join(',') === 'LspRead' && delta.body.includes('symbol discovery') && !delta.body.includes('Use the Debug tool'))
     const row = createAttachmentMessage({ type: 'run_protocol_delta', ...delta! })
     check('guidance is a persisted model-visible row without a UI transcript slot', normalizeAttachmentForAPI(row.attachment).length === 1 && isNullRenderingAttachment(row))
     check('a collection that never appends the row does not consume the change', JSON.stringify(getRunProtocolDelta(withLsp, [])) === JSON.stringify(delta))
@@ -168,7 +168,7 @@ section('conversation guidance stays fixed while capabilities change')
     const rows = [row, createAttachmentMessage({ type: 'run_protocol_delta', ...debug! })]
     check('reconstructed rows retain the announcement state', getRunProtocolDelta(withBoth, JSON.parse(JSON.stringify(rows))) === null)
     const gone = getRunProtocolDelta(tools, rows)
-    check('removed capabilities get an appended correction without changing old rows', gone?.tools.length === 0 && gone.body.includes('no longer available: LSP, Debug'))
+    check('removed capabilities get an appended correction without changing old rows', gone?.tools.length === 0 && gone.body.includes('no longer available: LspRead, Debug'))
     clearSystemPromptSections()
     await getSystemPrompt(withBoth, 'claude-fable-5-1')
     check('a fresh conversation puts its current capabilities in the system once', getSystemPromptSectionCache().get('run_protocol')?.value?.includes('Use the Debug tool') === true && getRunProtocolDelta(withBoth, []) === null)
