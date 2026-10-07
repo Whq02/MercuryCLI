@@ -70,6 +70,7 @@ export type WrapperStageId =
   | 'fastPathDangerFilter'
   | 'implementFastPath'
   | 'allowlistFastPath'
+  | 'flowHeadless'
   | 'headlessHooks'
   | 'headlessAutoDeny'
 
@@ -82,6 +83,7 @@ export const WRAPPER_STAGE_ORDER: readonly WrapperStageId[] = [
   'fastPathDangerFilter',
   'implementFastPath',
   'allowlistFastPath',
+  'flowHeadless',
   'headlessHooks',
   'headlessAutoDeny',
 ] as const

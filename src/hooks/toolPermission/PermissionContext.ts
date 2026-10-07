@@ -17,6 +17,7 @@ import {
 import { executePermissionRequestHooks } from '../../utils/hooks.js'
 import { decideRuleBasedPermissions } from '../../utils/permissions/decision/engine.js'
 import { guardHookUpdatedInput } from '../../utils/permissions/decision/wrapper.js'
+import { flowUserAllowUpdates } from '../../utils/permissions/flowPolicy.js'
 import {
   applyPermissionUpdates,
   persistPermissionUpdates,
@@ -81,6 +82,7 @@ type BuildAllowOptions = {
 type HandleUserAllowOptions = {
   decisionReason?: PermissionDecisionReason
   promptStartMs?: number
+  suggestions?: PermissionUpdate[]
 }
 
 export type PermissionContext = {
@@ -310,7 +312,7 @@ export function createPermissionContext(
     },
 
     async handleUserAllow(updatedInput, permissionUpdates, feedback, contentBlocks, opts) {
-      const permanent = ctx.persistPermissions(permissionUpdates)
+      const permanent = ctx.persistPermissions(flowUserAllowUpdates(tool, updatedInput, toolUseContext, permissionUpdates, updatedInput === input ? opts?.suggestions : []))
       ctx.logDecision(
         { decision: 'accept', source: { type: 'user', permanent } },
         { input: updatedInput, promptStartMs: opts?.promptStartMs },

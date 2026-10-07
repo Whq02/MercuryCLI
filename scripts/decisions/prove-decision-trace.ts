@@ -11,7 +11,7 @@ import { z } from 'zod/v4'
 
 const { decideToolPermission, decideRuleBasedPermissions, defaultDecisionPorts } =
   await import('../../src/utils/permissions/decision/engine.ts')
-const { DECISION_STAGE_ORDER, formatDecisionTrace } = await import(
+const { DECISION_STAGE_ORDER, WRAPPER_STAGE_ORDER, formatDecisionTrace } = await import(
   '../../src/utils/permissions/decision/trace.ts'
 )
 const { hasPermissionsToUseTool } = await import(
@@ -29,6 +29,8 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const j = (v: unknown): string => JSON.stringify(v)
+const flowStage = (WRAPPER_STAGE_ORDER as readonly string[]).indexOf('flowHeadless')
+check('the headless residual has its own stage after the shortcuts and before hooks', flowStage > 0 && WRAPPER_STAGE_ORDER[flowStage - 1] === 'allowlistFastPath' && WRAPPER_STAGE_ORDER[flowStage + 1] === 'headlessHooks')
 
 const guard = setTimeout(() => {
   console.log('\n❌ TIMEOUT — trace proof exceeded 60s')
