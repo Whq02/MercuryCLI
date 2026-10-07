@@ -67,7 +67,7 @@ const which = await drive('which sh mercury-no-such-tool-0x')
 check('the call settles as a result (no ShellError thrown)', which.ok, which.ok ? '' : which.error.slice(0, 200))
 if (which.ok) {
   check('the exit code is 1', which.out.code === 1, String(which.out.code))
-  check('the output lists the found name and the missing one', which.out.stdout.includes('/sh') && /mercury-no-such-tool-0x/.test(which.out.stdout), JSON.stringify(which.out.stdout))
+  check('the output lists the found name (a missing name is printed by some which builds and not others)', which.out.stdout.includes('/sh'), JSON.stringify(which.out.stdout))
   check('the result ends with the label `a name was not found (exit code 1)`', which.content.endsWith('a name was not found (exit code 1)'), JSON.stringify(which.content.slice(-120)))
   check('the result carries no `Exited with code` line', !which.content.includes('Exited with code'), JSON.stringify(which.content.slice(-200)))
   check('the interpretation on the result is the label', which.out.returnCodeInterpretation === 'a name was not found' && which.out.exitNote === 'a name was not found (exit code 1)', JSON.stringify([which.out.returnCodeInterpretation, which.out.exitNote]))
@@ -100,7 +100,7 @@ check('the table reads command -V exit 1 the same way', interpretCommandResult('
 check('a bare `command foo` (no -v) keeps the default reading: exit 1 is an error', interpretCommandResult('command foo', 1, '', '').isError === true)
 check('which through env and assignments is still which', interpretCommandResult('FOO=1 env -i which foo', 1, '', '').isError === false)
 check('grep exit 1 keeps its own label', JSON.stringify(interpretCommandResult('grep x y', 1, '', '')) === JSON.stringify({ isError: false, message: 'no matches found' }))
-const plainFail = await drive('ls /mercury-no-such-dir-0x')
+const plainFail = await drive('cat /mercury-no-such-file-0x')
 check('an ordinary non-zero exit is still an error ending `Exited with code 1`', !plainFail.ok && /Exited with code 1/.test(plainFail.ok ? '' : plainFail.error), plainFail.ok ? 'settled as a result' : plainFail.error.slice(-80))
 
 for (const dir of [SCRATCH, proofHome]) {
