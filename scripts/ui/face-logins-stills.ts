@@ -99,6 +99,7 @@ export function expiredFacts(): LoginsScreenFactsV1 {
   const base = mixedFacts()
   const anthropic = base.groups.find(g => g.family.id === 'anthropic')!
   anthropic.family = presence('anthropic', { credentialed: true, credentialLabel: 'Claude subscription (pro)', expired: true })
+  anthropic.slots = anthropic.slots.map(s => (s.id === 'anthropic:scope-personal' ? { ...s, signedIn: false, expired: true } : s))
   base.usability.anthropic = usable('anthropic', {
     credential: 'oauth',
     limit: 'allowed',
@@ -163,7 +164,7 @@ export const STILLS: ReadonlyArray<{ id: string; compose: () => string[] }> = [
   { id: 'logins-80x24', compose: () => composeLogins(80, 24, { sel: 0 }) },
   { id: 'logins-64x12', compose: () => composeLogins(64, 12, { sel: 0 }) },
   { id: 'logins-120x40-window', compose: () => composeLogins(120, 40, { sel: 3 }) },
-  { id: 'logins-120x40-expired', compose: () => composeLogins(120, 40, { facts: expiredFacts(), sel: 1 }) },
+  { id: 'logins-120x40-expired', compose: () => composeLogins(120, 40, { facts: expiredFacts(), sel: 3 }) },
   { id: 'logins-120x40-signedout', compose: () => composeLogins(120, 40, { facts: signedOutFacts(), sel: 0 }) },
   { id: 'logins-120x40-flow-waiting', compose: () => composeLogins(120, 40, { sel: 1, flow: { kind: 'anthropic', snap: FLOW_WAITING_SNAP, draftLen: 6 } }) },
   { id: 'logins-120x40-flow-success', compose: () => composeLogins(120, 40, { sel: 1, flow: { kind: 'anthropic', snap: FLOW_SUCCESS_SNAP, draftLen: 0 } }) },

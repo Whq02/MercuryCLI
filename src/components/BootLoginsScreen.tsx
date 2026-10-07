@@ -181,22 +181,26 @@ export function loginsRowStateOf(arm: LoginsArmV1, facts: LoginsScreenFactsV1): 
   const slots = loginsArmSlots(arm, group);
   const signedInSlots = slots.filter(s => s.signedIn);
   const signedIn = signedInSlots.length > 0;
+  const expiredSlot = arm.arm === 'subscription' ? slots.find(s => s.expired === true) : undefined;
+  const expired =
+    arm.arm === 'subscription' &&
+    (expiredSlot !== undefined ||
+      (group.family as ProviderFamilyPresence & { expired?: boolean }).expired === true);
   let chip: string;
   if (!signedIn) {
     chip =
-      group.family.available === false
-        ? fitChip(group.family.reason ?? 'unavailable')
-        : 'not signed in';
+      expiredSlot !== undefined
+        ? fitChip(expiredSlot.identity || expiredSlot.kindLabel)
+        : group.family.available === false
+          ? fitChip(group.family.reason ?? 'unavailable')
+          : 'not signed in';
   } else {
     const first = signedInSlots[0]!;
     chip = fitChip(first.identity || first.kindLabel);
     if (signedInSlots.length > 1) chip += ` +${signedInSlots.length - 1}`;
   }
   let loud = false;
-  const expired =
-    arm.arm === 'subscription' &&
-    (group.family as ProviderFamilyPresence & { expired?: boolean }).expired === true;
-  if (expired && signedIn) {
+  if (expired && (signedIn || expiredSlot !== undefined)) {
     chip += ' · expired';
     loud = true;
   }
