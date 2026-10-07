@@ -296,7 +296,7 @@ function isCapturableExpression(segment: string, leadingGroupSafe: boolean): boo
   if (!leadingGroupSafe && /^[([]/.test(trimmed)) return false
   try {
     // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
-    new Function(`return async () => (${trimmed});`)
+    new Function(`return async () => (${trimmed}\n);`)
     return true
   } catch {
     return false
@@ -382,7 +382,7 @@ export function transformJsCell(source: string): TransformedCell {
     }
     if (i === lastCodeIndex && prevEndsCleanly && !(effective.startsWith('`') && prevCodeIndex >= 0 && !prev.endsWith(';')) && isCapturableExpression(effective, prevCodeIndex < 0 || prev.endsWith(';'))) {
       const expr = effective.replace(/;+\s*$/, '')
-      out.push(`${leading}globalThis.__mercuryResult = (${expr});`)
+      out.push(`${leading}globalThis.__mercuryResult = (${expr}\n);`)
       capturesResult = true
       continue
     }

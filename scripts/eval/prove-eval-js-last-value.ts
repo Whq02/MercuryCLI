@@ -13,6 +13,8 @@ try {
     ['// a single statement\n({ a: 1 });', '⇒ { a: 1 }'],
     ['const v = 2; // separate statement\n({ v });', '⇒ { v: 2 }'],
     ['const v = 3;\n// interstitial trivia\n[v];', '⇒ [ 3 ]'],
+    ['({ a: 1 }) // trailing explanation', '⇒ { a: 1 }'],
+    ['[1, 2] // trailing explanation', '⇒ [ 1, 2 ]'],
     ['const before = 1;\n[before, 2]', '⇒ [ 1, 2 ]'],
     ['(await Promise.resolve({version: 1})).version', '⇒ 1'],
     ['await Promise.resolve(4)', '⇒ 4'],
