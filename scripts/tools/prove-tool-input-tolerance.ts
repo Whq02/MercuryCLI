@@ -96,13 +96,13 @@ console.log('── 2. collapse walk ──')
     const streaming = use('call_stream', 'Bash', {}, { isVirtual: true })
     const walked = never(`[${mode}] the walk survives the streaming placeholder row`, () => collapseReadSearchGroups([streaming as never], tools))
     t(`[${mode}] the placeholder row is still in the output`, Array.isArray(walked) && (walked as unknown[]).length === 1)
-    const noop = [use('call_noop', 'Bash', {}), result('call_noop', 'InputValidationError: command is required')]
+    const noop = [use('call_noop', 'Bash', {}), result('call_noop', 'The required parameter `command` is missing')]
     never(`[${mode}] the walk survives a settled {} no-op call and its result`, () => collapseReadSearchGroups(noop as never, tools))
     never(`[${mode}] the walk survives a null input`, () => collapseReadSearchGroups([use('call_null', 'Bash', null)] as never, tools))
     const run = [
       use('g1', 'Grep', { pattern: 'foo', path: 'src' }), result('g1', 'src/a.ts:1:foo'),
       use('r1', 'Read', { file_path: '/tmp/a.ts' }), result('r1', 'contents'),
-      use('s1', 'Bash', {}), result('s1', 'InputValidationError'),
+      use('s1', 'Bash', {}), result('s1', 'The required parameter `command` is missing'),
       use('g2', 'Grep', { pattern: 'bar' }), result('g2', 'src/b.ts:2:bar'),
     ]
     const out = never(`[${mode}] a real search/read run around a placeholder still walks`, () => collapseReadSearchGroups(run as never, tools)) as Array<{ type: string }>

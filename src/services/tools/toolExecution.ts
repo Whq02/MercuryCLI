@@ -19,6 +19,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { isAbortError, ShellError, type ShellRunFact } from '../../utils/errors.js'
 import { clampToolResultImageBlocks } from '../../utils/imageResizer.js'
 import { logError } from '../../utils/log.js'
+import { executePermissionDeniedHooks } from '../../utils/hooks.js'
 import {
   CANCEL_MESSAGE,
   createProgressMessage,
@@ -476,7 +477,7 @@ async function runTransactionBody(args: {
   const parsed = tool.inputSchema.safeParse(input)
   if (!parsed.success) {
     traceOnce({ ok: false })
-    let content = `InputValidationError: ${formatZodValidationError(tool.name, parsed.error, tool.inputJSONSchema)}`
+    let content = formatZodValidationError(tool.name, parsed.error, tool.inputJSONSchema)
     const hint = buildSchemaNotSentHint(
       tool,
       toolUseContext.messages,
@@ -484,7 +485,7 @@ async function runTransactionBody(args: {
       toolUseContext.options.engineModel,
     )
     if (hint) content += hint
-    emitError(content, `InputValidationError: ${parsed.error.message}`)
+    emitError(content, content)
     return
   }
   let parsedInput = parsed.data as AnyObject
@@ -681,7 +682,41 @@ async function runTransactionBody(args: {
           ? `\n\nThis session runs headless with no host, so no operator can answer ${tool.name} — the request was auto-denied and nothing was asked. Choose the most reasonable option yourself, state the assumption in your reply, and continue; a host on the runner door (mercury runner) can answer such asks.`
           : `\n\nThis session runs headless and cannot ask for approval, so the request was auto-denied — it was not run. To allow it, pre-approve the tool at launch with --allowed-tools (for example --allowed-tools "${tool.name}"), or start in a permission mode that does not stop here with --mode. (Interactive-only shortcuts such as the "!" prefix do not apply to a headless run.)`
         : ''
-    const composed = `${baseComposed}${headlessAskNote}`
+    const reason = `${baseComposed}${headlessAskNote}`
+    const denialHookMessages: Message[] = []
+    let retryRequested = false
+    let hookStopped = false
+    try {
+      for await (const result of executePermissionDeniedHooks(
+        tool.name,
+        toolUseID,
+        inputAfterDecision,
+        reason,
+        toolUseContext,
+        permissionMode,
+        signal,
+      )) {
+        if (result.message) denialHookMessages.push(result.message)
+        if (result.retry === true) retryRequested = true
+        if (result.blockingError || result.preventContinuation) hookStopped = true
+        if (result.preventContinuation) {
+          denialHookMessages.push(createAttachmentMessage({
+            type: 'hook_stopped_continuation',
+            message: result.stopReason ?? 'A permission-denied hook stopped execution',
+            hookName: `PermissionDenied:${tool.name}`,
+            toolUseID,
+            hookEvent: 'PermissionDenied',
+          }))
+        }
+      }
+    } catch (error) {
+      logError(error)
+      retryRequested = false
+    }
+    const retryNote = retryRequested && !hookStopped && !signal.aborted
+      ? '\n\nThe PermissionDenied hook asks you to try this call again. A new attempt must pass the same permission checks; this refusal grants no permission.'
+      : ''
+    const composed = `${reason}${retryNote}`
     const rejectionBlocks = decision.behavior === 'ask' ? (decision.contentBlocks ?? []) : []
     const imageCount = rejectionBlocks.filter(isImageBlock).length
     const imagePasteIds =
@@ -697,6 +732,7 @@ async function runTransactionBody(args: {
       }),
     )
     if (hookDecisionRow !== null) push({ message: hookDecisionRow })
+    for (const message of denialHookMessages) push({ message })
     logForDebugging(`tool use refused: ${tool.name}`)
     return
   }
