@@ -4,7 +4,9 @@
 # gate-watch: src/services/samples/** src/services/run/ownerKey.ts
 # gate-watch: src/rows/content.ts src/services/tools/toolExecution.ts src/utils/hooks/** src/utils/waitCeiling.ts
 # gate-watch: src/tools.ts src/utils/api.ts src/utils/toolSchemaCache.ts src/Tool.ts
-# gate-watch: src/services/providers/toolCallGate.ts
+# gate-watch: src/services/providers/toolCallGate.ts src/services/providers/toolEconomy.ts src/services/providers/anthropic/boundPrefixRecord.ts
+# gate-watch: src/fabric/entryCodec.ts src/tools/MCPTool/absentToolShim.ts src/tools/AgentTool/agentToolUtils.ts src/utils/artifacts/store.ts
+# gate-watch: src/utils/permissions/** src/utils/toolErrors.ts src/utils/model/model.ts
 # gate-watch: src/utils/router/providerSecrets* src/substrate/flagRegistry*
 # gate-watch: scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts
 # gate-watch: sdk/src/rows.ts src/rows/vocabulary.ts src/rows/turn.ts src/daemon/sessionSeat.ts src/services/engine-connector/daemonConnector.ts
