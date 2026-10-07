@@ -5,8 +5,7 @@ in the target language, with meta-variables standing for the parts that vary,
 is matched against the parsed syntax tree of every file in scope — never
 against text. Two built-in tools carry it: `AstSearch` finds, `AstEdit`
 rewrites. Both ride ONE matcher, so an edit's match set is the search's
-match set by construction. The `Structure` tool's pattern lane
-(`op:"query" pattern:…`) uses the same engine.
+match set by construction.
 
 ## The pattern grammar
 
@@ -79,7 +78,8 @@ resolve (`ts`, `js`, `py`, `rs`, `cs`, `c++`, `sh`, `rb`, `kt`, `ps1`).
 
 `{ pattern, path?, glob?, lang?, mode?, limit?, offset? }` — `path` is a file
 or a directory (the working directory when omitted); `glob` is relative to
-it and a bare `*.ts` applies at any depth; `mode` is `matches` (the default:
+it and a bare `*.ts` applies at any depth. `glob` takes `{a,b}` alternatives,
+at most 64 after expansion. `mode` is `matches` (the default:
 `file:line:col [node-type]`, the matched code, every capture) or `count`
 (matches per file and a total); `limit` defaults to 50 and clamps at 200;
 `offset` pages. Every result names what was and was not searched: files

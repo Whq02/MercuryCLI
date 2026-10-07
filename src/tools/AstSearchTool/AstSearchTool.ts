@@ -53,7 +53,7 @@ const inputSchema = z.strictObject({
   glob: z
     .string()
     .optional()
-    .describe('Restrict the search to files matching this glob, relative to path, e.g. "**/*.ts" or "src/**/*.py"'),
+    .describe('Restrict the search to files matching this glob, relative to path, e.g. "**/*.ts" or "src/**/*.py"; {a,b} lists alternatives: "**/*.{ts,tsx}"'),
   lang: z
     .string()
     .optional()
@@ -123,6 +123,7 @@ export const AstSearchTool = buildTool({
   capability: {
     intents: [
       'find code by its syntax shape',
+      'find this code structure across languages',
       'search for calls with a given argument shape',
       'find a construct inside another construct',
       'count occurrences of a code pattern per file',
@@ -158,8 +159,8 @@ export const AstSearchTool = buildTool({
   async description(): Promise<string> {
     return getAstSearchDescription()
   },
-  async prompt(): Promise<string> {
-    return getAstSearchDescription()
+  async prompt(options): Promise<string> {
+    return getAstSearchDescription(options?.tools === undefined ? null : new Set(options.tools.map(tool => tool.name)))
   },
   async validateInput(input: Input) {
     if (input.pattern.trim() === '') {

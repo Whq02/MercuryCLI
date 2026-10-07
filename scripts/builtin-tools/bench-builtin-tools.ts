@@ -714,7 +714,7 @@ export async function runCorpus(): Promise<TaskResult[]> {
     const queries: { id: string; query: string; want: string; capability: string }[] = [
       {
         id: 'discover-structure',
-        query: 'query the AST for call expressions and apply a codemod across files',
+        query: 'find JS/TS calls by dotted callee and preview an import swap',
         want: 'Structure',
         capability: 'Retrieve the Structure tool by intent (ToolSearch)',
       },

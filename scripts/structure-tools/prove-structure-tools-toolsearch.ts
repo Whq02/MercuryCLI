@@ -19,7 +19,7 @@ const search = (query: string): Promise<string[]> =>
 
 console.log('── lathe ToolSearch selection ──')
 for (const [query, winner] of [
-  ['find this code structure across languages', 'Structure'],
+  ['find this code structure across languages', 'AstSearch'],
   ['search python go or rust code structurally', 'AstSearch'],
   ['rewrite a matched pattern in many files', 'AstEdit'],
   ['inspect this repository change on the host', 'Git'],
