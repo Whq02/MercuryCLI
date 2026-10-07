@@ -152,9 +152,6 @@ export const AstSearchTool = buildTool({
   getActivityDescription(input: Partial<Input> | undefined): string {
     return input?.pattern ? `Searching for the shape ${input.pattern}` : 'Searching structurally'
   },
-  toAutoClassifierInput(input: Input): string {
-    return input.path ? `${input.pattern} in ${input.path}` : input.pattern
-  },
   getPath(input: Partial<Input> | undefined): string {
     return input?.path || getCwd()
   },

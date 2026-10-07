@@ -126,9 +126,6 @@ export const ContextLeftTool = buildTool({
   async checkPermissions(input) {
     return { behavior: 'allow' as const, updatedInput: input }
   },
-  toAutoClassifierInput() {
-    return ''
-  },
   async description() {
     return CONTEXT_LEFT_DESCRIPTION
   },

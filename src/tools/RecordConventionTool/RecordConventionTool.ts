@@ -64,9 +64,6 @@ export const RecordConventionTool = buildTool({
   get outputSchema(): OutputSchema {
     return outputSchema()
   },
-  toAutoClassifierInput(input) {
-    return input.rule
-  },
   capability: {
     intents: [
       'record a user-stated project convention',

@@ -235,9 +235,6 @@ export const AskUserQuestionTool = buildTool({
   userFacingName() {
     return ''
   },
-  toAutoClassifierInput(input: Input): string {
-    return Array.isArray(input.questions) ? input.questions.map(q => q?.question ?? '').join(' | ') : ''
-  },
   async validateInput(input: Input) {
     if (getQuestionPreviewFormat() !== 'html') return { result: true as const }
     for (const question of input.questions) {

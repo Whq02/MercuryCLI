@@ -101,9 +101,6 @@ const evalToolDef = buildTool({
   async preparePermissionMatcher(input: EvalToolInput) {
     return (rulePattern: string) => rulePattern === '*' || rulePattern === input.language
   },
-  toAutoClassifierInput(input: EvalToolInput) {
-    return `${input.language}${input.title ? ` ${input.title}` : ''}: ${typeof input.code === 'string' ? input.code.slice(0, 400) : ''}`
-  },
   async description() {
     return EVAL_DESCRIPTION
   },

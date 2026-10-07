@@ -390,9 +390,6 @@ const WorkflowToolDef = {
   isReadOnly() {
     return false
   },
-  toAutoClassifierInput(input: WorkflowInput) {
-    return input.script ?? input.name ?? ''
-  },
 
   async validateInput(
     input: WorkflowInput,

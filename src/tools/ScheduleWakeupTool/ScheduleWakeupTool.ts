@@ -94,9 +94,6 @@ export const ScheduleWakeupTool = buildTool({
   isEnabled() {
     return isScheduleWakeupEnabled()
   },
-  toAutoClassifierInput(input) {
-    return `${input.delaySeconds}s: ${input.prompt}`
-  },
   async description() {
     return SCHEDULE_WAKEUP_DESCRIPTION
   },

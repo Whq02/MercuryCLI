@@ -291,11 +291,6 @@ Services are addressable as mercury://service/<name> (Inspect). Never auto-start
     }
     return { behavior: 'allow' as const, updatedInput: input }
   },
-  toAutoClassifierInput(input: Input) {
-    if (input.op === 'start') return `service start: ${input.command ?? ''} ${(input.args ?? []).join(' ')}`
-    if (input.op === 'input') return `service input: ${input.text ?? ''}`
-    return ''
-  },
   async validateInput(input: Input) {
     if (input.op !== 'list' && !input.name) {
       return { result: false as const, message: `${input.op} requires name`, errorCode: 1 }

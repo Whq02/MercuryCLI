@@ -112,9 +112,6 @@ export const ExitWorktreeTool = buildTool({
   isDestructive(input?: Partial<Input>): boolean {
     return input?.action === 'remove'
   },
-  toAutoClassifierInput(input: Input): string {
-    return input.action
-  },
   getToolUseSummary(input?: Partial<Input>): string | null {
     return input?.action ?? null
   },

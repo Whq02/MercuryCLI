@@ -264,9 +264,6 @@ export const SkillTool = buildTool({
   get outputSchema(): OutputSchema {
     return outputSchema()
   },
-  toAutoClassifierInput(input: Input): string {
-    return input.skill ?? ''
-  },
   async description(input?: Partial<Input>) {
     return `Execute the ${input?.skill ?? ''} skill`
   },

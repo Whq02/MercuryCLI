@@ -160,9 +160,6 @@ export const WebFetchTool = buildTool({
     return `Fetching ${getToolUseSummary(input)}`
   },
   getToolUseSummary,
-  toAutoClassifierInput(input: Input): string {
-    return input.prompt ? `${input.url}: ${input.prompt}` : input.url
-  },
   async validateInput(input: Input) {
     try {
       new URL(input.url)

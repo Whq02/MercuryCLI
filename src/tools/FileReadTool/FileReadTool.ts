@@ -810,9 +810,6 @@ export const FileReadTool = buildTool({
     const summary = input ? getToolUseSummary(input) : null
     return summary ? `Reading ${summary}` : 'Reading a file'
   },
-  toAutoClassifierInput(input: Input): string {
-    return input.file_path
-  },
   getPath(input: Partial<Input> | undefined): string {
     return input?.file_path || getCwd()
   },

@@ -1110,14 +1110,6 @@ NOT this tool (refused by name): file creation (Write) · binary content · note
   get inputSchema(): SchemaType {
     return inputSchema()
   },
-  toAutoClassifierInput(input: Input) {
-    const paths = (input.changes ?? []).map(c => c.file_path).join(', ')
-    const patchPaths =
-      typeof input.patch === 'string'
-        ? [...input.patch.matchAll(/^file\s+(\S+)\s/gm)].map(m => m[1]).join(', ')
-        : ''
-    return `changeset ${input.op}: ${paths || patchPaths || input.plan_id || ''}`
-  },
   isConcurrencySafe() {
     return false
   },

@@ -206,9 +206,6 @@ export const TaskUpdateTool = buildTool({
   async prompt(): Promise<string> {
     return getPrompt()
   },
-  toAutoClassifierInput(input: Input): string {
-    return [input.taskId, input.status, input.subject].filter((part): part is string => part !== undefined).join(' ')
-  },
   async call(input: Input, context: ToolUseContext) {
     return { data: await runUpdate(input, context) }
   },

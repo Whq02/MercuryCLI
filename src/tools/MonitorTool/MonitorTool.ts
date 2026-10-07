@@ -115,9 +115,6 @@ export const MonitorTool = buildTool({
   getActivityDescription(input) {
     return input?.description ? `Monitoring: ${input.description}` : 'Monitoring'
   },
-  toAutoClassifierInput(input) {
-    return input.command
-  },
   async description() {
     return DESCRIPTION
   },

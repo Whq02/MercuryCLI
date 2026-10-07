@@ -614,10 +614,6 @@ Host observation (read-only, never publishes/pushes; MERCURY_REPO_HOST):
     const where = namedFolder(input) !== undefined ? ` in ${input.cwd}` : ''
     return { behavior: 'ask' as const, message: `Git ${what}${where}` }
   },
-  toAutoClassifierInput(input: Input) {
-    const where = namedFolder(input) !== undefined ? ` in ${input.cwd}` : ''
-    return `git ${input.op}${where}: ${input.planId ?? input.files?.join(' ') ?? input.path ?? input.ref ?? ''}`
-  },
   async validateInput(input: Input) {
     if (!gitGraphEnabled()) {
       return { result: false as const, message: 'the git work graph is disabled (MERCURY_GIT_GRAPH=0)', errorCode: 1 }

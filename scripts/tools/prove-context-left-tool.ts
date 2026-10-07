@@ -190,7 +190,6 @@ section('§8 posture: read-only, concurrency-safe, permission-free, no parameter
   const verdict = await subject.checkPermissions({}, { getAppState: () => ({ toolPermissionContext: permissionContext }) } as never)
   check('checkPermissions allows outright (no ask)', verdict.behavior === 'allow')
   check('the schema is the empty strict object', subject.inputSchema.safeParse({}).success === true && subject.inputSchema.safeParse({ tokens: 1 }).success === false)
-  check('an explicit empty classifier projection (never blocked by the fail-closed guard)', subject.toAutoClassifierInput({}) === '')
   check('the description and prompt tell the model when to call and when not to', (await subject.description()).includes('context window') && (await subject.prompt()).includes('Do not call it every turn') && (await subject.prompt()).includes('unknown'))
   const source = readFileSync(join(ROOT, TOOL_FILE), 'utf8')
   check('the tool reads messages and engineModel off the tool-use context', /contextFillView\(context\.messages, context\.options\.engineModel\)/.test(source))

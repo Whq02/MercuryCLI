@@ -859,9 +859,6 @@ export const BashTool = buildTool({
     if (command === undefined) return { isSearch: false, isRead: false, isList: false }
     return isSearchOrReadBashCommand(command)
   },
-  toAutoClassifierInput(input: BashToolInput): string {
-    return input.command
-  },
   getToolUseSummary(input: Partial<BashToolInput> | undefined): string | null {
     if (!input?.command) return null
     return input.description ?? truncateForSummary(input.command)

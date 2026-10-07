@@ -469,27 +469,6 @@ export const PowerShellTool = buildTool({
     const { isSearch, isRead } = isSearchOrRead(command)
     return { isSearch, isRead }
   },
-  toAutoClassifierInput(input: PowerShellToolInput): string { return input.command },
-  async validateInput(input: PowerShellToolInput) {
-    if (getPlatform() === 'windows' && input.dangerouslyDisableSandbox && !SandboxManager.areUnsandboxedCommandsAllowed()) {
-      return { result: false as const, message: 'Unsandboxed commands are not permitted by policy.', errorCode: 11 }
-    }
-    if (sleepGatePreconditions(input)) {
-      const blocked = detectSleep(input.command)
-      if (blocked) {
-        return {
-          result: false as const,
-          message: `${blocked}\nBlocked: use the Monitor tool with an until-loop to wait for a condition (Monitor runs bash), or run_in_background to wait on a command you already started. Do not chain shorter sleeps to defeat this block.`,
-          errorCode: 10,
-        }
-      }
-    }
-    const refused = refuseMaxOutputChars(input.max_output_chars)
-    if (refused !== undefined) {
-      return { result: false as const, message: refused, errorCode: 2 }
-    }
-    return { result: true as const }
-  },
   async checkPermissions(input: PowerShellToolInput, context: ToolUseContext) {
     return powershellToolHasPermission(input, context)
   },

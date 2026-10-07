@@ -109,9 +109,6 @@ export const ProviderSearchTool = buildTool({
     return `Searching for ${truncate(input.query, TOOL_SUMMARY_MAX_LENGTH)}`
   },
   getToolUseSummary,
-  toAutoClassifierInput(input: Input): string {
-    return input.query
-  },
   async validateInput(input: Input) {
     if (!input.query) {
       return { result: false as const, message: 'Error: Missing query', errorCode: 1 }

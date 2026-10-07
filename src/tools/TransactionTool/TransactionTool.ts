@@ -322,10 +322,6 @@ id defaults to the open transaction at the current root, else the latest record.
   get inputSchema(): SchemaType {
     return inputSchema()
   },
-  toAutoClassifierInput(input: Input) {
-    const detail = input.intent ?? input.kind ?? input.verdict ?? input.id ?? ''
-    return `transaction ${input.op}: ${detail}`
-  },
   isConcurrencySafe() {
     return false
   },

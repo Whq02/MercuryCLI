@@ -46,9 +46,6 @@ export const TaskCreateTool = buildTool({
   },
   isEnabled: () => isTaskToolsEnabled(),
   userFacingName: () => 'TaskCreate',
-  toAutoClassifierInput(input: Input): string {
-    return input.subject
-  },
   async description() {
     return DESCRIPTION
   },

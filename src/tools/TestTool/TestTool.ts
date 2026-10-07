@@ -512,9 +512,6 @@ A run whose exit code disagrees with its structured records says so (verdictNote
       message: `Test ${input.op}${input.node ? `: ${input.node}` : input.path ? `: ${input.path}` : input.changed ? ': changed files' : ''}${resolved || ' (runs project test code)'}`,
     }
   },
-  toAutoClassifierInput(input: Input) {
-    return `test ${input.op}: ${input.node ?? input.path ?? 'all'}`
-  },
   async validateInput(input: Input) {
     if (input.op === 'debug' && !input.node) {
       return { result: false as const, message: 'debug requires node (the test id)', errorCode: 1 }
