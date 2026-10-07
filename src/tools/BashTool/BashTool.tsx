@@ -97,6 +97,7 @@ const MAX_OUTPUT_BYTES = 64 * 1024 * 1024
 const BACKGROUND_TASKS_DISABLED = false
 
 const NEVER_AUTO_BACKGROUND = new Set(['sleep'])
+const SLEEP_TIMEOUT_WHY = 'A command whose first word is `sleep` is killed at its timeout instead of moving to the background; to wait longer, pass a larger `timeout` or use the Sleep tool.'
 
 
 function bashDescriptionGuide(): string {
@@ -699,6 +700,7 @@ async function* runBash(
     const accumulator = new EndTruncatingAccumulator()
     accumulator.append(result.stdout.trimEnd() + '\n')
     if (result.stderr.trim() !== '') accumulator.append(result.stderr.trimEnd() + '\n')
+    if (!shouldAutoBackground && result.stderr.includes('Command timed out after')) accumulator.append(SLEEP_TIMEOUT_WHY + '\n')
     if (commandNamesBoxLock(input.command)) await refreshBoxReading()
     const boxLine = boxLockLineForCommand(input.command, `${result.stdout}\n${result.stderr}`, { cwd: getCwd() })
     if (boxLine !== null) accumulator.append(boxLine + '\n')
