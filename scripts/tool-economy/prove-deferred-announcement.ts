@@ -59,7 +59,7 @@ const SPEC_BODY = [
   'Inspect — inspect Mercury work-graph objects by mercury:// ref (runs, receipts, tasks, crews, workflows…',
   'JevEval — Jev second opinion: rank hypotheses, judge calls, check proposals',
   'Journey — run and verify a local application end to end: start services, request loopback http, assert status…',
-  'Launch — unified launch profiles: list/inspect/debug/run/test/build from .vscode launch.json, python tests…',
+  'Launch — launch.json, Python test, CMake, Godot, script profiles: debug via Debug, test via Test, run, build…',
   "LspCodeAction — list and apply the language server's quick fixes, refactors and source actions at a position",
   'LspFormat — format a file or a range of its lines, or organize its imports, through the language server',
   'LspMoveFile — move or rename a file or directory and update its imports through the language server',
@@ -180,7 +180,7 @@ section('§2 over the bench roster the body is the specification\'s text byte fo
   for (const name of ['lease_list', 'lease_release', 'lease_take', 'render_tui']) roster.push(fixtureTool(name, { mcp: 'mercury' }))
   const row = getDeferredToolsDeltaAttachment(roster, MODEL, [first])[0] as { addedNames: string[]; body: string } | undefined
   check('45 tools are announced', row !== undefined && row.addedNames.length === 45, String(row?.addedNames.length))
-  check('the body equals the split announcement byte for byte (3,869 bytes; 3,906 wrapped)', row !== undefined && row.body === SPEC_BODY && Buffer.byteLength(row.body, 'utf8') === 3869 && Buffer.byteLength(rendered(row as never), 'utf8') === 3906, row === undefined ? 'no row' : `${Buffer.byteLength(row.body, 'utf8')} bytes; first differing line: ${row.body.split('\n').find((line, i) => line !== SPEC_BODY.split('\n')[i]) ?? 'none'}`)
+  check('the body equals the split announcement byte for byte (3,922 bytes; 3,959 wrapped)', row !== undefined && row.body === SPEC_BODY && Buffer.byteLength(row.body, 'utf8') === 3922 && Buffer.byteLength(rendered(row as never), 'utf8') === 3959, row === undefined ? 'no row' : `${Buffer.byteLength(row.body, 'utf8')} bytes; first differing line: ${row.body.split('\n').find((line, i) => line !== SPEC_BODY.split('\n')[i]) ?? 'none'}`)
   if (row !== undefined) {
     for (const name of ['JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Workshop', 'Monitor', 'Checkpoint', 'Rewind']) {
       check(`${name} has its line`, row.body.split('\n').some(line => line.startsWith(`${name} — `)))
