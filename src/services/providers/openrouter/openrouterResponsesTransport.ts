@@ -398,6 +398,38 @@ export async function* streamOpenrouterResponses(options: CompatStreamOptions, b
   }
 }
 
+const MIXED_UPSTREAM_HISTORY_WORDS = /encrypted reasoning or compaction content from multiple providers/i
+
+export function isMixedUpstreamHistoryFault(fault: CompatFault): boolean {
+  return fault.kind === 'http-error' && fault.status === 400 && MIXED_UPSTREAM_HISTORY_WORDS.test(fault.message)
+}
+
+export function withoutEncryptedReasoning(input: readonly unknown[]): { input: unknown[]; dropped: number } {
+  const kept = input.filter(item => {
+    const rec = asRecord(item)
+    return !(rec?.type === 'reasoning' && typeof rec.encrypted_content === 'string')
+  })
+  return { input: kept, dropped: input.length - kept.length }
+}
+
+export function mixedUpstreamRetryWords(dropped: number): string {
+  return `OpenRouter refused the history: it held encrypted reasoning from more than one upstream — replaying it without the ${dropped} reasoning item${dropped === 1 ? '' : 's'}`
+}
+
+async function* streamWithMixedUpstreamRetry(options: CompatStreamOptions, bodyObject: Record_, state: TurnRecordState): AsyncGenerator<CompatStreamEvent> {
+  for await (const event of streamOpenrouterResponses(options, JSON.stringify(bodyObject), state)) {
+    if (event.type === 'stream-fault' && isMixedUpstreamHistoryFault(event.fault) && Array.isArray(bodyObject.input)) {
+      const stripped = withoutEncryptedReasoning(bodyObject.input)
+      if (stripped.dropped > 0) {
+        options.firstByte?.onWait?.({ kind: 'retry', attempt: 1, of: 1, reason: mixedUpstreamRetryWords(stripped.dropped), delayMs: 0, sinceMs: Date.now() })
+        yield* streamOpenrouterResponses(options, JSON.stringify({ ...bodyObject, input: stripped.input }), state)
+        return
+      }
+    }
+    yield event
+  }
+}
+
 export function openrouterResponsesTransport(
   options: CompatStreamOptions,
   messages: readonly Message[],
@@ -405,9 +437,9 @@ export function openrouterResponsesTransport(
   const facts = options.deferral
   if (facts === undefined || facts.form !== 'openrouter-native') return undefined
   const state: TurnRecordState = { model: options.request.model, items: [] }
-  const body = JSON.stringify(buildOpenrouterResponsesBody(options, facts, messages))
+  const bodyObject = buildOpenrouterResponsesBody(options, facts, messages)
   return {
-    events: streamOpenrouterResponses(options, body, state),
+    events: streamWithMixedUpstreamRetry(options, bodyObject, state),
     settle: minted => {
       const last = minted.at(-1)
       if (last === undefined) return
