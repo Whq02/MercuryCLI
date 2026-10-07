@@ -54,7 +54,7 @@ import {
   readMintedOpenrouterKey,
   type OpenrouterMintedKey,
 } from './openrouter/openrouterAccounts.js'
-import { openrouterObservedKeyUsage } from './openrouter/openrouterUsageState.js'
+import { openrouterKeyRecordedDead, openrouterObservedKeyUsage } from './openrouter/openrouterUsageState.js'
 import {
   disconnectGeminiOauth,
   geminiOauthConnected,
@@ -643,6 +643,7 @@ export function openrouterSlots(reads: AccountSlotReads = {}): AccountSlot[] {
   const usableMinted = minted !== undefined && !minted.expiredMessage
   const observed = openrouterObservedKeyUsage()
   const failure = (source: 'env' | 'stored' | 'oauth') => observed.errorSource === source ? observed.lastError : undefined
+  const dead = (source: 'env' | 'stored' | 'oauth') => openrouterKeyRecordedDead(source)
   const slots: AccountSlot[] = []
   if (envKey) {
     slots.push({
@@ -654,7 +655,7 @@ export function openrouterSlots(reads: AccountSlotReads = {}): AccountSlot[] {
       identity: label(['OPENROUTER_API_KEY (env)', maskedKeyTail(envKey)]),
       active: true,
       envPinned: true,
-      signedIn: true,
+      signedIn: !dead('env'),
       ...(failure('env') ? { stateNote: failure('env')! } : {}),
       removal: { route: 'env', envVar: 'OPENROUTER_API_KEY' },
     })
@@ -672,7 +673,7 @@ export function openrouterSlots(reads: AccountSlotReads = {}): AccountSlot[] {
       ]),
       active: !envKey && usableMinted,
       envPinned: false,
-      signedIn: true,
+      signedIn: usableMinted && !dead('oauth'),
       ...(minted.expiredMessage
         ? { stateNote: `${minted.expiredMessage} · /logins openrouter: ⌫ removes it` }
         : envKey ? { stateNote: 'shadowed — the env pin wins' }
@@ -690,7 +691,7 @@ export function openrouterSlots(reads: AccountSlotReads = {}): AccountSlot[] {
       identity: label(['stored key (auth-scoped)', maskedKeyTail(storedKey)]),
       active: !envKey && !usableMinted,
       envPinned: false,
-      signedIn: true,
+      signedIn: !dead('stored'),
       ...(envKey
         ? { stateNote: 'shadowed — the env pin wins' }
         : usableMinted
