@@ -71,7 +71,7 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { createUserMessage } from '../../utils/messages.js'
 import { BASH_TOOL_NAME } from '../BashTool/toolName.js'
 import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
-import { SEND_MESSAGE_TOOL_NAME } from '../SendMessageTool/constants.js'
+import { RESUME_AGENT_TOOL_NAME } from '../ResumeAgentTool/constants.js'
 import { recordCrewStart } from '../../utils/crew/crewStart.js'
 import {
   runForegroundAgentExecution,
@@ -214,10 +214,10 @@ export const inputSchema = lazySchema(() => {
       .optional()
       .refine(value => value === undefined || (!value.includes('@') && value !== '*'), {
         message:
-          'An agent name must be addressable by SendMessage: it cannot contain "@" or be "*".',
+          'An agent name must be addressable by SendMessage and ResumeAgent: it cannot contain "@" or be "*".',
       })
       .describe(
-        'Name for a crewmate you will message again: a named crewmate takes further instructions through SendMessage({to: name}) after its first turn, and the same name reaches it after it has finished. Omit it for a crewmate that works its prompt once and returns its report.',
+        'Name for a crewmate you will message again: a named crewmate takes more work through ResumeAgent({to: name}), running or finished, and notes through SendMessage({to: name}) while it runs. Omit it for a crewmate that works its prompt once and returns its report.',
       ),
     isolation: z
       .literal('worktree')
@@ -363,7 +363,7 @@ function usageBlock(data: {
 }
 
 function continuationHint(agentId: string, name?: string): string {
-  return `agentId: ${agentId} (internal — do not mention it to the user). To continue this agent, use ${SEND_MESSAGE_TOOL_NAME} addressed to that id${name ? ` or to its name "${name}"` : ''}.`
+  return `agentId: ${agentId} (internal — do not mention it to the user). To continue this agent, use ${RESUME_AGENT_TOOL_NAME} addressed to that id${name ? ` or to its name "${name}"` : ''}.`
 }
 
 
