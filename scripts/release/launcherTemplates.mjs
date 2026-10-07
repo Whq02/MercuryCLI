@@ -267,7 +267,7 @@ rem there); an ancient node that runs-but-prints-garbage still leaves a\r
 rem file, so the clean version refusal is preserved.\r
 set "MERCURY_PROBE_OUT=%TEMP%\\mercury-probe-%RANDOM%-%TIME::=%.txt"\r
 if not defined TEMP set "MERCURY_PROBE_OUT=%DIR%mercury-probe-%RANDOM%-%TIME::=%.txt"\r
-"%NODEBIN%" -e "${SPLASH_VERSION_TTY_PROBE_JS}" -- %* >"%MERCURY_PROBE_OUT%" 2>nul\r
+"%NODEBIN%" -e "${SPLASH_VERSION_TTY_PROBE_JS}" >"%MERCURY_PROBE_OUT%" 2>nul -- %*\r
 if not exist "%MERCURY_PROBE_OUT%" goto :boot\r
 for /f "usebackq tokens=1,2" %%v in ("%MERCURY_PROBE_OUT%") do (set "NODEV=%%v" & set "NODETTY=%%w")\r
 del /q "%MERCURY_PROBE_OUT%" >nul 2>nul\r
