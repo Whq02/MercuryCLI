@@ -36,7 +36,7 @@ const inputSchema = () => {
       .int()
       .min(0)
       .optional()
-      .describe('Runtime budget in seconds (default 30; 0 disables; bridge/permission time never counts).'),
+      .describe('Runtime budget in seconds: default 30, at most 600 (a larger value runs at 600 and the result says so); 0 disables; bridge and permission time never counts.'),
     reset: z.boolean().optional().describe("Recreate this language's kernel first (the other language keeps its state)."),
   })
 }
@@ -77,7 +77,7 @@ function composeResultText(output: EvalToolOutput): string {
 
 const evalToolDef = buildTool({
   name: EVAL_TOOL_NAME,
-  searchHint: 'run python or javascript in a persistent kernel with tool re-entry',
+  searchHint: 'run python or javascript in a persistent kernel with tool re-entry and samples',
   maxResultSizeChars: 80_000,
   get inputSchema(): InputSchema {
     return inputSchema()
@@ -107,8 +107,8 @@ const evalToolDef = buildTool({
   async description() {
     return EVAL_DESCRIPTION
   },
-  async prompt() {
-    return buildEvalPrompt()
+  async prompt(options) {
+    return buildEvalPrompt(options?.tools)
   },
   getActivityDescription(input?: Partial<EvalToolInput>) {
     return input?.language ? `Running a ${input.language} cell` : 'Running an eval cell'
