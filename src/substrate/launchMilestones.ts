@@ -21,6 +21,7 @@ export interface LaunchMilestoneRowV1 {
   milestone: LaunchMilestone
   atMs: number
   boot?: LaunchBootKind
+  beforeLaunch?: true
 }
 
 interface MilestoneFileV1 {
@@ -53,6 +54,11 @@ function readAll(): LaunchMilestoneRowV1[] {
 }
 
 const seenThisProcess = new Set<LaunchMilestone>()
+let launchBegun = false
+
+export function markLaunchBegun(): void {
+  launchBegun = true
+}
 
 const RECORDS_AFTER: Partial<Record<LaunchMilestone, LaunchMilestone>> = { 'input-live': 'first-frame' }
 const heldUntil = new Map<LaunchMilestone, Array<{ milestone: LaunchMilestone; opts?: { boot?: LaunchBootKind } }>>()
@@ -77,6 +83,7 @@ export function recordLaunchMilestone(milestone: LaunchMilestone, opts?: { boot?
         milestone,
         atMs: Date.now(),
         ...(opts?.boot !== undefined ? { boot: opts.boot } : {}),
+        ...(milestone === 'first-frame' && !launchBegun ? { beforeLaunch: true as const } : {}),
       },
     ].slice(-MAX_ROWS)
     writeRows(rows)
@@ -123,4 +130,5 @@ export function lastBootReachedInputLive(): boolean | null {
 
 export function _resetLaunchMilestonesForTesting(): void {
   seenThisProcess.clear()
+  launchBegun = false
 }
