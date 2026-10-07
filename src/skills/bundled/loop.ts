@@ -117,7 +117,7 @@ An empty prompt after parsing means show the usage and schedule nothing.
 
 ${CRON_TABLE}
 
-Create the schedule with the ${CRON_CREATE_TOOL_NAME} tool: \`cron\` = the expression, \`prompt\` = the parsed prompt VERBATIM, \`recurring\` set. Then report what is on the clock: the cadence in plain words, the expression itself, that the ${SATURN_BOARD_COMMAND} board lists every schedule, and that ${CRON_DELETE_TOOL_NAME} (with the id ${CRON_LIST_TOOL_NAME} shows once the daemon applies the submission) cancels early. Then run the parsed prompt once, now — tick one does not wait out the first interval. A /slash-command prompt runs through the ${SKILL_TOOL_NAME} tool.`
+Create the schedule with the ${CRON_CREATE_TOOL_NAME} tool: \`cron\` = the expression, \`prompt\` = the parsed prompt VERBATIM, \`recurring\` set. Then report what is on the clock: the cadence in plain words, the expression itself, that the ${SATURN_BOARD_COMMAND} board lists every schedule, and that ${CRON_DELETE_TOOL_NAME} with the id ${CRON_CREATE_TOOL_NAME} returned cancels early; if ${CRON_CREATE_TOOL_NAME} answered with an error or "Queued, not confirmed", do not claim the loop is on the clock. For "NOT confirmed", check ${CRON_LIST_TOOL_NAME} before retrying. Then run the parsed prompt once, now — tick one does not wait out the first interval. A /slash-command prompt runs through the ${SKILL_TOOL_NAME} tool.`
 }
 
 function dynamicPrompt(input: string): string {
