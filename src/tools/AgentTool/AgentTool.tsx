@@ -82,6 +82,7 @@ import {
   PROMOTED_NARRATION_NOTE,
   resolveWorkerTools,
   runAsyncAgentLifecycle,
+  structuredResultBlock,
 } from './agentToolUtils.js'
 import { getSchemaBoundStructuredOutputTool } from '../WorkflowTool/structuredOutputTool.js'
 import {
@@ -876,8 +877,11 @@ export const AgentTool = buildTool({
       worktreePath?: string
       worktreeBranch?: string
       agentName?: string
+      structured?: { data?: unknown; error?: string; source: 'dispatch' | 'agent-definition'; mode: 'permissive' | 'strict' }
     }
     const status = (data as { status?: string }).status
+    const structuredBlocks: Array<{ type: 'text'; text: string }> =
+      data.structured !== undefined ? [{ type: 'text' as const, text: structuredResultBlock(data.structured) }] : []
 
     if (status === 'async_launched') {
       const async = data as unknown as {
@@ -916,15 +920,17 @@ export const AgentTool = buildTool({
     if (status === 'failed') {
       const partialBlocks = data.content ?? []
       const paused = typeof data.error === 'string' && data.error.startsWith('paused — ')
-      const blocks: Array<{ type: 'text'; text: string }> =
-        partialBlocks.length > 0
-          ? [...partialBlocks]
+      const blocks: Array<{ type: 'text'; text: string }> = [
+        ...structuredBlocks,
+        ...(partialBlocks.length > 0
+          ? partialBlocks
           : [
               {
                 type: 'text' as const,
                 text: paused ? 'The crewmate paused before returning any output.' : 'The crewmate failed before returning any output.',
               },
-            ]
+            ]),
+      ]
       const failedTrailer = [
         `Agent execution failed: ${data.error ?? 'unknown error'}`,
         'Anything above is partial work, not a final answer — it was captured before the failure and must not be read as a conclusion; its work is kept on its transcript.',
@@ -955,7 +961,7 @@ export const AgentTool = buildTool({
           },
         ]
       }
-      const blocks: Array<{ type: 'text'; text: string }> = []
+      const blocks: Array<{ type: 'text'; text: string }> = [...structuredBlocks]
       if (
         data.outcome?.status === 'completed' &&
         data.outcome.promotedNarration
