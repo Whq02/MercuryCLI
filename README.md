@@ -420,9 +420,11 @@ mercury run "Summarise this repository." --format rows
 
 The output row types, by their `type` field:
 
-- `session` — the opening row: `version`, `cwd`, `model`, `mode`, and the
-  `tools`, `mcp_servers`, `commands`, `agents`, `skills` and `extensions` the
-  session has.
+- `session` — the opening row: `version`, `build` (the first twelve hex
+  characters of the tree the bundle was built from, as `mercury daemon
+  status` prints it; absent when no manifest sits beside the bundle), `cwd`,
+  `model`, `mode`, and the `tools`, `mcp_servers`, `commands`, `agents`,
+  `skills` and `extensions` the session has.
 - `turn` — a turn `started` or `waiting`, with its `turn_id`; `model`,
   `message_ids` and the `agents` count when known.
 - `text` — a settled text block: `message_id`, `block`, `text`, and its
