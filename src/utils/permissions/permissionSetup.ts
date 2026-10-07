@@ -2,7 +2,7 @@ import type { ToolPermissionContext } from '../../Tool.js'
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { POWERSHELL_TOOL_NAME } from '../../tools/PowerShellTool/toolName.js'
-import { setNeedsAutoModeExitAttachment, setSessionPermissionModeResolution } from '../../bootstrap/state.js'
+import { setSessionPermissionModeResolution } from '../../bootstrap/state.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../debug.js'
 import { holdModeTransition, recordModeTransition, type ModeTransitionRoad } from './modeTransitions.js'
@@ -210,7 +210,6 @@ export function transitionPermissionMode(
     }
     next = stripDangerousPermissionsForAutoMode(next)
   } else if (fromMode === 'flow' && toMode !== 'flow') {
-    setNeedsAutoModeExitAttachment(true)
     next = restoreDangerousPermissions(next)
   }
 

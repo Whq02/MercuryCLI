@@ -18,7 +18,6 @@ import type {
   InvokedSkillInfo as RuntimeInvokedSkillInfo,
 } from './runtime/collections.js'
 import { InteractionClockOwner } from './runtime/interaction-clock.js'
-import { ModeOneShotOwner } from './runtime/mode-one-shots.js'
 import { ModelConfigOwner } from './runtime/model-config.js'
 import { PostureOwner } from './runtime/posture.js'
 import { ScrollGateOwner } from './runtime/scroll-gate.js'
@@ -41,7 +40,6 @@ let modelConfig = new ModelConfigOwner()
 let posture = new PostureOwner()
 let bootConfig = new BootConfigOwner()
 let apiCapture = new ApiCaptureOwner()
-let modeOneShots = new ModeOneShotOwner()
 let cacheLatches = new CacheLatchOwner()
 let collections = new CollectionsOwner()
 let hookRegistry = new HookRegistryOwner()
@@ -666,22 +664,6 @@ export function setPromptId(promptId: string | null): void {
 }
 
 
-export function needsAutoModeExitAttachment(): boolean {
-  return modeOneShots.needsAutoModeExitAttachment
-}
-
-export function setNeedsAutoModeExitAttachment(value: boolean): void {
-  modeOneShots.needsAutoModeExitAttachment = value
-}
-
-export function handleAutoModeTransition(
-  fromMode: string,
-  toMode: string,
-): void {
-  modeOneShots.handleAutoModeTransition(fromMode, toMode)
-}
-
-
 export function getSystemPromptSectionCache(): Map<
   string,
   { key: string | null; value: string | null; byKey?: Map<string, string | null> }
@@ -819,7 +801,6 @@ export function resetStateForTests(): void {
   posture = new PostureOwner()
   bootConfig = new BootConfigOwner()
   apiCapture = new ApiCaptureOwner()
-  modeOneShots = new ModeOneShotOwner()
   cacheLatches = new CacheLatchOwner()
   collections = new CollectionsOwner()
   hookRegistry = new HookRegistryOwner()
