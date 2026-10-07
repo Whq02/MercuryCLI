@@ -87,11 +87,13 @@ const hoppedLeg = async (
     extraEnv: { MERCURY_CONCOURSE: 'always', MERCURY_DAEMON_DIR: daemonDir, ANTHROPIC_BASE_URL: api.url, ANTHROPIC_API_KEY: 'fixture-key-000', MERCURY_CACHE_CLOCK: '0' },
   })
   try {
-    const grabs = grabScreens(run, cols, rows, [11000, 16000, 20000, 23000].map(m => S(m)))
+    const escMs = run.sendLog.filter(s => Buffer.from(s.b64, 'base64').toString('latin1') === '\x1b').map(s => sendStamp(run, s)).sort((a, b) => a - b)[0]
+    check(`${tag}: the esc was sent`, escMs !== undefined, `stamp ${escMs}; anchor shift ${run.anchorShiftMs}`)
+    const grabs = grabScreens(run, cols, rows, [-S(1000), S(4000), S(8000), S(11000)].map(m => Math.max(0, (escMs ?? S(12000)) + m)))
     const text = (g: { rows: string[] }): string => g.rows.join('\n')
-    const before = grabs.filter(g => g.atMs <= S(11000))
-    check(`${tag}: the turn was LIVE before esc (replying/thinking on screen)`, before.some(g => /replying — your words land|✶|thinking/.test(text(g))), before.map(g => String(g.atMs)).join(','))
-    const late = grabs.filter(g => g.atMs >= S(16000))
+    const before = grabs.slice(0, 1)
+    check(`${tag}: the turn was LIVE before esc (the status row offers the in-flight interrupt)`, before.some(g => text(g).split('\n').some(row => /esc interrupts/.test(row) && /← back/.test(row))), before.flatMap(g => text(g).split('\n').filter(row => /← back|first byte/.test(row))).join(' · ').slice(0, 500))
+    const late = grabs.slice(1)
     check(`${tag}: esc INTERRUPTED — the screen says so (⨯ Interrupted)`, late.some(g => /Interrupted/.test(text(g))), late.map(g => String(g.atMs)).join(','))
     check(`${tag}: the composer returned (poison: still replying in every late frame)`, late.some(g => /Type a prompt/.test(text(g))) && !late.every(g => /replying — your words land/.test(text(g))))
     const recs = JSON.parse(readFileSync(join(daemonDir, 'concourse-workers.json'), 'utf8')) as { workers: Record<string, { sessionId: string; lastDeliveryAt?: number; lastTurnSettledAt?: number }> }
