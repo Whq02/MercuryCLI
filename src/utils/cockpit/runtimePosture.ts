@@ -49,7 +49,7 @@ function ruleWordsOf(verdict: PermissionResult): string {
 function modeRoad(mode: string): string {
   switch (mode) {
     case 'flow':
-      return 'and under flow any call the flow check blocks — anything visible outside this machine (`git push` among them), anything destructive or outside the workspace, a new install'
+      return 'and under flow any call no allow rule covers and no shortcut settles (the read-only lane, the read-only tools and workspace file edits aside) — anything visible outside this machine (`git push` among them), anything destructive or outside the workspace, a new install'
     case 'default':
       return 'and under default any call no allow rule covers (the read-only lane aside)'
     case 'implement':

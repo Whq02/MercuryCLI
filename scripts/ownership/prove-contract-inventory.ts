@@ -55,7 +55,6 @@ const MODULES: Record<string, string[]> = {
   decisions: [
     'src/utils/permissions/permissions.ts',
     'src/utils/permissions/permissionSetup.ts',
-    'src/utils/permissions/flowClassifier.ts',
     'src/utils/permissions/permissionsLoader.ts',
     'src/utils/permissions/PermissionMode.ts',
     'src/utils/permissions/PermissionResult.ts',

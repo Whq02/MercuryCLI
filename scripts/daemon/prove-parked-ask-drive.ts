@@ -292,10 +292,10 @@ try {
 
   check('P2 the seat asked and the daemon PARKED it: one ask on the seat', await untilAsync(() => (asksOf()?.asks.length ?? 0) === 1, 90_000), `asks: ${JSON.stringify(asksOf())} · hits: ${hits.map(h => h.route).join(',')}`)
   const parked = asksOf()?.asks[0]
-  check("P2 the parked ask is the seat's writing command, carrying the safety check's verdict as its reason", parked?.toolName === 'Bash' && String((parked.input as { command?: unknown }).command ?? '').includes(PROBE_COMMIT) && (parked.decisionReasonDetail as { type?: string } | undefined)?.type === 'classifier' && JSON.stringify(parked.decisionReasonDetail).includes(BLOCK_REASON), JSON.stringify(parked))
+  check("P2 the parked ask is the seat's writing command — the engine's own ask, no verdict and none of a verdict's words", parked?.toolName === 'Bash' && String((parked.input as { command?: unknown }).command ?? '').includes(PROBE_COMMIT) && (parked.decisionReasonDetail as { type?: string } | undefined)?.type !== 'classifier' && !JSON.stringify(parked).includes(BLOCK_REASON), JSON.stringify(parked))
   check('P2 the needs-you row was minted for the session', await untilAsync(async () => (await openAsks()) === 1, 15_000))
   check('P2 the shell did NOT run while the ask waited', commitCount() === '1', `commits ${commitCount()}`)
-  check('P2 the safety check was asked exactly once', hits.filter(h => h.route === 'classifier').length === 1 && hits.some(h => h.route === 'classifier' && !h.streaming), hits.map(h => `${h.route}${h.streaming ? '' : '/json'}`).join(','))
+  check('P2 no request left the seat for the decision: every hit is the seat\'s own streaming request', hits.filter(h => h.route === 'classifier').length === 0 && hits.every(h => h.streaming) && hits.length >= 1, hits.map(h => `${h.route}${h.streaming ? '' : '/json'}`).join(','))
 
   const hitsAtPark = hits.length
   await sleep(8_000)
@@ -347,7 +347,7 @@ try {
   check(`P4 the board's row for the session reads "${WAIT_WORDS}"`, listRowOf(board).includes(WAIT_WORDS), listRowOf(board) || '(no row)')
   const card = cap.marks['card'] ?? ''
   check('P5 entering the session painted the consent card for the parked ask — the command on the card', card.includes(CARD_WORDS) && card.includes('git commit --allow-empty') && !card.includes(BOARD_WORDS))
-  check("P5 the card explains the block (the safety check said no; the decision is the operator's) and quotes the check's reason", card.includes(CARD_BLOCK_WORDS) && card.includes(BLOCK_REASON))
+  check("P5 the card is the plain ask's: no verdict line, none of a verdict's words", !card.includes(CARD_BLOCK_WORDS) && !card.includes(BLOCK_REASON))
   check('P6 ↵ on Yes settled the needs-you row through the daemon', await untilAsync(async () => (await openAsks()) === 0, 15_000))
   check("P6 the seat's ask table emptied (the card leaves at once)", await untilAsync(() => (asksOf()?.asks.length ?? 0) === 0, 15_000), JSON.stringify(asksOf()))
   check("P6 the seat resumed: its report reached the session's file", await untilAsync(() => transcriptText().includes(REPORT_LEAD), 20_000), transcriptText().slice(-300))
