@@ -188,6 +188,7 @@ Object.assign(globalThis, {
   display_image: displayImage,
   displayImage,
   tool,
+  sample: spec => bridge('sample', spec),
   agent,
   completion,
   parallel,

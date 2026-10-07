@@ -40,7 +40,7 @@ const bridgeFrame = z.object({
   token: z.string(),
   bridgeId: z.string(),
   id: z.string(),
-  kind: z.enum(['tool', 'agent', 'completion', 'width']),
+  kind: z.enum(['tool', 'agent', 'completion', 'width', 'sample']),
   payload: z.unknown(),
 })
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: src/services/eval/** src/tools/EvalTool/**
+# gate-watch: src/services/samples/** src/services/run/ownerKey.ts
 # gate-watch: src/utils/router/providerSecrets* src/substrate/flagRegistry*
 # gate-watch: scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts
 # gate-watch: sdk/src/rows.ts src/rows/vocabulary.ts src/rows/turn.ts src/daemon/sessionSeat.ts src/services/engine-connector/daemonConnector.ts

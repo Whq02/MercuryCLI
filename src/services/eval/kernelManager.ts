@@ -34,6 +34,7 @@ import { jsEnvironmentNotes } from './jsKernelWords.js'
 import { ensureJsRunner, ensurePyRunner } from './runnerCache.js'
 import { ProcKernel, type CellEnd } from './procKernel.js'
 import type { BridgeRequestFrame } from './protocol.js'
+import type { SampleItem } from '../samples/contracts.js'
 
 const MAX_DISPLAYS_PER_CELL = 24
 
@@ -420,6 +421,7 @@ export class EvalKernelManager {
     const stdout = new BoundedStreamSink()
     const stderr = new BoundedStreamSink()
     const displays: EvalDisplay[] = []
+    const samples: SampleItem[] = []
     let displaysDropped = 0
     let resultRepr: string | undefined
     let cellError: { name: string; value: string; traceback: string; survived?: string[] } | undefined
@@ -474,6 +476,7 @@ export class EvalKernelManager {
         if (called !== null) nested.push({ seq, name: called, ok: true })
         void serveBridge(frame, budget)
           .then(result => {
+            if (frame.kind === 'sample' && result.ok) samples.push(result.value as SampleItem)
             if (called !== null) {
               const row = nested.find(r => r.seq === seq)
               if (row !== undefined) {
@@ -535,7 +538,7 @@ export class EvalKernelManager {
             : 'the kernel exited while being interrupted — it will be recreated on the next call',
         )
         annotations.push(cancelReasonNote(interruptRequested, timeoutSeconds))
-        return this.composeOutcome('cancelled', stdout, stderr, displays, displaysDropped, resultRepr, cellError, annotations, runtimeMs, bridgeMs, entry, cellId)
+        return this.composeOutcome('cancelled', stdout, stderr, displays, displaysDropped, resultRepr, cellError, annotations, runtimeMs, bridgeMs, entry, cellId, samples)
       }
       if (retriesLeft > 0 && !abortSignal.aborted) {
         annotations.push(
@@ -548,7 +551,7 @@ export class EvalKernelManager {
           ? `the kernel died mid-cell (${end.signal ?? `exit ${end.code}`}) while the call was aborting — not retried`
           : `the kernel died mid-cell again (${end.signal ?? `exit ${end.code}`}) — giving up after one retry`,
       )
-      const outcome = this.composeOutcome('error', stdout, stderr, displays, displaysDropped, resultRepr, cellError ?? { name: 'KernelDied', value: `the kernel exited with ${end.signal ?? `code ${end.code}`}`, traceback: '' }, annotations, runtimeMs, bridgeMs, entry, cellId)
+      const outcome = this.composeOutcome('error', stdout, stderr, displays, displaysDropped, resultRepr, cellError ?? { name: 'KernelDied', value: `the kernel exited with ${end.signal ?? `code ${end.code}`}`, traceback: '' }, annotations, runtimeMs, bridgeMs, entry, cellId, samples)
       return outcome
     }
 
@@ -573,7 +576,7 @@ export class EvalKernelManager {
       const line = nestedCallsLine(nested)
       if (line !== null) annotations.push(line)
     }
-    return this.composeOutcome(status, stdout, stderr, displays, displaysDropped, resultRepr, cellError, annotations, runtimeMs, bridgeMs, entry, cellId)
+    return this.composeOutcome(status, stdout, stderr, displays, displaysDropped, resultRepr, cellError, annotations, runtimeMs, bridgeMs, entry, cellId, samples)
   }
 
   private composeOutcome(
@@ -589,6 +592,7 @@ export class EvalKernelManager {
     bridgeMs: number,
     entry: KernelEntry,
     cellId: string,
+    samples: SampleItem[],
   ): EvalCellOutcome {
     const out = stdout.finalize()
     const err = stderr.finalize()
@@ -604,6 +608,7 @@ export class EvalKernelManager {
       stdout: out,
       stderr: err,
       displays,
+      ...(samples.length > 0 ? { samples } : {}),
       ...(resultRepr !== undefined ? { resultRepr } : {}),
       ...(cellError !== undefined ? { error: cellError } : {}),
       ...(spillPath !== undefined ? { spillPath } : {}),
@@ -620,7 +625,7 @@ export function nestedCallName(frame: { kind: string; payload?: unknown }): stri
     const name = (frame.payload as { name?: unknown } | undefined)?.name
     return typeof name === 'string' && name !== '' ? name : 'tool'
   }
-  if (frame.kind === 'agent' || frame.kind === 'completion') return frame.kind
+  if (frame.kind === 'agent' || frame.kind === 'completion' || frame.kind === 'sample') return frame.kind
   return null
 }
 
