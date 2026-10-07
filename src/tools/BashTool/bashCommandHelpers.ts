@@ -7,6 +7,7 @@ import {
   PARSE_ABORTED,
   pinnedCommandAnalysis,
   type Node,
+  type UnsafeCompoundReason_DEPRECATED,
 } from '../../utils/permissions/decision/commandAnalysis.js'
 
 export type CommandIdentityCheckers = {
@@ -21,6 +22,15 @@ export const CD_GIT_BARE_REPO_REASON =
   'A compound command pairing cd with git needs approval — the cd could land the git call inside a hostile bare repository'
 
 type SegmentPermissionFn<I> = (input: I) => Promise<PermissionResult>
+
+export function compoundOperatorAskMessage(reason: UnsafeCompoundReason_DEPRECATED): string {
+  if (reason.kind === 'unparseable') return 'This command could not be split into simple commands, so it needs approval.'
+  if (reason.kind === 'comment') return 'This command uses shell operators that require approval.'
+  if (reason.target !== undefined) {
+    return `This command uses the shell operator \`${reason.operator}\` with a target the shell expands (\`${reason.target}\`), which needs approval.`
+  }
+  return `This command uses the shell operator \`${reason.operator}\`, which needs approval.`
+}
 
 async function stripSegmentRedirections(segment: string): Promise<string> {
   if (!segment.includes('>')) return segment
@@ -44,13 +54,17 @@ export async function checkCommandOperatorPermissions<I extends { command: strin
   }
 
   const analysis = parsed.getTreeSitterAnalysis()
-  const unsafeCompound = analysis
-    ? analysis.compoundStructure.hasSubshell || analysis.compoundStructure.hasCommandGroup
+  const unsafeCompound: UnsafeCompoundReason_DEPRECATED | null = analysis
+    ? analysis.compoundStructure.hasSubshell
+      ? { kind: 'operator', operator: '(' }
+      : analysis.compoundStructure.hasCommandGroup
+        ? { kind: 'operator', operator: '{' }
+        : null
     : isUnsafeCompoundCommand_DEPRECATED(input.command)
-  if (unsafeCompound) {
+  if (unsafeCompound !== null) {
     return {
       behavior: 'ask',
-      message: 'This command uses shell operators that require approval.',
+      message: compoundOperatorAskMessage(unsafeCompound),
     }
   }
 
