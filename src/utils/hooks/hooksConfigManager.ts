@@ -46,7 +46,7 @@ function buildHookEventMetadata(toolNames: string[]): Record<HookEvent, HookEven
       matcherMetadata: { field: 'tool_name', values: toolNames },
     },
     PermissionDenied: {
-      summary: 'Runs after the auto-mode classifier denies a tool call',
+      summary: 'Runs when a tool call was refused',
       description:
         'Payload: tool name, tool input, tool-use id, and a reason. The structured output may carry a retry flag telling the model it may retry.',
       matcherMetadata: { field: 'tool_name', values: toolNames },

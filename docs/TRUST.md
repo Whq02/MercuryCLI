@@ -73,7 +73,10 @@ starting folder.
   permission rule already allows them.
 - **Sovereign mode** does not ask because of a file's
   location. Capability gates, explicit deny rules and wards still apply.
-- **Flow, Apollo and dontAsk** keep their existing permission
+- **Flow mode** allows what Implement mode allows and the read-only
+  tools without asking; anything else asks, and a rule that would allow a
+  dangerous command is set aside while Flow is on.
+- **Apollo and dontAsk** keep their existing permission
   behaviour; a folder does not add a separate refusal.
 
 Sensitive files, such as credentials and Mercury configuration, retain their
@@ -134,8 +137,8 @@ applies. A withdrawn ask sends `$/cancel_request`. The daemon declines an
 ask when no operator is connected; the absence of an operator never grants
 permission.
 
-No push is ever allowed by default under flow. A call the flow check blocks
-goes to that host, `git push` among them. It needs a present operator unless a permission rule
+No push is ever allowed by default under flow. A call Flow's rules leave
+over goes to that host, `git push` among them. It needs a present operator unless a permission rule
 pre-authorises it: `Bash(git push *)` in `guardrails.allow`, or
 `--allowed-tools "Bash(git push *)"` on a run, decides the push before any
 ask. A deny rule refuses it outright; an ask rule requires approval under
