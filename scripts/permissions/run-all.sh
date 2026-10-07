@@ -3,7 +3,6 @@
 # gate-watch: src/Tool* src/hooks/toolPermission/handlers/interactiveHandler*
 # gate-watch: src/tools/SkillTool/SkillTool*
 # gate-watch: src/utils/betas* src/utils/hooks/** src/utils/messages/streaming*
-# gate-watch: src/utils/permissions/classifierFailClosed* src/utils/permissions/denialTracking*
 # gate-watch: src/utils/permissions/flowBlockReview* src/utils/permissions/decision/wrapper*
 # gate-watch: src/utils/messages/rejectionText* src/components/permissions/PermissionRuleExplanation* src/constants/prompts*
 # gate-watch: src/tools/BashTool/pathValidation* src/tools/BashTool/readOnlyValidation*

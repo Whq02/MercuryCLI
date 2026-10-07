@@ -111,7 +111,7 @@ function makeContext(opts: {
     alwaysAskRules: opts.ask ? { userSettings: opts.ask } : {},
     isBypassPermissionsModeAvailable: opts.bypassAvailable ?? false,
   }
-  const appState = { toolPermissionContext, denialTracking: undefined }
+  const appState = { toolPermissionContext }
   return {
     abortController: new AbortController(),
     getAppState: () => appState,

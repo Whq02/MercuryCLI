@@ -27,7 +27,6 @@ await import('../../src/Tool.ts')
 const { decideToolPermissionWithModes, defaultWrapperPorts } = await import('../../src/utils/permissions/decision/wrapper.ts')
 const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createDenialTrackingState } = await import('../../src/utils/permissions/denialTracking.ts')
 const { stripDangerousPermissionsForAutoMode } = await import('../../src/utils/permissions/permissionSetup.ts')
 const { loadAllPermissionRulesFromDisk } = await import('../../src/utils/permissions/permissionsLoader.ts')
 const { applyPermissionRulesToPermissionContext } = await import('../../src/utils/permissions/permissions.ts')
@@ -172,7 +171,7 @@ async function decide(context: Record<string, unknown>, command: string, mode: M
     },
     runHeadlessHooks: async () => null,
   }
-  const appState = { toolPermissionContext: { ...context, mode }, denialTracking: undefined, effortValue: undefined, tasks: {} }
+  const appState = { toolPermissionContext: { ...context, mode }, effortValue: undefined, tasks: {} }
   const seat = {
     abortController: new AbortController(),
     getAppState: () => appState,
@@ -180,7 +179,6 @@ async function decide(context: Record<string, unknown>, command: string, mode: M
     messages: [],
     agentType: undefined,
     options: { isNonInteractiveSession: true, tools: [], hostHoldsAsks: true },
-    localDenialTracking: createDenialTrackingState(),
   }
   const outcome = await decideToolPermissionWithModes(bashTool as never, { command }, seat as never, { message: { id: 'msg_seat_push' } } as never, 'toolu_seat_push', ports)
   const last = outcome.wrapper.stages[outcome.wrapper.stages.length - 1]

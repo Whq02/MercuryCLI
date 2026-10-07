@@ -38,7 +38,7 @@ const FIXTURE = join(import.meta.dir, 'fixtures', 'fixture-source')
 
 function makeContext(mode: string, tools: unknown[] = []): { context: unknown; appState: { toolPermissionContext: Record<string, unknown> } } {
   const toolPermissionContext = { ...getEmptyToolPermissionContext(), mode: mode as never }
-  const appState = { toolPermissionContext, denialTracking: undefined }
+  const appState = { toolPermissionContext }
   const context = {
     abortController: new AbortController(),
     getAppState: () => appState,
@@ -201,7 +201,7 @@ console.log('[6] allowed-tools authorises only the expansion, on a COPY of the s
   const skill = loadCommands.getExtensionSkills().find(c => c.name === 'kitchen-sink:fixture-skill')
   check('the fixture skill is in the catalogue with its declared allowed-tools', skill !== undefined && Array.isArray((skill as { allowedTools?: string[] }).allowedTools) && (skill as { allowedTools: string[] }).allowedTools.length > 0)
   if (skill && skill.type === 'prompt') {
-    const sessionState = { toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' as never }, denialTracking: undefined }
+    const sessionState = { toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' as never } }
     const seenRules: string[][] = []
     const context = {
       abortController: new AbortController(),

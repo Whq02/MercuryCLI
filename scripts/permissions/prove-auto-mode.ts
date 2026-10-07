@@ -19,42 +19,7 @@ console.log('============================================================')
 console.log(' Permission ladder / auto-mode classifier — surface proof')
 console.log('============================================================')
 
-section('denialTracking (LIVE) — limits + the fall-back-to-prompting threshold')
-{
-  const dt = await import('../../src/utils/permissions/denialTracking.js')
-  const {
-    DENIAL_LIMITS,
-    createDenialTrackingState,
-    recordDenial,
-    recordSuccess,
-    shouldFallbackToPrompting,
-  } = dt
-
-  check('limits are the canonical 3 consecutive / 20 total', DENIAL_LIMITS.maxConsecutive === 3 && DENIAL_LIMITS.maxTotal === 20)
-
-  let s = createDenialTrackingState()
-  check('fresh state does NOT fall back', !shouldFallbackToPrompting(s))
-
-  s = recordDenial(recordDenial(s))
-  check('2 consecutive denials: still classifying (no fallback)', !shouldFallbackToPrompting(s))
-  s = recordDenial(s)
-  check('3 consecutive denials: FALL BACK to prompting (consecutive floor)', shouldFallbackToPrompting(s))
-  check('counters track both consecutive + total', s.consecutiveDenials === 3 && s.totalDenials === 3)
-
-  const after = recordSuccess(s)
-  check('recordSuccess resets the consecutive streak', after.consecutiveDenials === 0)
-  check('recordSuccess preserves the total (it is a session ceiling)', after.totalDenials === 3)
-  check('after a success, no longer falling back on the consecutive floor', !shouldFallbackToPrompting(after))
-  check('recordSuccess is a no-op (same ref) when consecutive is already 0', recordSuccess(after) === after)
-
-  let t = createDenialTrackingState()
-  for (let i = 0; i < 19; i++) t = recordSuccess(recordDenial(t))
-  check('19 total denials, streak broken each time: not yet falling back', !shouldFallbackToPrompting(t) && t.totalDenials === 19)
-  t = recordDenial(t)
-  check('20 total denials: FALL BACK (total floor, independent of streak)', shouldFallbackToPrompting(t) && t.totalDenials === 20)
-}
-
-section('the THREE auto-mode safety floors (decision/wrapper.ts) — force a human ask BEFORE the classifier')
+section('the THREE auto-mode safety floors (decision/wrapper.ts) — force a human ask before the shortcuts')
 {
   const perms = src('utils', 'permissions', 'decision', 'wrapper.ts')
   const has = (needle: string) => perms.includes(needle)
@@ -62,7 +27,7 @@ section('the THREE auto-mode safety floors (decision/wrapper.ts) — force a hum
   check("floor: org/MCP ask-ceiling (effectiveMaxPermission === 'ask')", has("tool.mcpInfo?.effectiveMaxPermission === 'ask'"))
   check('floor: Workflow usage-consent → workflowRequiresConsent', has('function workflowRequiresConsent') && has('workflowRequiresConsent(tool.name)'))
   check(
-    'the three floors converge on ONE guard before the classifier',
+    'the three floors converge on ONE guard before the shortcuts',
     has("floorTags.push('ask-rule')") &&
       has("floorTags.push('org-ceiling')") &&
       has("floorTags.push('workflow-consent')") &&
@@ -140,7 +105,7 @@ section('STARTUP-AUTO DESYNC fix — a session that BOOTS into auto arms the saf
 
 }
 
-section('dist ships the auto-mode decision branches (floors, fast-paths, denial fallback, kill deny)')
+section('dist ships the flow decision branches (floors, fast-paths, kill deny)')
 {
   const dist = join(import.meta.dir, '..', '..', 'dist', 'mercury.mjs')
   if (!existsSync(dist)) {
@@ -151,10 +116,8 @@ section('dist ships the auto-mode decision branches (floors, fast-paths, denial 
     check('safety-floor headless-deny message ships', present('This action needs interactive approval, and this session cannot present a prompt'))
     check('org/MCP ask-ceiling reason ships', present('Your organization requires approval for this tool'))
     check('implement fast-path log ships', present('implement mode would allow this outright'))
-    check('safe-allowlist fast-path log ships', present('always-safe tool set membership'))
-    check('denial-limit total fallback warning ships', present('actions were blocked this session'))
-    check('denial-limit consecutive fallback warning ships', present('consecutive actions were blocked'))
-    check('headless denial-limit hard abort ships', present('denial limit reached with no prompt available'))
+    check('read-only set fast-path log ships', present('the read-only tool set'))
+    check('no denial ledger ships', !present('actions were blocked this session') && !present('consecutive actions were blocked') && !present('denial limit reached'))
     check('capability kill-switch deny message ships', present('capability switched off by operator'))
     check('PowerShell auto-mode interactive-approval floor ships', present('PowerShell runs only with interactive approval'))
   }

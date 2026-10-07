@@ -155,7 +155,6 @@ section('T. end-to-end: runToolUse mints exactly one receipt per executed edit')
   const events: unknown[] = []
   const appState = {
     toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' },
-    denialTracking: undefined,
     sessionHooks: new Map(),
     mcp: { clients: [], tools: [], commands: [], resources: {} },
   }

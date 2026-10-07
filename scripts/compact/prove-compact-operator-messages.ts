@@ -247,7 +247,6 @@ function makeContext(model: string): Record<string, unknown> {
   const appState = {
     toolPermissionContext,
     sessionHooks: new Map(),
-    denialTracking: undefined,
     tasks: {},
     agentNameRegistry: new Map(),
     mcp: { clients: [], tools: [], commands: [], resources: {} },

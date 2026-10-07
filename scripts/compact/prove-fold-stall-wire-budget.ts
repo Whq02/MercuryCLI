@@ -139,7 +139,7 @@ function makeMessages(model: string): unknown[] {
 type Run = { result?: Record<string, unknown>; error?: Error; ms: number }
 async function runFold(model: string): Promise<Run> {
   const toolPermissionContext = { ...getEmptyToolPermissionContext(), mode: 'default' as const }
-  const appState = { toolPermissionContext, sessionHooks: new Map(), denialTracking: undefined, tasks: {}, mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'high' }
+  const appState = { toolPermissionContext, sessionHooks: new Map(), tasks: {}, mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'high' }
   const readFileState = new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024)
   const ctx = {
     abortController: new AbortController(),

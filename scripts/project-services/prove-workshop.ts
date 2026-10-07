@@ -241,7 +241,6 @@ section('B. WorkshopTool — nested transaction, recursion guard, cancel')
 
   const appState = {
     toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' },
-    denialTracking: undefined,
     sessionHooks: new Map(),
     mcp: { clients: [], tools: [], commands: [], resources: {} },
     speculation: { status: 'idle' },

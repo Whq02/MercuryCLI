@@ -8,7 +8,6 @@ import type { PauseGate } from './run-core/pauseGate.js'
 import type { AgentId } from './types/ids.js'
 import type { Command } from './types/command.js'
 import type { ToolCapability } from './utils/capability/contract.js'
-import type { DenialTrackingState } from './utils/permissions/denialTracking.js'
 import type { ContentReplacementState } from './utils/toolResultStorage.js'
 import type { AppState } from './state/AppState.js'
 import type { MCPServerConnection } from './services/mcp/types.js'
@@ -257,7 +256,6 @@ export type ToolUseContext = {
   preserveToolResults?: boolean
   alwaysCallCanUseTool?: boolean
   requireCanUseTool?: boolean
-  localDenialTracking?: DenialTrackingState
   contentReplacementState?: ContentReplacementState
   renderedSystemPrompt?: SystemPrompt
   globLimits?: { maxResults?: number }

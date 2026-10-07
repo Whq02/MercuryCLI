@@ -20,7 +20,6 @@ await import('../../src/Tool.ts')
 const { decideToolPermissionWithModes, defaultWrapperPorts } = await import('../../src/utils/permissions/decision/wrapper.ts')
 const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createDenialTrackingState } = await import('../../src/utils/permissions/denialTracking.ts')
 const { resolveAgentPromptPosture, composeAgentAppState, withAllowedCommandRules } = await import(
   '../../src/tools/AgentTool/agentPermissionPosture.ts'
 )
@@ -117,7 +116,6 @@ function parentState(mode: Mode, rules: Rules, headless: boolean): Record<string
       isBypassPermissionsModeAvailable: mode === 'sovereign',
       ...(headless ? { shouldAvoidPermissionPrompts: true } : {}),
     },
-    denialTracking: undefined,
     effortValue: undefined,
     tasks: {},
   }
@@ -154,7 +152,6 @@ function contextFor(subject: Subject, mode: Mode, rules: Rules): unknown {
     agentId: isAgent ? `agent-${subject}` : undefined,
     agentType: isAgent ? 'mercury-crew' : undefined,
     options: { isNonInteractiveSession, tools: [], ...(hostHoldsAsks === true ? { hostHoldsAsks: true } : {}) },
-    ...(isAsync ? { localDenialTracking: createDenialTrackingState() } : {}),
   }
 }
 

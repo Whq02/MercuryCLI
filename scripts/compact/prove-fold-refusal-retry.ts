@@ -100,7 +100,7 @@ function airConversation(replyChars = 0): AnyMsg[] {
 const CACHE_SAFE = { systemPrompt: ['fixture posture'] } as never
 function makeContext(model: string, events: CompactProgressEvent[]): Record<string, unknown> {
   const toolPermissionContext = { ...getEmptyToolPermissionContext(), mode: 'default' as const }
-  const appState = { toolPermissionContext, sessionHooks: new Map(), denialTracking: undefined, tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'high' }
+  const appState = { toolPermissionContext, sessionHooks: new Map(), tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'high' }
   return {
     abortController: new AbortController(),
     getAppState: () => appState,
