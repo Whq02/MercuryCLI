@@ -64,7 +64,7 @@ case "$res" in
   *)   echo "  ✗ resolver invariant failed: $res"; fail=1 ;;
 esac
 
-verify_str="Treat the agent's output as a claim to verify, not a fact"
+verify_str="Treat the agent's prose as a claim to verify, not a fact"
 trust_str="The agent's outputs should generally be trusted"
 if grep -qF "$verify_str" "$agentprompt" \
    && ! grep -qF "$trust_str" "$agentprompt"; then

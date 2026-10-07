@@ -85,6 +85,7 @@ import { emitBackgroundAgentRows } from '../../utils/task/sdkAgentFrames.js'
 import { permissionRuleValueFromString } from '../../utils/permissions/permissionRuleParser.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { AGENT_TOOL_NAME, MERCURY_SCOUT_AGENT_TYPE } from './constants.js'
+import { STRUCTURED_TAG } from '../../constants/xml.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 
 const MCP_TOOL_PREFIX = 'mcp__'
@@ -446,8 +447,10 @@ export function finalizeAgentTool(
     } else {
       const error =
         found === null
-          ? `no structured yield: the agent never called ${structuredOutputToolName()} with a conforming payload`
-          : `the last ${structuredOutputToolName()} call failed schema validation`
+          ? NO_STRUCTURED_YIELD
+          : found.issues === undefined
+            ? FAILED_STRUCTURED_YIELD
+            : `${FAILED_STRUCTURED_YIELD}: ${found.issues}`
       structured = { error, source, mode }
       if (mode === 'strict' && finalOutcome.status === 'completed') {
         structuredOutcome = { status: 'failed', reason: 'schema-mismatch', error }
@@ -474,9 +477,30 @@ function structuredOutputToolName(): string {
   return 'StructuredOutput'
 }
 
+export const NO_STRUCTURED_YIELD = `no structured yield: the agent never called ${structuredOutputToolName()} with a conforming payload`
+export const FAILED_STRUCTURED_YIELD = `the last ${structuredOutputToolName()} call failed schema validation`
+
+const SCHEMA_ISSUE_WORDS_CAP = 300
+
+function schemaIssueWordsOf(content: unknown): string {
+  const text =
+    typeof content === 'string'
+      ? content
+      : Array.isArray(content)
+        ? content.map(block => (typeof (block as { text?: unknown }).text === 'string' ? (block as { text: string }).text : '')).join('\n')
+        : ''
+  const words = text
+    .replace(/<\/?tool_use_error>/g, '')
+    .replace(/^\s*Output does not match required schema: /, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  const chars = [...words]
+  return chars.length > SCHEMA_ISSUE_WORDS_CAP ? `${chars.slice(0, SCHEMA_ISSUE_WORDS_CAP).join('')}…` : words
+}
+
 function findLastStructuredYield(
   messages: readonly Message[],
-): { valid: boolean; payload?: unknown } | null {
+): { valid: true; payload: unknown } | { valid: false; issues?: string } | null {
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i]!
     if (m.type !== 'assistant') continue
@@ -489,17 +513,40 @@ function findLastStructuredYield(
         if (candidate.type !== 'user') continue
         const rc = candidate.message.content
         if (!Array.isArray(rc)) continue
-        const result = (rc as Array<{ type?: string; tool_use_id?: string; is_error?: boolean }>).find(
+        const result = (rc as Array<{ type?: string; tool_use_id?: string; is_error?: boolean; content?: unknown }>).find(
           b => b.type === 'tool_result' && b.tool_use_id === use.id,
         )
         if (result !== undefined) {
-          return result.is_error === true ? { valid: false } : { valid: true, payload: use.input }
+          if (result.is_error !== true) return { valid: true, payload: use.input }
+          const issues = schemaIssueWordsOf(result.content)
+          return issues === '' ? { valid: false } : { valid: false, issues }
         }
       }
       return { valid: false }
     }
   }
   return null
+}
+
+function structuredMissWords(status: 'missing' | 'invalid', error: string, mode: 'permissive' | 'strict'): string {
+  const tool = structuredOutputToolName()
+  if (status === 'missing') {
+    return mode === 'strict'
+      ? `The agent never called ${tool}, and schema_mode "strict" fails the call without a payload. Launch the agent again and require the answer through ${tool}, or omit schema_mode to accept its prose.`
+      : `The agent never called ${tool}, so nothing below was checked against your schema. Check any value you take from its prose before relying on it, or launch the agent again and require the answer through ${tool}.`
+  }
+  const issues = error.slice(FAILED_STRUCTURED_YIELD.length).replace(/^: /, '')
+  const failed = issues === '' ? `The agent's last ${tool} call failed your schema` : `The agent's last ${tool} call failed your schema (${issues})`
+  const rule = issues === '' ? "with your schema's rules stated in its prompt" : 'with that rule stated in its prompt'
+  return mode === 'strict'
+    ? `${failed}, and schema_mode "strict" fails the call without a valid payload. Launch the agent again ${rule}, or omit schema_mode to accept its prose.`
+    : `${failed}, so nothing below was checked against it. Check any value you take from its prose before relying on it, or launch the agent again ${rule}.`
+}
+
+export function structuredResultBlock(structured: { data?: unknown; error?: string; mode: 'permissive' | 'strict' }): string {
+  const status = structured.error === undefined ? 'valid' : structured.error.startsWith(FAILED_STRUCTURED_YIELD) ? 'invalid' : 'missing'
+  const body = status === 'valid' ? (JSON.stringify(structured.data) ?? 'null') : structuredMissWords(status, structured.error ?? '', structured.mode)
+  return `<${STRUCTURED_TAG} status="${status}">\n${body.replaceAll(`</${STRUCTURED_TAG}`, `<\\/${STRUCTURED_TAG}`)}\n</${STRUCTURED_TAG}>`
 }
 
 export function getLastToolUseName(message: Message): string | undefined {
@@ -1141,6 +1188,7 @@ export async function runAsyncAgentLifecycle(args: {
       controller: args.abortController,
       replyTarget: args.replyTarget,
       finalMessage,
+      ...(result.structured !== undefined ? { structuredBlock: structuredResultBlock(result.structured) } : {}),
       usage: {
         totalTokens: getTokenCountFromTracker(tracker),
         toolUses: result.totalToolUseCount,
