@@ -124,7 +124,7 @@ try {
     const rowsSeen = optionRows(dialog.m)
     check(`${tag}: the list reads remove, continue, exit — in that order, nothing else`, JSON.stringify(labelsOf(rowsSeen)) === JSON.stringify([REMOVE, CONTINUE, EXIT]), JSON.stringify(rowsSeen))
     check(`${tag}: the focus sits on the remove row`, focusedOf(rowsSeen) === REMOVE, JSON.stringify(rowsSeen))
-    check(`${tag}: the list names the file and its two unrecognized fields`, dialog.m.screen().includes(`Unrecognized fields: ${ONE}, ${TWO}`) && dialog.m.screen().includes('settings.json'))
+    check(`${tag}: the list names the file and its two unrecognized fields`, dialog.m.lines().map(body).join(' ').replace(/\s+/g, ' ').includes(`Unrecognized fields: ${ONE}, ${TWO}`) && dialog.m.screen().includes('settings.json'))
     check(`${tag}: the footer says once what removing does`, dialog.m.lines().map(body).join(' ').replace(/\s+/g, ' ').includes(REMOVE_WORDS) && dialog.m.screen().split('Removing deletes').length === 2)
     keep(`first-screen-${tag}`, dialog.m, cols, rows)
     dialog.m.push(KEY.enter)
