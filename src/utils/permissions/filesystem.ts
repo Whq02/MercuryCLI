@@ -240,7 +240,7 @@ function pathHasSegmentContainment(path: string, base: string): boolean {
 
 type PathSafetyResult =
   | { safe: true }
-  | { safe: false; message: string; operatorOnly: boolean }
+  | { safe: false; message: string; operatorOnly: boolean; floor?: true }
 
 export function checkPathSafetyForAutoEdit(
   path: string,
@@ -250,7 +250,7 @@ export function checkPathSafetyForAutoEdit(
   const remoteSafety = (candidate: string): PathSafetyResult | null => {
     const risk = uncPathRisk(candidate)
     if (!risk.risky || (context && checkUncPathPermission(candidate, context, 'edit')?.behavior === 'allow')) return null
-    return { safe: false, operatorOnly: true, message: uncPathMessage(candidate, risk) }
+    return { safe: false, operatorOnly: true, floor: true, message: uncPathMessage(candidate, risk) }
   }
   const remote = remoteSafety(path)
   if (remote) return remote
@@ -646,7 +646,7 @@ export function checkUncPathPermission(
   )
   if (granted) return allow(undefined, { type: 'rule', rule: granted })
   const message = uncPathMessage(path, risk)
-  return ask(message, { type: 'safetyCheck', reason: message, operatorOnly: true })
+  return ask(message, { type: 'safetyCheck', reason: message, operatorOnly: true, floor: true })
 }
 
 export function checkReadPermissionForTool(
@@ -752,6 +752,7 @@ export function checkWritePermissionForTool(
         type: 'safetyCheck',
         reason: safety.message,
         operatorOnly: safety.operatorOnly,
+        ...(safety.floor === true ? { floor: true as const } : {}),
       },
       suggestions,
     } as unknown as PermissionDecision
