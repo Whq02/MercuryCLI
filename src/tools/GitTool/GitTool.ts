@@ -18,6 +18,7 @@ function repoHostDiscoveryEnabled(): boolean {
   return !isEnvDefinedFalsy(flagEnv('MERCURY_REPO_HOST'))
 }
 import {
+  commitIdentityLine,
   gitCommitMeta,
   gitConflicts,
   gitDiff,
@@ -231,6 +232,7 @@ async function runOp(
           plan.exclusions.length ? `exclusions (stay uncommitted): ${plan.exclusions.map(mark).join(', ')}` : 'no exclusions',
           externalInGroups.length ? `CAUTION: group(s) include work Mercury did not write this session — ${externalInGroups.join(', ')}; confirm these external edits belong in the commit` : '',
           plan.ambiguous.length ? `ambiguous (staged+unstaged; staging state re-derived, content never lost): ${plan.ambiguous.join(', ')}` : '',
+          commitIdentityLine(root) ?? '',
           `NOTHING committed — apply with op:"apply" planId:"${plan.id}" (stale-safe)`,
           `record: mercury://git/plan/${plan.id}`,
         ].filter(Boolean).join('\n'),
