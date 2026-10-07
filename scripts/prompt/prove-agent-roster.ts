@@ -49,7 +49,7 @@ function promptTextOf(a: { agentType: string; getSystemPrompt?: (ctx?: unknown) 
   const agentTool = readFileSync(join(ROOT, 'src/tools/AgentTool/AgentTool.tsx'), 'utf8')
   const launchPlan = readFileSync(join(ROOT, 'src/utils/crew/agentLaunchPlan.ts'), 'utf8')
   check('§3 the Agent tool resolves through the ONE launch-plan builder', agentTool.includes('buildAgentLaunchPlan({'))
-  check('§3 the plan builder reads the requested type as written — no decode seam', launchPlan.includes('const requestedType = i.requestedType || undefined') && !launchPlan.includes('decodeAgentType'))
+  check('§3 the plan builder reads the requested type as written — no decode seam', launchPlan.includes('(i.requestedType || undefined) ?? i.defaultAgentType') && !launchPlan.includes('decodeAgentType'))
   const constants = readFileSync(join(ROOT, 'src/tools/AgentTool/constants.ts'), 'utf8')
   check('§3 the Agent tool constants carry no type translation table', !/Record<string, string>/.test(constants) && constants.includes('new Set([MERCURY_SCOUT_AGENT_TYPE])'))
 }
