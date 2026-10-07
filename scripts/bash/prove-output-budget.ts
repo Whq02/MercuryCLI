@@ -64,7 +64,7 @@ const formatOutput = bashUtils.formatOutput as (content: string, opts?: { preExc
 const outputBudgetClause = bashUtils.outputBudgetClause as (budget: Budget) => string | undefined
 const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
 const { normalizeToolInput } = await import('../../src/utils/api.ts')
-const { getSimplePrompt } = await import('../../src/tools/BashTool/prompt.ts')
+const { getSimplePrompt, maxOutputCharsBullet } = await import('../../src/tools/BashTool/prompt.ts')
 const { getScratchpadDir } = await import('../../src/utils/permissions/filesystem.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const toolErrors = (await import('../../src/utils/toolErrors.ts')) as Record<string, unknown>
@@ -330,7 +330,7 @@ check('the PowerShell projection carries the field as an optional integer', psPr
 check('…with the very description Bash offers (one owner of the words)', psProjected?.description !== undefined && psProjected.description === projected?.description, (psProjected?.description ?? '(absent)').slice(0, 120))
 const bulletOf = (text: string): string => /^- The optional `max_output_chars`.*$/m.exec(text)?.[0] ?? ''
 const psPrompt = await getPowerShellPrompt()
-check('the PowerShell prompt carries the max_output_chars bullet, byte-identical to the Bash bullet', bulletOf(psPrompt) !== '' && bulletOf(psPrompt) === bulletOf(prompt), bulletOf(psPrompt).slice(0, 120) || '(absent)')
+check('the PowerShell prompt carries the max_output_chars bullet from its one owner in the Bash prompt module (the Bash description says it in its Output paragraph instead)', bulletOf(psPrompt) !== '' && bulletOf(psPrompt) === `- ${maxOutputCharsBullet()}` && prompt.includes('`max_output_chars` (') && prompt.includes('keeps only the head and the tail of a long output'), bulletOf(psPrompt).slice(0, 120) || '(absent)')
 const psValidate = (value: unknown): Promise<Verdict> => validateWith(PowerShellTool as unknown as ShellTool, value)
 const psRefused = await psValidate(' 2000 ')
 check('PowerShell’s validateInput refuses a raw " 2000 " with the schema’s words', psRefused.result === false && (psRefused.message ?? '').startsWith('max_output_chars: '), JSON.stringify(psRefused))
