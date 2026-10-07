@@ -94,7 +94,7 @@ const { formatZodValidationError } = await import(
 )
 type Parsed<T> = { success: true; data: T } | { success: false; error: never }
 const refusal = (tool: string, r: { success: boolean; error?: unknown }): string =>
-  r.success ? '' : `InputValidationError: ${formatZodValidationError(tool, r.error as never).replace(/\n/g, ' ')}`
+  r.success ? '' : `${formatZodValidationError(tool, r.error as never).replace(/\n/g, ' ')}`
 const describes = (schema: unknown, key: string): string =>
   ((schema as { shape: Record<string, { description?: string }> }).shape[key]?.description ?? '')
 

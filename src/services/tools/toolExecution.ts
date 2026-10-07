@@ -476,7 +476,7 @@ async function runTransactionBody(args: {
   const parsed = tool.inputSchema.safeParse(input)
   if (!parsed.success) {
     traceOnce({ ok: false })
-    let content = `InputValidationError: ${formatZodValidationError(tool.name, parsed.error, tool.inputJSONSchema)}`
+    let content = formatZodValidationError(tool.name, parsed.error, tool.inputJSONSchema)
     const hint = buildSchemaNotSentHint(
       tool,
       toolUseContext.messages,
@@ -484,7 +484,7 @@ async function runTransactionBody(args: {
       toolUseContext.options.engineModel,
     )
     if (hint) content += hint
-    emitError(content, `InputValidationError: ${parsed.error.message}`)
+    emitError(content, content)
     return
   }
   let parsedInput = parsed.data as AnyObject

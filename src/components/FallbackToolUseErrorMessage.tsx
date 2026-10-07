@@ -50,9 +50,6 @@ function deriveDisplayedError(
   const withoutSandboxViolations = removeSandboxViolationTags(extractedError)
   const withoutErrorTags = withoutSandboxViolations.replace(/<\/?error>/g, '')
   const trimmed = withoutErrorTags.trim()
-  if (!verbose && trimmed.includes('InputValidationError: ')) {
-    return 'Invalid tool parameters'
-  }
   if (trimmed.startsWith('Error: ') || trimmed.startsWith('Cancelled: ')) {
     return trimmed
   }

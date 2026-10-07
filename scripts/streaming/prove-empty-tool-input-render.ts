@@ -64,8 +64,8 @@ const rows = [
     timestamp: '2026-06-19T12:00:02.000Z' }),
   base({ parentUuid: '00000000-0000-4000-8000-000000000002', type: 'user',
     uuid: '00000000-0000-4000-8000-000000000003',
-    message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_empty', content: 'InputValidationError: command is required' }] },
-    toolUseResult: 'InputValidationError: command is required',
+    message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_empty', content: 'The required parameter `command` is missing' }] },
+    toolUseResult: 'The required parameter `command` is missing',
     timestamp: '2026-06-19T12:00:03.000Z' }),
 ]
 writeFileSync(join(projectDir, `${SID}.jsonl`), encodeSeedTranscript(rows, SID))
