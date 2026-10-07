@@ -127,6 +127,28 @@ const noChangeSchema = lazySchema(() =>
   }),
 )
 
+const editedLinesSchema = lazySchema(() =>
+  z.object({
+    what: z.string(),
+    where: z.string(),
+    occurrences: z.number().optional(),
+    changes: z.array(
+      z.object({
+        kind: z.enum(['changed', 'added', 'removed']),
+        start: z.number(),
+        end: z.number(),
+        removedLines: z.number().optional(),
+      }),
+    ),
+    lineCount: z.number(),
+    endsWithNewline: z.boolean(),
+    shown: z.array(z.object({ start: z.number(), end: z.number(), anchor: z.string() })),
+    notShown: z.array(z.object({ start: z.number(), end: z.number() })),
+    readBack: z.enum(['same', 'differs', 'failed']),
+    body: z.string(),
+  }),
+)
+
 export const outputSchema = lazySchema(() =>
   z.object({
     filePath: z.string(),
@@ -141,6 +163,7 @@ export const outputSchema = lazySchema(() =>
     freshLineAnchors: z.string().optional(),
     staleRecovery: z.string().optional(),
     readThrough: z.string().optional(),
+    editedLines: editedLinesSchema().optional(),
   }),
 )
 
