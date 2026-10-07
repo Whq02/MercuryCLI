@@ -36,6 +36,7 @@ import {
 } from '../constants/xml.js'
 import { isSyntheticMessage } from '../utils/messages.js'
 import { stripDisplayTagsAllowEmpty } from '../utils/displayTags.js'
+import { isAdvisorOrigin, isSaturnOrigin, wrappedNoticeBlocks } from '../utils/messages/noticeRows.js'
 import { createBranchSession } from '../services/branches/branchManifest.js'
 import { readAllTranscriptEntries } from '../utils/sessionStorage/materialize.js'
 import { getCwd } from '../utils/cwd.js'
@@ -91,6 +92,13 @@ export function selectableUserMessagesFilter(
   if (message.isMeta) return false
   if (message.isCompactSummary) return false
   if (message.isVisibleInTranscriptOnly) return false
+  if (isSaturnOrigin(message.origin) || isAdvisorOrigin(message.origin)) return false
+  const noticeText = typeof content === 'string'
+    ? content
+    : content.every(block => block.type === 'text')
+      ? content.map(block => (block as { text: string }).text).join('\n')
+      : undefined
+  if (noticeText !== undefined && wrappedNoticeBlocks(noticeText) !== null) return false
   const text = messageText(message)
   if (COMPLETE_TAG_MARKERS.some(marker => text.includes(marker))) return false
   if (text.includes(CREWMATE_PREFIX)) return false
