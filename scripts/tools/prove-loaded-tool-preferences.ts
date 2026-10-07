@@ -19,7 +19,7 @@ const wanted: Array<[string, RegExp]> = [
   ['ChangeSet', /over Edit[\s\S]*several files/],
   ['AstSearch', /over Grep[\s\S]*shape/],
   ['AstEdit', /over Edit[\s\S]*every match/],
-  ['LSP', /over Grep and Read[\s\S]*definitions and references/],
+  ['LspRead', /over Grep and Read[\s\S]*definitions and references/],
   ['Test', /over running tests in Bash/],
   ['Git', /over git in Bash/],
   ['Debug', /over print debugging/],

@@ -586,7 +586,7 @@ Available commands include:
   cells; and a debugger using the Debug Adapter Protocol. See
   [change transactions](docs/CHANGE-TRANSACTIONS.md),
   [structural patterns](docs/STRUCTURAL-PATTERNS.md),
-  [Workshop](docs/WORKSHOP.md) and [the debugger](docs/DEBUGGER.md).
+  [code cells](docs/EVAL.md) and [the debugger](docs/DEBUGGER.md).
 - **Extensions.** Each extension has one manifest. Add sources from a git
   URL, local folder or archive, with approval tied to the contributions hash.
   See [docs/EXTENSIONS.md](docs/EXTENSIONS.md).

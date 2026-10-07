@@ -15,7 +15,9 @@ export const LSP_SEARCH_HINTS: Record<LspToolName, string> = {
 }
 
 export const LSP_DESCRIPTIONS: Record<LspToolName, string> = {
-  LspRead: `Ask the language servers about code: where a symbol is defined, every reference to it, its type and documentation, its callers and callees, the symbols in a file or across the workspace, and the current errors and warnings in files. It only reads.
+  LspRead: `Use this over Grep and Read for definitions and references: the language server resolves symbols rather than matching text.
+
+Ask the language servers about code: where a symbol is defined, every reference to it, its type and documentation, its callers and callees, the symbols in a file or across the workspace, and the current errors and warnings in files. It only reads.
 
 Operations, and the arguments each one reads:
 - goToDefinition, findReferences, hover, goToImplementation, typeDefinition, incomingCalls, outgoingCalls: filePath, line, character — the symbol's position, 1-based, as Read shows it
