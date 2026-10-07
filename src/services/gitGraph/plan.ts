@@ -177,7 +177,14 @@ export function preparePlan(
     if (g.files.length === 0) return { state: 'refused', reason: `group '${g.message.slice(0, 40)}' has no files` }
     for (const f of g.files) {
       if (!changed.has(f)) {
-        return { state: 'refused', reason: `'${f}' has no changes — a plan names only really-changed files` }
+        const prefix = f.endsWith('/') ? f : `${f}/`
+        const under = status.files.map(x => x.path).filter(p => p.startsWith(prefix))
+        return {
+          state: 'refused',
+          reason: under.length > 0
+            ? `'${f}' is a folder — status lists the changed files under it one by one (${under.join(', ')}); a plan names files`
+            : `'${f}' has no changes — a plan names only really-changed files`,
+        }
       }
       appearances.set(f, (appearances.get(f) ?? 0) + 1)
       seen.add(f)

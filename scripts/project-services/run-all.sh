@@ -2,7 +2,7 @@
 # gate-class: pty
 # gate-watch: src/Task* src/Tool* src/constants/subagentDoctrine*
 # gate-watch: src/ink/** src/services/agentResults/** src/services/changeTransaction/**
-# gate-watch: src/services/projectServices/serviceManager*
+# gate-watch: src/services/projectServices/serviceManager* src/tools/ServiceTool/**
 # gate-watch: src/services/resources/contracts* src/services/resources/registry*
 # gate-watch: src/services/run/** src/services/tools/toolExecution*
 # gate-watch: src/tasks/LocalAgentTask/LocalAgentTask* src/tools/** src/utils/artifacts/store*

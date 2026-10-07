@@ -774,7 +774,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
       return { result: false as const, message: 'the Browser tool is disabled (MERCURY_BROWSER=0)', errorCode: 1 }
     }
     if (input.op === 'open' && (!input.url || !/^https?:\/\//.test(input.url))) {
-      return { result: false as const, message: 'open requires an http(s) url', errorCode: 1 }
+      return { result: false as const, message: 'open requires an http(s) url — serve the folder first (the Service tool or a loopback server); file:// is not supported', errorCode: 1 }
     }
     if (input.op === 'click' && !input.selector && !(typeof input.x === 'number' && typeof input.y === 'number')) {
       return { result: false as const, message: 'click requires selector, or both x and y', errorCode: 1 }

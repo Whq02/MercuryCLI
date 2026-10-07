@@ -65,6 +65,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-win32-shell-tree-ends.ts" || { __r
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-cwd-record.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-cwd-record.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-bash-tool-seams.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-bash-tool-seams.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-background-exit-code.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-background-exit-code.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-background-notice-as-written.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-background-notice-as-written.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-exit-code-words.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-exit-code-words.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-empty-command-refused.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-empty-command-refused.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-record-of-sub-agent-launch.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-record-of-sub-agent-launch.ts" "$__t" "$__rc"

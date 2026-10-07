@@ -59,7 +59,7 @@ const inputSchema = lazySchema(() =>
     args: z.array(z.string()).optional().describe('start: argument array'),
     cwd: z.string().optional().describe('start: working directory (default: session cwd)'),
     env: z.record(z.string(), z.string()).optional().describe('start: environment additions'),
-    readiness: z.array(readinessSchema()).max(8).optional().describe('start: readiness conditions (log regex · tcp · http · file · stable window)'),
+    readiness: z.array(readinessSchema()).max(8).optional().describe('start: readiness conditions, an ARRAY of condition objects (log regex · tcp · http · file · stable window), e.g. [{"kind":"tcp","port":3000}]'),
     readinessMode: z.enum(['all', 'any']).optional().describe('start: how conditions combine (default all)'),
     restart: z.enum(['never', 'on-failure']).optional().describe('start: auto-restart policy (default never; bounded backoff, explicit stop always suppresses)'),
     lifecycle: z.enum(['session', 'project']).optional().describe('start: session = dies with this Mercury session (default); project = detached, survives it'),
@@ -254,7 +254,7 @@ export const ServiceTool = buildTool({
     return `Named long-lived project processes as state machines: queued → starting → ready/running → stopping → stopped/failed. Use Service for processes meant to STAY UP (web servers, watch builds, local APIs, file watchers); use Bash for finite commands.
 
 Operations:
-· start — name + command + args (argv array, no shell parsing) + optional readiness conditions ({kind:"log",regex} · {kind:"tcp",port} · {kind:"http",url,status?,bodyRegex?} · {kind:"file",path,contentRegex?} · {kind:"stable",ms}), readinessMode all|any, restart never|on-failure (bounded backoff; an explicit stop ALWAYS suppresses restart), lifecycle session (dies with this session, default) | project (detached — survives it, stoppable from any session on this project).
+· start — name + command + args (argv array, no shell parsing) + optional readiness: an ARRAY of condition objects, e.g. [{kind:"tcp",port:3000}] ({kind:"log",regex} · {kind:"tcp",port} · {kind:"http",url,status?,bodyRegex?} · {kind:"file",path,contentRegex?} · {kind:"stable",ms}), readinessMode all|any, restart never|on-failure (bounded backoff; an explicit stop ALWAYS suppresses restart), lifecycle session (dies with this session, default) | project (detached — survives it, stoppable from any session on this project).
 · wait — block until ready or the deadline; a timeout names EXACTLY the unmet conditions.
 · logs — ordered byte cursors: first call tails, pass the returned cursor for strictly-newer lines; filterRegex bounds noise. stdout+stderr share one ordered log.
 · describe / list — reconciled truth (a dead pid is never reported live).

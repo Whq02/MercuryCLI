@@ -1,4 +1,6 @@
 
+import { existsSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { z } from 'zod/v4'
 import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
@@ -441,6 +443,12 @@ async function runOp(
 
 export { runOp as runTestOperation }
 
+export function isPathShapedNode(node: string, cwd: string = getCwd()): boolean {
+  if (node.includes('::')) return false
+  if (/^(?:[A-Za-z]:)?[\\/]/.test(node) || /^\.\.?[\\/]/.test(node) || /\.(?:[cm]?[jt]sx?|py|go|rs|rb|java|kt|cs)$/.test(node)) return true
+  return /[\\/]/.test(node) && existsSync(resolve(cwd, node))
+}
+
 export const TestTool = buildTool({
   name: 'Test',
   searchHint:
@@ -516,6 +524,9 @@ A run whose exit code disagrees with its structured records says so (verdictNote
   async validateInput(input: Input) {
     if (input.op === 'debug' && !input.node) {
       return { result: false as const, message: 'debug requires node (the test id)', errorCode: 1 }
+    }
+    if (input.op === 'run' && input.node !== undefined && isPathShapedNode(input.node)) {
+      return { result: false as const, message: `node is a test id from discover (file::name, or a bare test name), not a path — '${input.node}' names a file or folder: drop node to run the whole profile, or pass it as path`, errorCode: 1 }
     }
     return { result: true as const }
   },
