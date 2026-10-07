@@ -1,4 +1,4 @@
-import { extractOutputRedirections, splitCommandWithOperators } from './commands.js'
+import { extractOutputRedirections, splitPipeSegments } from './commands.js'
 import type { Node } from './parser.js'
 import { analyzeCommand, type TreeSitterAnalysis } from './treeSitterAnalysis.js'
 
@@ -128,23 +128,7 @@ class RegexParsedCommand_DEPRECATED implements IParsedCommand {
 
   getPipeSegments(): string[] {
     try {
-      const tokens = splitCommandWithOperators(this.originalCommand)
-      const segments: string[] = []
-      let group: string[] = []
-      for (const token of tokens) {
-        if (token === '|') {
-          if (group.length > 0) segments.push(group.join(' '))
-          group = []
-        } else {
-          group.push(token)
-        }
-      }
-      if (group.length > 0) segments.push(group.join(' '))
-      const nonEmpty = segments.filter(segment => segment.length > 0)
-      if (nonEmpty.length === 0) {
-        return [this.originalCommand]
-      }
-      return nonEmpty
+      return splitPipeSegments(this.originalCommand)
     } catch {
       return [this.originalCommand]
     }
