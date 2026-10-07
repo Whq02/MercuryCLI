@@ -205,7 +205,7 @@ section('§0 the seam — the Moonshot row is text-append; kimi-k3 defers; the w
   const older = deferralWireFormFor('kimi-k2.6')
   check('kimi-k2.6 (no dynamic tool loading, the docs) keeps the text form and does not defer', older.form === 'text' && supportsToolDeferral('kimi-k2.6') === false, `${older.form}/${older.why}`)
   const words = await ToolSearchTool.prompt({ model: KIMI } as never)
-  check("the ToolSearch tool's words for kimi-k3 spell the append form (definitions appended to the conversation right after the result)", /appended to the conversation/.test(words) && !/in your tool list/.test(words))
+  check("the ToolSearch tool's words for kimi-k3 spell the append form (definitions appended to the conversation right after the result)", /appended to the conversation/.test(words) && !/from that request on their complete definitions are in your tool list/.test(words))
   check('the name row rides once for a fresh Kimi transcript (the base announces nothing on this route)', nameRow !== undefined && nameRow.type === 'deferred_tools_delta' && nameRow.addedNames.join(',') === [...deferredNames].sort().join(','))
 }
 
