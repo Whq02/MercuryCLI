@@ -94,7 +94,7 @@ async function debugAdapterChildren(record: ExecutionRecord): Promise<ResourceCh
 export const executionAdapter: ResourceAdapter = {
   kind: 'execution',
   describe:
-    'canonical execution records — services, workshop runtimes, tasks, debug/LSP (mercury://execution/<id>)',
+    'canonical execution records — services, tasks, debug/LSP (mercury://execution/<id>)',
   async resolve(ref: ParsedRef, ctx: ResourceContext): Promise<ResourceResult> {
     if (ref.id === '') {
       const children = await this.list!(ctx)
