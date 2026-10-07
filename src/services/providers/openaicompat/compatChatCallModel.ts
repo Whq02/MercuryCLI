@@ -515,6 +515,14 @@ export async function* compatChatCallModel(
   let reconnect: ReconnectLadder | undefined
   let emptyEnds = 0
   for (let attempt = 1; attempt <= COMPAT_MAX_ATTEMPTS || busy !== undefined; attempt++) {
+    if (attempt > 1) {
+      if (profile.lane === 'openrouter' || profile.lane === 'huggingface' || profile.lane === 'gemini') {
+        const { refreshProviderUsage } = await import('../providerUsage.js')
+        await refreshProviderUsage(profile.lane, { force: true, reason: 'operator' })
+      }
+      const refreshed = await profile.resolveCredential()
+      if (refreshed) credential = refreshed
+    }
     attemptStartedAtMs = Date.now()
     const outcome = yield* streamOneCompatAttempt({
       profile,
