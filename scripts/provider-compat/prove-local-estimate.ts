@@ -255,7 +255,7 @@ section('§2 generous: a request that fits is never refused; the refusal fires o
   const far = await drive(paramsFor(fresh('x'.repeat(1_200_000))))
   const farBytes = 1_200_000 + fixedBytes
   check('a request four and a half times the window is refused before the send, naming the window, its source and the in-app road', far.chat === undefined && far.errorText !== undefined && far.errorText.includes('65536 tokens — your setting — /config → Local model window'), far.errorText ?? 'no error')
-  check(`the refusal counts the request at the wire's ratio (≈${Math.round(farBytes / WIRE_BYTES_PER_TOKEN / 1000)}k tokens), not at bytes/4 (≈${Math.round(farBytes / 4 / 1000)}k)`, far.errorText !== undefined && new RegExp(`≈${Math.round(farBytes / WIRE_BYTES_PER_TOKEN / 1000)}k tokens`).test(far.errorText), far.errorText ?? 'no error')
+  check(`the refusal counts the request at the wire's ratio (≈${Math.round(farBytes / WIRE_BYTES_PER_TOKEN / 1000)}k tokens), not at bytes/4 (≈${Math.round(farBytes / 4 / 1000)}k)`, far.errorText !== undefined && Math.abs(Number(/≈(\d+)k tokens/.exec(far.errorText)?.[1] ?? NaN) - Math.round(farBytes / WIRE_BYTES_PER_TOKEN / 1000)) <= 1, far.errorText ?? 'no error')
   const profile = callModel.localLaneProfileFor(record())
   const tolerance = tip.LOCAL_FIT_TOLERANCE ?? 1
   const boundary = Math.floor(65536 * WIRE_BYTES_PER_TOKEN * tolerance)

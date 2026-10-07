@@ -51,7 +51,8 @@ for (const file of sources) {
 }
 for (const match of readFileSync(join(ROOT, 'src', 'tools', 'BrowserTool', 'BrowserTool.ts'), 'utf8').matchAll(/^  name: '([A-Za-z_]+)',$/gm)) universe.add(match[1]!)
 universe.delete('Chat')
-check('the wire-name universe was read from the tool constants', universe.size === 56 && universe.has('TaskUpdate') && universe.has('Browser') && universe.has('LSP'), String(universe.size))
+check('the wire-name universe was read from the tool constants', universe.size === 57 && universe.has('TaskUpdate') && universe.has('Browser') && universe.has('LspRead'), String(universe.size))
+const LSP_NAMES = ['LspRead', 'LspRename', 'LspMoveSymbol', 'LspMoveFile', 'LspCodeAction', 'LspFormat', 'LspRequest']
 const multiWord = [...universe].filter(name => /[a-z][A-Z]/.test(name))
 const singleWord = [...universe].filter(name => !/[a-z][A-Z]/.test(name))
 const listTail = /^(?:\s*,\s*|\s+(?:or|and)\s+)((?:[A-Z][A-Za-z]+)(?:\s*,\s*[A-Z][A-Za-z]+)*(?:\s+(?:or|and)\s+[A-Z][A-Za-z]+)?)\s+tools?\b/
@@ -123,7 +124,7 @@ for (const kind of kinds) {
   if (kind.agent !== undefined) pool = filterToolsForAgent({ tools: pool, isBuiltIn: kind.agent.isBuiltIn, isAsync: kind.agent.isAsync }) as Tool[]
   if (kind.disallowedTools) pool = resolveAgentTools({ source: 'projectSettings', tools: ['*'], disallowedTools: kind.disallowedTools }, pool).resolvedTools as Tool[]
   const offered = new Set(pool.map(tool => tool.name))
-  if (kind.mountLsp) check(`${kind.label}: the actual pool honors its LSP restriction`, offered.has('LSP') === !kind.disallowedTools?.includes('LSP'))
+  if (kind.mountLsp) check(`${kind.label}: the actual pool honors its LSP restriction`, LSP_NAMES.every(name => offered.has(name) === !kind.disallowedTools?.includes('LSP')), LSP_NAMES.filter(name => offered.has(name)).join(','))
   check(`${kind.label}: a pool was built`, pool.length >= 10, String(pool.length))
   const descriptions = new Map<string, string>()
   const pairs: string[] = []
@@ -145,8 +146,8 @@ for (const kind of kinds) {
   }
   rendered.set(kind.label, descriptions)
   if (kind.mountLsp) {
-    const steered = ['Grep', 'Edit', 'Structure'].filter(name => /\bLSP\b/.test(descriptions.get(name) ?? ''))
-    check(`${kind.label}: the semantic steering names LSP exactly when the pool offers it`, offered.has('LSP') ? steered.length === 3 : steered.length === 0, steered.join(','))
+    const steered = ['Grep', 'Edit', 'Structure'].filter(name => /\bLsp(?:Read|Rename)\b/.test(descriptions.get(name) ?? ''))
+    check(`${kind.label}: the semantic steering names the language-service tools exactly when the pool offers them`, offered.has('LspRead') ? steered.length === 3 : steered.length === 0, steered.join(','))
   }
   check(`${kind.label}: no offered description names a tool the session does not offer (${offered.size} offered)`, pairs.length === 0, pairs.join('; '))
 }
