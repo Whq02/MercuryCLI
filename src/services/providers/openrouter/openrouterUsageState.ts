@@ -25,6 +25,7 @@ export interface OpenrouterKeyUsage {
 let observedKeyUsage: OpenrouterKeyUsage | null = null
 let lastError: string | undefined
 let lastErrorSource: OpenrouterKeySource | undefined
+let lastErrorStatus: number | undefined
 let lastAttemptAtMs = 0
 let inFlight: Promise<OpenrouterKeyUsage | null> | null = null
 let observedIdentity = 'none'
@@ -48,6 +49,7 @@ function dropIfStale(env: NodeJS.ProcessEnv = process.env): void {
     observedKeyUsage = null
     lastError = undefined
     lastErrorSource = undefined
+    lastErrorStatus = undefined
     lastAttemptAtMs = 0
     observedIdentity = 'none'
   }
@@ -93,13 +95,20 @@ export function openrouterObservedKeyUsage(env: NodeJS.ProcessEnv = process.env)
   usage: OpenrouterKeyUsage | null
   lastError?: string
   errorSource?: OpenrouterKeySource
+  errorStatus?: number
 } {
   dropIfStale(env)
   return {
     usage: observedKeyUsage,
     ...(lastError !== undefined ? { lastError } : {}),
     ...(lastErrorSource !== undefined ? { errorSource: lastErrorSource } : {}),
+    ...(lastErrorStatus !== undefined ? { errorStatus: lastErrorStatus } : {}),
   }
+}
+
+export function openrouterKeyRecordedDead(source: OpenrouterKeySource, env: NodeJS.ProcessEnv = process.env): boolean {
+  const observed = openrouterObservedKeyUsage(env)
+  return observed.errorSource === source && (observed.errorStatus === 401 || observed.errorStatus === 403)
 }
 
 async function keyErrorMessage(response: Response): Promise<string> {
@@ -154,6 +163,7 @@ export function refreshOpenrouterKeyUsage(opts?: {
         if (!response.ok) {
           lastError = error
           lastErrorSource = source
+          lastErrorStatus = response.status
           if (response.status === 401 && minted && markOpenrouterMintedKeyExpired(minted, error!)) {
             observedKeyUsage = null
             auth = resolveOpenrouterRequestAuth(env)
@@ -165,11 +175,13 @@ export function refreshOpenrouterKeyUsage(opts?: {
         if (!decoded) {
           lastError = 'key endpoint payload undecodable'
           lastErrorSource = source
+          lastErrorStatus = undefined
           return observedKeyUsage
         }
         observedKeyUsage = decoded
         lastError = undefined
         lastErrorSource = undefined
+        lastErrorStatus = undefined
         return decoded
       }
       return observedKeyUsage
@@ -180,6 +192,7 @@ export function refreshOpenrouterKeyUsage(opts?: {
       }
       lastError = error instanceof Error ? error.message : String(error)
       lastErrorSource = auth?.account.keySource
+      lastErrorStatus = undefined
       return observedKeyUsage
     } finally {
       inFlight = null
@@ -238,6 +251,7 @@ export function __resetOpenrouterUsageStateForTest(): void {
   observedKeyUsage = null
   lastError = undefined
   lastErrorSource = undefined
+  lastErrorStatus = undefined
   lastAttemptAtMs = 0
   inFlight = null
   observedLimit = null
