@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'flow-shortcuts-'))
 delete process.env.MERCURY_HOME
@@ -167,8 +167,10 @@ const RULE_SETS: Array<{ id: string; allow?: string[]; deny?: string[]; ask?: st
 ]
 type BashRow = { id: string; behavior: string; reasonType: string; message: string }
 const HOME_DIR = process.env.HOME ?? ''
+const PARENT_DIR = dirname(process.cwd())
 const portable = (text: string): string => {
   let out = text.split(process.cwd()).join('<cwd>')
+  if (PARENT_DIR !== '' && PARENT_DIR !== '/') out = out.split(PARENT_DIR).join('<parent>')
   if (HOME_DIR !== '') out = out.split(HOME_DIR).join('<home>')
   return out
 }

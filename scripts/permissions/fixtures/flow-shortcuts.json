@@ -1421,7 +1421,7 @@
       "id": "none·flow·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "none·flow·git status; git log -1",
@@ -1499,7 +1499,7 @@
       "id": "none·default·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "none·default·git status; git log -1",
@@ -1577,7 +1577,7 @@
       "id": "none·implement·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "none·implement·git status; git log -1",
@@ -1655,7 +1655,7 @@
       "id": "none·dontAsk·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "none·dontAsk·git status; git log -1",
@@ -1733,7 +1733,7 @@
       "id": "allow-commit·flow·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "allow-commit·flow·git status; git log -1",
@@ -1811,7 +1811,7 @@
       "id": "allow-commit·default·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "allow-commit·default·git status; git log -1",
@@ -1889,7 +1889,7 @@
       "id": "allow-commit·implement·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "allow-commit·implement·git status; git log -1",
@@ -1967,7 +1967,7 @@
       "id": "allow-commit·dontAsk·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "allow-commit·dontAsk·git status; git log -1",
@@ -2045,7 +2045,7 @@
       "id": "deny-commit·flow·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "deny-commit·flow·git status; git log -1",
@@ -2123,7 +2123,7 @@
       "id": "deny-commit·default·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "deny-commit·default·git status; git log -1",
@@ -2201,7 +2201,7 @@
       "id": "deny-commit·implement·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "deny-commit·implement·git status; git log -1",
@@ -2279,7 +2279,7 @@
       "id": "deny-commit·dontAsk·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "deny-commit·dontAsk·git status; git log -1",
@@ -2357,7 +2357,7 @@
       "id": "ask-commit·flow·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "ask-commit·flow·git status; git log -1",
@@ -2435,7 +2435,7 @@
       "id": "ask-commit·default·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "ask-commit·default·git status; git log -1",
@@ -2513,7 +2513,7 @@
       "id": "ask-commit·implement·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "ask-commit·implement·git status; git log -1",
@@ -2591,7 +2591,7 @@
       "id": "ask-commit·dontAsk·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "ask-commit·dontAsk·git status; git log -1",
@@ -2669,7 +2669,7 @@
       "id": "allow-all·flow·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "allow-all·flow·git status; git log -1",
@@ -2747,7 +2747,7 @@
       "id": "allow-all·default·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "allow-all·default·git status; git log -1",
@@ -2825,7 +2825,7 @@
       "id": "allow-all·implement·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "allow-all·implement·git status; git log -1",
@@ -2903,7 +2903,7 @@
       "id": "allow-all·dontAsk·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "allow-all·dontAsk·git status; git log -1",
@@ -2981,7 +2981,7 @@
       "id": "ask-tool·flow·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "ask-tool·flow·git status; git log -1",
@@ -3059,7 +3059,7 @@
       "id": "ask-tool·default·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "ask-tool·default·git status; git log -1",
@@ -3137,7 +3137,7 @@
       "id": "ask-tool·implement·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "ask-tool·implement·git status; git log -1",
@@ -3215,7 +3215,7 @@
       "id": "ask-tool·dontAsk·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "ask-tool·dontAsk·git status; git log -1",
@@ -3293,7 +3293,7 @@
       "id": "allow-git·flow·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "allow-git·flow·git status; git log -1",
@@ -3371,7 +3371,7 @@
       "id": "allow-git·default·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "allow-git·default·git status; git log -1",
@@ -3449,7 +3449,7 @@
       "id": "allow-git·implement·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "allow-git·implement·git status; git log -1",
@@ -3527,7 +3527,7 @@
       "id": "allow-git·dontAsk·cd .. && ls",
       "behavior": "ask",
       "reasonType": "none",
-      "message": "Mercury needs permission to enter the directory <home>/Developer/mercury/.mercury/worktrees, outside the starting folder ('<cwd>')."
+      "message": "Mercury needs permission to enter the directory <parent>, outside the starting folder ('<cwd>')."
     },
     {
       "id": "allow-git·dontAsk·git status; git log -1",
