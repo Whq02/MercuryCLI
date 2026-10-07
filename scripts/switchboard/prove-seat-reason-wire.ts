@@ -28,7 +28,7 @@ const plain: Reason[] = [
   { type: 'mode', mode: 'default' },
   { type: 'hook', hookName: 'guard', hookSource: 'project', reason: 'the hook says ask' },
   { type: 'workingDir', reason: 'outside the workspace' },
-  { type: 'safetyCheck', reason: 'a sensitive path', classifierApprovable: true },
+  { type: 'safetyCheck', reason: 'a sensitive path', operatorOnly: false },
   { type: 'other', reason: 'free text' },
   { type: 'asyncAgent', reason: 'a background agent asks' },
   { type: 'sandboxOverride', reason: 'excludedCommand' },

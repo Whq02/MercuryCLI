@@ -85,7 +85,7 @@ function makeTool(over: {
             return {
               behavior: 'ask',
               message: 'safety check',
-              decisionReason: { type: 'safetyCheck', reason: 'protected path', classifierApprovable: false },
+              decisionReason: { type: 'safetyCheck', reason: 'protected path', operatorOnly: true },
             }
           }
           return { behavior: 'ask', message: 'plain ask' }

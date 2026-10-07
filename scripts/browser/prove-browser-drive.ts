@@ -759,7 +759,7 @@ console.log('§20 the secretRef credential road')
   const ask = (await BrowserTool.checkPermissions({ op: 'type', selector: '#pw', secretRef: 'TEST_LOGIN' }, ctx)) as {
     behavior: string
     message?: string
-    decisionReason?: { type?: string; classifierApprovable?: boolean }
+    decisionReason?: { type?: string; operatorOnly?: boolean }
   }
   check(
     'a secret fill ASKS on an already-approved origin (the pairing is its own consent)',
@@ -769,7 +769,7 @@ console.log('§20 the secretRef credential road')
   check('the pairing ask never carries the value', !(ask.message ?? '').includes(SECRET_VALUE))
   check(
     'the pairing ask is human-only (safetyCheck, classifier-unanswerable)',
-    ask.decisionReason?.type === 'safetyCheck' && ask.decisionReason?.classifierApprovable === false,
+    ask.decisionReason?.type === 'safetyCheck' && ask.decisionReason?.operatorOnly === true,
     JSON.stringify(ask.decisionReason),
   )
   const { decideToolPermission } = await import('../../src/utils/permissions/decision/engine.ts')
@@ -943,7 +943,7 @@ console.log('§15 structural teeth')
   check('the credential refusal is a named law', toolSrc.includes('credential field'))
   check('text waits poll the frame signal, never clock spins', toolSrc.includes("polling: 'raf'") && !toolSrc.includes('waitForTimeout'))
   check('the tool names its own deadline on a miss', toolSrc.includes('deadline ${deadline}ms exceeded'))
-  check('the crossing ask is bypass-immune by reason (safetyCheck, never classifier-answered)', toolSrc.includes('classifierApprovable: false'))
+  check('the crossing ask is bypass-immune by reason (safetyCheck, the operator alone)', toolSrc.includes('operatorOnly: true'))
   const cardSrc = await Bun.file(join(ROOT, 'src', 'components', 'permissions', 'BrowserPermissionRequest', 'BrowserPermissionRequest.tsx')).text()
   check('the consent card persists ORIGIN rules only (the whole-tool allow option does not exist)', cardSrc.includes('ruleContent: ruleContent') && !cardSrc.includes('rules: [{ toolName: toolUseConfirm.tool.name }]'))
   const routerSrc = await Bun.file(join(ROOT, 'src', 'components', 'permissions', 'PermissionRequest.tsx')).text()

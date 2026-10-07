@@ -346,7 +346,7 @@ export async function decideToolPermissionWithModes(
 
       if (
         engineDecision.decisionReason?.type === 'safetyCheck' &&
-        !engineDecision.decisionReason.classifierApprovable
+        engineDecision.decisionReason.operatorOnly
       ) {
         if (headless) {
           return decide(
