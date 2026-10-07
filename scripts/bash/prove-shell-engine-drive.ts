@@ -342,7 +342,7 @@ async function leg(engine: Engine, port: number): Promise<void> {
     check(`${engine}: the tool's description says state persists across calls`, /persist/i.test(description) && !/resets between calls/i.test(description), description.slice(0, 200))
     check(`${engine}: the tool's description says a run_in_background call runs in its own shell`, /run_in_background.*own shell/i.test(description), description.slice(0, 200))
   } else {
-    check(`${engine}: the tool's description says the directory persists and everything else resets`, /working directory persists/i.test(description) && /resets between calls/i.test(description), description.slice(0, 200))
+    check(`${engine}: the tool's description says the directory persists and everything else resets`, /working directory persists between calls/i.test(description) && /variables, functions and options do not/i.test(description), description.slice(0, 200))
   }
   check(`${engine}: the transcript painted the model's turn text`, /setting state/.test(marks['text'] ?? cap.text))
   check(`${engine}: the transcript collapsed the turn's bash calls into one group`, /Ran \d+ bash commands/.test(marks['tools'] ?? cap.text), JSON.stringify((flat(marks['tools'] ?? cap.text).match(/Ran \d+ bash commands/) ?? ['no group'])[0]))
