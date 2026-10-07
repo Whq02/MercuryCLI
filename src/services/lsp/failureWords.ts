@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { extname, join } from 'node:path'
 
-import type { LSPServerInstance } from './LSPServerInstance.js'
+import type { LSPServerInstance, LspStartFailure } from './LSPServerInstance.js'
+import { lspLedgerNow } from './failureLedger.js'
 
 const LANGUAGE_LABELS: Record<string, string> = {
   typescript: 'TypeScript',
@@ -101,9 +102,9 @@ export function remedyForLanguageServer(server: Pick<LSPServerInstance, 'name' |
     if (mentionsMissingTypescript(cause)) {
       return `install typescript in the project (npm install -D typescript), or check the files with ${typecheck}`
     }
-    return `check the files with ${typecheck}; serverStatus shows the server's state`
+    return `check the files with ${typecheck}; LspRead serverStatus shows the server's state`
   }
-  return `check the files with the project's own ${language} tooling; serverStatus shows the server's state`
+  return `check the files with the project's own ${language} tooling; LspRead serverStatus shows the server's state`
 }
 
 export function unclaimedCause(extension: string, cwd: string): { cause: string; remedy: string } {
@@ -135,4 +136,18 @@ export function unclaimedCause(extension: string, cwd: string): { cause: string;
 export function oneLine(text: string, max = 160): string {
   const flat = text.replace(/\s+/g, ' ').trim()
   return flat.length <= max ? flat : `${flat.slice(0, max - 1)}…`
+}
+
+export function retryTimeWords(retryAt: number, now = lspLedgerNow()): string {
+  const date = new Date(retryAt)
+  const time = [date.getHours(), date.getMinutes(), date.getSeconds()].map(value => String(value).padStart(2, '0')).join(':')
+  return `${time} (in ${Math.max(0, Math.ceil((retryAt - now) / 1000))} s)`
+}
+
+export function lspStartFailureWords(error: LspStartFailure, title: string, remedy: string, attempted: string): string {
+  const when = retryTimeWords(error.retryAt ?? lspLedgerNow())
+  if (error.refused) {
+    return `Not tried: ${title} did not start ${error.attempts} time${error.attempts === 1 ? '' : 's'} in a row — ${error.lspCause}. It will be started again on the first call after ${when}, or at once after the operator runs /extensions reload.${remedy ? ` What helps: ${remedy}.` : ''}`
+  }
+  return `${attempted} It will be started again on the first call after ${when}.`
 }
