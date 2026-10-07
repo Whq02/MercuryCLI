@@ -328,10 +328,14 @@ export const AstEditTool = buildTool({
 
     if (plan.files.length === 0) {
       const already = plan.unchangedMatches > 0
-      const head = already
-        ? `${plan.unchangedMatches} ${plural(plan.unchangedMatches, 'match', 'matches')} of ${JSON.stringify(input.pattern)} already read exactly as the rewrite — nothing to write.`
-        : `No matches for ${JSON.stringify(input.pattern)} — nothing to rewrite.`
-      const text = [head, ...renderSearchTrailer(scope, plan.search)].join('\n')
+      const emptyScope = scope.files.length === 0
+      const head = emptyScope
+        ? `Nothing searched: no files with a supported language ${scope.singleFile ? scope.display : `under ${scope.display}`}${scope.glob ? ` matching ${scope.glob}` : ''}${scope.lang ? ` in ${scope.lang.name}` : ''} — nothing to rewrite.`
+        : already
+          ? `${plan.unchangedMatches} ${plural(plan.unchangedMatches, 'match', 'matches')} of ${JSON.stringify(input.pattern)} already read exactly as the rewrite — nothing to write.`
+          : `No matches for ${JSON.stringify(input.pattern)} — nothing to rewrite.`
+      const trailer = renderSearchTrailer(scope, plan.search)
+      const text = [head, ...(emptyScope ? trailer.slice(1) : trailer)].join('\n')
       return {
         data: { ...base, state: already ? ('no-change' as const) : ('no-matches' as const), text, changedPaths: [] } satisfies Output,
         effect: {
