@@ -159,20 +159,22 @@ try {
   const windowStrip = frames.filter(f => f.atMs >= S(6000) && f.atMs <= S(8500)).flatMap(f => rowsWith(f.text, `${SEAT_MODEL_LABEL} ·`).filter(r => /^\s*ready · /.test(r)))
   check(`W1 in the window the status row paints the runner's word (${SERVED}) or "${ASKED} (asked)" — never the asked word bare, never "default"`, windowStrip.length > 0 && windowStrip.every(r => new RegExp(`\\b${SERVED}\\b`).test(r) || r.includes(`${ASKED} (asked)`)) && !windowStrip.some(r => /\bdefault\b/.test(r) || /◉ max(?! \(asked\))/.test(r)), windowStrip.slice(0, 3).join(' | ').slice(0, 300))
 
-  check(`E1 the /effort ${SERVED} receipt is the seat's ("Effort set to ${SERVED} for this session — its next request runs it")`, anyFrame(`Effort set to ${SERVED} for this session`), distinct.map(f => flat(f.text)).filter(t => t.includes('Effort')).map(t => t.slice(0, 200)).join(' | ').slice(0, 600))
+  const appliedReceipt = (level: string): boolean => distinct.some(f => f.text.split('\n').some(row => row.includes(`Effort set to ${level}`) && row.includes('— its next request runs it. Saved as your default for future sessions.')))
+  check(`E1 the /effort ${SERVED} receipt names the seat's next request and the saved default`, appliedReceipt(SERVED), allRows('Effort set to ').join(' | ').slice(0, 600))
   check(`E1 the screen never claims the old road's sentence ("Effort set to ${SERVED} — saved as your default")`, !anyFrame(`Effort set to ${SERVED} — saved`))
   const wayBack = /(?:⇧|shift\+)← back/
   const receiptRows = distinct.flatMap(f => f.text.split('\n').filter(r => r.includes('Effort set to ')))
   check('E1 the receipt rides the status row above the composer: every row that carries it carries the way back at its right, in one grey row, and no chat row repeats it', receiptRows.length > 0 && receiptRows.every(r => wayBack.test(r)), receiptRows.map(r => r.trim().slice(0, 140)).join(' | ').slice(0, 500))
-  const hintRowsWithReceipt = distinct.flatMap(f => {
+  const receiptFrames = distinct.filter(f => f.text.includes('Effort set to '))
+  check('E1 every receipt stands above the composer, never in the hints below it', receiptFrames.length > 0 && receiptFrames.every(f => {
     const rows = f.text.split('\n')
-    return rows.filter((r, i) => i > 0 && (rows[i - 1] ?? '').trimStart().startsWith('╰') && r.includes('Effort set to '))
-  })
-  check('E1 the hint row under the composer never carries the receipt (the notice below the composer is retired for the seat receipt)', hintRowsWithReceipt.length === 0, hintRowsWithReceipt.map(r => r.trim().slice(0, 140)).join(' | ').slice(0, 300))
+    const composer = rows.findIndex(row => /│\s*❯/.test(row))
+    return composer >= 0 && rows.every((row, i) => !row.includes('Effort set to ') || i < composer)
+  }))
   const restingRows = distinct.filter(f => f.atMs >= S(24000)).flatMap(f => f.text.split('\n').filter(r => wayBack.test(r) && / ready · /.test(r)))
   check(`E1 once the receipt has stood, the status row rests on ready · ${SEAT_MODEL_LABEL} · ${SERVED} (the sent word)`, restingRows.some(r => r.includes(`ready · ${SEAT_MODEL_LABEL} · ${SERVED}`)), restingRows.slice(-2).map(r => r.trim().slice(0, 140)).join(' | ').slice(0, 300))
 
-  check(`E2 the /effort ${ASKED} receipt is the seat's (applied)`, anyFrame(`Effort set to ${ASKED} for this session`))
+  check(`E2 the /effort ${ASKED} receipt names the seat's next request and the saved default`, appliedReceipt(ASKED))
   const seatHits = fixture.captured.filter(h => h.lane === 'openai-seat')
   const lastHit = seatHits[seatHits.length - 1]
   const lastEffort = (lastHit?.body as { reasoning?: { effort?: string } } | undefined)?.reasoning?.effort
