@@ -109,7 +109,7 @@ const { MCPTool } = await import('../../src/tools/MCPTool/MCPTool.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
 const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
 const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
-const { isDeferredTool, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
+const { formatDeferredToolLine, isDeferredTool, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
 const { getDeferredToolsDeltaAttachment } = await import('../../src/utils/attachments/deltas.ts')
 const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
@@ -198,7 +198,7 @@ const first = createUserMessage({ content: 'say pong' }) as Message
   clearToolRosterLatches()
   const row = getDeferredToolsDeltaAttachment(pool, PERSISTED, [first])[0]
   check('a fresh local transcript gets the persisted name row (the base announces nothing on the local route)', row !== undefined && row.type === 'deferred_tools_delta' && row.addedNames.join(',') === [...deferredNames].sort().join(','), row === undefined ? 'no row' : (row as { addedNames?: string[] }).addedNames?.join(','))
-  check('the row is names only — no schema bytes, no description', row !== undefined && row.type === 'deferred_tools_delta' && row.addedLines.join('\n') === [...deferredNames].sort().join('\n'))
+  check('the row is one line per deferred tool (the name, then its hint) — no schema bytes, no description', row !== undefined && row.type === 'deferred_tools_delta' && row.addedLines.join('\n') === pool.filter(tool => deferredNames.includes(tool.name)).map(tool => formatDeferredToolLine(tool)).sort().join('\n') && !row.addedLines.join('\n').includes('{'))
   const rendered = row ? normalizeAttachmentForAPI(row) : []
   const transcript: Message[] = [first, ...(rendered as Message[])]
   const fresh = await drive(transcript)
