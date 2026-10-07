@@ -54,6 +54,7 @@ kitty = re.compile(rb'\x1b\[[<>=][0-9;]*u')
 screen = DrawLog(cols, rows)
 stream = pyte.ByteStream(screen)
 json_frames = '--frames-json' in sys.argv
+paint_changes = '--paint-changes' in sys.argv
 ticks = {}
 if not json_frames:
     print(f'frames={len(frames)}')
@@ -80,6 +81,8 @@ if json_frames:
         return frames[max(0, bisect.bisect_right(offsets, offset) - 1)][0]
     def cells():
         return {(x, y): screen.buffer[y][x].data for y in range(rows) for x in range(band_x0, band_x1)}
+    def painted_cells():
+        return {(x, y): {'c': screen.buffer[y][x].data, 'fg': screen.buffer[y][x].fg, 'bg': screen.buffer[y][x].bg} for y in range(rows) for x in range(band_x0, band_x1)}
     park = ('\x1b[%d;1H' % rows).encode()
     boundaries = re.compile(rb'\x1b\[H|' + re.escape(park))
     committed = []
@@ -92,17 +95,22 @@ if json_frames:
                 start = boundary.start()
         elif start is not None:
             before = cells()
+            before_paint = painted_cells() if paint_changes else {}
             screen.touched = {}
             screen.written = set()
             stream.feed(kitty.sub(b'', wire[start:boundary.end()]))
             after = cells()
-            committed.append({
+            paint = {
                 'startTick': tick_at(start),
                 'endTick': tick_at(boundary.end() - 1),
                 'rows': screen.touched,
                 'written': sorted(screen.written),
                 'changes': [[x, y, value, after[(x, y)]] for (x, y), value in before.items() if value != after[(x, y)]],
-            })
+            }
+            if paint_changes:
+                after_paint = painted_cells()
+                paint['paintChanges'] = [[x, y, value, after_paint[(x, y)]] for (x, y), value in before_paint.items() if value != after_paint[(x, y)]]
+            committed.append(paint)
             consumed = boundary.end()
             start = None
     print(json.dumps({'ticks': ticks, 'frames': committed}))
