@@ -62,7 +62,7 @@ import { extractPDFPages, getPDFPageCount, readPDF, removePDFPages } from '../..
 import { isPDFExtension, isPDFSupported, parsePDFPageRange } from '../../utils/pdfUtils.js'
 import { resolveModelCapabilities } from '../../utils/model/capabilities.js'
 import { getEngineModel } from '../../utils/model/model.js'
-import { readFileInRange, type ReadFileRangeResult } from '../../utils/readFileInRange.js'
+import { FileTooLargeError, readFileInRange, type ReadFileRangeResult } from '../../utils/readFileInRange.js'
 import { planReadThrough } from '../FileEditTool/readThrough.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
@@ -308,6 +308,15 @@ function phantomPieceInWindow(range: ReadFileRangeResult, lineOffset: number): b
 function shownWindow(range: ReadFileRangeResult, lineOffset: number): { content: string; count: number } {
   if (!phantomPieceInWindow(range, lineOffset)) return { content: range.content, count: range.lineCount }
   return { content: range.content.slice(0, -1), count: range.lineCount - 1 }
+}
+
+async function countedSizeRefusal(refusal: FileTooLargeError, resolvedPath: string, signal: AbortSignal): Promise<Error> {
+  try {
+    const counted = await readFileInRange(resolvedPath, 0, 0, undefined, signal)
+    return new FileTooLargeError(refusal.sizeInBytes, refusal.maxSizeBytes, realLineTotal(counted))
+  } catch {
+    return refusal
+  }
 }
 
 function firstWindowUnderCap(
@@ -742,13 +751,19 @@ async function readTextLane(
     }
   }
   const maxBytes = input.limit === undefined ? limits.maxSizeBytes : undefined
-  let range = await readFileInRange(
-    resolvedPath,
-    lineOffset,
-    maxLines,
-    maxBytes,
-    context.abortController.signal,
-  )
+  let range: ReadFileRangeResult
+  try {
+    range = await readFileInRange(
+      resolvedPath,
+      lineOffset,
+      maxLines,
+      maxBytes,
+      context.abortController.signal,
+    )
+  } catch (err) {
+    if (!(err instanceof FileTooLargeError) || !ownRead || input.limit !== undefined) throw err
+    throw await countedSizeRefusal(err, resolvedPath, context.abortController.signal)
+  }
   let overCap: OverCapNote | undefined
   const totalLines = realLineTotal(range)
   let shown = shownWindow(range, lineOffset)
