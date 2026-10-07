@@ -395,6 +395,14 @@ export function getIsSessionOneShotHeadless(): boolean {
   return posture.headlessOneShot
 }
 
+export function setRunInputClosed(closed: boolean): void {
+  posture.runInputClosed = closed
+}
+
+export function isRunInputClosed(): boolean {
+  return posture.runInputClosed
+}
+
 export function getIsInteractive(): boolean {
   return posture.isInteractive
 }

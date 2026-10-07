@@ -28,6 +28,7 @@ import {
   getProjectRoot,
   isSessionPersistenceDisabled,
   setAskChannel,
+  setRunInputClosed,
   switchSession,
 } from '../bootstrap/state.js'
 import { existsSync } from 'node:fs'
@@ -2014,6 +2015,7 @@ export async function runHeadless(
       if (!answer.ok) throw refused(answer.reason, 'quiesce')
       if (answer.phase === 'committed') {
         inputClosed = true
+        setRunInputClosed(true)
         setTimeout(() => gracefulShutdownSync(0, 'other'), 50)
       }
       return { token: answer.token, phase: answer.phase }
@@ -2090,6 +2092,7 @@ export async function runHeadless(
       }
     } finally {
       inputClosed = true
+      setRunInputClosed(true)
       if (!driver.isRunning()) {
         await stopShellsForClose()
         await driver.closeOutputOnce()
