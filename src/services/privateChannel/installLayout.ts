@@ -614,7 +614,7 @@ if [ -f "$root/$ver/mercury.cmd" ] && [ -f "$root/$ver/mercury.mjs" ]; then
       echo "         install a current Node ${NODE_SUPPORT.major}.x from https://nodejs.org, point MERCURY_NODE at one, or re-extract the release archive for its vendored runtime" >&2
       exit 1
     }
-    nodev=$("$node_bin" -p 'process.versions.node' 2>/dev/null)
+    nodev=$("$node_bin" -e 'process.stdout.write(process.versions.node)' 2>/dev/null)
     case "$nodev" in ${NODE_SUPPORT.major}.*) ;; *) node_unsupported ;; esac
     case "$nodev" in *-*) node_unsupported ;; esac
     nodemin=\${nodev#*.}; nodemin=\${nodemin%%.*}
