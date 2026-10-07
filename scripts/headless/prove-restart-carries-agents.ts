@@ -147,7 +147,7 @@ const heldLiveStop = [
   `<tool-use-id>${live!.toolUseId}</tool-use-id>`,
   `<output-file>${join(root, 'tasks', `${live!.agentId}.output`)}</output-file>`,
   '<status>killed</status>',
-  `<summary>Agent "${LIVE_DESCRIPTION}" was stopped — 2 file writes landed: ${join(cwd, 'a.ts')}, ${join(cwd, 'b.ts')} — its work is kept; resume it from the crew view (r on its row) or by SendMessage to its id</summary>`,
+  `<summary>Agent "${LIVE_DESCRIPTION}" was stopped — 2 file writes landed: ${join(cwd, 'a.ts')}, ${join(cwd, 'b.ts')} — its work is kept; resume it from the crew view (r on its row) or by ResumeAgent to its id</summary>`,
   '</task-notification>',
 ].join('\n')
 const ordinals = readText(sessionFile!)
