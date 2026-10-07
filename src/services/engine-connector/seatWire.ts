@@ -292,6 +292,14 @@ function scheduleEditNested(submission: KeyTable, when: KeyTable, action: KeyTab
   }
 }
 
+export function scheduleEditToWire(edit: unknown): unknown {
+  return row(edit, SCHEDULE_EDIT, scheduleEditNested(SUBMISSION, WHEN, ACTION, BIRTH))
+}
+
+export function scheduleEditFromWire(raw: unknown): unknown {
+  return row(raw, flip(SCHEDULE_EDIT), scheduleEditNested(flip(SUBMISSION), flip(WHEN), flip(ACTION), flip(BIRTH)))
+}
+
 function rewindNested(code: KeyTable, conversation: KeyTable): (out: Row) => void {
   return out => {
     if (isRow(out.code)) out.code = renamed(out.code, code)
