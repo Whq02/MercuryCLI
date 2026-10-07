@@ -10,7 +10,6 @@ import { SCHEDULE_WAKEUP_TOOL_NAME } from '../../tools/ScheduleWakeupTool/prompt
 import { MONITOR_TOOL_NAME } from '../../tools/MonitorTool/constants.js'
 import { TASK_LIST_TOOL_NAME } from '../../tools/TaskListTool/constants.js'
 import { TASK_STOP_TOOL_NAME } from '../../tools/TaskStopTool/prompt.js'
-import { SEND_MESSAGE_TOOL_NAME } from '../../tools/SendMessageTool/constants.js'
 import { SKILL_TOOL_NAME } from '../../tools/SkillTool/constants.js'
 import {
   AUTONOMOUS_LOOP_DYNAMIC_SENTINEL,
@@ -133,7 +132,7 @@ Self-paced loop:
 3. Report to the user in text BEFORE scheduling the wake — the wake call is the turn's final act, so anything said after it never lands this turn. Cover: the loop self-paces, what is watching (if anything), and the fallback delay.
 4. Call ${SCHEDULE_WAKEUP_TOOL_NAME} last: \`prompt\` = the ENTIRE original invocation verbatim, prefixed with /loop, so the next fire re-enters this skill; \`delaySeconds\` chosen from the work's own rhythm — with a watch armed, lean long (1200–1800 seconds; the watch does the waking and the timer is only a heartbeat); \`reason\` = one line for your own continuity.
 5. A tick woken by a \`<task-notification>\` handles that event first, then re-arms the same wake.
-6. Ending the loop = three acts: no new wake; ${TASK_STOP_TOOL_NAME} any armed watch (${TASK_LIST_TOOL_NAME} finds its id); and a one-line outcome through ${SEND_MESSAGE_TOOL_NAME}, because the user may be away — skip that message when the user themselves just said stop.`
+6. Ending the loop = three acts: no new wake; ${TASK_STOP_TOOL_NAME} any armed watch (${TASK_LIST_TOOL_NAME} finds its id); and a one-line outcome as the last line of your reply — skip it when the user themselves just said stop.`
 }
 
 function defaultPromptBody(dynamic: boolean, cadence: LoopCadence): string {
@@ -159,7 +158,7 @@ ${body}
 
 ${sentinelRules}
 
-Run tick one now. Then follow the self-paced steps: arm a watch when an observable event gates the next tick (${MONITOR_TOOL_NAME} with \`persistent\`, or a \`run_in_background\` shell task), report to the user in text, and end the turn with ${SCHEDULE_WAKEUP_TOOL_NAME} (\`delaySeconds\`, \`reason\`, \`prompt\` = the sentinel). A tick woken by a \`<task-notification>\` handles the event, then re-arms the same wake. Ending the loop = no new wake, ${TASK_STOP_TOOL_NAME} on any watch, and a one-line outcome through ${SEND_MESSAGE_TOOL_NAME} first (skipped when the user just asked for the stop).`
+Run tick one now. Then follow the self-paced steps: arm a watch when an observable event gates the next tick (${MONITOR_TOOL_NAME} with \`persistent\`, or a \`run_in_background\` shell task), report to the user in text, and end the turn with ${SCHEDULE_WAKEUP_TOOL_NAME} (\`delaySeconds\`, \`reason\`, \`prompt\` = the sentinel). A tick woken by a \`<task-notification>\` handles the event, then re-arms the same wake. Ending the loop = no new wake, ${TASK_STOP_TOOL_NAME} on any watch, and a one-line outcome as the last line of your reply (skipped when the user just asked for the stop).`
   }
   return `${heading}
 
