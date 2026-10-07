@@ -81,7 +81,6 @@ const PROOF_MAP: Record<string, string> = {
   Write: 'scripts/project-services/prove-change-receipts.ts',
   LSP: 'scripts/lsp/run-all.sh',
   Inspect: 'scripts/project-services/prove-resource-plane.ts',
-  Workshop: 'scripts/project-services/prove-workshop.ts',
   Service: 'scripts/project-services/prove-services.ts',
   Debug: 'scripts/ide/prove-native-debug.ts',
   Test: 'scripts/ide/prove-python-tests.ts',

@@ -117,6 +117,7 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     intents: [
       'run python or javascript with persistent state',
       'orchestrate tools and agents from inside code',
+      'script tools and resources programmatically',
       'data work over a retained kernel',
       'bulk transforms the shell is too stateless for',
     ],
@@ -446,24 +447,6 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     latency: 'long-running',
     gate: 'MERCURY_WORKFLOWS',
     proof: 'scripts/workflows/run-all.sh',
-  },
-  Workshop: {
-    intents: [
-      'evaluate code in a persistent kernel',
-      'keep state across evaluations',
-      'script tools and resources programmatically',
-    ],
-    units: ['persistent-evaluation'],
-    class: 'execution',
-    execution: { kind: 'workshop-js', representation: 'full-execution-owner' },
-    transaction: { kind: 'workshop', receipts: true },
-    evidence: ['execution'],
-    resources: ['execution', 'artifact'],
-    cancellation: 'kill',
-    latency: 'long-running',
-    gate: 'MERCURY_WORKSHOP',
-    proof: 'scripts/project-services/prove-workshop.ts',
-    workshop: false,
   },
   Write: {
     intents: ['create a file', 'overwrite a file wholesale'],
