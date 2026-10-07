@@ -158,7 +158,6 @@ const OBSERVABLES: Array<{
   { key: 'hasDevChannels', family: 'boot', scope: 'process', read: () => state.getHasDevChannels() },
   { key: 'mainThreadAgentType', family: 'boot', scope: 'process', read: () => state.getMainThreadAgentType() },
   { key: 'directConnectServerUrl', family: 'boot', scope: 'process', read: () => state.getDirectConnectServerUrl() },
-  { key: 'needsAutoModeExitAttachment', family: 'oneShot', scope: 'conversation', read: () => state.needsAutoModeExitAttachment() },
   { key: 'registeredHooks', family: 'hookRegistry', scope: 'session', read: () => state.getRegisteredHooks() },
   { key: 'agentColorMap', family: 'collections', scope: 'session', read: () => state.getAgentColorMap() },
   { key: 'sessionCreatedCrews', family: 'collections', scope: 'session', read: () => state.getSessionCreatedCrews() },
@@ -285,11 +284,10 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'getTotalOutputTokens', 'getTotalToolDuration', 'getTotalUnpricedTurns', 'getTotalWebSearchRequests',
     'getTurnHookCount', 'getTurnHookDurationMs', 'getTurnOutputTokens', 'getTurnToolCount',
     'getTurnToolDurationMs', 'getUnpricedTurns', 'getUsageForModel',
-    'handleAutoModeTransition',
     'hasUnknownModelCost',
     'incrementBudgetContinuationCount', 'isSessionPersistenceDisabled',
     'markPostCompaction', 'markScrollActivity',
-    'needsAutoModeExitAttachment', 'onSessionSwitch',
+    'onSessionSwitch',
     'preferThirdPartyAuthentication', 'recordUnpricedTurn', 'regenerateSessionId', 'registerHookCallbacks',
     'resetCostState', 'resetModelStringsForTestingOnly',
     'resetStateForTests',
@@ -305,7 +303,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'setAssistantSessionActive', 'setLastAPIRequest', 'setLastAPIRequestMessages',
     'setLastApiCompletionTimestamp', 'setLastEmittedDate',
     'setLastMainRequestId',
-    'setEngineModelOverride', 'setMainThreadAgentType', 'setModelStrings', 'setNeedsAutoModeExitAttachment',
+    'setEngineModelOverride', 'setMainThreadAgentType', 'setModelStrings',
     'setOauthTokenFromFd', 'setOriginalCwd', 'setProjectRoot',
     'setPromptCache1hEligible', 'setPromptId', 'setQuestionPreviewFormat',
     'setSdkAgentProgressSummariesEnabled', 'setSdkBetas',
@@ -719,7 +717,7 @@ section('LAW 3 TURN-WINDOW — snapshot math · triples · totals survive')
   check('tool triple: the TOTAL survives the turn reset (scope pin)', state.getTotalToolDuration() === totalToolBefore + 40)
 }
 
-section('LAW 4 ONE-SHOT — postCompaction · the flow transition table')
+section('LAW 4 ONE-SHOT — postCompaction')
 {
   check('postCompaction: initially unarmed', state.consumePostCompaction() === false)
   state.markPostCompaction()
@@ -728,38 +726,6 @@ section('LAW 4 ONE-SHOT — postCompaction · the flow transition table')
   state.markPostCompaction()
   state.markPostCompaction()
   check('postCompaction: double-mark still single-consume', state.consumePostCompaction() === true && state.consumePostCompaction() === false)
-
-  const MODES = ['default', 'apollo', 'flow', 'implement'] as const
-  for (const prior of [false, true]) {
-    for (const from of MODES) {
-      for (const to of MODES) {
-        state.setNeedsAutoModeExitAttachment(prior)
-        state.handleAutoModeTransition(from, to)
-        const expected =
-          to === 'flow' && from !== 'flow'
-            ? false
-            : from === 'flow' && to !== 'flow'
-              ? true
-              : prior
-        check(
-          `auto table: ${from}→${to} (prior=${prior}) ⇒ ${expected}`,
-          state.needsAutoModeExitAttachment() === expected,
-        )
-      }
-    }
-  }
-  state.setNeedsAutoModeExitAttachment(false)
-
-  {
-    const { ModeOneShotOwner } = await import('../../src/bootstrap/runtime/mode-one-shots.ts')
-    const cold = new ModeOneShotOwner()
-    cold.handleAutoModeTransition('flow', 'default')
-    check('NEW-2: cold auto-exit (never entered this process) arms NO one-shot', cold.needsAutoModeExitAttachment === false)
-    const warm = new ModeOneShotOwner()
-    warm.handleAutoModeTransition('default', 'flow')
-    warm.handleAutoModeTransition('flow', 'default')
-    check('NEW-2: entered-then-exited auto arms the one-shot', warm.needsAutoModeExitAttachment === true)
-  }
 }
 
 section('LAW 5 LATCH — sticky beta headers · clear completeness · tripwire')
@@ -1097,7 +1063,6 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
     state.setHasDevChannels(true)
     state.setMainThreadAgentType('main-agent')
     state.setDirectConnectServerUrl('http://localhost:1')
-    state.setNeedsAutoModeExitAttachment(true)
     state.clearRegisteredHooks()
     state.registerHookCallbacks({ PreToolUse: [cbHook], Stop: [extHook] } as never)
     state.getAgentColorMap().set('agent-a', 'blue' as never)
@@ -1195,7 +1160,7 @@ section('LAW PURITY — zero-arg getters do not mutate')
   ]
     .map(m => m[1]!)
     .sort()
-  check(`purity: source sweep found a plausible getter population (${getterNames.length})`, getterNames.length >= 81, String(getterNames.length))
+  check(`purity: source sweep found a plausible getter population (${getterNames.length})`, getterNames.length >= 80, String(getterNames.length))
   const missingFromModule = getterNames.filter(n => typeof (state as never as Record<string, unknown>)[n] !== 'function')
   check('purity: every swept getter exists on the module', missingFromModule.length === 0, missingFromModule.join(','))
   withClock(() => 2_000_000_000_000, () => {
