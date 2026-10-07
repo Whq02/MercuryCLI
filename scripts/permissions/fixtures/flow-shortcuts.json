@@ -1,0 +1,3539 @@
+{
+  "allowlist": {
+    "Read": true,
+    "Grep": true,
+    "Glob": true,
+    "LSP": true,
+    "ToolSearch": true,
+    "ListMcpResources": true,
+    "ReadMcpResource": true,
+    "TaskCreate": true,
+    "TaskGet": true,
+    "TaskUpdate": true,
+    "TaskList": true,
+    "TaskStop": true,
+    "AskUserQuestion": true,
+    "SendMessage": true,
+    "Workflow": true,
+    "Sleep": true,
+    "Bash": false,
+    "PowerShell": false,
+    "Edit": false,
+    "Write": false,
+    "NotebookEdit": false,
+    "Agent": false,
+    "WebFetch": false,
+    "WebSearch": false,
+    "Browser": false,
+    "Computer": false,
+    "Git": false,
+    "Launch": false,
+    "Monitor": false,
+    "Eval": false,
+    "Debug": false,
+    "Test": false,
+    "Service": false,
+    "ChangeSet": false,
+    "Checkpoint": false,
+    "Rewind": false,
+    "Transaction": false,
+    "Skill": false,
+    "Schedule": false,
+    "ContextLeft": false,
+    "Retain": false,
+    "Recall": false,
+    "Reflect": false,
+    "Correct": false,
+    "mcp__fixture__read_file": false,
+    "mcp__fixture__write_file": false,
+    "mcp__fixture__TaskGet": false,
+    "read": false,
+    "grep": false,
+    "frobnicate": false,
+    "": false
+  },
+  "wrapper": [
+    {
+      "id": "plain-ask·flow·implement-allow·interactive",
+      "decidedBy": "implementFastPath",
+      "behavior": "allow",
+      "reasonType": "mode"
+    },
+    {
+      "id": "plain-ask·flow·implement-allow·prompt-less",
+      "decidedBy": "implementFastPath",
+      "behavior": "allow",
+      "reasonType": "mode"
+    },
+    {
+      "id": "plain-ask·flow·implement-ask·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "plain-ask·flow·implement-ask·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "plain-ask·flow·allowlisted·interactive",
+      "decidedBy": "allowlistFastPath",
+      "behavior": "allow",
+      "reasonType": "mode"
+    },
+    {
+      "id": "plain-ask·flow·allowlisted·prompt-less",
+      "decidedBy": "allowlistFastPath",
+      "behavior": "allow",
+      "reasonType": "mode"
+    },
+    {
+      "id": "plain-ask·default·implement-allow·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "plain-ask·default·implement-allow·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "plain-ask·default·implement-ask·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "plain-ask·default·implement-ask·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "plain-ask·default·allowlisted·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "plain-ask·default·allowlisted·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "plain-ask·implement·implement-allow·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "plain-ask·implement·implement-allow·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "plain-ask·implement·implement-ask·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "plain-ask·implement·implement-ask·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "plain-ask·implement·allowlisted·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "plain-ask·implement·allowlisted·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "plain-ask·dontAsk·implement-allow·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "plain-ask·dontAsk·implement-allow·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "plain-ask·dontAsk·implement-ask·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "plain-ask·dontAsk·implement-ask·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "plain-ask·dontAsk·allowlisted·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "plain-ask·dontAsk·allowlisted·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "passthrough·flow·implement-allow·interactive",
+      "decidedBy": "implementFastPath",
+      "behavior": "allow",
+      "reasonType": "mode"
+    },
+    {
+      "id": "passthrough·flow·implement-allow·prompt-less",
+      "decidedBy": "implementFastPath",
+      "behavior": "allow",
+      "reasonType": "mode"
+    },
+    {
+      "id": "passthrough·flow·implement-ask·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "passthrough·flow·implement-ask·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "passthrough·flow·allowlisted·interactive",
+      "decidedBy": "allowlistFastPath",
+      "behavior": "allow",
+      "reasonType": "mode"
+    },
+    {
+      "id": "passthrough·flow·allowlisted·prompt-less",
+      "decidedBy": "allowlistFastPath",
+      "behavior": "allow",
+      "reasonType": "mode"
+    },
+    {
+      "id": "passthrough·default·implement-allow·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "passthrough·default·implement-allow·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "passthrough·default·implement-ask·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "passthrough·default·implement-ask·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "passthrough·default·allowlisted·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "passthrough·default·allowlisted·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "passthrough·implement·implement-allow·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "passthrough·implement·implement-allow·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "passthrough·implement·implement-ask·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "passthrough·implement·implement-ask·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "passthrough·implement·allowlisted·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "passthrough·implement·allowlisted·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "passthrough·dontAsk·implement-allow·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "passthrough·dontAsk·implement-allow·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "passthrough·dontAsk·implement-ask·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "passthrough·dontAsk·implement-ask·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "passthrough·dontAsk·allowlisted·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "passthrough·dontAsk·allowlisted·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "interactive·flow·implement-allow·interactive",
+      "decidedBy": "autoUserInteraction",
+      "behavior": "ask",
+      "reasonType": "none"
+    },
+    {
+      "id": "interactive·flow·implement-allow·prompt-less",
+      "decidedBy": "autoUserInteraction",
+      "behavior": "ask",
+      "reasonType": "none"
+    },
+    {
+      "id": "interactive·flow·implement-ask·interactive",
+      "decidedBy": "autoUserInteraction",
+      "behavior": "ask",
+      "reasonType": "none"
+    },
+    {
+      "id": "interactive·flow·implement-ask·prompt-less",
+      "decidedBy": "autoUserInteraction",
+      "behavior": "ask",
+      "reasonType": "none"
+    },
+    {
+      "id": "interactive·flow·allowlisted·interactive",
+      "decidedBy": "autoUserInteraction",
+      "behavior": "ask",
+      "reasonType": "none"
+    },
+    {
+      "id": "interactive·flow·allowlisted·prompt-less",
+      "decidedBy": "autoUserInteraction",
+      "behavior": "ask",
+      "reasonType": "none"
+    },
+    {
+      "id": "interactive·default·implement-allow·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "interactive·default·implement-allow·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "interactive·default·implement-ask·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "interactive·default·implement-ask·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "interactive·default·allowlisted·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "interactive·default·allowlisted·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "interactive·implement·implement-allow·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "interactive·implement·implement-allow·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "interactive·implement·implement-ask·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "interactive·implement·implement-ask·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "interactive·implement·allowlisted·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "interactive·implement·allowlisted·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "interactive·dontAsk·implement-allow·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "interactive·dontAsk·implement-allow·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "interactive·dontAsk·implement-ask·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "interactive·dontAsk·implement-ask·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "interactive·dontAsk·allowlisted·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "interactive·dontAsk·allowlisted·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "powershell·flow·implement-allow·interactive",
+      "decidedBy": "powershellGuard",
+      "behavior": "ask",
+      "reasonType": "none"
+    },
+    {
+      "id": "powershell·flow·implement-allow·prompt-less",
+      "decidedBy": "powershellGuard",
+      "behavior": "deny",
+      "reasonType": "asyncAgent"
+    },
+    {
+      "id": "powershell·flow·implement-ask·interactive",
+      "decidedBy": "powershellGuard",
+      "behavior": "ask",
+      "reasonType": "none"
+    },
+    {
+      "id": "powershell·flow·implement-ask·prompt-less",
+      "decidedBy": "powershellGuard",
+      "behavior": "deny",
+      "reasonType": "asyncAgent"
+    },
+    {
+      "id": "powershell·flow·allowlisted·interactive",
+      "decidedBy": "powershellGuard",
+      "behavior": "ask",
+      "reasonType": "none"
+    },
+    {
+      "id": "powershell·flow·allowlisted·prompt-less",
+      "decidedBy": "powershellGuard",
+      "behavior": "deny",
+      "reasonType": "asyncAgent"
+    },
+    {
+      "id": "powershell·default·implement-allow·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "powershell·default·implement-allow·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "powershell·default·implement-ask·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "powershell·default·implement-ask·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "powershell·default·allowlisted·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "powershell·default·allowlisted·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "powershell·implement·implement-allow·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "powershell·implement·implement-allow·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "powershell·implement·implement-ask·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "powershell·implement·implement-ask·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "powershell·implement·allowlisted·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "powershell·implement·allowlisted·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "powershell·dontAsk·implement-allow·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "powershell·dontAsk·implement-allow·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "powershell·dontAsk·implement-ask·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "powershell·dontAsk·implement-ask·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "powershell·dontAsk·allowlisted·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "powershell·dontAsk·allowlisted·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "agent·flow·implement-allow·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "agent·flow·implement-allow·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "agent·flow·implement-ask·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "agent·flow·implement-ask·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "agent·flow·allowlisted·interactive",
+      "decidedBy": "allowlistFastPath",
+      "behavior": "allow",
+      "reasonType": "mode"
+    },
+    {
+      "id": "agent·flow·allowlisted·prompt-less",
+      "decidedBy": "allowlistFastPath",
+      "behavior": "allow",
+      "reasonType": "mode"
+    },
+    {
+      "id": "agent·default·implement-allow·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "agent·default·implement-allow·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "agent·default·implement-ask·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "agent·default·implement-ask·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "agent·default·allowlisted·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "agent·default·allowlisted·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "agent·implement·implement-allow·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "agent·implement·implement-allow·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "agent·implement·implement-ask·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "agent·implement·implement-ask·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "agent·implement·allowlisted·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "agent·implement·allowlisted·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "agent·dontAsk·implement-allow·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "agent·dontAsk·implement-allow·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "agent·dontAsk·implement-ask·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "agent·dontAsk·implement-ask·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "agent·dontAsk·allowlisted·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "agent·dontAsk·allowlisted·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "safety-human-only·flow·implement-allow·interactive",
+      "decidedBy": "autoSafetyImmunity",
+      "behavior": "ask",
+      "reasonType": "safetyCheck"
+    },
+    {
+      "id": "safety-human-only·flow·implement-allow·prompt-less",
+      "decidedBy": "autoSafetyImmunity",
+      "behavior": "deny",
+      "reasonType": "asyncAgent"
+    },
+    {
+      "id": "safety-human-only·flow·implement-ask·interactive",
+      "decidedBy": "autoSafetyImmunity",
+      "behavior": "ask",
+      "reasonType": "safetyCheck"
+    },
+    {
+      "id": "safety-human-only·flow·implement-ask·prompt-less",
+      "decidedBy": "autoSafetyImmunity",
+      "behavior": "deny",
+      "reasonType": "asyncAgent"
+    },
+    {
+      "id": "safety-human-only·flow·allowlisted·interactive",
+      "decidedBy": "autoSafetyImmunity",
+      "behavior": "ask",
+      "reasonType": "safetyCheck"
+    },
+    {
+      "id": "safety-human-only·flow·allowlisted·prompt-less",
+      "decidedBy": "autoSafetyImmunity",
+      "behavior": "deny",
+      "reasonType": "asyncAgent"
+    },
+    {
+      "id": "safety-human-only·default·implement-allow·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "safety-human-only·default·implement-allow·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "safety-human-only·default·implement-ask·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "safety-human-only·default·implement-ask·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "safety-human-only·default·allowlisted·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "safety-human-only·default·allowlisted·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "safety-human-only·implement·implement-allow·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "safety-human-only·implement·implement-allow·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "safety-human-only·implement·implement-ask·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "safety-human-only·implement·implement-ask·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "safety-human-only·implement·allowlisted·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "safety-human-only·implement·allowlisted·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "safety-human-only·dontAsk·implement-allow·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "safety-human-only·dontAsk·implement-allow·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "safety-human-only·dontAsk·implement-ask·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "safety-human-only·dontAsk·implement-ask·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "safety-human-only·dontAsk·allowlisted·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "safety-human-only·dontAsk·allowlisted·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "safety-continues·flow·implement-allow·interactive",
+      "decidedBy": "implementFastPath",
+      "behavior": "allow",
+      "reasonType": "mode"
+    },
+    {
+      "id": "safety-continues·flow·implement-allow·prompt-less",
+      "decidedBy": "implementFastPath",
+      "behavior": "allow",
+      "reasonType": "mode"
+    },
+    {
+      "id": "safety-continues·flow·implement-ask·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "safety-continues·flow·implement-ask·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "safety-continues·flow·allowlisted·interactive",
+      "decidedBy": "allowlistFastPath",
+      "behavior": "allow",
+      "reasonType": "mode"
+    },
+    {
+      "id": "safety-continues·flow·allowlisted·prompt-less",
+      "decidedBy": "allowlistFastPath",
+      "behavior": "allow",
+      "reasonType": "mode"
+    },
+    {
+      "id": "safety-continues·default·implement-allow·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "safety-continues·default·implement-allow·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "safety-continues·default·implement-ask·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "safety-continues·default·implement-ask·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "safety-continues·default·allowlisted·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "safety-continues·default·allowlisted·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "safety-continues·implement·implement-allow·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "safety-continues·implement·implement-allow·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "safety-continues·implement·implement-ask·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "safety-continues·implement·implement-ask·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "safety-continues·implement·allowlisted·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "safety-continues·implement·allowlisted·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "safety-continues·dontAsk·implement-allow·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "safety-continues·dontAsk·implement-allow·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "safety-continues·dontAsk·implement-ask·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "safety-continues·dontAsk·implement-ask·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "safety-continues·dontAsk·allowlisted·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "safety-continues·dontAsk·allowlisted·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "ask-rule·flow·implement-allow·interactive",
+      "decidedBy": "autoFloors",
+      "behavior": "ask",
+      "reasonType": "rule"
+    },
+    {
+      "id": "ask-rule·flow·implement-allow·prompt-less",
+      "decidedBy": "autoFloors",
+      "behavior": "deny",
+      "reasonType": "asyncAgent"
+    },
+    {
+      "id": "ask-rule·flow·implement-ask·interactive",
+      "decidedBy": "autoFloors",
+      "behavior": "ask",
+      "reasonType": "rule"
+    },
+    {
+      "id": "ask-rule·flow·implement-ask·prompt-less",
+      "decidedBy": "autoFloors",
+      "behavior": "deny",
+      "reasonType": "asyncAgent"
+    },
+    {
+      "id": "ask-rule·flow·allowlisted·interactive",
+      "decidedBy": "autoFloors",
+      "behavior": "ask",
+      "reasonType": "rule"
+    },
+    {
+      "id": "ask-rule·flow·allowlisted·prompt-less",
+      "decidedBy": "autoFloors",
+      "behavior": "deny",
+      "reasonType": "asyncAgent"
+    },
+    {
+      "id": "ask-rule·default·implement-allow·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "ask-rule·default·implement-allow·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "ask-rule·default·implement-ask·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "ask-rule·default·implement-ask·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "ask-rule·default·allowlisted·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "ask-rule·default·allowlisted·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "ask-rule·implement·implement-allow·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "ask-rule·implement·implement-allow·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "ask-rule·implement·implement-ask·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "ask-rule·implement·implement-ask·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "ask-rule·implement·allowlisted·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "ask-rule·implement·allowlisted·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "ask-rule·dontAsk·implement-allow·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "ask-rule·dontAsk·implement-allow·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "ask-rule·dontAsk·implement-ask·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "ask-rule·dontAsk·implement-ask·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "ask-rule·dontAsk·allowlisted·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "ask-rule·dontAsk·allowlisted·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "mcp-ceiling·flow·implement-allow·interactive",
+      "decidedBy": "autoFloors",
+      "behavior": "ask",
+      "reasonType": "other"
+    },
+    {
+      "id": "mcp-ceiling·flow·implement-allow·prompt-less",
+      "decidedBy": "autoFloors",
+      "behavior": "deny",
+      "reasonType": "asyncAgent"
+    },
+    {
+      "id": "mcp-ceiling·flow·implement-ask·interactive",
+      "decidedBy": "autoFloors",
+      "behavior": "ask",
+      "reasonType": "other"
+    },
+    {
+      "id": "mcp-ceiling·flow·implement-ask·prompt-less",
+      "decidedBy": "autoFloors",
+      "behavior": "deny",
+      "reasonType": "asyncAgent"
+    },
+    {
+      "id": "mcp-ceiling·flow·allowlisted·interactive",
+      "decidedBy": "autoFloors",
+      "behavior": "ask",
+      "reasonType": "other"
+    },
+    {
+      "id": "mcp-ceiling·flow·allowlisted·prompt-less",
+      "decidedBy": "autoFloors",
+      "behavior": "deny",
+      "reasonType": "asyncAgent"
+    },
+    {
+      "id": "mcp-ceiling·default·implement-allow·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "mcp-ceiling·default·implement-allow·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "mcp-ceiling·default·implement-ask·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "mcp-ceiling·default·implement-ask·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "mcp-ceiling·default·allowlisted·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "mcp-ceiling·default·allowlisted·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "mcp-ceiling·implement·implement-allow·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "mcp-ceiling·implement·implement-allow·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "mcp-ceiling·implement·implement-ask·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "mcp-ceiling·implement·implement-ask·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "mcp-ceiling·implement·allowlisted·interactive",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "mcp-ceiling·implement·allowlisted·prompt-less",
+      "decidedBy": "leftover",
+      "behavior": "leftover",
+      "reasonType": "leftover"
+    },
+    {
+      "id": "mcp-ceiling·dontAsk·implement-allow·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "mcp-ceiling·dontAsk·implement-allow·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "mcp-ceiling·dontAsk·implement-ask·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "mcp-ceiling·dontAsk·implement-ask·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "mcp-ceiling·dontAsk·allowlisted·interactive",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    },
+    {
+      "id": "mcp-ceiling·dontAsk·allowlisted·prompt-less",
+      "decidedBy": "dontAskConversion",
+      "behavior": "deny",
+      "reasonType": "mode"
+    }
+  ],
+  "bash": [
+    {
+      "id": "none·flow·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "none·flow·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "passthrough",
+      "reasonType": "subcommandResults",
+      "message": "This Bash command contains multiple operations. The following part requires approval: git commit --allow-empty -q -m probe"
+    },
+    {
+      "id": "none·flow·git commit --allow-empty -q -m probe",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git commit --allow-empty -q -m probe requires approval."
+    },
+    {
+      "id": "none·flow·git push origin main",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git push origin main requires approval."
+    },
+    {
+      "id": "none·flow·rm -rf build",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "For security: Mercury needs approval to remove /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/build: this permission mode does not remove files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "none·flow·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "none·flow·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "none·flow·echo hi > out.txt",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs approval to write /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/out.txt: this permission mode does not write files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "none·flow·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "none·flow·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "none·flow·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "none·flow·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "none·flow·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "none·default·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "none·default·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "passthrough",
+      "reasonType": "subcommandResults",
+      "message": "This Bash command contains multiple operations. The following part requires approval: git commit --allow-empty -q -m probe"
+    },
+    {
+      "id": "none·default·git commit --allow-empty -q -m probe",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git commit --allow-empty -q -m probe requires approval."
+    },
+    {
+      "id": "none·default·git push origin main",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git push origin main requires approval."
+    },
+    {
+      "id": "none·default·rm -rf build",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "For security: Mercury needs approval to remove /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/build: this permission mode does not remove files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "none·default·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "none·default·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "none·default·echo hi > out.txt",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs approval to write /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/out.txt: this permission mode does not write files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "none·default·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "none·default·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "none·default·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "none·default·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "none·default·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "none·implement·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "none·implement·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "passthrough",
+      "reasonType": "subcommandResults",
+      "message": "This Bash command contains multiple operations. The following part requires approval: git commit --allow-empty -q -m probe"
+    },
+    {
+      "id": "none·implement·git commit --allow-empty -q -m probe",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git commit --allow-empty -q -m probe requires approval."
+    },
+    {
+      "id": "none·implement·git push origin main",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git push origin main requires approval."
+    },
+    {
+      "id": "none·implement·rm -rf build",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "none·implement·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "none·implement·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "none·implement·echo hi > out.txt",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "none·implement·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "none·implement·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "none·implement·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "none·implement·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "none·implement·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "none·dontAsk·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "none·dontAsk·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "passthrough",
+      "reasonType": "subcommandResults",
+      "message": "This Bash command contains multiple operations. The following part requires approval: git commit --allow-empty -q -m probe"
+    },
+    {
+      "id": "none·dontAsk·git commit --allow-empty -q -m probe",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git commit --allow-empty -q -m probe requires approval."
+    },
+    {
+      "id": "none·dontAsk·git push origin main",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git push origin main requires approval."
+    },
+    {
+      "id": "none·dontAsk·rm -rf build",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "For security: Mercury needs approval to remove /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/build: this permission mode does not remove files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "none·dontAsk·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "none·dontAsk·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "none·dontAsk·echo hi > out.txt",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs approval to write /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/out.txt: this permission mode does not write files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "none·dontAsk·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "none·dontAsk·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "none·dontAsk·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "none·dontAsk·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "none·dontAsk·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-commit·flow·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-commit·flow·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-commit·flow·git commit --allow-empty -q -m probe",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-commit·flow·git push origin main",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git push origin main requires approval."
+    },
+    {
+      "id": "allow-commit·flow·rm -rf build",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "For security: Mercury needs approval to remove /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/build: this permission mode does not remove files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "allow-commit·flow·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-commit·flow·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-commit·flow·echo hi > out.txt",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs approval to write /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/out.txt: this permission mode does not write files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "allow-commit·flow·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "allow-commit·flow·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "allow-commit·flow·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "allow-commit·flow·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "allow-commit·flow·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-commit·default·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-commit·default·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-commit·default·git commit --allow-empty -q -m probe",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-commit·default·git push origin main",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git push origin main requires approval."
+    },
+    {
+      "id": "allow-commit·default·rm -rf build",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "For security: Mercury needs approval to remove /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/build: this permission mode does not remove files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "allow-commit·default·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-commit·default·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-commit·default·echo hi > out.txt",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs approval to write /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/out.txt: this permission mode does not write files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "allow-commit·default·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "allow-commit·default·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "allow-commit·default·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "allow-commit·default·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "allow-commit·default·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-commit·implement·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-commit·implement·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-commit·implement·git commit --allow-empty -q -m probe",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-commit·implement·git push origin main",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git push origin main requires approval."
+    },
+    {
+      "id": "allow-commit·implement·rm -rf build",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-commit·implement·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-commit·implement·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-commit·implement·echo hi > out.txt",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-commit·implement·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "allow-commit·implement·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "allow-commit·implement·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "allow-commit·implement·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "allow-commit·implement·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-commit·dontAsk·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-commit·dontAsk·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-commit·dontAsk·git commit --allow-empty -q -m probe",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-commit·dontAsk·git push origin main",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git push origin main requires approval."
+    },
+    {
+      "id": "allow-commit·dontAsk·rm -rf build",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "For security: Mercury needs approval to remove /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/build: this permission mode does not remove files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "allow-commit·dontAsk·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-commit·dontAsk·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-commit·dontAsk·echo hi > out.txt",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs approval to write /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/out.txt: this permission mode does not write files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "allow-commit·dontAsk·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "allow-commit·dontAsk·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "allow-commit·dontAsk·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "allow-commit·dontAsk·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "allow-commit·dontAsk·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "deny-commit·flow·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "deny-commit·flow·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "deny",
+      "reasonType": "subcommandResults",
+      "message": "git commit --allow-empty -q -m probe is denied by the rule Bash(git commit *) in your user settings."
+    },
+    {
+      "id": "deny-commit·flow·git commit --allow-empty -q -m probe",
+      "behavior": "deny",
+      "reasonType": "subcommandResults",
+      "message": "git commit --allow-empty -q -m probe is denied by the rule Bash(git commit *) in your user settings."
+    },
+    {
+      "id": "deny-commit·flow·git push origin main",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git push origin main requires approval."
+    },
+    {
+      "id": "deny-commit·flow·rm -rf build",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "For security: Mercury needs approval to remove /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/build: this permission mode does not remove files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "deny-commit·flow·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "deny-commit·flow·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "deny-commit·flow·echo hi > out.txt",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs approval to write /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/out.txt: this permission mode does not write files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "deny-commit·flow·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "deny-commit·flow·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "deny-commit·flow·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "deny-commit·flow·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "deny-commit·flow·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "deny-commit·default·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "deny-commit·default·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "deny",
+      "reasonType": "subcommandResults",
+      "message": "git commit --allow-empty -q -m probe is denied by the rule Bash(git commit *) in your user settings."
+    },
+    {
+      "id": "deny-commit·default·git commit --allow-empty -q -m probe",
+      "behavior": "deny",
+      "reasonType": "subcommandResults",
+      "message": "git commit --allow-empty -q -m probe is denied by the rule Bash(git commit *) in your user settings."
+    },
+    {
+      "id": "deny-commit·default·git push origin main",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git push origin main requires approval."
+    },
+    {
+      "id": "deny-commit·default·rm -rf build",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "For security: Mercury needs approval to remove /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/build: this permission mode does not remove files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "deny-commit·default·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "deny-commit·default·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "deny-commit·default·echo hi > out.txt",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs approval to write /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/out.txt: this permission mode does not write files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "deny-commit·default·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "deny-commit·default·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "deny-commit·default·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "deny-commit·default·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "deny-commit·default·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "deny-commit·implement·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "deny-commit·implement·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "deny",
+      "reasonType": "subcommandResults",
+      "message": "git commit --allow-empty -q -m probe is denied by the rule Bash(git commit *) in your user settings."
+    },
+    {
+      "id": "deny-commit·implement·git commit --allow-empty -q -m probe",
+      "behavior": "deny",
+      "reasonType": "subcommandResults",
+      "message": "git commit --allow-empty -q -m probe is denied by the rule Bash(git commit *) in your user settings."
+    },
+    {
+      "id": "deny-commit·implement·git push origin main",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git push origin main requires approval."
+    },
+    {
+      "id": "deny-commit·implement·rm -rf build",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "deny-commit·implement·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "deny-commit·implement·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "deny-commit·implement·echo hi > out.txt",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "deny-commit·implement·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "deny-commit·implement·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "deny-commit·implement·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "deny-commit·implement·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "deny-commit·implement·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "deny-commit·dontAsk·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "deny-commit·dontAsk·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "deny",
+      "reasonType": "subcommandResults",
+      "message": "git commit --allow-empty -q -m probe is denied by the rule Bash(git commit *) in your user settings."
+    },
+    {
+      "id": "deny-commit·dontAsk·git commit --allow-empty -q -m probe",
+      "behavior": "deny",
+      "reasonType": "subcommandResults",
+      "message": "git commit --allow-empty -q -m probe is denied by the rule Bash(git commit *) in your user settings."
+    },
+    {
+      "id": "deny-commit·dontAsk·git push origin main",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git push origin main requires approval."
+    },
+    {
+      "id": "deny-commit·dontAsk·rm -rf build",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "For security: Mercury needs approval to remove /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/build: this permission mode does not remove files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "deny-commit·dontAsk·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "deny-commit·dontAsk·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "deny-commit·dontAsk·echo hi > out.txt",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs approval to write /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/out.txt: this permission mode does not write files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "deny-commit·dontAsk·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "deny-commit·dontAsk·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "deny-commit·dontAsk·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "deny-commit·dontAsk·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "deny-commit·dontAsk·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-commit·flow·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-commit·flow·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "ask",
+      "reasonType": "rule",
+      "message": "git commit --allow-empty -q -m probe asks first — the rule Bash(git commit *) in your user settings."
+    },
+    {
+      "id": "ask-commit·flow·git commit --allow-empty -q -m probe",
+      "behavior": "ask",
+      "reasonType": "rule",
+      "message": "git commit --allow-empty -q -m probe asks first — the rule Bash(git commit *) in your user settings."
+    },
+    {
+      "id": "ask-commit·flow·git push origin main",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git push origin main requires approval."
+    },
+    {
+      "id": "ask-commit·flow·rm -rf build",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "For security: Mercury needs approval to remove /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/build: this permission mode does not remove files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "ask-commit·flow·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-commit·flow·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-commit·flow·echo hi > out.txt",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs approval to write /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/out.txt: this permission mode does not write files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "ask-commit·flow·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "ask-commit·flow·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "ask-commit·flow·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "ask-commit·flow·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "ask-commit·flow·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-commit·default·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-commit·default·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "ask",
+      "reasonType": "rule",
+      "message": "git commit --allow-empty -q -m probe asks first — the rule Bash(git commit *) in your user settings."
+    },
+    {
+      "id": "ask-commit·default·git commit --allow-empty -q -m probe",
+      "behavior": "ask",
+      "reasonType": "rule",
+      "message": "git commit --allow-empty -q -m probe asks first — the rule Bash(git commit *) in your user settings."
+    },
+    {
+      "id": "ask-commit·default·git push origin main",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git push origin main requires approval."
+    },
+    {
+      "id": "ask-commit·default·rm -rf build",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "For security: Mercury needs approval to remove /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/build: this permission mode does not remove files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "ask-commit·default·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-commit·default·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-commit·default·echo hi > out.txt",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs approval to write /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/out.txt: this permission mode does not write files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "ask-commit·default·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "ask-commit·default·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "ask-commit·default·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "ask-commit·default·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "ask-commit·default·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-commit·implement·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-commit·implement·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "ask",
+      "reasonType": "rule",
+      "message": "git commit --allow-empty -q -m probe asks first — the rule Bash(git commit *) in your user settings."
+    },
+    {
+      "id": "ask-commit·implement·git commit --allow-empty -q -m probe",
+      "behavior": "ask",
+      "reasonType": "rule",
+      "message": "git commit --allow-empty -q -m probe asks first — the rule Bash(git commit *) in your user settings."
+    },
+    {
+      "id": "ask-commit·implement·git push origin main",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git push origin main requires approval."
+    },
+    {
+      "id": "ask-commit·implement·rm -rf build",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-commit·implement·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-commit·implement·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-commit·implement·echo hi > out.txt",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-commit·implement·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "ask-commit·implement·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "ask-commit·implement·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "ask-commit·implement·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "ask-commit·implement·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-commit·dontAsk·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-commit·dontAsk·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "ask",
+      "reasonType": "rule",
+      "message": "git commit --allow-empty -q -m probe asks first — the rule Bash(git commit *) in your user settings."
+    },
+    {
+      "id": "ask-commit·dontAsk·git commit --allow-empty -q -m probe",
+      "behavior": "ask",
+      "reasonType": "rule",
+      "message": "git commit --allow-empty -q -m probe asks first — the rule Bash(git commit *) in your user settings."
+    },
+    {
+      "id": "ask-commit·dontAsk·git push origin main",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git push origin main requires approval."
+    },
+    {
+      "id": "ask-commit·dontAsk·rm -rf build",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "For security: Mercury needs approval to remove /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/build: this permission mode does not remove files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "ask-commit·dontAsk·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-commit·dontAsk·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-commit·dontAsk·echo hi > out.txt",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs approval to write /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/out.txt: this permission mode does not write files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "ask-commit·dontAsk·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "ask-commit·dontAsk·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "ask-commit·dontAsk·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "ask-commit·dontAsk·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "ask-commit·dontAsk·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-all·flow·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-all·flow·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "passthrough",
+      "reasonType": "subcommandResults",
+      "message": "This Bash command contains multiple operations. The following part requires approval: git commit --allow-empty -q -m probe"
+    },
+    {
+      "id": "allow-all·flow·git commit --allow-empty -q -m probe",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git commit --allow-empty -q -m probe requires approval."
+    },
+    {
+      "id": "allow-all·flow·git push origin main",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git push origin main requires approval."
+    },
+    {
+      "id": "allow-all·flow·rm -rf build",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "For security: Mercury needs approval to remove /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/build: this permission mode does not remove files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "allow-all·flow·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-all·flow·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-all·flow·echo hi > out.txt",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs approval to write /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/out.txt: this permission mode does not write files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "allow-all·flow·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "allow-all·flow·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "allow-all·flow·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "allow-all·flow·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "allow-all·flow·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-all·default·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-all·default·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "passthrough",
+      "reasonType": "subcommandResults",
+      "message": "This Bash command contains multiple operations. The following part requires approval: git commit --allow-empty -q -m probe"
+    },
+    {
+      "id": "allow-all·default·git commit --allow-empty -q -m probe",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git commit --allow-empty -q -m probe requires approval."
+    },
+    {
+      "id": "allow-all·default·git push origin main",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git push origin main requires approval."
+    },
+    {
+      "id": "allow-all·default·rm -rf build",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "For security: Mercury needs approval to remove /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/build: this permission mode does not remove files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "allow-all·default·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-all·default·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-all·default·echo hi > out.txt",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs approval to write /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/out.txt: this permission mode does not write files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "allow-all·default·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "allow-all·default·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "allow-all·default·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "allow-all·default·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "allow-all·default·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-all·implement·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-all·implement·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "passthrough",
+      "reasonType": "subcommandResults",
+      "message": "This Bash command contains multiple operations. The following part requires approval: git commit --allow-empty -q -m probe"
+    },
+    {
+      "id": "allow-all·implement·git commit --allow-empty -q -m probe",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git commit --allow-empty -q -m probe requires approval."
+    },
+    {
+      "id": "allow-all·implement·git push origin main",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git push origin main requires approval."
+    },
+    {
+      "id": "allow-all·implement·rm -rf build",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-all·implement·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-all·implement·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-all·implement·echo hi > out.txt",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-all·implement·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "allow-all·implement·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "allow-all·implement·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "allow-all·implement·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "allow-all·implement·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-all·dontAsk·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-all·dontAsk·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "passthrough",
+      "reasonType": "subcommandResults",
+      "message": "This Bash command contains multiple operations. The following part requires approval: git commit --allow-empty -q -m probe"
+    },
+    {
+      "id": "allow-all·dontAsk·git commit --allow-empty -q -m probe",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git commit --allow-empty -q -m probe requires approval."
+    },
+    {
+      "id": "allow-all·dontAsk·git push origin main",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git push origin main requires approval."
+    },
+    {
+      "id": "allow-all·dontAsk·rm -rf build",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "For security: Mercury needs approval to remove /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/build: this permission mode does not remove files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "allow-all·dontAsk·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-all·dontAsk·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-all·dontAsk·echo hi > out.txt",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs approval to write /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/out.txt: this permission mode does not write files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "allow-all·dontAsk·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "allow-all·dontAsk·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "allow-all·dontAsk·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "allow-all·dontAsk·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "allow-all·dontAsk·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-tool·flow·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-tool·flow·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "passthrough",
+      "reasonType": "subcommandResults",
+      "message": "This Bash command contains multiple operations. The following part requires approval: git commit --allow-empty -q -m probe"
+    },
+    {
+      "id": "ask-tool·flow·git commit --allow-empty -q -m probe",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git commit --allow-empty -q -m probe requires approval."
+    },
+    {
+      "id": "ask-tool·flow·git push origin main",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git push origin main requires approval."
+    },
+    {
+      "id": "ask-tool·flow·rm -rf build",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "For security: Mercury needs approval to remove /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/build: this permission mode does not remove files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "ask-tool·flow·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-tool·flow·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-tool·flow·echo hi > out.txt",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs approval to write /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/out.txt: this permission mode does not write files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "ask-tool·flow·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "ask-tool·flow·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "ask-tool·flow·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "ask-tool·flow·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "ask-tool·flow·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-tool·default·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-tool·default·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "passthrough",
+      "reasonType": "subcommandResults",
+      "message": "This Bash command contains multiple operations. The following part requires approval: git commit --allow-empty -q -m probe"
+    },
+    {
+      "id": "ask-tool·default·git commit --allow-empty -q -m probe",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git commit --allow-empty -q -m probe requires approval."
+    },
+    {
+      "id": "ask-tool·default·git push origin main",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git push origin main requires approval."
+    },
+    {
+      "id": "ask-tool·default·rm -rf build",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "For security: Mercury needs approval to remove /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/build: this permission mode does not remove files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "ask-tool·default·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-tool·default·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-tool·default·echo hi > out.txt",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs approval to write /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/out.txt: this permission mode does not write files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "ask-tool·default·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "ask-tool·default·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "ask-tool·default·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "ask-tool·default·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "ask-tool·default·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-tool·implement·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-tool·implement·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "passthrough",
+      "reasonType": "subcommandResults",
+      "message": "This Bash command contains multiple operations. The following part requires approval: git commit --allow-empty -q -m probe"
+    },
+    {
+      "id": "ask-tool·implement·git commit --allow-empty -q -m probe",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git commit --allow-empty -q -m probe requires approval."
+    },
+    {
+      "id": "ask-tool·implement·git push origin main",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git push origin main requires approval."
+    },
+    {
+      "id": "ask-tool·implement·rm -rf build",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-tool·implement·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-tool·implement·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-tool·implement·echo hi > out.txt",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-tool·implement·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "ask-tool·implement·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "ask-tool·implement·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "ask-tool·implement·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "ask-tool·implement·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-tool·dontAsk·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-tool·dontAsk·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "passthrough",
+      "reasonType": "subcommandResults",
+      "message": "This Bash command contains multiple operations. The following part requires approval: git commit --allow-empty -q -m probe"
+    },
+    {
+      "id": "ask-tool·dontAsk·git commit --allow-empty -q -m probe",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git commit --allow-empty -q -m probe requires approval."
+    },
+    {
+      "id": "ask-tool·dontAsk·git push origin main",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "git push origin main requires approval."
+    },
+    {
+      "id": "ask-tool·dontAsk·rm -rf build",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "For security: Mercury needs approval to remove /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/build: this permission mode does not remove files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "ask-tool·dontAsk·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-tool·dontAsk·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "ask-tool·dontAsk·echo hi > out.txt",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs approval to write /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/out.txt: this permission mode does not write files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "ask-tool·dontAsk·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "ask-tool·dontAsk·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "ask-tool·dontAsk·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "ask-tool·dontAsk·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "ask-tool·dontAsk·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·flow·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·flow·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·flow·git commit --allow-empty -q -m probe",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·flow·git push origin main",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·flow·rm -rf build",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "For security: Mercury needs approval to remove /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/build: this permission mode does not remove files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "allow-git·flow·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·flow·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·flow·echo hi > out.txt",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs approval to write /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/out.txt: this permission mode does not write files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "allow-git·flow·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "allow-git·flow·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "allow-git·flow·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "allow-git·flow·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "allow-git·flow·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·default·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·default·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·default·git commit --allow-empty -q -m probe",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·default·git push origin main",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·default·rm -rf build",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "For security: Mercury needs approval to remove /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/build: this permission mode does not remove files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "allow-git·default·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·default·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·default·echo hi > out.txt",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs approval to write /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/out.txt: this permission mode does not write files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "allow-git·default·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "allow-git·default·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "allow-git·default·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "allow-git·default·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "allow-git·default·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·implement·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·implement·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·implement·git commit --allow-empty -q -m probe",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·implement·git push origin main",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·implement·rm -rf build",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·implement·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·implement·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·implement·echo hi > out.txt",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·implement·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "allow-git·implement·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "allow-git·implement·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "allow-git·implement·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "allow-git·implement·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·dontAsk·git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·dontAsk·git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·dontAsk·git commit --allow-empty -q -m probe",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·dontAsk·git push origin main",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·dontAsk·rm -rf build",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "For security: Mercury needs approval to remove /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/build: this permission mode does not remove files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "allow-git·dontAsk·ls -la",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·dontAsk·cat README.md | head",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    },
+    {
+      "id": "allow-git·dontAsk·echo hi > out.txt",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs approval to write /Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i/out.txt: this permission mode does not write files on its own and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes."
+    },
+    {
+      "id": "allow-git·dontAsk·npm test",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "npm test requires approval."
+    },
+    {
+      "id": "allow-git·dontAsk·python3 -c \"print(1)\"",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "python3 -c \"print(1)\" requires approval."
+    },
+    {
+      "id": "allow-git·dontAsk·curl https://example.invalid",
+      "behavior": "passthrough",
+      "reasonType": "none",
+      "message": "curl https://example.invalid requires approval."
+    },
+    {
+      "id": "allow-git·dontAsk·cd .. && ls",
+      "behavior": "ask",
+      "reasonType": "none",
+      "message": "Mercury needs permission to enter the directory /Users/whq/Developer/mercury/.mercury/worktrees, outside the starting folder ('/Users/whq/Developer/mercury/.mercury/worktrees/agent-apckmp7i')."
+    },
+    {
+      "id": "allow-git·dontAsk·git status; git log -1",
+      "behavior": "allow",
+      "reasonType": "subcommandResults",
+      "message": ""
+    }
+  ]
+}
