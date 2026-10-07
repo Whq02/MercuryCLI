@@ -1,5 +1,5 @@
 import * as fs from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 
 import { readFileRange } from '../fsOperations.js'
 import { getErrnoCode } from '../errors.js'
@@ -79,6 +79,57 @@ function initTaskOutput(taskId: string): Promise<string> {
   return track(createTaskOutputFile(taskId))
 }
 
+const outputsAwaitingTranscript = new Map<string, string>()
+
+function transcriptKey(transcriptPath: string): string {
+  return resolve(transcriptPath).toLowerCase()
+}
+
+async function replaceEmptyOutputWithLink(outputPath: string, transcriptPath: string): Promise<void> {
+  try {
+    const stub = await fs.promises.lstat(outputPath)
+    if (!stub.isFile() || stub.size !== 0) return
+    await fs.promises.unlink(outputPath)
+    try {
+      await fs.promises.link(transcriptPath, outputPath)
+    } catch {
+      await fs.promises.writeFile(outputPath, '', { flag: 'wx' })
+    }
+  } catch {
+  }
+}
+
+async function linkWhenAwaited(transcriptPath: string): Promise<void> {
+  const key = transcriptKey(transcriptPath)
+  const outputPath = outputsAwaitingTranscript.get(key)
+  if (outputPath === undefined) return
+  outputsAwaitingTranscript.delete(key)
+  await replaceEmptyOutputWithLink(outputPath, transcriptPath)
+}
+
+export function linkTaskOutputToTranscript(transcriptPath: string): void {
+  if (outputsAwaitingTranscript.size === 0) return
+  void track(linkWhenAwaited(transcriptPath))
+}
+
+export async function settleTaskOutputOperations(): Promise<void> {
+  while (pendingOperations.size > 0) await Promise.allSettled([...pendingOperations])
+}
+
+async function awaitTranscriptFor(outputPath: string, transcriptPath: string): Promise<void> {
+  outputsAwaitingTranscript.set(transcriptKey(transcriptPath), outputPath)
+  const landed = await fs.promises.access(transcriptPath).then(() => true, () => false)
+  if (landed) await linkWhenAwaited(transcriptPath)
+}
+
+function forgetOutputAwaiting(taskId: string): void {
+  if (outputsAwaitingTranscript.size === 0) return
+  const outputPath = getTaskOutputPath(taskId)
+  for (const [key, awaiting] of outputsAwaitingTranscript) {
+    if (awaiting === outputPath) outputsAwaitingTranscript.delete(key)
+  }
+}
+
 async function createTaskOutputSymlink(taskId: string, targetPath: string): Promise<string> {
   const path = getTaskOutputPath(taskId)
   await ensureTasksDir()
@@ -92,7 +143,10 @@ async function createTaskOutputSymlink(taskId: string, targetPath: string): Prom
     return path
   } catch (error) {
     logError(error)
-    return initTaskOutput(taskId)
+    if (getPlatform() !== 'windows') return initTaskOutput(taskId)
+    const stub = await initTaskOutput(taskId)
+    await awaitTranscriptFor(stub, targetPath)
+    return stub
   }
 }
 
@@ -221,6 +275,7 @@ export function acquireTaskOutputWriter(taskId: string): DiskTaskOutput {
 }
 
 export function evictTaskOutput(taskId: string): Promise<void> {
+  forgetOutputAwaiting(taskId)
   const writer = writers.get(taskId)
   if (writer === undefined) return Promise.resolve()
   return track(
