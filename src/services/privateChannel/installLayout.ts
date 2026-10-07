@@ -22,6 +22,7 @@ import {
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { getMercuryHome } from '../../utils/envUtils.js'
+import { NODE_SUPPORT } from '../../utils/runtime/nodePolicy.js'
 import {
   BUNDLE_MEMBER_NAMES,
   describePayload,
@@ -39,6 +40,8 @@ export interface LayoutRoots {
   isWindows: boolean
 }
 
+export const WIN32_POWERSHELL_ENTRY = 'mercury-powershell.ps1'
+
 export function resolveLayoutRoots(platform: string = process.platform): LayoutRoots {
   const isWindows = platform === 'win32'
   const versionsDir = flagEnv('MERCURY_VERSIONS_DIR') || join(getMercuryHome(), 'versions')
@@ -46,7 +49,7 @@ export function resolveLayoutRoots(platform: string = process.platform): LayoutR
     ? join(process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local'), 'Mercury', 'bin')
     : join(homedir(), '.local', 'bin')
   const shimPath = join(binDir, isWindows ? 'mercury.cmd' : 'mercury')
-  const shimSetPaths = isWindows ? [shimPath, join(binDir, 'mercury')] : [shimPath]
+  const shimSetPaths = isWindows ? [shimPath, join(binDir, 'mercury'), join(binDir, WIN32_POWERSHELL_ENTRY)] : [shimPath]
   return { versionsDir, binDir, shimPath, shimSetPaths, isWindows }
 }
 
@@ -574,6 +577,64 @@ fi
 # git-bash facade — the versioned cmd launcher wins where it exists (MSYS
 # bridges .cmd through cmd.exe, preserving args/exit/Ctrl-C), else the
 # POSIX launcher. No second version selection anywhere.
+if [ -f "$root/$ver/mercury.cmd" ] && [ -f "$root/$ver/mercury.mjs" ]; then
+  road=cmd
+  case "\${1:-}" in run|-*) road=node ;; esac
+  [ -t 0 ] || road=node
+  nl='
+'
+  for mercury_arg in "$@"; do
+    case "$mercury_arg" in
+      -h|--help|-v|-V|--version) road=node ;;
+      *['%^&|<>"']*) road=node ;;
+      *"$nl"*) road=node ;;
+    esac
+  done
+  if [ "$road" = "node" ]; then
+    dir="$root/$ver"
+    node_missing() {
+      echo "mercury: no usable Node runtime — none of the three rungs answered:" >&2
+      echo "         1. MERCURY_NODE is unset, or names no executable file (point it at a Node ${NODE_SUPPORT.major}.x binary to choose one explicitly)" >&2
+      echo "         2. no vendored runtime at $dir/vendor/node/node.exe (re-extract the release archive intact — it carries one)" >&2
+      echo "         3. no 'node' on PATH (install ${NODE_SUPPORT.label}, ${NODE_SUPPORT.range}, from https://nodejs.org)" >&2
+      exit 1
+    }
+    node_bin=""
+    if [ -n "\${MERCURY_NODE:-}" ]; then
+      if [ -f "$MERCURY_NODE" ] && [ -x "$MERCURY_NODE" ]; then node_bin="$MERCURY_NODE"; else node_missing; fi
+    elif [ -f "$dir/vendor/node/node.exe" ]; then
+      node_bin="$dir/vendor/node/node.exe"
+    elif command -v node >/dev/null 2>&1; then
+      node_bin="$(command -v node)"
+    else
+      node_missing
+    fi
+    node_unsupported() {
+      echo "mercury: ${NODE_SUPPORT.label} (${NODE_SUPPORT.range}) is required (found $("$node_bin" -v 2>/dev/null || echo none) at $node_bin)" >&2
+      echo "         install a current Node ${NODE_SUPPORT.major}.x from https://nodejs.org, point MERCURY_NODE at one, or re-extract the release archive for its vendored runtime" >&2
+      exit 1
+    }
+    nodev=$("$node_bin" -e 'process.stdout.write(process.versions.node)' 2>/dev/null)
+    case "$nodev" in ${NODE_SUPPORT.major}.*) ;; *) node_unsupported ;; esac
+    case "$nodev" in *-*) node_unsupported ;; esac
+    nodemin=\${nodev#*.}; nodemin=\${nodemin%%.*}
+    case "$nodemin" in ''|*[!0-9]*) node_unsupported ;; esac
+    [ "$nodemin" -ge ${NODE_SUPPORT.minimum.split('.')[1]} ] || node_unsupported
+    chcp.com 65001 >/dev/null 2>&1 && export MERCURY_WIN32_UTF8_PRESET=1
+    if [ -n "\${home:-}" ] && [ -z "\${NODE_COMPILE_CACHE:-}" ] && [ -z "\${NODE_DISABLE_COMPILE_CACHE:-}" ] && command -v cygpath >/dev/null 2>&1; then
+      cache="$(cygpath -w "$home/compile-cache" 2>/dev/null)"
+      if [ -n "$cache" ] && [ "\${#cache}" -le 200 ]; then NODE_COMPILE_CACHE="$cache"; export NODE_COMPILE_CACHE; fi
+    fi
+    bundle="$dir/mercury.mjs"
+    if command -v cygpath >/dev/null 2>&1; then bundle="$(cygpath -w "$bundle" 2>/dev/null || echo "$dir/mercury.mjs")"; fi
+    "$node_bin" "$bundle" "$@"
+    rt=$?
+    if [ -t 1 ] && [ "$rt" != "0" ]; then
+      "$node_bin" -e "process.stdout.write('\\x1b[?2026l\\x1b[0m\\x1b[?1000l\\x1b[?1002l\\x1b[?1003l\\x1b[?1006l\\x1b[?1004l\\x1b[?2004l\\x1b[?1007l\\x1b[?1049l\\x1b[?1004l\\x1b[?25h\\x1b]111\\x07')" 2>/dev/null || true
+    fi
+    exit $rt
+  fi
+fi
 if [ -f "$root/$ver/mercury.cmd" ]; then exec "$root/$ver/mercury.cmd" "$@"; fi
 exec "$root/$ver/mercury" "$@"
 `
@@ -624,12 +685,47 @@ function writeOneShim(path: string, desired: string, executable: boolean, isWind
 function shimMemberContent(path: string, isWindows: boolean): { text: string; executable: boolean } {
   const isCmd = path.toLowerCase().endsWith('.cmd')
   if (isWindows && isCmd) return { text: shimContent(true), executable: false }
+  if (isWindows && path.toLowerCase().endsWith('.ps1')) return { text: powershellEntryContent(), executable: false }
   return { text: shimContent(false), executable: true }
+}
+
+export function powershellEntryContent(): string {
+  return [
+    `# ${SHIM_MARKER} - the stable Mercury command for PowerShell.`,
+    '$root = $env:MERCURY_VERSIONS_DIR',
+    'if (-not $root) {',
+    "  $mercuryHome = if ($env:MERCURY_CONFIG_DIR) { $env:MERCURY_CONFIG_DIR } elseif ($env:MERCURY_HOME) { $env:MERCURY_HOME } else { Join-Path $HOME '.mercury' }",
+    "  $root = Join-Path $mercuryHome 'versions'",
+    '}',
+    "$pointer = Join-Path $root 'current.txt'",
+    'if (-not (Test-Path -LiteralPath $pointer -PathType Leaf)) {',
+    "  [Console]::Error.WriteLine('mercury: no managed install at ' + $root + ' - run `mercury install` from an extracted release archive')",
+    '  exit 1',
+    '}',
+    "$ver = ''",
+    "foreach ($line in [System.IO.File]::ReadLines($pointer)) { if ($line.Trim() -ne '') { $ver = $line; break } }",
+    "$ver = $ver.Replace('\"', '').TrimEnd()",
+    "if ($ver -eq '') {",
+    "  [Console]::Error.WriteLine('mercury: ' + $pointer + ' is empty - run `mercury update`, or set it to an installed version directory name')",
+    '  exit 1',
+    '}',
+    "if ($ver.Contains('\\') -or $ver.Contains('/') -or $ver.Contains('..')) {",
+    "  [Console]::Error.WriteLine('mercury: current.txt must hold a version directory name, not a path - edit it to an installed version directory name')",
+    '  exit 1',
+    '}',
+    '$dir = Join-Path $root $ver',
+    "$entry = Join-Path $dir 'mercury.ps1'",
+    'if (Test-Path -LiteralPath $entry -PathType Leaf) { & $entry @args; exit $LASTEXITCODE }',
+    "$cmdEntry = Join-Path $dir 'mercury.cmd'",
+    'if (Test-Path -LiteralPath $cmdEntry -PathType Leaf) { & $cmdEntry @args; exit $LASTEXITCODE }',
+    "[Console]::Error.WriteLine('mercury: current.txt does not name an installed version under ' + $root + ' - edit it to an installed version directory name')",
+    'exit 1',
+  ].join('\r\n') + '\r\n'
 }
 
 function shimSetPathsOf(roots: LayoutRoots): string[] {
   if (roots.shimSetPaths && roots.shimSetPaths.length > 0) return roots.shimSetPaths
-  return roots.isWindows ? [roots.shimPath, join(dirname(roots.shimPath), 'mercury')] : [roots.shimPath]
+  return roots.isWindows ? [roots.shimPath, join(dirname(roots.shimPath), 'mercury'), join(dirname(roots.shimPath), WIN32_POWERSHELL_ENTRY)] : [roots.shimPath]
 }
 
 export function writeShimSet(roots: LayoutRoots, opts: { force?: boolean } = {}): ShimSetOutcome {
