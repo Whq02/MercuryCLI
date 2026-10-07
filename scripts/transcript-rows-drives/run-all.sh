@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-watch: src/ink/** src/utils/cockpit/** src/tools/WorkshopTool/** src/components/tasks/BackgroundTasksDialog.tsx src/utils/collapseReadSearch.ts src/components/concourse/workerTranscriptFold.ts src/components/messages/CollapsedReadSearchContent.tsx
+# gate-watch: src/ink/** src/utils/cockpit/** src/components/tasks/BackgroundTasksDialog.tsx src/utils/collapseReadSearch.ts src/components/concourse/workerTranscriptFold.ts src/components/messages/CollapsedReadSearchContent.tsx
 # gate-watch: scripts/computer/computerDriveKit.ts scripts/lib/* scripts/streaming/artifactArena.ts
 # gate-watch: scripts/transcript-rows/* scripts/ui/* src/components/CustomSelect/use-select-input.ts
 # gate-watch: src/components/permissions/PermissionRequest.tsx src/input-core/pending-input.ts

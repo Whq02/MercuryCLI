@@ -34,7 +34,7 @@
 # gate-watch: src/services/providers/zai/zaiLogin.ts src/services/switchboard/* src/state/store.ts
 # gate-watch: src/substrate/* src/tools/BashTool/BashTool.tsx src/tools/BashTool/UI.tsx
 # gate-watch: src/tools/PowerShellTool/PowerShellTool.tsx src/tools/PowerShellTool/UI.tsx
-# gate-watch: src/tools/WorkshopTool/WorkshopCellCard.tsx src/tools/commandDisplay.ts src/vim/*
+# gate-watch: src/tools/commandDisplay.ts src/vim/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

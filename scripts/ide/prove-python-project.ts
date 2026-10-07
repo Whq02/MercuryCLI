@@ -53,7 +53,7 @@ if (!existsSync(SYS_PY)) {
 }
 
 console.log('============================================================')
-console.log(' python project owner — precedence · workshop · debug · resource')
+console.log(' python project owner — precedence · debug · resource')
 console.log('============================================================')
 
 const arena = mkdtempSync(join(tmpdir(), 'python-project-'))
@@ -108,44 +108,6 @@ try {
     check('A7 bare dir falls to PATH python3 (system rung)', system.state === 'ok' && system.envKind === 'system', JSON.stringify(system).slice(0, 160))
   }
 
-  section('(B) workshop consumption — the kernel rides the shared selection')
-  {
-    const { probePythonInterpreter, _resetPythonProbeForTesting, runPythonCell } = await import(
-      '../../src/services/workshop/pythonRuntime.js'
-    )
-    const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
-    const owner = makeOwnerKey({ workspace: arena, sessionId: 'py-project-proof', lane: 'main' })
-    const noBridge = {
-      inspect: async () => 'no',
-      tool: async () => 'no',
-      agent: async () => 'no',
-    }
-
-    process.env.MERCURY_PYTHON = SYS_PY
-    _resetPythonProbeForTesting()
-    const probe = probePythonInterpreter()
-    check('B1 workshop probe = the pinned interpreter', !('unavailable' in probe) && probe.command === SYS_PY && probe.version.includes('explicit'), JSON.stringify(probe))
-
-    const cell = await runPythonCell({
-      owner,
-      cwd: arena,
-      cell: { language: 'py', code: 'import sys; result = sys.version.split()[0]\nresult' },
-      bridge: noBridge as never,
-    })
-    const pinnedVersion = execFileSync(SYS_PY, ['-c', 'import sys; print(sys.version.split()[0])'], { encoding: 'utf8' }).trim()
-    check('B2 a REAL cell runs on the pinned interpreter', cell.state === 'succeeded' && cell.valuePreview.includes(pinnedVersion), `${cell.state}: ${cell.valuePreview || cell.error} (want ${pinnedVersion})`)
-
-    delete process.env.MERCURY_PYTHON
-    const realPath = process.env.PATH
-    process.env.PATH = '/nonexistent-forge'
-    _resetPythonProbeForTesting()
-    const sabotaged = probePythonInterpreter()
-    check('B3 PATH sabotage still reads honest-unavailable (install Python 3)', 'unavailable' in sabotaged && /install Python 3/.test(sabotaged.unavailable), JSON.stringify(sabotaged).slice(0, 200))
-    process.env.PATH = realPath
-    _resetPythonProbeForTesting()
-    const { disposeOwner } = await import('../../src/services/run/ownerLifecycle.js')
-    await disposeOwner(owner)
-  }
 
   section('(C) debug coupling — shared selection leads; pins never fall through')
   {

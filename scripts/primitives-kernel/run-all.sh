@@ -7,7 +7,7 @@
 # gate-watch: src/services/projectServices/executionProjection*
 # gate-watch: src/services/projectServices/serviceManager*
 # gate-watch: src/services/resources/adapters/service* src/services/resources/contracts*
-# gate-watch: src/services/resources/registry* src/services/run/** src/services/workshop/**
+# gate-watch: src/services/resources/registry* src/services/run/**
 # gate-watch: src/utils/task/executionProjection* src/utils/task/framework*
 # gate-watch: src/utils/verification/verificationState*
 # gate-watch: src/Task.ts

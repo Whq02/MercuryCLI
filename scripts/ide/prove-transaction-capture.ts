@@ -71,7 +71,7 @@ emit(duplicate, 'file.edit', { toolUseId: 'same-event' })
 await capture._drainTxAutoCaptureForTesting()
 check('C10 duplicate terminal events do not duplicate journal or saved steps', tx.latestTransaction(duplicate.root)?.steps.filter(s => s.kind === 'apply').length === 1)
 
-for (const operation of ['git.restore', 'git.resolve', 'workshop.transform', 'future.write']) {
+for (const operation of ['git.restore', 'git.resolve', 'fixture.transform', 'future.write']) {
   const f = fixture()
   emit(f, operation)
   check(`receipt-shaped ${operation} is captured without a second mutation registry`, (await status(f)).includes(`[ok] ${operation}: one.txt`))

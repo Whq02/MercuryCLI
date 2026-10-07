@@ -29,7 +29,7 @@ const { buildLargeToolResultMessage } = await import('../../src/utils/toolResult
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
 type Message = import('../../src/types/message.ts').Message
 
-const CLASS = ['Read', 'Bash', 'Grep', 'Agent', 'Eval', 'Workshop', 'Inspect', 'Zzz']
+const CLASS = ['Read', 'Bash', 'Grep', 'Agent', 'Eval', 'Inspect', 'Zzz']
 const NEVER = ['AskUserQuestion', 'ToolSearch']
 const PROTECTED = ['Skill']
 const PERSISTED_PATH = join(home, 'tool-results', 'agent-1.txt')
