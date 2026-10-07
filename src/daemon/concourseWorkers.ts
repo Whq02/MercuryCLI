@@ -1041,6 +1041,25 @@ export function makeConcourseAdmitHandler(
             .filter(r => r.sessionId === req.resumeSessionId && r.effort !== undefined)
             .sort((a, b) => b.spawnedAt - a.spawnedAt)[0]?.effort
         : undefined) ??
+      (() => {
+        if (req.resumeSessionId === undefined) return undefined
+        let saved: string | undefined
+        try {
+          scanTranscriptLinesBackward(join(getProjectDir(workspaceId), `${req.resumeSessionId}.jsonl`), line => {
+            if (!line.includes('effort')) return
+            try {
+              const row = JSON.parse(line) as Record<string, unknown>
+              const entry = (typeof row.recordId === 'string' && row.payload !== undefined ? recordToEntry(row as never) : row) as { type?: string; effort?: { asked?: unknown } }
+              if (entry.type !== 'assistant' || typeof entry.effort?.asked !== 'string') return
+              const level = normalizeEffortLevelString(entry.effort.asked)
+              if (level === undefined) return
+              saved = level
+              return true
+            } catch {}
+          })
+        } catch {}
+        return saved
+      })() ??
       'high'
     if (req.resumeSessionId !== undefined && worktreePath !== undefined) {
       migrateTranscriptHomeToLaw({ sessionId, workspaceId, worktreePath })
