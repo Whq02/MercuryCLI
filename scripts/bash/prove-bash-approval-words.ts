@@ -23,8 +23,6 @@ import { z } from 'zod/v4'
 
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
-await import('../../src/services/providers/callModelRouter.js')
-await import('../../src/utils/messages.js')
 await import('../../src/Tool.js')
 const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.js')
 const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.js')

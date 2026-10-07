@@ -19,8 +19,6 @@ delete process.env.NODE_ENV
 
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
-await import('../../src/services/providers/callModelRouter.js')
-await import('../../src/utils/messages.js')
 await import('../../src/Tool.js')
 const { scoutRefusal } = await import('../../src/tools/AgentTool/scoutPolicy.js')
 const { BashTool } = await import('../../src/tools/BashTool/BashTool.js')
