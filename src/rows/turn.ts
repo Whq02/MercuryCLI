@@ -69,6 +69,7 @@ import {
   noticeRow,
   outcomeRow,
   partialRowsOf,
+  refusedCallRowsOf,
   retractedRow,
   retryWaitRow,
   stepRow,
@@ -464,20 +465,26 @@ export class Conversation {
       }
       if (message.type === 'assistant') {
         const assistant = message as AssistantMessage & { isApiErrorMessage?: boolean }
-        if (assistant.isApiErrorMessage === true || !isNotEmptyMessage(message)) return rows
+        if (assistant.isApiErrorMessage === true) return rows
+        const refused = assistant.refusedToolCalls ?? []
+        const hasContent = isNotEmptyMessage(message)
+        if (!hasContent && refused.length === 0) return rows
         const messageId = assistant.message.id ?? (assistant.uuid as string)
         const content = assistant.message.content
         const base = steps.blocks.get(messageId) ?? 0
-        const length = Array.isArray(content) ? content.length : 1
-        steps.blocks.set(messageId, base + length)
+        const length = hasContent ? (Array.isArray(content) ? content.length : 1) : 0
+        steps.blocks.set(messageId, base + length + refused.length)
         let block = base
-        for (const normalized of normalizeMessages([message])) {
-          const pieces = (normalized as AssistantMessage).message.content
-          const items = itemRowsOf(rowScope, messageId, pieces, block)
-          for (const item of items) if (item.type === 'tool_call') callScopes.set(item.call_id, rowScope)
-          rows.push(...items)
-          block += Array.isArray(pieces) ? pieces.length : 1
+        if (hasContent) {
+          for (const normalized of normalizeMessages([message])) {
+            const pieces = (normalized as AssistantMessage).message.content
+            const items = itemRowsOf(rowScope, messageId, pieces, block)
+            for (const item of items) if (item.type === 'tool_call') callScopes.set(item.call_id, rowScope)
+            rows.push(...items)
+            block += Array.isArray(pieces) ? pieces.length : 1
+          }
         }
+        if (refused.length > 0) rows.push(...refusedCallRowsOf(rowScope, messageId, refused, base + length))
         return rows
       }
       if (message.type === 'user') {

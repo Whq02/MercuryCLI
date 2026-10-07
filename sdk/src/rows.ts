@@ -140,7 +140,7 @@ export interface ToolResultRow {
   turn?: number
   parent_call_id?: string
   call_id: string
-  status: 'ok' | 'error' | 'aborted'
+  status: 'ok' | 'error' | 'aborted' | 'refused'
   output: string
 }
 export interface ToolUpdateRow {
@@ -836,7 +836,8 @@ export const ROW_SCHEMAS: Readonly<Record<RowType | PartialRowType, JsonSchema>>
         "enum": [
           "ok",
           "error",
-          "aborted"
+          "aborted",
+          "refused"
         ]
       },
       "output": {
