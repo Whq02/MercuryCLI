@@ -9,6 +9,7 @@ const { AstSearchTool } = await import(join(REPO, 'src/tools/AstSearchTool/AstSe
 const { AstEditTool } = await import(join(REPO, 'src/tools/AstEditTool/AstEditTool.ts'))
 const { STRUCTURE_SELECTS } = await import(join(REPO, 'src/services/structure/contracts.ts'))
 const { toolToAPISchema } = await import(join(REPO, 'src/utils/api.ts'))
+const { toolReferenceWireAccepted } = await import(join(REPO, 'src/services/providers/deferralWire.ts'))
 const { getEmptyToolPermissionContext } = await import(join(REPO, 'src/Tool.ts'))
 const { searchSteeringLine, editSteeringLine } = await import(join(REPO, 'src/services/projectIntel/steering.ts'))
 const { getConversationToolSchemas } = await import(join(REPO, 'src/utils/toolSchemaCache.ts'))
@@ -105,7 +106,10 @@ Records: mercury://structure/query/<id> · mercury://structure/preview/<id> (Ins
     if (tool.name === 'AstEdit') delete reference.defer_loading
     const referenceBytes = Buffer.byteLength(JSON.stringify(reference))
     check(`${tool.name}: reference definition <= ${ceiling} bytes`, referenceBytes <= ceiling, `${referenceBytes} reference bytes; ${bytes} wire bytes`)
-    if (tool.name === 'AstEdit') check('AstEdit retains exactly the inherited 21-byte defer mark', wire.defer_loading === true && bytes - referenceBytes === 21)
+    if (tool.name === 'AstEdit') {
+      if (toolReferenceWireAccepted()) check('AstEdit retains exactly the inherited 21-byte defer mark on the block-form wire', wire.defer_loading === true && bytes - referenceBytes === 21, `${bytes - referenceBytes} mark bytes`)
+      else check('AstEdit carries no defer mark on a text-form wire (the mark rides the block form only)', wire.defer_loading === undefined && bytes === referenceBytes, `${bytes - referenceBytes} mark bytes`)
+    }
     console.log(`DEFINITION ${tool.name} ${referenceBytes} reference bytes; ${bytes} wire bytes`)
   }
   const first = createUserMessage({ content: 'resume fixture' })
