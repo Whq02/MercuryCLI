@@ -115,7 +115,11 @@ from a git URL pinned to a commit, `curl … | bash`, a self-daemonizing
 git config, of `core.hooksPath` or into `.git/hooks` — and the shapes that
 destroy a machine — `sudo`, a raw write to a device, a disk format or
 repartition, a shutdown or reboot, a fork bomb, and a recursive delete of the
-filesystem root, the home directory or a system directory. Reads stay clear
+filesystem root, the home directory or a system directory. On Windows the
+recursive-delete refusal covers drive roots and your own home, including
+Git Bash drive spellings and `$USERPROFILE` / `%USERPROFILE%`. Deleting
+`C:\Windows` or `C:\Users` instead requires the ordinary permission card.
+Reads stay clear
 (`git config --get`, `fdisk -l`, `diskutil list`), so does a recursive delete
 inside the project or a scratch directory, and so does a script that only
 mentions one of these words inside a quoted string or a heredoc. The same
