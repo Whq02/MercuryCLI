@@ -11,8 +11,8 @@ sessions ([the switch](#the-switch)).
 
 ## Where a sample comes from
 
-The model draws the page in a Workshop cell and keeps it with
-`mercury.sample({ name, title?, html })` ([WORKSHOP.md](WORKSHOP.md)). The
+The model draws the page in an Eval cell and keeps it with
+`sample({ name, title?, html, ask? })` ([EVAL.md](EVAL.md)). The
 page's data stays in the cell, so a redraw is a small edit, and every
 redraw is the next version of the same sample: the same name appends a
 version and never makes a second sample. The cell's result names each
@@ -88,8 +88,8 @@ the same message text on the clipboard for you to paste into the composer.
 
 Samples are off by default. Turn the Boot Menu's `Samples` row on — the
 change reaches new sessions — or set `MERCURY_SAMPLES=1` in the environment
-before the session starts. Off, there is no `mercury.sample` in the Workshop
-bridge, no listener and no `/samples`; the Workshop tool's prompt has no
+before the session starts. Off, `sample()` in an Eval cell refuses, no
+listener starts and `/samples` is unavailable; the Eval tool's prompt has no
 line about samples, and nothing else changes. Typed while off, `/samples`
 answers one line — `/samples is off — MERCURY_SAMPLES=1 turns it on (the
 Boot Menu's Samples row saves it for new sessions)` — and starts nothing.
