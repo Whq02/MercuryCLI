@@ -38,5 +38,38 @@ for (const family of ['anthropic', 'openai', 'openrouter', 'gemini', 'huggingfac
   check(`${family}: credentialed lane stays usable with its reading`, map[family].usable && map[family].limit === 'rejected' && Boolean(map[family].limitBlocker) && map[family].blockers.length === 0)
 }
 check('Anthropic: a window never caps delegation', map.anthropic.delegationCapped === false)
+const clearNames = [
+  ['openai', await import('../../src/services/providers/openai/openaiLimitState.js'), 'clearOpenaiUsageLimit', () => openaiLimitWindow('chatgpt-subscription')],
+  ['openrouter', await import('../../src/services/providers/openrouter/openrouterUsageState.js'), 'clearOpenrouterUsageLimit', openrouterLimitWindow],
+  ['gemini', await import('../../src/services/providers/gemini/geminiUsageState.js'), 'clearGeminiUsageLimit', geminiLimitWindow],
+  ['huggingface', await import('../../src/services/providers/huggingface/huggingfaceUsageState.js'), 'clearHuggingfaceUsageLimit', huggingfaceLimitWindow],
+] as const
+for (const [family, owner, name, window] of clearNames) {
+  const clear = (owner as unknown as Record<string, unknown>)[name]
+  if (typeof clear === 'function') clear('chatgpt-subscription')
+  check(`${family}: a served response clears the note`, typeof clear === 'function' && window().state === 'clear')
+}
+const { openrouterLaneProfile } = await import('../../src/services/providers/openrouter/openrouterCallModel.js')
+const { geminiLaneProfile } = await import('../../src/services/providers/gemini/geminiCallModel.js')
+const { huggingfaceLaneProfile } = await import('../../src/services/providers/huggingface/huggingfaceCallModel.js')
+for (const [profile, window] of [[openrouterLaneProfile, openrouterLimitWindow], [geminiLaneProfile, geminiLimitWindow], [huggingfaceLaneProfile, huggingfaceLimitWindow]] as const) {
+  profile.onResponseHeaders?.(new Headers({ 'retry-after': '518400' }), 429)
+  check(`${profile.lane}: the response road records its refusal`, window().state === 'limited')
+  profile.onResponseHeaders?.(new Headers(), 200)
+  check(`${profile.lane}: the response road clears its note on success`, window().state === 'clear')
+}
+process.env.MERCURY_MOCK_LIMITS = '1'
+const anthropic = await import('../../src/services/anthropicLimits.js')
+const mock = await import('../../src/services/mockRateLimits.js')
+anthropic.__setAnthropicOwnerResolverForTest(() => 'fixture-owner', () => 'fixture-account')
+mock.setMockRateLimitScenario('weekly-limit-reached')
+anthropic.extractQuotaStatusFromHeaders(new Headers())
+const clearAnthropic = (anthropic as unknown as Record<string, unknown>).clearAnthropicUsageLimit
+if (typeof clearAnthropic === 'function') clearAnthropic()
+check('Anthropic: a served response clears its refusal', typeof clearAnthropic === 'function' && anthropic.anthropicLimitVerdict().status === 'allowed')
+mock.setMockRateLimitScenario('clear')
+anthropic.resetLimitsForCredentialSwitch()
+anthropic.__setAnthropicOwnerResolverForTest(null)
+delete process.env.MERCURY_MOCK_LIMITS
 console.log(`${failures === 0 ? 'PASS' : 'FAIL'} provider decides (${failures} failures)`)
 process.exitCode = failures ? 1 : 0

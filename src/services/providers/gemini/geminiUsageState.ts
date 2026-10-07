@@ -46,3 +46,7 @@ export function forgetGeminiObservedLimit(): void {
 export function __resetGeminiUsageStateForTest(): void {
   observed = null
 }
+
+export function clearGeminiUsageLimit(): void {
+  observed = null
+}

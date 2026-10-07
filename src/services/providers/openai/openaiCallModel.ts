@@ -81,7 +81,8 @@ import {
   type GptReasoningProfile,
 } from './openaiCatalogue.js'
 import { describeWireEffortProbeWindow, noteWireEffortAccepted, recordLiveQualification, recordWireEffortRefusal } from './qualificationStore.js'
-import { noteOpenaiSourceIdentity, recordOpenaiUsageLimit } from './openaiLimitState.js'
+import { clearOpenaiUsageLimit, noteOpenaiSourceIdentity, openaiLimitWindow, recordOpenaiUsageLimit } from './openaiLimitState.js'
+import { refreshProviderUsage } from '../providerUsage.js'
 import { resolveEffortTruth, resolveWireRequestedEffort, type EffortAdjustedV1 } from '../../../utils/effort.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
 import { streamOpenaiResponses, type OpenaiLiveModel } from './openaiClient.js'
@@ -522,6 +523,7 @@ export async function* openaiCallModel(
     )
     return
   }
+  if (openaiLimitWindow(account.kind).state === 'limited') await refreshProviderUsage('openai', { force: true, reason: 'operator' })
   let auth = await resolveOpenaiRequestAuth({ sourceKind: account.kind })
   if (!auth) {
     yield apiErrorMessage(
@@ -674,6 +676,11 @@ export async function* openaiCallModel(
         ? `${API_ERROR_MESSAGE_PREFIX}: ${emptyStreamSpentWords('OpenAI', Date.now() - turnStartedAtMs)} — ${line.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`
         : line
   for (let attempt = 1; attempt <= OPENAI_MAX_ATTEMPTS || busy !== undefined; attempt++) {
+    if (attempt > 1) {
+      await refreshProviderUsage('openai', { force: true, reason: 'operator' })
+      const refreshed = await resolveOpenaiRequestAuth({ sourceKind: auth.account.kind })
+      if (refreshed) auth = refreshed
+    }
     attemptStartedAtMs = Date.now()
     noteRunPhase('dispatch')
     const outcome = yield* streamOneOpenaiAttempt({
@@ -693,6 +700,7 @@ export async function* openaiCallModel(
       ...(busy !== undefined ? { busy } : {}),
     })
     if (outcome.kind === 'done') {
+      clearOpenaiUsageLimit(auth.account.kind)
       try {
         const { logAPISuccessAndDuration } = await import('../../api/logging.js')
         logAPISuccessAndDuration({ start: attemptStartedAtMs, startIncludingRetries: turnStartedAtMs })
@@ -869,6 +877,7 @@ export async function* openaiCallModel(
           return ''
         }
       })()
+      await refreshProviderUsage('openai', { force: true, reason: 'operator' })
       const carryClause = ((): string => {
         try {
           const { usageCarryWords, usageForProvider } =
