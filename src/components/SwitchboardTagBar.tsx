@@ -310,7 +310,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const effortLabel = modelSupportsEffort(effectiveModel) ? focusedEffortLabelOf(effectiveModel, seatEffort, sentEffort, effortValue, bornEffort, false) : null
   const shownModel = crewmate !== null && crewmateModel !== null ? (crewmateModel.model === null ? 'model unreported' : renderModelChip(crewmateModel.model)) : modelName
   const shownEffort = crewmate !== null && crewmateModel !== null ? crewmateModel.effort : effortLabel
-  const modelWords = [daemonBuild, modelStatusWords(shownModel, shownEffort)].filter(Boolean).join(' · ')
+  const modelWords = [modelStatusWords(shownModel, shownEffort), daemonBuild].filter(Boolean).join(' · ')
   const held = receipt !== '' && !statusRowWarns(live, status) ? receipt : null
   const resting = daemonBuild === '' && held === null && line === 'ready'
   const head = resting ? restingStatusWords(shownModel, shownEffort) : modelWords

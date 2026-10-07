@@ -139,7 +139,7 @@ tally.section('B — the line count: a final newline ends the last line; N is th
   const oneRead = await ownRead({ file_path: oneEmpty })
   tally.check('7d. a file of one empty line reads line 1 alone, then its anchor', oneRead.body.startsWith('1\t\n(anchor: fa:') && !oneRead.text.includes('2\t') && oneRead.data.file.numLines === 1 && oneRead.data.file.totalLines === 1, JSON.stringify(oneRead.body))
   const emptyRead = await ownRead({ file_path: empty })
-  tally.check('7e. an empty file: the empty-contents note and totalLines 0', emptyRead.text === '<system-reminder>Warning: the file exists but has empty contents.</system-reminder>' && emptyRead.data.file.totalLines === 0, JSON.stringify({ text: emptyRead.text, totalLines: emptyRead.data.file.totalLines }))
+  tally.check('7e. an empty file: the empty-contents note, its anchor and totalLines 0', emptyRead.text === '<system-reminder>Warning: the file exists but has empty contents.</system-reminder>\n(anchor: fa:' + emptyRead.data.file.anchor!.slice(3) + ')' && emptyRead.data.file.totalLines === 0, JSON.stringify({ text: emptyRead.text, totalLines: emptyRead.data.file.totalLines }))
   const emptyPast = await ownRead({ file_path: empty, offset: 5 })
   tally.check('7f. an empty file at any offset is still the empty-contents note', emptyPast.text === '<system-reminder>Warning: the file exists but has empty contents.</system-reminder>', emptyPast.text)
   const ledgerText = ledgerLines.join('\n') + '\n'
