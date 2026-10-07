@@ -13,6 +13,8 @@ import { BrowserTool, browserToolEnabled } from './tools/BrowserTool/BrowserTool
 import { ComputerTool, computerToolEnabled } from './tools/ComputerTool/ComputerTool.js'
 import { ContractTool, contractToolHosted } from './tools/ContractTool/ContractTool.js'
 import { changeSetEnabled } from './services/changeTransaction/changeSetContracts.js'
+import { changeTransactionEnabled } from './services/changeTransaction/contracts.js'
+import { txAutoCaptureEnabled } from './services/ide/txAutoCapture.js'
 import { isDapToolCatalogEnabled } from './services/dap/dapClient.js'
 import { gitGraphEnabled } from './services/gitGraph/contracts.js'
 import { ideLoopEnabled } from './services/ide/ideTransaction.js'
@@ -171,7 +173,7 @@ export function getAllBaseTools(): Tools {
     ...(pythonTestsEnabled() ? [TestTool] : []),
     ...(evalEnabled() ? [EvalTool] : []),
     ...(launchProfilesEnabled() ? [LaunchTool] : []),
-    ...(ideLoopEnabled() ? [TransactionTool] : []),
+    ...(ideLoopEnabled() && changeTransactionEnabled() && txAutoCaptureEnabled() ? [TransactionTool] : []),
     ...(structureEnabled() ? [StructureTool] : []),
     ...(structurePolyglotEnabled() ? [AstSearchTool, AstEditTool] : []),
     ...(changeSetEnabled() ? [ChangeSetTool] : []),
