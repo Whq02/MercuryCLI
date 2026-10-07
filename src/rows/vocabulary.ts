@@ -524,6 +524,21 @@ export function exitCodeOf(status: OutcomeStatus): 0 | 1 {
   return status === 'completed' ? 0 : 1
 }
 
+export const TERMINAL_FAILURE_SENTENCES: Record<Terminal['reason'], string> = {
+  completed: 'The turn ended',
+  model_error: 'The model call failed',
+  image_error: 'The turn failed: an image in the conversation could not be sent to the model (too large, or it could not be resized)',
+  prompt_too_long: 'The turn failed: the conversation no longer fits the model\'s context window and compaction could not make it fit',
+  blocking_limit: 'The turn failed: the next request would exceed the model\'s context window and nothing more could be pruned — /compact or a fresh session makes room',
+  rapid_refill_breaker: 'The turn failed: the context refilled to its limit within a few turns of each compaction, so compaction was stopped — a fresh session makes room',
+  max_turns: 'Reached the maximum number of turns',
+  aborted_streaming: 'Interrupted',
+  aborted_tools: 'Interrupted',
+  stop_hook_prevented: 'The turn ended',
+  hook_stopped: 'The turn ended',
+  loop_stopped: 'The loop guard ended the turn',
+}
+
 export const OUTCOME_SENTENCES: Record<Exclude<OutcomeStatus, 'completed' | 'refused' | 'failed'>, (detail: { maxTurns?: number; maxBudgetUsd?: number; message?: string }) => string> = {
   blocked: d => d.message ?? 'Blocked on the operator',
   interrupted: () => 'Interrupted',
