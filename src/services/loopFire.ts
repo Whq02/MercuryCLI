@@ -3,7 +3,6 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { getProjectRoot } from '../bootstrap/state.js'
 import { MONITOR_TOOL_NAME } from '../tools/MonitorTool/constants.js'
-import { SEND_MESSAGE_TOOL_NAME } from '../tools/SendMessageTool/constants.js'
 import { TASK_LIST_TOOL_NAME } from '../tools/TaskListTool/constants.js'
 import { TASK_STOP_TOOL_NAME } from '../tools/TaskStopTool/prompt.js'
 import { SCHEDULE_WAKEUP_TOOL_NAME } from '../tools/ScheduleWakeupTool/prompt.js'
@@ -89,7 +88,7 @@ function sendMessageOutcomeHint(isLoopFileMode = false): string {
   const endCondition = softEnd
     ? "newly blocked on a decision you won't make alone, you're ending the loop"
     : "newly blocked on a decision you won't make alone, third straight tick with nothing to do, you're ending the loop"
-  return `\n\nUse ${SEND_MESSAGE_TOOL_NAME} when the loop can't move further without the user, or when something landed that they'd want to act on now: ${endCondition}, or a major update arrived (CI went red, a review changes the plan). Progress you made yourself isn't a trigger — the transcript covers that. One ping per state, not per tick.`
+  return `\n\nSay so in one line of your reply when the loop can't move further without the user, or when something landed that they'd want to act on now: ${endCondition}, or a major update arrived (CI went red, a review changes the plan). Progress you made yourself isn't a trigger — the transcript covers that. One ping per state, not per tick.`
 }
 
 const DYNAMIC_PACING_FOOTER = `\n\nIf the next tick is gated on an event, prefer a ${MONITOR_TOOL_NAME} watch on the log/process/command (or, for watches it doesn't fit, a long-running \`run_in_background\` Bash task — check ${TASK_LIST_TOOL_NAME}): its events arrive as \`<task-notification>\` messages and wake this loop immediately, so keep \`delaySeconds\` at 1200–1800s — the watch is your wake signal and this is only the fallback heartbeat. If you were woken by a \`<task-notification>\`, handle the event before rescheduling. To stop the loop, also ${TASK_STOP_TOOL_NAME} that watch (use ${TASK_LIST_TOOL_NAME} to find its task ID if it is no longer in context).`
