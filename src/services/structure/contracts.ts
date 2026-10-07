@@ -29,9 +29,6 @@ export type StructureSelect = (typeof STRUCTURE_SELECTS)[number]
 
 export interface StructureQuery {
   select?: StructureSelect
-  pattern?: string
-  lang?: string
-  symbol?: { kind: 'function' | 'class' | 'method'; name: string }
   name?: string
   callee?: string
   module?: string
@@ -94,10 +91,6 @@ export type StructureTransform =
   | {
       action: 'set-value'
       value: string
-    }
-  | {
-      action: 'rewrite'
-      out: string
     }
   | {
       action: 'insert-before'

@@ -125,8 +125,6 @@ function editsForMatch(
     case 'insert-before':
     case 'insert-after':
       return [insertionEdit(text, start, end, transform.action, transform.text)]
-    case 'rewrite':
-      return { refuse: `${match.id}: 'rewrite' applies to pattern queries (use a pattern query, or replace/$TEXT here)` }
   }
 }
 
@@ -319,7 +317,7 @@ export async function applyPreview(
     | (StructurePreview & { _originals?: Map<string, string> })
     | undefined
   if (!preview) {
-    return { state: 'refused', code: 'absent', reason: `no preview '${previewId}' in this conversation` }
+    return { state: 'refused', code: 'absent', reason: `no preview '${previewId}' in this conversation — previews live only in the process that made them, 16 at a time; run the query and the preview again` }
   }
   if (preview.state === 'applied') {
     return { state: 'refused', code: 'already-applied', reason: `${previewId} already applied — a second apply would double-write` }

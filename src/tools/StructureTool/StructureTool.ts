@@ -1,4 +1,3 @@
-
 import { z } from 'zod/v4'
 import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
@@ -14,13 +13,7 @@ import {
 } from '../../services/structure/contracts.js'
 import { runStructureQuery } from '../../services/structure/query.js'
 import { applyPreview, buildPreview } from '../../services/structure/transform.js'
-import { runPolyglotQuery, relocatePatternMatches } from '../../services/structure/polyglotQuery.js'
-import { runPolyglotSymbolQuery } from '../../services/structure/polyglotSymbols.js'
-import {
-  applyPolyglotPreview,
-  buildPolyglotPreview,
-} from '../../services/structure/polyglotTransform.js'
-import { POLYGLOT_LANGUAGES } from '../../services/structure/grammarFacility.js'
+import { resolveGrammarEngineDir } from '../../services/structure/grammarFacility.js'
 import { getPreview, getQuery, rememberQuery } from '../../services/structure/store.js'
 import {
   loadTs,
@@ -50,74 +43,29 @@ import {
 
 const OPS = ['query', 'preview', 'apply', 'explain'] as const
 const ACTIONS = ['replace', 'rename', 'remove', 'replace-import', 'replace-callee', 'set-value', 'insert-before', 'insert-after'] as const
-const POLYGLOT_ACTIONS = [...ACTIONS, 'rewrite'] as const
-
-const SYMBOL_KINDS = ['function', 'class', 'method'] as const
 const SELECT_LANE_EXTS = ['.js', '.jsx', '.mjs', '.cjs', '.ts', '.mts', '.cts', '.tsx']
-function routesToSymbolLane(input: Input): boolean {
-  if (!input.select || !(SYMBOL_KINDS as readonly string[]).includes(input.select)) return false
-  if (input.lang !== undefined) return !['javascript', 'typescript', 'tsx'].includes(input.lang)
-  if (input.files && input.files.length > 0) {
-    return input.files.every(g => {
-      const m = /(\.[A-Za-z0-9]+)$/.exec(g)
-      return m ? !SELECT_LANE_EXTS.includes(m[1]!.toLowerCase()) : false
-    })
-  }
-  return false
-}
 
-const baseFields = () => ({
-  op: z.enum(OPS).describe('The structural operation'),
-  select: z.enum(STRUCTURE_SELECTS).optional().describe('query: what to select (function · class · call · import · property · …)'),
-  name: z.string().optional().describe('query: name filter — exact or glob with *'),
-  callee: z.string().optional().describe('query select:call — dotted callee glob (console.log · fs.* · *.push)'),
-  module: z.string().optional().describe('query select:import/export — module specifier glob'),
-  value: z.string().optional().describe('query select:string — literal substring'),
-  within: z.string().optional().describe("query: ancestor constraint ('class:Name' · 'function:name' · 'class')"),
-  files: z.array(z.string()).optional().describe('query: file globs relative to the project root'),
-  limit: z.number().optional().describe('query: match bound (default 50, max 200)'),
-  queryId: z.string().optional().describe('preview/explain: the query record (sq-…); defaults to the latest'),
-  matchIds: z.array(z.string()).optional().describe('preview: match subset (default: every match)'),
-  replacement: z.string().optional().describe('preview replace: new node text ($TEXT interpolates the original)'),
-  to: z.string().optional().describe('preview rename/replace-callee: the new name/callee'),
-  newModule: z.string().optional().describe('preview replace-import: the new module specifier'),
-  newValue: z.string().optional().describe('preview set-value: the new property value text'),
-  previewId: z.string().optional().describe('apply: the preview to apply (sp-…)'),
-  matchId: z.string().optional().describe('explain: the match to explain (sm-…)'),
-})
-
-const polyglotInputSchema = () =>
+const inputSchema = lazySchema(() =>
   z.strictObject({
-    ...baseFields(),
-    pattern: z
-      .string()
-      .optional()
-      .describe(
-        "query: an ast-grep-style metavariable pattern ($NAME = one node · $_ = one unbound · $$$NAME = zero-or-more · $$$) matched structurally with per-file language inference — mixed-language scopes welcome; mutually exclusive with select",
-      ),
-    lang: z
-      .string()
-      .optional()
-      .describe(`query pattern: pin one engine language instead of inference (${POLYGLOT_LANGUAGES.map(l => l.name).join(' · ')})`),
-    out: z
-      .string()
-      .optional()
-      .describe('preview rewrite: the output template — $NAME/$$$NAME substitute the captured source; "" deletes the matched node'),
-    action: z.enum(POLYGLOT_ACTIONS).optional().describe('preview: the transformation (rewrite = pattern-lane template; insert-before/insert-after = boundary insertion via replacement)'),
-    select: z.enum(STRUCTURE_SELECTS).optional().describe('query: what to select (function · class · call · import · property · …). function/class/method with lang python/go/rust (or non-JS/TS files globs) = polyglot symbol addressing'),
-  })
-
-const baseInputSchema = () =>
-  z.strictObject({
-    ...baseFields(),
+    op: z.enum(OPS).describe('The structural operation'),
+    select: z.enum(STRUCTURE_SELECTS).optional().describe('query: what to select (function · class · call · import · property · …)'),
+    name: z.string().optional().describe('query: name filter — exact or glob with *'),
+    callee: z.string().optional().describe('query select:call — dotted callee glob (console.log · fs.* · *.push)'),
+    module: z.string().optional().describe('query select:import/export — module specifier glob'),
+    value: z.string().optional().describe('query select:string — literal substring'),
+    within: z.string().optional().describe("query: ancestor constraint ('class:Name' · 'function:name' · 'class')"),
+    files: z.array(z.string()).optional().describe('query: file globs relative to the project root'),
+    limit: z.number().optional().describe('query: match bound (default 50, max 200)'),
+    queryId: z.string().optional().describe('preview/explain: the query record (sq-…); defaults to the latest'),
+    matchIds: z.array(z.string()).optional().describe('preview: match subset (default: every match)'),
+    replacement: z.string().optional().describe('preview replace · insert-before · insert-after: the new text ($TEXT, in replace, is the original node)'),
+    to: z.string().optional().describe('preview rename/replace-callee: the new name/callee'),
+    newModule: z.string().optional().describe('preview replace-import: the new module specifier'),
+    newValue: z.string().optional().describe('preview set-value: the new property value text'),
+    previewId: z.string().optional().describe('apply: the preview to apply (sp-…)'),
+    matchId: z.string().optional().describe('explain: the match to explain (sm-…)'),
     action: z.enum(ACTIONS).optional().describe('preview: the transformation'),
-  })
-
-const inputSchema = lazySchema(
-  () =>
-    (structurePolyglotEnabled()
-      ? polyglotInputSchema()
-      : baseInputSchema()) as ReturnType<typeof polyglotInputSchema>,
+  }),
 )
 
 type SchemaType = ReturnType<typeof inputSchema>
@@ -175,10 +123,6 @@ function changeViewFromPreview(preview: StructurePreview, state: 'proposed' | 'a
 
 function transformFrom(input: Input): StructureTransform | { error: string } {
   switch (input.action) {
-    case 'rewrite':
-      return input.out !== undefined
-        ? { action: 'rewrite', out: input.out }
-        : { error: 'rewrite needs out (the substitution template; "" deletes the match)' }
     case 'replace':
       return input.replacement !== undefined
         ? { action: 'replace', replacement: input.replacement }
@@ -215,9 +159,8 @@ function latestQueryId(owner: OwnerKey): string | null {
 }
 
 function describeQueryResult(r: NonNullable<ReturnType<typeof getQuery>>): string {
-  const what = r.query.pattern ? ` (pattern ${JSON.stringify(r.query.pattern.slice(0, 60))})` : ''
   const head =
-    `${r.id}${what}: ${r.matches.length} match(es) · parsed ${r.parsed}/${r.scanned} scanned · ${r.elapsedMs}ms` +
+    `${r.id}: ${r.matches.length} match(es) · parsed ${r.parsed}/${r.scanned} scanned · ${r.elapsedMs}ms` +
     `${r.truncated ? ' · TRUNCATED (narrow with files/limit)' : ''}`
   const rows = r.matches
     .slice(0, 30)
@@ -241,54 +184,6 @@ async function runOp(
 
   switch (input.op) {
     case 'query': {
-      const pattern = typeof input.pattern === 'string' && input.pattern.trim() === '' ? undefined : input.pattern
-      if (pattern !== undefined && input.select !== undefined) {
-        return {
-          result: 'query takes select OR pattern, never both — a symbol query is select + name (select: function, name: nextHigh); a pattern query is pattern alone, with no select',
-          outcome: 'failed',
-        }
-      }
-      if (pattern !== undefined) {
-        if (!structurePolyglotEnabled()) {
-          return { result: 'pattern queries are disabled (MERCURY_STRUCTURE_POLYGLOT=0) — use select', outcome: 'failed' }
-        }
-        const query: StructureQuery = {
-          pattern,
-          ...(input.lang !== undefined && { lang: input.lang }),
-          ...(input.files !== undefined && { files: input.files }),
-          ...(input.limit !== undefined && { limit: input.limit }),
-        }
-        const result = await runPolyglotQuery(root, query, {
-          signal: context.abortController?.signal,
-        })
-        if ('state' in result) return { result: result.note, outcome: 'failed' }
-        rememberQuery(owner, result)
-        return {
-          result: describeQueryResult(result),
-          outcome: result.matches.length > 0 ? 'succeeded' : 'no-change',
-        }
-      }
-      if (!input.select) return { result: 'query needs select or pattern', outcome: 'failed' }
-      if (routesToSymbolLane(input)) {
-        if (!structurePolyglotEnabled()) {
-          return { result: 'symbol queries over non-JS/TS need the polyglot lane (MERCURY_STRUCTURE_POLYGLOT=0)', outcome: 'failed' }
-        }
-        const query: StructureQuery = {
-          symbol: { kind: input.select as (typeof SYMBOL_KINDS)[number], name: input.name ?? '*' },
-          ...(input.lang !== undefined && { lang: input.lang }),
-          ...(input.files !== undefined && { files: input.files }),
-          ...(input.limit !== undefined && { limit: input.limit }),
-        }
-        const result = await runPolyglotSymbolQuery(root, query, {
-          signal: context.abortController?.signal,
-        })
-        if ('state' in result) return { result: result.note, outcome: 'failed' }
-        rememberQuery(owner, result)
-        return {
-          result: describeQueryResult(result),
-          outcome: result.matches.length > 0 ? 'succeeded' : 'no-change',
-        }
-      }
       const query: StructureQuery = {
         select: input.select,
         ...(input.name !== undefined && { name: input.name }),
@@ -316,74 +211,13 @@ async function runOp(
       if (!queryResult) return { result: `no query '${queryId}' in this conversation — re-query`, outcome: 'failed' }
       const transform = transformFrom(input)
       if ('error' in transform) return { result: transform.error, outcome: 'failed' }
-      if (queryResult.query.pattern !== undefined && transform.action !== 'rewrite') {
-        return { result: `${queryId} is a pattern query — preview it with action:"rewrite" (out template)`, outcome: 'failed' }
-      }
-      if (queryResult.query.symbol !== undefined) {
-        if (!structurePolyglotEnabled()) {
-          return { result: 'symbol previews are disabled (MERCURY_STRUCTURE_POLYGLOT=0)', outcome: 'failed' }
-        }
-        const plan =
-          transform.action === 'replace'
-            ? ({ kind: 'replace', text: transform.replacement } as const)
-            : transform.action === 'remove'
-              ? ({ kind: 'remove' } as const)
-              : transform.action === 'insert-before' || transform.action === 'insert-after'
-                ? ({ kind: transform.action, text: transform.text } as const)
-                : null
-        if (!plan) {
-          return { result: `${queryId} is a symbol query — preview it with replace ($TEXT interpolates), remove, insert-before or insert-after`, outcome: 'failed' }
-        }
-        const preview = await buildPolyglotPreview(owner, queryResult, input.matchIds, plan)
-        if ('reason' in preview) return { result: `preview refused: ${preview.reason}`, outcome: 'failed' }
-        const fileRows = preview.files.map(
-          f =>
-            `  ${f.file}: ${f.edits.length} edit(s), ~${f.changedLines} line(s)\n` +
-            f.before.map((b, i) => `    - ${b}\n    + ${f.after[i] ?? ''}`).join('\n'),
-        )
-        return {
-          result: [
-            `${preview.id} [proposed] ${preview.transform.action} — ${preview.matchCount} match(es) · ${preview.files.length} file(s) · ~${preview.totalChangedLines} changed line(s)`,
-            ...fileRows,
-            `diagnostics planned post-apply: ${preview.diagnosticsPlanned.join(', ')}`,
-            `NOTHING written — apply with op:"apply" previewId:"${preview.id}" (stale-safe: refuses if files change first)`,
-            `record: mercury://structure/preview/${preview.id}`,
-          ].join('\n'),
-          outcome: 'succeeded',
-          previewId: preview.id,
-          changeView: changeViewFromPreview(preview, 'proposed'),
-        }
-      }
-      if (transform.action === 'rewrite') {
-        if (!structurePolyglotEnabled()) {
-          return { result: 'rewrite previews are disabled (MERCURY_STRUCTURE_POLYGLOT=0)', outcome: 'failed' }
-        }
-        const preview = await buildPolyglotPreview(owner, queryResult, input.matchIds, { kind: 'rewrite', out: transform.out })
-        if ('reason' in preview) return { result: `preview refused: ${preview.reason}`, outcome: 'failed' }
-        const fileRows = preview.files.map(
-          f =>
-            `  ${f.file}: ${f.edits.length} edit(s), ~${f.changedLines} line(s)\n` +
-            f.before.map((b, i) => `    - ${b}\n    + ${f.after[i] ?? ''}`).join('\n'),
-        )
-        return {
-          result: [
-            `${preview.id} [proposed] rewrite — ${preview.matchCount} match(es) · ${preview.files.length} file(s) · ~${preview.totalChangedLines} changed line(s)`,
-            ...fileRows,
-            `diagnostics planned post-apply: ${preview.diagnosticsPlanned.join(', ')}`,
-            `NOTHING written — apply with op:"apply" previewId:"${preview.id}" (stale-safe: refuses if files change first)`,
-            `record: mercury://structure/preview/${preview.id}`,
-          ].join('\n'),
-          outcome: 'succeeded',
-          previewId: preview.id,
-          changeView: changeViewFromPreview(preview, 'proposed'),
-        }
-      }
       const preview = buildPreview(owner, queryResult, input.matchIds, transform)
       if ('reason' in preview) return { result: `preview refused: ${preview.reason}`, outcome: 'failed' }
       const fileRows = preview.files.map(
         f =>
           `  ${f.file}: ${f.edits.length} edit(s), ~${f.changedLines} line(s)\n` +
-          f.before.map((b, i) => `    - ${b}\n    + ${f.after[i] ?? ''}`).join('\n'),
+          f.before.map((b, i) => `    - ${b}\n    + ${f.after[i] ?? ''}`).join('\n') +
+          (f.edits.length > f.before.length ? `\n    … +${f.edits.length - f.before.length} more edit(s) in this file, not shown — apply writes all ${f.edits.length}` : ''),
       )
       return {
         result: [
@@ -401,20 +235,9 @@ async function runOp(
     case 'apply': {
       if (!input.previewId) return { result: 'apply needs previewId (sp-…)', outcome: 'failed' }
       const target = getPreview(owner, input.previewId)
-      const targetQuery = target ? getQuery(owner, target.queryId) : undefined
-      const polyglotLane = target?.lane
-        ? target.lane === 'polyglot'
-        : target?.transform.action === 'rewrite' ||
-          targetQuery?.query.pattern !== undefined ||
-          targetQuery?.query.symbol !== undefined
-      const outcome =
-        polyglotLane
-          ? await applyPolyglotPreview(owner, input.previewId, {
-              signal: context.abortController?.signal,
-            })
-          : await applyPreview(owner, input.previewId, {
-              signal: context.abortController?.signal,
-            })
+      const outcome = await applyPreview(owner, input.previewId, {
+        signal: context.abortController?.signal,
+      })
       if (outcome.state === 'refused') {
         return { result: `apply refused [${outcome.code}]: ${outcome.reason}`, outcome: 'failed' }
       }
@@ -451,32 +274,6 @@ async function runOp(
       if (!queryResult) return { result: 'explain needs a recorded query (op:"query" first)', outcome: 'failed' }
       const match = queryResult.matches.find(m => m.id === input.matchId)
       if (!match) return { result: `no match '${input.matchId ?? ''}' in ${queryResult.id}`, outcome: 'failed' }
-      if (queryResult.query.pattern !== undefined) {
-        const full = path.join(queryResult.root, match.file)
-        let text: string
-        try {
-          text = readFileSync(full, 'utf8')
-        } catch (err) {
-          return { result: `${match.file}: unreadable — ${(err as Error).message}`, outcome: 'failed' }
-        }
-        const relocated = await relocatePatternMatches(match.file, text, queryResult.query)
-        if (relocated.state === 'refused') return { result: relocated.note, outcome: 'failed' }
-        const hit = relocated.byId.get(match.id)
-        if (!hit) {
-          return { result: `${match.id} no longer reproduces — the file changed since the query; re-query`, outcome: 'failed' }
-        }
-        return {
-          result: [
-            `${match.id} ${match.file}:${match.range.startLine}:${match.range.startCol}`,
-            `language: ${match.language ?? 'unknown'} · node: ${hit.nodeType}`,
-            hit.captures.length
-              ? `captures: ${hit.captures.map(c => `${c.key} = ${c.text.split('\n')[0]!.slice(0, 60)}`).join(' · ')}`
-              : 'captures: none',
-            `text: ${hit.nodeText.split('\n').slice(0, 6).join('\n      ')}`,
-          ].join('\n'),
-          outcome: 'no-change',
-        }
-      }
       const resolution = resolveStructureTypescript(queryResult.root)
       if (resolution.state === 'unavailable') return { result: resolution.note, outcome: 'failed' }
       const ts = loadTs(resolution.modulePath)
@@ -520,24 +317,15 @@ async function runOp(
 
 export const StructureTool = buildTool({
   name: 'Structure',
-  searchHint: structurePolyglotEnabled()
-    ? 'structural AST query and codemod: find calls imports declarations by shape or metavariable pattern across python go rust js ts, preview and apply multi-file syntax transformations'
-    : 'structural AST query and codemod: find calls imports declarations by shape, preview and apply multi-file syntax transformations',
+  searchHint: 'JS/TS AST query by node kind, previewed codemod: imports, calls, declarations, renames, import swaps',
   capability: {
     intents: [
-      'find call expressions matching a pattern',
+      'find JS/TS calls by dotted callee',
       'query declarations imports or exports by shape',
       'transform matching call expressions',
-      'apply a template codemod across files',
       'rewrite an import specifier everywhere',
       'rename a syntactic construct where lsp rename is unsuitable',
-      ...(structurePolyglotEnabled()
-        ? [
-            'find this code structure across languages',
-            'search python go or rust code structurally',
-            'rewrite a matched pattern in many files',
-          ]
-        : []),
+      'set a property value across JS/TS files',
     ],
     units: ['structural-mutation', 'code-intelligence'],
     class: 'mutation',
@@ -557,29 +345,27 @@ export const StructureTool = buildTool({
     return 'Structural source queries and previewed multi-file codemods over JS/TS/JSX/TSX'
   },
   async prompt(options) {
-    const polyglot = structurePolyglotEnabled()
     const offered = options?.tools === undefined ? null : new Set(options.tools.map(tool => tool.name))
-    return `Bounded structural source-code queries and previewed, stale-safe codemods${polyglot ? ' — JS/TS/JSX/TSX select queries plus POLYGLOT metavariable patterns' : ' over JS/TS/JSX/TSX'} (the syntax owner — for TRUE symbol rename, file moves, or server fixes prefer ${lspMounted(offered) ? 'the LSP tool, ' : ''}the semantic owner).
+    const astAvailable = () => structurePolyglotEnabled() && resolveGrammarEngineDir().state === 'ok'
+    const search = offered?.has('AstSearch') ?? astAvailable()
+    const edit = offered?.has('AstEdit') ?? astAvailable()
+    const shape = search
+      ? `To find code by its shape in any language use AstSearch${edit ? ', and AstEdit to rewrite every match' : ''}; use this tool for`
+      : edit
+        ? 'To rewrite every match of a code shape in any language use AstEdit; use this tool for'
+        : 'Use it for'
+    return `Structural queries by node kind, and previewed, stale-safe codemods, over JS/TS/JSX/TSX only, on the TypeScript compiler's syntax tree. ${shape} JS/TS questions by node kind — imports by module, calls by dotted callee, declarations by kind and name, a node inside a named class or function — and for a rename, import swap, callee swap or property value that must land as one previewed change.${lspMounted(offered) ? ' For a true symbol rename, a file move or a language-server fix, prefer the LSP tool.' : ''}
 
-1. op:"query" (select, filters…) — deterministic bounded AST query. Selects: ${STRUCTURE_SELECTS.join(' · ')}. Filters: name (glob), callee ('fs.*'), module, value, within ('class:Name'), files (globs), limit. Returns stable match ids (sm-…) + mercury://structure/query/<id>.${
-      polyglot
-        ? `\n   op:"query" (pattern, lang?, files?, limit?) — the POLYGLOT pattern lane: an ast-grep-style pattern ($NAME captures one node · $_ matches one · $$$NAME captures zero-or-more · $$$) matched structurally with per-file language inference across ${POLYGLOT_LANGUAGES.map(l => l.name).join('/')}. Mixed-language directory scopes work; files that do not parse are reported per file, never guessed over. Example: pattern:"print($X)" lang:"python".
-   SYMBOL ADDRESSING (no pattern needed): select:"function"|"class"|"method" + name (glob) with lang:"python"|"go"|"rust" (or files globs naming those extensions) addresses document symbols by name over the same engine — e.g. select:"function" name:"process_order" lang:"python". Other engine languages refuse by name (use a pattern).`
-        : ''
-    }
-2. op:"preview" (action, queryId?, matchIds?) — a WRITE-NOTHING proposed transformation over matched nodes: exact files, exact match count, before/after, expected anchors, planned diagnostics. Actions: replace (replacement, $TEXT interpolates the original) · rename (to — the name token only) · remove · insert-before/insert-after (replacement — NEW text on its own line at the symbol boundary; the matched node's bytes untouched) · replace-import (newModule) · replace-callee (to) · set-value (newValue).${
-      polyglot
-        ? ` Pattern queries preview with action:"rewrite" (out — the template; $NAME/$$$NAME substitute the captured source, "" deletes the match). Symbol queries take replace/remove/insert-before/insert-after.`
-        : ''
-    }
-3. op:"apply" (previewId) — revalidates every file digest (a changed file REFUSES: stale preview), parse-guards the transformed output, writes atomically with rollback on midway failure, verifies by re-read, reruns parse diagnostics, and settles through the exactly-once receipt→transaction seam. Partial application is reported as FAILURE, never success.
+1. op:"query" (select, filters…) — a bounded AST query. Selects: ${STRUCTURE_SELECTS.join(' · ')}. Filters: name (exact or glob with *), callee ('fs.*'), module, value, within ('class:Name'), files (globs relative to the project root), limit (default 50, max 200). Only .js .jsx .mjs .cjs .ts .mts .cts .tsx files are read. Returns stable match ids (sm-…) and the record mercury://structure/query/<id>.
+2. op:"preview" (action, queryId?, matchIds?) — writes nothing; shows the files, the match count and each edit's first line before and after (8 per file, the rest counted). Actions: replace (replacement; $TEXT is the original node) · rename (to — the name token only) · remove · insert-before/insert-after (replacement — new text on its own line at the node's boundary) · replace-import (newModule) · replace-callee (to) · set-value (newValue).
+3. op:"apply" (previewId) — refuses if a file changed since the preview or the result would not parse; writes atomically with rollback, verifies by re-reading, reruns parse diagnostics, and reports a partial application as a failure.
 4. op:"explain" (matchId, queryId?) — the AST ancestry of one match.
 
-Everything is bounded and inspectable: mercury://structure/query/<id> · mercury://structure/preview/<id> (Inspect).`
+Records: mercury://structure/query/<id> · mercury://structure/preview/<id> (Inspect).`
   },
   userFacingName,
   shouldDefer: true,
-  straightQuoteInputs: ['pattern', 'name', 'callee', 'module', 'within', 'files', 'to', 'newModule'],
+  straightQuoteInputs: ['name', 'callee', 'module', 'within', 'files', 'to', 'newModule'],
   get inputSchema(): SchemaType {
     return inputSchema()
   },
@@ -601,25 +387,32 @@ Everything is bounded and inspectable: mercury://structure/query/<id> · mercury
       message: `Structure apply${input.previewId ? ` ${input.previewId}` : ''} (writes the previewed multi-file transformation)`,
     }
   },
-  async validateInput(input: Input) {
+  async validateInput(input: Input, context: ToolUseContext) {
     if (!structureEnabled()) {
       return { result: false as const, message: 'the structural plane is disabled (MERCURY_STRUCTURE=0)', errorCode: 1 }
     }
-    if (input.op === 'query' && !input.select && input.pattern === undefined) {
+    if (input.op === 'query' && !input.select) {
+      return { result: false as const, message: `query requires select: ${STRUCTURE_SELECTS.join(' · ')}`, errorCode: 1 }
+    }
+    if (input.op === 'query' && input.files?.length && input.files.every(glob => {
+      const extension = /(\.[A-Za-z0-9]+)$/.exec(glob)?.[1]?.toLowerCase()
+      return extension !== undefined && !SELECT_LANE_EXTS.includes(extension)
+    })) {
+      const searchOffered = context.options.tools.some(tool => tool.name === 'AstSearch')
       return {
         result: false as const,
-        message: structurePolyglotEnabled() ? 'query requires select or pattern' : 'query requires select',
+        message: `Structure reads only .js .jsx .mjs .cjs .ts .mts .cts .tsx files, and every files glob here ends in another extension (${input.files.join(', ')})${searchOffered ? '. For another language call AstSearch with lang; a symbol by name is its declaration: {"pattern": "def process_order($$$ARGS): $$$BODY", "lang": "python"}.' : '; this session offers no structural search for other languages.'}`,
         errorCode: 1,
       }
     }
     if (input.op === 'preview' && !input.action) {
-      return { result: false as const, message: 'preview requires action', errorCode: 1 }
+      return { result: false as const, message: 'preview requires action: replace · rename · remove · insert-before · insert-after · replace-import · replace-callee · set-value', errorCode: 1 }
     }
     if (input.op === 'apply' && !input.previewId) {
-      return { result: false as const, message: 'apply requires previewId', errorCode: 1 }
+      return { result: false as const, message: 'apply requires previewId — the sp-… id a preview returned', errorCode: 1 }
     }
     if (input.op === 'explain' && !input.matchId) {
-      return { result: false as const, message: 'explain requires matchId', errorCode: 1 }
+      return { result: false as const, message: 'explain requires matchId — an sm-… id from a query result', errorCode: 1 }
     }
     return { result: true as const }
   },
