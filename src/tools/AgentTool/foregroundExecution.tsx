@@ -74,6 +74,7 @@ import {
   getLastToolUseName,
   landedWritesOf,
   PROMOTED_NARRATION_NOTE,
+  structuredResultBlock,
   type AgentToolResult,
 } from './agentToolUtils.js'
 import type { BackgroundHandoverReason } from '../../tasks/LocalAgentTask/launchReceipts.js'
@@ -336,6 +337,7 @@ export async function runForegroundAgentExecution(
         ...(overload !== null ? { statusWord: 'paused', summary: overloadNoticeWords(description, overload.who, undefined, overload.status) } : {}),
         setAppState: rootSetAppState,
         finalMessage,
+        ...(finalized.structured !== undefined ? { structuredBlock: structuredResultBlock(finalized.structured) } : {}),
         usage: {
           totalTokens: getTokenCountFromTracker(tracker),
           toolUses: finalized.totalToolUseCount,
