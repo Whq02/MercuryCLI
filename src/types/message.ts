@@ -66,6 +66,20 @@ export type CompactMetadata = {
     tailUuid: UUID
   }
   preCompactDiscoveredTools?: string[]
+  work?: {
+    receipts: Array<{
+      beforeUuid: string
+      anchorUuid: string
+      counts: import('../utils/cockpit/turnReceipt.js').TurnReceiptCounts
+    }>
+    recap: {
+      turns: number
+      toolCounts: Array<[string, number]>
+      files: string[]
+      toolFailures: number
+      failedToolUseIds: string[]
+    }
+  }
 }
 
 export type StopHookInfo = {
