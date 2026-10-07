@@ -79,6 +79,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-engine-parity.ts" || { __rc=
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-windows-shell-road.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-windows-shell-road.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-windows-pack-layout.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-windows-pack-layout.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-git-rules-in-git-context.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-git-rules-in-git-context.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-which-exit-one-is-a-result.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-which-exit-one-is-a-result.ts" "$__t" "$__rc"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL BASH PERMISSION PROOFS PASS"; else echo "# ❌ SOME BASH PERMISSION PROOFS FAILED"; fi
 echo "############################################################"
