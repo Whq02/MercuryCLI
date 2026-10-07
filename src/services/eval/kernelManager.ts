@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path'
 import { logForDebugging } from '../../utils/debug.js'
 import { killProcessGroup } from '../../utils/processGroup.js'
 import { getToolResultsDir } from '../../utils/toolResultStorage.js'
+import { clampClause } from '../../utils/waitCeiling.js'
 import { BoundedStreamSink } from './outputSink.js'
 import {
   isTerminalJournalState,
@@ -371,6 +372,9 @@ export class EvalKernelManager {
     const key = this.key(owner, input.language, cwd, interpreter)
     return this.enqueue(key, async () => {
       const annotations: string[] = []
+      if (input.timeoutSeconds !== undefined && input.timeoutSeconds > EVAL_MAX_TIMEOUT_SECONDS) {
+        annotations.push(clampClause('timeoutSeconds', EVAL_MAX_TIMEOUT_SECONDS, 'maximum', 's'))
+      }
       if (input.reset) {
         await this.disposeKey(key)
         this.reapedIdle.delete(key)
