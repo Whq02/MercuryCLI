@@ -184,6 +184,25 @@ try {
       }
     }
   }
+  if (surface === undefined || surface === 'saturn') {
+    const { composeSaturnForm } = await import(join(ROOT, 'scripts/ui/saturn-screen-stills.ts'))
+    for (const identity of [EMAIL, USERNAME, '…idk1']) {
+      let absent = ''
+      const suffix = identity === EMAIL ? 'email' : identity === USERNAME ? 'username' : 'key-tail'
+      for (const leg of ['absent', 'shown', 'hidden'] as Leg[]) {
+        setLeg(leg)
+        const frame = composeSaturnForm(178, 51, { preflight: { derivation: { ok: true, account: { family: 'anthropic', source: 'oauth', identity } }, verdict: { state: 'ready' } } }).join('\n')
+        save(`saturn-${leg}-${suffix}`, frame)
+        check(`saturn-${leg}-${suffix}: the account source stays`, frame.includes('account: anthropic/oauth'), frame)
+        if (leg === 'hidden') check(`saturn-hidden-${suffix}: the schedule form hides the identity`, !frame.includes(identity), frame)
+        else {
+          check(`saturn-${leg}-${suffix}: the identity is present`, frame.includes(identity), frame)
+          if (leg === 'absent') absent = frame
+          else check(`saturn-shown-${suffix}: true is byte-identical to absent`, absent === frame)
+        }
+      }
+    }
+  }
   check('no provider request was attempted', requests.length === 0, JSON.stringify(requests))
 } finally {
   globalThis.fetch = originalFetch

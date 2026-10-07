@@ -418,7 +418,7 @@ export function saturnFormDetailLines(
     lines.push(...wrapPlain(preflight.derivation.reason, DETAIL_W));
   } else {
     const a = preflight.derivation.account;
-    lines.push(...wrapPlain(`account: ${a.family}/${a.source}${a.identity !== undefined ? ` · ${a.identity}` : ''}`, DETAIL_W));
+    lines.push(...wrapPlain(`account: ${a.family}/${a.source}${a.identity !== undefined && accountIdentityShown() ? ` · ${a.identity}` : ''}`, DETAIL_W));
     if (preflight.verdict !== null) lines.push(...wrapPlain(saturnVerdictSentence(preflight.verdict), DETAIL_W));
   }
   lines.push('');
