@@ -25,7 +25,7 @@ const flagsRow = async (): Promise<Row> => {
   const row = cert.sections.flatMap(s => s.checks).find(c => c.id === 'flags')
   return { status: String(row?.status), evidence: String(row?.evidence), fix: row?.fix, detail: row?.detail }
 }
-const UNKNOWN = ['MERCURY_GODOT_TOOLS_PORT', 'MERCURY_GODOT_TOOLS_TOKEN']
+const UNKNOWN = ['MERCURY_GODOT_TOOLS_PORT', 'MERCURY_GODOT_TOOLS_TOKEN', ['MERCURY_CLASS', 'IFIER_FALLBACK'].join(''), ['MERCURY_CLASS', 'IFIER_FAIL_CLOSED'].join('')]
 for (const name of UNKNOWN) delete process.env[name]
 
 console.log('§1 the registry knows registered flags and nothing else')

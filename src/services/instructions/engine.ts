@@ -5,7 +5,6 @@ import { basename, dirname, parse, resolve } from 'path'
 import {
   getOriginalCwd,
   getSdkBetas,
-  setCachedInstructionPrompt,
 } from '../../bootstrap/state.js'
 import { getCurrentProjectConfig } from '../../utils/config.js'
 import { untrustedWorkspaceHeadless } from '../../utils/config/trust.js'

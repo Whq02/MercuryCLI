@@ -100,6 +100,7 @@ const RETIRED_SETTINGS_ROOTS: Record<string, unknown> = {
   channelsEnabled: false,
   worktree: { sparsePaths: ['x'] },
   localServer: { maxLoadedModels: 2 },
+  autoMode: { allow: ['Bash(echo *)'], soft_deny: ['Write'], environment: ['a fixture environment line'] },
 }
 const RETIRED_ADOPTION_FIELDS: Record<string, unknown> = {
   disableBypassPermissionsMode: 'disable',

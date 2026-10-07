@@ -53,7 +53,6 @@ try {
     () => system.createThinkingNoteMessage('fixture reasoning receipt'),
     () => system.createThinkingDeadMessage([], 'fixture reasoning retirement'),
     () => system.createSeatReceiptMessage('fixture receipt'),
-    () => system.createPermissionRetryMessage(['fixture command']),
     () => system.createScheduledTaskFireMessage('fixture task'),
     () => system.createStopHookSummaryMessage(0, [], [], false, undefined, false, 'info'),
     () => system.createTurnDurationMessage(1),

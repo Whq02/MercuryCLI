@@ -3,7 +3,6 @@ export {
   modelSupportsISP,
   modelSupportsStructuredOutputs,
   modelSupportsTemperature,
-  modelSupportsAutoMode,
   getToolSearchBetaHeader,
   getAllModelBetas,
   getModelBetas,

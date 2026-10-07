@@ -787,7 +787,7 @@ function mapResultToBlock(output: Out, toolUseID: string): ToolResultBlockParam 
   }
   let stdout = output.stdout.replace(/^\s*\n/g, '').trimEnd()
   if (output.persistedOutputPath) {
-    const { preview, hasMore } = generatePreview(stdout, PREVIEW_SIZE_CHARS)
+    const { preview, hasMore } = generatePreview(stdout, PREVIEW_SIZE_CHARS, output.persistedOutputSize)
     stdout = buildLargeToolResultMessage({
       filepath: output.persistedOutputPath,
       originalSize: output.persistedOutputSize ?? 0,
@@ -858,9 +858,6 @@ export const BashTool = buildTool({
     const command = stringInputField(input, 'command')
     if (command === undefined) return { isSearch: false, isRead: false, isList: false }
     return isSearchOrReadBashCommand(command)
-  },
-  toAutoClassifierInput(input: BashToolInput): string {
-    return input.command
   },
   getToolUseSummary(input: Partial<BashToolInput> | undefined): string | null {
     if (!input?.command) return null

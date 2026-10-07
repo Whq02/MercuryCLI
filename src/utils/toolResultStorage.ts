@@ -106,7 +106,7 @@ function clampLines(text: string): string {
   return text.split('\n').map(clampLine).join('\n')
 }
 
-export function generatePreview(content: string, maxBytes: number): { preview: string; hasMore: boolean } {
+export function generatePreview(content: string, maxBytes: number, outputBytes?: number): { preview: string; hasMore: boolean } {
   if (content.length <= maxBytes) {
     return { preview: clampLines(content), hasMore: false }
   }
@@ -118,7 +118,12 @@ export function generatePreview(content: string, maxBytes: number): { preview: s
   let tail = sliceTailAtGrapheme(content, tailBudget)
   const tailNewline = tail.indexOf('\n')
   if (tailNewline !== -1 && tailNewline < tailBudget / 2) tail = tail.slice(tailNewline + 1)
-  const skipped = Math.max(0, content.length - head.length - tail.length)
+  const skipped = Math.max(
+    0,
+    outputBytes === undefined
+      ? content.length - head.length - tail.length
+      : outputBytes - Buffer.byteLength(head, 'utf8') - Buffer.byteLength(tail, 'utf8'),
+  )
   const preview = `${clampLines(head)}\n… [${formatFileSize(skipped)} skipped — full output persisted] …\n${clampLines(tail)}`
   return { preview, hasMore: true }
 }

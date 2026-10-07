@@ -92,7 +92,6 @@ export function createMcpAuthTool(
     isConcurrencySafe: () => false,
     isReadOnly: () => false,
     isDestructive: () => false,
-    toAutoClassifierInput: () => serverName,
     userFacingName: () => `${serverName} authenticate (MCP)`,
     async description(): Promise<string> {
       return description

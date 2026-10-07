@@ -93,7 +93,6 @@ export function FilePermissionDialog<T extends ToolInput>({
           ) : null}
           <PermissionRuleExplanation
             permissionResult={toolUseConfirm.permissionResult}
-            toolType={operationType === 'read' ? 'read' : 'edit'}
           />
           {typeof question === 'string' ? <Text bold>{question}</Text> : question}
           <Select

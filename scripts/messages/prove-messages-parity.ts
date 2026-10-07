@@ -250,25 +250,6 @@ add('extractTextContent', 'separator', () =>
 add('getContentText', 'blocks', () =>
   M.getContentText([{ type: 'text', text: 'a' }, { type: 'text', text: 'b' }] as never),
 );
-add('isClassifierDenial', 'yes', () =>
-  M.isClassifierDenial(M.AUTO_REJECT_MESSAGE + ' extra'),
-);
-add('isClassifierDenial', 'no', () => M.isClassifierDenial('benign words'));
-add('buildFlowRejectionMessage', 'basic', () =>
-  M.buildFlowRejectionMessage('Bash', 'rm -rf /' as never),
-);
-add('buildFlowBlockDeclinedMessage', 'basic', () =>
-  M.buildFlowBlockDeclinedMessage('rm -rf /'),
-);
-add('buildClassifierUnreadableMessage', 'basic', () =>
-  M.buildClassifierUnreadableMessage('Bash', 'stub-model', 'shouldBlock: expected boolean, received string'),
-);
-add('buildClassifierUnreadableMessage', 'no-detail', () =>
-  M.buildClassifierUnreadableMessage('Bash', 'stub-model'),
-);
-add('buildClassifierUnavailableMessage', 'basic', () =>
-  M.buildClassifierUnavailableMessage('Bash' as never),
-);
 add('normalizeContentFromAPI', 'blocks', () =>
   M.normalizeContentFromAPI([{ type: 'text', text: 'x' }] as never, TOOLS_FIXTURE as never),
 );
@@ -395,9 +376,6 @@ add('createToolResultStopMessage', 'basic', () =>
 );
 add('createSystemMessage', 'basic', () =>
   snapSafe(() => M.createSystemMessage('note', 'info')),
-);
-add('createPermissionRetryMessage', 'basic', () =>
-  M.createPermissionRetryMessage(['npm test', 'git status']),
 );
 add('createStreamCutMessage', 'basic', () =>
   M.createStreamCutMessage({ count: 1, content: 'OpenAI ended the stream after partial content — terminated (read-failed); asked the model to continue from where it stopped (continuation 1 of 1)', road: 'OpenAI', sent: 'terminated', code: 'read-failed' }),

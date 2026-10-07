@@ -297,14 +297,6 @@ export function SystemTextMessage({
         </Text>
       )
 
-    case 'permission_retry':
-      return (
-        <Text>
-          <Text dimColor>{'* '}Allowed </Text>
-          <Text bold>{message.commands.join(', ')}</Text>
-        </Text>
-      )
-
     case 'seat_receipt':
       return (
         <Text color={message.level === 'warning' ? 'warning' : undefined}>

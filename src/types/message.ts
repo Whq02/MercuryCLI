@@ -320,17 +320,6 @@ export type BoundPrefixSection = {
   value: string | null
 }
 
-export type SystemPermissionRetryMessage = {
-  type: 'system'
-  subtype: 'permission_retry'
-  content: string
-  commands: string[]
-  level: SystemMessageLevel
-  isMeta?: boolean
-  uuid: UUID
-  timestamp: string
-}
-
 type SystemBridgeStatusMessage = {
   type: 'system'
   subtype: 'bridge_status'
@@ -454,10 +443,8 @@ export type SystemApiMetricsMessage = {
   hookDurationMs?: number
   turnDurationMs?: number
   toolDurationMs?: number
-  classifierDurationMs?: number
   toolCount?: number
   hookCount?: number
-  classifierCount?: number
   configWriteCount?: number
   uuid: UUID
   timestamp: string
@@ -564,7 +551,6 @@ export type SystemMessage =
   | SystemBusyRecoveryMessage
   | SystemThinkingNoteMessage
   | SystemThinkingDeadMessage
-  | SystemPermissionRetryMessage
   | SystemBridgeStatusMessage
   | SystemScheduledTaskFireMessage
   | SystemStopHookSummaryMessage

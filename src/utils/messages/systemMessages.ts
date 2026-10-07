@@ -22,7 +22,6 @@ import type {
   SystemMemorySavedMessage,
   SystemMessageLevel,
   SystemMicrocompactBoundaryMessage,
-  SystemPermissionRetryMessage,
   SystemScheduledTaskFireMessage,
   SystemStopHookSummaryMessage,
   SystemTurnDurationMessage,
@@ -155,20 +154,6 @@ export function createSeatReceiptMessage(
   }
 }
 
-export function createPermissionRetryMessage(
-  commands: string[],
-): SystemPermissionRetryMessage {
-  return {
-    type: 'system',
-    subtype: 'permission_retry',
-    content: `Allowed ${commands.join(', ')}`,
-    commands,
-    level: 'info',
-    isMeta: false,
-    ...MESSAGE_STAMPER.mint(),
-  }
-}
-
 
 export function createScheduledTaskFireMessage(
   content: string,
@@ -289,10 +274,8 @@ export function createApiMetricsMessage(metrics: {
   hookDurationMs?: number
   turnDurationMs?: number
   toolDurationMs?: number
-  classifierDurationMs?: number
   toolCount?: number
   hookCount?: number
-  classifierCount?: number
   configWriteCount?: number
 }): SystemApiMetricsMessage {
   return {
@@ -304,10 +287,8 @@ export function createApiMetricsMessage(metrics: {
     hookDurationMs: metrics.hookDurationMs,
     turnDurationMs: metrics.turnDurationMs,
     toolDurationMs: metrics.toolDurationMs,
-    classifierDurationMs: metrics.classifierDurationMs,
     toolCount: metrics.toolCount,
     hookCount: metrics.hookCount,
-    classifierCount: metrics.classifierCount,
     configWriteCount: metrics.configWriteCount,
     ...MESSAGE_STAMPER.mint(),
     isMeta: false,

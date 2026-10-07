@@ -261,7 +261,7 @@ section('§4 the compaction request follows: the cache-sharing fork sends no ove
   }
   const messages = (): unknown[] => [createUserMessage({ content: 'please bump the version and run the tests' }), assistantRow('Bumped the version and ran the suite — all green.'), createUserMessage({ content: 'now write the changelog entry' })]
   const makeContext = (model: string) => {
-    const appState = { toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' as const }, sessionHooks: new Map(), denialTracking: undefined, tasks: {}, mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'high' }
+    const appState = { toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' as const }, sessionHooks: new Map(), tasks: {}, mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'high' }
     const readFileState = new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024)
     const abort = new AbortController()
     return { abortController: abort, getAppState: () => appState, setAppState: () => {}, messages: [], agentType: undefined, agentId: undefined, readFileState, options: { tools: [], mcpClients: [], engineModel: model, maxThinkingTokens: 0, thinkingConfig: { type: 'disabled' as const }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }

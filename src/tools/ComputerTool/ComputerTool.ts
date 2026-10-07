@@ -731,9 +731,6 @@ Take a screenshot after acts that change the screen, act on what the latest one 
   interruptBehavior() {
     return 'cancel' as const
   },
-  toAutoClassifierInput(input: Input) {
-    return `computer ${input.action}${actDetail(input)}`.trim()
-  },
   async validateInput(input: Input, context: ToolUseContext) {
     if (!flagEnabled('MERCURY_COMPUTER_USE')) {
       return refuse("the Computer tool is off — MERCURY_COMPUTER_USE=0 in this session's environment removes it; unset it before the session starts")
@@ -793,7 +790,7 @@ Take a screenshot after acts that change the screen, act on what the latest one 
       decisionReason: {
         type: 'safetyCheck' as const,
         reason: `${app.name} (${app.identity}) is in front of the operator's screen; the first act there needs the operator's own consent`,
-        classifierApprovable: false,
+        operatorOnly: true,
       },
       suggestions: suggestionForExactCommand(COMPUTER_TOOL_NAME, content),
     }

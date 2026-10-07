@@ -74,7 +74,7 @@ export function SubmitQuestionsView({
               </Text>
             </Box>
           )}
-          <PermissionRuleExplanation permissionResult={permissionResult} toolType="tool" />
+          <PermissionRuleExplanation permissionResult={permissionResult} />
           <Text color="inactive">Select a decision to revise it, or submit:</Text>
           <Box marginTop={1}>
             <Select

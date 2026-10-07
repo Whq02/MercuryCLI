@@ -18,7 +18,6 @@ import type {
   InvokedSkillInfo as RuntimeInvokedSkillInfo,
 } from './runtime/collections.js'
 import { InteractionClockOwner } from './runtime/interaction-clock.js'
-import { ModeOneShotOwner } from './runtime/mode-one-shots.js'
 import { ModelConfigOwner } from './runtime/model-config.js'
 import { PostureOwner } from './runtime/posture.js'
 import { ScrollGateOwner } from './runtime/scroll-gate.js'
@@ -41,7 +40,6 @@ let modelConfig = new ModelConfigOwner()
 let posture = new PostureOwner()
 let bootConfig = new BootConfigOwner()
 let apiCapture = new ApiCaptureOwner()
-let modeOneShots = new ModeOneShotOwner()
 let cacheLatches = new CacheLatchOwner()
 let collections = new CollectionsOwner()
 let hookRegistry = new HookRegistryOwner()
@@ -283,22 +281,6 @@ export function resetTurnHookDuration(): void {
 
 export function getTurnHookCount(): number {
   return turnAccounting.turnHookCount
-}
-
-export function getTurnClassifierDurationMs(): number {
-  return turnAccounting.turnClassifierDurationMs
-}
-
-export function addToTurnClassifierDuration(duration: number): void {
-  turnAccounting.addToTurnClassifierDuration(duration)
-}
-
-export function resetTurnClassifierDuration(): void {
-  turnAccounting.resetTurnClassifierDuration()
-}
-
-export function getTurnClassifierCount(): number {
-  return turnAccounting.turnClassifierCount
 }
 
 export function getTurnOutputTokens(): number {
@@ -673,44 +655,12 @@ export function getLastAPIRequestMessages():
   return apiCapture.lastAPIRequestMessages
 }
 
-export function setLastClassifierRequests(requests: unknown[] | null): void {
-  apiCapture.lastClassifierRequests = requests
-}
-
-export function getLastClassifierRequests(): unknown[] | null {
-  return apiCapture.lastClassifierRequests
-}
-
-export function setCachedInstructionPrompt(content: string | null): void {
-  apiCapture.cachedInstructionPrompt = content
-}
-
-export function getCachedInstructionPrompt(): string | null {
-  return apiCapture.cachedInstructionPrompt
-}
-
 export function getPromptId(): string | null {
   return apiCapture.promptId
 }
 
 export function setPromptId(promptId: string | null): void {
   apiCapture.promptId = promptId
-}
-
-
-export function needsAutoModeExitAttachment(): boolean {
-  return modeOneShots.needsAutoModeExitAttachment
-}
-
-export function setNeedsAutoModeExitAttachment(value: boolean): void {
-  modeOneShots.needsAutoModeExitAttachment = value
-}
-
-export function handleAutoModeTransition(
-  fromMode: string,
-  toMode: string,
-): void {
-  modeOneShots.handleAutoModeTransition(fromMode, toMode)
 }
 
 
@@ -851,7 +801,6 @@ export function resetStateForTests(): void {
   posture = new PostureOwner()
   bootConfig = new BootConfigOwner()
   apiCapture = new ApiCaptureOwner()
-  modeOneShots = new ModeOneShotOwner()
   cacheLatches = new CacheLatchOwner()
   collections = new CollectionsOwner()
   hookRegistry = new HookRegistryOwner()

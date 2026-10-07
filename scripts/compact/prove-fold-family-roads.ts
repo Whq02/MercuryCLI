@@ -109,7 +109,6 @@ function makeContext(model: string, opts?: { thinking?: { type: string } }): Ctx
   const appState = {
     toolPermissionContext,
     sessionHooks: new Map(),
-    denialTracking: undefined,
     tasks: {},
     mcp: { clients: [], tools: [], commands: [], resources: {} },
     effortValue: 'xhigh',

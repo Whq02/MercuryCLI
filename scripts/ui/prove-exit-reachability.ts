@@ -271,7 +271,6 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
     'src/components/SurfaceExitChord.tsx': 'a chord handler — renders nothing',
     'src/components/concourse/CoordinatorPane.tsx': 'a Concourse pane — ConcourseScreen owns esc for the whole board',
     'src/components/concourse/SessionMirror.tsx': 'a Concourse pane — ConcourseScreen owns esc for the whole board',
-    'src/components/permissions/rules/RecentDenialsTab.tsx': 'a tab body inside the permissions dialog — the dialog owns esc',
     'src/components/Settings/Usage.tsx': 'the usage popup body (its keys scroll the window) — the settings shell owns esc and the click outside',
     'src/components/PopupForm.tsx': 'the popup body frame (its keys page the window) — the settings shell owns esc and the click outside',
   }
@@ -282,7 +281,6 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
     'src/components/SurfaceExitChord.tsx': { reason: 'renders nothing' },
     'src/components/concourse/CoordinatorPane.tsx': { reason: 'the board’s key atlas prints the way out', witness: 'src/components/concourse/ConcourseScreen.tsx' },
     'src/components/concourse/SessionMirror.tsx': { reason: 'the board’s key atlas prints the way out', witness: 'src/components/concourse/ConcourseScreen.tsx' },
-    'src/components/permissions/rules/RecentDenialsTab.tsx': { reason: 'the permissions dialog prints the way out', witness: 'src/components/permissions/rules/PermissionRuleList.tsx' },
     'src/components/CustomSelect/use-multi-select-state.ts': { reason: 'the Select engine; the hosting dialog prints', witness: 'src/components/design-system/Dialog.tsx' },
     'src/components/CustomSelect/use-select-input.ts': { reason: 'the Select engine; the hosting dialog prints', witness: 'src/components/design-system/Dialog.tsx' },
     'src/components/PopupForm.tsx': { reason: 'the settings shell prints the request\'s hint; its words come from the popup owner', witness: 'src/utils/cockpit/settingsPopup.ts' },

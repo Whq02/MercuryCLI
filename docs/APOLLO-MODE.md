@@ -83,8 +83,8 @@ Permission behaviour splits on the blocker list:
 - No blockers: the tool asks — "Begin the prototype build?" — and the card offers
   three answers. Every yes completes the mode transition out of Apollo; the two yes
   tiers differ in permission breadth only, never in whether the mode moves:
-  - **Yes — begin the build**: the build posture (flow when the classifier gate
-    allows it, implement otherwise); edit consent rides the mode.
+  - **Yes — begin the build**: the build posture (flow when Flow is open,
+    implement otherwise); edit consent rides the mode.
   - **Yes — but ask me before each edit**: the mode moves to default; the build runs
     and each edit asks for confirmation.
   - **No — ask me more questions**: nothing moves. The session and drafts are
@@ -102,11 +102,11 @@ this one call, so it must not depend on a discovery round-trip.
 ## The build (phase 3)
 
 On a clean, approved review the tool moves the session per the chosen tier: the
-build posture (flow when the live classifier gate allows it, implement otherwise) on a
+build posture (flow when Flow is open, implement otherwise) on a
 plain yes, default on ask-first. The transition runs through the same
 guarded door the carousel and a host's mode switch use, so
-entering flow arms the classifier and strips dangerous
-rules exactly like a Shift+Tab entry would. If flow raced unavailable between the check
+entering flow sets dangerous allow rules aside exactly like a Shift+Tab
+entry would. If flow raced unavailable between the check
 and the set, the tool falls through to implement, which is always available; neither
 default nor implement entry can be refused, so an approved review can never leave the
 session stranded in Apollo Mode. The output records `buildStarted` and the settled

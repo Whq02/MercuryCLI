@@ -98,7 +98,6 @@ function makeHarness(opts: { allow?: string[]; deny?: string[]; elicitation?: bo
       alwaysAllowRules: opts.allow ? { userSettings: opts.allow } : {},
       alwaysDenyRules: opts.deny ? { userSettings: opts.deny } : {},
     },
-    denialTracking: undefined,
     sessionHooks: new Map(),
     tasks: {},
     mcp: { clients: [], tools: [], commands: [], resources: {} },

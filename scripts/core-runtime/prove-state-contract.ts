@@ -114,8 +114,6 @@ const OBSERVABLES: Array<{
   { key: 'turnHookCount', family: 'turn', scope: 'turn', read: () => state.getTurnHookCount() },
   { key: 'turnToolDurationMs', family: 'turn', scope: 'turn', read: () => state.getTurnToolDurationMs() },
   { key: 'turnToolCount', family: 'turn', scope: 'turn', read: () => state.getTurnToolCount() },
-  { key: 'turnClassifierDurationMs', family: 'turn', scope: 'turn', read: () => state.getTurnClassifierDurationMs() },
-  { key: 'turnClassifierCount', family: 'turn', scope: 'turn', read: () => state.getTurnClassifierCount() },
   { key: 'turnOutputTokens', family: 'turn', scope: 'derived', read: () => state.getTurnOutputTokens() },
   { key: 'currentTurnTokenBudget', family: 'turn', scope: 'turn', read: () => state.getCurrentTurnTokenBudget() },
   { key: 'budgetContinuationCount', family: 'turn', scope: 'turn', read: () => state.getBudgetContinuationCount() },
@@ -127,8 +125,6 @@ const OBSERVABLES: Array<{
   { key: 'statsStore', family: 'telemetry', scope: 'process', read: () => (state.getStatsStore() === null ? null : 'set') },
   { key: 'lastAPIRequest', family: 'apiCapture', scope: 'conversation', read: () => state.getLastAPIRequest() },
   { key: 'lastAPIRequestMessages', family: 'apiCapture', scope: 'conversation', read: () => state.getLastAPIRequestMessages() },
-  { key: 'lastClassifierRequests', family: 'apiCapture', scope: 'conversation', read: () => state.getLastClassifierRequests() },
-  { key: 'cachedInstructionPrompt', family: 'apiCapture', scope: 'conversation', read: () => state.getCachedInstructionPrompt() },
   { key: 'promptId', family: 'apiCapture', scope: 'conversation', read: () => state.getPromptId() },
   { key: 'lastMainRequestId', family: 'apiCapture', scope: 'conversation', read: () => state.getLastMainRequestId() },
   { key: 'lastApiCompletionTimestamp', family: 'apiCapture', scope: 'conversation', read: () => state.getLastApiCompletionTimestamp() },
@@ -162,7 +158,6 @@ const OBSERVABLES: Array<{
   { key: 'hasDevChannels', family: 'boot', scope: 'process', read: () => state.getHasDevChannels() },
   { key: 'mainThreadAgentType', family: 'boot', scope: 'process', read: () => state.getMainThreadAgentType() },
   { key: 'directConnectServerUrl', family: 'boot', scope: 'process', read: () => state.getDirectConnectServerUrl() },
-  { key: 'needsAutoModeExitAttachment', family: 'oneShot', scope: 'conversation', read: () => state.needsAutoModeExitAttachment() },
   { key: 'registeredHooks', family: 'hookRegistry', scope: 'session', read: () => state.getRegisteredHooks() },
   { key: 'agentColorMap', family: 'collections', scope: 'session', read: () => state.getAgentColorMap() },
   { key: 'sessionCreatedCrews', family: 'collections', scope: 'session', read: () => state.getSessionCreatedCrews() },
@@ -260,19 +255,19 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'canAnswerAsks', 'getAskChannel', 'setAskChannel',
     'addToTotalCostState', 'addToTotalDurationState', 'addToTotalLinesChanged',
     'addToWorkloadUsageState', 'getWorkloadUnpricedTurns', 'getWorkloadUsage', 'recordWorkloadUnpricedTurn',
-    'addToTurnClassifierDuration', 'addToTurnHookDuration', 'canAnswerAsks', 'clearBetaHeaderLatches',
+    'addToTurnHookDuration', 'canAnswerAsks', 'clearBetaHeaderLatches',
     'clearInvokedSkills', 'clearInvokedSkillsForAgent', 'clearRegisteredHooks',
     'clearRegisteredExtensionHooks', 'clearSystemPromptSectionState', 'consumePostCompaction',
     'flushInteractionTime',
     'getAgentColorMap', 'getAllowedChannels', 'getAskChannel',
     'getAllowedSettingSources', 'getApiKeyFromFd', 'getBudgetContinuationCount',
-    'getCacheEditingHeaderLatched', 'getCachedInstructionPrompt',
+    'getCacheEditingHeaderLatched', 
     'getClientType', 'getCurrentTurnTokenBudget', 'getCwdState', 'getDirectConnectServerUrl', 'getFlagSettingsInline', 'getFlagSettingsPath',
     'getHasDevChannels', 'getInitialEngineModel', 'getSessionExtensions',
     'getInvokedSkills', 'getInvokedSkillsForAgent', 'getIsInteractive',
     'getIsNonInteractiveSession', 'getIsRemoteMode', 'getIsScrollDraining', 'getIsSessionOneShotHeadless', 'isAssistantFamilyAvailable',
     'isAssistantSessionActive', 'getLastAPIRequest', 'getLastAPIRequestMessages',
-    'getLastApiCompletionTimestamp', 'getLastClassifierRequests', 'getLastEmittedDate',
+    'getLastApiCompletionTimestamp', 'getLastEmittedDate',
     'getLastInteractionTime', 'getLastMainRequestId', 'getEngineModelOverride', 'getMainThreadAgentType', 'getModelStrings', 'getModelUsage', 'getOauthTokenFromFd', 'getOriginalCwd',
     'getParentSessionId', 'getPlanSlugCache', 'getProjectRoot',
     'getPromptCache1hEligible', 'getPromptId',
@@ -287,30 +282,28 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'getTotalCacheReadInputTokens', 'getTotalCostUSD', 'getTotalDuration',
     'getTotalInputTokens', 'getTotalLinesAdded', 'getTotalLinesRemoved',
     'getTotalOutputTokens', 'getTotalToolDuration', 'getTotalUnpricedTurns', 'getTotalWebSearchRequests',
-    'getTurnClassifierCount', 'getTurnClassifierDurationMs',
     'getTurnHookCount', 'getTurnHookDurationMs', 'getTurnOutputTokens', 'getTurnToolCount',
     'getTurnToolDurationMs', 'getUnpricedTurns', 'getUsageForModel',
-    'handleAutoModeTransition',
     'hasUnknownModelCost',
     'incrementBudgetContinuationCount', 'isSessionPersistenceDisabled',
     'markPostCompaction', 'markScrollActivity',
-    'needsAutoModeExitAttachment', 'onSessionSwitch',
+    'onSessionSwitch',
     'preferThirdPartyAuthentication', 'recordUnpricedTurn', 'regenerateSessionId', 'registerHookCallbacks',
     'resetCostState', 'resetModelStringsForTestingOnly',
     'resetStateForTests',
-    'resetTotalDurationStateAndCost_FOR_TESTS_ONLY', 'resetTurnClassifierDuration',
+    'resetTotalDurationStateAndCost_FOR_TESTS_ONLY', 
     'resetTurnHookDuration', 'resetTurnToolDuration',
     'setAllowedChannels', 'setAllowedSettingSources',
-    'setApiKeyFromFd', 'setAskChannel', 'setCacheEditingHeaderLatched', 'setCachedInstructionPrompt',
+    'setApiKeyFromFd', 'setAskChannel', 'setCacheEditingHeaderLatched', 
     'setClientType', 'setCostStateForRestore', 'setCwdState',
     'setDirectConnectServerUrl',
     'setFlagSettingsInline', 'setFlagSettingsPath', 'setHasDevChannels',
     'setHasUnknownModelCost', 'setHeadlessOneShot',
     'setInitialEngineModel', 'setSessionExtensions', 'setIsInteractive', 'setIsRemoteMode',
     'setAssistantSessionActive', 'setLastAPIRequest', 'setLastAPIRequestMessages',
-    'setLastApiCompletionTimestamp', 'setLastClassifierRequests', 'setLastEmittedDate',
+    'setLastApiCompletionTimestamp', 'setLastEmittedDate',
     'setLastMainRequestId',
-    'setEngineModelOverride', 'setMainThreadAgentType', 'setModelStrings', 'setNeedsAutoModeExitAttachment',
+    'setEngineModelOverride', 'setMainThreadAgentType', 'setModelStrings',
     'setOauthTokenFromFd', 'setOriginalCwd', 'setProjectRoot',
     'setPromptCache1hEligible', 'setPromptId', 'setQuestionPreviewFormat',
     'setSdkAgentProgressSummariesEnabled', 'setSdkBetas',
@@ -722,15 +715,9 @@ section('LAW 3 TURN-WINDOW — snapshot math · triples · totals survive')
   state.resetTurnToolDuration()
   check('tool triple: turn reset zeroes turn side', state.getTurnToolDurationMs() === 0 && state.getTurnToolCount() === 0)
   check('tool triple: the TOTAL survives the turn reset (scope pin)', state.getTotalToolDuration() === totalToolBefore + 40)
-
-  state.resetTurnClassifierDuration()
-  state.addToTurnClassifierDuration(7)
-  check('classifier triple: duration + count', state.getTurnClassifierDurationMs() === 7 && state.getTurnClassifierCount() === 1)
-  state.resetTurnClassifierDuration()
-  check('classifier triple: reset zeroes both', state.getTurnClassifierDurationMs() === 0 && state.getTurnClassifierCount() === 0)
 }
 
-section('LAW 4 ONE-SHOT — postCompaction · the flow transition table')
+section('LAW 4 ONE-SHOT — postCompaction')
 {
   check('postCompaction: initially unarmed', state.consumePostCompaction() === false)
   state.markPostCompaction()
@@ -739,38 +726,6 @@ section('LAW 4 ONE-SHOT — postCompaction · the flow transition table')
   state.markPostCompaction()
   state.markPostCompaction()
   check('postCompaction: double-mark still single-consume', state.consumePostCompaction() === true && state.consumePostCompaction() === false)
-
-  const MODES = ['default', 'apollo', 'flow', 'implement'] as const
-  for (const prior of [false, true]) {
-    for (const from of MODES) {
-      for (const to of MODES) {
-        state.setNeedsAutoModeExitAttachment(prior)
-        state.handleAutoModeTransition(from, to)
-        const expected =
-          to === 'flow' && from !== 'flow'
-            ? false
-            : from === 'flow' && to !== 'flow'
-              ? true
-              : prior
-        check(
-          `auto table: ${from}→${to} (prior=${prior}) ⇒ ${expected}`,
-          state.needsAutoModeExitAttachment() === expected,
-        )
-      }
-    }
-  }
-  state.setNeedsAutoModeExitAttachment(false)
-
-  {
-    const { ModeOneShotOwner } = await import('../../src/bootstrap/runtime/mode-one-shots.ts')
-    const cold = new ModeOneShotOwner()
-    cold.handleAutoModeTransition('flow', 'default')
-    check('NEW-2: cold auto-exit (never entered this process) arms NO one-shot', cold.needsAutoModeExitAttachment === false)
-    const warm = new ModeOneShotOwner()
-    warm.handleAutoModeTransition('default', 'flow')
-    warm.handleAutoModeTransition('flow', 'default')
-    check('NEW-2: entered-then-exited auto arms the one-shot', warm.needsAutoModeExitAttachment === true)
-  }
 }
 
 section('LAW 5 LATCH — sticky beta headers · clear completeness · tripwire')
@@ -1024,14 +979,6 @@ section('LAW 16 API-CAPTURE — reference semantics (the /share reality pin)')
   const req = { model: 'model-req', max_tokens: 1 }
   state.setLastAPIRequest(req as never)
   check('capture: request params stored by reference', state.getLastAPIRequest() === (req as never))
-  const classifiers = [{ kind: 'auto-mode' }]
-  state.setLastClassifierRequests(classifiers)
-  check('capture: classifier requests stored by reference', state.getLastClassifierRequests() === classifiers)
-  state.setLastClassifierRequests(null)
-
-  state.setCachedInstructionPrompt('instruction-prompt-body')
-  check('capture: the instruction-prompt cache round-trips', state.getCachedInstructionPrompt() === 'instruction-prompt-body')
-  state.setCachedInstructionPrompt(null)
 
   state.setPromptId('prompt-uuid-1')
   check('capture: promptId round-trips', state.getPromptId() === 'prompt-uuid-1')
@@ -1077,7 +1024,6 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
     state.addToTotalDurationState(100, 90)
     state.addToToolDuration(10)
     state.addToTurnHookDuration(5)
-    state.addToTurnClassifierDuration(7)
     state.addToTotalCostState(0.5, usage(10), 'pop-m1')
     state.addToTotalCostState(0.7, usage(20), 'pop-m2')
     state.snapshotOutputTokensForTurn(500)
@@ -1090,8 +1036,6 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
     state.setLastApiCompletionTimestamp(123456)
     state.setLastAPIRequest({ model: 'pop' } as never)
     state.setLastAPIRequestMessages([{ role: 'user', content: 'pop' }] as never)
-    state.setLastClassifierRequests(['pop'])
-    state.setCachedInstructionPrompt('pop-cmd')
     state.markPostCompaction()
     state.setCacheEditingHeaderLatched(true)
     state.setPromptCache1hEligible(true)
@@ -1119,7 +1063,6 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
     state.setHasDevChannels(true)
     state.setMainThreadAgentType('main-agent')
     state.setDirectConnectServerUrl('http://localhost:1')
-    state.setNeedsAutoModeExitAttachment(true)
     state.clearRegisteredHooks()
     state.registerHookCallbacks({ PreToolUse: [cbHook], Stop: [extHook] } as never)
     state.getAgentColorMap().set('agent-a', 'blue' as never)
@@ -1201,7 +1144,6 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
   )
   scopeLeg('resetTurnHookDuration: the hook pair only', () => state.resetTurnHookDuration(), ['turnHookCount', 'turnHookDurationMs'])
   scopeLeg('resetTurnToolDuration: the tool pair only', () => state.resetTurnToolDuration(), ['turnToolCount', 'turnToolDurationMs'])
-  scopeLeg('resetTurnClassifierDuration: the classifier pair only', () => state.resetTurnClassifierDuration(), ['turnClassifierCount', 'turnClassifierDurationMs'])
   scopeLeg('resetModelStringsForTestingOnly: modelStrings only', () => state.resetModelStringsForTestingOnly(), ['modelStrings'])
 
   const sentinel = { settings: {}, errors: [] }
@@ -1218,7 +1160,7 @@ section('LAW PURITY — zero-arg getters do not mutate')
   ]
     .map(m => m[1]!)
     .sort()
-  check(`purity: source sweep found a plausible getter population (${getterNames.length})`, getterNames.length >= 84, String(getterNames.length))
+  check(`purity: source sweep found a plausible getter population (${getterNames.length})`, getterNames.length >= 80, String(getterNames.length))
   const missingFromModule = getterNames.filter(n => typeof (state as never as Record<string, unknown>)[n] !== 'function')
   check('purity: every swept getter exists on the module', missingFromModule.length === 0, missingFromModule.join(','))
   withClock(() => 2_000_000_000_000, () => {

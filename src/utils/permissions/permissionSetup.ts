@@ -2,22 +2,13 @@ import type { ToolPermissionContext } from '../../Tool.js'
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { POWERSHELL_TOOL_NAME } from '../../tools/PowerShellTool/toolName.js'
-import {
-  isAutoModeCircuitBroken,
-  setAutoModeActive,
-  setAutoModeCircuitBroken,
-  getAutoModeFlagCli,
-} from './autoModeState.js'
-import { setNeedsAutoModeExitAttachment, setSessionPermissionModeResolution } from '../../bootstrap/state.js'
+import { setSessionPermissionModeResolution } from '../../bootstrap/state.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../debug.js'
 import { holdModeTransition, recordModeTransition, type ModeTransitionRoad } from './modeTransitions.js'
-import { getEngineModel } from '../model/model.js'
-import { modelSupportsAutoMode } from '../betas.js'
 import {
   getSettings_DEPRECATED,
   getSettingsWithErrors,
-  hasAutoModeOptIn,
 } from '../settings/settings.js'
 import { DANGEROUS_BASH_PATTERNS, CROSS_PLATFORM_CODE_EXEC } from './dangerousPatterns.js'
 import { modeBypassesPermissions, permissionModeTitle, permissionModeFromString } from './PermissionMode.js'
@@ -110,7 +101,7 @@ function sourceDisplay(source: PermissionRuleSource): string {
 
 const CLI_SPEC_RE = /^([^(]+)(?:\(([^)]*)\))?$/
 
-export function findDangerousClassifierPermissions(
+export function findDangerousPermissions(
   rules: PermissionRule[],
   cliAllowedTools: string[],
 ): DangerousPermissionInfo[] {
@@ -164,7 +155,7 @@ export function stripDangerousPermissionsForAutoMode(
   context: ToolPermissionContext,
 ): ToolPermissionContext {
   const allowRules = getAllowRulesFromContext(context)
-  const dangerous = findDangerousClassifierPermissions(allowRules, [])
+  const dangerous = findDangerousPermissions(allowRules, [])
   const next = cloneContext(context)
   const maps = next as unknown as MutableRuleMaps
 
@@ -177,7 +168,7 @@ export function stripDangerousPermissionsForAutoMode(
   for (const perm of dangerous) {
     if (!VALID_DESTINATIONS.has(perm.source)) continue
     logForDebugging(
-      `auto mode: removing ${perm.ruleDisplay} from ${perm.sourceDisplay} (would bypass the classifier)`,
+      `flow: setting aside ${perm.ruleDisplay} from ${perm.sourceDisplay} (a dangerous allow rule never applies in flow)`,
     )
     const serialized = permissionRuleValueToString(perm.ruleValue)
     const arr = maps.alwaysAllowRules[perm.source] ?? []
@@ -204,10 +195,6 @@ export function restoreDangerousPermissions(context: ToolPermissionContext): Too
 }
 
 
-function modeUsesClassifier(mode: PermissionMode): boolean {
-  return mode === 'flow'
-}
-
 export function transitionPermissionMode(
   fromMode: PermissionMode,
   toMode: PermissionMode,
@@ -217,18 +204,12 @@ export function transitionPermissionMode(
 
   let next = context
 
-  const wasClassifier = modeUsesClassifier(fromMode)
-  const willClassifier = modeUsesClassifier(toMode)
-
-  if (!wasClassifier && willClassifier) {
+  if (fromMode !== 'flow' && toMode === 'flow') {
     if (!isAutoModeGateEnabled()) {
       throw new Error('Flow is not available.')
     }
-    setAutoModeActive(true)
     next = stripDangerousPermissionsForAutoMode(next)
-  } else if (wasClassifier && !willClassifier) {
-    setAutoModeActive(false)
-    setNeedsAutoModeExitAttachment(true)
+  } else if (fromMode === 'flow' && toMode !== 'flow') {
     next = restoreDangerousPermissions(next)
   }
 
@@ -292,98 +273,26 @@ export function validateModeEntry(mode: PermissionMode, context: ToolPermissionC
 }
 
 
-const autoModeStateModule =
-  (require('./autoModeState.js') as typeof import('./autoModeState.js') | null) ?? null
-
 function isAutoModeDisabledBySettings(): boolean {
   return getSettings_DEPRECATED().guardrails?.disableFlowMode === true
 }
 
 export function isAutoModeGateEnabled(): boolean {
-  if (isAutoModeCircuitBroken()) return false
-  if (isAutoModeDisabledBySettings()) return false
-  return true
+  return !isAutoModeDisabledBySettings()
 }
 
-export type AutoModeUnavailableReason = 'settings' | 'circuit-breaker' | 'model'
+export type AutoModeUnavailableReason = 'settings'
 
 export function getAutoModeUnavailableReason(): AutoModeUnavailableReason | null {
   if (isAutoModeDisabledBySettings()) return 'settings'
-  if (isAutoModeCircuitBroken()) return 'circuit-breaker'
   return null
 }
 
 export function getAutoModeUnavailableNotification(reason: AutoModeUnavailableReason): string {
   switch (reason) {
     case 'settings':
-      return 'Auto mode is disabled by your settings.'
-    case 'circuit-breaker':
-      return 'Auto mode is temporarily unavailable.'
-    case 'model':
-      return 'Auto mode is unavailable for this model.'
+      return 'Flow is closed by your settings.'
   }
-}
-
-export function hasAutoModeOptInAnySource(): boolean {
-  return getAutoModeFlagCli() || hasAutoModeOptIn()
-}
-
-export type AutoModeGateCheckResult = {
-  updateContext: (context: ToolPermissionContext) => ToolPermissionContext
-  notification?: string
-}
-
-export async function verifyAutoModeGateAccess(
-  currentContext: ToolPermissionContext,
-): Promise<AutoModeGateCheckResult> {
-  const disabledBySettings = isAutoModeDisabledBySettings()
-  const circuitBroken = disabledBySettings
-  autoModeStateModule?.setAutoModeCircuitBroken(circuitBroken)
-
-  const modelSupported = modelSupportsAutoMode(getEngineModel())
-  const optedIn = hasAutoModeOptInAnySource()
-  const carouselAvailable =
-    !disabledBySettings && modelSupported && optedIn
-
-  logForDebugging(
-    `auto mode gate: circuitBroken=${circuitBroken} settingsDisabled=${disabledBySettings} modelSupported=${modelSupported} optedIn=${optedIn} → carousel=${carouselAvailable}`,
-  )
-
-  const wasAuto = currentContext.mode === 'flow'
-
-  const explicitAvailable = !disabledBySettings && modelSupported
-  if (explicitAvailable) {
-    return {
-      updateContext: context => setAutoAvailability(context, carouselAvailable),
-    }
-  }
-
-  const reason: AutoModeUnavailableReason = disabledBySettings ? 'settings' : 'model'
-  logForDebugging(`auto mode unavailable: ${reason}`)
-
-  const notification =
-    wasAuto ? getAutoModeUnavailableNotification(reason) : undefined
-
-  return {
-    updateContext: context => kickOutOfAuto(context, carouselAvailable),
-    notification,
-  }
-}
-
-function setAutoAvailability(context: ToolPermissionContext, available: boolean): ToolPermissionContext {
-  if ((context as { isAutoModeAvailable?: boolean }).isAutoModeAvailable === available) return context
-  return { ...(context as object), isAutoModeAvailable: available } as ToolPermissionContext
-}
-
-function kickOutOfAuto(context: ToolPermissionContext, available: boolean): ToolPermissionContext {
-  if (context.mode !== 'flow') {
-    return setAutoAvailability(context, available)
-  }
-  setAutoModeActive(false)
-  setNeedsAutoModeExitAttachment(true)
-  recordModeTransition({ from: 'flow', to: 'default', road: 'flow-unavailable' })
-  const next = { ...(restoreDangerousPermissions(context) as object), mode: 'default' } as ToolPermissionContext
-  return setAutoAvailability(next, available)
 }
 
 
@@ -508,12 +417,6 @@ export function resolveSessionPermissionMode({
   const ordered: PermissionMode[] = candidates.map(c => c.mode)
   const result = resolvePermissionModeCandidates(ordered, { dangerouslySkipPermissions })
   const winner = candidates.find(c => c.mode === result.mode) ?? { mode: result.mode as PermissionMode, source: 'default' as SessionPermissionModeSource }
-
-  if (
-    result.mode === 'flow'
-  ) {
-    autoModeStateModule?.setAutoModeActive(true)
-  }
   return { ...result, source: winner.source }
 }
 
@@ -585,7 +488,7 @@ export async function initializeToolPermissionContext(args: {
 
   let dangerousPermissions: DangerousPermissionInfo[] = []
   if (args.permissionMode === 'flow') {
-    dangerousPermissions = findDangerousClassifierPermissions(
+    dangerousPermissions = findDangerousPermissions(
       diskRules,
       allowRules,
     )

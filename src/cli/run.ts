@@ -212,7 +212,6 @@ import {
 } from '../utils/model/modelOptions.js'
 import {
   modelSupportsAdaptiveThinking,
-  modelSupportsAutoMode,
   modelSupportsEffort,
 } from '../utils/model/capabilities.js'
 import { isEffortLevel, resolveEffortTruth } from '../utils/effort.js'
@@ -338,7 +337,6 @@ type ModelCatalogueEntry = {
   supports_effort?: boolean
   supported_effort_levels?: string[]
   supports_adaptive_thinking?: boolean
-  supports_auto_mode?: boolean
 }
 
 function buildModelCatalogue(): ModelCatalogueEntry[] {
@@ -355,7 +353,6 @@ function buildModelCatalogue(): ModelCatalogueEntry[] {
       entry.supported_effort_levels = [...resolveEffortTruth(resolved, undefined).selectable]
     }
     if (modelSupportsAdaptiveThinking(resolved)) entry.supports_adaptive_thinking = true
-    if (modelSupportsAutoMode(resolved)) entry.supports_auto_mode = true
     return entry
   })
 }

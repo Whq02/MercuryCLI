@@ -45,13 +45,13 @@ check("M2 saved 'default' ⇒ the seat boots 'default' (no '✦ flow on' badge)"
 check("M2 saved 'implement' ⇒ the seat boots 'implement'", resolveIn({ defaultMode: 'implement' }) === 'implement')
 check("M2 saved 'sovereign' ⇒ the seat boots 'default' (a saved sovereign never arms the bypass; the launch flag is the consent)", resolveIn({ defaultMode: 'sovereign' }) === 'default')
 
-check("M3 no saved default, no override ⇒ 'flow' (today's behavior held)", resolveIn({}) === 'flow')
+check("M3 no saved default, no override ⇒ 'default' (a seat with nothing saved boots the way a fresh session does)", resolveIn({}) === 'default')
 
 check("M4 saved 'frobnicate' (no such mode) ⇒ 'default', never an unintended mode (both doors open the default on an unknown word)", resolveIn({ defaultMode: 'frobnicate' }) === 'default')
 
 check(
-  'M5 an unreadable settings store fails soft to flow (never blocks a spawn)',
-  resolveIn({ home: join(mkdtempSync(join(tmpdir(), 'seat-perm-gone-')), 'does', 'not', 'exist') }) === 'flow',
+  'M5 an unreadable settings store fails soft to default (never blocks a spawn)',
+  resolveIn({ home: join(mkdtempSync(join(tmpdir(), 'seat-perm-gone-')), 'does', 'not', 'exist') }) === 'default',
 )
 
 console.log(failures === 0 ? '\nprove-seat-permission-mode: ALL LAWS HOLD' : `\nprove-seat-permission-mode: ${failures} FAILURE(S)`)

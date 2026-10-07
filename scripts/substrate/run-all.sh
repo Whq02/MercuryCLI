@@ -48,7 +48,6 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-filestore.ts" || { __rc=$?; fail=1
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-filestore-ordering.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-filestore-ordering.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-trace-chip-states.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-trace-chip-states.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-prompt-draft.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-prompt-draft.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-classifier-prompt.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-classifier-prompt.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-filestore-subscribe.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-filestore-subscribe.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-filestore-stat-gate.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-filestore-stat-gate.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-gauge-owners.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-gauge-owners.ts" "$__t" "$__rc"

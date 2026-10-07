@@ -51,9 +51,9 @@ section('§2 the persisted-output preview carries head + tail, and the Bash mapp
   check('the preview keeps the tail', preview.includes('tail verdict: FAILED'))
   check('the preview names the skipped middle', /skipped — full output persisted/.test(preview) && hasMore)
   const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'BashTool', 'BashTool.tsx'), 'utf8')
-  check('the Bash mapper builds its preview with generatePreview, never a head slice', /generatePreview\(stdout, PREVIEW_SIZE_CHARS\)/.test(src) && !/preview: stdout\.slice\(0, 2000\)/.test(src))
+  check('the Bash mapper builds its preview with generatePreview, never a head slice', /generatePreview\(stdout, PREVIEW_SIZE_CHARS, output\.persistedOutputSize\)/.test(src) && !/preview: stdout\.slice\(0, 2000\)/.test(src))
   const ps = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'PowerShellTool', 'PowerShellTool.tsx'), 'utf8')
-  check('the PowerShell mapper builds its preview with generatePreview, never a head slice', /generatePreview\(stdout, PREVIEW_SIZE_CHARS\)/.test(ps) && !/preview: stdout\.slice\(0, 2000\)/.test(ps) && !/\.slice\(0, 2000\)/.test(ps))
+  check('the PowerShell mapper builds its preview with generatePreview, never a head slice', /generatePreview\(stdout, PREVIEW_SIZE_CHARS, output\.persistedOutputSize\)/.test(ps) && !/preview: stdout\.slice\(0, 2000\)/.test(ps) && !/\.slice\(0, 2000\)/.test(ps))
   check('…imported from the one preview owner (toolResultStorage), beside the large-result message builder', /import \{[^}]*generatePreview[^}]*PREVIEW_SIZE_CHARS[^}]*\} from '\.\.\/\.\.\/utils\/toolResultStorage\.js'/.test(ps))
 }
 

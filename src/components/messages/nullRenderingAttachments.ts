@@ -30,8 +30,6 @@ export const NULL_RENDERING_ATTACHMENT_TYPES = [
   'loop_stopped',
   'task_reminder',
   'contract_reminder',
-  'auto_mode',
-  'auto_mode_exit',
   'mode_pack',
   'mode_pack_exit',
   'output_token_usage',

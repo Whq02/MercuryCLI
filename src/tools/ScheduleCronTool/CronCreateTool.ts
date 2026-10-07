@@ -74,9 +74,6 @@ export const CronCreateTool = buildTool({
     return outputSchema()
   },
   isEnabled: () => cronToolsMountable(),
-  toAutoClassifierInput(input: Input): string {
-    return `${input.cron}: ${input.prompt}`
-  },
   async description() {
     return buildCronCreateDescription()
   },

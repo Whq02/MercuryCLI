@@ -35,40 +35,6 @@ import {
 } from './text.js'
 
 
-function getAutoModeInstructions(attachment: {
-  reminderType: 'full' | 'sparse'
-}): UserMessage[] {
-  if (attachment.reminderType === 'sparse') {
-    return getAutoModeSparseInstructions()
-  }
-  return getAutoModeFullInstructions()
-}
-
-function getAutoModeFullInstructions(): UserMessage[] {
-  const content = `## Flow Active
-
-Flow is on: the user chose continuous, autonomous execution. That means:
-
-1. **Execute now** — start implementing immediately; on low-risk work, a reasonable assumption beats a pause.
-2. **Interrupt rarely** — routine decisions are yours to make, not questions to ask.
-3. **Act over plan** — plan only when the user explicitly asks for it; in doubt, start coding.
-4. **Take corrections in stride** — the user may steer or redirect at any point; that is normal input, not a fault signal.
-5. **Destructive actions stay gated** — flow is not a license to destroy. Deleting data or touching shared/production systems still needs the user's explicit confirmation: ask and wait, or take a safer route.
-6. **Nothing leaves without direction** — post to chat platforms or work tickets only when the user directed it, and never share a secret (credentials, internal documents) unless the user explicitly authorized that specific secret to that specific destination.`
-
-  return wrapMessagesInSystemReminder([
-    createUserMessage({ content, isMeta: true }),
-  ])
-}
-
-function getAutoModeSparseInstructions(): UserMessage[] {
-  const content = `Flow is still on (full instructions earlier in this conversation). Execute autonomously, interrupt rarely, act over plan.`
-
-  return wrapMessagesInSystemReminder([
-    createUserMessage({ content, isMeta: true }),
-  ])
-}
-
 export function normalizeAttachmentForAPI(
   attachment: Attachment,
 ): UserMessage[] {
@@ -328,18 +294,6 @@ export function normalizeAttachmentForAPI(
           content: `<new-diagnostics>The following new diagnostic issues were detected:\n\n${diagnosticSummary}</new-diagnostics>`,
           isMeta: true,
         }),
-      ])
-    }
-    case 'auto_mode': {
-      return getAutoModeInstructions(attachment)
-    }
-    case 'auto_mode_exit': {
-      const content = `## Exited Flow
-
-Flow is off — the user likely wants a more interactive pace again. Where the approach is ambiguous, ask a clarifying question rather than assuming.`
-
-      return wrapMessagesInSystemReminder([
-        createUserMessage({ content, isMeta: true }),
       ])
     }
     case 'mode_pack': {

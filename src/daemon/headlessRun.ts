@@ -60,7 +60,7 @@ export function getRunMaxBufBytes(): number {
 }
 
 
-export const HEADLESS_PERMISSION_MODE_DEFAULT = 'flow'
+export const HEADLESS_PERMISSION_MODE_DEFAULT = 'default'
 
 export const HEADLESS_PERMISSION_MODES = [
   'default',

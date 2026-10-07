@@ -48,9 +48,6 @@ check("the seconds parameter's own words name both bounds and say a value outsid
   /seconds: semanticNumber\([\s\S]{0,400}?min \$\{MIN_SLEEP_SECONDS\}, max \$\{MAX_SLEEP_SECONDS\}[\s\S]{0,200}?clamped/.test(SLEEP))
 check('cleans up the timer + listener (no leak)',
   /clearTimeout\(timer\)/.test(SLEEP) && /removeEventListener\('abort'/.test(SLEEP))
-check('explicit (unmarked) classifier opt-out — toAutoClassifierInput → ""',
-  /toAutoClassifierInput\(\)\s*\{[\s\S]*?return ''/.test(SLEEP))
-
 check("a sub-agent's roster: Sleep is not in the deny set every agent loses",
   !blockOf(ROSTER, 'ALL_AGENT_DISALLOWED_TOOLS').includes('SLEEP_TOOL_NAME'))
 check("a BACKGROUND crewmate's roster keeps the async allow-set alone, and Sleep is in it",

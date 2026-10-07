@@ -27,7 +27,6 @@ await import('../../src/Tool.ts')
 const { decideToolPermissionWithModes, defaultWrapperPorts } = await import('../../src/utils/permissions/decision/wrapper.ts')
 const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createDenialTrackingState } = await import('../../src/utils/permissions/denialTracking.ts')
 const { stripDangerousPermissionsForAutoMode } = await import('../../src/utils/permissions/permissionSetup.ts')
 const { loadAllPermissionRulesFromDisk } = await import('../../src/utils/permissions/permissionsLoader.ts')
 const { applyPermissionRulesToPermissionContext } = await import('../../src/utils/permissions/permissions.ts')
@@ -55,7 +54,6 @@ const PUSH_TAILED = 'git push -q 2>&1 | tail -1; git status -sb | head -1'
 const PROTOCOL_CHAIN = 'git commit -q -m claim -- docs/claim-lock.md && git pull --rebase --quiet; git push -q; git status -sb'
 const PUSH_RULE = 'Bash(git push *)'
 const CHAIN_RULES = ['Bash(git commit *)', 'Bash(git pull *)', PUSH_RULE]
-const BLOCK_REASON = 'the fixture classifier blocks a push: anything visible outside this machine'
 
 type Source = 'userSettings' | 'projectSettings' | 'localSettings' | 'cliArg' | 'session'
 type Rules = { allow?: string[]; deny?: string[]; ask?: string[] }
@@ -101,7 +99,7 @@ section('§1 the boot posture of a seat with a permission channel says which cal
   check('flow seat, no push rule: the posture carries a line naming the calls that need a present operator', bareLine !== '', `posture:\n${bare}`)
   check('…the line names the channel (the call travels it and waits for the answer)', /channel/.test(bareLine), bareLine)
   check('…the line names a question to the operator and a review approval as calls that always travel', /question to the operator/.test(bareLine) && /review approval/.test(bareLine), bareLine)
-  check('…the line names the flow road: the calls the flow check blocks, anything visible outside this machine', /flow/.test(bareLine) && /outside this machine/.test(bareLine), bareLine)
+  check('…the line names the flow road: the calls no rule covers and no shortcut settles, anything visible outside this machine', /flow/.test(bareLine) && /no shortcut settles/.test(bareLine) && /outside this machine/.test(bareLine), bareLine)
   check('…the line says `git push` is NOT pre-authorised by the rules this seat carries', /`git push` is not pre-authorised/.test(bareLine), bareLine)
   check('…and says a push waits on the operator', /push waits/.test(bareLine), bareLine)
   check('…and names the rule shape and the two roads an operator pre-authorises it by', /Bash\(git push \*\)/.test(bareLine) && /guardrails\.allow/.test(bareLine) && /--allowed-tools/.test(bareLine), bareLine)
@@ -161,18 +159,13 @@ const bashTool = {
   checkPermissions: async (input: { command: string }, context: { getAppState: () => { toolPermissionContext: unknown } }) =>
     bashToolHasPermission(input as never, context.getAppState().toolPermissionContext as never),
 }
-type Cell = { behavior: string; wrapper: string; engine: string; classifier: number; note: string; reason: string }
+type Cell = { behavior: string; wrapper: string; engine: string; note: string; reason: string }
 async function decide(context: Record<string, unknown>, command: string, mode: Mode = 'flow'): Promise<Cell> {
-  let classifier = 0
   const ports: typeof defaultWrapperPorts = {
     ...defaultWrapperPorts,
-    classify: async () => {
-      classifier++
-      return { shouldBlock: true, reason: BLOCK_REASON, model: 'fixture' } as never
-    },
     runHeadlessHooks: async () => null,
   }
-  const appState = { toolPermissionContext: { ...context, mode }, denialTracking: undefined, effortValue: undefined, tasks: {} }
+  const appState = { toolPermissionContext: { ...context, mode }, effortValue: undefined, tasks: {} }
   const seat = {
     abortController: new AbortController(),
     getAppState: () => appState,
@@ -180,7 +173,6 @@ async function decide(context: Record<string, unknown>, command: string, mode: M
     messages: [],
     agentType: undefined,
     options: { isNonInteractiveSession: true, tools: [], hostHoldsAsks: true },
-    localDenialTracking: createDenialTrackingState(),
   }
   const outcome = await decideToolPermissionWithModes(bashTool as never, { command }, seat as never, { message: { id: 'msg_seat_push' } } as never, 'toolu_seat_push', ports)
   const last = outcome.wrapper.stages[outcome.wrapper.stages.length - 1]
@@ -188,7 +180,6 @@ async function decide(context: Record<string, unknown>, command: string, mode: M
     behavior: outcome.decision.behavior,
     wrapper: outcome.wrapper.decidedBy,
     engine: outcome.engineTrace.decidedBy,
-    classifier,
     note: last?.note ?? '',
     reason: reasonWords((outcome.decision as { decisionReason?: unknown }).decisionReason),
   }
@@ -203,18 +194,18 @@ function reasonWords(raw: unknown): string {
   return `${own}[${nested.join('; ')}]`
 }
 const travels = (c: Cell): boolean => c.behavior === 'ask'
-const runsWithoutChannel = (c: Cell): boolean => c.behavior === 'allow' && c.wrapper === 'engine' && c.classifier === 0
+const runsWithoutChannel = (c: Cell): boolean => c.behavior === 'allow' && c.wrapper === 'engine'
 {
   const unruled = await decide(contextOf('flow'), PUSH)
-  check('no rule: a push reaches the flow check (one classifier call), the block parks as the operator\'s ask — the call TRAVELS the channel', travels(unruled) && unruled.wrapper === 'classifier' && unruled.classifier === 1 && /operator is asked/.test(unruled.note), j(unruled))
+  check('no rule: a push is the leftover — the engine\'s own ask parks as the operator\'s; no model is asked; the call TRAVELS the channel', travels(unruled) && unruled.wrapper === 'engine' && unruled.engine === 'resolution', j(unruled))
   check('…and is never auto-allowed by default', unruled.behavior !== 'allow', j(unruled))
   const tailed = await decide(contextOf('flow'), PUSH_TAILED)
-  check('no rule, the session\'s own shape (`git push -q 2>&1 | tail -1; git status -sb | head -1`): the same road, the channel', travels(tailed) && tailed.classifier === 1, j(tailed))
+  check('no rule, the session\'s own shape (`git push -q 2>&1 | tail -1; git status -sb | head -1`): the same road, the channel', travels(tailed) && tailed.wrapper === 'engine', j(tailed))
   const chained = await decide(contextOf('flow'), PROTOCOL_CHAIN)
-  check('no rule, the session\'s protocol chain (commit && pull; push; status): the channel', travels(chained) && chained.classifier === 1, j(chained))
+  check('no rule, the session\'s protocol chain (commit && pull; push; status): the channel', travels(chained) && chained.wrapper === 'engine', j(chained))
 
   const ruled = await decide(contextOf('flow', { allow: [PUSH_RULE] }), PUSH)
-  check('`Bash(git push *)` in the user settings: the push is allowed in the ENGINE by that rule — no classifier call, nothing on the channel', runsWithoutChannel(ruled) && /rule:Bash\(git push \*\)/.test(ruled.reason), j(ruled))
+  check('`Bash(git push *)` in the user settings: the push is allowed in the ENGINE by that rule — nothing on the channel', runsWithoutChannel(ruled) && /rule:Bash\(git push \*\)/.test(ruled.reason), j(ruled))
   const ruledCli = await decide(contextOf('flow', { allow: [PUSH_RULE] }, 'cliArg'), PUSH)
   check('`Bash(git push *)` from --allowed-tools: the same', runsWithoutChannel(ruledCli), j(ruledCli))
   const ruledProject = await decide(contextOf('flow', { allow: [PUSH_RULE] }, 'projectSettings'), PUSH)
@@ -222,17 +213,19 @@ const runsWithoutChannel = (c: Cell): boolean => c.behavior === 'allow' && c.wra
   const ruledTailed = await decide(contextOf('flow', { allow: [PUSH_RULE] }), PUSH_TAILED)
   check('the rule covers the session\'s own shape (the redirect is stripped for the prefix match; tail, head and git status ride the read-only lane)', runsWithoutChannel(ruledTailed), j(ruledTailed))
   const chainOnePush = await decide(contextOf('flow', { allow: [PUSH_RULE] }), PROTOCOL_CHAIN)
-  check('the push rule alone does not carry the protocol chain: the unruled commit and pull still meet the flow check', travels(chainOnePush) && chainOnePush.classifier === 1, j(chainOnePush))
+  check('the push rule alone does not carry the protocol chain: the unruled commit and pull are still the operator\'s', travels(chainOnePush) && chainOnePush.wrapper === 'engine', j(chainOnePush))
   const chainRuled = await decide(contextOf('flow', { allow: CHAIN_RULES }), PROTOCOL_CHAIN)
   check('with commit, pull and push each pre-authorised the whole chain runs without the channel', runsWithoutChannel(chainRuled), j(chainRuled))
 
   const denied = await decide(contextOf('flow', { deny: [PUSH_RULE] }), PUSH)
-  check('a deny rule refuses the push in the engine — never the channel', denied.behavior === 'deny' && denied.wrapper === 'engine' && denied.classifier === 0, j(denied))
+  check('a deny rule refuses the push in the engine — never the channel', denied.behavior === 'deny' && denied.wrapper === 'engine', j(denied))
   const asked = await decide(contextOf('flow', { ask: [PUSH_RULE] }), PUSH)
-  check('an ask rule pins the push to the operator (the ask-rule floor) — the channel, without a classifier call', travels(asked) && asked.wrapper === 'autoFloors' && asked.classifier === 0, j(asked))
+  check('an ask rule pins the push to the operator (the ask-rule floor) — the channel', travels(asked) && asked.wrapper === 'autoFloors', j(asked))
 
   const plainDefault = await decide(contextOf('default'), PUSH, 'default')
-  check('a default-mode seat, no rule: the engine\'s own ask travels the channel', travels(plainDefault) && plainDefault.wrapper === 'engine' && plainDefault.classifier === 0, j(plainDefault))
+  check('a default-mode seat, no rule: the engine\'s own ask travels the channel', travels(plainDefault) && plainDefault.wrapper === 'engine', j(plainDefault))
+  const flowLeftover = await decide(contextOf('flow'), PUSH)
+  check('a flow seat answers the unruled push exactly as a default seat does (the leftover is the operator\'s on both)', flowLeftover.behavior === plainDefault.behavior && flowLeftover.wrapper === plainDefault.wrapper && flowLeftover.engine === plainDefault.engine && flowLeftover.reason === plainDefault.reason, j({ flow: flowLeftover, byDefault: plainDefault }))
   const ruledDefault = await decide(contextOf('default', { allow: [PUSH_RULE] }), PUSH, 'default')
   check('a default-mode seat with the rule: allowed in the engine', runsWithoutChannel(ruledDefault), j(ruledDefault))
 
@@ -250,7 +243,7 @@ section('§3 the operator\'s road on disk — guardrails.allow in a settings fil
   check('the loader reads the rule from the settings file with its source', fromDisk?.ruleBehavior === 'allow' && fromDisk.source === 'userSettings', j(rules))
   const loaded = applyPermissionRulesToPermissionContext(contextOf('flow') as never, rules as never) as unknown as Record<string, unknown>
   const cell = await decide(loaded, PUSH)
-  check('the seat built from that file allows the push in the engine — no classifier call, nothing on the channel', runsWithoutChannel(cell), j(cell))
+  check('the seat built from that file allows the push in the engine — nothing on the channel', runsWithoutChannel(cell), j(cell))
   const words = postureFor('sdk', 'flow', loaded)
   check('and the boot posture composed from that same context tells the model so', /`git push` is pre-authorised at boot by the allow rule `Bash\(git push \*\)` \(userSettings\)/.test(needsLine(words)), needsLine(words))
   posture.resetRuntimePostureForTest()
@@ -259,11 +252,8 @@ section('§3 the operator\'s road on disk — guardrails.allow in a settings fil
   resetSettingsCache()
 }
 
-section('§4 the words on disk — the flow policy names a push; the docs say how an operator pre-authorises one')
+section('§4 the words on disk — the docs say how an operator pre-authorises a push')
 {
-  const policy = readFileSync(join(ROOT, 'src', 'utils', 'permissions', 'auto-mode-classifier-prompts', 'permissions_external.txt'), 'utf8')
-  const denyBlock = policy.slice(policy.indexOf('### Deny rules'))
-  check('the flow policy lists `git push` among the actions that require explicit user confirmation (why an unruled push meets the operator)', /git push/.test(denyBlock), denyBlock.slice(0, 200))
   const trust = readFileSync(join(ROOT, 'docs', 'TRUST.md'), 'utf8')
   const nonInteractive = trust.slice(trust.indexOf('## Non-interactive sessions'))
   const sectionText = nonInteractive.slice(0, nonInteractive.indexOf('\n## ', 1) > 0 ? nonInteractive.indexOf('\n## ', 1) : undefined)

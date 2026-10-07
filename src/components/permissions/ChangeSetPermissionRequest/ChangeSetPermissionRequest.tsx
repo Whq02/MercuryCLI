@@ -203,7 +203,6 @@ export function ChangeSetPermissionRequest(props: PermissionRequestProps): React
       <Box flexDirection="column">
         <PermissionRuleExplanation
           permissionResult={toolUseConfirm.permissionResult}
-          toolType="tool"
         />
         <PermissionPrompt
           options={options}

@@ -366,9 +366,6 @@ function continuationHint(agentId: string, name?: string): string {
 }
 
 
-export const SUBAGENT_BRIEFING_LEAD =
-  'delegates to a separate crewmate with this briefing (its rules bind that crewmate alone, never this session):'
-
 const CREWMATE_SEAT: MercuryAgentSeat = 'a crewmate'
 
 export const AgentTool = buildTool({
@@ -429,12 +426,6 @@ export const AgentTool = buildTool({
   },
   getActivityDescription(input?: AgentToolInput): string {
     return input?.description ?? 'Running task'
-  },
-  toAutoClassifierInput(input: AgentToolInput): string {
-    const tags: string[] = []
-    if (input.subagent_type) tags.push(input.subagent_type)
-    const lead = tags.length > 0 ? `(${tags.join(', ')}) ` : ''
-    return `${lead}${SUBAGENT_BRIEFING_LEAD} ${input.prompt}`
   },
   extractSearchText(output: AgentToolOutput): string {
     const content = (output as { content?: Array<{ text?: string }> }).content

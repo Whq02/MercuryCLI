@@ -2,7 +2,7 @@
 # gate-class: pure
 # gate-watch: src/prompt/apolloMode* src/tools/ApolloReviewTool/**
 # gate-watch: src/tools/AskUserQuestionTool/apolloLetters* src/types/permissions*
-# gate-watch: src/utils/permissions/getNextPermissionMode* src/utils/permissions/PermissionMode* src/utils/permissions/autoModeState*
+# gate-watch: src/utils/permissions/getNextPermissionMode* src/utils/permissions/PermissionMode* src/utils/settings/settingsCache*
 # gate-watch: src/utils/permissions/modeTransitions* src/utils/permissions/PermissionUpdate* src/utils/permissions/filesystem*
 # gate-watch: src/utils/attachments/modeLifecycles* src/utils/messages/attachmentText* src/state/onChangeAppState*
 # gate-watch: src/components/CustomSelect/** src/components/permissions/AskUserQuestionPermissionRequest/**

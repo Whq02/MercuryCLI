@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
@@ -24,25 +24,22 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
-const KEEP = process.env.FV_KEEP === '1'
+const KEEP = process.env.FL_KEEP === '1'
 const j = (v: unknown): string => JSON.stringify(v)
 
-const ASK = 'flow-seat: run the shell probe'
-const AGENT_ASK = 'flow-seat: delegate the shell probe'
-const FOLLOW_UP = 'flow-seat: what did the agent report?'
-const SEAT_BRIEF = 'flow-seat-agent: run the shell probe in the working directory and report the sha'
-const PROBE_COMMIT = 'flow-seat-probe'
+const ASK = 'flow-leftover: run the shell probe'
+const AGENT_ASK = 'flow-leftover: delegate the shell probe'
+const FOLLOW_UP = 'flow-leftover: what did the agent report?'
+const SEAT_BRIEF = 'flow-leftover-agent: run the shell probe in the working directory and report the sha'
+const PROBE_COMMIT = 'flow-leftover-probe'
 const WRITING_COMMAND = `git commit --allow-empty -q -m ${PROBE_COMMIT} && git rev-parse --short HEAD`
-const BLOCK_REASON = 'flow-seat: the fixture classifier blocks the probe commit'
+const VERDICT_REASON = 'flow-leftover: a fixture verdict that must never be asked for'
 const MODEL = 'claude-opus-5'
 const FIXTURE_API_KEY = 'fixture-key-000'
-const POLICY_DENIAL_LEAD = 'Permission for this action has been denied. Reason: '
-const NO_CARD_WORDS = 'cannot show the operator a consent card'
-const UNREADABLE_DENIAL_WORDS = 'could not read its own verdict'
-const UNREADABLE_ASK_WORDS = 'could not read its verdict from'
+const VERDICT_WORDS = [VERDICT_REASON, 'safety check', 'Permission for this action has been denied. Reason:', 'consent card']
+const HEADLESS_REFUSAL_WORDS = ['auto-denied', '--allowed-tools', '--mode']
 
-type Route = 'classifier' | 'parent' | 'parent-ack' | 'seat-1' | 'seat-done' | 'side'
-type Verdict = 'block' | 'malformed'
+type Route = 'verdict' | 'parent' | 'parent-ack' | 'seat-1' | 'seat-done' | 'side'
 interface Hit {
   n: number
   route: Route
@@ -50,7 +47,6 @@ interface Hit {
   model: string
   tools: string[]
   results: string[]
-  body: unknown
 }
 interface Fixture {
   base: string
@@ -100,11 +96,18 @@ function resultTextsOf(body: unknown): string[] {
   return out
 }
 
+function isVerdictTool(tool: unknown): boolean {
+  const t = tool as { name?: string; input_schema?: { properties?: Record<string, unknown> } }
+  const props = Object.keys(t?.input_schema?.properties ?? {})
+  return props.some(p => /block/i.test(p)) && (t?.name ?? '').toLowerCase().includes('classif')
+}
+
 function routeOf(body: unknown): { route: Route; tools: string[]; results: string[] } {
   const tools = toolNamesOf(body)
   const results = resultTextsOf(body)
-  if (tools.includes('classify_result')) return { route: 'classifier', tools, results }
-  if (userTextsOf(body).some(text => text.includes('flow-seat-agent:'))) {
+  const rawTools = ((body as { tools?: unknown[] })?.tools ?? []) as unknown[]
+  if (rawTools.some(isVerdictTool)) return { route: 'verdict', tools, results }
+  if (userTextsOf(body).some(text => text.includes('flow-leftover-agent:'))) {
     return { route: results.length === 0 ? 'seat-1' : 'seat-done', tools, results }
   }
   if (tools.includes('Agent')) return { route: results.length === 0 ? 'parent' : 'parent-ack', tools, results }
@@ -118,10 +121,10 @@ type Block =
 function jsonAnswer(n: number, model: string, blocks: Block[]): string {
   const stop = blocks.some(b => b.type === 'tool_use') ? 'tool_use' : 'end_turn'
   const content = blocks.map((block, index) =>
-    block.type === 'text' ? { type: 'text', text: block.text } : { type: 'tool_use', id: `toolu_fv_${n}_${index}`, name: block.name, input: block.input },
+    block.type === 'text' ? { type: 'text', text: block.text } : { type: 'tool_use', id: `toolu_fl_${n}_${index}`, name: block.name, input: block.input },
   )
   return JSON.stringify({
-    id: `msg_fv_${n}`,
+    id: `msg_fl_${n}`,
     type: 'message',
     role: 'assistant',
     model,
@@ -135,7 +138,7 @@ function jsonAnswer(n: number, model: string, blocks: Block[]): string {
 function sseAnswer(n: number, model: string, blocks: Block[]): string {
   const stop = blocks.some(b => b.type === 'tool_use') ? 'tool_use' : 'end_turn'
   const parts: string[] = [
-    `event: message_start\n${sse({ type: 'message_start', message: { id: `msg_fv_${n}`, type: 'message', role: 'assistant', model, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 40, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 1 } } })}`,
+    `event: message_start\n${sse({ type: 'message_start', message: { id: `msg_fl_${n}`, type: 'message', role: 'assistant', model, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 40, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 1 } } })}`,
   ]
   blocks.forEach((block, index) => {
     if (block.type === 'text') {
@@ -146,7 +149,7 @@ function sseAnswer(n: number, model: string, blocks: Block[]): string {
       )
     } else {
       parts.push(
-        `event: content_block_start\n${sse({ type: 'content_block_start', index, content_block: { type: 'tool_use', id: `toolu_fv_${n}_${index}`, name: block.name, input: {} } })}`,
+        `event: content_block_start\n${sse({ type: 'content_block_start', index, content_block: { type: 'tool_use', id: `toolu_fl_${n}_${index}`, name: block.name, input: {} } })}`,
         `event: content_block_delta\n${sse({ type: 'content_block_delta', index, delta: { type: 'input_json_delta', partial_json: JSON.stringify(block.input) } })}`,
         `event: content_block_stop\n${sse({ type: 'content_block_stop', index })}`,
       )
@@ -163,14 +166,7 @@ const firstLine = (text: string | undefined): string => (text ?? '').trim().spli
 const isSha = (text: string): boolean => /^[0-9a-f]{7,12}$/.test(text)
 const quoted = (text: string | undefined): string => (text ?? '').trim().replace(/\s+/g, ' ').slice(0, 220)
 
-function classifierBlocks(verdict: Verdict): Block[] {
-  if (verdict === 'block') {
-    return [{ type: 'tool_use', name: 'classify_result', input: { thinking: 'The command writes a commit to the working directory.', shouldBlock: true, reason: BLOCK_REASON } }]
-  }
-  return [{ type: 'tool_use', name: 'classify_result', input: { thinking: 'The command writes a commit to the working directory.', shouldBlock: 'maybe', reason: 'flow-seat: an unreadable verdict' } }]
-}
-
-async function startFixture(opts: { agent: boolean; verdict: Verdict }): Promise<Fixture> {
+async function startFixture(opts: { agent: boolean }): Promise<Fixture> {
   const hits: Hit[] = []
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const chunks: Buffer[] = []
@@ -192,34 +188,36 @@ async function startFixture(opts: { agent: boolean; verdict: Verdict }): Promise
       const { route, tools, results } = routeOf(body)
       const n = hits.length + 1
       const streaming = (body as { stream?: unknown })?.stream === true
-      hits.push({ n, route, streaming, model, tools, results, body })
+      hits.push({ n, route, streaming, model, tools, results })
       let blocks: Block[]
       switch (route) {
-        case 'classifier':
-          blocks = classifierBlocks(opts.verdict)
+        case 'verdict': {
+          const verdictTool = (((body as { tools?: unknown[] })?.tools ?? []) as unknown[]).find(isVerdictTool) as { name: string }
+          blocks = [{ type: 'tool_use', name: verdictTool.name, input: { thinking: 'The command writes a commit to the working directory.', shouldBlock: true, reason: VERDICT_REASON } }]
           break
+        }
         case 'parent':
           blocks = opts.agent
             ? [
-                { type: 'text', text: 'flow-seat: delegating the shell probe' },
-                { type: 'tool_use', name: 'Agent', input: { description: 'flow-seat-agent', prompt: SEAT_BRIEF, subagent_type: 'mercury-crew', run_in_background: true } },
+                { type: 'text', text: 'flow-leftover: delegating the shell probe' },
+                { type: 'tool_use', name: 'Agent', input: { description: 'flow-leftover-agent', prompt: SEAT_BRIEF, subagent_type: 'mercury-crew', run_in_background: true } },
               ]
             : [{ type: 'tool_use', name: 'Bash', input: { command: WRITING_COMMAND, description: 'the probe commit and its sha' } }]
           break
         case 'parent-ack': {
           const last = results[results.length - 1]
           const serialized = JSON.stringify(body)
-          const report = [...serialized.matchAll(/flow-seat-agent-done: (sha=[0-9a-f]+|not-a-sha)/g)].pop()
+          const report = [...serialized.matchAll(/flow-leftover-agent-done: (sha=[0-9a-f]+|not-a-sha)/g)].pop()
           blocks = [
             {
               type: 'text',
               text: opts.agent
                 ? report
-                  ? `flow-seat: reported ${report[1]}`
-                  : 'flow-seat: launched; the report arrives with the next turn'
+                  ? `flow-leftover: reported ${report[1]}`
+                  : 'flow-leftover: launched; the report arrives with the next turn'
                 : isSha(firstLine(last))
-                  ? `flow-seat: reported sha=${firstLine(last)}`
-                  : `flow-seat: reported not-a-sha (${quoted(last)})`,
+                  ? `flow-leftover: reported sha=${firstLine(last)}`
+                  : `flow-leftover: reported not-a-sha (${quoted(last)})`,
             },
           ]
           break
@@ -229,7 +227,7 @@ async function startFixture(opts: { agent: boolean; verdict: Verdict }): Promise
           break
         case 'seat-done': {
           const last = results[results.length - 1]
-          blocks = [{ type: 'text', text: isSha(firstLine(last)) ? `flow-seat-agent-done: sha=${firstLine(last)}` : `flow-seat-agent-done: not-a-sha (${quoted(last)})` }]
+          blocks = [{ type: 'text', text: isSha(firstLine(last)) ? `flow-leftover-agent-done: sha=${firstLine(last)}` : `flow-leftover-agent-done: not-a-sha (${quoted(last)})` }]
           break
         }
         default:
@@ -244,12 +242,12 @@ async function startFixture(opts: { agent: boolean; verdict: Verdict }): Promise
       res.end(sseAnswer(n, model, blocks))
     })
   })
-  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  await new Promise<void>(resolvePromise => server.listen(0, '127.0.0.1', resolvePromise))
   const port = (server.address() as { port: number }).port
   return {
     base: `http://127.0.0.1:${port}`,
     hits,
-    close: () => new Promise<void>(resolve => server.close(() => resolve())),
+    close: () => new Promise<void>(resolvePromise => server.close(() => resolvePromise())),
   }
 }
 
@@ -260,8 +258,8 @@ interface World {
 }
 
 function seedWorld(): World {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), 'flow-seat-home-')))
-  const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'flow-seat-cwd-')))
+  const home = realpathSync(mkdtempSync(join(tmpdir(), 'flow-leftover-home-')))
+  const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'flow-leftover-cwd-')))
   const git = (args: string[]): string => {
     const r = spawnSync('git', ['-C', cwd, '-c', 'user.name=probe', '-c', 'user.email=probe@example.invalid', ...args], { encoding: 'utf8' })
     if (r.status !== 0) throw new Error(`git ${args.join(' ')} failed: ${r.stderr}`)
@@ -275,9 +273,6 @@ function seedWorld(): World {
   git(['commit', '-q', '-m', 'the probe commit'])
   const sha = git(['rev-parse', '--short', 'HEAD'])
   seedFirstRun(home, [cwd])
-  const cfgPath = join(home, '.mercury.json')
-  const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
-  writeFileSync(cfgPath, JSON.stringify({ ...cfg }, null, 2) + '\n')
   writeFileSync(join(home, 'settings.json'), JSON.stringify({}, null, 2) + '\n')
   return { home, cwd, sha }
 }
@@ -324,22 +319,6 @@ function commitCount(cwd: string): string {
   return spawnSync('git', ['-C', cwd, 'rev-list', '--count', 'HEAD'], { encoding: 'utf8' }).stdout.trim()
 }
 
-function dumpsOf(world: World): string[] {
-  const root = join(world.home, 'tmp')
-  if (!existsSync(root)) return []
-  const out: string[] = []
-  const walk = (dir: string): void => {
-    for (const name of readdirSync(dir)) {
-      const p = join(dir, name)
-      const st = statSync(p)
-      if (st.isDirectory()) walk(p)
-      else if (dir.endsWith('auto-mode-classifier-errors') && name.endsWith('.txt')) out.push(readFileSync(p, 'utf8'))
-    }
-  }
-  walk(root)
-  return out
-}
-
 interface HeadlessRun {
   frames: Array<Record<string, unknown>>
   asks: Array<Record<string, unknown>>
@@ -354,7 +333,6 @@ function runSeat(world: World, fixture: Fixture, args: string[], turns: LegTurn[
     const host = hostRunner({ dist: DIST, node: nodeBin!, cwd: world.cwd, home: world.home, env: worldEnv(world, fixture.base) as Record<string, string>, argv: args })
     const asks: Array<Record<string, unknown>> = []
     let sent = 0
-    let outcomes = 0
     let ended = false
     let exit: number | null = null
     const finish = (): void => {
@@ -371,7 +349,7 @@ function runSeat(world: World, fixture: Fixture, args: string[], turns: LegTurn[
     })
     const sendNext = (): void => {
       if (sent >= turns.length) {
-        outcomes = host.rows.filter(row => row.type === 'outcome').length
+        const outcomes = host.rows.filter(row => row.type === 'outcome').length
         if (outcomes >= turns.length) host.end()
         return
       }
@@ -445,30 +423,26 @@ function evidence(fixture: Fixture, run: HeadlessRun): void {
     if (hit.results.length === 0) continue
     console.log(`  evidence · request ${hit.n} (${hit.route}) results: ${hit.results.map(r => j(r.replace(/\s+/g, ' ').slice(0, 260))).join(' · ')}`)
   }
-  const asks = run.asks
-  console.log(`  evidence · asks: ${asks.map(a => `${String(a.tool_name)}${a.agent_id ? ' agent_id=' + String(a.agent_id).slice(0, 18) + '…' : ' (no agent_id)'} reason=${j(String(a.reason ?? '')).slice(0, 200)}`).join(' · ') || 'none'}`)
+  console.log(`  evidence · asks: ${run.asks.map(a => `${String(a.tool_name)}${a.agent_id ? ' agent_id=' + String(a.agent_id).slice(0, 18) + '…' : ' (no agent_id)'} reason=${j(String(a.reason ?? '')).slice(0, 200)}`).join(' · ') || 'none'}`)
   console.log(`  evidence · results: ${resultTexts(run).map(t => j(t.slice(0, 200))).join(' · ')}`)
 }
 
 interface Leg {
   name: string
   agent: boolean
-  verdict: Verdict
   channel: boolean
 }
 
 const LEGS: Record<string, Leg> = {
-  'seat-block': { name: 'seat-block', agent: false, verdict: 'block', channel: true },
-  'seat-agent-block': { name: 'seat-agent-block', agent: true, verdict: 'block', channel: true },
-  'seat-unreadable': { name: 'seat-unreadable', agent: false, verdict: 'malformed', channel: true },
-  'plain-unreadable': { name: 'plain-unreadable', agent: false, verdict: 'malformed', channel: false },
-  'plain-block': { name: 'plain-block', agent: false, verdict: 'block', channel: false },
+  seat: { name: 'seat', agent: false, channel: true },
+  'seat-agent': { name: 'seat-agent', agent: true, channel: true },
+  plain: { name: 'plain', agent: false, channel: false },
 }
 
 async function runLeg(leg: Leg): Promise<void> {
   console.log(`\n— leg ${leg.name} —`)
   const before = failures
-  const fixture = await startFixture({ agent: leg.agent, verdict: leg.verdict })
+  const fixture = await startFixture({ agent: leg.agent })
   const world = seedWorld()
   const session = ['--mode', 'flow', '--model', MODEL, '--log-file', join(world.home, 'debug.txt')]
   const argv = leg.channel ? session : ['run', '--input=rows', '--format=rows', ...session]
@@ -482,7 +456,8 @@ async function runLeg(leg: Leg): Promise<void> {
     await fixture.close()
   }
   evidence(fixture, run)
-  const classifierHits = fixture.hits.filter(h => h.route === 'classifier')
+  const mainLoop = fixture.hits.filter(h => h.route !== 'verdict' && h.route !== 'side')
+  const others = fixture.hits.filter(h => h.route === 'verdict' || h.route === 'side' || !h.streaming)
   const asks = run.asks
   const askJson = j(asks)
   const wireJson = j(fixture.hits.map(h => h.results))
@@ -491,49 +466,32 @@ async function runLeg(leg: Leg): Promise<void> {
   const commits = commitCount(world.cwd)
   const doneHit = leg.agent ? fixture.hits.find(h => h.route === 'seat-done') : fixture.hits.find(h => h.route === 'parent-ack')
   const shellResult = doneHit?.results[doneHit.results.length - 1]
-  const debugLog = existsSync(join(world.home, 'debug.txt')) ? readFileSync(join(world.home, 'debug.txt'), 'utf8') : ''
-  const dumps = dumpsOf(world)
 
   check(`${leg.name}: the run settled (${turns.length} turn${turns.length === 1 ? '' : 's'}) and exited 0`, texts.length === turns.length && run.exit === 0, `${texts.length} result(s) · exit ${run.exit} · stderr ${j(run.stderr.slice(-300))}`)
-  check(`${leg.name}: the shell's ask reached the classifier ${leg.verdict === 'malformed' ? 'twice — the one same-model retry' : 'once'}`, classifierHits.length === (leg.verdict === 'malformed' ? 2 : 1) && classifierHits.every(h => !h.streaming && h.model === MODEL), `${classifierHits.length} classifier call(s): ${classifierHits.map(h => `${h.model}${h.streaming ? '' : '/json'}`).join(' ')}`)
+  check(`${leg.name}: every request on the wire is the main loop's own (streaming, the session's tools) — no request left for the decision`, others.length === 0 && mainLoop.length === fixture.hits.length && fixture.hits.length >= 2, `${fixture.hits.length} hit(s): ${fixture.hits.map(h => `${h.route}${h.streaming ? '' : '/json'}`).join(' ')}`)
+  check(`${leg.name}: no verdict words anywhere on the wire`, VERDICT_WORDS.every(w => !wireJson.includes(w)), wireJson.slice(0, 400))
 
   if (leg.channel) {
-    const expectedReason = leg.verdict === 'block' ? BLOCK_REASON : UNREADABLE_ASK_WORDS
     check(`${leg.name}: ONE permission/request left the seat for the shell — the ask parked with the host`, asks.length === 1 && asks[0]?.tool_name === 'Bash' && String((asks[0]?.input as { command?: string })?.command).includes(PROBE_COMMIT), `${asks.length} request(s)`)
-    check(`${leg.name}: the request carries the reason (${j(expectedReason)})`, askJson.includes(expectedReason), askJson.slice(0, 400))
-    if (leg.verdict === 'malformed') {
-      check(`${leg.name}: the reason names the classifier model`, askJson.includes(MODEL), askJson.slice(0, 400))
-    }
+    check(`${leg.name}: the ask carries no verdict words — it is the plain ask the rules left over`, VERDICT_WORDS.every(w => !askJson.includes(w)), askJson.slice(0, 400))
     if (leg.agent) {
       check(`${leg.name}: the request carries the background agent's id`, typeof asks[0]?.agent_id === 'string' && String(asks[0]?.agent_id).length > 0, askJson.slice(0, 300))
     }
     check(`${leg.name}: the host's allow ran the shell — the probe commit landed and its sha came back`, isSha(firstLine(shellResult)) && firstLine(shellResult) === after && commits === '2' && after !== world.sha, `${j(quoted(shellResult))} · head ${after} · commits ${commits}`)
-    check(`${leg.name}: no denial anywhere on the wire`, !wireJson.includes('has been denied') && !wireJson.includes(NO_CARD_WORDS) && !wireJson.includes('auto-denied'), wireJson.slice(0, 400))
+    check(`${leg.name}: no denial anywhere on the wire`, !wireJson.includes('has been denied') && !wireJson.includes('auto-denied'), wireJson.slice(0, 400))
   } else {
     check(`${leg.name}: no ask left the run (no host)`, asks.length === 0, `${asks.length} ask(s)`)
     check(`${leg.name}: the shell did not run (one commit, the sha unchanged)`, commits === '1' && after === world.sha, `head ${after} · commits ${commits}`)
-    if (leg.verdict === 'block') {
-      check(`${leg.name}: the block denies with the policy-denial words and the no-card note`, (shellResult ?? '').includes(POLICY_DENIAL_LEAD + BLOCK_REASON) && (shellResult ?? '').includes(NO_CARD_WORDS), j(quoted(shellResult)))
-    } else {
-      check(`${leg.name}: the denial says the check could not read its verdict and names the model`, (shellResult ?? '').includes(UNREADABLE_DENIAL_WORDS) && (shellResult ?? '').includes(MODEL), j(quoted(shellResult)))
-      check(`${leg.name}: the denial never wears the policy-denial words`, !(shellResult ?? '').includes(POLICY_DENIAL_LEAD) && !(shellResult ?? '').includes('blocked this action'), j(quoted(shellResult)))
-    }
-  }
-
-  if (leg.verdict === 'malformed') {
-    check(`${leg.name}: the classifier error dump was written (${dumps.length})`, dumps.length >= 1, `${dumps.length} dump(s) under ${join(world.home, 'tmp')}`)
-    const dump = dumps.join('\n')
-    check(`${leg.name}: the dump names the failing field, the model, the stop reason and a request id`, dump.includes('shouldBlock') && dump.includes(MODEL) && dump.includes('stop_reason') && dump.includes('request id'), dump.slice(0, 600))
-    check(`${leg.name}: the debug log carries the unreadable-verdict line, redacted (the field, never the value)`, debugLog.includes('classifier verdict unreadable') && debugLog.includes('shouldBlock') && !debugLog.includes('"maybe"'), debugLog.split('\n').filter(l => /classif/i.test(l)).slice(-4).join(' | ').slice(0, 500))
-    check(`${leg.name}: the policy-denial words appear nowhere on the wire`, !wireJson.includes(POLICY_DENIAL_LEAD), wireJson.slice(0, 300))
+    check(`${leg.name}: the refusal is the standard headless one (auto-denied; --allowed-tools and --mode named as the roads)`, HEADLESS_REFUSAL_WORDS.every(w => (shellResult ?? '').includes(w)), j(quoted(shellResult)))
+    check(`${leg.name}: the refusal wears no verdict words`, VERDICT_WORDS.every(w => !(shellResult ?? '').includes(w)), j(quoted(shellResult)))
   }
 
   if (failures > before || KEEP) console.log(`  stderr tail: ${run.stderr.slice(-800)}`)
   keepOrDrop(world, leg.name)
 }
 
-const ORDER = ['seat-block', 'seat-agent-block', 'seat-unreadable', 'plain-unreadable', 'plain-block']
-const wanted = (process.env.FV_LEG ?? 'all') === 'all' ? ORDER : (process.env.FV_LEG ?? '').split(',').map(s => s.trim())
+const ORDER = ['seat', 'seat-agent', 'plain']
+const wanted = (process.env.FL_LEG ?? 'all') === 'all' ? ORDER : (process.env.FL_LEG ?? '').split(',').map(s => s.trim())
 for (const name of wanted) {
   const leg = LEGS[name]
   if (!leg) {
@@ -544,5 +502,5 @@ for (const name of wanted) {
   await runLeg(leg)
 }
 
-console.log(failures === 0 ? '\nprove-flow-verdict-seat: ALL LAWS HOLD' : `\nprove-flow-verdict-seat: ${failures} FAILURE(S)`)
+console.log(failures === 0 ? '\nprove-flow-leftover-ask: ALL LAWS HOLD' : `\nprove-flow-leftover-ask: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

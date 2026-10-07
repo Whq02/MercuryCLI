@@ -234,7 +234,7 @@ console.log('── 4. render-path totality over the reachable hostile family �
     ['control bytes in every string field', { file_path: CONTROL, command: CONTROL, pattern: CONTROL, path: CONTROL, prompt: CONTROL, description: CONTROL, content: CONTROL, old_string: CONTROL, new_string: CONTROL, url: CONTROL, query: CONTROL }],
     ['a megabyte in every string field', { file_path: MEGA, command: MEGA, pattern: MEGA, path: MEGA, prompt: MEGA, description: MEGA, content: MEGA, old_string: MEGA, new_string: MEGA, url: MEGA, query: MEGA }],
   ]
-  const INPUT_HOOKS = ['renderToolUseMessage', 'renderToolUseQueuedMessage', 'renderToolUseRejectedMessage', 'renderToolUseTag', 'getToolUseSummary', 'getActivityDescription', 'userFacingName', 'isSearchOrReadCommand', 'toAutoClassifierInput'] as const
+  const INPUT_HOOKS = ['renderToolUseMessage', 'renderToolUseQueuedMessage', 'renderToolUseRejectedMessage', 'renderToolUseTag', 'getToolUseSummary', 'getActivityDescription', 'userFacingName', 'isSearchOrReadCommand'] as const
   const options = { verbose: false, theme: 'dark', columns: 80 }
   const throws: string[] = []
   for (const tool of baseTools) {
@@ -287,8 +287,6 @@ console.log('── 5. the seams are guarded (structural) ──')
   t('…and wraps the render in a catch (a throwing hook costs one row)', /try \{\s*useMessage =\s*tool\.renderToolUseMessage/.test(row))
   const collapsed = read('src/components/messages/CollapsedReadSearchContent.tsx')
   t('the collapsed read/search row wraps the render in a catch', /try \{[^}]*tool\.renderToolUseMessage\?\.\(entry\.input/.test(collapsed))
-  const flow = read('src/utils/permissions/flowClassifier.ts')
-  t('the auto-mode classifier wraps every projection call in a catch', (flow.match(/toAutoClassifierInput\?\.\(/g) ?? []).length >= 2 && (flow.match(/try \{\s*(value =|const value =)\s*tool\.toAutoClassifierInput/g) ?? []).length >= 2)
   const messages = read('src/components/Messages.tsx')
   t('every transcript row still sits in the per-row boundary', /<RowErrorBoundary>\s*<MessageRow/.test(messages))
   const display = read('src/utils/file.ts')

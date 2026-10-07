@@ -121,7 +121,6 @@ section('S8. through the tool: a nested tool\'s refusal reaches the cell without
   writeFileSync(target, 'one\ntwo\nthree\n')
   const appState = {
     toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' },
-    denialTracking: undefined,
     sessionHooks: new Map(),
     mcp: { clients: [], tools: [], commands: [], resources: {} },
     speculation: { status: 'idle' },

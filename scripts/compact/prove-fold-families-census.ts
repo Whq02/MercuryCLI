@@ -81,7 +81,6 @@ async function runFold(model: string): Promise<Run> {
   const appState = {
     toolPermissionContext,
     sessionHooks: new Map(),
-    denialTracking: undefined,
     tasks: {},
     mcp: { clients: [], tools: [], commands: [], resources: {} },
     effortValue: 'xhigh',

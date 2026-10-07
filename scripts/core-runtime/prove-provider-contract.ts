@@ -237,7 +237,6 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
   check('structured: sonnet-4-6 supported', betas.modelSupportsStructuredOutputs('claude-sonnet-4-6'))
   check('structured: sonnet-5 via the catalog', betas.modelSupportsStructuredOutputs('claude-sonnet-5'))
 
-  check('auto-mode: opus-4-8 allowed (canonical 4-6 row)', betas.modelSupportsAutoMode('claude-opus-4-8'))
 }
 
 {
@@ -596,7 +595,6 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
       r.effort.xhigh === effort.modelSupportsXHighEffort(m) &&
       r.effort.ceiling === effort.getMaxSupportedEffortLevel(m) &&
       r.tools.structuredOutputs === betas.modelSupportsStructuredOutputs(m) &&
-      r.tools.autoMode === betas.modelSupportsAutoMode(m) &&
       r.tools.toolSearchBetaHeader === betas.getToolSearchBetaHeader() &&
       r.media.pdf === caps.modelSupportsPDF(m) &&
       eq(r.betas.all, betas.getAllModelBetas(m)) &&

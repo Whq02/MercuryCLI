@@ -124,7 +124,6 @@ export function FallbackPermissionRequest({
         <Text dimColor>{truncateToLines(toolUseConfirm.description, 3)}</Text>
         <PermissionRuleExplanation
           permissionResult={toolUseConfirm.permissionResult}
-          toolType="tool"
         />
         <PermissionPrompt
           options={options}

@@ -1,13 +1,22 @@
 #!/usr/bin/env bun
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import type { ToolPermissionContext } from '../../src/Tool.ts'
 import type { PermissionMode } from '../../src/types/permissions.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'apollo-carousel-home-'))
+delete process.env.MERCURY_HOME
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const { getNextPermissionMode, cyclePermissionMode } = await import('../../src/utils/permissions/getNextPermissionMode.ts')
-const { setAutoModeCircuitBroken } = await import('../../src/utils/permissions/autoModeState.ts')
 const { isAutoModeGateEnabled } = await import('../../src/utils/permissions/permissionSetup.ts')
+const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const closeFlow = (closed: boolean): void => {
+  writeFileSync(join(process.env.MERCURY_CONFIG_DIR!, 'settings.json'), JSON.stringify(closed ? { guardrails: { disableFlowMode: true } } : {}))
+  resetSettingsCache()
+}
 const { GLYPH, displayWidth } = await import('../../src/components/mercury-ui/glyphs.ts')
 const { permissionModeSymbol, permissionModeTitle, permissionModeFromString, externalPermissionModeSchema, getModeColor } = await import('../../src/utils/permissions/PermissionMode.ts')
 
@@ -35,7 +44,7 @@ const context = (mode: PermissionMode, bypass = false): ToolPermissionContext =>
 
 try {
   for (const flow of [true, false]) {
-    setAutoModeCircuitBroken(!flow)
+    closeFlow(!flow)
     check(`live flow gate is ${flow}`, isAutoModeGateEnabled() === flow)
     for (const bypass of [false, true]) {
       const expected: PermissionMode[] = ['default', 'implement', 'apollo']
@@ -51,7 +60,7 @@ try {
     }
   }
 } finally {
-  setAutoModeCircuitBroken(false)
+  closeFlow(false)
 }
 
 check('Apollo uses the hollow diamond', GLYPH.modeApollo === '◇' && permissionModeSymbol('apollo') === '◇')

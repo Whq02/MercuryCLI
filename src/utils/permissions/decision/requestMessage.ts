@@ -56,7 +56,6 @@ const REASON_TABLE: ReasonLines<ReasonByType> = {
   other: (_toolName, reason) => reason.reason,
   mode: (toolName, modeReason) => `Current permission mode (${permissionModeTitle(modeReason.mode)}) requires approval for this ${toolName} command`,
   asyncAgent: (_toolName, reason) => reason.reason,
-  classifier: toolName => ungrantedLine(toolName),
   bypassedAsk: (toolName, bypassed) => createPermissionRequestMessage(toolName, bypassed.reason),
 }
 

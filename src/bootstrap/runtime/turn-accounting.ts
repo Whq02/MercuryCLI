@@ -5,8 +5,6 @@ export class TurnAccountingOwner {
   turnHookCount = 0
   turnToolDurationMs = 0
   turnToolCount = 0
-  turnClassifierDurationMs = 0
-  turnClassifierCount = 0
   private outputTokensAtTurnStart = 0
   private currentTurnTokenBudget: number | null = null
   private budgetContinuationCount = 0
@@ -32,16 +30,6 @@ export class TurnAccountingOwner {
   resetTurnToolDuration(): void {
     this.turnToolDurationMs = 0
     this.turnToolCount = 0
-  }
-
-  addToTurnClassifierDuration(duration: number): void {
-    this.turnClassifierDurationMs += duration
-    this.turnClassifierCount++
-  }
-
-  resetTurnClassifierDuration(): void {
-    this.turnClassifierDurationMs = 0
-    this.turnClassifierCount = 0
   }
 
   getTurnOutputTokens(): number {

@@ -731,7 +731,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
         decisionReason: {
           type: 'safetyCheck' as const,
           reason: `filling registered secret ${input.secretRef} into ${origin} needs the operator's own consent for the pairing`,
-          classifierApprovable: false,
+          operatorOnly: true,
         },
         suggestions: suggestionForExactCommand('Browser', pairing),
       }
@@ -752,7 +752,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
         decisionReason: {
           type: 'safetyCheck' as const,
           reason: `the top frame is ${origin} content the page itself conjured`,
-          classifierApprovable: false,
+          operatorOnly: true,
         },
         suggestions: suggestionForExactCommand('Browser', `origin:${origin}`),
       }
@@ -764,21 +764,10 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
       decisionReason: {
         type: 'safetyCheck' as const,
         reason: `${origin} was reached by navigation, not requested by the operator`,
-        classifierApprovable: false,
+        operatorOnly: true,
       },
       suggestions: suggestionForExactCommand('Browser', `origin:${origin}`),
     }
-  },
-  toAutoClassifierInput(input: Input) {
-    const bits = [
-      input.op,
-      input.url,
-      input.selector,
-      typeof input.x === 'number' && typeof input.y === 'number' ? `(${input.x}, ${input.y})` : undefined,
-      input.text !== undefined ? `${input.text.length} chars` : undefined,
-      input.secretRef !== undefined ? `secret:${input.secretRef}` : undefined,
-    ].filter(Boolean)
-    return `browser ${bits.join(' ')}`
   },
   async validateInput(input: Input) {
     if (!browserToolEnabled()) {

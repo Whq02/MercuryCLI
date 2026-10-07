@@ -601,9 +601,6 @@ Everything is bounded and inspectable: mercury://structure/query/<id> · mercury
       message: `Structure apply${input.previewId ? ` ${input.previewId}` : ''} (writes the previewed multi-file transformation)`,
     }
   },
-  toAutoClassifierInput(input: Input) {
-    return `structure ${input.op}: ${input.select ?? input.action ?? input.previewId ?? ''}`
-  },
   async validateInput(input: Input) {
     if (!structureEnabled()) {
       return { result: false as const, message: 'the structural plane is disabled (MERCURY_STRUCTURE=0)', errorCode: 1 }

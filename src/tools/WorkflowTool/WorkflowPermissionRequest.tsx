@@ -215,7 +215,6 @@ export function WorkflowPermissionRequest({
       <Box flexDirection="column">
         <PermissionRuleExplanation
           permissionResult={toolUseConfirm.permissionResult}
-          toolType="tool"
         />
         <Text>Do you want to allow Mercury to run this workflow?</Text>
         <PermissionPrompt

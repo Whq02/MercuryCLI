@@ -75,7 +75,6 @@ function makeContext(): { ctx: Record<string, unknown>; readFileState: Map<strin
   const appState = {
     toolPermissionContext,
     sessionHooks: new Map(),
-    denialTracking: undefined,
     tasks: {},
     mcp: { clients: [], tools: [], commands: [], resources: {} },
   }

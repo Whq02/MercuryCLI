@@ -215,7 +215,6 @@ section('§6 the direct lane — a real fold on an engine family carries the ros
   const appState = {
     toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' as const },
     sessionHooks: new Map(),
-    denialTracking: undefined,
     tasks: { aplain001: store.aplain001, bshell001: store.bshell001, [WF_RUNNING]: store[WF_RUNNING] },
     agentNameRegistry: new Map(),
     mcp: { clients: [], tools: [], commands: [], resources: {} },

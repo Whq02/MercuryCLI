@@ -238,8 +238,6 @@ section('§5 the doors store exact ids; the words come from a lookup of the id')
 section('§6 auto mode keys on the routing law, never a tier name')
 {
   const caps = await import('../../src/utils/model/capabilities.ts')
-  check('the small tier takes auto mode like every declared row', caps.modelSupportsAutoMode('claude-haiku-4-5-20251001') && caps.modelSupportsAutoMode('claude-opus-5') && caps.modelSupportsAutoMode('gpt-5.6-sol'))
-  check('an id no family declares takes none', !caps.modelSupportsAutoMode('banana-9000'))
 }
 
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAIL`}`)

@@ -851,12 +851,6 @@ export async function ensureConnectedClient(client: MCPServerConnection): Promis
 }
 
 
-export function mcpToolInputToAutoClassifierInput(input: Record<string, unknown>, toolName: string): string {
-  const keys = Object.keys(input)
-  if (keys.length === 0) return toolName
-  return keys.map(key => `${key}=${String(input[key])}`).join(' ')
-}
-
 type ToolWithPermissions = ScopedMcpServerConfig & { toolPermissions?: Record<string, string> }
 
 function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
@@ -886,7 +880,6 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
     prompt: async () => description,
     isConcurrencySafe: () => (annotations as { readOnlyHint?: boolean } | undefined)?.readOnlyHint === true,
     isReadOnly: () => (annotations as { readOnlyHint?: boolean } | undefined)?.readOnlyHint === true,
-    toAutoClassifierInput: (input: Record<string, unknown>) => mcpToolInputToAutoClassifierInput(input, toolName),
     isDestructive: () => (annotations as { destructiveHint?: boolean } | undefined)?.destructiveHint === true,
     isOpenWorld: () => (annotations as { openWorldHint?: boolean } | undefined)?.openWorldHint === true,
     isSearchOrReadCommand: () => classifyMcpToolForCollapse(serverName, toolName),

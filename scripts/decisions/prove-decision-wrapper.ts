@@ -18,11 +18,7 @@ const { WRAPPER_STAGE_ORDER } = await import(
 const { hasPermissionsToUseTool } = await import(
   '../../src/utils/permissions/permissions.ts'
 )
-const { DENIAL_LIMITS } = await import(
-  '../../src/utils/permissions/denialTracking.ts'
-)
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { AbortError } = await import('../../src/utils/errors.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -40,22 +36,23 @@ const guard = setTimeout(() => {
 }, 60_000)
 guard.unref?.()
 
-function makeTool(over: { name?: string; behavior?: 'passthrough' | 'ask' } = {}): unknown {
+function makeTool(over: { name?: string; behavior?: 'passthrough' | 'ask' | 'allow' } = {}): unknown {
   const name = over.name ?? 'FakeTool'
   return {
     name,
     inputSchema: z.object({}).passthrough(),
-    checkPermissions: async () =>
+    checkPermissions: async (input: unknown) =>
       over.behavior === 'ask'
         ? { behavior: 'ask', message: 'plain ask' }
-        : { behavior: 'passthrough', message: 'no opinion' },
+        : over.behavior === 'allow'
+          ? { behavior: 'allow', updatedInput: input }
+          : { behavior: 'passthrough', message: 'no opinion' },
   }
 }
 
 function makeContext(opts: {
   mode?: string
   avoidPrompts?: boolean
-  denial?: { consecutiveDenials: number; totalDenials: number }
 } = {}): unknown {
   const toolPermissionContext = {
     ...getEmptyToolPermissionContext(),
@@ -66,7 +63,7 @@ function makeContext(opts: {
     isBypassPermissionsModeAvailable: false,
     ...(opts.avoidPrompts ? { shouldAvoidPermissionPrompts: true } : {}),
   }
-  const appState = { toolPermissionContext, denialTracking: undefined }
+  const appState = { toolPermissionContext }
   return {
     abortController: new AbortController(),
     getAppState: () => appState,
@@ -74,7 +71,6 @@ function makeContext(opts: {
     messages: [],
     agentType: undefined,
     options: {},
-    ...(opts.denial ? { localDenialTracking: { ...opts.denial } } : {}),
   }
 }
 
@@ -86,16 +82,10 @@ function makePorts(over: Partial<Ports>): Ports {
     ...defaultWrapperPorts,
     isAllowlistedTool: () => false,
     resolveAcceptEditsVerdict: async () => ({ behavior: 'ask', message: 'still ask' }),
-    classify: async () => {
-      throw new Error('classifier must not be reached by this row')
-    },
     runHeadlessHooks: async () => null,
     ...over,
   }
 }
-
-const classifierResult = (over: Record<string, unknown>): never =>
-  ({ shouldBlock: false, unavailable: false, reason: 'r', model: 'fake-model', ...over }) as never
 
 type Outcome = {
   decision: { behavior: string; message?: string; decisionReason?: { type?: string; reason?: string } }
@@ -124,121 +114,35 @@ function checkSubsequenceLaw(label: string, wrapper: Outcome['wrapper']): void {
 }
 
 console.log('============================================================')
-console.log(' Mode-wrapper band — ports, classifier orchestration, trace')
+console.log(' Mode-wrapper band — ports, the leftover, trace')
 console.log('============================================================')
 
-section('classifier verdicts (injected classify port)')
+section('the leftover — an ask no floor and no shortcut settles is the operator\'s')
 {
-  const denial = { consecutiveDenials: 2, totalDenials: 5 }
-  const ctx = makeContext({ mode: 'flow', denial })
-  let r = await run(makeTool(), ctx, makePorts({ classify: async () => classifierResult({ reason: 'safe action' }) }))
-  check(
-    'allowed → allow with classifier reason',
-    r.decision.behavior === 'allow' && r.decision.decisionReason?.type === 'classifier',
-    j(r.decision),
-  )
-  check('allowed → decidedBy classifier', r.wrapper.decidedBy === 'classifier', j(r.wrapper))
-  check('allowed → consecutive denials reset in local tracking', (ctx as { localDenialTracking: { consecutiveDenials: number } }).localDenialTracking.consecutiveDenials === 0)
-  checkSubsequenceLaw('classifier allowed', r.wrapper)
+  const FLOW_WALK = ['autoSafetyImmunity', 'autoUserInteraction', 'autoFloors', 'powershellGuard', 'fastPathDangerFilter', 'implementFastPath', 'allowlistFastPath']
+  check('no port asks a model for the decision', !('classify' in defaultWrapperPorts) && Object.keys(defaultWrapperPorts).sort().join(',') === 'isAllowlistedTool,resolveAcceptEditsVerdict,runHeadlessHooks', Object.keys(defaultWrapperPorts).join(','))
+  check('the stage order carries no verdict stage and no denial ledger stage', !(WRAPPER_STAGE_ORDER as readonly string[]).some(s => /classif|denial/i.test(s)), j(WRAPPER_STAGE_ORDER))
 
-  const denial2 = { consecutiveDenials: 0, totalDenials: 0 }
-  const ctx2 = makeContext({ mode: 'flow', denial: denial2 })
-  r = await run(makeTool(), ctx2, makePorts({ classify: async () => classifierResult({ shouldBlock: true, reason: 'dangerous' }) }))
-  check(
-    'blocked (card available) → ask with classifier reason',
-    r.decision.behavior === 'ask' && r.decision.decisionReason?.type === 'classifier' && r.decision.decisionReason.reason === 'dangerous',
-    j(r.decision),
-  )
-  check('blocked → denial recorded in local tracking', (ctx2 as { localDenialTracking: { consecutiveDenials: number; totalDenials: number } }).localDenialTracking.consecutiveDenials === 1)
-  checkSubsequenceLaw('classifier blocked', r.wrapper)
+  let r = await run(makeTool({ behavior: 'ask' }), makeContext({ mode: 'flow' }), makePorts({}))
+  check("flow leftover → the engine's ask passes through (decidedBy 'engine')", r.decision.behavior === 'ask' && r.wrapper.decidedBy === 'engine' && r.decision.message === 'plain ask' && r.decision.decisionReason === undefined, j(r))
+  check('flow leftover → every floor and both shortcuts were consulted and passed', r.wrapper.stages.map(s => s.stage).join(',') === FLOW_WALK.join(',') && r.wrapper.stages.every(s => s.outcome === 'pass'), j(r.wrapper))
+  checkSubsequenceLaw('flow leftover', r.wrapper)
 
-  const ctx2h = makeContext({ mode: 'flow', avoidPrompts: true, denial: { consecutiveDenials: 0, totalDenials: 0 } })
-  r = await run(makeTool(), ctx2h, makePorts({ classify: async () => classifierResult({ shouldBlock: true, reason: 'dangerous' }) }))
-  check(
-    'blocked (no card) → deny with classifier reason',
-    r.decision.behavior === 'deny' && r.decision.decisionReason?.type === 'classifier',
-    j(r.decision),
-  )
-  checkSubsequenceLaw('classifier blocked headless', r.wrapper)
+  r = await run(makeTool({ behavior: 'ask' }), makeContext({ mode: 'flow', avoidPrompts: true }), makePorts({}))
+  check('flow leftover + prompt-less → the headless auto-deny (asyncAgent) after a silent hook band', r.decision.behavior === 'deny' && r.decision.decisionReason?.type === 'asyncAgent' && r.wrapper.decidedBy === 'headlessAutoDeny' && r.wrapper.stages.some(s => s.stage === 'headlessHooks' && s.outcome === 'pass'), j(r))
+  checkSubsequenceLaw('flow leftover headless', r.wrapper)
+  const asDefault = await run(makeTool({ behavior: 'ask' }), makeContext({ mode: 'default', avoidPrompts: true }), makePorts({}))
+  check('…the same decision default mode gives a prompt-less ask', j(r.decision) === j(asDefault.decision), j({ flow: r.decision, byDefault: asDefault.decision }))
 
   r = await run(
-    makeTool(),
-    makeContext({ mode: 'flow' }),
-    makePorts({
-      classify: async () => classifierResult({ shouldBlock: true, unavailable: true }),
-    }),
-  )
-  check(
-    'unavailable + interactive returns the approval request',
-    r.decision.behavior === 'ask' && (r.decision.decisionReason?.reason ?? '').includes('unavailable'),
-    j(r.decision),
-  )
-  check(
-    'unavailable + interactive trace notes the human ask',
-    (r.wrapper.stages.find(s => s.stage === 'classifier')?.note ?? '').includes('human ask'),
-    j(r.wrapper),
-  )
-
-  r = await run(
-    makeTool(),
+    makeTool({ behavior: 'ask' }),
     makeContext({ mode: 'flow', avoidPrompts: true }),
-    makePorts({
-      classify: async () => classifierResult({ shouldBlock: true, unavailable: true }),
-    }),
+    makePorts({ runHeadlessHooks: async () => ({ behavior: 'allow', updatedInput: {}, decisionReason: { type: 'hook', hookName: 'PermissionRequest' } }) as never }),
   )
-  check(
-    'unavailable + headless denies',
-    r.decision.behavior === 'deny' && (r.decision.decisionReason?.reason ?? '').includes('unavailable'),
-    j(r.decision),
-  )
+  check('flow leftover + prompt-less + hook allow → decidedBy headlessHooks', r.decision.behavior === 'allow' && r.wrapper.decidedBy === 'headlessHooks', j(r.wrapper))
 
-  check('unavailable denial reports fail closed', (r.wrapper.stages.find(s => s.stage === 'classifier')?.note ?? '').includes('fail closed'), j(r.wrapper))
-
-  r = await run(
-    makeTool(),
-    makeContext({ mode: 'flow' }),
-    makePorts({ classify: async () => classifierResult({ shouldBlock: true, transcriptTooLong: true }) }),
-  )
-  check(
-    'transcript too long → manual-approval fallback ask',
-    r.decision.behavior === 'ask' && (r.decision.decisionReason?.reason ?? '').includes('context window'),
-    j(r.decision),
-  )
-
-  let threw = false
-  try {
-    await run(
-      makeTool(),
-      makeContext({ mode: 'flow', avoidPrompts: true }),
-      makePorts({ classify: async () => classifierResult({ shouldBlock: true, transcriptTooLong: true }) }),
-    )
-  } catch (e) {
-    threw = e instanceof AbortError
-  }
-  check('transcript too long + headless → AbortError', threw)
-}
-
-section('the consecutive denial limit falls back to prompting')
-{
-  const denial = { consecutiveDenials: DENIAL_LIMITS.maxConsecutive - 1, totalDenials: 5 }
-  const ctx = makeContext({ mode: 'flow', denial })
-  const r = await run(makeTool(), ctx, makePorts({ classify: async () => classifierResult({ shouldBlock: true, reason: 'still dangerous' }) }))
-  check(
-    'limit reached → ask (fall back to prompting) with the review warning',
-    r.decision.behavior === 'ask' && (r.decision.decisionReason?.reason ?? '').includes('consecutive actions were blocked'),
-    j(r.decision),
-  )
-  check('limit path → decidedBy denialLimit', r.wrapper.decidedBy === 'denialLimit', j(r.wrapper))
-  checkSubsequenceLaw('denial limit', r.wrapper)
-
-  const ctx2 = makeContext({ mode: 'flow', avoidPrompts: true, denial: { ...denial } })
-  let threw = false
-  try {
-    await run(makeTool(), ctx2, makePorts({ classify: async () => classifierResult({ shouldBlock: true, reason: 'still dangerous' }) }))
-  } catch (e) {
-    threw = e instanceof AbortError
-  }
-  check('limit reached + headless → AbortError', threw)
+  r = await run(makeTool({ behavior: 'allow' }), makeContext({ mode: 'flow' }), makePorts({}))
+  check("flow engine allow → decidedBy 'engine', no wrapper stage consulted", r.decision.behavior === 'allow' && r.wrapper.decidedBy === 'engine' && r.wrapper.stages.length === 0, j(r.wrapper))
 }
 
 section('fast-path ports')
@@ -249,7 +153,7 @@ section('fast-path ports')
     makePorts({ resolveAcceptEditsVerdict: async () => ({ behavior: 'allow', updatedInput: { via: 'port' } }) }),
   )
   check(
-    'implement port allow → mode-flow allow without the classifier',
+    'implement port allow → mode-flow allow',
     r.decision.behavior === 'allow' && r.wrapper.decidedBy === 'implementFastPath',
     j({ decision: r.decision, decidedBy: r.wrapper.decidedBy }),
   )
@@ -257,7 +161,7 @@ section('fast-path ports')
 
   r = await run(makeTool(), makeContext({ mode: 'flow' }), makePorts({ isAllowlistedTool: () => true }))
   check(
-    'allowlist port → mode-flow allow without the classifier',
+    'allowlist port → mode-flow allow',
     r.decision.behavior === 'allow' && r.wrapper.decidedBy === 'allowlistFastPath',
     j({ decision: r.decision, decidedBy: r.wrapper.decidedBy }),
   )
