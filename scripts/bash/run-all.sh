@@ -69,7 +69,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-background-exit-code.ts" || { __rc
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-background-notice-as-written.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-background-notice-as-written.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-exit-code-words.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-exit-code-words.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-empty-command-refused.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-empty-command-refused.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-spawn-failure-not-interrupted.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-spawn-failure-not-interrupted.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-spawn-failure-not-interrupted.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-spawn-failure-not-interrupted.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-record-of-sub-agent-launch.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-record-of-sub-agent-launch.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-sub-agent-shell-notification.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-sub-agent-shell-notification.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-session-env.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-session-env.ts" "$__t" "$__rc"
