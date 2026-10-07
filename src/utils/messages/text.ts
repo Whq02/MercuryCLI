@@ -186,7 +186,7 @@ export function wrapCommandText(
 ): string {
   switch (origin?.kind) {
     case 'task-notification':
-      return `${isAgentMessageNotice(raw) ? agentMessageLine(raw) : 'A background agent completed a task:'}\n${raw}`
+      return `${isAgentMessageNotice(raw) ? agentMessageLine(raw) : extractTag(raw, 'summary')?.startsWith('Background command ') ? 'A background command finished; its command line and output file follow:' : 'A background agent completed a task:'}\n${raw}`
     case 'coordinator':
       return `${isAgentMessageNotice(raw) ? agentMessageLine(raw) : 'The coordinator sent a message while you were working:'}\n${raw}\n\nAddress this before completing your current task.`
     case 'channel':
