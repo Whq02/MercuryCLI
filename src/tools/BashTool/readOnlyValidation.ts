@@ -9,7 +9,6 @@ import {
 import {
   validateFlags,
   GIT_READ_ONLY_COMMANDS,
-  RIPGREP_READ_ONLY_COMMANDS,
   PYRIGHT_READ_ONLY_COMMANDS,
   DOCKER_READ_ONLY_COMMANDS,
   EXTERNAL_READONLY_COMMANDS,
@@ -144,7 +143,6 @@ function buildAllowlist(): Map<string, ExternalCommandConfig> {
   for (const key of ['file', 'sed', 'sort', 'man', 'help', 'netstat', 'ps', 'base64', 'grep']) {
     add(key, LOCAL_CONFIGS[key] as ExternalCommandConfig)
   }
-  addAll(RIPGREP_READ_ONLY_COMMANDS)
   for (const key of ['sha256sum', 'sha1sum', 'md5sum', 'tree', 'date', 'hostname', 'info', 'lsof', 'pgrep', 'tput', 'ss', 'fd', 'fdfind']) {
     add(key, LOCAL_CONFIGS[key] as ExternalCommandConfig)
   }
@@ -215,7 +213,7 @@ function isCommandSafeViaFlagParsing(command: string): boolean {
     if (!matchedConfig.regex.test(command)) return false
   } else {
     if (command.includes('`')) return false
-    if ((baseCommand === 'rg' || baseCommand === 'grep') && /[\r\n]/.test(command)) return false
+    if (baseCommand === 'grep' && /[\r\n]/.test(command)) return false
   }
 
   if (matchedConfig.additionalCommandIsDangerousCallback) {

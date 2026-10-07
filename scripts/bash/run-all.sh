@@ -1,3 +1,4 @@
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-rg-is-ordinary.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-rg-is-ordinary.ts" "$__t" "$__rc"
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-env: MERCURY_PROOF_POISON_SCRUB MERCURY_SHELL_ENGINE MERCURY_TMPDIR
