@@ -220,7 +220,6 @@ const NOTICES: Record<string, Fixture> = {
       { label: 'a path that is a number', field: 'writtenPaths', fields: { writtenPaths: [5] } },
     ],
   },
-  permission_retry: { good: { commands: ['ls'] }, bad: [{ label: 'commands is text', field: 'commands', fields: { commands: 'ls' } }] },
 }
 
 section('§A the registry and the fixtures name the same kinds, both ways')

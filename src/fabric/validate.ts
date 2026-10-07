@@ -237,7 +237,6 @@ const ATTACHMENT_BODY_SHAPES: Record<string, z.ZodType> = {
 const NOTICE_BODY_SHAPES: Record<string, z.ZodType> = {
   stop_hook_summary: z.looseObject({ hookInfos: list, hookErrors: list }),
   memory_saved: z.looseObject({ writtenPaths: z.array(z.string()) }),
-  permission_retry: z.looseObject({ commands: list }),
 }
 
 export const BODY_SHAPE_KINDS = {
