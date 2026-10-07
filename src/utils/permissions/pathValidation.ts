@@ -101,6 +101,7 @@ export function isPathAllowed(
     if (operationType === 'read') return { allowed: true }
     if (context.mode === 'implement') return { allowed: true }
   }
+  if (operationType === 'read' && context.mode === 'flow') return { allowed: true, decisionReason: { type: 'mode', mode: 'flow' } }
   if (operationType === 'read') {
     const internal = checkReadableInternalPath(resolvedPath, undefined)
     if ((internal as { behavior: string }).behavior === 'allow') return { allowed: true }
