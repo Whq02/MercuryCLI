@@ -1,7 +1,7 @@
 import { memoize } from 'lodash-es'
 import { z } from 'zod'
 
-import { buildTool, findToolByName, getEmptyToolPermissionContext, type Tool, type Tools, type ToolUseContext } from '../../Tool.js'
+import { buildTool, closestToolByName, findToolByName, getEmptyToolPermissionContext, type Tool, type Tools, type ToolUseContext } from '../../Tool.js'
 import { deferralWireFormFor } from '../../services/providers/deferralWire.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { declaredCapability } from '../../utils/capability/contract.js'
@@ -30,6 +30,9 @@ export const outputSchema = z.object({
   total_deferred_tools: z.number(),
   pending_mcp_servers: z.array(z.string()).optional(),
   match_lines: z.array(z.string()).optional(),
+  unresolved: z.array(z.string()).optional(),
+  resolved: z.array(z.string()).optional(),
+  suggestions: z.array(z.string()).optional(),
 })
 
 export type Output = z.infer<typeof outputSchema>
@@ -274,8 +277,24 @@ async function runSearch(input: Input, context: ToolUseContext): Promise<Output>
         unresolved.push(name)
       }
     }
+    if (unresolved.length > 0) {
+      logForDebugging(
+        `tool search select loaded nothing: unresolved ${unresolved.join(', ')}${found.length > 0 ? `; resolved but not loaded ${found.join(', ')}` : ''}`,
+      )
+      const suggestions = unresolved.map(name => closestToolByName(allTools, name)?.name)
+      const pending = pendingMcpServerNames(context)
+      return {
+        matches: [],
+        query,
+        total_deferred_tools: deferredTools.length,
+        unresolved,
+        ...(found.length > 0 ? { resolved: found } : {}),
+        ...(suggestions.every(name => name !== undefined) ? { suggestions: suggestions as string[] } : {}),
+        ...(pending.length > 0 ? { pending_mcp_servers: pending } : {}),
+      }
+    }
     if (found.length === 0) {
-      logForDebugging(`tool search select failed: no requested tool resolved (${requested.join(', ')})`)
+      logForDebugging(`tool search select failed: no tool requested (${query})`)
       const pending = pendingMcpServerNames(context)
       return {
         matches: [],
@@ -284,13 +303,7 @@ async function runSearch(input: Input, context: ToolUseContext): Promise<Output>
         ...(pending.length > 0 ? { pending_mcp_servers: pending } : {}),
       }
     }
-    if (unresolved.length > 0) {
-      logForDebugging(
-        `tool search select partial: selected ${found.join(', ')}; unresolved ${unresolved.join(', ')}`,
-      )
-    } else {
-      logForDebugging(`tool search selected: ${found.join(', ')}`)
-    }
+    logForDebugging(`tool search selected: ${found.join(', ')}`)
     recordToolDiscovery(found)
     return { matches: found, query, total_deferred_tools: deferredTools.length }
   }
@@ -308,6 +321,28 @@ async function runSearch(input: Input, context: ToolUseContext): Promise<Output>
     }
   }
   return { matches, query, total_deferred_tools: deferredTools.length, match_lines: matchLinesFor(matches, allTools) }
+}
+
+const quoted = (name: string): string => `"${name}"`
+
+function orList(items: readonly string[]): string {
+  if (items.length <= 1) return items.join('')
+  return `${items.slice(0, -1).join(', ')} or ${items[items.length - 1]}`
+}
+
+function selectMissText(output: Output): string {
+  const misses = output.unresolved ?? []
+  const head = `Nothing was loaded: this session has no tool named ${orList(misses.map(quoted))}.`
+  const suggestions = output.suggestions
+  if (suggestions === undefined || suggestions.length !== misses.length) {
+    return `${head} Retry with the names as the "Deferred tools:" list spells them.`
+  }
+  const retry = [...(output.resolved ?? []), ...suggestions].join(',')
+  return `${head} Did you mean ${orList(suggestions.map(quoted))}? Retry with the names as the "Deferred tools:" list spells them: "select:${retry}".`
+}
+
+function noMatchText(query: string): string {
+  return `No deferred tool matches "${query}"; nothing was loaded. Every tool you can load is in the "Deferred tools:" list with what it is for — pick one there and load it with "select:<name>".`
 }
 
 function matchLinesFor(names: string[], allTools: Tools): string[] {
@@ -339,7 +374,7 @@ export const ToolSearchTool = buildTool({
   },
   mapToolResultToToolResultBlockParam(output: Output, toolUseID: string) {
     if (output.matches.length === 0) {
-      let text = 'No matching deferred tools were found.'
+      let text = output.unresolved !== undefined && output.unresolved.length > 0 ? selectMissText(output) : noMatchText(output.query)
       if (output.pending_mcp_servers && output.pending_mcp_servers.length > 0) {
         text += ` MCP servers still connecting: ${output.pending_mcp_servers.join(', ')} — their tools will become available shortly; the search may be retried.`
       }

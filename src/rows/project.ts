@@ -194,6 +194,7 @@ export function toolResultText(content: unknown): string {
   for (const block of content as ContentBlock[]) {
     if (block.type === 'text' && typeof block.text === 'string') texts.push(block.text)
     else if (block.type === 'image') texts.push('[image]')
+    else if (block.type === 'tool_reference' && typeof (block as { tool_name?: unknown }).tool_name === 'string') texts.push(`[tool_reference: ${(block as { tool_name: string }).tool_name}]`)
   }
   return texts.join('\n')
 }

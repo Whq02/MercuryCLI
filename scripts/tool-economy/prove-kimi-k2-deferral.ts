@@ -103,7 +103,7 @@ try {
   check('the live bare K3 id is still supported through its carrier prefix', wire.supportsToolDeferral('kimi-k3'))
   check('dynamic tools do not widen K3 effort or preserved-thinking membership', !pins.kimiAcceptsEffort(KIMI, 'max') && !pins.KIMI_K3_MODELS.has(KIMI) && !pins.KIMI_PRESERVED_THINKING_MODELS.has(KIMI))
   const words = await ToolSearchTool.prompt({ model: KIMI } as never)
-  check('the K2 search description says definitions append after the result', words.includes('appended to the conversation') && !words.includes('in your tool list'))
+  check('the K2 search description says definitions append after the result', words.includes('appended to the conversation') && !words.includes('from that request on their complete definitions are in your tool list'))
   const first = createUserMessage({ content: 'Use DeferredProbe.' }) as Message
   const names = getDeferredToolsDeltaAttachment(pool, KIMI, [first])[0]
   check('the fresh K2 transcript announces its deferred tool', names?.type === 'deferred_tools_delta' && names.addedNames.includes('DeferredProbe'))

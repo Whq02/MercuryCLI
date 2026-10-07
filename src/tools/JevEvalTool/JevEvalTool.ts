@@ -121,7 +121,7 @@ export function jevEvalFilePaths(input: Pick<JevEvalInput, 'evidence'>): string[
 export const JevEvalTool = buildTool({
   name: JEV_EVAL_TOOL_NAME,
   searchHint: JEV_EVAL_SEARCH_HINT,
-  shouldDefer: false,
+  shouldDefer: true,
   maxResultSizeChars: JEV_EVAL_MAX_RESULT_CHARS,
   capability: {
     intents: [

@@ -116,7 +116,7 @@ const bytes = (s: string): number => Buffer.byteLength(s, 'utf8')
 section('§1 THE DEFERRAL FLAG — the reviewed decision is a constant')
 {
   check('the deferral flag is on (the delta path is the one announcement road)', isDeferredToolsDeltaEnabled() === true)
-  check("the ToolSearch description names the carrier (system-reminder rows), not the retired header tag", getPrompt('block').includes('inside <system-reminder> messages') && !getPrompt('block').includes('<available-deferred-tools>') && getPrompt('text').includes('inside <system-reminder> messages'))
+  check("the ToolSearch description names the carrier (system-reminder rows), not the retired header tag", getPrompt('block').includes('listed in <system-reminder> messages') && !getPrompt('block').includes('<available-deferred-tools>') && getPrompt('text').includes('listed in <system-reminder> messages'))
   const flags = readFileSync(join(ROOT, 'src/utils/toolSearchFlags.ts'), 'utf8')
   check('the flag reads no gate table (a constant, never a lookup)', !/featureGates/.test(flags) && /return true/.test(flags))
 }

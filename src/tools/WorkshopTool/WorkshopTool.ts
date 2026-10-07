@@ -90,6 +90,7 @@ function renderCellText(cell: WorkshopCellResult, clamped: string | null): strin
 
 export const WorkshopTool = buildTool({
   name: WORKSHOP_TOOL_NAME,
+  shouldDefer: true,
   searchHint:
     'persistent JS/TS code cells with retained state, tool/agent composition (mercury.tool, mercury.agent, mercury.inspect), samples — a page the operator asked to see (mercury.sample)',
   maxResultSizeChars: 100_000,

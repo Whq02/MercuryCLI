@@ -556,14 +556,16 @@ back after its run ended (a message sent to it, the crew view's resume) sends
 the tool list it first sent, whatever the session's tools are by then.
 
 On a cloud model a conversation starts with Agent, Bash, Glob, Grep, Read,
-Edit, Write, Skill, Workshop, Eval, JevEval, ScheduleWakeup
-and ToolSearch in full when their gates admit them and, loaded in full
-beside them, ChangeSet, AstSearch, AstEdit, LSP (whenever a language server
-is reachable), Test, Git, Debug (whenever a debug adapter is reachable),
-Monitor, Checkpoint and Rewind. Routes that support deferral announce the
-remaining tools by name and load them on demand. A local model keeps its
-own set: the daily tools in full, everything else by name. An adapter found
-after the first request joins in full at the next compaction or /clear,
+Edit, Write, Skill, Eval, ScheduleWakeup and ToolSearch in full when their
+gates admit them and, loaded in full beside them, ChangeSet, AstSearch and
+LSP (whenever a language server is reachable). Routes that support deferral
+announce the remaining tools — JevEval, Debug, Git, AstEdit, Test, Monitor,
+Checkpoint and Rewind among them — one line each, the name and what the
+tool is for, and load them on demand through ToolSearch. A local model
+keeps its own set: the daily tools in full, everything else announced the
+same way. A deferrable tool found after the first request (a debug adapter,
+say) is announced and loadable at once; a tool that loads in full and is
+found after the first request joins at the next compaction or /clear,
 without moving the current conversation's prefix. Nothing is trimmed,
 dropped or deferred to fit a size limit.
 

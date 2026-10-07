@@ -11,7 +11,9 @@ const dist = join(root, 'dist', 'mercury.mjs')
 const vendoredNode = join(root, 'dist', 'vendor', 'node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
 const node = existsSync(vendoredNode) ? vendoredNode : Bun.which('node') ?? 'node'
 const rare = ['Service', 'Inspect', 'Sleep']
-const loadedInFull = ['ChangeSet', 'AstSearch', 'AstEdit', 'LSP', 'Test', 'Git', 'Debug', 'Monitor', 'Checkpoint', 'Rewind']
+const loadedInFull = ['ChangeSet', 'AstSearch', 'LSP']
+const deferredNow = ['AstEdit', 'Test', 'Git', 'Debug', 'Monitor', 'Checkpoint', 'Rewind', 'Workshop']
+const announces = (text: string, name: string): boolean => text.split('\n').some(line => line === name || line.startsWith(`${name} — `))
 let failures = 0
 function check(label: string, condition: boolean, detail = ''): void {
   if (!condition) failures++
@@ -122,8 +124,13 @@ try {
     console.log(`  [INFO] ${route}: loaded in full beside the daily set: ${eager.filter(tool => loadedInFull.includes(tool.name)).map(tool => `${tool.name}(${bytes(tool)})`).join(' ')} · ${fullBytes} bytes (${tokens(fullBytes)})`)
     check(`${route}: daily file and execution tools remain loaded`, ['Read', 'Edit', 'Write', 'Bash', 'Grep', 'Glob', 'Agent', 'ToolSearch'].every(name => eager.some(tool => tool.name === name)))
     check(`${route}: the tools loaded in full beside the daily set ride eager from the first request`, fullOnWire.length === loadedInFull.length, `missing ${loadedInFull.filter(name => !fullOnWire.includes(name)).join(', ')}`)
-    check(`${route}: none of them is named in the deferred-tools row`, loadedInFull.every(name => !reminderTexts.some((text: string) => text.split('\n').includes(name))))
-    check(`${route}: rare tools remain discoverable without loading initially`, rare.every(name => !eager.some(tool => tool.name === name) && reminderTexts.some((text: string) => text.split('\n').includes(name))))
+    check(`${route}: none of them is named in the deferred-tools row`, loadedInFull.every(name => !reminderTexts.some((text: string) => announces(text, name))))
+    const deferredOnWire = deferredNow.filter(name => deferred.some(tool => tool.name === name))
+    const offTheWire = deferredNow.filter(name => !tools.some(tool => tool.name === name))
+    check(`${route}: the tools deferred since .29 are never eager on the first request — marked defer_loading on a wire that carries them, left out on a wire that does not`, deferredNow.every(name => !eager.some(tool => tool.name === name)) && deferredOnWire.length + offTheWire.length === deferredNow.length, `marked ${deferredOnWire.join(', ')} · off the wire ${offTheWire.join(', ')}`)
+    check(`${route}: each of them is announced by its line (the name, then what it is for)`, deferredNow.every(name => reminderTexts.some((text: string) => text.split('\n').some(line => line.startsWith(`${name} — `)))), deferredNow.filter(name => !reminderTexts.some((text: string) => text.split('\n').some(line => line.startsWith(`${name} — `)))).join(', '))
+    check(`${route}: the announcement opens with the Deferred tools: head`, reminderTexts.some((text: string) => text.startsWith('<system-reminder>\nDeferred tools: offered in this session, but their definitions are not loaded.')))
+    check(`${route}: rare tools remain discoverable without loading initially`, rare.every(name => !eager.some(tool => tool.name === name) && reminderTexts.some((text: string) => announces(text, name))))
   }
 } finally {
   server.closeAllConnections()

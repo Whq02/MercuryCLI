@@ -69,7 +69,7 @@ section('§A the result off the Anthropic route — the SAME admission record, r
     check(`${model}: no placeholder block leaks`, !text.includes('tool_reference'))
   }
   const none = ToolSearchTool.mapToolResultToToolResultBlockParam({ matches: [], query: 'q', total_deferred_tools: 0 } as never, 'toolu_2').content
-  check('no matches ⇒ the same plain sentence as before', String(none).startsWith('No matching deferred tools were found.'))
+  check('no matches ⇒ the no-match sentence names the query, says nothing was loaded and points at the "Deferred tools:" list', String(none) === 'No deferred tool matches "q"; nothing was loaded. Every tool you can load is in the "Deferred tools:" list with what it is for — pick one there and load it with "select:<name>".', String(none))
   state.setEngineModelOverride('gpt-5.5' as never)
   check("gpt-5.5 (5.4 or later, first-party OpenAI) rides the provider's own form — openai-native — where ToolSearch is not offered on the wire", deferralWireFormFor(getEngineModel()).form === 'openai-native')
   state.setEngineModelOverride('openrouter/stealth/ox-alpha' as never)
@@ -99,7 +99,7 @@ section('§C the description tells the truth per wire form')
   const text = getPrompt('text')
   check('block form: promises the <functions> expansion (the first-party bytes)', block.includes('inside a <functions> block') && block.includes('Shape of the result'))
   check('text form: promises the admission notice and the tool list, never the expansion', text.includes('admits each match') && text.includes('in your tool list') && !text.includes('<functions>'))
-  check('both carry the same head, location and query forms', [block, text].every(p => p.startsWith('Load the full schemas of deferred tools') && p.includes('inside <system-reminder> messages') && !p.includes('<available-deferred-tools>') && p.includes('select:Read,Edit,Grep') && p.includes('+slack send')))
+  check('both carry the same head, location and query forms', [block, text].every(p => p.startsWith('Load the full schemas of deferred tools') && p.includes('listed in <system-reminder> messages that begin "Deferred tools:"') && !p.includes('<available-deferred-tools>') && p.includes('select:WebFetch,Sleep') && p.includes('+slack send')))
   check("the default form is the block form (the first-party route's text)", getPrompt() === block)
   state.setEngineModelOverride('gpt-5.3-codex' as never)
   check('the tool renders the text-form description for a text-form model', (await ToolSearchTool.prompt({ model: 'gpt-5.3-codex' } as never)) === text)
