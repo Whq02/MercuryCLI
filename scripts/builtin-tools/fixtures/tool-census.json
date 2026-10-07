@@ -179,6 +179,7 @@
       "declared": {
         "intents": [
           "rewrite every match of a code pattern",
+          "rewrite a matched pattern in many files",
           "rename a function or call shape across files",
           "structural refactor with a dry-run diff",
           "delete every occurrence of a code construct",
@@ -225,6 +226,7 @@
       "declared": {
         "intents": [
           "find code by its syntax shape",
+          "find this code structure across languages",
           "search for calls with a given argument shape",
           "find a construct inside another construct",
           "count occurrences of a code pattern per file",
@@ -1695,15 +1697,12 @@
       "proof": "scripts/builtin-tools/prove-structure-transform.ts",
       "declared": {
         "intents": [
-          "find call expressions matching a pattern",
+          "find JS/TS calls by dotted callee",
           "query declarations imports or exports by shape",
           "transform matching call expressions",
-          "apply a template codemod across files",
           "rewrite an import specifier everywhere",
           "rename a syntactic construct where lsp rename is unsuitable",
-          "find this code structure across languages",
-          "search python go or rust code structurally",
-          "rewrite a matched pattern in many files"
+          "set a property value across JS/TS files"
         ],
         "units": [
           "structural-mutation",

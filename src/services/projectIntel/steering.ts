@@ -17,11 +17,14 @@ function lspOn(offered: OfferedTools): boolean {
   }
 }
 
-function structureOn(): boolean {
+function astOn(name: 'AstSearch' | 'AstEdit', offered: OfferedTools): boolean {
+  if (offered !== null) return offered.has(name)
   try {
-    const { structureEnabled } =
+    const { structurePolyglotEnabled } =
       require('../structure/contracts.js') as typeof import('../structure/contracts.js')
-    return structureEnabled()
+    const { resolveGrammarEngineDir } =
+      require('../structure/grammarFacility.js') as typeof import('../structure/grammarFacility.js')
+    return structurePolyglotEnabled() && resolveGrammarEngineDir().state === 'ok'
   } catch {
     return false
   }
@@ -45,8 +48,8 @@ export function searchSteeringLine(offered: OfferedTools = null): string | null 
       'for a SYMBOL question (definition, references, callers, implementations) the LSP tool answers directly (goToDefinition · findReferences · incomingCalls) instead of text matching',
     )
   }
-  if (structureOn()) {
-    parts.push('for typed AST queries over JS/TS the Structure tool beats regex')
+  if (astOn('AstSearch', offered)) {
+    parts.push('for code by its shape, AstSearch matches the parse tree rather than the text')
   }
   if (parts.length === 0) return null
   return `  - Semantic shortcut: ${parts.join('; ')}.`
@@ -61,8 +64,8 @@ export function editSteeringLine(offered: OfferedTools = null): string | null {
   if (!projectIntelEnabled()) return null
   const parts: string[] = []
   if (lspOn(offered)) parts.push('cross-file renames belong to the LSP rename operation')
-  if (structureOn())
-    parts.push('repetitive structural JS/TS changes belong to the Structure tool (preview-first, stale-safe)')
+  if (astOn('AstEdit', offered))
+    parts.push('one rewrite at every match of a code shape belongs to AstEdit (dry run, then apply)')
   if (parts.length === 0) return null
   return `Semantic shortcut: ${parts.join('; ')}.`
 }

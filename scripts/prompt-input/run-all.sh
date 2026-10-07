@@ -30,7 +30,6 @@ for p in \
   scripts/prompt-input/prove-prompt-input-async-note.ts \
   scripts/prompt-input/prove-prompt-input-change-view.ts \
   scripts/prompt-input/prove-prompt-input-chip-atomicity.ts \
-  scripts/prompt-input/prove-prompt-input-symbol-lane.ts \
   scripts/prompt-input/prove-prompt-input-paste-prune.ts \
   scripts/prompt-input/prove-newline-hint-latch.ts \
   scripts/prompt-input/prove-backslash-path-enter.ts \

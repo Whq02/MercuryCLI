@@ -547,7 +547,7 @@ function extractTargets(pending: PendingToolCall): WardTarget[] {
     return [editTarget(stringOf(input.path), stringOf(input.rewrite))]
   }
   if (STRUCTURE_TOOLS.has(pending.toolName)) {
-    const parts = [input.replacement, input.out, input.newValue, input.to, input.newModule].filter(part => typeof part === 'string')
+    const parts = [input.replacement, input.newValue, input.to, input.newModule].filter(part => typeof part === 'string')
     return parts.length === 0 ? [] : [editTarget('', parts.join('\n'))]
   }
   if (GIT_TOOLS.has(pending.toolName)) {

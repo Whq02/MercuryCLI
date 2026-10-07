@@ -67,7 +67,7 @@ const inputSchema = z.strictObject({
     .string()
     .describe('The replacement, as code; $NAME and $$$NAME insert the captured source. "" deletes each matched node.'),
   path: z.string().optional().describe('Where to rewrite — a file or a directory; the current working directory when omitted.'),
-  glob: z.string().optional().describe('Restrict to files matching this glob, relative to path, e.g. "**/*.ts"'),
+  glob: z.string().optional().describe('Restrict to files matching this glob, relative to path, e.g. "**/*.ts"; {a,b} lists alternatives: "**/*.{ts,tsx}"'),
   lang: z.string().optional().describe('Force one language instead of detecting it per file from the extension'),
   apply: semanticBoolean(z.boolean().optional()).describe(
     'Omitted or false: a dry run — the diff and a plan token, nothing written. true: write the change; needs plan from the dry run.',
@@ -176,6 +176,7 @@ export const AstEditTool = buildTool({
   capability: {
     intents: [
       'rewrite every match of a code pattern',
+      'rewrite a matched pattern in many files',
       'rename a function or call shape across files',
       'structural refactor with a dry-run diff',
       'delete every occurrence of a code construct',
@@ -216,8 +217,8 @@ export const AstEditTool = buildTool({
   async description(): Promise<string> {
     return getAstEditDescription()
   },
-  async prompt(): Promise<string> {
-    return getAstEditDescription()
+  async prompt(options): Promise<string> {
+    return getAstEditDescription(options?.tools === undefined ? null : new Set(options.tools.map(tool => tool.name)))
   },
   async validateInput(input: Input) {
     if (input.pattern.trim() === '') {
@@ -328,10 +329,14 @@ export const AstEditTool = buildTool({
 
     if (plan.files.length === 0) {
       const already = plan.unchangedMatches > 0
-      const head = already
-        ? `${plan.unchangedMatches} ${plural(plan.unchangedMatches, 'match', 'matches')} of ${JSON.stringify(input.pattern)} already read exactly as the rewrite — nothing to write.`
-        : `No matches for ${JSON.stringify(input.pattern)} — nothing to rewrite.`
-      const text = [head, ...renderSearchTrailer(scope, plan.search)].join('\n')
+      const emptyScope = scope.files.length === 0
+      const head = emptyScope
+        ? `Nothing searched: no files with a supported language ${scope.singleFile ? scope.display : `under ${scope.display}`}${scope.glob ? ` matching ${scope.glob}` : ''}${scope.lang ? ` in ${scope.lang.name}` : ''} — nothing to rewrite.`
+        : already
+          ? `${plan.unchangedMatches} ${plural(plan.unchangedMatches, 'match', 'matches')} of ${JSON.stringify(input.pattern)} already read exactly as the rewrite — nothing to write.`
+          : `No matches for ${JSON.stringify(input.pattern)} — nothing to rewrite.`
+      const trailer = renderSearchTrailer(scope, plan.search)
+      const text = [head, ...(emptyScope ? trailer.slice(1) : trailer)].join('\n')
       return {
         data: { ...base, state: already ? ('no-change' as const) : ('no-matches' as const), text, changedPaths: [] } satisfies Output,
         effect: {

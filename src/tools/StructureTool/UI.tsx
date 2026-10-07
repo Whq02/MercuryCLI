@@ -24,10 +24,6 @@ export function renderToolUseMessage(
     if (input.callee) parts.push(input.callee);
     if (input.module) parts.push(input.module);
   }
-  if (input.op === 'query' && input.pattern) {
-    parts.push(JSON.stringify(input.pattern.slice(0, 48)));
-    if (input.lang) parts.push(input.lang);
-  }
   if (input.op === 'preview' && input.action) parts.push(input.action);
   if (input.op === 'apply' && input.previewId) parts.push(input.previewId);
   if (input.op === 'explain' && input.matchId) parts.push(input.matchId);

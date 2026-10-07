@@ -200,8 +200,8 @@ async function main(): Promise<void> {
     check('a tab-separated patch header (the parser splits on whitespace) ⇒ denied', deniedBy(tabbed) === RULE, denialText(tabbed))
     const structure = { toolName: 'Structure', input: { op: 'preview', queryId: 'sq-1', action: 'replace', replacement: 'function $TEXT() {\n  // ... existing code ...\n}' } }
     check('a Structure preview whose replacement carries the placeholder ⇒ denied (the preview is never minted)', deniedBy(structure) === RULE, denialText(structure))
-    const structureOut = { toolName: 'Structure', input: { op: 'preview', queryId: 'sq-1', action: 'rewrite', out: '// ... rest of the code unchanged' } }
-    check('a Structure rewrite template (out) carrying the placeholder ⇒ denied', deniedBy(structureOut) === RULE, denialText(structureOut))
+    const structuralRewrite = { toolName: 'AstEdit', input: { pattern: 'f($$$A)', rewrite: '// ... rest of the code unchanged', path: 'src' } }
+    check('a structural rewrite carrying the placeholder ⇒ denied', deniedBy(structuralRewrite) === RULE, denialText(structuralRewrite))
     const structureValue = { toolName: 'Structure', input: { op: 'preview', queryId: 'sq-1', action: 'set-value', newValue: '`\n// ... existing code ...\n`' } }
     check('a Structure set-value carrying the placeholder ⇒ denied', deniedBy(structureValue) === RULE, denialText(structureValue))
     const structureClean = { toolName: 'Structure', input: { op: 'preview', queryId: 'sq-1', action: 'replace', replacement: 'logger.info($TEXT)' } }

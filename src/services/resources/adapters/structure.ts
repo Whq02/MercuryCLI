@@ -23,7 +23,7 @@ export const structureAdapter: ResourceAdapter = {
         ...listQueries(ctx.owner).map(q => ({
           ref: `mercury://structure/query/${q.id}`,
           title: q.id,
-          summary: `${q.query.pattern ? `pattern ${JSON.stringify(q.query.pattern.slice(0, 40))}` : q.query.select}${q.query.name ? ` '${q.query.name}'` : ''} — ${q.matches.length} match(es)`,
+          summary: `${q.query.select}${q.query.name ? ` '${q.query.name}'` : ''} — ${q.matches.length} match(es)`,
         })),
         ...listPreviews(ctx.owner).map(p => ({
           ref: `mercury://structure/preview/${p.id}`,
