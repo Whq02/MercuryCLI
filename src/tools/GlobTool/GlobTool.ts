@@ -4,7 +4,8 @@ import { isAbsolute } from 'node:path'
 import { z } from 'zod/v4'
 
 import { buildTool, type ToolUseContext } from '../../Tool.js'
-import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
+import { checkReadPermissionForTool, checkUncPathPermission } from '../../utils/permissions/filesystem.js'
+import { windowsPathNeedsPermission } from '../../utils/permissions/windowsPath.js'
 import { getCwd } from '../../utils/cwd.js'
 import { isENOENT } from '../../utils/errors.js'
 import { FILE_NOT_FOUND_CWD_NOTE } from '../../utils/file.js'
@@ -70,6 +71,10 @@ export const GlobTool = buildTool({
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
   async checkPermissions(input, context): Promise<ReturnType<typeof checkReadPermissionForTool>> {
+    for (const path of [input.path, input.pattern]) {
+      const remote = path === undefined ? null : checkUncPathPermission(path, context.getAppState().toolPermissionContext)
+      if (remote && remote.behavior !== 'allow') return remote
+    }
     return checkReadPermissionForTool(GlobTool, input, context.getAppState().toolPermissionContext)
   },
   isSearchOrReadCommand: () => ({ isSearch: true, isRead: false }),
@@ -97,9 +102,7 @@ export const GlobTool = buildTool({
       if (hasNulByte(input.path)) {
         return { result: false as const, message: NUL_PATH_MESSAGE, errorCode: 1 }
       }
-      if (input.path.startsWith('\\\\') || input.path.startsWith('//')) {
-        return { result: true as const }
-      }
+      if (windowsPathNeedsPermission(input.path)) return { result: true as const }
       const expanded = expandPath(input.path)
       let stats
       try {

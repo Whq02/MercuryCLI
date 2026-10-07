@@ -10,6 +10,7 @@ import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { getCwd } from '../../utils/cwd.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import type { PermissionDecision } from '../../utils/permissions/PermissionResult.js'
+import { checkUncPathPermission } from '../../utils/permissions/filesystem.js'
 import { renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessage, userFacingName } from './UI.js'
 
 export const TRANSACTION_TOOL_NAME = 'Transaction'
@@ -135,7 +136,17 @@ You never write to the record. Every change a tool lands in this project (Edit, 
     }
     return { result: true as const }
   },
-  async checkPermissions(input: Input): Promise<PermissionDecision> {
+  async checkPermissions(input: Input, context: ToolUseContext): Promise<PermissionDecision> {
+    const from = getCwd()
+    const permissionContext = context.getAppState().toolPermissionContext
+    const remote = checkUncPathPermission(from, permissionContext)
+    if (remote && remote.behavior !== 'allow') return remote
+    const id = openTransactionIdFor(from)
+    const record = id ? getTransaction(id, from) : txJournalFor(from) ?? latestTransaction(from)
+    if (record) {
+      const remote = checkUncPathPermission(record.projectRoot, permissionContext)
+      if (remote && remote.behavior !== 'allow') return remote
+    }
     return { behavior: 'allow', updatedInput: input }
   },
   async call(input: Input, context: ToolUseContext) {

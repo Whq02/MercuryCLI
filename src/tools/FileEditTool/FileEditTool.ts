@@ -61,6 +61,7 @@ import { logError } from '../../utils/log.js'
 import { NUL_PATH_MESSAGE, expandPath, hasNulByte } from '../../utils/path.js'
 import { plural } from '../../utils/stringUtils.js'
 import { checkWritePermissionForTool, matchingRuleForInput } from '../../utils/permissions/filesystem.js'
+import { windowsPathNeedsPermission } from '../../utils/permissions/windowsPath.js'
 import { ruleSentence } from '../../utils/permissions/ruleReason.js'
 import { memoryWriteRefusal } from '../../utils/memoryFileDetection.js'
 import { readFileInRange } from '../../utils/readFileInRange.js'
@@ -708,7 +709,7 @@ export const FileEditTool = buildTool({
     )
   },
   backfillObservableInput(input: FileEditInput): void {
-    if (hasNulByte(input.file_path)) return
+    if (hasNulByte(input.file_path) || windowsPathNeedsPermission(input.file_path)) return
     input.file_path = expandPath(input.file_path)
   },
   inputsEquivalent(a: FileEditInput, b: FileEditInput): boolean {
@@ -847,9 +848,7 @@ export const FileEditTool = buildTool({
       return { result: false as const, message: memoryRefusal, errorCode: 2 }
     }
 
-    if (input.file_path.startsWith('\\\\') || input.file_path.startsWith('//')) {
-      return { result: true as const }
-    }
+    if (windowsPathNeedsPermission(input.file_path)) return { result: true as const }
 
     let generationAtStat: string | null = null
     try {

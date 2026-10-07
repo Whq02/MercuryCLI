@@ -25,6 +25,8 @@ import type { ToolPermissionContext } from '../../Tool.js'
 import type { PermissionDecision, PermissionResult } from './PermissionResult.js'
 import { createEditRuleSuggestion, createReadRuleSuggestion } from './PermissionUpdate.js'
 import { refusalWithReason, ruleSentence, withRuleReason } from './ruleReason.js'
+import { uncPathRisk, uncPathMessage } from './uncPath.js'
+import { suspiciousWindowsPattern } from './windowsPath.js'
 
 
 const DANGEROUS_FILES: string[] = [
@@ -125,25 +127,7 @@ export function pathInAllowedWorkingPath(
 }
 
 
-function isRawUnc(rawPath: string): boolean {
-  if (/^(?:\\\\|\/\/)[?.][\\/]/.test(rawPath)) {
-    return /^(?:\\\\\?\\|\/\/\?\/)UNC[\\/]/i.test(rawPath)
-  }
-  return rawPath.startsWith('\\\\') || rawPath.startsWith('//')
-}
-
-function uncBlockApplies(
-  path: string,
-  resolutionSet: readonly string[],
-  context: ToolPermissionContext | undefined,
-): boolean {
-  if (!resolutionSet.some(isRawUnc)) return false
-  if (context === undefined) return true
-  return !pathInAllowedWorkingPath(path, context, resolutionSet)
-}
-
-function isDangerousFileOrDirectory(rawPath: string, expandedPath: string, uncExempt = false): boolean {
-  if (!uncExempt && isRawUnc(rawPath)) return true
+function isDangerousFileOrDirectory(expandedPath: string): boolean {
 
   const segments = expandedPath.split(platformSep)
   const lastSegment = segments[segments.length - 1] ?? ''
@@ -160,35 +144,6 @@ function isDangerousFileOrDirectory(rawPath: string, expandedPath: string, uncEx
     }
   }
   return false
-}
-
-const DOS_DEVICE_NAMES = new Set([
-  'con',
-  'prn',
-  'aux',
-  'nul',
-  ...Array.from({ length: 9 }, (_, i) => `com${i + 1}`),
-  ...Array.from({ length: 9 }, (_, i) => `lpt${i + 1}`),
-])
-
-function suspiciousWindowsPattern(path: string): string | null {
-  const platform = getPlatform()
-  const onWindows = platform === 'windows' || platform === 'wsl'
-
-  if (onWindows && /^.{2,}?:/.test(path.slice(2)) === false) {
-  }
-  if (onWindows) {
-    for (let i = 2; i < path.length; i++) {
-      if (path[i] === ':') return 'NTFS alternate data stream'
-    }
-  }
-  if (/~\d/.test(path)) return '8.3 short name'
-  if (/^(?:\\\\\?\\|\\\\\.\\|\/\/\?\/|\/\/\.\/)/.test(path)) return 'long-path or device prefix'
-  if (/[.\s]$/.test(path)) return 'trailing dot or whitespace'
-  const finalExt = path.split(/[./\\]/).pop()?.toLowerCase() ?? ''
-  if (DOS_DEVICE_NAMES.has(finalExt)) return 'DOS device name'
-  if (/(?:^|[/\\])\.{3,}(?:[/\\]|$)/.test(path)) return 'consecutive dots as a path component'
-  return null
 }
 
 
@@ -292,8 +247,18 @@ export function checkPathSafetyForAutoEdit(
   precomputedPathsToCheck?: readonly string[],
   context?: ToolPermissionContext,
 ): PathSafetyResult {
+  const remoteSafety = (candidate: string): PathSafetyResult | null => {
+    const risk = uncPathRisk(candidate)
+    if (!risk.risky || (context && checkUncPathPermission(candidate, context, 'edit')?.behavior === 'allow')) return null
+    return { safe: false, operatorOnly: true, message: uncPathMessage(candidate, risk) }
+  }
+  const remote = remoteSafety(path)
+  if (remote) return remote
   const resolvedForms = precomputedPathsToCheck ?? getResolvedWorkingDirPaths(path)
-  const uncExempt = !uncBlockApplies(path, resolvedForms, context)
+  for (const resolved of resolvedForms) {
+    const remote = remoteSafety(resolved)
+    if (remote) return remote
+  }
 
   for (const resolved of resolvedForms) {
     const pattern = suspiciousWindowsPattern(resolved)
@@ -315,7 +280,7 @@ export function checkPathSafetyForAutoEdit(
     }
   }
   for (const resolved of resolvedForms) {
-    if (isDangerousFileOrDirectory(path, expandPath(resolved), uncExempt)) {
+    if (isDangerousFileOrDirectory(expandPath(resolved))) {
       return {
         safe: false,
         operatorOnly: false,
@@ -665,6 +630,25 @@ function ruleDecision(
   return kind === 'deny' ? deny(refusalWithReason(sentence, said.ruleValue.reason), reason) : ask(sentence, reason)
 }
 
+export function checkUncPathPermission(
+  path: string,
+  context: ToolPermissionContext,
+  operation: 'read' | 'edit' = 'read',
+): PermissionDecision | null {
+  const risk = uncPathRisk(path)
+  if (!risk.risky) return null
+  const denied = matchingRuleForInput(path, context, operation, 'deny')
+  if (denied) return ruleDecision('deny', path, context, denied, () => matchingRulesForInput(path, context, operation, 'deny'))
+  const asked = matchingRuleForInput(path, context, operation, 'ask')
+  if (asked) return ruleDecision('ask', path, context, asked, () => matchingRulesForInput(path, context, operation, 'ask'))
+  const granted = matchingRulesForInput(path, context, operation, 'allow').find(rule =>
+    rule.ruleValue.ruleContent?.toLowerCase().includes(risk.host.toLowerCase()),
+  )
+  if (granted) return allow(undefined, { type: 'rule', rule: granted })
+  const message = uncPathMessage(path, risk)
+  return ask(message, { type: 'safetyCheck', reason: message, operatorOnly: true })
+}
+
 export function checkReadPermissionForTool(
   tool: ToolLike,
   input: unknown,
@@ -675,13 +659,12 @@ export function checkReadPermissionForTool(
     return ask(`Permission to use ${tool.name} has not been granted.`, { type: 'other', reason: 'no path accessor' })
   }
 
+  const remote = checkUncPathPermission(path, context)
+  if (remote && remote.behavior !== 'allow') return remote
   const resolutionSet = getResolvedWorkingDirPaths(path)
-
-  if (uncBlockApplies(path, resolutionSet, context)) {
-    return ask(
-      `${path} appears to be a network (UNC) path that could reach remote resources.`,
-      { type: 'other', reason: 'defence-in-depth UNC block' },
-    )
+  for (const resolved of resolutionSet) {
+    const remote = checkUncPathPermission(resolved, context)
+    if (remote && remote.behavior !== 'allow') return remote
   }
   for (const resolved of resolutionSet) {
     if (suspiciousWindowsPattern(resolved)) {
@@ -726,7 +709,13 @@ export function checkWritePermissionForTool(
   if (path === undefined) {
     return ask(`Permission to use ${tool.name} has not been granted.`, { type: 'other', reason: 'no path accessor' })
   }
+  const remote = checkUncPathPermission(path, context, 'edit')
+  if (remote && remote.behavior !== 'allow') return remote
   const resolutionSet = precomputedPathsToCheck ?? getResolvedWorkingDirPaths(path)
+  for (const resolved of resolutionSet) {
+    const remote = checkUncPathPermission(resolved, context, 'edit')
+    if (remote && remote.behavior !== 'allow') return remote
+  }
 
   for (const resolved of resolutionSet) {
     const rule = matchingRuleForInput(resolved, context, 'edit', 'deny')

@@ -4,6 +4,7 @@ import { dirname, isAbsolute, join, normalize, relative, resolve } from 'node:pa
 import { getCwd } from './cwd.js'
 import { getFsImplementation } from './fsOperations.js'
 import { getPlatform } from './platform.js'
+import { uncPathRisk } from './permissions/uncPath.js'
 import { posixPathToWindowsPath } from './windowsPaths.js'
 
 export { sanitizePath } from './sessionStoragePortable.js'
@@ -59,7 +60,7 @@ export function toTildePath(absolutePath: string): string {
 
 export function getDirectoryForPath(path: string): string {
   const expanded = expandPath(path)
-  if (expanded.startsWith('\\\\') || expanded.startsWith('//')) return dirname(expanded)
+  if (uncPathRisk(path).risky || expanded.startsWith('\\\\') || expanded.startsWith('//')) return dirname(expanded)
   try {
     if (getFsImplementation().statSync(expanded).isDirectory()) return expanded
   } catch {

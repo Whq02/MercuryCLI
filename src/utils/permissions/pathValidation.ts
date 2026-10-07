@@ -3,10 +3,10 @@ import { isAbsolute, resolve as resolvePath, sep as platformSep } from 'node:pat
 import { getFsImplementation, safeResolvePath } from '../fsOperations.js'
 import { getPlatform } from '../platform.js'
 import { SandboxManager } from '../sandbox/sandbox-adapter.js'
-import { containsVulnerableUncPath } from '../shell/readOnlyCommandValidation.js'
 import type { PermissionDecisionReason } from '../../types/permissions.js'
 import {
   checkEditableInternalPath,
+  checkUncPathPermission,
   checkReadableInternalPath,
   checkPathSafetyForAutoEdit,
   getResolvedWorkingDirPaths,
@@ -158,12 +158,11 @@ export function validatePath(
   if (/['"]$/.test(cleaned)) cleaned = cleaned.slice(0, -1)
   cleaned = expandTilde(cleaned)
 
-  if (containsVulnerableUncPath(cleaned)) {
-    return {
-      allowed: false,
-      resolvedPath: cleaned,
-      decisionReason: { type: 'other', reason: 'UNC network paths require manual approval' },
-    }
+  const remote = checkUncPathPermission(cleaned, context, operationType === 'read' ? 'read' : 'edit')
+  if (remote) return {
+    allowed: remote.behavior === 'allow', resolvedPath: cleaned,
+    decisionReason: remote.behavior === 'ask' && remote.decisionReason?.type === 'rule'
+      ? { type: 'safetyCheck', reason: remote.message, operatorOnly: true } : remote.decisionReason,
   }
   if (cleaned.startsWith('~')) {
     return {

@@ -56,6 +56,7 @@ import { createUserMessage } from '../../utils/messages/factories.js'
 import { mapNotebookCellsToToolResult, readNotebook } from '../../utils/notebook.js'
 import { NUL_PATH_MESSAGE, expandPath, hasNulByte } from '../../utils/path.js'
 import { checkReadPermissionForTool, matchingRuleForInput } from '../../utils/permissions/filesystem.js'
+import { windowsPathNeedsPermission } from '../../utils/permissions/windowsPath.js'
 import { ruleSentence } from '../../utils/permissions/ruleReason.js'
 import { matchWildcardPattern } from '../../utils/permissions/shellRuleMatching.js'
 import { extractPDFPages, getPDFPageCount, readPDF, removePDFPages } from '../../utils/pdf.js'
@@ -917,7 +918,7 @@ export const FileReadTool = buildTool({
     return input?.file_path || getCwd()
   },
   backfillObservableInput(input: Input): void {
-    if (hasNulByte(input.file_path)) return
+    if (hasNulByte(input.file_path) || windowsPathNeedsPermission(input.file_path)) return
     input.file_path = expandPath(input.file_path)
   },
   preparePermissionMatcher(input: Input) {
@@ -1013,9 +1014,7 @@ export const FileReadTool = buildTool({
       }
     }
 
-    if (input.file_path.startsWith('\\\\') || input.file_path.startsWith('//')) {
-      return { result: true as const }
-    }
+    if (windowsPathNeedsPermission(input.file_path)) return { result: true as const }
 
     const ext = extensionOf(input.file_path)
     if (
