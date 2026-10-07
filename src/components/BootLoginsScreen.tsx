@@ -135,6 +135,12 @@ export function loginsCatalogue(): LoginsArmV1[] {
   }));
 }
 
+export function loginsFamilyCounts(groups: readonly FamilySlotGroup[]): { familyIds: ProviderId[]; signed: number } {
+  const familyIds = [...new Set(loginsCatalogue().map(a => a.familyId))];
+  const signed = familyIds.filter(id => (groups.find(g => g.family.id === id)?.slots ?? []).some(s => s.signedIn)).length;
+  return { familyIds, signed };
+}
+
 export function loginsArmSlots(arm: LoginsArmV1, group: FamilySlotGroup | undefined): AccountSlot[] {
   const slots = group?.slots ?? [];
   if (arm.arm === 'subscription') return slots.filter(s => s.kind !== 'api-key');
@@ -291,8 +297,7 @@ export function loginsSummaryRows(facts: LoginsScreenFactsV1, notice?: string | 
   if (notice != null && notice !== '') {
     return [{ key: 'Notice', value: notice, tone: 'teal' }, ...loginsSummaryRows(facts)];
   }
-  const familyIds = [...new Set(loginsCatalogue().map(a => a.familyId))];
-  const signed = familyIds.filter(id => (facts.groups.find(g => g.family.id === id)?.slots ?? []).some(s => s.signedIn)).length;
+  const { familyIds, signed } = loginsFamilyCounts(facts.groups);
   const ready = familyIds.filter(id => facts.usability[id]?.usable === true).length;
   const recorded = loginFamilyFocusFor(facts.defaultFamily);
   return [
@@ -304,8 +309,7 @@ export function loginsSummaryRows(facts: LoginsScreenFactsV1, notice?: string | 
 }
 
 export function loginsStatusLine(facts: LoginsScreenFactsV1): string {
-  const familyIds = [...new Set(loginsCatalogue().map(a => a.familyId))];
-  const signed = familyIds.filter(id => (facts.groups.find(g => g.family.id === id)?.slots ?? []).some(s => s.signedIn)).length;
+  const { familyIds, signed } = loginsFamilyCounts(facts.groups);
   const ready = familyIds.filter(id => facts.usability[id]?.usable === true).length;
   return signed === 0
     ? `no family signed in yet · ${ready} ready without one`

@@ -269,6 +269,15 @@ cloud transcriber, and the Bash tool keeps Git for Windows' bash (the health che
 names each remedy). A release archive always carries the engine; only a
 source build without cargo lacks it.
 
+Build the desktop driver for the Computer tool with the same Rust toolchain
+(cargo) before step 8:
+
+```powershell
+bun run scripts/vendor/build-desktop.ts
+```
+
+Without this pack, the Computer tool is unavailable.
+
 Each should end without an error. `fetch-debugpy` unpacks the wheel with the
 first extractor it finds — `unzip`, `python3`, `tar.exe` (ships with Windows
 10 1803 and later), `python`, `py -3` — so a stock Windows box needs nothing

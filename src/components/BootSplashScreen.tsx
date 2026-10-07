@@ -26,7 +26,7 @@ import { getUserSpecifiedModelSetting, renderModelChip } from '../utils/model/mo
 import { computedDefault, readComputedDefaultCatalogue } from '../utils/model/computedDefault.js';
 import { getSessionAccent, getSessionCritterKey } from './mercury-ui/sessionAccent.js';
 import { takeFaceUpdateNotice, UPDATE_NOTICE_STAY_MS } from '../services/privateChannel/quietUpdateNotice.js';
-import { providerFamilyPresences } from '../services/providers/providerUsage.js';
+import { deriveFamilySlotGroups } from '../services/providers/accountSlots.js';
 import { sessionAccountWords } from '../utils/accounts/sessionAccount.js';
 import { useSignInEpoch } from '../utils/accounts/useSignInEpoch.js';
 import { useCatalogueEpoch } from '../hooks/useCatalogueEpoch.js';
@@ -40,7 +40,7 @@ import { recordLaunchMilestone } from '../substrate/launchMilestones.js';
 import { mintImmediateReceipt, recentWarningReceipt, subscribeSeatReceipts } from '../utils/model/seatReceipts.js';
 import { BootAgentsScreen } from './BootAgentsScreen.js';
 import { BootHealthScreen } from './BootHealthScreen.js';
-import { BootLoginsScreen } from './BootLoginsScreen.js';
+import { BootLoginsScreen, loginsFamilyCounts } from './BootLoginsScreen.js';
 import { BootResumeScreen } from './BootResumeScreen.js';
 import { BootSaturnScreen, fireDeltaWords } from './BootSaturnScreen.js';
 import { BootSettingsScreen } from './BootSettingsScreen.js';
@@ -269,9 +269,8 @@ export function BootSplashScreen(): React.ReactNode {
 
   const loginsCtx = useMemo(() => {
     try {
-      const presences = providerFamilyPresences();
-      const signed = presences.filter(f => f.credentialed).length;
-      return signed > 0 ? `${signed} of ${presences.length} signed in` : null;
+      const { familyIds, signed } = loginsFamilyCounts(deriveFamilySlotGroups());
+      return signed > 0 ? `${signed} of ${familyIds.length} signed in` : null;
     } catch {
       return null;
     }
