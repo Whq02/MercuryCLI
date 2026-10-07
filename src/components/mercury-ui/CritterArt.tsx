@@ -252,7 +252,12 @@ export function paintCritterArt({
     const ground = bg !== '' ? bg : groundInk
     const topRow = art[r]!
     const botRow = art[r + 1] ?? ''
-    const lineKey = `${r}|${topRow}|${botRow}|${bg}${lineExtras(topRow, botRow, pupil, sleepSlots)}`
+    let aboveMask = ''
+    for (let c = 0; c < gridCols; c++) {
+      const topOnly = Boolean(paint(cellAt(art, r, c), c)) && !paint(cellAt(art, r + 1, c), c)
+      aboveMask += topOnly ? (r > 0 && paint(cellAt(art, r - 1, c), c) ? '1' : '0') : '-'
+    }
+    const lineKey = `${r}|${aboveMask}|${topRow}|${botRow}|${bg}${lineExtras(topRow, botRow, pupil, sleepSlots)}`
     const hit = cache.lines.get(lineKey)
     if (hit !== undefined) {
       lines.push(hit)
@@ -290,10 +295,15 @@ export function paintCritterArt({
           </Text>,
         )
       } else if (tc) {
+        const abovePainted = aboveMask[c] === '1'
         cells.push(
-          ground !== '' ? (
+          ground !== '' && abovePainted ? (
             <Text key={c} color={ground} backgroundColor={tc}>
               ▄
+            </Text>
+          ) : ground !== '' ? (
+            <Text key={c} color={tc} backgroundColor={ground}>
+              ▀
             </Text>
           ) : (
             <Text key={c} color={tc}>

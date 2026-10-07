@@ -312,6 +312,102 @@ section('§3 the ground CHANGES: a dark ⇄ true-black switch repaints the half 
   check('the ground forgotten: the base shape again, cell for cell', back, show(readSprite(0).filter(k => !baseShape(k)).slice(0, 6)))
 }
 
+section('§3b the large art, ground KNOWN: a painted-top cell with nothing painted above it is ▀ with the ground as its background (no hue in its lower half), one with a painted pixel above keeps ▄ with the hue as its background (the gap above the glyph stays hidden)')
+{
+  const big = CRITTERS.filter(def => def.name === 'crab' || def.name === 'octopus')
+  const bigCols = big.map(def => Math.max(...def.art.map(r => r.length)))
+  const bigLefts = [ART_LEFT, ART_LEFT + bigCols[0]! + GAP]
+  const BIG_COLS = bigLefts[1]! + bigCols[1]! + 2
+  const bigOut = new FakeStdout()
+  bigOut.columns = BIG_COLS
+  const bigGlass = new AnsiEmulator(BIG_COLS, ROWS, true)
+  let bigFed = 0
+  const flushBig = (): void => {
+    if (bigFed >= bigOut.chunks.length) return
+    const bytes = bigOut.chunks.slice(bigFed).join('')
+    bigFed = bigOut.chunks.length
+    try {
+      bigGlass.feed(forGlass(bytes))
+    } catch (e) {
+      glassFault ||= e instanceof Error ? e.message : String(e)
+    }
+  }
+  const bigTree = h(
+    AlternateScreen as never,
+    { mouseTracking: false },
+    h(
+      Box as never,
+      { flexDirection: 'column', width: BIG_COLS, height: ROWS },
+      h(Text as never, {}, 'above the critters'),
+      h(
+        Box as never,
+        { flexDirection: 'row' },
+        h(Text as never, {}, ' '.repeat(ART_LEFT)),
+        ...big.flatMap((def, i) => [
+          h(Box as never, { key: def.name, width: bigCols[i], height: def.art.length / 2, flexDirection: 'column', overflow: 'hidden', flexShrink: 0 }, h(AnimatedCritterArt as never, { def })),
+          ...(i < big.length - 1 ? [h(Text as never, { key: `gap${i}` }, ' '.repeat(GAP))] : []),
+        ]),
+      ),
+      h(Text as never, {}, 'below the critters'),
+      h(RawModeHolder as never, {}),
+    ),
+  )
+  type BigRead = CellRead & { abovePainted: boolean; seam: boolean }
+  const readBig = (index: number): BigRead[] => {
+    const def = big[index]!
+    const art = composeCritterFrame(def, {}).art
+    const out: BigRead[] = []
+    for (let r = 0; r + 1 < art.length; r += 2) {
+      const y = ART_TOP + (r >> 1)
+      for (let c = 0; c < bigCols[index]!; c++) {
+        const top = cellColor(def, art[r]![c])
+        const bot = cellColor(def, art[r + 1]![c])
+        const abovePainted = r > 0 && cellColor(def, art[r - 1]![c]) !== undefined && cellColor(def, art[r - 1]![c]) !== ''
+        const x = bigLefts[index]! + c
+        const st = bigGlass.styleAt(x, y)
+        const kind = top && bot ? 'pair' : top ? 'top' : bot ? 'bottom' : 'empty'
+        out.push({ x, y, c, line: r >> 1, kind, top, bot, ch: bigGlass.grid[y]![x]!, fg: st?.fg ?? 'default', bg: st?.bg ?? 'default', abovePainted, seam: art[r]![c] === 'P' && art[r + 1]![c] === 'P' })
+      }
+    }
+    return out
+  }
+  const bigShape = (ground: string) => (k: BigRead): boolean =>
+    k.kind === 'top'
+      ? k.abovePainted
+        ? k.ch === '▄' && k.fg === `38;2;${rgb(ground)}` && k.bg === `48;2;${rgb(k.top!)}`
+        : k.ch === '▀' && k.fg === `38;2;${rgb(k.top!)}` && k.bg === `48;2;${rgb(ground)}`
+      : groundShape(ground)(k)
+  const bigShow = (cells: BigRead[]): string => cells.map(k => `${k.c},${k.line}${k.abovePainted ? '^' : ''}:${k.ch}[fg ${k.fg} bg ${k.bg}]`).join(' ')
+  markQuerySent()
+  noteReply('rgb:0000/0000/0000', sink)
+  const GROUND = terminalGround().color!
+  const bigInstance = await render(bigTree, { stdout: bigOut, stdin, stderr, exitOnCtrlC: false, patchConsole: false })
+  const up = await (async (): Promise<boolean> => {
+    for (let i = 0; i < 150; i++) {
+      flushBig()
+      if (bigGlass.rowText(0).includes('above the critters') && readBig(0).some(k => k.kind === 'pair' && k.ch === '▄') && readBig(1).some(k => k.kind === 'pair' && k.ch === '▄')) return true
+      await settle(20)
+    }
+    flushBig()
+    return false
+  })()
+  check('the large crab and octopus reached the glass with the canvas painted', up && terminalGround().state === 'painted', `fault=${glassFault}`)
+  const crabTops = readBig(0).filter(k => k.kind === 'top')
+  const lone = crabTops.filter(k => !k.abovePainted)
+  check("the crab's splayed outer legs carry painted-top cells with NOTHING above them (grid cols 1 and 11 of its last line)", lone.map(k => `${k.c},${k.line}`).join(' ') === '1,5 11,5', bigShow(lone))
+  check('each of them is ▀ with the leg as the glyph and the ground as the background — no hue in the lower half, nothing to leak under the leg', lone.every(bigShape(GROUND)), bigShow(lone))
+  const octoTops = readBig(1).filter(k => k.kind === 'top')
+  const under = octoTops.filter(k => k.abovePainted)
+  check("the octopus's arm tips carry painted-top cells with a painted pixel ABOVE them", under.length >= 4 && under.every(k => k.line === 5), bigShow(under))
+  check('each of them keeps ▄ with the arm as the background and the ground as the glyph (the gap above the glyph never shows the ground inside the arm)', under.every(bigShape(GROUND)), bigShow(under))
+  check('every other painted cell of both (the pupil seam aside) reads the known-ground shape', readBig(0).concat(readBig(1)).filter(k => k.kind !== 'empty' && !k.seam).every(bigShape(GROUND)), bigShow(readBig(0).concat(readBig(1)).filter(k => k.kind !== 'empty' && !k.seam && !bigShape(GROUND)(k)).slice(0, 6)))
+  bigInstance.unmount()
+  await settle(50)
+  resetGround()
+  const docksBack = await awaitGlass(() => DOCKS.every((_, i) => readSprite(i).every(baseShape)))
+  check('the docks read the base shape again once the ground is forgotten', docksBack, show(readSprite(0).filter(k => !baseShape(k)).slice(0, 6)))
+}
+
 section('§4 colour OFF: the glyph is the only shape left, so a known ground changes nothing — the painted-top cell stays ▀')
 {
   const level = chalk.level
