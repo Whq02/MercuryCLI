@@ -27,6 +27,12 @@ function shellPrefix(): string {
   return flagEnv('MERCURY_SHELL_PREFIX') ?? ''
 }
 
+const MSYS_ARGV_HALVED_BACKSLASH_RUN_RE = /\\{2,}(?=[^\\"])/g
+
+function protectBackslashRunsFromMsysArgv(script: string): string {
+  return script.replace(MSYS_ARGV_HALVED_BACKSLASH_RUN_RE, run => run + run)
+}
+
 export function sandboxTempEnv(sandboxTmpDir: string): Record<string, string> {
   const dir = getPlatform() === 'windows' ? windowsPathToPosixPath(sandboxTmpDir) : sandboxTmpDir
   return { TMPDIR: dir, MERCURY_TMPDIR: dir, TMPPREFIX: posixPath.join(dir, 'zsh') }
@@ -112,11 +118,12 @@ export async function createBashShellProvider(
     },
 
     getSpawnArgs(commandString: string): string[] {
+      const script = getPlatform() === 'windows' ? protectBackslashRunsFromMsysArgv(commandString) : commandString
       if (!usedSnapshotThisExecution) {
         logForDebugging('no shell snapshot in use; adding the login flag')
-        return ['-c', '-l', commandString]
+        return ['-c', '-l', script]
       }
-      return ['-c', commandString]
+      return ['-c', script]
     },
 
     async getEnvironmentOverrides(_command: string): Promise<Record<string, string>> {
