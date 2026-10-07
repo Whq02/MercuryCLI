@@ -197,12 +197,12 @@ const travels = (c: Cell): boolean => c.behavior === 'ask'
 const runsWithoutChannel = (c: Cell): boolean => c.behavior === 'allow' && c.wrapper === 'engine'
 {
   const unruled = await decide(contextOf('flow'), PUSH)
-  check('no rule: a push is the leftover — the engine\'s own ask parks as the operator\'s; no model is asked; the call TRAVELS the channel', travels(unruled) && unruled.wrapper === 'engine' && unruled.engine === 'resolution', j(unruled))
+  check('no rule: the Flow push floor keeps the operator ask; no model is asked; the call TRAVELS the channel', travels(unruled) && unruled.wrapper === 'autoFloors' && unruled.engine === 'resolution', j(unruled))
   check('…and is never auto-allowed by default', unruled.behavior !== 'allow', j(unruled))
   const tailed = await decide(contextOf('flow'), PUSH_TAILED)
-  check('no rule, the session\'s own shape (`git push -q 2>&1 | tail -1; git status -sb | head -1`): the same road, the channel', travels(tailed) && tailed.wrapper === 'engine', j(tailed))
+  check('no rule, the session\'s own shape (`git push -q 2>&1 | tail -1; git status -sb | head -1`): the same road, the channel', travels(tailed) && tailed.wrapper === 'autoFloors', j(tailed))
   const chained = await decide(contextOf('flow'), PROTOCOL_CHAIN)
-  check('no rule, the session\'s protocol chain (commit && pull; push; status): the channel', travels(chained) && chained.wrapper === 'engine', j(chained))
+  check('no rule, the session\'s protocol chain (commit && pull; push; status): the channel', travels(chained) && chained.wrapper === 'autoFloors', j(chained))
 
   const ruled = await decide(contextOf('flow', { allow: [PUSH_RULE] }), PUSH)
   check('`Bash(git push *)` in the user settings: the push is allowed in the ENGINE by that rule — nothing on the channel', runsWithoutChannel(ruled) && /rule:Bash\(git push \*\)/.test(ruled.reason), j(ruled))
@@ -213,7 +213,7 @@ const runsWithoutChannel = (c: Cell): boolean => c.behavior === 'allow' && c.wra
   const ruledTailed = await decide(contextOf('flow', { allow: [PUSH_RULE] }), PUSH_TAILED)
   check('the rule covers the session\'s own shape (the redirect is stripped for the prefix match; tail, head and git status ride the read-only lane)', runsWithoutChannel(ruledTailed), j(ruledTailed))
   const chainOnePush = await decide(contextOf('flow', { allow: [PUSH_RULE] }), PROTOCOL_CHAIN)
-  check('the push rule alone does not carry the protocol chain: the unruled commit and pull are still the operator\'s', travels(chainOnePush) && chainOnePush.wrapper === 'engine', j(chainOnePush))
+  check('the push rule alone does not carry the protocol chain: the unruled commit and pull are still the operator\'s', travels(chainOnePush) && chainOnePush.wrapper === 'autoFloors', j(chainOnePush))
   const chainRuled = await decide(contextOf('flow', { allow: CHAIN_RULES }), PROTOCOL_CHAIN)
   check('with commit, pull and push each pre-authorised the whole chain runs without the channel', runsWithoutChannel(chainRuled), j(chainRuled))
 
@@ -225,7 +225,7 @@ const runsWithoutChannel = (c: Cell): boolean => c.behavior === 'allow' && c.wra
   const plainDefault = await decide(contextOf('default'), PUSH, 'default')
   check('a default-mode seat, no rule: the engine\'s own ask travels the channel', travels(plainDefault) && plainDefault.wrapper === 'engine', j(plainDefault))
   const flowLeftover = await decide(contextOf('flow'), PUSH)
-  check('a flow seat answers the unruled push exactly as a default seat does (the leftover is the operator\'s on both)', flowLeftover.behavior === plainDefault.behavior && flowLeftover.wrapper === plainDefault.wrapper && flowLeftover.engine === plainDefault.engine && flowLeftover.reason === plainDefault.reason, j({ flow: flowLeftover, byDefault: plainDefault }))
+  check('a flow seat keeps the same unruled push ask as default, with its static floor named in the trace', flowLeftover.behavior === plainDefault.behavior && flowLeftover.wrapper === 'autoFloors' && plainDefault.wrapper === 'engine' && flowLeftover.engine === plainDefault.engine && flowLeftover.reason === plainDefault.reason, j({ flow: flowLeftover, byDefault: plainDefault }))
   const ruledDefault = await decide(contextOf('default', { allow: [PUSH_RULE] }), PUSH, 'default')
   check('a default-mode seat with the rule: allowed in the engine', runsWithoutChannel(ruledDefault), j(ruledDefault))
 
