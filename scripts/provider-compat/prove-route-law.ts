@@ -25,7 +25,6 @@ const {
   COMPAT_MODEL_PREFIX,
   PROVIDER_ID_SPACES,
 } = await import('../../src/services/providers/routeLaw.ts')
-const { modelSupportsAutoMode } = await import('../../src/utils/model/capabilities.ts')
 const { compatDispatchModelId } = await import(
   '../../src/services/providers/openaicompat/compatChatCallModel.ts'
 )
@@ -162,15 +161,6 @@ check(
   )
 }
 
-section('4 · THE SKIP-PERMS NEUTRALITY LAW (capabilities.ts modelSupportsAutoMode)')
-for (const id of ['gpt-5.6-sol', 'glm-5.3', 'glm-5.2', 'kimi-k3', 'deepseek-v4-pro', 'compat/qwen3-32b']) {
-  check(`auto mode is provider-neutral for ${id}`, modelSupportsAutoMode(id) === true)
-}
-check('the home lane keeps auto mode: fable-5', modelSupportsAutoMode('claude-fable-5') === true)
-check('the home lane keys on the route, never a tier: haiku takes auto mode', modelSupportsAutoMode('claude-haiku-4-5-20251001') === true)
-check('the home lane keys on the route, never a tier: opus 5 and sonnet 5 take auto mode', modelSupportsAutoMode('claude-opus-5') === true && modelSupportsAutoMode('claude-sonnet-5') === true)
-check('an id no family declares takes no auto mode', modelSupportsAutoMode('banana-9000') === false)
-
 section('5 · the Hugging Face and local namespaces (qualified rows)')
 check(
   'the id-space table declares both qualified namespaces',
@@ -191,8 +181,6 @@ check(
   compatDispatchModelId('huggingface/deepseek-ai/DeepSeek-V4-Pro-0813') === 'huggingface/deepseek-ai/DeepSeek-V4-Pro-0813',
 )
 check('a bare Hub slug stays UNRECOGNISED (never a guessed family, and no lane by remainder)', classifyModelRoute('Qwen/Qwen3.8-2.4T-A95B').kind === 'unrecognised')
-check('auto mode is provider-neutral for huggingface ids', modelSupportsAutoMode('huggingface/openai/gpt-oss-120b') === true)
-check('auto mode is provider-neutral for local ids', modelSupportsAutoMode('local/llama3.2:latest') === true)
 
 section('6 · the earned ride (the neutrality ruling): total classifier, admission-owned ride')
 {

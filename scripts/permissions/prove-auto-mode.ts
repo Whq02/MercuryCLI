@@ -51,14 +51,11 @@ section('isAutoModeAllowlistedTool name/action gating (classifierDecision.ts)')
   check('write/edit tools are NOT on the safe set (absence, file-wide)', safeSet.length > 0 && !has('FILE_WRITE_TOOL_NAME,') && !has('FILE_EDIT_TOOL_NAME,'))
 }
 
-section('Flow availability uses settings and runtime safety state')
+section('Flow availability is the settings lock alone')
 {
   const ps = src('utils', 'permissions', 'permissionSetup.ts')
-  check('the runtime circuit breaker closes availability', ps.includes('if (isAutoModeCircuitBroken()) return false'))
-  check('settings close availability', ps.includes('if (isAutoModeDisabledBySettings()) return false'))
-  check('verification updates the circuit breaker from settings', ps.includes('const circuitBroken = disabledBySettings') && ps.includes('autoModeStateModule?.setAutoModeCircuitBroken(circuitBroken)'))
-  check('the runtime restriction has an explanatory reason', ps.includes("if (isAutoModeCircuitBroken()) return 'circuit-breaker'"))
-  check('explicit availability still requires a supported model', ps.includes('const explicitAvailable = !disabledBySettings && modelSupported'))
+  check('settings close availability, and nothing else does', ps.includes('return !isAutoModeDisabledBySettings()') && !ps.includes('CircuitBroken') && !ps.includes('getEngineModel'))
+  check('the settings restriction has its reason and its words', ps.includes("if (isAutoModeDisabledBySettings()) return 'settings'") && ps.includes("return 'Flow is closed by your settings.'"))
   const gnpm = src('utils', 'permissions', 'getNextPermissionMode.ts')
   check('the carousel gates auto SOLELY on canCycleToAuto (unconditional)', gnpm.includes('canCycleToAuto(toolPermissionContext)'))
   const apolloBlock = gnpm.slice(gnpm.indexOf("case 'apollo':"), gnpm.indexOf("case 'flow':"))
@@ -67,42 +64,23 @@ section('Flow availability uses settings and runtime safety state')
   check('the cycle reaches flow from apollo, BEFORE sovereign (flow ≠ bypass; flow is the safer step)', autoIdx > 0 && bypassIdx > 0 && autoIdx < bypassIdx && apolloBlock.includes('canCycleToAuto'))
 }
 
-section('STARTUP-AUTO DESYNC fix — a session that BOOTS into auto arms the safety machinery')
+section('a session that BOOTS into flow sets its dangerous allow rules aside, as a runtime entry does')
 {
   const ps = src('utils', 'permissions', 'permissionSetup.ts')
   const mn = src('main.tsx')
-
   check(
-    'site1: setAutoModeActive arming fires on startup mode==="flow"',
-    /result\.mode === 'flow'\n?\s*\) \{\n?\s*autoModeStateModule\?\.setAutoModeActive\(true\)/.test(ps),
-  )
-  check(
-    'site1: the arming module require in permissionSetup.ts is real (not null)',
-    /autoModeStateModule =\s*\n?\s*\(require\('\.\/autoModeState\.js'\)/.test(ps),
-  )
-
-  check(
-    'site2: findDangerousClassifierPermissions detection fires on startup permissionMode==="flow"',
+    'dangerous-rule detection fires on startup permissionMode==="flow"',
     /permissionMode === 'flow'\n?\s*\) \{\n?\s*dangerousPermissions = findDangerousClassifierPermissions/.test(ps),
   )
-
   check(
-    'site3: isAutoModeAvailable context flag is set unconditionally',
+    'the isAutoModeAvailable context flag is set from the gate at startup',
     /\{ isAutoModeAvailable: isAutoModeGateEnabled\(\) \}/.test(ps),
   )
-
   check(
-    'site4: the main.tsx strip call fires on dangerous permissions',
+    'the main.tsx strip call fires on dangerous permissions',
     /dangerousPermissions\.length > 0/.test(mn),
   )
-
-  check(
-    'hazard-guard: main.tsx does NOT call setAutoModeActive at startup (module is null there)',
-    !/setAutoModeActive\(true\)/.test(
-      mn.slice(mn.indexOf('initializeToolPermissionContext'), mn.indexOf('const setupTrigger:')),
-    ),
-  )
-
+  check('no in-process flow state is armed anywhere (the mode on the context is the whole state)', !ps.includes('setAutoModeActive') && !mn.includes('setAutoModeActive'))
 }
 
 section('dist ships the flow decision branches (floors, fast-paths, kill deny)')

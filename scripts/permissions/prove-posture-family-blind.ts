@@ -97,18 +97,14 @@ async function main(): Promise<void> {
     }
   }
 
-  section('§4 the one model read is the flow gate’s — the sovereign arm never reads identity')
+  section('§4 no model read in the permission setup — neither arm reads identity')
   {
     const setupSrc = readFileSync(
       join(ROOT, 'src', 'utils', 'permissions', 'permissionSetup.ts'),
       'utf-8',
     )
     const calls = setupSrc.match(/getEngineModel\(\)/g) ?? []
-    check('permissionSetup.ts calls getEngineModel exactly once', calls.length === 1, `${calls.length} call(s)`)
-    const flowGateStart = setupSrc.indexOf('export async function verifyAutoModeGateAccess')
-    const nextExport = setupSrc.indexOf('\nexport ', flowGateStart + 1)
-    const flowGateBody = setupSrc.slice(flowGateStart, nextExport === -1 ? undefined : nextExport)
-    check('that one call sits inside verifyAutoModeGateAccess (the flow/auto gate)', flowGateStart !== -1 && flowGateBody.includes('getEngineModel()'))
+    check('permissionSetup.ts reads no model identity at all (flow has no model dependency)', calls.length === 0 && !setupSrc.includes('getEngineModel'), `${calls.length} call(s)`)
     const validateStart = setupSrc.indexOf('function validateModeEntry')
     const validateEnd = setupSrc.indexOf('\nexport ', validateStart + 1)
     const validateBody = setupSrc.slice(validateStart, validateEnd === -1 ? undefined : validateEnd)

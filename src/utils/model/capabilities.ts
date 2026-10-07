@@ -178,10 +178,6 @@ export function servesPerMessageEffort(model: string): boolean {
   return canonical.includes('claude-fable-5-1') || canonical.includes('claude-mythos-5-1')
 }
 
-export function modelSupportsAutoMode(model: string): boolean {
-  return classifyModelRoute(model).kind === 'route'
-}
-
 
 export type GptEffortVocabularyView =
   | { state: 'not-gpt' }
@@ -1042,7 +1038,6 @@ export type ModelCapabilityRecord = Readonly<{
   }>
   tools: Readonly<{
     structuredOutputs: boolean
-    autoMode: boolean
     toolSearchBetaHeader: string
   }>
   media: Readonly<{ pdf: boolean; images: boolean }>
@@ -1083,7 +1078,6 @@ export function resolveModelCapabilities(model: string): ModelCapabilityRecord {
     }),
     tools: Object.freeze({
       structuredOutputs: modelSupportsStructuredOutputs(model),
-      autoMode: modelSupportsAutoMode(model),
       toolSearchBetaHeader: getToolSearchBetaHeader(),
     }),
     media: Object.freeze({

@@ -229,7 +229,6 @@ section('C5 · Anthropic-wire features read false off the Anthropic lane')
   check('knowledge cutoff: first-party arms untouched', caps.getModelKnowledgeCutoff('claude-opus-4-8') === 'January 2026' && caps.getModelKnowledgeCutoff('claude-opus-5') === 'May 2026')
   check('effort: the compat slot offers no dial (its wire sends none)', caps.modelSupportsEffort('compat/claude-opus-5') === false && effort.selectableEffortLevels('compat/claude-opus-5').length === 0)
   check('effort: a bare vendor slug never joins the first-party tables', caps.modelSupportsEffort('anthropic/claude-opus-5') === false)
-  check('auto mode stays provider-neutral (routed lanes keep flow)', caps.modelSupportsAutoMode(carrier) === true)
 }
 
 section('C6 · the resolved record agrees with the predicates; first-party untouched')

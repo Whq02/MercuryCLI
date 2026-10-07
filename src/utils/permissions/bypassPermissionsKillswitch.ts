@@ -3,7 +3,7 @@ import type { AppState } from '../../state/AppStateStore.js'
 import { useEffect, useRef } from 'react'
 import { getIsRemoteMode } from '../../bootstrap/state.js'
 import { enqueueNotification } from '../../context/notifications.js'
-import { useAppState, useAppStateStore, useSetAppState } from '../../state/AppState.js'
+import { useAppState, useSetAppState } from '../../state/AppState.js'
 import { modeBypassesPermissions } from './PermissionMode.js'
 import {
   createSovereignDisabledContext,
@@ -55,36 +55,4 @@ export function useKickOffCheckAndDisableSovereignIfNeeded(): void {
     void checkAndDisableSovereignIfNeeded(toolPermissionContext, setAppState)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-}
-
-let autoModeGateCheckRan = false
-
-function resetAutoModeGateCheck(): void {
-  autoModeGateCheckRan = false
-}
-
-async function checkAndDisableAutoModeIfNeeded(
-  _context: ToolPermissionContext,
-  _setAppState: SetAppState,
-): Promise<void> {
-}
-
-export function useKickOffCheckAndDisableAutoModeIfNeeded(): void {
-  const engineModel = useAppState(state => state.engineModel)
-  const engineModelForSession = useAppState(state => state.engineModelForSession)
-  const setAppState = useSetAppState()
-  const store = useAppStateStore()
-  const firstRun = useRef(true)
-  useEffect(() => {
-    if (getIsRemoteMode()) return
-    if (!firstRun.current) {
-      resetAutoModeGateCheck()
-    }
-    firstRun.current = false
-    void checkAndDisableAutoModeIfNeeded(
-      store.getState().toolPermissionContext as ToolPermissionContext,
-      setAppState,
-    )
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [engineModel, engineModelForSession])
 }

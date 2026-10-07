@@ -10,7 +10,6 @@ export const MODE_TRANSITION_ROADS = [
   'screen-mirror',
   'review-approval',
   'permission-answer',
-  'flow-unavailable',
   'bypass-disabled',
   'crew-lead',
   'unnamed',
@@ -105,8 +104,6 @@ export function describeModeRoad(road: ModeTransitionRoad): string {
       return "the review card's approval"
     case 'permission-answer':
       return "a consent answer's mode change (a consent card's session tier, a hook, or the host)"
-    case 'flow-unavailable':
-      return 'the flow gate closing under the session'
     case 'bypass-disabled':
       return "the organisation's bypass kill"
     case 'crew-lead':
