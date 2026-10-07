@@ -34,19 +34,31 @@ export function loadsInFullFor(tool: Tool, model: string | undefined): boolean {
   return qualifiedIdSpaceOf(model)?.route !== 'local'
 }
 
+type RecordedMarks = { model: string; length: number; marks: ReadonlyMap<string, boolean> | null }
+const recordedMarksByHistory = new WeakMap<readonly Message[], RecordedMarks>()
+
+function recordedDeferralMarks(messages: readonly Message[], model: string): ReadonlyMap<string, boolean> | null {
+  const cached = recordedMarksByHistory.get(messages)
+  if (cached !== undefined && cached.model === model && cached.length === messages.length) return cached.marks
+  let marks: Map<string, boolean> | null = null
+  const first = messages.find(message => message.type === 'assistant' || (message.type === 'user' && message.isMeta !== true))
+  const suffix = `|${first?.uuid ?? 'empty'}|${model}`
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i]!
+    if (message.type !== 'attachment' || message.attachment.type !== 'bound_prefix') continue
+    const record = message.attachment
+    if (!record.boundKey.endsWith(suffix)) continue
+    marks = new Map(record.roster.map(item => [item.name, record.rosterEnabled && item.deferred]))
+    break
+  }
+  recordedMarksByHistory.set(messages, { model, length: messages.length, marks })
+  return marks
+}
+
 export function isDeferredToolFor(tool: Tool, model: string | undefined, permissionMode?: string, messages: readonly Message[] = []): boolean {
-  if (tool.loadInFullOnCloud && model !== undefined) {
-    const first = messages.find(message => message.type === 'assistant' || (message.type === 'user' && message.isMeta !== true))
-    const suffix = `|${first?.uuid ?? 'empty'}|${model}`
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const message = messages[i]!
-      if (message.type !== 'attachment' || message.attachment.type !== 'bound_prefix') continue
-      const record = message.attachment
-      if (!record.boundKey.endsWith(suffix)) continue
-      const mark = record.roster.find(item => item.name === tool.name)
-      if (mark) return record.rosterEnabled && mark.deferred
-      break
-    }
+  if (model !== undefined && messages.length > 0) {
+    const recorded = recordedDeferralMarks(messages, model)?.get(tool.name)
+    if (recorded !== undefined) return recorded
   }
   return isDeferredTool(tool, permissionMode) && !loadsInFullFor(tool, model)
 }
