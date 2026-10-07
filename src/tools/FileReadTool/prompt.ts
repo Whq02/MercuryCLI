@@ -52,7 +52,7 @@ Treat every provided path as readable and every user-supplied path as valid; a p
 
 Usage:
 - file_path must be an absolute path — relative paths are rejected
-- With no window parameters the read returns up to ${MAX_LINES_TO_READ} lines from the top of the file${maxSizeInstruction}
+- With no window parameters the read returns up to ${MAX_LINES_TO_READ} lines from the top of the file. A result that is not the whole file closes its numbered lines with \`[lines 1-2000 of 3000 — Read(offset: 2001, limit: 1000) continues from there]\` or \`[lines 2001-3000 of 3000 — the end of the file]\`; without that line it is the whole file${maxSizeInstruction}
 - An optional line offset and limit narrow the window (handy for very long files), though leaving them out and taking the whole file is the recommended default. ${offsetInstruction}
 - Individual lines are cut off past 2000 characters
 - Every returned line carries a prefix — ${lineFormat} — with numbering starting at 1

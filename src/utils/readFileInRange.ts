@@ -10,21 +10,40 @@ export type ReadFileRangeResult = {
   totalBytes: number
   readBytes: number
   mtimeMs: number
+  endsWithNewline: boolean
   truncatedByBytes?: boolean
+}
+
+function fileTooLargeWords(sizeInBytes: number, maxSizeBytes: number, lineCount: number | undefined): string {
+  const size = formatFileSize(sizeInBytes)
+  const max = formatFileSize(maxSizeBytes)
+  if (lineCount === undefined) {
+    return (
+      `File content (${size}) exceeds the maximum allowed size (${max}). ` +
+      `Use offset and limit to read portions of the file, or search for content instead of reading the whole file.`
+    )
+  }
+  const slices =
+    lineCount > 100
+      ? `Read(offset: 1, limit: 100) reads the first 100 lines, Read(offset: ${lineCount - 99}, limit: 100) the last 100`
+      : `Read(offset: 1, limit: ${lineCount}) reads all of it, each line cut at 2000 characters`
+  return (
+    `File content (${size}, ${lineCount} ${lineCount === 1 ? 'line' : 'lines'}) exceeds the maximum allowed size (${max}) for a Read without a limit. ` +
+    `Pass offset and limit to read a slice — ${slices} — or search for content instead of reading the whole file.`
+  )
 }
 
 export class FileTooLargeError extends Error {
   readonly sizeInBytes: number
   readonly maxSizeBytes: number
+  readonly lineCount: number | undefined
 
-  constructor(sizeInBytes: number, maxSizeBytes: number) {
-    super(
-      `File content (${formatFileSize(sizeInBytes)}) exceeds the maximum allowed size (${formatFileSize(maxSizeBytes)}). ` +
-        `Use offset and limit to read portions of the file, or search for content instead of reading the whole file.`,
-    )
+  constructor(sizeInBytes: number, maxSizeBytes: number, lineCount?: number) {
+    super(fileTooLargeWords(sizeInBytes, maxSizeBytes, lineCount))
     this.name = 'FileTooLargeError'
     this.sizeInBytes = sizeInBytes
     this.maxSizeBytes = maxSizeBytes
+    this.lineCount = lineCount
   }
 }
 
@@ -68,6 +87,7 @@ function fastPath(
     totalBytes,
     readBytes: Buffer.byteLength(content),
     mtimeMs,
+    endsWithNewline: text.endsWith('\n'),
   }
 }
 
@@ -91,7 +111,7 @@ export async function readFileInRange(
     }
     const text = decodeWhole(await readFile(filePath, signal ? { signal } : {}))
     if (truncateMode && maxBytes !== undefined) {
-      return truncateSelect(stripBom(text).split('\n'), offset, maxLines, maxBytes, stats.mtimeMs, stats.size)
+      return truncateSelect(stripBom(text).split('\n'), offset, maxLines, maxBytes, stats.mtimeMs, stats.size, text.endsWith('\n'))
     }
     return fastPath(text, offset, maxLines, stats.mtimeMs, stats.size)
   }
@@ -105,6 +125,7 @@ function truncateSelect(
   maxBytes: number,
   mtimeMs: number,
   totalBytes: number,
+  endsWithNewline: boolean,
 ): ReadFileRangeResult {
   const totalLines = lines.length
   const end = maxLines === undefined ? totalLines : Math.min(offset + maxLines, totalLines)
@@ -129,6 +150,7 @@ function truncateSelect(
     totalBytes,
     readBytes: Buffer.byteLength(content),
     mtimeMs,
+    endsWithNewline,
     ...(truncated ? { truncatedByBytes: true } : {}),
   }
 }
@@ -166,6 +188,7 @@ async function streamingPath(
     let first = true
     let streamedBytes = 0
     let truncated = false
+    let endsWithNewline = false
     let budgetLeft = truncateMode && maxBytes !== undefined ? maxBytes : Infinity
 
     const fail = (err: unknown): void => {
@@ -198,6 +221,7 @@ async function streamingPath(
         text = stripBom(text)
         first = false
       }
+      if (text.length > 0) endsWithNewline = text.endsWith('\n')
       carried += text
       for (;;) {
         const newline = carried.indexOf('\n')
@@ -227,6 +251,7 @@ async function streamingPath(
           totalBytes: streamedBytes,
           readBytes: selectedBytes,
           mtimeMs,
+          endsWithNewline,
           ...(truncated ? { truncatedByBytes: true } : {}),
         })
       })
