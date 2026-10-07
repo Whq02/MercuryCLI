@@ -116,7 +116,7 @@ try {
     register(async (_edit, signal) => { signal.addEventListener('abort', () => { cancelled = true }); return await new Promise(() => {}) })
     const start = performance.now()
     const deadline = await rejection(() => call({ delayMinutes: 10, prompt: 'no answer' }))
-    check('deadline is NOT confirmed and never resends', deadline.startsWith('CronCreate: NOT confirmed.') && deadline.includes('Call CronList next') && !deadline.includes('Nothing was scheduled.') && bridge.takePendingScheduleEdits().length === 0 && cancelled && performance.now() - start < 2000, deadline)
+    check('deadline is NOT confirmed and never resends', deadline.startsWith('CronCreate: NOT confirmed.') && deadline.includes('Call CronList next') && !deadline.includes('Nothing was scheduled.') && bridge.takePendingScheduleEdits().length === 0 && cancelled && performance.now() - start < 1000, deadline)
     delete process.env.MERCURY_SCHEDULE_ANSWER_DEADLINE_MS
     seed(); register(async () => { throw new PeerClosed('schedule/edit', 'proof') })
     check('closed connection is NOT confirmed and never resends', (await rejection(() => call({ delayMinutes: 10, prompt: 'closed' }))).includes('connection to the daemon closed') && bridge.takePendingScheduleEdits().length === 0)
