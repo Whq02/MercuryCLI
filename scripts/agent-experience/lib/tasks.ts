@@ -251,19 +251,19 @@ export const TASKS: TaskDef[] = [
     id: 'ide-diagnostics',
     title: 'open a file in the IDE seam',
     ask: "Open src/stats.js in Mercury's IDE seam — the language server — and report its diagnostics.",
-    allowedTools: ['LSP', 'Read', 'Grep', 'Glob'],
+    allowedTools: ['LspRead', 'Read', 'Grep', 'Glob'],
     maxTurns: 8,
     prompt: ctx => withMarker(ctx, 'ide-diagnostics', TASKS_ASK('ide-diagnostics')),
     probeTools: [],
     script: ctx => [
-      call('LSP', { operation: 'diagnostics', filePath: join(ctx.projectDir, 'src', 'stats.js') }),
-      final('Opened src/stats.js in the language server; its diagnostics are listed in the LSP result above.'),
+      call('LspRead', { operation: 'diagnostics', filePath: join(ctx.projectDir, 'src', 'stats.js') }),
+      final('Opened src/stats.js in the language server; its diagnostics are listed in the LspRead result above.'),
     ],
     oracle: (_ctx, { run }) => {
-      const results = toolResultsOf(run, 'LSP')
+      const results = toolResultsOf(run, 'LspRead')
       const opened = results.some(r => !r.isError && !/outcome:\s*(failed|indeterminate)|unavailable|no language server|not available|not enabled/i.test(r.text))
-      const used = run.toolUses.some(u => u.name === 'LSP')
-      return { pass: used && opened, detail: `LSP called: ${used}; server answered: ${opened}; first result: ${(results[0]?.text ?? '').slice(0, 120).replace(/\n/g, ' ')}` }
+      const used = run.toolUses.some(u => u.name === 'LspRead')
+      return { pass: used && opened, detail: `LspRead called: ${used}; server answered: ${opened}; first result: ${(results[0]?.text ?? '').slice(0, 120).replace(/\n/g, ' ')}` }
     },
   },
   {

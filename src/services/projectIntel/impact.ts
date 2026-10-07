@@ -93,10 +93,10 @@ function pendingDiagnostics(): { pendingCount: number; note: string } {
       require('../lsp/LSPDiagnosticRegistry.js') as typeof import('../lsp/LSPDiagnosticRegistry.js')
     return {
       pendingCount: getPendingLSPDiagnosticCount(),
-      note: 'live diagnostics are the LSP diagnostics operation — resolve there; this count is the undelivered stream',
+      note: 'live diagnostics are LspRead diagnostics — resolve there; this count is the undelivered stream',
     }
   } catch {
-    return { pendingCount: 0, note: 'LSP registry unavailable — diagnostics resolve live via the LSP tool when connected' }
+    return { pendingCount: 0, note: 'LSP registry unavailable — diagnostics resolve live via LspRead when connected' }
   }
 }
 

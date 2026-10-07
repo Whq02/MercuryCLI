@@ -1,4 +1,5 @@
 import { toolMatchesName, type Tool, type ToolPermissionContext, type Tools } from '../../Tool.js'
+import { expandLspFamily } from '../lsp/toolFamily.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import { formatDeferredToolLine, isDeferredTool, loadsInFullFor, TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/prompt.js'
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
@@ -91,7 +92,22 @@ function seedRosterLatchFromRestore(latchKey: string, restore: RosterRestore, to
   const seededTools: Tool[] = []
   const deferred = new Set<string>()
   const missingBound: string[] = []
+  const expanded = new Set<string>()
   for (const mark of restore.marks) {
+    const family = expandLspFamily(mark.name)
+    if (family.length > 1) {
+      missingBound.push(mark.name)
+      for (const name of family) {
+        const successor = byName.get(name)
+        if (!successor || names.includes(name)) continue
+        names.push(name)
+        expanded.add(name)
+        seededTools.push(successor)
+        if (restore.enabled && (name === 'LspRead' ? mark.deferred : true)) deferred.add(name)
+      }
+      continue
+    }
+    if (expanded.has(mark.name)) continue
     if (mark.definition !== undefined) getConversationToolSchemas(latchKey).set(mark.name, mark.definition)
     const tool = byName.get(mark.name) ?? (mark.definition !== undefined ? { name: mark.name } as Tool : undefined)
     if (tool === undefined) {

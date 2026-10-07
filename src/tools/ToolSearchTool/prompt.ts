@@ -1,4 +1,5 @@
 import type { Tool } from '../../Tool.js'
+import { expandLspFamily } from '../../services/lsp/toolFamily.js'
 import type { Message } from '../../types/message.js'
 import type { DeferralWireForm } from '../../services/providers/deferralWire.js'
 import { qualifiedIdSpaceOf } from '../../services/providers/idSpaces.js'
@@ -48,7 +49,10 @@ function recordedDeferralMarks(messages: readonly Message[], model: string): Rea
     if (message.type !== 'attachment' || message.attachment.type !== 'bound_prefix') continue
     const record = message.attachment
     if (!record.boundKey.endsWith(suffix)) continue
-    marks = new Map(record.roster.map(item => [item.name, record.rosterEnabled && item.deferred]))
+    marks = new Map(record.roster.flatMap(item => {
+      const family = expandLspFamily(item.name)
+      return family.map(name => [name, record.rosterEnabled && (family.length > 1 && name !== 'LspRead' ? true : item.deferred)] as const)
+    }))
     break
   }
   recordedMarksByHistory.set(messages, { model, length: messages.length, marks })

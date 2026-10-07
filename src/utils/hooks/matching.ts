@@ -1,5 +1,6 @@
 
 import { logForDebugging } from '../debug.js'
+import { lspFamilyMatches } from '../../services/lsp/toolFamily.js'
 import {
   getHooksConfigFromSnapshot,
   shouldAllowManagedHooksOnly,
@@ -40,11 +41,8 @@ export function matchesPattern(matchQuery: string, matcher: string): boolean {
     return true
   }
   if (shape === 'names') {
-    if (matcher.includes('|')) {
-      const patterns = matcher.split('|').map(p => p.trim())
-      return patterns.includes(matchQuery)
-    }
-    return matchQuery === matcher
+    const patterns = matcher.includes('|') ? matcher.split('|').map(p => p.trim()) : [matcher]
+    return patterns.some(pattern => pattern === matchQuery || lspFamilyMatches(pattern, matchQuery))
   }
 
   try {
@@ -88,6 +86,7 @@ export async function prepareIfConditionMatcher(
 
   return ifCondition => {
     const parsed = permissionRuleValueFromString(ifCondition)
+    if (parsed.ruleContent === undefined && lspFamilyMatches(parsed.toolName, toolName)) return true
     if (parsed.toolName !== toolName) {
       return false
     }

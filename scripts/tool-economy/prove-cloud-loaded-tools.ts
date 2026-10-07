@@ -52,7 +52,7 @@ const { createAttachmentMessage } = await import('../../src/utils/attachments/or
 type Tool = import('../../src/Tool.ts').Tool
 type Message = import('../../src/types/message.ts').Message
 
-const FULL_NAMES = ['ChangeSet', 'AstSearch', 'LSP']
+const FULL_NAMES = ['ChangeSet', 'AstSearch', 'LspRead']
 const NINE_NAMES = ['JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Workshop', 'Monitor', 'Checkpoint', 'Rewind']
 const MARKED_NAMES = [...FULL_NAMES, ...NINE_NAMES]
 const LOCAL_SET = ['Agent', 'Bash', 'Edit', 'Eval', 'Glob', 'Grep', 'Read', 'ScheduleWakeup', 'Skill', 'ToolSearch', 'Write']
@@ -211,7 +211,7 @@ section('§5 the gates the twelve keep, and what a late joiner does')
   const dap = readFileSync(join(ROOT, 'src', 'services', 'dap', 'dapClient.ts'), 'utf8')
   check('Debug keeps its gate: the catalogue lists it only while an adapter is reachable', /export function isDapToolCatalogEnabled\(\): boolean \{\s*return mercuryDapEnabled\(\) && reachableDapAdapterKeys\(\)\.length > 0/.test(dap))
   const lsp = readFileSync(join(ROOT, 'src', 'tools', 'LSPTool', 'LSPTool.ts'), 'utf8')
-  check('LSP keeps its mount predicate', /isEnabled\(\): boolean \{\s*return isLspToolMounted\(\)/.test(lsp))
+  check('the seven language-service tools keep the mount predicate', lsp.includes('isEnabled: isLspToolMounted'))
   const model = 'claude-sonnet-5'
   const initialPool = pool.filter(tool => !MARKED_NAMES.includes(tool.name))
   const joinedPool = [...initialPool, ...FULL, ...NINE]

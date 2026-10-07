@@ -14,10 +14,10 @@ import type { ExecutionState } from '../primitives/execution.js'
 import { registerExecutionDomain } from '../primitives/executionPlane.js'
 import { projectExternalState } from '../primitives/externalProjection.js'
 import { processMainOwner } from '../run/resolveOwner.js'
-import { clearLspServer, lspServerRefusal } from './failureLedger.js'
+import { lspLedgerNow } from './failureLedger.js'
 import { startFailureCause } from './failureWords.js'
 import type { LSPClient } from './LSPClient.js'
-import { currentLspAbortSignal } from './lspAbort.js'
+import { currentLspAbortSignal, noteLspRequestFault } from './lspAbort.js'
 import { mercuryLspEnabled } from './mercuryLsp.js'
 import type { LspServerState, ScopedLspServerConfig } from './types.js'
 
@@ -53,7 +53,7 @@ function timedOutRequest(method: string, server: string, budgetMs: number): Erro
   return error
 }
 
-export type LspStartFailure = Error & { server: string; attempts: number; lspCause: string; refused?: boolean }
+export type LspStartFailure = Error & { server: string; attempts: number; lspCause: string; refused?: boolean; retryAt?: number }
 
 function startFailure(server: string, attempts: number, cause: unknown): LspStartFailure {
   const lspCause = startFailureCause(server, cause)
@@ -279,15 +279,15 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
       initFailures = 0
       generation++
       lastActivityAt = Date.now()
-      clearLspServer(name)
       armIdleTimer()
     } catch (err) {
       if (spawned) {
         await lsp.stop().catch(() => {})
       }
       initFailures++
-      lastInitFailureAt = Date.now()
+      lastInitFailureAt = lspLedgerNow()
       const error = startFailure(name, initFailures, err)
+      error.retryAt = lastInitFailureAt + Math.min(INIT_BACKOFF_BASE_MS * 2 ** (initFailures - 1), INIT_BACKOFF_MAX_MS)
       lastError = error
       setState('error', error)
       logError(error)
@@ -298,7 +298,7 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
   function initBackoffRemainingMs(): number {
     if (initFailures === 0) return 0
     const window = Math.min(INIT_BACKOFF_BASE_MS * 2 ** (initFailures - 1), INIT_BACKOFF_MAX_MS)
-    return Math.max(0, lastInitFailureAt + window - Date.now())
+    return Math.max(0, lastInitFailureAt + window - lspLedgerNow())
   }
 
   async function start(): Promise<void> {
@@ -306,15 +306,12 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
     if (state === 'starting' && inFlightStart !== null) {
       return inFlightStart
     }
-    const latched = lspServerRefusal(name)
-    if (latched !== undefined) {
-      const error = startFailure(name, Math.max(initFailures, latched.count), latched.cause)
-      error.refused = true
-      throw error
-    }
     const backoffMs = initBackoffRemainingMs()
     if (backoffMs > 0) {
-      throw startFailure(name, initFailures, lastError ?? 'no error recorded')
+      const error = startFailure(name, initFailures, lastError ?? 'no error recorded')
+      error.refused = true
+      error.retryAt = lspLedgerNow() + backoffMs
+      throw error
     }
     if (state === 'error' && crashRecoveries > 0) {
       if (config.restartOnCrash === false) {
@@ -399,6 +396,7 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
 
   async function sendRequest<T>(method: string, params: unknown): Promise<T> {
     if (!isHealthy() || client === null) {
+      noteLspRequestFault()
       throw new Error(
         `LSP server ${name} is not healthy (state: ${state}${lastError ? `, last error: ${lastError.message}` : ''})`,
       )
@@ -411,7 +409,10 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
     let lastFailure: unknown
     for (let attempt = 0; attempt <= TRANSIENT_RETRIES; attempt++) {
       const remaining = deadlineAt - Date.now()
-      if (remaining <= 0) throw timedOutRequest(method, name, budgetMs)
+      if (remaining <= 0) {
+        noteLspRequestFault()
+        throw timedOutRequest(method, name, budgetMs)
+      }
       const source = new CancellationTokenSource()
       let timer: ReturnType<typeof setTimeout> | undefined
       const onAbort = (): void => source.cancel()
@@ -429,7 +430,10 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
         })
       } catch (err) {
         lastFailure = err
-        if (isLspRequestSettlement(err)) throw err
+        if (isLspRequestSettlement(err)) {
+          if (err instanceof Error && err.name !== 'AbortError') noteLspRequestFault()
+          throw err
+        }
         if (isContentModified(err) && attempt < TRANSIENT_RETRIES) {
           const backoff = Math.min(TRANSIENT_BASE_DELAY_MS * 2 ** attempt, Math.max(0, deadlineAt - Date.now()))
           await sleep(backoff)
@@ -442,6 +446,7 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
         source.dispose()
       }
     }
+    noteLspRequestFault()
     throw new Error(
       `LSP request ${method} to server ${name} failed: ${lastFailure instanceof Error ? lastFailure.message : String(lastFailure)}`,
     )

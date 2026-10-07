@@ -31,7 +31,7 @@ const inspect = byName('Inspect')
 const searchable: AnyTool[] =
   inspect && !deferred.includes(inspect) ? [...deferred, inspect] : [...deferred]
 
-const needed = ['LSP', 'Structure', 'Git', 'Journey', 'Inspect']
+const needed = ['LspRename', 'Structure', 'Git', 'Journey', 'Inspect']
 console.log('── arsenal capability-aware ToolSearch ──')
 check(
   'the tools under test are present in the searchable set',
@@ -47,7 +47,7 @@ const show = (q: string, list: string[]): void =>
 
 console.log('[A] declared-intent ranking beats incidental description matches')
 
-const lsp = byName('LSP')!
+const lsp = byName('LspRename')!
 const origLspEnabled = lsp.isEnabled
 ;(lsp as { isEnabled: () => boolean }).isEnabled = () => true
 {
@@ -56,8 +56,8 @@ const origLspEnabled = lsp.isEnabled
   show(q, r)
   check(
     'LSP (semantic rename) ranks above Structure (syntax owner)',
-    rank(r, 'LSP') !== -1 && rank(r, 'Structure') !== -1 && rank(r, 'LSP') < rank(r, 'Structure'),
-    `LSP@${rank(r, 'LSP')} Structure@${rank(r, 'Structure')}`,
+    rank(r, 'LspRename') !== -1 && rank(r, 'Structure') !== -1 && rank(r, 'LspRename') < rank(r, 'Structure'),
+    `LSP@${rank(r, 'LspRename')} Structure@${rank(r, 'Structure')}`,
   )
 }
 ;(lsp as { isEnabled: () => boolean }).isEnabled = origLspEnabled

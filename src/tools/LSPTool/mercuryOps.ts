@@ -18,8 +18,8 @@ import {
   subscribeLSPDiagnosticPublish,
 } from '../../services/lsp/LSPDiagnosticRegistry.js'
 import { builtinImplementationInfo } from '../../services/lsp/builtinServers.js'
-import { oneLine, remedyForLanguageServer, serverTitle, startFailureCause, unclaimedCause } from '../../services/lsp/failureWords.js'
-import { isLspStartFailure, type LSPServerInstance } from '../../services/lsp/LSPServerInstance.js'
+import { lspStartFailureWords, oneLine, remedyForLanguageServer, serverTitle, startFailureCause, unclaimedCause } from '../../services/lsp/failureWords.js'
+import { isLspStartFailure, type LSPServerInstance, type LspStartFailure } from '../../services/lsp/LSPServerInstance.js'
 import type { LSPServerManager } from '../../services/lsp/LSPServerManager.js'
 import {
   applyEditsToText,
@@ -269,7 +269,7 @@ export function clearDiagnosticsBaselines(): void {
   diagnosticsBaselines.clear()
 }
 
-export type ClaimantFailure = { server: LSPServerInstance; stage: 'start' | 'pull'; cause: string }
+export type ClaimantFailure = { server: LSPServerInstance; stage: 'start' | 'pull'; cause: string; startFailure?: LspStartFailure }
 
 export type PullDiagnosticsOutcome =
   | {
@@ -295,11 +295,13 @@ export type PullDiagnosticsOutcome =
 
 function claimantFailureWords(failure: ClaimantFailure, path: string, cwd: string): { what: string; remedy: string } {
   const title = serverTitle(failure.server, path)
-  const what =
-    failure.stage === 'start'
+  const remedy = remedyForLanguageServer(failure.server, path, failure.cause, cwd)
+  const what = failure.startFailure
+    ? lspStartFailureWords(failure.startFailure, title, '', `${title} did not start: ${failure.cause}.`).replace(/\.$/, '')
+    : failure.stage === 'start'
       ? `${title} did not start: ${failure.cause}`
       : `${title} did not answer textDocument/diagnostic: ${failure.cause}`
-  return { what, remedy: remedyForLanguageServer(failure.server, path, failure.cause, cwd) }
+  return { what, remedy }
 }
 
 function requestFailureCause(server: LSPServerInstance, method: string, error: unknown): string {
@@ -411,7 +413,7 @@ async function pullFileDiagnostics(
       try {
         await server.start()
       } catch (err) {
-        failed.push({ server, stage: 'start', cause: isLspStartFailure(err) ? err.lspCause : startFailureCause(server.name, err) })
+        failed.push({ server, stage: 'start', cause: isLspStartFailure(err) ? err.lspCause : startFailureCause(server.name, err), ...(isLspStartFailure(err) ? { startFailure: err } : {}) })
         continue
       }
     }
@@ -990,6 +992,7 @@ async function applyPrepared(
           outcome: 'failed',
           changedPaths: [],
           evidence: `refused ${refusals.length} file(s), nothing written`,
+          details: { applyRefusal: true },
         },
       },
       writtenPaths: [],
@@ -1037,7 +1040,7 @@ async function applyPrepared(
           resultCount: 0,
           fileCount: 0,
           applied: false,
-          effect: { outcome: 'failed', changedPaths: [], evidence: 'stale plan — nothing written' },
+          effect: { outcome: 'failed', changedPaths: [], evidence: 'stale plan — nothing written', details: { applyRefusal: true } },
         },
         writtenPaths: [],
       }
@@ -1062,7 +1065,7 @@ async function applyPrepared(
           resultCount: 0,
           fileCount: 0,
           applied: false,
-          effect: { outcome: 'failed', changedPaths: [], evidence: 'read-before-edit refusal — nothing written' },
+          effect: { outcome: 'failed', changedPaths: [], evidence: 'read-before-edit refusal — nothing written', details: { applyRefusal: true } },
         },
         writtenPaths: [],
       }
@@ -1104,6 +1107,7 @@ async function applyPrepared(
           outcome: 'failed',
           changedPaths: [],
           evidence: 'drift abort — nothing written',
+          details: { applyRefusal: true },
         },
       },
       writtenPaths: [],
@@ -1272,7 +1276,7 @@ async function opDiagnostics(env: OpEnv): Promise<MercuryLspOpOutput> {
   } catch (err) {
     const primary = env.manager.getServerForFile(env.absolutePath)
     if (isLspStartFailure(err) && primary !== undefined) {
-      pulled = { kind: 'unavailable', failed: [{ server: primary, stage: 'start', cause: err.lspCause }] }
+      pulled = { kind: 'unavailable', failed: [{ server: primary, stage: 'start', cause: err.lspCause, startFailure: err }] }
     } else {
       throw err
     }
@@ -2017,7 +2021,7 @@ async function opWorkspaceDiagnostics(env: OpEnv): Promise<MercuryLspOpOutput> {
     } catch (error) {
       const primary = env.manager.getServerForFile(abs)
       if (isLspStartFailure(error) && primary !== undefined) {
-        notChecked(display, unavailableWords([{ server: primary, stage: 'start', cause: error.lspCause }], abs, env.cwd))
+        notChecked(display, unavailableWords([{ server: primary, stage: 'start', cause: error.lspCause, startFailure: error }], abs, env.cwd))
       } else {
         notChecked(display, { what: error instanceof Error ? error.message : String(error), remedy: '', servers: [] })
       }
@@ -2207,7 +2211,7 @@ async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
   const display = displayPathFor(env.cwd, oldPath)
   if (!input.newPath || resolve(env.cwd, input.newPath) === resolve(oldPath)) {
     return {
-      result: `pathRename failed: newPath is required and must differ from filePath.`,
+      result: `LspMoveFile failed: newPath is required and must differ from filePath.`,
       resultCount: 0,
       fileCount: 0,
       effect: {
@@ -2224,7 +2228,7 @@ async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
     isDirectory = (await stat(oldPath)).isDirectory()
   } catch {
     return {
-      result: `pathRename failed: ${display} does not exist.`,
+      result: `LspMoveFile failed: ${display} does not exist.`,
       resultCount: 0,
       fileCount: 0,
       effect: { outcome: 'failed', changedPaths: [], evidence: 'source missing' },
@@ -2233,7 +2237,7 @@ async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
   try {
     await stat(newPath)
     return {
-      result: `pathRename refused: Target already exists at ${newDisplay} — nothing moved.`,
+      result: `LspMoveFile refused: Target already exists at ${newDisplay} — nothing moved.`,
       resultCount: 0,
       fileCount: 0,
       effect: {
@@ -2271,7 +2275,7 @@ async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
     )
     if (!fan.ok) {
       return {
-        result: `pathRename failed while preparing import edits: ${fan.reason}. Nothing was moved.`,
+        result: `LspMoveFile failed while preparing import edits: ${fan.reason}. Nothing was moved.`,
         resultCount: 0,
         fileCount: 0,
         effect: {
@@ -2285,7 +2289,7 @@ async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
     const editCount = fan.files.reduce((sum, file) => sum + file.edits.length, 0)
     if (fan.files.length > PATH_RENAME_FILE_CAP) {
       return {
-        result: `pathRename refused: the move would touch ${fan.files.length} files (cap ${PATH_RENAME_FILE_CAP}). Split the move into smaller steps, or move the file with Bash and fix imports incrementally.`,
+        result: `LspMoveFile refused: the move would touch ${fan.files.length} files (cap ${PATH_RENAME_FILE_CAP}). Split the move into smaller steps, or move the file with Bash and fix imports incrementally.`,
         resultCount: 0,
         fileCount: 0,
         effect: {
@@ -2315,7 +2319,7 @@ async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
     const set = planFiles(preparedFiles, preparedSnapshots)
     if (!set.ok) {
       return {
-        result: `pathRename failed while planning the import edits: ${set.reason}. Nothing was moved.`,
+        result: `LspMoveFile failed while planning the import edits: ${set.reason}. Nothing was moved.`,
         resultCount: 0,
         fileCount: 0,
         applied: false,
@@ -2372,7 +2376,7 @@ async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
     const endpointDisplay = displayPathFor(env.cwd, endpoint)
     if (decision.behavior === 'deny') {
       return {
-        result: `pathRename refused: ${endpointDisplay} is denied by a rule. Nothing moved.`,
+        result: `LspMoveFile refused: ${endpointDisplay} is denied by a rule. Nothing moved.`,
         resultCount: 0,
         fileCount: 0,
         effect: {
@@ -2384,7 +2388,7 @@ async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
     }
     if (decision.behavior !== 'allow' && !pathInAllowedWorkingPath(endpoint, permissionContext) && endpoint !== env.absolutePath && !postureBypassesAsks(permissionContext) && await env.requestWritePermission?.(endpoint) !== true) {
       return {
-        result: `pathRename refused: permission to write ${endpointDisplay} was not granted. Nothing moved.`,
+        result: `LspMoveFile refused: permission to write ${endpointDisplay} was not granted. Nothing moved.`,
         resultCount: 0,
         fileCount: 0,
         effect: {
@@ -2415,7 +2419,7 @@ async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
     if (applied.output.effect.outcome === 'indeterminate') {
       return {
         ...applied.output,
-        result: `${applied.output.result}\nThe file was NOT moved — re-run pathRename once the servers settle.`,
+        result: `${applied.output.result}\nThe file was NOT moved — re-run LspMoveFile once the servers settle.`,
       }
     }
   }
@@ -2440,7 +2444,7 @@ async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
   } catch (error) {
     return {
       result:
-        `pathRename INDETERMINATE: the import edits landed but the move itself failed (${error instanceof Error ? error.message : String(error)}). ` +
+        `LspMoveFile INDETERMINATE: the import edits landed but the move itself failed (${error instanceof Error ? error.message : String(error)}). ` +
         `${display} still exists with updated imports pointing at the NEW path — move it manually or re-run.`,
       resultCount: editedPaths.length,
       fileCount: editedPaths.length,
@@ -2865,7 +2869,7 @@ async function opFormatFamily(env: OpEnv, want: FormatWant): Promise<MercuryLspO
       }
     }
     return {
-      result: `${want} failed: ${prepared.reason}`,
+      result: `LspFormat failed: ${prepared.reason}`,
       resultCount: 0,
       fileCount: 0,
       applied: false,
@@ -2902,7 +2906,7 @@ async function opMoveSymbol(env: OpEnv): Promise<MercuryLspOpOutput> {
   }
   const target = resolve(env.cwd, expandPath(rawTarget))
   if (target === resolve(env.absolutePath)) {
-    return failed(`moveSymbol failed: targetPath must differ from filePath (${display} cannot move into itself).`, 'target is the source')
+    return failed(`LspMoveSymbol failed: targetPath must differ from filePath (${display} cannot move into itself).`, 'target is the source')
   }
   const claimant = env.manager.getServerForFile(env.absolutePath)
   if (!claimant) {
@@ -2927,7 +2931,7 @@ async function opMoveSymbol(env: OpEnv): Promise<MercuryLspOpOutput> {
   if (!prepared.ok) {
     if (isMethodNotFoundError(prepared.reason)) {
       return {
-        result: `The ${claimant.name} server does not offer a symbol move — the TypeScript and JavaScript lane (mercury-ts) does; for other languages move the declaration with Edit and fix the imports with rename or pathRename.`,
+        result: `The ${claimant.name} server does not offer a symbol move — the TypeScript and JavaScript lane (mercury-ts) does; for other languages move the declaration with Edit and fix the imports with LspRename or LspMoveFile.`,
         resultCount: 0,
         fileCount: 0,
         effect: { outcome: 'no-change', changedPaths: [], evidence: 'symbol move unsupported by the claimant' },
@@ -2946,13 +2950,13 @@ async function opMoveSymbol(env: OpEnv): Promise<MercuryLspOpOutput> {
 const RAW_RESULT_CHAR_CAP = 20_000
 
 const RAW_REQUEST_EDIT_CLASS: Record<string, string> = {
-  'textDocument/rename': 'use the rename operation — its result rides the drift-safe apply transaction',
-  'workspace/willRenameFiles': 'use the pathRename operation — the move + import edits ride ONE transaction',
-  'workspace/executeCommand': 'executes a server-side command that can edit the workspace outside the transaction — use codeActions (apply) instead',
-  'textDocument/codeAction': 'use the codeActions operation — resolved edits ride the apply transaction',
-  'codeAction/resolve': 'use the codeActions operation — resolved edits ride the apply transaction',
-  'textDocument/formatting': 'use the formatDocument operation',
-  'textDocument/rangeFormatting': 'use the formatRange operation',
+  'textDocument/rename': 'use LspRename — its result rides the drift-safe apply transaction',
+  'workspace/willRenameFiles': 'use LspMoveFile — the move and its import edits ride one transaction',
+  'workspace/executeCommand': 'it runs a server-side command that can edit the workspace outside the transaction — use LspCodeAction with apply: true',
+  'textDocument/codeAction': 'use LspCodeAction — resolved edits ride the apply transaction',
+  'codeAction/resolve': 'use LspCodeAction — resolved edits ride the apply transaction',
+  'textDocument/formatting': 'use LspFormat',
+  'textDocument/rangeFormatting': 'use LspFormat',
   'workspace/applyEdit': 'a server→client request — a client cannot send it',
 }
 
@@ -3000,7 +3004,7 @@ async function opRawRequest(env: OpEnv): Promise<MercuryLspOpOutput> {
   const editClassReason = RAW_REQUEST_EDIT_CLASS[method]
   if (editClassReason !== undefined) {
     return {
-      result: `rawRequest refused: '${method}' is an edit-class method — ${editClassReason}. Nothing was sent.`,
+      result: `LspRequest refused: '${method}' is an edit-class method — ${editClassReason}. Nothing was sent.`,
       resultCount: 0,
       fileCount: 0,
       effect: { outcome: 'failed', changedPaths: [], evidence: `edit-class method refused (${method})` },
@@ -3012,7 +3016,7 @@ async function opRawRequest(env: OpEnv): Promise<MercuryLspOpOutput> {
       params = JSON.parse(input.params)
     } catch (error) {
       return {
-        result: `rawRequest failed: params is not valid JSON (${error instanceof Error ? error.message : String(error)}). Nothing was sent.`,
+        result: `LspRequest failed: params is not valid JSON (${error instanceof Error ? error.message : String(error)}). Nothing was sent.`,
         resultCount: 0,
         fileCount: 0,
         effect: { outcome: 'failed', changedPaths: [], evidence: 'params JSON parse failed' },
@@ -3022,7 +3026,7 @@ async function opRawRequest(env: OpEnv): Promise<MercuryLspOpOutput> {
   const server = env.manager.getServerForFile(env.absolutePath)
   if (!server) {
     return {
-      result: `No language server claims ${display} — rawRequest has no target.`,
+      result: `No language server claims ${display} — LspRequest has no target.`,
       resultCount: 0,
       fileCount: 0,
       effect: { outcome: 'failed', changedPaths: [], evidence: 'no claimant' },
@@ -3049,7 +3053,7 @@ async function opRawRequest(env: OpEnv): Promise<MercuryLspOpOutput> {
     }
   } catch (error) {
     return {
-      result: `rawRequest ${method} failed: ${error instanceof Error ? error.message : String(error)}`,
+      result: `LspRequest ${method} failed: ${error instanceof Error ? error.message : String(error)}`,
       resultCount: 0,
       fileCount: 0,
       effect: { outcome: 'failed', changedPaths: [], evidence: `raw ${method} failed` },

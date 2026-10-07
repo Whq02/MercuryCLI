@@ -12,7 +12,6 @@ import { oneLine } from '../../services/lsp/failureWords.js'
 import type { ToolResultBlockParam } from '../../types/wire.js'
 import { getDisplayPath } from '../../utils/file.js'
 import { extractTag } from '../../utils/messages.js'
-import { LSP_TOOL_NAME } from './prompt.js'
 import { getSymbolAtPosition } from './symbolContext.js'
 import type { Output } from './LSPTool.js'
 
@@ -66,10 +65,6 @@ const SYMBOL_ORIENTED_OPERATIONS = new Set([
   'hover',
   'goToImplementation',
 ])
-
-export function userFacingName(): string {
-  return LSP_TOOL_NAME
-}
 
 export function renderToolUseMessage(
   input: RenderInput,
@@ -251,10 +246,11 @@ function LspResultSummary({
 export function renderToolUseErrorMessage(
   result: ToolResultBlockParam['content'],
   { verbose }: { verbose: boolean },
+  name = 'LspRead',
 ): React.ReactNode {
   if (!verbose && typeof result === 'string') {
     const tagged = extractTag(result, 'tool_use_error')
-    if (tagged !== null) return <ShortErrorLine text={`LSP: ${oneLine(tagged, 140)}`} />
+    if (tagged !== null) return <ShortErrorLine text={`${name}: ${oneLine(tagged, 140)}`} />
   }
   return <FallbackToolUseErrorMessage result={result} verbose={verbose} />
 }

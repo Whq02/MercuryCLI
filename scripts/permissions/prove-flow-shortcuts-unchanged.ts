@@ -27,7 +27,8 @@ function check(label: string, cond: boolean, detail = ''): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 const TOOL_NAMES = [
-  'Read', 'Grep', 'Glob', 'LSP', 'ToolSearch', 'ListMcpResources', 'ReadMcpResource', 'TaskCreate', 'TaskGet', 'TaskUpdate', 'TaskList', 'TaskStop', 'AskUserQuestion', 'SendMessage', 'Workflow', 'Sleep',
+  'Read', 'Grep', 'Glob', 'LspRead', 'ToolSearch', 'ListMcpResources', 'ReadMcpResource', 'TaskCreate', 'TaskGet', 'TaskUpdate', 'TaskList', 'TaskStop', 'AskUserQuestion', 'SendMessage', 'Workflow', 'Sleep',
+  'LspRename', 'LspMoveSymbol', 'LspMoveFile', 'LspCodeAction', 'LspFormat', 'LspRequest',
   'Bash', 'PowerShell', 'Edit', 'Write', 'NotebookEdit', 'Agent', 'WebFetch', 'WebSearch', 'Browser', 'Computer', 'Git', 'Launch', 'Monitor', 'Eval', 'Debug', 'Test', 'Service', 'ChangeSet', 'Checkpoint', 'Rewind', 'Transaction', 'Skill', 'Schedule', 'ContextLeft', 'Retain', 'Recall', 'Reflect', 'Correct',
   'mcp__fixture__read_file', 'mcp__fixture__write_file', 'mcp__fixture__TaskGet', 'read', 'grep', 'frobnicate', '',
 ]
@@ -202,7 +203,7 @@ const recorded = {
 }
 
 if (RECORD) {
-  writeFileSync(FIXTURE, `${JSON.stringify(recorded, null, 2)}\n`)
+  writeFileSync(FIXTURE, `${JSON.stringify(recorded, null, 2).replace(/[\u007f-\uffff]/g, character => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`)}\n`)
   console.log(`recorded ${Object.keys(recorded.allowlist).length} allowlist rows, ${recorded.wrapper.length} wrapper rows, ${recorded.bash.length} bash rows → ${FIXTURE}`)
   process.exit(0)
 }

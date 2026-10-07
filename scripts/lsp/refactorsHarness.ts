@@ -94,8 +94,7 @@ export async function bootWorkspace(messageId?: string): Promise<Workspace> {
   await mgrModule.waitForInitialization()
   const manager = mgrModule.getLspServerManager()
   if (!manager) throw new Error(`manager init failed: ${JSON.stringify(mgrModule.getInitializationStatus())}`)
-  const { runMercuryLspOp } = await import('../../src/tools/LSPTool/mercuryOps.js')
-  const { LSPTool } = await import('../../src/tools/LSPTool/LSPTool.js')
+  const { LSP_TOOLS } = await import('../../src/tools/LSPTool/LSPTool.js')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
 
   const readFileState = new Map<string, { content: string; timestamp: number; offset: number | undefined; limit: number | undefined }>()
@@ -153,16 +152,16 @@ export async function bootWorkspace(messageId?: string): Promise<Workspace> {
     },
     readFileState,
     fileHistory: () => fileHistoryState,
-    op: (input, rel) =>
-      runMercuryLspOp({
-        input: input as never,
-        absolutePath: rel !== undefined ? abs(rel) : root,
-        cwd: root,
-        manager,
-        tool: LSPTool as never,
-        context: context as never,
-        ...(messageId !== undefined ? { messageId: messageId as never } : {}),
-      }) as Promise<OpOutput>,
+    op: async (input, rel) => {
+      const { operation, ...args } = input
+      const family: Record<string, string> = { rename: 'LspRename', moveSymbol: 'LspMoveSymbol', pathRename: 'LspMoveFile', codeActions: 'LspCodeAction', organizeImports: 'LspFormat' }
+      const name = family[operation] ?? 'LspRead'
+      const tool = LSP_TOOLS.find(tool => tool.name === name)!
+      const call = { ...args, ...(rel !== undefined ? { filePath: abs(rel) } : {}), ...(name === 'LspRead' ? { operation } : {}), ...(operation === 'organizeImports' ? { organizeImports: true } : {}) }
+      const parsed = tool.inputSchema.parse(call)
+      const result = await tool.call(parsed, context as never, undefined as never, messageId ? { uuid: messageId } as never : undefined)
+      return { ...result.data, effect: result.effect } as OpOutput
+    },
     planOf: output => output.plan ?? /plan: (lsp-[0-9a-f]{12})/.exec(output.result)?.[1],
     shutdown: () => mgrModule.shutdownLspServerManager(),
   }

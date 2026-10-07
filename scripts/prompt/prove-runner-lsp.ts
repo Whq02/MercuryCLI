@@ -101,7 +101,7 @@ try {
     const requests = captured.slice(before)
     check(`${mode}: the expected request sequence was captured`, requests.length === (edits ? 3 : 1))
     if (edits) check(`${mode}: the real edit completed`, readFileSync(join(cwd, 'file.ts'), 'utf8').includes('value = 2'), JSON.stringify(requests.at(-1)?.messages.slice(-2)))
-    const tool = requests[0]?.tools?.find((t: any) => t.name === 'LSP')
+    const tool = requests[0]?.tools?.find((t: any) => t.name === 'LspRead')
     check(`${mode}: LSP ${enabled ? 'rides in full' : 'is absent'}`, enabled ? tool !== undefined && tool.defer_loading !== true && tool.input_schema?.properties?.operation !== undefined : tool === undefined)
     const rss = /([0-9]+)\s+maximum resident set size/.exec(result.err)?.[1]
     console.log(`[INFO] ${mode}: ${Math.round(performance.now() - start)} ms; peak RSS ${rss ?? 'unavailable'} bytes`)

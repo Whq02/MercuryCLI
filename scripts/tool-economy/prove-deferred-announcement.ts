@@ -60,6 +60,12 @@ const SPEC_BODY = [
   'JevEval — Jev second opinion: rank hypotheses, judge calls, check proposals',
   'Journey — run and verify a local application end to end: start services, request loopback http, assert status…',
   'Launch — unified launch profiles: list/inspect/debug/run/test/build from .vscode launch.json, python tests…',
+  "LspCodeAction — list and apply the language server's quick fixes, refactors and source actions at a position",
+  'LspFormat — format a file or a range of its lines, or organize its imports, through the language server',
+  'LspMoveFile — move or rename a file or directory and update its imports through the language server',
+  'LspMoveSymbol — move a top-level declaration into another file and rewrite its imports (TypeScript, JavaScript)',
+  'LspRename — rename a symbol in every file through the language server: preview the edits, then apply them',
+  'LspRequest — send one raw language-server protocol request and read the raw answer',
   'Monitor — watch, monitor, or keep an eye on a process/log/command — stream each stdout line as a live…',
   'NotebookEdit — edit Jupyter notebook .ipynb cells',
   "ProviderSearch — searches the web through the session provider's own native search",
@@ -160,7 +166,7 @@ section('§1 the head and the line rule over a fixture pool')
 
 section('§2 over the bench roster the body is the specification\'s text byte for byte')
 {
-  const NAMES = ['Agent', 'Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Skill', 'Eval', 'AstSearch', 'ChangeSet', 'LSP', 'ToolSearch', 'JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Workshop', 'Monitor', 'Checkpoint', 'Rewind', 'ApolloReview', 'AskUserQuestion', 'Browser', 'Computer', 'ContextLeft', 'Correct', 'EnterWorktree', 'ExitWorktree', 'Inspect', 'Journey', 'Launch', 'NotebookEdit', 'ProviderSearch', 'Recall', 'RecordConvention', 'Reflect', 'Retain', 'SendMessage', 'Service', 'Sleep', 'Structure', 'TaskStop', 'Transaction', 'WebFetch', 'WebSearch', 'Workflow']
+  const NAMES = ['Agent', 'Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Skill', 'Eval', 'AstSearch', 'ChangeSet', 'LspRead', 'LspRename', 'LspMoveSymbol', 'LspMoveFile', 'LspCodeAction', 'LspFormat', 'LspRequest', 'ToolSearch', 'JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Workshop', 'Monitor', 'Checkpoint', 'Rewind', 'ApolloReview', 'AskUserQuestion', 'Browser', 'Computer', 'ContextLeft', 'Correct', 'EnterWorktree', 'ExitWorktree', 'Inspect', 'Journey', 'Launch', 'NotebookEdit', 'ProviderSearch', 'Recall', 'RecordConvention', 'Reflect', 'Retain', 'SendMessage', 'Service', 'Sleep', 'Structure', 'TaskStop', 'Transaction', 'WebFetch', 'WebSearch', 'Workflow']
   const permissionContext = getEmptyToolPermissionContext()
   const pool: Tool[] = [...assembleToolPool(permissionContext, [])]
   const catalogue = getAllBaseTools()
@@ -170,17 +176,17 @@ section('§2 over the bench roster the body is the specification\'s text byte fo
     if (tool !== undefined) pool.push(tool)
   }
   const roster: Tool[] = NAMES.flatMap(name => pool.filter(tool => tool.name === name))
-  check('the 48 built-ins of the bench roster are present', roster.length === NAMES.length, NAMES.filter(name => !roster.some(tool => tool.name === name)).join(', '))
+  check('the 54 built-ins of the split bench roster are present', roster.length === NAMES.length, NAMES.filter(name => !roster.some(tool => tool.name === name)).join(', '))
   for (const name of ['lease_list', 'lease_release', 'lease_take', 'render_tui']) roster.push(fixtureTool(name, { mcp: 'mercury' }))
   const row = getDeferredToolsDeltaAttachment(roster, MODEL, [first])[0] as { addedNames: string[]; body: string } | undefined
-  check('39 tools are announced', row !== undefined && row.addedNames.length === 39, String(row?.addedNames.length))
-  check('the body equals the announcement byte for byte (3,294 bytes; 3,331 wrapped)', row !== undefined && row.body === SPEC_BODY && Buffer.byteLength(row.body, 'utf8') === 3294 && Buffer.byteLength(rendered(row as never), 'utf8') === 3331, row === undefined ? 'no row' : `${Buffer.byteLength(row.body, 'utf8')} bytes; first differing line: ${row.body.split('\n').find((line, i) => line !== SPEC_BODY.split('\n')[i]) ?? 'none'}`)
+  check('45 tools are announced', row !== undefined && row.addedNames.length === 45, String(row?.addedNames.length))
+  check('the body equals the split announcement byte for byte (3,869 bytes; 3,906 wrapped)', row !== undefined && row.body === SPEC_BODY && Buffer.byteLength(row.body, 'utf8') === 3869 && Buffer.byteLength(rendered(row as never), 'utf8') === 3906, row === undefined ? 'no row' : `${Buffer.byteLength(row.body, 'utf8')} bytes; first differing line: ${row.body.split('\n').find((line, i) => line !== SPEC_BODY.split('\n')[i]) ?? 'none'}`)
   if (row !== undefined) {
     for (const name of ['JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Workshop', 'Monitor', 'Checkpoint', 'Rewind']) {
       check(`${name} has its line`, row.body.split('\n').some(line => line.startsWith(`${name} — `)))
     }
     check('the four MCP tools are their names alone', ['mcp__mercury__lease_list', 'mcp__mercury__lease_release', 'mcp__mercury__lease_take', 'mcp__mercury__render_tui'].every(name => row.body.split('\n').includes(name)))
-    check('no loaded tool has a line', ['Agent', 'Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Skill', 'Eval', 'AstSearch', 'ChangeSet', 'LSP', 'ToolSearch'].every(name => !row.addedNames.includes(name)))
+    check('no loaded tool has a line', ['Agent', 'Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Skill', 'Eval', 'AstSearch', 'ChangeSet', 'LspRead', 'ToolSearch'].every(name => !row.addedNames.includes(name)))
   }
 }
 

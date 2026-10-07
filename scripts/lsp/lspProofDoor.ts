@@ -71,22 +71,26 @@ export function fixtureServer(name: string, script: string, env: Record<string, 
 
 export type Driven = { text: string; isError: boolean; data: Record<string, unknown> | null }
 
-export async function openToolDoor(root: string): Promise<{ drive: (input: Record<string, unknown>) => Promise<Driven>; abortAfter: (ms: number) => void; close: () => Promise<void>; manager: () => unknown; tool: { name: string; validateInput?: (input: never, context: never) => Promise<{ result: boolean; message?: string }>; inputSchema: { safeParse: (v: unknown) => { success: boolean; error?: { issues: Array<Record<string, unknown>> } } } } }> {
+export async function openToolDoor(root: string, name = 'LspRead') {
   const harness = await import(path.join(REPO, 'scripts/ast-tools/lib/harness.ts'))
   await harness.enterRoot(root)
-  const { LSPTool } = await import(path.join(REPO, 'src/tools/LSPTool/LSPTool.ts'))
+  const { LSP_TOOLS } = await import(path.join(REPO, 'src/tools/LSPTool/LSPTool.ts'))
+  const tool = LSP_TOOLS.find((tool: { name: string }) => tool.name === name)!
   const lspManager = await import(path.join(REPO, 'src/services/lsp/manager.ts'))
   lspManager.initializeLspServerManager()
   await lspManager.waitForInitialization()
-  const prover = await harness.makeContext([LSPTool], { mode: 'default' })
+  const prover = await harness.makeContext(LSP_TOOLS, { mode: 'default' })
   let armed: AbortController | null = null
   return {
-    tool: LSPTool as never,
+    tool,
+    prover,
+    tools: LSP_TOOLS,
+    driveNamed: (name: string, input: Record<string, unknown>, answer: 'allow' | 'deny' = 'allow') => harness.drive(LSP_TOOLS.find((tool: { name: string }) => tool.name === name)!, input, prover, { answer }),
     manager: () => lspManager.getLspServerManager(),
     drive: async (input: Record<string, unknown>): Promise<Driven> => {
       const ctx = prover.ctx as { abortController: AbortController }
       if (armed !== null) ctx.abortController = armed
-      const out = await harness.drive(LSPTool, input, prover)
+      const out = await harness.drive(tool, input, prover)
       if (armed !== null) {
         armed = null
         ctx.abortController = new AbortController()

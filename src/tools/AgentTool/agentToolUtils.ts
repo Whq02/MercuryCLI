@@ -1,5 +1,6 @@
 
 import { z } from 'zod'
+import { expandLspFamily, lspFamilyMatches } from '../../services/lsp/toolFamily.js'
 import {
   ALL_AGENT_DISALLOWED_TOOLS,
   ASYNC_AGENT_ALLOWED_TOOLS,
@@ -150,8 +151,11 @@ export function resolveAgentTools(
       })
 
   const deniedNames = new Set(
-    (definition.disallowedTools ?? []).map(
-      spec => permissionRuleValueFromString(spec).toolName,
+    (definition.disallowedTools ?? []).flatMap(
+      spec => {
+        const rule = permissionRuleValueFromString(spec)
+        return rule.ruleContent === undefined ? expandLspFamily(rule.toolName) : [rule.toolName]
+      },
     ),
   )
   const inheritedDenials = new Set((definition.disallowedTools ?? [])
@@ -195,9 +199,10 @@ export function resolveAgentTools(
         continue
       }
     }
+    const family = rule.ruleContent === undefined ? survivors.filter(tool => lspFamilyMatches(rule.toolName, tool.name)) : []
     const foundByName = survivors.find(tool => toolMatchesName(tool, rule.toolName))
     const matches = [
-      ...(foundByName ? [foundByName] : []),
+      ...(family.length ? family : foundByName ? [foundByName] : []),
       ...(rule.ruleContent === undefined ? survivors.filter(tool => RULE_INHERITS[tool.name]?.includes(rule.toolName)) : []),
     ]
     if (matches.length > 0) {
