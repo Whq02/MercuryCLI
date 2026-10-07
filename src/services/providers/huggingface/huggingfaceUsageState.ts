@@ -272,3 +272,7 @@ export function __resetHuggingfaceUsageStateForTest(): void {
   lastFactsFailure = null
   factsInFlight = null
 }
+
+export function clearHuggingfaceUsageLimit(): void {
+  observedLimit = null
+}

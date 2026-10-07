@@ -15,7 +15,9 @@ import {
   resolveHuggingfaceDispatchCredential,
 } from './huggingfaceAccounts.js'
 import { huggingfaceLiveSupportsTools, refreshHuggingfaceCatalogue } from './huggingfaceCatalogue.js'
-import { recordHuggingfaceBillingStatus, recordHuggingfaceRateHeaders } from './huggingfaceUsageState.js'
+import { clearHuggingfaceUsageLimit, huggingfaceLimitWindow, recordHuggingfaceBillingStatus, recordHuggingfaceRateHeaders } from './huggingfaceUsageState.js'
+
+import { refreshProviderUsage } from '../providerUsage.js'
 
 export const HUGGINGFACE_UNVERIFIED_NOTE = 'unverified against a live endpoint'
 
@@ -50,6 +52,7 @@ export const huggingfaceLaneProfile: CompatLaneProfile = {
   onResponseHeaders: (headers, status) => {
     recordHuggingfaceRateHeaders(headers, status)
     recordHuggingfaceBillingStatus(status)
+    if (status !== undefined && status >= 200 && status < 300) clearHuggingfaceUsageLimit()
     void refreshHuggingfaceCatalogue().catch(() => {})
   },
 }
@@ -61,5 +64,6 @@ export function huggingfaceLiveProofState(): { at: number; model: string } | nul
 export async function* huggingfaceCallModel(
   params: CompatCallModelParams,
 ): AsyncGenerator<StreamEvent | AssistantMessage | SystemAPIErrorMessage, void> {
+  if (huggingfaceLimitWindow().state === 'limited') await refreshProviderUsage('huggingface', { force: true, reason: 'operator' })
   yield* compatChatCallModel(huggingfaceLaneProfile, params)
 }
