@@ -1,4 +1,3 @@
-import { getPlatform } from '../platform.js'
 
 export type FlagArgType = 'none' | 'number' | 'string' | 'char' | '{}' | 'EOF'
 
@@ -324,25 +323,6 @@ export const DOCKER_READ_ONLY_COMMANDS: Record<string, ExternalCommandConfig> = 
   },
 }
 
-export const RIPGREP_READ_ONLY_COMMANDS: Record<string, ExternalCommandConfig> = {
-  rg: {
-    safeFlags: {
-      '-e': 'string', '--regexp': 'string', '-f': 'string', '-i': 'none', '--ignore-case': 'none', '-S': 'none',
-      '--smart-case': 'none', '-F': 'none', '--fixed-strings': 'none', '-w': 'none', '--word-regexp': 'none',
-      '-v': 'none', '--invert-match': 'none', '-c': 'none', '--count': 'none', '-l': 'none',
-      '--files-with-matches': 'none', '--files-without-match': 'none', '-n': 'none', '--line-number': 'none',
-      '-o': 'none', '--only-matching': 'none', '-A': 'number', '--after-context': 'number', '-B': 'number',
-      '--before-context': 'number', '-C': 'number', '--context': 'number', '-H': 'none', '-h': 'none',
-      '--heading': 'none', '--no-heading': 'none', '-q': 'none', '--quiet': 'none', '--column': 'none',
-      '-g': 'string', '--glob': 'string', '-t': 'string', '--type': 'string', '-T': 'string', '--type-not': 'string',
-      '--type-list': 'none', '--hidden': 'none', '--no-ignore': 'none', '-u': 'none', '-m': 'number',
-      '--max-count': 'number', '-d': 'number', '--max-depth': 'number', '-a': 'none', '--text': 'none',
-      '-z': 'none', '-L': 'none', '--follow': 'none', '--color': 'string', '--json': 'none', '--stats': 'none',
-      '--help': 'none', '--version': 'none', '--debug': 'none', '--': 'none',
-    },
-  },
-}
-
 export const PYRIGHT_READ_ONLY_COMMANDS: Record<string, ExternalCommandConfig> = {
   pyright: {
     safeFlags: {
@@ -470,21 +450,4 @@ export function validateFlags(
     i++
   }
   return true
-}
-
-
-export function containsVulnerableUncPath(pathOrCommand: string): boolean {
-  if (getPlatform() !== 'windows') return false
-  const s = pathOrCommand
-  const host = String.raw`[^\s/\\]+`
-
-  if (new RegExp(String.raw`\\\\${host}(?:@(?:\d+|ssl))?(?:[/\\]|\s|$)`, 'i').test(s)) return true
-  if (new RegExp(String.raw`(?<!:)//${host}(?:@(?:\d+|ssl))?(?:[/\\]|\s|$)`, 'i').test(s)) return true
-  if (new RegExp(String.raw`/\\\\+[^\s/\\]`).test(s)) return true
-  if (new RegExp(String.raw`\\\\+/[^\s/\\]`).test(s)) return true
-  if (/@SSL@\d+/i.test(s) || /@\d+@SSL/i.test(s)) return true
-  if (/DavWWWRoot/i.test(s)) return true
-  if (/^(?:\\\\|\/\/)\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}[/\\]/.test(s)) return true
-  if (/^(?:\\\\|\/\/)\[[0-9A-Fa-f:]+\][/\\]/.test(s)) return true
-  return false
 }
