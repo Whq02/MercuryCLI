@@ -996,6 +996,7 @@ export function enqueueAgentNotification(args: {
   error?: string
   setAppState: SetAppState
   finalMessage?: string
+  structuredBlock?: string
   usage?: { totalTokens: number; toolUses: number; durationMs: number }
   toolUseId?: string
   worktreePath?: string
@@ -1038,6 +1039,7 @@ export function enqueueAgentNotification(args: {
   const toolUseIdLine = args.toolUseId
     ? `\n<${TOOL_USE_ID_TAG}>${args.toolUseId}</${TOOL_USE_ID_TAG}>`
     : ''
+  const structuredSection = args.structuredBlock ? `\n${args.structuredBlock}` : ''
   const resultSection = args.finalMessage
     ? `\n<result>${boundNotificationResult(args.finalMessage)}</result>`
     : ''
@@ -1055,7 +1057,7 @@ export function enqueueAgentNotification(args: {
 <${TASK_ID_TAG}>${args.taskId}</${TASK_ID_TAG}>${toolUseIdLine}
 <${OUTPUT_FILE_TAG}>${getTaskOutputPath(args.taskId)}</${OUTPUT_FILE_TAG}>
 <${STATUS_TAG}>${args.statusWord ?? args.status}</${STATUS_TAG}>
-<${SUMMARY_TAG}>${summary}</${SUMMARY_TAG}>${resultSection}${usageSection}${worktreeSection}${envelopeSection}
+<${SUMMARY_TAG}>${summary}</${SUMMARY_TAG}>${structuredSection}${resultSection}${usageSection}${worktreeSection}${envelopeSection}
 </${TASK_NOTIFICATION_TAG}>`
 
   enqueuePendingNotification({
