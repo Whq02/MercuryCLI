@@ -40,6 +40,7 @@ export type ProcessUserInputBaseResult = {
   model?: string
   effort?: EffortValue
   resultText?: string
+  commandError?: string
   nextInput?: string
   submitNextInput?: boolean
   commandRefused?: true

@@ -3,6 +3,7 @@
 # gate-watch: src/Tool* src/bootstrap/state* src/cli/run* src/cli/structuredIO*
 # gate-watch: src/utils/hooks/sessionHooks* src/rows/turn.ts
 # gate-watch: src/utils/sdkEventQueue* src/utils/task/sdkAgentFrames* src/tools/AgentTool/foregroundExecution* src/tools/AgentTool/agentToolUtils* src/cost-tracker*
+# gate-watch: scripts/compact/overflowFixture.ts
 # gate-watch: scripts/daemon/dupline-world.ts scripts/lib/* src/cli/headless/turnDriver.ts src/cli/headless/hostAskLiveness.ts src/cli/headless/runnerAsks.ts src/cli/headless/runnerMethods.ts
 # gate-watch: src/input-core/command-queue.ts src/services/api/withRetry.ts src/services/api/emptyUsage.ts
 # gate-watch: src/services/browser/browserResolver.ts src/services/compact/foldStatus.ts

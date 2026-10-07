@@ -887,6 +887,7 @@ async function runLocalCommand(
     return {
       messages: [echoed, createCommandInputMessage(stderrWrapped(String(error)))],
       shouldQuery: false,
+      commandError: String(error),
     }
   }
 }
