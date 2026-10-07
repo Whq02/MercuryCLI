@@ -11,7 +11,6 @@ import { GLYPH, displayWidth } from '../mercury-ui/glyphs.js'
 import { stripKeyMapHint } from '../../context/surfaceRoute.js'
 import { getNewlineInstructions } from './utils.js'
 
-
 function formatShortcut(shortcut: string): string {
   return shortcut.replace(/\+/g, ' + ')
 }
