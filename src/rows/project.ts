@@ -95,6 +95,7 @@ function scoped<T extends object>(scope: RowScope, fields: T): T & RowScope {
 
 export interface SessionFacts {
   version: string
+  build?: string
   cwd: string
   model: string
   mode: string
@@ -113,6 +114,7 @@ export function sessionRow(scope: RowScope, facts: SessionFacts): Unstamped<Sess
       type: 'session' as const,
       schema: ROWS_SCHEMA as 1,
       version: facts.version,
+      ...(facts.build !== undefined ? { build: facts.build } : {}),
       cwd: facts.cwd,
       model: facts.model,
       mode: facts.mode,

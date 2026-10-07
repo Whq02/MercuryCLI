@@ -58,6 +58,7 @@ import { asSystemPrompt } from '../utils/systemPromptType.js'
 import { loadMemoryPrompt } from '../mneme/mnemeFrontPage.js'
 import { hasMnemeHomeOverride } from '../mneme/paths.js'
 import { getCwd } from '../utils/cwd.js'
+import { describeArtifactIdentity } from '../utils/artifactIdentity.js'
 import {
   commandOutputRow,
   commandOutputTextOf,
@@ -189,8 +190,10 @@ export async function sessionFactsOf(config: Pick<ConversationConfig, 'cwd' | 't
   const [skills, loaded] = await Promise.all([getSlashCommandToolSkills(config.cwd), ensureExtensionsLoaded({ cwd: config.cwd })])
   headlessProfilerCheckpoint('after_skills_extensions')
   const invocable = (entry: { userInvocable?: boolean }): boolean => entry.userInvocable !== false
+  const build = describeArtifactIdentity(MACRO.VERSION).buildTree
   return {
     version: MACRO.VERSION,
+    ...(build !== null ? { build } : {}),
     cwd: getCwd(),
     model,
     mode,

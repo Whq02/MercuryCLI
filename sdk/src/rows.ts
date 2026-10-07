@@ -63,6 +63,7 @@ export interface SessionRow {
   parent_call_id?: string
   schema: 1
   version: string
+  build?: string
   cwd: string
   model: string
   mode: string
@@ -473,6 +474,9 @@ export const ROW_SCHEMAS: Readonly<Record<RowType | PartialRowType, JsonSchema>>
         "const": 1
       },
       "version": {
+        "type": "string"
+      },
+      "build": {
         "type": "string"
       },
       "cwd": {

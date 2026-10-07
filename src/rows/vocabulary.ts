@@ -128,6 +128,7 @@ export const SessionRowSchema = lazySchema(() =>
     ...envelopeFields,
     schema: z.literal(ROWS_SCHEMA),
     version: z.string(),
+    build: z.string().optional(),
     cwd: z.string(),
     model: z.string(),
     mode: z.string(),
