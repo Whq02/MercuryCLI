@@ -21,7 +21,6 @@ map and `/keybindings` opens your keybindings file.
 - [CHANGE-TRANSACTIONS.md](CHANGE-TRANSACTIONS.md): read anchors, atomic file edits, change receipts and recovery.
 - [STRUCTURAL-PATTERNS.md](STRUCTURAL-PATTERNS.md): AstSearch and AstEdit patterns across the packaged language grammars.
 - [LANGUAGE-SERVICE.md](LANGUAGE-SERVICE.md): compiler-backed navigation, diagnostics and previewed refactors through LSP.
-- [WORKSHOP.md](WORKSHOP.md): persistent JavaScript, TypeScript and Python cells with the `mercury.*` tool bridge.
 - [EVAL.md](EVAL.md): retained Python and JavaScript runtimes, cell helpers and what survives a failed cell.
 - [SAMPLES.md](SAMPLES.md): pages drawn on request, versioned per session and opened in your browser for comments.
 - [DEBUGGER.md](DEBUGGER.md): launch, attach, breakpoints and test debugging through Debug Adapter Protocol adapters.

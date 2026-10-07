@@ -245,7 +245,7 @@ value is a command, a pattern, a symbol or a path (the shell command; Grep's
 pattern, path and glob; every tool's file path; the language-server tool's
 symbol names and file fields; the debugger's expressions) reads as its
 straight twin, since none of those ever wants one; a field that carries
-content or prose — a Write's content, an Edit's new text, a Workshop cell —
+content or prose — a Write's content, an Edit's new text, an Eval cell —
 stays exactly as typed, and every other wire carries every byte as typed.
 
 A dispatched crewmate whose turn ends on the provider's overload — the busy
