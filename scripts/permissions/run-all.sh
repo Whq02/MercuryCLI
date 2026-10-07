@@ -3,7 +3,7 @@
 # gate-watch: src/Tool* src/hooks/toolPermission/handlers/interactiveHandler*
 # gate-watch: src/tools/SkillTool/SkillTool*
 # gate-watch: src/utils/betas* src/utils/hooks/** src/utils/messages/streaming*
-# gate-watch: src/utils/permissions/flowBlockReview* src/utils/permissions/decision/wrapper*
+# gate-watch: src/utils/permissions/decision/wrapper*
 # gate-watch: src/utils/messages/rejectionText* src/components/permissions/PermissionRuleExplanation* src/constants/prompts*
 # gate-watch: src/tools/BashTool/pathValidation* src/tools/BashTool/readOnlyValidation*
 # gate-watch: scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/lib/seedTranscript.ts scripts/lib/runnerHost.ts
@@ -46,7 +46,7 @@ here="$(cd "$(dirname "$0")" && pwd)"
 bun="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
 echo "############################################################"
-echo "# Permission ladder / auto-mode — proof suite"
+echo "# Permission ladder / flow — proof suite"
 echo "############################################################"
 for f in "$here"/prove-*.ts; do
   [ -e "$f" ] || continue

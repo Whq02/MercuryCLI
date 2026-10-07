@@ -541,7 +541,7 @@ const PTY_LEGS: Record<string, PtyLeg> = {
     background: false,
     settings: {},
     argv: ['--mode', 'flow'],
-    sends: [],
+    sends: [cardSend('card')],
     total: 450,
   },
   'flow-bg': {
@@ -599,14 +599,11 @@ async function runPtyLeg(leg: PtyLeg): Promise<void> {
   checkWire(leg.name, fixture, world)
   check(`${leg.name}: the parent's final text painted with the probe commit's sha`, cap.text.includes(`agent-bash: reported sha=${headSha(world.cwd)}`))
   const classifierHits = fixture.hits.filter(h => h.route === 'classifier')
-  if (leg.name === 'flow-fg') {
-    check('flow-fg: the classifier was reached exactly once — for the writing command, never the read-only one', classifierHits.length === 1 && JSON.stringify(classifierHits[0]?.body).includes(PROBE_COMMIT), `${classifierHits.length} classifier call(s)`)
-    check('flow-fg: no consent card (the classifier answered)', !cap.text.includes(CARD_WORDS) && !Object.values(cap.marks).some(f => f.includes(CARD_WORDS)))
-  } else if (leg.name === 'flow-bg') {
-    check("flow-bg: the classifier was reached exactly once — for the background agent's writing command, never the read-only one", classifierHits.length === 1 && JSON.stringify(classifierHits[0]?.body).includes(PROBE_COMMIT), `${classifierHits.length} classifier call(s)`)
+  if (leg.name === 'flow-fg' || leg.name === 'flow-bg') {
+    check(`${leg.name}: no request left the session for the decision (every hit is a streaming turn of the session or its seat)`, classifierHits.length === 0 && fixture.hits.every(h => h.streaming), `${classifierHits.length} verdict call(s)`)
     const card = cap.marks['card'] ?? ''
-    check("flow-bg: the block PARKED as the operator's ask — the consent card painted in the focused chat for the agent's writing command", card.includes(CARD_WORDS) && card.includes('git commit --allow-empty'))
-    check("flow-bg: the card explains the block (the safety check said no; the decision is the operator's) and quotes the check's reason", card.includes(CARD_BLOCK_WORDS) && card.includes(BLOCK_REASON))
+    check(`${leg.name}: the leftover is the operator's — the consent card painted in the focused chat for the agent's writing command`, card.includes(CARD_WORDS) && card.includes('git commit --allow-empty'))
+    check(`${leg.name}: the card is the plain ask's — no verdict line, none of a verdict's words`, !card.includes(CARD_BLOCK_WORDS) && !card.includes(BLOCK_REASON))
   } else {
     check(`${leg.name}: the classifier was never called (not a flow session)`, classifierHits.length === 0, `${classifierHits.length} classifier call(s)`)
     const card = cap.marks['card'] ?? ''

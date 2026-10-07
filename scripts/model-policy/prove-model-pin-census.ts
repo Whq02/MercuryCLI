@@ -43,7 +43,6 @@ const ALLOW: ReadonlyArray<{ path: string; reason: string }> = [
 ]
 
 const DEBT: ReadonlyArray<{ path: string; carries: string; owner: string }> = [
-  { path: 'utils/permissions/flowClassifier.ts', carries: 'CLASSIFIER_FALLBACK_MODELS (sonnet-5/opus-5)', owner: 'permissions estate — the classifier fallback chain' },
 ]
 
 const allowFor = (rel: string): { path: string; reason: string } | undefined =>

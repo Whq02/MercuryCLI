@@ -162,18 +162,12 @@ interface Cell {
   behavior: string
   wrapper: string
   engine: string
-  classifier: number
   reason: string
 }
 
-async function decide(subject: Subject, mode: Mode, rules: Rules, command: string, classifierBlocks: boolean): Promise<Cell> {
-  let classifier = 0
+async function decide(subject: Subject, mode: Mode, rules: Rules, command: string): Promise<Cell> {
   const ports: Ports = {
     ...defaultWrapperPorts,
-    classify: async () => {
-      classifier++
-      return { shouldBlock: classifierBlocks, reason: classifierBlocks ? 'the fixture classifier blocked it' : 'the fixture classifier allowed it', model: 'fixture' } as never
-    },
     runHeadlessHooks: async () => null,
   }
   const context = contextFor(subject, mode, rules) as never
@@ -183,19 +177,17 @@ async function decide(subject: Subject, mode: Mode, rules: Rules, command: strin
     behavior: outcome.decision.behavior,
     wrapper: outcome.wrapper.decidedBy,
     engine: outcome.engineTrace.decidedBy,
-    classifier,
     reason: reason ? `${reason.type ?? ''}${reason.reason ? `:${reason.reason}` : ''}` : '',
   }
 }
 
-const same = (a: Cell, b: Cell): boolean => a.behavior === b.behavior && a.wrapper === b.wrapper && a.engine === b.engine && a.classifier === b.classifier
+const same = (a: Cell, b: Cell): boolean => a.behavior === b.behavior && a.wrapper === b.wrapper && a.engine === b.engine
 
 interface Row {
   label: string
   mode: Mode
   rules: Rules
   command: string
-  classifierBlocks?: boolean
   main: Partial<Cell>
   headless?: Partial<Cell>
   print?: Partial<Cell>
@@ -203,70 +195,58 @@ interface Row {
 }
 
 const ROWS: Row[] = [
-  { label: 'default · no rule · read-only command → the read-only lane allows in the engine', mode: 'default', rules: 'none', command: READ_ONLY, main: { behavior: 'allow', wrapper: 'engine', engine: 'resolution', classifier: 0 } },
-  { label: 'flow · no rule · read-only command → the engine allows; the classifier is never reached', mode: 'flow', rules: 'none', command: READ_ONLY, main: { behavior: 'allow', wrapper: 'engine', engine: 'resolution', classifier: 0 } },
-  { label: 'default · allow rule · writing command → the rule allows in the engine', mode: 'default', rules: 'allow', command: WRITING, main: { behavior: 'allow', wrapper: 'engine', engine: 'resolution', classifier: 0 } },
-  { label: 'flow · allow rule · writing command → the rule allows; no classifier call', mode: 'flow', rules: 'allow', command: WRITING, main: { behavior: 'allow', wrapper: 'engine', engine: 'resolution', classifier: 0 } },
-  { label: 'default · deny rule · writing command → the rule denies in the engine', mode: 'default', rules: 'deny', command: WRITING, main: { behavior: 'deny', wrapper: 'engine', engine: 'toolVerdictDeny', classifier: 0 } },
-  { label: 'flow · deny rule · writing command → the rule denies; no classifier call', mode: 'flow', rules: 'deny', command: WRITING, main: { behavior: 'deny', wrapper: 'engine', engine: 'toolVerdictDeny', classifier: 0 } },
-  { label: 'sovereign · deny rule → bypass-immune deny', mode: 'sovereign', rules: 'deny', command: WRITING, main: { behavior: 'deny', engine: 'toolVerdictDeny', classifier: 0 } },
+  { label: 'default · no rule · read-only command → the read-only lane allows in the engine', mode: 'default', rules: 'none', command: READ_ONLY, main: { behavior: 'allow', wrapper: 'engine', engine: 'resolution' } },
+  { label: 'flow · no rule · read-only command → the engine allows', mode: 'flow', rules: 'none', command: READ_ONLY, main: { behavior: 'allow', wrapper: 'engine', engine: 'resolution' } },
+  { label: 'default · allow rule · writing command → the rule allows in the engine', mode: 'default', rules: 'allow', command: WRITING, main: { behavior: 'allow', wrapper: 'engine', engine: 'resolution' } },
+  { label: 'flow · allow rule · writing command → the rule allows', mode: 'flow', rules: 'allow', command: WRITING, main: { behavior: 'allow', wrapper: 'engine', engine: 'resolution' } },
+  { label: 'default · deny rule · writing command → the rule denies in the engine', mode: 'default', rules: 'deny', command: WRITING, main: { behavior: 'deny', wrapper: 'engine', engine: 'toolVerdictDeny' } },
+  { label: 'flow · deny rule · writing command → the rule denies', mode: 'flow', rules: 'deny', command: WRITING, main: { behavior: 'deny', wrapper: 'engine', engine: 'toolVerdictDeny' } },
+  { label: 'sovereign · deny rule → bypass-immune deny', mode: 'sovereign', rules: 'deny', command: WRITING, main: { behavior: 'deny', engine: 'toolVerdictDeny' } },
   {
     label: 'default · no rule · writing command → an ASK for the operator; a prompt-less parent denies; a run hands the ask to its executor',
     mode: 'default',
     rules: 'none',
     command: WRITING,
-    main: { behavior: 'ask', wrapper: 'engine', engine: 'resolution', classifier: 0 },
-    headless: { behavior: 'deny', wrapper: 'headlessAutoDeny', classifier: 0 },
-    print: { behavior: 'ask', wrapper: 'engine', classifier: 0 },
-    seat: { behavior: 'ask', wrapper: 'engine', classifier: 0 },
+    main: { behavior: 'ask', wrapper: 'engine', engine: 'resolution' },
+    headless: { behavior: 'deny', wrapper: 'headlessAutoDeny' },
+    print: { behavior: 'ask', wrapper: 'engine' },
+    seat: { behavior: 'ask', wrapper: 'engine' },
   },
   {
-    label: 'flow · no rule · writing command · classifier allows → ONE classifier call, then allow — every subject',
+    label: 'flow · no rule · writing command → the leftover is the operator\'s: the engine\'s ask passes through where a card or a host exists; a prompt-less parent denies exactly as in default; a run hands the ask to its executor',
     mode: 'flow',
     rules: 'none',
     command: WRITING,
-    main: { behavior: 'allow', wrapper: 'classifier', classifier: 1 },
-    headless: { behavior: 'allow', wrapper: 'classifier', classifier: 1 },
-    print: { behavior: 'allow', wrapper: 'classifier', classifier: 1 },
-    seat: { behavior: 'allow', wrapper: 'classifier', classifier: 1 },
+    main: { behavior: 'ask', wrapper: 'engine', engine: 'resolution' },
+    headless: { behavior: 'deny', wrapper: 'headlessAutoDeny' },
+    print: { behavior: 'ask', wrapper: 'engine' },
+    seat: { behavior: 'ask', wrapper: 'engine' },
   },
-  {
-    label: 'flow · no rule · writing command · classifier BLOCKS → the operator\'s card where a card exists; a machine deny where no operator can be reached; a daemon seat parks it as the operator\'s ask',
-    mode: 'flow',
-    rules: 'none',
-    command: WRITING,
-    classifierBlocks: true,
-    main: { behavior: 'ask', wrapper: 'classifier', classifier: 1 },
-    headless: { behavior: 'deny', wrapper: 'classifier', classifier: 1 },
-    print: { behavior: 'deny', wrapper: 'classifier', classifier: 1 },
-    seat: { behavior: 'ask', wrapper: 'classifier', classifier: 1 },
-  },
-  { label: 'sovereign · no rule · writing command → the bypass posture allows in the engine', mode: 'sovereign', rules: 'none', command: WRITING, main: { behavior: 'allow', wrapper: 'engine', engine: 'bypassPosture', classifier: 0 } },
-  { label: 'dontAsk · no rule · writing command → the ask converts to a deny, no classifier', mode: 'dontAsk', rules: 'none', command: WRITING, main: { behavior: 'deny', wrapper: 'dontAskConversion', classifier: 0 } },
-  { label: 'dontAsk · allow rule · writing command → the rule still allows', mode: 'dontAsk', rules: 'allow', command: WRITING, main: { behavior: 'allow', wrapper: 'engine', classifier: 0 } },
+  { label: 'sovereign · no rule · writing command → the bypass posture allows in the engine', mode: 'sovereign', rules: 'none', command: WRITING, main: { behavior: 'allow', wrapper: 'engine', engine: 'bypassPosture' } },
+  { label: 'dontAsk · no rule · writing command → the ask converts to a deny', mode: 'dontAsk', rules: 'none', command: WRITING, main: { behavior: 'deny', wrapper: 'dontAskConversion' } },
+  { label: 'dontAsk · allow rule · writing command → the rule still allows', mode: 'dontAsk', rules: 'allow', command: WRITING, main: { behavior: 'allow', wrapper: 'engine' } },
   {
     label: 'default · ask rule · simple command → the content ask road asks the operator; a prompt-less parent denies',
     mode: 'default',
     rules: 'ask',
     command: ASKING,
-    main: { behavior: 'ask', wrapper: 'engine', engine: 'contentAskRule', classifier: 0 },
-    headless: { behavior: 'deny', wrapper: 'headlessAutoDeny', classifier: 0 },
+    main: { behavior: 'ask', wrapper: 'engine', engine: 'contentAskRule' },
+    headless: { behavior: 'deny', wrapper: 'headlessAutoDeny' },
   },
-  { label: 'sovereign · ask rule · simple command → the ask road stands down; the engine allows at the road', mode: 'sovereign', rules: 'ask', command: ASKING, main: { behavior: 'allow', wrapper: 'engine', engine: 'contentAskRule', classifier: 0 } },
-  { label: 'default · whole-tool ask rule → the 1b road asks, the rule its reason', mode: 'default', rules: 'ask-tool', command: READ_ONLY, main: { behavior: 'ask', engine: 'toolAskRule', classifier: 0 } },
-  { label: 'sovereign · whole-tool ask rule → the 1b road stands down; the engine allows at the road', mode: 'sovereign', rules: 'ask-tool', command: READ_ONLY, main: { behavior: 'allow', wrapper: 'engine', engine: 'toolAskRuleCarried', classifier: 0 } },
-  { label: 'flow · ask rule · simple command → the floor keeps the human ask; no classifier', mode: 'flow', rules: 'ask', command: ASKING, main: { behavior: 'ask', engine: 'contentAskRule', classifier: 0 } },
+  { label: 'sovereign · ask rule · simple command → the ask road stands down; the engine allows at the road', mode: 'sovereign', rules: 'ask', command: ASKING, main: { behavior: 'allow', wrapper: 'engine', engine: 'contentAskRule' } },
+  { label: 'default · whole-tool ask rule → the 1b road asks, the rule its reason', mode: 'default', rules: 'ask-tool', command: READ_ONLY, main: { behavior: 'ask', engine: 'toolAskRule' } },
+  { label: 'sovereign · whole-tool ask rule → the 1b road stands down; the engine allows at the road', mode: 'sovereign', rules: 'ask-tool', command: READ_ONLY, main: { behavior: 'allow', wrapper: 'engine', engine: 'toolAskRuleCarried' } },
+  { label: 'flow · ask rule · simple command → the floor keeps the human ask', mode: 'flow', rules: 'ask', command: ASKING, main: { behavior: 'ask', engine: 'contentAskRule' } },
 ]
 
 const matches = (cell: Cell, want: Partial<Cell>): boolean =>
   (want.behavior === undefined || cell.behavior === want.behavior) &&
   (want.wrapper === undefined || cell.wrapper === want.wrapper) &&
-  (want.engine === undefined || cell.engine === want.engine) &&
-  (want.classifier === undefined || cell.classifier === want.classifier)
+  (want.engine === undefined || cell.engine === want.engine)
 
 for (const row of ROWS) {
   const cells = {} as Record<Subject, Cell>
-  for (const subject of SUBJECTS) cells[subject] = await decide(subject, row.mode, row.rules, row.command, row.classifierBlocks === true)
+  for (const subject of SUBJECTS) cells[subject] = await decide(subject, row.mode, row.rules, row.command)
   check(`${row.label} — main`, matches(cells.main, row.main), j(cells.main))
   if (row.headless) check(`${row.label} — a prompt-less parent`, matches(cells['main-headless'], row.headless), j(cells['main-headless']))
   if (row.print) check(`${row.label} — a run`, matches(cells['main-print'], row.print), j(cells['main-print']))
