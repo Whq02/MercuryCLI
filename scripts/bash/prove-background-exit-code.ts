@@ -37,7 +37,7 @@ const DESCRIPTION = 'benign grep with no match'
 const FOLLOW_UP = 'what happened to the background command?'
 const script: Script = req => {
   if (req.allTexts.some(t => t.includes('Background command'))) return [{ type: 'text', text: 'notice read' }]
-  if (req.step === 0) return [{ type: 'tool_use', name: 'Bash', input: { command: 'grep -c zzz haystack.txt', description: DESCRIPTION, run_in_background: true } }]
+  if (req.step === 0) return [{ type: 'tool_use', name: 'Bash', input: { command: 'grep -c zzz haystack.txt && echo "matched"', description: DESCRIPTION, run_in_background: true } }]
   return [{ type: 'text', text: 'launched' }]
 }
 const fixture = await startScriptedFixture(script)
@@ -58,7 +58,7 @@ const notices = fixture.requests.flatMap(r => r.allTexts.filter(t => t.includes(
 const summaries = notices.map(n => /<summary>([^<]*)<\/summary>/.exec(n)?.[1] ?? n.split('\n')[0] ?? '')
 console.log(`  notices seen by the model: ${JSON.stringify(summaries)}`)
 tally.check('the model was told about the finished command', notices.length > 0)
-tally.check('the notice carries the actual command line and its output file', notices.some(n => n.includes('<command>grep -c zzz haystack.txt</command>') && n.includes('<output-file>')))
+tally.check('the notice carries the command line as written (no entity escaping) and its output file', notices.some(n => n.includes('<command>grep -c zzz haystack.txt && echo "matched"</command>') && n.includes('<output-file>')), JSON.stringify(notices.map(n => /<command>[^\n]*<\/command>/.exec(n)?.[0] ?? '')))
 const { wrapCommandText } = await import('../../src/utils/messages/text.ts')
 tally.check('a shell notification is introduced as a command, not an agent', notices.some(n => wrapCommandText(n, { kind: 'task-notification' }).startsWith('A background command finished')))
 tally.check('the notice names the exit code', summaries.some(s => s.includes('exit code 1')), summaries[0] ?? 'no notice')
