@@ -261,7 +261,8 @@ export function paintCritterArt({
       const topInk = inked(r, c)
       const botInk = inked(r + 1, c)
       const below = inked(r + 2, c)
-      shapeMask += topInk && botInk ? (below ? 'p' : 'e') : topInk ? (below && r > 0 && inked(r - 1, c) ? 'a' : 't') : '-'
+      const underEye = square && 'EKP'.includes(cellAt(def.squareDock, r - 1, c))
+      shapeMask += topInk && underEye ? 'u' : topInk && botInk ? (below ? 'p' : 'e') : topInk ? (below && r > 0 && inked(r - 1, c) ? 'a' : 't') : '-'
     }
     const lineKey = `${r}|${shapeMask}|${topRow}|${botRow}|${bg}${lineExtras(topRow, botRow, pupil, sleepSlots)}`
     const hit = cache.lines.get(lineKey)
@@ -301,15 +302,15 @@ export function paintCritterArt({
               ▀
             </Text>
           ) : (
-            <Text key={c} color={bc} backgroundColor={tc}>
+            <Text key={c} color={bc} backgroundColor={tc} underline={shapeMask[c] === 'u'}>
               ▄
             </Text>
           ),
         )
       } else if (tc) {
         cells.push(
-          ground !== '' && shapeMask[c] === 'a' ? (
-            <Text key={c} color={ground} backgroundColor={tc}>
+          ground !== '' && (shapeMask[c] === 'a' || shapeMask[c] === 'u') ? (
+            <Text key={c} color={ground} backgroundColor={tc} underline={shapeMask[c] === 'u'}>
               ▄
             </Text>
           ) : ground !== '' ? (
