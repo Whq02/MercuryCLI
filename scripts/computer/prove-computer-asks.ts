@@ -404,7 +404,7 @@ section("§12 permissive: the application in front at the turn's first call is t
   const elsewhere = await permission({ action: 'click', x: 100, y: 100 }, context)
   check('in the same turn an act in Finder asks for Finder by name', elsewhere.behavior === 'ask' && (elsewhere.message ?? '').includes('Finder (com.example.Finder)'), JSON.stringify(elsewhere))
   check('the home stays TextEdit for this turn', session.turnHomeApp(owner, turnOne)?.identity === TEXTEDIT.identity)
-  const turnTwo = { ...context, queryTracking: { chainId: 'turn-two', depth: 0 } } as ToolUseContext
+  const turnTwo = { ...context, callChain: { key: 'turn-two', hop: 0 } } as ToolUseContext
   check('a new query chain is a new turn key', session.turnKeyOf(turnTwo) === 'chain:turn-two')
   const shot = await withScreenshot(ComputerTool as never, turnTwo, 'toolu_permissive_turn_two_shot')
   check('the new turn\'s opening screenshot succeeds and records Finder as its home', shot.outcome === 'succeeded' && session.turnHomeApp(owner, 'chain:turn-two')?.identity === FINDER.identity, JSON.stringify(session.turnHomeApp(owner, 'chain:turn-two')))

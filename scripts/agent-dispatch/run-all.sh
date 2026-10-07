@@ -7,7 +7,7 @@
 # gate-watch: src/services/providers/**
 # gate-watch: src/query/deps* src/utils/crew/engineDispatch* src/tools/AgentTool/AgentTool*
 # gate-watch: src/Tool.ts src/bootstrap/state.ts src/cost-tracker.ts src/services/api/errors.ts
-# gate-watch: src/services/api/recoveryBudget.ts src/tasks/LocalAgentTask/*
+# gate-watch: src/services/api/recoveryBudget.ts src/tasks/LocalAgentTask/* scripts/lib/hermetic.ts
 # gate-watch: src/tools/AgentTool/agentToolUtils.ts src/tools/AgentTool/builtInAgents.ts src/utils/*
 # gate-watch: src/utils/config/globalConfig.ts src/utils/messages/factories.ts src/utils/task/framework.ts
 # gate-watch: src/tools/AgentTool/runAgent.ts src/tools/WorkflowTool/agentHooks.ts src/tools/WorkflowTool/workflowPrompt.ts src/tools.ts

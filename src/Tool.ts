@@ -60,24 +60,42 @@ export type ValidationResult =
   | { result: true; message?: string; meta?: AnyObject }
   | { result: false; message: string; errorCode?: number; meta?: AnyObject }
 
-export type QueryChainTracking = {
-  chainId: string
-  depth: number
+export type ToolCallChain = {
+  key: string
+  hop: number
 }
 
-export type SetToolJSXFn = (
-  jsx: {
-    jsx: React.ReactNode | null
-    shouldHidePromptInput: boolean
-    shouldContinueAnimation?: true
-    showSpinner?: boolean
-    isLocalJSXCommand?: boolean
-    clearLocalJSX?: boolean
-    clearUnlessLocalJSX?: boolean
-    deferIfLocalJSX?: boolean
-    isImmediate?: boolean
-  } | null,
-) => void
+type ToolCallChainCarrier = { callChain?: ToolCallChain }
+
+export function readToolCallChain(context: ToolCallChainCarrier | undefined): ToolCallChain | undefined {
+  return context?.callChain
+}
+
+export function advanceToolCallChain(
+  context: ToolCallChainCarrier | undefined,
+  mintKey: () => string,
+  mode: 'continue' | 'fork' = 'continue',
+): ToolCallChain {
+  const parent = readToolCallChain(context)
+  return {
+    key: mode === 'fork' || !parent ? mintKey() : parent.key,
+    hop: (parent?.hop ?? -1) + 1,
+  }
+}
+
+export type ToolTerminalFrame = {
+  jsx: React.ReactNode | null
+  shouldHidePromptInput: boolean
+  shouldContinueAnimation?: true
+  showSpinner?: boolean
+  isLocalJSXCommand?: boolean
+  clearLocalJSX?: boolean
+  clearUnlessLocalJSX?: boolean
+  deferIfLocalJSX?: boolean
+  isImmediate?: boolean
+}
+
+export type SetToolJSXFn = (frame: ToolTerminalFrame | null) => void
 
 type ReadonlyRulesBySource = {
   readonly [K in PermissionRuleSource]?: readonly string[]
@@ -191,39 +209,32 @@ export type AgentDefinitionsState = {
   [key: string]: any
 }
 
-export type ToolUseContext = {
-  options: {
-    commands: Command[]
-    debug?: boolean
-    verbose: boolean
-    engineModel: string
-    maxThinkingTokens?: number
-    thinkingConfig?: any
-    tools: Tools
-    refreshTools?: () => Tools
-    mcpClients: MCPServerConnection[]
-    mcpResources?: Record<string, any[]>
-    isNonInteractiveSession: boolean
-    hostHoldsAsks?: boolean
-    agentDefinitions: AgentDefinitionsState
-    budget?: any
-    customSystemPrompt?: string
-    appendSystemPrompt?: string
-    querySource?: QuerySource
-    [key: string]: any
-  }
-  abortController: AbortController
-  readFileState: FileStateCache
-  getAppState: () => AppState
-  setAppState: SetToolAppState
-  setAppStateForTasks?: SetToolAppState
-  messages: Message[]
+export type ToolSessionOptions = {
+  commands: Command[]
+  debug?: boolean
+  verbose: boolean
+  engineModel: string
+  maxThinkingTokens?: number
+  thinkingConfig?: any
+  tools: Tools
+  refreshTools?: () => Tools
+  mcpClients: MCPServerConnection[]
+  mcpResources?: Record<string, any[]>
+  isNonInteractiveSession: boolean
+  hostHoldsAsks?: boolean
+  agentDefinitions: AgentDefinitionsState
+  budget?: any
+  customSystemPrompt?: string
+  appendSystemPrompt?: string
+  querySource?: QuerySource
+  [key: string]: any
+}
+
+export type ToolTerminalOptions = {
   setProgressMessage?: (message: string | null) => void
   setResponseLength: (updater: (prev: number) => number) => void
   setStreamMode?: (mode: any) => void
   setInProgressToolUseIDs?: (updater: (prev: Set<string>) => Set<string>) => void
-  updateFileHistoryState: (updater: (prev: FileHistoryState) => FileHistoryState) => void
-  updateAttributionState: (updater: (prev: any) => any) => void
   addNotification?: (...args: any[]) => void
   appendSystemMessage?: (
     message: Exclude<SystemMessage, { subtype: 'local_command' }>,
@@ -237,18 +248,35 @@ export type ToolUseContext = {
     params: any,
     elicitSignal?: AbortSignal,
   ) => Promise<any>
+  onSeatWait?: (words: string | null) => void
+  setToolJSX?: SetToolJSXFn
+  setIsInterruptibleToolRunning?: (running: boolean) => void
+  onCompactProgress?: (event: CompactProgressEvent) => void
+  setSDKStatus?: (status: any) => void
+  openMessageSelector?: () => void
+  setConversationId?: (id: any) => void
+}
+
+export type ToolUseContext = ToolTerminalOptions & ToolCallChainCarrier & {
+  options: ToolSessionOptions
+  abortController: AbortController
+  readFileState: FileStateCache
+  getAppState: () => AppState
+  setAppState: SetToolAppState
+  setAppStateForTasks?: SetToolAppState
+  messages: Message[]
+  updateFileHistoryState: (updater: (prev: FileHistoryState) => FileHistoryState) => void
+  updateAttributionState: (updater: (prev: any) => any) => void
   agentId?: AgentId
   agentType?: string
   agentKind?: 'crewmate' | 'workflow'
   seatHolder?: string
-  onSeatWait?: (words: string | null) => void
   pauseGate?: PauseGate
   roundHandle?: string
   owner?: OwnerKey
   rosterOwner?: OwnerKey
   toolDecisions?: Map<string, PermissionDecision>
   fileReadingLimits?: any
-  queryTracking?: QueryChainTracking
   nestedMemoryAttachmentTriggers?: Set<string>
   loadedNestedMemoryPaths?: Set<string>
   dynamicSkillDirTriggers?: Set<string>
@@ -259,12 +287,6 @@ export type ToolUseContext = {
   contentReplacementState?: ContentReplacementState
   renderedSystemPrompt?: SystemPrompt
   globLimits?: { maxResults?: number }
-  setToolJSX?: SetToolJSXFn
-  setIsInterruptibleToolRunning?: (running: boolean) => void
-  onCompactProgress?: (event: CompactProgressEvent) => void
-  setSDKStatus?: (status: any) => void
-  openMessageSelector?: () => void
-  setConversationId?: (id: any) => void
   toolUseId?: string
   userModifiedInput?: boolean
   standingRule?: string
