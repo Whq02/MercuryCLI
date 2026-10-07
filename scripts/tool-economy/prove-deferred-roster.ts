@@ -38,11 +38,11 @@ const { createUserMessage } = await import('../../src/utils/messages.ts')
 type Tool = import('../../src/Tool.ts').Tool
 type Message = import('../../src/types/message.ts').Message
 
-const NINE = ['JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Workshop', 'Monitor', 'Checkpoint', 'Rewind']
+const EIGHT = ['JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Monitor', 'Checkpoint', 'Rewind']
 const LOADED = ['Agent', 'Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Skill', 'Eval', 'AstSearch', 'ChangeSet', 'LSP', 'ToolSearch']
 const BENCH_ROSTER = [
   ...LOADED,
-  ...NINE,
+  ...EIGHT,
   'ApolloReview', 'AskUserQuestion', 'Browser', 'Computer', 'ContextLeft', 'Correct', 'EnterWorktree', 'ExitWorktree', 'Inspect', 'Journey', 'Launch', 'NotebookEdit', 'ProviderSearch', 'Recall', 'RecordConvention', 'Reflect', 'Retain', 'SendMessage', 'Service', 'Sleep', 'Structure', 'TaskStop', 'Transaction', 'WebFetch', 'WebSearch', 'Workflow',
 ]
 const MODELS = ['claude-sonnet-5-5', 'claude-opus-5-5']
@@ -61,37 +61,37 @@ check('every tool of the bench roster is in the pool', missing.length === 0, mis
 const roster: Tool[] = BENCH_ROSTER.flatMap(name => pool.filter(tool => tool.name === name))
 const first = createUserMessage({ content: 'Reply with exactly: ok' }) as Message
 
-section('§1 the plan on the block form, first party — the nine are deferred and exactly thirteen load in full')
+section('§1 the plan on the block form, first party — the eight are deferred and exactly thirteen load in full')
 for (const model of MODELS) {
   clearToolRosterLatches()
   const wire = deferralWireFormFor(model)
   check(`${model} rides the block form, first party`, wire.form === 'block' && wire.why === 'first-party-contract', `${wire.form}/${wire.why}`)
   const plan = await planToolPayload({ model, tools: roster, messages: [first], getToolPermissionContext: async () => permissionContext, agents: [], source: 'deferred-roster' })
   check(`${model}: deferral is on`, plan.enabled === true)
-  const notDeferred = NINE.filter(name => !plan.deferredNames.has(name))
-  check(`${model}: deferredNames holds all nine (JevEval, Debug, Git, AstEdit, Test, Workshop, Monitor, Checkpoint, Rewind)`, notDeferred.length === 0, `still loaded: ${notDeferred.join(', ')}`)
+  const notDeferred = EIGHT.filter(name => !plan.deferredNames.has(name))
+  check(`${model}: deferredNames holds all eight (JevEval, Debug, Git, AstEdit, Test, Monitor, Checkpoint, Rewind)`, notDeferred.length === 0, `still loaded: ${notDeferred.join(', ')}`)
   const loaded = plan.roster.map(tool => tool.name).filter(name => !plan.deferredNames.has(name)).sort()
   const expected = [...LOADED].sort()
   check(`${model}: the roster names not in deferredNames are exactly the thirteen (LSP where the specification says LspRead until the split lands)`, loaded.join(',') === expected.join(','), `loaded: ${loaded.join(', ')}`)
-  const schemas = await Promise.all(NINE.map(async name => {
+  const schemas = await Promise.all(EIGHT.map(async name => {
     const tool = roster.find(item => item.name === name)!
     const schema = await toolToAPISchema(tool, { getToolPermissionContext: async () => permissionContext, tools: plan.roster, agents: [], model, deferLoading: plan.deferredNames.has(name) }) as { name?: string; defer_loading?: boolean }
     return { name, schema }
   }))
-  check(`${model}: the block-form schema of each of the nine carries defer_loading: true`, schemas.every(({ schema }) => schema.defer_loading === true && typeof schema.name === 'string'), schemas.filter(({ schema }) => schema.defer_loading !== true).map(({ name }) => name).join(', '))
+  check(`${model}: the block-form schema of each of the eight carries defer_loading: true`, schemas.every(({ schema }) => schema.defer_loading === true && typeof schema.name === 'string'), schemas.filter(({ schema }) => schema.defer_loading !== true).map(({ name }) => name).join(', '))
   const loadedSchemas = await Promise.all(LOADED.map(async name => {
     const tool = roster.find(item => item.name === name)!
     return toolToAPISchema(tool, { getToolPermissionContext: async () => permissionContext, tools: plan.roster, agents: [], model, deferLoading: plan.deferredNames.has(name) }) as { defer_loading?: boolean }
   }))
   check(`${model}: none of the thirteen carries the mark`, loadedSchemas.every(schema => schema.defer_loading === undefined))
   const bytes = (schema: unknown): number => Buffer.byteLength(JSON.stringify(schema), 'utf8')
-  const nineBytes = schemas.reduce((sum, { schema }) => sum + bytes(schema), 0)
+  const eightBytes = schemas.reduce((sum, { schema }) => sum + bytes(schema), 0)
   const loadedBytes = loadedSchemas.reduce((sum, schema) => sum + bytes(schema), 0)
-  console.log(`  ${model}: ${plan.roster.length} definitions ride; ${loadedSchemas.length} loaded in full (${loadedBytes.toLocaleString()} bytes) · the nine deferred (${nineBytes.toLocaleString()} bytes, defer_loading included)`)
+  console.log(`  ${model}: ${plan.roster.length} definitions ride; ${loadedSchemas.length} loaded in full (${loadedBytes.toLocaleString()} bytes) · the eight deferred (${eightBytes.toLocaleString()} bytes, defer_loading included)`)
 }
 
-section('§2 the declarations — each of the nine declares itself deferrable and none loads in full on cloud')
-for (const name of NINE) {
+section('§2 the declarations — each of the eight declares itself deferrable and none loads in full on cloud')
+for (const name of EIGHT) {
   const tool = roster.find(item => item.name === name) as Tool & { shouldDefer?: boolean; loadInFullOnCloud?: boolean }
   check(`${name}: shouldDefer is true and loadInFullOnCloud is not set`, tool.shouldDefer === true && tool.loadInFullOnCloud !== true, `shouldDefer=${String(tool.shouldDefer)} loadInFullOnCloud=${String(tool.loadInFullOnCloud)}`)
 }

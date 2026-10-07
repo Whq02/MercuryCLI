@@ -78,7 +78,6 @@ const SPEC_BODY = [
   'WebFetch — fetches and extracts content from a URL',
   'WebSearch — searches the web for current information',
   'Workflow — orchestrate subagents with deterministic JavaScript workflow',
-  'Workshop — persistent JS/TS code cells with retained state, tool/agent composition (mercury.tool…',
   'mcp__mercury__lease_list',
   'mcp__mercury__lease_release',
   'mcp__mercury__lease_take',
@@ -160,7 +159,7 @@ section('§1 the head and the line rule over a fixture pool')
 
 section('§2 over the bench roster the body is the specification\'s text byte for byte')
 {
-  const NAMES = ['Agent', 'Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Skill', 'Eval', 'AstSearch', 'ChangeSet', 'LSP', 'ToolSearch', 'JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Workshop', 'Monitor', 'Checkpoint', 'Rewind', 'ApolloReview', 'AskUserQuestion', 'Browser', 'Computer', 'ContextLeft', 'Correct', 'EnterWorktree', 'ExitWorktree', 'Inspect', 'Journey', 'Launch', 'NotebookEdit', 'ProviderSearch', 'Recall', 'RecordConvention', 'Reflect', 'Retain', 'SendMessage', 'Service', 'Sleep', 'Structure', 'TaskStop', 'Transaction', 'WebFetch', 'WebSearch', 'Workflow']
+  const NAMES = ['Agent', 'Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Skill', 'Eval', 'AstSearch', 'ChangeSet', 'LSP', 'ToolSearch', 'JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Monitor', 'Checkpoint', 'Rewind', 'ApolloReview', 'AskUserQuestion', 'Browser', 'Computer', 'ContextLeft', 'Correct', 'EnterWorktree', 'ExitWorktree', 'Inspect', 'Journey', 'Launch', 'NotebookEdit', 'ProviderSearch', 'Recall', 'RecordConvention', 'Reflect', 'Retain', 'SendMessage', 'Service', 'Sleep', 'Structure', 'TaskStop', 'Transaction', 'WebFetch', 'WebSearch', 'Workflow']
   const permissionContext = getEmptyToolPermissionContext()
   const pool: Tool[] = [...assembleToolPool(permissionContext, [])]
   const catalogue = getAllBaseTools()
@@ -173,10 +172,10 @@ section('§2 over the bench roster the body is the specification\'s text byte fo
   check('the 48 built-ins of the bench roster are present', roster.length === NAMES.length, NAMES.filter(name => !roster.some(tool => tool.name === name)).join(', '))
   for (const name of ['lease_list', 'lease_release', 'lease_take', 'render_tui']) roster.push(fixtureTool(name, { mcp: 'mercury' }))
   const row = getDeferredToolsDeltaAttachment(roster, MODEL, [first])[0] as { addedNames: string[]; body: string } | undefined
-  check('39 tools are announced', row !== undefined && row.addedNames.length === 39, String(row?.addedNames.length))
-  check('the body equals the specification\'s announcement byte for byte (3,243 bytes; 3,280 wrapped)', row !== undefined && row.body === SPEC_BODY && Buffer.byteLength(row.body, 'utf8') === 3243 && Buffer.byteLength(rendered(row as never), 'utf8') === 3280, row === undefined ? 'no row' : `${Buffer.byteLength(row.body, 'utf8')} bytes; first differing line: ${row.body.split('\n').find((line, i) => line !== SPEC_BODY.split('\n')[i]) ?? 'none'}`)
+  check('38 tools are announced', row !== undefined && row.addedNames.length === 38, String(row?.addedNames.length))
+  check('the body equals the announcement byte for byte (3,156 bytes; 3,193 wrapped)', row !== undefined && row.body === SPEC_BODY && Buffer.byteLength(row.body, 'utf8') === 3156 && Buffer.byteLength(rendered(row as never), 'utf8') === 3193, row === undefined ? 'no row' : `${Buffer.byteLength(row.body, 'utf8')} bytes; first differing line: ${row.body.split('\n').find((line, i) => line !== SPEC_BODY.split('\n')[i]) ?? 'none'}`)
   if (row !== undefined) {
-    for (const name of ['JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Workshop', 'Monitor', 'Checkpoint', 'Rewind']) {
+    for (const name of ['JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Monitor', 'Checkpoint', 'Rewind']) {
       check(`${name} has its line`, row.body.split('\n').some(line => line.startsWith(`${name} — `)))
     }
     check('the four MCP tools are their names alone', ['mcp__mercury__lease_list', 'mcp__mercury__lease_release', 'mcp__mercury__lease_take', 'mcp__mercury__render_tui'].every(name => row.body.split('\n').includes(name)))
