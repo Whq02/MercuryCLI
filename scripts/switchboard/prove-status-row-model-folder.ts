@@ -226,6 +226,38 @@ async function main(): Promise<void> {
     check('no branch (a detached head, no repository): the folder stands alone', noBranch.right === FOLDER && noBranch.folderShown && !noBranch.branchShown)
   }
 
+  {
+    const motion = await import(src('utils/cockpit/motionGovernor.ts'))
+    process.env.MERCURY_CRITTER_IDLE = '1'
+    process.env.MERCURY_LIVE_GLYPHS = '1'
+    seat.setStatus(status)
+    seat.setLive(IDLE_LIVE)
+    seat.setWork({ rows: [], samples: [] })
+    motion.__motionGovernorResetForTest()
+    motion.setMotionPosture('reduced')
+    const row = await mount(120)
+    const manual = record(120, 'motion-reduced', row.frame())
+    check('reduced motion is named on the live status row without restoring the chips', manual.includes(' · reduced') && !manual.includes('slow link') && !manual.includes('ctx '), manual)
+    motion.setMotionPosture('full')
+    await settle()
+    const full = record(120, 'motion-full', row.frame())
+    check('full motion clears the word reactively', !full.includes('reduced'), full)
+    motion.setMotionPosture('auto')
+    for (let frame = 0; frame < motion.TRIP_RUN; frame++) {
+      motion.noteFrameWire({ seq: frame, wireBytes: 100, drainMs: motion.TRIP_RUN_COST_MS })
+      motion.noteFrameCost(1)
+    }
+    await settle()
+    const slow = record(120, 'motion-slow-link', row.frame())
+    check('automatic wire reduction names reduced and slow link', slow.includes('reduced · slow link'), slow)
+    motion.setMotionPosture('off')
+    await settle()
+    const off = record(120, 'motion-off', row.frame())
+    check('motion off clears both words reactively', !off.includes('reduced') && !off.includes('slow link'), off)
+    row.close()
+    motion.__motionGovernorResetForTest()
+  }
+
   section('§3 a held receipt: the model and effort stay, the receipt after them (eight seconds, then the resting words)')
   {
     seat.setStatus(status)
