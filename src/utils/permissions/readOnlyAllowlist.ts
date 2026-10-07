@@ -6,6 +6,7 @@ import { LIST_MCP_RESOURCES_TOOL_NAME } from '../../tools/ListMcpResourcesTool/p
 import { READ_MCP_RESOURCE_TOOL_NAME } from '../../tools/ReadMcpResourceTool/prompt.js'
 import { LSP_TOOL_NAME } from '../../tools/LSPTool/prompt.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../../tools/SendMessageTool/constants.js'
+import { RESUME_AGENT_TOOL_NAME } from '../../tools/ResumeAgentTool/constants.js'
 import { SLEEP_TOOL_NAME } from '../../tools/SleepTool/prompt.js'
 import { TASK_CREATE_TOOL_NAME } from '../../tools/TaskCreateTool/constants.js'
 import { TASK_GET_TOOL_NAME } from '../../tools/TaskGetTool/constants.js'
@@ -30,6 +31,7 @@ const READ_ONLY_ALLOWLISTED_TOOLS: ReadonlySet<string> = new Set([
   TASK_STOP_TOOL_NAME,
   ASK_USER_QUESTION_TOOL_NAME,
   SEND_MESSAGE_TOOL_NAME,
+  RESUME_AGENT_TOOL_NAME,
   WORKFLOW_TOOL_NAME,
   SLEEP_TOOL_NAME,
 ])

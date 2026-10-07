@@ -13,6 +13,7 @@ import type {
   PermissionRuleSource,
 } from '../PermissionRule.js'
 import { permissionRuleValueFromString } from '../permissionRuleParser.js'
+import { RULE_INHERITS } from '../../../constants/tools.js'
 
 const PERMISSION_RULE_SOURCES = [
   ...SETTING_SOURCES,
@@ -127,7 +128,7 @@ function toolMatchesRule(
 
   const nameForRuleMatch = getToolNameForPermissionCheck(tool)
 
-  if (rule.ruleValue.toolName === nameForRuleMatch) {
+  if (rule.ruleValue.toolName === nameForRuleMatch || RULE_INHERITS[nameForRuleMatch]?.includes(rule.ruleValue.toolName)) {
     return true
   }
 

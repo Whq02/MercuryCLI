@@ -2,6 +2,7 @@
 # gate-class: pure
 # gate-watch: src/Tool* src/hooks/toolPermission/handlers/interactiveHandler*
 # gate-watch: src/tools/SkillTool/SkillTool*
+# gate-watch: src/constants/tools.ts src/tools/ResumeAgentTool/** src/tools/SendMessageTool/**
 # gate-watch: src/utils/betas* src/utils/hooks/** src/utils/messages/streaming*
 # gate-watch: src/utils/permissions/decision/wrapper*
 # gate-watch: src/utils/messages/rejectionText* src/components/permissions/PermissionRuleExplanation* src/constants/prompts*
