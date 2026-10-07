@@ -2,6 +2,24 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { SaturnFactsRowV1, ScheduleOpRequestV1 } from '../../daemon/saturn.js'
 import type { LocalWakeFacts } from '../../tools/ScheduleWakeupTool/localWake.js'
 
+import type { ResultOf } from '../../runner/wire/methods.js'
+
+export type ScheduleEditAnswer = ResultOf<'schedule/edit'>
+type ScheduleEditDoor = (edit: ScheduleOpRequestV1, signal: AbortSignal) => Promise<ScheduleEditAnswer>
+let editDoor: ScheduleEditDoor | null = null
+
+export function registerScheduleEditDoor(send: ScheduleEditDoor): void {
+  editDoor = send
+}
+
+export function scheduleEditDoor(): ScheduleEditDoor | null {
+  return editDoor
+}
+
+export function latchScheduleRow(row: SaturnFactsRowV1): void {
+  if (rosterCache !== null) rosterCache = [...rosterCache.filter(r => r.id !== row.id), { ...row }]
+}
+
 let pendingEdits: ScheduleOpRequestV1[] = []
 let rosterCache: SaturnFactsRowV1[] | null = null
 let seatObserved = false
@@ -91,6 +109,7 @@ export function applyWakeReason(prompt: string, reason: string | undefined): str
 }
 
 export function _resetScheduleBridgeForTesting(): void {
+  editDoor = null
   pendingEdits = []
   rosterCache = null
   seatObserved = false

@@ -63,7 +63,6 @@ try {
     } finally { old.close() }
   }
 } finally {
-  seat.resetSeatsForTesting?.()
   rmSync(home, { recursive: true, force: true })
 }
 console.log(`schedule edit wire: ${failures} failures`)

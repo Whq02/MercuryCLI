@@ -3,7 +3,7 @@
 # gate-watch: src/daemon/** src/substrate/flagRegistry* src/types/permissions*
 # gate-watch: src/utils/boxLock* src/services/resources/adapters/health*
 # gate-watch: src/services/engine-connector/seatProjections* src/utils/spawnLedger* docs/DURABILITY.md
-# gate-watch: src/tools/MonitorTool/**
+# gate-watch: src/tools/MonitorTool/** src/tools/ScheduleCronTool/** src/utils/cron.ts src/services/engine-connector/seatWire.ts
 # gate-watch: src/cli/headless/turnDriver* src/cli/headless/runnerAsks.ts src/cli/run* src/services/saturn/** src/tools/ScheduleWakeupTool/**
 # gate-watch: docs/SESSIONS.md scripts/dap/mock-dap-adapter.mjs scripts/journey/switch-fixture-server.ts
 # gate-watch: scripts/lib/* scripts/staleness/prove-stale-registry.ts
@@ -83,6 +83,8 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-send-hops.ts" || { __rc=$?; fail=1
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-rename-migration.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-rename-migration.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-rename-retry.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-rename-retry.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-wire-answer-whole.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-wire-answer-whole.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-schedule-edit-wire.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-schedule-edit-wire.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-cron-create-answer.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-cron-create-answer.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-saturn-core.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-saturn-core.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-saturn-adversarial.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-saturn-adversarial.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-saturn-keyless.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-saturn-keyless.ts" "$__t" "$__rc"
