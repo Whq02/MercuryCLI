@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: scripts/rewind/**
+# gate-watch: scripts/rewind/** scripts/prompts-panel/prove-notice-free-prompts.ts
+# gate-watch: src/components/prompts-panel/rows.ts src/components/prompts-panel/PromptsPanel.tsx src/utils/messages/noticeRows.ts
+# gate-watch: src/ink.ts src/components/App.tsx src/keybindings/KeybindingProviderSetup.tsx src/utils/staticRender.tsx
+# gate-watch: src/components/messages/UserTextMessage.tsx src/components/MessageRow.tsx src/components/concourse/workerTranscriptFold.ts src/fabric/entryCodec.ts src/utils/config.ts src/types/message.ts
 # gate-watch: src/utils/fileHistory.ts src/services/compact/checkpointRewind.ts src/cli/headless/controlHandlers.ts
 # gate-watch: src/daemon/protocol.ts src/daemon/sessionSeat.ts src/daemon/controlServer.ts src/daemon/controlSocket.ts
 # gate-watch: src/components/MessageSelector.tsx src/services/engine-connector/**
@@ -28,6 +31,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-rewind-capture.ts" || { __rc=$?; f
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-rewind-wire.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-rewind-wire.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-rewind-restore.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-rewind-restore.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-rewind-cockpit.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-rewind-cockpit.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/../prompts-panel/prove-notice-free-prompts.ts" || { __rc=$?; fail=1; }; prover_mark "$here/../prompts-panel/prove-notice-free-prompts.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-checkpoint-sweep-economy.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-checkpoint-sweep-economy.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-rewind-damaged-blob.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-rewind-damaged-blob.ts" "$__t" "$__rc"
 
