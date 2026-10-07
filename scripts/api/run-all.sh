@@ -22,7 +22,7 @@
 # gate-watch: src/tasks/LocalWorkflowTask/LocalWorkflowTask.tsx src/tools/ChangeSetTool/ChangeSetTool.ts
 # gate-watch: src/tools/LSPTool/mercuryOps.ts src/tools/ToolSearchTool/ToolSearchTool.ts
 # gate-watch: src/tools/ToolSearchTool/prompt.ts src/tools/WorkflowTool/* src/utils/*
-# gate-watch: src/utils/attachments/orchestrator.ts src/utils/attachments/userContext.ts
+# gate-watch: src/utils/attachments/orchestrator.ts src/utils/attachments/userContext.ts src/utils/attachments/deltas.ts
 # gate-watch: src/commands/compact/compact.ts src/tools/FileReadTool/FileReadTool.ts src/tools/FileReadTool/imageProcessor.ts src/utils/imageResizer.ts
 # gate-watch: src/utils/cockpit/runProtocol.ts src/utils/config/globalConfig.ts src/utils/messages/*
 # gate-watch: src/utils/model/configs.ts src/utils/permissions/filesystem.ts src/utils/sessionStorage/*
