@@ -239,19 +239,19 @@ section('R. the anchored read mode (real FileReadTool)')
     .filter(row => /^\d+#/.test(row))
   check(
     'R3 anchored rows mirror the plain rows; content rows self-verify against the recorded content',
-    anchoredRows.length === 6 &&
-      anchoredRows.slice(0, 5).every(row => {
+    anchoredRows.length === 5 &&
+      anchoredRows.every(row => {
         const m = /^(\d+#[0-9a-f]+)\t(.*)$/.exec(row)
         if (!m) return false
         const ref = parseLineRef(m[1]!)
         return ref !== null && verifyLineRef(domain, ref).ok
       }),
   )
-  const phantomRef = parseLineRef(anchoredRows[5]!.split(String.fromCharCode(9))[0]!)
+  const phantomRef = parseLineRef(formatLineAnchor(6, ''))
   const phantomCheck = phantomRef === null ? null : verifyLineRef(domain, phantomRef)
   check(
-    'R3c the phantom after-final-newline row refuses out-of-bounds, never aliases',
-    phantomRef !== null && phantomRef.line === 6 && phantomCheck !== null && !phantomCheck.ok && phantomCheck.ok === false && phantomCheck.currentHash === null,
+    'R3c no row after the final newline is rendered, and an address there refuses out-of-bounds, never aliases',
+    anchoredRead.ok && anchoredRead.ok === true && !anchoredRead.text.includes('\n6#') && phantomRef !== null && phantomRef.line === 6 && phantomCheck !== null && !phantomCheck.ok && phantomCheck.ok === false && phantomCheck.currentHash === null,
   )
   check(
     'R3b the stripper knows the anchored prefix',
