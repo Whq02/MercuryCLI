@@ -69,7 +69,7 @@ section('§A the result off the Anthropic route — the SAME admission record, r
     check(`${model}: no placeholder block leaks`, !text.includes('tool_reference'))
   }
   const none = ToolSearchTool.mapToolResultToToolResultBlockParam({ matches: [], query: 'q', total_deferred_tools: 0 } as never, 'toolu_2').content
-  check('no matches ⇒ the same plain sentence as before', String(none).startsWith('No matching deferred tools were found.'))
+  check('no matches ⇒ the no-match sentence names the query, says nothing was loaded and points at the "Deferred tools:" list', String(none) === 'No deferred tool matches "q"; nothing was loaded. Every tool you can load is in the "Deferred tools:" list with what it is for — pick one there and load it with "select:<name>".', String(none))
   state.setEngineModelOverride('gpt-5.5' as never)
   check("gpt-5.5 (5.4 or later, first-party OpenAI) rides the provider's own form — openai-native — where ToolSearch is not offered on the wire", deferralWireFormFor(getEngineModel()).form === 'openai-native')
   state.setEngineModelOverride('openrouter/stealth/ox-alpha' as never)
