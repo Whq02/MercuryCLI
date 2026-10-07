@@ -67,7 +67,7 @@ export function registerMainSessionTask(
   })
   const definition = mainThreadAgentDefinition ?? defaultMainSessionDefinition()
   const state: LocalMainSessionTaskState = {
-    ...createTaskStateBase(taskId, 'local_agent', description),
+    ...createTaskStateBase({ task_id: taskId, task_type: 'local_agent', description }),
     type: 'local_agent',
     status: 'running',
     agentId: taskId,

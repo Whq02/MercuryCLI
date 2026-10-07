@@ -619,7 +619,9 @@
     "type:TurnOptions"
    ],
    "src/run-core/turn-machine.ts": [
+    "continuationAdded",
     "decideEmptyReplyRecovery",
+    "decideMaxOutputTokensRecovery",
     "decideReasoningOnlyRecovery",
     "decideStreamFaultRecovery",
     "decideToolCallRefusalRecovery",

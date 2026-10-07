@@ -57,7 +57,7 @@ for (const stored of [...OLD_TYPES, 'mercury-frobnicate', undefined]) {
   check(`a record carrying ${stored === undefined ? 'no type' : `'${stored}'`} opens as mercury-crew`, (definitionForStoredType(stored, roster) as { agentType: string }).agentType === 'mercury-crew')
 }
 const resumeSource = readFileSync(join(ROOT, 'src/tools/AgentTool/resumeAgent.ts'), 'utf8')
-check('the resume road picks its definition through that one selector', resumeSource.includes('definition = definitionForStoredType(meta?.agentType, definitions.activeAgents)'))
+check('the resume road picks its definition through that one selector', resumeSource.includes('definition: AgentDefinition = definitionForStoredType(meta?.agentType, definitions.activeAgents)'))
 const live = await getAgentDefinitionsWithOverrides(HOME)
 check('on the live roster of this tree the fallback is the real crew definition', (definitionForStoredType(OLD_TYPES[0], live.activeAgents) as { agentType: string }).agentType === 'mercury-crew' && live.activeAgents.some(a => a.agentType === 'mercury-crew'))
 

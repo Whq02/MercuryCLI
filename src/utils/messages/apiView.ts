@@ -1,7 +1,6 @@
 
 import type { ContentBlock, ContentBlockParam, ApiMessage } from '../../types/wire.js'
 import isObject from 'lodash-es/isObject.js'
-import { sanitizeToolNameForAnalytics } from 'src/services/analytics/metadata.js'
 import {
   findToolByName,
   type Tools,

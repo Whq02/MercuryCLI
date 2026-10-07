@@ -470,7 +470,7 @@ section('§8 THE BESPOKE TOOL SENTENCES — a Bash operand, a redirection, a str
   const scout = { agentType: 'scout-role', whenToUse: 'recon', source: 'built-in', getSystemPrompt: () => 'scout' }
   const launch = (ctx: Ctx): string => {
     try {
-      buildAgentLaunchPlan({ requestedType: 'scout-role', activeAgents: [scout], toolPermissionContext: ctx, forkGateOn: false, forkAgent: scout, defaultAgentType: 'scout-role', engineModel: 'proof-model', backgroundTasksDisabled: false, forceAsync: false } as never)
+      buildAgentLaunchPlan({ requestedType: 'scout-role', activeAgents: [scout], toolPermissionContext: ctx, defaultAgentType: 'scout-role', engineModel: 'proof-model', backgroundTasksDisabled: false, forceAsync: false } as never)
       return 'launched'
     } catch (error) {
       return (error as Error).message

@@ -547,7 +547,7 @@ async function run(cols: number, rows: number): Promise<void> {
   section(`§6 ${tag('the local road: a line to an idle local agent is refused and kept; a line to a running one paints once when its delivery lands')}`)
   {
     const base = {
-      ...createTaskStateBase(LOCAL_ID, 'local_agent', LOCAL_NAME),
+      ...createTaskStateBase({ task_id: LOCAL_ID, task_type: 'local_agent', description: LOCAL_NAME }),
       type: 'local_agent' as const,
       agentId: LOCAL_ID,
       prompt: 'work quietly',

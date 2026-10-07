@@ -1,55 +1,32 @@
-
-import {
-  isAnalyticsDisabled,
-} from '../../src/services/analytics/config.js'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { join } from 'node:path'
 import { binaryName } from '../../src/utils/config.js'
 
-const MACRO_KEY = 'MACRO' as const
-function setStamp(on: boolean): void {
-  if (on) (globalThis as Record<string, unknown>)[MACRO_KEY] = { VERSION: '1.0.0' }
-  else delete (globalThis as Record<string, unknown>)[MACRO_KEY]
-}
-
-function clearAnalyticsEnv(): void {
-  delete process.env.MERCURY_TELEMETRY
-  delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
-  if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
-}
-
+const ROOT = process.cwd()
 let fail = 0
-function check(label: string, cond: boolean): void {
-  console.log(`  ${cond ? '✓' : '✗'} ${label}`)
+function check(label: string, cond: boolean, detail = ''): void {
+  console.log(`  ${cond ? '✓' : '✗'} ${label}${cond || !detail ? '' : ` — ${detail}`}`)
   if (!cond) fail = 1
 }
+function walk(dir: string, out: string[]): string[] {
+  for (const name of readdirSync(dir)) {
+    const p = join(dir, name)
+    if (statSync(p).isDirectory()) walk(p, out)
+    else if (/\.(ts|tsx)$/.test(name)) out.push(p)
+  }
+  return out
+}
+const files = walk(join(ROOT, 'src'), [])
+const carriers = (re: RegExp): string => files.filter(p => re.test(readFileSync(p, 'utf8'))).map(p => p.slice(ROOT.length + 1)).join(', ')
 
-console.log('============================================================')
-console.log(' no telemetry egress — analytics chokepoint proof')
-console.log('============================================================')
+console.log(' no telemetry egress — nothing in the tree collects, converts or gates')
+check('no analytics module exists', !existsSync(join(ROOT, 'src/services/analytics')))
+check('no source imports an analytics module', carriers(/services\/analytics/) === '', carriers(/services\/analytics/))
+check('no compiler-runtime shim exists', !existsSync(join(ROOT, 'src/types/react-compiler-runtime.d.ts')))
+check('no decompile script exists', !existsSync(join(ROOT, 'scripts/codemod')))
+check('no source carries a memo-cache call or the compiler-runtime import', carriers(/\b_c\(|react\/compiler-runtime/) === '', carriers(/\b_c\(|react\/compiler-runtime/))
+check('no source carries a fork gate', carriers(/isForkSubagentEnabled|FORK_SUBAGENT_TYPE|forkGateOn|isForkPath/) === '', carriers(/isForkSubagentEnabled|FORK_SUBAGENT_TYPE|forkGateOn|isForkPath/))
+check(`binaryName() === 'mercury' (got '${binaryName()}')`, binaryName() === 'mercury')
 
-clearAnalyticsEnv()
-
-console.log('\n[1] product stamp: analytics collection disabled')
-setStamp(true)
-check('analytics collection is disabled', isAnalyticsDisabled() === true)
-
-console.log('\n[2] bare stamp, clean env: analytics STILL disabled (stamp-independence)')
-setStamp(false)
-const bareStampAnalytics = isAnalyticsDisabled()
-check(`isAnalyticsDisabled() === true under a bare stamp (got ${bareStampAnalytics})`, bareStampAnalytics === true)
-
-console.log('\n[2b] binaryName() — the binary-name long-tail primitive')
-setStamp(true)
-check(`stamped build: binaryName() === 'mercury' (got '${binaryName()}')`, binaryName() === 'mercury')
-setStamp(false)
-check(`bare stamp: binaryName() === 'mercury' too (stamp-independence)`, binaryName() === 'mercury')
-
-console.log('\n[3] the env gate still composes (no regression)')
-setStamp(false)
-process.env.MERCURY_TELEMETRY = '0'
-check('MERCURY_TELEMETRY=0 ⇒ isAnalyticsDisabled() === true (env gate intact)', isAnalyticsDisabled() === true)
-delete process.env.MERCURY_TELEMETRY
-
-console.log('\n============================================================')
 console.log(fail === 0 ? ' ✅ NO-TELEMETRY-EGRESS PROOF PASS' : ' ❌ PROOF FAILED')
-console.log('============================================================')
 process.exit(fail)

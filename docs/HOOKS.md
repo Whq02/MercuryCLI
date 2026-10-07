@@ -112,7 +112,10 @@ A `command` hook answers with its exit code and its stdout:
 - exit code 0: success; stdout is the answer, either plain text (shown as the
   hook's output) or one JSON object (read as below);
 - exit code 2: the event is blocked, and stderr is the reason the model sees;
-- any other exit code: a non-blocking error, reported to the operator.
+- any other exit code: the hook failed and the turn proceeds; the operator
+  sees one line naming the hook, the event and the exit code. A hook that
+  times out, is cancelled, closes its input early or cannot run is reported
+  on the same line, with its own words.
 
 The JSON answer may carry `continue` (false stops the whole turn, with
 `stopReason` shown to the operator), `suppressOutput` (keep stdout out of

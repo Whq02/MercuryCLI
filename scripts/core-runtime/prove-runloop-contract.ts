@@ -566,37 +566,69 @@ section('L3b BACKFILL — a per-block backfill that THROWS leaves that block its
   check('the real Read tool: {} and { file_path: 7 } no longer throw out of the clone decision, and the original inputs stand', readThrew === null && readYield === readMessage && Object.keys(readBlocks[0]!.input).length === 0 && readBlocks[1]!.input.file_path === 7 && readBlocks[2]!.input.file_path === '/tmp/rig-notes.md', String(readThrew))
 }
 
-section('L4 WITHHELD max_output_tokens — nudge recovery ≤3, exact-once surfacing')
+section('L4 WITHHELD max_output_tokens — a continuation that adds nothing is a repeat; exact-once surfacing')
+const motError = (): unknown =>
+  createAssistantAPIErrorMessage({
+    content: 'max output tokens hit',
+    apiError: 'max_output_tokens',
+  })
+const NUDGE = 'The reply hit the output ceiling'
+const nudge = (msgs: unknown[]): number => userTextMessages(msgs).filter(t => t.includes(NUDGE)).length
+const noticeTexts = (r: RunResult): string[] =>
+  r.yields.filter(m => (m as AnyMsg).type === 'system').map(m => String((m as { content?: unknown }).content ?? ''))
 {
-  const motError = (): unknown =>
-    createAssistantAPIErrorMessage({
-      content: 'max output tokens hit',
-      apiError: 'max_output_tokens',
-    })
   const r = record(
     await run({
       script: [[y(motError())], [y(motError())], [y(motError())], [y(motError())]],
     }),
   )
-  check('terminal completed (exhaustion surfaces, then API-error return)', r.terminal.reason === 'completed', JSON.stringify(r.terminal))
-  check('4 model calls (1 + 3 recoveries)', r.calls.length === 4, String(r.calls.length))
+  check('terminal completed (the repeat surfaces, then API-error return)', r.terminal.reason === 'completed', JSON.stringify(r.terminal))
+  check('2 model calls (the cut, one continuation that added nothing)', r.calls.length === 2, String(r.calls.length))
   const surfaced = r.yields.filter(
     m => (m as AnyMsg).apiError === 'max_output_tokens',
   )
-  check('the withheld error yielded EXACTLY once (on exhaustion)', surfaced.length === 1, String(surfaced.length))
-  const nudge = (msgs: unknown[]): number =>
-    userTextMessages(msgs).filter(t => t.includes('Output token limit hit')).length
+  check('the withheld error yielded EXACTLY once (at the repeat)', surfaced.length === 1, String(surfaced.length))
   check('call 2 input carries 1 nudge', nudge(r.calls[1]!.messages) === 1, String(nudge(r.calls[1]!.messages)))
-  check('call 4 input carries 3 nudges', nudge(r.calls[3]!.messages) === 3, String(nudge(r.calls[3]!.messages)))
-  check(
-    'ESCALATE is dead in this build: no call carries maxOutputTokensOverride',
-    r.calls.every(c => c.override === undefined),
-    JSON.stringify(r.calls.map(c => c.override)),
+  check('no call carries a raised ceiling', r.calls.every(c => c.override === undefined), JSON.stringify(r.calls.map(c => c.override)))
+  check('recovery nudges are isMeta user messages in the NEXT input, never yielded', userTextMessages(r.yields).filter(t => t.includes(NUDGE)).length === 0)
+  check('the stop is said in one line: the continuation repeated what stood', noticeTexts(r).some(t => t.includes('repeated what already stood')), noticeTexts(r).join(' | '))
+}
+
+section('L4b output ceiling — continue while content is added and the budget allows; stop at a repeat or a spent budget')
+{
+  const cutWith = (i: number): unknown =>
+    createAssistantMessage({
+      content: [
+        { type: 'thinking', thinking: `thought ${i}`, signature: `sig-${i}` },
+        { type: 'text', text: `part ${i} of the long reply with its own words number ${i}. ` },
+      ] as never,
+    })
+  const carried = (msgs: unknown[], i: number): boolean =>
+    msgs.some(m => {
+      const content = ((m as AnyMsg).message as { content?: unknown } | undefined)?.content
+      return Array.isArray(content) && content.some(b => (b as { signature?: string }).signature === `sig-${i}`)
+    })
+  for (const cuts of [3, 5, 9]) {
+    const script: ModelStep[][] = []
+    for (let i = 1; i <= cuts; i++) script.push([y(cutWith(i)), y(motError())])
+    script.push([y(asstText('the end.'))])
+    const r = record(await run({ script }))
+    check(`${cuts} cuts with new content each time: the reply lands whole in ${cuts + 1} calls, nothing surfaced`, r.terminal.reason === 'completed' && r.calls.length === cuts + 1 && r.yields.every(m => (m as AnyMsg).apiError !== 'max_output_tokens'), `${r.calls.length} calls`)
+    check(`${cuts} cuts: every continuation carries the signed thinking of the cut before it, at the same effort`, Array.from({ length: cuts }, (_, k) => k + 1).every(i => carried(r.calls[i]!.messages, i)) && r.calls.every(c => c.effort === r.calls[0]!.effort))
+    check(`${cuts} cuts: the last call's input carries ${cuts} nudges and every part`, nudge(r.calls[cuts]!.messages) === cuts && Array.from({ length: cuts }, (_, k) => k + 1).every(i => carried(r.calls[cuts]!.messages, i)))
+  }
+  const same = (): unknown => asstText('the same eighty-plus characters of reply, written again from the start as if nothing had been said before now. ')
+  const rr = record(await run({ script: [[y(same()), y(motError())], [y(same()), y(motError())], [y(same()), y(motError())]] }))
+  check('a continuation that repeats what stood stops at the repeat: 2 calls, surfaced once, the stop said', rr.calls.length === 2 && rr.yields.filter(m => (m as AnyMsg).apiError === 'max_output_tokens').length === 1 && noticeTexts(rr).some(t => t.includes('repeated what already stood')), `${rr.calls.length} calls`)
+  const rb = record(
+    await run({
+      script: [[y(cutWith(1)), y(motError())], [y(cutWith(2)), y(motError())]],
+      beforeRun: rig => {
+        ;(rig.ctx.options as Record<string, unknown>).maxBudgetUsd = 0
+      },
+    }),
   )
-  check(
-    'recovery nudges are isMeta user messages in the NEXT input, never yielded',
-    userTextMessages(r.yields).filter(t => t.includes('Output token limit hit')).length === 0,
-  )
+  check("a spent budget stops at the cut: 1 call, surfaced once, the stop names the run's budget", rb.calls.length === 1 && rb.yields.filter(m => (m as AnyMsg).apiError === 'max_output_tokens').length === 1 && noticeTexts(rb).some(t => t.includes("the run's budget is spent")), `${rb.calls.length} calls; ${noticeTexts(rb).join(' | ')}`)
 }
 
 section('L5 FALLBACK — full retry on the fallback model, pairing synthesized')

@@ -56,7 +56,7 @@ section('§2 THE DISPATCH SEAM')
     /resolveWorkerTools\(/.test(seam) && /resolveAgentTools\([\s\S]{0,400}?\)\.resolvedTools/.test(owner),
     seam.slice(0, 160).replace(/\s+/g, ' '),
   )
-  check('the inheriting path still keeps the parent pool untouched', seam.includes('options.tools'))
+  check('no path inherits the parent pool untouched', !seam.includes('options.tools'))
 }
 
 section('§3 THE SCOUT CONTROL')
