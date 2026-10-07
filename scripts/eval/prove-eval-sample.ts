@@ -26,7 +26,7 @@ try {
     const response = await fetch(page)
     check('sample listener serves the published page', response.ok && await response.text() === '<p>2</p>')
   }
-  const js = await run('js', "const saved = await sample({name: 'q', html: '<p>x</p>'}); saved.version")
+  const js = await run('js', "(await sample({name: 'q', html: '<p>x</p>'})).version")
   check('JavaScript sample returns the same contract', js.status === 'ok' && js.resultRepr === '1' && js.samples?.[0]?.title === 'q', text(js, 'js'))
   const invalid = await run('py', 'sample({"name": "p"})')
   check('sample errors raise into Python', invalid.status === 'error' && text(invalid, 'py').includes('RuntimeError: sample() needs the page as html'), text(invalid, 'py'))
