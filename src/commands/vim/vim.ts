@@ -10,5 +10,5 @@ export const call: LocalCommandCall = async () => {
     next === 'vim'
       ? 'Escape toggles between insert and normal mode.'
       : 'Standard readline key bindings are in use.'
-  return { type: 'text', value: `Editor mode set to ${next}. ${hint}` }
+  return { type: 'text', value: `Editor mode set to ${next} — saved for later boots. ${hint}` }
 }
