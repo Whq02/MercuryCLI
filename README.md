@@ -438,8 +438,14 @@ The output row types, by their `type` field:
   `redacted: true`.
 - `tool_call` — a tool call: `call_id`, `tool`, `input`, with its
   `message_id` and `block`.
-- `tool_result` — the call's result: `call_id`, `status` (`ok`, `error` or
-  `aborted`) and `output`.
+- `tool_result` — the call's result: `call_id`, `status` (`ok`, `error`,
+  `aborted` or `refused`) and `output`. A call the model shaped so badly that
+  it was refused before execution (an unknown tool, arguments that are not
+  valid JSON or do not fit the tool's schema) still gets its pair: a
+  `tool_call` row with the arguments as delivered (`{}` when they were not an
+  object) and a `tool_result` row with status `refused` whose `output` is the
+  reason; the correction `notice` follows. Such a call never ran and is not a
+  denial.
 - `tool_update` — progress from a running shell, PowerShell, MCP or Eval
   call: `call_id`, `tick`, `source`, and whichever of `line`, `elapsed_s`,
   `lines`, `bytes`, `budget_ms`, `progress` and `total` the call reports.

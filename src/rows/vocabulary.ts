@@ -198,7 +198,7 @@ export const ToolResultRowSchema = lazySchema(() =>
     type: z.literal('tool_result'),
     ...envelopeFields,
     call_id: z.string(),
-    status: z.enum(['ok', 'error', 'aborted']),
+    status: z.enum(['ok', 'error', 'aborted', 'refused']),
     output: z.string(),
   }),
 )

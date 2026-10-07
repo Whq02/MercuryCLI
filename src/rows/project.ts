@@ -6,6 +6,7 @@ import type { FoldStatusV1 } from '../services/compact/foldStatus.js'
 import type { RequestWaitV1 } from '../services/providers/streamIdleBudget.js'
 import type { NonNullableUsage } from '../services/api/emptyUsage.js'
 import type { ModelUsage } from '../bootstrap/state.js'
+import type { RefusedToolCall } from '../types/message.js'
 import {
   ROWS_SCHEMA,
   stopWordOf,
@@ -201,6 +202,22 @@ export function toolResultText(content: unknown): string {
     else if (block.type === 'tool_reference' && typeof (block as { tool_name?: unknown }).tool_name === 'string') texts.push(`[tool_reference: ${(block as { tool_name: string }).tool_name}]`)
   }
   return texts.join('\n')
+}
+
+export function refusedCallRowsOf(scope: RowScope, messageId: string, refused: readonly RefusedToolCall[], firstBlock: number): Array<Unstamped<ToolCallRow> | Unstamped<ToolResultRow>> {
+  const rows: Array<Unstamped<ToolCallRow> | Unstamped<ToolResultRow>> = []
+  refused.forEach((call, offset) => {
+    let input: Record<string, unknown> = {}
+    try {
+      const parsed: unknown = JSON.parse(call.argumentsRaw)
+      if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) input = parsed as Record<string, unknown>
+    } catch {
+      input = {}
+    }
+    rows.push(scoped(scope, { type: 'tool_call' as const, message_id: messageId, block: firstBlock + offset, call_id: call.id, tool: call.name, input }))
+    rows.push(scoped(scope, { type: 'tool_result' as const, call_id: call.id, status: 'refused' as const, output: call.reason }))
+  })
+  return rows
 }
 
 export function toolResultRowsOf(scope: RowScope, content: unknown, statusOf: (callId: string, isError: boolean) => ToolResultRow['status'] = (_, isError) => (isError ? 'error' : 'ok')): Array<Unstamped<ToolResultRow>> {
