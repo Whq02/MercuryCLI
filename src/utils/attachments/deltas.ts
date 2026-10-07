@@ -21,6 +21,9 @@ import type { Attachment } from './types.js'
 export const SERVER_SEARCH_ANNOUNCEMENT_HEAD =
   'The following tools are available in this session but their definitions are not loaded yet. Before calling one, load it with the tool-search tool: pass the tool name as the pattern (a plain unanchored name such as WebFetch — the pattern is matched against the name and description together, so never use ^ or $), then call the tool as usual:'
 
+export const DEFERRED_TOOLS_ANNOUNCEMENT_HEAD =
+  'Deferred tools: offered in this session, but their definitions are not loaded. To call one, first load it with ToolSearch — query "select:<name>", or "select:<name>,<name>" for several — then call it.'
+
 export function getDeferredToolsDeltaAttachment(
   tools: Tools,
   model: string,
@@ -34,7 +37,7 @@ export function getDeferredToolsDeltaAttachment(
   if (!isToolSearchToolAvailable(tools)) return []
   const delta = getDeferredToolsDelta(tools, messages ?? [], scanContext, model)
   if (!delta) return []
-  const addedHead = deferralSearchIsServerSide(form) ? SERVER_SEARCH_ANNOUNCEMENT_HEAD : 'The following tools are available in this session:'
+  const addedHead = deferralSearchIsServerSide(form) ? SERVER_SEARCH_ANNOUNCEMENT_HEAD : DEFERRED_TOOLS_ANNOUNCEMENT_HEAD
   const body = [
     ...(delta.addedLines.length > 0 ? [`${addedHead}
 ${delta.addedLines.join(String.fromCharCode(10))}`] : []),
