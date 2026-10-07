@@ -1,5 +1,3 @@
-#!/usr/bin/env bun
-
 import { copyFileSync, existsSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -25,8 +23,7 @@ const { GRAMMAR_REGISTRY, GRAMMAR_ENGINE_RUNTIME_FILES } = await import('../../s
   process.env.MERCURY_TREESITTER_VENDOR_DIR = composed
 }
 const { loadGrammarEngine, parsePolyglot, languageByName } = await import('../../src/services/structure/grammarFacility.ts')
-const { runPolyglotQuery } = await import('../../src/services/structure/polyglotQuery.ts')
-const { runPolyglotSymbolQuery, symbolLaneSupports } = await import('../../src/services/structure/polyglotSymbols.ts')
+const { resolveAstScope, searchAstPattern, isAstRefusal } = await import('../../src/utils/astPatterns.ts')
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -216,35 +213,12 @@ for (const lang of GRAMMAR_REGISTRY) {
 
   const root = mkdtempSync(join(tmpdir(), `vista-census-${lang.name.replace(/[^a-z0-9]/g, '')}-`))
   writeFileSync(join(root, fx.file), fx.good)
-  const q = await runPolyglotQuery(root, { pattern: fx.pattern, lang: lang.name })
-  const queryOk = !('state' in q) && q.matches.length >= 1 && q.matches.every(m => m.language === lang.name)
-  check(`pattern '${fx.pattern}' matches through the real lane`, queryOk, 'state' in q ? q.note : `${q.matches.length} matches`)
-
-  let symCell = '—'
-  if (symbolLaneSupports(lang.name)) {
-    if (fx.symbol) {
-      const s = await runPolyglotSymbolQuery(root, { symbol: fx.symbol, lang: lang.name })
-      const symOk = !('state' in s) && s.matches.length === 1
-      check(`symbol lane finds ${fx.symbol.kind} ${fx.symbol.name}`, symOk, 'state' in s ? s.note : `${s.matches.length} matches`)
-      symCell = symOk ? 'proved' : 'FAILED'
-    } else {
-      check('symbol-lane language carries a symbol fixture', false)
-      symCell = 'FAILED'
-    }
-  }
+  const scope = resolveAstScope({ cwd: root, lang: lang.name })
+  const q = isAstRefusal(scope) ? scope : await searchAstPattern(scope, { pattern: fx.pattern })
+  const queryOk = !isAstRefusal(q) && q.matches.length >= 1 && q.matches.every(m => m.lang === lang.name)
+  check(`pattern '${fx.pattern}' matches through the real matcher`, queryOk, isAstRefusal(q) ? q.refused : `${q.matches.length} matches`)
   censusRows.push(
-    `${lang.name.padEnd(11)} parse:${goodOk ? 'ok' : 'FAIL'} errors:${brokenOk ? 'ok' : 'FAIL'} query:${queryOk ? 'ok' : 'FAIL'} symbols:${symCell}`,
-  )
-}
-
-{
-  const root = mkdtempSync(join(tmpdir(), 'vista-census-refusal-'))
-  writeFileSync(join(root, 'run.sh'), FIXTURES.bash!.good)
-  const s = await runPolyglotSymbolQuery(root, { symbol: { kind: 'function', name: 'greet' }, lang: 'bash' })
-  check(
-    'unclaimed symbol language refuses BY NAME',
-    'state' in s && s.note.includes('bash') && s.note.includes('pattern query'),
-    'state' in s ? s.note : 'unexpectedly ran',
+    `${lang.name.padEnd(11)} parse:${goodOk ? 'ok' : 'FAIL'} errors:${brokenOk ? 'ok' : 'FAIL'} query:${queryOk ? 'ok' : 'FAIL'}`,
   )
 }
 

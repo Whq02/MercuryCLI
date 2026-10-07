@@ -1,134 +1,82 @@
-#!/usr/bin/env bun
-
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { armEnvironment, check, finish, REPO } from '../ast-tools/lib/harness.ts'
 
-process.env.MERCURY_TREESITTER_VENDOR_DIR ??= join(import.meta.dir, '..', '..', 'node_modules', '@vscode', 'tree-sitter-wasm', 'wasm')
-
-const { runPolyglotQuery } = await import('../../src/services/structure/polyglotQuery.ts')
-
-let failures = 0
-function check(label: string, ok: boolean, detail = ''): void {
-  if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+const env = armEnvironment()
+const { resolveAstScope, searchAstPattern, isAstRefusal } = await import('../../src/utils/astPatterns.ts')
+const { encodePattern } = await import('../../src/services/structure/pattern.ts')
+const root = mkdtempSync(join(tmpdir(), 'ast-query-'))
+const negRoot = mkdtempSync(join(tmpdir(), 'ast-query-neg-'))
+async function query(pattern: string, opts: { lang?: string; glob?: string; matchCap?: number; cwd?: string } = {}) {
+  const scope = resolveAstScope({ cwd: opts.cwd ?? root, ...(opts.lang ? { lang: opts.lang } : {}), ...(opts.glob ? { glob: opts.glob } : {}) })
+  if (isAstRefusal(scope)) return scope
+  return searchAstPattern(scope, { pattern, ...(opts.matchCap ? { matchCap: opts.matchCap } : {}) })
 }
-
-const root = mkdtempSync(join(tmpdir(), 'lathe-query-'))
-writeFileSync(join(root, 'app.py'), 'def greet(name):\n    print(name)\n    print("hi")\n')
-writeFileSync(join(root, 'broken.py'), 'def broken(:\n    print(\n')
-writeFileSync(join(root, 'main.go'), 'package main\n\nimport "fmt"\n\nfunc main() {\n\tfmt.Println("x")\n}\n')
-writeFileSync(join(root, 'lib.rs'), 'fn main() { println!("{}", 1); }\n')
-mkdirSync(join(root, 'src'))
-writeFileSync(join(root, 'src', 'util.ts'), 'export function f(a: number) { console.log(a) }\n')
-writeFileSync(join(root, 'notes.skip.py'), 'print("suffix-ignored")\n')
-mkdirSync(join(root, 'skipme'))
-writeFileSync(join(root, 'skipme', 'hidden.py'), 'print("dir-ignored")\n')
-writeFileSync(join(root, '.gitignore'), 'skipme/\n*.skip.py\n')
-
-{
-  const r = await runPolyglotQuery(root, { pattern: 'print($X)' })
-  if ('state' in r) {
-    check('print($X) runs', false, r.note)
-  } else {
-    check('print($X): exactly the 2 app.py calls', r.matches.length === 2 && r.matches.every(m => m.file === 'app.py'))
-    check('matches carry the inferred language', r.matches.every(m => m.language === 'python'))
-    check('captures annotated in context', r.matches[0]!.context.includes('$X=name'))
-    check('document order', r.matches[0]!.range.startLine < r.matches[1]!.range.startLine)
-    check(
-      'broken.py reported as a parse failure, never matched over',
-      r.parseFailures.some(f => f.file === 'broken.py'),
-      JSON.stringify(r.parseFailures),
-    )
-    check('gitignored dir + suffix rule excluded', !r.matches.some(m => m.file.includes('skipme') || m.file.endsWith('.skip.py')))
+try {
+  writeFileSync(join(root, 'app.py'), 'def greet(name):\n    print(name)\n    print("hi")\n')
+  writeFileSync(join(root, 'broken.py'), 'def broken(:\n    print(\n')
+  writeFileSync(join(root, 'main.go'), 'package main\n\nimport "fmt"\n\nfunc main() {\n\tfmt.Println("x")\n}\n')
+  writeFileSync(join(root, 'lib.rs'), 'fn main() { println!("{}", 1); }\n')
+  mkdirSync(join(root, 'src'))
+  writeFileSync(join(root, 'src', 'util.ts'), 'export function f(a: number) { console.log(a) }\n')
+  writeFileSync(join(root, 'notes.skip.py'), 'print("suffix-ignored")\n')
+  mkdirSync(join(root, 'skipme'))
+  writeFileSync(join(root, 'skipme', 'hidden.py'), 'print("dir-ignored")\n')
+  writeFileSync(join(root, '.gitignore'), 'skipme/\n*.skip.py\n')
+  const r = await query('print($X)')
+  if (isAstRefusal(r)) throw new Error(r.refused)
+  check('print($X): exactly the two app.py calls', r.matches.length === 2 && r.matches.every(m => m.rel === 'app.py'))
+  check('matches carry the inferred language', r.matches.every(m => m.lang === 'python'))
+  check('captures carry the exact source', r.matches[0]?.captures.some(c => c.key === '$X' && c.text === 'name') === true)
+  check('document order', r.matches[0]!.startLine < r.matches[1]!.startLine)
+  check('broken.py reported, never matched over', r.parseFailures.some(f => f.rel === 'broken.py') && !r.matches.some(m => m.rel === 'broken.py'))
+  check('gitignored dir and suffix excluded', !r.matches.some(m => m.rel.includes('skipme') || m.rel.endsWith('.skip.py')))
+  for (const [pattern, lang, file, kind] of [
+    ['fmt.Println($$$A)', 'go', 'main.go', 'call_expression'],
+    ['println!($$$A)', 'rust', 'lib.rs', 'macro_invocation'],
+    ['console.log($A)', 'typescript', 'src/util.ts', 'call_expression'],
+  ] as const) {
+    const result = await query(pattern)
+    check(`${lang}: ${pattern} matches ${file}`, !isAstRefusal(result) && result.matches.length === 1 && result.matches[0]?.rel === file && result.matches[0]?.nodeType === kind && result.matches[0]?.lang === lang)
   }
-}
-
-for (const [pattern, lang, file, kind] of [
-  ['fmt.Println($$$A)', 'go', 'main.go', 'call_expression'],
-  ['println!($$$A)', 'rust', 'lib.rs', 'macro_invocation'],
-  ['console.log($A)', 'typescript', 'src/util.ts', 'call_expression'],
-] as const) {
-  const r = await runPolyglotQuery(root, { pattern })
-  if ('state' in r) {
-    check(`${lang} pattern runs`, false, r.note)
-  } else {
-    check(
-      `${lang}: ${pattern} matches ${file}`,
-      r.matches.length === 1 && r.matches[0]!.file === file && r.matches[0]!.kind === kind && r.matches[0]!.language === lang,
-      JSON.stringify(r.matches.map(m => [m.file, m.kind, m.language])),
-    )
-  }
-}
-
-{
-  const pinned = await runPolyglotQuery(root, { pattern: 'print($X)', lang: 'go' })
-  check('lang pin narrows to zero here', !('state' in pinned) && pinned.matches.length === 0)
-  const unknown = await runPolyglotQuery(root, { pattern: 'print($X)', lang: 'klingon' })
-  check('unknown lang refuses by name', 'state' in unknown && unknown.note.includes("unknown lang 'klingon'"))
-}
-
-{
-  const scoped = await runPolyglotQuery(root, { pattern: 'console.log($A)', files: ['src/**/*.ts'] })
-  check('files glob scopes', !('state' in scoped) && scoped.matches.length === 1 && scoped.matches[0]!.file === 'src/util.ts')
-  const capped = await runPolyglotQuery(root, { pattern: 'print($X)', limit: 1 })
-  check('limit caps + truncation flagged', !('state' in capped) && capped.matches.length === 1 && capped.truncated === true)
-  const a = await runPolyglotQuery(root, { pattern: 'print($X)' })
-  const b = await runPolyglotQuery(root, { pattern: 'print($X)' })
-  const proj = (r: typeof a) => ('state' in r ? 'x' : JSON.stringify(r.matches.map(m => [m.id, m.range, m.kind])))
-  check('two runs identical (ids · ranges · order)', proj(a) === proj(b))
-}
-
-{
-  const r = await runPolyglotQuery(root, { pattern: ')((broken' })
-  check(
-    'unparseable pattern yields per-file refusal rows',
-    !('state' in r) && r.matches.length === 0 && r.parseFailures.length > 0,
-    'state' in r ? r.note : `${r.parseFailures.length} rows`,
-  )
-}
-
-{
+  const pinned = await query('print($X)', { lang: 'go' })
+  check('language pin narrows to zero', !isAstRefusal(pinned) && pinned.matches.length === 0)
+  const unknown = await query('print($X)', { lang: 'klingon' })
+  check('unknown language refuses by name', isAstRefusal(unknown) && unknown.refused.includes('Unknown language "klingon"'))
+  const scoped = await query('console.log($A)', { glob: 'src/**/*.ts' })
+  check('glob scopes', !isAstRefusal(scoped) && scoped.matches.length === 1 && scoped.matches[0]?.rel === 'src/util.ts')
+  const capped = await query('print($X)', { matchCap: 1 })
+  check('cap truncation is flagged', !isAstRefusal(capped) && capped.matches.length === 1 && capped.capped)
+  const a = await query('print($X)')
+  const b = await query('print($X)')
+  const project = (result: typeof a) => isAstRefusal(result) ? null : result.matches.map(m => [m.rel, m.startLine, m.startCol, m.endLine, m.endCol, m.nodeType, m.text])
+  check('two runs are identical: paths, positions, kind, text and order', !isAstRefusal(a) && !isAstRefusal(b) && JSON.stringify(project(a)) === JSON.stringify(project(b)))
+  const malformed = await query(')((broken')
+  check('unparseable pattern has explicit language refusals, never silent absence', !isAstRefusal(malformed) && malformed.matches.length === 0 && malformed.patternRefusals.length > 0)
   writeFileSync(join(root, 'ops.py'), 'a = x + y\nb = x - y\nc = x * y\nd = x < y\ne = x > y\n')
-  const plus = await runPolyglotQuery(root, { pattern: '$A + $B', lang: 'python' })
-  check(
-    'operator tokens discriminate ($A + $B never matches x - y)',
-    !('state' in plus) && plus.matches.length === 1 && plus.matches[0]!.text === 'x + y',
-    'state' in plus ? plus.note : JSON.stringify(plus.matches.map(m => m.text)),
-  )
-  const lt = await runPolyglotQuery(root, { pattern: '$A < $B', lang: 'python' })
-  check('comparison operators discriminate', !('state' in lt) && lt.matches.length === 1 && lt.matches[0]!.text === 'x < y')
-
+  for (const [pattern, text] of [['$A + $B', 'x + y'], ['$A < $B', 'x < y']]) {
+    const result = await query(pattern!, { lang: 'python' })
+    check(`operator tokens discriminate ${pattern}`, !isAstRefusal(result) && result.matches.length === 1 && result.matches[0]?.text === text)
+  }
   writeFileSync(join(root, 'chain.js'), 'console\n  .log(42)\n')
-  const chain = await runPolyglotQuery(root, { pattern: 'console.log($X)', lang: 'javascript' })
-  check(
-    'whitespace-split member chains still match (pre-filter honesty)',
-    !('state' in chain) && chain.matches.some(m => m.file === 'chain.js'),
-    'state' in chain ? chain.note : JSON.stringify(chain.matches.map(m => m.file)),
-  )
-
+  const chain = await query('console.log($X)', { lang: 'javascript' })
+  check('whitespace-split member chains still match', !isAstRefusal(chain) && chain.matches.some(m => m.rel === 'chain.js'))
   mkdirSync(join(root, 'deep', 'er'), { recursive: true })
   writeFileSync(join(root, 'deep', 'er', 'd.py'), 'target(1)\n')
-  const glob = await runPolyglotQuery(root, { pattern: 'target($X)', files: ['deep/**'] })
-  check("trailing '**' glob crosses directories", !('state' in glob) && glob.matches.length === 1 && glob.matches[0]!.file === 'deep/er/d.py')
-
+  const glob = await query('target($X)', { glob: 'deep/**' })
+  check('trailing double-star crosses directories', !isAstRefusal(glob) && glob.matches.length === 1 && glob.matches[0]?.rel === 'deep/er/d.py')
   writeFileSync(join(root, 'ws.js'), 'foo(  );\nfoo();\n')
-  const ws = await runPolyglotQuery(root, { pattern: 'foo()', lang: 'javascript' })
-  check('foo() matches foo(  ) (interior whitespace)', !('state' in ws) && ws.matches.length === 2, 'state' in ws ? ws.note : String(ws.matches.length))
-
-  const { encodePattern } = await import('../../src/services/structure/pattern.ts')
-  check('$$$foo (lowercase) stays literal', encodePattern('$$$foo') === '$$$foo', encodePattern('$$$foo'))
-  check('$$X stays literal', encodePattern('$$X') === '$$X', encodePattern('$$X'))
-  check('$$$ still encodes', encodePattern('f($$$)') === 'f(__MVM_ANON__)')
-}
-
-{
-  const negRoot = mkdtempSync(join(tmpdir(), 'lathe-query-neg-'))
+  const ws = await query('foo()', { lang: 'javascript' })
+  check('empty argument whitespace does not matter', !isAstRefusal(ws) && ws.matches.length === 2)
+  check('lowercase sequence placeholder remains literal', encodePattern('$$$foo') === '$$$foo')
+  check('double-dollar placeholder remains literal', encodePattern('$$X') === '$$X')
+  check('anonymous sequence still encodes', encodePattern('f($$$)') === 'f(__MVM_ANON__)')
   writeFileSync(join(negRoot, '.gitignore'), '*.py\n!keep.py\n')
   writeFileSync(join(negRoot, 'keep.py'), 'print(2)\n')
-  const r = await runPolyglotQuery(negRoot, { pattern: 'print($X)' })
-  check('negated .gitignore never hides files', !('state' in r) && r.matches.length === 1 && r.matches[0]!.file === 'keep.py')
+  const negated = await query('print($X)', { cwd: negRoot })
+  check('negated ignore never hides the re-included file', !isAstRefusal(negated) && negated.matches.length === 1 && negated.matches[0]?.rel === 'keep.py')
+} finally {
+  for (const dir of [root, negRoot, env.home, env.engineDir]) rmSync(dir, { recursive: true, force: true })
 }
-
-console.log(failures === 0 ? '\nPOLYGLOT QUERY LAWS GREEN' : `\n${failures} FAILURE(S)`)
-process.exit(failures === 0 ? 0 : 1)
+finish('POLYGLOT QUERY LAWS')
