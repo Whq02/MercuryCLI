@@ -42,8 +42,8 @@ function AppearanceCenter({ onDone }: Props): React.ReactNode {
         error
           ? `not saved: ${error.message}`
           : next
-            ? 'reduced — decorative animation off, state changes stay visible'
-            : 'full — decorative animation on',
+            ? 'reduced — decorative animation off, state changes stay visible; saved for later boots'
+            : 'full — decorative animation on; saved for later boots',
       )
     }
   })
@@ -51,7 +51,7 @@ function AppearanceCenter({ onDone }: Props): React.ReactNode {
   const close = (): void =>
     onDone('Appearance center dismissed', { display: 'system' })
   const applyTheme = (setting: ThemeSetting): void => {
-    onDone(`Theme set to ${setting} — /appearance to revisit`)
+    onDone(`Theme set to ${setting} — saved for later boots; /appearance to revisit`)
   }
 
   return (
