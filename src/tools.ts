@@ -81,6 +81,7 @@ import { CronDeleteTool } from './tools/ScheduleCronTool/CronDeleteTool.js'
 import { CronListTool } from './tools/ScheduleCronTool/CronListTool.js'
 import { ScheduleWakeupTool } from './tools/ScheduleWakeupTool/ScheduleWakeupTool.js'
 import { SendMessageTool } from './tools/SendMessageTool/SendMessageTool.js'
+import { ResumeAgentTool } from './tools/ResumeAgentTool/ResumeAgentTool.js'
 import { ServiceTool } from './tools/ServiceTool/ServiceTool.js'
 import { SkillTool } from './tools/SkillTool/SkillTool.js'
 import { SleepTool } from './tools/SleepTool/SleepTool.js'
@@ -188,6 +189,7 @@ export function getAllBaseTools(): Tools {
     ...(isWorktreeModeEnabled() ? [EnterWorktreeTool, ExitWorktreeTool] : []),
     ...(checkpointRewindEnabled() ? [CheckpointTool, RewindTool] : []),
     sendMessage,
+    cycleTolerant(() => ResumeAgentTool),
     WORKFLOW_TOOL,
     SLEEP_TOOL,
     ...(SCHEDULING_ENABLED_AT_LOAD

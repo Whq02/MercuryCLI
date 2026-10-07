@@ -391,7 +391,12 @@ if (launched) {
   const heardBy = requests.filter(r => r.raw.includes(word)).map(r => r.agent)
   check('only alpha reads it — beta never sees the words', heardBy.length > 0 && heardBy.every(a => a === 'alpha'), JSON.stringify(heardBy))
   const phantom = (await runWithCwdOverride(cwd, () => SendMessageTool.call({ to: 'a0123456789abcdef', message: 'anyone there' } as never, sendCtx, undefined as never, { requestId: 'req_wf_msg2' } as never))) as { data: { success: boolean; message: string } }
-  check('an id no live run carries falls through to the transcript road (its own precise refusal)', phantom.data.success === false && /no transcript/i.test(phantom.data.message), phantom.data.message.slice(0, 160))
+  check('an id no live run or transcript carries follows the unknown-address road', phantom.data.success === false && phantom.data.message.startsWith('Cannot deliver to "a0123456789abcdef": no crewmate by that name or id exists in this session.'), phantom.data.message.slice(0, 160))
+  const { ResumeAgentTool } = await import('../../src/tools/ResumeAgentTool/ResumeAgentTool.js')
+  const resumeWord = `${word}-resume`
+  const resumedWorker = (await runWithCwdOverride(cwd, () => ResumeAgentTool.call({ to: alphaBefore, message: resumeWord }, sendCtx, undefined as never, { requestId: 'req_wf_resume' } as never))) as { data: { success: boolean; message: string } }
+  check('ResumeAgent to the running worker uses the same control words and no second run', resumedWorker.data.success && /Message queued for worker/.test(resumedWorker.data.message) && /journal/.test(resumedWorker.data.message) && idOf('alpha') === alphaBefore, resumedWorker.data.message)
+  check('the worker receives the resume-verb guidance through the same channel', await until(() => requests.some(r => r.agent === 'alpha' && r.raw.includes(resumeWord)), 20_000))
 
   const betaId = idOf('beta')!
   const killRes = await requestWorkflowControl(runDir, { action: 'kill-agent', by: 'second process', agentId: betaId })
@@ -417,7 +422,7 @@ if (launched) {
   const rows = journalRows(runDir)
   const acts = rows.filter(r => r.type === 'control-request').map(r => (r.request as { action: string }).action)
   const results = rows.filter(r => r.type === 'control-result').map(r => `${r.action}:${(r.result as { outcome: string }).outcome}`)
-  check('every act is journaled: the request then its result, in order', JSON.stringify(acts) === JSON.stringify(['pause-agent', 'pause-agent', 'resume-agent', 'message-agent', 'kill-agent', 'kill-agent', 'stop']) && JSON.stringify(results) === JSON.stringify(['pause-agent:applied', 'pause-agent:refused', 'resume-agent:applied', 'message-agent:applied', 'kill-agent:applied', 'kill-agent:refused', 'stop:applied']), `${JSON.stringify(acts)} ${JSON.stringify(results)}`)
+  check('every act is journaled: the request then its result, in order', JSON.stringify(acts) === JSON.stringify(['pause-agent', 'pause-agent', 'resume-agent', 'message-agent', 'message-agent', 'kill-agent', 'kill-agent', 'stop']) && JSON.stringify(results) === JSON.stringify(['pause-agent:applied', 'pause-agent:refused', 'resume-agent:applied', 'message-agent:applied', 'message-agent:applied', 'kill-agent:applied', 'kill-agent:refused', 'stop:applied']), `${JSON.stringify(acts)} ${JSON.stringify(results)}`)
   check('every control row carries the owner epoch', rows.filter(r => r.type === 'control-request' || r.type === 'control-result').every(r => typeof r.epoch === 'number'))
   const after = await requestWorkflowControl(runDir, { action: 'pause', by: 'second process' })
   check('after the stop the channel answers already settled', after.outcome === 'refused' && /already settled/.test(after.reason), JSON.stringify(after))

@@ -46,8 +46,8 @@ check's "Crewmates & workflows" row does the same.
 ## Starting a crewmate
 
 A crewmate starts through the Agent tool, with a name or without one. A named
-crewmate takes further instructions through SendMessage addressed to its
-name, after its first turn and after it has finished; an unnamed one works
+crewmate takes more work through ResumeAgent addressed to its name, running
+or finished, and notes through SendMessage while it runs; an unnamed one works
 its prompt once and returns its report, and is reached afterwards by the id
 its launch receipt names. The model is the one the launch names, or the
 configured crewmate default from `/config`; no crewmate's model is chosen for
@@ -103,10 +103,9 @@ Stop and resume work the same for every crewmate. A stopped crewmate keeps
 its history: its row reads `stopped` with the reason and its transcript
 stands on disk; `r` on its row continues it from where it was, the work
 before the stop in its context, and the row may be pressed after it has left
-the list. A message to a stopped or finished crewmate takes the same road:
-SendMessage to its name or its id resumes it from its transcript with the
-message as its next turn, and the answer names the new row and how it had
-ended. Every stop, resume and failure reaches the main agent as a
+the list. ResumeAgent to a stopped or finished crewmate takes the same road:
+addressed by its name or id, it resumes from its transcript with the message
+as its next turn, and the answer names the new row and how it had ended. Every stop, resume and failure reaches the main agent as a
 notification of its own kind, never silently, a stop or resume from the crew
 view included. The main agent's own door is the TaskStop tool, which takes a
 task id, a crewmate's agent id (the id its launch receipt gave) or a launch
@@ -126,12 +125,18 @@ same failure lines beside the per-agent rows.
 
 ## Messages
 
-SendMessage carries a plain message to a crewmate of this session by the id
-its launch receipt names or by the name its launch gave it, and from a
-background crewmate to `main`, the agent that launched it. A running
-receiver reads it at its next tool boundary, else at the end of its turn; a
-receiver between turns starts a turn for it; a receiver that has finished is
-resumed from its transcript with the message as its next turn. A name two
+SendMessage carries a plain note to a running crewmate by the id its launch
+receipt names or by the name its launch gave it, and from a background
+crewmate to `main`, the agent that launched it. A running receiver reads it
+at its next tool boundary, else at the end of its turn; the main agent
+between turns starts a turn for it. SendMessage never starts a finished
+crewmate: its refusal names ResumeAgent with the same `to` and `message`.
+
+ResumeAgent gives a crewmate more work by the same id or name. A completed,
+failed or stopped crewmate resumes from its transcript in the background;
+a running one receives the message without starting a second run. The
+completion notice reaches the main agent. A crewmate launched with an output
+schema keeps its StructuredOutput tool on the resumed turn. A name two
 launches carried reaches the newest.
 
 ## File leases

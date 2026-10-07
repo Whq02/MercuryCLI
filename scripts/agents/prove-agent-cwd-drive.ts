@@ -86,7 +86,7 @@ const whereFixture = await startScriptedFixture(req => {
     case 1: {
       seen.launch = last
       const id = /agentId: (\S+)/.exec(last?.text ?? '')?.[1] ?? 'unknown'
-      return [{ type: 'tool_use', name: 'SendMessage', input: { to: id, message: CONTINUE_PROMPT, summary: 'continue' } }]
+      return [{ type: 'tool_use', name: 'ResumeAgent', input: { to: id, message: CONTINUE_PROMPT, summary: 'continue' } }]
     }
     case 2:
       seen.continued = last
@@ -301,7 +301,7 @@ const sidecarFor = (runHome: string, description: string): Record<string, unknow
       case 2:
         seen.helperLaunch = last
         helperId = /agentId: (\S+)/.exec(last?.text ?? '')?.[1] ?? ''
-        return [{ type: 'tool_use', name: 'SendMessage', input: { to: helperId || HELPER_NAME, message: CONTINUE_HELPER, summary: 'continue' } }]
+        return [{ type: 'tool_use', name: 'ResumeAgent', input: { to: helperId || HELPER_NAME, message: CONTINUE_HELPER, summary: 'continue' } }]
       case 3:
         seen.workerContinued = last
         return [{ type: 'tool_use', name: 'Bash', input: { command: waitForFile(join(firstPwd, 'continued.flag')), description: 'wait for the continuation' } }]
@@ -375,7 +375,7 @@ const sidecarFor = (runHome: string, description: string): Record<string, unknow
         return [{ type: 'tool_use', name: 'Bash', input: { command: readSettledRecord, description: 'wait for the settled record' } }]
       case 2:
         seen.effortSettled = last
-        return [{ type: 'tool_use', name: 'SendMessage', input: { to: effortId || 'unknown', message: CONTINUE_EFFORT, summary: 'continue' } }]
+        return [{ type: 'tool_use', name: 'ResumeAgent', input: { to: effortId || 'unknown', message: CONTINUE_EFFORT, summary: 'continue' } }]
       case 3:
         seen.effortContinued = last
         return [{ type: 'tool_use', name: 'Bash', input: { command: `${waitForFile(effortContinuedFlag)}; ${findRecord}; cat "$f" 2>/dev/null || echo no-record`, description: 'wait for the continuation, then read the record again' } }]

@@ -177,7 +177,7 @@ export function crewTrafficMessages(records: readonly Message[]): CrewRow[] {
       for (const block of content) {
         if (block.type !== 'tool_use') continue
         const input = (block.input ?? {}) as Record<string, unknown>
-        if (block.name === 'SendMessage' && typeof input.to === 'string' && input.to.trim()) {
+        if ((block.name === 'SendMessage' || block.name === 'ResumeAgent') && typeof input.to === 'string' && input.to.trim()) {
           const text = sendMessageWords(input)
           const summary = typeof input.summary === 'string' && input.summary.trim() ? input.summary.trim() : undefined
           rows.push({

@@ -2,6 +2,7 @@ import { getToolNameForPermissionCheck, mcpInfoFromString } from '../../services
 import type { ToolPermissionContext } from '../../Tool.js'
 import type { PermissionBehavior, PermissionRule, PermissionRuleSource, PermissionRuleValue } from '../../types/permissions.js'
 import { getDenyRules } from './decision/rules.js'
+import { RULE_INHERITS } from '../../constants/tools.js'
 import { permissionRuleValueFromString, permissionRuleValueToString } from './permissionRuleParser.js'
 
 export type RuleReasonCarrier = {
@@ -107,7 +108,7 @@ export function wholeToolDenyRulesCovering(
   const toolInfo = mcpInfoFromString(name)
   return getDenyRules(context).filter(rule => {
     if (rule.ruleValue.ruleContent !== undefined) return false
-    if (rule.ruleValue.toolName === name) return true
+    if (rule.ruleValue.toolName === name || RULE_INHERITS[name]?.includes(rule.ruleValue.toolName)) return true
     const ruleInfo = mcpInfoFromString(rule.ruleValue.toolName)
     return (
       ruleInfo !== null &&

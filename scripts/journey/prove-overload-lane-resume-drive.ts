@@ -245,13 +245,13 @@ async function startFixture(port: number, laneCwd?: string): Promise<{ base: str
       const answered = answeredTool(items)
       let out: string
       if (answered === 'Agent') out = textBlock(0, LAUNCHED) + tail('end_turn')
-      else if (answered === 'SendMessage') out = textBlock(0, RESUMED) + tail('end_turn')
+      else if (answered === 'ResumeAgent') out = textBlock(0, RESUMED) + tail('end_turn')
       else if (lastUserText.includes('<task-notification>')) {
         const status = pickTag(lastUserText, 'status')
         const taskId = pickTag(lastUserText, 'task-id')
         if (status === 'failed' && lastUserText.includes(OLD_DOOR) && taskId !== null && state.handResumes < HAND_RESUMES_MAX) {
           state.handResumes++
-          out = toolBlock(0, `toolu_overload_resume_${++toolSeq}`, 'SendMessage', { to: taskId, message: 'carry on with the notes report', summary: 'carry on with the notes report' }) + tail('tool_use')
+          out = toolBlock(0, `toolu_overload_resume_${++toolSeq}`, 'ResumeAgent', { to: taskId, message: 'carry on with the notes report', summary: 'carry on with the notes report' }) + tail('tool_use')
         } else out = textBlock(0, NOTED) + tail('end_turn')
       } else if (lastUserText.includes('overload-drive: launch')) {
         out =
@@ -488,7 +488,7 @@ if (cap !== null) {
   const outputs = lane === null ? [] : laneOutputs(lane)
   const deaths = outputs.filter(o => o.model === '<synthetic>' && (FAMILY !== undefined ? /stayed busy through \d+ retr/.test(o.text) : /^API Error: 529\b|API overload errors \(529\)/.test(o.text)))
   const done = outputs.some(o => o.text.includes(LANE_DONE))
-  const sendMessages = parentToolUses(parentRecords, 'SendMessage')
+  const sendMessages = parentToolUses(parentRecords, 'ResumeAgent')
   const laneHits = fixture.hits.filter(h => h.lane === 'lane')
   const probeHits = fixture.hits.filter(h => h.lane === 'probe')
   const refused = laneHits.filter(h => h.answer === 'down' || h.answer === 'mid-stream')

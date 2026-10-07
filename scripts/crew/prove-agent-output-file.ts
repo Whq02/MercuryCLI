@@ -152,7 +152,7 @@ store.set(prev => ({ ...prev, tasks: {} }))
 const stopWords = await stopTask(quiet, { getAppState: store.get, setAppState: store.set }).then(() => '', (error: unknown) => (error as Error).message)
 check('TaskStop on its id answers with the plain miss', stopWords.startsWith('No task found with id'), stopWords)
 const toQuiet = (await SendMessageTool.call({ to: quiet, message: 'anyone there' } as never, ctx, undefined as never, { requestId: 'req_quiet' } as never)) as SendAnswer
-check('SendMessage to its id says there is no running task and no transcript on disk to resume', toQuiet.data.success === false && /no running task/i.test(toQuiet.data.message) && /no transcript on disk to resume/i.test(toQuiet.data.message), toQuiet.data.message)
+check('SendMessage treats an id with no task or transcript as an unknown address', toQuiet.data.success === false && /no (?:agent named|crewmate by that name or id)/i.test(toQuiet.data.message), toQuiet.data.message)
 check('and still no transcript exists for it', !existsSync(quietTranscript) && isEmptyPlainFile(quietNamed))
 await land(quiet, 'a straggler row after the task ended')
 check('a task that ended before any row landed no longer waits: a straggler row leaves its empty file', existsSync(quietTranscript) && isEmptyPlainFile(quietNamed))

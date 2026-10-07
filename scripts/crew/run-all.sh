@@ -3,7 +3,8 @@
 # gate-watch: src/services/providers/local/ollamaChatTransport.ts src/services/providers/openaicompat/compatChatCallModel.ts
 # gate-watch: src/substrate/operationJournal.ts
 # gate-class: cpu
-# gate-watch: src/tools/SendMessageTool/**
+# gate-watch: src/tools/SendMessageTool/** src/tools/ResumeAgentTool/**
+# gate-watch: src/services/providers/toolEconomy.ts src/services/providers/anthropic/boundPrefixRecord.ts
 # gate-watch: scripts/ui/vshot.py src/daemon/**
 # gate-watch: src/utils/daemonBreaker*
 # gate-watch: src/fabric/transcriptDecode.ts src/utils/sessionStorage/settledSidechainMessages.ts src/run-core/project-legacy.ts

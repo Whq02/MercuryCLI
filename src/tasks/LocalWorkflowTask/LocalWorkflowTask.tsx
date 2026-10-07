@@ -137,7 +137,7 @@ export function workflowOwnedAgentWords(workflow: LocalWorkflowTaskState, agentI
     `Agent ${agentId} is a worker of the running workflow "${name}" (${workflow.workflowRunId}) — the workflow owns its run, ` +
     `so it takes no direct message and is never started a second time beside the original. ` +
     `Inspect mercury://workflow/${workflow.workflowRunId}?child=${agentId} for its progress, skip or retry it from the crew view, ` +
-    `or message it once the workflow has finished.`
+    `or resume it with ResumeAgent once the workflow has finished.`
   )
 }
 

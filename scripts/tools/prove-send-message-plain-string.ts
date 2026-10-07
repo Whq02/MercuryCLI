@@ -74,7 +74,7 @@ section('§2 DELIVERY — a plain string to a running crewmate of this session i
   registerAsyncAgent({ agentId: id, description: 'the researcher', prompt: 'map the auth flow', setAppState: setState as never })
   registerAgentName('researcher', id, setState as never)
   const byName = await call({ to: 'researcher', message: THREE_LINES }, makeContext(), 'req_name')
-  check('the message to the name is delivered', byName.data.success === true && /delivered to agent researcher/.test(byName.data.message), byName.data.message)
+  check('the message to the name is delivered', byName.data.success === true && /^Delivered to researcher \(id /.test(byName.data.message), byName.data.message)
   const task = state.tasks[id] as { pendingMessages?: unknown[] } | undefined
   check('the message waits on the running task for its next tool boundary', Array.isArray(task?.pendingMessages) && task.pendingMessages.length === 1, JSON.stringify(task?.pendingMessages).slice(0, 200))
   const byId = await call({ to: id, message: 'a second line' }, makeContext(), 'req_id')
@@ -94,7 +94,8 @@ section('§3 THE WORDS — the description and the prompt say a plain message, b
   check('the description names a crewmate by id or name', /crewmate/.test(DESCRIPTION) && /id or name/.test(DESCRIPTION), DESCRIPTION)
   const prompt = getPrompt()
   check('the prompt example is to + message alone', /"to": "researcher", "message":/.test(prompt) && !/summary/.test(prompt), prompt.split('\n').find(line => line.startsWith('Example')) ?? '')
-  check('the prompt says a running crewmate reads at its next tool boundary and an ended one is resumed', /next tool boundary/.test(prompt) && /resumed from its transcript/.test(prompt))
+  const { getPrompt: resumePrompt } = await import('../../src/tools/ResumeAgentTool/prompt.ts')
+  check('the prompts separate delivery timing from an ended crewmate resume', /next tool boundary/.test(prompt) && /It never starts work/.test(prompt) && /resumed from its transcript/.test(resumePrompt()))
 }
 
 console.log(`\nprove-send-message-plain-string: ${checks} checks, ${failures} failed`)
