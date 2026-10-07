@@ -411,7 +411,7 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     proof: 'scripts/builtin-tools/prove-toolsearch-capability.ts',
   },
   Transaction: {
-    intents: ['bind a coding loop into one evidence record', 'prove a fix end to end'],
+    intents: ['see what changed and was checked', 'finish the work after a passing check'],
     units: ['application-verification'],
     class: 'coordination',
     resources: ['ide'],
