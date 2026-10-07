@@ -28,6 +28,7 @@
 # gate-watch: scripts/interview/baseline-capture.ts scripts/typecheck/run-all.sh
 # gate-watch: scripts/visual-contract/baseline-capture.ts
 # gate-watch: src/commands/config/config.tsx src/commands/login/login.tsx src/commands/usage/usage.tsx
+# gate-watch: src/commands/model/mercuryModel.tsx src/services/providers/catalogueEpoch.ts src/services/providers/anthropic/anthropicCatalogue.ts src/services/wallet/identityWords.ts
 # gate-watch: scripts/ui/fixtures/settings-popup-header/*
 # gate-watch: src/services/switchboard/capacityCheck.ts src/context/surfaceRoute.ts
 # gate-watch: src/rows/* src/runner/wire/*
