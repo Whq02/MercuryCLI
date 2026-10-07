@@ -38,11 +38,12 @@ check('both languages advertised on this host', languagesOf().sort().join(',') =
 process.env.MERCURY_EVAL_PY = '0'
 _resetInterpreterProbeCacheForTesting()
 await primeEvalAvailability(process.cwd())
-check('an unavailable language reaches the tool refusal rather than a raw schema error', EvalTool.inputSchema.safeParse({ language: 'py', code: '1 + 1' }).success)
+const unavailableCell = { language: 'py' as const, code: '1 + 1' }
+check('an unavailable language reaches the tool refusal rather than a raw schema error', EvalTool.inputSchema.safeParse(unavailableCell).success)
 {
   const { makeContext } = await import('./lib.js')
   const context = await makeContext()
-  const refused = await EvalTool.call({ language: 'py', code: '1 + 1' } as never, context, undefined as never, undefined as never, undefined)
+  const refused = await EvalTool.call(unavailableCell, context, undefined as never, undefined as never, undefined)
   const words = JSON.stringify(EvalTool.mapToolResultToToolResultBlockParam(refused.data, 'unavailable-python'))
   check('the unavailable Python answer carries the health reason and the available language', refused.data.status === 'error' && words.includes('MERCURY_EVAL_PY') && words.includes('js'), words)
 }
