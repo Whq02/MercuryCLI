@@ -14,6 +14,7 @@ import { UNANSWERED_ASK_REJECT_MESSAGE, turnCutOf } from '../../utils/messages/r
 import { encodeDecisionReasonForWire } from '../../utils/permissions/decisionReasonWire.js'
 import { hasPermissionsToUseTool } from '../../utils/permissions/permissions.js'
 import { applyPermissionUpdates, persistPermissionUpdates } from '../../utils/permissions/PermissionUpdate.js'
+import { flowUserAllowUpdates } from '../../utils/permissions/flowPolicy.js'
 import { notifySessionStateChanged, type RequiresActionDetails } from '../../utils/sessionState.js'
 import { SANDBOX_NETWORK_ACCESS_TOOL_NAME } from '../../daemon/runnerFrames.js'
 
@@ -86,12 +87,13 @@ export function decisionOfAnswer(
   answer: PermissionAnswer,
   tool: Tool,
   originalInput: Record<string, unknown>,
-  toolUseContext: Pick<ToolUseContext, 'abortController' | 'setAppState'>,
+  toolUseContext: Pick<ToolUseContext, 'abortController' | 'setAppState'> & Partial<Pick<ToolUseContext, 'getAppState'>>,
+  suggestions: PermissionUpdate[] = [],
 ): PermissionDecision {
   if (answer.outcome === 'allow') {
     const updatedInput = answer.input !== undefined ? answer.input : originalInput
-    if (answer.rules !== undefined && answer.rules.length > 0) {
-      const updates = answer.rules as PermissionUpdate[]
+    const updates = flowUserAllowUpdates(tool, updatedInput, toolUseContext, (answer.rules ?? []) as PermissionUpdate[], answer.input === undefined ? suggestions : [])
+    if (updates.length > 0) {
       persistPermissionUpdates(updates)
       toolUseContext.setAppState(previous => {
         const updated = applyPermissionUpdates(previous.toolPermissionContext, updates)
@@ -191,7 +193,7 @@ export function createHostCanUseTool(channel: AskChannel, onPermissionPrompt?: (
       }
 
       const answer = raceOutcome.source === 'host' ? raceOutcome.answer : await requestPromise
-      return decisionOfAnswer(answer, tool as Tool, input, toolUseContext)
+      return decisionOfAnswer(answer, tool as Tool, input, toolUseContext, askResult.suggestions)
     } catch (error) {
       const unanswered = parentSignal.aborted ? unansweredAskCause(parentSignal.reason) : undefined
       if (unanswered !== undefined) {
