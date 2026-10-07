@@ -78,6 +78,7 @@ import type { ToolResultBlockParam } from '../../types/wire.js'
 import type { AssistantMessage } from '../../types/message.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { existsSync } from 'node:fs'
+import { tailFile } from '../../utils/fsOperations.js'
 import { copyFile, link, stat, truncate } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
 import { getScratchpadDir } from '../../utils/permissions/filesystem.js'
@@ -151,6 +152,7 @@ export type Out = {
   backgroundPid?: number
   backgroundLifetime?: BackgroundLifetime
   stopOffered?: boolean
+  backgroundOutputIsTail?: boolean
   backgroundedByUser?: boolean
   assistantAutoBackgrounded?: boolean
   timeoutAutoBackgroundedAfterMs?: number
@@ -420,6 +422,16 @@ async function* runBash(
     backgroundLifetime: agentId !== undefined ? 'crewmate' : isRunInputClosed() ? 'turn' : 'session',
     stopOffered: context.options.tools.some(tool => tool.name === TASK_STOP_TOOL_NAME),
   })
+  const outputSoFar = async (): Promise<{ stdout: string; isTail: boolean }> => {
+    const window = resolveOutputBudget(readMaxOutputChars(input.max_output_chars)).effective
+    const cut = (text: string): string => formatOutput(stripEmptyLines(text), { maxLength: window }).truncatedContent
+    try {
+      const tail = await tailFile(shellCommand.taskOutput.path, window)
+      return { stdout: cut(tail.content), isTail: tail.bytesRead < tail.bytesTotal }
+    } catch {
+      return { stdout: cut(latest.all), isTail: latest.incomplete }
+    }
+  }
   const launchFacts = (): ShellLaunchFacts => ({
     command: input.command,
     description: input.description ?? input.command,
@@ -559,8 +571,9 @@ async function* runBash(
     }
   }
   if (backgroundId !== undefined) {
+    const soFar = timeoutAutoBackgroundedAfterMs !== undefined ? await outputSoFar() : { stdout: '', isTail: false }
     return {
-      stdout: '',
+      stdout: soFar.stdout,
       stderr: '',
       interrupted: false,
       backgroundTaskId: backgroundId,
@@ -568,6 +581,7 @@ async function* runBash(
       assistantAutoBackgrounded,
       timeoutAutoBackgroundedAfterMs,
       ...backgroundFacts(),
+      ...(soFar.isTail ? { backgroundOutputIsTail: true } : {}),
     }
   }
 
@@ -611,8 +625,9 @@ async function* runBash(
 
       if (backgroundId !== undefined) {
         const fullOutput = latest.all
+        const soFar = timeoutAutoBackgroundedAfterMs !== undefined ? await outputSoFar() : { stdout: '', isTail: false }
         return {
-          stdout: interruptBackgroundingStarted || backgroundAskHandled ? fullOutput : '',
+          stdout: interruptBackgroundingStarted || backgroundAskHandled ? fullOutput : soFar.stdout,
           stderr: '',
           interrupted: false,
           backgroundTaskId: backgroundId,
@@ -621,6 +636,7 @@ async function* runBash(
           timeoutAutoBackgroundedAfterMs,
           ...(backgroundAskHandled ? { backgroundedByUser: true } : {}),
           ...backgroundFacts(),
+          ...(soFar.isTail ? { backgroundOutputIsTail: true } : {}),
         }
       }
 
@@ -832,7 +848,19 @@ function backgroundNoticeFor(output: Out): string {
     return `The operator moved this command to the background as task ${id}; it is still running, and its output arrives as a notification when it completes. Output: ${outputPath}.`
   }
   if (output.timeoutAutoBackgroundedAfterMs) {
-    return `Command timed out after ${formatDuration(output.timeoutAutoBackgroundedAfterMs)} and was moved to the background with ID: ${id}. It is still running under an absolute deadline of ${HARD_CAP_MULTIPLIER}× the timeout, after which it will be killed. Output: ${outputPath}. Pass a larger timeout for work that legitimately needs it, or run_in_background for service-style commands.`
+    const deadline = formatDuration(HARD_CAP_MULTIPLIER * output.timeoutAutoBackgroundedAfterMs)
+    const soFar =
+      output.stdout.trim() === ''
+        ? `It has printed nothing yet; its output goes to ${outputPath}.`
+        : `${output.backgroundOutputIsTail ? 'The end of its output so far is above' : 'Its output so far is above'}; the rest goes to ${outputPath}.`
+    const stopNow = output.stopOffered ? ` TaskStop with task_id "${id}" ends it now, with the processes under it.` : ''
+    const until =
+      output.backgroundLifetime === 'turn'
+        ? ' This run ends when your turn ends (unless a crewmate is still running) and stops it then.'
+        : output.backgroundLifetime === 'crewmate'
+          ? ' It is stopped when you finish.'
+          : ' When it ends, a notice reaches you after your next tool result, or in a new turn once yours is over.'
+    return `Command timed out after ${formatDuration(output.timeoutAutoBackgroundedAfterMs)} and was moved to the background with ID: ${id}; it was not stopped. ${soFar} It is still running under an absolute deadline of ${HARD_CAP_MULTIPLIER}× the timeout (${deadline} from now), after which it will be killed.${stopNow}${until} Next time, pass a larger \`timeout\` if it needs longer, or \`run_in_background\` for a command meant to keep running.`
   }
   const pid = output.backgroundPid !== undefined ? ` Process id ${output.backgroundPid}.` : ''
   const wait = output.backgroundPid !== undefined
