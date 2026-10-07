@@ -82,6 +82,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-windows-shell-road.ts" || { __rc=$
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-windows-pack-layout.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-windows-pack-layout.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-input-redirect-read.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-input-redirect-read.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-bash-approval-words.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-bash-approval-words.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-pipe-quoted-whitespace.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-pipe-quoted-whitespace.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-awk-operands.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-awk-operands.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-git-rules-in-git-context.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-git-rules-in-git-context.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-which-exit-one-is-a-result.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-which-exit-one-is-a-result.ts" "$__t" "$__rc"
