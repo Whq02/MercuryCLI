@@ -541,8 +541,8 @@ section('L3b BACKFILL — a per-block backfill that THROWS leaves that block its
   check('the valid sibling still carries its backfilled field (the clone is per block)', good?.input?.rig_added === true && good.input.text === 'v', JSON.stringify(good))
   const results = r === null ? [] : toolResultBlocks(r.yields)
   check(
-    'the malformed block settles through the existing schema-error tool_result (is_error, required parameter) and the sibling ran',
-    results.some(b => b.tool_use_id === 'tu_bad' && b.is_error === true && JSON.stringify(b.content).includes('required parameter')) && results.some(b => b.tool_use_id === 'tu_good' && b.is_error !== true && JSON.stringify(b.content).includes('echo:v')),
+    'the malformed block settles through the schema-error result naming its field and expected string, and the sibling ran',
+    results.some(b => b.tool_use_id === 'tu_bad' && b.is_error === true && JSON.stringify(b.content).includes('`text`') && JSON.stringify(b.content).includes('string')) && results.some(b => b.tool_use_id === 'tu_good' && b.is_error !== true && JSON.stringify(b.content).includes('echo:v')),
     JSON.stringify(results.map(b => ({ id: b.tool_use_id, e: b.is_error, c: JSON.stringify(b.content).slice(0, 80) }))),
   )
   check('the API-bound assistant is still the original object (prompt-cache byte identity)', r !== null && r.calls.length > 1 && r.calls[1]!.messages.find(m => (m as AnyMsg).type === 'assistant') === original)
