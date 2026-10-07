@@ -5,7 +5,7 @@ import {
   isEnvTruthy,
 } from '../../utils/envUtils.js'
 import { searchToolsAvailability } from '../../utils/ripgrep.js'
-import { SEND_MESSAGE_TOOL_NAME } from '../SendMessageTool/constants.js'
+import { RESUME_AGENT_TOOL_NAME } from '../ResumeAgentTool/constants.js'
 import { EFFORT_LEVELS } from '../../utils/effort.js'
 import { AGENT_TOOL_NAME, MERCURY_CREW_AGENT_TYPE, MERCURY_SCOUT_AGENT_TYPE } from './constants.js'
 import { isForkSubagentEnabled } from './forkSubagent.js'
@@ -97,7 +97,7 @@ ${typeSelection}`
     )
   }
   usage.push(
-    `To pick an earlier spawned agent back up, address ${SEND_MESSAGE_TOOL_NAME} to its id or name — it resumes with its full context intact. Each fresh ${AGENT_TOOL_NAME} invocation otherwise starts without context.`,
+    `To pick an earlier spawned agent back up, call ${RESUME_AGENT_TOOL_NAME} with its id or name — it resumes with its full context intact. Each fresh ${AGENT_TOOL_NAME} invocation otherwise starts without context.`,
     "Treat the agent's prose as a claim to verify, not a fact: spot-check load-bearing results with a diff, a render, or a test before relying on them. A status=\"valid\" payload passed your schema: use it without re-reading what the agent read, and require evidence as a field when a value needs it.",
     `State explicitly whether the agent should write code or only research${forkOn ? '' : ' — it cannot see the user\'s intent'}.`,
     'When an agent description says to use it proactively, honour that cue without waiting to be asked.',
