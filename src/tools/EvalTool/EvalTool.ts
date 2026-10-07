@@ -67,6 +67,9 @@ function composeResultText(output: EvalToolOutput): string {
       `${output.error.name}: ${output.error.value}${output.error.traceback ? `\n${output.error.traceback}` : ''}`,
     )
   }
+  for (const sample of output.samples ?? []) {
+    parts.push(`[sample] ${sample.title} v${sample.version} → ${sample.url}${sample.ask ? ` · asked: ${sample.ask}` : ''}`)
+  }
   for (const note of output.annotations) parts.push(`[note] ${note}`)
   if (parts.length === 0) parts.push('(the cell produced no output)')
   return parts.join('\n')
@@ -123,6 +126,7 @@ const evalToolDef = buildTool({
       onProgress?.({ toolUseID: toolUseId, data })
     }
     const serveBridge = makeEvalBridgeServer({
+      owner: ownerFromToolUseContext(context),
       context,
       canUseTool: canUseTool as never,
       cellAbort,

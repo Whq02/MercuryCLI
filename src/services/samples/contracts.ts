@@ -1,5 +1,13 @@
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 
+export interface SampleItem {
+  id: string
+  title: string
+  version: number
+  url: string
+  ask?: string
+}
+
 export type SampleState = 'open' | 'approved' | 'changes-needed'
 
 export interface SampleVersionV1 {
