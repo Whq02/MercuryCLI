@@ -306,6 +306,9 @@ export type ScheduleOpOutcome = {
   outcome: 'applied' | 'noop' | 'refused'
   detail?: string
   scheduleId?: string
+  nextFireMs?: number | null
+  family?: string
+  preflight?: ScheduleAccountVerdictV1
 }
 
 export function applyConcourseScheduleOp(
@@ -377,7 +380,12 @@ export function applyConcourseScheduleOp(
           source: derived.account.source,
           ...(schedule.preflightAtWrite !== undefined ? { preflight: schedule.preflightAtWrite.state } : {}),
         })
-        out = { outcome: 'applied', detail: `scheduled — ${describeWhen(sub.when)}`, scheduleId: id }
+        out = {
+          outcome: 'applied', detail: `scheduled — ${describeWhen(sub.when)}`, scheduleId: id,
+          nextFireMs: sub.when.kind === 'at' ? sub.when.atMs : saturnNextFireMs(sub.when, schedule.createdAt),
+          family: derived.account.family,
+          ...(schedule.preflightAtWrite !== undefined ? { preflight: schedule.preflightAtWrite } : {}),
+        }
         return
       }
       case 'remove': {

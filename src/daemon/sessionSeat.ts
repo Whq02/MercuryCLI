@@ -10,6 +10,7 @@ import {
 import {
   rewindOutcomeFromWire,
   scheduleRosterToWire,
+  scheduleEditFromWire,
   sessionFactsFromWire,
   sessionKitToWire,
 } from '../services/engine-connector/seatWire.js'
@@ -604,6 +605,41 @@ export function onFactsAnswer(short: string, result: unknown, roster: SeatRoster
   applySessionScheduleAnswer(short, answer, roster, dir)
   publishSeatFacts(short, dir, roster)
   armWorkPoll(short, roster, dir)
+}
+
+export function answerSeatScheduleEdit(
+  short: string,
+  params: ParamsOf<'schedule/edit'>,
+  roster: SeatRosterPort,
+  dir?: string,
+  deps = seatScheduleDeps(),
+): ResultOf<'schedule/edit'> {
+  const rec = liveRecordByShort(short, dir)
+  if (!rec) return { outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' }
+  const raw = scheduleEditFromWire(params.edit)
+  const op = (raw as { op?: unknown } | null)?.op
+  if (op !== 'add' && op !== 'remove' && op !== 'pause' && op !== 'resume') {
+    return { outcome: 'refused', detail: 'schedule refused — op must be add|remove|pause|resume' }
+  }
+  refreshSignInReads()
+  const out = applyConcourseScheduleOp(rec.sessionId, raw as import('./saturn.js').ScheduleOpRequestV1, `model:${rec.sessionId}`, deps, dir)
+  logForDebugging(`[daemon] schedule edit (${op}) from ${short}: ${out.outcome}${out.detail !== undefined ? ` — ${out.detail}` : ''}`)
+  pushScheduleRoster(short, roster, dir)
+  requestSessionFacts(short, roster, { immediate: true }, dir)
+  const preflight = out.preflight
+  return {
+    outcome: out.outcome,
+    ...(out.detail !== undefined ? { detail: out.detail } : {}),
+    ...(out.scheduleId !== undefined ? { schedule_id: out.scheduleId } : {}),
+    ...(out.nextFireMs !== undefined ? { next_fire_ms: out.nextFireMs } : {}),
+    ...(out.family !== undefined ? { family: out.family } : {}),
+    time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    ...(preflight !== undefined ? { preflight: {
+      state: preflight.state,
+      ...('expiresAt' in preflight ? { expires_at: preflight.expiresAt, before_fire: preflight.beforeFire } : {}),
+      ...('retryAt' in preflight ? { retry_at: preflight.retryAt } : {}),
+    } } : {}),
+  }
 }
 
 function applySessionScheduleAnswer(short: string, answer: SessionFactsAnswerV1, roster: SeatRosterPort, dir?: string): void {

@@ -323,6 +323,23 @@ export const METHODS = {
     scope: 'none',
     deadlineMs: 10_000,
   }),
+  'schedule/edit': method({
+    name: 'schedule/edit',
+    from: 'runner',
+    kind: 'request',
+    params: lazySchema(() => z.object({ edit: z.unknown() })),
+    result: lazySchema(() => z.object({
+      outcome: z.enum(['applied', 'noop', 'refused']),
+      detail: z.string().optional(),
+      schedule_id: z.string().optional(),
+      next_fire_ms: z.number().nullable().optional(),
+      time_zone: z.string().optional(),
+      family: z.string().optional(),
+      preflight: z.object({ state: z.string(), expires_at: z.number().optional(), before_fire: z.boolean().optional(), retry_at: z.number().optional() }).optional(),
+    })),
+    scope: 'none',
+    deadlineMs: 10_000,
+  }),
   'schedule/roster': method({
     name: 'schedule/roster',
     from: 'host',
