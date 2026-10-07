@@ -19,6 +19,7 @@ for (const [key, value] of [[batch, [{ language: 'js', code: '1' }]], [budget, 5
 const missing = error({ [batch]: [] })
 check('a batch input is not a cell and still needs both required fields', missing.includes('`language`') && missing.includes('"py", "js"') && missing.includes('`code` is missing'), missing)
 check('unsupported language uses the generic enum refusal', error({ language, code: '1' }) === error({ language: 'nonsense', code: '1' }))
-check('the five-field cell remains valid', EvalTool.inputSchema.safeParse({ language: 'js', code: '1', title: 'one', timeoutSeconds: 0, reset: false }).success)
+const validCell = { language: 'js', code: '1', title: 'one', timeoutSeconds: 0, reset: false }
+check('the five-field cell remains valid', EvalTool.inputSchema.safeParse(validCell).success)
 cleanup()
 finish('EVAL GENERIC INPUT VALIDATION')

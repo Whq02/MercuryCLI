@@ -42,7 +42,6 @@ export const WHOLE_TREE: Record<string, string> = {
   'switchboard-5-drives': 'prove-exit-everywhere walks src (ctrl-c handlers)',
   'switchboard-6': 'prove-status-prune walks src (retention numbers)',
   'switchboard-6-drives': 'prove-esc-led-sends walks scripts (esc-led drives)',
-  'transcript-rows': 'prove-workshop-cell-card walks src (workshop cell cards)',
   'tree-ownership': 'prove-suite-membership reads every runner under scripts (the membership law)',
   ui: 'prove-terminal-handback and prove-tty-suspend walk src (terminal owners)',
   'ui-2': 'prove-vshot-send-hygiene walks scripts (vshot sends)',

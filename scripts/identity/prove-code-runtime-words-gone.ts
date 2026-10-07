@@ -7,17 +7,17 @@ const forbidden = CODE_TOOL_SPELLINGS.map(word => word.toLowerCase())
 const hits: string[] = []
 function walk(path: string): void {
   const rel = relative(root, path)
-  if (rel === 'src/constants/changelog.ts') return
+  if (rel === 'src/constants/changelog.ts' || rel === 'scripts/identity/forbidden-code-tool.ts') return
   if (statSync(path).isDirectory()) {
     for (const entry of readdirSync(path, { withFileTypes: true })) {
       if (!entry.isSymbolicLink()) walk(join(path, entry.name))
     }
   } else if (/\.(tsx?|[cm]?js|json|md|txt|sh|ya?ml|tsv|csv)$/.test(path)) {
     const text = readFileSync(path, 'utf8').toLowerCase()
-    if (forbidden.some(word => text.includes(word) || rel.toLowerCase().includes(word))) hits.push(rel)
+    if (forbidden.some(word => text.includes(word) || !rel.startsWith('scripts/eval/prove-') && rel.toLowerCase().includes(word))) hits.push(rel)
   }
 }
-for (const path of process.argv.slice(2).length ? process.argv.slice(2) : ['src', 'docs', 'design-system']) walk(resolve(root, path))
+for (const path of process.argv.slice(2).length ? process.argv.slice(2) : ['src', 'scripts', 'docs', 'design-system']) walk(resolve(root, path))
 console.log(`  [${hits.length ? 'FAIL' : 'PASS'}] one code-runtime vocabulary${hits.length ? ` — ${hits.join(', ')}` : ''}`)
 console.log(hits.length ? 'code runtime identity: FAILED' : 'code runtime identity: ALL PASS')
 process.exit(hits.length ? 1 : 0)
