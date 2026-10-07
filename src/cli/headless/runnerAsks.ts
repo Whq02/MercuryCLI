@@ -14,7 +14,7 @@ import { UNANSWERED_ASK_REJECT_MESSAGE, turnCutOf } from '../../utils/messages/r
 import { encodeDecisionReasonForWire } from '../../utils/permissions/decisionReasonWire.js'
 import { hasPermissionsToUseTool } from '../../utils/permissions/permissions.js'
 import { applyPermissionUpdates, persistPermissionUpdates } from '../../utils/permissions/PermissionUpdate.js'
-import { flowUserAllowUpdates } from '../../utils/permissions/flowPolicy.js'
+import { FLOW_AWAY_MESSAGE, FLOW_AWAY_TIMEOUT_MS, flowUserAllowUpdates } from '../../utils/permissions/flowPolicy.js'
 import { notifySessionStateChanged, type RequiresActionDetails } from '../../utils/sessionState.js'
 import { SANDBOX_NETWORK_ACCESS_TOOL_NAME } from '../../daemon/runnerFrames.js'
 
@@ -120,6 +120,8 @@ export function createHostCanUseTool(channel: AskChannel, onPermissionPrompt?: (
     const key = randomUUID()
     const parentSignal = toolUseContext.abortController.signal
     const requestController = new AbortController()
+    let awayTimer: ReturnType<typeof setTimeout> | undefined
+    let away = false
     const forwardParentAbort = (): void => requestController.abort(parentSignal.reason)
     parentSignal.addEventListener('abort', forwardParentAbort, { once: true })
     try {
@@ -160,12 +162,19 @@ export function createHostCanUseTool(channel: AskChannel, onPermissionPrompt?: (
         ...(toolUseContext.agentId !== undefined ? { agent_id: toolUseContext.agentId } : {}),
       }
       const requestPromise = channel.askPermission(params, { signal: requestController.signal, key })
+      if (permissionMode === 'flow') {
+        awayTimer = setTimeout(() => {
+          away = true
+          requestController.abort()
+        }, FLOW_AWAY_TIMEOUT_MS)
+      }
 
       const raceOutcome = await Promise.race([
         hookDecisionPromise.then(decision => ({ source: 'hook' as const, decision })),
         requestPromise.then(answer => ({ source: 'host' as const, answer })),
       ])
 
+      if (away) return decisionOfAnswer({ outcome: 'deny', message: FLOW_AWAY_MESSAGE }, tool as Tool, input, toolUseContext)
       if (raceOutcome.source === 'hook' && raceOutcome.decision) {
         const hookDecision = raceOutcome.decision
         requestController.abort()
@@ -195,6 +204,7 @@ export function createHostCanUseTool(channel: AskChannel, onPermissionPrompt?: (
       const answer = raceOutcome.source === 'host' ? raceOutcome.answer : await requestPromise
       return decisionOfAnswer(answer, tool as Tool, input, toolUseContext, askResult.suggestions)
     } catch (error) {
+      if (away) return decisionOfAnswer({ outcome: 'deny', message: FLOW_AWAY_MESSAGE }, tool as Tool, input, toolUseContext)
       const unanswered = parentSignal.aborted ? unansweredAskCause(parentSignal.reason) : undefined
       if (unanswered !== undefined) {
         return decisionOfAnswer({ outcome: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(tool.name, unanswered) }, tool as Tool, input, toolUseContext)
@@ -205,6 +215,7 @@ export function createHostCanUseTool(channel: AskChannel, onPermissionPrompt?: (
         decisionReason: { type: 'other', reason: 'permission request failed' },
       }
     } finally {
+      if (awayTimer !== undefined) clearTimeout(awayTimer)
       parentSignal.removeEventListener('abort', forwardParentAbort)
       if (channel.parkedAsks() === 0) notifySessionStateChanged('running')
     }
