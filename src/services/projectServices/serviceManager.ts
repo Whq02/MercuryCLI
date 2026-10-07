@@ -394,6 +394,7 @@ export async function startService(
   }
   closeSync(logFd)
   if (!child.pid) {
+    child.on('error', () => {})
     return { error: 'spawn produced no pid' }
   }
   if (spec.lifecycle === 'project') child.unref()
