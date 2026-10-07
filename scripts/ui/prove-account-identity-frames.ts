@@ -165,6 +165,25 @@ try {
       }
     }
   }
+  if (surface === undefined || surface === 'config') {
+    const { Config } = await import(join(ROOT, 'src/components/Settings/Config.tsx'))
+    const { ThemeProvider } = await import(join(ROOT, 'src/components/design-system/ThemeProvider.tsx'))
+    let absent = ''
+    for (const leg of ['absent', 'shown', 'hidden'] as Leg[]) {
+      setLeg(leg)
+      const body = React.createElement(AppStateProvider, null, React.createElement(ThemeProvider, null, React.createElement(Config, { onClose() {}, context: { messages: [], options: {} } as never, width: 118, contentHeight: 120 })))
+      const painted = await paint(body, 120, 124)
+      const accountRows = painted.final.split('\n').filter(line => /Hugging Face account/.test(line)).join('\n')
+      save(`config-${leg}`, accountRows)
+      check(`config-${leg}: the provider account row painted`, accountRows.includes('Hugging Face account'), painted.final)
+      if (leg === 'hidden') check('config-hidden: no frame shows the signed-in username', painted.frames.every(frame => !frame.includes(USERNAME)), accountRows)
+      else {
+        check(`config-${leg}: the signed-in username is present`, accountRows.includes(USERNAME), accountRows)
+        if (leg === 'absent') absent = accountRows
+        else check('config-shown: the account row is byte-identical to absent', absent === accountRows)
+      }
+    }
+  }
   check('no provider request was attempted', requests.length === 0, JSON.stringify(requests))
 } finally {
   globalThis.fetch = originalFetch
