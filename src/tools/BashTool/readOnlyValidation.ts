@@ -1,4 +1,3 @@
-import type { ToolPermissionContext } from '../../Tool.js'
 import type { PermissionResult } from '../../utils/permissions/PermissionResult.js'
 import {
   splitCommand_DEPRECATED,
@@ -6,380 +5,130 @@ import {
   tryParseShellCommand,
   extractOutputRedirections,
 } from '../../utils/permissions/decision/commandAnalysis.js'
-import {
-  validateFlags,
-  GIT_READ_ONLY_COMMANDS,
-  PYRIGHT_READ_ONLY_COMMANDS,
-  DOCKER_READ_ONLY_COMMANDS,
-  EXTERNAL_READONLY_COMMANDS,
-  type ExternalCommandConfig,
-  type FlagArgType,
-} from '../../utils/shell/readOnlyCommandValidation.js'
+import { LISTED_WORDS, formRuleFor, walkFlags, walkedRuleFor } from '../../utils/shell/readOnlyCommandValidation.js'
 import { bashCommandIsSafe_DEPRECATED } from './bashSecurity.js'
 import { isNormalizedGitCommand } from './bashPermissions.js'
 import { PATH_EXTRACTORS, COMMAND_OPERATION_TYPE, type PathCommand } from './pathValidation.js'
-import { sedCommandIsAllowedByAllowlist } from './sedValidation.js'
 import { isCurrentDirectoryBareGitRepo } from '../../utils/git.js'
 import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
 import { getCwd } from '../../utils/cwd.js'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import { getPlatform } from '../../utils/platform.js'
-import { binaryName } from '../../utils/config/derived.js'
 import { uncPathRisk, uncPathMessage } from '../../utils/permissions/uncPath.js'
 import { containsWindowsDevicePath, WINDOWS_DEVICE_PATH_MESSAGE } from '../../utils/permissions/windowsPath.js'
 
-
-const none: FlagArgType = 'none'
-const str: FlagArgType = 'string'
-const num: FlagArgType = 'number'
-const char: FlagArgType = 'char'
-
-function psIsDangerous(_rawCommand: string, args: string[]): boolean {
-  return args.some(token => !token.startsWith('-') && /^[a-z]+$/i.test(token) && token.includes('e'))
-}
-
-function dateIsDangerous(_rawCommand: string, args: string[]): boolean {
-  const argFlags = new Set(['-d', '--date', '-r', '--reference', '--iso-8601', '--rfc-3339'])
-  for (let i = 0; i < args.length; i++) {
-    const token = args[i] as string
-    if (token.startsWith('--') && token.includes('=')) continue
-    if (argFlags.has(token)) {
-      i++
-      continue
-    }
-    if (token.startsWith('-')) continue
-    if (!token.startsWith('+')) return true
-  }
-  return false
-}
-
-function lsofIsDangerous(_rawCommand: string, args: string[]): boolean {
-  return args.some(token => token === '+m' || token.startsWith('+m'))
-}
-
-const TPUT_DANGEROUS_CAPS = new Set([
-  'init', 'reset', 'rs1', 'rs2', 'rs3', 'is1', 'is2', 'is3', 'iprog', 'if', 'rf',
-  'clear', 'flash', 'mc0', 'mc4', 'mc5', 'mc5i', 'mc5p', 'pfkey', 'pfloc', 'pfx',
-  'pfxl', 'smcup', 'rmcup',
-])
-function tputIsDangerous(_rawCommand: string, args: string[]): boolean {
-  let optionsEnded = false
-  for (let i = 0; i < args.length; i++) {
-    const token = args[i] as string
-    if (!optionsEnded && token === '--') {
-      optionsEnded = true
-      continue
-    }
-    if (!optionsEnded && token === '-T') {
-      i++
-      continue
-    }
-    if (!optionsEnded && /^-[A-Za-z]*S/.test(token)) return true
-    if (optionsEnded || !token.startsWith('-')) {
-      if (TPUT_DANGEROUS_CAPS.has(token)) return true
-    }
-  }
-  return false
-}
-
-function sedIsDangerous(rawCommand: string): boolean {
-  return !sedCommandIsAllowedByAllowlist(rawCommand)
-}
-
-const LOCAL_CONFIGS: Record<string, ExternalCommandConfig> = {
-  xargs: { safeFlags: { '-I': char, '-E': 'EOF', '-n': num, '-P': num, '-0': none, '--null': none, '-a': str, '--arg-file': str, '-d': str, '--delimiter': str, '-L': num, '-p': none, '--interactive': none, '-r': none, '--no-run-if-empty': none, '-t': none, '--verbose': none } },
-  file: { safeFlags: { '-b': none, '--brief': none, '-i': none, '--mime': none, '--mime-type': none, '--mime-encoding': none, '-L': none, '--dereference': none, '-z': none, '--uncompress': none, '-s': none, '--special-files': none } },
-  sed: {
-    safeFlags: {
-      '-e': str, '--expression': str,
-      '-n': none, '--quiet': none, '--silent': none,
-      '-r': none, '-E': none, '--regexp-extended': none, '--posix': none,
-      '-l': num, '--line-length': num,
-      '-z': none, '--zero-terminated': none,
-      '-s': none, '--separate': none,
-      '-u': none, '--unbuffered': none,
-      '--debug': none, '--help': none, '--version': none,
-    },
-    additionalCommandIsDangerousCallback: sedIsDangerous,
-  },
-  sort: { safeFlags: { '-b': none, '-d': none, '-f': none, '-g': none, '-i': none, '-M': none, '-h': none, '-n': none, '-r': none, '-R': none, '-u': none, '-c': none, '-C': none, '-k': str, '--key': str, '-t': str, '--field-separator': str, '-z': none } },
-  man: { safeFlags: { '-a': none, '--all': none, '-f': none, '--whatis': none, '-k': none, '--apropos': none, '-w': none, '--where': none } },
-  help: { safeFlags: { '-d': none, '-m': none, '-s': none } },
-  netstat: { safeFlags: { '-a': none, '-n': none, '-r': none, '-l': none, '-t': none, '-u': none, '-p': none, '-i': none, '-s': none } },
-  ps: { safeFlags: { '-e': none, '-f': none, '-l': none, '-u': str, '-p': str, '-o': str, '-a': none, '-x': none, '-A': none, '--sort': str, '-C': str }, additionalCommandIsDangerousCallback: psIsDangerous },
-  base64: { safeFlags: { '-d': none, '--decode': none, '-w': num, '--wrap': num, '-i': none, '--ignore-garbage': none }, respectsDoubleDash: false },
-  grep: { safeFlags: { '-i': none, '-v': none, '-n': none, '-c': none, '-l': none, '-L': none, '-o': none, '-r': none, '-R': none, '-E': none, '-F': none, '-w': none, '-x': none, '-A': num, '-B': num, '-C': num, '-e': str, '-f': str, '--include': str, '--exclude': str, '--exclude-dir': str, '--include-dir': str, '--color': str, '-H': none, '-h': none, '--line-buffered': none } },
-  sha256sum: { safeFlags: { '-b': none, '-c': none, '-t': none, '--tag': none } },
-  sha1sum: { safeFlags: { '-b': none, '-c': none, '-t': none, '--tag': none } },
-  md5sum: { safeFlags: { '-b': none, '-c': none, '-t': none, '--tag': none } },
-  tree: { safeFlags: { '-a': none, '-d': none, '-f': none, '-i': none, '-l': none, '-L': num, '-P': str, '-I': str, '-C': none, '-n': none, '-p': none, '-s': none, '-h': none, '-D': none, '-t': none, '-r': none, '--dirsfirst': none, '-J': none } },
-  date: { safeFlags: { '-u': none, '--utc': none, '-R': none, '--rfc-email': none, '-I': str, '--iso-8601': str, '-d': str, '--date': str, '-r': str, '--reference': str, '--rfc-3339': str }, additionalCommandIsDangerousCallback: dateIsDangerous },
-  hostname: { safeFlags: { '-s': none, '--short': none, '-d': none, '--domain': none, '-f': none, '--fqdn': none, '-i': none, '-I': none, '-A': none }, regex: /^hostname(?:\s+-[A-Za-z])*\s*$/ },
-  info: { safeFlags: { '-f': str, '--file': str, '-n': str, '--node': str, '-w': none, '--where': none, '--subnodes': none, '-a': none } },
-  lsof: { safeFlags: { '-i': str, '-n': none, '-P': none, '-p': str, '-u': str, '-c': str, '-t': none, '-a': none, '-l': none, '-R': none, '-F': str }, additionalCommandIsDangerousCallback: lsofIsDangerous },
-  pgrep: { safeFlags: { '-l': none, '-a': none, '-f': none, '-n': none, '-o': none, '-u': str, '-x': none, '-c': none, '-d': str } },
-  tput: { safeFlags: { '-T': str }, additionalCommandIsDangerousCallback: tputIsDangerous },
-  ss: { safeFlags: { '-a': none, '-l': none, '-n': none, '-p': none, '-t': none, '-u': none, '-x': none, '-s': none, '-r': none, '-i': none, '-e': none, '-m': none, '-o': none } },
-  fd: FD_CONFIG(),
-  fdfind: FD_CONFIG(),
-}
-
-function FD_CONFIG(): ExternalCommandConfig {
-  return { safeFlags: { '-H': none, '--hidden': none, '-I': none, '--no-ignore': none, '-t': str, '--type': str, '-e': str, '--extension': str, '-d': num, '--max-depth': num, '-p': none, '--full-path': none, '-g': none, '--glob': none, '-a': none, '--absolute-path': none, '-c': str, '--color': str, '-s': none, '--case-sensitive': none, '-i': none, '--ignore-case': none, '-0': none, '--print0': none } }
-}
-
-const XARGS_TARGETS = ['echo', 'printf', 'wc', 'grep', 'head', 'tail']
-
-function buildAllowlist(): Map<string, ExternalCommandConfig> {
-  const map = new Map<string, ExternalCommandConfig>()
-  const add = (key: string, config: ExternalCommandConfig): void => {
-    map.set(key, config)
-  }
-  const addAll = (src: Record<string, ExternalCommandConfig>): void => {
-    for (const [key, config] of Object.entries(src)) map.set(key, config)
-  }
-  if (getPlatform() !== 'windows') add('xargs', LOCAL_CONFIGS.xargs as ExternalCommandConfig)
-  addAll(GIT_READ_ONLY_COMMANDS)
-  for (const key of ['file', 'sed', 'sort', 'man', 'help', 'netstat', 'ps', 'base64', 'grep']) {
-    add(key, LOCAL_CONFIGS[key] as ExternalCommandConfig)
-  }
-  for (const key of ['sha256sum', 'sha1sum', 'md5sum', 'tree', 'date', 'hostname', 'info', 'lsof', 'pgrep', 'tput', 'ss', 'fd', 'fdfind']) {
-    add(key, LOCAL_CONFIGS[key] as ExternalCommandConfig)
-  }
-  addAll(PYRIGHT_READ_ONLY_COMMANDS)
-  addAll(DOCKER_READ_ONLY_COMMANDS)
-  return map
-}
-
-let allowlistCache: Map<string, ExternalCommandConfig> | null = null
-let allowlistPlatform: string | null = null
-function effectiveAllowlist(): Map<string, ExternalCommandConfig> {
-  const platform = getPlatform()
-  if (allowlistCache === null || allowlistPlatform !== platform) {
-    allowlistCache = buildAllowlist()
-    allowlistPlatform = platform
-  }
-  return allowlistCache
-}
-
-
-function isCommandSafeViaFlagParsing(command: string): boolean {
-  const parse = tryParseShellCommand(command)
-  if (!parse.success) return false
-  const tokens: string[] = []
-  for (const token of parse.tokens) {
-    if (typeof token === 'string') tokens.push(token)
-    else if (isGlobToken(token)) tokens.push((token as { pattern: string }).pattern)
-    else return false
-  }
-  if (tokens.length === 0) return false
-
-  const allowlist = effectiveAllowlist()
-  let matchedConfig: ExternalCommandConfig | null = null
-  let prefixOffset = 0
-  for (const [key, config] of allowlist) {
-    const words = key.split(' ')
-    if (tokens.length >= words.length && words.every((w, i) => tokens[i] === w)) {
-      matchedConfig = config
-      prefixOffset = words.length
-      break
-    }
-  }
-  if (matchedConfig === null) return false
-  const baseCommand = tokens[0] as string
-
-  if (tokens[0] === 'git' && tokens[1] === 'ls-remote') {
-    for (let i = 2; i < tokens.length; i++) {
-      const token = tokens[i] as string
-      if (token.startsWith('-')) continue
-      if (token.includes('://') || token.includes('@') || token.includes(':') || token.includes('$')) return false
-    }
-  }
-
-  for (let i = prefixOffset; i < tokens.length; i++) {
-    const token = tokens[i] as string
-    if (token.includes('$')) return false
-    if (token.includes('{') && (token.includes(',') || token.includes('..'))) return false
-  }
-
-  const flagOk = validateFlags(tokens, prefixOffset, matchedConfig, {
-    commandName: baseCommand,
-    rawCommand: command,
-    xargsTargetCommands: baseCommand === 'xargs' ? XARGS_TARGETS : undefined,
-  })
-  if (!flagOk) return false
-
-  if (matchedConfig.regex) {
-    if (!matchedConfig.regex.test(command)) return false
-  } else {
-    if (command.includes('`')) return false
-    if (baseCommand === 'grep' && /[\r\n]/.test(command)) return false
-  }
-
-  if (matchedConfig.additionalCommandIsDangerousCallback) {
-    if (matchedConfig.additionalCommandIsDangerousCallback(command, tokens.slice(prefixOffset))) return false
-  }
-  return true
-}
-
-
+const STDERR_TO_STDOUT = ' 2>&1'
 const EXPANSION_FOLLOW = /[A-Za-z0-9_@*#?!$-]/
+const GIT_ESCAPE = /\s(?:-c|--exec-path|--config-env)(?:\s|=)/
 
-function hasUnquotedExpansion(command: string): boolean {
-  let mode: 'none' | 'single' | 'double' = 'none'
-  for (let i = 0; i < command.length; i++) {
-    const ch = command[i] as string
-    if (mode !== 'single' && ch === '\\') {
+function wordsOf(tokens: readonly unknown[]): string[] | null {
+  const words: string[] = []
+  for (const token of tokens) {
+    if (typeof token === 'string') words.push(token)
+    else if (typeof token === 'object' && token !== null && (token as { op?: string }).op === 'glob') words.push((token as { pattern: string }).pattern)
+    else return null
+  }
+  return words
+}
+
+function hasUnquotedExpansion(text: string): boolean {
+  let quote: 'none' | 'single' | 'double' = 'none'
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i] as string
+    if (quote !== 'single' && ch === '\\') {
       i++
       continue
     }
-    if (ch === "'" && mode !== 'double') {
-      mode = mode === 'single' ? 'none' : 'single'
+    if (ch === "'" && quote !== 'double') {
+      quote = quote === 'single' ? 'none' : 'single'
       continue
     }
-    if (ch === '"' && mode !== 'single') {
-      mode = mode === 'double' ? 'none' : 'double'
+    if (ch === '"' && quote !== 'single') {
+      quote = quote === 'double' ? 'none' : 'double'
       continue
     }
-    if (mode !== 'single' && ch === '$') {
-      const next = command[i + 1]
+    if (quote !== 'single' && ch === '$') {
+      const next = text[i + 1]
       if (next !== undefined && next !== '{' && next !== '(' && EXPANSION_FOLLOW.test(next)) return true
     }
-    if (mode === 'none' && (ch === '?' || ch === '*' || ch === '[' || ch === ']')) return true
+    if (quote === 'none' && (ch === '?' || ch === '*' || ch === '[' || ch === ']')) return true
   }
   return false
 }
 
-
-const SIMPLE_COMMAND_NAMES = [
-  'cal', 'uptime', 'cat', 'head', 'tail', 'wc', 'stat', 'strings', 'hexdump',
-  'od', 'nl', 'id', 'uname', 'free', 'df', 'du', 'locale', 'groups', 'nproc',
-  'basename', 'dirname', 'realpath', 'cut', 'paste', 'tr', 'column', 'tac',
-  'rev', 'fold', 'expand', 'unexpand', 'fmt', 'comm', 'cmp', 'numfmt',
-  'readlink', 'diff', 'true', 'false', 'sleep', 'which', 'type', 'expr', 'test',
-  'getconf', 'seq', 'tsort', 'pr',
-]
-
-const SIMPLE_INJECTION = /[<>()$`|{}&;\r\n]/
-
-function matchesRegexAllowlist(command: string): boolean {
-  const firstWord = command.trim().split(/\s+/)[0] ?? ''
-  const simpleNames = new Set<string>([
-    ...EXTERNAL_READONLY_COMMANDS.map(c => (c.split(' ')[0] as string)),
-    ...SIMPLE_COMMAND_NAMES,
-  ])
-  if (simpleNames.has(firstWord)) {
-    const remainder = command.slice(firstWord.length)
-    if (!SIMPLE_INJECTION.test(remainder)) return true
+function walkedReadsOnly(text: string): boolean {
+  const parse = tryParseShellCommand(text)
+  if (!parse.success) return false
+  const tokens = wordsOf(parse.tokens)
+  if (tokens === null || tokens.length === 0) return false
+  const rule = walkedRuleFor(tokens)
+  if (rule === undefined || (rule.unixOnly && getPlatform() === 'windows')) return false
+  const operands = tokens.slice(rule.words.length)
+  if (operands.some(token => token.includes('$') || (token.includes('{') && (token.includes(',') || token.includes('..'))))) return false
+  if (!walkFlags(tokens, rule.words.length, rule)) return false
+  if (rule.whole !== undefined) {
+    if (!rule.whole.test(text)) return false
+  } else {
+    if (text.includes('`')) return false
+    if (rule.noNewline && /[\r\n]/.test(text)) return false
   }
-  return matchesHandWrittenPattern(command)
+  return rule.readsOnly === undefined || rule.readsOnly(operands, text)
 }
 
-function matchesHandWrittenPattern(command: string): boolean {
-  const trimmed = command.trim()
-  const cli = binaryName()
-  if ([`${cli} -h`, `${cli} --help`].includes(trimmed)) return true
-  if (['node -v', 'node --version', 'python --version', 'python3 --version'].includes(trimmed)) return true
-  if (trimmed === 'pwd' || trimmed === 'whoami' || trimmed === 'alias') return true
-  if (/^arch(?:\s+(?:-h|--help))?$/.test(trimmed)) return true
-  if (trimmed === 'ip addr') return true
-  if (/^ifconfig(?:\s+[A-Za-z][A-Za-z0-9_-]*)?$/.test(trimmed)) return true
-  if (/^history(?:\s+\d+)?$/.test(trimmed)) return true
-  if (/^uniq(?:\s+(?:-[A-Za-z]+|--[a-z-]+(?:=\S+)?|-[fsw]\d+))*\s*(?:2>&1)?$/.test(trimmed)) return true
-  if (matchesEcho(trimmed)) return true
-  if (firstWordIs(trimmed, 'jq') && jqIsSafe(trimmed)) return true
-  if (/^cd(?:\s+(?:'[^']*'|"[^"]*"|[^\s;|&`$(){}><#\\]+))?$/.test(trimmed)) return true
-  if (firstWordIs(trimmed, 'ls') && !/[<>()$`|{}&;\r\n]/.test(trimmed.slice(2))) return true
-  if (firstWordIs(trimmed, 'find') && findIsSafe(trimmed)) return true
-  return false
+function formReadsOnly(text: string): boolean {
+  const rule = formRuleFor(text.split(/\s+/)[0] ?? '')
+  if (rule?.form === undefined || !rule.form(text)) return false
+  return !(/git/.test(text) && GIT_ESCAPE.test(text))
 }
 
-function firstWordIs(command: string, word: string): boolean {
-  return command === word || command.startsWith(word + ' ')
+function partReadsOnly(part: string): boolean {
+  let text = part.trim()
+  if (text.endsWith(STDERR_TO_STDOUT)) text = text.slice(0, -STDERR_TO_STDOUT.length).trim()
+  if (uncPathRisk(text).risky || containsWindowsDevicePath(text)) return false
+  if (hasUnquotedExpansion(text)) return false
+  return walkedReadsOnly(text) || formReadsOnly(text)
 }
 
-function matchesEcho(command: string): boolean {
-  if (!firstWordIs(command, 'echo')) return false
-  let rest = command.slice(4).trim().replace(/\s+2>&1$/, '')
-  const argRe = /^(?:'[^']*'|"[^"$<>\r\n]*"|[^|;&`$(){}><#\\!"'\s]+)(?:\s+|$)/
-  while (rest.length > 0) {
-    const match = rest.match(argRe)
-    if (!match) return false
-    rest = rest.slice(match[0].length)
-  }
-  return true
+function listedWord(word: string): boolean {
+  if (!LISTED_WORDS.has(word)) return false
+  const rule = walkedRuleFor([word])
+  return !(rule?.unixOnly && getPlatform() === 'windows')
 }
-
-function jqIsSafe(command: string): boolean {
-  if (/(?:^|\s)(?:-f|--from-file|--rawfile|--slurpfile|--run-tests|-L|--library-path)\b/.test(command)) return false
-  if (/\benv\b/.test(command) || command.includes('$ENV')) return false
-  if (command.includes('`')) return false
-  return true
-}
-
-function findIsSafe(command: string): boolean {
-  if (/(?:^|\s)-(?:delete|exec|execdir|ok|okdir|fprint|fprint0|fls|fprintf)\b/.test(command)) return false
-  const withoutEscaped = command.replace(/\\[()]/g, '')
-  if (/[<>()$`|{}&;\r\n]/.test(withoutEscaped)) return false
-  return true
-}
-
 
 const GIT_INTERNAL_CREATORS = new Set<PathCommand>(['mkdir', 'touch', 'mv', 'cp', 'tee', 'dd'])
 
+function isGitInternalPath(path: string): boolean {
+  const bare = path.replace(/^\.?\//, '')
+  return bare === 'HEAD' || /^(?:objects|refs|hooks)(?:\/|$)/.test(bare)
+}
+
 function writesToGitInternalPath(command: string): boolean {
   for (const raw of splitCommand_DEPRECATED(command)) {
-    const subcommand = raw.trim()
-    const parse = tryParseShellCommand(subcommand)
+    const part = raw.trim()
+    const parse = tryParseShellCommand(part)
     if (!parse.success) continue
-    const tokens = parse.tokens.filter(t => typeof t === 'string') as string[]
+    const tokens = parse.tokens.filter((token): token is string => typeof token === 'string')
     if (tokens.length === 0) continue
-    const base = tokens[0] as string
+    const word = tokens[0] as string
     const paths: string[] = []
-    if (base in COMMAND_OPERATION_TYPE) {
-      const command_ = base as PathCommand
-      const opType = COMMAND_OPERATION_TYPE[command_]
-      if ((opType === 'write' || opType === 'create') && GIT_INTERNAL_CREATORS.has(command_)) {
-        paths.push(...PATH_EXTRACTORS[command_](tokens.slice(1)))
-      }
+    if (word in COMMAND_OPERATION_TYPE) {
+      const creator = word as PathCommand
+      const operation = COMMAND_OPERATION_TYPE[creator]
+      if ((operation === 'write' || operation === 'create') && GIT_INTERNAL_CREATORS.has(creator)) paths.push(...PATH_EXTRACTORS[creator](tokens.slice(1)))
     }
-    paths.push(...extractOutputRedirections(subcommand).redirections.map(r => r.target))
+    paths.push(...extractOutputRedirections(part).redirections.map(redirection => redirection.target))
     if (paths.some(isGitInternalPath)) return true
   }
   return false
 }
 
-function isGitInternalPath(path: string): boolean {
-  let p = path.replace(/^\.?\//, '')
-  return p === 'HEAD' || /^(?:objects|refs|hooks)(?:\/|$)/.test(p)
-}
-
-
-function isSubcommandReadOnly(subcommand: string): boolean {
-  let text = subcommand.trim()
-  if (text.endsWith(' 2>&1')) text = text.slice(0, -' 2>&1'.length).trim()
-  if (uncPathRisk(text).risky || containsWindowsDevicePath(text)) return false
-  if (hasUnquotedExpansion(text)) return false
-  if (isCommandSafeViaFlagParsing(text)) return true
-  if (matchesRegexAllowlist(text)) {
-    if (/git/.test(text) && (/\s-c(?:\s|=)/.test(text) || /\s--exec-path(?:\s|=)/.test(text) || /\s--config-env(?:\s|=)/.test(text))) {
-      return false
-    }
-    return true
-  }
-  return false
-}
-
-
-const BARE_REPO_GIT_GUARD_MESSAGE =
-  'This directory has bare-repository structure, so git commands here go through the permission gate'
-
+const BARE_REPO_GIT_GUARD_MESSAGE = 'This directory has bare-repository structure, so git commands here go through the permission gate'
 const CD_GIT_GUARD_MESSAGE = 'A cd combined with git is not auto-allowed.'
 const GIT_INTERNAL_WRITE_GUARD_MESSAGE = 'A git command combined with a git-internal write is not auto-allowed.'
 const SANDBOXED_GIT_GUARD_MESSAGE = 'A sandboxed git command outside the original directory is not auto-allowed.'
 
-function gitGuardMessage(command: string, subcommands: string[], compoundCommandHasCd: boolean): string | null {
-  if (!subcommands.some(sub => isNormalizedGitCommand(sub.trim()))) return null
+function gitGuardMessage(command: string, parts: readonly string[], compoundCommandHasCd: boolean): string | null {
+  if (!parts.some(part => isNormalizedGitCommand(part.trim()))) return null
   if (compoundCommandHasCd) return CD_GIT_GUARD_MESSAGE
   if (isCurrentDirectoryBareGitRepo()) return BARE_REPO_GIT_GUARD_MESSAGE
   if (writesToGitInternalPath(command)) return GIT_INTERNAL_WRITE_GUARD_MESSAGE
@@ -405,56 +154,36 @@ export function cutPart(text: string): string {
   return line.length < text.length ? `${line}…` : line
 }
 
-const HAND_WRITTEN_WORDS = ['pwd', 'whoami', 'alias', 'arch', 'ip', 'ifconfig', 'history', 'uniq', 'echo', 'jq', 'cd', 'ls', 'find']
-
-let listedWordsCache: Set<string> | null = null
-let listedWordsPlatform: string | null = null
-function listedCommandWords(): Set<string> {
-  const platform = getPlatform()
-  if (listedWordsCache === null || listedWordsPlatform !== platform) {
-    listedWordsCache = new Set<string>([
-      ...[...effectiveAllowlist().keys()].map(key => key.split(' ')[0] as string),
-      ...EXTERNAL_READONLY_COMMANDS.map(c => c.split(' ')[0] as string),
-      ...SIMPLE_COMMAND_NAMES,
-      ...HAND_WRITTEN_WORDS,
-      binaryName(),
-    ])
-    listedWordsPlatform = platform
-  }
-  return listedWordsCache
-}
-
-function commandWordOf(subcommand: string): string {
-  const parse = tryParseShellCommand(subcommand)
-  const tokens = parse.success ? parse.tokens.filter((token): token is string => typeof token === 'string') : subcommand.trim().split(/\s+/)
+function commandWordOf(part: string): string {
+  const parse = tryParseShellCommand(part)
+  const tokens = parse.success ? parse.tokens.filter((token): token is string => typeof token === 'string') : part.trim().split(/\s+/)
   return tokens.find(token => token !== '' && !/^[A-Za-z_]\w*=/.test(token)) ?? tokens[0] ?? ''
 }
 
 function describeNotReadOnly(command: string, compoundCommandHasCd: boolean, verdictMessage: string): NotReadOnly {
   if (!tryParseShellCommand(command).success) return { kind: 'unparseable', part: cutPart(command) }
-  const subcommands = splitCommand_DEPRECATED(command).map(sub => sub.trim()).filter(sub => sub !== '')
+  const parts = splitCommand_DEPRECATED(command).map(part => part.trim()).filter(part => part !== '')
   const written = splitListSegments(command)
   const partOf = (index: number, word: string): string => {
-    const asWritten = written.length === subcommands.length ? written[index] : written.find(segment => commandWordOf(segment) === word)
-    return cutPart(asWritten ?? (subcommands[index] as string))
+    const asWritten = written.length === parts.length ? written[index] : written.find(segment => commandWordOf(segment) === word)
+    return cutPart(asWritten ?? (parts[index] as string))
   }
-  const words = subcommands.map(commandWordOf)
-  const listed = listedCommandWords()
+  const words = parts.map(commandWordOf)
   for (const [index, word] of words.entries()) {
-    if (!listed.has(word)) return { kind: 'not-on-list', part: partOf(index, word), word }
+    if (!listedWord(word)) return { kind: 'not-on-list', part: partOf(index, word), word }
   }
-  for (const [index, sub] of subcommands.entries()) {
-    if (!isSubcommandReadOnly(sub)) return { kind: 'form', part: partOf(index, words[index] as string), word: words[index] as string }
+  for (const [index, part] of parts.entries()) {
+    if (!partReadsOnly(part)) return { kind: 'form', part: partOf(index, words[index] as string), word: words[index] as string }
   }
-  const target = extractOutputRedirections(command).redirections.find(r => r.target !== '/dev/null')?.target
+  const target = extractOutputRedirections(command).redirections.find(redirection => redirection.target !== '/dev/null')?.target
   if (target !== undefined) return { kind: 'writes', part: cutPart(command), target }
   const screened = bashCommandIsSafe_DEPRECATED(command)
   if (screened.behavior === 'ask') return { kind: 'screen', part: cutPart(command), detail: screened.message }
-  for (const [index, sub] of subcommands.entries()) {
-    const screenedSub = bashCommandIsSafe_DEPRECATED(sub)
-    if (screenedSub.behavior === 'ask') return { kind: 'screen', part: partOf(index, words[index] as string), detail: screenedSub.message }
+  for (const [index, part] of parts.entries()) {
+    const screenedPart = bashCommandIsSafe_DEPRECATED(part)
+    if (screenedPart.behavior === 'ask') return { kind: 'screen', part: partOf(index, words[index] as string), detail: screenedPart.message }
   }
-  const guard = gitGuardMessage(command, subcommands, compoundCommandHasCd)
+  const guard = gitGuardMessage(command, parts, compoundCommandHasCd)
   if (guard !== null) return { kind: 'git-guard', part: cutPart(command), detail: guard }
   return { kind: 'screen', part: cutPart(command), detail: verdictMessage }
 }
@@ -479,57 +208,37 @@ export function notReadOnlyClause(reason: NotReadOnly): string {
 }
 
 function commandChangesDirectory(command: string): boolean {
-  return splitCommand_DEPRECATED(command).some(sub => /^\s*(?:cd|pushd|popd)\b/.test(sub))
+  return splitCommand_DEPRECATED(command).some(part => /^\s*(?:cd|pushd|popd)\b/.test(part))
 }
 
 export function describeBashNotReadOnly(command: string): NotReadOnly | null {
   return checkReadOnlyConstraints({ command }, commandChangesDirectory(command)).notReadOnly ?? null
 }
 
-export function checkReadOnlyConstraints(
-  input: { command: string },
-  compoundCommandHasCd: boolean,
-): ReadOnlyVerdict {
+export function checkReadOnlyConstraints(input: { command: string }, compoundCommandHasCd: boolean): ReadOnlyVerdict {
   const verdict = readOnlyVerdict(input, compoundCommandHasCd)
   if (verdict.behavior === 'allow') return verdict
   return { ...verdict, notReadOnly: describeNotReadOnly(input.command, compoundCommandHasCd, verdict.message) }
 }
 
-function readOnlyVerdict(
-  input: { command: string },
-  compoundCommandHasCd: boolean,
-): PermissionResult {
-  const command = input.command
+function partsRefusal(parts: readonly string[]): PermissionResult | null {
+  for (const raw of parts) {
+    const part = raw.trim()
+    if (bashCommandIsSafe_DEPRECATED(part).behavior !== 'passthrough') return { behavior: 'passthrough', message: 'A subcommand was flagged by the security screen.' }
+    if (!partReadsOnly(part)) return { behavior: 'passthrough', message: 'A subcommand is not provably read-only.' }
+  }
+  return null
+}
 
-  if (!tryParseShellCommand(command).success) {
-    return { behavior: 'passthrough', message: 'The command cannot be parsed; it needs further checks.' }
-  }
-  if (bashCommandIsSafe_DEPRECATED(command).behavior !== 'passthrough') {
-    return { behavior: 'passthrough', message: 'The security screen flagged the command.' }
-  }
+function readOnlyVerdict(input: { command: string }, compoundCommandHasCd: boolean): PermissionResult {
+  const command = input.command
+  if (!tryParseShellCommand(command).success) return { behavior: 'passthrough', message: 'The command cannot be parsed; it needs further checks.' }
+  if (bashCommandIsSafe_DEPRECATED(command).behavior !== 'passthrough') return { behavior: 'passthrough', message: 'The security screen flagged the command.' }
   const remote = uncPathRisk(command)
   if (remote.risky) return { behavior: 'ask', message: uncPathMessage(command, remote) }
   if (containsWindowsDevicePath(command)) return { behavior: 'ask', message: WINDOWS_DEVICE_PATH_MESSAGE }
-
-  const subcommands = splitCommand_DEPRECATED(command)
-
-  const guard = gitGuardMessage(command, subcommands, compoundCommandHasCd)
-  if (guard !== null) {
-    return { behavior: 'passthrough', message: guard }
-  }
-
-  for (const raw of subcommands) {
-    const subcommand = raw.trim()
-    if (bashCommandIsSafe_DEPRECATED(subcommand).behavior !== 'passthrough') {
-      return { behavior: 'passthrough', message: 'A subcommand was flagged by the security screen.' }
-    }
-    if (!isSubcommandReadOnly(subcommand)) {
-      return { behavior: 'passthrough', message: 'A subcommand is not provably read-only.' }
-    }
-  }
-  return { behavior: 'allow', updatedInput: input }
-}
-
-function isGlobToken(token: unknown): boolean {
-  return typeof token === 'object' && token !== null && (token as { op?: string }).op === 'glob'
+  const parts = splitCommand_DEPRECATED(command)
+  const guard = gitGuardMessage(command, parts, compoundCommandHasCd)
+  if (guard !== null) return { behavior: 'passthrough', message: guard }
+  return partsRefusal(parts) ?? { behavior: 'allow', updatedInput: input }
 }
