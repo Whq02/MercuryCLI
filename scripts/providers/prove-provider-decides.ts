@@ -1,6 +1,7 @@
 import type { ProviderUsabilityReads } from '../../src/services/providers/providerUsability.js'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+for (const key of ['OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'HF_TOKEN', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_HOME', 'MERCURY_MODEL']) delete process.env[key]
 const { resolveProviderUsability, delegationDispatchBlocker } = await import('../../src/services/providers/providerUsability.js')
 const { recordOpenaiUsageLimit, openaiLimitWindow } = await import('../../src/services/providers/openai/openaiLimitState.js')
 const { recordOpenrouterRateHeaders, openrouterLimitWindow } = await import('../../src/services/providers/openrouter/openrouterUsageState.js')
@@ -71,5 +72,93 @@ mock.setMockRateLimitScenario('clear')
 anthropic.resetLimitsForCredentialSwitch()
 anthropic.__setAnthropicOwnerResolverForTest(null)
 delete process.env.MERCURY_MOCK_LIMITS
+const { createServer } = await import('node:http')
+const MODEL = 'gpt-6-astra'
+const wire: Array<{ status: number; body: string }> = []
+const server = createServer((req, res) => {
+  const chunks: Buffer[] = []
+  req.on('data', chunk => chunks.push(chunk))
+  req.on('end', () => {
+    if (req.method === 'GET' && req.url?.includes('/models')) {
+      res.writeHead(200, { 'content-type': 'application/json' })
+      res.end(JSON.stringify({ models: [{ slug: MODEL, display_name: MODEL, supported_reasoning_levels: [{ effort: 'max' }], default_reasoning_level: 'max', visibility: 'list', priority: 1, context_window: 272000, input_modalities: ['text'], supported_in_api: true }] }))
+      return
+    }
+    if (req.method === 'POST' && req.url?.endsWith('/responses')) {
+      const status = wire.length === 0 ? 429 : 200
+      wire.push({ status, body: Buffer.concat(chunks).toString('utf8') })
+      if (status === 429) {
+        res.writeHead(429, { 'content-type': 'application/json', 'x-codex-secondary-used-percent': '100', 'x-codex-secondary-window-minutes': '10080', 'x-codex-secondary-reset-after-seconds': '518400' })
+        res.end(JSON.stringify({ error: { type: 'usage_limit_reached', plan_type: 'fixture', message: 'The weekly usage limit was reached.' } }))
+        return
+      }
+      res.writeHead(200, { 'content-type': 'text/event-stream' })
+      const sse = (event: unknown) => `data: ${JSON.stringify(event)}\n\n`
+      const text = 'The provider served the resumed request.'
+      res.end(sse({ type: 'response.created', response: { id: 'fixture-resumed' } }) + sse({ type: 'response.output_text.delta', delta: text }) + sse({ type: 'response.output_item.done', item: { type: 'message', role: 'assistant', content: [{ type: 'output_text', text }] } }) + sse({ type: 'response.completed', response: { id: 'fixture-resumed', usage: { input_tokens: 8, output_tokens: 8 } } }))
+      return
+    }
+    res.writeHead(200, { 'content-type': 'application/json' })
+    res.end(JSON.stringify({ data: [], models: [] }))
+  })
+})
+await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+const address = server.address()
+if (address === null || typeof address === 'string') throw new Error('fixture did not bind')
+const base = `http://127.0.0.1:${address.port}`
+Object.assign(process.env, { ANTHROPIC_BASE_URL: base, MERCURY_OPENAI_API_BASE: `${base}/openai/v1`, MERCURY_OPENAI_CHATGPT_BASE: `${base}/openai/subscription`, MERCURY_OPENAI_AUTH_BASE: `${base}/openai/auth`, OPENAI_API_KEY: 'fixture-key', MERCURY_LOCAL_PROBE_TARGETS: 'none' })
+const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+enableConfigs()
+const bootstrap = await import('../../src/bootstrap/state.js')
+bootstrap.setIsInteractive(false)
+const { runAgent } = await import('../../src/tools/AgentTool/runAgent.js')
+const { resumeAgentBackground } = await import('../../src/tools/AgentTool/resumeAgent.js')
+const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
+const { createUserMessage } = await import('../../src/utils/messages.js')
+const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.js')
+const { getAgentTranscript } = await import('../../src/utils/sessionStorage/logs.js')
+const { registerAsyncAgent, failAgentTask, pauseAgentTask, usageWindowPauseOf } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
+const { generateTaskId } = await import('../../src/Task.js')
+await import('../../src/tasks.js')
+type Message = import('../../src/types/message.js').Message
+type AppState = import('../../src/state/AppStateStore.js').AppState
+let state: AppState = { ...getDefaultAppState(), effortValue: 'max' } as AppState
+const setState = (update: (previous: AppState) => AppState) => { state = update(state) }
+const ctx = {
+  abortController: new AbortController(),
+  options: { commands: [], tools: [], engineModel: MODEL, thinkingConfig: { type: 'enabled' }, mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, debug: false, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
+  getAppState: () => state, setAppState: setState, setAppStateForTasks: setState, messages: [],
+  readFileState: createFileStateCacheWithSizeLimit(100), setInProgressToolUseIDs: () => {}, setResponseLength: () => {}, updateFileHistoryState: () => {}, updateAttributionState: () => {},
+} as never
+const definition = { agentType: 'provider-decides-fixture', whenToUse: 'provider refusal fixture', source: 'projectSettings', getSystemPrompt: () => 'Answer with one line. Do not call tools.' } as never
+const allow = (async (_tool: unknown, input: unknown) => ({ behavior: 'allow', updatedInput: input })) as never
+const agentId = generateTaskId('local_agent')
+const rows: Message[] = []
+try {
+  for await (const row of runAgent({ agentDefinition: definition, promptMessages: [createUserMessage({ content: 'Continue the kept work.' })], toolUseContext: ctx, canUseTool: allow, isAsync: true, canShowPermissionPrompts: false, querySource: 'agent:custom:provider-decides-fixture' as never, availableTools: [] as never, model: MODEL, override: { agentId }, description: 'provider refusal fixture' })) {
+    if (row.type === 'assistant' || row.type === 'user') rows.push(row as Message)
+  }
+  const pause = usageWindowPauseOf(rows, MODEL)
+  const { pauseStatusWords } = await import('../../src/tasks/LocalAgentTask/agentPause.js')
+  check('the pause carries the provider answer and names both retry doors', pause !== null && pause.words.includes('The weekly usage limit was reached.') && pauseStatusWords(pause, Date.now()).includes('retries by itself at') && pauseStatusWords(pause, Date.now()).includes('r retries now'))
+  check('the agent reaches a real fixture 429 once and keeps its six-day automatic retry', wire.length === 1 && wire[0]?.status === 429 && pause?.resumesAtMs !== undefined && pause.resumesAtMs > Date.now() + 5 * 24 * 60 * 60 * 1000)
+  registerAsyncAgent({ agentId, description: 'provider refusal fixture', prompt: 'Continue the kept work.', selectedAgent: definition, setAppState: setState as never })
+  failAgentTask(agentId, 'fixture usage refusal', setState as never)
+  if (pause) pauseAgentTask(agentId, pause, setState as never)
+  await resumeAgentBackground({ agentId, prompt: 'Retry now using the same account.', toolUseContext: ctx, canUseTool: allow })
+  const deadline = Date.now() + 60000
+  while (Date.now() < deadline && state.tasks[agentId]?.status === 'running') await new Promise(resolve => setTimeout(resolve, 50))
+  check('manual resume reaches the wire without relogin', wire.length === 2 && wire[1]?.status === 200 && wire[1]?.body.includes('Retry now using the same account.') === true)
+  check('the resumed agent completes on the served answer', state.tasks[agentId]?.status === 'completed')
+  check('the served OpenAI response clears the note on its own source', openaiLimitWindow('api-key').state === 'clear')
+  const transcript = await getAgentTranscript(agentId as never)
+  check('the transcript retains the refusal and the resumed answer', transcript?.messages.some(row => row.type === 'assistant' && row.isApiErrorMessage === true) === true && JSON.stringify(transcript?.messages).includes('The provider served the resumed request.'))
+} catch (error) {
+  console.log(`FAIL agent fixture: ${error instanceof Error ? error.message : String(error)}`)
+  failures++
+} finally {
+  server.closeAllConnections()
+  await new Promise<void>(resolve => server.close(() => resolve()))
+}
 console.log(`${failures === 0 ? 'PASS' : 'FAIL'} provider decides (${failures} failures)`)
-process.exitCode = failures ? 1 : 0
+process.exit(failures ? 1 : 0)
