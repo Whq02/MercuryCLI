@@ -193,7 +193,9 @@ export function resolveAgentTools(
         continue
       }
     }
-    const found = survivors.filter(tool => toolMatchesName(tool, rule.toolName) || (rule.ruleContent === undefined && lspFamilyMatches(rule.toolName, tool.name)))
+    const family = rule.ruleContent === undefined ? survivors.filter(tool => lspFamilyMatches(rule.toolName, tool.name)) : []
+    const first = survivors.find(tool => toolMatchesName(tool, rule.toolName))
+    const found = family.length ? family : first ? [first] : []
     if (found.length) {
       if (!validTools.includes(spec)) validTools.push(spec)
       for (const tool of found) {
