@@ -2,6 +2,7 @@
 import type { CompactMetadata, Message, RenderableMessage, TurnReceiptMessage } from '../../types/message.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { deriveUUID } from '../messages/identity.js'
+import { isNotEmptyMessage } from '../messages/text.js'
 
 export function isTurnReceiptEnabled(): boolean {
   return flagEnv('MERCURY_TURN_RECEIPT') !== '0'
@@ -184,7 +185,7 @@ function walkTurnReceipts(
   const pending = new Map<string, NonNullable<CompactMetadata['work']>['receipts'][number]>()
   for (const receipt of compactWorkOf(messages)?.receipts ?? []) {
     pending.set(receipt.beforeUuid, receipt)
-    pending.set(deriveUUID(receipt.beforeUuid as Message['uuid'], 0), receipt)
+    pending.set(deriveUUID(receipt.beforeUuid as Message['uuid'], receipt.blockIndex ?? 0), receipt)
   }
   let counts = emptyCounts()
   let anchorUuid = 'turn-0'
@@ -201,7 +202,7 @@ function walkTurnReceipts(
       for (const key of Object.keys(counts) as Array<keyof TurnReceiptCounts>) counts[key] += carry.counts[key]
       anchorUuid = carry.anchorUuid
       pending.delete(carry.beforeUuid)
-      pending.delete(deriveUUID(carry.beforeUuid as Message['uuid'], 0))
+      pending.delete(deriveUUID(carry.beforeUuid as Message['uuid'], carry.blockIndex ?? 0))
     }
     countMessage(m, counts, tempRoot)
   }
@@ -214,19 +215,30 @@ export function foldedTurnReceipts(
   summaryUuid: string,
   tempRoot: string,
 ): NonNullable<CompactMetadata['work']>['receipts'] {
-  const keptIds = new Set(kept.map(m => m.uuid))
+  const keptByUuid = new Map(kept.map(m => [m.uuid, m]))
   const receipts: NonNullable<CompactMetadata['work']>['receipts'] = []
   let start = 0
   walkTurnReceipts(messages, tempRoot, (counts, anchorUuid, end) => {
-    const surviving = messages.slice(start, end).filter(m => keptIds.has(m.uuid))
+    const surviving = messages.slice(start, end).flatMap(m => keptByUuid.has(m.uuid) ? [keptByUuid.get(m.uuid)!] : [])
     start = end
     if (surviving.length === 0 && !(kept.length === 0 && end === messages.length)) return
     const retained = emptyCounts()
     for (const m of surviving) countMessage(m, retained, tempRoot)
     const missing = { ...counts }
     for (const key of Object.keys(missing) as Array<keyof TurnReceiptCounts>) missing[key] -= retained[key]
-    const first = surviving.find(m => m.type === 'assistant' || (m.type === 'user' && !m.isMeta && !m.isCompactSummary))
-    if (first || kept.length === 0) receipts.push({ beforeUuid: first?.uuid ?? summaryUuid, anchorUuid, counts: missing })
+    let target: { beforeUuid: string; blockIndex?: number } | undefined
+    for (const m of surviving) {
+      if (m.type !== 'assistant' && m.type !== 'user') continue
+      if (m.type === 'user' && (m.isMeta || m.isCompactSummary || m.isVisibleInTranscriptOnly)) continue
+      const content = m.message.content
+      const blockIndex = Array.isArray(content)
+        ? content.findIndex(block => isNotEmptyMessage({ ...m, message: { ...m.message, content: [block] } } as Message))
+        : isNotEmptyMessage(m) ? 0 : -1
+      if (blockIndex < 0) continue
+      target = { beforeUuid: m.uuid, ...(blockIndex > 0 ? { blockIndex } : {}) }
+      break
+    }
+    if (target || kept.length === 0) receipts.push({ ...(target ?? { beforeUuid: summaryUuid }), anchorUuid, counts: missing })
   })
   return receipts
 }

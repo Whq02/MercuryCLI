@@ -16,6 +16,7 @@ const { TurnReceiptRow } = await import('../../src/components/messages/TurnRecei
 const { ResumeRecapCard } = await import('../../src/components/messages/ResumeRecapCard.tsx')
 const { composeTranscript } = await import('../../src/components/Messages.tsx')
 const { normalizeMessages } = await import('../../src/utils/messages/normalize.ts')
+const { isNotEmptyMessage } = await import('../../src/utils/messages/text.ts')
 const { createCompactBoundaryMessage, createUserMessage } = await import('../../src/utils/messages.ts')
 const { annotateBoundaryWithWork, buildPostCompactMessages } = await import('../../src/services/compact/compact.ts')
 const { buildAwayRecap } = await import('../../src/utils/cockpit/awaySummary.ts')
@@ -36,7 +37,7 @@ const folded = buildPostCompactMessages({ boundaryMarker: boundary, summaryMessa
 let failures = 0
 const check = (label: string, ok: boolean, detail = '') => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `: ${detail}` : ''}`) }
 async function frame(rows: Message[], width: number): Promise<string> {
-  const composition = composeTranscript({ normalized: normalizeMessages(rows), syntheticStreamingRows: [], verbose: false, fullscreen: true, isTranscriptMode: false, truncateTranscript: false, tools: [], inProgressToolUseIDs: new Set() })
+  const composition = composeTranscript({ normalized: normalizeMessages(rows).filter(isNotEmptyMessage), syntheticStreamingRows: [], verbose: false, fullscreen: true, isTranscriptMode: false, truncateTranscript: false, tools: [], inProgressToolUseIDs: new Set() })
   const receipt = composition.collapsed.find((m): m is TurnReceiptMessage => m.type === 'turn_receipt')
   const recap = buildAwayRecap(rows, Date.now())!
   return renderToString(React.createElement(React.Fragment, null,
@@ -45,6 +46,14 @@ async function frame(rows: Message[], width: number): Promise<string> {
   ), width)
 }
 try {
+  const sparseKeep = structuredClone(keep)
+  const sparseFirst = sparseKeep[0]!
+  if (sparseFirst.type === 'assistant' && sparseFirst.message.content[0]?.type === 'text') sparseFirst.message.content[0].text = ''
+  const emptyHead = { type: 'assistant', uuid: randomUUID(), timestamp, message: { id: randomUUID(), role: 'assistant', content: [] } } as unknown as Message
+  const sparseBoundary = createCompactBoundaryMessage('manual', 80_000)
+  annotateBoundaryWithWork(sparseBoundary, [emptyHead, ...messages], [emptyHead, ...sparseKeep], summary.uuid)
+  const sparseFold = buildPostCompactMessages({ boundaryMarker: sparseBoundary, summaryMessages: [summary], messagesToKeep: [emptyHead, ...sparseKeep], attachments: [], hookResults: [], preCompactTokenCount: 80_000, postCompactTokenCount: 200 })
+  check('hidden empty rows and blocks cannot swallow the receipt carry', await frame(messages, 120) === await frame(sparseFold, 120), await frame(sparseFold, 120))
   for (const width of [80, 120]) {
     const before = await frame(messages, width)
     const after = await frame(folded, width)
