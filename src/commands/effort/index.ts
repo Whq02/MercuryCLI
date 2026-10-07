@@ -6,7 +6,7 @@ import { shouldInferenceConfigCommandBeImmediate } from '../../utils/immediateCo
 export default {
   type: 'local-jsx',
   name: 'effort',
-  description: "Pick the model's reasoning effort for this session",
+  description: "Pick the model's reasoning effort — applies now and is saved as your default for new sessions",
   currentValue: () => {
     const facts = focusedSessionModelFacts()
     if (facts === null || facts.effort === null || facts.effort === undefined) return undefined
