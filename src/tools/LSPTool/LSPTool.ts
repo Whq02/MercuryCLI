@@ -355,7 +355,8 @@ async function validateInput(name: LspToolName, input: LspInput) {
       try {
         const stats = await stat(expandPath(filePath))
         const directoryAllowed = name === 'LspMoveFile' || (name === 'LspRead' && input.operation === 'diagnostics')
-        if (!stats.isFile() && !directoryAllowed) return refuse(`${filePath} is a directory; ${name === 'LspRead' ? input.operation : name} reads one file. Nothing was sent to a language server.`, 2)
+        if (stats.isDirectory() && !directoryAllowed) return refuse(`${filePath} is a directory; ${name === 'LspRead' ? input.operation : name} reads one file. Nothing was sent to a language server.`, 2)
+        if (!stats.isFile() && !stats.isDirectory()) return refuse(`${filePath} is not a regular file. Nothing was sent to a language server.`, 2)
       } catch (err) {
         if (isENOENT(err)) {
           if (name === 'LspMoveFile') return refuse(`${filePath} does not exist; LspMoveFile moves an existing file or directory. Nothing was moved.`, 1)
