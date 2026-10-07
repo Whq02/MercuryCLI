@@ -6,6 +6,8 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
 }
 
+const { getPlatform } = await import('../../src/utils/platform.ts')
+getPlatform.cache.set(undefined, 'windows')
 const { checkReadPermissionForTool } = await import('../../src/utils/permissions/filesystem.ts')
 const fakeTool = (path: string) => ({ name: 'ParityProbe', getPath: () => path })
 const ctx = {
@@ -21,7 +23,7 @@ const uncDecision = checkReadPermissionForTool(fakeTool('\\\\server\\share\\x') 
 }
 t(
   'a real UNC share asks as a network path',
-  uncDecision.behavior === 'ask' && /network \(UNC\)/.test(uncDecision.message ?? ''),
+  uncDecision.behavior === 'ask' && /SMB\/WebDAV/.test(uncDecision.message ?? ''),
   uncDecision.message,
 )
 const extendedDecision = checkReadPermissionForTool(fakeTool('\\\\?\\C:\\proj\\x') as never, {}, ctx) as {
@@ -42,9 +44,10 @@ const extendedUncDecision = checkReadPermissionForTool(
 ) as { behavior?: string; message?: string }
 t(
   'the \\\\?\\UNC spelling still reads as network',
-  extendedUncDecision.behavior === 'ask' && /network \(UNC\)/.test(extendedUncDecision.message ?? ''),
+  extendedUncDecision.behavior === 'ask' && /SMB\/WebDAV/.test(extendedUncDecision.message ?? ''),
   extendedUncDecision.message,
 )
+getPlatform.cache.delete(undefined)
 
 const { isDangerousRemovalPath } = await import('../../src/utils/permissions/pathValidation.ts')
 t('\\\\?\\C:\\ is still a drive root', isDangerousRemovalPath('\\\\?\\C:\\') === true)
