@@ -4,13 +4,8 @@ import type {
   PermissionAskDecision,
   PermissionDecision,
 } from '../../../types/permissions.js'
-import { clearClassifierChecking } from '../../../utils/classifierApprovals.js'
 import { logError } from '../../../utils/log.js'
 import { decideToolPermissionWithModes } from '../../../utils/permissions/decision/wrapper.js'
-import {
-  noteOperatorAllowedFlowBlock,
-  recordOperatorDeclinedFlowBlock,
-} from '../../../utils/permissions/flowBlockReview.js'
 import { createResolveOnce, type PermissionContext } from '../PermissionContext.js'
 
 const USER_INTERACTION_GRACE_MS = 200
@@ -37,9 +32,6 @@ export function handleInteractivePermission(
   let channelUnsubscribe: (() => void) | null = null
   let checkmarkTimer: ReturnType<typeof setTimeout> | null = null
   let userInteracted = false
-  const flowBlocked =
-    result.decisionReason?.type === 'classifier' &&
-    result.decisionReason.classifier === 'auto-mode'
 
   const releaseResources = (): void => {
     signal.removeEventListener('abort', settleOnAbort)
@@ -84,7 +76,6 @@ export function handleInteractivePermission(
       }
       userInteracted = true
       void userInteracted
-      clearClassifierChecking(ctx.toolUseID)
     },
 
     onDismissCheckmark() {
@@ -100,7 +91,6 @@ export function handleInteractivePermission(
     async onAllow(updatedInput, permissionUpdates, feedback, contentBlocks) {
       if (!guard.claim()) return
       releaseResources()
-      if (flowBlocked) noteOperatorAllowedFlowBlock(ctx.toolUseContext)
       guard.resolve(
         await ctx.handleUserAllow(
           updatedInput,
@@ -118,9 +108,6 @@ export function handleInteractivePermission(
     onReject(feedback, contentBlocks) {
       if (!guard.claim()) return
       releaseResources()
-      if (flowBlocked) {
-        recordOperatorDeclinedFlowBlock(ctx.toolUseContext, ctx.tool.name, ctx.input)
-      }
       ctx.logDecision(
         {
           decision: 'reject',

@@ -567,14 +567,13 @@ console.log('§16 engine-chain truth')
       alwaysAskRules: {},
       isBypassPermissionsModeAvailable: false,
     }
-    const appState = { toolPermissionContext, denialTracking: undefined }
+    const appState = { toolPermissionContext }
     return {
       abortController: new AbortController(),
       getAppState: () => appState,
       setAppState: () => {},
       messages: [],
       options: {},
-      localDenialTracking: { consecutiveDenials: 0, totalDenials: 0 },
     } as unknown as Parameters<typeof BrowserTool.call>[1]
   }
   await page().goto(`${B}/`)
@@ -784,14 +783,13 @@ console.log('§20 the secretRef credential road')
       alwaysAskRules: {},
       isBypassPermissionsModeAvailable: false,
     }
-    const appState = { toolPermissionContext, denialTracking: undefined }
+    const appState = { toolPermissionContext }
     return {
       abortController: new AbortController(),
       getAppState: () => appState,
       setAppState: () => {},
       messages: [],
       options: {},
-      localDenialTracking: { consecutiveDenials: 0, totalDenials: 0 },
     } as unknown as Parameters<typeof BrowserTool.call>[1]
   }
   const fillInput = { op: 'type', selector: '#pw', secretRef: 'TEST_LOGIN' } as ToolInput

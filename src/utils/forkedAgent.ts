@@ -22,7 +22,6 @@ import { cloneFileStateCache, type FileStateCache } from './fileStateCache.js'
 import { createChildAbortController } from './abortController.js'
 import type { ChatHookContext } from './hooks/postSamplingHooks.js'
 import { createUserMessage, extractTextContent, getLastAssistantMessage } from './messages.js'
-import { createDenialTrackingState } from './permissions/denialTracking.js'
 import { parseToolListFromCLI } from './permissions/permissionSetup.js'
 import { recordSidechainTranscript } from './sessionStorage.js'
 import { settledSidechainMessages } from './sessionStorage/settledSidechainMessages.js'
@@ -209,8 +208,6 @@ export function createSubagentContext(parentContext: ToolUseContext, overrides: 
           }
         })
   const setAppState = overrides.setAppState ?? (overrides.shareSetAppState ? parentContext.setAppState : () => {})
-  const stateSetterShared = overrides.setAppState !== undefined || overrides.shareSetAppState === true
-  const localDenialTracking = stateSetterShared ? parentContext.localDenialTracking : createDenialTrackingState()
 
   return {
     options: overrides.options ?? parentContext.options,
@@ -231,7 +228,6 @@ export function createSubagentContext(parentContext: ToolUseContext, overrides: 
       overrides.setResponseLength ?? (overrides.shareSetResponseLength ? parentContext.setResponseLength : () => {}),
     updateFileHistoryState: () => {},
     updateAttributionState: parentContext.updateAttributionState,
-    localDenialTracking,
     messages: overrides.messages ?? parentContext.messages,
     agentId: overrides.agentId ?? createAgentId(),
     agentType: overrides.agentType,

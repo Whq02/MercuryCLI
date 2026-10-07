@@ -4,7 +4,6 @@ import type { Tool, ToolPermissionContext, ToolUseContext } from '../Tool.js'
 import type { AssistantMessage } from '../types/message.js'
 import type { PermissionDecision } from '../types/permissions.js'
 import type { ToolUseConfirm } from '../components/permissions/PermissionRequest.js'
-import { clearClassifierChecking } from '../utils/classifierApprovals.js'
 import { logError } from '../utils/log.js'
 import { decideToolPermissionWithModes } from '../utils/permissions/decision/wrapper.js'
 import {
@@ -120,8 +119,6 @@ export default function useCanUseTool(
               logError(error)
             }
             resolve(ctx.cancelAndAbort(undefined, true))
-          } finally {
-            clearClassifierChecking(toolUseID)
           }
         })()
       }),

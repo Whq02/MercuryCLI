@@ -62,7 +62,6 @@ function makeTool(name: string, call: (...args: unknown[]) => Promise<unknown>):
 function makeContext(tools: unknown[]): { abortController: AbortController } & Record<string, unknown> {
   const appState = {
     toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' },
-    denialTracking: undefined,
     sessionHooks: new Map(),
     mcp: { clients: [], tools: [], commands: [], resources: {} },
   }

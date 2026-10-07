@@ -60,7 +60,6 @@ export async function makeContext(tools: unknown[], opts: ProverContextOptions =
   }
   const appState = {
     toolPermissionContext,
-    denialTracking: undefined,
     sessionHooks: new Map(),
     mcp: { clients: [], tools: [], commands: [], resources: {} },
   }

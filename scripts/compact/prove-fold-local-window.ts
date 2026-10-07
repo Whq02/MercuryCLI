@@ -117,7 +117,7 @@ function makeMessages(): unknown[] {
 }
 function makeContext(isNonInteractiveSession: boolean): Record<string, unknown> {
   const toolPermissionContext = { ...getEmptyToolPermissionContext(), mode: 'default' as const }
-  const appState = { toolPermissionContext, sessionHooks: new Map(), denialTracking: undefined, tasks: {}, mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'high' }
+  const appState = { toolPermissionContext, sessionHooks: new Map(), tasks: {}, mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'high' }
   const readFileState = new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024)
   return {
     abortController: new AbortController(),

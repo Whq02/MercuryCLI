@@ -87,7 +87,6 @@ console.log('\nI1 the session id and the transcript file survive the fold byte-i
   const appState = {
     toolPermissionContext,
     sessionHooks: new Map(),
-    denialTracking: undefined,
     tasks: {},
     mcp: { clients: [], tools: [], commands: [], resources: {} },
     effortValue: 'high',

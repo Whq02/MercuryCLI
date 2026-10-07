@@ -44,7 +44,7 @@ tally.section('§1 the executor race, pure: a call that ignores the abort is aba
     call,
   })
   const makeContext = (tool: unknown): { abortController: AbortController } & Record<string, unknown> => {
-    const appState = { toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' }, denialTracking: undefined, sessionHooks: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} } }
+    const appState = { toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' }, sessionHooks: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} } }
     return {
       abortController: new AbortController(),
       getAppState: () => appState,

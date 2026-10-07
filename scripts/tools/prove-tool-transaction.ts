@@ -98,7 +98,6 @@ function makeContext(tool: unknown, opts: { mode?: string } = {}): Record<string
   }
   const appState = {
     toolPermissionContext,
-    denialTracking: undefined,
     sessionHooks: new Map(),
     mcp: { clients: [], tools: [], commands: [], resources: {} },
   }
