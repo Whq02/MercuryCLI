@@ -47,7 +47,7 @@ Census version 1 — 63 built-in production tools · 178 operations · 63 with a
 | Godot | mutation | game-engine | — | block | yes | — | — | — | scripts/vulcan/run-all.sh |
 | Grep | observation | source-reading | — | block | no | — | — | — | NAMED GAP |
 | Inspect | observation | resource-inspection | — | block | yes | — | — | mercury://file, mercury://run, mercury://receipt, mercury://task, mercury://execution, mercury://transaction, mercury://evidence | scripts/project-services/prove-resource-plane.ts |
-| JevEval | observation | web-access | — | cancel | no | — | — | — | scripts/jev/run-all.sh |
+| JevEval | observation | web-access | — | cancel | yes | — | — | — | scripts/jev/run-all.sh |
 | Journey | execution | application-verification, service-management | 3 | cancel | yes | — | journey (full-execution-owner) | mercury://journey, mercury://service, mercury://execution, mercury://evidence | scripts/builtin-tools/prove-journeys.ts |
 | Launch | execution | process-execution, debugging | 7 | block | yes | — | debug-adapter (external-projection) | — | scripts/ide/prove-launch-profiles.ts |
 | ListMcpResources | observation | resource-inspection | — | block | yes | — | — | — | NAMED GAP |
@@ -81,7 +81,7 @@ Census version 1 — 63 built-in production tools · 178 operations · 63 with a
 | WebFetch | observation | web-access | — | block | yes | — | — | — | NAMED GAP |
 | WebSearch | observation | web-access | — | block | yes | — | — | — | scripts/search/run-all.sh |
 | Workflow | coordination | task-coordination | — | block | yes | — | workflow-worker (child-execution) | mercury://workflow | scripts/workflows/run-all.sh |
-| Workshop | execution | persistent-evaluation | — | block | no | workshop +receipts | workshop-js (full-execution-owner) | mercury://execution, mercury://artifact | scripts/project-services/prove-workshop.ts |
+| Workshop | execution | persistent-evaluation | — | block | yes | workshop +receipts | workshop-js (full-execution-owner) | mercury://execution, mercury://artifact | scripts/project-services/prove-workshop.ts |
 | Write | mutation | text-mutation | — | block | no | file +receipts | — | mercury://file, mercury://receipt | scripts/project-services/prove-change-receipts.ts |
 
 ## Reading notes

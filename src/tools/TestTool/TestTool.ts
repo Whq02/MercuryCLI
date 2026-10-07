@@ -463,7 +463,6 @@ A run whose exit code disagrees with its structured records says so (verdictNote
   },
   userFacingName,
   shouldDefer: true,
-  loadInFullOnCloud: true,
   straightQuoteInputs: ['path', 'file'],
   get inputSchema(): SchemaType {
     return inputSchema()

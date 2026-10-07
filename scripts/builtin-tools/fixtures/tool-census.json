@@ -1039,7 +1039,7 @@
       "category": "read",
       "risk": "low",
       "cancellation": "cancel",
-      "deferred": false,
+      "deferred": true,
       "operations": null,
       "units": [
         "web-access"
@@ -2105,7 +2105,7 @@
       "category": "other",
       "risk": "medium",
       "cancellation": "block",
-      "deferred": false,
+      "deferred": true,
       "operations": null,
       "units": [
         "persistent-evaluation"
