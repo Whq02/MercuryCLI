@@ -228,6 +228,11 @@ const outputSchema = z.discriminatedUnion('type', [
 
 const resultLineAnchors = new WeakSet<object>()
 
+const resultsWithoutReminder = new WeakSet<object>()
+
+const REMINDER_TAKEN_CAP = 256
+const reminderTakenBy = new Set<string>()
+
 
 type FileReadListener = (filePath: string, content: string) => void
 
@@ -366,6 +371,48 @@ function cyberRiskReminderFor(engineModel: string): string {
   } catch {
   }
   return CYBER_RISK_MITIGATION_REMINDER
+}
+
+const REMINDER_TAIL = CYBER_RISK_MITIGATION_REMINDER.trimEnd()
+
+function textCarriesReminder(text: unknown): boolean {
+  return typeof text === 'string' && text.trimEnd().endsWith(REMINDER_TAIL)
+}
+
+function contextCarriesReminder(messages: Message[] | undefined): boolean {
+  if (!Array.isArray(messages)) return false
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i]
+    if (message?.type !== 'user' || typeof message.message.content === 'string') continue
+    for (const block of message.message.content) {
+      if (block.type !== 'tool_result') continue
+      if (textCarriesReminder(block.content)) return true
+      if (!Array.isArray(block.content)) continue
+      for (const part of block.content) {
+        if (part.type === 'text' && textCarriesReminder(part.text)) return true
+      }
+    }
+  }
+  return false
+}
+
+function parentMessageId(parentMessage: unknown): string | undefined {
+  const record = parentMessage as { message?: { id?: unknown }; uuid?: unknown } | undefined
+  if (typeof record?.message?.id === 'string') return record.message.id
+  return typeof record?.uuid === 'string' ? record.uuid : undefined
+}
+
+function takeReminder(parentMessage: unknown, messages: Message[] | undefined): boolean {
+  if (contextCarriesReminder(messages)) return false
+  const id = parentMessageId(parentMessage)
+  if (id === undefined) return true
+  if (reminderTakenBy.has(id)) return false
+  reminderTakenBy.add(id)
+  if (reminderTakenBy.size > REMINDER_TAKEN_CAP) {
+    const oldest = reminderTakenBy.values().next().value
+    if (oldest !== undefined) reminderTakenBy.delete(oldest)
+  }
+  return true
 }
 
 
@@ -985,6 +1032,12 @@ export const FileReadTool = buildTool({
       (context.fileReadingLimits as FileReadingLimits | undefined) ?? getDefaultFileReadingLimits()
     const ext = extensionOf(input.file_path)
     const fullFilePath = expandPath(input.file_path)
+    const settle = (lane: LaneResult): { data: Output; newMessages?: Message[] } => {
+      if (ownRead && lane.data.type === 'text' && lane.data.file.content !== '' && !takeReminder(parentMessage, context.messages)) {
+        resultsWithoutReminder.add(lane.data)
+      }
+      return { data: lane.data, ...(lane.newMessages ? { newMessages: lane.newMessages } : {}) }
+    }
 
     if (readTargetsEnabled()) {
       const target = classifyReadTarget(input.file_path)
@@ -994,7 +1047,7 @@ export const FileReadTool = buildTool({
           cwd: getCwd(),
           getAppState: context.getAppState,
         })
-        return {
+        return settle({
           data: {
             type: 'text',
             file: {
@@ -1005,11 +1058,11 @@ export const FileReadTool = buildTool({
               totalLines: rendered.numLines,
             },
           } satisfies Output,
-        }
+        })
       }
       if (target.kind === 'url') {
         const rendered = renderUrlDelegation(input.file_path)
-        return {
+        return settle({
           data: {
             type: 'text',
             file: {
@@ -1020,11 +1073,11 @@ export const FileReadTool = buildTool({
               totalLines: rendered.numLines,
             },
           } satisfies Output,
-        }
+        })
       }
       if (isDirectoryTarget(fullFilePath)) {
         const rendered = renderDirectoryTarget(fullFilePath)
-        return {
+        return settle({
           data: {
             type: 'text',
             file: {
@@ -1035,7 +1088,7 @@ export const FileReadTool = buildTool({
               totalLines: rendered.numLines,
             },
           } satisfies Output,
-        }
+        })
       }
     }
 
@@ -1088,14 +1141,14 @@ export const FileReadTool = buildTool({
       if (alternate !== null) {
         try {
           lane = await dispatch(alternate)
-          return { data: lane.data, ...(lane.newMessages ? { newMessages: lane.newMessages } : {}) }
+          return settle(lane)
         } catch (retryErr) {
           if (!isENOENT(retryErr)) throw retryErr
         }
       }
       throw await friendlyNotFoundError(input.file_path, fullFilePath)
     }
-    return { data: lane.data, ...(lane.newMessages ? { newMessages: lane.newMessages } : {}) }
+    return settle(lane)
   },
   mapToolResultToToolResultBlockParam(data: Output, toolUseID: string) {
     switch (data.type) {
@@ -1142,7 +1195,7 @@ export const FileReadTool = buildTool({
         return {
           tool_use_id: toolUseID,
           type: 'tool_result' as const,
-          content: `${body}${cyberRiskReminderForCurrentModel()}`,
+          content: `${body}${resultsWithoutReminder.has(data) ? '' : cyberRiskReminderForCurrentModel()}`,
         }
       }
     }
