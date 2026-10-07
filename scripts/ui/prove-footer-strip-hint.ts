@@ -13,6 +13,8 @@ function section(t: string): void {
 
 const { stripKeyMapHintOf, stripStops } = await import('../../src/context/surfaceRoute.js')
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.js')
+const footerModule = (await import('../../src/components/PromptInput/PromptInputFooter.js')) as { footerStripHint?: (hint: string) => string }
+const footerStripHint = footerModule.footerStripHint ?? ((hint: string): string => hint)
 
 section('§1 the derivation — both worlds, through the real strip owners')
 {
@@ -50,15 +52,30 @@ section('§2 the footer wiring (source locks)')
     !/['"`][^'"`]*(?:concourse|boot face)[^'"`]*['"`]/i.test(footer.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '')),
   )
   const hintsRow =
-    /<Text dimColor wrap="truncate-end">\s*\{getNewlineInstructions\(\)\}\s*\{composerCrewmate !== null \? ` · \$\{crewmateComposerHint\([^`]*\)\}` : ''\}\s*\{fullscreen && stripHint !== '' \? ` · \$\{stripHint\}` : ''\}\s*<\/Text>/
+    /<Text dimColor wrap="truncate-end">\s*\{getNewlineInstructions\(\)\}\s*\{composerCrewmate !== null \? ` · \$\{crewmateComposerHint\([^`]*\)\}` : ''\}\s*\{fullscreen && stripHint !== '' \? ` · \$\{footerStripHint\(stripHint\)\}` : ''\}\s*<\/Text>/
   check(
     'the strip hint rides the newline row (one hints row, kit-joined: the newline chord · the crewmate clause · the strip chord)',
     hintsRow.test(footer),
   )
   check(
     'one hints row (the newline chord paints once; no second row carries a chord)',
-    (footer.match(/getNewlineInstructions\(\)/g) ?? []).length === 1 && (footer.match(/stripHint\}/g) ?? []).length === 1,
+    (footer.match(/getNewlineInstructions\(\)/g) ?? []).length === 1 && (footer.match(/footerStripHint\(stripHint\)\}/g) ?? []).length === 1,
   )
+}
+
+section('§3 the footer spells the chord in its own row\'s grammar: "shift + ←", beside "shift + ↵ for a new line", on every host')
+{
+  check('the concourse present: "shift + ← concourse"', footerStripHint('⇧← concourse') === 'shift + ← concourse', footerStripHint('⇧← concourse'))
+  check('the off-mac spelling folds to the same words (Windows reads the same row)', footerStripHint(keyHintLabel('⇧← concourse', 'windows')) === 'shift + ← concourse', footerStripHint(keyHintLabel('⇧← concourse', 'windows')))
+  check('the plain world: "shift + ← boot face"', footerStripHint('⇧← boot face') === 'shift + ← boot face')
+  check('no stop ⇒ still nothing', footerStripHint('') === '')
+  check('the stop name stays router-derived (only the chord is respelled)', footerStripHint('⇧← anything') === 'shift + ← anything')
+  check('no ⇧ survives into the footer row', !footerStripHint(stripKeyMapHintOf('repl', stripStops({ concourseEnabled: true, chatBoot: false, chatPresent: true }))).includes('⇧'))
+  check('the row reads one grammar: both hints open with "shift + "', footerStripHint('⇧← concourse').startsWith('shift + ') && 'shift + ↵ for a new line'.startsWith('shift + '))
+  const footer = readFileSync(join(import.meta.dir, '../../src/components/PromptInput/PromptInputFooter.tsx'), 'utf8')
+  check('the footer paints the respelled hint, never the raw strip hint', footer.includes('` · ${footerStripHint(stripHint)}`') && !footer.includes('` · ${stripHint}`'))
+  const tagBar = readFileSync(join(import.meta.dir, '../../src/components/SwitchboardTagBar.tsx'), 'utf8')
+  check('the tag bar\'s way back keeps its own words ("⇧← back")', (tagBar.match(/keyHintLabel\('⇧← back'\)/g) ?? []).length >= 2)
 }
 
 if (failures > 0) {
