@@ -49,6 +49,13 @@ Records: mercury://structure/query/<id> · mercury://structure/preview/<id> (Ins
     check(`Structure exact description with ${tools.map(t => t.name).join(',') || 'no Ast companions'}`, text === expected)
     check('Structure prompt carries no duplicate-lane or unprinted-anchor claim', !/POLYGLOT|pattern lane|SYMBOL ADDRESSING|metavariable|expected anchors/.test(text))
   }
+  for (const [tool, companion] of [[AstSearchTool, AstEditTool], [AstEditTool, AstSearchTool]] as const) {
+    const alone = await toolToAPISchema(tool as never, { ...options, tools: [tool] as never }) as any
+    const together = await toolToAPISchema(tool as never, options) as any
+    check(`${tool.name}: schema cache and prompt advertise only an offered companion`, !alone.description.includes(companion.name) && together.description.includes(companion.name))
+    const expected = tool.name === 'AstSearch' ? ['pattern', 'path', 'glob', 'lang', 'mode', 'limit', 'offset'] : ['pattern', 'rewrite', 'path', 'glob', 'lang', 'apply', 'plan']
+    check(`${tool.name}: the seven-field contract stays intact`, JSON.stringify(Object.keys(alone.input_schema.properties)) === JSON.stringify(expected) && alone.input_schema.additionalProperties === false)
+  }
   for (const tools of [pool, [StructureTool]]) {
     const prover = await makeContext(tools)
     for (const field of ['pattern', 'lang', 'out']) {

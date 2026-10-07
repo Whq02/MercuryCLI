@@ -11,7 +11,7 @@ const { engineDir, packPresent } = armEnvironment()
 const { AstSearchTool } = await import(join(REPO, 'src/tools/AstSearchTool/AstSearchTool.ts'))
 const { AstEditTool } = await import(join(REPO, 'src/tools/AstEditTool/AstEditTool.ts'))
 const { GRAMMAR_REGISTRY } = await import(join(REPO, 'src/services/structure/grammarRegistry.ts'))
-const { PATTERN_GRAMMAR_LINES, astLanguageNames } = await import(join(REPO, 'src/utils/astPatterns.ts'))
+const { astLanguageNames } = await import(join(REPO, 'src/utils/astPatterns.ts'))
 
 const root = mkdtempSync(join(tmpdir(), 'ast-search-'))
 writeLanguageFixtures(root)
@@ -158,14 +158,21 @@ section('§11 — the descriptions')
   const description = await AstSearchTool.description()
   const prompt = await AstSearchTool.prompt({ getToolPermissionContext: async () => ({}) })
   check('prompt equals description', prompt === description)
-  check('carries the three grammar lines', PATTERN_GRAMMAR_LINES.every((l: string) => description.includes(l)))
+  check('carries the complete-node, capture and declaration grammar', [
+    'ONE complete node, written as code:',
+    '$NAME matches one node and captures it; $$$NAME matches zero or more siblings (arguments, parameters, statements) and captures them; $_ and $$$ match without capturing.',
+    'Names are UPPERCASE letters, digits and _; a name used twice must match identical code; $$X and $$$name are literal text.',
+    'Spacing, line breaks and comments never matter.',
+    'A symbol by name is its declaration, written with every part it has:',
+    'a declared return type needs ": $_" (TypeScript) or " -> $_" (Python) after the parameters.',
+  ].every(line => description.includes(line)))
   check('carries two examples', (description.match(/^- \{ "pattern"/gm) ?? []).length === 2)
   check('names every supported language', astLanguageNames().every((n: string) => description.includes(n)))
   check('names the bound', description.includes('default 50, max 200'))
   const editDescription = await AstEditTool.description()
   check('AstEdit: prompt equals description', (await AstEditTool.prompt({ getToolPermissionContext: async () => ({}) })) === editDescription)
   check('AstEdit: names the dry-run + plan law', editDescription.includes('Two calls, always') && editDescription.includes('plan "ae-…"'))
-  check('AstEdit: names the refusals', editDescription.includes('nested inside another match') && editDescription.includes('unparsable'))
+  check('AstEdit: names the refusals', editDescription.includes('a match nested inside another') && editDescription.includes('a result that would not parse') && editDescription.includes('an uncaptured meta-variable'))
   check('AstEdit: carries two examples', (editDescription.match(/^- \{ "pattern"/gm) ?? []).length === 2)
 }
 
@@ -191,7 +198,8 @@ const pinned = resolveAstScope({ cwd: root, path: root, lang: 'json' })
 console.log(JSON.stringify({
   names: astLanguageNames(),
   search: getAstSearchDescription(),
-  edit: getAstEditDescription(),
+  edit: getAstEditDescription(new Set()),
+  editWithSearch: getAstEditDescription(new Set(['AstSearch'])),
   matches: isAstRefusal(search) ? -1 : search.matches.length,
   trailer,
   single: isAstRefusal(single) ? single.refused : 'ok',
@@ -208,11 +216,12 @@ console.log(JSON.stringify({
       MERCURY_CONFIG_DIR: mkdtempSync(join(tmpdir(), 'ast-clean-clone-home-')),
     },
   })
-  const probe = JSON.parse(out.trim().split('\n').at(-1)!) as { names: string[]; search: string; edit: string; matches: number; trailer: string; single: string; pinned: string }
+  const probe = JSON.parse(out.trim().split('\n').at(-1)!) as { names: string[]; search: string; edit: string; editWithSearch: string; matches: number; trailer: string; single: string; pinned: string }
   check('a vscode-pack-only engine carries exactly the 16 vscode grammars', probe.names.length === vscodeNames.length && vscodeNames.every(n => probe.names.includes(n)), probe.names.join(','))
   const advertised = (text: string): string[] => (/this build carries: ([^;]+);/.exec(text)?.[1] ?? '').split(' · ').map(s => s.trim()).filter(Boolean)
   const searchList = advertised(probe.search)
   const editList = advertised(probe.edit)
+  check('AstEdit shares AstSearch grammar when offered and carries its own otherwise', probe.editWithSearch.includes('work as in AstSearch') && !probe.edit.includes('AstSearch') && advertised(probe.editWithSearch).length === 0)
   check('the descriptions advertise exactly the carried set (no grammar-pack language)', JSON.stringify(searchList) === JSON.stringify(probe.names) && JSON.stringify(editList) === JSON.stringify(probe.names) && packNames.every(n => !searchList.includes(n)), `${searchList.join(',')} | ${editList.join(',')}`)
   check('the descriptions still name every carried language', vscodeNames.every(n => searchList.includes(n) && editList.includes(n)))
   check('the python file still matches; the json file is skipped as uncarried and the remedy named', probe.matches === 1 && probe.trailer.includes('whose grammar this build does not carry (.json ×1)') && probe.trailer.includes('fetch-grammars'), probe.trailer)
