@@ -294,6 +294,15 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     latency: 'fast',
     proof: 'scripts/crew/run-all.sh',
   },
+  ResumeAgent: {
+    intents: ['give a crewmate a new turn by its id or name', 'resume a finished crewmate from its transcript'],
+    units: ['task-coordination'],
+    class: 'coordination',
+    resources: ['agent'],
+    cancellation: 'not-applicable',
+    latency: 'fast',
+    proof: 'scripts/crew/run-all.sh',
+  },
   SendUserFile: {
     intents: ['send a file to the operator'],
     units: ['operator-io'],
