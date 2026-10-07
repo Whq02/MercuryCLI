@@ -130,7 +130,10 @@ permission answer is the event-specific one below, never this field), and
 - `PermissionRequest`: `decision` with `behavior: "allow"` (optionally
   `updatedInput`, `updatedPermissions`) or `behavior: "deny"` (optionally
   `message`, `interrupt`).
-- `PermissionDenied`: `retry`.
+- `PermissionDenied`: `retry` asks the model to try the call again. The
+  refused call stays refused; a new attempt goes through the same permission
+  checks. This event fires for a rule's refusal, the operator's rejection or
+  a headless auto-deny.
 - `UserPromptSubmit`, `Notification`, `SubagentStart`, `Setup`,
   `PostToolUseFailure`: `additionalContext`.
 - `SessionStart`: `additionalContext`, `initialUserMessage`, `watchPaths`.
