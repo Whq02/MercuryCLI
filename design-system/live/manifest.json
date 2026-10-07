@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "generator": "scripts/ui/generate-visual-baseline.ts",
-  "sourceSha": "08b2d67d89a44cd09eb5624d24c55325c7ff8526",
-  "buildDigest": "0634a80919bcd715fd0b260774880befa707bfa4",
-  "generatedAt": "2026-10-07T23:35:40.409Z",
+  "sourceSha": "0a8d321134183244ee7f0d37b13e35e1d90e23db",
+  "buildDigest": "a1ca8320255b4f4100131f3cd8ea319c3f4655f1",
+  "generatedAt": "2026-10-07T23:44:00.238Z",
   "descoped": [
     "mouse on/off: identical static grids — pointer semantics live in the interaction journeys (S4–S6)",
     "provider screens: covered by the agent-dispatch journey provers, not the static baseline",
@@ -318,6 +318,44 @@
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
       "generatedAt": "2026-10-07T23:35:40.405Z"
+    },
+    {
+      "id": "frame--120x40--true-black--truecolor--full",
+      "sourceSha": "0a8d321134183244ee7f0d37b13e35e1d90e23db",
+      "buildDigest": "a1ca8320255b4f4100131f3cd8ea319c3f4655f1",
+      "scenario": "frame",
+      "cols": 120,
+      "rows": 40,
+      "theme": "true-black",
+      "colorMode": "truecolor",
+      "motion": "full",
+      "mouse": "on",
+      "stateFixture": "frame",
+      "terminalProfile": "pyte-xterm",
+      "gridPath": "grids/frame--120x40--true-black--truecolor--full.grid.json",
+      "gridDigest": "70ec0d0ec9fe80939e9e1d66ffe3a1b0411545cf676f2a3426007ffc4da78c85",
+      "styleDigest": "b661468a0ffe047ffa0e5cf8356b2ac7124aa4d13c7a60276722fd4c433d4e3c",
+      "masks": [
+        "\\b\\d{2}:\\d{2}:\\d{2}\\b",
+        "\\b\\d+[smhd] ago\\b",
+        "\\b\\d+[smhd] old\\b",
+        "\\b\\d+ uncommitted \\(\\+\\d+/-\\d+\\) *",
+        "health [▲●◌◐✕✓·◓] \\S+( · \\d+[smhd])? *",
+        "row:\\S+ ⌥ ?[^…\\s]\\S*",
+        "row:│ \\S+ │ ⤳",
+        "FILES · [^│]*",
+        "⌥ ?\\S+ *",
+        "row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back",
+        "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
+        "row: {2,}\\S+(?: ⌥ \\S+)? {2}(?:[^·]+ · )?(?:⇧|shift\\+)← back",
+        " *(?:⇧|shift\\+)← concourse *",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
+        "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
+        "row:gate [✓◓✕·]",
+        "│ {2,3}(?:idle|—) +(?=│)"
+      ],
+      "generatedAt": "2026-10-07T23:44:00.237Z"
     },
     {
       "id": "frame--149x40--dark--truecolor--full",
