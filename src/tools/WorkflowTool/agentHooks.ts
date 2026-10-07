@@ -354,6 +354,7 @@ export type SubagentStreamEvent =
   | {
       type: 'assistant'
       isApiErrorMessage?: boolean
+      providerWaitEndsAtMs?: number
       error?: string
       message: {
         content: Array<{ type: string; name?: string; input?: unknown; [k: string]: unknown }>
@@ -1141,7 +1142,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
               ? 'no reset stated'
               : left <= 0
                 ? 'resuming now'
-                : `resumes by itself at ${clockOf(resetsAtMs as number)} (in ${formatQuietAge(left)})`
+                : `retries by itself at ${clockOf(resetsAtMs as number)} (in ${formatQuietAge(left)})`
           return `paused — ${words}; ${when}; /model switches this agent, /workflows stops it`
         }
         const pausedFrame = (): void => emitFrame('progress', { waiting: 'usage-window', waitWords: pausedWords(), ...settledTotals(elapsed) })
@@ -1388,8 +1389,8 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
             return model
           }
         })()
-        const words = `usage limit: ${who}'s ${window.windowName ?? 'usage window'} is spent`
-        return capPauseSettle(elapsed, finalText, words, window.resetsAtMs, finalOutputTokens)
+        const words = finalText || `the provider refused ${who}'s request`
+        return capPauseSettle(elapsed, finalText, words, lastAssistant.providerWaitEndsAtMs ?? window.resetsAtMs, finalOutputTokens)
       }
       if (lastAssistant?.isApiErrorMessage) {
         if (structured !== undefined) return deliveredSettle(elapsed)

@@ -32,15 +32,15 @@ export const CREW_ACCOUNT_RESUME_NOTE =
 export function pauseResumeWords(pause: Pick<AgentPauseV1, 'why' | 'resumesAtMs'>, nowMs: number): string {
   if (pause.resumesAtMs === undefined) return pause.why === 'provider overloaded' ? 'resumes by itself when the provider answers' : 'no reset stated — a message resumes it'
   const left = pause.resumesAtMs - nowMs
-  return left <= 0 ? 'resuming now' : `resumes by itself at ${pauseClockWords(pause.resumesAtMs)} (in ${pauseCountdownWords(left)})`
+  return left <= 0 ? 'resuming now' : `retries by itself at ${pauseClockWords(pause.resumesAtMs)} (in ${pauseCountdownWords(left)})`
 }
 
 export function pauseStatusWords(pause: AgentPauseV1, nowMs: number): string {
-  return `paused — ${pause.why} · ${pauseResumeWords(pause, nowMs)}`
+  return `paused — ${pause.words} · ${pauseResumeWords(pause, nowMs)} · r retries now`
 }
 
 export function pauseLineWords(pause: AgentPauseV1, nowMs: number): string {
-  return `${pauseStatusWords(pause, nowMs)}; ${pause.words}; ${AGENT_PAUSE_DOORS}`
+  return `${pauseStatusWords(pause, nowMs)}; ${AGENT_PAUSE_DOORS}`
 }
 
 export function decodeAgentPause(raw: unknown): AgentPauseV1 | null {
