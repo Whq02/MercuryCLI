@@ -99,7 +99,7 @@ section('B. EVERY EDIT SUCCESS OPENS WITH WHAT CHANGED AND ENDS WITH THE CLOSE; 
   const anchored = await edit({ file_path: file, expected_anchor: mintFileAnchor(contentOf(file)), hunks: [{ lines: '5', replace: 'line five' }] }, ctx)
   check('B3 the hunks-lane success names the hunk and the line and ends with CLOSE', closes(anchored) && headOf(anchored) === `The file ${file} has been updated successfully: 1 hunk applied; changed line 5 (the file has 12 lines).` && contentOf(file).includes('line five'), textOf(anchored))
   const appended = await edit({ file_path: file, append: 'line 13' }, ctx)
-  check('B4 the append success names the added line and the missing final newline and ends with CLOSE', closes(appended) && headOf(appended) === `The file ${file} has been updated successfully: appended at the end; added line 13 (the file has 13 lines and does not end with a newline).` && contentOf(file).endsWith('\nline 13'), textOf(appended))
+  check('B4 the append success names the added line, leaves a final newline and ends with CLOSE', closes(appended) && headOf(appended) === `The file ${file} has been updated successfully: appended at the end; added line 13 (the file has 13 lines).` && contentOf(file).endsWith('\nline 13\n'), textOf(appended))
   const sectioned = join(fixtures, 'sections.md')
   await write(sectioned, '# Top\n\n## One\n\nold body\n\n## Two\n\nother\n', ctx)
   const replaced = await edit({ file_path: sectioned, section: '## One', new_string: '## One\n\nnew body\n' }, ctx)

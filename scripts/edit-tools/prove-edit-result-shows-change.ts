@@ -124,13 +124,13 @@ const EXPECTED_J = (path: string): string => [
   CLOSE,
 ].join('\n')
 const EXPECTED_F = (path: string): string => [
-  `The file ${path} has been updated successfully: appended at the end; added line 4 (the file has 4 lines and does not end with a newline).`,
+  `The file ${path} has been updated successfully: appended at the end; added line 4 (the file has 4 lines).`,
   'The whole file as read back right after the write; it counts as read:',
   '1\talpha',
   '2\tbeta',
   '3\tgamma',
   '4\tdelta',
-  '(anchor: fa:ec2c6ddc0a67)',
+  '(anchor: fa:927c9bb49935)',
   CLOSE,
 ].join('\n')
 const EXPECTED_A = (path: string): string => [
@@ -190,13 +190,13 @@ await read({ file_path: aPath }, aCtx)
 const r3 = await edit({ file_path: aPath, old_string: 'TIMEOUT', new_string: 'REQUEST_TIMEOUT', replace_all: true }, aCtx)
 check('R3 the text is the specification\'s a example byte for byte (RED on .28: no count and no lines)', r3.ok && r3.text === EXPECTED_A(aPath), textOf(r3))
 
-section('R4. (f) append on a file never read: the added line, the line count and the missing final newline')
+section('R4. (f) append on a file never read: the added line, the line count and the final newline')
 _resetSeenLinesForTesting()
 const fPath = join(fixtures, 'f_unread.txt')
 writeFileSync(fPath, F)
 const r4 = await edit({ file_path: fPath, append: 'delta' }, makeContext())
 check('R4 the text is the specification\'s f example byte for byte (RED on .28: the 231-byte sentence)', r4.ok && r4.text === EXPECTED_F(fPath), textOf(r4))
-check('R4b append keeps its bytes: no final newline is added', readFileSync(fPath, 'utf8') === 'alpha\nbeta\ngamma\ndelta', JSON.stringify(readFileSync(fPath, 'utf8')))
+check('R4b append leaves exactly one final newline', readFileSync(fPath, 'utf8') === 'alpha\nbeta\ngamma\ndelta\n', JSON.stringify(readFileSync(fPath, 'utf8')))
 
 section('R5. (b) one line in a 1,996-line file after a windowed Read')
 _resetSeenLinesForTesting()
