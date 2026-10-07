@@ -18,6 +18,9 @@ import { generateFileAttachment } from '../../utils/attachments/fileAttachments.
 import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
 import { getUserContextAttachment } from '../../utils/attachments/userContext.js'
 import { getMemoryPath } from '../../utils/config/derived.js'
+import { foldedTurnReceipts } from '../../utils/cockpit/turnReceipt.js'
+import { collectAwayWork } from '../../utils/cockpit/awaySummary.js'
+import { getMercuryTempDir } from '../../utils/permissions/filesystem.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { continuationOfSentRequest, lastSentRequestFor, runForkedAgent, type CacheSafeParams } from '../../utils/forkedAgent.js'
 import { appendSystemContext } from '../../utils/api.js'
@@ -405,6 +408,18 @@ export function annotateBoundaryWithPreservedSegment(
     tailUuid: tail.uuid,
   }
   return boundary
+}
+
+export function annotateBoundaryWithWork(
+  boundary: SystemCompactBoundaryMessage,
+  messages: Message[],
+  kept: Message[],
+  summaryUuid: UUID,
+): void {
+  boundary.compactMetadata.work = {
+    receipts: foldedTurnReceipts(messages, kept, summaryUuid, getMercuryTempDir()),
+    recap: collectAwayWork(messages, new Set(kept.map(message => message.uuid))),
+  }
 }
 
 export function mergeHookInstructions(
@@ -1443,6 +1458,7 @@ export async function compactConversation(
     if (messagesToKeep !== undefined) {
       annotateBoundaryWithPreservedSegment(boundary, summaryMessages.at(-1)!.uuid, messagesToKeep)
     }
+    annotateBoundaryWithWork(boundary, messages, messagesToKeep ?? [], summaryMessages.at(-1)!.uuid)
 
     const usage = (response.message as { usage?: NonNullableUsage }).usage
     const callUsageTotal = usage
@@ -1610,6 +1626,7 @@ export async function partialCompactConversation(
 
     const relinkAnchor = direction === 'from' ? boundary.uuid : summaryMessage.uuid
     annotateBoundaryWithPreservedSegment(boundary, relinkAnchor, kept)
+    annotateBoundaryWithWork(boundary, allMessages, kept, summaryMessage.uuid)
 
     markPostCompaction()
     reAppendSessionMetadata()
