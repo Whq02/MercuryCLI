@@ -79,28 +79,28 @@ export function getPrompt(wireForm: DeferralWireForm = 'block'): string {
 
 `
   const location = isDeferredToolsDeltaEnabled()
-    ? `Deferred tools surface name-only inside <system-reminder> messages.`
-    : `Deferred tools surface name-only inside <available-deferred-tools> messages.`
-  const queryForms = `Query forms:
-- \`select:Read,Edit,Grep\` — pull exactly the tools named
+    ? `Deferred tools are listed in <system-reminder> messages that begin "Deferred tools:", one per line: the name, then what the tool is for.`
+    : `Deferred tools are listed in <available-deferred-tools> messages, one per line: the name, then what the tool is for.`
+  const hold = ` Before that fetch, the name and its line are all you hold — without a parameter schema the tool stays uncallable. Hand it a query; it matches against the deferred roster and `
+  const direct = ` A tool already in your tool list needs no fetch: call it directly.`
+  const miss = ` A select that names a tool this session does not have loads nothing; the result names the miss.`
+  const queryForms = `
+
+Query forms:
+- \`select:WebFetch,Sleep\` — pull exactly the tools named, spelled as the list spells them
 - \`notebook jupyter\` — keyword search returning the best matches, max_results at most
 - \`+slack send\` — "slack" must appear in the name; remaining terms only rank`
   if (wireForm === 'text-append') {
-    const tail = ` Before that fetch, the name is all you hold — without a parameter schema the tool stays uncallable. Hand it a query; it matches against the deferred roster and admits each match: the result names the admitted tools, and their complete definitions are appended to the conversation right after it, callable from then on, no different from the tools the prompt opened with.
-
-`
-    return head + location + tail + queryForms
+    const admits = `admits each match: the result names the admitted tools, and their complete definitions are appended to the conversation right after it, callable from then on, no different from the tools the prompt opened with.`
+    return head + location + hold + admits + direct + miss + queryForms
   }
   if (wireForm !== 'block') {
-    const tail = ` Before that fetch, the name is all you hold — without a parameter schema the tool stays uncallable. Hand it a query; it matches against the deferred roster and admits each match: the result names the admitted tools, and from that request on their complete definitions are in your tool list, no different from the tools the prompt opened with.
-
-`
-    return head + location + tail + queryForms
+    const admits = `admits each match: the result names the admitted tools, and from that request on their complete definitions are in your tool list, no different from the tools the prompt opened with.`
+    return head + location + hold + admits + direct + miss + queryForms
   }
-  const tail = ` Before that fetch, the name is all you hold — without a parameter schema the tool stays uncallable. Hand it a query; it matches against the deferred roster and answers with the complete JSONSchema definition of each match, inside a <functions> block. A schema landing in that result makes its tool callable, no different from the tools the prompt opened with.
+  const answers = `answers with the complete JSONSchema definition of each match, inside a <functions> block. A schema landing in that result makes its tool callable, no different from the tools the prompt opened with.`
+  const shape = `
 
-Shape of the result: every match lands as its own \`<function>{"description": "...", "name": "...", "parameters": {...}}</function>\` line inside the <functions> block, encoded the way the opening tool list is.
-
-`
-  return head + location + tail + queryForms
+Shape of the result: every match lands as its own \`<function>{"description": "...", "name": "...", "parameters": {...}}</function>\` line inside the <functions> block, encoded the way the opening tool list is.`
+  return head + location + hold + answers + direct + shape + miss + queryForms
 }
