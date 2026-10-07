@@ -8,11 +8,9 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'axiom-graph-'))
 delete process.env.MERCURY_SERVICES
 delete process.env.MERCURY_REFS
-delete process.env.MERCURY_WORKSHOP
 
 const { resolveResource } = await import('../../src/services/resources/registry.ts')
 await import('../../src/services/resources/adapters/service.ts')
-const { runWorkshopCell } = await import('../../src/services/workshop/runtime.ts')
 const { startService, stopService, waitForReady } =
   await import('../../src/services/projectServices/serviceManager.ts')
 const P = await import('../../src/services/primitives/index.ts')
@@ -38,15 +36,10 @@ guard.unref?.()
 const workDir = mkdtempSync(join(tmpdir(), 'axiom-graph-work-'))
 const owner = P.makeOwnerKey({ workspace: workDir, sessionId: 'graph-proof', lane: P.MAIN_LANE })
 const ctx = { owner, cwd: workDir }
-const bridge = {
-  inspect: async () => 'x',
-  tool: async () => 'x',
-  agent: async () => 'x',
-}
 
 console.log('owner resource')
 {
-  await runWorkshopCell({ owner, cwd: workDir, cell: { language: 'js', code: '1+1' }, bridge })
+  P.registerExecution({ owner, id: 'graph-process', kind: 'process', label: 'graph fixture', lifecycle: 'owner', initialState: 'ready' })
   const res = await resolveResource('mercury://owner', ctx)
   check('current owner resolves ok', res.state === 'ok')
   if (res.state === 'ok') {
@@ -54,7 +47,7 @@ console.log('owner resource')
       res.resource.summary.includes('scope session') &&
         res.resource.summary.includes('execution(s)') &&
         res.resource.summary.includes('verify'))
-    const execChild = res.resource.children?.find(c => c.ref === 'mercury://execution/workshop:js')
+    const execChild = res.resource.children?.find(c => c.ref === 'mercury://execution/graph-process')
     check('owner → execution child link exists', execChild !== undefined)
   }
   const byKey = await resolveResource(`mercury://owner/${owner}`, ctx)
@@ -65,8 +58,8 @@ console.log('owner resource')
 
 console.log('owner → execution → domain journey')
 {
-  const exec = await resolveResource('mercury://execution/workshop:js', ctx)
-  check('workshop runtime execution resolves', exec.state === 'ok')
+  const exec = await resolveResource('mercury://execution/graph-process', ctx)
+  check('fixture process execution resolves', exec.state === 'ok')
   if (exec.state === 'ok') {
     check('execution carries generation version + structured state',
       exec.resource.version === 'gen 1' &&

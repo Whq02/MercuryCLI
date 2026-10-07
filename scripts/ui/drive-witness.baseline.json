@@ -177,7 +177,6 @@
     "scripts/transcript-rows/prove-local-result-band-drive.ts": 3,
     "scripts/transcript-rows/prove-size-prune-drive.ts": 1,
     "scripts/transcript-rows/prove-update-notes-card-drive.ts": 12,
-    "scripts/transcript-rows/prove-workshop-cell-card-drive.ts": 5,
     "scripts/ui/capture-chat-first-seconds.ts": 1,
     "scripts/ui/capture-model-picker-appearances.ts": 4,
     "scripts/ui/measure-idle-cpu.ts": 1,

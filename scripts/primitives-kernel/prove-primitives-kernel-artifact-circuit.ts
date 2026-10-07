@@ -85,8 +85,6 @@ try {
     journey?.evidence)
   const legs: Array<{ id: string; allow: string[]; why: string }> = [
     { id: 'service-lifecycle', allow: ['ok'], why: 'a REAL service child through the plane-projected manager' },
-    { id: 'workshop-js', allow: ['ok'], why: 'the EMBEDDED worker (retained state)' },
-    { id: 'workshop-py', allow: ['ok', 'info'], why: 'the python kernel or HONEST unavailability' },
     { id: 'change-transaction', allow: ['ok'], why: 'the anchored change + exactly-once receipt' },
     { id: 'agent-envelope', allow: ['ok'], why: 'envelope normalization from observed evidence' },
     { id: 'effect-observer', allow: ['ok'], why: 'the ONE observation chokepoint' },

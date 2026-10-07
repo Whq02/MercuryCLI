@@ -27,7 +27,6 @@ if (process.env.VANGUARD_CARDS_CHILD) {
   }
   const { Box } = await import('../../src/ink.js')
   const inspect = await import('../../src/tools/InspectTool/UI.js')
-  const workshop = await import('../../src/tools/WorkshopTool/UI.js')
   const service = await import('../../src/tools/ServiceTool/UI.js')
   const debug = await import('../../src/tools/DebugTool/UI.js')
   const h = React.createElement
@@ -43,28 +42,6 @@ if (process.env.VANGUARD_CARDS_CHILD) {
         kind: 'run',
         title: 'INSPECTCARD',
       },
-      [],
-      opts,
-    ),
-    workshop.renderToolResultMessage(
-      {
-        cells: [
-          {
-            cellId: 'cell-js-g1-1',
-            title: 'WORKSHOPCARD',
-            language: 'js',
-            state: 'succeeded',
-            generation: 1,
-            runtimeKilled: false,
-            durationMs: 42,
-            valuePreview: LONG,
-            outputTail: [`out ${LONG}`],
-            displays: [],
-            nestedCalls: 0,
-          },
-        ],
-        result: 'unused',
-      } as never,
       [],
       opts,
     ),
@@ -134,7 +111,6 @@ if (process.env.VANGUARD_CARDS_CHILD) {
     console.log(`\n  ── cards @ ${cols} ──`)
     const grid = capture(cols)
     check(`@${cols}: the Inspect card header renders on the grammar (● + title)`, /●.*INSPECTCARD/.test(grid))
-    check(`@${cols}: the Workshop cell header renders (● + cell id)`, /●.*cell-js-g1-1/.test(grid))
     check(`@${cols}: the Service card reads IN-MOTION for running (◐)`, /◐.*SERVICECARD|◐.*describe/.test(grid))
     check(`@${cols}: the Debug card reads indeterminate (?)`, /\?.*stack|\? *stack/.test(grid))
     check(`@${cols}: hostile long tokens TRUNCATE inside the width (no ENDMARK)`, !grid.includes('ENDMARK'))
