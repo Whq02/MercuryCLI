@@ -219,7 +219,7 @@ section('L5 — flow mode: the hosted session ran the flow posture')
     }
   } catch {
   }
-  check("the session's facts report permissionMode 'flow' (the daemon child's default posture)", mode === 'flow', `permissionMode=${mode ?? 'unread'}`)
+  check("the session's facts report permissionMode 'flow' (the saved posture the seat inherits)", mode === 'flow', `permissionMode=${mode ?? 'unread'}`)
 }
 
 if (failures > 0) {

@@ -42,15 +42,15 @@ console.log('============================================================')
 console.log(' daemon child permission posture — proof')
 console.log('============================================================')
 
-section('default posture (env unset) — the fix itself')
+section('default posture (env unset) — a child with no saved, carried or operator-set posture boots default')
 {
   check(
-    "default constant is 'flow' (the worker-shell floor: classifier-adjudicated shell for every daemon child)",
-    HEADLESS_PERMISSION_MODE_DEFAULT === 'flow',
+    "default constant is 'default' (a daemon child with nothing saved boots the way a fresh session does)",
+    HEADLESS_PERMISSION_MODE_DEFAULT === 'default',
   )
-  check('resolver: unset env ⇒ flow', getHeadlessPermissionMode() === 'flow')
+  check('resolver: unset env ⇒ default', getHeadlessPermissionMode() === 'default')
   const argv = buildArgv()
-  check('long-lived argv carries --mode flow', hasPair(argv, 'flow'))
+  check('long-lived argv carries no posture words (default supplies no flag)', !argv.includes('--mode'))
   check('no bypass flag by default', !argv.includes('--sovereign'))
   check('argv serves the runner door', argv[1] === 'runner' && !argv.includes('--input=rows'))
   check('argv still carries the floored --model', argv.includes('--model'))
@@ -64,7 +64,9 @@ section('operator overrides — live-read per spawn, no re-import')
   check("'implement' argv pair", hasPair(buildArgv(), 'implement'))
 
   process.env.MERCURY_DAEMON_PERMISSION_MODE = 'frobnicate'
-  check("a word outside the mode list falls back to the default posture", getHeadlessPermissionMode() === 'flow' && hasPair(buildArgv(), 'flow'))
+  check("a word outside the mode list falls back to the default posture", getHeadlessPermissionMode() === 'default' && !buildArgv().includes('--mode'))
+  process.env.MERCURY_DAEMON_PERMISSION_MODE = 'flow'
+  check("'flow' resolves and spells its pair (the flag's own value keeps its road)", getHeadlessPermissionMode() === 'flow' && hasPair(buildArgv(), 'flow'))
   process.env.MERCURY_DAEMON_PERMISSION_MODE = 'sovereign'
   check("the mode reader selects the sovereign launch arm", buildArgv().includes('--sovereign'))
 
@@ -82,16 +84,18 @@ section('operator overrides — live-read per spawn, no re-import')
   process.env.MERCURY_DAEMON_PERMISSION_MODE = 'default'
   const bare = buildArgv()
   check(
-    "'default' restores the bare pre-fix boot (no posture words)",
+    "'default' is the bare boot (no posture words)",
     !bare.includes('--mode') && !bare.includes('--sovereign'),
   )
-  delete process.env.MERCURY_DAEMON_PERMISSION_MODE
+  process.env.MERCURY_DAEMON_PERMISSION_MODE = 'implement'
   const withPair = buildArgv()
   const stripped = withPair.filter((w, i, a) => !(w === '--mode' || a[i - 1] === '--mode'))
   check(
     'posture pair is the ONLY argv delta vs the bare boot',
     JSON.stringify(stripped) === JSON.stringify(bare),
   )
+  delete process.env.MERCURY_DAEMON_PERMISSION_MODE
+  check('unset env builds the bare boot byte for byte', JSON.stringify(buildArgv()) === JSON.stringify(bare))
 }
 
 section('hostile / invalid values fall back, never leak into argv')
@@ -100,8 +104,8 @@ section('hostile / invalid values fall back, never leak into argv')
     process.env.MERCURY_DAEMON_PERMISSION_MODE = bad
     const argv = buildArgv()
     check(
-      `invalid '${bad}' ⇒ flow fallback (the daemon default)`,
-      getHeadlessPermissionMode() === 'flow' && hasPair(argv, 'flow'),
+      `invalid '${bad}' ⇒ the default posture (no posture words)`,
+      getHeadlessPermissionMode() === 'default' && !argv.includes('--mode') && !argv.includes('--sovereign'),
     )
   }
   delete process.env.MERCURY_DAEMON_PERMISSION_MODE
