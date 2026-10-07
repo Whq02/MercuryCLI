@@ -89,6 +89,8 @@ const HOOK_ENDING_WORDS: Record<HookEndingClass, (ending: Extract<HookEnding, { 
   spawn: ending => `could not run${ending.detail ? `: ${ending.detail}` : ''}`,
 }
 
+export const HOOK_FAILED_CODE = 'hook_failed'
+
 export function hookEndingSentence(ending: HookEnding, hook: { name: string; event: string }): string {
   const who = `hook ${hook.name} (${hook.event})`
   if (ending.status === 'ok') return `${who} ended with exit 0`

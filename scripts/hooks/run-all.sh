@@ -12,6 +12,8 @@
 # gate-watch: src/services/tools/toolHooks.ts
 # gate-watch: src/rows/vocabulary.ts src/rows/project.ts docs/HOOKS.md sdk/src/rows.ts
 # gate-watch: src/cli/headless/resume.ts src/utils/model/model.ts src/utils/sessionStorage/vnext.ts
+# gate-watch: src/utils/sessionStorage/rowGraph.ts src/utils/sessionStorage/transcriptReader.ts src/utils/conversationRecovery.ts
+# gate-watch: src/components/Messages.tsx src/ink.ts src/state/AppState.tsx src/state/AppStateStore.ts src/tools.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -35,6 +37,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-row-roa
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-run-door-hook-rows.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-run-door-hook-rows.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-async-hook-progress-marks.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-async-hook-progress-marks.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-nonzero-report.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hook-nonzero-report.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-failed-hook-reaches-user.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-failed-hook-reaches-user.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-once-hook-retires.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-once-hook-retires.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-if-event-honesty.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-if-event-honesty.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-sh-hook-spelling.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-sh-hook-spelling.ts" "$__t" "$__rc"
