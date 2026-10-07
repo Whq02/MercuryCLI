@@ -9,22 +9,20 @@ interface ParsedCommandData {
   originalCommand: string
 }
 
-const MAX_PARSEABLE_COMMAND_LENGTH = 10_000
+const LONGEST_PARSEABLE_COMMAND = 10_000
 
 export const PARSE_ABORTED: unique symbol = Symbol('PARSE_ABORTED')
 
+function parseable(command: string): boolean {
+  return command !== '' && command.length <= LONGEST_PARSEABLE_COMMAND
+}
+
 export async function parseCommand(command: string): Promise<ParsedCommandData | null> {
-  if (!command || command.length > MAX_PARSEABLE_COMMAND_LENGTH) {
-    return null
-  }
+  if (!parseable(command)) return null
   return null
 }
 
-export async function parseCommandRaw(
-  command: string,
-): Promise<Node | null | typeof PARSE_ABORTED> {
-  if (!command || command.length > MAX_PARSEABLE_COMMAND_LENGTH) {
-    return null
-  }
+export async function parseCommandRaw(command: string): Promise<Node | null | typeof PARSE_ABORTED> {
+  if (!parseable(command)) return null
   return null
 }

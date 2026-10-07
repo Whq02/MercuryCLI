@@ -1,4 +1,3 @@
-
 export type TsNode = {
   type: string
   text: string
