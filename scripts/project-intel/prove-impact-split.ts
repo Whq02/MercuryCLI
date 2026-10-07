@@ -109,7 +109,7 @@ async function main(): Promise<void> {
   await lspManager.waitForInitialization()
   check('the LSP tool is mounted for the steering leg', lspManager.isLspToolMounted(), JSON.stringify(lspManager.getInitializationStatus()))
   const onLine = steering.searchSteeringLine()
-  check('search steering present when owners on', typeof onLine === 'string' && onLine.includes('LSP tool') && onLine.includes('AstSearch'), onLine ?? 'null')
+  check('search steering present when owners on', typeof onLine === 'string' && onLine.includes('LspRead') && onLine.includes('AstSearch'), onLine ?? 'null')
   process.env.MERCURY_LSP = '0'
   const noLsp = steering.searchSteeringLine()
   check('OFF owner never advertised (no LSP mention)', noLsp !== null && !noLsp.includes('LSP'), noLsp ?? 'null')

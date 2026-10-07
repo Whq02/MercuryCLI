@@ -45,7 +45,7 @@ export function searchSteeringLine(offered: OfferedTools = null): string | null 
   const parts: string[] = []
   if (lspOn(offered)) {
     parts.push(
-      'for a SYMBOL question (definition, references, callers, implementations) the LSP tool answers directly (goToDefinition · findReferences · incomingCalls) instead of text matching',
+      'for a SYMBOL question (definition, references, callers, implementations) LspRead answers directly (goToDefinition · findReferences · incomingCalls) instead of text matching',
     )
   }
   if (astOn('AstSearch', offered)) {
@@ -63,7 +63,7 @@ export function readSteeringLine(): string | null {
 export function editSteeringLine(offered: OfferedTools = null): string | null {
   if (!projectIntelEnabled()) return null
   const parts: string[] = []
-  if (lspOn(offered)) parts.push('cross-file renames belong to the LSP rename operation')
+  if (lspOn(offered)) parts.push('cross-file renames belong to LspRename (load it with ToolSearch)')
   if (astOn('AstEdit', offered))
     parts.push('one rewrite at every match of a code shape belongs to AstEdit (dry run, then apply)')
   if (parts.length === 0) return null
