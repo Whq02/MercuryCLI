@@ -1966,12 +1966,8 @@
       "cancellation": "block",
       "deferred": true,
       "operations": [
-        "begin",
-        "step",
         "status",
-        "finish",
-        "resume",
-        "list"
+        "finish"
       ],
       "units": [
         "application-verification"
@@ -1979,8 +1975,8 @@
       "proof": "scripts/ide/prove-closed-loop.ts",
       "declared": {
         "intents": [
-          "bind a coding loop into one evidence record",
-          "prove a fix end to end"
+          "see what changed and was checked",
+          "finish the work after a passing check"
         ],
         "units": [
           "application-verification"
