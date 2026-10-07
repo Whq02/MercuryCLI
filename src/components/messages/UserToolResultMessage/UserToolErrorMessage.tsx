@@ -6,7 +6,7 @@ import { BULLET_OPERATOR, OUTPUT_CONNECTOR } from '../../../constants/figures.js
 import { Box, Text } from '../../../ink.js';
 import { filterToolProgressMessages, type Tool, type Tools } from '../../../Tool.js';
 import type { ProgressMessage } from '../../../types/message.js';
-import { INTERRUPT_MESSAGE_FOR_TOOL_USE, isClassifierDenial, REJECT_MESSAGE_WITH_REASON_PREFIX } from '../../../utils/messages.js';
+import { INTERRUPT_MESSAGE_FOR_TOOL_USE, REJECT_MESSAGE_WITH_REASON_PREFIX } from '../../../utils/messages.js';
 import type { HermesKillInfo } from '../../../utils/permissions/capabilityGate.js';
 import { GLYPH } from '../../mercury-ui/glyphs.js';
 import { CRIMSON, FAINT, IVORY, SECOND } from '../../mercuryPalette.js';

@@ -139,7 +139,6 @@ export function SkillPermissionRequest({
         <Text dimColor>{matchedDescription}</Text>
         <PermissionRuleExplanation
           permissionResult={toolUseConfirm.permissionResult}
-          toolType="tool"
         />
         <PermissionPrompt
           options={options}

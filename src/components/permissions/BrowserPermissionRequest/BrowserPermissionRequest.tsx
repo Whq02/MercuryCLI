@@ -109,7 +109,7 @@ export function BrowserPermissionRequest({
           <Text>{useMessage}</Text>
         )}
         <Text dimColor>{toolUseConfirm.description}</Text>
-        <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} toolType="tool" />
+        <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} />
         <Text bold>Do you want to allow Mercury to drive this page?</Text>
         <Select options={options} onChange={handleChange} onCancel={() => handleChange('no')} />
       </Box>

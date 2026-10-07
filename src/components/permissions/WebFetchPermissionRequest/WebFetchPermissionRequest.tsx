@@ -112,7 +112,6 @@ export function WebFetchPermissionRequest({
         <Text dimColor>{toolUseConfirm.description}</Text>
         <PermissionRuleExplanation
           permissionResult={toolUseConfirm.permissionResult}
-          toolType="tool"
         />
         <Text bold>Do you want to allow Mercury to fetch this content?</Text>
         <Select options={options} onChange={handleChange} onCancel={() => handleChange('no')} />
