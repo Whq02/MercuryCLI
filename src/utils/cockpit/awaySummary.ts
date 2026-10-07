@@ -1,4 +1,5 @@
-import type { Message } from '../../types/message.js'
+import type { CompactMetadata, Message } from '../../types/message.js'
+import { compactWorkOf } from './turnReceipt.js'
 import { isMercurySubstrateProfileOn } from '../config.js'
 import { isEnvTruthy } from '../envUtils.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
@@ -84,51 +85,17 @@ export function buildAwayRecap(
 ): AwayRecap | null {
   if (!Array.isArray(messages) || messages.length === 0) return null
 
-  let turns = 0
-  const toolCounts = new Map<string, number>()
-  const files = new Set<string>()
+  const work = collectAwayWork(messages)
+  const { turns, toolFailures } = work
+  const toolCounts = new Map(work.toolCounts)
+  const files = new Set(work.files)
   let lastTs = 0
   let lastAssistant: Message | null = null
-
-  const failedToolUseIds = new Set<string>()
-  let toolFailures = 0
   for (const m of messages) {
-    if (m.type !== 'user') continue
-    const content = (m as { message?: { content?: unknown } }).message?.content
-    if (!Array.isArray(content)) continue
-    for (const raw of content) {
-      const b = raw as { type?: string; tool_use_id?: string; is_error?: boolean }
-      if (b?.type !== 'tool_result' || b.is_error !== true) continue
-      toolFailures++
-      if (typeof b.tool_use_id === 'string' && b.tool_use_id.length > 0) {
-        failedToolUseIds.add(b.tool_use_id)
-      }
-    }
-  }
-
-  for (const m of messages) {
-    if (isOperatorTurn(m)) turns++
-
     if (isSyntheticOrMeta(m)) continue
-
     const ts = Date.parse((m as { timestamp?: string }).timestamp ?? '')
     if (Number.isFinite(ts) && ts > lastTs) lastTs = ts
-
-    if (m.type === 'assistant') {
-      lastAssistant = m
-      const content = (m as { message?: { content?: unknown } }).message?.content
-      if (Array.isArray(content)) {
-        for (const raw of content) {
-          const b = raw as Block
-          if (b?.type !== 'tool_use' || typeof b.name !== 'string') continue
-          if (COUNTED_TOOLS.has(b.name)) {
-            toolCounts.set(b.name, (toolCounts.get(b.name) ?? 0) + 1)
-          }
-          const f = fileOf(b.input)
-          if (f && !(typeof b.id === 'string' && failedToolUseIds.has(b.id))) files.add(f)
-        }
-      }
-    }
+    if (m.type === 'assistant') lastAssistant = m
   }
 
   const totalToolUse = [...toolCounts.values()].reduce((a, b) => a + b, 0)
@@ -182,4 +149,37 @@ export function buildAwaySummary(
   gitDelta?: { files: number; added: number; removed: number } | null,
 ): string | null {
   return buildAwayRecap(messages, nowMs, gitDelta)?.line ?? null
+}
+
+export function collectAwayWork(
+  messages: Message[],
+  excludedUuids: ReadonlySet<string> = new Set(),
+): NonNullable<CompactMetadata['work']>['recap'] {
+  const prior = compactWorkOf(messages)?.recap
+  let turns = prior?.turns ?? 0
+  let toolFailures = prior?.toolFailures ?? 0
+  const toolCounts = new Map(prior?.toolCounts ?? [])
+  const files = new Set(prior?.files ?? [])
+  const failedToolUseIds = new Set(prior?.failedToolUseIds ?? [])
+  for (const m of messages) {
+    if (m.type !== 'user' || !Array.isArray(m.message.content)) continue
+    for (const b of m.message.content) {
+      if (b.type !== 'tool_result' || b.is_error !== true) continue
+      if (!excludedUuids.has(m.uuid)) toolFailures++
+      if (typeof b.tool_use_id === 'string' && b.tool_use_id.length > 0) failedToolUseIds.add(b.tool_use_id)
+    }
+  }
+  for (const m of messages) {
+    if (excludedUuids.has(m.uuid)) continue
+    if (isOperatorTurn(m)) turns++
+    if (isSyntheticOrMeta(m) || m.type !== 'assistant' || !Array.isArray(m.message.content)) continue
+    for (const raw of m.message.content) {
+      const b = raw as Block
+      if (b.type !== 'tool_use' || typeof b.name !== 'string') continue
+      if (COUNTED_TOOLS.has(b.name)) toolCounts.set(b.name, (toolCounts.get(b.name) ?? 0) + 1)
+      const file = fileOf(b.input)
+      if (file && !(typeof b.id === 'string' && failedToolUseIds.has(b.id))) files.add(file)
+    }
+  }
+  return { turns, toolCounts: [...toolCounts], files: [...files], toolFailures, failedToolUseIds: [...failedToolUseIds] }
 }
