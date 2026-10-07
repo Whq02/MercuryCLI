@@ -97,7 +97,7 @@ section('(5) the facade decides for real: a fixture layout with a cmd launcher t
   chmodSync(join(vdir, 'mercury.cmd'), 0o755)
   writeFileSync(join(vdir, 'mercury.mjs'), 'process.stdout.write("NODE-ROAD " + JSON.stringify(process.argv.slice(2)) + "\\n"); process.exit(Number(process.env.FX_EXIT ?? 0))\n')
   mkdirSync(join(vdir, 'vendor', 'node'), { recursive: true })
-  const realNode = spawnSync('sh', ['-c', 'command -v node'], { encoding: 'utf8' }).stdout.trim()
+  const realNode = spawnSync('which', ['node'], { encoding: 'utf8' }).stdout.trim()
   writeFileSync(join(vdir, 'vendor', 'node', 'node.exe'), `#!/bin/sh\nexec "${realNode}" "$@"\n`)
   chmodSync(join(vdir, 'vendor', 'node', 'node.exe'), 0o755)
   const facadePath = join(fx, 'mercury')
@@ -119,12 +119,12 @@ section('(5) the facade decides for real: a fixture layout with a cmd launcher t
   const r6 = run(['run', 'x'], { MERCURY_NODE: join(fx, 'absent-node') })
   check('a pinned-but-missing MERCURY_NODE refuses with the three-rung words, exit 1', r6.status === 1 && r6.stderr.includes('none of the three rungs answered'), `status=${r6.status} err=${r6.stderr.slice(0, 160)}`)
   const oldNode = join(fx, 'old-node')
-  writeFileSync(oldNode, '#!/bin/sh\ncase "$1" in -p) echo 22.21.0; exit 0 ;; -v) echo v22.21.0; exit 0 ;; esac\nexit 0\n')
+  writeFileSync(oldNode, '#!/bin/sh\ncase "$1" in -e) printf 22.21.0; exit 0 ;; -v) echo v22.21.0; exit 0 ;; esac\nexit 0\n')
   chmodSync(oldNode, 0o755)
   const r7 = run(['run', 'x'], { MERCURY_NODE: oldNode })
   check('an unsupported Node refuses with the version words, exit 1', r7.status === 1 && r7.stderr.includes('is required (found v22.21.0'), `status=${r7.status} err=${r7.stderr.slice(0, 200)}`)
 
-  const script = spawnSync('sh', ['-c', 'command -v script'], { encoding: 'utf8' }).stdout.trim()
+  const script = spawnSync('which', ['script'], { encoding: 'utf8' }).stdout.trim()
   if (script && process.platform === 'darwin') {
     const tty = (args: string[]) => spawnSync('script', ['-q', '/dev/null', 'sh', facadePath, ...args], { encoding: 'utf8', env, timeout: 30_000 })
     const t1 = tty([])
