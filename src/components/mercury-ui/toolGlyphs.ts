@@ -45,7 +45,6 @@ export const TOOL_FAMILY_BY_NAME: Record<string, ToolFamily> = {
   Bash: 'shell',
   PowerShell: 'shell',
   Launch: 'shell',
-  Workshop: 'shell',
   Eval: 'shell',
   Read: 'read',
   ReadMcpResource: 'read',
