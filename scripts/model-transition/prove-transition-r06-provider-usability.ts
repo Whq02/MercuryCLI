@@ -46,7 +46,7 @@ section('§A anthropic — credential × limit, with degradation honesty')
   const capped = resolveProviderUsability(
     reads({ anthropicApiKey: () => 'sk-x', anthropicLimitStatus: () => 'rejected' }),
   ).anthropic
-  check('a rejected window ⇒ unusable AND delegationCapped (honesty)', capped.usable === false && capped.delegationCapped === true && capped.blockers.some(b => b.includes('usage window')))
+  check('a rejected window stays information without capping delegation', capped.usable === true && capped.delegationCapped === false && capped.limitBlocker?.includes('usage window') === true && capped.blockers.length === 0)
 }
 
 section('§B openai — the composed seat owner speaks through')
@@ -111,13 +111,13 @@ section('§F usage-aware dispatch (lane FG E) — the delegation verdict is hone
     mapOf({ anthropicSubscriber: () => true, anthropicLimitStatus: () => 'rejected' }),
   )
   check(
-    'rejected window ⇒ ONE honest refusal naming the window',
-    capped !== null && capped.includes('usage window is reached'),
+    'rejected window never refuses dispatch',
+    capped === null,
     String(capped),
   )
   check(
-    '…and the refusal states the never-reroute law',
-    capped !== null && capped.includes('never silently rerouted'),
+    'the selected lane remains selected',
+    capped === null,
   )
   const cappedWithGpt = delegationDispatchBlocker(
     'anthropic',
@@ -128,8 +128,8 @@ section('§F usage-aware dispatch (lane FG E) — the delegation verdict is hone
     }),
   )
   check(
-    'a usable alternative lane is NAMED (informed choice, not silent reroute)',
-    cappedWithGpt !== null && cappedWithGpt.includes('openai'),
+    'another ready lane never changes the selected lane dispatch',
+    cappedWithGpt === null,
     String(cappedWithGpt),
   )
   check(

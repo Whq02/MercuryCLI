@@ -52,7 +52,7 @@ export function anthropicWindowWords(seen?: AnthropicWindowObservation, carry?: 
   const head = `the Anthropic usage window is reached for ${seen.account}, seen at ${clockWords(seen.observedAtMs)}`
   if (seen.resetsAtMs !== undefined) return `${head} — resets at ${clockWords(seen.resetsAtMs)}${tail}`
   if (seen.lapsesAtMs !== undefined) {
-    return `${head} — no reset time was given; delegated work is refused until ${clockWords(seen.lapsesAtMs)}${tail}`
+    return `${head} — no reset time was given; the reading expires at ${clockWords(seen.lapsesAtMs)}${tail}`
   }
   return `${head}${tail}`
 }

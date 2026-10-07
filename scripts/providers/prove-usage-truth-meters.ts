@@ -518,7 +518,7 @@ section('§9 the carry words: a reached window says what carries the requests fr
   const bare = usability.resolveProviderUsability({ ...usabilityReads, carryWords: undefined } as never)
   check('a read bundle without the carry read keeps the blockers as they were', bare.openai.limitBlocker === 'the openai usage window is reached — resets per /usage' && !(bare.anthropic.limitBlocker ?? '').includes(' · '), bare.openai.limitBlocker)
   const delegated = usability.delegationDispatchBlocker('openai', map)
-  check('a delegated dispatch refusal names what carries the requests', (delegated ?? '').includes('(the openai usage window is reached — resets per /usage · on credits · 62,500 left)'), delegated ?? '(null)')
+  check('a delegated dispatch proceeds while the reading still names credits', delegated === null && map.openai.usable && map.openai.limitBlocker?.includes('on credits') === true, delegated ?? '(null)')
 
   const rail = src('src/utils/cockpit/helmTelemetryModel.ts')
   check("the rail paints the compact carry words under its reached line through the one composer, and the '100% · …' row without a wall", rail.includes("usageCarryWords(usage.carry, readNow, 'compact')") && rail.includes("reached === 'wall' ? carry : `100% · ${carry}`") && rail.includes('usageWindowReached(usage, readNow)'))
