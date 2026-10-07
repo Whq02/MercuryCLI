@@ -3,6 +3,10 @@
 # gate-watch: scripts/prompts-panel/** scripts/ui/vshot.py scripts/ui/renderScenarios.ts
 # gate-watch: src/components/prompts-panel/** src/commands/workbench/**
 # gate-watch: src/utils/savedPrompts/**
+# gate-watch: src/components/MessageSelector.tsx src/utils/messages/noticeRows.ts
+# gate-watch: src/ink.ts src/components/App.tsx src/state/AppStateStore.ts src/keybindings/KeybindingProviderSetup.tsx src/utils/staticRender.tsx
+# gate-watch: src/components/messages/UserTextMessage.tsx src/components/MessageRow.tsx src/components/concourse/workerTranscriptFold.ts src/fabric/entryCodec.ts
+# gate-watch: src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts src/utils/messages.ts src/utils/config.ts src/types/message.ts
 # gate-watch: src/components/mercury-ui/NavigablePanes.tsx src/hooks/useSessionConnector.ts
 # gate-watch: scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/streaming/artifactArena.ts scripts/ui/gridToPng.ts src/constants/xml.ts
 # gate-watch: src/daemon/concourseWorkers.ts src/daemon/controlSocket.ts src/daemon/warmRunner.ts src/utils/sessionStorage/paths.ts src/utils/sessionStoragePortable.ts
@@ -17,7 +21,7 @@ fail=0
 echo "############################################################"
 echo "# PROMPTS PANEL — records · saved prompts"
 echo "############################################################"
-for f in prove-prompt-rows prove-saved-prompts-store prove-panel-captures prove-hop-follows-focus prove-detail-footer-honesty; do
+for f in prove-prompt-rows prove-notice-free-prompts prove-saved-prompts-store prove-panel-captures prove-hop-follows-focus prove-detail-footer-honesty; do
   echo "── scripts/prompts-panel/$f.ts"
   __t=$SECONDS; __rc=0; "$BUN" run "$here/$f.ts" || { __rc=$?; fail=1; }; prover_mark "$here/$f.ts" "$__t" "$__rc"
 done
