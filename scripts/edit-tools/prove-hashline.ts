@@ -178,17 +178,19 @@ section('R. the anchored read mode (real FileReadTool)')
       }),
     }) as never as { readFileState: Map<string, ReadStamp> }
 
+  let readSerial = 0
   const readViaTool = async (
     path: string,
     ctx: ReturnType<typeof makeReadContext>,
     extra: Record<string, unknown> = {},
   ): Promise<{ ok: true; text: string } | { ok: false; error: string }> => {
     try {
+      readSerial++
       const result = await (FileReadTool as unknown as { call: Function }).call(
         { file_path: path, ...extra },
         ctx,
         null,
-        { uuid: '00000000-0000-0000-0000-000000000001', message: { id: 'msg_fixture' } },
+        { uuid: `00000000-0000-0000-0000-${String(readSerial).padStart(12, '0')}`, message: { id: `msg_fixture_${readSerial}` } },
       )
       const block = (
         FileReadTool as unknown as { mapToolResultToToolResultBlockParam: Function }
