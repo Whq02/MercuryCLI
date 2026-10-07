@@ -6,16 +6,11 @@ import type { PermissionAskDecision } from '../../types/permissions.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import {
   getCwdState,
-  getMainThreadAgentType,
   getSdkAgentProgressSummariesEnabled,
 } from '../../bootstrap/state.js'
 import { pathInAllowedWorkingPath } from '../../utils/permissions/filesystem.js'
 import { modeBypassesPermissions } from '../../utils/permissions/PermissionMode.js'
-import {
-  enhanceSystemPromptWithEnvDetails,
-  getSystemPrompt,
-} from '../../constants/prompts.js'
-import { buildEffectiveSystemPrompt } from '../../utils/systemPrompt.js'
+import { enhanceSystemPromptWithEnvDetails } from '../../constants/prompts.js'
 import { agentFanoutCap, buildSubagentMercurySections } from '../../constants/subagentDoctrine.js'
 import type { MercuryAgentSeat } from '../../prompt/mercuryContract.js'
 import { evaluateLaunchAuthority } from '../../services/switchboard/launchAuthority.js'
@@ -90,16 +85,7 @@ import {
   MERCURY_CREW_AGENT_TYPE,
   ONE_SHOT_BUILTIN_AGENT_TYPES,
 } from './constants.js'
-import {
-  buildForkedMessages,
-  buildFrozenWorktreeNotice,
-  buildWorktreeNotice,
-  FORK_AGENT,
-  forkSystemPrompt,
-  isForkSubagentEnabled,
-  isInForkChild,
-} from './forkSubagent.js'
-import { ensureScratchpadDir } from '../../utils/scratchpad.js'
+import { buildFrozenWorktreeNotice } from './forkSubagent.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 import { isBuiltInAgent } from './loadAgentsDir.js'
 import { getPrompt } from './prompt.js'
@@ -184,7 +170,6 @@ function effortParamDescription(): string {
 }
 
 export const inputSchema = lazySchema(() => {
-  const forkOn = isForkSubagentEnabled()
   const base = {
     description: z
       .string()
@@ -202,7 +187,7 @@ export const inputSchema = lazySchema(() => {
       .enum(EFFORT_LEVELS)
       .optional()
       .describe(effortParamDescription()),
-    ...(BACKGROUND_TASKS_DISABLED || forkOn
+    ...(BACKGROUND_TASKS_DISABLED
       ? {}
       : {
           run_in_background: semanticBoolean(z.boolean().optional()).describe(
@@ -478,8 +463,6 @@ export const AgentTool = buildTool({
       activeAgents,
       allowedAgentTypes,
       toolPermissionContext: context.getAppState().toolPermissionContext,
-      forkGateOn: isForkSubagentEnabled(),
-      forkAgent: FORK_AGENT,
       defaultAgentType: DEFAULT_AGENT_TYPE,
       engineModel: options.engineModel,
       modelParam: engineDispatch ? undefined : (input.model as never),
@@ -489,7 +472,7 @@ export const AgentTool = buildTool({
       isolationParam: input.isolation,
       runInBackground: input.run_in_background,
       backgroundTasksDisabled: BACKGROUND_TASKS_DISABLED,
-      forceAsync: isForkSubagentEnabled(),
+      forceAsync: false,
       ...(engineDispatch
         ? {
             engineDispatch: {
@@ -500,18 +483,6 @@ export const AgentTool = buildTool({
         : {}),
     })
     const agentDef = plan.definition
-
-    if (plan.isForkPath) {
-      const source = options.querySource
-      if (
-        source === 'agent:builtin:fork' ||
-        isInForkChild(context.messages as Message[])
-      ) {
-        throw new Error(
-          'A forked worker cannot fork again — execute the work directly.',
-        )
-      }
-    }
 
     const fanout = subagentConcurrencyCap(agentFanoutCap())
     const runningAgents = getRunningTasks(context.getAppState()).filter(isLocalAgentTask).length
@@ -526,30 +497,10 @@ export const AgentTool = buildTool({
 
     if (agentDef.color) setAgentColor(agentDef.agentType, agentDef.color)
 
-    const isFork = plan.isForkPath
-    let promptMessages: Message[]
+    let promptMessages: Message[] = [createUserMessage({ content: input.prompt })]
     let systemPromptOverride: string[] | undefined
-    if (isFork) {
-      const rendered = context.renderedSystemPrompt
-      if (rendered) {
-        systemPromptOverride = [...rendered]
-      } else {
-        try {
-          systemPromptOverride = await buildParentEffectiveSystemPrompt(context)
-        } catch (error) {
-          logForDebugging(
-            `AgentTool: fork prompt recompute failed: ${errorMessage(error)}`,
-          )
-        }
-      }
-      promptMessages = buildForkedMessages(input.prompt, parentAssistantMessage)
-    } else {
-      promptMessages = [createUserMessage({ content: input.prompt })]
-    }
 
-    const workerTools = isFork
-      ? options.tools
-      : resolveWorkerTools(
+    const workerTools = resolveWorkerTools(
           agentDef,
           plan.workerPermissionMode,
           assembleToolPool(
@@ -577,7 +528,7 @@ export const AgentTool = buildTool({
 
     const earlyAgentId = generateTaskId('local_agent') as AgentId
     const willOverrideCwd = plan.isolation === 'worktree' || cwdParam !== undefined
-    if (!isFork && !willOverrideCwd) {
+    if (!willOverrideCwd) {
       try {
         systemPromptOverride = await buildDefaultSystemPrompt(
           agentDef,
@@ -593,10 +544,6 @@ export const AgentTool = buildTool({
         )
       }
     }
-    if (isFork && systemPromptOverride !== undefined) {
-      systemPromptOverride = forkSystemPrompt(systemPromptOverride, ensureScratchpadDir(earlyAgentId))
-    }
-
     let worktreeInfo:
       | Awaited<ReturnType<typeof createAgentWorktree>>
       | undefined
@@ -605,14 +552,6 @@ export const AgentTool = buildTool({
         ...(input.worktree_at !== undefined ? { at: input.worktree_at } : undefined),
         ...(cwdParam !== undefined ? { from: cwdParam } : {}),
       })
-      if (isFork) {
-        promptMessages = [
-          ...promptMessages,
-          createUserMessage({
-            content: buildWorktreeNotice(getCwd(), worktreeInfo.worktreePath),
-          }),
-        ]
-      }
       if (input.worktree_at !== undefined && worktreeInfo.headCommit !== undefined) {
         promptMessages = [
           ...promptMessages,
@@ -668,11 +607,7 @@ export const AgentTool = buildTool({
     const rootSetAppState = context.setAppStateForTasks ?? context.setAppState
 
     const model = input.model
-    const modelForRunLoop = engineDispatch
-      ? plan.model
-      : isFork
-        ? undefined
-        : model
+    const modelForRunLoop = engineDispatch ? plan.model : model
 
     const metadataIsAsync =
       (input.run_in_background === true || agentDef.background === true) &&
@@ -712,11 +647,7 @@ export const AgentTool = buildTool({
     const cwdOverride = worktreeInfo?.worktreePath ?? cwdParam
     const launchDirectory = cwdParam ?? (getCwd() !== getCwdState() ? getCwd() : undefined)
 
-    const effectiveSystemPromptOverride = isFork
-      ? systemPromptOverride
-      : cwdOverride
-        ? undefined
-        : systemPromptOverride
+    const effectiveSystemPromptOverride = cwdOverride ? undefined : systemPromptOverride
 
     const runAgentParams: RunAgentParams = {
       agentDefinition: agentDef,
@@ -735,12 +666,6 @@ export const AgentTool = buildTool({
       ...(modelForRunLoop !== undefined ? { model: modelForRunLoop } : {}),
       ...(input.effort !== undefined ? { effortOverride: input.effort } : {}),
       availableTools: workerTools,
-      ...(isFork
-        ? {
-            useExactTools: true,
-            forkContextMessages: context.messages as Message[],
-          }
-        : {}),
       ...(worktreeInfo ? { worktreePath: worktreeInfo.worktreePath } : {}),
       ...(worktreeInfo === undefined && launchDirectory !== undefined ? { cwd: launchDirectory } : {}),
       ...(input.review_receipt !== undefined ? { reviewReceipt: input.review_receipt } : {}),
@@ -774,8 +699,7 @@ export const AgentTool = buildTool({
 
       if (input.name) registerAgentName(input.name, earlyAgentId, rootSetAppState)
 
-      const enableSummarization =
-        isForkSubagentEnabled() || getSdkAgentProgressSummariesEnabled()
+      const enableSummarization = getSdkAgentProgressSummariesEnabled()
 
       const lifecycle = () =>
         runAsyncAgentLifecycle({
@@ -1005,27 +929,6 @@ export const AgentTool = buildTool({
   AgentToolOutput,
   Progress
 >)
-
-async function buildParentEffectiveSystemPrompt(
-  context: ToolUseContext,
-): Promise<string[]> {
-  const options = context.options
-  const defaultSystemPrompt = await getSystemPrompt(
-    options.tools,
-    options.engineModel,
-    options.mcpClients,
-  )
-  const effective = buildEffectiveSystemPrompt({
-    mainThreadAgentDefinition: (
-      options.agentDefinitions?.activeAgents ?? []
-    ).find(agent => agent.agentType === getMainThreadAgentType()),
-    toolUseContext: context,
-    customSystemPrompt: options.customSystemPrompt,
-    defaultSystemPrompt,
-    appendSystemPrompt: options.appendSystemPrompt,
-  })
-  return [...effective]
-}
 
 async function buildDefaultSystemPrompt(
   definition: AgentDefinition,

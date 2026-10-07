@@ -25,6 +25,7 @@ check('no source imports an analytics module', carriers(/services\/analytics/) =
 check('no compiler-runtime shim exists', !existsSync(join(ROOT, 'src/types/react-compiler-runtime.d.ts')))
 check('no decompile script exists', !existsSync(join(ROOT, 'scripts/codemod')))
 check('no source carries a memo-cache call or the compiler-runtime import', carriers(/\b_c\(|react\/compiler-runtime/) === '', carriers(/\b_c\(|react\/compiler-runtime/))
+check('no source carries a fork gate', carriers(/isForkSubagentEnabled|FORK_SUBAGENT_TYPE|forkGateOn|isForkPath/) === '', carriers(/isForkSubagentEnabled|FORK_SUBAGENT_TYPE|forkGateOn|isForkPath/))
 check(`binaryName() === 'mercury' (got '${binaryName()}')`, binaryName() === 'mercury')
 
 console.log(fail === 0 ? ' ✅ NO-TELEMETRY-EGRESS PROOF PASS' : ' ❌ PROOF FAILED')
