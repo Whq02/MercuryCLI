@@ -7,7 +7,9 @@ record of what changed.
 ## Staleness anchors
 
 Every file read mints a compact content-derived anchor, printed to the
-model as `(anchor: …)`:
+model as `(anchor: …)`, including an empty file. To add its first content
+with an Edit hunk or a ChangeSet member, use `lines: "1"`, `insert: "before"`
+and the full-file anchor from Read:
 
 ```
 fa:<hex12>                whole-file digest

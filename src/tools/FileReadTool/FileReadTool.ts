@@ -799,7 +799,7 @@ async function readTextLane(
   const memoryUpdatedAt = isMnemeFile(resolvedPath) ? Math.floor(range.mtimeMs) : undefined
   let anchor: string | undefined
   let anchored = range.content
-  if (changeTransactionEnabled() && range.content.length > 0 && shown.count > 0) {
+  if (changeTransactionEnabled() && (coveredWholeFile || (range.content.length > 0 && shown.count > 0))) {
     const wholeFile =
       lineOffset === 0 &&
       range.lineCount === range.totalLines &&
@@ -857,7 +857,7 @@ function serializeTextResult(file: TextFile, data: object): string {
     if (file.totalLines > 0 && file.startLine > file.totalLines) {
       return `<system-reminder>Warning: the file exists but is shorter than the requested offset. Read was requested to start at line ${file.startLine}, but the file has only ${file.totalLines} ${file.totalLines === 1 ? 'line' : 'lines'}.</system-reminder>`
     }
-    return '<system-reminder>Warning: the file exists but has empty contents.</system-reminder>'
+    return `<system-reminder>Warning: the file exists but has empty contents.</system-reminder>${file.anchor !== undefined ? `\n(anchor: ${file.anchor})` : ''}`
   }
   const prefix =
     file.memoryUpdatedAt !== undefined
