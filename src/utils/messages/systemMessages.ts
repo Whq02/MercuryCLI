@@ -22,7 +22,6 @@ import type {
   SystemMemorySavedMessage,
   SystemMessageLevel,
   SystemMicrocompactBoundaryMessage,
-  SystemPermissionRetryMessage,
   SystemScheduledTaskFireMessage,
   SystemStopHookSummaryMessage,
   SystemTurnDurationMessage,
@@ -150,20 +149,6 @@ export function createSeatReceiptMessage(
     subtype: 'seat_receipt',
     content,
     level,
-    isMeta: false,
-    ...MESSAGE_STAMPER.mint(),
-  }
-}
-
-export function createPermissionRetryMessage(
-  commands: string[],
-): SystemPermissionRetryMessage {
-  return {
-    type: 'system',
-    subtype: 'permission_retry',
-    content: `Allowed ${commands.join(', ')}`,
-    commands,
-    level: 'info',
     isMeta: false,
     ...MESSAGE_STAMPER.mint(),
   }

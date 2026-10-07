@@ -16,7 +16,6 @@
 # gate-watch: src/components/memory/MemoryCentreView.tsx src/components/mercury-ui/*
 # gate-watch: src/components/mercury-ui/parity/* src/components/mercury-ui/screens/*
 # gate-watch: src/components/messages/SystemTextMessage.tsx
-# gate-watch: src/components/permissions/rules/RecentDenialsTab.tsx
 # gate-watch: src/components/prompts-panel/PromptsPanel.tsx src/components/samples/SamplesListView.tsx
 # gate-watch: src/components/skills/SessionSkillsDial.tsx src/components/tasks/*
 # gate-watch: src/hooks/* src/main.tsx src/screens/Chat.tsx

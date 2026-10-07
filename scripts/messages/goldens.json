@@ -23314,19 +23314,6 @@
   "type": "system",
   "uuid": "«u1»"
  },
- "createPermissionRetryMessage/basic": {
-  "commands": [
-   "npm test",
-   "git status"
-  ],
-  "content": "Allowed npm test, git status",
-  "isMeta": false,
-  "level": "info",
-  "subtype": "permission_retry",
-  "timestamp": "«ts»",
-  "type": "system",
-  "uuid": "«u1»"
- },
  "createStreamCutMessage/basic": {
   "code": "read-failed",
   "content": "OpenAI ended the stream after partial content — terminated (read-failed); asked the model to continue from where it stopped (continuation 1 of 1)",
