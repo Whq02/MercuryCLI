@@ -78,7 +78,8 @@ cannot read refuses typed, naming a working form.
 ## In-session schedules
 
 Inside a session, the model schedules through four tools: `CronCreate` (a
-prompt on a recurrence or a one-shot, `onParked` included, and an optional
+prompt on a recurrence or a one-shot; it answers with the schedule's id and
+next fire time, or with the daemon's refusal; `onParked` included, and an optional
 `title` — one line, capped, scanned for secrets like the prompt — that the
 chat row and the list show in place of the id), `CronList`,
 `CronDelete`, and `ScheduleWakeup` (a single self-paced wake, the tool the
@@ -88,8 +89,10 @@ A self-paced wake lives exactly as long as the turn that asked for it: when
 you interrupt, park or stop the session, its pending self-paced wakes — and
 any fire already held for them — are dropped with a receipt saying why, and
 the board's row goes with them; your own schedules on that session stand.
-The edits ride the session's own facts
-road to the daemon's one schedule writer. The `/loop`
+CronCreate asks the daemon's one schedule writer directly. An unconfirmed
+answer calls for CronList before retrying; older daemons take the edit on
+the session's facts road without confirming it. Other edits use that facts
+road. The `/loop`
 skill builds on exactly this: it schedules a short sentinel that expands at
 fire time to the loop's instructions — `loop.md` or the autonomous default —
 whole on the first delivery and a short reminder afterwards.

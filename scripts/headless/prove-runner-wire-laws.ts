@@ -594,7 +594,7 @@ section('M the method table is the one source')
 {
   const names = methods.METHOD_NAMES
   check('RUNNER_PROTOCOL is 1', methods.RUNNER_PROTOCOL === 1)
-  check(`${names.length} methods declared (25 in the design)`, names.length === 25, names.join(' '))
+  check(`${names.length} methods declared (26 in the design)`, names.length === 26, names.join(' '))
   check('every method name is noun/verb in snake case', names.every(n => /^(\$\/)?[a-z_]+(\/[a-z_]+)?$/.test(n)), names.filter(n => !/^(\$\/)?[a-z_]+(\/[a-z_]+)?$/.test(n)).join(' '))
   check('every spec names itself by its key', names.every(n => methods.METHODS[n].name === n))
   const table: Record<string, [string, number | null]> = {
@@ -621,7 +621,8 @@ section('M the method table is the one source')
   check('the host requests are the eighteen of the design', j([...hostRequests].sort()) === j(Object.keys(table).sort()), hostRequests.join(' '))
   check('each host request carries the design scope and deadline', Object.entries(table).every(([name, [scope, deadline]]) => methods.scopeOf(name) === scope && methods.deadlineOf(name) === deadline), Object.entries(table).filter(([name, [scope, deadline]]) => !(methods.scopeOf(name) === scope && methods.deadlineOf(name) === deadline)).map(([n]) => n).join(' '))
   check('host notifications: credentials/changed and $/cancel_request', j(methods.methodsFrom('host', 'notification').map(s => s.name).sort()) === j(['$/cancel_request', 'credentials/changed']))
-  check('runner requests: permission/request and elicitation/request', j(methods.methodsFrom('runner', 'request').map(s => s.name).sort()) === j(['elicitation/request', 'permission/request']))
+  check('runner requests: permission/request, elicitation/request and schedule/edit', j(methods.methodsFrom('runner', 'request').map(s => s.name).sort()) === j(['elicitation/request', 'permission/request', 'schedule/edit']))
+  check('schedule/edit is unchained and bounded at ten seconds', methods.scopeOf('schedule/edit') === 'none' && methods.deadlineOf('schedule/edit') === 10_000)
   check('runner notifications: row, session/applied, elicitation/complete and $/cancel_request', j(methods.methodsFrom('runner', 'notification').map(s => s.name).sort()) === j(['$/cancel_request', 'elicitation/complete', 'row', 'session/applied']))
   check('the elicitation methods are the only capability-gated ones', names.filter(n => methods.METHODS[n].capability !== undefined).sort().join(' ') === 'elicitation/complete elicitation/request' && names.filter(n => methods.METHODS[n].capability !== undefined).every(n => methods.METHODS[n].capability === 'elicitation'))
   check('every scope is one of the four', names.every(n => (methods.METHOD_SCOPES as readonly string[]).includes(methods.METHODS[n].scope)))

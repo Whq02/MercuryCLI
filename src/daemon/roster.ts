@@ -114,6 +114,7 @@ export interface RosterOptions {
   onAsk?: (short: string, params: PermissionRequestParams) => HeldAsk
   onRow?: (short: string, row: LooseRow) => void
   onApplied?: (short: string, params: SessionAppliedParams) => void
+  onScheduleEdit?: (short: string, params: import('../runner/wire/methods.js').ParamsOf<'schedule/edit'>) => import('../runner/wire/methods.js').ResultOf<'schedule/edit'> | Promise<import('../runner/wire/methods.js').ResultOf<'schedule/edit'>>
   onChildRelaunched?: (short: string, pid: number) => void
 }
 
@@ -589,6 +590,7 @@ export class TaskRoster {
       },
       onAsk: params => this.holdAsk(short, params),
       onApplied: params => this.forwardApplied(short, params),
+      ...(this.opts.onScheduleEdit ? { onScheduleEdit: params => this.opts.onScheduleEdit!(short, params) } : {}),
       onProtocolError: error => this.refuseRunner(short, ll, child, error),
       log: line => logForDebugging(`[daemon] ${short}: ${line}`),
     })
