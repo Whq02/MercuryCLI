@@ -1182,7 +1182,7 @@
       }
     },
     {
-      "name": "LSP",
+      "name": "LspCodeAction",
       "category": "read",
       "risk": "low",
       "cancellation": "block",
@@ -1194,12 +1194,201 @@
       "proof": "scripts/lsp/run-all.sh",
       "declared": {
         "intents": [
-          "rename a symbol across the project",
+          "apply a server code action or quick fix"
+        ],
+        "units": [
+          "code-intelligence"
+        ],
+        "class": "mutation",
+        "transaction": {
+          "kind": "lsp.codeActions",
+          "receipts": true
+        },
+        "evidence": [
+          "change"
+        ],
+        "resources": [
+          "file",
+          "receipt"
+        ],
+        "preview": true,
+        "cancellation": "cooperative",
+        "latency": "interactive",
+        "gate": "MERCURY_LSP",
+        "conditions": [
+          "a configured language server"
+        ],
+        "proof": "scripts/lsp/run-all.sh"
+      }
+    },
+    {
+      "name": "LspFormat",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "code-intelligence"
+      ],
+      "proof": "scripts/lsp/run-all.sh",
+      "declared": {
+        "intents": [
+          "format a document or range",
+          "organize imports"
+        ],
+        "units": [
+          "code-intelligence"
+        ],
+        "class": "mutation",
+        "transaction": {
+          "kind": "lsp.formatDocument",
+          "receipts": true
+        },
+        "evidence": [
+          "change"
+        ],
+        "resources": [
+          "file",
+          "receipt"
+        ],
+        "preview": true,
+        "cancellation": "cooperative",
+        "latency": "interactive",
+        "gate": "MERCURY_LSP",
+        "conditions": [
+          "a configured language server"
+        ],
+        "proof": "scripts/lsp/run-all.sh"
+      }
+    },
+    {
+      "name": "LspMoveFile",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "code-intelligence"
+      ],
+      "proof": "scripts/lsp/run-all.sh",
+      "declared": {
+        "intents": [
+          "move a source file or directory with import updates"
+        ],
+        "units": [
+          "code-intelligence"
+        ],
+        "class": "mutation",
+        "transaction": {
+          "kind": "lsp.pathRename",
+          "receipts": true
+        },
+        "evidence": [
+          "change"
+        ],
+        "resources": [
+          "file",
+          "receipt"
+        ],
+        "preview": true,
+        "cancellation": "cooperative",
+        "latency": "interactive",
+        "gate": "MERCURY_LSP",
+        "conditions": [
+          "a configured language server"
+        ],
+        "proof": "scripts/lsp/run-all.sh"
+      }
+    },
+    {
+      "name": "LspMoveSymbol",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "code-intelligence"
+      ],
+      "proof": "scripts/lsp/run-all.sh",
+      "declared": {
+        "intents": [
+          "move a declaration with import updates"
+        ],
+        "units": [
+          "code-intelligence"
+        ],
+        "class": "mutation",
+        "transaction": {
+          "kind": "lsp.moveSymbol",
+          "receipts": true
+        },
+        "evidence": [
+          "change"
+        ],
+        "resources": [
+          "file",
+          "receipt"
+        ],
+        "preview": true,
+        "cancellation": "cooperative",
+        "latency": "interactive",
+        "gate": "MERCURY_LSP",
+        "conditions": [
+          "a configured language server"
+        ],
+        "proof": "scripts/lsp/run-all.sh"
+      }
+    },
+    {
+      "name": "LspRead",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "code-intelligence"
+      ],
+      "proof": "scripts/lsp/run-all.sh",
+      "declared": {
+        "intents": [
           "go to definition or references",
-          "get diagnostics for a file",
-          "apply a server code action or quick fix",
-          "format a document",
-          "move a source file with import updates"
+          "get diagnostics for files",
+          "ask for symbols and server status"
+        ],
+        "units": [
+          "code-intelligence"
+        ],
+        "class": "observation",
+        "resources": [
+          "file"
+        ],
+        "cancellation": "cooperative",
+        "latency": "interactive",
+        "gate": "MERCURY_LSP",
+        "conditions": [
+          "a configured language server"
+        ],
+        "proof": "scripts/lsp/run-all.sh"
+      }
+    },
+    {
+      "name": "LspRename",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "code-intelligence"
+      ],
+      "proof": "scripts/lsp/run-all.sh",
+      "declared": {
+        "intents": [
+          "rename a symbol across the project"
         ],
         "units": [
           "code-intelligence"
@@ -1221,7 +1410,38 @@
         "latency": "interactive",
         "gate": "MERCURY_LSP",
         "conditions": [
-          "a connected language server for the file type"
+          "a configured language server"
+        ],
+        "proof": "scripts/lsp/run-all.sh"
+      }
+    },
+    {
+      "name": "LspRequest",
+      "category": "other",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "code-intelligence"
+      ],
+      "proof": "scripts/lsp/run-all.sh",
+      "declared": {
+        "intents": [
+          "send a raw language-server protocol request"
+        ],
+        "units": [
+          "code-intelligence"
+        ],
+        "class": "mutation",
+        "resources": [
+          "file"
+        ],
+        "cancellation": "cooperative",
+        "latency": "interactive",
+        "gate": "MERCURY_LSP",
+        "conditions": [
+          "a configured language server"
         ],
         "proof": "scripts/lsp/run-all.sh"
       }
