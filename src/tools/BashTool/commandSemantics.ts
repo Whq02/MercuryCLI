@@ -35,6 +35,14 @@ const COMMAND_SEMANTICS: Record<string, CommandSemantic> = {
     isError: code >= 2,
     message: code === 1 ? 'condition is false' : undefined,
   }),
+  which: code => ({
+    isError: code >= 2,
+    message: code === 1 ? 'a name was not found' : undefined,
+  }),
+  'command -v': code => ({
+    isError: code >= 2,
+    message: code === 1 ? 'a name was not found' : undefined,
+  }),
 }
 
 function baseCommandFor(command: string): string {
@@ -53,6 +61,7 @@ function commandWord(stage: string): string {
     i++
     while (i < words.length && (ASSIGNMENT_WORD.test(words[i] ?? '') || (words[i] ?? '').startsWith('-'))) i++
   }
+  if (words[i] === 'command' && (words[i + 1] === '-v' || words[i + 1] === '-V')) return 'command -v'
   return words[i] ?? ''
 }
 
