@@ -68,13 +68,13 @@ const SPEC_BODY = [
   'Reflect — synthesize an answer over recalled memory with citations',
   'Retain — store durable facts into project memory',
   'Rewind — rewind context to the checkpoint, carry a report back',
-  'SendMessage — send a message to a crewmate of this session',
+  'SendMessage — send a note to a running crewmate of this session; it never starts a finished one',
   'Service — named project services: start/observe/wait/logs/stop long-lived processes (web servers, watch…',
   'Sleep — wait / pause / rest for a duration without a shell',
   'Structure — JS/TS AST query by node kind, previewed codemod: imports, calls, declarations, renames, import swaps',
   'TaskStop — kill or stop a running background task',
   'Test — structured test runs: discover, run, rerun failed, run the relevant tests for your changes…',
-  'Transaction — bind a coding loop into one gated evidence transaction record',
+  'Transaction — see what changed and was checked; finish the work only after a passing check',
   'WebFetch — fetches and extracts content from a URL',
   'WebSearch — searches the web for current information',
   'Workflow — orchestrate subagents with deterministic JavaScript workflow',
@@ -174,7 +174,7 @@ section('§2 over the bench roster the body is the specification\'s text byte fo
   for (const name of ['lease_list', 'lease_release', 'lease_take', 'render_tui']) roster.push(fixtureTool(name, { mcp: 'mercury' }))
   const row = getDeferredToolsDeltaAttachment(roster, MODEL, [first])[0] as { addedNames: string[]; body: string } | undefined
   check('39 tools are announced', row !== undefined && row.addedNames.length === 39, String(row?.addedNames.length))
-  check('the body equals the announcement byte for byte (3,242 bytes; 3,279 wrapped)', row !== undefined && row.body === SPEC_BODY && Buffer.byteLength(row.body, 'utf8') === 3242 && Buffer.byteLength(rendered(row as never), 'utf8') === 3279, row === undefined ? 'no row' : `${Buffer.byteLength(row.body, 'utf8')} bytes; first differing line: ${row.body.split('\n').find((line, i) => line !== SPEC_BODY.split('\n')[i]) ?? 'none'}`)
+  check('the body equals the announcement byte for byte (3,294 bytes; 3,331 wrapped)', row !== undefined && row.body === SPEC_BODY && Buffer.byteLength(row.body, 'utf8') === 3294 && Buffer.byteLength(rendered(row as never), 'utf8') === 3331, row === undefined ? 'no row' : `${Buffer.byteLength(row.body, 'utf8')} bytes; first differing line: ${row.body.split('\n').find((line, i) => line !== SPEC_BODY.split('\n')[i]) ?? 'none'}`)
   if (row !== undefined) {
     for (const name of ['JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Workshop', 'Monitor', 'Checkpoint', 'Rewind']) {
       check(`${name} has its line`, row.body.split('\n').some(line => line.startsWith(`${name} — `)))
