@@ -161,7 +161,7 @@ export type Output = {
   debuggee?: 'stopped' | 'running' | 'terminated'
 }
 
-type OpResult = {
+export type OpResult = {
   result: string
   outcome: ToolEffectOutcome
   debuggee?: 'stopped' | 'running' | 'terminated'
@@ -432,93 +432,97 @@ function verdictText(verdict: { verified: boolean; message?: string } | undefine
   return `${verdict?.verified ? 'verified' : 'UNVERIFIED'}${verdict?.message ? ` (${verdict.message})` : ''}`
 }
 
+export async function runDebugLaunch(input: Input, owner: OwnerKey, opts: { cwd?: string } = {}): Promise<OpResult> {
+  const sessionId = input.session ?? 'main'
+  const attach = input.op === 'attach'
+  const program = input.program
+  if (!attach && !program) return { result: 'launch needs program', outcome: 'failed' }
+  if (attach && !program && input.pid === undefined && input.port === undefined) {
+    return { result: 'attach needs pid, port, or program', outcome: 'failed' }
+  }
+  const adapterKey =
+    input.adapter ??
+    (program
+      ? inferAdapter(program)
+      : attach && input.port !== undefined
+        ? 'python'
+        : 'lldb')
+  const breakpoints = new Map<string, Array<number | DapBreakpointSpec>>()
+  const requested = requestedBreakpoints(input)
+  if (input.file && requested) {
+    breakpoints.set(expandPath(input.file), requested)
+  }
+  const displayProgram =
+    program ?? (input.pid !== undefined ? `pid ${input.pid}` : `${input.host ?? '127.0.0.1'}:${input.port}`)
+  const session = await createDapSession({
+    owner,
+    id: sessionId,
+    adapterKey,
+    program: program
+      ? expandPath(program)
+      : input.pid !== undefined
+        ? `pid:${input.pid}`
+        : `port:${input.port}`,
+    args: input.args,
+    cwd: opts.cwd ?? getCwd(),
+    stopOnEntry: input.stopOnEntry,
+    breakpoints: breakpoints.size ? breakpoints : undefined,
+    ...(attach
+      ? {
+          mode: 'attach' as const,
+          pid: input.pid,
+          port: input.port,
+          ...(input.host !== undefined ? { host: input.host } : {}),
+        }
+      : {}),
+  })
+  const caveat = requested ? richBreakpointCaveats(session, requested) : ''
+  const bpDetailNow = (): string =>
+    breakpoints.size > 0
+      ? [...session.treeVerifiedBreakpoints().entries()]
+          .map(
+            ([f, bps]) =>
+              `${f}: ${bps
+                .map(
+                  b =>
+                    `line ${b.line} ${
+                      b.verified
+                        ? `verified${b.verifier && b.verifier !== session.label ? ` by ${b.verifier}` : ''}`
+                        :
+                          `UNVERIFIED${b.message ? ` (${b.message})` : ''}`
+                    }`,
+                )
+                .join(', ')}`,
+          )
+          .join('; ')
+      : ''
+  const verb = attach ? 'attached to' : 'launched'
+  if (input.stopOnEntry || breakpoints.size || attach) {
+    const stop = await reportStop(session, 'first stop')
+    const bpDetail = bpDetailNow()
+    const bpNote = bpDetail ? `breakpoints — ${bpDetail};${caveat} ` : caveat ? `${caveat} ` : ''
+    return {
+      result: `${verb} ${displayProgram} via ${adapterKey} (session '${sessionId}'). ${bpNote}${stop.result}`,
+      outcome: 'succeeded',
+      debuggee: stop.debuggee,
+      ...(stop.details ? { details: stop.details } : {}),
+    }
+  }
+  const bpDetail = bpDetailNow()
+  const bpNote = bpDetail ? `breakpoints — ${bpDetail};${caveat} ` : caveat ? `${caveat} ` : ''
+  return {
+    result: `${verb} ${displayProgram} via ${adapterKey} (session '${sessionId}'). ${bpNote}running — op:"output"/"pause"/"status" to observe.`,
+    outcome: 'succeeded',
+    debuggee: 'running',
+  }
+}
+
 async function runOp(input: Input, owner: OwnerKey): Promise<OpResult> {
   const sessionId = input.session ?? 'main'
   switch (input.op) {
     case 'launch':
-    case 'attach': {
-      const attach = input.op === 'attach'
-      const program = input.program
-      if (!attach && !program) return { result: 'launch needs program', outcome: 'failed' }
-      if (attach && !program && input.pid === undefined && input.port === undefined) {
-        return { result: 'attach needs pid, port, or program', outcome: 'failed' }
-      }
-      const adapterKey =
-        input.adapter ??
-        (program
-          ? inferAdapter(program)
-          : attach && input.port !== undefined
-            ? 'python'
-            : 'lldb')
-      const breakpoints = new Map<string, Array<number | DapBreakpointSpec>>()
-      const requested = requestedBreakpoints(input)
-      if (input.file && requested) {
-        breakpoints.set(expandPath(input.file), requested)
-      }
-      const displayProgram =
-        program ?? (input.pid !== undefined ? `pid ${input.pid}` : `${input.host ?? '127.0.0.1'}:${input.port}`)
-      const session = await createDapSession({
-        owner,
-        id: sessionId,
-        adapterKey,
-        program: program
-          ? expandPath(program)
-          : input.pid !== undefined
-            ? `pid:${input.pid}`
-            : `port:${input.port}`,
-        args: input.args,
-        cwd: getCwd(),
-        stopOnEntry: input.stopOnEntry,
-        breakpoints: breakpoints.size ? breakpoints : undefined,
-        ...(attach
-          ? {
-              mode: 'attach' as const,
-              pid: input.pid,
-              port: input.port,
-              ...(input.host !== undefined ? { host: input.host } : {}),
-            }
-          : {}),
-      })
-      const caveat = requested ? richBreakpointCaveats(session, requested) : ''
-      const bpDetailNow = (): string =>
-        breakpoints.size > 0
-          ? [...session.treeVerifiedBreakpoints().entries()]
-              .map(
-                ([f, bps]) =>
-                  `${f}: ${bps
-                    .map(
-                      b =>
-                        `line ${b.line} ${
-                          b.verified
-                            ? `verified${b.verifier && b.verifier !== session.label ? ` by ${b.verifier}` : ''}`
-                            :
-                              `UNVERIFIED${b.message ? ` (${b.message})` : ''}`
-                        }`,
-                    )
-                    .join(', ')}`,
-              )
-              .join('; ')
-          : ''
-      const verb = attach ? 'attached to' : 'launched'
-      if (input.stopOnEntry || breakpoints.size || attach) {
-        const stop = await reportStop(session, 'first stop')
-        const bpDetail = bpDetailNow()
-        const bpNote = bpDetail ? `breakpoints — ${bpDetail};${caveat} ` : caveat ? `${caveat} ` : ''
-        return {
-          result: `${verb} ${displayProgram} via ${adapterKey} (session '${sessionId}'). ${bpNote}${stop.result}`,
-          outcome: 'succeeded',
-          debuggee: stop.debuggee,
-          ...(stop.details ? { details: stop.details } : {}),
-        }
-      }
-      const bpDetail = bpDetailNow()
-      const bpNote = bpDetail ? `breakpoints — ${bpDetail};${caveat} ` : caveat ? `${caveat} ` : ''
-      return {
-        result: `${verb} ${displayProgram} via ${adapterKey} (session '${sessionId}'). ${bpNote}running — op:"output"/"pause"/"status" to observe.`,
-        outcome: 'succeeded',
-        debuggee: 'running',
-      }
-    }
+    case 'attach':
+      return runDebugLaunch(input, owner)
     case 'breakpoints': {
       const r = requireSession(owner, sessionId)
       if ('error' in r) return { result: r.error, outcome: 'failed' }

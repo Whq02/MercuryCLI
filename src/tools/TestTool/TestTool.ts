@@ -439,6 +439,8 @@ async function runOp(
   }
 }
 
+export { runOp as runTestOperation }
+
 export const TestTool = buildTool({
   name: 'Test',
   searchHint:

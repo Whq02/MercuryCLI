@@ -194,7 +194,7 @@ section('§5 every teardown in the lane routes through the ONE tree owner')
     check(`${rel}: settles through the shared owner`, /settleChildRun\(/.test(src))
   }
   const launch = readFileSync(join(ROOT, 'src/tools/LaunchTool/LaunchTool.ts'), 'utf8')
-  check('LaunchTool hands its abort signal to every runner call', (launch.match(/runRunnerProfile\([^)]*signal: context\.abortController\.signal/gs) ?? []).length >= 2, 'a run that ignores Esc is a run nobody can stop')
+  check('LaunchTool hands its abort signal to its runner build call and routes tests through Test\'s own operation', (launch.match(/runRunnerProfile\([^)]*signal: context\.abortController\.signal/gs) ?? []).length >= 1 && /runTestOperation\(/.test(launch), 'a run that ignores Esc is a run nobody can stop')
 }
 
 rmSync(scratch, { recursive: true, force: true })

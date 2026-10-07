@@ -668,6 +668,13 @@
       "why": "IDE-lane provers pin the macOS system interpreter DELIBERATELY (the pyexpat healthy-fallback class); POSIX maintainer host is their declared profile"
     },
     {
+      "file": "scripts/ide/prove-launch-routes.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "process.env.MERCURY_PYTHON = '/usr/bin/python3'",
+      "cls": "platform-owner",
+      "why": "IDE-lane provers pin the macOS system interpreter DELIBERATELY (the pyexpat healthy-fallback class); POSIX maintainer host is their declared profile"
+    },
+    {
       "file": "scripts/ide/prove-pyright-lane.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "process.env.MERCURY_PYTHON = '/usr/bin/python3'",
