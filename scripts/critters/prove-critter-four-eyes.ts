@@ -249,7 +249,11 @@ section('§1b THE FOUR EYES AT REST — a cell\'s background is its UPPER half\'
       const ch = glass.grid[y]![x]!
       if (cellColor(def, composed[r + 2]?.[c]) === undefined) {
         edge++
-        if (ch !== '▀' || st?.fg !== `38;2;${top}` || st?.bg !== `48;2;${bot}`) edgeFaults.push(`${x},${y}: bottom-edge pair reads ${ch} fg=${st?.fg} bg=${st?.bg}, wanted ▀ fg=${top} bg=${bot}`)
+        const underEye = /[EKP]/.test(def.squareDock[r - 1]?.[c] ?? '.')
+        const glyph = underEye ? '▄' : '▀'
+        const fg = underEye ? bot : top
+        const bg = underEye ? top : bot
+        if (ch !== glyph || st?.fg !== `38;2;${fg}` || st?.bg !== `48;2;${bg}` || st?.underline !== underEye) edgeFaults.push(`${x},${y}: bottom-edge pair reads ${ch} fg=${st?.fg} bg=${st?.bg} underline=${st?.underline}, wanted ${glyph} fg=${fg} bg=${bg} underline=${underEye}`)
         continue
       }
       if (st?.bg !== `48;2;${top}`) faults.push(`${x},${y}: bg ${st?.bg} is not the upper half ${top}`)
@@ -258,7 +262,7 @@ section('§1b THE FOUR EYES AT REST — a cell\'s background is its UPPER half\'
     }
   }
   check(`every painted pair with a painted pixel below it goes out as ▄ with fg = the lower half and bg = the upper half — E5's bytes exactly (${twoColour} two-colour cells among them)`, faults.length === 0 && twoColour > 0, faults.slice(0, 6).join('; '))
-  check(`every painted pair on the sprite's bottom edge goes out as ▀ with fg = the upper half and bg = the lower half — its own colour below it, never the upper half's (${edge} cells)`, edgeFaults.length === 0 && edge > 0, edgeFaults.slice(0, 6).join('; '))
+  check(`every bottom-edge pair beneath an eye uses a lower block sealed in its lower colour; all other edge pairs keep upper blocks (${edge} cells)`, edgeFaults.length === 0 && edge > 0, edgeFaults.slice(0, 6).join('; '))
 }
 const belowCells = restCols.map(c => `${ART_LEFT + c},${eyeLine + 1}`)
 const eyeCells = restCols.map(c => `${ART_LEFT + c},${eyeLine}`)
