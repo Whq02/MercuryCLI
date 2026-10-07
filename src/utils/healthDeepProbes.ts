@@ -427,7 +427,7 @@ export async function probeEffectObserver(): Promise<CheckResult> {
     const emit = (outcome: 'succeeded' | 'failed' | 'no-change' | 'indeterminate', paths: string[]) =>
       observeToolTerminal({
         owner,
-        toolName: 'LSP',
+        toolName: 'LspRename',
         toolUseId: `probe-${outcome}`,
         input: {},
         ok: outcome !== 'failed',
