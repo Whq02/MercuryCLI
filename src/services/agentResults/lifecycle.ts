@@ -33,7 +33,7 @@ export function deriveAgentLifecycle(facts: AgentLifecycleFacts): AgentLifecycle
       state: 'aborted',
       revivable: facts.transcriptExists,
       basis: facts.transcriptExists
-        ? `aborted (${facts.taskStatus}) — a SendMessage revives it from its transcript with your message`
+        ? `aborted (${facts.taskStatus}) — ResumeAgent revives it from its transcript with your message`
         : `aborted (${facts.taskStatus}) — no transcript persisted; nothing to revive`,
     }
   }
@@ -49,12 +49,12 @@ export function deriveAgentLifecycle(facts: AgentLifecycleFacts): AgentLifecycle
     return {
       state: 'idle',
       revivable: true,
-      basis: 'finished moments ago — a SendMessage revives it warm (the prompt cache still holds its prefix)',
+      basis: 'finished moments ago — ResumeAgent revives it warm (the prompt cache still holds its prefix)',
     }
   }
   return {
     state: 'parked',
     revivable: true,
-    basis: 'parked — the transcript is retained; a SendMessage revives it (cold replay)',
+    basis: 'parked — the transcript is retained; ResumeAgent revives it (cold replay)',
   }
 }
