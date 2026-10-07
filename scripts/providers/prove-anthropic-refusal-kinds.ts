@@ -133,8 +133,8 @@ section('§3 the latch: a 401 and an invalid_grant never set it; a 429 with the 
   limits.extractQuotaStatusFromError(mk(429, 'rate_limit_error', 'Rate limit exceeded', new Headers()))
   const after429 = limits.anthropicLimitVerdict()
   check('a 429 with the window headers sets the latch, with its reset', after429.status === 'rejected' && typeof after429.resetsAtMs === 'number', JSON.stringify(after429))
-  const words = blockerOver()
-  check("…and the refusal is the window's: account, moment, reset — never the sign-in line", words !== null && words.includes(`usage window is reached for ${ACCOUNT_A}`) && /resets at /.test(words) && !words.includes('sign-in'), String(words))
+  const words = usability.resolveProviderUsability(reads()).anthropic.limitBlocker
+  check('the window is information: account, moment and reset without refusing dispatch', blockerOver() === null && words !== undefined && words.includes(`usage window is reached for ${ACCOUNT_A}`) && /resets at /.test(words), String(words))
 }
 
 section('§4 the delegation refusal: an observed-expired sign-in is refused as a sign-in, never as a window')
@@ -152,7 +152,7 @@ section('§4 the delegation refusal: an observed-expired sign-in is refused as a
   const both = blockerOver({ anthropicSignInExpired: () => true })
   check('with a reached window AND an expired sign-in standing, the refusal names the sign-in', both !== null && both.includes('sign-in expired') && !both.includes('usage window'), String(both))
   const windowOnly = blockerOver({ anthropicSignInExpired: () => false })
-  check('with the sign-in alive the same window refuses as a window', windowOnly !== null && windowOnly.includes('usage window is reached') && !windowOnly.includes('sign-in'), String(windowOnly))
+  check('with the sign-in alive the same window never refuses dispatch', windowOnly === null, String(windowOnly))
   limits.resetLimitsForCredentialSwitch()
   check('nothing standing, nothing refused', blockerOver({ anthropicSignInExpired: () => false }) === null)
   const alone = blockerOver({ anthropicSignInExpired: () => true, gptSeat: () => ({ state: 'disabled', reason: 'no OpenAI account', why: 'no-account' }) })

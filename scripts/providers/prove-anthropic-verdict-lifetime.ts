@@ -32,7 +32,7 @@ type Reads = import('../../src/services/providers/providerUsability.ts').Provide
 const OWNER_A = 'anthropic:oauth:primary:00000000-0000-4000-8000-0000000000aa'
 const ACCOUNT_A = 'ana@example.com'
 const SEED_SPAN_MS = 2_820_000
-const CLOCK_WORDS = /(?:resets at|refused until) (?:(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat) )?\d\d:\d\d/
+const CLOCK_WORDS = /(?:resets at|reading expires at) (?:(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat) )?\d\d:\d\d/
 
 const reads = (clock?: () => number): Reads => ({
   anthropicApiKey: () => null,
@@ -86,8 +86,8 @@ section('§2 a stated reset ahead still refuses, and the refusal names the clock
   check('the verdict reads rejected with the stated reset ahead', verdict.status === 'rejected' && resetsAtMs > Date.now() && verdict.resetsAtMs === resetsAtMs, JSON.stringify(verdict))
   check('the verdict lapses at that reset', verdict.lapsesAtMs === resetsAtMs, JSON.stringify(verdict))
   check('the verdict still names the account and the moment', verdict.account === ACCOUNT_A && typeof verdict.observedAtMs === 'number')
-  const refusal = blocker()
-  check('a delegated dispatch is refused for the account that observed the window', refusal !== null && refusal.includes(`usage window is reached for ${ACCOUNT_A}`), String(refusal))
+  const refusal = lane().limitBlocker ?? null
+  check('the account window is displayed without refusing a delegated dispatch', blocker() === null && refusal !== null && refusal.includes(`usage window is reached for ${ACCOUNT_A}`), String(refusal))
   check('the refusal names the reset it knows', refusal !== null && CLOCK_WORDS.test(refusal), String(refusal))
   check('the reset named is the stated one', refusal !== null && refusal.includes(`resets at ${formatClock(resetsAtMs)}`), String(refusal))
   check('…and no longer points at /usage for it', refusal !== null && !refusal.includes('resets per /usage'), String(refusal))
@@ -96,7 +96,7 @@ section('§2 a stated reset ahead still refuses, and the refusal names the clock
   check('at the reset the verdict reads unknown', verdictAt(resetsAtMs).status === 'unknown', JSON.stringify(verdictAt(resetsAtMs)))
   const after = (): number => resetsAtMs + 1
   check('the lane read through a clock past the reset refuses nothing', blocker(after) === null && lane(after).limit === 'unknown' && lane(after).delegationCapped === false, String(blocker(after)))
-  check('the lane read through a clock before it still refuses', blocker(() => resetsAtMs - 1) !== null)
+  check('before the reset the reading remains but dispatch proceeds', lane(() => resetsAtMs - 1).limit === 'rejected' && blocker(() => resetsAtMs - 1) === null)
 }
 
 section('§3 a successful response clears a standing rejected at once')
@@ -117,12 +117,12 @@ section('§4 a headerless 429 names no reset: the verdict lives the seed span, a
   const verdict = limits.anthropicLimitVerdict() as ReturnType<typeof limits.anthropicLimitVerdict> & { resetsAtMs?: number; lapsesAtMs?: number }
   check('rejected, observed, no stated reset', verdict.status === 'rejected' && typeof verdict.observedAtMs === 'number' && verdict.resetsAtMs === undefined, JSON.stringify(verdict))
   check('the verdict lapses one seed span after the observation', verdict.lapsesAtMs === (verdict.observedAtMs ?? 0) + SEED_SPAN_MS, JSON.stringify(verdict))
-  const refusal = blocker()
+  const refusal = lane().limitBlocker ?? null
   check('the refusal says no reset time was given and names when the refusal ends', refusal !== null && refusal.includes('no reset time was given') && CLOCK_WORDS.test(refusal), String(refusal))
   console.log(`      refusal: ${refusal}`)
   const lapse = verdict.lapsesAtMs ?? 0
   check('past the seed span the verdict reads unknown and nothing refuses', verdictAt(lapse).status === 'unknown' && blocker(() => lapse) === null, String(blocker(() => lapse)))
-  check('inside it the refusal stands', verdictAt(lapse - 1).status === 'rejected' && blocker(() => lapse - 1) !== null)
+  check('inside it the reading stands and dispatch proceeds', verdictAt(lapse - 1).status === 'rejected' && blocker(() => lapse - 1) === null)
 }
 
 section('§5 a departed account still reads unknown ahead of any lifetime')
@@ -134,7 +134,7 @@ section('§5 a departed account still reads unknown ahead of any lifetime')
   limits.__setAnthropicOwnerResolverForTest(() => 'anthropic:oauth:primary:00000000-0000-4000-8000-0000000000bb', () => 'bea@example.com')
   check("B reads A's verdict as unknown", limits.anthropicLimitVerdict().status === 'unknown' && blocker() === null)
   limits.__setAnthropicOwnerResolverForTest(() => OWNER_A, () => ACCOUNT_A)
-  check('A returns and the same verdict refuses again', blocker() !== null)
+  check('A returns to the same reading without a refusal', lane().limit === 'rejected' && blocker() === null)
 }
 
 section('§6 the roads: the verdict owns its lifetime; the meters and the cap return keep theirs')
