@@ -1,4 +1,3 @@
-
 const SEGMENT_BOUNDARY = String.raw`(?:^|[;&|])\s*`
 
 function firstFlagCluster(afterCommand: string): string | null {
