@@ -2,7 +2,7 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { basename, dirname, join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const home = mkdtempSync(join(tmpdir(), 'clear-law-'))
@@ -86,7 +86,7 @@ try {
       t('keyed: the cleared THINKING text is off the glass', !paneHas('The manifest'))
       t('keyed: the cleared REPLY text is off the glass', !paneHas('The pin keeps'))
       t('keyed: the fresh-session welcome returned (ready line)', paneHas('ready · type a prompt'))
-      t('keyed: the BORN chat is the focused one (the new-session status row)', has('new session') && has('← back'))
+      t('keyed: the BORN chat is the focused one (its ready model status row)', rows.some(r => /^\s*ready · .+← back/.test(r)))
       t('keyed: POISON — the Boot face never took the frame', !has('New Session in '))
     }
     cleanupScenario('resume-2turn')
@@ -101,7 +101,7 @@ try {
       console.log(`  [frame] keyless after /clear: ${rows.filter(r => r.trim() !== '').slice(-10).map(r => r.trim().slice(0, 100)).join(' | ')}`)
       t('keyless: the cleared USER prompt is off the glass (the old conversation parked, never kept on the glass)', !paneHas('why does the manifest pin zod?'))
       t('keyless: the fresh-session welcome returned (ready line)', paneHas('ready · type a prompt'))
-      t('keyless: the BORN chat is the focused one (the new-session status row)', has('new session') && has('← back'))
+      t('keyless: the BORN chat is the focused one (its ready model status row)', rows.some(r => /^\s*ready · .+← back/.test(r)))
       t('keyless: POISON — the Boot face never took the frame', !has('New Session in '))
     }
     cleanupScenario('resume-2turn')
@@ -135,7 +135,7 @@ try {
           sends: [
             { atTick: 999, awaitText: 'ready · ', minTick: 10, awaitSettleTicks: 4, data: '/clear' },
             { afterPrevTicks: 4, data: '\r' },
-            { data: 'after the clear: run it\r', awaitText: 'new session', requireAwait: true, minTick: 4, awaitSettleTicks: 4 },
+            { data: 'after the clear: run it\r', awaitText: 'ready · type a prompt', requireAwait: true, minTick: 4, awaitSettleTicks: 4 },
             { data: '', atTick: 999, awaitText: 'Running 1 bash command', requireAwait: true, minTick: 4, awaitSettleTicks: 2, mark: 'mid-turn' },
             { data: '', atTick: 999, awaitText: 'CLEARED-TURN-DONE', requireAwait: true, minTick: 4, awaitSettleTicks: 3, mark: 'later' },
           ],
@@ -185,7 +185,7 @@ try {
         console.log(`  [frame] final: ${last.filter(r => r.trim() !== '').slice(-10).map(r => r.trim().slice(0, 110)).join(' | ')}`)
         t("clear-then-turn: mid-turn, the strip never narrates the OLD session's task", mid.length > 0 && !mid.some(r => r.includes(OLD_VERB)), mid.filter(r => r.includes(OLD_VERB)).join(' | '))
         t("clear-then-turn: later in the turn, the old task's words are still nowhere", after.length > 0 && !after.some(r => r.includes(OLD_VERB)))
-        const stripRow = (rows: string[]): string => rows.find(r => r.trimStart().startsWith(`${basename(cfg.cwd)} `))?.trim() ?? ''
+        const stripRow = (rows: string[]): string => rows.find(r => /esc interrupts/.test(r) && /← back/.test(r))?.trim() ?? ''
         t("clear-then-turn: mid-turn, the strip row alone wears the in-flight clause and NO task verb — never the old session's", stripRow(mid) !== '' && /esc interrupts/.test(stripRow(mid)) && !stripRow(mid).includes(OLD_VERB) && !/Reviewing|review/i.test(stripRow(mid)), stripRow(mid) || `no strip row among: ${mid.filter(r => r.trim() !== '').slice(-6).join(' | ')}`)
         t("clear-then-turn: mid-turn, the born session's own tool is on the glass in the product's words (the transcript's Bash row, running)", mid.some(r => r.includes('Running 1 bash command')) && mid.some(r => r.includes('sleep 6')))
         t("clear-then-turn: the turn ended with the fixture's reply on the glass", after.some(r => r.includes('CLEARED-TURN-DONE')))
