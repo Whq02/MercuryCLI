@@ -683,7 +683,7 @@ async function readPdfLane(
   }
 
   const pageCount = await getPDFPageCount(resolvedPath)
-  if (pageCount !== null && pageCount > 10) {
+  if (pageCount !== null && pageCount > MAX_PDF_PAGES_PER_REQUEST) {
     throw new Error(
       `This PDF has ${pageCount} pages. Use the \`pages\` parameter to read up to ${MAX_PDF_PAGES_PER_REQUEST} pages at a time (e.g. pages: "1-${MAX_PDF_PAGES_PER_REQUEST}").`,
     )
