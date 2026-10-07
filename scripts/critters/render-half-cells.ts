@@ -8,6 +8,7 @@ const HUE = flag('--hue', '#dd4444')
 const GROUND = flag('--ground', '#0d181b')
 const PUPIL = flag('--pupil', '#1f3841')
 const WHITE = flag('--white', '#ede8dd')
+const DEEP = flag('--deep', '#7b3232')
 
 const rgb = (hex: string): string => {
   const m = /^#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/.exec(hex)
@@ -29,13 +30,15 @@ const SHAPES: Shape[] = [
   { label: 'F  top pixel · space, bg=hue', cell: `${bg(HUE)} `, terminalApp: 'hue rows 0-33: the lower half is hue' },
   { label: 'G  white over pupil · ▀ glyph=white bg=pupil', cell: `${bg(PUPIL)}${fg(WHITE)}▀`, terminalApp: 'pupil rows 0-7 (the second pair above the white), white 8-19, pupil 20-33' },
   { label: 'H  white over pupil · ▄ glyph=pupil bg=white', cell: `${bg(WHITE)}${fg(PUPIL)}▄`, terminalApp: 'white rows 0-20, pupil 21-32, white 33: one pair' },
+  { label: 'I  hue over deep, something below · ▄ glyph=deep bg=hue', cell: `${bg(HUE)}${fg(DEEP)}▄`, terminalApp: 'hue rows 0-20, deep 21-32, HUE row 33: a hairline of the hue under the deep pixel' },
+  { label: 'J  hue over deep, bottom edge · ▀ glyph=hue bg=deep', cell: `${bg(DEEP)}${fg(HUE)}▀`, terminalApp: 'deep rows 0-7 (the notch), hue 8-19, deep 20-33: the deep pixel and its own colour below it, no hue' },
 ]
 
 const run = (cell: string): string => `${cell.repeat(W)}${RESET}`
 const groundRow = (): string => run(`${bg(GROUND)} `)
 const hueRow = (): string => run(`${bg(HUE)}${fg(HUE)}▄`)
 
-console.log(`half-cell shapes · hue ${HUE} · ground ${GROUND} · pupil ${PUPIL} · white ${WHITE}`)
+console.log(`half-cell shapes · hue ${HUE} · deep ${DEEP} · ground ${GROUND} · pupil ${PUPIL} · white ${WHITE}`)
 console.log('each scene: a row of the hue above (left column) or the ground above (right column), the shape, the ground below.')
 console.log('read the seams: a line of ground inside the hue, a line of hue below the shape, a bar above the white.')
 console.log('')
@@ -47,4 +50,4 @@ for (const shape of SHAPES) {
   console.log(`   ${groundRow()}   ${groundRow()}`)
   console.log('')
 }
-console.log('the painter after this change: a top pixel with a painted pixel above it is A; with nothing above it is B; a bottom pixel is D; a pair is H.')
+console.log('the painter: a cell with a painted pixel below it keeps the eyes-fold shape (a pair is I, a top pixel with a painted pixel above it is A); a cell on the bottom edge — the last row pair, or any column whose next pixel row is empty — takes the top-glyph shape (a pair is J, a top pixel is B); a top pixel with nothing above it is B; a bottom pixel is D; the eye pair is H.')
