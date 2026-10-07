@@ -33,7 +33,7 @@
 # gate-watch: src/types/ids.ts src/utils/*
 # gate-watch: src/utils/accounts/signInLedger.ts src/utils/attachments/orchestrator.ts
 # gate-watch: src/utils/config/globalConfig.ts src/utils/messages/* src/utils/model/computedDefault.ts
-# gate-watch: src/utils/model/configs.ts src/utils/sessionStorage/logs.ts src/utils/sessionStorage/paths.ts
+# gate-watch: src/utils/model/configs.ts src/utils/sessionStorage/logs.ts src/utils/sessionStorage/paths.ts src/utils/sessionStorage/writer.ts
 # gate-watch: src/utils/task/*
 # gate-watch: src/components/PromptInput/PromptInput.tsx src/components/tasks/crewmateInterrupt.ts src/state/selectors.ts src/state/crewmateViewHelpers.ts src/utils/attachments/queuedCommands.ts src/utils/cockpit/crewmateWords.ts src/components/PromptInput/useComposerSubmit.ts
 # gate-watch: src/components/tasks/useCrewmateTranscript.ts
