@@ -267,7 +267,8 @@ export class TranscriptRows {
     while (pending.length > 0) {
       const row = pending.shift()!
       if (row.type !== 'attachment' || seen.has(row.uuid)) continue
-      if (typeof (row.attachment as { hookEvent?: unknown }).hookEvent === 'string' && typeof (row.attachment as { toolUseID?: unknown }).toolUseID === 'string') {
+      const attachment = (row as { attachment?: unknown }).attachment as { hookEvent?: unknown; toolUseID?: unknown } | undefined
+      if (typeof attachment === 'object' && attachment !== null && typeof attachment.hookEvent === 'string' && typeof attachment.toolUseID === 'string') {
         seen.add(row.uuid)
         hooks.push(row)
       }
