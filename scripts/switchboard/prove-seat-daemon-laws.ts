@@ -159,7 +159,7 @@ try {
   check('D5 skillsRoster() lists the session\'s own skills', connector.skillsRoster().skills.length > 0, `${connector.skillsRoster().skills.length} skills`)
   check('D5 mcpRoster() answers rows (name + state)', Array.isArray(connector.mcpRoster().clients) && connector.mcpRoster().clients.every(c => typeof c.name === 'string' && typeof c.type === 'string'))
   check('D5 workspace() names the session\'s workspace', connector.workspace().projectRoot === work && connector.workspace().cwd.startsWith(work))
-  check('D5 permissionMode() reads the session\'s mode', connector.permissionMode() === 'flow', connector.permissionMode())
+  check('D5 permissionMode() reads the session\'s mode (a seat with nothing saved boots default)', connector.permissionMode() === 'default', connector.permissionMode())
   check('D5 modelFacts() reads the session\'s model', connector.modelFacts().effective === DEFAULT_OPUS && connector.modelFacts().pendingSwitch === null)
 
   const sent = await connector.sendWords('say something long please')
