@@ -7,6 +7,9 @@ import { resolve } from 'node:path'
 import { getCwd } from '../cwd.js'
 import { hasWildcards, suggestionForExactCommand } from './shellRuleMatching.js'
 
+export const FLOW_AWAY_TIMEOUT_MS = 5 * 60_000
+export const FLOW_AWAY_MESSAGE = 'the user is away; continue with an allowed tool call instead'
+
 export function flowRequiresFreshApproval(tool: Tool, input: Record<string, unknown>): boolean {
   try {
     return tool.isDestructive?.(input) === true ||
