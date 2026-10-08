@@ -3,7 +3,7 @@ import { subprocessEnv } from './subprocessEnv.js'
 import { existsSync, readFileSync } from 'node:fs'
 import { delimiter, join } from 'node:path'
 
-import { execFileNoThrow, execSyncWithDefaults_DEPRECATED } from './execFileNoThrow.js'
+import { execFileNoThrow } from './execFileNoThrow.js'
 
 
 export function isProcessRunning(pid: number): boolean {
