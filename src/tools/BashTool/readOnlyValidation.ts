@@ -6,6 +6,7 @@ import {
   preparedSecurityParse,
   checkSemantics,
   shellCommandText,
+  WILDCARD_REASON,
   type ParseForSecurityResult,
   type SimpleCommand,
 } from '../../utils/permissions/decision/commandAnalysis.js'
@@ -135,6 +136,7 @@ function readOnlyFromParse(input: { command: string }, compoundHasCd: boolean, p
   const part = cutPart(input.command)
   if (parsed.kind === 'parse-unavailable') return refuse({ kind: 'unparseable', part, detail: 'the shell parser has not produced a tree; retry the command, or approve it in a session that can write' })
   if (parsed.kind === 'too-complex') return refuse({ kind: 'screen', part, detail: parsed.reason })
+  if (parsed.commands.some(command => command.globOperand === true && !readsOnly(command))) return refuse({ kind: 'screen', part, detail: WILDCARD_REASON })
   const semantic = checkSemantics(parsed.commands)
   if (!semantic.ok) return refuse({ kind: 'screen', part, detail: semantic.reason })
   const remote = uncPathRisk(input.command)

@@ -65,9 +65,11 @@ const echoedStatus = await parseForSecurity('echo "rc=$?"')
 check('runtime status text is data in an echo argument, not a path', echoedStatus.kind === 'simple' && pinnedCommandAnalysis.checkSemantics(echoedStatus.commands).ok)
 const nestedDelete = await decision('echo "prefix$(rm -rf /)"', [], ['Bash(rm *)'])
 check('echo data handling never hides a nested executable command', nestedDelete.behavior === 'deny', JSON.stringify(nestedDelete))
-for (const command of ['cat "$((1+2))"', 'cat $((1+2))', 'cat *']) {
+for (const command of ['cat "$((1+2))"', 'cat $((1+2))']) {
   const result = await decision(command, ['Bash(cat *)'], [`Read(/${join(process.cwd(), '3')})`])
   check(`an expansion is not its source spelling as a path: ${command}`, result.behavior === 'ask', JSON.stringify(result))
 }
+const ruledGlob = await decision('cat *', ['Bash(cat *)'], [`Read(/${join(process.cwd(), '3')})`])
+check('a saved allow rule answers a wildcard operand the floor cannot resolve to a path, as it did last release', ruledGlob.behavior === 'allow', JSON.stringify(ruledGlob))
 console.log(failures ? `prove-floor-parses: ${failures} FAILURE(S)` : 'prove-floor-parses: ALL LAWS HOLD')
 process.exit(failures ? 1 : 0)
