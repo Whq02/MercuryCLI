@@ -41,7 +41,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v) ?? ''
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — fold mechanical profile prover exceeded 120s')
+  console.log('\nTIMEOUT — fold session profile prover exceeded 120s')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -65,7 +65,7 @@ const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/u
 
 const seams = compactModule as Partial<{
   shouldRideCacheSharingFork: (model: string, thinkingConfig?: { type: string }) => boolean
-  setFoldBoundsForTests: (bounds: { deadlineMs: number; stallMs: number } | null) => void
+  setFoldBoundsForTests: (bounds: { stallMs: number } | null) => void
   ERROR_MESSAGE_FOLD_TIMEOUT: string
 }>
 
@@ -174,7 +174,7 @@ function effortWordsOf(body: unknown): string[] {
 
 const SESSION_TIERS = new Set(['xhigh', 'x-high', 'high', 'medium', 'max'])
 
-section('§1 engine families — the fold wire never carries the session effort tier')
+section('§1 engine families — the fold carries the session effort tier')
 for (const family of [
   { route: 'openai', model: 'gpt-5.5', lane: 'openai-seat' },
   { route: 'zai', model: 'glm-5.2', lane: 'zai-seat' },
@@ -185,8 +185,8 @@ for (const family of [
   check(`${family.route}: the wire saw the fold (count ${run.hits.length} ≥ 1)`, run.hits.length >= 1)
   const words = run.hits.flatMap(h => effortWordsOf(h.body))
   check(
-    `${family.route}: no fold hit carries a session effort tier (mechanical 'low' or absent)`,
-    words.every(w => !SESSION_TIERS.has(w.toLowerCase())),
+    `${family.route}: every fold hit carries the session effort tier`,
+    words.length > 0 && words.every(w => SESSION_TIERS.has(w.toLowerCase())),
     `effort words on the wire: ${j(words)}`,
   )
   check(
@@ -213,22 +213,22 @@ section("§2 the home family — output_config.effort is the SESSION's word (the
   )
 }
 
-section('§3 the fork admission is a pure law — home transport only, never a fixed thinking budget')
+section('§3 the fork admission is a pure law — home transport regardless of thinking budget')
 {
   const gate = seams.shouldRideCacheSharingFork
   check('the fork-admission seam exists (shouldRideCacheSharingFork)', typeof gate === 'function')
   if (typeof gate === 'function') {
     check('home id + disabled thinking ⇒ fork eligible', gate('claude-opus-4-8', { type: 'disabled' }) === true)
     check('home id + adaptive thinking ⇒ fork eligible (the cache key rides)', gate('claude-opus-4-8', { type: 'adaptive' }) === true)
-    check('home id + explicit thinking budget ⇒ direct lane', gate('claude-opus-4-8', { type: 'enabled' }) === false)
+    check('home id + explicit thinking budget ⇒ fork eligible', gate('claude-opus-4-8', { type: 'enabled' }) === true)
     check('unrecognised stranger (gateway home ride) ⇒ fork eligible', gate('totally-unknown-model-id', { type: 'disabled' }) === true)
     for (const engine of ['gpt-5.5', 'glm-5.2', 'deepseek-chat', 'kimi-k2-0905-preview', 'openrouter/nvidia/nemotron-nano-9b-v2:free']) {
-      check(`engine id ${engine} ⇒ direct mechanical lane, never the fork`, gate(engine, { type: 'disabled' }) === false)
+      check(`engine id ${engine} ⇒ direct session request, never the fork`, gate(engine, { type: 'disabled' }) === false)
     }
   }
 }
 
-section('§4 the deadline — a wedged wire refuses TYPED, the conversation untouched')
+section('§4 dead-connection detection — a wedged wire refuses TYPED, the conversation untouched')
 {
   const bounds = seams.setFoldBoundsForTests
   const sentence = seams.ERROR_MESSAGE_FOLD_TIMEOUT
@@ -237,7 +237,7 @@ section('§4 the deadline — a wedged wire refuses TYPED, the conversation unto
   if (typeof bounds === 'function' && typeof sentence === 'string') {
     const prevBase = process.env.ANTHROPIC_BASE_URL
     process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${STALL_PORT}`
-    bounds({ deadlineMs: 2_500, stallMs: 800 })
+    bounds({ stallMs: 800 })
     const run = await runFold('claude-opus-4-8')
     bounds(null)
     process.env.ANTHROPIC_BASE_URL = prevBase
@@ -262,7 +262,7 @@ section("§5 the operator's abort keeps its own sentence — never dressed as a 
   if (typeof bounds === 'function' && typeof sentence === 'string') {
     const prevBase = process.env.ANTHROPIC_BASE_URL
     process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${STALL_PORT}`
-    bounds({ deadlineMs: 30_000, stallMs: 20_000 })
+    bounds({ stallMs: 20_000 })
     const run = await runFold('claude-opus-4-8', { abortAfterMs: 300 })
     bounds(null)
     process.env.ANTHROPIC_BASE_URL = prevBase
@@ -285,8 +285,8 @@ clearTimeout(guard)
 console.log('\n' + '='.repeat(60))
 console.log(` ${checks} checks, ${failures} failures`)
 if (failures === 0) {
-  console.log(' ✅ FOLD MECHANICAL PROFILE GREEN')
+  console.log('PASS FOLD SESSION PROFILE')
   process.exit(0)
 }
-console.log(` ❌ ${failures} FOLD MECHANICAL PROFILE FAILURE(S)`)
+console.log(`FAIL FOLD SESSION PROFILE: ${failures} failures`)
 process.exit(1)

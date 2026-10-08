@@ -91,7 +91,6 @@ const readers: Reader[] = [
   ['narrates in thinking blocks', id => caps.modelNarratesInThinkingBlocks(id)],
   ['forced tool choice', id => caps.modelSupportsForcedToolChoice(id)],
   ['structured outputs', id => caps.modelSupportsStructuredOutputs(id)],
-  ['per-message effort row', id => caps.servesPerMessageEffort(id)],
   ['effort vocabulary', id => caps.effortVocabularyFor(id)],
   ['effort supported / xhigh / max', id => [caps.modelSupportsEffort(id), caps.modelSupportsXHighEffort(id), caps.modelSupportsMaxEffort(id)]],
   ['the deepest effort word', id => caps.getMaxSupportedEffortLevel(id)],
@@ -127,15 +126,6 @@ section('§3 the launch flag is the head\'s: unpinning the head\'s family unpins
   check('the flags are cleared again', show((getGlobalConfig() as { launchEffortUnpins?: unknown }).launchEffortUnpins) === '{}')
 }
 
-section('§4 the refused-latch still comes first for the per-message effort row')
-{
-  caps.resetPerMessageEffortRefusals()
-  check('claude-fable-5-2 serves the row as its head does', caps.servesPerMessageEffort('claude-fable-5-2') === caps.servesPerMessageEffort(model.getDefaultFableModel()) && caps.servesPerMessageEffort('claude-fable-5-2'))
-  caps.notePerMessageEffortRefused('claude-fable-5-2')
-  check('a refusal noted on the raw id switches the row off for it alone', !caps.servesPerMessageEffort('claude-fable-5-2') && caps.servesPerMessageEffort(model.getDefaultFableModel()))
-  caps.resetPerMessageEffortRefusals()
-}
-
 section('§5 an id of a family the table does not declare takes the generic first-party road, recorded here')
 {
   const id = 'claude-zephyr-1'
@@ -148,7 +138,7 @@ section('§5 an id of a family the table does not declare takes the generic firs
   const vocabulary = caps.effortVocabularyFor(id)
   check('effort on with the unknown-id ladder', vocabulary.kind === 'ladder' && vocabulary.source === 'unknown-id' && caps.modelSupportsEffort(id), show(vocabulary))
   check('unpinned launch effort at high', !effort.isLaunchEffortPinned(id) && effort.getLaunchDefaultEffort(id) === 'high')
-  check('adaptive thinking on (the unknown default), thinking not always on, forced tool choice kept, structured outputs off, no per-message effort row', caps.modelSupportsAdaptiveThinking(id) && !caps.modelThinkingAlwaysOn(id) && caps.modelSupportsForcedToolChoice(id) && !caps.modelSupportsStructuredOutputs(id) && !caps.servesPerMessageEffort(id))
+  check('adaptive thinking on (the unknown default), thinking not always on, forced tool choice kept, structured outputs off', caps.modelSupportsAdaptiveThinking(id) && !caps.modelThinkingAlwaysOn(id) && caps.modelSupportsForcedToolChoice(id) && !caps.modelSupportsStructuredOutputs(id))
   check('not natively 1M; the conservative window; the default output pair', !caps.modelSupports1M(id) && caps.resolveContextWindow(id).effectiveWindow === 200_000 && caps.resolveContextWindow(id).source === 'fallback' && caps.getModelMaxOutputTokens(id).default === 32_000 && caps.getModelMaxOutputTokens(id).upperLimit === 64_000, show(caps.resolveContextWindow(id)))
   check('no cutoff, the raw id as its name, no 1M toggle', caps.getModelKnowledgeCutoff(id) === null && model.renderModelName(id) === id && !focusedOptionSupports1m(id))
 }

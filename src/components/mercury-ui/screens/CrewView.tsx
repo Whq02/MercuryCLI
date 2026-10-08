@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useMemo, useState, useSyncExternalStore } from 'react'
-import { Box, Text, useInput } from '../../../ink.js'
+import { Box, Text, useInput, wrapText } from '../../../ink.js'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
 import {
   CREW_EMPTY_DOOR,
@@ -35,7 +35,7 @@ import { Chip, CommandCenter, SectionHeader, useNowTick } from '../components.js
 import { GLYPH, padTo, truncateToWidth } from '../glyphs.js'
 import { WorkingGlyph } from '../LiveGlyphs.js'
 import { decodeNavKey } from '../navSemantics.js'
-import { paneWindow } from '../paneWindow.js'
+import { fitMeasuredWindow, paneWindow } from '../paneWindow.js'
 import { useMercuryTokens } from '../useMercuryTokens.js'
 import { useOpenEventGate } from '../useOpenEventGate.js'
 import { useStableSelection } from '../useStableSelection.js'
@@ -212,7 +212,9 @@ export function CrewView({
 
   const width = popup ? Math.max(0, Math.min(columns, 120)) : Math.max(56, (columns || 80) - 6)
   const visible = Math.max(4, (termRows || 24) - 9)
-  const win = paneWindow(rows.length, sel, visible)
+  const win = fitMeasuredWindow(rows.length, visible, span => paneWindow(rows.length, sel, span), window =>
+    rows.slice(window.start, window.end).reduce((height, row) => height + 1 + (row.facts.state === 'paused' ? wrapText(crewStatusWords(row.facts, now), Math.max(1, width - 4), 'wrap').split('\n').length : 0), Number(window.above > 0) + Number(window.below > 0)),
+  )
   const selectedRow = rows[sel]
   const footer = (armedTarget !== null
     ? [crewStopHint(armedTarget.name), 'esc close']
@@ -295,7 +297,7 @@ function AgentRow({
   const status = crewStatusWords(facts, now)
   const cells = crewRowWidths(width, status)
   return (
-    <Box width={width}>
+    <Box width={width} flexDirection="column">
       <Text wrap="truncate-end">
         <Text color={on ? tokens.textPrimary : tokens.textMuted}>{on ? `${GLYPH.cursor} ` : '  '}</Text>
         {facts.running && !pending && wait === null ? <WorkingGlyph color={tokens.success} active /> : <Text color={wait !== null ? tokens.warning : tone}>{wait !== null ? GLYPH.pending : glyph}</Text>}
@@ -304,7 +306,7 @@ function AgentRow({
           {padTo(truncateToWidth(facts.name, cells.name), cells.name)}
         </Text>
         <Text color={settled ? tokens.textMuted : tokens.textSecondary}> {padTo(truncateToWidth(crewModelLabel(facts), MODEL_W), MODEL_W)}</Text>
-        <Text color={tone}> {padTo(truncateToWidth(status, cells.status), cells.status)}</Text>
+        <Text color={tone}> {padTo(truncateToWidth(paused ? 'paused' : status, cells.status), cells.status)}</Text>
         <Text color={tokens.textPrimary}> {crewTokensSummary(facts)}</Text>
         <Text color={tokens.textMuted}>
           {' '}
@@ -313,13 +315,13 @@ function AgentRow({
           {
 }
           {stopped || failed ? ` · ${facts.stopReason !== null ? `${facts.stopReason} · ` : ''}${CREW_RESUME_HINT}` : ''}
-          {paused && facts.paused !== null ? ` · ${facts.paused.words} · ${CREW_RESUME_HINT}` : ''}
           {parkedByOperator !== null ? ` · ${parkedByOperator.detail}` : ''}
           {settled && facts.worktree !== null ? ` · ${crewWorktreeLeftWords(facts.worktree)}` : ''}
         </Text>
         {unread !== null ? <Text color={tokens.warning}> · {unread}</Text> : null}
         {holders !== null ? <Text color={tokens.warning}> · {holders}</Text> : null}
       </Text>
+      {paused ? <Box paddingLeft={4} width={width}><Text color={tone} wrap="wrap">{status}</Text></Box> : null}
     </Box>
   )
 }

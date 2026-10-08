@@ -88,7 +88,7 @@ delete process.env.MERCURY_MODEL
 const rows = options().filter(o => o.group === undefined)
 const rawRow = rows.find(o => o.value === RAW)
 check('the picker row for the raw id carries the raw id as its value (the mark keys on it)', rawRow !== undefined && rawRow.value === RAW && rawRow.label === RAW && renderModelName(RAW) === RAW)
-check("the per-message effort row and the launch effort answer as the opus family's head", caps.servesPerMessageEffort(RAW) === caps.servesPerMessageEffort('claude-opus-5-5') && effort.getDefaultEffortForModel(RAW) === effort.getDefaultEffortForModel('claude-opus-5-5') && effort.isLaunchEffortPinned(RAW) === effort.isLaunchEffortPinned('claude-opus-5-5'))
+check("the launch effort answers as the opus family's head", effort.getDefaultEffortForModel(RAW) === effort.getDefaultEffortForModel('claude-opus-5-5') && effort.isLaunchEffortPinned(RAW) === effort.isLaunchEffortPinned('claude-opus-5-5'))
 
 section('§2 the mounted picker marks the raw row current, in its family block, at 120 and 178 columns')
 for (const columns of [120, 178]) {

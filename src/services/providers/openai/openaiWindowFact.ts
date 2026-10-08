@@ -1,11 +1,12 @@
-import { noteOpenaiSourceIdentity, openaiLimitWindow, type OpenaiLimitSource, type OpenaiLimitWindow } from './openaiLimitState.js'
+import { noteOpenaiSourceIdentity, openaiLimitWindow, openaiObservedWall, type OpenaiLimitSource, type OpenaiLimitWindow } from './openaiLimitState.js'
 import { openaiSourceIdentity, resolveOpenaiAccount } from './openaiAccounts.js'
 
-export type OpenaiWindowFact = { source: OpenaiLimitSource; resetsAtMs: number; observedAtMs: number }
+export type OpenaiWindowFact = { source: OpenaiLimitSource; resetsAtMs: number; observedAtMs: number; state?: 'clear' }
 
 export interface OpenaiWindowReads {
   activeSource: () => OpenaiLimitSource | undefined
   window: (source: OpenaiLimitSource) => OpenaiLimitWindow
+  observed?: (source: OpenaiLimitSource) => { resetsAtMs: number; observedAtMs: number } | null
 }
 
 function liveOpenaiWindowReads(): OpenaiWindowReads {
@@ -17,6 +18,7 @@ function liveOpenaiWindowReads(): OpenaiWindowReads {
       return active.kind
     },
     window: source => openaiLimitWindow(source),
+    observed: source => openaiObservedWall(source),
   }
 }
 
@@ -29,5 +31,7 @@ export function openaiWindowFact(reads: OpenaiWindowReads = liveOpenaiWindowRead
   const source = reads.activeSource()
   if (source === undefined) return undefined
   const window = reads.window(source)
-  return window.state === 'limited' ? { source, resetsAtMs: window.resetsAtMs, observedAtMs: window.observedAtMs } : undefined
+  if (window.state === 'limited') return { source, resetsAtMs: window.resetsAtMs, observedAtMs: window.observedAtMs }
+  const observed = reads.observed?.(source)
+  return observed === undefined || observed === null ? undefined : { source, ...observed, state: 'clear' }
 }

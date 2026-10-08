@@ -184,7 +184,7 @@ const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const compactModule = await import('../../src/services/compact/compact.ts')
 const { compactConversation, setFoldBoundsForTests, ERROR_MESSAGE_FOLD_TIMEOUT, shouldRideCacheSharingFork } = compactModule
-const foldFirstByteAllowanceMs: ((estTokens: number, bounds?: { deadlineMs: number; stallMs: number; ingestMsPer1kTokens: number }) => number) | undefined = (compactModule as { foldFirstByteAllowanceMs?: typeof compactModule.foldFirstByteAllowanceMs }).foldFirstByteAllowanceMs
+const foldFirstByteAllowanceMs: ((estTokens: number, bounds?: { stallMs: number; ingestMsPer1kTokens: number }) => number) | undefined = (compactModule as { foldFirstByteAllowanceMs?: typeof compactModule.foldFirstByteAllowanceMs }).foldFirstByteAllowanceMs
 const allowanceOf = (estTokens: number): number => (foldFirstByteAllowanceMs === undefined ? Number.NaN : foldFirstByteAllowanceMs(estTokens))
 const { COLD_INGEST_MS_PER_1K_TOKENS } = await import('../../src/services/providers/streamIdleBudget.ts')
 const { streamOpenaiResponses } = await import('../../src/services/providers/openai/openaiClient.ts')
@@ -225,7 +225,7 @@ function makeMessages(inputTokens = 100): unknown[] {
   ]
 }
 type Run = { result?: Record<string, unknown>; error?: Error; readFileState: { size: number }; ms: number }
-async function runFold(messages: unknown[]): Promise<Run> {
+async function runFold(messages: unknown[], abortAfterMs?: number): Promise<Run> {
   const toolPermissionContext = { ...getEmptyToolPermissionContext(), mode: 'default' as const }
   const appState = { toolPermissionContext, sessionHooks: new Map(), tasks: {}, mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'xhigh' }
   const readFileState = new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024)
@@ -240,6 +240,7 @@ async function runFold(messages: unknown[]): Promise<Run> {
     readFileState,
     options: { tools: [], mcpClients: [], engineModel: MODEL, maxThinkingTokens: 0, thinkingConfig: { type: 'disabled' as const }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } },
   }
+  const abortTimer = abortAfterMs === undefined ? undefined : setTimeout(() => ctx.abortController.abort(), abortAfterMs)
   const cacheSafe = { systemPrompt: asSystemPrompt(['You are a fixture-driven session posture.']) }
   const startedAt = Date.now()
   let result: Record<string, unknown> | undefined
@@ -249,6 +250,7 @@ async function runFold(messages: unknown[]): Promise<Run> {
   } catch (err) {
     error = err as Error
   }
+  clearTimeout(abortTimer)
   return { result, error, readFileState, ms: Date.now() - startedAt }
 }
 const summaryOf = (run: Run): string => j(run.result?.summaryMessages ?? [])
@@ -271,7 +273,7 @@ const STALL_MS = 2_000
 const DEADLINE_MS = 20_000
 const INGEST_MS_PER_1K = 10
 
-section('§1 the first-byte allowance rule, pure — the stall window plus the cold-ingest reading per 1k tokens, capped at the wall')
+section('§1 the first-byte allowance rule, pure — the stall window plus the cold-ingest reading per 1k tokens, without a wall-clock cap')
 check('the allowance rule exists (foldFirstByteAllowanceMs)', typeof foldFirstByteAllowanceMs === 'function')
 if (typeof foldFirstByteAllowanceMs === 'function') {
   check('an empty history waits the flat stall window (120 s)', foldFirstByteAllowanceMs(0) === 120_000, String(foldFirstByteAllowanceMs(0)))
@@ -279,10 +281,10 @@ if (typeof foldFirstByteAllowanceMs === 'function') {
   check('50k tokens → 180 s', foldFirstByteAllowanceMs(50_000) === 180_000, String(foldFirstByteAllowanceMs(50_000)))
   check('100k tokens → 240 s', foldFirstByteAllowanceMs(100_000) === 240_000, String(foldFirstByteAllowanceMs(100_000)))
   check('272k tokens (the served GPT default window) → 446.4 s', foldFirstByteAllowanceMs(272_000) === 446_400, String(foldFirstByteAllowanceMs(272_000)))
-  check('400k tokens → the 10-minute wall (600 s), never past it', foldFirstByteAllowanceMs(400_000) === 600_000, String(foldFirstByteAllowanceMs(400_000)))
-  check('900k tokens → the 10-minute wall', foldFirstByteAllowanceMs(900_000) === 600_000, String(foldFirstByteAllowanceMs(900_000)))
+  check('400k tokens → 600 seconds of first-byte allowance', foldFirstByteAllowanceMs(400_000) === 600_000, String(foldFirstByteAllowanceMs(400_000)))
+  check('900k tokens → 1200 seconds of first-byte allowance, no wall cap', foldFirstByteAllowanceMs(900_000) === 1_200_000, String(foldFirstByteAllowanceMs(900_000)))
   check('a NaN or negative estimate reads as zero', foldFirstByteAllowanceMs(Number.NaN) === 120_000 && foldFirstByteAllowanceMs(-5) === 120_000)
-  const shrunk = { deadlineMs: DEADLINE_MS, stallMs: STALL_MS, ingestMsPer1kTokens: INGEST_MS_PER_1K }
+  const shrunk = { stallMs: STALL_MS, ingestMsPer1kTokens: INGEST_MS_PER_1K }
   check('under the proof bounds, 400k tokens → 2 s + 4 s = 6 s', foldFirstByteAllowanceMs(400_000, shrunk) === 6_000, String(foldFirstByteAllowanceMs(400_000, shrunk)))
   check('gpt-5.6-sol rides the direct lane (the lane this proof drives)', shouldRideCacheSharingFork(MODEL, { type: 'disabled' }) === false)
 }
@@ -340,7 +342,7 @@ section('§2 the OpenAI Responses transport relays liveness for comment lines an
   check('…and still forwards the text and the finish', orOutward.includes('text-delta') && orOutward.includes('finish'), j(orOutward))
 }
 
-setFoldBoundsForTests({ deadlineMs: DEADLINE_MS, stallMs: STALL_MS, ingestMsPer1kTokens: INGEST_MS_PER_1K })
+setFoldBoundsForTests({ stallMs: STALL_MS, ingestMsPer1kTokens: INGEST_MS_PER_1K })
 
 section(`§3 (a) a wire silent for longer than the stall window (${STALL_MS} ms) but sending comment lines, then progress-only frames, then the summary → the fold LANDS`)
 {
@@ -353,7 +355,7 @@ section(`§3 (a) a wire silent for longer than the stall window (${STALL_MS} ms)
   check('the installed summary is the whole fixture summary', summaryOf(run).includes(SUMMARY_TEXT), summaryOf(run).slice(0, 200))
   check('one request on the wire, completed, with comments and progress-only frames written before the summary', req !== undefined && seen.filter(s => s.plan === 'heartbeats').length === 1 && req.finished && req.wrote.includes('comment') && req.wrote.some(w => w.startsWith('progress:')), j(req?.wrote))
   check(`the whole fold outlived the stall window by the heartbeat phases (≥ ${COMMENT_PHASE_MS + PROGRESS_PHASE_MS} ms)`, run.ms >= COMMENT_PHASE_MS + PROGRESS_PHASE_MS, String(run.ms))
-  check('the debug log names the armed bound with its first-byte allowance for the small history', lines.some(l => /direct lane bound armed — first-byte allowance \d+ ms for ≈\d+ tokens, stall 2000 ms after the first event, wall 20000 ms/.test(l)), j(lines))
+  check('the debug log names the armed bound with its first-byte allowance for the small history', lines.some(l => /direct lane bound armed — first-byte allowance \d+ ms for ≈\d+ tokens, stall 2000 ms after the first event/.test(l)), j(lines))
   check('no cut was logged', !lines.some(l => l.includes('direct lane cut for')), j(lines))
 }
 
@@ -400,22 +402,21 @@ section(`§5 (c) a huge history (≈400k estimated tokens): the first byte lands
   check('c2 the server completed the stream', contentReq?.plan === 'late-content' && contentReq.finished === true, j(contentReq))
 }
 
-section('§6 (d) a wire that heartbeats forever without finishing → the wall-clock deadline still cuts it')
+section('§6 a stream that keeps sending heartbeats waits until the operator cancels')
 {
-  const SHORT_WALL_MS = 5_000
-  setFoldBoundsForTests({ deadlineMs: SHORT_WALL_MS, stallMs: STALL_MS, ingestMsPer1kTokens: INGEST_MS_PER_1K })
+  const FORMER_WALL_MS = 5_000
+  const CANCEL_MS = 7_000
+  setFoldBoundsForTests({ deadlineMs: FORMER_WALL_MS, stallMs: STALL_MS, ingestMsPer1kTokens: INGEST_MS_PER_1K } as never)
   plan = 'forever'
   debugLinesSince()
-  const run = await runFold(makeMessages())
+  const run = await runFold(makeMessages(), CANCEL_MS)
   const lines = debugLinesSince()
   const req = seen.at(-1)
-  check('the fold REFUSED with the typed fold-timeout sentence', run.result === undefined && run.error?.message === ERROR_MESSAGE_FOLD_TIMEOUT, (run.error?.message ?? '').slice(0, 300))
-  check(`the cut came at the wall (${SHORT_WALL_MS} ms): fold ${run.ms} ms, within [${SHORT_WALL_MS}, ${SHORT_WALL_MS + 2_500})`, run.ms >= SHORT_WALL_MS && run.ms < SHORT_WALL_MS + 2_500, String(run.ms))
+  check('the operator cancellation, not a thinking clock, ends the fold', run.result === undefined && run.error !== undefined && run.error.message !== ERROR_MESSAGE_FOLD_TIMEOUT, (run.error?.message ?? '').slice(0, 300))
+  check('the live request outlasted the former wall and reached the cancellation', run.ms >= CANCEL_MS && run.ms > FORMER_WALL_MS, String(run.ms))
   const beats = req?.wrote.filter(w => w === 'comment').length ?? 0
-  check(`the server wrote comment lines the whole time (${beats} of them, never a summary)`, req !== undefined && req.plan === 'forever' && beats >= Math.floor((SHORT_WALL_MS - 500) / TICK_MS) && !req.finished, j(req))
-  const closed = await awaitClose(req, 1_000)
-  console.log(`  [NOTE] the cut client's socket ${closed ? `closed ${(req?.closedAt ?? 0) - (req?.startedAt ?? 0)} ms after the request opened` : 'was still open 1 s after the cut (the transport pool reaps it later)'}`)
-  check('the debug log names the clock: the wall-clock deadline', lines.some(l => /direct lane cut for the wall-clock deadline after \d+ ms — nothing folded/.test(l)), j(lines))
+  check('heartbeats kept the unfinished request alive', req !== undefined && req.plan === 'forever' && beats >= Math.floor((CANCEL_MS - 500) / TICK_MS) && !req.finished, j(req))
+  check('no fold clock cut the live request', !lines.some(l => /direct lane cut for/.test(l)), j(lines))
   check('the conversation stands untouched', run.readFileState.size === 1, String(run.readFileState.size))
   setFoldBoundsForTests(null)
 }

@@ -180,8 +180,8 @@ for (const leg of CENSUS_LEGS) {
   )
   const words = hits.flatMap(h => effortWordsOf(h.body))
   check(
-    `${leg.family}: mechanical effort on the wire (never the session tier)`,
-    words.every(word => !SESSION_TIERS.has(word.toLowerCase())),
+    `${leg.family}: the session tier rides every served effort dial`,
+    leg.family === 'local' ? words.length > 0 && words.every(word => SESSION_TIERS.has(word.toLowerCase())) : words.length === 0,
     j(words),
   )
   check(`${leg.family}: the read state cleared (the fold landed)`, run.readFileStateSize === 0, `size=${run.readFileStateSize}`)

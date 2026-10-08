@@ -69,7 +69,7 @@ const recap = (messages: readonly Message[]) => {
 }
 const makeContext = () => {
   const appState = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, mcp: { clients: [], tools: [], commands: [], resources: {} } }
-  return { abortController: new AbortController(), getAppState: () => appState, setAppState: () => {}, messages: [], readFileState: new Map(), options: { tools: [], mcpClients: [], engineModel: getEngineModel(), isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } } as never
+  return { abortController: new AbortController(), getAppState: () => appState, setAppState: () => {}, messages: [], readFileState: new Map(), options: { tools: [], mcpClients: [], engineModel: getEngineModel(), thinkingConfig: { type: 'adaptive' as const }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } } as never
 }
 const api = await startFixtureApi(Array.from({ length: 16 }, () => ({ kind: 'text' as const, text: 'The inventory reader was repaired and its tests passed. Preserve the completed work and continue with the next operator request.' })))
 process.env.ANTHROPIC_BASE_URL = api.url

@@ -79,7 +79,7 @@ function FittingMascot({ rows }: { rows: number }): React.ReactNode {
   const accent = useSessionAccent()
   const def = critterDefForKey(accent.key)
   if (rows < 29) return null
-  return <AnimatedCritterArt def={def} mini specimen />
+  return <AnimatedCritterArt def={def} specimen />
 }
 
 function ThemeFitting({
