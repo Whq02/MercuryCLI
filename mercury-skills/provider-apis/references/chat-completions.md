@@ -1,31 +1,29 @@
-Checked: 2026-09-15
-# Compatible Chat Completions
+# Shared runtime and family-specific wires
 
-- POST `{base}/chat/completions` with JSON and the account's bearer credential; configured/local endpoints may be keyless.
-- Send `model`, role-labelled `messages`, `stream:true` and nested tools: `{type:"function",function:{name,description,parameters}}`.
-- Return each assistant `tool_calls` result as a `role:"tool"` message with matching `tool_call_id`.
-- Accumulate indexed tool-argument fragments from SSE `choices[0].delta`; validate JSON before execution.
-- Require a recognised finish reason or `[DONE]`; neither truncation nor malformed calls count as success.
+Source map read 2026-10-08. All paths in the table are relative to `src/services/providers/`. These are owners to open, not a claim that every account uses one dialect.
 
-## Bases and differences
-| Family | Public API base | Mercury behaviour |
+`openaicompat/compatChatCallModel.ts` owns the shared call-model runtime. `openaicompat/compatChatClient.ts` owns Chat Completions HTTP/SSE and the `CompatStreamEvent`/`CompatFault` contracts. `openaicompat/compatWire.ts` builds family extras. `zai/zaiCodec.ts` maps shared chat messages and tools. Preserve role-labelled messages, nested function tools and `tool_call_id` correlation.
+
+| Family | Dispatch and wire | Usage/billing owner |
 |---|---|---|
-| Kimi | https://api.moonshot.ai/v1 | Model-gated `reasoning_effort`; no temperature; separate OAuth coding endpoint |
-| DeepSeek | https://api.deepseek.com | `thinking.type`; explicit `max_tokens` override |
-| xAI (Grok) | https://api.x.ai/v1 | `XAI_API_KEY` bearer; `reasoning_effort` on the reasoning models; usage carries `prompt_tokens_details.cached_tokens` and `completion_tokens_details.reasoning_tokens` |
-| Meta (Muse) | https://api.meta.ai/v1 | `MODEL_API_KEY` (or `META_API_KEY`); per-model `reasoning_effort`; explicit `max_completion_tokens`; private reasoning is not returned or replayed |
-| Z.AI | https://api.z.ai/api/paas/v4 | Separate Coding Plan base; native chat, never Anthropic compatibility |
-| OpenRouter | https://openrouter.ai/api/v1 | `reasoning.effort` from model vocabulary |
-| Gemini | https://generativelanguage.googleapis.com/v1beta/openai | Model-gated `reasoning_effort`; key or OAuth |
-| Hugging Face | https://router.huggingface.co/v1 | Access token; no generic effort dial |
-| Compat/local | Configured/discovered | Server-specific capabilities; omit Ollama `tool_choice` |
+| Moonshot/Kimi | `moonshot/moonshotCallModel.ts`; shared chat; credential resolution keeps platform-key and coding-sign-in endpoints distinct | `moonshot/moonshotUsageState.ts`: key balance and managed coding usage |
+| DeepSeek | `deepseek/deepseekCallModel.ts`; shared chat and its own extras | `deepseek/deepseekUsageState.ts`: account balance |
+| xAI | `xai/xaiCallModel.ts`; shared chat for keys, `xai/xaiResponsesTransport.ts` for subscription credentials | `xai/xaiUsageState.ts`: subscription credits; team usage and balance through a separate management key |
+| Meta | `meta/metaCallModel.ts`; shared chat | `meta/metaUsageState.ts`, then the common usage facade; do not accept a missing account meter without checking current vendor management/billing documentation |
+| Z.AI | `zai/zaiCallModel.ts`, `zai/zaiClient.ts`, `zai/zaiCodec.ts`: native chat road, not an Anthropic-compatible endpoint | `zai/zaiUsageState.ts`: Coding Plan quota |
+| Gemini | `gemini/geminiCallModel.ts`: key road uses shared chat; OAuth road uses `gemini/geminiClient.ts` and `gemini/geminiCodec.ts` for native content streaming | `gemini/geminiUsageState.ts`: rate/window observations; inspect the project's current billing APIs before claiming no meter |
+| Hugging Face | `huggingface/huggingfaceCallModel.ts`; shared chat with the resolved Hub credential and carrier slug | `huggingface/huggingfaceUsageState.ts`: account facts and rate observations; inspect current billing APIs for account spend |
+| Custom endpoint | `openaicompat/compatCallModel.ts`; configured shared-chat endpoint, possibly keyless | `providerUsage.ts`: session spend and the configured endpoint's available facts |
+| Local | `local/localCallModel.ts`: discovered server profile; `local/ollamaChatTransport.ts` for the native Ollama wire | `local/localDiscovery.ts` and `providerUsage.ts`: served-model facts and measured session usage, not an invented hosted balance |
 
-- DeepSeek takes `reasoning_effort` (`low`/`high`/`max`) as a top-level field beside the `thinking` object, which carries `type` alone; Mercury sends it there, and omits the effort entirely when thinking is off.
-- Request `stream_options.include_usage` where supported. Mercury sends it on the shared client, not Z.AI; OpenRouter and DeepSeek supply final usage regardless.
-- xAI documents the OpenAI-shaped `POST /v1/chat/completions` (`model`, `messages`, `stream`, `stream_options`, `tools`, `tool_choice`, `parallel_tool_calls`, `max_tokens`/`max_completion_tokens`, `reasoning_effort`, `response_format`) and `GET /v1/models` for the account's model list; its finish reasons are `stop`, `length` and `end_turn`. Team billing uses a separate bearer management key from the console's settings page (`Management Keys Read + Write` permission). Mercury accepts it through `/logins xai`, `/router key xai-management`, or `XAI_MANAGEMENT_API_KEY`; the inference key still serves inference.
-- xAI billing (checked 2026-09-30): `GET https://api.x.ai/v1/api-key` with the inference bearer returns `team_id`. With the management bearer, `https://management-api.x.ai/v1/billing/teams/{team_id}` serves `GET /prepaid/balance` (`total.val`, signed USD cents: purchases are negative), `GET /postpaid/invoice/preview` (`billingCycle.year/month`, `coreInvoice.amountAfterVat`, `effectiveSpendingLimit`, amounts in cents), `GET /postpaid/spending-limits` (`spendingLimits.effectiveSl.val`, cents), and `POST /usage`. Usage takes `analyticsRequest` with `timeRange` (`startTime`/exclusive `endTime` in `YYYY-MM-DD HH:MM:SS`, IANA `timezone`), `timeUnit`, `values:[{name:"usd",aggregation:"AGGREGATION_SUM"}]`, `groupBy`, and `filters`; it returns `timeSeries[].dataPoints[].{timestamp,values}`. `limitReached` means query results were truncated, NOT that spending hit a limit. Prepaid credits are consumed before postpaid spending: never divide total team usage by a postpaid-only cap. Sources: [management keys](https://docs.x.ai/developers/rest-api-reference/management), [billing](https://docs.x.ai/developers/rest-api-reference/management/billing), [key metadata](https://docs.x.ai/developers/rest-api-reference/inference/other).
-- Read standard `prompt_tokens_details.cached_tokens`, Kimi `cached_tokens`, or DeepSeek `prompt_cache_hit_tokens`/`prompt_cache_miss_tokens` under `usage`; spellings can coexist.
-- Preserve reasoning history only for the selected model's supported replay contract; do not generalise one family's rule.
-- Meta (checked 2026-09-30): `GET /v1/models` is the account list; Spark always reasons, accepts `minimal` through `xhigh`, and Standard Spark 1.3 also accepts `max`. Never send `none`. The chat API redacts private reasoning and cannot replay it; Meta recommends Responses for encrypted reasoning continuity, which Mercury's Meta chat road does not claim. Use pay-as-you-go API keys, never Muse Code's subscription-only credential. Sources: [Meta chat](https://dev.meta.ai/docs/protocols/chat-completions), [reasoning](https://dev.meta.ai/docs/reasoning), [subscriptions](https://dev.meta.ai/docs/muse-code/subscriptions).
+The facade `providerUsage.ts` is the display owner. When adding a meter, read the family's account resolver too: the observation belongs to that credential and endpoint. xAI's inference key and management key have different jobs; follow the optional-management-key shape instead of sending inference credentials to a billing host.
 
-Sources: [Kimi](https://platform.kimi.ai/docs/api/chat), [DeepSeek](https://api-docs.deepseek.com/api/create-chat-completion/), [xAI](https://docs.x.ai/developers/rest-api-reference/inference/chat-completions), [Z.AI](https://docs.z.ai/api-reference/llm/chat-completion), [OpenRouter](https://openrouter.ai/docs/cookbook/administration/usage-accounting), [Gemini](https://ai.google.dev/gemini-api/docs/openai), [HF](https://huggingface.co/docs/inference-providers/en/tasks/chat-completion), [Ollama](https://docs.ollama.com/api/openai-compatibility), [Mercury](https://github.com/Whq02/MercuryCLI/tree/fc81e29e4129a56b1bfb3beca9819ebfb29875f9/src/services/providers).
+## Stream contract
+
+The shared transport emits `served-model`, `reasoning-delta`, `text-delta`, `tool-call-fragment`, `usage`, `finish` and `stream-fault`. Tool fragments are index-keyed and accumulate once. `finish` preserves the raw provider reason; an unknown reason stays observable rather than becoming a fabricated truncation.
+
+Faults carry a typed kind, code, provider words, retryability and optional status/wait facts. In-stream errors can follow HTTP 200. Missing finish/terminal data and malformed tool calls remain failures even when text arrived. The runtime settles received content and reports the fault; do not discard either.
+
+`streamIdleBudget.ts` owns `RequestWaitV1`. Wait notifications are separate from stream deltas and terminal faults. Respect the provider's explicit retry wait first; a usage/reset observation remains a displayed fact. Preserve effort and supported reasoning replay on continuation, with no thinking-time guard.
+
+Open `scripts/provider-compat/prove-compat-chat-transport.ts` for injected-fetch SSE cases, pathological chunking, tool fragments, usage spellings and error envelopes. Use the appropriate loopback route proof as well: testing the decoder alone does not prove dispatch, auth refresh or settlement.
