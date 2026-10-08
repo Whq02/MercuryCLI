@@ -1,0 +1,10 @@
+╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ▖▟▆▙▗ Mercury — crew · 0 running · 1 paused                                                                                                                                    │
+│                                                                                                                                                                                │
+│ the session has no live runner — ↵ in the chat revives it                                                                                                                      │
+│ Crewmates (1) ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│ ▸ ○ paused-helper        fixture/crew       paused                             14.3k context · 9.8k in · 2.5k out · 42k cached 1m 0s                                           │
+│     paused — Your account has used its available credits. Please retry after the stated reset. · retries by itself at 08:02 (in 2m) · r retries now                            │
+│                                                                                                                                                                                │
+│ ↑↓ move · ↵ open · m main chat · r resume · p pause · esc close                                                                                                                │
+╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
