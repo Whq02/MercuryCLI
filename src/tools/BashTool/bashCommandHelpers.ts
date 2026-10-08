@@ -2,12 +2,10 @@ import type { PermissionResult, PermissionDecisionReason } from '../../utils/per
 import { createPermissionRequestMessage } from '../../utils/permissions/decision/requestMessage.js'
 import {
   buildParsedCommandFromRoot,
-  isUnsafeCompoundCommand_DEPRECATED,
   ParsedCommand,
   PARSE_ABORTED,
   pinnedCommandAnalysis,
   type Node,
-  type UnsafeCompoundReason_DEPRECATED,
 } from '../../utils/permissions/decision/commandAnalysis.js'
 
 export type CommandIdentityCheckers = {
@@ -23,7 +21,9 @@ export const CD_GIT_BARE_REPO_REASON =
 
 type SegmentPermissionFn<I> = (input: I) => Promise<PermissionResult>
 
-export function compoundOperatorAskMessage(reason: UnsafeCompoundReason_DEPRECATED): string {
+type CompoundReason = { kind: 'unparseable' } | { kind: 'comment' } | { kind: 'operator'; operator: string; target?: string }
+
+export function compoundOperatorAskMessage(reason: CompoundReason): string {
   if (reason.kind === 'unparseable') return 'This command could not be split into simple commands, so it needs approval.'
   if (reason.kind === 'comment') return 'This command uses shell operators that require approval.'
   if (reason.target !== undefined) {
@@ -54,13 +54,11 @@ export async function checkCommandOperatorPermissions<I extends { command: strin
   }
 
   const analysis = parsed.getTreeSitterAnalysis()
-  const unsafeCompound: UnsafeCompoundReason_DEPRECATED | null = analysis
-    ? analysis.compoundStructure.hasSubshell
-      ? { kind: 'operator', operator: '(' }
-      : analysis.compoundStructure.hasCommandGroup
-        ? { kind: 'operator', operator: '{' }
-        : null
-    : isUnsafeCompoundCommand_DEPRECATED(input.command)
+  const unsafeCompound: CompoundReason | null = !analysis
+    ? { kind: 'unparseable' }
+    : analysis.compoundStructure.hasCommandGroup
+      ? { kind: 'operator', operator: '{' }
+      : null
   if (unsafeCompound !== null) {
     return {
       behavior: 'ask',

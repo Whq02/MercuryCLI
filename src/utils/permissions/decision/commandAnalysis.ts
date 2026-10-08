@@ -6,7 +6,7 @@ import {
 import {
   extractOutputRedirections,
   getCommandSubcommandPrefix,
-  splitCommand_DEPRECATED,
+  splitCommand,
 } from '../../bash/commands.js'
 import { parseCommandRaw } from '../../bash/parser.js'
 import { tryParseShellCommand } from '../../bash/shellQuote.js'
@@ -35,13 +35,12 @@ export { PS_TOKENIZER_DASH_CHARS } from '../../powershell/parser.js'
 export {
   extractInputRedirections,
   extractOutputRedirections,
-  isUnsafeCompoundCommand_DEPRECATED,
-  splitCommand_DEPRECATED,
+  splitCommand,
   splitCommandWithOperators,
   splitListSegments,
-  type UnsafeCompoundReason_DEPRECATED,
 } from '../../bash/commands.js'
-export { parseForSecurity } from '../../bash/ast.js'
+export { parseForSecurity, checkSemantics, preparedSecurityParse, preparedSimpleCommand, shellCommandText, peelWrappers } from '../../bash/ast.js'
+export { preparedCommandRoot } from '../../bash/parser.js'
 export type { TreeSitterAnalysis } from '../../bash/treeSitterAnalysis.js'
 export { extractHeredocs } from '../../bash/heredoc.js'
 export {
@@ -71,7 +70,7 @@ export interface CommandAnalysisProvider {
   parseForSecurityFromAst: typeof parseForSecurityFromAst
   checkSemantics: typeof checkSemantics
   nodeTypeId: typeof nodeTypeId
-  splitCommand: typeof splitCommand_DEPRECATED
+  splitCommand: typeof splitCommand
   getCommandSubcommandPrefix: typeof getCommandSubcommandPrefix
   extractOutputRedirections: typeof extractOutputRedirections
   tryParseShellCommand: typeof tryParseShellCommand
@@ -88,7 +87,7 @@ export const pinnedCommandAnalysis: CommandAnalysisProvider = {
   parseForSecurityFromAst,
   checkSemantics,
   nodeTypeId,
-  splitCommand: splitCommand_DEPRECATED,
+  splitCommand: splitCommand,
   getCommandSubcommandPrefix,
   extractOutputRedirections,
   tryParseShellCommand,

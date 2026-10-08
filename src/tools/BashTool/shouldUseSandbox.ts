@@ -1,4 +1,4 @@
-import { pinnedCommandAnalysis } from '../../utils/permissions/decision/commandAnalysis.js'
+import { preparedSecurityParse } from '../../utils/permissions/decision/commandAnalysis.js'
 import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
 import {
   BINARY_HIJACK_VARS,
@@ -28,12 +28,9 @@ export function commandQualifiesForExclusion(
 ): boolean {
   if (patterns.length === 0) return false
 
-  let subcommands: string[]
-  try {
-    subcommands = pinnedCommandAnalysis.splitCommand(command)
-  } catch {
-    subcommands = [command]
-  }
+  const parsed = preparedSecurityParse(command)
+  if (parsed.kind !== 'simple') return false
+  const subcommands = parsed.commands.map(simple => simple.text)
 
   const segments = subcommands.map(raw => raw.trim()).filter(segment => segment.length > 0)
   if (segments.length === 0) return false

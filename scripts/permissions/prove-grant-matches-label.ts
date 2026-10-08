@@ -14,7 +14,7 @@ const { createEditRuleSuggestion, createReadRuleSuggestion } = (await import(
   createEditRuleSuggestion?: (dir: string) => unknown
   createReadRuleSuggestion: (dir: string) => unknown
 }
-const { checkPathConstraints } = await import('../../src/tools/BashTool/pathValidation.ts')
+const { checkParsedPaths: checkPathConstraints } = await import('../bash/floor-proof-helpers.ts')
 const { validatePath } = await import('../../src/utils/permissions/pathValidation.ts')
 type Ctx = import('../../src/utils/permissions/permissions.ts').ToolPermissionContext
 
@@ -37,11 +37,11 @@ const emptyCtx = (): Ctx =>
 
 section('§1 THE WRITE-ARM SUGGESTIONS')
 {
-  const result = checkPathConstraints(
+  const result = (await checkPathConstraints(
     { command: `touch ${join(OUTSIDE, 't3.txt')}` },
     process.cwd(),
     emptyCtx(),
-  ) as { behavior: string; suggestions?: Array<{ type: string; rules?: Array<{ toolName: string }> }> }
+  )) as { behavior: string; suggestions?: Array<{ type: string; rules?: Array<{ toolName: string }> }> }
   check('an operand write outside the cwd still asks', result.behavior === 'ask', result.behavior)
   const suggestions = result.suggestions ?? []
   check(

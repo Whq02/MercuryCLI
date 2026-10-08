@@ -49,23 +49,25 @@ function readsOnly(tool: Tool, input: Record<string, unknown>): boolean {
   }
 }
 
-function shellNotReadOnly(input: Record<string, unknown>): NotReadOnly {
+async function shellNotReadOnly(input: Record<string, unknown>): Promise<NotReadOnly> {
   const command = typeof input.command === 'string' ? input.command : ''
   const part = cutPart(command)
   try {
-    return describeBashNotReadOnly(command) ?? { kind: 'screen', part, detail: 'the shell tool did not classify it as read-only.' }
+    return (await describeBashNotReadOnly(command)) ?? { kind: 'screen', part, detail: 'the shell tool did not classify it as read-only.' }
   } catch {
     return { kind: 'unparseable', part }
   }
 }
 
-export function scoutRefusal(tool: Tool, input: Record<string, unknown>): string | null {
+export async function scoutRefusal(tool: Tool, input: Record<string, unknown>): Promise<string | null> {
   if (SCOUT_DENIED_TOOLS.has(tool.name)) return scoutToolRefusal(tool.name)
   if (tool.name === BASH_TOOL_NAME) {
     if (input._simulatedSedEdit !== undefined || input.dangerouslyDisableSandbox === true) {
       return scoutShellRefusal({ kind: 'sandbox', part: cutPart(typeof input.command === 'string' ? input.command : '') })
     }
-    return readsOnly(tool, input) ? null : scoutShellRefusal(shellNotReadOnly(input))
+    await tool.prepare?.(input)
+    if (readsOnly(tool, input)) return null
+    return scoutShellRefusal(await shellNotReadOnly(input))
   }
   if (tool.name === SKILL_TOOL_NAME) return null
   return readsOnly(tool, input) ? null : scoutToolRefusal(tool.name)
@@ -81,7 +83,7 @@ export function restrictScoutTools(tools: Tools): Tools {
   return tools.filter(scoutOffersTool).map(tool => ({
     ...tool,
     async call(...args: Parameters<Tool['call']>) {
-      const refusal = scoutRefusal(tool, args[0])
+      const refusal = await scoutRefusal(tool, args[0])
       if (refusal !== null) throw new Error(refusal)
       return tool.call(...args)
     },

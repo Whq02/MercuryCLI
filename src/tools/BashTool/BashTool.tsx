@@ -45,7 +45,7 @@ import { describeCommandDescription, describeMaxOutputChars, describeRunInBackgr
 import { shouldUseSandbox } from './shouldUseSandbox.js'
 import { firstCommandWord } from '../../utils/shell/shellToolUtils.js'
 import { isSedInPlaceEdit, parseSedEditCommand, applySedSubstitution } from './sedEditParser.js'
-import { checkReadOnlyConstraints } from './readOnlyValidation.js'
+import { prepareBashReadOnly, preparedBashReadsOnly } from './readOnlyValidation.js'
 import { bashToolHasPermission } from './bashPermissions.js'
 import {
   parseForSecurity,
@@ -279,8 +279,7 @@ function commandChangesDirectory(command: string): boolean {
 }
 
 function isBashReadOnly(input: BashToolInput): boolean {
-  const hasCd = commandChangesDirectory(input.command)
-  return checkReadOnlyConstraints({ command: input.command }, hasCd).behavior === 'allow'
+  return preparedBashReadsOnly(input)
 }
 
 
@@ -887,6 +886,7 @@ export const BashTool = buildTool({
     return getSimplePrompt(new Set(tools.map(tool => tool.name)))
   },
   userFacingName,
+  prepare: prepareBashReadOnly,
   isConcurrencySafe(input: BashToolInput): boolean {
     return isBashReadOnly(input)
   },

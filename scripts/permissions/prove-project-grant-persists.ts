@@ -12,7 +12,7 @@ process.env.NODE_ENV = 'test'
 mkdirSync(join(PROJ, '.mercury'), { recursive: true })
 process.chdir(PROJ)
 
-const { checkPathConstraints } = await import('../../src/tools/BashTool/pathValidation.ts')
+const { checkParsedPaths: checkPathConstraints } = await import('../bash/floor-proof-helpers.ts')
 const { persistPermissionUpdate, createEditRuleSuggestion } = await import('../../src/utils/permissions/PermissionUpdate.ts')
 type Ctx = import('../../src/utils/permissions/permissions.ts').ToolPermissionContext
 
@@ -30,7 +30,7 @@ const OUTSIDE = realpathSync(mkdtempSync(join(tmpdir(), 'grant-persist-out-')))
 
 section('§1 THE MINTED DESTINATION')
 {
-  const result = checkPathConstraints({ command: `touch ${join(OUTSIDE, 't.txt')}` }, PROJ, emptyCtx()) as {
+  const result = (await checkPathConstraints({ command: `touch ${join(OUTSIDE, 't.txt')}` }, PROJ, emptyCtx())) as {
     suggestions?: Array<{ type: string; destination?: string; directories?: string[] }>
   }
   const dirSuggestion = (result.suggestions ?? []).find(s => s.type === 'addRules')

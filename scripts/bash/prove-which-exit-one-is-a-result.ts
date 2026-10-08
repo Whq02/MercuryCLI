@@ -53,7 +53,9 @@ type Mapper = { mapToolResultToToolResultBlockParam: (output: never, id: string)
 type Drive = { ok: true; out: Out; content: string } | { ok: false; error: string }
 async function drive(command: string): Promise<Drive> {
   try {
-    const result = await (BashTool as unknown as Caller).call({ command } as never, toolContext)
+    const input = { command }
+    await BashTool.prepare?.(input as never)
+    const result = await (BashTool as unknown as Caller).call(input as never, toolContext)
     const block = (BashTool as unknown as Mapper).mapToolResultToToolResultBlockParam(result.data as never, 'which-exit-one')
     return { ok: true, out: result.data as Out, content: typeof block.content === 'string' ? block.content : JSON.stringify(block.content) }
   } catch (error) {

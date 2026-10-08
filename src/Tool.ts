@@ -366,6 +366,7 @@ interface ToolMembers<TInput, TOutput, TProgress extends ToolProgressData> {
   mcpInfo?: McpToolInfo
   isLsp?: boolean
   isEnabled?(): boolean
+  prepare?(input: TInput): Promise<void>
   isConcurrencySafe?(input: any): boolean
   isReadOnly?(input: any): boolean
   isDestructive?(input: any): boolean

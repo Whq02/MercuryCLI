@@ -33,7 +33,7 @@ function pushVerdictAtBoot(context: ToolPermissionContext): PermissionResult | n
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const bash = require('../../tools/BashTool/bashPermissions.js') as typeof import('../../tools/BashTool/bashPermissions.js')
-    return bash.bashToolCheckPermission({ command: PUSH_PROBE }, context)
+    return bash.readBashRuleVerdict({ command: PUSH_PROBE }, context)
   } catch {
     return null
   }
