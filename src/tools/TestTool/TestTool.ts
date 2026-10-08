@@ -184,7 +184,7 @@ async function runRunnerOp(
   const selection = input.node ?? (input.path ? expandPath(input.path) : undefined)
   const label = input.node ? `nodes:${input.node}` : input.path ? `file:${input.path}` : 'all'
   const out = await runRunnerProfile(profile, {
-    ...(selection !== undefined ? { selection, selectionLabel: label } : {}),
+    ...(selection !== undefined ? { selection, selectionKind: input.node ? ('node' as const) : ('path' as const), selectionLabel: label } : {}),
     ...(onOutput ? { onOutput } : {}),
     ...(signal ? { signal } : {}),
   })
