@@ -110,8 +110,8 @@ if (process.argv.includes('--child')) {
     { atTick: 100, awaitText: 'fixture ready', requireAwait: true, awaitStableTicks: 2, data: 'd', mark: 'waiting' },
     { afterPrevTicks: 2, awaitText: 'stage delivered', requireAwait: true, awaitStableTicks: 2, data: 't', mark: 'delivered' },
     { afterPrevTicks: 2, awaitText: 'stage later', requireAwait: true, awaitStableTicks: 2, data: '\r', mark: 'folded' },
-    { afterPrevTicks: 4, data: '\r', mark: 'expanded' },
-    { afterPrevTicks: 4, data: 'o', mark: 'collapsed' },
+    { afterPrevTicks: 4, awaitText: 'watch-line-40', requireAwait: true, awaitStableTicks: 2, data: '\r', mark: 'expanded' },
+    { afterPrevTicks: 4, awaitText: '40 lines ›', requireAwait: true, awaitStableTicks: 2, data: 'o', mark: 'collapsed' },
     { afterPrevTicks: 4, awaitText: 'stage full', requireAwait: true, awaitStableTicks: 2, data: '', mark: 'full' },
   ] }))
   const cap = spawnSync(driver.python, [captureEngineEntry(driver, ROOT), cfg], { encoding: 'utf8', timeout: vshotBudgetMs(90_000), env: { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_OPERATOR: 'sam' } })
