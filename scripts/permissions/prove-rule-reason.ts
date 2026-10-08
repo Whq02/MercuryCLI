@@ -60,7 +60,8 @@ const { applyPermissionRulesToPermissionContext, syncPermissionRulesFromDisk, ha
 const { applyPermissionUpdate } = await import('../../src/utils/permissions/PermissionUpdate.js')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
 const { checkReadPermissionForTool, checkWritePermissionForTool } = await import('../../src/utils/permissions/filesystem.js')
-const { bashToolCheckExactMatchPermission, bashToolCheckPermission, bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.js')
+const { bashToolCheckExactMatchPermission, bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.js')
+const { checkParsedCommand: bashToolCheckPermission } = await import('../bash/floor-proof-helpers.ts')
 const { SandboxManager } = await import('../../src/utils/sandbox/sandbox-adapter.js')
 const { PermissionRuleExplanation } = await import('../../src/components/permissions/PermissionRuleExplanation.js')
 const { FallbackPermissionRequest } = await import('../../src/components/permissions/FallbackPermissionRequest.js')
@@ -71,7 +72,7 @@ const { TerminalSizeContext } = await import('../../src/ink/components/TerminalS
 const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
 const { Box, EventEmitter, render, flushPendingSyncWork } = await import('../../src/ink.js')
 const { default: Ajv2020 } = await import('ajv/dist/2020.js')
-const { checkPathConstraints } = await import('../../src/tools/BashTool/pathValidation.js')
+const { checkParsedPaths: checkPathConstraints } = await import('../bash/floor-proof-helpers.ts')
 const { AstEditTool } = await import('../../src/tools/AstEditTool/AstEditTool.js')
 const { ChangeSetTool } = await import('../../src/tools/ChangeSetTool/ChangeSetTool.js')
 const { buildAgentLaunchPlan } = await import('../../src/utils/crew/agentLaunchPlan.js')
@@ -263,7 +264,7 @@ section('§6 THE BASH ROAD — every deny sentence says the words; the longer pr
   const R_ENVIRON = 'process environment files hold secrets'
   const bashCtx = (deny: string[], reasons?: Reasons): Ctx => ctxWith({ deny }, reasons, 'userSettings')
   const exact = (command: string, ctx: Ctx): Decision => bashToolCheckExactMatchPermission({ command } as never, ctx as never) as unknown as Decision
-  const perSub = (command: string, ctx: Ctx): Decision => bashToolCheckPermission({ command } as never, ctx as never) as unknown as Decision
+  const perSub = async (command: string, ctx: Ctx): Promise<Decision> => await bashToolCheckPermission({ command } as never, ctx as never) as unknown as Decision
   const whole = (command: string, ctx: Ctx): Promise<Decision> => bashToolHasPermission({ command } as never, ctx as never) as unknown as Promise<Decision>
 
   const exactPlain = exact('git push origin main', bashCtx(['Bash(git push origin main)']))
@@ -272,16 +273,16 @@ section('§6 THE BASH ROAD — every deny sentence says the words; the longer pr
   check('1 the exact-match deny says the words', exactSaid.behavior === 'deny' && exactSaid.message === `git push origin main is denied by the rule Bash(git push origin main) in your user settings: ${R_PUSH}.`, j(exactSaid))
   check('…and its rule carries the reason for the transcript', exactSaid.decisionReason?.rule?.ruleValue.reason === R_PUSH, j(exactSaid.decisionReason))
 
-  const subPlain = perSub('git push origin main', bashCtx(['Bash(git push *)']))
+  const subPlain = (await perSub('git push origin main', bashCtx(['Bash(git push *)'])))
   check('control: a prefix deny without a reason speaks the rule sentence', subPlain.behavior === 'deny' && subPlain.message === 'git push origin main is denied by the rule Bash(git push *) in your user settings.', j(subPlain))
-  const subSaid = perSub('git push origin main', bashCtx(['Bash(git push *)'], { 'Bash(git push *)': R_PUSH }))
+  const subSaid = (await perSub('git push origin main', bashCtx(['Bash(git push *)'], { 'Bash(git push *)': R_PUSH })))
   check('2 the per-subcommand prefix deny says the words', subSaid.behavior === 'deny' && subSaid.message === `git push origin main is denied by the rule Bash(git push *) in your user settings: ${R_PUSH}.`, j(subSaid))
   const bothPrefixes = { 'Bash(git *)': R_GIT, 'Bash(git push *)': R_PUSH }
-  const shortFirst = perSub('git push origin main', bashCtx(['Bash(git *)', 'Bash(git push *)'], bothPrefixes))
+  const shortFirst = (await perSub('git push origin main', bashCtx(['Bash(git *)', 'Bash(git push *)'], bothPrefixes)))
   check('two matching prefix rules, the short one listed first: the longer prefix\'s words win', shortFirst.message === `git push origin main is denied by the rule Bash(git *) in your user settings: ${R_PUSH}.`, j(shortFirst))
-  const longFirst = perSub('git push origin main', bashCtx(['Bash(git push *)', 'Bash(git *)'], bothPrefixes))
+  const longFirst = (await perSub('git push origin main', bashCtx(['Bash(git push *)', 'Bash(git *)'], bothPrefixes)))
   check('…in either order', longFirst.message === `git push origin main is denied by the rule Bash(git push *) in your user settings: ${R_PUSH}.`, j(longFirst))
-  const fetchSaid = perSub('git fetch origin', bashCtx(['Bash(git *)', 'Bash(git push *)'], bothPrefixes))
+  const fetchSaid = (await perSub('git fetch origin', bashCtx(['Bash(git *)', 'Bash(git push *)'], bothPrefixes)))
   check('a command only the short prefix covers gets the short prefix\'s words', fetchSaid.message === `git fetch origin is denied by the rule Bash(git *) in your user settings: ${R_GIT}.`, j(fetchSaid))
 
   const gates = { enabled: SandboxManager.isSandboxingEnabled, auto: SandboxManager.isAutoAllowBashIfSandboxedEnabled, unsandboxed: SandboxManager.areUnsandboxedCommandsAllowed }
@@ -432,19 +433,19 @@ section('§8 THE BESPOKE TOOL SENTENCES — a Bash operand, a redirection, a str
   const key = join(PROJ, 'secrets', 'k.pem')
   const prodKey = join(PROJ, 'secrets', 'prod', 'k.pem')
   const useContext = (ctx: Ctx): unknown => ({ abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: ctx }), setAppState: () => {}, messages: [], options: {} })
-  const bash = (command: string, ctx: Ctx): Decision => checkPathConstraints({ command }, PROJ, ctx as never) as unknown as Decision
+  const bash = async (command: string, ctx: Ctx): Promise<Decision> => await checkPathConstraints({ command }, PROJ, ctx as never) as unknown as Decision
 
-  const operandPlain = bash('cat secrets/k.pem', ctxWith({ deny: ['Read(secrets/**)'] }))
+  const operandPlain = (await bash('cat secrets/k.pem', ctxWith({ deny: ['Read(secrets/**)'] })))
   check('control: a Bash operand blocked by a file deny rule without a reason speaks the rule sentence', operandPlain.behavior === 'deny' && operandPlain.message === `The cat of ${key} is denied by the rule Read(secrets/**) from this session.`, j(operandPlain))
-  const operandSaid = bash('cat secrets/k.pem', ctxWith({ deny: ['Read(secrets/**)'] }, { 'Read(secrets/**)': R_SECRETS }))
+  const operandSaid = (await bash('cat secrets/k.pem', ctxWith({ deny: ['Read(secrets/**)'] }, { 'Read(secrets/**)': R_SECRETS })))
   check('1 a Bash operand blocked by a file deny rule says the words', operandSaid.behavior === 'deny' && operandSaid.message === `The cat of ${key} is denied by the rule Read(secrets/**) from this session: ${R_SECRETS}.`, j(operandSaid))
   check('…and its rule carries the reason for the transcript', operandSaid.decisionReason?.rule?.ruleValue.reason === R_SECRETS, j(operandSaid.decisionReason))
-  const operandNarrow = bash('cat secrets/prod/k.pem', ctxWith({ deny: ['Read(secrets/**)', 'Read(secrets/prod/**)'] }, { 'Read(secrets/**)': R_SECRETS, 'Read(secrets/prod/**)': R_PROD }))
+  const operandNarrow = (await bash('cat secrets/prod/k.pem', ctxWith({ deny: ['Read(secrets/**)', 'Read(secrets/prod/**)'] }, { 'Read(secrets/**)': R_SECRETS, 'Read(secrets/prod/**)': R_PROD })))
   check('…two matching rules, the wide one listed first: the more specific rule\'s words win, as on the Read ladder', operandNarrow.message === `The cat of ${prodKey} is denied by the rule Read(secrets/**) from this session: ${R_PROD}.`, j(operandNarrow))
 
-  const redirectPlain = bash('echo hi > secrets/k.pem', ctxWith({ deny: ['Edit(secrets/**)'] }))
+  const redirectPlain = (await bash('echo hi > secrets/k.pem', ctxWith({ deny: ['Edit(secrets/**)'] })))
   check('control: a redirection blocked by a file deny rule without a reason speaks the rule sentence', redirectPlain.behavior === 'deny' && redirectPlain.message === `The redirection to ${key} is denied by the rule Edit(secrets/**) from this session.`, j(redirectPlain))
-  const redirectSaid = bash('echo hi > secrets/k.pem', ctxWith({ deny: ['Edit(secrets/**)'] }, { 'Edit(secrets/**)': R_SECRETS }))
+  const redirectSaid = (await bash('echo hi > secrets/k.pem', ctxWith({ deny: ['Edit(secrets/**)'] }, { 'Edit(secrets/**)': R_SECRETS })))
   check('2 a redirection blocked by a file deny rule says the words', redirectSaid.behavior === 'deny' && redirectSaid.message === `The redirection to ${key} is denied by the rule Edit(secrets/**) from this session: ${R_SECRETS}.`, j(redirectSaid))
 
   const astDir = join(PROJ, 'ast')

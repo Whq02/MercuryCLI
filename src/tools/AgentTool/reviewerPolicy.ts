@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { whichSync } from '../../utils/which.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getCwd } from '../../utils/cwd.js'
-import { commandWords } from '../../utils/hooks/generatedAssets.js'
+import { parseForSecurity, checkSemantics } from '../../utils/permissions/decision/commandAnalysis.js'
 import { boxLockDirOfScript } from '../../utils/boxLock.js'
 import { quote } from '../../utils/bash/shellQuote.js'
 import { BASH_TOOL_NAME } from '../BashTool/toolName.js'
@@ -46,14 +46,21 @@ function within(root: string, path: string): boolean {
   return rest === '' || rest !== '..' && !rest.startsWith(`..${sep}`) && !isAbsolute(rest)
 }
 
-function verificationCommand(command: string, worktree: string, receipt: string): { command: string; lockRoot?: string } | null {
+async function commandWords(command: string): Promise<string[] | null> {
+  const parsed = await parseForSecurity(command)
+  if (parsed.kind !== 'simple' || parsed.commands.length !== 1 || !checkSemantics(parsed.commands).ok) return null
+  const simple = parsed.commands[0]!
+  return simple.redirects.length || simple.envVars.length ? null : simple.argv
+}
+
+async function verificationCommand(command: string, worktree: string, receipt: string): Promise<{ command: string; lockRoot?: string } | null> {
   const cd = /^cd\s+("(?:[^"\\]|\\.)*"|'[^']*'|\S+)\s+&&\s+([\s\S]+)$/.exec(command)
   if (cd) {
-    const directory = commandWords(`cd ${cd[1]}`)?.[1]
+    const directory = (await commandWords(`cd ${cd[1]}`))?.[1]
     try { if (!directory || realpathSync(resolve(worktree, directory)) !== worktree) return null } catch { return null }
     command = cd[2]!
   }
-  const words = commandWords(command)
+  const words = await commandWords(command)
   if (!words?.length) return null
   const executable = basename(words[0]!).replace(/\.exe$/i, '')
   if (executable !== 'bun' && executable !== 'bash') return null
@@ -66,7 +73,7 @@ function verificationCommand(command: string, worktree: string, receipt: string)
   try { path = realpathSync(resolve(worktree, program)); if (!statSync(path).isFile()) return null } catch { return null }
   if (executable === 'bash' && basename(path) === 'with-box-lock.sh') {
     if (!args[1] || !/^[A-Za-z0-9_.-]+$/.test(args[1])) return null
-    const inner = verificationCommand(quote(args.slice(2)), worktree, receipt)
+    const inner = await verificationCommand(quote(args.slice(2)), worktree, receipt)
     if (inner === null || inner.lockRoot !== undefined) return null
     const base = boxLockDirOfScript(path)
     if (!base) return null
@@ -119,11 +126,12 @@ function reviewSection(text: string, append: boolean): boolean {
   return append ? headings.length === 0 : headings.length === 1 && headings[0]?.heading === '## Review' && text.trimStart().startsWith('## Review\n')
 }
 
-export function reviewerRefusal(tool: Tool, input: Record<string, unknown>, receipt: string, worktree: string): string | null {
+export async function reviewerRefusal(tool: Tool, input: Record<string, unknown>, receipt: string, worktree: string): Promise<string | null> {
+  if (tool.name === BASH_TOOL_NAME) await tool.prepare?.(input)
   if (tool.name !== FILE_EDIT_TOOL_NAME) {
     if (tool.name === BASH_TOOL_NAME) {
       if (input._simulatedSedEdit !== undefined || input.dangerouslyDisableSandbox === true) return 'Reviewer commands cannot bypass their write protection.'
-      if (typeof input.command === 'string' && verificationCommand(input.command, realpathSync(worktree), receipt) !== null) return null
+      if (typeof input.command === 'string' && await verificationCommand(input.command, realpathSync(worktree), receipt) !== null) return null
     }
     return tool.isReadOnly(input) ? null : 'Reviewer tools allow read-only commands and confined bun/bash verification under scripts, not shell writes, Git mutations or arbitrary programs.'
   }
@@ -161,11 +169,11 @@ export function restrictReviewerTools(tools: Tools, receiptPath: string, worktre
   return tools.filter(reviewerOffersTool).map(tool => ({
     ...tool,
     async call(...args: Parameters<Tool['call']>) {
-      const refusal = reviewerRefusal(tool, args[0], receipt, worktree)
+      const refusal = await reviewerRefusal(tool, args[0], receipt, worktree)
       if (refusal !== null) throw new Error(refusal)
       if (tool.name === FILE_EDIT_TOOL_NAME) args[0] = { ...args[0], file_path: receipt }
       const verification = tool.name === BASH_TOOL_NAME && typeof args[0].command === 'string'
-        ? verificationCommand(args[0].command, worktree, receipt) : null
+        ? await verificationCommand(args[0].command, worktree, receipt) : null
       if (verification === null) {
         if (tool.name === BASH_TOOL_NAME && !tool.isReadOnly(args[0])) throw new Error('Reviewer verification changed after admission; no command ran.')
         return tool.call(...args)

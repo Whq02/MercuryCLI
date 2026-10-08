@@ -139,7 +139,6 @@ export type PermissionAskDecision<
   suggestions?: PermissionUpdate[]
   blockedPath?: string
   metadata?: PermissionMetadata
-  isBashSecurityCheckForMisparsing?: boolean
   contentBlocks?: unknown[]
 }
 

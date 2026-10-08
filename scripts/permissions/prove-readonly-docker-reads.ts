@@ -23,7 +23,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 
-const readsOnly = (command: string, cd = false): boolean => checkReadOnlyConstraints({ command }, cd).behavior === 'allow'
+const readsOnly = async (command: string, cd = false): Promise<boolean> => (await checkReadOnlyConstraints({ command }, cd)).behavior === 'allow'
 
 const READS = [
   'docker ps',
@@ -73,25 +73,25 @@ const WRITES = [
 
 console.log('1. the four docker reads are read-only, with their flags, in a pipe and beside a cd')
 for (const command of READS) {
-  check(`read-only: ${command}`, readsOnly(command))
-  check(`read-only beside a cd: ${command}`, readsOnly(command, true))
+  check(`read-only: ${command}`, (await readsOnly(command)))
+  check(`read-only beside a cd: ${command}`, await readsOnly(command, true))
 }
 
 console.log('2. every other docker verb asks: it runs, changes or removes something the read-only list cannot vouch for')
 for (const command of WRITES) {
-  check(`asks: ${command}`, !readsOnly(command))
+  check(`asks: ${command}`, !(await readsOnly(command)))
 }
 
 console.log('3. the refusal names docker and its form')
 for (const command of ['docker run -it ubuntu bash', 'docker rm -f web', 'docker exec -it web sh']) {
-  const reason = describeBashNotReadOnly(command)
+  const reason = await describeBashNotReadOnly(command)
   check(`the reason for ${JSON.stringify(command)} is a form refusal naming docker`, reason !== null && reason.kind === 'form' && reason.word === 'docker', JSON.stringify(reason))
   check(`its clause says so`, reason !== null && notReadOnlyClause(reason) === 'it is not a read-only form of `docker`', reason === null ? 'null' : notReadOnlyClause(reason))
 }
 
 console.log('4. a docker read with a shell expansion or an unknown flag is not vouched for')
 for (const command of ['docker ps $(cat x)', 'docker logs $NAME', 'docker ps --wipe', 'docker inspect --unknown web']) {
-  check(`asks: ${command}`, !readsOnly(command))
+  check(`asks: ${command}`, !(await readsOnly(command)))
 }
 
 console.log('5. PowerShell reads the same four forms through the same flag tables')

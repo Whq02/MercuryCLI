@@ -21,7 +21,8 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.js')
-const { checkPathConstraints, PATH_EXTRACTORS } = await import('../../src/tools/BashTool/pathValidation.js')
+const { PATH_EXTRACTORS } = await import('../../src/tools/BashTool/pathValidation.js')
+const { checkParsedPaths: checkPathConstraints } = await import('./floor-proof-helpers.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
 
 let failures = 0
@@ -68,9 +69,9 @@ console.log('\n2. the option table')
 
 console.log('\n3. the path check passes a program that only looks like a path')
 {
-  const slash = checkPathConstraints({ command: 'awk "/zzz/{f=1} END{exit !f}" s.txt' }, root, context() as never) as Verdict
+  const slash = (await checkPathConstraints({ command: 'awk "/zzz/{f=1} END{exit !f}" s.txt' }, root, context() as never)) as Verdict
   check('awk "/zzz/{f=1} END{exit !f}" s.txt → passthrough', slash.behavior === 'passthrough', shown(slash))
-  const dollar = checkPathConstraints({ command: "awk '{print $1}' s.txt" }, root, context() as never) as Verdict
+  const dollar = (await checkPathConstraints({ command: "awk '{print $1}' s.txt" }, root, context() as never)) as Verdict
   check("awk '{print $1}' s.txt → passthrough", dollar.behavior === 'passthrough', shown(dollar))
 }
 

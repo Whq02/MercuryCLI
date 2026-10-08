@@ -92,6 +92,21 @@ filesystem restrictions. A hosted runner puts a permission ask to its host;
 without an answer, it is not approval. A hostless `mercury run` denies a
 call that still needs approval after its rules and mode are applied.
 
+## Bash command permissions
+
+Bash reads a command with a shell parser before deciding whether it may run.
+The parsed commands, arguments and redirections are checked against permission
+rules, file access and the listed read-only forms. Quoted punctuation and a
+quoted heredoc body are data, not hidden shell commands.
+
+A command whose effect cannot be established asks for approval and names the
+construct and a way to make it explicit. This includes a command substitution
+feeding a recursive delete, a path supplied at runtime, and syntax the parser
+cannot read. An unavailable parser returns an ordinary permission ask, not a
+read-only approval. Sovereign mode may answer that ask; a mode that still asks
+needs a host to approve it, and a hostless call is refused. Deny rules still
+win over an ask or an allow; file and sandbox restrictions still apply.
+
 ## Commands that never reach the model
 
 A user-private command runs on the screen alone, on every seat — it never

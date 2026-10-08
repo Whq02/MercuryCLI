@@ -24,17 +24,20 @@ console.log('============================================================')
 
 section('§1 the interpretation, per command')
 const { interpretCommandResult } = await import('../../src/tools/BashTool/commandSemantics.ts')
-const verdict = (command: string, code: number): { isError: boolean; message?: string } => interpretCommandResult(command, code, '', '')
-const answers = (command: string, code: number, words: string): boolean => {
-  const v = verdict(command, code)
+const verdict = async (command: string, code: number): Promise<{ isError: boolean; message?: string }> => {
+  await (await import('../../src/utils/permissions/decision/commandAnalysis.ts')).parseForSecurity(command)
+  return interpretCommandResult(command, code, '', '')
+}
+const answers = async (command: string, code: number, words: string): Promise<boolean> => {
+  const v = await verdict(command, code)
   return v.isError === false && (v.message ?? '').includes(words)
 }
-check('pgrep exit 1 reads as no process matched', answers('pgrep -x nothing', 1, 'no process matched'), JSON.stringify(verdict('pgrep -x nothing', 1)))
-check("the record's shape: pgrep -fl with a quoted alternation", answers("pgrep -fl 'Atheltide.app/Contents/MacOS/Atheltide|Electron.app/Contents/MacOS/Electron'", 1, 'no process matched'), JSON.stringify(verdict("pgrep -fl 'a|b'", 1)))
-check('pgrep exit 0 is plain success with no note', verdict('pgrep -x node', 0).isError === false && verdict('pgrep -x node', 0).message === undefined)
-check('pgrep exit 2 (a bad option) stays an error', verdict('pgrep --nonsense', 2).isError === true)
-check('cmp exit 1 reads as files differ', answers('cmp a b', 1, 'files differ'), JSON.stringify(verdict('cmp a b', 1)))
-check('cmp exit 2 (a missing file) stays an error', verdict('cmp a missing', 2).isError === true)
+check('pgrep exit 1 reads as no process matched', (await answers('pgrep -x nothing', 1, 'no process matched')), JSON.stringify((await verdict('pgrep -x nothing', 1))))
+check("the record's shape: pgrep -fl with a quoted alternation", (await answers("pgrep -fl 'Atheltide.app/Contents/MacOS/Atheltide|Electron.app/Contents/MacOS/Electron'", 1, 'no process matched')), JSON.stringify((await verdict("pgrep -fl 'a|b'", 1))))
+check('pgrep exit 0 is plain success with no note', (await verdict('pgrep -x node', 0)).isError === false && (await verdict('pgrep -x node', 0)).message === undefined)
+check('pgrep exit 2 (a bad option) stays an error', (await verdict('pgrep --nonsense', 2)).isError === true)
+check('cmp exit 1 reads as files differ', (await answers('cmp a b', 1, 'files differ')), JSON.stringify((await verdict('cmp a b', 1))))
+check('cmp exit 2 (a missing file) stays an error', (await verdict('cmp a missing', 2)).isError === true)
 for (const [command, words] of [
   ['grep zzz file', 'no matches found'],
   ['rg zzz', 'no matches found'],
@@ -42,14 +45,14 @@ for (const [command, words] of [
   ['test -f missing', 'condition is false'],
   ['[ -f missing ]', 'condition is false'],
 ] as const) {
-  check(`${command.split(' ')[0]} exit 1 keeps its answer`, answers(command, 1, words), JSON.stringify(verdict(command, 1)))
+  check(`${command.split(' ')[0]} exit 1 keeps its answer`, (await answers(command, 1, words)), JSON.stringify((await verdict(command, 1))))
 }
-check('a pipeline is judged by its last stage', answers('ps aux | grep -q zzz', 1, 'no matches found'), JSON.stringify(verdict('ps aux | grep -q zzz', 1)))
-check('a leading variable assignment does not hide the command', answers('LC_ALL=C pgrep -x nothing', 1, 'no process matched'), JSON.stringify(verdict('LC_ALL=C pgrep -x nothing', 1)))
-check('a leading env does not hide the command', answers('env LC_ALL=C pgrep -x nothing', 1, 'no process matched'), JSON.stringify(verdict('env LC_ALL=C pgrep -x nothing', 1)))
-check('an unrelated command exiting 1 stays an error naming the code', verdict('ls /no/such', 1).isError === true && /exit code 1/.test(verdict('ls /no/such', 1).message ?? ''), JSON.stringify(verdict('ls /no/such', 1)))
-check('node exiting 1 stays an error', verdict('node script.js', 1).isError === true)
-check('a chain whose last stage is not a lookup stays an error', verdict('pgrep -x nothing && echo running', 1).isError === true)
+check('a pipeline is judged by its last stage', (await answers('ps aux | grep -q zzz', 1, 'no matches found')), JSON.stringify((await verdict('ps aux | grep -q zzz', 1))))
+check('a leading variable assignment does not hide the command', (await answers('LC_ALL=C pgrep -x nothing', 1, 'no process matched')), JSON.stringify((await verdict('LC_ALL=C pgrep -x nothing', 1))))
+check('a leading env does not hide the command', (await answers('env LC_ALL=C pgrep -x nothing', 1, 'no process matched')), JSON.stringify((await verdict('env LC_ALL=C pgrep -x nothing', 1))))
+check('an unrelated command exiting 1 stays an error naming the code', (await verdict('ls /no/such', 1)).isError === true && /exit code 1/.test((await verdict('ls /no/such', 1)).message ?? ''), JSON.stringify((await verdict('ls /no/such', 1))))
+check('node exiting 1 stays an error', (await verdict('node script.js', 1)).isError === true)
+check('a chain whose last stage is not a lookup stays an error', (await verdict('pgrep -x nothing && echo running', 1)).isError === true)
 
 section('§2 the built product: run mode, the model played by the fixture, the results read off the wire')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')

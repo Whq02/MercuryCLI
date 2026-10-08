@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // gate-watch: src/tools/BashTool/bashPermissions.ts src/tools/BashTool/readOnlyValidation.ts src/tools/BashTool/pathValidation.ts
-// gate-watch: src/tools/BashTool/bashCommandHelpers.ts src/tools/BashTool/bashSecurity.ts src/utils/bash/commands.ts src/utils/bash/ParsedCommand.ts src/Tool.ts
+// gate-watch: src/tools/BashTool/bashCommandHelpers.ts src/utils/bash/commands.ts src/utils/bash/ParsedCommand.ts src/Tool.ts
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -94,14 +94,14 @@ console.log('\n6. a cd in the same command asks with the read twin of the redire
 console.log('\n7. the shapes that keep refusing')
 {
   const subst = await decide('wc -l <(cat l_data.txt)')
-  check('wc -l <(cat l_data.txt) → ask naming the parsed construct', subst.behavior === 'ask' && subst.message === 'contains process_substitution; simplify the command, or approve', shown(subst))
+  check('wc -l <(cat l_data.txt) → ask naming the parsed construct', subst.behavior === 'ask' && subst.message === 'a process substitution starts another command; run that command separately, or approve', shown(subst))
   const path = checkPathConstraints({ command: 'wc -l <(cat l_data.txt)' }, root, context() as never) as Verdict
-  check('the path check keeps its process-substitution words', path.behavior === 'ask' && (path.message ?? '').startsWith('This command uses process substitution'), shown(path))
+  check('the path check keeps its process-substitution words', path.behavior === 'ask' && (path.message ?? '').startsWith('a process substitution starts another command'), shown(path))
   const rows: Array<[string, string, string | undefined]> = [
-    ['wc -l <<< "a b"', 'passthrough', '`wc -l <<< "a b"` requires approval: `` is not a command Mercury can verify as read-only.'],
-    ['cat <> l_data.txt', 'ask', 'parse error; simplify the command, or approve'],
+    ['wc -l <<< "a b"', 'allow', undefined],
+    ['cat <> l_data.txt', 'ask', 'the shell parser found incomplete or invalid syntax; fix the quotes or operators, or approve'],
     ['cat 3< l_data.txt', 'allow', undefined],
-    ['cat < $F', 'ask', 'contains simple_expansion; simplify the command, or approve'],
+    ['cat < $F', 'ask', 'the expansion "$F" supplies a value at runtime; spell out the value, or approve'],
     ['cat < *.txt', 'ask', 'the redirect target contains an unquoted path expansion; spell out the path, or approve'],
   ]
   for (const [command, behavior, want] of rows) {
@@ -118,9 +118,9 @@ console.log('\n7. the shapes that keep refusing')
 
 console.log("\n8. the scout's test: the read-only rule allows the redirect")
 {
-  const v = checkReadOnlyConstraints({ command: 'wc -l < l_data.txt' }, false)
+  const v = await checkReadOnlyConstraints({ command: 'wc -l < l_data.txt' }, false)
   check("checkReadOnlyConstraints({command: 'wc -l < l_data.txt'}, false).behavior === 'allow'", v.behavior === 'allow', shown(v as Verdict))
-  const piped = checkReadOnlyConstraints({ command: 'sort < l_data.txt | head -n 3' }, false)
+  const piped = await checkReadOnlyConstraints({ command: 'sort < l_data.txt | head -n 3' }, false)
   check('sort < l_data.txt | head -n 3 is read-only', piped.behavior === 'allow', shown(piped as Verdict))
 }
 

@@ -90,7 +90,7 @@ function promptTextOf(a: { agentType: string; getSystemPrompt?: (ctx?: unknown) 
   check('§5 the scout keeps the readers and the shell', ['Read', 'Glob', 'Grep', 'Bash'].every(n => offered.some(t => t.name === n)), offered.map(t => t.name).join(','))
   check('§5 the scout is offered no editor, no agent spawn, no worktree door and no memory writer', !['Edit', 'Write', 'NotebookEdit', 'Agent', 'EnterWorktree', 'ExitWorktree', 'Retain', 'Correct', 'SendMessage', 'ResumeAgent', 'CronCreate', 'ScheduleWakeup'].some(n => offered.some(t => t.name === n)), offered.map(t => t.name).join(','))
   const writerAtRest = base.filter(t => t.name !== 'Bash' && !atRest(t))
-  check('§5 the ask road denies every writer the pool knows and passes every reader', writerAtRest.length > 0 && writerAtRest.filter(t => t.name !== 'Skill').every(t => scoutRefusal(t as never, {}) !== null) && offered.filter(t => t.name !== 'Bash').every(t => scoutRefusal(t as never, {}) === null), writerAtRest.map(t => t.name).join(','))
+  check('§5 the ask road denies every writer the pool knows and passes every reader', writerAtRest.length > 0 && (await Promise.all(writerAtRest.filter(t => t.name !== 'Skill').map(t => scoutRefusal(t as never, {})))).every(result => result !== null) && (await Promise.all(offered.filter(t => t.name !== 'Bash').map(t => scoutRefusal(t as never, {})))).every(result => result === null), writerAtRest.map(t => t.name).join(','))
 }
 
 {

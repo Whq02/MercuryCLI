@@ -48,6 +48,7 @@ function diskRules(): string[] {
   return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')).guardrails?.allow ?? [] : []
 }
 async function yes(h: ReturnType<typeof harness>, command: string, road: string, updates: any[] = []) {
+  await (await import('../../src/utils/permissions/decision/commandAnalysis.ts')).parseForSecurity(command)
   if (road === 'host') return decisionOfAnswer({ outcome: 'allow', rules: updates }, tool, { command }, h.context)
   const ctx = createPermissionContext(tool, { command }, h.context, assistant, 'yes', h.set)
   return ctx.handleUserAllow({ command }, updates)
