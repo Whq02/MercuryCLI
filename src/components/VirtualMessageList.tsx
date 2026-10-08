@@ -20,6 +20,7 @@ import { InteractiveDisclosure } from './mercury-ui/InteractiveDisclosure.js'
 import { useHoverOwned } from './mercury-ui/useHoverOwned.js'
 import { claimHover, releaseHover } from '../utils/cockpit/hoverOwner.js'
 import type { RenderableMessage } from '../types/message.js'
+import { hasNoticeFold } from '../utils/messages/noticeRows.js'
 import {
   facetsSatisfy,
   parseSearchQuery,
@@ -233,6 +234,7 @@ export function VirtualMessageList({
       setCursor({
         uuid: (msg as { uuid: string }).uuid,
         type: msg.type,
+        ...(hasNoticeFold(msg) ? { notice: true as const } : {}),
         expanded: false,
         toolName: call?.name,
       })

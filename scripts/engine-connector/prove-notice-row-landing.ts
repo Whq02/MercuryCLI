@@ -91,7 +91,7 @@ section('N5 a notice taken between turns: its placeholder retires on the user-ro
   g.reconcileQueuedSends(facts([{ value: NOTE, mode: 'task-notification' }]))
   check('the seat paints the placeholder the moment the facts carry the notice, queued', sendOf(NOTE)?.state === 'queued' && timesShown(NOTE) === 1, `state=${sendOf(NOTE)?.state} shown=${timesShown(NOTE)}`)
   g.reconcileQueuedSends(facts([]))
-  check('the runner takes it: the placeholder reads taken and still paints once', sendOf(NOTE)?.state === 'taken' && timesShown(NOTE) === 1, `state=${sendOf(NOTE)?.state} shown=${timesShown(NOTE)}`)
+  check('the runner takes it: the placeholder reads taken and still paints once', sendOf(NOTE) === undefined && timesShown(NOTE) === 1, `state=${sendOf(NOTE)?.state} shown=${timesShown(NOTE)}`)
   await write([
     createUserMessage({ content: NOTE }),
     createAssistantMessage({ content: 'noted: the errand reported' }),
@@ -111,7 +111,7 @@ section('N6 a notice taken mid-turn still retires on the attachment landing')
   const NOTE = notice('t-midturn', 'the mid-turn errand')
   g.reconcileQueuedSends(facts([{ value: NOTE, mode: 'task-notification' }]))
   g.reconcileQueuedSends(facts([]))
-  check('the placeholder stands taken before the drain lands', sendOf(NOTE)?.state === 'taken' && timesShown(NOTE) === 1)
+  check('the placeholder stands taken before the drain lands', sendOf(NOTE) === undefined && timesShown(NOTE) === 1)
   await write([
     createAttachmentMessage({ type: 'queued_command', prompt: NOTE, commandMode: 'task-notification' } as never),
     createAssistantMessage({ content: 'noted: the mid-turn errand reported' }),
@@ -120,20 +120,24 @@ section('N6 a notice taken mid-turn still retires on the attachment landing')
   check('the chat shows that notice once', timesShown(NOTE) === 1, `shown=${timesShown(NOTE)}`)
 }
 
-section('N7 a notice that never lands retires at ten minutes, and never before')
+section('N7 a delivered notice is transcript content, not an expiring send')
 {
-  const NOTE = notice('t-never', 'the errand nobody drained')
+  const NOTE = notice('t-never', 'the mid-turn delivery')
   g.reconcileQueuedSends(facts([{ value: NOTE, mode: 'task-notification' }]))
   g.reconcileQueuedSends(facts([]))
-  const send = sendOf(NOTE)
-  check('taken, unlanded: the row stands', send?.state === 'taken' && timesShown(NOTE) === 1)
-  g.sends = g.sends.map(s => (s.text === NOTE ? { ...s, sentAtMs: s.sentAtMs - 9 * 60_000 } : s))
-  g.reconcileSends()
-  check('nine minutes in, the row still stands', sendOf(NOTE) !== undefined && timesShown(NOTE) === 1)
-  g.sends = g.sends.map(s => (s.text === NOTE ? { ...s, sentAtMs: s.sentAtMs - 2 * 60_000 } : s))
-  const moved = g.reconcileSends()
-  g.paint()
-  check('past ten minutes the backstop retires it', moved && sendOf(NOTE) === undefined && timesShown(NOTE) === 0, `shown=${timesShown(NOTE)}`)
+  check('taken, unlanded: the committed row stands outside sends', sendOf(NOTE) === undefined && timesShown(NOTE) === 1)
+  const now = Date.now
+  const at = now()
+  try {
+    for (const minutes of [9, 65]) {
+      Date.now = () => at + minutes * 60_000
+      g.reconcileSends()
+      g.paint()
+      check(`${minutes} minutes in, the delivered row is still transcript content and no waiting echo remains`, sendOf(NOTE) === undefined && g.echoRows.size === 0 && timesShown(NOTE) === 1, `shown=${timesShown(NOTE)}`)
+    }
+  } finally {
+    Date.now = now
+  }
 }
 
 section('N8 an older row carrying the same words never lands a newer notice')
@@ -145,7 +149,7 @@ section('N8 an older row carrying the same words never lands a newer notice')
   g.reconcileQueuedSends(facts([]))
   g.reconcileSends()
   g.paint()
-  check('the old-history row leaves the new placeholder standing', sendOf(NOTE)?.state === 'taken' && timesShown(NOTE) === 2, `state=${sendOf(NOTE)?.state} shown=${timesShown(NOTE)}`)
+  check('the old-history row leaves the new placeholder standing', sendOf(NOTE) === undefined && timesShown(NOTE) === 2, `state=${sendOf(NOTE)?.state} shown=${timesShown(NOTE)}`)
   await write([createUserMessage({ content: NOTE })])
   check('the fresh row lands it', sendOf(NOTE) === undefined && timesShown(NOTE) === 2, `shown=${timesShown(NOTE)}`)
 }

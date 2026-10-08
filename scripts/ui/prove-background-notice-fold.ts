@@ -20,7 +20,6 @@ const check = (name: string, ok: boolean, detail?: string): void => {
 const fold = await import('../../src/utils/collapseBackgroundBashNotifications.ts')
 const { BACKGROUND_BASH_SUMMARY_PREFIX } = await import('../../src/tasks/LocalShellTask/LocalShellTask.tsx')
 const { extractTag } = await import('../../src/utils/messages.ts')
-const { GLYPH } = await import('../../src/components/mercury-ui/glyphs.ts')
 
 type Row = Record<string, unknown> & { type: string; uuid: string; timestamp: string; queued?: true }
 type Outcome = 'completed' | 'failed' | 'killed'
@@ -179,7 +178,7 @@ console.log('§2 the real bundle — one folded row in the chat, the three in th
       check('the chat paints ONE folded row with the counts and the failed command', foldedRows.length === 1, String(foldedRows.length))
       const folded = foldedRows[0] ?? ''
       check('the folded row carries the failed title and exit code, and its clock (delivered)', /\d\d:\d\d:\d\d ● 3 background commands · 2 done · 1 failed — "typecheck" \(exit code 2\)/.test(folded), folded.trim().slice(0, 140))
-      check('the folded row ends with the transcript\'s fold hint', folded.includes('(ctrl+o to expand)') || folded.includes(GLYPH.chevronDown), folded.trim().slice(0, 140))
+      check('the folded row ends with the transcript\'s fold hint', folded.includes('· 3 lines ›'), folded.trim().slice(0, 140))
       check('none of the single notice rows paint in the chat', !chat.some(l => l.includes('Background command "lint"') || l.includes('Background command "typecheck"') || l.includes('Background command "unit tests"')))
       check('the viewer (the fold key) shows the three notices one by one', viewer.some(l => l.includes('Background command "lint" completed (exit code 0)')) && viewer.some(l => l.includes('Background command "typecheck" failed (exit code 2)')) && viewer.some(l => l.includes('Background command "unit tests" completed (exit code 0)')))
       check('the viewer shows no folded row', !viewer.some(l => l.includes('background commands ·')))
