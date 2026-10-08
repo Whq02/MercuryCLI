@@ -10,6 +10,8 @@ import type { Message, RenderableMessage, TurnReceiptMessage } from '../../src/t
 const home = mkdtempSync(join(tmpdir(), 'fold-work-'))
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_TMPDIR = home
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
+process.env.ANTHROPIC_API_KEY ??= 'proof-key-ci-gate-not-a-real-key'
 process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
 process.env.MERCURY_TURN_RECEIPT = '1'
 const { enableConfigs } = await import('../../src/utils/config.ts')
