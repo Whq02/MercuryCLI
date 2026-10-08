@@ -94,6 +94,22 @@ for (const command of ['docker ps $(cat x)', 'docker logs $NAME', 'docker ps --w
   check(`asks: ${command}`, !readsOnly(command))
 }
 
+console.log('5. PowerShell reads the same four forms through the same flag tables')
+const { isAllowlistedCommand } = await import('../../src/tools/PowerShellTool/readOnlyValidation.js')
+const psReadsOnly = (command: string): boolean => {
+  const [name, ...args] = command.split(' ')
+  return isAllowlistedCommand(
+    { name: name as string, text: command, nameType: 'unknown', args, elementTypes: args.map(arg => (arg.startsWith('-') ? 'Parameter' : 'StringConstant')), elementType: 'CommandAst' },
+    command,
+  )
+}
+for (const command of ['docker ps', 'docker ps -a', 'docker images -q', 'docker logs --tail 50 web', 'docker inspect web']) {
+  check(`PowerShell read-only: ${command}`, psReadsOnly(command))
+}
+for (const command of ['docker', 'docker run -it ubuntu bash', 'docker rm -f web', 'docker exec -it web sh', 'docker ps --wipe', 'docker images --unknown']) {
+  check(`PowerShell asks: ${command}`, !psReadsOnly(command))
+}
+
 process.chdir(previousCwd)
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nprove-readonly-docker-reads: ALL LAWS HOLD' : `\nprove-readonly-docker-reads: ${failures} FAILURE(S)`)

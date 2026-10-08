@@ -61,7 +61,7 @@ section('read-only allowlist — git read-only subcommands in, git WRITERS out')
   check('"git push" is NOT read-only-allowlisted', !has('git push'))
   check('"git commit" is NOT read-only-allowlisted', !has('git commit'))
   check('"git reset" is NOT read-only-allowlisted', !has('git reset'))
-  check('EXTERNAL_READONLY_COMMANDS is the docker-read subset (ps/images), not a write verb', ro.EXTERNAL_READONLY_COMMANDS.includes('docker ps') && !ro.EXTERNAL_READONLY_COMMANDS.includes('rm'))
+  check('DOCKER_READ_ONLY_COMMANDS is exactly the four docker reads (ps/images/logs/inspect)', JSON.stringify(Object.keys(ro.DOCKER_READ_ONLY_COMMANDS).sort()) === JSON.stringify(['docker images', 'docker inspect', 'docker logs', 'docker ps']))
 }
 
 section('flag validator — a write flag flips a read-only command to NOT-safe')

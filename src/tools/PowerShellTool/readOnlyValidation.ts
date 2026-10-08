@@ -13,7 +13,6 @@ import {
   validateFlags,
   GIT_READ_ONLY_COMMANDS,
   DOCKER_READ_ONLY_COMMANDS,
-  EXTERNAL_READONLY_COMMANDS,
   type ExternalCommandConfig,
 } from '../../utils/shell/readOnlyCommandValidation.js'
 import { COMMON_PARAMETERS } from './commonParameters.js'
@@ -301,10 +300,9 @@ function gitReadOnly(args: string[]): boolean {
 }
 
 function dockerReadOnly(args: string[]): boolean {
-  if (args.length === 0) return true
+  if (args.length === 0) return false
   if (args.some(a => a.includes('$'))) return false
   const first = (args[0] as string).toLowerCase()
-  if (EXTERNAL_READONLY_COMMANDS.includes(`docker ${first}`)) return true
   const config = DOCKER_READ_ONLY_COMMANDS[`docker ${first}`]
   if (!config) return false
   if (config.additionalCommandIsDangerousCallback && config.additionalCommandIsDangerousCallback('', args.slice(1))) return false
