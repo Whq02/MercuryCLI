@@ -38,7 +38,6 @@ import {
   getFileModificationTime,
   suggestPathUnderCwd,
 } from '../../utils/file.js'
-import { logFileOperation } from '../../utils/fileOperationAnalytics.js'
 import { formatFileSize } from '../../utils/format.js'
 import {
   compressImageBufferWithTokenLimit,
@@ -602,7 +601,6 @@ async function readNotebookLane(
     limit: input.limit,
   })
   context.nestedMemoryAttachmentTriggers?.add(keyPath)
-  logFileOperation({ operation: 'read', tool: 'FileReadTool', filePath: resolvedPath, content: serialized })
   return { data: { type: 'notebook', file: { filePath: resolvedPath, cells } } }
 }
 
@@ -614,7 +612,6 @@ async function readImageLane(
 ): Promise<LaneResult> {
   const data = await readImageWithTokenBudget(resolvedPath, limits.maxTokens)
   context.nestedMemoryAttachmentTriggers?.add(keyPath)
-  logFileOperation({ operation: 'read', tool: 'FileReadTool', filePath: resolvedPath })
   const newMessages: Message[] = []
   if (data.file.dimensions) {
     const metadataText = createImageMetadataText(data.file.dimensions, resolvedPath)
@@ -641,7 +638,6 @@ async function readPdfLane(
     if (!extraction.success) {
       throw new Error(extraction.error.message)
     }
-    logFileOperation({ operation: 'read', tool: 'FileReadTool', filePath: resolvedPath })
     const outputDir = extraction.data.file.outputDir
     const entries = getFsImplementation()
       .readdirSync(outputDir)
@@ -707,7 +703,6 @@ async function readPdfLane(
   if (!result.success) {
     throw new Error(result.error.message)
   }
-  logFileOperation({ operation: 'read', tool: 'FileReadTool', filePath: resolvedPath })
   context.nestedMemoryAttachmentTriggers?.add(keyPath)
   const documentBlock = {
     type: 'document',
@@ -840,7 +835,6 @@ async function readTextLane(
       }
     }
   }
-  logFileOperation({ operation: 'read', tool: 'FileReadTool', filePath: resolvedPath, content: range.content })
   return { data }
 }
 

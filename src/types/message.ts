@@ -437,7 +437,6 @@ export type SystemMemorySavedMessage = {
   uuid: UUID
   timestamp: string
   isMeta?: boolean
-  crewCount?: number
   verb?: string
 }
 
@@ -641,9 +640,6 @@ export type CollapsedReadSearchGroup = {
   displayMessage: CollapsibleMessage
   uuid: UUID
   timestamp: string
-  teamMemorySearchCount?: number
-  teamMemoryReadCount?: number
-  teamMemoryWriteCount?: number
   mcpCallCount?: number
   mcpServerNames?: string[]
   bashCount?: number
