@@ -850,9 +850,14 @@ stays there when the reply settles, and one that arrived before the reply
 began stays above it. A reply's settled row takes the place its live text
 held, once; the live text is never painted beside its own row.
 A task notification the chat shows, and every line a monitor reports, paints
-as a notice row of its own: a dim plate naming the kind and the task (a
-monitor's plate carries the watch's name), the notification's lines beneath
-it, never your plate and never the wrapper the model reads.
+as one notice row: a dim plate naming the kind and the task (a monitor's plate
+carries the watch's name) and the count of its lines, folded; opening the row
+the way any folded row opens shows the lines under it and closing it hides
+them again, and the full transcript view keeps them in sight; never your plate
+and never the wrapper the model reads. Until the runner hands a notification
+to the model it waits with the lines queued for the next turn; the moment it
+is handed over it takes its place in the transcript, above any line you type
+later.
 The words a reply writes before it calls a tool stand as their own row from
 the moment that call begins, and the settled row takes their place; a
 question asked mid-turn stays on screen.
