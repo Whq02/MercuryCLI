@@ -116,6 +116,8 @@ const askedByRule = await floor(LIST, 'default', { allow: ['Bash(ls *)'], ask: [
 check('an ask rule naming the command still asks after the allow rule answered the doubt', askedByRule.behavior === 'ask' && askedByRule.decisionReason?.type === 'rule', show(askedByRule))
 const pipeDenied = await floor(PIPE, 'default', { allow: ['Bash(cat *)', 'Bash(wc *)'], deny: ['Bash(cat *)'] })
 check('a deny on one stage denies the pipeline', pipeDenied.behavior === 'deny', show(pipeDenied))
+const directoryDenied = await floor('cat src/*.js', 'default', { allow: ['Bash(cat *)'], deny: [`Read(/${join(process.cwd(), 'src')})`] })
+check('a read deny on the directory a wildcard reads from beats the allow rule', directoryDenied.behavior === 'deny' && /is denied by the rule Read\(/.test(directoryDenied.message ?? ''), show(directoryDenied))
 const unproven = await floor('ls $DIR/*.ts', 'default', TABLE_RULES)
 check('the yield is for the wildcard doubt alone: an unknown variable beside it still asks', unproven.behavior === 'ask' && unproven.message !== WILDCARD_ASK, show(unproven))
 
