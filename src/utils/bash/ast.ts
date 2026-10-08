@@ -325,6 +325,15 @@ function assign(scope: Scope, assignment: Assignment): void {
 class Walk {
   readonly commands: SimpleCommand[] = []
 
+  invalidateAssignments(node: Node, scope: Scope): void {
+    if (node.type === 'subshell' || node.type === 'command_substitution') return
+    if (node.type === 'variable_assignment') {
+      const name = childOfKind(node, 'variable_name')?.text
+      if (name !== undefined) scope.set(name, UNKNOWN_VALUE)
+    }
+    for (const child of node.children) this.invalidateAssignments(child, scope)
+  }
+
   node(node: Node, scope: Scope): void {
     switch (node.type) {
       case 'program':
@@ -388,8 +397,9 @@ class Walk {
         case ';':
         case '\n':
           break
-        case '||':
         case '&':
+          refuse('the background operator & starts work outside the foreground command; run it in the foreground, or approve', child.type)
+        case '||':
           current = new Map(snapshot as Scope)
           break
         default:
@@ -451,7 +461,7 @@ class Walk {
     const body = heredocBody(heredocNode).replace(/\n+$/, '')
     if (PROCESS_ENVIRON_RE.test(body)) refuse('heredoc body references a process environment file', heredocNode.type)
     if (SYSTEM_CALL_RE.test(body)) refuse('heredoc body contains a system() call', heredocNode.type)
-    return body.includes('\n') ? '' : body
+    return body
   }
 
   quoted(node: Node, scope: Scope): Quoted {
@@ -525,6 +535,10 @@ class Walk {
     switch (node.type) {
       case 'word':
         refuseBraceExpansion(node)
+        for (let index = 0; index < node.text.length; index++) {
+          if (node.text[index] === '\\') { index++; continue }
+          if ('*?['.includes(node.text[index]!)) refuse('an unquoted wildcard expands to paths at runtime; quote it as text or spell out the paths, or approve', node.type)
+        }
         return unescapeWord(node.text)
       case 'number':
         if (node.children.length > 0) {
@@ -566,10 +580,12 @@ class Walk {
         op = child.type as Redirect['op']
         continue
       }
+      if (target !== undefined) refuse('a redirect is followed by additional words whose argument position is ambiguous; move arguments before the redirect, or approve', node.type)
       switch (child.type) {
         case 'word':
         case 'number':
           if (child.children.length > 0) refuseNode(child.children[0] as Node)
+          if (/[*?\[\]~]/.test(child.text)) refuse('the redirect target contains an unquoted path expansion; spell out the path, or approve', node.type)
           refuseBraceExpansion(child)
           target = unescapeWord(child.text)
           break
@@ -622,6 +638,9 @@ class Walk {
     if (name === undefined) refuse('variable assignment has no name', node.type)
     if (!IDENTIFIER_RE.test(name)) {
       refuse(`assignment name ${JSON.stringify(name)} is not a valid shell identifier`, node.type)
+    }
+    if (/^(?:PATH|LD_.*|DYLD_.*|BASH_ENV|ENV|SHELL|HOME|TMPDIR|PWD|OLDPWD|CDPATH|GLOBIGNORE|SHELLOPTS|BASHOPTS|NODE_OPTIONS|PYTHONPATH|NODE_PATH|RUBYOPT|PERL5OPT|GIT_CONFIG.*|GIT_EXEC_PATH|GIT_SSH|GIT_SSH_COMMAND|GIT_ASKPASS|GIT_PAGER|GIT_EXTERNAL_DIFF|GIT_DIR|GIT_WORK_TREE|GIT_OBJECT_DIRECTORY|GIT_ALTERNATE_OBJECT_DIRECTORIES|GIT_INDEX_FILE|GIT_COMMON_DIR|GIT_NAMESPACE)$/.test(name)) {
+      refuse(`assignment to ${name} changes shell lookup, path expansion or startup code; run without that assignment, or approve`, node.type)
     }
     if (name === 'IFS') refuse('assignment to IFS cannot be analyzed safely', node.type)
     if (name === 'PS4') {
@@ -846,6 +865,7 @@ class Walk {
     if (variable === null || body === null) refuse('loop is missing its variable or body', node.type)
     if (variable === 'IFS' || variable === 'PS4') refuse(`loop variable ${variable} cannot be analyzed safely`, node.type)
 
+    this.invalidateAssignments(body, scope)
     scope.set(variable, UNKNOWN_VALUE)
     this.body(body, new Map(scope))
   }
@@ -911,9 +931,11 @@ class Walk {
           else this.node(child, new Map(scope))
       }
     }
+    this.invalidateAssignments(node, scope)
   }
 
   whileLoop(node: Node, scope: Scope): void {
+    this.invalidateAssignments(node, scope)
     for (const child of node.children) {
       switch (child.type) {
         case 'while':
@@ -927,6 +949,7 @@ class Walk {
           this.condition(child, scope, node.type)
       }
     }
+    this.invalidateAssignments(node, scope)
   }
 }
 
@@ -1316,10 +1339,15 @@ const SEMANTIC_CHECKS: readonly SemanticCheck[] = [
 ]
 
 function commandRefusal(command: SimpleCommand): string | null {
+  const unknownArgument = command.argv.some((value, index) => !isKnown(value) && !(command.argv[0] === 'echo' && index > 0))
+  if (unknownArgument || command.redirects.some(redirect => !isKnown(redirect.target))) {
+    return 'an argument or redirect contains runtime-determined content; spell out its value, or approve'
+  }
   const peeled = peelWrappers(command.argv)
   if (!Array.isArray(peeled)) return peeled.failReason
   const name = peeled[0]
   if (name === undefined) return null
+  if (name === 'xargs' && peeled.length === 1) return 'bare xargs chooses its command implicitly; spell out the command, or approve'
   for (const check of SEMANTIC_CHECKS) {
     const reason = check(name, peeled, command)
     if (reason !== null) return reason

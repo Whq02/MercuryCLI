@@ -315,15 +315,15 @@ section('§6 THE BASH ROAD — every deny sentence says the words; the longer pr
     ],
   })
   const semanticsPlain = await whole(environ, bashCtx(['Bash(cat *)']))
-  check('control: the semantics deny without a reason speaks the rule sentence', semanticsPlain.behavior === 'deny' && semanticsPlain.message === 'cat /proc/self/environ is denied by the rule Bash(cat *) in your user settings.', j(semanticsPlain))
+  check('control: the semantics deny without a reason speaks the rule sentence', semanticsPlain.behavior === 'deny' && semanticsPlain.message === 'echo ok && cat /proc/self/environ is denied by the rule Bash(cat *) in your user settings.', j(semanticsPlain))
   const semanticsSaid = await whole(environ, bashCtx(['Bash(cat *)'], { 'Bash(cat *)': R_ENVIRON }))
-  check('6 the semantics deny (a red-flagged subcommand) says the words', semanticsSaid.behavior === 'deny' && semanticsSaid.message === `cat /proc/self/environ is denied by the rule Bash(cat *) in your user settings: ${R_ENVIRON}.`, j(semanticsSaid))
+  check('6 the semantics deny (a red-flagged subcommand) says the words', semanticsSaid.behavior === 'deny' && semanticsSaid.message === `echo ok && cat /proc/self/environ is denied by the rule Bash(cat *) in your user settings: ${R_ENVIRON}.`, j(semanticsSaid))
   parseRoutes.clear()
 
   const aggregatePlain = await whole('echo ok && git push origin main', bashCtx(['Bash(git push *)']))
-  check('control: a compound command\'s aggregate deny without a reason speaks the rule sentence', aggregatePlain.behavior === 'deny' && aggregatePlain.message === 'git push origin main is denied by the rule Bash(git push *) in your user settings.', j(aggregatePlain))
+  check('control: a compound command\'s aggregate deny without a reason speaks the rule sentence', aggregatePlain.behavior === 'deny' && aggregatePlain.message === 'echo ok && git push origin main is denied by the rule Bash(git push *) in your user settings.', j(aggregatePlain))
   const aggregateSaid = await whole('echo ok && git push origin main', bashCtx(['Bash(git push *)'], { 'Bash(git push *)': R_PUSH }))
-  check('7 a compound command\'s aggregate deny says the denied subcommand\'s words', aggregateSaid.behavior === 'deny' && aggregateSaid.message === `git push origin main is denied by the rule Bash(git push *) in your user settings: ${R_PUSH}.`, j(aggregateSaid))
+  check('7 a compound command\'s aggregate deny says the denied subcommand\'s words', aggregateSaid.behavior === 'deny' && aggregateSaid.message === `echo ok && git push origin main is denied by the rule Bash(git push *) in your user settings: ${R_PUSH}.`, j(aggregateSaid))
 }
 
 section('§7 THE CONSENT CARD — one line under the rule, the hint below it; none without a reason')
