@@ -96,6 +96,25 @@ if (!group || group === 'pipeline-deny') {
   const data = await decide("cat <<'EOF'\nrm -rf victim\nEOF", { deny: ['Bash(rm *)'] })
   check('heredoc data is not an executable deny candidate', data.behavior === 'allow', data)
 }
+if (!group || group === 'subshell') {
+  for (const command of ['(cat f; ls)', '(cat f; ls;)', '( (cat f); ls)', '(cat f\nls)', 'x=cat; (x=ls; $x); $x f']) {
+    const result = await decide(command)
+    const read = await checkReadOnlyConstraints({ command }, false)
+    check(`subshell foreground reads: ${command}`, result.behavior === 'allow' && read.behavior === 'allow', { result, read })
+  }
+  for (const command of ['x=rm; (cat f; $x -rf victim)', '(x=rm; cat f; $x -rf victim)']) {
+    for (const grant of [{}, { mode: 'sovereign' }, { cliAllow: ['Bash'] }]) {
+      const result = await decide(command, { ...grant, deny: ['Bash(rm *)'] })
+      check(`subshell deny keeps its scope: ${command}`, result.behavior === 'deny', result)
+    }
+  }
+  const ambiguous = await decide('((cat f); ls)')
+  check('adjacent opening parentheses remain unproven by this grammar', ambiguous.behavior === 'ask', ambiguous)
+  const background = await decide('(cat f & ls)')
+  check('subshell background work remains an ordinary ask', background.behavior === 'ask' && background.decisionReason?.type === 'safetyCheck' && background.decisionReason.operatorOnly === false, background)
+  const isolated = await decide('x=cat; (x=rm); $x f')
+  check('subshell assignments do not escape into the parent', isolated.behavior === 'allow', isolated)
+}
 process.chdir(before)
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures ? `floor-review: ${failures} FAILURE(S)` : 'floor-review: ALL LAWS HOLD')

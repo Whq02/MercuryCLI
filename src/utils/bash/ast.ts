@@ -512,14 +512,7 @@ class Walk {
   }
 
   subshell(node: Node, scope: Scope): void {
-    const inner = new Map(scope)
-    const statements: Node[] = []
-    for (const child of node.children) {
-      if (child.type === '(' || child.type === ')') continue
-      if (child.type === ';' || child.type === '&') refuseNode(child)
-      statements.push(child)
-    }
-    this.statements(statements, inner)
+    this.statements(node.children.filter(child => child.type !== '(' && child.type !== ')'), new Map(scope))
   }
 
   substitution(node: Node, scope: Scope): void {
