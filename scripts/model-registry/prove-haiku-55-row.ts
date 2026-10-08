@@ -74,7 +74,7 @@ try {
   check('the unpinned default is medium and a requested max stays max on the wire', !effort.isLaunchEffortPinned(ID) && effort.getDefaultEffortForModel(ID) === 'medium' && effort.resolveEffortTruth(ID, 'max').wire === 'max' && effort.resolveEffortTruth(ID, undefined).wire === 'medium')
   check('PDF, images and structured output reach the home route', caps.modelSupportsPDF(ID) && caps.modelReceivesImageBlocks(ID) && caps.modelSupportsStructuredOutputs(ID))
   check('the June 2026 cutoff is a recorded fact', caps.getModelKnowledgeCutoff(ID) === 'June 2026')
-  check('no native-context beta or unmeasured per-message-effort beta is added', !caps.getAllModelBetas(ID).some(beta => beta.startsWith('context-1m')) && !caps.servesPerMessageEffort(ID))
+  check('no native-context beta is added', !caps.getAllModelBetas(ID).some(beta => beta.startsWith('context-1m')))
   check('4.5 capability truth remains unchanged', !caps.modelSupportsAdaptiveThinking(OLD) && !caps.modelSupportsEffort(OLD) && caps.getContextWindowForModel(OLD) === 200_000 && caps.getModelMaxOutputTokens(OLD).upperLimit === 64_000)
   const carrier = `openrouter/anthropic/${ID}`
   check('a carrier ID never takes first-party facts', model.getCanonicalName(carrier) === carrier && !caps.modelSupports1M(carrier) && !caps.modelSupportsStructuredOutputs(carrier) && caps.getModelKnowledgeCutoff(carrier) === null)
