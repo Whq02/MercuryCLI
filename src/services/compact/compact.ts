@@ -1215,6 +1215,16 @@ function validateSummary(response: AssistantMessage, logMissing: boolean): strin
     throw new Error('Failed to generate a conversation summary.')
   }
   if (text.startsWith(API_ERROR_MESSAGE_PREFIX) || response.isApiErrorMessage === true) throw new Error(text)
+  const body = text
+    .replace(/<analysis>[\s\S]*?<\/analysis>/, '')
+    .trim()
+    .replace(/^```[^\n]*\n([\s\S]*?)\n?```$/, '$1')
+    .trim()
+    .replace(/^<summary>([\s\S]*?)<\/summary>$/, '$1')
+    .trim()
+  const opening = body.replace(/^(?:i(?: am|['’]m)\s+sorry|sorry)[,.:!;]?\s*(?:but\s+)?/i, '')
+  const refused = /^(?:i\s+(?:cannot|can['’]t|will not|won['’]t|refuse to|am unable to|am not able to)\s+(?:summari[sz]e\b|(?:provide|produce|write|create|generate)\s+(?:(?:a|the|this|requested)\s+){0,3}(?:summary|summari[sz]ation)\b)|no summary will be provided\b)/i.test(opening)
+  if (body === '' || refused) throw new Error('Failed to generate a conversation summary.')
   return text
 }
 
