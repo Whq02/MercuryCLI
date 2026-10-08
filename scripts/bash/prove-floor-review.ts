@@ -115,6 +115,23 @@ if (!group || group === 'subshell') {
   const isolated = await decide('x=cat; (x=rm); $x f')
   check('subshell assignments do not escape into the parent', isolated.behavior === 'allow', isolated)
 }
+if (!group || group === 'wrappers') {
+  const commands = ['env rm -rf victim', 'env LANG=C rm -rf victim', 'env -u LANG rm -rf victim', 'exec rm -rf victim', 'exec -a shown rm -rf victim', 'command rm -rf victim', 'command -p rm -rf victim', 'builtin exec rm -rf victim', 'xargs rm -rf victim', 'xargs -0 -n 2 rm -rf victim', 'xargs -I {} rm -rf {}', 'xargs --max-args=1 env LANG=C rm -rf victim', 'find . -exec rm -rf {} +', 'x=rm; env LANG=C $x -rf victim', 'time -p env LANG=C rm -rf victim']
+  for (const command of commands) {
+    for (const grant of [{}, { mode: 'sovereign' }, { cliAllow: ['Bash'] }, { allow: [`Bash(${command})`] }]) {
+      const result = await decide(command, { ...grant, deny: ['Bash(rm *)'] })
+      check(`wrapped denies ${JSON.stringify(grant)}: ${command}`, result.behavior === 'deny', result)
+    }
+  }
+  for (const command of ['env cat f', 'exec cat f', 'command cat f', 'xargs cat f']) {
+    const result = await decide(command, { allow: ['Bash(cat *)'] })
+    check(`unwrap never grants an allow: ${command}`, result.behavior === 'ask', result)
+  }
+  for (const command of ['echo rm', 'echo "env rm -rf victim"', 'command -v rm', 'command -V rm']) {
+    const result = await decide(command, { deny: ['Bash(rm *)'] })
+    check(`literal or lookup words are not executable targets: ${command}`, result.behavior !== 'deny', result)
+  }
+}
 process.chdir(before)
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures ? `floor-review: ${failures} FAILURE(S)` : 'floor-review: ALL LAWS HOLD')
