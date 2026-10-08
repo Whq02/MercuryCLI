@@ -56,7 +56,7 @@ section('§B the externalEditor kill chain: unbound bell, guarded draft, async h
 
   const editor = readFileSync(join(ROOT, 'src/utils/promptEditor.ts'), 'utf8')
   check('the editor handoff is ASYNC (spawned child)', editor.includes('export async function editFileInEditor') && editor.includes('spawn(commandLine'))
-  check('the execSync wedge is structurally gone', !editor.includes('execSync_DEPRECATED'))
+  check('no synchronous exec remains in the editor hand-off', !/\b(?:execSync|execFileSync|spawnSync)\b/.test(editor))
 
   const scanner = createScanner()
   const head = scanner.feed('\u001b]11;rgb:1e1e/2a2a')
