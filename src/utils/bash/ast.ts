@@ -348,10 +348,55 @@ type Quoted = { value: string; sawLiteral: boolean; sawUnknown: boolean }
 
 function assign(scope: Scope, assignment: Assignment): void {
   if (assignment.append) {
-    scope.set(assignment.name, appended(scope.get(assignment.name) ?? '', assignment.value))
+    scope.set(assignment.name, appended(scope.get(assignment.name) ?? UNKNOWN_VALUE, assignment.value))
   } else {
     scope.set(assignment.name, assignment.value)
   }
+}
+
+const VARIABLE_WRITERS: ReadonlySet<string> = new Set(['read', 'printf', 'getopts', 'wait'])
+const LOOKUP_VARIABLE = /^(?:PATH|LD_.*|DYLD_.*|BASH_ENV|ENV|SHELL|HOME|TMPDIR|PWD|OLDPWD|CDPATH|GLOBIGNORE|SHELLOPTS|BASHOPTS|NODE_OPTIONS|PYTHONPATH|NODE_PATH|RUBYOPT|PERL5OPT|GIT_CONFIG.*|GIT_EXEC_PATH|GIT_SSH|GIT_SSH_COMMAND|GIT_ASKPASS|GIT_PAGER|GIT_EXTERNAL_DIFF|GIT_DIR|GIT_WORK_TREE|GIT_OBJECT_DIRECTORY|GIT_ALTERNATE_OBJECT_DIRECTORIES|GIT_INDEX_FILE|GIT_COMMON_DIR|GIT_NAMESPACE)$/
+
+function writtenVariables(argv: string[]): string[] {
+  let words = argv
+  while (words[0] === 'time') words = words.slice(words[1] === '-p' ? 2 : 1)
+  const name = words[0]
+  if (name === undefined || !VARIABLE_WRITERS.has(name)) return []
+  const written: string[] = []
+  const operands = words.slice(1)
+  if (name === 'read' || name === 'wait') {
+    let i = 0
+    while (i < operands.length) {
+      const operand = operands[i] as string
+      if (operand === '--' || !operand.startsWith('-') || operand === '-') {
+        if (name === 'read') written.push(...operands.slice(i + (operand === '--' ? 1 : 0)))
+        break
+      }
+      for (let flag = 1; flag < operand.length; flag++) {
+        const letter = operand[flag]!
+        if (!(name === 'read' ? READ_DATA_FLAGS.has(letter) || letter === 'a' : letter === 'p')) continue
+        const value = operand.slice(flag + 1) || operands[++i]
+        if ((name === 'read' ? letter === 'a' : letter === 'p') && value !== undefined) written.push(value)
+        break
+      }
+      i += 1
+    }
+    if (name === 'read' && written.length === 0) written.push('REPLY')
+  }
+  if (name === 'printf') {
+    for (let i = 0; i < operands.length; i++) {
+      const operand = operands[i] as string
+      if (operand === '-v' && operands[i + 1] !== undefined) written.push(operands[++i] as string)
+      else if (operand.startsWith('-v') && operand.length > 2) written.push(operand.slice(2))
+      else break
+    }
+  }
+  if (name === 'getopts') {
+    const destination = operands[operands[0] === '--' ? 2 : 1]
+    if (destination !== undefined) written.push(destination)
+    written.push('OPTARG', 'OPTIND')
+  }
+  return written.map(variable => variable.replace(/\[.*$/, '')).filter(variable => IDENTIFIER_RE.test(variable))
 }
 
 class Walk {
@@ -362,6 +407,18 @@ class Walk {
     if (node.type === 'variable_assignment') {
       const name = childOfKind(node, 'variable_name')?.text
       if (name !== undefined) scope.set(name, UNKNOWN_VALUE)
+    }
+    if (node.type === 'command') {
+      const changed = new Map(scope)
+      try {
+        new Walk().command(node, changed)
+        for (const [name, value] of changed) {
+          if (value !== scope.get(name)) scope.set(name, UNKNOWN_VALUE)
+        }
+      } catch (error) {
+        if (!(error instanceof Refusal)) throw error
+        for (const name of scope.keys()) scope.set(name, UNKNOWN_VALUE)
+      }
     }
     for (const child of node.children) this.invalidateAssignments(child, scope)
   }
@@ -457,14 +514,7 @@ class Walk {
   }
 
   subshell(node: Node, scope: Scope): void {
-    const inner = new Map(scope)
-    const statements: Node[] = []
-    for (const child of node.children) {
-      if (child.type === '(' || child.type === ')') continue
-      if (child.type === ';' || child.type === '&') refuseNode(child)
-      statements.push(child)
-    }
-    this.statements(statements, inner)
+    this.statements(node.children.filter(child => child.type !== '(' && child.type !== ')'), new Map(scope))
   }
 
   substitution(node: Node, scope: Scope): void {
@@ -679,7 +729,7 @@ class Walk {
     if (!IDENTIFIER_RE.test(name)) {
       refuse(`assignment name ${JSON.stringify(name)} is not a valid shell identifier`, node.type)
     }
-    if (/^(?:PATH|LD_.*|DYLD_.*|BASH_ENV|ENV|SHELL|HOME|TMPDIR|PWD|OLDPWD|CDPATH|GLOBIGNORE|SHELLOPTS|BASHOPTS|NODE_OPTIONS|PYTHONPATH|NODE_PATH|RUBYOPT|PERL5OPT|GIT_CONFIG.*|GIT_EXEC_PATH|GIT_SSH|GIT_SSH_COMMAND|GIT_ASKPASS|GIT_PAGER|GIT_EXTERNAL_DIFF|GIT_DIR|GIT_WORK_TREE|GIT_OBJECT_DIRECTORY|GIT_ALTERNATE_OBJECT_DIRECTORIES|GIT_INDEX_FILE|GIT_COMMON_DIR|GIT_NAMESPACE)$/.test(name)) {
+    if (LOOKUP_VARIABLE.test(name)) {
       refuse(`assignment to ${name} changes shell lookup, path expansion or startup code; run without that assignment, or approve`, node.type)
     }
     if (name === 'IFS') refuse('assignment to IFS cannot be analyzed safely', node.type)
@@ -745,6 +795,12 @@ class Walk {
     }
 
     this.commands.push({ argv, envVars, redirects, text: commandText(node.text, argv) })
+    for (const name of writtenVariables(argv)) {
+      if (LOOKUP_VARIABLE.test(name) || name === 'IFS' || name === 'PS4') {
+        refuse(`${argv[0]} writes ${name}, changing shell lookup or expansion; use a different variable, or approve`, node.type)
+      }
+      scope.set(name, UNKNOWN_VALUE)
+    }
   }
 
   declaration(node: Node, scope: Scope): void {
@@ -752,6 +808,9 @@ class Walk {
 
     for (const child of node.children) {
       if (argv.length === 0 && DECLARATION_WORDS.has(child.type)) {
+        if (child.text === 'local' || child.text === 'readonly') {
+          refuse(`${child.text} changes whether later variable assignments take effect; use a plain assignment in this command, or approve`, node.type)
+        }
         argv.push(child.text)
         continue
       }
@@ -768,6 +827,9 @@ class Walk {
               if (/[niaA]/.test(letters)) {
                 refuse(`declaration flag ${JSON.stringify(resolved)} creates a nameref, integer or array variable`, node.type)
               }
+              if (/[luc]/.test(letters)) {
+                refuse(`declaration flag ${JSON.stringify(resolved)} rewrites the case of the values it declares, so a tracked value no longer names what runs; drop the flag, or approve`, node.type)
+              }
             } else {
               const bracket = resolved.indexOf('[')
               const equals = resolved.indexOf('=')
@@ -775,6 +837,10 @@ class Walk {
                 refuse(`declaration operand ${JSON.stringify(resolved)} carries an array subscript`, node.type)
               }
             }
+          }
+          if ((resolved.startsWith('-') || resolved.startsWith('+')) && resolved !== '--') {
+            const assigning = argv[0] === 'export' ? /^-[np]+$/.test(resolved) : /^-[xg]+$/.test(resolved)
+            if (!assigning) refuse(`declaration flag ${JSON.stringify(resolved)} can change or prevent assignment; use a plain assignment, or approve`, node.type)
           }
           argv.push(resolved)
           break
@@ -922,27 +988,6 @@ class Walk {
     }
   }
 
-  conditionReads(from: number, scope: Scope, nodeType: string): void {
-    for (const command of this.commands.slice(from)) {
-      if (command.argv[0] !== 'read') continue
-      for (const operand of command.argv.slice(1)) {
-        if (operand.startsWith('-')) continue
-        if (!IDENTIFIER_RE.test(operand)) continue
-        const existing = scope.get(operand)
-        if (existing !== undefined && isKnown(existing)) {
-          refuse(`conditional read into ${operand} may mask its statically tracked value`, nodeType)
-        }
-        scope.set(operand, UNKNOWN_VALUE)
-      }
-    }
-  }
-
-  condition(node: Node, scope: Scope, nodeType: string): void {
-    const before = this.commands.length
-    this.node(node, scope)
-    this.conditionReads(before, scope, nodeType)
-  }
-
   conditional(node: Node, scope: Scope): void {
     let seenThen = false
     let thenScope: Scope | undefined
@@ -974,7 +1019,7 @@ class Walk {
           break
         }
         default:
-          if (!seenThen) this.condition(child, scope, node.type)
+          if (!seenThen) this.node(child, scope)
           else this.node(child, thenScope!)
       }
     }
@@ -993,7 +1038,7 @@ class Walk {
           this.body(child, new Map(scope))
           break
         default:
-          this.condition(child, scope, node.type)
+          this.node(child, scope)
       }
     }
     this.invalidateAssignments(node, scope)
