@@ -1,23 +1,22 @@
-Checked: 2026-09-15
-# Anthropic Messages
+# Anthropic Messages in Mercury
 
-## Request
-- POST `https://api.anthropic.com/v1/messages`; respect `ANTHROPIC_BASE_URL` overrides.
-- Use the TypeScript `@anthropic-ai/sdk` client; Mercury dispatches `beta.messages.create` with `stream:true`.
-- Supply API-key authentication or Mercury's subscription OAuth bearer; let the SDK set `anthropic-version: 2023-06-01` and JSON headers.
-- Send `model`, required `max_tokens`, `system`, `messages` and applicable `tools`, `tool_choice`, `thinking` and `output_config`.
-- Select optional fields and beta headers from the model's current contract.
-- Put function parameters in `input_schema`.
-- Preserve content-block arrays; answer assistant `tool_use` blocks with user `tool_result` blocks matching `tool_use_id`.
+Source map read 2026-10-08. These are checkout paths; vendor links are in `live-sources.md` and must be checked for the account and date of the change.
 
-## Stream and cache
-- Handle `message_start`, `content_block_start/delta/stop`, `message_delta` and `message_stop`.
-- Accumulate text, thinking, signatures and tool-argument fragments; settle tool arguments at `content_block_stop`.
-- Handle `ping`, errors within HTTP 200 streams and unknown events; treat cumulative usage as replacement, not addition.
-- Apply `cache_control:{type:"ephemeral"}` to cacheable system blocks and the final conversation message; Mercury uses one message-level breakpoint.
-- Use the default five-minute lifetime or `ttl:"1h"`; Mercury's cache clock selects the latter from latched account eligibility.
-- Read `cache_read_input_tokens`, `cache_creation_input_tokens` and the five-minute/one-hour split under `cache_creation`.
-- Do not send undocumented `scope:"global"`; Mercury's global-scope branch is disabled.
-- Treat retry/fallback requests as new attempts, not resumed streams or guaranteed cheap replays.
+## Owners
 
-Sources: [Messages](https://platform.claude.com/docs/en/api/messages), [streaming](https://platform.claude.com/docs/en/build-with-claude/streaming), [caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching), [Mercury](https://github.com/Whq02/MercuryCLI/tree/fc81e29e4129a56b1bfb3beca9819ebfb29875f9/src/services/providers/anthropic).
+- `src/services/providers/anthropic/streamCore.ts` builds and consumes the streaming Messages call. `src/services/api/client.ts` constructs the `@anthropic-ai/sdk` client; keep that SDK on the Anthropic transport rather than introducing it into other families' HTTP roads.
+- `src/services/providers/anthropic/requestParams.ts` owns extra-body assembly, model beta selection, effort and cache-lifetime decisions. `src/services/providers/anthropic/cacheAndUsage.ts` owns cache-breakpoint placement, system-block assembly and usage folds.
+- `src/services/providers/anthropic/messageParams.ts` maps content blocks. `src/services/providers/anthropic/thinkingBinding.ts` and `src/services/providers/anthropic/boundPrefixRecord.ts` own signed thinking and the prefix it belongs to. Read these before changing history replay or a cached prefix.
+- `src/services/providers/anthropic/anthropicUsageState.ts` refreshes subscription usage; `src/services/anthropicLimits.ts` owns observed windows. `src/services/providers/providerUsage.ts` presents those facts alongside session spend. Usage is information, not a dispatch lock.
+
+## Request and settlement
+
+Follow the actual `beta.messages.create` call: model, maximum output, system blocks, messages, tools, thinking and output configuration are assembled by Mercury. Preserve `tool_use`/`tool_result` pairing by `tool_use_id`. Preserve content-block arrays and the signed-thinking binding; text serialization is not interchangeable with replaying those blocks.
+
+Read the current cache placement before editing it: the conversation has one message-level breakpoint, and the system prefix has its own cacheable blocks. The cache clock chooses the eligible lifetime. A retry is another request, not a guaranteed cheap continuation. Keep cache reads, cache writes and uncached input distinct; stream usage updates replace the matching counters while cross-turn settlement accumulates them.
+
+## Subscription client contract
+
+`src/constants/oauth.ts` owns `ANTHROPIC_CLIENT_CONTRACT_VERSION` and `ANTHROPIC_CLIENT_CONTRACT_AS_OF`. This is contract data for the subscription endpoint, not Mercury's version or user-agent identity. A release-day change reads the vendor CLI's published version, updates the contract data if needed, stamps the check date and runs `scripts/ops/prove-client-contract-clock.ts`. Do not advance the date without that reading.
+
+Use `scripts/api/authRetryFixture.ts` for authentication recovery and `scripts/lib/fixtureApi.ts` for captured Messages requests. Cache and replay changes also need the dialect and prefix proofs named in `proof-road.md`.
