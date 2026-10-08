@@ -209,7 +209,7 @@ const turnOpenOnRoster = async (runnerId: string): Promise<boolean | null> => {
 
 const fixture = spawn('node', [join(import.meta.dir, 'throttle-fixture-server.ts'), captureFile], {
   stdio: ['ignore', 'pipe', 'pipe'],
-  env: { ...process.env, FIXTURE_READ_PATH: readme },
+  env: { ...process.env, FIXTURE_READ_PATH: 'README.md' },
 })
 const port = await new Promise<number>((resolve, reject) => {
   const killer = setTimeout(() => reject(new Error('fixture server never printed PORT')), 15_000)
