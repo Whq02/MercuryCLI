@@ -146,6 +146,33 @@ if (!group || group === 'declarations') {
     check(`plain declaration assignment stays provable: ${command}`, result.behavior === 'allow', result)
   }
 }
+if (!group || group === 'words-and-modes') {
+  const { BashTool } = await import('../../src/tools/BashTool/BashTool.js')
+  const { scoutRefusal } = await import('../../src/tools/AgentTool/scoutPolicy.js')
+  const { flowPushOrInstall, flowUserAllowUpdates } = await import('../../src/utils/permissions/flowPolicy.js')
+  for (const command of ['$(cat f)', 'echo $(cat f)', 'cat <(cat f)']) {
+    const result = await decide(command)
+    const words = await scoutRefusal(BashTool as never, { command })
+    check(`both roads name the substitution and a recovery: ${command}`, result.behavior === 'ask' && /substitution/.test(result.message ?? '') && /approve/.test(result.message ?? '') && words !== null && /substitution/.test(words) && /separately|spell/.test(words) && !words.includes('``'), { result, words })
+  }
+  for (const command of ['cut -d" " -f1 f', 'tr "\\n" " " < f', 'echo " "', 'git status', 'git log -1', 'git diff', 'git show', 'ls -la', 'head f | grep data', 'find . -name "*.ts"', 'wc -l < f', 'sort f | uniq -c']) {
+    const result = await decide(command)
+    check(`ordinary developer read stays autonomous: ${command}`, result.behavior === 'allow', result)
+  }
+  for (const grant of [{}, { allow: ['Bash'] }, { cliAllow: ['Bash'] }, { allow: ['Bash(exec *)'] }]) {
+    const result = await decide('exec cat f', grant)
+    check(`default keeps its ordinary safety ask before ${JSON.stringify(grant)}`, result.behavior === 'ask', result)
+  }
+  const sovereign = await decide('exec cat f', { mode: 'sovereign' })
+  check('sovereign answers an ordinary safety ask', sovereign.behavior === 'allow', sovereign)
+  const flow = await decide('cat f', { mode: 'flow' })
+  check('Flow keeps ordinary reads autonomous', flow.behavior === 'allow', flow)
+  await BashTool.prepare?.({ command: 'cat f' } as never)
+  check('Flow sees the prepared read as neither push nor install', !flowPushOrInstall(BashTool as never, { command: 'cat f' }))
+  await BashTool.prepare?.({ command: 'exec cat f' } as never)
+  const flowContext = { getAppState: () => ({ toolPermissionContext: { mode: 'flow' } }) }
+  check('Flow never persists an opaque shell command as an exact allow', flowUserAllowUpdates(BashTool as never, { command: 'exec cat f' }, flowContext as never, []).length === 0)
+}
 process.chdir(before)
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures ? `floor-review: ${failures} FAILURE(S)` : 'floor-review: ALL LAWS HOLD')
