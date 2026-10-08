@@ -25,7 +25,6 @@ import {
   writeTextContent,
 } from '../../utils/file.js'
 import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistory.js'
-import { logFileOperation } from '../../utils/fileOperationAnalytics.js'
 import { readFileSyncWithMetadata } from '../../utils/fileRead.js'
 import { logError } from '../../utils/log.js'
 import { NUL_PATH_MESSAGE, expandPath, hasNulByte } from '../../utils/path.js'
@@ -297,13 +296,6 @@ export const FileWriteTool = buildTool({
         edits: [{ old_string: normalizedContent, new_string: input.content }],
       })
       countLinesChanged(patch)
-      logFileOperation({
-        operation: 'write',
-        tool: 'FileWriteTool',
-        filePath: expandedPath,
-        content: input.content,
-        type: 'update',
-      })
       const data: Output = {
         type: 'update',
         filePath: expandedPath,
@@ -327,13 +319,6 @@ export const FileWriteTool = buildTool({
     }
 
     countLinesChanged([], input.content)
-    logFileOperation({
-      operation: 'write',
-      tool: 'FileWriteTool',
-      filePath: expandedPath,
-      content: input.content,
-      type: 'create',
-    })
     const data: Output = {
       type: 'create',
       filePath: expandedPath,

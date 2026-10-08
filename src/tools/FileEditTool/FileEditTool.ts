@@ -54,7 +54,6 @@ import {
   writeTextContent,
 } from '../../utils/file.js'
 import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistory.js'
-import { logFileOperation } from '../../utils/fileOperationAnalytics.js'
 import { readFileSyncWithMetadata, type LineEndingType } from '../../utils/fileRead.js'
 import { formatFileSize } from '../../utils/format.js'
 import { logError } from '../../utils/log.js'
@@ -1375,12 +1374,6 @@ export const FileEditTool = buildTool({
     })
 
     countLinesChanged(patch, fileExists ? undefined : updatedFile)
-    logFileOperation({
-      operation: 'edit',
-      tool: 'FileEditTool',
-      filePath: expandedPath,
-      content: updatedFile,
-    })
 
     const gitDiff: Output['gitDiff'] = undefined
 
