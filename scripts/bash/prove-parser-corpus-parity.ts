@@ -93,6 +93,30 @@ async function settle(from: string, command: string): Promise<Entry> {
   }
 }
 
+const bindingRepins = new Map<string, { walk: unknown; semantics: unknown; string: unknown }>()
+function pinWalk(command: string, walk: unknown, semantics: unknown): void {
+  bindingRepins.set(command, { walk, semantics, string: walk })
+}
+function simple(...commands: Array<[string[], string]>): unknown {
+  return { kind: 'simple', commands: commands.map(([argv, text]) => ({ argv, envVars: [], redirects: [], text })) }
+}
+function refusal(reason: string, nodeType: string): unknown {
+  return { kind: 'too-complex', reason, nodeType }
+}
+pinWalk('(cd /tmp; ls)', simple([['cd', '/tmp'], 'cd /tmp'], [['ls'], 'ls']), { ok: true })
+pinWalk('(a & b)', refusal('the background operator & starts work outside the foreground command; run it in the foreground, or approve', '&'), null)
+for (const command of ['x=1; while read x; do :; done', 'x=lit; if read x; then :; fi']) {
+  pinWalk(command, simple([['read', 'x'], 'read x'], [[':'], ':']), { ok: true })
+}
+for (const command of ['local x=1', 'local -i n=1', 'readonly R=1', 'readonly x[1]=2']) {
+  const name = command.split(' ')[0]!
+  pinWalk(command, refusal(`${name} changes whether later variable assignments take effect; use a plain assignment in this command, or approve`, 'declaration_command'), null)
+}
+for (const command of ['typeset -r x', 'declare -r x=1']) {
+  pinWalk(command, refusal('declaration flag "-r" can change or prevent assignment; use a plain assignment, or approve', 'declaration_command'), null)
+}
+pinWalk('export FOO+=bar; echo "$FOO"', refusal('quoted argument consists entirely of runtime-determined content', 'string'), null)
+
 function nodeTypeTable(entries: Entry[]): Record<string, number> {
   const names = new Set<string>(['', 'ERROR', 'PARSE_ABORT', 'command', 'program'])
   for (const entry of entries) {
@@ -125,16 +149,19 @@ if (!existsSync(FIXTURE)) {
   } else {
     section(`(1) the grammar and the id table (${Object.keys(recorded.nodeTypeIds).length} node kinds)`)
     check('the grammar that builds the trees is the recorded one', recorded.grammar === grammarId, `${recorded.grammar} vs ${grammarId}`)
-    check('nodeTypeId gives the recorded id for every recorded kind', same(recorded.nodeTypeIds, fixture.nodeTypeIds), JSON.stringify(fixture.nodeTypeIds))
+    const recordedKindsNow = Object.fromEntries(Object.keys(recorded.nodeTypeIds).map(name => [name, ast.nodeTypeId(name === 'undefined' ? undefined : name)]))
+    check('nodeTypeId gives the recorded id for every recorded kind', same(recorded.nodeTypeIds, recordedKindsNow), JSON.stringify(recordedKindsNow))
+    check('each binding re-pin names an existing corpus command', [...bindingRepins.keys()].every(command => recorded.entries.some(entry => entry.command === command)))
     check('checkSemantics over no commands is the recorded verdict', same(recorded.emptySemantics, fixture.emptySemantics), JSON.stringify(fixture.emptySemantics))
 
-    section(`(2) the corpus — ${recorded.entries.length} commands, every tree and verdict byte-identical`)
+    section(`(2) the corpus — ${recorded.entries.length} commands, trees unchanged; verdicts exact with reviewed binding fixes`)
     const fields: (keyof Entry)[] = ['tree', 'walk', 'semantics', 'abort', 'string', 'raw']
     const moved: string[] = []
     const perSource = new Map<string, number>()
     const kinds = new Map<string, number>()
     for (let i = 0; i < recorded.entries.length; i++) {
-      const want = recorded.entries[i] as Entry
+      const stored = recorded.entries[i] as Entry
+      const want = { ...stored, ...bindingRepins.get(stored.command) }
       const got = current[i] as Entry
       perSource.set(want.from, (perSource.get(want.from) ?? 0) + 1)
       const kind = (want.walk as { kind: string }).kind
@@ -147,7 +174,7 @@ if (!existsSync(FIXTURE)) {
     }
     for (const [from, count] of [...perSource.entries()].sort()) console.log(`    ${from}: ${count}`)
     for (const [kind, count] of [...kinds.entries()].sort()) console.log(`    walk verdict ${kind}: ${count}`)
-    check(`every command's tree hash, walk verdict, semantic verdict, abort verdict, string-road verdict and raw parse are the recorded bytes (${recorded.entries.length} commands)`, moved.length === 0, `${moved.length} moved; first: ${moved[0] ?? ''}`)
+    check(`every command's tree hash, walk verdict, semantic verdict, abort verdict, string-road verdict and raw parse match their exact pins (${recorded.entries.length} commands; ${bindingRepins.size} binding fixes)`, moved.length === 0, `${moved.length} moved; first: ${moved[0] ?? ''}`)
     for (const line of moved.slice(0, 12)) console.log(`      ${line}`)
     check('the corpus reaches every walk verdict kind', kinds.has('simple') && kinds.has('too-complex'), [...kinds.keys()].join(','))
     check('the corpus holds at least one command refused by each pre-check and the abort road', recorded.entries.some(e => (e.abort as { nodeType?: string }).nodeType === 'PARSE_ABORT') && recorded.entries.filter(e => (e.abort as { nodeType?: string }).nodeType === undefined).length >= 6)
