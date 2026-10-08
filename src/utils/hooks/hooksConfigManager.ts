@@ -45,12 +45,6 @@ function buildHookEventMetadata(toolNames: string[]): Record<HookEvent, HookEven
       description: 'Payload: tool name, tool input, tool-use id, the error, the error type, and interrupt/timeout flags.',
       matcherMetadata: { field: 'tool_name', values: toolNames },
     },
-    PermissionDenied: {
-      summary: 'Runs when a tool call was refused',
-      description:
-        'Payload: tool name, tool input, tool-use id, and a reason. The structured output may carry a retry flag telling the model it may retry.',
-      matcherMetadata: { field: 'tool_name', values: toolNames },
-    },
     Notification: {
       summary: 'Runs when Mercury sends a notification',
       description: 'Payload: a message and a type.',

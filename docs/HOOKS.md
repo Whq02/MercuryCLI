@@ -28,8 +28,8 @@ Each event names a list of entries. An entry has an optional `matcher` and
 the `hooks` it runs:
 
 - `matcher` is matched against the event's tool name on the tool events
-  (PreToolUse, PostToolUse, PostToolUseFailure, PermissionRequest,
-  PermissionDenied). An absent or empty matcher, or `*`, matches everything;
+  (PreToolUse, PostToolUse, PostToolUseFailure, PermissionRequest). An
+  absent or empty matcher, or `*`, matches everything;
   a plain name matches that tool, `Read|Edit` matches either; anything else
   is a regular expression. An entry whose matcher is not a valid regular
   expression is refused whole, so a broken matcher never widens into a
@@ -75,7 +75,6 @@ adds its own fields; context-dependent fields can be absent:
 | `PostToolUse` | after a tool call succeeds | `tool_name`, `tool_input`, `tool_response`, `tool_use_id` |
 | `PostToolUseFailure` | after a tool call fails | `tool_name`, `tool_input`, `tool_use_id`, `error`, `is_interrupt` |
 | `PermissionRequest` | when a tool call needs the operator's consent | `tool_name`, `tool_input`, `tool_use_id`, `permission_suggestions` |
-| `PermissionDenied` | when a tool call was refused | `tool_name`, `tool_input`, `tool_use_id`, `reason` |
 | `Notification` | when Mercury notifies the operator | `message`, `title`, `notification_type` |
 | `UserPromptSubmit` | when the operator sends a prompt | `prompt` |
 | `UserPromptExpansion` | when a slash command expands into a prompt | `expansion_type`, `command_name`, `command_args`, `command_source`, `prompt` |
@@ -130,10 +129,6 @@ permission answer is the event-specific one below, never this field), and
 - `PermissionRequest`: `decision` with `behavior: "allow"` (optionally
   `updatedInput`, `updatedPermissions`) or `behavior: "deny"` (optionally
   `message`, `interrupt`).
-- `PermissionDenied`: `retry` asks the model to try the call again. The
-  refused call stays refused; a new attempt goes through the same permission
-  checks. This event fires for a rule's refusal, the operator's rejection or
-  a headless auto-deny.
 - `UserPromptSubmit`, `Notification`, `SubagentStart`, `Setup`,
   `PostToolUseFailure`: `additionalContext`.
 - `SessionStart`: `additionalContext`, `initialUserMessage`, `watchPaths`.

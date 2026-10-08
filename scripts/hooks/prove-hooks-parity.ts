@@ -336,7 +336,7 @@ const SKIPPED: Record<string, string> = Object.fromEntries(
   [
     'executeConfigChangeHooks', 'executeCwdChangedHooks', 'executeElicitationHooks',
     'executeElicitationResultHooks', 'executeFileChangedHooks', 'executeFileSuggestionCommand',
-    'executeInstructionsLoadedHooks', 'executeNotificationHooks', 'executePermissionDeniedHooks',
+    'executeInstructionsLoadedHooks', 'executeNotificationHooks',
     'executePermissionRequestHooks', 'executePostCompactHooks', 'executePostToolHooks',
     'executePostToolUseFailureHooks', 'executePreCompactHooks', 'executePreToolHooks',
     'executeSessionEndHooks', 'executeSessionStartHooks', 'executeSetupHooks',

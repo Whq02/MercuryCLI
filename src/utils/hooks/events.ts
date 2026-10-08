@@ -1,6 +1,6 @@
 
 import { randomUUID } from 'crypto'
-import type { ConfigChangeHookInput, CwdChangedHookInput, ElicitationHookInput, ElicitationResultHookInput, ExitReason, FileChangedHookInput, HookInput, InstructionsLoadedHookInput, InterruptHookInput, NotificationHookInput, PermissionDeniedHookInput, PermissionRequestHookInput, PostCompactHookInput, PostToolUseFailureHookInput, PostToolUseHookInput, PreCompactHookInput, PreToolUseHookInput, SessionEndHookInput, SessionStartHookInput, SetupHookInput, StopFailureHookInput, StopHookInput, SubagentStartHookInput, SubagentStopHookInput, TaskCompletedHookInput, TaskCreatedHookInput, UserPromptExpansionHookInput, UserPromptSubmitHookInput } from './contract.js'
+import type { ConfigChangeHookInput, CwdChangedHookInput, ElicitationHookInput, ElicitationResultHookInput, ExitReason, FileChangedHookInput, HookInput, InstructionsLoadedHookInput, InterruptHookInput, NotificationHookInput, PermissionRequestHookInput, PostCompactHookInput, PostToolUseFailureHookInput, PostToolUseHookInput, PreCompactHookInput, PreToolUseHookInput, SessionEndHookInput, SessionStartHookInput, SetupHookInput, StopFailureHookInput, StopHookInput, SubagentStartHookInput, SubagentStopHookInput, TaskCompletedHookInput, TaskCreatedHookInput, UserPromptExpansionHookInput, UserPromptSubmitHookInput } from './contract.js'
 
 import type { PermissionUpdate } from '../../types/permissions.js'
 import type { FileSuggestionCommandInput } from '../../types/fileSuggestion.js'
@@ -158,41 +158,6 @@ export async function* executePostToolUseFailureHooks<ToolInput>(
     tool_use_id: toolUseID,
     error,
     is_interrupt: isInterrupt,
-  }
-
-  yield* runHookInput({
-    hookInput,
-    toolUseID,
-    matchQuery: toolName,
-    signal,
-    timeoutMs,
-    toolUseContext,
-  })
-}
-
-export async function* executePermissionDeniedHooks<ToolInput>(
-  toolName: string,
-  toolUseID: string,
-  toolInput: ToolInput,
-  reason: string,
-  toolUseContext: ToolUseContext,
-  permissionMode?: string,
-  signal?: AbortSignal,
-  timeoutMs: number = TOOL_HOOK_EXECUTION_TIMEOUT_MS,
-): AsyncGenerator<AggregatedHookResult> {
-  const appState = toolUseContext.getAppState()
-  const sessionId = toolUseContext.agentId ?? getSessionId()
-  if (!hasHookForEvent('PermissionDenied', appState, sessionId)) {
-    return
-  }
-
-  const hookInput: PermissionDeniedHookInput = {
-    ...createBaseHookInput(permissionMode, undefined, toolUseContext),
-    hook_event_name: 'PermissionDenied',
-    tool_name: toolName,
-    tool_input: toolInput,
-    tool_use_id: toolUseID,
-    reason,
   }
 
   yield* runHookInput({

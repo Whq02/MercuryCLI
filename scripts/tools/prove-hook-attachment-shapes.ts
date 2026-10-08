@@ -310,7 +310,7 @@ section('§D the two tool-road producers hand the union\'s own shape to createAt
     }
     visit(sf)
   }
-  check('the six producer literals are found (three context, three stopped including PermissionDenied)', literals === 6, `${literals} literal(s)`)
+  check('the five producer literals are found (three context, two stopped)', literals === 5, `${literals} literal(s)`)
   check('none sits under a cast', casts.length === 0, `${casts.length}: ${casts.join(', ')}`)
 }
 

@@ -27,7 +27,6 @@ export {
   executeInstructionsLoadedHooks,
   executeInterruptHooks,
   executeNotificationHooks,
-  executePermissionDeniedHooks,
   executePermissionRequestHooks,
   executePostCompactHooks,
   executePostToolHooks,

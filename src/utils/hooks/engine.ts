@@ -238,7 +238,6 @@ function* foldHookResult(result: HookResult, permission: PermissionResult['behav
   if (permission !== undefined) yield { permissionBehavior: permission, hookPermissionDecisionReason: result.hookPermissionDecisionReason, hookSource: source, updatedInput: result.updatedInput && (result.permissionBehavior === 'allow' || result.permissionBehavior === 'ask') ? result.updatedInput : undefined }
   if (result.updatedInput && result.permissionBehavior === undefined) yield { updatedInput: result.updatedInput }
   if (result.permissionRequestResult) yield { permissionRequestResult: result.permissionRequestResult }
-  if (result.retry) yield { retry: result.retry }
   if (result.elicitationResponse) yield { elicitationResponse: result.elicitationResponse }
   if (result.elicitationResultResponse) yield { elicitationResultResponse: result.elicitationResultResponse }
 }
