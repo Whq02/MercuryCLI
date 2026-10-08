@@ -35,6 +35,8 @@ for (const operation of ['goToDefinition', 'findReferences', 'hover', 'documentS
   check(`${operation}: unknown-tool wire gate is generic`, !wire.ok && wire.refusal.reason === 'No such tool available: LSP')
 }
 const permission = getEmptyToolPermissionContext()
+delete process.env.ANTHROPIC_BASE_URL
+delete process.env.MERCURY_ANTHROPIC_OAUTH_BASE
 const model = 'claude-sonnet-5-5'
 const first = createUserMessage({ content: 'fixture conversation' })
 const beforeDefinition = JSON.stringify({ name: 'Before', description: 'unchanged before', input_schema: { type: 'object', properties: {} } })
