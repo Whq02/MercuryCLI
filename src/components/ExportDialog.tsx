@@ -8,7 +8,7 @@ import { useKeybinding } from '../keybindings/useKeybinding.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { setClipboardWithReceipt } from '../ink/termio/osc.js'
 import { getFocusedWorkspaceCwd, useFocusedWorkspaceCwd } from '../hooks/useFocusedWorkspaceCwd.js'
-import { writeFileSync_DEPRECATED } from '../utils/slowOperations.js'
+import { writeFileSync } from 'node:fs'
 
 
 export type ExportResult = { success: boolean; message: string }
@@ -63,7 +63,7 @@ export function ExportDialog({
   const writeToFile = (): void => {
     const target = join(getFocusedWorkspaceCwd(), normalizeTxtFilename(filename))
     try {
-      writeFileSync_DEPRECATED(target, content, {
+      writeFileSync(target, content, {
         encoding: 'utf-8',
         flush: true,
       })

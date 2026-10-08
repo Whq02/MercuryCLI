@@ -37,9 +37,9 @@ export function operatorFacingBirthReason(reason: string): string {
 function savedDefaultRoad(resolved: string): boolean {
   const { getEngineModelOverride } = require('../../bootstrap/state.js') as typeof import('../../bootstrap/state.js')
   if (getEngineModelOverride() !== undefined) return false
-  const { getSettings_DEPRECATED } = require('../../utils/settings/settings.js') as typeof import('../../utils/settings/settings.js')
+  const { getInitialSettings } = require('../../utils/settings/settings.js') as typeof import('../../utils/settings/settings.js')
   const { parseUserSpecifiedModel } = require('../../utils/model/model.js') as typeof import('../../utils/model/model.js')
-  const saved = getSettings_DEPRECATED().engine?.model
+  const saved = getInitialSettings().engine?.model
   return typeof saved === 'string' && saved.trim() !== '' && parseUserSpecifiedModel(saved) === resolved
 }
 

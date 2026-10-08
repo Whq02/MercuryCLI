@@ -34,12 +34,12 @@ mock.module('node:fs/promises', () => ({
 mock.module('node:os', () => ({ ...os, freemem: () => 8 * 2 ** 30, totalmem: () => 16 * 2 ** 30 }))
 mock.module('node:child_process', () => ({
   ...childProcess,
+  execSync: () => { syncCalls++; throw new Error('synchronous process creation') },
   execFileSync: () => { syncCalls++; throw new Error('synchronous process creation') },
 }))
 mock.module(join(ROOT, 'src/utils/availableCores.ts'), () => ({ availableCores: () => 8 }))
 mock.module(join(ROOT, 'src/utils/execFileNoThrow.ts'), () => ({
   execFileNoThrowWithCwd: async () => { throw new Error('unexpected subprocess') },
-  execSyncWithDefaults_DEPRECATED: () => { throw new Error('unexpected synchronous subprocess') },
   execFileNoThrow: () => {
     samples++
     return new Promise(resolve => { release = resolve })

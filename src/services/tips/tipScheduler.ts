@@ -1,4 +1,4 @@
-import { getSettings_DEPRECATED } from '../../utils/settings/settings.js'
+import { getInitialSettings } from '../../utils/settings/settings.js'
 import { getRelevantTips } from './tipRegistry.js'
 import { recordTipShown } from './tipHistory.js'
 import { getSessionsSinceLastShown } from './tipHistory.js'
@@ -14,7 +14,7 @@ export function selectTipWithLongestTimeSinceShown(tips: Tip[]): Tip | undefined
 }
 
 export async function getTipToShowOnSpinner(context?: TipContext): Promise<Tip | undefined> {
-  if (getSettings_DEPRECATED().activity?.tips?.enabled === false) return undefined
+  if (getInitialSettings().activity?.tips?.enabled === false) return undefined
   const tips = await getRelevantTips(context)
   return selectTipWithLongestTimeSinceShown(tips)
 }

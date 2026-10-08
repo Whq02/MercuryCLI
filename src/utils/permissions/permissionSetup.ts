@@ -8,7 +8,7 @@ import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../debug.js'
 import { holdModeTransition, recordModeTransition, type ModeTransitionRoad } from './modeTransitions.js'
 import {
-  getSettings_DEPRECATED,
+  getInitialSettings,
   getSettingsWithErrors,
   getSettingsForSource,
 } from '../settings/settings.js'
@@ -277,7 +277,7 @@ export function validateModeEntry(mode: PermissionMode, context: ToolPermissionC
 
 
 function isAutoModeDisabledBySettings(): boolean {
-  return getSettings_DEPRECATED().guardrails?.disableFlowMode === true
+  return getInitialSettings().guardrails?.disableFlowMode === true
 }
 
 export function isAutoModeGateEnabled(): boolean {
@@ -300,7 +300,7 @@ export function getAutoModeUnavailableNotification(reason: AutoModeUnavailableRe
 
 
 function isBypassDisabledBySettingsOrPolicy(): boolean {
-  return getSettings_DEPRECATED().guardrails?.disableSovereignMode === true
+  return getInitialSettings().guardrails?.disableSovereignMode === true
 }
 
 export function isSovereignDisabled(): boolean {

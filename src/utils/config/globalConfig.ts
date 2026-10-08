@@ -8,7 +8,7 @@ import { getGlobalMercuryFile } from '../env.js'
 import { getMercuryHome } from '../envUtils.js'
 import { ConfigParseError, ConfigReadError, getErrnoCode } from '../errors.js'
 import { isReadOnlyDiagnostic } from '../diagnosticReadOnly.js'
-import { writeFileSyncAndFlush_DEPRECATED } from '../file.js'
+import { writeFileAndFlushAtomically } from '../file.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { safeParseJSON } from '../json.js'
 import { stripBOM } from '../jsonRead.js'
@@ -409,7 +409,7 @@ export function saveConfig<A extends object>(
     (value: A[keyof A], key: string) =>
       jsonStringify(value) !== jsonStringify(defaultConfig[key as keyof A]),
   )
-  writeFileSyncAndFlush_DEPRECATED(
+  writeFileAndFlushAtomically(
     file,
     jsonStringify(filteredConfig, null, 2),
     {
@@ -587,7 +587,7 @@ export function saveConfigWithLock<A extends object>(
         jsonStringify(value) !== jsonStringify(defaultConfig[key as keyof A]),
     )
 
-    writeFileSyncAndFlush_DEPRECATED(
+    writeFileAndFlushAtomically(
       file,
       jsonStringify(filteredConfig, null, 2),
       {

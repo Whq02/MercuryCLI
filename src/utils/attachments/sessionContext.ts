@@ -3,7 +3,7 @@ import type { Message } from 'src/types/message.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { getTotalCostUSD } from '../../bootstrap/state.js'
 import { providerLimitWarningFacts } from '../../services/providers/limitWarning.js'
-import { getSettings_DEPRECATED } from '../settings/settings.js'
+import { getInitialSettings } from '../settings/settings.js'
 import type { Attachment } from './types.js'
 
 export function getCriticalSystemReminderAttachment(
@@ -65,7 +65,7 @@ export function getUsageLimitNoticeAttachment(
   messages: readonly unknown[] = [],
   reads?: NonNullable<Parameters<typeof providerLimitWarningFacts>[0]>['reads'],
 ): Attachment[] {
-  if (getSettings_DEPRECATED().engine?.usageNotice !== true) return []
+  if (getInitialSettings().engine?.usageNotice !== true) return []
   let facts: ReturnType<typeof providerLimitWarningFacts>
   try {
     facts = providerLimitWarningFacts({ model: toolUseContext.options.engineModel, ...(reads !== undefined ? { reads } : {}) })
