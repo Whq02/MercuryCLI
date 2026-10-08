@@ -1,6 +1,4 @@
 
-import { closeSync, fsyncSync, openSync, writeFileSync, writeSync } from 'node:fs'
-
 function resolveThreshold(): number {
   if (process.env.NODE_ENV === 'development') return 20
   return Number.POSITIVE_INFINITY
@@ -53,34 +51,4 @@ export function jsonParse(
 
 export function clone<T>(value: T, options?: StructuredSerializeOptions): T {
   return structuredClone(value, options)
-}
-
-export function writeFileSync_DEPRECATED(
-  filePath: string,
-  data: string,
-  options?:
-    | BufferEncoding
-    | {
-        encoding?: BufferEncoding
-        mode?: number
-        flag?: string
-        flush?: boolean
-      },
-): void {
-  const resolved = typeof options === 'string' ? { encoding: options } : options
-  if (resolved?.flush) {
-    const fd = openSync(filePath, resolved.flag ?? 'w', resolved.mode)
-    try {
-      writeSync(fd, data, null, resolved.encoding ?? 'utf8')
-      fsyncSync(fd)
-    } finally {
-      closeSync(fd)
-    }
-    return
-  }
-  writeFileSync(filePath, data, {
-    encoding: resolved?.encoding ?? 'utf8',
-    ...(resolved?.mode !== undefined ? { mode: resolved.mode } : {}),
-    ...(resolved?.flag !== undefined ? { flag: resolved.flag } : {}),
-  })
 }
