@@ -128,6 +128,7 @@ section('C · the one owner: stop disarm = exit teardown; continue re-arm = the 
   check("ctrl+z rides the stop owner (SIGTSTP), never a bare SIGSTOP", app.includes("process.kill(process.pid, 'SIGTSTP')") && !app.includes("'SIGSTOP'"))
 
   const mouseLiteral = /\\x1b\[\?100[0236][hl]|\\u001b\[\?100[0236][hl]|\[\?100[0236][hl]/
+  const SPELLS_BY_NAME = ['src/ink/termio/dec.ts', 'src/services/privateChannel/installLayout.ts']
   const offenders: string[] = []
   const walk = (dir: string): void => {
     for (const name of readdirSync(dir)) {
@@ -137,13 +138,13 @@ section('C · the one owner: stop disarm = exit teardown; continue re-arm = the 
         continue
       }
       if (!/\.(ts|tsx)$/.test(name)) continue
-      if (full.endsWith('src/ink/termio/dec.ts')) continue
+      if (SPELLS_BY_NAME.some(file => full.endsWith(file))) continue
       const text = readFileSync(full, 'utf8')
       if (mouseLiteral.test(text)) offenders.push(full.slice(ROOT.length + 1))
     }
   }
   walk(join(ROOT, 'src'))
-  check('no file but the DEC owner spells a mouse-mode sequence', offenders.length === 0, offenders.join(', '))
+  check('no renderer spells a mouse-mode sequence of its own (the DEC owner, and the launcher text that resets a crashed terminal after the product has exited, by name)', offenders.length === 0, offenders.join(', '))
 }
 
 section('A · SIGTSTP: restore first, then stop; fg re-arms + repaints; keys land · A2 · ctrl+z · B · SIGTERM')

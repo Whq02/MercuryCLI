@@ -17,6 +17,8 @@ const JOIN_ALLOWLIST: Record<string, string> = {
   'src/services/projectIntel/impact.ts': 'scan-ignore vocabulary names the home',
   'src/skills/loadSkillsDir.ts': 'managed-policy dir joins; project paths ride the seam',
   'src/utils/config/derived.ts': 'managed-policy dir join + user-scope file names',
+  'src/services/privateChannel/installLayout.ts':
+    'the PowerShell entry text written to disk — resolves the config home when neither MERCURY_CONFIG_DIR nor MERCURY_HOME is set, mirroring the LAUNCHER rungs; no src module can load there',
 }
 
 const PROSE_ALLOWLIST: Record<string, string> = {

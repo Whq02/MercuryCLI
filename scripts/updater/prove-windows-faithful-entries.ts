@@ -103,7 +103,7 @@ section('(5) the facade decides for real: a fixture layout with a cmd launcher t
   const facadePath = join(fx, 'mercury')
   writeFileSync(facadePath, facade)
   chmodSync(facadePath, 0o755)
-  const env = { ...process.env, MERCURY_VERSIONS_DIR: versions, MERCURY_CONFIG_DIR: join(fx, 'home'), NODE_DISABLE_COMPILE_CACHE: '1' }
+  const env = { ...process.env, MERCURY_VERSIONS_DIR: versions, MERCURY_CONFIG_DIR: join(fx, 'home'), MERCURY_LOCAL_PROBE_TARGETS: 'none', NODE_DISABLE_COMPILE_CACHE: '1' }
   const run = (args: string[], extra: Record<string, string> = {}) => spawnSync('sh', [facadePath, ...args], { encoding: 'utf8', env: { ...env, ...extra }, input: '', timeout: 30_000 })
 
   const r1 = run(['run', 'keep [50% done ^caret %USERPROFILE% end]'])
