@@ -117,11 +117,11 @@ export type CritterFrameOpts = {
 export function composeCritterFrame(def: CritterDef, opts: CritterFrameOpts): { art: string[]; sleepSlots: number[] } {
   const { pupil = '●', gazeKey = '', swayPhase = 0, sleepPhase = null, mini = false, square = false } = opts
   const usingSquare = square && def.squareDock.length > 0
-  const form = usingSquare ? 'square' : mini ? 'mini' : 'art'
+  const form = usingSquare ? 'square' : 'mini'
   const pose = sleepPhase !== null ? sleepPoseFor(def, form) : null
   const flowDepth = pose ? pose.flow : flowDepthFor(def, form)
   const settleDepth = pose ? 0 : settleDepthFor(def, form)
-  const base = pose ? pose.art : usingSquare ? def.squareDock : def.art
+  const base = pose ? pose.art : usingSquare ? def.squareDock : def.mini
   const gazed = applyGazeKey(base, gazeKey)
   const blinked = pupil !== '●' ? heroBlinkRows(gazed) : gazed
   const breathed = pose ? sleepBreathArt(blinked, swayPhase) : blinked

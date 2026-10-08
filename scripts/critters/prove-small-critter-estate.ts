@@ -40,7 +40,7 @@ for (const def of cd.CRITTERS) {
   t.check(`${def.name}: the dock grid is six rows of eleven`, def.squareDock.length === 6 && def.squareDock.every(r => r.length === 11))
 }
 t.check('critterData exports no accessor for the deleted grids', !('squareArtFor' in cd) && !('markCompactArtFor' in cd) && !('SQUARE_ART_LINES' in cd) && !('FLAT_ART_LINES' in cd))
-t.check('the two painters read the dock grid as the square form\'s base', read('src/components/mercury-ui/CritterArt.tsx').includes('pose ? pose.art : usingSquare ? def.squareDock : def.art') && read('src/components/mercury-ui/AnimatedCritterArt.tsx').includes("const gazeGrid = form === 'square' ? def.squareDock : null"))
+t.check('the two painters read the dock grid as the square form\'s base', read('src/components/mercury-ui/CritterArt.tsx').includes('pose ? pose.art : usingSquare ? def.squareDock : def.mini') && read('src/components/mercury-ui/AnimatedCritterArt.tsx').includes("const gazeGrid = form === 'square' ? def.squareDock : null"))
 t.check('no mount binds another grid over the def\'s square field', readersOf(/square:\s*squareDockArtFor|square:\s*squareArtFor/).length === 0, readersOf(/square:\s*squareDockArtFor|square:\s*squareArtFor/).join(', '))
 
 t.section('§3 — the command table: /critter stands, /view and /companion do not')

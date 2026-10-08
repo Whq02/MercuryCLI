@@ -52,9 +52,7 @@ type Gesture = { reason: string; rows: readonly number[] }
 const GESTURES: Readonly<Record<string, Gesture>> = {}
 
 const FULL_MIRROR = new Set<string>([
-  'clam · 13w awake',
   'clam · mini awake',
-  'clam · 13w sleep',
   'clam · mini sleep',
   'crab · square dock',
   'octopus · square dock',
@@ -113,15 +111,12 @@ console.log('sprite symmetry — the mirror law over every rest pose, every form
 check('the pool holds the four critters', CRITTERS.length === 4, `${CRITTERS.length}`)
 for (const def of CRITTERS) {
   const name = def.name
-  gridLaw(`${name} · 13w awake`, def.art, 'grid')
   gridLaw(`${name} · mini awake`, miniArtFor(name), 'grid')
   gridLaw(`${name} · square dock`, def.squareDock, 'grid')
-  const artSleep = sleepPoseFor({ name }, 'art')
-  if (artSleep) gridLaw(`${name} · 13w sleep`, artSleep.art, 'grid')
   const miniSleep = sleepPoseFor({ name }, 'mini')
   if (miniSleep) gridLaw(`${name} · mini sleep`, miniSleep.art, 'grid')
 }
-check('every registered gesture names a grid the law walked', Object.keys(GESTURES).every(k => /^(crab|octopus|jellyfish|clam) · (13w awake|mini awake|13w sleep|mini sleep|square dock)$/.test(k)), Object.keys(GESTURES).join(' · '))
+check('every registered gesture names a grid the law walked', Object.keys(GESTURES).every(k => /^(crab|octopus|jellyfish|clam) · (mini awake|mini sleep|square dock)$/.test(k)), Object.keys(GESTURES).join(' · '))
 check('the clam registers NO gesture — every form mirrors whole', Object.keys(GESTURES).every(k => !k.startsWith('clam')))
 check('the square tier registers NO gesture — the geometric variant mirrors whole (chat-feel item 5)', Object.keys(GESTURES).every(k => !k.includes('square')))
 
