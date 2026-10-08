@@ -74,7 +74,7 @@ function seedWorld(): { home: string; cwd: string } {
 function driveEnv(home: string, fixtureBase: string): Record<string, string> {
   const env: Record<string, string> = {
     MERCURY_CONFIG_DIR: home,
-    MERCURY_DAEMON_DIR: join(home, 'daemon'),
+    MERCURY_DAEMON_DIR: './daemon',
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
     MERCURY_BOOT_PREFLIGHT: '0',
