@@ -348,7 +348,7 @@ type Quoted = { value: string; sawLiteral: boolean; sawUnknown: boolean }
 
 function assign(scope: Scope, assignment: Assignment): void {
   if (assignment.append) {
-    scope.set(assignment.name, appended(scope.get(assignment.name) ?? '', assignment.value))
+    scope.set(assignment.name, appended(scope.get(assignment.name) ?? UNKNOWN_VALUE, assignment.value))
   } else {
     scope.set(assignment.name, assignment.value)
   }

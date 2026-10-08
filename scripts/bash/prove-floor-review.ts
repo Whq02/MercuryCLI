@@ -72,6 +72,18 @@ if (!group || group === 'writers') {
     check(`unrelated variables stay known: ${command}`, result.behavior === 'allow', result)
   }
 }
+if (!group || group === 'append') {
+  for (const command of ['GOPATH+=f; cat "$GOPATH"', 'x+=cat; $x f', 'x+=f; cat "prefix$x"']) {
+    const result = await decide(command, { allow: ['Bash(cat *)'] })
+    check(`unknown environment append: ${command}`, result.behavior === 'ask', result)
+    const read = await checkReadOnlyConstraints({ command }, false)
+    check(`unknown environment append is not a read-only proof: ${command}`, read.behavior !== 'allow', read)
+  }
+  for (const command of ['x=; x+=cat; $x f', 'x=c; x+=at; $x f', 'GOPATH=; GOPATH+=f; cat "$GOPATH"']) {
+    const result = await decide(command)
+    check(`explicit initial value remains provable: ${command}`, result.behavior === 'allow', result)
+  }
+}
 process.chdir(before)
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures ? `floor-review: ${failures} FAILURE(S)` : 'floor-review: ALL LAWS HOLD')
