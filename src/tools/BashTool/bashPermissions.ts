@@ -667,7 +667,7 @@ async function decideBashPermission(
   }
 
   if (astCommands === null) return unprovenAsk('the shell parser could not establish the commands; simplify the command, or approve')
-  if (astCommands.some(simple => simple.globOperand === true)) return unprovenAsk(WILDCARD_REASON)
+  if (astCommands.some(simple => simple.globOperand === true && !wildcardAnswered(simple, context, compoundHasCd))) return unprovenAsk(WILDCARD_REASON)
 
   if (
     SandboxManager.isSandboxingEnabled() &&
@@ -829,6 +829,12 @@ function earlyExitDenyCheck(input: BashInput, context: ToolPermissionContext): P
 function unprovenAsk(reason: string): PermissionResult {
   const message = /approve|approval/i.test(reason) ? reason : `${reason}; simplify the command, or approve`
   return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: false } }
+}
+
+function wildcardAnswered(command: SimpleCommand, context: ToolPermissionContext, compoundHasCd: boolean): boolean {
+  const text = command.text.trim()
+  if (matchRules(text, context, 'allow', 'exact', true) !== null || matchRules(text, context, 'allow', 'prefix', true) !== null) return true
+  return context.mode === 'flow' && checkPreparedReadOnlyConstraints({ command: text }, compoundHasCd, { ...command, redirects: [] }).behavior === 'allow'
 }
 
 function astDenyCheck(input: BashInput, context: ToolPermissionContext, root: Node | typeof PARSE_ABORTED): PermissionResult | null {
