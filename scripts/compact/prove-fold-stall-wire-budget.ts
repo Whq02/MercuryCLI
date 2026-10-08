@@ -203,8 +203,8 @@ section('§2 the armed bound names the wire\'s number — both lanes over the lo
   const forkLines = debugLinesSince()
   check('the home model rides the fork lane', shouldRideCacheSharingFork(HOME_MODEL, { type: 'disabled' }) === true)
   check(`the fold landed over the loopback (${fork.ms} ms)`, fork.result !== undefined && fork.error === undefined && summaryOf(fork).includes(SUMMARY_TEXT), (fork.error?.message ?? '').slice(0, 300))
-  check('the fork lane\'s bound was armed with the Anthropic idle budget as its stall (stall 360000 ms after the first event, wall 600000 ms)', forkLines.some(l => /fork lane bound armed — first-byte allowance \d+ ms for ≈\d+ tokens, stall 360000 ms after the first event, wall 600000 ms/.test(l)), j(forkLines))
-  check('the first-byte allowance keeps its flat rule for a small history (120 s + the cold-ingest reading)', forkLines.some(l => /fork lane bound armed — first-byte allowance 12\d{4} ms for ≈\d+ tokens/.test(l)), j(forkLines))
+  check('the fork lane\'s bound was armed with the Anthropic idle budget as its stall (stall 360000 ms after the first event)', forkLines.some(l => /fork lane bound armed — first-byte allowance \d+ ms for ≈\d+ tokens, stall 360000 ms after the first event/.test(l)), j(forkLines))
+  check('the first-byte allowance is never shorter than the route idle budget', forkLines.some(l => /fork lane bound armed — first-byte allowance 360000 ms for ≈\d+ tokens/.test(l)), j(forkLines))
   check('the fork lane itself landed the summary — no hand-over to the direct call', !forkLines.some(l => /handing over to the direct call/.test(l)) && !forkLines.some(l => /direct lane bound armed/.test(l)), j(forkLines))
 
   fixture.script([{ text: SUMMARY_TEXT }])
@@ -213,7 +213,7 @@ section('§2 the armed bound names the wire\'s number — both lanes over the lo
   const directLines = debugLinesSince()
   check('the OpenAI model rides the direct lane', shouldRideCacheSharingFork(OPENAI_MODEL, { type: 'disabled' }) === false)
   check(`the fold landed over the loopback (${direct.ms} ms)`, direct.result !== undefined && direct.error === undefined && summaryOf(direct).includes(SUMMARY_TEXT), (direct.error?.message ?? '').slice(0, 300))
-  check('the direct lane\'s bound was armed with the quiet idle budget as its stall (stall 900000 ms after the first event)', directLines.some(l => /direct lane bound armed — first-byte allowance \d+ ms for ≈\d+ tokens, stall 900000 ms after the first event, wall 600000 ms/.test(l)), j(directLines))
+  check('the direct lane\'s bound was armed with the quiet idle budget as its stall (stall 900000 ms after the first event)', directLines.some(l => /direct lane bound armed — first-byte allowance \d+ ms for ≈\d+ tokens, stall 900000 ms after the first event/.test(l)), j(directLines))
 }
 
 section(`§3 the long lane's death, driven — the summariser sends its first event, then nothing for ${SILENCE_MS / 1000} s (past the flat 120 s, well inside the wire's 6 minutes), then the summary: the fold LANDS on the fork lane`)

@@ -249,9 +249,9 @@ section('§C the Anthropic road: adaptive thinking, effort max and high — the 
   const high = await driveAnthropic('claude-fable-5-1', 'high', 'adaptive')
   check('effort high on Fable 5.1 rides as output_config.effort = high', (high.body?.output_config as { effort?: string } | undefined)?.effort === 'high', j(high.body?.output_config))
   check('the settled row stamps {asked high, applied high, wire output_config.effort=high}', sameStamp(stampOf(high.rows.at(-1)), { asked: 'high', applied: 'high', wire: 'output_config.effort=high' }), j(stampOf(high.rows.at(-1))))
-  const fold = await driveAnthropic('claude-fable-5-1', 'high', 'disabled', { effortMessage: 'low' })
+  const fold = await driveAnthropic('claude-fable-5-1', 'high', 'adaptive', { querySource: 'compact' })
   const foldRow = (fold.body?.messages as Array<{ role?: string; output_config?: { effort?: string } }> | undefined)?.find(m => m.role === 'system' && m.output_config?.effort !== undefined)
-  check("a fold's per-message effort row rides beside the top-level word and the stamp spells both, applied = the row's word", foldRow !== undefined && sameStamp(stampOf(fold.rows.at(-1)), { asked: 'high', applied: 'low', wire: 'output_config.effort=high, messages[system].output_config.effort=low' }), `row ${j(foldRow)} stamp ${j(stampOf(fold.rows.at(-1)))}`)
+  check('a fold stamps the session effort without a message-level override', foldRow === undefined && sameStamp(stampOf(fold.rows.at(-1)), { asked: 'high', applied: 'high', wire: 'output_config.effort=high' }), `row ${j(foldRow)} stamp ${j(stampOf(fold.rows.at(-1)))}`)
   const unasked = await driveAnthropic('claude-opus-4-5-20250101', undefined, 'disabled')
   const unaskedWord = (unasked.body?.output_config as { effort?: string } | undefined)?.effort
   check("nothing asked on a ladder model: asked says 'none' and applied names the default word the wire carried", unaskedWord !== undefined && sameStamp(stampOf(unasked.rows.at(-1)), { asked: 'none', applied: unaskedWord, wire: `output_config.effort=${unaskedWord}` }), `stamp ${j(stampOf(unasked.rows.at(-1)))} output_config ${j(unasked.body?.output_config)}`)

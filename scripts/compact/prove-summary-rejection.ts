@@ -46,7 +46,7 @@ try {
       const ledger = new Map([[join(home, 'parser.ts'), { content: 'parser fact', timestamp: 17 }]])
       const reads = JSON.stringify([...ledger])
       const loaded = new Set(['nested-memory'])
-      const context: any = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages, readFileState: ledger, loadedNestedMemoryPaths: loaded, addNotification: (notice: { text: string }) => notices.push(notice.text), options: { tools: [], commands: [], mcpClients: [], engineModel: 'claude-sonnet-5-5', maxThinkingTokens: 0, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
+      const context: any = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages, readFileState: ledger, loadedNestedMemoryPaths: loaded, addNotification: (notice: { text: string }) => notices.push(notice.text), options: { tools: [], commands: [], mcpClients: [], engineModel: 'claude-sonnet-5-5', maxThinkingTokens: 0, thinkingConfig: { type: 'adaptive' }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
       const cache = { systemPrompt: ['Synthetic summary validation proof.'] } as never
       fixture.script(() => ({ text }))
       let result: unknown
@@ -65,7 +65,7 @@ try {
   }
   for (const text of [good, `<summary>${good}</summary>`, `\`\`\`markdown\n${good}\n\`\`\``, 'The provider said "I cannot summarize this conversation" on the previous attempt. The parser still passes 14 checks.']) {
     fixture.script(() => ({ text }))
-    const context: any = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages, readFileState: new Map(), options: { tools: [], commands: [], mcpClients: [], engineModel: 'claude-sonnet-5-5', maxThinkingTokens: 0, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
+    const context: any = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages, readFileState: new Map(), options: { tools: [], commands: [], mcpClients: [], engineModel: 'claude-sonnet-5-5', maxThinkingTokens: 0, thinkingConfig: { type: 'adaptive' }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
     let result: Awaited<ReturnType<typeof compactConversation>> | undefined
     try { result = await compactConversation(messages, context, { systemPrompt: ['Synthetic summary validation proof.'] } as never, false) } catch {}
     check('a fresh attempt accepts a substantive summary without imposing a format', result?.summaryMessages.length === 1, text)

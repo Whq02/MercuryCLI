@@ -227,7 +227,6 @@ export type QueryParams = {
   maxOutputTokensOverride?: number
   maxTurns?: number
   skipCacheWrite?: boolean
-  effortMessage?: EffortValue
   deps?: QueryDeps
 }
 
@@ -259,7 +258,6 @@ type RunCtx = {
   fallbackModel: string | undefined
   querySource: QuerySource
   skipCacheWrite: boolean | undefined
-  effortMessage: EffortValue | undefined
   deps: QueryDeps
   config: QueryConfig
   budgetGuard: BudgetGuard
@@ -633,7 +631,6 @@ async function* streamModel(
             callChain,
             effortValue,
             skipCacheWrite: run.skipCacheWrite,
-            effortMessage: run.effortMessage,
             agentId: toolUseContext.agentId,
             ownerKey: String(rosterOwnerFromToolUseContext(toolUseContext)),
             addNotification: toolUseContext.addNotification,
@@ -857,7 +854,6 @@ export async function* runEventCore(
     querySource,
     maxTurns,
     skipCacheWrite,
-    effortMessage,
   } = params
   const deps = params.deps ?? productionDeps()
 
@@ -887,7 +883,6 @@ export async function* runEventCore(
     fallbackModel,
     querySource,
     skipCacheWrite,
-    effortMessage,
     deps,
     config,
     budgetGuard,

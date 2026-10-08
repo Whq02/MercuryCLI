@@ -247,14 +247,14 @@ section('§1 the route verdict per family, pure — fork or direct, and the fami
     check(`${leg.family} (${leg.id || 'no id'}): the fold row's family word is the classifier's`, foldFamilyOf(leg.id) === leg.family, foldFamilyOf(leg.id))
     check(`${leg.family} (${leg.id || 'no id'}): the lane label is the family's own display name`, laneLabelForVerdict(classifyModelRoute(leg.id)) === leg.label, laneLabelForVerdict(classifyModelRoute(leg.id)))
   }
-  check('a home id under an explicit fixed thinking budget rides the direct lane', shouldRideCacheSharingFork('claude-opus-4-8', { type: 'enabled' }) === false)
+  check('a home id under an explicit fixed thinking budget rides the cache fork', shouldRideCacheSharingFork('claude-opus-4-8', { type: 'enabled' }) === true)
   check('a home id under adaptive thinking still rides the fork (the cache key rides)', shouldRideCacheSharingFork('claude-opus-4-8', { type: 'adaptive' }) === true)
-  check('an unrecognised stranger under a fixed thinking budget rides the direct lane', shouldRideCacheSharingFork('totally-unknown-model-id', { type: 'enabled' }) === false)
+  check('a gateway stranger under a fixed thinking budget rides the cache fork', shouldRideCacheSharingFork('totally-unknown-model-id', { type: 'enabled' }) === true)
 }
 
-section('§2 the request shape per family — the mechanical profile in each family\'s own spelling, no other family\'s field')
+section('§2 the request shape per family — the session profile in each family\'s own spelling, no other family\'s field')
 type Expect = {
-  effort: 'low' | 'absent' | 'session'
+  effort: 'absent' | 'session'
   thinking: 'off' | 'disabled-object'
   cap: 'max_tokens' | 'max_completion_tokens' | 'none'
   cacheControl: boolean
@@ -269,15 +269,15 @@ const OFF = { cacheControl: false, outputConfig: false, reasoningObject: false, 
 const LEGS: Leg[] = [
   { family: 'anthropic', model: 'claude-opus-4-8', fixture: 'shared', lane: 'anthropic-seat', road: 'direct', expect: { effort: 'session', thinking: 'off', cap: 'max_tokens', cacheControl: true, outputConfig: true, reasoningObject: false, reasoningEffortKey: false, storeInclude: false, streamOptions: null } },
   { family: 'anthropic', model: 'claude-opus-4-8', fixture: 'shared', lane: 'anthropic-seat', road: 'fork', expect: { effort: 'session', thinking: 'off', cap: 'max_tokens', cacheControl: true, outputConfig: true, reasoningObject: false, reasoningEffortKey: false, storeInclude: false, streamOptions: null } },
-  { family: 'openai', model: 'gpt-5.5', fixture: 'shared', lane: 'openai-seat', road: 'direct', expect: { ...OFF, effort: 'low', thinking: 'off', cap: 'none', reasoningObject: true, storeInclude: true, streamOptions: null } },
-  { family: 'zai', model: 'glm-5.2', fixture: 'shared', lane: 'zai-seat', road: 'direct', expect: { ...OFF, effort: 'low', thinking: 'disabled-object', cap: 'max_tokens', reasoningEffortKey: true, streamOptions: null } },
+  { family: 'openai', model: 'gpt-5.5', fixture: 'shared', lane: 'openai-seat', road: 'direct', expect: { ...OFF, effort: 'session', thinking: 'off', cap: 'none', reasoningObject: true, storeInclude: true, streamOptions: null } },
+  { family: 'zai', model: 'glm-5.2', fixture: 'shared', lane: 'zai-seat', road: 'direct', expect: { ...OFF, effort: 'session', thinking: 'disabled-object', cap: 'max_tokens', reasoningEffortKey: true, streamOptions: null } },
   { family: 'openrouter', model: 'openrouter/nvidia/nemotron-nano-9b-v2:free', fixture: 'shared', lane: 'openrouter-seat', road: 'direct', expect: { ...OFF, effort: 'absent', thinking: 'off', cap: 'max_tokens', streamOptions: true } },
   { family: 'moonshot', model: 'kimi-k2-0905-preview', fixture: 'census', lane: 'moonshot', road: 'direct', expect: { ...OFF, effort: 'absent', thinking: 'off', cap: 'max_completion_tokens', streamOptions: true } },
   { family: 'deepseek', model: 'deepseek-chat', fixture: 'census', lane: 'deepseek', road: 'direct', expect: { ...OFF, effort: 'absent', thinking: 'disabled-object', cap: 'max_tokens', streamOptions: true } },
   { family: 'gemini', model: 'gemini-2.5-pro', fixture: 'census', lane: 'gemini', road: 'direct', expect: { ...OFF, effort: 'absent', thinking: 'off', cap: 'max_tokens', streamOptions: true } },
   { family: 'huggingface', model: 'huggingface/meta-llama/Llama-3.3-70B-Instruct', fixture: 'census', lane: 'huggingface', road: 'direct', expect: { ...OFF, effort: 'absent', thinking: 'off', cap: 'max_tokens', streamOptions: true } },
   { family: 'openai-compat', model: 'compat/census-endpoint-model', fixture: 'census', lane: 'openai-compat', road: 'direct', expect: { ...OFF, effort: 'absent', thinking: 'off', cap: 'max_tokens', streamOptions: true } },
-  { family: 'local', model: 'local/census-local-model', fixture: 'census', lane: 'local', road: 'direct', expect: { ...OFF, effort: 'low', thinking: 'off', cap: 'max_tokens', reasoningEffortKey: true, streamOptions: true } },
+  { family: 'local', model: 'local/census-local-model', fixture: 'census', lane: 'local', road: 'direct', expect: { ...OFF, effort: 'session', thinking: 'off', cap: 'max_tokens', reasoningEffortKey: true, streamOptions: true } },
 ]
 const shapes: Array<{ family: string; road: string; shape: Shape }> = []
 for (const leg of LEGS) {
@@ -298,7 +298,7 @@ for (const leg of LEGS) {
   if (e.effort === 'session') {
     check(`${leg.family}/${leg.road}: effort is the SESSION's own word (the messages cache keys on it) — never the mechanical 'low'`, shape.effort.length >= 1 && shape.effort.every(w => w !== 'low' && SESSION_TIERS.has(w)), j(shape.effort))
   } else {
-    check(`${leg.family}/${leg.road}: effort ${e.effort === 'low' ? "is the mechanical word 'low' in the family's spelling" : 'has no dial (this row states no reasoning vocabulary; §2b seeds one)'} — never the session tier`, e.effort === 'low' ? shape.effort.length >= 1 && shape.effort.every(w => w === 'low') : shape.effort.length === 0, j(shape.effort))
+    check(`${leg.family}/${leg.road}: this model has no effort dial`, shape.effort.length === 0, j(shape.effort))
   }
   const thinking = shape.thinking as { type?: string } | undefined
   check(
@@ -306,13 +306,12 @@ for (const leg of LEGS) {
     e.thinking === 'off' ? thinking === undefined || thinking.type === 'disabled' : thinking !== undefined && typeof thinking === 'object' && thinking.type === 'disabled',
     j(shape.thinking),
   )
-  const expectedCap = Math.min(20_000, getModelMaxOutputTokens(leg.model).upperLimit)
+  const expectedCap = getModelMaxOutputTokens(leg.model).upperLimit
   if (e.cap === 'none') {
     check(`${leg.family}/${leg.road}: no output cap on this wire (the Responses road bounds server-side)`, shape.cap === null, j(shape.cap))
-  } else if (leg.road === 'fork') {
-    check(`${leg.family}/${leg.road}: the output cap is the family's ${e.cap} (the fork never clamps: no override)`, shape.cap !== null && shape.cap.key === e.cap && shape.cap.value > 0, j(shape.cap))
+
   } else {
-    check(`${leg.family}/${leg.road}: the output cap is ${e.cap} = min(20,000, the model's ceiling) = ${expectedCap}`, shape.cap !== null && shape.cap.key === e.cap && shape.cap.value === expectedCap, j(shape.cap))
+    check(`${leg.family}/${leg.road}: the output cap is ${e.cap} = the model's maximum = ${expectedCap}`, shape.cap !== null && shape.cap.key === e.cap && shape.cap.value === expectedCap, j(shape.cap))
   }
   check(`${leg.family}/${leg.road}: max_output_tokens never rides any wire`, !shape.maxOutputTokens)
   check(`${leg.family}/${leg.road}: cache_control ${e.cacheControl ? 'rides (the home prefix cache)' : 'is ABSENT (another family\'s field)'}`, shape.cacheControl === e.cacheControl)
@@ -323,53 +322,22 @@ for (const leg of LEGS) {
   if (e.streamOptions !== null) check(`${leg.family}/${leg.road}: stream_options.include_usage rides the chat wire`, shape.streamOptions === e.streamOptions)
   check(`${leg.family}/${leg.road}: no server-side context edits ride (context_management)`, !shape.contextManagement)
 }
-section("§2c the home wire that serves per-message effort (Claude Fable 5.1 — measured: the whole prefix read under the row): the session's word top-level, the mechanical pin as a row, the beta with it")
+section("§2c the home fold carries only the session effort word")
 {
-  const { MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER } = await import('../../src/constants/betas.ts')
   for (const road of ['fork', 'direct'] as const) {
     const before = shared.captured.length
     const run = await runFold('claude-fable-5-1', road)
     const hits = shared.captured.slice(before).filter(h => h.lane === 'anthropic-seat')
     check(`fable-5-1/${road}: the fold resolved and reached the home wire`, run.error === undefined && hits.length >= 1, (run.error?.message ?? '').slice(0, 200))
-    const body = (hits[hits.length - 1]?.body ?? {}) as { messages?: Array<{ role?: string; content?: unknown; output_config?: { effort?: string } }>; output_config?: { effort?: string } }
-    const rows = body.messages ?? []
-    const effortRows = rows.map((r, i) => ({ r, i })).filter(({ r }) => r.role === 'system')
-    check(`fable-5-1/${road}: the top-level effort is the SESSION's word (never the pin)`, typeof body.output_config?.effort === 'string' && body.output_config.effort !== 'low' && SESSION_TIERS.has(body.output_config.effort), j(body.output_config))
-    check(`fable-5-1/${road}: exactly one per-message effort row rides — no content, the mechanical 'low'`, effortRows.length === 1 && Array.isArray(effortRows[0]!.r.content) && effortRows[0]!.r.content.length === 0 && effortRows[0]!.r.output_config?.effort === 'low', j(effortRows))
-    const lastUser = rows.map((r, i) => ({ r, i })).filter(({ r }) => r.role === 'user').pop()
-    check(`fable-5-1/${road}: the row sits right before the last user row (the summariser prompt)`, lastUser !== undefined && effortRows[0]?.i === lastUser.i - 1, `row ${effortRows[0]?.i} last user ${lastUser?.i}`)
-    const betas = String((hits[hits.length - 1] as { headers?: Record<string, string> })?.headers?.['anthropic-beta'] ?? (hits[hits.length - 1] as { betas?: string })?.betas ?? '')
-    console.log(`  [record] fable-5-1/${road}: the beta header as the wire saw it: ${betas || '(the fixture records no headers)'}`)
-    if (betas !== '') check(`fable-5-1/${road}: the per-message effort beta rides the header`, betas.includes(MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER))
+    const body = (hits[hits.length - 1]?.body ?? {}) as { messages?: Array<{ role?: string }>; output_config?: { effort?: string } }
+    check(`fable-5-1/${road}: the top-level effort is the session word`, typeof body.output_config?.effort === 'string' && SESSION_TIERS.has(body.output_config.effort), j(body.output_config))
+    check(`fable-5-1/${road}: no effort override rides in messages`, !(body.messages ?? []).some(row => row.role === 'system'), j(body.messages))
   }
-  const before = shared.captured.length
-  await runFold('claude-opus-4-8', 'direct')
-  const plain = (shared.captured.slice(before).filter(h => h.lane === 'anthropic-seat').pop()?.body ?? {}) as { messages?: Array<{ role?: string }> }
-  check('opus-4-8/direct: no per-message row where the wire does not serve it', !(plain.messages ?? []).some(r => r.role === 'system'))
-
-  const { resetPerMessageEffortRefusals, servesPerMessageEffort: servesRow } = await import('../../src/utils/model/capabilities.ts')
-  const systemRowsOf = (hit: { body?: Record<string, unknown> } | undefined): number => (((hit?.body ?? {}) as { messages?: Array<{ role?: string }> }).messages ?? []).filter(r => r.role === 'system').length
-  {
-    resetPerMessageEffortRefusals()
-    shared.refuseNextAnthropicSeat(400, 'unexpected value(s) `mid-conversation-output-config-2026-07-01` for the `anthropic-beta` header')
-    const from = shared.captured.length
-    const run = await runFold('claude-fable-5-1', 'direct')
-    const hits = shared.captured.slice(from).filter(h => h.lane === 'anthropic-seat')
-    const summary = j(run.result?.summaryMessages ?? [])
-    check('fable-5-1/direct, the row refused: the fold resolved in TWO requests — the 400 naming the beta, then the 200', run.error === undefined && hits.length === 2, `${hits.length} request(s) · ${(run.error?.message ?? '').slice(0, 200)}`)
-    check('…the first request rode the row; the second rode WITHOUT it (the refusal learned from the answer row)', systemRowsOf(hits[0]) === 1 && systemRowsOf(hits[1]) === 0, `rows ${hits.map(h => systemRowsOf(h)).join(',')}`)
-    check("…the summary is the 200's text — never the 400's words returned as a summary", summary.includes('spare-landed body.') && !summary.includes('API Error'), summary.slice(0, 200))
-    check('…the model is remembered refused for the process (the next fold rides without the row from the start)', !servesRow('claude-fable-5-1'))
-    resetPerMessageEffortRefusals()
-  }
-  {
-    shared.refuseNextAnthropicSeat(400, 'this request shape is refused for a reason of its own')
-    const from = shared.captured.length
-    const run = await runFold('claude-fable-5-1', 'direct')
-    const hits = shared.captured.slice(from).filter(h => h.lane === 'anthropic-seat')
-    check('fable-5-1/direct, a plain 400: the fold fails typed in the wire\'s words after one request — never a summary', run.error !== undefined && run.result === undefined && hits.length === 1 && (run.error?.message ?? '').includes('refused for a reason of its own'), `${hits.length} request(s) · ${(run.error?.message ?? '').slice(0, 200)}`)
-    check('…and the model still serves the row (a plain 400 teaches nothing)', servesRow('claude-fable-5-1'))
-  }
+  shared.refuseNextAnthropicSeat(400, 'this request shape is refused for a reason of its own')
+  const from = shared.captured.length
+  const run = await runFold('claude-fable-5-1', 'direct')
+  const hits = shared.captured.slice(from).filter(h => h.lane === 'anthropic-seat')
+  check('a plain 400 fails in the provider words after one request, never a summary', run.error !== undefined && run.result === undefined && hits.length === 1 && (run.error?.message ?? '').includes('refused for a reason of its own'), `${hits.length} request(s) · ${(run.error?.message ?? '').slice(0, 200)}`)
 }
 
 section("§2d Claude Opus 5 — measured: the row costs it the whole prefix (0 read, 63,865 written) — so NO row rides and the session's word is the request's")
@@ -436,16 +404,10 @@ section("§8 the OpenAI road: the fold's request IS the session's last request p
   check("§8: the fold's prompt_cache_key equals the session's — the prefix hits by construction", typeof foldBody.prompt_cache_key === 'string' && foldBody.prompt_cache_key === sessionBody.prompt_cache_key, `${foldBody.prompt_cache_key} vs ${sessionBody.prompt_cache_key}`)
   const sessionItems = sessionBody.input ?? []
   const foldItems = foldBody.input ?? []
-  const textOf = (item: unknown): string => {
-    const content = (item as { content?: unknown }).content
-    if (typeof content === 'string') return content
-    return Array.isArray(content) ? content.map(b => String((b as { text?: string }).text ?? '')).join('\n') : ''
-  }
-  const sameHead = j(foldItems.slice(0, sessionItems.length - 1)) === j(sessionItems.slice(0, -1))
-  const lastSession = sessionItems[sessionItems.length - 1]
-  const lastFold = foldItems[sessionItems.length - 1]
-  const lastCarries = lastSession !== undefined && lastFold !== undefined && textOf(lastFold).startsWith(textOf(lastSession)) && textOf(lastFold).length > textOf(lastSession).length
-  check("§8: the fold's input is the session's items with the summariser prompt appended (merged into the last user item, the head byte-identical)", foldItems.length === sessionItems.length && sameHead && lastCarries, `fold ${foldItems.length} items vs session ${sessionItems.length}; head ${sameHead}; last ${lastCarries}`)
+  const sameHead = j(foldItems.slice(0, sessionItems.length)) === j(sessionItems)
+  const { getCompactPrompt } = await import('../../src/services/compact/prompt.ts')
+  const prompt = foldItems.at(-1) as { role?: string; content?: Array<{ text?: string }> } | undefined
+  check("§8: every session item is byte-identical, followed by the complete summariser prompt as its own user item", foldItems.length === sessionItems.length + 1 && sameHead && prompt?.role === 'user' && prompt.content?.some(block => block.text === getCompactPrompt()) === true, `fold ${foldItems.length} items vs session ${sessionItems.length}; head ${sameHead}`)
 }
 
 section("§8b the OpenAI road: the fold re-sends the session's LAST REQUEST's rows — each reminder its own item, the reply's replay items behind them, then the prompt as its own item")
@@ -872,7 +834,7 @@ section('§6 the fold bounds, measured — a cut stream is never a summary (the 
   await new Promise<void>(resolve => server.listen(PACED_PORT, '127.0.0.1', resolve))
   const savedBase = process.env.ANTHROPIC_BASE_URL
   process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${PACED_PORT}`
-  setFoldBoundsForTests({ deadlineMs: 60_000, stallMs: STALL_MS })
+  setFoldBoundsForTests({ stallMs: STALL_MS })
   const healthyMs = CHUNKS.length * PACE_MS
   type FoldRow = { kind: string; road?: string; outcome?: string; detail?: string; ms?: number }
   const foldRowsNow = (): FoldRow[] => {

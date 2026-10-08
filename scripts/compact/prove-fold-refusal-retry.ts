@@ -32,7 +32,7 @@ function check(label: string, ok: boolean, detail: unknown = ''): void {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ` — ${JSON.stringify(detail)}`}`)
 }
 const summary = '<summary>The two-model conversation produced the word-count tool. Continue with UTF-8 handling and the focused tests.</summary>'
-const context = (events: Array<{ type: string }>) => ({ abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: [], readFileState: new Map(), onCompactProgress: (event: { type: string }) => events.push(event), options: { tools: [], commands: [], mcpClients: [], engineModel: 'claude-sonnet-5-5', maxThinkingTokens: 0, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } })
+const context = (events: Array<{ type: string }>) => ({ abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: [], readFileState: new Map(), onCompactProgress: (event: { type: string }) => events.push(event), options: { tools: [], commands: [], mcpClients: [], engineModel: 'claude-sonnet-5-5', maxThinkingTokens: 0, thinkingConfig: { type: 'adaptive' as const }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } })
 const cache = { systemPrompt: ['Synthetic mixed-model compaction proof.'] } as never
 try {
   for (const direction of ['full', 'from', 'up_to'] as const) {
