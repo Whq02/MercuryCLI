@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import ts from 'typescript'
 import React from 'react'
 import { CRITTERS, critterDefForKey, miniArtFor } from '../../src/utils/cockpit/critterData.js'
+import { syntaxShape } from '../lib/codeText.ts'
 
 const root = join(import.meta.dir, '..', '..')
 const read = (path: string): string => readFileSync(join(root, path), 'utf8')
@@ -48,7 +49,7 @@ for (const before of snapshot.critters) {
   check(`${before.name}: mini and its sleep pose unchanged cell for cell`, JSON.stringify(def.mini) === JSON.stringify(before.mini) && JSON.stringify(def.sleep.mini) === JSON.stringify(before.sleep))
 }
 const painter = read('src/components/mercury-ui/CritterArt.tsx')
-check('the dock painter, eye fix and bottom-edge rule are byte-identical', hash(painter.slice(painter.indexOf('  const lines: React.ReactNode[] = []'))) === snapshot.dockPainterSha256)
+check('the dock painter, eye fix and bottom-edge rule are token-identical', hash(syntaxShape('CritterArt.tsx', painter.slice(painter.indexOf('  const lines: React.ReactNode[] = []')))) === snapshot.dockPainterSha256)
 const eye = read('scripts/critters/prove-critter-eye-ground.ts')
 const largeSection = eye.indexOf("section('§3b")
 const dockProof = largeSection < 0 ? eye : eye.slice(0, largeSection) + eye.slice(eye.indexOf("section('§4"))

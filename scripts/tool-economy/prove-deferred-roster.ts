@@ -56,10 +56,12 @@ for (const name of absentHere) {
   const tool = catalogue.find(item => item.name === name)
   if (tool !== undefined) pool.push(tool)
 }
-const missing = BENCH_ROSTER.filter(name => !pool.some(item => item.name === name))
-console.log(`  the pool: ${pool.length} tools · added from the catalogue because this environment's gates leave them out: ${absentHere.join(', ') || 'none'}`)
-check('every tool of the bench roster is in the pool', missing.length === 0, missing.join(', '))
-const roster: Tool[] = BENCH_ROSTER.flatMap(name => pool.filter(tool => tool.name === name))
+const { computerToolEnabled } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
+const BENCH_HERE = computerToolEnabled() ? BENCH_ROSTER : BENCH_ROSTER.filter(name => name !== 'Computer')
+const missing = BENCH_HERE.filter(name => !pool.some(item => item.name === name))
+console.log(`  the pool: ${pool.length} tools · added from the catalogue because this environment's gates leave them out: ${absentHere.join(', ') || 'none'}${computerToolEnabled() ? '' : ' · Computer is not in this build (no desktop driver)'}`)
+check('every tool of the bench roster this build offers is in the pool', missing.length === 0, missing.join(', '))
+const roster: Tool[] = BENCH_HERE.flatMap(name => pool.filter(tool => tool.name === name))
 const first = createUserMessage({ content: 'Reply with exactly: ok' }) as Message
 
 section('§1 the plan on the block form, first party — the eight are deferred and exactly thirteen load in full')
