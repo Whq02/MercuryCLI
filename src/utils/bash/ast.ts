@@ -386,8 +386,9 @@ function writtenVariables(argv: string[]): string[] {
   if (name === 'printf') {
     for (let i = 0; i < operands.length; i++) {
       const operand = operands[i] as string
-      if (operand === '-v' && operands[i + 1] !== undefined) written.push(operands[i + 1] as string)
+      if (operand === '-v' && operands[i + 1] !== undefined) written.push(operands[++i] as string)
       else if (operand.startsWith('-v') && operand.length > 2) written.push(operand.slice(2))
+      else break
     }
   }
   if (name === 'getopts') {

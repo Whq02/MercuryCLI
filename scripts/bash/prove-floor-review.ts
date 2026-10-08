@@ -68,7 +68,7 @@ if (!group || group === 'writers') {
     const read = await checkReadOnlyConstraints({ command }, false)
     check(`writers stay out of read-only admission: ${command}`, read.behavior !== 'allow', read)
   }
-  for (const command of ['x=cat; read y <<< data; $x f', 'x=cat; read -p x y <<< data; $x f', 'x=cat; if true; then read y <<< data; fi; $x f', 'x=cat; printf %s data; $x f']) {
+  for (const command of ['x=cat; read y <<< data; $x f', 'x=cat; read -p x y <<< data; $x f', 'x=cat; if true; then read y <<< data; fi; $x f', 'x=cat; printf %s data; $x f', 'x=cat; printf %s -vx; $x f', 'x=cat; printf -- -vx; $x f']) {
     const result = await decide(command, { allow })
     check(`unrelated variables stay known: ${command}`, result.behavior === 'allow', result)
   }
