@@ -89,7 +89,7 @@ export function modelSupportsAdaptiveThinking(model: string): boolean {
   if (isXaiModelId(model)) return false
   if (isMetaModelId(model)) return false
   const canonical = getCanonicalName(familyDefaultsModel(model))
-  if (canonical.includes('sonnet-5') || canonical.includes('opus-5')) {
+  if (canonical === 'claude-haiku-5-5' || canonical.includes('sonnet-5') || canonical.includes('opus-5')) {
     return true
   }
   if (canonical.includes('fable-5') || canonical.includes('mythos-5')) {
@@ -145,6 +145,7 @@ export function modelSupportsStructuredOutputs(model: string): boolean {
   if (declaredRouteOf(model) !== 'anthropic') return false
   const canonical = getCanonicalName(familyDefaultsModel(model))
   return (
+    canonical === 'claude-haiku-5-5' ||
     canonical.includes('claude-sonnet-5') ||
     canonical.includes('claude-opus-5') ||
     canonical.includes('claude-fable-5') ||
@@ -313,6 +314,7 @@ export function effortVocabularyFor(model: string): EffortVocabularyView {
   if (isCarrierShapedId(model)) return { kind: 'none', source: 'carrier' }
   const m = familyDefaultsModel(model).toLowerCase()
   if (
+    getCanonicalName(m) === 'claude-haiku-5-5' ||
     m.includes('sonnet-5') ||
     m.includes('opus-5') ||
     m.includes('opus-4-7') ||
@@ -405,6 +407,7 @@ export function modelSupports1M(model: string): boolean {
   if (isCarrierShapedId(model)) return false
   const canonical = getCanonicalName(familyDefaultsModel(model))
   return (
+    canonical === 'claude-haiku-5-5' ||
     canonical.includes('sonnet-5') ||
     canonical.includes('opus-5') ||
     canonical.includes('claude-sonnet-4') ||
@@ -535,7 +538,8 @@ export function resolveContextWindow(
   const firstPartyCanonical = getCanonicalName(familyDefaultsModel(model))
   if (
     !isCarrierShapedId(model) &&
-    (firstPartyCanonical.includes('sonnet-5') ||
+    (firstPartyCanonical === 'claude-haiku-5-5' ||
+      firstPartyCanonical.includes('sonnet-5') ||
       firstPartyCanonical.includes('opus-5') ||
       firstPartyCanonical === 'claude-fable-5-1')
   ) {
@@ -745,7 +749,7 @@ export function getModelMaxOutputTokens(model: string): {
 
   if (m.includes('fable-5')) {
     upperLimit = 128_000
-  } else if (m.includes('sonnet-5') || m.includes('opus-5')) {
+  } else if (m === 'claude-haiku-5-5' || m.includes('sonnet-5') || m.includes('opus-5')) {
     upperLimit = 128_000
   } else if (m.includes('opus-4-6')) {
     upperLimit = 128_000
@@ -905,6 +909,7 @@ export function clearBetasCaches(): void {
 export function getModelKnowledgeCutoff(modelId: string): string | null {
   if (isCarrierShapedId(modelId)) return null
   if (familyHeadOf(modelId) !== null) return null
+  if (getCanonicalName(modelId) === 'claude-haiku-5-5') return 'June 2026'
   if (modelId.includes('claude-opus-5-5') || modelId.includes('claude-sonnet-5-5')) {
     return 'June 2026'
   }

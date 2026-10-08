@@ -128,6 +128,8 @@ function parseUserSpecifiedModelCore(input: string, catalogueFold: boolean): str
       return reattach(getDefaultOpusModel())
     case 'haiku':
       return reattach(getDefaultHaikuModel())
+    case 'haiku55':
+      return reattach(firstPartyString('haiku55'))
     case 'fable':
       return reattach(getDefaultFableModel())
     case 'fable51':
@@ -234,7 +236,7 @@ export function firstPartyNameToCanonical(name: string): string {
 }
 
 
-const ONE_M_TWIN_KEYS = new Set(['fable5', 'fable51', 'mythos5', 'opus55', 'opus5', 'opus48', 'opus47', 'opus46', 'sonnet55', 'sonnet5', 'sonnet46', 'sonnet45', 'sonnet40'])
+const ONE_M_TWIN_KEYS = new Set(['fable5', 'fable51', 'mythos5', 'opus55', 'opus5', 'opus48', 'opus47', 'opus46', 'sonnet55', 'sonnet5', 'sonnet46', 'sonnet45', 'sonnet40', 'haiku55'])
 
 const DISPLAY_NAMES: Record<string, string> = {
   fable5: 'Fable 5',
@@ -255,6 +257,7 @@ const DISPLAY_NAMES: Record<string, string> = {
   sonnet40: 'Sonnet 4',
   sonnet37: 'Sonnet 3.7',
   sonnet35: 'Sonnet 3.5',
+  haiku55: 'Haiku 5.5',
   haiku45: 'Haiku 4.5',
   haiku35: 'Haiku 3.5',
 }
