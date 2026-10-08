@@ -514,7 +514,6 @@ function configsOf(family: string): Record<string, ExternalCommandConfig> {
 
 export const GIT_READ_ONLY_COMMANDS: Record<string, ExternalCommandConfig> = configsOf('git')
 export const DOCKER_READ_ONLY_COMMANDS: Record<string, ExternalCommandConfig> = configsOf('docker')
-export const EXTERNAL_READONLY_COMMANDS: readonly string[] = ['docker ps', 'docker images']
 
 type ValidateOptions = { commandName?: string; rawCommand?: string; xargsTargetCommands?: string[] }
 
