@@ -36,7 +36,7 @@ const READ_ASK = 'read three files please'
 const SLEEP_ASK = 'run the long sleep please'
 const LAUNCH_ASK = 'launch one agent please'
 const NOTICE_ASK = 'launch an errand and sleep please'
-const NOTICE_ROW = '● Agent "a quick errand" completed'
+const NOTICE_ROW = '● [Crewmate] a quick errand · completed · 1 line ›'
 const FIRST = 'first queued words'
 const SECOND = 'second queued words'
 
