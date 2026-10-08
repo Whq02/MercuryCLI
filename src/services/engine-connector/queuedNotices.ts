@@ -50,7 +50,7 @@ export function deliveredNoticeRow(row: Message, atMs: number): Message {
   return next
 }
 
-export function placeDeliveredNotices(rows: Message[]): Message[] {
+export function placeDeliveredNotices(rows: readonly Message[]): readonly Message[] {
   const notices: Array<{ row: Message; at: number }> = []
   const other: Message[] = []
   for (const row of rows) {

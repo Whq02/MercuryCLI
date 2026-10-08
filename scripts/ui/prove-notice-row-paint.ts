@@ -53,6 +53,9 @@ section("§1 the classification: a wrapped notice, the notification lane, and th
   check('an empty lane text paints nothing', noticeOfText('  \n ', true) === null)
   check('terminal controls never reach a notice line', JSON.stringify(noticeLines(`${ESC}[31mred${ESC}[0m\r\nok${BELL}`)) === JSON.stringify(['red', 'ok']), JSON.stringify(noticeLines(`${ESC}[31mred${ESC}[0m\r\nok${BELL}`)))
   check('wrappedNoticeBlocks answers null for plain words', wrappedNoticeBlocks('plain words') === null)
+  const quotedTask = 'literal <task-notification>quoted markup</task-notification>'
+  check('task markup quoted inside a notice stays a literal body line', noticeOfText(quotedTask, true)?.[0]?.lines[0] === quotedTask)
+  check('the same quoted markup in an operator prompt is not a notice', noticeOfText(quotedTask, false) === null)
   check('a queued_command attachment on the task-notification lane is a lane row', isNotificationLaneRow({ type: 'attachment', attachment: { type: 'queued_command', commandMode: 'task-notification' } }))
   check('a queued_command attachment on the prompt lane is not', !isNotificationLaneRow({ type: 'attachment', attachment: { type: 'queued_command', commandMode: 'prompt' } }))
   check('a user row carries no lane', !isNotificationLaneRow({ type: 'user' }))
@@ -235,6 +238,15 @@ for (const band of [{ columns: 178, rows: 51 }, { columns: 80, rows: 21 }, { col
       check(`${band.columns} ${name}: expanding preserves the literal body as muted notice text`, open.includes(' ⌄') && open.includes(content.split('\n')[0]!) && !open.includes('❯') && !open.includes('[sam]') && !open.includes('●'), open)
     }
   }
+}
+
+section('markup delivered on the task lane remains inside its notice fold')
+for (const [name, content] of monitorBodies.filter(([name]) => name !== 'task')) {
+  const body = h(AttachmentMessage as never, { attachment: { type: 'queued_command', prompt: content, commandMode: 'task-notification' }, addMargin: false, verbose: false })
+  const folded = await paint(body, { type: 'attachment', timestamp: STAMP })
+  check(`${name}: task-lane markup cannot become an operator, command or resource row`, folded.includes('● notice ·') && folded.includes(' ›') && !folded.includes(content.split('\n')[0]!) && !folded.includes('❯'), folded)
+  const open = await paint(React.cloneElement(body, { verbose: true } as never), { type: 'attachment', timestamp: STAMP })
+  check(`${name}: opening the notice preserves the literal task payload`, open.includes(' ⌄') && open.includes(content.split('\n')[0]!), open)
 }
 
 section("a prompt that quotes command markup is the operator's row, however long — never hidden, never another row's shape")
