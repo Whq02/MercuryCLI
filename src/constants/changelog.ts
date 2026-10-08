@@ -1,6 +1,71 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.29
+- Added focused language-service tools for code questions, renames, declaration and file moves, code actions, formatting and raw protocol requests; a small read-only tool answers the questions and the refactor tools load when needed
+- Added structural code search and rewriting: AstSearch and AstEdit find and rewrite code by its shape across files as one reviewed change; Structure answers JavaScript and TypeScript queries by node kind
+- Added ResumeAgent: a finished crewmate takes more work by name or id and resumes where it stopped
+- Added the Transaction tool: it records a coding loop's changes and checks on its own; status reads the record and finish saves it once a check has passed
+- Added Cron tools: a scheduled run's result names the schedule and its next fire time, and a schedule the daemon refuses says so with the reason
+- Added Claude Haiku 5.5 to the Anthropic catalogue with its documented context window, output ceiling, thinking, effort levels and prices; haiku now names it
+- Added, on Windows, a PowerShell entry for scripts, mercury.ps1, beside mercury.cmd: it hands the command line to Mercury exactly as PowerShell parsed it, and setup says so when the execution policy blocks scripts
+- Changed a session's request: it carries in full only the tools the session reaches for; the rest are named and load on request
+- Changed how a shell command is judged before it runs: Mercury reads the command's real shell structure — a quoted heredoc is text, a # comment is not a command, an input redirect is a read — so everyday reads ask less often, while a deny or an ask always outranks an allow the structure cannot prove, however a command reaches its name
+- Changed Flow mode: file edits inside the project and read-only commands go ahead on their own, everything else asks the way Default does; a yes on a permission card is remembered as a saved rule for the project where a rule can name the call, and destructive calls always ask; a card left unanswered for five minutes is withdrawn and the session carries on with allowed work
+- Changed compaction: the summary request runs at the session's own effort, thinking and output ceiling, and when the conversation has just moved to another model it waits for the first byte as long as a turn would; when the model refuses, the conversation stays intact, /compact shows the reason and the next message can try again
+- Changed how a background watch's lines and every finished task reach the screen: they land in the transcript as one collapsed row the moment they reach the model, named and counted, opening to their lines
+- Changed an Edit's result: it shows the changed lines as read back from the file, numbered like a Read, so the next edit can anchor on them
+- Changed a Read that shows part of a file: it says which lines of how many it shows and how to continue; a file too large to show whole names its line count and two slices ready to read
+- Changed the Bash tool's results: a background command's start names what ends it, a command moved to the background at its timeout returns what it printed so far and names its output file, and a which that finds no name is a result, not an error
+- Changed the Eval tool: cells keep their state across calls and may call sample() and require(); a cancelled cell reports an error, a clamped budget says what ran, a cut display says how much was shown
+- Changed a crewmate launched with an output schema: it hands back the checked payload first, as data, with its report after it; a miss says what was missing
+- Changed SendMessage: it delivers a note to a running crewmate and never starts a finished one; its refusal names ResumeAgent for a new turn
+- Changed Launch's debug and test requests: they run through the Debug and Test tools themselves and answer in their words
+- Changed a reply cut at the output ceiling: it carries on for as long as each continuation adds new content and the run's budget allows, at the same effort, and the turn ends with one line the moment a continuation repeats itself or the budget is spent
+- Changed a hook that ends badly: a hook that fails, times out, is cancelled, closes its input early or cannot run is reported in one line naming the hook, the event and the exit code, in the chat, the transcript and a headless run
+- Changed a background session with no saved permission mode: it starts in Default, the way a fresh session does
+- Changed, on Windows, the ask for a path that names a remote host: one sentence everywhere, naming the host and the risk; a saved rule naming the host or the path permits it, a blanket rule does not
+- Changed the words of a refusal so the model gets the shape right first time: a malformed anchor names the bare value, the Service tool shows a readiness condition, the Browser tool says to serve a folder first, a Git plan in a repository with no commit identity says so, and a malformed tool call's error card names the field and the shape expected
+- Changed the composer footer's way back: it reads shift + ← concourse, in the words of its neighbour
+- Changed the first-run screen: it shows the small critter at every terminal height
+- Changed the status row: it names the daemon's build beside the session model, and names reduced motion, with reduced · slow link while the link is the cause
+- Fixed the first compaction of a session being refused by the model, and a failed compaction reporting success or installing the refusal as the summary; a failure is reported with its reason and a headless run exits non-zero
+- Fixed a reached usage window locking a provider for the length of the window: retrying after fresh credits or a provider-side reset sends the request to the provider again, and when it is served, work continues on the same account without signing in again
+- Fixed a session resumed by the daemon losing the effort saved in its transcript
+- Fixed a reply's work line and the resume card losing a turn's counts after a compaction
+- Fixed a long reply's continuation discarding the output ceiling set for the run
+- Fixed docker run, docker exec and the other Docker commands that change state running without an ask; only the listing and inspecting commands are reads, in Bash and in PowerShell
+- Fixed a plain wc -l < file and its kin asking for approval instead of running as a read, a Bash command holding a pipe running with its quoted spaces squeezed, and the approval card not quoting the command as written
+- Fixed an edit whose text matches more than once in a file: it names every match's lines in one answer; an append no longer leaves the file without a final newline; an empty file carries a Read anchor and joins a change set
+- Fixed a file ending in a newline showing an empty extra line after its last one, a file edited outside the session being called unchanged on the next Read, and the untrusted-content reminder riding every read instead of the first
+- Fixed JavaScript cells dropping their final object, array and awaited values, and a Python cell on a machine without Python being refused as a raw schema error; Eval says which runtime is unavailable and why
+- Fixed a finished crewmate whose name looks like an id being unreachable by that name, and a background crewmate resumed by name losing its granted memory tools
+- Fixed a line sent to a crewmate from the crew view carrying the paste marker instead of the pasted text; an image pasted into such a line is refused in words and the draft stays
+- Fixed the model picker's top view showing one row for a model reachable through two sign-ins; both rows show
+- Fixed language-service retries not recovering when files or servers changed, and file moves refusing directories
+- Fixed the Test tool, given a file, running every test file and reporting them as passing with no cases run; given a folder, it says so before any runner starts
+- Fixed the Git tool's plan accepting an untracked folder that apply then refused after the first commit had landed; the plan names files, and a folder is refused before any commit with its files listed; a headless plan no longer marks the files Mercury itself just wrote as external work
+- Fixed computer use on macOS keeping the terminal as the front application after another application came forward, so every click on that application was refused
+- Fixed a cockpit running its chat on a daemon of another build saying nothing about it; two builds sharing a version word no longer call either one older, and the installed build decides the handover
+- Fixed a sign-in the product knows is dead — a key the service refused, an expired OpenRouter or claude.ai sign-in — counting as signed in on the boot screen and the Logins screen; it shows as present but not signed in, with the reason, and the two screens agree on the count
+- Fixed the model screen, submodel headings, account rows and the scheduling form showing the signed-in address while the account identity is hidden
+- Fixed the workbench's prompt list and the rewind picker listing watch events and task notices as empty prompt rows
+- Fixed /health warning about the boot's timing after a setup screen came first, and its web-search row advertising another provider's native search on a routed home
+- Fixed /usage and the extra-usage restriction showing a provider's reason code; the row says in words what is off and until when
+- Fixed the /effort menu saying a level is picked for this session when it is saved as the default for new sessions; /vim and /appearance say when a choice is saved for later boots
+- Fixed Transaction refusing to finish after the project's tests had passed through Bash, or after a full read-back where no test setup exists; its words name exactly what counts
+- Fixed a background command's completion notice calling the command an agent, carrying no output, or reaching the model escaped; it names the command and the file holding its output, as written
+- Fixed a headless run ending on an oversized image, an overflowing context or an unshapeable tool call naming its reason as a code or reporting "completed" with the harness's own note as its answer; it says what failed in a sentence and exits non-zero
+- Fixed a headless compaction's answer ending with an interactive keyboard hint
+- Fixed an OpenRouter conversation dying when OpenRouter refused the replayed history as encrypted reasoning from more than one upstream; the history is replayed once without those items, with the retry and its reason on the wait row
+- Fixed the outcome row of a headless run losing the turn's price when one request could not be priced
+- Fixed a service that cannot start leaving a false crashed-session report
+- Fixed Bash and Monitor reporting an interruption, or promising a watch that never started, when a command exceeds the platform's launch limit; they say which limit and how to go round it
+- Fixed a whole-PDF read stopping at ten pages when the per-request window is twenty
+- Fixed the "Output too large" notice for a shell command naming the bytes left out of its window instead of the bytes left out of the whole output
+- Fixed the critters carrying a thin line of their body's colour beneath them, and a dark gap beneath their eyes, in Terminal.app
+- Fixed, on Windows: a path naming a remote host (a UNC share in either spelling, WebDAV, an IP, a file: or smb: URL) opening with no question whichever tool or spelling it arrived through; recursive deletion not recognising drive roots and your own home in their native and Git Bash spellings; a shell command reaching bash with every run of backslashes halved; the processes a shell command started outliving its timeout or stop; a mercury run prompt from Git Bash or with a line break reaching Mercury changed; an agent refusing to start in a folder written with a Git Bash drive path; the file a background agent's launch receipt names staying empty; and the from-source guide missing the desktop-driver build step the Computer tool needs
+
 ## 1.0.0-beta.28
 - Added a /health row for the managed policy: an invalid lock value, an unknown surface name or an unreadable policy file warns with its fix
 - Changed the automatic motion setting over a slow terminal link (ssh, a console host, a slow pipe): idle motion drops to reduced the way it does on a slow machine, with the same patience before dropping and before coming back, and the status line says reduced · slow link while the link is the reason
