@@ -13,7 +13,7 @@ A request such as “fix encrypted reasoning replay on Mercury's OpenRouter road
 
 - Start at `src/services/providers/callModelRouter.ts`; classification lives in `src/services/providers/idSpaces.ts` and `src/services/providers/routeLaw.ts`. Follow the resolved verdict to its call-model entry, never guess a provider from the displayed label.
 - Qualified `compat/`, `openrouter/`, `huggingface/` and `local/` namespaces win before bare prefixes. `canonicalWireModelId` validates the inner grammar and removes Mercury's carrier prefix and context annotation, not the provider's own slug.
-- Bare `gpt-` routes to OpenAI; `kimi-`/`moonshot-` to Moonshot; `deepseek-` to DeepSeek; `grok-` to xAI; `muse-spark-` to Meta; `glm-` to Z.AI; `gemini-` to Gemini. Read the current declarations for aliases and live-list admission.
+- Bare `gpt-` routes to OpenAI; `kimi-`/`moonshot-` to Moonshot; `deepseek-` to DeepSeek; `grok-` to xAI; `muse-` to Meta; `glm-` to Z.AI; `gemini-` to Gemini. Read the current declarations for aliases and live-list admission.
 - An unknown ID is not an Anthropic identity. `src/services/providers/homeLaneAdmission.ts` owns an explicitly configured gateway or model pin's admission. A failed route never falls through to another provider.
 - Keep the endpoint and credential together across refresh. An API key and a subscription sign-in can use different transports, not merely different headers. Read `references/models.md` before naming an ID, capability, price or limit.
 

@@ -7,10 +7,10 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
-const check = (label: string, ok: boolean, detail = ''): void => {
+const check = (label: string, ok: boolean, detail: unknown = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -56,7 +56,6 @@ const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/file
 const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.ts')
 const { contextFill, tokenCountWithEstimation } = await import('../../src/utils/tokens.ts')
 const { getBlockingLimit, getAutoCompactThreshold } = await import('../../src/services/compact/autoCompact.ts')
-const { refusalRetryChunkChars, conversationAsText, FOLD_REFUSED_RETRY_NOTE } = await import('../../src/services/compact/compact.ts')
 const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.ts')
 const { getSdkBetas } = await import('../../src/bootstrap/state.ts')
 
@@ -191,50 +190,47 @@ function scriptWithWireLaw(turns: Turn[]): void {
   })
 }
 
-section('S1 the shape — the 800,000-token window setting, a 760,000-token anchor, 320 tool rounds of large results: the fold threshold is crossed and the text is bigger than one part')
+section('S1 the shape — the 800,000-token window setting, a 760,000-token anchor and 320 tool rounds of large results cross the fold threshold')
 const seed = seedLongLane(320, 760_000, 10_000)
 const ctx = makeCtx()
 const estimate = tokenCountWithEstimation(seed as never, MODEL)
-const chunkChars = refusalRetryChunkChars(MODEL)
-const textChars = conversationAsText(seed as never).length
-const partCount = Math.ceil(textChars / chunkChars)
+const seedBytes = Buffer.byteLength(JSON.stringify(seed))
 check(`the window setting gives the owner's numbers: fold at ${fmt(THRESHOLD)}, blocked at ${fmt(BLOCKING)}; the wire's own window is ${fmt(WIRE_WINDOW)}`, THRESHOLD === 757_000 && BLOCKING === 777_000 && WIRE_WINDOW === 1_000_000)
 check(`the view by Mercury's count is over the fold threshold and under the blocking limit (${fmt(estimate)})`, estimate >= THRESHOLD && estimate < BLOCKING, String(estimate))
-check(`the conversation as text (${fmt(textChars)} chars) is bigger than one refusal-retry part (${fmt(chunkChars)} chars): ${partCount} parts`, partCount >= 2, `${textChars} ${chunkChars}`)
+check('the captured conversation retains its multi-megabyte shape', seedBytes > 3_000_000, String(seedBytes))
 check('the shape holds hundreds of tool rounds (641 rows)', seed.length === 641, String(seed.length))
 
-section('S2 the road — the summariser refuses the conversation as the owner\'s did, on the fork lane and again on the direct lane; the retry walks the parts as text; the whole lands; the boundary rows; the retry answers; the run completes')
+section('S2 the road — a refused summary keeps the history; the next message makes a fresh automatic fold')
 {
   scriptWithWireLaw([
     { refusal: true },
-    { refusal: true },
-    ...Array.from({ length: partCount }, (_, index) => ({ text: `PART ${index + 1}: the lane worked modules of the estate, each fix landing with its proof.` })),
+    { text: 'the reply after the refused fold', usage: { input: 760_000, output: 12 } },
     { text: 'WHOLE SUMMARY: the lane worked through every module of the estate, landing each fix with its proof; the notes stayed tidy; the next step is the remaining suites.' },
     { text: 'the reply after the fold', usage: { input: 9_000, output: 12 } },
   ])
-  const r = await drive(ctx, seed)
+  const first = await drive(ctx, seed)
+  check('the refused summary is one request, followed by the ordinary turn', first.wire.length === 2 && first.wire.filter(w => isSummariserRequest(w.body)).length === 1, first.wire.map(w => isSummariserRequest(w.body) ? 'summary' : 'turn'))
+  check('a refused fold installs no boundary or summary', boundaryOf(first.yields) === undefined && !first.yields.some(y => y.type === 'user' && y.isCompactSummary === true))
+  check('the ordinary turn still carries the original tool rounds', JSON.stringify(first.wire.at(-1)?.body.messages).includes('Bash result 3:'))
+  check('the first turn completes without treating refusal text as a summary', first.threw === undefined && first.terminal.reason === 'completed' && textOf(first.yields.filter(y => y.type === 'assistant' && y.isApiErrorMessage !== true).at(-1)) === 'the reply after the refused fold', first.terminal)
+  const nextRows = [...seed, ...first.yields.filter(y => y.type === 'user' || y.type === 'assistant' || y.type === 'system'), createUserMessage({ content: 'Continue the remaining suites on this next message.' })]
+  const r = await drive(ctx, nextRows)
   const summaries = r.wire.filter(w => isSummariserRequest(w.body))
-  check('the run completed without throwing', r.threw === undefined && r.terminal.reason === 'completed', `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)} errors=${JSON.stringify(errorTexts(r.yields))}`)
-  check(`${4 + partCount} requests reached the wire: the refused fold on the fork lane, the refused fold on the direct lane, ${partCount} parts as text, the whole, then the retry`, r.wire.length === 4 + partCount, `${r.wire.length}: ${r.wire.map(w => (isSummariserRequest(w.body) ? 'summary' : 'turn')).join(',')}`)
-  check(`${3 + partCount} of them were summary requests`, summaries.length === 3 + partCount, String(summaries.length))
-  check('every request fit the wire\'s window (no prompt-too-long answer was ever needed)', fixture.refusals.length === 0 && r.wire.every(w => bodyTokens(w.body) <= WIRE_WINDOW), JSON.stringify(r.wire.map(w => bodyTokens(w.body))))
-  const parts = summaries.slice(2, 2 + partCount)
-  check('every part request hands the conversation over as text in a user turn — no assistant row, no tool round replayed', parts.length === partCount && parts.every(p => ((p.body.messages as Array<{ role: string }>) ?? []).every(row => row.role === 'user')), JSON.stringify(parts.map(p => ((p.body.messages as unknown[]) ?? []).length)))
-  const whole = summaries.at(-1)
-  check('the whole opens on the parts\' summaries', whole !== undefined && JSON.stringify(whole.body).includes('PART 1: the lane worked') && JSON.stringify(whole.body).includes(`PART ${partCount}: the lane worked`))
+  check('the next message starts a fresh fold and the turn completes', r.threw === undefined && r.terminal.reason === 'completed' && r.wire.length === 2 && summaries.length === 1, { terminal: r.terminal, requests: r.wire.length, summaries: summaries.length })
+  check('the fresh summary request retains the new message and original tool rounds', JSON.stringify(summaries[0]?.body).includes('Continue the remaining suites') && JSON.stringify(summaries[0]?.body).includes('Bash result 3:'))
+  check('every request fits the wire window', fixture.refusals.length === 0 && [...first.wire, ...r.wire].every(w => bodyTokens(w.body) <= WIRE_WINDOW), [...first.wire, ...r.wire].map(w => bodyTokens(w.body)))
   const boundary = boundaryOf(r.yields)
   const meta = (boundary as { compactMetadata?: { trigger?: string; preTokens?: number } } | undefined)?.compactMetadata
-  check(`the compact_boundary row yields, typed 'auto', carrying the folded weight (${fmt(meta?.preTokens ?? 0)})`, meta?.trigger === 'auto' && typeof meta.preTokens === 'number' && meta.preTokens >= THRESHOLD, JSON.stringify(meta))
-  const summaryRow = r.yields.find(y => y.type === 'user' && (y as { isCompactSummary?: boolean }).isCompactSummary === true)
-  check('the summary that lands is the whole\'s answer', summaryRow !== undefined && textOf(summaryRow).includes('WHOLE SUMMARY: the lane worked through every module'), summaryRow !== undefined ? textOf(summaryRow).slice(0, 200) : 'no summary row')
-  check('the refusal-retry note exists for the hand road\'s outcome row (the automatic fold keeps it on its result)', typeof FOLD_REFUSED_RETRY_NOTE === 'string' && FOLD_REFUSED_RETRY_NOTE.length > 0)
+  check('the fresh fold yields its automatic boundary with the folded weight', meta?.trigger === 'auto' && typeof meta.preTokens === 'number' && meta.preTokens >= THRESHOLD, meta)
+  const summaryRow = r.yields.find(y => y.type === 'user' && y.isCompactSummary === true)
+  check('the accepted summary is the one installed', summaryRow !== undefined && textOf(summaryRow).includes('WHOLE SUMMARY: the lane worked through every module'))
   const retry = r.wire.at(-1)
-  check('the retried request opens on the summary and carries none of the folded rounds', retry !== undefined && !isSummariserRequest(retry.body) && JSON.stringify(retry.body).includes('WHOLE SUMMARY') && !JSON.stringify(retry.body).includes('Bash result 3:'), retry !== undefined ? String(bodyTokens(retry.body)) : 'no retry')
+  check('the next request opens on the summary without the folded tool rounds', retry !== undefined && !isSummariserRequest(retry.body) && JSON.stringify(retry.body).includes('WHOLE SUMMARY') && !JSON.stringify(retry.body).includes('Bash result 3:'))
   check('the last settled assistant is the reply', textOf(r.yields.filter(y => y.type === 'assistant' && y.isApiErrorMessage !== true).at(-1)) === 'the reply after the fold')
-  check('no refusal row, no overflow notice: the fold ran at the loop head, never through the emergency ladder', errorTexts(r.yields).length === 0 && !noticeTexts(r.yields).some(t => t.startsWith('context overflowed')), JSON.stringify({ errors: errorTexts(r.yields), notices: noticeTexts(r.yields) }))
-  const transcript = [...seed, ...r.yields.filter(y => y.type === 'user' || y.type === 'assistant' || y.type === 'system')]
+  check('the accepted fold emits no error or overflow notice', errorTexts(r.yields).length === 0 && !noticeTexts(r.yields).some(t => t.startsWith('context overflowed')))
+  const transcript = [...nextRows, ...r.yields.filter(y => y.type === 'user' || y.type === 'assistant' || y.type === 'system')]
   const fill = contextFill(transcript as never, MODEL)
-  check(`the gauge after the fold anchors on the reply's own usage (${fmt(fill.tokens)}), never the folded weight`, fill.source === 'usage' && fill.tokens === 9_012, JSON.stringify(fill))
+  check('the gauge after the fold anchors on the reply usage', fill.source === 'usage' && fill.tokens === 9_012, fill)
 }
 
 section('S3 the wire\'s own law stands in the rig — a request over the wire\'s window is refused as the home wire refuses it')
