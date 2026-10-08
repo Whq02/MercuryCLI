@@ -26,6 +26,7 @@ export type AdvisorOrigin = {
 export type NoticeBlock =
   | { kind: 'monitor'; taskId: string; name: string; lines: string[] }
   | { kind: 'notice'; lines: string[] }
+  | { kind: 'task'; plate: string; status: string; lines: string[] }
   | { kind: 'saturn'; origin: SaturnOrigin; lines: string[] }
   | { kind: 'advisor'; origin: AdvisorOrigin; lines: string[] }
 
@@ -214,7 +215,7 @@ export function wrappedNoticeBlocks(text: string): NoticeBlock[] | null {
 }
 
 export function noticeOfText(text: string, fromNotificationLane: boolean): NoticeBlock[] | null {
-  if (text.includes(`<${TASK_NOTIFICATION_TAG}`)) return null
+  if (text.trimStart().startsWith(`<${TASK_NOTIFICATION_TAG}`)) return null
   const wrapped = wrappedNoticeBlocks(text)
   if (wrapped !== null) return wrapped
   if (!fromNotificationLane) return null
@@ -226,9 +227,39 @@ export function isNotificationLaneRow(row: { type?: string; attachment?: { type?
   return row.type === 'attachment' && row.attachment?.type === 'queued_command' && row.attachment.commandMode === 'task-notification'
 }
 
+export function taskNoticeBlock(text: string): NoticeBlock | null {
+  const tag = (name: string): string | null => new RegExp(`<${name}>([\\s\\S]*?)<\\/${name}>`).exec(text)?.[1]?.trim() ?? null
+  const summary = tag('summary')
+  if (!summary) return null
+  const status = tag('status') ?? ''
+  const background = /^Background command "([\s\S]*?)"(?: (.*))?$/.exec(summary)
+  const crewmate = /^(?:Agent|Crewmate) "([\s\S]*?)"(?: (.*))?$/.exec(summary)
+  const result = tag('result') ?? tag('message')
+  const outcome = status === 'completed' ? 'done' : status === 'killed' ? 'stopped' : status || background?.[2] || ''
+  const plate = background ? `[Background] ${background[1]}${outcome ? ` · ${outcome}` : ''}`
+    : crewmate ? `[Crewmate] ${crewmate[1]}${status ? ` · ${status === 'killed' ? 'stopped' : status}` : ''}`
+    : summary
+  const details = result ?? [summary, tag('command'), tag('output-file')].filter(Boolean).join('\n')
+  return { kind: 'task', plate, status, lines: noticeLines(details) }
+}
+
+export function hasNoticeFold(row: { type?: string; isMeta?: boolean; origin?: unknown; message?: { content?: unknown }; attachment?: { type?: string; commandMode?: string; prompt?: unknown; origin?: unknown } }): boolean {
+  if (row.isMeta === true) return false
+  const lane = isNotificationLaneRow(row)
+  const origin = row.type === 'attachment' ? row.attachment?.origin : row.origin
+  const content = row.type === 'attachment' ? row.attachment?.prompt : row.message?.content
+  const texts = typeof content === 'string' ? [content] : Array.isArray(content) ? content.flatMap(block => block?.type === 'text' && typeof block.text === 'string' ? [block.text] : []) : []
+  return texts.some(text => {
+    if (isSaturnOrigin(origin)) return saturnPromptLines(text).length > 0
+    if (text.trimStart().startsWith(`<${TASK_NOTIFICATION_TAG}`)) return (taskNoticeBlock(text)?.lines.length ?? 0) > 0
+    return noticeOfText(text, lane)?.some(block => block.lines.length > 0 && (lane || block.kind === 'monitor')) ?? false
+  })
+}
+
 export function noticePlate(block: NoticeBlock, rowStamp?: string): string {
+  if (block.kind === 'task') return block.plate
   if (block.kind === 'notice') return PLAIN_NOTICE_WORD
   if (block.kind === 'saturn') return `[${SATURN_PLATE_NAME}] · ${saturnFirstLine(block.origin, rowStamp)}`
   if (block.kind === 'advisor') return `[${ADVISOR_PLATE_NAME}] · ${advisorFirstLine(block.origin)}`
-  return block.name === '' ? `[${MONITOR_PLATE_NAME}]:` : `[${MONITOR_PLATE_NAME}]: ${block.name}`
+  return block.name === '' ? `[${MONITOR_PLATE_NAME}]` : `[${MONITOR_PLATE_NAME}] ${block.name}`
 }

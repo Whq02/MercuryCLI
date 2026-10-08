@@ -30,9 +30,9 @@ import { UserPromptMessage } from './UserPromptMessage.js'
 import { UserResourceUpdateMessage } from './UserResourceUpdateMessage.js'
 import { formatClock, useMessageMeta } from './TranscriptNameplate.js'
 
-function noticeDeliveryClock(sentAt?: string, deliveredAt?: string): string | null {
+function noticeArrivalClock(sentAt?: string, deliveredAt?: string): string | null {
   const gap = Date.parse(deliveredAt ?? '') - Date.parse(sentAt ?? '')
-  return Number.isFinite(gap) && gap >= ROW_SECOND_CLOCK_GAP_MS ? formatClock(deliveredAt) : null
+  return Number.isFinite(gap) && gap >= ROW_SECOND_CLOCK_GAP_MS ? formatClock(sentAt) : null
 }
 
 type Props = {
@@ -59,32 +59,32 @@ export function UserTextMessage({
   origin,
 }: Props): React.ReactNode {
   const meta = useMessageMeta()
-  const deliveredAt = meta?.queued ? null : noticeDeliveryClock(noticeSentAt, noticeDeliveredAt)
+  const arrivedAt = meta?.queued ? null : noticeArrivalClock(noticeSentAt, noticeDeliveredAt)
+  const expanded = verbose || isTranscriptMode === true
   if (param.text.trim() === NO_CONTENT_MESSAGE) {
     return null
   }
 
   const monitorBlocks = isMonitorText(param.text) ? wrappedNoticeBlocks(param.text) : null
   if (monitorBlocks !== null) {
-    return <UserNoticeMessage addMargin={addMargin} blocks={monitorBlocks} deliveredAt={deliveredAt} />
+    return <UserNoticeMessage addMargin={addMargin} blocks={monitorBlocks} arrivedAt={arrivedAt} expanded={expanded} fold />
   }
 
   const head = param.text.trimStart()
-  if (head.startsWith(`<${TICK_TAG}`)) {
-    return null
-  }
-
-  if (head.startsWith(`<${LOCAL_COMMAND_CAVEAT_TAG}>`)) {
-    return null
-  }
-
   if (isSaturnOrigin(origin)) {
-    return <UserNoticeMessage addMargin={addMargin} blocks={[saturnBlockOf(origin, param.text)]} />
+    return <UserNoticeMessage addMargin={addMargin} blocks={[saturnBlockOf(origin, param.text)]} expanded={expanded} fold />
   }
 
   if (isAdvisorOrigin(origin)) {
-    return <UserNoticeMessage addMargin={addMargin} blocks={[advisorBlockOf(origin, param.text)]} />
+    return <UserNoticeMessage addMargin={addMargin} blocks={[advisorBlockOf(origin, param.text)]} fold={notice} expanded={expanded} />
   }
+
+  if (notice && !head.startsWith(`<${TASK_NOTIFICATION_TAG}`)) {
+    const blocks = noticeOfText(param.text, true)
+    if (blocks !== null) return <UserNoticeMessage addMargin={addMargin} blocks={blocks} arrivedAt={arrivedAt} expanded={expanded} fold />
+  }
+
+  if (head.startsWith(`<${TICK_TAG}`) || head.startsWith(`<${LOCAL_COMMAND_CAVEAT_TAG}>`)) return null
 
   if (
     param.text.startsWith('<bash-stdout') ||
@@ -124,7 +124,7 @@ export function UserTextMessage({
   }
 
   if (head.startsWith(`<${TASK_NOTIFICATION_TAG}`)) {
-    return <UserAgentNotificationMessage addMargin={addMargin} param={param} deliveredAt={deliveredAt} />
+    return <UserAgentNotificationMessage addMargin={addMargin} param={param} arrivedAt={arrivedAt} expanded={expanded} />
   }
 
   if (
@@ -144,7 +144,7 @@ export function UserTextMessage({
 
   const noticeBlocks = noticeOfText(param.text, notice)
   if (noticeBlocks !== null) {
-    return <UserNoticeMessage addMargin={addMargin} blocks={noticeBlocks} deliveredAt={deliveredAt} />
+    return <UserNoticeMessage addMargin={addMargin} blocks={noticeBlocks} arrivedAt={arrivedAt} expanded={expanded} fold={notice} />
   }
 
   return (

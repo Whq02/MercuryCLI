@@ -4,6 +4,7 @@ import { Box, Text } from '../ink.js'
 import { useKeybindings } from '../keybindings/useKeybinding.js'
 import { useRegisterKeybindingContext } from '../keybindings/KeybindingContext.js'
 import { getMessageCursor, setMessageCursor, useMessageCursor } from './messageCursorStore.js'
+import { hasNoticeFold } from '../utils/messages/noticeRows.js'
 import type {
   NormalizedUserMessage,
   RenderableMessage,
@@ -134,6 +135,7 @@ export function isNavigableMessage(msg: NavigableMessage): boolean {
     }
     case 'user': {
       if (msg.isMeta || msg.isCompactSummary) return false
+      if (hasNoticeFold(msg)) return true
       const first = msg.message.content[0]
       if (!first || first.type !== 'text') return false
       if (SYNTHETIC_TEXTS.has(first.text) || isTurnCutText(first.text)) return false
@@ -230,6 +232,7 @@ export type MessageActionsState = {
   uuid: string
   type: NavigableType
   expanded: boolean
+  notice?: true
   toolName?: string
 }
 
@@ -265,7 +268,8 @@ export const MESSAGE_ACTIONS: readonly MessageAction[] = [
   {
     key: 'enter',
     label: cursor => (cursor.expanded ? 'collapse' : 'expand'),
-    types: ['grouped_tool_use', 'collapsed_read_search', 'attachment', 'system'],
+    types: ['grouped_tool_use', 'collapsed_read_search', 'attachment', 'system', 'user'],
+    isApplicable: cursor => cursor.type !== 'user' || cursor.notice === true,
     staysInCursorMode: true,
     run: () => {},
   },
@@ -273,6 +277,7 @@ export const MESSAGE_ACTIONS: readonly MessageAction[] = [
     key: 'enter',
     label: () => 'edit',
     types: ['user'],
+    isApplicable: cursor => cursor.notice !== true,
     staysInCursorMode: false,
     run: (message, caps) => {
       if (message.type === 'user') return caps.edit(message)

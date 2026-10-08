@@ -21,6 +21,7 @@ export interface ShellNotice {
   shape: 'attachment' | 'user'
   status: ShellOutcome
   detail: string
+  text: string
   queued: boolean
 }
 
@@ -60,6 +61,7 @@ function shellNoticeIn(msg: RenderableMessage, found: NoticeText): ShellNotice |
     shape: found.shape,
     status,
     detail: summary.slice(BACKGROUND_BASH_SUMMARY_PREFIX.length).trim(),
+    text: found.text,
     queued: (msg as { queued?: true }).queued === true,
   }
 }
@@ -108,6 +110,7 @@ function foldedRow(run: readonly ShellNotice[]): RenderableMessage {
     `<${TASK_NOTIFICATION_TAG}><${STATUS_TAG}>${status}</${STATUS_TAG}>` +
     `<${SUMMARY_TAG}>${foldedSummary(run)}</${SUMMARY_TAG}>` +
     `<${FOLDED_COUNT_TAG}>${run.length}</${FOLDED_COUNT_TAG}>` +
+    `<result>${run.map(notice => extractTag(notice.text, 'result') ?? extractTag(notice.text, SUMMARY_TAG) ?? notice.text).join('\n')}</result>` +
     `</${TASK_NOTIFICATION_TAG}>`
   if (first.shape === 'attachment') {
     const template = first.message as AttachmentMessage

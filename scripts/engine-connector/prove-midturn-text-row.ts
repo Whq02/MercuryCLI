@@ -161,7 +161,7 @@ const M4 = 'msg_midturn_4'
   check('the whole block retires the prefix row', committedCount() === 0 && rowsWith('the coalesced').length === 1, `committed=${committedCount()} shown=${rowsWith('the coalesced').length}`)
 }
 
-section('T8 a notice held since before the words began stands above them')
+section('T8 an earlier queued notice still waits below the words until delivery')
 const WORDS5 = 'words that began after the notice was queued'
 const M5 = 'msg_midturn_5'
 const NOTE_BEFORE = notice('t-before', 'the errand from before the words')
@@ -171,7 +171,7 @@ const NOTE_BEFORE = notice('t-before', 'the errand from before the words')
   feed({ text: WORDS5, messageId: M5, streamBlock: 'text', blockSinceMs: since })
   feed({ text: null, messageId: M5, streamBlock: 'tool_use' })
   g.reconcileQueuedSends(facts([{ value: NOTE_BEFORE, mode: 'task-notification' }], seen))
-  check('the notice stands above the committed words', indexOf(NOTE_BEFORE) !== -1 && indexOf(WORDS5) !== -1 && indexOf(NOTE_BEFORE) < indexOf(WORDS5), `notice=${indexOf(NOTE_BEFORE)} words=${indexOf(WORDS5)}`)
+  check('the still-waiting notice stands below the committed words', indexOf(NOTE_BEFORE) !== -1 && indexOf(WORDS5) !== -1 && indexOf(NOTE_BEFORE) > indexOf(WORDS5), `notice=${indexOf(NOTE_BEFORE)} words=${indexOf(WORDS5)}`)
   await write([assistantWithId(WORDS5, M5)])
   g.reconcileQueuedSends(facts([], later()))
   await write([createUserMessage({ content: NOTE_BEFORE })])

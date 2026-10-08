@@ -43,8 +43,38 @@ function textOfContent(content: unknown, joiner: string): string {
 
 export function deliveredNoticeRow(row: Message, atMs: number): Message {
   const deliveredAt = new Date(atMs).toISOString()
-  if (row.type !== 'attachment') return { ...row, timestamp: deliveredAt }
-  return { ...row, attachment: { ...row.attachment, deliveredAt } } as Message
+  const next = { ...row, timestamp: deliveredAt } as Message & { queued?: true; heldFor?: 'compaction' }
+  delete next.queued
+  delete next.heldFor
+  if (next.type === 'attachment') next.attachment = { ...next.attachment, deliveredAt } as typeof next.attachment
+  return next
+}
+
+export function placeDeliveredNotices(rows: readonly Message[]): readonly Message[] {
+  const notices: Array<{ row: Message; at: number }> = []
+  const other: Message[] = []
+  for (const row of rows) {
+    if (row.type === 'attachment' && row.attachment.type === 'queued_command' && row.attachment.commandMode === 'task-notification' && (row as { queued?: true }).queued !== true) {
+      const stamp = row.attachment.deliveredAt ?? row.timestamp
+      const at = Date.parse(stamp)
+      if (Number.isFinite(at)) {
+        notices.push({ row: stamp === row.timestamp ? row : { ...row, timestamp: stamp }, at })
+        continue
+      }
+    }
+    other.push(row)
+  }
+  if (notices.length === 0) return rows
+  notices.sort((a, b) => a.at - b.at)
+  const out: Message[] = []
+  let next = 0
+  for (const row of other) {
+    const at = Date.parse(row.timestamp)
+    while (next < notices.length && notices[next]!.at < at) out.push(notices[next++]!.row)
+    out.push(row)
+  }
+  while (next < notices.length) out.push(notices[next++]!.row)
+  return out
 }
 
 function deliveryClockOf(row: Message): string | undefined {

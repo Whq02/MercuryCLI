@@ -41,7 +41,7 @@ section('N2 — the row is the drained row\'s own shape, born queued at its arri
   check('with an identity of its own', typeof row.uuid === 'string' && row.uuid.length > 0 && row.uuid !== (notices.createNoticeRow(NOTE, at) as { uuid: string }).uuid)
   const takenAt = at + 3 * 60_000
   const taken = notices.deliveredNoticeRow(row as Message, takenAt) as Message & { attachment?: { sentAt?: string; deliveredAt?: string } }
-  check('RED on the base: a taken notice keeps its arrival clock as its stamp and records the take as its delivery', taken.timestamp === new Date(at).toISOString() && taken.attachment?.deliveredAt === new Date(takenAt).toISOString() && taken.attachment?.sentAt === new Date(at).toISOString(), JSON.stringify(taken))
+  check('a taken notice takes its delivery stamp and preserves its separate arrival', taken.timestamp === new Date(takenAt).toISOString() && taken.attachment?.deliveredAt === new Date(takenAt).toISOString() && taken.attachment?.sentAt === new Date(at).toISOString(), JSON.stringify(taken))
   check('the taken row is a fresh object; the queued one is untouched', taken !== (row as unknown) && (row.attachment as { deliveredAt?: string }).deliveredAt === undefined)
 }
 

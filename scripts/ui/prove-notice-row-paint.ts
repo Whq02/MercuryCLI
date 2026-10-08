@@ -31,14 +31,14 @@ section("§1 the classification: a wrapped notice, the notification lane, and th
   check('one monitor block is one monitor notice', one !== null && one.length === 1 && one[0]!.kind === 'monitor', JSON.stringify(one))
   check("the block's task and name are read back unquoted", one?.[0]?.kind === 'monitor' && one[0].taskId === 'bk1' && one[0].name === WATCH, JSON.stringify(one))
   check('blank lines are dropped, the event lines kept in order', JSON.stringify(one?.[0]?.lines) === JSON.stringify(['==> OPUS-55.md <==', '18:26 · OPUS-55 · landed']), JSON.stringify(one?.[0]?.lines))
-  check('the plate names the kind and the watch', one !== null && noticePlate(one[0]!) === `[Monitor]: ${WATCH}`, one === null ? 'null' : noticePlate(one[0]!))
+  check('the plate names the kind and the watch', one !== null && noticePlate(one[0]!) === `[Monitor] ${WATCH}`, one === null ? 'null' : noticePlate(one[0]!))
 
   const two = noticeOfText(`${monitorBlock('bk1', WATCH, 'event-1')}${monitorBlock('bk1', WATCH, 'event-2')}`, false)
   check('two blocks of the same watch in one text fold into one plate with both lines', two !== null && two.length === 1 && JSON.stringify(two[0]!.lines) === JSON.stringify(['event-1', 'event-2']), JSON.stringify(two))
   const other = noticeOfText(`${monitorBlock('bk1', WATCH, 'event-1')}\n${monitorBlock('bk2', 'the build watch', 'built')}`, false)
   check('two watches in one text keep two plates', other !== null && other.length === 2 && other[1]!.kind === 'monitor' && other[1]!.name === 'the build watch', JSON.stringify(other))
   const empty = noticeOfText(monitorBlock('bk1', '', 'x'), false)
-  check('a nameless watch plates as the bare kind word', empty !== null && noticePlate(empty[0]!) === '[Monitor]:')
+  check('a nameless watch plates as the bare kind word', empty !== null && noticePlate(empty[0]!) === '[Monitor]')
 
   const reminderOnly = noticeOfText('<system-reminder>Stop hook blocking error from command "lint": 3 errors</system-reminder>', false)
   check("a row that is only a system reminder is a plain notice with the reminder's lines", reminderOnly !== null && reminderOnly[0]!.kind === 'notice' && reminderOnly[0]!.lines[0] === 'Stop hook blocking error from command "lint": 3 errors', JSON.stringify(reminderOnly))
@@ -53,6 +53,9 @@ section("§1 the classification: a wrapped notice, the notification lane, and th
   check('an empty lane text paints nothing', noticeOfText('  \n ', true) === null)
   check('terminal controls never reach a notice line', JSON.stringify(noticeLines(`${ESC}[31mred${ESC}[0m\r\nok${BELL}`)) === JSON.stringify(['red', 'ok']), JSON.stringify(noticeLines(`${ESC}[31mred${ESC}[0m\r\nok${BELL}`)))
   check('wrappedNoticeBlocks answers null for plain words', wrappedNoticeBlocks('plain words') === null)
+  const quotedTask = 'literal <task-notification>quoted markup</task-notification>'
+  check('task markup quoted inside a notice stays a literal body line', noticeOfText(quotedTask, true)?.[0]?.lines[0] === quotedTask)
+  check('the same quoted markup in an operator prompt is not a notice', noticeOfText(quotedTask, false) === null)
   check('a queued_command attachment on the task-notification lane is a lane row', isNotificationLaneRow({ type: 'attachment', attachment: { type: 'queued_command', commandMode: 'task-notification' } }))
   check('a queued_command attachment on the prompt lane is not', !isNotificationLaneRow({ type: 'attachment', attachment: { type: 'queued_command', commandMode: 'prompt' } }))
   check('a user row carries no lane', !isNotificationLaneRow({ type: 'user' }))
@@ -94,7 +97,7 @@ async function paint(body: React.ReactElement, meta: { type: string; timestamp?:
   ) as unknown as NodeJS.WriteStream
   const stdin = Object.assign(new Readable({ read() {} }), { isTTY: true, setRawMode() {}, ref() {}, unref() {} }) as unknown as NodeJS.ReadStream
   const instance = await render(
-    h(AppStateProvider as never, { initialState: getDefaultAppState() }, h(MessageMetaProvider as never, { message: meta }, body)),
+    h(AppStateProvider as never, { initialState: getDefaultAppState() }, h(MessageMetaProvider as never, { message: { ...meta, attachment: (body.props as { attachment?: unknown }).attachment } }, body)),
     { stdout, stdin, exitOnCtrlC: false, patchConsole: false },
   )
   await settle()
@@ -109,34 +112,36 @@ async function paint(body: React.ReactElement, meta: { type: string; timestamp?:
   const frame = await paint(h(UserTextMessage as never, { addMargin: false, param: { type: 'text', text }, verbose: false }), { type: 'user', timestamp: STAMP })
   check('THE DEFECT PIN: a monitor notice taken between turns paints no operator caret', !frame.includes('❯'), frame.slice(0, 200))
   check('…and no raw wrapper', !frame.includes('<monitor') && !frame.includes('</monitor>'), frame.slice(0, 200))
-  check('…the plate names the watch, muted, with no accent dot', frame.includes(`[Monitor]: ${WATCH}`) && !frame.includes('●'), frame.slice(0, 200))
-  check('…the event lines stand beneath it', frame.includes('==> OPUS-55.md <==') && frame.includes('18:26 · OPUS-55 · landed'), frame.slice(0, 240))
-  check("…under the row's own clock", frame.includes(`${clockOf(STAMP)} [Monitor]:`), frame.slice(0, 120))
+  check('…the plate names the watch, muted, with no accent dot', frame.includes(`[Monitor] ${WATCH}`) && !frame.includes('●'), frame.slice(0, 200))
+  check('…the two event lines stay behind the fold', frame.includes('· 2 lines ›') && !frame.includes('==> OPUS-55.md <==') && !frame.includes('18:26 · OPUS-55 · landed'), frame.slice(0, 240))
+  const open = await paint(h(UserTextMessage as never, { addMargin: false, param: { type: 'text', text }, verbose: true }), { type: 'user', timestamp: STAMP })
+  check('opening the row keeps both event lines', open.includes('· 2 lines ⌄') && open.includes('==> OPUS-55.md <==') && open.includes('18:26 · OPUS-55 · landed'), open)
+  check("…under the row's own clock", frame.includes(`${clockOf(STAMP)} [Monitor]`), frame.slice(0, 120))
   check("…and the operator's handle is nowhere on it", !frame.includes('[sam]'), frame.slice(0, 120))
 }
 {
   const text = monitorBlock('bk1', WATCH, 'event-1')
   const frame = await paint(h(AttachmentMessage as never, { attachment: { type: 'queued_command', prompt: text, commandMode: 'task-notification' }, addMargin: false, verbose: false }), { type: 'attachment', timestamp: STAMP, queued: true })
-  check('RED on the base: a queued notice says held since its arrival, not a delivered clock', frame.includes(`held since ${clockOf(STAMP)} [Monitor]: ${WATCH}`) && !frame.includes('queued') && frame.includes('event-1'), frame.slice(0, 240))
+  check('RED on the base: a queued notice says held since its arrival, not a delivered clock', frame.includes(`held since ${clockOf(STAMP)} [Monitor] ${WATCH}`) && !frame.includes('queued') && frame.includes('· 1 line ›') && !frame.includes('event-1'), frame.slice(0, 240))
   check('…and never the caret or the wrapper', !frame.includes('❯') && !frame.includes('<monitor'), frame.slice(0, 200))
 }
 {
   const body = h(AttachmentMessage as never, { attachment: { type: 'queued_command', prompt: taskNotice('Background command "the build" completed (exit code 0)'), commandMode: 'task-notification' }, addMargin: false, verbose: false })
   const held = await paint(body, { type: 'attachment', timestamp: STAMP, queued: true })
-  check('RED on the base: a held task completion names the same arrival clock', held.includes(`held since ${clockOf(STAMP)} ● Background command`), held)
+  check('RED on the base: a held task completion names the same arrival clock', held.includes(`held since ${clockOf(STAMP)} ● [Background] the build`), held)
   const taken = await paint(body, { type: 'attachment', timestamp: STAMP })
-  check('a taken task completion keeps its own clock with no held plate', taken.includes(`${clockOf(STAMP)} ● Background command`) && !taken.includes('held') && !taken.includes('queued'), taken)
+  check('a taken task completion keeps its own clock with no held plate', taken.includes(`${clockOf(STAMP)} ● [Background] the build`) && !taken.includes('held') && !taken.includes('queued'), taken)
   const compacting = await paint(body, { type: 'attachment', timestamp: STAMP, queued: true, heldFor: 'compaction' })
-  check('the compaction plate stays unchanged', compacting.includes('held ● Background command') && !compacting.includes('since'), compacting)
+  check('the compaction plate stays unchanged', compacting.includes('held ● [Background] the build') && !compacting.includes('since'), compacting)
 }
 {
   const frame = await paint(h(AttachmentMessage as never, { attachment: { type: 'queued_command', prompt: 'Stop hook blocking error from command "lint": 3 errors', commandMode: 'task-notification' }, addMargin: false, verbose: false }), { type: 'attachment', timestamp: STAMP })
-  check('free text drained on the notification lane paints as a plain notice', frame.includes('● notice') && frame.includes('Stop hook blocking error from command "lint": 3 errors') && !frame.includes('❯'), frame.slice(0, 200))
+  check('free text drained on the notification lane paints as a plain notice', frame.includes('● notice · 1 line ›') && !frame.includes('Stop hook blocking error from command "lint": 3 errors') && !frame.includes('❯'), frame.slice(0, 200))
 }
 {
   const frame = await paint(h(UserTextMessage as never, { addMargin: false, param: { type: 'text', text: 'carried to the owner, waiting' }, verbose: false }), { type: 'user', timestamp: STAMP })
   check("the operator's own line keeps its caret and handle", frame.includes('[sam]') && frame.includes('❯ carried to the owner, waiting'), frame.slice(0, 160))
-  check('…and wears no notice plate', !frame.includes('● notice') && !frame.includes('[Monitor]:'), frame.slice(0, 160))
+  check('…and wears no notice plate', !frame.includes('● notice') && !frame.includes('[Monitor]'), frame.slice(0, 160))
 }
 {
   const frame = await paint(h(UserTextMessage as never, { addMargin: false, param: { type: 'text', text: '<p>hello there' }, verbose: false }), { type: 'user', timestamp: STAMP })
@@ -144,7 +149,7 @@ async function paint(body: React.ReactElement, meta: { type: string; timestamp?:
 }
 {
   const frame = await paint(h(AttachmentMessage as never, { attachment: { type: 'queued_command', prompt: taskNotice('Agent "the errand" completed'), commandMode: 'task-notification' }, addMargin: false, verbose: false }), { type: 'attachment', timestamp: STAMP })
-  check('a task notification keeps its own row: the dot and the summary, no notice plate', frame.includes('● Agent "the errand" completed') && !frame.includes('● notice'), frame.slice(0, 160))
+  check('a task notification keeps its own row: the dot and the summary, no notice plate', frame.includes('● [Crewmate] the errand · completed · 1 line ›') && !frame.includes('● notice'), frame.slice(0, 160))
 }
 {
   const frame = await paint(h(AttachmentMessage as never, { attachment: { type: 'queued_command', prompt: 'a queued line of yours', commandMode: 'prompt' }, addMargin: false, verbose: false }), { type: 'attachment', timestamp: STAMP, queued: true })
@@ -173,7 +178,7 @@ section('§3 the advisor row: the [advisor] plate with the model and the cadence
   check('a drained (wrapped) note paints the same plate and the note alone', drained.includes('[advisor] · claude-opus-4-8') && drained.includes('Verify the pin on the base before you cut.') && !drained.includes('A note from your advisor'), drained.slice(0, 240))
 }
 
-section('the delivery clock: a notice sits at its completion and names a delivery a minute or more later as a suffix, never in its stamp')
+section('the delivery clock: a notice stands at hand-off and names its earlier arrival only when a minute separates them')
 const sixMinutesLater = new Date(Date.parse(STAMP) + 6 * 60_000).toISOString()
 const sixMinutesEarlier = new Date(Date.parse(STAMP) - 6 * 60_000).toISOString()
 const noticeCases = [
@@ -188,13 +193,14 @@ for (const prompt of noticeCases) {
   const body = (deliveredAt?: string, sentAt: string = STAMP) => h(AttachmentMessage as never, { attachment: { type: 'queued_command', prompt, commandMode: 'task-notification', sentAt, ...(deliveredAt === undefined ? {} : { deliveredAt }) }, addMargin: false, verbose: false })
   const before = await paint(body(), { type: 'attachment', timestamp: STAMP })
   const delayed = await paint(body(sixMinutesLater), { type: 'attachment', timestamp: STAMP })
-  check('RED on the base: a notice delivered six minutes after it completed names the delivery as a suffix', delayed.includes(`· delivered ${clockOf(sixMinutesLater)}`), delayed)
-  const mark = prompt.startsWith('<monitor') ? '[Monitor]:' : '●'
-  check('the row clock remains the completion it sits at, never the delivery', delayed.includes(`${clockOf(STAMP)} ${mark}`) && !delayed.includes('held') && !delayed.includes('· completed'), delayed)
-  const nearby = await paint(body(new Date(Date.parse(STAMP) + 2000).toISOString()), { type: 'attachment', timestamp: STAMP })
-  check('a two-second delivery paints byte-identically to the ordinary notice', nearby === before, nearby)
+  check('a delayed notice names its arrival as the second clock', delayed.includes(`· arrived ${clockOf(STAMP)}`), delayed)
+  const mark = prompt.startsWith('<monitor') ? '[Monitor]' : '●'
+  check('the row clock is its delivery position, never its arrival', delayed.includes(`${clockOf(sixMinutesLater)} ${mark}`) && !delayed.includes('held') && !delayed.includes('· delivered'), delayed)
+  const nearbyAt = new Date(Date.parse(STAMP) + 2000).toISOString()
+  const nearby = await paint(body(nearbyAt), { type: 'attachment', timestamp: STAMP })
+  check('a nearby delivery carries its delivery clock and no second clock', nearby.includes(`${clockOf(nearbyAt)} ${mark}`) && !nearby.includes('· arrived'), nearby)
   const boundary = await paint(body(new Date(Date.parse(STAMP) + 60_000).toISOString()), { type: 'attachment', timestamp: STAMP })
-  check('the second clock starts at exactly one minute', boundary.includes('· delivered'), boundary)
+  check('the second clock starts at exactly one minute', boundary.includes('· arrived'), boundary)
   for (const deliveredAt of ['not a clock', sixMinutesEarlier]) {
     const invalid = await paint(body(deliveredAt), { type: 'attachment', timestamp: STAMP })
     check('an invalid delivery clock, or one before the completion, never invents a suffix', invalid === before, invalid)
@@ -227,9 +233,20 @@ for (const band of [{ columns: 178, rows: 51 }, { columns: 80, rows: 21 }, { col
         ? h(AttachmentMessage as never, { attachment: { type: 'queued_command', prompt: text, commandMode: 'task-notification' }, addMargin: false, verbose: false })
         : h(UserTextMessage as never, { addMargin: false, param: { type: 'text', text }, verbose: false })
       const frame = await paint(body, { type: queued ? 'attachment' : 'user', timestamp: STAMP, ...(queued ? { queued: true as const } : {}) }, band, `monitor-${name}-${queued ? 'held' : 'taken'}`)
-      check(`${band.columns} ${name} ${queued ? 'held' : 'taken'}: [Monitor]: precedes literal text, never an operator or command row`, frame.includes('[Monitor]: the transcript watch') && !frame.includes('❯') && !frame.includes('[sam]') && !frame.includes('●') && frame.includes(content.split('\n')[0]!), frame)
+      check(`${band.columns} ${name} ${queued ? 'held' : 'taken'}: [Monitor] folds literal text, never an operator or command row`, frame.includes('[Monitor] the transcript watch') && !frame.includes('❯') && !frame.includes('[sam]') && !frame.includes('●') && frame.includes(' ›') && !frame.includes(content.split('\n')[0]!), frame)
+      const open = await paint(React.cloneElement(body, { verbose: true } as never), { type: queued ? 'attachment' : 'user', timestamp: STAMP, ...(queued ? { queued: true as const } : {}) }, band)
+      check(`${band.columns} ${name}: expanding preserves the literal body as muted notice text`, open.includes(' ⌄') && open.includes(content.split('\n')[0]!) && !open.includes('❯') && !open.includes('[sam]') && !open.includes('●'), open)
     }
   }
+}
+
+section('markup delivered on the task lane remains inside its notice fold')
+for (const [name, content] of monitorBodies.filter(([name]) => name !== 'task')) {
+  const body = h(AttachmentMessage as never, { attachment: { type: 'queued_command', prompt: content, commandMode: 'task-notification' }, addMargin: false, verbose: false })
+  const folded = await paint(body, { type: 'attachment', timestamp: STAMP })
+  check(`${name}: task-lane markup cannot become an operator, command or resource row`, folded.includes('● notice ·') && folded.includes(' ›') && !folded.includes(content.split('\n')[0]!) && !folded.includes('❯'), folded)
+  const open = await paint(React.cloneElement(body, { verbose: true } as never), { type: 'attachment', timestamp: STAMP })
+  check(`${name}: opening the notice preserves the literal task payload`, open.includes(' ⌄') && open.includes(content.split('\n')[0]!), open)
 }
 
 section("a prompt that quotes command markup is the operator's row, however long — never hidden, never another row's shape")

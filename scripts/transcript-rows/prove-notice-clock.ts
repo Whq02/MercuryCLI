@@ -35,6 +35,7 @@ const clockOf = (d: Date): string => `${pad(d.getHours())}:${pad(d.getMinutes())
 const iso = (d: Date): string => d.toISOString()
 
 const LANE_SUMMARY = 'Agent "Lane opus-max-stall (Astra max)" completed'
+const LANE_PLATE = '[Crewmate] Lane opus-max-stall (Astra max) · completed · 1 line'
 const taskNotice = (summary: string): string => `<task-notification>\n<task-id>t1</task-id>\n<status>completed</status>\n<summary>${summary}</summary>\n</task-notification>`
 const NOTE = taskNotice(LANE_SUMMARY)
 const FIRST_LINE = 'the first line typed while the lead was mid-request'
@@ -110,7 +111,7 @@ async function paintStrip(rows: Row[], columns: number): Promise<string[]> {
     ...rows.map((row, i) =>
       h(
         MessageMetaProvider as never,
-        { key: String(i), message: { type: row.type, timestamp: row.timestamp, ...(row.queued === true ? { queued: true } : {}) } },
+        { key: String(i), message: row },
         h(AttachmentMessage as never, { attachment: row.attachment, addMargin: i > 0, verbose: false }),
       ),
     ),
@@ -131,43 +132,46 @@ const stampsOf = (lines: string[]): string[] => lines.flatMap(l => {
 const nonDecreasing = (stamps: string[]): boolean => stamps.every((s, i) => i === 0 || s >= stamps[i - 1]!)
 const oneLine = (lines: string[]): string => lines.join(' ').replace(/\s+/g, ' ')
 
-const strip3 = [ownerFirst, completion, ownerSecond]
+const rawStrip = [ownerFirst, completion, ownerSecond]
+const rawBytes = JSON.stringify(rawStrip)
+const strip3 = notices.placeDeliveredNotices(rawStrip as never) as Row[]
+check('viewer ordering never rewrites the stored rows or their model payloads', JSON.stringify(rawStrip) === rawBytes && strip3[2]?.attachment.prompt === NOTE)
 for (const columns of [178, 80]) {
   const lines = await paintStrip(strip3, columns)
   if (FRAMES !== undefined) writeFileSync(join(FRAMES, `strip-${columns}.txt`), lines.join('\n') + '\n')
   const stamps = stampsOf(lines)
   check(`${columns} columns: three stamped rows, one clock each`, stamps.length === 3, JSON.stringify(stamps))
-  check(`${columns} columns: RED ON THE BASE (L24) — the stamps read ${clockOf(OWNER_FIRST)}, ${clockOf(COMPLETED)}, ${clockOf(OWNER_SECOND)} top to bottom`, JSON.stringify(stamps) === JSON.stringify([clockOf(OWNER_FIRST), clockOf(COMPLETED), clockOf(OWNER_SECOND)]), JSON.stringify(stamps))
+  check(`${columns} columns: the notice stands at delivery after both earlier operator sends`, JSON.stringify(stamps) === JSON.stringify([clockOf(OWNER_FIRST), clockOf(OWNER_SECOND), clockOf(DELIVERED)]), JSON.stringify(stamps))
   check(`${columns} columns: walking the strip top to bottom, no row is stamped later than the rows under it`, nonDecreasing(stamps), JSON.stringify(stamps))
-  const noticeLine = lines.find(l => l.includes('● Agent')) ?? ''
-  check(`${columns} columns: the notice row reads its completion, then the delivery as a suffix: "${clockOf(COMPLETED)} ● ${LANE_SUMMARY} · delivered ${clockOf(DELIVERED)}"`, oneLine(lines).includes(`${clockOf(COMPLETED)} ● ${LANE_SUMMARY} · delivered ${clockOf(DELIVERED)}`), noticeLine)
-  check(`${columns} columns: the old "· completed" suffix is gone`, !oneLine(lines).includes('· completed'), noticeLine)
+  const noticeLine = lines.find(l => l.includes('● [Crewmate]')) ?? ''
+  check(`${columns} columns: the notice reads its delivery clock and arrival detail on one folded row`, noticeLine.startsWith(`${clockOf(DELIVERED)} ● [Crewmate]`) && noticeLine.includes(`· 1 line · arrived ${clockOf(COMPLETED)} ›`) && (columns < 178 || noticeLine.includes(LANE_PLATE)), noticeLine)
+  check(`${columns} columns: no misleading delivery suffix remains`, !oneLine(lines).includes('· delivered'), noticeLine)
   check(`${columns} columns: the owner's lines keep the handle and the caret at their send clocks`, oneLine(lines).includes(`${clockOf(OWNER_FIRST)} [sam] ❯ ${FIRST_LINE}`) && oneLine(lines).includes(`${clockOf(OWNER_SECOND)} [sam] ❯ ${SECOND_LINE}`), oneLine(lines))
   check(`${columns} columns: every line fits the width`, lines.every(l => [...l].length <= columns), String(Math.max(...lines.map(l => [...l].length))))
 }
 
 {
   const lines = await paintStrip([nearby], 178)
-  check('a delivery inside the minute paints the stamp alone (no suffix)', oneLine(lines).includes(`${clockOf(NEARBY)} ● ${LANE_SUMMARY}`) && !oneLine(lines).includes('delivered'), oneLine(lines))
+  check('a delivery inside the minute paints the stamp alone (no suffix)', oneLine(lines).includes(`${clockOf(DELIVERED)} ● ${LANE_PLATE}`) && !oneLine(lines).includes('delivered'), oneLine(lines))
   const bare = await paintStrip([bareNotice], 178)
-  check('a notice with no send clock paints the clock of its making alone', oneLine(bare).includes(`${clockOf(DELIVERED)} ● ${LANE_SUMMARY}`) && !oneLine(bare).includes('delivered'), oneLine(bare))
+  check('a notice with no send clock paints the clock of its making alone', oneLine(bare).includes(`${clockOf(DELIVERED)} ● ${LANE_PLATE}`) && !oneLine(bare).includes('delivered'), oneLine(bare))
   const held = await paintStrip([{ ...completion, queued: true }], 178)
   if (FRAMES !== undefined) writeFileSync(join(FRAMES, 'held-178.txt'), held.join('\n') + '\n')
-  check("the held row is the same hold shown honestly: 'held since <completion>' and no delivery suffix", oneLine(held).includes(`held since ${clockOf(COMPLETED)} ● ${LANE_SUMMARY}`) && !oneLine(held).includes('delivered'), oneLine(held))
+  check("the held row is the same hold shown honestly: 'held since <completion>' and no delivery suffix", oneLine(held).includes(`held since ${clockOf(COMPLETED)} ● ${LANE_PLATE}`) && !oneLine(held).includes('delivered'), oneLine(held))
 }
 
-section("§3 the seat's echo row: taken keeps its arrival clock, the delivery rides the suffix; the landing test reads the delivery")
+section("§3 the seat's delivery row: the take clock leads, arrival is preserved, and the landing test reads delivery")
 {
   const arrival = local(20, 21, 57)
   const born = notices.createNoticeRow(NOTE, arrival.getTime()) as Row
   check('born queued at its arrival clock, the arrival kept as its send clock', born.queued === true && born.timestamp === iso(arrival) && born.attachment.sentAt === iso(arrival))
   const takenRow = typeof notices.deliveredNoticeRow === 'function' ? (notices.deliveredNoticeRow(born, DELIVERED.getTime()) as Row) : null
-  check('RED ON THE BASE: a taken notice keeps its arrival clock as its stamp and records the take as its delivery', takenRow !== null && takenRow.timestamp === iso(arrival) && takenRow.attachment.deliveredAt === iso(DELIVERED) && takenRow.attachment.sentAt === iso(arrival), JSON.stringify(takenRow))
+  check('a taken notice stamps delivery and keeps its original arrival separately', takenRow !== null && takenRow.timestamp === iso(DELIVERED) && takenRow.attachment.deliveredAt === iso(DELIVERED) && takenRow.attachment.sentAt === iso(arrival), JSON.stringify(takenRow))
   if (takenRow !== null) {
     const { queued: _queued, ...taken } = takenRow
     void _queued
     const lines = await paintStrip([taken as Row], 178)
-    check(`the taken echo paints "${clockOf(arrival)} ● ${LANE_SUMMARY} · delivered ${clockOf(DELIVERED)}"`, oneLine(lines).includes(`${clockOf(arrival)} ● ${LANE_SUMMARY} · delivered ${clockOf(DELIVERED)}`), oneLine(lines))
+    check('the taken row paints delivery first and arrival second', oneLine(lines).includes(`${clockOf(DELIVERED)} ● ${LANE_PLATE} · arrived ${clockOf(arrival)}`), oneLine(lines))
     const landedAt = local(20, 24, 0).getTime()
     check('RED ON THE BASE: the runner\'s drained row, stamped at the completion, still lands a send the seat saw later (the landing test reads the delivery)', notices.noticeRowLanded(completion as never, NOTE, landedAt))
     const stale = { ...completion, attachment: { ...completion.attachment, deliveredAt: iso(local(20, 20, 0)) } }

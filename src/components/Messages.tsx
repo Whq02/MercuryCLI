@@ -32,6 +32,7 @@ import {
 import { normalizeMessages } from '../utils/messages/normalize.js'
 import { isNotEmptyMessage } from '../utils/messages/text.js'
 import { reorderMessagesInUI } from '../utils/messages/uiOrder.js'
+import { hasNoticeFold } from '../utils/messages/noticeRows.js'
 import { deriveUUID } from '../utils/messages/identity.js'
 import {
   findLastCompactBoundaryIndex,
@@ -594,6 +595,7 @@ function MessagesInner({
 
   const isItemClickable = useCallback(
     (message: RenderableMessage): boolean => {
+      if (!verbose && hasNoticeFold(message)) return true
       if (message.type === 'collapsed_read_search') return true
       const live = lookupsRef.current
       if (message.type === 'assistant') {
