@@ -57,6 +57,12 @@ if (record) {
   const inv: Inventory = existsSync(INVENTORY)
     ? readInventory()
     : { groups: {} }
+  if (modules.has('root/teardown')) {
+    inv.groups['shared-terminal-teardown'] = {
+      why: 'the launcher composes its crash reset from the terminal teardown data in owner order rather than copying protocol bytes',
+      modules: ['root/teardown'],
+    }
+  }
   const known = new Set(flatModules(inv))
   const additions = scanned.filter(m => !known.has(m))
   if (additions.length > 0) {

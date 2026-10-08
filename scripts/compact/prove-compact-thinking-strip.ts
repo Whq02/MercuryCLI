@@ -121,6 +121,7 @@ function makeContext(): Record<string, unknown> {
       mcpClients: [],
       engineModel: 'claude-fable-5-1',
       maxThinkingTokens: 0,
+      thinkingConfig: { type: 'adaptive' as const },
       isNonInteractiveSession: true,
       agentDefinitions: { activeAgents: [] },
     },

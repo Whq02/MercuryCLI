@@ -289,7 +289,7 @@ section('§4 the compaction request follows: the cache-sharing fork sends no ove
   check('opus-5-5/fork: the compaction request\'s max_tokens is the new default, 128,000 (no override rides the fork)', fork.body?.max_tokens === 128_000, j(fork.body?.max_tokens))
   const direct = await runFold('claude-opus-5-5', 'direct')
   check('opus-5-5/direct: the fold resolved and reached the home wire', direct.error === undefined && direct.body !== undefined, foldDetail(direct))
-  check(`opus-5-5/direct: the direct lane keeps min(COMPACT_MAX_OUTPUT_TOKENS, ceiling) = ${Math.min(context.COMPACT_MAX_OUTPUT_TOKENS, pair('claude-opus-5-5').upperLimit).toLocaleString('en-US')} (it reads the upper limit, not the default)`, direct.body?.max_tokens === Math.min(context.COMPACT_MAX_OUTPUT_TOKENS, pair('claude-opus-5-5').upperLimit), j(direct.body?.max_tokens))
+  check(`opus-5-5/direct: the direct lane uses the stated maximum = ${pair('claude-opus-5-5').upperLimit.toLocaleString('en-US')}`, direct.body?.max_tokens === pair('claude-opus-5-5').upperLimit, j(direct.body?.max_tokens))
 }
 
 section('§5 the display truth reads the one owner: the capability record, the context resolution\'s output reserve')
@@ -319,7 +319,7 @@ section('§6 the shape: one rule in the owner, every road reads it')
   check('the env door still validates MERCURY_MAX_OUTPUT_TOKENS against the default and the upper limit', core.includes("'MERCURY_MAX_OUTPUT_TOKENS',\n    process.env.MERCURY_MAX_OUTPUT_TOKENS,\n    maxOutputTokens.default,\n    maxOutputTokens.upperLimit,"))
   check('the budget road still clamps thinking to max_tokens − 1', core.includes('thinkingBudget = Math.min(maxOutputTokens - 1, thinkingBudget)'))
   const compact = src('src/services/compact/compact.ts')
-  check('the direct compaction lane reads the upper limit through COMPACT_MAX_OUTPUT_TOKENS', compact.includes('maxOutputTokensOverride: Math.min(COMPACT_MAX_OUTPUT_TOKENS, getModelMaxOutputTokens(model).upperLimit)'))
+  check('both compaction lanes read the stated maximum', compact.includes('maxOutputTokensOverride: getModelMaxOutputTokens(model).upperLimit') && compact.includes('maxOutputTokens: getModelMaxOutputTokens(model).upperLimit'))
 }
 
 await fixture.close()

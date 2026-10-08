@@ -388,39 +388,32 @@ argument (a prompt, `--continue`, a verb) goes straight to its destination.
 
 ### A prompt from a script
 
-A headless run (`mercury run "<prompt>"`, `--format rows` for a machine-
-readable stream) takes its prompt from the command line. A source build
-started as `node dist\mercury.mjs run "<prompt>"` receives the prompt exactly
-as PowerShell holds it. A release install's `mercury` command is a `.cmd`
-file, and anything cmd.exe is handed is rewritten by cmd.exe before Mercury
-starts: `%NAME%` is expanded and a line break ends the command. A Windows
-script therefore has two roads that carry a prompt as typed:
+PowerShell resolves `mercury` through `mercury.ps1`, beside `mercury.cmd`
+and the Git Bash entry in `%LOCALAPPDATA%\Mercury\bin`. It passes the
+command line straight to the Node runtime, so `%NAME%`, line breaks and
+other characters arrive intact. A source build started as
+`node dist\mercury.mjs run "<prompt>"` uses the same argument handling.
 
-- **From PowerShell:** the install's PowerShell entry, `mercury-powershell`,
-  beside `mercury.cmd` in `%LOCALAPPDATA%\Mercury\bin`. It hands the command
-  line as PowerShell parsed it to the Node runtime, so `%NAME%`, a line break
-  and every other character arrive intact:
+```powershell
+mercury run --format rows "Line one`nLine two with %NAME% kept"
+```
 
-  ```powershell
-  mercury-powershell run --format rows "Line one`nLine two with %NAME% kept"
-  ```
+If PowerShell blocks `mercury.ps1`, allow local scripts with
+`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
+`mercury.cmd` keeps working meanwhile; organisation or session policies
+may take precedence over the change.
 
-  PowerShell's execution policy must allow local scripts
-  (`Get-ExecutionPolicy`); where it does not, the standard-input road below,
-  from cmd.exe, is the one that carries the bytes unchanged.
+From cmd.exe, `%NAME%` is expanded and a line break ends the command.
+Give a prompt on standard input to carry its bytes unchanged:
 
-- **From cmd.exe (or any shell):** give the prompt on standard input with `-`
-  as the prompt — the bytes of the file reach Mercury unchanged:
+```bat
+mercury run --format rows - < prompt.txt
+```
 
-  ```bat
-  mercury run --format rows - < prompt.txt
-  ```
-
-A bare `mercury`, `mercury health` and the other verbs are unaffected: the
-rewrite only touches a prompt given as a command-line argument to the `.cmd`.
-From Git Bash, `mercury run "<prompt>"` and any argument carrying `%`, `^`,
-`&`, `|`, `<`, `>`, `"` or a line break go to the Node runtime directly and
-arrive as typed; a bare `mercury` opens the enter screen as before.
+A bare `mercury`, `mercury health` and the other verbs work through the
+entry for your shell. From Git Bash, `mercury run "<prompt>"` and arguments
+carrying `%`, `^`, `&`, `|`, `<`, `>`, `"` or a line break go straight to
+Node; a bare `mercury` opens the enter screen as before.
 
 ---
 

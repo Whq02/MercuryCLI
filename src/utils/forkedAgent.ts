@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto'
-import type { EffortValue } from './effort.js'
 import type { UUID } from 'node:crypto'
 
 import type { QuerySource } from '../constants/querySource.js'
@@ -47,6 +46,7 @@ type SubagentContextOverrides = {
   setAppState?: (f: (prev: AppState) => AppState) => void
   shareSetAppState?: boolean
   setResponseLength?: (f: (prev: number) => number) => void
+  setSDKStatus?: ToolUseContext['setSDKStatus']
   shareSetResponseLength?: boolean
   options?: ToolUseContext['options']
   messages?: Message[]
@@ -69,7 +69,6 @@ export type ForkedAgentParams = {
   onStreamEvent?: (event: unknown) => void
   skipTranscript?: boolean
   skipCacheWrite?: boolean
-  effortMessage?: EffortValue
 }
 
 type ForkedAgentResult = {
@@ -224,6 +223,7 @@ export function createSubagentContext(parentContext: ToolUseContext, overrides: 
     contentReplacementState,
     userModifiedInput: parentContext.userModifiedInput,
     setInProgressToolUseIDs: () => {},
+    setSDKStatus: overrides.setSDKStatus,
     setResponseLength:
       overrides.setResponseLength ?? (overrides.shareSetResponseLength ? parentContext.setResponseLength : () => {}),
     updateFileHistoryState: () => {},
@@ -281,7 +281,6 @@ export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedA
     onStreamEvent,
     skipTranscript,
     skipCacheWrite,
-    effortMessage,
   } = params
   const startedAt = Date.now()
   const context: ToolUseContext = {
@@ -314,7 +313,6 @@ export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedA
       maxOutputTokensOverride: maxOutputTokens,
       maxTurns,
       skipCacheWrite,
-      effortMessage,
     }))) {
       if (item.type === 'stream_event') {
         fold = foldForkUsageEvent(fold, item.event as { type?: string; usage?: unknown; message?: { usage?: unknown } })

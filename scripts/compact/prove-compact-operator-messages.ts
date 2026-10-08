@@ -265,6 +265,7 @@ function makeContext(model: string): Record<string, unknown> {
       mcpClients: [],
       engineModel: model,
       maxThinkingTokens: 0,
+      thinkingConfig: { type: 'adaptive' as const },
       isNonInteractiveSession: true,
       agentDefinitions: { activeAgents: [] },
     },

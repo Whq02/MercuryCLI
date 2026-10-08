@@ -229,13 +229,14 @@ export function adoptOpenaiObservedUsage(
 
 export function adoptOpenaiWindowFact(record: unknown): boolean {
   if (record === null || typeof record !== 'object') return false
-  const { source, resetsAtMs, observedAtMs } = record as Record<string, unknown>
+  const { source, resetsAtMs, observedAtMs, state } = record as Record<string, unknown>
   if (source !== 'chatgpt-subscription' && source !== 'api-key') return false
-  if (typeof resetsAtMs !== 'number' || !Number.isFinite(resetsAtMs) || resetsAtMs <= 0) return false
+  if (state !== undefined && state !== 'clear') return false
+  if (typeof resetsAtMs !== 'number' || !Number.isFinite(resetsAtMs) || (state === 'clear' ? resetsAtMs < 0 : resetsAtMs <= 0)) return false
   if (typeof observedAtMs !== 'number' || !Number.isFinite(observedAtMs) || observedAtMs <= 0) return false
   const held = observedBySource[source]
   if (held !== null && held.observedAtMs >= observedAtMs) return false
-  recordOpenaiUsageLimit(resetsAtMs, source, () => observedAtMs)
+  recordOpenaiUsageLimit(state === 'clear' ? 0 : resetsAtMs, source, () => observedAtMs)
   return true
 }
 
@@ -254,7 +255,7 @@ export function __resetOpenaiLimitStateForTest(): void {
 }
 
 export function clearOpenaiUsageLimit(source: OpenaiLimitSource): void {
-  if (observedBySource[source] === null) return
-  observedBySource[source] = null
+  const held = observedBySource[source]
+  observedBySource[source] = { resetsAtMs: 0, observedAtMs: Math.max(Date.now(), (held?.observedAtMs ?? 0) + 1) }
   noteObservedChanged()
 }

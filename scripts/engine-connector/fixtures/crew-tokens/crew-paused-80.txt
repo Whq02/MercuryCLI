@@ -1,0 +1,12 @@
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ ▖▟▆▙▗ Mercury — crew · 0 running · 1 paused                                  │
+│                                                                              │
+│ the session has no live runner — ↵ in the chat revives it                    │
+│ Crewmates (1) ────────────────────────────────────────────────────────────── │
+│ ▸ ○ paused-helper        fixture/crew       paused                       …   │
+│     paused — Your account has used its available credits. Please retry       │
+│     after the stated reset. · retries by itself at 08:02 (in 2m) · r         │
+│     retries now                                                              │
+│                                                                              │
+│ ↑↓ move · ↵ open · m main chat · r resume · p pause · esc close              │
+╰──────────────────────────────────────────────────────────────────────────────╯

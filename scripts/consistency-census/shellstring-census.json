@@ -2740,6 +2740,13 @@
       "why": "script-land shell program — the shell is named explicitly at the call"
     },
     {
+      "file": "scripts/updater/prove-launcher-reset-owner.ts",
+      "mechanism": "shell-dash-c",
+      "excerpt": "const written = spawnSync('sh', ['-c', `node_bin=\"$RESET_NODE\"; ${script}`], { encoding: 'utf8', windowsHide: true, env: { ...process.env, R",
+      "cls": "intentional-shell",
+      "why": "script-land shell program — the shell is named explicitly at the call"
+    },
+    {
       "file": "scripts/usage-warning/prove-mock-limits-per-model-captures.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",

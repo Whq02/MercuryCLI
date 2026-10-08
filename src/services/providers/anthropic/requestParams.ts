@@ -146,22 +146,11 @@ export function configureEffortParams(
   }
 }
 
-type EffortRowShaped = { role?: unknown; output_config?: { effort?: unknown } }
-
 export function anthropicEffortWireFact(
-  params: { output_config?: { effort?: string | undefined } | undefined; messages?: ReadonlyArray<unknown> },
+  params: { output_config?: { effort?: string | undefined } | undefined },
   supported: boolean,
 ): EffortWireFact {
   const top = params.output_config?.effort
-  const row = (params.messages ?? []).find(
-    m => typeof m === 'object' && m !== null && (m as EffortRowShaped).role === 'system' && typeof (m as EffortRowShaped).output_config?.effort === 'string',
-  ) as { output_config: { effort: string } } | undefined
-  if (row !== undefined) {
-    const value = row.output_config.effort
-    return top !== undefined
-      ? { kind: 'sent', parameter: 'output_config.effort', value: top, applied: value, beside: [{ parameter: 'messages[system].output_config.effort', value }] }
-      : { kind: 'sent', parameter: 'messages[system].output_config.effort', value }
-  }
   if (top !== undefined) return { kind: 'sent', parameter: 'output_config.effort', value: top }
   return supported ? { kind: 'omitted' } : { kind: 'unsupported' }
 }

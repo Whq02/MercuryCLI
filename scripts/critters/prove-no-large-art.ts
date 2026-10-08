@@ -67,11 +67,11 @@ for (const def of CRITTERS) {
     critterDefForKey,
     miniArtFor,
     AnimatedCritterArt,
-  ) as (props: { rows: number }) => React.ReactElement<{ mini?: boolean; specimen?: boolean; def: { name: string } }> | null
+  ) as (props: { rows: number }) => React.ReactElement<{ specimen?: boolean; def: { name: string } }> | null
   for (const rows of [24, 29, 31, 32, 40, 51]) {
     const frame = mascot({ rows })
     check(`${def.name}: fitting at ${rows} rows ${rows < 29 ? 'keeps the lockup-only branch' : 'uses the mini specimen'}`,
-      rows < 29 ? frame === null : frame?.type === AnimatedCritterArt && frame.props.mini === true && frame.props.specimen === true && frame.props.def.name === def.name)
+      rows < 29 ? frame === null : frame?.type === AnimatedCritterArt && frame.props.specimen === true && frame.props.def.name === def.name)
   }
 }
 const scratch = mkdtempSync(join(tmpdir(), 'critter-fixture-recording-'))

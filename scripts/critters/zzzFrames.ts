@@ -42,7 +42,6 @@ export async function composeZzzFrames(root: string, critters?: readonly string[
         if (sleepPhase !== null) grid = cd.sleepZzzArt(grid, sleepPhase)
         const props: Record<string, unknown> = {
           def: renderDef,
-          mini: form === 'mini',
           swayPhase: 0,
           ...(asleep ? { pupil: idle.EYE_SHUT, sleepPhase } : {}),
         }
